@@ -1503,8 +1503,41 @@ MLIR conversion, translation, native link, and execution, requiring
 spelled `-2` for the pinned MLIR textual parser while retaining tag-2 bits.
 
 This remains a correctness-only compiler-lifecycle witness. Payload-bearing
-cases, enum subsets, general or mixed CFG, public ABI/layout stability, other
-targets, timing, ranking, and performance are not implemented or claimed.
+cases, general or mixed CFG, public ABI/layout stability, other targets, timing,
+ranking, and performance are not implemented or claimed here. W-1571 separately
+records the bounded payloadless-subset successor with focused and dual-platform
+correctness evidence.
+
+### Bounded local payloadless enum subset switch (W-1571)
+
+W-1571 is the first executable subset successor to the closed enum switch. HIR0
+schema w-seed-hir0-28 canonicalizes an alias by the semantic pair (base enum,
+normalized base-case indices), not by alias spelling or source list order. A
+case-set containing every base case remains the base enum identity and does not
+create a subset record. The seed boundary admits only a proper, nonempty,
+payloadless subset of one local closed enum; empty, duplicate, unknown,
+cross-enum, non-local, payload-bearing, imported, and generic forms remain
+outside this implementation cut.
+
+The full base enum remains authoritative for the private carrier width and
+declaration tags. Subset members are normalized in base declaration order
+without renumbering or narrowing that carrier; a five-case base therefore keeps
+i3 and members at base indices/tags 2 and 3 keep those tags. The value stays
+scalar: no wrapper, vtable, or enum-specific allocation is introduced. MLIR0
+emits one switch edge per normalized subset member in base declaration order,
+even when source arms use another order. Its backend-only synthetic
+llvm.unreachable default closes the already verified lowered CFG; it is not a
+runtime narrowing guard.
+
+Only a proven subset-to-the-same-base widening is a no-op in this slice.
+Base-to-subset checked conversion and conversion to an arbitrary superset remain
+outside it, rather than becoming unchecked reinterpretation. The same source
+and exact Work 1/2\n oracle, with empty stderr and exit zero, are acceptance
+targets for a Windows x86_64 PE and a CRT-free Linux/WSL x86_64 ELF. Focused
+HIR/native/MLIR checks and both executable lanes pass for this bounded slice.
+Its primary disposition is compiler-lifecycle; the executable catalog
+separately owns exploratory W/C23/Rust measurements and does not establish
+timing or language ranking.
 
 ### Enum payload declarations, constructors, and captures (current HIR25)
 

@@ -10,7 +10,7 @@ _Static_assert(CHAR_BIT == 8, "w-seed HIR0 requires 8-bit bytes");
 enum {
   HIR0_DIGEST_BYTES = 32,
   HIR0_RECEIPT_SCHEMA_BYTES = 16,
-  HIR0_RECEIPT_COUNT_FIELDS = 28,
+  HIR0_RECEIPT_COUNT_FIELDS = 30,
   /* M2 keeps branch-local mutation bounded without adding storage to the
    * public frontend schema. The existing nesting bound is also a safe upper
    * bound for the number of simple statements in one accepted arm. */
@@ -277,6 +277,63 @@ static bool frontend_local_enum_type_supported(
              type->enum_base_index;
 }
 
+/* A subset type is a view of one closed local enum. The normalized member
+ * range is validated separately, once per frontend output, before any HIR
+ * output is touched. Keep this predicate limited to the type-level identity
+ * facts so callers can use it while validating individual references. */
+static bool frontend_local_enum_subset_type_supported(
+    const w_seed_hir0_input *input, const w_seed_frontend_type *type) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || type == NULL ||
+      type->kind != W_SEED_FRONTEND_TYPE_ENUM_SUBSET ||
+      !text_valid(type->spelling) || type->spelling.length == 0u ||
+      type->enum_base_index == W_SEED_FRONTEND_NONE ||
+      type->subset_member_count == 0u ||
+      type->external_module_index != W_SEED_FRONTEND_NONE ||
+      type->external_symbol_index != W_SEED_FRONTEND_NONE ||
+      type->first_subset_member == W_SEED_FRONTEND_NONE ||
+      (size_t)type->enum_base_index >= input->frontend_result->written.enums ||
+      input->frontend_output->enums == NULL ||
+      input->frontend_output->types == NULL)
+    return false;
+  const w_seed_frontend_enum *decl =
+      &input->frontend_output->enums[type->enum_base_index];
+  return decl->type_index != W_SEED_FRONTEND_NONE &&
+         (size_t)decl->type_index < input->frontend_result->written.types &&
+         input->frontend_output->types[decl->type_index].kind ==
+             W_SEED_FRONTEND_TYPE_ENUM &&
+         input->frontend_output->types[decl->type_index].enum_base_index ==
+             type->enum_base_index;
+}
+
+static bool frontend_local_enum_subset_contains_case(
+    const w_seed_hir0_input *input, const w_seed_frontend_type *type,
+    uint32_t type_index, uint32_t enum_case_index) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || type == NULL ||
+      !frontend_local_enum_subset_type_supported(input, type) ||
+      type_index == W_SEED_FRONTEND_NONE ||
+      (size_t)type_index >= input->frontend_result->written.types ||
+      enum_case_index == W_SEED_FRONTEND_NONE ||
+      (size_t)enum_case_index >= input->frontend_result->written.enum_cases ||
+      input->frontend_output->enum_subset_members == NULL)
+    return false;
+  if (type->subset_member_count == 0u) return false;
+  if ((size_t)type->first_subset_member + type->subset_member_count >
+      input->frontend_result->written.enum_subset_members)
+    return false;
+  for (uint32_t ordinal = 0u; ordinal < type->subset_member_count; ordinal += 1u) {
+    const w_seed_frontend_enum_subset_member *member =
+        &input->frontend_output->enum_subset_members[
+            (size_t)type->first_subset_member + ordinal];
+    if (member->owner_type == type_index &&
+        member->enum_base_index == type->enum_base_index &&
+        member->enum_case_index == enum_case_index)
+      return true;
+  }
+  return false;
+}
+
 /* HIR16 accepts only resolver-owned nominal types from the bounded external
  * process table. The pair is atomic. A partial pair is never a type identity. */
 static bool frontend_external_type_pair_valid(
@@ -308,11 +365,53 @@ static bool frontend_hir_type_supported(
   if (frontend_has_public_process(input) && frontend_type_is_usize(type))
     return true;
   if (frontend_local_enum_type_supported(input, type)) return true;
+  if (frontend_local_enum_subset_type_supported(input, type)) return true;
   return type != NULL && type->kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
          type->external_module_index != W_SEED_FRONTEND_NONE &&
          type->external_symbol_index != W_SEED_FRONTEND_NONE &&
          frontend_external_type_pair_valid(
              input, type->external_module_index, type->external_symbol_index);
+}
+
+static bool frontend_enum_subset_same_set(
+    const w_seed_frontend_output *output,
+    const w_seed_frontend_result *result, const w_seed_frontend_type *left,
+    const w_seed_frontend_type *right);
+
+static bool frontend_supported_types_equal(
+    const w_seed_frontend_type *left, const w_seed_frontend_type *right);
+
+static bool frontend_supported_types_equal_for_input(
+    const w_seed_hir0_input *input, const w_seed_frontend_type *left,
+    const w_seed_frontend_type *right) {
+  if (left == NULL || right == NULL) return false;
+  const bool left_subset =
+      left->kind == W_SEED_FRONTEND_TYPE_ENUM_SUBSET;
+  const bool right_subset =
+      right->kind == W_SEED_FRONTEND_TYPE_ENUM_SUBSET;
+  if (left_subset || right_subset)
+    return left_subset && right_subset && input != NULL &&
+           frontend_enum_subset_same_set(input->frontend_output,
+                                         input->frontend_result, left, right);
+  return frontend_supported_types_equal(left, right);
+}
+
+/* Assignment is directional for the one nominal widening admitted by the
+ * bounded enum-subset slice.  A value carrying a subset is safe to pass to
+ * its payloadless base enum, but a base value may never be treated as a
+ * subset.  Equal normalized subsets remain equivalent through the canonical
+ * identity predicate above. */
+static bool frontend_type_assignable_for_input(
+    const w_seed_hir0_input *input, const w_seed_frontend_type *from,
+    const w_seed_frontend_type *to) {
+  if (from == NULL || to == NULL) return false;
+  if (frontend_supported_types_equal_for_input(input, from, to)) return true;
+  if (from->kind != W_SEED_FRONTEND_TYPE_ENUM_SUBSET ||
+      to->kind != W_SEED_FRONTEND_TYPE_ENUM ||
+      !frontend_local_enum_subset_type_supported(input, from) ||
+      !frontend_local_enum_type_supported(input, to))
+    return false;
+  return from->enum_base_index == to->enum_base_index;
 }
 
 static bool frontend_supported_types_equal(
@@ -409,6 +508,8 @@ static bool hir_counts_equal(const w_seed_hir0_counts *left,
   HIR0_COUNT(enums);
   HIR0_COUNT(enum_cases);
   HIR0_COUNT(enum_case_parameters);
+  HIR0_COUNT(enum_subsets);
+  HIR0_COUNT(enum_subset_members);
   HIR0_COUNT(receipt_bytes);
 #undef HIR0_COUNT
   return true;
@@ -472,6 +573,10 @@ static bool frontend_shape_ok(const w_seed_hir0_input *input) {
                       w_seed_frontend_switch_arm);
   HIR0_FRONTEND_ARRAY(pattern_captures, pattern_capture_capacity,
                       w_seed_frontend_pattern_capture);
+  HIR0_FRONTEND_ARRAY(enum_subset_members, enum_subset_member_capacity,
+                      w_seed_frontend_enum_subset_member);
+  HIR0_FRONTEND_ARRAY(enum_membership_cases, enum_membership_case_capacity,
+                      w_seed_frontend_enum_membership_case);
   HIR0_FRONTEND_ARRAY(const_bytes, const_bytes_capacity, uint8_t);
 #undef HIR0_FRONTEND_ARRAY
   for (size_t module = 0u;
@@ -891,14 +996,217 @@ static bool frontend_local_enum_records_ok(const w_seed_hir0_input *input) {
          payload_cursor == result->written.enum_case_parameters;
 }
 
+/* Validate the frontend's normalized subset projection before HIR emission.
+ * Every member range is dense, caller-owned, and strictly increasing in the
+ * base enum's declaration order. This also closes the first HIR slice to
+ * payloadless cases: payload constructors remain a later feature. */
+static bool frontend_local_enum_subset_records_ok(
+    const w_seed_hir0_input *input) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL)
+    return false;
+  const w_seed_frontend_output *output = input->frontend_output;
+  const w_seed_frontend_result *result = input->frontend_result;
+  if (result->written.enum_subset_members != 0u &&
+      output->enum_subset_members == NULL)
+    return false;
+  size_t member_cursor = 0u;
+  for (size_t type_index = 0u; type_index < result->written.types;
+       type_index += 1u) {
+    const w_seed_frontend_type *type = &output->types[type_index];
+    if (type->kind != W_SEED_FRONTEND_TYPE_ENUM_SUBSET) continue;
+    if (!frontend_local_enum_subset_type_supported(input, type) ||
+        type->first_subset_member != member_cursor ||
+        type->subset_member_count == 0u ||
+        !range_valid(type->first_subset_member, type->subset_member_count,
+                     result->written.enum_subset_members))
+      return false;
+    const w_seed_frontend_enum *decl =
+        &output->enums[type->enum_base_index];
+    const size_t document_index = output->modules[decl->module_index].document_index;
+    if (type->subset_member_count == decl->case_count) return false;
+    for (size_t case_ordinal = 0u; case_ordinal < decl->case_count;
+         case_ordinal += 1u)
+      if (output->enum_cases[(size_t)decl->first_case + case_ordinal]
+              .payload_count != 0u)
+        return false;
+    uint32_t previous_case = W_SEED_FRONTEND_NONE;
+    for (size_t ordinal = 0u; ordinal < type->subset_member_count; ordinal += 1u) {
+      const size_t member_index = member_cursor + ordinal;
+      const w_seed_frontend_enum_subset_member *member =
+          &output->enum_subset_members[member_index];
+      if (member->owner_type != type_index ||
+          member->enum_base_index != type->enum_base_index ||
+          member->enum_case_index == W_SEED_FRONTEND_NONE ||
+          (size_t)member->enum_case_index >= result->written.enum_cases ||
+          (size_t)member->enum_case_index < decl->first_case ||
+          (size_t)member->enum_case_index >=
+              (size_t)decl->first_case + decl->case_count ||
+          (previous_case != W_SEED_FRONTEND_NONE &&
+           previous_case >= member->enum_case_index) ||
+          output->enum_cases[member->enum_case_index].payload_count != 0u ||
+          !frontend_span_ok(&input->frontend_input->documents[document_index],
+                            member->source_span))
+        return false;
+      previous_case = member->enum_case_index;
+    }
+    if (!add_size(member_cursor, type->subset_member_count, &member_cursor))
+      return false;
+  }
+  return member_cursor == result->written.enum_subset_members;
+}
+
 static bool frontend_type_records_ok(const w_seed_hir0_input *input) {
   const w_seed_frontend_output *output = input->frontend_output;
   const w_seed_frontend_result *result = input->frontend_result;
-  if (!frontend_local_enum_records_ok(input)) return false;
+  if (!frontend_local_enum_records_ok(input) ||
+      !frontend_local_enum_subset_records_ok(input))
+    return false;
   for (size_t index = 0u; index < result->written.types; index += 1u) {
     const w_seed_frontend_type *type = &output->types[index];
     if (!frontend_hir_type_supported(input, type) || !frontend_span_ok(
             &input->frontend_input->documents[0], type->span))
+      return false;
+  }
+  return true;
+}
+
+static bool frontend_enum_subset_range_ok(
+    const w_seed_frontend_output *output,
+    const w_seed_frontend_result *result, const w_seed_frontend_type *type) {
+  return output != NULL && result != NULL && type != NULL &&
+         type->kind == W_SEED_FRONTEND_TYPE_ENUM_SUBSET &&
+         type->first_subset_member != W_SEED_FRONTEND_NONE &&
+         type->subset_member_count != 0u && output->enum_subset_members != NULL &&
+         range_valid(type->first_subset_member, type->subset_member_count,
+                     result->written.enum_subset_members);
+}
+
+static bool frontend_enum_subset_same_set(
+    const w_seed_frontend_output *output,
+    const w_seed_frontend_result *result, const w_seed_frontend_type *left,
+    const w_seed_frontend_type *right) {
+  if (!frontend_enum_subset_range_ok(output, result, left) ||
+      !frontend_enum_subset_range_ok(output, result, right) ||
+      left->enum_base_index != right->enum_base_index ||
+      left->subset_member_count != right->subset_member_count)
+    return false;
+  for (size_t ordinal = 0u; ordinal < left->subset_member_count;
+       ordinal += 1u)
+    if (output->enum_subset_members[(size_t)left->first_subset_member + ordinal]
+            .enum_case_index !=
+        output->enum_subset_members[(size_t)right->first_subset_member + ordinal]
+            .enum_case_index)
+      return false;
+  return true;
+}
+
+/* Distinct aliases that normalize to the same (base enum, declaration-order
+ * case sequence) are one semantic HIR type. The first frontend occurrence is
+ * the canonical representative; later aliases retain provenance in the
+ * frontend only and map to that same caller-owned HIR record. */
+static bool frontend_enum_subset_canonical(
+    const w_seed_frontend_output *output,
+    const w_seed_frontend_result *result, size_t target_index,
+    size_t *canonical_index, size_t *canonical_ordinal) {
+  if (output == NULL || result == NULL || canonical_index == NULL ||
+      canonical_ordinal == NULL || target_index >= result->written.types ||
+      output->types == NULL ||
+      !frontend_enum_subset_range_ok(output, result, &output->types[target_index]))
+    return false;
+  size_t ordinal = 0u;
+  for (size_t candidate = 0u; candidate <= target_index; candidate += 1u) {
+    const w_seed_frontend_type *candidate_type = &output->types[candidate];
+    if (!frontend_enum_subset_range_ok(output, result, candidate_type))
+      continue;
+    bool has_prior = false;
+    for (size_t prior = 0u; prior < candidate; prior += 1u)
+      if (frontend_enum_subset_same_set(output, result, candidate_type,
+                                        &output->types[prior])) {
+        has_prior = true;
+        break;
+      }
+    if (has_prior) continue;
+    if (candidate == target_index) {
+      *canonical_index = candidate;
+      *canonical_ordinal = ordinal;
+      return true;
+    }
+    ordinal += 1u;
+  }
+  for (size_t candidate = 0u; candidate < target_index; candidate += 1u) {
+    if (!frontend_enum_subset_same_set(output, result, &output->types[target_index],
+                                       &output->types[candidate]))
+      continue;
+    size_t canonical_ordinal_value = 0u;
+    for (size_t unique = 0u; unique < candidate; unique += 1u) {
+      const w_seed_frontend_type *unique_type = &output->types[unique];
+      if (!frontend_enum_subset_range_ok(output, result, unique_type))
+        continue;
+      bool has_prior = false;
+      for (size_t prior = 0u; prior < unique; prior += 1u)
+        if (frontend_enum_subset_same_set(output, result, unique_type,
+                                          &output->types[prior])) {
+          has_prior = true;
+          break;
+        }
+      if (!has_prior) canonical_ordinal_value += 1u;
+    }
+    *canonical_index = candidate;
+    *canonical_ordinal = canonical_ordinal_value;
+    return true;
+  }
+  return false;
+}
+
+static bool frontend_enum_subset_unique_count(
+    const w_seed_frontend_output *output,
+    const w_seed_frontend_result *result, size_t *count) {
+  if (output == NULL || result == NULL || count == NULL || output->types == NULL)
+    return false;
+  size_t unique_count = 0u;
+  for (size_t type_index = 0u; type_index < result->written.types;
+       type_index += 1u) {
+    const w_seed_frontend_type *type = &output->types[type_index];
+    if (type->kind != W_SEED_FRONTEND_TYPE_ENUM_SUBSET)
+      continue;
+    size_t canonical_index = 0u;
+    size_t canonical_ordinal = 0u;
+    if (!frontend_enum_subset_canonical(output, result, type_index,
+                                        &canonical_index, &canonical_ordinal))
+      return false;
+    (void)canonical_ordinal;
+    if (canonical_index == type_index && !add_size(unique_count, 1u,
+                                                   &unique_count))
+      return false;
+  }
+  *count = unique_count;
+  return true;
+}
+
+static bool frontend_enum_subset_aliases_ok(
+    const w_seed_hir0_input *input) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL)
+    return false;
+  const w_seed_frontend_output *output = input->frontend_output;
+  const w_seed_frontend_result *result = input->frontend_result;
+  for (size_t index = 0u; index < result->written.aliases; index += 1u) {
+    const w_seed_frontend_alias *alias = &output->aliases[index];
+    if (alias->module_index >= result->written.modules ||
+        alias->type_index == W_SEED_FRONTEND_NONE ||
+        (size_t)alias->type_index >= result->written.types ||
+        output->types[alias->type_index].kind !=
+            W_SEED_FRONTEND_TYPE_ENUM_SUBSET ||
+        !frontend_local_enum_subset_type_supported(
+            input, &output->types[alias->type_index]) ||
+        output->enums[output->types[alias->type_index].enum_base_index]
+                .module_index != alias->module_index ||
+        !text_valid(alias->name) || alias->name.length == 0u ||
+        !frontend_span_ok(
+            &input->frontend_input->documents[
+                output->modules[alias->module_index].document_index],
+            alias->span))
       return false;
   }
   return true;
@@ -1074,6 +1382,7 @@ static bool frontend_symbol_records_ok(const w_seed_hir0_input *input) {
       !add_size(expected, result->written.entries, &expected) ||
       !add_size(expected, result->written.enums, &expected) ||
       !add_size(expected, result->written.enum_cases, &expected) ||
+      !add_size(expected, result->written.aliases, &expected) ||
       result->written.symbols != expected)
     return false;
   const w_seed_frontend_module *module = &output->modules[0];
@@ -1109,6 +1418,19 @@ static bool frontend_symbol_records_ok(const w_seed_hir0_input *input) {
                             case_symbol->span))
         return false;
     }
+  }
+  for (size_t alias_index = 0u; alias_index < result->written.aliases;
+       alias_index += 1u) {
+    const w_seed_frontend_alias *alias = &output->aliases[alias_index];
+    const w_seed_frontend_symbol *symbol = &output->symbols[symbol_cursor++];
+    if (symbol->kind != W_SEED_FRONTEND_SYMBOL_ALIAS ||
+        symbol->module_index != alias->module_index ||
+        symbol->owner_index != alias_index ||
+        !text_equal(symbol->name, alias->name) ||
+        symbol->exported != alias->exported ||
+        symbol->type_index != alias->type_index ||
+        !frontend_span_ok(&input->frontend_input->documents[0], symbol->span))
+      return false;
   }
   for (size_t function = 0u; function < result->written.functions; function += 1u) {
     const w_seed_frontend_function *source = &output->functions[function];
@@ -1346,8 +1668,9 @@ static bool frontend_pattern_capture_read_ok(
       capture->type_index >= input->frontend_result->written.types ||
       value->inferred_type == W_SEED_FRONTEND_NONE ||
       value->inferred_type >= input->frontend_result->written.types ||
-      !frontend_supported_types_equal(&output->types[capture->type_index],
-                                      &output->types[value->inferred_type]) ||
+      !frontend_supported_types_equal_for_input(
+          input, &output->types[capture->type_index],
+          &output->types[value->inferred_type]) ||
       !text_equal(capture->name, value->spelling) ||
       value->resolved_parameter_ordinal != W_SEED_FRONTEND_NONE ||
       value->resolved_binding_statement != W_SEED_FRONTEND_NONE)
@@ -1434,12 +1757,19 @@ static bool frontend_local_enum_case_value_ok(
       &input->frontend_output->types[value->inferred_type];
   const w_seed_frontend_enum_case *case_value =
       &input->frontend_output->enum_cases[value->enum_case_index];
-  return frontend_local_enum_type_supported(input, type) &&
-         type->enum_base_index == value->enum_index &&
-         case_value->owner_enum == value->enum_index &&
-         (size_t)value->enum_case_index >= decl->first_case &&
-         (size_t)value->enum_case_index <
-             (size_t)decl->first_case + decl->case_count;
+  const bool base_type = frontend_local_enum_type_supported(input, type);
+  const bool subset_type = frontend_local_enum_subset_type_supported(input, type);
+  const bool case_in_base =
+      case_value->owner_enum == value->enum_index &&
+      (size_t)value->enum_case_index >= decl->first_case &&
+      (size_t)value->enum_case_index <
+          (size_t)decl->first_case + decl->case_count;
+  if (!case_in_base || type->enum_base_index != value->enum_index)
+    return false;
+  if (base_type) return true;
+  return subset_type && frontend_local_enum_subset_contains_case(
+                             input, type, value->inferred_type,
+                             value->enum_case_index);
 }
 
 /* W-1560's first HIR consumer accepts a deliberately small natural-loop
@@ -1612,10 +1942,12 @@ static bool frontend_scalar_if_tree_ok(
         !frontend_type_is_scalar(&output->types[value->inferred_type]) ||
         !frontend_type_is_scalar(&output->types[then_value->inferred_type]) ||
         !frontend_type_is_scalar(&output->types[else_value->inferred_type]) ||
-        !frontend_supported_types_equal(
+        !frontend_supported_types_equal_for_input(
+            input,
             &output->types[value->inferred_type],
             &output->types[then_value->inferred_type]) ||
-        !frontend_supported_types_equal(
+        !frontend_supported_types_equal_for_input(
+            input,
             &output->types[then_value->inferred_type],
             &output->types[else_value->inferred_type]) ||
         !frontend_scalar_if_tree_ok(input, module_index, function_index,
@@ -1762,10 +2094,12 @@ static bool frontend_value_tree_ok(
         !frontend_type_is_scalar(&output->types[output->expressions[
                                             value->else_expression]
                                             .inferred_type]) ||
-        !frontend_supported_types_equal(
+        !frontend_supported_types_equal_for_input(
+            input,
             &output->types[value->inferred_type],
             &output->types[output->expressions[value->right].inferred_type]) ||
-        !frontend_supported_types_equal(
+        !frontend_supported_types_equal_for_input(
+            input,
             &output->types[output->expressions[value->right].inferred_type],
             &output->types[output->expressions[value->else_expression]
                                  .inferred_type]) ||
@@ -2143,7 +2477,8 @@ static bool frontend_value_tree_ok(
           &output->parameters[parameter_index];
       if (parameter->owner_function != function_index ||
           parameter->module_index != module_index ||
-          !frontend_supported_types_equal(
+          !frontend_supported_types_equal_for_input(
+              input,
               &output->types[parameter->type_index],
               &output->types[value->inferred_type]) ||
           !text_equal(parameter->name, value->spelling) ||
@@ -2251,8 +2586,9 @@ static bool frontend_call_expression_ok(
         call->enum_index != callee->enum_index ||
         call->enum_case_index != callee->enum_case_index ||
         call->inferred_type == W_SEED_FRONTEND_NONE ||
-        !frontend_supported_types_equal(&output->types[call->inferred_type],
-                                        &output->types[callee->inferred_type]) ||
+        !frontend_supported_types_equal_for_input(
+            input, &output->types[call->inferred_type],
+            &output->types[callee->inferred_type]) ||
         !add_size(*expression_cursor, 1u, expression_cursor))
       return false;
     const w_seed_frontend_enum_case *enum_case =
@@ -2289,9 +2625,10 @@ static bool frontend_call_expression_ok(
           parameter->type_index == W_SEED_FRONTEND_NONE ||
           !frontend_enum_parameter_label_matches(parameter, argument->label) ||
           argument_value->inferred_type == W_SEED_FRONTEND_NONE ||
-          !frontend_supported_types_equal(
-              &output->types[parameter->type_index],
-              &output->types[argument_value->inferred_type]) ||
+          !frontend_type_assignable_for_input(
+              input,
+              &output->types[argument_value->inferred_type],
+              &output->types[parameter->type_index]) ||
           !frontend_value_tree_ok(
               input, module_index, function_index, document_index,
               statement_index, argument->expression_index, 0u,
@@ -2417,8 +2754,9 @@ static bool frontend_call_expression_ok(
   if (parameter_count != call->argument_count ||
       (!host_call &&
        (call->inferred_type == W_SEED_FRONTEND_NONE ||
-        !frontend_supported_types_equal(&output->types[call->inferred_type],
-                                        &output->types[return_type]))))
+        !frontend_supported_types_equal_for_input(
+            input, &output->types[call->inferred_type],
+            &output->types[return_type]))))
     return false;
 
   for (size_t argument_ordinal = 0u;
@@ -2468,8 +2806,9 @@ static bool frontend_call_expression_ok(
     if ((local_call &&
          (expected_type == W_SEED_FRONTEND_NONE ||
           value->inferred_type == W_SEED_FRONTEND_NONE ||
-          !frontend_supported_types_equal(&output->types[value->inferred_type],
-                                          &output->types[expected_type]))) ||
+         !frontend_type_assignable_for_input(
+              input, &output->types[value->inferred_type],
+              &output->types[expected_type]))) ||
         (host_call && !frontend_string_value_root(
                           output, result, argument->expression_index, 0u)) ||
         !frontend_value_tree_ok(
@@ -3123,7 +3462,8 @@ static bool frontend_switch_return_ok(hir0_statement_walk *walk,
            W_SEED_FRONTEND_NONE ||
        (size_t)walk->output->functions[walk->function_index].return_type >=
            walk->result->written.types) ||
-      !frontend_supported_types_equal(
+      !frontend_supported_types_equal_for_input(
+          walk->input,
           &walk->output->types[root->inferred_type],
           &walk->output->types[walk->output->functions[walk->function_index]
                                     .return_type]) ||
@@ -3140,13 +3480,22 @@ static bool frontend_switch_return_ok(hir0_statement_walk *walk,
     return false;
   const w_seed_frontend_type *subject_type =
       &walk->output->types[subject->inferred_type];
-  if (subject_type->kind != W_SEED_FRONTEND_TYPE_ENUM ||
+  const bool subject_is_enum = subject_type->kind == W_SEED_FRONTEND_TYPE_ENUM;
+  const bool subject_is_subset =
+      subject_type->kind == W_SEED_FRONTEND_TYPE_ENUM_SUBSET;
+  if ((!subject_is_enum && !subject_is_subset) ||
       subject_type->enum_base_index != root->enum_index ||
-      !frontend_local_enum_type_supported(walk->input, subject_type) ||
+      (subject_is_enum
+           ? !frontend_local_enum_type_supported(walk->input, subject_type)
+           : !frontend_local_enum_subset_type_supported(walk->input,
+                                                        subject_type)) ||
       (size_t)root->enum_index >= walk->result->written.enums)
     return false;
   const w_seed_frontend_enum *decl = &walk->output->enums[root->enum_index];
-  if (decl->case_count == 0u || root->switch_arm_count != decl->case_count ||
+  const size_t expected_arm_count =
+      subject_is_subset ? subject_type->subset_member_count : decl->case_count;
+  if (decl->case_count == 0u || expected_arm_count == 0u ||
+      root->switch_arm_count != expected_arm_count ||
       (size_t)root->left != *walk->expression_cursor)
     return false;
   if (!frontend_value_tree_ok(
@@ -3172,6 +3521,10 @@ static bool frontend_switch_return_ok(hir0_statement_walk *walk,
         (size_t)arm->enum_case_index < decl->first_case ||
         (size_t)arm->enum_case_index >=
             (size_t)decl->first_case + decl->case_count ||
+        (subject_is_subset &&
+         !frontend_local_enum_subset_contains_case(
+             walk->input, subject_type, subject->inferred_type,
+             arm->enum_case_index)) ||
         arm->result_expression == W_SEED_FRONTEND_NONE ||
         !frontend_span_ok(&walk->input->frontend_input
                                ->documents[walk->document_index],
@@ -3221,7 +3574,8 @@ static bool frontend_switch_return_ok(hir0_statement_walk *walk,
               (size_t)case_value->first_payload +
               capture->parameter_ordinal];
       if (parameter->owner_case != arm->enum_case_index ||
-          !frontend_supported_types_equal(
+          !frontend_supported_types_equal_for_input(
+              walk->input,
               &walk->output->types[parameter->type_index],
               &walk->output->types[capture->type_index]))
         return false;
@@ -3291,9 +3645,10 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
         (statement->declared_type != W_SEED_FRONTEND_NONE &&
          (size_t)statement->declared_type >= walk->result->written.types) ||
         (statement->declared_type != W_SEED_FRONTEND_NONE &&
-         !frontend_supported_types_equal(
-             &walk->output->types[statement->declared_type],
-             &walk->output->types[statement->effective_type])) ||
+         !frontend_type_assignable_for_input(
+             walk->input,
+             &walk->output->types[statement->effective_type],
+             &walk->output->types[statement->declared_type])) ||
         statement->expression_index == W_SEED_FRONTEND_NONE ||
         (size_t)statement->expression_index >=
             walk->result->written.expressions)
@@ -3576,6 +3931,31 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
     return true;
   }
   if (statement->kind == W_SEED_FRONTEND_STMT_RETURN) {
+    const w_seed_frontend_function *function =
+        &walk->output->functions[walk->function_index];
+    if (statement->expression_index == W_SEED_FRONTEND_NONE ||
+        (size_t)statement->expression_index >=
+            walk->result->written.expressions)
+      return false;
+    const w_seed_frontend_expression *return_expression =
+        &walk->output->expressions[statement->expression_index];
+    if (statement->expression_index == W_SEED_FRONTEND_NONE ||
+        (size_t)statement->expression_index >=
+            walk->result->written.expressions ||
+        function->return_type == W_SEED_FRONTEND_NONE ||
+        (size_t)function->return_type >= walk->result->written.types ||
+        return_expression->inferred_type == W_SEED_FRONTEND_NONE ||
+        (size_t)return_expression->inferred_type >=
+            walk->result->written.types ||
+        ((walk->output->types[return_expression->inferred_type].kind ==
+              W_SEED_FRONTEND_TYPE_ENUM_SUBSET ||
+          walk->output->types[function->return_type].kind ==
+              W_SEED_FRONTEND_TYPE_ENUM_SUBSET) &&
+         !frontend_type_assignable_for_input(
+             walk->input,
+             &walk->output->types[return_expression->inferred_type],
+             &walk->output->types[function->return_type])))
+      return false;
     if ((branch && !walk->allow_branch_return) ||
         statement->next_sibling != W_SEED_FRONTEND_NONE ||
         statement->binding_name.length != 0u ||
@@ -4330,6 +4710,28 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
                                    w_seed_hir0_counts *counts) {
   if (counts == NULL) return HIR0_PREPARE_INVALID;
   (void)memset(counts, 0, sizeof(*counts));
+  /* Keep the pre-existing closed-family classification for synthetic
+   * frontend family counters that do not describe an actual subset type.
+   * A real subset projection proceeds through the shape/record validators
+   * below, where its caller-owned member range is checked in full. */
+  if (input != NULL && input->frontend_result != NULL) {
+    if (input->frontend_result->written.enum_membership_cases != 0u)
+      return HIR0_PREPARE_UNSUPPORTED;
+    if (input->frontend_result->written.enum_subset_members != 0u &&
+        input->frontend_output != NULL && input->frontend_output->types != NULL &&
+        input->frontend_result->written.types <=
+            input->frontend_output->type_capacity) {
+      bool has_subset_type = false;
+      for (size_t type = 0u; type < input->frontend_result->written.types;
+           type += 1u)
+        if (input->frontend_output->types[type].kind ==
+            W_SEED_FRONTEND_TYPE_ENUM_SUBSET) {
+          has_subset_type = true;
+          break;
+        }
+      if (!has_subset_type) return HIR0_PREPARE_UNSUPPORTED;
+    }
+  }
   if (!frontend_shape_ok(input)) return HIR0_PREPARE_FRONTEND;
   const w_seed_frontend_result *frontend_result = input->frontend_result;
   if (!frontend_sources_ok(input)) return HIR0_PREPARE_INVALID;
@@ -4337,14 +4739,23 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
     return HIR0_PREPARE_INVALID;
   if (!frontend_type_records_ok(input) || !frontend_module_ranges_ok(input) ||
       !frontend_function_ranges_ok(input) || !frontend_entry_records_ok(input) ||
+      (frontend_result->written.aliases == 0u &&
+       !frontend_symbol_records_ok(input)))
+    return HIR0_PREPARE_INVALID;
+  /* An alias record is part of the accepted subset projection only when its
+   * target is a validated local enum subset.  Classify all other alias
+   * families at the existing closed-family barrier before symbol-count
+   * validation, so a forged unsupported-family counter cannot masquerade as a
+   * malformed HIR0 symbol table. */
+  if (frontend_result->written.aliases != 0u &&
+      !frontend_enum_subset_aliases_ok(input))
+    return HIR0_PREPARE_UNSUPPORTED;
+  if (frontend_result->written.aliases != 0u &&
       !frontend_symbol_records_ok(input))
     return HIR0_PREPARE_INVALID;
   if (!frontend_external_process_records_ok(input))
     return HIR0_PREPARE_INVALID;
   if (!frontend_enum_payload_types_supported(input))
-    return HIR0_PREPARE_UNSUPPORTED;
-  if (frontend_result->written.enum_subset_members != 0u ||
-      frontend_result->written.enum_membership_cases != 0u)
     return HIR0_PREPARE_UNSUPPORTED;
   if (input->frontend_input->external_module_count != 0u &&
       !frontend_process_handler_ok(input))
@@ -4358,13 +4769,13 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
       frontend_result->written.structs != 0u ||
       frontend_result->written.fields != 0u ||
       frontend_result->written.type_declarations != 0u ||
-      frontend_result->written.aliases != 0u ||
+      (frontend_result->written.aliases != 0u &&
+       !frontend_enum_subset_aliases_ok(input)) ||
       frontend_result->written.facts != 0u ||
       frontend_result->written.diagnostics != 0u ||
       frontend_result->written.diagnostic_facts != 0u ||
       frontend_result->written.diagnostic_items != 0u ||
       frontend_result->written.diagnostic_labels != 0u ||
-      frontend_result->written.enum_subset_members != 0u ||
       frontend_result->written.enum_membership_cases != 0u ||
       frontend_result->written.generic_parameters != 0u ||
       frontend_result->written.generic_applications != 0u ||
@@ -4441,10 +4852,38 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
           : input->frontend_input->external_modules[0].symbol_count;
   if (!count_u32(counts->external_modules) ||
       !count_u32(counts->external_symbols) ||
+      !count_u32(frontend_result->written.enums) ||
       !add_size(4u, counts->external_modules == 0u ? 0u : 3u,
                 &counts->types) ||
       !add_size(counts->types, frontend_result->written.enums,
                 &counts->types) ||
+      !count_u32(frontend_result->written.enum_subset_members))
+    return HIR0_PREPARE_UNSUPPORTED;
+  size_t enum_subset_type_count = 0u;
+  size_t enum_subset_member_count = 0u;
+  if (!frontend_enum_subset_unique_count(input->frontend_output,
+                                         frontend_result,
+                                         &enum_subset_type_count))
+    return HIR0_PREPARE_INVALID;
+  for (size_t type_index = 0u; type_index < frontend_result->written.types;
+       type_index += 1u)
+    if (input->frontend_output->types[type_index].kind ==
+            W_SEED_FRONTEND_TYPE_ENUM_SUBSET) {
+    size_t canonical_index = 0u;
+    size_t canonical_ordinal = 0u;
+    if (!frontend_enum_subset_canonical(
+            input->frontend_output, frontend_result, type_index,
+            &canonical_index, &canonical_ordinal))
+      return HIR0_PREPARE_INVALID;
+    (void)canonical_ordinal;
+    if (canonical_index == type_index &&
+        (!add_size(enum_subset_member_count,
+                   input->frontend_output->types[type_index]
+                       .subset_member_count,
+                   &enum_subset_member_count)))
+      return HIR0_PREPARE_UNSUPPORTED;
+  }
+  if (!add_size(counts->types, enum_subset_type_count, &counts->types) ||
       !add_size(counts->types, counts->external_symbols == 7u ? 1u : 0u,
                 &counts->types) ||
       !count_u32(counts->types))
@@ -4453,8 +4892,12 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
   counts->enum_cases = frontend_result->written.enum_cases;
   counts->enum_case_parameters =
       frontend_result->written.enum_case_parameters;
+  counts->enum_subsets = enum_subset_type_count;
+  counts->enum_subset_members = enum_subset_member_count;
   if (!count_u32(counts->enums) || !count_u32(counts->enum_cases) ||
-      !count_u32(counts->enum_case_parameters))
+      !count_u32(counts->enum_case_parameters) ||
+      !count_u32(counts->enum_subsets) ||
+      !count_u32(counts->enum_subset_members))
     return HIR0_PREPARE_UNSUPPORTED;
   counts->functions = functions;
   counts->parameters = frontend_result->written.parameters;
@@ -4538,6 +4981,7 @@ static bool output_capacity_ok(const w_seed_hir0_output *output,
   HIR0_OUTPUT(enums, enum_capacity);
   HIR0_OUTPUT(enum_cases, enum_case_capacity);
   HIR0_OUTPUT(enum_case_parameters, enum_case_parameter_capacity);
+  HIR0_OUTPUT(enum_subset_members, enum_subset_member_capacity);
   HIR0_OUTPUT(functions, function_capacity);
   HIR0_OUTPUT(parameters, parameter_capacity);
   HIR0_OUTPUT(blocks, block_capacity);
@@ -4632,6 +5076,8 @@ static bool output_range_table(const w_seed_hir0_output *output,
   HIR0_ADD_OUTPUT(enum_cases, enum_case_capacity, w_seed_hir0_enum_case);
   HIR0_ADD_OUTPUT(enum_case_parameters, enum_case_parameter_capacity,
                   w_seed_hir0_enum_case_parameter);
+  HIR0_ADD_OUTPUT(enum_subset_members, enum_subset_member_capacity,
+                  w_seed_hir0_enum_subset_member);
   HIR0_ADD_OUTPUT(functions, function_capacity, w_seed_hir0_function);
   HIR0_ADD_OUTPUT(parameters, parameter_capacity, w_seed_hir0_parameter);
   HIR0_ADD_OUTPUT(blocks, block_capacity, w_seed_hir0_block);
@@ -4982,6 +5428,8 @@ static bool program_range_table(const w_seed_hir0_program *program,
   HIR0_ADD_PROGRAM(enum_cases, enum_case_capacity, w_seed_hir0_enum_case);
   HIR0_ADD_PROGRAM(enum_case_parameters, enum_case_parameter_capacity,
                    w_seed_hir0_enum_case_parameter);
+  HIR0_ADD_PROGRAM(enum_subset_members, enum_subset_member_capacity,
+                   w_seed_hir0_enum_subset_member);
   HIR0_ADD_PROGRAM(functions, function_capacity, w_seed_hir0_function);
   HIR0_ADD_PROGRAM(parameters, parameter_capacity, w_seed_hir0_parameter);
   HIR0_ADD_PROGRAM(blocks, block_capacity, w_seed_hir0_block);
@@ -5061,31 +5509,40 @@ static uint32_t hir_type_from_frontend(const w_seed_frontend_output *output,
       type->external_module_index == 0u &&
       type->external_symbol_index < 3u)
     return 4u + type->external_symbol_index;
+  size_t external_types = 0u;
+  for (size_t index = 0u; index < result->written.types; index += 1u)
+    if (output->types[index].kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
+        output->types[index].external_module_index !=
+            W_SEED_FRONTEND_NONE &&
+        output->types[index].external_symbol_index !=
+            W_SEED_FRONTEND_NONE) {
+      external_types = 3u;
+      break;
+  }
+  const size_t local_enum_type_base = 4u + external_types;
+  size_t enum_subset_type_count = 0u;
+  if (!frontend_enum_subset_unique_count(output, result,
+                                         &enum_subset_type_count))
+    return W_SEED_HIR0_NONE;
   if (type->kind == W_SEED_FRONTEND_TYPE_ENUM &&
       type->enum_base_index != W_SEED_FRONTEND_NONE) {
-    size_t external_types = 0u;
-    for (size_t index = 0u; index < result->written.types; index += 1u)
-      if (output->types[index].kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
-          output->types[index].external_module_index !=
-              W_SEED_FRONTEND_NONE &&
-          output->types[index].external_symbol_index !=
-              W_SEED_FRONTEND_NONE) {
-        external_types = 3u;
-        break;
-      }
-    return (uint32_t)(4u + external_types + type->enum_base_index);
+    return (uint32_t)(local_enum_type_base + type->enum_base_index);
+  }
+  if (type->kind == W_SEED_FRONTEND_TYPE_ENUM_SUBSET &&
+      type->enum_base_index != W_SEED_FRONTEND_NONE) {
+    size_t canonical_index = 0u;
+    size_t subset_ordinal = 0u;
+    if (frontend_enum_subset_canonical(
+            output, result, frontend_type, &canonical_index, &subset_ordinal)) {
+      (void)canonical_index;
+      return (uint32_t)(local_enum_type_base + result->written.enums +
+                        subset_ordinal);
+    }
   }
   if (frontend_type_is_usize(type)) {
-    size_t external_types = 0u;
-    for (size_t index = 0u; index < result->written.types; index += 1u)
-      if (output->types[index].kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
-          output->types[index].external_module_index != W_SEED_FRONTEND_NONE &&
-          output->types[index].external_symbol_index != W_SEED_FRONTEND_NONE) {
-        external_types = 3u;
-        break;
-      }
     if (external_types == 3u)
-      return (uint32_t)(4u + external_types + result->written.enums);
+      return (uint32_t)(local_enum_type_base + result->written.enums +
+                        enum_subset_type_count);
   }
   return W_SEED_HIR0_NONE;
 }
@@ -6755,8 +7212,27 @@ static const w_seed_frontend_switch_arm *hir0_switch_arm_for_ordinal(
       (size_t)enum_index >= context->frontend_result->written.enums)
     return NULL;
   const w_seed_frontend_enum *decl = &context->frontend->enums[enum_index];
-  const uint32_t case_index =
-      decl->first_case + (uint32_t)ordinal;
+  uint32_t case_index = decl->first_case + (uint32_t)ordinal;
+  if (root->left != W_SEED_FRONTEND_NONE &&
+      (size_t)root->left < context->frontend_result->written.expressions) {
+    const w_seed_frontend_expression *subject =
+        &context->frontend->expressions[root->left];
+    if (subject->inferred_type != W_SEED_FRONTEND_NONE &&
+        (size_t)subject->inferred_type <
+            context->frontend_result->written.types) {
+      const w_seed_frontend_type *subject_type =
+          &context->frontend->types[subject->inferred_type];
+      if (subject_type->kind == W_SEED_FRONTEND_TYPE_ENUM_SUBSET) {
+        if (ordinal >= subject_type->subset_member_count ||
+            subject_type->first_subset_member == W_SEED_FRONTEND_NONE ||
+            context->frontend->enum_subset_members == NULL)
+          return NULL;
+        case_index = context->frontend->enum_subset_members[
+            (size_t)subject_type->first_subset_member + ordinal]
+                         .enum_case_index;
+      }
+    }
+  }
   for (size_t index = 0u; index < root->switch_arm_count; index += 1u) {
     const w_seed_frontend_switch_arm *arm =
         &context->frontend->switch_arms[(size_t)root->first_switch_arm + index];
@@ -6773,6 +7249,13 @@ static void hir0_emit_switch_return_layout_m2(
   const size_t dispatch = hir0_emit_expression_layout_m2(
       context, root->left, current_block, context->statement_index, 0u);
   const w_seed_frontend_enum *decl = &context->frontend->enums[root->enum_index];
+  const w_seed_frontend_type *subject_type =
+      &context->frontend->types[
+          context->frontend->expressions[root->left].inferred_type];
+  const bool subject_is_subset =
+      subject_type->kind == W_SEED_FRONTEND_TYPE_ENUM_SUBSET;
+  const size_t switch_case_count =
+      subject_is_subset ? subject_type->subset_member_count : decl->case_count;
   hir0_finish_block_m2(context, dispatch);
   const uint32_t first_edge = (uint32_t)*context->switch_edge_index;
   context->output->terminators[dispatch] = (w_seed_hir0_terminator){
@@ -6788,13 +7271,15 @@ static void hir0_emit_switch_return_layout_m2(
       .logical_operator = W_SEED_HIR0_LOGICAL_NONE,
       .switch_enum_index = root->enum_index,
       .first_switch_edge = first_edge,
-      .switch_edge_count = decl->case_count,
+      .switch_edge_count = (uint32_t)switch_case_count,
+      /* A subset preserves the base enum representation and tags.  Its
+       * carrier can never be compacted to the number of admitted cases. */
       .switch_carrier_width = hir0_enum_carrier_width(decl->case_count),
       .source_span = root->span};
   /* Switch edges are dense in the enum declaration's canonical case order,
    * even when source arms are written out of order.  Keep each arm's pattern
    * span on the edge so provenance still identifies its source occurrence. */
-  for (size_t ordinal = 0u; ordinal < decl->case_count; ordinal += 1u) {
+  for (size_t ordinal = 0u; ordinal < switch_case_count; ordinal += 1u) {
     const w_seed_frontend_switch_arm *arm =
         hir0_switch_arm_for_ordinal(context, root, ordinal);
     const size_t target_block = dispatch + 1u + ordinal;
@@ -6820,7 +7305,12 @@ static void hir0_emit_switch_return_layout_m2(
             .owner_terminator = (uint32_t)dispatch,
             .ordinal = (uint32_t)ordinal,
             .enum_index = root->enum_index,
-            .enum_case_index = decl->first_case + (uint32_t)ordinal,
+            .enum_case_index =
+                subject_is_subset
+                    ? context->frontend->enum_subset_members[
+                          (size_t)subject_type->first_subset_member + ordinal]
+                          .enum_case_index
+                    : decl->first_case + (uint32_t)ordinal,
             .target_block = (uint32_t)end,
             .first_capture = (uint32_t)*context->switch_capture_index,
             .capture_count = arm->capture_count,
@@ -7864,6 +8354,9 @@ static void emit_records(const w_seed_hir0_input *input,
   zero_bytes(output->enum_case_parameters,
              counts->enum_case_parameters *
                  sizeof(*output->enum_case_parameters));
+  zero_bytes(output->enum_subset_members,
+             counts->enum_subset_members *
+                 sizeof(*output->enum_subset_members));
   zero_bytes(output->functions,
              counts->functions * sizeof(*output->functions));
   zero_bytes(output->parameters,
@@ -7947,8 +8440,11 @@ static void emit_records(const w_seed_hir0_input *input,
       .enum_index = W_SEED_HIR0_NONE,
       .lifecycle = W_SEED_HIR0_LIFECYCLE_UNKNOWN,
       .release_contract = W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN};
-  for (size_t type = 0u; type < counts->types; type += 1u)
+  for (size_t type = 0u; type < counts->types; type += 1u) {
     output->types[type].enum_index = W_SEED_HIR0_NONE;
+    output->types[type].first_subset_member = W_SEED_HIR0_NONE;
+    output->types[type].subset_member_count = 0u;
+  }
   /* output_capacity_ok proves these storage preconditions. */
   (void)memcpy(output->text_bytes, HIR0_UNIT_NAME, 2u);
   (void)memcpy(output->text_bytes + 2u, HIR0_STRING_NAME, 6u);
@@ -7956,7 +8452,9 @@ static void emit_records(const w_seed_hir0_input *input,
   (void)memcpy(output->text_bytes + 11u, HIR0_BOOL_NAME, 4u);
   const bool has_public_process = counts->external_symbols == 7u;
   const size_t usize_type_index =
-      7u + (has_public_process ? counts->enums : 0u);
+      7u + (has_public_process
+                ? counts->enums + counts->enum_subsets
+                : 0u);
   if (has_public_process) {
     (void)memcpy(output->text_bytes + 15u, HIR0_USIZE_NAME, 5u);
     output->types[usize_type_index] = (w_seed_hir0_type){
@@ -7966,6 +8464,8 @@ static void emit_records(const w_seed_hir0_input *input,
         .external_module_index = W_SEED_HIR0_NONE,
         .external_symbol_index = W_SEED_HIR0_NONE,
         .enum_index = W_SEED_HIR0_NONE,
+        .first_subset_member = W_SEED_HIR0_NONE,
+        .subset_member_count = 0u,
         .lifecycle = W_SEED_HIR0_LIFECYCLE_UNKNOWN,
         .release_contract = W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN};
   }
@@ -8028,6 +8528,8 @@ static void emit_records(const w_seed_hir0_input *input,
           .external_module_index = 0u,
           .external_symbol_index = (uint32_t)symbol,
           .enum_index = W_SEED_HIR0_NONE,
+          .first_subset_member = W_SEED_HIR0_NONE,
+          .subset_member_count = 0u,
           .lifecycle = W_SEED_HIR0_LIFECYCLE_UNKNOWN,
           .release_contract = W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN};
     }
@@ -8050,6 +8552,8 @@ static void emit_records(const w_seed_hir0_input *input,
         .external_module_index = W_SEED_HIR0_NONE,
         .external_symbol_index = W_SEED_HIR0_NONE,
         .enum_index = (uint32_t)enum_index,
+        .first_subset_member = W_SEED_HIR0_NONE,
+        .subset_member_count = 0u,
         .lifecycle = W_SEED_HIR0_LIFECYCLE_VALUE_COPY,
         .release_contract = W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN};
     for (size_t ordinal = 0u; ordinal < source->case_count; ordinal += 1u) {
@@ -8084,6 +8588,51 @@ static void emit_records(const w_seed_hir0_input *input,
         payload_target->source_span = payload_source->span;
       }
     }
+  }
+  size_t subset_member_offset = 0u;
+  for (size_t frontend_type_index = 0u;
+       frontend_type_index < frontend_result->written.types;
+       frontend_type_index += 1u) {
+    const w_seed_frontend_type *source =
+        &frontend->types[frontend_type_index];
+    if (source->kind != W_SEED_FRONTEND_TYPE_ENUM_SUBSET) continue;
+    size_t canonical_index = 0u;
+    size_t canonical_ordinal = 0u;
+    if (!frontend_enum_subset_canonical(
+            frontend, frontend_result, frontend_type_index, &canonical_index,
+            &canonical_ordinal) || canonical_index != frontend_type_index)
+      continue;
+    const uint32_t type_index = hir_type_from_frontend(
+        frontend, frontend_result, (uint32_t)frontend_type_index);
+    const w_seed_frontend_enum *base = &frontend->enums[source->enum_base_index];
+    w_seed_hir0_type *target = &output->types[type_index];
+    target->kind = W_SEED_HIR0_TYPE_ENUM_SUBSET;
+    target->owner_module = base->module_index;
+    target->name = output->enums[source->enum_base_index].name;
+    target->external_module_index = W_SEED_HIR0_NONE;
+    target->external_symbol_index = W_SEED_HIR0_NONE;
+    target->enum_index = source->enum_base_index;
+    target->first_subset_member = (uint32_t)subset_member_offset;
+    target->subset_member_count = source->subset_member_count;
+    target->lifecycle = W_SEED_HIR0_LIFECYCLE_VALUE_COPY;
+    target->release_contract = W_SEED_HIR0_RELEASE_CONTRACT_NONE;
+    for (size_t ordinal = 0u; ordinal < source->subset_member_count;
+         ordinal += 1u) {
+      const size_t source_index =
+          (size_t)source->first_subset_member + ordinal;
+      w_seed_hir0_enum_subset_member *member =
+          &output->enum_subset_members[subset_member_offset + ordinal];
+      const w_seed_frontend_enum_subset_member *source_member =
+          &frontend->enum_subset_members[source_index];
+      *member = (w_seed_hir0_enum_subset_member){
+          .owner_type = type_index,
+          .ordinal = (uint32_t)ordinal,
+          .enum_index = source_member->enum_base_index,
+          .enum_case_index = source_member->enum_case_index,
+          .source_span = source_member->source_span};
+    }
+    subset_member_offset += source->subset_member_count;
+    (void)canonical_ordinal;
   }
   /* Module, function, and entry identities have deterministic dense ranges. */
   for (size_t module = 0u; module < counts->modules; module += 1u) {
@@ -8515,6 +9064,8 @@ static void digest_counts(w_seed_sha256_state *state,
   digest_u64(state, counts->enums);
   digest_u64(state, counts->enum_cases);
   digest_u64(state, counts->enum_case_parameters);
+  digest_u64(state, counts->enum_subsets);
+  digest_u64(state, counts->enum_subset_members);
 }
 
 static void digest_program(const w_seed_hir0_program *program,
@@ -8562,6 +9113,8 @@ static void digest_program(const w_seed_hir0_program *program,
     digest_u32(&state, value->external_module_index);
     digest_u32(&state, value->external_symbol_index);
     digest_u32(&state, value->enum_index);
+    digest_u32(&state, value->first_subset_member);
+    digest_u32(&state, value->subset_member_count);
     digest_u32(&state, (uint32_t)value->lifecycle);
     digest_u32(&state, (uint32_t)value->release_contract);
     if (value->release_contract ==
@@ -8600,6 +9153,15 @@ static void digest_program(const w_seed_hir0_program *program,
     digest_u32(&state, value->type_index);
     digest_text(&state, program, value->label);
     digest_bool(&state, value->has_label);
+  }
+  for (size_t index = 0u; index < counts->enum_subset_members; index += 1u) {
+    const w_seed_hir0_enum_subset_member *value =
+        &program->enum_subset_members[index];
+    HIR0_RECORD_TAG(26u);
+    digest_u32(&state, value->owner_type);
+    digest_u32(&state, value->ordinal);
+    digest_u32(&state, value->enum_index);
+    digest_u32(&state, value->enum_case_index);
   }
   for (size_t index = 0u; index < counts->functions; index += 1u) {
     const w_seed_hir0_function *value = &program->functions[index];
@@ -8888,6 +9450,8 @@ static void digest_provenance(const w_seed_hir0_program *program,
     digest_span(&state, program->enum_cases[index].source_span);
   for (size_t index = 0u; index < counts->enum_case_parameters; index += 1u)
     digest_span(&state, program->enum_case_parameters[index].source_span);
+  for (size_t index = 0u; index < counts->enum_subset_members; index += 1u)
+    digest_span(&state, program->enum_subset_members[index].source_span);
   for (size_t index = 0u; index < counts->blocks; index += 1u)
     digest_span(&state, program->blocks[index].source_span);
   for (size_t index = 0u; index < counts->block_arguments; index += 1u)
@@ -8955,7 +9519,9 @@ static void write_receipt_unchecked(uint8_t *buffer,
       counts->external_symbols,
       counts->enums,
       counts->enum_cases,
-      counts->enum_case_parameters};
+      counts->enum_case_parameters,
+      counts->enum_subsets,
+      counts->enum_subset_members};
   size_t offset = HIR0_RECEIPT_SCHEMA_BYTES;
   for (size_t index = 0u; index < HIR0_RECEIPT_COUNT_FIELDS; index += 1u) {
     write_u64_be(buffer, offset, (uint64_t)fields[index]);
@@ -8990,6 +9556,8 @@ static bool basic_program_shape(const w_seed_hir0_program *program,
   HIR0_PROGRAM(enum_case_parameters, enum_case_parameter_count,
                enum_case_parameter_capacity,
                w_seed_hir0_enum_case_parameter);
+  HIR0_PROGRAM(enum_subset_members, enum_subset_member_count,
+               enum_subset_member_capacity, w_seed_hir0_enum_subset_member);
   HIR0_PROGRAM(functions, function_count, function_capacity,
                w_seed_hir0_function);
   HIR0_PROGRAM(parameters, parameter_count, parameter_capacity,
@@ -9222,6 +9790,37 @@ static bool verify_external_records(const w_seed_hir0_program *program) {
   return true;
 }
 
+static bool hir_enum_subset_layout(const w_seed_hir0_program *program,
+                                   size_t *subset_base,
+                                   size_t *subset_count,
+                                   uint32_t *usize_type_index) {
+  if (program == NULL || subset_base == NULL || subset_count == NULL ||
+      usize_type_index == NULL ||
+      (program->external_module_count != 0u &&
+       program->external_module_count != 1u) ||
+      (program->external_module_count == 0u &&
+       program->external_symbol_count != 0u) ||
+      (program->external_module_count == 1u &&
+       program->external_symbol_count != 4u &&
+       program->external_symbol_count != 7u))
+    return false;
+  const size_t base =
+      4u + (program->external_module_count == 0u ? 0u : 3u);
+  if (program->enum_count > SIZE_MAX - base ||
+      program->type_count < base + program->enum_count)
+    return false;
+  *subset_base = base + program->enum_count;
+  *usize_type_index = W_SEED_HIR0_NONE;
+  if (program->external_symbol_count == 7u) {
+    if (program->type_count == *subset_base) return false;
+    *usize_type_index = (uint32_t)(program->type_count - 1u);
+    *subset_count = program->type_count - *subset_base - 1u;
+  } else {
+    *subset_count = program->type_count - *subset_base;
+  }
+  return true;
+}
+
 static bool hir_external_pair_valid(const w_seed_hir0_program *program,
                                     uint32_t module_index,
                                     uint32_t symbol_index,
@@ -9261,6 +9860,8 @@ static bool verify_enum_records(const w_seed_hir0_program *program) {
         type->enum_index != index ||
         type->external_module_index != W_SEED_HIR0_NONE ||
         type->external_symbol_index != W_SEED_HIR0_NONE ||
+        type->first_subset_member != W_SEED_HIR0_NONE ||
+        type->subset_member_count != 0u ||
         type->lifecycle != W_SEED_HIR0_LIFECYCLE_VALUE_COPY ||
         type->release_contract != W_SEED_HIR0_RELEASE_CONTRACT_NONE ||
         !hir_text_equal(program, type->name, decl->name))
@@ -9316,6 +9917,83 @@ static bool verify_enum_records(const w_seed_hir0_program *program) {
          payload_cursor == program->enum_case_parameter_count;
 }
 
+static bool verify_enum_subset_records(const w_seed_hir0_program *program) {
+  size_t subset_base = 0u;
+  size_t subset_count = 0u;
+  uint32_t usize_type_index = W_SEED_HIR0_NONE;
+  if (!hir_enum_subset_layout(program, &subset_base, &subset_count,
+                              &usize_type_index))
+    return false;
+  (void)usize_type_index;
+  size_t member_cursor = 0u;
+  for (size_t ordinal = 0u; ordinal < subset_count; ordinal += 1u) {
+    const size_t type_index = subset_base + ordinal;
+    const w_seed_hir0_type *type = &program->types[type_index];
+    if (type->kind != W_SEED_HIR0_TYPE_ENUM_SUBSET ||
+        type->enum_index >= program->enum_count ||
+        type->owner_module != program->enums[type->enum_index].module_index ||
+        type->external_module_index != W_SEED_HIR0_NONE ||
+        type->external_symbol_index != W_SEED_HIR0_NONE ||
+        type->lifecycle != W_SEED_HIR0_LIFECYCLE_VALUE_COPY ||
+        type->release_contract != W_SEED_HIR0_RELEASE_CONTRACT_NONE ||
+        type->first_subset_member != member_cursor ||
+        type->subset_member_count == 0u ||
+        type->subset_member_count == program->enums[type->enum_index].case_count ||
+        !range_valid(type->first_subset_member, type->subset_member_count,
+                     program->enum_subset_member_count) ||
+        !hir_text_equal(program, type->name,
+                        program->enums[type->enum_index].name))
+      return false;
+    for (size_t prior = 0u; prior < ordinal; prior += 1u) {
+      const w_seed_hir0_type *previous = &program->types[subset_base + prior];
+      if (previous->enum_index != type->enum_index ||
+          previous->subset_member_count != type->subset_member_count)
+        continue;
+      bool same_set = true;
+      for (size_t member_ordinal = 0u;
+           member_ordinal < type->subset_member_count; member_ordinal += 1u)
+        if (program->enum_subset_members[
+                (size_t)previous->first_subset_member + member_ordinal]
+                .enum_case_index !=
+            program->enum_subset_members[member_cursor + member_ordinal]
+                .enum_case_index) {
+          same_set = false;
+          break;
+        }
+      if (same_set) return false;
+    }
+    const w_seed_hir0_enum *base = &program->enums[type->enum_index];
+    for (size_t case_ordinal = 0u; case_ordinal < base->case_count;
+         case_ordinal += 1u)
+      if (program->enum_cases[(size_t)base->first_case + case_ordinal]
+              .payload_count != 0u)
+        return false;
+    uint32_t previous_case = W_SEED_HIR0_NONE;
+    for (size_t member_ordinal = 0u;
+         member_ordinal < type->subset_member_count; member_ordinal += 1u) {
+      const size_t member_index = member_cursor + member_ordinal;
+      const w_seed_hir0_enum_subset_member *member =
+          &program->enum_subset_members[member_index];
+      if (member->owner_type != type_index ||
+          member->ordinal != member_ordinal ||
+          member->enum_index != type->enum_index ||
+          member->enum_case_index >= program->enum_case_count ||
+          member->enum_case_index < base->first_case ||
+          member->enum_case_index >= base->first_case + base->case_count ||
+          (previous_case != W_SEED_HIR0_NONE &&
+           previous_case >= member->enum_case_index) ||
+          program->enum_cases[member->enum_case_index].payload_count != 0u ||
+          !span_valid(member->source_span,
+                      program->modules[type->owner_module].source_length))
+        return false;
+      previous_case = member->enum_case_index;
+    }
+    if (!add_size(member_cursor, type->subset_member_count, &member_cursor))
+      return false;
+  }
+  return member_cursor == program->enum_subset_member_count;
+}
+
 static bool hir_type_index_valid(const w_seed_hir0_program *program,
                                  uint32_t type_index) {
   if (program == NULL || type_index >= program->type_count) return false;
@@ -9328,7 +10006,9 @@ static bool hir_type_index_valid(const w_seed_hir0_program *program,
            type->owner_module == W_SEED_HIR0_NONE &&
            type->external_module_index == W_SEED_HIR0_NONE &&
            type->external_symbol_index == W_SEED_HIR0_NONE &&
-           type->enum_index == W_SEED_HIR0_NONE;
+           type->enum_index == W_SEED_HIR0_NONE &&
+           type->first_subset_member == W_SEED_HIR0_NONE &&
+           type->subset_member_count == 0u;
   }
   const size_t external_base =
       4u + (program->external_module_count == 0u ? 0u : 3u);
@@ -9336,6 +10016,8 @@ static bool hir_type_index_valid(const w_seed_hir0_program *program,
     return type->kind == W_SEED_HIR0_TYPE_NOMINAL &&
            type->owner_module == W_SEED_HIR0_NONE &&
            type->enum_index == W_SEED_HIR0_NONE &&
+           type->first_subset_member == W_SEED_HIR0_NONE &&
+           type->subset_member_count == 0u &&
            hir_external_pair_valid(program, type->external_module_index,
                                    type->external_symbol_index,
                                    W_SEED_HIR0_EXTERNAL_TYPE) &&
@@ -9349,15 +10031,54 @@ static bool hir_type_index_valid(const w_seed_hir0_program *program,
            type->enum_index == enum_index && type->owner_module ==
                program->enums[enum_index].module_index &&
            type->external_module_index == W_SEED_HIR0_NONE &&
-           type->external_symbol_index == W_SEED_HIR0_NONE;
-  return program->external_symbol_count == 7u &&
-         enum_index == program->enum_count &&
+           type->external_symbol_index == W_SEED_HIR0_NONE &&
+           type->first_subset_member == W_SEED_HIR0_NONE &&
+           type->subset_member_count == 0u;
+  size_t subset_base = 0u;
+  size_t subset_count = 0u;
+  uint32_t usize_type_index = W_SEED_HIR0_NONE;
+  if (!hir_enum_subset_layout(program, &subset_base, &subset_count,
+                              &usize_type_index))
+    return false;
+  if (type_index >= subset_base &&
+      type_index < subset_base + subset_count) {
+    const size_t ordinal = type_index - subset_base;
+    return type->kind == W_SEED_HIR0_TYPE_ENUM_SUBSET &&
+           type->enum_index < program->enum_count &&
+           type->first_subset_member != W_SEED_HIR0_NONE &&
+           type->subset_member_count != 0u &&
+           type->owner_module == program->enums[type->enum_index].module_index &&
+           type->external_module_index == W_SEED_HIR0_NONE &&
+           type->external_symbol_index == W_SEED_HIR0_NONE &&
+           (size_t)type_index == subset_base + ordinal;
+  }
+  return usize_type_index != W_SEED_HIR0_NONE &&
+         type_index == usize_type_index &&
          type->kind == W_SEED_HIR0_TYPE_USIZE &&
          type->owner_module == W_SEED_HIR0_NONE &&
          type->external_module_index == W_SEED_HIR0_NONE &&
          type->external_symbol_index == W_SEED_HIR0_NONE &&
          type->enum_index == W_SEED_HIR0_NONE &&
-         hir_text_is(program, type->name, HIR0_USIZE_NAME);
+         type->first_subset_member == W_SEED_HIR0_NONE &&
+         type->subset_member_count == 0u &&
+          hir_text_is(program, type->name, HIR0_USIZE_NAME);
+}
+
+/* The HIR carries no conversion instruction for the bounded subset widening:
+ * a subset value may flow directly to its payloadless base enum.  Keep this
+ * relation directional and nominal; base-to-subset and cross-enum flows are
+ * never assignable. */
+static bool hir_type_assignable(const w_seed_hir0_program *program,
+                                uint32_t from_type, uint32_t to_type) {
+  if (program == NULL || !hir_type_index_valid(program, from_type) ||
+      !hir_type_index_valid(program, to_type))
+    return false;
+  if (from_type == to_type) return true;
+  const w_seed_hir0_type *from = &program->types[from_type];
+  const w_seed_hir0_type *to = &program->types[to_type];
+  return from->kind == W_SEED_HIR0_TYPE_ENUM_SUBSET &&
+         to->kind == W_SEED_HIR0_TYPE_ENUM &&
+         from->enum_index == to->enum_index;
 }
 
 static bool verify_block_argument_records(const w_seed_hir0_program *program) {
@@ -9509,9 +10230,9 @@ static bool hir0_usize_count_comparison_operands(
       value->left_value >= program->value_count ||
       value->right_value >= program->value_count ||
       program->external_symbol_count != 7u ||
-      program->enum_count > UINT32_MAX - 7u)
+      program->type_count == 0u || program->type_count - 1u > UINT32_MAX)
     return false;
-  const uint32_t usize_type = (uint32_t)(7u + program->enum_count);
+  const uint32_t usize_type = (uint32_t)(program->type_count - 1u);
   const w_seed_hir0_value *left = &program->values[value->left_value];
   const w_seed_hir0_value *right = &program->values[value->right_value];
   const bool left_count =
@@ -9529,6 +10250,43 @@ static bool hir0_usize_count_comparison_operands(
   const bool right_literal = right->kind == W_SEED_HIR0_VALUE_CONST_USIZE &&
                              right->type_index == usize_type;
   return (left_count && right_literal) || (right_count && left_literal);
+}
+
+static bool hir_enum_subset_contains_case(
+    const w_seed_hir0_program *program, uint32_t type_index,
+    uint32_t enum_case_index) {
+  if (program == NULL || type_index >= program->type_count ||
+      enum_case_index >= program->enum_case_count)
+    return false;
+  const w_seed_hir0_type *type = &program->types[type_index];
+  if (type->kind != W_SEED_HIR0_TYPE_ENUM_SUBSET ||
+      type->first_subset_member == W_SEED_HIR0_NONE ||
+      !range_valid(type->first_subset_member, type->subset_member_count,
+                   program->enum_subset_member_count))
+    return false;
+  for (size_t ordinal = 0u; ordinal < type->subset_member_count; ordinal += 1u)
+    if (program->enum_subset_members[(size_t)type->first_subset_member + ordinal]
+            .enum_case_index == enum_case_index)
+      return true;
+  return false;
+}
+
+static bool hir_enum_subset_case_for_ordinal(
+    const w_seed_hir0_program *program, uint32_t type_index, size_t ordinal,
+    uint32_t *enum_case_index) {
+  if (program == NULL || enum_case_index == NULL ||
+      type_index >= program->type_count ||
+      program->types[type_index].kind != W_SEED_HIR0_TYPE_ENUM_SUBSET ||
+      ordinal >= program->types[type_index].subset_member_count ||
+      program->types[type_index].first_subset_member == W_SEED_HIR0_NONE ||
+      !range_valid(program->types[type_index].first_subset_member,
+                   program->types[type_index].subset_member_count,
+                   program->enum_subset_member_count))
+    return false;
+  *enum_case_index = program->enum_subset_members[
+      (size_t)program->types[type_index].first_subset_member + ordinal]
+                           .enum_case_index;
+  return *enum_case_index < program->enum_case_count;
 }
 
 static bool verify_value_tree(
@@ -9599,8 +10357,9 @@ static bool verify_value_tree(
     const bool is_count = value->external_symbol_index == 6u &&
                           hir_text_is(program, value->member_name,
                                       HIR0_PROCESS_COUNT);
-    const uint32_t usize_type =
-        (uint32_t)(7u + program->enum_count);
+    const uint32_t usize_type = program->type_count == 0u
+                                    ? W_SEED_HIR0_NONE
+                                    : (uint32_t)(program->type_count - 1u);
     if ((is_empty && value->type_index != 3u) ||
         (is_count && (usize_type >= program->type_count ||
                       value->type_index != usize_type ||
@@ -9698,12 +10457,18 @@ static bool verify_value_tree(
   if (value->kind == W_SEED_HIR0_VALUE_ENUM_CASE) {
     if (value->type_index >= program->type_count ||
         !hir_type_index_valid(program, value->type_index) ||
-        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_ENUM ||
+        (program->types[value->type_index].kind != W_SEED_HIR0_TYPE_ENUM &&
+         program->types[value->type_index].kind !=
+             W_SEED_HIR0_TYPE_ENUM_SUBSET) ||
         value->enum_index >= program->enum_count ||
         program->types[value->type_index].enum_index != value->enum_index ||
         value->enum_case_index >= program->enum_case_count ||
         program->enum_cases[value->enum_case_index].owner_enum !=
             value->enum_index ||
+        (program->types[value->type_index].kind ==
+             W_SEED_HIR0_TYPE_ENUM_SUBSET &&
+         !hir_enum_subset_contains_case(program, value->type_index,
+                                        value->enum_case_index)) ||
         value->binding_index != W_SEED_HIR0_NONE ||
         value->parameter_index != W_SEED_HIR0_NONE ||
         value->call_index != W_SEED_HIR0_NONE ||
@@ -11244,6 +12009,7 @@ static bool hir0_expected_type_lifecycle(
     case W_SEED_HIR0_TYPE_BOOL:
     case W_SEED_HIR0_TYPE_USIZE:
     case W_SEED_HIR0_TYPE_ENUM:
+    case W_SEED_HIR0_TYPE_ENUM_SUBSET:
       *lifecycle = W_SEED_HIR0_LIFECYCLE_VALUE_COPY;
       *release_contract = W_SEED_HIR0_RELEASE_CONTRACT_NONE;
       return true;
@@ -11525,6 +12291,7 @@ static bool hir0_type_is_blocked(const w_seed_hir0_program *program,
     case W_SEED_HIR0_TYPE_BOOL:
     case W_SEED_HIR0_TYPE_USIZE:
     case W_SEED_HIR0_TYPE_ENUM:
+    case W_SEED_HIR0_TYPE_ENUM_SUBSET:
       return false;
     case W_SEED_HIR0_TYPE_STRING:
     case W_SEED_HIR0_TYPE_NOMINAL:
@@ -12046,7 +12813,7 @@ static bool verify_records(const w_seed_hir0_program *program) {
       program != NULL && program->external_module_count != 0u;
   if (program->module_count != 1u || program->function_count == 0u ||
       program->entry_count != 1u ||
-      program->type_count != (has_external_process ? 7u : 4u) +
+      program->type_count < (has_external_process ? 7u : 4u) +
                                 program->enum_count +
                                 (program->external_symbol_count == 7u ? 1u : 0u) ||
       program->block_count == 0u ||
@@ -12072,6 +12839,14 @@ static bool verify_records(const w_seed_hir0_program *program) {
       program->types[1].enum_index != W_SEED_HIR0_NONE ||
       program->types[2].enum_index != W_SEED_HIR0_NONE ||
       program->types[3].enum_index != W_SEED_HIR0_NONE ||
+      program->types[0].first_subset_member != W_SEED_HIR0_NONE ||
+      program->types[1].first_subset_member != W_SEED_HIR0_NONE ||
+      program->types[2].first_subset_member != W_SEED_HIR0_NONE ||
+      program->types[3].first_subset_member != W_SEED_HIR0_NONE ||
+      program->types[0].subset_member_count != 0u ||
+      program->types[1].subset_member_count != 0u ||
+      program->types[2].subset_member_count != 0u ||
+      program->types[3].subset_member_count != 0u ||
       program->types[0].external_module_index != W_SEED_HIR0_NONE ||
       program->types[0].external_symbol_index != W_SEED_HIR0_NONE ||
       program->types[1].external_module_index != W_SEED_HIR0_NONE ||
@@ -12081,6 +12856,7 @@ static bool verify_records(const w_seed_hir0_program *program) {
       program->types[3].external_module_index != W_SEED_HIR0_NONE ||
       program->types[3].external_symbol_index != W_SEED_HIR0_NONE ||
       !verify_external_records(program) || !verify_enum_records(program) ||
+      !verify_enum_subset_records(program) ||
       !verify_identity_records(program) ||
       !verify_process_handler(program))
     return false;
@@ -12089,7 +12865,7 @@ static bool verify_records(const w_seed_hir0_program *program) {
       if (!hir_type_index_valid(program, (uint32_t)type)) return false;
     if (program->external_symbol_count == 7u &&
         !hir_type_index_valid(program,
-                              (uint32_t)(7u + program->enum_count)))
+                              (uint32_t)(program->type_count - 1u)))
       return false;
   }
   size_t module_function_cursor = 0u;
@@ -12448,7 +13224,9 @@ static bool verify_records(const w_seed_hir0_program *program) {
         return false;
       const w_seed_hir0_value *initializer =
           &program->values[binding->initializer_value];
-      if (initializer->type_index != binding->type_index) return false;
+      if (!hir_type_assignable(program, initializer->type_index,
+                               binding->type_index))
+        return false;
       continue;
     }
     const w_seed_hir0_call *call = &program->calls[item->call_index];
@@ -12468,7 +13246,9 @@ static bool verify_records(const w_seed_hir0_program *program) {
         return false;
       const w_seed_hir0_value *root =
           &program->values[call_argument->value_index];
-      if (root->type_index != call_argument->type_index) return false;
+      if (!hir_type_assignable(program, root->type_index,
+                               call_argument->type_index))
+        return false;
       if (root->kind == W_SEED_HIR0_VALUE_BINDING_READ) {
         const w_seed_hir0_binding *binding =
             &program->bindings[root->binding_index];
@@ -12557,10 +13337,7 @@ static bool verify_records(const w_seed_hir0_program *program) {
       const w_seed_hir0_enum *decl =
           &program->enums[value->switch_enum_index];
       const uint32_t enum_type = decl->type_index;
-      if (value->switch_edge_count != decl->case_count ||
-          value->switch_carrier_width !=
-              hir0_enum_carrier_width(decl->case_count) ||
-          value->first_switch_edge != switch_edge_cursor ||
+      if (value->first_switch_edge != switch_edge_cursor ||
           !hir_type_index_valid(program, enum_type) ||
           program->types[enum_type].kind != W_SEED_HIR0_TYPE_ENUM ||
           program->types[enum_type].enum_index != value->switch_enum_index ||
@@ -12572,7 +13349,27 @@ static bool verify_records(const w_seed_hir0_program *program) {
                          block->instruction_count),
               source_length, 0u, &value_cursor,
               &interpolation_segment_cursor, &value_byte_cursor) ||
-          program->values[value->value_index].type_index != enum_type)
+          program->values[value->value_index].type_index >= program->type_count)
+        return false;
+      const uint32_t subject_type_index =
+          program->values[value->value_index].type_index;
+      const w_seed_hir0_type *subject_type =
+          &program->types[subject_type_index];
+      const bool subject_is_base =
+          subject_type_index == enum_type &&
+          subject_type->kind == W_SEED_HIR0_TYPE_ENUM;
+      const bool subject_is_subset =
+          subject_type->kind == W_SEED_HIR0_TYPE_ENUM_SUBSET &&
+          subject_type->enum_index == value->switch_enum_index &&
+          hir_type_index_valid(program, subject_type_index);
+      const size_t expected_switch_count =
+          subject_is_subset ? subject_type->subset_member_count
+                            : decl->case_count;
+      if ((!subject_is_base && !subject_is_subset) ||
+          expected_switch_count == 0u ||
+          value->switch_edge_count != expected_switch_count ||
+          value->switch_carrier_width !=
+              hir0_enum_carrier_width(decl->case_count))
         return false;
       const size_t function_end =
           (size_t)program->functions[function].first_block +
@@ -12583,7 +13380,16 @@ static bool verify_records(const w_seed_hir0_program *program) {
             (size_t)value->first_switch_edge + ordinal;
         const w_seed_hir0_switch_edge *edge =
             &program->switch_edges[edge_index];
-        const size_t case_index = (size_t)decl->first_case + ordinal;
+        uint32_t selected_case = W_SEED_HIR0_NONE;
+        if (subject_is_subset) {
+          if (!hir_enum_subset_case_for_ordinal(
+                  program, subject_type_index, ordinal, &selected_case))
+            return false;
+        } else {
+          selected_case = decl->first_case + (uint32_t)ordinal;
+        }
+        const size_t case_index = selected_case;
+        const size_t base_ordinal = case_index - decl->first_case;
         if (edge->owner_terminator != terminator ||
             edge->ordinal != ordinal || edge->enum_index != value->switch_enum_index ||
             edge->enum_case_index != case_index ||
@@ -12595,8 +13401,8 @@ static bool verify_records(const w_seed_hir0_program *program) {
             case_index >= program->enum_case_count ||
             program->enum_cases[case_index].owner_enum !=
                 value->switch_enum_index ||
-            program->enum_cases[case_index].ordinal != ordinal ||
-            program->enum_cases[case_index].tag != ordinal ||
+            program->enum_cases[case_index].ordinal != base_ordinal ||
+            program->enum_cases[case_index].tag != base_ordinal ||
             edge->first_capture != switch_capture_cursor ||
             !range_valid(edge->first_capture, edge->capture_count,
                          program->switch_capture_count) ||
@@ -12709,7 +13515,9 @@ static bool verify_records(const w_seed_hir0_program *program) {
                        block->instruction_count),
             source_length, 0u, &value_cursor,
             &interpolation_segment_cursor, &value_byte_cursor) ||
-        program->values[value->value_index].type_index != value->result_type)
+         !hir_type_assignable(program,
+                              program->values[value->value_index].type_index,
+                              value->result_type))
       return false;
   }
   /* The bounded producer proves exact reachability from each function entry.
@@ -12791,6 +13599,9 @@ bool w_seed_hir0_program_from_output(const w_seed_hir0_output *output,
       .enum_case_parameters = output->enum_case_parameters,
       .enum_case_parameter_count = counts.enum_case_parameters,
       .enum_case_parameter_capacity = output->enum_case_parameter_capacity,
+      .enum_subset_members = output->enum_subset_members,
+      .enum_subset_member_count = counts.enum_subset_members,
+      .enum_subset_member_capacity = output->enum_subset_member_capacity,
       .functions = output->functions,
       .function_count = counts.functions,
       .function_capacity = output->function_capacity,
@@ -12870,6 +13681,14 @@ bool w_seed_hir0_verify(const w_seed_hir0_program *program,
                         const w_seed_hir0_result *result) {
   if (!basic_program_shape(program, result) || program_aliases(program))
     return false;
+  size_t subset_base = 0u;
+  size_t subset_count = 0u;
+  uint32_t usize_type_index = W_SEED_HIR0_NONE;
+  if (!hir_enum_subset_layout(program, &subset_base, &subset_count,
+                              &usize_type_index))
+    return false;
+  (void)subset_base;
+  (void)usize_type_index;
   w_seed_hir0_counts counts = {
       .modules = program->module_count,
       .identities = program->identity_count,
@@ -12899,7 +13718,9 @@ bool w_seed_hir0_verify(const w_seed_hir0_program *program,
       .external_symbols = program->external_symbol_count,
       .enums = program->enum_count,
       .enum_cases = program->enum_case_count,
-      .enum_case_parameters = program->enum_case_parameter_count};
+      .enum_case_parameters = program->enum_case_parameter_count,
+      .enum_subsets = subset_count,
+      .enum_subset_members = program->enum_subset_member_count};
   if (result->required.modules != counts.modules ||
       result->required.identities != counts.identities ||
       result->required.types != counts.types ||
@@ -12955,9 +13776,13 @@ bool w_seed_hir0_verify(const w_seed_hir0_program *program,
       result->required.enums != counts.enums ||
       result->required.enum_cases != counts.enum_cases ||
       result->required.enum_case_parameters != counts.enum_case_parameters ||
+      result->required.enum_subsets != counts.enum_subsets ||
+      result->required.enum_subset_members != counts.enum_subset_members ||
       result->written.enums != counts.enums ||
       result->written.enum_cases != counts.enum_cases ||
       result->written.enum_case_parameters != counts.enum_case_parameters ||
+      result->written.enum_subsets != counts.enum_subsets ||
+      result->written.enum_subset_members != counts.enum_subset_members ||
       !verify_records(program))
     return false;
   if (!verify_process_lifecycle_facts(program)) return false;

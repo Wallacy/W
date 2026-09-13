@@ -12,6 +12,7 @@ const restaurantLinearFixture = resolve(seedDirectory, "fixtures", "restaurant-l
 const restaurantInterpolationFixture = resolve(seedDirectory, "fixtures", "restaurant-interpolation.w")
 const restaurantIfFixture = resolve(seedDirectory, "fixtures", "restaurant-if.w")
 const restaurantComparisonsFixture = resolve(seedDirectory, "fixtures", "restaurant-comparisons.w")
+const restaurantEnumSubsetFixture = resolve(seedDirectory, "fixtures", "restaurant-enum-subset.w")
 const restaurantComparisonCompositionFixture = resolve(seedDirectory, "fixtures", "restaurant-comparison-composition.w")
 const restaurantBoolShortCircuitFixture = resolve(seedDirectory, "fixtures", "restaurant-bool-short-circuit.w")
 const restaurantNestedIfFixture = resolve(seedDirectory, "fixtures", "restaurant-nested-if.w")
@@ -633,6 +634,9 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantLinearFixture)],
     Buffer.from("Table 42 remains open\nKitchen is ready\n", "utf8"),
     "Restaurant linear sequence")
+  expectSuccess(binary, ["run", toWsl(restaurantEnumSubsetFixture)],
+    Buffer.from("Work 1/2\n", "utf8"),
+    "Restaurant payloadless enum subset switch")
   expectSuccess(binary, ["run", toWsl(restaurantInterpolationFixture)],
     Buffer.from("Table 42 remains open\n", "utf8"),
     "Restaurant typed interpolation")

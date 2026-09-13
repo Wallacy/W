@@ -6489,6 +6489,26 @@ O formatter preserva a ordem source durante a edição. `w interface` e o hash d
 tipo usam a ordem canônica. Um conjunto com todos os cases normaliza para o enum
 base. Um conjunto vazio é erro no source. Use `Never` para ausência de valores.
 
+O contrato semântico acima é geral; a primeira fatia executável tem uma fronteira
+menor. No recorte de W-1571, um alias de enum subset canoniza pela identidade
+semântica `(enum base, índices de cases base normalizados)`, e não pelo spelling
+do alias nem pela ordem source da lista. O conjunto completo continua sendo a
+identidade do enum base e não cria um record de subset. Somente subsets próprios,
+não vazios e payloadless de um enum local fechado são admitidos nesta primeira
+implementação. Ela preserva a largura do carrier privado e as tags de declaração
+do enum base, mantém o valor escalar e não cria wrapper nem alocação específica
+de enum.
+
+O `switch` cobre os membros normalizados na ordem de declaração do enum base,
+mesmo quando os braços no source usam outra ordem. O `llvm.unreachable`
+sintético, inserido somente no backend para fechar o CFG já verificado, não é um
+guard runtime de narrowing. A conversão subset → base é no-op somente quando a
+prova de mesmo enum base estiver disponível; a conversão base → subset checked e
+conversões para supersets arbitrários permanecem fora desta fatia executável.
+O alvo de aceitação é o mesmo source e oracle (`Work 1/2\n`, stderr vazio, exit
+zero) em um PE Windows e em um ELF Linux/WSL; a evidência concreta fica
+registrada em W-1571.
+
 Uma função pode publicar um retorno mais preciso:
 
 ```w
@@ -38059,10 +38079,11 @@ fn price(course: Course): i64 {
 ```
 
 The evidence remains bounded to one closed local payloadless enum and this
-exhaustive dispatch shape. Payload-bearing cases, enum subsets, general or
-mixed CFG, public ABI/layout stability, other targets, and performance remain
-gaps. The benchmark disposition is `compiler-lifecycle`, correctness-only,
-with no timing, ranking, or benchmark result.
+exhaustive dispatch shape. Payload-bearing cases, general or mixed CFG, public
+ABI/layout stability, other targets, and performance remain gaps for W-1563;
+W-1571 records the separate bounded payloadless-subset successor. The benchmark
+disposition is `compiler-lifecycle`, correctness-only, with no timing, ranking,
+or benchmark result.
 
 The current payload extension uses HIR25's dense `Bool` and signed-`i64` case parameters,
 constructor relations, and arm-owned capture records. Local calls can accept
@@ -38313,6 +38334,17 @@ graph.
 `app-with-dead.w`; both must publish the same artifact digest, and the latter
 must record its unused module as omitted from the reachable product closure.
 
+```w
+import std.process
+
+async fn run(args: Arguments, ctx: Context): ExitCode {
+  print("Argument count ${args.count}")
+  return .success
+}
+
+entry(run)
+```
+
 The task is bounded to one package or workspace, one executable product, one
 explicit entry, one target/profile pair, and the existing finite CHK4 graph
 limits. It compares two explicit source graphs with the same reachable entry
@@ -38364,6 +38396,22 @@ MLIR0 emits one `scf.while` with the signed-`i64` tuple, `scf.condition`, and
 fixture [`restaurant-while-multi.w`](compiler/seed-c/fixtures/restaurant-while-multi.w)
 prints exactly `Served 9\n`.
 
+```w
+fn serve(limit: i64): i64 {
+  var served = 0
+  var total = 0
+  while served < limit {
+    total = total + 2
+    served = served + 1
+  }
+  return served + total
+}
+
+entry {
+  print("Served ${serve(limit: 3)}")
+}
+```
+
 The public Linux/WSL route produces an x86_64 ELF using the pinned local
 LLVM/MLIR 20.1.2 profile. The native Windows route produces an x86_64 PE with
 the pinned LLVM/MLIR 23.1.1 MSVC profile. Both routes execute the same fixture
@@ -38409,11 +38457,95 @@ primary benchmark disposition is `compiler-lifecycle`. The executable catalog
 separately owns exploratory W/C23/Rust measurements, with no timing or ranking
 claim.
 
+```w
+fn settle(limit: i64): i64 {
+  var served = 0
+  var total = 0
+  while served < limit {
+    total = total + 2
+    served = served + 1
+  }
+  total = total + served
+  return total
+}
+
+entry {
+  print("Final ${settle(limit: 3)}")
+}
+```
+
 The strict boundary rejects a second continuation assignment, a `let` or
 unrelated target, a call or effect, post-loop control, a RHS without a loop
 result, return bypass, nested or mixed control, non-`i64` carriers, other
 targets, and malformed SSA links. General post-loop mutation, cyclic CFG,
 ABI/layout, optimization quality, timing, and language ranking remain gaps.
+
+#### 26.4.1.52 W-1571 — bounded local payloadless enum subset switch (Current bounded form)
+
+W-1571 records the first executable subset successor to the general case-set
+contract in §8.6.1 and to the closed enum switch in W-1563. Alias spellings are
+not type identity in this slice: the frontend canonicalizes an alias to the
+pair `(base enum, normalized base-case indices)`. Normalization removes source
+order from identity and follows base declaration order. A list containing every
+base case collapses to the base enum identity, while an empty list, a duplicate,
+an unknown case, a case from another enum, or a non-local base remains outside
+the admitted form.
+
+The first implementation admits only proper, nonempty subsets whose base enum
+has no payload on any case. The base enum's private carrier width and declaration
+tags remain authoritative; subset membership never renumbers tags or shrinks
+the carrier. Thus a five-case base keeps its `i3` carrier, and normalized members
+at base case indices 2 and 3 retain tags 2 and 3. The value remains scalar, with
+no wrapper, vtable, or enum-specific allocation. These are recipe-private
+implementation facts, not a public ABI or layout promise.
+
+HIR0 schema `w-seed-hir0-28` publishes caller-owned subset type and member
+records. HIR0, NativeSubset0, and MLIR0 independently recheck the base owner,
+proper/nonempty boundary, payloadless cases, normalized member ranges, and
+switch edges. MLIR0 emits one edge per normalized subset member in base
+declaration order even if source arms appear in another order, and each edge
+uses the original base declaration tag. The synthetic backend default ending in
+`llvm.unreachable` closes the lowered CFG after those proofs; it is not a runtime
+narrowing guard and does not validate a forged subset value at runtime.
+
+Only a proven subset-to-the-same-base widening is a no-op in this executable
+slice. Base-to-subset checked conversion, and conversion to an arbitrary
+superset, remain outside the slice rather than becoming unchecked reinterpretation.
+Payload-bearing subsets, imported or generic aliases, general case-set algebra,
+mixed or nested CFG, public subset ABI/layout, and other targets remain gaps.
+
+The same
+[`restaurant-enum-subset.w`](compiler/seed-c/fixtures/restaurant-enum-subset.w)
+source produces the exact oracle `Work 1/2\n`, with empty stderr and exit zero,
+as both a Windows x86_64 PE and a CRT-free Linux/WSL x86_64 ELF. Focused HIR,
+NativeSubset0, and MLIR0 checks independently cover canonical identity,
+membership, base carrier width and tags, normalized edges, and adversarial
+forgeries. Its primary benchmark disposition is `compiler-lifecycle`. The
+executable catalog separately owns exploratory W/C23/Rust measurements and does
+not establish timing or language ranking.
+
+```w
+enum Stage {
+  accepted
+  reserving
+  preparing
+  serving
+  completed
+}
+
+alias WorkStage = Stage<[.serving, .preparing]>
+
+fn label(stage: WorkStage): i64 {
+  return switch stage {
+    case .serving: 2
+    case .preparing: 1
+  }
+}
+
+entry {
+  print("Work ${label(stage: .preparing)}/${label(stage: .serving)}")
+}
+```
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

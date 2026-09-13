@@ -30,6 +30,7 @@ otherwise.
 | Seed frontend | The seed provides lossless source reading, parsing, formatting, and bounded semantic validation. It is not the complete frontend. |
 | Native seed route | A verified HIR slice lowers through MLIR0 to native code for selected values, calls, returns, structured control flow, arithmetic, and loops. |
 | Enum payloads | The current bounded slice supports Bool and signed i64 payloads, captures, constructor values, and exhaustive switches. It has no public payload ABI. |
+| Enum subsets | The bounded seed target admits proper nonempty payloadless subsets of local enums with base tags and no wrapper allocation; focused checks and native Windows plus Linux/WSL execution are current. |
 | Source entry | entry { ... } and entry(functionName) are accepted in the bounded surface. An empty entry { } is valid. |
 | Public CLI | Explicit source paths support w check, bounded w run, and bounded w build on configured routes. Package and workspace resolution are outside this surface. |
 | Public process entry | The bounded Windows route lowers normal verified HIR/MLIR bodies. [`process-input0.w`](compiler/seed-c/fixtures/process-input0.w) is the minimal fixture. [`process-enum-payload.w`](compiler/seed-c/fixtures/process-enum-payload.w) composes helpers, enum payloads, switch, and interpolation. Identity, owner, CFG, stdout, and exit-range proofs remain required. |
@@ -59,6 +60,8 @@ stable in-memory layout, pointer tagging, heap boxing, or a public ABI.
   behavior remain future work.
 - General payload types, recursive payloads, niche optimization, and stable
   public enum layout remain future work.
+- General enum-subset conversion, payload-bearing subsets, and stable public
+  subset ABI/layout remain future work.
 - Benchmark results do not rank languages or prove product performance.
 
 See [platform support](PLATFORM-SUPPORT.md), [toolchain policy](TOOLCHAIN.md),

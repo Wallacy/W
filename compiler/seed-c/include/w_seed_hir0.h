@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-27"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-28"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -41,6 +41,8 @@ typedef enum {
   W_SEED_HIR0_TYPE_ENUM,
   /* Target-width unsigned size value; distinct from fixed-width i64. */
   W_SEED_HIR0_TYPE_USIZE,
+  /* A caller-owned closed enum case-set type. */
+  W_SEED_HIR0_TYPE_ENUM_SUBSET,
 } w_seed_hir0_type_kind;
 
 typedef enum {
@@ -243,8 +245,13 @@ typedef struct {
    * records and is independent of source-local aliases. */
   uint32_t external_module_index;
   uint32_t external_symbol_index;
-  /* Present only for TYPE_ENUM and indexes the caller-owned enum record. */
+  /* Present only for TYPE_ENUM and TYPE_ENUM_SUBSET and indexes the
+   * caller-owned base enum record. */
   uint32_t enum_index;
+  /* Present only for TYPE_ENUM_SUBSET and indexes the caller-owned normalized
+   * member range. The range is in base enum declaration order. */
+  uint32_t first_subset_member;
+  uint32_t subset_member_count;
   /* Independently rederived from the closed external identity contract. */
   w_seed_hir0_lifecycle_kind lifecycle;
   w_seed_hir0_release_contract_kind release_contract;
@@ -280,6 +287,16 @@ typedef struct {
   bool has_label;
   w_seed_span source_span;
 } w_seed_hir0_enum_case_parameter;
+
+/* A normalized payloadless enum-subset member. Records are dense in the
+ * caller-owned subset range and retain the base enum case identity. */
+typedef struct {
+  uint32_t owner_type;
+  uint32_t ordinal;
+  uint32_t enum_index;
+  uint32_t enum_case_index;
+  w_seed_span source_span;
+} w_seed_hir0_enum_subset_member;
 
 typedef struct {
   uint32_t module_index;
@@ -614,6 +631,8 @@ typedef struct {
   size_t enums;
   size_t enum_cases;
   size_t enum_case_parameters;
+  size_t enum_subsets;
+  size_t enum_subset_members;
 } w_seed_hir0_counts;
 
 /* A program carries capacities so the verifier can reject a truncated or
@@ -637,6 +656,9 @@ typedef struct {
   const w_seed_hir0_enum_case_parameter *enum_case_parameters;
   size_t enum_case_parameter_count;
   size_t enum_case_parameter_capacity;
+  const w_seed_hir0_enum_subset_member *enum_subset_members;
+  size_t enum_subset_member_count;
+  size_t enum_subset_member_capacity;
   const w_seed_hir0_function *functions;
   size_t function_count;
   size_t function_capacity;
@@ -721,6 +743,8 @@ typedef struct {
   size_t enum_case_capacity;
   w_seed_hir0_enum_case_parameter *enum_case_parameters;
   size_t enum_case_parameter_capacity;
+  w_seed_hir0_enum_subset_member *enum_subset_members;
+  size_t enum_subset_member_capacity;
   w_seed_hir0_function *functions;
   size_t function_capacity;
   w_seed_hir0_parameter *parameters;

@@ -80,6 +80,8 @@ typedef struct {
   w_seed_frontend_enum_case enum_cases[TEST_ENUM_CASES];
   w_seed_frontend_enum_case_parameter
       enum_case_parameters[TEST_ENUM_CASE_PARAMETERS];
+  w_seed_frontend_enum_subset_member
+      enum_subset_members[TEST_HIR_RECORDS];
   w_seed_frontend_type_declaration type_declarations[TEST_STRUCTS];
   w_seed_frontend_alias aliases[TEST_STRUCTS];
   w_seed_frontend_type types[TEST_TYPES];
@@ -118,6 +120,8 @@ typedef struct {
   w_seed_hir0_enum_case hir_enum_cases[TEST_HIR_RECORDS];
   w_seed_hir0_enum_case_parameter
       hir_enum_case_parameters[TEST_HIR_RECORDS];
+  w_seed_hir0_enum_subset_member
+      hir_enum_subset_members[TEST_HIR_RECORDS];
   w_seed_hir0_function hir_functions[TEST_HIR_RECORDS];
   w_seed_hir0_parameter hir_parameters[TEST_HIR_RECORDS];
   w_seed_hir0_block hir_blocks[TEST_HIR_RECORDS];
@@ -241,6 +245,8 @@ static bool fixture_parse(const char *text) {
       .enum_case_capacity = TEST_ENUM_CASES,
       .enum_case_parameters = fixture.enum_case_parameters,
       .enum_case_parameter_capacity = TEST_ENUM_CASE_PARAMETERS,
+      .enum_subset_members = fixture.enum_subset_members,
+      .enum_subset_member_capacity = TEST_HIR_RECORDS,
       .type_declarations = fixture.type_declarations,
       .type_declaration_capacity = TEST_STRUCTS,
       .aliases = fixture.aliases,
@@ -524,6 +530,8 @@ static void setup_hir_output(void) {
       .enum_case_capacity = TEST_HIR_RECORDS,
       .enum_case_parameters = fixture.hir_enum_case_parameters,
       .enum_case_parameter_capacity = TEST_HIR_RECORDS,
+      .enum_subset_members = fixture.hir_enum_subset_members,
+      .enum_subset_member_capacity = TEST_HIR_RECORDS,
       .functions = fixture.hir_functions,
       .function_capacity = TEST_HIR_RECORDS,
       .parameters = fixture.hir_parameters,
@@ -3332,6 +3340,8 @@ static void fill_hir_output(uint8_t value) {
   (void)memset(fixture.hir_enum_cases, value, sizeof(fixture.hir_enum_cases));
   (void)memset(fixture.hir_enum_case_parameters, value,
                sizeof(fixture.hir_enum_case_parameters));
+  (void)memset(fixture.hir_enum_subset_members, value,
+               sizeof(fixture.hir_enum_subset_members));
   (void)memset(fixture.hir_functions, value, sizeof(fixture.hir_functions));
   (void)memset(fixture.hir_parameters, value, sizeof(fixture.hir_parameters));
   (void)memset(fixture.hir_blocks, value, sizeof(fixture.hir_blocks));
@@ -3383,6 +3393,7 @@ static bool hir_output_is_byte(uint8_t value) {
       (const uint8_t *)fixture.hir_enums,
       (const uint8_t *)fixture.hir_enum_cases,
       (const uint8_t *)fixture.hir_enum_case_parameters,
+      (const uint8_t *)fixture.hir_enum_subset_members,
       (const uint8_t *)fixture.hir_functions,
       (const uint8_t *)fixture.hir_parameters,
       (const uint8_t *)fixture.hir_blocks,
@@ -3411,6 +3422,7 @@ static bool hir_output_is_byte(uint8_t value) {
       sizeof(fixture.hir_types), sizeof(fixture.hir_enums),
       sizeof(fixture.hir_enum_cases),
       sizeof(fixture.hir_enum_case_parameters),
+      sizeof(fixture.hir_enum_subset_members),
       sizeof(fixture.hir_functions),
       sizeof(fixture.hir_parameters), sizeof(fixture.hir_blocks),
       sizeof(fixture.hir_block_arguments),
@@ -5340,6 +5352,250 @@ static bool test_enum_switch_local_calls(void) {
   return true;
 }
 
+static bool test_enum_subset_hir(void) {
+  static const char SOURCE[] =
+      "enum Stage { accepted reserving preparing serving completed }\n"
+      "alias WorkStage = Stage<[.serving, .preparing]>\n"
+      "alias ReorderedStage = Stage<[.preparing, .serving]>\n"
+      "fn label(stage: WorkStage): i64 { return switch stage { "
+      "case .serving: 2 case .preparing: 1 } }\n"
+      "fn reordered(stage: ReorderedStage): i64 { "
+      "return label(stage: stage) }\n"
+      "entry { let preparing = reordered(stage: .preparing) "
+      "let serving = label(stage: .serving) }\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(fixture.hir_counts.enums == 1u &&
+        fixture.hir_counts.enum_cases == 5u &&
+        fixture.hir_counts.enum_subsets == 1u &&
+        fixture.hir_counts.enum_subset_members == 2u &&
+        program->enum_subset_member_count == 2u &&
+        fixture.hir_counts.receipt_bytes == W_SEED_HIR0_MAX_RECEIPT_BYTES &&
+        fixture.hir_result.required.receipt_bytes ==
+            W_SEED_HIR0_MAX_RECEIPT_BYTES &&
+        fixture.hir_result.written.receipt_bytes ==
+            W_SEED_HIR0_MAX_RECEIPT_BYTES);
+  CHECK(program->types[4].kind == W_SEED_HIR0_TYPE_ENUM &&
+        program->types[4].enum_index == 0u &&
+        program->types[5].kind == W_SEED_HIR0_TYPE_ENUM_SUBSET &&
+        program->types[5].enum_index == 0u &&
+        program->types[5].first_subset_member == 0u &&
+        program->types[5].subset_member_count == 2u &&
+        program->types[5].lifecycle == W_SEED_HIR0_LIFECYCLE_VALUE_COPY &&
+        program->types[5].release_contract ==
+            W_SEED_HIR0_RELEASE_CONTRACT_NONE);
+  CHECK(program->enum_subset_members[0].owner_type == 5u &&
+        program->enum_subset_members[0].ordinal == 0u &&
+        program->enum_subset_members[0].enum_index == 0u &&
+        program->enum_subset_members[0].enum_case_index == 2u &&
+        program->enum_subset_members[1].owner_type == 5u &&
+        program->enum_subset_members[1].ordinal == 1u &&
+        program->enum_subset_members[1].enum_index == 0u &&
+        program->enum_subset_members[1].enum_case_index == 3u &&
+        program->enum_cases[2].tag == 2u && program->enum_cases[3].tag == 3u);
+
+  size_t subset_type_count = 0u;
+  uint32_t first_subset_type = W_SEED_FRONTEND_NONE;
+  for (size_t type = 0u; type < fixture.result.written.types; type += 1u) {
+    if (fixture.types[type].kind != W_SEED_FRONTEND_TYPE_ENUM_SUBSET) continue;
+    if (first_subset_type == W_SEED_FRONTEND_NONE)
+      first_subset_type = (uint32_t)type;
+    CHECK(hir_type_from_frontend(&fixture.output, &fixture.result,
+                                 (uint32_t)type) == 5u);
+    subset_type_count += 1u;
+  }
+  CHECK(subset_type_count >= 2u && first_subset_type != W_SEED_FRONTEND_NONE);
+
+  uint8_t semantic_digest[32];
+  (void)memcpy(semantic_digest, fixture.hir_result.semantic_digest,
+               sizeof(semantic_digest));
+  static const char REORDERED_SOURCE[] =
+      "enum Stage { accepted reserving preparing serving completed }\n"
+      "alias ReorderedStage = Stage<[.preparing, .serving]>\n"
+      "alias WorkStage = Stage<[.serving, .preparing]>\n"
+      "fn label(stage: WorkStage): i64 { return switch stage { "
+      "case .serving: 2 case .preparing: 1 } }\n"
+      "fn reordered(stage: ReorderedStage): i64 { "
+      "return label(stage: stage) }\n"
+      "entry { let preparing = reordered(stage: .preparing) "
+      "let serving = label(stage: .serving) }\n";
+  CHECK(lower(REORDERED_SOURCE));
+  program = &fixture.hir_program;
+  CHECK(memcmp(semantic_digest, fixture.hir_result.semantic_digest,
+               sizeof(semantic_digest)) == 0 &&
+        fixture.hir_counts.enum_subsets == 1u &&
+        fixture.hir_counts.enum_subset_members == 2u);
+
+  size_t dispatch = SIZE_MAX;
+  for (size_t block = 0u; block < program->block_count; block += 1u)
+    if (program->terminators[block].kind ==
+        W_SEED_HIR0_TERMINATOR_SWITCH_ENUM) {
+      CHECK(dispatch == SIZE_MAX);
+      dispatch = block;
+    }
+  CHECK(dispatch != SIZE_MAX);
+  const w_seed_hir0_terminator *term = &program->terminators[dispatch];
+  CHECK(term->value_index != W_SEED_HIR0_NONE &&
+        program->values[term->value_index].type_index == 5u &&
+        term->switch_enum_index == 0u && term->switch_edge_count == 2u &&
+        term->switch_carrier_width == 3u);
+  CHECK(program->switch_edges[0].enum_case_index == 2u &&
+        program->switch_edges[1].enum_case_index == 3u &&
+        program->switch_edges[0].ordinal == 0u &&
+        program->switch_edges[1].ordinal == 1u &&
+        program->switch_edges[0].target_block == dispatch + 1u &&
+        program->switch_edges[1].target_block == dispatch + 2u);
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_type saved_type = fixture.hir_types[5];
+  const w_seed_hir0_enum_subset_member saved_member0 =
+      fixture.hir_enum_subset_members[0];
+  const w_seed_hir0_enum_subset_member saved_member1 =
+      fixture.hir_enum_subset_members[1];
+  const w_seed_hir0_terminator saved_dispatch =
+      fixture.hir_terminators[dispatch];
+  const w_seed_hir0_switch_edge saved_edge0 = fixture.hir_switch_edges[0];
+  const w_seed_hir0_switch_edge saved_edge1 = fixture.hir_switch_edges[1];
+  const w_seed_hir0_value saved_subject =
+      fixture.hir_values[saved_dispatch.value_index];
+  const w_seed_hir0_enum saved_enum = fixture.hir_enums[0];
+  const w_seed_hir0_enum_case saved_case0 = fixture.hir_enum_cases[0];
+  const w_seed_hir0_enum_case saved_case2 = fixture.hir_enum_cases[2];
+  const w_seed_hir0_enum_case saved_case3 = fixture.hir_enum_cases[3];
+
+  uint32_t excluded_value = W_SEED_HIR0_NONE;
+  for (size_t value = 0u; value < program->value_count; value += 1u) {
+    if (program->values[value].kind == W_SEED_HIR0_VALUE_ENUM_CASE &&
+        program->values[value].type_index == 5u) {
+      excluded_value = (uint32_t)value;
+      break;
+    }
+  }
+  CHECK(excluded_value != W_SEED_HIR0_NONE);
+  const w_seed_hir0_value saved_excluded =
+      fixture.hir_values[excluded_value];
+  fixture.hir_values[excluded_value].enum_case_index = 0u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[excluded_value] = saved_excluded;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_types[5].subset_member_count = 0u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_types[5] = saved_type;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_types[5].subset_member_count = 5u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_types[5] = saved_type;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_program.enum_subset_member_count = 1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_program.enum_subset_member_count = 2u;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_enum_subset_members[0].owner_type = 4u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enum_subset_members[0] = saved_member0;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enum_subset_members[1].ordinal = 0u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enum_subset_members[1] = saved_member1;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enum_subset_members[1].enum_case_index = 2u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enum_subset_members[1] = saved_member1;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enum_subset_members[0].enum_index = 1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enum_subset_members[0] = saved_member0;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enum_subset_members[0].enum_case_index = 99u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enum_subset_members[0] = saved_member0;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enum_subset_members[0].enum_case_index = 3u;
+  fixture.hir_enum_subset_members[1].enum_case_index = 2u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enum_subset_members[0] = saved_member0;
+  fixture.hir_enum_subset_members[1] = saved_member1;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_enum_cases[0].payload_count = 1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enum_cases[0] = saved_case0;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[dispatch].switch_edge_count = 1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[dispatch] = saved_dispatch;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[dispatch].switch_edge_count = 3u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[dispatch] = saved_dispatch;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[dispatch].switch_carrier_width = 1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[dispatch] = saved_dispatch;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[saved_dispatch.value_index].type_index = 4u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[saved_dispatch.value_index] = saved_subject;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_switch_edges[0].enum_case_index = 3u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_switch_edges[0] = saved_edge0;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_switch_edges[1].enum_case_index = 2u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_switch_edges[1] = saved_edge1;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enum_cases[2].tag = 0u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enum_cases[2] = saved_case2;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enum_cases[3].tag = 2u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enum_cases[3] = saved_case3;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enums[0].case_count = 4u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enums[0] = saved_enum;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_input input = hir_input();
+  const uint8_t sentinel = 0xa5u;
+  w_seed_hir0_result rejected;
+  (void)memset(&rejected, 0x42, sizeof(rejected));
+  const w_seed_hir0_result rejected_before = rejected;
+
+  setup_hir_output();
+  fill_hir_output(sentinel);
+  fixture.hir_output.enum_subset_member_capacity =
+      fixture.hir_counts.enum_subset_members - 1u;
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &rejected) ==
+        W_SEED_HIR0_CAPACITY);
+  CHECK(hir_output_is_byte(sentinel) &&
+        memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
+
+  setup_hir_output();
+  fill_hir_output(sentinel);
+  fixture.hir_output.enum_subset_members = NULL;
+  rejected = rejected_before;
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &rejected) ==
+        W_SEED_HIR0_CAPACITY);
+  CHECK(hir_output_is_byte(sentinel) &&
+        memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
+
+  setup_hir_output();
+  fill_hir_output(sentinel);
+  w_seed_hir0_output alias = fixture.hir_output;
+  alias.enum_subset_members =
+      (w_seed_hir0_enum_subset_member *)(void *)alias.types;
+  rejected = rejected_before;
+  CHECK(w_seed_hir0_run(&input, &alias, &rejected) == W_SEED_HIR0_INVALID);
+  CHECK(hir_output_is_byte(sentinel) &&
+        memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
+  return true;
+}
+
 static bool test_enum_switch_cfg_composition_barrier(void) {
   static const char SOURCE[] =
       "enum Course { starter main dessert }\n"
@@ -6162,6 +6418,7 @@ int main(void) {
   if (!test_local_enum_payload_declarations_hir()) return 1;
   if (!test_local_enum_payload_constructor_hir()) return 1;
   if (!test_enum_switch_hir()) return 1;
+  if (!test_enum_subset_hir()) return 1;
   if (!test_enum_payload_captures()) return 1;
   if (!test_enum_switch_local_calls()) return 1;
   if (!test_enum_switch_cfg_composition_barrier()) return 1;

@@ -327,8 +327,9 @@ static bool test_enum_frontend_storage(void) {
   const w_seed_native0_status status =
       run_source(source, sizeof(source) - 1u, "enum-storage", 12u, output,
                  sizeof(output), &result);
-  CHECK(status == W_SEED_NATIVE0_HIR);
-  /* Frontend normalization succeeds; HIR0 remains the explicit enum barrier. */
+  CHECK(status == W_SEED_NATIVE0_UNSUPPORTED);
+  /* Frontend normalization succeeds; HIR0 keeps membership outside this
+   * backend slice's closed family. */
   CHECK(storage.frontend_result.status == W_SEED_FRONTEND_OK &&
         storage.frontend_result.written.enums == 2u &&
         storage.frontend_result.written.enum_cases == 5u &&
@@ -702,6 +703,135 @@ static bool test_enum_switch_native_lowering(void) {
         contains_bytes(restaurant_output,
                        restaurant_windows_result.mlir.written.mlir_bytes,
                        "      -2: ^w_fn_0_b_3\n"));
+  return true;
+}
+
+static bool test_enum_subset_switch_native_lowering(void) {
+  static const uint8_t source[] =
+      "enum Stage {\n"
+      "  accepted\n"
+      "  reserving\n"
+      "  preparing\n"
+      "  serving\n"
+      "  completed\n"
+      "}\n"
+      "\n"
+      "alias WorkStage = Stage<[.serving, .preparing]>\n"
+      "\n"
+      "fn label(stage: WorkStage): i64 {\n"
+      "  return switch stage {\n"
+      "    case .serving: 2\n"
+      "    case .preparing: 1\n"
+      "  }\n"
+      "}\n"
+      "\n"
+      "entry {\n"
+      "  let preparing = label(stage: .preparing)\n"
+      "  let serving = label(stage: .serving)\n"
+      "  print(\"Work ${preparing}/${serving}\")\n"
+      "}\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source(source, sizeof(source) - 1u, "enum-subset-switch", 18u,
+                   output, sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  CHECK(result.status == W_SEED_NATIVE0_OK &&
+        storage.hir_program.function_count == 2u);
+
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.has_enum_switch && selection.has_cfg);
+  const w_seed_hir0_function *label = &storage.hir_program.functions[0];
+  CHECK(label->parameter_count == 1u && label->first_parameter <
+                                             storage.hir_program.parameter_count);
+  const uint32_t subset_type =
+      storage.hir_program.parameters[label->first_parameter].type_index;
+  CHECK(subset_type < storage.hir_program.type_count &&
+        storage.hir_program.types[subset_type].kind ==
+            W_SEED_HIR0_TYPE_ENUM_SUBSET);
+  const w_seed_hir0_type *subset = &storage.hir_program.types[subset_type];
+  CHECK(subset->enum_index == 0u && subset->subset_member_count == 2u &&
+        subset->first_subset_member < storage.hir_program.enum_subset_member_count);
+  const w_seed_hir0_enum *base = &storage.hir_program.enums[subset->enum_index];
+  CHECK(base->case_count == 5u);
+  CHECK(storage.hir_program.enum_subset_members[subset->first_subset_member]
+                .enum_case_index == base->first_case + 2u &&
+        storage.hir_program.enum_subset_members[subset->first_subset_member + 1u]
+                .enum_case_index == base->first_case + 3u);
+  const w_seed_hir0_terminator *dispatch =
+      &storage.hir_program.terminators[
+          storage.hir_program.blocks[label->first_block].terminator_index];
+  CHECK(dispatch->kind == W_SEED_HIR0_TERMINATOR_SWITCH_ENUM &&
+        dispatch->switch_carrier_width == 3u &&
+        dispatch->switch_edge_count == 2u &&
+        storage.hir_program.values[dispatch->value_index].type_index ==
+            subset_type);
+  for (size_t ordinal = 0u; ordinal < dispatch->switch_edge_count; ordinal += 1u) {
+    const w_seed_hir0_switch_edge *edge =
+        &storage.hir_program.switch_edges[dispatch->first_switch_edge + ordinal];
+    CHECK(edge->ordinal == ordinal && edge->enum_index == subset->enum_index &&
+          edge->enum_case_index == base->first_case + 2u + ordinal &&
+          edge->target_block == label->first_block + 1u + ordinal);
+  }
+  CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "cf.switch %p0 : i3, [") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "      2: ^w_fn_0_b_1,") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "      3: ^w_fn_0_b_2\n") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "^w_fn_0_switch_default:\n    llvm.unreachable\n") &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "^w_fn_0_switch_default:") == 1u &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.mlir.constant(2 : i3) : i3") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.mlir.constant(3 : i3) : i3") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "llvm.mlir.constant(0 : i3) : i3") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "llvm.mlir.constant(1 : i3) : i3") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "llvm.mlir.constant(4 : i3) : i3") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes, "llvm.switch"));
+
+  /* A subset edge must retain the base case identity; forged identity is
+   * rejected before Native0 publishes the caller-owned artifact. */
+  const uint32_t subset_member_index = subset->first_subset_member;
+  const uint32_t saved_case =
+      storage.hir_enum_subset_members[subset_member_index].enum_case_index;
+  storage.hir_enum_subset_members[subset_member_index].enum_case_index =
+      base->first_case;
+  uint8_t forged_output[W_SEED_MLIR0_MAX_BYTES];
+  (void)memset(forged_output, 0xa5u, sizeof(forged_output));
+  w_seed_mlir0_result forged_result;
+  (void)memset(&forged_result, 0x5au, sizeof(forged_result));
+  const w_seed_mlir0_result forged_snapshot = forged_result;
+  const w_seed_mlir0_input forged_input = {
+      &storage.hir_program, &storage.hir_result,
+      W_SEED_MLIR0_ARTIFACT_EXECUTABLE};
+  CHECK(w_seed_mlir0_emit(
+            &forged_input, &TARGET,
+            &(w_seed_mlir0_output){forged_output, sizeof(forged_output)},
+            &forged_result) == W_SEED_MLIR0_INVALID_HIR);
+  for (size_t index = 0u; index < sizeof(forged_output); index += 1u)
+    CHECK(forged_output[index] == 0xa5u);
+  CHECK(memcmp(&forged_result, &forged_snapshot, sizeof(forged_result)) == 0);
+  storage.hir_enum_subset_members[subset_member_index].enum_case_index =
+      saved_case;
+  CHECK(w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
+
+  w_seed_native0_result windows_result;
+  CHECK(run_source_mode(source, sizeof(source) - 1u, "enum-subset-switch", 18u,
+                        &WINDOWS_TARGET, W_SEED_MLIR0_ARTIFACT_EXECUTABLE,
+                        output, sizeof(output), &windows_result) ==
+            W_SEED_NATIVE0_OK);
+  CHECK(windows_result.status == W_SEED_NATIVE0_OK &&
+        contains_bytes(output, windows_result.mlir.written.mlir_bytes,
+                       "cf.switch %p0 : i3, [") &&
+        contains_bytes(output, windows_result.mlir.written.mlir_bytes,
+                       "      3: ^w_fn_0_b_2\n"));
   return true;
 }
 
@@ -2051,6 +2181,7 @@ int main(void) {
                         test_enum_payload_native_lowering() &&
                         test_bool_payload_native_lowering() &&
                         test_enum_switch_native_lowering() &&
+                        test_enum_subset_switch_native_lowering() &&
                         test_process_handler_catalog_and_artifact() &&
                         test_process_input0_public_artifact() &&
                         test_process_arguments_count_public_artifact() &&

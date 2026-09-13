@@ -70,6 +70,8 @@ typedef struct {
   w_seed_frontend_enum_case_parameter
       enum_case_parameters[TEST_HIR_RECORDS];
   w_seed_frontend_switch_arm switch_arms[TEST_HIR_RECORDS];
+  w_seed_frontend_enum_subset_member
+      enum_subset_members[TEST_HIR_RECORDS];
   w_seed_frontend_type_declaration type_declarations[TEST_STRUCTS];
   w_seed_frontend_alias aliases[TEST_STRUCTS];
   w_seed_frontend_type types[TEST_TYPES];
@@ -104,6 +106,8 @@ typedef struct {
   w_seed_hir0_type hir_types[TEST_HIR_RECORDS];
   w_seed_hir0_enum hir_enums[TEST_HIR_RECORDS];
   w_seed_hir0_enum_case hir_enum_cases[TEST_HIR_RECORDS];
+  w_seed_hir0_enum_subset_member
+      hir_enum_subset_members[TEST_HIR_RECORDS];
   w_seed_hir0_function hir_functions[TEST_HIR_RECORDS];
   w_seed_hir0_parameter hir_parameters[TEST_HIR_RECORDS];
   w_seed_hir0_block hir_blocks[TEST_HIR_RECORDS];
@@ -233,6 +237,8 @@ static bool parse_source(const uint8_t *source_bytes, size_t source_length) {
       .enum_case_parameter_capacity = TEST_HIR_RECORDS,
       .switch_arms = fixture.switch_arms,
       .switch_arm_capacity = TEST_HIR_RECORDS,
+      .enum_subset_members = fixture.enum_subset_members,
+      .enum_subset_member_capacity = TEST_HIR_RECORDS,
       .type_declarations = fixture.type_declarations,
       .type_declaration_capacity = TEST_STRUCTS,
       .aliases = fixture.aliases,
@@ -428,6 +434,8 @@ static bool lower_hir(const uint8_t *source_bytes, size_t source_length) {
       .enum_capacity = TEST_HIR_RECORDS,
       .enum_cases = fixture.hir_enum_cases,
       .enum_case_capacity = TEST_HIR_RECORDS,
+      .enum_subset_members = fixture.hir_enum_subset_members,
+      .enum_subset_member_capacity = TEST_HIR_RECORDS,
       .functions = fixture.hir_functions,
       .function_capacity = TEST_HIR_RECORDS,
       .parameters = fixture.hir_parameters,
@@ -499,6 +507,8 @@ static bool lower_process_hir(const uint8_t *source_bytes,
       .enum_capacity = TEST_HIR_RECORDS,
       .enum_cases = fixture.hir_enum_cases,
       .enum_case_capacity = TEST_HIR_RECORDS,
+      .enum_subset_members = fixture.hir_enum_subset_members,
+      .enum_subset_member_capacity = TEST_HIR_RECORDS,
       .functions = fixture.hir_functions,
       .function_capacity = TEST_HIR_RECORDS,
       .parameters = fixture.hir_parameters,
@@ -915,6 +925,153 @@ static bool test_enum_switch_mlir(void) {
   fixture.hir_terminators[dispatch_terminator].switch_carrier_width =
       saved_carrier;
   CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
+static bool test_enum_subset_switch_mlir(void) {
+  static const uint8_t SOURCE[] =
+      "enum Stage {\n"
+      "  accepted\n"
+      "  reserving\n"
+      "  preparing\n"
+      "  serving\n"
+      "  completed\n"
+      "}\n"
+      "\n"
+      "alias WorkStage = Stage<[.serving, .preparing]>\n"
+      "\n"
+      "fn label(stage: WorkStage): i64 {\n"
+      "  return switch stage {\n"
+      "    case .serving: 2\n"
+      "    case .preparing: 1\n"
+      "  }\n"
+      "}\n"
+      "\n"
+      "entry {\n"
+      "  let preparing = label(stage: .preparing)\n"
+      "  let serving = label(stage: .serving)\n"
+      "  print(\"Work ${preparing}/${serving}\")\n"
+      "}\n";
+  CHECK(lower_hir(SOURCE, sizeof(SOURCE) - 1u));
+  CHECK(fixture.hir_program.function_count == 2u &&
+        fixture.hir_program.functions[0].parameter_count == 1u);
+  const w_seed_hir0_function *label = &fixture.hir_program.functions[0];
+  CHECK(label->first_parameter < fixture.hir_program.parameter_count);
+  const uint32_t subset_type =
+      fixture.hir_program.parameters[label->first_parameter].type_index;
+  CHECK(subset_type < fixture.hir_program.type_count &&
+        fixture.hir_program.types[subset_type].kind ==
+            W_SEED_HIR0_TYPE_ENUM_SUBSET);
+  const w_seed_hir0_type *subset = &fixture.hir_program.types[subset_type];
+  CHECK(subset->enum_index < fixture.hir_program.enum_count &&
+        subset->subset_member_count == 2u &&
+        subset->first_subset_member <
+            fixture.hir_program.enum_subset_member_count);
+  const w_seed_hir0_enum *base =
+      &fixture.hir_program.enums[subset->enum_index];
+  CHECK(base->case_count == 5u &&
+        fixture.hir_program.enum_subset_members[subset->first_subset_member]
+                .enum_case_index == base->first_case + 2u &&
+        fixture.hir_program.enum_subset_members[subset->first_subset_member + 1u]
+                .enum_case_index == base->first_case + 3u);
+  const size_t dispatch_block = label->first_block;
+  CHECK(dispatch_block < fixture.hir_program.block_count);
+  const w_seed_hir0_terminator *dispatch =
+      &fixture.hir_program.terminators[
+          fixture.hir_program.blocks[dispatch_block].terminator_index];
+  CHECK(dispatch->kind == W_SEED_HIR0_TERMINATOR_SWITCH_ENUM &&
+        dispatch->value_index < fixture.hir_program.value_count &&
+        dispatch->switch_carrier_width == 3u &&
+        dispatch->switch_edge_count == 2u &&
+        fixture.hir_program.values[dispatch->value_index].type_index ==
+            subset_type);
+  for (size_t ordinal = 0u; ordinal < dispatch->switch_edge_count;
+       ordinal += 1u) {
+    const w_seed_hir0_switch_edge *edge =
+        &fixture.hir_program.switch_edges[
+            (size_t)dispatch->first_switch_edge + ordinal];
+    CHECK(edge->ordinal == ordinal && edge->enum_index == subset->enum_index &&
+          edge->enum_case_index == base->first_case + 2u + ordinal &&
+          edge->target_block == dispatch_block + 1u + ordinal);
+  }
+
+  const w_seed_mlir0_input input = mlir_input();
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result result;
+  CHECK(w_seed_mlir0_measure(&input, &TARGET, &counts, &measured) ==
+        W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_emit(
+            &input, &TARGET,
+            &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(result.required.mlir_bytes == counts.mlir_bytes &&
+        result.written.mlir_bytes == counts.mlir_bytes &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.func internal @w_fn_0(%buffer: !llvm.ptr, "
+                       "%cursor_address: !llvm.ptr, %p0: i3) -> i64") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "cf.switch %p0 : i3, [") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "      default: ^w_fn_0_switch_default,") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "      2: ^w_fn_0_b_1,") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "      3: ^w_fn_0_b_2\n") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "^w_fn_0_switch_default:\n    llvm.unreachable\n") &&
+        count_bytes(artifact, result.written.mlir_bytes,
+                    "^w_fn_0_switch_default:") == 1u &&
+        count_bytes(artifact, result.written.mlir_bytes,
+                    "llvm.unreachable\n") == 1u &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.mlir.constant(2 : i3) : i3") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.mlir.constant(3 : i3) : i3") &&
+        !contains_bytes(artifact, result.written.mlir_bytes,
+                        "llvm.mlir.constant(0 : i3) : i3") &&
+        !contains_bytes(artifact, result.written.mlir_bytes,
+                        "llvm.mlir.constant(1 : i3) : i3") &&
+        !contains_bytes(artifact, result.written.mlir_bytes,
+                        "llvm.mlir.constant(4 : i3) : i3") &&
+        !contains_bytes(artifact, result.written.mlir_bytes, "llvm.switch"));
+
+  uint8_t forged_output[W_SEED_MLIR0_MAX_BYTES];
+  (void)memset(forged_output, 0xa5u, sizeof(forged_output));
+  w_seed_mlir0_result forged_result;
+  (void)memset(&forged_result, 0x5au, sizeof(forged_result));
+  const w_seed_mlir0_result forged_snapshot = forged_result;
+  const uint32_t member_index = subset->first_subset_member;
+  const uint32_t saved_case =
+      fixture.hir_enum_subset_members[member_index].enum_case_index;
+  fixture.hir_enum_subset_members[member_index].enum_case_index =
+      base->first_case;
+  CHECK(w_seed_mlir0_emit(
+            &input, &TARGET,
+            &(w_seed_mlir0_output){forged_output, sizeof(forged_output)},
+            &forged_result) == W_SEED_MLIR0_INVALID_HIR);
+  for (size_t index = 0u; index < sizeof(forged_output); index += 1u)
+    CHECK(forged_output[index] == 0xa5u);
+  CHECK(memcmp(&forged_result, &forged_snapshot, sizeof(forged_result)) == 0);
+  fixture.hir_enum_subset_members[member_index].enum_case_index = saved_case;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  uint8_t windows_artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_result windows_result;
+  CHECK(w_seed_mlir0_emit(
+            &input, &WINDOWS_TARGET,
+            &(w_seed_mlir0_output){windows_artifact, sizeof(windows_artifact)},
+            &windows_result) == W_SEED_MLIR0_OK);
+  CHECK(contains_bytes(windows_artifact, windows_result.written.mlir_bytes,
+                       "llvm.func internal @w_fn_0(%buffer: !llvm.ptr, "
+                       "%cursor_address: !llvm.ptr, %p0: i3) -> i64") &&
+        contains_bytes(windows_artifact, windows_result.written.mlir_bytes,
+                       "cf.switch %p0 : i3, [") &&
+        contains_bytes(windows_artifact, windows_result.written.mlir_bytes,
+                       "      2: ^w_fn_0_b_1,") &&
+        contains_bytes(windows_artifact, windows_result.written.mlir_bytes,
+                       "      3: ^w_fn_0_b_2\n"));
   return true;
 }
 
@@ -3328,6 +3485,7 @@ int main(void) {
   if (!test_process_hir_is_closed_to_mlir()) return 1;
   if (!test_process_arguments_count_comparison_mlir()) return 1;
   if (!test_enum_switch_mlir()) return 1;
+  if (!test_enum_subset_switch_mlir()) return 1;
   if (!test_signed_comparison_artifacts()) return 1;
   if (!test_straight_line_mutation_is_ssa()) return 1;
   if (!test_conditional_mutation_merge_is_ssa()) return 1;
