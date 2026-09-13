@@ -28,7 +28,7 @@ otherwise.
 | --- | --- |
 | Language design | Contracts cover ownership, automatic memory management, structured concurrency, parallelism, placement, and explicit boundaries. |
 | Seed frontend | The seed provides lossless source reading, parsing, formatting, and bounded semantic validation. It is not the complete frontend. |
-| Native seed route | A verified HIR slice lowers through MLIR0 to native code for selected values, calls, returns, structured control flow, arithmetic, and loops. |
+| Native seed route | A verified HIR slice lowers through MLIR0 to native code for selected values, calls, returns, structured control flow, arithmetic, pre-test loops, and a bounded post-test `repeat`. |
 | Enum payloads | The current bounded slice supports Bool and signed i64 payloads, captures, constructor values, and exhaustive switches. It has no public payload ABI. |
 | Enum subsets | The bounded seed target admits proper nonempty payloadless subsets of local enums with base tags and no wrapper allocation; focused checks and native Windows plus Linux/WSL execution are current. |
 | Source entry | entry { ... } and entry(functionName) are accepted in the bounded surface. An empty entry { } is valid. |
@@ -49,9 +49,10 @@ stable in-memory layout, pointer tagging, heap boxing, or a public ABI.
   integration remain outside the current product boundary.
 - w run and w build require one explicit source path. w build also requires an
   exact target triple and a new output artifact.
-- Public process execution is a bounded Windows candidate. It composes only
-  admitted normal-HIR body forms and scalar/enum values. General CFG, runtime,
-  and argument-processing resources remain outside the current surface.
+- Public process execution has bounded native Windows x64 and CRT-free
+  Linux/WSL x64 candidate routes. They compose only admitted normal-HIR body
+  forms and scalar/enum values. General CFG, runtime, and argument-processing
+  resources remain outside the current surface.
 - Windows execution is local candidate evidence. It is not a supported
   platform claim.
 - The platform matrix currently reports zero supported targets. It records

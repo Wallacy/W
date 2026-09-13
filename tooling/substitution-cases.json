@@ -6539,6 +6539,117 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-structured-post-test-repeat",
+      "reviewItem": "bounded executable post-test repeat against pre-test rewriting, stale carriers, hidden stack state, and unsupported control or effects",
+      "decisions": [
+        "W-1574"
+      ],
+      "task": "Preserve body-before-condition semantics through verified HIR, structured MLIR, and exact Windows plus Linux products for zero and multidigit inputs.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn receiptDigits(value: i64): i64 {",
+          "  var remaining = value",
+          "  var digits = 0",
+          "  repeat {",
+          "    digits = digits + 1",
+          "    remaining = remaining / 10",
+          "  } while remaining > 0",
+          "  return digits",
+          "}",
+          "entry {",
+          "  let zero = receiptDigits(value: 0)",
+          "  let cosmic = receiptDigits(value: 42424)",
+          "  print(\"Receipt digits ${zero}/${cosmic}\")",
+          "}"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "pre-test-rewrite",
+          "language": "text",
+          "source": [
+            "rewrite repeat as while condition before the first body execution"
+          ],
+          "expectedDifference": "The selected zero input executes the body once and returns one digit."
+        },
+        {
+          "name": "hidden-stack-loop-state",
+          "language": "text",
+          "source": [
+            "lower mutable carriers through source-variable allocas"
+          ],
+          "expectedDifference": "The selected route preserves an ordered SSA tuple in structured scf.while without source-variable alloca."
+        },
+        {
+          "name": "stale-condition-carrier",
+          "language": "text",
+          "source": [
+            "evaluate the trailing condition from pre-body carrier values"
+          ],
+          "expectedDifference": "The selected condition reads at least one updated carrier and controls only the next trip."
+        },
+        {
+          "name": "unbounded-repeat-surface",
+          "language": "text",
+          "source": [
+            "accept nested loops, calls, effects, aggregates, labels, break, or continue"
+          ],
+          "expectedDifference": "The bounded source and independent verifiers reject those families until their CFG and effect contracts exist."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_frontend.h",
+          "symbol": "W_SEED_FRONTEND_STMT_REPEAT",
+          "claim": "Frontend21 retains post-test repeat as a distinct normalized statement."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_cfg_post_test_loop",
+          "claim": "HIR29 verifies the five-block post-test CFG, ordered carrier tuple, version chains, dominance, and exit projection."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "program_post_test_loop_is_supported",
+          "claim": "NativeSubset0 independently selects the bounded post-test form rather than aliasing natural while."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "append_program_post_test_loop",
+          "claim": "MLIR17 emits structured scf.while with a true initial Bool carrier and no source-variable alloca."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-repeat.w",
+          "symbol": "receiptDigits",
+          "claim": "The public witness computes zero and multidigit results through the same helper."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "restaurantRepeatFixture",
+          "claim": "The Linux/WSL route builds a CRT-free ELF and executes the exact oracle."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "restaurantRepeatFixture",
+          "claim": "The native Windows route builds a PE x64 artifact and executes the same oracle."
+        }
+      ],
+      "checks": [
+        "zero executes the body exactly once and 42424 produces five digits",
+        "HIR uses preheader, carrier body, condition, latch, and exit with dense ordered edge values",
+        "NativeSubset0 and MLIR0 recheck the post-test shape independently",
+        "raw MLIR contains one structured scf.while and no source-variable alloca",
+        "Windows PE and CRT-free Linux/WSL ELF print exact Receipt digits 1/5 with empty stderr and zero exit"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

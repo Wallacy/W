@@ -7867,6 +7867,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1571 | bounded local payloadless enum subset switch | Aliases in the bounded enum-subset slice canonicalize by the base enum and normalized base-case indices. A full case-set remains the base enum identity. The first executable implementation admits only proper, nonempty, payloadless subsets of a local closed enum. It preserves the base enum's private carrier width and declaration tags, keeps values scalar, and adds no wrapper or enum-specific allocation. A switch covers normalized subset members in base declaration order even when source arms use another order. Its backend-only synthetic llvm.unreachable default closes the lowered CFG after verification and is not a runtime narrowing guard. Subset-to-base is a no-op only after the same-base proof. Base-to-subset checked conversion and arbitrary superset conversion remain outside this executable slice. The same source produces the exact Work 1/2\n oracle, empty stderr, and exit zero as a Windows PE and a Linux/WSL ELF. | `source-backed-current` only for the bounded payloadless local subset, focused HIR/native/MLIR proofs, and dual-platform correctness witness. Payload-bearing/imported/generic subsets, general case-set algebra and conversions, public ABI/layout, other targets, timing, and ranking remain gaps. Primary `benchmarkDisposition: compiler-lifecycle`; the executable catalog separately owns exploratory W/C23/Rust measurement. |
 | W-1572 | bounded CRT-free Linux process arguments and payload-enum execution | The public process executable subset now targets Linux x86_64 without changing W-visible syntax or the ordinary generated `main() -> i32`. WRT0 captures the original kernel stack in target-owned module assembly, publishes private argc/argv accessors, and exits through syscalls. Generated process MLIR excludes argv0, accepts 0...256 borrowed POSIX-byte descriptors, derives the root encoding from the vector, and rejects 257 before W code or stdout. The existing process-input, process enum-payload, and count sources execute with exact outputs and cleanup as CRT-free ELF files; Windows remains independently gated. | `source-backed-current` only for Linux/WSL x86_64, borrowed process-lifetime descriptors, `Arguments.isEmpty`/`count`, the existing bounded process body, exact runtime cases, and CRT-free ELF closure. Decoded access, iteration, mutation, other architectures/OSes, cross-compilation, stable ABI/layout, timing, and ranking remain gaps. `benchmarkDisposition: deferred`; blocker `linux-native-executable-benchmark-runner`; task ID `linux-process-executable-benchmark`; stop after the catalog schema and runner publish the first validated native-Linux result for these exact oracles under a pinned target, profile, toolchain, and recipe. Existing Windows exploratory measurements remain separate. |
 | W-1573 | bounded public `Arguments.count` usize ordering | The bounded public process subset extends the exact resolver-owned `std.process.Arguments.count` comparison from `==`/`!=` to `<`, `<=`, `>`, and `>=` against a nonnegative unsuffixed compile-time integer literal, in either operand order. HIR reuses the `USIZE_COUNT_COMPARISON` record and keeps logical `usize` in HIR28. The x86_64 MLIR adapter emits unsigned `ult`/`ule`/`ugt`/`uge` for ordered count predicates over its physical `i64` carrier, while ordinary signed-`i64` comparisons retain signed predicates. Wrong identity or receiver, negative or computed literals, raw `Arguments`, and general `usize` arithmetic remain rejected. The public Restaurant ordering fixture executes exact bounded outputs through native Windows and Linux/WSL routes. | `source-backed-current` only for the bounded HIR28 logical `usize` comparison, exact identity/receiver/operator and operand-order barriers, unsigned x86_64 predicates, signed-`i64` regression, and dual-target correctness witness. General `usize` arithmetic, runtime or computed count comparisons, helper `usize` parameters/returns/indexing, decoded `OsString`, other targets, stable ABI/layout, native Linux benchmark execution, timing, and ranking remain gaps. Primary `benchmarkDisposition: compiler-lifecycle`; the executable catalog separately owns exploratory W/C23/Rust measurements. WSL is Linux-target correctness evidence, not native Linux performance evidence. No timing or language-ranking claim is made. |
+| W-1574 | bounded executable post-test `repeat` | The already normative W-746 surface lowers through a distinct five-block HIR29 post-test CFG, a dedicated NativeSubset0 fact, and one structured MLIR17 `scf.while`. A true initial Bool carrier forces the first body execution; each body computes the updated nonempty signed-`i64` tuple and the next condition. The public zero/multidigit witness emits exact output as a native Windows PE and CRT-free Linux/WSL ELF without source-variable `llvm.alloca`. | `source-backed-current` only for the bounded pure signed-`i64` helper, exact CFG/SSA/verifier barriers, structured lowering, and dual-target correctness witness. W-1149's broader `continue`, `break`, and cleanup study remains separate. Nested/mixed loops, calls/effects, aggregates, labels, non-`i64`, general CFG, other targets, stable ABI/layout, timing, and ranking remain gaps. Primary `benchmarkDisposition: compiler-lifecycle`; the executable catalog separately owns exploratory W/C23/Rust measurement. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -11756,3 +11757,47 @@ This evidence is `source-backed-current` only for the bounded comparison and
 dual-target correctness route. The primary benchmark disposition is
 `compiler-lifecycle`. The executable catalog separately owns exploratory
 W/C23/Rust measurements. W-1573 makes no timing or language-ranking claim.
+
+#### W-1574 — bounded executable post-test `repeat`
+
+W-746 already chose `repeat { body } while condition` and W-1149 established a
+design-oracle study. The seed frontend, however, previously discarded the
+post-test distinction, so no native product proved that the body ran once for
+a false initial condition. W-1574 closes that implementation gap for one
+strict scalar subset without changing the language syntax.
+
+The accepted helper carries one or more mutable signed-`i64` values. Its body
+is a source-ordered list of pure assignments over literals, parameters, and
+current carrier values. The Bool trailing condition must observe at least one
+updated carrier. Calls, effects, aggregates, nested or mixed control, labels,
+`break`, and `continue` fail closed.
+
+HIR29 uses preheader, carrier body, condition, latch, and exit blocks. The
+latch is not cosmetic: HIR branch records have one shared edge-argument range,
+so the branch cannot attach the updated tuple only to its looping successor.
+The latch owns that back edge and keeps the exit edge argument-free. The HIR
+verifier re-derives carrier order, initial and updated values, version chains,
+condition dependence, dominance, and exit projection. NativeSubset0 then
+rechecks the exact shape and records it independently from the pre-test natural
+loop.
+
+MLIR17 emits one structured `scf.while` with the signed tuple plus a private
+Bool carrier. Initial `true` enters the body once; the body yields updated
+values and the newly evaluated condition, which controls the next iteration.
+Safe constant division emits LLVM-dialect `llvm.sdiv`, while a runtime divisor
+still uses the checked helper. No source-variable `llvm.alloca` or host-C loop
+is introduced.
+
+[`restaurant-repeat.w`](compiler/seed-c/fixtures/restaurant-repeat.w) calls the
+helper with zero and 42424. It prints exactly `Receipt digits 1/5\n`, with empty
+stderr and exit zero, through both the native Windows PE lane and the CRT-free
+Linux/WSL ELF lane. The second lane proves the Linux target, not native Linux
+performance. The compiler bundle uses `compiler-lifecycle`; equivalent W,
+C23, and Rust executable measurements remain a separate exploratory catalog
+surface and make no ranking claim.
+
+This executable evidence closes only the body-before-condition, zero, and
+multidigit part of W-1149. Its `continue`, `break`, and lexical-cleanup cases
+remain design-oracle evidence until the corresponding executable control-flow
+forms exist. General loops, other scalar widths, public ABI/layout, additional
+targets, optimization quality, timing, and language ranking remain gaps.

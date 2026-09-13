@@ -632,6 +632,9 @@ static bool mark_reachable_value_tree(
     bool *has_subtract, bool *has_multiply, bool *has_divide,
     bool *has_remainder, size_t depth);
 
+static bool mlir0_value_has_safe_constant_divisor(
+    const w_seed_hir0_program *program, const w_seed_hir0_value *value);
+
 static bool dynamic_plan_append_text(mlir0_dynamic_plan *plan,
                                      const uint8_t *bytes, size_t length) {
   if (plan == NULL || (length != 0u && bytes == NULL)) return false;
@@ -814,6 +817,19 @@ static bool mlir0_value_is_constant_i64(const w_seed_hir0_program *program,
          mlir0_value_is_constant_i64(program, value->right_value, depth + 1u);
 }
 
+static bool mlir0_value_has_safe_constant_divisor(
+    const w_seed_hir0_program *program, const w_seed_hir0_value *value) {
+  if (program == NULL || value == NULL ||
+      value->binary_operator != W_SEED_HIR0_BINARY_DIVIDE ||
+      value->right_value >= program->value_count)
+    return false;
+  const w_seed_hir0_value *divisor = &program->values[value->right_value];
+  return divisor->kind == W_SEED_HIR0_VALUE_CONST_I64 &&
+         divisor->type_index < program->type_count &&
+         program->types[divisor->type_index].kind == W_SEED_HIR0_TYPE_I64 &&
+         divisor->integer_value != 0 && divisor->integer_value != -1;
+}
+
 static const char *binary_operation(w_seed_hir0_binary_operator operation) {
   switch (operation) {
     case W_SEED_HIR0_BINARY_ADD:
@@ -966,9 +982,9 @@ static bool mark_reachable_value_tree(
     return true;
   }
   if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
-    if (!((value->binary_operator == W_SEED_HIR0_BINARY_DIVIDE ||
-           value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER) &&
-          mlir0_value_is_constant_i64(program, value_index, 0u)))
+    if (!(mlir0_value_has_safe_constant_divisor(program, value) ||
+          (value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER &&
+           mlir0_value_is_constant_i64(program, value_index, 0u))))
       note_checked_binary_operator(value->binary_operator, has_add,
                                    has_subtract, has_multiply, has_divide,
                                    has_remainder);
@@ -1350,9 +1366,9 @@ static bool append_binary_value_operation_in_loop(
     return false;
   const w_seed_hir0_value *value = &program->values[value_index];
   const bool constant_division =
-      (value->binary_operator == W_SEED_HIR0_BINARY_DIVIDE ||
-       value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER) &&
-      mlir0_value_is_constant_i64(program, value_index, 0u);
+      mlir0_value_has_safe_constant_divisor(program, value) ||
+      (value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER &&
+       mlir0_value_is_constant_i64(program, value_index, 0u));
   const char *helper = constant_division
                            ? NULL
                            : checked_binary_helper(value->binary_operator);
@@ -3776,9 +3792,436 @@ static bool append_program_natural_loop(
   return true;
 }
 
+/* Lower the dedicated five-block repeat CFG without routing it through the
+ * pre-test natural-loop emitter.  SCF's condition region runs before its do
+ * region, so a private i1 carrier records the condition produced by the
+ * previous body.  It starts true to force the first body execution, then the
+ * body computes the post-test condition for the next trip. */
+static bool append_program_post_test_loop(
+    const w_seed_hir0_program *program, size_t function_index,
+    const mlir0_process_emit_context *process, uint8_t *artifact,
+    size_t capacity, size_t *offset) {
+  if (program == NULL || artifact == NULL || offset == NULL ||
+      function_index >= program->function_count)
+    return false;
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  if (function->block_count != 5u || function->first_block >= program->block_count ||
+      function->block_count > program->block_count - function->first_block ||
+      function->return_type >= program->type_count ||
+      program->types[function->return_type].kind != W_SEED_HIR0_TYPE_I64)
+    return false;
+  const size_t preheader_index = function->first_block;
+  const size_t body_index = preheader_index + 1u;
+  const size_t condition_index = body_index + 1u;
+  const size_t latch_index = condition_index + 1u;
+  const size_t exit_index = latch_index + 1u;
+  const w_seed_hir0_block *preheader = &program->blocks[preheader_index];
+  const w_seed_hir0_block *body = &program->blocks[body_index];
+  const w_seed_hir0_block *condition = &program->blocks[condition_index];
+  const w_seed_hir0_block *latch = &program->blocks[latch_index];
+  const w_seed_hir0_block *exit = &program->blocks[exit_index];
+  const size_t carrier_count = body->block_argument_count;
+  if (preheader->owner_function != function_index ||
+      body->owner_function != function_index ||
+      condition->owner_function != function_index ||
+      latch->owner_function != function_index ||
+      exit->owner_function != function_index || carrier_count == 0u ||
+      carrier_count > W_SEED_NATIVE_SUBSET0_MAX_VALUES ||
+      body->first_block_argument == W_SEED_HIR0_NONE ||
+      (size_t)body->first_block_argument > program->block_argument_count ||
+      carrier_count >
+          program->block_argument_count - body->first_block_argument ||
+      preheader->block_argument_count != 0u ||
+      body->instruction_count != carrier_count ||
+      body->first_instruction == W_SEED_HIR0_NONE ||
+      (size_t)body->first_instruction > program->instruction_count ||
+      carrier_count > program->instruction_count - body->first_instruction ||
+      condition->instruction_count != 0u || latch->instruction_count != 0u ||
+      exit->instruction_count > 1u ||
+      (exit->instruction_count != 0u &&
+       (exit->first_instruction == W_SEED_HIR0_NONE ||
+        (size_t)exit->first_instruction > program->instruction_count ||
+        exit->instruction_count >
+            program->instruction_count - exit->first_instruction)) ||
+      body->first_block_argument == W_SEED_HIR0_NONE ||
+      body->terminator_index >= program->terminator_count ||
+      preheader->terminator_index >= program->terminator_count ||
+      condition->terminator_index >= program->terminator_count ||
+      latch->terminator_index >= program->terminator_count ||
+      exit->terminator_index >= program->terminator_count)
+    return false;
+  const w_seed_hir0_terminator *preheader_term =
+      &program->terminators[preheader->terminator_index];
+  const w_seed_hir0_terminator *body_term =
+      &program->terminators[body->terminator_index];
+  const w_seed_hir0_terminator *condition_term =
+      &program->terminators[condition->terminator_index];
+  const w_seed_hir0_terminator *latch_term =
+      &program->terminators[latch->terminator_index];
+  const w_seed_hir0_terminator *exit_term =
+      &program->terminators[exit->terminator_index];
+  if (preheader_term->owner_block != preheader_index ||
+      preheader_term->kind != W_SEED_HIR0_TERMINATOR_JUMP ||
+      preheader_term->target_block != body_index ||
+      preheader_term->else_block != W_SEED_HIR0_NONE ||
+      preheader_term->value_index != W_SEED_HIR0_NONE ||
+      preheader_term->edge_argument_count != carrier_count ||
+      preheader_term->first_edge_argument == W_SEED_HIR0_NONE ||
+      (size_t)preheader_term->first_edge_argument >
+          program->edge_argument_count ||
+      carrier_count > program->edge_argument_count -
+                           preheader_term->first_edge_argument ||
+      body_term->owner_block != body_index ||
+      body_term->kind != W_SEED_HIR0_TERMINATOR_JUMP ||
+      body_term->target_block != condition_index ||
+      body_term->else_block != W_SEED_HIR0_NONE ||
+      body_term->value_index != W_SEED_HIR0_NONE ||
+      body_term->edge_argument_count != 0u ||
+      condition_term->owner_block != condition_index ||
+      condition_term->kind != W_SEED_HIR0_TERMINATOR_BRANCH ||
+      condition_term->target_block != latch_index ||
+      condition_term->else_block != exit_index ||
+      condition_term->value_index >= program->value_count ||
+      condition_term->value_index == W_SEED_HIR0_NONE ||
+      condition_term->edge_argument_count != 0u ||
+      condition_term->first_edge_argument != W_SEED_HIR0_NONE ||
+      program->values[condition_term->value_index].type_index >=
+          program->type_count ||
+      program->types[program->values[condition_term->value_index].type_index]
+              .kind != W_SEED_HIR0_TYPE_BOOL ||
+      latch_term->owner_block != latch_index ||
+      latch_term->kind != W_SEED_HIR0_TERMINATOR_JUMP ||
+      latch_term->target_block != body_index ||
+      latch_term->else_block != W_SEED_HIR0_NONE ||
+      latch_term->value_index != W_SEED_HIR0_NONE ||
+      latch_term->edge_argument_count != carrier_count ||
+      latch_term->first_edge_argument == W_SEED_HIR0_NONE ||
+      (size_t)latch_term->first_edge_argument > program->edge_argument_count ||
+      carrier_count >
+          program->edge_argument_count - latch_term->first_edge_argument ||
+      exit_term->owner_block != exit_index ||
+      exit_term->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
+      exit_term->target_block != W_SEED_HIR0_NONE ||
+      exit_term->else_block != W_SEED_HIR0_NONE ||
+      exit_term->value_index >= program->value_count ||
+      exit_term->edge_argument_count != 0u ||
+      exit_term->first_edge_argument != W_SEED_HIR0_NONE ||
+      exit_term->result_type != function->return_type)
+    return false;
+
+  uint32_t initial_bindings[W_SEED_NATIVE_SUBSET0_MAX_VALUES] = {0u};
+  uint32_t result_bindings[W_SEED_NATIVE_SUBSET0_MAX_VALUES] = {0u};
+  bool source_seen[W_SEED_NATIVE_SUBSET0_MAX_BINDINGS] = {false};
+  bool update_seen[W_SEED_NATIVE_SUBSET0_MAX_BINDINGS] = {false};
+  for (size_t lane = 0u; lane < carrier_count; lane += 1u) {
+    const size_t argument_index =
+        (size_t)body->first_block_argument + lane;
+    const size_t initial_edge_index =
+        (size_t)preheader_term->first_edge_argument + lane;
+    const size_t latch_edge_index =
+        (size_t)latch_term->first_edge_argument + lane;
+    const w_seed_hir0_block_argument *argument =
+        &program->block_arguments[argument_index];
+    const w_seed_hir0_edge_argument *initial_edge =
+        &program->edge_arguments[initial_edge_index];
+    const w_seed_hir0_edge_argument *latch_edge =
+        &program->edge_arguments[latch_edge_index];
+    if (argument->owner_block != body_index || argument->ordinal != lane ||
+        argument->type_index >= program->type_count ||
+        program->types[argument->type_index].kind != W_SEED_HIR0_TYPE_I64 ||
+        initial_edge->owner_terminator != preheader->terminator_index ||
+        initial_edge->owner_block != preheader_index ||
+        initial_edge->ordinal != lane ||
+        initial_edge->type_index != argument->type_index ||
+        initial_edge->value_index >= program->value_count ||
+        program->values[initial_edge->value_index].kind !=
+            W_SEED_HIR0_VALUE_BINDING_READ ||
+        program->values[initial_edge->value_index].binding_index >=
+            program->binding_count ||
+        latch_edge->owner_terminator != latch->terminator_index ||
+        latch_edge->owner_block != latch_index || latch_edge->ordinal != lane ||
+        latch_edge->type_index != argument->type_index ||
+        latch_edge->value_index >= program->value_count ||
+        program->values[latch_edge->value_index].kind !=
+            W_SEED_HIR0_VALUE_BINDING_READ ||
+        program->values[latch_edge->value_index].binding_index >=
+            program->binding_count)
+      return false;
+    const uint32_t source_index =
+        program->values[initial_edge->value_index].binding_index;
+    const uint32_t update_index =
+        program->values[latch_edge->value_index].binding_index;
+    if (source_index >= W_SEED_NATIVE_SUBSET0_MAX_BINDINGS ||
+        update_index >= W_SEED_NATIVE_SUBSET0_MAX_BINDINGS ||
+        source_seen[source_index] || update_seen[update_index])
+      return false;
+    source_seen[source_index] = true;
+    update_seen[update_index] = true;
+    const w_seed_hir0_binding *source = &program->bindings[source_index];
+    const w_seed_hir0_binding *update = &program->bindings[update_index];
+    if (source->owner_block != preheader_index || !source->is_mutable ||
+        source->source_binding != source_index ||
+        source->previous_version != W_SEED_HIR0_NONE ||
+        source->next_version == W_SEED_HIR0_NONE ||
+        source->type_index != argument->type_index ||
+        source->owner_instruction == W_SEED_HIR0_NONE ||
+        source->owner_instruction >= program->instruction_count ||
+        source->initializer_value >= program->value_count ||
+        program->instructions[source->owner_instruction].owner_block !=
+            preheader_index ||
+        program->instructions[source->owner_instruction].kind !=
+            W_SEED_HIR0_INSTRUCTION_BINDING ||
+        program->instructions[source->owner_instruction].binding_index !=
+            source_index ||
+        update->owner_block != body_index || !update->is_mutable ||
+        update->source_binding != source_index ||
+        update->previous_version != source_index ||
+        update->type_index != argument->type_index ||
+        update->owner_instruction == W_SEED_HIR0_NONE ||
+        update->owner_instruction >= program->instruction_count ||
+        update->initializer_value >= program->value_count ||
+        program->instructions[update->owner_instruction].owner_block !=
+            body_index ||
+        program->instructions[update->owner_instruction].kind !=
+            W_SEED_HIR0_INSTRUCTION_BINDING ||
+        program->instructions[update->owner_instruction].binding_index !=
+            update_index)
+      return false;
+    initial_bindings[lane] = source_index;
+    result_bindings[lane] = update_index;
+  }
+  for (size_t ordinal = 0u; ordinal < body->instruction_count; ordinal += 1u) {
+    const w_seed_hir0_instruction *instruction =
+        &program->instructions[(size_t)body->first_instruction + ordinal];
+    if (instruction->owner_block != body_index || instruction->ordinal != ordinal ||
+        instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
+        instruction->binding_index >= program->binding_count ||
+        update_seen[instruction->binding_index] == false)
+      return false;
+  }
+  bool condition_uses_update = false;
+  for (size_t lane = 0u; lane < carrier_count; lane += 1u)
+    if (mlir0_program_value_contains_binding_read(
+            program, condition_term->value_index, result_bindings[lane], 0u))
+      condition_uses_update = true;
+  if (!condition_uses_update) return false;
+
+  uint32_t continuation_binding = W_SEED_HIR0_NONE;
+  size_t continuation_lane = carrier_count;
+  if (exit->instruction_count == 1u) {
+    const w_seed_hir0_instruction *instruction =
+        &program->instructions[exit->first_instruction];
+    if (instruction->owner_block != exit_index || instruction->ordinal != 0u ||
+        instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
+        instruction->binding_index >= program->binding_count)
+      return false;
+    const w_seed_hir0_binding *continuation =
+        &program->bindings[instruction->binding_index];
+    for (size_t lane = 0u; lane < carrier_count; lane += 1u)
+      if (continuation->source_binding == initial_bindings[lane]) {
+        if (continuation_lane != carrier_count) return false;
+        continuation_lane = lane;
+      }
+    if (continuation_lane == carrier_count ||
+        continuation->owner_instruction != exit->first_instruction ||
+        continuation->owner_block != exit_index || !continuation->is_mutable ||
+        continuation->source_binding != initial_bindings[continuation_lane] ||
+        continuation->previous_version != result_bindings[continuation_lane] ||
+        continuation->next_version != W_SEED_HIR0_NONE ||
+        continuation->type_index != W_SEED_HIR0_TYPE_I64 ||
+        continuation->initializer_value >= program->value_count)
+      return false;
+    bool uses_result = false;
+    if (!mlir0_natural_loop_continuation_value_ok(
+            program, continuation->initializer_value,
+            (uint32_t)function_index, result_bindings,
+            body->first_block_argument, carrier_count, &uses_result, 0u) ||
+        !uses_result ||
+        !mlir0_program_value_contains_binding_read(
+            program, exit_term->value_index, instruction->binding_index, 0u))
+      return false;
+    continuation_binding = instruction->binding_index;
+  }
+  for (size_t lane = 0u; lane < carrier_count; lane += 1u)
+    if (program->bindings[result_bindings[lane]].next_version !=
+        (lane == continuation_lane ? continuation_binding
+                                    : W_SEED_HIR0_NONE))
+      return false;
+
+  bool preheader_emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES] = {false};
+  for (size_t lane = 0u; lane < carrier_count; lane += 1u)
+    if (!append_program_value_tree(
+            program, program->bindings[initial_bindings[lane]].initializer_value,
+            (uint32_t)function_index, process, preheader_emitted, artifact,
+            capacity, offset, 0u))
+      return false;
+  if (!append_literal(artifact, capacity, offset, "    %post_test_true") ||
+      !append_size(artifact, capacity, offset, function_index) ||
+      !append_literal(artifact, capacity, offset,
+                      " = llvm.mlir.constant(true) : i1\n    "))
+    return false;
+  for (size_t lane = 0u; lane < carrier_count; lane += 1u) {
+    if ((lane != 0u && !append_literal(artifact, capacity, offset, ", ")) ||
+        !append_literal(artifact, capacity, offset, "%loop") ||
+        !append_size(artifact, capacity, offset, function_index) ||
+        (carrier_count > 1u &&
+         (!append_literal(artifact, capacity, offset, "_") ||
+          !append_size(artifact, capacity, offset, lane))))
+      return false;
+  }
+  if (!append_literal(artifact, capacity, offset,
+                      ", %post_test_result") ||
+      !append_size(artifact, capacity, offset, function_index) ||
+      !append_literal(artifact, capacity, offset, " = scf.while ("))
+    return false;
+  for (size_t lane = 0u; lane < carrier_count; lane += 1u) {
+    if ((lane != 0u && !append_literal(artifact, capacity, offset, ", ")) ||
+        !append_literal(artifact, capacity, offset, "%arg") ||
+        !append_size(artifact, capacity, offset,
+                     (size_t)body->first_block_argument + lane) ||
+        !append_literal(artifact, capacity, offset, " = ") ||
+        !append_program_value_operand(
+            program,
+            program->edge_arguments[(size_t)preheader_term->first_edge_argument +
+                                    lane]
+                .value_index,
+            (uint32_t)function_index, process, artifact, capacity, offset))
+      return false;
+  }
+  if (!append_literal(artifact, capacity, offset,
+                      ", %post_test_before") ||
+      !append_size(artifact, capacity, offset, function_index) ||
+      !append_literal(artifact, capacity, offset, " = %post_test_true") ||
+      !append_size(artifact, capacity, offset, function_index) ||
+      !append_literal(artifact, capacity, offset, ") : ("))
+    return false;
+  for (size_t lane = 0u; lane < carrier_count; lane += 1u)
+    if ((lane != 0u && !append_literal(artifact, capacity, offset, ", ")) ||
+        !append_literal(artifact, capacity, offset, "i64"))
+      return false;
+  if (!append_literal(artifact, capacity, offset, ", i1) -> (")) return false;
+  for (size_t lane = 0u; lane < carrier_count; lane += 1u)
+    if ((lane != 0u && !append_literal(artifact, capacity, offset, ", ")) ||
+        !append_literal(artifact, capacity, offset, "i64"))
+      return false;
+  if (!append_literal(artifact, capacity, offset,
+                      ", i1) {\n    scf.condition(%post_test_before"))
+    return false;
+  if (!append_size(artifact, capacity, offset, function_index) ||
+      !append_literal(artifact, capacity, offset, ") "))
+    return false;
+  for (size_t lane = 0u; lane < carrier_count; lane += 1u) {
+    if ((lane != 0u && !append_literal(artifact, capacity, offset, ", ")) ||
+        !append_literal(artifact, capacity, offset, "%arg") ||
+        !append_size(artifact, capacity, offset,
+                     (size_t)body->first_block_argument + lane))
+      return false;
+  }
+  if (!append_literal(artifact, capacity, offset,
+                      ", %post_test_before") ||
+      !append_size(artifact, capacity, offset, function_index) ||
+      !append_literal(artifact, capacity, offset, " : "))
+    return false;
+  for (size_t lane = 0u; lane < carrier_count; lane += 1u)
+    if ((lane != 0u && !append_literal(artifact, capacity, offset, ", ")) ||
+        !append_literal(artifact, capacity, offset, "i64"))
+      return false;
+  if (!append_literal(artifact, capacity, offset,
+                      ", i1\n  } do {\n    ^bb0("))
+    return false;
+  for (size_t lane = 0u; lane < carrier_count; lane += 1u) {
+    if ((lane != 0u && !append_literal(artifact, capacity, offset, ", ")) ||
+        !append_literal(artifact, capacity, offset, "%arg") ||
+        !append_size(artifact, capacity, offset,
+                     (size_t)body->first_block_argument + lane) ||
+        !append_literal(artifact, capacity, offset, ": i64"))
+      return false;
+  }
+  if (!append_literal(artifact, capacity, offset,
+                      ", %post_test_body") ||
+      !append_size(artifact, capacity, offset, function_index) ||
+      !append_literal(artifact, capacity, offset, ": i1):\n"))
+    return false;
+
+  bool body_emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
+  (void)memcpy(body_emitted, preheader_emitted, sizeof(body_emitted));
+  for (size_t ordinal = 0u; ordinal < body->instruction_count; ordinal += 1u) {
+    const w_seed_hir0_instruction *instruction =
+        &program->instructions[(size_t)body->first_instruction + ordinal];
+    if (!append_program_value_tree(
+            program, program->bindings[instruction->binding_index]
+                         .initializer_value,
+            (uint32_t)function_index, process, body_emitted, artifact,
+            capacity, offset, 0u))
+      return false;
+  }
+  bool condition_emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
+  (void)memcpy(condition_emitted, body_emitted, sizeof(condition_emitted));
+  if (!append_program_value_tree(
+          program, condition_term->value_index, (uint32_t)function_index,
+          process, condition_emitted, artifact, capacity, offset, 0u) ||
+      !append_literal(artifact, capacity, offset, "    scf.yield "))
+    return false;
+  for (size_t lane = 0u; lane < carrier_count; lane += 1u) {
+    if ((lane != 0u && !append_literal(artifact, capacity, offset, ", ")) ||
+        !append_program_value_operand(
+            program,
+            program->edge_arguments[(size_t)latch_term->first_edge_argument +
+                                    lane]
+                .value_index,
+            (uint32_t)function_index, process, artifact, capacity, offset))
+      return false;
+  }
+  if (!append_literal(artifact, capacity, offset, ", ") ||
+      !append_program_value_operand(program, condition_term->value_index,
+                                    (uint32_t)function_index, process, artifact,
+                                    capacity, offset) ||
+      !append_literal(artifact, capacity, offset, " : "))
+    return false;
+  for (size_t lane = 0u; lane < carrier_count; lane += 1u)
+    if ((lane != 0u && !append_literal(artifact, capacity, offset, ", ")) ||
+        !append_literal(artifact, capacity, offset, "i64"))
+      return false;
+  if (!append_literal(artifact, capacity, offset, ", i1\n    }\n"))
+    return false;
+
+  mlir0_natural_loop_result_context loop = {
+      .function_index = (uint32_t)function_index,
+      .header_block_index = (uint32_t)body_index,
+      .first_block_argument = body->first_block_argument,
+      .block_argument_count = carrier_count,
+      .result_binding_indices = result_bindings};
+  bool exit_emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
+  (void)memcpy(exit_emitted, body_emitted, sizeof(exit_emitted));
+  if (continuation_binding != W_SEED_HIR0_NONE) {
+    const w_seed_hir0_binding *continuation =
+        &program->bindings[continuation_binding];
+    if (!append_program_value_tree_in_loop(
+            program, continuation->initializer_value, (uint32_t)function_index,
+            process, &loop, exit_emitted, artifact, capacity, offset, 0u))
+      return false;
+  }
+  if (!append_program_value_tree_in_loop(
+          program, exit_term->value_index, (uint32_t)function_index, process,
+          &loop, exit_emitted, artifact, capacity, offset, 0u))
+    return false;
+  char return_type_buffer[96];
+  const char *return_type =
+      program_type_name(program, function->return_type, return_type_buffer,
+                        process);
+  return return_type != NULL &&
+         append_literal(artifact, capacity, offset, "    llvm.return ") &&
+         append_program_value_operand_in_loop(
+             program, exit_term->value_index, (uint32_t)function_index, process,
+             &loop, artifact, capacity, offset) &&
+         append_literal(artifact, capacity, offset, " : ") &&
+         append_literal(artifact, capacity, offset, return_type) &&
+         append_literal(artifact, capacity, offset, "\n  }\n");
+}
+
 static bool append_program_function(
     const w_seed_hir0_program *program, const mlir0_program_plan *plan,
-    size_t function_index, bool natural_loop,
+    size_t function_index, bool natural_loop, bool post_test_loop,
     const mlir0_process_emit_context *process, uint8_t *artifact,
     size_t capacity, size_t *offset) {
   if (program == NULL || plan == NULL || artifact == NULL || offset == NULL ||
@@ -3826,6 +4269,9 @@ static bool append_program_function(
   if (natural_loop)
     return append_program_natural_loop(program, function_index, process,
                                        artifact, capacity, offset);
+  if (post_test_loop)
+    return append_program_post_test_loop(program, function_index, process,
+                                         artifact, capacity, offset);
   bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES] = {false};
   bool enum_switch_emitted = false;
   for (size_t ordinal = 0u; ordinal < function->block_count; ordinal += 1u) {
@@ -4137,7 +4583,8 @@ static bool build_program_artifact(
     if (!plan.omitted_functions[function] &&
         !append_program_function(
             program, &plan, function,
-            selection->natural_loop_functions[function], NULL, artifact,
+            selection->natural_loop_functions[function],
+            selection->post_test_loop_functions[function], NULL, artifact,
             capacity, &offset))
       return false;
   if (!append_literal(
@@ -4649,6 +5096,7 @@ static bool build_process_executable_artifact(
     if (!plan.omitted_functions[function] &&
         !append_program_function(
             program, &plan, function, selection->natural_loop_functions[function],
+            selection->post_test_loop_functions[function],
             function == selection->function_index ? &process : NULL, artifact,
             capacity, &offset))
       return false;

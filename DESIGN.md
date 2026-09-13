@@ -38639,7 +38639,8 @@ entry(seat)
 ```
 
 HIR reuses the `USIZE_COUNT_COMPARISON` record and the logical `USIZE` type.
-The current HIR schema remains `w-seed-hir0-28`, with no record-layout change.
+That W-1573 slice uses `w-seed-hir0-28`, with no record-layout change; the
+W-1574 successor advances the live schema without changing this relation.
 NativeSubset0 rechecks the exact member, receiver, literal, type, and operator
 relations before process lowering. Raw `Arguments` values remain non-lowerable.
 
@@ -38676,6 +38677,63 @@ predicates, signed-`i64` regression, and the dual-target correctness witness.
 Other targets, stable ABI/layout, general `usize` arithmetic, runtime or
 computed count comparisons, helper `usize` parameters or returns, indexing,
 iteration, `OsString`, and native Linux benchmark execution remain gaps.
+
+#### 26.4.1.55 W-1574 — bounded executable post-test `repeat` (Current bounded form)
+
+W-1574 implements the already normative W-746 surface `repeat { body } while
+condition` for one bounded native slice. The source body executes before its
+first condition test. The admitted helper has a nonempty tuple of mutable
+signed-`i64` carriers; its loop body contains only pure scalar assignments over
+signed-`i64` literals, parameters, and current carrier values, and its trailing
+condition is a Bool comparison that observes at least one updated carrier.
+
+HIR29 preserves the post-test distinction rather than rewriting it as a
+pre-test loop. It emits five ordered blocks: preheader, carrier body, condition,
+latch, and exit. The explicit latch carries the updated tuple back to the body;
+it is required because a HIR branch does not carry a different edge-argument
+tuple per successor. HIR verification independently checks dense ownership,
+ordered carrier arguments, initial and back-edge values, version chains,
+condition dependence, dominance, and the exit projection.
+
+NativeSubset0 records a dedicated post-test-loop fact instead of aliasing the
+shape to its natural-`while` fact. MLIR17 lowers the verified shape to one
+structured `scf.while`. A private Bool carrier starts true so the `do` region
+runs once, then each body computes both the updated signed-`i64` tuple and the
+condition for the next trip. Safe constant division remains `llvm.sdiv`;
+runtime divisors retain the checked helper. The lowering introduces no
+source-variable `llvm.alloca`.
+
+```w
+fn receiptDigits(value: i64): i64 {
+  var remaining = value
+  var digits = 0
+  repeat {
+    digits = digits + 1
+    remaining = remaining / 10
+  } while remaining > 0
+  return digits
+}
+
+entry {
+  let zero = receiptDigits(value: 0)
+  let cosmic = receiptDigits(value: 42424)
+  print("Receipt digits ${zero}/${cosmic}")
+}
+```
+
+The public `restaurant-repeat.w` witness produces exactly `Receipt digits
+1/5\n`, empty stderr, and exit zero as both a native Windows x86_64 PE and a
+CRT-free Linux/WSL x86_64 ELF. WSL is Linux-target correctness evidence, not
+native Linux performance evidence. The primary benchmark disposition is
+`compiler-lifecycle`; the executable catalog separately owns exploratory
+equivalent W/C23/Rust measurements and does not establish a language ranking.
+
+Nested or mixed loops, calls or effects in the loop, aggregate carriers,
+labels, `break`, `continue`, non-`i64` carriers, general cyclic CFG, other
+targets, stable ABI/layout, optimization-quality claims, and performance
+ranking remain outside this bounded form. W-1149 retains its broader research
+coverage for `continue`, `break`, and lexical cleanup; this executable witness
+closes only body-before-condition behavior for zero and multidigit inputs.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

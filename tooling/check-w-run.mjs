@@ -26,6 +26,8 @@ const restaurantWhileMultiFixture = resolve(seedDirectory,
   "fixtures", "restaurant-while-multi.w")
 const restaurantWhilePostFixture = resolve(seedDirectory,
   "fixtures", "restaurant-while-post.w")
+const restaurantRepeatFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-repeat.w")
 const restaurantWmoFixture = resolve(seedDirectory, "fixtures", "restaurant-wmo.w")
 const processArgumentsCountFixture = resolve(seedDirectory,
   "fixtures", "process-arguments-count.w")
@@ -708,6 +710,9 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantWhilePostFixture)],
     Buffer.from("Final 9\n", "utf8"),
     "Restaurant post-loop SSA continuation after structured natural while")
+  expectSuccess(binary, ["run", toWsl(restaurantRepeatFixture)],
+    Buffer.from("Receipt digits 1/5\n", "utf8"),
+    "Restaurant post-test repeat lowered through structured MLIR")
   expectSuccess(binary, ["run", toWsl(restaurantWmoFixture)],
     Buffer.from("Bill 42\n", "utf8"),
     "Restaurant whole-module product closure")
@@ -803,6 +808,7 @@ try {
     : join(buildArtifactDirectory, name)
   const buildHello = buildOutput("hello-build")
   const buildRestaurantIf = buildOutput("restaurant-if-build")
+  const buildRestaurantRepeat = buildOutput("restaurant-repeat-build")
   const buildProcessInput = buildOutput("process-input-build")
   const buildProcessArgumentsCount = buildOutput("process-arguments-count-build")
   const buildProcessArgumentsOrdering = buildOutput(
@@ -830,6 +836,13 @@ try {
     "build restaurant-if fixture")
   expectSuccess(buildRestaurantIf, [], expectedRestaurantIf,
     "execute built restaurant-if artifact")
+  expectSuccess(binary, ["build", toWsl(restaurantRepeatFixture), "--target",
+    targetTriple, "--output", buildRestaurantRepeat], Buffer.alloc(0),
+    "build restaurant-repeat fixture")
+  expectSuccess(buildRestaurantRepeat, [],
+    Buffer.from("Receipt digits 1/5\n", "utf8"),
+    "execute built restaurant-repeat artifact")
+  assertCrtFreeElf(await readBuildArtifact(buildRestaurantRepeat))
   expectSuccess(binary, ["build", toWsl(processInputFixture), "--target",
     targetTriple, "--output", buildProcessInput], Buffer.alloc(0),
   "build Linux public process-input fixture")

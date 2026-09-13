@@ -24,6 +24,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-while",
   "restaurant-while-multi",
   "restaurant-while-post",
+  "restaurant-repeat",
   "restaurant-wmo",
   "restaurant-enum-switch",
   "restaurant-enum-subset",
@@ -70,6 +71,7 @@ const PUBLIC_WINDOWS_RUN_VARIANTS = Object.freeze({
   "compiler/seed-c/fixtures/process-enum-payload.w": "process-enum-payload",
   "compiler/seed-c/fixtures/process-arguments-count.w": "process-arguments-count",
   "compiler/seed-c/fixtures/process-arguments-ordering.w": "process-arguments-ordering",
+  "compiler/seed-c/fixtures/restaurant-repeat.w": "restaurant-repeat",
 });
 export const PROCESS_ENTRY_WORKLOAD_ID = "process-entry";
 export const PROCESS_ENTRY_ORACLE_KIND = "argument-dependent-output";

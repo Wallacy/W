@@ -28,6 +28,8 @@ const restaurantWhileMultiFixture = resolve(seedDirectory,
   "fixtures", "restaurant-while-multi.w")
 const restaurantWhilePostFixture = resolve(seedDirectory,
   "fixtures", "restaurant-while-post.w")
+const restaurantRepeatFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-repeat.w")
 const restaurantWmoFixture = resolve(seedDirectory, "fixtures", "restaurant-wmo.w")
 const restaurantComparisonsFixture = resolve(seedDirectory, "fixtures", "restaurant-comparisons.w")
 const restaurantComparisonCompositionFixture = resolve(seedDirectory, "fixtures", "restaurant-comparison-composition.w")
@@ -458,6 +460,9 @@ try {
   expectExact(binary, ["run", restaurantWhilePostFixture], 0,
     Buffer.from("Final 9\n", "utf8"),
     "Restaurant post-loop SSA continuation fixture")
+  expectExact(binary, ["run", restaurantRepeatFixture], 0,
+    Buffer.from("Receipt digits 1/5\n", "utf8"),
+    "Restaurant post-test repeat fixture")
   expectExact(binary, ["run", restaurantWmoFixture], 0,
     Buffer.from("Bill 42\n", "utf8"),
     "Restaurant whole-module product closure fixture")
@@ -540,6 +545,8 @@ try {
 
   const buildHello = join(fixtureDirectory, "hello-build.exe")
   const buildRestaurantIf = join(fixtureDirectory, "restaurant-if-build.exe")
+  const buildRestaurantRepeat = join(fixtureDirectory,
+    "restaurant-repeat-build.exe")
   const buildProcessInput = join(fixtureDirectory, "process-input-build.exe")
   const buildProcessArgumentsCount = join(fixtureDirectory,
     "process-arguments-count-build.exe")
@@ -568,6 +575,18 @@ try {
     "build restaurant-if fixture")
   expectExact(buildRestaurantIf, [], 0, expectedIf,
     "execute built restaurant-if artifact")
+  expectExact(binary, ["build", restaurantRepeatFixture, "--target", targetTriple,
+    "--output", buildRestaurantRepeat], 0, Buffer.alloc(0),
+    "build restaurant-repeat fixture")
+  const builtRestaurantRepeatStats = await lstat(buildRestaurantRepeat)
+  assert(builtRestaurantRepeatStats.isFile() &&
+    !builtRestaurantRepeatStats.isSymbolicLink(),
+    "build restaurant-repeat did not produce a regular artifact")
+  assertPeX64(await readFile(buildRestaurantRepeat),
+    "built restaurant-repeat artifact")
+  expectExact(buildRestaurantRepeat, [], 0,
+    Buffer.from("Receipt digits 1/5\n", "utf8"),
+    "execute built restaurant-repeat artifact")
   expectExact(binary, ["build", processInputFixture, "--target", targetTriple,
     "--output", buildProcessInput], 0, Buffer.alloc(0),
     "build public process-input fixture")

@@ -227,9 +227,10 @@ remains limited to the documented subsets and witnesses. The W-1522 primary
 native route is independent: `source → parser/frontend → verified HIR0 → MLIR0 →
 mlir-opt → mlir-translate → llc → native host link`; HLO0, HLO1, and RUN0 are
 bootstrap, audit, and recovery, not prerequisites for that route. The historical
-Linux/WSL adapter remains `w-seed-mlir0-15` for its 20.1.2 evidence; the current
-pinned Windows adapter is `w-seed-mlir0-16`/`w-seed-mlir0-windows-7` and Native0
-is `w-seed-native0-8`; the
+Linux/WSL adapter remains `w-seed-mlir0-15` for its 20.1.2 toolchain evidence;
+the live producer is `w-seed-mlir0-17`, the current Windows label is
+`w-seed-mlir0-windows-8`, and Native0 is `w-seed-native0-9`. Historical pinned
+toolchain manifests retain the schema they actually validated; the
 private `PROCESS_HANDLER` artifact uses
 `w-seed-mlir0-process-handler-1` without changing the `EXECUTABLE` artifact
 bytes. MLIR0 also accepts signed-`i64` interpolation with internal Display and

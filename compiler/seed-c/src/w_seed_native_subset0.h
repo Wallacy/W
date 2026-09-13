@@ -95,6 +95,9 @@ typedef struct {
   bool has_enum_switch;
   bool has_mutable_bindings;
   bool natural_loop_functions[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS];
+  /* Verified five-block post-test repeat facts.  This is intentionally
+   * separate from the pre-test natural-loop projection consumed by MLIR0. */
+  bool post_test_loop_functions[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS];
 } w_seed_native_subset0_program;
 
 /* The process handler selection is deliberately separate from the executable
@@ -120,6 +123,7 @@ typedef struct {
   uint32_t context_parameter_ordinal;
   size_t maximum_stdout_bytes;
   bool natural_loop_functions[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS];
+  bool post_test_loop_functions[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS];
 } w_seed_native_subset0_process;
 
 w_seed_native_subset0_status w_seed_native_subset0_select(
