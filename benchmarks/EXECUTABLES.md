@@ -86,6 +86,9 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-while | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3510 | 2624 | 127.5739 ms | 17.9865 ms | 19.0065 ms | 4833280 B (4.61 MiB) | 12.53 ms |
 | restaurant-while | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79688 | 28348 | 1.0761812 s | 17.952 ms | 18.2702 ms | 4870144 B (4.64 MiB) | 12.221 ms |
 | restaurant-while | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 598 | 220 | 177.0692 ms | 16.0735 ms | 16.9968 ms | 3756032 B (3.58 MiB) | 11.602 ms |
+| restaurant-while-multi | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3510 | 2624 | 132.7835 ms | 17.9874 ms | 18.8745 ms | 4833280 B (4.61 MiB) | 14.387 ms |
+| restaurant-while-multi | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79688 | 28348 | 1.0773846 s | 17.9828 ms | 18.273 ms | 4870144 B (4.64 MiB) | 12.685 ms |
+| restaurant-while-multi | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 646 | 256 | 177.0358 ms | 16.0619 ms | 17.0046 ms | 3756032 B (3.58 MiB) | 11.138 ms |
 | restaurant-wmo | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3510 | 2608 | 129.8723 ms | 18.0142 ms | 19.0296 ms | 4833280 B (4.61 MiB) | 12.995 ms |
 | restaurant-wmo | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79688 | 28348 | 1.0782036 s | 17.9632 ms | 18.3672 ms | 4870144 B (4.64 MiB) | 12.53 ms |
 | restaurant-wmo | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 582 | 220 | 175.5304 ms | 16.0403 ms | 16.9987 ms | 3756032 B (3.58 MiB) | 12.066 ms |
