@@ -4,6 +4,7 @@ import path from "node:path";
 import {
   executableWorkloadHasRunner,
   EXECUTABLE_PLATFORM_TARGET_LINUX,
+  EXECUTABLE_PLATFORM_TARGET_LINUX_WSL,
   EXECUTABLE_PLATFORM_TARGET_WINDOWS,
   ROOT,
   loadExecutableDocuments,
@@ -154,7 +155,10 @@ function categoryRows(entries) {
     // Keep the projection compact by collapsing only within one platform
     // lane. The machine catalog remains category-partitioned by toolchain and
     // recipe; each displayed metric is independently selected below.
-    const key = `${entry.workloadId}\u0000${entry.language}\u0000${entry.platformTarget}`;
+    const hostPartition = entry.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL
+      ? `\u0000${entry.host ?? ""}`
+      : "";
+    const key = `${entry.workloadId}\u0000${entry.language}\u0000${entry.platformTarget}${hostPartition}`;
     const group = groups.get(key) ?? { entry, metrics: new Map() };
     group.entry = bestSort(group.entry, entry) <= 0 ? group.entry : entry;
     group.metrics.set(entry.metric, bestProjectionEntry(group.metrics.get(entry.metric), entry));
@@ -192,6 +196,7 @@ function projectionWorkload(workload) {
 }
 
 function targetLabel(entry) {
+  if (entry.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) return "Linux x64 / WSL2";
   if (entry.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX) return "Linux x64 / GNU";
   if (entry.artifactTarget.endsWith("windows-msvc")) return "Windows x64 / MSVC";
   if (entry.artifactTarget.endsWith("w64-mingw32")) return "Windows x64 / MinGW";
@@ -199,7 +204,7 @@ function targetLabel(entry) {
 }
 
 function runtimeLabel(entry) {
-  if (entry.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX) {
+  if ([EXECUTABLE_PLATFORM_TARGET_LINUX, EXECUTABLE_PLATFORM_TARGET_LINUX_WSL].includes(entry.platformTarget)) {
     if (entry.language === "rust") return "Rust std + glibc";
     if (entry.language === "c") return "glibc";
     return "CRT-free";
@@ -237,12 +242,15 @@ export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
   for (const [platformTarget, label] of [
     [EXECUTABLE_PLATFORM_TARGET_WINDOWS, "Windows x64"],
     [EXECUTABLE_PLATFORM_TARGET_LINUX, "Linux x64"],
+    [EXECUTABLE_PLATFORM_TARGET_LINUX_WSL, "Linux x64 via WSL2"],
   ]) {
     const platformRows = rows.filter((group) => group.entry.platformTarget === platformTarget);
     lines.push("", `### ${label}`);
     lines.push("", ...tableHeader);
     if (platformRows.length === 0) {
-      lines.push("", `No native ${label} measurements are published.`);
+      lines.push("", platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL
+        ? "No Linux x64 via WSL2 same-physical-hardware diagnostic measurements are published."
+        : `No native ${label} measurements are published.`);
       continue;
     }
     for (const group of platformRows) {
@@ -253,7 +261,8 @@ export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
   lines.push(
     "",
     "Artifact size counts only the emitted executable file. On Windows it excludes imported runtime DLLs. Windows public W is CRT-free; public C and Rust import the MSVC runtime. The private process-handler composite remains a Windows GCC/MinGW contextual lane. Native Linux records, when published, are kept in their own Linux x64 / GNU lane; W's current Linux product route is also CRT-free.",
-    "Each projection row is compact: every displayed metric chooses the lower value across pinned categories on that same platform, so cells may come from distinct toolchain/recipe categories. The machine catalog retains those category and provenance identities; no value is selected across platform sections.",
+    "Each projection row is compact: every displayed metric chooses the lower value across pinned categories on that same platform, so cells may come from distinct toolchain/recipe categories. The machine catalog retains those category and provenance identities; no value is selected across platform sections. WSL rows remain host-partitioned and are never pooled across hosts.",
+    "Linux x64 via WSL2 is Linux-target evidence on a Windows host, not native Linux support. It is accepted for same-host regression and same-physical-hardware diagnostics only; WSL values are not rankable across hosts. WSL provenance records the host mode, comparison purpose, and rankability explicitly.",
     "The `.text B` and `.rdata B` columns are the unique PE sections' validated VirtualSize; VirtualSize includes padding and zero-fill and is not a useful-instruction count. `—` means absent, ambiguous, or not measured. Linux ELF metadata is kept separate from PE metadata. Only source-backed workloads with a materialized source and runner-supported recipe appear here; planned/backlog entries remain in the catalog. CPU is the arithmetic mean of 101 fresh-process counters; an all-zero estimate is omitted.",
     `Machine contract and provenance: ${jsonPathLink(projectionPath("benchmarks/executable-catalog.json"), "executable-catalog.json")}. Manual commands: [README](./README.md#manual-reproduction).`,
   );

@@ -12,6 +12,7 @@ import {
   EXECUTABLE_RESULT_SCHEMA,
   EXECUTABLE_PLATFORM_TARGET,
   EXECUTABLE_PLATFORM_TARGET_LINUX,
+  EXECUTABLE_PLATFORM_TARGET_LINUX_WSL,
   EXECUTABLE_STRUCTURE_CLASSES,
   PROCESS_ENTRY_CORRECTNESS_INPUTS,
   PROCESS_ENTRY_ORACLE_CASES,
@@ -44,6 +45,7 @@ import {
   ROOT,
   deriveExecutableBestMetrics,
   executableEquivalenceKey,
+  executableHostEvidenceForPlatform,
   executableHostIdentity,
   executableNativeHostForPlatform,
   exactOutputDigest,
@@ -74,13 +76,25 @@ test("catalog stores compact live best cells and no immutable history", () => {
   ]);
   assert.deepEqual(documents.schema.$defs.structureClass.enum, EXECUTABLE_STRUCTURE_CLASSES);
   assert.deepEqual(documents.schema.$defs.source.properties.comparability.enum,
-    ["deferred-until-M3b", "promotable-after-equivalence", "contextual-non-ranking-private-composite"]);
+    ["deferred-until-M3b", "promotable-after-equivalence", "contextual-non-ranking-private-composite", "same-physical-hardware-diagnostic-only"]);
   assert.deepEqual(documents.schema.$defs.source.properties.eligibility.enum,
-    ["promotable-after-equivalence", "deferred-to-M3b", "exploratory-private-composite"]);
+    ["promotable-after-equivalence", "deferred-to-M3b", "exploratory-private-composite", "same-physical-hardware-diagnostic-only"]);
   for (const definition of ["catalog", "result", "bestMetric", "bestMetrics", "bestMetricProvenance", "sample", "sampleSeries", "processExecution", "processSupportSource"]) {
     assert.equal(documents.schema.$defs[definition].additionalProperties, false);
   }
   assert.deepEqual(documents.catalog.comparabilityAxes, EXECUTABLE_COMPARABILITY_AXES);
+  assert.deepEqual(documents.catalog.platformLanes.map((lane) => lane.id), [
+    "windows-x64", "linux-x64", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL,
+  ]);
+  assert.deepEqual(documents.catalog.platformLanes.find((lane) => lane.id === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL), {
+    id: EXECUTABLE_PLATFORM_TARGET_LINUX_WSL,
+    hostMode: "wsl2",
+    artifactTargets: [EXECUTABLE_ARTIFACT_TARGET_LINUX],
+    regression: true,
+    rankability: "same-host-only",
+    crossPlatformDiagnostics: "same-physical-hardware-only",
+    description: "Linux x64 executable evidence through WSL2; not native Linux and not rankable across hosts.",
+  });
   assert.equal(documents.catalog.resultContract.recordsPath, "benchmarks/results");
   assert.equal(documents.catalog.bestMetricsContract.schema, EXECUTABLE_BEST_SCHEMA);
   const metricsByCell = Object.fromEntries(
@@ -380,6 +394,36 @@ function linuxCatalogAndResult(language = "rust") {
   return { catalog, result };
 }
 
+function wslCatalogAndResult(language = "rust", hostVariant = "microsoft-standard-wsl2") {
+  const catalog = clone(documents.catalog);
+  const workload = catalog.workloads.find((item) => item.id === "hello");
+  const source = clone(workload.sources.find((item) => item.language === language));
+  source.platformTarget = EXECUTABLE_PLATFORM_TARGET_LINUX_WSL;
+  source.artifactTarget = EXECUTABLE_ARTIFACT_TARGET_LINUX;
+  source.comparability = "same-physical-hardware-diagnostic-only";
+  source.eligibility = "same-physical-hardware-diagnostic-only";
+  workload.sources.push(source);
+  const result = validResult(language);
+  result.id = `hello-${language}-wsl-${hostVariant}`;
+  result.platformTarget = EXECUTABLE_PLATFORM_TARGET_LINUX_WSL;
+  result.artifactTarget = EXECUTABLE_ARTIFACT_TARGET_LINUX;
+  result.environment = { os: "linux-wsl2", kernel: hostVariant, cpuModel: "x86_64-class", logicalCores: "16", ramBytes: "34359738368" };
+  result.identity.sourceDigest = source.digest;
+  result.identity.platformTarget = EXECUTABLE_PLATFORM_TARGET_LINUX_WSL;
+  result.identity.artifactTarget = EXECUTABLE_ARTIFACT_TARGET_LINUX;
+  result.identity.host = executableHostIdentity(result.environment);
+  result.identity.eligibility = source.eligibility;
+  result.equivalenceKey = executableEquivalenceKey(catalog, "hello", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL, "release", source.recipeClass);
+  result.provenance.sourceDigest = source.digest;
+  result.provenance.platformEvidence = {
+    hostMode: "wsl2",
+    comparisonPurpose: "same-physical-hardware-diagnostic-only",
+    rankability: "same-host-only",
+  };
+  result.artifact.elfLayout = { class: "ELF64", data: "little-endian", machine: "x86-64", type: "pie" };
+  return { catalog, result };
+}
+
 function withPeLayout(result, layout = VALID_PE_LAYOUT) {
   result.artifact.peLayout = clone(layout);
   return result;
@@ -426,6 +470,29 @@ test("platform lanes stay closed, partitioned, and reject WSL masquerading as na
   wsl.identity.host = executableHostIdentity(wsl.environment);
   assert.match(validateExecutableResult(wsl, catalog).join("\n"), /native Linux|WSL|composite/iu);
   assert.throws(() => deriveExecutableBestMetrics(catalog, [wsl]), /native Linux|WSL|composite/iu);
+
+  const wslLane = wslCatalogAndResult();
+  assert.equal(executableNativeHostForPlatform(wslLane.result.environment, EXECUTABLE_PLATFORM_TARGET_LINUX), false);
+  assert.equal(executableHostEvidenceForPlatform(wslLane.result.environment, EXECUTABLE_PLATFORM_TARGET_LINUX_WSL), true);
+  assert.deepEqual(validateExecutableCatalog(wslLane.catalog, { ...documents, catalog: wslLane.catalog }), []);
+  assert.deepEqual(validateExecutableResult(wslLane.result, wslLane.catalog), []);
+  const missingWslEvidence = clone(wslLane.result);
+  delete missingWslEvidence.provenance.platformEvidence;
+  assert.match(validateExecutableResult(missingWslEvidence, wslLane.catalog).join("\n"), /closed object shape|platformEvidence/u);
+  const forgedWslEvidence = clone(wslLane.result);
+  forgedWslEvidence.provenance.platformEvidence.rankability = "host-partitioned";
+  assert.match(validateExecutableResult(forgedWslEvidence, wslLane.catalog).join("\n"), /same-host-only/u);
+  const wslUpdated = updateExecutableBestMetrics(wslLane.catalog, wslLane.result);
+  const wslCells = wslUpdated.catalog.bestMetrics.entries.filter((entry) => entry.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
+  assert.ok(wslCells.length > 0);
+  assert.ok(wslCells.every((entry) => entry.host.includes("wsl") || entry.host.includes("microsoft")));
+  assert.ok(wslCells.every((entry) => entry.provenance.platformEvidence.comparisonPurpose === "same-physical-hardware-diagnostic-only"));
+  assert.ok(wslCells.every((entry) => entry.platformTarget !== EXECUTABLE_PLATFORM_TARGET_LINUX));
+
+  const otherWsl = wslCatalogAndResult("rust", "microsoft-standard-wsl2-other-host");
+  otherWsl.result.id = "hello-rust-wsl-other-host";
+  const separatelyPartitioned = deriveExecutableBestMetrics(wslLane.catalog, [wslLane.result, otherWsl.result]);
+  assert.equal(new Set(separatelyPartitioned.entries.map((entry) => entry.categoryId)).size, 2);
 
   const toolchainVariant = clone(result);
   toolchainVariant.id = "hello-rust-linux-toolchain-variant";

@@ -84,6 +84,42 @@
     "provenance",
     "equivalence-key"
   ],
+  "platformLanes": [
+    {
+      "id": "windows-x64",
+      "hostMode": "native",
+      "artifactTargets": [
+        "x86_64-pc-windows-msvc",
+        "x86_64-w64-mingw32"
+      ],
+      "regression": true,
+      "rankability": "host-partitioned",
+      "crossPlatformDiagnostics": "none",
+      "description": "Native Windows x64 executable evidence."
+    },
+    {
+      "id": "linux-x64",
+      "hostMode": "native",
+      "artifactTargets": [
+        "x86_64-unknown-linux-gnu"
+      ],
+      "regression": true,
+      "rankability": "host-partitioned",
+      "crossPlatformDiagnostics": "none",
+      "description": "Native Linux x64 executable evidence."
+    },
+    {
+      "id": "linux-wsl-x64",
+      "hostMode": "wsl2",
+      "artifactTargets": [
+        "x86_64-unknown-linux-gnu"
+      ],
+      "regression": true,
+      "rankability": "same-host-only",
+      "crossPlatformDiagnostics": "same-physical-hardware-only",
+      "description": "Linux x64 executable evidence through WSL2; not native Linux and not rankable across hosts."
+    }
+  ],
   "workloads": [
     {
       "id": "hello",
@@ -1992,7 +2028,8 @@
       "runnerDigest",
       "catalogDigest",
       "commit",
-      "observedAt"
+      "observedAt",
+      "platformEvidence"
     ],
     "sampling": {
       "warmupMinimum": 1,
@@ -2030,7 +2067,7 @@
       "logicalCores",
       "ramBytes"
     ],
-    "artifact": "Artifact digest and sizeBytes are correctness-build facts, not repeated samples. Windows results may carry validated PE layout metadata; native Linux results may carry validated ELF64 layout metadata. Historical records without layout metadata are not measured.",
+    "artifact": "Artifact digest and sizeBytes are correctness-build facts, not repeated samples. Windows results may carry validated PE layout metadata; native Linux and Linux/WSL results may carry validated ELF64 layout metadata. Historical records without layout metadata are not measured.",
     "metrics": [
       "compile-latency",
       "run-wall-time",
@@ -2090,7 +2127,7 @@
       "catalogDigest",
       "artifactCleanliness"
     ],
-    "rule": "Update compares only lower-is-better positive values inside one exact workload, source-equivalence, platform, artifact target, ABI, profile, host, recipe class and policy category; toolchain and recipe may improve that same cell, while correctness outputs never rank. Artifact layout metadata is emitted only on the artifact-size cell; an equal-size validated candidate with the same equivalence, source and recipe evidence may replace a metadata-less winner as a complete provenance update, while different cells or evidence are never merged."
+    "rule": "Update compares only lower-is-better positive values inside one exact workload, source-equivalence, platform, artifact target, ABI, profile, host, recipe class and policy category; toolchain and recipe may improve that same cell, while correctness outputs never rank. Artifact layout metadata is emitted only on the artifact-size cell; an equal-size validated candidate with the same equivalence, source and recipe evidence may replace a metadata-less winner as a complete provenance update, while different cells or evidence are never merged. The linux-wsl-x64 lane is retained for same-host regression and same-physical-hardware diagnostics only; its WSL platform evidence is required and it is never native-Linux or cross-host ranking evidence."
   },
   "bestMetrics": {
     "$schema": "./executable-benchmark.schema.json",
