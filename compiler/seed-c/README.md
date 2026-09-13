@@ -1613,7 +1613,7 @@ identity. The upgraded `fixtures/restaurant-async-join.w` declares
 Windows x64 public route. This remains representation-erasure evidence, not a
 suspension, overlap, scheduler, or concurrency claim.
 
-### Virtual Task across one statically discharged yield (W-1579)
+### Virtual Task across one statically discharged yield (W-1579, historical)
 
 Frontend23 recognizes exact `await execution#yield()` as one Unit expression
 inside an async function. HIR31 preserves it as a distinct instruction rather
@@ -1636,6 +1636,35 @@ prints exactly `Prepared 88\n`; `tooling/check-mlir0.mjs` also rejects a
 product that retains Task, async, yield, or WRT names. This does not prove
 fairness, overlap, a scheduler, cancellation, general suspension, Linux
 execution, or concurrent performance.
+
+### Virtual Task across finite statically discharged root yields (W-1580)
+
+Frontend24 retains each exact root-level `await execution#yield()` expression
+but interns their shared Unit type identity. HIR32 preserves each source marker
+as an ordered `EXECUTION_YIELD` instruction. The public async suspension fact
+stays `MAY` and `directEntry` stays absent.
+
+The closed proof accepts one or more finite markers in one linear local async
+scalar function. It still rejects nested calls, control flow, host operations,
+mutation, allocation, throwing, unsafe and borrow surfaces. The immutable Task
+relation retains exactly one lexical await. The source preflight and standalone
+HIR verifier independently prove the positive marker count and exact
+owner/order before the native selector may erase anything.
+
+NativeSubset0 and MLIR0 select an immediate-resume legal serial schedule and
+emit ordinary scalar SSA work with no Task, frame, handle, TCB, scheduler, WRT,
+or yield symbol. The current
+[`fixtures/restaurant-async-yield.w`](fixtures/restaurant-async-yield.w) uses
+two markers and prints exactly `Prepared 88\n` on the Windows public route.
+This remains call-site-specific representation evidence; it does not claim
+fairness, overlap, physical admission behavior, a scheduler, general
+suspension, Linux execution, or concurrent performance.
+
+The verified virtual relation has normative zero logical admission cost. It
+does not debit task, frame, timer, or ready budgets and cannot synthesize a
+budget-exhaustion outcome. A source relation that fails this complete proof
+returns to the ordinary physical admission contract rather than reusing this
+lowering.
 
 ### Closed local payloadless enum exhaustive switch (W-1563)
 

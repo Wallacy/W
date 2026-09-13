@@ -12956,16 +12956,24 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
       value->is_external_enum_case = false;
       value->enum_index = W_SEED_FRONTEND_NONE;
       value->enum_case_index = W_SEED_FRONTEND_NONE;
-      uint32_t unit_type_index = W_SEED_FRONTEND_NONE;
-      if (!context_append_type(parser->context,
-                               inferred_unit_type(span),
-                               &unit_type_index))
-        return false;
+      const frontend_simple_type unit =
+          simple_type_from_view((w_seed_frontend_text){"()", 2u});
+      size_t unit_slot = 0u;
+      if (!task_result_slot(unit, &unit_slot)) return false;
+      if (parser->context->task_result_type_indices[unit_slot] ==
+          W_SEED_FRONTEND_NONE) {
+        uint32_t unit_type_index = W_SEED_FRONTEND_NONE;
+        if (!context_append_type(parser->context,
+                                 inferred_unit_type(empty_span(0u)),
+                                 &unit_type_index))
+          return false;
+        parser->context->task_result_type_indices[unit_slot] = unit_type_index;
+      }
       return expression_append(
           parser, W_SEED_FRONTEND_EXPR_EXECUTION_YIELD, span,
           text_from_span(parser->document, span),
           text_from_span(parser->document, yield_token.span),
-          simple_type_from_view((w_seed_frontend_text){"()", 2u}), supported,
+          unit, supported,
           (size_t)W_SEED_FRONTEND_NONE, (size_t)W_SEED_FRONTEND_NONE,
           W_SEED_FRONTEND_NONE, 0u, value);
     }

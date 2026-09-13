@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:902f54390e00506e4a9c1102a335db99d5a4082287b4f04cd6a00bbee0e60d98",
+  "corpusDigest": "sha256:5df367e6976d03a5ea839bf25aad76dfd6bddeb5d8e8457112e7f61b1e777e78",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -7255,22 +7255,22 @@
     {
       "id": "R0-virtual-task-static-yield-elision",
       "task": {
-        "utf8Bytes": 174,
-        "codePoints": 174,
-        "nonWhitespaceCodePoints": 147,
+        "utf8Bytes": 191,
+        "codePoints": 191,
+        "nonWhitespaceCodePoints": 163,
         "lines": 1,
-        "surfaceLexemes": 30
+        "surfaceLexemes": 33
       },
       "selected": {
         "name": "selected",
         "language": "w",
-        "sourceDigest": "sha256:a7333252349af783100d44b291adcdf8cc373311b161ea9f082ae06400653ac2",
+        "sourceDigest": "sha256:08771e61f03f1efb4169c8cf2ab14a8bfa3fdb538072a9ca6938190aeaf47251",
         "metrics": {
-          "utf8Bytes": 161,
-          "codePoints": 161,
-          "nonWhitespaceCodePoints": 132,
-          "lines": 3,
-          "surfaceLexemes": 43
+          "utf8Bytes": 279,
+          "codePoints": 279,
+          "nonWhitespaceCodePoints": 233,
+          "lines": 4,
+          "surfaceLexemes": 73
         }
       },
       "alternatives": [

@@ -29,7 +29,7 @@ otherwise.
 | Language design | Contracts cover ownership, automatic memory management, structured concurrency, parallelism, placement, and explicit boundaries. |
 | Seed frontend | The seed provides lossless source reading, parsing, formatting, and bounded semantic validation. It is not the complete frontend. |
 | Native seed route | A verified HIR slice lowers through MLIR0 to native code for selected values, calls, returns, structured control flow, arithmetic, pre-test loops, and a bounded post-test `repeat`. |
-| Virtual structured execution | A closed scalar async child may remain a compiler-only Task relation across one `execution#yield()` and lower to ordinary calls under a verified legal serial schedule. No scheduler or overlap is claimed. |
+| Virtual structured execution | A closed scalar async child may remain a compiler-only Task relation across one or more finite root `execution#yield()` points and lower to ordinary calls under a verified legal serial schedule. No scheduler or overlap is claimed. |
 | Enum payloads | The current bounded slice supports Bool and signed i64 payloads, captures, constructor values, and exhaustive switches. It has no public payload ABI. |
 | Enum subsets | The bounded seed target admits proper nonempty payloadless subsets of local enums with base tags and no wrapper allocation; focused checks and native Windows plus Linux/WSL execution are current. |
 | Source entry | entry { ... } and entry(functionName) are accepted in the bounded surface. An empty entry { } is valid. |

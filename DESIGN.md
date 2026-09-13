@@ -12549,6 +12549,14 @@ escalar e o resultado `T`, sem frame, allocation, handle ABI, TCB ou estado de
 runtime. Os IDs usados pelo compiler para relacionar launch, child e join são
 transientes e não criam identidade na linguagem.
 
+Uma relação integralmente virtual e verificada possui custo lógico de
+admission zero. Depois do staging, ela não debita task, frame, timer ou ready
+budget e não pode produzir o outcome inline-canceled de budget exhaustion.
+Essa é uma propriedade normativa da relação provada, não uma escolha de
+otimização: builds conformes não podem materializar bookkeeping observável e
+então alterar o outcome. Se cancelamento, dispatch, sharing, tracing ou outro
+fato impedir a prova completa, aplica-se a admission física de §12.6.4.
+
 Uma representação física só é introduzida quando a semântica sobrevivente
 exige estado: suspensão real, placement que requer dispatch, cancelamento
 concorrente, arbitration entre consumers, outcome compartilhado, tracing
@@ -38947,7 +38955,7 @@ runtime ownership, or a public Task representation. Its benchmark disposition
 is `compiler-lifecycle`; the executable catalog retains equivalent sequential
 W, C23, and Rust references and makes no concurrency claim.
 
-#### 26.4.1.60 W-1579 — bounded virtual Task across one statically discharged yield
+#### 26.4.1.60 W-1579 — bounded virtual Task across one statically discharged yield (historical; W-1580 supersedes)
 
 W-1579 extends virtual structured execution across the first explicit
 suspension marker without introducing a runtime object. The admitted child is
@@ -39000,7 +39008,69 @@ schedule; it does not prove a scheduler, fairness realization, handoff,
 overlap, cancellation, general suspension, frame layout, or concurrent timing.
 Its primary benchmark disposition is `compiler-lifecycle`; any executable
 comparison is sequential lifecycle evidence and must not be ranked as
-concurrency.
+concurrency. W-1580 retains this proof as the `k = 1` case and supersedes its
+cardinality limit.
+
+#### 26.4.1.61 W-1580 — bounded virtual Task across finite statically discharged root yields
+
+W-1580 generalizes the verified relation without creating a Task object. The
+admitted child remains one local explicit `async fn` with a `Bool` or
+signed-`i64` signature, one linear root block, and otherwise only immutable
+pure scalar bindings. It now contains a finite nonempty sequence of exact
+`await execution#yield()` statements. Finiteness and source order are proven
+from the bounded statement and instruction ranges; every marker is reachable
+exactly once. Nested calls, branches, loops, effects, mutation, allocation,
+borrows, throwing, unsafe code, cancellation, sharing, tracing, and runtime
+ownership still fail closed. Each Task binding retains exactly one lexical
+join; this change does not generalize Task consumption.
+
+Frontend schema `w-seed-frontend-24` interns one canonical Unit identity for
+all yield expressions while retaining every expression and source span. HIR
+schema `w-seed-hir0-32` retains every marker as an ordered
+`EXECUTION_YIELD` instruction and accepts only the plural
+`STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED` relation. The independent verifier
+re-derives the async owner, single block, positive marker count, instruction
+order, scalar types, and closed return. Public facts remain
+`suspension: MAY` and `directEntry: ABSENT`.
+
+For this call-site-specific closed scope, immediate continuation at every
+yield is one legal serial schedule. NativeSubset0 and MLIR0 may therefore
+erase the transient launch/join relation and all yield markers only after the
+HIR proof, leaving ordinary scalar SSA work. This is not an all-schedules
+equivalence claim: the language still treats yield as a scheduling
+opportunity, and another call site may require a physical frame or Task.
+Targets without a compatible execution capability must reject the source
+unless this complete discharge proof succeeds. The verified relation has
+normative zero logical admission cost: it debits no task, frame, timer, or
+ready budget and cannot produce budget-exhaustion cancellation. Fairness,
+handoff, overlap, cancellation requests, and scheduling remain outside this
+milestone.
+
+```w
+async fn prepare(value: i64): i64 {
+  let staged = value + 1
+  await execution#yield()
+  let doubled = staged * 2
+  await execution#yield()
+  return doubled
+}
+
+entry {
+  let left = async prepare(value: 20)
+  let right = async prepare(value: 22)
+  let first = await left
+  let second = await right
+  print("Prepared ${first + second}")
+}
+```
+
+The Windows x64 public route prints exactly `Prepared 88\n`, with empty
+stderr and exit zero. Product inspection requires the scalar computation and
+ordinary calls while forbidding Task, async, yield, frame, scheduler, TCB,
+WRT, and handle symbols. Linux/WSL remains unclaimed until its configured
+toolchain gate executes. The primary benchmark disposition remains
+`compiler-lifecycle`; the C23 and Rust lanes are sequential references, not
+concurrency rankings.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

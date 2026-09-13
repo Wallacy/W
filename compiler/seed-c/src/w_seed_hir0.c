@@ -1635,13 +1635,14 @@ static bool frontend_elision_function_never(
   return valid;
 }
 
-/* Prove the first suspended virtual-Task slice without pretending the common
- * async entry is synchronous.  The target owns exactly one root-level
- * `await execution#yield()` marker, scalar values only, and otherwise only
+/* Prove a suspended virtual-Task slice without pretending the common async
+ * entry is synchronous. The target owns one or more root-level
+ * `await execution#yield()` markers, scalar values only, and otherwise only
  * pure scalar expressions and bindings; nested calls remain outside this
- * first proof. Yield is a fairness hint rather than an observable barrier, so a
- * closed launch/join scope may discharge it without allocating a Task/frame. */
-static bool frontend_elision_function_one_static_yield(
+ * proof. Yield is a scheduling opportunity rather than an observable barrier,
+ * so a closed launch/join scope may discharge each marker without allocating
+ * a Task/frame. */
+static bool frontend_elision_function_static_yields(
     const w_seed_hir0_input *input, size_t function_index) {
   if (input == NULL || input->frontend_output == NULL ||
       input->frontend_result == NULL ||
@@ -1698,12 +1699,12 @@ static bool frontend_elision_function_one_static_yield(
       valid = false;
       break;
     }
-    /* The first static-yield witness has no nested calls. This keeps the
+    /* The static-yield witness has no nested calls. This keeps the
      * source preflight and independent HIR proof identical; ordinary callees
      * can be admitted later with a fixed-point proof of the composed body. */
     if (value->kind == W_SEED_FRONTEND_EXPR_CALL) valid = false;
   }
-  return valid && yield_count == 1u;
+  return valid && yield_count != 0u;
 }
 
 /* Existing ordinary targets retain the W-1577 path and are checked by HIR's
@@ -1750,7 +1751,7 @@ static bool frontend_structured_elision_preflight(
         (target->is_const ||
           (!frontend_elision_function_never(
               input, call->resolved_function_index, &path, 0u) &&
-          !frontend_elision_function_one_static_yield(
+          !frontend_elision_function_static_yields(
               input, call->resolved_function_index))))
       return false;
   }
@@ -8902,7 +8903,7 @@ static size_t hir0_emit_expression_layout_m2(hir0_emit_context *context,
         &context->frontend->expressions[source->task_call_expression];
     const bool static_yield =
         call->resolved_function_index != W_SEED_FRONTEND_NONE &&
-        frontend_elision_function_one_static_yield(
+        frontend_elision_function_static_yields(
             &(w_seed_hir0_input){
                 .frontend_input = context->frontend_input,
                 .frontend_output = context->frontend,
@@ -8910,7 +8911,7 @@ static size_t hir0_emit_expression_layout_m2(hir0_emit_context *context,
             call->resolved_function_index);
     context->output->calls[*context->call_offset - 1u].execution_kind =
         static_yield
-            ? W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELD_ELIDED
+            ? W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED
             : W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED;
     return block;
   }
@@ -13948,7 +13949,7 @@ static bool hir0_call_execution_kind_is_closed(
   switch (kind) {
     case W_SEED_HIR0_CALL_DIRECT:
     case W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED:
-    case W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELD_ELIDED:
+    case W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED:
       return true;
     default:
       return false;
@@ -14515,11 +14516,11 @@ static bool verify_direct_entry_facts(const w_seed_hir0_program *program) {
   return true;
 }
 
-/* Independent HIR proof for the first virtual suspension slice.  It accepts
- * one async scalar function, one block, exactly one yield instruction, and no
- * nested call.  The yield remains explicit in verified HIR but a closed
- * launch/join consumer may choose a legal serial schedule and erase it. */
-static bool hir0_function_one_static_yield(
+/* Independent HIR proof for the virtual suspension slice. It accepts one
+ * async scalar function, one block, one or more yield instructions, and no
+ * nested call. The yields remain explicit in verified HIR but a closed
+ * launch/join consumer may choose a legal serial schedule and erase them. */
+static bool hir0_function_static_yields(
     const w_seed_hir0_program *program, uint32_t function_index) {
   if (program == NULL || function_index >= program->function_count)
     return false;
@@ -14575,7 +14576,7 @@ static bool hir0_function_one_static_yield(
   }
   const w_seed_hir0_terminator *terminator =
       &program->terminators[block->terminator_index];
-  return yields == 1u &&
+  return yields != 0u &&
          (terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_UNIT ||
           terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE);
 }
@@ -14884,7 +14885,7 @@ static bool verify_records(const w_seed_hir0_program *program) {
             (program->calls[launch_value->call_index].execution_kind !=
                  W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED &&
              program->calls[launch_value->call_index].execution_kind !=
-                 W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELD_ELIDED) ||
+                 W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED) ||
             joined_value->kind != W_SEED_HIR0_VALUE_BINDING_READ ||
             joined_value->binding_index != launch_index)
           return false;
@@ -14962,14 +14963,14 @@ static bool verify_records(const w_seed_hir0_program *program) {
     }
     if (value->execution_kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED ||
         value->execution_kind ==
-            W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELD_ELIDED) {
+            W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED) {
       const w_seed_hir0_function *target =
           local_call && identity->target_index < program->function_count
               ? &program->functions[identity->target_index]
               : NULL;
       const bool static_yield =
           value->execution_kind ==
-          W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELD_ELIDED;
+          W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED;
       const bool target_non_suspending =
           !static_yield && target != NULL &&
           (target->suspension == W_SEED_HIR0_SUSPENSION_NEVER ||
@@ -14978,7 +14979,7 @@ static bool verify_records(const w_seed_hir0_program *program) {
       if (!local_call || identity->target_index >= program->function_count ||
           target == NULL || target->is_throws ||
           (!target_non_suspending &&
-           !(static_yield && hir0_function_one_static_yield(
+           !(static_yield && hir0_function_static_yields(
                                  program, identity->target_index))) ||
           value->owner_instruction + 1u >= program->instruction_count)
         return false;

@@ -2642,7 +2642,7 @@ static bool program_host_print_maximum(
 }
 
 
-static bool program_function_has_static_yield(
+static bool program_function_has_static_yields(
     const w_seed_hir0_program *program, size_t function_index) {
   if (program == NULL || function_index >= program->function_count)
     return false;
@@ -2693,7 +2693,7 @@ static bool program_function_has_static_yield(
                       .kind != W_SEED_HIR0_TYPE_BOOL))
       return false;
   }
-  return yields == 1u;
+  return yields != 0u;
 }
 
 /* HIR0 verification proves that each function has a dense, forward-only
@@ -2723,7 +2723,7 @@ static bool program_function_maximum(
       !function->is_anonymous_entry &&
       function->direct_entry == W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE;
   const bool async_static_yield =
-      program_function_has_static_yield(program, function_index);
+      program_function_has_static_yields(program, function_index);
   if (function->return_type >= program->type_count ||
       (!(program->types[function->return_type].kind ==
              W_SEED_HIR0_TYPE_UNIT ||
@@ -2868,8 +2868,8 @@ static bool program_function_maximum(
               target->direct_entry == W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE;
           const bool static_yield =
               call->execution_kind ==
-                  W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELD_ELIDED &&
-              program_function_has_static_yield(program,
+                  W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED &&
+              program_function_has_static_yields(program,
                                                 callee->target_index);
           if (!direct && !static_yield) return false;
         }

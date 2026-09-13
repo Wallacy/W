@@ -2604,7 +2604,7 @@ static bool test_local_binding_resolution(void) {
         W_SEED_FRONTEND_OK);
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-23") &&
+                         "w-seed-frontend-24") &&
         value->result.written.statements == 2u);
   const w_seed_frontend_statement *binding = &value->statements[0];
   CHECK(binding->kind == W_SEED_FRONTEND_STMT_LET &&
@@ -2643,8 +2643,8 @@ static bool test_local_binding_resolution(void) {
   }
   CHECK(binding_symbol != W_SEED_FRONTEND_NONE &&
         message_expression != W_SEED_FRONTEND_NONE &&
-        receipt_contains(value, "schema=w-seed-frontend-23\n",
-                         strlen("schema=w-seed-frontend-23\n")));
+        receipt_contains(value, "schema=w-seed-frontend-24\n",
+                         strlen("schema=w-seed-frontend-24\n")));
 
   fixture *trivia = &fixture_a;
   CHECK(fixture_parse(
@@ -5079,7 +5079,7 @@ static bool test_local_assignment_projection(void) {
                     "}\n"));
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-23") &&
+                         "w-seed-frontend-24") &&
         value->result.written.statements == 2u);
   CHECK(value->statements[0].kind == W_SEED_FRONTEND_STMT_VAR &&
         value->statements[0].effective_type != W_SEED_FRONTEND_NONE &&
@@ -5283,12 +5283,14 @@ static bool test_structured_async_projection(void) {
       value,
       "async fn pause(value: i64): i64 { "
       "let staged = value + 1 await execution#yield() "
+      "await execution#yield() "
       "return staged * 2 }\n"
       "entry { let pending = async pause(value: 20) "
       "let result = await pending }\n"));
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         value->result.written.facts == 0u);
   size_t execution_yields = 0u;
+  uint32_t execution_yield_type = W_SEED_FRONTEND_NONE;
   for (size_t index = 0u; index < value->result.written.expressions;
        index += 1u) {
     const w_seed_frontend_expression *expression = &value->expressions[index];
@@ -5301,10 +5303,17 @@ static bool test_structured_async_projection(void) {
     CHECK(expression->inferred_type < value->result.written.types);
     CHECK(value->types[expression->inferred_type].kind ==
           W_SEED_FRONTEND_TYPE_UNIT);
+    if (execution_yield_type == W_SEED_FRONTEND_NONE)
+      execution_yield_type = expression->inferred_type;
+    else
+      CHECK(expression->inferred_type == execution_yield_type);
     CHECK(frontend_text_is(expression->operator_text, "yield"));
     execution_yields += 1u;
   }
-  CHECK(execution_yields == 1u);
+  CHECK(execution_yields == 2u &&
+        execution_yield_type != W_SEED_FRONTEND_NONE &&
+        value->types[execution_yield_type].span.start_byte == 0u &&
+        value->types[execution_yield_type].span.end_byte == 0u);
 
   CHECK(fixture_run(value,
                     "fn pause(): i64 { await execution#yield() return 1 }\n"
