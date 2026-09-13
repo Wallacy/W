@@ -29,6 +29,7 @@ const restaurantWhilePostFixture = resolve(seedDirectory,
 const restaurantWmoFixture = resolve(seedDirectory, "fixtures", "restaurant-wmo.w")
 const processArgumentsCountFixture = resolve(seedDirectory,
   "fixtures", "process-arguments-count.w")
+const processInputFixture = resolve(seedDirectory, "fixtures", "process-input0.w")
 const processEnumPayloadFixture = resolve(seedDirectory,
   "fixtures", "process-enum-payload.w")
 const restaurantRuntimeDivremFixture = resolve(seedDirectory,
@@ -766,6 +767,15 @@ try {
     "two-call sequence")
   expectSuccess(binary, ["run", toWsl(helloFixture), "--", "arbitrary", "--entry", ""],
     expectedHello, "forwarded program arguments")
+  expectExact(binary, ["run", toWsl(processInputFixture)], 2,
+    Buffer.from("missing\n", "utf8"),
+    "Linux public process input without arguments")
+  expectExact(binary, ["run", toWsl(processInputFixture), "--", ""], 0,
+    Buffer.from("received\n", "utf8"),
+    "Linux public process input with empty argument")
+  expectExact(binary, ["run", toWsl(processInputFixture), "--", "payload"], 0,
+    Buffer.from("received\n", "utf8"),
+    "Linux public process input with one argument")
   expectExact(binary, ["run", toWsl(processEnumPayloadFixture)], 7,
     Buffer.from("enum-missing true\n", "utf8"),
     "Linux public enum payload process input without arguments")
@@ -781,6 +791,7 @@ try {
     : join(buildArtifactDirectory, name)
   const buildHello = buildOutput("hello-build")
   const buildRestaurantIf = buildOutput("restaurant-if-build")
+  const buildProcessInput = buildOutput("process-input-build")
   const buildProcessArgumentsCount = buildOutput("process-arguments-count-build")
   const buildProcessEnumPayload = buildOutput("process-enum-payload-build")
   const buildMounted = join(fixtureDirectory, "mounted-build")
@@ -805,6 +816,18 @@ try {
     "build restaurant-if fixture")
   expectSuccess(buildRestaurantIf, [], expectedRestaurantIf,
     "execute built restaurant-if artifact")
+  expectSuccess(binary, ["build", toWsl(processInputFixture), "--target",
+    targetTriple, "--output", buildProcessInput], Buffer.alloc(0),
+  "build Linux public process-input fixture")
+  const processInputBytes = await readBuildArtifact(buildProcessInput)
+  assertCrtFreeElf(processInputBytes)
+  expectExact(buildProcessInput, [], 2, Buffer.from("missing\n", "utf8"),
+    "execute built Linux process-input artifact without arguments")
+  expectExact(buildProcessInput, [""], 0, Buffer.from("received\n", "utf8"),
+    "execute built Linux process-input artifact with empty argument")
+  expectExact(buildProcessInput, ["payload"], 0,
+    Buffer.from("received\n", "utf8"),
+    "execute built Linux process-input artifact with one argument")
   expectSuccess(binary, ["build", toWsl(processArgumentsCountFixture), "--target",
     targetTriple, "--output", buildProcessArgumentsCount], Buffer.alloc(0),
   "build Linux public process-arguments-count fixture")
