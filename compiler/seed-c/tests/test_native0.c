@@ -2310,6 +2310,39 @@ static bool test_virtual_structured_task_product(void) {
   return true;
 }
 
+static bool test_virtual_static_yield_helper_product(void) {
+  static const uint8_t source[] =
+      "fn stage(value: i64): i64 { return value + 1 }\n"
+      "async fn prepare(value: i64): i64 { "
+      "let staged = stage(value: value) await execution#yield() "
+      "let doubled = staged * 2 await execution#yield() "
+      "return doubled }\n"
+      "entry { let pending = async prepare(value: 43) "
+      "let result = await pending print(\"Prepared ${result}\") }\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  const w_seed_native0_status status =
+      run_source(source, sizeof(source) - 1u, "async-yield-helper", 18u,
+                 output, sizeof(output), &result);
+  CHECK(status == W_SEED_NATIVE0_OK);
+  CHECK(storage.hir_program.function_count == 3u &&
+        storage.hir_program.functions[1].is_async &&
+        storage.hir_program.functions[1].suspension ==
+            W_SEED_HIR0_SUSPENSION_MAY &&
+        storage.hir_program.functions[1].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_ABSENT &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.call @w_fn_0") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.call @w_fn_1") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes, "@w_task") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "@w_async_") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes, "@WRT") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes, "yield"));
+  return true;
+}
+
 static bool test_async_direct_entry_product(void) {
   static const uint8_t source[] =
       "async fn pause(value: i64): i64 { return value }\n"
@@ -2334,6 +2367,7 @@ static bool test_async_direct_entry_product(void) {
 
 int main(void) {
   const bool products = test_virtual_structured_task_product() &&
+                        test_virtual_static_yield_helper_product() &&
                         test_async_direct_entry_product() &&
                         test_signed_comparison_products() && test_products() &&
                         test_enum_frontend_storage() &&

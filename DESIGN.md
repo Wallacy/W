@@ -5974,9 +5974,10 @@ não concede acesso a outro field ainda não inicializado.
 Cleanup de uma construção incompleta segue a seção 9.11. W não possui zero
 initialization universal nem expõe storage parcial ao código safe.
 
-Services usam o instance descriptor e o host. Enums usam seus cases. Um
-refined type usa seu constructor fallible. Nenhuma dessas formas ganha `init`
-por simetria.
+Services use the instance descriptor and host. Enums retain case construction
+and synthesized payload cleanup; they do not gain custom `init` or `deinit` by
+representation symmetry. `struct` and `object` share the lifecycle declaration
+surface. Refined types retain their fallible constructors.
 
 Precedentes e alternativas de inicialização ficam no
 [`RATIONALE.md` §1.5](RATIONALE.md#15-memória-layout-errors-e-cleanup).
@@ -9568,11 +9569,28 @@ fn scale(sample: Sample): Sample {
 }
 ```
 
-`struct` e `object` também não significam heap. `object` define identity e
-encapsulation. O owner pode ficar inline, no stack, num task frame, num fixed scope
-ou numa allocation própria. Expor um endereço cria uma barreira de
-representação, mas não exige heap. `pin` é necessário somente quando o endereço
-precisa permanecer estável.
+W-1581 generalizes this rule to `struct`, `enum`, and `object`. They share one
+aggregate infrastructure. The compiler may erase a value, keep it in SSA or a
+register, or use stack, fixed, device, or runtime storage. These choices do not
+change ownership, identity, initialization, destruction, or observable values.
+
+Object syntax remains distinct because it supplies reference and
+identity-capable defaults. An object declaration or `ref` use does not imply a
+heap, header, address, or storage class. Identity is latent. `isSameInstance`
+may fold without allocation when proof resolves the identity relation.
+
+The compiler materializes an aggregate only when an unresolved observable
+requires it. Examples include:
+
+- stable address or pinning
+- FFI
+- escaping identity
+- shared or weak runtime state
+- dynamic suspension, cancellation, or lifetime
+- target residency or ABI
+- observable budget, allocation, or drop
+
+Materialization does not require the heap.
 
 Containers dinâmicos, `shared`, pinning e task creation podem solicitar storage.
 A interface compilada registra uma obrigação de alocação quando a operação pode
@@ -10987,6 +11005,11 @@ contain references. It must not introduce an allocation to fit a fixed word.
 Passing an aggregate by address under a calling convention does not itself
 introduce boxing or change value semantics.
 
+The same selection applies to `struct` and `object` values. Nominal syntax does
+not select a physical carrier. A surviving observable selects materialization,
+and the selected carrier must satisfy ownership, identity, addressability, ABI,
+and target contracts.
+
 These candidates form a cost comparison, not an unconditional priority order.
 Only candidates that preserve every valid value, ownership, addressability,
 hardening, and boundary contract are eligible. Source ranges must not shrink
@@ -11156,6 +11179,10 @@ segundo e o primeiro. Ele não chama `deinit` do aggregate incompleto.
 - o valor shared morre após o último owner; o control block morre após o último
   weak handle;
 - pinned storage executa drop antes de perder estabilidade de endereço.
+
+These lifecycle rules apply to `struct` and `object` values. A custom `deinit`
+makes its type non-`Copy`. Automatic field or enum-payload drop glue alone does
+not change the `Copy` contract.
 
 Um `deinit` que lê um ref, mut ref, mut view ou capture borrowed exige que cada origin
 permaneça válida até o cleanup. NLL, isto é, non-lexical lifetime, encerra um
@@ -39071,6 +39098,77 @@ WRT, and handle symbols. Linux/WSL remains unclaimed until its configured
 toolchain gate executes. The primary benchmark disposition remains
 `compiler-lifecycle`; the C23 and Rust lanes are sequential references, not
 concurrency rankings.
+
+#### 26.4.1.62 W-1581 — proof-directed virtual aggregate materialization (Current design; implementation-evidence-gap)
+
+W-1581 consolidates the representation rule for nominal aggregates. `struct`,
+`enum`, and `object` share aggregate infrastructure. A value may remain erased,
+use SSA or registers, or use stack, fixed, device, or runtime storage. These
+choices preserve the logical type, ownership, initialization, destruction,
+identity, and observable values.
+
+`object` remains distinct source syntax because it supplies reference and
+identity-capable defaults. An object declaration or `ref` use does not imply a
+heap, header, address, or storage class. Identity is latent until an unresolved
+observation needs it. Even `isSameInstance` may fold without allocation when
+the identity relation is proved.
+
+Materialization occurs only when an unresolved observable requires it. Examples
+include:
+
+- stable address or pin
+- FFI
+- escaping identity
+- shared or weak runtime state
+- dynamic suspension, cancellation, or lifetime
+- target residency or ABI
+- observable budget, allocation, or drop
+
+A materialized aggregate may use inline, stack, fixed, device, task-frame, or
+runtime storage. The heap is not mandatory.
+
+`struct` and `enum` default to value semantics. `object` defaults to reference
+and identity semantics. `struct` and `object` may declare `init` and `deinit`
+under their common lifecycle rules. Enums retain case construction and
+synthesized payload cleanup. A custom `deinit` makes its declaring type
+non-`Copy`; automatic drop glue alone does not change the `Copy` contract.
+
+This is a design rule, not general implementation evidence. Existing bounded
+enum payload and scalar witnesses do not establish general aggregate lowering,
+physical layout, FFI behavior, device residency, or runtime materialization.
+W-1581 remains an implementation-evidence gap and creates no public header,
+layout, or ABI.
+
+#### 26.4.1.63 W-1582 — bounded virtual Task across a same-module scalar helper graph (Current bounded form)
+
+W-1582 is a source-backed bounded application of W-1580. It extends the
+existing `STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED` relation without introducing
+a new Task or runtime object category. The relation now
+admits a finite acyclic same-module graph of ordinary synchronous pure scalar
+helpers. The root remains one linear local async block with a finite nonempty
+sequence of root `await execution#yield()` markers and one lexical join.
+
+A helper may use already verified closed scalar control and local scalar
+mutation. A helper must not use host or external calls, `async`, `await`,
+`execution#yield()`, effects, `throws`, `unsafe`, borrows, allocation, or a
+runtime owner. The helper graph does not add a root, a Task consumer, a runtime
+owner, or a second scheduling category.
+
+HIR schema `w-seed-hir0-33` accepts the graph only after bounded source
+preflight. The standalone HIR verifier re-proves same-module locality,
+function ownership, acyclicity, helper admissibility, root marker count and
+order, scalar types, the closed return, and the launch/join relation. Unknown,
+external, recursive, or unsupported helper facts fail closed.
+
+NativeSubset0 and MLIR0 emit ordinary scalar calls. They erase the transient
+Task relation and root yield markers only after complete HIR proof. The zero
+logical admission rule remains conditional on that proof. A failed proof uses
+the ordinary physical admission contract.
+
+The updated `restaurant-async-yield.w` fixture calls `stage`. The Windows
+product gate must be rerun for the changed source. This milestone makes no
+claim about concurrency, fairness, a scheduler, overlap, or Linux execution.
+Its benchmark disposition is `compiler-lifecycle`.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

@@ -1,5 +1,9 @@
+fn stage(value: i64): i64 {
+  return value + 1
+}
+
 async fn prepare(value: i64): i64 {
-  let staged = value + 1
+  let staged = stage(value: value)
   await execution#yield()
   let doubled = staged * 2
   await execution#yield()

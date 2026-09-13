@@ -2299,7 +2299,113 @@ static bool test_structured_async_elision_hir(void) {
       "return helper(value: value) }\n"
       "entry { let pending = async pause(value: 1) "
       "let value = await pending }\n";
-  CHECK(fixture_frontend(YIELD_CALL_SOURCE));
+  CHECK(lower(YIELD_CALL_SOURCE));
+  program = &fixture.hir_program;
+  CHECK(program->function_count == 3u && program->call_count == 2u &&
+        program->functions[0].suspension == W_SEED_HIR0_SUSPENSION_NEVER &&
+        program->functions[1].suspension == W_SEED_HIR0_SUSPENSION_MAY &&
+        program->functions[1].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_ABSENT);
+  size_t helper_call = W_SEED_HIR0_NONE;
+  size_t yielding_call = W_SEED_HIR0_NONE;
+  for (size_t call = 0u; call < program->call_count; call += 1u) {
+    if (program->calls[call].execution_kind == W_SEED_HIR0_CALL_DIRECT)
+      helper_call = call;
+    else if (program->calls[call].execution_kind ==
+             W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED)
+      yielding_call = call;
+  }
+  CHECK(helper_call != W_SEED_HIR0_NONE &&
+        yielding_call != W_SEED_HIR0_NONE &&
+        program->identities[program->calls[helper_call].callee_identity]
+                .target_index == 0u &&
+        program->identities[program->calls[yielding_call].callee_identity]
+                .target_index == 1u &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_call saved_helper_call = fixture.hir_calls[helper_call];
+  fixture.hir_calls[helper_call].execution_kind =
+      W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_calls[helper_call] = saved_helper_call;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_function saved_helper_function = fixture.hir_functions[0];
+  fixture.hir_functions[0].is_async = true;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_functions[0] = saved_helper_function;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  static const char YIELD_HELPER_DAG_SOURCE[] =
+      "fn base(value: i64): i64 { return value + 1 }\n"
+      "fn helper(value: i64): i64 { return base(value: value) * 2 }\n"
+      "async fn pause(value: i64): i64 { await execution#yield() "
+      "return helper(value: value) }\n"
+      "entry { let pending = async pause(value: 1) "
+      "let value = await pending }\n";
+  CHECK(lower(YIELD_HELPER_DAG_SOURCE));
+  program = &fixture.hir_program;
+  CHECK(program->function_count == 4u && program->call_count == 3u &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+  size_t nested_helper_call = W_SEED_HIR0_NONE;
+  for (size_t call = 0u; call < program->call_count; call += 1u) {
+    const w_seed_hir0_call *candidate = &program->calls[call];
+    if (candidate->execution_kind != W_SEED_HIR0_CALL_DIRECT ||
+        candidate->owner_block >= program->block_count)
+      continue;
+    if (program->blocks[candidate->owner_block].owner_function == 1u) {
+      nested_helper_call = call;
+      break;
+    }
+  }
+  CHECK(nested_helper_call != W_SEED_HIR0_NONE);
+  const w_seed_hir0_call saved_nested_helper_call =
+      fixture.hir_calls[nested_helper_call];
+  fixture.hir_calls[nested_helper_call].callee_identity =
+      (uint32_t)program->module_count + 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_calls[nested_helper_call] = saved_nested_helper_call;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  static const char YIELD_RECURSIVE_HELPER_SOURCE[] =
+      "fn helper(value: i64): i64 { return helper(value: value) }\n"
+      "async fn pause(value: i64): i64 { await execution#yield() "
+      "return helper(value: value) }\n"
+      "entry { let pending = async pause(value: 1) "
+      "let value = await pending }\n";
+  CHECK(fixture_frontend(YIELD_RECURSIVE_HELPER_SOURCE));
+  setup_hir_output();
+  input = (w_seed_hir0_input){&fixture.input, &fixture.output, &fixture.result};
+  CHECK(w_seed_hir0_measure(&input, &counts, &result) ==
+        W_SEED_HIR0_UNSUPPORTED);
+
+  static const char YIELD_MUTUAL_HELPER_SOURCE[] =
+      "fn left(value: i64): i64 { return right(value: value) }\n"
+      "fn right(value: i64): i64 { return left(value: value) }\n"
+      "async fn pause(value: i64): i64 { await execution#yield() "
+      "return left(value: value) }\n"
+      "entry { let pending = async pause(value: 1) "
+      "let value = await pending }\n";
+  CHECK(fixture_frontend(YIELD_MUTUAL_HELPER_SOURCE));
+  setup_hir_output();
+  input = (w_seed_hir0_input){&fixture.input, &fixture.output, &fixture.result};
+  CHECK(w_seed_hir0_measure(&input, &counts, &result) ==
+        W_SEED_HIR0_UNSUPPORTED);
+
+  static const char YIELD_EFFECT_HELPER_SOURCE[] =
+      "fn helper(value: i64): i64 { "
+      "print(message: \"effect\", suffix: \"\") return value }\n"
+      "async fn pause(value: i64): i64 { await execution#yield() "
+      "return helper(value: value) }\n"
+      "entry { let pending = async pause(value: 1) "
+      "let value = await pending }\n";
+  CHECK(fixture_frontend(YIELD_EFFECT_HELPER_SOURCE));
   setup_hir_output();
   input = (w_seed_hir0_input){&fixture.input, &fixture.output, &fixture.result};
   CHECK(w_seed_hir0_measure(&input, &counts, &result) ==

@@ -573,9 +573,9 @@
     },
     {
       "id": "R0-encapsulated-object",
-      "reviewItem": "object encapsulado contra storage público e constructor herdado",
-      "decisions": ["W-153", "W-162"],
-      "task": "Expose stock reservation behavior without exporting its mutable counters or synthesized constructor.",
+      "reviewItem": "object defaults and proof-directed aggregate materialization against public storage, heap/header requirements, and inherited constructors",
+      "decisions": ["W-153", "W-162", "W-1581"],
+      "task": "Expose stock reservation behavior while keeping object defaults, aggregate storage, and construction policy explicit.",
       "selected": {
         "language": "w",
         "source": ["export object StockReservation {", "  var reserved: usize", "  export mut fn release() { reserved = 0 }", "}"]
@@ -585,7 +585,7 @@
           "name": "public-object-storage",
           "language": "alternative-semantics",
           "source": ["// export object exports reserved and its synthesized initializer"],
-          "expectedDifference": "External code can bypass invariants and construction policy through mutable storage."
+          "expectedDifference": "External code can bypass invariants and construction policy through mutable storage, while the spelling would also imply an unsupported heap or header requirement."
         }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
@@ -7085,14 +7085,15 @@
     },
     {
       "id": "R0-virtual-task-static-yield-elision",
-      "reviewItem": "bounded static-yield Task erasure against eager runtime materialization and false scheduler claims",
-      "decisions": ["W-1579", "W-1580"],
-      "task": "Preserve every finite root execution yield in verified HIR, then discharge them only when a closed scalar launch and join admits a legal immediate-resume schedule without physical Task state.",
+      "reviewItem": "bounded static-yield helper-graph erasure against eager runtime materialization and false scheduler claims",
+      "decisions": ["W-1579", "W-1580", "W-1582"],
+      "task": "Preserve every finite root execution yield and verified same-module scalar helper graph in HIR, then discharge them only when a closed scalar launch and join admits a legal immediate-resume schedule without physical Task state.",
       "selected": {
         "language": "w",
         "source": [
           "async fn once(value: i64): i64 { await execution#yield() return value }",
-          "async fn prepare(value: i64): i64 { let staged = value + 1 await execution#yield() let doubled = staged * 2 await execution#yield() return doubled }",
+          "fn stage(value: i64): i64 { return value + 1 }",
+          "async fn prepare(value: i64): i64 { let staged = stage(value: value) await execution#yield() let doubled = staged * 2 await execution#yield() return doubled }",
           "let left = async prepare(value: 20)",
           "let first = await left"
         ]
@@ -7104,7 +7105,7 @@
           "source": [
             "allocate a Task, frame, and scheduler record solely because execution#yield appears"
           ],
-          "expectedDifference": "The selected route preserves the suspension marker through HIR and materializes state only when surviving observable semantics require it."
+          "expectedDifference": "The selected route preserves the suspension marker and helper graph through HIR, then materializes state only when surviving observable semantics require it."
         },
         {
           "name": "erase-yield-before-verification",
@@ -7137,30 +7138,30 @@
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "hir0_function_static_yields",
-          "claim": "The standalone verifier independently proves one async block, a positive ordered yield count, scalar bindings, and a closed return."
+          "claim": "The standalone verifier independently proves one async block, a positive ordered yield count, a finite acyclic same-module scalar helper graph, and a closed return."
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
           "symbol": "program_function_has_static_yields",
-          "claim": "Native selection accepts the verified plural static-yields relation without introducing Task or scheduler state."
+          "claim": "Native selection accepts the verified plural static-yields relation and its same-module scalar helper graph without introducing Task or scheduler state."
         },
         {
           "path": "tooling/check-mlir0.mjs",
           "symbol": "restaurant-async-yield",
-          "claim": "The product retains scalar work and rejects Task, async, yield, and WRT surface."
+          "claim": "The product retains scalar work and the stage call while rejecting Task, async, yield, and WRT surface."
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurant async yield fixture",
-          "claim": "The Windows public route executes the bounded source with exact output and empty stderr."
+          "claim": "The Windows public route executes the bounded stage-helper source with exact output and empty stderr after the gate reruns."
         }
       ],
       "checks": [
         "frontend24 records every supported Unit execution-yield expression only in an async function and shares one canonical Unit identity",
-        "HIR32 preserves one, two, and three ordered yield instructions while public suspension remains MAY and directEntry remains absent",
-        "the verifier rejects zero yields under the plural relation, a forged ordinary binding, non-async owner, nested call, control flow, or blocked value state",
-        "NativeSubset0 and MLIR0 retain scalar computation while emitting no Task, frame, scheduler, yield, handle, or WRT surface",
-        "Windows execution prints Prepared 88 exactly and the evidence makes no fairness, handoff, overlap, Linux, or concurrency-ranking claim"
+        "HIR33 preserves one, two, and three ordered yield instructions and admits only a finite acyclic same-module scalar helper graph while public suspension remains MAY and directEntry remains absent",
+        "the verifier rejects zero yields under the plural relation, a forged ordinary binding, non-async owner, nonlocal or cyclic helper, forbidden helper operation, or blocked value state",
+        "NativeSubset0 and MLIR0 retain scalar computation and ordinary helper calls while emitting no Task, frame, scheduler, yield, handle, or WRT surface",
+        "Windows execution prints Prepared 88 exactly after the stage-helper fixture gate reruns, and the evidence makes no fairness, handoff, overlap, Linux, or concurrency-ranking claim"
       ],
       "measures": [
         "semantic-correctness",

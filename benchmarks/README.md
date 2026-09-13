@@ -251,6 +251,14 @@ The exact oracle is `Prepared 88\n`; this remains representation and compiler
 lifecycle measurement, not scheduler, fairness, overlap, or concurrency
 ranking.
 
+W-1582 extends this same workload relation to a finite acyclic same-module
+graph of ordinary synchronous pure scalar helpers. The updated fixture calls
+`stage`. HIR33 re-proves graph locality and cycles before NativeSubset0 and
+MLIR0 emit ordinary scalar calls and erase Task and yield markers. The Windows
+product gate must be rerun after the source change. This remains a
+`compiler-lifecycle` workload with no concurrency, fairness, scheduler,
+overlap, or Linux claim.
+
 The short facade is `bun benchmark`: use `list` to inspect catalog readiness,
 `run --target <runnable-catalog-id> --language w|c|rust --output benchmarks/results/<new>.json`
 for a local candidate measurement, `validate <json>` for a contained result,

@@ -9,10 +9,13 @@
 #include <io.h>
 #endif
 
+static int64_t stage(int64_t value) {
+    return value + 1;
+}
+
 static int64_t prepare(int64_t value) {
     // Immediate continuation is a legal schedule for W's non-barrier yield.
-    const int64_t staged = value + 1;
-    return staged * 2;
+    return stage(value) * 2;
 }
 
 int main(void) {

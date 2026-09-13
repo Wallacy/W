@@ -564,6 +564,16 @@ test "nominal declarations expose their members" for Place {
 }
 ```
 
+Nominal aggregate syntax and physical storage are separate. `struct`, `enum`,
+and `object` share aggregate lowering. An object declaration or `ref` use does
+not imply a heap, header, address, or storage class. `struct` and `enum` use
+value defaults, while `object` uses reference and identity defaults. The
+compiler materializes an aggregate only when a surviving observable requires
+it. `struct` and `object` may declare `init` and `deinit`; enums use cases and
+synthesized payload cleanup. A custom `deinit` makes the type non-`Copy`, while
+automatic drop glue does not.
+`isSameInstance` may fold without allocation when identity is proven.
+
 ## Protocols, generics, refinements, and specialization
 
 <!-- w-example role=logical-contract -->
@@ -1335,6 +1345,13 @@ test "firstSettled preserves index and outcome" for first {
   }
 }
 ```
+
+`Task` remains a linear capability. A complete proof may erase its transient
+representation and finite root yield markers. W-1582 extends this proof to a
+finite acyclic same-module graph of ordinary pure scalar helpers. The helpers
+may use verified scalar control and local mutation, but they cannot introduce
+effects, suspension, allocation, or runtime ownership. This is representation
+evidence and does not claim scheduler behavior or concurrency.
 
 ## Bounded task pipelines
 
