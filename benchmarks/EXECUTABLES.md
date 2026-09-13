@@ -42,8 +42,10 @@ Current portable-release values. Lower is better; `—` means no published measu
 
 ## Best values
 
+### Windows x64
+
 | Workload | Language | Target | Runtime | Artifact | .text B | .rdata B | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |
-| --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | bool-short-circuit | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 966 | 308 | 182.0096 ms | 16.9107 ms | 17.9359 ms | 3756032 B (3.58 MiB) | 11.912 ms |
 | hello | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3446 | 2596 | 126.1595 ms | 17.1805 ms | 18.1178 ms | 4808704 B (4.59 MiB) | 13.459 ms |
 | hello | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113152 B (110.5 KiB) | — | — | 237.4533 ms | 17.8031 ms | 18.2169 ms | 4857856 B (4.63 MiB) | 11.757 ms |
@@ -109,6 +111,14 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-wmo | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79688 | 28348 | 1.0782036 s | 17.9632 ms | 18.3672 ms | 4870144 B (4.64 MiB) | 12.53 ms |
 | restaurant-wmo | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 582 | 220 | 175.5304 ms | 16.0403 ms | 16.9987 ms | 3756032 B (3.58 MiB) | 12.066 ms |
 
-Artifact size counts only the PE file. It excludes imported runtime DLLs. Public W is CRT-free; public C and Rust import the MSVC runtime. The private process-handler composite remains a GCC/MinGW contextual lane.
-The `.text B` and `.rdata B` columns are the unique sections' validated PE VirtualSize; VirtualSize includes padding and zero-fill and is not a useful-instruction count. `—` means absent, ambiguous, or not measured. FileAlignment, SectionAlignment and SizeOfHeaders remain in the machine catalog metadata. Only source-backed workloads with a materialized source and runner-supported recipe appear here; planned/backlog entries remain in the catalog. CPU is the arithmetic mean of 101 fresh-process counters; an all-zero estimate is omitted.
+### Linux x64
+
+| Workload | Language | Target | Runtime | Artifact | .text B | .rdata B | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |
+| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+
+No native Linux x64 measurements are published.
+
+Artifact size counts only the emitted executable file. On Windows it excludes imported runtime DLLs. Windows public W is CRT-free; public C and Rust import the MSVC runtime. The private process-handler composite remains a Windows GCC/MinGW contextual lane. Native Linux records, when published, are kept in their own Linux x64 / GNU lane; W's current Linux product route is also CRT-free.
+Each projection row is compact: every displayed metric chooses the lower value across pinned categories on that same platform, so cells may come from distinct toolchain/recipe categories. The machine catalog retains those category and provenance identities; no value is selected across platform sections.
+The `.text B` and `.rdata B` columns are the unique PE sections' validated VirtualSize; VirtualSize includes padding and zero-fill and is not a useful-instruction count. `—` means absent, ambiguous, or not measured. Linux ELF metadata is kept separate from PE metadata. Only source-backed workloads with a materialized source and runner-supported recipe appear here; planned/backlog entries remain in the catalog. CPU is the arithmetic mean of 101 fresh-process counters; an all-zero estimate is omitted.
 Machine contract and provenance: [executable-catalog.json](./executable-catalog.json). Manual commands: [README](./README.md#manual-reproduction).

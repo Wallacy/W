@@ -3,6 +3,8 @@ import { lstat, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises"
 import path from "node:path";
 import {
   executableWorkloadHasRunner,
+  EXECUTABLE_PLATFORM_TARGET_LINUX,
+  EXECUTABLE_PLATFORM_TARGET_WINDOWS,
   ROOT,
   loadExecutableDocuments,
   validateExecutableCatalog,
@@ -123,16 +125,39 @@ function sourceLinks(workload) {
 function bestSort(left, right) {
   return compareText(String(left?.workloadId ?? ""), String(right?.workloadId ?? "")) ||
     compareText(String(left?.language ?? ""), String(right?.language ?? "")) ||
+    compareText(String(left?.platformTarget ?? ""), String(right?.platformTarget ?? "")) ||
+    compareText(String(left?.artifactTarget ?? ""), String(right?.artifactTarget ?? "")) ||
+    compareText(String(left?.toolchain ?? ""), String(right?.toolchain ?? "")) ||
+    compareText(String(left?.host ?? ""), String(right?.host ?? "")) ||
+    compareText(String(left?.recipe ?? ""), String(right?.recipe ?? "")) ||
     compareText(String(left?.metric ?? ""), String(right?.metric ?? "")) ||
     compareText(String(left?.id ?? ""), String(right?.id ?? ""));
+}
+
+function hasLayout(entry) {
+  return entry?.peLayout !== undefined || entry?.elfLayout !== undefined;
+}
+
+function bestProjectionEntry(left, right) {
+  if (!left) return right;
+  if (!right) return left;
+  const leftValue = BigInt(left.value);
+  const rightValue = BigInt(right.value);
+  if (leftValue !== rightValue) return leftValue < rightValue ? left : right;
+  if (hasLayout(left) !== hasLayout(right)) return hasLayout(left) ? left : right;
+  return bestSort(left, right) <= 0 ? left : right;
 }
 
 function categoryRows(entries) {
   const groups = new Map();
   for (const entry of entries) {
-    const key = `${entry.categoryId}\u0000${entry.workloadId}\u0000${entry.language}`;
+    // Keep the projection compact by collapsing only within one platform
+    // lane. The machine catalog remains category-partitioned by toolchain and
+    // recipe; each displayed metric is independently selected below.
+    const key = `${entry.workloadId}\u0000${entry.language}\u0000${entry.platformTarget}`;
     const group = groups.get(key) ?? { entry, metrics: new Map() };
-    group.metrics.set(entry.metric, entry);
+    group.entry = bestSort(group.entry, entry) <= 0 ? group.entry : entry;
+    group.metrics.set(entry.metric, bestProjectionEntry(group.metrics.get(entry.metric), entry));
     groups.set(key, group);
   }
   return [...groups.values()].sort((left, right) => bestSort(left.entry, right.entry));
@@ -167,12 +192,18 @@ function projectionWorkload(workload) {
 }
 
 function targetLabel(entry) {
+  if (entry.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX) return "Linux x64 / GNU";
   if (entry.artifactTarget.endsWith("windows-msvc")) return "Windows x64 / MSVC";
   if (entry.artifactTarget.endsWith("w64-mingw32")) return "Windows x64 / MinGW";
   return entry.artifactTarget;
 }
 
 function runtimeLabel(entry) {
+  if (entry.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX) {
+    if (entry.language === "rust") return "Rust std + glibc";
+    if (entry.language === "c") return "glibc";
+    return "CRT-free";
+  }
   if (entry.artifactTarget.endsWith("w64-mingw32")) return "MinGW runtime";
   if (entry.language === "w" && entry.artifactTarget.endsWith("windows-msvc")) return "CRT-free";
   if (entry.language === "c" && entry.artifactTarget.endsWith("windows-msvc")) return "MSVC CRT DLL";
@@ -198,15 +229,32 @@ export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
   for (const workload of catalog.workloads.filter(projectionWorkload)) {
     lines.push(`| ${workload.id} | ${workload.structureClass} | ${sourceLinks(workload)} | ${workload.oracle.status} | ${workload.benchmarkStatus} |`);
   }
-  lines.push("", "## Best values", "", "| Workload | Language | Target | Runtime | Artifact | .text B | .rdata B | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |", "| --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
-  for (const group of rows) {
-    const entry = group.entry;
-    lines.push(`| ${entry.workloadId} | ${entry.language} | ${targetLabel(entry)} | ${runtimeLabel(entry)} | ${artifactCell(group)} | ${sectionVirtualSizeCell(group, ".text")} | ${sectionVirtualSizeCell(group, ".rdata")} | ${metricCell(group, "compile-latency")} | ${metricCell(group, "run-wall-time")} | ${metricCell(group, "run-wall-p95")} | ${metricCell(group, "peak-working-set")} | ${metricCell(group, "cpu-time")} |`);
+  lines.push("", "## Best values");
+  const tableHeader = [
+    "| Workload | Language | Target | Runtime | Artifact | .text B | .rdata B | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |",
+    "| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+  ];
+  for (const [platformTarget, label] of [
+    [EXECUTABLE_PLATFORM_TARGET_WINDOWS, "Windows x64"],
+    [EXECUTABLE_PLATFORM_TARGET_LINUX, "Linux x64"],
+  ]) {
+    const platformRows = rows.filter((group) => group.entry.platformTarget === platformTarget);
+    lines.push("", `### ${label}`);
+    lines.push("", ...tableHeader);
+    if (platformRows.length === 0) {
+      lines.push("", `No native ${label} measurements are published.`);
+      continue;
+    }
+    for (const group of platformRows) {
+      const entry = group.entry;
+      lines.push(`| ${entry.workloadId} | ${entry.language} | ${targetLabel(entry)} | ${runtimeLabel(entry)} | ${artifactCell(group)} | ${sectionVirtualSizeCell(group, ".text")} | ${sectionVirtualSizeCell(group, ".rdata")} | ${metricCell(group, "compile-latency")} | ${metricCell(group, "run-wall-time")} | ${metricCell(group, "run-wall-p95")} | ${metricCell(group, "peak-working-set")} | ${metricCell(group, "cpu-time")} |`);
+    }
   }
   lines.push(
     "",
-    "Artifact size counts only the PE file. It excludes imported runtime DLLs. Public W is CRT-free; public C and Rust import the MSVC runtime. The private process-handler composite remains a GCC/MinGW contextual lane.",
-    "The `.text B` and `.rdata B` columns are the unique sections' validated PE VirtualSize; VirtualSize includes padding and zero-fill and is not a useful-instruction count. `—` means absent, ambiguous, or not measured. FileAlignment, SectionAlignment and SizeOfHeaders remain in the machine catalog metadata. Only source-backed workloads with a materialized source and runner-supported recipe appear here; planned/backlog entries remain in the catalog. CPU is the arithmetic mean of 101 fresh-process counters; an all-zero estimate is omitted.",
+    "Artifact size counts only the emitted executable file. On Windows it excludes imported runtime DLLs. Windows public W is CRT-free; public C and Rust import the MSVC runtime. The private process-handler composite remains a Windows GCC/MinGW contextual lane. Native Linux records, when published, are kept in their own Linux x64 / GNU lane; W's current Linux product route is also CRT-free.",
+    "Each projection row is compact: every displayed metric chooses the lower value across pinned categories on that same platform, so cells may come from distinct toolchain/recipe categories. The machine catalog retains those category and provenance identities; no value is selected across platform sections.",
+    "The `.text B` and `.rdata B` columns are the unique PE sections' validated VirtualSize; VirtualSize includes padding and zero-fill and is not a useful-instruction count. `—` means absent, ambiguous, or not measured. Linux ELF metadata is kept separate from PE metadata. Only source-backed workloads with a materialized source and runner-supported recipe appear here; planned/backlog entries remain in the catalog. CPU is the arithmetic mean of 101 fresh-process counters; an all-zero estimate is omitted.",
     `Machine contract and provenance: ${jsonPathLink(projectionPath("benchmarks/executable-catalog.json"), "executable-catalog.json")}. Manual commands: [README](./README.md#manual-reproduction).`,
   );
   return lines.join("\n");

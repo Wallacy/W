@@ -50,11 +50,21 @@
         "quality": { "const": "correctness-gate" },
         "recipe": { "type": "string" },
         "recipeClass": { "type": "string" },
-        "platformTarget": { "const": "windows-x64" },
-        "artifactTarget": { "enum": ["x86_64-pc-windows-msvc", "x86_64-w64-mingw32"] },
+        "platformTarget": { "enum": ["windows-x64", "linux-x64"] },
+        "artifactTarget": { "enum": ["x86_64-pc-windows-msvc", "x86_64-w64-mingw32", "x86_64-unknown-linux-gnu"] },
         "comparability": { "enum": ["deferred-until-M3b", "promotable-after-equivalence", "contextual-non-ranking-private-composite"] },
         "eligibility": { "enum": ["promotable-after-equivalence", "deferred-to-M3b", "exploratory-private-composite"] }
-      }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "platformTarget": { "const": "windows-x64" } } },
+          "then": { "properties": { "artifactTarget": { "enum": ["x86_64-pc-windows-msvc", "x86_64-w64-mingw32"] } } }
+        },
+        {
+          "if": { "properties": { "platformTarget": { "const": "linux-x64" } } },
+          "then": { "properties": { "artifactTarget": { "const": "x86_64-unknown-linux-gnu" } } }
+        }
+      ]
     },
     "oracle": {
       "type": "object",
@@ -217,7 +227,7 @@
         "storage": { "type": "string" },
         "optimizableMetrics": { "const": ["compile-latency", "run-wall-time", "run-wall-p95", "cpu-time", "peak-working-set", "artifact-size"] },
         "forbiddenMetrics": { "const": ["exit-code", "stdout", "stderr"] },
-        "categoryAxes": { "const": ["workloadId", "language", "equivalenceKey", "platformTarget", "artifactTarget", "abi", "profile", "host", "recipeClass", "comparability", "eligibility"] },
+        "categoryAxes": { "const": ["workloadId", "language", "equivalenceKey", "platformTarget", "artifactTarget", "abi", "profile", "toolchain", "host", "recipe", "recipeClass", "comparability", "eligibility"] },
         "provenanceFields": { "const": ["recordId", "commit", "observedAt", "sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "catalogDigest", "artifactCleanliness"] },
         "rule": { "type": "string" }
       }
@@ -246,8 +256,8 @@
       "required": ["sourceDigest", "platformTarget", "artifactTarget", "profile", "toolchain", "host", "recipe", "recipeClass", "recipeDigest", "eligibility"],
       "properties": {
         "sourceDigest": { "$ref": "#/$defs/digest" },
-        "platformTarget": { "const": "windows-x64" },
-        "artifactTarget": { "enum": ["x86_64-pc-windows-msvc", "x86_64-w64-mingw32"] },
+        "platformTarget": { "enum": ["windows-x64", "linux-x64"] },
+        "artifactTarget": { "enum": ["x86_64-pc-windows-msvc", "x86_64-w64-mingw32", "x86_64-unknown-linux-gnu"] },
         "profile": { "const": "release" },
         "toolchain": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
         "host": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
@@ -255,7 +265,17 @@
         "recipeClass": { "type": "string" },
         "recipeDigest": { "$ref": "#/$defs/digest" },
         "eligibility": { "type": "string" }
-      }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "platformTarget": { "const": "windows-x64" } } },
+          "then": { "properties": { "artifactTarget": { "enum": ["x86_64-pc-windows-msvc", "x86_64-w64-mingw32"] } } }
+        },
+        {
+          "if": { "properties": { "platformTarget": { "const": "linux-x64" } } },
+          "then": { "properties": { "artifactTarget": { "const": "x86_64-unknown-linux-gnu" } } }
+        }
+      ]
     },
     "correctness": {
       "type": "object",
@@ -303,7 +323,8 @@
         "digest": { "$ref": "#/$defs/digest" },
         "sizeBytes": { "$ref": "#/$defs/positiveDecimal" },
         "cleanliness": { "$ref": "#/$defs/artifactCleanliness" },
-        "peLayout": { "$ref": "#/$defs/peLayout" }
+        "peLayout": { "$ref": "#/$defs/peLayout" },
+        "elfLayout": { "$ref": "#/$defs/elfLayout" }
       }
     },
     "peLayout": {
@@ -330,6 +351,17 @@
         "name": { "type": "string", "pattern": "^[ -~]{1,8}$" },
         "virtualSize": { "$ref": "#/$defs/decimal" },
         "rawSize": { "$ref": "#/$defs/decimal" }
+      }
+    },
+    "elfLayout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "data", "machine", "type"],
+      "properties": {
+        "class": { "const": "ELF64" },
+        "data": { "const": "little-endian" },
+        "machine": { "const": "x86-64" },
+        "type": { "enum": ["executable", "pie"] }
       }
     },
     "artifactCleanliness": {
@@ -517,8 +549,8 @@
         "status": { "const": "recorded" },
         "workloadId": { "type": "string" },
         "language": { "enum": ["w", "c", "rust"] },
-        "platformTarget": { "const": "windows-x64" },
-        "artifactTarget": { "enum": ["x86_64-pc-windows-msvc", "x86_64-w64-mingw32"] },
+        "platformTarget": { "enum": ["windows-x64", "linux-x64"] },
+        "artifactTarget": { "enum": ["x86_64-pc-windows-msvc", "x86_64-w64-mingw32", "x86_64-unknown-linux-gnu"] },
         "profile": { "const": "release" },
         "quality": { "const": "exploratory" },
         "claim": { "const": "measurement-only" },
@@ -532,7 +564,17 @@
         "compile": { "$ref": "#/$defs/sampleSeries" },
         "run": { "$ref": "#/$defs/sampleSeries" },
         "provenance": { "$ref": "#/$defs/provenance" }
-      }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "platformTarget": { "const": "windows-x64" } } },
+          "then": { "properties": { "artifactTarget": { "enum": ["x86_64-pc-windows-msvc", "x86_64-w64-mingw32"] } } }
+        },
+        {
+          "if": { "properties": { "platformTarget": { "const": "linux-x64" } } },
+          "then": { "properties": { "artifactTarget": { "const": "x86_64-unknown-linux-gnu" } } }
+        }
+      ]
     },
     "bestMetricProvenance": {
       "type": "object",
@@ -565,9 +607,9 @@
         "workloadId": { "type": "string", "minLength": 1 },
         "language": { "enum": ["w", "c", "rust"] },
         "equivalenceKey": { "$ref": "#/$defs/digest" },
-        "platformTarget": { "const": "windows-x64" },
-        "artifactTarget": { "enum": ["x86_64-pc-windows-msvc", "x86_64-w64-mingw32"] },
-        "abi": { "enum": ["x86_64-pc-windows-msvc", "x86_64-w64-mingw32"] },
+        "platformTarget": { "enum": ["windows-x64", "linux-x64"] },
+        "artifactTarget": { "enum": ["x86_64-pc-windows-msvc", "x86_64-w64-mingw32", "x86_64-unknown-linux-gnu"] },
+        "abi": { "enum": ["x86_64-pc-windows-msvc", "x86_64-w64-mingw32", "x86_64-unknown-linux-gnu"] },
         "profile": { "const": "release" },
         "host": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
         "recipeClass": { "type": "string", "minLength": 1 },
@@ -580,8 +622,25 @@
         "toolchain": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
         "recipe": { "type": "string", "minLength": 1 },
         "peLayout": { "$ref": "#/$defs/peLayout" },
+        "elfLayout": { "$ref": "#/$defs/elfLayout" },
         "provenance": { "$ref": "#/$defs/bestMetricProvenance" }
-      }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "platformTarget": { "const": "windows-x64" } } },
+          "then": { "properties": {
+            "artifactTarget": { "enum": ["x86_64-pc-windows-msvc", "x86_64-w64-mingw32"] },
+            "abi": { "enum": ["x86_64-pc-windows-msvc", "x86_64-w64-mingw32"] }
+          } }
+        },
+        {
+          "if": { "properties": { "platformTarget": { "const": "linux-x64" } } },
+          "then": { "properties": {
+            "artifactTarget": { "const": "x86_64-unknown-linux-gnu" },
+            "abi": { "const": "x86_64-unknown-linux-gnu" }
+          } }
+        }
+      ]
     },
     "bestMetrics": {
       "type": "object",
