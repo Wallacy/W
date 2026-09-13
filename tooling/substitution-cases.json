@@ -6903,6 +6903,93 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-virtual-structured-task-elision",
+      "reviewItem": "virtual structured Task capability against unconditional runtime object materialization, observable identity, and false overlap claims",
+      "decisions": ["W-1502", "W-1577"],
+      "task": "Lower one bounded local never-suspending async/await pair without creating observable Task identity or runtime state.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "let task = async prepare(value: 20)",
+          "let result = await task",
+          "// HIR keeps a verified scalar relation; Task has no physical object."
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "unconditional-task-control-block",
+          "language": "w-internal-rejected",
+          "source": [
+            "allocate a Task object, frame, handle, or TCB for every async launcher"
+          ],
+          "expectedDifference": "The selected lowering materializes state only when suspension, dispatch, cancellation, arbitration, sharing, tracing, or runtime ownership proves that it survives."
+        },
+        {
+          "name": "observable-task-identity",
+          "language": "w-internal-rejected",
+          "source": [
+            "publish Task address, equality, fields, or stable ABI identity"
+          ],
+          "expectedDifference": "The selected capability exposes no identity or representation; compiler ordinals remain transient proof relations."
+        },
+        {
+          "name": "claim-overlap-from-erasure",
+          "language": "w-internal-rejected",
+          "source": [
+            "treat scalar call erasure as evidence that the children overlapped in time"
+          ],
+          "expectedDifference": "The current bounded route may execute sequentially and proves representation erasure only."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_hir0.h",
+          "symbol": "w_seed_hir0_task_role",
+          "claim": "HIR30 exposes closed proof roles without defining a runtime Task representation."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "frontend_task_usage_ok",
+          "claim": "The HIR boundary admits only the bounded non-escaping Task use and fails closed for other uses."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_records",
+          "claim": "The independent verifier checks launch/join direction, reciprocity, order, types, lexical ownership, and initializer shape."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_structured_async_elision_hir",
+          "claim": "Focused C23 tests cover scalar elision and adversarial Task relation mutations."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_native0.c",
+          "symbol": "test_virtual_structured_task_product",
+          "claim": "Native0 proves that the bounded source emits ordinary scalar calls without Task-specific runtime symbols."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "restaurant async join fixture",
+          "claim": "The Windows public gate builds and executes the source with exact output and no partial stderr."
+        }
+      ],
+      "checks": [
+        "the launch and await are immutable root-block bindings with exactly one later join",
+        "the result is Bool or signed i64 and the local callee is synchronous, non-throwing, and never-suspending",
+        "HIR emits an ordinary scalar call result and scalar binding read with proof-only closed roles and reciprocal peers",
+        "the verifier rejects escape, copying, branch crossing, wrong direction, forged peers, types, owners, and order",
+        "NativeSubset0 and MLIR0 introduce no Task-specific allocation, frame, handle ABI, TCB, WRT entry, or native symbol",
+        "Windows public execution prints exactly Prepared 42 with empty stderr and exit zero",
+        "the evidence makes no overlap, scheduler, general concurrency, Linux, or stable Task ABI claim"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

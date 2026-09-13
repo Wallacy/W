@@ -223,7 +223,9 @@ static bool span_equal(w_seed_span left, w_seed_span right) {
 }
 
 static bool frontend_type_supported(const w_seed_frontend_type *type) {
-  if (type == NULL || !text_valid(type->spelling)) return false;
+  if (type == NULL || !text_valid(type->spelling) ||
+      type->task_result_type != W_SEED_FRONTEND_NONE)
+    return false;
   if (type->kind == W_SEED_FRONTEND_TYPE_UNIT)
     return text_is(type->spelling, HIR0_UNIT_NAME);
   if (type->kind == W_SEED_FRONTEND_TYPE_STRING)
@@ -238,6 +240,7 @@ static bool frontend_type_supported(const w_seed_frontend_type *type) {
 
 static bool frontend_type_is_usize(const w_seed_frontend_type *type) {
   return type != NULL && text_valid(type->spelling) &&
+         type->task_result_type == W_SEED_FRONTEND_NONE &&
          type->kind == W_SEED_FRONTEND_TYPE_INTEGER && !type->is_signed &&
          type->bit_width == (uint16_t)W_SEED_FRONTEND_TARGET_USIZE_BITS &&
          text_is(type->spelling, HIR0_USIZE_NAME);
@@ -361,6 +364,24 @@ static bool frontend_span_ok(const w_seed_frontend_document *document,
 
 static bool frontend_hir_type_supported(
     const w_seed_hir0_input *input, const w_seed_frontend_type *type) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || type == NULL)
+    return false;
+  if (type->kind == W_SEED_FRONTEND_TYPE_TASK) {
+    if (!text_is(type->spelling, "Task") ||
+        type->task_result_type == W_SEED_FRONTEND_NONE ||
+        type->element_type != type->task_result_type ||
+        (size_t)type->task_result_type >=
+            input->frontend_result->written.types)
+      return false;
+    const w_seed_frontend_type *result =
+        &input->frontend_output->types[type->task_result_type];
+    return frontend_type_supported(result) &&
+           (result->kind == W_SEED_FRONTEND_TYPE_BOOL ||
+            (result->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+             result->is_signed && result->bit_width == 64u));
+  }
+  if (type->task_result_type != W_SEED_FRONTEND_NONE) return false;
   if (frontend_type_supported(type)) return true;
   if (frontend_has_public_process(input) && frontend_type_is_usize(type))
     return true;
@@ -385,6 +406,18 @@ static bool frontend_supported_types_equal_for_input(
     const w_seed_hir0_input *input, const w_seed_frontend_type *left,
     const w_seed_frontend_type *right) {
   if (left == NULL || right == NULL) return false;
+  const bool left_task = left->kind == W_SEED_FRONTEND_TYPE_TASK;
+  const bool right_task = right->kind == W_SEED_FRONTEND_TYPE_TASK;
+  if (left_task || right_task) {
+    if (!left_task || !right_task || input == NULL ||
+        input->frontend_output == NULL || input->frontend_result == NULL ||
+        left->task_result_type == W_SEED_FRONTEND_NONE ||
+        left->task_result_type != right->task_result_type ||
+        (size_t)left->task_result_type >= input->frontend_result->written.types)
+      return false;
+    return frontend_type_supported(
+        &input->frontend_output->types[left->task_result_type]);
+  }
   const bool left_subset =
       left->kind == W_SEED_FRONTEND_TYPE_ENUM_SUBSET;
   const bool right_subset =
@@ -1397,6 +1430,99 @@ static bool frontend_enum_subset_canonical(
   return false;
 }
 
+/* Task is a frontend-only virtual value in Async0. It may appear only as an
+ * inferred immutable launch binding and as the identifier consumed directly
+ * by its await wrapper. Signatures, payloads, annotations, copies, arguments,
+ * and other expression positions must not be scalarized accidentally. */
+static bool frontend_task_usage_ok(const w_seed_hir0_input *input) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL)
+    return false;
+  const w_seed_frontend_output *output = input->frontend_output;
+  const w_seed_frontend_result *result = input->frontend_result;
+  for (size_t function = 0u; function < result->written.functions; function += 1u) {
+    const w_seed_frontend_function *value = &output->functions[function];
+    if (value->return_type < result->written.types &&
+        output->types[value->return_type].kind == W_SEED_FRONTEND_TYPE_TASK)
+      return false;
+  }
+  for (size_t parameter = 0u; parameter < result->written.parameters;
+       parameter += 1u)
+    if (output->parameters[parameter].type_index < result->written.types &&
+        output->types[output->parameters[parameter].type_index].kind ==
+            W_SEED_FRONTEND_TYPE_TASK)
+      return false;
+  for (size_t payload = 0u; payload < result->written.enum_case_parameters;
+       payload += 1u)
+    if (output->enum_case_parameters[payload].type_index < result->written.types &&
+        output->types[output->enum_case_parameters[payload].type_index].kind ==
+            W_SEED_FRONTEND_TYPE_TASK)
+      return false;
+  for (size_t statement = 0u; statement < result->written.statements;
+       statement += 1u) {
+    const w_seed_frontend_statement *value = &output->statements[statement];
+    if (value->declared_type < result->written.types &&
+        output->types[value->declared_type].kind == W_SEED_FRONTEND_TYPE_TASK)
+      return false;
+    if (value->effective_type >= result->written.types ||
+        output->types[value->effective_type].kind != W_SEED_FRONTEND_TYPE_TASK)
+      continue;
+    if (value->kind != W_SEED_FRONTEND_STMT_LET ||
+        value->declared_type != W_SEED_FRONTEND_NONE ||
+        value->expression_index >= result->written.expressions ||
+        output->expressions[value->expression_index].kind !=
+            W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH)
+      return false;
+  }
+  for (size_t expression = 0u; expression < result->written.expressions;
+       expression += 1u) {
+    const w_seed_frontend_expression *value = &output->expressions[expression];
+    if (value->inferred_type >= result->written.types ||
+        output->types[value->inferred_type].kind != W_SEED_FRONTEND_TYPE_TASK)
+      continue;
+    if (value->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH) continue;
+    if (value->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER ||
+        expression + 1u >= result->written.expressions)
+      return false;
+    const w_seed_frontend_expression *consumer =
+        &output->expressions[expression + 1u];
+    if (consumer->kind != W_SEED_FRONTEND_EXPR_AWAIT ||
+        consumer->left != expression ||
+        consumer->task_binding_statement != value->resolved_binding_statement)
+      return false;
+  }
+  return true;
+}
+
+/* A well-formed Task whose result is outside Async0's scalar subset is a
+ * closed unsupported family, not a malformed frontend record.  Keep malformed
+ * Task links on the ordinary invalid-input path below. */
+static bool frontend_task_result_is_unsupported(
+    const w_seed_hir0_input *input) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || input->frontend_output->types == NULL)
+    return false;
+  const w_seed_frontend_output *output = input->frontend_output;
+  const w_seed_frontend_result *result = input->frontend_result;
+  for (size_t index = 0u; index < result->written.types; index += 1u) {
+    const w_seed_frontend_type *type = &output->types[index];
+    if (type->kind != W_SEED_FRONTEND_TYPE_TASK) continue;
+    if (!text_is(type->spelling, "Task") ||
+        type->task_result_type == W_SEED_FRONTEND_NONE ||
+        type->element_type != type->task_result_type ||
+        (size_t)type->task_result_type >= result->written.types)
+      continue;
+    const w_seed_frontend_type *task_result =
+        &output->types[type->task_result_type];
+    if (task_result->kind == W_SEED_FRONTEND_TYPE_BOOL ||
+        (task_result->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+         task_result->is_signed && task_result->bit_width == 64u))
+      continue;
+    return true;
+  }
+  return false;
+}
+
 static bool frontend_enum_subset_unique_count(
     const w_seed_frontend_output *output,
     const w_seed_frontend_result *result, size_t *count) {
@@ -1986,6 +2112,11 @@ static bool frontend_value_common_ok(
             &input->frontend_output->types[value->inferred_type]))) ||
       (value->resolved_pattern_capture != W_SEED_FRONTEND_NONE &&
        value->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER) ||
+      ((value->kind != W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH &&
+        value->kind != W_SEED_FRONTEND_EXPR_AWAIT) &&
+       (value->task_result_type != W_SEED_FRONTEND_NONE ||
+        value->task_call_expression != W_SEED_FRONTEND_NONE ||
+        value->task_binding_statement != W_SEED_FRONTEND_NONE)) ||
       !frontend_span_ok(&input->frontend_input->documents[document_index],
                         value->span))
     return false;
@@ -3330,6 +3461,136 @@ static bool frontend_call_expression_ok(
   return true;
 }
 
+/* Async0 retains structured launch/join evidence but admits only local calls
+ * whose body is synchronous.  The runtime carrier is therefore the callee's
+ * scalar result; the wrapper records are consumed without adding HIR values. */
+static bool frontend_async_launch_expression_ok(
+    const w_seed_hir0_input *input, size_t module_index,
+    size_t function_index, size_t document_index, size_t statement_index,
+    uint32_t root_index, size_t *expression_cursor,
+    size_t *interpolation_segment_cursor, size_t *const_byte_cursor,
+    size_t *call_total, size_t *argument_total, size_t *value_total,
+    size_t *segment_total, size_t *value_bytes, size_t *logical_total) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || root_index == W_SEED_FRONTEND_NONE ||
+      (size_t)root_index >= input->frontend_result->written.expressions)
+    return false;
+  const w_seed_frontend_output *output = input->frontend_output;
+  const w_seed_frontend_result *result = input->frontend_result;
+  const w_seed_frontend_expression *launch = &output->expressions[root_index];
+  if (!frontend_value_common_ok(input, launch, module_index, function_index,
+                                document_index) ||
+      launch->kind != W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH ||
+      !launch->supported || !text_is(launch->operator_text, "async") ||
+      launch->left != launch->task_call_expression ||
+      launch->task_call_expression == W_SEED_FRONTEND_NONE ||
+      (size_t)launch->task_call_expression >= result->written.expressions ||
+      launch->right != W_SEED_FRONTEND_NONE ||
+      launch->first_argument != W_SEED_FRONTEND_NONE ||
+      launch->argument_count != 0u ||
+      launch->inferred_type == W_SEED_FRONTEND_NONE ||
+      (size_t)launch->inferred_type >= result->written.types ||
+      output->types[launch->inferred_type].kind != W_SEED_FRONTEND_TYPE_TASK ||
+      output->types[launch->inferred_type].task_result_type !=
+          launch->task_result_type ||
+      launch->task_binding_statement != W_SEED_FRONTEND_NONE ||
+      launch->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
+      launch->else_expression != W_SEED_FRONTEND_NONE ||
+      launch->first_interpolation_segment != W_SEED_FRONTEND_NONE ||
+      launch->interpolation_segment_count != 0u ||
+      launch->const_byte_offset != W_SEED_FRONTEND_NONE ||
+      launch->const_byte_count != 0u || launch->has_bool_value ||
+      launch->has_integer_value || !frontend_value_has_no_resolution(launch))
+    return false;
+  const w_seed_frontend_expression *call =
+      &output->expressions[launch->task_call_expression];
+  if (call->kind != W_SEED_FRONTEND_EXPR_CALL ||
+      call->resolved_callee_kind != W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION ||
+      call->resolved_function_index == W_SEED_FRONTEND_NONE ||
+      (size_t)call->resolved_function_index >= result->written.functions ||
+      (output->functions[call->resolved_function_index].is_async ||
+       output->functions[call->resolved_function_index].is_throws) ||
+      call->inferred_type != launch->task_result_type ||
+      !frontend_call_expression_ok(
+          input, module_index, function_index, document_index, statement_index,
+          launch->task_call_expression, true, expression_cursor,
+          interpolation_segment_cursor, const_byte_cursor, call_total,
+          argument_total, value_total, segment_total, value_bytes,
+          logical_total) ||
+      (size_t)root_index != *expression_cursor ||
+      !add_size(*expression_cursor, 1u, expression_cursor))
+    return false;
+  return true;
+}
+
+static bool frontend_await_expression_ok(
+    const w_seed_hir0_input *input, size_t module_index,
+    size_t function_index, size_t document_index, size_t statement_index,
+    uint32_t root_index, size_t *expression_cursor,
+    size_t *interpolation_segment_cursor, size_t *const_byte_cursor,
+    size_t *call_total, size_t *argument_total, size_t *value_total,
+    size_t *segment_total, size_t *value_bytes, size_t *logical_total) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || root_index == W_SEED_FRONTEND_NONE ||
+      (size_t)root_index >= input->frontend_result->written.expressions)
+    return false;
+  const w_seed_frontend_output *output = input->frontend_output;
+  const w_seed_frontend_result *result = input->frontend_result;
+  const w_seed_frontend_expression *awaited = &output->expressions[root_index];
+  if (!frontend_value_common_ok(input, awaited, module_index, function_index,
+                                document_index) ||
+      awaited->kind != W_SEED_FRONTEND_EXPR_AWAIT || !awaited->supported ||
+      !text_is(awaited->operator_text, "await") ||
+      awaited->left == W_SEED_FRONTEND_NONE ||
+      (size_t)awaited->left >= result->written.expressions ||
+      awaited->right != W_SEED_FRONTEND_NONE ||
+      awaited->first_argument != W_SEED_FRONTEND_NONE ||
+      awaited->argument_count != 0u ||
+      awaited->task_call_expression != W_SEED_FRONTEND_NONE ||
+      awaited->task_binding_statement == W_SEED_FRONTEND_NONE ||
+      (size_t)awaited->task_binding_statement >= statement_index ||
+      (size_t)awaited->task_binding_statement >= result->written.statements ||
+      awaited->inferred_type == W_SEED_FRONTEND_NONE ||
+      awaited->inferred_type != awaited->task_result_type ||
+      awaited->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
+      awaited->else_expression != W_SEED_FRONTEND_NONE ||
+      awaited->first_interpolation_segment != W_SEED_FRONTEND_NONE ||
+      awaited->interpolation_segment_count != 0u ||
+      awaited->const_byte_offset != W_SEED_FRONTEND_NONE ||
+      awaited->const_byte_count != 0u || awaited->has_bool_value ||
+      awaited->has_integer_value || !frontend_value_has_no_resolution(awaited))
+    return false;
+  const w_seed_frontend_expression *task = &output->expressions[awaited->left];
+  const w_seed_frontend_statement *launch_statement =
+      &output->statements[awaited->task_binding_statement];
+  if (task->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER || !task->supported ||
+      task->resolved_binding_statement != awaited->task_binding_statement ||
+      task->inferred_type == W_SEED_FRONTEND_NONE ||
+      (size_t)task->inferred_type >= result->written.types ||
+      output->types[task->inferred_type].kind != W_SEED_FRONTEND_TYPE_TASK ||
+      output->types[task->inferred_type].task_result_type !=
+          awaited->task_result_type ||
+      launch_statement->kind != W_SEED_FRONTEND_STMT_LET ||
+      launch_statement->owner_function != function_index ||
+      launch_statement->module_index != module_index ||
+      launch_statement->declared_type != W_SEED_FRONTEND_NONE ||
+      launch_statement->effective_type != task->inferred_type ||
+      launch_statement->expression_index == W_SEED_FRONTEND_NONE ||
+      (size_t)launch_statement->expression_index >=
+          result->written.expressions ||
+      output->expressions[launch_statement->expression_index].kind !=
+          W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH ||
+      !frontend_value_tree_ok(
+          input, module_index, function_index, document_index, statement_index,
+          awaited->left, 0u, expression_cursor, interpolation_segment_cursor,
+          const_byte_cursor, value_total, segment_total, value_bytes,
+          call_total, argument_total, logical_total) ||
+      (size_t)root_index != *expression_cursor ||
+      !add_size(*expression_cursor, 1u, expression_cursor))
+    return false;
+  return true;
+}
+
 /* The normalized statement table is a graph, not a flat source-order list:
  * an IF record owns two sibling chains while its own next_sibling belongs to
  * the enclosing chain.  Validate that graph before consuming expression
@@ -4117,6 +4378,11 @@ static bool frontend_switch_return_ok(hir0_statement_walk *walk,
                   walk->switch_edge_total);
 }
 
+static bool binding_index_for_statement(
+    const w_seed_frontend_output *output,
+    const w_seed_frontend_result *result, size_t function,
+    size_t use_statement, uint32_t target_statement, uint32_t *out);
+
 static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
                                 bool branch, size_t depth) {
   if (walk == NULL || walk->input == NULL || walk->output == NULL ||
@@ -4160,6 +4426,37 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
         &walk->output->expressions[statement->expression_index];
     if (initializer->inferred_type != statement->effective_type)
       return false;
+    if (initializer->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH ||
+        initializer->kind == W_SEED_FRONTEND_EXPR_AWAIT) {
+      if (branch || statement->kind != W_SEED_FRONTEND_STMT_LET ||
+          statement->declared_type != W_SEED_FRONTEND_NONE)
+        return false;
+      bool valid =
+          initializer->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH
+              ? frontend_async_launch_expression_ok(
+                    walk->input, walk->module_index, walk->function_index,
+                    walk->document_index, index, statement->expression_index,
+                    walk->expression_cursor,
+                    walk->interpolation_segment_cursor,
+                    walk->const_byte_cursor, walk->calls, walk->arguments,
+                    walk->values, walk->segments, walk->value_bytes,
+                    walk->logical_total)
+              : frontend_await_expression_ok(
+                    walk->input, walk->module_index, walk->function_index,
+                    walk->document_index, index, statement->expression_index,
+                    walk->expression_cursor,
+                    walk->interpolation_segment_cursor,
+                    walk->const_byte_cursor, walk->calls, walk->arguments,
+                    walk->values, walk->segments, walk->value_bytes,
+                    walk->logical_total);
+      uint32_t launch_binding = 0u;
+      if (valid && initializer->kind == W_SEED_FRONTEND_EXPR_AWAIT)
+        valid = binding_index_for_statement(
+            walk->output, walk->result, walk->function_index, index,
+            initializer->task_binding_statement, &launch_binding);
+      (void)launch_binding;
+      return valid && add_size(*walk->bindings, 1u, walk->bindings);
+    }
     if (initializer->kind == W_SEED_FRONTEND_EXPR_CALL) {
       if (!frontend_call_expression_ok(
               walk->input, walk->module_index, walk->function_index,
@@ -5245,6 +5542,8 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
   if (!frontend_sources_ok(input)) return HIR0_PREPARE_INVALID;
   if (!host_shape_ok(input->frontend_input->host_scope))
     return HIR0_PREPARE_INVALID;
+  if (frontend_task_result_is_unsupported(input))
+    return HIR0_PREPARE_UNSUPPORTED;
   /* HIR0 is intentionally closed. Classify frontend families that have no
    * HIR0 record before relational validators walk their optional arrays. This
    * preserves the unsupported-family result even when a caller supplies a
@@ -5274,6 +5573,7 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
       frontend_result->written.parameters > W_SEED_HIR0_MAX_TEXT_BYTES)
     return HIR0_PREPARE_UNSUPPORTED;
   if (!frontend_module_ranges_ok(input) || !frontend_type_records_ok(input) ||
+      !frontend_task_usage_ok(input) ||
       !frontend_function_ranges_ok(input) || !frontend_entry_records_ok(input) ||
       (frontend_result->written.aliases == 0u &&
        !frontend_symbol_records_ok(input)))
@@ -6018,6 +6318,12 @@ static uint32_t hir_type_from_frontend(const w_seed_frontend_output *output,
       (size_t)frontend_type >= result->written.types || output->types == NULL)
     return W_SEED_HIR0_NONE;
   const w_seed_frontend_type *type = &output->types[frontend_type];
+  if (type->kind == W_SEED_FRONTEND_TYPE_TASK &&
+      type->task_result_type != W_SEED_FRONTEND_NONE &&
+      type->task_result_type != frontend_type &&
+      (size_t)type->task_result_type < result->written.types) {
+    return hir_type_from_frontend(output, result, type->task_result_type);
+  }
   if (type->kind == W_SEED_FRONTEND_TYPE_UNIT) return 0u;
   if (type->kind == W_SEED_FRONTEND_TYPE_STRING) return 1u;
   if (type->kind == W_SEED_FRONTEND_TYPE_INTEGER && type->is_signed &&
@@ -6411,6 +6717,11 @@ static size_t hir0_expression_logical_count(const hir0_emit_context *context,
     return 0u;
   const w_seed_frontend_expression *value =
       &context->frontend->expressions[expression];
+  if (value->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH)
+    return hir0_expression_logical_count(
+        context, value->task_call_expression, depth + 1u);
+  if (value->kind == W_SEED_FRONTEND_EXPR_AWAIT)
+    return hir0_expression_logical_count(context, value->left, depth + 1u);
   if (value->kind == W_SEED_FRONTEND_EXPR_IF) {
     size_t total = hir0_expression_logical_count(
         context, value->left, depth + 1u);
@@ -6687,26 +6998,12 @@ static size_t hir0_expression_block_count_m2(const hir0_emit_context *context,
 
 static uint32_t hir0_find_call_m2(const hir0_emit_context *context,
                                   uint32_t expression, size_t block_index) {
-  if (context == NULL || expression == W_SEED_FRONTEND_NONE ||
-      (size_t)expression >= context->frontend_result->written.expressions)
+  if (context == NULL || expression == W_SEED_FRONTEND_NONE)
     return W_SEED_HIR0_NONE;
-  const w_seed_frontend_expression *source =
-      &context->frontend->expressions[expression];
-  if (source->kind != W_SEED_FRONTEND_EXPR_CALL) return W_SEED_HIR0_NONE;
-  const bool host_call = source->resolved_callee_kind ==
-                         W_SEED_FRONTEND_CALLEE_HOST_PRELUDE_SYMBOL;
-  const uint32_t expected_identity =
-      host_call
-          ? hir_host_identity_index(context->counts,
-                                    source->resolved_host_symbol_index)
-          : (uint32_t)(context->counts->modules +
-                        source->resolved_function_index);
   for (size_t index = 0u; index < context->counts->calls; index += 1u) {
     const w_seed_hir0_call *call = &context->output->calls[index];
-    if (call->owner_block == block_index &&
-        call->callee_identity == expected_identity &&
-        call->source_span.start_byte == source->span.start_byte &&
-        call->source_span.end_byte == source->span.end_byte)
+    if (call->source_expression == expression &&
+        call->owner_block == block_index)
       return (uint32_t)index;
   }
   return W_SEED_HIR0_NONE;
@@ -6827,6 +7124,13 @@ static size_t hir0_emit_expression_values_m2(hir0_emit_context *context,
     return current_block;
   const w_seed_frontend_expression *source =
       &context->frontend->expressions[expression];
+  if (source->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH)
+    return hir0_emit_expression_values_m2(
+        context, source->task_call_expression, current_block, statement_index,
+        depth + 1u);
+  if (source->kind == W_SEED_FRONTEND_EXPR_AWAIT)
+    return hir0_emit_expression_values_m2(context, source->left, current_block,
+                                          statement_index, depth + 1u);
   if (source->kind == W_SEED_FRONTEND_EXPR_IF) {
     const size_t condition_end = hir0_emit_expression_values_m2(
         context, source->left, current_block, statement_index, depth + 1u);
@@ -7618,6 +7922,8 @@ static size_t hir0_emit_call_layout_m2(hir0_emit_context *context,
       host_call ? identity->first_requirement : W_SEED_HIR0_NONE;
   call->requirement_count = host_call ? identity->requirement_count : 0u;
   call->result_type = identity->return_type;
+  call->execution_kind = W_SEED_HIR0_CALL_DIRECT;
+  call->source_expression = expression;
   call->source_span = source->span;
   instruction->result_type = call->result_type;
   for (size_t argument = 0u; argument < source->argument_count; argument += 1u)
@@ -7636,6 +7942,12 @@ static size_t hir0_expression_layout_end_m2(const hir0_emit_context *context,
     return current_block;
   const w_seed_frontend_expression *source =
       &context->frontend->expressions[expression];
+  if (source->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH)
+    return hir0_expression_layout_end_m2(
+        context, source->task_call_expression, current_block, depth + 1u);
+  if (source->kind == W_SEED_FRONTEND_EXPR_AWAIT)
+    return hir0_expression_layout_end_m2(context, source->left, current_block,
+                                         depth + 1u);
   if (source->kind == W_SEED_FRONTEND_EXPR_IF) {
     const size_t branch = hir0_expression_layout_end_m2(
         context, source->left, current_block, depth + 1u);
@@ -7748,11 +8060,34 @@ static void hir0_emit_binding_layout_m2(hir0_emit_context *context,
           .name = {0u, 0u},
           .is_mutable = statement->kind == W_SEED_FRONTEND_STMT_VAR ||
                         assignment,
+          .task_role = W_SEED_HIR0_TASK_ROLE_NONE,
           .source_binding = source_binding,
           .previous_version = previous_version,
           .next_version = W_SEED_HIR0_NONE,
+          .task_peer_binding = W_SEED_HIR0_NONE,
           .initializer_value = W_SEED_HIR0_NONE,
           .source_span = statement->span};
+  if (!assignment && statement->expression_index != W_SEED_FRONTEND_NONE) {
+    const w_seed_frontend_expression *initializer =
+        &context->frontend->expressions[statement->expression_index];
+    if (initializer->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH) {
+      context->output->bindings[*context->binding_offset].task_role =
+          W_SEED_HIR0_TASK_ROLE_LAUNCH;
+    } else if (initializer->kind == W_SEED_FRONTEND_EXPR_AWAIT) {
+      uint32_t launch_binding = 0u;
+      context->output->bindings[*context->binding_offset].task_role =
+          W_SEED_HIR0_TASK_ROLE_AWAIT_RESULT;
+      /* collect() already proved this exact source binding relation. */
+      (void)binding_index_for_statement(
+          context->frontend, context->frontend_result, context->function,
+          statement_index, initializer->task_binding_statement,
+          &launch_binding);
+      context->output->bindings[*context->binding_offset].task_peer_binding =
+          launch_binding;
+      context->output->bindings[launch_binding].task_peer_binding =
+          binding_index;
+    }
+  }
   if (previous_version != W_SEED_HIR0_NONE)
     context->output->bindings[previous_version].next_version =
         (uint32_t)*context->binding_offset;
@@ -7828,9 +8163,11 @@ static void hir0_emit_branch_merge_binding_layout_m2(
             .type_index = type_index,
             .name = {0u, 0u},
             .is_mutable = true,
+            .task_role = W_SEED_HIR0_TASK_ROLE_NONE,
             .source_binding = source_binding,
             .previous_version = previous_version,
             .next_version = W_SEED_HIR0_NONE,
+            .task_peer_binding = W_SEED_HIR0_NONE,
             .initializer_value = W_SEED_HIR0_NONE,
             .source_span = branch->span};
     if (previous_version != W_SEED_HIR0_NONE)
@@ -8257,6 +8594,19 @@ static size_t hir0_emit_expression_layout_m2(hir0_emit_context *context,
     return current_block;
   const w_seed_frontend_expression *source =
       &context->frontend->expressions[expression];
+  if (source->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH) {
+    const size_t block = hir0_emit_expression_layout_m2(
+        context, source->task_call_expression, current_block, statement_index,
+        depth + 1u);
+    /* Call layout emits arguments first and the root call last. collect()
+     * proved that this wrapper owns exactly one root local call. */
+    context->output->calls[*context->call_offset - 1u].execution_kind =
+        W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED;
+    return block;
+  }
+  if (source->kind == W_SEED_FRONTEND_EXPR_AWAIT)
+    return hir0_emit_expression_layout_m2(context, source->left, current_block,
+                                          statement_index, depth + 1u);
   if (source->kind == W_SEED_FRONTEND_EXPR_IF) {
     const size_t branch = hir0_emit_expression_layout_m2(
         context, source->left, current_block, statement_index, depth + 1u);
@@ -8412,6 +8762,13 @@ static uint32_t hir0_emit_value_m2(
     return W_SEED_HIR0_NONE;
   const w_seed_frontend_expression *source =
       &context->frontend->expressions[expression];
+  if (source->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH)
+    return hir0_emit_value_m2(context, source->task_call_expression, owner_kind,
+                              owner_index, owner_ordinal, current_block,
+                              depth + 1u);
+  if (source->kind == W_SEED_FRONTEND_EXPR_AWAIT)
+    return hir0_emit_value_m2(context, source->left, owner_kind, owner_index,
+                              owner_ordinal, current_block, depth + 1u);
   if (context->loop_active &&
       source->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
       source->resolved_parameter_ordinal == W_SEED_FRONTEND_NONE &&
@@ -9976,6 +10333,7 @@ static void digest_program(const w_seed_hir0_program *program,
     digest_u32(&state, value->first_requirement);
     digest_u32(&state, value->requirement_count);
     digest_u32(&state, value->result_type);
+    digest_u32(&state, (uint32_t)value->execution_kind);
   }
   for (size_t index = 0u; index < counts->host_parameters; index += 1u) {
     const w_seed_hir0_host_parameter *value = &program->host_parameters[index];
@@ -10099,9 +10457,11 @@ static void digest_program(const w_seed_hir0_program *program,
     digest_u32(&state, value->type_index);
     digest_text(&state, program, value->name);
     digest_bool(&state, value->is_mutable);
+    digest_u32(&state, value->task_role);
     digest_u32(&state, value->source_binding);
     digest_u32(&state, value->previous_version);
     digest_u32(&state, value->next_version);
+    digest_u32(&state, value->task_peer_binding);
     digest_u32(&state, value->initializer_value);
   }
   for (size_t index = 0u; index < counts->external_modules; index += 1u) {
@@ -10175,8 +10535,10 @@ static void digest_provenance(const w_seed_hir0_program *program,
     digest_span(&state, program->switch_captures[index].source_span);
   for (size_t index = 0u; index < counts->instructions; index += 1u)
     digest_span(&state, program->instructions[index].source_span);
-  for (size_t index = 0u; index < counts->calls; index += 1u)
+  for (size_t index = 0u; index < counts->calls; index += 1u) {
+    digest_u32(&state, program->calls[index].source_expression);
     digest_span(&state, program->calls[index].source_span);
+  }
   for (size_t index = 0u; index < counts->arguments; index += 1u)
     digest_span(&state, program->arguments[index].source_span);
   for (size_t index = 0u; index < counts->values; index += 1u)
@@ -13270,6 +13632,17 @@ static bool hir0_instruction_kind_is_closed(w_seed_hir0_instruction_kind kind) {
   }
 }
 
+static bool hir0_call_execution_kind_is_closed(
+    w_seed_hir0_call_execution_kind kind) {
+  switch (kind) {
+    case W_SEED_HIR0_CALL_DIRECT:
+    case W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED:
+      return true;
+    default:
+      return false;
+  }
+}
+
 static bool hir0_terminator_kind_is_closed(w_seed_hir0_terminator_kind kind) {
   switch (kind) {
     case W_SEED_HIR0_TERMINATOR_RETURN_UNIT:
@@ -13708,14 +14081,16 @@ static void hir0_compute_body_never(const w_seed_hir0_program *program,
     }
   }
 
-  /* Host identities have no suspension/effect witness in HIR16.  Any local
-   * async target also lacks a call-form discriminator, so a bare HIR call
-   * cannot be reinterpreted as `sync`. */
+  /* Host identities use their closed HIR0 profile witness. Direct local calls
+   * inherit the target proof. A structured async-elided call is admissible
+   * only for a local never-suspending target and therefore adds no suspension
+   * edge or runtime carrier of its own. */
   for (size_t call_index = 0u; call_index < program->call_count; call_index += 1u) {
     const uint32_t owner = hir0_call_owner_function(program, call_index);
     if (owner == W_SEED_HIR0_NONE) continue;
     const w_seed_hir0_call *call = &program->calls[call_index];
-    if (call->callee_identity >= program->identity_count) {
+    if (!hir0_call_execution_kind_is_closed(call->execution_kind) ||
+        call->callee_identity >= program->identity_count) {
       hir0_function_bit_set(body_never, owner, false);
       continue;
     }
@@ -14022,9 +14397,15 @@ static bool verify_records(const w_seed_hir0_program *program) {
           binding->type_index == 0u ||
           !hir_text_valid(program, binding->name) || binding->name.count == 0u ||
           binding->source_binding > value->binding_index ||
+          binding->task_role > W_SEED_HIR0_TASK_ROLE_AWAIT_RESULT ||
+          ((binding->task_role == W_SEED_HIR0_TASK_ROLE_NONE) !=
+           (binding->task_peer_binding == W_SEED_HIR0_NONE)) ||
           (binding->next_version != W_SEED_HIR0_NONE &&
            (binding->next_version <= value->binding_index ||
-            binding->next_version >= program->binding_count)) ||
+             binding->next_version >= program->binding_count)) ||
+          (binding->task_peer_binding != W_SEED_HIR0_NONE &&
+           (binding->task_peer_binding >= program->binding_count ||
+            binding->task_peer_binding == value->binding_index)) ||
           binding->initializer_value >= program->value_count ||
           !span_valid(binding->source_span,
                       program->modules[program->functions[block->owner_function]
@@ -14079,6 +14460,46 @@ static bool verify_records(const w_seed_hir0_program *program) {
             next->source_binding != binding->source_binding)
           return false;
       }
+      if (binding->task_peer_binding != W_SEED_HIR0_NONE) {
+        const uint32_t peer_index = binding->task_peer_binding;
+        const w_seed_hir0_binding *peer = &program->bindings[peer_index];
+        if (peer->task_peer_binding != value->binding_index ||
+            (binding->task_role == W_SEED_HIR0_TASK_ROLE_LAUNCH &&
+             peer->task_role != W_SEED_HIR0_TASK_ROLE_AWAIT_RESULT) ||
+            (binding->task_role == W_SEED_HIR0_TASK_ROLE_AWAIT_RESULT &&
+             peer->task_role != W_SEED_HIR0_TASK_ROLE_LAUNCH) ||
+            binding->task_role == W_SEED_HIR0_TASK_ROLE_NONE ||
+            binding->is_mutable || peer->is_mutable ||
+            binding->source_binding != value->binding_index ||
+            peer->source_binding != peer_index ||
+            binding->previous_version != W_SEED_HIR0_NONE ||
+            binding->next_version != W_SEED_HIR0_NONE ||
+            peer->previous_version != W_SEED_HIR0_NONE ||
+            peer->next_version != W_SEED_HIR0_NONE ||
+            binding->owner_block != peer->owner_block ||
+            binding->type_index != peer->type_index ||
+            peer->initializer_value >= program->value_count)
+          return false;
+        const bool is_launch =
+            binding->task_role == W_SEED_HIR0_TASK_ROLE_LAUNCH;
+        const w_seed_hir0_binding *launch = is_launch ? binding : peer;
+        const w_seed_hir0_binding *joined = is_launch ? peer : binding;
+        const uint32_t launch_index =
+            is_launch ? value->binding_index : peer_index;
+        const w_seed_hir0_value *launch_value =
+            &program->values[launch->initializer_value];
+        const w_seed_hir0_value *joined_value =
+            &program->values[joined->initializer_value];
+        if (launch_index >= (is_launch ? peer_index : value->binding_index) ||
+            launch->owner_instruction >= joined->owner_instruction ||
+            launch_value->kind != W_SEED_HIR0_VALUE_CALL_RESULT ||
+            launch_value->call_index >= program->call_count ||
+            program->calls[launch_value->call_index].execution_kind !=
+                W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED ||
+            joined_value->kind != W_SEED_HIR0_VALUE_BINDING_READ ||
+            joined_value->binding_index != launch_index)
+          return false;
+      }
       binding_instruction_cursor += 1u;
     } else {
       return false;
@@ -14097,8 +14518,9 @@ static bool verify_records(const w_seed_hir0_program *program) {
         value->callee_identity >= program->identity_count ||
         (value->result_type != 0u &&
          (!hir_type_index_valid(program, value->result_type) ||
-          (value->result_type < 4u && value->result_type != 2u &&
-           value->result_type != 3u))) ||
+           (value->result_type < 4u && value->result_type != 2u &&
+            value->result_type != 3u))) ||
+         !hir0_call_execution_kind_is_closed(value->execution_kind) ||
          value->first_argument != call_argument_cursor ||
          !range_valid(value->first_argument, value->argument_count,
                      program->argument_count) ||
@@ -14138,6 +14560,31 @@ static bool verify_records(const w_seed_hir0_program *program) {
                value->first_requirement != W_SEED_HIR0_NONE ||
                value->requirement_count != 0u) {
       return false;
+    }
+    if (value->execution_kind ==
+        W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED) {
+      if (!local_call || identity->target_index >= program->function_count ||
+          (program->functions[identity->target_index].is_throws ||
+           program->functions[identity->target_index].suspension !=
+               W_SEED_HIR0_SUSPENSION_NEVER) ||
+          value->owner_instruction + 1u >= program->instruction_count)
+        return false;
+      const w_seed_hir0_instruction *join_instruction =
+          &program->instructions[value->owner_instruction + 1u];
+      if (join_instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
+          join_instruction->owner_block != value->owner_block ||
+          join_instruction->binding_index >= program->binding_count)
+        return false;
+      const w_seed_hir0_binding *launch =
+          &program->bindings[join_instruction->binding_index];
+      if (launch->task_peer_binding == W_SEED_HIR0_NONE ||
+          launch->initializer_value >= program->value_count)
+        return false;
+      const w_seed_hir0_value *result_value =
+          &program->values[launch->initializer_value];
+      if (result_value->kind != W_SEED_HIR0_VALUE_CALL_RESULT ||
+          result_value->call_index != call)
+        return false;
     }
     for (size_t argument = 0u; argument < value->argument_count; argument += 1u) {
       const w_seed_hir0_argument *item =

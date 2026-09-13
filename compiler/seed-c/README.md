@@ -1571,6 +1571,29 @@ Run `bun tooling/check-hir0.mjs` for the focused HIR/ProductClosure0 units and
 `bun check --target w-run-windows` or `bun check --target w-run` for the public
 native route. Performance ranking remains outside this correctness evidence.
 
+### Virtual structured-task elision (W-1577)
+
+HIR0 schema `w-seed-hir0-30` represents the bounded local
+`let task = async call()` / `let value = await task` pair without creating a
+Task object. The accepted result is `Bool` or signed `i64`; both bindings are
+immutable and live in the root block; the task has one lexical consumer; and
+the local callee is synchronous, non-throwing, and proven never-suspending.
+
+The call result and awaited value are ordinary scalar SSA relations. HIR keeps
+only proof metadata (`execution_kind`, launch/await roles, reciprocal peer, and
+source-expression ordinal), and the independent verifier rechecks their closed
+shape. NativeSubset0/MLIR0 introduce no Task-specific allocation, frame,
+handle ABI, TCB, WRT entry, or native symbol. The current lowering is allowed
+to execute sequentially; it is not evidence of scheduling overlap.
+
+The public Windows gate executes
+[`fixtures/restaurant-async-join.w`](fixtures/restaurant-async-join.w) and
+requires exact `Prepared 42\n`, empty stderr, and exit zero. The Linux gate is
+wired but is not current evidence when the local MLIR toolchain is unavailable.
+Suspending callees, explicit domains, cancellation, arbitration, sharing,
+runtime owners, additional result types, and physical Task state remain outside
+this bounded slice.
+
 ### Closed local payloadless enum exhaustive switch (W-1563)
 
 HIR21 (`w-seed-hir0-21`) adds one explicit `SWITCH_ENUM` terminator and dense

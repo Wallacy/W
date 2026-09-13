@@ -1229,6 +1229,10 @@ test "address arithmetic stays inside unsafe" for clearTag {
 
 <!-- w-example role=executable use=FetchError,fetch,ordinary,load observable=value -->
 ```w
+module async_examples<
+  domains: [.concurrent(.domain, maximum: 4, capabilities: [.parallel])],
+>
+
 enum FetchError: Error { unavailable }
 
 async fn fetch(_ city: String): String throws FetchError {
@@ -1240,7 +1244,7 @@ fn ordinary(): String { return "local" }
 async fn load(): String throws FetchError {
   let direct = try sync fetch("north")
   let concurrent = async fetch("east")
-  let parallel = spawn<.network> fetch("south")
+  let parallel = spawn<.domain> fetch("south")
   let local = async ordinary()
   let (east, south) = try await (concurrent, parallel)
 
@@ -1261,6 +1265,10 @@ test "launchers join through the lexical parent" for load {
 
 <!-- w-example role=logical-contract -->
 ```w
+module task_examples<
+  domains: [.concurrent(.domain, maximum: 4, capabilities: [.parallel])],
+>
+
 enum WorkError: Error { failed }
 
 alias TextTask = Task<String, WorkError>
@@ -1296,7 +1304,7 @@ async fn timed(_ value: String, timeout: TaskTimeout): TextOutcome {
 
 async fn first(): TextSettlement {
   let primary: TextTask = async work("primary")
-  let fallback: TextTask = spawn<.compute> work("fallback")
+  let fallback: TextTask = spawn<.domain> work("fallback")
   let candidates: [TextTask; 2] = [primary, fallback]
   return await (take candidates).firstSettled()
 }
@@ -1332,13 +1340,17 @@ test "firstSettled preserves index and outcome" for first {
 
 <!-- w-example role=executable use=JobError,process,processAll,collectAll observable=value -->
 ```w
+module pipeline_examples<
+  domains: [.concurrent(.domain, maximum: 4, capabilities: [.parallel])],
+>
+
 enum JobError: Error { failed }
 
 async fn process(_ value: i32): i32 throws JobError { return value * 2 }
 
 async fn processAll(_ values: take Array<i32>): Array<i32> throws JobError {
   return try await pipeline<
-    tasks: .parallel<.compute>,
+    tasks: .parallel<.domain>,
     limit: 4,
     ordering: .input,
     errors: .failFast,

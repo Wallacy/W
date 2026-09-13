@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-29"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-30"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -56,6 +56,20 @@ typedef enum {
   W_SEED_HIR0_INSTRUCTION_CALL = 0,
   W_SEED_HIR0_INSTRUCTION_BINDING,
 } w_seed_hir0_instruction_kind;
+
+typedef enum {
+  W_SEED_HIR0_CALL_DIRECT = 0,
+  /* The structured child was proven never-suspending and is represented by
+   * the same scalar call result.  The matching await relation remains on the
+   * result binding, so independent verification can prove the elision. */
+  W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED,
+} w_seed_hir0_call_execution_kind;
+
+typedef enum {
+  W_SEED_HIR0_TASK_ROLE_NONE = 0,
+  W_SEED_HIR0_TASK_ROLE_LAUNCH,
+  W_SEED_HIR0_TASK_ROLE_AWAIT_RESULT,
+} w_seed_hir0_task_role;
 
 typedef enum {
   W_SEED_HIR0_LABEL_POSITIONAL_ONLY = 0,
@@ -445,6 +459,9 @@ typedef struct {
   uint32_t type_index;
   w_seed_hir0_text name;
   bool is_mutable;
+  /* Stored in the padding after is_mutable; this proof tag does not enlarge
+   * the binding record. Task remains virtual and has no runtime carrier. */
+  uint8_t task_role;
   /* Every declaration is its own source_binding.  A later SSA version points
    * back to the original mutable declaration; no runtime storage is implied. */
   uint32_t source_binding;
@@ -454,6 +471,9 @@ typedef struct {
   /* NONE on the current version; otherwise the unique following version.
    * Bidirectional edges keep independent verification linear. */
   uint32_t next_version;
+  /* NONE for ordinary bindings. A launch and its unique await-result point to
+   * one another; task_role makes the direction independently verifiable. */
+  uint32_t task_peer_binding;
   uint32_t initializer_value;
   w_seed_span source_span;
 } w_seed_hir0_binding;
@@ -484,6 +504,10 @@ typedef struct {
   uint32_t first_requirement;
   uint32_t requirement_count;
   uint32_t result_type;
+  w_seed_hir0_call_execution_kind execution_kind;
+  /* Copied frontend expression ordinal used only to associate emission
+   * passes deterministically; no frontend pointer or runtime state survives. */
+  uint32_t source_expression;
   w_seed_span source_span;
 } w_seed_hir0_call;
 

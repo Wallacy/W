@@ -19,6 +19,7 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-while-post | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-while-post.w), [c](./executable/restaurant_while_post.c), [rust](./executable/restaurant_while_post.rs) | source-backed | exploratory-ready |
 | restaurant-repeat | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-repeat.w), [c](./executable/restaurant_repeat.c), [rust](./executable/restaurant_repeat.rs) | source-backed | exploratory-ready |
 | restaurant-wmo | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-wmo.w), [c](./executable/restaurant_wmo.c), [rust](./executable/restaurant_wmo.rs) | source-backed | exploratory-ready |
+| restaurant-async-join | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-async-join.w), [c](./executable/restaurant_async_join.c), [rust](./executable/restaurant_async_join.rs) | source-backed | exploratory-ready |
 | restaurant-enum-switch | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-enum.w), [c](./executable/restaurant_enum.c), [rust](./executable/restaurant_enum.rs) | source-backed | exploratory-ready |
 | restaurant-enum-subset | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-enum-subset.w), [c](./executable/restaurant_enum_subset.c), [rust](./executable/restaurant_enum_subset.rs) | source-backed | exploratory-ready |
 | restaurant-enum-payload | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-enum-payload.w), [c](./executable/restaurant_enum_payload.c), [rust](./executable/restaurant_enum_payload.rs) | source-backed | exploratory-ready |
@@ -51,7 +52,7 @@ Current portable-release values. Lower is better; `—` means no published measu
 | hello | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3446 | 2596 | 126.1595 ms | 17.1805 ms | 18.1178 ms | 4808704 B (4.59 MiB) | 13.459 ms |
 | hello | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113152 B (110.5 KiB) | — | — | 237.4533 ms | 17.8031 ms | 18.2169 ms | 4857856 B (4.63 MiB) | 11.757 ms |
 | hello | w | Windows x64 / MSVC | CRT-free | 2560 B (2.5 KiB) | 134 | 216 | 167.5251 ms | 16.0089 ms | 16.9203 ms | 3751936 B (3.58 MiB) | 12.221 ms |
-| local-module-graph | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 534 | 244 | 186.6517 ms | 17.059 ms | — | 3760128 B (3.59 MiB) | — |
+| local-module-graph | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 534 | 244 | 186.6517 ms | — | — | — | — |
 | process-arguments-count | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3558 | 2676 | 130.3478 ms | 18.0029 ms | 19.0491 ms | 4808704 B (4.59 MiB) | 13.923 ms |
 | process-arguments-count | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 116224 B (113.5 KiB) | 83192 | 27378 | 1.1378609 s | 18.075 ms | 19.0888 ms | 4866048 B (4.64 MiB) | 12.995 ms |
 | process-arguments-count | w | Windows x64 / MSVC | CRT-free | 3584 B (3.5 KiB) | 1446 | 316 | 189.5191 ms | 16.9215 ms | 17.2491 ms | 3764224 B (3.59 MiB) | 10.983 ms |

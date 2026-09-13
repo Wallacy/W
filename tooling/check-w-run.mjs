@@ -29,6 +29,8 @@ const restaurantWhilePostFixture = resolve(seedDirectory,
 const restaurantRepeatFixture = resolve(seedDirectory,
   "fixtures", "restaurant-repeat.w")
 const restaurantWmoFixture = resolve(seedDirectory, "fixtures", "restaurant-wmo.w")
+const restaurantAsyncJoinFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-async-join.w")
 const processArgumentsCountFixture = resolve(seedDirectory,
   "fixtures", "process-arguments-count.w")
 const processArgumentsOrderingFixture = resolve(seedDirectory,
@@ -820,6 +822,9 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantWmoFixture)],
     Buffer.from("Bill 42\n", "utf8"),
     "Restaurant whole-module product closure")
+  expectSuccess(binary, ["run", toWsl(restaurantAsyncJoinFixture)],
+    Buffer.from("Prepared 42\n", "utf8"),
+    "Restaurant virtual structured-task elision")
   expectSuccess(binary, ["run", toWsl(w1531MinimalFixture)],
     Buffer.from("then\n", "utf8"), "W-1531 minimal if/else")
   expectSuccess(binary, ["run", toWsl(w1531NoElseFixture)],

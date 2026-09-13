@@ -197,6 +197,10 @@ typedef struct {
   uint32_t join_count;
   w_seed_span span;
   bool supported;
+  /* Await-result bindings share this compact dry/emit scratch so later
+   * expressions can recover their scalar type without output records. They
+   * are not Task capabilities and are skipped by Task lookup/finalization. */
+  bool is_result;
 } frontend_task_binding;
 
 /* The D7 solver keeps only the compact scalar metadata that is needed while
@@ -4461,7 +4465,68 @@ static frontend_task_binding *task_binding_for_name(
           : W_SEED_CST_NONE;
   for (size_t index = context->task_binding_count; index > 0u; index -= 1u) {
     frontend_task_binding *binding = &context->task_bindings[index - 1u];
-    if (binding->owner_function == owner_function &&
+    if (!binding->is_result && binding->owner_function == owner_function &&
+        binding->span.end_byte <= use_span.start_byte &&
+        text_equal_text(binding->name, name)) {
+      const uint32_t binding_block =
+          have_function
+              ? innermost_block_for_span(document, function_node,
+                                         binding->span)
+              : W_SEED_CST_NONE;
+      if (have_function &&
+          !block_scope_contains(document, binding_block, use_block)) {
+        continue;
+      }
+      if (have_function) {
+        for (size_t node_index = 0u;
+             node_index < document->parse.node_count; node_index += 1u) {
+          const w_seed_cst_node *candidate = &document->nodes[node_index];
+          if ((candidate->kind == W_SEED_CST_LET_STATEMENT ||
+               candidate->kind == W_SEED_CST_VAR_STATEMENT) &&
+              candidate->raw_span.start_byte >= binding->span.end_byte &&
+              candidate->raw_span.end_byte <= use_span.start_byte &&
+              block_scope_contains(
+                  document,
+                  innermost_block_for_span(document, function_node,
+                                           candidate->raw_span),
+                  use_block) &&
+              text_equal_text(
+                  binding_name_after_keyword(
+                      document, candidate->raw_span,
+                      candidate->kind == W_SEED_CST_LET_STATEMENT ? "let"
+                                                                   : "var"),
+                  name)) {
+            return NULL;
+          }
+        }
+      }
+      return binding;
+    }
+  }
+  return NULL;
+}
+
+static frontend_task_binding *task_result_binding_for_name(
+    frontend_context *context, uint32_t owner_function,
+    w_seed_frontend_text name, w_seed_span use_span) {
+  if (context == NULL || name.length == 0u) return NULL;
+  const w_seed_frontend_document *document = context_document(context);
+  const bool have_function =
+      document != NULL && context->function_node != NULL &&
+      context->function_node >= document->nodes &&
+      context->function_node < document->nodes + document->parse.node_count;
+  const uint32_t function_node =
+      have_function
+          ? (uint32_t)(context->function_node - document->nodes)
+          : W_SEED_CST_NONE;
+  const uint32_t use_block =
+      have_function
+          ? innermost_block_for_span(document, function_node, use_span)
+          : W_SEED_CST_NONE;
+  for (size_t index = context->task_binding_count; index > 0u; index -= 1u) {
+    frontend_task_binding *binding = &context->task_bindings[index - 1u];
+    if (binding->is_result && binding->supported &&
+        binding->owner_function == owner_function &&
         binding->span.end_byte <= use_span.start_byte &&
         text_equal_text(binding->name, name)) {
       const uint32_t binding_block =
@@ -4508,7 +4573,7 @@ static frontend_task_binding *task_binding_for_statement(
   if (context == NULL || statement_index == W_SEED_FRONTEND_NONE) return NULL;
   for (size_t index = context->task_binding_count; index > 0u; index -= 1u) {
     frontend_task_binding *binding = &context->task_bindings[index - 1u];
-    if (binding->owner_function == owner_function &&
+    if (!binding->is_result && binding->owner_function == owner_function &&
         binding->statement_index == statement_index) {
       return binding;
     }
@@ -9269,7 +9334,8 @@ static bool finalize_function_tasks(frontend_context *context,
   for (size_t index = first_task_binding;
        index < context->task_binding_count; index += 1u) {
     frontend_task_binding *binding = &context->task_bindings[index];
-    if (binding->owner_function != owner_function) continue;
+    if (binding->is_result || binding->owner_function != owner_function)
+      continue;
     if (binding->supported && binding->join_count == 1u) continue;
     if (!context_append_fact(context, W_SEED_FRONTEND_FACT_TASK_ESCAPE,
                              binding->span,
@@ -10740,6 +10806,9 @@ static frontend_simple_type binding_type_for_name(
     frontend_context *context, w_seed_frontend_text name,
     w_seed_span use_span) {
   if (context == NULL) return simple_type_unknown();
+  frontend_task_binding *task_result = task_result_binding_for_name(
+      context, context->function_index, name, use_span);
+  if (task_result != NULL) return task_result->result_type;
   frontend_task_binding *task = task_binding_for_name(
       context, context->function_index, name, use_span);
   if (task != NULL && task->supported)
@@ -12896,6 +12965,13 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
         binding == NULL ? W_SEED_FRONTEND_NONE : binding->statement_index;
     const frontend_simple_type expression_type =
         launch ? task_simple_type(result_type) : result_type;
+    /* expression_append reads enum provenance from its result carrier before
+     * publishing the new record. Prefix wrappers are never enum-case syntax,
+     * so clear any caller scratch left by a preceding expression. */
+    value->is_enum_case = false;
+    value->is_external_enum_case = false;
+    value->enum_index = W_SEED_FRONTEND_NONE;
+    value->enum_case_index = W_SEED_FRONTEND_NONE;
     if (!expression_append(
             parser,
             launch ? W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH
@@ -14849,7 +14925,8 @@ static bool normalize_statement_depth(frontend_context *context,
         root_await && expression_value.supported && awaited_task != NULL &&
         awaited_task->join_count == 0u &&
         node->kind == W_SEED_CST_LET_STATEMENT && depth == 1u &&
-        type_node == W_SEED_CST_NONE && value.binding_name.length != 0u;
+        type_node == W_SEED_CST_NONE && value.binding_name.length != 0u &&
+        context->task_binding_count < FRONTEND_MAX_TASK_BINDINGS;
     const bool task_surface = has_async || has_await || uses_task ||
                               normalized_actual.kind ==
                                   W_SEED_FRONTEND_TYPE_TASK;
@@ -15015,8 +15092,22 @@ static bool normalize_statement_depth(frontend_context *context,
     binding->join_count = 0u;
     binding->span = value.span;
     binding->supported = true;
+    binding->is_result = false;
   } else if (accept_task_await) {
     awaited_task->join_count += 1u;
+    frontend_task_binding *result_binding =
+        &context->task_bindings[context->task_binding_count++];
+    (void)memset(result_binding, 0, sizeof(*result_binding));
+    result_binding->owner_function = context->function_index;
+    result_binding->statement_index = *statement_index;
+    result_binding->launch_expression = W_SEED_FRONTEND_NONE;
+    result_binding->call_expression = W_SEED_FRONTEND_NONE;
+    result_binding->name = value.binding_name;
+    result_binding->result_type = normalized_actual;
+    result_binding->join_count = 0u;
+    result_binding->span = value.span;
+    result_binding->supported = true;
+    result_binding->is_result = true;
   }
   if ((node->kind == W_SEED_CST_LET_STATEMENT ||
        node->kind == W_SEED_CST_VAR_STATEMENT) && value.binding_name.length != 0) {

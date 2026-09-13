@@ -23,10 +23,10 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:60cd03c2777b4acda0d3d90da53b19588f1dea6888db17191589befef6f4a760",
-    "count": 1576,
+    "sha256": "sha256:523fa6e15d8f2ca77960a9415b17cd8417041b26af7b3a892c1488af3b3c5489",
+    "count": 1577,
     "first": "W-001",
-    "last": "W-1576"
+    "last": "W-1577"
   },
   "epochs": [
     {
@@ -57,11 +57,11 @@
     {
       "id": "frontend-and-research",
       "from": "W-1323",
-      "to": "W-1576"
+      "to": "W-1577"
     }
   ],
   "preservedLegacyCoverage": {
-    "source": 242,
+    "source": 243,
     "oracle": 418,
     "explicit": 8,
     "overlap": 57
@@ -1292,7 +1292,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-036 (async cleanup, sha256:86c1594e6666b82e0c21a1424d683e2f2f036ff109f5a3691632dbfa822cb59c) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -1325,7 +1325,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-037 (concorrência, sha256:454de19637ca5bab6fcfccdc49f756243d88aba4918764d9d45a807042ed27f1) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -1433,7 +1433,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-040 (Task, sha256:991ff0beee121252902b2df91515ad66f2342ed3b4f385b1fa8219ff5f73a400) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -1466,7 +1466,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-041 (grupos, sha256:b5bb27b8fb50c4f2ee6b3da556a40eb9e53bc89eab9d838504d87adc81e4f1c4) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -1499,7 +1499,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-042 (solicitação de cancelamento, sha256:ba69bc4e5b86bf8fb764c9f17419722712c34a07a81737b3e6af2fb17bb6827b) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução. Identidade atual do ledger: W-042 — solicitação de cancelamento — sha256:e5514acf5b748562e0e163e7e27e062eb157cea0d89aee0a57bdd01f6bcbd454.",
@@ -1532,7 +1532,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-043 (erro concorrente, sha256:2e14dbc90b62eb537aedd9c3d84b05defeb284debe35a7921a5570af98079418) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -1664,7 +1664,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-047 (service call, sha256:1bb631137678163db58b07e286597b38a3ab7908a3171859e49d6e3faf140bbd) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -1697,7 +1697,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-048 (mailbox, sha256:1fc25ced7f8f4e8a1461727e77c2a1e485fe0f92bce53fee72dddf15cd413f12) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -1765,7 +1765,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "helloFixture",
           "claim": "The public Linux/WSL runner executes the short-entry Hello fixture with exact output.",
-          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
+          "sha256": "sha256:dd9b9836726d64a56f882593e09c1ea571d590636ef7ed9b2b4c87db9468cc3f"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -3438,7 +3438,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-101 (recurso async, sha256:ee746f6b78a76b2c859c020271c074a690c9b88e2d223a8ab63b21f984234475) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -3607,7 +3607,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-106 (ciclos shared, sha256:3ae2d82227fc920b3021e1cbe4e1f68f706ad12f6193a8d151926b91b85eb6a7) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -3838,7 +3838,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-113 (momento do self-host, sha256:4bf363faf664548102b057f66f1e101958f3165f819637e69a307b7ebe022b5b) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -3999,7 +3999,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-118 (início de child, sha256:a932b31347db124ecdf9d3f9ac0c25463520851c1dc0709bc60ee3b91addecf7) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -4191,7 +4191,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-124 (grupos dinâmicos, sha256:2319a77a1c3c949a7af9dcf603015b4b7b2d161fe71b9b9796f267b0e129cedc) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -4224,7 +4224,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-125 (stream/channel, sha256:e965f83239b10f36d5467bb6b1f9292eb870864397f80b40069d787db3a93125) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -4288,7 +4288,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-127 (FFI concorrente, sha256:4b7675874ee341ec3102a0cf207364b9071ba12f8420088781b3637952e45184) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -4321,7 +4321,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-128 (async lowering, sha256:e49a8d483cc201edfab343cfe3d9d68d0097cdbe5a8b189701a272e98ba866b4) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -4354,7 +4354,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-129 (lifecycle de instance, sha256:8ede44bf7f26f8b7d8d7dc6bc6067c8bf1e36728affa72b00b05f036d78be12e) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -4453,7 +4453,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-132 (call cycle, sha256:828c694773c644c243441f25e3617973da837a21b17460bcb7aedf6e1187b1dd) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -4589,7 +4589,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-136 (paralelismo de service, sha256:128ef81520188e17696f6c19f33c4e49b46bf718aa99f2b8a63d99a6341a1a70) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -5485,7 +5485,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-164 (service, sha256:ae8d238c1d52db225328b38d209184baa5933414e1671209e613c6ef1c58391c) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -7998,7 +7998,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-240 (escopo da std, sha256:4317a317b52ab1933f5b2f2b59841bcdd052509b8ea7132ae70c68631ac61530) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -8716,7 +8716,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-262 (modifier const, sha256:e9d9d0cfc9798ebb0759c056c44ecda4910e085d4aea20efb1c0dc4a81124501) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -11667,7 +11667,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-352 (capacity aninhada, sha256:7e0697514006ec9cad0e983110c604ad4f447af68bb5017081563abf8662b376) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -11700,7 +11700,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-353 (liveness paralela, sha256:95f4f82bc68dcc3cf6902b058b2ef5a3e56147a2e5922e6e6e57eb134c9f0ee9) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -11766,7 +11766,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-355 (priority e deadline, sha256:2d63c8201c641219c17123b7c538e2b58a17988fc41141ed73819af47d69fc4f) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução. Identidade atual do ledger: W-355 — priority e deadline — sha256:2d63c8201c641219c17123b7c538e2b58a17988fc41141ed73819af47d69fc4f.",
@@ -11962,7 +11962,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-361 (UTF-8 incremental, sha256:d780db7d4ada9a42335132e1efd37ef46ba4e0a551836d4707b35148dcd42b25) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -15008,7 +15008,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-454 (stream assíncrono, sha256:efb8b690aa82de18cbe78b45d2d350afa51aeab58a86948998e2091fdfd6feff) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -15074,7 +15074,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-456 (iteração assíncrona, sha256:fbfcd8ebc28498fba3a4c40fe19c63bfaee80f8a99e4ca01716eddc11546973c) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -15735,7 +15735,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-473 (byte I/O, sha256:ff6428d16d8ef9879be5e31e7f4225c72a3fafecfe0ed1fa62b9a4266afe0666) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -16280,7 +16280,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-490 (observabilidade de I/O, sha256:6b34217fc70dd403a237dc98ffe87ade97b6ce5e18cae1529bc3fb5e793bf1c4) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -16445,7 +16445,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-495 (observação de work, sha256:4dad854a58c6d53a905475ff219a88016bd060e72ee3f5e23948904b51604f74) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -16511,7 +16511,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-497 (outcome de work, sha256:ce59499f53e3b1279e8a2e6a4008000da25e57e3990a0519a08dc9408ece1628) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -16842,7 +16842,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-507 (completion versus cancellation, sha256:8d494929cad104a01e8ace0a5d667fabc1202a4e44e7d688939a03d34f12355a) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -16898,19 +16898,19 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "normalize_entry",
           "claim": "Frontend15 synthesizes one private Unit function and records the direct entry target relation.",
-          "sha256": "sha256:9a94d62c38f384bf4a43655898428c62d0ef8dac3b89053ec43cd9fd1dcae2ea"
+          "sha256": "sha256:3af0dc55be5a9fc1540b3f8656075ce27b9f43f8b5b6892e84b951765196e38c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "frontend_entry_records_ok",
           "claim": "HIR13 validates the explicit short-entry mode and target function before emission.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_short_entry_hir",
           "claim": "HIR tests cover private identity, forged modes, and semantic and provenance digests.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -17060,7 +17060,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-513 (host profile, sha256:1575c09aa4f02e4f5da4b0e8176f3d1856bb50fd7bebc86c5bab14ea1c4efeb9) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -17456,7 +17456,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-525 (crossing de unit, sha256:a927c56dcdefb83757c7429cbf780dcc4356ad27bdd4334c55612ebf4da2de05) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -17522,7 +17522,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-527 (WASI baseline, sha256:3b152d3412e69e0edf9a96cc08c545dda78f4135e4a23181c56b5e8a77928df6) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -17718,7 +17718,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-533 (materialização HTTP, sha256:618932dc6c68daee27edf0477c671f40d0340b43812cc3620aa8114d10060ef4) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -18079,7 +18079,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-544 (cache load, sha256:b416dc52fb8974fbb10a6f0316d6b2edca6428506a2395ce38b747467c5c0012) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -18112,7 +18112,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-545 (cache remoto, sha256:2ec3b55d56b159e3556d691e5b5dd7b385d74f3113651c7b09b379ed3bdcfbab) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -18539,7 +18539,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-558 (timer durável, sha256:9514257f61b7e8ce69a315b640daa0066c14b9880a8e2a4c4deb04aae64bc575) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -18605,7 +18605,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-560 (corrida de wait, sha256:eb6ea71eeea4bebf044f5582d9583e1ee8402a4e61b3f0eb4e6c82eee149f9a3) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -18638,7 +18638,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-561 (scheduling durável, sha256:b3a9eb4b757c0953ea50cb191203c7a49a320419f0c03327245d56da5e160df9) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -21557,7 +21557,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-650 (capabilities de domain, sha256:6a129da257851c8e748558480ac6e7cb118ecd69a131dbd5345e4c75e429e7b3) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -21621,7 +21621,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-652 (envelope por unit, sha256:9a01dd5a13cc3f971f24443c30750cecb83386d33ca5a625c83936eb678dbe11) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -21687,7 +21687,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-654 (lifecycle de service call, sha256:676ed24cb333e7f279be1d56821f46d75ad28a876c51d6864bafd59add5fefea) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -21850,7 +21850,7 @@
         "path": "DESIGN.md",
         "section": "26",
         "heading": "## 26. Plano de implementação",
-        "sectionDigest": "sha256:4a42f417286a291ec18e5a84687fa659d37bbf2f40c9e35ba8c5935423c8e8b6"
+        "sectionDigest": "sha256:8587d2d6a99649efe03a47487c24c94662400c4ca60a64600e594e7750f9e450"
       },
       "evidence": [],
       "reason": "W-659 (body de entry, sha256:f66ab57406ddb51303f9190376daf72d8f538bd7bd8adfbf9992ae3d7223e74e) has no executable witness for component implementation-plan. The checked current contract is DESIGN.md §26 / 26. Plano de implementação.",
@@ -22708,7 +22708,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-685 (lifecycle de compatibilidade, sha256:edf5ce57c3defbc906f243b763ae96738d5ec7b1e081c587f12131f170618ec5) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -22902,7 +22902,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-691 (failure de service stream, sha256:cab5f07fc40df63c5971889062b6005ef54596a7473b0c873483384ac6f2c1d8) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -22935,7 +22935,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-692 (créditos de service stream, sha256:41332ee1ed02a0013ecb0dbc9dad38c71068b54534385a457da454cf23fd248a) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -22968,7 +22968,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-693 (lifecycle de service stream, sha256:dad5c1923f0b684cc47a83250afbfee13e342b4d63401e10cd56f4e0537f1a21) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -23067,7 +23067,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-696 (replay e admission wRPC, sha256:8089ac15dc049e4e0a00a786ad40c9bdfc64c6b178267a0f5d911a74de9935cd) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -23698,7 +23698,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-715 (lifecycle cross-boundary, sha256:b9bc5b4184d8dff2a9732d5dffd12141347a4964751a089ab8f080a9545726f6) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -23830,7 +23830,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-719 (lifecycle de stream, sha256:c46d339730e4778c41b53ff5179d54b89d627fe9bdaa4013a844ca944685c004) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -24072,7 +24072,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-726 (separação de ServiceLink e transport, sha256:e745f5b4b8fd87641a641bb4133a15fd367ecd76681ffe5ff581d69b724f0aff) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -25291,7 +25291,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-763 (function type, sha256:6beb3d3c0179e0e18d450393c35c3a59da8a7a591c904ba9a8874d7d1e589419) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -28859,7 +28859,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-873 (máquina de execução E0, sha256:d3e590c0207e98c1e12705a26d33ebcc6a8256cee9661e248224d9416dc91ea3) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -28892,7 +28892,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-874 (corpus E0, sha256:c7211483132aaf8e7fa686f7bd971920698697ec294af12216968a04d91bec92) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -28958,7 +28958,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-876 (máquina de boundary effects B0, sha256:f14f7dd149b7ee6c6935d137face07fd14712e28795e2fda0e116e16b5a81fd7) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -29514,7 +29514,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-893 (build Context, sha256:a9354dc85d92d4bd77f10873fc27ddd7f0de543b827128aadeb2a42ed3a0c7e3) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -29708,7 +29708,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-899 (AbortSignal portátil, sha256:976792bb68472ce11d5431e11f6acc18121528c6bbb2493697048a8e932a0743) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -29807,7 +29807,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-902 (rede SDK0, sha256:eaefb96a6749626fd8481abe0d33cf3ac036387ba89a653c982e7fedbb47d9e3) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -30328,7 +30328,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-917 (endurecimento executável M1, sha256:808136d66a33d03c9e1e0de794c263c25fb6a68430fce68ccf0151780fa24346) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -32204,7 +32204,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-975 (Jupyter como tooling, sha256:0b093713c47578cd11ad1ad6833a0e58ebae307a2fdffdfed01a574f24613adf) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -32367,7 +32367,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-980 (Python bridge boundary, sha256:4eeb994a71304729ab96d3251efbacdc71ed9c7ce1ab1a21d660fadc82e58bc8) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -38173,7 +38173,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-1161 (suspensão inferida, sha256:190485e3ad1705f9fb53927c7da6d48884ead2376481a38ed9581d203ba3c1e7) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -38243,7 +38243,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-1163 (lowering resumable, sha256:37643fe91a8c137287dec6360b696c573ada4c181e339e65f6e7840aca13d4cf) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -39855,7 +39855,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-1210 (claim de concorrência e paralelismo, sha256:bb4d87fbc8feb0752e6bd877f960ff1ad79cba1184c71aa11fb12beba916cdb6) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -40649,7 +40649,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-1230 (distribuição de trabalho, sha256:05154788f45ade090b58592807739095a33f58b8a9334d32aadb3df39f5a5b34) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução. Identidade atual do ledger: W-1230 — distribuição de trabalho — sha256:81de4339c06ed007e77588bac047a099602fa3f92c10e67cdc6f563c81dec993.",
@@ -40995,7 +40995,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-1240 (forwarding de suspensão, sha256:9b120122e3336ab394f4b489ea26f519a242b9f537b07fdd0c0f6c40149723d4) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -41472,7 +41472,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-1255 (barreira cíclica, sha256:e26216c9f95fc1ee79a6d9dd0638b0ea2a1e5142d3f980f0ddbe3669d2d0898d) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução. Identidade atual do ledger: W-1255 — barreira cíclica — sha256:09ebc970d4381109303b85e2e9f47fb79fd850bc5d6808770e591655ee4b7c71.",
@@ -45001,7 +45001,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-1358 (providers POSIX/Windows, backing e reducers, sha256:cb85b8eeec51167ba7573fc65ed829dddaed5295a556cf567249ea16e7b51cc2) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -45948,7 +45948,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-1387 (CYC1 static/dynamic cycle boundary, sha256:ffbe9c176fc02048c51a25b2dfb7c885bc13a980fdf8081d70ec52888ccdff76) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -45981,7 +45981,7 @@
         "path": "DESIGN.md",
         "section": "12",
         "heading": "## 12. Concorrência, paralelismo e execução",
-        "sectionDigest": "sha256:a0e2a10ab78d440bd540e2755a569fcbf0d4a35e41b50066c751564123bac7f3"
+        "sectionDigest": "sha256:0e0a067cf872f1f6b24e9b35ab2ce30e995e582c3dd9c7cbaf1a1aca2f419a05"
       },
       "evidence": [],
       "reason": "W-1388 (CYC1 lifecycle, FFI e concorrência, sha256:cab790206e942217598736291d5ed4c58ffaf154645f99fea50c1a5f08349d03) has no executable witness for component execution. The checked current contract is DESIGN.md §12 / 12. Concorrência, paralelismo e execução.",
@@ -50130,8 +50130,8 @@
     {
       "decisionId": "W-1502",
       "summary": "contratos core opacos e superfícies observáveis",
-      "canonicalClaim": "`TypeId` é uma identidade opaque local ao build com `Copy`, `Equatable` e `Hashable`, sem serialização. `Reflectable`, `TypeKind`, `TypeInfo`, `Property` e `Case` são views lógicas estáveis da runtime instance, sem layout ou offsets. `Task` é um handle linear/opaque produzido por launchers; controles imediatos de handle usam facets, algorithms/factories usam members normais e controles da execução corrente usam `execution#checkCancellation`/`execution#yield`; `await task` continua join. `TaskOutcome`/`TaskSettlement` e contratos de `Allocator`/`AllocatorLease` seguem dados/API pública normal. Raw String preserva JSON visível e nunca interpola; `'λ'` infere `String` sem contexto e satisfaz `UnicodeScalar` quando esse é o tipo esperado. `do` mantém o owner de handling separado do marker expression `try`. Exemplos de lock, pipeline transaction e unsafe mostram resultado ou effect observável em fontes Last Light. `async` sobre callee async ou ordinary usa o mesmo child lexical, e pipeline é a única superfície de graph com modos explícitos; não há namespace TaskGroup corrente",
-      "claimDigest": "sha256:1125f8b3e6929f751b3c2b35202b764765392f20f0eafc033d7d3a972aeb5da5",
+      "canonicalClaim": "`TypeId` é uma identidade opaque local ao build com `Copy`, `Equatable` e `Hashable`, sem serialização. `Reflectable`, `TypeKind`, `TypeInfo`, `Property` e `Case` são views lógicas estáveis da runtime instance, sem layout ou offsets. `Task` é uma capability semântica linear/opaque produzida por launchers, sem identidade, endereço ou layout observável; ela pode desaparecer como token SSA quando o child e o join são provados, e só exige estado físico privado quando suspensão, dispatch, cancellation, arbitration, sharing, tracing solicitado ou ownership runtime sobrevivem ao lowering. Controles imediatos da capability usam facets, algorithms/factories usam members normais e controles da execução corrente usam `execution#checkCancellation`/`execution#yield`; `await task` continua join. `TaskOutcome`/`TaskSettlement` e contratos de `Allocator`/`AllocatorLease` seguem dados/API pública normal. Raw String preserva JSON visível e nunca interpola; `'λ'` infere `String` sem contexto e satisfaz `UnicodeScalar` quando esse é o tipo esperado. `do` mantém o owner de handling separado do marker expression `try`. Exemplos de lock, pipeline transaction e unsafe mostram resultado ou effect observável em fontes Last Light. `async` sobre callee async ou ordinary usa o mesmo child lexical, e pipeline é a única superfície de graph com modos explícitos; não há namespace TaskGroup corrente",
+      "claimDigest": "sha256:609d3288ea839e2ee9be02f9d2a7907ccef7aa3d52279b614cc54f926b2743e1",
       "category": "source-backed-current",
       "basis": "linked-source-comparison-case",
       "authorityRef": {
@@ -50153,14 +50153,14 @@
         "evidenceState": "implementation-evidence-gap",
         "stopCondition": "W-1502 W-1502-implementation exige frontend core-query, reflection/task/allocator runtime, provider e checker evidence, um independent case, fresh digest e reviewed promotion decision antes de qualquer claim de implementação."
       },
-      "reason": "W-1502 (contratos core opacos e superfícies observáveis, sha256:3c9fa2bf11642a50d11ac640a7f069cdcd1566d51274eda7f01299a95ccfb39d) é source-backed-current para as views e contratos documentados; frontend core-query, reflection/task/allocator runtime, provider e checker permanecem implementation gaps sob W-1502-implementation, sem alegar declarations construtíveis. Identidade atual do ledger: W-1502 — contratos core opacos e superfícies observáveis — sha256:1125f8b3e6929f751b3c2b35202b764765392f20f0eafc033d7d3a972aeb5da5.",
+      "reason": "W-1502 (contratos core opacos e superfícies observáveis, sha256:3c9fa2bf11642a50d11ac640a7f069cdcd1566d51274eda7f01299a95ccfb39d) é source-backed-current para as views e contratos documentados; frontend core-query, reflection/task/allocator runtime, provider e checker permanecem implementation gaps sob W-1502-implementation, sem alegar declarations construtíveis. Identidade atual do ledger: W-1502 — contratos core opacos e superfícies observáveis — sha256:609d3288ea839e2ee9be02f9d2a7907ccef7aa3d52279b614cc54f926b2743e1.",
       "selection": "explicit-ledger-id",
       "basisRef": {
         "kind": "ledger-row",
         "path": "RATIONALE.md",
         "section": "3. Ledger",
         "decisionId": "W-1502",
-        "claimDigest": "sha256:1125f8b3e6929f751b3c2b35202b764765392f20f0eafc033d7d3a972aeb5da5"
+        "claimDigest": "sha256:609d3288ea839e2ee9be02f9d2a7907ccef7aa3d52279b614cc54f926b2743e1"
       }
     },
     {
@@ -50730,14 +50730,14 @@
       "authorityRef": {
         "kind": "source-case",
         "path": "compiler/seed-c/src/w_seed_hir0.c",
-        "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881",
+        "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b",
         "caseId": "W-1519-native-seed"
       },
       "evidence": [
         {
           "kind": "source",
           "path": "compiler/seed-c/src/w_seed_hir0.c",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881",
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b",
           "caseId": "W-1519-native-seed"
         }
       ],
@@ -50753,25 +50753,25 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/include/w_seed_frontend.h",
-          "sha256": "sha256:adf0927718e65cb749c97788f6155e0193d5b9975e25c2d8eeaefcae324d2208",
+          "sha256": "sha256:5102faf4952ab2689da744feb39552c0a67d474c91f59eec0e06eee4254e1ae4",
           "symbol": "W_SEED_FRONTEND_SCHEMA_VERSION",
           "claim": "Frontend schema version and binding relation fields."
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
-          "sha256": "sha256:9a94d62c38f384bf4a43655898428c62d0ef8dac3b89053ec43cd9fd1dcae2ea",
+          "sha256": "sha256:3af0dc55be5a9fc1540b3f8656075ce27b9f43f8b5b6892e84b951765196e38c",
           "symbol": "resolved_binding_statement",
           "claim": "Frontend publishes the lexical binding relation."
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
-          "sha256": "sha256:8befedb37b61b28a1f958cff96eb98863ce39ca63e081b3f0295424b05c420ba",
+          "sha256": "sha256:b8c5e4667f92aa9e894698cb4a55cdf18ba4b4b8c8a59588b4c9ef174f06bbb4",
           "symbol": "w_seed_hir0_binding",
           "claim": "HIR0 v2 binding record and schema fields."
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881",
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b",
           "symbol": "frontend_statement_and_expression_ok",
           "claim": "HIR0 lowering validates the frontend binding relation and supported shape."
         },
@@ -50783,13 +50783,13 @@
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
-          "sha256": "sha256:2563eb535e9379303bfa623cb5237c662067a9e03744821e5e522cd0bf457044",
+          "sha256": "sha256:cf09e06fd7c7ffcc5f99fdcbbb66181a1c80d2cba6d4203b4af1c4da7b09c7f0",
           "symbol": "test_local_binding_resolution",
           "claim": "Frontend unit covers effective type, initializer type and binding relation."
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b",
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef",
           "symbol": "test_local_binding_lowering",
           "claim": "HIR0 unit covers binding lowering and copied bytes."
         },
@@ -50819,7 +50819,7 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:5ccf9d904810d50a670598f1836fd564842f54d1b1353e5095913f7e21e6b0e1",
+          "sha256": "sha256:92c8c13127defce1691fe60fdb404c763463772eac2d72c4fe764d415f050ede",
           "symbol": "const products = [",
           "claim": "MLIR0 gate verifies, translates, links and runs the accepted products."
         }
@@ -50891,7 +50891,7 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:5ccf9d904810d50a670598f1836fd564842f54d1b1353e5095913f7e21e6b0e1",
+          "sha256": "sha256:92c8c13127defce1691fe60fdb404c763463772eac2d72c4fe764d415f050ede",
           "symbol": "const products = [",
           "claim": "The gate checks direct HIR0-to-native products and exact runtime output."
         },
@@ -50956,7 +50956,7 @@
         },
         {
           "path": "compiler/seed-c/cli/run.c",
-          "sha256": "sha256:def7194e4b94c200dd1b981e5fbdf80d28fbe186f213a2dc61e52fbe13096d91",
+          "sha256": "sha256:1c9b288fb42338d86207e18e729e6dfd2961f4000ca007b1443df92c958c4967",
           "symbol": "w_seed_run_execute",
           "claim": "The public runner invokes the pinned Linux native recipe with private temporary files and cleanup."
         },
@@ -50968,7 +50968,7 @@
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e",
+          "sha256": "sha256:dd9b9836726d64a56f882593e09c1ea571d590636ef7ed9b2b4c87db9468cc3f",
           "symbol": "const expectedHelp =",
           "claim": "The product gate covers Linux and WSL execution, rejection cases and cleanup."
         },
@@ -51039,25 +51039,25 @@
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
-          "sha256": "sha256:129bd23186f3c7eed6408896d32f8d10a400f0c3c0e7eb0f56bc78e317f2218b",
+          "sha256": "sha256:d55d44aa472dd5e110eddabb1428c997c200aea1dba30679779844e41936fc98",
           "symbol": "test_products",
           "claim": "Native0 covers the v2 sequence route."
         },
         {
           "path": "compiler/seed-c/cli/run.c",
-          "sha256": "sha256:def7194e4b94c200dd1b981e5fbdf80d28fbe186f213a2dc61e52fbe13096d91",
+          "sha256": "sha256:1c9b288fb42338d86207e18e729e6dfd2961f4000ca007b1443df92c958c4967",
           "symbol": "run_logical_source_id",
           "claim": "The public runner derives an opaque basename source identity."
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:5ccf9d904810d50a670598f1836fd564842f54d1b1353e5095913f7e21e6b0e1",
+          "sha256": "sha256:92c8c13127defce1691fe60fdb404c763463772eac2d72c4fe764d415f050ede",
           "symbol": "const products = [",
           "claim": "The MLIR0 gate executes the canonical sequence and adversarial limits."
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e",
+          "sha256": "sha256:dd9b9836726d64a56f882593e09c1ea571d590636ef7ed9b2b4c87db9468cc3f",
           "symbol": "const expectedHelp =",
           "claim": "The public gate runs both versioned hyphenated fixtures directly."
         },
@@ -51110,13 +51110,13 @@
         },
         {
           "path": "compiler/seed-c/include/w_seed_frontend.h",
-          "sha256": "sha256:adf0927718e65cb749c97788f6155e0193d5b9975e25c2d8eeaefcae324d2208",
+          "sha256": "sha256:5102faf4952ab2689da744feb39552c0a67d474c91f59eec0e06eee4254e1ae4",
           "symbol": "w_seed_frontend_interpolation_segment",
           "claim": "Frontend schema v12 publishes explicit ordered text and expression segments."
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
-          "sha256": "sha256:9a94d62c38f384bf4a43655898428c62d0ef8dac3b89053ec43cd9fd1dcae2ea",
+          "sha256": "sha256:3af0dc55be5a9fc1540b3f8656075ce27b9f43f8b5b6892e84b951765196e38c",
           "symbol": "expression_parse_interpolated_string",
           "claim": "The frontend normalizes interpolation segments and canonical built-in types."
         },
@@ -51128,13 +51128,13 @@
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
-          "sha256": "sha256:2563eb535e9379303bfa623cb5237c662067a9e03744821e5e522cd0bf457044",
+          "sha256": "sha256:cf09e06fd7c7ffcc5f99fdcbbb66181a1c80d2cba6d4203b4af1c4da7b09c7f0",
           "symbol": "test_interpolated_string_projection",
           "claim": "The frontend unit proves ownership, exact text, canonical i64, and capacity transactions."
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b",
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef",
           "symbol": "test_typed_interpolation_value_tree",
           "claim": "The later HIR milestone consumes the unchanged W-1523 frontend segment shape."
         }
@@ -51175,19 +51175,19 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
-          "sha256": "sha256:8befedb37b61b28a1f958cff96eb98863ce39ca63e081b3f0295424b05c420ba",
+          "sha256": "sha256:b8c5e4667f92aa9e894698cb4a55cdf18ba4b4b8c8a59588b4c9ef174f06bbb4",
           "symbol": "w_seed_hir0_value",
           "claim": "HIR0 schema v3 defines typed postorder values, ownership, and interpolation segments."
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881",
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b",
           "symbol": "emit_value_tree_unchecked",
           "claim": "Lowering retains typed operations and ordered segments after complete preflight."
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b",
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef",
           "symbol": "test_typed_interpolation_value_tree",
           "claim": "The unit proves exact graph shape, bytes, capacities, aliases, mutations, digests, and receipts."
         }
@@ -51305,7 +51305,7 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:5ccf9d904810d50a670598f1836fd564842f54d1b1353e5095913f7e21e6b0e1",
+          "sha256": "sha256:92c8c13127defce1691fe60fdb404c763463772eac2d72c4fe764d415f050ede",
           "symbol": "Buffer.from([0x41, 0x00, 0x34, 0x32, 0x0a])",
           "claim": "The native gate proves exact counted output containing NUL followed by runtime decimal interpolation."
         }
@@ -51346,7 +51346,7 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
-          "sha256": "sha256:9a94d62c38f384bf4a43655898428c62d0ef8dac3b89053ec43cd9fd1dcae2ea",
+          "sha256": "sha256:3af0dc55be5a9fc1540b3f8656075ce27b9f43f8b5b6892e84b951765196e38c",
           "symbol": "expression_tree_contains",
           "claim": "Frontend supplies canonical Bool identity and resolves a binding nested inside the bounded argument tree."
         },
@@ -51370,7 +51370,7 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:5ccf9d904810d50a670598f1836fd564842f54d1b1353e5095913f7e21e6b0e1",
+          "sha256": "sha256:92c8c13127defce1691fe60fdb404c763463772eac2d72c4fe764d415f050ede",
           "symbol": "builtin-display",
           "claim": "The gate verifies, translates, links, and executes the combined Restaurant and NUL String products."
         }
@@ -51411,7 +51411,7 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881",
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b",
           "symbol": "frontend_binding_type_supported",
           "claim": "HIR lowering emits and verifies one typed initializer root for each represented immutable binding."
         },
@@ -51429,13 +51429,13 @@
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b",
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef",
           "symbol": "test_typed_immutable_binding_values",
           "claim": "The unit proves typed binding roots and adversarial owner, index, and type rejection."
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:5ccf9d904810d50a670598f1836fd564842f54d1b1353e5095913f7e21e6b0e1",
+          "sha256": "sha256:92c8c13127defce1691fe60fdb404c763463772eac2d72c4fe764d415f050ede",
           "symbol": "typed-bindings",
           "claim": "The product gate preserves llvm.mul and executes exact typed Restaurant output."
         }
@@ -51476,7 +51476,7 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881",
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b",
           "symbol": "frontend_statement_and_expression_ok",
           "claim": "HIR lowering preserves source argument order and indexed declaration slots."
         },
@@ -51494,13 +51494,13 @@
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b",
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef",
           "symbol": "test_local_unit_call_and_parameter_reads",
           "claim": "The unit proves indexed parameter reads and source-order versus ABI-order separation."
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:5ccf9d904810d50a670598f1836fd564842f54d1b1353e5095913f7e21e6b0e1",
+          "sha256": "sha256:92c8c13127defce1691fe60fdb404c763463772eac2d72c4fe764d415f050ede",
           "symbol": "direct-call",
           "claim": "The product gate verifies, translates, links, and executes the direct-call Restaurant witness."
         }
@@ -51541,7 +51541,7 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881",
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b",
           "symbol": "verify_value_tree",
           "claim": "HIR verifies indexed same-block call results and terminator-owned scalar values."
         },
@@ -51559,13 +51559,13 @@
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b",
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef",
           "symbol": "test_scalar_return_and_call_result",
           "claim": "The unit proves the return terminator and indexed call-result binding."
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:5ccf9d904810d50a670598f1836fd564842f54d1b1353e5095913f7e21e6b0e1",
+          "sha256": "sha256:92c8c13127defce1691fe60fdb404c763463772eac2d72c4fe764d415f050ede",
           "symbol": "scalar-return",
           "claim": "The product gate verifies, translates, links, and executes exact scalar-return Restaurant output."
         }
@@ -51606,7 +51606,7 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881",
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b",
           "symbol": "frontend_statement_and_expression_cfg_ok",
           "claim": "HIR walks frontend statement relations and emits explicit dense diamond blocks and terminators."
         },
@@ -51624,19 +51624,19 @@
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b",
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef",
           "symbol": "test_if_diamond_cfg",
           "claim": "The unit proves diamond topology, condition typing, ownership, and forged-target rejection."
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:5ccf9d904810d50a670598f1836fd564842f54d1b1353e5095913f7e21e6b0e1",
+          "sha256": "sha256:92c8c13127defce1691fe60fdb404c763463772eac2d72c4fe764d415f050ede",
           "symbol": "restaurant-if",
           "claim": "The focal gate verifies the typed condition, both arms, one join, and exact Restaurant output."
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e",
+          "sha256": "sha256:dd9b9836726d64a56f882593e09c1ea571d590636ef7ed9b2b4c87db9468cc3f",
           "symbol": "W-1531 frontier exploration source-style candidate",
           "claim": "The public runner executes the Restaurant witness, separate minimum/no-else microproofs, and learner, idiomatic, and frontier source-style candidates with the same Restaurant stdout; frontier is exploratory and correctness-only."
         }
@@ -51683,13 +51683,13 @@
         },
         {
           "path": "compiler/seed-c/cli/run.c",
-          "sha256": "sha256:def7194e4b94c200dd1b981e5fbdf80d28fbe186f213a2dc61e52fbe13096d91",
+          "sha256": "sha256:1c9b288fb42338d86207e18e729e6dfd2961f4000ca007b1443df92c958c4967",
           "symbol": "run_windows_native",
           "claim": "The Windows runner uses explicit tool paths, CreateProcessW, bounded temporary files, and cleanup."
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226",
+          "sha256": "sha256:31b747a2dcf59ea5a3aae4d6356eebc2d7c932dd0c8d112015846e24610ae8df",
           "symbol": "main",
           "claim": "The native gate builds and executes the bounded Windows fixtures and negative cases."
         },
@@ -51848,7 +51848,7 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881",
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b",
           "symbol": "frontend_statement_and_expression_cfg_ok",
           "claim": "HIR consumes nested child and sibling IF relations and emits a deterministic forward structured CFG."
         },
@@ -51866,25 +51866,25 @@
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b",
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef",
           "symbol": "test_nested_if_depth_boundary",
           "claim": "The HIR unit accepts depth 64 and rejects depth 65."
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
-          "sha256": "sha256:129bd23186f3c7eed6408896d32f8d10a400f0c3c0e7eb0f56bc78e317f2218b",
+          "sha256": "sha256:d55d44aa472dd5e110eddabb1428c997c200aea1dba30679779844e41936fc98",
           "symbol": "test_nested_depth_and_linear_analysis",
           "claim": "The Native0 unit exercises a full binary nested structural stress witness, accepts depth 64 and emits it as MLIR, and rejects depth 65 with unchanged output/result snapshots."
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:5ccf9d904810d50a670598f1836fd564842f54d1b1353e5095913f7e21e6b0e1",
+          "sha256": "sha256:92c8c13127defce1691fe60fdb404c763463772eac2d72c4fe764d415f050ede",
           "symbol": "restaurant-nested-if",
           "claim": "The MLIR0 gate verifies, translates, links, and executes the nested Restaurant fixture with exact four-case stdout."
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e",
+          "sha256": "sha256:dd9b9836726d64a56f882593e09c1ea571d590636ef7ed9b2b4c87db9468cc3f",
           "symbol": "restaurant-nested-if",
           "claim": "The public runner executes the nested Restaurant fixture through the verified native route with exact stdout."
         },
@@ -51970,7 +51970,7 @@
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_value_tree",
           "claim": "Verified binary values require two i64 operands and the operator-specific result type.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
@@ -51982,7 +51982,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "statement_for_expression",
           "claim": "Existing bounded expression-tree walks locate prior-binding operands without downstream name resolution.",
-          "sha256": "sha256:9a94d62c38f384bf4a43655898428c62d0ef8dac3b89053ec43cd9fd1dcae2ea"
+          "sha256": "sha256:3af0dc55be5a9fc1540b3f8656075ce27b9f43f8b5b6892e84b951765196e38c"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -51994,7 +51994,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_scalar_type_measure_emit_parity",
           "claim": "Contextual comparison types and prior bindings preserve dry/emit counts and capacity failure boundaries.",
-          "sha256": "sha256:2563eb535e9379303bfa623cb5237c662067a9e03744821e5e522cd0bf457044"
+          "sha256": "sha256:cf09e06fd7c7ffcc5f99fdcbbb66181a1c80d2cba6d4203b4af1c4da7b09c7f0"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-comparisons.w",
@@ -52006,13 +52006,13 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurant-comparison-composition",
           "claim": "The Linux gate checks signed boundaries, Bool composition, exact stdout, and rejected types.",
-          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
+          "sha256": "sha256:dd9b9836726d64a56f882593e09c1ea571d590636ef7ed9b2b4c87db9468cc3f"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurant-comparison-composition",
           "claim": "The Windows gate checks the same bounded native comparison behavior.",
-          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
+          "sha256": "sha256:31b747a2dcf59ea5a3aae4d6356eebc2d7c932dd0c8d112015846e24610ae8df"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52053,7 +52053,7 @@
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_records",
           "claim": "HIR verification proves logical diamond edges, incoming Bool values, join block arguments, ownership, ranges, and dominance.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
@@ -52065,7 +52065,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_logical_adversarial_barriers",
           "claim": "HIR units cover logical positives and malformed owner, range, edge, dominance, capacity, alias, and transaction boundaries.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -52083,13 +52083,13 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantBoolShortCircuitFixture",
           "claim": "The Linux gate checks exact short-circuit stdout through the public native route.",
-          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
+          "sha256": "sha256:dd9b9836726d64a56f882593e09c1ea571d590636ef7ed9b2b4c87db9468cc3f"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantBoolShortCircuitFixture",
           "claim": "The Windows gate checks the same exact short-circuit stdout through the native Windows route.",
-          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
+          "sha256": "sha256:31b747a2dcf59ea5a3aae4d6356eebc2d7c932dd0c8d112015846e24610ae8df"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52130,13 +52130,13 @@
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "frontend_scalar_if_tree_ok",
           "claim": "Frontend value context admits the normalized nonnested scalar if only for a Bool condition and matching i64/Bool arms.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_records",
           "claim": "HIR verification proves yielded branch type, one typed join argument, and one typed incoming from each arm with ownership and dominance.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
@@ -52148,13 +52148,13 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_scalar_if_frontend_subset",
           "claim": "Frontend tests cover scalar return and immutable-let positives plus diagnostic and unsupported-form boundaries.",
-          "sha256": "sha256:2563eb535e9379303bfa623cb5237c662067a9e03744821e5e522cd0bf457044"
+          "sha256": "sha256:cf09e06fd7c7ffcc5f99fdcbbb66181a1c80d2cba6d4203b4af1c4da7b09c7f0"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_scalar_if_value_diamond",
           "claim": "HIR tests reject forged result type, logical mode, incoming owner/ordinal/type, join target, block argument range/type and read location transactionally.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -52172,7 +52172,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantScalarIfFixture",
           "claim": "The public Windows gate checks exact scalar-if stdout through the native Windows route.",
-          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
+          "sha256": "sha256:31b747a2dcf59ea5a3aae4d6356eebc2d7c932dd0c8d112015846e24610ae8df"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52213,7 +52213,7 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_SCHEMA_VERSION",
           "claim": "HIR0 publishes schema w-seed-hir0-13 for the checked arithmetic route.",
-          "sha256": "sha256:8befedb37b61b28a1f958cff96eb98863ce39ca63e081b3f0295424b05c420ba"
+          "sha256": "sha256:b8c5e4667f92aa9e894698cb4a55cdf18ba4b4b8c8a59588b4c9ef174f06bbb4"
         },
         {
           "path": "compiler/seed-c/include/w_seed_mlir0.h",
@@ -52279,7 +52279,7 @@
           "path": "tooling/check-mlir0.mjs",
           "symbol": "const products = [",
           "claim": "The integrated gate executes the Restaurant witness, typed output 10 -6 16 4 2, safe constants, and overflow fault boundary.",
-          "sha256": "sha256:5ccf9d904810d50a670598f1836fd564842f54d1b1353e5095913f7e21e6b0e1"
+          "sha256": "sha256:92c8c13127defce1691fe60fdb404c763463772eac2d72c4fe764d415f050ede"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52326,13 +52326,13 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "normalize_entry",
           "claim": "Frontend15 synthesizes one private Unit function and records the direct entry target relation.",
-          "sha256": "sha256:9a94d62c38f384bf4a43655898428c62d0ef8dac3b89053ec43cd9fd1dcae2ea"
+          "sha256": "sha256:3af0dc55be5a9fc1540b3f8656075ce27b9f43f8b5b6892e84b951765196e38c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "frontend_entry_records_ok",
           "claim": "HIR13 validates and emits the explicit short-entry mode and target function.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/tests/test_parser.c",
@@ -52344,13 +52344,13 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_short_entry_frontend",
           "claim": "Frontend tests prove the private Unit function, direct target, symbol order, and receipt mode.",
-          "sha256": "sha256:2563eb535e9379303bfa623cb5237c662067a9e03744821e5e522cd0bf457044"
+          "sha256": "sha256:cf09e06fd7c7ffcc5f99fdcbbb66181a1c80d2cba6d4203b4af1c4da7b09c7f0"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_short_entry_hir",
           "claim": "HIR tests cover private identity, forged modes, and semantic and provenance digests.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         },
         {
           "path": "compiler/seed-c/fixtures/hlo0-hello.w",
@@ -52368,7 +52368,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "helloFixture",
           "claim": "The public Linux/WSL runner executes the short-entry Hello fixture with exact output.",
-          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
+          "sha256": "sha256:dd9b9836726d64a56f882593e09c1ea571d590636ef7ed9b2b4c87db9468cc3f"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52409,7 +52409,7 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_SCHEMA_VERSION",
           "claim": "Frontend16 publishes append-only external nominal identity fields.",
-          "sha256": "sha256:adf0927718e65cb749c97788f6155e0193d5b9975e25c2d8eeaefcae324d2208"
+          "sha256": "sha256:5102faf4952ab2689da744feb39552c0a67d474c91f59eec0e06eee4254e1ae4"
         },
         {
           "path": "compiler/seed-c/src/w_seed_parser.c",
@@ -52427,13 +52427,13 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "external_identity_pair_valid",
           "claim": "Frontend16 validates external nominal identity pairs and the bounded ExitCode success projection.",
-          "sha256": "sha256:9a94d62c38f384bf4a43655898428c62d0ef8dac3b89053ec43cd9fd1dcae2ea"
+          "sha256": "sha256:3af0dc55be5a9fc1540b3f8656075ce27b9f43f8b5b6892e84b951765196e38c"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_process_abi_alias_and_exit_case",
           "claim": "Frontend tests cover valid aliases, canonical success, forged metadata, receipts, and capacity preservation.",
-          "sha256": "sha256:2563eb535e9379303bfa623cb5237c662067a9e03744821e5e522cd0bf457044"
+          "sha256": "sha256:cf09e06fd7c7ffcc5f99fdcbbb66181a1c80d2cba6d4203b4af1c4da7b09c7f0"
         },
         {
           "path": "compiler/seed-c/tests/test_module_scan.c",
@@ -52480,19 +52480,19 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_SCHEMA_VERSION",
           "claim": "HIR14 publishes append-only external identity and entry-adapter records.",
-          "sha256": "sha256:8befedb37b61b28a1f958cff96eb98863ce39ca63e081b3f0295424b05c420ba"
+          "sha256": "sha256:b8c5e4667f92aa9e894698cb4a55cdf18ba4b4b8c8a59588b4c9ef174f06bbb4"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_process_handler",
           "claim": "HIR14 deep-copies and independently verifies the bounded external graph and handler adapter.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_process_hir_adversarial",
           "claim": "HIR tests cover copied lifetime, aliases, forgeries, bounds, overlap, receipts, and digests.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         },
         {
           "path": "compiler/seed-c/tests/test_hlo0.c",
@@ -52545,73 +52545,73 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_SCHEMA_VERSION",
           "claim": "HIR15 publishes the append-only schema containing the independent direct-entry facts.",
-          "sha256": "sha256:8befedb37b61b28a1f958cff96eb98863ce39ca63e081b3f0295424b05c420ba"
+          "sha256": "sha256:b8c5e4667f92aa9e894698cb4a55cdf18ba4b4b8c8a59588b4c9ef174f06bbb4"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "w_seed_hir0_suspension_kind",
           "claim": "HIR15 defines the independent NEVER and MAY suspension facts.",
-          "sha256": "sha256:8befedb37b61b28a1f958cff96eb98863ce39ca63e081b3f0295424b05c420ba"
+          "sha256": "sha256:b8c5e4667f92aa9e894698cb4a55cdf18ba4b4b8c8a59588b4c9ef174f06bbb4"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "w_seed_hir0_direct_entry_kind",
           "claim": "HIR15 defines the independent ABSENT and AVAILABLE direct-entry facts.",
-          "sha256": "sha256:8befedb37b61b28a1f958cff96eb98863ce39ca63e081b3f0295424b05c420ba"
+          "sha256": "sha256:b8c5e4667f92aa9e894698cb4a55cdf18ba4b4b8c8a59588b4c9ef174f06bbb4"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "w_seed_hir0_function",
           "claim": "Each caller-owned HIR function record carries both independent facts.",
-          "sha256": "sha256:8befedb37b61b28a1f958cff96eb98863ce39ca63e081b3f0295424b05c420ba"
+          "sha256": "sha256:b8c5e4667f92aa9e894698cb4a55cdf18ba4b4b8c8a59588b4c9ef174f06bbb4"
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "normalize_function",
           "claim": "The frontend assigns is_async from the explicit CST async modifier before HIR publication.",
-          "sha256": "sha256:9a94d62c38f384bf4a43655898428c62d0ef8dac3b89053ec43cd9fd1dcae2ea"
+          "sha256": "sha256:3af0dc55be5a9fc1540b3f8656075ce27b9f43f8b5b6892e84b951765196e38c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "HIR0_DIRECT_FUNCTION_BITSET_BYTES",
           "claim": "The bounded HIR15 analysis derives scratch capacity from the inherited CST32768 bound.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "hir0_compute_body_never",
           "claim": "The bounded whole-body analysis computes the scratch-only never-suspend fixed point before publication.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "hir0_publish_direct_entry_facts",
           "claim": "HIR15 publishes suspension and direct-entry facts from explicit async state and the complete-body result.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_direct_entry_facts",
           "claim": "The verifier independently recomputes the expected suspension and direct-entry facts.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "hir0_type_is_blocked",
           "claim": "Blocked nominal lifecycle types such as String remove the bounded direct-entry proof.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_direct_entry_facts",
           "claim": "The C unit covers bounded fact publication, local-call propagation cases, and forged-fact rejection.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_direct_entry_effect_barrier",
           "claim": "The C unit verifies unsupported effect/defer boundaries fail closed without mutating HIR output or result state.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52695,49 +52695,49 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_SCHEMA_VERSION",
           "claim": "HIR16 publishes closed lifecycle, release-contract, and entry-cleanup fields in caller-owned records.",
-          "sha256": "sha256:8befedb37b61b28a1f958cff96eb98863ce39ca63e081b3f0295424b05c420ba"
+          "sha256": "sha256:b8c5e4667f92aa9e894698cb4a55cdf18ba4b4b8c8a59588b4c9ef174f06bbb4"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "w_seed_hir0_lifecycle_kind",
           "claim": "The lifecycle enum distinguishes UNKNOWN, VALUE_COPY, and ENTRY_ROOT_OWNER without a generic ownership waiver.",
-          "sha256": "sha256:8befedb37b61b28a1f958cff96eb98863ce39ca63e081b3f0295424b05c420ba"
+          "sha256": "sha256:b8c5e4667f92aa9e894698cb4a55cdf18ba4b4b8c8a59588b4c9ef174f06bbb4"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "w_seed_hir0_release_contract_kind",
           "claim": "The release enum keeps PROCESS_V1_WRAPPER_RELEASE versioned and compiler-owned.",
-          "sha256": "sha256:8befedb37b61b28a1f958cff96eb98863ce39ca63e081b3f0295424b05c420ba"
+          "sha256": "sha256:b8c5e4667f92aa9e894698cb4a55cdf18ba4b4b8c8a59588b4c9ef174f06bbb4"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "w_seed_hir0_entry_cleanup_kind",
           "claim": "Each entry records cleanup kind and exact owner-parameter range separately from root drain and reclamation.",
-          "sha256": "sha256:8befedb37b61b28a1f958cff96eb98863ce39ca63e081b3f0295424b05c420ba"
+          "sha256": "sha256:b8c5e4667f92aa9e894698cb4a55cdf18ba4b4b8c8a59588b4c9ef174f06bbb4"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "hir0_publish_process_lifecycle_facts",
           "claim": "The producer derives process lifecycle and normal-return cleanup facts before direct-entry and digest publication.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_process_lifecycle_facts",
           "claim": "The verifier independently recomputes lifecycle and cleanup facts after structural and canonical identity validation.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "HIR0_PROCESS_RELEASE_ABI",
           "claim": "The semantic digest binds the exact std.process@1 wrapper-release-v1 drop symbols without claiming provider execution.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_process_hir_adversarial",
           "claim": "The HIR unit covers scalar and unknown lifecycle facts, exact process owners, resealed forged release or String lifecycle values, and shortened or rebound cleanup-range mutations.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         },
         {
           "path": "compiler/seed-c/tests/test_hlo0.c",
@@ -52797,7 +52797,7 @@
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_process_handler_catalog_and_artifact",
           "claim": "The Native0 unit covers catalog selection, artifact separation, reverse cleanup order, no-main/no-I/O output, and transactional failures.",
-          "sha256": "sha256:129bd23186f3c7eed6408896d32f8d10a400f0c3c0e7eb0f56bc78e317f2218b"
+          "sha256": "sha256:d55d44aa472dd5e110eddabb1428c997c200aea1dba30679779844e41936fc98"
         },
         {
           "path": "compiler/seed-c/tests/process_entry0_gate.c",
@@ -52886,13 +52886,13 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "normalize_expression",
           "claim": "Frontend preserves resolver-owned Arguments.isEmpty and ExitCode.failure(i64) identities for the public process forms.",
-          "sha256": "sha256:9a94d62c38f384bf4a43655898428c62d0ef8dac3b89053ec43cd9fd1dcae2ea"
+          "sha256": "sha256:3af0dc55be5a9fc1540b3f8656075ce27b9f43f8b5b6892e84b951765196e38c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_value_tree",
           "claim": "HIR25 independently verifies external member and enum-case payload values, body relations, lifecycle, and direct-entry facts.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
@@ -52910,19 +52910,19 @@
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_process_input0_public_artifact",
           "claim": "Native0 tests selection identity, capacity transactionality, and target rejection.",
-          "sha256": "sha256:129bd23186f3c7eed6408896d32f8d10a400f0c3c0e7eb0f56bc78e317f2218b"
+          "sha256": "sha256:d55d44aa472dd5e110eddabb1428c997c200aea1dba30679779844e41936fc98"
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_process_enum_payload_public_artifact",
           "claim": "Native0 tests the public enum-payload process composition and its exact output contract.",
-          "sha256": "sha256:129bd23186f3c7eed6408896d32f8d10a400f0c3c0e7eb0f56bc78e317f2218b"
+          "sha256": "sha256:d55d44aa472dd5e110eddabb1428c997c200aea1dba30679779844e41936fc98"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "processInputFixture",
           "claim": "The pinned public gate runs both fixtures from source and from the same built PE across no-argument, empty-argument, and payload cases.",
-          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
+          "sha256": "sha256:31b747a2dcf59ea5a3aae4d6356eebc2d7c932dd0c8d112015846e24610ae8df"
         }
       ],
       "benchmarkDisposition": "deferred",
@@ -53003,19 +53003,19 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "normalize_expression_node",
           "claim": "Frontend normalizes an unparenthesized trailing nested scalar if as a value-block tail.",
-          "sha256": "sha256:9a94d62c38f384bf4a43655898428c62d0ef8dac3b89053ec43cd9fd1dcae2ea"
+          "sha256": "sha256:3af0dc55be5a9fc1540b3f8656075ce27b9f43f8b5b6892e84b951765196e38c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "frontend_scalar_if_tree_ok",
           "claim": "HIR input validation admits only pure, same-typed signed-i64 or Bool scalar-if trees with Bool conditions.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_records",
           "claim": "HIR verification retains nested typed diamonds, ownership, dominance, capacity, alias, receipt and digest barriers.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
@@ -53033,19 +53033,19 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_scalar_if_frontend_subset",
           "claim": "Frontend tests cover the nested scalar-if source normalization and unsupported-form boundaries.",
-          "sha256": "sha256:2563eb535e9379303bfa623cb5237c662067a9e03744821e5e522cd0bf457044"
+          "sha256": "sha256:cf09e06fd7c7ffcc5f99fdcbbb66181a1c80d2cba6d4203b4af1c4da7b09c7f0"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_nested_scalar_if_value_diamond",
           "claim": "HIR tests assert two nested typed scalar diamonds and reject a forged root type, branch, join and incoming records transactionally.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_nested_scalar_if_depth_boundary",
           "claim": "HIR tests accept scalar-if depth 64 and reject depth 65 without changing caller-owned output or result.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -53057,7 +53057,7 @@
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_nested_scalar_if_value_native",
           "claim": "Native0 tests exact nested fixture output and reject a forged outer branch target transactionally.",
-          "sha256": "sha256:129bd23186f3c7eed6408896d32f8d10a400f0c3c0e7eb0f56bc78e317f2218b"
+          "sha256": "sha256:d55d44aa472dd5e110eddabb1428c997c200aea1dba30679779844e41936fc98"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-nested-scalar-if.w",
@@ -53069,25 +53069,25 @@
           "path": "tooling/check-mlir0.mjs",
           "symbol": "restaurantNestedScalarIfFixture",
           "claim": "The MLIR0 gate runs the nested Restaurant source through native execution and checks exact stdout, empty stderr and exit zero.",
-          "sha256": "sha256:5ccf9d904810d50a670598f1836fd564842f54d1b1353e5095913f7e21e6b0e1"
+          "sha256": "sha256:92c8c13127defce1691fe60fdb404c763463772eac2d72c4fe764d415f050ede"
         },
         {
           "path": "tooling/executable-benchmark-machine.mjs",
           "symbol": "EXECUTABLE_WORKLOAD_IDS",
           "claim": "The live executable workload catalog includes restaurant-nested-scalar-if beside restaurant-scalar-if.",
-          "sha256": "sha256:3d81d2272a2fc52ad264400d5d3ffb1cefed7859894d27174e4b99f7acba7dc9"
+          "sha256": "sha256:b3a12f2c72d2b8f9f51a21c2d22e61cdd207efbc6f67a7ac8b12e0d428f81a4a"
         },
         {
           "path": "benchmarks/executable-catalog.json",
           "symbol": "restaurant-nested-scalar-if",
           "claim": "The executable catalog records the W source and exact oracle as public-end-to-end and source/oracle-ready with timing deferred.",
-          "sha256": "sha256:07da037094e3ebe1448237f8f8b095734475d75a0b6fcd1580427109fa296a31"
+          "sha256": "sha256:72fa8f664e0f7d0d3e3a4ab9ee61eb6c73aea0424a4b9aab1109cf0aed9e90fd"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_SCHEMA_VERSION",
           "claim": "Nested scalar-if lowering reuses the existing public HIR0 record schema.",
-          "sha256": "sha256:8befedb37b61b28a1f958cff96eb98863ce39ca63e081b3f0295424b05c420ba"
+          "sha256": "sha256:b8c5e4667f92aa9e894698cb4a55cdf18ba4b4b8c8a59588b4c9ef174f06bbb4"
         },
         {
           "path": "compiler/seed-c/include/w_seed_mlir0.h",
@@ -53140,19 +53140,19 @@
           "path": "compiler/seed-c/cli/run.c",
           "symbol": "WRT0_LL",
           "claim": "WRT0 owns Linux x86_64 process startup, stdout write, and exit without CRT or libc.",
-          "sha256": "sha256:def7194e4b94c200dd1b981e5fbdf80d28fbe186f213a2dc61e52fbe13096d91"
+          "sha256": "sha256:1c9b288fb42338d86207e18e729e6dfd2961f4000ca007b1443df92c958c4967"
         },
         {
           "path": "compiler/seed-c/cli/run.c",
           "symbol": "w_seed_run_compile",
           "claim": "The public compiler emits separate program and WRT0 objects, links them directly, and removes private intermediates.",
-          "sha256": "sha256:def7194e4b94c200dd1b981e5fbdf80d28fbe186f213a2dc61e52fbe13096d91"
+          "sha256": "sha256:1c9b288fb42338d86207e18e729e6dfd2961f4000ca007b1443df92c958c4967"
         },
         {
           "path": "tooling/check-w-run.mjs",
           "symbol": "assertCrtFreeElf",
           "claim": "The gate rejects a retained ELF with a program interpreter or any DT_NEEDED dependency before execution.",
-          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
+          "sha256": "sha256:dd9b9836726d64a56f882593e09c1ea571d590636ef7ed9b2b4c87db9468cc3f"
         },
         {
           "path": "tooling/check-w-run.test.mjs",
@@ -53235,13 +53235,13 @@
           "path": "tooling/check-mlir0.mjs",
           "symbol": "restaurantRuntimeDivremFixture",
           "claim": "The Linux gate proves exact output and runtime fault-before-output behavior.",
-          "sha256": "sha256:5ccf9d904810d50a670598f1836fd564842f54d1b1353e5095913f7e21e6b0e1"
+          "sha256": "sha256:92c8c13127defce1691fe60fdb404c763463772eac2d72c4fe764d415f050ede"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantRuntimeDivremFixture",
           "claim": "The native Windows runner proves exact output for the same source witness.",
-          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
+          "sha256": "sha256:31b747a2dcf59ea5a3aae4d6356eebc2d7c932dd0c8d112015846e24610ae8df"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53282,13 +53282,13 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_VALUE_UNARY_I64",
           "claim": "HIR0 publishes an explicit checked signed-i64 unary value.",
-          "sha256": "sha256:8befedb37b61b28a1f958cff96eb98863ce39ca63e081b3f0295424b05c420ba"
+          "sha256": "sha256:b8c5e4667f92aa9e894698cb4a55cdf18ba4b4b8c8a59588b4c9ef174f06bbb4"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_value_tree",
           "claim": "HIR verification proves type, operator, operand and ownership.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
@@ -53306,13 +53306,13 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_i64_unary_negate_positive",
           "claim": "HIR units cover the positive record and forged operator/type rejection.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_unary_i64_native_selector",
           "claim": "Native0 proves direct safe constant lowering without the checked helper.",
-          "sha256": "sha256:129bd23186f3c7eed6408896d32f8d10a400f0c3c0e7eb0f56bc78e317f2218b"
+          "sha256": "sha256:d55d44aa472dd5e110eddabb1428c997c200aea1dba30679779844e41936fc98"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-unary-negate.w",
@@ -53324,13 +53324,13 @@
           "path": "tooling/check-mlir0.mjs",
           "symbol": "restaurantUnaryNegateFixture",
           "claim": "The Linux gate proves exact output and runtime overflow fault-before-output.",
-          "sha256": "sha256:5ccf9d904810d50a670598f1836fd564842f54d1b1353e5095913f7e21e6b0e1"
+          "sha256": "sha256:92c8c13127defce1691fe60fdb404c763463772eac2d72c4fe764d415f050ede"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantUnaryNegateFixture",
           "claim": "The native Windows runner proves exact output for the same source.",
-          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
+          "sha256": "sha256:31b747a2dcf59ea5a3aae4d6356eebc2d7c932dd0c8d112015846e24610ae8df"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53371,19 +53371,19 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "expression_parse_interpolated_string",
           "claim": "The frontend applies canonical i64 context before publishing a leading prefix-negative interpolation tree.",
-          "sha256": "sha256:9a94d62c38f384bf4a43655898428c62d0ef8dac3b89053ec43cd9fd1dcae2ea"
+          "sha256": "sha256:3af0dc55be5a9fc1540b3f8656075ce27b9f43f8b5b6892e84b951765196e38c"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_interpolated_string_projection",
           "claim": "Frontend units prove the literal, unary root and segment type relation.",
-          "sha256": "sha256:2563eb535e9379303bfa623cb5237c662067a9e03744821e5e522cd0bf457044"
+          "sha256": "sha256:cf09e06fd7c7ffcc5f99fdcbbb66181a1c80d2cba6d4203b4af1c4da7b09c7f0"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_direct_i64_unary_interpolation",
           "claim": "HIR units retain the explicit typed unary tree as an interpolation value.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-unary-interpolation.w",
@@ -53395,13 +53395,13 @@
           "path": "tooling/check-mlir0.mjs",
           "symbol": "restaurantUnaryInterpolationFixture",
           "claim": "The Linux native route proves exact output and direct constant lowering without the checked helper.",
-          "sha256": "sha256:5ccf9d904810d50a670598f1836fd564842f54d1b1353e5095913f7e21e6b0e1"
+          "sha256": "sha256:92c8c13127defce1691fe60fdb404c763463772eac2d72c4fe764d415f050ede"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantUnaryInterpolationFixture",
           "claim": "The native Windows public runner executes the same direct source witness.",
-          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
+          "sha256": "sha256:31b747a2dcf59ea5a3aae4d6356eebc2d7c932dd0c8d112015846e24610ae8df"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53442,25 +53442,25 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "w_seed_hir0_binding",
           "claim": "HIR18 records source identity and the preceding SSA version.",
-          "sha256": "sha256:8befedb37b61b28a1f958cff96eb98863ce39ca63e081b3f0295424b05c420ba"
+          "sha256": "sha256:b8c5e4667f92aa9e894698cb4a55cdf18ba4b4b8c8a59588b4c9ef174f06bbb4"
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "mutable_binding_for_name",
           "claim": "The frontend admits only a preceding mutable binding target.",
-          "sha256": "sha256:9a94d62c38f384bf4a43655898428c62d0ef8dac3b89053ec43cd9fd1dcae2ea"
+          "sha256": "sha256:3af0dc55be5a9fc1540b3f8656075ce27b9f43f8b5b6892e84b951765196e38c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "root_binding_index_for_statement",
           "claim": "HIR lowering retains the source root across ordered versions.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_straight_line_mutation_ssa",
           "claim": "HIR tests cover read selection and forged version chains.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -53478,7 +53478,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantMutationFixture",
           "claim": "The native Windows public runner executes the mutation witness.",
-          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
+          "sha256": "sha256:31b747a2dcf59ea5a3aae4d6356eebc2d7c932dd0c8d112015846e24610ae8df"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53519,13 +53519,13 @@
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_value_tree",
           "claim": "HIR verification admits cross-block binding reads only from the same function root block.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_conditional_mutation_merge",
           "claim": "HIR tests prove the root read, scalar join, and single ordered update.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -53543,13 +53543,13 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantConditionalMutationFixture",
           "claim": "The Linux/WSL public runner executes the same source witness.",
-          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
+          "sha256": "sha256:dd9b9836726d64a56f882593e09c1ea571d590636ef7ed9b2b4c87db9468cc3f"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantConditionalMutationFixture",
           "claim": "The native Windows public runner executes the same source witness.",
-          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
+          "sha256": "sha256:31b747a2dcf59ea5a3aae4d6356eebc2d7c932dd0c8d112015846e24610ae8df"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53590,7 +53590,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_bool_mutation_ssa",
           "claim": "HIR tests retain two Boolean versions and the explicit parameter read.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -53608,13 +53608,13 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantBoolMutationFixture",
           "claim": "The Linux/WSL public runner executes exact Boolean output.",
-          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
+          "sha256": "sha256:dd9b9836726d64a56f882593e09c1ea571d590636ef7ed9b2b4c87db9468cc3f"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantBoolMutationFixture",
           "claim": "The native Windows public runner executes the same witness.",
-          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
+          "sha256": "sha256:31b747a2dcf59ea5a3aae4d6356eebc2d7c932dd0c8d112015846e24610ae8df"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53655,19 +53655,19 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_local_assignment_projection",
           "claim": "Frontend tests prove lexical ancestor visibility, nested shadowing, and branch-local non-escape.",
-          "sha256": "sha256:2563eb535e9379303bfa623cb5237c662067a9e03744821e5e522cd0bf457044"
+          "sha256": "sha256:cf09e06fd7c7ffcc5f99fdcbbb66181a1c80d2cba6d4203b4af1c4da7b09c7f0"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_branch_local_mutation_merge",
           "claim": "HIR tests prove two incoming values, one join argument, and one successor binding version.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_branch_local_mutation_barriers",
           "claim": "HIR tests reject missing else, unequal targets, and extra arm statements.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -53685,13 +53685,13 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantBranchMutationFixture",
           "claim": "The Linux/WSL public runner executes exact joined output.",
-          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
+          "sha256": "sha256:dd9b9836726d64a56f882593e09c1ea571d590636ef7ed9b2b4c87db9468cc3f"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantBranchMutationFixture",
           "claim": "The native Windows public runner executes the same witness.",
-          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
+          "sha256": "sha256:31b747a2dcf59ea5a3aae4d6356eebc2d7c932dd0c8d112015846e24610ae8df"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53732,19 +53732,19 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_local_assignment_projection",
           "claim": "Frontend tests prove opposite arm order and resolved root target identity.",
-          "sha256": "sha256:2563eb535e9379303bfa623cb5237c662067a9e03744821e5e522cd0bf457044"
+          "sha256": "sha256:cf09e06fd7c7ffcc5f99fdcbbb66181a1c80d2cba6d4203b4af1c4da7b09c7f0"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_multi_branch_mutation_merge",
           "claim": "HIR tests prove declaration-order join arguments, merged versions, and edge-list barriers.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_branch_local_mutation_barriers",
           "claim": "HIR tests reject missing, duplicate, unmatched, dependent, effectful, and nested branch shapes.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -53762,19 +53762,19 @@
           "path": "tooling/check-mlir0.mjs",
           "symbol": "restaurantMultiBranchMutationFixture",
           "claim": "The MLIR gate checks the two-parameter join and typed two-operand branches.",
-          "sha256": "sha256:5ccf9d904810d50a670598f1836fd564842f54d1b1353e5095913f7e21e6b0e1"
+          "sha256": "sha256:92c8c13127defce1691fe60fdb404c763463772eac2d72c4fe764d415f050ede"
         },
         {
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantMultiBranchMutationFixture",
           "claim": "The Linux/WSL public runner executes exact joined output.",
-          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
+          "sha256": "sha256:dd9b9836726d64a56f882593e09c1ea571d590636ef7ed9b2b4c87db9468cc3f"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantMultiBranchMutationFixture",
           "claim": "The native Windows public runner executes the same witness.",
-          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
+          "sha256": "sha256:31b747a2dcf59ea5a3aae4d6356eebc2d7c932dd0c8d112015846e24610ae8df"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53821,7 +53821,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_while_projection",
           "claim": "Frontend tests prove statement relations, lexical root resolution, and non-Bool diagnostics.",
-          "sha256": "sha256:2563eb535e9379303bfa623cb5237c662067a9e03744821e5e522cd0bf457044"
+          "sha256": "sha256:cf09e06fd7c7ffcc5f99fdcbbb66181a1c80d2cba6d4203b4af1c4da7b09c7f0"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53862,19 +53862,19 @@
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_cfg_natural_loop",
           "claim": "The HIR verifier independently checks the exact natural-loop CFG and rejects arbitrary cycles.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_while_mutation_ssa",
           "claim": "The focused witness proves explicit header and edge arguments and adversarial record barriers.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_while_mutation_barriers",
           "claim": "Source barriers reject unsupported effectful, nested, multi-statement, and non-i64 loop shapes.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53939,19 +53939,19 @@
           "path": "tooling/check-mlir0.mjs",
           "symbol": "restaurantWhileFixture",
           "claim": "The MLIR gate checks structured input, converted CFG, exact native output, and an unsupported loop barrier.",
-          "sha256": "sha256:5ccf9d904810d50a670598f1836fd564842f54d1b1353e5095913f7e21e6b0e1"
+          "sha256": "sha256:92c8c13127defce1691fe60fdb404c763463772eac2d72c4fe764d415f050ede"
         },
         {
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantWhileFixture",
           "claim": "The public Linux/WSL runner executes exact Served 3 output.",
-          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
+          "sha256": "sha256:dd9b9836726d64a56f882593e09c1ea571d590636ef7ed9b2b4c87db9468cc3f"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantWhileFixture",
           "claim": "The pinned native Windows 23.1.1 runner executes exact Served 3 output.",
-          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
+          "sha256": "sha256:31b747a2dcf59ea5a3aae4d6356eebc2d7c932dd0c8d112015846e24610ae8df"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53992,19 +53992,19 @@
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_enum_records",
           "claim": "The HIR verifier checks nominal enum ownership, lexical dense ordinals and tags, zero payloads, duplicate names, and source spans.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_local_enum_hir",
           "claim": "Focused HIR tests prove local enum and case records, nominal type identity, local case values, VALUE_COPY/NONE lifecycle, forged-record rejection, and capacity/alias barriers.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_enum_frontend_storage",
           "claim": "Native0 tests prove frontend to verified-HIR admission and unchanged output/result when the MLIR boundary returns unsupported.",
-          "sha256": "sha256:129bd23186f3c7eed6408896d32f8d10a400f0c3c0e7eb0f56bc78e317f2218b"
+          "sha256": "sha256:d55d44aa472dd5e110eddabb1428c997c200aea1dba30679779844e41936fc98"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54045,7 +54045,7 @@
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_cfg_switch",
           "claim": "HIR21 independently verifies canonical enum-switch ownership, coverage, target blocks, result values, and the bounded dispatch shape.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
@@ -54069,13 +54069,13 @@
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_enum_switch_native_lowering",
           "claim": "Native0 tests cover reordered arms, local calls, the exact Restaurant fixture, and the emitted switch markers.",
-          "sha256": "sha256:129bd23186f3c7eed6408896d32f8d10a400f0c3c0e7eb0f56bc78e317f2218b"
+          "sha256": "sha256:d55d44aa472dd5e110eddabb1428c997c200aea1dba30679779844e41936fc98"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantEnumFixture",
           "claim": "The pinned Windows 23.1.1 gate executes restaurant-enum.w with exact output, empty stderr, and zero exit.",
-          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
+          "sha256": "sha256:31b747a2dcf59ea5a3aae4d6356eebc2d7c932dd0c8d112015846e24610ae8df"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54116,31 +54116,31 @@
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "digest_program",
           "claim": "HIR22 copies, semantically binds, and independently verifies every declared function export fact.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_function_export_facts",
           "claim": "Focused HIR tests distinguish exported, private, and synthesized-entry functions and reject forged facts.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         },
         {
           "path": "tooling/check-mlir0.mjs",
           "symbol": "restaurantWmoFixture",
           "claim": "The MLIR gate proves the used local helper is retained while unused functions, text, and checked-divide support are omitted.",
-          "sha256": "sha256:5ccf9d904810d50a670598f1836fd564842f54d1b1353e5095913f7e21e6b0e1"
+          "sha256": "sha256:92c8c13127defce1691fe60fdb404c763463772eac2d72c4fe764d415f050ede"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantWmoFixture",
           "claim": "The pinned Windows native gate executes the same-module product closure with exact output.",
-          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
+          "sha256": "sha256:31b747a2dcf59ea5a3aae4d6356eebc2d7c932dd0c8d112015846e24610ae8df"
         },
         {
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantWmoFixture",
           "claim": "The Linux/WSL native gate executes the same source with exact output.",
-          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
+          "sha256": "sha256:dd9b9836726d64a56f882593e09c1ea571d590636ef7ed9b2b4c87db9468cc3f"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54181,7 +54181,7 @@
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_external_records",
           "claim": "HIR26 preserves and independently verifies the exact seven-symbol process catalog, logical USIZE identity, receiver ownership, and count member records.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
@@ -54199,19 +54199,19 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_process_arguments_count_hir",
           "claim": "Focused HIR tests prove positive count records and bindings plus optional-selector, owner-escape, identity, metadata, type, receiver, and resealed-forgery rejection.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_process_arguments_count_public_artifact",
           "claim": "Native0 tests prove direct-print interpolation reaches the count helper while raw process owners and invalid selectors remain rejected.",
-          "sha256": "sha256:129bd23186f3c7eed6408896d32f8d10a400f0c3c0e7eb0f56bc78e317f2218b"
+          "sha256": "sha256:d55d44aa472dd5e110eddabb1428c997c200aea1dba30679779844e41936fc98"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "processArgumentsCountFixture",
           "claim": "The pinned Windows gate executes one built PE for zero, empty, multiple, and exactly 256 user arguments with exact output and exit status.",
-          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
+          "sha256": "sha256:31b747a2dcf59ea5a3aae4d6356eebc2d7c932dd0c8d112015846e24610ae8df"
         }
       ],
       "benchmarkDisposition": "deferred",
@@ -54252,7 +54252,7 @@
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "frontend_usize_count_comparison_ok",
           "claim": "HIR27 admits only the exact count member and a contextual nonnegative unsuffixed usize literal under == or !=.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
@@ -54270,7 +54270,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_process_arguments_count_hir",
           "claim": "Focused HIR tests cover both operand orders and the comparison identity, type, owner, and forged-record barriers.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -54282,13 +54282,13 @@
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_process_arguments_count_public_artifact",
           "claim": "Native0 tests prove the HIR27 comparison reaches the public artifact while raw process owners remain rejected.",
-          "sha256": "sha256:129bd23186f3c7eed6408896d32f8d10a400f0c3c0e7eb0f56bc78e317f2218b"
+          "sha256": "sha256:d55d44aa472dd5e110eddabb1428c997c200aea1dba30679779844e41936fc98"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "processArgumentsCountFixture",
           "claim": "The pinned Windows gate proves the branch and runtime count cases on the canonical flat-import fixture.",
-          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
+          "sha256": "sha256:31b747a2dcf59ea5a3aae4d6356eebc2d7c932dd0c8d112015846e24610ae8df"
         }
       ],
       "benchmarkDisposition": "deferred",
@@ -54329,31 +54329,31 @@
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "frontend_external_process_records_ok",
           "claim": "The frontend accepts flat and grouped selective std.process records while preserving the same seven-symbol catalog.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "digest_program",
           "claim": "HIR semantic digests match while provenance digests retain import spelling and source-span differences.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_process_arguments_count_hir",
           "claim": "Focused HIR tests compare flat/selective semantic and provenance digests.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "processArgumentsCountFixture",
           "claim": "The Windows gate builds the canonical flat-import process fixture and checks exact runtime outputs.",
-          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
+          "sha256": "sha256:31b747a2dcf59ea5a3aae4d6356eebc2d7c932dd0c8d112015846e24610ae8df"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "processArgumentsCountSelectiveImportFixture",
           "claim": "The Windows gate compares complete PE bytes for the selective-import witness and checks the same exact runtime outputs.",
-          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
+          "sha256": "sha256:31b747a2dcf59ea5a3aae4d6356eebc2d7c932dd0c8d112015846e24610ae8df"
         }
       ],
       "benchmarkDisposition": "deferred",
@@ -54431,7 +54431,7 @@
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_cfg_natural_loop",
           "claim": "HIR0 independently checks the multi-carrier topology, canonical edge ordinals, types, and version chains.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
@@ -54449,7 +54449,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_while_multi_carrier_ssa",
           "claim": "Focused HIR tests cover canonical ordering, sequential dependencies, general exit values, and adversarial tuple forgeries.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -54461,7 +54461,7 @@
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_multi_carrier_native_subset_selector",
           "claim": "Native0 requires the multi-carrier source to complete the full source-to-MLIR route before testing forged selector records.",
-          "sha256": "sha256:129bd23186f3c7eed6408896d32f8d10a400f0c3c0e7eb0f56bc78e317f2218b"
+          "sha256": "sha256:d55d44aa472dd5e110eddabb1428c997c200aea1dba30679779844e41936fc98"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-while-multi.w",
@@ -54473,13 +54473,13 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantWhileMultiFixture",
           "claim": "The Linux/WSL route executes exact Served 9 output from the public source.",
-          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
+          "sha256": "sha256:dd9b9836726d64a56f882593e09c1ea571d590636ef7ed9b2b4c87db9468cc3f"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantWhileMultiFixture",
           "claim": "The native Windows 23.1.1 route executes the same exact source and output.",
-          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
+          "sha256": "sha256:31b747a2dcf59ea5a3aae4d6356eebc2d7c932dd0c8d112015846e24610ae8df"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54520,19 +54520,19 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_SCHEMA_VERSION",
           "claim": "The existing HIR0 schema remains sufficient for the continuation binding and instruction records.",
-          "sha256": "sha256:8befedb37b61b28a1f958cff96eb98863ce39ca63e081b3f0295424b05c420ba"
+          "sha256": "sha256:b8c5e4667f92aa9e894698cb4a55cdf18ba4b4b8c8a59588b4c9ef174f06bbb4"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "hir0_natural_loop_continuation_value_ok",
           "claim": "HIR0 admits only a pure signed-i64 continuation tree over literals, parameters, and loop results, with a required result use.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_cfg_natural_loop",
           "claim": "HIR0 verifies one exit-side binding, its selected carrier version, and the return dependency.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
@@ -54550,7 +54550,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_while_post_loop_continuation_ssa",
           "claim": "Focused HIR tests cover continuation version links, return dependence, and malformed exit records.",
-          "sha256": "sha256:8c73e0c2a846d3881be22da9efc53b431f5955aabad47b309fae1c2c8e31ac3b"
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -54562,7 +54562,7 @@
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_post_loop_continuation_native_subset",
           "claim": "Focused Native0 tests execute the fixture and reject forged continuation metadata and unsupported post-loop forms.",
-          "sha256": "sha256:129bd23186f3c7eed6408896d32f8d10a400f0c3c0e7eb0f56bc78e317f2218b"
+          "sha256": "sha256:d55d44aa472dd5e110eddabb1428c997c200aea1dba30679779844e41936fc98"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-while-post.w",
@@ -54574,13 +54574,13 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantWhilePostFixture",
           "claim": "The Linux/WSL route executes the exact post-loop fixture and Final 9 oracle.",
-          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
+          "sha256": "sha256:dd9b9836726d64a56f882593e09c1ea571d590636ef7ed9b2b4c87db9468cc3f"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantWhilePostFixture",
           "claim": "The native Windows route executes the same post-loop fixture and Final 9 oracle.",
-          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
+          "sha256": "sha256:31b747a2dcf59ea5a3aae4d6356eebc2d7c932dd0c8d112015846e24610ae8df"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54753,19 +54753,19 @@
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "frontend_local_import_records_ok",
           "claim": "HIR preflight validates resolver-owned local-document paths, dense ranges, target identity, source ownership, and bounded cycle freedom.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "frontend_type_owner_module",
           "claim": "HIR preflight derives each frontend type span from the owning module document.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "frontend_local_call_target_ok",
           "claim": "HIR preflight accepts cross-module local calls only through one imported item and an exported target.",
-          "sha256": "sha256:65c65dcd87e1f3f0f0a737437359708487c6401f321317443d675a44194d7881"
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0_multidoc.c",
@@ -54872,17 +54872,88 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "resolved local-module graph fixture",
           "claim": "The Windows public gate runs and builds the graph and rejects a private target.",
-          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
+          "sha256": "sha256:31b747a2dcf59ea5a3aae4d6356eebc2d7c932dd0c8d112015846e24610ae8df"
         },
         {
           "path": "tooling/check-w-run.mjs",
           "symbol": "resolved local-module graph",
           "claim": "The Linux/WSL public gate runs and builds the graph and rejects a private target.",
-          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
+          "sha256": "sha256:dd9b9836726d64a56f882593e09c1ea571d590636ef7ed9b2b4c87db9468cc3f"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
       "benchmarkEvidence": "Focused C23 ProductClosure0 correctness and public Windows/Linux local-module execution are current. The executable catalog owns the W source-set benchmark lane; C23/Rust multifile recipes and performance ranking remain blocked."
+    },
+    {
+      "decisionId": "W-1577",
+      "summary": "bounded virtual structured-task elision",
+      "canonicalClaim": "For an immutable root-block `let task = async localNeverSuspend(...)` followed by exactly one immutable same-block `let value = await task`, with a `Bool` or signed-`i64` result and no escape, branch, explicit placement, suspension, throwing, cancellation, arbitration, sharing, or runtime owner, HIR30 erases the Task representation into an ordinary scalar call result and scalar binding read. Proof-only call execution kind, launch/await roles, reciprocal peer, and source-expression ordinal let the independent verifier recheck direction, order, lexical ownership, immutability, type, initializer shape, and local never-suspending callee. These relations create no source-visible Task identity, address, layout, handle ABI, allocation, frame, TCB, WRT entry, or task-specific native symbol. The Windows x64 public source-to-PE route prints exactly `Prepared 42\\n`; Linux/WSL is wired but remains unclaimed until the local toolchain gate executes. The current lowering may be sequential and does not prove overlap.",
+      "claimDigest": "sha256:6674ed758f47c8558997ca458907a74289fd637d9a25f398239c43d8e9755392",
+      "category": "source-backed-current",
+      "basis": "linked-source-comparison-case",
+      "authorityRef": {
+        "kind": "source-case",
+        "path": "tooling/substitution-cases.json",
+        "caseId": "R0-virtual-structured-task-elision",
+        "caseDigest": "sha256:24e383f7be9458b2e74849c70f272a92b11b52c2cd996df615288993bcf35d70"
+      },
+      "evidence": [
+        {
+          "kind": "source",
+          "path": "tooling/substitution-cases.json",
+          "caseId": "R0-virtual-structured-task-elision",
+          "caseDigest": "sha256:24e383f7be9458b2e74849c70f272a92b11b52c2cd996df615288993bcf35d70"
+        }
+      ],
+      "reason": "W-1577 (bounded virtual structured-task elision, sha256:6674ed758f47c8558997ca458907a74289fd637d9a25f398239c43d8e9755392) is source-backed-current only for bounded HIR30 Task representation erasure, independent verifier barriers, the Windows x64 public executable witness, and absence of Task-specific runtime machinery. It does not establish scheduling overlap or general concurrency.",
+      "selection": "explicit-ledger-id",
+      "basisRef": {
+        "kind": "ledger-row",
+        "path": "RATIONALE.md",
+        "section": "3. Ledger",
+        "decisionId": "W-1577",
+        "claimDigest": "sha256:6674ed758f47c8558997ca458907a74289fd637d9a25f398239c43d8e9755392"
+      },
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_hir0.h",
+          "symbol": "w_seed_hir0_task_role",
+          "claim": "HIR30 publishes closed proof roles without defining a runtime Task representation.",
+          "sha256": "sha256:b8c5e4667f92aa9e894698cb4a55cdf18ba4b4b8c8a59588b4c9ef174f06bbb4"
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "frontend_task_usage_ok",
+          "claim": "The HIR boundary admits only bounded non-escaping Task use and fails closed for other uses.",
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_records",
+          "claim": "The independent verifier checks launch and join direction, reciprocity, order, type, lexical ownership, and initializer shape.",
+          "sha256": "sha256:37cb9228fc1e2674f7f520eb4d4b84392663850395a82cdd520fbb415b15c30b"
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_structured_async_elision_hir",
+          "claim": "Focused C23 tests cover scalar elision and adversarial Task relation mutations.",
+          "sha256": "sha256:573a397c4ac02586391324daa58cc42d3895eea7e9c15e787122207cd0972fef"
+        },
+        {
+          "path": "compiler/seed-c/tests/test_native0.c",
+          "symbol": "test_virtual_structured_task_product",
+          "claim": "Native0 proves that the bounded source emits ordinary scalar calls without Task-specific runtime symbols.",
+          "sha256": "sha256:d55d44aa472dd5e110eddabb1428c997c200aea1dba30679779844e41936fc98"
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "restaurant async join fixture",
+          "claim": "The Windows public gate builds and executes the source with exact output and empty stderr.",
+          "sha256": "sha256:31b747a2dcf59ea5a3aae4d6356eebc2d7c932dd0c8d112015846e24610ae8df"
+        }
+      ],
+      "benchmarkDisposition": "compiler-lifecycle",
+      "benchmarkEvidence": "Focused HIR and Native0 correctness plus Windows public execution are current. The executable catalog owns equivalent sequential W, C23, and Rust exploratory metrics; no overlap or concurrency ranking is claimed."
     }
   ],
   "auditSamples": {
