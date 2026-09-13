@@ -1547,6 +1547,12 @@ safe functions without borrow clauses are required.
 
 NativeSubset0 now selects the generic bounded multi-module path. MLIR0 keeps an
 independent reachability walk and cross-checks every ProductClosure0 candidate.
+`w_seed_native0_run_frontend_graph` is the internal composition boundary for a
+resolver-complete local graph: it consumes borrowed ordered documents and
+resolved local-import edges, runs frontend normalization, verified-HIR
+lowering, ProductClosure0 selection, and MLIR0 emission with caller-owned
+storage. It does not acquire files, resolve external catalogs, or expose a
+public CLI route.
 The focused app→lib source witness retains its reachable `helper`. A synthetic
 dead module is omitted, while the reachable digest and emitted MLIR bytes stay
 identical. Enum, switch, pattern, external-module, process, effect, service,

@@ -1,4 +1,5 @@
 #include "w_seed_hir0.h"
+#include "w_seed_native0.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -147,6 +148,11 @@ typedef struct {
   w_seed_hir0_program hir_program;
 } multidoc_fixture;
 
+static w_seed_native0_storage native_graph_storage;
+static w_seed_native0_storage native_graph_storage_repeated;
+static uint8_t native_graph_bytes[W_SEED_MLIR0_MAX_BYTES];
+static uint8_t native_graph_bytes_repeated[W_SEED_MLIR0_MAX_BYTES];
+
 static const char ROOT_SOURCE[] =
     "import { helper as h } from lib\n"
     "fn run(): i64 { return h() }\n"
@@ -171,6 +177,15 @@ static const char LIB_WHITESPACE_SOURCE[] =
     "// one two three four five six seven eight nine ten eleven twelve\n"
     "// more padding for an owning-document span check\n"
     "export fn helper(): i64 {   return 42   }\n";
+
+static const char NATIVE_ROOT_SOURCE[] =
+    "import { helper as h } from lib\n"
+    "fn run() { let value = h() print(\"answer ${value}\") }\n"
+    "entry(run)\n";
+
+static const char PRIVATE_LIB_SOURCE[] =
+    "module lib\n"
+    "fn helper(): i64 { return 42 }\n";
 
 static bool parse_document(parsed_document *document, const char *source_text) {
   if (document == NULL || source_text == NULL) return false;
@@ -420,6 +435,71 @@ static bool lower_fixture(multidoc_fixture *fixture) {
   return w_seed_hir0_verify(&fixture->hir_program, &fixture->hir_result);
 }
 
+static bool test_native0_frontend_graph(void) {
+  static multidoc_fixture graph;
+  CHECK(initialize_fixture(&graph, NATIVE_ROOT_SOURCE, LIB_SOURCE));
+  graph.frontend_input.host_scope = NULL;
+  const w_seed_mlir0_target target = {
+      W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU};
+  const w_seed_native0_output output = {
+      native_graph_bytes, sizeof(native_graph_bytes)};
+  const w_seed_native0_output repeated_output = {
+      native_graph_bytes_repeated, sizeof(native_graph_bytes_repeated)};
+  w_seed_native0_result result = {W_SEED_NATIVE0_INVALID, SIZE_MAX, {0}};
+  w_seed_native0_result repeated = {W_SEED_NATIVE0_INVALID, SIZE_MAX, {0}};
+  CHECK(w_seed_native0_run_frontend_graph(
+            &graph.frontend_input, &target, &native_graph_storage, &output,
+            &result) == W_SEED_NATIVE0_OK);
+  CHECK(result.status == W_SEED_NATIVE0_OK);
+  CHECK(result.source_bytes ==
+        strlen(NATIVE_ROOT_SOURCE) + strlen(LIB_SOURCE));
+  CHECK(result.mlir.written.mlir_bytes != 0u);
+  CHECK(w_seed_native0_run_frontend_graph(
+            &graph.frontend_input, &target, &native_graph_storage_repeated,
+            &repeated_output, &repeated) == W_SEED_NATIVE0_OK);
+  CHECK(repeated.mlir.written.mlir_bytes == result.mlir.written.mlir_bytes);
+  CHECK(memcmp(native_graph_bytes, native_graph_bytes_repeated,
+               result.mlir.written.mlir_bytes) == 0);
+  CHECK(memcmp(result.mlir.mlir_sha256, repeated.mlir.mlir_sha256, 32u) == 0);
+
+  (void)memset(native_graph_bytes_repeated, 0xa5, 32u);
+  const uint8_t saved_short[32] = {
+      0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5,
+      0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5,
+      0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5,
+      0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5};
+  const w_seed_native0_output short_output = {native_graph_bytes_repeated,
+                                               sizeof(saved_short)};
+  const w_seed_native0_result saved_result = result;
+  const w_seed_native0_status short_status =
+      w_seed_native0_run_frontend_graph(
+          &graph.frontend_input, &target, &native_graph_storage_repeated,
+          &short_output, &result);
+  CHECK(short_status == W_SEED_NATIVE0_CAPACITY);
+  CHECK(memcmp(native_graph_bytes_repeated, saved_short,
+               sizeof(saved_short)) == 0);
+  CHECK(memcmp(&result, &saved_result, sizeof(result)) == 0);
+
+  CHECK(initialize_fixture(&graph, NATIVE_ROOT_SOURCE, PRIVATE_LIB_SOURCE));
+  graph.frontend_input.host_scope = NULL;
+  (void)memset(native_graph_bytes_repeated, 0x5a, 32u);
+  const uint8_t saved_private[32] = {
+      0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
+      0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
+      0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
+      0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a};
+  result = saved_result;
+  const w_seed_native0_status private_status =
+      w_seed_native0_run_frontend_graph(
+          &graph.frontend_input, &target, &native_graph_storage_repeated,
+          &repeated_output, &result);
+  CHECK(private_status == W_SEED_NATIVE0_UNSUPPORTED);
+  CHECK(memcmp(native_graph_bytes_repeated, saved_private,
+               sizeof(saved_private)) == 0);
+  CHECK(memcmp(&result, &saved_result, sizeof(result)) == 0);
+  return true;
+}
+
 static bool frontend_call_target_is_library(const multidoc_fixture *fixture) {
   for (size_t index = 0u; index < fixture->frontend_result.written.expressions;
        index += 1u) {
@@ -665,5 +745,5 @@ static bool test_multidoc_hir0(void) {
 }
 
 int main(void) {
-  return test_multidoc_hir0() ? 0 : 1;
+  return test_native0_frontend_graph() && test_multidoc_hir0() ? 0 : 1;
 }

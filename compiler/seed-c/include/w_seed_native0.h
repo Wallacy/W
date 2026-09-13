@@ -324,6 +324,18 @@ w_seed_native0_status w_seed_native0_run(
     const w_seed_native0_input *input, w_seed_native0_storage *storage,
     const w_seed_native0_output *output, w_seed_native0_result *result);
 
+/* Emit the same verified-HIR-backed native subset from an already acquired,
+ * resolver-complete local document graph. This internal bridge exists so a
+ * host CLI can share acquisition with `w check` without reparsing or creating
+ * a second resolver. External module catalogs and process-entry adaptation
+ * remain owned by their dedicated adapters. */
+w_seed_native0_status w_seed_native0_run_frontend_graph(
+    const w_seed_frontend_input *frontend_input,
+    const w_seed_mlir0_target *target,
+    w_seed_native0_storage *storage,
+    const w_seed_native0_output *output,
+    w_seed_native0_result *result);
+
 #ifdef __cplusplus
 }
 #endif
