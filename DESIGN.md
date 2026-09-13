@@ -38333,12 +38333,14 @@ cross-module WMO/WPO, summary reuse, or optimization quality.
 
 W-1568 is a future pipeline task. It preserves the idiomatic process root
 `import std.process` followed by unaliased `Arguments`, `Context`, and
-`ExitCode`. It does not claim multi-module support for the current build/run
-route. That route remains single-source, and CHK4 only checks a caller-owned
-graph.
+`ExitCode`. W-1576 now provides a bounded public local-module `w build` and
+`w run` route. W-1568 remains open for the stronger claim: two source graphs
+with the same reachable product must produce byte-identical native artifacts
+and runtime behavior while explicit runtime roots remain retained.
 
-W-1575 closes only the HIR prerequisite for this graph. It does not add public
-multi-file `w build` or `w run`, dead-node elimination, or artifact equivalence.
+W-1575 closes the HIR prerequisite for this graph. W-1576 connects acquisition,
+verified HIR, ProductClosure0, MLIR0, and the public CLI. Neither decision yet
+proves dead-node native artifact equivalence or general WMO/WPO quality.
 
 **Example:** the future acceptance fixture pairs `app.w` with
 `app-with-dead.w`; both must publish the same artifact digest, and the latter
@@ -38375,9 +38377,11 @@ Acceptance requires all of the following:
   target/profile fails equivalence.
 
 This task remains `implementation-evidence-gap`. Its benchmark disposition is
-`deferred` with blocker `single-source-build-run-and-check-only-graph`, task ID
-`module-graph-dce-equivalence`, and a stop condition that requires the
-multi-module graph-to-HIR/product route and every acceptance item above.
+`deferred` with blocker
+`public-graph-dead-node-artifact-equivalence-not-yet-proven`, task ID
+`module-graph-dce-equivalence`, and a stop condition that requires every
+native artifact-equivalence and explicit-root-retention item above. The bounded
+public graph-to-product route itself is current under W-1576.
 
 #### 26.4.1.50 W-1569 — bounded multi-carrier natural `while` through verified HIR and native execution (Current form)
 
@@ -38780,10 +38784,10 @@ forged path, cycle, owner, entry, or call relation fails before publication.
 The C23 `w_seed_hir0_multidoc_tests` unit lowers two parsed documents, repeats
 the result, distinguishes semantic and provenance digest changes under
 whitespace, verifies frontend-lifetime independence, and checks alias and
-capacity transactionality. This is source-backed verified-HIR evidence only.
-It does not add public multi-file `w build` or `w run`, product reachability,
-dead-node elimination, DCE, WMO/WPO, or artifact equivalence. W-1568 remains
-an implementation-evidence gap for that product pipeline.
+capacity transactionality. This decision remains source-backed verified-HIR
+evidence only; the public local-module product route is owned by W-1576. DCE,
+WMO/WPO, and native artifact equivalence remain outside W-1575. W-1568 remains
+an implementation-evidence gap for those stronger product claims.
 
 #### 26.4.1.57 W-1576 — bounded ProductClosure0 reachable product projection (Current bounded form)
 
@@ -38816,11 +38820,25 @@ ProductClosure0 domain. The focused app→lib witness retains its reachable
 `helper`. A synthetic dead module is omitted, while the reachable semantic
 digest and emitted MLIR bytes remain identical.
 
+The public CLI now composes this path for an explicit local root. It confines
+acquisition to the root source's parent, acquires the reachable local graph,
+and then runs frontend normalization → verified HIR → ProductClosure0 → MLIR0
+→ native emission. The existing single-document route remains the first path;
+the graph route is attempted only after a bounded frontend/shape rejection and
+requires at least two documents plus one resolved local edge. The physical
+`fixtures/local-graph/app.w` → `lib.w` witness is exercised by both `w run` and
+`w build` on Windows x64 and Linux/WSL x64. Each artifact prints exactly
+`answer 42\n`, exits zero, and emits no stderr. Removing `export` from
+`lib.helper` fails before stdout or artifact publication.
+
 Enum, switch, pattern, external-module, process, effect, service, reflection,
-FFI, and dynamic-loading families fail closed. This milestone does not add
-public multi-file `w build` or `w run`. It does not prove native
-artifact/runtime equivalence. W-1568 remains an implementation-evidence gap.
-Its benchmark disposition is `compiler-lifecycle`, correctness-only.
+FFI, and dynamic-loading families fail closed. Packages, workspaces, remote or
+provider-backed modules, multi-document `std.process`, native dead-node artifact
+equivalence, general WMO/WPO optimization quality, and concurrency remain
+outside this slice. W-1568 remains an implementation-evidence gap. Its
+benchmark disposition is `compiler-lifecycle`: public executable correctness is
+current, while cross-language graph recipes and performance ranking remain
+separate benchmark work.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

@@ -48,6 +48,7 @@ import {
   executableHostEvidenceForPlatform,
   executableHostIdentity,
   executableNativeHostForPlatform,
+  executableSourceDigest,
   exactOutputDigest,
   loadExecutableDocuments,
   pruneExecutableBestMetrics,
@@ -79,7 +80,7 @@ test("catalog stores compact live best cells and no immutable history", () => {
     ["deferred-until-M3b", "promotable-after-equivalence", "contextual-non-ranking-private-composite", "same-physical-hardware-diagnostic-only"]);
   assert.deepEqual(documents.schema.$defs.source.properties.eligibility.enum,
     ["promotable-after-equivalence", "deferred-to-M3b", "exploratory-private-composite", "same-physical-hardware-diagnostic-only"]);
-  for (const definition of ["catalog", "result", "bestMetric", "bestMetrics", "bestMetricProvenance", "sample", "sampleSeries", "processExecution", "processSupportSource"]) {
+  for (const definition of ["catalog", "result", "bestMetric", "bestMetrics", "bestMetricProvenance", "sample", "sampleSeries", "processExecution", "processSupportSource", "sourceSupport"]) {
     assert.equal(documents.schema.$defs[definition].additionalProperties, false);
   }
   assert.deepEqual(documents.catalog.comparabilityAxes, EXECUTABLE_COMPARABILITY_AXES);
@@ -149,6 +150,26 @@ test("every public Windows runnable fixture has an executable benchmark owner", 
   workload.blockedLanguages.push("w");
   assert.match(validateExecutableCatalog(missing, { ...documents, catalog: missing }).join("\n"),
     /restaurant-enum\.w has no executable benchmark owner/u);
+});
+
+test("local module graph identity covers the complete source set", () => {
+  const workload = documents.catalog.workloads.find((item) => item.id === "local-module-graph");
+  assert.ok(workload);
+  assert.equal(workload.benchmarkStatus, "partial-exploratory-ready");
+  assert.deepEqual(workload.blockedLanguages, ["c", "rust"]);
+  const source = workload.sources[0];
+  assert.equal(source.language, "w");
+  assert.equal(source.supportSources.length, 1);
+  assert.notEqual(executableSourceDigest(source), source.digest);
+
+  const changed = clone(source);
+  changed.supportSources[0].digest = digest;
+  assert.notEqual(executableSourceDigest(changed), executableSourceDigest(source));
+  const stale = clone(documents.catalog);
+  stale.workloads.find((item) => item.id === "local-module-graph")
+    .sources[0].supportSources[0].digest = digest;
+  assert.match(validateExecutableCatalog(stale, { ...documents, catalog: stale }).join("\n"),
+    /supportSources\[0\]\.digest is stale/u);
 });
 
 test("process-handler-lifecycle catalog pins the private composite execution witness", () => {

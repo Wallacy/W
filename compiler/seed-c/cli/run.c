@@ -4,6 +4,8 @@
 
 #include "run.h"
 
+#include "check.h"
+
 #include <string.h>
 
 #include "w_seed_native0.h"
@@ -291,8 +293,15 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
           (w_seed_mlir0_target){W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU}};
   const w_seed_native0_output native_output = {artifact, sizeof(artifact)};
   w_seed_native0_result native_result;
-  const int source_status = native_status_exit(w_seed_native0_run(
-      &native_input, &native_storage, &native_output, &native_result));
+  w_seed_native0_status native_status = w_seed_native0_run(
+      &native_input, &native_storage, &native_output, &native_result);
+  if (native_status == W_SEED_NATIVE0_UNSUPPORTED ||
+      native_status == W_SEED_NATIVE0_FRONTEND) {
+    native_status = w_seed_check_compile_local_graph(
+        request->source_path, &native_input.target, &native_storage,
+        &native_output, &native_result);
+  }
+  const int source_status = native_status_exit(native_status);
 
   char input_path[PATH_MAX] = {0};
   char verified_path[PATH_MAX] = {0};
@@ -864,8 +873,14 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
           (w_seed_mlir0_target){W_SEED_MLIR0_TARGET_X86_64_PC_WINDOWS_MSVC}};
   const w_seed_native0_output native_output = {artifact, sizeof(artifact)};
   w_seed_native0_result native_result;
-  const int source_status = windows_native_status_exit(w_seed_native0_run(
-      &native_input, &native_storage, &native_output, &native_result));
+  w_seed_native0_status native_status = w_seed_native0_run(
+      &native_input, &native_storage, &native_output, &native_result);
+  if (native_status == W_SEED_NATIVE0_UNSUPPORTED ||
+      native_status == W_SEED_NATIVE0_FRONTEND)
+    native_status = w_seed_check_compile_local_graph(
+        request->source_path, &native_input.target, &native_storage,
+        &native_output, &native_result);
+  const int source_status = windows_native_status_exit(native_status);
 
   wchar_t input_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
   wchar_t verified_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};

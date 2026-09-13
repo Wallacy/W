@@ -36,6 +36,8 @@ const processArgumentsOrderingFixture = resolve(seedDirectory,
 const processInputFixture = resolve(seedDirectory, "fixtures", "process-input0.w")
 const processEnumPayloadFixture = resolve(seedDirectory,
   "fixtures", "process-enum-payload.w")
+const localGraphFixture = resolve(seedDirectory, "fixtures", "local-graph",
+  "app.w")
 const restaurantRuntimeDivremFixture = resolve(seedDirectory,
   "fixtures", "restaurant-runtime-divrem.w")
 const restaurantUnaryNegateFixture = resolve(seedDirectory,
@@ -657,6 +659,9 @@ try {
   const missingScalarReturn = join(fixtureDirectory,
     "missing_scalar_return.w")
   const nestedReturnCall = join(fixtureDirectory, "nested_return_call.w")
+  const privateGraphDirectory = join(fixtureDirectory, "private-graph")
+  const privateGraphRoot = join(privateGraphDirectory, "app.w")
+  const privateGraphLibrary = join(privateGraphDirectory, "lib.w")
   const invalidComparisons = [
     ["Bool operands", "true == false"],
     ["String operands", '"a" != "b"'],
@@ -720,6 +725,13 @@ try {
     "fn value(): i64 { return 42 }\n" +
     "fn relay(): i64 { return value() }\n" +
     "fn main() { let result = relay() print(\"${result}\") }\nentry(main)\n")
+  await mkdir(privateGraphDirectory)
+  await writeFile(privateGraphRoot,
+    "import { helper as h } from lib\n" +
+    "fn run() { let value = h() print(\"answer ${value}\") }\n" +
+    "entry(run)\n")
+  await writeFile(privateGraphLibrary,
+    "module lib\nfn helper(): i64 { return 42 }\n")
   for (const [index, [label, expression]] of invalidComparisons.entries()) {
     const path = join(fixtureDirectory, `invalid_comparison_${index}.w`)
     await writeFile(path,
@@ -736,6 +748,10 @@ try {
     "w build --help")
   expectSuccess(binary, ["run", toWsl(helloFixture)], expectedHello,
     "Hello fixture")
+  expectSuccess(binary, ["run", toWsl(localGraphFixture)],
+    Buffer.from("answer 42\n", "utf8"), "resolved local-module graph")
+  expectSourceFailure(binary, toWsl(privateGraphRoot),
+    "private cross-module symbol")
   expectSuccess(binary, ["run", toWsl(restaurantBinding)],
     Buffer.from("Table 42 remains open\n"), "Restaurant binding")
   expectSuccess(binary, ["run", toWsl(restaurantLiteral)],
@@ -895,6 +911,8 @@ try {
     ? `${buildArtifactDirectory}/${name}`
     : join(buildArtifactDirectory, name)
   const buildHello = buildOutput("hello-build")
+  const buildLocalGraph = buildOutput("local-graph-build")
+  const buildPrivateGraph = buildOutput("private-graph-build")
   const buildRestaurantIf = buildOutput("restaurant-if-build")
   const buildRestaurantRepeat = buildOutput("restaurant-repeat-build")
   const buildProcessInput = buildOutput("process-input-build")
@@ -912,6 +930,16 @@ try {
     "build Hello fixture")
   expectSuccess(buildHello, [], expectedHello,
     "execute built Hello artifact")
+  expectSuccess(binary, ["build", toWsl(localGraphFixture), "--target",
+    targetTriple, "--output", buildLocalGraph], Buffer.alloc(0),
+    "build resolved local-module graph")
+  expectSuccess(buildLocalGraph, [], Buffer.from("answer 42\n", "utf8"),
+    "execute built local-module graph artifact")
+  expectBuildFailure(binary, ["build", toWsl(privateGraphRoot), "--target",
+    targetTriple, "--output", buildPrivateGraph],
+  "reject private cross-module build")
+  assert(!artifactExists(buildPrivateGraph),
+    "private cross-module build left an artifact")
   const helloBytes = await readBuildArtifact(buildHello)
   assertCrtFreeElf(helloBytes)
   expectBuildFailure(binary, ["build", toWsl(helloFixture), "--target",

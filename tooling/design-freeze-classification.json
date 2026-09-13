@@ -23,7 +23,7 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:a493dcbaad2bf4be4c8cffc7a53d8de2f4c6d7a60fca484e8c853a7b449945d6",
+    "sha256": "sha256:60cd03c2777b4acda0d3d90da53b19588f1dea6888db17191589befef6f4a760",
     "count": 1576,
     "first": "W-001",
     "last": "W-1576"
@@ -1765,7 +1765,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "helloFixture",
           "claim": "The public Linux/WSL runner executes the short-entry Hello fixture with exact output.",
-          "sha256": "sha256:7525802c25630f4994b015ef4821fff7c3e2825819c4d6196634ca47e4ace7b7"
+          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -21850,7 +21850,7 @@
         "path": "DESIGN.md",
         "section": "26",
         "heading": "## 26. Plano de implementação",
-        "sectionDigest": "sha256:326d8805ff40522e39116cde09a0a6fe4639f2329e1b46515f1fc0eb3ad0a042"
+        "sectionDigest": "sha256:4a42f417286a291ec18e5a84687fa659d37bbf2f40c9e35ba8c5935423c8e8b6"
       },
       "evidence": [],
       "reason": "W-659 (body de entry, sha256:f66ab57406ddb51303f9190376daf72d8f538bd7bd8adfbf9992ae3d7223e74e) has no executable witness for component implementation-plan. The checked current contract is DESIGN.md §26 / 26. Plano de implementação.",
@@ -50944,19 +50944,19 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/include/w_seed_native0.h",
-          "sha256": "sha256:9f5e971e5cc191eaf3ccdf75e1362f775a2a2acf0da388e54ea6fb47491e6788",
+          "sha256": "sha256:2607df82b318a5a9b698ab70d15b6ff6690e6df73604cfdb6fd701a8c6e0f13c",
           "symbol": "w_seed_native0_run",
           "claim": "Native0 provides the bounded caller-owned source-to-MLIR0 route."
         },
         {
           "path": "compiler/seed-c/src/w_seed_native0.c",
-          "sha256": "sha256:7d6fb27789a4801311fce01ade1aa1b704c7bfc654f99e1fc5f008b2becb965c",
+          "sha256": "sha256:8b61f65e281518b270148bc1cb7c4951ee74af8d8aa3aa5e05ee1f80d8a20337",
           "symbol": "w_seed_native0_run",
           "claim": "Native0 enforces source limits, direct verified HIR0 lowering and all-or-nothing output."
         },
         {
           "path": "compiler/seed-c/cli/run.c",
-          "sha256": "sha256:bd4317f2335d9f6a6e8891a181721d3bfd839ef5047e68c3bb6c5e73db603e04",
+          "sha256": "sha256:def7194e4b94c200dd1b981e5fbdf80d28fbe186f213a2dc61e52fbe13096d91",
           "symbol": "w_seed_run_execute",
           "claim": "The public runner invokes the pinned Linux native recipe with private temporary files and cleanup."
         },
@@ -50968,7 +50968,7 @@
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "sha256": "sha256:7525802c25630f4994b015ef4821fff7c3e2825819c4d6196634ca47e4ace7b7",
+          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e",
           "symbol": "const expectedHelp =",
           "claim": "The product gate covers Linux and WSL execution, rejection cases and cleanup."
         },
@@ -51045,7 +51045,7 @@
         },
         {
           "path": "compiler/seed-c/cli/run.c",
-          "sha256": "sha256:bd4317f2335d9f6a6e8891a181721d3bfd839ef5047e68c3bb6c5e73db603e04",
+          "sha256": "sha256:def7194e4b94c200dd1b981e5fbdf80d28fbe186f213a2dc61e52fbe13096d91",
           "symbol": "run_logical_source_id",
           "claim": "The public runner derives an opaque basename source identity."
         },
@@ -51057,7 +51057,7 @@
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "sha256": "sha256:7525802c25630f4994b015ef4821fff7c3e2825819c4d6196634ca47e4ace7b7",
+          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e",
           "symbol": "const expectedHelp =",
           "claim": "The public gate runs both versioned hyphenated fixtures directly."
         },
@@ -51636,7 +51636,7 @@
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "sha256": "sha256:7525802c25630f4994b015ef4821fff7c3e2825819c4d6196634ca47e4ace7b7",
+          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e",
           "symbol": "W-1531 frontier exploration source-style candidate",
           "claim": "The public runner executes the Restaurant witness, separate minimum/no-else microproofs, and learner, idiomatic, and frontier source-style candidates with the same Restaurant stdout; frontier is exploratory and correctness-only."
         }
@@ -51683,13 +51683,13 @@
         },
         {
           "path": "compiler/seed-c/cli/run.c",
-          "sha256": "sha256:bd4317f2335d9f6a6e8891a181721d3bfd839ef5047e68c3bb6c5e73db603e04",
+          "sha256": "sha256:def7194e4b94c200dd1b981e5fbdf80d28fbe186f213a2dc61e52fbe13096d91",
           "symbol": "run_windows_native",
           "claim": "The Windows runner uses explicit tool paths, CreateProcessW, bounded temporary files, and cleanup."
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "sha256": "sha256:84400156c1c548c0d6a8f4a34b1e5e4718b611ea65f89b7bd6bad54ebf4ba617",
+          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226",
           "symbol": "main",
           "claim": "The native gate builds and executes the bounded Windows fixtures and negative cases."
         },
@@ -51884,7 +51884,7 @@
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "sha256": "sha256:7525802c25630f4994b015ef4821fff7c3e2825819c4d6196634ca47e4ace7b7",
+          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e",
           "symbol": "restaurant-nested-if",
           "claim": "The public runner executes the nested Restaurant fixture through the verified native route with exact stdout."
         },
@@ -52006,13 +52006,13 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurant-comparison-composition",
           "claim": "The Linux gate checks signed boundaries, Bool composition, exact stdout, and rejected types.",
-          "sha256": "sha256:7525802c25630f4994b015ef4821fff7c3e2825819c4d6196634ca47e4ace7b7"
+          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurant-comparison-composition",
           "claim": "The Windows gate checks the same bounded native comparison behavior.",
-          "sha256": "sha256:84400156c1c548c0d6a8f4a34b1e5e4718b611ea65f89b7bd6bad54ebf4ba617"
+          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52083,13 +52083,13 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantBoolShortCircuitFixture",
           "claim": "The Linux gate checks exact short-circuit stdout through the public native route.",
-          "sha256": "sha256:7525802c25630f4994b015ef4821fff7c3e2825819c4d6196634ca47e4ace7b7"
+          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantBoolShortCircuitFixture",
           "claim": "The Windows gate checks the same exact short-circuit stdout through the native Windows route.",
-          "sha256": "sha256:84400156c1c548c0d6a8f4a34b1e5e4718b611ea65f89b7bd6bad54ebf4ba617"
+          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52172,7 +52172,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantScalarIfFixture",
           "claim": "The public Windows gate checks exact scalar-if stdout through the native Windows route.",
-          "sha256": "sha256:84400156c1c548c0d6a8f4a34b1e5e4718b611ea65f89b7bd6bad54ebf4ba617"
+          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52368,7 +52368,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "helloFixture",
           "claim": "The public Linux/WSL runner executes the short-entry Hello fixture with exact output.",
-          "sha256": "sha256:7525802c25630f4994b015ef4821fff7c3e2825819c4d6196634ca47e4ace7b7"
+          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52779,13 +52779,13 @@
           "path": "compiler/seed-c/include/w_seed_native0.h",
           "symbol": "W_SEED_NATIVE0_SCHEMA_VERSION",
           "claim": "Native0 schema 7 carries the artifact selector and private process catalog capacity.",
-          "sha256": "sha256:9f5e971e5cc191eaf3ccdf75e1362f775a2a2acf0da388e54ea6fb47491e6788"
+          "sha256": "sha256:2607df82b318a5a9b698ab70d15b6ff6690e6df73604cfdb6fd701a8c6e0f13c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_native0.c",
           "symbol": "configure_external_catalog",
           "claim": "Native0 resolves only the compiler-owned std.process catalog from the scanned import path.",
-          "sha256": "sha256:7d6fb27789a4801311fce01ade1aa1b704c7bfc654f99e1fc5f008b2becb965c"
+          "sha256": "sha256:8b61f65e281518b270148bc1cb7c4951ee74af8d8aa3aa5e05ee1f80d8a20337"
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
@@ -52922,7 +52922,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "processInputFixture",
           "claim": "The pinned public gate runs both fixtures from source and from the same built PE across no-argument, empty-argument, and payload cases.",
-          "sha256": "sha256:84400156c1c548c0d6a8f4a34b1e5e4718b611ea65f89b7bd6bad54ebf4ba617"
+          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
         }
       ],
       "benchmarkDisposition": "deferred",
@@ -53075,13 +53075,13 @@
           "path": "tooling/executable-benchmark-machine.mjs",
           "symbol": "EXECUTABLE_WORKLOAD_IDS",
           "claim": "The live executable workload catalog includes restaurant-nested-scalar-if beside restaurant-scalar-if.",
-          "sha256": "sha256:d43cc1a80b663f78aa239e81fb07d4a1a848a63e94be3b8e4471c23037e002b3"
+          "sha256": "sha256:3d81d2272a2fc52ad264400d5d3ffb1cefed7859894d27174e4b99f7acba7dc9"
         },
         {
           "path": "benchmarks/executable-catalog.json",
           "symbol": "restaurant-nested-scalar-if",
           "claim": "The executable catalog records the W source and exact oracle as public-end-to-end and source/oracle-ready with timing deferred.",
-          "sha256": "sha256:4c5cff886b2346ae22ceac732ff1b19a4ef846baf16b09e00118449414dc8731"
+          "sha256": "sha256:07da037094e3ebe1448237f8f8b095734475d75a0b6fcd1580427109fa296a31"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
@@ -53099,7 +53099,7 @@
           "path": "compiler/seed-c/include/w_seed_native0.h",
           "symbol": "W_SEED_NATIVE0_SCHEMA_VERSION",
           "claim": "Nested scalar-if lowering reuses the existing public Native0 record schema.",
-          "sha256": "sha256:9f5e971e5cc191eaf3ccdf75e1362f775a2a2acf0da388e54ea6fb47491e6788"
+          "sha256": "sha256:2607df82b318a5a9b698ab70d15b6ff6690e6df73604cfdb6fd701a8c6e0f13c"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53140,19 +53140,19 @@
           "path": "compiler/seed-c/cli/run.c",
           "symbol": "WRT0_LL",
           "claim": "WRT0 owns Linux x86_64 process startup, stdout write, and exit without CRT or libc.",
-          "sha256": "sha256:bd4317f2335d9f6a6e8891a181721d3bfd839ef5047e68c3bb6c5e73db603e04"
+          "sha256": "sha256:def7194e4b94c200dd1b981e5fbdf80d28fbe186f213a2dc61e52fbe13096d91"
         },
         {
           "path": "compiler/seed-c/cli/run.c",
           "symbol": "w_seed_run_compile",
           "claim": "The public compiler emits separate program and WRT0 objects, links them directly, and removes private intermediates.",
-          "sha256": "sha256:bd4317f2335d9f6a6e8891a181721d3bfd839ef5047e68c3bb6c5e73db603e04"
+          "sha256": "sha256:def7194e4b94c200dd1b981e5fbdf80d28fbe186f213a2dc61e52fbe13096d91"
         },
         {
           "path": "tooling/check-w-run.mjs",
           "symbol": "assertCrtFreeElf",
           "claim": "The gate rejects a retained ELF with a program interpreter or any DT_NEEDED dependency before execution.",
-          "sha256": "sha256:7525802c25630f4994b015ef4821fff7c3e2825819c4d6196634ca47e4ace7b7"
+          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
         },
         {
           "path": "tooling/check-w-run.test.mjs",
@@ -53170,7 +53170,7 @@
           "path": "compiler/seed-c/CMakeLists.txt",
           "symbol": "W_MLIR0_LINUX_LINK_DRIVER",
           "claim": "The opt-in Linux build requires an absolute linker that advertises elf_x86_64 support.",
-          "sha256": "sha256:40a23fa2f5b1e7efc4bf3a48972b63dfb65a86944118c83bf69157e028dcd67f"
+          "sha256": "sha256:f70d510f010bea2825a3c9a5b8d88b616896bab9ebad81de08e89017ff0a94ed"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53241,7 +53241,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantRuntimeDivremFixture",
           "claim": "The native Windows runner proves exact output for the same source witness.",
-          "sha256": "sha256:84400156c1c548c0d6a8f4a34b1e5e4718b611ea65f89b7bd6bad54ebf4ba617"
+          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53330,7 +53330,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantUnaryNegateFixture",
           "claim": "The native Windows runner proves exact output for the same source.",
-          "sha256": "sha256:84400156c1c548c0d6a8f4a34b1e5e4718b611ea65f89b7bd6bad54ebf4ba617"
+          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53401,7 +53401,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantUnaryInterpolationFixture",
           "claim": "The native Windows public runner executes the same direct source witness.",
-          "sha256": "sha256:84400156c1c548c0d6a8f4a34b1e5e4718b611ea65f89b7bd6bad54ebf4ba617"
+          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53478,7 +53478,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantMutationFixture",
           "claim": "The native Windows public runner executes the mutation witness.",
-          "sha256": "sha256:84400156c1c548c0d6a8f4a34b1e5e4718b611ea65f89b7bd6bad54ebf4ba617"
+          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53543,13 +53543,13 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantConditionalMutationFixture",
           "claim": "The Linux/WSL public runner executes the same source witness.",
-          "sha256": "sha256:7525802c25630f4994b015ef4821fff7c3e2825819c4d6196634ca47e4ace7b7"
+          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantConditionalMutationFixture",
           "claim": "The native Windows public runner executes the same source witness.",
-          "sha256": "sha256:84400156c1c548c0d6a8f4a34b1e5e4718b611ea65f89b7bd6bad54ebf4ba617"
+          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53608,13 +53608,13 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantBoolMutationFixture",
           "claim": "The Linux/WSL public runner executes exact Boolean output.",
-          "sha256": "sha256:7525802c25630f4994b015ef4821fff7c3e2825819c4d6196634ca47e4ace7b7"
+          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantBoolMutationFixture",
           "claim": "The native Windows public runner executes the same witness.",
-          "sha256": "sha256:84400156c1c548c0d6a8f4a34b1e5e4718b611ea65f89b7bd6bad54ebf4ba617"
+          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53685,13 +53685,13 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantBranchMutationFixture",
           "claim": "The Linux/WSL public runner executes exact joined output.",
-          "sha256": "sha256:7525802c25630f4994b015ef4821fff7c3e2825819c4d6196634ca47e4ace7b7"
+          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantBranchMutationFixture",
           "claim": "The native Windows public runner executes the same witness.",
-          "sha256": "sha256:84400156c1c548c0d6a8f4a34b1e5e4718b611ea65f89b7bd6bad54ebf4ba617"
+          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53768,13 +53768,13 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantMultiBranchMutationFixture",
           "claim": "The Linux/WSL public runner executes exact joined output.",
-          "sha256": "sha256:7525802c25630f4994b015ef4821fff7c3e2825819c4d6196634ca47e4ace7b7"
+          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantMultiBranchMutationFixture",
           "claim": "The native Windows public runner executes the same witness.",
-          "sha256": "sha256:84400156c1c548c0d6a8f4a34b1e5e4718b611ea65f89b7bd6bad54ebf4ba617"
+          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53945,13 +53945,13 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantWhileFixture",
           "claim": "The public Linux/WSL runner executes exact Served 3 output.",
-          "sha256": "sha256:7525802c25630f4994b015ef4821fff7c3e2825819c4d6196634ca47e4ace7b7"
+          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantWhileFixture",
           "claim": "The pinned native Windows 23.1.1 runner executes exact Served 3 output.",
-          "sha256": "sha256:84400156c1c548c0d6a8f4a34b1e5e4718b611ea65f89b7bd6bad54ebf4ba617"
+          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54075,7 +54075,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantEnumFixture",
           "claim": "The pinned Windows 23.1.1 gate executes restaurant-enum.w with exact output, empty stderr, and zero exit.",
-          "sha256": "sha256:84400156c1c548c0d6a8f4a34b1e5e4718b611ea65f89b7bd6bad54ebf4ba617"
+          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54134,13 +54134,13 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantWmoFixture",
           "claim": "The pinned Windows native gate executes the same-module product closure with exact output.",
-          "sha256": "sha256:84400156c1c548c0d6a8f4a34b1e5e4718b611ea65f89b7bd6bad54ebf4ba617"
+          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
         },
         {
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantWmoFixture",
           "claim": "The Linux/WSL native gate executes the same source with exact output.",
-          "sha256": "sha256:7525802c25630f4994b015ef4821fff7c3e2825819c4d6196634ca47e4ace7b7"
+          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54211,7 +54211,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "processArgumentsCountFixture",
           "claim": "The pinned Windows gate executes one built PE for zero, empty, multiple, and exactly 256 user arguments with exact output and exit status.",
-          "sha256": "sha256:84400156c1c548c0d6a8f4a34b1e5e4718b611ea65f89b7bd6bad54ebf4ba617"
+          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
         }
       ],
       "benchmarkDisposition": "deferred",
@@ -54288,7 +54288,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "processArgumentsCountFixture",
           "claim": "The pinned Windows gate proves the branch and runtime count cases on the canonical flat-import fixture.",
-          "sha256": "sha256:84400156c1c548c0d6a8f4a34b1e5e4718b611ea65f89b7bd6bad54ebf4ba617"
+          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
         }
       ],
       "benchmarkDisposition": "deferred",
@@ -54347,13 +54347,13 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "processArgumentsCountFixture",
           "claim": "The Windows gate builds the canonical flat-import process fixture and checks exact runtime outputs.",
-          "sha256": "sha256:84400156c1c548c0d6a8f4a34b1e5e4718b611ea65f89b7bd6bad54ebf4ba617"
+          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "processArgumentsCountSelectiveImportFixture",
           "claim": "The Windows gate compares complete PE bytes for the selective-import witness and checks the same exact runtime outputs.",
-          "sha256": "sha256:84400156c1c548c0d6a8f4a34b1e5e4718b611ea65f89b7bd6bad54ebf4ba617"
+          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
         }
       ],
       "benchmarkDisposition": "deferred",
@@ -54362,8 +54362,8 @@
     {
       "decisionId": "W-1568",
       "summary": "future bounded module-graph dead-node elimination and artifact equivalence",
-      "canonicalClaim": "Future pipeline task: preserve the idiomatic process root `import std.process` followed by unaliased `Arguments`, `Context`, and `ExitCode`. For one bounded package/workspace executable, compare two explicit source graphs with the same reachable entry closure, where one adds unused imports or unreachable module nodes. After graph resolution, graph-to-HIR lowering, and product reachability, emit only reachable code, data, imports, and runtime records. The reachable semantic HIR digest, complete artifact bytes and artifact digest, stdout, stderr, exit status, and cleanup must match under the same target/profile and deterministic recipe. Graph and provenance digests may differ. Explicit effect, provider, service, reflection, FFI, dynamic-loading, or other runtime roots must prevent elimination. This is a future contract because current `w build` and `w run` are single-source and CHK4 is check-only.",
-      "claimDigest": "sha256:d203e182f2eba78669cf5b8e3b96dab31fbf0080855e59e1abd176368031d1d7",
+      "canonicalClaim": "Future pipeline task: preserve the idiomatic process root `import std.process` followed by unaliased `Arguments`, `Context`, and `ExitCode`. For one bounded package/workspace executable, compare two explicit source graphs with the same reachable entry closure, where one adds unused imports or unreachable module nodes. After graph resolution, graph-to-HIR lowering, and product reachability, emit only reachable code, data, imports, and runtime records. The reachable semantic HIR digest, complete artifact bytes and artifact digest, stdout, stderr, exit status, and cleanup must match under the same target/profile and deterministic recipe. Graph and provenance digests may differ. Explicit effect, provider, service, reflection, FFI, dynamic-loading, or other runtime roots must prevent elimination. W-1576 now supplies a bounded public local-module build/run route; this stronger equivalence and explicit-root-retention proof remains future work.",
+      "claimDigest": "sha256:f836c32841d7fb1592d0b99c72633f30ab76b5d29454b33ab5f2a852988d56ad",
       "category": "implementation-evidence-gap",
       "basis": "current-ledger-claim-without-executable-witness",
       "authorityRef": {
@@ -54371,32 +54371,30 @@
         "path": "DESIGN.md",
         "section": "26.4.1.49",
         "heading": "#### 26.4.1.49 W-1568 — future bounded module-graph dead-node elimination and artifact equivalence (Future task; implementation evidence missing)",
-        "sectionDigest": "sha256:35a2a2620dd8b1cb3d213c3f526fbc4eb0745a57929aa42a40688bf103f5d552"
+        "sectionDigest": "sha256:360e4d1f40d62ef7339531898e5b843240f79593aa6cc344683c7db725a89215"
       },
       "evidence": [],
       "gap": {
         "component": "multi-module-reachability-product-pipeline",
         "gate": "DESIGN.md §26.4.1.49 / 26.4.1.49 W-1568 — future bounded module-graph dead-node elimination and artifact equivalence (Future task; implementation evidence missing)",
         "missingEvidence": [
-          "multi-module-build-run-route",
-          "graph-to-hir-product-lowering",
           "reachability-closed-artifact-proof",
           "deterministic-target-profile-equivalence",
           "explicit-runtime-root-retention"
         ]
       },
-      "stopCondition": "W-1568 closes multi-module-reachability-product-pipeline only after DESIGN.md §26.4.1.49 / 26.4.1.49 W-1568 — future bounded module-graph dead-node elimination and artifact equivalence (Future task; implementation evidence missing) proves multi-module-build-run-route, graph-to-hir-product-lowering, reachability-closed-artifact-proof, deterministic-target-profile-equivalence, and explicit-runtime-root-retention.",
-      "reason": "W-1568 (future bounded module-graph dead-node elimination and artifact equivalence, sha256:d203e182f2eba78669cf5b8e3b96dab31fbf0080855e59e1abd176368031d1d7) remains implementation-evidence-gap in component multi-module-reachability-product-pipeline at gate DESIGN.md §26.4.1.49 / 26.4.1.49 W-1568 — future bounded module-graph dead-node elimination and artifact equivalence (Future task; implementation evidence missing). Current build/run remains single-source and CHK4 remains check-only. The missing evidence is multi-module-build-run-route, graph-to-hir-product-lowering, reachability-closed-artifact-proof, deterministic-target-profile-equivalence, and explicit-runtime-root-retention.",
+      "stopCondition": "W-1568 closes multi-module-reachability-product-pipeline only after DESIGN.md §26.4.1.49 / 26.4.1.49 W-1568 — future bounded module-graph dead-node elimination and artifact equivalence (Future task; implementation evidence missing) proves reachability-closed-artifact-proof, deterministic-target-profile-equivalence, and explicit-runtime-root-retention.",
+      "reason": "W-1568 (future bounded module-graph dead-node elimination and artifact equivalence, sha256:f836c32841d7fb1592d0b99c72633f30ab76b5d29454b33ab5f2a852988d56ad) remains an implementation-evidence gap in component multi-module-reachability-product-pipeline at gate DESIGN.md §26.4.1.49 / 26.4.1.49 W-1568 — future bounded module-graph dead-node elimination and artifact equivalence (Future task; implementation evidence missing). W-1576 now proves the bounded public local-module build/run path; native dead-node artifact equivalence and explicit runtime-root retention remain missing.",
       "selection": "explicit-ledger-id",
       "basisRef": {
         "kind": "ledger-row",
         "path": "RATIONALE.md",
         "section": "3. Ledger",
         "decisionId": "W-1568",
-        "claimDigest": "sha256:d203e182f2eba78669cf5b8e3b96dab31fbf0080855e59e1abd176368031d1d7"
+        "claimDigest": "sha256:f836c32841d7fb1592d0b99c72633f30ab76b5d29454b33ab5f2a852988d56ad"
       },
       "benchmarkDisposition": "deferred",
-      "benchmarkEvidence": "No compiler-lifecycle or runtime measurement is available. The task is deferred until the multi-module build/run route and deterministic reachability-closed artifact proof exist."
+      "benchmarkEvidence": "Bounded public local-module compiler/runtime correctness exists under W-1576. W-1568 remains deferred until deterministic reachability-closed native artifact equivalence and explicit-root retention are proven."
     },
     {
       "decisionId": "W-1569",
@@ -54475,13 +54473,13 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantWhileMultiFixture",
           "claim": "The Linux/WSL route executes exact Served 9 output from the public source.",
-          "sha256": "sha256:7525802c25630f4994b015ef4821fff7c3e2825819c4d6196634ca47e4ace7b7"
+          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantWhileMultiFixture",
           "claim": "The native Windows 23.1.1 route executes the same exact source and output.",
-          "sha256": "sha256:84400156c1c548c0d6a8f4a34b1e5e4718b611ea65f89b7bd6bad54ebf4ba617"
+          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54576,13 +54574,13 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantWhilePostFixture",
           "claim": "The Linux/WSL route executes the exact post-loop fixture and Final 9 oracle.",
-          "sha256": "sha256:7525802c25630f4994b015ef4821fff7c3e2825819c4d6196634ca47e4ace7b7"
+          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantWhilePostFixture",
           "claim": "The native Windows route executes the same post-loop fixture and Final 9 oracle.",
-          "sha256": "sha256:84400156c1c548c0d6a8f4a34b1e5e4718b611ea65f89b7bd6bad54ebf4ba617"
+          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54723,32 +54721,32 @@
     {
       "decisionId": "W-1575",
       "summary": "bounded resolved local-document graph into verified HIR",
-      "canonicalClaim": "The bounded HIR0 route accepts a resolver-complete acyclic local-document graph with one module per document, one explicit `.default` root entry in module 0, and an exported cross-module local call. HIR0 copies module and source identity with function, block, and call records. The frontend-to-HIR preflight checks import path and target identity, cycle freedom, and source-span ownership; the standalone HIR verifier checks the copied module, function, call, identity, dense-range, and root-entry relations. Focused C23 tests cover semantic/provenance digest behavior, frontend-lifetime independence, and forged path, cycle, ownership, entry, call, alias, and capacity rejection. Public multi-file `w build`/`w run`, DCE, product reachability, WMO/WPO, and artifact equivalence remain outside this decision; W-1568 remains an implementation-evidence gap.",
-      "claimDigest": "sha256:7a842e357f41844cdc85ae665c3613e83d1841ae32516ebbbcf1951026ec8003",
+      "canonicalClaim": "The bounded HIR0 route accepts a resolver-complete acyclic local-document graph with one module per document, one explicit `.default` root entry in module 0, and an exported cross-module local call. HIR0 copies module and source identity with function, block, and call records. The frontend-to-HIR preflight checks import path and target identity, cycle freedom, and source-span ownership; the standalone HIR verifier checks the copied module, function, call, identity, dense-range, and root-entry relations. Focused C23 tests cover semantic/provenance digest behavior, frontend-lifetime independence, and forged path, cycle, ownership, entry, call, alias, and capacity rejection. This decision owns verified HIR only; W-1576 owns the public local-module product route. DCE, WMO/WPO, and artifact equivalence remain outside W-1575; W-1568 remains an implementation-evidence gap.",
+      "claimDigest": "sha256:2ba715576c21acc7ccb7fa1fe1b3f4c0a2e4da95180cb23dcff4205f6e3ec1cd",
       "category": "source-backed-current",
       "basis": "linked-source-comparison-case",
       "authorityRef": {
         "kind": "source-case",
         "path": "tooling/substitution-cases.json",
         "caseId": "R0-hir0-multidoc",
-        "caseDigest": "sha256:d627afd70d3a3f211ab9f26d3a714deb4bc0032d9be4fa3f7c133c4718238bae"
+        "caseDigest": "sha256:b571354d4c644c377608d4332bd7776b973f26aa4f1c5a60f725a60188d2ae14"
       },
       "evidence": [
         {
           "kind": "source",
           "path": "tooling/substitution-cases.json",
           "caseId": "R0-hir0-multidoc",
-          "caseDigest": "sha256:d627afd70d3a3f211ab9f26d3a714deb4bc0032d9be4fa3f7c133c4718238bae"
+          "caseDigest": "sha256:b571354d4c644c377608d4332bd7776b973f26aa4f1c5a60f725a60188d2ae14"
         }
       ],
-      "reason": "W-1575 (bounded resolved local-document graph into verified HIR, sha256:7a842e357f41844cdc85ae665c3613e83d1841ae32516ebbbcf1951026ec8003) is source-backed-current only for the bounded resolver-complete local-document graph, one explicit root entry, one exported cross-module local call, and independent path, cycle, ownership, and HIR verification. Public multi-file w build/run, DCE, product reachability, WMO/WPO, and artifact equivalence remain gaps. W-1568 remains an implementation-evidence gap.",
+      "reason": "W-1575 (bounded resolved local-document graph into verified HIR, sha256:2ba715576c21acc7ccb7fa1fe1b3f4c0a2e4da95180cb23dcff4205f6e3ec1cd) is source-backed-current for the bounded resolver-complete local-document graph and verified HIR only. W-1576 owns public composition; DCE, WMO/WPO, and artifact equivalence remain gaps.",
       "selection": "explicit-ledger-id",
       "basisRef": {
         "kind": "ledger-row",
         "path": "RATIONALE.md",
         "section": "3. Ledger",
         "decisionId": "W-1575",
-        "claimDigest": "sha256:7a842e357f41844cdc85ae665c3613e83d1841ae32516ebbbcf1951026ec8003"
+        "claimDigest": "sha256:2ba715576c21acc7ccb7fa1fe1b3f4c0a2e4da95180cb23dcff4205f6e3ec1cd"
       },
       "sourceRefs": [
         {
@@ -54773,41 +54771,41 @@
           "path": "compiler/seed-c/tests/test_hir0_multidoc.c",
           "symbol": "test_multidoc_hir0",
           "claim": "Focused C23 tests cover multi-document HIR identity, digest behavior, frontend lifetime independence, forged graph relations, and transactional output checks.",
-          "sha256": "sha256:cfcb4a64fd0f0173b603c1fe5be075830408322a62e24d4961e5b25b49a15fd6"
+          "sha256": "sha256:3cc198708b090f797fe578f11999de7d7b209d3f8fc7c1be2b14cb192aba325b"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
-      "benchmarkEvidence": "Focused C23 HIR correctness evidence is current. Public multi-file build/run, DCE, artifact equivalence, timing, and ranking are not claimed."
+      "benchmarkEvidence": "Focused C23 HIR correctness evidence is current. Public local-module build/run belongs to W-1576; W-1575 does not claim DCE, artifact equivalence, timing, or ranking."
     },
     {
       "decisionId": "W-1576",
       "summary": "bounded ProductClosure0 reachable product projection",
-      "canonicalClaim": "ProductClosure0 runs only after complete HIR0 verification. It accepts the bounded scalar and local-call family with Unit, String, signed `i64`, and Bool values, one explicit `.default` entry at source entry index 0 in module 0, and the verified native `print` relation. Exported function metadata is semantic visibility metadata and is not a product root. The caller owns bounded output storage. ProductClosure0 publishes deterministic reachable and omitted module/function lists, source-to-closure remaps, supported scalar/value/type/requirement facts, and a reachable semantic digest. NativeSubset0 accepts the generic bounded multi-module path. MLIR0 retains an independent reachability walk and cross-checks each ProductClosure0 candidate. The real app→lib witness retains the reachable helper. A synthetic dead module is omitted, while the reachable digest and emitted MLIR remain byte-identical. Enum, switch, pattern, external-module, process, effect, service, reflection, FFI, and dynamic-loading families fail closed. No public multi-file build/run or native artifact/runtime equivalence is claimed. W-1568 remains open.",
-      "claimDigest": "sha256:d7e81c756fd2c7b6044f14fecc983d42c237e4fff55ba8901a63e0b979b50c3e",
+      "canonicalClaim": "ProductClosure0 runs only after complete HIR0 verification. It accepts the bounded scalar and local-call family with Unit, String, signed `i64`, and Bool values, one explicit `.default` entry at source entry index 0 in module 0, and the verified native `print` relation. Exported function metadata is semantic visibility metadata and is not a product root. The caller owns bounded output storage. ProductClosure0 publishes deterministic reachable and omitted module/function lists, source-to-closure remaps, supported scalar/value/type/requirement facts, and a reachable semantic digest. NativeSubset0 accepts the generic bounded multi-module path. MLIR0 retains an independent reachability walk and cross-checks each ProductClosure0 candidate. The public CLI confines acquisition to the explicit root's parent and composes acquisition, frontend, verified HIR, ProductClosure0, MLIR0, and native emission. The physical app→lib witness runs through public `w run` and `w build` on Windows x64 and Linux/WSL x64, prints exactly `answer 42\\n`, and rejects a private target before stdout or artifact publication. A synthetic dead module is omitted internally while the reachable digest and emitted MLIR remain byte-identical. Enum, switch, pattern, external-module, process, effect, service, reflection, FFI, and dynamic-loading families fail closed. Packages, workspaces, providers, multi-document process entry, native dead-node artifact equivalence, general WMO/WPO quality, and concurrency remain outside this slice. W-1568 remains open.",
+      "claimDigest": "sha256:dc0570f0a1f6918f2eca52da21baa5a759bf87ea4b5a21c8e21ed8a0337c4801",
       "category": "source-backed-current",
       "basis": "linked-source-comparison-case",
       "authorityRef": {
         "kind": "source-case",
         "path": "tooling/substitution-cases.json",
         "caseId": "R0-product-closure0",
-        "caseDigest": "sha256:9cf0e5ec15bd9141382d9438f08c08326d73b89e6816cc1d9e1ca607309f9a29"
+        "caseDigest": "sha256:1eec442badf41e094d21955ea547d187afaed81a3e74e2c72f83f33d1438a72c"
       },
       "evidence": [
         {
           "kind": "source",
           "path": "tooling/substitution-cases.json",
           "caseId": "R0-product-closure0",
-          "caseDigest": "sha256:9cf0e5ec15bd9141382d9438f08c08326d73b89e6816cc1d9e1ca607309f9a29"
+          "caseDigest": "sha256:1eec442badf41e094d21955ea547d187afaed81a3e74e2c72f83f33d1438a72c"
         }
       ],
-      "reason": "W-1576 (bounded ProductClosure0 reachable product projection, sha256:d7e81c756fd2c7b6044f14fecc983d42c237e4fff55ba8901a63e0b979b50c3e) is source-backed-current only for the bounded verified-HIR ProductClosure0 projection, deterministic module/function closure and digest, NativeSubset0 multi-module selection, independent MLIR cross-check, app→lib helper retention, synthetic dead-module omission, and byte-identical MLIR. Enum, switch, pattern, external-module, process, effect, service, reflection, FFI, and dynamic-loading families fail closed. No public multi-file build/run or native artifact/runtime equivalence is claimed. W-1568 remains an implementation-evidence gap.",
+      "reason": "W-1576 (bounded ProductClosure0 reachable product projection, sha256:dc0570f0a1f6918f2eca52da21baa5a759bf87ea4b5a21c8e21ed8a0337c4801) is source-backed-current for the bounded verified-HIR ProductClosure0 projection and the public local-module native route on Windows x64 and Linux/WSL x64. Packages, providers, process graphs, native dead-node artifact equivalence, general WMO/WPO quality, and concurrency remain gaps.",
       "selection": "explicit-ledger-id",
       "basisRef": {
         "kind": "ledger-row",
         "path": "RATIONALE.md",
         "section": "3. Ledger",
         "decisionId": "W-1576",
-        "claimDigest": "sha256:d7e81c756fd2c7b6044f14fecc983d42c237e4fff55ba8901a63e0b979b50c3e"
+        "claimDigest": "sha256:dc0570f0a1f6918f2eca52da21baa5a759bf87ea4b5a21c8e21ed8a0337c4801"
       },
       "sourceRefs": [
         {
@@ -54857,10 +54855,34 @@
           "symbol": "w_seed_product_closure0_tests",
           "claim": "The focused HIR gate builds and executes the ProductClosure0 unit.",
           "sha256": "sha256:a3270ea0f66253f27dd6bae9cdb4bede6e747480a68eb156383822d994d7b445"
+        },
+        {
+          "path": "compiler/seed-c/cli/check.c",
+          "symbol": "w_seed_check_compile_local_graph",
+          "claim": "The public CLI composes acquired local documents and resolved edges into Native0.",
+          "sha256": "sha256:fb0cad60fd42c41c98db7518677815273919dda3cf120b6226f6407717aad08c"
+        },
+        {
+          "path": "compiler/seed-c/cli/check_host.c",
+          "symbol": "w_seed_check_host_open_source",
+          "claim": "The host seam roots local graph acquisition at the explicit source parent.",
+          "sha256": "sha256:a666aa50dd0bc1e57889e6bd0a94918ef1b83b5ee294d88f64819be8b1d2b96c"
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "resolved local-module graph fixture",
+          "claim": "The Windows public gate runs and builds the graph and rejects a private target.",
+          "sha256": "sha256:bc5b8aefb35792dc50eb7b42f5877520608ea08e78965e223cd73dff6504e226"
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "resolved local-module graph",
+          "claim": "The Linux/WSL public gate runs and builds the graph and rejects a private target.",
+          "sha256": "sha256:84e82e08591d8092c2007994dc0fd71a6058e42777fdc21104a657e17010ee5e"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
-      "benchmarkEvidence": "Focused C23 ProductClosure0 correctness evidence is current. The milestone does not claim public multi-file build/run, native artifact/runtime equivalence, timing, or ranking."
+      "benchmarkEvidence": "Focused C23 ProductClosure0 correctness and public Windows/Linux local-module execution are current. The executable catalog owns the W source-set benchmark lane; C23/Rust multifile recipes and performance ranking remain blocked."
     }
   ],
   "auditSamples": {

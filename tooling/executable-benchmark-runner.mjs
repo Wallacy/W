@@ -34,6 +34,7 @@ import {
   ROOT,
   executableEquivalenceKey,
   executableHostIdentity,
+  executableSourceDigest,
   exactOutputDigest,
   isProcessArgumentWorkload,
   loadExecutableDocuments,
@@ -900,7 +901,16 @@ async function sourcePath(catalog, target, language) {
   if (!isContained(ROOT, filePath)) fail(`${language} ${target} source escapes the repository`);
   await regularFile(filePath, `${language} ${target} source`);
   if (await sha256File(filePath) !== source.digest) fail(`${language} ${target} source digest is stale`);
-  return { workload, source, filePath };
+  const supportSources = [];
+  for (const descriptor of source.supportSources ?? []) {
+    const supportPath = path.resolve(ROOT, descriptor.path);
+    if (!isContained(ROOT, supportPath)) fail(`${language} ${target} support source escapes the repository`);
+    await regularFile(supportPath, `${language} ${target} support source`);
+    if (await sha256File(supportPath) !== descriptor.digest)
+      fail(`${language} ${target} support source digest is stale`);
+    supportSources.push({ descriptor, filePath: supportPath });
+  }
+  return { workload, source, filePath, supportSources };
 }
 
 function isProcessHandlerLifecycle(target) {
@@ -1817,7 +1827,7 @@ function toolchainProvenance(context) {
       executionKind: PROCESS_ENTRY0_EXECUTION_KIND,
       finalArtifactTarget: EXECUTABLE_ARTIFACT_TARGET_MINGW,
       handlerSymbol: PROCESS_ENTRY0_HANDLER_SYMBOL,
-      sourceDigest: context.source.source.digest,
+      sourceDigest: executableSourceDigest(context.source.source),
       supportSources,
       finalLink: {
         driver: path.basename(context.processLinker.command).replace(/\.exe$/iu, ""),
@@ -1909,7 +1919,7 @@ function makeResult(context, correctness, compileWarmup, compileRaw, runWarmup, 
     verdict: "not-evaluated",
     equivalenceKey: executableEquivalenceKey(context.catalog, context.target, EXECUTABLE_PLATFORM_TARGET, "release", source.recipeClass),
     identity: {
-      sourceDigest: source.digest,
+      sourceDigest: executableSourceDigest(source),
       platformTarget: EXECUTABLE_PLATFORM_TARGET,
       artifactTarget,
       profile: "release",
@@ -1947,7 +1957,7 @@ function makeResult(context, correctness, compileWarmup, compileRaw, runWarmup, 
     compile: sampleSeries(compileWarmup, compileRaw),
     run: sampleSeries(runWarmup, runRaw, context.nativeBenchmark?.abi),
     provenance: {
-      sourceDigest: source.digest,
+      sourceDigest: executableSourceDigest(source),
       artifactDigest: correctness.artifactDigest,
       recipeDigest,
       toolchainDigest: sha256Json(toolchainProvenance(context)),

@@ -6739,7 +6739,7 @@
         "repeated input keeps semantic and provenance digests stable while whitespace changes provenance only",
         "verification succeeds after frontend and document buffers are cleared",
         "forged path, cycle, source-span owner, entry, call, output alias, and capacity relations fail closed",
-        "public multi-file w build/run, DCE, and artifact equivalence remain outside W-1575 and W-1568 remains a gap"
+        "public local-module composition belongs to W-1576; DCE, WMO/WPO quality, and artifact equivalence remain outside W-1575 and W-1568 remains a gap"
       ],
       "measures": [
         "semantic-correctness",
@@ -6754,13 +6754,13 @@
       "decisions": [
         "W-1576"
       ],
-      "task": "Project complete verified HIR into caller-owned ProductClosure0 closure data, cross-check it with an independent MLIR reachability walk, and omit a synthetic dead module without changing the reachable digest or MLIR bytes.",
+      "task": "Project complete verified HIR into caller-owned ProductClosure0 closure data, cross-check it with an independent MLIR reachability walk, expose the bounded local graph through public build/run, and omit a synthetic dead module without changing the reachable digest or MLIR bytes.",
       "selected": {
         "language": "w",
         "source": [
           "// app.w",
           "import { helper as h } from lib",
-          "fn run(): i64 { return h() }",
+          "fn run() { let value = h() print(\"answer ${value}\") }",
           "entry(run)",
           "// lib.w",
           "module lib",
@@ -6801,12 +6801,12 @@
           "expectedDifference": "The selected MLIR route computes reachability independently and rejects a disagreement with ProductClosure0."
         },
         {
-          "name": "public-multifile-native-equivalence",
-          "language": "text",
+          "name": "unconfined-ambient-graph",
+          "language": "w-internal-rejected",
           "source": [
-            "promote the internal projection to public multi-file build/run and native artifact/runtime equivalence"
+            "resolve local imports by scanning cwd or by allowing the graph to escape the explicit root parent"
           ],
-          "expectedDifference": "The selected milestone remains compiler-lifecycle correctness evidence and keeps W-1568 open."
+          "expectedDifference": "The selected CLI opens the explicit root parent and confines all local graph acquisition to that provider root."
         }
       ],
       "sourceRefs": [
@@ -6849,6 +6849,41 @@
           "path": "tooling/check-hir0.mjs",
           "symbol": "w_seed_product_closure0_tests",
           "claim": "The focused HIR gate builds and executes the ProductClosure0 unit."
+        },
+        {
+          "path": "compiler/seed-c/cli/check.c",
+          "symbol": "w_seed_check_compile_local_graph",
+          "claim": "The CLI acquisition seam composes the reachable resolver-complete graph into Native0."
+        },
+        {
+          "path": "compiler/seed-c/cli/check_host.c",
+          "symbol": "w_seed_check_host_open_source",
+          "claim": "The host adapter confines Linux graph acquisition to the explicit root source parent."
+        },
+        {
+          "path": "compiler/seed-c/cli/run.c",
+          "symbol": "w_seed_run_compile",
+          "claim": "Public run and build preserve the single-document route and fall back to the bounded local graph route."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/local-graph/app.w",
+          "symbol": "answer ${value}",
+          "claim": "The public root imports and executes an exported helper from a physical local module."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/local-graph/lib.w",
+          "symbol": "export fn helper",
+          "claim": "The physical child module publishes the only imported local target."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "resolved local-module graph fixture",
+          "claim": "The Windows gate runs and builds the public local graph and rejects a private target."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "resolved local-module graph",
+          "claim": "The Linux/WSL gate runs and builds the public local graph and rejects a private target."
         }
       ],
       "checks": [
@@ -6858,7 +6893,9 @@
         "the reachable semantic digest remains equal after adding a synthetic dead module",
         "NativeSubset0 generic multi-module selection agrees with the independent MLIR ProductClosure0 cross-check",
         "the app-to-lib helper is retained, unused functions are omitted, and base/dead MLIR bytes are identical",
-        "enum, switch, pattern, external, process, effect, service, reflection, FFI, and dynamic-loading families fail closed without public multi-file or native-equivalence claims"
+        "public w run/build on Windows x64 and Linux/WSL x64 print exactly answer 42 and reject a private cross-module target without partial output",
+        "local acquisition is confined to the explicit root parent and does not scan cwd, PATH, packages, workspaces, or providers",
+        "enum, switch, pattern, external, process, effect, service, reflection, FFI, and dynamic-loading families fail closed; native dead-node artifact equivalence remains W-1568"
       ],
       "measures": [
         "semantic-correctness",

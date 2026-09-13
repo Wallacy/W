@@ -52,6 +52,15 @@ w_seed_check_host_status w_seed_check_host_init(w_seed_check_host *host);
 w_seed_check_host_status w_seed_check_host_open(
     w_seed_check_host *host, w_seed_ephemeral_provider_backend *backend);
 
+/* Open the explicit source's parent as the retained provider root and return
+ * the root leaf to acquire inside that boundary. Linux uses this stricter
+ * form for absolute public build/run paths. Other supported hosts preserve
+ * their existing explicit-path adapter until the same capability is proven. */
+w_seed_check_host_status w_seed_check_host_open_source(
+    w_seed_check_host *host, const char *path, size_t path_length,
+    w_seed_byte_view *root_path,
+    w_seed_ephemeral_provider_backend *backend);
+
 /* Idempotent. A repeated close performs no native close and is safe. */
 void w_seed_check_host_close(w_seed_check_host *host);
 

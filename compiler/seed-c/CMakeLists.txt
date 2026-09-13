@@ -314,7 +314,12 @@ target_link_libraries(w PRIVATE w_seed_source)
 add_executable(w_seed_run_cli_tests
   tests/test_run.c
   cli/run.c
+  cli/check.c
   cli/check_host.c
+  cli/check_pipeline.c
+  cli/check_retry.c
+  cli/check_storage.c
+  cli/io.c
 )
 target_include_directories(w_seed_run_cli_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/cli
@@ -325,7 +330,12 @@ add_executable(w_seed_build_cli_tests
   tests/test_build.c
   cli/build.c
   cli/run.c
+  cli/check.c
   cli/check_host.c
+  cli/check_pipeline.c
+  cli/check_retry.c
+  cli/check_storage.c
+  cli/io.c
 )
 target_include_directories(w_seed_build_cli_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/cli

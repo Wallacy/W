@@ -47,8 +47,10 @@ enum {
   CHECK_ENTRIES = 4096,
   CHECK_STATEMENTS = 65536,
   CHECK_EXPRESSIONS = 262144,
+  CHECK_INTERPOLATION_SEGMENTS = 262144,
   CHECK_ARGUMENTS = 65536,
   CHECK_SWITCH_ARMS = 65536,
+  CHECK_PATTERN_CAPTURES = 65536,
   CHECK_ENUM_MEMBERSHIP_CASES = 262144,
   CHECK_SYMBOLS = 131072,
   CHECK_FACTS = 131072,
@@ -137,8 +139,11 @@ static w_seed_frontend_parameter parameters[CHECK_PARAMETERS];
 static w_seed_frontend_entry entries[CHECK_ENTRIES];
 static w_seed_frontend_statement statements[CHECK_STATEMENTS];
 static w_seed_frontend_expression expressions[CHECK_EXPRESSIONS];
+static w_seed_frontend_interpolation_segment
+    interpolation_segments[CHECK_INTERPOLATION_SEGMENTS];
 static w_seed_frontend_argument arguments[CHECK_ARGUMENTS];
 static w_seed_frontend_switch_arm switch_arms[CHECK_SWITCH_ARMS];
+static w_seed_frontend_pattern_capture pattern_captures[CHECK_PATTERN_CAPTURES];
 static w_seed_frontend_enum_membership_case
     enum_membership_cases[CHECK_ENUM_MEMBERSHIP_CASES];
 static w_seed_frontend_symbol symbols[CHECK_SYMBOLS];
@@ -264,6 +269,8 @@ static w_seed_frontend_output frontend_output_value(void) {
       .argument_capacity = CHECK_ARGUMENTS,
       .switch_arms = switch_arms,
       .switch_arm_capacity = CHECK_SWITCH_ARMS,
+      .pattern_captures = pattern_captures,
+      .pattern_capture_capacity = CHECK_PATTERN_CAPTURES,
       .enum_membership_cases = enum_membership_cases,
       .enum_membership_case_capacity = CHECK_ENUM_MEMBERSHIP_CASES,
       .entries = entries,
@@ -272,6 +279,8 @@ static w_seed_frontend_output frontend_output_value(void) {
       .statement_capacity = CHECK_STATEMENTS,
       .expressions = expressions,
       .expression_capacity = CHECK_EXPRESSIONS,
+      .interpolation_segments = interpolation_segments,
+      .interpolation_segment_capacity = CHECK_INTERPOLATION_SEGMENTS,
       .symbols = symbols,
       .symbol_capacity = CHECK_SYMBOLS,
       .facts = facts,
@@ -585,6 +594,121 @@ static const char *pipeline_failure_reason(
     default:
       return "source check failed";
   }
+}
+
+static w_seed_native0_status acquisition_native_status(
+    w_seed_acquisition_pipeline_status status) {
+  switch (status) {
+    case W_SEED_ACQUISITION_PIPELINE_CAPACITY:
+      return W_SEED_NATIVE0_CAPACITY;
+    case W_SEED_ACQUISITION_PIPELINE_UNSUPPORTED:
+      return W_SEED_NATIVE0_UNSUPPORTED;
+    case W_SEED_ACQUISITION_PIPELINE_IO:
+      return W_SEED_NATIVE0_SOURCE;
+    case W_SEED_ACQUISITION_PIPELINE_INVALID:
+    case W_SEED_ACQUISITION_PIPELINE_ALLOCATION:
+    case W_SEED_ACQUISITION_PIPELINE_FAULT:
+      return W_SEED_NATIVE0_INVALID;
+    case W_SEED_ACQUISITION_PIPELINE_OK:
+      return W_SEED_NATIVE0_OK;
+  }
+  return W_SEED_NATIVE0_INVALID;
+}
+
+static size_t check_backend_context_size(const w_seed_check_host *host) {
+  if (host == NULL) return 0u;
+#if defined(__linux__)
+  return sizeof(host->linux_context);
+#elif defined(_WIN32)
+  return sizeof(host->windows_context);
+#else
+  return 0u;
+#endif
+}
+
+w_seed_native0_status w_seed_check_compile_local_graph(
+    const char *path, const w_seed_mlir0_target *target,
+    w_seed_native0_storage *native_storage,
+    const w_seed_native0_output *native_output,
+    w_seed_native0_result *native_result) {
+  if (path == NULL || path[0] == '\0' || target == NULL ||
+      native_storage == NULL || native_output == NULL || native_result == NULL)
+    return W_SEED_NATIVE0_INVALID;
+  const size_t path_length = strlen(path);
+  w_seed_frontend_text root_source_id;
+  if (w_seed_check_root_source_id(path, path_length, &root_source_id) !=
+      W_SEED_CHECK_HOST_OK)
+    return W_SEED_NATIVE0_SOURCE;
+
+  w_seed_check_host host = {0};
+  w_seed_acquisition_storage storage = {0};
+  bool host_initialized = false;
+  bool storage_initialized = false;
+  w_seed_native0_status status = W_SEED_NATIVE0_INVALID;
+  if (w_seed_check_host_init(&host) != W_SEED_CHECK_HOST_OK) goto cleanup;
+  host_initialized = true;
+  if (!w_seed_acquisition_storage_init(&storage)) goto cleanup;
+  storage_initialized = true;
+  w_seed_byte_view acquisition_root_path;
+  const w_seed_check_host_status host_status =
+      w_seed_check_host_open_source(&host, path, path_length,
+                                    &acquisition_root_path, &host.backend);
+  if (host_status != W_SEED_CHECK_HOST_OK) {
+    status = host_status == W_SEED_CHECK_HOST_UNSUPPORTED
+                 ? W_SEED_NATIVE0_UNSUPPORTED
+                 : W_SEED_NATIVE0_SOURCE;
+    goto cleanup;
+  }
+
+  reset_driver_storage();
+  (void)memcpy(root_source_id_storage, root_source_id.data,
+               root_source_id.length);
+  const w_seed_frontend_text driver_root_source_id =
+      (w_seed_frontend_text){root_source_id_storage, root_source_id.length};
+  w_seed_ephemeral_driver_scratch driver_scratch = driver_scratch_value();
+  w_seed_ephemeral_driver_output driver_output = driver_output_value();
+  const w_seed_ephemeral_driver_input driver_input = {
+      acquisition_root_path,
+      driver_root_source_id,
+      {CHECK_SOURCES, W_SEED_EPHEMERAL_PROVIDER_MAX_SOURCE_BYTES,
+       W_SEED_EPHEMERAL_PROVIDER_MAX_TOTAL_SOURCE_BYTES,
+       W_SEED_EPHEMERAL_PROVIDER_MAX_PATH_BYTES,
+       W_SEED_EPHEMERAL_PROVIDER_MAX_TOKEN_BYTES},
+      W_SEED_EPHEMERAL_GRAPH_MAX_EDGES,
+      W_SEED_EPHEMERAL_GRAPH_MAX_DEPTH,
+      {65536u, 256u},
+      host.backend};
+  const w_seed_acquisition_pipeline_input acquisition_input = {
+      &driver_input, &driver_scratch, &driver_output, &storage,
+      check_backend_context_size(&host)};
+  w_seed_acquisition_pipeline_result acquisition_result;
+  const w_seed_acquisition_pipeline_status acquisition_status =
+      w_seed_acquisition_pipeline_run(&acquisition_input,
+                                      &acquisition_result);
+  status = acquisition_native_status(acquisition_status);
+  if (acquisition_status != W_SEED_ACQUISITION_PIPELINE_OK) goto cleanup;
+
+  const size_t edge_count = acquisition_result.graph_written.edges;
+  if (driver_output.document_count < 2u || edge_count == 0u) {
+    status = W_SEED_NATIVE0_UNSUPPORTED;
+    goto cleanup;
+  }
+  const w_seed_frontend_input frontend_input = {
+      .documents = driver_output.documents,
+      .document_count = driver_output.document_count,
+      .external_modules = NULL,
+      .external_module_count = 0u,
+      .host_scope = NULL,
+      .import_resolution_complete = true,
+      .resolved_imports = driver_output.graph.resolved_imports,
+      .resolved_import_count = edge_count};
+  status = w_seed_native0_run_frontend_graph(
+      &frontend_input, target, native_storage, native_output, native_result);
+
+cleanup:
+  if (storage_initialized) w_seed_acquisition_storage_destroy(&storage);
+  if (host_initialized) w_seed_check_host_close(&host);
+  return status;
 }
 
 int w_seed_check_run(const char *path, bool json) {

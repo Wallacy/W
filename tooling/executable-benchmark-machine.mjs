@@ -46,6 +46,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "process-enum-payload",
   "process-arguments-count",
   "process-arguments-ordering",
+  "local-module-graph",
   "process-handler-lifecycle",
 ]);
 export const EXECUTABLE_RUN_TARGETS = Object.freeze(
@@ -72,6 +73,7 @@ const PUBLIC_WINDOWS_RUN_VARIANTS = Object.freeze({
   "compiler/seed-c/fixtures/process-arguments-count.w": "process-arguments-count",
   "compiler/seed-c/fixtures/process-arguments-ordering.w": "process-arguments-ordering",
   "compiler/seed-c/fixtures/restaurant-repeat.w": "restaurant-repeat",
+  "compiler/seed-c/fixtures/local-graph/app.w": "local-module-graph",
 });
 export const PROCESS_ENTRY_WORKLOAD_ID = "process-entry";
 export const PROCESS_ENTRY_ORACLE_KIND = "argument-dependent-output";
@@ -526,6 +528,26 @@ function fileDigest(physical) {
   return "sha256:" + crypto.createHash("sha256").update(fs.readFileSync(physical)).digest("hex");
 }
 
+export function executableSourceDigest(source) {
+  if (!Array.isArray(source?.supportSources) || source.supportSources.length === 0)
+    return source?.digest;
+  return "sha256:" + crypto.createHash("sha256").update(JSON.stringify({
+    schema: "w-executable-source-set/1",
+    root: { path: source.path, digest: source.digest },
+    supportSources: source.supportSources,
+  })).digest("hex");
+}
+
+function checkSourceSupport(source, name, root, errors) {
+  if (!exactKeys(source, name, ["role", "path", "digest"], errors)) return;
+  if (!requiredString(source.role, name + ".role", errors) ||
+      !/^[a-z0-9][a-z0-9-]*$/u.test(source.role))
+    push(errors, name + ".role must be a canonical lowercase role.");
+  const physical = containedFile(root, source.path, name, errors);
+  if (physical && digest(source.digest, name + ".digest", errors) &&
+      source.digest !== fileDigest(physical)) push(errors, name + ".digest is stale.");
+}
+
 function checkProcessInputVector(value, name, errors) {
   if (!Array.isArray(value)) {
     push(errors, name + " must be an array of exact UTF-8 argument strings.");
@@ -592,6 +614,7 @@ function checkProcessExecution(execution, name, root, errors) {
 
 function checkSource(source, location, workload, root, errors) {
   const keys = ["language", "path", "digest", "entry", "status", "profile", "quality", "recipe", "recipeClass", "platformTarget", "artifactTarget", "comparability", "eligibility"];
+  if (source?.supportSources !== undefined) keys.push("supportSources");
   if (!exactKeys(source, location, keys, errors)) return;
   if (!EXECUTABLE_LANGUAGES.includes(source.language)) push(errors, location + ".language is invalid.");
   requiredString(source.entry, location + ".entry", errors);
@@ -627,6 +650,22 @@ function checkSource(source, location, workload, root, errors) {
   const physical = containedFile(root, source.path, location, errors);
   if (physical && path.extname(physical).toLowerCase() !== expectedExtension) push(errors, location + ".path extension does not match language.");
   if (physical && digest(source.digest, location + ".digest", errors) && source.digest !== fileDigest(physical)) push(errors, location + ".digest is stale.");
+  if (source.supportSources !== undefined) {
+    if (!Array.isArray(source.supportSources) || source.supportSources.length === 0) {
+      push(errors, location + ".supportSources must be a non-empty array.");
+    } else {
+      const roles = new Set();
+      const paths = new Set([source.path]);
+      for (const [index, support] of source.supportSources.entries()) {
+        const supportLocation = `${location}.supportSources[${index}]`;
+        checkSourceSupport(support, supportLocation, root, errors);
+        if (roles.has(support?.role)) push(errors, supportLocation + ".role must be unique.");
+        if (paths.has(support?.path)) push(errors, supportLocation + ".path must be unique in the source set.");
+        roles.add(support?.role);
+        paths.add(support?.path);
+      }
+    }
+  }
   if (workload.status !== "source-oracle-ready") push(errors, location + " cannot be present on a non-ready workload.");
 }
 
@@ -860,6 +899,9 @@ export function validateExecutableCatalog(catalog, documents = undefined, root =
     const fixturePattern = /resolve\(\s*seedDirectory\s*,\s*"fixtures"\s*,\s*"([^"]+\.w)"\s*\)/gu;
     for (const match of gateSource.matchAll(fixturePattern))
       publicFixtures.add(`compiler/seed-c/fixtures/${match[1]}`);
+    const nestedFixturePattern = /resolve\(\s*seedDirectory\s*,\s*"fixtures"\s*,\s*"([^"]+)"\s*,\s*"([^"]+\.w)"\s*\)/gu;
+    for (const match of gateSource.matchAll(nestedFixturePattern))
+      publicFixtures.add(`compiler/seed-c/fixtures/${match[1]}/${match[2]}`);
     const catalogSources = new Map();
     for (const workload of workloads)
       for (const descriptor of workload.sources ?? [])
@@ -1370,7 +1412,7 @@ export function validateExecutableResult(result, catalog = loadExecutableDocumen
     requiredString(result.identity.recipeClass, "executable result.identity.recipeClass", errors);
     digest(result.identity.recipeDigest, "executable result.identity.recipeDigest", errors);
     requiredString(result.identity.eligibility, "executable result.identity.eligibility", errors);
-    if (source && result.identity.sourceDigest !== source.digest) push(errors, "executable result.identity.sourceDigest must match the catalog source.");
+    if (source && result.identity.sourceDigest !== executableSourceDigest(source)) push(errors, "executable result.identity.sourceDigest must match the catalog source set.");
     const historicalWRecipe = options.allowHistoricalWRecipe === true && result.language === "w" && source?.recipe === "public-w-build-release" && result.identity.recipe === LEGACY_W_RESULT_RECIPE && result.identity.eligibility === LEGACY_W_RESULT_ELIGIBILITY;
     const identityMismatch = historicalWRecipe
       ? result.identity.recipeClass !== source?.recipeClass || result.identity.platformTarget !== source?.platformTarget || result.identity.artifactTarget !== source?.artifactTarget
@@ -1684,7 +1726,7 @@ export function validateExecutableBestMetric(record, catalog = loadExecutableDoc
   requiredString(record.recipe, "executable best metric.recipe", errors);
   requiredString(record.recipeClass, "executable best metric.recipeClass", errors);
   const staleSourceDigest = source &&
-    record.provenance?.sourceDigest !== source.digest;
+    record.provenance?.sourceDigest !== executableSourceDigest(source);
   if (source && record.recipeClass !== source.recipeClass) push(errors, "executable best metric.recipeClass must match the catalog source.");
   if (source) {
     const expectedKey = executableEquivalenceKey(catalog, record.workloadId, record.platformTarget, record.profile, source.recipeClass);
@@ -1766,7 +1808,7 @@ export function pruneExecutableBestMetrics(catalog) {
   const removedMetrics = [];
   for (const entry of entries) {
     const source = sourceFor(workloadFor(catalog, entry?.workloadId), entry?.language, entry?.platformTarget);
-    if (source && entry?.provenance?.sourceDigest !== source.digest) removedMetrics.push(entry.metric);
+    if (source && entry?.provenance?.sourceDigest !== executableSourceDigest(source)) removedMetrics.push(entry.metric);
     else retained.push(entry);
   }
   const changed = retained.length !== entries.length;
