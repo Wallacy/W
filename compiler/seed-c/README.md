@@ -1772,8 +1772,10 @@ out-of-range values are rejected without truncation.
 
 Native0 automatically selects `w-seed-mlir0-process-executable-1` for this
 verified HIR on `x86_64-pc-windows-msvc`. Explicit artifact selection uses the
-same verified route. W-1565 appends `Arguments.count` to form the current
-seven-symbol public catalog; the private four-symbol handler remains unchanged.
+same verified route. W-1565 appends `Arguments.count` to the seven-symbol
+public catalog. W-1566 adds its bounded `==`/`!=` comparison form, and W-1567
+records flat/selective import equivalence. The private four-symbol handler
+remains unchanged.
 The generated `mainCRTStartup` captures
 `GetCommandLineW`, skips the program token, and retains at most 256 borrowed
 UTF-16 descriptors. The descriptor table is a zero-initialized private PE
@@ -1784,8 +1786,9 @@ single-startup artifact state, not a W runtime ABI or public layout.
 The adapter constructs a private root and distinct `Arguments`/`Context` owner
 records, executes the verified body, releases `Context`, releases `Arguments`,
 and then finalizes the root. W-1547 admitted only the canonical `isEmpty`
-receiver read; W-1565 also admits the canonical scalar `count` read. Ordinary
-copies, local-call
+receiver read; W-1565 also admits the canonical scalar `count` read, and
+W-1566 admits its bounded equality or inequality predicate. Ordinary copies,
+local-call
 arguments, enum payloads, and returns are rejected. Direct entry is published
 only after the complete reachable body proves non-suspending. Direct text,
 signed `i64`, and Bool print values, including known String literal chains, are
@@ -1820,7 +1823,9 @@ no parameter ABI, the actual entry `Arguments` receiver, and canonical scalar
 type. HIR represents it with a distinct logical `USIZE` kind. Raw
 `Arguments`/`Context` values still cannot bind, escape, enter a local call, or
 become an enum payload; only the resulting `usize` is an ordinary copy value,
-currently admitted in bindings and direct-print interpolation. Non-optional
+currently admitted in bindings and direct-print interpolation. General `usize`
+arithmetic, ordering, and comparisons outside the bounded count-literal form
+remain unsupported. Non-optional
 `Arguments` also makes `args?.count` invalid rather than a spelling alias for
 `args.count`.
 
@@ -1834,6 +1839,47 @@ domain. The focused
 `w-run-windows` gate executes the same built PE for zero, empty, ordinary
 multiple, and exactly 256 user arguments. The executable catalog owns the
 separate exploratory W/C/Rust measurement lane.
+
+### Bounded public `Arguments.count` equality (W-1566)
+
+HIR27 advances the schema to `w-seed-hir0-27` and adds a dedicated
+`USIZE_COUNT_COMPARISON` value plus a logical `CONST_USIZE` literal. The public
+process subset accepts only `==` or `!=` between the exact resolver-owned
+`std.process.Arguments.count` member on the entry's real `Arguments` owner and
+a nonnegative unsuffixed integer literal. Either operand order is valid. The
+result is `Bool`.
+
+General `usize` arithmetic and ordering remain unsupported. Helper function
+parameters and returns of type `usize` remain unsupported too. Negative and
+computed literals, other comparison operators, owner escape, and forged
+identity or type metadata fail closed. Raw `Arguments` and `Context` values
+remain non-lowerable.
+
+HIR retains logical `usize`. NativeSubset0 and MLIR0 recheck the relation, and
+the verified Windows x86_64 layout uses physical `i64` only at the MLIR
+boundary. The helper reads the existing process-root count without scanning,
+allocation, copying, or suspension. Focused HIR0, MLIR0, and Native0 tests and
+the pinned Windows gate cover the accepted predicate and bounded runtime count
+cases.
+
+### Flat and selective `std.process` imports (W-1567)
+
+[`fixtures/process-arguments-count.w`](fixtures/process-arguments-count.w) is
+the canonical flat-import witness. It uses `import std.process` with direct
+`Arguments`, `Context`, and `ExitCode` names. The selective witness
+[`tests/fixtures/process-arguments-count-selective-import.w`](tests/fixtures/process-arguments-count-selective-import.w)
+uses grouped local aliases and the same body.
+
+The frontend and HIR accept one flat import item or three selective items. Both
+forms produce the same semantic HIR digest. Their provenance digests differ by
+source spelling and spans. Under the same target and profile, the pinned
+Windows x86_64 gate builds byte-identical PE images and runs both images with
+zero, empty, ordinary multiple, and exactly 256 user arguments. It checks exact
+output, empty stderr, exit status, and cleanup for each image. The direct link
+uses `/Brepro`, so the byte comparison is independent of COFF timestamp timing.
+
+This is bounded same-module process evidence. It does not establish general
+cross-module import equivalence or WMO/WPO.
 
 ### PROCESS0 provider kernel (post-W-1546)
 

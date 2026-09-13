@@ -530,10 +530,13 @@ static bool frontend_external_process_records_ok(
   }
   if (frontend_input->external_module_count != 1u ||
       frontend_input->resolved_import_count != 1u ||
-      result->written.imports != 1u || result->written.import_items != 3u ||
+      result->written.imports != 1u ||
+      (result->written.import_items != 1u &&
+       result->written.import_items != 3u) ||
       frontend_input->external_modules == NULL ||
       frontend_input->resolved_imports == NULL || output->imports == NULL ||
-      output->import_items == NULL || result->written.modules != 1u)
+      output->import_items == NULL ||
+      result->written.modules != 1u)
     return false;
 
   const w_seed_frontend_external_module *module =
@@ -598,15 +601,25 @@ static bool frontend_external_process_records_ok(
 
   const w_seed_frontend_module *frontend_module = &output->modules[0];
   const w_seed_frontend_import *import = &output->imports[0];
+  const bool flattened = result->written.import_items == 1u;
   if (frontend_module->first_import != 0u ||
       frontend_module->import_count != 1u || import->module_index != 0u ||
       !text_is(import->path, HIR0_PROCESS_MODULE) ||
       !text_valid(import->alias) || import->first_item != 0u ||
-      import->item_count != 3u || import->direct_import_ordinal != 0u ||
+      import->item_count != (flattened ? 1u : 3u) ||
+      import->direct_import_ordinal != 0u ||
       import->target_kind != W_SEED_FRONTEND_IMPORT_EXTERNAL_MODULE ||
       import->target_index != 0u ||
       !frontend_span_ok(&frontend_input->documents[0], import->span))
     return false;
+  if (flattened) {
+    const w_seed_frontend_import_item *item = &output->import_items[0];
+    if (!text_is(import->alias, "std") || item->module_index != 0u ||
+        !text_equal(item->name, import->alias) ||
+        !text_equal(item->local_name, import->alias) ||
+        !frontend_span_ok(&frontend_input->documents[0], item->span))
+      return false;
+  }
   const w_seed_frontend_resolved_import *edge =
       &frontend_input->resolved_imports[0];
   if (edge->source_document_index != 0u || edge->direct_import_ordinal != 0u ||
@@ -614,7 +627,7 @@ static bool frontend_external_process_records_ok(
       edge->target_index != 0u || !span_equal(edge->import_declaration_span,
                                               import->span))
     return false;
-  for (size_t index = 0u; index < 3u; index += 1u) {
+  for (size_t index = 0u; !flattened && index < 3u; index += 1u) {
     const w_seed_frontend_import_item *item = &output->import_items[index];
     if (item->module_index != 0u ||
         !text_is(item->name, symbol_names[index]) ||
@@ -953,6 +966,7 @@ static bool frontend_function_ranges_ok(const w_seed_hir0_input *input) {
         !text_valid(function->name) || function->name.length == 0u ||
         function->return_type == W_SEED_FRONTEND_NONE ||
         (size_t)function->return_type >= result->written.types ||
+        frontend_type_is_usize(&output->types[function->return_type]) ||
         (output->types[function->return_type].kind !=
              W_SEED_FRONTEND_TYPE_UNIT &&
          !frontend_hir_type_supported(input,
@@ -991,6 +1005,7 @@ static bool frontend_function_ranges_ok(const w_seed_hir0_input *input) {
       if (value->owner_function != index || value->module_index != function->module_index ||
           value->type_index == W_SEED_FRONTEND_NONE ||
           (size_t)value->type_index >= result->written.types ||
+          frontend_type_is_usize(&output->types[value->type_index]) ||
           !frontend_hir_type_supported(input, &output->types[value->type_index]) ||
           !frontend_span_ok(&input->frontend_input->documents[
                                 module->document_index],
@@ -1166,6 +1181,19 @@ static bool frontend_integer_i64(const w_seed_frontend_expression *value,
   return true;
 }
 
+static bool frontend_integer_u64(const w_seed_frontend_expression *value,
+                                 uint64_t *out) {
+  if (value == NULL || out == NULL || !value->has_integer_value) return false;
+  uint64_t magnitude = 0u;
+  for (size_t index = sizeof(uint64_t); index < sizeof(value->integer_value);
+       index += 1u)
+    if (value->integer_value[index] != 0u) return false;
+  for (size_t index = 0u; index < sizeof(uint64_t); index += 1u)
+    magnitude |= (uint64_t)value->integer_value[index] << (index * 8u);
+  *out = magnitude;
+  return true;
+}
+
 static bool frontend_value_common_ok(
     const w_seed_hir0_input *input, const w_seed_frontend_expression *value,
     size_t module_index, size_t function_index, size_t document_index) {
@@ -1253,6 +1281,16 @@ static bool frontend_external_member_value_ok(
     size_t function_index, size_t document_index,
     const w_seed_frontend_expression *value);
 
+static bool frontend_usize_count_comparison_ok(
+    const w_seed_hir0_input *input, size_t module_index,
+    size_t function_index, size_t document_index,
+    const w_seed_frontend_expression *value);
+
+static bool frontend_usize_count_comparison_literal_ok(
+    const w_seed_hir0_input *input, size_t module_index,
+    size_t function_index, size_t document_index,
+    const w_seed_frontend_expression *value);
+
 static bool frontend_external_type_is(const w_seed_hir0_input *input,
                                       uint32_t type_index,
                                       uint32_t module_index,
@@ -1275,6 +1313,16 @@ static bool frontend_expression_is_bool(
          expression->inferred_type != W_SEED_FRONTEND_NONE &&
          output->types[expression->inferred_type].kind ==
              W_SEED_FRONTEND_TYPE_BOOL;
+}
+
+static bool frontend_expression_is_usize(
+    const w_seed_frontend_output *output,
+    const w_seed_frontend_result *result,
+    const w_seed_frontend_expression *expression) {
+  return output != NULL && result != NULL && expression != NULL &&
+         expression->inferred_type != W_SEED_FRONTEND_NONE &&
+         (size_t)expression->inferred_type < result->written.types &&
+         frontend_type_is_usize(&output->types[expression->inferred_type]);
 }
 
 static bool frontend_pattern_capture_read_ok(
@@ -1594,6 +1642,9 @@ static bool frontend_scalar_if_tree_ok(
                                       allow_logical, depth + 1u);
   }
   if (value->kind == W_SEED_FRONTEND_EXPR_BINARY) {
+    if (frontend_usize_count_comparison_ok(
+            input, module_index, function_index, document_index, value))
+      return true;
     const w_seed_hir0_logical_operator logical =
         hir_logical_operator(value->operator_text);
     if (logical != W_SEED_HIR0_LOGICAL_NONE && !allow_logical) return false;
@@ -1624,6 +1675,24 @@ static bool frontend_scalar_if_tree_ok(
 /* Frontend expressions are append-only postorder records. This walk consumes
  * exactly one dense subtree and measures the normalized HIR value tree. A
  * finite depth bound keeps validation stack use independent of hostile input. */
+static bool frontend_usize_literal_leaf_ok(
+    const w_seed_hir0_input *input, size_t module_index,
+    size_t function_index, size_t document_index, uint32_t root_index,
+    size_t *expression_cursor, size_t *value_total) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || expression_cursor == NULL ||
+      value_total == NULL || root_index == W_SEED_FRONTEND_NONE ||
+      (size_t)root_index >= input->frontend_result->written.expressions ||
+      (size_t)root_index != *expression_cursor ||
+      !frontend_usize_count_comparison_literal_ok(
+          input, module_index, function_index, document_index,
+          &input->frontend_output->expressions[root_index]) ||
+      !add_size(*value_total, 1u, value_total) ||
+      !add_size(*expression_cursor, 1u, expression_cursor))
+    return false;
+  return true;
+}
+
 static bool frontend_value_tree_ok(
     const w_seed_hir0_input *input, size_t module_index, size_t function_index,
     size_t document_index, size_t use_statement, uint32_t root_index,
@@ -1797,6 +1866,42 @@ static bool frontend_value_tree_ok(
           (size_t)root_index != *expression_cursor ||
           !add_size(*value_total, 2u, value_total) ||
           !add_size(*logical_total, 1u, logical_total) ||
+          !add_size(*expression_cursor, 1u, expression_cursor))
+        return false;
+      return true;
+    }
+    if (frontend_usize_count_comparison_ok(
+            input, module_index, function_index, document_index, value)) {
+      const bool left_literal =
+          frontend_usize_count_comparison_literal_ok(
+              input, module_index, function_index, document_index,
+              &output->expressions[value->left]);
+      const bool right_literal =
+          frontend_usize_count_comparison_literal_ok(
+              input, module_index, function_index, document_index,
+              &output->expressions[value->right]);
+      if (!(left_literal
+                ? frontend_usize_literal_leaf_ok(
+                      input, module_index, function_index, document_index,
+                      value->left, expression_cursor, value_total)
+                : frontend_value_tree_ok(
+                      input, module_index, function_index, document_index,
+                      use_statement, value->left, depth + 1u,
+                      expression_cursor, segment_cursor, const_byte_cursor,
+                      value_total, segment_total, value_bytes, call_total,
+                      argument_total, logical_total)) ||
+          !(right_literal
+                ? frontend_usize_literal_leaf_ok(
+                      input, module_index, function_index, document_index,
+                      value->right, expression_cursor, value_total)
+                : frontend_value_tree_ok(
+                      input, module_index, function_index, document_index,
+                      use_statement, value->right, depth + 1u,
+                      expression_cursor, segment_cursor, const_byte_cursor,
+                      value_total, segment_total, value_bytes, call_total,
+                      argument_total, logical_total)) ||
+          (size_t)root_index != *expression_cursor ||
+          !add_size(*value_total, 1u, value_total) ||
           !add_size(*expression_cursor, 1u, expression_cursor))
         return false;
       return true;
@@ -3752,6 +3857,92 @@ static bool frontend_external_member_value_ok(
          parameter->label_kind == W_SEED_FRONTEND_LABEL_REQUIRED;
 }
 
+/* Keep the only usize comparison at the public process boundary.  The
+ * frontend contextualizes an unsuffixed literal against Args.count as usize;
+ * HIR preserves that logical type in a dedicated constant record.  This
+ * predicate never admits the result as a general usize expression. */
+static bool frontend_usize_count_comparison_literal_ok(
+    const w_seed_hir0_input *input, size_t module_index,
+    size_t function_index, size_t document_index,
+    const w_seed_frontend_expression *value) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || value == NULL ||
+      !frontend_has_public_process(input) ||
+      !frontend_value_common_ok(input, value, module_index, function_index,
+                                document_index) ||
+      value->kind != W_SEED_FRONTEND_EXPR_INTEGER ||
+      value->left != W_SEED_FRONTEND_NONE ||
+      value->right != W_SEED_FRONTEND_NONE ||
+      value->first_argument != W_SEED_FRONTEND_NONE ||
+      value->argument_count != 0u ||
+      value->inferred_type == W_SEED_FRONTEND_NONE ||
+      !frontend_expression_is_usize(input->frontend_output,
+                                    input->frontend_result, value) ||
+      !value->has_integer_value || value->has_bool_value ||
+      !frontend_value_has_no_resolution(value) ||
+      value->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
+      value->const_byte_offset != W_SEED_FRONTEND_NONE ||
+      value->const_byte_count != 0u ||
+      value->first_interpolation_segment != W_SEED_FRONTEND_NONE ||
+      value->interpolation_segment_count != 0u ||
+      value->else_expression != W_SEED_FRONTEND_NONE ||
+      value->enum_index != W_SEED_FRONTEND_NONE ||
+      value->enum_case_index != W_SEED_FRONTEND_NONE)
+    return false;
+  uint64_t integer_value = 0u;
+  return frontend_integer_u64(value, &integer_value);
+}
+
+static bool frontend_usize_count_comparison_ok(
+    const w_seed_hir0_input *input, size_t module_index,
+    size_t function_index, size_t document_index,
+    const w_seed_frontend_expression *value) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || value == NULL ||
+      !frontend_has_public_process(input) ||
+      !frontend_value_common_ok(input, value, module_index, function_index,
+                                document_index) ||
+      value->kind != W_SEED_FRONTEND_EXPR_BINARY ||
+      value->left == W_SEED_FRONTEND_NONE ||
+      value->right == W_SEED_FRONTEND_NONE ||
+      (size_t)value->left >= input->frontend_result->written.expressions ||
+      (size_t)value->right >= input->frontend_result->written.expressions ||
+      value->inferred_type == W_SEED_FRONTEND_NONE ||
+      !frontend_expression_is_bool(input->frontend_output, value) ||
+      !frontend_value_has_no_resolution(value) ||
+      value->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
+      value->const_byte_offset != W_SEED_FRONTEND_NONE ||
+      value->const_byte_count != 0u || value->has_bool_value ||
+      value->has_integer_value || value->else_expression !=
+                                       W_SEED_FRONTEND_NONE ||
+      hir_logical_operator(value->operator_text) !=
+          W_SEED_HIR0_LOGICAL_NONE ||
+      (!text_is(value->operator_text, "==") &&
+       !text_is(value->operator_text, "!=")))
+    return false;
+  const w_seed_frontend_expression *left =
+      &input->frontend_output->expressions[value->left];
+  const w_seed_frontend_expression *right =
+      &input->frontend_output->expressions[value->right];
+  const bool left_count =
+      frontend_external_member_value_ok(input, module_index, function_index,
+                                        document_index, left) &&
+      left->resolved_external_symbol_index == 6u &&
+      frontend_expression_is_usize(input->frontend_output,
+                                   input->frontend_result, left);
+  const bool right_count =
+      frontend_external_member_value_ok(input, module_index, function_index,
+                                        document_index, right) &&
+      right->resolved_external_symbol_index == 6u &&
+      frontend_expression_is_usize(input->frontend_output,
+                                   input->frontend_result, right);
+  const bool left_literal = frontend_usize_count_comparison_literal_ok(
+      input, module_index, function_index, document_index, left);
+  const bool right_literal = frontend_usize_count_comparison_literal_ok(
+      input, module_index, function_index, document_index, right);
+  return (left_count && right_literal) || (right_count && left_literal);
+}
+
 static bool frontend_statement_chain_ends_in_return(
     const w_seed_hir0_input *input, uint32_t first_statement) {
   if (input == NULL || input->frontend_output == NULL ||
@@ -4982,6 +5173,28 @@ typedef struct {
   size_t loop_body_block;
   size_t loop_exit_block;
 } hir0_emit_context;
+
+static bool hir0_usize_count_comparison_source_ok(
+    const hir0_emit_context *context,
+    const w_seed_frontend_expression *source) {
+  if (context == NULL || source == NULL || context->frontend == NULL ||
+      context->frontend_result == NULL || context->frontend_input == NULL ||
+      context->function >= context->frontend_result->written.functions)
+    return false;
+  const w_seed_frontend_function *function =
+      &context->frontend->functions[context->function];
+  if (function->module_index >= context->frontend_result->written.modules)
+    return false;
+  const w_seed_frontend_module *module =
+      &context->frontend->modules[function->module_index];
+  if (module->document_index >= context->frontend_input->document_count)
+    return false;
+  const w_seed_hir0_input input = {context->frontend_input, context->frontend,
+                                   context->frontend_result};
+  return frontend_usize_count_comparison_ok(
+      &input, function->module_index, context->function, module->document_index,
+      source);
+}
 
 static size_t hir0_expression_logical_count(const hir0_emit_context *context,
                                             uint32_t expression,
@@ -7040,6 +7253,8 @@ static uint32_t hir0_emit_value_m2(
     return result;
   }
   if (source->kind == W_SEED_FRONTEND_EXPR_BINARY) {
+    const bool usize_count_comparison =
+        hir0_usize_count_comparison_source_ok(context, source);
     left = hir0_emit_value_m2(
         context, source->left, W_SEED_HIR0_VALUE_OWNER_BINARY,
         W_SEED_HIR0_NONE, 0u,
@@ -7051,7 +7266,9 @@ static uint32_t hir0_emit_value_m2(
     const uint32_t result = (uint32_t)*context->value_index;
     w_seed_hir0_value *target = &context->output->values[*context->value_index];
     *target = (w_seed_hir0_value){
-        .kind = W_SEED_HIR0_VALUE_BINARY_I64,
+        .kind = usize_count_comparison
+                    ? W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON
+                    : W_SEED_HIR0_VALUE_BINARY_I64,
         .owner_kind = owner_kind,
         .owner_index = owner_index,
         .owner_ordinal = owner_ordinal,
@@ -7300,9 +7517,17 @@ static uint32_t hir0_emit_value_m2(
           source->resolved_binding_statement, &target->binding_index);
     }
   } else if (source->kind == W_SEED_FRONTEND_EXPR_INTEGER) {
-    target->kind = W_SEED_HIR0_VALUE_CONST_I64;
-    target->type_index = 2u;
-    (void)frontend_integer_i64(source, &target->integer_value);
+    if (frontend_expression_is_usize(context->frontend,
+                                     context->frontend_result, source)) {
+      target->kind = W_SEED_HIR0_VALUE_CONST_USIZE;
+      target->type_index = hir_type_from_frontend(
+          context->frontend, context->frontend_result, source->inferred_type);
+      (void)frontend_integer_u64(source, &target->unsigned_integer_value);
+    } else {
+      target->kind = W_SEED_HIR0_VALUE_CONST_I64;
+      target->type_index = 2u;
+      (void)frontend_integer_i64(source, &target->integer_value);
+    }
   } else if (source->kind == W_SEED_FRONTEND_EXPR_BOOL) {
     target->kind = W_SEED_HIR0_VALUE_CONST_BOOL;
     target->type_index = 3u;
@@ -8232,6 +8457,7 @@ static void digest_program(const w_seed_hir0_program *program,
     digest_u32(&state, (uint32_t)value->unary_operator);
     digest_u32(&state, value->block_argument_index);
     digest_u64(&state, (uint64_t)value->integer_value);
+    digest_u64(&state, value->unsigned_integer_value);
     digest_bool(&state, value->bool_value);
     digest_bytes(&state, program, value->byte_offset, value->byte_count);
     digest_u32(&state, value->external_module_index);
@@ -8961,6 +9187,34 @@ static uint32_t hir0_external_type_index(const w_seed_hir0_program *program,
   return W_SEED_HIR0_NONE;
 }
 
+static bool hir0_usize_count_comparison_operands(
+    const w_seed_hir0_program *program, const w_seed_hir0_value *value) {
+  if (program == NULL || value == NULL ||
+      value->left_value >= program->value_count ||
+      value->right_value >= program->value_count ||
+      program->external_symbol_count != 7u ||
+      program->enum_count > UINT32_MAX - 7u)
+    return false;
+  const uint32_t usize_type = (uint32_t)(7u + program->enum_count);
+  const w_seed_hir0_value *left = &program->values[value->left_value];
+  const w_seed_hir0_value *right = &program->values[value->right_value];
+  const bool left_count =
+      left->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER &&
+      left->external_module_index == 0u &&
+      left->external_symbol_index == 6u && left->type_index == usize_type &&
+      hir_text_is(program, left->member_name, HIR0_PROCESS_COUNT);
+  const bool right_count =
+      right->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER &&
+      right->external_module_index == 0u &&
+      right->external_symbol_index == 6u && right->type_index == usize_type &&
+      hir_text_is(program, right->member_name, HIR0_PROCESS_COUNT);
+  const bool left_literal = left->kind == W_SEED_HIR0_VALUE_CONST_USIZE &&
+                            left->type_index == usize_type;
+  const bool right_literal = right->kind == W_SEED_HIR0_VALUE_CONST_USIZE &&
+                             right->type_index == usize_type;
+  return (left_count && right_literal) || (right_count && left_literal);
+}
+
 static bool verify_value_tree(
     const w_seed_hir0_program *program, uint32_t root_index,
     w_seed_hir0_value_owner_kind owner_kind, uint32_t owner_index,
@@ -8988,7 +9242,9 @@ static bool verify_value_tree(
       (value->kind != W_SEED_HIR0_VALUE_ENUM_CASE &&
        (value->first_enum_payload != 0u || value->enum_payload_count != 0u)) ||
       (value->kind != W_SEED_HIR0_VALUE_PATTERN_CAPTURE_READ &&
-       value->pattern_capture_index != W_SEED_HIR0_NONE))
+       value->pattern_capture_index != W_SEED_HIR0_NONE) ||
+      (value->kind != W_SEED_HIR0_VALUE_CONST_USIZE &&
+       value->unsigned_integer_value != 0u))
     return false;
 
   if (value->kind == W_SEED_HIR0_VALUE_PATTERN_CAPTURE_READ) {
@@ -9185,6 +9441,40 @@ static bool verify_value_tree(
         return false;
     }
     if ((size_t)root_index != *value_cursor) return false;
+    *value_cursor += 1u;
+    return true;
+  }
+
+  if (value->kind == W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON) {
+    if ((value->binary_operator != W_SEED_HIR0_BINARY_EQUAL &&
+         value->binary_operator != W_SEED_HIR0_BINARY_NOT_EQUAL) ||
+        !hir_type_index_valid(program, value->type_index) ||
+        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_BOOL ||
+        value->left_value == W_SEED_HIR0_NONE ||
+        value->right_value == W_SEED_HIR0_NONE ||
+        !hir0_usize_count_comparison_operands(program, value) ||
+        !verify_value_tree(program, value->left_value,
+                           W_SEED_HIR0_VALUE_OWNER_BINARY, root_index, 0u,
+                           current_block, current_instruction, source_length,
+                           depth + 1u, value_cursor, segment_cursor,
+                           byte_cursor) ||
+        !verify_value_tree(program, value->right_value,
+                           W_SEED_HIR0_VALUE_OWNER_BINARY, root_index, 1u,
+                           current_block, current_instruction, source_length,
+                           depth + 1u, value_cursor, segment_cursor,
+                           byte_cursor) ||
+        (size_t)root_index != *value_cursor ||
+        value->binding_index != W_SEED_HIR0_NONE ||
+        value->parameter_index != W_SEED_HIR0_NONE ||
+        value->call_index != W_SEED_HIR0_NONE ||
+        value->first_interpolation_segment != W_SEED_HIR0_NONE ||
+        value->interpolation_segment_count != 0u ||
+        value->binary_operator > W_SEED_HIR0_BINARY_NOT_EQUAL ||
+        value->unary_operator != W_SEED_HIR0_UNARY_NOT ||
+        value->block_argument_index != W_SEED_HIR0_NONE ||
+        value->integer_value != 0 || value->bool_value ||
+        value->byte_offset != 0u || value->byte_count != 0u)
+      return false;
     *value_cursor += 1u;
     return true;
   }
@@ -9452,6 +9742,18 @@ static bool verify_value_tree(
     if (value->type_index != 2u ||
         value->binding_index != W_SEED_HIR0_NONE ||
         value->parameter_index != W_SEED_HIR0_NONE || value->bool_value ||
+        value->byte_offset != 0u || value->byte_count != 0u)
+      return false;
+  } else if (value->kind == W_SEED_HIR0_VALUE_CONST_USIZE) {
+    if (!hir_type_index_valid(program, value->type_index) ||
+        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_USIZE ||
+        value->owner_kind != W_SEED_HIR0_VALUE_OWNER_BINARY ||
+        value->owner_index >= program->value_count ||
+        program->values[value->owner_index].kind !=
+            W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON ||
+        value->binding_index != W_SEED_HIR0_NONE ||
+        value->parameter_index != W_SEED_HIR0_NONE ||
+        value->integer_value != 0 || value->bool_value ||
         value->byte_offset != 0u || value->byte_count != 0u)
       return false;
   } else if (value->kind == W_SEED_HIR0_VALUE_CONST_BOOL) {
@@ -10557,6 +10859,7 @@ static bool hir0_value_kind_is_closed(w_seed_hir0_value_kind kind) {
     case W_SEED_HIR0_VALUE_BINDING_READ:
     case W_SEED_HIR0_VALUE_PARAMETER_READ:
     case W_SEED_HIR0_VALUE_CONST_I64:
+    case W_SEED_HIR0_VALUE_CONST_USIZE:
     case W_SEED_HIR0_VALUE_CONST_BOOL:
     case W_SEED_HIR0_VALUE_BINARY_I64:
     case W_SEED_HIR0_VALUE_INTERPOLATED_STRING:
@@ -10568,6 +10871,7 @@ static bool hir0_value_kind_is_closed(w_seed_hir0_value_kind kind) {
     case W_SEED_HIR0_VALUE_UNARY_I64:
     case W_SEED_HIR0_VALUE_ENUM_CASE:
     case W_SEED_HIR0_VALUE_PATTERN_CAPTURE_READ:
+    case W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON:
       return true;
     default:
       /* A future value kind needs an explicit suspension/effect review before

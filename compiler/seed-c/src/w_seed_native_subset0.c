@@ -479,6 +479,8 @@ static bool interpolation_maximum_bytes(
           effective->kind == W_SEED_HIR0_VALUE_CALL_RESULT ||
           effective->kind == W_SEED_HIR0_VALUE_UNARY_I64 ||
           effective->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
+          effective->kind ==
+              W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON ||
           effective->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER;
       switch (program->types[embedded->type_index].kind) {
         case W_SEED_HIR0_TYPE_I64: {
@@ -1028,6 +1030,48 @@ static bool process_external_symbol_is(const w_seed_hir0_program *program,
          text_is(program, symbol->name, name, name_count);
 }
 
+static bool process_usize_count_comparison_operands(
+    const w_seed_hir0_program *program, const w_seed_hir0_value *value,
+    const w_seed_native_subset0_process *process) {
+  if (program == NULL || value == NULL || process == NULL ||
+      value->left_value >= program->value_count ||
+      value->right_value >= program->value_count ||
+      value->type_index >= program->type_count ||
+      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_BOOL)
+    return false;
+  const w_seed_hir0_value *left = &program->values[value->left_value];
+  const w_seed_hir0_value *right = &program->values[value->right_value];
+  const bool left_count =
+      left->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER &&
+      left->external_module_index == 0u &&
+      left->external_symbol_index == process->count_symbol_index &&
+      left->type_index < program->type_count &&
+      program->types[left->type_index].kind == W_SEED_HIR0_TYPE_USIZE &&
+      text_is(program, left->member_name, (const uint8_t *)"count", 5u) &&
+      process_external_symbol_is(
+          program, 0u, process->count_symbol_index,
+          W_SEED_HIR0_EXTERNAL_VALUE, (const uint8_t *)"count", 5u);
+  const bool right_count =
+      right->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER &&
+      right->external_module_index == 0u &&
+      right->external_symbol_index == process->count_symbol_index &&
+      right->type_index < program->type_count &&
+      program->types[right->type_index].kind == W_SEED_HIR0_TYPE_USIZE &&
+      text_is(program, right->member_name, (const uint8_t *)"count", 5u) &&
+      process_external_symbol_is(
+          program, 0u, process->count_symbol_index,
+          W_SEED_HIR0_EXTERNAL_VALUE, (const uint8_t *)"count", 5u);
+  const bool left_literal = left->kind == W_SEED_HIR0_VALUE_CONST_USIZE &&
+                            left->type_index < program->type_count &&
+                            program->types[left->type_index].kind ==
+                                W_SEED_HIR0_TYPE_USIZE;
+  const bool right_literal = right->kind == W_SEED_HIR0_VALUE_CONST_USIZE &&
+                             right->type_index < program->type_count &&
+                             program->types[right->type_index].kind ==
+                                 W_SEED_HIR0_TYPE_USIZE;
+  return (left_count && right_literal) || (right_count && left_literal);
+}
+
 static bool process_failure_constant(const w_seed_hir0_program *program,
                                      uint32_t value_index) {
   return program != NULL && value_index < program->value_count &&
@@ -1104,6 +1148,33 @@ static bool process_value_lowerable(
              process_failure_constant(program, value->left_value);
     return false;
   }
+
+  if (value->kind == W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON) {
+    if ((value->binary_operator != W_SEED_HIR0_BINARY_EQUAL &&
+         value->binary_operator != W_SEED_HIR0_BINARY_NOT_EQUAL) ||
+        value->left_value == W_SEED_HIR0_NONE ||
+        value->right_value == W_SEED_HIR0_NONE ||
+        value->binding_index != W_SEED_HIR0_NONE ||
+        value->parameter_index != W_SEED_HIR0_NONE ||
+        value->call_index != W_SEED_HIR0_NONE ||
+        value->first_interpolation_segment != W_SEED_HIR0_NONE ||
+        value->interpolation_segment_count != 0u ||
+        value->unary_operator != W_SEED_HIR0_UNARY_NOT ||
+        value->block_argument_index != W_SEED_HIR0_NONE ||
+        value->integer_value != 0 || value->bool_value ||
+        value->byte_offset != 0u || value->byte_count != 0u ||
+        !process_usize_count_comparison_operands(program, value, process) ||
+        !process_value_lowerable(program, value->left_value, owner_function,
+                                 process, false, depth + 1u) ||
+        !process_value_lowerable(program, value->right_value, owner_function,
+                                 process, false, depth + 1u))
+      return false;
+    return true;
+  }
+
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_USIZE)
+    return value->type_index < program->type_count &&
+           program->types[value->type_index].kind == W_SEED_HIR0_TYPE_USIZE;
 
   /* Raw root-owner parameter reads are never lowerable as values.  The only
    * admitted use is the direct receiver checked in the external-member branch

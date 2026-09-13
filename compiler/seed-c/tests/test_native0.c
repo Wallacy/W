@@ -922,8 +922,9 @@ static bool test_process_arguments_count_public_artifact(void) {
       "import { Arguments as ProcessArguments, Context as ProcessContext, "
       "ExitCode as ProcessExitCode } from std.process\n"
       "async fn run(args: ProcessArguments, ctx: ProcessContext): "
-      "ProcessExitCode { print(\"count ${args.count}\") "
-      "return .success }\n"
+      "ProcessExitCode { if args.count != 0 { print(\"has arguments\") "
+      "return .success } else { print(\"no arguments\") "
+      "return .success } }\n"
       "entry(run)\n";
   static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
   w_seed_native0_result result;
@@ -934,6 +935,8 @@ static bool test_process_arguments_count_public_artifact(void) {
             &result) == W_SEED_NATIVE0_OK);
   const w_seed_hir0_program *program = &storage.hir_program;
   size_t count_reads = 0u;
+  size_t count_comparisons = 0u;
+  size_t usize_literals = 0u;
   for (size_t value_index = 0u; value_index < program->value_count;
        value_index += 1u) {
     const w_seed_hir0_value *value = &program->values[value_index];
@@ -944,13 +947,23 @@ static bool test_process_arguments_count_public_artifact(void) {
         program->types[value->type_index].kind == W_SEED_HIR0_TYPE_USIZE &&
         hir_text_equals(program, value->member_name, "count"))
       count_reads += 1u;
+    if (value->kind == W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON)
+      count_comparisons += 1u;
+    if (value->kind == W_SEED_HIR0_VALUE_CONST_USIZE &&
+        value->unsigned_integer_value == UINT64_C(0))
+      usize_literals += 1u;
   }
   CHECK(program->external_symbol_count == 7u && count_reads == 1u &&
+        count_comparisons == 1u && usize_literals == 1u &&
         program->binding_count == 0u);
   CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
                        "@w_seed_process_arguments_count") &&
         count_bytes(output, result.mlir.written.mlir_bytes,
                     "@w_seed_process_arguments_count") >= 2u &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.icmp \"ne\"") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.mlir.constant(0 : i64) : i64") &&
         contains_bytes(output, result.mlir.written.mlir_bytes,
                        ") : (!llvm.ptr) -> i64"));
 

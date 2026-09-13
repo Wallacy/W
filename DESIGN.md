@@ -4329,6 +4329,14 @@ let response = fetch("https://example.test")
 
 `import std.http` e `import * from std.http` são equivalentes.
 
+This equivalence does not make a flat import and a named selection equivalent
+for every program. W-1567 closes only the bounded process-module case that uses
+`Arguments`, `Context`, `ExitCode`, and `count`. In that case,
+`import std.process` and the grouped selective import produce the same semantic
+HIR and Windows product under the same target and profile. Provenance preserves
+the different spelling and spans. This same-module evidence does not establish
+cross-module WMO or WPO.
+
 Um nome simples antes de `from` cria um binding de módulo. Quando a origem é um
 pacote, o nome seleciona um módulo público desse pacote:
 
@@ -37410,8 +37418,9 @@ Native0 and MLIR0 consume the normal verified body plan. The public process
 shape is currently one-block return or a three-block terminal `if`, with a
 forward-only, acyclic process call graph. General loops and arbitrary CFG are
 not admitted. W-1565 advances the public catalog to seven symbols by appending
-`Arguments.count`; the private four-symbol handler remains unchanged. The
-shared callgraph/path proof caps stdout at
+`Arguments.count`; W-1566 adds only the bounded `==`/`!=` literal comparison.
+The private four-symbol handler remains unchanged. The shared callgraph/path
+proof caps stdout at
 `4096` bytes and rejects over-limit constructions (including the focused
 `4097`- and `8192`-byte cases) before publication, with all-or-nothing output
 and receipt barriers.
@@ -38157,8 +38166,8 @@ and `Context` reads are not ordinary lowerable values: neither owner may be
 bound, copied, passed to a local call, stored in an enum payload, or returned.
 The scalar `usize` result of `count` may participate in the currently admitted
 bindings and direct-print interpolation. General `usize` arithmetic,
-comparisons, helper parameters, and returns remain outside this bounded
-increment. `args?.count` remains invalid because
+ordering, comparisons outside the exact count-literal form, helper parameters,
+and returns remain outside this bounded increment. `args?.count` remains invalid because
 `Arguments` is not an `Option`; optional chaining is never accepted as a
 no-op.
 
@@ -38185,6 +38194,112 @@ MLIR/Native0 → Windows x86_64 route. Argument indexing, iteration, decoded
 process capabilities, stable public ABI/layout, and language-level benchmark
 ranking remain gaps. A separate public executable-catalog workload owns the
 exploratory W/C/Rust artifact and timing cells for this source shape.
+
+#### 26.4.1.47 W-1566 — bounded public `Arguments.count` usize equality (Current form)
+
+W-1566 advances the public process body from HIR26 to schema
+`w-seed-hir0-27`. HIR27 adds a logical `USIZE` literal record and a dedicated
+`USIZE_COUNT_COMPARISON` record. The comparison result is `Bool`; it does not
+change the root-owner representation or the private W-1546 handler catalog.
+
+```w
+import std.process
+
+async fn run(args: Arguments, ctx: Context): ExitCode {
+  if args.count == 2 {
+    print("Exactly two arguments")
+    return .success
+  } else {
+    print("Argument count ${args.count}")
+    return .success
+  }
+}
+
+entry(run)
+```
+
+The accepted form has exactly two operands:
+
+- the exported `std.process.Arguments.count` member with resolver-owned module
+  and symbol identity, read from the selected entry's actual `Arguments`
+  parameter;
+- a nonnegative unsuffixed integer literal contextualized as logical `usize`.
+
+Only `==` and `!=` are accepted. Either operand may occur first. The verifier
+binds both operands to the same logical `usize` type and rejects source-name
+recognition without external identity, a different receiver, negative or
+computed literals, arithmetic, and `<`, `<=`, `>`, or `>=`. General `usize`
+arithmetic and ordering remain outside this bounded increment. Helper function
+parameters and returns of type `usize` remain unsupported as well.
+
+HIR preserves the logical `usize` type through measure, emit, digest, and
+verify. NativeSubset0 rechecks the comparison before process lowering. MLIR0
+reads the existing checked process-root count and emits `llvm.icmp` over the
+physical carrier chosen by the verified target layout. The current Windows
+x86_64 route uses physical `i64`; this is not a semantic signed conversion and
+does not define a public ABI layout.
+
+The public fixture branches on `args.count == 2`, prints the literal branch
+text or the runtime count, and returns `.success`. The focused HIR0, MLIR0, and
+Native0 tests cover both operand orders, Bool result typing, logical `usize`
+identity, and fail-closed owner, identity, operator, arithmetic, ordering, and
+negative-literal mutations. The pinned Windows route checks zero, empty,
+ordinary multiple, and exactly 256 user arguments with exact output, empty
+stderr, exit status, and cleanup.
+
+This is `source-backed-current` only for the bounded HIR27 process comparison
+and the Windows x86_64 route. General `usize` operations, indexing, iteration,
+decoded `OsString`, complete Windows quoting, other OS adapters, stable public
+ABI/layout, and language-level benchmark ranking remain gaps. The executable
+catalog owns separate exploratory W/C/Rust measurements.
+
+#### 26.4.1.48 W-1567 — bounded flat/selective `std.process` import semantic/product equivalence (Current form)
+
+The canonical public count fixture uses the flat module import and direct names:
+
+```w
+import std.process
+
+async fn run(args: Arguments, ctx: Context): ExitCode {
+  if args.count == 2 {
+    print("Exactly two arguments")
+    return .success
+  } else {
+    print("Argument count ${args.count}")
+    return .success
+  }
+}
+
+entry(run)
+```
+
+The selective witness uses the same body with grouped local aliases:
+
+```w
+import {
+  Arguments as ProcessArguments,
+  Context as ProcessContext,
+  ExitCode as ProcessExitCode,
+} from std.process
+```
+
+For this one-module process body, both forms resolve the same compiler-owned
+`std.process@1` symbols and produce the same HIR semantic digest. Their HIR
+provenance digests remain different because source spelling and source spans
+remain provenance. The import record may therefore have one flat item or
+three selective items without changing the resolved semantic program.
+
+Under the same target and profile, the pinned Windows x86_64 gate builds both
+forms and compares the complete PE bytes. The images are byte-identical. The
+gate then runs both images with zero, empty, ordinary multiple, and exactly 256
+user arguments and checks exact output, empty stderr, exit status, and cleanup.
+The direct linker recipe uses `/Brepro`. Therefore, the PE comparison does not
+depend on a matching COFF timestamp or on both links finishing in one second.
+
+This is bounded same-module process product evidence. It does not establish
+general equivalence for imports that observe different exports, or equivalence
+across modules, packages, products, targets, or profiles. It does not establish
+cross-module WMO/WPO, summary reuse, or optimization quality.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

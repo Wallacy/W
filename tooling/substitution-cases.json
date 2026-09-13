@@ -5807,28 +5807,53 @@
       ]
     },
     {
-      "id": "R0-hir26-process-arguments-count",
-      "reviewItem": "bounded public `Arguments.count` identity and ownership against source-name recognition, owner escape, fixed output, and signed-type erasure",
+      "id": "R0-hir27-process-arguments-count",
+      "reviewItem": "bounded public `Arguments.count` equality and flat/selective `std.process` imports against source-name recognition, general `usize` operations, owner escape, and import-specific product output",
       "decisions": [
-        "W-1565"
+        "W-1565",
+        "W-1566",
+        "W-1567"
       ],
-      "task": "Preserve logical usize identity and the exact process Arguments receiver through verified HIR26 before lowering the bounded Windows x86_64 count read.",
+      "task": "Preserve logical usize identity, the exact process Arguments receiver, and flat/selective import equivalence through verified HIR27 before lowering the bounded Windows x86_64 count comparison.",
       "selected": {
         "language": "w",
         "source": [
-          "import {",
-          "  Arguments as ProcessArguments,",
-          "  Context as ProcessContext,",
-          "  ExitCode as ProcessExitCode,",
-          "} from std.process",
-          "async fn run(args: ProcessArguments, ctx: ProcessContext): ProcessExitCode {",
-          "  print(\"Argument count ${args.count}\")",
-          "  return .success",
+          "import std.process",
+          "async fn run(args: Arguments, ctx: Context): ExitCode {",
+          "  if args.count == 2 {",
+          "    print(\"Exactly two arguments\")",
+          "    return .success",
+          "  } else {",
+          "    print(\"Argument count ${args.count}\")",
+          "    return .success",
+          "  }",
           "}",
           "entry(run)"
         ]
       },
       "alternatives": [
+        {
+          "name": "selective-import-equivalent",
+          "language": "w",
+          "source": [
+            "import {",
+            "  Arguments as ProcessArguments,",
+            "  Context as ProcessContext,",
+            "  ExitCode as ProcessExitCode,",
+            "} from std.process",
+            "async fn run(args: ProcessArguments, ctx: ProcessContext): ProcessExitCode {",
+            "  if args.count == 2 {",
+            "    print(\"Exactly two arguments\")",
+            "    return .success",
+            "  } else {",
+            "    print(\"Argument count ${args.count}\")",
+            "    return .success",
+            "  }",
+            "}",
+            "entry(run)"
+          ],
+          "expectedDifference": "The selective spelling has the same HIR semantic digest and byte-identical Windows PE under the same target/profile, but a distinct provenance digest."
+        },
         {
           "name": "source-member-recognition",
           "language": "text",
@@ -5838,12 +5863,20 @@
           "expectedDifference": "The selected route requires the exact external identity and actual process-entry Arguments owner."
         },
         {
+          "name": "general-usize-arithmetic-or-ordering",
+          "language": "text",
+          "source": [
+            "permit args.count + 1 or args.count < 1 as general usize operations"
+          ],
+          "expectedDifference": "The selected route admits only == or != against a nonnegative unsuffixed literal, with no general usize arithmetic or ordering."
+        },
+        {
           "name": "signed-i64-type-erasure",
           "language": "text",
           "source": [
             "represent std.process.Arguments.count as logical signed i64 before target selection"
           ],
-          "expectedDifference": "HIR26 preserves target-width unsigned usize; only the verified x86_64 physical lowering uses i64."
+          "expectedDifference": "HIR27 preserves target-width unsigned usize; only the verified x86_64 physical lowering uses i64."
         },
         {
           "name": "fixed-output-shortcut",
@@ -5857,41 +5890,62 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
-          "symbol": "frontend_external_member_value_ok",
-          "claim": "HIR26 admits only the exact dot member, resolver-owned count identity, logical usize type, and actual Arguments entry receiver."
+          "symbol": "frontend_usize_count_comparison_ok",
+          "claim": "HIR27 admits only == or != between the exact resolver-owned count member on the actual Arguments receiver and a contextual nonnegative unsuffixed usize literal, in either operand order."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "frontend_external_process_records_ok",
+          "claim": "HIR27 accepts the flat std.process import item and the grouped selective import items while preserving the same external symbol catalog."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "digest_program",
+          "claim": "The HIR semantic digest is stable across the flat and selective process import spellings while provenance retains their source difference."
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
           "symbol": "process_value_lowerable",
-          "claim": "NativeSubset0 permits the scalar count read while rejecting raw Arguments and Context value escape."
+          "claim": "NativeSubset0 permits the bounded count comparison and scalar read while rejecting raw Arguments and Context value escape."
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "symbol": "MLIR0_PROCESS_EXECUTABLE_HELPERS4",
-          "claim": "The Windows x86_64 artifact helper loads the already-validated process-root count without allocation or rescan."
+          "symbol": "append_usize_count_comparison_operation",
+          "claim": "MLIR0 emits the bounded equality or inequality over the existing process-root count and the target-selected physical carrier without allocation or rescan."
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_process_arguments_count_hir",
-          "claim": "Focused HIR tests cover positive aliases and adversarial identity, type, receiver, operator, and owner-flow relations."
+          "claim": "Focused HIR tests cover flat/selective semantic and provenance digests, both comparison operand orders, and adversarial identity, type, receiver, operator, and owner-flow relations."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_mlir0.c",
+          "symbol": "test_process_arguments_count_comparison_mlir",
+          "claim": "Focused MLIR tests observe the physical i64 constant, process count helper, llvm.icmp, and conditional branch for the HIR27 comparison."
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_process_arguments_count_public_artifact",
-          "claim": "Native0 proves a logical usize count reaches a physical x86_64 MLIR load and interpolation path."
+          "claim": "Native0 proves the HIR27 comparison reaches the physical x86_64 MLIR count load while raw process owners remain rejected."
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "processArgumentsCountFixture",
-          "claim": "The pinned Windows gate builds once and executes exact zero, empty, two, and 256-argument cases."
+          "claim": "The pinned Windows gate builds the canonical flat-import fixture and executes exact zero, empty, two, and 256-argument cases."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "processArgumentsCountSelectiveImportFixture",
+          "claim": "The pinned Windows gate builds the selective-import witness, compares complete PE bytes, and executes the same exact argument cases."
         }
       ],
       "checks": [
         "the public process catalog is exactly seven symbols and count remains ordinal six",
-        "HIR26 carries a distinct logical usize type after local enum types",
-        "only an exact dot member on the actual Arguments entry owner is accepted",
+        "HIR27 carries a distinct logical usize literal and dedicated count comparison after local enum types",
+        "only == or != between the exact count member and a nonnegative unsuffixed literal is accepted, in either operand order",
         "raw Arguments and Context values cannot bind, pass, enter payloads, or return",
-        "the Windows x86_64 helper loads the process-root count and the same PE produces input-dependent exact output"
+        "flat and selective std.process imports have equal semantic HIR digests but distinct provenance digests",
+        "the same target/profile produces byte-identical Windows PE images and both images produce input-dependent exact output"
       ],
       "measures": [
         "semantic-correctness",

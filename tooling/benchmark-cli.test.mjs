@@ -8,6 +8,8 @@ import { benchmarkUsage, consumeLocalResult, main, parseBenchmarkCliArguments, v
 test("benchmark facade exposes update and preserves bounded run arguments", () => {
   assert.deepEqual(parseBenchmarkCliArguments(["list"]), { command: "list" });
   assert.deepEqual(parseBenchmarkCliArguments(["check"]), { command: "check" });
+  assert.deepEqual(parseBenchmarkCliArguments(["prune"]), { command: "prune" });
+  assert.throws(() => parseBenchmarkCliArguments(["prune", "extra"]), /does not accept positional arguments or options/u);
   assert.deepEqual(parseBenchmarkCliArguments(["update", "benchmarks/results/w.json", "benchmarks/results/c.json"]), {
     command: "update", inputs: ["benchmarks/results/w.json", "benchmarks/results/c.json"],
   });
@@ -25,8 +27,9 @@ test("benchmark facade exposes update and preserves bounded run arguments", () =
   assert.throws(() => parseBenchmarkCliArguments(["run", "--target", "process-entry0", "--language", "w"]), /unsupported target/);
   assert.throws(() => parseBenchmarkCliArguments(["run", "--run-samples", "1003"]), /outside its allowed range/);
   assert.throws(() => parseBenchmarkCliArguments(["record", "benchmarks/results/local.json"]), /unknown command/);
-  assert.match(benchmarkUsage(), /<list\|run\|validate\|update\|check>/u);
+  assert.match(benchmarkUsage(), /<list\|run\|validate\|update\|prune\|check>/u);
   assert.match(benchmarkUsage(), /update <result\.json>\.\.\./u);
+  assert.match(benchmarkUsage(), /prune/u);
   assert.match(benchmarkUsage(), /process-handler-lifecycle/u);
   assert.match(benchmarkUsage(), /process-entry/u);
   assert.doesNotMatch(benchmarkUsage(), /process-entry0/u);
@@ -63,4 +66,22 @@ test("update boundary rejects dirty and stale provenance before mutation", async
   const result = { provenance: { commit: "0".repeat(40) } };
   await assert.rejects(validateUpdateBoundary(result, { gitState: { commit: "1".repeat(40), dirty: true } }), /clean Git worktree/);
   await assert.rejects(validateUpdateBoundary(result, { gitState: { commit: "1".repeat(40), dirty: false } }), /does not match current HEAD/);
+});
+
+test("prune command reports its finite removal count", async () => {
+  const output = [];
+  const originalLog = console.log;
+  console.log = (value) => output.push(value);
+  try {
+    await main(["prune"], {
+      root: "C:\\benchmark-prune-test",
+      pruneLiveCatalog: async ({ root }) => {
+        assert.equal(root, "C:\\benchmark-prune-test");
+        return { removedCount: 18 };
+      },
+    });
+  } finally {
+    console.log = originalLog;
+  }
+  assert.deepEqual(output, ["pruned 18 stale best-metric cells"]);
 });

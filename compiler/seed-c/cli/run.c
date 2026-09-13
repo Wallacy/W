@@ -920,8 +920,8 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
   if (exit_code != 0) goto cleanup;
   {
     wchar_t out_argument[W_SEED_WINDOWS_PATH_CAPACITY + 6u];
-    const wchar_t *link_arguments[10];
-    size_t link_argument_count = 7u;
+    const wchar_t *link_arguments[11];
+    size_t link_argument_count = 8u;
     if (swprintf(out_argument, sizeof(out_argument) / sizeof(out_argument[0]),
                  L"/out:%ls", artifact_path) < 0)
       goto cleanup;
@@ -932,6 +932,7 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
     link_arguments[4] = out_argument;
     link_arguments[5] = object_path;
     link_arguments[6] = kernel32;
+    link_arguments[7] = L"/Brepro";
     if (request->profile == W_SEED_RUN_COMPILE_PROFILE_RELEASE) {
       link_arguments[link_argument_count++] = L"/opt:ref";
       link_arguments[link_argument_count++] = L"/opt:icf";

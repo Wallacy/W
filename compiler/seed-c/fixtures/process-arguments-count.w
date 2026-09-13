@@ -1,12 +1,13 @@
-import {
-  Arguments as ProcessArguments,
-  Context as ProcessContext,
-  ExitCode as ProcessExitCode,
-} from std.process
+import std.process
 
-async fn run(args: ProcessArguments, ctx: ProcessContext): ProcessExitCode {
-  print("Argument count ${args.count}")
-  return .success
+async fn run(args: Arguments, ctx: Context): ExitCode {
+  if args.count == 2 {
+    print("Exactly two arguments")
+    return .success
+  } else {
+    print("Argument count ${args.count}")
+    return .success
+  }
 }
 
 entry(run)

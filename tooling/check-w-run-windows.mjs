@@ -50,6 +50,8 @@ const restaurantMultiBranchMutationFixture = resolve(seedDirectory,
 const processInputFixture = resolve(seedDirectory, "fixtures", "process-input0.w")
 const processArgumentsCountFixture = resolve(seedDirectory, "fixtures",
   "process-arguments-count.w")
+const processArgumentsCountSelectiveImportFixture = resolve(seedDirectory,
+  "tests", "fixtures", "process-arguments-count-selective-import.w")
 const processEnumPayloadFixture = resolve(seedDirectory, "fixtures",
   "process-enum-payload.w")
 const targetTriple = "x86_64-pc-windows-msvc"
@@ -287,7 +289,7 @@ for (const forbidden of ["wsl.exe", "process.env.PATH", "exec(", "shell: true", 
 for (const marker of ["CreateProcessW", "lpApplicationName", "CREATE_NEW",
   "GetStdHandle", "WriteFile", "ExitProcess", "mainCRTStartup",
   "-mtriple=x86_64-pc-windows-msvc", "/nodefaultlib", "--canonicalize",
-  "--cse", "-O3", "/opt:ref", "/opt:icf", "/incremental:no"]) {
+  "--cse", "-O3", "/Brepro", "/opt:ref", "/opt:icf", "/incremental:no"]) {
   assert(`${runSource}\n${emitterSource}`.includes(marker),
     `native Windows implementation marker is missing: ${marker}`)
 }
@@ -515,6 +517,8 @@ try {
   const buildProcessInput = join(fixtureDirectory, "process-input-build.exe")
   const buildProcessArgumentsCount = join(fixtureDirectory,
     "process-arguments-count-build.exe")
+  const buildProcessArgumentsCountSelectiveImport = join(fixtureDirectory,
+    "process-arguments-count-selective-import-build.exe")
   const buildProcessEnumPayload = join(fixtureDirectory,
     "process-enum-payload-build.exe")
   const buildWrongTarget = join(fixtureDirectory, "wrong-target-build.exe")
@@ -561,6 +565,20 @@ try {
     "build process-arguments-count did not produce a regular artifact")
   assertPeX64(await readFile(buildProcessArgumentsCount),
     "built process-arguments-count artifact")
+  expectExact(binary, ["build", processArgumentsCountSelectiveImportFixture,
+    "--target", targetTriple, "--output", buildProcessArgumentsCountSelectiveImport],
+    0, Buffer.alloc(0),
+    "build selective-import process-arguments-count fixture")
+  const flatImportBytes = await readFile(buildProcessArgumentsCount)
+  const selectiveImportBytes = await readFile(buildProcessArgumentsCountSelectiveImport)
+  assertPeX64(selectiveImportBytes,
+    "built selective-import process-arguments-count artifact")
+  const firstImportDifference = selectiveImportBytes.findIndex(
+    (value, index) => flatImportBytes[index] !== value)
+  assert(selectiveImportBytes.equals(flatImportBytes),
+    "flat and selective std.process imports produced different PE bytes" +
+    ` (sizes ${flatImportBytes.length}/${selectiveImportBytes.length}, ` +
+    `first difference ${firstImportDifference})`)
   const argumentCountCases = [
     ["without user arguments", []],
     ["with one empty argument", [""]],
@@ -570,9 +588,15 @@ try {
   for (const [label, argumentsList] of argumentCountCases) {
     assert(argumentsList.length <= 256,
       `process-arguments-count case exceeds the 256-argument bound: ${label}`)
+    const expectedOutput = argumentsList.length === 2
+      ? "Exactly two arguments\n"
+      : `Argument count ${argumentsList.length}\n`
     expectExact(buildProcessArgumentsCount, argumentsList, 0,
-      Buffer.from(`Argument count ${argumentsList.length}\n`, "utf8"),
+      Buffer.from(expectedOutput, "utf8"),
       `execute built process-arguments-count artifact ${label}`)
+    expectExact(buildProcessArgumentsCountSelectiveImport, argumentsList, 0,
+      Buffer.from(expectedOutput, "utf8"),
+      `execute selective-import process-arguments-count artifact ${label}`)
   }
   expectExact(binary, ["build", processEnumPayloadFixture, "--target", targetTriple,
     "--output", buildProcessEnumPayload], 0, Buffer.alloc(0),

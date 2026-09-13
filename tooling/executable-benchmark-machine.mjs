@@ -108,7 +108,7 @@ export const PROCESS_ARGUMENTS_COUNT_CORRECTNESS_INPUTS = Object.freeze([
 export const PROCESS_ARGUMENTS_COUNT_ORACLE_CASES = Object.freeze([
   Object.freeze({ arguments: PROCESS_ARGUMENTS_COUNT_CORRECTNESS_INPUTS[0], exitCode: 0, stdout: "Argument count 0\n", stderr: "" }),
   Object.freeze({ arguments: PROCESS_ARGUMENTS_COUNT_CORRECTNESS_INPUTS[1], exitCode: 0, stdout: "Argument count 1\n", stderr: "" }),
-  Object.freeze({ arguments: PROCESS_ARGUMENTS_COUNT_CORRECTNESS_INPUTS[2], exitCode: 0, stdout: "Argument count 2\n", stderr: "" }),
+  Object.freeze({ arguments: PROCESS_ARGUMENTS_COUNT_CORRECTNESS_INPUTS[2], exitCode: 0, stdout: "Exactly two arguments\n", stderr: "" }),
 ]);
 const PROCESS_ARGUMENT_ORACLE_CONTRACTS = Object.freeze({
   [PROCESS_ENTRY_WORKLOAD_ID]: Object.freeze({
@@ -614,7 +614,7 @@ function checkBestMetricsContract(contract, name, errors) {
   requiredString(contract.rule, name + ".rule", errors);
 }
 
-export function validateExecutableCatalog(catalog, documents = undefined, root = ROOT) {
+export function validateExecutableCatalog(catalog, documents = undefined, root = ROOT, options = {}) {
   const errors = [];
   const keys = ["$schema", "schema", "kind", "id", "status", "metrics", "comparabilityAxes", "workloads", "resultContract", "bestMetricsContract", "bestMetrics"];
   if (!exactKeys(catalog, "executable catalog", keys, errors)) return errors;
@@ -736,7 +736,7 @@ export function validateExecutableCatalog(catalog, documents = undefined, root =
   }
   checkContract(catalog.resultContract, "executable catalog.resultContract", errors);
   checkBestMetricsContract(catalog.bestMetricsContract, "executable catalog.bestMetricsContract", errors);
-  errors.push(...validateExecutableBestMetrics(catalog.bestMetrics, catalog).map((error) => "best metrics: " + error));
+  errors.push(...validateExecutableBestMetrics(catalog.bestMetrics, catalog, options).map((error) => "best metrics: " + error));
   return errors;
 }
 
@@ -1394,7 +1394,7 @@ function bestMetricSort(left, right) {
     compareText(String(left?.id ?? ""), String(right?.id ?? ""));
 }
 
-export function validateExecutableBestMetric(record, catalog = loadExecutableDocuments().catalog) {
+export function validateExecutableBestMetric(record, catalog = loadExecutableDocuments().catalog, options = {}) {
   const errors = [];
   const keys = ["$schema", "schema", "kind", "id", "status", "categoryId", "workloadId", "language", "equivalenceKey", "platformTarget", "artifactTarget", "abi", "profile", "host", "recipeClass", "comparability", "eligibility", "metric", "unit", "statistic", "value", "toolchain", "recipe", "provenance"];
   if (isObject(record) && Object.prototype.hasOwnProperty.call(record, "peLayout")) keys.push("peLayout");
@@ -1420,10 +1420,15 @@ export function validateExecutableBestMetric(record, catalog = loadExecutableDoc
   checkSafeIdentityString(record.host, "executable best metric.host", errors);
   requiredString(record.recipe, "executable best metric.recipe", errors);
   requiredString(record.recipeClass, "executable best metric.recipeClass", errors);
+  const staleSourceDigest = source &&
+    record.provenance?.sourceDigest !== source.digest;
   if (source && record.recipeClass !== source.recipeClass) push(errors, "executable best metric.recipeClass must match the catalog source.");
   if (source) {
     const expectedKey = executableEquivalenceKey(catalog, record.workloadId, record.platformTarget, record.profile, source.recipeClass);
-    if (record.equivalenceKey !== expectedKey) push(errors, "executable best metric.equivalenceKey must be recomputed from the catalog.");
+    if (record.equivalenceKey !== expectedKey &&
+        !(staleSourceDigest && options.allowStaleSourceDigest === true)) {
+      push(errors, "executable best metric.equivalenceKey must be recomputed from the catalog.");
+    }
     if (record.comparability !== source.comparability || record.eligibility !== source.eligibility) push(errors, "executable best metric policy must match the catalog source.");
   }
   positiveDecimal(record.value, "executable best metric.value", errors);
@@ -1435,7 +1440,12 @@ export function validateExecutableBestMetric(record, catalog = loadExecutableDoc
     checkObservedAt(record.provenance.observedAt, "executable best metric.provenance.observedAt", errors);
     for (const field of ["sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "catalogDigest"]) digest(record.provenance[field], "executable best metric.provenance." + field, errors);
     if (!['historical-unverified', 'verified-clean'].includes(record.provenance.artifactCleanliness)) push(errors, "executable best metric.provenance.artifactCleanliness must be historical-unverified or verified-clean.");
-    if (source && record.provenance.sourceDigest !== source.digest) push(errors, "executable best metric.provenance.sourceDigest must match the catalog source.");
+    // A benchmark run/update may explicitly tolerate stale cells long enough
+    // to replace them. Catalog checks remain strict so stale history is never
+    // presented as a current measurement for edited source.
+    if (staleSourceDigest && options.allowStaleSourceDigest !== true) {
+      push(errors, "executable best metric.provenance.sourceDigest must match the catalog source.");
+    }
     if (record.provenance.recipeDigest === undefined) push(errors, "executable best metric provenance must include recipeDigest.");
   }
   if (Object.prototype.hasOwnProperty.call(record, "peLayout")) {
@@ -1446,7 +1456,7 @@ export function validateExecutableBestMetric(record, catalog = loadExecutableDoc
   return errors;
 }
 
-export function validateExecutableBestMetrics(index, catalog = loadExecutableDocuments().catalog) {
+export function validateExecutableBestMetrics(index, catalog = loadExecutableDocuments().catalog, options = {}) {
   const errors = [];
   if (!exactKeys(index, "executable best-metrics catalog", ["$schema", "schema", "kind", "status", "entries"], errors)) return errors;
   if (index.$schema !== "./executable-benchmark.schema.json" || index.schema !== EXECUTABLE_BEST_SCHEMA || index.kind !== "executable-best-metrics") {
@@ -1470,18 +1480,40 @@ export function validateExecutableBestMetrics(index, catalog = loadExecutableDoc
     if (!isCanonicalOrder(index.entries, (items) => [...items].sort(bestMetricSort))) {
       push(errors, "executable best-metrics entries must be sorted by category and metric.");
     }
-    for (const [number, record] of index.entries.entries()) errors.push(...validateExecutableBestMetric(record, catalog).map((error) => "entries[" + number + "]: " + error));
+    for (const [number, record] of index.entries.entries()) errors.push(...validateExecutableBestMetric(record, catalog, options).map((error) => "entries[" + number + "]: " + error));
   }
   return errors;
+}
+
+export function pruneExecutableBestMetrics(catalog) {
+  const entries = [...(catalog.bestMetrics?.entries ?? [])];
+  const retained = [];
+  const removedMetrics = [];
+  for (const entry of entries) {
+    const source = sourceFor(workloadFor(catalog, entry?.workloadId), entry?.language);
+    if (source && entry?.provenance?.sourceDigest !== source.digest) removedMetrics.push(entry.metric);
+    else retained.push(entry);
+  }
+  const changed = retained.length !== entries.length;
+  const nextCatalog = changed
+    ? { ...catalog, bestMetrics: { ...catalog.bestMetrics, status: retained.length === 0 ? "empty" : BEST_METRICS_STATUS, entries: retained } }
+    : catalog;
+  return {
+    catalog: nextCatalog,
+    changed,
+    removedCount: entries.length - retained.length,
+    removedMetrics: [...new Set(removedMetrics)].sort(compareText),
+  };
 }
 
 export function updateExecutableBestMetrics(catalog, result) {
   const errors = validateExecutableResult(result, catalog);
   if (errors.length > 0) throw new Error(errors.join("; "));
   const candidate = deriveExecutableBestMetrics(catalog, [result]);
+  const pruned = pruneExecutableBestMetrics(catalog);
   const entries = [...(catalog.bestMetrics?.entries ?? [])];
-  const byCell = new Map(entries.map((entry) => [`${entry.categoryId}\u0000${entry.metric}`, entry]));
-  const updatedMetrics = [];
+  const byCell = new Map(pruned.catalog.bestMetrics.entries.map((entry) => [`${entry.categoryId}\u0000${entry.metric}`, entry]));
+  const updatedMetrics = [...pruned.removedMetrics];
   for (const entry of candidate.entries) {
     const key = `${entry.categoryId}\u0000${entry.metric}`;
     const previous = byCell.get(key);

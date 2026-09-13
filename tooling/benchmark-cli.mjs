@@ -6,6 +6,7 @@ import {
   ROOT,
   EXECUTABLE_RUN_TARGETS,
   executableWorkloadHasRunner,
+  pruneExecutableBestMetrics,
   updateExecutableBestMetrics,
   loadExecutableDocuments,
   validateExecutableBestMetrics,
@@ -51,7 +52,7 @@ export function parseBenchmarkCliArguments(argv) {
   if (!Array.isArray(argv)) fail("arguments must be an array");
   const command = argv[0] ?? "help";
   if (command === "help" || command === "--help" || command === "-h") return { command: "help" };
-  if (!["list", "run", "validate", "update", "check"].includes(command)) fail(`unknown command: ${command}`);
+  if (!["list", "run", "validate", "update", "prune", "check"].includes(command)) fail(`unknown command: ${command}`);
   if (command === "check") {
     if (argv.length !== 1) fail("check does not accept positional arguments or options");
     return { command };
@@ -69,6 +70,10 @@ export function parseBenchmarkCliArguments(argv) {
     if (inputs.length === 0 || inputs.some((input) => input.startsWith("--"))) fail("update requires one or more JSON paths");
     if (new Set(inputs).size !== inputs.length) fail("update result paths must be unique");
     return { command, inputs };
+  }
+  if (command === "prune") {
+    if (argv.length !== 1) fail("prune does not accept positional arguments or options");
+    return { command };
   }
   const result = { command, target: "hello", language: "w", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101 };
   for (let index = 1; index < argv.length; index += 1) {
@@ -97,12 +102,13 @@ export function parseBenchmarkCliArguments(argv) {
 
 export function benchmarkUsage() {
   return [
-    "usage: bun benchmark <list|run|validate|update|check>",
+    "usage: bun benchmark <list|run|validate|update|prune|check>",
     "",
     "  list",
     "  run --target <runnable-catalog-id> --language w|c|rust [--output benchmarks/results/<new>.json] [--warmup 1] [--compile-samples 9] [--run-samples 101]",
     "  validate <result.json>",
     "  update <result.json>... (atomic lower-is-better live-catalog update; consumes local results on success)",
+    "  prune (remove stale best-metric cells after a source digest change)",
     "  check",
     "",
     "Run measures one selected source with its catalog oracle. Public C requires Clang with final C23, the MSVC ABI, and the DLL runtime; only process-handler-lifecycle retains its private GCC/MinGW composite. Rust uses rustc edition 2024 for the MSVC ABI. W uses the public w build Release source-to-PE candidate for workloads that declare that recipe; public process argument workloads, including process-entry, use their argument-dependent oracle; process-handler-lifecycle remains contextual/non-ranking; public-w-run targets require retained-artifact and separate compile-run support.",
@@ -185,7 +191,8 @@ export async function publishLiveCatalog(result, { root = ROOT, gitState } = {})
 export async function publishLiveCatalogResults(results, { root = ROOT, gitState } = {}) {
   if (!Array.isArray(results) || results.length === 0) fail("catalog update requires at least one result");
   const documents = loadExecutableDocuments(root);
-  const catalogErrors = validateExecutableCatalog(documents.catalog, documents, root);
+  const catalogErrors = validateExecutableCatalog(documents.catalog, documents, root,
+    { allowStaleSourceDigest: true });
   if (catalogErrors.length > 0) fail(catalogErrors.join("; "));
   const state = gitState ?? await currentGitState(root);
   let catalog = documents.catalog;
@@ -211,6 +218,25 @@ export async function publishLiveCatalogResults(results, { root = ROOT, gitState
   await writeAtomicFile(catalogPath, catalogBytes, benchmarksRoot);
   await writeAtomicFile(projectionPath, projectionBytes, benchmarksRoot);
   return { catalog, changed, updatedMetrics: [...updatedMetrics].sort() };
+}
+
+export async function pruneLiveCatalog({ root = ROOT } = {}) {
+  const documents = loadExecutableDocuments(root);
+  const catalogErrors = validateExecutableCatalog(documents.catalog, documents, root,
+    { allowStaleSourceDigest: true });
+  if (catalogErrors.length > 0) fail(catalogErrors.join("; "));
+  const pruned = pruneExecutableBestMetrics(documents.catalog);
+  if (!pruned.changed) return pruned;
+  const nextErrors = validateExecutableCatalog(pruned.catalog, documents, root);
+  if (nextErrors.length > 0) fail(nextErrors.join("; "));
+  const benchmarksRoot = path.resolve(root, "benchmarks");
+  const catalogPath = path.resolve(benchmarksRoot, "executable-catalog.json");
+  const projectionPath = path.resolve(benchmarksRoot, "EXECUTABLES.md");
+  const catalogBytes = `${JSON.stringify(pruned.catalog, null, 2)}\n`;
+  const projectionBytes = `${renderExecutableProjection({ catalog: pruned.catalog, root })}\n`;
+  await writeAtomicFile(catalogPath, catalogBytes, benchmarksRoot);
+  await writeAtomicFile(projectionPath, projectionBytes, benchmarksRoot);
+  return pruned;
 }
 
 async function listCommand(root = ROOT) {
@@ -257,6 +283,10 @@ export async function main(argv = process.argv.slice(2), dependencies = {}) {
   else if (options.command === "list") await listCommand(root);
   else if (options.command === "check") await checkCommand(root);
   else if (options.command === "run") await (dependencies.runBenchmark ?? runCommand)(options, root);
+  else if (options.command === "prune") {
+    const pruned = await (dependencies.pruneLiveCatalog ?? pruneLiveCatalog)({ root });
+    console.log(`pruned ${pruned.removedCount} stale best-metric cells`);
+  }
   else if (options.command === "validate") {
     const { candidate, value } = await readResultInput(options.input, root);
     const documents = loadExecutableDocuments(root);
