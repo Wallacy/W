@@ -38053,12 +38053,12 @@ pinned MLIR 23.1.1 textual grammar, the sign-bit tag of an `i2` carrier is
 spelled as signed `-2`; it preserves the canonical tag-2 bit pattern and is
 only a parser-compatible textual spelling.
 
-The pinned Windows x86_64 MSVC route retains the direct verified-HIR path and
-applies `convert-scf-to-cf`, `convert-cf-to-llvm`, `mlir-translate`, `llc`, and
-the CRT-free native link. The exact fixture
+The Windows x86_64 MSVC and CRT-free Linux/WSL x86_64 routes retain the direct
+verified-HIR path. Both apply `convert-scf-to-cf`, `convert-cf-to-llvm`,
+`mlir-translate`, `llc`, and a target-owned native link. The exact fixture
 [`restaurant-enum.w`](compiler/seed-c/fixtures/restaurant-enum.w)
-executes with stdout `Courses 10/30/20\n`, empty stderr, and exit zero. The
-gate observes raw `cf.switch`, the `i2` carrier, and the unique synthetic
+executes on both targets with stdout `Courses 10/30/20\n`, empty stderr, and
+exit zero. The gates observe raw `cf.switch`, the `i2` carrier, and the unique synthetic
 `llvm.unreachable` default. No generated C, source-text recognition, host
 switch, or expected-output shortcut is an implementation path.
 
@@ -38079,9 +38079,9 @@ fn price(course: Course): i64 {
 ```
 
 The evidence remains bounded to one closed local payloadless enum and this
-exhaustive dispatch shape. Payload-bearing cases, general or mixed CFG, public
-ABI/layout stability, other targets, and performance remain gaps for W-1563;
-W-1571 records the separate bounded payloadless-subset successor. The benchmark
+exhaustive dispatch shape. General or mixed CFG, public ABI/layout stability,
+macOS, other targets, and performance remain gaps for W-1563; W-1571 records
+the separate bounded payloadless-subset successor. The benchmark
 disposition is `compiler-lifecycle`, correctness-only, with no timing, ranking,
 or benchmark result.
 
@@ -38101,13 +38101,15 @@ This representation is recipe-private, not a public memory layout or ABI.
 It requires no enum-specific heap allocation. LLVM may scalarize or eliminate
 the aggregate, while materialized values follow the target data layout.
 
-The Windows LLVM/MLIR 23.1.1 route executes
+The Windows and Linux/WSL routes execute
 [`restaurant-enum-payload.w`](compiler/seed-c/fixtures/restaurant-enum-payload.w)
-with stdout `Bills 32/44/10/7\n`, empty stderr, and exit zero. The executable
-catalog owns its oracle, C/Rust references, and initial live measurements.
+with stdout `Bills 32/44/10/7\n`, empty stderr, and exit zero. Linux uses the
+same SSA aggregate without a target-specific enum representation. The executable
+catalog owns the oracle, C/Rust references, and Windows measurements.
 The mixed-payload witness
 [`restaurant-enum-bool-payload.w`](compiler/seed-c/fixtures/restaurant-enum-bool-payload.w)
-executes reordered Bool fields, enum-returning calls, and Bool/i64 captures.
+executes reordered Bool fields, enum-returning calls, and Bool/i64 captures on
+both targets.
 Its exact output is `States true/false/false/true; charges 17/31; licensed true\n`.
 The same gate mutates Bool fields and signed amounts independently.
 General payload types, recursive payloads, niches, mixed CFG, and stable public

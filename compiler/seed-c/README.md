@@ -1495,8 +1495,8 @@ NativeSubset0 derives a private minimum logical carrier (`iN`; three cases are
 `i2`, with at most 64 cases supported). MLIR0 schema
 `w-seed-mlir0-16`/Windows label `w-seed-mlir0-windows-7` emits canonical
 `cf.switch` tags and a unique backend-only default block ending in
-`llvm.unreachable`; Native0 is `w-seed-native0-8`. Pinned Windows x86_64 MSVC
-LLVM/MLIR 23.1.1 runs the exact
+`llvm.unreachable`; Native0 is `w-seed-native0-8`. Windows x86_64 MSVC and
+CRT-free Linux/WSL x86_64 run the exact
 [`restaurant-enum.w`](fixtures/restaurant-enum.w) fixture through verified HIR,
 MLIR conversion, translation, native link, and execution, requiring
 `Courses 10/30/20\n`, empty stderr, and exit zero. The i2 sign-bit tag is
@@ -1582,7 +1582,7 @@ forced stack slot. Target lowering determines any materialized alignment and
 padding. This recipe does not establish a public ABI. The existing payloadless
 minimum-width carrier and its artifact bytes remain unchanged.
 
-The Windows LLVM/MLIR 23.1.1 `w run` gate executes
+The Windows and Linux/WSL `w run` gates execute
 [`restaurant-enum-payload.w`](fixtures/restaurant-enum-payload.w) as
 `Bills 32/44/10/7\n`. It constructs three variants, returns an enum from a
 local function, and computes four bills through reordered captures.
@@ -1590,7 +1590,8 @@ The mixed-payload witness
 [`restaurant-enum-bool-payload.w`](fixtures/restaurant-enum-bool-payload.w)
 produces `States true/false/false/true; charges 17/31; licensed true\n`.
 Its four-Bool case shares two `i64` lanes with the larger Bool-plus-i64 case.
-The gate also changes Bool fields and signed amounts independently.
+Both targets preserve the same observable value. The Windows gate also changes
+Bool fields and signed amounts independently.
 Native0 tests cover both target adapters and short-capacity atomic failure.
 The bundle's primary disposition is `compiler-lifecycle`; its runnable fixture
 also belongs to the executable benchmark catalog. Initial live measurements

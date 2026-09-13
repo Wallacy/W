@@ -12,7 +12,12 @@ const restaurantLinearFixture = resolve(seedDirectory, "fixtures", "restaurant-l
 const restaurantInterpolationFixture = resolve(seedDirectory, "fixtures", "restaurant-interpolation.w")
 const restaurantIfFixture = resolve(seedDirectory, "fixtures", "restaurant-if.w")
 const restaurantComparisonsFixture = resolve(seedDirectory, "fixtures", "restaurant-comparisons.w")
+const restaurantEnumFixture = resolve(seedDirectory, "fixtures", "restaurant-enum.w")
 const restaurantEnumSubsetFixture = resolve(seedDirectory, "fixtures", "restaurant-enum-subset.w")
+const restaurantEnumPayloadFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-enum-payload.w")
+const restaurantEnumBoolPayloadFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-enum-bool-payload.w")
 const restaurantComparisonCompositionFixture = resolve(seedDirectory, "fixtures", "restaurant-comparison-composition.w")
 const restaurantBoolShortCircuitFixture = resolve(seedDirectory, "fixtures", "restaurant-bool-short-circuit.w")
 const restaurantNestedIfFixture = resolve(seedDirectory, "fixtures", "restaurant-nested-if.w")
@@ -645,9 +650,19 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantLinearFixture)],
     Buffer.from("Table 42 remains open\nKitchen is ready\n", "utf8"),
     "Restaurant linear sequence")
+  expectSuccess(binary, ["run", toWsl(restaurantEnumFixture)],
+    Buffer.from("Courses 10/30/20\n", "utf8"),
+    "Restaurant payloadless enum exhaustive switch")
   expectSuccess(binary, ["run", toWsl(restaurantEnumSubsetFixture)],
     Buffer.from("Work 1/2\n", "utf8"),
     "Restaurant payloadless enum subset switch")
+  expectSuccess(binary, ["run", toWsl(restaurantEnumPayloadFixture)],
+    Buffer.from("Bills 32/44/10/7\n", "utf8"),
+    "Restaurant enum payload return and reordered captures")
+  expectSuccess(binary, ["run", toWsl(restaurantEnumBoolPayloadFixture)],
+    Buffer.from(
+      "States true/false/false/true; charges 17/31; licensed true\n", "utf8"),
+    "Restaurant mixed Bool and i64 enum payloads")
   expectSuccess(binary, ["run", toWsl(restaurantInterpolationFixture)],
     Buffer.from("Table 42 remains open\n", "utf8"),
     "Restaurant typed interpolation")
