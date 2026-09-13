@@ -63,6 +63,7 @@ add_library(w_seed_source STATIC
   src/w_seed_hlo1.c
   src/w_seed_mlir0.c
   src/w_seed_hir0.c
+  src/w_seed_product_closure0.c
   src/w_seed_process0.c
   src/w_seed_run0.c
 )
@@ -608,6 +609,11 @@ add_executable(w_seed_hir0_multidoc_tests
 )
 target_link_libraries(w_seed_hir0_multidoc_tests PRIVATE w_seed_source)
 
+add_executable(w_seed_product_closure0_tests
+  tests/test_product_closure0.c
+)
+target_link_libraries(w_seed_product_closure0_tests PRIVATE w_seed_source)
+
 add_executable(w_seed_process0_tests
   tests/test_process0.c
 )
@@ -758,6 +764,7 @@ if(MSVC)
   target_compile_options(w_seed_native0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_hir0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_hir0_multidoc_tests PRIVATE /W4 /WX)
+  target_compile_options(w_seed_product_closure0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_process0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_process_entry0_gate PRIVATE /W4 /WX)
   target_compile_options(w_seed_run0_tests PRIVATE /W4 /WX)
@@ -1217,6 +1224,15 @@ else()
     -Wshadow
     -Werror
   )
+  target_compile_options(w_seed_product_closure0_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
   target_compile_options(w_seed_process0_tests PRIVATE
     -Wall
     -Wextra
@@ -1292,6 +1308,7 @@ add_test(NAME w_seed_mlir0_unit COMMAND w_seed_mlir0_tests)
 add_test(NAME w_seed_native0_unit COMMAND w_seed_native0_tests)
 add_test(NAME w_seed_hir0_unit COMMAND w_seed_hir0_tests)
 add_test(NAME w_seed_hir0_multidoc_unit COMMAND w_seed_hir0_multidoc_tests)
+add_test(NAME w_seed_product_closure0_unit COMMAND w_seed_product_closure0_tests)
 add_test(NAME w_seed_process0_unit COMMAND w_seed_process0_tests)
 add_test(NAME w_seed_process_entry0_gate_compile
   COMMAND w_seed_process_entry0_gate

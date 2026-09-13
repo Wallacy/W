@@ -53,14 +53,16 @@ try {
     "-DCMAKE_BUILD_TYPE=Release"], root, toolchainEnvironment)
   await assertCompiler(buildDirectory, "seed configure")
   run(cmake, ["--build", buildDirectory, "--target", "w_seed_hir0_tests",
-    "w_seed_hir0_multidoc_tests", "--parallel", "2"], root,
+    "w_seed_hir0_multidoc_tests", "w_seed_product_closure0_tests",
+    "--parallel", "2"], root,
   toolchainEnvironment)
   const suffix = process.platform === "win32" ? ".exe" : ""
   const output = run(resolve(buildDirectory, `w_seed_hir0_tests${suffix}`), [])
   if (!output.includes("hir0 tests: ok")) fail("unit test witness is missing")
   run(resolve(buildDirectory, `w_seed_hir0_multidoc_tests${suffix}`), [])
+  run(resolve(buildDirectory, `w_seed_product_closure0_tests${suffix}`), [])
   process.stdout.write(
-    "HIR0: caller-owned verified single/multi-document HIR and adversarial barriers passed\n",
+    "HIR0: caller-owned verified single/multi-document HIR, bounded product closure, and adversarial barriers passed\n",
   )
 } finally {
   await rm(buildDirectory, { recursive: true, force: true })

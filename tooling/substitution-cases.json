@@ -6747,6 +6747,125 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-product-closure0",
+      "reviewItem": "bounded ProductClosure0 reachability against exported metadata as a root, retained dead modules, and non-independent MLIR closure",
+      "decisions": [
+        "W-1576"
+      ],
+      "task": "Project complete verified HIR into caller-owned ProductClosure0 closure data, cross-check it with an independent MLIR reachability walk, and omit a synthetic dead module without changing the reachable digest or MLIR bytes.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "// app.w",
+          "import { helper as h } from lib",
+          "fn run(): i64 { return h() }",
+          "entry(run)",
+          "// lib.w",
+          "module lib",
+          "export fn helper(): i64 { return 42 }"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "exported-metadata-root",
+          "language": "w-internal-rejected",
+          "source": [
+            "treat every exported function or module as a product root"
+          ],
+          "expectedDifference": "The selected root is only the explicit `.default` entry in module 0. Exported metadata does not retain unrelated functions or modules."
+        },
+        {
+          "name": "source-name-call-shortcut",
+          "language": "w-internal-rejected",
+          "source": [
+            "match the app call by helper spelling without the verified local-call relation"
+          ],
+          "expectedDifference": "The selected projection follows verified HIR identities and local-call edges, including the imported app-to-lib helper."
+        },
+        {
+          "name": "retain-synthetic-dead-module",
+          "language": "w-internal-rejected",
+          "source": [
+            "retain an unreachable module and its source bytes in the product closure"
+          ],
+          "expectedDifference": "The selected closure omits the synthetic dead module and preserves the reachable semantic digest."
+        },
+        {
+          "name": "single-mlir-reachability-walk",
+          "language": "w-internal-rejected",
+          "source": [
+            "remove the independent MLIR closure cross-check"
+          ],
+          "expectedDifference": "The selected MLIR route computes reachability independently and rejects a disagreement with ProductClosure0."
+        },
+        {
+          "name": "public-multifile-native-equivalence",
+          "language": "text",
+          "source": [
+            "promote the internal projection to public multi-file build/run and native artifact/runtime equivalence"
+          ],
+          "expectedDifference": "The selected milestone remains compiler-lifecycle correctness evidence and keeps W-1568 open."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_product_closure0.h",
+          "symbol": "w_seed_product_closure0_run",
+          "claim": "The ProductClosure0 API publishes a bounded caller-owned closure projection after verified HIR."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_product_closure0.c",
+          "symbol": "input_valid",
+          "claim": "ProductClosure0 verifies complete HIR before applying the root, shape, and reachability checks."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_product_closure0.c",
+          "symbol": "compute_digest",
+          "claim": "The closure publishes a canonical reachable semantic digest over retained records and relations."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "w_seed_native_subset0_select_program",
+          "claim": "NativeSubset0 accepts the bounded generic multi-module program path."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "mlir_product_closure_shape_candidate",
+          "claim": "MLIR0 identifies ProductClosure0 candidates before its independent closure cross-check."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_product_closure0.c",
+          "symbol": "test_reachable_and_omitted",
+          "claim": "The app-to-lib witness retains the reachable helper and omits unused functions."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_product_closure0.c",
+          "symbol": "test_dead_module_and_mlir",
+          "claim": "The synthetic dead-module witness checks omission, reachable digest equality, and byte-identical MLIR."
+        },
+        {
+          "path": "tooling/check-hir0.mjs",
+          "symbol": "w_seed_product_closure0_tests",
+          "claim": "The focused HIR gate builds and executes the ProductClosure0 unit."
+        }
+      ],
+      "checks": [
+        "complete HIR verification runs before ProductClosure0 reachability, including malformed dead records",
+        "the only root is source entry index 0 with `.default` in module 0 and exported metadata is not a root",
+        "caller-owned bounded outputs publish deterministic reachable and omitted module/function lists and supported scalar/local-call relations",
+        "the reachable semantic digest remains equal after adding a synthetic dead module",
+        "NativeSubset0 generic multi-module selection agrees with the independent MLIR ProductClosure0 cross-check",
+        "the app-to-lib helper is retained, unused functions are omitted, and base/dead MLIR bytes are identical",
+        "enum, switch, pattern, external, process, effect, service, reflection, FFI, and dynamic-loading families fail closed without public multi-file or native-equivalence claims"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

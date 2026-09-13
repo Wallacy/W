@@ -2915,7 +2915,9 @@ w_seed_native_subset0_status w_seed_native_subset0_select_program(
   if (program == NULL || hir_result == NULL || selection == NULL ||
       !w_seed_hir0_verify(program, hir_result))
     return W_SEED_NATIVE_SUBSET0_INVALID;
-  if (program->module_count != 1u || program->function_count == 0u ||
+  if (program->module_count == 0u ||
+      program->module_count > W_SEED_NATIVE_SUBSET0_MAX_MODULES ||
+      program->function_count == 0u ||
       program->function_count > W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS ||
       program->parameter_count > W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS ||
       program->block_count == 0u ||
@@ -2994,6 +2996,7 @@ w_seed_native_subset0_status w_seed_native_subset0_select_program(
         program_post_test_loop_is_supported(program, function);
   *selection = (w_seed_native_subset0_program){
       .entry = entry,
+      .module_count = program->module_count,
       .function_count = program->function_count,
       .parameter_count = program->parameter_count,
       .instruction_count = program->instruction_count,

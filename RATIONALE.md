@@ -229,6 +229,7 @@ O corpus compara, no mínimo:
 - bounded executable post-test repeat against pre-test rewriting, stale carriers, hidden stack state, and unsupported control or effects
 - local payloadless enum identity against raw integer tags and premature switch lowering.
 - bounded resolver-complete local-document graph into verified HIR against single-document assumptions, source-name call matching, and shared-source ownership.
+- bounded ProductClosure0 reachability against exported metadata as a root, retained dead modules, and non-independent MLIR closure.
 
 ### 1.1 Cobertura de substituições
 
@@ -7871,6 +7872,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1573 | bounded public `Arguments.count` usize ordering | The bounded public process subset extends the exact resolver-owned `std.process.Arguments.count` comparison from `==`/`!=` to `<`, `<=`, `>`, and `>=` against a nonnegative unsuffixed compile-time integer literal, in either operand order. HIR reuses the `USIZE_COUNT_COMPARISON` record and keeps logical `usize` in HIR28. The x86_64 MLIR adapter emits unsigned `ult`/`ule`/`ugt`/`uge` for ordered count predicates over its physical `i64` carrier, while ordinary signed-`i64` comparisons retain signed predicates. Wrong identity or receiver, negative or computed literals, raw `Arguments`, and general `usize` arithmetic remain rejected. The public Restaurant ordering fixture executes exact bounded outputs through native Windows and Linux/WSL routes. | `source-backed-current` only for the bounded HIR28 logical `usize` comparison, exact identity/receiver/operator and operand-order barriers, unsigned x86_64 predicates, signed-`i64` regression, and dual-target correctness witness. General `usize` arithmetic, runtime or computed count comparisons, helper `usize` parameters/returns/indexing, decoded `OsString`, other targets, stable ABI/layout, native Linux benchmark execution, timing, and ranking remain gaps. Primary `benchmarkDisposition: compiler-lifecycle`; the executable catalog separately owns exploratory W/C23/Rust measurements. WSL is Linux-target correctness evidence, not native Linux performance evidence. No timing or language-ranking claim is made. |
 | W-1574 | bounded executable post-test `repeat` | The already normative W-746 surface lowers through a distinct five-block HIR29 post-test CFG, a dedicated NativeSubset0 fact, and one structured MLIR17 `scf.while`. A true initial Bool carrier forces the first body execution; each body computes the updated nonempty signed-`i64` tuple and the next condition. The public zero/multidigit witness emits exact output as a native Windows PE and CRT-free Linux/WSL ELF without source-variable `llvm.alloca`. | `source-backed-current` only for the bounded pure signed-`i64` helper, exact CFG/SSA/verifier barriers, structured lowering, and dual-target correctness witness. W-1149's broader `continue`, `break`, and cleanup study remains separate. Nested/mixed loops, calls/effects, aggregates, labels, non-`i64`, general CFG, other targets, stable ABI/layout, timing, and ranking remain gaps. Primary `benchmarkDisposition: compiler-lifecycle`; the executable catalog separately owns exploratory W/C23/Rust measurement. |
 | W-1575 | bounded resolved local-document graph into verified HIR | The bounded HIR0 route accepts a resolver-complete acyclic local-document graph with one module per document, one explicit `.default` root entry in module 0, and an exported cross-module local call. HIR0 copies module and source identity with function, block, and call records. The frontend-to-HIR preflight checks import path and target identity, cycle freedom, and source-span ownership; the standalone HIR verifier checks the copied module, function, call, identity, dense-range, and root-entry relations. Focused C23 tests cover semantic/provenance digest behavior, frontend-lifetime independence, and forged path, cycle, ownership, entry, call, alias, and capacity rejection. Public multi-file `w build`/`w run`, DCE, product reachability, WMO/WPO, and artifact equivalence remain outside this decision; W-1568 remains an implementation-evidence gap. | `source-backed-current` only for the bounded resolver-complete local-document graph into verified HIR and its C23 focused tests. There is no public multi-file `w build`/`w run`, DCE, product reachability, WMO/WPO, or artifact-equivalence evidence. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
+| W-1576 | bounded ProductClosure0 reachable product projection | ProductClosure0 runs only after complete HIR0 verification. It accepts the bounded scalar and local-call family with Unit, String, signed `i64`, and Bool values, one explicit `.default` entry at source entry index 0 in module 0, and the verified native `print` relation. Exported function metadata is semantic visibility metadata and is not a product root. The caller owns bounded output storage. ProductClosure0 publishes deterministic reachable and omitted module/function lists, source-to-closure remaps, supported scalar/value/type/requirement facts, and a reachable semantic digest. NativeSubset0 accepts the generic bounded multi-module path. MLIR0 retains an independent reachability walk and cross-checks each ProductClosure0 candidate. The real app→lib witness retains the reachable helper. A synthetic dead module is omitted, while the reachable digest and emitted MLIR remain byte-identical. Enum, switch, pattern, external-module, process, effect, service, reflection, FFI, and dynamic-loading families fail closed. No public multi-file build/run or native artifact/runtime equivalence is claimed. W-1568 remains open. | `source-backed-current` only for the bounded verified-HIR ProductClosure0 projection, deterministic closure and digest, NativeSubset0 multi-module selection, independent MLIR cross-check, app→lib helper retention, synthetic dead-module omission, and byte-identical MLIR. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -11809,3 +11811,31 @@ multidigit part of W-1149. Its `continue`, `break`, and lexical-cleanup cases
 remain design-oracle evidence until the corresponding executable control-flow
 forms exist. General loops, other scalar widths, public ABI/layout, additional
 targets, optimization quality, timing, and language ranking remain gaps.
+
+#### W-1576 — bounded ProductClosure0 reachable product projection
+
+W-1575 copies a resolver-complete local-document graph into verified HIR. W-1576
+adds the first internal product projection over that verified input. ProductClosure0
+calls complete HIR verification before it reads any record for reachability. A
+malformed dead function therefore rejects the operation instead of disappearing
+behind omission.
+
+The projection is borrowed, bounded, and caller-owned. It publishes deterministic
+reachable and omitted module and function lists, source-to-closure remaps, the
+supported scalar facts, and a reachable semantic digest. The root is exactly the
+source entry at index zero, with slot `.default` in module zero. The exported
+function bit remains semantic visibility metadata and never creates a root.
+
+The admitted family is narrow. It uses Unit, String, signed `i64`, and Bool
+types, pure scalar value trees, local function calls, and the verified native
+`print`/`Console` relation. Functions are synchronous, non-throwing, safe, and
+free of borrow clauses. Enum, switch, pattern, external-module, process,
+effect, service, reflection, FFI, and dynamic-loading families fail closed.
+
+NativeSubset0 now accepts the generic bounded multi-module path. MLIR0 keeps an
+independent reachability walk and cross-checks each ProductClosure0 candidate.
+The real app→lib witness retains the imported `helper`. A synthetic dead module
+is omitted, while the reachable digest and emitted MLIR bytes remain identical.
+These are internal correctness checks. They do not provide public multi-file
+`w build` or `w run`, native artifact/runtime equivalence, or completion of
+W-1568. The benchmark disposition is `compiler-lifecycle`, correctness-only.
