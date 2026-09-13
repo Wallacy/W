@@ -28129,8 +28129,9 @@ O estado atual tem zero targets `supported`. `x86_64-unknown-linux-gnu` é a
 hostAdapter, SDK profile, linker/sysroot/packaging e CI evidence são
 `partial`. A evidence cobre a fonte, a unidade, o gate e o manifest MLIR0.
 Ela não declara target geral, SDK, packaging ou CI oficial. O manifest
-permanece pinado em MLIR/LLVM/Clang `20.1.2`: essa é a versão factual da
-evidence atual, marcada `currencyStatus: update-required`, e não a versão
+permanece pinado em MLIR/LLVM/Clang `23.1.1`: essa é a versão atual da
+evidence, marcada `currencyStatus: current`; a aquisição Linux/WSL usa um root
+externo persistente e não pressupõe nomes versionados em `/usr/bin`, e não é a versão
 pretendida para bundles futuros.
 
 O catálogo mantém como `candidate` exatamente os targets
@@ -28158,7 +28159,8 @@ observada ficam no policy record. `importsRustTiers` é false. Essa meta é
 comparativa. Ela não herda claims ou tiers do Rust.
 
 Os bundles native de Linux, Windows e macOS permanecem planned. A evidence
-Linux atual usa MLIR `20.1.2` em WSL e não satisfaz o plano successor nativo.
+Linux atual usa MLIR `23.1.1` em WSL por meio do bundle portátil externo e não
+satisfaz o plano successor nativo.
 Cada plano usa
 exatamente `llvmorg-23.1.1`, com o tag object assinado
 `e7ce3600b55034ddf819638f395e3c475fad5be2` e o commit peeled
@@ -28178,8 +28180,8 @@ determinística; o checker cruza os registros com package manifests, lockfile,
 workflow, READMEs e o catálogo de platform support. Dependências managed
 ativas usam a versão latest stable exata. Compatibility floors e recipes não
 sobem por currency, snapshots de evidence preservam a versão histórica e
-nenhuma observação de ambiente declara pin exato. MLIR `20.1.2` continua a
-evidence histórica atual; `23.1.1` é successor selected/not promoted com o tag
+nenhuma observação de ambiente declara pin exato. MLIR `23.1.1` é a
+evidence atual; o successor/native plan continua selected/not promoted com o tag
 object e commit acima, sujeito ao blocker de build/aquisição/proveniência.
 Esta decisão é metadata operacional, não semântica W; `source-backed-current`
 fica limitado ao catálogo, checker e projeção.
@@ -35660,13 +35662,16 @@ the `BINDING` instruction, and the `BINDING_READ` value. It copies the name,
 initializer bytes, owner, order, type, and span. O registro de host inclui o profile explícito
 `native-process@1`; a identidade não é inferida pelo consumidor.
 
-Este schema inicial aceita exatamente um document, um module e um entry. O
-entry é publicado em um único slot `.default`, e cada module rejeita funções
-com nome duplicado. A HIR0 continua mais ampla que o seletor HLO0: dentro dos
-limites bounded, pode carregar múltiplas funções e os records correspondentes
-de blocks, calls, arguments e values. A tabela `symbols` do frontend é somente um índice
-auxiliar: o lowering não deriva dela nenhuma identidade, tipo ou callee, mas o
-preflight valida a projeção canônica de module, parâmetros, funções e entry.
+A forma inicial deste schema, registrada por W-1494, aceita exatamente um
+document, um module e um entry. O entry é publicado em um único slot `.default`,
+e cada module rejeita funções com nome duplicado. W-1575 é o sucessor HIR-only
+bounded para um grafo local de documents resolvido, sem ampliar a forma HLO0.
+A HIR0 continua mais ampla que o seletor HLO0: dentro dos limites bounded, pode
+carregar múltiplas funções e os records correspondentes de blocks, calls,
+arguments e values. A tabela `symbols` do frontend é somente um índice auxiliar:
+o lowering não deriva dela nenhuma identidade, tipo ou callee, mas o preflight
+valida a projeção canônica de module, parâmetros, funções e entry. A claim de
+W-1494 e o consumidor HLO0 permanecem limitados à forma de um document.
 Outras famílias frontend que não possuem record HIR0 (imports, declarations,
 enums, generics, diagnostics, const families e similares) falham fechadas;
 isso não é uma promessa de HIR geral.
@@ -35804,7 +35809,7 @@ produz LLVM IR e `clang -x ir --target=x86_64-unknown-linux-gnu` faz o link
 native. Cada executable exige stdout exato (payload + LF), stderr vazio e
 exit zero. Comentário contendo `print`, noop, duas calls e forma fora do subset
 falham sem stdout MLIR parcial. O manifest versionado fixa MLIR/LLVM/Clang
-20.1.2, os comandos, o target e a recipe; Linux usa ferramentas diretas e
+23.1.1, os comandos, o target e a recipe; Linux usa ferramentas diretas e
 Windows usa WSL Ubuntu. Toolchain inteira ausente é SKIP; presença parcial,
 versão divergente ou falha de execução é FAIL. `bun check --target mlir0` é um gate
 focal/pinned, não parte da suite padrão.
@@ -35940,8 +35945,7 @@ LLVM IR translation, native link, and execution. Direct Hello, empty, and the
 Restaurant binding and literal forms were products. Restaurant binding and
 literal artifacts were byte-identical and both produced exact stdout
 `Table 42 remains open\n`; there were no timing or performance results. The
-factual toolchain was 20.1.2
-with `update-required` currency status.
+current toolchain pin is 23.1.1 with `current` currency status.
 
 The finite gaps were general HIR, multiple bindings or values, CFG/general SSA,
 the W MLIR dialect, an MLIR C API builder, ownership/effects/tasks lowering,
@@ -36616,8 +36620,8 @@ that behavior is not claimed. The builder preserves C23 as the requested
 standard. MSVC maps that request to `/std:clatest`, which the receipt records as
 `c23-msvc-preview` for correctness only, not as a final C23 result. Existing
 local evidence therefore uses the explicit `--c11-recovery` path. C11 is
-recovery only, not a silent fallback. Linux/WSL W-1521 remains the separate
-20.1.2/update-required route. `benchmarkDisposition` is `compiler-lifecycle`,
+recovery only, not a silent fallback. Linux/WSL W-1521 uses the separate
+23.1.1 external-root route. `benchmarkDisposition` is `compiler-lifecycle`,
 correctness-only; no timing or performance result is published.
 
 **Example:** a local candidate build keeps the heavy cache external. The primary
@@ -37059,7 +37063,7 @@ widths, named numeric APIs, and general panic runtime remain outside the cut.
 The source-backed fixture
 `compiler/seed-c/fixtures/restaurant-checked-arithmetic.w` uses `entry {}` and
 requires exact stdout `Open 6; closed 1\n`, exit zero, and empty stderr through
-the Linux/WSL LLVM 20.1.2 route. No native Windows evidence is claimed. The
+the Linux/WSL LLVM 23.1.1 route. No native Windows evidence is claimed. The
 focused route is `benchmarkDisposition: compiler-lifecycle` and
 correctness-only, with no timing or benchmark result.
 
@@ -37964,7 +37968,7 @@ program output.
 
 This evidence is limited to one loop per function, one root-block mutable
 signed-`i64` carrier and the W-1560 four-block CFG. Native evidence covers
-Linux x86_64 under WSL with LLVM/MLIR 20.1.2 and Windows x86_64 MSVC with
+Linux x86_64 under WSL with LLVM/MLIR 23.1.1 and Windows x86_64 MSVC with
 LLVM/MLIR 23.1.1. The original MLIR0 record and byte envelope remain unchanged;
 the current global schema also contains later independent enum records. The
 toolchain capability scope is `unit-structured-cfg-natural-loop`. Multiple
@@ -38142,12 +38146,13 @@ entry {
 ```
 
 This is evidence for one bounded executable product closure inside one module,
-not cross-module WMO/WPO. HIR0 still admits exactly one source document and one
-module. Package/workspace graph lowering, library product exports, reflection,
-FFI, provider, service and dynamic-loading roots, incremental summary reuse,
-cross-module inlining, other targets, and optimization-quality claims remain
-gaps. The executable catalog owns exploratory W/C/Rust measurements separately
-from this correctness claim.
+not cross-module WMO/WPO. The W-1564 product witness remains one-document and
+one-module. W-1575 adds only an HIR-side prerequisite for a resolved local
+document graph. Package/workspace graph lowering, library product exports,
+reflection, FFI, provider, service and dynamic-loading roots, incremental summary
+reuse, cross-module inlining, other targets, and optimization-quality claims
+remain gaps. The executable catalog owns exploratory W/C/Rust measurements
+separately from this correctness claim.
 
 #### 26.4.1.46 W-1565 — bounded public `Arguments.count` lowering (Current form)
 
@@ -38332,6 +38337,9 @@ W-1568 is a future pipeline task. It preserves the idiomatic process root
 route. That route remains single-source, and CHK4 only checks a caller-owned
 graph.
 
+W-1575 closes only the HIR prerequisite for this graph. It does not add public
+multi-file `w build` or `w run`, dead-node elimination, or artifact equivalence.
+
 **Example:** the future acceptance fixture pairs `app.w` with
 `app-with-dead.w`; both must publish the same artifact digest, and the latter
 must record its unused module as omitted from the reachable product closure.
@@ -38414,8 +38422,8 @@ entry {
 }
 ```
 
-The public Linux/WSL route produces an x86_64 ELF using the pinned local
-LLVM/MLIR 20.1.2 profile. The native Windows route produces an x86_64 PE with
+The public Linux/WSL route produces an x86_64 ELF using the pinned external
+LLVM/MLIR 23.1.1 profile. The native Windows route produces an x86_64 PE with
 the pinned LLVM/MLIR 23.1.1 MSVC profile. Both routes execute the same fixture
 and require exact stdout, empty stderr, exit zero, and cleanup. The Linux/WSL
 route is correctness-only. The same public executable catalog workload also
@@ -38734,6 +38742,48 @@ targets, stable ABI/layout, optimization-quality claims, and performance
 ranking remain outside this bounded form. W-1149 retains its broader research
 coverage for `continue`, `break`, and lexical cleanup; this executable witness
 closes only body-before-condition behavior for zero and multidigit inputs.
+
+#### 26.4.1.56 W-1575 — bounded resolved local-document graph into verified HIR (Current bounded form)
+
+W-1575 closes one HIR-only prerequisite for W-1568. The resolver-complete input
+is a bounded local-document graph with one frontend module per document. HIR0
+copies document and module identity, functions, blocks, calls, and values into
+caller-owned storage. Exactly one explicit `.default` root entry belongs to
+module 0. Imported modules have no entry in this slice.
+
+The focused witness has an `app` root and a `lib` document. `app` imports
+`{ helper as h } from lib`, its `run` function returns `h()`, and `lib` exports
+`helper` returning `42`. A cross-module local call requires the resolver-owned
+local-document edge, exactly one named imported item, and an exported target.
+
+**Exemplo:** o witness separa os dois documents antes do lowering:
+
+```w
+// app.w
+import { helper as h } from lib
+fn run(): i64 { return h() }
+entry(run)
+```
+
+```w
+// lib.w
+module lib
+export fn helper(): i64 { return 42 }
+```
+
+The HIR preflight independently checks dense import ranges, source and target
+module identity, import paths, and cycle freedom. It also derives source-span
+ownership from each record's module. The HIR verifier independently checks the
+copied module, function, call, identity, range, and root-entry relations. A
+forged path, cycle, owner, entry, or call relation fails before publication.
+
+The C23 `w_seed_hir0_multidoc_tests` unit lowers two parsed documents, repeats
+the result, distinguishes semantic and provenance digest changes under
+whitespace, verifies frontend-lifetime independence, and checks alias and
+capacity transactionality. This is source-backed verified-HIR evidence only.
+It does not add public multi-file `w build` or `w run`, product reachability,
+dead-node elimination, DCE, WMO/WPO, or artifact equivalence. W-1568 remains
+an implementation-evidence gap for that product pipeline.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

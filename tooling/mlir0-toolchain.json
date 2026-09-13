@@ -13,29 +13,39 @@
     "abi": "gnu"
   },
   "toolchain": {
-    "mlir": "20.1.2",
-    "llvm": "20.1.2",
-    "clang": "20.1.2"
+    "mlir": "23.1.1",
+    "llvm": "23.1.1",
+    "clang": "23.1.1"
   },
   "commands": {
     "mlirOpt": {
-      "linux": "/usr/bin/mlir-opt-20",
-      "wsl": "/usr/bin/mlir-opt-20",
+      "linux": "mlir-opt",
+      "wsl": "mlir-opt",
       "versionArgs": ["--version"]
     },
     "mlirTranslate": {
-      "linux": "/usr/bin/mlir-translate-20",
-      "wsl": "/usr/bin/mlir-translate-20",
+      "linux": "mlir-translate",
+      "wsl": "mlir-translate",
       "versionArgs": ["--version"]
     },
     "llvmConfig": {
-      "linux": "/usr/bin/llvm-config-20",
-      "wsl": "/usr/bin/llvm-config-20",
+      "linux": "llvm-config",
+      "wsl": "llvm-config",
       "versionArgs": ["--version"]
     },
     "clang": {
-      "linux": "/usr/bin/clang-20",
-      "wsl": "/usr/bin/clang-20",
+      "linux": "clang",
+      "wsl": "clang",
+      "versionArgs": ["--version"]
+    },
+    "llc": {
+      "linux": "llc",
+      "wsl": "llc",
+      "versionArgs": ["--version"]
+    },
+    "linkDriver": {
+      "linux": "/usr/bin/ld",
+      "wsl": "/usr/bin/ld",
       "versionArgs": ["--version"]
     }
   },
@@ -56,6 +66,20 @@
   "hostModes": {
     "linux": "direct",
     "windows": "wsl:Ubuntu"
+  },
+  "toolchainDiscovery": {
+    "rootEnv": "W_MLIR0_TOOLCHAIN_ROOT",
+    "relativeBin": "bin",
+    "materializedManifest": "w-mlir0-linux-materialized.json",
+    "pathPolicy": "explicit-external-root-or-host-PATH",
+    "repositoryPath": false,
+    "archive": {
+      "release": "2026.09.11",
+      "filename": "llvm-mlir_llvmorg-23.1.1_x86_64-unknown-linux-gnu.tar.zst",
+      "sizeBytes": 400536815,
+      "sha256": "cfa94b0c4dfb933e755362468b615ada40e77e6d77b8db609505888de296ca7e",
+      "source": "munich-quantum-software/setup-mlir"
+    }
   },
   "hostEvidence": "wsl-linux",
   "windowsNative": false,

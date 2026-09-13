@@ -534,19 +534,19 @@ static bool frontend_shape_ok(const w_seed_hir0_input *input) {
       result->receipt_bytes != result->written.receipt_bytes ||
       result->written.receipt_bytes > output->receipt_capacity ||
       (result->written.receipt_bytes != 0u && output->receipt == NULL) ||
-       frontend_input->documents == NULL || frontend_input->document_count != 1u ||
+       frontend_input->documents == NULL || frontend_input->document_count == 0u ||
        frontend_input->document_count > W_SEED_FRONTEND_MAX_DOCUMENTS ||
       result->written.functions > W_SEED_FRONTEND_MAX_CST_NODES ||
       frontend_input->external_module_count >
-          W_SEED_FRONTEND_MAX_EXTERNAL_MODULES ||
-      frontend_input->resolved_import_count >
           W_SEED_FRONTEND_MAX_EXTERNAL_MODULES ||
       (frontend_input->external_module_count != 0u &&
        frontend_input->external_modules == NULL) ||
       (frontend_input->resolved_import_count != 0u &&
        frontend_input->resolved_imports == NULL) ||
-      ((frontend_input->external_module_count != 0u) !=
-       frontend_input->import_resolution_complete))
+      (!frontend_input->import_resolution_complete &&
+       frontend_input->resolved_import_count != 0u) ||
+      (frontend_input->external_module_count != 0u &&
+       !frontend_input->import_resolution_complete))
     return false;
 #define HIR0_FRONTEND_ARRAY(field, capacity_field, type)                       \
   if (!frontend_array_ok(output->field, result->written.field,               \
@@ -611,13 +611,148 @@ static bool frontend_shape_ok(const w_seed_hir0_input *input) {
       }
     }
   }
-   if (result->written.modules != 1u || result->written.functions == 0u ||
+   if (result->written.modules != frontend_input->document_count ||
+       result->written.functions == 0u ||
        result->written.entries != 1u || result->written.types == 0u ||
       frontend_input->host_scope == NULL ||
       frontend_input->host_scope->symbols == NULL ||
       frontend_input->host_scope->symbol_count == 0u ||
       frontend_input->host_scope->symbol_count > W_SEED_FRONTEND_MAX_HOST_SYMBOLS)
     return false;
+  return true;
+}
+
+/* The external process validator below intentionally remains a closed
+ * single-module ABI check.  HIR0's ordinary path, however, admits a bounded
+ * resolver-owned local-document graph. Keep that path explicit so an
+ * external-module ordinal can never be mistaken for a local document index. */
+static bool frontend_local_import_records_ok(
+    const w_seed_hir0_input *input) {
+  if (input == NULL || input->frontend_input == NULL ||
+      input->frontend_output == NULL || input->frontend_result == NULL)
+    return false;
+  const w_seed_frontend_input *frontend_input = input->frontend_input;
+  const w_seed_frontend_output *output = input->frontend_output;
+  const w_seed_frontend_result *result = input->frontend_result;
+  if (frontend_input->external_module_count != 0u ||
+      frontend_input->resolved_import_count != result->written.imports ||
+      (result->written.imports != 0u &&
+       (frontend_input->resolved_imports == NULL || output->imports == NULL)) ||
+      (result->written.import_items != 0u && output->import_items == NULL))
+    return false;
+  if (!frontend_input->import_resolution_complete)
+    return result->written.imports == 0u && result->written.import_items == 0u &&
+           frontend_input->resolved_import_count == 0u;
+  size_t import_cursor = 0u;
+  size_t item_cursor = 0u;
+  for (size_t module_index = 0u;
+       module_index < result->written.modules; module_index += 1u) {
+    const w_seed_frontend_module *module = &output->modules[module_index];
+    if (module->document_index >= frontend_input->document_count ||
+        module->first_import != import_cursor ||
+        !range_valid(module->first_import, module->import_count,
+                     result->written.imports) ||
+        !range_valid(module->first_import, module->import_count,
+                     frontend_input->resolved_import_count))
+      return false;
+    const w_seed_frontend_document *document =
+        &frontend_input->documents[module->document_index];
+    for (size_t ordinal = 0u; ordinal < module->import_count; ordinal += 1u) {
+      const size_t import_index = import_cursor + ordinal;
+      const w_seed_frontend_import *import = &output->imports[import_index];
+      const w_seed_frontend_resolved_import *edge =
+          &frontend_input->resolved_imports[import_index];
+      if (import->module_index != module_index ||
+          !text_valid(import->path) || import->path.length == 0u ||
+          !text_valid(import->alias) ||
+          !frontend_span_ok(document, import->span) ||
+          import->direct_import_ordinal != ordinal ||
+          import->target_kind != W_SEED_FRONTEND_IMPORT_LOCAL_DOCUMENT ||
+          import->target_index >= frontend_input->document_count ||
+          import->target_index == module->document_index ||
+          edge->source_document_index != module->document_index ||
+          edge->direct_import_ordinal != ordinal ||
+          edge->target_kind != W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT ||
+          edge->target_index != import->target_index ||
+          !span_equal(edge->import_declaration_span, import->span))
+        return false;
+      const w_seed_frontend_module *target_module =
+          &output->modules[import->target_index];
+      if (!text_equal(import->path, target_module->module_id)) return false;
+      if (!range_valid(import->first_item, import->item_count,
+                       result->written.import_items) ||
+          import->first_item != item_cursor)
+        return false;
+      for (size_t item_ordinal = 0u; item_ordinal < import->item_count;
+           item_ordinal += 1u) {
+        const w_seed_frontend_import_item *item =
+            &output->import_items[item_cursor + item_ordinal];
+        if (item->module_index != module_index || !text_valid(item->name) ||
+            item->name.length == 0u || !text_valid(item->local_name) ||
+            item->local_name.length == 0u ||
+            !frontend_span_ok(document, item->span))
+          return false;
+        size_t target_matches = 0u;
+        for (size_t function_index = target_module->first_function;
+             function_index <
+             (size_t)target_module->first_function + target_module->function_count;
+             function_index += 1u) {
+          const w_seed_frontend_function *target_function =
+              &output->functions[function_index];
+          if (target_function->exported &&
+              text_equal(target_function->name, item->name))
+            target_matches += 1u;
+        }
+        if (target_matches != 1u) return false;
+      }
+      if (!add_size(item_cursor, import->item_count, &item_cursor))
+        return false;
+    }
+    if (!add_size(import_cursor, module->import_count, &import_cursor))
+      return false;
+  }
+  if (import_cursor != result->written.imports ||
+      item_cursor != result->written.import_items)
+    return false;
+
+  /* Resolve the local-document graph independently of the resolver's edge
+   * walk. The fixed stacks are bounded by the public document limit and keep
+   * cycle rejection allocation-free, including for forged frontend output. */
+  uint8_t states[W_SEED_FRONTEND_MAX_DOCUMENTS] = {0u};
+  size_t stack[W_SEED_FRONTEND_MAX_DOCUMENTS];
+  size_t import_positions[W_SEED_FRONTEND_MAX_DOCUMENTS];
+  for (size_t start = 0u; start < result->written.modules; start += 1u) {
+    if (states[start] != 0u) continue;
+    size_t depth = 0u;
+    stack[0] = start;
+    import_positions[0] = 0u;
+    states[start] = 1u;
+    for (;;) {
+      const size_t current = stack[depth];
+      const w_seed_frontend_module *module = &output->modules[current];
+      bool descended = false;
+      while (import_positions[depth] < module->import_count) {
+        const size_t ordinal = import_positions[depth];
+        import_positions[depth] += 1u;
+        const size_t import_index = (size_t)module->first_import + ordinal;
+        const size_t target = output->imports[import_index].target_index;
+        if (states[target] == 1u) return false;
+        if (states[target] == 0u) {
+          if (depth + 1u >= result->written.modules) return false;
+          depth += 1u;
+          stack[depth] = target;
+          import_positions[depth] = 0u;
+          states[target] = 1u;
+          descended = true;
+          break;
+        }
+      }
+      if (descended) continue;
+      states[current] = 2u;
+      if (depth == 0u) break;
+      depth -= 1u;
+    }
+  }
   return true;
 }
 
@@ -630,8 +765,9 @@ static bool frontend_external_process_records_ok(
   const w_seed_frontend_output *output = input->frontend_output;
   const w_seed_frontend_result *result = input->frontend_result;
   if (frontend_input->external_module_count == 0u) {
-    return frontend_input->resolved_import_count == 0u &&
-           !frontend_input->import_resolution_complete;
+    if (!frontend_input->import_resolution_complete)
+      return frontend_input->resolved_import_count == 0u;
+    return frontend_local_import_records_ok(input);
   }
   if (frontend_input->external_module_count != 1u ||
       frontend_input->resolved_import_count != 1u ||
@@ -1056,6 +1192,102 @@ static bool frontend_local_enum_subset_records_ok(
   return member_cursor == result->written.enum_subset_members;
 }
 
+/* Type records are arena entries, not declarations: builtin and nominal
+ * records are owned by the document whose function/statement/expression
+ * references them. Derive that owner from normalized relations before
+ * checking the source span. This avoids treating documents[0] as a global
+ * source for a type emitted by an imported module. */
+static bool frontend_type_owner_module(const w_seed_hir0_input *input,
+                                       size_t type_index,
+                                       size_t *owner_module) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || owner_module == NULL ||
+      type_index >= input->frontend_result->written.types)
+    return false;
+  const w_seed_frontend_output *output = input->frontend_output;
+  const w_seed_frontend_result *result = input->frontend_result;
+  const w_seed_frontend_type *type = &output->types[type_index];
+  const bool shared_synthetic_builtin =
+      type->span.start_byte == 0u && type->span.end_byte == 0u &&
+      (frontend_type_supported(type) || frontend_type_is_usize(type));
+  bool found = false;
+  size_t owner = 0u;
+#define HIR0_TYPE_OWNER(candidate)                                             \
+  do {                                                                         \
+    const size_t hir0_candidate_module = (candidate);                         \
+    if (hir0_candidate_module >= result->written.modules) return false;       \
+    if (found && owner != hir0_candidate_module &&                             \
+        !shared_synthetic_builtin)                                             \
+      return false;                                                            \
+    owner = hir0_candidate_module;                                             \
+    found = true;                                                              \
+  } while (0)
+  if (type->kind == W_SEED_FRONTEND_TYPE_ENUM ||
+      type->kind == W_SEED_FRONTEND_TYPE_ENUM_SUBSET) {
+    if (type->enum_base_index == W_SEED_FRONTEND_NONE ||
+        (size_t)type->enum_base_index >= result->written.enums)
+      return false;
+    HIR0_TYPE_OWNER(output->enums[type->enum_base_index].module_index);
+  }
+  for (size_t index = 0u; index < result->written.enums; index += 1u) {
+    const w_seed_frontend_enum *decl = &output->enums[index];
+    if (decl->type_index == type_index) HIR0_TYPE_OWNER(decl->module_index);
+  }
+  for (size_t index = 0u; index < result->written.enum_case_parameters;
+       index += 1u) {
+    const w_seed_frontend_enum_case_parameter *parameter =
+        &output->enum_case_parameters[index];
+    if (parameter->type_index == type_index) HIR0_TYPE_OWNER(
+        parameter->module_index);
+  }
+  for (size_t index = 0u; index < result->written.aliases; index += 1u)
+    if (output->aliases[index].type_index == type_index)
+      HIR0_TYPE_OWNER(output->aliases[index].module_index);
+  for (size_t index = 0u; index < result->written.type_declarations; index += 1u)
+    if (output->type_declarations[index].type_index == type_index)
+      HIR0_TYPE_OWNER(output->type_declarations[index].module_index);
+  for (size_t index = 0u; index < result->written.fields; index += 1u)
+    if (output->fields[index].type_index == type_index)
+      HIR0_TYPE_OWNER(output->fields[index].module_index);
+  for (size_t index = 0u; index < result->written.const_declarations; index += 1u) {
+    const w_seed_frontend_const_declaration *decl =
+        &output->const_declarations[index];
+    if (decl->declared_type == type_index || decl->effective_type == type_index)
+      HIR0_TYPE_OWNER(decl->module_index);
+  }
+  for (size_t index = 0u; index < result->written.functions; index += 1u) {
+    const w_seed_frontend_function *function = &output->functions[index];
+    if (function->return_type == type_index)
+      HIR0_TYPE_OWNER(function->module_index);
+    for (size_t ordinal = 0u; ordinal < function->parameter_count; ordinal += 1u) {
+      const size_t parameter_index = (size_t)function->first_parameter + ordinal;
+      if (parameter_index >= result->written.parameters) return false;
+      if (output->parameters[parameter_index].type_index == type_index)
+        HIR0_TYPE_OWNER(function->module_index);
+    }
+  }
+  for (size_t index = 0u; index < result->written.statements; index += 1u) {
+    const w_seed_frontend_statement *statement = &output->statements[index];
+    if (statement->module_index >= result->written.modules) return false;
+    if (statement->declared_type == type_index ||
+        statement->effective_type == type_index)
+      HIR0_TYPE_OWNER(statement->module_index);
+  }
+  for (size_t index = 0u; index < result->written.expressions; index += 1u) {
+    const w_seed_frontend_expression *expression = &output->expressions[index];
+    if (expression->module_index >= result->written.modules) return false;
+    if (expression->inferred_type == type_index)
+      HIR0_TYPE_OWNER(expression->module_index);
+  }
+#undef HIR0_TYPE_OWNER
+  if (!found) {
+    if (!shared_synthetic_builtin) return false;
+    owner = 0u;
+  }
+  *owner_module = owner;
+  return true;
+}
+
 static bool frontend_type_records_ok(const w_seed_hir0_input *input) {
   const w_seed_frontend_output *output = input->frontend_output;
   const w_seed_frontend_result *result = input->frontend_result;
@@ -1064,8 +1296,14 @@ static bool frontend_type_records_ok(const w_seed_hir0_input *input) {
     return false;
   for (size_t index = 0u; index < result->written.types; index += 1u) {
     const w_seed_frontend_type *type = &output->types[index];
-    if (!frontend_hir_type_supported(input, type) || !frontend_span_ok(
-            &input->frontend_input->documents[0], type->span))
+    size_t owner_module = 0u;
+    if (!frontend_hir_type_supported(input, type) ||
+        !frontend_type_owner_module(input, index, &owner_module) ||
+        owner_module >= result->written.modules ||
+        !frontend_span_ok(
+            &input->frontend_input
+                 ->documents[output->modules[owner_module].document_index],
+            type->span))
       return false;
   }
   return true;
@@ -1240,11 +1478,20 @@ static bool frontend_module_ranges_ok(const w_seed_hir0_input *input) {
   size_t entry_cursor = 0u;
   for (size_t index = 0u; index < result->written.modules; index += 1u) {
     const w_seed_frontend_module *module = &output->modules[index];
-    if (module->document_index >= frontend_input->document_count ||
+    if (module->document_index != index ||
+        module->document_index >= frontend_input->document_count ||
         !text_valid(module->source_id) || !text_valid(module->module_id) ||
         !text_valid(module->local_module_name) ||
          !frontend_span_ok(&frontend_input->documents[module->document_index],
                            module->span) ||
+        !text_equal(module->source_id,
+                    frontend_input->documents[module->document_index]
+                        .logical_source_id) ||
+        !text_equal(module->module_id,
+                    frontend_input->documents[module->document_index].module_id) ||
+        !text_equal(module->local_module_name,
+                    frontend_input->documents[module->document_index]
+                        .local_module_name) ||
          module->first_function != function_cursor ||
          module->first_entry != entry_cursor ||
          !range_valid(module->first_function, module->function_count,
@@ -1332,6 +1579,12 @@ static bool frontend_function_ranges_ok(const w_seed_hir0_input *input) {
 static bool frontend_entry_records_ok(const w_seed_hir0_input *input) {
   const w_seed_frontend_output *output = input->frontend_output;
   const w_seed_frontend_result *result = input->frontend_result;
+  if (result->written.entries != 1u || result->written.modules == 0u ||
+      output->modules[0].entry_count != 1u ||
+      output->entries == NULL || output->entries[0].module_index != 0u)
+    return false;
+  for (size_t module = 1u; module < result->written.modules; module += 1u)
+    if (output->modules[module].entry_count != 0u) return false;
   for (size_t index = 0u; index < result->written.entries; index += 1u) {
     const w_seed_frontend_entry *entry = &output->entries[index];
     if (entry->module_index >= result->written.modules || !entry->valid ||
@@ -1355,7 +1608,208 @@ static bool frontend_entry_records_ok(const w_seed_hir0_input *input) {
              : entry->target.length == 0u ||
                    !text_equal(function->name, entry->target)))
       return false;
+    if (result->written.modules > 1u && entry->is_body) return false;
   }
+  return true;
+}
+
+static bool frontend_symbol_exactly_one(
+    const w_seed_frontend_output *output, size_t symbol_count,
+    w_seed_frontend_symbol_kind kind, uint32_t module_index,
+    uint32_t owner_index) {
+  size_t matches = 0u;
+  for (size_t index = 0u; index < symbol_count; index += 1u) {
+    const w_seed_frontend_symbol *symbol = &output->symbols[index];
+    if (symbol->kind == kind && symbol->module_index == module_index &&
+        symbol->owner_index == owner_index)
+      if (!add_size(matches, 1u, &matches)) return false;
+  }
+  return matches == 1u;
+}
+
+/* The legacy symbol projection is source-order canonical for one document.
+ * With multiple documents, declaration families remain dense per module but
+ * their cross-family source order is not represented in the HIR input. Check
+ * the same projection relationally instead: every symbol must name exactly
+ * one caller-owned record, and every expected record must have one symbol. */
+static bool frontend_symbol_records_multi_ok(
+    const w_seed_hir0_input *input) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL)
+    return false;
+  const w_seed_frontend_output *output = input->frontend_output;
+  const w_seed_frontend_result *result = input->frontend_result;
+  /* These families are closed by collect(). Let that barrier classify them
+   * as unsupported instead of using this auxiliary projection as authority. */
+  if (result->written.structs != 0u || result->written.fields != 0u ||
+      result->written.type_declarations != 0u ||
+      result->written.const_declarations != 0u)
+    return true;
+  size_t binding_count = 0u;
+  for (size_t index = 0u; index < result->written.statements; index += 1u) {
+    const w_seed_frontend_statement *statement = &output->statements[index];
+    if ((statement->kind == W_SEED_FRONTEND_STMT_LET ||
+         statement->kind == W_SEED_FRONTEND_STMT_VAR) &&
+        statement->binding_name.length != 0u &&
+        !add_size(binding_count, 1u, &binding_count))
+      return false;
+  }
+  size_t expected = result->written.modules;
+  if (!add_size(expected, result->written.functions, &expected) ||
+      !add_size(expected, result->written.parameters, &expected) ||
+      !add_size(expected, result->written.entries, &expected) ||
+      !add_size(expected, result->written.enums, &expected) ||
+      !add_size(expected, result->written.enum_cases, &expected) ||
+      !add_size(expected, result->written.aliases, &expected) ||
+      !add_size(expected, binding_count, &expected) ||
+      result->written.symbols != expected ||
+      (expected != 0u && output->symbols == NULL))
+    return false;
+  for (size_t index = 0u; index < result->written.symbols; index += 1u) {
+    const w_seed_frontend_symbol *symbol = &output->symbols[index];
+    if (symbol->module_index >= result->written.modules ||
+        !text_valid(symbol->name) ||
+        !frontend_span_ok(
+            &input->frontend_input->documents[
+                output->modules[symbol->module_index].document_index],
+            symbol->span))
+      return false;
+    switch (symbol->kind) {
+      case W_SEED_FRONTEND_SYMBOL_MODULE: {
+        if (symbol->owner_index != symbol->module_index ||
+            !text_equal(symbol->name,
+                        output->modules[symbol->module_index].module_id) ||
+            !symbol->exported || symbol->type_index != W_SEED_FRONTEND_NONE)
+          return false;
+        break;
+      }
+      case W_SEED_FRONTEND_SYMBOL_ENUM: {
+        if (symbol->owner_index >= result->written.enums) return false;
+        const w_seed_frontend_enum *decl =
+            &output->enums[symbol->owner_index];
+        if (decl->module_index != symbol->module_index ||
+            !text_equal(symbol->name, decl->name) ||
+            symbol->exported != decl->exported ||
+            symbol->type_index != decl->type_index)
+          return false;
+        break;
+      }
+      case W_SEED_FRONTEND_SYMBOL_ENUM_CASE: {
+        if (symbol->owner_index >= result->written.enum_cases) return false;
+        const w_seed_frontend_enum_case *case_value =
+            &output->enum_cases[symbol->owner_index];
+        if (case_value->module_index != symbol->module_index ||
+            case_value->owner_enum >= result->written.enums ||
+            !text_equal(symbol->name, case_value->name) ||
+            symbol->exported != output->enums[case_value->owner_enum].exported ||
+            symbol->type_index !=
+                output->enums[case_value->owner_enum].type_index)
+          return false;
+        break;
+      }
+      case W_SEED_FRONTEND_SYMBOL_ALIAS: {
+        if (symbol->owner_index >= result->written.aliases) return false;
+        const w_seed_frontend_alias *alias = &output->aliases[symbol->owner_index];
+        if (alias->module_index != symbol->module_index ||
+            !text_equal(symbol->name, alias->name) ||
+            symbol->exported != alias->exported ||
+            symbol->type_index != alias->type_index)
+          return false;
+        break;
+      }
+      case W_SEED_FRONTEND_SYMBOL_FUNCTION: {
+        if (symbol->owner_index >= result->written.functions) return false;
+        const w_seed_frontend_function *function =
+            &output->functions[symbol->owner_index];
+        if (function->module_index != symbol->module_index ||
+            !text_equal(symbol->name, function->name) ||
+            symbol->exported != function->exported ||
+            symbol->type_index != function->return_type)
+          return false;
+        break;
+      }
+      case W_SEED_FRONTEND_SYMBOL_PARAMETER: {
+        if (symbol->owner_index >= result->written.parameters) return false;
+        const w_seed_frontend_parameter *parameter =
+            &output->parameters[symbol->owner_index];
+        if (parameter->module_index != symbol->module_index ||
+            !text_equal(symbol->name, parameter->name) || symbol->exported ||
+            symbol->type_index != parameter->type_index)
+          return false;
+        break;
+      }
+      case W_SEED_FRONTEND_SYMBOL_BINDING: {
+        if (symbol->owner_index >= result->written.statements) return false;
+        const w_seed_frontend_statement *statement =
+            &output->statements[symbol->owner_index];
+        if ((statement->kind != W_SEED_FRONTEND_STMT_LET &&
+             statement->kind != W_SEED_FRONTEND_STMT_VAR) ||
+            statement->binding_name.length == 0u ||
+            statement->module_index != symbol->module_index ||
+            !text_equal(symbol->name, statement->binding_name) ||
+            symbol->exported || symbol->type_index != statement->effective_type)
+          return false;
+        break;
+      }
+      case W_SEED_FRONTEND_SYMBOL_ENTRY: {
+        if (symbol->owner_index >= result->written.entries) return false;
+        const w_seed_frontend_entry *entry = &output->entries[symbol->owner_index];
+        if (entry->module_index != symbol->module_index || symbol->exported ||
+            symbol->type_index != W_SEED_FRONTEND_NONE ||
+            (entry->is_body ? symbol->name.length != 0u
+                            : !text_equal(symbol->name, entry->target)))
+          return false;
+        break;
+      }
+      default:
+        return false;
+    }
+  }
+  for (size_t module = 0u; module < result->written.modules; module += 1u)
+    if (!frontend_symbol_exactly_one(
+            output, result->written.symbols, W_SEED_FRONTEND_SYMBOL_MODULE,
+            (uint32_t)module, (uint32_t)module))
+      return false;
+  for (size_t index = 0u; index < result->written.enums; index += 1u)
+    if (!frontend_symbol_exactly_one(
+            output, result->written.symbols, W_SEED_FRONTEND_SYMBOL_ENUM,
+            output->enums[index].module_index, (uint32_t)index))
+      return false;
+  for (size_t index = 0u; index < result->written.enum_cases; index += 1u)
+    if (!frontend_symbol_exactly_one(
+            output, result->written.symbols, W_SEED_FRONTEND_SYMBOL_ENUM_CASE,
+            output->enum_cases[index].module_index, (uint32_t)index))
+      return false;
+  for (size_t index = 0u; index < result->written.aliases; index += 1u)
+    if (!frontend_symbol_exactly_one(
+            output, result->written.symbols, W_SEED_FRONTEND_SYMBOL_ALIAS,
+            output->aliases[index].module_index, (uint32_t)index))
+      return false;
+  for (size_t index = 0u; index < result->written.functions; index += 1u)
+    if (!frontend_symbol_exactly_one(
+            output, result->written.symbols, W_SEED_FRONTEND_SYMBOL_FUNCTION,
+            output->functions[index].module_index, (uint32_t)index))
+      return false;
+  for (size_t index = 0u; index < result->written.parameters; index += 1u)
+    if (!frontend_symbol_exactly_one(
+            output, result->written.symbols, W_SEED_FRONTEND_SYMBOL_PARAMETER,
+            output->parameters[index].module_index, (uint32_t)index))
+      return false;
+  for (size_t index = 0u; index < result->written.statements; index += 1u) {
+    const w_seed_frontend_statement *statement = &output->statements[index];
+    if ((statement->kind == W_SEED_FRONTEND_STMT_LET ||
+         statement->kind == W_SEED_FRONTEND_STMT_VAR) &&
+        statement->binding_name.length != 0u &&
+        !frontend_symbol_exactly_one(
+            output, result->written.symbols, W_SEED_FRONTEND_SYMBOL_BINDING,
+            statement->module_index, (uint32_t)index))
+      return false;
+  }
+  for (size_t index = 0u; index < result->written.entries; index += 1u)
+    if (!frontend_symbol_exactly_one(
+            output, result->written.symbols, W_SEED_FRONTEND_SYMBOL_ENTRY,
+            output->entries[index].module_index, (uint32_t)index))
+      return false;
   return true;
 }
 
@@ -1367,6 +1821,8 @@ static bool frontend_entry_records_ok(const w_seed_hir0_input *input) {
 static bool frontend_symbol_records_ok(const w_seed_hir0_input *input) {
   const w_seed_frontend_output *output = input->frontend_output;
   const w_seed_frontend_result *result = input->frontend_result;
+  if (result->written.modules > 1u)
+    return frontend_symbol_records_multi_ok(input);
   size_t expected = 1u;
   for (size_t statement = 0u; statement < result->written.statements;
        statement += 1u) {
@@ -2529,6 +2985,51 @@ static bool frontend_string_value_root(
              W_SEED_FRONTEND_TYPE_STRING;
 }
 
+/* A local function identity is global across the frontend function arena.
+ * Same-module calls use lexical lookup; cross-module calls additionally need
+ * one resolver-owned named import from the caller to an exported target. */
+static bool frontend_local_call_target_ok(
+    const w_seed_hir0_input *input, size_t caller_module,
+    w_seed_frontend_text callee_name, size_t target_function_index) {
+  if (input == NULL || input->frontend_input == NULL ||
+      input->frontend_output == NULL || input->frontend_result == NULL ||
+      caller_module >= input->frontend_result->written.modules ||
+      target_function_index >= input->frontend_result->written.functions)
+    return false;
+  const w_seed_frontend_output *output = input->frontend_output;
+  const w_seed_frontend_result *result = input->frontend_result;
+  const w_seed_frontend_function *target =
+      &output->functions[target_function_index];
+  if (target->module_index == caller_module)
+    return text_equal(callee_name, target->name);
+  if (!target->exported || target->module_index >= result->written.modules)
+    return false;
+  const w_seed_frontend_module *module = &output->modules[caller_module];
+  size_t matches = 0u;
+  for (size_t ordinal = 0u; ordinal < module->import_count; ordinal += 1u) {
+    const size_t import_index = (size_t)module->first_import + ordinal;
+    if (import_index >= result->written.imports) return false;
+    const w_seed_frontend_import *import = &output->imports[import_index];
+    if (import->module_index != caller_module ||
+        import->target_kind != W_SEED_FRONTEND_IMPORT_LOCAL_DOCUMENT ||
+        import->target_index != target->module_index ||
+        !range_valid(import->first_item, import->item_count,
+                     result->written.import_items))
+      continue;
+    for (size_t item_ordinal = 0u; item_ordinal < import->item_count;
+         item_ordinal += 1u) {
+      const w_seed_frontend_import_item *item =
+          &output->import_items[(size_t)import->first_item + item_ordinal];
+      if (item->module_index == caller_module &&
+          text_equal(item->local_name, callee_name) &&
+          text_equal(item->name, target->name) &&
+          !add_size(matches, 1u, &matches))
+        return false;
+    }
+  }
+  return matches == 1u;
+}
+
 /* Validate one direct call expression while consuming the frontend's dense
  * postorder expression and argument ranges. A call used as a statement must
  * return Unit. A call used as a binding initializer must be local and return
@@ -2732,8 +3233,9 @@ static bool frontend_call_expression_ok(
         (size_t)call->resolved_function_index >= result->written.functions)
       return false;
     target_function = &output->functions[call->resolved_function_index];
-    if (target_function->module_index != module_index ||
-        !text_equal(callee->spelling, target_function->name) ||
+    if (!frontend_local_call_target_ok(
+            input, module_index, callee->spelling,
+            (size_t)call->resolved_function_index) ||
         target_function->return_type == W_SEED_FRONTEND_NONE ||
         (size_t)target_function->return_type >= result->written.types)
       return false;
@@ -4743,7 +5245,35 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
   if (!frontend_sources_ok(input)) return HIR0_PREPARE_INVALID;
   if (!host_shape_ok(input->frontend_input->host_scope))
     return HIR0_PREPARE_INVALID;
-  if (!frontend_type_records_ok(input) || !frontend_module_ranges_ok(input) ||
+  /* HIR0 is intentionally closed. Classify frontend families that have no
+   * HIR0 record before relational validators walk their optional arrays. This
+   * preserves the unsupported-family result even when a caller supplies a
+   * nonzero count with no backing storage. */
+  if ((input->frontend_input->external_module_count == 0u &&
+       !input->frontend_input->import_resolution_complete &&
+       (frontend_result->written.imports != 0u ||
+        frontend_result->written.import_items != 0u)) ||
+      frontend_result->written.structs != 0u ||
+      frontend_result->written.fields != 0u ||
+      frontend_result->written.type_declarations != 0u ||
+      (frontend_result->written.aliases != 0u &&
+       !frontend_enum_subset_aliases_ok(input)) ||
+      frontend_result->written.facts != 0u ||
+      frontend_result->written.diagnostics != 0u ||
+      frontend_result->written.diagnostic_facts != 0u ||
+      frontend_result->written.diagnostic_items != 0u ||
+      frontend_result->written.diagnostic_labels != 0u ||
+      frontend_result->written.enum_membership_cases != 0u ||
+      frontend_result->written.generic_parameters != 0u ||
+      frontend_result->written.generic_applications != 0u ||
+      frontend_result->written.generic_arguments != 0u ||
+      frontend_result->written.typed_const_expressions != 0u ||
+      frontend_result->written.const_values != 0u ||
+      frontend_result->written.const_elements != 0u ||
+      frontend_result->written.const_declarations != 0u ||
+      frontend_result->written.parameters > W_SEED_HIR0_MAX_TEXT_BYTES)
+    return HIR0_PREPARE_UNSUPPORTED;
+  if (!frontend_module_ranges_ok(input) || !frontend_type_records_ok(input) ||
       !frontend_function_ranges_ok(input) || !frontend_entry_records_ok(input) ||
       (frontend_result->written.aliases == 0u &&
        !frontend_symbol_records_ok(input)))
@@ -4767,31 +5297,6 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
       !frontend_process_handler_ok(input))
     return HIR0_PREPARE_UNSUPPORTED;
   /* HIR0 accepts a bounded linear subset and nested Unit structured CFG. */
-  /* HIR0 is intentionally closed. Every frontend family not represented by
-   * an HIR0 record is an explicit barrier, including append-only families. */
-  if ((input->frontend_input->external_module_count == 0u &&
-       (frontend_result->written.imports != 0u ||
-        frontend_result->written.import_items != 0u)) ||
-      frontend_result->written.structs != 0u ||
-      frontend_result->written.fields != 0u ||
-      frontend_result->written.type_declarations != 0u ||
-      (frontend_result->written.aliases != 0u &&
-       !frontend_enum_subset_aliases_ok(input)) ||
-      frontend_result->written.facts != 0u ||
-      frontend_result->written.diagnostics != 0u ||
-      frontend_result->written.diagnostic_facts != 0u ||
-      frontend_result->written.diagnostic_items != 0u ||
-      frontend_result->written.diagnostic_labels != 0u ||
-      frontend_result->written.enum_membership_cases != 0u ||
-      frontend_result->written.generic_parameters != 0u ||
-      frontend_result->written.generic_applications != 0u ||
-      frontend_result->written.generic_arguments != 0u ||
-      frontend_result->written.typed_const_expressions != 0u ||
-      frontend_result->written.const_values != 0u ||
-      frontend_result->written.const_elements != 0u ||
-      frontend_result->written.const_declarations != 0u ||
-      frontend_result->written.parameters > W_SEED_HIR0_MAX_TEXT_BYTES)
-    return HIR0_PREPARE_UNSUPPORTED;
   size_t binding_count = 0u;
   size_t call_count = 0u;
   size_t argument_count = 0u;
@@ -13314,7 +13819,7 @@ static bool verify_records(const w_seed_hir0_program *program) {
   size_t expected_instructions = 0u;
   const bool has_external_process =
       program != NULL && program->external_module_count != 0u;
-  if (program->module_count != 1u || program->function_count == 0u ||
+  if (program->module_count == 0u || program->function_count == 0u ||
       program->entry_count != 1u ||
       program->type_count < (has_external_process ? 7u : 4u) +
                                 program->enum_count +
@@ -14062,7 +14567,10 @@ static bool verify_records(const w_seed_hir0_program *program) {
     const w_seed_hir0_module *module = &program->modules[value->module_index];
     if (entry < module->first_entry ||
         entry >= (size_t)module->first_entry + module->entry_count)
-        return false;
+      return false;
+    if (value->module_index != 0u ||
+        (program->module_count > 1u && value->is_body))
+      return false;
   }
   return true;
 }

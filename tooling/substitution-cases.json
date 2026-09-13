@@ -6650,6 +6650,103 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-hir0-multidoc",
+      "reviewItem": "bounded resolver-complete local-document graph into verified HIR against single-document assumptions, source-name call matching, and shared-source ownership",
+      "decisions": [
+        "W-1575"
+      ],
+      "task": "Lower a bounded resolver-complete local-document graph into copied, verified HIR with one explicit root entry and one exported cross-module local call.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "// app.w",
+          "import { helper as h } from lib",
+          "fn run(): i64 { return h() }",
+          "entry(run)",
+          "// lib.w",
+          "module lib",
+          "export fn helper(): i64 { return 42 }"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "single-document-only-hir",
+          "language": "w-internal-rejected",
+          "source": [
+            "reject the resolved local-document graph before HIR"
+          ],
+          "expectedDifference": "The selected route copies a bounded local-document graph into HIR while preserving one explicit root entry."
+        },
+        {
+          "name": "source-name-call-resolution",
+          "language": "w-internal-rejected",
+          "source": [
+            "match h() by source spelling without the resolver-owned import edge"
+          ],
+          "expectedDifference": "The selected route requires one resolver-owned local import item and an exported target function."
+        },
+        {
+          "name": "shared-source-ownership",
+          "language": "w-internal-rejected",
+          "source": [
+            "validate every imported declaration span against documents[0]"
+          ],
+          "expectedDifference": "The selected route checks each record against its owning document."
+        },
+        {
+          "name": "cycle-blind-graph",
+          "language": "w-internal-rejected",
+          "source": [
+            "accept a forged reverse local-document import edge"
+          ],
+          "expectedDifference": "The selected route rejects cycles with an independent bounded graph walk."
+        },
+        {
+          "name": "public-multifile-product-claim",
+          "language": "text",
+          "source": [
+            "promote the HIR prerequisite to public w build/run and DCE artifact equivalence"
+          ],
+          "expectedDifference": "The selected decision stops at verified HIR and keeps W-1568 product evidence open."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "frontend_local_import_records_ok",
+          "claim": "HIR preflight validates resolver-owned local-document paths, dense ranges, target identity, source ownership, and bounded cycle freedom."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "frontend_type_owner_module",
+          "claim": "HIR preflight derives each frontend type span from the owning module document."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "frontend_local_call_target_ok",
+          "claim": "HIR preflight accepts cross-module local calls only through one imported item and an exported target."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0_multidoc.c",
+          "symbol": "test_multidoc_hir0",
+          "claim": "Focused C23 tests cover multi-document HIR identity, digest behavior, frontend lifetime independence, forged graph relations, and transactional output checks."
+        }
+      ],
+      "checks": [
+        "two parsed documents produce two HIR modules, one root entry in module 0, and one exported cross-module local call",
+        "repeated input keeps semantic and provenance digests stable while whitespace changes provenance only",
+        "verification succeeds after frontend and document buffers are cleared",
+        "forged path, cycle, source-span owner, entry, call, output alias, and capacity relations fail closed",
+        "public multi-file w build/run, DCE, and artifact equivalence remain outside W-1575 and W-1568 remains a gap"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

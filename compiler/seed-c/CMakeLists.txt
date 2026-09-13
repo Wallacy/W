@@ -395,13 +395,13 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   set(W_MLIR0_LINUX_LLVM_CONFIG_RAW "${W_MLIR0_LINUX_LLVM_CONFIG}")
   set(W_MLIR0_LINUX_LLC_RAW "${W_MLIR0_LINUX_LLC}")
   set(W_MLIR0_LINUX_LINK_DRIVER_RAW "${W_MLIR0_LINUX_LINK_DRIVER}")
-  set(W_MLIR0_LINUX_MLIR_OPT "/usr/bin/mlir-opt-20" CACHE FILEPATH
+  set(W_MLIR0_LINUX_MLIR_OPT "" CACHE FILEPATH
     "Explicit MLIR opt executable for the Linux evidence build")
-  set(W_MLIR0_LINUX_MLIR_TRANSLATE "/usr/bin/mlir-translate-20" CACHE FILEPATH
+  set(W_MLIR0_LINUX_MLIR_TRANSLATE "" CACHE FILEPATH
     "Explicit MLIR translate executable for the Linux evidence build")
-  set(W_MLIR0_LINUX_LLVM_CONFIG "/usr/bin/llvm-config-20" CACHE FILEPATH
+  set(W_MLIR0_LINUX_LLVM_CONFIG "" CACHE FILEPATH
     "Explicit llvm-config executable for the Linux evidence build")
-  set(W_MLIR0_LINUX_LLC "/usr/bin/llc-20" CACHE FILEPATH
+  set(W_MLIR0_LINUX_LLC "" CACHE FILEPATH
     "Explicit LLVM object compiler for the Linux evidence build")
   set(W_MLIR0_LINUX_LINK_DRIVER "/usr/bin/ld" CACHE FILEPATH
     "Explicit native Linux x86_64 linker for the CRT-free WRT0 artifact")
@@ -603,6 +603,11 @@ add_executable(w_seed_hir0_tests
 )
 target_link_libraries(w_seed_hir0_tests PRIVATE w_seed_source)
 
+add_executable(w_seed_hir0_multidoc_tests
+  tests/test_hir0_multidoc.c
+)
+target_link_libraries(w_seed_hir0_multidoc_tests PRIVATE w_seed_source)
+
 add_executable(w_seed_process0_tests
   tests/test_process0.c
 )
@@ -752,6 +757,7 @@ if(MSVC)
   target_compile_options(w_seed_mlir0_gate PRIVATE /W4 /WX)
   target_compile_options(w_seed_native0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_hir0_tests PRIVATE /W4 /WX)
+  target_compile_options(w_seed_hir0_multidoc_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_process0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_process_entry0_gate PRIVATE /W4 /WX)
   target_compile_options(w_seed_run0_tests PRIVATE /W4 /WX)
@@ -1202,6 +1208,15 @@ else()
     -Wshadow
     -Werror
   )
+  target_compile_options(w_seed_hir0_multidoc_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
   target_compile_options(w_seed_process0_tests PRIVATE
     -Wall
     -Wextra
@@ -1276,6 +1291,7 @@ add_test(NAME w_seed_hlo1_unit COMMAND w_seed_hlo1_tests)
 add_test(NAME w_seed_mlir0_unit COMMAND w_seed_mlir0_tests)
 add_test(NAME w_seed_native0_unit COMMAND w_seed_native0_tests)
 add_test(NAME w_seed_hir0_unit COMMAND w_seed_hir0_tests)
+add_test(NAME w_seed_hir0_multidoc_unit COMMAND w_seed_hir0_multidoc_tests)
 add_test(NAME w_seed_process0_unit COMMAND w_seed_process0_tests)
 add_test(NAME w_seed_process_entry0_gate_compile
   COMMAND w_seed_process_entry0_gate

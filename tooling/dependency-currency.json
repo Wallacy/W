@@ -486,7 +486,7 @@
       "id": "mlir0-llvm-clang",
       "name": "MLIR, LLVM, and Clang MLIR0 evidence",
       "classification": "evidence-snapshot",
-      "status": "successor-selected-not-promoted",
+      "status": "current-with-native-plan-gap",
       "scope": "WSL Linux MLIR0 development edge",
       "source": {
         "kind": "official-release-and-repository-evidence",
@@ -513,9 +513,9 @@
         "commit": "6dfe1677ab8dffbc6ec13d53a1e0215d75147689"
       },
       "current": {
-        "version": "20.1.2",
-        "selector": "20.1.2",
-        "status": "historical-reproducible-evidence",
+        "version": "23.1.1",
+        "selector": "23.1.1",
+        "status": "current-reproducible-evidence",
         "host": "wsl-linux",
         "target": "x86_64-unknown-linux-gnu"
       },
@@ -555,7 +555,7 @@
       },
       "requirements": {
         "preserveCurrent": true,
-        "currentEvidenceMustRemain": "20.1.2",
+        "currentEvidenceMustRemain": "23.1.1",
         "newBundleExactStablePin": true,
         "zeroPromotion": true,
         "artifacts": ["mlir-opt", "mlir-translate", "clang", "lld", "llvm-config"]

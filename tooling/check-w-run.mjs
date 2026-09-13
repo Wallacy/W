@@ -84,7 +84,7 @@ export function parseArguments(argv) {
 const { ci: ciMode } = import.meta.main
   ? parseArguments(process.argv.slice(2))
   : { ci: false }
-const expectedVersion = ciMode ? "23.1.1" : "20.1.2"
+const expectedVersion = "23.1.1"
 const manifestPath = ciMode ? ciManifestPath : localManifestPath
 
 function assert(condition, message) {
@@ -130,7 +130,7 @@ function escapedVersion(value) {
 }
 
 export function validateManifest(manifest, mode = ciMode) {
-  const manifestVersion = mode ? "23.1.1" : "20.1.2"
+  const manifestVersion = "23.1.1"
   const expectedSchema = mode
     ? "w-seed-mlir0-ci-toolchain-1"
     : "w-seed-mlir0-toolchain-1"
@@ -146,6 +146,23 @@ export function validateManifest(manifest, mode = ciMode) {
   assert(manifest.target?.triple === targetTriple &&
     manifest.target?.os === "linux" && manifest.target?.abi === "gnu",
   "toolchain target is not the closed Linux GNU target")
+  if (!mode) assert(manifest.toolchainDiscovery?.rootEnv ===
+    "W_MLIR0_TOOLCHAIN_ROOT" &&
+    manifest.toolchainDiscovery?.relativeBin === "bin" &&
+    manifest.toolchainDiscovery?.materializedManifest ===
+      "w-mlir0-linux-materialized.json" &&
+    manifest.toolchainDiscovery?.pathPolicy ===
+      "explicit-external-root-or-host-PATH" &&
+    manifest.toolchainDiscovery?.repositoryPath === false &&
+    manifest.toolchainDiscovery?.archive?.release === "2026.09.11" &&
+    manifest.toolchainDiscovery?.archive?.filename ===
+      "llvm-mlir_llvmorg-23.1.1_x86_64-unknown-linux-gnu.tar.zst" &&
+    manifest.toolchainDiscovery?.archive?.sizeBytes === 400536815 &&
+    manifest.toolchainDiscovery?.archive?.sha256 ===
+      "cfa94b0c4dfb933e755362468b615ada40e77e6d77b8db609505888de296ca7e" &&
+    manifest.toolchainDiscovery?.archive?.source ===
+      "munich-quantum-software/setup-mlir",
+  "local toolchain discovery contract is invalid")
   for (const role of mode ? ["mlir", "llvm"] : ["mlir", "llvm", "clang"])
     assert(manifest.toolchain?.[role] === manifestVersion,
       `toolchain ${role} version is not ${manifestVersion}`)
@@ -153,9 +170,9 @@ export function validateManifest(manifest, mode = ciMode) {
   const expectedCommands = mode
     ? { mlirOpt: "mlir-opt", mlirTranslate: "mlir-translate",
         llvmConfig: "llvm-config", llc: "llc", linkDriver: "/usr/bin/ld" }
-    : { mlirOpt: "/usr/bin/mlir-opt-20",
-        mlirTranslate: "/usr/bin/mlir-translate-20",
-        llvmConfig: "/usr/bin/llvm-config-20", clang: "/usr/bin/clang-20" }
+    : { mlirOpt: "mlir-opt", mlirTranslate: "mlir-translate",
+        llvmConfig: "llvm-config", clang: "clang", llc: "llc",
+        linkDriver: "/usr/bin/ld" }
   for (const [role, expected] of Object.entries(expectedCommands)) {
     const command = commands?.[role]
     assert(command?.linux === expected && (mode || command?.wsl === expected) &&
@@ -209,11 +226,11 @@ export function validateManifest(manifest, mode = ciMode) {
     manifest.execution?.stderr === "empty" && manifest.execution?.exit === 0,
   "toolchain execution contract changed")
   if (mode) return expectedCommands
-  // The shared manifest retains the older check:mlir0 recipe, not this runner.
+  // The shared manifest retains the check:mlir0 clang recipe, not this runner.
   return { mlirOpt: expectedCommands.mlirOpt,
     mlirTranslate: expectedCommands.mlirTranslate,
     llvmConfig: expectedCommands.llvmConfig,
-    llc: "/usr/bin/llc-20", linkDriver: "/usr/bin/ld" }
+    llc: expectedCommands.llc, linkDriver: expectedCommands.linkDriver }
 }
 
 function wslRun(command, args) {
@@ -229,6 +246,34 @@ function wslPath(windowsPath) {
   assert(value.startsWith("/") && !value.includes("\0") &&
     !/[\r\n]/u.test(value), "wslpath did not return one absolute path")
   return value
+}
+
+function normalizeExternalToolchainRoot(value) {
+  if (typeof value !== "string" || value.length === 0)
+    fail("W_MLIR0_TOOLCHAIN_ROOT is empty")
+  const normalized = value.replace(/\/+$/u, "")
+  const valid = isWindows
+    ? /^\/[A-Za-z0-9._+\-/]+$/u.test(normalized)
+    : isAbsolute(normalized)
+  if (!valid || normalized === "/tmp" || normalized.startsWith("/tmp/"))
+    fail("W_MLIR0_TOOLCHAIN_ROOT must be a persistent absolute path outside /tmp")
+  return normalized
+}
+
+function wslWhich(command) {
+  const result = wslRun("sh", ["-lc", `command -v ${command}`])
+  if (result.exitCode !== 0) return undefined
+  const value = result.stdoutBytes.toString().trim()
+  return /^\/[A-Za-z0-9._+\-/]+$/u.test(value) ? value : undefined
+}
+
+function resolveLocalTool(command, role, externalRoot) {
+  if (role === "linkDriver") return command
+  assert(/^[A-Za-z0-9._+-]+$/u.test(command),
+    `local tool ${role} is not a simple command name`)
+  if (externalRoot) return `${externalRoot}/bin/${command}`
+  if (isWindows) return wslWhich(command) ?? command
+  return Bun.which(command) ?? command
 }
 
 function versionProbe(command, versionArgs) {
@@ -260,6 +305,41 @@ async function snapshotRunResidue() {
   const entries = await readdir("/tmp", { withFileTypes: true })
   return new Set(entries.filter((entry) => entry.isDirectory() &&
     entry.name.startsWith("w-run-")).map((entry) => entry.name))
+}
+
+async function validateExternalMaterialization(toolchainRoot, manifest) {
+  const receiptPath = `${toolchainRoot}/w-mlir0-linux-materialized.json`
+  let source
+  try {
+    if (isWindows) {
+      const result = wslRun("cat", [receiptPath])
+      if (result.exitCode !== 0)
+        fail(`external MLIR0 materialized receipt is unavailable: ${receiptPath}`)
+      source = result.stdoutBytes.toString()
+    } else source = await readFile(receiptPath, "utf8")
+  } catch (error) {
+    fail(`external MLIR0 materialized receipt is unavailable: ${error.message}`)
+  }
+  let receipt
+  try {
+    receipt = JSON.parse(source)
+  } catch (error) {
+    fail(`external MLIR0 materialized receipt is invalid: ${error.message}`)
+  }
+  const archive = manifest.toolchainDiscovery.archive
+  assert(receipt?.$schema === "w-seed-mlir0-linux-materialized-1" &&
+    receipt.version === 1 && receipt.bin === "bin" &&
+    JSON.stringify(receipt.requiredTools) ===
+      JSON.stringify(["mlir-opt", "mlir-translate", "llvm-config", "llc"]) &&
+    receipt.toolchain?.mlir === "23.1.1" &&
+    receipt.toolchain?.llvm === "23.1.1" &&
+    receipt.target?.triple === "x86_64-unknown-linux-gnu" &&
+    receipt.distribution?.release === archive.release &&
+    receipt.distribution?.filename === archive.filename &&
+    receipt.distribution?.sizeBytes === archive.sizeBytes &&
+    receipt.distribution?.sha256 === archive.sha256 &&
+    receipt.distribution?.source === archive.source,
+  "external MLIR0 materialization does not match the pinned 23.1.1 archive")
 }
 
 function assertNoNewResidue(before, after) {
@@ -417,8 +497,16 @@ assert(buildSource.includes("W_SEED_RUN_COMPILE_PROFILE_RELEASE"),
   "cli/build.c does not select the release compile profile for w build")
 const llvmRoles = ["mlirOpt", "mlirTranslate", "llvmConfig", "llc"]
 const roles = [...llvmRoles, "linkDriver"]
+const externalToolchainRoot = !ciMode &&
+  process.env.W_MLIR0_TOOLCHAIN_ROOT !== undefined
+  ? normalizeExternalToolchainRoot(process.env.W_MLIR0_TOOLCHAIN_ROOT)
+  : undefined
+if (externalToolchainRoot !== undefined)
+  await validateExternalMaterialization(externalToolchainRoot, manifest)
 const resolvedCommands = Object.fromEntries(roles.map((role) => {
-  if (!ciMode || role === "linkDriver") return [role, commands[role]]
+  if (!ciMode) return [role,
+    resolveLocalTool(commands[role], role, externalToolchainRoot)]
+  if (role === "linkDriver") return [role, commands[role]]
   const resolved = Bun.which(commands[role])
   assert(resolved && isAbsolute(resolved) && existsSync(resolved),
     `CI tool ${role} basename did not resolve to an absolute executable`)

@@ -22,6 +22,8 @@ const workflowPath = resolve(root, ".github", "workflows", "validate.yml")
 const workflowText = await readFile(workflowPath, "utf8")
 const ciManifest = JSON.parse(await readFile(
   resolve(import.meta.dir, "mlir0-ci-toolchain.json"), "utf8"))
+const localManifest = JSON.parse(await readFile(
+  resolve(import.meta.dir, "mlir0-toolchain.json"), "utf8"))
 const isWindows = process.platform === "win32"
 const hasLinuxEvidenceHost = process.platform === "linux" ||
   (isWindows && Bun.which("wsl.exe") !== null)
@@ -103,6 +105,21 @@ describe("W RUN native CI contract", () => {
       llc: "llc",
       linkDriver: "/usr/bin/ld",
     })
+  })
+
+  test("validates the local external-root tool discovery contract", () => {
+    expect(validateManifest(localManifest, false)).toEqual({
+      mlirOpt: "mlir-opt",
+      mlirTranslate: "mlir-translate",
+      llvmConfig: "llvm-config",
+      llc: "llc",
+      linkDriver: "/usr/bin/ld",
+    })
+    const changed = structuredClone(localManifest)
+    changed.commands.mlirOpt.linux = "/opt/unpinned/mlir-opt"
+    expect(() => validateManifest(changed, false)).toThrow(
+      "toolchain command mlirOpt is not the pinned absolute command",
+    )
   })
 
   test("rejects non-PIC objects, hidden link targets, and incomplete WRT recipes", () => {
@@ -221,9 +238,9 @@ describe("W RUN native CI contract", () => {
           ...configure,
           "-DW_SEED_ENABLE_LINUX_NATIVE_RUN=ON",
           "-DW_MLIR0_LINUX_MLIR_OPT=relative",
-          "-DW_MLIR0_LINUX_MLIR_TRANSLATE:FILEPATH=/usr/bin/mlir-translate-20",
-          "-DW_MLIR0_LINUX_LLVM_CONFIG:FILEPATH=/usr/bin/llvm-config-20",
-          "-DW_MLIR0_LINUX_LLC:FILEPATH=/usr/bin/llc-20",
+          "-DW_MLIR0_LINUX_MLIR_TRANSLATE:FILEPATH=/opt/unpinned/mlir-translate",
+          "-DW_MLIR0_LINUX_LLVM_CONFIG:FILEPATH=/opt/unpinned/llvm-config",
+          "-DW_MLIR0_LINUX_LLC:FILEPATH=/opt/unpinned/llc",
           "-DW_MLIR0_LINUX_LINK_DRIVER:FILEPATH=/usr/bin/ld",
         ])
         expect(relative.exitCode, output(relative)).not.toBe(0)

@@ -68,10 +68,10 @@ describe("dependency currency catalog", () => {
     }), "vscode-vsce-on-demand.selected.selector must not be floating or a range");
   });
 
-  test("preserves historical evidence and blocks promotion", () => {
+  test("keeps the active evidence pin exact and blocks native-plan promotion", () => {
     expectError(errorsAfter((value) => {
-      entry(value, "mlir0-llvm-clang").current.version = "23.1.0";
-    }), "MLIR0 current evidence must remain 20.1.2");
+      entry(value, "mlir0-llvm-clang").current.version = "20.1.2";
+    }), "MLIR0 current evidence must be 23.1.1");
     expectError(errorsAfter((value) => {
       entry(value, "mlir0-llvm-clang").selected.promotion = "promoted";
     }), "MLIR0 successor promotion must remain blocked");

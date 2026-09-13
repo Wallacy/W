@@ -12,6 +12,7 @@ import {
   realpath,
   rm,
   stat,
+  writeFile,
 } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path"
@@ -333,6 +334,35 @@ function runtimeTemp() {
   return resolve(process.env.RUNNER_TEMP || tmpdir())
 }
 
+export async function writeMaterializedManifest(toolRoot, distribution) {
+  const materializedManifestPath = join(toolRoot,
+    "w-mlir0-linux-materialized.json")
+  const materializedManifest = {
+    "$schema": "w-seed-mlir0-linux-materialized-1",
+    version: 1,
+    toolchain: { mlir: expectedVersion, llvm: expectedVersion },
+    target: {
+      triple: "x86_64-unknown-linux-gnu",
+      arch: "x86_64",
+      os: "linux",
+      abi: "gnu",
+    },
+    distribution: {
+      release: distribution.release,
+      filename: distribution.filename,
+      sizeBytes: distribution.sizeBytes,
+      sha256: distribution.sha256,
+      source: distribution.source,
+    },
+    bin: "bin",
+    requiredTools,
+  }
+  await writeFile(materializedManifestPath,
+    `${JSON.stringify(materializedManifest, null, 2)}\n`,
+    { encoding: "utf8", flag: "wx" })
+  return materializedManifestPath
+}
+
 export async function acquire({ archivePath, destination } = {}) {
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"))
   const { distribution, url } = validateManifest(manifest)
@@ -374,13 +404,15 @@ export async function acquire({ archivePath, destination } = {}) {
       const pathValue = join(bin, name)
       await resolveExecutable(pathValue, extractionDirectory)
     }
+    const materializedManifestPath =
+      await writeMaterializedManifest(toolRoot, distribution)
 
     // Export only after download, digest, archive paths, and tool paths passed.
     if (process.env.GITHUB_PATH !== undefined)
       await appendFile(process.env.GITHUB_PATH, `${bin}\n`, "utf8")
     console.log(`MLIR0 Linux toolchain: verified ${distribution.filename} sha256=${distribution.sha256} bin=${bin}`)
     success = true
-    return { bin, extractionDirectory, distribution }
+    return { bin, extractionDirectory, distribution, materializedManifestPath }
   } finally {
     if (ownedArchive) await rm(archivePath, { force: true })
     if (!success && workspace !== undefined)

@@ -90,8 +90,8 @@ const currentTargetTriple = "x86_64-unknown-linux-gnu";
 const currentTargetScope = "w-seed-mlir0-15-unit-structured-cfg-natural-loop";
 const currentRuntimeVersion = "w-seed-mlir0-15";
 const currentArtifactScope = "unit-structured-cfg-natural-loop";
-const pinnedToolchainVersion = "20.1.2";
-const currentEvidenceCurrencyStatus = "update-required";
+const pinnedToolchainVersion = "23.1.1";
+const currentEvidenceCurrencyStatus = "current";
 const futureNativePlanPolicy = "llvmorg-23.1.1-exact-pin-with-build-provenance-gate";
 const successorToolchainVersion = "23.1.1";
 const successorToolchainTag = "llvmorg-23.1.1";
@@ -1198,7 +1198,7 @@ function validateMlir0Manifest(value, current, root, errors) {
     addError(errors, "mlir0 toolchain manifest mismatch: hostEvidence or windowsNative disagrees with the current row.");
   }
   if (!(manifest.toolchain && ["mlir", "llvm", "clang"].every((role) => manifest.toolchain[role] === pinnedToolchainVersion))) {
-    addError(errors, "mlir0 toolchain manifest mismatch: MLIR, LLVM, and Clang must remain pinned at 20.1.2.");
+    addError(errors, "mlir0 toolchain manifest mismatch: MLIR, LLVM, and Clang must remain pinned at 23.1.1.");
   }
   const pipeline = manifest.pipeline;
   const recipeValid = Array.isArray(pipeline) && pipeline.length === 3 &&

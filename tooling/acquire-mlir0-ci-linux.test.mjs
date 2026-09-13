@@ -6,6 +6,7 @@ import { join } from "node:path"
 import { describe, expect, test } from "bun:test"
 import {
   extractVerifiedArchive, hashFile, resolveExecutable,
+  writeMaterializedManifest,
 } from "./acquire-mlir0-ci-linux.mjs"
 
 const linuxTest = test.skipIf(process.platform !== "linux")
@@ -63,6 +64,40 @@ describe("verified Linux MLIR archive acquisition", () => {
         destination)
       expect(tool).toBe(await realpath(join(destination, "lib", "mlir-opt-real")))
       expect(await readFile(tool, "utf8")).toBe("#!/bin/sh\nexit 0\n")
+    } finally {
+      await rm(workspace, { recursive: true, force: true })
+    }
+  })
+
+  linuxTest("writes an exact external-cache materialized receipt", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "w-acquire-receipt-test-"))
+    try {
+      const toolRoot = join(workspace, "toolchain")
+      await mkdir(join(toolRoot, "bin"), { recursive: true })
+      const distribution = {
+        release: "2026.09.11",
+        filename:
+          "llvm-mlir_llvmorg-23.1.1_x86_64-unknown-linux-gnu.tar.zst",
+        sizeBytes: 400536815,
+        sha256: "cfa94b0c4dfb933e755362468b615ada40e77e6d77b8db609505888de296ca7e",
+        source: "munich-quantum-software/setup-mlir",
+      }
+      const receiptPath = await writeMaterializedManifest(toolRoot, distribution)
+      const receipt = JSON.parse(await readFile(receiptPath, "utf8"))
+      expect(receipt).toEqual({
+        "$schema": "w-seed-mlir0-linux-materialized-1",
+        version: 1,
+        toolchain: { mlir: "23.1.1", llvm: "23.1.1" },
+        target: {
+          triple: "x86_64-unknown-linux-gnu",
+          arch: "x86_64",
+          os: "linux",
+          abi: "gnu",
+        },
+        distribution,
+        bin: "bin",
+        requiredTools: ["mlir-opt", "mlir-translate", "llvm-config", "llc"],
+      })
     } finally {
       await rm(workspace, { recursive: true, force: true })
     }

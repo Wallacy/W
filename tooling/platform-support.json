@@ -54,8 +54,8 @@
       ]
     },
     "dependencyCurrency": {
-      "currentEvidenceVersion": "20.1.2",
-      "currentEvidenceCurrencyStatus": "update-required",
+      "currentEvidenceVersion": "23.1.1",
+      "currentEvidenceCurrencyStatus": "current",
       "futureNativePlanPolicy": "llvmorg-23.1.1-exact-pin-with-build-provenance-gate",
       "successorVersion": "23.1.1",
       "successorTag": "llvmorg-23.1.1",
@@ -70,7 +70,7 @@
       "targetTriple": "x86_64-unknown-linux-gnu",
       "hostEvidence": "wsl-linux",
       "windowsNative": false,
-      "currencyStatus": "update-required"
+      "currencyStatus": "current"
     }
   },
   "targets": [

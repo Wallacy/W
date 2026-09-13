@@ -226,7 +226,9 @@ O corpus compara, no mínimo:
 - structured natural-loop lowering against early flattening and host-language substitution.
 - multi-carrier natural-loop lowering against tuple/source-order coupling and platform-specific substitution.
 - bounded post-loop SSA continuation against hidden stack state, unrestricted mutation, and return bypass.
+- bounded executable post-test repeat against pre-test rewriting, stale carriers, hidden stack state, and unsupported control or effects
 - local payloadless enum identity against raw integer tags and premature switch lowering.
+- bounded resolver-complete local-document graph into verified HIR against single-document assumptions, source-name call matching, and shared-source ownership.
 
 ### 1.1 Cobertura de substituições
 
@@ -7868,6 +7870,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1572 | bounded CRT-free Linux process arguments and payload-enum execution | The public process executable subset now targets Linux x86_64 without changing W-visible syntax or the ordinary generated `main() -> i32`. WRT0 captures the original kernel stack in target-owned module assembly, publishes private argc/argv accessors, and exits through syscalls. Generated process MLIR excludes argv0, accepts 0...256 borrowed POSIX-byte descriptors, derives the root encoding from the vector, and rejects 257 before W code or stdout. The existing process-input, process enum-payload, and count sources execute with exact outputs and cleanup as CRT-free ELF files; Windows remains independently gated. | `source-backed-current` only for Linux/WSL x86_64, borrowed process-lifetime descriptors, `Arguments.isEmpty`/`count`, the existing bounded process body, exact runtime cases, and CRT-free ELF closure. Decoded access, iteration, mutation, other architectures/OSes, cross-compilation, stable ABI/layout, timing, and ranking remain gaps. `benchmarkDisposition: deferred`; blocker `linux-native-executable-benchmark-runner`; task ID `linux-process-executable-benchmark`; stop after the catalog schema and runner publish the first validated native-Linux result for these exact oracles under a pinned target, profile, toolchain, and recipe. Existing Windows exploratory measurements remain separate. |
 | W-1573 | bounded public `Arguments.count` usize ordering | The bounded public process subset extends the exact resolver-owned `std.process.Arguments.count` comparison from `==`/`!=` to `<`, `<=`, `>`, and `>=` against a nonnegative unsuffixed compile-time integer literal, in either operand order. HIR reuses the `USIZE_COUNT_COMPARISON` record and keeps logical `usize` in HIR28. The x86_64 MLIR adapter emits unsigned `ult`/`ule`/`ugt`/`uge` for ordered count predicates over its physical `i64` carrier, while ordinary signed-`i64` comparisons retain signed predicates. Wrong identity or receiver, negative or computed literals, raw `Arguments`, and general `usize` arithmetic remain rejected. The public Restaurant ordering fixture executes exact bounded outputs through native Windows and Linux/WSL routes. | `source-backed-current` only for the bounded HIR28 logical `usize` comparison, exact identity/receiver/operator and operand-order barriers, unsigned x86_64 predicates, signed-`i64` regression, and dual-target correctness witness. General `usize` arithmetic, runtime or computed count comparisons, helper `usize` parameters/returns/indexing, decoded `OsString`, other targets, stable ABI/layout, native Linux benchmark execution, timing, and ranking remain gaps. Primary `benchmarkDisposition: compiler-lifecycle`; the executable catalog separately owns exploratory W/C23/Rust measurements. WSL is Linux-target correctness evidence, not native Linux performance evidence. No timing or language-ranking claim is made. |
 | W-1574 | bounded executable post-test `repeat` | The already normative W-746 surface lowers through a distinct five-block HIR29 post-test CFG, a dedicated NativeSubset0 fact, and one structured MLIR17 `scf.while`. A true initial Bool carrier forces the first body execution; each body computes the updated nonempty signed-`i64` tuple and the next condition. The public zero/multidigit witness emits exact output as a native Windows PE and CRT-free Linux/WSL ELF without source-variable `llvm.alloca`. | `source-backed-current` only for the bounded pure signed-`i64` helper, exact CFG/SSA/verifier barriers, structured lowering, and dual-target correctness witness. W-1149's broader `continue`, `break`, and cleanup study remains separate. Nested/mixed loops, calls/effects, aggregates, labels, non-`i64`, general CFG, other targets, stable ABI/layout, timing, and ranking remain gaps. Primary `benchmarkDisposition: compiler-lifecycle`; the executable catalog separately owns exploratory W/C23/Rust measurement. |
+| W-1575 | bounded resolved local-document graph into verified HIR | The bounded HIR0 route accepts a resolver-complete acyclic local-document graph with one module per document, one explicit `.default` root entry in module 0, and an exported cross-module local call. HIR0 copies module and source identity with function, block, and call records. The frontend-to-HIR preflight checks import path and target identity, cycle freedom, and source-span ownership; the standalone HIR verifier checks the copied module, function, call, identity, dense-range, and root-entry relations. Focused C23 tests cover semantic/provenance digest behavior, frontend-lifetime independence, and forged path, cycle, ownership, entry, call, alias, and capacity rejection. Public multi-file `w build`/`w run`, DCE, product reachability, WMO/WPO, and artifact equivalence remain outside this decision; W-1568 remains an implementation-evidence gap. | `source-backed-current` only for the bounded resolver-complete local-document graph into verified HIR and its C23 focused tests. There is no public multi-file `w build`/`w run`, DCE, product reachability, WMO/WPO, or artifact-equivalence evidence. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -8682,13 +8685,17 @@ capacity, alias, records e planos forjados; e
 reutiliza somente o pipeline test-only existente até HLO0 antes de emitir MLIR.
 `tooling/check-mlir0.mjs` constrói os targets, verifica três artifacts distintos,
 roda `mlir-opt`, `mlir-translate` e `clang -x ir`, e exige stdout/stderr/exit.
-`tooling/mlir0-toolchain.json` fixa MLIR/LLVM/Clang 20.1.2, `llvm-config`,
-comandos, recipe e target. Em Linux as ferramentas são diretas; no checkout
-Windows a evidência é Linux x86_64 sob WSL Ubuntu (`hostEvidence: wsl-linux`),
-não suporte Windows nativo. O archive oficial Windows verificado neste corte
-não contém MLIR, portanto Windows nativo requer bundle próprio pinado, assinado
-e reproduzível. macOS exige o equivalente por arquitetura/universal quando
-viável.
+`tooling/mlir0-toolchain.json` fixa MLIR/LLVM/Clang 23.1.1, `llvm-config`,
+comandos, recipe e target. Em Linux/WSL as ferramentas são resolvidas por um
+root externo persistente explícito (`W_MLIR0_TOOLCHAIN_ROOT`) materializado a
+partir do archive portátil verificado, ou pelo `PATH` do host quando já houver
+um bundle compatível; nenhum caminho versionado em `/usr/bin` é presumido. O
+checkout Windows continua evidência Linux x86_64 sob WSL Ubuntu
+(`hostEvidence: wsl-linux`), não suporte Windows nativo. O archive portátil
+23.1.1 usado pelo runner não contém Clang, portanto `check:mlir0` requer um
+root externo compatível que também forneça Clang. Windows nativo requer bundle
+próprio pinado, assinado e reproduzível. macOS exige o equivalente por
+arquitetura/universal quando viável.
 
 Hosts e emitted targets não formam uma única matriz. A matriz futura de hosts é
 Linux, Windows e macOS first-class. A meta de targets é amplitude ao menos
@@ -8823,14 +8830,16 @@ treated as opaque rather than as a W identifier or module name.
 The Linux x86_64 pipeline is source → parser/frontend → verified HIR0 → MLIR0
 → mlir-opt → mlir-translate → llc → native host link. Native0 remains
 caller-owned and no-heap. HLO0, HLO1 and RUN0 are not prerequisites.
-The pinned Linux LLVM package supplies `llc`, but does not supply Clang.
+The pinned Linux LLVM 23.1.1 package supplies `llc`, but does not supply Clang.
 The public runner therefore separates LLVM object generation from native
 linking. W-1550 supersedes the former host C driver/CRT boundary: `llc` emits
 position-independent program and WRT0 objects, and the native linker produces
 a CRT-free static PIE without generating C source.
 
 Build configuration checks native `elf_x86_64` support and explicit executable
-paths. The runner does not search PATH for these tools at runtime. The native
+paths. The checker resolves the exact `bin/` tools from the persistent external
+`W_MLIR0_TOOLCHAIN_ROOT` materialization (or an already-resolved host command);
+the runner does not search PATH for these tools at runtime. The native
 linker has separate version provenance, not the LLVM package version.
 The default Linux build disables native execution and returns 2 without tools.
 The enabled runner creates only a private
@@ -8846,15 +8855,14 @@ The separate native Windows candidate belongs to W-1532. macOS, the general
 runner, imports, packages, workspaces, registry, network and performance remain gaps. This is
 compiler-lifecycle correctness evidence only, not a timing or result claim.
 
-Earlier NCI1 local WSL gates passed separately with LLVM 20.1.2 and 23.1.0
-through Ubuntu GCC/cc 13.3.0. W-1550 replaces that product-link evidence; the
-current local gate uses GNU ld 2.42 with `elf_x86_64` support and checks exact
-output, CRT-free ELF structure, stage failures, missing tools, restored
-execution, and temporary-file cleanup.
-The local Linux harness used Bun 1.3.4, not the planned CI Bun 1.4.0.
+The active local WSL lane uses LLVM 23.1.1 from the verified portable archive,
+through Ubuntu GCC/cc 13.3.0 and GNU ld 2.42 with `elf_x86_64` support. The
+gate checks exact output, CRT-free ELF structure, stage failures, missing tools,
+restored execution, and temporary-file cleanup.
 
-The 23.1.0 archive passed size, SHA-256, and long-window extraction checks.
-The older `check:mlir0` Clang recipe remains unchanged as separate evidence.
+The 23.1.1 archive passed the pinned size and SHA-256 checks and is materialized
+under the persistent external root. It does not contain Clang, so the separate
+`check:mlir0` recipe requires a Clang-capable external root.
 The mandatory Linux and Windows hosted CI jobs have not run. Local WSL
 execution does not establish hosted CI success or general cross-target support.
 
@@ -9284,7 +9292,7 @@ host adapter, and local SDK/link evidence are recorded separately; general W
 ABI/runtime, Unicode source paths, packaging, CI, cross-compilation, other
 targets, and performance remain gaps. The source reader does not yet prove
 Unicode source-path behavior. Linux/WSL remains the separate W-1521 evidence
-route with MLIR/LLVM `20.1.2` and `currencyStatus: update-required`.
+route with MLIR/LLVM `23.1.1` and `currencyStatus: current`.
 
 #### W-1533 — compact hermetic cross-target distribution contract
 
@@ -9455,9 +9463,9 @@ zero targets `supported` e uma linha `evidence` para
 é `pass`. Runtime, host adapter, SDK profile, linker/sysroot/packaging e CI
 evidence são `partial`. As referências incluem fonte, unidade, gate e
 manifest MLIR0. Essa linha não alega target geral, SDK, packaging ou CI
-oficial. O manifest mantém MLIR/LLVM/Clang `20.1.2` como versão factual da
-evidence e gate atual, marcada `currencyStatus: update-required`; não é a
-versão pretendida para release futuro.
+oficial. O manifest mantém MLIR/LLVM/Clang `23.1.1` como versão factual da
+evidence e gate atual, marcada `currencyStatus: current`; a aquisição Linux/WSL
+usa um root externo persistente e não pressupõe nomes versionados em `/usr/bin`.
 
 Compiler hosts ficam em uma coleção distinta. O estado atual combina outer
 host `x86_64-pc-windows-msvc`, tool execution
@@ -9475,7 +9483,7 @@ at-least-rust-breadth`, as fontes oficiais, `observed: 2026-08-31` e
 LLVM não é evidence suficiente para promover uma linha W. O checker também
 rejeita host e target conflated, WSL native e manifest MLIR0 divergente.
 
-Os planos native de Linux, Windows e macOS têm status `planned`. Cada plano usa exatamente `llvmorg-23.1.1`, com tag object assinado `e7ce3600b55034ddf819638f395e3c475fad5be2` e commit peeled `6dfe1677ab8dffbc6ec13d53a1e0215d75147689`. A evidence Linux atual usa MLIR `20.1.2` em WSL e não satisfaz o plano successor nativo. O blocker real é `native-build-acquisition-provenance`: build ou aquisição reproduzível, outputs, SHA256, SBOM, provenance, signing, CI e smoke ainda faltam. O pin successor não promove suporte nativo. Os planos fixam MLIR, Clang e LLD, Release, Ninja, targets X86/AArch64, artifacts `mlir-opt`, `mlir-translate`, `clang`, `lld`, `llvm-config` e drivers `lld-link`, `ld.lld`, `ld64.lld`. Drivers LLD não provam SDK ou licença Apple. Não há build, download ou workflow remoto neste bundle.
+Os planos native de Linux, Windows e macOS têm status `planned`. Cada plano usa exatamente `llvmorg-23.1.1`, com tag object assinado `e7ce3600b55034ddf819638f395e3c475fad5be2` e commit peeled `6dfe1677ab8dffbc6ec13d53a1e0215d75147689`. A evidence Linux atual usa MLIR `23.1.1` em WSL por meio do bundle portátil externo e ainda não satisfaz o plano successor nativo. O blocker real é `native-build-acquisition-provenance`: build ou aquisição reproduzível, outputs, SHA256, SBOM, provenance, signing, CI e smoke ainda faltam. O pin successor não promove suporte nativo. Os planos fixam MLIR, Clang e LLD, Release, Ninja, targets X86/AArch64, artifacts `mlir-opt`, `mlir-translate`, `clang`, `lld`, `llvm-config` e drivers `lld-link`, `ld.lld`, `ld64.lld`. Drivers LLD não provam SDK ou licença Apple. Não há build, download ou workflow remoto neste bundle.
 
 Cross-compilation é uma terceira dimensão explícita. O baseline primário usa
 os hosts `x86_64-unknown-linux-gnu`, `x86_64-pc-windows-msvc` e
@@ -9501,12 +9509,12 @@ Pesquisa adicional registrou [`portable-mlir-toolchain`](https://github.com/muni
 e seu [release 2026.08.31](https://github.com/munich-quantum-software/portable-mlir-toolchain/releases/tag/2026.08.31)
 como `externalToolchainCandidates` evaluation-only. O release mantém os seis
 host triples publicados no snapshot upstream; a inspeção local desta rodada
-cobriu somente `x86_64-pc-windows-msvc`, com LLVM `llvmorg-23.1.0` e o asset
+cobriu somente `x86_64-pc-windows-msvc`, com LLVM `llvmorg-23.1.1` e o asset
 pinado registrado no manifest Windows. Isso não é autoridade ou suporte W, não
 fecha trust/SBOM/provenance, não prova cross-compilation e não fornece/prova
-Apple SDK/licença. A evidência histórica `20.1.2` continua separada e marcada
-`update-required`. Fica como possível bootstrap, mirror ou rebuild input para um
-bundle futuro. A aquisição é tooling opt-in; ela não altera a evidência Linux.
+Apple SDK/licença. O bundle portátil continua evaluation-only e fica como
+possível bootstrap, mirror ou rebuild input para um bundle futuro. A aquisição
+é tooling opt-in; ela não promove suporte nativo.
 
 As fontes primárias registradas são [Rust platform support](https://doc.rust-lang.org/rustc/platform-support.html), [Rust target tier policy](https://doc.rust-lang.org/rustc/target-tier-policy.html), [MLIR getting started](https://mlir.llvm.org/getting_started/), [LLVM getting started](https://llvm.org/docs/GettingStarted.html) e [LLVM CMake target selection](https://llvm.org/docs/CMake.html). A classificação é `source-backed-current` somente para a matriz, seu checker e a projeção. `benchmarkDisposition` é `not-applicable` porque o bundle é metadata, projection e policy gate sem runtime ou performance.
 
@@ -9522,7 +9530,7 @@ Managed ativos precisam coincidir com a versão latest stable registrada e usar
 selector exato; selectors floating, nightly e ranges são rejeitados. CMake,
 Ninja, compiler, C23/C11, Rust edition e VS Code engine são floors ou recipes,
 não pins locais de currency. Evidence snapshots preservam suas versões
-históricas, sem promoção implícita: MLIR `20.1.2` continua evidence factual e
+históricas, sem promoção implícita: MLIR `23.1.1` é a evidence factual atual e
 Unicode `17.0.0` continua o snapshot vigente. O successor MLIR `23.1.1` fica
 selected/not promoted com tag object assinado
 `e7ce3600b55034ddf819638f395e3c475fad5be2` e commit peeled

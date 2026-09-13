@@ -1817,7 +1817,7 @@ terminate overflowed processes nonzero before later success output. Helpers are
 reachability-only. Constant overflow and faulting constant `/` or `%` fail
 closed, while safe constant forms emit `llvm.sdiv`/`llvm.srem`; dynamic/runtime
 forms remain outside the cut. The short-entry Restaurant fixture produces
-`Open 6; closed 1\n` on Linux/WSL LLVM 20.1.2 only. There is no native Windows,
+`Open 6; closed 1\n` on the Linux/WSL LLVM 23.1.1 route only. There is no native Windows,
 `PanicEvent`, runtime payload, cleanup, timing, or benchmark result claim.
 Unary negation, power, other widths, named numeric APIs, and general panic
 runtime remain gaps. W-1541 implements the bounded `entry {}` path introduced

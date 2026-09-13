@@ -159,9 +159,9 @@
   },
   "linuxWslProfile": {
     "manifest": "tooling/mlir0-toolchain.json",
-    "version": "20.1.2",
+    "version": "23.1.1",
     "targetTriple": "x86_64-unknown-linux-gnu",
-    "status": "pinned-update-required",
+    "status": "pinned",
     "nativeWindows": false
   }
 }

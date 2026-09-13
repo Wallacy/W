@@ -14934,6 +14934,7 @@ static bool normalize_document(frontend_context *context) {
   module.module_id = doc->module_id;
   module.local_module_name = document_local_module_name(doc);
   module.span = doc->nodes[doc->parse.root].raw_span;
+  module.document_index = context->module_index;
   module.first_import = (uint32_t)context->count.imports;
   module.first_struct = (uint32_t)context->count.structs;
   module.first_type_declaration = (uint32_t)context->count.type_declarations;
