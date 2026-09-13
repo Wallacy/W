@@ -271,9 +271,11 @@ export const BEST_METRIC_PROVENANCE_FIELDS = Object.freeze([
 ]);
 export const EXECUTABLE_PLATFORM_TARGET_WINDOWS = "windows-x64";
 export const EXECUTABLE_PLATFORM_TARGET_LINUX = "linux-x64";
+export const EXECUTABLE_PLATFORM_TARGET_LINUX_WSL = "linux-wsl-x64";
 export const EXECUTABLE_PLATFORM_TARGETS = Object.freeze([
   EXECUTABLE_PLATFORM_TARGET_WINDOWS,
   EXECUTABLE_PLATFORM_TARGET_LINUX,
+  EXECUTABLE_PLATFORM_TARGET_LINUX_WSL,
 ]);
 export const EXECUTABLE_ARTIFACT_TARGET_MSVC = "x86_64-pc-windows-msvc";
 export const EXECUTABLE_ARTIFACT_TARGET_MINGW = "x86_64-w64-mingw32";
@@ -291,7 +293,42 @@ export const EXECUTABLE_PLATFORM_ARTIFACT_TARGETS = Object.freeze({
   [EXECUTABLE_PLATFORM_TARGET_LINUX]: Object.freeze([
     EXECUTABLE_ARTIFACT_TARGET_LINUX,
   ]),
+  [EXECUTABLE_PLATFORM_TARGET_LINUX_WSL]: Object.freeze([
+    EXECUTABLE_ARTIFACT_TARGET_LINUX,
+  ]),
 });
+export const EXECUTABLE_PLATFORM_LANE_POLICIES = Object.freeze({
+  [EXECUTABLE_PLATFORM_TARGET_WINDOWS]: Object.freeze({
+    id: EXECUTABLE_PLATFORM_TARGET_WINDOWS,
+    hostMode: "native",
+    artifactTargets: Object.freeze([...EXECUTABLE_PLATFORM_ARTIFACT_TARGETS[EXECUTABLE_PLATFORM_TARGET_WINDOWS]]),
+    regression: true,
+    rankability: "host-partitioned",
+    crossPlatformDiagnostics: "none",
+    description: "Native Windows x64 executable evidence.",
+  }),
+  [EXECUTABLE_PLATFORM_TARGET_LINUX]: Object.freeze({
+    id: EXECUTABLE_PLATFORM_TARGET_LINUX,
+    hostMode: "native",
+    artifactTargets: Object.freeze([...EXECUTABLE_PLATFORM_ARTIFACT_TARGETS[EXECUTABLE_PLATFORM_TARGET_LINUX]]),
+    regression: true,
+    rankability: "host-partitioned",
+    crossPlatformDiagnostics: "none",
+    description: "Native Linux x64 executable evidence.",
+  }),
+  [EXECUTABLE_PLATFORM_TARGET_LINUX_WSL]: Object.freeze({
+    id: EXECUTABLE_PLATFORM_TARGET_LINUX_WSL,
+    hostMode: "wsl2",
+    artifactTargets: Object.freeze([...EXECUTABLE_PLATFORM_ARTIFACT_TARGETS[EXECUTABLE_PLATFORM_TARGET_LINUX_WSL]]),
+    regression: true,
+    rankability: "same-host-only",
+    crossPlatformDiagnostics: "same-physical-hardware-only",
+    description: "Linux x64 executable evidence through WSL2; not native Linux and not rankable across hosts.",
+  }),
+});
+export const EXECUTABLE_WSL_COMPARISON_PURPOSE = "same-physical-hardware-diagnostic-only";
+export const EXECUTABLE_WSL_RANKABILITY = "same-host-only";
+export const EXECUTABLE_WSL_HOST_MODE = "wsl2";
 // Compatibility alias for the original Windows-only public surface.
 export const EXECUTABLE_PLATFORM_TARGET = EXECUTABLE_PLATFORM_TARGET_WINDOWS;
 export const ENVIRONMENT_FIELDS = Object.freeze(["os", "kernel", "cpuModel", "logicalCores", "ramBytes"]);
@@ -340,6 +377,10 @@ const SOURCE_ELIGIBILITY = Object.freeze({
   cPrivate: Object.freeze({
     comparability: "contextual-non-ranking-private-composite",
     eligibility: "exploratory-private-composite",
+  }),
+  wslDiagnostic: Object.freeze({
+    comparability: "same-physical-hardware-diagnostic-only",
+    eligibility: "same-physical-hardware-diagnostic-only",
   }),
   rust: Object.freeze({
     comparability: "promotable-after-equivalence",
@@ -563,6 +604,7 @@ function checkSource(source, location, workload, root, errors) {
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.language === "w" && source.recipe !== PROCESS_ENTRY0_RECIPE) push(errors, location + ".recipe must use the private process handler route.");
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.language === "c" && source.recipe !== PRIVATE_C_RECIPE) push(errors, location + ".recipe must use the private GCC/MinGW process handler route.");
   if (workload?.id !== PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.language === "c" && source.recipe !== PUBLIC_C_RECIPE) push(errors, location + ".recipe must use the public Clang/MSVC process route.");
+  if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.platformTarget !== EXECUTABLE_PLATFORM_TARGET_WINDOWS) push(errors, location + ".platformTarget must remain Windows x64 for the private composite process handler route.");
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.recipeClass !== PROCESS_ENTRY0_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the private process handler class.");
   if (workload?.id === PROCESS_ENTRY_WORKLOAD_ID && source.recipeClass !== PROCESS_ENTRY_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-entry release class.");
   if (workload?.id === PROCESS_ENUM_PAYLOAD_WORKLOAD_ID && source.recipeClass !== PROCESS_ENUM_PAYLOAD_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-enum-payload release class.");
@@ -578,7 +620,7 @@ function checkSource(source, location, workload, root, errors) {
   if (expectedArtifactTarget === undefined || source.artifactTarget !== expectedArtifactTarget) {
     push(errors, location + ".artifactTarget must match the closed platform/artifact mapping.");
   }
-  const expectedPolicy = sourcePolicy(workload, source.language, source.recipe);
+  const expectedPolicy = sourcePolicy(workload, source.language, source.recipe, source.platformTarget);
   if (source.comparability !== expectedPolicy.comparability) push(errors, location + ".comparability does not match the language ABI and benchmark readiness.");
   if (source.eligibility !== expectedPolicy.eligibility) push(errors, location + ".eligibility does not match the source comparability policy.");
   const expectedExtension = { w: ".w", c: ".c", rust: ".rs" }[source.language];
@@ -671,9 +713,51 @@ function checkBestMetricsContract(contract, name, errors) {
   requiredString(contract.rule, name + ".rule", errors);
 }
 
+function checkPlatformLanes(lanes, name, errors) {
+  if (!Array.isArray(lanes) || lanes.length !== EXECUTABLE_PLATFORM_TARGETS.length) {
+    push(errors, name + " must contain the closed executable platform lane set.");
+    return;
+  }
+  const seen = new Set();
+  const fields = ["id", "hostMode", "artifactTargets", "regression", "rankability", "crossPlatformDiagnostics", "description"];
+  for (const [index, lane] of lanes.entries()) {
+    const location = `${name}[${index}]`;
+    if (!exactKeys(lane, location, fields, errors)) continue;
+    if (seen.has(lane.id)) push(errors, location + ".id must be unique.");
+    seen.add(lane.id);
+    const expectedId = EXECUTABLE_PLATFORM_TARGETS[index];
+    const policy = EXECUTABLE_PLATFORM_LANE_POLICIES[lane.id];
+    if (lane.id !== expectedId || !policy) push(errors, location + ".id is not in the stable platform lane order.");
+    if (policy) {
+      if (lane.hostMode !== policy.hostMode ||
+          JSON.stringify(lane.artifactTargets) !== JSON.stringify(policy.artifactTargets) ||
+          lane.regression !== policy.regression ||
+          lane.rankability !== policy.rankability ||
+          lane.crossPlatformDiagnostics !== policy.crossPlatformDiagnostics ||
+          lane.description !== policy.description) {
+        push(errors, location + " does not match the closed platform lane policy.");
+      }
+    }
+    if (!EXECUTABLE_PLATFORM_TARGETS.includes(lane.id)) push(errors, location + ".id is invalid.");
+    if (!Array.isArray(lane.artifactTargets) || lane.artifactTargets.length === 0) {
+      push(errors, location + ".artifactTargets must be a non-empty array.");
+    } else {
+      const targets = new Set();
+      for (const target of lane.artifactTargets) {
+        if (!EXECUTABLE_ARTIFACT_TARGETS.includes(target)) push(errors, location + ".artifactTargets contains an unknown artifact target.");
+        if (targets.has(target)) push(errors, location + ".artifactTargets must not contain duplicates.");
+        targets.add(target);
+      }
+    }
+    if (lane.regression !== true) push(errors, location + ".regression must be true for every maintained platform lane.");
+    requiredString(lane.description, location + ".description", errors);
+  }
+  for (const id of EXECUTABLE_PLATFORM_TARGETS) if (!seen.has(id)) push(errors, name + " is missing platform lane " + id + ".");
+}
+
 export function validateExecutableCatalog(catalog, documents = undefined, root = ROOT, options = {}) {
   const errors = [];
-  const keys = ["$schema", "schema", "kind", "id", "status", "metrics", "comparabilityAxes", "workloads", "resultContract", "bestMetricsContract", "bestMetrics"];
+  const keys = ["$schema", "schema", "kind", "id", "status", "metrics", "comparabilityAxes", "platformLanes", "workloads", "resultContract", "bestMetricsContract", "bestMetrics"];
   if (!exactKeys(catalog, "executable catalog", keys, errors)) return errors;
   if (catalog.$schema !== "./executable-benchmark.schema.json" ||
       catalog.schema !== EXECUTABLE_SCHEMA ||
@@ -696,6 +780,7 @@ export function validateExecutableCatalog(catalog, documents = undefined, root =
   if (JSON.stringify(catalog.comparabilityAxes) !== JSON.stringify(EXECUTABLE_COMPARABILITY_AXES)) {
     push(errors, "executable catalog.comparabilityAxes must declare every identity and provenance axis in order.");
   }
+  checkPlatformLanes(catalog.platformLanes, "executable catalog.platformLanes", errors);
   if (!Array.isArray(catalog.workloads) || catalog.workloads.length !== EXECUTABLE_WORKLOAD_IDS.length) {
     push(errors, "executable catalog.workloads must contain the closed workload set.");
   }
@@ -816,7 +901,7 @@ function sourceFor(workload, language, platformTarget = undefined) {
 
 export function executableArtifactTargetFor(workload, language, platformTarget = EXECUTABLE_PLATFORM_TARGET_WINDOWS) {
   if (!EXECUTABLE_PLATFORM_TARGETS.includes(platformTarget)) return undefined;
-  if (platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX) return EXECUTABLE_ARTIFACT_TARGET_LINUX;
+  if (platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX || platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) return EXECUTABLE_ARTIFACT_TARGET_LINUX;
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) return EXECUTABLE_ARTIFACT_TARGET_MINGW;
   return EXECUTABLE_ARTIFACT_TARGET_MSVC;
 }
@@ -830,30 +915,55 @@ function isWslOrCompositeEnvironment(environment) {
   return values.some((value) => /(?:wsl|microsoft|lxss|interop|composite)/u.test(value));
 }
 
+function isLinuxEnvironment(environment) {
+  const osName = String(environment?.os ?? "").toLowerCase();
+  return osName === "linux" || osName.startsWith("linux-");
+}
+
+function isWslEnvironment(environment) {
+  if (!isLinuxEnvironment(environment)) return false;
+  const values = [environment?.os, environment?.kernel].map((value) => String(value ?? "").toLowerCase());
+  return values.some((value) => /(?:wsl|microsoft|lxss)/u.test(value)) &&
+    !values.some((value) => /interop|composite/u.test(value));
+}
+
 export function executableNativeHostForPlatform(environment, platformTarget) {
   if (!isObject(environment) || !EXECUTABLE_PLATFORM_TARGETS.includes(platformTarget)) return false;
   if (isWslOrCompositeEnvironment(environment)) return false;
   const osName = String(environment.os ?? "").toLowerCase();
-  if (platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX) return osName === "linux" || osName.startsWith("linux-");
+  if (platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX) return isLinuxEnvironment(environment);
   return osName === "windows" || osName.startsWith("windows-");
+}
+
+export function executableHostEvidenceForPlatform(environment, platformTarget) {
+  if (!isObject(environment) || !EXECUTABLE_PLATFORM_TARGETS.includes(platformTarget)) return false;
+  if (platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) return isWslEnvironment(environment);
+  return executableNativeHostForPlatform(environment, platformTarget);
 }
 
 function checkPlatformHostEvidence(environment, platformTarget, name, errors) {
   if (!EXECUTABLE_PLATFORM_TARGETS.includes(platformTarget)) return;
-  if (!executableNativeHostForPlatform(environment, platformTarget)) {
-    const label = platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX ? "native Linux" : "native Windows";
-    push(errors, `${name} must provide ${label} host evidence; WSL and composite hosts are not native platform evidence.`);
+  if (!executableHostEvidenceForPlatform(environment, platformTarget)) {
+    const label = platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL
+      ? "Linux through WSL2"
+      : platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX ? "native Linux" : "native Windows";
+    push(errors, `${name} must provide ${label} host evidence; WSL is only valid in the explicit WSL lane and composite hosts are not native platform evidence.`);
   }
 }
 
 function executableHostSlugSupportsPlatform(host, platformTarget) {
   const value = String(host ?? "").toLowerCase();
-  if (!EXECUTABLE_PLATFORM_TARGETS.includes(platformTarget) || /(?:wsl|microsoft|lxss|interop|composite)/u.test(value)) return false;
+  if (!EXECUTABLE_PLATFORM_TARGETS.includes(platformTarget) || /(?:interop|composite)/u.test(value)) return false;
+  if (platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) {
+    return (value === "linux" || value.startsWith("linux-")) && /(?:wsl|microsoft|lxss)/u.test(value);
+  }
+  if (/(?:wsl|microsoft|lxss)/u.test(value)) return false;
   if (platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX) return value === "linux" || value.startsWith("linux-");
   return value === "windows" || value.startsWith("windows-");
 }
 
-function sourcePolicy(workload, language, recipe) {
+function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PLATFORM_TARGET_WINDOWS) {
+  if (platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) return SOURCE_ELIGIBILITY.wslDiagnostic;
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) return SOURCE_ELIGIBILITY.processHandler;
   if (language === "c") return SOURCE_ELIGIBILITY.cPublic;
   if (language === "rust") return SOURCE_ELIGIBILITY.rust;
@@ -1053,6 +1163,15 @@ function checkEnvironment(environment, name, errors) {
   positiveDecimal(environment.ramBytes, name + ".ramBytes", errors);
 }
 
+function checkPlatformEvidence(value, name, platformTarget, errors) {
+  if (platformTarget !== EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) return;
+  const fields = ["hostMode", "comparisonPurpose", "rankability"];
+  if (!exactKeys(value, name, fields, errors)) return;
+  if (value.hostMode !== EXECUTABLE_WSL_HOST_MODE) push(errors, name + ".hostMode must identify WSL2 execution.");
+  if (value.comparisonPurpose !== EXECUTABLE_WSL_COMPARISON_PURPOSE) push(errors, name + ".comparisonPurpose must identify same-physical-hardware diagnostics only.");
+  if (value.rankability !== EXECUTABLE_WSL_RANKABILITY) push(errors, name + ".rankability must remain same-host-only.");
+}
+
 function boundedPeUInt32(value, name, errors, positive = false) {
   const valid = decimal(value, name, errors);
   if (!valid) return undefined;
@@ -1221,12 +1340,15 @@ export function validateExecutableResult(result, catalog = loadExecutableDocumen
   const source = sourceFor(workload, result.language, result.platformTarget);
   if (!source) push(errors, "executable result language must identify a materialized source.");
   if (!EXECUTABLE_LANGUAGES.includes(result.language)) push(errors, "executable result.language is invalid.");
-  const expectedPolicy = sourcePolicy(workload, result.language, source?.recipe);
+  const expectedPolicy = sourcePolicy(workload, result.language, source?.recipe, result.platformTarget);
   if (source && (source.comparability !== expectedPolicy.comparability || source.eligibility !== expectedPolicy.eligibility)) {
     push(errors, "executable result source comparability and eligibility must match the exact catalog policy.");
   }
   if (!EXECUTABLE_PLATFORM_TARGETS.includes(result.platformTarget) || (source && result.platformTarget !== source.platformTarget)) {
     push(errors, "executable result.platformTarget must identify a closed platform lane and match the source identity.");
+  }
+  if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && result.platformTarget !== EXECUTABLE_PLATFORM_TARGET_WINDOWS) {
+    push(errors, "executable result.platformTarget must remain Windows x64 for the private composite process handler route.");
   }
   if (source && result.artifactTarget !== source.artifactTarget) push(errors, "executable result.artifactTarget must match the source ABI target.");
   const expectedResultArtifactTarget = artifactTargetFor(workload, result.language, result.platformTarget);
@@ -1276,7 +1398,7 @@ export function validateExecutableResult(result, catalog = loadExecutableDocumen
   const hasElfLayout = isObject(result.artifact) && Object.prototype.hasOwnProperty.call(result.artifact, "elfLayout");
   if (hasPeLayout && hasElfLayout) push(errors, "executable result.artifact must not mix PE and ELF layout evidence.");
   if (hasPeLayout && result.platformTarget !== EXECUTABLE_PLATFORM_TARGET_WINDOWS) push(errors, "executable result.artifact.peLayout is only valid for the Windows PE lane.");
-  if (hasElfLayout && result.platformTarget !== EXECUTABLE_PLATFORM_TARGET_LINUX) push(errors, "executable result.artifact.elfLayout is only valid for the Linux ELF lane.");
+  if (hasElfLayout && ![EXECUTABLE_PLATFORM_TARGET_LINUX, EXECUTABLE_PLATFORM_TARGET_LINUX_WSL].includes(result.platformTarget)) push(errors, "executable result.artifact.elfLayout is only valid for a Linux ELF lane.");
   if (hasPeLayout && !hasArtifactCleanliness) {
     push(errors, "executable result.artifact.peLayout requires validated artifact.cleanliness.");
   }
@@ -1296,11 +1418,14 @@ export function validateExecutableResult(result, catalog = loadExecutableDocumen
   if (expectedHost && result.identity?.host !== expectedHost) push(errors, "executable result.identity.host must be derived from the redacted environment.");
   checkSampleSeries(result.compile, "executable result.compile", errors);
   checkSampleSeries(result.run, "executable result.run", errors);
-  if (exactKeys(result.provenance, "executable result.provenance", ["sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "catalogDigest", "commit", "observedAt"], errors)) {
+  const provenanceKeys = ["sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "catalogDigest", "commit", "observedAt"];
+  if (result.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) provenanceKeys.push("platformEvidence");
+  if (exactKeys(result.provenance, "executable result.provenance", provenanceKeys, errors)) {
     for (const field of ["sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "catalogDigest"]) digest(result.provenance[field], "executable result.provenance." + field, errors);
     if (typeof result.provenance.commit !== "string" || !/^[0-9a-f]{40}$/u.test(result.provenance.commit)) push(errors, "executable result.provenance.commit must be the full lowercase Git commit identity.");
     checkObservedAt(result.provenance.observedAt, "executable result.provenance.observedAt", errors);
     if (result.provenance.sourceDigest !== result.identity?.sourceDigest || result.provenance.artifactDigest !== result.artifact?.digest || result.provenance.recipeDigest !== result.identity?.recipeDigest) push(errors, "executable result provenance must repeat source, artifact and recipe identity exactly.");
+    if (result.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) checkPlatformEvidence(result.provenance.platformEvidence, "executable result.provenance.platformEvidence", result.platformTarget, errors);
   }
   return errors;
 }
@@ -1447,6 +1572,9 @@ function entryFromResult(record, catalog, metric) {
   if (metric === "artifact-size" && record.artifact?.elfLayout !== undefined) {
     entry.elfLayout = structuredClone(record.artifact.elfLayout);
   }
+  if (record.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) {
+    entry.provenance.platformEvidence = structuredClone(record.provenance.platformEvidence);
+  }
   return entry;
 }
 
@@ -1538,6 +1666,9 @@ export function validateExecutableBestMetric(record, catalog = loadExecutableDoc
   if (!OPTIMIZABLE_METRICS.includes(record.metric)) push(errors, "executable best metric must be optimizable, never exit-code/stdout/stderr.");
   if (!EXECUTABLE_LANGUAGES.includes(record.language) || !source) push(errors, "executable best metric.language must identify a materialized source.");
   if (!EXECUTABLE_PLATFORM_TARGETS.includes(record.platformTarget)) push(errors, "executable best metric.platformTarget must identify a closed platform lane.");
+  if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && record.platformTarget !== EXECUTABLE_PLATFORM_TARGET_WINDOWS) {
+    push(errors, "executable best metric.platformTarget must remain Windows x64 for the private composite process handler route.");
+  }
   if (!executableHostSlugSupportsPlatform(record.host, record.platformTarget)) push(errors, "executable best metric.host must identify a native host for its platform lane; WSL and composite hosts are not rankable.");
   if (source && record.artifactTarget !== source.artifactTarget) push(errors, "executable best metric.artifactTarget must match the source ABI target.");
   if (record.abi !== record.artifactTarget) push(errors, "executable best metric.abi must equal the artifact target.");
@@ -1568,7 +1699,9 @@ export function validateExecutableBestMetric(record, catalog = loadExecutableDoc
   if (record.categoryId !== expectedCategoryId) push(errors, "executable best metric.categoryId must be derived from its category identity.");
   const expectedId = executableBestMetricId(executableCategoryKey(record), record.metric);
   if (record.id !== expectedId) push(errors, "executable best metric.id must be derived from its category identity and metric.");
-  if (exactKeys(record.provenance, "executable best metric.provenance", BEST_METRIC_PROVENANCE_FIELDS, errors)) {
+  const provenanceKeys = [...BEST_METRIC_PROVENANCE_FIELDS];
+  if (record.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) provenanceKeys.push("platformEvidence");
+  if (exactKeys(record.provenance, "executable best metric.provenance", provenanceKeys, errors)) {
     requiredString(record.provenance.recordId, "executable best metric.provenance.recordId", errors);
     if (typeof record.provenance.commit !== "string" || !/^[0-9a-f]{40}$/u.test(record.provenance.commit)) push(errors, "executable best metric.provenance.commit must be a full lowercase Git commit identity.");
     checkObservedAt(record.provenance.observedAt, "executable best metric.provenance.observedAt", errors);
@@ -1581,6 +1714,7 @@ export function validateExecutableBestMetric(record, catalog = loadExecutableDoc
       push(errors, "executable best metric.provenance.sourceDigest must match the catalog source.");
     }
     if (record.provenance.recipeDigest === undefined) push(errors, "executable best metric provenance must include recipeDigest.");
+    if (record.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) checkPlatformEvidence(record.provenance.platformEvidence, "executable best metric.provenance.platformEvidence", record.platformTarget, errors);
   }
   if (Object.prototype.hasOwnProperty.call(record, "peLayout")) {
     if (record.platformTarget !== EXECUTABLE_PLATFORM_TARGET_WINDOWS) push(errors, "executable best metric.peLayout is only valid for the Windows PE lane.");
@@ -1589,7 +1723,7 @@ export function validateExecutableBestMetric(record, catalog = loadExecutableDoc
     checkPeLayout(record.peLayout, "executable best metric.peLayout", errors, record.value);
   }
   if (Object.prototype.hasOwnProperty.call(record, "elfLayout")) {
-    if (record.platformTarget !== EXECUTABLE_PLATFORM_TARGET_LINUX) push(errors, "executable best metric.elfLayout is only valid for the Linux ELF lane.");
+    if (![EXECUTABLE_PLATFORM_TARGET_LINUX, EXECUTABLE_PLATFORM_TARGET_LINUX_WSL].includes(record.platformTarget)) push(errors, "executable best metric.elfLayout is only valid for a Linux ELF lane.");
     if (record.metric !== "artifact-size") push(errors, "executable best metric.elfLayout is only valid for the artifact-size cell.");
     if (record.provenance?.artifactCleanliness !== "verified-clean") push(errors, "executable best metric.elfLayout requires verified-clean artifact provenance.");
     checkElfLayout(record.elfLayout, "executable best metric.elfLayout", errors);

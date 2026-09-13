@@ -12,11 +12,13 @@ test("generated projection is current, compact, and sourced only from the live c
   const measuredPlatformCells = new Set(documents.catalog.bestMetrics.entries.map(
     (entry) => `${entry.workloadId}\0${entry.language}\0${entry.platformTarget}`,
   )).size;
-  const maximumCompactLines = documents.catalog.workloads.length + measuredPlatformCells + 28;
+  const maximumCompactLines = documents.catalog.workloads.length + measuredPlatformCells + 36;
   assert.ok(rendered.split(/\r?\n/u).length <= maximumCompactLines);
   assert.match(rendered, /Best values/u);
   assert.match(rendered, /### Windows x64/u);
   assert.match(rendered, /### Linux x64/u);
+  assert.match(rendered, /### Linux x64 via WSL2/u);
+  assert.match(rendered, /No Linux x64 via WSL2 same-physical-hardware diagnostic measurements are published\./u);
   assert.match(rendered, /\| Workload \| Language \| Target \| Runtime \| Artifact \| \.text B \| \.rdata B \| Compile p50 \| Run p50 \| Run p95 \| Peak RSS \| CPU mean \|/u);
   assert.match(rendered, /\| hello \| c \| Windows x64 \/ MSVC \| MSVC CRT DLL \| [0-9]+ B/u);
   assert.match(rendered, /\| hello \| w \| Windows x64 \/ MSVC \| CRT-free \| [0-9]+ B/u);
@@ -91,9 +93,31 @@ test("projection collapses categories per platform without pooling platform lane
   const rendered = renderExecutableProjection({ catalog: compact });
   const lines = rendered.split(/\r?\n/u);
   const windowsRows = lines.filter((line) => line.startsWith("| hello | rust | Windows x64 /"));
-  const linuxRows = lines.filter((line) => line.startsWith("| hello | rust | Linux x64 /"));
+  const linuxRows = lines.filter((line) => line.startsWith("| hello | rust | Linux x64 / GNU"));
   assert.equal(windowsRows.length, 1, "Windows categories must collapse to one human row");
   assert.match(windowsRows[0], /\| 1 ns \|/u, "the lower Windows cell must win");
   assert.equal(linuxRows.length, 1, "Linux remains an independent human row");
   assert.match(linuxRows[0], /\| 2 ns \|/u, "Linux values must not pool with Windows");
+
+  const wsl = structuredClone(runtime);
+  wsl.id = "synthetic-wsl-runtime";
+  wsl.categoryId = "category-" + "c".repeat(64);
+  wsl.platformTarget = "linux-wsl-x64";
+  wsl.artifactTarget = "x86_64-unknown-linux-gnu";
+  wsl.abi = wsl.artifactTarget;
+  wsl.toolchain = "rustc-alternate-wsl";
+  wsl.host = "linux-wsl2-microsoft-standard-wsl2-host-a";
+  wsl.value = "3";
+  const otherWsl = structuredClone(wsl);
+  otherWsl.id = "synthetic-wsl-runtime-other-host";
+  otherWsl.categoryId = "category-" + "d".repeat(64);
+  otherWsl.toolchain = "rustc-alternate-wsl-other";
+  otherWsl.host = "linux-wsl2-microsoft-standard-wsl2-host-b";
+  otherWsl.value = "4";
+  compact.bestMetrics.entries.push(wsl, otherWsl);
+  const wslRendered = renderExecutableProjection({ catalog: compact });
+  const wslRows = wslRendered.split(/\r?\n/u).filter((line) => line.startsWith("| hello | rust | Linux x64 / WSL2"));
+  assert.equal(wslRows.length, 2, "WSL categories remain partitioned by host");
+  assert.match(wslRows[0], /\| 3 ns \|/u, "WSL host rows must retain their own value");
+  assert.match(wslRows[1], /\| 4 ns \|/u, "a second WSL host must not be pooled into the first");
 });
