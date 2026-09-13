@@ -4,12 +4,14 @@ import test from "node:test";
 import { deriveSummary } from "./executable-benchmark-runner.mjs";
 import {
   EXECUTABLE_ARTIFACT_TARGET_MINGW,
+  EXECUTABLE_ARTIFACT_TARGET_LINUX,
   EXECUTABLE_ARTIFACT_TARGET_MSVC,
   EXECUTABLE_BEST_SCHEMA,
   EXECUTABLE_COMPARABILITY_AXES,
   EXECUTABLE_LANGUAGES,
   EXECUTABLE_RESULT_SCHEMA,
   EXECUTABLE_PLATFORM_TARGET,
+  EXECUTABLE_PLATFORM_TARGET_LINUX,
   EXECUTABLE_STRUCTURE_CLASSES,
   PROCESS_ENTRY_CORRECTNESS_INPUTS,
   PROCESS_ENTRY_ORACLE_CASES,
@@ -43,6 +45,7 @@ import {
   deriveExecutableBestMetrics,
   executableEquivalenceKey,
   executableHostIdentity,
+  executableNativeHostForPlatform,
   exactOutputDigest,
   loadExecutableDocuments,
   pruneExecutableBestMetrics,
@@ -355,6 +358,28 @@ function validResult(language = "rust") {
   };
 }
 
+function linuxCatalogAndResult(language = "rust") {
+  const catalog = clone(documents.catalog);
+  const workload = catalog.workloads.find((item) => item.id === "hello");
+  const source = clone(workload.sources.find((item) => item.language === language));
+  source.platformTarget = EXECUTABLE_PLATFORM_TARGET_LINUX;
+  source.artifactTarget = EXECUTABLE_ARTIFACT_TARGET_LINUX;
+  workload.sources.push(source);
+  const result = validResult(language);
+  result.id = `hello-${language}-linux-example`;
+  result.platformTarget = EXECUTABLE_PLATFORM_TARGET_LINUX;
+  result.artifactTarget = EXECUTABLE_ARTIFACT_TARGET_LINUX;
+  result.environment = { os: "linux", kernel: "linux-6.8", cpuModel: "x86_64-class", logicalCores: "16", ramBytes: "34359738368" };
+  result.identity.sourceDigest = source.digest;
+  result.identity.platformTarget = EXECUTABLE_PLATFORM_TARGET_LINUX;
+  result.identity.artifactTarget = EXECUTABLE_ARTIFACT_TARGET_LINUX;
+  result.identity.toolchain = "clang-18-linux";
+  result.identity.host = executableHostIdentity(result.environment);
+  result.equivalenceKey = executableEquivalenceKey(catalog, "hello", EXECUTABLE_PLATFORM_TARGET_LINUX, "release", source.recipeClass);
+  result.provenance.sourceDigest = source.digest;
+  return { catalog, result };
+}
+
 function withPeLayout(result, layout = VALID_PE_LAYOUT) {
   result.artifact.peLayout = clone(layout);
   return result;
@@ -378,6 +403,35 @@ test("local result remains full-fidelity and rejects invalid measurements", () =
   const badSource = clone(result);
   badSource.identity.artifactTarget = EXECUTABLE_PLATFORM_TARGET;
   assert.match(validateExecutableResult(badSource, documents.catalog).join("\n"), /artifact target/);
+});
+
+test("platform lanes stay closed, partitioned, and reject WSL masquerading as native Linux", () => {
+  const { catalog, result } = linuxCatalogAndResult();
+  assert.deepEqual(validateExecutableCatalog(catalog, { ...documents, catalog }), []);
+  assert.equal(executableNativeHostForPlatform(result.environment, EXECUTABLE_PLATFORM_TARGET_LINUX), true);
+  assert.deepEqual(validateExecutableResult(result, catalog), []);
+
+  const windowsResult = validResult();
+  windowsResult.id = "hello-rust-windows-baseline";
+  const updated = updateExecutableBestMetrics(catalog, result);
+  const windowsCells = updated.catalog.bestMetrics.entries.filter((entry) => entry.platformTarget === EXECUTABLE_PLATFORM_TARGET);
+  const linuxCells = updated.catalog.bestMetrics.entries.filter((entry) => entry.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX);
+  assert.ok(windowsCells.length > 0);
+  assert.ok(linuxCells.length > 0);
+  assert.ok(linuxCells.every((entry) => entry.artifactTarget === EXECUTABLE_ARTIFACT_TARGET_LINUX));
+  assert.ok(updated.catalog.bestMetrics.entries.some((entry) => entry.platformTarget === EXECUTABLE_PLATFORM_TARGET && entry.workloadId === windowsResult.workloadId));
+
+  const wsl = clone(result);
+  wsl.environment.kernel = "microsoft-standard-wsl2";
+  wsl.identity.host = executableHostIdentity(wsl.environment);
+  assert.match(validateExecutableResult(wsl, catalog).join("\n"), /native Linux|WSL|composite/iu);
+  assert.throws(() => deriveExecutableBestMetrics(catalog, [wsl]), /native Linux|WSL|composite/iu);
+
+  const toolchainVariant = clone(result);
+  toolchainVariant.id = "hello-rust-linux-toolchain-variant";
+  toolchainVariant.identity.toolchain = "gcc-13-linux";
+  const partitioned = deriveExecutableBestMetrics(catalog, [result, toolchainVariant]);
+  assert.equal(new Set(partitioned.entries.map((entry) => entry.categoryId)).size, 2);
 });
 
 test("best derivation excludes zero CPU and preserves category/provenance", () => {
