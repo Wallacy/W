@@ -23,6 +23,12 @@ import {
   PROCESS_ENUM_PAYLOAD_RECIPE_CLASS,
   PROCESS_ENUM_PAYLOAD_TIMED_INPUT,
   PROCESS_ENUM_PAYLOAD_WORKLOAD_ID,
+  PROCESS_ARGUMENTS_ORDERING_CORRECTNESS_INPUTS,
+  PROCESS_ARGUMENTS_ORDERING_ORACLE_CASES,
+  PROCESS_ARGUMENTS_ORDERING_ORACLE_KIND,
+  PROCESS_ARGUMENTS_ORDERING_RECIPE_CLASS,
+  PROCESS_ARGUMENTS_ORDERING_TIMED_INPUT,
+  PROCESS_ARGUMENTS_ORDERING_WORKLOAD_ID,
   PROCESS_ENTRY0_CORRECTNESS_INPUTS,
   PROCESS_ENTRY0_EXECUTION_KIND,
   PROCESS_ENTRY0_FAULT_CASES,
@@ -246,6 +252,49 @@ test("process-enum-payload C and Rust variants retain independent runtime enum p
   assert.match(rust, /match state/u);
   assert.match(rust, /let repeated = std::env::args_os\(\)\.nth\(1\)\.is_none\(\)/u);
   assert.match(rust, /write!\(stdout, "\{label\} \{repeated\}\\n"\)/u);
+  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
+});
+
+test("process-arguments-ordering catalog pins the count-dependent seating contract", () => {
+  const workload = documents.catalog.workloads.find((item) => item.id === PROCESS_ARGUMENTS_ORDERING_WORKLOAD_ID);
+  assert.ok(workload);
+  assert.equal(workload.structureClass, "public-end-to-end");
+  assert.equal(workload.status, "source-oracle-ready");
+  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
+  assert.equal(workload.demoEvidence, "bounded-w-demo");
+  assert.equal(workload.benchmarkStatus, "exploratory-ready");
+  assert.deepEqual(workload.blockedLanguages, []);
+  assert.deepEqual(workload.blockers, []);
+  assert.equal(workload.oracle.kind, PROCESS_ARGUMENTS_ORDERING_ORACLE_KIND);
+  assert.deepEqual(workload.oracle.timedInput, PROCESS_ARGUMENTS_ORDERING_TIMED_INPUT);
+  assert.deepEqual(workload.oracle.cases, PROCESS_ARGUMENTS_ORDERING_ORACLE_CASES);
+  assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.arguments), PROCESS_ARGUMENTS_ORDERING_CORRECTNESS_INPUTS);
+  assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.stdout), [
+    "Kitchen seats 0 guests\n",
+    "Kitchen seats 1 guests\n",
+    "Banquet seats 2 guests\n",
+  ]);
+  assert.ok(workload.sources.every((source) => source.recipeClass === PROCESS_ARGUMENTS_ORDERING_RECIPE_CLASS));
+  assert.deepEqual(workload.sources.map((source) => source.language), EXECUTABLE_LANGUAGES);
+  assert.equal(workload.sources.find((source) => source.language === "w").entry, "run");
+  assert.equal(workload.sources.find((source) => source.language === "c").entry, "main");
+  assert.equal(workload.sources.find((source) => source.language === "rust").entry, "main");
+});
+
+test("process-arguments-ordering C and Rust variants retain independent count branches", () => {
+  const c = readFileSync(`${ROOT}/benchmarks/executable/process_arguments_ordering.c`, "utf8");
+  const rust = readFileSync(`${ROOT}/benchmarks/executable/process_arguments_ordering.rs`, "utf8");
+  assert.match(c, /int main\(int argc, char \*\*argv\)/u);
+  assert.match(c, /const int count = argc - 1/u);
+  assert.match(c, /count < 2/u);
+  assert.match(c, /Kitchen seats %d guests\\n/u);
+  assert.match(c, /Banquet seats %d guests\\n/u);
+  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
+  assert.match(rust, /fn main\(\)/u);
+  assert.match(rust, /args_os\(\)\.count\(\)\.saturating_sub\(1\)/u);
+  assert.match(rust, /count < 2/u);
+  assert.match(rust, /Kitchen seats \{count\} guests/u);
+  assert.match(rust, /Banquet seats \{count\} guests/u);
   assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
 });
 

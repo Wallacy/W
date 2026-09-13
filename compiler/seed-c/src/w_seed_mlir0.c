@@ -842,6 +842,29 @@ static const char *binary_operation(w_seed_hir0_binary_operator operation) {
   return NULL;
 }
 
+/* Arguments.count is logically an unsigned usize even when the bounded
+ * x86_64 adapter uses an i64 physical carrier. Keep its ordered predicates
+ * unsigned; the ordinary i64 operation table above is intentionally signed. */
+static const char *usize_comparison_operation(
+    w_seed_hir0_binary_operator operation) {
+  switch (operation) {
+    case W_SEED_HIR0_BINARY_EQUAL:
+      return "llvm.icmp \"eq\"";
+    case W_SEED_HIR0_BINARY_NOT_EQUAL:
+      return "llvm.icmp \"ne\"";
+    case W_SEED_HIR0_BINARY_LESS:
+      return "llvm.icmp \"ult\"";
+    case W_SEED_HIR0_BINARY_LESS_EQUAL:
+      return "llvm.icmp \"ule\"";
+    case W_SEED_HIR0_BINARY_GREATER:
+      return "llvm.icmp \"ugt\"";
+    case W_SEED_HIR0_BINARY_GREATER_EQUAL:
+      return "llvm.icmp \"uge\"";
+    default:
+      return NULL;
+  }
+}
+
 static const char *checked_binary_helper(
     w_seed_hir0_binary_operator operation) {
   switch (operation) {
@@ -1384,8 +1407,8 @@ static bool append_usize_count_comparison_operation_in_loop(
     return false;
   const w_seed_hir0_value *value = &program->values[value_index];
   if (value->kind != W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON ||
-      (value->binary_operator != W_SEED_HIR0_BINARY_EQUAL &&
-       value->binary_operator != W_SEED_HIR0_BINARY_NOT_EQUAL) ||
+      value->binary_operator < W_SEED_HIR0_BINARY_EQUAL ||
+      value->binary_operator > W_SEED_HIR0_BINARY_GREATER_EQUAL ||
       value->type_index >= program->type_count ||
       program->types[value->type_index].kind != W_SEED_HIR0_TYPE_BOOL ||
       value->left_value >= program->value_count ||
@@ -1417,7 +1440,7 @@ static bool append_usize_count_comparison_operation_in_loop(
                                  W_SEED_HIR0_TYPE_USIZE;
   if (!(left_count && right_literal) && !(right_count && left_literal))
     return false;
-  const char *operation = binary_operation(value->binary_operator);
+  const char *operation = usize_comparison_operation(value->binary_operator);
   return operation != NULL &&
          append_literal(artifact, capacity, offset, "    %v") &&
          append_size(artifact, capacity, offset, value_index) &&

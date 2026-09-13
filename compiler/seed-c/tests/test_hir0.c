@@ -692,6 +692,22 @@ static bool lower_process_input0_generic(const char *source) {
   return true;
 }
 
+static bool expect_process_count_comparison_operator(
+    const char *source, w_seed_hir0_binary_operator expected_operator) {
+  CHECK(lower_process_input0_generic(source));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  size_t comparison_count = 0u;
+  for (size_t value_index = 0u; value_index < program->value_count;
+       value_index += 1u) {
+    const w_seed_hir0_value *value = &program->values[value_index];
+    if (value->kind != W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON) continue;
+    CHECK(value->binary_operator == expected_operator);
+    comparison_count += 1u;
+  }
+  CHECK(comparison_count == 1u);
+  return true;
+}
+
 typedef enum {
   PROCESS_INPUT0_BAD_SOURCE_MEMBER,
   PROCESS_INPUT0_BAD_SOURCE_FAILURE_VALUE,
@@ -1001,6 +1017,62 @@ static bool test_process_arguments_count_hir(void) {
       "ProcessExitCode { print(\"matches ${0 != args.count}\") "
       "return .success }\n"
       "entry(run)\n";
+  static const char COUNT_COMPARISON_LESS_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"matches ${args.count < 2}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static const char COUNT_COMPARISON_LESS_EQUAL_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"matches ${args.count <= 2}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static const char COUNT_COMPARISON_GREATER_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"matches ${args.count > 2}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static const char COUNT_COMPARISON_GREATER_EQUAL_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"matches ${args.count >= 2}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static const char COUNT_COMPARISON_REVERSED_LESS_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"matches ${2 < args.count}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static const char COUNT_COMPARISON_REVERSED_LESS_EQUAL_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"matches ${2 <= args.count}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static const char COUNT_COMPARISON_REVERSED_GREATER_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"matches ${2 > args.count}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static const char COUNT_COMPARISON_REVERSED_GREATER_EQUAL_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"matches ${2 >= args.count}\") "
+      "return .success }\n"
+      "entry(run)\n";
   static const char COUNT_COMPARISON_IF_SOURCE[] =
       "import { Arguments as ProcessArguments, Context as ProcessContext, "
       "ExitCode as ProcessExitCode } from std.process\n"
@@ -1015,6 +1087,27 @@ static bool test_process_arguments_count_hir(void) {
       "ProcessExitCode { print(\"count ${args?.count}\") "
       "return .success }\n"
       "entry(run)\n";
+
+  CHECK(expect_process_count_comparison_operator(
+      COUNT_COMPARISON_LESS_SOURCE, W_SEED_HIR0_BINARY_LESS));
+  CHECK(expect_process_count_comparison_operator(
+      COUNT_COMPARISON_LESS_EQUAL_SOURCE, W_SEED_HIR0_BINARY_LESS_EQUAL));
+  CHECK(expect_process_count_comparison_operator(
+      COUNT_COMPARISON_GREATER_SOURCE, W_SEED_HIR0_BINARY_GREATER));
+  CHECK(expect_process_count_comparison_operator(
+      COUNT_COMPARISON_GREATER_EQUAL_SOURCE,
+      W_SEED_HIR0_BINARY_GREATER_EQUAL));
+  CHECK(expect_process_count_comparison_operator(
+      COUNT_COMPARISON_REVERSED_LESS_SOURCE, W_SEED_HIR0_BINARY_LESS));
+  CHECK(expect_process_count_comparison_operator(
+      COUNT_COMPARISON_REVERSED_LESS_EQUAL_SOURCE,
+      W_SEED_HIR0_BINARY_LESS_EQUAL));
+  CHECK(expect_process_count_comparison_operator(
+      COUNT_COMPARISON_REVERSED_GREATER_SOURCE,
+      W_SEED_HIR0_BINARY_GREATER));
+  CHECK(expect_process_count_comparison_operator(
+      COUNT_COMPARISON_REVERSED_GREATER_EQUAL_SOURCE,
+      W_SEED_HIR0_BINARY_GREATER_EQUAL));
 
   CHECK(lower_process_input0_generic(COUNT_SOURCE));
   const w_seed_hir0_program *program = &fixture.hir_program;
@@ -1178,7 +1271,7 @@ static bool test_process_arguments_count_hir(void) {
   const w_seed_hir0_value saved_comparison_literal =
       fixture.hir_values[comparison_literal_index];
   fixture.hir_values[comparison_index].binary_operator =
-      W_SEED_HIR0_BINARY_LESS;
+      W_SEED_HIR0_BINARY_ADD;
   reseal_hir_fixture();
   CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
   fixture.hir_values[comparison_index] = saved_comparison;
@@ -1229,7 +1322,7 @@ static bool test_process_arguments_count_hir(void) {
       "import { Arguments as ProcessArguments, Context as ProcessContext, "
       "ExitCode as ProcessExitCode } from std.process\n"
       "async fn run(args: ProcessArguments, ctx: ProcessContext): "
-      "ProcessExitCode { print(\"${args.count < 1}\") "
+      "ProcessExitCode { print(\"${args.count < (1 + 1)}\") "
       "return .success }\n"
       "entry(run)\n",
       "import { Arguments as ProcessArguments, Context as ProcessContext, "

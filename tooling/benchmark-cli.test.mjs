@@ -24,6 +24,9 @@ test("benchmark facade exposes update and preserves bounded run arguments", () =
   assert.deepEqual(parseBenchmarkCliArguments(["run", "--target", "process-entry", "--language", "w"]), {
     command: "run", target: "process-entry", language: "w", output: "benchmarks/results/process-entry-w.local.json", warmup: 1, compileSamples: 9, runSamples: 101,
   });
+  assert.deepEqual(parseBenchmarkCliArguments(["run", "--target", "process-arguments-ordering", "--language", "rust"]), {
+    command: "run", target: "process-arguments-ordering", language: "rust", output: "benchmarks/results/process-arguments-ordering-rust.local.json", warmup: 1, compileSamples: 9, runSamples: 101,
+  });
   assert.throws(() => parseBenchmarkCliArguments(["run", "--target", "process-entry0", "--language", "w"]), /unsupported target/);
   assert.throws(() => parseBenchmarkCliArguments(["run", "--run-samples", "1003"]), /outside its allowed range/);
   assert.throws(() => parseBenchmarkCliArguments(["record", "benchmarks/results/local.json"]), /unknown command/);

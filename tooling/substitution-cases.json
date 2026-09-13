@@ -6431,6 +6431,114 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-process-arguments-count-ordering",
+      "reviewItem": "bounded public `Arguments.count` ordering against signed physical lowering, computed or negative literals, wrong owner or identity, and general `usize` arithmetic",
+      "decisions": [
+        "W-1573"
+      ],
+      "task": "Compare the exact resolver-owned std.process Arguments.count with a nonnegative unsuffixed literal in either operand order while preserving logical usize and unsigned target ordering.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "import std.process",
+          "async fn run(args: Arguments, ctx: Context): ExitCode {",
+          "  if 2 > args.count {",
+          "    print(\"Kitchen seats ${args.count} guests\")",
+          "    return .success",
+          "  } else {",
+          "    print(\"Banquet seats ${args.count} guests\")",
+          "    return .success",
+          "  }",
+          "}",
+          "entry(run)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "signed-physical-predicate",
+          "language": "text",
+          "source": [
+            "lower logical usize ordering with signed slt/sle/sgt/sge because the x86_64 carrier is i64"
+          ],
+          "expectedDifference": "The selected route emits unsigned ult/ule/ugt/uge for Arguments.count while ordinary i64 comparisons remain signed."
+        },
+        {
+          "name": "computed-count-operand",
+          "language": "w",
+          "source": [
+            "if args.count < (1 + 1) { return .success }"
+          ],
+          "expectedDifference": "The bounded slice requires one direct nonnegative unsuffixed literal and rejects computed operands."
+        },
+        {
+          "name": "owner-or-name-match",
+          "language": "w",
+          "source": [
+            "if ctx.count < 2 { return .success }"
+          ],
+          "expectedDifference": "The selected route requires the resolver-owned exported count identity on the entry's actual Arguments receiver."
+        },
+        {
+          "name": "general-usize-arithmetic",
+          "language": "w",
+          "source": [
+            "let next = args.count + 1"
+          ],
+          "expectedDifference": "W-1573 admits only the bounded comparison and does not claim general usize arithmetic."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "frontend_usize_count_comparison_ok",
+          "claim": "HIR lowering accepts the six comparison operators only for the exact count-versus-literal relation."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_value_tree",
+          "claim": "The independent HIR verifier retains the logical usize operands, Bool result, owner, type, and operator barriers."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "usize_comparison_operation",
+          "claim": "MLIR0 selects unsigned x86_64 predicates for logical usize ordering."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_mlir0.c",
+          "symbol": "test_process_arguments_count_ordered_mlir",
+          "claim": "Focused MLIR tests bind each direct and reversed comparison value to the expected predicate and operand order."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/process-arguments-ordering.w",
+          "symbol": "run",
+          "claim": "The public Restaurant witness uses reversed ordering and count-dependent output."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "processArgumentsOrderingFixture",
+          "claim": "The Linux/WSL gate executes exact zero, empty, two, 256, and rejected 257-argument cases."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "processArgumentsOrderingFixture",
+          "claim": "The native Windows gate executes the same source and oracle independently."
+        }
+      ],
+      "checks": [
+        "all six comparison operators preserve source operand order in HIR and MLIR",
+        "ordered logical usize predicates use ult, ule, ugt, and uge while signed i64 remains signed",
+        "negative or computed literals, wrong receiver or identity, raw Arguments, and general usize arithmetic fail closed",
+        "the reversed public source produces exact count-dependent output on Windows PE and Linux/WSL ELF",
+        "257 arguments fail before W code or stdout"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

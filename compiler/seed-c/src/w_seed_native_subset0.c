@@ -1242,8 +1242,8 @@ static bool process_value_lowerable(
   }
 
   if (value->kind == W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON) {
-    if ((value->binary_operator != W_SEED_HIR0_BINARY_EQUAL &&
-         value->binary_operator != W_SEED_HIR0_BINARY_NOT_EQUAL) ||
+    if (value->binary_operator < W_SEED_HIR0_BINARY_EQUAL ||
+        value->binary_operator > W_SEED_HIR0_BINARY_GREATER_EQUAL ||
         value->left_value == W_SEED_HIR0_NONE ||
         value->right_value == W_SEED_HIR0_NONE ||
         value->binding_index != W_SEED_HIR0_NONE ||

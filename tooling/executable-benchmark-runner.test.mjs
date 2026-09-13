@@ -31,6 +31,7 @@ import {
   W_LLD_LINK_FLAGS,
   W_MLIR_OPT_FLAGS,
 } from "./executable-release-recipes.mjs";
+import { exactOutputDigest } from "./executable-benchmark-machine.mjs";
 
 test("benchmark arguments separate compile cost from high-resolution run sampling", () => {
   assert.deepEqual(parseBenchmarkArguments([]), {
@@ -336,6 +337,15 @@ function fakeRunnerExecutor({ language, mismatch = false, target = "hello", time
         resourceUsage: fakeResourceUsage(),
       };
     }
+    if (target === "process-arguments-ordering") {
+      const count = args.length;
+      return {
+        exitCode: 0,
+        stdout: Buffer.from(`${count < 2 ? "Kitchen" : "Banquet"} seats ${count} guests\n`, "utf8"),
+        stderr: Buffer.alloc(0),
+        resourceUsage: fakeResourceUsage(),
+      };
+    }
     if (args.length === 0) {
       if (timeoutMode === "run") return timedOut();
       return {
@@ -383,6 +393,8 @@ function fakeWRunnerExecutor(target, { symbolSidecar = false, peOptions = {} } =
         ? result(2, Buffer.from("missing\n", "utf8"))
         : target === "process-enum-payload"
         ? result(7, Buffer.from("enum-missing true\n", "utf8"))
+        : target === "process-arguments-ordering"
+        ? result(0, Buffer.from("Kitchen seats 0 guests\n", "utf8"))
         : result(0, Buffer.from(target === "restaurant-branch" ? "Kitchen open\nAfter service\nKitchen closed\nAfter service\n" : "Hello, world!\n", "utf8"));
     }
     if (command === publicW.executable && args[0] === "build") {
@@ -390,6 +402,7 @@ function fakeWRunnerExecutor(target, { symbolSidecar = false, peOptions = {} } =
         ? "compiler/seed-c/fixtures/restaurant-if.w"
         : target === "process-entry" ? "compiler/seed-c/fixtures/process-input0.w"
         : target === "process-enum-payload" ? "compiler/seed-c/fixtures/process-enum-payload.w"
+        : target === "process-arguments-ordering" ? "compiler/seed-c/fixtures/process-arguments-ordering.w"
         : "benchmarks/executable/hello.w";
       assert.deepEqual(args.slice(0, 6), ["build", path.resolve(source), "--target", "x86_64-pc-windows-msvc", "--output", args[5]]);
       const output = args[5];
@@ -404,6 +417,10 @@ function fakeWRunnerExecutor(target, { symbolSidecar = false, peOptions = {} } =
         Buffer.from(args.length === 0
           ? enumPayload ? "enum-missing true\n" : "missing\n"
           : enumPayload ? "enum-received false\n" : "received\n", "utf8"));
+    }
+    if (target === "process-arguments-ordering") {
+      const count = args.length;
+      return result(0, Buffer.from(`${count < 2 ? "Kitchen" : "Banquet"} seats ${count} guests\n`, "utf8"));
     }
     throw new Error(`unexpected fake W executor invocation: ${command} ${args.join(" ")}`);
   };
@@ -684,6 +701,51 @@ test("process-enum-payload checks every argument case before timing and pins the
   assert.ok(runtimeCalls.slice(3).every((call) => call.args.length === 1 && call.args[0] === "payload"));
   assert.equal(record.correctness.oracleId, "process-enum-payload:argument-dependent-output");
   assert.deepEqual(record.correctness.cases.map((testCase) => testCase.exitCode), [7, 0, 0]);
+  assertNoFakeSampleDirectories(fake);
+});
+
+test("process-arguments-ordering checks every argument case before timing and pins the count run", async () => {
+  for (const language of ["c", "rust"]) {
+    const fake = fakeRunnerExecutor({ language, target: "process-arguments-ordering" });
+    const { record } = await runBenchmark({ target: "process-arguments-ordering", language, warmup: 1, samples: 9, publish: false }, fakeRunnerDependencies(language, fake));
+    const runtimeCalls = fake.calls.filter((call) => path.extname(call.command).toLowerCase() === ".exe" && !call.args.includes("-o") && call.command !== fake.compiler);
+    assert.deepEqual(runtimeCalls.slice(0, 3).map((call) => call.args), [[], [""], ["alpha", "beta"]]);
+    assert.equal(runtimeCalls.length, 13, `${language} must run three correctness cases and ten timed runs`);
+    assert.ok(runtimeCalls.slice(3).every((call) => call.args.length === 2 && call.args[0] === "alpha" && call.args[1] === "beta"));
+    assert.equal(record.correctness.oracleId, "process-arguments-ordering:argument-dependent-output");
+    assert.deepEqual(record.correctness.cases.map((testCase) => testCase.arguments), [[], [""], ["alpha", "beta"]]);
+    assert.deepEqual(record.correctness.cases.map((testCase) => testCase.stdoutDigest), [
+      exactOutputDigest("Kitchen seats 0 guests\n"),
+      exactOutputDigest("Kitchen seats 1 guests\n"),
+      exactOutputDigest("Banquet seats 2 guests\n"),
+    ]);
+    assert.match(record.protocol.resourceScope, /no-argument, empty-argument and 2-argument cases before timing/u);
+    assertNoFakeSampleDirectories(fake);
+  }
+
+  const fake = fakeWRunnerExecutor("process-arguments-ordering");
+  const { record } = await runBenchmark({ target: "process-arguments-ordering", language: "w", warmup: 1, samples: 9, publish: false }, {
+    executor: fake.executor,
+    commit: TEST_COMMIT,
+    environment: TEST_ENVIRONMENT,
+    runnerDigest: TEST_DIGEST,
+    catalogDigest: TEST_DIGEST,
+    testOnly: true,
+    testOnlyPlatform: { platform: "win32", arch: "x64" },
+    windowsToolchain: fake.windowsToolchain,
+    buildPublicW: async () => fake.publicW,
+  });
+  const runtimeCalls = fake.calls.filter((call) => call.command !== fake.publicW.executable && path.extname(call.command).toLowerCase() === ".exe");
+  assert.deepEqual(runtimeCalls.slice(0, 3).map((call) => call.args), [[], [""], ["alpha", "beta"]]);
+  assert.equal(runtimeCalls.length, 13, "W must run three correctness cases and ten timed runs");
+  assert.ok(runtimeCalls.slice(3).every((call) => call.args.length === 2 && call.args[0] === "alpha" && call.args[1] === "beta"));
+  assert.equal(record.correctness.oracleId, "process-arguments-ordering:argument-dependent-output");
+  assert.deepEqual(record.correctness.cases.map((testCase) => testCase.stdoutDigest), [
+    exactOutputDigest("Kitchen seats 0 guests\n"),
+    exactOutputDigest("Kitchen seats 1 guests\n"),
+    exactOutputDigest("Banquet seats 2 guests\n"),
+  ]);
+  assert.match(record.protocol.resourceScope, /no-argument, empty-argument and 2-argument cases before timing/u);
   assertNoFakeSampleDirectories(fake);
 });
 

@@ -37438,9 +37438,9 @@ Native0 and MLIR0 consume the normal verified body plan. The public process
 shape is currently one-block return or a three-block terminal `if`, with a
 forward-only, acyclic process call graph. General loops and arbitrary CFG are
 not admitted. W-1565 advances the public catalog to seven symbols by appending
-`Arguments.count`; W-1566 adds only the bounded `==`/`!=` literal comparison.
-The private four-symbol handler remains unchanged. The shared callgraph/path
-proof caps stdout at
+`Arguments.count`; W-1566 adds the bounded `==`/`!=` literal comparison, and
+W-1573 adds the bounded ordered comparison form. The private four-symbol
+handler remains unchanged. The shared callgraph/path proof caps stdout at
 `4096` bytes and rejects over-limit constructions (including the focused
 `4097`- and `8192`-byte cases) before publication, with all-or-nothing output
 and receipt barriers.
@@ -38607,6 +38607,75 @@ cross-compilation, stable ABI/layout, timing, and ranking remain gaps.
 `linux-process-executable-benchmark`, and a stop condition that requires the
 catalog schema and runner to execute these exact oracles on a native Linux host
 under a pinned target, profile, toolchain, and recipe before publishing a result.
+
+#### 26.4.1.54 W-1573 — bounded public `Arguments.count` usize ordering (Current bounded form)
+
+W-1573 extends W-1566 from equality and inequality to all six comparison
+operators. It adds no syntax, external symbol, owner representation, or public
+ABI. The accepted comparison still has exactly two operands:
+
+- the resolver-owned exported `std.process.Arguments.count` member on the
+  selected entry's actual `Arguments` receiver;
+- a nonnegative unsuffixed compile-time integer literal contextualized as
+  logical `usize`.
+
+Either operand may occur first. The accepted operators are `==`, `!=`, `<`,
+`<=`, `>`, and `>=`. The public Restaurant witness deliberately uses the
+reversed form `2 > args.count` to exercise this operand-order contract.
+
+```w
+import std.process
+
+async fn seat(args: Arguments, ctx: Context): ExitCode {
+  if 2 > args.count {
+    print("Kitchen seats ${args.count} guests")
+  } else {
+    print("Banquet seats ${args.count} guests")
+  }
+  return .success
+}
+
+entry(seat)
+```
+
+HIR reuses the `USIZE_COUNT_COMPARISON` record and the logical `USIZE` type.
+The current HIR schema remains `w-seed-hir0-28`, with no record-layout change.
+NativeSubset0 rechecks the exact member, receiver, literal, type, and operator
+relations before process lowering. Raw `Arguments` values remain non-lowerable.
+
+MLIR0 keeps equality and inequality as `eq` and `ne`. It lowers logical
+`usize` ordering to unsigned x86_64 predicates `ult`, `ule`, `ugt`, and `uge`
+over the physical `i64` carrier. Ordinary signed-`i64` comparisons continue
+to use `slt`, `sle`, `sgt`, and `sge`. The physical carrier does not change the
+logical type or define a public ABI.
+
+Negative literals, computed literals, wrong external identity, wrong receiver,
+raw owner values, general `usize` arithmetic, helper `usize` parameters or
+returns, indexing, and iteration remain rejected. The bounded form does not
+decode argument text or expose `OsString`.
+
+The public Restaurant fixture
+[`process-arguments-ordering.w`](compiler/seed-c/fixtures/process-arguments-ordering.w)
+uses `2 > args.count`. The native Windows and Linux/WSL gates run the source
+and built artifact. They require these exact outputs:
+
+- zero user arguments: `Kitchen seats 0 guests\n`;
+- one empty argument: `Kitchen seats 1 guests\n`;
+- two ordinary arguments: `Banquet seats 2 guests\n`;
+- exactly 256 user arguments: `Banquet seats 256 guests\n`.
+
+They reject 257 arguments with exit 3 and no partial stdout. Linux/WSL output
+is correctness evidence for the Linux target. WSL is not native Linux
+performance evidence. The primary benchmark disposition is
+`compiler-lifecycle`. The executable catalog separately owns exploratory
+W/C23/Rust measurements. W-1573 makes no timing or language-ranking claim.
+
+This evidence is `source-backed-current` only for the bounded HIR28 logical
+`usize` comparison, exact identity and owner barriers, unsigned x86_64 ordered
+predicates, signed-`i64` regression, and the dual-target correctness witness.
+Other targets, stable ABI/layout, general `usize` arithmetic, runtime or
+computed count comparisons, helper `usize` parameters or returns, indexing,
+iteration, `OsString`, and native Linux benchmark execution remain gaps.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

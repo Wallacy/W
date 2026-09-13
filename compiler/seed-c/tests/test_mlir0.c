@@ -850,6 +850,126 @@ static bool test_process_arguments_count_comparison_mlir(void) {
   return true;
 }
 
+static bool expect_process_count_unsigned_predicate(
+    const uint8_t *source, size_t source_length, const char *predicate) {
+  CHECK(lower_process_input_hir(source, source_length));
+  const w_seed_mlir0_input input = {
+      &fixture.hir_program, &fixture.hir_result,
+      W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE};
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result result;
+  CHECK(w_seed_mlir0_measure(&input, &WINDOWS_TARGET, &counts, &result) ==
+        W_SEED_MLIR0_OK);
+  uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  CHECK(w_seed_mlir0_emit(
+            &input, &WINDOWS_TARGET,
+            &(w_seed_mlir0_output){output, sizeof(output)}, &result) ==
+        W_SEED_MLIR0_OK);
+  uint32_t comparison_value = UINT32_MAX;
+  for (uint32_t index = 0u; index < fixture.hir_program.value_count; ++index) {
+    if (fixture.hir_program.values[index].kind ==
+        W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON) {
+      comparison_value = index;
+      break;
+    }
+  }
+  CHECK(comparison_value != UINT32_MAX);
+  const w_seed_hir0_value *comparison =
+      &fixture.hir_program.values[comparison_value];
+  char expected[160];
+  const int expected_length = snprintf(expected, sizeof(expected),
+                                       "%%v%u = %s %%v%u, %%v%u : i64",
+                                       comparison_value, predicate,
+                                       comparison->left_value,
+                                       comparison->right_value);
+  CHECK(expected_length > 0 && (size_t)expected_length < sizeof(expected));
+  CHECK(contains_bytes(output, result.written.mlir_bytes, expected));
+  return true;
+}
+
+static bool test_process_arguments_count_ordered_mlir(void) {
+  static const uint8_t LESS_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"matches ${args.count < 2}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static const uint8_t LESS_EQUAL_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"matches ${args.count <= 2}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static const uint8_t GREATER_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"matches ${args.count > 2}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static const uint8_t GREATER_EQUAL_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"matches ${args.count >= 2}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static const uint8_t REVERSED_LESS_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"matches ${2 < args.count}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static const uint8_t REVERSED_LESS_EQUAL_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"matches ${2 <= args.count}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static const uint8_t REVERSED_GREATER_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"matches ${2 > args.count}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static const uint8_t REVERSED_GREATER_EQUAL_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"matches ${2 >= args.count}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  CHECK(expect_process_count_unsigned_predicate(
+      LESS_SOURCE, sizeof(LESS_SOURCE) - 1u, "llvm.icmp \"ult\""));
+  CHECK(expect_process_count_unsigned_predicate(
+      LESS_EQUAL_SOURCE, sizeof(LESS_EQUAL_SOURCE) - 1u,
+      "llvm.icmp \"ule\""));
+  CHECK(expect_process_count_unsigned_predicate(
+      GREATER_SOURCE, sizeof(GREATER_SOURCE) - 1u, "llvm.icmp \"ugt\""));
+  CHECK(expect_process_count_unsigned_predicate(
+      GREATER_EQUAL_SOURCE, sizeof(GREATER_EQUAL_SOURCE) - 1u,
+      "llvm.icmp \"uge\""));
+  CHECK(expect_process_count_unsigned_predicate(
+      REVERSED_LESS_SOURCE, sizeof(REVERSED_LESS_SOURCE) - 1u,
+      "llvm.icmp \"ult\""));
+  CHECK(expect_process_count_unsigned_predicate(
+      REVERSED_LESS_EQUAL_SOURCE, sizeof(REVERSED_LESS_EQUAL_SOURCE) - 1u,
+      "llvm.icmp \"ule\""));
+  CHECK(expect_process_count_unsigned_predicate(
+      REVERSED_GREATER_SOURCE, sizeof(REVERSED_GREATER_SOURCE) - 1u,
+      "llvm.icmp \"ugt\""));
+  CHECK(expect_process_count_unsigned_predicate(
+      REVERSED_GREATER_EQUAL_SOURCE,
+      sizeof(REVERSED_GREATER_EQUAL_SOURCE) - 1u,
+      "llvm.icmp \"uge\""));
+  return true;
+}
+
 static bool test_enum_switch_mlir(void) {
   static const uint8_t SOURCE[] =
       "enum Course { starter main dessert }\n"
@@ -3513,6 +3633,7 @@ static bool test_natural_loop_post_loop_continuation_mlir(void) {
 int main(void) {
   if (!test_process_hir_is_closed_to_mlir()) return 1;
   if (!test_process_arguments_count_comparison_mlir()) return 1;
+  if (!test_process_arguments_count_ordered_mlir()) return 1;
   if (!test_enum_switch_mlir()) return 1;
   if (!test_enum_subset_switch_mlir()) return 1;
   if (!test_signed_comparison_artifacts()) return 1;
