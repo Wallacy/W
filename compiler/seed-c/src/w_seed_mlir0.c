@@ -1209,20 +1209,105 @@ static bool mlir0_enum_layout_info(const w_seed_hir0_program *program,
   return true;
 }
 
+static bool mlir0_enum_subset_case_at(
+    const w_seed_hir0_program *program, uint32_t type_index, size_t ordinal,
+    uint32_t *enum_case_index) {
+  if (program == NULL || type_index >= program->type_count ||
+      program->types[type_index].kind != W_SEED_HIR0_TYPE_ENUM_SUBSET ||
+      ordinal >= program->types[type_index].subset_member_count)
+    return false;
+  const w_seed_hir0_type *type = &program->types[type_index];
+  if (type->enum_index >= program->enum_count ||
+      type->first_subset_member == W_SEED_HIR0_NONE ||
+      (size_t)type->first_subset_member > program->enum_subset_member_count ||
+      type->subset_member_count >
+          program->enum_subset_member_count - type->first_subset_member)
+    return false;
+  const w_seed_hir0_enum *decl = &program->enums[type->enum_index];
+  if (decl->type_index >= program->type_count ||
+      program->types[decl->type_index].kind != W_SEED_HIR0_TYPE_ENUM ||
+      decl->type_index == type_index || decl->case_count == 0u ||
+      decl->first_case > program->enum_case_count ||
+      decl->case_count > program->enum_case_count - decl->first_case)
+    return false;
+  const w_seed_hir0_enum_subset_member *member =
+      &program->enum_subset_members[(size_t)type->first_subset_member + ordinal];
+  if (member->owner_type != type_index || member->ordinal != ordinal ||
+      member->enum_index != type->enum_index ||
+      member->enum_case_index < decl->first_case ||
+      (size_t)member->enum_case_index >=
+          (size_t)decl->first_case + decl->case_count)
+    return false;
+  const w_seed_hir0_enum_case *item =
+      &program->enum_cases[member->enum_case_index];
+  const size_t base_ordinal =
+      (size_t)member->enum_case_index - (size_t)decl->first_case;
+  if (item->owner_enum != type->enum_index || item->ordinal != base_ordinal ||
+      item->tag != base_ordinal)
+    return false;
+  if (ordinal != 0u) {
+    const w_seed_hir0_enum_subset_member *previous =
+        &program->enum_subset_members[(size_t)type->first_subset_member +
+                                      ordinal - 1u];
+    if (previous->enum_case_index >= member->enum_case_index) return false;
+  }
+  if (enum_case_index != NULL) *enum_case_index = member->enum_case_index;
+  return true;
+}
+
+static bool mlir0_enum_subset_contains_case(
+    const w_seed_hir0_program *program, uint32_t type_index,
+    uint32_t enum_case_index) {
+  if (program == NULL || type_index >= program->type_count ||
+      program->types[type_index].kind != W_SEED_HIR0_TYPE_ENUM_SUBSET)
+    return false;
+  const w_seed_hir0_type *type = &program->types[type_index];
+  for (size_t ordinal = 0u; ordinal < type->subset_member_count; ordinal += 1u) {
+    uint32_t candidate = W_SEED_HIR0_NONE;
+    if (!mlir0_enum_subset_case_at(program, type_index, ordinal, &candidate))
+      return false;
+    if (candidate == enum_case_index) return true;
+  }
+  return false;
+}
+
 static bool mlir0_enum_type_info(const w_seed_hir0_program *program,
                                  uint32_t type_index, uint32_t *enum_index,
                                  uint32_t *carrier_width,
                                  mlir0_enum_layout *layout) {
   if (program == NULL || type_index >= program->type_count ||
-      program->types[type_index].kind != W_SEED_HIR0_TYPE_ENUM)
+      (program->types[type_index].kind != W_SEED_HIR0_TYPE_ENUM &&
+       program->types[type_index].kind != W_SEED_HIR0_TYPE_ENUM_SUBSET))
     return false;
+  const bool subset =
+      program->types[type_index].kind == W_SEED_HIR0_TYPE_ENUM_SUBSET;
   const uint32_t selected_enum = program->types[type_index].enum_index;
   if (selected_enum >= program->enum_count) return false;
   const w_seed_hir0_enum *decl = &program->enums[selected_enum];
-  if (decl->type_index != type_index) return false;
+  if (decl->type_index >= program->type_count ||
+      program->types[decl->type_index].kind != W_SEED_HIR0_TYPE_ENUM ||
+      (!subset && decl->type_index != type_index) ||
+      (subset && decl->type_index == type_index))
+    return false;
   mlir0_enum_layout computed_layout;
   if (!mlir0_enum_layout_info(program, selected_enum, &computed_layout))
     return false;
+  if (subset) {
+    const w_seed_hir0_type *type = &program->types[type_index];
+    if (computed_layout.has_payload || type->first_subset_member == W_SEED_HIR0_NONE ||
+        type->subset_member_count == 0u ||
+        type->subset_member_count == decl->case_count ||
+        (size_t)type->first_subset_member > program->enum_subset_member_count ||
+        type->subset_member_count >
+            program->enum_subset_member_count - type->first_subset_member)
+      return false;
+    for (size_t ordinal = 0u; ordinal < type->subset_member_count; ordinal += 1u)
+      if (!mlir0_enum_subset_case_at(program, type_index, ordinal, NULL))
+        return false;
+  } else if (program->types[type_index].first_subset_member != W_SEED_HIR0_NONE ||
+             program->types[type_index].subset_member_count != 0u) {
+    return false;
+  }
   const uint32_t width = mlir0_enum_carrier_width(decl->case_count);
   if (width == 0u || mlir0_enum_carrier_type_name(width) == NULL) return false;
   if (enum_index != NULL) *enum_index = selected_enum;
@@ -2484,6 +2569,10 @@ static bool append_program_value_tree(
         value->enum_index != enum_index ||
         value->enum_case_index >= program->enum_case_count ||
         program->enum_cases[value->enum_case_index].owner_enum != enum_index ||
+        (program->types[value->type_index].kind ==
+             W_SEED_HIR0_TYPE_ENUM_SUBSET &&
+         !mlir0_enum_subset_contains_case(program, value->type_index,
+                                          value->enum_case_index)) ||
         value->first_enum_payload > program->enum_payload_count ||
         value->enum_payload_count >
             program->enum_payload_count - value->first_enum_payload ||
@@ -2968,7 +3057,8 @@ static const char *program_type_name(const w_seed_hir0_program *program,
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_I64) return "i64";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_USIZE) return "i64";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_BOOL) return "i1";
-  if (program->types[type_index].kind == W_SEED_HIR0_TYPE_ENUM) {
+  if (program->types[type_index].kind == W_SEED_HIR0_TYPE_ENUM ||
+      program->types[type_index].kind == W_SEED_HIR0_TYPE_ENUM_SUBSET) {
     uint32_t carrier_width = 0u;
     uint32_t enum_index = 0u;
     mlir0_enum_layout layout;
@@ -3887,14 +3977,23 @@ static bool append_program_function(
           (size_t)terminator->first_switch_edge > program->switch_edge_count ||
           terminator->switch_edge_count >
               program->switch_edge_count - terminator->first_switch_edge ||
-          enum_index >= program->enum_count ||
-          program->enums[enum_index].case_count !=
-              terminator->switch_edge_count ||
+          enum_index >= program->enum_count)
+        return false;
+      const w_seed_hir0_type *subject_type =
+          &program->types[program->values[terminator->value_index].type_index];
+      const w_seed_hir0_enum *decl = &program->enums[enum_index];
+      const size_t expected_edge_count =
+          subject_type->kind == W_SEED_HIR0_TYPE_ENUM_SUBSET
+              ? subject_type->subset_member_count
+              : decl->case_count;
+      if (expected_edge_count == 0u ||
+          expected_edge_count != terminator->switch_edge_count ||
           !append_program_value_tree(
               program, terminator->value_index, (uint32_t)function_index,
               process, emitted, artifact, capacity, offset, 0u) ||
-          !append_program_switch_subject(program, terminator,
-              (uint32_t)function_index, process, artifact, capacity, offset) ||
+          !append_program_switch_subject(
+              program, terminator, (uint32_t)function_index, process, artifact,
+              capacity, offset) ||
           !append_literal(artifact, capacity, offset, " : ") ||
           !append_literal(artifact, capacity, offset, carrier_type) ||
           !append_literal(artifact, capacity, offset, ", [\n") ||
@@ -3903,7 +4002,6 @@ static bool append_program_function(
           !append_size(artifact, capacity, offset, function_index) ||
           !append_literal(artifact, capacity, offset, "_switch_default,\n"))
         return false;
-      const w_seed_hir0_enum *decl = &program->enums[enum_index];
       const size_t function_start = function->first_block;
       const size_t function_end = function_start + function->block_count;
       for (size_t edge_ordinal = 0u;
@@ -3912,12 +4010,21 @@ static bool append_program_function(
             &program->switch_edges[(size_t)terminator->first_switch_edge +
                                    edge_ordinal];
         const size_t target_block = function_start + 1u + edge_ordinal;
+        uint32_t expected_case_index =
+            (uint32_t)((size_t)decl->first_case + edge_ordinal);
+        if (subject_type->kind == W_SEED_HIR0_TYPE_ENUM_SUBSET &&
+            !mlir0_enum_subset_case_at(
+                program, program->values[terminator->value_index].type_index,
+                edge_ordinal, &expected_case_index))
+          return false;
         if (edge->owner_terminator != block->terminator_index ||
             edge->ordinal != edge_ordinal || edge->enum_index != enum_index ||
-            edge->enum_case_index != decl->first_case + edge_ordinal ||
+            edge->enum_case_index != expected_case_index ||
             edge->target_block != target_block || target_block >= function_end ||
             edge->enum_case_index >= program->enum_case_count ||
-            program->enum_cases[edge->enum_case_index].tag != edge_ordinal ||
+            program->enum_cases[edge->enum_case_index].owner_enum != enum_index ||
+            program->enum_cases[edge->enum_case_index].tag !=
+                (uint32_t)((size_t)expected_case_index - decl->first_case) ||
             !append_literal(artifact, capacity, offset, "      ") ||
             !append_enum_switch_case_value(
                 artifact, capacity, offset,

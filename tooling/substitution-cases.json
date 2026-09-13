@@ -6175,6 +6175,156 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-hir28-enum-subset-switch",
+      "reviewItem": "bounded payloadless enum subsets against subset-index renumbering, wrapper allocation, runtime narrowing guards, unchecked reverse conversion, and source-arm order coupling",
+      "decisions": [
+        "W-1571"
+      ],
+      "task": "Preserve a proper nonempty payloadless local enum subset through verified HIR28 and emit the same base-tag switch without wrapper allocation.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "enum Stage {",
+          "  accepted",
+          "  reserving",
+          "  preparing",
+          "  serving",
+          "  completed",
+          "}",
+          "alias WorkStage = Stage<[.serving, .preparing]>",
+          "fn label(stage: WorkStage): i64 {",
+          "  return switch stage {",
+          "    case .serving: 2",
+          "    case .preparing: 1",
+          "  }",
+          "}",
+          "entry {",
+          "  let preparing = label(stage: .preparing)",
+          "  let serving = label(stage: .serving)",
+          "  print(\"Work ${preparing}/${serving}\")",
+          "}"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "subset-local-renumbering",
+          "language": "text",
+          "source": [
+            "renumber subset members to tags 0 and 1 before lowering"
+          ],
+          "expectedDifference": "The selected route preserves base enum carrier width and declaration tags, so the five-case base uses i3 and members retain tags 2 and 3."
+        },
+        {
+          "name": "subset-wrapper-allocation",
+          "language": "text",
+          "source": [
+            "wrap the subset in a second tag/value object or allocate a subset box"
+          ],
+          "expectedDifference": "The selected route keeps the payloadless value scalar and adds no wrapper or enum-specific allocation."
+        },
+        {
+          "name": "runtime-narrowing-guard",
+          "language": "text",
+          "source": [
+            "insert a runtime guard for excluded base cases before the subset switch"
+          ],
+          "expectedDifference": "The selected verifier proves the subset case-set. The synthetic backend unreachable default closes lowered CFG and is not a runtime narrowing guard."
+        },
+        {
+          "name": "unchecked-base-to-subset",
+          "language": "text",
+          "source": [
+            "reinterpret every base enum as the subset without checked validation"
+          ],
+          "expectedDifference": "The selected bounded route admits only proven subset-to-base widening. Base-to-subset checked conversion remains outside this executable slice."
+        },
+        {
+          "name": "source-arm-order-tags",
+          "language": "text",
+          "source": [
+            "assign switch tags from source arm order instead of normalized base declaration order"
+          ],
+          "expectedDifference": "The selected route emits normalized subset members in base declaration order while accepting source arms in another order."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "frontend_enum_subset_canonical",
+          "claim": "HIR0 canonicalizes subset aliases by the base enum and normalized base-case indices."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_enum_subset_records",
+          "claim": "HIR0 verifies proper nonempty local payloadless subsets, base ownership, and normalized member records."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "program_enum_type_supported",
+          "claim": "NativeSubset0 retains the full base case count and declaration tags while admitting only the bounded subset type."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "program_enum_switch_is_supported",
+          "claim": "NativeSubset0 checks subset switch edges against normalized members and the full base carrier width."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "mlir0_enum_type_info",
+          "claim": "MLIR0 selects the base carrier layout for a payloadless enum subset."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "append_enum_switch_case_value",
+          "claim": "MLIR0 emits base declaration tags for normalized subset edges and a backend-only unreachable default."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_enum_subset_hir",
+          "claim": "Focused HIR tests cover subset identity, normalization, proper/nonempty/payloadless barriers, and directional assignment."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_mlir0.c",
+          "symbol": "test_enum_subset_switch_mlir",
+          "claim": "Focused MLIR tests observe base-width tags, normalized subset edges, source-order independence, and no subset wrapper."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_native0.c",
+          "symbol": "test_enum_subset_switch_native_lowering",
+          "claim": "Focused Native0 tests cover the subset witness and forged member or edge rejection."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-enum-subset.w",
+          "symbol": "label",
+          "claim": "The public subset fixture uses reversed source arm order and prints Work 1/2."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "restaurantEnumSubsetFixture",
+          "claim": "The Linux/WSL route is the acceptance target for the same subset source and oracle."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "restaurantEnumSubsetFixture",
+          "claim": "The native Windows route is the acceptance target for the same subset source and oracle."
+        }
+      ],
+      "checks": [
+        "HIR28 preserves subset aliases by base enum and normalized base-case indices",
+        "the full case-set collapses to the base enum and proper nonempty payloadless subsets remain the only admitted subset records",
+        "the five-case base keeps i3 and declaration tags 2 and 3 for the normalized subset members",
+        "the switch accepts source arms in another order while emitted edges follow normalized base declaration order",
+        "no wrapper, enum-specific allocation, or runtime narrowing guard is used; base-to-subset remains checked and outside this slice",
+        "the same source and Work 1/2 oracle are acceptance targets for Windows PE and Linux/WSL ELF"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

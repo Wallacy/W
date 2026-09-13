@@ -753,6 +753,72 @@
       "blockers": []
     },
     {
+      "id": "restaurant-enum-subset",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "exploratory-ready",
+      "lane": "equivalent",
+      "scope": "Dispatch the preparing and serving members of a closed five-case enum subset and preserve its exact observable output.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Work 1/2\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-enum-subset.w",
+          "digest": "sha256:bd23750081b8c06537a6e455a51bfa67acb6315eef1436d19533e2d16ab3a257",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-enum-subset-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/restaurant_enum_subset.c",
+          "digest": "sha256:9777b80596a818e784cb9a5f962dd81ee44ec85ce3c0264968242211d941afca",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "clang-c23-msvc",
+          "recipeClass": "restaurant-enum-subset-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/restaurant_enum_subset.rs",
+          "digest": "sha256:50c607842513a073fb41ac3948bd114d5e8cceb22aee4dd8f109ab2d19d6fe12",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "restaurant-enum-subset-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        }
+      ],
+      "blockedLanguages": [],
+      "blockers": []
+    },
+    {
       "id": "restaurant-enum-payload",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",

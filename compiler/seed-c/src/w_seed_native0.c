@@ -401,6 +401,8 @@ static w_seed_native0_status lower_hir(w_seed_native0_storage *storage) {
       .enum_case_parameters = storage->hir_enum_case_parameters,
       .enum_case_parameter_capacity =
           W_SEED_NATIVE0_HIR_ENUM_CASE_PARAMETERS,
+      .enum_subset_members = storage->hir_enum_subset_members,
+      .enum_subset_member_capacity = W_SEED_NATIVE0_HIR_ENUM_SUBSET_MEMBERS,
       .enum_payloads = storage->hir_enum_payloads,
       .enum_payload_capacity = W_SEED_NATIVE0_HIR_ENUM_PAYLOADS,
       .functions = storage->hir_functions,

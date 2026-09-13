@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:33fdb2c4719b870cb4f516de327fa45d877e91c27b73a91d91c03868eab66efd",
+  "corpusDigest": "sha256:22437df99da0c72b74aa40a8bce5b17f1912153f2bb918e2f7be8926fb4396b6",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -6648,6 +6648,90 @@
             "nonWhitespaceCodePoints": 58,
             "lines": 1,
             "surfaceLexemes": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-hir28-enum-subset-switch",
+      "task": {
+        "utf8Bytes": 141,
+        "codePoints": 141,
+        "nonWhitespaceCodePoints": 122,
+        "lines": 1,
+        "surfaceLexemes": 23
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:674c2544fb1e4ac7338a22483d0ad14367998d764501155e025d917301f8e7aa",
+        "metrics": {
+          "utf8Bytes": 359,
+          "codePoints": 359,
+          "nonWhitespaceCodePoints": 286,
+          "lines": 19,
+          "surfaceLexemes": 75
+        }
+      },
+      "alternatives": [
+        {
+          "name": "subset-local-renumbering",
+          "language": "text",
+          "sourceDigest": "sha256:1465dc8388196cb1aed7b7ad806236458212c5e8941912731fd41e1d2674f594",
+          "metrics": {
+            "utf8Bytes": 55,
+            "codePoints": 55,
+            "nonWhitespaceCodePoints": 46,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "subset-wrapper-allocation",
+          "language": "text",
+          "sourceDigest": "sha256:9fa1101ef24410c2be0deb4ee745edc10812516eb44b1270436a2dbe04767e95",
+          "metrics": {
+            "utf8Bytes": 69,
+            "codePoints": 69,
+            "nonWhitespaceCodePoints": 57,
+            "lines": 1,
+            "surfaceLexemes": 15
+          }
+        },
+        {
+          "name": "runtime-narrowing-guard",
+          "language": "text",
+          "sourceDigest": "sha256:495df5792846e940cdb70794a1bd7d5df287f1bf9e67b18f942fbba11237e084",
+          "metrics": {
+            "utf8Bytes": 71,
+            "codePoints": 71,
+            "nonWhitespaceCodePoints": 60,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        },
+        {
+          "name": "unchecked-base-to-subset",
+          "language": "text",
+          "sourceDigest": "sha256:5d6ebaeaa14c35e1bf154a71661cb55dd739389913ef5253bd68230f1ed8fb0e",
+          "metrics": {
+            "utf8Bytes": 68,
+            "codePoints": 68,
+            "nonWhitespaceCodePoints": 59,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "source-arm-order-tags",
+          "language": "text",
+          "sourceDigest": "sha256:df59bb75fef499fcd61b1b0dc46592753cc4c499153dc5f773f04b5a3d2e5e66",
+          "metrics": {
+            "utf8Bytes": 85,
+            "codePoints": 85,
+            "nonWhitespaceCodePoints": 73,
+            "lines": 1,
+            "surfaceLexemes": 13
           }
         }
       ]

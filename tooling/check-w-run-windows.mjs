@@ -20,6 +20,7 @@ const smokePath = resolve(import.meta.dir, "smoke-mlir0-windows.mjs")
 const helloFixture = resolve(seedDirectory, "fixtures", "hlo0-hello.w")
 const restaurantIfFixture = resolve(seedDirectory, "fixtures", "restaurant-if.w")
 const restaurantEnumFixture = resolve(seedDirectory, "fixtures", "restaurant-enum.w")
+const restaurantEnumSubsetFixture = resolve(seedDirectory, "fixtures", "restaurant-enum-subset.w")
 const restaurantEnumPayloadFixture = resolve(seedDirectory, "fixtures", "restaurant-enum-payload.w")
 const restaurantEnumBoolPayloadFixture = resolve(seedDirectory, "fixtures", "restaurant-enum-bool-payload.w")
 const restaurantWhileFixture = resolve(seedDirectory, "fixtures", "restaurant-while.w")
@@ -385,6 +386,9 @@ try {
   expectExact(binary, ["run", restaurantEnumFixture], 0,
     Buffer.from("Courses 10/30/20\n", "utf8"),
     "Restaurant payloadless enum exhaustive switch fixture")
+  expectExact(binary, ["run", restaurantEnumSubsetFixture], 0,
+    Buffer.from("Work 1/2\n", "utf8"),
+    "Restaurant payloadless enum subset switch fixture")
   expectExact(binary, ["run", restaurantEnumPayloadFixture], 0,
     Buffer.from("Bills 32/44/10/7\n", "utf8"),
     "Restaurant enum payload return, reordered captures, and shared variant storage")

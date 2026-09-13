@@ -174,6 +174,7 @@ O corpus compara, no mínimo:
 - subset print-literal input-driven source → HIR0 → HLO0 → HLO1/RUN0 contra hardcode Hello-only, stdout direto e bypass sem source provenance.
 - verified-HIR direct MLIR0 native route source → HIR0 → LLVM dialect → native contra emissão C HLO1, HLO0 as native prerequisite, LLVM/source bypass e futuro W/MLIR geral.
 - closed local payloadless enum exhaustive switch against raw integer tags, incomplete coverage, and expected-output shortcuts.
+- bounded payloadless enum subsets against subset-index renumbering, wrapper allocation, runtime narrowing guards, unchecked reverse conversion, and source-arm order coupling.
 - same-module executable product roots against retain-all-exports and source-name shortcuts.
 - bounded public `Arguments.count` equality and flat/selective `std.process` imports against source-name recognition, general `usize` operations, owner escape, and import-specific product output.
 - structured interpolation records against opaque literal events, precomputed output, and witness-specific print paths.
@@ -7861,6 +7862,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1569 | bounded multi-carrier natural `while` through verified HIR and native execution | A bounded natural `while` carries a nonempty tuple of mutable signed-`i64` root bindings without an artificial lane limit beyond existing caller-owned capacities. Carrier ordinals follow declaration order, while body values and instructions preserve source order so a later update may read an earlier update's new version. Verified HIR and NativeSubset0 independently check the four-block topology, owners, types, edge mappings, and version chains. MLIR0 emits one tuple-valued `scf.while`, ordered `scf.condition` operands, and ordered `scf.yield` values without `llvm.alloca`. The same public fixture produces exact output as a native Windows PE and Linux/WSL ELF. | `source-backed-current` only for the bounded pure signed-`i64` tuple slice and its Windows/Linux execution evidence. Nested or mixed control, calls/effects, suspension, other carrier types, post-loop mutation, general cyclic CFG, other targets, ABI/layout, and optimization quality remain gaps. Primary `benchmarkDisposition: compiler-lifecycle`; the executable catalog separately owns equivalent W/C23/Rust exploratory measurement and does not establish a performance ranking. |
 | W-1570 | bounded post-loop SSA continuation after a multi-carrier natural `while` | A bounded natural `while` admits exactly one pure post-loop `=` assignment to an existing mutable signed-`i64` loop carrier. Its RHS may use literals, same-function signed-`i64` parameters, and latest loop results, must use at least one latest loop result, and the function return must depend on the continuation binding. The route reuses existing HIR0 records without a schema change, preserves SSA version chains, and emits no `llvm.alloca`. The public fixture produces exact `Final 9\n` as a native Windows PE and a CRT-free Linux/WSL ELF. | `source-backed-current` only for this bounded pure continuation and its dual-platform correctness witness. A second continuation assignment, `let` or unrelated targets, calls/effects, post-loop control, non-`i64` carriers, missing loop-result use, return bypass, nested or mixed control, other targets, ABI/layout, optimization quality, timing, and ranking remain gaps. Primary `benchmarkDisposition: compiler-lifecycle`; the executable catalog separately owns exploratory W/C23/Rust measurements and makes no timing or ranking claim. |
 
+| W-1571 | bounded local payloadless enum subset switch | Aliases in the bounded enum-subset slice canonicalize by the base enum and normalized base-case indices. A full case-set remains the base enum identity. The first executable implementation admits only proper, nonempty, payloadless subsets of a local closed enum. It preserves the base enum's private carrier width and declaration tags, keeps values scalar, and adds no wrapper or enum-specific allocation. A switch covers normalized subset members in base declaration order even when source arms use another order. Its backend-only synthetic llvm.unreachable default closes the lowered CFG after verification and is not a runtime narrowing guard. Subset-to-base is a no-op only after the same-base proof. Base-to-subset checked conversion and arbitrary superset conversion remain outside this executable slice. The same source produces the exact Work 1/2\n oracle, empty stderr, and exit zero as a Windows PE and a Linux/WSL ELF. | `source-backed-current` only for the bounded payloadless local subset, focused HIR/native/MLIR proofs, and dual-platform correctness witness. Payload-bearing/imported/generic subsets, general case-set algebra and conversions, public ABI/layout, other targets, timing, and ranking remain gaps. Primary `benchmarkDisposition: compiler-lifecycle`; the executable catalog separately owns exploratory W/C23/Rust measurement. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -11413,9 +11415,10 @@ source-text shortcut, host switch, or expected-output substitution participates.
 
 This evidence is limited to one closed local payloadless enum, exhaustive
 coverage, the HIR21 dispatch-plus-return-block shape, the private minimum-width
-carrier, and the pinned native Windows toolchain. Payload-bearing cases, enum
-subsets, general or mixed CFG, public ABI/layout stability, other targets, and
-performance remain gaps. The benchmark disposition is
+carrier, and the pinned native Windows toolchain. Payload-bearing cases, general
+or mixed CFG, public ABI/layout stability, other targets, and performance remain
+gaps for W-1563; W-1571 records a separate bounded payloadless-subset successor.
+The benchmark disposition is
 `compiler-lifecycle`, correctness-only, with no timing, ranking, or benchmark
 result.
 
@@ -11639,3 +11642,38 @@ targets, calls or effects, post-loop control, a continuation RHS that does not
 use a loop result, return bypass, nested or mixed control, non-`i64` carriers,
 and other targets. General post-loop mutation, cyclic CFG, ABI/layout, and
 optimization quality remain gaps.
+
+#### W-1571 — bounded local payloadless enum subset switch
+
+W-1571 narrows the general case-set contract to the first executable subset
+successor. In this slice, an alias is canonicalized by the semantic pair
+(base enum, normalized base-case indices), so alias spelling and source list
+order do not create distinct subset types. A list containing the full base case
+set is the base enum identity itself; an empty list, duplicate, unknown case,
+case from another enum, or non-local base is outside the admitted form.
+
+The implementation boundary is deliberately proper, nonempty, payloadless, and
+local. The base enum remains authoritative for the private carrier width and
+declaration tags: the subset does not renumber members, narrow the carrier, or
+introduce a wrapper, vtable, or enum-specific allocation. The value remains a
+scalar. For a five-case base, the carrier therefore remains i3, and normalized
+members at base indices 2 and 3 retain tags 2 and 3. A switch accepts source
+arms in another order but emits one edge per normalized member in base
+declaration order. The backend-only synthetic llvm.unreachable default closes
+the already verified CFG; it is not a runtime narrowing guard.
+
+Only a proven subset-to-the-same-base widening is a no-op here. Base-to-subset
+checked conversion and arbitrary superset conversion remain outside this
+executable slice. Payload-bearing subsets, imported or generic aliases,
+general case-set algebra, mixed or nested CFG, public subset ABI/layout, and
+other targets remain gaps.
+
+HIR0 schema w-seed-hir0-28, NativeSubset0, and MLIR0 independently check the
+implementation boundary. The same restaurant-enum-subset.w source produces the
+exact Work 1/2\n oracle, empty stderr, and exit zero as a Windows PE and a
+Linux/WSL ELF. Focused tests cover canonical identity, membership, directional
+conversion, base-width tags, normalized edges, the synthetic default, and
+forged records. This evidence is current only for the bounded slice. Its primary
+disposition is compiler-lifecycle. The executable catalog owns exploratory
+W/C23/Rust measurements separately and makes no timing or language ranking
+claim.
