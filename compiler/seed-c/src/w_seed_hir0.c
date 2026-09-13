@@ -1752,6 +1752,176 @@ static bool frontend_elision_function_static_yields(
   return valid && yield_count != 0u;
 }
 
+/* Cooperative0 narrows the ordinary static-yield proof to the fixed frame
+ * budget.  Keep this cap out of the historical W-1582 predicate: normal HIR
+ * still accepts any finite static-yield body. */
+static bool frontend_cooperative_function_static_yields(
+    const w_seed_hir0_input *input, size_t function_index) {
+  if (!frontend_elision_function_static_yields(input, function_index) ||
+      input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL ||
+      function_index >= input->frontend_result->written.functions)
+    return false;
+  const w_seed_frontend_function *function =
+      &input->frontend_output->functions[function_index];
+  size_t yield_count = 0u;
+  if (!range_valid(function->first_statement, function->statement_count,
+                   input->frontend_result->written.statements))
+    return false;
+  for (size_t expression = 0u;
+       expression < input->frontend_result->written.expressions; expression += 1u) {
+    const w_seed_frontend_expression *item =
+        &input->frontend_output->expressions[expression];
+    if (item->owner_function == function_index &&
+        item->kind == W_SEED_FRONTEND_EXPR_EXECUTION_YIELD)
+      yield_count += 1u;
+  }
+  return yield_count != 0u &&
+         yield_count <= W_SEED_HIR0_COOPERATIVE_MAX_YIELDS_PER_TASK;
+}
+
+/* The physical evidence lane is deliberately a stricter sibling scope than
+ * ordinary Async0.  It is selected only by an explicit caller profile; the
+ * normal profile never reaches this predicate and therefore retains the
+ * W-1582 virtual-elision representation.  The source still carries no
+ * scheduler ordering promise: the oracle lane asks for a bounded trace of
+ * one permitted implementation schedule. */
+static bool frontend_cooperative_trace_preflight(
+    const w_seed_hir0_input *input) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL ||
+      input->execution_profile !=
+          W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE)
+    return false;
+  const w_seed_frontend_output *output = input->frontend_output;
+  const w_seed_frontend_result *result = input->frontend_result;
+  if (result->written.modules != 1u || result->written.entries != 1u ||
+      result->written.functions > W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS ||
+      output->entries == NULL || output->functions == NULL ||
+      output->expressions == NULL || output->statements == NULL)
+    return false;
+  const w_seed_frontend_entry *entry = &output->entries[0];
+  if (!entry->is_body || entry->target_function == W_SEED_FRONTEND_NONE ||
+      entry->target_function >= result->written.functions)
+    return false;
+  const uint32_t root_function_index = entry->target_function;
+  const w_seed_frontend_function *root =
+      &output->functions[root_function_index];
+  if (!root->is_anonymous_entry || root->module_index != entry->module_index ||
+      root->statement_count == 0u ||
+      root->first_statement == W_SEED_FRONTEND_NONE ||
+      root->first_statement > result->written.statements ||
+      root->statement_count >
+          result->written.statements - root->first_statement)
+    return false;
+
+  size_t launch_count = 0u;
+  size_t await_count = 0u;
+  uint32_t launch_statements[2] = {W_SEED_FRONTEND_NONE,
+                                   W_SEED_FRONTEND_NONE};
+  uint32_t await_launch_statements[2] = {W_SEED_FRONTEND_NONE,
+                                         W_SEED_FRONTEND_NONE};
+  size_t launch_positions[2] = {0u, 0u};
+  size_t await_positions[2] = {0u, 0u};
+  uint32_t statement = root->first_statement;
+  for (size_t position = 0u; position < root->statement_count;
+       position += 1u) {
+    if (statement == W_SEED_FRONTEND_NONE ||
+        statement >= result->written.statements)
+      return false;
+    const w_seed_frontend_statement *item = &output->statements[statement];
+    if (item->owner_function != root_function_index ||
+        item->first_child != W_SEED_FRONTEND_NONE || item->child_count != 0u ||
+        item->else_child != W_SEED_FRONTEND_NONE ||
+        (item->kind != W_SEED_FRONTEND_STMT_LET &&
+         item->kind != W_SEED_FRONTEND_STMT_EXPRESSION))
+      return false;
+    if (item->expression_index == W_SEED_FRONTEND_NONE ||
+        item->expression_index >= result->written.expressions)
+      return false;
+    const w_seed_frontend_expression *expression =
+        &output->expressions[item->expression_index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH) {
+      if (item->kind != W_SEED_FRONTEND_STMT_LET || launch_count >= 2u ||
+          item->declared_type != W_SEED_FRONTEND_NONE ||
+          item->effective_type == W_SEED_FRONTEND_NONE)
+        return false;
+      launch_statements[launch_count] = (uint32_t)statement;
+      launch_positions[launch_count] = position;
+      launch_count += 1u;
+    } else if (expression->kind == W_SEED_FRONTEND_EXPR_AWAIT) {
+      if (item->kind != W_SEED_FRONTEND_STMT_LET || await_count >= 2u ||
+          item->declared_type != W_SEED_FRONTEND_NONE)
+        return false;
+      if (expression->task_binding_statement == W_SEED_FRONTEND_NONE ||
+          expression->task_binding_statement >= result->written.statements)
+        return false;
+      await_launch_statements[await_count] = expression->task_binding_statement;
+      await_positions[await_count] = position;
+      await_count += 1u;
+    } else if (item->kind != W_SEED_FRONTEND_STMT_EXPRESSION ||
+               expression->kind != W_SEED_FRONTEND_EXPR_CALL ||
+               expression->resolved_callee_kind !=
+                   W_SEED_FRONTEND_CALLEE_HOST_PRELUDE_SYMBOL ||
+               input->frontend_input == NULL ||
+               input->frontend_input->host_scope == NULL ||
+               input->frontend_input->host_scope->symbols == NULL ||
+               expression->resolved_host_symbol_index >=
+                   input->frontend_input->host_scope->symbol_count ||
+               !text_is(input->frontend_input->host_scope
+                             ->symbols[expression->resolved_host_symbol_index]
+                             .name,
+                        "print") ||
+               expression->argument_count != 1u || await_count != 2u) {
+      /* The only non-task root statement in this lane is a host `print`, and
+       * it must observe both lexical joins. Branches, loops, returns,
+       * arbitrary calls, and a print before the joins fail closed. */
+      return false;
+    }
+    statement = item->next_sibling;
+  }
+  if (statement != W_SEED_FRONTEND_NONE) return false;
+  if (launch_count != 2u || await_count != 2u ||
+      launch_positions[0] >= launch_positions[1] ||
+      launch_positions[1] >= await_positions[0] ||
+      await_positions[0] >= await_positions[1])
+    return false;
+  for (size_t ordinal = 0u; ordinal < 2u; ordinal += 1u) {
+    const w_seed_frontend_statement *launch_statement =
+        &output->statements[launch_statements[ordinal]];
+    const w_seed_frontend_expression *launch =
+        &output->expressions[launch_statement->expression_index];
+    if (launch->task_call_expression == W_SEED_FRONTEND_NONE ||
+        launch->task_call_expression >= result->written.expressions)
+      return false;
+    const w_seed_frontend_expression *call =
+        &output->expressions[launch->task_call_expression];
+    if (call->kind != W_SEED_FRONTEND_EXPR_CALL ||
+        call->resolved_callee_kind != W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION ||
+        call->resolved_function_index == W_SEED_FRONTEND_NONE ||
+        call->resolved_function_index >= result->written.functions ||
+        output->functions[call->resolved_function_index].module_index !=
+            root->module_index ||
+        !frontend_cooperative_function_static_yields(
+            input, call->resolved_function_index))
+      return false;
+    if (await_launch_statements[ordinal] != launch_statements[ordinal])
+      return false;
+  }
+  /* Every async/await expression must be one of the two lexical root pairs;
+   * this closes nested task trees and prevents a forged third relation from
+   * being silently ignored by the physical executor. */
+  size_t all_launches = 0u;
+  size_t all_awaits = 0u;
+  for (size_t expression = 0u; expression < result->written.expressions;
+       expression += 1u) {
+    const w_seed_frontend_expression *item = &output->expressions[expression];
+    if (item->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH) all_launches += 1u;
+    if (item->kind == W_SEED_FRONTEND_EXPR_AWAIT) all_awaits += 1u;
+  }
+  return all_launches == 2u && all_awaits == 2u;
+}
+
 /* Existing ordinary targets retain the W-1577 path and are checked by HIR's
  * suspension proof. An explicit async target additionally requires this
  * preflight because its direct-entry fact is published only after emission. */
@@ -1759,6 +1929,11 @@ static bool frontend_structured_elision_preflight(
     const w_seed_hir0_input *input) {
   if (input == NULL || input->frontend_output == NULL ||
       input->frontend_result == NULL)
+    return false;
+  if (input->execution_profile ==
+      W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE)
+    return frontend_cooperative_trace_preflight(input);
+  if (input->execution_profile != W_SEED_HIR0_EXECUTION_PROFILE_NORMAL)
     return false;
   const w_seed_frontend_output *output = input->frontend_output;
   const w_seed_frontend_result *result = input->frontend_result;
@@ -6870,6 +7045,7 @@ typedef struct {
   const w_seed_frontend_output *frontend;
   const w_seed_frontend_result *frontend_result;
   const w_seed_frontend_input *frontend_input;
+  w_seed_hir0_execution_profile execution_profile;
   size_t function;
   size_t *text_offset;
   size_t *value_offset;
@@ -7030,8 +7206,11 @@ static bool hir0_usize_count_comparison_source_ok(
       &context->frontend->modules[function->module_index];
   if (module->document_index >= context->frontend_input->document_count)
     return false;
-  const w_seed_hir0_input input = {context->frontend_input, context->frontend,
-                                   context->frontend_result};
+  const w_seed_hir0_input input = {
+      .frontend_input = context->frontend_input,
+      .frontend_output = context->frontend,
+      .frontend_result = context->frontend_result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   return frontend_usize_count_comparison_ok(
       &input, function->module_index, context->function, module->document_index,
       source);
@@ -8951,14 +9130,20 @@ static size_t hir0_emit_expression_layout_m2(hir0_emit_context *context,
         .frontend_input = context->frontend_input,
         .frontend_output = context->frontend,
         .frontend_result = context->frontend_result};
+    const bool cooperative_trace =
+        context->frontend_input != NULL &&
+        context->execution_profile ==
+            W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE;
     const bool static_yield =
         call->resolved_function_index != W_SEED_FRONTEND_NONE &&
         frontend_elision_function_static_yields(
             &elision_input, call->resolved_function_index);
     context->output->calls[*context->call_offset - 1u].execution_kind =
-        static_yield
-            ? W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED
-            : W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED;
+        cooperative_trace
+            ? W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE
+            : (static_yield
+                   ? W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED
+                   : W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED);
     return block;
   }
   if (source->kind == W_SEED_FRONTEND_EXPR_AWAIT)
@@ -10265,6 +10450,7 @@ static void emit_records(const w_seed_hir0_input *input,
         .frontend = frontend,
         .frontend_result = frontend_result,
         .frontend_input = frontend_input,
+        .execution_profile = input->execution_profile,
         .function = function,
         .text_offset = &text_offset,
         .value_offset = &value_offset,
@@ -10296,6 +10482,7 @@ static void emit_records(const w_seed_hir0_input *input,
         .frontend = frontend,
         .frontend_result = frontend_result,
         .frontend_input = frontend_input,
+        .execution_profile = input->execution_profile,
         .function = function,
         .text_offset = &text_offset,
         .value_offset = &value_offset,
@@ -10326,6 +10513,7 @@ static void emit_records(const w_seed_hir0_input *input,
         .frontend = frontend,
         .frontend_result = frontend_result,
         .frontend_input = frontend_input,
+        .execution_profile = input->execution_profile,
         .function = function,
         .text_offset = &text_offset,
         .value_offset = &value_offset,
@@ -13996,6 +14184,7 @@ static bool hir0_call_execution_kind_is_closed(
     case W_SEED_HIR0_CALL_DIRECT:
     case W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED:
     case W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED:
+    case W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE:
       return true;
     default:
       return false;
@@ -14277,7 +14466,8 @@ static bool hir0_interpolated_string_is_direct_print_argument(
     return false;
   const w_seed_hir0_call *call = &program->calls[argument->owner_call];
   if (call->first_argument != value->owner_index ||
-      call->argument_count != 1u || call->result_type != W_SEED_HIR0_TYPE_UNIT ||
+      call->argument_count != 1u || call->result_type >= program->type_count ||
+      program->types[call->result_type].kind != W_SEED_HIR0_TYPE_UNIT ||
       call->callee_identity == W_SEED_HIR0_NONE ||
       (size_t)call->callee_identity >= program->identity_count ||
       !hir0_host_call_never_suspends(
@@ -14745,6 +14935,201 @@ static bool hir0_function_static_yields(
           terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE);
 }
 
+static bool hir0_function_cooperative_yields(
+    const w_seed_hir0_program *program, uint32_t function_index) {
+  if (!hir0_function_static_yields(program, function_index) ||
+      program == NULL || function_index >= program->function_count)
+    return false;
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  if (function->first_block >= program->block_count) return false;
+  const w_seed_hir0_block *block = &program->blocks[function->first_block];
+  size_t yield_count = 0u;
+  for (size_t ordinal = 0u; ordinal < block->instruction_count; ordinal += 1u)
+    if (program->instructions[(size_t)block->first_instruction + ordinal].kind ==
+        W_SEED_HIR0_INSTRUCTION_EXECUTION_YIELD)
+      yield_count += 1u;
+  return yield_count != 0u &&
+         yield_count <= W_SEED_HIR0_COOPERATIVE_MAX_YIELDS_PER_TASK;
+}
+
+/* Physical trace calls are accepted by HIR only as one complete two-sibling
+ * scope.  This verifier intentionally rederives the launch/join relations
+ * from caller-owned records instead of trusting a cooperative plan produced
+ * by a downstream runtime. */
+static bool hir0_cooperative_trace_scope(const w_seed_hir0_program *program) {
+  if (program == NULL || program->entry_count != 1u ||
+      program->function_count > W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS ||
+      program->entries == NULL || program->functions == NULL ||
+      program->instructions == NULL || program->calls == NULL ||
+      program->bindings == NULL)
+    return false;
+  const w_seed_hir0_entry *entry = &program->entries[0];
+  if (entry->target_function >= program->function_count)
+    return false;
+  const uint32_t root_function = entry->target_function;
+  const w_seed_hir0_function *root = &program->functions[root_function];
+  if (!root->is_anonymous_entry || root->module_index != entry->module_index ||
+      root->block_count != 1u ||
+      !range_valid(root->first_block, root->block_count, program->block_count))
+    return false;
+  const uint32_t root_block_index = root->first_block;
+  const w_seed_hir0_block *root_block = &program->blocks[root_block_index];
+  if (root_block->owner_function != root_function ||
+      root_block->terminator_index >= program->terminator_count ||
+      program->terminators[root_block->terminator_index].kind !=
+          W_SEED_HIR0_TERMINATOR_RETURN_UNIT ||
+      root->return_type >= program->type_count ||
+      program->types[root->return_type].kind != W_SEED_HIR0_TYPE_UNIT)
+    return false;
+  size_t physical_count = 0u;
+  uint32_t call_instructions[2] = {W_SEED_HIR0_NONE, W_SEED_HIR0_NONE};
+  uint32_t launch_bindings[2] = {W_SEED_HIR0_NONE, W_SEED_HIR0_NONE};
+  uint32_t join_bindings[2] = {W_SEED_HIR0_NONE, W_SEED_HIR0_NONE};
+  for (size_t call_index = 0u; call_index < program->call_count;
+       call_index += 1u) {
+    const w_seed_hir0_call *call = &program->calls[call_index];
+    const bool physical =
+        call->execution_kind ==
+        W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE;
+    const bool structured =
+        call->execution_kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED ||
+        call->execution_kind ==
+            W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED ||
+        physical;
+    if (!structured) continue;
+    if (!physical || physical_count >= 2u ||
+        call->owner_instruction >= program->instruction_count ||
+        call->owner_block >= program->block_count ||
+        program->blocks[call->owner_block].owner_function != root_function ||
+        call->callee_identity >= program->identity_count)
+      return false;
+    const w_seed_hir0_identity *identity =
+        &program->identities[call->callee_identity];
+    if (identity->kind != W_SEED_HIR0_IDENTITY_FUNCTION ||
+        identity->target_index >= program->function_count ||
+        program->functions[identity->target_index].module_index !=
+            root->module_index ||
+        !hir0_function_cooperative_yields(program, identity->target_index))
+      return false;
+    const size_t instruction_index = call->owner_instruction;
+    if (instruction_index + 1u >= program->instruction_count)
+      return false;
+    const w_seed_hir0_instruction *launch_instruction =
+        &program->instructions[instruction_index + 1u];
+    if (launch_instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
+        launch_instruction->owner_block != call->owner_block ||
+        launch_instruction->binding_index >= program->binding_count)
+      return false;
+    const uint32_t launch_binding_index = launch_instruction->binding_index;
+    const w_seed_hir0_binding *launch =
+        &program->bindings[launch_binding_index];
+    if (launch->task_role != W_SEED_HIR0_TASK_ROLE_LAUNCH ||
+        launch->task_peer_binding == W_SEED_HIR0_NONE ||
+        launch->initializer_value >= program->value_count)
+      return false;
+    const w_seed_hir0_value *launch_value =
+        &program->values[launch->initializer_value];
+    if (launch_value->kind != W_SEED_HIR0_VALUE_CALL_RESULT ||
+        launch_value->call_index != call_index)
+      return false;
+    const uint32_t join_binding_index = launch->task_peer_binding;
+    if (join_binding_index >= program->binding_count ||
+        join_binding_index == launch_binding_index)
+      return false;
+    const w_seed_hir0_binding *join = &program->bindings[join_binding_index];
+    if (join->task_role != W_SEED_HIR0_TASK_ROLE_AWAIT_RESULT ||
+        join->task_peer_binding != launch_binding_index ||
+        join->owner_block != call->owner_block ||
+        join->owner_instruction <= launch->owner_instruction ||
+        join->owner_instruction >= program->instruction_count)
+      return false;
+    call_instructions[physical_count] = (uint32_t)instruction_index;
+    launch_bindings[physical_count] = launch_binding_index;
+    join_bindings[physical_count] = join_binding_index;
+    physical_count += 1u;
+  }
+  if (physical_count != 2u || call_instructions[0] >= call_instructions[1] ||
+      launch_bindings[0] >= launch_bindings[1])
+    return false;
+  if (join_bindings[0] >= join_bindings[1] ||
+      join_bindings[1] >= program->binding_count)
+    return false;
+  /* Rewalk the one root block in instruction order.  The call-array order is
+   * not the source relation by itself: launch and join bindings must match
+   * the exact physical call immediately preceding each launch, and all joins
+   * must follow both launches.  No branch, loop, root yield, arbitrary call,
+   * or extra binding may hide behind the physical relation. */
+  size_t physical_seen = 0u;
+  size_t launch_seen = 0u;
+  size_t join_seen = 0u;
+  for (size_t ordinal = 0u; ordinal < root_block->instruction_count;
+       ordinal += 1u) {
+    const size_t instruction_index =
+        (size_t)root_block->first_instruction + ordinal;
+    if (instruction_index >= program->instruction_count) return false;
+    const w_seed_hir0_instruction *instruction =
+        &program->instructions[instruction_index];
+    if (instruction->owner_block != root_block_index ||
+        instruction->ordinal != ordinal)
+      return false;
+    if (instruction->kind == W_SEED_HIR0_INSTRUCTION_EXECUTION_YIELD)
+      return false;
+    if (instruction->kind == W_SEED_HIR0_INSTRUCTION_BINDING) {
+      if (instruction->binding_index >= program->binding_count) return false;
+      const w_seed_hir0_binding *binding =
+          &program->bindings[instruction->binding_index];
+      if (binding->owner_block != root_block_index ||
+          binding->owner_instruction != instruction_index)
+        return false;
+      if (binding->task_role == W_SEED_HIR0_TASK_ROLE_LAUNCH) {
+        if (join_seen != 0u || launch_seen >= 2u ||
+            instruction->binding_index != launch_bindings[launch_seen])
+          return false;
+        launch_seen += 1u;
+      } else if (binding->task_role ==
+                 W_SEED_HIR0_TASK_ROLE_AWAIT_RESULT) {
+        if (launch_seen != 2u || join_seen >= 2u ||
+            instruction->binding_index != join_bindings[join_seen])
+          return false;
+        join_seen += 1u;
+      } else {
+        return false;
+      }
+      continue;
+    }
+    if (instruction->kind != W_SEED_HIR0_INSTRUCTION_CALL ||
+        instruction->call_index >= program->call_count)
+      return false;
+    const w_seed_hir0_call *call = &program->calls[instruction->call_index];
+    if (call->owner_block != root_block_index ||
+        call->owner_instruction != instruction_index)
+      return false;
+    if (call->execution_kind ==
+        W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE) {
+      if (join_seen != 0u || physical_seen >= 2u ||
+          instruction_index != call_instructions[physical_seen] ||
+          instruction_index + 1u >= program->instruction_count ||
+          program->instructions[instruction_index + 1u].binding_index !=
+              launch_bindings[physical_seen])
+        return false;
+      physical_seen += 1u;
+      continue;
+    }
+    if (call->execution_kind != W_SEED_HIR0_CALL_DIRECT ||
+        call->callee_identity >= program->identity_count)
+      return false;
+    const w_seed_hir0_identity *identity =
+        &program->identities[call->callee_identity];
+    if (identity->kind != W_SEED_HIR0_IDENTITY_HOST_PRELUDE ||
+        !hir_text_is(program, identity->name, "print") ||
+        call->argument_count != 1u || call->result_type >= program->type_count ||
+        program->types[call->result_type].kind != W_SEED_HIR0_TYPE_UNIT ||
+        join_seen != 2u)
+      return false;
+  }
+  return physical_seen == 2u && launch_seen == 2u && join_seen == 2u;
+}
+
 static bool verify_records(const w_seed_hir0_program *program) {
   const bool has_external_process =
       program != NULL && program->external_module_count != 0u;
@@ -15049,7 +15434,9 @@ static bool verify_records(const w_seed_hir0_program *program) {
             (program->calls[launch_value->call_index].execution_kind !=
                  W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED &&
              program->calls[launch_value->call_index].execution_kind !=
-                 W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED) ||
+                 W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED &&
+             program->calls[launch_value->call_index].execution_kind !=
+                 W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE) ||
             joined_value->kind != W_SEED_HIR0_VALUE_BINDING_READ ||
             joined_value->binding_index != launch_index)
           return false;
@@ -15127,7 +15514,9 @@ static bool verify_records(const w_seed_hir0_program *program) {
     }
     if (value->execution_kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED ||
         value->execution_kind ==
-            W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED) {
+            W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED ||
+        value->execution_kind ==
+            W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE) {
       const w_seed_hir0_function *target =
           local_call && identity->target_index < program->function_count
               ? &program->functions[identity->target_index]
@@ -15135,16 +15524,25 @@ static bool verify_records(const w_seed_hir0_program *program) {
       const bool static_yield =
           value->execution_kind ==
           W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED;
+      const bool cooperative_trace =
+          value->execution_kind ==
+          W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE;
       const bool target_non_suspending =
           !static_yield && target != NULL &&
           (target->suspension == W_SEED_HIR0_SUSPENSION_NEVER ||
            (target->is_async &&
             target->direct_entry == W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE));
       if (!local_call || identity->target_index >= program->function_count ||
-          target == NULL || target->is_throws ||
-          (!target_non_suspending &&
-           !(static_yield && hir0_function_static_yields(
-                                 program, identity->target_index))) ||
+          target == NULL || target->is_throws || target->is_unsafe ||
+          target->has_borrow_clause ||
+          (cooperative_trace
+               ? (!target->is_async ||
+                  target->direct_entry != W_SEED_HIR0_DIRECT_ENTRY_ABSENT ||
+                  !hir0_function_static_yields(program,
+                                                identity->target_index))
+               : (!target_non_suspending &&
+                  !(static_yield && hir0_function_static_yields(
+                                       program, identity->target_index)))) ||
           value->owner_instruction + 1u >= program->instruction_count)
         return false;
       const w_seed_hir0_instruction *join_instruction =
@@ -15598,6 +15996,15 @@ static bool verify_records(const w_seed_hir0_program *program) {
         (program->module_count > 1u && value->is_body))
       return false;
   }
+  bool has_cooperative_trace = false;
+  for (size_t call = 0u; call < program->call_count; call += 1u)
+    if (program->calls[call].execution_kind ==
+        W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE) {
+      has_cooperative_trace = true;
+      break;
+    }
+  if (has_cooperative_trace && !hir0_cooperative_trace_scope(program))
+    return false;
   return true;
 }
 

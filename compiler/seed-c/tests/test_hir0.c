@@ -583,7 +583,11 @@ static void setup_hir_output(void) {
 static bool lower(const char *source) {
   CHECK(fixture_frontend(source));
   setup_hir_output();
-  w_seed_hir0_input input = {&fixture.input, &fixture.output, &fixture.result};
+  w_seed_hir0_input input = {
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   w_seed_hir0_counts measured;
   w_seed_hir0_result measure_result;
   CHECK(w_seed_hir0_measure(&input, &measured, &measure_result) ==
@@ -607,8 +611,11 @@ static bool lower_single_print_host(const char *source) {
   CHECK(w_seed_frontend_run(&fixture.input, &fixture.output, &fixture.result) ==
         W_SEED_FRONTEND_OK);
   setup_hir_output();
-  const w_seed_hir0_input input = {&fixture.input, &fixture.output,
-                                   &fixture.result};
+  const w_seed_hir0_input input = {
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   w_seed_hir0_counts measured;
   w_seed_hir0_result measure_result;
   CHECK(w_seed_hir0_measure(&input, &measured, &measure_result) ==
@@ -626,8 +633,11 @@ static bool lower_single_print_host(const char *source) {
 static bool lower_process(const char *source) {
   CHECK(fixture_process_frontend(source));
   setup_hir_output();
-  const w_seed_hir0_input input = {&fixture.input, &fixture.output,
-                                   &fixture.result};
+  const w_seed_hir0_input input = {
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   w_seed_hir0_counts measured;
   w_seed_hir0_result measure_result;
   CHECK(w_seed_hir0_measure(&input, &measured, &measure_result) ==
@@ -647,8 +657,11 @@ static bool lower_process(const char *source) {
 static bool lower_process_input0(const char *source) {
   CHECK(fixture_process_input0_frontend(source));
   setup_hir_output();
-  const w_seed_hir0_input input = {&fixture.input, &fixture.output,
-                                   &fixture.result};
+  const w_seed_hir0_input input = {
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   w_seed_hir0_counts measured;
   w_seed_hir0_result measure_result;
   CHECK(w_seed_hir0_measure(&input, &measured, &measure_result) ==
@@ -676,8 +689,11 @@ static bool lower_process_input0(const char *source) {
 static bool lower_process_input0_generic(const char *source) {
   CHECK(fixture_process_input0_frontend(source));
   setup_hir_output();
-  const w_seed_hir0_input input = {&fixture.input, &fixture.output,
-                                   &fixture.result};
+  const w_seed_hir0_input input = {
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   w_seed_hir0_counts measured;
   w_seed_hir0_result measure_result;
   CHECK(w_seed_hir0_measure(&input, &measured, &measure_result) ==
@@ -735,8 +751,11 @@ static bool expect_process_input0_rejected(const char *source,
       w_seed_frontend_run(&fixture.input, &fixture.output, &fixture.result);
   if (frontend_status != W_SEED_FRONTEND_OK) return true;
   setup_hir_output();
-  const w_seed_hir0_input input = {&fixture.input, &fixture.output,
-                                   &fixture.result};
+  const w_seed_hir0_input input = {
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   w_seed_hir0_counts counts;
   w_seed_hir0_result result;
   CHECK(w_seed_hir0_measure(&input, &counts, &result) != W_SEED_HIR0_OK);
@@ -754,8 +773,11 @@ static bool expect_process_input0_source_rejected(const char *source) {
       W_SEED_FRONTEND_OK)
     return true;
   setup_hir_output();
-  const w_seed_hir0_input input = {&fixture.input, &fixture.output,
-                                   &fixture.result};
+  const w_seed_hir0_input input = {
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   w_seed_hir0_counts counts;
   w_seed_hir0_result result;
   return w_seed_hir0_measure(&input, &counts, &result) != W_SEED_HIR0_OK;
@@ -958,7 +980,11 @@ static bool test_process_input0_hir(void) {
   /* The special process route cannot silently drop orphan capture records. */
   fixture.result.required.pattern_captures = 1u;
   fixture.result.written.pattern_captures = 1u;
-  const w_seed_hir0_input forged = {&fixture.input, &fixture.output, &fixture.result};
+  const w_seed_hir0_input forged = {
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   w_seed_hir0_counts measured = fixture.hir_counts;
   w_seed_hir0_result measured_result = fixture.hir_result;
   CHECK(w_seed_hir0_measure(&forged, &measured, &measured_result) != W_SEED_HIR0_OK);
@@ -1451,8 +1477,11 @@ static bool test_process_arguments_count_hir(void) {
   }
   CHECK(saw_optional_count);
   setup_hir_output();
-  const w_seed_hir0_input optional_input = {&fixture.input, &fixture.output,
-                                            &fixture.result};
+  const w_seed_hir0_input optional_input = {
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   w_seed_hir0_counts optional_counts;
   w_seed_hir0_result optional_result;
   CHECK(w_seed_hir0_measure(&optional_input, &optional_counts,
@@ -2150,7 +2179,10 @@ static bool test_structured_async_elision_hir(void) {
         scalar_expression != W_SEED_FRONTEND_NONE);
   fixture.expressions[scalar_expression].inferred_type = task_type;
   w_seed_hir0_input forged_input = {
-      &fixture.input, &fixture.output, &fixture.result};
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   w_seed_hir0_counts forged_counts;
   w_seed_hir0_result forged_result;
   CHECK(w_seed_hir0_measure(&forged_input, &forged_counts, &forged_result) !=
@@ -2224,8 +2256,11 @@ static bool test_structured_async_elision_hir(void) {
   CHECK(fixture_frontend(ASYNC_EFFECT_SOURCE));
   setup_hir_output();
   fill_hir_output(0xa5u);
-  w_seed_hir0_input effect_input =
-      {&fixture.input, &fixture.output, &fixture.result};
+  w_seed_hir0_input effect_input = {
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   w_seed_hir0_counts effect_counts;
   w_seed_hir0_result effect_result;
   CHECK(w_seed_hir0_measure(&effect_input, &effect_counts, &effect_result) ==
@@ -2244,7 +2279,11 @@ static bool test_structured_async_elision_hir(void) {
       "let done = await pending }\n";
   CHECK(fixture_frontend(UNIT_SOURCE));
   setup_hir_output();
-  w_seed_hir0_input input = {&fixture.input, &fixture.output, &fixture.result};
+  w_seed_hir0_input input = {
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   w_seed_hir0_counts counts;
   w_seed_hir0_result result;
   CHECK(w_seed_hir0_measure(&input, &counts, &result) ==
@@ -2255,7 +2294,11 @@ static bool test_structured_async_elision_hir(void) {
       "entry { let pending = async finish() let done = await pending }\n";
   CHECK(fixture_frontend(STATIC_YIELD_UNIT_SOURCE));
   setup_hir_output();
-  input = (w_seed_hir0_input){&fixture.input, &fixture.output, &fixture.result};
+  input = (w_seed_hir0_input){
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   CHECK(w_seed_hir0_measure(&input, &counts, &result) ==
         W_SEED_HIR0_UNSUPPORTED);
 
@@ -2381,7 +2424,11 @@ static bool test_structured_async_elision_hir(void) {
       "let value = await pending }\n";
   CHECK(fixture_frontend(YIELD_RECURSIVE_HELPER_SOURCE));
   setup_hir_output();
-  input = (w_seed_hir0_input){&fixture.input, &fixture.output, &fixture.result};
+  input = (w_seed_hir0_input){
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   CHECK(w_seed_hir0_measure(&input, &counts, &result) ==
         W_SEED_HIR0_UNSUPPORTED);
 
@@ -2394,7 +2441,11 @@ static bool test_structured_async_elision_hir(void) {
       "let value = await pending }\n";
   CHECK(fixture_frontend(YIELD_MUTUAL_HELPER_SOURCE));
   setup_hir_output();
-  input = (w_seed_hir0_input){&fixture.input, &fixture.output, &fixture.result};
+  input = (w_seed_hir0_input){
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   CHECK(w_seed_hir0_measure(&input, &counts, &result) ==
         W_SEED_HIR0_UNSUPPORTED);
 
@@ -2407,7 +2458,11 @@ static bool test_structured_async_elision_hir(void) {
       "let value = await pending }\n";
   CHECK(fixture_frontend(YIELD_EFFECT_HELPER_SOURCE));
   setup_hir_output();
-  input = (w_seed_hir0_input){&fixture.input, &fixture.output, &fixture.result};
+  input = (w_seed_hir0_input){
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   CHECK(w_seed_hir0_measure(&input, &counts, &result) ==
         W_SEED_HIR0_UNSUPPORTED);
 
@@ -2417,7 +2472,11 @@ static bool test_structured_async_elision_hir(void) {
       "let text = await pending }\n";
   CHECK(fixture_frontend(STRING_SOURCE));
   setup_hir_output();
-  input = (w_seed_hir0_input){&fixture.input, &fixture.output, &fixture.result};
+  input = (w_seed_hir0_input){
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   CHECK(w_seed_hir0_measure(&input, &counts, &result) ==
         W_SEED_HIR0_UNSUPPORTED);
 
@@ -2427,7 +2486,11 @@ static bool test_structured_async_elision_hir(void) {
       "let value = await pending }\n";
   CHECK(fixture_frontend(THROWING_SOURCE));
   setup_hir_output();
-  input = (w_seed_hir0_input){&fixture.input, &fixture.output, &fixture.result};
+  input = (w_seed_hir0_input){
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   CHECK(w_seed_hir0_measure(&input, &counts, &result) != W_SEED_HIR0_OK);
   return true;
 }
@@ -3977,7 +4040,11 @@ static bool test_local_enum_payload_constructor_hir(void) {
 }
 
 static w_seed_hir0_input hir_input(void) {
-  return (w_seed_hir0_input){&fixture.input, &fixture.output, &fixture.result};
+  return (w_seed_hir0_input){
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
 }
 
 static void fill_hir_output(uint8_t value) {
@@ -5714,8 +5781,11 @@ static bool test_enum_switch_hir(void) {
       w_seed_frontend_run(&fixture.input, &fixture.output, &fixture.result);
   CHECK(frontend_status == W_SEED_FRONTEND_OK);
   setup_hir_output();
-  const w_seed_hir0_input input = {&fixture.input, &fixture.output,
-                                   &fixture.result};
+  const w_seed_hir0_input input = {
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   w_seed_hir0_counts measured;
   w_seed_hir0_result measure_result;
   CHECK(w_seed_hir0_measure(&input, &measured, &measure_result) ==
@@ -5955,8 +6025,11 @@ static bool test_enum_switch_local_calls(void) {
   CHECK(w_seed_frontend_run(&fixture.input, &fixture.output, &fixture.result) ==
         W_SEED_FRONTEND_OK);
   setup_hir_output();
-  const w_seed_hir0_input input = {&fixture.input, &fixture.output,
-                                   &fixture.result};
+  const w_seed_hir0_input input = {
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   w_seed_hir0_counts measured;
   w_seed_hir0_result measure_result;
   CHECK(w_seed_hir0_measure(&input, &measured, &measure_result) ==
@@ -6257,8 +6330,11 @@ static bool test_enum_switch_cfg_composition_barrier(void) {
   CHECK(w_seed_frontend_run(&fixture.input, &fixture.output, &fixture.result) ==
         W_SEED_FRONTEND_OK);
   setup_hir_output();
-  const w_seed_hir0_input input = {&fixture.input, &fixture.output,
-                                   &fixture.result};
+  const w_seed_hir0_input input = {
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   w_seed_hir0_counts measured;
   w_seed_hir0_result measure_result;
   CHECK(w_seed_hir0_measure(&input, &measured, &measure_result) ==

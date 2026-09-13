@@ -380,7 +380,10 @@ static bool lower(const char *source) {
   CHECK(fixture_frontend(source));
   setup_hir_output();
   const w_seed_hir0_input input = {
-      &fixture.input, &fixture.output, &fixture.frontend_result};
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.frontend_result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   w_seed_hir0_counts counts;
   w_seed_hir0_result result;
   CHECK(w_seed_hir0_measure(&input, &counts, &result) == W_SEED_HIR0_OK);
@@ -398,7 +401,10 @@ static bool lower_process(const char *source) {
   CHECK(fixture_process_frontend(source));
   setup_hir_output();
   const w_seed_hir0_input input = {
-      &fixture.input, &fixture.output, &fixture.frontend_result};
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.frontend_result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   w_seed_hir0_counts counts;
   w_seed_hir0_result result;
   CHECK(w_seed_hir0_measure(&input, &counts, &result) == W_SEED_HIR0_OK);

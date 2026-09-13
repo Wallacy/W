@@ -275,6 +275,21 @@ effect, service, reflection, FFI, and dynamic-loading families fail closed.
 The milestone has `benchmarkDisposition: compiler-lifecycle` and correctness
 evidence only. It does not add public multi-file build/run or native
 artifact/runtime equivalence. W-1568 remains open.
+
+W-1583 adds Cooperative0 as a compiler-host oracle only. HIR34 selects a
+distinct cooperative trace profile and kind for exactly two sibling scalar
+async tasks with one or two yields each and a shared 64-function helper-graph
+ceiling. Fixed caller-owned frames and a deterministic provider/test-profile
+FIFO trace expose reserve/publish, dispatch,
+resume, yield, settle, cleanup, outcome commit, join, and release. Independent
+checks verify the plan, program counter, queue, frame, lifecycle, and outcome
+relations. The bridge does not emit a NativeSubset0 or MLIR0 state machine or
+provide a product runtime, scheduler provider, threads, parallelism,
+cancellation, I/O, general Task behavior, benchmark, or performance claim.
+Normal W-1582 elision remains unchanged. Future product emission remains
+target-neutral; currently available Windows/Linux gates do not narrow the
+candidate matrix or exclude macOS and other viable LLVM targets.
+
 ACQ0 executa CHK6 em
 storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou
 CLI. Execute `bun check --target acquisition` para compilar os cinco targets focais,

@@ -54,6 +54,8 @@ or `ref` use implies a heap, header, address, or storage class.
 - The seed implements bounded slices, not the full W language or runtime.
 - General types, general control flow, async runtime behavior, and provider
   integration remain outside the current product boundary.
+- COOP0 is compiler-host trace-oracle evidence for one closed two-task profile,
+  not a product runtime, scheduler, public executable, or performance claim.
 - w run and w build require one explicit source path. w build also requires an
   exact target triple and a new output artifact.
 - Public process execution has bounded native Windows x64 and CRT-free

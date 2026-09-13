@@ -233,6 +233,7 @@ O corpus compara, no mínimo:
 - local payloadless enum identity against raw integer tags and premature switch lowering.
 - bounded resolver-complete local-document graph into verified HIR against single-document assumptions, source-name call matching, and shared-source ownership.
 - bounded ProductClosure0 reachability against exported metadata as a root, retained dead modules, and non-independent MLIR closure.
+- bounded Cooperative0 compiler-host trace oracle against product state-machine emission, scheduler-provider claims, and false performance claims.
 
 ### 1.1 Cobertura de substituições
 
@@ -263,7 +264,7 @@ ledger, uma tarefa, a forma vigente, ao menos uma alternativa e quatro medidas.
 O checker valida a ligação e o índice publica a razão exata. O comando isolado
 sem flag permite inspecionar uma edição parcial. O gate do repository usa
 `--require-complete` e falha quando qualquer requisito não possui caso. R0 cobre
-os 97 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
+os 141 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
 os estudos foram executados. Ela também não substitui a auditoria do ledger
 mantida por [`tooling/design-freeze-audit.json`](tooling/design-freeze-audit.json).
 
@@ -7882,6 +7883,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1580 | bounded virtual Task across finite statically discharged root yields | One local explicit `async fn` with a `Bool` or signed-`i64` signature, one linear root block, and a finite nonempty sequence of exact `await execution#yield()` statements may preserve every ordered marker in frontend24/HIR32 while a closed immutable launch/single-join scope selects an immediate-resume serial schedule. Frontend24 shares the canonical Unit type identity without dropping expression provenance. Independent HIR verification requires a positive marker count, exact owner/order, scalar-only bindings, a closed return, and the plural static-yields execution relation. NativeSubset0/MLIR0 erase the transient Task relation and all markers only after this proof, retaining ordinary scalar SSA work. A fully verified virtual relation has normative zero logical admission cost, debits no task/frame/timer/ready budget, and cannot produce budget-exhaustion cancellation. | `source-backed-current` only for this bounded call-site-specific proof, HIR32 verifier barriers, zero-cost virtual admission, ordinary NativeSubset0/MLIR0 lowering, and the Windows x64 `Prepared 88\n` product witness. W-1579 is its `k = 1` predecessor. Scheduler implementation, fairness, handoff, overlap, cancellation requests, nested calls/control/effects, general suspension, physical Task/frame layout, Linux/WSL execution, timing, and concurrency ranking remain gaps. Primary `benchmarkDisposition: compiler-lifecycle`; comparison lanes are sequential only. |
 | W-1581 | proof-directed virtual aggregate materialization | `struct`, `enum`, and `object` share aggregate lowering and may be erased or represented in SSA, registers, stack, fixed, device, or runtime storage. Object syntax keeps reference and identity-capable defaults, but declaration and `ref` do not imply heap, header, address, or storage. Identity is latent and `isSameInstance` may fold without allocation. Materialization occurs only for unresolved observables such as stable address or pinning, FFI, escaping identity, shared or weak runtime state, dynamic suspension, cancellation or lifetime, target residency or ABI, or observable budget, allocation, or drop. `struct` and `object` share custom `init`/`deinit`; enums retain case construction and synthesized payload cleanup. Custom `deinit` makes its declaring type non-`Copy`, while automatic drop glue does not change the `Copy` contract. | `implementation-evidence-gap` beyond existing bounded enum and scalar witnesses. General aggregate lowering, object identity materialization, device or runtime residency, FFI, layout, ABI, and lifecycle evidence remain missing. `benchmarkDisposition: deferred`, task `aggregate-materialization-evidence`, with promotion only after one bounded source-backed aggregate witness and independent target evidence. |
 | W-1582 | bounded virtual Task across a same-module scalar helper graph | W-1582 extends W-1580 under the existing `STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED` relation. HIR33 admits a finite acyclic same-module graph of ordinary synchronous pure scalar helpers. Helpers may use already verified closed scalar control and local scalar mutation, but they cannot use host or external calls, `async`, `await`, `execution#yield()`, effects, `throws`, `unsafe`, borrows, allocation, or runtime owners. The root remains one linear async block with finite root yields and one lexical join. Standalone HIR re-proves locality, ownership, acyclicity, helper admissibility, marker order, scalar types, and the closed return. NativeSubset0 and MLIR0 emit ordinary scalar calls and erase Task and yield markers only after complete proof. | `source-backed-current` for the bounded HIR33 graph and verifier relation, ordinary scalar lowering, and the changed source fixture. The Windows product gate must be rerun after the fixture calls `stage`. Zero logical admission remains conditional on complete proof. No concurrency, fairness, scheduler, overlap, or Linux claim is made. `benchmarkDisposition: compiler-lifecycle`; comparison lanes remain sequential. |
+| W-1583 | bounded Cooperative0 compiler-host trace oracle | COOP0 is a compiler-host oracle and specification-only profile. HIR34 adds the distinct `COOPERATIVE_TRACE` execution profile and `STRUCTURED_ASYNC_COOPERATIVE_TRACE` call kind for exactly two sibling scalar async tasks in one closed root. Each task has one or two `execution#yield()` markers and a fixed caller-owned frame. The oracle uses two-phase reserve/publish and a deterministic provider/test-profile FIFO trace, then verifies lifecycle, program counter, queue, frame, and outcome transitions through independent plan, trace, and execution checks. Normal W-1582 `STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED` lowering remains unchanged. COOP0 does not emit a NativeSubset0 or MLIR0 state machine and does not provide a product runtime or executable, scheduler provider, threads, parallelism, cancellation, I/O, or general Task behavior. It makes no public benchmark or performance claim. | `source-backed-current` for the bounded HIR34 cooperative profile, fixed caller-owned plan/frame records, deterministic FIFO test-profile trace, independent lifecycle/PC/queue/outcome verification, and the unchanged W-1582 elision boundary. No product runtime, executable, scheduler provider, threads, parallelism, cancellation, I/O, general Task behavior, benchmark, or performance claim is made. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -12064,3 +12066,39 @@ The updated `restaurant-async-yield.w` fixture calls `stage`. Its Windows
 product gate must be rerun after the source change. The benchmark disposition
 is `compiler-lifecycle`. This evidence makes no claim about concurrency,
 fairness, scheduler behavior, overlap, or Linux execution.
+
+#### W-1583 — bounded Cooperative0 compiler-host trace oracle
+
+W-1583 adds COOP0 as an explicitly requested compiler-host oracle and
+specification. It is not a W product runtime or public executable.
+
+HIR34 records a distinct `COOPERATIVE_TRACE` execution profile and
+`STRUCTURED_ASYNC_COOPERATIVE_TRACE` call kind. The closed profile has one root
+and exactly two sibling scalar async children in one module. Each child has one
+or two exact `execution#yield()` markers, scalar parameters and return, fixed
+caller-owned frame data, and only the bounded closed scalar helper shape. HIR
+admission and the oracle use one shared 64-function ceiling for the complete
+cooperative helper graph. The root preserves launch order, two await-result
+bindings, and a final host print.
+
+The plan and result records remain caller-owned and fixed-capacity. Execution
+copies the published plan into bounded stack storage. Its two phases reserve
+both task slots, then evaluate arguments and publish each task frame to the
+deterministic provider/test-profile FIFO queue. FIFO dispatch and resume retain
+the task program counters. A yield requeues the task. Settle, cleanup, outcome
+commit, join, and release then complete the lifecycle.
+
+Independent plan, trace, and execution checks re-prove the HIR relation,
+task/frame counts, launch and join bindings, lifecycle, program counter,
+queue transitions, yield ordinals, frame and outcome digests, and final
+outcomes. Capacity and alias failures leave published caller buffers
+unchanged. The `restaurant-cooperative0.w` witness has two tasks, four yields,
+thirty trace events, and exact compiler-host stdout `Cooperative 88\n`.
+
+The normal W-1582 `STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED` relation is unchanged.
+COOP0 is source-backed compiler-host oracle evidence only. It does not emit a
+NativeSubset0 or MLIR0 state machine and does not establish a product runtime
+or executable, scheduler provider, threads, parallelism, cancellation, I/O,
+general Task behavior, a public benchmark, or a performance claim. Product
+lowering remains target-neutral: initial Windows and Linux execution evidence
+cannot narrow the relation or preclude macOS and other viable LLVM targets.
