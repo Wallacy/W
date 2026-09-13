@@ -73,6 +73,7 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-enum-payload | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3526 | 2632 | 127.4699 ms | 17.9852 ms | 18.4794 ms | 4833280 B (4.61 MiB) | 12.995 ms |
 | restaurant-enum-payload | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79736 | 28348 | 1.0790875 s | 17.9532 ms | 18.1986 ms | 4874240 B (4.65 MiB) | 12.84 ms |
 | restaurant-enum-payload | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 918 | 240 | 179.9074 ms | 16.2686 ms | 17.0498 ms | 3756032 B (3.58 MiB) | 10.365 ms |
+| restaurant-enum-subset | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 614 | 248 | 175.8099 ms | 16.0966 ms | 17.0562 ms | 3756032 B (3.58 MiB) | 10.365 ms |
 | restaurant-enum-switch | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3526 | 2632 | 127.0953 ms | 17.9873 ms | 18.3148 ms | 4833280 B (4.61 MiB) | 13.304 ms |
 | restaurant-enum-switch | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79720 | 28348 | 1.0803393 s | 17.9637 ms | 18.2247 ms | 4870144 B (4.64 MiB) | 12.53 ms |
 | restaurant-enum-switch | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 694 | 224 | 174.7149 ms | 16.335 ms | 17.2527 ms | 3756032 B (3.58 MiB) | 10.055 ms |
