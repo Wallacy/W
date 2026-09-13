@@ -18,6 +18,8 @@ const restaurantNestedIfFixture = resolve(seedDirectory, "fixtures", "restaurant
 const restaurantWhileFixture = resolve(seedDirectory, "fixtures", "restaurant-while.w")
 const restaurantWhileMultiFixture = resolve(seedDirectory,
   "fixtures", "restaurant-while-multi.w")
+const restaurantWhilePostFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-while-post.w")
 const restaurantWmoFixture = resolve(seedDirectory, "fixtures", "restaurant-wmo.w")
 const restaurantRuntimeDivremFixture = resolve(seedDirectory,
   "fixtures", "restaurant-runtime-divrem.w")
@@ -670,6 +672,9 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantWhileMultiFixture)],
     Buffer.from("Served 9\n", "utf8"),
     "Restaurant multi-carrier natural while lowered through structured MLIR")
+  expectSuccess(binary, ["run", toWsl(restaurantWhilePostFixture)],
+    Buffer.from("Final 9\n", "utf8"),
+    "Restaurant post-loop SSA continuation after structured natural while")
   expectSuccess(binary, ["run", toWsl(restaurantWmoFixture)],
     Buffer.from("Bill 42\n", "utf8"),
     "Restaurant whole-module product closure")

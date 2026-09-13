@@ -1462,6 +1462,24 @@ executable catalog owns the separate equivalent W/C23/Rust exploratory
 measurement; no cross-platform performance claim follows from the two
 correctness gates.
 
+### Post-loop SSA continuation after a multi-carrier natural loop (W-1570)
+
+The exit block may contain exactly one pure post-loop `=` assignment to an
+existing mutable signed-`i64` loop carrier. Its RHS may use literals,
+same-function signed-`i64` parameters, and latest loop results, and it must use
+at least one loop result. The function return must depend on the continuation
+binding. The continuation uses existing HIR0 binding, instruction, and value
+records. HIR0, NativeSubset0, and MLIR0 recheck the SSA links and return
+dependency without a HIR schema change or source-variable `llvm.alloca`.
+
+[`restaurant-while-post.w`](fixtures/restaurant-while-post.w) prints exactly
+`Final 9\n` through the native Windows PE lane and the CRT-free Linux/WSL ELF
+lane. A second assignment, `let` or unrelated target, call, effect, post-loop
+control, missing loop-result use, return bypass, nested or mixed control, and
+non-`i64` carrier remain rejected. Other targets, ABI/layout, optimization
+quality, timing, ranking, and general post-loop mutation remain gaps. The
+executable catalog owns separate exploratory W/C23/Rust measurements.
+
 ### Closed local payloadless enum exhaustive switch (W-1563)
 
 HIR21 (`w-seed-hir0-21`) adds one explicit `SWITCH_ENUM` terminator and dense

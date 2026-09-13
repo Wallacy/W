@@ -3270,6 +3270,60 @@ static bool test_natural_loop_multi_carrier_projection_mlir(void) {
   return true;
 }
 
+static bool test_natural_loop_post_loop_continuation_mlir(void) {
+  static const uint8_t source[] =
+      "fn settle(limit: i64): i64 {\n"
+      "  var served = 0\n"
+      "  var total = 0\n"
+      "  while served < limit {\n"
+      "    total = total + 2\n"
+      "    served = served + 1\n"
+      "  }\n"
+      "  total = total + served\n"
+      "  return total\n"
+      "}\n"
+      "entry {\n"
+      "  let result = settle(limit: 3)\n"
+      "  print(\"Final ${result}\")\n"
+      "}\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  CHECK(fixture.hir_program.function_count == 2u &&
+        fixture.hir_program.functions[0].block_count == 4u &&
+        fixture.hir_program.blocks[1].block_argument_count == 2u &&
+        fixture.hir_program.blocks[3].instruction_count == 1u &&
+        fixture.hir_program.bindings[4].previous_version == 2u);
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.natural_loop_functions[0]);
+  w_seed_mlir0_result result;
+  CHECK(emit_current(artifact, sizeof(artifact), &result));
+  const size_t function_start =
+      find_bytes(artifact, result.written.mlir_bytes,
+                 "llvm.func internal @w_fn_0", 0u);
+  CHECK(function_start != SIZE_MAX);
+  const size_t function_end =
+      find_bytes(artifact, result.written.mlir_bytes,
+                 "\n  }\n", function_start);
+  CHECK(function_end > function_start);
+  const size_t function_bytes = function_end + 5u - function_start;
+  const uint8_t *function_artifact = artifact + function_start;
+  const size_t loop =
+      find_bytes(function_artifact, function_bytes, " = scf.while (", 0u);
+  const size_t continuation = find_bytes(
+      function_artifact, function_bytes,
+      " = llvm.call @w_seed_checked_add_i64(%loop0_1, %loop0_0)", loop);
+  const size_t returned =
+      find_bytes(function_artifact, function_bytes, "llvm.return %v", continuation);
+  CHECK(loop != SIZE_MAX && continuation > loop && returned > continuation &&
+        contains_bytes(function_artifact, function_bytes,
+                       "%loop0_0, %loop0_1 = scf.while (") &&
+        count_bytes(function_artifact, function_bytes, "llvm.alloca") == 0u);
+  return true;
+}
+
 int main(void) {
   if (!test_process_hir_is_closed_to_mlir()) return 1;
   if (!test_process_arguments_count_comparison_mlir()) return 1;
@@ -3282,6 +3336,7 @@ int main(void) {
   if (!test_multi_branch_mutation_merge_is_ssa()) return 1;
   if (!test_natural_loop_preserves_structured_mlir()) return 1;
   if (!test_natural_loop_multi_carrier_projection_mlir()) return 1;
+  if (!test_natural_loop_post_loop_continuation_mlir()) return 1;
   if (!test_direct_products()) return 1;
   if (!test_windows_target_runtime_surface()) return 1;
   if (!test_restaurant_and_nul()) return 1;

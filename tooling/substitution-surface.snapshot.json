@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:c541b4826a535f76ab875f2cde8303d43bd84f1f093f2e8f54c9e6387c5838c7",
+  "corpusDigest": "sha256:33fdb2c4719b870cb4f516de327fa45d877e91c27b73a91d91c03868eab66efd",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -6276,6 +6276,138 @@
             "nonWhitespaceCodePoints": 62,
             "lines": 1,
             "surfaceLexemes": 13
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-structured-natural-loop-multi-carrier",
+      "task": {
+        "utf8Bytes": 133,
+        "codePoints": 133,
+        "nonWhitespaceCodePoints": 113,
+        "lines": 1,
+        "surfaceLexemes": 24
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:575dba4bb0f3ac5ddc96ae834f2bbfc0fa8f32b77bdea3be3f6bbdaf8d168cbd",
+        "metrics": {
+          "utf8Bytes": 117,
+          "codePoints": 117,
+          "nonWhitespaceCodePoints": 86,
+          "lines": 7,
+          "surfaceLexemes": 28
+        }
+      },
+      "alternatives": [
+        {
+          "name": "tuple-order-follows-body-order",
+          "language": "text",
+          "sourceDigest": "sha256:ecd5fe741d4113795eb22755a328969baab12b00c258dcbf59efcdda9da0723e",
+          "metrics": {
+            "utf8Bytes": 69,
+            "codePoints": 69,
+            "nonWhitespaceCodePoints": 61,
+            "lines": 1,
+            "surfaceLexemes": 9
+          }
+        },
+        {
+          "name": "hidden-stack-loop-state",
+          "language": "text",
+          "sourceDigest": "sha256:ff6cf9ad057a3262d387ce640b915dd6d240cd6cb9e2ac62be4893fd95cedb4a",
+          "metrics": {
+            "utf8Bytes": 55,
+            "codePoints": 55,
+            "nonWhitespaceCodePoints": 46,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "windows-only-witness",
+          "language": "text",
+          "sourceDigest": "sha256:bee9cb3a2bb6d8ffbba349dbdd1f4eed3c0a6748fd6b3ea1ba7df5ddf725f9a1",
+          "metrics": {
+            "utf8Bytes": 72,
+            "codePoints": 72,
+            "nonWhitespaceCodePoints": 62,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-structured-natural-loop-post-continuation",
+      "task": {
+        "utf8Bytes": 128,
+        "codePoints": 128,
+        "nonWhitespaceCodePoints": 108,
+        "lines": 1,
+        "surfaceLexemes": 26
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:ba03dbfba470c81776a55eb90c85b79ec473eccb7f6b30489950504552f27486",
+        "metrics": {
+          "utf8Bytes": 247,
+          "codePoints": 247,
+          "nonWhitespaceCodePoints": 177,
+          "lines": 14,
+          "surfaceLexemes": 58
+        }
+      },
+      "alternatives": [
+        {
+          "name": "hidden-stack-post-loop-state",
+          "language": "text",
+          "sourceDigest": "sha256:aa986db9b56d06815da1b8c0d40631a3fc39f780b327946e163cfe6f4299bac4",
+          "metrics": {
+            "utf8Bytes": 79,
+            "codePoints": 79,
+            "nonWhitespaceCodePoints": 69,
+            "lines": 1,
+            "surfaceLexemes": 15
+          }
+        },
+        {
+          "name": "unrestricted-post-loop-mutation",
+          "language": "text",
+          "sourceDigest": "sha256:e465c422c4989fca3221e6db1d1acb5da6ce1bb0969e3a8b7632f84ec223e515",
+          "metrics": {
+            "utf8Bytes": 80,
+            "codePoints": 80,
+            "nonWhitespaceCodePoints": 70,
+            "lines": 1,
+            "surfaceLexemes": 16
+          }
+        },
+        {
+          "name": "continuation-without-loop-result",
+          "language": "text",
+          "sourceDigest": "sha256:8bf3e455e0214785382d740fd04b35637fe05d087743a48760d1dfd38c19989e",
+          "metrics": {
+            "utf8Bytes": 95,
+            "codePoints": 95,
+            "nonWhitespaceCodePoints": 79,
+            "lines": 1,
+            "surfaceLexemes": 17
+          }
+        },
+        {
+          "name": "return-bypass",
+          "language": "text",
+          "sourceDigest": "sha256:c7af1f87025d7b603b40f9911ed08a8ca935dc1c7f6707ade6d78d55372257c5",
+          "metrics": {
+            "utf8Bytes": 83,
+            "codePoints": 83,
+            "nonWhitespaceCodePoints": 72,
+            "lines": 1,
+            "surfaceLexemes": 14
           }
         }
       ]
