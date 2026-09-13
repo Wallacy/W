@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:22437df99da0c72b74aa40a8bce5b17f1912153f2bb918e2f7be8926fb4396b6",
+  "corpusDigest": "sha256:f045e5b5ca599f959b2ca8c1a789d67d882eed006c006e82044d1efa4578abd7",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -6732,6 +6732,90 @@
             "nonWhitespaceCodePoints": 73,
             "lines": 1,
             "surfaceLexemes": 13
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-linux-process-arguments",
+      "task": {
+        "utf8Bytes": 149,
+        "codePoints": 149,
+        "nonWhitespaceCodePoints": 125,
+        "lines": 1,
+        "surfaceLexemes": 26
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:5ec192c089aeb3ca4e957f25c1bfed55f3f362ad8f3ea1c4142c1124abc21f9d",
+        "metrics": {
+          "utf8Bytes": 145,
+          "codePoints": 145,
+          "nonWhitespaceCodePoints": 125,
+          "lines": 6,
+          "surfaceLexemes": 31
+        }
+      },
+      "alternatives": [
+        {
+          "name": "crt-main-argc-argv",
+          "language": "text",
+          "sourceDigest": "sha256:57bc661a86e0ff4e3b6f936ddefc3147972ca9e339b7e839b314962435e11927",
+          "metrics": {
+            "utf8Bytes": 51,
+            "codePoints": 51,
+            "nonWhitespaceCodePoints": 43,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "read-rsp-after-function-prologue",
+          "language": "text",
+          "sourceDigest": "sha256:a70f51232b209e46949266f43f595a7f174be28746d1e46f44ea3e634aee07a2",
+          "metrics": {
+            "utf8Bytes": 80,
+            "codePoints": 80,
+            "nonWhitespaceCodePoints": 69,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        },
+        {
+          "name": "posix-abi-in-language-entry",
+          "language": "text",
+          "sourceDigest": "sha256:276ce2b5440cdd556bdc4ad1e9b73344e1db0bbda45cbe1f6c141697de90042c",
+          "metrics": {
+            "utf8Bytes": 54,
+            "codePoints": 54,
+            "nonWhitespaceCodePoints": 45,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "copy-all-argument-bytes",
+          "language": "text",
+          "sourceDigest": "sha256:884eff71b6e4d96bc513b6226194b4b5112ce6b011211a18be87bbd61e5ed6ed",
+          "metrics": {
+            "utf8Bytes": 64,
+            "codePoints": 64,
+            "nonWhitespaceCodePoints": 55,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "hardcoded-windows-encoding",
+          "language": "text",
+          "sourceDigest": "sha256:53526955d5f378f5dfa1adffd0de0e251ce25b2f616d44683d6212abe88f33ab",
+          "metrics": {
+            "utf8Bytes": 63,
+            "codePoints": 63,
+            "nonWhitespaceCodePoints": 54,
+            "lines": 1,
+            "surfaceLexemes": 10
           }
         }
       ]

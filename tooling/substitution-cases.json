@@ -6325,6 +6325,112 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-linux-process-arguments",
+      "reviewItem": "CRT-free Linux process startup against ABI leakage, prologue-sensitive stack capture, copied argv storage, and target-encoding confusion",
+      "decisions": [
+        "W-1572"
+      ],
+      "task": "Construct the existing bounded W process root from the Linux x86_64 kernel startup vector without exposing POSIX ABI details to W or acquiring a CRT.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "import std.process",
+          "async fn run(args: Arguments, ctx: Context): ExitCode {",
+          "  print(\"Argument count ${args.count}\")",
+          "  return .success",
+          "}",
+          "entry(run)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "crt-main-argc-argv",
+          "language": "text",
+          "source": [
+            "link a C runtime and receive argc/argv through main"
+          ],
+          "expectedDifference": "The selected route owns process startup and exit in WRT0 and produces an ELF without CRT, libc, interpreter, or DT_NEEDED dependency."
+        },
+        {
+          "name": "read-rsp-after-function-prologue",
+          "language": "text",
+          "source": [
+            "read rsp from an ordinary LLVM _start body after optimizer-controlled entry code"
+          ],
+          "expectedDifference": "The selected module assembly passes the untouched kernel stack pointer to an ordinary helper before a function prologue can alter it."
+        },
+        {
+          "name": "posix-abi-in-language-entry",
+          "language": "text",
+          "source": [
+            "change W entry to accept native argc and argv pointers"
+          ],
+          "expectedDifference": "The selected target adapter preserves W Arguments/Context identity and the ordinary generated main ABI."
+        },
+        {
+          "name": "copy-all-argument-bytes",
+          "language": "text",
+          "source": [
+            "allocate and copy every process argument before executing W code"
+          ],
+          "expectedDifference": "The selected root records bounded borrowed process-lifetime descriptors and copies no argument contents."
+        },
+        {
+          "name": "hardcoded-windows-encoding",
+          "language": "text",
+          "source": [
+            "store UTF16 encoding in every process root regardless of target"
+          ],
+          "expectedDifference": "The selected shared initializer derives POSIX_BYTES or UTF16 from the target-provided vector."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/cli/run.c",
+          "symbol": "WRT0_LL",
+          "claim": "Linux WRT0 owns module-assembly startup, initial-stack capture, private argc/argv accessors, syscall write, and syscall exit."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "MLIR0_PROCESS_EXECUTABLE_LINUX_HELPERS",
+          "claim": "The Linux process helper validates argc/argv, excludes argv0, bounds the vector, scans lengths, and records borrowed POSIX-byte descriptors."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "build_process_executable_artifact",
+          "claim": "The process emitter selects target-specific startup, buffer, write, and exit surfaces while retaining shared root ownership and cleanup."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_mlir0.c",
+          "symbol": "test_process_arguments_count_comparison_mlir",
+          "claim": "Focused MLIR tests distinguish Linux argc/argv/write/main emission from the Windows command-line and mainCRTStartup route."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "processEnumPayloadFixture",
+          "claim": "The Linux/WSL gate runs the existing enum-payload source and built ELF with absent, empty, and ordinary arguments and exact results."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "processArgumentsCountFixture",
+          "claim": "The Linux/WSL gate covers zero, empty, two, 256, and rejected 257-argument process products with exact output and cleanup."
+        }
+      ],
+      "checks": [
+        "target-owned module assembly captures the original kernel stack before any ordinary LLVM function prologue",
+        "argv0 is excluded and zero through 256 user arguments publish borrowed POSIX-byte descriptors",
+        "an empty argument remains one zero-length descriptor and 257 arguments fail before W code or stdout",
+        "the same root owner and reverse cleanup order are used on Windows and Linux while vector encoding remains target-derived",
+        "the public enum-payload and count sources execute exactly as CRT-free Linux/WSL ELF products and Windows remains independently gated"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

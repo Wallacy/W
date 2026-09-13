@@ -1822,7 +1822,7 @@ blockers, and stop condition remain canonical in [`DESIGN.md`](../../DESIGN.md)
 §26.4.1.28; the measurement protocol is in the
 [`private process-handler lifecycle benchmark section`](../../benchmarks/README.md#private-process-handler-lifecycle-executable-measurements).
 
-### Public Windows process executable bodies (W-1547)
+### Public bounded process executable bodies (W-1547, W-1572)
 
 The canonical fixture [`fixtures/process-input0.w`](fixtures/process-input0.w)
 remains the smallest public process body. It imports the exact compiler-owned
@@ -1842,8 +1842,9 @@ status values must be compile-time constants in `1..255`. Dynamic values and
 out-of-range values are rejected without truncation.
 
 Native0 automatically selects `w-seed-mlir0-process-executable-1` for this
-verified HIR on `x86_64-pc-windows-msvc`. Explicit artifact selection uses the
-same verified route. W-1565 appends `Arguments.count` to the seven-symbol
+verified HIR on `x86_64-pc-windows-msvc` and
+`x86_64-unknown-linux-gnu`. Explicit artifact selection uses the same verified
+route. W-1565 appends `Arguments.count` to the seven-symbol
 public catalog. W-1566 adds its bounded `==`/`!=` comparison form, and W-1567
 records flat/selective import equivalence. The private four-symbol handler
 remains unchanged.
@@ -1853,6 +1854,17 @@ UTF-16 descriptors. The descriptor table is a zero-initialized private PE
 global rather than a large stack frame, so the `/nodefaultlib` link needs only
 `kernel32.lib` and does not acquire `__chkstk`/CRT support. This storage is
 single-startup artifact state, not a W runtime ABI or public layout.
+
+W-1572 adds the corresponding CRT-free Linux x86_64 adapter. WRT0 owns the
+process-entry assembly and passes the untouched kernel stack pointer to an
+ordinary LLVM helper before calling `main()`. The helper publishes only private
+`argc`/`argv` accessors. Generated process MLIR excludes `argv[0]`, validates
+zero through 256 user arguments, and records borrowed NUL-terminated POSIX-byte
+descriptors without copying their contents. The stack and argument bytes remain
+live for the process lifetime. The process root derives its encoding from the
+selected vector, rather than assuming Windows UTF-16. WRT0 exits through the
+x86_64 syscall ABI; the ELF has no CRT, libc, dynamic loader, or `DT_NEEDED`
+dependency.
 
 The adapter constructs a private root and distinct `Arguments`/`Context` owner
 records, executes the verified body, releases `Context`, releases `Arguments`,
@@ -1870,20 +1882,23 @@ before publication.
 The focused frontend, HIR0, MLIR0, and Native0 CTest units cover positive
 composition and fail-closed identity, owner, range, capacity, CFG, and receipt
 cases. The pinned Windows LLVM/MLIR/LLD 23.1.1 `w-run-windows` gate passes the
-source-to-PE route for the public process fixtures. It executes their bounded
+source-to-PE route, and the Linux/WSL gate passes the source-to-CRT-free-ELF
+route for the public process fixtures. They execute the bounded
 no-argument, empty-argument, payload, and count cases from source or from one
-built PE per product, with exact stdout, empty stderr, exit status, and cleanup
-checks. The public `process-entry`, `process-enum-payload`, and
+built artifact per product, with exact stdout, empty stderr, exit status, and
+cleanup checks. The Linux count artifact additionally proves the 256-argument
+boundary and rejects 257 before output. The public `process-entry`,
+`process-enum-payload`, and
 `process-arguments-count` benchmark lanes
 retain their current correctness and measurement evidence in the
 [`executable benchmark catalog`](../../benchmarks/EXECUTABLES.md). The catalog
 owns artifact and timing cells and cross-language comparability. W-1547 makes
 no independent performance or ranking claim.
 
-General argument decoding/indexing, general CFG and loops, throws,
-cancellation, Context capabilities, general async/provider runtime, other OS
-adapters, cross-compilation, stable public ABI/layout, and performance remain
-gaps.
+General argument decoding/indexing, mutable argument storage, general CFG and
+loops, throws, cancellation, Context capabilities, general async/provider
+runtime, other architectures and OS adapters, cross-compilation, stable public
+ABI/layout, and performance remain gaps.
 
 ### Public bounded `Arguments.count` (W-1565)
 
@@ -1902,14 +1917,13 @@ remain unsupported. Non-optional
 
 MLIR0 emits `w_seed_process_arguments_count`, which loads the count already
 stored in the public process root. The helper does not rescan the command line,
-allocate, copy, or suspend. The Windows startup adapter excludes `argv[0]`,
-counts an empty argument as one, supports 0 through 256 user arguments, and
-rejects the next argument before publishing the vector. Its verified x86_64
-layout selects physical `i64` for logical `usize`, with no loss in the bounded
-domain. The focused
-`w-run-windows` gate executes the same built PE for zero, empty, ordinary
-multiple, and exactly 256 user arguments. The executable catalog owns the
-separate exploratory W/C/Rust measurement lane.
+allocate, copy, or suspend. Both startup adapters exclude `argv[0]`, count an
+empty argument as one, support 0 through 256 user arguments, and reject the next
+argument before publishing the vector. Their verified x86_64 layouts select
+physical `i64` for logical `usize`, with no loss in the bounded domain. The
+focused Windows and Linux/WSL gates execute the same source for zero, empty,
+ordinary multiple, and exactly 256 user arguments. The executable catalog owns
+the separate exploratory W/C/Rust measurement lane.
 
 ### Bounded public `Arguments.count` equality (W-1566)
 
@@ -1927,11 +1941,11 @@ identity or type metadata fail closed. Raw `Arguments` and `Context` values
 remain non-lowerable.
 
 HIR retains logical `usize`. NativeSubset0 and MLIR0 recheck the relation, and
-the verified Windows x86_64 layout uses physical `i64` only at the MLIR
+the verified Windows and Linux x86_64 layouts use physical `i64` only at the MLIR
 boundary. The helper reads the existing process-root count without scanning,
-allocation, copying, or suspension. Focused HIR0, MLIR0, and Native0 tests and
-the pinned Windows gate cover the accepted predicate and bounded runtime count
-cases.
+allocation, copying, or suspension. Focused HIR0, MLIR0, and Native0 tests plus
+the pinned Windows and Linux/WSL gates cover the accepted predicate and bounded
+runtime count cases.
 
 ### Flat and selective `std.process` imports (W-1567)
 

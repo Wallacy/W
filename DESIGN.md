@@ -38547,6 +38547,60 @@ entry {
 }
 ```
 
+#### 26.4.1.53 W-1572 — bounded CRT-free Linux process arguments and payload-enum execution (Current bounded form)
+
+W-1572 extends the existing public process executable subset to
+`x86_64-unknown-linux-gnu` without changing W-visible syntax, HIR process
+identity, or the ordinary `main() -> i32` product ABI. WRT0 owns a target-specific
+module-assembly `_start`. It passes the kernel-provided initial stack pointer to
+an ordinary LLVM helper before any compiler-generated function prologue can
+change that value. The helper records private `argc` and `argv` accessors and
+then calls the generated `main`.
+
+The generated process adapter excludes `argv[0]`, accepts zero through 256 user
+arguments, and rejects an invalid root vector or a 257th user argument before
+calling W code or writing stdout. Each admitted argument becomes one borrowed
+descriptor `(POSIX_BYTES, data, byte length)`. Empty arguments have length zero;
+argument bytes are not copied and remain backed by the process startup stack.
+The process root derives its encoding from the vector, so the shared root
+initialization no longer hardcodes the Windows UTF-16 encoding.
+
+The bounded Linux product exits and writes through the x86_64 syscall ABI. It
+has no C entry point, generated C, CRT, libc, dynamic loader, or `DT_NEEDED`
+dependency. Root initialization and cleanup preserve the existing order:
+initialize root and owners, execute the selected entry, flush exact output,
+release `Context`, release `Arguments`, finalize the root, then return the W
+exit code to WRT0.
+
+**Example:** this process entry prints `Argument count 0` without user
+arguments and `Exactly two arguments` with two user arguments:
+
+```w
+import std.process
+
+async fn run(args: Arguments, ctx: Context): ExitCode {
+  if args.count == 2 {
+    print("Exactly two arguments")
+    return .success
+  } else {
+    print("Argument count ${args.count}")
+    return .success
+  }
+}
+
+entry(run)
+```
+
+The same public `process-enum-payload.w` source is exercised with no user
+arguments, one empty argument, and one ordinary payload argument. The same
+`process-arguments-count.w` product is exercised with zero, one empty, two
+ordinary, and exactly 256 arguments; 257 is rejected with exit 3 and no partial
+stdout. Windows PE behavior remains independently gated. This evidence covers
+only borrowed process-lifetime descriptors, `Arguments.isEmpty`,
+`Arguments.count`, the already admitted bounded process body, and Linux x86_64.
+Decoded argument access, iteration, mutation, other architectures, macOS,
+cross-compilation, stable ABI/layout, timing, and ranking remain gaps.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:
