@@ -7086,12 +7086,13 @@
     {
       "id": "R0-virtual-task-static-yield-elision",
       "reviewItem": "bounded static-yield Task erasure against eager runtime materialization and false scheduler claims",
-      "decisions": ["W-1579"],
-      "task": "Preserve one explicit execution yield in verified HIR, then discharge it only when a closed scalar launch and join admits a legal serial schedule without physical Task state.",
+      "decisions": ["W-1579", "W-1580"],
+      "task": "Preserve every finite root execution yield in verified HIR, then discharge them only when a closed scalar launch and join admits a legal immediate-resume schedule without physical Task state.",
       "selected": {
         "language": "w",
         "source": [
-          "async fn prepare(value: i64): i64 { let staged = value + 1 await execution#yield() return staged * 2 }",
+          "async fn once(value: i64): i64 { await execution#yield() return value }",
+          "async fn prepare(value: i64): i64 { let staged = value + 1 await execution#yield() let doubled = staged * 2 await execution#yield() return doubled }",
           "let left = async prepare(value: 20)",
           "let first = await left"
         ]
@@ -7126,22 +7127,22 @@
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "expression_parse_prefix_inner",
-          "claim": "The frontend preserves exact execution yield as a Unit semantic expression inside async functions."
+          "claim": "Frontend24 preserves every exact execution yield while interning their shared Unit type identity."
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
-          "symbol": "frontend_elision_function_one_static_yield",
-          "claim": "Source preflight admits only the bounded one-yield scalar body before HIR publication."
+          "symbol": "frontend_elision_function_static_yields",
+          "claim": "Source preflight admits only a positive finite sequence of root yields in the bounded scalar body before HIR publication."
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
-          "symbol": "hir0_function_one_static_yield",
-          "claim": "The standalone verifier independently proves one async block, one yield, scalar bindings, and a closed return."
+          "symbol": "hir0_function_static_yields",
+          "claim": "The standalone verifier independently proves one async block, a positive ordered yield count, scalar bindings, and a closed return."
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
-          "symbol": "program_function_has_static_yield",
-          "claim": "Native selection accepts the verified static-yield relation without introducing Task or scheduler state."
+          "symbol": "program_function_has_static_yields",
+          "claim": "Native selection accepts the verified plural static-yields relation without introducing Task or scheduler state."
         },
         {
           "path": "tooling/check-mlir0.mjs",
@@ -7155,10 +7156,10 @@
         }
       ],
       "checks": [
-        "frontend23 records one supported Unit execution-yield expression only in an async function",
-        "HIR31 preserves one yield instruction while public suspension remains MAY and directEntry remains absent",
-        "the verifier rejects a forged ordinary binding, non-async owner, second yield, nested call, control flow, or blocked value state",
-        "NativeSubset0 and MLIR0 retain scalar computation while emitting no Task, frame, scheduler, yield, or WRT surface",
+        "frontend24 records every supported Unit execution-yield expression only in an async function and shares one canonical Unit identity",
+        "HIR32 preserves one, two, and three ordered yield instructions while public suspension remains MAY and directEntry remains absent",
+        "the verifier rejects zero yields under the plural relation, a forged ordinary binding, non-async owner, nested call, control flow, or blocked value state",
+        "NativeSubset0 and MLIR0 retain scalar computation while emitting no Task, frame, scheduler, yield, handle, or WRT surface",
         "Windows execution prints Prepared 88 exactly and the evidence makes no fairness, handoff, overlap, Linux, or concurrency-ranking claim"
       ],
       "measures": [

@@ -242,10 +242,11 @@ erased. Its C23 and Rust 2024 references call the same scalar `prepare`
 function sequentially. The workload measures virtual structured-task elision
 overhead and does not claim overlap or concurrency.
 
-`restaurant-async-yield` advances that lifecycle lane through exactly one
-`execution#yield()` in each scalar child. Verified HIR keeps the suspension
-marker, then the closed product selects a legal immediate-resume schedule and
-erases both Task and yield. C23 and Rust use the same sequential scalar work.
+`restaurant-async-yield` advances that lifecycle lane through two finite root
+`execution#yield()` points in each scalar child. Verified HIR keeps both
+suspension markers, then the closed product selects a legal immediate-resume
+schedule and erases the transient Task relation and both yields. C23 and Rust
+use the same sequential scalar work.
 The exact oracle is `Prepared 88\n`; this remains representation and compiler
 lifecycle measurement, not scheduler, fairness, overlap, or concurrency
 ranking.

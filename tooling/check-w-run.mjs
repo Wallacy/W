@@ -829,7 +829,7 @@ try {
     "Restaurant virtual structured-task elision")
   expectSuccess(binary, ["run", toWsl(restaurantAsyncYieldFixture)],
     Buffer.from("Prepared 88\n", "utf8"),
-    "Restaurant virtual Task with statically discharged yield")
+    "Restaurant virtual Task with statically discharged yields")
   expectSuccess(binary, ["run", toWsl(w1531MinimalFixture)],
     Buffer.from("then\n", "utf8"), "W-1531 minimal if/else")
   expectSuccess(binary, ["run", toWsl(w1531NoElseFixture)],

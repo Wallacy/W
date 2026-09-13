@@ -492,7 +492,7 @@ try {
     "Restaurant virtual structured-task elision fixture")
   expectExact(binary, ["run", restaurantAsyncYieldFixture], 0,
     Buffer.from("Prepared 88\n", "utf8"),
-    "Restaurant virtual Task with statically discharged yield")
+    "Restaurant virtual Task with statically discharged yields")
   expectExact(binary, ["run", restaurantComparisonsFixture], 0,
     Buffer.from("Seat party\nSeat party\nWaitlist\n", "utf8"),
     "Restaurant signed-i64 admission comparison")

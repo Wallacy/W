@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-31"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-32"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -69,10 +69,10 @@ typedef enum {
    * remains on the result binding, so independent verification can prove the
    * elision. */
   W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED,
-  /* The structured child has exactly one verified execution yield and no
+  /* The structured child has one or more verified execution yields and no
    * other surviving suspension/effect. The closed lexical schedule may erase
-   * both Task and yield while preserving the source suspension evidence. */
-  W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELD_ELIDED,
+   * both Task and yields while preserving the source suspension evidence. */
+  W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED,
 } w_seed_hir0_call_execution_kind;
 
 typedef enum {

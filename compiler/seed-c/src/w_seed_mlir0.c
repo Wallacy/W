@@ -3320,7 +3320,7 @@ static bool append_program_local_call(
         target->direct_entry == W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE;
     const bool static_yield =
         call->execution_kind ==
-        W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELD_ELIDED;
+        W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED;
     if (!direct && !static_yield) return false;
   }
   uint32_t values[W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS];

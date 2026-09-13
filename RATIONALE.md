@@ -185,6 +185,7 @@ O corpus compara, no mínimo:
 - internal bounded i64 Display helpers against target-ABI snprintf, precomputed output, per-segment writes, and NUL rejection.
 - bounded Bool and String interpolation values against erased type identity, source re-resolution, generic runtime ABI, and precomputed Bool text.
 - virtual structured Task capability against unconditional runtime object materialization, observable identity, and false overlap claims.
+- bounded static-yield Task erasure against eager runtime materialization and false scheduler claims.
 - bounded explicit async direct-entry proof against general direct-entry coverage, runtime materialization, and false overlap claims.
 - typed immutable binding initializers against byte-only binding records, downstream name lookup, precomputed arithmetic, and unchecked forward or cross-block reads.
 - typed direct Unit calls against flattened bodies, ABI-order evaluation, downstream name lookup, and recursive or indirect call admission.
@@ -7878,6 +7879,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1577 | bounded virtual structured-task elision | For an immutable root-block `let task = async localNeverSuspend(...)` followed by exactly one immutable same-block `let value = await task`, with a `Bool` or signed-`i64` result and no escape, branch, explicit placement, suspension, throwing, cancellation, arbitration, sharing, or runtime owner, HIR30 erases the Task representation into an ordinary scalar call result and scalar binding read. Proof-only call execution kind, launch/await roles, reciprocal peer, and source-expression ordinal let the independent verifier recheck direction, order, lexical ownership, immutability, type, initializer shape, and local never-suspending callee. These relations create no source-visible Task identity, address, layout, handle ABI, allocation, frame, TCB, WRT entry, or task-specific native symbol. The Windows x64 public source-to-PE route prints exactly `Prepared 42\n`; Linux/WSL is wired but remains unclaimed until the local toolchain gate executes. The current lowering may be sequential and does not prove overlap. | `source-backed-current` only for the bounded HIR30 representation erasure, verifier barriers, Windows x64 public executable witness, and absence of Task-specific runtime machinery in NativeSubset0/MLIR0. General suspension, scheduling, parallel domains, cancellation, sharing, runtime ownership, tracing-preserved state, Task ABI/layout, other payloads, and Linux execution remain gaps. Primary `benchmarkDisposition: compiler-lifecycle`; the executable catalog owns an equivalent sequential W/C23/Rust exploratory lane and must not call it a concurrency benchmark. |
 | W-1578 | bounded explicit async direct-entry structured-task elision | W-1578 extends W-1577 to an immutable root-block `async` launch of one explicit local `async fn` callee followed by one immutable same-block `await`. The callee receives an ordinary `directEntry` only after a conservative whole-body proof: it has a `Bool` or signed-`i64` scalar signature, is non-throwing, non-unsafe, and free of borrow clauses, its body has no `async`, `await`, or host call, and its ordinary local callees are scalar, synchronous, acyclic, and within the bounded nesting depth. Public async suspension remains `MAY`; HIR30 records `directEntry: AVAILABLE` for the proven ordinary entry and erases Task, frame, and WRT state as in W-1577. The upgraded Restaurant W source uses `async fn prepare` and still emits exact `Prepared 42\n` on the current Windows x64 product route. This is source-backed-current only for the bounded proof and product witness. General direct-entry coverage, suspending bodies, scheduling, overlap, concurrency, cancellation, domains, sharing, runtime ownership, public Task ABI/layout, other payloads, and Linux/WSL execution remain gaps. `benchmarkDisposition: compiler-lifecycle`; equivalent C23 and Rust references remain sequential and no concurrency ranking is claimed. | `source-backed-current` only for the bounded whole-body direct-entry proof, HIR30 proof relations, NativeSubset0/MLIR0 ordinary scalar lowering, the upgraded Windows x64 product witness, and the unchanged sequential comparison sources. General direct-entry inference, suspension/runtime machinery, scheduling or overlap, cancellation, domains, sharing, runtime ownership, public Task ABI/layout, other payloads, and Linux/WSL execution remain gaps. |
 | W-1579 | bounded virtual Task across one statically discharged yield | One local explicit `async fn` with a `Bool` or signed-`i64` signature, one root block, exactly one `await execution#yield()`, and otherwise only pure scalar bindings may retain the yield in frontend23/HIR31 while a closed immutable launch/single-join scope selects a legal serial schedule. Independent HIR verification requires the async owner, one block, one yield, scalar-only bindings, a `Bool` or signed-`i64` return, and the closed static-yield execution relation. NativeSubset0/MLIR0 then erase both Task and yield and retain ordinary scalar work. The Restaurant witness prints exactly `Prepared 88\n` on Windows x64, and emitted MLIR contains no Task, async, yield, or WRT surface. | `source-backed-current` only for this exact bounded proof, HIR31 marker and verifier barriers, ordinary scalar lowering, and Windows x64 public product witness. A scheduler, fairness realization, handoff, overlap, cancellation, nested calls/control/effects, general suspension, physical frame/Task layout, Linux/WSL execution, timing, and concurrency ranking remain gaps. Primary `benchmarkDisposition: compiler-lifecycle`; comparison lanes are sequential lifecycle evidence only. |
+| W-1580 | bounded virtual Task across finite statically discharged root yields | One local explicit `async fn` with a `Bool` or signed-`i64` signature, one linear root block, and a finite nonempty sequence of exact `await execution#yield()` statements may preserve every ordered marker in frontend24/HIR32 while a closed immutable launch/single-join scope selects an immediate-resume serial schedule. Frontend24 shares the canonical Unit type identity without dropping expression provenance. Independent HIR verification requires a positive marker count, exact owner/order, scalar-only bindings, a closed return, and the plural static-yields execution relation. NativeSubset0/MLIR0 erase the transient Task relation and all markers only after this proof, retaining ordinary scalar SSA work. A fully verified virtual relation has normative zero logical admission cost, debits no task/frame/timer/ready budget, and cannot produce budget-exhaustion cancellation. | `source-backed-current` only for this bounded call-site-specific proof, HIR32 verifier barriers, zero-cost virtual admission, ordinary NativeSubset0/MLIR0 lowering, and the Windows x64 `Prepared 88\n` product witness. W-1579 is its `k = 1` predecessor. Scheduler implementation, fairness, handoff, overlap, cancellation requests, nested calls/control/effects, general suspension, physical Task/frame layout, Linux/WSL execution, timing, and concurrency ranking remain gaps. Primary `benchmarkDisposition: compiler-lifecycle`; comparison lanes are sequential only. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -11952,3 +11954,40 @@ yield, and WRT names do not. This evidence establishes representation erasure
 under one legal serial schedule only. It does not establish fairness,
 handoff, overlap, cancellation, general suspension, physical frame layout,
 Linux execution, timing, or concurrency ranking.
+
+W-1580 supersedes only the exact-one cardinality limit. This record remains the
+historical `k = 1` proof.
+
+#### W-1580 — bounded virtual Task across finite statically discharged root yields
+
+Multiple source yields exposed a normalization defect before they exposed a
+runtime need: the frontend emitted a fresh Unit arena record for each marker,
+then resolved later expressions to the first record and left the duplicates
+orphaned. Frontend24 now interns the Unit identity while retaining every yield
+expression and source span. This keeps semantic identity compact without
+conflating distinct suspension sites.
+
+HIR32 replaces the singular execution relation with
+`STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED`. The source preflight and standalone
+HIR verifier both require a positive finite count in one linear async root
+block, exact instruction ownership and order, scalar parameters/bindings and a
+closed scalar return. One, two, and three marker witnesses are positive; zero
+markers under the plural relation, nested calls, unsupported result types, and
+forged instructions fail closed. Launch and join remain a single immutable
+pair per transient Task relation.
+
+This is deliberately a representation theorem, not a scheduler theorem. Each
+yield offers a scheduling opportunity, and immediate resume at every marker is
+one permitted serial schedule for the closed call site. Only after independent
+verification may NativeSubset0/MLIR0 erase the markers and Task relation. The
+same async function in a context with surviving cancellation, arbitration,
+sharing, tracing, runtime ownership, admission failure, or real suspension can
+still require physical state. The public Windows witness preserves exact
+`Prepared 88\n`; no fairness, overlap, handoff, Linux execution, timing, or
+concurrency ranking is inferred.
+
+Making the relation virtual also closes admission deterministically. Its
+normative logical cost is zero task, frame, timer, and ready units, so staging
+commits directly and budget exhaustion is impossible for this exact relation.
+This is part of the verified contract rather than a backend heuristic; if the
+proof fails, ordinary physical admission and inline-canceled outcomes apply.
