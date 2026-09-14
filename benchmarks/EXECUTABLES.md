@@ -100,6 +100,7 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-enum-switch | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 694 | 224 | 174.7149 ms | 16.335 ms | 17.2527 ms | 3756032 B (3.58 MiB) | 10.055 ms |
 | restaurant-interpolation | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 518 | 216 | 176.6327 ms | 16.7522 ms | 17.1856 ms | 3756032 B (3.58 MiB) | 10.829 ms |
 | restaurant-linear | w | Windows x64 / MSVC | CRT-free | 2560 B (2.5 KiB) | 134 | 208 | 166.1238 ms | 16.0861 ms | 16.9756 ms | 3751936 B (3.58 MiB) | 12.53 ms |
+| restaurant-main-cardinality | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 982 | 256 | 182.027 ms | 16.9818 ms | 17.2775 ms | 3756032 B (3.58 MiB) | 10.519 ms |
 | restaurant-main-dispatch | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 742 | 264 | 179.9783 ms | 16.9176 ms | 17.299 ms | 3756032 B (3.58 MiB) | 12.53 ms |
 | restaurant-mutation | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 550 | 212 | 175.1766 ms | 16.0612 ms | 16.9951 ms | 3756032 B (3.58 MiB) | 10.829 ms |
 | restaurant-nested-branch | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 966 | 368 | 179.5562 ms | 16.8636 ms | 17.0991 ms | 3760128 B (3.59 MiB) | 11.448 ms |
@@ -135,6 +136,7 @@ No native Linux x64 measurements are published.
 
 | Workload | Language | Target | Runtime | Artifact | .text B | .rdata B | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| restaurant-main-cardinality | w | Linux x64 / WSL2 | CRT-free | 3008 B (2.9 KiB) | — | — | 206.0878 ms | 141.023 µs | 201.573 µs | 671744 B (656.0 KiB) | 47 µs |
 | restaurant-main-dispatch | w | Linux x64 / WSL2 | CRT-free | 2768 B (2.7 KiB) | — | — | 208.7803 ms | 155.999 µs | 376.322 µs | 679936 B (664.0 KiB) | 50 µs |
 
 Artifact size counts only the emitted executable file. On Windows it excludes imported runtime DLLs. Windows public W is CRT-free; public C and Rust import the MSVC runtime. The private process-handler composite remains a Windows GCC/MinGW contextual lane. Native Linux records, when published, are kept in their own Linux x64 / GNU lane; W's current Linux product route is also CRT-free.
