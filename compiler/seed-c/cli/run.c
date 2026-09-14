@@ -1001,7 +1001,7 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
   if (exit_code != 0) goto cleanup;
   if (windows_target) {
     wchar_t out_argument[W_SEED_WINDOWS_PATH_CAPACITY + 6u];
-    const wchar_t *link_arguments[11];
+    const wchar_t *link_arguments[12];
     size_t link_argument_count = 8u;
     if (swprintf(out_argument, sizeof(out_argument) / sizeof(out_argument[0]),
                  L"/out:%ls", artifact_path) < 0)
@@ -1018,6 +1018,11 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
       link_arguments[link_argument_count++] = L"/opt:ref";
       link_arguments[link_argument_count++] = L"/opt:icf";
       link_arguments[link_argument_count++] = L"/incremental:no";
+      /* Windows x64 unwind metadata stays addressable through the exception
+       * directory when folded into the existing read-only section.  Keeping
+       * code and data separate preserves permissions while avoiding a whole
+       * file-alignment unit for the tiny standalone .pdata section. */
+      link_arguments[link_argument_count++] = L"/merge:.pdata=.rdata";
     }
     exit_code = windows_run_tool(
         lld_link, link_arguments, link_argument_count);

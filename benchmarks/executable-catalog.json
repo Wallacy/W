@@ -154,6 +154,21 @@
           "eligibility": "promotable-after-equivalence"
         },
         {
+          "language": "w",
+          "path": "benchmarks/executable/hello.w",
+          "digest": "sha256:b50c0ea8a88df56638ef579abe891f017344dcdd39bfef2222642e9374ea5f99",
+          "entry": "<entry.default>",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "hello-release",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only"
+        },
+        {
           "language": "c",
           "path": "benchmarks/executable/hello.c",
           "digest": "sha256:09bb64051ed8d77e7bde44ebcc2487864123296c236daf7ed671dd5aa0bb1472",

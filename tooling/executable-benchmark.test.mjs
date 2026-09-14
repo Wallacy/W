@@ -125,10 +125,16 @@ test("catalog stores compact live best cells and no immutable history", () => {
     const workload = documents.catalog.workloads.find((item) => item.id === workloadId);
     assert.equal(workload.benchmarkStatus, "exploratory-ready");
     assert.deepEqual(workload.blockers, []);
-    assert.ok(workload.sources.every((source) =>
+    assert.ok(workload.sources.filter((source) =>
+      source.platformTarget === EXECUTABLE_PLATFORM_TARGET).every((source) =>
       source.comparability === "promotable-after-equivalence" &&
       source.eligibility === "promotable-after-equivalence"));
   }
+  const helloWsl = documents.catalog.workloads.find((item) => item.id === "hello")
+    .sources.find((source) => source.language === "w" &&
+      source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
+  assert.equal(helloWsl.comparability, "same-physical-hardware-diagnostic-only");
+  assert.equal(helloWsl.eligibility, "same-physical-hardware-diagnostic-only");
   for (const [cell, metrics] of Object.entries(metricsByCell)) {
     assert.ok(
       JSON.stringify(metrics) === JSON.stringify(retainedMetrics) ||

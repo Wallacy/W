@@ -269,6 +269,23 @@ function assertPeX64(bytes, label) {
   `${label} is not a PE x64 image`)
 }
 
+function peSectionNames(bytes, label) {
+  assertPeX64(bytes, label)
+  const peOffset = bytes.readUInt32LE(0x3c)
+  const sectionCount = bytes.readUInt16LE(peOffset + 6)
+  const optionalHeaderSize = bytes.readUInt16LE(peOffset + 20)
+  const tableOffset = peOffset + 24 + optionalHeaderSize
+  assert(tableOffset + sectionCount * 40 <= bytes.length,
+    `${label} has a truncated section table`)
+  return Array.from({ length: sectionCount }, (_, index) => {
+    const start = tableOffset + index * 40
+    const terminator = bytes.indexOf(0, start)
+    const end = terminator >= start && terminator < start + 8
+      ? terminator : start + 8
+    return bytes.subarray(start, end).toString("ascii")
+  })
+}
+
 if (process.platform !== "win32" || process.arch !== "x64") {
   unavailable(`${process.platform}/${process.arch}`)
 }
@@ -316,7 +333,8 @@ for (const forbidden of ["wsl.exe", "process.env.PATH", "exec(", "shell: true", 
 for (const marker of ["CreateProcessW", "lpApplicationName", "CREATE_NEW",
   "GetStdHandle", "WriteFile", "ExitProcess", "mainCRTStartup",
   "-mtriple=x86_64-pc-windows-msvc", "/nodefaultlib", "--canonicalize",
-  "--cse", "-O3", "/Brepro", "/opt:ref", "/opt:icf", "/incremental:no"]) {
+  "--cse", "-O3", "/Brepro", "/opt:ref", "/opt:icf", "/incremental:no",
+  "/merge:.pdata=.rdata"]) {
   assert(`${runSource}\n${emitterSource}`.includes(marker),
     `native Windows implementation marker is missing: ${marker}`)
 }
@@ -629,6 +647,9 @@ try {
   assert(!existsSync(buildPrivateGraph),
     "private cross-module build left an artifact")
   const helloBytes = await readFile(buildHello)
+  const helloSections = peSectionNames(helloBytes, "built Hello artifact")
+  assert(helloSections.includes(".rdata") && !helloSections.includes(".pdata"),
+    "Release Hello must fold unwind metadata into the read-only section")
   expectBuildFailure(binary, ["build", helloFixture, "--target", targetTriple,
     "--output", buildHello], "reject existing build output")
   assert((await readFile(buildHello)).equals(helloBytes),
