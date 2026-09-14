@@ -35,6 +35,8 @@ bun run study:registry
 bun benchmark list
 bun benchmark update benchmarks/results/<result>.json
 bun benchmark check
+bun check --target gpu0
+bun benchmark gpu0
 ```
 
 The short facade in [`dev-cli.mjs`](dev-cli.mjs) reads the small catalog in
@@ -102,6 +104,15 @@ closes the bounded native measurement primitive, including exact raw-stream
 oracles and process-tree lifetime. Bun remains the catalog orchestrator, while
 production runtime warmup/sample series are sourced from the native receipt;
 compile series remain Bun-orchestrated direct-child observations.
+GPU0 stays in a separate diagnostic catalog because it is not yet a
+source-backed W product. `bun check --target gpu0` proves the target-neutral
+records, MLIR GPU/NVVM lowering, CUDA result `42`, and fail-closed provider
+cases when the Windows provider is available. `bun benchmark gpu0` refreshes
+only `benchmarks/gpu0-device-linkage-catalog.json` and its concise
+`benchmarks/GPU0.md` projection from 101 warmups and 1001 in-process samples;
+context/module/allocation setup remains outside the four H2D, dispatch-sync,
+D2H, and end-to-end measurements. No binary is retained and these values do
+not enter executable or language rankings.
 `bun check --target compiler` executa uma vez os gates do compilador seed,
 ACQ0, OWN0, MAN0, HIR0, HLO0, HLO1 e do `w run` público bounded. O RUN0
 interno permanece um gate focal separado (`bun check --target run0`). Os leaves

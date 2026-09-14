@@ -22,7 +22,15 @@ enum {
   GPU0_CUDA_FAILURE = 2,
   GPU0_CUDA_SUCCESS = 0,
   GPU0_CUDA_MAX_PTX_BYTES = 16 * 1024 * 1024,
+  GPU0_CUDA_MAX_BENCHMARK_ITERATIONS = 10001,
 };
+
+typedef struct {
+  int64_t h2d_ticks;
+  int64_t dispatch_sync_ticks;
+  int64_t d2h_ticks;
+  int64_t end_to_end_ticks;
+} gpu0_cuda_timing;
 
 typedef int CUresult;
 typedef int CUdevice;
@@ -172,11 +180,95 @@ static bool read_ptx(const char *path, uint8_t **bytes_out, size_t *size_out) {
   return true;
 }
 
+static bool parse_iteration_count(const char *text, unsigned int *value) {
+  if (text == NULL || value == NULL || text[0] == '\0') return false;
+  char *end = NULL;
+  const unsigned long parsed = strtoul(text, &end, 10);
+  if (end == text || end == NULL || *end != '\0' || parsed == 0ul ||
+      parsed > (unsigned long)GPU0_CUDA_MAX_BENCHMARK_ITERATIONS)
+    return false;
+  *value = (unsigned int)parsed;
+  return true;
+}
+
+static bool elapsed_ticks(LARGE_INTEGER start, LARGE_INTEGER end,
+                          int64_t *result) {
+  if (result == NULL || start.QuadPart < 0 || end.QuadPart < start.QuadPart)
+    return false;
+  *result = end.QuadPart - start.QuadPart;
+  return true;
+}
+
+static bool execute_iteration(const gpu0_cuda_api *api, CUfunction function,
+                              CUdeviceptr device_result, int32_t *host_result,
+                              gpu0_cuda_timing *timing) {
+  if (api == NULL || function == NULL || device_result == 0u ||
+      host_result == NULL)
+    return false;
+  *host_result = 0;
+  LARGE_INTEGER start;
+  LARGE_INTEGER after_h2d;
+  LARGE_INTEGER after_dispatch;
+  LARGE_INTEGER after_d2h;
+  if (timing != NULL && !QueryPerformanceCounter(&start)) return false;
+
+  CUresult status =
+      api->cuMemcpyHtoD_v2(device_result, host_result, sizeof(*host_result));
+  if (status != GPU0_CUDA_SUCCESS) {
+    report_cuda("cuMemcpyHtoD_v2", status);
+    return false;
+  }
+  if (timing != NULL && !QueryPerformanceCounter(&after_h2d)) return false;
+
+  void *kernel_parameters[1] = {&device_result};
+  status = api->cuLaunchKernel(function, 1u, 1u, 1u, 1u, 1u, 1u, 0u, NULL,
+                               kernel_parameters, NULL);
+  if (status != GPU0_CUDA_SUCCESS) {
+    report_cuda("cuLaunchKernel", status);
+    return false;
+  }
+  status = api->cuCtxSynchronize();
+  if (status != GPU0_CUDA_SUCCESS) {
+    report_cuda("cuCtxSynchronize", status);
+    return false;
+  }
+  if (timing != NULL && !QueryPerformanceCounter(&after_dispatch)) return false;
+
+  status = api->cuMemcpyDtoH_v2(host_result, device_result,
+                                sizeof(*host_result));
+  if (status != GPU0_CUDA_SUCCESS) {
+    report_cuda("cuMemcpyDtoH_v2", status);
+    return false;
+  }
+  if (*host_result != INT32_C(42)) {
+    (void)fprintf(stderr,
+                  "GPU0 CUDA adapter: result verification failed (got %ld)\n",
+                  (long)*host_result);
+    return false;
+  }
+  if (timing == NULL) return true;
+  if (!QueryPerformanceCounter(&after_d2h) ||
+      !elapsed_ticks(start, after_h2d, &timing->h2d_ticks) ||
+      !elapsed_ticks(after_h2d, after_dispatch,
+                     &timing->dispatch_sync_ticks) ||
+      !elapsed_ticks(after_dispatch, after_d2h, &timing->d2h_ticks) ||
+      !elapsed_ticks(start, after_d2h, &timing->end_to_end_ticks))
+    return false;
+  return true;
+}
+
 int main(int argc, char **argv) {
-  if (argc != 4 || argv == NULL || argv[1] == NULL || argv[2] == NULL ||
+  const bool benchmark = argc == 7 && argv != NULL && argv[4] != NULL &&
+                         strcmp(argv[4], "--benchmark") == 0;
+  unsigned int warmup_count = 0u;
+  unsigned int sample_count = 0u;
+  if ((argc != 4 && !benchmark) || argv == NULL || argv[1] == NULL || argv[2] == NULL ||
       argv[3] == NULL || argv[1][0] == '\0' || argv[2][0] == '\0' ||
-      argv[3][0] == '\0') {
-    report_message("usage: gpu0_cuda_windows.exe <provider.dll> <kernel.ptx> <kernel-name>");
+      argv[3][0] == '\0' ||
+      (benchmark && (!parse_iteration_count(argv[5], &warmup_count) ||
+                     !parse_iteration_count(argv[6], &sample_count) ||
+                     (sample_count % 2u) == 0u))) {
+    report_message("usage: gpu0_cuda_windows.exe <provider.dll> <kernel.ptx> <kernel-name> [--benchmark <warmups> <odd-samples>]");
     return GPU0_CUDA_FAILURE;
   }
 
@@ -188,8 +280,17 @@ int main(int argc, char **argv) {
   CUdeviceptr device_result = 0u;
   uint8_t *ptx = NULL;
   size_t ptx_bytes = 0u;
+  gpu0_cuda_timing *timings = NULL;
+  LARGE_INTEGER performance_frequency = {0};
   int exit_code = GPU0_CUDA_FAILURE;
   bool primary_failure = false;
+
+  if (benchmark &&
+      (!QueryPerformanceFrequency(&performance_frequency) ||
+       performance_frequency.QuadPart <= 0)) {
+    report_message("QueryPerformanceFrequency failed");
+    return GPU0_CUDA_FAILURE;
+  }
 
   library = LoadLibraryA(argv[1]);
   if (library == NULL) {
@@ -270,40 +371,28 @@ int main(int argc, char **argv) {
     goto cleanup;
   }
 
-  status = api.cuMemcpyHtoD_v2(device_result, &host_result,
-                               sizeof(host_result));
-  if (status != GPU0_CUDA_SUCCESS) {
-    report_cuda("cuMemcpyHtoD_v2", status);
-    primary_failure = true;
-    goto cleanup;
-  }
-
-  void *kernel_parameters[1] = {&device_result};
-  status = api.cuLaunchKernel(function, 1u, 1u, 1u, 1u, 1u, 1u, 0u, NULL,
-                              kernel_parameters, NULL);
-  if (status != GPU0_CUDA_SUCCESS) {
-    report_cuda("cuLaunchKernel", status);
-    primary_failure = true;
-    goto cleanup;
-  }
-
-  status = api.cuCtxSynchronize();
-  if (status != GPU0_CUDA_SUCCESS) {
-    report_cuda("cuCtxSynchronize", status);
-    primary_failure = true;
-    goto cleanup;
-  }
-
-  status = api.cuMemcpyDtoH_v2(&host_result, device_result,
-                               sizeof(host_result));
-  if (status != GPU0_CUDA_SUCCESS) {
-    report_cuda("cuMemcpyDtoH_v2", status);
-    primary_failure = true;
-    goto cleanup;
-  }
-  if (host_result != INT32_C(42)) {
-    (void)fprintf(stderr, "GPU0 CUDA adapter: result verification failed (got %ld)\n",
-                  (long)host_result);
+  if (benchmark) {
+    timings = (gpu0_cuda_timing *)calloc(sample_count, sizeof(*timings));
+    if (timings == NULL) {
+      report_message("benchmark sample allocation failed");
+      primary_failure = true;
+      goto cleanup;
+    }
+    for (unsigned int index = 0u; index < warmup_count; index += 1u) {
+      if (!execute_iteration(&api, function, device_result, &host_result, NULL)) {
+        primary_failure = true;
+        goto cleanup;
+      }
+    }
+    for (unsigned int index = 0u; index < sample_count; index += 1u) {
+      if (!execute_iteration(&api, function, device_result, &host_result,
+                             &timings[index])) {
+        primary_failure = true;
+        goto cleanup;
+      }
+    }
+  } else if (!execute_iteration(&api, function, device_result, &host_result,
+                                NULL)) {
     primary_failure = true;
     goto cleanup;
   }
@@ -340,7 +429,23 @@ cleanup:
     exit_code = GPU0_CUDA_FAILURE;
   }
   if (primary_failure) exit_code = GPU0_CUDA_FAILURE;
-  if (exit_code == GPU0_CUDA_SUCCESS)
+  if (exit_code == GPU0_CUDA_SUCCESS && benchmark) {
+    (void)fprintf(stdout,
+                  "{\"schema\":\"w-gpu0-cuda-timing-1\",\"frequency\":%lld,\"warmups\":%u,\"samples\":[",
+                  (long long)performance_frequency.QuadPart, warmup_count);
+    for (unsigned int index = 0u; index < sample_count; index += 1u) {
+      if (index != 0u) (void)fputc(',', stdout);
+      (void)fprintf(stdout,
+                    "{\"result\":42,\"h2d\":%lld,\"dispatchSync\":%lld,\"d2h\":%lld,\"endToEnd\":%lld}",
+                    (long long)timings[index].h2d_ticks,
+                    (long long)timings[index].dispatch_sync_ticks,
+                    (long long)timings[index].d2h_ticks,
+                    (long long)timings[index].end_to_end_ticks);
+    }
+    (void)fputs("],\"result\":42}\n", stdout);
+  }
+  free(timings);
+  if (exit_code == GPU0_CUDA_SUCCESS && !benchmark)
     (void)fprintf(stdout, "GPU0 CUDA result: 42\n");
   return exit_code;
 }

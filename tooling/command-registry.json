@@ -3046,7 +3046,8 @@
             "tooling/executable-benchmark.test.mjs",
             "tooling/executable-benchmark-runner.test.mjs",
             "tooling/executable-benchmark-docs.test.mjs",
-            "tooling/benchmark-cli.test.mjs"
+            "tooling/benchmark-cli.test.mjs",
+            "tooling/gpu0-device-linkage.test.mjs"
           ]
         },
         {

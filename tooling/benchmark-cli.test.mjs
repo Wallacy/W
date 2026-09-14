@@ -8,6 +8,10 @@ import { benchmarkUsage, consumeLocalResult, main, parseBenchmarkCliArguments, v
 test("benchmark facade exposes update and preserves bounded run arguments", () => {
   assert.deepEqual(parseBenchmarkCliArguments(["list"]), { command: "list" });
   assert.deepEqual(parseBenchmarkCliArguments(["check"]), { command: "check" });
+  assert.deepEqual(parseBenchmarkCliArguments(["gpu0"]), { command: "gpu0", arguments: [] });
+  assert.deepEqual(parseBenchmarkCliArguments(["gpu0", "run", "--samples", "21"]), {
+    command: "gpu0", arguments: ["run", "--samples", "21"],
+  });
   assert.deepEqual(parseBenchmarkCliArguments(["prune"]), { command: "prune" });
   assert.throws(() => parseBenchmarkCliArguments(["prune", "extra"]), /does not accept positional arguments or options/u);
   assert.deepEqual(parseBenchmarkCliArguments(["update", "benchmarks/results/w.json", "benchmarks/results/c.json"]), {
@@ -33,7 +37,8 @@ test("benchmark facade exposes update and preserves bounded run arguments", () =
   assert.throws(() => parseBenchmarkCliArguments(["run", "--target", "process-entry0", "--language", "w"]), /unsupported target/);
   assert.throws(() => parseBenchmarkCliArguments(["run", "--run-samples", "1003"]), /outside its allowed range/);
   assert.throws(() => parseBenchmarkCliArguments(["record", "benchmarks/results/local.json"]), /unknown command/);
-  assert.match(benchmarkUsage(), /<list\|run\|validate\|update\|prune\|check>/u);
+  assert.match(benchmarkUsage(), /<list\|run\|gpu0\|validate\|update\|prune\|check>/u);
+  assert.match(benchmarkUsage(), /gpu0 \[run\|check\]/u);
   assert.match(benchmarkUsage(), /update <result\.json>\.\.\./u);
   assert.match(benchmarkUsage(), /prune/u);
   assert.match(benchmarkUsage(), /process-handler-lifecycle/u);

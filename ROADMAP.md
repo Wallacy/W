@@ -26,7 +26,7 @@ not in this queue.
 
 | Rank | Increment | Completion boundary | What it enables |
 | ---: | --- | --- | --- |
-| 1 | GPU kernel Hello sentinel | One W host plus one target-neutral GPU function writes a known payload to a device-visible result, launches and joins through an explicit domain, and verifies it on the available GPU; device and host artifacts and end-to-end/dispatch/memory metrics stay separate | Tests CPU/GPU partitioning and MLIR GPU applicability before scheduler and memory abstractions harden |
+| 1 | GPU kernel Hello sentinel | Canonical `accelerator.module` W source crosses verified W IR into separate host/device artifacts, then launches and joins through a supported provider and verifies a known payload on the available GPU; end-to-end, dispatch, and transfer metrics stay separate | Tests CPU/GPU partitioning and MLIR GPU applicability before scheduler and memory abstractions harden |
 | 2 | Capacity-independent task storage | Replace the seed one-to-four logical-task arrays with measured caller-owned records; logical task count and physical worker capacity remain separate; configured exhaustion fails before effects | Removes an implementation ceiling before scheduler generalization |
 | 3 | Structured cancellation and outcomes | Request, propagation, cleanup drain, typed failure, panic boundary, and deterministic outcome publication execute through the same native route | A usable structured-concurrency core rather than successful scalar jobs only |
 | 4 | Provider-neutral scheduler core | Target-neutral ready/task/frame state lowers once; Windows and Linux providers supply only platform primitives and cached topology/capacity facts | Portable concurrency without a platform-shaped language ABI |
@@ -55,10 +55,16 @@ read-only section while preserving separate executable and writable sections.
 The sub-1-KiB target remains an optimization opportunity, not a completion
 gate.
 
-The next increment is rank 1, the GPU kernel Hello sentinel. Only then does the
-queue generalize task storage, cancellation, and scheduling. This keeps early
-size, startup, target partitioning, and GPU-applicability evidence available
-while those later representations are still cheap to change. W-1597 remains a legality
+W-1601 now supplies the target-neutral two-function/seven-operation GPU0
+witness, separate host/device MLIR, GPU/NVVM/PTX lowering, actual result `42`
+on the available RTX A400, and a diagnostic-only in-process metric snapshot.
+The recipe is mixed MLIR 23.1.1 plus Clang 22 and is not source-backed W or a W
+runtime/provider. Rank 1 therefore remains open until the canonical
+`accelerator.module` source route supplies the same artifact, provider, launch,
+join, and result evidence. Only then does the queue generalize task storage,
+cancellation, and scheduling. This keeps early target partitioning and GPU
+applicability evidence available while those later representations are still
+cheap to change. W-1597 remains a legality
 certificate only; target policy must still combine it with observability and
 cost facts and compare any direct-call artifact with the W-1600 physical
 reference.

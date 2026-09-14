@@ -123,6 +123,23 @@ and its private execution descriptor uses `transient-internal`. The field
 identifies the measured subject or intended subject. It does not identify
 readiness or completeness.
 
+### GPU0 diagnostic lane
+
+GPU0 deliberately stays outside `executable-catalog.json`: the current C23
+semantic witness and CUDA adapter are not a source-backed W executable.
+[`gpu0-device-linkage-catalog.json`](gpu0-device-linkage-catalog.json) keeps one
+current native-Windows diagnostic snapshot, and [`GPU0.md`](GPU0.md) is its
+concise human projection. It records temporary host/device artifact sizes and
+nearest-rank p50/p95 for in-process H2D, dispatch-plus-synchronize, D2H, and
+complete round trip. Context, module lookup, and device allocation happen
+before warmup and timing. No binary or raw run history is retained.
+
+Use `bun check --target gpu0` for correctness and `bun benchmark gpu0` to
+refresh the snapshot when CUDA is available. A missing provider produces a
+skip and never fabricates a result. These measurements are compiler-linkage
+diagnostics only; they cannot enter W/C/Rust or product rankings until the
+canonical W `accelerator.module` source route exists.
+
 ### M3b executable candidate evidence
 
 [`EXECUTABLES.md`](EXECUTABLES.md) is the generated human-readable projection

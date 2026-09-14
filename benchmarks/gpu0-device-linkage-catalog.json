@@ -1,0 +1,84 @@
+{
+  "$schema": "w-gpu0-device-linkage-catalog-1",
+  "version": 1,
+  "status": "experimental-not-source-backed-w",
+  "identity": {
+    "platform": "windows-x64",
+    "provider": "cuda-driver",
+    "device": "NVIDIA RTX A400",
+    "computeCapability": "8.6",
+    "target": "sm_86",
+    "driverVersion": "581.42",
+    "mlirVersion": "23.1.1",
+    "clangVersion": "22.1.8",
+    "recipe": "tooling/check-gpu0-cuda-windows.mjs",
+    "recipeDigest": "sha256:078d4021026a7f99eba70f66e6e2f96767d9a4c505265b1c50942829dd49a227",
+    "adapterSourceDigest": "sha256:8430f3f88c0a5a858de2c2f88b4a4b863ae4c1aeec5b439812fe79fc8583100d",
+    "gpu0CoreDigest": "sha256:e81973baa387d6dbb47f78fa77d683cbc2092d83a0ce9baa896fc30311cae301"
+  },
+  "correctness": {
+    "expected": 42,
+    "observed": 42
+  },
+  "protocol": {
+    "clock": "QueryPerformanceCounter",
+    "warmups": 101,
+    "samples": 1001,
+    "aggregation": "nearest-rank",
+    "contextModuleAllocationOutsideTiming": true
+  },
+  "artifacts": [
+    {
+      "kind": "host-adapter",
+      "sizeBytes": 14336,
+      "digest": "sha256:183a4992c4b1bd7dbfe9fe11184c9ef0021b18bdb5200a6a87abb2b28d791980"
+    },
+    {
+      "kind": "host-mlir",
+      "sizeBytes": 790,
+      "digest": "sha256:e8eeaf22c7f76d9113f66d9cacbfe406e4db319135296d6da3e7217d9c245f81"
+    },
+    {
+      "kind": "device-mlir",
+      "sizeBytes": 400,
+      "digest": "sha256:df31bf7daa5348206c66b3fb22024fca62e6f97dca84530834e30d22d3a6246f"
+    },
+    {
+      "kind": "device-ptx",
+      "sizeBytes": 502,
+      "digest": "sha256:12b2dbd2a4b102a13fd7dba30c824b3640fcdce7a642ed23f1705d1642fd1c24"
+    }
+  ],
+  "metrics": [
+    {
+      "id": "h2d",
+      "unit": "ns",
+      "p50": 19000,
+      "p95": 19900
+    },
+    {
+      "id": "dispatch-sync",
+      "unit": "ns",
+      "p50": 20100,
+      "p95": 20800
+    },
+    {
+      "id": "d2h",
+      "unit": "ns",
+      "p50": 9900,
+      "p95": 24300
+    },
+    {
+      "id": "end-to-end",
+      "unit": "ns",
+      "p50": 49100,
+      "p95": 63500
+    }
+  ],
+  "boundaries": {
+    "sourceBackedW": false,
+    "wRuntimeOrProvider": false,
+    "homogeneousPinnedToolchain": false,
+    "productRanking": false
+  }
+}

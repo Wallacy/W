@@ -249,6 +249,7 @@ O corpus compara, no mínimo:
 - explicit process-root plus task-entry MLIR composition against process-input loss, target-shaped wrappers, implicit provider linkage, and premature public execution claims.
 - target-neutral TASKLIFE0 lifecycle reduction against scheduler substitution, cancellation races, cleanup/commit reordering, and unproved task ABI or performance claims.
 - bounded dual-target process/parallel linkage against direct-call substitution, CRT fallback, hidden runtime input, target conflation, and premature public or benchmark claims.
+- bounded GPU0 target-neutral semantic and available CUDA execution against source-backed W claims, provider/runtime conflation, homogeneous toolchains, and premature public product support.
 
 ### 1.1 Cobertura de substituições
 
@@ -279,7 +280,7 @@ ledger, uma tarefa, a forma vigente, ao menos uma alternativa e quatro medidas.
 O checker valida a ligação e o índice publica a razão exata. O comando isolado
 sem flag permite inspecionar uma edição parcial. O gate do repository usa
 `--require-complete` e falha quando qualquer requisito não possui caso. R0 cobre
-os 156 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
+os 157 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
 os estudos foram executados. Ela também não substitui a auditoria do ledger
 mantida por [`tooling/design-freeze-audit.json`](tooling/design-freeze-audit.json).
 
@@ -7916,6 +7917,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1598 | explicit process-root and task-entry MLIR composition | PARMLIR0 emits one bounded process-root module that preserves runtime `Arguments.isEmpty` through a direct scalar prelude and into one task argument before lexical join. Caller-owned transactional measure, emit, and verify operations publish separate counts, bytes, and digest records. The target-private task wrapper is distinct from the process root. The module declares unresolved provider-owned launch and join symbols and keeps the ordinary process selector direct-only. Pinned MLIR/LLVM 23.1.1 parse, lower, and translate checks produce a Linux x86-64 PIC ELF object. No provider linkage, public execution, benchmark, performance, or direct-call selection claim is made. | `source-backed-current` only for the bounded process-root/task-wrapper composition, separate transactional measure/emit/verify APIs, explicit unresolved launch/join declarations, direct-only ordinary process selection, and MLIR/LLVM 23.1.1 Linux ELF object evidence. Provider linkage, public execution, benchmark results, performance, and direct-call selection remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1599 | TASKLIFE0 target-neutral fixed caller-owned lifecycle reducer and oracle | TASKLIFE0 provides a target-neutral fixed caller-owned reducer and oracle for bounded logical task lifecycles. It replays task and scope states, publishes tagged success, error, and canceled outcomes, preserves settled-before-cancel precedence, enforces cleanup before commit, drains siblings after fail-fast cancellation, arbitrates lexical/input errors, and orders joins and releases lexically. Transaction and measurement snapshots are replayed and digest-checked. The one-to-four task and 128-event ceilings are seed evidence only. No source-HIR integration, scheduler, provider, parallel runtime, task ABI, benchmark, or performance claim is made. | `source-backed-current` only for the fixed TASKLIFE0 state reducer, cancellation and outcome arbitration, cleanup/commit and join/release barriers, exact caller-owned snapshots, independent replay verification, and focused C23 evidence. Source-HIR integration, scheduler/provider linkage, parallel runtime, task ABI, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1600 | bounded CRT-free process/parallel provider linkage on Windows and Linux | PARLINK1 binds the W-1598 process root and private task entry to explicit target adapters. Windows x64 uses Kernel32 runtime input, `CreateThread`, lexical wait, handle close, and result validation. Linux x86-64 reads the initial process stack and uses raw `clone`, `wait4`, and exit syscalls with a fixed private provider stack. Both routes preserve empty/nonempty runtime input, execute the emitted task, and fail closed through exit 3 under a gate-only injected provider fault. They link without CRT/default libraries and execute with empty stdout/stderr. The four-slot frame and Linux child stack are private seed-provider evidence. | `source-backed-current` only for the unchanged bounded source-to-provider composition, Windows x64 CRT-free execution, Windows-host cross-link plus Linux/WSL CRT-free execution, empty/nonempty runtime-input cases, explicit launch/join, task-result validation, and injected provider-failure exit. Public `w build`/`w run`, general argument decoding, scheduler/task ABI/storage, retained artifacts, benchmarks, timing, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1601 | bounded GPU0 target-neutral semantic witness and available CUDA execution | GPU0 is a target-neutral, provider-free C23 semantic seed with exactly two functions and seven operations. It emits separate host/device MLIR artifacts and keeps host/device identities, lifecycle, dispatch/join/memory metrics, alias, capacity, range, effect, forgery, and transactional failure checks separate. The focused Windows gate parses the artifacts with pinned MLIR/LLVM 23.1.1, lowers GPU/NVVM, translates LLVM dialect, and uses system Clang 22.1.8 for `nvptx64` PTX. A dynamic `nvcuda.dll` Driver API adapter launches the kernel on NVIDIA RTX A400 (`sm_86`), returns and verifies 42, and fails closed for a missing provider or kernel. A separate diagnostic-only catalog records temporary artifact sizes and in-process phase distributions. This is compiler-lifecycle evidence, not source-backed W, a W runtime/provider, public product, supported GPU ABI, homogeneous production support, or a product/language ranking. | `implementation-evidence-gap` for the W source-to-provider product route. The C23 GPU0 witness, available RTX A400 CUDA run, and diagnostic timings do not supply canonical `accelerator.module` source, verified W IR, artifact publication, or supported provider launch/join/result evidence. `benchmarkDisposition: compiler-lifecycle`; the diagnostic catalog cannot be promoted as W product performance. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -12691,3 +12693,41 @@ capacity-independent storage, stable ABI, retained product, benchmark, or
 performance advantage. A later optimizer may use W-1597 plus target cost and
 observability facts, but it must compare its direct-call artifact with this
 physical route.
+
+#### W-1601 — bounded GPU0 target-neutral semantic witness and available CUDA execution
+
+W-1601 records the next accelerator boundary after the physical parallel
+reference. GPU0 is a C23 caller-owned semantic seed, not a W source route. Its
+fixed program has two functions and seven operations. The host root contains
+the six allocation, copy, launch, join, copy, and verification operations. The
+device kernel contains one store of `42` into a device result range.
+
+The core emits separate host and device MLIR records. It keeps artifact
+identity, lifecycle phases, dispatch, join, memory, and end-to-end metrics
+separate. Its focused C23 tests preserve output on invalid effects, malformed
+identifiers, range and capacity faults, aliases, forged records, and changed
+artifact bytes. The core has no target, provider, pointer, queue, MLIR handle,
+or ABI field, and it does not execute a GPU.
+
+The available Windows gate parses both artifacts with pinned MLIR/LLVM 23.1.1,
+attaches the detected NVVM target, lowers GPU through NVVM and LLVM, translates
+the LLVM dialect, and uses system Clang 22.1.8 to produce `nvptx64` PTX. A
+dynamic adapter loads `nvcuda.dll` at runtime, resolves the CUDA Driver API,
+launches one block and one thread, copies the result back, and verifies `42`.
+The observed device is NVIDIA RTX A400 (`sm_86`). Missing-provider and
+missing-kernel cases fail closed with exit `2`; the successful run prints
+`GPU0 CUDA result: 42`.
+
+The separate GPU0 diagnostic catalog measures 101 warmups and 1001 in-process
+samples after context, module, function, and device allocation setup. It keeps
+H2D, dispatch-plus-synchronize, D2H, and end-to-end distributions separate and
+retains only their nearest-rank p50/p95 summaries plus temporary artifact
+sizes and digests. It does not enter the public executable catalog or compare
+W, C, and Rust.
+
+This remains compiler-lifecycle evidence only. It is not source-backed W
+behavior, a W runtime or provider, a public product, a supported GPU ABI,
+homogeneous production support, or a W product performance result. Rank 1 remains open
+until canonical `accelerator.module` source reaches verified W IR, published
+host and device artifacts, and a supported provider launch, join, and result
+route.

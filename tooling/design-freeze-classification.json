@@ -23,10 +23,10 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:7867ffbc9814d05a1fbf04ce3381de74bff791e71466fcd25549711448822e0d",
-    "count": 1600,
+    "sha256": "sha256:75a250b7349b425d89d104582b98915c929855139675cc009faccc845de7cc19",
+    "count": 1601,
     "first": "W-001",
-    "last": "W-1600"
+    "last": "W-1601"
   },
   "epochs": [
     {
@@ -61,7 +61,7 @@
     }
   ],
   "preservedLegacyCoverage": {
-    "source": 266,
+    "source": 267,
     "oracle": 418,
     "explicit": 8,
     "overlap": 57
@@ -21850,7 +21850,7 @@
         "path": "DESIGN.md",
         "section": "26",
         "heading": "## 26. Plano de implementação",
-        "sectionDigest": "sha256:1737dd7a819de0d3d81054e4f3464a68b5cf04378c4a32c5b4c375af32049627"
+        "sectionDigest": "sha256:0dbf3b0a3bf0613533b833e652bdce83d1727b6014eeb1ae57b8157fcea90634"
       },
       "evidence": [],
       "reason": "W-659 (body de entry, sha256:f66ab57406ddb51303f9190376daf72d8f538bd7bd8adfbf9992ae3d7223e74e) has no executable witness for component implementation-plan. The checked current contract is DESIGN.md §26 / 26. Plano de implementação.",
@@ -50956,7 +50956,7 @@
         },
         {
           "path": "compiler/seed-c/cli/run.c",
-          "sha256": "sha256:eed19f96c663ef13deabca88aa7ad4c8c196939752427f8294a2127f1234b57d",
+          "sha256": "sha256:513b2a44bd5a7c5cbdcdc08d441442dd9840ba5f854a4890c6c4d053571427d5",
           "symbol": "w_seed_run_execute",
           "claim": "The public runner invokes the pinned Linux native recipe with private temporary files and cleanup."
         },
@@ -51045,7 +51045,7 @@
         },
         {
           "path": "compiler/seed-c/cli/run.c",
-          "sha256": "sha256:eed19f96c663ef13deabca88aa7ad4c8c196939752427f8294a2127f1234b57d",
+          "sha256": "sha256:513b2a44bd5a7c5cbdcdc08d441442dd9840ba5f854a4890c6c4d053571427d5",
           "symbol": "run_logical_source_id",
           "claim": "The public runner derives an opaque basename source identity."
         },
@@ -51683,13 +51683,13 @@
         },
         {
           "path": "compiler/seed-c/cli/run.c",
-          "sha256": "sha256:eed19f96c663ef13deabca88aa7ad4c8c196939752427f8294a2127f1234b57d",
+          "sha256": "sha256:513b2a44bd5a7c5cbdcdc08d441442dd9840ba5f854a4890c6c4d053571427d5",
           "symbol": "run_windows_native",
           "claim": "The Windows runner uses explicit tool paths, CreateProcessW, bounded temporary files, and cleanup."
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197",
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5",
           "symbol": "main",
           "claim": "The native gate builds and executes the bounded Windows fixtures and negative cases."
         },
@@ -52012,7 +52012,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurant-comparison-composition",
           "claim": "The Windows gate checks the same bounded native comparison behavior.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52089,7 +52089,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantBoolShortCircuitFixture",
           "claim": "The Windows gate checks the same exact short-circuit stdout through the native Windows route.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52172,7 +52172,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantScalarIfFixture",
           "claim": "The public Windows gate checks exact scalar-if stdout through the native Windows route.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52922,7 +52922,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "processInputFixture",
           "claim": "The pinned public gate runs both fixtures from source and from the same built PE across no-argument, empty-argument, and payload cases.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         }
       ],
       "benchmarkDisposition": "deferred",
@@ -53081,7 +53081,7 @@
           "path": "benchmarks/executable-catalog.json",
           "symbol": "restaurant-nested-scalar-if",
           "claim": "The executable catalog records the W source and exact oracle as public-end-to-end and source/oracle-ready with timing deferred.",
-          "sha256": "sha256:80a2b48d2cb9f0950a49e45a7387a88b030a0e7dd5d7deae2667116d9af47985"
+          "sha256": "sha256:ac23042e3a4ec03125c0ecfab358042820aafeacc9dfc5e862d95dd5aa418825"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
@@ -53146,7 +53146,7 @@
           "path": "compiler/seed-c/cli/run.c",
           "symbol": "w_seed_run_compile",
           "claim": "The public compiler emits separate program and WRT0 objects, links them directly, and removes private intermediates.",
-          "sha256": "sha256:eed19f96c663ef13deabca88aa7ad4c8c196939752427f8294a2127f1234b57d"
+          "sha256": "sha256:513b2a44bd5a7c5cbdcdc08d441442dd9840ba5f854a4890c6c4d053571427d5"
         },
         {
           "path": "tooling/check-w-run.mjs",
@@ -53170,7 +53170,7 @@
           "path": "compiler/seed-c/CMakeLists.txt",
           "symbol": "W_MLIR0_LINUX_LINK_DRIVER",
           "claim": "The opt-in Linux build requires an absolute linker that advertises elf_x86_64 support.",
-          "sha256": "sha256:f436f18aec5014b20d84832b405dbd5c52a5e0bd422f65b5f91c8f8c433fcde3"
+          "sha256": "sha256:1e915460d93cc6c13a2e6df7a854a0fa6e961fc67f881739305ef04c909e80ac"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53241,7 +53241,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantRuntimeDivremFixture",
           "claim": "The native Windows runner proves exact output for the same source witness.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53330,7 +53330,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantUnaryNegateFixture",
           "claim": "The native Windows runner proves exact output for the same source.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53401,7 +53401,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantUnaryInterpolationFixture",
           "claim": "The native Windows public runner executes the same direct source witness.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53478,7 +53478,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantMutationFixture",
           "claim": "The native Windows public runner executes the mutation witness.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53549,7 +53549,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantConditionalMutationFixture",
           "claim": "The native Windows public runner executes the same source witness.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53614,7 +53614,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantBoolMutationFixture",
           "claim": "The native Windows public runner executes the same witness.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53691,7 +53691,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantBranchMutationFixture",
           "claim": "The native Windows public runner executes the same witness.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53774,7 +53774,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantMultiBranchMutationFixture",
           "claim": "The native Windows public runner executes the same witness.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53951,7 +53951,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantWhileFixture",
           "claim": "The pinned native Windows 23.1.1 runner executes exact Served 3 output.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54075,7 +54075,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantEnumFixture",
           "claim": "The pinned Windows 23.1.1 gate executes restaurant-enum.w with exact output, empty stderr, and zero exit.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54134,7 +54134,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantWmoFixture",
           "claim": "The pinned Windows native gate executes the same-module product closure with exact output.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         },
         {
           "path": "tooling/check-w-run.mjs",
@@ -54211,7 +54211,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "processArgumentsCountFixture",
           "claim": "The pinned Windows gate executes one built PE for zero, empty, multiple, and exactly 256 user arguments with exact output and exit status.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         }
       ],
       "benchmarkDisposition": "deferred",
@@ -54288,7 +54288,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "processArgumentsCountFixture",
           "claim": "The pinned Windows gate proves the branch and runtime count cases on the canonical flat-import fixture.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         }
       ],
       "benchmarkDisposition": "deferred",
@@ -54347,13 +54347,13 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "processArgumentsCountFixture",
           "claim": "The Windows gate builds the canonical flat-import process fixture and checks exact runtime outputs.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "processArgumentsCountSelectiveImportFixture",
           "claim": "The Windows gate compares complete PE bytes for the selective-import witness and checks the same exact runtime outputs.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         }
       ],
       "benchmarkDisposition": "deferred",
@@ -54479,7 +54479,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantWhileMultiFixture",
           "claim": "The native Windows 23.1.1 route executes the same exact source and output.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54580,7 +54580,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantWhilePostFixture",
           "claim": "The native Windows route executes the same post-loop fixture and Final 9 oracle.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54872,7 +54872,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "resolved local-module graph fixture",
           "claim": "The Windows public gate runs and builds the graph and rejects a private target.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         },
         {
           "path": "tooling/check-w-run.mjs",
@@ -54949,7 +54949,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurant async join fixture",
           "claim": "The Windows public gate builds and executes the source with exact output and empty stderr.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -55014,7 +55014,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurant async join fixture",
           "claim": "The Windows public route builds and runs the explicit async fixture with exact output.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -55085,7 +55085,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurant async yield fixture",
           "claim": "The Windows public route executes the bounded source with exact output and empty stderr.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -55162,7 +55162,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurant async yield fixture",
           "claim": "The Windows public route executes the two-yield source with exact output and empty stderr.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -55265,7 +55265,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurant async yield fixture",
           "claim": "The Windows public route executes the helper-bearing source with exact output and empty stderr.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -55585,13 +55585,13 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantMainDispatchFixture",
           "claim": "Public Windows w run and w build execute exact output.",
-          "sha256": "sha256:446bb2a6d3ad6970f53cae6c49dfb3687d2d3af2a6c2721ba552f8594cd13197"
+          "sha256": "sha256:05702cb34429833b9872e3a7f288aed679e960ae08882cefb278e17ca80da3f5"
         },
         {
           "path": "benchmarks/executable-catalog.json",
           "symbol": "restaurant-main-dispatch",
           "claim": "The executable catalog owns the source, oracle, blockers, and live measurement lane.",
-          "sha256": "sha256:80a2b48d2cb9f0950a49e45a7387a88b030a0e7dd5d7deae2667116d9af47985"
+          "sha256": "sha256:ac23042e3a4ec03125c0ecfab358042820aafeacc9dfc5e862d95dd5aa418825"
         },
         {
           "path": "tooling/platform-support.json",
@@ -56395,6 +56395,65 @@
           "claim": "The focused gate links and executes exact Windows and Linux/WSL success and provider-failure cases."
         }
       ]
+    },
+    {
+      "decisionId": "W-1601",
+      "summary": "bounded GPU0 target-neutral semantic witness and available CUDA execution",
+      "canonicalClaim": "GPU0 is a target-neutral, provider-free C23 semantic seed with exactly two functions and seven operations. It emits separate host/device MLIR artifacts and keeps host/device identities, lifecycle, dispatch/join/memory metrics, alias, capacity, range, effect, forgery, and transactional failure checks separate. The focused Windows gate parses the artifacts with pinned MLIR/LLVM 23.1.1, lowers GPU/NVVM, translates LLVM dialect, and uses system Clang 22.1.8 for `nvptx64` PTX. A dynamic `nvcuda.dll` Driver API adapter launches the kernel on NVIDIA RTX A400 (`sm_86`), returns and verifies 42, and fails closed for a missing provider or kernel. A separate diagnostic-only catalog records temporary artifact sizes and in-process phase distributions. This is compiler-lifecycle evidence, not source-backed W, a W runtime/provider, public product, supported GPU ABI, homogeneous production support, or a product/language ranking.",
+      "claimDigest": "sha256:445bb89a5002ee31e39ba61aadfec2171b1a847875c1e5da5197a514dbb1688c",
+      "category": "implementation-evidence-gap",
+      "basis": "current-ledger-claim-without-executable-witness",
+      "authorityRef": {
+        "kind": "design-contract",
+        "path": "DESIGN.md",
+        "section": "26.4.1.82",
+        "heading": "#### 26.4.1.82 W-1601 — bounded target-neutral GPU0 witness and CUDA linkage evidence (Current design; implementation-evidence-gap)",
+        "sectionDigest": "sha256:8e25ece5255e5a9b6339e11a4df2f3f12aac82e22006907a9858aaa367892f45"
+      },
+      "evidence": [],
+      "gap": {
+        "component": "gpu-source-to-provider-product-route",
+        "gate": "DESIGN.md §26.4.1.82 / 26.4.1.82 W-1601 — bounded target-neutral GPU0 witness and CUDA linkage evidence (Current design; implementation-evidence-gap)",
+        "missingEvidence": [
+          "canonical-accelerator-module-source",
+          "frontend-and-verified-w-ir-device-records",
+          "public-host-and-device-artifact-route",
+          "supported-w-provider-launch-join-result",
+          "homogeneous-pinned-production-toolchain"
+        ]
+      },
+      "stopCondition": "W-1601 closes gpu-source-to-provider-product-route at gate DESIGN.md §26.4.1.82 / 26.4.1.82 W-1601 — bounded target-neutral GPU0 witness and CUDA linkage evidence (Current design; implementation-evidence-gap) only after canonical-accelerator-module-source, frontend-and-verified-w-ir-device-records, public-host-and-device-artifact-route, supported-w-provider-launch-join-result, and homogeneous-pinned-production-toolchain evidence is current.",
+      "reason": "W-1601 (bounded GPU0 target-neutral semantic witness and available CUDA execution, sha256:445bb89a5002ee31e39ba61aadfec2171b1a847875c1e5da5197a514dbb1688c) remains an implementation-evidence gap in component gpu-source-to-provider-product-route at gate DESIGN.md §26.4.1.82 / 26.4.1.82 W-1601 — bounded target-neutral GPU0 witness and CUDA linkage evidence (Current design; implementation-evidence-gap). The target-neutral C23 witness, CUDA result 42, and diagnostic timings do not prove the canonical W source-to-provider product route.",
+      "selection": "explicit-ledger-id",
+      "basisRef": {
+        "kind": "ledger-row",
+        "path": "RATIONALE.md",
+        "section": "3. Ledger",
+        "decisionId": "W-1601",
+        "claimDigest": "sha256:445bb89a5002ee31e39ba61aadfec2171b1a847875c1e5da5197a514dbb1688c"
+      },
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_gpu0.c",
+          "symbol": "w_seed_gpu0_verify",
+          "claim": "The target-neutral verifier re-derives the bounded semantic records, artifacts, lifecycle, and exact result.",
+          "sha256": "sha256:e81973baa387d6dbb47f78fa77d683cbc2092d83a0ce9baa896fc30311cae301"
+        },
+        {
+          "path": "tooling/check-gpu0-cuda-windows.mjs",
+          "symbol": "flattenKernelModule",
+          "claim": "The experimental gate lowers exactly one GPU0 device kernel and executes it through the available CUDA Driver provider.",
+          "sha256": "sha256:078d4021026a7f99eba70f66e6e2f96767d9a4c505265b1c50942829dd49a227"
+        },
+        {
+          "path": "benchmarks/gpu0-device-linkage-catalog.json",
+          "symbol": "metrics",
+          "claim": "The isolated diagnostic catalog records temporary artifact sizes and in-process phase summaries without product ranking.",
+          "sha256": "sha256:786ebccbff7a98cab9766e5b4ec4b961d2b3c517f1a711afbea98c4e7cbc2668"
+        }
+      ],
+      "benchmarkDisposition": "compiler-lifecycle",
+      "benchmarkEvidence": "A diagnostic-only RTX A400 snapshot records 101 warmups and 1001 in-process H2D, dispatch-sync, D2H, and end-to-end samples. It is not source-backed W or product/language ranking evidence."
     }
   ],
   "auditSamples": {
