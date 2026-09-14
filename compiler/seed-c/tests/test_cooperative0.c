@@ -141,6 +141,30 @@ static bool test_cooperative_fixture(void) {
         !contains_bytes(normal_artifact, normal_result.mlir.written.mlir_bytes,
                         "yield"));
 
+  /* Product-policy callers may explicitly request the independently verified
+   * cooperative profile without making it the default for an elidable source.
+   * Native0 owns source-to-HIR selection; MLIR0 still owns target projection. */
+  w_seed_native0_input cooperative_native_input = native_input;
+  cooperative_native_input.artifact_kind =
+      W_SEED_MLIR0_ARTIFACT_COOPERATIVE_EXECUTABLE;
+  w_seed_native0_result cooperative_native_result;
+  CHECK(w_seed_native0_run(
+            &cooperative_native_input, &storage,
+            &(w_seed_native0_output){cooperative_windows_mlir,
+                                     sizeof(cooperative_windows_mlir)},
+            &cooperative_native_result) == W_SEED_NATIVE0_OK);
+  CHECK(cooperative_native_result.mlir.written.mlir_bytes >
+            normal_result.mlir.written.mlir_bytes &&
+        contains_bytes(cooperative_windows_mlir,
+                       cooperative_native_result.mlir.written.mlir_bytes,
+                       W_SEED_MLIR0_COOPERATIVE_EXECUTABLE_SCHEMA_VERSION) &&
+        contains_bytes(cooperative_windows_mlir,
+                       cooperative_native_result.mlir.written.mlir_bytes,
+                       "func.call @w_seed_cooperative_core()") &&
+        contains_bytes(cooperative_windows_mlir,
+                       cooperative_native_result.mlir.written.mlir_bytes,
+                       W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS));
+
   (void)memset(artifact, 0xa1, sizeof(artifact));
   (void)memset(stdout_bytes, 0xa2, sizeof(stdout_bytes));
   (void)memset(trace, 0xa3, sizeof(trace));

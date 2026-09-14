@@ -39277,6 +39277,14 @@ stdout. This is bounded CRT-free Windows-to-Linux compilation evidence for
 this exact product, not a claim that the general compiler, SDK/sysroot
 packaging, or every supported host-target edge is complete.
 
+Native0 accepts this artifact kind only when an internal product-policy caller
+requests it explicitly; that request selects the cooperative HIR profile before
+lowering. Ordinary public `w run`/`w build` continues to request the normal
+executable artifact, so W-1582 may erase provably unobservable Task/yield state.
+The compiler must not force the cooperative state machine merely to expose this
+evidence path. Public promotion waits for a non-elidable case or an explicit
+runtime/provider policy with independently specified semantics.
+
 Target coverage is not inferred from locally available machines. Every
 language feature defaults to every target for which it is applicable. A target
 may omit a feature only with an explicit target-inapplicability rationale and

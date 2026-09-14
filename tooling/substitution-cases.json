@@ -7398,6 +7398,11 @@
           "claim": "The Windows and Linux leaves reuse the same cooperative core and add only target-specific process output and entry facts."
         },
         {
+          "path": "compiler/seed-c/src/w_seed_native0.c",
+          "symbol": "w_seed_native0_run",
+          "claim": "An explicit internal artifact request selects cooperative HIR lowering without changing the normal public executable route."
+        },
+        {
           "path": "compiler/seed-c/tests/test_cooperative0.c",
           "symbol": "test_cooperative_product_selection",
           "claim": "Focused tests prove deterministic dual-target bytes and transactional unsupported-target, unsupported-HIR, and capacity rejection."
@@ -7425,6 +7430,7 @@
       ],
       "checks": [
         "the target-neutral core remains free of LLVM target, pointer, runtime, process, and OS surface",
+        "Native0 selects the cooperative HIR profile only for an explicit internal cooperative artifact request",
         "the Windows and Linux leaves call the same core and derive the output plan from verified HIR",
         "unsupported HIR, target, and short capacity leave caller-owned output and result unchanged",
         "pinned MLIR 23.1.1 lowers the neutral core and both current target projections",

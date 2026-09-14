@@ -12170,6 +12170,14 @@ output. This closes the bounded CRT-free Windows-to-Linux product edge while
 leaving native Linux-host tooling, general SDK/sysroot packaging, other target
 adapters, and the full host-target matrix open.
 
+Native0 now exposes the cooperative artifact kind to an explicit internal
+product-policy caller and selects `COOPERATIVE_TRACE` before HIR lowering. The
+ordinary public CLI does not request that kind: the same pure witness is valid
+under W-1582 and should remain eligible for complete Task/yield elimination.
+Forcing the state machine based on a fixture name, output string, or fallback
+heuristic was rejected. Public promotion requires a genuinely non-elidable
+program or an explicit runtime/provider policy, not a demonstration-only flag.
+
 The rejected alternative was to infer the output from `result_value`, because
 that would make an evaluator witness observable product behavior. A future
 general product bridge should expose a versioned caller-owned effect plan and
