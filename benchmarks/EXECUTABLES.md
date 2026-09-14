@@ -136,6 +136,7 @@ No native Linux x64 measurements are published.
 
 | Workload | Language | Target | Runtime | Artifact | .text B | .rdata B | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| hello | w | Linux x64 / WSL2 | CRT-free | 2096 B (2.0 KiB) | — | — | 174.7567 ms | 166.803 µs | 322.492 µs | 671744 B (656.0 KiB) | 82 µs |
 | restaurant-main-cardinality | w | Linux x64 / WSL2 | CRT-free | 3008 B (2.9 KiB) | — | — | 206.0878 ms | 141.023 µs | 201.573 µs | 671744 B (656.0 KiB) | 47 µs |
 | restaurant-main-dispatch | w | Linux x64 / WSL2 | CRT-free | 2768 B (2.7 KiB) | — | — | 208.7803 ms | 155.999 µs | 376.322 µs | 679936 B (664.0 KiB) | 50 µs |
 
