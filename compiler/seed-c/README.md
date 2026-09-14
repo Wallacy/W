@@ -163,7 +163,7 @@ Cada aplicação tem owner type, head, envelope, argumentos ordenados e status d
 binding; cada argumento preserva ordinal, span, label, parâmetro, kind, o índice
 de type ou `ConstValue` e o índice sentinel/relacionado de `TypedConstExpr`. O
 root liga à aplicação por `generic_application_index`.
-`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-16`. Earlier D2/D3 fields
+`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-27`. Earlier D2/D3 fields
 anteriores permanecem append-only; a versão 6 acrescenta records, ranges,
 counts/capacities e relações de module const; a versão 7 acrescenta
 `effective_type` e preserva `declared_type` como annotation source-only para
@@ -179,10 +179,12 @@ expression indices. The current seed accepts plain ordinary String text and
 built-in integer, Boolean, or String interpolation. It defaults unconstrained
 integer interpolation to canonical signed `i64`. Version 16 retains those
 append-only records and adds resolver-owned external nominal identity pairs;
-W-1542 documents its bounded `std.process` use. HIR0 and MLIR0 lower only the
-bounded signed-`i64` subset. Escape decoding, Boolean/String value Display,
-general Display conformance, and native lowering outside that subset remain
-gaps.
+W-1542 documents its bounded `std.process` use. Version 27 appends
+provider-neutral accelerator-module and ordered kernel-binding records for
+exact `accelerator.module<{...}>()` static records. HIR0 and MLIR0 lower only
+their bounded subsets. Escape decoding, Boolean/String value Display, general
+Display conformance, typed accelerator launch, device IR, and native lowering
+outside those subsets remain gaps.
 
 O seed materializa `Bool`, inteiros bounded (incluindo `usize`), strings simples
 sem escape, cases enum contextuais e `StaticList` caller-owned. Inteiros usam
@@ -1882,7 +1884,7 @@ W syntax.
 
 ### Verified parallel-domain placement (W-1588)
 
-Frontend26 accepts exact `spawn<.domain>` only when its caller supplies an
+Frontend27 accepts exact `spawn<.domain>` only when its caller supplies an
 exact domain binding with scheduling mode `CONCURRENT` and capability
 `PARALLEL`. Mode and capabilities are distinct fields. The input table is
 caller-owned product evidence, participates in the frontend receipt, and is
@@ -2166,14 +2168,16 @@ diagnostics, not W product rankings.
 
 The seed parser accepts `accelerator.module<{ hello: kernel }>()` and emits
 distinct `W_SEED_CST_STATIC_RECORD` and `W_SEED_CST_STATIC_FIELD` owners.
-Focused tests bind exact spans, deterministic repeat parsing, the leaf
-partition, tree ownership, and malformed field/close recovery. The parser does
-not assign accelerator, kernel, or launch semantics.
+Frontend27 then publishes provider-neutral accelerator-module and ordered
+kernel-binding records for nonempty, uniquely labeled static records whose
+values are direct same-document functions. Focused tests cover one and multiple
+kernels, deterministic receipts, exact ownership, short capacities, empty and
+malformed records, duplicate labels, missing functions, and runtime arguments.
 
-This package does not implement the frontend and verified-device-IR portion of
-the canonical `accelerator.module` bridge, a W runtime/provider, public GPU
-build/run, a supported GPU ABI, or a homogeneous pinned production toolchain.
-Those boundaries keep roadmap rank 1 open.
+This package does not implement typed `.launch`, verified device IR, the
+frontend-to-GPU0 bridge, a W runtime/provider, public GPU build/run, a supported
+GPU ABI, or a homogeneous pinned production toolchain. Those boundaries keep
+roadmap rank 1 open.
 
 ### Closed local payloadless enum exhaustive switch (W-1563)
 

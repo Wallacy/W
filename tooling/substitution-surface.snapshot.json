@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:01d2034b732e5e98542a92f6fb149bcf67140f577b4cc8d7dd411fcfe0f0bab9",
+  "corpusDigest": "sha256:d164cdb3930f16b9f909fa9a443773742d47bd6bc1fd5d2f982630cc8a389a57",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -8512,26 +8512,26 @@
       "selected": {
         "name": "selected",
         "language": "w-internal",
-        "sourceDigest": "sha256:e8275d8945ef6530fd3fe656d1a1c626613e056642f888e4d747f24ee32e9181",
+        "sourceDigest": "sha256:4f9debe5d5d8a91b2d6be32bfd42200f53afd76d496e06e8a6c7e3d10722d641",
         "metrics": {
-          "utf8Bytes": 302,
-          "codePoints": 302,
-          "nonWhitespaceCodePoints": 271,
-          "lines": 6,
-          "surfaceLexemes": 70
+          "utf8Bytes": 375,
+          "codePoints": 375,
+          "nonWhitespaceCodePoints": 339,
+          "lines": 7,
+          "surfaceLexemes": 80
         }
       },
       "alternatives": [
         {
           "name": "call-gpu0-source-backed-w",
           "language": "w-internal-rejected",
-          "sourceDigest": "sha256:704671b6b071f070a17569579d500ad438209de9a95da2529f4353d12508aedf",
+          "sourceDigest": "sha256:56f332c5b1d623669c71b9b87edb780ed35b2eda304d898f2e782793ada2ef3c",
           "metrics": {
-            "utf8Bytes": 62,
-            "codePoints": 62,
-            "nonWhitespaceCodePoints": 55,
+            "utf8Bytes": 87,
+            "codePoints": 87,
+            "nonWhitespaceCodePoints": 73,
             "lines": 1,
-            "surfaceLexemes": 10
+            "surfaceLexemes": 15
           }
         },
         {

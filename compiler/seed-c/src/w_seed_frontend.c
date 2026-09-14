@@ -141,6 +141,8 @@ typedef struct {
   size_t const_elements;
   size_t const_bytes;
   size_t const_declarations;
+  size_t accelerator_modules;
+  size_t accelerator_kernels;
 } frontend_measure;
 
 typedef struct {
@@ -3266,6 +3268,40 @@ static bool receipt_size_const_declaration(
   return sized;
 }
 
+static bool receipt_size_accelerator_module(
+    frontend_context *context,
+    const w_seed_frontend_accelerator_module *value) {
+  return receipt_size_literal(context, "accelerator-module=") &&
+         receipt_size_size(context, value->module_index) &&
+         receipt_size_literal(context, "|const=") &&
+         receipt_size_size(context, value->const_declaration_index) &&
+         receipt_size_literal(context, "|span=") &&
+         receipt_size_span(context, value->span) &&
+         receipt_size_literal(context, "|kernels=") &&
+         receipt_size_size(context, value->first_kernel) &&
+         receipt_size_literal(context, ":") &&
+         receipt_size_size(context, value->kernel_count) &&
+         receipt_size_literal(context, "\n");
+}
+
+static bool receipt_size_accelerator_kernel(
+    frontend_context *context,
+    const w_seed_frontend_accelerator_kernel *value) {
+  return receipt_size_literal(context, "accelerator-kernel=") &&
+         receipt_size_size(context, value->module_index) &&
+         receipt_size_literal(context, "|owner=") &&
+         receipt_size_size(context, value->owner_accelerator_module) &&
+         receipt_size_literal(context, "|ordinal=") &&
+         receipt_size_size(context, value->ordinal) &&
+         receipt_size_literal(context, "|label=") &&
+         receipt_size_text(context, value->label) &&
+         receipt_size_literal(context, "|span=") &&
+         receipt_size_span(context, value->span) &&
+         receipt_size_literal(context, "|function=") &&
+         receipt_size_size(context, value->function_index) &&
+         receipt_size_literal(context, "\n");
+}
+
 static bool receipt_size_import(frontend_context *context,
                                 const w_seed_frontend_import *import_value) {
   return receipt_size_literal(context, "import=") &&
@@ -5429,6 +5465,8 @@ static void counts_from_measure(const frontend_measure *measure,
   counts->const_elements = measure->const_elements;
   counts->const_bytes = measure->const_bytes;
   counts->const_declarations = measure->const_declarations;
+  counts->accelerator_modules = measure->accelerator_modules;
+  counts->accelerator_kernels = measure->accelerator_kernels;
 }
 
 w_seed_frontend_status w_seed_frontend_measure(
@@ -7348,6 +7386,40 @@ static bool context_append_const_declaration(
       ordinal >= context->output->const_declaration_capacity)
     return false;
   context->output->const_declarations[ordinal] = value;
+  return true;
+}
+
+static bool context_append_accelerator_module(
+    frontend_context *context, w_seed_frontend_accelerator_module value,
+    uint32_t *index) {
+  if (context == NULL || index == NULL) return false;
+  const size_t ordinal = context->count.accelerator_modules;
+  context->count.accelerator_modules += 1u;
+  if (!add_u32(ordinal, index)) return false;
+  if (!context->emit && !receipt_size_accelerator_module(context, &value))
+    return false;
+  if (!context->emit) return true;
+  if (context->output == NULL || context->output->accelerator_modules == NULL ||
+      ordinal >= context->output->accelerator_module_capacity)
+    return false;
+  context->output->accelerator_modules[ordinal] = value;
+  return true;
+}
+
+static bool context_append_accelerator_kernel(
+    frontend_context *context, w_seed_frontend_accelerator_kernel value,
+    uint32_t *index) {
+  if (context == NULL || index == NULL) return false;
+  const size_t ordinal = context->count.accelerator_kernels;
+  context->count.accelerator_kernels += 1u;
+  if (!add_u32(ordinal, index)) return false;
+  if (!context->emit && !receipt_size_accelerator_kernel(context, &value))
+    return false;
+  if (!context->emit) return true;
+  if (context->output == NULL || context->output->accelerator_kernels == NULL ||
+      ordinal >= context->output->accelerator_kernel_capacity)
+    return false;
+  context->output->accelerator_kernels[ordinal] = value;
   return true;
 }
 
@@ -15530,6 +15602,193 @@ static bool module_const_expression_kind_allowed(
          kind == W_SEED_FRONTEND_EXPR_BINARY;
 }
 
+static uint32_t direct_kind_at(const w_seed_frontend_document *doc,
+                               uint32_t parent, w_seed_cst_kind kind,
+                               size_t ordinal) {
+  if (doc == NULL || parent >= doc->parse.node_count) return W_SEED_CST_NONE;
+  uint32_t cursor = doc->nodes[parent].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t guard = 0u;
+  size_t seen = 0u;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind == kind) {
+      if (seen == ordinal) return child;
+      seen += 1u;
+    }
+    guard += 1u;
+  }
+  return W_SEED_CST_NONE;
+}
+
+static bool exact_accelerator_module_head(
+    const w_seed_frontend_document *doc, uint32_t expression_node,
+    uint32_t envelope_node) {
+  if (doc == NULL || expression_node >= doc->parse.node_count ||
+      envelope_node >= doc->parse.node_count)
+    return false;
+  const w_seed_span expression_span = doc->nodes[expression_node].raw_span;
+  const w_seed_span envelope_span = doc->nodes[envelope_node].raw_span;
+  if (expression_span.start_byte > envelope_span.start_byte ||
+      envelope_span.end_byte > expression_span.end_byte)
+    return false;
+  frontend_token_cursor prefix = token_cursor_for(
+      doc, (w_seed_span){expression_span.start_byte, envelope_span.start_byte});
+  frontend_token first;
+  frontend_token dot;
+  frontend_token second;
+  frontend_token trailing;
+  return cursor_take(&prefix, &first) && first.kind == W_SEED_CST_WORD &&
+         token_text(doc, &first, "accelerator") && cursor_take(&prefix, &dot) &&
+         token_text(doc, &dot, ".") && cursor_take(&prefix, &second) &&
+         second.kind == W_SEED_CST_WORD && token_text(doc, &second, "module") &&
+         !cursor_peek(&prefix, &trailing);
+}
+
+static bool exact_empty_call_suffix(const w_seed_frontend_document *doc,
+                                    uint32_t expression_node,
+                                    uint32_t envelope_node) {
+  const w_seed_span expression_span = doc->nodes[expression_node].raw_span;
+  const w_seed_span envelope_span = doc->nodes[envelope_node].raw_span;
+  frontend_token_cursor suffix = token_cursor_for(
+      doc, (w_seed_span){envelope_span.end_byte, expression_span.end_byte});
+  frontend_token open;
+  frontend_token close;
+  frontend_token trailing;
+  return cursor_take(&suffix, &open) && token_text(doc, &open, "(") &&
+         cursor_take(&suffix, &close) && token_text(doc, &close, ")") &&
+         !cursor_peek(&suffix, &trailing);
+}
+
+static bool accelerator_field_shape(
+    const frontend_context *context, uint32_t field_node,
+    w_seed_frontend_text *label, uint32_t *function_index) {
+  const w_seed_frontend_document *doc = context_document(context);
+  if (doc == NULL || label == NULL || function_index == NULL ||
+      field_node >= doc->parse.node_count ||
+      count_direct_kind(doc, field_node, W_SEED_CST_WORD) != 2u ||
+      count_direct_kind(doc, field_node, W_SEED_CST_PUNCTUATION) != 1u)
+    return false;
+  const uint32_t label_node =
+      direct_kind_at(doc, field_node, W_SEED_CST_WORD, 0u);
+  const uint32_t function_node =
+      direct_kind_at(doc, field_node, W_SEED_CST_WORD, 1u);
+  const uint32_t colon_node =
+      direct_kind_at(doc, field_node, W_SEED_CST_PUNCTUATION, 0u);
+  if (label_node == W_SEED_CST_NONE || function_node == W_SEED_CST_NONE ||
+      colon_node == W_SEED_CST_NONE ||
+      !text_equal(text_from_span(doc, doc->nodes[colon_node].raw_span), ":"))
+    return false;
+  *label = text_from_span(doc, doc->nodes[label_node].raw_span);
+  const w_seed_frontend_text function_name =
+      text_from_span(doc, doc->nodes[function_node].raw_span);
+  const w_seed_frontend_document *owner_doc = NULL;
+  uint32_t owner_node = W_SEED_CST_NONE;
+  return function_declaration_for_name(context, function_name, function_index,
+                                       &owner_doc, &owner_node) &&
+         owner_doc == doc && owner_node != W_SEED_CST_NONE;
+}
+
+static bool normalize_accelerator_module_const(frontend_context *context,
+                                               uint32_t expression_node,
+                                               uint32_t const_index,
+                                               bool *handled) {
+  const w_seed_frontend_document *doc = context_document(context);
+  if (handled != NULL) *handled = false;
+  if (context == NULL || doc == NULL || handled == NULL ||
+      expression_node == W_SEED_CST_NONE ||
+      expression_node >= doc->parse.node_count)
+    return true;
+  const uint32_t envelope = direct_kind_at(
+      doc, expression_node, W_SEED_CST_CONTRACT_ENVELOPE, 0u);
+  if (envelope == W_SEED_CST_NONE ||
+      !exact_accelerator_module_head(doc, expression_node, envelope))
+    return true;
+  *handled = true;
+  const uint32_t record =
+      direct_kind_at(doc, envelope, W_SEED_CST_STATIC_RECORD, 0u);
+  const size_t field_count = record == W_SEED_CST_NONE
+                                 ? 0u
+                                 : count_direct_kind(doc, record,
+                                                     W_SEED_CST_STATIC_FIELD);
+  if (count_direct_kind(doc, expression_node, W_SEED_CST_CONTRACT_ENVELOPE) !=
+          1u ||
+      count_direct_kind(doc, envelope, W_SEED_CST_STATIC_RECORD) != 1u ||
+      !exact_empty_call_suffix(doc, expression_node, envelope) ||
+      field_count == 0u || field_count > (size_t)UINT32_MAX ||
+      context->count.accelerator_modules > (size_t)UINT32_MAX ||
+      context->count.accelerator_kernels > (size_t)UINT32_MAX) {
+    return context_append_fact(
+        context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
+        doc->nodes[expression_node].raw_span,
+        text_from_span(doc, doc->nodes[expression_node].raw_span));
+  }
+
+  for (size_t ordinal = 0u; ordinal < field_count; ordinal += 1u) {
+    const uint32_t field = direct_kind_at(
+        doc, record, W_SEED_CST_STATIC_FIELD, ordinal);
+    w_seed_frontend_text label = {NULL, 0u};
+    uint32_t function_index = W_SEED_FRONTEND_NONE;
+    if (field == W_SEED_CST_NONE ||
+        !accelerator_field_shape(context, field, &label, &function_index)) {
+      return context_append_fact(
+          context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
+          doc->nodes[expression_node].raw_span,
+          text_from_span(doc, doc->nodes[expression_node].raw_span));
+    }
+    for (size_t prior = 0u; prior < ordinal; prior += 1u) {
+      const uint32_t prior_field = direct_kind_at(
+          doc, record, W_SEED_CST_STATIC_FIELD, prior);
+      w_seed_frontend_text prior_label = {NULL, 0u};
+      uint32_t prior_function = W_SEED_FRONTEND_NONE;
+      if (prior_field == W_SEED_CST_NONE ||
+          !accelerator_field_shape(context, prior_field, &prior_label,
+                                   &prior_function) ||
+          text_equal_text(label, prior_label)) {
+        return context_append_fact(
+            context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
+            doc->nodes[expression_node].raw_span,
+            text_from_span(doc, doc->nodes[expression_node].raw_span));
+      }
+    }
+  }
+
+  const uint32_t module_ordinal =
+      (uint32_t)context->count.accelerator_modules;
+  const uint32_t first_kernel = (uint32_t)context->count.accelerator_kernels;
+  w_seed_frontend_accelerator_module module;
+  (void)memset(&module, 0, sizeof(module));
+  module.module_index = (uint32_t)context->module_index;
+  module.const_declaration_index = const_index;
+  module.span = doc->nodes[expression_node].raw_span;
+  module.first_kernel = first_kernel;
+  module.kernel_count = (uint32_t)field_count;
+  uint32_t emitted_module = W_SEED_FRONTEND_NONE;
+  if (!context_append_accelerator_module(context, module, &emitted_module) ||
+      emitted_module != module_ordinal)
+    return false;
+  for (size_t ordinal = 0u; ordinal < field_count; ordinal += 1u) {
+    const uint32_t field = direct_kind_at(
+        doc, record, W_SEED_CST_STATIC_FIELD, ordinal);
+    w_seed_frontend_text label = {NULL, 0u};
+    uint32_t function_index = W_SEED_FRONTEND_NONE;
+    if (!accelerator_field_shape(context, field, &label, &function_index))
+      return false;
+    w_seed_frontend_accelerator_kernel kernel;
+    (void)memset(&kernel, 0, sizeof(kernel));
+    kernel.module_index = (uint32_t)context->module_index;
+    kernel.owner_accelerator_module = emitted_module;
+    kernel.ordinal = (uint32_t)ordinal;
+    kernel.label = label;
+    kernel.span = doc->nodes[field].raw_span;
+    kernel.function_index = function_index;
+    uint32_t emitted_kernel = W_SEED_FRONTEND_NONE;
+    if (!context_append_accelerator_kernel(context, kernel, &emitted_kernel) ||
+        emitted_kernel != first_kernel + (uint32_t)ordinal)
+      return false;
+  }
+  return true;
+}
+
 static bool unresolved_parenthesized_identifier(
     const frontend_context *context, w_seed_span span,
     w_seed_frontend_text *name_out) {
@@ -15665,6 +15924,21 @@ static bool normalize_module_const(frontend_context *context,
       return false;
     value = records[const_index];
     declared_type = value.declared_type;
+  }
+
+  bool accelerator_module_handled = false;
+  if (!normalize_accelerator_module_const(
+          context, expression_node, const_index,
+          &accelerator_module_handled))
+    return false;
+  if (accelerator_module_handled) {
+    value.lowerable = false;
+    value.initializer_expression = W_SEED_FRONTEND_NONE;
+    value.effective_type = W_SEED_FRONTEND_NONE;
+    if (!module_const_record_write(context, const_index, &value)) return false;
+    if (!context->emit && !receipt_size_const_declaration(context, &value))
+      return false;
+    return true;
   }
 
   frontend_simple_type expected = explicit_type
@@ -17214,6 +17488,40 @@ static void receipt_write_records(frontend_receipt_writer *writer,
        receipt_write_size(writer, value->has_explicit_type ? 1u : 0u);
        receipt_write_literal(writer, "\n");
     }
+    for (size_t index = 0; index < context->count.accelerator_modules;
+         index += 1u) {
+      const w_seed_frontend_accelerator_module *value =
+          &output->accelerator_modules[index];
+      receipt_write_literal(writer, "accelerator-module=");
+      receipt_write_size(writer, value->module_index);
+      receipt_write_literal(writer, "|const=");
+      receipt_write_size(writer, value->const_declaration_index);
+      receipt_write_literal(writer, "|span=");
+      receipt_write_span(writer, value->span);
+      receipt_write_literal(writer, "|kernels=");
+      receipt_write_size(writer, value->first_kernel);
+      receipt_write_literal(writer, ":");
+      receipt_write_size(writer, value->kernel_count);
+      receipt_write_literal(writer, "\n");
+    }
+    for (size_t index = 0; index < context->count.accelerator_kernels;
+         index += 1u) {
+      const w_seed_frontend_accelerator_kernel *value =
+          &output->accelerator_kernels[index];
+      receipt_write_literal(writer, "accelerator-kernel=");
+      receipt_write_size(writer, value->module_index);
+      receipt_write_literal(writer, "|owner=");
+      receipt_write_size(writer, value->owner_accelerator_module);
+      receipt_write_literal(writer, "|ordinal=");
+      receipt_write_size(writer, value->ordinal);
+      receipt_write_literal(writer, "|label=");
+      receipt_write_text(writer, value->label);
+      receipt_write_literal(writer, "|span=");
+      receipt_write_span(writer, value->span);
+      receipt_write_literal(writer, "|function=");
+      receipt_write_size(writer, value->function_index);
+      receipt_write_literal(writer, "\n");
+    }
     for (size_t index = 0; index < context->count.imports; index += 1) {
       const w_seed_frontend_import *item = &output->imports[index];
       receipt_write_literal(writer, "import=");
@@ -17741,6 +18049,12 @@ static bool output_capacity_ok(const w_seed_frontend_output *output,
                      output->enum_case_parameter_capacity) &&
          capacity_ok(required->const_declarations, output->const_declarations,
                      output->const_declaration_capacity) &&
+         capacity_ok(required->accelerator_modules,
+                     output->accelerator_modules,
+                     output->accelerator_module_capacity) &&
+         capacity_ok(required->accelerator_kernels,
+                     output->accelerator_kernels,
+                     output->accelerator_kernel_capacity) &&
          capacity_ok(required->fields, output->fields, output->field_capacity) &&
          capacity_ok(required->type_declarations, output->type_declarations,
                      output->type_declaration_capacity) &&
