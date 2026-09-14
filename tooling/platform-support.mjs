@@ -1092,7 +1092,8 @@ function validatePolicy(value, errors) {
     validateKeys(featureCoverage, new Set([
       "default", "unavailableEvidenceIsNotInapplicable",
       "targetExclusionRequires", "localInvocation", "releaseFanout",
-      "crossCompilationGoal",
+      "crossCompilationGoal", "requestedTargetSetMustBeComplete",
+      "evidenceAvailabilityCannotNarrowEmission",
     ]), "policy.featureCoverage", errors);
     if (featureCoverage.default !== "all-applicable-targets")
       addError(errors, "policy.featureCoverage.default must be all-applicable-targets.");
@@ -1103,6 +1104,10 @@ function validatePolicy(value, errors) {
     ])) addError(errors, "policy.featureCoverage.targetExclusionRequires must require rationale and catalog record.");
     if (featureCoverage.localInvocation !== "requested-targets")
       addError(errors, "policy.featureCoverage.localInvocation must be requested-targets.");
+    if (featureCoverage.requestedTargetSetMustBeComplete !== true)
+      addError(errors, "policy.featureCoverage.requestedTargetSetMustBeComplete must be true.");
+    if (featureCoverage.evidenceAvailabilityCannotNarrowEmission !== true)
+      addError(errors, "policy.featureCoverage.evidenceAvailabilityCannotNarrowEmission must be true.");
     if (featureCoverage.releaseFanout !== "all-supported-applicable-targets")
       addError(errors, "policy.featureCoverage.releaseFanout must be all-supported-applicable-targets.");
     if (featureCoverage.crossCompilationGoal !==
@@ -1382,7 +1387,7 @@ export function renderPlatformSupport(value, { root = repositoryRoot } = {}) {
     "",
     "The primary baseline has three native compiler hosts and three emitted targets.",
     "The matrix contains all nine host-to-target edges, including self edges.",
-    `Supported edges: ${supportedCrossEdges}/${baselineHosts.length * baselineTargets.length}. Every baseline edge remains a candidate until endpoint, toolchain, SDK, sysroot, linker, packaging, CI, build, and execution evidence passes.`,
+    `Supported edges: ${supportedCrossEdges}/${baselineHosts.length * baselineTargets.length}. Every baseline edge remains below supported until endpoint, toolchain, SDK, sysroot, linker, packaging, CI, build, and execution evidence passes.`,
     "",
     ...markdownTable(
       ["Host \\ Target", ...baselineTargets.map((targetRef) => crossTargetLabel(targetById.get(targetRef)))],
@@ -1537,6 +1542,7 @@ export function renderPlatformSupport(value, { root = repositoryRoot } = {}) {
     `- Reference breadth goal: \`${value.policy?.referenceBreadth?.goal ?? "—"}\`.`,
     `- Rust target tiers imported: ${value.policy?.referenceBreadth?.importsRustTiers === false ? "no" : "yes"}.`,
     `- Feature coverage: \`${value.policy?.featureCoverage?.default ?? "—"}\`; missing local evidence does not make a target inapplicable.`,
+    `- Requested target sets are complete: \`${value.policy?.featureCoverage?.requestedTargetSetMustBeComplete === true}\`; evidence availability cannot narrow emission: \`${value.policy?.featureCoverage?.evidenceAvailabilityCannotNarrowEmission === true}\`.`,
     `- Release fanout: \`${value.policy?.featureCoverage?.releaseFanout ?? "—"}\`; cross-compilation goal: \`${value.policy?.featureCoverage?.crossCompilationGoal ?? "—"}\`.`,
     `- Current evidence version: \`${value.policy?.dependencyCurrency?.currentEvidenceVersion ?? "—"}\` (${value.policy?.dependencyCurrency?.currentEvidenceCurrencyStatus ?? "—"}).`,
     `- Future native plan policy: \`${value.policy?.dependencyCurrency?.futureNativePlanPolicy ?? "—"}\`; successor: \`${value.policy?.dependencyCurrency?.successorTag ?? "—"}\` at \`${value.policy?.dependencyCurrency?.successorCommit ?? "—"}\`.`,

@@ -31,12 +31,12 @@ WSL execution is development evidence. It does not promote the Windows outer hos
 
 The primary baseline has three native compiler hosts and three emitted targets.
 The matrix contains all nine host-to-target edges, including self edges.
-Supported edges: 0/9. Every baseline edge remains a candidate until endpoint, toolchain, SDK, sysroot, linker, packaging, CI, build, and execution evidence passes.
+Supported edges: 0/9. Every baseline edge remains below supported until endpoint, toolchain, SDK, sysroot, linker, packaging, CI, build, and execution evidence passes.
 
 | Host \ Target | x86_64-unknown-linux-gnu | x86_64-pc-windows-msvc | aarch64-apple-darwin |
 | --- | --- | --- | --- |
 | x86_64-unknown-linux-gnu | candidate<br>blockers: hostEndpoint, targetEndpoint, toolchainSysrootLinkerPackaging, buildExecution | candidate<br>blockers: hostEndpoint, targetEndpoint, toolchainSysrootLinkerPackaging, buildExecution | candidate<br>blockers: hostEndpoint, targetEndpoint, toolchainSysrootLinkerPackaging, buildExecution |
-| x86_64-pc-windows-msvc | candidate<br>blockers: hostEndpoint, targetEndpoint, toolchainSysrootLinkerPackaging, buildExecution | candidate<br>blockers: hostEndpoint, targetEndpoint, toolchainSysrootLinkerPackaging, buildExecution | candidate<br>blockers: hostEndpoint, targetEndpoint, toolchainSysrootLinkerPackaging, buildExecution |
+| x86_64-pc-windows-msvc | evidence<br>blockers: hostEndpoint, targetEndpoint, toolchainSysrootLinkerPackaging | candidate<br>blockers: hostEndpoint, targetEndpoint, toolchainSysrootLinkerPackaging, buildExecution | candidate<br>blockers: hostEndpoint, targetEndpoint, toolchainSysrootLinkerPackaging, buildExecution |
 | aarch64-apple-darwin | candidate<br>blockers: hostEndpoint, targetEndpoint, toolchainSysrootLinkerPackaging, buildExecution | candidate<br>blockers: hostEndpoint, targetEndpoint, toolchainSysrootLinkerPackaging, buildExecution | candidate<br>blockers: hostEndpoint, targetEndpoint, toolchainSysrootLinkerPackaging, buildExecution |
 
 Linux-to-Windows edges require explicit SDK, sysroot, object, and linker evidence.
@@ -168,6 +168,7 @@ The portable MLIR record is a possible bootstrap, mirror, or rebuild input for a
 - Reference breadth goal: `at-least-rust-breadth`.
 - Rust target tiers imported: no.
 - Feature coverage: `all-applicable-targets`; missing local evidence does not make a target inapplicable.
+- Requested target sets are complete: `true`; evidence availability cannot narrow emission: `true`.
 - Release fanout: `all-supported-applicable-targets`; cross-compilation goal: `any-supported-host-to-any-supported-target`.
 - Current evidence version: `23.1.1` (current).
 - Future native plan policy: `llvmorg-23.1.1-exact-pin-with-build-provenance-gate`; successor: `llvmorg-23.1.1` at `6dfe1677ab8dffbc6ec13d53a1e0215d75147689`.

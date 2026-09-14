@@ -494,7 +494,7 @@ for (const marker of ["W_SEED_LINUX_MLIR_OPT_PATH",
   assert(runSource.includes(marker), `cli/run.c does not use ${marker}`)
 for (const marker of ["--convert-scf-to-cf", "--convert-cf-to-llvm",
   "--canonicalize", "--cse", "-O3", "-s",
-  "--no-dynamic-linker", "--gc-sections", "_start", "WRT0_LL"])
+  "--no-dynamic-linker", "--gc-sections", "_start", "w_seed_wrt0_get"])
   assert(runSource.includes(marker),
     `cli/run.c is missing the release build flag ${marker}`)
 assert(runSource.includes("W_SEED_RUN_COMPILE_PROFILE_DEV"),

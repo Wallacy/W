@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:45828e907ec7cb4e537decccc74d4197121ecfa8b1ef17148457e4175adf2316",
+  "corpusDigest": "sha256:2c3d2d6f255ad1a72d65e7101be92f030b07be0806d58f5bfbc12a02d356703b",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -7447,11 +7447,11 @@
     {
       "id": "R0-cooperative-target-projection",
       "task": {
-        "utf8Bytes": 202,
-        "codePoints": 202,
-        "nonWhitespaceCodePoints": 177,
+        "utf8Bytes": 226,
+        "codePoints": 226,
+        "nonWhitespaceCodePoints": 195,
         "lines": 1,
-        "surfaceLexemes": 31
+        "surfaceLexemes": 41
       },
       "selected": {
         "name": "selected",
@@ -7491,7 +7491,7 @@
           }
         },
         {
-          "name": "target-local-link-is-cross-compilation",
+          "name": "target-local-link-masquerades-as-cross-compilation",
           "language": "w-internal-rejected",
           "sourceDigest": "sha256:d18148cd404f549342e1a1d474e4cbb7d7f73e32631a17f451f0a04022f36374",
           "metrics": {

@@ -23,7 +23,7 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:33edad2cbc57521f0e6d2b274ffbd72f819fe4f5ad119dfcfb0c2628a872f37c",
+    "sha256": "sha256:fe9ed1ddd196ce60966c5b174cb2eeb0d96424db07ba62b028b20ef86a5c6d44",
     "count": 1585,
     "first": "W-001",
     "last": "W-1585"
@@ -1765,7 +1765,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "helloFixture",
           "claim": "The public Linux/WSL runner executes the short-entry Hello fixture with exact output.",
-          "sha256": "sha256:71b4adaf4a503e75290af3b8fdf63453ac5b065c2fa4143ba5262e18c1188fd3"
+          "sha256": "sha256:16bd3b36f51782ae2c298190f985b8c65cf127889ce45832b93ff4a1d810ebbb"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -21850,7 +21850,7 @@
         "path": "DESIGN.md",
         "section": "26",
         "heading": "## 26. Plano de implementação",
-        "sectionDigest": "sha256:fd7c80d149edb59869873db1d94e38fa7e30fc6418653eaff2703329c868fda8"
+        "sectionDigest": "sha256:cd6766664c3a63d6631126fe83be4854252c45037f0192312fc3504fe0c11b65"
       },
       "evidence": [],
       "reason": "W-659 (body de entry, sha256:f66ab57406ddb51303f9190376daf72d8f538bd7bd8adfbf9992ae3d7223e74e) has no executable witness for component implementation-plan. The checked current contract is DESIGN.md §26 / 26. Plano de implementação.",
@@ -50956,7 +50956,7 @@
         },
         {
           "path": "compiler/seed-c/cli/run.c",
-          "sha256": "sha256:1c9b288fb42338d86207e18e729e6dfd2961f4000ca007b1443df92c958c4967",
+          "sha256": "sha256:405f0180095db2e394458d4cf5c444aa1e6b51ebbd85746be5b5f8ffef8967f0",
           "symbol": "w_seed_run_execute",
           "claim": "The public runner invokes the pinned Linux native recipe with private temporary files and cleanup."
         },
@@ -50968,7 +50968,7 @@
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "sha256": "sha256:71b4adaf4a503e75290af3b8fdf63453ac5b065c2fa4143ba5262e18c1188fd3",
+          "sha256": "sha256:16bd3b36f51782ae2c298190f985b8c65cf127889ce45832b93ff4a1d810ebbb",
           "symbol": "const expectedHelp =",
           "claim": "The product gate covers Linux and WSL execution, rejection cases and cleanup."
         },
@@ -51045,7 +51045,7 @@
         },
         {
           "path": "compiler/seed-c/cli/run.c",
-          "sha256": "sha256:1c9b288fb42338d86207e18e729e6dfd2961f4000ca007b1443df92c958c4967",
+          "sha256": "sha256:405f0180095db2e394458d4cf5c444aa1e6b51ebbd85746be5b5f8ffef8967f0",
           "symbol": "run_logical_source_id",
           "claim": "The public runner derives an opaque basename source identity."
         },
@@ -51057,7 +51057,7 @@
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "sha256": "sha256:71b4adaf4a503e75290af3b8fdf63453ac5b065c2fa4143ba5262e18c1188fd3",
+          "sha256": "sha256:16bd3b36f51782ae2c298190f985b8c65cf127889ce45832b93ff4a1d810ebbb",
           "symbol": "const expectedHelp =",
           "claim": "The public gate runs both versioned hyphenated fixtures directly."
         },
@@ -51636,7 +51636,7 @@
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "sha256": "sha256:71b4adaf4a503e75290af3b8fdf63453ac5b065c2fa4143ba5262e18c1188fd3",
+          "sha256": "sha256:16bd3b36f51782ae2c298190f985b8c65cf127889ce45832b93ff4a1d810ebbb",
           "symbol": "W-1531 frontier exploration source-style candidate",
           "claim": "The public runner executes the Restaurant witness, separate minimum/no-else microproofs, and learner, idiomatic, and frontier source-style candidates with the same Restaurant stdout; frontier is exploratory and correctness-only."
         }
@@ -51683,7 +51683,7 @@
         },
         {
           "path": "compiler/seed-c/cli/run.c",
-          "sha256": "sha256:1c9b288fb42338d86207e18e729e6dfd2961f4000ca007b1443df92c958c4967",
+          "sha256": "sha256:405f0180095db2e394458d4cf5c444aa1e6b51ebbd85746be5b5f8ffef8967f0",
           "symbol": "run_windows_native",
           "claim": "The Windows runner uses explicit tool paths, CreateProcessW, bounded temporary files, and cleanup."
         },
@@ -51884,7 +51884,7 @@
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "sha256": "sha256:71b4adaf4a503e75290af3b8fdf63453ac5b065c2fa4143ba5262e18c1188fd3",
+          "sha256": "sha256:16bd3b36f51782ae2c298190f985b8c65cf127889ce45832b93ff4a1d810ebbb",
           "symbol": "restaurant-nested-if",
           "claim": "The public runner executes the nested Restaurant fixture through the verified native route with exact stdout."
         },
@@ -52006,7 +52006,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurant-comparison-composition",
           "claim": "The Linux gate checks signed boundaries, Bool composition, exact stdout, and rejected types.",
-          "sha256": "sha256:71b4adaf4a503e75290af3b8fdf63453ac5b065c2fa4143ba5262e18c1188fd3"
+          "sha256": "sha256:16bd3b36f51782ae2c298190f985b8c65cf127889ce45832b93ff4a1d810ebbb"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
@@ -52083,7 +52083,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantBoolShortCircuitFixture",
           "claim": "The Linux gate checks exact short-circuit stdout through the public native route.",
-          "sha256": "sha256:71b4adaf4a503e75290af3b8fdf63453ac5b065c2fa4143ba5262e18c1188fd3"
+          "sha256": "sha256:16bd3b36f51782ae2c298190f985b8c65cf127889ce45832b93ff4a1d810ebbb"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
@@ -52368,7 +52368,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "helloFixture",
           "claim": "The public Linux/WSL runner executes the short-entry Hello fixture with exact output.",
-          "sha256": "sha256:71b4adaf4a503e75290af3b8fdf63453ac5b065c2fa4143ba5262e18c1188fd3"
+          "sha256": "sha256:16bd3b36f51782ae2c298190f985b8c65cf127889ce45832b93ff4a1d810ebbb"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53116,14 +53116,14 @@
         "kind": "source-case",
         "path": "tooling/substitution-cases.json",
         "caseId": "R0-linux-wrt0-crt-free-link",
-        "caseDigest": "sha256:f20bd7e83e932b8f476c3ad6ce323c3956125b90b0278f20d5523f7c6fe8d27a"
+        "caseDigest": "sha256:e2800cda4bc6fedb11803924f4dc2103b6d79490c33ad4f60afaf23c86c1155a"
       },
       "evidence": [
         {
           "kind": "source",
           "path": "tooling/substitution-cases.json",
           "caseId": "R0-linux-wrt0-crt-free-link",
-          "caseDigest": "sha256:f20bd7e83e932b8f476c3ad6ce323c3956125b90b0278f20d5523f7c6fe8d27a"
+          "caseDigest": "sha256:e2800cda4bc6fedb11803924f4dc2103b6d79490c33ad4f60afaf23c86c1155a"
         }
       ],
       "reason": "W-1550 (CRT-free Linux WRT0 seed closure, sha256:61aadabda140022a9e3eef8ab0cb3f21042c6d5a6997d35279f5e7b44672d29d) is source-backed-current only for the bounded Linux x86_64 WRT0 closure and public W-1521 product route; no general runtime, other target, timing, ranking, or performance result is claimed.",
@@ -53137,22 +53137,22 @@
       },
       "sourceRefs": [
         {
-          "path": "compiler/seed-c/cli/run.c",
-          "symbol": "WRT0_LL",
+          "path": "compiler/seed-c/src/w_seed_wrt0.c",
+          "symbol": "LINUX_X86_64_LLVM_IR",
           "claim": "WRT0 owns Linux x86_64 process startup, stdout write, and exit without CRT or libc.",
-          "sha256": "sha256:1c9b288fb42338d86207e18e729e6dfd2961f4000ca007b1443df92c958c4967"
+          "sha256": "sha256:1699b44583e0f277de83999478e2d7d503b7ba40a4c93d5fde10276a19b22c86"
         },
         {
           "path": "compiler/seed-c/cli/run.c",
           "symbol": "w_seed_run_compile",
           "claim": "The public compiler emits separate program and WRT0 objects, links them directly, and removes private intermediates.",
-          "sha256": "sha256:1c9b288fb42338d86207e18e729e6dfd2961f4000ca007b1443df92c958c4967"
+          "sha256": "sha256:405f0180095db2e394458d4cf5c444aa1e6b51ebbd85746be5b5f8ffef8967f0"
         },
         {
           "path": "tooling/check-w-run.mjs",
           "symbol": "assertCrtFreeElf",
           "claim": "The gate rejects a retained ELF with a program interpreter or any DT_NEEDED dependency before execution.",
-          "sha256": "sha256:71b4adaf4a503e75290af3b8fdf63453ac5b065c2fa4143ba5262e18c1188fd3"
+          "sha256": "sha256:16bd3b36f51782ae2c298190f985b8c65cf127889ce45832b93ff4a1d810ebbb"
         },
         {
           "path": "tooling/check-w-run.test.mjs",
@@ -53170,7 +53170,7 @@
           "path": "compiler/seed-c/CMakeLists.txt",
           "symbol": "W_MLIR0_LINUX_LINK_DRIVER",
           "claim": "The opt-in Linux build requires an absolute linker that advertises elf_x86_64 support.",
-          "sha256": "sha256:f405b0635f3a7d53203afef2131e14f2651614722b1b1ad4786f30f1551b7126"
+          "sha256": "sha256:fd745ec001e4e08316624affe310d92014406f373cd623f265a02d18a9ec3204"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53543,7 +53543,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantConditionalMutationFixture",
           "claim": "The Linux/WSL public runner executes the same source witness.",
-          "sha256": "sha256:71b4adaf4a503e75290af3b8fdf63453ac5b065c2fa4143ba5262e18c1188fd3"
+          "sha256": "sha256:16bd3b36f51782ae2c298190f985b8c65cf127889ce45832b93ff4a1d810ebbb"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
@@ -53608,7 +53608,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantBoolMutationFixture",
           "claim": "The Linux/WSL public runner executes exact Boolean output.",
-          "sha256": "sha256:71b4adaf4a503e75290af3b8fdf63453ac5b065c2fa4143ba5262e18c1188fd3"
+          "sha256": "sha256:16bd3b36f51782ae2c298190f985b8c65cf127889ce45832b93ff4a1d810ebbb"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
@@ -53685,7 +53685,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantBranchMutationFixture",
           "claim": "The Linux/WSL public runner executes exact joined output.",
-          "sha256": "sha256:71b4adaf4a503e75290af3b8fdf63453ac5b065c2fa4143ba5262e18c1188fd3"
+          "sha256": "sha256:16bd3b36f51782ae2c298190f985b8c65cf127889ce45832b93ff4a1d810ebbb"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
@@ -53768,7 +53768,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantMultiBranchMutationFixture",
           "claim": "The Linux/WSL public runner executes exact joined output.",
-          "sha256": "sha256:71b4adaf4a503e75290af3b8fdf63453ac5b065c2fa4143ba5262e18c1188fd3"
+          "sha256": "sha256:16bd3b36f51782ae2c298190f985b8c65cf127889ce45832b93ff4a1d810ebbb"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
@@ -53945,7 +53945,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantWhileFixture",
           "claim": "The public Linux/WSL runner executes exact Served 3 output.",
-          "sha256": "sha256:71b4adaf4a503e75290af3b8fdf63453ac5b065c2fa4143ba5262e18c1188fd3"
+          "sha256": "sha256:16bd3b36f51782ae2c298190f985b8c65cf127889ce45832b93ff4a1d810ebbb"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
@@ -54140,7 +54140,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantWmoFixture",
           "claim": "The Linux/WSL native gate executes the same source with exact output.",
-          "sha256": "sha256:71b4adaf4a503e75290af3b8fdf63453ac5b065c2fa4143ba5262e18c1188fd3"
+          "sha256": "sha256:16bd3b36f51782ae2c298190f985b8c65cf127889ce45832b93ff4a1d810ebbb"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54473,7 +54473,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantWhileMultiFixture",
           "claim": "The Linux/WSL route executes exact Served 9 output from the public source.",
-          "sha256": "sha256:71b4adaf4a503e75290af3b8fdf63453ac5b065c2fa4143ba5262e18c1188fd3"
+          "sha256": "sha256:16bd3b36f51782ae2c298190f985b8c65cf127889ce45832b93ff4a1d810ebbb"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
@@ -54574,7 +54574,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantWhilePostFixture",
           "claim": "The Linux/WSL route executes the exact post-loop fixture and Final 9 oracle.",
-          "sha256": "sha256:71b4adaf4a503e75290af3b8fdf63453ac5b065c2fa4143ba5262e18c1188fd3"
+          "sha256": "sha256:16bd3b36f51782ae2c298190f985b8c65cf127889ce45832b93ff4a1d810ebbb"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
@@ -54630,14 +54630,14 @@
         "kind": "source-case",
         "path": "tooling/substitution-cases.json",
         "caseId": "R0-linux-process-arguments",
-        "caseDigest": "sha256:2e6a935103e1f35f50e8b40ae06e424a13ccaba3e7989da3af0a8c4acba4a3ec"
+        "caseDigest": "sha256:6f39392fcd135493454928d8db7be6cd5c6e6f86fa1f255cfee4f842a05d20f7"
       },
       "evidence": [
         {
           "kind": "source",
           "path": "tooling/substitution-cases.json",
           "caseId": "R0-linux-process-arguments",
-          "caseDigest": "sha256:2e6a935103e1f35f50e8b40ae06e424a13ccaba3e7989da3af0a8c4acba4a3ec"
+          "caseDigest": "sha256:6f39392fcd135493454928d8db7be6cd5c6e6f86fa1f255cfee4f842a05d20f7"
         }
       ],
       "reason": "W-1572 (bounded CRT-free Linux process arguments and payload-enum execution, sha256:eb0211c51f00abe1eca0f3dca4b7c8e502f008b4df720e79382db6e1cd08f281) is source-backed-current only for the target-owned Linux x86_64 startup bridge, borrowed process-lifetime POSIX descriptors, Arguments.isEmpty/count, exact bounded process products, CRT-free ELF closure, and independent Windows regression evidence. Decoding, iteration, mutation, other architectures and OSes, cross-compilation, stable ABI/layout, timing, and ranking remain gaps.",
@@ -54878,7 +54878,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "resolved local-module graph",
           "claim": "The Linux/WSL public gate runs and builds the graph and rejects a private target.",
-          "sha256": "sha256:71b4adaf4a503e75290af3b8fdf63453ac5b065c2fa4143ba5262e18c1188fd3"
+          "sha256": "sha256:16bd3b36f51782ae2c298190f985b8c65cf127889ce45832b93ff4a1d810ebbb"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -55430,32 +55430,32 @@
     {
       "decisionId": "W-1585",
       "summary": "bounded cooperative process projections and target-coverage rule",
-      "canonicalClaim": "The distinct `w-seed-mlir0-cooperative-executable-1` artifact reuses the independently verified W-1584 core and derives an ordered output plan from verified HIR rather than hardcoding Restaurant stdout. The bounded plan permits static UTF-8 fragments and exactly one signed-`i64` interpolation of the two joined outcomes. Windows x86_64 emits a CRT-free `mainCRTStartup`/Kernel32 PE; Linux x86_64 emits the same core through a `main`/`write` leaf. LLVM 23.1.1 on the Windows compiler host parsed and lowered both, executed the 3072-byte PE with exact `Cooperative 88\\n`, and produced the Linux ELF object; Linux/WSL linked and executed the latter with the same output. The Linux link used the target environment/libc, so it is cross-target IR/object evidence, not the WRT0 closure or complete cross-compilation. Feature coverage defaults to all applicable catalog targets; unavailable local evidence never makes a target inapplicable, and an exclusion requires an explicit rationale and catalog record. Release fanout covers every supported applicable target and the cross-compilation goal is any supported host to any supported target.",
-      "claimDigest": "sha256:b883e6366c1b4a76358f0f377ad271cb4a04bd731a099e3d55271c498a4589ee",
+      "canonicalClaim": "The distinct `w-seed-mlir0-cooperative-executable-1` artifact reuses the independently verified W-1584 core and derives an ordered output plan from verified HIR rather than hardcoding Restaurant stdout. The bounded plan permits static UTF-8 fragments and exactly one signed-`i64` interpolation of the two joined outcomes. Windows x86_64 emits a CRT-free `mainCRTStartup`/Kernel32 PE; Linux x86_64 emits the same core through a `main`/`write` leaf. LLVM 23.1.1 on the Windows compiler host lowers both leaves, compiles the Linux leaf and shared WRT0 into separate objects, and uses `ld.lld` to produce a stripped static PIE without `PT_INTERP` or `DT_NEEDED`; WSL only executes that ELF. The 3072-byte PE and Linux ELF both exit zero with exact `Cooperative 88\\n`. This proves the bounded Windows-to-Linux CRT-free edge, not general sysroot/SDK packaging or every host-target edge. Feature coverage defaults to all applicable catalog targets; unavailable local evidence never makes a target inapplicable, and an exclusion requires an explicit rationale and catalog record. Release fanout covers every supported applicable target and the cross-compilation goal is any supported host to any supported target.",
+      "claimDigest": "sha256:eae15dcadaace98f4bce14acc6b636993fc7224a44e060ebd41566fd74b21e3b",
       "category": "source-backed-current",
       "basis": "linked-source-comparison-case",
       "authorityRef": {
         "kind": "source-case",
         "path": "tooling/substitution-cases.json",
         "caseId": "R0-cooperative-target-projection",
-        "caseDigest": "sha256:35d8fbb9cb18f5232f7c6dc856c3532ada350cf9125910d663aaa8a3b2b705c3"
+        "caseDigest": "sha256:73c1a418dd7e29ea5024641a21cd22f72e2c9598fffa1ed5464b8ac4fe7f74f7"
       },
       "evidence": [
         {
           "kind": "source",
           "path": "tooling/substitution-cases.json",
           "caseId": "R0-cooperative-target-projection",
-          "caseDigest": "sha256:35d8fbb9cb18f5232f7c6dc856c3532ada350cf9125910d663aaa8a3b2b705c3"
+          "caseDigest": "sha256:73c1a418dd7e29ea5024641a21cd22f72e2c9598fffa1ed5464b8ac4fe7f74f7"
         }
       ],
-      "reason": "W-1585 (bounded cooperative process projections and target-coverage rule, sha256:b883e6366c1b4a76358f0f377ad271cb4a04bd731a099e3d55271c498a4589ee) is source-backed-current only for the bounded transactional Windows/Linux projection emitter, exact target-specific IR, Windows CRT-free PE execution, Linux cross-target object plus target-environment execution, and the machine-checked all-applicable-target policy. Public product routing, Linux WRT0 integration, complete cross-linking, other adapters, scheduler ABI, parallel overlap, cancellation, stable ABI, benchmark, and target support remain gaps.",
+      "reason": "W-1585 (bounded cooperative process projections and target-coverage rule, sha256:eae15dcadaace98f4bce14acc6b636993fc7224a44e060ebd41566fd74b21e3b) is source-backed-current only for the bounded transactional Windows/Linux projection emitter, exact target-specific IR, Windows CRT-free PE execution, Windows-host CRT-free Linux link plus target execution, shared WRT0 bytes, and the machine-checked all-applicable-target policy. Public product routing for this cooperative product, other adapters, general cross-compilation, scheduler ABI, parallel overlap, cancellation, stable ABI, benchmark, and target support remain gaps.",
       "selection": "explicit-ledger-id",
       "basisRef": {
         "kind": "ledger-row",
         "path": "RATIONALE.md",
         "section": "3. Ledger",
         "decisionId": "W-1585",
-        "claimDigest": "sha256:b883e6366c1b4a76358f0f377ad271cb4a04bd731a099e3d55271c498a4589ee"
+        "claimDigest": "sha256:eae15dcadaace98f4bce14acc6b636993fc7224a44e060ebd41566fd74b21e3b"
       },
       "sourceRefs": [
         {
@@ -55485,20 +55485,26 @@
         {
           "path": "tooling/check-cooperative-mlir0.mjs",
           "symbol": "modes",
-          "claim": "The gate lowers the neutral core and both target projections with pinned MLIR 23.1.1 and executes current target evidence.",
-          "sha256": "sha256:9d19269488b4a7d037fcb1eb0b6391aa9176209dc8a266992c7f2e38774a7786"
+          "claim": "The gate lowers the neutral core and both target projections with pinned MLIR 23.1.1, cross-links the CRT-free Linux ELF on Windows, and executes current target evidence.",
+          "sha256": "sha256:8e816f916218c8006fe072002555d2c9ad2a4f7209e8fcbe6d0dea665be05eb0"
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_wrt0.c",
+          "symbol": "w_seed_wrt0_get",
+          "claim": "The public Linux runner and the Windows-to-Linux cooperative gate consume the same immutable target WRT0 bytes.",
+          "sha256": "sha256:1699b44583e0f277de83999478e2d7d503b7ba40a4c93d5fde10276a19b22c86"
         },
         {
           "path": "tooling/platform-support.json",
           "symbol": "featureCoverage",
           "claim": "The platform catalog requires all-applicable-target coverage, release fanout, explicit exclusions, and any-host-to-any-target cross-compilation.",
-          "sha256": "sha256:4f711c4fb18baa7f0320e2e83b15ad3346fb6d56c6b36e888ec61570fc8783de"
+          "sha256": "sha256:c69631326aa848b229a8bb6bda3ede48eb75da618a280ec49a5edf51a4cbe1da"
         },
         {
           "path": "tooling/platform-support.mjs",
           "symbol": "validatePolicy",
           "claim": "The catalog validator rejects evidence-local feature coverage or weakened fanout and cross-compilation policy.",
-          "sha256": "sha256:b3dad4e9945bd9a7339610777e422177fab82f3d03f47ff5775418bad369e6ce"
+          "sha256": "sha256:96846fb55c2935a9299f232e6c05518cebb22f1894b4e9803d2cb4733b6ae3be"
         }
       ]
     }

@@ -45,6 +45,8 @@
         "catalog-record"
       ],
       "localInvocation": "requested-targets",
+      "requestedTargetSetMustBeComplete": true,
+      "evidenceAvailabilityCannotNarrowEmission": true,
       "releaseFanout": "all-supported-applicable-targets",
       "crossCompilationGoal": "any-supported-host-to-any-supported-target"
     },
@@ -826,9 +828,42 @@
         "id": "edge-host-windows-x86_64-native-to-target-x86_64-unknown-linux-gnu",
         "hostRef": "host-windows-x86_64-native",
         "targetRef": "target-x86_64-unknown-linux-gnu",
-        "state": "candidate",
-        "evidence": [],
-        "blockers": ["hostEndpoint", "targetEndpoint", "toolchainSysrootLinkerPackaging", "buildExecution"]
+        "state": "evidence",
+        "evidence": [
+          {
+            "kind": "manifest",
+            "path": "tooling/mlir0-windows-toolchain.json",
+            "symbol": "tools",
+            "claim": "The Windows toolchain contract pins MLIR and LLVM object emission; the cross-target gate additionally requires the verified optional ELF ld.lld driver.",
+            "role": "toolchain",
+            "executionMode": null
+          },
+          {
+            "kind": "manifest",
+            "path": "tooling/mlir0-windows-toolchain.json",
+            "symbol": "buildBoundary",
+            "claim": "The materialized Windows host records the PE linker and optional ELF linker driver without invoking a target-host linker.",
+            "role": "linker",
+            "executionMode": null
+          },
+          {
+            "kind": "check",
+            "path": "tooling/check-cooperative-mlir0.mjs",
+            "symbol": "linuxEvidence",
+            "claim": "The Windows host lowers and links the bounded CRT-free Linux cooperative product with the shared WRT0.",
+            "role": "build",
+            "executionMode": null
+          },
+          {
+            "kind": "check",
+            "path": "tooling/check-cooperative-mlir0.mjs",
+            "symbol": "exactExecution",
+            "claim": "WSL executes the already Windows-linked ELF and verifies exact stdout and exit status.",
+            "role": "execution",
+            "executionMode": "local"
+          }
+        ],
+        "blockers": ["hostEndpoint", "targetEndpoint", "toolchainSysrootLinkerPackaging"]
       },
       {
         "id": "edge-host-windows-x86_64-native-to-target-x86_64-pc-windows-msvc",

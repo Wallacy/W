@@ -39270,11 +39270,12 @@ uses `mainCRTStartup`, `GetStdHandle`, `WriteFile`, and `ExitProcess`; its
 LLVM 23.1.1 pipeline produced and executed a CRT-free PE with exact stdout
 `Cooperative 88\n`. The Linux x86_64 leaf emits the same core and output plan
 with an ordinary `main`/`write` boundary. LLVM 23.1.1 running on the Windows
-compiler host produced its ELF object and the Linux/WSL target linked and
-executed it with the same stdout. That Linux check is cross-target IR/object
-evidence only: because the current link used the target environment and libc,
-it is not the CRT-free WRT0 product closure and not a complete
-Windows-to-Linux cross-compilation claim.
+compiler host lowers that leaf and the shared Linux x86-64 WRT0 into separate
+objects, then `ld.lld` links a stripped static PIE without `PT_INTERP` or
+`DT_NEEDED`. Linux/WSL only executes the retained ELF and observes the same
+stdout. This is bounded CRT-free Windows-to-Linux compilation evidence for
+this exact product, not a claim that the general compiler, SDK/sysroot
+packaging, or every supported host-target edge is complete.
 
 Target coverage is not inferred from locally available machines. Every
 language feature defaults to every target for which it is applicable. A target
@@ -39287,14 +39288,18 @@ compiler host to any supported emitted target, including Windows, Linux, and
 macOS host/target combinations; target adapters, SDK/sysroot/linker packaging,
 and execution evidence remain independently promoted axes.
 
-The two current `w_seed_mlir0_target_kind` values are seed evidence lanes, not
+The two current `w_seed_mlir0_target_kind` values and the implemented WRT0
+variant are seed evidence lanes, not
 the W target universe. macOS, AArch64, mobile, GPU, WebAssembly, embedded, and
 other catalog candidates remain architecturally open and must not inherit a
 Windows or Linux ABI. A process entry may be genuinely inapplicable to a
 device-only target, but the cooperative core is still reusable by that
 target's own execution adapter. W-1585 does not expose this artifact through
 public `w run`/`w build`, define scheduler fairness, threads, parallel overlap,
-cancellation, a stable ABI, or benchmark performance.
+cancellation, a stable ABI, or benchmark performance. Implementations must
+emit every requested applicable target and release fanout must attempt every
+supported applicable target; a missing local machine can block validation but
+cannot narrow either set.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 
