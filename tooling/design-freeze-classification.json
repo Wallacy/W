@@ -23,7 +23,7 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:fe9ed1ddd196ce60966c5b174cb2eeb0d96424db07ba62b028b20ef86a5c6d44",
+    "sha256": "sha256:945fe377dbfff24cf66a58da02add8051fb1ae97e286752c3df1b7f4fe093123",
     "count": 1585,
     "first": "W-001",
     "last": "W-1585"
@@ -21850,7 +21850,7 @@
         "path": "DESIGN.md",
         "section": "26",
         "heading": "## 26. Plano de implementação",
-        "sectionDigest": "sha256:cd6766664c3a63d6631126fe83be4854252c45037f0192312fc3504fe0c11b65"
+        "sectionDigest": "sha256:9fa1448cb691e35a18864c2caeabc5be30243df4e2115090c8f4970b6700d64a"
       },
       "evidence": [],
       "reason": "W-659 (body de entry, sha256:f66ab57406ddb51303f9190376daf72d8f538bd7bd8adfbf9992ae3d7223e74e) has no executable witness for component implementation-plan. The checked current contract is DESIGN.md §26 / 26. Plano de implementação.",
@@ -50950,7 +50950,7 @@
         },
         {
           "path": "compiler/seed-c/src/w_seed_native0.c",
-          "sha256": "sha256:2d1a7708c6e732a1c5cf46117044888f2a4eed250086726b24310e59a082de30",
+          "sha256": "sha256:1b363bf871066b78b06f98b9ac82a5a9188e34809245311cd513f432d2d4ed6f",
           "symbol": "w_seed_native0_run",
           "claim": "Native0 enforces source limits, direct verified HIR0 lowering and all-or-nothing output."
         },
@@ -52785,7 +52785,7 @@
           "path": "compiler/seed-c/src/w_seed_native0.c",
           "symbol": "configure_external_catalog",
           "claim": "Native0 resolves only the compiler-owned std.process catalog from the scanned import path.",
-          "sha256": "sha256:2d1a7708c6e732a1c5cf46117044888f2a4eed250086726b24310e59a082de30"
+          "sha256": "sha256:1b363bf871066b78b06f98b9ac82a5a9188e34809245311cd513f432d2d4ed6f"
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
@@ -55342,7 +55342,7 @@
           "path": "compiler/seed-c/tests/test_cooperative0.c",
           "symbol": "test_cooperative_fixture",
           "claim": "Focused tests verify the deterministic fixture, forged relations, and transactional capacity and alias boundaries.",
-          "sha256": "sha256:690635f5c99c442bc3ef7979b371aed86c9e10a54f2feecf4b0d74523127d20d"
+          "sha256": "sha256:9f6074966c0781905cbd7426e13c624b57a6bc1e78bd7ab1285627233ba5edb4"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-cooperative0.w",
@@ -55423,7 +55423,7 @@
           "path": "compiler/seed-c/tests/test_cooperative0.c",
           "symbol": "test_cooperative_product_selection",
           "claim": "Focused tests cover exact selection facts, forged-field rejection, invalid HIR transactionality, and unchanged normal lowering.",
-          "sha256": "sha256:690635f5c99c442bc3ef7979b371aed86c9e10a54f2feecf4b0d74523127d20d"
+          "sha256": "sha256:9f6074966c0781905cbd7426e13c624b57a6bc1e78bd7ab1285627233ba5edb4"
         }
       ]
     },
@@ -55438,14 +55438,14 @@
         "kind": "source-case",
         "path": "tooling/substitution-cases.json",
         "caseId": "R0-cooperative-target-projection",
-        "caseDigest": "sha256:73c1a418dd7e29ea5024641a21cd22f72e2c9598fffa1ed5464b8ac4fe7f74f7"
+        "caseDigest": "sha256:4bab0835670086bd052e189053e2eb106a5787a8ddbd88f47cd34a64ad0c87f9"
       },
       "evidence": [
         {
           "kind": "source",
           "path": "tooling/substitution-cases.json",
           "caseId": "R0-cooperative-target-projection",
-          "caseDigest": "sha256:73c1a418dd7e29ea5024641a21cd22f72e2c9598fffa1ed5464b8ac4fe7f74f7"
+          "caseDigest": "sha256:4bab0835670086bd052e189053e2eb106a5787a8ddbd88f47cd34a64ad0c87f9"
         }
       ],
       "reason": "W-1585 (bounded cooperative process projections and target-coverage rule, sha256:eae15dcadaace98f4bce14acc6b636993fc7224a44e060ebd41566fd74b21e3b) is source-backed-current only for the bounded transactional Windows/Linux projection emitter, exact target-specific IR, Windows CRT-free PE execution, Windows-host CRT-free Linux link plus target execution, shared WRT0 bytes, and the machine-checked all-applicable-target policy. Public product routing for this cooperative product, other adapters, general cross-compilation, scheduler ABI, parallel overlap, cancellation, stable ABI, benchmark, and target support remain gaps.",
@@ -55477,10 +55477,16 @@
           "sha256": "sha256:b8f2e36e37991523ef4db94c10a585259d22a1dd90176a1c97a22c57a7951a89"
         },
         {
+          "path": "compiler/seed-c/src/w_seed_native0.c",
+          "symbol": "w_seed_native0_run",
+          "claim": "An explicit internal artifact request selects cooperative HIR lowering without changing the normal public executable route.",
+          "sha256": "sha256:1b363bf871066b78b06f98b9ac82a5a9188e34809245311cd513f432d2d4ed6f"
+        },
+        {
           "path": "compiler/seed-c/tests/test_cooperative0.c",
           "symbol": "test_cooperative_product_selection",
           "claim": "Focused tests prove deterministic dual-target bytes and transactional unsupported-target, unsupported-HIR, and capacity rejection.",
-          "sha256": "sha256:690635f5c99c442bc3ef7979b371aed86c9e10a54f2feecf4b0d74523127d20d"
+          "sha256": "sha256:9f6074966c0781905cbd7426e13c624b57a6bc1e78bd7ab1285627233ba5edb4"
         },
         {
           "path": "tooling/check-cooperative-mlir0.mjs",

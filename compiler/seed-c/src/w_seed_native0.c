@@ -693,7 +693,9 @@ w_seed_native0_status w_seed_native0_run(
   if (!input_shape_valid(input)) return W_SEED_NATIVE0_SOURCE;
   if (input->artifact_kind != W_SEED_MLIR0_ARTIFACT_EXECUTABLE &&
       input->artifact_kind != W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER &&
-      input->artifact_kind != W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE)
+      input->artifact_kind != W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE &&
+      input->artifact_kind !=
+          W_SEED_MLIR0_ARTIFACT_COOPERATIVE_EXECUTABLE)
     return W_SEED_NATIVE0_UNSUPPORTED;
   if (output->capacity > W_SEED_MLIR0_MAX_BYTES ||
       (output->capacity != 0u && output->bytes == NULL))
@@ -707,7 +709,11 @@ w_seed_native0_status w_seed_native0_run(
   if (!read_source(input, storage)) return W_SEED_NATIVE0_SOURCE;
   w_seed_native0_status status = prepare_frontend(input, storage);
   if (status != W_SEED_NATIVE0_OK) return status;
-  status = lower_hir(storage, W_SEED_HIR0_EXECUTION_PROFILE_NORMAL);
+  const w_seed_hir0_execution_profile execution_profile =
+      input->artifact_kind == W_SEED_MLIR0_ARTIFACT_COOPERATIVE_EXECUTABLE
+          ? W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE
+          : W_SEED_HIR0_EXECUTION_PROFILE_NORMAL;
+  status = lower_hir(storage, execution_profile);
   if (status != W_SEED_NATIVE0_OK) return status;
 
   return emit_hir_program(storage, &input->target, input->artifact_kind,

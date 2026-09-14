@@ -1789,6 +1789,12 @@ dependency; Linux/WSL only executes it and observes the same output. This is
 complete bounded Windows-to-Linux product evidence for this exact source, not
 general SDK/sysroot packaging or a complete host-target matrix.
 
+`w_seed_native0_run` accepts the cooperative artifact kind for internal
+product-policy callers and lowers that request with the cooperative HIR
+profile. Public `w run` and `w build` still request the normal artifact, keeping
+the same pure witness eligible for W-1582 Task/yield elision. No filename,
+stdout, or fallback heuristic forces the cooperative state machine.
+
 The seed target enum currently exposes only the two proven x86_64 leaves; it is
 not the W target universe. Feature coverage defaults to every applicable target
 in the platform catalog. Missing local hardware or evidence is a blocker, not
