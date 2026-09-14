@@ -1195,6 +1195,18 @@
         }
       ]
     },
+    "check:gpu-module": {
+      "description": "Validate the W source to independently verified GPU module bridge.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-gpu-module.mjs"
+          ]
+        }
+      ]
+    },
     "check:hir0": {
       "description": "Internal check:hir0 command.",
       "steps": [

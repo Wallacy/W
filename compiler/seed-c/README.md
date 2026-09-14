@@ -181,9 +181,11 @@ integer interpolation to canonical signed `i64`. Version 16 retains those
 append-only records and adds resolver-owned external nominal identity pairs;
 W-1542 documents its bounded `std.process` use. Version 27 appends
 provider-neutral accelerator-module and ordered kernel-binding records for
-exact `accelerator.module<{...}>()` static records. HIR0 and MLIR0 lower only
-their bounded subsets. Escape decoding, Boolean/String value Display, general
-Display conformance, typed accelerator launch, device IR, and native lowering
+exact `accelerator.module<{...}>()` static records. The separate
+`w_seed_gpu_module` bridge owns and independently verifies the first bounded
+signed-`i32` device-module slice. HIR0 and MLIR0 lower only their bounded
+subsets. Escape decoding, Boolean/String value Display, general Display
+conformance, typed accelerator launch, general device IR, and native lowering
 outside those subsets remain gaps.
 
 O seed materializa `Bool`, inteiros bounded (incluindo `usize`), strings simples
@@ -2174,10 +2176,21 @@ values are direct same-document functions. Focused tests cover one and multiple
 kernels, deterministic receipts, exact ownership, short capacities, empty and
 malformed records, duplicate labels, missing functions, and runtime arguments.
 
-This package does not implement typed `.launch`, verified device IR, the
-frontend-to-GPU0 bridge, a W runtime/provider, public GPU build/run, a supported
-GPU ABI, or a homogeneous pinned production toolchain. Those boundaries keep
-roadmap rank 1 open.
+`w_seed_gpu_module` is the next target-neutral compiler boundary. It validates
+Frontend27 independently, measures caller-owned module/kernel/text/receipt
+storage, copies no frontend or source pointer, and publishes separate semantic
+and provenance digests. Its verifier works after source, CST, and frontend
+teardown and rejects aliases, short capacity, malformed spans and identities,
+forged indices or payloads, receipt changes, and digest changes. The fixture
+`fixtures/gpu0-module.w` proves the current function-body slice: a direct,
+zero-parameter, effect-free signed-`i32` literal return. Multiple module fields
+remain representable; this exact body shape is not a language or ABI limit.
+
+`bun check --target gpu0` runs this source bridge before the separate GPU0
+artifact/CUDA experiment. This package still does not implement typed
+`.launch`, source-driven host/device artifact generation, a W runtime/provider,
+public GPU build/run, a supported GPU ABI, or a homogeneous pinned production
+toolchain. Those boundaries keep roadmap rank 1 open.
 
 ### Closed local payloadless enum exhaustive switch (W-1563)
 

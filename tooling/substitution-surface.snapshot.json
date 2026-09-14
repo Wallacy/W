@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:d164cdb3930f16b9f909fa9a443773742d47bd6bc1fd5d2f982630cc8a389a57",
+  "corpusDigest": "sha256:56cbad9581e76543c213981dd9e6cbe3b949dfff3bc7bb2c973ba84e15ec8311",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -8512,13 +8512,13 @@
       "selected": {
         "name": "selected",
         "language": "w-internal",
-        "sourceDigest": "sha256:4f9debe5d5d8a91b2d6be32bfd42200f53afd76d496e06e8a6c7e3d10722d641",
+        "sourceDigest": "sha256:447c963fa6d1cb93d66c98d7951c8ae7b60f3876305de5d7d8c0cb05a563f691",
         "metrics": {
-          "utf8Bytes": 375,
-          "codePoints": 375,
-          "nonWhitespaceCodePoints": 339,
-          "lines": 7,
-          "surfaceLexemes": 80
+          "utf8Bytes": 444,
+          "codePoints": 444,
+          "nonWhitespaceCodePoints": 404,
+          "lines": 8,
+          "surfaceLexemes": 88
         }
       },
       "alternatives": [

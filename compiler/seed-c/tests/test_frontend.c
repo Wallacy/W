@@ -1,4 +1,5 @@
 #include "w_seed_frontend.h"
+#include "w_seed_gpu_module.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -155,6 +156,16 @@ static char long_source[8192];
 static fixture fixture_scalar_if;
 static fixture fixture_mutation;
 static fixture fixture_async;
+
+typedef struct {
+  w_seed_gpu_module_record modules[TEST_ACCELERATOR_MODULES];
+  w_seed_gpu_module_kernel kernels[TEST_ACCELERATOR_KERNELS];
+  uint8_t text[8192];
+  uint8_t receipt[TEST_RECEIPT];
+} gpu_module_storage;
+
+static gpu_module_storage gpu_storage;
+static gpu_module_storage gpu_capacity_storage;
 
 static bool all_bytes_equal(const void *data, size_t size, uint8_t value) {
   if (size == 0) return true;
@@ -5719,7 +5730,222 @@ static bool test_accelerator_module_frontend(void) {
   return true;
 }
 
-int main(void) {
+static bool read_text_file(const char *path, char *buffer, size_t capacity) {
+  if (path == NULL || buffer == NULL || capacity < 2u) return false;
+  FILE *file = fopen(path, "rb");
+  if (file == NULL) return false;
+  const size_t bytes = fread(buffer, 1u, capacity - 1u, file);
+  const int extra = fgetc(file);
+  const bool ok = !ferror(file) && extra == EOF && bytes != 0u &&
+                  memchr(buffer, '\0', bytes) == NULL;
+  (void)fclose(file);
+  if (!ok) return false;
+  buffer[bytes] = '\0';
+  return true;
+}
+
+static bool gpu_text_is(const w_seed_gpu_module_program *program,
+                        size_t offset, size_t bytes, const char *expected) {
+  const size_t expected_bytes = strlen(expected);
+  return offset <= program->text_bytes &&
+         bytes <= program->text_bytes - offset && bytes == expected_bytes &&
+         memcmp(program->text + offset, expected, bytes) == 0;
+}
+
+static bool test_gpu_module_bridge(const char *path) {
+  char source[4096];
+  CHECK(read_text_file(path, source, sizeof(source)));
+  fixture *value = &fixture_const;
+  CHECK(fixture_run(value, source));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
+        value->result.status == W_SEED_FRONTEND_OK &&
+        value->result.written.accelerator_modules == 1u &&
+        value->result.written.accelerator_kernels == 1u);
+
+  const w_seed_gpu_module_input input = {
+      .frontend_input = &value->input,
+      .frontend_output = &value->output,
+      .frontend_result = &value->result};
+  w_seed_gpu_module_counts counts;
+  w_seed_gpu_module_result measured;
+  (void)memset(&counts, 0xa5, sizeof(counts));
+  (void)memset(&measured, 0xa5, sizeof(measured));
+  CHECK(w_seed_gpu_module_measure(&input, &counts, &measured) ==
+        W_SEED_GPU_MODULE_OK);
+  CHECK(counts.modules == 1u && counts.kernels == 1u &&
+        counts.text_bytes != 0u && counts.frontend_receipt_bytes != 0u &&
+        measured.status == W_SEED_GPU_MODULE_OK &&
+        measured.required.modules == 1u && measured.written.modules == 0u);
+
+  (void)memset(&gpu_storage, 0xa5, sizeof(gpu_storage));
+  w_seed_gpu_module_output output = {
+      .modules = gpu_storage.modules,
+      .module_capacity = TEST_ACCELERATOR_MODULES,
+      .kernels = gpu_storage.kernels,
+      .kernel_capacity = TEST_ACCELERATOR_KERNELS,
+      .text = gpu_storage.text,
+      .text_capacity = sizeof(gpu_storage.text),
+      .frontend_receipt = gpu_storage.receipt,
+      .frontend_receipt_capacity = sizeof(gpu_storage.receipt)};
+  w_seed_gpu_module_result result;
+  (void)memset(&result, 0xa5, sizeof(result));
+  CHECK(w_seed_gpu_module_run(&input, &output, &result) ==
+        W_SEED_GPU_MODULE_OK);
+  CHECK(result.status == W_SEED_GPU_MODULE_OK &&
+        result.written.modules == counts.modules &&
+        result.written.kernels == counts.kernels &&
+        result.written.text_bytes == counts.text_bytes &&
+        result.written.frontend_receipt_bytes == counts.frontend_receipt_bytes);
+
+  w_seed_gpu_module_program program;
+  (void)memset(&program, 0xa5, sizeof(program));
+  CHECK(w_seed_gpu_module_program_from_output(&output, &result, &program));
+  CHECK(w_seed_gpu_module_verify(&program, &result));
+  CHECK(program.module_count == 1u && program.kernel_count == 1u &&
+        program.modules[0].first_kernel == 0u &&
+        program.modules[0].kernel_count == 1u &&
+        gpu_text_is(&program, program.modules[0].const_name_offset,
+                    program.modules[0].const_name_bytes, "kernels") &&
+        program.kernels[0].owner_module == 0u &&
+        program.kernels[0].ordinal == 0u &&
+        program.kernels[0].return_bit_width == 32u &&
+        program.kernels[0].return_is_signed &&
+        program.kernels[0].payload == 42 &&
+        gpu_text_is(&program, program.kernels[0].label_offset,
+                    program.kernels[0].label_bytes, "hello") &&
+        gpu_text_is(&program, program.kernels[0].function_name_offset,
+                    program.kernels[0].function_name_bytes, "helloKernel"));
+
+  static const char trivia_source[] =
+      "fn helloKernel(): i32 {\n"
+      "  // semantic identity ignores source trivia\n"
+      "  return 42\n"
+      "}\n\n"
+      "export const kernels = accelerator.module<{ hello: helloKernel }>()\n"
+      "entry { }\n";
+  fixture *trivia = &fixture_b;
+  CHECK(fixture_run(trivia, trivia_source));
+  const w_seed_gpu_module_input trivia_input = {
+      .frontend_input = &trivia->input,
+      .frontend_output = &trivia->output,
+      .frontend_result = &trivia->result};
+  (void)memset(&gpu_capacity_storage, 0,
+               sizeof(gpu_capacity_storage));
+  w_seed_gpu_module_output trivia_output = {
+      .modules = gpu_capacity_storage.modules,
+      .module_capacity = TEST_ACCELERATOR_MODULES,
+      .kernels = gpu_capacity_storage.kernels,
+      .kernel_capacity = TEST_ACCELERATOR_KERNELS,
+      .text = gpu_capacity_storage.text,
+      .text_capacity = sizeof(gpu_capacity_storage.text),
+      .frontend_receipt = gpu_capacity_storage.receipt,
+      .frontend_receipt_capacity = sizeof(gpu_capacity_storage.receipt)};
+  w_seed_gpu_module_result trivia_result;
+  CHECK(w_seed_gpu_module_run(&trivia_input, &trivia_output, &trivia_result) ==
+        W_SEED_GPU_MODULE_OK);
+  CHECK(memcmp(result.semantic_digest, trivia_result.semantic_digest,
+               sizeof(result.semantic_digest)) == 0 &&
+        memcmp(result.provenance_digest, trivia_result.provenance_digest,
+               sizeof(result.provenance_digest)) != 0);
+
+  const uint8_t sentinel = 0xa5u;
+  (void)memset(&gpu_capacity_storage, sentinel,
+               sizeof(gpu_capacity_storage));
+  w_seed_gpu_module_output short_output = {
+      .modules = gpu_capacity_storage.modules,
+      .module_capacity = counts.modules,
+      .kernels = gpu_capacity_storage.kernels,
+      .kernel_capacity = counts.kernels,
+      .text = gpu_capacity_storage.text,
+      .text_capacity = counts.text_bytes - 1u,
+      .frontend_receipt = gpu_capacity_storage.receipt,
+      .frontend_receipt_capacity = counts.frontend_receipt_bytes};
+  w_seed_gpu_module_result short_result;
+  (void)memset(&short_result, sentinel, sizeof(short_result));
+  CHECK(w_seed_gpu_module_run(&input, &short_output, &short_result) ==
+        W_SEED_GPU_MODULE_CAPACITY);
+  CHECK(all_bytes_equal(&gpu_capacity_storage,
+                        sizeof(gpu_capacity_storage), sentinel) &&
+        all_bytes_equal(&short_result, sizeof(short_result), sentinel));
+
+  w_seed_gpu_module_output alias_output = output;
+  alias_output.text = (uint8_t *)(void *)gpu_storage.modules;
+  alias_output.text_capacity = sizeof(gpu_storage.modules);
+  w_seed_gpu_module_result alias_result;
+  (void)memset(&alias_result, sentinel, sizeof(alias_result));
+  CHECK(w_seed_gpu_module_run(&input, &alias_output, &alias_result) ==
+        W_SEED_GPU_MODULE_ALIAS);
+  CHECK(all_bytes_equal(&alias_result, sizeof(alias_result), sentinel) &&
+        w_seed_gpu_module_verify(&program, &result));
+  CHECK(!w_seed_gpu_module_program_from_output(
+      &output, &result,
+      (w_seed_gpu_module_program *)(void *)gpu_storage.modules));
+  CHECK(w_seed_gpu_module_verify(&program, &result));
+
+  w_seed_gpu_module_counts unchanged_counts;
+  w_seed_gpu_module_result unchanged_result;
+  const w_seed_frontend_text saved_schema = value->result.schema_version;
+  value->result.schema_version = (w_seed_frontend_text){"forged", 6u};
+  (void)memset(&unchanged_counts, sentinel, sizeof(unchanged_counts));
+  (void)memset(&unchanged_result, sentinel, sizeof(unchanged_result));
+  CHECK(w_seed_gpu_module_measure(&input, &unchanged_counts,
+                                  &unchanged_result) ==
+        W_SEED_GPU_MODULE_INVALID_SCHEMA);
+  CHECK(all_bytes_equal(&unchanged_counts, sizeof(unchanged_counts), sentinel) &&
+        all_bytes_equal(&unchanged_result, sizeof(unchanged_result), sentinel));
+  value->result.schema_version = saved_schema;
+
+  value->result.required.functions += 1u;
+  CHECK(w_seed_gpu_module_measure(&input, &unchanged_counts,
+                                  &unchanged_result) ==
+        W_SEED_GPU_MODULE_INCONSISTENT);
+  value->result.required.functions -= 1u;
+
+  const uint32_t saved_function = value->accelerator_kernels[0].function_index;
+  value->accelerator_kernels[0].function_index = UINT32_MAX;
+  (void)memset(&unchanged_counts, sentinel, sizeof(unchanged_counts));
+  (void)memset(&unchanged_result, sentinel, sizeof(unchanged_result));
+  CHECK(w_seed_gpu_module_measure(&input, &unchanged_counts,
+                                  &unchanged_result) ==
+        W_SEED_GPU_MODULE_UNSUPPORTED);
+  CHECK(all_bytes_equal(&unchanged_counts, sizeof(unchanged_counts), sentinel) &&
+        all_bytes_equal(&unchanged_result, sizeof(unchanged_result), sentinel));
+  value->accelerator_kernels[0].function_index = saved_function;
+
+  const int64_t saved_payload = program.kernels[0].payload;
+  gpu_storage.kernels[0].payload = 43;
+  CHECK(!w_seed_gpu_module_verify(&program, &result));
+  gpu_storage.kernels[0].payload = saved_payload;
+  CHECK(w_seed_gpu_module_verify(&program, &result));
+
+  const w_seed_span saved_field_span = gpu_storage.kernels[0].field_span;
+  gpu_storage.kernels[0].field_span.start_byte =
+      gpu_storage.modules[0].const_span.end_byte + 1u;
+  CHECK(!w_seed_gpu_module_verify(&program, &result));
+  gpu_storage.kernels[0].field_span = saved_field_span;
+  CHECK(w_seed_gpu_module_verify(&program, &result));
+
+  const size_t label_offset = gpu_storage.kernels[0].label_offset;
+  const uint8_t saved_label = gpu_storage.text[label_offset];
+  gpu_storage.text[label_offset] = (uint8_t)'?';
+  CHECK(!w_seed_gpu_module_verify(&program, &result));
+  gpu_storage.text[label_offset] = saved_label;
+  CHECK(w_seed_gpu_module_verify(&program, &result));
+
+  result.semantic_digest[0] ^= UINT8_C(1);
+  CHECK(!w_seed_gpu_module_verify(&program, &result));
+  result.semantic_digest[0] ^= UINT8_C(1);
+  CHECK(w_seed_gpu_module_verify(&program, &result));
+
+  (void)memset(value, 0, sizeof(*value));
+  (void)memset(source, 0, sizeof(source));
+  CHECK(w_seed_gpu_module_verify(&program, &result));
+  return true;
+}
+
+int main(int argc, char **argv) {
+  if (argc == 2) return test_gpu_module_bridge(argv[1]) ? 0 : 1;
+  if (argc != 1) return 2;
   if (!test_short_entry_frontend()) return 1;
   if (!test_scalar_if_frontend_subset()) return 1;
   if (!test_scalar_type_measure_emit_parity()) return 1;

@@ -114,8 +114,9 @@
       ]
     },
     "root-gpu0": {
-      "description": "Target-neutral GPU0 unit, MLIR GPU lowering, and available Windows CUDA execution evidence.",
+      "description": "Source-backed GPU module bridge, target-neutral GPU0 unit, MLIR GPU lowering, and available Windows CUDA execution evidence.",
       "steps": [
+        { "package": "root", "script": "check:gpu-module" },
         { "package": "root", "script": "check:gpu0" }
       ]
     },
