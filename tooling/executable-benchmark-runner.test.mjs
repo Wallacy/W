@@ -685,6 +685,7 @@ test("C and Rust dispatch compile directly with declared targets and skip W tool
     assert.equal(record.compile.raw.length, 9);
     assert.equal(record.run.warmup.length, 1);
     assert.equal(record.run.raw.length, 9);
+    assert.equal(record.protocol.runtimeScope, "direct-host-process");
     assert.equal(record.correctness.oracleId, "hello:exact-output");
     assert.deepEqual(record.artifact.cleanliness, EXPECTED_PE_ARTIFACT_CLEANLINESS);
     assert.deepEqual(record.artifact.peLayout, EXPECTED_PE_LAYOUT);

@@ -21,7 +21,7 @@ test("generated projection is current, compact, and sourced only from the live c
   assert.match(rendered, /\| restaurant-main-dispatch \| w \| Linux x64 \/ WSL2 \| CRT-free \| 2768 B/u);
   assert.match(rendered, /\| restaurant-main-cardinality \| public-end-to-end \|/u);
   assert.match(rendered, /WSL values are not rankable across hosts\./u);
-  assert.match(rendered, /\| Workload \| Language \| Target \| Runtime \| Artifact \| \.text B \| \.rdata B \| Compile p50 \| Cold p50 \| Cold p95 \| Peak RSS \| CPU mean \|/u);
+  assert.match(rendered, /\| Workload \| Language \| Target \| Runtime \| Artifact \| \.text B \| \.rdata B \| Compile p50 \| Run p50 \| Run p95 \| Peak RSS \| CPU mean \|/u);
   assert.match(rendered, /\| hello \| c \| Windows x64 \/ MSVC \| MSVC CRT DLL \| [0-9]+ B/u);
   assert.match(rendered, /\| hello \| w \| Windows x64 \/ MSVC \| CRT-free \| [0-9]+ B/u);
   const partialWOnly = documents.catalog.workloads.filter((workload) =>
@@ -33,7 +33,8 @@ test("generated projection is current, compact, and sourced only from the live c
   assert.ok(partialWOnly.every((workload) => rendered.includes(`| ${workload.id} |`)));
   assert.doesNotMatch(rendered, /restaurant-composition/u, "planned workloads stay out of the projection");
   assert.match(rendered, /Artifact size counts only the emitted executable file\. On Windows it excludes imported runtime DLLs\./u);
-  assert.match(rendered, /Cold p50\/p95 measure one complete fresh-process launch, execution, and wait per sample\./u);
+  assert.match(rendered, /Run p50\/p95 measure one complete target-process invocation \(launch, execution, and wait\) per sample\./u);
+  assert.match(rendered, /WSL initializes once, stages the ELF on WSL-native \/tmp, and excludes wsl\.exe startup and DrvFS access/u);
   assert.match(rendered, /\[w\]\(\.\/executable\/hello\.w\)/u);
   assert.match(rendered, /\[w\]\(\.\.\/compiler\/seed-c\/fixtures\/restaurant-if\.w\)/u);
   assert.match(rendered, /\x7c process-handler-lifecycle \x7c integration-linkage \x7c/u);

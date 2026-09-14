@@ -236,7 +236,7 @@ export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
   }
   lines.push("", "## Best values");
   const tableHeader = [
-    "| Workload | Language | Target | Runtime | Artifact | .text B | .rdata B | Compile p50 | Cold p50 | Cold p95 | Peak RSS | CPU mean |",
+    "| Workload | Language | Target | Runtime | Artifact | .text B | .rdata B | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |",
     "| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
   ];
   for (const [platformTarget, label] of [
@@ -261,11 +261,11 @@ export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
   lines.push(
     "",
     "Artifact size counts only the emitted executable file. On Windows it excludes imported runtime DLLs. Windows public W is CRT-free; public C and Rust import the MSVC runtime. The private process-handler composite remains a Windows GCC/MinGW contextual lane. Native Linux records, when published, are kept in their own Linux x64 / GNU lane; W's current Linux product route is also CRT-free.",
-    "Cold p50/p95 measure one complete fresh-process launch, execution, and wait per sample. They are startup observations dominated by the platform process path for very small programs, not an estimate of steady-state body throughput. A future body-throughput lane must use a separately identified batched or persistent harness and publish its harness baseline.",
+    "Run p50/p95 measure one complete target-process invocation (launch, execution, and wait) per sample. Production samples use one native target-environment helper batch for each warmup/raw series: WSL initializes once, stages the ELF on WSL-native /tmp, and excludes wsl.exe startup and DrvFS access from every sample. The target process itself is intentionally fresh per sample, so these are product invocation costs, not in-process body-throughput numbers. A future persistent body lane must use a distinct protocol and never be merged with these cells.",
     "Do not compare Windows milliseconds with Linux/WSL microseconds as W-body speed. The Windows lane includes process creation, security, Job Object, scheduler, and accounting work; the WSL lane times the Linux executable from a Linux-native helper inside an already-running distribution with CLOCK_MONOTONIC and wait4. Compare regressions only within the same platform and runner lane.",
     "Each projection row is compact: every displayed metric chooses the lower value across pinned categories on that same platform, so cells may come from distinct toolchain/recipe categories. The machine catalog retains those category and provenance identities; no value is selected across platform sections. WSL rows remain host-partitioned and are never pooled across hosts.",
     "Linux x64 via WSL2 is Linux-target evidence on a Windows host, not native Linux support. It is accepted for same-host regression and same-physical-hardware diagnostics only; WSL values are not rankable across hosts. WSL provenance records the host mode, comparison purpose, and rankability explicitly.",
-    "The `.text B` and `.rdata B` columns are the unique PE sections' validated VirtualSize; VirtualSize includes padding and zero-fill and is not a useful-instruction count. `—` means absent, ambiguous, or not measured. Linux ELF metadata is kept separate from PE metadata. Only source-backed workloads with a materialized source and runner-supported recipe appear here; planned/backlog entries remain in the catalog. CPU is the arithmetic mean of 101 fresh-process counters; an all-zero estimate is omitted.",
+    "The `.text B` and `.rdata B` columns are the unique PE sections' validated VirtualSize; VirtualSize includes padding and zero-fill and is not a useful-instruction count. `—` means absent, ambiguous, or not measured. Linux ELF metadata is kept separate from PE metadata. Only source-backed workloads with a materialized source and runner-supported recipe appear here; planned/backlog entries remain in the catalog. CPU is the arithmetic mean of 101 fresh target-process counters; an all-zero estimate is omitted.",
     `Machine contract and provenance: ${jsonPathLink(projectionPath("benchmarks/executable-catalog.json"), "executable-catalog.json")}. Manual commands: [README](./README.md#manual-reproduction).`,
   );
   return lines.join("\n");
