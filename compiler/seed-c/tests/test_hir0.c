@@ -854,6 +854,18 @@ static bool fixture_process_input0_frontend(const char *source) {
   return true;
 }
 
+static bool fixture_process_parallel_frontend(const char *source) {
+  CHECK(fixture_parse(source));
+  configure_process_input_host();
+  configure_parallel_domain(W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT,
+                            W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL);
+  configure_process_input_external();
+  CHECK(resolve_process_import());
+  CHECK(w_seed_frontend_run(&fixture.input, &fixture.output,
+                            &fixture.result) == W_SEED_FRONTEND_OK);
+  return true;
+}
+
 static void setup_hir_output(void) {
   fixture.hir_output = (w_seed_hir0_output){
       .modules = fixture.hir_modules,
@@ -1049,6 +1061,28 @@ static bool lower_process_input0(const char *source) {
  * tested independently of the isEmpty branch's fixed record counts. */
 static bool lower_process_input0_generic(const char *source) {
   CHECK(fixture_process_input0_frontend(source));
+  setup_hir_output();
+  const w_seed_hir0_input input = {
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
+  w_seed_hir0_counts measured;
+  w_seed_hir0_result measure_result;
+  CHECK(w_seed_hir0_measure(&input, &measured, &measure_result) ==
+        W_SEED_HIR0_OK);
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &fixture.hir_result) ==
+        W_SEED_HIR0_OK);
+  CHECK(w_seed_hir0_program_from_output(&fixture.hir_output,
+                                        &fixture.hir_result,
+                                        &fixture.hir_program));
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_counts = measured;
+  return true;
+}
+
+static bool lower_process_parallel(const char *source) {
+  CHECK(fixture_process_parallel_frontend(source));
   setup_hir_output();
   const w_seed_hir0_input input = {
       .frontend_input = &fixture.input,
@@ -3085,6 +3119,112 @@ static bool test_parallel_domain_placement_hir(void) {
             &invocation_sentinel) == W_SEED_PARALLEL_INVOCATION0_UNSUPPORTED &&
         memcmp(&invocation_sentinel, &invocation_before,
                sizeof(invocation_before)) == 0);
+  return true;
+}
+
+static bool test_process_parallel_composition_hir(void) {
+  static const char SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "fn select(missing: Bool): i64 { return if missing { 0 } else { 40 } }\n"
+      "fn increment(value: i64): i64 { return value + 1 }\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { let seed = select(missing: args.isEmpty) "
+      "let pending = spawn<.domain> increment(value: seed) "
+      "let value = await pending "
+      "return .success }\nentry(run)\n";
+  CHECK(lower_process_parallel(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  size_t dispatches = 0u;
+  size_t root_direct_calls = 0u;
+  size_t launch_bindings = 0u;
+  size_t join_bindings = 0u;
+  const w_seed_hir0_entry *entry = &program->entries[0];
+  const w_seed_hir0_function *root = &program->functions[entry->target_function];
+  for (size_t index = 0u; index < program->call_count; index += 1u)
+    if (program->calls[index].execution_kind ==
+        W_SEED_HIR0_CALL_STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH) {
+      const w_seed_hir0_call *call = &program->calls[index];
+      CHECK(call->owner_block == root->first_block &&
+            call->argument_count == 1u &&
+            call->first_argument < program->argument_count);
+      const w_seed_hir0_argument *argument =
+          &program->arguments[call->first_argument];
+      CHECK(argument->value_index < program->value_count &&
+            program->values[argument->value_index].kind ==
+                W_SEED_HIR0_VALUE_BINDING_READ);
+      dispatches += 1u;
+    } else if (program->calls[index].execution_kind == W_SEED_HIR0_CALL_DIRECT &&
+               program->calls[index].owner_block == root->first_block) {
+      const w_seed_hir0_call *call = &program->calls[index];
+      CHECK(call->argument_count == 1u &&
+            call->first_argument < program->argument_count);
+      const w_seed_hir0_argument *argument =
+          &program->arguments[call->first_argument];
+      CHECK(argument->value_index < program->value_count &&
+            program->values[argument->value_index].kind ==
+                W_SEED_HIR0_VALUE_EXTERNAL_MEMBER &&
+            program->values[argument->value_index].external_symbol_index == 4u);
+      root_direct_calls += 1u;
+    }
+  for (size_t index = 0u; index < program->binding_count; index += 1u) {
+    if (program->bindings[index].owner_block != root->first_block) continue;
+    if (program->bindings[index].task_role == W_SEED_HIR0_TASK_ROLE_LAUNCH)
+      launch_bindings += 1u;
+    if (program->bindings[index].task_role ==
+        W_SEED_HIR0_TASK_ROLE_AWAIT_RESULT)
+      join_bindings += 1u;
+  }
+  CHECK(dispatches == 1u && program->entry_count == 1u &&
+        root_direct_calls == 1u && launch_bindings == 1u &&
+        join_bindings == 1u && entry->adapter_kind ==
+            W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS);
+
+  static const char TWO_PRELUDES[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "fn select(missing: Bool): i64 { return if missing { 0 } else { 40 } }\n"
+      "fn increment(value: i64): i64 { return value + 1 }\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { let first = select(missing: args.isEmpty) "
+      "let second = select(missing: args.isEmpty) "
+      "let pending = spawn<.domain> increment(value: second) "
+      "let value = await pending return .success }\nentry(run)\n";
+  static const char EFFECTFUL_PRELUDE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "fn select(missing: Bool): i64 { print(\"effect\") return 40 }\n"
+      "fn increment(value: i64): i64 { return value + 1 }\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { let seed = select(missing: args.isEmpty) "
+      "let pending = spawn<.domain> increment(value: seed) "
+      "let value = await pending return .success }\nentry(run)\n";
+  static const char ROOT_EFFECT[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "fn select(missing: Bool): i64 { return if missing { 0 } else { 40 } }\n"
+      "fn increment(value: i64): i64 { return value + 1 }\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { let seed = select(missing: args.isEmpty) "
+      "let pending = spawn<.domain> increment(value: seed) "
+      "let value = await pending print(\"effect\") return .success }\n"
+      "entry(run)\n";
+  static const char *const REJECTED[] = {TWO_PRELUDES, EFFECTFUL_PRELUDE,
+                                         ROOT_EFFECT};
+  for (size_t rejected = 0u;
+       rejected < sizeof(REJECTED) / sizeof(REJECTED[0]); rejected += 1u) {
+    CHECK(fixture_process_parallel_frontend(REJECTED[rejected]));
+    setup_hir_output();
+    const w_seed_hir0_input input = {
+        .frontend_input = &fixture.input,
+        .frontend_output = &fixture.output,
+        .frontend_result = &fixture.result,
+        .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
+    w_seed_hir0_counts measured;
+    w_seed_hir0_result measured_result;
+    CHECK(w_seed_hir0_measure(&input, &measured, &measured_result) ==
+          W_SEED_HIR0_UNSUPPORTED);
+  }
   return true;
 }
 
@@ -7752,6 +7892,7 @@ int main(int argc, char **argv) {
   if (!test_function_parameter_records()) return 1;
   if (!test_structured_async_elision_hir()) return 1;
   if (!test_parallel_domain_placement_hir()) return 1;
+  if (!test_process_parallel_composition_hir()) return 1;
   if (!test_lowering_is_not_hello_hardcoded()) return 1;
   if (!test_local_binding_lowering()) return 1;
   if (!test_straight_line_mutation_ssa()) return 1;

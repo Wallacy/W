@@ -8045,6 +8045,74 @@
         "no C task copy, target HIR evaluator, public command, benchmark, timing, or performance claim is introduced"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-process-parallel-hir-composition",
+      "reviewItem": "process-root parallel dataflow against anonymous-entry-only HIR, target-shaped task records, hidden Task allocation, and premature executable claims",
+      "decisions": ["W-1595"],
+      "task": "Preserve and independently verify a runtime process-input dependency through a scalar prelude, parallel task argument, and lexical join in target-neutral HIR.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "let seed = select(missing: args.isEmpty)",
+          "let pending = spawn<.domain> increment(value: seed)",
+          "let value = await pending",
+          "return .success"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "anonymous-root-only",
+          "language": "w-internal-rejected",
+          "source": ["require every physical task scope to use entry { ... }"],
+          "expectedDifference": "The selected verifier distinguishes the existing anonymous Unit root from a resolved native-process root."
+        },
+        {
+          "name": "process-task-record",
+          "language": "w-internal-rejected",
+          "source": ["copy process data into a target-specific task IR record"],
+          "expectedDifference": "The selected route composes existing target-neutral HIR values, calls, bindings, and entry facts."
+        },
+        {
+          "name": "allocate-task-object",
+          "language": "w-internal-rejected",
+          "source": ["materialize a heap Task merely to retain the launch result"],
+          "expectedDifference": "Task identity remains virtual; the launch and await are verified indexed relations."
+        },
+        {
+          "name": "claim-native-execution",
+          "language": "w-internal-rejected",
+          "source": ["treat accepted HIR composition as a public parallel executable"],
+          "expectedDifference": "Native0 domain admission, independent selection, target emission, provider linkage, and dual-target execution remain required."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "frontend_physical_trace_preflight",
+          "claim": "Frontend preflight admits only the bounded resolved process prelude followed by the complete lexical physical task relation."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "hir0_physical_task_scope",
+          "claim": "Independent HIR verification distinguishes the process root and proves its prelude, task, join, and return without frontend lifetime."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_process_parallel_composition_hir",
+          "claim": "The focused unit proves the process-input-to-task dependency and rejects a second scalar prelude transactionally."
+        }
+      ],
+      "checks": [
+        "the root is the resolved async native-process entry",
+        "Arguments.isEmpty feeds one pure scalar prelude call and binding",
+        "the parallel argument reads that binding",
+        "one launch and one lexical await retain their peer relation",
+        "the root returns the resolved ExitCode",
+        "a second prelude fails before HIR publication",
+        "no new HIR record, Task object, target fact, executable, benchmark, timing, or performance claim is introduced"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

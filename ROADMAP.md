@@ -39,11 +39,11 @@ not in this queue.
 
 ## Current checkpoint
 
-W-1594 is complete: PARLINK0 connects mixed-arity W-1593 entries to a private
-CRT-free Windows Kernel32 adapter and proves that runtime-dependent values run
-through emitted W code without a target HIR evaluator. Rank 2, a W process-root
-witness with equivalent Windows and Linux/WSL execution, is the next product
-increment.
+W-1595 is complete inside rank 2: HIR37 now composes a resolved W process root,
+runtime-derived scalar prelude, one parallel launch, and its lexical join
+without introducing a Task object or process-specific IR. The next bounded
+step is Native0 domain admission plus independent process-root selection;
+target emission and equivalent Windows/Linux execution then close rank 2.
 
 The current fixed task counts and worker capacities are seed evidence limits.
 They must not become language, public ABI, or final runtime limits.
