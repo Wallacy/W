@@ -1,5 +1,6 @@
 #include "w_seed_frontend.h"
 #include "w_seed_gpu_module.h"
+#include "w_seed_gpu0_projection.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -164,8 +165,23 @@ typedef struct {
   uint8_t receipt[TEST_RECEIPT];
 } gpu_module_storage;
 
+typedef struct {
+  w_seed_gpu0_function functions[W_SEED_GPU0_EVIDENCE_FUNCTION_CAPACITY + 2u];
+  w_seed_gpu0_operation operations[W_SEED_GPU0_EVIDENCE_OPERATION_CAPACITY + 1u];
+  char text[64];
+} gpu0_projection_storage;
+
+typedef struct {
+  uint8_t host_artifact[W_SEED_GPU0_EVIDENCE_ARTIFACT_CAPACITY];
+  uint8_t device_artifact[W_SEED_GPU0_EVIDENCE_ARTIFACT_CAPACITY];
+  int32_t device_result;
+  int32_t host_result;
+  w_seed_gpu0_result result;
+} gpu0_run_storage;
+
 static gpu_module_storage gpu_storage;
 static gpu_module_storage gpu_capacity_storage;
+static gpu_module_storage gpu_non42_storage;
 
 static bool all_bytes_equal(const void *data, size_t size, uint8_t value) {
   if (size == 0) return true;
@@ -5752,6 +5768,16 @@ static bool gpu_text_is(const w_seed_gpu_module_program *program,
          memcmp(program->text + offset, expected, bytes) == 0;
 }
 
+static bool gpu_bytes_contain(const uint8_t *bytes, size_t length,
+                              const char *needle) {
+  if (bytes == NULL || needle == NULL) return false;
+  const size_t needle_length = strlen(needle);
+  if (needle_length == 0u || needle_length > length) return false;
+  for (size_t index = 0u; index <= length - needle_length; index += 1u)
+    if (memcmp(bytes + index, needle, needle_length) == 0) return true;
+  return false;
+}
+
 static bool test_gpu_module_bridge(const char *path) {
   char source[4096];
   CHECK(read_text_file(path, source, sizeof(source)));
@@ -5815,6 +5841,193 @@ static bool test_gpu_module_bridge(const char *path) {
                     program.kernels[0].label_bytes, "hello") &&
         gpu_text_is(&program, program.kernels[0].function_name_offset,
                     program.kernels[0].function_name_bytes, "helloKernel"));
+
+  gpu0_projection_storage projection_storage;
+  (void)memset(&projection_storage, 0xa5, sizeof(projection_storage));
+  const w_seed_gpu0_projection_output projection_output = {
+      .functions = projection_storage.functions,
+      .function_capacity = sizeof(projection_storage.functions) /
+                           sizeof(projection_storage.functions[0]),
+      .operations = projection_storage.operations,
+      .operation_capacity = sizeof(projection_storage.operations) /
+                           sizeof(projection_storage.operations[0]),
+      .text = projection_storage.text,
+      .text_capacity = sizeof(projection_storage.text)};
+  w_seed_gpu0_program projected;
+  (void)memset(&projected, 0xa5, sizeof(projected));
+  CHECK(w_seed_gpu0_program_from_gpu_module(
+      &program, &result, 0u, 0u, &projection_output, &projected));
+  CHECK(projected.function_count == 2u && projected.operation_count == 7u &&
+        projected.functions[0].role == W_SEED_GPU0_FUNCTION_HOST_ROOT &&
+        projected.functions[0].interface_name == NULL &&
+        projected.functions[0].name_length == program.modules[0].const_name_bytes &&
+        projected.functions[0].name == projection_storage.text &&
+        memcmp(projected.functions[0].name, "kernels",
+               projected.functions[0].name_length) == 0 &&
+        projected.functions[1].role == W_SEED_GPU0_FUNCTION_DEVICE_KERNEL &&
+        projected.functions[1].interface_name_length ==
+            program.kernels[0].label_bytes &&
+        projected.functions[1].interface_name ==
+            projection_storage.text + program.modules[0].const_name_bytes &&
+        memcmp(projected.functions[1].interface_name, "hello",
+               projected.functions[1].interface_name_length) == 0 &&
+        projected.functions[1].name_length ==
+            program.kernels[0].function_name_bytes &&
+        projected.functions[1].name ==
+            projection_storage.text + program.modules[0].const_name_bytes +
+                program.kernels[0].label_bytes &&
+        memcmp(projected.functions[1].name, "helloKernel",
+               projected.functions[1].name_length) == 0 &&
+        projected.operations[5].i32_value == 42 &&
+        projected.operations[6].i32_value == 42);
+
+  gpu0_run_storage gpu0_run;
+  (void)memset(&gpu0_run, 0xa5, sizeof(gpu0_run));
+  const w_seed_gpu0_output gpu0_output = {
+      .host_artifact = gpu0_run.host_artifact,
+      .host_capacity = sizeof(gpu0_run.host_artifact),
+      .device_artifact = gpu0_run.device_artifact,
+      .device_capacity = sizeof(gpu0_run.device_artifact),
+      .device_result = &gpu0_run.device_result,
+      .host_result = &gpu0_run.host_result};
+  CHECK(w_seed_gpu0_run(&projected, &gpu0_output, &gpu0_run.result) ==
+        W_SEED_GPU0_OK);
+  CHECK(gpu0_run.device_result == 42 && gpu0_run.host_result == 42 &&
+        gpu0_run.result.device_result_value == 42 &&
+        gpu0_run.result.host_result_value == 42 &&
+        gpu_bytes_contain(gpu0_run.device_artifact,
+                          gpu0_run.result.measurement.device_artifact_bytes,
+                          "// kernel=hello") &&
+        gpu_bytes_contain(gpu0_run.device_artifact,
+                          gpu0_run.result.measurement.device_artifact_bytes,
+                          "// implementation=helloKernel"));
+  CHECK(w_seed_gpu0_verify(&projected, &gpu0_output, &gpu0_run.result));
+
+  const gpu0_projection_storage projection_before = projection_storage;
+  w_seed_gpu0_projection_output alias_projection = projection_output;
+  alias_projection.operations =
+      (w_seed_gpu0_operation *)(void *)projection_storage.functions;
+  CHECK(!w_seed_gpu0_program_from_gpu_module(
+      &program, &result, 0u, 0u, &alias_projection, &projected));
+  CHECK(memcmp(&projection_storage, &projection_before,
+               sizeof(projection_storage)) == 0 &&
+        w_seed_gpu0_verify(&projected, &gpu0_output, &gpu0_run.result));
+  CHECK(!w_seed_gpu0_program_from_gpu_module(
+      &program, &result, 1u, 0u, &projection_output, &projected));
+
+  const uint8_t saved_module_digest = result.semantic_digest[0];
+  result.semantic_digest[0] ^= UINT8_C(1);
+  gpu0_projection_storage failed_projection_storage;
+  (void)memset(&failed_projection_storage, 0xa5,
+               sizeof(failed_projection_storage));
+  const w_seed_gpu0_projection_output failed_projection = {
+      .functions = failed_projection_storage.functions,
+      .function_capacity = sizeof(failed_projection_storage.functions) /
+                           sizeof(failed_projection_storage.functions[0]),
+      .operations = failed_projection_storage.operations,
+      .operation_capacity = sizeof(failed_projection_storage.operations) /
+                           sizeof(failed_projection_storage.operations[0]),
+      .text = failed_projection_storage.text,
+      .text_capacity = sizeof(failed_projection_storage.text)};
+  w_seed_gpu0_program failed_projected;
+  (void)memset(&failed_projected, 0xa5, sizeof(failed_projected));
+  CHECK(!w_seed_gpu0_program_from_gpu_module(
+      &program, &result, 0u, 0u, &failed_projection, &failed_projected));
+  CHECK(all_bytes_equal(&failed_projection_storage,
+                        sizeof(failed_projection_storage), 0xa5u) &&
+        all_bytes_equal(&failed_projected, sizeof(failed_projected), 0xa5u));
+  result.semantic_digest[0] = saved_module_digest;
+
+  gpu0_projection_storage short_projection_storage;
+  (void)memset(&short_projection_storage, 0xa5,
+               sizeof(short_projection_storage));
+  const w_seed_gpu0_projection_output short_projection = {
+      .functions = short_projection_storage.functions,
+      .function_capacity = sizeof(short_projection_storage.functions) /
+                           sizeof(short_projection_storage.functions[0]),
+      .operations = short_projection_storage.operations,
+      .operation_capacity = sizeof(short_projection_storage.operations) /
+                           sizeof(short_projection_storage.operations[0]),
+      .text = short_projection_storage.text,
+      .text_capacity = 1u};
+  w_seed_gpu0_program short_projected;
+  (void)memset(&short_projected, 0xa5, sizeof(short_projected));
+  CHECK(!w_seed_gpu0_program_from_gpu_module(
+      &program, &result, 0u, 0u, &short_projection, &short_projected));
+  CHECK(all_bytes_equal(&short_projection_storage,
+                        sizeof(short_projection_storage), 0xa5u) &&
+        all_bytes_equal(&short_projected, sizeof(short_projected), 0xa5u));
+
+  w_seed_gpu0_projection_output text_alias_projection = projection_output;
+  text_alias_projection.text = (char *)(void *)program.text;
+  text_alias_projection.text_capacity = program.text_capacity;
+  CHECK(!w_seed_gpu0_program_from_gpu_module(
+      &program, &result, 0u, 0u, &text_alias_projection, &short_projected));
+  CHECK(all_bytes_equal(&short_projected, sizeof(short_projected), 0xa5u));
+
+  static const char non42_source[] =
+      "fn payloadKernel(): i32 { return 43 }\n"
+      "export const payloads = accelerator.module<{ value: payloadKernel }>()\n"
+      "entry { }\n";
+  fixture *non42 = &fixture_a;
+  CHECK(fixture_run(non42, non42_source));
+  const w_seed_gpu_module_input non42_input = {
+      .frontend_input = &non42->input,
+      .frontend_output = &non42->output,
+      .frontend_result = &non42->result};
+  (void)memset(&gpu_non42_storage, 0xa5, sizeof(gpu_non42_storage));
+  w_seed_gpu_module_output non42_output = {
+      .modules = gpu_non42_storage.modules,
+      .module_capacity = TEST_ACCELERATOR_MODULES,
+      .kernels = gpu_non42_storage.kernels,
+      .kernel_capacity = TEST_ACCELERATOR_KERNELS,
+      .text = gpu_non42_storage.text,
+      .text_capacity = sizeof(gpu_non42_storage.text),
+      .frontend_receipt = gpu_non42_storage.receipt,
+      .frontend_receipt_capacity = sizeof(gpu_non42_storage.receipt)};
+  w_seed_gpu_module_result non42_result;
+  CHECK(w_seed_gpu_module_run(&non42_input, &non42_output, &non42_result) ==
+        W_SEED_GPU_MODULE_OK);
+  w_seed_gpu_module_program non42_program;
+  CHECK(w_seed_gpu_module_program_from_output(&non42_output, &non42_result,
+                                              &non42_program));
+  gpu0_projection_storage non42_projection_storage;
+  (void)memset(&non42_projection_storage, 0xa5,
+               sizeof(non42_projection_storage));
+  const w_seed_gpu0_projection_output non42_projection = {
+      .functions = non42_projection_storage.functions,
+      .function_capacity = sizeof(non42_projection_storage.functions) /
+                           sizeof(non42_projection_storage.functions[0]),
+      .operations = non42_projection_storage.operations,
+      .operation_capacity = sizeof(non42_projection_storage.operations) /
+                           sizeof(non42_projection_storage.operations[0]),
+      .text = non42_projection_storage.text,
+      .text_capacity = sizeof(non42_projection_storage.text)};
+  w_seed_gpu0_program non42_gpu0;
+  CHECK(w_seed_gpu0_program_from_gpu_module(
+      &non42_program, &non42_result, 0u, 0u, &non42_projection,
+      &non42_gpu0));
+  CHECK(non42_gpu0.operations[5].i32_value == 43 &&
+        non42_gpu0.operations[6].i32_value == 43);
+  gpu0_run_storage non42_run;
+  (void)memset(&non42_run, 0xa5, sizeof(non42_run));
+  const w_seed_gpu0_output non42_gpu0_output = {
+      .host_artifact = non42_run.host_artifact,
+      .host_capacity = sizeof(non42_run.host_artifact),
+      .device_artifact = non42_run.device_artifact,
+      .device_capacity = sizeof(non42_run.device_artifact),
+      .device_result = &non42_run.device_result,
+      .host_result = &non42_run.host_result};
+  CHECK(w_seed_gpu0_run(&non42_gpu0, &non42_gpu0_output, &non42_run.result) ==
+        W_SEED_GPU0_OK);
+  CHECK(non42_run.device_result == 43 && non42_run.host_result == 43 &&
+        non42_run.result.device_result_value == 43 &&
+        non42_run.result.host_result_value == 43 &&
+        gpu_bytes_contain(non42_run.device_artifact,
+                          non42_run.result.measurement.device_artifact_bytes,
+                          "memref.store %value") &&
+        w_seed_gpu0_verify(&non42_gpu0, &non42_gpu0_output,
+                           &non42_run.result));
 
   static const char trivia_source[] =
       "fn helloKernel(): i32 {\n"
@@ -5940,6 +6153,8 @@ static bool test_gpu_module_bridge(const char *path) {
   (void)memset(value, 0, sizeof(*value));
   (void)memset(source, 0, sizeof(source));
   CHECK(w_seed_gpu_module_verify(&program, &result));
+  (void)memset(&gpu_storage, 0, sizeof(gpu_storage));
+  CHECK(w_seed_gpu0_verify(&projected, &gpu0_output, &gpu0_run.result));
   return true;
 }
 

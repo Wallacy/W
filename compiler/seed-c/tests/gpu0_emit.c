@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+enum { GPU0_CANONICAL_PAYLOAD = 42 };
+
 /*
  * This executable is deliberately a fixture emitter, not a W driver.  The
  * arrays below are the exact bounded witness consumed by GPU0.  Keeping the
@@ -17,6 +19,8 @@ static const w_seed_gpu0_function
     FUNCTIONS[W_SEED_GPU0_EVIDENCE_FUNCTION_CAPACITY] = {
     {.name = "hostRoot",
      .name_length = 8u,
+     .interface_name = NULL,
+     .interface_name_length = 0u,
      .role = W_SEED_GPU0_FUNCTION_HOST_ROOT,
      .first_operation = 0u,
      .operation_count = 6u,
@@ -24,6 +28,8 @@ static const w_seed_gpu0_function
      .effects = W_SEED_GPU0_EFFECT_NONE},
     {.name = "helloKernel",
      .name_length = 11u,
+     .interface_name = "hello",
+     .interface_name_length = 5u,
      .role = W_SEED_GPU0_FUNCTION_DEVICE_KERNEL,
      .first_operation = 6u,
      .operation_count = 1u,
@@ -79,13 +85,13 @@ static const w_seed_gpu0_operation
      .destination = {0},
      .function_index = W_SEED_GPU0_NONE,
      .dependency_operation = W_SEED_GPU0_NONE,
-     .i32_value = W_SEED_GPU0_EXPECTED_PAYLOAD},
+     .i32_value = GPU0_CANONICAL_PAYLOAD},
     {.kind = W_SEED_GPU0_OPERATION_STORE_I32,
      .source = {0},
      .destination = DEVICE_RESULT,
      .function_index = W_SEED_GPU0_NONE,
      .dependency_operation = W_SEED_GPU0_NONE,
-     .i32_value = W_SEED_GPU0_EXPECTED_PAYLOAD},
+     .i32_value = GPU0_CANONICAL_PAYLOAD},
 };
 
 static w_seed_gpu0_program fixture_program(void) {

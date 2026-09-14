@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <string.h>
 
+enum { GPU0_CANONICAL_PAYLOAD = 42 };
+
 #define CHECK(condition)                                                       \
   do {                                                                         \
     if (!(condition)) {                                                        \
@@ -19,6 +21,8 @@ static const w_seed_gpu0_function
     FUNCTIONS[W_SEED_GPU0_EVIDENCE_FUNCTION_CAPACITY] = {
     {.name = "hostRoot",
      .name_length = 8u,
+     .interface_name = NULL,
+     .interface_name_length = 0u,
      .role = W_SEED_GPU0_FUNCTION_HOST_ROOT,
      .first_operation = 0u,
      .operation_count = 6u,
@@ -26,6 +30,8 @@ static const w_seed_gpu0_function
      .effects = W_SEED_GPU0_EFFECT_NONE},
     {.name = "helloKernel",
      .name_length = 11u,
+     .interface_name = "hello",
+     .interface_name_length = 5u,
      .role = W_SEED_GPU0_FUNCTION_DEVICE_KERNEL,
      .first_operation = 6u,
      .operation_count = 1u,
@@ -81,13 +87,13 @@ static const w_seed_gpu0_operation
      .destination = {0},
      .function_index = W_SEED_GPU0_NONE,
      .dependency_operation = W_SEED_GPU0_NONE,
-     .i32_value = W_SEED_GPU0_EXPECTED_PAYLOAD},
+     .i32_value = GPU0_CANONICAL_PAYLOAD},
     {.kind = W_SEED_GPU0_OPERATION_STORE_I32,
      .source = {0},
      .destination = DEVICE_RESULT,
      .function_index = W_SEED_GPU0_NONE,
      .dependency_operation = W_SEED_GPU0_NONE,
-     .i32_value = W_SEED_GPU0_EXPECTED_PAYLOAD},
+     .i32_value = GPU0_CANONICAL_PAYLOAD},
 };
 
 static w_seed_gpu0_program fixture_program(void) {
@@ -151,15 +157,15 @@ static bool test_run_measure_verify(void) {
   const w_seed_gpu0_output output = output_for(&storage);
   CHECK(w_seed_gpu0_run(&program, &output, &storage.result) ==
         W_SEED_GPU0_OK);
-  CHECK(storage.device_result == W_SEED_GPU0_EXPECTED_PAYLOAD);
-  CHECK(storage.host_result == W_SEED_GPU0_EXPECTED_PAYLOAD);
+  CHECK(storage.device_result == GPU0_CANONICAL_PAYLOAD);
+  CHECK(storage.host_result == GPU0_CANONICAL_PAYLOAD);
   CHECK(storage.result.status == W_SEED_GPU0_OK);
   CHECK(storage.result.phase_count == 8u);
   for (uint32_t phase = 0u; phase < storage.result.phase_count; phase += 1u)
     CHECK(storage.result.phases[phase] == (w_seed_gpu0_phase)phase);
   CHECK(storage.result.device_result_value ==
-        W_SEED_GPU0_EXPECTED_PAYLOAD);
-  CHECK(storage.result.host_result_value == W_SEED_GPU0_EXPECTED_PAYLOAD);
+        GPU0_CANONICAL_PAYLOAD);
+  CHECK(storage.result.host_result_value == GPU0_CANONICAL_PAYLOAD);
   CHECK(storage.result.measurement.metrics.dispatch_count == 1u);
   CHECK(storage.result.measurement.metrics.join_count == 1u);
   CHECK(storage.result.measurement.metrics.memory_operation_count == 3u);
@@ -186,7 +192,13 @@ static bool test_run_measure_verify(void) {
                        "gpu.module @w_gpu0_device"));
   CHECK(contains_bytes(storage.device_artifact,
                        storage.result.measurement.device_artifact_bytes,
-                       "memref.store %c42"));
+                       "memref.store %value"));
+  CHECK(contains_bytes(storage.device_artifact,
+                       storage.result.measurement.device_artifact_bytes,
+                       "// kernel=hello"));
+  CHECK(contains_bytes(storage.device_artifact,
+                       storage.result.measurement.device_artifact_bytes,
+                       "// implementation=helloKernel"));
   CHECK(contains_bytes(storage.device_artifact,
                        storage.result.measurement.device_artifact_bytes,
                        "memref<1xi32, 1>"));
@@ -226,6 +238,83 @@ static bool test_deterministic_outputs(void) {
   CHECK(memcmp(left.device_artifact, right.device_artifact,
                left.result.measurement.device_artifact_bytes) == 0);
   CHECK(memcmp(&left.result, &right.result, sizeof(left.result)) == 0);
+  return true;
+}
+
+static bool test_data_driven_payload(void) {
+  w_seed_gpu0_operation operations[W_SEED_GPU0_EVIDENCE_OPERATION_CAPACITY];
+  (void)memcpy(operations, OPERATIONS, sizeof(operations));
+  operations[5].i32_value = INT32_C(43);
+  operations[6].i32_value = INT32_C(43);
+  w_seed_gpu0_program program = fixture_program();
+  program.operations = operations;
+
+  test_storage storage;
+  initialize_storage(&storage, 0x47u);
+  const w_seed_gpu0_output output = output_for(&storage);
+  CHECK(w_seed_gpu0_run(&program, &output, &storage.result) ==
+        W_SEED_GPU0_OK);
+  CHECK(storage.device_result == INT32_C(43) &&
+        storage.host_result == INT32_C(43) &&
+        storage.result.device_result_value == INT32_C(43) &&
+        storage.result.host_result_value == INT32_C(43));
+  CHECK(contains_bytes(storage.device_artifact,
+                       storage.result.measurement.device_artifact_bytes,
+                       "memref.store %value") &&
+        contains_bytes(storage.device_artifact,
+                       storage.result.measurement.device_artifact_bytes,
+                       "43 : i32") &&
+        !contains_bytes(storage.device_artifact,
+                        storage.result.measurement.device_artifact_bytes,
+                        "memref.store %c42"));
+  CHECK(w_seed_gpu0_verify(&program, &output, &storage.result));
+
+  operations[5].i32_value = INT32_C(44);
+  const test_storage before = storage;
+  CHECK(w_seed_gpu0_run(&program, &output, &storage.result) ==
+        W_SEED_GPU0_RANGE);
+  CHECK(memcmp(&storage, &before, sizeof(storage)) == 0);
+  return true;
+}
+
+static bool test_signed_payload_literals(void) {
+  const int32_t payloads[] = {INT32_C(0), INT32_C(-7), INT32_MIN};
+  for (size_t payload_index = 0u;
+       payload_index < sizeof(payloads) / sizeof(payloads[0]);
+       payload_index += 1u) {
+    w_seed_gpu0_operation operations[
+        W_SEED_GPU0_EVIDENCE_OPERATION_CAPACITY];
+    (void)memcpy(operations, OPERATIONS, sizeof(operations));
+    operations[5].i32_value = payloads[payload_index];
+    operations[6].i32_value = payloads[payload_index];
+    w_seed_gpu0_program program = fixture_program();
+    program.operations = operations;
+
+    test_storage storage;
+    initialize_storage(&storage, (uint8_t)(0x51u + payload_index));
+    const w_seed_gpu0_output output = output_for(&storage);
+    CHECK(w_seed_gpu0_run(&program, &output, &storage.result) ==
+          W_SEED_GPU0_OK);
+    CHECK(storage.device_result == payloads[payload_index] &&
+          storage.host_result == payloads[payload_index] &&
+          storage.result.device_result_value == payloads[payload_index] &&
+          storage.result.host_result_value == payloads[payload_index]);
+    CHECK(contains_bytes(storage.device_artifact,
+                         storage.result.measurement.device_artifact_bytes,
+                         "%value = arith.constant ") &&
+          !contains_bytes(storage.device_artifact,
+                          storage.result.measurement.device_artifact_bytes,
+                          "%c-"));
+    if (payloads[payload_index] == INT32_C(-7))
+      CHECK(contains_bytes(storage.device_artifact,
+                           storage.result.measurement.device_artifact_bytes,
+                           "-7 : i32"));
+    if (payloads[payload_index] == INT32_MIN)
+      CHECK(contains_bytes(storage.device_artifact,
+                           storage.result.measurement.device_artifact_bytes,
+                           "-2147483648 : i32"));
+    CHECK(w_seed_gpu0_verify(&program, &output, &storage.result));
+  }
   return true;
 }
 
@@ -489,6 +578,8 @@ static bool test_transactional_verify_and_input_alias(void) {
 
 int main(void) {
   if (!test_run_measure_verify() || !test_deterministic_outputs() ||
+      !test_data_driven_payload() ||
+      !test_signed_payload_literals() ||
       !test_capacity_independent_identity() ||
       !test_unicode_identifiers() ||
       !test_reject_effects() ||

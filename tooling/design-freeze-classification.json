@@ -23,7 +23,7 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:57aa14bd0ffd93fe9d7ef23739d5d80560af5b56346b33ce55fe2f79fc1c84ae",
+    "sha256": "sha256:7da7b062a43cabf30f2c979a9932ed854b09d4fa7b6cdc5de329b1b29161eff5",
     "count": 1601,
     "first": "W-001",
     "last": "W-1601"
@@ -21850,7 +21850,7 @@
         "path": "DESIGN.md",
         "section": "26",
         "heading": "## 26. Plano de implementação",
-        "sectionDigest": "sha256:0870f6f5cfd984f4971be8e8c208ba44ee73d5bce5dbf579635789cec7663b17"
+        "sectionDigest": "sha256:1a009d1e4ccf78ae0a9d617d8ab65ace379e402bd39c46637bbbed85c1954e61"
       },
       "evidence": [],
       "reason": "W-659 (body de entry, sha256:f66ab57406ddb51303f9190376daf72d8f538bd7bd8adfbf9992ae3d7223e74e) has no executable witness for component implementation-plan. The checked current contract is DESIGN.md §26 / 26. Plano de implementação.",
@@ -50783,7 +50783,7 @@
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
-          "sha256": "sha256:bed5aa0e8222c5899e5dd32ca9b92f822d7f43a7b69d5c53783293707ced809c",
+          "sha256": "sha256:4fe789ed59cfecb2e2fd7ac109a625a6ce766d779f0ebeae95e51cc6f2296b7a",
           "symbol": "test_local_binding_resolution",
           "claim": "Frontend unit covers effective type, initializer type and binding relation."
         },
@@ -51128,7 +51128,7 @@
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
-          "sha256": "sha256:bed5aa0e8222c5899e5dd32ca9b92f822d7f43a7b69d5c53783293707ced809c",
+          "sha256": "sha256:4fe789ed59cfecb2e2fd7ac109a625a6ce766d779f0ebeae95e51cc6f2296b7a",
           "symbol": "test_interpolated_string_projection",
           "claim": "The frontend unit proves ownership, exact text, canonical i64, and capacity transactions."
         },
@@ -51994,7 +51994,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_scalar_type_measure_emit_parity",
           "claim": "Contextual comparison types and prior bindings preserve dry/emit counts and capacity failure boundaries.",
-          "sha256": "sha256:bed5aa0e8222c5899e5dd32ca9b92f822d7f43a7b69d5c53783293707ced809c"
+          "sha256": "sha256:4fe789ed59cfecb2e2fd7ac109a625a6ce766d779f0ebeae95e51cc6f2296b7a"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-comparisons.w",
@@ -52148,7 +52148,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_scalar_if_frontend_subset",
           "claim": "Frontend tests cover scalar return and immutable-let positives plus diagnostic and unsupported-form boundaries.",
-          "sha256": "sha256:bed5aa0e8222c5899e5dd32ca9b92f822d7f43a7b69d5c53783293707ced809c"
+          "sha256": "sha256:4fe789ed59cfecb2e2fd7ac109a625a6ce766d779f0ebeae95e51cc6f2296b7a"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
@@ -52344,7 +52344,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_short_entry_frontend",
           "claim": "Frontend tests prove the private Unit function, direct target, symbol order, and receipt mode.",
-          "sha256": "sha256:bed5aa0e8222c5899e5dd32ca9b92f822d7f43a7b69d5c53783293707ced809c"
+          "sha256": "sha256:4fe789ed59cfecb2e2fd7ac109a625a6ce766d779f0ebeae95e51cc6f2296b7a"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
@@ -52433,7 +52433,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_process_abi_alias_and_exit_case",
           "claim": "Frontend tests cover valid aliases, canonical success, forged metadata, receipts, and capacity preservation.",
-          "sha256": "sha256:bed5aa0e8222c5899e5dd32ca9b92f822d7f43a7b69d5c53783293707ced809c"
+          "sha256": "sha256:4fe789ed59cfecb2e2fd7ac109a625a6ce766d779f0ebeae95e51cc6f2296b7a"
         },
         {
           "path": "compiler/seed-c/tests/test_module_scan.c",
@@ -53033,7 +53033,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_scalar_if_frontend_subset",
           "claim": "Frontend tests cover the nested scalar-if source normalization and unsupported-form boundaries.",
-          "sha256": "sha256:bed5aa0e8222c5899e5dd32ca9b92f822d7f43a7b69d5c53783293707ced809c"
+          "sha256": "sha256:4fe789ed59cfecb2e2fd7ac109a625a6ce766d779f0ebeae95e51cc6f2296b7a"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
@@ -53170,7 +53170,7 @@
           "path": "compiler/seed-c/CMakeLists.txt",
           "symbol": "W_MLIR0_LINUX_LINK_DRIVER",
           "claim": "The opt-in Linux build requires an absolute linker that advertises elf_x86_64 support.",
-          "sha256": "sha256:1d82dc3256705cceee775ed3a8c02f14561dcfd1726975bf1eb0199b55850fb5"
+          "sha256": "sha256:c6fe36d659419aadfcf9d04a1066e25de1591214eca47c575d17ed92d1c733a1"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53377,7 +53377,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_interpolated_string_projection",
           "claim": "Frontend units prove the literal, unary root and segment type relation.",
-          "sha256": "sha256:bed5aa0e8222c5899e5dd32ca9b92f822d7f43a7b69d5c53783293707ced809c"
+          "sha256": "sha256:4fe789ed59cfecb2e2fd7ac109a625a6ce766d779f0ebeae95e51cc6f2296b7a"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
@@ -53655,7 +53655,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_local_assignment_projection",
           "claim": "Frontend tests prove lexical ancestor visibility, nested shadowing, and branch-local non-escape.",
-          "sha256": "sha256:bed5aa0e8222c5899e5dd32ca9b92f822d7f43a7b69d5c53783293707ced809c"
+          "sha256": "sha256:4fe789ed59cfecb2e2fd7ac109a625a6ce766d779f0ebeae95e51cc6f2296b7a"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
@@ -53732,7 +53732,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_local_assignment_projection",
           "claim": "Frontend tests prove opposite arm order and resolved root target identity.",
-          "sha256": "sha256:bed5aa0e8222c5899e5dd32ca9b92f822d7f43a7b69d5c53783293707ced809c"
+          "sha256": "sha256:4fe789ed59cfecb2e2fd7ac109a625a6ce766d779f0ebeae95e51cc6f2296b7a"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
@@ -53821,7 +53821,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_while_projection",
           "claim": "Frontend tests prove statement relations, lexical root resolution, and non-Bool diagnostics.",
-          "sha256": "sha256:bed5aa0e8222c5899e5dd32ca9b92f822d7f43a7b69d5c53783293707ced809c"
+          "sha256": "sha256:4fe789ed59cfecb2e2fd7ac109a625a6ce766d779f0ebeae95e51cc6f2296b7a"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -55765,7 +55765,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_structured_async_projection",
           "claim": "Frontend tests cover missing, serial, capability-free, valid, and duplicate domain records.",
-          "sha256": "sha256:bed5aa0e8222c5899e5dd32ca9b92f822d7f43a7b69d5c53783293707ced809c"
+          "sha256": "sha256:4fe789ed59cfecb2e2fd7ac109a625a6ce766d779f0ebeae95e51cc6f2296b7a"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
@@ -56399,8 +56399,8 @@
     {
       "decisionId": "W-1601",
       "summary": "bounded GPU0 target-neutral semantic witness and available CUDA execution",
-      "canonicalClaim": "GPU0 is a target-neutral, provider-free C23 semantic seed with exactly two functions and seven operations. It emits separate host/device MLIR artifacts and keeps host/device identities, lifecycle, dispatch/join/memory metrics, alias, capacity, range, effect, forgery, and transactional failure checks separate. The seed parser and Frontend27 structurally preserve canonical `accelerator.module<{ hello: kernel }>()`, compiler-owned module identity, ordered labels, and direct local kernel identities. The `w-seed-gpu-module-1` bridge independently validates and copies the bounded signed-`i32` literal-return device-module meaning into caller-owned records with separate semantic and provenance digests and no provider, target, queue, pointer, launch, ABI, or MLIR handle; verification survives source/frontend teardown. The focused Windows gate separately parses GPU0 artifacts with pinned MLIR/LLVM 23.1.1, lowers GPU/NVVM, translates LLVM dialect, and uses system Clang 22.1.8 for `nvptx64` PTX. A dynamic `nvcuda.dll` Driver API adapter launches the kernel on NVIDIA RTX A400 (`sm_86`), returns and verifies 42, and fails closed for a missing provider or kernel. A separate diagnostic-only catalog records temporary artifact sizes and in-process phase distributions. This is compiler-lifecycle evidence, not a complete source-to-provider W route, a W runtime/provider, public product, supported GPU ABI, homogeneous production support, or a product/language ranking.",
-      "claimDigest": "sha256:f983100df4bebab8bc2f1ff0e3cf4838cfb83206a207da5bf93dd93a28ad05c1",
+      "canonicalClaim": "GPU0 is a target-neutral, provider-free C23 semantic seed with exactly two functions and seven operations. It emits separate host/device MLIR artifacts and keeps host/device identities, lifecycle, dispatch/join/memory metrics, alias, capacity, range, effect, forgery, and transactional failure checks separate. The seed parser and Frontend27 structurally preserve canonical `accelerator.module<{ hello: kernel }>()`, compiler-owned module identity, ordered labels, and direct local kernel identities. The `w-seed-gpu-module-1` bridge independently validates and copies the bounded signed-`i32` literal-return device-module meaning into caller-owned records with separate semantic and provenance digests and no provider, target, queue, pointer, launch, ABI, or MLIR handle; verification survives source/frontend teardown. A caller-owned provider-neutral projection selects one verified module field, copies its module const name, field label, private implementation name, and verified payload into the exact GPU0 records, and remains valid after bridge teardown. The focused Windows gate separately parses GPU0 artifacts with pinned MLIR/LLVM 23.1.1, lowers GPU/NVVM, translates LLVM dialect, and uses system Clang 22.1.8 for `nvptx64` PTX. A dynamic `nvcuda.dll` Driver API adapter launches the kernel on NVIDIA RTX A400 (`sm_86`), returns and verifies 42, and fails closed for a missing provider or kernel. A separate diagnostic-only catalog records temporary artifact sizes and in-process phase distributions. This is compiler-lifecycle evidence, not a complete source-to-provider W route, a W runtime/provider, public product, supported GPU ABI, homogeneous production support, or a product/language ranking.",
+      "claimDigest": "sha256:e32d80ee21d637b5e8ee7ffa3166ae687b034193500cdb0fb183fdb2c1c07e8f",
       "category": "implementation-evidence-gap",
       "basis": "current-ledger-claim-without-executable-witness",
       "authorityRef": {
@@ -56408,7 +56408,7 @@
         "path": "DESIGN.md",
         "section": "26.4.1.82",
         "heading": "#### 26.4.1.82 W-1601 — bounded target-neutral GPU0 witness and CUDA linkage evidence (Current design; implementation-evidence-gap)",
-        "sectionDigest": "sha256:d6cff4eefe89d04414445cbf5c6c8ef42b92b9b243edb2edbbb319fc5eedcb4e"
+        "sectionDigest": "sha256:2440d204e19fb4dea0ac689fa14802b1d8fce615458eb7a91f20a1d56a0d585e"
       },
       "evidence": [],
       "gap": {
@@ -56422,14 +56422,14 @@
         ]
       },
       "stopCondition": "W-1601 closes gpu-source-to-provider-product-route at gate DESIGN.md §26.4.1.82 / 26.4.1.82 W-1601 — bounded target-neutral GPU0 witness and CUDA linkage evidence (Current design; implementation-evidence-gap) only after frontend-typed-launch-semantics, public-host-and-device-artifact-route, supported-w-provider-launch-join-result, and homogeneous-pinned-production-toolchain evidence is current.",
-      "reason": "W-1601 (bounded GPU0 target-neutral semantic witness and available CUDA execution, sha256:f983100df4bebab8bc2f1ff0e3cf4838cfb83206a207da5bf93dd93a28ad05c1) remains an implementation-evidence gap in component gpu-source-to-provider-product-route at gate DESIGN.md §26.4.1.82 / 26.4.1.82 W-1601 — bounded target-neutral GPU0 witness and CUDA linkage evidence (Current design; implementation-evidence-gap). Static-record CST, Frontend27 bindings, and independently verified bounded device-module records are current; typed launch, source-driven artifact publication, a supported W provider/product route, and homogeneous production toolchain evidence remain open.",
+      "reason": "W-1601 (bounded GPU0 target-neutral semantic witness and available CUDA execution, sha256:e32d80ee21d637b5e8ee7ffa3166ae687b034193500cdb0fb183fdb2c1c07e8f) remains an implementation-evidence gap in component gpu-source-to-provider-product-route at gate DESIGN.md §26.4.1.82 / 26.4.1.82 W-1601 — bounded target-neutral GPU0 witness and CUDA linkage evidence (Current design; implementation-evidence-gap). Static-record CST, Frontend27 bindings, and independently verified bounded device-module records are current; typed launch, source-driven artifact publication, a supported W provider/product route, and homogeneous production toolchain evidence remain open.",
       "selection": "explicit-ledger-id",
       "basisRef": {
         "kind": "ledger-row",
         "path": "RATIONALE.md",
         "section": "3. Ledger",
         "decisionId": "W-1601",
-        "claimDigest": "sha256:f983100df4bebab8bc2f1ff0e3cf4838cfb83206a207da5bf93dd93a28ad05c1"
+        "claimDigest": "sha256:e32d80ee21d637b5e8ee7ffa3166ae687b034193500cdb0fb183fdb2c1c07e8f"
       },
       "sourceRefs": [
         {
@@ -56442,7 +56442,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_accelerator_module_frontend",
           "claim": "Frontend27 binds one or multiple ordered labels to direct local function identities and rejects malformed or incomplete accelerator modules transactionally.",
-          "sha256": "sha256:bed5aa0e8222c5899e5dd32ca9b92f822d7f43a7b69d5c53783293707ced809c"
+          "sha256": "sha256:4fe789ed59cfecb2e2fd7ac109a625a6ce766d779f0ebeae95e51cc6f2296b7a"
         },
         {
           "path": "compiler/seed-c/src/w_seed_gpu_module.c",
@@ -56454,13 +56454,13 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_gpu_module_bridge",
           "claim": "A versioned W fixture crosses Frontend27 into caller-owned device-module records and remains verifiable after source/frontend teardown.",
-          "sha256": "sha256:bed5aa0e8222c5899e5dd32ca9b92f822d7f43a7b69d5c53783293707ced809c"
+          "sha256": "sha256:4fe789ed59cfecb2e2fd7ac109a625a6ce766d779f0ebeae95e51cc6f2296b7a"
         },
         {
           "path": "compiler/seed-c/src/w_seed_gpu0.c",
           "symbol": "w_seed_gpu0_verify",
           "claim": "The target-neutral verifier re-derives the bounded semantic records, artifacts, lifecycle, and exact result.",
-          "sha256": "sha256:e81973baa387d6dbb47f78fa77d683cbc2092d83a0ce9baa896fc30311cae301"
+          "sha256": "sha256:690b4b699f0fd74984fd7c62f5cc3316b0597899015bf3acf89b0b244c272ed1"
         },
         {
           "path": "tooling/check-gpu0-cuda-windows.mjs",
@@ -56472,7 +56472,7 @@
           "path": "benchmarks/gpu0-device-linkage-catalog.json",
           "symbol": "metrics",
           "claim": "The isolated diagnostic catalog records temporary artifact sizes and in-process phase summaries without product ranking.",
-          "sha256": "sha256:786ebccbff7a98cab9766e5b4ec4b961d2b3c517f1a711afbea98c4e7cbc2668"
+          "sha256": "sha256:48000477a63381a6c73ead182d9bd3349a7a3fd1efb42895b0ef1a44659e029a"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",

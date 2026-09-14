@@ -220,7 +220,10 @@ static w_seed_gpu0_status validate_program(
   if (host->role != W_SEED_GPU0_FUNCTION_HOST_ROOT ||
       kernel->role != W_SEED_GPU0_FUNCTION_DEVICE_KERNEL ||
       !identifier_name(host->name, host->name_length) ||
-      !identifier_name(kernel->name, kernel->name_length))
+      !identifier_name(kernel->name, kernel->name_length) ||
+      host->interface_name != NULL || host->interface_name_length != 0u ||
+      !identifier_name(kernel->interface_name,
+                       kernel->interface_name_length))
     return W_SEED_GPU0_INCONSISTENT;
   if (host->first_operation != 0u ||
       host->operation_count != GPU0_HOST_OPERATION_COUNT ||
@@ -298,25 +301,27 @@ static w_seed_gpu0_status validate_program(
     return W_SEED_GPU0_RANGE;
 
   const w_seed_gpu0_operation *verify = &operations[5];
+  const w_seed_gpu0_operation *store = &operations[6];
   if (verify->kind != W_SEED_GPU0_OPERATION_VERIFY_RESULT ||
       !range_equal(&verify->source, &host_result) ||
       !range_empty(&verify->destination) ||
       verify->function_index != W_SEED_GPU0_NONE ||
       verify->dependency_operation != W_SEED_GPU0_NONE ||
-      verify->i32_value != W_SEED_GPU0_EXPECTED_PAYLOAD ||
       !operation_range_pair_valid(verify))
     return W_SEED_GPU0_RANGE;
-
-  const w_seed_gpu0_operation *store = &operations[6];
   if (store->kind != W_SEED_GPU0_OPERATION_STORE_I32 ||
       !range_empty(&store->source) ||
       !range_equal(&store->destination, &device_result) ||
       store->function_index != W_SEED_GPU0_NONE ||
       store->dependency_operation != W_SEED_GPU0_NONE ||
-      store->i32_value != W_SEED_GPU0_EXPECTED_PAYLOAD ||
+      store->i32_value != verify->i32_value ||
       !operation_range_pair_valid(store))
     return W_SEED_GPU0_RANGE;
   return W_SEED_GPU0_OK;
+}
+
+static int32_t program_payload(const w_seed_gpu0_program *program) {
+  return program->operations[5].i32_value;
 }
 
 static void hash_u32(w_seed_sha256_state *state, uint32_t value) {
@@ -369,6 +374,8 @@ static void semantic_identity(const w_seed_gpu0_program *program,
   for (size_t index = 0u; index < program->function_count; index += 1u) {
     const w_seed_gpu0_function *function = &program->functions[index];
     hash_name(&state, function->name, function->name_length);
+    hash_name(&state, function->interface_name,
+              function->interface_name_length);
     hash_u32(&state, (uint32_t)function->role);
     hash_u32(&state, function->first_operation);
     hash_u32(&state, function->operation_count);
@@ -425,6 +432,33 @@ static bool writer_hex(gpu0_writer *writer,
   return true;
 }
 
+static bool writer_i32(gpu0_writer *writer, int32_t value) {
+  char digits[11];
+  size_t count = 0u;
+  uint32_t magnitude = 0u;
+  const bool negative = value < 0;
+  if (negative)
+    magnitude = (uint32_t)(-(int64_t)value);
+  else
+    magnitude = (uint32_t)value;
+  do {
+    digits[count] = (char)('0' + (magnitude % 10u));
+    magnitude /= 10u;
+    count += 1u;
+  } while (magnitude != 0u);
+  if (negative) {
+    digits[count] = '-';
+    count += 1u;
+  }
+  for (size_t left = 0u; left < count / 2u; left += 1u) {
+    const size_t right = count - left - 1u;
+    const char saved = digits[left];
+    digits[left] = digits[right];
+    digits[right] = saved;
+  }
+  return writer_append(writer, digits, count);
+}
+
 static bool writer_name(gpu0_writer *writer, const char *name, size_t length) {
   return identifier_name(name, length) && writer_append(writer, name, length);
 }
@@ -441,6 +475,9 @@ static bool emit_host_artifact(const w_seed_gpu0_program *program,
                       "\n// host_root=") ||
       !writer_name(&writer, host->name, host->name_length) ||
       !writer_literal(&writer, "\n// kernel=") ||
+      !writer_name(&writer, kernel->interface_name,
+                   kernel->interface_name_length) ||
+      !writer_literal(&writer, "\n// implementation=") ||
       !writer_name(&writer, kernel->name, kernel->name_length) ||
       !writer_literal(&writer, "\n// semantic_identity=") ||
       !writer_hex(&writer, semantic) ||
@@ -469,6 +506,7 @@ static bool emit_host_artifact(const w_seed_gpu0_program *program,
 
 static bool emit_device_artifact(const w_seed_gpu0_program *program,
                                  const uint8_t semantic[GPU0_DIGEST_BYTES],
+                                 int32_t payload,
                                  uint8_t *bytes, size_t *written) {
   if (program == NULL || semantic == NULL || bytes == NULL || written == NULL)
     return false;
@@ -477,6 +515,9 @@ static bool emit_device_artifact(const w_seed_gpu0_program *program,
   if (!writer_literal(&writer,
                       "// " W_SEED_GPU0_DEVICE_ARTIFACT_SCHEMA_VERSION
                       "\n// kernel=") ||
+      !writer_name(&writer, kernel->interface_name,
+                   kernel->interface_name_length) ||
+      !writer_literal(&writer, "\n// implementation=") ||
       !writer_name(&writer, kernel->name, kernel->name_length) ||
       !writer_literal(&writer, "\n// semantic_identity=") ||
       !writer_hex(&writer, semantic) ||
@@ -485,8 +526,11 @@ static bool emit_device_artifact(const w_seed_gpu0_program *program,
                       "  gpu.module @w_gpu0_device {\n"
                       "    gpu.func @w_gpu0_kernel(%result: memref<1xi32, 1>) kernel {\n"
                       "      %c0 = arith.constant 0 : index\n"
-                      "      %c42 = arith.constant 42 : i32\n"
-                      "      memref.store %c42, %result[%c0] : memref<1xi32, 1>\n"
+                      "      %value = arith.constant ") ||
+      !writer_i32(&writer, payload) ||
+      !writer_literal(&writer,
+                      " : i32\n"
+                      "      memref.store %value, %result[%c0] : memref<1xi32, 1>\n"
                       "      gpu.return\n"
                       "    }\n"
                       "  }\n"
@@ -545,6 +589,7 @@ static w_seed_gpu0_status build_candidate(const w_seed_gpu0_program *program,
   uint8_t semantic[GPU0_DIGEST_BYTES];
   uint8_t host_identity[GPU0_DIGEST_BYTES];
   uint8_t device_identity[GPU0_DIGEST_BYTES];
+  const int32_t payload = program_payload(program);
   semantic_identity(program, semantic);
   artifact_identity(GPU0_HOST_IDENTITY_TAG, semantic, program, 0u,
                     GPU0_HOST_OPERATION_COUNT, host_identity);
@@ -553,7 +598,7 @@ static w_seed_gpu0_status build_candidate(const w_seed_gpu0_program *program,
                     device_identity);
   if (!emit_host_artifact(program, semantic, candidate->host,
                           &candidate->host_bytes) ||
-      !emit_device_artifact(program, semantic, candidate->device,
+      !emit_device_artifact(program, semantic, payload, candidate->device,
                             &candidate->device_bytes))
     return W_SEED_GPU0_CAPACITY;
   fill_measurement(program, candidate->host_bytes, candidate->device_bytes,
@@ -582,8 +627,8 @@ static w_seed_gpu0_status build_candidate(const w_seed_gpu0_program *program,
   candidate->result.phase_count = GPU0_PHASE_COUNT;
   for (uint32_t phase = 0u; phase < GPU0_PHASE_COUNT; phase += 1u)
     candidate->result.phases[phase] = (w_seed_gpu0_phase)phase;
-  candidate->result.device_result_value = W_SEED_GPU0_EXPECTED_PAYLOAD;
-  candidate->result.host_result_value = W_SEED_GPU0_EXPECTED_PAYLOAD;
+  candidate->result.device_result_value = payload;
+  candidate->result.host_result_value = payload;
   return W_SEED_GPU0_OK;
 }
 
@@ -605,6 +650,9 @@ static bool program_aliases(const w_seed_gpu0_program *program,
   for (size_t index = 0u; index < program->function_count; index += 1u)
     if (memory_ranges_overlap(program->functions[index].name,
                               program->functions[index].name_length,
+                              destination, destination_bytes) ||
+        memory_ranges_overlap(program->functions[index].interface_name,
+                              program->functions[index].interface_name_length,
                               destination, destination_bytes))
       return true;
   return false;
@@ -772,8 +820,8 @@ bool w_seed_gpu0_verify(const w_seed_gpu0_program *program,
   if (build_candidate(program, &candidate) != W_SEED_GPU0_OK ||
       validate_output(program, output, result, &candidate) != W_SEED_GPU0_OK)
     return false;
-  if (*output->device_result != W_SEED_GPU0_EXPECTED_PAYLOAD ||
-      *output->host_result != W_SEED_GPU0_EXPECTED_PAYLOAD)
+  const int32_t payload = program_payload(program);
+  if (*output->device_result != payload || *output->host_result != payload)
     return false;
   if (!bytes_equal(output->host_artifact, candidate.host,
                    candidate.host_bytes) ||

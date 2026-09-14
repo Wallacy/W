@@ -107,7 +107,8 @@ compile series remain Bun-orchestrated direct-child observations.
 GPU0 stays in a separate diagnostic catalog because it is not yet a complete
 source-backed W product. `bun check --target gpu0` first proves the versioned W
 fixture through Frontend27 and the independently verified target/provider-free
-device-module bridge, then proves the separate GPU0 records, MLIR GPU/NVVM
+device-module bridge, and the caller-owned provider-neutral projection into
+GPU0 records and device artifact, then proves the separate MLIR GPU/NVVM
 lowering, CUDA result `42`, and fail-closed provider cases when the Windows
 provider is available. `bun benchmark gpu0` refreshes
 only `benchmarks/gpu0-device-linkage-catalog.json` and its concise
