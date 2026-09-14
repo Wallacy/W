@@ -23,7 +23,7 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:75a250b7349b425d89d104582b98915c929855139675cc009faccc845de7cc19",
+    "sha256": "sha256:b42a1a9601af4da991ed193f16c5055d288d373a165a7fca53c369a43e3f7259",
     "count": 1601,
     "first": "W-001",
     "last": "W-1601"
@@ -1753,7 +1753,7 @@
           "path": "compiler/seed-c/src/w_seed_parser.c",
           "symbol": "parse_entry",
           "claim": "The parser accepts a normal block directly after the entry keyword.",
-          "sha256": "sha256:59f56f277fdf37cb86b951a4d1a82dfb12feff2bfc3a52c7ee097f64804c26fd"
+          "sha256": "sha256:1531713d5baf7b0b0312e9ddbb1ebbef82ef4f32183247c2bb6c2b2dd0c2f122"
         },
         {
           "path": "compiler/seed-c/fixtures/hlo0-hello.w",
@@ -21850,7 +21850,7 @@
         "path": "DESIGN.md",
         "section": "26",
         "heading": "## 26. Plano de implementação",
-        "sectionDigest": "sha256:0dbf3b0a3bf0613533b833e652bdce83d1727b6014eeb1ae57b8157fcea90634"
+        "sectionDigest": "sha256:1246a682edd6584c08ee36fb665100bf49d60019faa39db5deb89c6623e9c8fc"
       },
       "evidence": [],
       "reason": "W-659 (body de entry, sha256:f66ab57406ddb51303f9190376daf72d8f538bd7bd8adfbf9992ae3d7223e74e) has no executable witness for component implementation-plan. The checked current contract is DESIGN.md §26 / 26. Plano de implementação.",
@@ -51104,7 +51104,7 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/src/w_seed_parser.c",
-          "sha256": "sha256:59f56f277fdf37cb86b951a4d1a82dfb12feff2bfc3a52c7ee097f64804c26fd",
+          "sha256": "sha256:1531713d5baf7b0b0312e9ddbb1ebbef82ef4f32183247c2bb6c2b2dd0c2f122",
           "symbol": "parse_literal_expression",
           "claim": "The parser preserves literal events and parses interpolation bodies as nested expressions."
         },
@@ -51122,7 +51122,7 @@
         },
         {
           "path": "compiler/seed-c/tests/test_parser.c",
-          "sha256": "sha256:c52e31f8ca0b1c3a4ff8e41e45108f4446a1385ca4d3a8345173687733a51b5c",
+          "sha256": "sha256:ffbd09d5e15bca996d6592dfd5d2e2047fc02c218f5adf2cc90d244ec29c6752",
           "symbol": "test_literal_interpolation_expression_structure",
           "claim": "The parser unit covers arithmetic, grouping, and empty interpolation rejection."
         },
@@ -52320,7 +52320,7 @@
           "path": "compiler/seed-c/src/w_seed_parser.c",
           "symbol": "parse_entry",
           "claim": "The parser accepts a normal block directly after the entry keyword.",
-          "sha256": "sha256:59f56f277fdf37cb86b951a4d1a82dfb12feff2bfc3a52c7ee097f64804c26fd"
+          "sha256": "sha256:1531713d5baf7b0b0312e9ddbb1ebbef82ef4f32183247c2bb6c2b2dd0c2f122"
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
@@ -52338,7 +52338,7 @@
           "path": "compiler/seed-c/tests/test_parser.c",
           "symbol": "test_short_entry_shapes",
           "claim": "Parser tests cover empty, Hello, nested, named, and duplicate default-entry boundaries.",
-          "sha256": "sha256:c52e31f8ca0b1c3a4ff8e41e45108f4446a1385ca4d3a8345173687733a51b5c"
+          "sha256": "sha256:ffbd09d5e15bca996d6592dfd5d2e2047fc02c218f5adf2cc90d244ec29c6752"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
@@ -52415,7 +52415,7 @@
           "path": "compiler/seed-c/src/w_seed_parser.c",
           "symbol": "parse_import_declaration",
           "claim": "The seed parser retains an optional alias within each grouped import item.",
-          "sha256": "sha256:59f56f277fdf37cb86b951a4d1a82dfb12feff2bfc3a52c7ee097f64804c26fd"
+          "sha256": "sha256:1531713d5baf7b0b0312e9ddbb1ebbef82ef4f32183247c2bb6c2b2dd0c2f122"
         },
         {
           "path": "compiler/seed-c/src/w_seed_module_scan.c",
@@ -53815,7 +53815,7 @@
           "path": "compiler/seed-c/tests/test_parser.c",
           "symbol": "test_while_shapes",
           "claim": "Parser tests prove the explicit condition/body owner and malformed-body recovery.",
-          "sha256": "sha256:c52e31f8ca0b1c3a4ff8e41e45108f4446a1385ca4d3a8345173687733a51b5c"
+          "sha256": "sha256:ffbd09d5e15bca996d6592dfd5d2e2047fc02c218f5adf2cc90d244ec29c6752"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
@@ -56399,8 +56399,8 @@
     {
       "decisionId": "W-1601",
       "summary": "bounded GPU0 target-neutral semantic witness and available CUDA execution",
-      "canonicalClaim": "GPU0 is a target-neutral, provider-free C23 semantic seed with exactly two functions and seven operations. It emits separate host/device MLIR artifacts and keeps host/device identities, lifecycle, dispatch/join/memory metrics, alias, capacity, range, effect, forgery, and transactional failure checks separate. The focused Windows gate parses the artifacts with pinned MLIR/LLVM 23.1.1, lowers GPU/NVVM, translates LLVM dialect, and uses system Clang 22.1.8 for `nvptx64` PTX. A dynamic `nvcuda.dll` Driver API adapter launches the kernel on NVIDIA RTX A400 (`sm_86`), returns and verifies 42, and fails closed for a missing provider or kernel. A separate diagnostic-only catalog records temporary artifact sizes and in-process phase distributions. This is compiler-lifecycle evidence, not source-backed W, a W runtime/provider, public product, supported GPU ABI, homogeneous production support, or a product/language ranking.",
-      "claimDigest": "sha256:445bb89a5002ee31e39ba61aadfec2171b1a847875c1e5da5197a514dbb1688c",
+      "canonicalClaim": "GPU0 is a target-neutral, provider-free C23 semantic seed with exactly two functions and seven operations. It emits separate host/device MLIR artifacts and keeps host/device identities, lifecycle, dispatch/join/memory metrics, alias, capacity, range, effect, forgery, and transactional failure checks separate. The seed parser structurally preserves canonical `accelerator.module<{ hello: kernel }>()` static records without assigning accelerator semantics. The focused Windows gate parses the artifacts with pinned MLIR/LLVM 23.1.1, lowers GPU/NVVM, translates LLVM dialect, and uses system Clang 22.1.8 for `nvptx64` PTX. A dynamic `nvcuda.dll` Driver API adapter launches the kernel on NVIDIA RTX A400 (`sm_86`), returns and verifies 42, and fails closed for a missing provider or kernel. A separate diagnostic-only catalog records temporary artifact sizes and in-process phase distributions. This is compiler-lifecycle evidence, not a complete source-backed W route, a W runtime/provider, public product, supported GPU ABI, homogeneous production support, or a product/language ranking.",
+      "claimDigest": "sha256:890202061fff0f3ddac770d82c19aa7092720406a5b3a172ace819ca906fdb19",
       "category": "implementation-evidence-gap",
       "basis": "current-ledger-claim-without-executable-witness",
       "authorityRef": {
@@ -56408,31 +56408,37 @@
         "path": "DESIGN.md",
         "section": "26.4.1.82",
         "heading": "#### 26.4.1.82 W-1601 — bounded target-neutral GPU0 witness and CUDA linkage evidence (Current design; implementation-evidence-gap)",
-        "sectionDigest": "sha256:8e25ece5255e5a9b6339e11a4df2f3f12aac82e22006907a9858aaa367892f45"
+        "sectionDigest": "sha256:6a67adff3f1e73d7b204d4ce9da90b7bbea01a50f477e05da8f2925c3f995c98"
       },
       "evidence": [],
       "gap": {
         "component": "gpu-source-to-provider-product-route",
         "gate": "DESIGN.md §26.4.1.82 / 26.4.1.82 W-1601 — bounded target-neutral GPU0 witness and CUDA linkage evidence (Current design; implementation-evidence-gap)",
         "missingEvidence": [
-          "canonical-accelerator-module-source",
-          "frontend-and-verified-w-ir-device-records",
+          "frontend-accelerator-module-and-launch-semantics",
+          "verified-w-ir-device-records",
           "public-host-and-device-artifact-route",
           "supported-w-provider-launch-join-result",
           "homogeneous-pinned-production-toolchain"
         ]
       },
-      "stopCondition": "W-1601 closes gpu-source-to-provider-product-route at gate DESIGN.md §26.4.1.82 / 26.4.1.82 W-1601 — bounded target-neutral GPU0 witness and CUDA linkage evidence (Current design; implementation-evidence-gap) only after canonical-accelerator-module-source, frontend-and-verified-w-ir-device-records, public-host-and-device-artifact-route, supported-w-provider-launch-join-result, and homogeneous-pinned-production-toolchain evidence is current.",
-      "reason": "W-1601 (bounded GPU0 target-neutral semantic witness and available CUDA execution, sha256:445bb89a5002ee31e39ba61aadfec2171b1a847875c1e5da5197a514dbb1688c) remains an implementation-evidence gap in component gpu-source-to-provider-product-route at gate DESIGN.md §26.4.1.82 / 26.4.1.82 W-1601 — bounded target-neutral GPU0 witness and CUDA linkage evidence (Current design; implementation-evidence-gap). The target-neutral C23 witness, CUDA result 42, and diagnostic timings do not prove the canonical W source-to-provider product route.",
+      "stopCondition": "W-1601 closes gpu-source-to-provider-product-route at gate DESIGN.md §26.4.1.82 / 26.4.1.82 W-1601 — bounded target-neutral GPU0 witness and CUDA linkage evidence (Current design; implementation-evidence-gap) only after frontend-accelerator-module-and-launch-semantics, verified-w-ir-device-records, public-host-and-device-artifact-route, supported-w-provider-launch-join-result, and homogeneous-pinned-production-toolchain evidence is current.",
+      "reason": "W-1601 (bounded GPU0 target-neutral semantic witness and available CUDA execution, sha256:890202061fff0f3ddac770d82c19aa7092720406a5b3a172ace819ca906fdb19) remains an implementation-evidence gap in component gpu-source-to-provider-product-route at gate DESIGN.md §26.4.1.82 / 26.4.1.82 W-1601 — bounded target-neutral GPU0 witness and CUDA linkage evidence (Current design; implementation-evidence-gap). Static-record CST, the target-neutral C23 witness, CUDA result 42, and diagnostic timings do not prove frontend accelerator semantics or the W source-to-provider product route.",
       "selection": "explicit-ledger-id",
       "basisRef": {
         "kind": "ledger-row",
         "path": "RATIONALE.md",
         "section": "3. Ledger",
         "decisionId": "W-1601",
-        "claimDigest": "sha256:445bb89a5002ee31e39ba61aadfec2171b1a847875c1e5da5197a514dbb1688c"
+        "claimDigest": "sha256:890202061fff0f3ddac770d82c19aa7092720406a5b3a172ace819ca906fdb19"
       },
       "sourceRefs": [
+        {
+          "path": "compiler/seed-c/tests/test_parser.c",
+          "symbol": "accelerator_module_text",
+          "claim": "Focused parser evidence preserves the canonical accelerator.module static record and rejects malformed fields and closes.",
+          "sha256": "sha256:ffbd09d5e15bca996d6592dfd5d2e2047fc02c218f5adf2cc90d244ec29c6752"
+        },
         {
           "path": "compiler/seed-c/src/w_seed_gpu0.c",
           "symbol": "w_seed_gpu0_verify",

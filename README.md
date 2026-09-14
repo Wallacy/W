@@ -45,7 +45,7 @@ correctness-scoped unless a source explicitly states otherwise.
 | Windows parallel provider | PARINV0 derives exact signed-`i64` calls and arguments from verified HIR37/PARSEL0, and PARPROV0 executes only that plan—no caller callback or context participates. Capacity one and two produce identical semantic outcomes; an internal deterministic rendezvous proves two simultaneously active Windows x64 workers without a timing threshold. This is component evidence, not a public W executable or CRT-free target artifact. |
 | Parallel task-entry MLIR | PARMLIR0 emits one runtime-parameterized public task entry per selected launch and only its transitive reachable internal helper closure. Named call-site order is normalized to declaration order and launch values are not embedded. The same target-neutral module lowers with MLIR/LLVM 23.1.1 to Windows x64 COFF and Linux x86-64 PIC ELF objects. PARLINK0 now links the Windows object to a CRT-free Kernel32 adapter and proves runtime-dependent values execute in the emitted functions; the adapter remains private compiler-lifecycle evidence, not a public command or benchmark result. |
 | Process/parallel compiler composition | Native0 configures the explicit `.domain`, HIR37 preserves runtime input through a scalar prelude into one task and lexical join, and PARSEL0 independently selects it. W-1600 links the W-1598 process root and private task entry to bounded CRT-free Windows and Linux providers and executes empty, nonempty, and injected-failure cases. The ordinary process emitter stays direct-only; public build/run, general scheduling, storage, and benchmarks remain open. |
-| GPU compiler/linkage experiment | GPU0 verifies a target-neutral two-function/seven-operation host/device witness, emits separate MLIR, lowers through GPU/NVVM to PTX, and returns `42` on the available RTX A400 through a dynamic CUDA Driver adapter. [`GPU0.md`](benchmarks/GPU0.md) records diagnostic phase metrics. This is not source-backed W, a W runtime/provider, or public GPU product support. |
+| GPU compiler/linkage experiment | The seed parser preserves canonical `accelerator.module<{...}>()` static records. GPU0 separately verifies a target-neutral two-function/seven-operation host/device witness, emits separate MLIR, lowers through GPU/NVVM to PTX, and returns `42` on the available RTX A400 through a dynamic CUDA Driver adapter. [`GPU0.md`](benchmarks/GPU0.md) records diagnostic phase metrics. Frontend/device-IR linkage, a W runtime/provider, and public GPU product support remain open. |
 | Enum payloads | The current bounded slice supports Bool and signed i64 payloads, captures, constructor values, and exhaustive switches. It has no public payload ABI. |
 | Enum subsets | The bounded seed target admits proper nonempty payloadless subsets of local enums with base tags and no wrapper allocation; focused checks and native Windows plus Linux/WSL execution are current. |
 | Source entry | entry { ... } and entry(functionName) are accepted in the bounded surface. An empty entry { } is valid. |
@@ -79,8 +79,9 @@ or `ref` use implies a heap, header, address, or storage class.
   and performance remain gaps.
 - GPU0 has target-neutral semantic records, separate host/device MLIR, an
   experimental Windows CUDA execution, and diagnostic in-process metrics. The
-  canonical `accelerator.module` source-to-verified-IR bridge and supported W
-  provider/product route remain open.
+  parser now preserves the canonical `accelerator.module` static record; its
+  frontend-to-verified-device-IR bridge and supported W provider/product route
+  remain open.
 - COOP0 remains a compiler-host trace oracle. A separate bounded cooperative
   core now lowers to Windows/Linux process projections. The Windows host also
   compiles and CRT-free-links the bounded Linux product with the shared WRT0;

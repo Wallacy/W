@@ -8652,6 +8652,7 @@
       "language": "w-internal",
       "source": [
         "gpu0 = verify(twoFunctions, sevenOperations, result: 42)",
+        "cst = parse(accelerator.module<{ hello: kernel }>())",
         "artifacts = emit(hostMLIR, deviceMLIR)",
         "ptx = lower(deviceMLIR, target: sm_86)",
         "assert cudaDriver.launch(ptx).join().readback == 42",
@@ -8691,6 +8692,11 @@
       }
     ],
     "sourceRefs": [
+      {
+        "path": "compiler/seed-c/tests/test_parser.c",
+        "symbol": "accelerator_module_text",
+        "claim": "The seed parser preserves the canonical static record and named field owners and rejects malformed variants."
+      },
       {
         "path": "compiler/seed-c/src/w_seed_gpu0.c",
         "symbol": "w_seed_gpu0_verify",

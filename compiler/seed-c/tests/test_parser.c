@@ -2255,6 +2255,68 @@ static bool test_phase2_generic_contract_switch(void) {
                          sizeof(optional_repeat.issues[0])));
   CHECK(same_parse(&optional, &optional_repeat));
 
+  static const char accelerator_module_text[] =
+      "fn kernel(result: mut ref i32) { result = 42 }\n"
+      "export const kernels = accelerator.module<{ hello: kernel }>()\n"
+      "entry { }\n";
+  fixture accelerator_module;
+  CHECK(fixture_init(&accelerator_module, accelerator_module_text,
+                     sizeof(accelerator_module.nodes) /
+                         sizeof(accelerator_module.nodes[0]),
+                     sizeof(accelerator_module.issues) /
+                         sizeof(accelerator_module.issues[0])));
+  CHECK(check_complete_shape(&accelerator_module));
+  CHECK(count_kind(&accelerator_module, W_SEED_CST_CONTRACT_ENVELOPE) == 1);
+  CHECK(count_kind(&accelerator_module, W_SEED_CST_STATIC_RECORD) == 1);
+  CHECK(count_kind(&accelerator_module, W_SEED_CST_STATIC_FIELD) == 1);
+  const w_seed_cst_index static_record =
+      first_kind(&accelerator_module, W_SEED_CST_STATIC_RECORD);
+  const w_seed_cst_index static_field =
+      first_kind(&accelerator_module, W_SEED_CST_STATIC_FIELD);
+  CHECK(static_record != W_SEED_CST_NONE && static_field != W_SEED_CST_NONE);
+  CHECK(count_direct_kind(&accelerator_module, static_record,
+                          W_SEED_CST_STATIC_FIELD) == 1);
+  CHECK(node_span_text(&accelerator_module, static_record,
+                       "{ hello: kernel }"));
+  CHECK(node_span_text(&accelerator_module, static_field, "hello: kernel "));
+  CHECK(has_direct_text(&accelerator_module, static_field, W_SEED_CST_WORD,
+                        "hello"));
+  CHECK(has_direct_text(&accelerator_module, static_field,
+                        W_SEED_CST_PUNCTUATION, ":"));
+  CHECK(check_leaf_partition(&accelerator_module));
+  CHECK(check_tree_links(&accelerator_module));
+
+  fixture accelerator_module_repeat;
+  CHECK(fixture_init(&accelerator_module_repeat, accelerator_module_text,
+                     sizeof(accelerator_module_repeat.nodes) /
+                         sizeof(accelerator_module_repeat.nodes[0]),
+                     sizeof(accelerator_module_repeat.issues) /
+                         sizeof(accelerator_module_repeat.issues[0])));
+  CHECK(same_parse(&accelerator_module, &accelerator_module_repeat));
+
+  static const char *const malformed_static_records[] = {
+      "export const kernels = accelerator.module<{ hello kernel }>()\n",
+      "export const kernels = accelerator.module<{ : kernel }>()\n",
+      "export const kernels = accelerator.module<{ hello: }>()\n",
+      "export const kernels = accelerator.module<{ hello: kernel>()\n",
+  };
+  for (size_t index = 0u;
+       index < sizeof(malformed_static_records) /
+                   sizeof(malformed_static_records[0]);
+       index += 1u) {
+    fixture malformed_static_record;
+    CHECK(fixture_init(&malformed_static_record,
+                       malformed_static_records[index],
+                       sizeof(malformed_static_record.nodes) /
+                           sizeof(malformed_static_record.nodes[0]),
+                       sizeof(malformed_static_record.issues) /
+                           sizeof(malformed_static_record.issues[0])));
+    CHECK(malformed_static_record.result.status != W_SEED_PARSE_COMPLETE);
+    CHECK(malformed_static_record.result.issue_count >= 1u);
+    CHECK(check_leaf_partition(&malformed_static_record));
+    CHECK(check_tree_links(&malformed_static_record));
+  }
+
   static const char contract_text[] =
       "import {Course,Order} from domain;\n"
       "type Active=Array<Order><(.count<=64)>;\n"

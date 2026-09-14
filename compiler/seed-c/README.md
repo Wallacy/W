@@ -2164,10 +2164,16 @@ stay outside timing; H2D, launch-plus-synchronize, D2H, and complete round-trip
 use 101 warmups and 1001 in-process samples. These numbers are compiler/linkage
 diagnostics, not W product rankings.
 
-This package does not implement the canonical `accelerator.module` source
-bridge, a W runtime/provider, public GPU build/run, a supported GPU ABI, or a
-homogeneous pinned production toolchain. Those boundaries keep roadmap rank 1
-open.
+The seed parser accepts `accelerator.module<{ hello: kernel }>()` and emits
+distinct `W_SEED_CST_STATIC_RECORD` and `W_SEED_CST_STATIC_FIELD` owners.
+Focused tests bind exact spans, deterministic repeat parsing, the leaf
+partition, tree ownership, and malformed field/close recovery. The parser does
+not assign accelerator, kernel, or launch semantics.
+
+This package does not implement the frontend and verified-device-IR portion of
+the canonical `accelerator.module` bridge, a W runtime/provider, public GPU
+build/run, a supported GPU ABI, or a homogeneous pinned production toolchain.
+Those boundaries keep roadmap rank 1 open.
 
 ### Closed local payloadless enum exhaustive switch (W-1563)
 

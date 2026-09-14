@@ -107,6 +107,9 @@ typedef enum {
   W_SEED_CST_CAPTURE_PATTERN,
   W_SEED_CST_LABELED_PATTERN,
   W_SEED_CST_REST_PATTERN,
+  /* Append-only compile-time record owners used inside contract envelopes. */
+  W_SEED_CST_STATIC_RECORD,
+  W_SEED_CST_STATIC_FIELD,
 } w_seed_cst_kind;
 
 enum {
