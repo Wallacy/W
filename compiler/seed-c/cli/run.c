@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "w_seed_native0.h"
+#include "w_seed_wrt0.h"
 
 #if defined(_WIN32)
 #include "w_seed_windows_config.h"
@@ -85,48 +86,6 @@ static const char MLIR_OPT[] = W_SEED_LINUX_MLIR_OPT_PATH;
 static const char MLIR_TRANSLATE[] = W_SEED_LINUX_MLIR_TRANSLATE_PATH;
 static const char LLC[] = W_SEED_LINUX_LLC_PATH;
 static const char LINK_DRIVER[] = W_SEED_LINUX_LINK_DRIVER_PATH;
-
-/* WRT0 is the complete runtime closure of the bounded Linux seed executable.
- * It owns process startup, stdout and exit through the x86_64 Linux syscall
- * ABI. The final artifact therefore needs neither a C entry point nor libc,
- * CRT objects, a dynamic loader, or generated C source. */
-static const uint8_t WRT0_LL[] =
-    "target triple = \"x86_64-unknown-linux-gnu\"\n"
-    "\n"
-    "@w_seed_linux_initial_argc = global i64 0, align 8\n"
-    "@w_seed_linux_initial_argv = global ptr null, align 8\n"
-    "\n"
-    "define i64 @w_seed_process_argc() nounwind {\n"
-    "entry:\n"
-    "  %value = load i64, ptr @w_seed_linux_initial_argc, align 8\n"
-    "  ret i64 %value\n"
-    "}\n"
-    "\n"
-    "define ptr @w_seed_process_argv() nounwind {\n"
-    "entry:\n"
-    "  %value = load ptr, ptr @w_seed_linux_initial_argv, align 8\n"
-    "  ret ptr %value\n"
-    "}\n"
-    "\n"
-    "declare i32 @main()\n"
-    "\n"
-    "define i32 @w_seed_linux_start(ptr %stack) nounwind {\n"
-    "entry:\n"
-    "  %argc = load i64, ptr %stack, align 8\n"
-    "  %argv = getelementptr i8, ptr %stack, i64 8\n"
-    "  store i64 %argc, ptr @w_seed_linux_initial_argc, align 8\n"
-    "  store ptr %argv, ptr @w_seed_linux_initial_argv, align 8\n"
-    "  %status = call i32 @main()\n"
-    "  ret i32 %status\n"
-    "}\n"
-    "\n"
-    "define i64 @write(i32 %fd, ptr %buffer, i64 %count) nounwind {\n"
-    "entry:\n"
-    "  %result = call i64 asm sideeffect \"syscall\", \"={rax},{rax},{rdi},{rsi},{rdx},~{rcx},~{r11},~{memory}\"(i64 1, i32 %fd, ptr %buffer, i64 %count)\n"
-    "  ret i64 %result\n"
-    "}\n"
-    "\n"
-    "module asm \".text\\0A.globl _start\\0A.type _start,@function\\0A_start:\\0A  movq %rsp, %rdi\\0A  callq w_seed_linux_start\\0A  movl %eax, %edi\\0A  movl $60, %eax\\0A  syscall\\0A  ud2\\0A.size _start, .-_start\\0A\"\n";
 
 static bool path_join(char *buffer, size_t capacity, const char *directory,
                       const char *name) {
@@ -287,6 +246,8 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
   w_seed_frontend_text source_id;
   if (!run_logical_source_id(request->source_path, path_length, &source_id))
     return 2;
+  w_seed_wrt0_artifact wrt0;
+  if (!w_seed_wrt0_get(W_SEED_WRT0_TARGET_LINUX_X86_64, &wrt0)) return 3;
 
   const w_seed_native0_input native_input = {
       .path = request->source_path,
@@ -333,7 +294,8 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
                  request->directory, "wrt0.o") ||
       !write_private_file(input_path, native_artifact,
                           native_result.mlir.written.mlir_bytes) ||
-      !write_private_file(runtime_ll_path, WRT0_LL, sizeof(WRT0_LL) - 1u) ||
+      !write_private_file(runtime_ll_path, wrt0.llvm_ir,
+                          wrt0.llvm_ir_length) ||
       !create_private_file(verified_path, (mode_t)0600) ||
       !create_private_file(ll_path, (mode_t)0600) ||
       !create_private_file(object_path, (mode_t)0600) ||

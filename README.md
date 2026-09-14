@@ -55,8 +55,10 @@ or `ref` use implies a heap, header, address, or storage class.
 - General types, general control flow, async runtime behavior, and provider
   integration remain outside the current product boundary.
 - COOP0 remains a compiler-host trace oracle. A separate bounded cooperative
-  core now lowers to Windows/Linux process projections, but it is not yet a
-  public product runtime, scheduler, parallelism, or performance claim.
+  core now lowers to Windows/Linux process projections. The Windows host also
+  compiles and CRT-free-links the bounded Linux product with the shared WRT0;
+  WSL supplies execution evidence only. This is not yet a public product
+  runtime, scheduler, parallelism, or performance claim.
 - w run and w build require one explicit source path. w build also requires an
   exact target triple and a new output artifact.
 - Public process execution has bounded native Windows x64 and CRT-free
@@ -70,7 +72,8 @@ or `ref` use implies a heap, header, address, or storage class.
 - Feature coverage defaults to every applicable target. Current Windows/Linux
   evidence cannot exclude macOS or another viable target; missing local
   infrastructure remains a blocker. The cross-compilation goal is any
-  supported compiler host to any supported emitted target.
+  supported compiler host to any supported emitted target, and requested or
+  release target sets may not be silently narrowed to locally executable ones.
 - Package, workspace, lockfile, registry, SDK, distribution, and hosted CI
   behavior remain future work.
 - General payload types, recursive payloads, niche optimization, and stable

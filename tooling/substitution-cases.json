@@ -3838,8 +3838,8 @@
       ],
       "sourceRefs": [
         {
-          "path": "compiler/seed-c/cli/run.c",
-          "symbol": "WRT0_LL",
+          "path": "compiler/seed-c/src/w_seed_wrt0.c",
+          "symbol": "LINUX_X86_64_LLVM_IR",
           "claim": "The bounded Linux WRT module owns process startup, stdout write, and exit through the x86_64 syscall ABI."
         },
         {
@@ -6388,8 +6388,8 @@
       ],
       "sourceRefs": [
         {
-          "path": "compiler/seed-c/cli/run.c",
-          "symbol": "WRT0_LL",
+          "path": "compiler/seed-c/src/w_seed_wrt0.c",
+          "symbol": "LINUX_X86_64_LLVM_IR",
           "claim": "Linux WRT0 owns module-assembly startup, initial-stack capture, private argc/argv accessors, syscall write, and syscall exit."
         },
         {
@@ -7347,7 +7347,7 @@
       "id": "R0-cooperative-target-projection",
       "reviewItem": "bounded cooperative process projection and all-applicable-target coverage against hardcoded output, evidence-local architecture, and false cross-compilation claims",
       "decisions": ["W-1585"],
-      "task": "Project the same verified cooperative core to bounded Windows and Linux process leaves while keeping target coverage open and distinguishing cross-target object evidence from complete cross-compilation.",
+      "task": "Project the same verified cooperative core to bounded Windows and Linux process leaves, cross-link the CRT-free Linux product on Windows, and keep target coverage open without promoting one edge to universal cross-compilation.",
       "selected": {
         "language": "w",
         "source": [
@@ -7369,10 +7369,10 @@
           "expectedDifference": "Missing local evidence is a blocker, not inapplicability; every feature defaults to all applicable catalog targets."
         },
         {
-          "name": "target-local-link-is-cross-compilation",
+          "name": "target-local-link-masquerades-as-cross-compilation",
           "language": "w-internal-rejected",
           "source": ["call a Windows-emitted Linux object plus Linux/WSL linker execution a complete Windows-to-Linux cross compiler"],
-          "expectedDifference": "The evidence is explicitly cross-target IR/object generation plus target-local link and execution until sysroot/linker packaging runs on the compiler host."
+          "expectedDifference": "The selected gate performs LLVM lowering and CRT-free ELF linking on Windows with the shared WRT0; WSL supplies execution evidence only."
         },
         {
           "name": "platform-abi-in-semantic-core",
@@ -7405,7 +7405,12 @@
         {
           "path": "tooling/check-cooperative-mlir0.mjs",
           "symbol": "modes",
-          "claim": "The gate lowers the neutral core and both target projections with pinned MLIR 23.1.1 and executes current target evidence."
+          "claim": "The gate lowers the neutral core and both target projections with pinned MLIR 23.1.1, cross-links the CRT-free Linux ELF on Windows, and executes current target evidence."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_wrt0.c",
+          "symbol": "w_seed_wrt0_get",
+          "claim": "The public Linux runner and the Windows-to-Linux cooperative gate consume the same immutable target WRT0 bytes."
         },
         {
           "path": "tooling/platform-support.json",
@@ -7423,8 +7428,8 @@
         "the Windows and Linux leaves call the same core and derive the output plan from verified HIR",
         "unsupported HIR, target, and short capacity leave caller-owned output and result unchanged",
         "pinned MLIR 23.1.1 lowers the neutral core and both current target projections",
-        "the Windows CRT-free PE and Linux target-local-linked ELF execute exact Cooperative 88 with LF",
-        "Linux evidence is not promoted to complete cross-compilation or the WRT0 closure",
+        "the Windows CRT-free PE and the Windows-host-linked CRT-free Linux ELF execute exact Cooperative 88 with LF",
+        "the Linux ELF is emitted, object-lowered, and linked on Windows with the shared WRT0; WSL is used only for target execution",
         "missing local evidence cannot exclude macOS or another applicable catalog target"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]

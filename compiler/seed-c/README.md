@@ -1783,20 +1783,23 @@ lowering evidence:
 Both lower with MLIR 23.1.1. The Windows leaf produced and executed a 3072-byte
 CRT-free PE using `mainCRTStartup` and Kernel32, with exact stdout
 `Cooperative 88\n`. The Windows-host LLVM tools also produced the Linux ELF
-object; Linux/WSL linked and executed it with the same output. The latter is
-cross-target IR/object evidence only because the target environment performed a
-libc link. It is not the Linux WRT0 closure or complete cross-compilation.
+object and the shared Linux x86-64 WRT0 object. Windows-host `ld.lld` links
+them into a stripped CRT-free static PIE with no interpreter or dynamic
+dependency; Linux/WSL only executes it and observes the same output. This is
+complete bounded Windows-to-Linux product evidence for this exact source, not
+general SDK/sysroot packaging or a complete host-target matrix.
 
 The seed target enum currently exposes only the two proven x86_64 leaves; it is
 not the W target universe. Feature coverage defaults to every applicable target
 in the platform catalog. Missing local hardware or evidence is a blocker, not
 permission to exclude macOS, AArch64, mobile, WebAssembly, GPU, embedded, or
 another viable target. A real exclusion requires a target-inapplicability
-rationale and catalog record. Release automation must eventually fan the same
+rationale and catalog record. A requested multi-target invocation must not
+silently emit only locally executable targets. Release automation must fan the same
 verified core to all supported applicable targets, with any supported host able
-to build any supported target. Public `w run`/`w build`, Linux WRT0 composition,
-stable ABI, runtime/scheduler providers, parallel overlap, cancellation, and
-benchmark evidence remain gaps.
+to build any supported target. Public `w run`/`w build` integration for this
+cooperative product, other target WRT/adapters, stable ABI, runtime/scheduler
+providers, parallel overlap, cancellation, and benchmark evidence remain gaps.
 
 ### Closed local payloadless enum exhaustive switch (W-1563)
 

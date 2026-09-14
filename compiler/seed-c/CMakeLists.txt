@@ -29,6 +29,7 @@ add_library(w_seed_source STATIC
   include/w_seed_source_binding.h
   include/w_seed_process0.h
   include/w_seed_cooperative_selection0.h
+  include/w_seed_wrt0.h
   include/w_seed_source_binding_linux.h
   src/w_seed_manifest.c
   src/w_seed_manifest_linux.c
@@ -68,6 +69,7 @@ add_library(w_seed_source STATIC
   src/w_seed_product_closure0.c
   src/w_seed_process0.c
   src/w_seed_run0.c
+  src/w_seed_wrt0.c
 )
 
 target_include_directories(w_seed_source
@@ -619,6 +621,11 @@ target_compile_definitions(w_seed_cooperative0_tests PRIVATE
   W_SEED_COOPERATIVE0_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/restaurant-cooperative0.w"
 )
 
+add_executable(w_seed_wrt0_tests
+  tests/test_wrt0.c
+)
+target_link_libraries(w_seed_wrt0_tests PRIVATE w_seed_source)
+
 add_executable(w_seed_hir0_tests
   tests/test_hir0.c
 )
@@ -783,6 +790,7 @@ if(MSVC)
   target_compile_options(w_seed_mlir0_gate PRIVATE /W4 /WX)
   target_compile_options(w_seed_native0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_cooperative0_tests PRIVATE /W4 /WX)
+  target_compile_options(w_seed_wrt0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_hir0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_hir0_multidoc_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_product_closure0_tests PRIVATE /W4 /WX)
@@ -1236,6 +1244,15 @@ else()
     -Wshadow
     -Werror
   )
+  target_compile_options(w_seed_wrt0_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
   target_compile_options(w_seed_hir0_tests PRIVATE
     -Wall
     -Wextra
@@ -1337,6 +1354,7 @@ add_test(NAME w_seed_hlo1_unit COMMAND w_seed_hlo1_tests)
 add_test(NAME w_seed_mlir0_unit COMMAND w_seed_mlir0_tests)
 add_test(NAME w_seed_native0_unit COMMAND w_seed_native0_tests)
 add_test(NAME w_seed_cooperative0_unit COMMAND w_seed_cooperative0_tests)
+add_test(NAME w_seed_wrt0_unit COMMAND w_seed_wrt0_tests)
 add_test(NAME w_seed_hir0_unit COMMAND w_seed_hir0_tests)
 add_test(NAME w_seed_hir0_multidoc_unit COMMAND w_seed_hir0_multidoc_tests)
 add_test(NAME w_seed_product_closure0_unit COMMAND w_seed_product_closure0_tests)

@@ -79,7 +79,11 @@ describe("platform support catalog", () => {
     expect(source.crossCompilation.baselineTargets).toEqual(PRIMARY_TARGET_REFS);
     expect(source.crossCompilation.edges).toHaveLength(9);
     expect(source.crossCompilation.developmentEvidence).toHaveLength(1);
-    expect(source.crossCompilation.edges.every((edge) => edge.state === CROSS_COMPILATION_STATES[0])).toBe(true);
+    expect(source.crossCompilation.edges.filter((edge) =>
+      edge.state === CROSS_COMPILATION_STATES[1])).toHaveLength(1);
+    expect(source.crossCompilation.edges.find((edge) =>
+      edge.id === "edge-host-windows-x86_64-native-to-target-x86_64-unknown-linux-gnu")?.state)
+      .toBe("evidence");
     expect(source.crossCompilation.developmentEvidence[0].evidence.map((evidence) => evidence.role)).toEqual([
       "development",
       "toolchain",
@@ -102,6 +106,8 @@ describe("platform support catalog", () => {
         "catalog-record",
       ],
       localInvocation: "requested-targets",
+      requestedTargetSetMustBeComplete: true,
+      evidenceAvailabilityCannotNarrowEmission: true,
       releaseFanout: "all-supported-applicable-targets",
       crossCompilationGoal: "any-supported-host-to-any-supported-target",
     });
@@ -205,9 +211,13 @@ describe("platform support catalog", () => {
     const errors = errorsAfter((value) => {
       value.policy.featureCoverage.default = "targets-with-local-evidence";
       value.policy.featureCoverage.unavailableEvidenceIsNotInapplicable = false;
+      value.policy.featureCoverage.requestedTargetSetMustBeComplete = false;
+      value.policy.featureCoverage.evidenceAvailabilityCannotNarrowEmission = false;
     });
     expectError(errors, "policy.featureCoverage.default must be all-applicable-targets");
     expectError(errors, "policy.featureCoverage.unavailableEvidenceIsNotInapplicable must be true");
+    expectError(errors, "policy.featureCoverage.requestedTargetSetMustBeComplete must be true");
+    expectError(errors, "policy.featureCoverage.evidenceAvailabilityCannotNarrowEmission must be true");
   });
 
   test("rejects an MLIR0 manifest cross-check mismatch", () => {
