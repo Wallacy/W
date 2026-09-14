@@ -366,6 +366,13 @@ and forged forms. No MLIR/provider/public executable exists for this route, so
 there is intentionally no executable benchmark or platform-performance gate
 yet; its disposition is `compiler-lifecycle`.
 
+W-1589 adds the fixed `w-seed-parallel-selection0-1` PARSEL0 proof. The seed C
+HIR test derives one, two, and four task selections from verified HIR37,
+checks copied placement and lexical launch/join facts, canonical zero tails,
+record mutations, HIR lifetime independence, output/input alias rejection, and
+transactional failure. Provider capacity is intentionally absent. This is a
+compiler-lifecycle gate only; it adds no executable or performance benchmark.
+
 ACQ0 executa CHK6 em
 storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou
 CLI. Execute `bun check --target acquisition` para compilar os cinco targets focais,

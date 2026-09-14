@@ -239,6 +239,7 @@ O corpus compara, no mínimo:
 - bounded source-selected main-domain dispatch against pure-async elision, source-name heuristics, and evidence-limited target coverage.
 - bounded main-domain task cardinality against the exact-two product ceiling, a widened runtime claim, and non-lexical result folding.
 - verified explicit parallel-domain placement against ambient host inference, cooperative-yield reuse, and premature runtime claims.
+- bounded parallel selection against provider-capacity identity, trusted lowering records, and premature execution claims.
 
 ### 1.1 Cobertura de substituições
 
@@ -7894,6 +7895,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1586 | bounded non-elidable main-domain dispatch | Frontend25 distinguishes `spawn<.main>` from ordinary `async`; HIR35 carries `STRUCTURED_ASYNC_MAIN_DISPATCH` under `MAIN_SERIAL`. The admitted source has exactly two uniform sibling launches, one or two yields per scalar child, lexical joins, and the W-1585 output plan. `.main` serial FIFO semantics forbid direct-call elision. Native0 selects the physical state machine only from verified HIR. Public Windows `w run`/`w build`, public Windows-host Linux cross-build, and the dual-target product gate execute exact `Dispatched 88\n` with CRT-free Windows and Linux products. Current evidence remains independent from all-applicable-target emission and release fanout. | `source-backed-current` only for the bounded frontend25/HIR35 relation, independent fail-closed verification, verified-HIR product selection, public Windows execution, public Windows-host Linux cross-build plus WSL2 execution, source/oracle catalog registration, and exploratory per-platform W measurements. Native-Linux-host CLI evidence remains blocked by its absent materialized Linux MLIR 23.1.1 toolchain. General Task counts, nested scopes, cancellation, parallel domains, scheduler providers, stable ABI, general cross-compilation, other target adapters, equivalent C23/Rust baselines, and ranked performance remain gaps. |
 | W-1587 | bounded main-domain task cardinality | HIR0 schema `w-seed-hir0-36` and reserved caller-owned selection schema `w-seed-cooperative-selection0-2` extend the physical `spawn<.main>` product cut from exactly two to one through four ordered sibling launches in one linear root. The value four is a seed caller-owned array ceiling, not a language semantic, runtime, or ABI bound. NativeSubset0 independently rederives the count and zeroes unused selection slots. MLIR0 schema `w-seed-mlir0-cooperative-2` and executable schema `w-seed-mlir0-cooperative-executable-2` emit a count-driven serial FIFO state machine that starts at launch ordinal zero, wraps at the selected count, and folds signed-`i64` outcomes in lexical join order. The bounded output plan proves one additive interpolation with one leaf per lexical join. The exact-two Cooperative0 compiler-host trace oracle remains unchanged. Focused k=1, k=3, and k=4 sources complement the existing k=2 witness; the lower-level external gate samples k=1 and k=4 endpoints, while the C product path covers k=1 through k=4. The executable workload `restaurant-main-cardinality` separately owns the public k=4 fixture and exact `w run`/`w build` output `Dispatched 92\n` on Windows and the Linux target through WSL2. k=5, reordered or orphan joins, mixed launch kinds, and a source without a main-dispatch route fail closed. This is bounded seed correctness evidence with primary `benchmarkDisposition: compiler-lifecycle`; the executable catalog separately owns exploratory public W measurement, while C23 and Rust remain blocked until equivalent serial-main-domain baselines exist. No general runtime, scheduler, parallelism, stable ABI, benchmark-ranking, or performance claim is made. | `source-backed-current` only for the HIR36 and selection-v2 cardinality proof, the count-driven target-neutral and target-specific MLIR emitters, the focused k=1/k=3/k=4 source cases plus the existing k=2 witness, the lower-level k=1/k=4 endpoint samples and C k=1..4 coverage, the public Windows and Linux/WSL k=4 source route, and the fail-closed k=5/order/orphan/mixed/no-route barriers. The four-task value is a seed caller-owned ceiling, not a language or ABI rule. Cooperative0 remains exact-two. Native runtime generality, scheduler providers, parallel execution, cancellation, stable ABI, other target adapters, and cross-language benchmark ranking remain gaps. `benchmarkDisposition: compiler-lifecycle`; the executable catalog separately owns exploratory measurement and C23/Rust remain blocked pending equivalent serial-main-domain baselines. |
 | W-1588 | verified explicit parallel-domain placement | Frontend26 accepts exact `spawn<.domain>` only with a caller-owned binding whose scheduling mode is concurrent and whose capability set contains parallel; HIR37 copies the domain identity, mode, and capabilities and carries a distinct physical call kind. The bounded witness proves one through four lexical sibling launches of ordinary pure non-suspending scalar children and rejects missing/duplicate/serial/capability-free bindings, async or effectful children, mixed physical kinds, and forged placement records. Native artifact auto-selection also rejects incompatible process/task route matches instead of using predicate order. | `source-backed-current` only for the bounded frontend/HIR placement relation, independent HIR verification after frontend lifetime ends, adversarial input/record checks, full seed C build, and unit suite. No parallel selection, MLIR/provider/runtime/public executable/overlap/platform/performance evidence exists. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1589 | bounded parallel selection proof | PARSEL0 schema `w-seed-parallel-selection0-1` independently re-verifies HIR37 and derives one through four explicit parallel-domain calls, target functions, launch bindings, and lexical join bindings into a fixed caller-owned record. It copies the exact domain placement facts and HIR semantic digest, canonicalizes unused slots, rejects aliases and malformed or mixed relations, and publishes transactionally. Provider capacity is absent from the record and therefore cannot alter semantic identity. | `source-backed-current` only for the fixed PARSEL0 record, independent HIR-derived selection, k=1/k=2/k=4 tests, mutation and alias barriers, and transactional publication. No provider, MLIR, runtime task, overlap, public executable, target, benchmark result, or performance claim exists. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -12323,9 +12325,38 @@ from becoming an accidental model for CPU parallel work.
 This milestone intentionally stops before emission. A host-only outcome
 reducer or timing of a C helper would not test a W product and would recreate
 the repository's earlier problem of expensive green tests with little product
-evidence. The follow-up must introduce a separate verified parallel selection
-and a small provider boundary, then execute capacity-one and capacity-two
-variants through the public source route. Provider overlap, not a fragile
-wall-clock speedup threshold, will be the correctness evidence for actual
-parallel execution. Only that public executable milestone will require an
-executable-catalog entry and initial Windows plus Linux-target measurements.
+evidence. W-1589 now supplies the separate verified parallel selection. The
+follow-up must add a small provider boundary and execute capacity-one and
+capacity-two variants through the public source route. Provider overlap, not a
+fragile wall-clock speedup threshold, will be the correctness evidence for
+actual parallel execution. Only that public executable milestone will require
+an executable-catalog entry and initial Windows plus Linux-target measurements.
+
+#### W-1589 — bounded parallel selection proof
+
+Placement evidence is not yet an executable plan. A backend-facing boundary
+must prove which verified HIR calls belong to the physical domain without
+retaining frontend pointers, trusting lowering order, or allowing a provider
+configuration to change program identity. W-1589 therefore inserts PARSEL0
+between HIR37 and any future provider.
+
+The selected record is fixed and caller-owned. It re-verifies HIR, finds the
+single anonymous root, and copies the one-through-four task calls, target
+functions, launch bindings, and lexical join bindings. The exact `.domain`
+identity, concurrent mode, parallel capability, relevant HIR counts, and HIR
+semantic digest are canonical evidence. Every unused slot is zero. Verification
+rederives the whole record and compares explicit fields, avoiding dependence on
+C structure padding.
+
+Provider capacity is deliberately not represented. A serial capacity-one
+provider and a capacity-two provider must consume the same selection and
+produce the same W result; capacity is physical policy, not semantic identity.
+Alias checks cover the HIR descriptor, result, and every caller-owned HIR
+range before the commit. Invalid and unsupported inputs leave the destination
+unchanged.
+
+This remains compiler-lifecycle evidence. PARSEL0 creates no worker, queue,
+thread, frame, scheduler, MLIR artifact, public executable, target result, or
+timing. The next milestone must add a small target provider and prove both
+capacity-one equivalence and capacity-two overlap without weakening this
+selection boundary.

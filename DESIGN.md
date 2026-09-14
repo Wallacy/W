@@ -39495,11 +39495,52 @@ W-1588 publishes no parallel selection record, MLIR artifact, worker pool,
 thread, overlap, scheduler, runtime ABI, public `w run` route, executable
 catalog entry, or performance result. Native executable auto-selection was
 hardened so incompatible process and task artifact shapes reject rather than
-depending on predicate order. The next product milestone must independently
-derive a parallel selection from verified HIR, keep provider capacity outside
-semantic identity, execute the same semantics at capacity one and two, and
+depending on predicate order. W-1589 now owns the independent parallel
+selection and keeps provider capacity outside semantic identity. The next
+product milestone must execute that same selection at capacity one and two and
 prove provider overlap on each maintained target lane before claiming actual
 parallel execution. The benchmark disposition for W-1588 is
+`compiler-lifecycle`.
+
+```w
+fn prepare(value: i64): i64 {
+  return value + 1
+}
+
+entry {
+  let left = spawn<.domain> prepare(value: 20)
+  let right = spawn<.domain> prepare(value: 22)
+  let first = await left
+  let second = await right
+}
+```
+
+#### 26.4.1.70 W-1589 — bounded parallel selection proof
+
+W-1589 adds PARSEL0 as the first consumer of the W-1588 placement relation.
+`w-seed-parallel-selection0-1` is a fixed, caller-owned, no-heap proof record.
+It independently re-verifies HIR37, rederives the unique anonymous root, and
+selects one through four exact
+`STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH` calls. It copies each task call,
+target function, launch binding, and lexical join binding together with the
+exact `.domain` identity, concurrent mode, parallel capability, HIR counts,
+and semantic digest. Unused fixed slots and reserved bytes are canonical zero.
+
+The selector accepts only the already bounded pure, ordinary, non-suspending
+scalar graph. It rejects another structured execution kind, mixed physical
+lanes, absent or forged placement, malformed launch/join ownership, zero or
+more than four tasks, truncated HIR, and output overlap with the HIR descriptor,
+result, or any caller-owned backing range. Selection is transactional: invalid
+and unsupported inputs leave the destination unchanged. Verification derives
+an independent canonical candidate and compares fields rather than structure
+padding.
+
+Provider capacity is intentionally absent from PARSEL0. Capacity one and two
+must therefore consume the same semantic selection instead of changing program
+identity or recompiling the task graph under a different meaning. This slice
+does not select a platform provider, emit MLIR, create workers, execute a task,
+prove overlap, expose a public command, or publish a benchmark. Those remain
+the next product milestone. Its benchmark disposition is
 `compiler-lifecycle`.
 
 ```w
