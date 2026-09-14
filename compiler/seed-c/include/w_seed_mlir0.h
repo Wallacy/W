@@ -34,7 +34,7 @@ extern "C" {
 /* A linkable target-neutral task-entry module. It contains no process entry,
  * scheduler, provider, runtime ownership, or target ABI. */
 #define W_SEED_MLIR0_PARALLEL_ENTRY_SCHEMA_VERSION \
-  "w-seed-mlir0-parallel-entry-1"
+  "w-seed-mlir0-parallel-entry-2"
 /* The unsuffixed aliases retain the byte-for-byte Linux seed contract. */
 #define W_SEED_MLIR0_TARGET_TRIPLE W_SEED_MLIR0_TARGET_TRIPLE_LINUX
 /* The dynamic seed artifact is bounded by 64 HIR values, 64 interpolation
@@ -124,6 +124,7 @@ typedef struct {
 typedef struct {
   size_t mlir_bytes;
   uint32_t task_count;
+  uint32_t runtime_argument_count;
   uint32_t reachable_function_count;
 } w_seed_mlir0_parallel_entry_counts;
 
@@ -186,9 +187,11 @@ bool w_seed_mlir0_verify_cooperative_emission(
     const w_seed_cooperative_selection0 *selection, const uint8_t *artifact,
     size_t artifact_bytes, const w_seed_mlir0_cooperative_result *result);
 
-/* Emit one target-neutral, linkable function per verified parallel task. Only
- * the task functions and their direct local helper closure are materialized.
- * Entry names are canonical `w_seed_parallel_task_<ordinal>` symbols. */
+/* Emit one target-neutral, linkable function per verified parallel task. Each
+ * entry accepts its task's signed-i64 arguments in declaration order; no
+ * source argument is baked into the wrapper. Only the task functions and
+ * their transitive local helper closure are materialized. Entry names are
+ * canonical `w_seed_parallel_task_<ordinal>` symbols. */
 w_seed_mlir0_status w_seed_mlir0_measure_parallel_entries(
     const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
     const w_seed_parallel_selection0 *selection,

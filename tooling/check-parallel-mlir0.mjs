@@ -77,13 +77,16 @@ try {
     fail("emitter produced stderr or embedded NUL");
   const text = emitted.stdout.toString("utf8");
   for (const marker of [
-    "w-seed-mlir0-parallel-entry-1",
+    "w-seed-mlir0-parallel-entry-2",
     "func.func private @w_coop_fn_0",
     "func.func private @w_coop_fn_1",
-    "func.func @w_seed_parallel_task_0() -> i64",
-    "func.func @w_seed_parallel_task_1() -> i64",
+    "func.func private @w_coop_fn_2",
+    "func.func @w_seed_parallel_task_0(%arg0: i64) -> i64",
+    "func.func @w_seed_parallel_task_1(%arg0: i64, %arg1: i64) -> i64",
+    "func.call @w_coop_fn_2(%arg0, %arg1) : (i64, i64) -> i64",
   ]) if (!text.includes(marker)) fail(`artifact omits ${marker}`);
-  for (const forbidden of ["@w_coop_fn_2", "@w_seed_cooperative_core",
+  for (const forbidden of ["@w_coop_fn_3", "@w_seed_cooperative_core",
+    "%cv0 = arith.constant 20 : i64", "%cv2 = arith.constant 2 : i64",
     "llvm.target_triple", "@main", "@mainCRTStartup"])
     if (text.includes(forbidden)) fail(`artifact unexpectedly contains ${forbidden}`);
 
@@ -99,11 +102,13 @@ try {
     "--canonicalize", "--cse", "--verify-each"]);
   run(available.mlirTranslate, ["--mlir-to-llvmir", lowered, "-o", llvm]);
   const llvmText = await readFile(llvm, "utf8");
-  if (!llvmText.includes("define i64 @w_seed_parallel_task_0()") ||
-      !llvmText.includes("define i64 @w_seed_parallel_task_1()") ||
+  if (!/define i64 @w_seed_parallel_task_0\(i64 %[^)]+\)/u.test(llvmText) ||
+      !/define i64 @w_seed_parallel_task_1\(i64 %[^,]+, i64 %[^)]+\)/u.test(llvmText) ||
       !llvmText.includes("define internal i64 @w_coop_fn_0") ||
       !llvmText.includes("define internal i64 @w_coop_fn_1") ||
-      llvmText.includes("@w_coop_fn_2")) {
+      !llvmText.includes("define internal i64 @w_coop_fn_2") ||
+      llvmText.includes("@w_coop_fn_3") ||
+      /call i64 @w_coop_fn_[12]\(i64 (?:20|2)(?:,|\))/u.test(llvmText)) {
     const definitions = llvmText.split("\n")
       .filter((line) => line.includes("define ")).join(" | ");
     fail(`translated LLVM symbol closure differs: ${definitions}`);
@@ -121,7 +126,7 @@ try {
       linuxBytes[1] !== 0x45 || linuxBytes[2] !== 0x4c ||
       linuxBytes[3] !== 0x46)
     fail("Linux x86-64 ELF object header is invalid");
-  console.log(`PARALLEL MLIR0: MLIR=23.1.1 tasks=2 reachableFunctions=2 windowsObjectBytes=${windowsBytes.length} linuxObjectBytes=${linuxBytes.length}`);
+  console.log(`PARALLEL MLIR0: MLIR=23.1.1 tasks=2 runtimeArguments=3 reachableFunctions=3 windowsObjectBytes=${windowsBytes.length} linuxObjectBytes=${linuxBytes.length}`);
 } finally {
   await rm(directory, { recursive: true, force: true });
 }

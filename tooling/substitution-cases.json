@@ -7909,15 +7909,17 @@
     },
     {
       "id": "R0-parallel-mlir-entry",
-      "reviewItem": "reachable parallel task-entry emission against whole-program leakage, implicit linker visibility, and premature runtime claims",
-      "decisions": ["W-1592"],
-      "task": "Emit the smallest target-neutral linkable module for a verified parallel selection and lower the same bytes to Windows and Linux objects without claiming a runtime.",
+      "reviewItem": "runtime-parameterized parallel task-entry emission against baked launch values, source-order ABI drift, whole-program leakage, implicit linker visibility, and premature runtime claims",
+      "decisions": ["W-1592", "W-1593"],
+      "task": "Emit the smallest target-neutral linkable module with runtime-parameterized entries for a verified parallel selection and lower the same bytes to Windows and Linux objects without claiming a runtime.",
       "selected": {
         "language": "w-internal",
         "source": [
           "entries = PARMLIR0.emit(hir, selection, invocation)",
-          "assert entries.publicSymbols == lexicalTaskEntries",
-          "assert entries.privateClosure == reachableDirectHelpersOnly",
+          "assert entries.publicSymbols == parameterizedLexicalTaskEntries",
+          "assert entries.argumentOrder == declarationParameterOrder",
+          "assert entries.embeddedLaunchValues == []",
+          "assert entries.privateClosure == transitiveReachableHelpersOnly",
           "assert lower(entries, targets: [windowsX64, linuxX64]).objectsAreValid"
         ]
       },
@@ -7927,6 +7929,12 @@
           "language": "w-internal-rejected",
           "source": ["materialize every source function for each task object"],
           "expectedDifference": "The selected emitter starts at task calls and retains only the union of reachable direct local helpers."
+        },
+        {
+          "name": "bake-launch-values",
+          "language": "w-internal-rejected",
+          "source": ["emit zero-argument wrappers containing source launch constants"],
+          "expectedDifference": "The selected emitter derives runtime parameters from declarations and never turns call-site values into wrapper ABI constants."
         },
         {
           "name": "trust-source-visibility",
@@ -7965,8 +7973,10 @@
       ],
       "checks": [
         "HIR37, PARSEL0, and PARINV0 are re-verified before emission",
-        "one public zero-argument signed-i64 entry is emitted per lexical task",
-        "only reachable direct local helper functions are retained",
+        "one public runtime-parameterized signed-i64 entry is emitted per lexical task",
+        "wrapper arity and types derive from declarations and use parameter-ordinal order",
+        "call-site argument values are not embedded in wrappers",
+        "only the transitive task-body helper closure is retained; launch argument evaluation belongs to the future process root",
         "helper linkage is explicitly internal in translated LLVM IR",
         "the same target-neutral MLIR lowers to Windows x64 COFF and Linux x86-64 PIC ELF objects",
         "capacity, alias, and forged-proof failures publish no partial artifact",

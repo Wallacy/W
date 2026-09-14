@@ -39625,7 +39625,7 @@ benchmarks, and performance remain gaps. A public parallel product must replace
 compiler-host evaluation with emitted code while preserving this exact
 invocation proof and semantic/physical separation.
 
-#### 26.4.1.73 W-1592 — reachable parallel task-entry MLIR module
+#### 26.4.1.73 W-1592 — reachable zero-argument parallel task-entry MLIR module (historical)
 
 PARMLIR0 consumes only verified HIR37, PARSEL0, and PARINV0. It independently
 re-verifies that chain, derives the direct local helper closure reachable from
@@ -39651,6 +39651,39 @@ arguments. Runtime-dependent process inputs, provider-to-symbol linkage,
 public execution, CRT-free target imports, cancellation, scheduling,
 benchmarks, timing, and performance remain gaps. W-1592 is therefore
 `compiler-lifecycle` evidence and does not enter the executable catalog.
+
+W-1593 supersedes this exact wrapper shape. The reachability, linkage,
+transaction, and dual-object evidence remains valid historical evidence, but
+zero-argument wrappers with baked launch values are no longer the current
+PARMLIR0 contract.
+
+#### 26.4.1.74 W-1593 — runtime-parameterized parallel task-entry MLIR module
+
+PARMLIR0 schema `w-seed-mlir0-parallel-entry-2` retains the independently
+verified HIR37, PARSEL0, and PARINV0 boundary from W-1592, but every public
+`w_seed_parallel_task_<launch-ordinal>` wrapper now receives its signed-`i64`
+arguments at runtime. Its arity and argument types derive from the selected
+function declaration. Wrapper argument order is canonical parameter-ordinal
+order even when named arguments appear in another order at the W call site.
+No launch argument value is embedded in a wrapper.
+
+The module retains only the transitive local helper closure reachable from the
+selected functions and gives every helper explicit internal LLVM linkage. The
+same target-neutral MLIR bytes lower with the pinned MLIR/LLVM 23.1.1 tools to
+a Windows x64 COFF object and a Linux x86-64 PIC ELF object. A focused witness
+uses one one-argument task, one two-argument task with reordered named
+arguments, one transitive task-body helper, and one unreachable sibling helper.
+It proves derived arity, parameter-order calls, task-body reachability,
+dead-helper removal, and absence of baked source argument values in MLIR and
+translated LLVM IR. Launch-argument evaluation belongs to the future process
+root and is not emitted by this task-body module.
+
+These wrapper signatures are internal, versioned, and unstable. W-1593 does
+not define a public Task ABI, argument marshalling ABI, provider binding,
+runtime input source, process root, executable, scheduler, cancellation,
+runtime ownership, CRT-free target import set, benchmark, timing, or
+performance. It is bounded `compiler-lifecycle` evidence and does not enter the
+executable catalog.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

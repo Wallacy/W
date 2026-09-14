@@ -64,7 +64,8 @@ static bool test_parallel_mlir_entries(
             W_SEED_MLIR0_OK &&
         counts.mlir_bytes > 0u && counts.mlir_bytes < W_SEED_MLIR0_MAX_BYTES &&
         counts.task_count == selection->task_count &&
-        counts.reachable_function_count == 2u &&
+        counts.runtime_argument_count == 3u &&
+        counts.reachable_function_count == 3u &&
         measured.required.mlir_bytes == counts.mlir_bytes &&
         measured.written.mlir_bytes == 0u);
 
@@ -93,16 +94,26 @@ static bool test_parallel_mlir_entries(
             program, hir_result, selection, &invocation, artifact,
             counts.mlir_bytes, &emitted) &&
         bytes_contain(artifact, counts.mlir_bytes,
-                      "w-seed-mlir0-parallel-entry-1") &&
+                      "w-seed-mlir0-parallel-entry-2") &&
         bytes_contain(artifact, counts.mlir_bytes,
-                      "func.func @w_seed_parallel_task_0() -> i64") &&
+                      "func.func @w_seed_parallel_task_0(%arg0: i64) -> i64") &&
         bytes_contain(artifact, counts.mlir_bytes,
-                      "func.func @w_seed_parallel_task_1() -> i64") &&
+                      "func.func @w_seed_parallel_task_1(%arg0: i64, "
+                      "%arg1: i64) -> i64") &&
+        bytes_contain(artifact, counts.mlir_bytes,
+                      "func.call @w_coop_fn_2(%arg0, %arg1) : "
+                      "(i64, i64) -> i64") &&
+        !bytes_contain(artifact, counts.mlir_bytes,
+                       "%cv0 = arith.constant 20 : i64") &&
+        !bytes_contain(artifact, counts.mlir_bytes,
+                       "%cv2 = arith.constant 2 : i64") &&
         bytes_contain(artifact, counts.mlir_bytes,
                       "func.func private @w_coop_fn_0") &&
         bytes_contain(artifact, counts.mlir_bytes,
                       "func.func private @w_coop_fn_1") &&
-        !bytes_contain(artifact, counts.mlir_bytes, "@w_coop_fn_2") &&
+        bytes_contain(artifact, counts.mlir_bytes,
+                      "func.func private @w_coop_fn_2") &&
+        !bytes_contain(artifact, counts.mlir_bytes, "@w_coop_fn_3") &&
         !bytes_contain(artifact, counts.mlir_bytes,
                        "@w_seed_cooperative_core"));
 
@@ -2881,9 +2892,10 @@ static bool test_parallel_domain_placement_hir(void) {
   static const char SOURCE[] =
       "fn increment(value: i64): i64 { return value + 1 }\n"
       "fn prepare(value: i64): i64 { return increment(value: value) }\n"
+      "fn combine(left: i64, right: i64): i64 { return left + right + 1 }\n"
       "fn unused(value: i64): i64 { return value + 99 }\n"
       "entry { let left = spawn<.domain> prepare(value: 20) "
-      "let right = spawn<.domain> prepare(value: 22) "
+      "let right = spawn<.domain> combine(right: 2, left: 20) "
       "let first = await left let second = await right }\n";
   CHECK(lower_parallel_domain(SOURCE));
   const w_seed_hir0_program *program = &fixture.hir_program;
@@ -7692,9 +7704,10 @@ static bool emit_parallel_entry_mlir(void) {
   static const char SOURCE[] =
       "fn increment(value: i64): i64 { return value + 1 }\n"
       "fn prepare(value: i64): i64 { return increment(value: value) }\n"
+      "fn combine(left: i64, right: i64): i64 { return left + right + 1 }\n"
       "fn unused(value: i64): i64 { return value + 99 }\n"
       "entry { let left = spawn<.domain> prepare(value: 20) "
-      "let right = spawn<.domain> prepare(value: 22) "
+      "let right = spawn<.domain> combine(right: 2, left: 20) "
       "let first = await left let second = await right }\n";
   CHECK(lower_parallel_domain(SOURCE));
   w_seed_parallel_selection0 selection;

@@ -1958,7 +1958,7 @@ linkage, Linux/WSL support, runtime-dependent input, public commands,
 cancellation, a scheduler or worker pool, benchmark measurements, or
 performance. Those remain explicit implementation gaps.
 
-### Reachable parallel task-entry MLIR module (W-1592)
+### Reachable zero-argument parallel task-entry MLIR module (W-1592, historical)
 
 PARMLIR0 consumes verified HIR37, PARSEL0, and PARINV0 and emits one public
 `w_seed_parallel_task_<ordinal>() -> i64` function per selected task. It walks
@@ -1980,6 +1980,30 @@ compile-time signed-`i64` arguments. No provider calls these symbols yet; no
 runtime-dependent process input, standalone executable, CRT-free import set,
 cancellation, scheduling, benchmark measurement, or performance result is
 claimed.
+
+W-1593 supersedes this zero-argument wrapper shape while retaining the closure,
+linkage, transaction, and object-format lessons.
+
+### Runtime-parameterized parallel task-entry MLIR module (W-1593)
+
+PARMLIR0 v2 emits each internal public task wrapper with the exact signed-`i64`
+arity derived from its selected function declaration. Parameters and calls use
+parameter-ordinal order even when named W arguments are reordered. Launch
+values are no longer constants inside the wrappers. Only the transitive
+reachable helper closure is emitted and every helper retains explicit internal
+LLVM linkage.
+
+`bun check --target parallel-mlir0` proves one one-argument task and one
+two-argument task with reversed source labels, omits an unreachable sibling,
+checks translated LLVM signatures and calls, and writes valid temporary
+Windows x64 COFF and Linux x86-64 PIC ELF objects with MLIR/LLVM 23.1.1.
+Launch-argument evaluation remains the responsibility of the future process
+root.
+
+The signature is versioned internal compiler-lifecycle surface, not a stable
+Task or runtime ABI. Provider binding, runtime process input, a standalone
+executable, scheduling, cancellation, CRT-free imports, measurements, and
+performance remain gaps.
 
 ### Closed local payloadless enum exhaustive switch (W-1563)
 
