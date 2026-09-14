@@ -11,7 +11,7 @@ extern "C" {
 
 /* This is a target-neutral, caller-owned selection proof shared by the
  * NativeSubset0/MLIR0 boundary.  M1 intentionally admits a narrower
- * one-block product-selection subset than the full HIR34 envelope: exactly
+ * one-block product-selection subset than the full HIR35 envelope: exactly
  * two scalar async children and their reachable scalar helpers.  It carries
  * only copied HIR indices and proof facts; it is not a frame,
  * scheduler, or runtime ABI. */

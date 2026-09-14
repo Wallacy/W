@@ -5785,7 +5785,9 @@ static bool cooperative_evaluate_call(
   const w_seed_hir0_call *call = &program->calls[call_index];
   if ((call->execution_kind != W_SEED_HIR0_CALL_DIRECT &&
        call->execution_kind !=
-           W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE) ||
+           W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE &&
+       call->execution_kind !=
+           W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH) ||
       call->callee_identity >= program->identity_count ||
       call->argument_count > W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS)
     return false;

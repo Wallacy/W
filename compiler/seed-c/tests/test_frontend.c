@@ -2604,7 +2604,7 @@ static bool test_local_binding_resolution(void) {
         W_SEED_FRONTEND_OK);
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-24") &&
+                         "w-seed-frontend-25") &&
         value->result.written.statements == 2u);
   const w_seed_frontend_statement *binding = &value->statements[0];
   CHECK(binding->kind == W_SEED_FRONTEND_STMT_LET &&
@@ -2643,8 +2643,8 @@ static bool test_local_binding_resolution(void) {
   }
   CHECK(binding_symbol != W_SEED_FRONTEND_NONE &&
         message_expression != W_SEED_FRONTEND_NONE &&
-        receipt_contains(value, "schema=w-seed-frontend-24\n",
-                         strlen("schema=w-seed-frontend-24\n")));
+        receipt_contains(value, "schema=w-seed-frontend-25\n",
+                         strlen("schema=w-seed-frontend-25\n")));
 
   fixture *trivia = &fixture_a;
   CHECK(fixture_parse(
@@ -5079,7 +5079,7 @@ static bool test_local_assignment_projection(void) {
                     "}\n"));
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-24") &&
+                         "w-seed-frontend-25") &&
         value->result.written.statements == 2u);
   CHECK(value->statements[0].kind == W_SEED_FRONTEND_STMT_VAR &&
         value->statements[0].effective_type != W_SEED_FRONTEND_NONE &&
@@ -5252,6 +5252,46 @@ static bool test_structured_async_projection(void) {
             W_SEED_FRONTEND_OK &&
         value->result.receipt_bytes == receipt_bytes &&
         memcmp(value->receipt, receipt, receipt_bytes) == 0);
+
+  CHECK(fixture_run(
+      value,
+      "async fn prepare(value: i64): i64 { await execution#yield() "
+      "return value }\n"
+      "entry { let left = spawn<.main> prepare(value: 20) "
+      "let right = spawn<.main> prepare(value: 22) "
+      "let first = await left let second = await right "
+      "let total = first + second }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        value->result.written.facts == 0u);
+  size_t main_spawns = 0u;
+  awaits = 0u;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH) {
+      CHECK(expression->supported &&
+            expression->task_call_expression <
+                value->result.written.expressions &&
+            value->expressions[expression->task_call_expression].kind ==
+                W_SEED_FRONTEND_EXPR_CALL &&
+            expression->task_result_type < value->result.written.types &&
+            frontend_text_is(expression->operator_text, "spawn"));
+      main_spawns += 1u;
+    } else if (expression->kind == W_SEED_FRONTEND_EXPR_AWAIT) {
+      CHECK(expression->supported);
+      awaits += 1u;
+    }
+  }
+  CHECK(main_spawns == 2u && awaits == 2u);
+
+  CHECK(fixture_run(
+      value,
+      "async fn prepare(value: i64): i64 { await execution#yield() "
+      "return value }\n"
+      "entry { let pending = spawn<.domain> prepare(value: 1) "
+      "let result = await pending }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(value, W_SEED_FRONTEND_FACT_SPAWN_MAIN_LAUNCH));
 
   CHECK(fixture_run(
       value,

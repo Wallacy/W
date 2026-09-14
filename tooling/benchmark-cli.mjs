@@ -5,6 +5,8 @@ import {
   LOCAL_RESULTS_PATH,
   ROOT,
   EXECUTABLE_RUN_TARGETS,
+  EXECUTABLE_PLATFORM_TARGET_WINDOWS,
+  EXECUTABLE_PLATFORM_TARGET_LINUX_WSL,
   executableWorkloadHasRunner,
   pruneExecutableBestMetrics,
   updateExecutableBestMetrics,
@@ -75,13 +77,15 @@ export function parseBenchmarkCliArguments(argv) {
     if (argv.length !== 1) fail("prune does not accept positional arguments or options");
     return { command };
   }
-  const result = { command, target: "hello", language: "w", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101 };
+  const result = { command, target: "hello", language: "w", platform: EXECUTABLE_PLATFORM_TARGET_WINDOWS, output: undefined, warmup: 1, compileSamples: 9, runSamples: 101 };
   for (let index = 1; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === "--target") result.target = nextValue(argv, index++, "--target");
     else if (argument.startsWith("--target=")) result.target = argument.slice("--target=".length);
     else if (argument === "--language") result.language = nextValue(argv, index++, "--language");
     else if (argument.startsWith("--language=")) result.language = argument.slice("--language=".length);
+    else if (argument === "--platform") result.platform = nextValue(argv, index++, "--platform");
+    else if (argument.startsWith("--platform=")) result.platform = argument.slice("--platform=".length);
     else if (argument === "--output") result.output = nextValue(argv, index++, "--output");
     else if (argument.startsWith("--output=")) result.output = argument.slice("--output=".length);
     else if (argument === "--warmup") result.warmup = integer(nextValue(argv, index++, "--warmup"), "--warmup", 1);
@@ -96,7 +100,13 @@ export function parseBenchmarkCliArguments(argv) {
   }
   if (!RUN_TARGETS.includes(result.target)) fail(`unsupported target: ${result.target}`);
   if (!["w", "c", "rust"].includes(result.language)) fail(`unsupported language: ${result.language}`);
-  result.output ??= `benchmarks/results/${result.target}-${result.language}.local.json`;
+  if (![EXECUTABLE_PLATFORM_TARGET_WINDOWS, EXECUTABLE_PLATFORM_TARGET_LINUX_WSL].includes(result.platform)) {
+    fail(`unsupported platform: ${result.platform}`);
+  }
+  if (result.platform === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL && result.language !== "w") {
+    fail("linux-wsl-x64 currently supports only public W sources");
+  }
+  result.output ??= `benchmarks/results/${result.target}-${result.language}${result.platform === EXECUTABLE_PLATFORM_TARGET_WINDOWS ? "" : `-${result.platform}`}.local.json`;
   return result;
 }
 
@@ -105,13 +115,13 @@ export function benchmarkUsage() {
     "usage: bun benchmark <list|run|validate|update|prune|check>",
     "",
     "  list",
-    "  run --target <runnable-catalog-id> --language w|c|rust [--output benchmarks/results/<new>.json] [--warmup 1] [--compile-samples 9] [--run-samples 101]",
+    "  run --target <runnable-catalog-id> --language w|c|rust [--platform windows-x64|linux-wsl-x64] [--output benchmarks/results/<new>.json] [--warmup 1] [--compile-samples 9] [--run-samples 101]",
     "  validate <result.json>",
     "  update <result.json>... (atomic lower-is-better live-catalog update; consumes local results on success)",
     "  prune (remove stale best-metric cells after a source digest change)",
     "  check",
     "",
-    "Run measures one selected source with its catalog oracle. Public C requires Clang with final C23, the MSVC ABI, and the DLL runtime; only process-handler-lifecycle retains its private GCC/MinGW composite. Rust uses rustc edition 2024 for the MSVC ABI. W uses the public w build Release source-to-PE candidate for workloads that declare that recipe; public process argument workloads, including process-entry, use their argument-dependent oracle; process-handler-lifecycle remains contextual/non-ranking; public-w-run targets require retained-artifact and separate compile-run support.",
+    "Run measures one selected source with its catalog oracle. The default is native Windows x64. --platform linux-wsl-x64 selects the catalog's Linux source and builds/runs its ELF artifact through WSL2 on this Windows host; it is same-physical-hardware diagnostic-only and never native-Windows evidence. Public C requires Clang with final C23, the MSVC ABI, and the DLL runtime; only process-handler-lifecycle retains its private GCC/MinGW composite. Rust uses rustc edition 2024 for the MSVC ABI. W uses the public w build Release source-to-PE candidate for Windows and the pinned Linux/WSL public build route for the explicit WSL lane; public process argument workloads, including process-entry, use their argument-dependent oracle; process-handler-lifecycle remains contextual/non-ranking; public-w-run targets require retained-artifact and separate compile-run support.",
   ].join("\n");
 }
 
@@ -252,7 +262,7 @@ async function listCommand(root = ROOT) {
       structureClass: workload.structureClass,
       sourceReadiness: workload.sourceReadiness,
       benchmarkStatus: workload.benchmarkStatus,
-      languages: workload.sources.map((source) => source.language),
+      languages: [...new Set(workload.sources.map((source) => source.language))],
     })),
   }, null, 2));
 }
@@ -273,7 +283,7 @@ async function checkCommand(root = ROOT) {
 
 async function runCommand(options, root = ROOT) {
   const output = path.resolve(root, options.output);
-  await runBenchmark({ target: options.target, language: options.language, warmup: options.warmup, compileSamples: options.compileSamples, runSamples: options.runSamples, output });
+  await runBenchmark({ target: options.target, language: options.language, platform: options.platform, warmup: options.warmup, compileSamples: options.compileSamples, runSamples: options.runSamples, output });
 }
 
 export async function main(argv = process.argv.slice(2), dependencies = {}) {

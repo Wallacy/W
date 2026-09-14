@@ -33,6 +33,8 @@ const restaurantAsyncJoinFixture = resolve(seedDirectory,
   "fixtures", "restaurant-async-join.w")
 const restaurantAsyncYieldFixture = resolve(seedDirectory,
   "fixtures", "restaurant-async-yield.w")
+const restaurantMainDispatchFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-main-dispatch0.w")
 const processArgumentsCountFixture = resolve(seedDirectory,
   "fixtures", "process-arguments-count.w")
 const processArgumentsOrderingFixture = resolve(seedDirectory,
@@ -492,7 +494,8 @@ for (const marker of ["W_SEED_LINUX_MLIR_OPT_PATH",
   "W_SEED_LINUX_MLIR_TRANSLATE_PATH", "W_SEED_LINUX_LLC_PATH",
   "W_SEED_LINUX_LINK_DRIVER_PATH"])
   assert(runSource.includes(marker), `cli/run.c does not use ${marker}`)
-for (const marker of ["--convert-scf-to-cf", "--convert-cf-to-llvm",
+for (const marker of ["--convert-scf-to-cf", "--convert-arith-to-llvm",
+  "--convert-func-to-llvm", "--convert-cf-to-llvm",
   "--canonicalize", "--cse", "-O3", "-s",
   "--no-dynamic-linker", "--gc-sections", "_start", "w_seed_wrt0_get"])
   assert(runSource.includes(marker),
@@ -830,6 +833,9 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantAsyncYieldFixture)],
     Buffer.from("Prepared 88\n", "utf8"),
     "Restaurant virtual Task with statically discharged yields")
+  expectSuccess(binary, ["run", toWsl(restaurantMainDispatchFixture)],
+    Buffer.from("Dispatched 88\n", "utf8"),
+    "Restaurant physical main-domain dispatch")
   expectSuccess(binary, ["run", toWsl(w1531MinimalFixture)],
     Buffer.from("then\n", "utf8"), "W-1531 minimal if/else")
   expectSuccess(binary, ["run", toWsl(w1531NoElseFixture)],
@@ -925,6 +931,8 @@ try {
   const buildPrivateGraph = buildOutput("private-graph-build")
   const buildRestaurantIf = buildOutput("restaurant-if-build")
   const buildRestaurantRepeat = buildOutput("restaurant-repeat-build")
+  const buildRestaurantMainDispatch = buildOutput(
+    "restaurant-main-dispatch-build")
   const buildProcessInput = buildOutput("process-input-build")
   const buildProcessArgumentsCount = buildOutput("process-arguments-count-build")
   const buildProcessArgumentsOrdering = buildOutput(
@@ -969,6 +977,13 @@ try {
     Buffer.from("Receipt digits 1/5\n", "utf8"),
     "execute built restaurant-repeat artifact")
   assertCrtFreeElf(await readBuildArtifact(buildRestaurantRepeat))
+  expectSuccess(binary, ["build", toWsl(restaurantMainDispatchFixture),
+    "--target", targetTriple, "--output", buildRestaurantMainDispatch],
+  Buffer.alloc(0), "build restaurant main-domain dispatch fixture")
+  expectSuccess(buildRestaurantMainDispatch, [],
+    Buffer.from("Dispatched 88\n", "utf8"),
+    "execute built restaurant main-domain dispatch artifact")
+  assertCrtFreeElf(await readBuildArtifact(buildRestaurantMainDispatch))
   expectSuccess(binary, ["build", toWsl(processInputFixture), "--target",
     targetTriple, "--output", buildProcessInput], Buffer.alloc(0),
   "build Linux public process-input fixture")

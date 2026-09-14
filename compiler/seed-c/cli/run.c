@@ -304,20 +304,22 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
     goto cleanup;
 
   {
-    char *arguments[10] = {
+    char *arguments[12] = {
         (char *)MLIR_OPT,
         input_path,
         (char *)"-o",
         verified_path,
         (char *)"--convert-scf-to-cf",
+        (char *)"--convert-arith-to-llvm",
+        (char *)"--convert-func-to-llvm",
         (char *)"--convert-cf-to-llvm",
         (char *)"--verify-each",
         NULL,
         NULL,
         NULL};
     if (request->profile == W_SEED_RUN_COMPILE_PROFILE_RELEASE) {
-      arguments[7] = (char *)"--canonicalize";
-      arguments[8] = (char *)"--cse";
+      arguments[9] = (char *)"--canonicalize";
+      arguments[10] = (char *)"--cse";
     }
     exit_code = run_tool(MLIR_OPT, arguments);
   }
@@ -671,6 +673,34 @@ static bool windows_path_join(wchar_t *buffer, size_t capacity,
   return true;
 }
 
+/* The Windows materialization records lld-link.exe as the required linker
+ * driver and keeps the optional ELF ld.lld.exe beside it.  Cross compilation
+ * must use that explicit sibling path; resolving ld.lld through PATH would
+ * make the public route non-hermetic and could select an unrelated version. */
+static bool windows_sibling_path(wchar_t *buffer, size_t capacity,
+                                 const wchar_t *path,
+                                 const wchar_t *sibling) {
+  if (buffer == NULL || capacity < 2u || path == NULL || sibling == NULL)
+    return false;
+  const size_t path_length = wcslen(path);
+  const size_t sibling_length = wcslen(sibling);
+  if (path_length == 0u || sibling_length == 0u || path_length >= capacity)
+    return false;
+  const wchar_t *separator = wcsrchr(path, L'\\');
+  const wchar_t *slash = wcsrchr(path, L'/');
+  if (separator == NULL || (slash != NULL && slash > separator))
+    separator = slash;
+  if (separator == NULL) return false;
+  const size_t parent_length = (size_t)(separator - path) + 1u;
+  if (parent_length > capacity - 1u ||
+      sibling_length > capacity - parent_length - 1u)
+    return false;
+  (void)wmemcpy(buffer, path, parent_length);
+  (void)wmemcpy(buffer + parent_length, sibling, sibling_length);
+  buffer[parent_length + sibling_length] = L'\0';
+  return true;
+}
+
 static bool windows_random_name(wchar_t *buffer, size_t capacity) {
   static const wchar_t hex[] = L"0123456789abcdef";
   uint8_t bytes[W_SEED_WINDOWS_RANDOM_BYTES];
@@ -811,11 +841,17 @@ static int windows_run_program(const wchar_t *application,
 }
 
 int w_seed_run_compile(const w_seed_run_compile_request *request) {
+  const bool windows_target =
+      request != NULL && request->target != NULL &&
+      strcmp(request->target, W_SEED_NATIVE_TARGET_WINDOWS) == 0;
+  const bool linux_target =
+      request != NULL && request->target != NULL &&
+      strcmp(request->target, W_SEED_NATIVE_TARGET_LINUX) == 0;
   if (request == NULL || request->source_path == NULL ||
       request->target == NULL || request->directory == NULL ||
       request->artifact_path == NULL || request->directory[0] == '\0' ||
       request->artifact_path[0] == '\0' ||
-      strcmp(request->target, W_SEED_NATIVE_TARGET_WINDOWS) != 0 ||
+      (!windows_target && !linux_target) ||
       (request->profile != W_SEED_RUN_COMPILE_PROFILE_DEV &&
        request->profile != W_SEED_RUN_COMPILE_PROFILE_RELEASE))
     return 2;
@@ -839,7 +875,9 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
       .path_length = path_length,
       .logical_source_id = source_id,
       .target =
-          (w_seed_mlir0_target){W_SEED_MLIR0_TARGET_X86_64_PC_WINDOWS_MSVC}};
+          (w_seed_mlir0_target){
+              windows_target ? W_SEED_MLIR0_TARGET_X86_64_PC_WINDOWS_MSVC
+                             : W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU}};
   const w_seed_native0_output native_output = {native_artifact,
                                                 sizeof(native_artifact)};
   w_seed_native0_result native_result;
@@ -860,7 +898,11 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
   wchar_t mlir_translate[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
   wchar_t llc[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
   wchar_t lld_link[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t ld_lld[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
   wchar_t kernel32[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t runtime_ll_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t runtime_object_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  w_seed_wrt0_artifact wrt0 = {NULL, 0u};
   int exit_code = source_status;
   if (source_status != 0) {
     if (!windows_cleanup_directory(directory, NULL, NULL, NULL, NULL,
@@ -876,8 +918,6 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
                             sizeof(llc) / sizeof(llc[0])) ||
       !windows_utf8_to_wide(W_SEED_WINDOWS_LLD_LINK_PATH, lld_link,
                             sizeof(lld_link) / sizeof(lld_link[0])) ||
-      !windows_utf8_to_wide(W_SEED_WINDOWS_KERNEL32_LIB_PATH, kernel32,
-                            sizeof(kernel32) / sizeof(kernel32[0])) ||
       !windows_path_join(input_path, sizeof(input_path) / sizeof(input_path[0]),
                          directory, L"input.mlir") ||
       !windows_path_join(verified_path,
@@ -888,15 +928,37 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
       !windows_path_join(object_path,
                          sizeof(object_path) / sizeof(object_path[0]), directory,
                          L"output.obj") ||
+      (windows_target &&
+       !windows_utf8_to_wide(W_SEED_WINDOWS_KERNEL32_LIB_PATH, kernel32,
+                             sizeof(kernel32) / sizeof(kernel32[0]))) ||
+      (linux_target &&
+       (!windows_sibling_path(ld_lld,
+                              sizeof(ld_lld) / sizeof(ld_lld[0]), lld_link,
+                              L"ld.lld.exe") ||
+        !windows_path_join(runtime_ll_path,
+                           sizeof(runtime_ll_path) /
+                               sizeof(runtime_ll_path[0]),
+                           directory, L"wrt0.ll") ||
+        !windows_path_join(runtime_object_path,
+                           sizeof(runtime_object_path) /
+                               sizeof(runtime_object_path[0]),
+                           directory, L"wrt0.obj"))) ||
+      (linux_target && !w_seed_wrt0_get(W_SEED_WRT0_TARGET_LINUX_X86_64,
+                                        &wrt0)) ||
       !windows_write_new_file(input_path, native_artifact,
-                              native_result.mlir.written.mlir_bytes))
+                              native_result.mlir.written.mlir_bytes) ||
+      (linux_target && !windows_write_new_file(runtime_ll_path,
+                                                wrt0.llvm_ir,
+                                                wrt0.llvm_ir_length)))
     goto cleanup;
 
   {
-    const wchar_t *arguments[8] = {
+    const wchar_t *arguments[12] = {
         input_path, L"-o", verified_path, L"--convert-scf-to-cf",
-        L"--convert-cf-to-llvm", L"--verify-each", NULL, NULL};
-    size_t argument_count = 6u;
+        L"--convert-arith-to-llvm", L"--convert-func-to-llvm",
+        L"--convert-cf-to-llvm", L"--reconcile-unrealized-casts",
+        L"--verify-each", NULL, NULL, NULL};
+    size_t argument_count = 9u;
     if (request->profile == W_SEED_RUN_COMPILE_PROFILE_RELEASE) {
       arguments[argument_count++] = L"--canonicalize";
       arguments[argument_count++] = L"--cse";
@@ -913,17 +975,31 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
   }
   if (exit_code != 0) goto cleanup;
   {
-    const wchar_t *arguments[6] = {L"-filetype=obj",
-                                   L"-mtriple=x86_64-pc-windows-msvc",
-                                   ll_path, L"-o", object_path, NULL};
-    size_t argument_count = 5u;
+    const wchar_t *arguments[8] = {
+        L"-filetype=obj",
+        windows_target ? L"-mtriple=x86_64-pc-windows-msvc"
+                       : L"-mtriple=x86_64-unknown-linux-gnu",
+        NULL,
+        ll_path,
+        L"-o",
+        object_path,
+        NULL,
+        NULL};
+    size_t argument_count = linux_target ? 6u : 5u;
+    if (linux_target) {
+      arguments[2] = L"-relocation-model=pic";
+    } else {
+      arguments[2] = ll_path;
+      arguments[3] = L"-o";
+      arguments[4] = object_path;
+    }
     if (request->profile == W_SEED_RUN_COMPILE_PROFILE_RELEASE)
       arguments[argument_count++] = L"-O3";
     exit_code = windows_run_tool(llc, arguments,
                                  argument_count);
   }
   if (exit_code != 0) goto cleanup;
-  {
+  if (windows_target) {
     wchar_t out_argument[W_SEED_WINDOWS_PATH_CAPACITY + 6u];
     const wchar_t *link_arguments[11];
     size_t link_argument_count = 8u;
@@ -945,11 +1021,49 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
     }
     exit_code = windows_run_tool(
         lld_link, link_arguments, link_argument_count);
+  } else {
+    const wchar_t *arguments[8] = {
+        L"-filetype=obj",
+        L"-mtriple=x86_64-unknown-linux-gnu",
+        L"-relocation-model=pic",
+        runtime_ll_path,
+        L"-o",
+        runtime_object_path,
+        NULL,
+        NULL};
+    size_t argument_count = 6u;
+    if (request->profile == W_SEED_RUN_COMPILE_PROFILE_RELEASE)
+      arguments[argument_count++] = L"-O3";
+    exit_code = windows_run_tool(llc, arguments, argument_count);
+  }
+  if (exit_code != 0) goto cleanup;
+  if (!windows_target) {
+    const wchar_t *link_arguments[13] = {NULL};
+    size_t link_argument_count = 0u;
+    link_arguments[link_argument_count++] = L"-pie";
+    link_arguments[link_argument_count++] = L"--no-dynamic-linker";
+    link_arguments[link_argument_count++] = L"-e";
+    link_arguments[link_argument_count++] = L"_start";
+    link_arguments[link_argument_count++] = L"--gc-sections";
+    link_arguments[link_argument_count++] = L"-z";
+    link_arguments[link_argument_count++] = L"noexecstack";
+    if (request->profile == W_SEED_RUN_COMPILE_PROFILE_RELEASE)
+      link_arguments[link_argument_count++] = L"-s";
+    link_arguments[link_argument_count++] = object_path;
+    link_arguments[link_argument_count++] = runtime_object_path;
+    link_arguments[link_argument_count++] = L"-o";
+    link_arguments[link_argument_count++] = artifact_path;
+    link_arguments[link_argument_count] = NULL;
+    /* Keep the Linux ELF recipe in the same order as the independent MLIR0
+     * gate: one target object, the shared WRT0 object, then the new output. */
+    exit_code = windows_run_tool(ld_lld, link_arguments, link_argument_count);
   }
   if (exit_code != 0) goto cleanup;
   if (!windows_remove_file(input_path) ||
       !windows_remove_file(verified_path) || !windows_remove_file(ll_path) ||
-      !windows_remove_file(object_path)) {
+      !windows_remove_file(object_path) ||
+      !windows_remove_file(runtime_ll_path) ||
+      !windows_remove_file(runtime_object_path)) {
     exit_code = 3;
     goto cleanup;
   }

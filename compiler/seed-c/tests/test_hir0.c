@@ -2162,6 +2162,38 @@ static bool test_structured_async_elision_hir(void) {
   reseal_hir_fixture();
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
 
+  static const char SPAWN_MAIN_SOURCE[] =
+      "async fn prepare(value: i64): i64 { "
+      "let staged = value + 1 await execution#yield() "
+      "await execution#yield() return staged * 2 }\n"
+      "entry { let left = spawn<.main> prepare(value: 20) "
+      "let right = spawn<.main> prepare(value: 22) "
+      "let first = await left let second = await right "
+      "print(\"Dispatched ${first + second}\") }\n";
+  CHECK(lower_single_print_host(SPAWN_MAIN_SOURCE));
+  program = &fixture.hir_program;
+  size_t main_dispatches = 0u;
+  size_t first_main_dispatch = W_SEED_HIR0_NONE;
+  for (size_t call = 0u; call < program->call_count; call += 1u) {
+    if (program->calls[call].execution_kind !=
+        W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH)
+      continue;
+    if (first_main_dispatch == W_SEED_HIR0_NONE) first_main_dispatch = call;
+    main_dispatches += 1u;
+  }
+  CHECK(main_dispatches == 2u &&
+        first_main_dispatch != W_SEED_HIR0_NONE &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+  const w_seed_hir0_call saved_main_dispatch =
+      fixture.hir_calls[first_main_dispatch];
+  fixture.hir_calls[first_main_dispatch].execution_kind =
+      W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_calls[first_main_dispatch] = saved_main_dispatch;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
   uint32_t task_type = W_SEED_FRONTEND_NONE;
   uint32_t scalar_expression = W_SEED_FRONTEND_NONE;
   for (size_t type = 0u; type < fixture.result.written.types; type += 1u)

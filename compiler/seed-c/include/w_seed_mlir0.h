@@ -130,7 +130,7 @@ w_seed_mlir0_status w_seed_mlir0_emit(
     const w_seed_mlir0_input *input, const w_seed_mlir0_target *target,
     const w_seed_mlir0_output *output, w_seed_mlir0_result *result);
 
-/* Target-neutral M1 boundary for a verified HIR34 cooperative selection. The
+/* Target-neutral M1 boundary for a verified HIR35 cooperative selection. The
  * selector admits only its narrower one-block subset and records admission
  * facts; no MLIR state machine is emitted. */
 w_seed_mlir0_status w_seed_mlir0_select_cooperative(
@@ -142,7 +142,7 @@ bool w_seed_mlir0_verify_cooperative_selection(
     const w_seed_cooperative_selection0 *selection);
 
 /* M2 target-neutral product core.  The emitter consumes a separately
- * verified HIR34 program and selection proof.  It emits scalar structured
+ * verified HIR35 program and selection proof.  It emits scalar structured
  * control flow only.  No WRT or host process adapter is selected here. */
 w_seed_mlir0_status w_seed_mlir0_measure_cooperative(
     const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,

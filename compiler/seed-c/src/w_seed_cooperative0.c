@@ -90,7 +90,9 @@ static bool program_has_physical_calls(const w_seed_hir0_program *program) {
   if (program == NULL || program->calls == NULL) return false;
   for (size_t index = 0u; index < program->call_count; index += 1u)
     if (program->calls[index].execution_kind ==
-        W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE)
+            W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE ||
+        program->calls[index].execution_kind ==
+            W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH)
       return true;
   return false;
 }
@@ -901,8 +903,7 @@ static bool plan_from_program(const w_seed_hir0_program *program,
   plan->phase = W_SEED_COOPERATIVE0_PLAN_INITIAL;
   (void)memcpy(plan->hir_semantic_digest, hir_result->semantic_digest,
                sizeof(plan->hir_semantic_digest));
-  plan->execution_profile =
-      W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE;
+  plan->execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL;
   const uint32_t root_index = program->entries[0].target_function;
   const w_seed_hir0_function *root = &program->functions[root_index];
   if (!root->is_anonymous_entry || root->block_count != 1u ||
@@ -925,7 +926,10 @@ static bool plan_from_program(const w_seed_hir0_program *program,
   for (size_t call_index = 0u; call_index < program->call_count; call_index += 1u) {
     const w_seed_hir0_call *call = &program->calls[call_index];
     const bool physical =
-        call->execution_kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE;
+        call->execution_kind ==
+            W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE ||
+        call->execution_kind ==
+            W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH;
     const bool structured =
         call->execution_kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED ||
         call->execution_kind ==
@@ -936,6 +940,15 @@ static bool plan_from_program(const w_seed_hir0_program *program,
         call->owner_block != root->first_block ||
         call->owner_instruction >= program->instruction_count ||
         call->callee_identity >= program->identity_count)
+      return false;
+    const w_seed_hir0_execution_profile call_profile =
+        call->execution_kind ==
+                W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH
+            ? W_SEED_HIR0_EXECUTION_PROFILE_MAIN_SERIAL
+            : W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE;
+    if (physical_count == 0u)
+      plan->execution_profile = call_profile;
+    else if (plan->execution_profile != call_profile)
       return false;
     if (physical_count != 0u &&
         call->owner_instruction <=
@@ -989,7 +1002,9 @@ static bool plan_from_program(const w_seed_hir0_program *program,
       if (instruction->call_index >= program->call_count) return false;
       const w_seed_hir0_call *call = &program->calls[instruction->call_index];
       if (call->execution_kind ==
-          W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE) {
+              W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE ||
+          call->execution_kind ==
+              W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH) {
         if (root_join_bindings != 0u ||
             root_physical_calls >= W_SEED_COOPERATIVE0_MAX_TASKS ||
             instruction->call_index != physical_calls[root_physical_calls] ||
@@ -1321,7 +1336,10 @@ static bool execute_plan(const w_seed_hir0_program *program,
     if (instruction->kind != W_SEED_HIR0_INSTRUCTION_CALL) continue;
     if (instruction->call_index >= program->call_count) return false;
     const w_seed_hir0_call *call = &program->calls[instruction->call_index];
-    if (call->execution_kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE)
+    if (call->execution_kind ==
+            W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE ||
+        call->execution_kind ==
+            W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH)
       continue;
     if (!append_print_call(program, call, &root, stdout_bytes, stdout_capacity,
                            &run.stdout_count)) {
@@ -1711,8 +1729,7 @@ bool w_seed_cooperative0_verify_execution(
       final_state->trace_event_count != trace_count ||
       memcmp(final_state->hir_semantic_digest, hir_result->semantic_digest,
              sizeof(final_state->hir_semantic_digest)) != 0 ||
-      final_state->execution_profile !=
-          W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE ||
+      final_state->execution_profile != plan->execution_profile ||
       memcmp(final_state->reserved, "\0\0\0", sizeof(final_state->reserved)) !=
           0)
     return false;
@@ -1774,7 +1791,9 @@ static bool reconstruct_root_stdout(
       continue;
     const w_seed_hir0_call *call = &program->calls[instruction->call_index];
     if (call->execution_kind ==
-        W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE)
+            W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE ||
+        call->execution_kind ==
+            W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH)
       continue;
     if (!append_print_call(program, call, &root, buffer, capacity, &offset))
       return false;
@@ -1810,8 +1829,7 @@ bool w_seed_cooperative0_verify_output(
              sizeof(result->schema)) != 0 ||
       memcmp(result->hir_semantic_digest, hir_result->semantic_digest,
              sizeof(result->hir_semantic_digest)) != 0 ||
-      result->execution_profile !=
-          W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE ||
+      result->execution_profile != result->plan.execution_profile ||
       memcmp(result->reserved, "\0\0\0", sizeof(result->reserved)) != 0 ||
       result->written.artifact_bytes != result->required.artifact_bytes ||
       result->written.stdout_bytes != result->required.stdout_bytes ||
@@ -2146,8 +2164,9 @@ bool w_seed_cooperative0_verify_plan(
       plan->yield_count == 0u || plan->yield_count > 4u ||
       memcmp(plan->hir_semantic_digest, hir_result->semantic_digest,
              sizeof(plan->hir_semantic_digest)) != 0 ||
-      plan->execution_profile !=
-          W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE)
+      (plan->execution_profile !=
+           W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE &&
+       plan->execution_profile != W_SEED_HIR0_EXECUTION_PROFILE_MAIN_SERIAL))
     return false;
   w_seed_cooperative0_plan expected;
   if (!plan_from_program(program, hir_result, &expected) ||

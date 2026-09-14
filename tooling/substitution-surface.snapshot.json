@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:b6e29cd962bf445dc98c34764b594d7c5e88953e62fe8bcae5255a239f2bbfef",
+  "corpusDigest": "sha256:434b82d9d34cde4ff0439545ae938a266717ce02f064c1ed0296dc243eec1d43",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -7512,6 +7512,66 @@
             "nonWhitespaceCodePoints": 69,
             "lines": 1,
             "surfaceLexemes": 19
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-main-domain-dispatch",
+      "task": {
+        "utf8Bytes": 147,
+        "codePoints": 147,
+        "nonWhitespaceCodePoints": 130,
+        "lines": 1,
+        "surfaceLexemes": 27
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:aa9d5049e69055c7dc7f4c150f308c8acbc48534fe23d191ba457e047ede870d",
+        "metrics": {
+          "utf8Bytes": 172,
+          "codePoints": 172,
+          "nonWhitespaceCodePoints": 147,
+          "lines": 3,
+          "surfaceLexemes": 42
+        }
+      },
+      "alternatives": [
+        {
+          "name": "erase-main-domain-like-pure-async",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:5682a2529286db392eb3205aa2152f4e02908f9543da45080e0b9bd4b94d459a",
+          "metrics": {
+            "utf8Bytes": 48,
+            "codePoints": 48,
+            "nonWhitespaceCodePoints": 42,
+            "lines": 1,
+            "surfaceLexemes": 16
+          }
+        },
+        {
+          "name": "select-by-fixture-or-output",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:f468f20bf07c81570b5a6126f5e9f7d244c3ba9d790bff84e6fa9ce5e61ce05b",
+          "metrics": {
+            "utf8Bytes": 70,
+            "codePoints": 70,
+            "nonWhitespaceCodePoints": 59,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        },
+        {
+          "name": "current-evidence-defines-target-scope",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:485f67fe8f3ef7861539707c0b7f846445ec4483971f99cbf64076cb149cc499",
+          "metrics": {
+            "utf8Bytes": 61,
+            "codePoints": 61,
+            "nonWhitespaceCodePoints": 52,
+            "lines": 1,
+            "surfaceLexemes": 10
           }
         }
       ]

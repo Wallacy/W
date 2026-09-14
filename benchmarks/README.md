@@ -11,7 +11,7 @@ Neither bundle produces a language or product-runtime result.
 [`executable-catalog.json`](executable-catalog.json) is the machine-readable
 catalog of executable workloads. It keeps stable IDs for `hello`,
 `process-entry`, `process-enum-payload`, `process-arguments-count`,
-`process-handler-lifecycle`, seventeen
+`process-handler-lifecycle`, eighteen
 source-backed Restaurant workloads, and the future full Restaurant
 composition. Hello has W, C, and Rust sources. The `restaurant-branch` witness
 and the `restaurant-enum-switch` witness also have public `w build` Release
@@ -258,6 +258,14 @@ MLIR0 emit ordinary scalar calls and erase Task and yield markers. The Windows
 product gate must be rerun after the source change. This remains a
 `compiler-lifecycle` workload with no concurrency, fairness, scheduler,
 overlap, or Linux claim.
+
+`restaurant-main-dispatch` is the first non-elidable physical Task witness.
+Two `spawn<.main>` children preserve serial FIFO main-domain dispatch and print
+exact `Dispatched 88\n`. The current W cell measures the bounded public product
+only. C23 and Rust remain blocked until equivalent main-domain baselines exist,
+so the row does not claim scheduler quality, parallelism, or cross-language
+performance ranking. Windows and Linux/WSL measurements are separate platform
+evidence and are never combined into one ranking.
 
 The short facade is `bun benchmark`: use `list` to inspect catalog readiness,
 `run --target <runnable-catalog-id> --language w|c|rust --output benchmarks/results/<new>.json`
