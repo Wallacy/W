@@ -417,9 +417,12 @@ static bool build_windows_create_stage(const char *parent, char *stage,
 
 static bool build_windows_hidden_artifact_path(const char *stage,
                                                char *hidden,
-                                               size_t hidden_capacity) {
+                                               size_t hidden_capacity,
+                                               bool windows_target) {
   if (stage == NULL || hidden == NULL || hidden_capacity == 0u) return false;
-  const int length = snprintf(hidden, hidden_capacity, "%s.artifact.exe",
+  const int length = snprintf(hidden, hidden_capacity,
+                              windows_target ? "%s.artifact.exe"
+                                             : "%s.artifact",
                               stage);
   return length >= 0 && (size_t)length < hidden_capacity;
 }
@@ -441,8 +444,14 @@ static bool build_cleanup_windows(const char *stage, const char *artifact,
 }
 
 static int build_execute_windows(const w_seed_build_request *request) {
+  const bool windows_target =
+      request != NULL && request->target != NULL &&
+      strcmp(request->target, W_SEED_NATIVE_TARGET_WINDOWS) == 0;
+  const bool linux_target =
+      request != NULL && request->target != NULL &&
+      strcmp(request->target, W_SEED_NATIVE_TARGET_LINUX) == 0;
   if (request == NULL ||
-      strcmp(request->target, W_SEED_NATIVE_TARGET_WINDOWS) != 0 ||
+      (!windows_target && !linux_target) ||
       strlen(request->path) > W_SEED_NATIVE0_MAX_PATH_BYTES)
     return 2;
 
@@ -456,7 +465,7 @@ static int build_execute_windows(const w_seed_build_request *request) {
   char artifact[W_SEED_BUILD_WINDOWS_PATH_CAPACITY] = {0};
   if (!build_windows_create_stage(parent, stage, sizeof(stage)) ||
       !build_windows_path_join(artifact, sizeof(artifact), stage,
-                               "program.exe")) {
+                               windows_target ? "program.exe" : "program")) {
     if (stage[0] != '\0') {
       wchar_t wide_stage[W_SEED_BUILD_WINDOWS_PATH_CAPACITY] = {0};
       if (build_windows_utf8_to_wide(
@@ -481,7 +490,7 @@ static int build_execute_windows(const w_seed_build_request *request) {
   int exit_code = w_seed_run_compile(&compile_request);
   if (exit_code == 0) {
     if (!build_windows_hidden_artifact_path(
-            stage, hidden, sizeof(hidden)) ||
+            stage, hidden, sizeof(hidden), windows_target) ||
         !build_windows_utf8_to_wide(
             artifact, wide_artifact,
             sizeof(wide_artifact) / sizeof(wide_artifact[0])) ||

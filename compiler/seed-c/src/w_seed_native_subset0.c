@@ -3705,7 +3705,7 @@ w_seed_native_subset0_select_process_executable(
 }
 
 /* W-1584 M1 is deliberately only a target-neutral admission boundary for a
- * one-block subset of the wider HIR34 cooperative envelope. Keep its proof
+ * one-block subset of the wider HIR35 cooperative envelope. Keep its proof
  * here rather than borrowing COOP0's execution-plan builder: a future emitter
  * must be unable to make a compiler-host oracle record look like a product
  * selection by construction. */
@@ -3995,6 +3995,7 @@ static bool cooperative_selection_derive(
   bool reachable[W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS] = {false};
   reachable[root_index] = true;
   size_t physical_count = 0u;
+  w_seed_hir0_call_execution_kind physical_kind = W_SEED_HIR0_CALL_DIRECT;
   for (size_t call_index = 0u; call_index < program->call_count; call_index += 1u) {
     const w_seed_hir0_call *call = &program->calls[call_index];
     if (call->execution_kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED ||
@@ -4002,13 +4003,19 @@ static bool cooperative_selection_derive(
             W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED)
       return false;
     if (call->execution_kind !=
-        W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE)
+            W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE &&
+        call->execution_kind !=
+            W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH)
       continue;
     if (physical_count >= W_SEED_HIR0_COOPERATIVE_MAX_TASKS ||
         call->owner_block != root->first_block ||
         call->owner_instruction < root_first ||
         call->owner_instruction >= root_first + root_instruction_count ||
         call->callee_identity >= program->identity_count)
+      return false;
+    if (physical_count == 0u)
+      physical_kind = call->execution_kind;
+    else if (call->execution_kind != physical_kind)
       return false;
     const w_seed_hir0_identity *identity =
         &program->identities[call->callee_identity];
@@ -4062,7 +4069,9 @@ static bool cooperative_selection_derive(
       const w_seed_hir0_call *call = &program->calls[instruction->call_index];
       if (call->owner_instruction != instruction_index) return false;
       if (call->execution_kind ==
-          W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE) {
+              W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE ||
+          call->execution_kind ==
+              W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH) {
         if (physical_seen >= 2u || instruction->call_index != physical_calls[physical_seen] ||
             ordinal + 1u >= root_instruction_count)
           return false;
@@ -4119,7 +4128,9 @@ static bool cooperative_selection_derive(
   selection->task_yield_counts[1] = task_yields[1];
   selection->yield_count = task_yields[0] + task_yields[1];
   selection->execution_profile =
-      W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE;
+      physical_kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH
+          ? W_SEED_HIR0_EXECUTION_PROFILE_MAIN_SERIAL
+          : W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE;
   (void)memcpy(selection->hir_semantic_digest, hir_result->semantic_digest,
                sizeof(selection->hir_semantic_digest));
   return true;

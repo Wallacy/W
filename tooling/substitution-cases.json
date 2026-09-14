@@ -7439,6 +7439,109 @@
         "missing local evidence cannot exclude macOS or another applicable catalog target"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-main-domain-dispatch",
+      "reviewItem": "bounded source-selected main-domain dispatch against pure-async elision, source-name heuristics, and evidence-limited target coverage",
+      "decisions": ["W-1586"],
+      "task": "Preserve two main-domain launches as physical serial FIFO work, execute the public product, and retain all-applicable-target emission requirements.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "let left = spawn<.main> prepare(value: 20)",
+          "let right = spawn<.main> prepare(value: 22)",
+          "let first = await left let second = await right print(\"Dispatched ${first + second}\")"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "erase-main-domain-like-pure-async",
+          "language": "w-internal-rejected",
+          "source": ["lower spawn<.main> prepare(...) as a direct call"],
+          "expectedDifference": "The selected lowering preserves the mandatory serial FIFO main-domain dispatch relation."
+        },
+        {
+          "name": "select-by-fixture-or-output",
+          "language": "w-internal-rejected",
+          "source": ["choose the state machine from a path, expected text, or retry fallback"],
+          "expectedDifference": "Native0 selects the physical artifact only from independently verified HIR facts."
+        },
+        {
+          "name": "current-evidence-defines-target-scope",
+          "language": "w-internal-rejected",
+          "source": ["emit only Windows and Linux because they are locally testable"],
+          "expectedDifference": "Every requested applicable target remains required; current machines determine evidence, not applicability."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_frontend.h",
+          "symbol": "W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH",
+          "claim": "Frontend25 preserves main-domain launch intent separately from ordinary async."
+        },
+        {
+          "path": "compiler/seed-c/include/w_seed_hir0.h",
+          "symbol": "W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH",
+          "claim": "HIR35 carries the non-elidable physical dispatch relation and main-serial profile."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native0.c",
+          "symbol": "effective_artifact_kind",
+          "claim": "Native0 derives cooperative product selection from verified HIR instead of source text."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_cooperative0.c",
+          "symbol": "test_source_selected_main_dispatch",
+          "claim": "Focused tests prove two physical main dispatches, dual target leaves, and unchanged pure-async evidence."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-main-dispatch0.w",
+          "symbol": "entry",
+          "claim": "The source-backed witness launches two main-domain children and prints their joined value."
+        },
+        {
+          "path": "tooling/check-cooperative-mlir0.mjs",
+          "symbol": "modes",
+          "claim": "Pinned MLIR 23.1.1 lowers, links, and executes Windows and Linux target leaves from the same source."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "restaurantMainDispatchFixture",
+          "claim": "Public Windows w run and w build execute exact Dispatched 88 output."
+        },
+        {
+          "path": "compiler/seed-c/cli/build.c",
+          "symbol": "build_execute_windows",
+          "claim": "Public Windows-host w build publishes either the native PE or the requested Linux ELF transactionally."
+        },
+        {
+          "path": "tooling/executable-benchmark-runner.mjs",
+          "symbol": "compileW",
+          "claim": "The explicit WSL lane invokes public W cross-build, verifies the ELF, and executes it only through WSL2."
+        },
+        {
+          "path": "benchmarks/executable-catalog.json",
+          "symbol": "restaurant-main-dispatch",
+          "claim": "The executable catalog owns the source, oracle, blockers, and live metric lane."
+        },
+        {
+          "path": "tooling/platform-support.json",
+          "symbol": "featureCoverage",
+          "claim": "The platform contract prevents current evidence from narrowing requested or release target sets."
+        }
+      ],
+      "checks": [
+        "frontend and HIR distinguish spawn main from ordinary async",
+        "independent HIR and product selection reject mixed or forged launch relations",
+        "pure async remains eligible for complete Task and yield elision",
+        "public Windows run and build execute exact Dispatched 88 with empty stderr",
+        "public Windows-host build emits a CRT-free Linux ELF from the same source and verified HIR",
+        "the explicit WSL2 benchmark lane verifies exact output without claiming native-Linux or cross-host ranking evidence",
+        "the same source lowers and executes as CRT-free Windows and Linux target products",
+        "the executable benchmark catalog owns the source and exact oracle",
+        "current platform evidence cannot narrow all-applicable-target emission or release fanout"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

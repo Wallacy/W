@@ -1430,6 +1430,11 @@ static bool frontend_enum_subset_canonical(
   return false;
 }
 
+static bool frontend_task_launch_kind(w_seed_frontend_expr_kind kind) {
+  return kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH ||
+         kind == W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH;
+}
+
 /* Task is a frontend-only virtual value in Async0. It may appear only as an
  * inferred immutable launch binding and as the identifier consumed directly
  * by its await wrapper. Signatures, payloads, annotations, copies, arguments,
@@ -1470,8 +1475,8 @@ static bool frontend_task_usage_ok(const w_seed_hir0_input *input) {
     if (value->kind != W_SEED_FRONTEND_STMT_LET ||
         value->declared_type != W_SEED_FRONTEND_NONE ||
         value->expression_index >= result->written.expressions ||
-        output->expressions[value->expression_index].kind !=
-            W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH)
+        !frontend_task_launch_kind(
+            output->expressions[value->expression_index].kind))
       return false;
   }
   for (size_t expression = 0u; expression < result->written.expressions;
@@ -1480,7 +1485,7 @@ static bool frontend_task_usage_ok(const w_seed_hir0_input *input) {
     if (value->inferred_type >= result->written.types ||
         output->types[value->inferred_type].kind != W_SEED_FRONTEND_TYPE_TASK)
       continue;
-    if (value->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH) continue;
+    if (frontend_task_launch_kind(value->kind)) continue;
     if (value->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER ||
         expression + 1u >= result->written.expressions)
       return false;
@@ -1638,7 +1643,7 @@ static bool frontend_elision_function_never(
       continue;
     if (!value->supported || value->inferred_type == W_SEED_FRONTEND_NONE ||
         !frontend_elision_scalar_type_ok(input, value->inferred_type) ||
-        value->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH ||
+        frontend_task_launch_kind(value->kind) ||
         value->kind == W_SEED_FRONTEND_EXPR_AWAIT ||
         value->kind == W_SEED_FRONTEND_EXPR_EXECUTION_YIELD) {
       valid = false;
@@ -1726,7 +1731,7 @@ static bool frontend_elision_function_static_yields(
       continue;
     if (!value->supported || value->inferred_type == W_SEED_FRONTEND_NONE ||
         !frontend_elision_task_value_type_ok(input, value->inferred_type) ||
-        value->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH ||
+        frontend_task_launch_kind(value->kind) ||
         value->kind == W_SEED_FRONTEND_EXPR_AWAIT) {
       valid = false;
       break;
@@ -1790,9 +1795,14 @@ static bool frontend_cooperative_trace_preflight(
     const w_seed_hir0_input *input) {
   if (input == NULL || input->frontend_output == NULL ||
       input->frontend_result == NULL ||
-      input->execution_profile !=
-          W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE)
+      (input->execution_profile != W_SEED_HIR0_EXECUTION_PROFILE_NORMAL &&
+       input->execution_profile !=
+           W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE))
     return false;
+  const w_seed_frontend_expr_kind expected_launch =
+      input->execution_profile == W_SEED_HIR0_EXECUTION_PROFILE_NORMAL
+          ? W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH
+          : W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH;
   const w_seed_frontend_output *output = input->frontend_output;
   const w_seed_frontend_result *result = input->frontend_result;
   if (result->written.modules != 1u || result->written.entries != 1u ||
@@ -1841,7 +1851,7 @@ static bool frontend_cooperative_trace_preflight(
       return false;
     const w_seed_frontend_expression *expression =
         &output->expressions[item->expression_index];
-    if (expression->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH) {
+    if (expression->kind == expected_launch) {
       if (item->kind != W_SEED_FRONTEND_STMT_LET || launch_count >= 2u ||
           item->declared_type != W_SEED_FRONTEND_NONE ||
           item->effective_type == W_SEED_FRONTEND_NONE)
@@ -1912,14 +1922,16 @@ static bool frontend_cooperative_trace_preflight(
    * this closes nested task trees and prevents a forged third relation from
    * being silently ignored by the physical executor. */
   size_t all_launches = 0u;
+  size_t all_task_launches = 0u;
   size_t all_awaits = 0u;
   for (size_t expression = 0u; expression < result->written.expressions;
        expression += 1u) {
     const w_seed_frontend_expression *item = &output->expressions[expression];
-    if (item->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH) all_launches += 1u;
+    if (item->kind == expected_launch) all_launches += 1u;
+    if (frontend_task_launch_kind(item->kind)) all_task_launches += 1u;
     if (item->kind == W_SEED_FRONTEND_EXPR_AWAIT) all_awaits += 1u;
   }
-  return all_launches == 2u && all_awaits == 2u;
+  return all_launches == 2u && all_task_launches == 2u && all_awaits == 2u;
 }
 
 /* Existing ordinary targets retain the W-1577 path and are checked by HIR's
@@ -1937,14 +1949,18 @@ static bool frontend_structured_elision_preflight(
     return false;
   const w_seed_frontend_output *output = input->frontend_output;
   const w_seed_frontend_result *result = input->frontend_result;
+  bool has_main_spawn = false;
   bool has_launch = false;
   for (size_t expression = 0u;
-       expression < result->written.expressions; expression += 1u)
+       expression < result->written.expressions; expression += 1u) {
     if (output->expressions[expression].kind ==
-        W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH) {
+        W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH)
+      has_main_spawn = true;
+    if (output->expressions[expression].kind ==
+        W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH)
       has_launch = true;
-      break;
-    }
+  }
+  if (has_main_spawn) return frontend_cooperative_trace_preflight(input);
   if (!has_launch) return true;
   frontend_elision_path path = {0};
   for (size_t expression = 0u;
@@ -2568,7 +2584,7 @@ static bool frontend_value_common_ok(
             &input->frontend_output->types[value->inferred_type]))) ||
       (value->resolved_pattern_capture != W_SEED_FRONTEND_NONE &&
        value->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER) ||
-      ((value->kind != W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH &&
+      ((!frontend_task_launch_kind(value->kind) &&
         value->kind != W_SEED_FRONTEND_EXPR_AWAIT) &&
        (value->task_result_type != W_SEED_FRONTEND_NONE ||
         value->task_call_expression != W_SEED_FRONTEND_NONE ||
@@ -3922,7 +3938,7 @@ static bool frontend_call_expression_ok(
  * declaration may use its W-1484 direct entry when that proof is available;
  * the runtime carrier is still the callee's scalar result and the wrapper
  * records add no HIR values. */
-static bool frontend_async_launch_expression_ok(
+static bool frontend_task_launch_expression_ok(
     const w_seed_hir0_input *input, size_t module_index,
     size_t function_index, size_t document_index, size_t statement_index,
     uint32_t root_index, size_t *expression_cursor,
@@ -3938,8 +3954,11 @@ static bool frontend_async_launch_expression_ok(
   const w_seed_frontend_expression *launch = &output->expressions[root_index];
   if (!frontend_value_common_ok(input, launch, module_index, function_index,
                                 document_index) ||
-      launch->kind != W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH ||
-      !launch->supported || !text_is(launch->operator_text, "async") ||
+      !frontend_task_launch_kind(launch->kind) || !launch->supported ||
+      !text_is(launch->operator_text,
+               launch->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH
+                   ? "async"
+                   : "spawn") ||
       launch->left != launch->task_call_expression ||
       launch->task_call_expression == W_SEED_FRONTEND_NONE ||
       (size_t)launch->task_call_expression >= result->written.expressions ||
@@ -4035,8 +4054,8 @@ static bool frontend_await_expression_ok(
       launch_statement->expression_index == W_SEED_FRONTEND_NONE ||
       (size_t)launch_statement->expression_index >=
           result->written.expressions ||
-      output->expressions[launch_statement->expression_index].kind !=
-          W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH ||
+      !frontend_task_launch_kind(
+          output->expressions[launch_statement->expression_index].kind) ||
       !frontend_value_tree_ok(
           input, module_index, function_index, document_index, statement_index,
           awaited->left, 0u, expression_cursor, interpolation_segment_cursor,
@@ -4884,14 +4903,14 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
         &walk->output->expressions[statement->expression_index];
     if (initializer->inferred_type != statement->effective_type)
       return false;
-    if (initializer->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH ||
+    if (frontend_task_launch_kind(initializer->kind) ||
         initializer->kind == W_SEED_FRONTEND_EXPR_AWAIT) {
       if (branch || statement->kind != W_SEED_FRONTEND_STMT_LET ||
           statement->declared_type != W_SEED_FRONTEND_NONE)
         return false;
       bool valid =
-          initializer->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH
-              ? frontend_async_launch_expression_ok(
+          frontend_task_launch_kind(initializer->kind)
+              ? frontend_task_launch_expression_ok(
                     walk->input, walk->module_index, walk->function_index,
                     walk->document_index, index, statement->expression_index,
                     walk->expression_cursor,
@@ -7225,7 +7244,7 @@ static size_t hir0_expression_logical_count(const hir0_emit_context *context,
     return 0u;
   const w_seed_frontend_expression *value =
       &context->frontend->expressions[expression];
-  if (value->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH)
+  if (frontend_task_launch_kind(value->kind))
     return hir0_expression_logical_count(
         context, value->task_call_expression, depth + 1u);
   if (value->kind == W_SEED_FRONTEND_EXPR_AWAIT)
@@ -7632,7 +7651,7 @@ static size_t hir0_emit_expression_values_m2(hir0_emit_context *context,
     return current_block;
   const w_seed_frontend_expression *source =
       &context->frontend->expressions[expression];
-  if (source->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH)
+  if (frontend_task_launch_kind(source->kind))
     return hir0_emit_expression_values_m2(
         context, source->task_call_expression, current_block, statement_index,
         depth + 1u);
@@ -8450,7 +8469,7 @@ static size_t hir0_expression_layout_end_m2(const hir0_emit_context *context,
     return current_block;
   const w_seed_frontend_expression *source =
       &context->frontend->expressions[expression];
-  if (source->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH)
+  if (frontend_task_launch_kind(source->kind))
     return hir0_expression_layout_end_m2(
         context, source->task_call_expression, current_block, depth + 1u);
   if (source->kind == W_SEED_FRONTEND_EXPR_AWAIT)
@@ -8578,7 +8597,7 @@ static void hir0_emit_binding_layout_m2(hir0_emit_context *context,
   if (!assignment && statement->expression_index != W_SEED_FRONTEND_NONE) {
     const w_seed_frontend_expression *initializer =
         &context->frontend->expressions[statement->expression_index];
-    if (initializer->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH) {
+    if (frontend_task_launch_kind(initializer->kind)) {
       context->output->bindings[*context->binding_offset].task_role =
           W_SEED_HIR0_TASK_ROLE_LAUNCH;
     } else if (initializer->kind == W_SEED_FRONTEND_EXPR_AWAIT) {
@@ -9118,7 +9137,7 @@ static size_t hir0_emit_expression_layout_m2(hir0_emit_context *context,
     *context->instruction_offset += 1u;
     return current_block;
   }
-  if (source->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH) {
+  if (frontend_task_launch_kind(source->kind)) {
     const size_t block = hir0_emit_expression_layout_m2(
         context, source->task_call_expression, current_block, statement_index,
         depth + 1u);
@@ -9139,11 +9158,13 @@ static size_t hir0_emit_expression_layout_m2(hir0_emit_context *context,
         frontend_elision_function_static_yields(
             &elision_input, call->resolved_function_index);
     context->output->calls[*context->call_offset - 1u].execution_kind =
-        cooperative_trace
-            ? W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE
-            : (static_yield
-                   ? W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED
-                   : W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED);
+        source->kind == W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH
+            ? W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH
+            : (cooperative_trace
+                   ? W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE
+                   : (static_yield
+                          ? W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED
+                          : W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED));
     return block;
   }
   if (source->kind == W_SEED_FRONTEND_EXPR_AWAIT)
@@ -9304,7 +9325,7 @@ static uint32_t hir0_emit_value_m2(
     return W_SEED_HIR0_NONE;
   const w_seed_frontend_expression *source =
       &context->frontend->expressions[expression];
-  if (source->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH)
+  if (frontend_task_launch_kind(source->kind))
     return hir0_emit_value_m2(context, source->task_call_expression, owner_kind,
                               owner_index, owner_ordinal, current_block,
                               depth + 1u);
@@ -14185,10 +14206,17 @@ static bool hir0_call_execution_kind_is_closed(
     case W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED:
     case W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED:
     case W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE:
+    case W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH:
       return true;
     default:
       return false;
   }
+}
+
+static bool hir0_call_is_physical_dispatch(
+    w_seed_hir0_call_execution_kind kind) {
+  return kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE ||
+         kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH;
 }
 
 static bool hir0_terminator_kind_is_closed(w_seed_hir0_terminator_kind kind) {
@@ -14982,15 +15010,14 @@ static bool hir0_cooperative_trace_scope(const w_seed_hir0_program *program) {
       program->types[root->return_type].kind != W_SEED_HIR0_TYPE_UNIT)
     return false;
   size_t physical_count = 0u;
+  w_seed_hir0_call_execution_kind physical_kind = W_SEED_HIR0_CALL_DIRECT;
   uint32_t call_instructions[2] = {W_SEED_HIR0_NONE, W_SEED_HIR0_NONE};
   uint32_t launch_bindings[2] = {W_SEED_HIR0_NONE, W_SEED_HIR0_NONE};
   uint32_t join_bindings[2] = {W_SEED_HIR0_NONE, W_SEED_HIR0_NONE};
   for (size_t call_index = 0u; call_index < program->call_count;
        call_index += 1u) {
     const w_seed_hir0_call *call = &program->calls[call_index];
-    const bool physical =
-        call->execution_kind ==
-        W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE;
+    const bool physical = hir0_call_is_physical_dispatch(call->execution_kind);
     const bool structured =
         call->execution_kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED ||
         call->execution_kind ==
@@ -15002,6 +15029,10 @@ static bool hir0_cooperative_trace_scope(const w_seed_hir0_program *program) {
         call->owner_block >= program->block_count ||
         program->blocks[call->owner_block].owner_function != root_function ||
         call->callee_identity >= program->identity_count)
+      return false;
+    if (physical_count == 0u)
+      physical_kind = call->execution_kind;
+    else if (call->execution_kind != physical_kind)
       return false;
     const w_seed_hir0_identity *identity =
         &program->identities[call->callee_identity];
@@ -15104,8 +15135,7 @@ static bool hir0_cooperative_trace_scope(const w_seed_hir0_program *program) {
     if (call->owner_block != root_block_index ||
         call->owner_instruction != instruction_index)
       return false;
-    if (call->execution_kind ==
-        W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE) {
+    if (hir0_call_is_physical_dispatch(call->execution_kind)) {
       if (join_seen != 0u || physical_seen >= 2u ||
           instruction_index != call_instructions[physical_seen] ||
           instruction_index + 1u >= program->instruction_count ||
@@ -15435,8 +15465,8 @@ static bool verify_records(const w_seed_hir0_program *program) {
                  W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED &&
              program->calls[launch_value->call_index].execution_kind !=
                  W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED &&
-             program->calls[launch_value->call_index].execution_kind !=
-                 W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE) ||
+             !hir0_call_is_physical_dispatch(
+                 program->calls[launch_value->call_index].execution_kind)) ||
             joined_value->kind != W_SEED_HIR0_VALUE_BINDING_READ ||
             joined_value->binding_index != launch_index)
           return false;
@@ -15515,8 +15545,7 @@ static bool verify_records(const w_seed_hir0_program *program) {
     if (value->execution_kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED ||
         value->execution_kind ==
             W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED ||
-        value->execution_kind ==
-            W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE) {
+        hir0_call_is_physical_dispatch(value->execution_kind)) {
       const w_seed_hir0_function *target =
           local_call && identity->target_index < program->function_count
               ? &program->functions[identity->target_index]
@@ -15524,9 +15553,8 @@ static bool verify_records(const w_seed_hir0_program *program) {
       const bool static_yield =
           value->execution_kind ==
           W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED;
-      const bool cooperative_trace =
-          value->execution_kind ==
-          W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE;
+      const bool physical_dispatch =
+          hir0_call_is_physical_dispatch(value->execution_kind);
       const bool target_non_suspending =
           !static_yield && target != NULL &&
           (target->suspension == W_SEED_HIR0_SUSPENSION_NEVER ||
@@ -15535,7 +15563,7 @@ static bool verify_records(const w_seed_hir0_program *program) {
       if (!local_call || identity->target_index >= program->function_count ||
           target == NULL || target->is_throws || target->is_unsafe ||
           target->has_borrow_clause ||
-          (cooperative_trace
+          (physical_dispatch
                ? (!target->is_async ||
                   target->direct_entry != W_SEED_HIR0_DIRECT_ENTRY_ABSENT ||
                   !hir0_function_static_yields(program,
@@ -15996,14 +16024,14 @@ static bool verify_records(const w_seed_hir0_program *program) {
         (program->module_count > 1u && value->is_body))
       return false;
   }
-  bool has_cooperative_trace = false;
+  bool has_physical_dispatch = false;
   for (size_t call = 0u; call < program->call_count; call += 1u)
-    if (program->calls[call].execution_kind ==
-        W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE) {
-      has_cooperative_trace = true;
+    if (hir0_call_is_physical_dispatch(
+            program->calls[call].execution_kind)) {
+      has_physical_dispatch = true;
       break;
     }
-  if (has_cooperative_trace && !hir0_cooperative_trace_scope(program))
+  if (has_physical_dispatch && !hir0_cooperative_trace_scope(program))
     return false;
   return true;
 }

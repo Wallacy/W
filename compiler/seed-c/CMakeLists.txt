@@ -619,6 +619,7 @@ add_executable(w_seed_cooperative0_tests
 target_link_libraries(w_seed_cooperative0_tests PRIVATE w_seed_source)
 target_compile_definitions(w_seed_cooperative0_tests PRIVATE
   W_SEED_COOPERATIVE0_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/restaurant-cooperative0.w"
+  W_SEED_MAIN_DISPATCH0_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/restaurant-main-dispatch0.w"
 )
 
 add_executable(w_seed_wrt0_tests

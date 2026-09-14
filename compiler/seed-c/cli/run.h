@@ -40,9 +40,11 @@ bool w_seed_run_parse(int argc, char **argv, w_seed_run_request *request);
  * return the documented unsupported status without side effects. */
 int w_seed_run_execute(const w_seed_run_request *request);
 
-/* Shared bounded source-to-native compilation used by run and build. The
- * caller owns directory and artifact_path; on success only artifact_path is
- * retained in directory. */
+/* Shared bounded source-to-native compilation used by run and build. Windows
+ * accepts both its native PE target and the finite Linux x86-64 cross target;
+ * the latter links the authored WRT0 closure with the pinned sibling ld.lld.
+ * The caller owns directory and artifact_path; on success only artifact_path
+ * is retained in directory. */
 int w_seed_run_compile(const w_seed_run_compile_request *request);
 
 /* Remove a compiled artifact and its private directory. */

@@ -17,9 +17,14 @@ import path from "node:path";
 import { createServer } from "node:net";
 import {
   EXECUTABLE_ARTIFACT_TARGET_MINGW,
+  EXECUTABLE_ARTIFACT_TARGET_LINUX,
   EXECUTABLE_ARTIFACT_TARGET_MSVC,
   EXECUTABLE_LANGUAGES,
-  EXECUTABLE_PLATFORM_TARGET,
+  EXECUTABLE_PLATFORM_TARGET_WINDOWS,
+  EXECUTABLE_PLATFORM_TARGET_LINUX_WSL,
+  EXECUTABLE_WSL_COMPARISON_PURPOSE,
+  EXECUTABLE_WSL_HOST_MODE,
+  EXECUTABLE_WSL_RANKABILITY,
   EXECUTABLE_RESULT_SCHEMA,
   EXECUTABLE_RUN_TARGETS,
   PROCESS_ENTRY0_CORRECTNESS_INPUTS,
@@ -73,6 +78,9 @@ const RUNNER_SOURCE_PATHS = Object.freeze([
   path.join(SEED_C_PATH, "cli", "native_benchmark.c"),
 ]);
 const TOOLCHAIN_MANIFEST_PATH = path.resolve(ROOT, "tooling", "mlir0-windows-toolchain.json");
+const LINUX_TOOLCHAIN_MANIFEST_PATH = path.resolve(ROOT, "tooling", "mlir0-toolchain.json");
+const LINUX_TOOLCHAIN_VERSION = "23.1.1";
+const WSL_DISTRIBUTION = "Ubuntu";
 const DEFAULT_TARGET = "hello";
 const RUN_TARGETS = EXECUTABLE_RUN_TARGETS;
 const DEFAULT_WARMUP = 1;
@@ -250,6 +258,7 @@ export function parseBenchmarkArguments(argv) {
   const result = {
     target: DEFAULT_TARGET,
     language: "w",
+    platform: EXECUTABLE_PLATFORM_TARGET_WINDOWS,
     output: undefined,
     warmup: DEFAULT_WARMUP,
     compileSamples: DEFAULT_COMPILE_SAMPLES,
@@ -272,6 +281,12 @@ export function parseBenchmarkArguments(argv) {
       result.language = value;
     } else if (argument.startsWith("--language=")) {
       result.language = argument.slice("--language=".length);
+    } else if (argument === "--platform") {
+      const value = argv[++index];
+      if (value === undefined) fail("--platform requires a value");
+      result.platform = value;
+    } else if (argument.startsWith("--platform=")) {
+      result.platform = argument.slice("--platform=".length);
     } else if (argument === "--output") {
       const value = argv[++index];
       if (value === undefined || value.length === 0) fail("--output requires a path");
@@ -301,6 +316,12 @@ export function parseBenchmarkArguments(argv) {
   }
   if (!RUN_TARGETS.includes(result.target)) fail(`unsupported benchmark target: ${result.target}`);
   if (!EXECUTABLE_LANGUAGES.includes(result.language)) fail(`unsupported language: ${result.language}`);
+  if (![EXECUTABLE_PLATFORM_TARGET_WINDOWS, EXECUTABLE_PLATFORM_TARGET_LINUX_WSL].includes(result.platform)) {
+    fail(`unsupported platform: ${result.platform}`);
+  }
+  if (result.platform === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL && result.language !== "w") {
+    fail("linux-wsl-x64 currently supports only public W sources");
+  }
   if (result.compileSamples % 2 === 0 || result.runSamples % 2 === 0) fail("sample counts must be odd");
   return result;
 }
@@ -309,9 +330,9 @@ export function benchmarkUsage() {
   return [
     "usage: bun tooling/executable-benchmark-runner.mjs --output <new-json> [options]",
     "",
-    "Options: --target <runnable-catalog-id> (default hello), --language w|c|rust (default w), --warmup <n> (default 1), --compile-samples <odd n> (default 9), --run-samples <odd n> (default 101). --samples sets both counts.",
+    "Options: --target <runnable-catalog-id> (default hello), --language w|c|rust (default w), --platform windows-x64|linux-wsl-x64 (default windows-x64), --warmup <n> (default 1), --compile-samples <odd n> (default 9), --run-samples <odd n> (default 101). --samples sets both counts.",
     "The output must be a new JSON file under benchmarks/results.",
-    "This is Windows x86_64 exploratory executable evidence. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses the public w build Release source-to-PE candidate for public workloads; process-argument workloads validate all declared argument cases before timing and pin the declared timed vector; process-handler-lifecycle uses the private GCC/MinGW handler composite and remains contextual/non-ranking. Public C requires Clang with final C23, the MSVC ABI, and the DLL runtime; Rust uses rustc edition 2024.",
+    "The default is Windows x86_64 exploratory executable evidence. --platform linux-wsl-x64 selects the catalog's Linux public W source and builds/runs its ELF artifact through WSL2 on this host; that lane is same-physical-hardware diagnostic-only and same-host-only. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses the public w build Release source-to-PE candidate on Windows and the pinned Linux/WSL public build route on WSL2; process-argument workloads validate all declared argument cases before timing and pin the declared timed vector; process-handler-lifecycle uses the private GCC/MinGW handler composite and remains contextual/non-ranking. Public C requires Clang with final C23, the MSVC ABI, and the DLL runtime; Rust uses rustc edition 2024.",
     `Timeout guard: ${EXECUTABLE_TIMEOUT_STATUS}.`,
   ].join("\n");
 }
@@ -649,6 +670,172 @@ function requireSuccess(step, label) {
   }
 }
 
+function isWslPlatform(platformTarget) {
+  return platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL;
+}
+
+function wslPath(filePath) {
+  if (typeof filePath !== "string" || filePath.length === 0) fail("WSL path must be a non-empty string");
+  if (filePath.startsWith("/")) return filePath.replaceAll("\\", "/");
+  const candidate = path.isAbsolute(filePath) ? filePath : path.resolve(ROOT, filePath);
+  const match = candidate.match(/^([A-Za-z]):[\\/](.*)$/u);
+  if (match) return `/mnt/${match[1].toLowerCase()}/${match[2].replaceAll("\\", "/")}`;
+  fail(`cannot map host path into WSL: ${filePath}`);
+}
+
+function wslInvocation(runtime, command, args = []) {
+  if (!isObject(runtime) || typeof runtime.command !== "string" || typeof runtime.distribution !== "string") {
+    fail("WSL runtime is incomplete");
+  }
+  if (typeof command !== "string" || command.length === 0 || !Array.isArray(args) || args.some((item) => typeof item !== "string")) {
+    fail("WSL command invocation is malformed");
+  }
+  return ["-d", runtime.distribution, "--", command, ...args];
+}
+
+async function executeWsl(executor, runtime, command, args, options, label) {
+  return executeChild(executor, runtime.command, wslInvocation(runtime, command, args), {
+    cwd: ROOT,
+    stdout: "pipe",
+    stderr: "pipe",
+    windowsHide: true,
+    ...options,
+  }, label);
+}
+
+async function wslRegularFile(executor, runtime, filePath, label) {
+  if (typeof filePath !== "string" || !(filePath.startsWith("/tmp/") || filePath.startsWith("/mnt/"))) fail(`${label} must be a WSL-visible temporary file`);
+  const result = await executeWsl(executor, runtime, "stat", ["--format=%F:%s", "--", filePath], {}, `${label} stat`);
+  requireSuccess(result, `${label} stat`);
+  const output = outputText(result.stdout).trim();
+  const match = output.match(/^regular file:([1-9][0-9]*)$/u);
+  if (!match) fail(`${label} must be a non-empty regular file`);
+  return { size: Number(match[1]) };
+}
+
+function normalizeWslCommand(value, label) {
+  if (typeof value !== "string" || value.trim() === "") fail(`${label} must identify a Linux command`);
+  const command = value.trim();
+  if (command.includes("\0") || /[\r\n]/u.test(command)) fail(`${label} contains invalid command text`);
+  return command;
+}
+
+async function resolveWslRuntime(executor, dependencies, hostPlatform, publish) {
+  if (hostPlatform.platform !== "win32" || hostPlatform.arch !== "x64") {
+    fail(`linux-wsl-x64 requires a Windows x86_64 host, got ${hostPlatform.platform}/${hostPlatform.arch}`);
+  }
+  const fixture = dependencies.wslRuntime ?? dependencies.testOnlyWslRuntime ?? dependencies.wsl;
+  if (fixture !== undefined && (!isObject(fixture) || Object.keys(fixture).some((key) => !["command", "distribution", "skipProbe"].includes(key)))) {
+    fail("wslRuntime may identify only command, distribution and skipProbe");
+  }
+  const discoveredCommand = fixture?.command ?? dependencies.wslCommand ?? Bun.which("wsl.exe");
+  if (discoveredCommand === undefined || discoveredCommand === null || discoveredCommand === "") {
+    fail("linux-wsl-x64 requires WSL2: wsl.exe is unavailable");
+  }
+  const command = normalizeWslCommand(discoveredCommand, "WSL executable");
+  if (!path.isAbsolute(command) && !(dependencies.testOnly === true && fixture !== undefined)) {
+    fail("WSL executable must be an absolute wsl.exe path");
+  }
+  const runtime = {
+    command,
+    distribution: normalizeWslCommand(fixture?.distribution ?? WSL_DISTRIBUTION, "WSL distribution"),
+    skipProbe: fixture?.skipProbe === true,
+  };
+  if (runtime.skipProbe && (dependencies.testOnly !== true || publish)) {
+    fail("WSL runtime probe can be skipped only by testOnly:true with publish:false");
+  }
+  if (runtime.skipProbe) return runtime;
+  const kernel = await executeWsl(executor, runtime, "uname", ["-r"], {}, "WSL2 kernel probe");
+  requireSuccess(kernel, "WSL2 kernel probe");
+  const release = outputText(kernel.stdout).trim().toLowerCase();
+  if (!/(?:wsl|microsoft|lxss)/u.test(release) || /(?:interop|composite)/u.test(release)) {
+    fail("linux-wsl-x64 requires a WSL2 kernel (uname -r did not identify Microsoft WSL)");
+  }
+  const machine = await executeWsl(executor, runtime, "uname", ["-m"], {}, "WSL2 architecture probe");
+  requireSuccess(machine, "WSL2 architecture probe");
+  if (outputText(machine.stdout).trim() !== "x86_64") fail("linux-wsl-x64 requires an x86_64 WSL2 distribution");
+  return runtime;
+}
+
+async function resolveLinuxWslCrossProfile(windowsToolchain, dependencies, publish) {
+  const manifestBytes = await readFile(LINUX_TOOLCHAIN_MANIFEST_PATH);
+  let manifest;
+  try {
+    manifest = JSON.parse(manifestBytes.toString("utf8"));
+  } catch (error) {
+    fail(`Linux/WSL toolchain manifest is not valid JSON: ${error.message}`);
+  }
+  if (!isObject(manifest) || manifest.status !== "pinned" ||
+      manifest.target?.triple !== EXECUTABLE_ARTIFACT_TARGET_LINUX ||
+      manifest.target?.arch !== "x86_64" || manifest.target?.os !== "linux" ||
+      manifest.toolchain?.mlir !== LINUX_TOOLCHAIN_VERSION ||
+      manifest.toolchain?.llvm !== LINUX_TOOLCHAIN_VERSION ||
+      manifest.toolchain?.clang !== LINUX_TOOLCHAIN_VERSION) {
+    fail(`Linux/WSL toolchain must be the pinned ${LINUX_TOOLCHAIN_VERSION} ${EXECUTABLE_ARTIFACT_TARGET_LINUX} profile`);
+  }
+  const fixture = dependencies.linuxWslToolchain ?? dependencies.wslCrossToolchain;
+  if (fixture !== undefined) {
+    if (dependencies.testOnly !== true || publish || !isObject(fixture)) {
+      fail("Linux WSL cross-toolchain fixtures require testOnly:true with publish:false");
+    }
+    return {
+      manifest,
+      manifestDigest: fixture.manifestDigest ?? sha256Bytes(manifestBytes),
+      identity: fixture.identity ?? `windows-mlir-${LINUX_TOOLCHAIN_VERSION}-cross-${EXECUTABLE_ARTIFACT_TARGET_LINUX}`,
+      target: EXECUTABLE_ARTIFACT_TARGET_LINUX,
+      linker: fixture.linker,
+    };
+  }
+  const records = windowsToolchain.materialized?.tools ?? {};
+  const linkerName = records["ld.lld.exe"] ? "ld.lld.exe" : records["lld.exe"] ? "lld.exe" : undefined;
+  const linkerRecord = linkerName === undefined ? undefined : records[linkerName];
+  const linker = windowsToolchain.tools?.[linkerName] ??
+    (linkerRecord?.relativePath && windowsToolchain.cache ? path.resolve(windowsToolchain.cache, linkerRecord.relativePath) : undefined);
+  if (!linkerRecord || !linker) {
+    fail(`Linux/WSL ${LINUX_TOOLCHAIN_VERSION} cross-build requires materialized ld.lld.exe or lld.exe`);
+  }
+  if (!isContained(windowsToolchain.cache ?? path.dirname(linker), linker)) fail("Linux/WSL cross-linker escapes the materialized Windows toolchain cache");
+  await regularFile(linker, "Linux/WSL cross-linker");
+  return {
+    manifest,
+    manifestDigest: sha256Bytes(manifestBytes),
+    identity: `windows-mlir-${LINUX_TOOLCHAIN_VERSION}-cross-${EXECUTABLE_ARTIFACT_TARGET_LINUX}`,
+    target: EXECUTABLE_ARTIFACT_TARGET_LINUX,
+    linker,
+    linkerRecord,
+  };
+}
+
+async function environmentSnapshotWsl(executor, runtime) {
+  const read = async (command, args, label) => {
+    const result = await executeWsl(executor, runtime, command, args, {}, label);
+    requireSuccess(result, label);
+    return outputText(result.stdout);
+  };
+  const kernelText = (await read("uname", ["-r"], "WSL2 environment kernel")).trim();
+  const machine = (await read("uname", ["-m"], "WSL2 environment architecture")).trim();
+  if (machine !== "x86_64") fail("WSL2 environment architecture must be x86_64");
+  if (!/(?:wsl|microsoft|lxss)/iu.test(kernelText) || /(?:interop|composite)/iu.test(kernelText)) fail("WSL2 environment kernel identity is not accepted");
+  const cpuInfo = await read("cat", ["/proc/cpuinfo"], "WSL2 CPU identity");
+  const cpuModel = cpuInfo.match(/^model name\s*:\s*(.+)$/mi)?.[1]?.trim();
+  const coresText = (await read("nproc", ["--all"], "WSL2 logical CPU count")).trim();
+  const logicalCores = coresText.match(/^[1-9][0-9]*$/u)?.[0];
+  const memoryText = await read("cat", ["/proc/meminfo"], "WSL2 memory identity");
+  const memoryKb = memoryText.match(/^MemTotal:\s*([1-9][0-9]*)\s*kB$/mi)?.[1];
+  if (!cpuModel || !logicalCores || !memoryKb) fail("WSL2 environment identity is incomplete");
+  const ramBytes = (BigInt(memoryKb) * 1024n).toString(10);
+  const kernel = `linux-${kernelText.toLowerCase().replace(/[^a-z0-9._-]+/gu, "-")}`.slice(0, 64).replace(/-+$/u, "");
+  const environment = {
+    os: "linux",
+    kernel: kernel.includes("wsl") || kernel.includes("microsoft") || kernel.includes("lxss") ? kernel : "linux-wsl2",
+    cpuModel: cpuModel.replace(/\s+/gu, " "),
+    logicalCores,
+    ramBytes,
+  };
+  if (!executableHostIdentity(environment)) fail("redacted WSL environment is not accepted by the result contract");
+  return environment;
+}
+
 async function resolveWindowsToolchain() {
   if (process.platform !== "win32" || process.arch !== "x64") fail(`M3b measurements require Windows x86_64, got ${process.platform}/${process.arch}`);
   const manifestBytes = await readFile(TOOLCHAIN_MANIFEST_PATH);
@@ -713,9 +900,9 @@ function normalizePublicW(value) {
   return value;
 }
 
-function publicWToolchainIdentity(publicW) {
+function publicWToolchainIdentity(publicW, artifactTarget = EXECUTABLE_ARTIFACT_TARGET_MSVC) {
   const digestSlug = publicW.digest.slice("sha256:".length);
-  return `w-public-build-release-${digestSlug}-${EXECUTABLE_ARTIFACT_TARGET_MSVC}`;
+  return `w-public-build-release-${digestSlug}-${artifactTarget}`;
 }
 
 function identityToken(value, label) {
@@ -868,7 +1055,7 @@ function environmentSnapshot() {
   return environment;
 }
 
-function measurementPlatform(dependencies, publish) {
+function measurementPlatform(dependencies, publish, platformTarget = EXECUTABLE_PLATFORM_TARGET_WINDOWS) {
   const testPlatform = dependencies.testOnlyPlatform;
   const testToolchains = dependencies.testOnlyToolchains;
   const unsupportedMetadata = ["cCompiler", "rustCompiler", "languageToolchains", "toolchains"]
@@ -882,21 +1069,21 @@ function measurementPlatform(dependencies, publish) {
   if (testPlatform !== undefined && (!isObject(testPlatform) || Object.keys(testPlatform).some((key) => !["platform", "arch"].includes(key)) || typeof testPlatform.platform !== "string" || typeof testPlatform.arch !== "string")) {
     fail("testOnlyPlatform must identify only platform and arch");
   }
-  if (testToolchains !== undefined && (!isObject(testToolchains) || Object.keys(testToolchains).some((key) => !["c", "rust"].includes(key)))) {
-    fail("testOnlyToolchains may identify only C and Rust command fixtures");
+  if (testToolchains !== undefined && (!isObject(testToolchains) || Object.keys(testToolchains).some((key) => !["c", "rust", "wsl"].includes(key)))) {
+    fail("testOnlyToolchains may identify only C, Rust and WSL command fixtures");
   }
   const platform = testPlatform ?? { platform: process.platform, arch: process.arch };
   if (platform.platform !== "win32" || platform.arch !== "x64") {
-    fail(`M3b measurements require Windows x86_64, got ${platform.platform}/${platform.arch}`);
+    fail(`${platformTarget} measurements require a Windows x86_64 host, got ${platform.platform}/${platform.arch}`);
   }
   return platform;
 }
 
-async function sourcePath(catalog, target, language) {
+async function sourcePath(catalog, target, language, platformTarget = EXECUTABLE_PLATFORM_TARGET_WINDOWS) {
   const workload = catalog.workloads?.find((item) => item.id === target);
   if (!workload) fail(`catalog has no ${target} workload`);
-  const source = workload?.sources?.find((item) => item.language === language);
-  if (!source) fail(`catalog has no ${language} source for ${target}`);
+  const source = workload?.sources?.find((item) => item.language === language && item.platformTarget === platformTarget);
+  if (!source) fail(`catalog has no ${language} source for ${target} on ${platformTarget}`);
   const filePath = path.resolve(ROOT, source.path);
   if (!isContained(ROOT, filePath)) fail(`${language} ${target} source escapes the repository`);
   await regularFile(filePath, `${language} ${target} source`);
@@ -1183,20 +1370,26 @@ async function compileProcessHandler(context, retain) {
 
 async function compileW(context, retain) {
   const sampleDirectory = await mkdtemp(path.join(context.tempRoot, SAMPLE_DIRECTORY_PREFIX));
-  const artifact = path.join(sampleDirectory, `${context.source.workload.id}-${context.language}.exe`);
+  const wsl = isWslPlatform(context.platformTarget);
+  const artifact = path.join(sampleDirectory, `${context.source.workload.id}-${context.language}${wsl ? ".elf" : ".exe"}`);
   try {
+    const target = wsl ? EXECUTABLE_ARTIFACT_TARGET_LINUX : EXECUTABLE_ARTIFACT_TARGET_MSVC;
     const step = await timedStep(context.executor, context.publicW.executable, [
       "build",
       context.source.filePath,
       "--target",
-      EXECUTABLE_ARTIFACT_TARGET_MSVC,
+      target,
       "--output",
       artifact,
     ], sampleDirectory, "W public build");
     requireSuccess(step, "W public build");
-    const stats = await regularFile(artifact, "W PE artifact");
-    if (stats.size <= 0) fail("W PE artifact is empty");
+    const stats = await regularFile(artifact, wsl ? "W ELF artifact" : "W PE artifact");
+    if (stats.size <= 0) fail(wsl ? "W ELF artifact is empty" : "W PE artifact is empty");
     await assertSidecarFree(sampleDirectory, artifact, "W public build");
+    if (wsl) {
+      const mappedArtifact = wslPath(artifact);
+      await wslRegularFile(context.executor, context.wslRuntime, mappedArtifact, "W ELF artifact through WSL2");
+    }
     const sample = chainSample([step], step.start, step.end, "W public build");
     if (retain) return { sampleDirectory, artifact, sample };
     await rm(sampleDirectory, { recursive: true, force: true });
@@ -1270,11 +1463,14 @@ async function compileSource(context, retain) {
   fail(`unsupported language: ${context.language}`);
 }
 
-async function runArtifact(executor, artifact, language = "w", target = DEFAULT_TARGET, argumentsVector = []) {
+async function runArtifact(executor, artifact, language = "w", target = DEFAULT_TARGET, argumentsVector = [], runtime = undefined) {
   if (!Array.isArray(argumentsVector) || argumentsVector.some((item) => typeof item !== "string")) {
     fail(`${language} ${target} executable arguments must contain only strings`);
   }
-  const step = await timedStep(executor, artifact, argumentsVector, path.dirname(artifact), `${language} ${target} run`);
+  const command = runtime?.command ?? artifact;
+  const args = runtime === undefined ? argumentsVector : wslInvocation(runtime, wslPath(artifact), argumentsVector);
+  const cwd = runtime === undefined ? path.dirname(artifact) : ROOT;
+  const step = await timedStep(executor, command, args, cwd, `${language} ${target} run`);
   if (!isProcessArgumentWorkload(target)) requireSuccess(step, `${language} ${target} executable`);
   return {
     sample: sampleFrom(step.start, step.end, [step.usage], `${language} ${target} run`),
@@ -1607,13 +1803,158 @@ export function validatePeX64(bytes, language = "w") {
   };
 }
 
+const ELF_HEADER_SIZE = 64;
+const ELF_PROGRAM_HEADER_SIZE = 56;
+const ELF_SECTION_HEADER_SIZE = 64;
+const ELF_PT_INTERP = 3;
+const ELF_PT_DYNAMIC = 2;
+const ELF_DT_NULL = 0n;
+const ELF_DT_NEEDED = 1n;
+const ELF_SHT_SYMTAB = 2;
+const ELF_SHT_STRTAB = 3;
+const ELF_SHT_DYNSYM = 11;
+const ELF_SHT_NOBITS = 8;
+
+function elfRange(bytes, offset, length, label, language) {
+  if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(length) || offset < 0 || length < 0 ||
+      offset > bytes.length || length > bytes.length - offset) {
+    fail(`${language} artifact has a truncated or invalid ${label}`);
+  }
+}
+
+function elfU16(bytes, offset, label, language) {
+  elfRange(bytes, offset, 2, label, language);
+  return bytes.readUInt16LE(offset);
+}
+
+function elfU32(bytes, offset, label, language) {
+  elfRange(bytes, offset, 4, label, language);
+  return bytes.readUInt32LE(offset);
+}
+
+function elfU64(bytes, offset, label, language) {
+  elfRange(bytes, offset, 8, label, language);
+  const value = bytes.readBigUInt64LE(offset);
+  if (value > BigInt(Number.MAX_SAFE_INTEGER)) fail(`${language} artifact ${label} exceeds the bounded verifier range`);
+  return Number(value);
+}
+
+export function validateElfX64(bytes, language = "w") {
+  if (!Buffer.isBuffer(bytes)) fail(`${language} artifact bytes must be a buffer`);
+  elfRange(bytes, 0, ELF_HEADER_SIZE, "ELF header", language);
+  if (bytes[0] !== 0x7f || bytes[1] !== 0x45 || bytes[2] !== 0x4c || bytes[3] !== 0x46) {
+    fail(`${language} artifact is not an ELF image`);
+  }
+  if (bytes[4] !== 2) fail(`${language} artifact is not ELF64`);
+  if (bytes[5] !== 1) fail(`${language} artifact is not little-endian ELF`);
+  if (bytes[6] !== 1) fail(`${language} artifact has an invalid ELF version`);
+  const type = elfU16(bytes, 16, "ELF type", language);
+  if (type !== 2 && type !== 3) fail(`${language} artifact is not an executable or PIE ELF`);
+  if (elfU16(bytes, 18, "ELF machine", language) !== 62) fail(`${language} artifact is not x86-64 ELF`);
+  if (elfU32(bytes, 20, "ELF version", language) !== 1) fail(`${language} artifact has an invalid ELF header version`);
+  if (elfU16(bytes, 52, "ELF header size", language) !== ELF_HEADER_SIZE) fail(`${language} artifact has an invalid ELF header size`);
+  const programOffset = elfU64(bytes, 32, "program-header offset", language);
+  const sectionOffset = elfU64(bytes, 40, "section-header offset", language);
+  const programSize = elfU16(bytes, 54, "program-header entry size", language);
+  const programCount = elfU16(bytes, 56, "program-header count", language);
+  const sectionSize = elfU16(bytes, 58, "section-header entry size", language);
+  const sectionCount = elfU16(bytes, 60, "section-header count", language);
+  const sectionStringIndex = elfU16(bytes, 62, "section-name string-table index", language);
+  if (programCount > 0) {
+    if (programSize < ELF_PROGRAM_HEADER_SIZE) fail(`${language} artifact has undersized ELF program headers`);
+    elfRange(bytes, programOffset, programSize * programCount, "ELF program headers", language);
+  }
+  let knownEnd = Math.max(ELF_HEADER_SIZE, programOffset + programSize * programCount);
+  for (let index = 0; index < programCount; index += 1) {
+    const header = programOffset + index * programSize;
+    const kind = elfU32(bytes, header, `ELF program header ${index}`, language);
+    const fileOffset = elfU64(bytes, header + 8, `ELF program header ${index} file offset`, language);
+    const fileSize = elfU64(bytes, header + 32, `ELF program header ${index} file size`, language);
+    elfRange(bytes, fileOffset, fileSize, `ELF program header ${index} file range`, language);
+    knownEnd = Math.max(knownEnd, fileOffset + fileSize);
+    if (kind === ELF_PT_INTERP) fail(`${language} artifact contains an ELF PT_INTERP dynamic loader`);
+    if (kind !== ELF_PT_DYNAMIC) continue;
+    let terminated = false;
+    for (let offset = fileOffset; offset + 16 <= fileOffset + fileSize; offset += 16) {
+      const tag = bytes.readBigInt64LE(offset);
+      if (tag === ELF_DT_NEEDED) fail(`${language} artifact contains an ELF DT_NEEDED dependency`);
+      if (tag === ELF_DT_NULL) {
+        terminated = true;
+        break;
+      }
+    }
+    if (!terminated) fail(`${language} artifact has an unterminated ELF dynamic segment`);
+  }
+  if (sectionCount > 0) {
+    if (sectionSize < ELF_SECTION_HEADER_SIZE) fail(`${language} artifact has undersized ELF section headers`);
+    elfRange(bytes, sectionOffset, sectionSize * sectionCount, "ELF section headers", language);
+    knownEnd = Math.max(knownEnd, sectionOffset + sectionSize * sectionCount);
+  } else if (sectionOffset !== 0) {
+    fail(`${language} artifact has a section-header offset without sections`);
+  }
+  const sections = [];
+  for (let index = 0; index < sectionCount; index += 1) {
+    const header = sectionOffset + index * sectionSize;
+    const kind = elfU32(bytes, header + 4, `ELF section header ${index}`, language);
+    const fileOffset = elfU64(bytes, header + 24, `ELF section ${index} file offset`, language);
+    const fileSize = elfU64(bytes, header + 32, `ELF section ${index} file size`, language);
+    if (kind !== ELF_SHT_NOBITS) {
+      elfRange(bytes, fileOffset, fileSize, `ELF section ${index} file range`, language);
+      knownEnd = Math.max(knownEnd, fileOffset + fileSize);
+    }
+    if (kind === ELF_SHT_SYMTAB) fail(`${language} artifact contains an ELF symbol table`);
+    if (kind === ELF_SHT_DYNSYM) {
+      const symbolBytes = bytes.subarray(fileOffset, fileOffset + fileSize);
+      if (fileSize !== 24 || symbolBytes.some((byte) => byte !== 0)) {
+        fail(`${language} artifact contains exported ELF dynamic symbols`);
+      }
+    }
+    sections.push({ header, kind, fileOffset, fileSize });
+  }
+  if (sectionCount > 0 && sectionStringIndex !== 0 && sectionStringIndex !== 0xffff) {
+    if (sectionStringIndex >= sectionCount) fail(`${language} artifact has an invalid ELF section-name string table`);
+    const strings = sections[sectionStringIndex];
+    if (strings.kind !== ELF_SHT_STRTAB) fail(`${language} artifact section-name string table has the wrong type`);
+    const stringBytes = bytes.subarray(strings.fileOffset, strings.fileOffset + strings.fileSize);
+    for (const section of sections) {
+      const nameOffset = elfU32(bytes, section.header, "ELF section name offset", language);
+      if (nameOffset >= stringBytes.length) fail(`${language} artifact has an invalid ELF section name`);
+      const end = stringBytes.indexOf(0, nameOffset);
+      if (end < 0) fail(`${language} artifact has an unterminated ELF section name`);
+      const name = stringBytes.subarray(nameOffset, end).toString("ascii");
+      if (name.startsWith(".debug") || name === ".symtab") {
+        fail(`${language} artifact contains ELF debug or symbol section ${name}`);
+      }
+    }
+  }
+  if (bytes.length > knownEnd) fail(`${language} artifact contains ELF overlay bytes`);
+  return {
+    cleanliness: {
+      coffSymbols: { pointer: "0", count: "0" },
+      codeView: { count: "0", sizeBytes: "0" },
+      debugDirectory: { presence: "absent", sizeBytes: "0", entries: [] },
+      certificateDirectory: { pointer: "0", sizeBytes: "0" },
+      sectionData: "in-bounds",
+      overlay: { sizeBytes: "0" },
+    },
+    elfLayout: {
+      class: "ELF64",
+      data: "little-endian",
+      machine: "x86-64",
+      type: type === 3 ? "pie" : "executable",
+    },
+  };
+}
+
 async function correctnessBuild(context) {
   const compiled = await compileSource(context, true);
   try {
     const bytes = await readFile(compiled.artifact);
-    const validatedPe = validatePeX64(bytes, context.language);
-    const artifactCleanliness = validatedPe.cleanliness;
-    const artifactPeLayout = validatedPe.peLayout;
+    const validatedArtifact = isWslPlatform(context.platformTarget)
+      ? validateElfX64(bytes, context.language)
+      : validatePeX64(bytes, context.language);
+    const artifactCleanliness = validatedArtifact.cleanliness;
+    const artifactLayout = validatedArtifact.peLayout ?? validatedArtifact.elfLayout;
     artifactCleanliness.sidecars = { count: "0" };
     if (isProcessHandlerLifecycle(context.target)) {
       await processCorrectness(context, compiled);
@@ -1622,7 +1963,7 @@ async function correctnessBuild(context) {
         artifactDigest: sha256Bytes(bytes),
         artifactSizeBytes: String(bytes.length),
         artifactCleanliness,
-        artifactPeLayout,
+        artifactPeLayout: validatedArtifact.peLayout,
       };
     }
     const oracle = isProcessArgumentWorkload(context.target)
@@ -1630,11 +1971,13 @@ async function correctnessBuild(context) {
       : context.source.workload.oracle;
     if (isProcessArgumentWorkload(context.target)) {
       for (const [index, testCase] of oracle.cases.entries()) {
-        const execution = await runArtifact(context.executor, compiled.artifact, context.language, context.target, testCase.arguments);
+        const execution = await runArtifact(context.executor, compiled.artifact, context.language, context.target, testCase.arguments,
+          isWslPlatform(context.platformTarget) ? context.wslRuntime : undefined);
         assertOracle(execution, testCase, context.target, `${context.language} ${context.target} correctness case ${index}`);
       }
     } else {
-      const execution = await runArtifact(context.executor, compiled.artifact, context.language, context.target);
+      const execution = await runArtifact(context.executor, compiled.artifact, context.language, context.target, [],
+        isWslPlatform(context.platformTarget) ? context.wslRuntime : undefined);
       assertOracle(execution, oracle, context.target, `${context.language} ${context.target} correctness`);
     }
     return {
@@ -1642,7 +1985,9 @@ async function correctnessBuild(context) {
       artifactDigest: sha256Bytes(bytes),
       artifactSizeBytes: String(bytes.length),
       artifactCleanliness,
-      artifactPeLayout,
+      ...(validatedArtifact.peLayout === undefined
+        ? { artifactElfLayout: artifactLayout }
+        : { artifactPeLayout: artifactLayout }),
     };
   } catch (error) {
     await rm(compiled.sampleDirectory, { recursive: true, force: true });
@@ -1652,11 +1997,15 @@ async function correctnessBuild(context) {
 
 function protocol(context, workload = undefined) {
   const { language } = context;
-  const compileScope = language === "w"
+  const compileScope = isWslPlatform(context.platformTarget)
+    ? "W compile wall-clock spans the complete Windows-host public w.exe cross-build interval for the Linux ELF target; direct-process CPU/RSS counters cover w.exe only, and compiler descendants are unavailable."
+    : language === "w"
     ? "W compile wall-clock spans the complete direct w.exe build interval, including its compiler descendants; direct-process CPU/RSS counters cover w.exe only, are non-comparable to C/Rust until process-tree accounting exists, and child process-tree counters are unavailable."
     : `${language} compile measures the direct compiler process only; compiler descendants are not aggregated.`;
   const processEntry = isProcessArgumentWorkload(workload?.id);
-  const runScope = context.nativeBenchmark
+  const runScope = isWslPlatform(context.platformTarget)
+    ? "Runtime wall time and host counters cover one fresh wsl.exe invocation per sample; Linux process-tree CPU/RSS are not separately aggregated."
+    : context.nativeBenchmark
     ? "Production run CPU covers the complete contained Job tree and peak working set covers the root target process."
     : "Test-only run observations cover the direct target process; descendants are not aggregated.";
   const argumentContract = processEntry ? processArgumentOracleFor(workload.id) : undefined;
@@ -1690,6 +2039,8 @@ function protocol(context, workload = undefined) {
     unknownNoiseControls: ["host-scheduler", "filesystem-cache", "thermal-state"],
     directProcessDisclosure: context.nativeBenchmark
       ? "Runtime wall time uses Windows QPC; CPU uses aggregate Job Object user/kernel accounting normalized to floor microseconds; peak working set is the root process, while Job peak commit remains a distinct receipt fact and is not mislabeled as RSS. Compile samples remain Bun direct-process observations."
+      : isWslPlatform(context.platformTarget)
+        ? `Bun direct-process CPU and RSS counters cover the wsl.exe wrapper and its Linux child only as reported by the host; process-tree CPU/RSS are not aggregated. The artifact is executed through WSL2 for ${EXECUTABLE_ARTIFACT_TARGET_LINUX}; ${EXECUTABLE_TIMEOUT_STATUS}.`
       : `Bun direct-process CPU and RSS counters cover spawned processes only; process-tree CPU/RSS are not aggregated. ${EXECUTABLE_TIMEOUT_STATUS}.`,
   };
 }
@@ -1778,15 +2129,18 @@ function recipeFor(context) {
     };
   }
   if (context.language === "w") {
+    const target = isWslPlatform(context.platformTarget)
+      ? EXECUTABLE_ARTIFACT_TARGET_LINUX
+      : EXECUTABLE_ARTIFACT_TARGET_MSVC;
     return {
       command: "w.exe",
       subcommand: "build",
-      target: EXECUTABLE_ARTIFACT_TARGET_MSVC,
-      args: ["build", "<source>", "--target", EXECUTABLE_ARTIFACT_TARGET_MSVC, "--output", "<artifact>"],
+      target,
+      args: ["build", "<source>", "--target", target, "--output", "<artifact>"],
       flags: [...W_MLIR_OPT_FLAGS, "--mlir-to-llvmir", ...W_LLC_FLAGS, ...W_LLD_LINK_FLAGS],
       cmakeBuildType: "Release",
       profile: "release",
-      artifactAbi: EXECUTABLE_ARTIFACT_TARGET_MSVC,
+      artifactAbi: target,
     };
   }
   if (context.language === "c") {
@@ -1866,6 +2220,25 @@ function toolchainProvenance(context) {
     return process;
   }
   if (context.language === "w") {
+    if (isWslPlatform(context.platformTarget)) {
+      return {
+        compiler: "w.exe",
+        compilerProfile: "release",
+        compilerTarget: EXECUTABLE_ARTIFACT_TARGET_LINUX,
+        wExecutableDigest: context.publicW.digest,
+        wExecutableReceiptDigest: context.publicW.receiptDigest,
+        windowsManifestDigest: context.windowsToolchain.manifestDigest,
+        linuxWslProfile: {
+          manifest: "tooling/mlir0-toolchain.json",
+          manifestDigest: context.linuxWslProfile.manifestDigest,
+          version: LINUX_TOOLCHAIN_VERSION,
+          targetTriple: EXECUTABLE_ARTIFACT_TARGET_LINUX,
+          hostMode: EXECUTABLE_WSL_HOST_MODE,
+          crossLinker: context.linuxWslProfile.linkerRecord?.relativePath ?? path.basename(context.linuxWslProfile.linker ?? "ld.lld.exe"),
+        },
+        compilerVersion: context.publicW.compilerVersion ?? LINUX_TOOLCHAIN_VERSION,
+      };
+    }
     return {
       compiler: "w.exe",
       compilerProfile: "release",
@@ -1900,27 +2273,36 @@ function makeResult(context, correctness, compileWarmup, compileRaw, runWarmup, 
   const recipe = recipeFor(context);
   const recipeDigest = sha256Json(recipe);
   const toolchain = context.languageToolchain;
+  const platformTarget = context.platformTarget;
   const artifactTarget = isProcessHandlerLifecycle(context.target)
     ? EXECUTABLE_ARTIFACT_TARGET_MINGW
     : source.artifactTarget;
+  const artifact = {
+    digest: correctness.artifactDigest,
+    sizeBytes: correctness.artifactSizeBytes,
+    cleanliness: correctness.artifactCleanliness,
+    ...(isWslPlatform(platformTarget)
+      ? { elfLayout: correctness.artifactElfLayout }
+      : { peLayout: correctness.artifactPeLayout }),
+  };
   const result = {
     $schema: "./executable-benchmark.schema.json",
     schema: EXECUTABLE_RESULT_SCHEMA,
     kind: "executable-result",
-    id: `${context.target}-${context.language}-${context.commit.slice(0, 12)}`,
+    id: `${context.target}-${context.language}${platformTarget === EXECUTABLE_PLATFORM_TARGET_WINDOWS ? "" : `-${platformTarget}`}-${context.commit.slice(0, 12)}`,
     status: "recorded",
     workloadId: context.target,
     language: context.language,
-    platformTarget: EXECUTABLE_PLATFORM_TARGET,
+    platformTarget,
     artifactTarget,
     profile: "release",
     quality: "exploratory",
     claim: "measurement-only",
     verdict: "not-evaluated",
-    equivalenceKey: executableEquivalenceKey(context.catalog, context.target, EXECUTABLE_PLATFORM_TARGET, "release", source.recipeClass),
+    equivalenceKey: executableEquivalenceKey(context.catalog, context.target, platformTarget, "release", source.recipeClass),
     identity: {
       sourceDigest: executableSourceDigest(source),
-      platformTarget: EXECUTABLE_PLATFORM_TARGET,
+      platformTarget,
       artifactTarget,
       profile: "release",
       toolchain: toolchain.identity,
@@ -1946,12 +2328,7 @@ function makeResult(context, correctness, compileWarmup, compileRaw, runWarmup, 
         stdoutDigest: exactOutputDigest(workload.oracle.stdout),
         stderrDigest: exactOutputDigest(workload.oracle.stderr),
       },
-    artifact: {
-      digest: correctness.artifactDigest,
-      sizeBytes: correctness.artifactSizeBytes,
-      cleanliness: correctness.artifactCleanliness,
-      peLayout: correctness.artifactPeLayout,
-    },
+    artifact,
     protocol: isProcessHandlerLifecycle(context.target) ? processProtocol(context) : protocol(context, workload),
     environment: context.environment,
     compile: sampleSeries(compileWarmup, compileRaw),
@@ -1965,6 +2342,15 @@ function makeResult(context, correctness, compileWarmup, compileRaw, runWarmup, 
       catalogDigest: context.catalogDigest,
       commit: context.commit,
       observedAt,
+      ...(isWslPlatform(platformTarget)
+        ? {
+          platformEvidence: {
+            hostMode: EXECUTABLE_WSL_HOST_MODE,
+            comparisonPurpose: EXECUTABLE_WSL_COMPARISON_PURPOSE,
+            rankability: EXECUTABLE_WSL_RANKABILITY,
+          },
+        }
+        : {}),
     },
   };
   const errors = validateExecutableResult(result, context.catalog);
@@ -2066,11 +2452,18 @@ async function cleanupOwned(directory) {
 async function runBenchmarkUnlocked(options = {}, dependencies = {}) {
   const target = options.target ?? DEFAULT_TARGET;
   const language = options.language ?? "w";
+  const platformTarget = options.platform ?? options.platformTarget ?? EXECUTABLE_PLATFORM_TARGET_WINDOWS;
   const warmup = options.warmup ?? DEFAULT_WARMUP;
   const compileSamples = options.compileSamples ?? options.samples ?? DEFAULT_COMPILE_SAMPLES;
   const runSamples = options.runSamples ?? options.samples ?? DEFAULT_RUN_SAMPLES;
   if (!RUN_TARGETS.includes(target)) fail(`unsupported benchmark target: ${target}`);
   if (!EXECUTABLE_LANGUAGES.includes(language)) fail(`unsupported language: ${language}`);
+  if (![EXECUTABLE_PLATFORM_TARGET_WINDOWS, EXECUTABLE_PLATFORM_TARGET_LINUX_WSL].includes(platformTarget)) {
+    fail(`unsupported platform: ${platformTarget}`);
+  }
+  if (isWslPlatform(platformTarget) && language !== "w") {
+    fail("linux-wsl-x64 currently supports only public W sources");
+  }
   if (!Number.isSafeInteger(warmup) || warmup < 1 || warmup > EXECUTABLE_MAX_SAMPLES) fail(`warmup must be between 1 and ${EXECUTABLE_MAX_SAMPLES}`);
   if (!Number.isSafeInteger(compileSamples) || compileSamples < 9 || compileSamples > EXECUTABLE_MAX_SAMPLES || compileSamples % 2 === 0) fail(`compileSamples must be odd and between 9 and ${EXECUTABLE_MAX_SAMPLES}`);
   if (!Number.isSafeInteger(runSamples) || runSamples < 9 || runSamples > EXECUTABLE_MAX_SAMPLES || runSamples % 2 === 0) fail(`runSamples must be odd and between 9 and ${EXECUTABLE_MAX_SAMPLES}`);
@@ -2080,7 +2473,10 @@ async function runBenchmarkUnlocked(options = {}, dependencies = {}) {
     fail("native benchmark injection is test-only and cannot publish");
   }
   const processTarget = isProcessHandlerLifecycle(target);
-  measurementPlatform(dependencies, publish);
+  if (isWslPlatform(platformTarget) && processTarget) {
+    fail("linux-wsl-x64 does not support the private process-handler-lifecycle composite");
+  }
+  const hostPlatform = measurementPlatform(dependencies, publish, platformTarget);
   if (language === "w") {
     const legacyFallbacks = ["gate", "buildPrivateGate"]
       .filter((key) => Object.prototype.hasOwnProperty.call(dependencies, key));
@@ -2093,7 +2489,7 @@ async function runBenchmarkUnlocked(options = {}, dependencies = {}) {
   const catalogErrors = validateExecutableCatalog(catalog, documents, undefined,
     { allowStaleSourceDigest: true });
   if (catalogErrors.length > 0) fail(`catalog validation failed: ${catalogErrors.join("; ")}`);
-  const source = await sourcePath(catalog, target, language);
+  const source = await sourcePath(catalog, target, language, platformTarget);
   const processExecutionDescriptor = processTarget ? processExecution(source.workload) : undefined;
   const processSupportSources = processTarget ? await resolveProcessSupportSources(source.workload) : undefined;
   if (processTarget && source.source.recipeClass !== PROCESS_ENTRY0_RECIPE_CLASS) {
@@ -2109,9 +2505,17 @@ async function runBenchmarkUnlocked(options = {}, dependencies = {}) {
   const catalogDigest = dependencies.catalogDigest ?? await sha256File(CATALOG_PATH);
   const commit = dependencies.commit ?? await currentCommit(executor);
   if (!/^[0-9a-f]{40}$/u.test(commit)) fail("commit provenance must be a full lowercase identity");
-  const environment = dependencies.environment ?? environmentSnapshot();
+  const wslRuntime = isWslPlatform(platformTarget)
+    ? await resolveWslRuntime(executor, dependencies, hostPlatform, publish)
+    : undefined;
+  const environment = dependencies.environment ?? (isWslPlatform(platformTarget)
+    ? await environmentSnapshotWsl(executor, wslRuntime)
+    : environmentSnapshot());
   const windowsToolchain = language === "w"
     ? dependencies.windowsToolchain ?? await resolveWindowsToolchain()
+    : undefined;
+  const linuxWslProfile = isWslPlatform(platformTarget)
+    ? await resolveLinuxWslCrossProfile(windowsToolchain, dependencies, publish)
     : undefined;
   const publicW = language === "w"
     ? processTarget ? undefined : normalizePublicW(dependencies.publicW ?? (typeof dependencies.buildPublicW === "function"
@@ -2141,22 +2545,27 @@ async function runBenchmarkUnlocked(options = {}, dependencies = {}) {
       : language === "w"
       ? {
         language: "w",
-        identity: publicWToolchainIdentity(publicW),
-        version: publicW.compilerVersion ?? "release",
-        target: EXECUTABLE_ARTIFACT_TARGET_MSVC,
+        identity: publicWToolchainIdentity(publicW, isWslPlatform(platformTarget) ? EXECUTABLE_ARTIFACT_TARGET_LINUX : EXECUTABLE_ARTIFACT_TARGET_MSVC),
+        version: publicW.compilerVersion ?? (isWslPlatform(platformTarget) ? LINUX_TOOLCHAIN_VERSION : "release"),
+        target: isWslPlatform(platformTarget) ? EXECUTABLE_ARTIFACT_TARGET_LINUX : EXECUTABLE_ARTIFACT_TARGET_MSVC,
       }
       : languageToolchain;
-    const nativeBenchmark = dependencies.nativeBenchmark ??
-      (dependencies.testOnly === true ? undefined :
-        await prepareNativeBenchmark(executor, tempRoot));
+    const nativeBenchmark = isWslPlatform(platformTarget)
+      ? undefined
+      : dependencies.nativeBenchmark ??
+        (dependencies.testOnly === true ? undefined :
+          await prepareNativeBenchmark(executor, tempRoot));
     const context = {
       executor,
       catalog,
       target,
+      platformTarget,
       source,
       windowsToolchain,
       tools: windowsToolchain?.tools,
       publicW,
+      wslRuntime,
+      linuxWslProfile,
       language,
       languageToolchain: selectedToolchain,
       processExecution: processExecutionDescriptor,
@@ -2210,12 +2619,14 @@ async function runBenchmarkUnlocked(options = {}, dependencies = {}) {
       }
     } else {
       for (let round = 0; round < warmup; round += 1) {
-        const execution = await runArtifact(executor, correctness.compiled.artifact, language, target, timedArguments);
+        const execution = await runArtifact(executor, correctness.compiled.artifact, language, target, timedArguments,
+          isWslPlatform(platformTarget) ? wslRuntime : undefined);
         assertOracle(execution, timedExpected, target, `${language} ${target} warmup`);
         runWarmup.push(execution.sample);
       }
       for (let round = 0; round < runSamples; round += 1) {
-        const execution = await runArtifact(executor, correctness.compiled.artifact, language, target, timedArguments);
+        const execution = await runArtifact(executor, correctness.compiled.artifact, language, target, timedArguments,
+          isWslPlatform(platformTarget) ? wslRuntime : undefined);
         assertOracle(execution, timedExpected, target, `${language} ${target} raw`);
         runRaw.push(execution.sample);
       }

@@ -17,6 +17,7 @@ import {
   publishRecord,
   resolveResultPath,
   runBenchmark,
+  validateElfX64,
   validatePeX64,
 } from "./executable-benchmark-runner.mjs";
 import {
@@ -35,13 +36,16 @@ import { exactOutputDigest } from "./executable-benchmark-machine.mjs";
 
 test("benchmark arguments separate compile cost from high-resolution run sampling", () => {
   assert.deepEqual(parseBenchmarkArguments([]), {
-    target: "hello", language: "w", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
+    target: "hello", language: "w", platform: "windows-x64", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
   });
   assert.deepEqual(parseBenchmarkArguments(["--target", "hello", "--language", "c", "--output", "benchmarks/results/hello-c.local.json", "--warmup", "2", "--samples", "11"]), {
-    target: "hello", language: "c", output: "benchmarks/results/hello-c.local.json", warmup: 2, compileSamples: 11, runSamples: 11, help: false,
+    target: "hello", language: "c", platform: "windows-x64", output: "benchmarks/results/hello-c.local.json", warmup: 2, compileSamples: 11, runSamples: 11, help: false,
   });
   assert.deepEqual(parseBenchmarkArguments(["--language=rust"]), {
-    target: "hello", language: "rust", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
+    target: "hello", language: "rust", platform: "windows-x64", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
+  });
+  assert.deepEqual(parseBenchmarkArguments(["--platform", "linux-wsl-x64"]), {
+    target: "hello", language: "w", platform: "linux-wsl-x64", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
   });
   assert.throws(() => parseBenchmarkArguments(["--language", "swift"]), /unsupported/);
   assert.throws(() => parseBenchmarkArguments(["--samples", "10"]), /odd/);
@@ -49,16 +53,16 @@ test("benchmark arguments separate compile cost from high-resolution run samplin
   assert.throws(() => parseBenchmarkArguments(["--run-samples", "1003"]), /between 9 and 1001/);
   assert.throws(() => parseBenchmarkArguments(["--warmup", "0"]), /between 1/);
   assert.deepEqual(parseBenchmarkArguments(["--target", "restaurant-branch", "--language", "rust"]), {
-    target: "restaurant-branch", language: "rust", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
+    target: "restaurant-branch", language: "rust", platform: "windows-x64", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
   });
   assert.deepEqual(parseBenchmarkArguments(["--target", "process-handler-lifecycle", "--language", "c"]), {
-    target: "process-handler-lifecycle", language: "c", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
+    target: "process-handler-lifecycle", language: "c", platform: "windows-x64", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
   });
   assert.deepEqual(parseBenchmarkArguments(["--target", "process-entry", "--language", "rust"]), {
-    target: "process-entry", language: "rust", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
+    target: "process-entry", language: "rust", platform: "windows-x64", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
   });
   assert.deepEqual(parseBenchmarkArguments(["--target", "process-enum-payload", "--language", "rust"]), {
-    target: "process-enum-payload", language: "rust", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
+    target: "process-enum-payload", language: "rust", platform: "windows-x64", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
   });
   assert.throws(() => parseBenchmarkArguments(["--target", "process-entry0", "--language", "c"]), /unsupported benchmark target/);
   assert.throws(() => parseBenchmarkArguments(["--target", "restaurant-composition"]), /unsupported/);
@@ -571,6 +575,45 @@ test("bounded PE verifier accepts clean PE32+ and rejects symbol, debug, certifi
     overlappingVirtual.writeUInt32LE(0x400, secondVirtualSection + 20);
     assert.throws(() => validatePeX64(overlappingVirtual, language), /overlapping PE section virtual ranges/u);
   }
+});
+
+test("bounded ELF verifier records Linux x86_64 layout and rejects loader and overlay data", () => {
+  const minimalElf = Buffer.alloc(64);
+  minimalElf[0] = 0x7f;
+  minimalElf.write("ELF", 1, "ascii");
+  minimalElf[4] = 2;
+  minimalElf[5] = 1;
+  minimalElf[6] = 1;
+  minimalElf.writeUInt16LE(3, 16);
+  minimalElf.writeUInt16LE(0x3e, 18);
+  minimalElf.writeUInt32LE(1, 20);
+  minimalElf.writeUInt16LE(64, 52);
+  assert.deepEqual(validateElfX64(minimalElf), {
+    cleanliness: {
+      coffSymbols: { pointer: "0", count: "0" },
+      codeView: { count: "0", sizeBytes: "0" },
+      debugDirectory: { presence: "absent", sizeBytes: "0", entries: [] },
+      certificateDirectory: { pointer: "0", sizeBytes: "0" },
+      sectionData: "in-bounds",
+      overlay: { sizeBytes: "0" },
+    },
+    elfLayout: {
+      class: "ELF64",
+      data: "little-endian",
+      machine: "x86-64",
+      type: "pie",
+    },
+  });
+  assert.equal(validateElfX64(minimalElf).peLayout, undefined);
+
+  const interpElf = Buffer.alloc(64 + 56);
+  minimalElf.copy(interpElf);
+  interpElf.writeBigUInt64LE(64n, 32);
+  interpElf.writeUInt16LE(56, 54);
+  interpElf.writeUInt16LE(1, 56);
+  interpElf.writeUInt32LE(3, 64);
+  assert.throws(() => validateElfX64(interpElf), /PT_INTERP/u);
+  assert.throws(() => validateElfX64(Buffer.concat([minimalElf, Buffer.from("overlay", "ascii")])), /overlay/u);
 });
 
 test("assertOracle rejects altered exit, stdout and stderr", () => {

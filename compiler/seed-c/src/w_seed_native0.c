@@ -503,16 +503,36 @@ static w_seed_native0_status map_mlir_status(w_seed_mlir0_status status) {
   return W_SEED_NATIVE0_MLIR;
 }
 
+static bool hir_has_main_serial_dispatch(
+    const w_seed_hir0_program *program) {
+  if (program == NULL || program->calls == NULL) return false;
+  for (size_t index = 0u; index < program->call_count; index += 1u)
+    if (program->calls[index].execution_kind ==
+        W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH)
+      return true;
+  return false;
+}
+
+static w_seed_mlir0_artifact_kind effective_artifact_kind(
+    const w_seed_hir0_program *program,
+    w_seed_mlir0_artifact_kind requested_kind) {
+  if (requested_kind != W_SEED_MLIR0_ARTIFACT_EXECUTABLE) return requested_kind;
+  if (program != NULL && program->external_module_count == 1u &&
+      program->external_symbol_count == 7u)
+    return W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE;
+  if (hir_has_main_serial_dispatch(program))
+    return W_SEED_MLIR0_ARTIFACT_COOPERATIVE_EXECUTABLE;
+  return requested_kind;
+}
+
 static w_seed_native0_status emit_hir_program(
     w_seed_native0_storage *storage, const w_seed_mlir0_target *target,
     w_seed_mlir0_artifact_kind artifact_kind, size_t source_bytes,
     const w_seed_native0_output *output, w_seed_native0_result *result) {
   if (storage == NULL || target == NULL || output == NULL || result == NULL)
     return W_SEED_NATIVE0_INVALID;
-  if (artifact_kind == W_SEED_MLIR0_ARTIFACT_EXECUTABLE &&
-      storage->hir_program.external_module_count == 1u &&
-      storage->hir_program.external_symbol_count == 7u)
-    artifact_kind = W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE;
+  artifact_kind =
+      effective_artifact_kind(&storage->hir_program, artifact_kind);
   const w_seed_mlir0_input mlir_input = {
       .program = &storage->hir_program,
       .hir_result = &storage->hir_result,

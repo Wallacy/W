@@ -39139,6 +39139,11 @@ physical layout, FFI behavior, device residency, or runtime materialization.
 W-1581 remains an implementation-evidence gap and creates no public header,
 layout, or ABI.
 
+```w
+object Ticket { let id: u64 }
+let ticket = Ticket(id: 42) // may remain virtual until identity or address escapes
+```
+
 #### 26.4.1.63 W-1582 — bounded virtual Task across a same-module scalar helper graph (Current bounded form)
 
 W-1582 is a source-backed bounded application of W-1580. It extends the
@@ -39169,6 +39174,11 @@ The updated `restaurant-async-yield.w` fixture calls `stage`. The Windows
 product gate must be rerun for the changed source. This milestone makes no
 claim about concurrency, fairness, a scheduler, overlap, or Linux execution.
 Its benchmark disposition is `compiler-lifecycle`.
+
+```w
+let pending = async prepare(value: 43)
+let result = await pending
+```
 
 #### 26.4.1.64 W-1583 — bounded Cooperative0 compiler-host trace oracle (Current bounded oracle; compiler-host only)
 
@@ -39212,6 +39222,14 @@ project it through the general emitted-target matrix; evidence available first
 on Windows and Linux must not specialize the HIR, frame, queue, or lifecycle
 contract or exclude macOS and other viable LLVM targets.
 
+```w
+let left = async prepare(value: 20)
+let right = async prepare(value: 22)
+let first = await left
+let second = await right
+let total = first + second
+```
+
 #### 26.4.1.65 W-1584 — target-neutral cooperative product selection and scalar state-machine core (Current bounded form)
 
 W-1584 starts with a target-neutral, versioned, reserved, caller-owned
@@ -39220,7 +39238,7 @@ selection proof for the narrower product boundary. Schema
 facts. It is not a task frame, scheduler record, runtime object, or
 ABI.
 
-NativeSubset0 independently rederives this record from verified HIR34. The M1
+NativeSubset0 independently rederives this record from verified HIR35. The M1
 subset is one module with one fixed anonymous Unit root and exactly two ordered
 scalar async children. Each child has one or two exact
 `await execution#yield()` markers. The complete reachable scalar helper graph
@@ -39252,6 +39270,10 @@ ABI or publishes a benchmark. Backend target selection remains independent:
 one semantic core must be reusable for every applicable target in the
 emitted-target catalog. Current Windows and Linux checks are evidence lanes
 only and cannot restrict macOS, cross-compilation, or other viable LLVM targets.
+
+```mlir
+%next = scf.while (%turn = %initial) : (i32) -> i32 { /* two logical frames */ }
+```
 
 #### 26.4.1.66 W-1585 — bounded cooperative process projections and target-coverage rule (Current bounded form)
 
@@ -39302,12 +39324,77 @@ the W target universe. macOS, AArch64, mobile, GPU, WebAssembly, embedded, and
 other catalog candidates remain architecturally open and must not inherit a
 Windows or Linux ABI. A process entry may be genuinely inapplicable to a
 device-only target, but the cooperative core is still reusable by that
-target's own execution adapter. W-1585 does not expose this artifact through
-public `w run`/`w build`, define scheduler fairness, threads, parallel overlap,
-cancellation, a stable ABI, or benchmark performance. Implementations must
+target's own execution adapter. W-1585 does not itself expose this artifact
+through public `w run`/`w build`; W-1586 owns the later bounded promotion.
+Neither decision defines scheduler fairness, threads, parallel overlap,
+cancellation, a stable ABI, or ranked benchmark performance. Implementations must
 emit every requested applicable target and release fanout must attempt every
 supported applicable target; a missing local machine can block validation but
 cannot narrow either set.
+
+```text
+w_seed_cooperative0_tests --emit-cooperative-linux-mlir
+```
+
+#### 26.4.1.67 W-1586 — bounded non-elidable main-domain dispatch (Current bounded form)
+
+W-1586 adds the first source-selected physical Task path. The admitted source
+has exactly two sibling `spawn<.main>` launches in one linear root. Each child
+uses the W-1584 scalar helper subset and one or two
+`await execution#yield()` points. The root joins both Tasks in lexical order
+and uses their signed-`i64` outcomes in the existing bounded output plan.
+
+Frontend25 records `SPAWN_MAIN_LAUNCH` separately from `ASYNC_TASK_LAUNCH`.
+HIR35 lowers it to `STRUCTURED_ASYNC_MAIN_DISPATCH` under the `MAIN_SERIAL`
+profile. Independent HIR and cooperative-selection verification requires two
+uniform main-domain launches. It rejects mixed launch kinds, another spawn
+domain, reordered or missing joins, forged profiles, and unsupported child
+effects before output publication.
+
+`MAIN_SERIAL` is a verified, derived output fact for this source relation. It
+is not a caller-selected HIR lowering profile. Callers request the ordinary
+public executable; Native0 derives the effective physical artifact from the
+verified HIR through one explicit selector. Supplying the separate internal
+cooperative-oracle artifact kind continues to select `COOPERATIVE_TRACE`, not
+`MAIN_SERIAL`.
+
+The `.main` contract requires serial FIFO dispatch. Therefore, the compiler
+must not replace `spawn<.main>` with a direct call, even when the child is
+otherwise pure. Native0 selects the physical cooperative executable only from
+verified HIR facts. It does not inspect a filename, fixture, expected stdout,
+or fallback flag. Ordinary `async` remains eligible for W-1582 virtual Task
+and yield elimination when its complete proof succeeds.
+
+The same target-neutral state-machine core implements the bounded main-domain
+path. Current evidence executes exact `Dispatched 88\n` from public `w run`
+and `w build` on Windows x86_64. Public Windows-host `w build` also accepts the
+Linux x86_64 target, lowers the same verified HIR with the pinned MLIR 23.1.1
+tools, links the authored WRT0 closure through the sibling `ld.lld`, and emits
+a CRT-free ELF that executes under WSL2. The independent product gate verifies
+the same two target leaves. A native-Linux-host public CLI run remains blocked
+because its separately materialized Linux MLIR 23.1.1 toolchain is absent.
+
+This evidence does not restrict target coverage. An implementation must emit
+the feature for every requested applicable target. Release fanout must attempt
+every supported applicable target. Windows and Linux are current evidence
+lanes only. macOS, AArch64, mobile, WebAssembly, GPU, embedded, and future
+targets remain required when applicable. General cross-compilation, more Task
+counts, nested scopes, cancellation, parallel domains, scheduler providers,
+stable ABI, and ranked cross-language performance remain open.
+
+Frontend recognition is intentionally wider than this bounded product subset.
+The current product rejects one or more than two root launches, mixed launch
+kinds, nested or non-root launches, synchronous or zero-yield children, and a
+process-root plus main-domain composition. These are implementation gaps, not
+language-level prohibitions; rejection is fail-closed and publishes no output.
+
+```w
+let left = spawn<.main> prepare(value: 20)
+let right = spawn<.main> prepare(value: 22)
+let first = await left
+let second = await right
+let total = first + second
+```
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

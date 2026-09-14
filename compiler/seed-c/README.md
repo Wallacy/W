@@ -1739,7 +1739,7 @@ copied HIR indices and admission facts. It is not a task frame,
 scheduler record, runtime object, or ABI.
 
 NativeSubset0 independently rederives this narrower one-block product shape
-from verified HIR34. It requires one module, one fixed anonymous Unit root,
+from verified HIR35. It requires one module, one fixed anonymous Unit root,
 exactly two ordered scalar async children, one or two
 `await execution#yield()` markers per child, and a complete reachable scalar
 helper graph of at most 64 functions. After both joins, zero or more host
@@ -1791,7 +1791,8 @@ general SDK/sysroot packaging or a complete host-target matrix.
 
 `w_seed_native0_run` accepts the cooperative artifact kind for internal
 product-policy callers and lowers that request with the cooperative HIR
-profile. Public `w run` and `w build` still request the normal artifact, keeping
+profile. W-1585 itself keeps public `w run` and `w build` on the normal artifact,
+while
 the same pure witness eligible for W-1582 Task/yield elision. No filename,
 stdout, or fallback heuristic forces the cooperative state machine.
 
@@ -1803,9 +1804,49 @@ another viable target. A real exclusion requires a target-inapplicability
 rationale and catalog record. A requested multi-target invocation must not
 silently emit only locally executable targets. Release automation must fan the same
 verified core to all supported applicable targets, with any supported host able
-to build any supported target. Public `w run`/`w build` integration for this
-cooperative product, other target WRT/adapters, stable ABI, runtime/scheduler
-providers, parallel overlap, cancellation, and benchmark evidence remain gaps.
+to build any supported target. W-1586 owns the first bounded public product
+selection. Other target WRT/adapters, stable ABI, runtime/scheduler providers,
+parallel overlap, cancellation, and ranked benchmark evidence remain gaps.
+
+### Main-domain product dispatch (W-1586)
+
+Frontend25 records `spawn<.main>` separately from ordinary `async`. HIR35
+lowers the admitted pair to `STRUCTURED_ASYNC_MAIN_DISPATCH` with the
+`MAIN_SERIAL` profile. The independent verifier requires exactly two uniform
+launches, one or two yields per scalar child, lexical joins, and the existing
+bounded output plan. Another domain or a mixed launch pair fails closed.
+
+Native0 promotes an ordinary executable request to the cooperative executable
+only when verified HIR contains the main-dispatch relation. It does not inspect
+the fixture name or output. Ordinary pure `async` remains eligible for W-1582
+elision.
+
+`MAIN_SERIAL` is derived output, not a caller-selected HIR input profile. One
+explicit effective-artifact selector maps the ordinary public executable
+request after HIR verification. The separate internal cooperative-oracle
+artifact continues to request `COOPERATIVE_TRACE`. Frontend recognition is
+wider than this bounded product: unsupported task counts or placement, mixed
+launches, synchronous or zero-yield children, and process-root composition
+fail closed without defining a language prohibition.
+
+The fixture `fixtures/restaurant-main-dispatch0.w` executes exact
+`Dispatched 88\n`. Public Windows `w run` and `w build` produce and execute a
+CRT-free PE. The cooperative product gate also lowers, links, and executes the
+same source as Windows and Linux x86_64 products from the Windows host.
+Public Windows-host `w build --target x86_64-unknown-linux-gnu` now uses that
+same pinned target-neutral route and authored WRT0 closure to publish a new
+CRT-free ELF; WSL2 supplies target execution only. This does not establish the
+native-Linux-host compiler route or general cross-compilation.
+
+The hidden target-leaf modes are:
+
+    w_seed_cooperative0_tests --emit-main-dispatch-linux-mlir
+    w_seed_cooperative0_tests --emit-main-dispatch-windows-mlir
+
+Current target leaves are evidence only. Every requested applicable target
+must receive an artifact, and release fanout must attempt every supported
+applicable target. macOS and other viable targets remain open even without a
+local execution machine.
 
 ### Closed local payloadless enum exhaustive switch (W-1563)
 

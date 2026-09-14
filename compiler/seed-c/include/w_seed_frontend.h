@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-24"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-25"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -70,6 +70,8 @@ typedef enum {
   W_SEED_FRONTEND_FACT_TASK_ESCAPE,
   /* Rejected use of the non-reifiable current-execution yield facet. */
   W_SEED_FRONTEND_FACT_EXECUTION_YIELD,
+  /* Rejected use of the bounded mandatory `.main` domain dispatch. */
+  W_SEED_FRONTEND_FACT_SPAWN_MAIN_LAUNCH,
 } w_seed_frontend_fact_kind;
 
 typedef enum {
@@ -144,6 +146,9 @@ typedef enum {
   /* Exact `await execution#yield()` suspension point.  This is one semantic
    * expression, not a member call and not a public Task value. */
   W_SEED_FRONTEND_EXPR_EXECUTION_YIELD,
+  /* Exact `spawn<.main> localCall(...)`.  This is a mandatory serial-domain
+   * dispatch, not an async initializer eligible for direct-call elision. */
+  W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH,
 } w_seed_frontend_expr_kind;
 
 typedef enum {
@@ -850,9 +855,9 @@ typedef struct {
   /* Append-only scalar-if else-arm relation.  It is NONE for every other
    * expression kind. */
   uint32_t else_expression;
-  /* Append-only Async0 relations.  ASYNC_LAUNCH uses task_result_type and
-   * task_call_expression; AWAIT uses task_binding_statement and
-   * task_result_type. */
+  /* Append-only Task relations. ASYNC_LAUNCH and SPAWN_MAIN_LAUNCH use
+   * task_result_type and task_call_expression; AWAIT uses
+   * task_binding_statement and task_result_type. */
   uint32_t task_result_type;
   uint32_t task_call_expression;
   uint32_t task_binding_statement;

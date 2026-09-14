@@ -921,6 +921,62 @@
       "blockers": []
     },
     {
+      "id": "restaurant-main-dispatch",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "partial-exploratory-ready",
+      "lane": "equivalent",
+      "scope": "Dispatch two scalar children through the serial main domain, preserve their suspension points, join both results, and print the exact receipt.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Dispatched 88\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-main-dispatch0.w",
+          "digest": "sha256:0d6ebee152ec258c0e5af2fb2318d8b4a8e0a66b0bfc26d4af8977ec748b5af9",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-main-dispatch-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        },
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-main-dispatch0.w",
+          "digest": "sha256:0d6ebee152ec258c0e5af2fb2318d8b4a8e0a66b0bfc26d4af8977ec748b5af9",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-main-dispatch-release",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only"
+        }
+      ],
+      "blockedLanguages": [
+        "c",
+        "rust"
+      ],
+      "blockers": [
+        "equivalent-main-domain-baselines"
+      ]
+    },
+    {
       "id": "restaurant-enum-switch",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",

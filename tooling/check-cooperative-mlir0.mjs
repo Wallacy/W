@@ -12,6 +12,7 @@ const ninja = Bun.which("ninja");
 const compiler = ["cc", "gcc", "clang", "cl"]
   .map((name) => Bun.which(name)).find(Boolean);
 const expected = Buffer.from("Cooperative 88\n");
+const mainDispatchExpected = Buffer.from("Dispatched 88\n");
 
 function fail(message) {
   throw new Error(`COOPERATIVE MLIR0: ${message}`);
@@ -90,6 +91,11 @@ function exactExecution(result, label) {
     fail(`${label} output differs from Cooperative 88\\n`);
 }
 
+function exactMainDispatchExecution(result, label) {
+  if (!result.stdout.equals(mainDispatchExpected) || result.stderr.length !== 0)
+    fail(`${label} output differs from Dispatched 88\\n`);
+}
+
 if (!cmake || !ninja || !compiler) {
   console.log("COOPERATIVE MLIR0: BLOCKED host CMake/Ninja/compiler unavailable");
   process.exit(0);
@@ -120,6 +126,8 @@ try {
     ["neutral", "--emit-target-neutral-mlir"],
     ["linux", "--emit-cooperative-linux-mlir"],
     ["windows", "--emit-cooperative-windows-mlir"],
+    ["main-linux", "--emit-main-dispatch-linux-mlir"],
+    ["main-windows", "--emit-main-dispatch-windows-mlir"],
   ];
   const files = {};
   for (const [name, mode] of modes) {
@@ -152,6 +160,19 @@ try {
       sdk.path, "/Brepro", "/opt:ref", "/opt:icf", "/incremental:no"]);
     exactExecution(run(executable, []), "Windows PE");
     windowsBytes = (await stat(executable)).size;
+
+    const mainLlvm = join(directory, "main-windows.ll");
+    const mainObject = join(directory, "main-windows.obj");
+    const mainExecutable = join(directory, "main-dispatch.exe");
+    run(tools.mlirTranslate, ["--mlir-to-llvmir", files["main-windows"].lowered,
+      "-o", mainLlvm]);
+    run(tools.llc, ["-filetype=obj", "-mtriple=x86_64-pc-windows-msvc",
+      "-O3", mainLlvm, "-o", mainObject]);
+    run(tools.lldLink, ["/entry:mainCRTStartup", "/subsystem:console",
+      "/nodefaultlib", "/machine:x64", `/out:${mainExecutable}`, mainObject,
+      sdk.path, "/Brepro", "/opt:ref", "/opt:icf", "/incremental:no"]);
+    exactMainDispatchExecution(run(mainExecutable, []),
+      "Windows main-domain PE");
   }
 
   let linuxEvidence = "blocked";
@@ -176,6 +197,22 @@ try {
       "-a", executable.replaceAll("\\", "/")]).stdout.toString().trim();
     exactExecution(run("wsl.exe", ["-d", "Ubuntu", "--", wslExecutable]),
       "Windows-cross-linked Linux/WSL ELF");
+    const mainLlvm = join(directory, "main-linux.ll");
+    const mainObject = join(directory, "main-linux.o");
+    const mainExecutable = join(directory, "main-dispatch-linux");
+    run(tools.mlirTranslate, ["--mlir-to-llvmir", files["main-linux"].lowered,
+      "-o", mainLlvm]);
+    run(tools.llc, ["-filetype=obj", "-mtriple=x86_64-unknown-linux-gnu",
+      "-relocation-model=pic", "-O3", mainLlvm, "-o", mainObject]);
+    run(tools.ldLld, ["-pie", "--no-dynamic-linker", "-e", "_start",
+      "--gc-sections", "-z", "noexecstack", "-s", mainObject, wrt0Object,
+      "-o", mainExecutable]);
+    assertCrtFreeElf(await readFile(mainExecutable));
+    const wslMainExecutable = run("wsl.exe", ["-d", "Ubuntu", "--", "wslpath",
+      "-a", mainExecutable.replaceAll("\\", "/")]).stdout.toString().trim();
+    exactMainDispatchExecution(
+      run("wsl.exe", ["-d", "Ubuntu", "--", wslMainExecutable]),
+      "Windows-cross-linked Linux/WSL main-domain ELF");
     linuxEvidence = "windows-host-cross-link+target-execution";
   } else if (process.platform === "linux") {
     const linker = tools.ldLld;
@@ -197,12 +234,25 @@ try {
         "-o", executable]);
       assertCrtFreeElf(await readFile(executable));
       exactExecution(run(executable, []), "native Linux ELF");
+      const mainLlvm = join(directory, "main-linux.ll");
+      const mainObject = join(directory, "main-linux.o");
+      const mainExecutable = join(directory, "main-dispatch");
+      run(tools.mlirTranslate, ["--mlir-to-llvmir",
+        files["main-linux"].lowered, "-o", mainLlvm]);
+      run(tools.llc, ["-filetype=obj", "-mtriple=x86_64-unknown-linux-gnu",
+        "-relocation-model=pic", "-O3", mainLlvm, "-o", mainObject]);
+      run(linker, ["-pie", "--no-dynamic-linker", "-e", "_start",
+        "--gc-sections", "-z", "noexecstack", "-s", mainObject, wrt0Object,
+        "-o", mainExecutable]);
+      assertCrtFreeElf(await readFile(mainExecutable));
+      exactMainDispatchExecution(run(mainExecutable, []),
+        "native Linux main-domain ELF");
       linuxEvidence = "native-crt-free-link+execution";
     }
   }
 
   console.log(
-    `COOPERATIVE MLIR0: core + Windows/Linux projections passed ` +
+    `COOPERATIVE MLIR0: cooperative + main-domain Windows/Linux projections passed ` +
     `MLIR=23.1.1 windowsPeBytes=${windowsBytes ?? "not-run"} ` +
     `linux=${linuxEvidence}`,
   );

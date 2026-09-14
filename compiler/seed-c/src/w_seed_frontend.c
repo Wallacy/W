@@ -12978,6 +12978,80 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
           W_SEED_FRONTEND_NONE, 0u, value);
     }
   }
+  if (token_text(parser->document, &token, "spawn")) {
+    frontend_token_cursor look = parser->cursor;
+    frontend_token spawn_token = {0};
+    const bool exact_main_domain =
+        cursor_take_text(&look, "spawn", &spawn_token) &&
+        cursor_take_text(&look, "<", NULL) &&
+        cursor_take_text(&look, ".", NULL) &&
+        cursor_take_text(&look, "main", NULL) &&
+        cursor_take_text(&look, ">", NULL);
+    if (!exact_main_domain) {
+      const w_seed_span rejected = token.span;
+      (void)context_append_fact(
+          parser->context, W_SEED_FRONTEND_FACT_SPAWN_MAIN_LAUNCH, rejected,
+          text_from_span(parser->document, rejected));
+      return false;
+    }
+    parser->cursor = look;
+    frontend_expr_value nested;
+    if (!expression_parse_prefix(parser, &nested)) return false;
+    const w_seed_span span = {spawn_token.span.start_byte,
+                              nested.span.end_byte};
+    const frontend_simple_type result_type = nested.type;
+    const bool supported =
+        nested.supported && nested.kind == W_SEED_FRONTEND_EXPR_CALL &&
+        nested.is_local_call && task_result_kind_supported(result_type) &&
+        !parser->context->current_function_is_const;
+    if (!supported) {
+      (void)context_append_fact(
+          parser->context, W_SEED_FRONTEND_FACT_SPAWN_MAIN_LAUNCH, span,
+          text_from_span(parser->document, span));
+      if (parser->context->current_function_is_const)
+        (void)const_record_failure(parser->context, span,
+                                   text_from_span(parser->document, span));
+    }
+    if (nested.index >= (size_t)UINT32_MAX) return false;
+    const uint32_t nested_index = (uint32_t)nested.index;
+    value->is_enum_case = false;
+    value->is_external_enum_case = false;
+    value->enum_index = W_SEED_FRONTEND_NONE;
+    value->enum_case_index = W_SEED_FRONTEND_NONE;
+    if (!expression_append(
+            parser, W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH, span,
+            text_from_span(parser->document, span),
+            text_from_span(parser->document, spawn_token.span),
+            task_simple_type(result_type), supported, nested_index,
+            (size_t)W_SEED_FRONTEND_NONE, W_SEED_FRONTEND_NONE, 0u, value)) {
+      return false;
+    }
+    uint32_t result_type_index = W_SEED_FRONTEND_NONE;
+    if (!output_type_index_for_simple(parser->context, result_type,
+                                      &result_type_index) ||
+        (supported && result_type_index == W_SEED_FRONTEND_NONE)) {
+      return false;
+    }
+    if (parser->context->emit && parser->context->output != NULL &&
+        value->index < parser->context->output->expression_capacity) {
+      w_seed_frontend_expression *record =
+          &parser->context->output->expressions[value->index];
+      record->task_call_expression = nested_index;
+      record->task_binding_statement = W_SEED_FRONTEND_NONE;
+      if (record->inferred_type != W_SEED_FRONTEND_NONE &&
+          record->inferred_type < parser->context->count.types) {
+        record->task_result_type =
+            parser->context->output->types[record->inferred_type]
+                .task_result_type;
+      }
+    } else if (!parser->context->emit &&
+               !receipt_size_task_expression(
+                   parser->context, value->index, value->kind,
+                   result_type_index, nested_index, W_SEED_FRONTEND_NONE)) {
+      return false;
+    }
+    return true;
+  }
   if (token_text(parser->document, &token, "async") ||
       token_text(parser->document, &token, "await")) {
     const bool launch = token_text(parser->document, &token, "async");
@@ -14958,11 +15032,13 @@ static bool normalize_statement_depth(frontend_context *context,
   if (expression_node != W_SEED_CST_NONE) {
     const w_seed_span expression_span = doc->nodes[expression_node].raw_span;
     const bool root_launch =
-        expression_value.kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH;
+        expression_value.kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH ||
+        expression_value.kind == W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH;
     const bool root_await = expression_value.kind == W_SEED_FRONTEND_EXPR_AWAIT;
     const bool root_execution_yield =
         expression_value.kind == W_SEED_FRONTEND_EXPR_EXECUTION_YIELD;
     const bool has_async = span_has_keyword(doc, expression_span, "async");
+    const bool has_spawn = span_has_keyword(doc, expression_span, "spawn");
     const bool has_await = span_has_keyword(doc, expression_span, "await");
     const bool uses_task = span_uses_task_binding(
         context, context->function_index, doc, expression_span);
@@ -14987,7 +15063,7 @@ static bool normalize_statement_depth(frontend_context *context,
     const bool accept_execution_yield =
         root_execution_yield && expression_value.supported &&
         node->kind == W_SEED_CST_EXPRESSION_STATEMENT && depth == 1u;
-    const bool task_surface = has_async || has_await || uses_task ||
+    const bool task_surface = has_async || has_spawn || has_await || uses_task ||
                               normalized_actual.kind ==
                                   W_SEED_FRONTEND_TYPE_TASK;
     if (task_surface && !register_task_launch && !accept_task_await &&
@@ -16926,6 +17002,8 @@ static const char *fact_name(w_seed_frontend_fact_kind kind) {
       return "task-escape";
     case W_SEED_FRONTEND_FACT_EXECUTION_YIELD:
       return "execution-yield";
+    case W_SEED_FRONTEND_FACT_SPAWN_MAIN_LAUNCH:
+      return "spawn-main-launch";
   }
   return "unknown";
 }
@@ -17369,6 +17447,7 @@ static void receipt_write_records(frontend_receipt_writer *writer,
         receipt_write_literal(writer, "\n");
       }
       if (expression->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH ||
+          expression->kind == W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH ||
           expression->kind == W_SEED_FRONTEND_EXPR_AWAIT) {
         receipt_write_literal(writer, "task-expression=");
         receipt_write_size(writer, index);

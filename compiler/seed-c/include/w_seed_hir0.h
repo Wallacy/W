@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-34"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-35"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -88,6 +88,9 @@ typedef enum {
    * retained as a bounded cooperative Task relation and is never accepted by
    * the ordinary NativeSubset0/MLIR0 scalar selectors. */
   W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE,
+  /* A source `spawn<.main>` requires serial FIFO domain dispatch.  This
+   * relation is physical even when the child body itself is pure. */
+  W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH,
 } w_seed_hir0_call_execution_kind;
 
 typedef enum {
@@ -97,6 +100,10 @@ typedef enum {
   /* Explicit bounded evidence/product request.  It can publish the physical
    * cooperative execution proof only for the closed two-task shape. */
   W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE,
+  /* Source-selected built-in serial `.main` domain dispatch.  This value is a
+   * derived verified-output profile; callers do not request it as a lowering
+   * input profile. */
+  W_SEED_HIR0_EXECUTION_PROFILE_MAIN_SERIAL,
 } w_seed_hir0_execution_profile;
 
 typedef enum {

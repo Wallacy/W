@@ -57,8 +57,11 @@ or `ref` use implies a heap, header, address, or storage class.
 - COOP0 remains a compiler-host trace oracle. A separate bounded cooperative
   core now lowers to Windows/Linux process projections. The Windows host also
   compiles and CRT-free-links the bounded Linux product with the shared WRT0;
-  WSL supplies execution evidence only. This is not yet a public product
-  runtime, scheduler, parallelism, or performance claim.
+  WSL supplies execution evidence only. A bounded `spawn<.main>` source now
+  selects this physical state machine through verified HIR and runs through
+  public Windows `w run`/`w build`; Windows-host `w build` also cross-builds
+  its CRT-free Linux x86_64 ELF for WSL2 execution. This is not a general
+  runtime, scheduler, parallelism, or ranked performance claim.
 - w run and w build require one explicit source path. w build also requires an
   exact target triple and a new output artifact.
 - Public process execution has bounded native Windows x64 and CRT-free

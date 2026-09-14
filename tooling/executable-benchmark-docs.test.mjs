@@ -24,9 +24,10 @@ test("generated projection is current, compact, and sourced only from the live c
   assert.match(rendered, /\| hello \| w \| Windows x64 \/ MSVC \| CRT-free \| [0-9]+ B/u);
   const partialWOnly = documents.catalog.workloads.filter((workload) =>
     workload.benchmarkStatus === "partial-exploratory-ready" &&
-    workload.sources.length === 1 && workload.sources[0].language === "w",
+    new Set(workload.sources.map((source) => source.language)).size === 1 &&
+    workload.sources.every((source) => source.language === "w"),
   );
-  assert.equal(partialWOnly.length, 17);
+  assert.equal(partialWOnly.length, 18);
   assert.ok(partialWOnly.every((workload) => rendered.includes(`| ${workload.id} |`)));
   assert.doesNotMatch(rendered, /restaurant-composition/u, "planned workloads stay out of the projection");
   assert.match(rendered, /Artifact size counts only the emitted executable file\. On Windows it excludes imported runtime DLLs\./u);

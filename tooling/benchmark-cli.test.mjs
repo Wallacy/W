@@ -16,16 +16,19 @@ test("benchmark facade exposes update and preserves bounded run arguments", () =
   assert.throws(() => parseBenchmarkCliArguments(["update"]), /one or more JSON paths/u);
   assert.throws(() => parseBenchmarkCliArguments(["update", "same.json", "same.json"]), /must be unique/u);
   assert.deepEqual(parseBenchmarkCliArguments(["run", "--target", "hello", "--language", "rust", "--samples", "9"]), {
-    command: "run", target: "hello", language: "rust", output: "benchmarks/results/hello-rust.local.json", warmup: 1, compileSamples: 9, runSamples: 9,
+    command: "run", target: "hello", language: "rust", platform: "windows-x64", output: "benchmarks/results/hello-rust.local.json", warmup: 1, compileSamples: 9, runSamples: 9,
+  });
+  assert.deepEqual(parseBenchmarkCliArguments(["run", "--target", "hello", "--platform", "linux-wsl-x64"]), {
+    command: "run", target: "hello", language: "w", platform: "linux-wsl-x64", output: "benchmarks/results/hello-w-linux-wsl-x64.local.json", warmup: 1, compileSamples: 9, runSamples: 101,
   });
   assert.deepEqual(parseBenchmarkCliArguments(["run", "--target", "process-handler-lifecycle", "--language", "w"]), {
-    command: "run", target: "process-handler-lifecycle", language: "w", output: "benchmarks/results/process-handler-lifecycle-w.local.json", warmup: 1, compileSamples: 9, runSamples: 101,
+    command: "run", target: "process-handler-lifecycle", language: "w", platform: "windows-x64", output: "benchmarks/results/process-handler-lifecycle-w.local.json", warmup: 1, compileSamples: 9, runSamples: 101,
   });
   assert.deepEqual(parseBenchmarkCliArguments(["run", "--target", "process-entry", "--language", "w"]), {
-    command: "run", target: "process-entry", language: "w", output: "benchmarks/results/process-entry-w.local.json", warmup: 1, compileSamples: 9, runSamples: 101,
+    command: "run", target: "process-entry", language: "w", platform: "windows-x64", output: "benchmarks/results/process-entry-w.local.json", warmup: 1, compileSamples: 9, runSamples: 101,
   });
   assert.deepEqual(parseBenchmarkCliArguments(["run", "--target", "process-arguments-ordering", "--language", "rust"]), {
-    command: "run", target: "process-arguments-ordering", language: "rust", output: "benchmarks/results/process-arguments-ordering-rust.local.json", warmup: 1, compileSamples: 9, runSamples: 101,
+    command: "run", target: "process-arguments-ordering", language: "rust", platform: "windows-x64", output: "benchmarks/results/process-arguments-ordering-rust.local.json", warmup: 1, compileSamples: 9, runSamples: 101,
   });
   assert.throws(() => parseBenchmarkCliArguments(["run", "--target", "process-entry0", "--language", "w"]), /unsupported target/);
   assert.throws(() => parseBenchmarkCliArguments(["run", "--run-samples", "1003"]), /outside its allowed range/);
@@ -53,7 +56,7 @@ test("list exposes runner-backed workloads and omits the planned backlog", async
   assert.ok(listing.workloads.every((workload) => workload.benchmarkStatus !== "planned"));
   assert.equal(listing.workloads.filter((workload) =>
     workload.benchmarkStatus === "partial-exploratory-ready" && workload.languages.length === 1 && workload.languages[0] === "w",
-  ).length, 17);
+  ).length, 18);
 });
 
 test("successful update consumption removes only the local result and empty directory", async () => {
