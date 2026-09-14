@@ -34,6 +34,7 @@ add_library(w_seed_source STATIC
   include/w_seed_parallel_invocation0.h
   include/w_seed_parallel_provider0.h
   include/w_seed_task_lifecycle0.h
+  include/w_seed_gpu0.h
   include/w_seed_scalar_evaluator0.h
   include/w_seed_wrt0.h
   include/w_seed_source_binding_linux.h
@@ -78,6 +79,7 @@ add_library(w_seed_source STATIC
   src/w_seed_hlo0.c
   src/w_seed_hlo1.c
   src/w_seed_mlir0.c
+  src/w_seed_gpu0.c
   src/w_seed_hir0.c
   src/w_seed_product_closure0.c
   src/w_seed_process0.c
@@ -621,6 +623,11 @@ add_executable(w_seed_mlir0_gate
 target_link_libraries(w_seed_mlir0_gate PRIVATE w_seed_source)
 target_compile_definitions(w_seed_mlir0_gate PRIVATE W_SEED_MLIR0_GATE)
 
+add_executable(w_seed_gpu0_tests
+  tests/test_gpu0.c
+)
+target_link_libraries(w_seed_gpu0_tests PRIVATE w_seed_source)
+
 add_executable(w_seed_native0_tests
   tests/test_native0.c
 )
@@ -807,6 +814,7 @@ if(MSVC)
   target_compile_options(w_seed_mlir0_tests PRIVATE /W4 /WX)
   target_link_options(w_seed_mlir0_tests PRIVATE /STACK:8388608)
   target_compile_options(w_seed_mlir0_gate PRIVATE /W4 /WX)
+  target_compile_options(w_seed_gpu0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_native0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_cooperative0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_wrt0_tests PRIVATE /W4 /WX)
@@ -1282,6 +1290,15 @@ else()
     -Wshadow
     -Werror
   )
+  target_compile_options(w_seed_gpu0_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
   target_compile_options(w_seed_task_lifecycle0_tests PRIVATE
     -Wall
     -Wextra
@@ -1381,6 +1398,7 @@ add_test(NAME w_seed_frontend_unit COMMAND w_seed_frontend_tests)
 add_test(NAME w_seed_hlo0_unit COMMAND w_seed_hlo0_tests)
 add_test(NAME w_seed_hlo1_unit COMMAND w_seed_hlo1_tests)
 add_test(NAME w_seed_mlir0_unit COMMAND w_seed_mlir0_tests)
+add_test(NAME w_seed_gpu0_unit COMMAND w_seed_gpu0_tests)
 add_test(NAME w_seed_native0_unit COMMAND w_seed_native0_tests)
 add_test(NAME w_seed_cooperative0_unit COMMAND w_seed_cooperative0_tests)
 add_test(NAME w_seed_wrt0_unit COMMAND w_seed_wrt0_tests)
