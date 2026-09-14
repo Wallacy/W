@@ -27688,6 +27688,22 @@ fechado. O compiler não inventa closed world quando uma dynamic library, um
 provider tardio, um package binário sem body compatível ou outra boundary
 observável impede essa prova.
 
+Um produto nativo liga estaticamente por default todo código W-owned alcançável:
+standard library, WRT, adapters e providers selecionados. Essa closure não usa
+CRT. Operações fundamentais terminam em IR/instruções ou em adapters mínimos da
+ABI do target. Imports obrigatórios do sistema operacional, como Kernel32 no
+Windows ou frameworks públicos do macOS, não são CRT nem tornam WRT/std uma
+dependência dinâmica. Uma dependência foreign que exige CRT ou outro runtime
+declara esse requisito na recipe e no artifact; ela não altera silenciosamente
+o default W.
+
+Separar WRT, std ou outro componente W-owned em shared/dynamic artifact é uma
+opção explícita do product para distribuição, servicing ou uma boundary
+necessária. Essa escolha cria roots e ABI observáveis, restringe WPO e aparece
+na recipe, imports, receipts e métricas. Ela nunca é inferida pelo host ou pelo
+package manager. O profile `debug` pode reduzir trabalho de otimização, mas não
+muda por si só a closure estática ou introduz CRT.
+
 As roots dependem do artifact produzido:
 
 - um executable retém entries selecionados, callbacks do host, placement ou
