@@ -505,6 +505,8 @@ static bool frontend_counts_equal(const w_seed_frontend_counts *left,
   HIR0_COUNT(const_elements);
   HIR0_COUNT(const_bytes);
   HIR0_COUNT(const_declarations);
+  HIR0_COUNT(accelerator_modules);
+  HIR0_COUNT(accelerator_kernels);
 #undef HIR0_COUNT
   return true;
 }
@@ -626,6 +628,10 @@ static bool frontend_shape_ok(const w_seed_hir0_input *input) {
   HIR0_FRONTEND_ARRAY(interpolation_segments, interpolation_segment_capacity,
                       w_seed_frontend_interpolation_segment);
   HIR0_FRONTEND_ARRAY(arguments, argument_capacity, w_seed_frontend_argument);
+  HIR0_FRONTEND_ARRAY(accelerator_modules, accelerator_module_capacity,
+                      w_seed_frontend_accelerator_module);
+  HIR0_FRONTEND_ARRAY(accelerator_kernels, accelerator_kernel_capacity,
+                      w_seed_frontend_accelerator_kernel);
   HIR0_FRONTEND_ARRAY(switch_arms, switch_arm_capacity,
                       w_seed_frontend_switch_arm);
   HIR0_FRONTEND_ARRAY(pattern_captures, pattern_capture_capacity,
@@ -6247,6 +6253,8 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
       frontend_result->written.const_values != 0u ||
       frontend_result->written.const_elements != 0u ||
       frontend_result->written.const_declarations != 0u ||
+      frontend_result->written.accelerator_modules != 0u ||
+      frontend_result->written.accelerator_kernels != 0u ||
       frontend_result->written.parameters > W_SEED_HIR0_MAX_TEXT_BYTES)
     return HIR0_PREPARE_UNSUPPORTED;
   if (!frontend_module_ranges_ok(input) || !frontend_type_records_ok(input) ||
@@ -6722,6 +6730,8 @@ static bool output_overlaps_input(const w_seed_hir0_input *input,
   HIR0_INPUT_RANGE(enum_cases, w_seed_frontend_enum_case);
   HIR0_INPUT_RANGE(enum_case_parameters, w_seed_frontend_enum_case_parameter);
   HIR0_INPUT_RANGE(const_declarations, w_seed_frontend_const_declaration);
+  HIR0_INPUT_RANGE(accelerator_modules, w_seed_frontend_accelerator_module);
+  HIR0_INPUT_RANGE(accelerator_kernels, w_seed_frontend_accelerator_kernel);
   HIR0_INPUT_RANGE(switch_arms, w_seed_frontend_switch_arm);
   HIR0_INPUT_RANGE(pattern_captures, w_seed_frontend_pattern_capture);
   HIR0_INPUT_RANGE(enum_subset_members, w_seed_frontend_enum_subset_member);

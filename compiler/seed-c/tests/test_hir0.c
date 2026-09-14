@@ -425,6 +425,8 @@ typedef struct {
   w_seed_frontend_external_symbol external_symbols[8];
   w_seed_frontend_external_module external_modules[2];
   w_seed_frontend_resolved_import resolved_imports[4];
+  w_seed_frontend_accelerator_module accelerator_modules[4];
+  w_seed_frontend_accelerator_kernel accelerator_kernels[8];
   uint8_t const_bytes[TEST_SOURCE];
   uint8_t frontend_receipt[TEST_RECEIPT];
   w_seed_frontend_output output;
@@ -573,6 +575,14 @@ static bool fixture_parse(const char *text) {
       .function_capacity = TEST_FUNCTIONS,
       .parameters = fixture.parameters,
       .parameter_capacity = TEST_PARAMETERS,
+      .accelerator_modules = fixture.accelerator_modules,
+      .accelerator_module_capacity =
+          sizeof(fixture.accelerator_modules) /
+          sizeof(fixture.accelerator_modules[0]),
+      .accelerator_kernels = fixture.accelerator_kernels,
+      .accelerator_kernel_capacity =
+          sizeof(fixture.accelerator_kernels) /
+          sizeof(fixture.accelerator_kernels[0]),
       .entries = fixture.entries,
       .entry_capacity = TEST_ENTRIES,
       .statements = fixture.statements,
@@ -6014,6 +6024,10 @@ static bool test_closed_frontend_barriers(void) {
        &fixture.result.written.const_elements},
       {&fixture.result.required.const_declarations,
        &fixture.result.written.const_declarations},
+      {&fixture.result.required.accelerator_modules,
+       &fixture.result.written.accelerator_modules},
+      {&fixture.result.required.accelerator_kernels,
+       &fixture.result.written.accelerator_kernels},
   };
   for (size_t index = 0u; index < sizeof(unsupported) / sizeof(unsupported[0]);
        index += 1u) {
