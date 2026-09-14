@@ -39888,6 +39888,42 @@ field, copied trace, and transaction digest. The one-to-four task ceiling and
 integration, scheduler, provider, parallel runtime, task ABI, benchmark, or
 performance claim.
 
+#### 26.4.1.81 W-1600 — bounded CRT-free process/parallel provider linkage on Windows and Linux
+
+**Example:** the unchanged process/parallel source observes empty and nonempty
+runtime arguments, launches its emitted task body through a target provider,
+joins it lexically, and exits silently with the source-selected status on both
+Windows x64 and Linux x86-64.
+
+PARLINK1 links the W-1598 process root and private task wrapper to explicit
+target adapters. The root owns four aligned `i64` slots as an opaque bounded
+provider frame. This is the first physical storage required by the relation;
+its shape belongs only to this private seed provider ABI. It is not the layout
+of `Task`, a language limit, a scheduler frame, or a public runtime ABI.
+
+The Windows adapter is LLVM IR. It obtains bounded command-line presence from
+Kernel32, starts the emitted task entry with `CreateThread`, waits with
+`WaitForSingleObject`, closes the handle, and validates the task result before
+publishing join success. The Linux x86-64 adapter is freestanding assembly. It
+reads `argc` from the initial process stack, uses raw `clone` with `CLONE_VM`
+and a private fixed child stack, reaps the child with `wait4`, and validates the
+same task result. Its fixed stack is provider evidence only and cannot become
+general task storage.
+
+Both products are linked without a CRT or default libraries. Windows imports
+only the required Kernel32 operations; Linux uses raw kernel syscalls and has
+no dynamic interpreter. The focused gate executes empty input, nonempty input,
+and a gate-only forced provider failure. The first two exit zero; provider
+failure exits three; every case has empty stdout and stderr. The `!` sentinel
+used to inject that failure belongs to the adapter test protocol, not W
+`Arguments` semantics.
+
+W-1600 closes the bounded physical reference needed before evaluating the
+W-1597 direct-call optimization. It does not publish this route through
+`w build` or `w run`, generalize argument decoding, add a scheduler or public
+Task ABI, establish reusable task storage, retain an executable, publish a
+benchmark, or make a timing or performance claim.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

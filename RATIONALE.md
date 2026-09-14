@@ -248,6 +248,7 @@ O corpus compara, no mínimo:
 - proof-directed direct-call legality against silent semantic erasure, single-function flags, target-policy conflation, and premature performance claims.
 - explicit process-root plus task-entry MLIR composition against process-input loss, target-shaped wrappers, implicit provider linkage, and premature public execution claims.
 - target-neutral TASKLIFE0 lifecycle reduction against scheduler substitution, cancellation races, cleanup/commit reordering, and unproved task ABI or performance claims.
+- bounded dual-target process/parallel linkage against direct-call substitution, CRT fallback, hidden runtime input, target conflation, and premature public or benchmark claims.
 
 ### 1.1 Cobertura de substituições
 
@@ -278,7 +279,7 @@ ledger, uma tarefa, a forma vigente, ao menos uma alternativa e quatro medidas.
 O checker valida a ligação e o índice publica a razão exata. O comando isolado
 sem flag permite inspecionar uma edição parcial. O gate do repository usa
 `--require-complete` e falha quando qualquer requisito não possui caso. R0 cobre
-os 155 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
+os 156 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
 os estudos foram executados. Ela também não substitui a auditoria do ledger
 mantida por [`tooling/design-freeze-audit.json`](tooling/design-freeze-audit.json).
 
@@ -7914,6 +7915,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1597 | bounded parallel direct-call legality certificate | PARELIDE0 independently rederives a fixed one-task, immediate-join candidate from verified HIR37 and PARSEL0. It proves the unique virtual-task consumer and a closed acyclic pure, non-throwing, non-suspending local callee graph, then publishes a caller-owned fact record bound to the HIR semantic digest. It does not rewrite HIR or select an optimization. | `source-backed-current` only for the bounded certificate, independent verification, transactional and alias barriers, a two-task rejection, and the process-root pure-helper witness. Physical process/task MLIR composition, target observability and cost policy, direct-call emission, public execution, proof-language surface, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1598 | explicit process-root and task-entry MLIR composition | PARMLIR0 emits one bounded process-root module that preserves runtime `Arguments.isEmpty` through a direct scalar prelude and into one task argument before lexical join. Caller-owned transactional measure, emit, and verify operations publish separate counts, bytes, and digest records. The target-private task wrapper is distinct from the process root. The module declares unresolved provider-owned launch and join symbols and keeps the ordinary process selector direct-only. Pinned MLIR/LLVM 23.1.1 parse, lower, and translate checks produce a Linux x86-64 PIC ELF object. No provider linkage, public execution, benchmark, performance, or direct-call selection claim is made. | `source-backed-current` only for the bounded process-root/task-wrapper composition, separate transactional measure/emit/verify APIs, explicit unresolved launch/join declarations, direct-only ordinary process selection, and MLIR/LLVM 23.1.1 Linux ELF object evidence. Provider linkage, public execution, benchmark results, performance, and direct-call selection remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1599 | TASKLIFE0 target-neutral fixed caller-owned lifecycle reducer and oracle | TASKLIFE0 provides a target-neutral fixed caller-owned reducer and oracle for bounded logical task lifecycles. It replays task and scope states, publishes tagged success, error, and canceled outcomes, preserves settled-before-cancel precedence, enforces cleanup before commit, drains siblings after fail-fast cancellation, arbitrates lexical/input errors, and orders joins and releases lexically. Transaction and measurement snapshots are replayed and digest-checked. The one-to-four task and 128-event ceilings are seed evidence only. No source-HIR integration, scheduler, provider, parallel runtime, task ABI, benchmark, or performance claim is made. | `source-backed-current` only for the fixed TASKLIFE0 state reducer, cancellation and outcome arbitration, cleanup/commit and join/release barriers, exact caller-owned snapshots, independent replay verification, and focused C23 evidence. Source-HIR integration, scheduler/provider linkage, parallel runtime, task ABI, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1600 | bounded CRT-free process/parallel provider linkage on Windows and Linux | PARLINK1 binds the W-1598 process root and private task entry to explicit target adapters. Windows x64 uses Kernel32 runtime input, `CreateThread`, lexical wait, handle close, and result validation. Linux x86-64 reads the initial process stack and uses raw `clone`, `wait4`, and exit syscalls with a fixed private provider stack. Both routes preserve empty/nonempty runtime input, execute the emitted task, and fail closed through exit 3 under a gate-only injected provider fault. They link without CRT/default libraries and execute with empty stdout/stderr. The four-slot frame and Linux child stack are private seed-provider evidence. | `source-backed-current` only for the unchanged bounded source-to-provider composition, Windows x64 CRT-free execution, Windows-host cross-link plus Linux/WSL CRT-free execution, empty/nonempty runtime-input cases, explicit launch/join, task-result validation, and injected provider-failure exit. Public `w build`/`w run`, general argument decoding, scheduler/task ABI/storage, retained artifacts, benchmarks, timing, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -12653,3 +12655,39 @@ The four-task and 128-event values are fixed seed storage ceilings, not W
 semantics, a runtime limit, or an ABI. No source-HIR integration, scheduler,
 provider linkage, parallel runtime, task ABI, benchmark, or performance claim
 follows from this oracle.
+
+#### W-1600 — bounded CRT-free process/parallel provider linkage on Windows and Linux
+
+W-1598 intentionally stopped at unresolved launch and join symbols. That was
+the correct compilation boundary, but it could not serve as the physical
+reference for W-1597: no emitted process had yet crossed a provider, executed
+its task entry, joined, and returned on both current target lanes.
+
+PARLINK1 keeps the compiler module and target support distinct. The process
+root reserves four aligned scalar slots as opaque backing for the bounded
+provider. The Windows adapter stores a Kernel32 thread handle, task argument,
+task result, and provider status in those slots. The Linux adapter uses the
+same logical fields while keeping its fixed child stack private to the target
+adapter. These layouts are evidence artifacts, not a proposed Task object,
+scheduler frame, or reusable runtime allocation policy.
+
+The Windows route is emitted and linked entirely through LLVM/LLD 23.1.1 with
+`/nodefaultlib`; only Kernel32 supplies process and thread primitives. The
+Linux object is cross-linked with `ld.lld` without a dynamic interpreter or
+default libraries. Its freestanding x86-64 adapter reads the kernel-provided
+initial stack and invokes raw `clone`, `wait4`, and exit syscalls. WSL executes
+that ELF on the same hardware as a cross-target correctness lane, not as a
+native-Linux performance result.
+
+The gate runs three exact cases per target. Empty and nonempty runtime input
+exercise different scalar prelude values and both require the physical task
+result to match. A private `!` sentinel forces launch rejection and must produce
+exit 3 without stdout or stderr. This sentinel is test injection, not command
+line syntax or public `Arguments` behavior.
+
+This result closes the bounded physical reference only. It neither exposes a
+public compiler command nor proves a scheduler, general arguments provider,
+capacity-independent storage, stable ABI, retained product, benchmark, or
+performance advantage. A later optimizer may use W-1597 plus target cost and
+observability facts, but it must compare its direct-call artifact with this
+physical route.

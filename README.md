@@ -44,7 +44,7 @@ correctness-scoped unless a source explicitly states otherwise.
 | Parallel selection proof | PARSEL0 independently derives a fixed caller-owned one-to-four-task selection from verified HIR37, now for either the anonymous Unit witness or the bounded native-process root. It copies lexical launch/join and placement facts, rejects aliases and forged records, and deliberately contains no provider-capacity field. It is not execution evidence. |
 | Windows parallel provider | PARINV0 derives exact signed-`i64` calls and arguments from verified HIR37/PARSEL0, and PARPROV0 executes only that plan—no caller callback or context participates. Capacity one and two produce identical semantic outcomes; an internal deterministic rendezvous proves two simultaneously active Windows x64 workers without a timing threshold. This is component evidence, not a public W executable or CRT-free target artifact. |
 | Parallel task-entry MLIR | PARMLIR0 emits one runtime-parameterized public task entry per selected launch and only its transitive reachable internal helper closure. Named call-site order is normalized to declaration order and launch values are not embedded. The same target-neutral module lowers with MLIR/LLVM 23.1.1 to Windows x64 COFF and Linux x86-64 PIC ELF objects. PARLINK0 now links the Windows object to a CRT-free Kernel32 adapter and proves runtime-dependent values execute in the emitted functions; the adapter remains private compiler-lifecycle evidence, not a public command or benchmark result. |
-| Process/parallel compiler composition | Native0 configures the explicit `.domain`, HIR37 preserves the runtime-input dependency through a pure scalar binding into one task and lexical join, and PARSEL0 independently selects it. W-1598 emits the composed process root and target-private task wrapper with unresolved provider launch/join symbols and Linux ELF evidence. The ordinary process emitter rejects parallel-as-direct lowering, and provider linkage plus public execution remain open. |
+| Process/parallel compiler composition | Native0 configures the explicit `.domain`, HIR37 preserves runtime input through a scalar prelude into one task and lexical join, and PARSEL0 independently selects it. W-1600 links the W-1598 process root and private task entry to bounded CRT-free Windows and Linux providers and executes empty, nonempty, and injected-failure cases. The ordinary process emitter stays direct-only; public build/run, general scheduling, storage, and benchmarks remain open. |
 | Enum payloads | The current bounded slice supports Bool and signed i64 payloads, captures, constructor values, and exhaustive switches. It has no public payload ABI. |
 | Enum subsets | The bounded seed target admits proper nonempty payloadless subsets of local enums with base tags and no wrapper allocation; focused checks and native Windows plus Linux/WSL execution are current. |
 | Source entry | entry { ... } and entry(functionName) are accepted in the bounded surface. An empty entry { } is valid. |
@@ -72,10 +72,10 @@ or `ref` use implies a heap, header, address, or storage class.
 - Parallel-domain placement, PARSEL0 selection, a bounded Windows x64 provider
   component, and an explicit process-root/task-entry MLIR composition are
   represented and verified. PARMLIR0 emits the reachable task-entry closure as
-  Windows and Linux linkable objects, while W-1598 emits the composed process
-  module with unresolved provider launch/join symbols and Linux ELF evidence.
-  Public build and run remain fail-closed until a provider links the composed
-  route and runtime-dependent input proves the same source end to end.
+  Windows and Linux linkable objects. W-1600 links the composed process root
+  and task wrapper to private CRT-free providers and executes runtime-dependent
+  input on Windows and Linux/WSL. Public build/run, general scheduling/storage,
+  and performance remain gaps.
 - COOP0 remains a compiler-host trace oracle. A separate bounded cooperative
   core now lowers to Windows/Linux process projections. The Windows host also
   compiles and CRT-free-links the bounded Linux product with the shared WRT0;

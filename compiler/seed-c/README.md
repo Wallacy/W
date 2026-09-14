@@ -2116,6 +2116,33 @@ failures. The one-to-four task and 128-event limits are seed evidence only.
 No source-HIR integration, scheduler, provider, parallel runtime, task ABI,
 benchmark, or performance claim is made.
 
+### Bounded CRT-free process/parallel provider linkage (W-1600)
+
+PARLINK1 closes the private physical reference for the W-1598 composition.
+The emitted root reserves four aligned `i64` slots for an opaque provider
+frame. This is a private seed ABI only: it is not a W Task layout, scheduler
+frame, reusable allocation policy, or public runtime limit.
+
+`runtime/w_seed_process_parallel_windows0.ll` obtains bounded command-line
+presence through Kernel32, launches `w_seed_parallel_task_0` with
+`CreateThread`, joins it with `WaitForSingleObject`, closes the handle, and
+validates the task result. `runtime/w_seed_process_parallel_linux0.S` reads
+`argc` from the initial x86-64 process stack and uses raw `clone`, `wait4`, and
+exit syscalls. Its fixed child stack is private provider evidence and does not
+generalize task storage.
+
+`bun check --target parallel-mlir0` emits target-specific process modules,
+lowers them with pinned MLIR/LLVM 23.1.1, and links without CRT/default
+libraries. It executes empty and nonempty runtime inputs plus a gate-only `!`
+provider-failure injection on Windows and Linux/WSL. Success exits zero;
+provider failure exits three; stdout and stderr remain empty.
+
+The gate proves this bounded physical route, not public `w build`/`w run`, a
+general Windows argument parser, scheduler, task ABI, capacity-independent
+storage, retained artifact, benchmark, timing, or performance. The W-1597
+direct-call candidate must later be selected by separate target facts and
+compared with this physical reference.
+
 ### Closed local payloadless enum exhaustive switch (W-1563)
 
 HIR21 (`w-seed-hir0-21`) adds one explicit `SWITCH_ENUM` terminator and dense
