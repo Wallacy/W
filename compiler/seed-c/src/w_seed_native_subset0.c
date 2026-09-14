@@ -3290,6 +3290,7 @@ static bool process_local_call_supported(
     uint32_t owner_function,
     const w_seed_native_subset0_process *process) {
   if (program == NULL || call == NULL || process == NULL ||
+      call->execution_kind != W_SEED_HIR0_CALL_DIRECT ||
       call->callee_identity >= program->identity_count ||
       call->first_argument > program->argument_count ||
       call->argument_count > program->argument_count - call->first_argument)

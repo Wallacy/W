@@ -146,15 +146,24 @@ static bool parallel_selection_derive(
       program->binding_count > UINT32_MAX || program->call_count > UINT32_MAX)
     return false;
   const w_seed_hir0_entry *entry = &program->entries[0];
-  if (!entry->is_body || entry->module_index != 0u ||
-      entry->adapter_kind != W_SEED_HIR0_ENTRY_ADAPTER_DEFAULT_UNIT ||
+  if (entry->module_index != 0u ||
       entry->target_function >= program->function_count)
     return false;
   const uint32_t root_index = entry->target_function;
   const w_seed_hir0_function *root = &program->functions[root_index];
-  if (root->module_index != 0u || !root->is_anonymous_entry || root->is_async ||
+  const bool anonymous_root =
+      entry->is_body &&
+      entry->adapter_kind == W_SEED_HIR0_ENTRY_ADAPTER_DEFAULT_UNIT &&
+      root->is_anonymous_entry && !root->is_async &&
+      root->parameter_count == 0u;
+  const bool process_root =
+      !entry->is_body &&
+      entry->adapter_kind == W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS &&
+      !root->is_anonymous_entry && root->is_async &&
+      root->parameter_count == 2u;
+  if ((!anonymous_root && !process_root) || root->module_index != 0u ||
       root->is_const || root->is_throws || root->is_unsafe ||
-      root->has_borrow_clause || root->parameter_count != 0u ||
+      root->has_borrow_clause ||
       root->block_count != 1u || root->first_block >= program->block_count)
     return false;
   const w_seed_hir0_block *block = &program->blocks[root->first_block];
@@ -177,6 +186,8 @@ static bool parallel_selection_derive(
   size_t join_count = 0u;
   size_t total_parallel_calls = 0u;
   bool joins_started = false;
+  uint32_t process_prelude_call = W_SEED_HIR0_NONE;
+  uint32_t process_prelude_binding = W_SEED_HIR0_NONE;
 
   for (size_t index = 0u; index < program->call_count; index += 1u) {
     const w_seed_hir0_call_execution_kind kind =
@@ -199,9 +210,28 @@ static bool parallel_selection_derive(
     if (instruction->kind == W_SEED_HIR0_INSTRUCTION_CALL) {
       if (instruction->call_index >= program->call_count) return false;
       const w_seed_hir0_call *call = &program->calls[instruction->call_index];
+      if (call->execution_kind == W_SEED_HIR0_CALL_DIRECT) {
+        if (process_root) {
+          if (process_prelude_call != W_SEED_HIR0_NONE || task_count != 0u ||
+              launch_count != 0u || join_count != 0u || joins_started ||
+              call->owner_block != root->first_block ||
+              call->owner_instruction != instruction_index ||
+              call->callee_identity >= program->identity_count)
+            return false;
+          const w_seed_hir0_identity *identity =
+              &program->identities[call->callee_identity];
+          if (identity->kind != W_SEED_HIR0_IDENTITY_FUNCTION ||
+              identity->target_index >= program->function_count ||
+              program->functions[identity->target_index].module_index !=
+                  root->module_index)
+            return false;
+          process_prelude_call = instruction->call_index;
+        }
+        continue;
+      }
       if (call->execution_kind !=
           W_SEED_HIR0_CALL_STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH)
-        continue;
+        return false;
       if (joins_started || task_count >= W_SEED_PARALLEL_SELECTION0_MAX_TASKS ||
           call->owner_instruction != instruction_index ||
           !parallel_call_is_exact(program, call, root->first_block,
@@ -230,6 +260,17 @@ static bool parallel_selection_derive(
           return false;
         join_indices[join_count] = instruction->binding_index;
         join_count += 1u;
+      } else if (process_root &&
+                 binding->task_role == W_SEED_HIR0_TASK_ROLE_NONE &&
+                 process_prelude_binding == W_SEED_HIR0_NONE &&
+                 task_count == 0u && launch_count == 0u && join_count == 0u &&
+                 binding->initializer_value < program->value_count) {
+        const w_seed_hir0_value *value =
+            &program->values[binding->initializer_value];
+        if (value->kind != W_SEED_HIR0_VALUE_CALL_RESULT ||
+            value->call_index != process_prelude_call)
+          return false;
+        process_prelude_binding = instruction->binding_index;
       } else {
         return false;
       }
@@ -238,7 +279,10 @@ static bool parallel_selection_derive(
     }
   }
   if (task_count == 0u || task_count != total_parallel_calls ||
-      launch_count != task_count || join_count != task_count)
+      launch_count != task_count || join_count != task_count ||
+      (process_root &&
+       (process_prelude_call == W_SEED_HIR0_NONE ||
+        process_prelude_binding == W_SEED_HIR0_NONE)))
     return false;
   for (size_t task = 0u; task < task_count; task += 1u) {
     const w_seed_hir0_call *call = &program->calls[call_indices[task]];

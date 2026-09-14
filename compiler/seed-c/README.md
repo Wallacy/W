@@ -1899,8 +1899,9 @@ children, host calls, throws, unsafe and borrow clauses, nested tasks, and a
 mix of `.main` with `.domain`. The fixed four-slot storage remains a seed
 ceiling only.
 
-This is frontend/HIR evidence, not parallel execution. Native0 and MLIR0 do not
-yet select or emit this route, the public CLI remains fail-closed, and there is
+This is frontend/HIR evidence, not parallel execution. Native0 now admits the
+configured domain and PARSEL0 selects the process root, but MLIR0 does not yet
+emit this composed route; the public CLI remains fail-closed, and there is
 no provider, overlap, executable-catalog entry, timing, or performance claim.
 W-1589 now owns the independent parallel selection. The next slice must prove
 the same observable result at provider capacity one and two before adding a
@@ -1909,7 +1910,8 @@ public executable route.
 ### Bounded parallel selection proof (W-1589)
 
 `w_seed_parallel_selection0` consumes only verified HIR37. Its fixed
-`w-seed-parallel-selection0-1` record rederives the single anonymous root and
+`w-seed-parallel-selection0-1` record rederives either the bounded anonymous
+Unit root or native-process root and
 copies one through four parallel task-call indices, target functions, launch
 bindings, lexical join bindings, exact `.domain` placement facts, HIR counts,
 and the HIR semantic digest. Unused slots and reserved bytes are zero.
@@ -2032,9 +2034,22 @@ target emission. No Task allocation, process-specific task record, or target
 fact is introduced.
 
 `bun check --target hir0` covers the positive composition and rejects a second
-prelude before HIR publication. Native0 domain configuration, process-root
-PARSEL0, MLIR/provider composition, public execution, benchmark data, and
-performance remain outside this checkpoint.
+prelude, an effectful helper, and additional root effects before HIR
+publication.
+
+### Native0 domain admission and process-root PARSEL0 (W-1596)
+
+Native0 owns one explicit caller-supplied `.domain` record with concurrent
+mode and parallel capability. PARSEL0 uses its unchanged fixed record to
+rederive the process entry's one direct scalar prelude binding, physical task
+call, launch binding, and lexical join.
+
+The ordinary NativeSubset0 process path now requires every local call it emits
+to be DIRECT. The W-1595 parallel dispatch therefore reaches verified HIR and
+PARSEL0 but fails MLIR publication transactionally until a dedicated composed
+emitter exists. The focused Native0 unit checks unchanged output and result on
+that failure. This is compiler-lifecycle evidence without provider linkage,
+public execution, benchmark data, or performance claims.
 
 ### Closed local payloadless enum exhaustive switch (W-1563)
 

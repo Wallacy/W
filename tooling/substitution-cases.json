@@ -8113,6 +8113,78 @@
         "no new HIR record, Task object, target fact, executable, benchmark, timing, or performance claim is introduced"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-process-parallel-selection",
+      "reviewItem": "process-root selection against implicit domain configuration, unproved parallel-as-direct lowering, target-specific selection records, and premature executable success",
+      "decisions": ["W-1596"],
+      "task": "Configure the bounded parallel domain, independently select the process-root task relation, and fail closed before a dedicated composed target emitter exists.",
+      "selected": {
+        "language": "w-internal",
+        "source": [
+          "Native0.frontend.domains = [.domain(concurrent, parallel)]",
+          "selection = PARSEL0.select(verifiedHIR)",
+          "NativeSubset0.process accepts only DIRECT local calls",
+          "MLIR0(process + parallel) = unsupported without publication"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "implicit-global-domain",
+          "language": "w-internal-rejected",
+          "source": ["resolve .domain through hidden global scheduler state"],
+          "expectedDifference": "The selected Native0 route supplies an explicit caller-owned frontend domain record."
+        },
+        {
+          "name": "unproven-parallel-as-direct",
+          "language": "w-internal-rejected",
+          "source": ["emit STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH as an ordinary local call without an equivalence proof"],
+          "expectedDifference": "The ordinary process emitter accepts only DIRECT calls; a future proof-directed elision must be represented and independently verified."
+        },
+        {
+          "name": "target-specific-selection",
+          "language": "w-internal-rejected",
+          "source": ["copy the process task into a Windows-shaped selection record"],
+          "expectedDifference": "The unchanged target-neutral PARSEL0 fields describe the root, call, launch, join, placement, and HIR identity."
+        },
+        {
+          "name": "publish-incomplete-executable",
+          "language": "w-internal-rejected",
+          "source": ["return successful MLIR after erasing parallel semantics"],
+          "expectedDifference": "Output bytes and result remain unchanged until the dedicated process/parallel emitter proves the full composition."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_native0.c",
+          "symbol": "configure_frontend_storage",
+          "claim": "Native0 materializes the explicit bounded concurrent-plus-parallel domain input."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_parallel_selection0.c",
+          "symbol": "parallel_selection_derive",
+          "claim": "PARSEL0 distinguishes and derives the bounded native-process prelude plus task relation."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "process_local_call_supported",
+          "claim": "The ordinary process target route rejects every non-DIRECT local call."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_native0.c",
+          "symbol": "test_process_parallel_native_admission",
+          "claim": "The focused unit proves Native0 HIR and PARSEL0 admission plus transactional unsupported MLIR publication."
+        }
+      ],
+      "checks": [
+        "the Native0 domain is explicit caller-owned configuration",
+        "verified HIR retains the process-input-to-task dependency",
+        "PARSEL0 selects the process root without a new record shape",
+        "parallel dispatch cannot enter the ordinary direct-call emitter without an independently verified elision proof",
+        "unsupported target composition changes neither MLIR output nor result",
+        "no provider, executable, benchmark, timing, or performance claim is introduced"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

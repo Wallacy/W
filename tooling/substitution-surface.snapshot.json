@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:2dd58122718dc6865490d6e34913c19148d4706d62370c15f9d25df218599869",
+  "corpusDigest": "sha256:50d97acdc5f96c5bf2e4b59315e479b22ce34725681582a3fd183aaa8b7e4882",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -8076,6 +8076,78 @@
             "nonWhitespaceCodePoints": 54,
             "lines": 1,
             "surfaceLexemes": 9
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-process-parallel-selection",
+      "task": {
+        "utf8Bytes": 158,
+        "codePoints": 158,
+        "nonWhitespaceCodePoints": 138,
+        "lines": 1,
+        "surfaceLexemes": 26
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w-internal",
+        "sourceDigest": "sha256:3d16c338a9dfc84bffe6edad800269c4fa84e2edef2597ed355562c2cf32656b",
+        "metrics": {
+          "utf8Bytes": 212,
+          "codePoints": 212,
+          "nonWhitespaceCodePoints": 193,
+          "lines": 4,
+          "surfaceLexemes": 41
+        }
+      },
+      "alternatives": [
+        {
+          "name": "implicit-global-domain",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:f62b51847d1bb05992c5f757bbc6fce01f7591d53a01ebd9234c31f72ca0d1bd",
+          "metrics": {
+            "utf8Bytes": 53,
+            "codePoints": 53,
+            "nonWhitespaceCodePoints": 47,
+            "lines": 1,
+            "surfaceLexemes": 8
+          }
+        },
+        {
+          "name": "unproven-parallel-as-direct",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:baa7d98ecab7ae32c8058e03a61620a3e270412ca80ec8be7cfe12587619c72d",
+          "metrics": {
+            "utf8Bytes": 101,
+            "codePoints": 101,
+            "nonWhitespaceCodePoints": 91,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "target-specific-selection",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:f5af9b6505938a78ec3de136511df4eeeadf9f62aa45f3cb4d4ae0c6252cfab5",
+          "metrics": {
+            "utf8Bytes": 60,
+            "codePoints": 60,
+            "nonWhitespaceCodePoints": 52,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "publish-incomplete-executable",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:f818ec7bff623fa903098b9293e7836cb4400797de70544af2f43bcb21fb1447",
+          "metrics": {
+            "utf8Bytes": 55,
+            "codePoints": 55,
+            "nonWhitespaceCodePoints": 49,
+            "lines": 1,
+            "surfaceLexemes": 7
           }
         }
       ]

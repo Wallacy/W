@@ -1,4 +1,5 @@
 #include "w_seed_native0.h"
+#include "w_seed_parallel_selection0.h"
 #include "../src/w_seed_native_subset0.h"
 
 #include <stdbool.h>
@@ -2365,6 +2366,46 @@ static bool test_async_direct_entry_product(void) {
   return true;
 }
 
+static bool test_process_parallel_native_admission(void) {
+  static const uint8_t source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "fn select(missing: Bool): i64 { return if missing { 0 } else { 40 } }\n"
+      "fn increment(value: i64): i64 { return value + 1 }\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { let seed = select(missing: args.isEmpty) "
+      "let pending = spawn<.domain> increment(value: seed) "
+      "let value = await pending return .success }\n"
+      "entry(run)\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  (void)memset(output, 0xa7, sizeof(output));
+  uint8_t output_before[sizeof(output)];
+  (void)memcpy(output_before, output, sizeof(output));
+  w_seed_native0_result result;
+  (void)memset(&result, 0x6d, sizeof(result));
+  const w_seed_native0_result result_before = result;
+  const w_seed_native0_status status =
+      run_source(source, sizeof(source) - 1u, "process-parallel", 16u, output,
+                 sizeof(output), &result);
+  CHECK(status == W_SEED_NATIVE0_UNSUPPORTED);
+  CHECK(memcmp(output, output_before, sizeof(output)) == 0);
+  CHECK(memcmp(&result, &result_before, sizeof(result)) == 0);
+  CHECK(storage.input.domain_count == 1u);
+  CHECK(storage.input.domains == storage.domains);
+  CHECK(storage.domains[0].mode == W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT);
+  CHECK(storage.domains[0].capabilities ==
+        W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL);
+  CHECK(w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
+  w_seed_parallel_selection0 selection;
+  CHECK(w_seed_parallel_selection0_select(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+            W_SEED_PARALLEL_SELECTION0_OK &&
+        selection.task_count == 1u &&
+        w_seed_parallel_selection0_verify(
+            &storage.hir_program, &storage.hir_result, &selection));
+  return true;
+}
+
 int main(void) {
   const bool products = test_virtual_structured_task_product() &&
                         test_virtual_static_yield_helper_product() &&
@@ -2380,7 +2421,8 @@ int main(void) {
                         test_process_arguments_count_public_artifact() &&
                         test_process_arguments_count_ordered_native() &&
                         test_process_stdout_bounds() &&
-                        test_process_enum_payload_public_artifact();
+                        test_process_enum_payload_public_artifact() &&
+                        test_process_parallel_native_admission();
   const bool logical = products && test_logical_native_selector() &&
                        test_multi_carrier_native_subset_selector() &&
                        test_post_loop_continuation_native_subset() &&

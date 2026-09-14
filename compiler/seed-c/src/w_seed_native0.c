@@ -332,6 +332,12 @@ static void configure_frontend_storage(w_seed_native0_storage *storage) {
       .profile = (w_seed_frontend_text){"native-process@1", 16u},
       .symbols = storage->host_symbols,
       .symbol_count = 2u};
+  storage->domains[0] = (w_seed_frontend_domain){
+      .name = (w_seed_frontend_text){W_SEED_FRONTEND_DOMAIN_IDENTITY,
+                                     sizeof(W_SEED_FRONTEND_DOMAIN_IDENTITY) -
+                                         1u},
+      .mode = W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT,
+      .capabilities = W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL};
 }
 
 static w_seed_native0_status prepare_frontend(
@@ -376,6 +382,8 @@ static w_seed_native0_status prepare_frontend(
           has_process_import ? storage->process_external_modules : NULL,
       .external_module_count = has_process_import ? 1u : 0u,
       .host_scope = &storage->host_scope,
+      .domains = storage->domains,
+      .domain_count = 1u,
       .import_resolution_complete = has_process_import,
       .resolved_imports =
           has_process_import ? storage->process_resolved_imports : NULL,
