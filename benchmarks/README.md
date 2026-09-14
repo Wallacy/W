@@ -25,7 +25,7 @@ oracle. The shared public artifact target is `x86_64-pc-windows-msvc` for W,
 Clang C, and Rust. Public C has no silent GCC or c2x fallback.
 the current Rust baseline uses edition 2024.
 
-The catalog declares compile latency, median and P95 cold-process wall time,
+The catalog declares compile latency, median and P95 target-run wall time,
 user/system/total CPU time, peak working set, artifact size, exit code, and
 stdout/stderr. A local
 `executable-result` retains correctness artifact facts, one warmup, and an odd
@@ -47,16 +47,19 @@ section's name, VirtualSize, and raw size, as defined by the
 padding and zero-fill; it is not a useful-instruction count. Historical cells
 without this optional metadata remain `not measured`, and missing or ambiguous
 `.text`/`.rdata` sections are not fabricated as zero.
-The current runtime series is deliberately a cold-start measurement: each
-sample creates, executes, and waits for a fresh process. For very small
-programs, especially on Windows, this primarily measures process creation,
-security inspection, scheduling, and accounting rather than the W body. A
-future steady-state/body-throughput lane must have a distinct identity, use a
-bounded batched or persistent harness, publish the harness baseline, and never
-be merged with cold-start cells.
-The current Windows and Linux/WSL cold-start cells are not body-performance
-comparisons. Windows includes its process creation, security, Job Object,
-scheduler, and accounting path; the WSL lane times the Linux executable from a
+The current runtime series is a target-run measurement: each raw sample
+creates, executes, and waits for one fresh target process, while production
+samples are collected by one native helper batch per warmup/raw series. This
+keeps the helper and its host wrapper outside the per-sample wall time. On
+WSL2, the distribution is initialized once for the batch, the ELF is staged on
+WSL-native `/tmp`, and `wsl.exe` startup plus DrvFS access are outside every
+sample. The target process launch remains intentionally included, so these
+cells measure product invocation cost rather than in-process body throughput.
+The future persistent/body-throughput lane must have a distinct identity and
+must never be merged with target-run cells.
+The current Windows and Linux/WSL target-run cells are not body-performance
+comparisons. Windows includes target process creation, security, Job Object,
+scheduler, and accounting; the WSL lane times the Linux executable from a
 Linux-native helper inside an already-running distribution with
 `CLOCK_MONOTONIC` and `wait4`. Values such as Windows milliseconds and WSL
 hundreds of microseconds are therefore expected to differ by platform startup

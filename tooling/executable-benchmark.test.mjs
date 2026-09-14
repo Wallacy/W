@@ -390,7 +390,7 @@ function validResult(language = "rust") {
     identity: { sourceDigest: source.digest, platformTarget: EXECUTABLE_PLATFORM_TARGET, artifactTarget, profile: "release", toolchain: language === "rust" ? "rustc-1.94" : "gcc-13.2", host: executableHostIdentity(environment), recipe: source.recipe, recipeClass: source.recipeClass, recipeDigest: digest, eligibility: source.eligibility },
     correctness: { oracleId: "hello:exact-output", exitCode: 0, stdoutDigest: exactOutputDigest("Hello, world!\n"), stderrDigest: exactOutputDigest("") },
     artifact: { digest, sizeBytes: "1024", cleanliness: { coffSymbols: { pointer: "0", count: "0" }, codeView: { count: "0", sizeBytes: "0" }, debugDirectory: { presence: "absent", sizeBytes: "0", entries: [] }, certificateDirectory: { pointer: "0", sizeBytes: "0" }, sectionData: "in-bounds", sidecars: { count: "0" }, overlay: { sizeBytes: "0" } } },
-    protocol: { warmupMinimum: 1, rawMinimum: 9, rawParity: "odd", arithmeticMeanRounding: "floor-integer", stopRule: "fixed-count", wallClock: "monotonic-nanoseconds", processIsolation: "fresh-process-per-sample", order: "deterministic-interleaved", resourceScope: "direct child process only; descendants are not aggregated", knownNoiseControls: ["warmup-discarded", "fresh-process-per-sample"], unknownNoiseControls: ["host-scheduler", "filesystem-cache"], directProcessDisclosure: "Bun direct-process counters cover the spawned process only; process-tree CPU/RSS are not aggregated.", measurementKernel: "bun-direct-test/1" },
+    protocol: { warmupMinimum: 1, rawMinimum: 9, rawParity: "odd", arithmeticMeanRounding: "floor-integer", stopRule: "fixed-count", wallClock: "monotonic-nanoseconds", processIsolation: "fresh-process-per-sample", runtimeScope: "direct-host-process", order: "deterministic-interleaved", resourceScope: "direct child process only; descendants are not aggregated", knownNoiseControls: ["warmup-discarded", "fresh-process-per-sample"], unknownNoiseControls: ["host-scheduler", "filesystem-cache"], directProcessDisclosure: "Bun direct-process counters cover the spawned process only; process-tree CPU/RSS are not aggregated.", measurementKernel: "bun-direct-test/1" },
     environment, compile: sampleSeries(), run: sampleSeries(),
     provenance: { sourceDigest: source.digest, artifactDigest: digest, recipeDigest: digest, toolchainDigest: digest, runnerDigest: digest, catalogDigest: digest, commit: "1".repeat(40), observedAt: "2026-09-08T00:00:00.000Z" },
   };
@@ -468,6 +468,9 @@ test("local result remains full-fidelity and rejects invalid measurements", () =
   const badCpuDisclosure = clone(result);
   badCpuDisclosure.run.cpuResolution.disclosure = "nanoseconds only";
   assert.match(validateExecutableResult(badCpuDisclosure, documents.catalog).join("\n"), /zero-valued microsecond/);
+  const badRuntimeScope = clone(result);
+  badRuntimeScope.protocol.runtimeScope = "cold-start";
+  assert.match(validateExecutableResult(badRuntimeScope, documents.catalog).join("\n"), /runtimeScope/u);
   const badSource = clone(result);
   badSource.identity.artifactTarget = EXECUTABLE_PLATFORM_TARGET;
   assert.match(validateExecutableResult(badSource, documents.catalog).join("\n"), /artifact target/);

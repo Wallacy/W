@@ -5,7 +5,7 @@ import path from "node:path";
 export const ROOT = path.resolve(import.meta.dir, "..");
 export const EXECUTABLE_SCHEMA = "w-executable-benchmark/6";
 export const EXECUTABLE_CATALOG_ID = "w-executable-benchmark-catalog";
-export const EXECUTABLE_RESULT_SCHEMA = "w-executable-benchmark-result/5";
+export const EXECUTABLE_RESULT_SCHEMA = "w-executable-benchmark-result/6";
 export const EXECUTABLE_BEST_SCHEMA = "w-executable-benchmark-best-metrics/1";
 export const EXECUTABLE_LANGUAGES = Object.freeze(["w", "c", "rust"]);
 export const EXECUTABLE_STRUCTURE_CLASSES = Object.freeze([
@@ -357,7 +357,7 @@ const PE_SECTION_FIELDS = Object.freeze(["name", "virtualSize", "rawSize"]);
 const PE_SECTION_NAME_PATTERN = /^[\x20-\x7e]{1,8}$/u;
 export const PROTOCOL_FIELDS = Object.freeze([
   "warmupMinimum", "rawMinimum", "rawParity", "arithmeticMeanRounding", "stopRule", "wallClock",
-  "processIsolation", "order", "resourceScope", "knownNoiseControls",
+  "processIsolation", "runtimeScope", "order", "resourceScope", "knownNoiseControls",
   "unknownNoiseControls", "directProcessDisclosure", "measurementKernel",
 ]);
 export const CATALOG_STATUS = "catalog-ready";
@@ -724,7 +724,7 @@ function checkOracle(oracle, location, workloadStatus, errors, workloadId) {
 }
 
 function checkContract(contract, name, errors) {
-  const keys = ["schema", "status", "recordsPath", "requiredIdentity", "provenance", "sampling", "protocolFields", "environmentFields", "artifact", "metrics", "storage"];
+  const keys = ["schema", "status", "recordsPath", "requiredIdentity", "provenance", "sampling", "protocolFields", "environmentFields", "artifact", "metrics", "storage", "runtimeMeasurement"];
   if (!exactKeys(contract, name, keys, errors)) return;
   if (contract.schema !== EXECUTABLE_RESULT_SCHEMA || contract.status !== "contract-only") push(errors, name + " must remain a contract-only local result schema.");
   if (contract.recordsPath !== LOCAL_RESULTS_PATH) push(errors, name + ".recordsPath must identify the ignored local result directory.");
@@ -742,6 +742,7 @@ function checkContract(contract, name, errors) {
   stringArray(contract.metrics, name + ".metrics", errors, EXECUTABLE_METRICS.length);
   if (JSON.stringify(contract.metrics) !== JSON.stringify(EXECUTABLE_METRICS.map((item) => item.id))) push(errors, name + ".metrics must match the declared vocabulary.");
   requiredString(contract.storage, name + ".storage", errors);
+  requiredString(contract.runtimeMeasurement, name + ".runtimeMeasurement", errors);
 }
 
 function checkBestMetricsContract(contract, name, errors) {
@@ -1133,6 +1134,9 @@ function checkProtocol(protocol, name, errors) {
   if (protocol.stopRule !== "fixed-count") push(errors, name + ".stopRule must be fixed-count.");
   if (protocol.wallClock !== "monotonic-nanoseconds") push(errors, name + ".wallClock must be monotonic-nanoseconds.");
   if (protocol.processIsolation !== "fresh-process-per-sample") push(errors, name + ".processIsolation must require a fresh process per sample.");
+  if (!["native-target-process-batch", "direct-host-process"].includes(protocol.runtimeScope)) {
+    push(errors, name + ".runtimeScope must distinguish the native target-process batch from the test-only host fallback.");
+  }
   if (!["deterministic-interleaved", "compile-series-then-run-series"].includes(protocol.order)) {
     push(errors, name + ".order must declare a supported deterministic measurement order.");
   }
@@ -1157,6 +1161,12 @@ function checkProtocol(protocol, name, errors) {
           ? !linuxDisclosure
           : !legacyDisclosure)) {
     push(errors, name + ".directProcessDisclosure must match the selected measurement kernel and distinguish process-tree CPU, root working set, and Job commit.");
+  }
+  if (protocol.runtimeScope === "native-target-process-batch" && protocol.measurementKernel === "bun-direct-test/1") {
+    push(errors, name + ".runtimeScope native-target-process-batch requires a native measurement kernel.");
+  }
+  if (protocol.runtimeScope === "direct-host-process" && protocol.measurementKernel !== "bun-direct-test/1") {
+    push(errors, name + ".runtimeScope direct-host-process is reserved for the test-only Bun adapter.");
   }
 }
 

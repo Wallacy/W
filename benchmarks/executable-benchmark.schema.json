@@ -251,9 +251,9 @@
     "resultContract": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema", "status", "recordsPath", "requiredIdentity", "provenance", "sampling", "protocolFields", "environmentFields", "artifact", "metrics", "storage"],
+      "required": ["schema", "status", "recordsPath", "requiredIdentity", "provenance", "sampling", "protocolFields", "environmentFields", "artifact", "metrics", "storage", "runtimeMeasurement"],
       "properties": {
-        "schema": { "const": "w-executable-benchmark-result/5" },
+        "schema": { "const": "w-executable-benchmark-result/6" },
         "status": { "const": "contract-only" },
         "recordsPath": { "const": "benchmarks/results" },
         "requiredIdentity": {
@@ -276,7 +276,7 @@
           }
         },
         "protocolFields": {
-          "const": ["warmupMinimum", "rawMinimum", "rawParity", "arithmeticMeanRounding", "stopRule", "wallClock", "processIsolation", "order", "resourceScope", "knownNoiseControls", "unknownNoiseControls", "directProcessDisclosure", "measurementKernel"]
+          "const": ["warmupMinimum", "rawMinimum", "rawParity", "arithmeticMeanRounding", "stopRule", "wallClock", "processIsolation", "runtimeScope", "order", "resourceScope", "knownNoiseControls", "unknownNoiseControls", "directProcessDisclosure", "measurementKernel"]
         },
         "environmentFields": {
           "const": ["os", "kernel", "cpuModel", "logicalCores", "ramBytes"]
@@ -285,7 +285,8 @@
         "metrics": {
           "const": ["compile-latency", "run-wall-time", "run-wall-p95", "cpu-user-time", "cpu-system-time", "cpu-time", "peak-working-set", "artifact-size", "exit-code", "stdout", "stderr"]
         },
-        "storage": { "type": "string" }
+        "storage": { "type": "string" },
+        "runtimeMeasurement": { "type": "string" }
       }
     },
     "bestMetricsContract": {
@@ -598,7 +599,7 @@
     "protocol": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["warmupMinimum", "rawMinimum", "rawParity", "arithmeticMeanRounding", "stopRule", "wallClock", "processIsolation", "order", "resourceScope", "knownNoiseControls", "unknownNoiseControls", "directProcessDisclosure", "measurementKernel"],
+      "required": ["warmupMinimum", "rawMinimum", "rawParity", "arithmeticMeanRounding", "stopRule", "wallClock", "processIsolation", "runtimeScope", "order", "resourceScope", "knownNoiseControls", "unknownNoiseControls", "directProcessDisclosure", "measurementKernel"],
       "properties": {
         "warmupMinimum": { "const": 1 },
         "rawMinimum": { "const": 9 },
@@ -607,6 +608,7 @@
         "stopRule": { "const": "fixed-count" },
         "wallClock": { "const": "monotonic-nanoseconds" },
         "processIsolation": { "const": "fresh-process-per-sample" },
+        "runtimeScope": { "enum": ["native-target-process-batch", "direct-host-process"] },
         "order": { "enum": ["deterministic-interleaved", "compile-series-then-run-series"] },
         "resourceScope": { "type": "string" },
         "knownNoiseControls": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
@@ -633,7 +635,7 @@
       "required": ["$schema", "schema", "kind", "id", "status", "workloadId", "language", "platformTarget", "artifactTarget", "profile", "quality", "claim", "verdict", "equivalenceKey", "identity", "correctness", "artifact", "protocol", "environment", "compile", "run", "provenance"],
       "properties": {
         "$schema": { "const": "./executable-benchmark.schema.json" },
-        "schema": { "const": "w-executable-benchmark-result/5" },
+        "schema": { "const": "w-executable-benchmark-result/6" },
         "kind": { "const": "executable-result" },
         "id": { "type": "string" },
         "status": { "const": "recorded" },

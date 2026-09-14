@@ -336,7 +336,7 @@ export function benchmarkUsage() {
     "",
     "Options: --target <runnable-catalog-id> (default hello), --language w|c|rust (default w), --platform windows-x64|linux-wsl-x64 (default windows-x64), --warmup <n> (default 1), --compile-samples <odd n> (default 9), --run-samples <odd n> (default 101). --samples sets both counts.",
     "The output must be a new JSON file under benchmarks/results.",
-    "The default is Windows x86_64 exploratory executable evidence. --platform linux-wsl-x64 selects the catalog's Linux public W source and cross-builds its ELF on this Windows host; runtime samples execute from WSL-native /tmp under Linux CLOCK_MONOTONIC/wait4, excluding wsl.exe startup and DrvFS target access. That lane is same-physical-hardware diagnostic-only and same-host-only. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses the public w build Release source-to-PE candidate on Windows and the pinned Linux/WSL public build route on WSL2; process-argument workloads validate all declared argument cases before timing and pin the declared timed vector; process-handler-lifecycle uses the private GCC/MinGW handler composite and remains contextual/non-ranking. Public C requires Clang with final C23, the MSVC ABI, and the DLL runtime; Rust uses rustc edition 2024.",
+    "The default is Windows x86_64 exploratory executable evidence. --platform linux-wsl-x64 selects the catalog's Linux public W source and cross-builds its ELF on this Windows host; production run samples execute as a single native-helper batch from WSL-native /tmp under Linux CLOCK_MONOTONIC/wait4, excluding wsl.exe startup and DrvFS target access from each sample. Each timed sample still launches a fresh target process, so Run p50/p95 are product-invocation costs, not in-process body throughput. That lane is same-physical-hardware diagnostic-only and same-host-only. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses the public w build Release source-to-PE candidate on Windows and the pinned Linux/WSL public build route on WSL2; process-argument workloads validate all declared argument cases before timing and pin the declared timed vector; process-handler-lifecycle uses the private GCC/MinGW handler composite and remains contextual/non-ranking. Public C requires Clang with final C23, the MSVC ABI, and the DLL runtime; Rust uses rustc edition 2024.",
     `Timeout guard: ${EXECUTABLE_TIMEOUT_STATUS}.`,
   ].join("\n");
 }
@@ -2203,7 +2203,7 @@ function protocol(context, workload = undefined) {
   const processEntry = isProcessArgumentWorkload(workload?.id);
   const runScope = isWslPlatform(context.platformTarget)
     ? context.nativeBenchmark?.abi === LINUX_NATIVE_BENCHMARK_ABI
-      ? "Runtime samples are measured inside WSL2 around one fresh Linux fork/exec/wait4 child; WSL startup, Windows interop, and DrvFS target access are outside every sample. CPU and peak RSS describe the root Linux process; descendants are not aggregated."
+      ? "Runtime samples are measured inside WSL2 around one fresh Linux fork/exec/wait4 child in a native helper batch; WSL startup, Windows interop, and DrvFS target access are outside every sample. CPU and peak RSS describe the root Linux process; descendants are not aggregated."
       : "Test-only runtime observations cover one fresh wsl.exe wrapper per sample; Linux process-tree CPU/RSS are not separately aggregated."
     : context.nativeBenchmark
     ? "Production run CPU covers the complete contained Job tree and peak working set covers the root target process."
@@ -2228,6 +2228,7 @@ function protocol(context, workload = undefined) {
     stopRule: "fixed-count",
     wallClock: "monotonic-nanoseconds",
     processIsolation: "fresh-process-per-sample",
+    runtimeScope: context.nativeBenchmark ? "native-target-process-batch" : "direct-host-process",
     order: "compile-series-then-run-series",
     measurementKernel: context.nativeBenchmark?.abi ?? "bun-direct-test/1",
     resourceScope: processEntry
@@ -2255,6 +2256,7 @@ function processProtocol(context) {
     stopRule: "fixed-count",
     wallClock: "monotonic-nanoseconds",
     processIsolation: "fresh-process-per-sample",
+    runtimeScope: context.nativeBenchmark ? "native-target-process-batch" : "direct-host-process",
     order: "compile-series-then-run-series",
     measurementKernel: context.nativeBenchmark?.abi ?? "bun-direct-test/1",
     resourceScope: `${compileScope} Runtime samples execute the final private handler PE directly with the pinned [alpha, payload] vector; the empty vector is correctness-only. Fault witnesses are correctness-only and are not timed.`,

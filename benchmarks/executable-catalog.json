@@ -2296,7 +2296,7 @@
     }
   ],
   "resultContract": {
-    "schema": "w-executable-benchmark-result/5",
+    "schema": "w-executable-benchmark-result/6",
     "status": "contract-only",
     "recordsPath": "benchmarks/results",
     "requiredIdentity": [
@@ -2345,6 +2345,7 @@
       "stopRule",
       "wallClock",
       "processIsolation",
+      "runtimeScope",
       "order",
       "resourceScope",
       "knownNoiseControls",
@@ -2373,7 +2374,8 @@
       "stdout",
       "stderr"
     ],
-    "storage": "Full-fidelity local results stay under ignored benchmarks/results and are consumed after a successful update; raw samples are never copied into Git."
+      "storage": "Full-fidelity local results stay under ignored benchmarks/results and are consumed after a successful update; raw samples are never copied into Git.",
+      "runtimeMeasurement": "run is the complete target-process invocation measured by one native helper batch per warmup/raw series; the target process is fresh per sample, while helper, WSL startup, and DrvFS staging are outside each production sample."
   },
   "bestMetricsContract": {
     "schema": "w-executable-benchmark-best-metrics/1",
