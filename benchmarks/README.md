@@ -25,7 +25,7 @@ oracle. The shared public artifact target is `x86_64-pc-windows-msvc` for W,
 Clang C, and Rust. Public C has no silent GCC or c2x fallback.
 the current Rust baseline uses edition 2024.
 
-The catalog declares compile latency, median and P95 run wall time,
+The catalog declares compile latency, median and P95 cold-process wall time,
 user/system/total CPU time, peak working set, artifact size, exit code, and
 stdout/stderr. A local
 `executable-result` retains correctness artifact facts, one warmup, and an odd
@@ -47,6 +47,13 @@ section's name, VirtualSize, and raw size, as defined by the
 padding and zero-fill; it is not a useful-instruction count. Historical cells
 without this optional metadata remain `not measured`, and missing or ambiguous
 `.text`/`.rdata` sections are not fabricated as zero.
+The current runtime series is deliberately a cold-start measurement: each
+sample creates, executes, and waits for a fresh process. For very small
+programs, especially on Windows, this primarily measures process creation,
+security inspection, scheduling, and accounting rather than the W body. A
+future steady-state/body-throughput lane must have a distinct identity, use a
+bounded batched or persistent harness, publish the harness baseline, and never
+be merged with cold-start cells.
 Each result freezes a
 fixed-count, monotonic-clock, fresh-process protocol and a redacted environment;
 compile-side Bun CPU/working-set counters do not aggregate descendants. The
