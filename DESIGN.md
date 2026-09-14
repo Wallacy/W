@@ -39537,10 +39537,10 @@ padding.
 
 Provider capacity is intentionally absent from PARSEL0. Capacity one and two
 must therefore consume the same semantic selection instead of changing program
-identity or recompiling the task graph under a different meaning. This slice
-does not select a platform provider, emit MLIR, create workers, execute a task,
-prove overlap, expose a public command, or publish a benchmark. Those remain
-the next product milestone. Its benchmark disposition is
+identity or recompiling the task graph under a different meaning. W-1590 owns
+the later bounded Windows provider component. W-1589 itself does not select a
+platform provider, emit MLIR, create workers, execute a task, prove overlap,
+expose a public command, or publish a benchmark. Its benchmark disposition is
 `compiler-lifecycle`.
 
 ```w
@@ -39555,6 +39555,39 @@ entry {
   let second = await right
 }
 ```
+
+#### 26.4.1.71 W-1590 — bounded Windows parallel provider component
+
+W-1590 adds PARPROV0 as the first physical consumer of PARSEL0. The component
+re-verifies HIR37 and the exact selection before invoking one through four
+pure, non-suspending scalar jobs. Provider capacity is physical input and is
+bounded to one or two in this seed. Capacity one executes in lexical order;
+capacity two uses bounded Windows x64 Kernel32 threads in waves of at most two
+while publishing values in lexical join order.
+
+Semantic outcomes and physical evidence are separate records. The semantic
+record contains selected function identities, signed-`i64` values, the HIR
+semantic digest, and a canonical outcome digest. It contains neither provider
+kind nor capacity, so capacity one and two must produce byte-identical semantic
+outcomes. The physical receipt records provider kind, requested capacity,
+started and completed counts, maximum simultaneous active callbacks, and
+whether overlap occurred. Overlap is derived from simultaneous active
+callbacks; elapsed time, speedup, and thread creation alone are not evidence.
+
+Both records are caller-owned and publish transactionally only after every job
+has completed and every handle has been joined and closed. Invalid HIR,
+selection, job mapping, scalar type, capacity, alias, provider failure, or task
+failure leaves both records unchanged. Output alias checks cover the input,
+jobs, HIR descriptor and result, selection, and every HIR backing range. The
+bounded implementation uses no heap and does not expose native handles.
+
+The invocation callback remains a private seed bridge. It is not a W Task ABI,
+does not prove that emitted code corresponds to the selected HIR arguments,
+and does not make the host test executable CRT-free. Linux/WSL provider
+evidence, MLIR-generated invocation, public `w run`/`w build`, cancellation,
+worker pools, scheduling, and benchmarks remain later milestones. W-1590 is
+therefore `compiler-lifecycle` component evidence, not a product or performance
+claim.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

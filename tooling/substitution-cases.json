@@ -7827,6 +7827,78 @@
         "no provider, runtime, target, executable, overlap, or performance result is claimed"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-parallel-provider-component",
+      "reviewItem": "bounded Windows parallel provider evidence against capacity-dependent semantics, timing-based overlap claims, and callback/product conflation",
+      "decisions": ["W-1590"],
+      "task": "Execute one verified parallel selection at capacities one and two while separating semantic outcomes from physical evidence.",
+      "selected": {
+        "language": "w-internal",
+        "source": [
+          "outcomes = PARPROV0.execute(selection, jobs, capacity: 1)",
+          "parallelOutcomes = PARPROV0.execute(selection, jobs, capacity: 2)",
+          "assert outcomes.semanticBytes == parallelOutcomes.semanticBytes",
+          "assert physicalReceipt.maximumActive == 2"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "capacity-in-semantic-identity",
+          "language": "w-internal-rejected",
+          "source": ["outcome.digest.add(providerCapacity)"],
+          "expectedDifference": "Provider policy is kept in a separate physical receipt and cannot alter semantic outcome identity."
+        },
+        {
+          "name": "timing-proves-overlap",
+          "language": "w-internal-rejected",
+          "source": ["parallel = elapsed(capacity: 2) < elapsed(capacity: 1)"],
+          "expectedDifference": "The selected evidence uses deterministic rendezvous and simultaneous-active state, not timing."
+        },
+        {
+          "name": "publish-before-join",
+          "language": "w-internal-rejected",
+          "source": ["publish(taskValue) before joinAll()"],
+          "expectedDifference": "All jobs join and all handles close before the transactional semantic and physical commit."
+        },
+        {
+          "name": "callback-is-public-runtime",
+          "language": "w-internal-rejected",
+          "source": ["claim private callback bridge as emitted W Task ABI"],
+          "expectedDifference": "The component explicitly remains below MLIR invocation, public executable, CRT-free target, and benchmark claims."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_parallel_provider0.h",
+          "symbol": "w_seed_parallel_provider0_outcomes",
+          "claim": "Semantic outcomes exclude provider kind and capacity while the physical receipt records them separately."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_parallel_provider0.c",
+          "symbol": "w_seed_parallel_provider0_execute",
+          "claim": "The core re-verifies HIR and selection, rejects aliases and mappings, stages results, and publishes transactionally."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_parallel_provider0_windows.c",
+          "symbol": "w_seed_parallel_provider0_platform_execute",
+          "claim": "The Windows x64 leaf uses bounded Kernel32 waves and records simultaneous active callbacks."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_parallel_provider_windows",
+          "claim": "The focused source-to-HIR test proves byte-identical capacity-one/two outcomes and deterministic capacity-two overlap."
+        }
+      ],
+      "checks": [
+        "verified HIR37 and PARSEL0 are rechecked before physical work",
+        "k=1, k=2, and k=4 execute with capacity one and two",
+        "semantic outcomes are byte-identical across capacities",
+        "capacity two proves two simultaneously active callbacks without timing",
+        "invalid mapping, capacity, forged outcomes, aliases, and task failure preserve outputs",
+        "the callback remains private component plumbing rather than a public W runtime claim"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }
