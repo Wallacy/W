@@ -16,10 +16,10 @@
 
 | Métrica | Valor |
 |---|---:|
-| linhas de `DESIGN.md` | 40483 |
-| tokens aproximados de `DESIGN.md` | 470000 |
+| linhas de `DESIGN.md` | 40497 |
+| tokens aproximados de `DESIGN.md` | 470200 |
 | linhas de `RATIONALE.md` | 12745 |
-| tokens aproximados de `RATIONALE.md` | 312000 |
+| tokens aproximados de `RATIONALE.md` | 312100 |
 | seções numeradas | 27 |
 | seções terminais com evidência local | 445/457 |
 | decisões | 1601 (W-001–W-1601) |
@@ -33,7 +33,7 @@
 | decisões ainda sem classe de freeze | 0 |
 | decisões com múltiplos eixos obrigatórios | 2 |
 | formas R0 com baseline estática | 558 |
-| surface lexemes das formas vigentes R0 | 5927 total; mediana 31; máximo 151 |
+| surface lexemes das formas vigentes R0 | 5935 total; mediana 31; máximo 151 |
 | bundles executáveis R1 | 57 |
 | variantes/tarefas R1 | 162/228 |
 | casos R0 promovidos a R1 | 69/157 |
@@ -168,7 +168,7 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | 23 | 31497–33047 | 19100 | Protocolos e pesquisas de ecossistema |
 | 24 | 33048–35206 | 33600 | Design freeze e pendências |
 | 25 | 35207–35417 | 1900 | Produto de referência Última Luz |
-| 26 | 35418–40483 | 68300 | Plano de implementação |
+| 26 | 35418–40497 | 68500 | Plano de implementação |
 
 ## Navegação compacta de RATIONALE
 
@@ -188,7 +188,7 @@ Use um bundle para uma revisão de domínio. Depois leia somente os headings e I
 | segurança e execução | 9, 10, 11, 12, 13 | 9207–18095 | 100600 | ownership, errors, tasks, domains, services e entries |
 | std e performance | 14, 15, 16, 17, 18, 19 | 18096–26612 | 98500 | módulos, números, texto, tensors, custo, C e unsafe |
 | compiler e distribuição | 20, 21, 22, 23 | 26613–33047 | 71900 | frontend, HIR, packages, releases, tooling e protocolos |
-| validação e decisões | 24, 25, 26 | 33048–40483 | 103800 | freeze, Última Luz, gates e roadmap |
+| validação e decisões | 24, 25, 26 | 33048–40497 | 104000 | freeze, Última Luz, gates e roadmap |
 
 O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.
 

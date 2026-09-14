@@ -39961,11 +39961,25 @@ the one-kernel Hello is an evidence minimum, not a language limit. Empty or
 malformed records, duplicate labels, missing functions, and runtime arguments
 fail closed before accelerator records are published.
 
-This source-to-frontend evidence is not a W runtime/provider, a public
-`w build`/`w run` route, a supported GPU ABI, or homogeneous pinned production
-support. The roadmap item remains open until the typed `.launch` relation and
-frontend records cross independently verified W device IR, host/device artifact
-generation, a supported provider launch and join, and result verification.
+The internal `w-seed-gpu-module-1` bridge now validates those Frontend27
+records and copies the bounded device-module meaning into caller-owned module,
+kernel, text, and frontend-receipt stores. Its independent verifier re-derives
+the semantic digest from ordered module identities, labels, normalized signed
+`i32` return type, and payload; a separate provenance digest binds frontend
+indices, source spans, and the frontend receipt. The bridge survives the
+source, CST, and frontend lifetimes. Its first executable source slice accepts
+one or more module fields, while each referenced function is currently limited
+to a zero-parameter, effect-free direct `return` of a nonnegative signed `i32`
+literal. That function-body limit is an implementation slice, not a language or
+device ABI limit.
+
+The bridge contains no provider, target, queue, pointer, launch, MLIR handle,
+or physical ABI. It is independently verified W device-module IR for the Hello
+slice, but it is not a W runtime/provider, a public `w build`/`w run` route, a
+supported GPU ABI, or homogeneous pinned production support. The roadmap item
+remains open until the typed `.launch` relation drives host/device artifact
+generation and a supported provider launch, join, and result verification from
+the same source.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

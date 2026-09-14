@@ -35,6 +35,7 @@ add_library(w_seed_source STATIC
   include/w_seed_parallel_provider0.h
   include/w_seed_task_lifecycle0.h
   include/w_seed_gpu0.h
+  include/w_seed_gpu_module.h
   include/w_seed_scalar_evaluator0.h
   include/w_seed_wrt0.h
   include/w_seed_source_binding_linux.h
@@ -80,6 +81,7 @@ add_library(w_seed_source STATIC
   src/w_seed_hlo1.c
   src/w_seed_mlir0.c
   src/w_seed_gpu0.c
+  src/w_seed_gpu_module.c
   src/w_seed_hir0.c
   src/w_seed_product_closure0.c
   src/w_seed_process0.c
@@ -1424,6 +1426,8 @@ add_test(NAME w_seed_formatter_unit COMMAND w_seed_formatter_tests)
 add_test(NAME w_seed_diagnostic_unit COMMAND w_seed_diagnostic_tests)
 add_test(NAME w_seed_foreign_unit COMMAND w_seed_foreign_tests)
 add_test(NAME w_seed_frontend_unit COMMAND w_seed_frontend_tests)
+add_test(NAME w_seed_gpu_module_integration COMMAND w_seed_frontend_tests
+  ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/gpu0-module.w)
 add_test(NAME w_seed_hlo0_unit COMMAND w_seed_hlo0_tests)
 add_test(NAME w_seed_hlo1_unit COMMAND w_seed_hlo1_tests)
 add_test(NAME w_seed_mlir0_unit COMMAND w_seed_mlir0_tests)

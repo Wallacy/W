@@ -8654,6 +8654,7 @@
         "gpu0 = verify(twoFunctions, sevenOperations, result: 42)",
         "cst = parse(accelerator.module<{ hello: kernel }>())",
         "frontend = bind(moduleConst, orderedLabels, directLocalKernelIdentities)",
+        "deviceModule = independentlyVerify(frontend, signedI32LiteralReturn)",
         "artifacts = emit(hostMLIR, deviceMLIR)",
         "ptx = lower(deviceMLIR, target: sm_86)",
         "assert cudaDriver.launch(ptx).join().readback == 42",
@@ -8665,7 +8666,7 @@
         "name": "call-gpu0-source-backed-w",
         "language": "w-internal-rejected",
         "source": ["present the separate C23 witness and frontend bindings as a complete W GPU source route"],
-        "expectedDifference": "The selected evidence reaches bounded frontend module and kernel identities, but typed launch and the verified-W-IR bridge remain open."
+        "expectedDifference": "The selected evidence reaches independently verified bounded device-module records, but typed launch and source-driven artifact/provider linkage remain open."
       },
       {
         "name": "embed-cuda-in-semantic-ir",
@@ -8704,6 +8705,16 @@
         "claim": "Frontend27 binds one or multiple ordered labels to direct local function identities and rejects malformed or incomplete accelerator modules transactionally."
       },
       {
+        "path": "compiler/seed-c/src/w_seed_gpu_module.c",
+        "symbol": "w_seed_gpu_module_verify",
+        "claim": "The independent verifier re-derives bounded device-module identities, normalized payload meaning, provenance, and frontend receipt without source or frontend pointers."
+      },
+      {
+        "path": "compiler/seed-c/tests/test_frontend.c",
+        "symbol": "test_gpu_module_bridge",
+        "claim": "A versioned W fixture crosses Frontend27 into caller-owned device-module records and remains verifiable after source/frontend teardown."
+      },
+      {
         "path": "compiler/seed-c/src/w_seed_gpu0.c",
         "symbol": "w_seed_gpu0_verify",
         "claim": "The provider-free verifier re-derives the bounded semantic program, artifacts, phases, and exact result."
@@ -8727,12 +8738,13 @@
     "checks": [
       "two functions and seven operations remain an evidence shape rather than a language or ABI ceiling",
       "Frontend27 module and kernel bindings remain target and provider neutral",
+      "the bounded device-module bridge owns its records and remains verifiable after frontend teardown",
       "host and device artifacts retain separate identities and exact verification",
       "forbidden device effects, malformed records, aliases, capacities, and forged artifacts fail closed",
       "the available CUDA adapter returns 42 and rejects missing providers and kernels",
       "mixed MLIR and Clang versions remain explicit",
       "diagnostic metrics stay separate from source-backed W product rankings",
-      "rank 1 remains open until typed launch crosses verified W IR, artifacts, provider launch/join, and result"
+      "rank 1 remains open until typed launch drives artifacts, provider launch/join, and result from the same source"
     ],
     "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
   }

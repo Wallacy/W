@@ -58,18 +58,19 @@ gate.
 W-1601 now supplies the target-neutral two-function/seven-operation GPU0
 witness, separate host/device MLIR, GPU/NVVM/PTX lowering, actual result `42`
 on the available RTX A400, and a diagnostic-only in-process metric snapshot.
-The seed parser and Frontend27 also preserve the canonical
+The seed parser and Frontend27 preserve the canonical
 `accelerator.module<{...}>()` static record and ordered direct local kernel
-bindings. The recipe is mixed MLIR 23.1.1 plus Clang 22 and the route is not yet
-linked through typed launch and verified device IR or backed by a W
-runtime/provider. Rank 1 therefore remains open until verified W device IR
-supplies the same artifact, provider, launch, join, and result evidence. Only
-then does the queue generalize task storage, cancellation, and scheduling. This
-keeps early target partitioning and GPU applicability evidence available while
-those later representations are still cheap to change. W-1597 remains a legality
-certificate only; target policy must still combine it with observability and
-cost facts and compare any direct-call artifact with the W-1600 physical
-reference.
+bindings. The new `w-seed-gpu-module-1` bridge copies that meaning into
+independently verified, provider- and target-neutral device-module records; its
+first source-backed body slice proves zero-parameter signed-`i32` literal-return
+kernels and survives source/frontend teardown. The recipe is still mixed MLIR
+23.1.1 plus Clang 22, and no typed `.launch` connects this verified module to
+artifact generation or the available provider. Rank 1 therefore remains open
+until the same source drives host/device artifacts, provider launch, join, and
+result evidence. Only then does the queue generalize task storage,
+cancellation, and scheduling. W-1597 remains a legality certificate only;
+target policy must still combine it with observability and cost facts and
+compare any direct-call artifact with the W-1600 physical reference.
 
 The current fixed task counts and worker capacities are seed evidence limits.
 They must not become language, public ABI, or final runtime limits.
