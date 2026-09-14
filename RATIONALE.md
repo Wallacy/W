@@ -242,6 +242,7 @@ O corpus compara, no mínimo:
 - bounded parallel selection against provider-capacity identity, trusted lowering records, and premature execution claims.
 - HIR-derived parallel invocation against caller-supplied results, unchecked arithmetic, and compiler-host/product conflation.
 - runtime-parameterized parallel task-entry emission against baked launch values, source-order ABI drift, whole-program leakage, implicit linker visibility, and premature runtime claims.
+- CRT-free emitted parallel-entry execution against compiler-host HIR evaluation, copied task logic, compile-time-only values, and premature public-runtime claims.
 
 ### 1.1 Cobertura de substituições
 
@@ -7902,6 +7903,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1591 | HIR-derived bounded parallel invocation | PARINV0 re-verifies HIR37/PARSEL0 and derives exact signed-`i64` call, function, argument-value, count, and digest facts into canonical fixed storage. PARPROV0 no longer accepts caller callbacks or contexts: private jobs evaluate only the verified plan through one bounded checked scalar authority. Capacity-one and capacity-two semantic outcomes remain byte-identical, while internal active-worker rendezvous proves overlap separately. | `source-backed-current` only for the bounded compiler-host plan/evaluator, transactional and alias barriers, checked-failure rejection, Windows x64 k=1/k=2/k=4 provider consumption, and internal overlap evidence. MLIR-emitted task entry points, runtime-dependent process roots, Linux/WSL/other providers, CRT-free target imports, public execution, cancellation, scheduling, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1592 | reachable zero-argument parallel task-entry MLIR module | PARMLIR0 v1 emitted one zero-argument task wrapper per lexical launch, baked scalar launch values into the wrapper, retained only the reachable local helper closure, and proved explicit helper linkage plus Windows COFF and Linux PIC ELF object emission through MLIR/LLVM 23.1.1. | `superseded` by W-1593. The reachability, linkage, transaction, and dual-object observations remain historical evidence; baked launch values and the zero-argument wrapper shape are not current. |
 | W-1593 | runtime-parameterized parallel task-entry MLIR module | PARMLIR0 v2 re-verifies HIR37/PARSEL0/PARINV0 and emits one target-neutral public signed-`i64` task entry per lexical launch. Arity and types derive from the declaration; wrapper order follows parameter ordinals even when source labels are reordered; launch values are not embedded. Only the transitive reachable helper closure remains, with explicit internal linkage. The same MLIR lowers through 23.1.1 to Windows x64 COFF and Linux x86-64 PIC ELF objects. | `source-backed-current` only for the bounded parameterized internal wrapper, exact reachability closure, transactional and alias barriers, translated-IR checks, and dual object-format evidence. Provider linkage, stable/public ABI, runtime-dependent process input, public execution, CRT-free imports, cancellation, scheduling, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1594 | CRT-free Windows adapter to emitted parallel entries | PARLINK0 links the W-1593 COFF task object with a minimal authored LLVM adapter, obtains a runtime PID, calls both generated task symbols on Kernel32 workers, joins and closes handles, and verifies `pid + 1` / `pid + 3`. `/nodefaultlib` plus `mainCRTStartup` leaves only explicit Kernel32 imports; no C artifact, HIR evaluator, test callback, or copied task body participates. | `source-backed-current` only for this bounded private Windows x64 emitted-code adapter and relational runtime-value oracle. It is not process-input semantics, a public command, Linux/WSL provider linkage, a stable Task ABI, arbitrary cardinality, cancellation, scheduling, benchmark evidence, or performance. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -12476,3 +12478,26 @@ executable. The next product cut must define an internal provider adapter and
 runtime value source without preserving a HIR evaluator in the target. Until
 then, the evidence remains compiler-lifecycle only and creates no benchmark or
 performance claim.
+
+#### W-1594 — CRT-free Windows adapter to emitted parallel entries
+
+W-1593 made each task callable with runtime parameters, but object emission
+alone did not prove that a physical worker could call those symbols. PARLINK0
+adds the smallest non-C target adapter for that question. It reads the current
+process ID from Kernel32, schedules two jobs through `CreateThread`, calls the
+generated one- and two-argument task symbols, joins and closes both handles,
+and accepts only the relational results `pid + 1` and `pid + 3`.
+
+Using the PID avoids a disguised compile-time fixture: the emitted W functions
+must consume a value known only in the executing process. The adapter is LLVM
+IR because its role is target WRT plumbing, not a C fallback. LLD links the
+adapter and task object with `/nodefaultlib` and explicit Kernel32 only. The
+gate runs the temporary PE silently and requires exit zero.
+
+This is deliberately narrower than a public parallel program. The value does
+not come from W `Arguments`, Linux has no provider adapter yet, and the task
+signature is not stable ABI. PARPROV0 continues to own deterministic overlap
+and capacity evidence; PARLINK0 owns only provider-to-emitted-code execution.
+The next increment must derive runtime arguments from a W process root and
+close the equivalent Windows and Linux/WSL product path before benchmark
+promotion.

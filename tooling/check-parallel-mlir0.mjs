@@ -22,6 +22,15 @@ function run(command, args, { cwd = root } = {}) {
   return result;
 }
 
+function exactExit(command, args, expectedExit) {
+  const result = Bun.spawnSync({
+    cmd: [command, ...args], cwd: root, stdout: "pipe", stderr: "pipe",
+  });
+  if (result.exitCode !== expectedExit || result.stdout.length !== 0 ||
+      result.stderr.length !== 0)
+    fail(`${command} ${args.join(" ")} expected silent exit ${expectedExit}, got ${result.exitCode}`);
+}
+
 async function tools() {
   if (process.platform === "win32") {
     const { defaultCacheDirectory, validateManifest, validateMaterialized } =
@@ -47,6 +56,7 @@ async function tools() {
       mlirOpt: get("mlir-opt.exe"),
       mlirTranslate: get("mlir-translate.exe"),
       llc: get("llc.exe"),
+      lldLink: get("lld-link.exe"),
     };
   }
   const get = (name) => Bun.which(name) ?? fail(`${name} is unavailable`);
@@ -126,7 +136,24 @@ try {
       linuxBytes[1] !== 0x45 || linuxBytes[2] !== 0x4c ||
       linuxBytes[3] !== 0x46)
     fail("Linux x86-64 ELF object header is invalid");
-  console.log(`PARALLEL MLIR0: MLIR=23.1.1 tasks=2 runtimeArguments=3 reachableFunctions=3 windowsObjectBytes=${windowsBytes.length} linuxObjectBytes=${linuxBytes.length}`);
+  let emittedExecution = "not-run";
+  if (process.platform === "win32") {
+    const { findWindowsSdkKernel32 } = await import("./windows-build-support.mjs");
+    const sdk = await findWindowsSdkKernel32();
+    const adapterSource = resolve(seed, "runtime",
+      "w_seed_parallel_entry_windows0.ll");
+    const adapterObject = join(directory, "parallel-entry-adapter.obj");
+    const executable = join(directory, "parallel-entry.exe");
+    run(available.llc, ["-filetype=obj", "-mtriple=x86_64-pc-windows-msvc",
+      "-O3", adapterSource, "-o", adapterObject]);
+    run(available.lldLink, ["/entry:mainCRTStartup", "/subsystem:console",
+      "/nodefaultlib", "/machine:x64", `/out:${executable}`,
+      windowsObject, adapterObject, sdk.path, "/Brepro", "/opt:ref",
+      "/opt:icf", "/incremental:no"]);
+    exactExit(executable, [], 0);
+    emittedExecution = "windows-crt-free-runtime-values";
+  }
+  console.log(`PARALLEL MLIR0: MLIR=23.1.1 tasks=2 runtimeArguments=3 reachableFunctions=3 emittedExecution=${emittedExecution} windowsObjectBytes=${windowsBytes.length} linuxObjectBytes=${linuxBytes.length}`);
 } finally {
   await rm(directory, { recursive: true, force: true });
 }

@@ -23,10 +23,10 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:7b81155532fd6d0debeed252154e1f643ee266b910e12b74e3826d3da9c535c9",
-    "count": 1593,
+    "sha256": "sha256:8b0ff177aa4dbeda8a07a0f45c582f2896d22cca6c90b63d666a7cefe5cd1baa",
+    "count": 1594,
     "first": "W-001",
-    "last": "W-1593"
+    "last": "W-1594"
   },
   "epochs": [
     {
@@ -61,7 +61,7 @@
     }
   ],
   "preservedLegacyCoverage": {
-    "source": 259,
+    "source": 260,
     "oracle": 418,
     "explicit": 8,
     "overlap": 57
@@ -21850,7 +21850,7 @@
         "path": "DESIGN.md",
         "section": "26",
         "heading": "## 26. Plano de implementação",
-        "sectionDigest": "sha256:6a6989d5d90d367bd1abf3f34c9ad093044d320a3e21fa2ee8189569ee81a50c"
+        "sectionDigest": "sha256:984a65fbd01e44a1d6e4d9d68663c9fe22b921a2beb5a15506dd5260bf2cdaef"
       },
       "evidence": [],
       "reason": "W-659 (body de entry, sha256:f66ab57406ddb51303f9190376daf72d8f538bd7bd8adfbf9992ae3d7223e74e) has no executable witness for component implementation-plan. The checked current contract is DESIGN.md §26 / 26. Plano de implementação.",
@@ -56052,6 +56052,49 @@
           "path": "tooling/check-parallel-mlir0.mjs",
           "symbol": "PARALLEL MLIR0",
           "claim": "The pinned MLIR/LLVM 23.1.1 gate checks parameterized translated IR and valid Windows and Linux objects."
+        }
+      ]
+    },
+    {
+      "decisionId": "W-1594",
+      "summary": "CRT-free Windows adapter to emitted parallel entries",
+      "canonicalClaim": "PARLINK0 links the W-1593 COFF task object with a minimal authored LLVM adapter, obtains a runtime PID, calls both generated task symbols on Kernel32 workers, joins and closes handles, and verifies `pid + 1` / `pid + 3`. `/nodefaultlib` plus `mainCRTStartup` leaves only explicit Kernel32 imports; no C artifact, HIR evaluator, test callback, or copied task body participates.",
+      "claimDigest": "sha256:eb50ebdfaac9d2d2c96762e03f60aeb9bd5a4de9bbab101fe64f0e8466f03aca",
+      "category": "source-backed-current",
+      "basis": "linked-source-comparison-case",
+      "authorityRef": {
+        "kind": "source-case",
+        "path": "tooling/substitution-cases.json",
+        "caseId": "R0-parallel-emitted-adapter",
+        "caseDigest": "sha256:3d5bef1c26a770b8cfc05ac53f4c5571d53497409c7d820f65ec692450656827"
+      },
+      "evidence": [
+        {
+          "kind": "source",
+          "path": "tooling/substitution-cases.json",
+          "caseId": "R0-parallel-emitted-adapter",
+          "caseDigest": "sha256:3d5bef1c26a770b8cfc05ac53f4c5571d53497409c7d820f65ec692450656827"
+        }
+      ],
+      "reason": "W-1594 (CRT-free Windows adapter to emitted parallel entries, sha256:eb50ebdfaac9d2d2c96762e03f60aeb9bd5a4de9bbab101fe64f0e8466f03aca) is source-backed-current only for the bounded private Windows x64 adapter that obtains runtime-dependent values, invokes both compiler-emitted task symbols on Kernel32 workers, joins them, and checks their relational results. Process Arguments, a public command, Linux/WSL provider linkage, a stable Task ABI, arbitrary cardinality, cancellation, scheduling, benchmark results, and performance remain gaps.",
+      "selection": "explicit-ledger-id",
+      "basisRef": {
+        "kind": "ledger-row",
+        "path": "RATIONALE.md",
+        "section": "3. Ledger",
+        "decisionId": "W-1594",
+        "claimDigest": "sha256:eb50ebdfaac9d2d2c96762e03f60aeb9bd5a4de9bbab101fe64f0e8466f03aca"
+      },
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/runtime/w_seed_parallel_entry_windows0.ll",
+          "symbol": "w-seed-parallel-link0-windows-1",
+          "claim": "The authored LLVM adapter obtains the process identifier at runtime and invokes both emitted task symbols through Kernel32 workers without a C or CRT dependency."
+        },
+        {
+          "path": "tooling/check-parallel-mlir0.mjs",
+          "symbol": "emittedExecution",
+          "claim": "The pinned LLVM 23.1.1 gate links with /nodefaultlib, executes the PE silently, and requires the relational runtime-value oracle to succeed."
         }
       ]
     }
