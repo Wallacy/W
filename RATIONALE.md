@@ -244,6 +244,7 @@ O corpus compara, no mínimo:
 - runtime-parameterized parallel task-entry emission against baked launch values, source-order ABI drift, whole-program leakage, implicit linker visibility, and premature runtime claims.
 - CRT-free emitted parallel-entry execution against compiler-host HIR evaluation, copied task logic, compile-time-only values, and premature public-runtime claims.
 - process-root parallel dataflow against anonymous-entry-only HIR, target-shaped task records, hidden Task allocation, and premature executable claims.
+- process-root selection against implicit domain configuration, unproved parallel-as-direct lowering, target-specific selection records, and premature executable success.
 
 ### 1.1 Cobertura de substituições
 
@@ -7906,6 +7907,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1593 | runtime-parameterized parallel task-entry MLIR module | PARMLIR0 v2 re-verifies HIR37/PARSEL0/PARINV0 and emits one target-neutral public signed-`i64` task entry per lexical launch. Arity and types derive from the declaration; wrapper order follows parameter ordinals even when source labels are reordered; launch values are not embedded. Only the transitive reachable helper closure remains, with explicit internal linkage. The same MLIR lowers through 23.1.1 to Windows x64 COFF and Linux x86-64 PIC ELF objects. | `source-backed-current` only for the bounded parameterized internal wrapper, exact reachability closure, transactional and alias barriers, translated-IR checks, and dual object-format evidence. Provider linkage, stable/public ABI, runtime-dependent process input, public execution, CRT-free imports, cancellation, scheduling, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1594 | CRT-free Windows adapter to emitted parallel entries | PARLINK0 links the W-1593 COFF task object with a minimal authored LLVM adapter, obtains a runtime PID, calls both generated task symbols on Kernel32 workers, joins and closes handles, and verifies `pid + 1` / `pid + 3`. `/nodefaultlib` plus `mainCRTStartup` leaves only explicit Kernel32 imports; no C artifact, HIR evaluator, test callback, or copied task body participates. | `source-backed-current` only for this bounded private Windows x64 emitted-code adapter and relational runtime-value oracle. It is not process-input semantics, a public command, Linux/WSL provider linkage, a stable Task ABI, arbitrary cardinality, cancellation, scheduling, benchmark evidence, or performance. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1595 | process-root and parallel-scope HIR composition | HIR37 now admits and independently verifies one bounded native-process root whose real `Arguments.isEmpty` value feeds one pure scalar prelude binding, then one `spawn<.domain>` task argument and its lexical `await`, before returning the resolved `ExitCode`. Existing HIR records express the complete dependency, so no Task object, process-specific task node, record-layout revision, or target fact is added. | `source-backed-current` only for the bounded frontend-to-verified-HIR composition and adversarial two-prelude rejection. Native0 domain configuration, process-root PARSEL0, MLIR composition, target provider linkage, public execution, benchmark results, and performance remain gaps. The one-prelude/one-task ceiling is seed evidence only. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1596 | Native0 domain admission and process-root selection | Native0 supplies one explicit caller-owned concurrent-plus-parallel `.domain` configuration, and the unchanged fixed PARSEL0 record now independently selects either its anonymous Unit root or the bounded W-1595 process root, including the direct prelude binding before the physical launch and lexical join. NativeSubset0 additionally requires local process calls to be DIRECT, so a parallel dispatch cannot be silently lowered as an ordinary call. | `source-backed-current` only for Native0 frontend/HIR admission, independent process-root PARSEL0 selection, transactional unsupported MLIR publication, and the parallel-as-direct rejection. Target process/parallel emission, provider linkage, public execution, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -12530,3 +12532,29 @@ The next cut must configure `.domain` in Native0, generalize the independent
 parallel selection for a process root, and emit the process leaf plus task
 closure for both supported targets. Until then this is compiler-lifecycle HIR
 evidence, not executable or benchmark evidence.
+
+#### W-1596 — Native0 domain admission and process-root selection
+
+The first attempt to pass the W-1595 source through Native0 exposed a dangerous
+substitution: NativeSubset0's process local-call check validated callee shape
+but not execution kind, so the existing process emitter could accept a
+parallel dispatch as an ordinary call. A successful MLIR publication there
+would erase the requested scheduling semantics.
+
+W-1596 closes that route before adding new emission. Native0 owns one bounded
+`.domain` input record, HIR remains unchanged, and PARSEL0 rederives the
+process root's direct scalar prelude plus its selected physical task relation.
+NativeSubset0 now admits only DIRECT local calls in the ordinary process path.
+The same source consequently reaches verified HIR and PARSEL0, then returns
+UNSUPPORTED without changing MLIR bytes or the public result.
+
+This ordering makes the next emitter responsible for composing process input,
+task-entry lowering, provider dispatch, join, and exit explicitly. It adds no
+runtime object and does not let the temporary one-domain/one-task evidence
+become a language or ABI ceiling.
+
+Direct-call elision remains a desirable later optimization for a pure,
+non-suspending child whose immediate lexical join makes every execution
+observable equivalent. It must be represented as a proved transformation and
+verified independently; the accidental NativeSubset0 acceptance supplied
+neither proof nor a way to distinguish optimization from semantic loss.

@@ -3179,6 +3179,14 @@ static bool test_process_parallel_composition_hir(void) {
         root_direct_calls == 1u && launch_bindings == 1u &&
         join_bindings == 1u && entry->adapter_kind ==
             W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS);
+  w_seed_parallel_selection0 selection;
+  CHECK(w_seed_parallel_selection0_select(program, &fixture.hir_result,
+                                          &selection) ==
+            W_SEED_PARALLEL_SELECTION0_OK &&
+        selection.root_function_index == entry->target_function &&
+        selection.task_count == 1u &&
+        w_seed_parallel_selection0_verify(program, &fixture.hir_result,
+                                          &selection));
 
   static const char TWO_PRELUDES[] =
       "import { Arguments as ProcessArguments, Context as ProcessContext, "

@@ -39749,6 +39749,28 @@ process/parallel composition, provider linkage, Linux/Windows execution, a
 public executable, benchmark data, or performance evidence. Those are the
 next steps of the ranked process-witness increment.
 
+#### 26.4.1.77 W-1596 — Native0 domain admission and process-root selection
+
+Native0 now supplies one caller-owned concurrent, parallel-capable `.domain`
+configuration to its frontend input. This is seed product configuration, not a
+language-default scheduler or provider choice. The existing fixed PARSEL0
+record independently accepts either its anonymous Unit root or the W-1595
+native-process root, and for the latter proves the one direct local prelude
+call and binding before selecting the exact parallel call, launch binding, and
+lexical join. No record field or serialized layout changes.
+
+The ordinary process NativeSubset0 route must accept only
+`W_SEED_HIR0_CALL_DIRECT` local calls. A physical parallel dispatch is not a
+direct call and therefore fails closed instead of being silently emitted as
+one. The focused Native0 test proves frontend configuration, verified HIR, and
+PARSEL0 selection while requiring MLIR publication and its result/output to
+remain untouched. W-1596 adds no process/parallel target emitter, provider
+composition, public executable, benchmark result, or performance claim.
+This fail-closed boundary does not prohibit a later optimizer from replacing
+the physical relation with a direct call when an explicit, independently
+verified equivalence certificate proves that scheduling, cancellation,
+task-local state, identity, effects, and outcomes are unobservable.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

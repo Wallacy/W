@@ -260,6 +260,9 @@ typedef struct {
   w_seed_frontend_external_parameter host_parameters[2];
   w_seed_frontend_host_prelude_symbol host_symbols[2];
   w_seed_frontend_host_prelude host_scope;
+  /* Seed product configuration for the explicit `.domain` placement.  This
+   * is caller-owned frontend input, not a language-wide default scheduler. */
+  w_seed_frontend_domain domains[1];
   /* The catalog is compiler-owned; these records are attached only when the
    * typed module scanner resolves the exact std.process import. */
   w_seed_frontend_external_parameter process_external_parameters[1];
