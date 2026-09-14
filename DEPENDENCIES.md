@@ -71,7 +71,7 @@ Latest stable: `version: 3.9.2`.
 ### `cmake-floor`
 
 Scope: seed C and byte-scan CMake projects.
-Locations: `compiler/seed-c/CMakeLists.txt`, `benchmarks/byte-scan-view/CMakeLists.txt`, `tooling/check-hlo1.mjs`, `tooling/demo-seed-hello.mjs`.
+Locations: `compiler/seed-c/CMakeLists.txt`, `benchmarks/byte-scan-view/CMakeLists.txt`, `tooling/check-hlo1.mjs`, `tooling/check-parallel-mlir0.mjs`, `tooling/demo-seed-hello.mjs`.
 Latest stable: `version: 4.4.3; tag: v4.4.3`.
 
 Environment and build requirements for `cmake-floor`:
@@ -82,7 +82,7 @@ Environment and build requirements for `cmake-floor`:
 ### `ninja-build-requirement`
 
 Scope: CMake build generator.
-Locations: `tooling/check-hlo0.mjs`, `tooling/check-hir0.mjs`, `tooling/check-hlo1.mjs`, `tooling/check-mlir0.mjs`, `tooling/demo-seed-hello.mjs`.
+Locations: `tooling/check-hlo0.mjs`, `tooling/check-hir0.mjs`, `tooling/check-hlo1.mjs`, `tooling/check-mlir0.mjs`, `tooling/check-parallel-mlir0.mjs`, `tooling/demo-seed-hello.mjs`.
 Latest stable: `version: 1.13.2; tag: v1.13.2`.
 
 Environment and build requirements for `ninja-build-requirement`:
@@ -96,7 +96,7 @@ Stop condition: CI and release artifacts report one exact Ninja build.
 ### `c-compiler-selection`
 
 Scope: focal C and MLIR checks.
-Locations: `tooling/check-hlo0.mjs`, `tooling/check-hir0.mjs`, `tooling/check-hlo1.mjs`, `tooling/check-mlir0.mjs`, `tooling/byte-scan-view-smoke.mjs`.
+Locations: `tooling/check-hlo0.mjs`, `tooling/check-hir0.mjs`, `tooling/check-hlo1.mjs`, `tooling/check-mlir0.mjs`, `tooling/check-parallel-mlir0.mjs`, `tooling/byte-scan-view-smoke.mjs`.
 
 Environment and build requirements for `c-compiler-selection`:
 - windows: compiler=GCC, version=13.2.0.
@@ -140,7 +140,7 @@ Environment and build requirements for `rust-correctness-baseline`:
 ### `mlir0-llvm-clang`
 
 Scope: WSL Linux MLIR0 development edge.
-Locations: `tooling/mlir0-toolchain.json`, `tooling/check-mlir0.mjs`, `tooling/check-llvm-release.mjs`, `tooling/check-llvm-release.test.mjs`, `tooling/platform-support.json`, `tooling/platform-support.mjs`, `.github/workflows/llvm-release-watch.yml`, `PLATFORM-SUPPORT.md`.
+Locations: `tooling/mlir0-toolchain.json`, `tooling/check-mlir0.mjs`, `tooling/check-parallel-mlir0.mjs`, `tooling/check-llvm-release.mjs`, `tooling/check-llvm-release.test.mjs`, `tooling/platform-support.json`, `tooling/platform-support.mjs`, `.github/workflows/llvm-release-watch.yml`, `PLATFORM-SUPPORT.md`.
 Latest stable: `version: 23.1.1; tag: llvmorg-23.1.1`.
 
 Release watch for `mlir0-llvm-clang`: [official schedule](https://llvm.org/); scheduled CI `.github/workflows/llvm-release-watch.yml`.
@@ -165,7 +165,7 @@ Latest stable: `version: 17.0.0`.
 ### `portable-mlir-toolchain`
 
 Scope: possible bootstrap, mirror, or rebuild input.
-Locations: `tooling/platform-support.json`, `PLATFORM-SUPPORT.md`, `tooling/mlir0-windows-toolchain.json`, `tooling/build-w-windows.mjs`.
+Locations: `tooling/platform-support.json`, `PLATFORM-SUPPORT.md`, `tooling/mlir0-windows-toolchain.json`, `tooling/check-parallel-mlir0.mjs`, `tooling/build-w-windows.mjs`.
 
 Limits: third-party not W authority or support; only x86_64-pc-windows-msvc asset inspected; no completed W trust, SBOM, or provenance audit; host binaries do not prove cross-compilation; Apple SDK and license are not supplied or proven.
 

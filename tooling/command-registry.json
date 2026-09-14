@@ -1243,6 +1243,18 @@
         }
       ]
     },
+    "check:parallel-mlir0": {
+      "description": "Validate HIR-derived parallel task entry emission through MLIR 23.1.1 for Windows and Linux objects.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-parallel-mlir0.mjs"
+          ]
+        }
+      ]
+    },
     "check:process-entry0": {
       "description": "Execute the private compiled process handler with the real PROCESS0 provider.",
       "steps": [

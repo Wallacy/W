@@ -39625,6 +39625,33 @@ benchmarks, and performance remain gaps. A public parallel product must replace
 compiler-host evaluation with emitted code while preserving this exact
 invocation proof and semantic/physical separation.
 
+#### 26.4.1.73 W-1592 — reachable parallel task-entry MLIR module
+
+PARMLIR0 consumes only verified HIR37, PARSEL0, and PARINV0. It independently
+re-verifies that chain, derives the direct local helper closure reachable from
+the selected task calls and their argument value trees, and emits one public
+zero-argument signed-`i64` entry named
+`w_seed_parallel_task_<launch-ordinal>` per selected task. Unreachable local
+functions and their data are absent. Reachable helpers have explicit internal
+LLVM linkage; source-language visibility alone is not treated as linker
+evidence.
+
+The emitted module is target-neutral `func`/`arith` MLIR. It contains no
+process entry, target triple, scheduler, provider, runtime owner, native
+handle, or W Task ABI. The pinned MLIR/LLVM 23.1.1 recipe lowers the same bytes
+to a Windows x64 COFF object and a Linux x86-64 PIC ELF object. The objects are
+linkable compiler outputs, not standalone executables, supported-platform
+claims, or proof that either provider invokes emitted code.
+
+The API is fixed-storage, caller-owned, transactional, and independently
+verifiable. Capacity and alias failures leave the artifact and result
+unchanged; aliases include the descriptors, proofs, result records, output,
+and every HIR backing range. The current witness embeds compile-time scalar
+arguments. Runtime-dependent process inputs, provider-to-symbol linkage,
+public execution, CRT-free target imports, cancellation, scheduling,
+benchmarks, timing, and performance remain gaps. W-1592 is therefore
+`compiler-lifecycle` evidence and does not enter the executable catalog.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

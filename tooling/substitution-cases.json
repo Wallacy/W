@@ -7906,6 +7906,73 @@
         "no callback or arbitrary context crosses the provider input boundary"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-parallel-mlir-entry",
+      "reviewItem": "reachable parallel task-entry emission against whole-program leakage, implicit linker visibility, and premature runtime claims",
+      "decisions": ["W-1592"],
+      "task": "Emit the smallest target-neutral linkable module for a verified parallel selection and lower the same bytes to Windows and Linux objects without claiming a runtime.",
+      "selected": {
+        "language": "w-internal",
+        "source": [
+          "entries = PARMLIR0.emit(hir, selection, invocation)",
+          "assert entries.publicSymbols == lexicalTaskEntries",
+          "assert entries.privateClosure == reachableDirectHelpersOnly",
+          "assert lower(entries, targets: [windowsX64, linuxX64]).objectsAreValid"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "emit-whole-program",
+          "language": "w-internal-rejected",
+          "source": ["materialize every source function for each task object"],
+          "expectedDifference": "The selected emitter starts at task calls and retains only the union of reachable direct local helpers."
+        },
+        {
+          "name": "trust-source-visibility",
+          "language": "w-internal-rejected",
+          "source": ["treat MLIR private visibility as proof of internal LLVM linkage"],
+          "expectedDifference": "The selected module carries explicit internal LLVM linkage and checks translated LLVM IR."
+        },
+        {
+          "name": "claim-runtime-product",
+          "language": "w-internal-rejected",
+          "source": ["publish linkable task objects as a public parallel executable benchmark"],
+          "expectedDifference": "The selected milestone remains compiler-lifecycle evidence until a provider consumes emitted symbols with runtime-dependent input."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_mlir0.h",
+          "symbol": "w_seed_mlir0_emit_parallel_entries",
+          "claim": "The public seed boundary consumes verified HIR, selection, and invocation proofs and publishes caller-owned output transactionally."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "build_parallel_entry_artifact",
+          "claim": "The emitter derives the reachable function closure and materializes canonical task-entry wrappers."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_parallel_mlir_entries",
+          "claim": "Focused C tests cover reachability, unused-function omission, capacity, forgery, and independent verification."
+        },
+        {
+          "path": "tooling/check-parallel-mlir0.mjs",
+          "symbol": "PARALLEL MLIR0",
+          "claim": "The pinned MLIR/LLVM 23.1.1 gate checks translated linkage and emits valid Windows x64 COFF and Linux x86-64 PIC ELF objects."
+        }
+      ],
+      "checks": [
+        "HIR37, PARSEL0, and PARINV0 are re-verified before emission",
+        "one public zero-argument signed-i64 entry is emitted per lexical task",
+        "only reachable direct local helper functions are retained",
+        "helper linkage is explicitly internal in translated LLVM IR",
+        "the same target-neutral MLIR lowers to Windows x64 COFF and Linux x86-64 PIC ELF objects",
+        "capacity, alias, and forged-proof failures publish no partial artifact",
+        "no provider, runtime input, process entry, executable, benchmark, timing, or performance claim is introduced"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }
