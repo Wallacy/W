@@ -37,6 +37,17 @@
     },
     "llvmTripleIsInsufficient": true,
     "wslIsNotWindowsNative": true,
+    "featureCoverage": {
+      "default": "all-applicable-targets",
+      "unavailableEvidenceIsNotInapplicable": true,
+      "targetExclusionRequires": [
+        "target-inapplicability-rationale",
+        "catalog-record"
+      ],
+      "localInvocation": "requested-targets",
+      "releaseFanout": "all-supported-applicable-targets",
+      "crossCompilationGoal": "any-supported-host-to-any-supported-target"
+    },
     "promotionAxes": {
       "target": [
         "backend",

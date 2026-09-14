@@ -1046,7 +1046,7 @@ function validatePolicy(value, errors) {
     return;
   }
   const policy = value.policy;
-  validateKeys(policy, new Set(["referenceBreadth", "llvmTripleIsInsufficient", "wslIsNotWindowsNative", "promotionAxes", "dependencyCurrency"]), "policy", errors);
+  validateKeys(policy, new Set(["referenceBreadth", "llvmTripleIsInsufficient", "wslIsNotWindowsNative", "featureCoverage", "promotionAxes", "dependencyCurrency"]), "policy", errors);
   if (!isObject(policy.referenceBreadth)) {
     addError(errors, "policy.referenceBreadth must be an object.");
   } else {
@@ -1085,6 +1085,30 @@ function validatePolicy(value, errors) {
   validateStringArray(policy.promotionAxes?.compilerHost, "policy.promotionAxes.compilerHost", errors);
   if (policy.llvmTripleIsInsufficient !== true) addError(errors, "policy.llvmTripleIsInsufficient must be true.");
   if (policy.wslIsNotWindowsNative !== true) addError(errors, "policy.wslIsNotWindowsNative must be true.");
+  const featureCoverage = policy.featureCoverage;
+  if (!isObject(featureCoverage)) {
+    addError(errors, "policy.featureCoverage must be an object.");
+  } else {
+    validateKeys(featureCoverage, new Set([
+      "default", "unavailableEvidenceIsNotInapplicable",
+      "targetExclusionRequires", "localInvocation", "releaseFanout",
+      "crossCompilationGoal",
+    ]), "policy.featureCoverage", errors);
+    if (featureCoverage.default !== "all-applicable-targets")
+      addError(errors, "policy.featureCoverage.default must be all-applicable-targets.");
+    if (featureCoverage.unavailableEvidenceIsNotInapplicable !== true)
+      addError(errors, "policy.featureCoverage.unavailableEvidenceIsNotInapplicable must be true.");
+    if (!same(featureCoverage.targetExclusionRequires, [
+      "target-inapplicability-rationale", "catalog-record",
+    ])) addError(errors, "policy.featureCoverage.targetExclusionRequires must require rationale and catalog record.");
+    if (featureCoverage.localInvocation !== "requested-targets")
+      addError(errors, "policy.featureCoverage.localInvocation must be requested-targets.");
+    if (featureCoverage.releaseFanout !== "all-supported-applicable-targets")
+      addError(errors, "policy.featureCoverage.releaseFanout must be all-supported-applicable-targets.");
+    if (featureCoverage.crossCompilationGoal !==
+        "any-supported-host-to-any-supported-target")
+      addError(errors, "policy.featureCoverage.crossCompilationGoal must be any-supported-host-to-any-supported-target.");
+  }
   if (!isObject(policy.promotionAxes) || !same(policy.promotionAxes.target, TARGET_AXES) || !same(policy.promotionAxes.compilerHost, HOST_AXES)) {
     addError(errors, "policy.promotionAxes must match the target and compiler-host axis lists.");
   }
@@ -1512,6 +1536,8 @@ export function renderPlatformSupport(value, { root = repositoryRoot } = {}) {
     `- Observed: ${value.observed ?? "—"}.`,
     `- Reference breadth goal: \`${value.policy?.referenceBreadth?.goal ?? "—"}\`.`,
     `- Rust target tiers imported: ${value.policy?.referenceBreadth?.importsRustTiers === false ? "no" : "yes"}.`,
+    `- Feature coverage: \`${value.policy?.featureCoverage?.default ?? "—"}\`; missing local evidence does not make a target inapplicable.`,
+    `- Release fanout: \`${value.policy?.featureCoverage?.releaseFanout ?? "—"}\`; cross-compilation goal: \`${value.policy?.featureCoverage?.crossCompilationGoal ?? "—"}\`.`,
     `- Current evidence version: \`${value.policy?.dependencyCurrency?.currentEvidenceVersion ?? "—"}\` (${value.policy?.dependencyCurrency?.currentEvidenceCurrencyStatus ?? "—"}).`,
     `- Future native plan policy: \`${value.policy?.dependencyCurrency?.futureNativePlanPolicy ?? "—"}\`; successor: \`${value.policy?.dependencyCurrency?.successorTag ?? "—"}\` at \`${value.policy?.dependencyCurrency?.successorCommit ?? "—"}\`.`,
     `- Build and provenance blocker: \`${value.policy?.dependencyCurrency?.promotionBlocker ?? "—"}\`.`,

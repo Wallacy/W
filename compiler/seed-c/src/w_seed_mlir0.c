@@ -5545,6 +5545,13 @@ static bool output_buffer_aliases(const w_seed_mlir0_input *input,
          ranges_overlap(output, sizeof(*output), output->bytes, bytes);
 }
 
+static bool build_cooperative_executable_artifact(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    const w_seed_cooperative_selection0 *selection,
+    const w_seed_mlir0_target *target, uint8_t *artifact, size_t capacity,
+    size_t *written, uint8_t digest[MLIR0_DIGEST_BYTES]);
+
 w_seed_mlir0_status w_seed_mlir0_measure(
     const w_seed_mlir0_input *input, const w_seed_mlir0_target *target,
     w_seed_mlir0_counts *counts, w_seed_mlir0_result *result) {
@@ -5553,19 +5560,26 @@ w_seed_mlir0_status w_seed_mlir0_measure(
     return W_SEED_MLIR0_INVALID_HIR;
   if (input->artifact_kind != W_SEED_MLIR0_ARTIFACT_EXECUTABLE &&
       input->artifact_kind != W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER &&
-      input->artifact_kind != W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE)
+      input->artifact_kind != W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE &&
+      input->artifact_kind != W_SEED_MLIR0_ARTIFACT_COOPERATIVE_EXECUTABLE)
     return W_SEED_MLIR0_UNSUPPORTED;
   const bool process_artifact =
       input->artifact_kind == W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER;
   const bool process_executable =
       input->artifact_kind == W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE;
+  const bool cooperative_executable =
+      input->artifact_kind == W_SEED_MLIR0_ARTIFACT_COOPERATIVE_EXECUTABLE;
   w_seed_native_subset0_process process_selection = {0};
   w_seed_native_subset0_program program_selection = {0};
+  w_seed_cooperative_selection0 cooperative_selection = {0};
   const w_seed_native_subset0_status selected =
-      process_artifact
+      cooperative_executable
+          ? w_seed_native_subset0_select_cooperative(
+                input->program, input->hir_result, &cooperative_selection)
+          : process_artifact
           ? w_seed_native_subset0_select_process(input->program,
-                                                 input->hir_result,
-                                                 &process_selection)
+                                                  input->hir_result,
+                                                  &process_selection)
           : process_executable
                 ? w_seed_native_subset0_select_process_executable(
                       input->program, input->hir_result, &process_selection)
@@ -5581,7 +5595,12 @@ w_seed_mlir0_status w_seed_mlir0_measure(
   uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   uint8_t digest[MLIR0_DIGEST_BYTES];
   size_t written = 0u;
-  if (process_artifact) {
+  if (cooperative_executable) {
+    if (!build_cooperative_executable_artifact(
+            input->program, input->hir_result, &cooperative_selection, target,
+            artifact, sizeof(artifact), &written, digest))
+      return W_SEED_MLIR0_INVALID_HIR;
+  } else if (process_artifact) {
     if (!build_process_handler_artifact(target, artifact, sizeof(artifact),
                                         &written, digest))
       return W_SEED_MLIR0_INVALID_HIR;
@@ -5630,19 +5649,26 @@ w_seed_mlir0_status w_seed_mlir0_emit(
     return W_SEED_MLIR0_INVALID_HIR;
   if (input->artifact_kind != W_SEED_MLIR0_ARTIFACT_EXECUTABLE &&
       input->artifact_kind != W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER &&
-      input->artifact_kind != W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE)
+      input->artifact_kind != W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE &&
+      input->artifact_kind != W_SEED_MLIR0_ARTIFACT_COOPERATIVE_EXECUTABLE)
     return W_SEED_MLIR0_UNSUPPORTED;
   const bool process_artifact =
       input->artifact_kind == W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER;
   const bool process_executable =
       input->artifact_kind == W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE;
+  const bool cooperative_executable =
+      input->artifact_kind == W_SEED_MLIR0_ARTIFACT_COOPERATIVE_EXECUTABLE;
   w_seed_native_subset0_process process_selection = {0};
   w_seed_native_subset0_program program_selection = {0};
+  w_seed_cooperative_selection0 cooperative_selection = {0};
   const w_seed_native_subset0_status selected =
-      process_artifact
+      cooperative_executable
+          ? w_seed_native_subset0_select_cooperative(
+                input->program, input->hir_result, &cooperative_selection)
+          : process_artifact
           ? w_seed_native_subset0_select_process(input->program,
-                                                 input->hir_result,
-                                                 &process_selection)
+                                                  input->hir_result,
+                                                  &process_selection)
           : process_executable
                 ? w_seed_native_subset0_select_process_executable(
                       input->program, input->hir_result, &process_selection)
@@ -5658,7 +5684,12 @@ w_seed_mlir0_status w_seed_mlir0_emit(
   uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   uint8_t digest[MLIR0_DIGEST_BYTES];
   size_t written = 0u;
-  if (process_artifact) {
+  if (cooperative_executable) {
+    if (!build_cooperative_executable_artifact(
+            input->program, input->hir_result, &cooperative_selection, target,
+            artifact, sizeof(artifact), &written, digest))
+      return W_SEED_MLIR0_INVALID_HIR;
+  } else if (process_artifact) {
     if (!build_process_handler_artifact(target, artifact, sizeof(artifact),
                                         &written, digest))
       return W_SEED_MLIR0_INVALID_HIR;
@@ -6269,13 +6300,13 @@ static bool append_cooperative_task_arguments(
   return true;
 }
 
-static bool build_cooperative_artifact(
+static bool append_cooperative_core(
     const w_seed_hir0_program *program,
     const w_seed_cooperative_selection0 *selection, uint8_t *artifact,
-    size_t capacity, size_t *written, int64_t *result_value,
-    uint8_t digest[MLIR0_DIGEST_BYTES]) {
+    size_t capacity, size_t *target_offset, int64_t *result_value) {
   if (program == NULL || selection == NULL || artifact == NULL ||
-      written == NULL || result_value == NULL || digest == NULL ||
+      target_offset == NULL || *target_offset > capacity ||
+      result_value == NULL ||
       selection->task_count != W_SEED_HIR0_COOPERATIVE_MAX_TASKS ||
       program->value_count > W_SEED_NATIVE_SUBSET0_MAX_VALUES)
     return false;
@@ -6297,11 +6328,7 @@ static bool build_cooperative_artifact(
   if (!cooperative_checked_binary(W_SEED_HIR0_BINARY_ADD, task_results[0],
                                   task_results[1], result_value))
     return false;
-  size_t offset = 0u;
-  if (!append_literal(artifact, capacity, &offset,
-                      "// " W_SEED_MLIR0_COOPERATIVE_SCHEMA_VERSION "\n"
-                      "module {\n"))
-    return false;
+  size_t offset = *target_offset;
   for (size_t function = 0u; function < program->function_count; function += 1u)
     if (function != selection->root_function_index &&
         !append_cooperative_function(program, (uint32_t)function, artifact,
@@ -6417,8 +6444,226 @@ static bool build_cooperative_artifact(
           "    }\n"
           "    %result = arith.addi %final_result0, %final_result1 : i64\n"
           "    return %result : i64\n"
-          "  }\n"
-          "}\n"))
+          "  }\n"))
+    return false;
+  *target_offset = offset;
+  return true;
+}
+
+static bool build_cooperative_artifact(
+    const w_seed_hir0_program *program,
+    const w_seed_cooperative_selection0 *selection, uint8_t *artifact,
+    size_t capacity, size_t *written, int64_t *result_value,
+    uint8_t digest[MLIR0_DIGEST_BYTES]) {
+  if (artifact == NULL || written == NULL || digest == NULL) return false;
+  size_t offset = 0u;
+  if (!append_literal(artifact, capacity, &offset,
+                      "// " W_SEED_MLIR0_COOPERATIVE_SCHEMA_VERSION "\n"
+                      "module {\n") ||
+      !append_cooperative_core(program, selection, artifact, capacity, &offset,
+                               result_value) ||
+      !append_literal(artifact, capacity, &offset, "}\n"))
+    return false;
+  w_seed_sha256_state state;
+  w_seed_sha256_init(&state);
+  w_seed_sha256_update(&state, artifact, offset);
+  w_seed_sha256_final(&state, digest);
+  *written = offset;
+  return true;
+}
+
+static bool cooperative_value_reads_binding(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t binding_index) {
+  return program != NULL && value_index < program->value_count &&
+         program->values[value_index].kind == W_SEED_HIR0_VALUE_BINDING_READ &&
+         program->values[value_index].binding_index == binding_index;
+}
+
+/* The first process projection intentionally admits only output that can be
+ * reconstructed from the target-neutral core result: arbitrary text actions
+ * plus exactly one signed-i64 interpolation of the two joined outcomes.  The
+ * text is copied from verified HIR; no expected Restaurant output is embedded
+ * in the adapter. */
+static bool build_cooperative_output_plan(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    const w_seed_cooperative_selection0 *selection,
+    mlir0_program_plan *plan) {
+  if (program == NULL || hir_result == NULL || selection == NULL ||
+      plan == NULL ||
+      !build_program_plan(program, hir_result, plan, false, false))
+    return false;
+  size_t result_actions = 0u;
+  for (size_t index = 0u; index < plan->action_count; index += 1u) {
+    const mlir0_dynamic_action *action = &plan->actions[index];
+    if (action->kind == MLIR0_DYNAMIC_TEXT) continue;
+    if (action->kind != MLIR0_DYNAMIC_I64 ||
+        action->value_index >= program->value_count)
+      return false;
+    const w_seed_hir0_value *value = &program->values[action->value_index];
+    if (value->kind != W_SEED_HIR0_VALUE_BINARY_I64 ||
+        value->binary_operator != W_SEED_HIR0_BINARY_ADD ||
+        !cooperative_value_reads_binding(
+            program, value->left_value, selection->join_binding_indices[0]) ||
+        !cooperative_value_reads_binding(
+            program, value->right_value, selection->join_binding_indices[1]))
+      return false;
+    result_actions += 1u;
+  }
+  return result_actions == 1u && plan->text_bytes <= MLIR0_MAX_STDOUT_BYTES &&
+         plan->text_bytes <= MLIR0_MAX_STDOUT_BYTES - 20u;
+}
+
+static bool append_cooperative_output_actions(
+    const mlir0_program_plan *plan, uint8_t *artifact, size_t capacity,
+    size_t *offset) {
+  if (plan == NULL || artifact == NULL || offset == NULL ||
+      plan->action_count == 0u || plan->text_bytes == 0u)
+    return false;
+  if (!append_literal(artifact, capacity, offset,
+                      "    %cooperative_cursor0 = llvm.mlir.constant(0 : i64) : i64\n"))
+    return false;
+  for (size_t index = 0u; index < plan->action_count; index += 1u) {
+    const mlir0_dynamic_action *action = &plan->actions[index];
+    if (action->kind == MLIR0_DYNAMIC_TEXT) {
+      if (!append_literal(artifact, capacity, offset,
+                          "    %cooperative_text") ||
+          !append_size(artifact, capacity, offset, index) ||
+          !append_literal(artifact, capacity, offset,
+                          " = llvm.getelementptr %cooperative_text_base[0, ") ||
+          !append_size(artifact, capacity, offset, action->byte_offset) ||
+          !append_literal(artifact, capacity, offset,
+                          "] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<") ||
+          !append_size(artifact, capacity, offset, plan->text_bytes) ||
+          !append_literal(artifact, capacity, offset,
+                          " x i8>\n    %cooperative_text_length") ||
+          !append_size(artifact, capacity, offset, index) ||
+          !append_literal(artifact, capacity, offset,
+                          " = llvm.mlir.constant(") ||
+          !append_size(artifact, capacity, offset, action->byte_count) ||
+          !append_literal(artifact, capacity, offset,
+                          " : i64) : i64\n    %cooperative_cursor") ||
+          !append_size(artifact, capacity, offset, index + 1u) ||
+          !append_literal(artifact, capacity, offset,
+                          " = llvm.call @w_seed_copy(%buffer, %cooperative_cursor") ||
+          !append_size(artifact, capacity, offset, index) ||
+          !append_literal(artifact, capacity, offset, ", %cooperative_text") ||
+          !append_size(artifact, capacity, offset, index) ||
+          !append_literal(artifact, capacity, offset,
+                          ", %cooperative_text_length") ||
+          !append_size(artifact, capacity, offset, index) ||
+          !append_literal(
+              artifact, capacity, offset,
+              ") : (!llvm.ptr, i64, !llvm.ptr, i64) -> i64\n"))
+        return false;
+    } else if (action->kind == MLIR0_DYNAMIC_I64) {
+      if (!append_literal(artifact, capacity, offset,
+                          "    %cooperative_cursor") ||
+          !append_size(artifact, capacity, offset, index + 1u) ||
+          !append_literal(artifact, capacity, offset,
+                          " = llvm.call @w_seed_append_i64(%buffer, %cooperative_cursor") ||
+          !append_size(artifact, capacity, offset, index) ||
+          !append_literal(
+              artifact, capacity, offset,
+              ", %cooperative_result) : (!llvm.ptr, i64, i64) -> i64\n"))
+        return false;
+    } else {
+      return false;
+    }
+  }
+  return true;
+}
+
+static bool build_cooperative_executable_artifact(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    const w_seed_cooperative_selection0 *selection,
+    const w_seed_mlir0_target *target, uint8_t *artifact, size_t capacity,
+    size_t *written, uint8_t digest[MLIR0_DIGEST_BYTES]) {
+  if (program == NULL || hir_result == NULL || selection == NULL ||
+      !target_is_supported(target) || artifact == NULL || written == NULL ||
+      digest == NULL)
+    return false;
+  mlir0_program_plan plan;
+  if (!build_cooperative_output_plan(program, hir_result, selection, &plan))
+    return false;
+  const bool windows = target_is_windows(target);
+  size_t offset = 0u;
+  int64_t result_value = 0;
+  if (!append_literal(
+          artifact, capacity, &offset,
+          "// " W_SEED_MLIR0_COOPERATIVE_EXECUTABLE_SCHEMA_VERSION "\n") ||
+      !append_literal(
+          artifact, capacity, &offset,
+          windows
+              ? "module attributes {llvm.target_triple = \"" W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS
+                "\"} {\n  llvm.mlir.global private constant @w_seed_cooperative_text(\""
+              : "module attributes {llvm.target_triple = \"" W_SEED_MLIR0_TARGET_TRIPLE
+                "\"} {\n  llvm.mlir.global private constant @w_seed_cooperative_text(\"") ||
+      !append_escaped_bytes(artifact, capacity, &offset, plan.text,
+                            plan.text_bytes) ||
+      !append_literal(artifact, capacity, &offset, "\") : !llvm.array<") ||
+      !append_size(artifact, capacity, &offset, plan.text_bytes) ||
+      !append_literal(artifact, capacity, &offset, " x i8>\n") ||
+      (windows &&
+       !append_literal(artifact, capacity, &offset,
+                       MLIR0_WINDOWS_BUFFER_GLOBAL)) ||
+      !append_literal(artifact, capacity, &offset, MLIR0_RUNTIME_HELPERS) ||
+      (windows
+           ? !append_literal(artifact, capacity, &offset,
+                             MLIR0_WINDOWS_RUNTIME_HELPER)
+           : !append_literal(
+                 artifact, capacity, &offset,
+                 "  llvm.func @write(%fd: i32, %buffer: !llvm.ptr, %count: i64) -> i64\n")) ||
+      !append_cooperative_core(program, selection, artifact, capacity, &offset,
+                               &result_value) ||
+      !append_literal(artifact, capacity, &offset,
+                      "  llvm.func @main() -> i32 {\n") ||
+      (windows
+           ? !append_literal(
+                 artifact, capacity, &offset,
+                 "    %buffer_base = llvm.mlir.addressof @w_seed_mlir0_buffer : !llvm.ptr\n"
+                 "    %buffer = llvm.getelementptr %buffer_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<4097 x i8>\n")
+           : !append_literal(
+                 artifact, capacity, &offset,
+                 "    %capacity = llvm.mlir.constant(4097 : i64) : i64\n"
+                 "    %buffer = llvm.alloca %capacity x i8 : (i64) -> !llvm.ptr\n")) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          "    %cooperative_text_base = llvm.mlir.addressof @w_seed_cooperative_text : !llvm.ptr\n"
+          "    %cooperative_result = func.call @w_seed_cooperative_core() : () -> i64\n") ||
+      !append_cooperative_output_actions(&plan, artifact, capacity, &offset) ||
+      (windows
+           ? !append_literal(artifact, capacity, &offset,
+                             "    %written = llvm.call @w_seed_write(%buffer, %cooperative_cursor")
+           : !append_literal(artifact, capacity, &offset,
+                             "    %fd = llvm.mlir.constant(1 : i32) : i32\n"
+                             "    %written = llvm.call @write(%fd, %buffer, %cooperative_cursor")) ||
+      !append_size(artifact, capacity, &offset, plan.action_count) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          windows ? ") : (!llvm.ptr, i64) -> i64\n"
+                    "    %equal = llvm.icmp \"eq\" %written, %cooperative_cursor"
+                  : ") : (i32, !llvm.ptr, i64) -> i64\n"
+                    "    %equal = llvm.icmp \"eq\" %written, %cooperative_cursor") ||
+      !append_size(artifact, capacity, &offset, plan.action_count) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          " : i64\n"
+          "    %success = llvm.mlir.constant(0 : i32) : i32\n"
+          "    %failure = llvm.mlir.constant(1 : i32) : i32\n"
+          "    %status = llvm.select %equal, %success, %failure : i1, i32\n"
+          "    llvm.return %status : i32\n"
+          "  }\n") ||
+      (windows &&
+       !append_literal(artifact, capacity, &offset,
+                       "  llvm.func @mainCRTStartup() {\n"
+                       "    %status = llvm.call @main() : () -> i32\n"
+                       "    llvm.call @ExitProcess(%status) : (i32) -> ()\n"
+                       "    llvm.return\n"
+                       "  }\n")) ||
+      !append_literal(artifact, capacity, &offset, "}\n"))
     return false;
   w_seed_sha256_state state;
   w_seed_sha256_init(&state);

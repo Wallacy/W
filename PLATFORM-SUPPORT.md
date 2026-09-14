@@ -167,6 +167,8 @@ The portable MLIR record is a possible bootstrap, mirror, or rebuild input for a
 - Observed: 2026-08-31.
 - Reference breadth goal: `at-least-rust-breadth`.
 - Rust target tiers imported: no.
+- Feature coverage: `all-applicable-targets`; missing local evidence does not make a target inapplicable.
+- Release fanout: `all-supported-applicable-targets`; cross-compilation goal: `any-supported-host-to-any-supported-target`.
 - Current evidence version: `23.1.1` (current).
 - Future native plan policy: `llvmorg-23.1.1-exact-pin-with-build-provenance-gate`; successor: `llvmorg-23.1.1` at `6dfe1677ab8dffbc6ec13d53a1e0215d75147689`.
 - Build and provenance blocker: `native-build-acquisition-provenance`.
