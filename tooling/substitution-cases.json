@@ -7342,6 +7342,92 @@
         "all viable LLVM targets remain candidates and the evidence makes no process projection, public artifact, runtime, scheduler ABI, benchmark, or platform-support claim"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-cooperative-target-projection",
+      "reviewItem": "bounded cooperative process projection and all-applicable-target coverage against hardcoded output, evidence-local architecture, and false cross-compilation claims",
+      "decisions": ["W-1585"],
+      "task": "Project the same verified cooperative core to bounded Windows and Linux process leaves while keeping target coverage open and distinguishing cross-target object evidence from complete cross-compilation.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "entry { let left = async prepare(value: 20) let right = async prepare(value: 22) let first = await left let second = await right print(\"Cooperative ${first + second}\") }",
+          "emit the requested targets from one verified semantic core; release fanout covers all supported applicable targets"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "hardcode-expected-output",
+          "language": "w-internal-rejected",
+          "source": ["print the compiler-host result_value or embed Cooperative 88 in each adapter"],
+          "expectedDifference": "The selected projection derives ordered text and the dynamic joined expression from verified HIR, then formats the runtime core result."
+        },
+        {
+          "name": "available-machines-define-targets",
+          "language": "w-internal-rejected",
+          "source": ["support only Windows and Linux because those are the current evidence machines"],
+          "expectedDifference": "Missing local evidence is a blocker, not inapplicability; every feature defaults to all applicable catalog targets."
+        },
+        {
+          "name": "target-local-link-is-cross-compilation",
+          "language": "w-internal-rejected",
+          "source": ["call a Windows-emitted Linux object plus Linux/WSL linker execution a complete Windows-to-Linux cross compiler"],
+          "expectedDifference": "The evidence is explicitly cross-target IR/object generation plus target-local link and execution until sysroot/linker packaging runs on the compiler host."
+        },
+        {
+          "name": "platform-abi-in-semantic-core",
+          "language": "w-internal-rejected",
+          "source": ["insert a triple, process entry, SDK call, or physical pointer into the W-1584 core"],
+          "expectedDifference": "Target facts remain in leaf projections and the independently checked core stays target-neutral."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_mlir0.h",
+          "symbol": "W_SEED_MLIR0_ARTIFACT_COOPERATIVE_EXECUTABLE",
+          "claim": "The bounded seed exposes a distinct cooperative process projection without redefining the target-neutral core."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "build_cooperative_output_plan",
+          "claim": "The adapter derives text and the exact joined signed-i64 action from verified HIR rather than hardcoding fixture output."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "build_cooperative_executable_artifact",
+          "claim": "The Windows and Linux leaves reuse the same cooperative core and add only target-specific process output and entry facts."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_cooperative0.c",
+          "symbol": "test_cooperative_product_selection",
+          "claim": "Focused tests prove deterministic dual-target bytes and transactional unsupported-target, unsupported-HIR, and capacity rejection."
+        },
+        {
+          "path": "tooling/check-cooperative-mlir0.mjs",
+          "symbol": "modes",
+          "claim": "The gate lowers the neutral core and both target projections with pinned MLIR 23.1.1 and executes current target evidence."
+        },
+        {
+          "path": "tooling/platform-support.json",
+          "symbol": "featureCoverage",
+          "claim": "The platform catalog requires all-applicable-target coverage, release fanout, explicit exclusions, and any-host-to-any-target cross-compilation."
+        },
+        {
+          "path": "tooling/platform-support.mjs",
+          "symbol": "validatePolicy",
+          "claim": "The catalog validator rejects evidence-local feature coverage or weakened fanout and cross-compilation policy."
+        }
+      ],
+      "checks": [
+        "the target-neutral core remains free of LLVM target, pointer, runtime, process, and OS surface",
+        "the Windows and Linux leaves call the same core and derive the output plan from verified HIR",
+        "unsupported HIR, target, and short capacity leave caller-owned output and result unchanged",
+        "pinned MLIR 23.1.1 lowers the neutral core and both current target projections",
+        "the Windows CRT-free PE and Linux target-local-linked ELF execute exact Cooperative 88 with LF",
+        "Linux evidence is not promoted to complete cross-compilation or the WRT0 closure",
+        "missing local evidence cannot exclude macOS or another applicable catalog target"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

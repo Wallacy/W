@@ -1231,6 +1231,18 @@
         }
       ]
     },
+    "check:cooperative-mlir0": {
+      "description": "Validate the target-neutral cooperative core and bounded Windows/Linux process projections.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-cooperative-mlir0.mjs"
+          ]
+        }
+      ]
+    },
     "check:process-entry0": {
       "description": "Execute the private compiled process handler with the real PROCESS0 provider.",
       "steps": [

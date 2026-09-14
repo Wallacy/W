@@ -35,6 +35,10 @@ static uint8_t normal_artifact[W_SEED_MLIR0_MAX_BYTES];
 static uint8_t cooperative_mlir[W_SEED_MLIR0_MAX_BYTES];
 static uint8_t short_cooperative_mlir[W_SEED_MLIR0_MAX_BYTES];
 static size_t cooperative_mlir_length;
+static uint8_t cooperative_windows_mlir[W_SEED_MLIR0_MAX_BYTES];
+static uint8_t cooperative_linux_mlir[W_SEED_MLIR0_MAX_BYTES];
+static size_t cooperative_windows_mlir_length;
+static size_t cooperative_linux_mlir_length;
 static uint8_t artifact[W_SEED_COOPERATIVE0_MAX_ARTIFACT_BYTES];
 static uint8_t stdout_bytes[W_SEED_COOPERATIVE0_MAX_STDOUT_BYTES];
 static w_seed_cooperative0_trace_event trace[W_SEED_COOPERATIVE0_MAX_TRACE_EVENTS];
@@ -732,6 +736,110 @@ static bool test_cooperative_product_selection(void) {
         !contains_bytes(cooperative_mlir, counts.mlir_bytes, "syscall") &&
         !contains_bytes(cooperative_mlir, counts.mlir_bytes, "mainCRTStartup"));
 
+  static const w_seed_mlir0_target COOPERATIVE_TARGETS[] = {
+      {W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU},
+      {W_SEED_MLIR0_TARGET_X86_64_PC_WINDOWS_MSVC}};
+  uint8_t *const target_artifacts[] = {cooperative_linux_mlir,
+                                      cooperative_windows_mlir};
+  size_t *const target_lengths[] = {&cooperative_linux_mlir_length,
+                                    &cooperative_windows_mlir_length};
+  const w_seed_mlir0_input executable_input = {
+      &storage.hir_program, &storage.hir_result,
+      W_SEED_MLIR0_ARTIFACT_COOPERATIVE_EXECUTABLE};
+  const w_seed_mlir0_target unsupported_target = {
+      W_SEED_MLIR0_TARGET_UNSUPPORTED};
+  w_seed_mlir0_counts unsupported_counts = {0};
+  w_seed_mlir0_result unsupported_result;
+  (void)memset(&unsupported_result, 0x39, sizeof(unsupported_result));
+  const w_seed_mlir0_result unsupported_result_before = unsupported_result;
+  (void)memset(short_cooperative_mlir, 0x3a,
+               sizeof(short_cooperative_mlir));
+  CHECK(w_seed_mlir0_measure(&executable_input, &unsupported_target,
+                             &unsupported_counts, &unsupported_result) ==
+        W_SEED_MLIR0_UNSUPPORTED);
+  CHECK(w_seed_mlir0_emit(
+            &executable_input, &unsupported_target,
+            &(w_seed_mlir0_output){short_cooperative_mlir,
+                                   sizeof(short_cooperative_mlir)},
+            &unsupported_result) == W_SEED_MLIR0_UNSUPPORTED);
+  CHECK(memcmp(&unsupported_result, &unsupported_result_before,
+               sizeof(unsupported_result)) == 0);
+  for (size_t byte = 0u; byte < sizeof(short_cooperative_mlir); byte += 1u)
+    CHECK(short_cooperative_mlir[byte] == 0x3au);
+  for (size_t target_index = 0u;
+       target_index < sizeof(COOPERATIVE_TARGETS) /
+                          sizeof(COOPERATIVE_TARGETS[0]);
+       target_index += 1u) {
+    w_seed_mlir0_counts target_counts = {0};
+    w_seed_mlir0_result target_measured;
+    w_seed_mlir0_result target_emitted;
+    CHECK(w_seed_mlir0_measure(&executable_input,
+                               &COOPERATIVE_TARGETS[target_index],
+                               &target_counts, &target_measured) ==
+          W_SEED_MLIR0_OK);
+    CHECK(w_seed_mlir0_emit(
+              &executable_input, &COOPERATIVE_TARGETS[target_index],
+              &(w_seed_mlir0_output){target_artifacts[target_index],
+                                     W_SEED_MLIR0_MAX_BYTES},
+              &target_emitted) == W_SEED_MLIR0_OK);
+    *target_lengths[target_index] = target_counts.mlir_bytes;
+    CHECK(target_counts.mlir_bytes > counts.mlir_bytes &&
+          target_emitted.required.mlir_bytes == target_counts.mlir_bytes &&
+          target_emitted.written.mlir_bytes == target_counts.mlir_bytes &&
+          memcmp(target_measured.mlir_sha256, target_emitted.mlir_sha256,
+                 sizeof(target_emitted.mlir_sha256)) == 0 &&
+          contains_bytes(target_artifacts[target_index],
+                         target_counts.mlir_bytes,
+                         W_SEED_MLIR0_COOPERATIVE_EXECUTABLE_SCHEMA_VERSION) &&
+          contains_bytes(target_artifacts[target_index],
+                         target_counts.mlir_bytes,
+                         "func.call @w_seed_cooperative_core()") &&
+          contains_bytes(target_artifacts[target_index],
+                         target_counts.mlir_bytes,
+                         "llvm.call @w_seed_append_i64") &&
+          contains_bytes(target_artifacts[target_index],
+                         target_counts.mlir_bytes,
+                         "@w_seed_cooperative_text") &&
+          contains_bytes(target_artifacts[target_index],
+                         target_counts.mlir_bytes, "scf.while"));
+    (void)memset(short_cooperative_mlir, 0x3b,
+                 sizeof(short_cooperative_mlir));
+    w_seed_mlir0_result short_result;
+    (void)memset(&short_result, 0x3c, sizeof(short_result));
+    const w_seed_mlir0_result short_result_before = short_result;
+    CHECK(w_seed_mlir0_emit(
+              &executable_input, &COOPERATIVE_TARGETS[target_index],
+              &(w_seed_mlir0_output){short_cooperative_mlir,
+                                     target_counts.mlir_bytes - 1u},
+              &short_result) == W_SEED_MLIR0_CAPACITY);
+    CHECK(memcmp(&short_result, &short_result_before, sizeof(short_result)) ==
+          0);
+    for (size_t byte = 0u; byte < sizeof(short_cooperative_mlir); byte += 1u)
+      CHECK(short_cooperative_mlir[byte] == 0x3bu);
+    if (target_index == 0u) {
+      CHECK(contains_bytes(target_artifacts[target_index],
+                           target_counts.mlir_bytes,
+                           W_SEED_MLIR0_TARGET_TRIPLE_LINUX) &&
+            contains_bytes(target_artifacts[target_index],
+                           target_counts.mlir_bytes, "llvm.func @write") &&
+            !contains_bytes(target_artifacts[target_index],
+                            target_counts.mlir_bytes, "WriteFile") &&
+            !contains_bytes(target_artifacts[target_index],
+                            target_counts.mlir_bytes, "mainCRTStartup"));
+    } else {
+      CHECK(contains_bytes(target_artifacts[target_index],
+                           target_counts.mlir_bytes,
+                           W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS) &&
+            contains_bytes(target_artifacts[target_index],
+                           target_counts.mlir_bytes, "WriteFile") &&
+            contains_bytes(target_artifacts[target_index],
+                           target_counts.mlir_bytes, "mainCRTStartup") &&
+            !contains_bytes(target_artifacts[target_index],
+                            target_counts.mlir_bytes,
+                            W_SEED_MLIR0_TARGET_TRIPLE_LINUX));
+    }
+  }
+
   (void)memset(short_cooperative_mlir, 0x31,
                sizeof(short_cooperative_mlir));
   uint8_t short_before[32];
@@ -867,6 +975,31 @@ static bool test_cooperative_product_selection(void) {
                                         &storage.hir_result, &unchanged) ==
         W_SEED_MLIR0_UNSUPPORTED);
   CHECK(memcmp(&unchanged, &selection_sentinel, sizeof(unchanged)) == 0);
+  const w_seed_mlir0_input unsupported_executable_input = {
+      &storage.hir_program, &storage.hir_result,
+      W_SEED_MLIR0_ARTIFACT_COOPERATIVE_EXECUTABLE};
+  w_seed_mlir0_counts executable_counts = {0};
+  w_seed_mlir0_result executable_result;
+  (void)memset(&executable_result, 0x5d, sizeof(executable_result));
+  const w_seed_mlir0_result executable_result_before = executable_result;
+  (void)memset(short_cooperative_mlir, 0x5e,
+               sizeof(short_cooperative_mlir));
+  CHECK(w_seed_mlir0_measure(&unsupported_executable_input,
+                             &(w_seed_mlir0_target){
+                                 W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU},
+                             &executable_counts, &executable_result) ==
+        W_SEED_MLIR0_UNSUPPORTED);
+  CHECK(w_seed_mlir0_emit(
+            &unsupported_executable_input,
+            &(w_seed_mlir0_target){
+                W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU},
+            &(w_seed_mlir0_output){short_cooperative_mlir,
+                                   sizeof(short_cooperative_mlir)},
+            &executable_result) == W_SEED_MLIR0_UNSUPPORTED);
+  CHECK(memcmp(&executable_result, &executable_result_before,
+               sizeof(executable_result)) == 0);
+  for (size_t byte = 0u; byte < sizeof(short_cooperative_mlir); byte += 1u)
+    CHECK(short_cooperative_mlir[byte] == 0x5eu);
   return true;
 }
 
@@ -881,6 +1014,21 @@ int main(int argc, char **argv) {
         fwrite(cooperative_mlir, sizeof(uint8_t), cooperative_mlir_length,
                stdout);
     return written == cooperative_mlir_length && fflush(stdout) == 0 ? 0 : 1;
+  }
+  if (ok && argc == 2 && argv != NULL &&
+      strcmp(argv[1], "--emit-cooperative-linux-mlir") == 0) {
+    const size_t written = fwrite(cooperative_linux_mlir, sizeof(uint8_t),
+                                  cooperative_linux_mlir_length, stdout);
+    return written == cooperative_linux_mlir_length && fflush(stdout) == 0 ? 0
+                                                                           : 1;
+  }
+  if (ok && argc == 2 && argv != NULL &&
+      strcmp(argv[1], "--emit-cooperative-windows-mlir") == 0) {
+    const size_t written = fwrite(cooperative_windows_mlir, sizeof(uint8_t),
+                                  cooperative_windows_mlir_length, stdout);
+    return written == cooperative_windows_mlir_length && fflush(stdout) == 0
+               ? 0
+               : 1;
   }
   if (argc != 1) return 2;
   return ok ? 0 : 1;

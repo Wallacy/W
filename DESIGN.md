@@ -39246,15 +39246,55 @@ bodies. That bounded implementation limit is not a language restriction.
 The two-slot turn is this bounded backend implementation, not a language-level
 FIFO, fairness, or scheduler contract. Normal W-1582
 `STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED` lowering and the COOP0 compiler-host
-oracle remain unchanged. M2 does not yet project the core into a process
-adapter, format the root `print`, execute a public artifact, define a runtime
-or scheduler ABI, or publish a benchmark. Backend target selection remains
-independent: one semantic core must be reusable for every applicable target in
-the emitted-target catalog. Current Windows and Linux checks are evidence lanes
+oracle remain unchanged. W-1584 owns only the target-neutral core; W-1585 owns
+the first process projections. Neither decision defines a runtime or scheduler
+ABI or publishes a benchmark. Backend target selection remains independent:
+one semantic core must be reusable for every applicable target in the
+emitted-target catalog. Current Windows and Linux checks are evidence lanes
 only and cannot restrict macOS, cross-compilation, or other viable LLVM targets.
-An ordinary compiler invocation may request one target; release automation may
-fan the same verified core out across every supported target. Host support,
-emitted-target support, and locally available evidence remain separate axes.
+
+#### 26.4.1.66 W-1585 — bounded cooperative process projections and target-coverage rule (Current bounded form)
+
+W-1585 projects the independently verified W-1584 scalar core through a
+distinct target-specific process artifact schema,
+`w-seed-mlir0-cooperative-executable-1`. The projection reuses the same core
+builder and does not re-evaluate source semantics. A verified-HIR-derived
+output plan admits static UTF-8 fragments plus exactly one signed-`i64`
+interpolation whose value is the sum of the two joined outcomes. The adapter
+formats that runtime value, appends the final LF already present in the HIR
+plan, and rejects a different dynamic expression, unsupported HIR, target,
+capacity, or forged relation before publishing caller-owned bytes or result.
+
+The current bounded emitter has two leaf adapters. The Windows x86_64 leaf
+uses `mainCRTStartup`, `GetStdHandle`, `WriteFile`, and `ExitProcess`; its
+LLVM 23.1.1 pipeline produced and executed a CRT-free PE with exact stdout
+`Cooperative 88\n`. The Linux x86_64 leaf emits the same core and output plan
+with an ordinary `main`/`write` boundary. LLVM 23.1.1 running on the Windows
+compiler host produced its ELF object and the Linux/WSL target linked and
+executed it with the same stdout. That Linux check is cross-target IR/object
+evidence only: because the current link used the target environment and libc,
+it is not the CRT-free WRT0 product closure and not a complete
+Windows-to-Linux cross-compilation claim.
+
+Target coverage is not inferred from locally available machines. Every
+language feature defaults to every target for which it is applicable. A target
+may omit a feature only with an explicit target-inapplicability rationale and
+catalog record; absent hardware, SDK, toolchain, CI, or execution evidence is
+a blocker, not inapplicability. A local invocation emits the requested target
+set. Release automation must fan the same verified semantic core to every
+supported applicable target. The cross-compilation goal is any supported
+compiler host to any supported emitted target, including Windows, Linux, and
+macOS host/target combinations; target adapters, SDK/sysroot/linker packaging,
+and execution evidence remain independently promoted axes.
+
+The two current `w_seed_mlir0_target_kind` values are seed evidence lanes, not
+the W target universe. macOS, AArch64, mobile, GPU, WebAssembly, embedded, and
+other catalog candidates remain architecturally open and must not inherit a
+Windows or Linux ABI. A process entry may be genuinely inapplicable to a
+device-only target, but the cooperative core is still reusable by that
+target's own execution adapter. W-1585 does not expose this artifact through
+public `w run`/`w build`, define scheduler fairness, threads, parallel overlap,
+cancellation, a stable ABI, or benchmark performance.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

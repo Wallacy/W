@@ -1763,13 +1763,40 @@ only signed-`i64` task computation and rejects Bool-dependent bodies.
 
 This bounded turn policy is not a language FIFO/fairness contract. Normal
 W-1582 elision and the COOP0 compiler-host oracle remain unchanged. Process
-projection, root output formatting, public artifact execution, runtime and
-scheduler ABI, and benchmark evidence remain gaps. The semantic core must be
-reusable across applicable targets; Windows/Linux evidence cannot restrict
-macOS, cross-compilation, or other viable LLVM targets. One local invocation
-may select one target, while release automation may fan the same core out to
-every supported target; host, target, and evidence support are tracked
-independently.
+projection and root output formatting belong to W-1585. Public product routing,
+runtime and scheduler ABI, and benchmark evidence remain gaps.
+
+### Cooperative process projections (W-1585)
+
+The separate `W_SEED_MLIR0_ARTIFACT_COOPERATIVE_EXECUTABLE` kind reuses the
+verified target-neutral core and derives its output action plan from verified
+HIR. The bounded plan accepts static UTF-8 fragments and exactly one dynamic
+signed-`i64` value when that value is the ordered sum of the two joined task
+bindings. It never hardcodes the fixture output.
+
+The hidden unit modes expose the two current target leaves for parser and
+lowering evidence:
+
+    w_seed_cooperative0_tests --emit-cooperative-linux-mlir
+    w_seed_cooperative0_tests --emit-cooperative-windows-mlir
+
+Both lower with MLIR 23.1.1. The Windows leaf produced and executed a 3072-byte
+CRT-free PE using `mainCRTStartup` and Kernel32, with exact stdout
+`Cooperative 88\n`. The Windows-host LLVM tools also produced the Linux ELF
+object; Linux/WSL linked and executed it with the same output. The latter is
+cross-target IR/object evidence only because the target environment performed a
+libc link. It is not the Linux WRT0 closure or complete cross-compilation.
+
+The seed target enum currently exposes only the two proven x86_64 leaves; it is
+not the W target universe. Feature coverage defaults to every applicable target
+in the platform catalog. Missing local hardware or evidence is a blocker, not
+permission to exclude macOS, AArch64, mobile, WebAssembly, GPU, embedded, or
+another viable target. A real exclusion requires a target-inapplicability
+rationale and catalog record. Release automation must eventually fan the same
+verified core to all supported applicable targets, with any supported host able
+to build any supported target. Public `w run`/`w build`, Linux WRT0 composition,
+stable ABI, runtime/scheduler providers, parallel overlap, cancellation, and
+benchmark evidence remain gaps.
 
 ### Closed local payloadless enum exhaustive switch (W-1563)
 

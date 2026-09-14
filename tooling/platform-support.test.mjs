@@ -94,6 +94,17 @@ describe("platform support catalog", () => {
       "toolchainSysrootLinkerPackaging",
     ]);
     expect(source.crossChecks.mlir0Toolchain.currencyStatus).toBe("current");
+    expect(source.policy.featureCoverage).toEqual({
+      default: "all-applicable-targets",
+      unavailableEvidenceIsNotInapplicable: true,
+      targetExclusionRequires: [
+        "target-inapplicability-rationale",
+        "catalog-record",
+      ],
+      localInvocation: "requested-targets",
+      releaseFanout: "all-supported-applicable-targets",
+      crossCompilationGoal: "any-supported-host-to-any-supported-target",
+    });
     expect(source.policy.dependencyCurrency).toEqual({
       currentEvidenceVersion: "23.1.1",
       currentEvidenceCurrencyStatus: "current",
@@ -188,6 +199,15 @@ describe("platform support catalog", () => {
       value.policy.referenceBreadth.importsRustTiers = true;
     });
     expectError(errors, "policy.referenceBreadth.importsRustTiers must be false");
+  });
+
+  test("rejects evidence-local feature coverage", () => {
+    const errors = errorsAfter((value) => {
+      value.policy.featureCoverage.default = "targets-with-local-evidence";
+      value.policy.featureCoverage.unavailableEvidenceIsNotInapplicable = false;
+    });
+    expectError(errors, "policy.featureCoverage.default must be all-applicable-targets");
+    expectError(errors, "policy.featureCoverage.unavailableEvidenceIsNotInapplicable must be true");
   });
 
   test("rejects an MLIR0 manifest cross-check mismatch", () => {

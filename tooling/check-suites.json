@@ -108,7 +108,8 @@
         { "package": "root", "script": "check:seed-unicode" },
         { "package": "root", "script": "check:hir0" },
         { "package": "root", "script": "check:hlo0" },
-        { "package": "root", "script": "check:hlo1" }
+        { "package": "root", "script": "check:hlo1" },
+        { "package": "root", "script": "check:cooperative-mlir0" }
       ]
     },
     "root-benchmark": {

@@ -28,12 +28,17 @@ extern "C" {
  * has no target triple, data-layout, runtime, or process-entry contract. */
 #define W_SEED_MLIR0_COOPERATIVE_SCHEMA_VERSION \
   "w-seed-mlir0-cooperative-1"
+#define W_SEED_MLIR0_COOPERATIVE_EXECUTABLE_SCHEMA_VERSION \
+  "w-seed-mlir0-cooperative-executable-1"
 /* The unsuffixed aliases retain the byte-for-byte Linux seed contract. */
 #define W_SEED_MLIR0_TARGET_TRIPLE W_SEED_MLIR0_TARGET_TRIPLE_LINUX
 /* The dynamic seed artifact is bounded by 64 HIR values, 64 interpolation
  * segments, 4096 output bytes, and the fixed LLVM-dialect skeleton. */
 #define W_SEED_MLIR0_MAX_BYTES 196608u
 
+/* These are bounded seed evidence leaves, not the W target universe.  The
+ * platform catalog owns the open target matrix; adding local evidence must not
+ * exclude another applicable LLVM target. */
 typedef enum {
   W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU = 0,
   W_SEED_MLIR0_TARGET_X86_64_PC_WINDOWS_MSVC = 1,
@@ -53,6 +58,9 @@ typedef enum {
   W_SEED_MLIR0_ARTIFACT_EXECUTABLE = 0,
   W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER = 1,
   W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE = 2,
+  /* Target-specific process projection of the separately verified,
+   * target-neutral cooperative core. */
+  W_SEED_MLIR0_ARTIFACT_COOPERATIVE_EXECUTABLE = 3,
 } w_seed_mlir0_artifact_kind;
 
 typedef struct {
