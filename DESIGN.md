@@ -39722,6 +39722,33 @@ cancellation, scheduling, stable ABI, benchmark measurements, and performance
 remain gaps. PARLINK0 is `compiler-lifecycle` evidence and its temporary
 executable does not enter the executable catalog.
 
+#### 26.4.1.76 W-1595 — process-root and parallel-scope HIR composition
+
+PROCPARHIR0 admits one bounded composition in the existing HIR37 schema: a
+resolved `std.process` entry may contain one pure scalar local-call binding,
+followed by one `spawn<.domain>` launch, its lexical `await`, and the normal
+`ExitCode` return. The scalar prelude may read the entry's real
+`Arguments.isEmpty` owner and the resulting binding may feed the generated
+task argument. The HIR therefore preserves one explicit dependency chain from
+runtime process input to the physical task call without inventing a Task
+object, process-specific task record, or new HIR value kind.
+
+The physical-scope verifier no longer assumes that every physical root is an
+anonymous Unit `entry {}`. It independently distinguishes either that existing
+root or a named async native-process entry, then proves the process return,
+the one pure prelude call/binding, domain placement, launch/await peer relation,
+and task argument binding read. Two prelude calls, reordered joins, additional
+ordinary root work, effectful children, or an invalid process ABI fail before
+HIR publication. The one-prelude/one-task shape is a seed evidence bound, not
+a language, runtime, or ABI limit.
+
+W-1595 changes admission and verification only; HIR37 record layout and digest
+schema remain unchanged because every fact was already represented. It does
+not add Native0 domain configuration, PARSEL0 process-root selection, MLIR
+process/parallel composition, provider linkage, Linux/Windows execution, a
+public executable, benchmark data, or performance evidence. Those are the
+next steps of the ranked process-witness increment.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:d975a20a86cc572886406cd60f5350943de7d92670559e390160c4a30d1d9328",
+  "corpusDigest": "sha256:2dd58122718dc6865490d6e34913c19148d4706d62370c15f9d25df218599869",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -8004,6 +8004,78 @@
             "nonWhitespaceCodePoints": 64,
             "lines": 1,
             "surfaceLexemes": 11
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-process-parallel-hir-composition",
+      "task": {
+        "utf8Bytes": 158,
+        "codePoints": 158,
+        "nonWhitespaceCodePoints": 138,
+        "lines": 1,
+        "surfaceLexemes": 28
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:66c9b9a3ef2ea3307c2f1ac050d9d673420e6ff38147b254baee342107e360af",
+        "metrics": {
+          "utf8Bytes": 134,
+          "codePoints": 134,
+          "nonWhitespaceCodePoints": 117,
+          "lines": 4,
+          "surfaceLexemes": 33
+        }
+      },
+      "alternatives": [
+        {
+          "name": "anonymous-root-only",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:a2ca13ae6b92039d0ff9af76446a86e2d9959a89ba6e3279fd4595ffd0a8a3c6",
+          "metrics": {
+            "utf8Bytes": 54,
+            "codePoints": 54,
+            "nonWhitespaceCodePoints": 44,
+            "lines": 1,
+            "surfaceLexemes": 13
+          }
+        },
+        {
+          "name": "process-task-record",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:1f09c261623f012538a301f2ae19cf5e0414f5c70f7dd6966da98ef6990ac8c2",
+          "metrics": {
+            "utf8Bytes": 55,
+            "codePoints": 55,
+            "nonWhitespaceCodePoints": 47,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "allocate-task-object",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:eac022ee5c7b060dc5b1b684aa73531e4f8cc5adaba2e6853fbcbb36504dc8ad",
+          "metrics": {
+            "utf8Bytes": 58,
+            "codePoints": 58,
+            "nonWhitespaceCodePoints": 49,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "claim-native-execution",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:50cd147d582bf7570ab55e10040bc5ffb9986078de78fba413b6aebf707311b4",
+          "metrics": {
+            "utf8Bytes": 62,
+            "codePoints": 62,
+            "nonWhitespaceCodePoints": 54,
+            "lines": 1,
+            "surfaceLexemes": 9
           }
         }
       ]

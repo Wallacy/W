@@ -2021,6 +2021,21 @@ temporary and silent. This is private Windows x64 compiler-lifecycle evidence,
 not W process input, public execution, Linux provider support, stable ABI,
 benchmark data, or a performance claim.
 
+### Process-root parallel HIR composition (W-1595)
+
+PROCPARHIR0 keeps HIR37's record layout and admits one resolved native-process
+entry with a pure scalar prelude binding, one `spawn<.domain>` call, its
+lexical `await`, and an `ExitCode` return. The focused source makes
+`Arguments.isEmpty` feed the prelude and passes its result to the task, so the
+verified graph already owns the runtime-input dependency needed by later
+target emission. No Task allocation, process-specific task record, or target
+fact is introduced.
+
+`bun check --target hir0` covers the positive composition and rejects a second
+prelude before HIR publication. Native0 domain configuration, process-root
+PARSEL0, MLIR/provider composition, public execution, benchmark data, and
+performance remain outside this checkpoint.
+
 ### Closed local payloadless enum exhaustive switch (W-1563)
 
 HIR21 (`w-seed-hir0-21`) adds one explicit `SWITCH_ENUM` terminator and dense
