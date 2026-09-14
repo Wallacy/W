@@ -42,14 +42,14 @@ not in this queue.
 
 ## Current checkpoint
 
-W-1597 is complete inside rank 1: Native0 supplies explicit `.domain`
-configuration, PARSEL0 independently selects the bounded process-root
-dependency chain, the ordinary process emitter rejects unproved erasure, and
-PARELIDE0 independently certifies the first one-task/immediate-join candidate
-without choosing the optimization. The next bounded step is explicit
-process-root plus task-entry MLIR composition; provider linkage and equivalent
-Windows/Linux execution then close rank 1. Once that physical reference is
-available, target policy can combine the W-1597 legality certificate with
+W-1599 is the current checkpoint inside rank 1. W-1598 composes the explicit
+process root and task entry in caller-owned MLIR, preserves the runtime
+`Arguments.isEmpty` dependency, and proves a Linux ELF object with unresolved
+provider launch and join symbols. W-1599 adds a target-neutral fixed lifecycle
+reducer and oracle for outcomes, cancellation, cleanup, joins, releases, and
+transaction snapshots. Provider linkage and equivalent Windows/Linux
+execution remain the rank-1 completion boundary. Once that physical reference
+is available, target policy can combine the W-1597 legality certificate with
 domain-observability and cost facts to select and compare a direct-call build.
 The CPU and GPU sentinels follow before task-storage and scheduler
 generalization so their measurements can still influence lowering, linkage,

@@ -54,6 +54,7 @@ try {
   await assertCompiler(buildDirectory, "seed configure")
   run(cmake, ["--build", buildDirectory, "--target", "w_seed_hir0_tests",
     "w_seed_hir0_multidoc_tests", "w_seed_product_closure0_tests",
+    "w_seed_task_lifecycle0_tests",
     "--parallel", "2"], root,
   toolchainEnvironment)
   const suffix = process.platform === "win32" ? ".exe" : ""
@@ -61,8 +62,14 @@ try {
   if (!output.includes("hir0 tests: ok")) fail("unit test witness is missing")
   run(resolve(buildDirectory, `w_seed_hir0_multidoc_tests${suffix}`), [])
   run(resolve(buildDirectory, `w_seed_product_closure0_tests${suffix}`), [])
+  const lifecycleOutput = run(
+    resolve(buildDirectory, `w_seed_task_lifecycle0_tests${suffix}`), [],
+  )
+  if (!lifecycleOutput.includes("task_lifecycle0 tests: ok")) {
+    fail("task lifecycle unit witness is missing")
+  }
   process.stdout.write(
-    "HIR0: caller-owned verified single/multi-document HIR, bounded product closure, and adversarial barriers passed\n",
+    "HIR0: caller-owned verified single/multi-document HIR, bounded product closure, task lifecycle, and adversarial barriers passed\n",
   )
 } finally {
   await rm(buildDirectory, { recursive: true, force: true })

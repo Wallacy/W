@@ -8257,6 +8257,287 @@
         "no HIR rewrite, target decision, direct-call artifact, benchmark, timing, or performance claim is introduced"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+  {
+    "id": "R0-process-parallel-mlir-composition",
+    "reviewItem": "explicit process-root plus task-entry MLIR composition against process-input loss, target-shaped wrappers, implicit provider linkage, and premature public execution claims",
+    "decisions": ["W-1598"],
+    "task": "Compose the verified process root and one task entry in caller-owned MLIR while preserving runtime input and stopping before provider linkage.",
+    "selected": {
+      "language": "w-internal",
+      "source": [
+        "module = PARMLIR0.emitProcessParallel(verifiedHIR, PARSEL0, linuxX64)",
+        "root = Arguments.isEmpty -> directPrelude -> taskArgument -> lexicalJoin",
+        "providerLaunch = unresolved w_seed_parallel_launch_task_0",
+        "providerJoin = unresolved w_seed_parallel_join_task_0",
+        "assert parseLowerTranslate(module, MLIR: 23.1.1)",
+        "assert emitLinuxPICELF(module)"
+      ]
+    },
+    "alternatives": [
+      {
+        "name": "reuse-anonymous-root-emitter",
+        "language": "w-internal-rejected",
+        "source": [
+          "require every process/parallel artifact to use the anonymous Unit root"
+        ],
+        "expectedDifference": "The selected artifact composes the resolved native-process root and retains the runtime Arguments.isEmpty dependency."
+      },
+      {
+        "name": "copy-target-task-record",
+        "language": "w-internal-rejected",
+        "source": [
+          "copy process input and task values into a Windows-shaped task record"
+        ],
+        "expectedDifference": "The selected module uses verified HIR and PARSEL0 facts and keeps the task wrapper separate from target provider state."
+      },
+      {
+        "name": "resolve-provider-implicitly",
+        "language": "w-internal-rejected",
+        "source": [
+          "define launch and join inside MLIR or infer them from the host"
+        ],
+        "expectedDifference": "The selected module declares explicit unresolved launch and join symbols for a future provider."
+      },
+      {
+        "name": "erase-parallel-as-direct",
+        "language": "w-internal-rejected",
+        "source": [
+          "lower the parallel dispatch through the ordinary direct-call process selector"
+        ],
+        "expectedDifference": "The ordinary process route remains DIRECT-only and the composed artifact retains explicit launch and lexical join calls."
+      },
+      {
+        "name": "publish-public-executable",
+        "language": "w-internal-rejected",
+        "source": [
+          "register the Linux object as public w run or benchmark evidence"
+        ],
+        "expectedDifference": "The selected gate proves only linkable compiler-lifecycle MLIR and Linux ELF object evidence without provider linkage or execution."
+      }
+    ],
+    "sourceRefs": [
+      {
+        "path": "compiler/seed-c/include/w_seed_mlir0.h",
+        "symbol": "W_SEED_MLIR0_PROCESS_PARALLEL_SCHEMA_VERSION",
+        "claim": "The composed process/parallel artifact has a separate versioned caller-owned contract."
+      },
+      {
+        "path": "compiler/seed-c/include/w_seed_mlir0.h",
+        "symbol": "w_seed_mlir0_measure_process_parallel",
+        "claim": "Measurement publishes process-root counts and digests without writing artifact bytes."
+      },
+      {
+        "path": "compiler/seed-c/include/w_seed_mlir0.h",
+        "symbol": "w_seed_mlir0_emit_process_parallel",
+        "claim": "Emission publishes exact caller-owned process/parallel MLIR bytes transactionally."
+      },
+      {
+        "path": "compiler/seed-c/include/w_seed_mlir0.h",
+        "symbol": "w_seed_mlir0_verify_process_parallel",
+        "claim": "Verification is independent and compares the rebuilt artifact, counts, HIR digest, and MLIR digest."
+      },
+      {
+        "path": "compiler/seed-c/src/w_seed_mlir0.c",
+        "symbol": "mlir0_process_parallel_root_shape",
+        "claim": "The builder proves the Arguments.isEmpty prelude, task argument, lexical launch, join, and ExitCode root shape."
+      },
+      {
+        "path": "compiler/seed-c/src/w_seed_mlir0.c",
+        "symbol": "append_process_parallel_task_wrapper",
+        "claim": "The composed module emits one target-private runtime-parameterized task wrapper."
+      },
+      {
+        "path": "compiler/seed-c/src/w_seed_mlir0.c",
+        "symbol": "append_process_parallel_root",
+        "claim": "The root emits the direct prelude, explicit unresolved launch symbol, and explicit unresolved join symbol."
+      },
+      {
+        "path": "compiler/seed-c/src/w_seed_mlir0.c",
+        "symbol": "process_parallel_ranges_alias",
+        "claim": "The caller-owned input, output, counts, result, and all HIR backing ranges are checked for overlap."
+      },
+      {
+        "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+        "symbol": "process_local_call_supported",
+        "claim": "The ordinary process route rejects non-DIRECT local calls unless the dedicated parallel relation is selected."
+      },
+      {
+        "path": "compiler/seed-c/tests/test_hir0.c",
+        "symbol": "test_process_parallel_mlir",
+        "claim": "The focused test checks runtime-input markers, no baked task value, independent verification, capacity, forgery, and unchanged ordinary-process rejection."
+      },
+      {
+        "path": "tooling/check-parallel-mlir0.mjs",
+        "symbol": "processEmitted",
+        "claim": "The pinned MLIR/LLVM 23.1.1 gate parses, lowers, translates, and emits a Linux x86-64 PIC ELF process object with explicit launch and join calls."
+      }
+    ],
+    "checks": [
+      "Arguments.isEmpty flows through one direct scalar prelude into the task launch argument",
+      "the task wrapper remains separate and target-private to the composed module",
+      "launch and join are explicit unresolved provider symbols",
+      "measure, emit, and verify use separate caller-owned transactional records",
+      "ordinary process selection remains DIRECT-only and cannot erase the parallel dispatch",
+      "the artifact parses, lowers, and translates with MLIR/LLVM 23.1.1",
+      "Linux x86-64 PIC lowering produces a valid ELF object",
+      "provider linkage, public execution, benchmark, timing, performance, and direct-call selection are not claimed"
+    ],
+    "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+  },
+  {
+    "id": "R0-task-lifecycle-reducer",
+    "reviewItem": "target-neutral TASKLIFE0 lifecycle reduction against scheduler substitution, cancellation races, cleanup/commit reordering, and unproved task ABI or performance claims",
+    "decisions": ["W-1599"],
+    "task": "Reduce a fixed caller-owned task lifecycle trace and independently verify outcomes, cancellation precedence, cleanup ordering, lexical joins, and exact snapshots.",
+    "selected": {
+      "language": "w-internal",
+      "source": [
+        "transaction = callerOwned(scopeGeneration, tasks: 1..4, events: <= 128)",
+        "result = TASKLIFE0.run(transaction)",
+        "outcome = success | error | canceled(snapshot)",
+        "assert cleanup < outcomeCommit < join < release",
+        "assert verify(transaction, result)"
+      ]
+    },
+    "alternatives": [
+      {
+        "name": "use-scheduler-records",
+        "language": "w-internal-rejected",
+        "source": [
+          "derive lifecycle state from scheduler handles, threads, or provider callbacks"
+        ],
+        "expectedDifference": "The selected reducer consumes only a fixed caller-owned logical trace and has no scheduler, provider, pointer, or ABI field."
+      },
+      {
+        "name": "throw-cancellation-error",
+        "language": "w-internal-rejected",
+        "source": [
+          "encode cancellation as throws Cancellation and lose its request snapshot"
+        ],
+        "expectedDifference": "The selected outcome has an explicit canceled tag and a pointer-free cancellation snapshot separate from error outcomes."
+      },
+      {
+        "name": "replace-settled-outcome",
+        "language": "w-internal-rejected",
+        "source": [
+          "rewrite a body result when cancellation arrives after body settlement"
+        ],
+        "expectedDifference": "The selected reducer preserves a settled-before-cancel candidate and cancels only before settlement."
+      },
+      {
+        "name": "commit-before-cleanup",
+        "language": "w-internal-rejected",
+        "source": [
+          "commit task outcome before cleanup and release handles before lexical join"
+        ],
+        "expectedDifference": "The selected state machine enforces cleanup before outcome commit and lexical join before lexical release."
+      },
+      {
+        "name": "trust-input-outcome",
+        "language": "w-internal-rejected",
+        "source": [
+          "accept caller-provided outcome and trace snapshots without replay"
+        ],
+        "expectedDifference": "The selected verify operation replays every event and compares task, scope, trace, and digest fields."
+      },
+      {
+        "name": "claim-runtime-capacity",
+        "language": "w-internal-rejected",
+        "source": [
+          "treat four tasks or 128 events as a public scheduler or ABI limit"
+        ],
+        "expectedDifference": "The selected bounds are seed evidence ceilings and do not establish source-HIR, scheduler, provider, runtime, ABI, or performance behavior."
+      }
+    ],
+    "sourceRefs": [
+      {
+        "path": "compiler/seed-c/include/w_seed_task_lifecycle0.h",
+        "symbol": "w_seed_task_lifecycle0_transaction",
+        "claim": "The input is a fixed caller-owned transaction with explicit task specifications and event trace."
+      },
+      {
+        "path": "compiler/seed-c/include/w_seed_task_lifecycle0.h",
+        "symbol": "w_seed_task_lifecycle0_task_state",
+        "claim": "The task state enum names reservation, publication, activity, settlement, cleanup, commit, join, and release."
+      },
+      {
+        "path": "compiler/seed-c/include/w_seed_task_lifecycle0.h",
+        "symbol": "w_seed_task_lifecycle0_scope_state",
+        "claim": "The scope state enum names opening, cancellation, draining, outcome commit, join, and retention."
+      },
+      {
+        "path": "compiler/seed-c/include/w_seed_task_lifecycle0.h",
+        "symbol": "w_seed_task_lifecycle0_outcome",
+        "claim": "Success, error, and canceled outcomes have explicit tags and pointer-free payloads."
+      },
+      {
+        "path": "compiler/seed-c/src/w_seed_task_lifecycle0.c",
+        "symbol": "reduce_transaction",
+        "claim": "The reducer validates the fixed transaction, replays ordered events, and requires all tasks to join and release before scope completion."
+      },
+      {
+        "path": "compiler/seed-c/src/w_seed_task_lifecycle0.c",
+        "symbol": "handle_task_event",
+        "claim": "Task transitions enforce generation, cleanup-before-commit, settled-before-cancel precedence, and lexical join/release order."
+      },
+      {
+        "path": "compiler/seed-c/src/w_seed_task_lifecycle0.c",
+        "symbol": "handle_scope_event",
+        "claim": "Scope cancellation is monotonic, fail-fast cancellation drains unfinished siblings, and child drain precedes scope outcome commit."
+      },
+      {
+        "path": "compiler/seed-c/src/w_seed_task_lifecycle0.c",
+        "symbol": "derive_scope_outcome",
+        "claim": "Scope outcomes arbitrate the lowest lexical/input error before cancellation and fold successful values with checked arithmetic."
+      },
+      {
+        "path": "compiler/seed-c/src/w_seed_task_lifecycle0.c",
+        "symbol": "output_aliases_transaction",
+        "claim": "Run and measure reject destination aliasing before publishing caller-owned snapshots."
+      },
+      {
+        "path": "compiler/seed-c/src/w_seed_task_lifecycle0.c",
+        "symbol": "w_seed_task_lifecycle0_verify",
+        "claim": "Independent verification replays the transaction and compares every result field and digest."
+      },
+      {
+        "path": "compiler/seed-c/tests/test_task_lifecycle0.c",
+        "symbol": "test_normal_lifecycle_and_measurement",
+        "claim": "The focused C23 test proves success, cleanup, lexical join/release, measurement equality, and independent verification."
+      },
+      {
+        "path": "compiler/seed-c/tests/test_task_lifecycle0.c",
+        "symbol": "test_suspended_path_and_lexical_error_selection",
+        "claim": "The focused test proves suspension, fail-fast sibling drain, and lexical/input error arbitration."
+      },
+      {
+        "path": "compiler/seed-c/tests/test_task_lifecycle0.c",
+        "symbol": "test_cancellation_race_and_monotonicity",
+        "claim": "The focused test proves settled-before-cancel precedence, pre-settlement cancellation, and duplicate cancellation rejection."
+      },
+      {
+        "path": "compiler/seed-c/tests/test_task_lifecycle0.c",
+        "symbol": "test_adversarial_rejection_and_exact_snapshots",
+        "claim": "The focused test proves stale, orphan, reordered, missing, capacity, invalid-outcome, forgery, alias, and unchanged-output barriers."
+      },
+      {
+        "path": "tooling/check-hir0.mjs",
+        "symbol": "w_seed_task_lifecycle0_tests",
+        "claim": "The focused HIR gate builds and runs the TASKLIFE0 C23 unit witness."
+      }
+    ],
+    "checks": [
+      "task and scope states replay through settlement, cleanup, commit, join, and release",
+      "success, error, and canceled outcomes remain distinct tagged values",
+      "cancellation is monotonic and control-flow only",
+      "settled-before-cancel precedence and pre-settlement cancellation are both verified",
+      "fail-fast cancellation drains siblings and lowest lexical/input error wins",
+      "cleanup precedes outcome commit and lexical join precedes lexical release",
+      "run, measure, and verify preserve exact caller-owned snapshots and reject aliases, forgeries, stale generations, reorderings, and missing events",
+      "one-to-four tasks and 128 events remain seed evidence ceilings without source-HIR, scheduler, provider, runtime, ABI, benchmark, or performance claims"
+    ],
+    "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

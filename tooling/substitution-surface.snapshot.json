@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:18592b1c44688d60cce030f40646b4adc5c2b89b0bf87648970f8fe1f82764f4",
+  "corpusDigest": "sha256:820284e34762951771532121a4ccef4067125b9f23d3acdabe1c49507fcd51b6",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -8220,6 +8220,186 @@
             "nonWhitespaceCodePoints": 51,
             "lines": 1,
             "surfaceLexemes": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-process-parallel-mlir-composition",
+      "task": {
+        "utf8Bytes": 142,
+        "codePoints": 142,
+        "nonWhitespaceCodePoints": 122,
+        "lines": 1,
+        "surfaceLexemes": 24
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w-internal",
+        "sourceDigest": "sha256:491d1cfe29590687513bf6e5a1d1eb59afd0fc57d09715740b264afcc65cce76",
+        "metrics": {
+          "utf8Bytes": 334,
+          "codePoints": 334,
+          "nonWhitespaceCodePoints": 307,
+          "lines": 6,
+          "surfaceLexemes": 50
+        }
+      },
+      "alternatives": [
+        {
+          "name": "reuse-anonymous-root-emitter",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:5ada4cc917ed3cd1fb4aa6b9f78293e33c497f36ba37ba5c2d7e582a0cf0911b",
+          "metrics": {
+            "utf8Bytes": 70,
+            "codePoints": 70,
+            "nonWhitespaceCodePoints": 61,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        },
+        {
+          "name": "copy-target-task-record",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:b9f37b05036c8e86a77a307daff4af653ee8a60f99abbe3ffdd8ad77adf7e98e",
+          "metrics": {
+            "utf8Bytes": 68,
+            "codePoints": 68,
+            "nonWhitespaceCodePoints": 58,
+            "lines": 1,
+            "surfaceLexemes": 13
+          }
+        },
+        {
+          "name": "resolve-provider-implicitly",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:9f7b8d615ef51f752c5480c606b58f594770e0b33f145e47c184698742e227fa",
+          "metrics": {
+            "utf8Bytes": 62,
+            "codePoints": 62,
+            "nonWhitespaceCodePoints": 51,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        },
+        {
+          "name": "erase-parallel-as-direct",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:defbb5d0981e2a760d30a492f393328c8bfb2d2c21f12aaab2ce28a7274004da",
+          "metrics": {
+            "utf8Bytes": 77,
+            "codePoints": 77,
+            "nonWhitespaceCodePoints": 68,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        },
+        {
+          "name": "publish-public-executable",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:965433c01ab70c7cc4eccf4df3692d7274e3e3784fae3d7471e3b69ed5c97471",
+          "metrics": {
+            "utf8Bytes": 63,
+            "codePoints": 63,
+            "nonWhitespaceCodePoints": 53,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-task-lifecycle-reducer",
+      "task": {
+        "utf8Bytes": 162,
+        "codePoints": 162,
+        "nonWhitespaceCodePoints": 143,
+        "lines": 1,
+        "surfaceLexemes": 27
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w-internal",
+        "sourceDigest": "sha256:f91ed85897747408f412e7c62e02710b4f30eecf133f93820874f46b2a74c0f9",
+        "metrics": {
+          "utf8Bytes": 237,
+          "codePoints": 237,
+          "nonWhitespaceCodePoints": 209,
+          "lines": 5,
+          "surfaceLexemes": 52
+        }
+      },
+      "alternatives": [
+        {
+          "name": "use-scheduler-records",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:4dccf223f57938f1d1f9093cfc6b5ce7fcb4992e664efa686cf02a9be38d9b01",
+          "metrics": {
+            "utf8Bytes": 77,
+            "codePoints": 77,
+            "nonWhitespaceCodePoints": 68,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        },
+        {
+          "name": "throw-cancellation-error",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:da40c05b030c17ea6b48135fa2500e799159bf2154e67d9f3f773c78b2a3f7d2",
+          "metrics": {
+            "utf8Bytes": 72,
+            "codePoints": 72,
+            "nonWhitespaceCodePoints": 63,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "replace-settled-outcome",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:0ee28e168ba10fe4d7ef97a3d573d544c54658697cbc95c11d22d98762e0cb7c",
+          "metrics": {
+            "utf8Bytes": 69,
+            "codePoints": 69,
+            "nonWhitespaceCodePoints": 60,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "commit-before-cleanup",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:e58ecb84054f11d0843a823e8ce1743d5dd3b97c379bf00120931f21f52d0bb0",
+          "metrics": {
+            "utf8Bytes": 74,
+            "codePoints": 74,
+            "nonWhitespaceCodePoints": 64,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "trust-input-outcome",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:13fbc6c45b702d94388e4f6fcdaf82fe8291ed201a5b08ee9cad04905c9cabd9",
+          "metrics": {
+            "utf8Bytes": 65,
+            "codePoints": 65,
+            "nonWhitespaceCodePoints": 58,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "claim-runtime-capacity",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:ce0f55d56d16af82ca6efde32e4ae86e9fb7083baae14bfe9da8f51a204f929f",
+          "metrics": {
+            "utf8Bytes": 65,
+            "codePoints": 65,
+            "nonWhitespaceCodePoints": 53,
+            "lines": 1,
+            "surfaceLexemes": 13
           }
         }
       ]

@@ -33,6 +33,7 @@ add_library(w_seed_source STATIC
   include/w_seed_parallel_elision0.h
   include/w_seed_parallel_invocation0.h
   include/w_seed_parallel_provider0.h
+  include/w_seed_task_lifecycle0.h
   include/w_seed_scalar_evaluator0.h
   include/w_seed_wrt0.h
   include/w_seed_source_binding_linux.h
@@ -70,6 +71,7 @@ add_library(w_seed_source STATIC
   src/w_seed_parallel_invocation0.c
   src/w_seed_parallel_provider0.c
   src/w_seed_parallel_provider0_windows.c
+  src/w_seed_task_lifecycle0.c
   src/w_seed_scalar_evaluator0.c
   src/w_seed_native0.c
   src/w_seed_cooperative0.c
@@ -643,6 +645,11 @@ add_executable(w_seed_hir0_tests
 )
 target_link_libraries(w_seed_hir0_tests PRIVATE w_seed_source)
 
+add_executable(w_seed_task_lifecycle0_tests
+  tests/test_task_lifecycle0.c
+)
+target_link_libraries(w_seed_task_lifecycle0_tests PRIVATE w_seed_source)
+
 add_executable(w_seed_hir0_multidoc_tests
   tests/test_hir0_multidoc.c
 )
@@ -804,6 +811,7 @@ if(MSVC)
   target_compile_options(w_seed_cooperative0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_wrt0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_hir0_tests PRIVATE /W4 /WX)
+  target_compile_options(w_seed_task_lifecycle0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_hir0_multidoc_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_product_closure0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_process0_tests PRIVATE /W4 /WX)
@@ -1274,6 +1282,15 @@ else()
     -Wshadow
     -Werror
   )
+  target_compile_options(w_seed_task_lifecycle0_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
   target_compile_options(w_seed_hir0_multidoc_tests PRIVATE
     -Wall
     -Wextra
@@ -1368,6 +1385,7 @@ add_test(NAME w_seed_native0_unit COMMAND w_seed_native0_tests)
 add_test(NAME w_seed_cooperative0_unit COMMAND w_seed_cooperative0_tests)
 add_test(NAME w_seed_wrt0_unit COMMAND w_seed_wrt0_tests)
 add_test(NAME w_seed_hir0_unit COMMAND w_seed_hir0_tests)
+add_test(NAME w_seed_task_lifecycle0_unit COMMAND w_seed_task_lifecycle0_tests)
 add_test(NAME w_seed_hir0_multidoc_unit COMMAND w_seed_hir0_multidoc_tests)
 add_test(NAME w_seed_product_closure0_unit COMMAND w_seed_product_closure0_tests)
 add_test(NAME w_seed_process0_unit COMMAND w_seed_process0_tests)

@@ -2067,6 +2067,55 @@ The provider-backed launch/join route remains the correctness and performance
 reference. `bun check --target hir0` covers the positive process graph,
 forgeries, aliasing, transactional failure, and the two-task rejection.
 
+### Explicit process-root and task-entry MLIR composition (W-1598)
+
+PARMLIR0 schema `w-seed-mlir0-process-parallel-1` composes the resolved
+native-process root with the verified one-task PARSEL0 relation. The root reads
+runtime `Arguments.isEmpty`, evaluates one direct scalar prelude, passes that
+binding to one task launch, and performs the lexical join. The task wrapper is
+private to this composed target module and remains separate from the process
+root.
+
+`w_seed_mlir0_measure_process_parallel`,
+`w_seed_mlir0_emit_process_parallel`, and
+`w_seed_mlir0_verify_process_parallel` keep measurement, publication, and
+replay verification separate. All operations are caller-owned and
+transactional. The module declares unresolved
+`w_seed_parallel_launch_task_0` and `w_seed_parallel_join_task_0` symbols for a
+future provider. The ordinary process selector remains DIRECT-only and cannot
+silently erase the parallel dispatch.
+
+`bun check --target parallel-mlir0` checks the exact process markers, the
+absence of baked task values, MLIR/LLVM 23.1.1 parsing and lowering, LLVM
+translation, and a Linux x86-64 PIC ELF object. It does not link a provider or
+execute the process artifact. Provider linkage, public execution, benchmark
+data, performance, and direct-call selection remain gaps.
+
+### TASKLIFE0 lifecycle reducer and oracle (W-1599)
+
+`w_seed_task_lifecycle0` is a target-neutral semantic kernel with fixed
+caller-owned transaction, result, and measurement records. It replays task
+states from `UNINITIALIZED` through reservation, publication, activity,
+readiness, suspension, body settlement, cleanup, outcome commit, join, and
+release. It also replays scope opening, cancellation request, draining, child
+drain, outcome commit, join, and retention.
+
+Success, error, and canceled outcomes use explicit tags. Cancellation is
+monotonic and control-flow only. A body settled before cancellation keeps its
+outcome, while cancellation before settlement commits a canceled snapshot.
+Fail-fast cancellation drains unfinished siblings and scope arbitration keeps
+the lowest lexical/input error. Cleanup precedes outcome commit. Joins and
+releases must follow lexical order.
+
+`run` and `measure` publish exact snapshots only after a complete reduction.
+`verify` replays the transaction and checks every result field, copied trace,
+and digest. `bun check --target hir0` includes the focused C23 tests for normal
+success, suspension, error arbitration, cancellation races, stale or reordered
+events, invalid outcomes, capacity, forgery, aliasing, and unchanged-output
+failures. The one-to-four task and 128-event limits are seed evidence only.
+No source-HIR integration, scheduler, provider, parallel runtime, task ABI,
+benchmark, or performance claim is made.
+
 ### Closed local payloadless enum exhaustive switch (W-1563)
 
 HIR21 (`w-seed-hir0-21`) adds one explicit `SWITCH_ENUM` terminator and dense

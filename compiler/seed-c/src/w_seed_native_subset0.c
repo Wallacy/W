@@ -2718,13 +2718,15 @@ static bool program_function_has_static_yields(
 /* HIR0 verification proves that each function has a dense, forward-only
  * block order. Reverse topological dynamic programming computes each block
  * exactly once. A shared continuation is therefore read from the cache once,
- * while a branch combines mutually-exclusive arm maxima with max(). */
+ * while a branch combines mutually-exclusive arm maxima with max(). The
+ * private process-parallel projection may carry a direct call result through
+ * the selected task closure; ordinary selectors keep this disabled. */
 static bool program_function_maximum(
     const w_seed_hir0_program *program, size_t function_index,
     const w_seed_native_subset0_process *process,
     const w_seed_hir0_binding *const *bindings, size_t *binding_reads,
     uint8_t *state, size_t *cached, bool *has_interpolation,
-    bool *has_local_calls) {
+    bool *has_local_calls, bool allow_call_result_return) {
   if (program == NULL || bindings == NULL || binding_reads == NULL ||
       state == NULL || cached == NULL || has_interpolation == NULL ||
       has_local_calls == NULL || function_index >= program->function_count)
@@ -2903,7 +2905,8 @@ static bool program_function_maximum(
         }
         if (!program_function_maximum(
                 program, callee->target_index, NULL, bindings, binding_reads,
-                state, cached, has_interpolation, has_local_calls))
+                state, cached, has_interpolation, has_local_calls,
+                allow_call_result_return))
           return false;
         addition = cached[callee->target_index];
         *has_local_calls = true;
@@ -2928,12 +2931,13 @@ static bool program_function_maximum(
     }
     if (terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE) {
       if (function->return_type == 0u ||
-          (!enum_switch && terminator->value_index < program->value_count &&
+          (!allow_call_result_return && !enum_switch &&
+           terminator->value_index < program->value_count &&
            program->values[terminator->value_index].kind ==
                W_SEED_HIR0_VALUE_CALL_RESULT) ||
-           !process_or_program_value_lowerable(
-               program, terminator->value_index, (uint32_t)function_index,
-               process, false, 0u)) {
+          !process_or_program_value_lowerable(
+              program, terminator->value_index, (uint32_t)function_index,
+              process, false, 0u)) {
         return false;
       }
       block_maximum[local_block] = total;
@@ -3059,7 +3063,7 @@ w_seed_native_subset0_status w_seed_native_subset0_select_program(
        function += 1u)
     if (!program_function_maximum(
             program, function, NULL, bindings, binding_reads, state, cached,
-            &has_interpolation, &has_local_calls))
+            &has_interpolation, &has_local_calls, false))
       return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
   if (cached[entry->target_function] == 0u)
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
@@ -3288,12 +3292,23 @@ static bool process_host_call_supported(
 static bool process_local_call_supported(
     const w_seed_hir0_program *program, const w_seed_hir0_call *call,
     uint32_t owner_function,
-    const w_seed_native_subset0_process *process) {
+    const w_seed_native_subset0_process *process,
+    const w_seed_parallel_selection0 *parallel_selection) {
   if (program == NULL || call == NULL || process == NULL ||
-      call->execution_kind != W_SEED_HIR0_CALL_DIRECT ||
       call->callee_identity >= program->identity_count ||
       call->first_argument > program->argument_count ||
       call->argument_count > program->argument_count - call->first_argument)
+    return false;
+  const size_t call_index = (size_t)(call - program->calls);
+  const bool process_parallel_dispatch =
+      parallel_selection != NULL &&
+      parallel_selection->task_count == 1u &&
+      parallel_selection->root_function_index == process->function_index &&
+      call_index == parallel_selection->task_call_indices[0] &&
+      call->execution_kind ==
+          W_SEED_HIR0_CALL_STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH;
+  if (call->execution_kind != W_SEED_HIR0_CALL_DIRECT &&
+      !process_parallel_dispatch)
     return false;
   const w_seed_hir0_identity *callee =
       &program->identities[call->callee_identity];
@@ -3340,7 +3355,8 @@ static bool process_local_call_supported(
 
 static bool process_function_body_supported(
     const w_seed_hir0_program *program,
-    const w_seed_native_subset0_process *process) {
+    const w_seed_native_subset0_process *process,
+    const w_seed_parallel_selection0 *parallel_selection) {
   if (program == NULL || process == NULL || process->function == NULL ||
       process->function_index >= program->function_count)
     return false;
@@ -3395,7 +3411,8 @@ static bool process_function_body_supported(
           return false;
       } else if (callee->kind == W_SEED_HIR0_IDENTITY_FUNCTION) {
         if (!process_local_call_supported(program, call,
-                                          process->function_index, process))
+                                          process->function_index, process,
+                                          parallel_selection))
           return false;
       } else {
         return false;
@@ -3466,13 +3483,18 @@ static bool process_function_body_supported(
   return true;
 }
 
-w_seed_native_subset0_status
-w_seed_native_subset0_select_process_executable(
+static w_seed_native_subset0_status
+select_process_executable_mode(
     const w_seed_hir0_program *program,
     const w_seed_hir0_result *hir_result,
+    const w_seed_parallel_selection0 *parallel_selection,
     w_seed_native_subset0_process *selection) {
   if (program == NULL || hir_result == NULL || selection == NULL ||
       !w_seed_hir0_verify(program, hir_result))
+    return W_SEED_NATIVE_SUBSET0_INVALID;
+  if (parallel_selection != NULL &&
+      !w_seed_parallel_selection0_verify(program, hir_result,
+                                         parallel_selection))
     return W_SEED_NATIVE_SUBSET0_INVALID;
 
   /* HIR verification proves the ownership/direct-entry contract.  The
@@ -3681,11 +3703,16 @@ w_seed_native_subset0_select_process_executable(
   size_t cached[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS] = {0u};
   bool has_interpolation = false;
   bool has_local_calls = false;
-  if (!process_function_body_supported(program, &candidate))
+  if (parallel_selection != NULL &&
+      parallel_selection->root_function_index != candidate.function_index)
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+  if (!process_function_body_supported(program, &candidate,
+                                       parallel_selection))
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
   if (!program_function_maximum(
           program, candidate.function_index, &candidate, bindings,
-          binding_reads, state, cached, &has_interpolation, &has_local_calls))
+          binding_reads, state, cached, &has_interpolation, &has_local_calls,
+          parallel_selection != NULL))
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
   candidate.maximum_stdout_bytes = cached[candidate.function_index];
   for (size_t index = 0u; index < program->function_count; index += 1u)
@@ -3698,11 +3725,31 @@ w_seed_native_subset0_select_process_executable(
     if (index != candidate.function_index &&
         !program_function_maximum(
             program, index, NULL, bindings, binding_reads, state, cached,
-            &has_interpolation, &has_local_calls))
+            &has_interpolation, &has_local_calls, false))
       return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
 
   (void)memcpy(selection, &candidate, sizeof(candidate));
   return W_SEED_NATIVE_SUBSET0_OK;
+}
+
+w_seed_native_subset0_status
+w_seed_native_subset0_select_process_executable(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    w_seed_native_subset0_process *selection) {
+  return select_process_executable_mode(program, hir_result, NULL, selection);
+}
+
+w_seed_native_subset0_status
+w_seed_native_subset0_select_process_parallel(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    const w_seed_parallel_selection0 *parallel_selection,
+    w_seed_native_subset0_process *selection) {
+  if (parallel_selection == NULL)
+    return W_SEED_NATIVE_SUBSET0_INVALID;
+  return select_process_executable_mode(program, hir_result,
+                                        parallel_selection, selection);
 }
 
 /* W-1584 M1 is deliberately only a target-neutral admission boundary for a

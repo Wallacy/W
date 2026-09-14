@@ -246,6 +246,8 @@ O corpus compara, no mínimo:
 - process-root parallel dataflow against anonymous-entry-only HIR, target-shaped task records, hidden Task allocation, and premature executable claims.
 - process-root selection against implicit domain configuration, unproved parallel-as-direct lowering, target-specific selection records, and premature executable success.
 - proof-directed direct-call legality against silent semantic erasure, single-function flags, target-policy conflation, and premature performance claims.
+- explicit process-root plus task-entry MLIR composition against process-input loss, target-shaped wrappers, implicit provider linkage, and premature public execution claims.
+- target-neutral TASKLIFE0 lifecycle reduction against scheduler substitution, cancellation races, cleanup/commit reordering, and unproved task ABI or performance claims.
 
 ### 1.1 Cobertura de substituições
 
@@ -276,7 +278,7 @@ ledger, uma tarefa, a forma vigente, ao menos uma alternativa e quatro medidas.
 O checker valida a ligação e o índice publica a razão exata. O comando isolado
 sem flag permite inspecionar uma edição parcial. O gate do repository usa
 `--require-complete` e falha quando qualquer requisito não possui caso. R0 cobre
-os 142 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
+os 155 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
 os estudos foram executados. Ela também não substitui a auditoria do ledger
 mantida por [`tooling/design-freeze-audit.json`](tooling/design-freeze-audit.json).
 
@@ -7910,6 +7912,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1595 | process-root and parallel-scope HIR composition | HIR37 now admits and independently verifies one bounded native-process root whose real `Arguments.isEmpty` value feeds one pure scalar prelude binding, then one `spawn<.domain>` task argument and its lexical `await`, before returning the resolved `ExitCode`. Existing HIR records express the complete dependency, so no Task object, process-specific task node, record-layout revision, or target fact is added. | `source-backed-current` only for the bounded frontend-to-verified-HIR composition and adversarial two-prelude rejection. Native0 domain configuration, process-root PARSEL0, MLIR composition, target provider linkage, public execution, benchmark results, and performance remain gaps. The one-prelude/one-task ceiling is seed evidence only. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1596 | Native0 domain admission and process-root selection | Native0 supplies one explicit caller-owned concurrent-plus-parallel `.domain` configuration, and the unchanged fixed PARSEL0 record now independently selects either its anonymous Unit root or the bounded W-1595 process root, including the direct prelude binding before the physical launch and lexical join. NativeSubset0 additionally requires local process calls to be DIRECT, so a parallel dispatch cannot be silently lowered as an ordinary call. | `source-backed-current` only for Native0 frontend/HIR admission, independent process-root PARSEL0 selection, transactional unsupported MLIR publication, and the parallel-as-direct rejection. Target process/parallel emission, provider linkage, public execution, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1597 | bounded parallel direct-call legality certificate | PARELIDE0 independently rederives a fixed one-task, immediate-join candidate from verified HIR37 and PARSEL0. It proves the unique virtual-task consumer and a closed acyclic pure, non-throwing, non-suspending local callee graph, then publishes a caller-owned fact record bound to the HIR semantic digest. It does not rewrite HIR or select an optimization. | `source-backed-current` only for the bounded certificate, independent verification, transactional and alias barriers, a two-task rejection, and the process-root pure-helper witness. Physical process/task MLIR composition, target observability and cost policy, direct-call emission, public execution, proof-language surface, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1598 | explicit process-root and task-entry MLIR composition | PARMLIR0 emits one bounded process-root module that preserves runtime `Arguments.isEmpty` through a direct scalar prelude and into one task argument before lexical join. Caller-owned transactional measure, emit, and verify operations publish separate counts, bytes, and digest records. The target-private task wrapper is distinct from the process root. The module declares unresolved provider-owned launch and join symbols and keeps the ordinary process selector direct-only. Pinned MLIR/LLVM 23.1.1 parse, lower, and translate checks produce a Linux x86-64 PIC ELF object. No provider linkage, public execution, benchmark, performance, or direct-call selection claim is made. | `source-backed-current` only for the bounded process-root/task-wrapper composition, separate transactional measure/emit/verify APIs, explicit unresolved launch/join declarations, direct-only ordinary process selection, and MLIR/LLVM 23.1.1 Linux ELF object evidence. Provider linkage, public execution, benchmark results, performance, and direct-call selection remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1599 | TASKLIFE0 target-neutral fixed caller-owned lifecycle reducer and oracle | TASKLIFE0 provides a target-neutral fixed caller-owned reducer and oracle for bounded logical task lifecycles. It replays task and scope states, publishes tagged success, error, and canceled outcomes, preserves settled-before-cancel precedence, enforces cleanup before commit, drains siblings after fail-fast cancellation, arbitrates lexical/input errors, and orders joins and releases lexically. Transaction and measurement snapshots are replayed and digest-checked. The one-to-four task and 128-event ceilings are seed evidence only. No source-HIR integration, scheduler, provider, parallel runtime, task ABI, benchmark, or performance claim is made. | `source-backed-current` only for the fixed TASKLIFE0 state reducer, cancellation and outcome arbitration, cleanup/commit and join/release barriers, exact caller-owned snapshots, independent replay verification, and focused C23 evidence. Source-HIR integration, scheduler/provider linkage, parallel runtime, task ABI, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -12586,3 +12590,66 @@ that prefers the direct call. Debug or traced builds may therefore retain the
 physical route even when the structural certificate exists. The first
 optimized artifact must be checked against the physical provider-backed
 reference; W-1597 itself emits neither artifact and makes no performance claim.
+
+#### W-1598 — explicit process-root and task-entry MLIR composition
+
+W-1596 correctly stopped the ordinary process emitter from treating a parallel
+dispatch as a direct call. W-1598 closes the next physical boundary without
+reusing that emitter or the target-neutral task-entry-only module. It composes
+the resolved process root with the verified one-task relation and keeps the
+runtime data dependency visible in MLIR.
+
+The root reads `Arguments.isEmpty`, evaluates the direct scalar prelude, passes
+the resulting binding to the task launch, and performs the lexical join. The
+task wrapper stays private to this composed target module. The root declares
+launch and join symbols with unresolved definitions so a provider can own their
+target-specific implementations later.
+
+The three APIs keep measurement, publication, and independent verification
+separate. Measure records required MLIR size, task/root counts, reachability,
+and digests without writing bytes. Emit stages the same artifact and publishes
+caller-owned bytes and result only after capacity and alias checks. Verify
+rebuilds the artifact after HIR and PARSEL0 verification and compares bytes,
+counts, and both semantic and artifact digests.
+
+The focused gate uses MLIR/LLVM 23.1.1 to parse and lower the text, translate it
+to LLVM IR, and emit a Linux x86-64 PIC ELF object. This is linkable
+compiler-lifecycle evidence. The gate does not link a provider or execute the
+process artifact. It does not establish a public route, benchmark, performance
+result, or direct-call selection. Windows provider linkage remains a separate
+future boundary even though the target-neutral task-entry gate retains its
+existing Windows COFF evidence.
+
+#### W-1599 — TASKLIFE0 target-neutral fixed caller-owned lifecycle reducer and oracle
+
+The next rank-1 boundary needs a semantic lifecycle reference before a scheduler
+or provider can own physical state. TASKLIFE0 provides that reference as a
+fixed caller-owned transaction and a deterministic reducer. It does not infer
+state from a runtime handle, callback, thread, or target ABI.
+
+The reducer validates task generations and event sequence, then replays
+reservation, publication, readiness, suspension, settlement, cleanup, outcome
+commit, join, and release. It replays scope opening, cancellation request,
+draining, child drain, outcome commit, join, and retention. Outcomes use
+explicit success, error, and canceled tags with a pointer-free cancellation
+snapshot.
+
+Cancellation is monotonic. A cancellation before body settlement changes the
+task candidate to canceled, while a request after settlement cannot replace the
+settled candidate. Fail-fast cancellation must identify a settled error, marks
+unfinished siblings for drain, and still lets scope arbitration choose the
+lowest lexical/input error. Cleanup precedes task outcome commit. Lexical join
+and release counters reject reordered consumption.
+
+`run` and `measure` reduce into local state and publish exact snapshots only
+after the complete trace succeeds. `verify` reruns the reducer and compares
+the complete result or measurement, including copied trace fields and the
+transaction digest. Focused C23 tests cover success, suspension, error
+arbitration, cancellation races, stale generations, orphan and reordered
+events, invalid outcomes, capacities, forgery, aliasing, and unchanged-output
+failures.
+
+The four-task and 128-event values are fixed seed storage ceilings, not W
+semantics, a runtime limit, or an ABI. No source-HIR integration, scheduler,
+provider linkage, parallel runtime, task ABI, benchmark, or performance claim
+follows from this oracle.

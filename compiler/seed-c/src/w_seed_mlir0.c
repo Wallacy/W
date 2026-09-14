@@ -1049,6 +1049,11 @@ typedef struct {
   uint32_t count_symbol_index;
   uint32_t success_symbol_index;
   uint32_t failure_symbol_index;
+  /* Most functions use the canonical ABI names.  The process-parallel entry
+   * uses private allocation names so its provider call cannot accidentally
+   * refer to an undeclared function argument. */
+  const char *buffer_name;
+  const char *cursor_name;
 } mlir0_process_emit_context;
 
 /* An SCF natural loop exposes its carried HIR block arguments as the result
@@ -3344,12 +3349,20 @@ static bool append_program_local_call(
                     (size_t)(call - program->calls)) ||
        !append_literal(artifact, capacity, offset, " = ")))
     return false;
+  const char *buffer_name =
+      process != NULL && process->buffer_name != NULL ? process->buffer_name
+                                                       : "%buffer";
+  const char *cursor_name =
+      process != NULL && process->cursor_name != NULL ? process->cursor_name
+                                                       : "%cursor_address";
   if (!append_literal(artifact, capacity, offset,
                       call->result_type == 0u ? "    llvm.call @w_fn_"
                                               : "llvm.call @w_fn_") ||
       !append_size(artifact, capacity, offset, callee->target_index) ||
-      !append_literal(artifact, capacity, offset,
-                      "(%buffer, %cursor_address"))
+      !append_literal(artifact, capacity, offset, "(") ||
+      !append_literal(artifact, capacity, offset, buffer_name) ||
+      !append_literal(artifact, capacity, offset, ", ") ||
+      !append_literal(artifact, capacity, offset, cursor_name))
     return false;
   for (size_t parameter = 0u; parameter < call->argument_count;
        parameter += 1u)
@@ -7353,6 +7366,773 @@ bool w_seed_mlir0_verify_parallel_entries(
          result->written.runtime_argument_count == runtime_argument_count &&
          result->written.reachable_function_count ==
              reachable_function_count &&
+         memcmp(result->hir_semantic_digest, hir_result->semantic_digest,
+                sizeof(result->hir_semantic_digest)) == 0 &&
+          memcmp(result->mlir_sha256, digest, sizeof(digest)) == 0;
+}
+
+/* W-1595/W-1596 composition -------------------------------------------------
+ *
+ * The process root and the parallel relation deliberately meet here instead
+ * of being smuggled through either the ordinary process executable or the
+ * target-neutral task-entry emitter.  The private process selector admits the
+ * same seven-symbol process contract as the executable path, but only when a
+ * caller supplies the independently rederived one-task PARSEL0 relation.  A
+ * process-parallel artifact is linkable MLIR: a target provider resolves the
+ * launch and join declarations, while the task wrapper and process root stay
+ * in the generated module. */
+
+typedef struct {
+  uint32_t prelude_call_index;
+  uint32_t prelude_binding_index;
+  uint32_t task_call_index;
+  uint32_t launch_binding_index;
+  uint32_t join_binding_index;
+} mlir0_process_parallel_shape;
+
+static bool mlir0_process_nominal_type_is(
+    const w_seed_hir0_program *program, uint32_t type_index,
+    uint32_t module_index, uint32_t symbol_index) {
+  if (program == NULL || type_index >= program->type_count ||
+      module_index >= program->external_module_count ||
+      symbol_index >= program->external_symbol_count)
+    return false;
+  const w_seed_hir0_type *type = &program->types[type_index];
+  return type->kind == W_SEED_HIR0_TYPE_NOMINAL &&
+         type->external_module_index == module_index &&
+         type->external_symbol_index == symbol_index;
+}
+
+static bool mlir0_process_external_symbol_is(
+    const w_seed_hir0_program *program, uint32_t module_index,
+    uint32_t symbol_index, w_seed_hir0_external_kind kind, const uint8_t *name,
+    size_t name_count) {
+  if (program == NULL || name == NULL ||
+      module_index >= program->external_module_count ||
+      symbol_index >= program->external_symbol_count)
+    return false;
+  const w_seed_hir0_external_symbol *symbol =
+      &program->external_symbols[symbol_index];
+  return symbol->module_index == module_index && symbol->kind == kind &&
+         text_is(program, symbol->name, name, name_count);
+}
+
+static bool mlir0_process_parallel_root_shape(
+    const w_seed_hir0_program *program,
+    const w_seed_native_subset0_process *process,
+    const w_seed_parallel_selection0 *selection,
+    mlir0_process_parallel_shape *shape) {
+  if (program == NULL || process == NULL || selection == NULL || shape == NULL ||
+      process->entry == NULL || process->function == NULL ||
+      selection->task_count != 1u ||
+      selection->root_function_index != process->function_index ||
+      selection->task_call_indices[0] >= program->call_count ||
+      selection->task_function_indices[0] >= program->function_count ||
+      selection->launch_binding_indices[0] >= program->binding_count ||
+      selection->join_binding_indices[0] >= program->binding_count)
+    return false;
+  const w_seed_hir0_function *root = process->function;
+  if (root->block_count != 1u || root->first_block >= program->block_count)
+    return false;
+  const uint32_t root_block = root->first_block;
+  const w_seed_hir0_block *block = &program->blocks[root_block];
+  if (block->owner_function != process->function_index ||
+      block->first_instruction > program->instruction_count ||
+      block->instruction_count != 5u ||
+      block->instruction_count >
+          program->instruction_count - block->first_instruction ||
+      block->terminator_index >= program->terminator_count)
+    return false;
+
+  mlir0_process_parallel_shape candidate = {
+      W_SEED_HIR0_NONE, W_SEED_HIR0_NONE, selection->task_call_indices[0],
+      selection->launch_binding_indices[0], selection->join_binding_indices[0]};
+  size_t prelude_call_ordinal = SIZE_MAX;
+  size_t prelude_binding_ordinal = SIZE_MAX;
+  size_t task_call_ordinal = SIZE_MAX;
+  size_t launch_binding_ordinal = SIZE_MAX;
+  size_t join_binding_ordinal = SIZE_MAX;
+  for (size_t ordinal = 0u; ordinal < block->instruction_count; ordinal += 1u) {
+    const uint32_t instruction_index =
+        block->first_instruction + (uint32_t)ordinal;
+    const w_seed_hir0_instruction *instruction =
+        &program->instructions[instruction_index];
+    if (instruction->owner_block != root_block ||
+        instruction->ordinal != ordinal)
+      return false;
+    if (instruction->kind == W_SEED_HIR0_INSTRUCTION_CALL) {
+      if (instruction->call_index >= program->call_count) return false;
+      const w_seed_hir0_call *call = &program->calls[instruction->call_index];
+      if (call->owner_instruction != instruction_index ||
+          call->owner_block != root_block)
+        return false;
+      if (instruction->call_index == candidate.task_call_index) {
+        if (task_call_ordinal != SIZE_MAX ||
+            call->execution_kind !=
+                W_SEED_HIR0_CALL_STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH)
+          return false;
+        task_call_ordinal = ordinal;
+        continue;
+      }
+      if (prelude_call_ordinal != SIZE_MAX ||
+          call->execution_kind != W_SEED_HIR0_CALL_DIRECT ||
+          call->callee_identity >= program->identity_count)
+        return false;
+      const w_seed_hir0_identity *callee =
+          &program->identities[call->callee_identity];
+      if (callee->kind != W_SEED_HIR0_IDENTITY_FUNCTION ||
+          callee->target_index >= program->function_count)
+        return false;
+      candidate.prelude_call_index = instruction->call_index;
+      prelude_call_ordinal = ordinal;
+      continue;
+    }
+    if (instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
+        instruction->binding_index >= program->binding_count)
+      return false;
+    const w_seed_hir0_binding *binding =
+        &program->bindings[instruction->binding_index];
+    if (binding->owner_instruction != instruction_index ||
+        binding->owner_block != root_block)
+      return false;
+    if (instruction->binding_index == candidate.launch_binding_index) {
+      if (launch_binding_ordinal != SIZE_MAX ||
+          binding->task_role != W_SEED_HIR0_TASK_ROLE_LAUNCH)
+        return false;
+      launch_binding_ordinal = ordinal;
+      continue;
+    }
+    if (instruction->binding_index == candidate.join_binding_index) {
+      if (join_binding_ordinal != SIZE_MAX ||
+          binding->task_role != W_SEED_HIR0_TASK_ROLE_AWAIT_RESULT)
+        return false;
+      join_binding_ordinal = ordinal;
+      continue;
+    }
+    if (prelude_binding_ordinal != SIZE_MAX ||
+        binding->task_role != W_SEED_HIR0_TASK_ROLE_NONE ||
+        binding->initializer_value >= program->value_count)
+      return false;
+    const w_seed_hir0_value *initializer =
+        &program->values[binding->initializer_value];
+    if (initializer->kind != W_SEED_HIR0_VALUE_CALL_RESULT)
+      return false;
+    candidate.prelude_binding_index = instruction->binding_index;
+    prelude_binding_ordinal = ordinal;
+  }
+  if (prelude_call_ordinal == SIZE_MAX || prelude_binding_ordinal == SIZE_MAX ||
+      task_call_ordinal == SIZE_MAX || launch_binding_ordinal == SIZE_MAX ||
+      join_binding_ordinal == SIZE_MAX ||
+      !(prelude_call_ordinal < prelude_binding_ordinal &&
+        prelude_binding_ordinal < task_call_ordinal &&
+        task_call_ordinal < launch_binding_ordinal &&
+        launch_binding_ordinal < join_binding_ordinal))
+    return false;
+  const w_seed_hir0_binding *prelude_binding =
+      &program->bindings[candidate.prelude_binding_index];
+  if (prelude_binding->initializer_value >= program->value_count ||
+      program->values[prelude_binding->initializer_value].call_index !=
+          candidate.prelude_call_index)
+    return false;
+
+  const w_seed_hir0_call *prelude_call =
+      &program->calls[candidate.prelude_call_index];
+  const w_seed_hir0_call *task_call =
+      &program->calls[candidate.task_call_index];
+  const w_seed_hir0_function *task_function =
+      &program->functions[selection->task_function_indices[0]];
+  if (prelude_call->first_argument > program->argument_count ||
+      prelude_call->argument_count != 1u ||
+      prelude_call->argument_count >
+          program->argument_count - prelude_call->first_argument)
+    return false;
+  const w_seed_hir0_argument *prelude_argument =
+      &program->arguments[prelude_call->first_argument];
+  if (prelude_argument->owner_call != candidate.prelude_call_index ||
+      prelude_argument->ordinal != 0u ||
+      prelude_argument->parameter_ordinal != 0u ||
+      prelude_argument->value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *is_empty_value =
+      &program->values[prelude_argument->value_index];
+  if (is_empty_value->kind != W_SEED_HIR0_VALUE_EXTERNAL_MEMBER ||
+      is_empty_value->external_module_index != 0u ||
+      is_empty_value->external_symbol_index != process->is_empty_symbol_index ||
+      is_empty_value->type_index >= program->type_count ||
+      program->types[is_empty_value->type_index].kind != W_SEED_HIR0_TYPE_BOOL ||
+      !text_is(program, is_empty_value->member_name, (const uint8_t *)"isEmpty",
+               7u) ||
+      is_empty_value->left_value >= program->value_count)
+    return false;
+  const w_seed_hir0_value *is_empty_receiver =
+      &program->values[is_empty_value->left_value];
+  if (is_empty_receiver->kind != W_SEED_HIR0_VALUE_PARAMETER_READ ||
+      is_empty_receiver->parameter_index !=
+          process->function->first_parameter +
+              process->arguments_parameter_ordinal ||
+      !mlir0_process_nominal_type_is(program, is_empty_receiver->type_index, 0u,
+                                     process->arguments_symbol_index) ||
+      !mlir0_process_external_symbol_is(
+          program, 0u, process->is_empty_symbol_index,
+          W_SEED_HIR0_EXTERNAL_VALUE, (const uint8_t *)"isEmpty", 7u))
+    return false;
+  if (prelude_call->result_type >= program->type_count ||
+      task_call->argument_count != 1u ||
+      task_function->parameter_count != 1u ||
+      task_call->argument_count != task_function->parameter_count ||
+      task_function->first_parameter > program->parameter_count ||
+      task_function->parameter_count >
+          program->parameter_count - task_function->first_parameter ||
+      task_function->return_type >= program->type_count ||
+      program->types[prelude_call->result_type].kind != W_SEED_HIR0_TYPE_I64 ||
+      program->types[task_function->return_type].kind != W_SEED_HIR0_TYPE_I64 ||
+      task_call->argument_count == 0u ||
+      task_call->first_argument > program->argument_count ||
+      task_call->argument_count >
+          program->argument_count - task_call->first_argument)
+    return false;
+  for (size_t ordinal = 0u; ordinal < task_call->argument_count; ordinal += 1u) {
+    const w_seed_hir0_argument *argument =
+        &program->arguments[(size_t)task_call->first_argument + ordinal];
+    if (argument->parameter_ordinal >= task_call->argument_count ||
+        argument->parameter_ordinal != ordinal ||
+        argument->owner_call != candidate.task_call_index ||
+        argument->ordinal != ordinal ||
+        argument->value_index >= program->value_count ||
+        argument->type_index >= program->type_count ||
+        argument->type_index !=
+            program->parameters[(size_t)task_function->first_parameter +
+                                ordinal]
+                .type_index ||
+        program->types[argument->type_index].kind != W_SEED_HIR0_TYPE_I64)
+      return false;
+    if (argument->value_index >= program->value_count ||
+        program->values[argument->value_index].kind !=
+            W_SEED_HIR0_VALUE_BINDING_READ ||
+        program->values[argument->value_index].binding_index !=
+            candidate.prelude_binding_index)
+      return false;
+  }
+  const w_seed_hir0_terminator *terminator =
+      &program->terminators[block->terminator_index];
+  if (terminator->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
+      terminator->value_index >= program->value_count ||
+      terminator->target_block != W_SEED_HIR0_NONE ||
+      terminator->else_block != W_SEED_HIR0_NONE)
+    return false;
+  const w_seed_hir0_value *return_value =
+      &program->values[terminator->value_index];
+  if (return_value->kind != W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE ||
+      return_value->external_module_index != 0u ||
+      return_value->external_symbol_index != process->success_symbol_index ||
+      return_value->left_value != W_SEED_HIR0_NONE ||
+      !text_is(program, return_value->member_name, (const uint8_t *)"success",
+               7u))
+    return false;
+  *shape = candidate;
+  return true;
+}
+
+static bool append_process_parallel_task_wrapper(
+    const w_seed_hir0_program *program, uint32_t task_index,
+    uint32_t function_index, uint8_t *artifact, size_t capacity,
+    size_t *offset) {
+  if (program == NULL || artifact == NULL || offset == NULL ||
+      task_index >= W_SEED_PARALLEL_SELECTION0_MAX_TASKS ||
+      function_index >= program->function_count)
+    return false;
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  if (function->first_parameter > program->parameter_count ||
+      function->parameter_count == 0u ||
+      function->parameter_count >
+          program->parameter_count - function->first_parameter ||
+      function->return_type >= program->type_count ||
+      program->types[function->return_type].kind != W_SEED_HIR0_TYPE_I64)
+    return false;
+  if (!append_literal(artifact, capacity, offset,
+                      "  llvm.func @w_seed_parallel_task_") ||
+      !append_size(artifact, capacity, offset, task_index) ||
+      !append_literal(artifact, capacity, offset,
+                      "(%buffer: !llvm.ptr, %cursor_address: !llvm.ptr"))
+    return false;
+  for (size_t ordinal = 0u; ordinal < function->parameter_count; ordinal += 1u) {
+    char type_buffer[96];
+    const char *type = program_type_name(
+        program,
+        program->parameters[(size_t)function->first_parameter + ordinal]
+            .type_index,
+        type_buffer, NULL);
+    if (type == NULL || !append_literal(artifact, capacity, offset, ", %arg") ||
+        !append_size(artifact, capacity, offset, ordinal) ||
+        !append_literal(artifact, capacity, offset, ": ") ||
+        !append_literal(artifact, capacity, offset, type))
+      return false;
+  }
+  if (!append_literal(artifact, capacity, offset,
+                      ") -> i64 {\n"
+                      "    %parallel_task_result = llvm.call @w_fn_") ||
+      !append_size(artifact, capacity, offset, function_index) ||
+      !append_literal(artifact, capacity, offset,
+                      "(%buffer, %cursor_address"))
+    return false;
+  for (size_t ordinal = 0u; ordinal < function->parameter_count; ordinal += 1u)
+    if (!append_literal(artifact, capacity, offset, ", %arg") ||
+        !append_size(artifact, capacity, offset, ordinal))
+      return false;
+  if (!append_literal(artifact, capacity, offset, ") : (!llvm.ptr, !llvm.ptr"))
+    return false;
+  for (size_t ordinal = 0u; ordinal < function->parameter_count; ordinal += 1u) {
+    char type_buffer[96];
+    const char *type = program_type_name(
+        program,
+        program->parameters[(size_t)function->first_parameter + ordinal]
+            .type_index,
+        type_buffer, NULL);
+    if (type == NULL || !append_literal(artifact, capacity, offset, ", ") ||
+        !append_literal(artifact, capacity, offset, type))
+      return false;
+  }
+  return append_literal(artifact, capacity, offset,
+                        ") -> i64\n"
+                        "    llvm.return %parallel_task_result : i64\n"
+                        "  }\n");
+}
+
+static bool append_process_parallel_root(
+    const w_seed_hir0_program *program,
+    const w_seed_native_subset0_process *process,
+    const w_seed_parallel_selection0 *selection,
+    const mlir0_process_parallel_shape *shape,
+    const mlir0_program_plan *plan, uint8_t *artifact, size_t capacity,
+    size_t *offset) {
+  if (program == NULL || process == NULL || selection == NULL || shape == NULL ||
+      plan == NULL || artifact == NULL || offset == NULL)
+    return false;
+  const w_seed_hir0_function *root = process->function;
+  const w_seed_hir0_function *task =
+      &program->functions[selection->task_function_indices[0]];
+  if (task->first_parameter > program->parameter_count ||
+      task->parameter_count == 0u ||
+      task->parameter_count > program->parameter_count - task->first_parameter)
+    return false;
+  if (!append_literal(artifact, capacity, offset,
+                      "  llvm.func @w_seed_process_parallel_entry(%p0: !llvm.ptr, %p1: !llvm.ptr) -> i32 {\n"
+                      "    %parallel_one = llvm.mlir.constant(1 : i64) : i64\n"
+                      "    %parallel_buffer = llvm.alloca %parallel_one x i8 : (i64) -> !llvm.ptr\n"
+                      "    %parallel_cursor = llvm.alloca %parallel_one x i64 : (i64) -> !llvm.ptr\n"
+                      "    %parallel_frame = llvm.alloca %parallel_one x i8 : (i64) -> !llvm.ptr\n"
+                      "    %parallel_result = llvm.alloca %parallel_one x i64 : (i64) -> !llvm.ptr\n"))
+    return false;
+  bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES] = {false};
+  const w_seed_hir0_block *block = &program->blocks[root->first_block];
+  for (size_t ordinal = 0u; ordinal < block->instruction_count; ordinal += 1u) {
+    const w_seed_hir0_instruction *instruction =
+        &program->instructions[(size_t)block->first_instruction + ordinal];
+    if (instruction->kind == W_SEED_HIR0_INSTRUCTION_BINDING) {
+      if (instruction->binding_index == shape->launch_binding_index ||
+          instruction->binding_index == shape->join_binding_index)
+        continue;
+      if (instruction->binding_index != shape->prelude_binding_index ||
+          instruction->binding_index >= program->binding_count ||
+          !append_program_value_tree(
+              program,
+              program->bindings[instruction->binding_index].initializer_value,
+              process->function_index,
+              &(mlir0_process_emit_context){
+                  .function_index = process->function_index,
+                  .arguments_parameter_index = process->arguments_parameter_ordinal,
+                  .context_parameter_index = process->context_parameter_ordinal,
+                  .arguments_symbol_index = process->arguments_symbol_index,
+                  .context_symbol_index = process->context_symbol_index,
+                  .exit_code_symbol_index = process->exit_code_symbol_index,
+                  .is_empty_symbol_index = process->is_empty_symbol_index,
+                  .count_symbol_index = process->count_symbol_index,
+                  .success_symbol_index = process->success_symbol_index,
+                  .failure_symbol_index = process->failure_symbol_index},
+              emitted, artifact, capacity, offset, 0u))
+        return false;
+      continue;
+    }
+    if (instruction->kind != W_SEED_HIR0_INSTRUCTION_CALL ||
+        instruction->call_index >= program->call_count)
+      return false;
+    const w_seed_hir0_call *call = &program->calls[instruction->call_index];
+    mlir0_process_emit_context context = {
+        .function_index = process->function_index,
+        .arguments_parameter_index = process->arguments_parameter_ordinal,
+        .context_parameter_index = process->context_parameter_ordinal,
+        .arguments_symbol_index = process->arguments_symbol_index,
+        .context_symbol_index = process->context_symbol_index,
+        .exit_code_symbol_index = process->exit_code_symbol_index,
+         .is_empty_symbol_index = process->is_empty_symbol_index,
+         .count_symbol_index = process->count_symbol_index,
+         .success_symbol_index = process->success_symbol_index,
+         .failure_symbol_index = process->failure_symbol_index,
+         .buffer_name = "%parallel_buffer",
+         .cursor_name = "%parallel_cursor"};
+    for (size_t argument = 0u; argument < call->argument_count; argument += 1u)
+      if (call->first_argument > program->argument_count ||
+          call->argument_count >
+              program->argument_count - call->first_argument ||
+          !append_program_value_tree(
+              program,
+              program->arguments[(size_t)call->first_argument + argument]
+                  .value_index,
+              process->function_index, &context, emitted, artifact, capacity,
+              offset, 0u))
+        return false;
+    if (instruction->call_index == shape->prelude_call_index) {
+      if (!append_program_local_call(program, call, process->function_index,
+                                     &context, artifact, capacity, offset))
+        return false;
+      continue;
+    }
+    if (instruction->call_index != shape->task_call_index) return false;
+    if (!append_literal(artifact, capacity, offset,
+                        "    %parallel_launch_ok = llvm.call @w_seed_parallel_launch_task_0(%parallel_frame"))
+      return false;
+    for (size_t parameter = 0u; parameter < task->parameter_count; parameter += 1u) {
+      const w_seed_hir0_argument *argument = NULL;
+      for (size_t source = 0u; source < call->argument_count; source += 1u) {
+        const w_seed_hir0_argument *candidate =
+            &program->arguments[(size_t)call->first_argument + source];
+        if (candidate->parameter_ordinal == parameter) {
+          argument = candidate;
+          break;
+        }
+      }
+      if (argument == NULL ||
+          !append_literal(artifact, capacity, offset, ", ") ||
+          !append_program_value_operand(program, argument->value_index,
+                                        process->function_index, &context,
+                                        artifact, capacity, offset))
+        return false;
+    }
+    if (!append_literal(artifact, capacity, offset,
+                        ") : (!llvm.ptr, i64) -> i1\n"
+                        "    llvm.cond_br %parallel_launch_ok, ^parallel_join, ^parallel_fault\n"
+                        "  ^parallel_join:\n"
+                        "    %parallel_join_ok = llvm.call @w_seed_parallel_join_task_0(%parallel_frame, %parallel_result) : (!llvm.ptr, !llvm.ptr) -> i1\n"
+                        "    llvm.cond_br %parallel_join_ok, ^parallel_success, ^parallel_fault\n"
+                        "  ^parallel_success:\n"
+                        "    %parallel_success_code = llvm.mlir.constant(0 : i32) : i32\n"
+                        "    llvm.return %parallel_success_code : i32\n"
+                        "  ^parallel_fault:\n"
+                        "    %parallel_failure_code = llvm.mlir.constant(3 : i32) : i32\n"
+                        "    llvm.return %parallel_failure_code : i32\n"
+                        "  }\n"))
+      return false;
+  }
+  (void)shape;
+  (void)plan;
+  return true;
+}
+
+static bool build_process_parallel_artifact(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    const w_seed_parallel_selection0 *selection,
+    const w_seed_mlir0_target *target, uint8_t *artifact, size_t capacity,
+    size_t *written, uint32_t *runtime_argument_count,
+    uint32_t *reachable_function_count, uint8_t digest[MLIR0_DIGEST_BYTES]) {
+  if (program == NULL || hir_result == NULL || selection == NULL ||
+      !target_is_supported(target) || artifact == NULL || written == NULL ||
+      runtime_argument_count == NULL || reachable_function_count == NULL ||
+      digest == NULL)
+    return false;
+  w_seed_native_subset0_process process;
+  const w_seed_native_subset0_status selected =
+      w_seed_native_subset0_select_process_parallel(
+          program, hir_result, selection, &process);
+  if (selected != W_SEED_NATIVE_SUBSET0_OK) return false;
+  mlir0_process_parallel_shape shape;
+  if (!mlir0_process_parallel_root_shape(program, &process, selection, &shape))
+    return false;
+  mlir0_program_plan plan;
+  if (!build_program_plan(program, hir_result, &plan, true, false) ||
+      !plan.reachable_functions[process.function_index] ||
+      plan.action_count != 0u)
+    return false;
+
+  const w_seed_hir0_function *task =
+      &program->functions[selection->task_function_indices[0]];
+  size_t offset = 0u;
+  const char *triple = target_is_windows(target)
+                           ? W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS
+                           : W_SEED_MLIR0_TARGET_TRIPLE;
+  if (!append_literal(artifact, capacity, &offset,
+                      "// " W_SEED_MLIR0_PROCESS_PARALLEL_SCHEMA_VERSION
+                      "\nmodule attributes {llvm.target_triple = \"") ||
+      !append_literal(artifact, capacity, &offset, triple) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          "\"} {\n"
+          "  llvm.mlir.global private constant @w_seed_mlir0_text(\"\\00\") : !llvm.array<1 x i8>\n"
+          "  llvm.func @w_seed_process_arguments_is_empty(%arguments: !llvm.ptr) -> i1\n"
+          "  llvm.func @w_seed_parallel_launch_task_0(%frame: !llvm.ptr"))
+    return false;
+  for (size_t parameter = 0u; parameter < task->parameter_count; parameter += 1u)
+    if (!append_literal(artifact, capacity, &offset, ", %arg") ||
+        !append_size(artifact, capacity, &offset, parameter) ||
+        !append_literal(artifact, capacity, &offset, ": i64"))
+      return false;
+  if (!append_literal(artifact, capacity, &offset,
+                      ") -> i1\n"
+                      "  llvm.func @w_seed_parallel_join_task_0(%frame: !llvm.ptr, %result: !llvm.ptr) -> i1\n") ||
+      !append_literal(artifact, capacity, &offset, MLIR0_RUNTIME_HELPERS) ||
+      !append_checked_i64_helpers(
+          plan.has_checked_add, plan.has_checked_subtract,
+          plan.has_checked_multiply, plan.has_checked_divide,
+          plan.has_checked_remainder, artifact, capacity, &offset))
+    return false;
+  for (size_t function = 0u; function < program->function_count; function += 1u)
+    if (plan.reachable_functions[function] &&
+        function != process.function_index &&
+        !append_program_function(
+            program, &plan, function, process.natural_loop_functions[function],
+            process.post_test_loop_functions[function], NULL, artifact,
+            capacity, &offset))
+      return false;
+  if (!append_process_parallel_task_wrapper(
+          program, 0u, selection->task_function_indices[0], artifact, capacity,
+          &offset) ||
+      !append_process_parallel_root(program, &process, selection, &shape, &plan,
+                                    artifact, capacity, &offset) ||
+      !append_literal(artifact, capacity, &offset, "}\n"))
+    return false;
+  w_seed_sha256_state state;
+  w_seed_sha256_init(&state);
+  w_seed_sha256_update(&state, artifact, offset);
+  w_seed_sha256_final(&state, digest);
+  *written = offset;
+  *runtime_argument_count = task->parameter_count;
+  *reachable_function_count = 0u;
+  for (size_t function = 0u; function < program->function_count; function += 1u)
+    if (plan.reachable_functions[function]) *reachable_function_count += 1u;
+  return true;
+}
+
+static bool process_parallel_ranges_alias(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_parallel_selection0 *selection,
+    const w_seed_mlir0_target *target,
+    const w_seed_mlir0_process_parallel_counts *counts,
+    const w_seed_mlir0_process_parallel_output *output,
+    const w_seed_mlir0_process_parallel_result *result, size_t written) {
+  if (program == NULL || hir_result == NULL || selection == NULL ||
+      target == NULL)
+    return true;
+  mlir0_range ranges[48];
+  size_t range_count = 0u;
+  const size_t range_capacity = sizeof(ranges) / sizeof(ranges[0]);
+#define ADD_PROCESS_PARALLEL_RANGE(address, count, element_size)             \
+  do {                                                                        \
+    if (!range_add(ranges, range_capacity, &range_count, (address), (count),  \
+                   (element_size)))                                           \
+      return true;                                                            \
+  } while (0)
+  ADD_PROCESS_PARALLEL_RANGE(program, 1u, sizeof(*program));
+  ADD_PROCESS_PARALLEL_RANGE(hir_result, 1u, sizeof(*hir_result));
+  ADD_PROCESS_PARALLEL_RANGE(selection, 1u, sizeof(*selection));
+  ADD_PROCESS_PARALLEL_RANGE(target, 1u, sizeof(*target));
+  ADD_PROCESS_PARALLEL_RANGE(counts, counts == NULL ? 0u : 1u, sizeof(*counts));
+  ADD_PROCESS_PARALLEL_RANGE(result, result == NULL ? 0u : 1u, sizeof(*result));
+  ADD_PROCESS_PARALLEL_RANGE(output, output == NULL ? 0u : 1u, sizeof(*output));
+#define ADD_PROCESS_PARALLEL_HIR_RANGE(pointer, capacity_value)                \
+  ADD_PROCESS_PARALLEL_RANGE((pointer), (capacity_value), sizeof(*(pointer)))
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->modules, program->module_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->identities, program->identity_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->types, program->type_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->enums, program->enum_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->enum_cases,
+                                 program->enum_case_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->enum_case_parameters,
+                                 program->enum_case_parameter_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->enum_subset_members,
+                                 program->enum_subset_member_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->enum_payloads,
+                                 program->enum_payload_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->switch_captures,
+                                 program->switch_capture_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->functions, program->function_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->parameters,
+                                 program->parameter_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->blocks, program->block_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->block_arguments,
+                                 program->block_argument_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->edge_arguments,
+                                 program->edge_argument_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->switch_edges,
+                                 program->switch_edge_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->instructions,
+                                 program->instruction_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->bindings, program->binding_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->calls, program->call_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->host_parameters,
+                                 program->host_parameter_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->arguments,
+                                 program->argument_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->requirements,
+                                 program->requirement_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->values, program->value_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->interpolation_segments,
+                                 program->interpolation_segment_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->terminators,
+                                 program->terminator_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->entries, program->entry_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->external_modules,
+                                 program->external_module_capacity);
+  ADD_PROCESS_PARALLEL_HIR_RANGE(program->external_symbols,
+                                 program->external_symbol_capacity);
+  ADD_PROCESS_PARALLEL_RANGE(program->text_bytes, program->text_byte_capacity,
+                             sizeof(uint8_t));
+  ADD_PROCESS_PARALLEL_RANGE(program->value_bytes, program->value_byte_capacity,
+                             sizeof(uint8_t));
+  ADD_PROCESS_PARALLEL_RANGE(program->receipt, program->receipt_capacity,
+                             sizeof(uint8_t));
+  /* Prove that the descriptor itself is independent before reading its
+   * pointer field.  An aliased descriptor may contain arbitrary HIR bytes and
+   * must be rejected without interpreting those bytes as an address. */
+  for (size_t first = 0u; first < range_count; first += 1u)
+    for (size_t second = first + 1u; second < range_count; second += 1u)
+      if (range_pair_overlaps(&ranges[first], &ranges[second])) return true;
+  if (output != NULL)
+    ADD_PROCESS_PARALLEL_RANGE(output->bytes, written, sizeof(uint8_t));
+#undef ADD_PROCESS_PARALLEL_HIR_RANGE
+#undef ADD_PROCESS_PARALLEL_RANGE
+  for (size_t first = 0u; first < range_count; first += 1u)
+    for (size_t second = first + 1u; second < range_count; second += 1u)
+      if (range_pair_overlaps(&ranges[first], &ranges[second])) return true;
+  return false;
+}
+
+w_seed_mlir0_status w_seed_mlir0_measure_process_parallel(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_parallel_selection0 *selection,
+    const w_seed_mlir0_target *target,
+    w_seed_mlir0_process_parallel_counts *counts,
+    w_seed_mlir0_process_parallel_result *result) {
+  if (program == NULL || hir_result == NULL || selection == NULL ||
+      target == NULL || counts == NULL || result == NULL ||
+      !w_seed_hir0_verify(program, hir_result) ||
+      !w_seed_parallel_selection0_verify(program, hir_result, selection))
+    return W_SEED_MLIR0_INVALID_HIR;
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  uint8_t digest[MLIR0_DIGEST_BYTES];
+  size_t written = 0u;
+  uint32_t runtime_argument_count = 0u;
+  uint32_t reachable_function_count = 0u;
+  if (!build_process_parallel_artifact(
+          program, hir_result, selection, target, artifact, sizeof(artifact),
+          &written, &runtime_argument_count, &reachable_function_count,
+          digest))
+    return W_SEED_MLIR0_UNSUPPORTED;
+  if (process_parallel_ranges_alias(program, hir_result, selection, target,
+                                    counts, NULL, result, written))
+    return W_SEED_MLIR0_ALIAS;
+  const w_seed_mlir0_process_parallel_counts candidate_counts = {
+      written, selection->task_count, selection->root_function_index,
+      runtime_argument_count, reachable_function_count, 1u, 1u};
+  w_seed_mlir0_process_parallel_result candidate_result;
+  (void)memset(&candidate_result, 0, sizeof(candidate_result));
+  candidate_result.status = W_SEED_MLIR0_OK;
+  candidate_result.required = candidate_counts;
+  (void)memcpy(candidate_result.hir_semantic_digest,
+               hir_result->semantic_digest,
+               sizeof(candidate_result.hir_semantic_digest));
+  (void)memcpy(candidate_result.mlir_sha256, digest,
+               sizeof(candidate_result.mlir_sha256));
+  *counts = candidate_counts;
+  *result = candidate_result;
+  return W_SEED_MLIR0_OK;
+}
+
+w_seed_mlir0_status w_seed_mlir0_emit_process_parallel(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_parallel_selection0 *selection,
+    const w_seed_mlir0_target *target,
+    const w_seed_mlir0_process_parallel_output *output,
+    w_seed_mlir0_process_parallel_result *result) {
+  if (program == NULL || hir_result == NULL || selection == NULL ||
+      target == NULL || output == NULL || result == NULL ||
+      !w_seed_hir0_verify(program, hir_result) ||
+      !w_seed_parallel_selection0_verify(program, hir_result, selection))
+    return W_SEED_MLIR0_INVALID_HIR;
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  uint8_t digest[MLIR0_DIGEST_BYTES];
+  size_t written = 0u;
+  uint32_t runtime_argument_count = 0u;
+  uint32_t reachable_function_count = 0u;
+  if (!build_process_parallel_artifact(
+          program, hir_result, selection, target, artifact, sizeof(artifact),
+          &written, &runtime_argument_count, &reachable_function_count,
+          digest))
+    return W_SEED_MLIR0_UNSUPPORTED;
+  if (process_parallel_ranges_alias(program, hir_result, selection, target, NULL,
+                                    output, result, written))
+    return W_SEED_MLIR0_ALIAS;
+  if (output->bytes == NULL || output->capacity < written)
+    return W_SEED_MLIR0_CAPACITY;
+  const w_seed_mlir0_process_parallel_counts candidate_counts = {
+      written, selection->task_count, selection->root_function_index,
+      runtime_argument_count, reachable_function_count, 1u, 1u};
+  w_seed_mlir0_process_parallel_result candidate_result;
+  (void)memset(&candidate_result, 0, sizeof(candidate_result));
+  candidate_result.status = W_SEED_MLIR0_OK;
+  candidate_result.required = candidate_counts;
+  candidate_result.written = candidate_counts;
+  (void)memcpy(candidate_result.hir_semantic_digest,
+               hir_result->semantic_digest,
+               sizeof(candidate_result.hir_semantic_digest));
+  (void)memcpy(candidate_result.mlir_sha256, digest,
+               sizeof(candidate_result.mlir_sha256));
+  (void)memcpy(output->bytes, artifact, written);
+  *result = candidate_result;
+  return W_SEED_MLIR0_OK;
+}
+
+bool w_seed_mlir0_verify_process_parallel(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_parallel_selection0 *selection,
+    const w_seed_mlir0_target *target, const uint8_t *artifact,
+    size_t artifact_bytes,
+    const w_seed_mlir0_process_parallel_result *result) {
+  if (program == NULL || hir_result == NULL || selection == NULL ||
+      target == NULL || artifact == NULL || result == NULL ||
+      result->status != W_SEED_MLIR0_OK ||
+      !w_seed_hir0_verify(program, hir_result) ||
+      !w_seed_parallel_selection0_verify(program, hir_result, selection))
+    return false;
+  uint8_t expected[W_SEED_MLIR0_MAX_BYTES];
+  uint8_t digest[MLIR0_DIGEST_BYTES];
+  size_t written = 0u;
+  uint32_t runtime_argument_count = 0u;
+  uint32_t reachable_function_count = 0u;
+  if (!build_process_parallel_artifact(
+          program, hir_result, selection, target, expected, sizeof(expected),
+          &written, &runtime_argument_count, &reachable_function_count,
+          digest))
+    return false;
+  const w_seed_mlir0_process_parallel_counts counts = {
+      written, selection->task_count, selection->root_function_index,
+      runtime_argument_count, reachable_function_count, 1u, 1u};
+  return artifact_bytes == written && memcmp(artifact, expected, written) == 0 &&
+         result->required.mlir_bytes == counts.mlir_bytes &&
+         result->required.task_count == counts.task_count &&
+         result->required.root_function_index == counts.root_function_index &&
+         result->required.runtime_argument_count == counts.runtime_argument_count &&
+         result->required.reachable_function_count ==
+             counts.reachable_function_count &&
+         result->required.launch_count == counts.launch_count &&
+         result->required.join_count == counts.join_count &&
+         result->written.mlir_bytes == counts.mlir_bytes &&
+         result->written.task_count == counts.task_count &&
+         result->written.root_function_index == counts.root_function_index &&
+         result->written.runtime_argument_count == counts.runtime_argument_count &&
+         result->written.reachable_function_count ==
+             counts.reachable_function_count &&
+         result->written.launch_count == counts.launch_count &&
+         result->written.join_count == counts.join_count &&
          memcmp(result->hir_semantic_digest, hir_result->semantic_digest,
                 sizeof(result->hir_semantic_digest)) == 0 &&
          memcmp(result->mlir_sha256, digest, sizeof(digest)) == 0;

@@ -35,6 +35,12 @@ extern "C" {
  * scheduler, provider, runtime ownership, or target ABI. */
 #define W_SEED_MLIR0_PARALLEL_ENTRY_SCHEMA_VERSION \
   "w-seed-mlir0-parallel-entry-2"
+/* A composed process/parallel artifact is deliberately a separate contract
+ * from both the ordinary process executable and the target-neutral task
+ * entries.  It is linkable MLIR: the process adapter and provider own the
+ * unresolved launch/join symbols, while the HIR task remains target-private. */
+#define W_SEED_MLIR0_PROCESS_PARALLEL_SCHEMA_VERSION \
+  "w-seed-mlir0-process-parallel-1"
 /* The unsuffixed aliases retain the byte-for-byte Linux seed contract. */
 #define W_SEED_MLIR0_TARGET_TRIPLE W_SEED_MLIR0_TARGET_TRIPLE_LINUX
 /* The dynamic seed artifact is bounded by 64 HIR values, 64 interpolation
@@ -141,6 +147,29 @@ typedef struct {
   size_t capacity;
 } w_seed_mlir0_parallel_entry_output;
 
+typedef struct {
+  size_t mlir_bytes;
+  uint32_t task_count;
+  uint32_t root_function_index;
+  uint32_t runtime_argument_count;
+  uint32_t reachable_function_count;
+  uint32_t launch_count;
+  uint32_t join_count;
+} w_seed_mlir0_process_parallel_counts;
+
+typedef struct {
+  w_seed_mlir0_status status;
+  w_seed_mlir0_process_parallel_counts required;
+  w_seed_mlir0_process_parallel_counts written;
+  uint8_t hir_semantic_digest[32];
+  uint8_t mlir_sha256[32];
+} w_seed_mlir0_process_parallel_result;
+
+typedef struct {
+  uint8_t *bytes;
+  size_t capacity;
+} w_seed_mlir0_process_parallel_output;
+
 /* Return true only for the explicit Linux or Windows target schemas. */
 bool w_seed_mlir0_target_is_supported(const w_seed_mlir0_target *target);
 
@@ -212,6 +241,30 @@ bool w_seed_mlir0_verify_parallel_entries(
     const w_seed_parallel_invocation0_plan *invocation,
     const uint8_t *artifact, size_t artifact_bytes,
     const w_seed_mlir0_parallel_entry_result *result);
+
+/* Compose the verified W-1595 process root with the verified W-1596
+ * PARSEL0/PARINV0 task relation.  The artifact is intentionally linkable,
+ * not executable yet: the provider implements the target-specific
+ * launch/join symbols.  The root contains no baked prelude or task value. */
+w_seed_mlir0_status w_seed_mlir0_measure_process_parallel(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_parallel_selection0 *selection,
+    const w_seed_mlir0_target *target,
+    w_seed_mlir0_process_parallel_counts *counts,
+    w_seed_mlir0_process_parallel_result *result);
+
+w_seed_mlir0_status w_seed_mlir0_emit_process_parallel(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_parallel_selection0 *selection,
+    const w_seed_mlir0_target *target,
+    const w_seed_mlir0_process_parallel_output *output,
+    w_seed_mlir0_process_parallel_result *result);
+
+bool w_seed_mlir0_verify_process_parallel(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_parallel_selection0 *selection,
+    const w_seed_mlir0_target *target, const uint8_t *artifact,
+    size_t artifact_bytes, const w_seed_mlir0_process_parallel_result *result);
 
 #ifdef __cplusplus
 }
