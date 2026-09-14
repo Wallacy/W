@@ -134,7 +134,7 @@ No native Linux x64 measurements are published.
 
 | Workload | Language | Target | Runtime | Artifact | .text B | .rdata B | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| restaurant-main-dispatch | w | Linux x64 / WSL2 | CRT-free | 2768 B (2.7 KiB) | — | — | 204.4284 ms | 75.0073 ms | 78.6885 ms | 9588736 B (9.14 MiB) | 10.829 ms |
+| restaurant-main-dispatch | w | Linux x64 / WSL2 | CRT-free | 2768 B (2.7 KiB) | — | — | 208.7803 ms | 155.999 µs | 376.322 µs | 679936 B (664.0 KiB) | 50 µs |
 
 Artifact size counts only the emitted executable file. On Windows it excludes imported runtime DLLs. Windows public W is CRT-free; public C and Rust import the MSVC runtime. The private process-handler composite remains a Windows GCC/MinGW contextual lane. Native Linux records, when published, are kept in their own Linux x64 / GNU lane; W's current Linux product route is also CRT-free.
 Each projection row is compact: every displayed metric chooses the lower value across pinned categories on that same platform, so cells may come from distinct toolchain/recipe categories. The machine catalog retains those category and provenance identities; no value is selected across platform sections. WSL rows remain host-partitioned and are never pooled across hosts.
