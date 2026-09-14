@@ -628,6 +628,15 @@ add_executable(w_seed_gpu0_tests
 )
 target_link_libraries(w_seed_gpu0_tests PRIVATE w_seed_source)
 
+add_executable(w_seed_gpu0_emit
+  tests/gpu0_emit.c
+)
+target_link_libraries(w_seed_gpu0_emit PRIVATE w_seed_source)
+
+add_executable(w_seed_gpu0_cuda_windows
+  tests/gpu0_cuda_windows.c
+)
+
 add_executable(w_seed_native0_tests
   tests/test_native0.c
 )
@@ -815,6 +824,8 @@ if(MSVC)
   target_link_options(w_seed_mlir0_tests PRIVATE /STACK:8388608)
   target_compile_options(w_seed_mlir0_gate PRIVATE /W4 /WX)
   target_compile_options(w_seed_gpu0_tests PRIVATE /W4 /WX)
+  target_compile_options(w_seed_gpu0_emit PRIVATE /W4 /WX)
+  target_compile_options(w_seed_gpu0_cuda_windows PRIVATE /W4 /WX)
   target_compile_options(w_seed_native0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_cooperative0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_wrt0_tests PRIVATE /W4 /WX)
@@ -1291,6 +1302,24 @@ else()
     -Werror
   )
   target_compile_options(w_seed_gpu0_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
+  target_compile_options(w_seed_gpu0_emit PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
+  target_compile_options(w_seed_gpu0_cuda_windows PRIVATE
     -Wall
     -Wextra
     -Wpedantic

@@ -78,16 +78,18 @@ describe("check-suite manifest", () => {
       "root-studies",
       "root-quick",
       "root-compiler",
+      "root-gpu0",
       "root-benchmark",
       "tree-check",
     ]);
-    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-check" })).toHaveLength(116);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-check" })).toHaveLength(117);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-docs" })).toHaveLength(8);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-studies" })).toHaveLength(33);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-quick" })).toHaveLength(9);
-    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-compiler" })).toHaveLength(27);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-compiler" })).toHaveLength(28);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-gpu0" })).toHaveLength(1);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-benchmark" })).toHaveLength(3);
-    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "tree-check" })).toHaveLength(113);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "tree-check" })).toHaveLength(114);
 
     const isWRun = (step) =>
       step.package === "root" && step.script === "check:w-run";

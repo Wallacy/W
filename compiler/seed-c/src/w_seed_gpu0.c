@@ -483,10 +483,10 @@ static bool emit_device_artifact(const w_seed_gpu0_program *program,
       !writer_literal(&writer,
                       "\nmodule {\n"
                       "  gpu.module @w_gpu0_device {\n"
-                      "    gpu.func @w_gpu0_kernel(%result: memref<1xi32>) kernel {\n"
+                      "    gpu.func @w_gpu0_kernel(%result: memref<1xi32, 1>) kernel {\n"
                       "      %c0 = arith.constant 0 : index\n"
                       "      %c42 = arith.constant 42 : i32\n"
-                      "      memref.store %c42, %result[%c0] : memref<1xi32>\n"
+                      "      memref.store %c42, %result[%c0] : memref<1xi32, 1>\n"
                       "      gpu.return\n"
                       "    }\n"
                       "  }\n"
