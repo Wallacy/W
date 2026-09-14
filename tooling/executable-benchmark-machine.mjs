@@ -1839,8 +1839,21 @@ export function updateExecutableBestMetrics(catalog, result) {
   const candidate = deriveExecutableBestMetrics(catalog, [result]);
   const pruned = pruneExecutableBestMetrics(catalog);
   const entries = [...(catalog.bestMetrics?.entries ?? [])];
-  const byCell = new Map(pruned.catalog.bestMetrics.entries.map((entry) => [`${entry.categoryId}\u0000${entry.metric}`, entry]));
-  const updatedMetrics = [...pruned.removedMetrics];
+  const candidateLane = candidate.entries[0];
+  const liveLaneAxes = ["workloadId", "language", "equivalenceKey", "platformTarget",
+    "artifactTarget", "abi", "profile", "host", "recipe", "recipeClass",
+    "comparability", "eligibility"];
+  const replacedRunnerMetrics = [];
+  const currentRunnerEntries = pruned.catalog.bestMetrics.entries.filter((entry) => {
+    const sameLane = candidateLane !== undefined &&
+      liveLaneAxes.every((axis) => entry?.[axis] === candidateLane?.[axis]);
+    const obsoleteRunner = sameLane &&
+      entry?.provenance?.runnerDigest !== result.provenance.runnerDigest;
+    if (obsoleteRunner) replacedRunnerMetrics.push(entry.metric);
+    return !obsoleteRunner;
+  });
+  const byCell = new Map(currentRunnerEntries.map((entry) => [`${entry.categoryId}\u0000${entry.metric}`, entry]));
+  const updatedMetrics = [...pruned.removedMetrics, ...replacedRunnerMetrics];
   for (const entry of candidate.entries) {
     const key = `${entry.categoryId}\u0000${entry.metric}`;
     const previous = byCell.get(key);

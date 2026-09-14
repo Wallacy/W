@@ -567,6 +567,31 @@ test("update replaces only lower cells and is idempotent for non-improving value
   assert.match(validateExecutableBestMetric(zero, documents.catalog).join("\n"), /positive/);
 });
 
+test("update keeps only current runner evidence inside one live lane", () => {
+  const firstResult = validResult();
+  const first = updateExecutableBestMetrics(documents.catalog, firstResult);
+  const nextResult = clone(firstResult);
+  nextResult.id = "hello-rust-current-runner";
+  nextResult.identity.toolchain = `${firstResult.identity.toolchain}-next`;
+  nextResult.provenance.runnerDigest = "sha256:" + "4".repeat(64);
+  nextResult.provenance.toolchainDigest = "sha256:" + "5".repeat(64);
+  nextResult.provenance.commit = "4".repeat(40);
+  nextResult.provenance.observedAt = "2026-09-14T12:00:00.000Z";
+  for (const stage of [nextResult.compile, nextResult.run]) {
+    for (const sample of [...stage.warmup, ...stage.raw]) sample.wallNs = String(BigInt(sample.wallNs) + 1000n);
+    stage.summary = deriveSummary(stage.raw);
+  }
+  const updated = updateExecutableBestMetrics(first.catalog, nextResult);
+  const lane = updated.catalog.bestMetrics.entries.filter((entry) =>
+    entry.workloadId === nextResult.workloadId && entry.language === nextResult.language &&
+    entry.host === nextResult.identity.host);
+  assert.ok(updated.changed);
+  assert.ok(lane.length > 0);
+  assert.ok(lane.every((entry) => entry.provenance.runnerDigest === nextResult.provenance.runnerDigest));
+  assert.ok(lane.every((entry) => entry.provenance.recordId === nextResult.id));
+  assert.ok(updated.updatedMetrics.includes("run-wall-time"));
+});
+
 test("source refresh evicts stale cells without relabeling history", () => {
   const catalog = clone(documents.catalog);
   catalog.bestMetrics.entries = catalog.bestMetrics.entries.filter((entry) => entry.workloadId === "hello");
