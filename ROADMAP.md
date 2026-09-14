@@ -27,11 +27,11 @@ not in this queue.
 | Rank | Increment | Completion boundary | What it enables |
 | ---: | --- | --- | --- |
 | 1 | CRT-free parallel process witness | One unchanged W source obtains runtime process input, dispatches through the provider, joins lexically, and exits through static W-owned target support on Windows and Linux/WSL | Honest executable benchmark candidate and cross-target comparison |
-| 2 | Native Hello optimization sentinel | The smallest current public Hello is rebuilt from source on Windows and Linux with static whole-graph release closure; correctness is mandatory and the live catalog retains artifact size, compile time, wall/CPU time, and memory without retaining binaries | Early feedback for section elimination, linkage, ABI, startup, and the target-specific sub-1-KiB opportunity |
-| 3 | GPU kernel Hello sentinel | One W host plus one target-neutral GPU function writes a known payload to a device-visible result, launches and joins through an explicit domain, and verifies it on the available GPU; device and host artifacts and end-to-end/dispatch/memory metrics stay separate | Tests CPU/GPU partitioning and MLIR GPU applicability before scheduler and memory abstractions harden |
-| 4 | Capacity-independent task storage | Replace the seed one-to-four logical-task arrays with measured caller-owned records; logical task count and physical worker capacity remain separate; configured exhaustion fails before effects | Removes an implementation ceiling before scheduler generalization |
-| 5 | Structured cancellation and outcomes | Request, propagation, cleanup drain, typed failure, panic boundary, and deterministic outcome publication execute through the same native route | A usable structured-concurrency core rather than successful scalar jobs only |
-| 6 | Provider-neutral scheduler core | Target-neutral ready/task/frame state lowers once; Windows and Linux providers supply only platform primitives and cached topology/capacity facts | Portable concurrency without a platform-shaped language ABI |
+| 2 | Capacity-independent task storage | Replace the seed one-to-four logical-task arrays with measured caller-owned records; logical task count and physical worker capacity remain separate; configured exhaustion fails before effects | Removes an implementation ceiling before scheduler generalization |
+| 3 | Structured cancellation and outcomes | Request, propagation, cleanup drain, typed failure, panic boundary, and deterministic outcome publication execute through the same native route | A usable structured-concurrency core rather than successful scalar jobs only |
+| 4 | Provider-neutral scheduler core | Target-neutral ready/task/frame state lowers once; Windows and Linux providers supply only platform primitives and cached topology/capacity facts | Portable concurrency without a platform-shaped language ABI |
+| 5 | Native Hello optimization sentinel | The smallest current public Hello is rebuilt from source on Windows and Linux with static whole-graph release closure; correctness is mandatory and the live catalog retains artifact size, compile time, wall/CPU time, and memory without retaining binaries | Non-blocking feedback for section elimination, linkage, ABI, startup, and the target-specific sub-1-KiB opportunity |
+| 6 | GPU kernel Hello sentinel | One W host plus one target-neutral GPU function writes a known payload to a device-visible result, launches and joins through an explicit domain, and verifies it on the available GPU; device and host artifacts and end-to-end/dispatch/memory metrics stay separate | Non-blocking feedback for CPU/GPU partitioning and MLIR GPU applicability while concurrency and lifecycle continue |
 | 7 | Resource-bearing enum and ownership slice | `Result`-like payload enum, exhaustive match, move, borrow, cleanup, typed success/failure, and adversarial rejection execute natively | Concrete memory-management invariants for general aggregates and tasks |
 | 8 | General verified HIR and lowering | Expand types, calls, CFG, ownership/effects, and diagnostics in small executable slices while preserving independent verification | Moves from bounded demonstrations toward ordinary programs |
 | 9 | Closed-graph optimizer and static closure | Whole-module is the minimum optimized region; proved package/workspace/product closure internalizes and eliminates unused WRT/std/provider code without changing observable roots | Generalizes the optimization rules first exercised by the Hello sentinel |
@@ -51,9 +51,11 @@ process-root plus task-entry MLIR composition; provider linkage and equivalent
 Windows/Linux execution then close rank 1. Once that physical reference is
 available, target policy can combine the W-1597 legality certificate with
 domain-observability and cost facts to select and compare a direct-call build.
-The CPU and GPU sentinels follow before task-storage and scheduler
-generalization so their measurements can still influence lowering, linkage,
-placement, and runtime heuristics cheaply.
+Capacity-independent task storage, structured outcomes/cancellation, and the
+provider-neutral scheduler remain the blocking continuation after the physical
+reference. CPU and GPU sentinels run as bounded feedback lanes when their
+dependencies are available; they inform lowering, linkage, placement, and
+runtime heuristics without delaying concurrency or lifecycle work.
 
 The current fixed task counts and worker capacities are seed evidence limits.
 They must not become language, public ABI, or final runtime limits.
