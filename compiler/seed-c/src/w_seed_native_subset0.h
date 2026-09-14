@@ -6,6 +6,7 @@
 
 #include "w_seed_cooperative_selection0.h"
 #include "w_seed_hir0.h"
+#include "w_seed_parallel_selection0.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -160,6 +161,16 @@ w_seed_native_subset0_status
 w_seed_native_subset0_select_process_executable(
     const w_seed_hir0_program *program,
     const w_seed_hir0_result *hir_result,
+    w_seed_native_subset0_process *selection);
+
+/* Select the same complete process-input witness while admitting exactly one
+ * independently verified PARSEL0 parallel dispatch in its root body. The
+ * ordinary process-executable selector remains direct-call-only. */
+w_seed_native_subset0_status
+w_seed_native_subset0_select_process_parallel(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    const w_seed_parallel_selection0 *parallel_selection,
     w_seed_native_subset0_process *selection);
 
 /* Select the target-neutral closed cooperative product shape. This is only

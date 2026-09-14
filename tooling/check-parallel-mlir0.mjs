@@ -136,6 +136,60 @@ try {
       linuxBytes[1] !== 0x45 || linuxBytes[2] !== 0x4c ||
       linuxBytes[3] !== 0x46)
     fail("Linux x86-64 ELF object header is invalid");
+
+  const processEmitted = run(witness, ["--emit-process-parallel-mlir"]);
+  if (processEmitted.stderr.length !== 0 || processEmitted.stdout.length === 0 ||
+      processEmitted.stdout.includes(Buffer.from([0])))
+    fail("process emitter produced stderr, no bytes, or an embedded NUL");
+  const processText = processEmitted.stdout.toString("utf8");
+  for (const marker of [
+    "w-seed-mlir0-process-parallel-1",
+    "llvm.target_triple = \"x86_64-unknown-linux-gnu\"",
+    "llvm.func @w_seed_process_parallel_entry",
+    "llvm.func @w_seed_parallel_task_0",
+    "llvm.call @w_seed_process_arguments_is_empty(%p0)",
+    "llvm.call @w_fn_0(%parallel_buffer, %parallel_cursor, %v2)",
+    "llvm.call @w_seed_parallel_launch_task_0(%parallel_frame, %call1)",
+    "llvm.call @w_seed_parallel_join_task_0(%parallel_frame, %parallel_result)",
+  ]) if (!processText.includes(marker))
+    fail(`process artifact omits ${marker}`);
+  for (const forbidden of [
+    "llvm.call @w_fn_2(%parallel_buffer",
+    "llvm.call @w_seed_parallel_launch_task_0(%parallel_frame, 40",
+  ]) if (processText.includes(forbidden))
+    fail(`process artifact unexpectedly contains ${forbidden}`);
+
+  const processInput = join(directory, "process-parallel.mlir");
+  const processLowered = join(directory, "process-parallel-lowered.mlir");
+  const processLlvm = join(directory, "process-parallel.ll");
+  const processLinuxObject = join(directory, "process-parallel.o");
+  await writeFile(processInput, processEmitted.stdout);
+  run(available.mlirOpt, [processInput, "-o", processLowered,
+    "--convert-arith-to-llvm", "--convert-func-to-llvm",
+    "--reconcile-unrealized-casts", "--canonicalize", "--cse",
+    "--verify-each"]);
+  run(available.mlirTranslate, ["--mlir-to-llvmir", processLowered,
+    "-o", processLlvm]);
+  const processLlvmText = await readFile(processLlvm, "utf8");
+  if (!processLlvmText.includes("define i32 @w_seed_process_parallel_entry") ||
+      !processLlvmText.includes("define i64 @w_seed_parallel_task_0") ||
+      !processLlvmText.includes("call i1 @w_seed_parallel_launch_task_0") ||
+      !processLlvmText.includes("call i1 @w_seed_parallel_join_task_0"))
+    fail("translated process LLVM omits explicit launch/join");
+  const processRoot = processLlvmText.match(
+    /define i32 @w_seed_process_parallel_entry\([^\{]+\) \{([\s\S]*?)\n\}/u);
+  if (!processRoot || !processRoot[1].includes("call i64 @w_fn_0") ||
+      !processRoot[1].includes("call i1 @w_seed_parallel_launch_task_0") ||
+      !processRoot[1].includes("call i1 @w_seed_parallel_join_task_0") ||
+      processRoot[1].includes("call i64 @w_fn_2"))
+    fail("translated process root does not preserve private task edge");
+  run(available.llc, ["-filetype=obj", "-mtriple=x86_64-unknown-linux-gnu",
+    "-relocation-model=pic", "-O3", processLlvm, "-o", processLinuxObject]);
+  const processLinuxBytes = await readFile(processLinuxObject);
+  if (processLinuxBytes.length < 4 || processLinuxBytes[0] !== 0x7f ||
+      processLinuxBytes[1] !== 0x45 || processLinuxBytes[2] !== 0x4c ||
+      processLinuxBytes[3] !== 0x46)
+    fail("process Linux x86-64 ELF object header is invalid");
   let emittedExecution = "not-run";
   if (process.platform === "win32") {
     const { findWindowsSdkKernel32 } = await import("./windows-build-support.mjs");
@@ -153,7 +207,7 @@ try {
     exactExit(executable, [], 0);
     emittedExecution = "windows-crt-free-runtime-values";
   }
-  console.log(`PARALLEL MLIR0: MLIR=23.1.1 tasks=2 runtimeArguments=3 reachableFunctions=3 emittedExecution=${emittedExecution} windowsObjectBytes=${windowsBytes.length} linuxObjectBytes=${linuxBytes.length}`);
+  console.log(`PARALLEL MLIR0: MLIR=23.1.1 tasks=2 processRoot=1 runtimeArguments=3 reachableFunctions=3 emittedExecution=${emittedExecution} windowsObjectBytes=${windowsBytes.length} linuxObjectBytes=${linuxBytes.length} processLinuxObjectBytes=${processLinuxBytes.length}`);
 } finally {
   await rm(directory, { recursive: true, force: true });
 }

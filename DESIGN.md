@@ -39825,6 +39825,69 @@ physical provider composition, public executable, benchmark result, proof
 language surface, or general optimizer. The physical route remains the
 required reference against which any later elided artifact is compared.
 
+#### 26.4.1.79 W-1598 — explicit process-root and task-entry MLIR composition
+
+**Example:** the Linux artifact reads runtime `Arguments.isEmpty`, computes one
+scalar prelude result, passes that result to one task wrapper, joins the
+provider relation, and returns a checked process status.
+
+PARMLIR0 schema `w-seed-mlir0-process-parallel-1` composes the resolved native
+process root with the independently verified one-task PARSEL0 relation. The
+root evaluates `Arguments.isEmpty`, calls one direct scalar prelude, passes the
+prelude binding as the task argument, and performs the lexical join. The
+artifact contains one task wrapper that is private to this composed target
+module. It contains the reachable task closure and the process root in one
+target-neutral MLIR module.
+
+The module declares `w_seed_parallel_launch_task_0` and
+`w_seed_parallel_join_task_0` as explicit unresolved symbols. A future provider
+owns those definitions. The artifact does not define a provider, link a
+provider, or publish a process executable. The ordinary process selector still
+accepts only `W_SEED_HIR0_CALL_DIRECT` local calls, so this route cannot erase
+the parallel dispatch as an ordinary call.
+
+The caller-owned `measure`, `emit`, and `verify` operations are separate and
+transactional. `measure` publishes required counts and digests without output
+bytes. `emit` writes the exact MLIR bytes only after capacity and alias checks.
+`verify` rebuilds the artifact and compares the bytes, counts, HIR digest, and
+MLIR digest after independent HIR and PARSEL0 verification.
+
+The focused `parallel-mlir0` gate parses and lowers the artifact with pinned
+MLIR/LLVM 23.1.1, translates it to LLVM IR, and emits a Linux x86-64 PIC ELF
+object. This is compiler-lifecycle evidence only. It does not prove provider
+linkage, public execution, a benchmark, timing, performance, or direct-call
+selection.
+
+#### 26.4.1.80 W-1599 — TASKLIFE0 target-neutral fixed caller-owned lifecycle reducer and oracle
+
+**Example:** a two-task trace settles one body error, requests fail-fast
+cancellation, drains both tasks, and commits the lowest lexical error.
+
+TASKLIFE0 uses a fixed caller-owned transaction. Its task states are
+`UNINITIALIZED`, `RESERVED`, `PUBLISHED`, `ACTIVE`, `READY`, `SUSPENDED`,
+`BODY_SETTLED`, `CLEANUP`, `OUTCOME_COMMITTED`, `JOINED`, and `RELEASED`. Its
+scope states are `OPEN`, `CANCELLATION_REQUESTED`, `DRAINING`,
+`CHILDREN_DRAINED`, `OUTCOME_COMMITTED`, `JOINED`, and `RETAINED`.
+
+Every body and scope outcome has an explicit `SUCCESS`, `ERROR`, or `CANCELED`
+tag. Cancellation is monotonic and is a control-flow record, not an error
+value. A body that settles before cancellation keeps its settled outcome. A
+request before settlement commits `CANCELED` with its caller-owned snapshot.
+Cleanup must complete before task outcome commit.
+
+Fail-fast cancellation cites a settled error and marks unfinished siblings for
+drain. Scope outcome arbitration selects the lowest lexical/input error before
+it considers cancellation and success. Task joins and releases use lexical
+order. The reducer rejects stale generations, reordered events, missing or
+duplicate transitions, invalid outcomes, and non-monotonic cancellation.
+
+`run` and `measure` stage exact caller-owned snapshots and publish only after a
+complete reduction. `verify` replays the transaction and compares every result
+field, copied trace, and transaction digest. The one-to-four task ceiling and
+128-event ceiling are seed evidence only. TASKLIFE0 has no source-HIR
+integration, scheduler, provider, parallel runtime, task ABI, benchmark, or
+performance claim.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

@@ -39,11 +39,12 @@ correctness-scoped unless a source explicitly states otherwise.
 | Seed frontend | The seed provides lossless source reading, parsing, formatting, and bounded semantic validation. It is not the complete frontend. |
 | Native seed route | A verified HIR slice lowers through MLIR0 to native code for selected values, calls, returns, structured control flow, arithmetic, pre-test loops, and a bounded post-test `repeat`. |
 | Virtual structured execution | A closed scalar async child may remain a compiler-only Task relation across finite root `execution#yield()` points and a finite acyclic same-module graph of pure scalar helpers after verified proof. No scheduler or overlap is claimed. |
+| Task lifecycle oracle | TASKLIFE0 replays fixed caller-owned task and scope lifecycle traces with tagged success, error, and canceled outcomes, monotonic cancellation, cleanup-before-commit, lexical join/release ordering, and exact snapshot verification. It is target-neutral seed evidence only. |
 | Parallel placement IR | Exact `spawn<.domain>` can cross Frontend26 into HIR37 only with caller-owned concurrent-plus-parallel domain evidence. The HIR owns and independently verifies identity, mode, capability, lexical joins, and a pure non-suspending scalar child graph. |
 | Parallel selection proof | PARSEL0 independently derives a fixed caller-owned one-to-four-task selection from verified HIR37, now for either the anonymous Unit witness or the bounded native-process root. It copies lexical launch/join and placement facts, rejects aliases and forged records, and deliberately contains no provider-capacity field. It is not execution evidence. |
 | Windows parallel provider | PARINV0 derives exact signed-`i64` calls and arguments from verified HIR37/PARSEL0, and PARPROV0 executes only that plan—no caller callback or context participates. Capacity one and two produce identical semantic outcomes; an internal deterministic rendezvous proves two simultaneously active Windows x64 workers without a timing threshold. This is component evidence, not a public W executable or CRT-free target artifact. |
 | Parallel task-entry MLIR | PARMLIR0 emits one runtime-parameterized public task entry per selected launch and only its transitive reachable internal helper closure. Named call-site order is normalized to declaration order and launch values are not embedded. The same target-neutral module lowers with MLIR/LLVM 23.1.1 to Windows x64 COFF and Linux x86-64 PIC ELF objects. PARLINK0 now links the Windows object to a CRT-free Kernel32 adapter and proves runtime-dependent values execute in the emitted functions; the adapter remains private compiler-lifecycle evidence, not a public command or benchmark result. |
-| Process/parallel compiler composition | Native0 configures the explicit `.domain`, HIR37 preserves the runtime-input dependency through a pure scalar binding into one task and lexical join, and PARSEL0 independently selects it. The ordinary process emitter rejects parallel-as-direct lowering; target composition and public execution remain open. |
+| Process/parallel compiler composition | Native0 configures the explicit `.domain`, HIR37 preserves the runtime-input dependency through a pure scalar binding into one task and lexical join, and PARSEL0 independently selects it. W-1598 emits the composed process root and target-private task wrapper with unresolved provider launch/join symbols and Linux ELF evidence. The ordinary process emitter rejects parallel-as-direct lowering, and provider linkage plus public execution remain open. |
 | Enum payloads | The current bounded slice supports Bool and signed i64 payloads, captures, constructor values, and exhaustive switches. It has no public payload ABI. |
 | Enum subsets | The bounded seed target admits proper nonempty payloadless subsets of local enums with base tags and no wrapper allocation; focused checks and native Windows plus Linux/WSL execution are current. |
 | Source entry | entry { ... } and entry(functionName) are accepted in the bounded surface. An empty entry { } is valid. |
@@ -68,11 +69,13 @@ or `ref` use implies a heap, header, address, or storage class.
 - The seed implements bounded slices, not the full W language or runtime.
 - General types, general control flow, async runtime behavior, and provider
   integration remain outside the current product boundary.
-- Parallel-domain placement, PARSEL0 selection, and a bounded Windows x64
-  provider component are represented and verified. PARMLIR0 now emits the
-  reachable task-entry closure as Windows and Linux linkable objects. Public
-  build and run remain fail-closed until a provider links those entries and
-  runtime-dependent input proves the same source route end to end.
+- Parallel-domain placement, PARSEL0 selection, a bounded Windows x64 provider
+  component, and an explicit process-root/task-entry MLIR composition are
+  represented and verified. PARMLIR0 emits the reachable task-entry closure as
+  Windows and Linux linkable objects, while W-1598 emits the composed process
+  module with unresolved provider launch/join symbols and Linux ELF evidence.
+  Public build and run remain fail-closed until a provider links the composed
+  route and runtime-dependent input proves the same source end to end.
 - COOP0 remains a compiler-host trace oracle. A separate bounded cooperative
   core now lowers to Windows/Linux process projections. The Windows host also
   compiles and CRT-free-links the bounded Linux product with the shared WRT0;
