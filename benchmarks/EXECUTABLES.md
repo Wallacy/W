@@ -99,6 +99,7 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-enum-switch | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 694 | 224 | 174.7149 ms | 16.335 ms | 17.2527 ms | 3756032 B (3.58 MiB) | 10.055 ms |
 | restaurant-interpolation | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 518 | 216 | 176.6327 ms | 16.7522 ms | 17.1856 ms | 3756032 B (3.58 MiB) | 10.829 ms |
 | restaurant-linear | w | Windows x64 / MSVC | CRT-free | 2560 B (2.5 KiB) | 134 | 208 | 166.1238 ms | 16.0861 ms | 16.9756 ms | 3751936 B (3.58 MiB) | 12.53 ms |
+| restaurant-main-dispatch | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 742 | 264 | 179.9783 ms | 16.9176 ms | 17.299 ms | 3756032 B (3.58 MiB) | 12.53 ms |
 | restaurant-mutation | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 550 | 212 | 175.1766 ms | 16.0612 ms | 16.9951 ms | 3756032 B (3.58 MiB) | 10.829 ms |
 | restaurant-nested-branch | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 966 | 368 | 179.5562 ms | 16.8636 ms | 17.0991 ms | 3760128 B (3.59 MiB) | 11.448 ms |
 | restaurant-nested-scalar-if | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 742 | 216 | 176.228 ms | 16.9054 ms | 17.2046 ms | 3756032 B (3.58 MiB) | 10.829 ms |
@@ -133,8 +134,7 @@ No native Linux x64 measurements are published.
 
 | Workload | Language | Target | Runtime | Artifact | .text B | .rdata B | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-
-No Linux x64 via WSL2 same-physical-hardware diagnostic measurements are published.
+| restaurant-main-dispatch | w | Linux x64 / WSL2 | CRT-free | 2768 B (2.7 KiB) | — | — | 204.4284 ms | 75.0073 ms | 78.6885 ms | 9588736 B (9.14 MiB) | 10.829 ms |
 
 Artifact size counts only the emitted executable file. On Windows it excludes imported runtime DLLs. Windows public W is CRT-free; public C and Rust import the MSVC runtime. The private process-handler composite remains a Windows GCC/MinGW contextual lane. Native Linux records, when published, are kept in their own Linux x64 / GNU lane; W's current Linux product route is also CRT-free.
 Each projection row is compact: every displayed metric chooses the lower value across pinned categories on that same platform, so cells may come from distinct toolchain/recipe categories. The machine catalog retains those category and provenance identities; no value is selected across platform sections. WSL rows remain host-partitioned and are never pooled across hosts.
