@@ -8185,6 +8185,78 @@
         "no provider, executable, benchmark, timing, or performance claim is introduced"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-parallel-direct-elision-certificate",
+      "reviewItem": "proof-directed direct-call legality against silent semantic erasure, single-function flags, target-policy conflation, and premature performance claims",
+      "decisions": ["W-1597"],
+      "task": "Independently certify the bounded parallel spawn/immediate-await graph that may later be replaced by a direct call under separate target policy.",
+      "selected": {
+        "language": "w-internal",
+        "source": [
+          "selection = PARSEL0.select(verifiedHIR)",
+          "certificate = PARELIDE0.certify(verifiedHIR, selection)",
+          "assert certificate.facts == [singleTask, immediateJoin, closedPureGraph, neverSuspends, nonthrowing, uniqueTaskConsumer, scalarABI]",
+          "targetPolicy + certificate may select direct call; otherwise retain physical launch/join"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "silent-emitter-fallback",
+          "language": "w-internal-rejected",
+          "source": ["lower unsupported parallel dispatch as an ordinary call"],
+          "expectedDifference": "The selected route retains physical semantics unless an independently verified certificate exists."
+        },
+        {
+          "name": "single-callee-flag",
+          "language": "w-internal-rejected",
+          "source": ["trust only function.isPure and function.suspension"],
+          "expectedDifference": "PARELIDE0 walks the complete acyclic local helper graph and rejects host, external, nested-execution, unsafe, borrow, throwing, and suspending edges."
+        },
+        {
+          "name": "certificate-selects-optimization",
+          "language": "w-internal-rejected",
+          "source": ["structural proof always rewrites launch/join"],
+          "expectedDifference": "Legality remains separate from target domain observability, instrumentation policy, and profitability."
+        },
+        {
+          "name": "replace-physical-reference",
+          "language": "w-internal-rejected",
+          "source": ["ship only the elided path before provider-backed execution"],
+          "expectedDifference": "The physical route remains required as the semantic and measurement reference."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_parallel_elision0.c",
+          "symbol": "derive",
+          "claim": "PARELIDE0 rederives immediate join, unique virtual-task consumption, and the complete closed pure callee graph."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_parallel_elision0.c",
+          "symbol": "w_seed_parallel_elision0_verify",
+          "claim": "Verification reconstructs and byte-compares the caller-owned certificate after independent HIR and PARSEL0 verification."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_process_parallel_composition_hir",
+          "claim": "The process witness proves a two-function pure task graph, mutation and alias barriers, and transactional failure."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_parallel_domain_placement_hir",
+          "claim": "The two-task physical witness is rejected as an elision candidate without altering the output record."
+        }
+      ],
+      "checks": [
+        "the certificate is bound to verified HIR and the exact PARSEL0 selection",
+        "one launch is followed immediately by its unique lexical join",
+        "the virtual task binding has no consumer other than that join",
+        "the complete reachable task graph is acyclic, local, pure, nonthrowing, and non-suspending",
+        "selection and verification reject aliases, forgeries, multiple tasks, and malformed relations transactionally",
+        "no HIR rewrite, target decision, direct-call artifact, benchmark, timing, or performance claim is introduced"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

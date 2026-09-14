@@ -3,6 +3,7 @@
 #include "w_seed_parallel_invocation0.h"
 #include "w_seed_parallel_provider0.h"
 #include "w_seed_parallel_selection0.h"
+#include "w_seed_parallel_elision0.h"
 #include "w_seed_scalar_evaluator0.h"
 
 #include <stdbool.h>
@@ -2967,6 +2968,15 @@ static bool test_parallel_domain_placement_hir(void) {
                W_SEED_FRONTEND_DOMAIN_IDENTITY) == 0 &&
         w_seed_parallel_selection0_verify(program, &fixture.hir_result,
                                           &selection));
+  w_seed_parallel_elision0_certificate elision_sentinel;
+  (void)memset(&elision_sentinel, 0x9d, sizeof(elision_sentinel));
+  const w_seed_parallel_elision0_certificate elision_before =
+      elision_sentinel;
+  CHECK(w_seed_parallel_elision0_certify(
+            program, &fixture.hir_result, &selection, &elision_sentinel) ==
+            W_SEED_PARALLEL_ELISION0_UNSUPPORTED &&
+        memcmp(&elision_sentinel, &elision_before,
+               sizeof(elision_sentinel)) == 0);
   CHECK(test_parallel_mlir_entries(program, &fixture.hir_result, &selection));
   for (size_t task = selection.task_count;
        task < W_SEED_PARALLEL_SELECTION0_MAX_TASKS; task += 1u)
@@ -3127,7 +3137,8 @@ static bool test_process_parallel_composition_hir(void) {
       "import { Arguments as ProcessArguments, Context as ProcessContext, "
       "ExitCode as ProcessExitCode } from std.process\n"
       "fn select(missing: Bool): i64 { return if missing { 0 } else { 40 } }\n"
-      "fn increment(value: i64): i64 { return value + 1 }\n"
+      "fn addOne(value: i64): i64 { return value + 1 }\n"
+      "fn increment(value: i64): i64 { return addOne(value: value) }\n"
       "async fn run(args: ProcessArguments, ctx: ProcessContext): "
       "ProcessExitCode { let seed = select(missing: args.isEmpty) "
       "let pending = spawn<.domain> increment(value: seed) "
@@ -3187,6 +3198,52 @@ static bool test_process_parallel_composition_hir(void) {
         selection.task_count == 1u &&
         w_seed_parallel_selection0_verify(program, &fixture.hir_result,
                                           &selection));
+
+  /* This certificate proves only target-neutral transformation legality.
+   * Physical launch/join remains the reference route; a target optimizer must
+   * separately prove domain observability and profitability before eliding it.
+   */
+  w_seed_parallel_elision0_certificate elision;
+  (void)memset(&elision, 0xa6, sizeof(elision));
+  CHECK(w_seed_parallel_elision0_certify(program, &fixture.hir_result,
+                                         &selection, &elision) ==
+            W_SEED_PARALLEL_ELISION0_OK &&
+        elision.root_function_index == entry->target_function &&
+        elision.task_call_index == selection.task_call_indices[0] &&
+        elision.task_function_index == selection.task_function_indices[0] &&
+        elision.launch_binding_index == selection.launch_binding_indices[0] &&
+        elision.join_binding_index == selection.join_binding_indices[0] &&
+        elision.join_instruction_index ==
+            elision.launch_instruction_index + 1u &&
+        elision.reachable_function_count == 2u &&
+        elision.proof_facts == W_SEED_PARALLEL_ELISION0_REQUIRED_FACTS &&
+        w_seed_parallel_elision0_verify(program, &fixture.hir_result,
+                                         &selection, &elision));
+  w_seed_parallel_elision0_certificate forged_elision = elision;
+  forged_elision.proof_facts &=
+      ~(uint32_t)W_SEED_PARALLEL_ELISION0_FACT_IMMEDIATE_JOIN;
+  CHECK(!w_seed_parallel_elision0_verify(program, &fixture.hir_result,
+                                          &selection, &forged_elision));
+  forged_elision = elision;
+  forged_elision.task_call_index ^= 1u;
+  CHECK(!w_seed_parallel_elision0_verify(program, &fixture.hir_result,
+                                          &selection, &forged_elision));
+
+  w_seed_parallel_elision0_certificate elision_sentinel;
+  (void)memset(&elision_sentinel, 0x7d, sizeof(elision_sentinel));
+  const w_seed_parallel_elision0_certificate elision_before =
+      elision_sentinel;
+  const w_seed_parallel_selection0 selection_before = selection;
+  CHECK(w_seed_parallel_elision0_certify(
+            program, &fixture.hir_result, &selection,
+            (w_seed_parallel_elision0_certificate *)(void *)&selection) ==
+            W_SEED_PARALLEL_ELISION0_INVALID &&
+        memcmp(&selection, &selection_before, sizeof(selection)) == 0 &&
+        w_seed_parallel_elision0_certify(
+            NULL, &fixture.hir_result, &selection, &elision_sentinel) ==
+            W_SEED_PARALLEL_ELISION0_INVALID &&
+        memcmp(&elision_sentinel, &elision_before,
+               sizeof(elision_sentinel)) == 0);
 
   static const char TWO_PRELUDES[] =
       "import { Arguments as ProcessArguments, Context as ProcessContext, "
