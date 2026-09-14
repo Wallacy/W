@@ -39949,11 +39949,17 @@ and missing-kernel cases fail closed. A separate diagnostic catalog records
 temporary artifact sizes and in-process H2D, dispatch-plus-synchronize, D2H,
 and end-to-end p50/p95 values. It is not a W product ranking.
 
+The seed parser now preserves `accelerator.module<{ hello: kernel }>()` as a
+contract envelope containing a static-record owner and named static-field
+owners. The CST remains caller-owned, lossless, deterministic, and
+source-backed; malformed labels, separators, values, or closes recover without
+inventing frontend semantics. This is parser evidence only.
+
 This evidence is not source-backed W, a W runtime/provider, a public
 `w build`/`w run` route, a supported GPU ABI, or homogeneous pinned production
 support. The roadmap item remains open until canonical
-`accelerator.module<{...}>()` source and its typed `.launch` cross parsing,
-frontend semantics, independently verified W IR, host/device artifact
+`accelerator.module<{...}>()` source and its typed `.launch` cross frontend
+semantics, independently verified W IR, host/device artifact
 generation, a supported provider launch and join, and result verification.
 
 #### 26.4.2 Execução RUN0 interna e bounded
