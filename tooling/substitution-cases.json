@@ -7542,6 +7542,128 @@
         "current platform evidence cannot narrow all-applicable-target emission or release fanout"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-main-domain-cardinality",
+      "reviewItem": "bounded main-domain task cardinality against the exact-two product ceiling, a widened runtime claim, and non-lexical result folding",
+      "decisions": ["W-1587"],
+      "task": "Extend physical main-domain dispatch from two to one through four seed tasks while retaining lexical FIFO and fail-closed selection.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "let firstTask = spawn<.main> prepare(value: 20)",
+          "let secondTask = spawn<.main> prepare(value: 22)",
+          "let thirdTask = spawn<.main> prepare(value: 24)",
+          "let fourthTask = spawn<.main> prepare(value: 26)",
+          "let first = await firstTask let second = await secondTask let third = await thirdTask let fourth = await fourthTask print(\"Dispatched ${first + second + third + fourth}\")"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "retain-exact-two-product-ceiling",
+          "language": "w-internal-rejected",
+          "source": ["admit only two spawn<.main> launches"],
+          "expectedDifference": "The selected bounded seed product admits one through four ordered launches while retaining the exact-two oracle."
+        },
+        {
+          "name": "reuse-two-task-cooperative-oracle",
+          "language": "w-internal-rejected",
+          "source": ["widen the Cooperative0 compiler-host trace oracle to four tasks"],
+          "expectedDifference": "The selected product cardinality grows independently; the historical Cooperative0 trace oracle remains exact-two."
+        },
+        {
+          "name": "fold-by-source-text-or-join-position",
+          "language": "w-internal-rejected",
+          "source": ["derive the output from source text or an assumed join position"],
+          "expectedDifference": "The selected output plan proves one additive leaf per lexical join and folds signed-i64 outcomes in lexical order."
+        },
+        {
+          "name": "admit-five-or-reordered-orphan",
+          "language": "w-internal-rejected",
+          "source": ["accept five launches, reordered joins, or duplicate/orphan awaits"],
+          "expectedDifference": "The selected verifier rejects k=5 and malformed launch/join relations before publication."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_hir0.h",
+          "symbol": "W_SEED_HIR0_SCHEMA_VERSION",
+          "claim": "HIR0 schema w-seed-hir0-36 carries the one-through-four seed ceiling while the Cooperative0 oracle ceiling remains two."
+        },
+        {
+          "path": "compiler/seed-c/include/w_seed_cooperative_selection0.h",
+          "symbol": "W_SEED_COOPERATIVE_SELECTION0_SCHEMA_VERSION",
+          "claim": "The reserved caller-owned selection schema w-seed-cooperative-selection0-2 carries the bounded physical count and is not a runtime or ABI record."
+        },
+        {
+          "path": "compiler/seed-c/include/w_seed_mlir0.h",
+          "symbol": "W_SEED_MLIR0_COOPERATIVE_SCHEMA_VERSION",
+          "claim": "MLIR0 schemas w-seed-mlir0-cooperative-2 and w-seed-mlir0-cooperative-executable-2 identify the count-driven target-neutral and executable emitters."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "frontend_cooperative_trace_preflight",
+          "claim": "HIR preflight admits positive one-through-four main-domain cardinality, preserves order, and keeps the exact-two Cooperative0 trace oracle."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "cooperative_selection_derive",
+          "claim": "NativeSubset0 independently rederives the physical count and clears unused caller-owned selection slots."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "append_cooperative_core_counted",
+          "claim": "MLIR0 emits a count-driven serial FIFO state machine that starts at zero, wraps at the selected count, and folds joined outcomes in lexical order."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "cooperative_collect_join_reads",
+          "claim": "The output plan proves a one-to-one lexical join leaf mapping for the additive result fold."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_cooperative0.c",
+          "symbol": "expect_main_cardinality_source",
+          "claim": "Focused tests cover k=1, k=3, and k=4 physical main-domain sources and retain the k=2 witness."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_cooperative0.c",
+          "symbol": "test_main_cardinalities",
+          "claim": "Focused cardinality tests verify exact Dispatched 20, Dispatched 66, and Dispatched 92 outputs and bounded selection facts."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_cooperative0.c",
+          "symbol": "test_source_selected_main_dispatch",
+          "claim": "The retained exact-two source verifies exact Dispatched 88 output and the historical Cooperative0 relation."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_cooperative0.c",
+          "symbol": "test_negative_shapes",
+          "claim": "Negative tests reject k=5, reordered or orphan/duplicate joins, mixed launch kinds, and no-route sources."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-main-cardinality0.w",
+          "symbol": "entry",
+          "claim": "The source-backed k=4 witness launches and lexically joins four main-domain children."
+        },
+        {
+          "path": "tooling/check-cooperative-mlir0.mjs",
+          "symbol": "modes",
+          "claim": "Pinned Windows and Windows-host Linux target leaves execute the k=1 and k=4 cardinality outputs."
+        }
+      ],
+      "checks": [
+        "HIR0 and selection admit one through four ordered main-domain launches and reject zero or k=5",
+        "the Cooperative0 compiler-host trace oracle remains exact-two",
+        "NativeSubset0 independently rederives the count and zeroes unused selection slots",
+        "MLIR0 starts serial FIFO at ordinal zero, wraps at the selected count, and folds lexical signed-i64 joins",
+        "the output plan proves one additive leaf for each lexical join",
+        "focused sources execute exact Dispatched 20, Dispatched 66, Dispatched 88, and Dispatched 92 outputs",
+        "reordered or orphan/duplicate joins, mixed launch kinds, and no-route sources fail closed",
+        "the four-task value remains a seed caller-owned ceiling rather than a language, runtime, scheduler, or ABI rule",
+        "pinned Windows and Windows-host Linux leaves execute the k=1 and k=4 outputs",
+        "the primary compiler-lifecycle evidence is separate from the executable catalog's exploratory public k=4 W measurement, with C23/Rust blocked and no cross-language benchmark ranking"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

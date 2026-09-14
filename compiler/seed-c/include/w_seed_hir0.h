@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-35"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-36"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -25,9 +25,13 @@ extern "C" {
  * per-child yield budget in the HIR contract so frontend/HIR admission and
  * the host oracle cannot drift apart. */
 #define W_SEED_HIR0_COOPERATIVE_MAX_YIELDS_PER_TASK 2u
-/* The product-selection boundary is fixed to the same two sibling tasks as
- * the compiler-host oracle; this is a proof bound, not a public runtime ABI. */
-#define W_SEED_HIR0_COOPERATIVE_MAX_TASKS 2u
+/* Product selection uses a small caller-owned fixed array for physical
+ * `.main` dispatch. Four is an explicit seed implementation ceiling, not a
+ * public runtime ABI or a general scheduler bound. */
+#define W_SEED_HIR0_COOPERATIVE_MAX_TASKS 4u
+/* Cooperative0's historical compiler-host trace remains exact-two. Keep its
+ * oracle bound separate so the physical `.main` lane can grow safely. */
+#define W_SEED_HIR0_COOPERATIVE_ORACLE_MAX_TASKS 2u
 /* The bounded helper graph and COOP0 memo table share this ceiling.  It is
  * intentionally separate from the larger normal W-1582 frontend limit. */
 #define W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS 64u

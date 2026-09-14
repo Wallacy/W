@@ -39336,7 +39336,7 @@ cannot narrow either set.
 w_seed_cooperative0_tests --emit-cooperative-linux-mlir
 ```
 
-#### 26.4.1.67 W-1586 — bounded non-elidable main-domain dispatch (Current bounded form)
+#### 26.4.1.67 W-1586 — bounded non-elidable main-domain dispatch (Historical exact-two witness; W-1587 current bounded successor)
 
 W-1586 adds the first source-selected physical Task path. The admitted source
 has exactly two sibling `spawn<.main>` launches in one linear root. Each child
@@ -39378,15 +39378,19 @@ This evidence does not restrict target coverage. An implementation must emit
 the feature for every requested applicable target. Release fanout must attempt
 every supported applicable target. Windows and Linux are current evidence
 lanes only. macOS, AArch64, mobile, WebAssembly, GPU, embedded, and future
-targets remain required when applicable. General cross-compilation, more Task
-counts, nested scopes, cancellation, parallel domains, scheduler providers,
-stable ABI, and ranked cross-language performance remain open.
+targets remain required when applicable. At W-1586, general cross-compilation,
+more Task counts, nested scopes, cancellation, parallel domains, scheduler
+providers, stable ABI, and ranked cross-language performance remained open.
+W-1587 records only a bounded seed cardinality successor; it does not turn
+those gaps into runtime, scheduler, ABI, or performance claims.
 
 Frontend recognition is intentionally wider than this bounded product subset.
-The current product rejects one or more than two root launches, mixed launch
-kinds, nested or non-root launches, synchronous or zero-yield children, and a
-process-root plus main-domain composition. These are implementation gaps, not
-language-level prohibitions; rejection is fail-closed and publishes no output.
+The W-1586 exact-two product slice rejected one or more than two root launches,
+mixed launch kinds, nested or non-root launches, synchronous or zero-yield
+children, and a process-root plus main-domain composition. W-1587 updates only
+the seed product cardinality to one through four ordered root launches; the
+other barriers remain fail-closed and are not language-level prohibitions.
+Unsupported input publishes no output.
 
 ```w
 let left = spawn<.main> prepare(value: 20)
@@ -39394,6 +39398,70 @@ let right = spawn<.main> prepare(value: 22)
 let first = await left
 let second = await right
 let total = first + second
+```
+
+#### 26.4.1.68 W-1587 — bounded main-domain task cardinality (Current bounded form)
+
+W-1587 extends only the physical seed product boundary of W-1586. HIR0 schema
+`w-seed-hir0-36` and the reserved caller-owned selection schema
+`w-seed-cooperative-selection0-2` admit one through four ordered sibling
+`spawn<.main>` launches in one linear root. The value four is a fixed seed
+caller-owned array ceiling. It is not a W language semantic, a general runtime
+or scheduler limit, or an ABI contract. The historical Cooperative0 compiler-
+host trace oracle remains exact-two under
+`W_SEED_HIR0_COOPERATIVE_ORACLE_MAX_TASKS`; W-1587 does not widen that oracle.
+
+Frontend25 still records `SPAWN_MAIN_LAUNCH` separately from
+`ASYNC_TASK_LAUNCH`. HIR36 and NativeSubset0 independently rederive the
+physical count from verified HIR, require a positive count through the seed
+ceiling, preserve lexical launch order, and zero unused caller-owned selection
+slots. `MAIN_SERIAL` remains a derived verified fact rather than a caller-
+selected lowering profile. The selection record is proof data only; it is not a
+frame, scheduler, runtime, or ABI record.
+
+MLIR0 schema `w-seed-mlir0-cooperative-2` and executable schema
+`w-seed-mlir0-cooperative-executable-2` scale the target-neutral core and both
+current target leaves from the selected count. The serial FIFO state machine
+starts at launch ordinal zero, advances one slot per turn, wraps at the
+selected count, and preserves the selected order. The output plan folds the
+signed-`i64` outcomes as one additive left fold in lexical join order, with one
+verified leaf per join; it does not infer a result from source text or join
+position alone. The count-driven core remains target-neutral and carries no
+target triple, data layout, process, OS, runtime, scheduler-provider, or ABI
+fact.
+
+The focused source checks complement the retained W-1586 two-task witness with
+k=1, k=3, and k=4 cases, yielding `Dispatched 20\n`, `Dispatched 66\n`, and
+`Dispatched 92\n`. The lower-level external gate samples k=1 and k=4 as the
+bounded endpoints, while its C product path validates every cardinality from
+k=1 through k=4. Separately, the executable workload
+`restaurant-main-cardinality` owns the public k=4 fixture and its exact
+`Dispatched 92\n` `w run`/`w build` evidence on Windows and on the Linux target
+through WSL2. HIR, selection, and output-plan checks reject k=5, reordered or
+orphan/duplicate joins, mixed launch kinds, and a source without a
+main-dispatch route before publication. These are fail-closed seed
+implementation boundaries, not permanent language restrictions.
+
+The primary `benchmarkDisposition` for W-1587 remains `compiler-lifecycle`.
+The executable catalog separately owns the exploratory public k=4 W
+measurement; C23 and Rust remain blocked until equivalent serial-main-domain
+baselines exist. This bounded seed evidence makes no general runtime,
+scheduler, parallelism, cancellation, stable ABI, benchmark-ranking, or
+performance claim. Target coverage remains independent: Windows and Linux are
+current evidence lanes, while every requested applicable target and every
+supported applicable release target remain in scope. No W syntax or grammar
+surface changes in W-1587.
+
+```w
+let firstTask = spawn<.main> prepare(value: 20)
+let secondTask = spawn<.main> prepare(value: 22)
+let thirdTask = spawn<.main> prepare(value: 24)
+let fourthTask = spawn<.main> prepare(value: 26)
+let first = await firstTask
+let second = await secondTask
+let third = await thirdTask
+let fourth = await fourthTask
+print("Dispatched ${first + second + third + fourth}")
 ```
 
 #### 26.4.2 Execução RUN0 interna e bounded

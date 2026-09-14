@@ -1803,6 +1803,10 @@ static bool frontend_cooperative_trace_preflight(
       input->execution_profile == W_SEED_HIR0_EXECUTION_PROFILE_NORMAL
           ? W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH
           : W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH;
+  const size_t task_limit =
+      input->execution_profile == W_SEED_HIR0_EXECUTION_PROFILE_NORMAL
+          ? W_SEED_HIR0_COOPERATIVE_MAX_TASKS
+          : W_SEED_HIR0_COOPERATIVE_ORACLE_MAX_TASKS;
   const w_seed_frontend_output *output = input->frontend_output;
   const w_seed_frontend_result *result = input->frontend_result;
   if (result->written.modules != 1u || result->written.entries != 1u ||
@@ -1827,12 +1831,13 @@ static bool frontend_cooperative_trace_preflight(
 
   size_t launch_count = 0u;
   size_t await_count = 0u;
-  uint32_t launch_statements[2] = {W_SEED_FRONTEND_NONE,
-                                   W_SEED_FRONTEND_NONE};
-  uint32_t await_launch_statements[2] = {W_SEED_FRONTEND_NONE,
-                                         W_SEED_FRONTEND_NONE};
-  size_t launch_positions[2] = {0u, 0u};
-  size_t await_positions[2] = {0u, 0u};
+  bool host_print_seen = false;
+  uint32_t launch_statements[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {
+      W_SEED_FRONTEND_NONE};
+  uint32_t await_launch_statements[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {
+      W_SEED_FRONTEND_NONE};
+  size_t launch_positions[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {0u};
+  size_t await_positions[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {0u};
   uint32_t statement = root->first_statement;
   for (size_t position = 0u; position < root->statement_count;
        position += 1u) {
@@ -1852,7 +1857,8 @@ static bool frontend_cooperative_trace_preflight(
     const w_seed_frontend_expression *expression =
         &output->expressions[item->expression_index];
     if (expression->kind == expected_launch) {
-      if (item->kind != W_SEED_FRONTEND_STMT_LET || launch_count >= 2u ||
+      if (item->kind != W_SEED_FRONTEND_STMT_LET ||
+          host_print_seen || launch_count >= task_limit ||
           item->declared_type != W_SEED_FRONTEND_NONE ||
           item->effective_type == W_SEED_FRONTEND_NONE)
         return false;
@@ -1860,7 +1866,8 @@ static bool frontend_cooperative_trace_preflight(
       launch_positions[launch_count] = position;
       launch_count += 1u;
     } else if (expression->kind == W_SEED_FRONTEND_EXPR_AWAIT) {
-      if (item->kind != W_SEED_FRONTEND_STMT_LET || await_count >= 2u ||
+      if (item->kind != W_SEED_FRONTEND_STMT_LET ||
+          host_print_seen || await_count >= task_limit ||
           item->declared_type != W_SEED_FRONTEND_NONE)
         return false;
       if (expression->task_binding_statement == W_SEED_FRONTEND_NONE ||
@@ -1882,21 +1889,31 @@ static bool frontend_cooperative_trace_preflight(
                              ->symbols[expression->resolved_host_symbol_index]
                              .name,
                         "print") ||
-               expression->argument_count != 1u || await_count != 2u) {
+               expression->argument_count != 1u || await_count == 0u ||
+               await_count != launch_count) {
       /* The only non-task root statement in this lane is a host `print`, and
-       * it must observe both lexical joins. Branches, loops, returns,
+       * it must observe every lexical join. Branches, loops, returns,
        * arbitrary calls, and a print before the joins fail closed. */
       return false;
     }
+    if (expression->kind == W_SEED_FRONTEND_EXPR_CALL &&
+        item->kind == W_SEED_FRONTEND_STMT_EXPRESSION)
+      host_print_seen = true;
     statement = item->next_sibling;
   }
   if (statement != W_SEED_FRONTEND_NONE) return false;
-  if (launch_count != 2u || await_count != 2u ||
-      launch_positions[0] >= launch_positions[1] ||
-      launch_positions[1] >= await_positions[0] ||
-      await_positions[0] >= await_positions[1])
+  if (launch_count == 0u || launch_count != await_count ||
+      launch_count > task_limit ||
+      (input->execution_profile == W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE &&
+       launch_count != W_SEED_HIR0_COOPERATIVE_ORACLE_MAX_TASKS) ||
+      launch_positions[launch_count - 1u] >= await_positions[0])
     return false;
-  for (size_t ordinal = 0u; ordinal < 2u; ordinal += 1u) {
+  for (size_t ordinal = 1u; ordinal < launch_count; ordinal += 1u) {
+    if (launch_positions[ordinal - 1u] >= launch_positions[ordinal] ||
+        await_positions[ordinal - 1u] >= await_positions[ordinal])
+      return false;
+  }
+  for (size_t ordinal = 0u; ordinal < launch_count; ordinal += 1u) {
     const w_seed_frontend_statement *launch_statement =
         &output->statements[launch_statements[ordinal]];
     const w_seed_frontend_expression *launch =
@@ -1918,7 +1935,7 @@ static bool frontend_cooperative_trace_preflight(
     if (await_launch_statements[ordinal] != launch_statements[ordinal])
       return false;
   }
-  /* Every async/await expression must be one of the two lexical root pairs;
+  /* Every async/await expression must be one of the lexical root pairs;
    * this closes nested task trees and prevents a forged third relation from
    * being silently ignored by the physical executor. */
   size_t all_launches = 0u;
@@ -1931,7 +1948,8 @@ static bool frontend_cooperative_trace_preflight(
     if (frontend_task_launch_kind(item->kind)) all_task_launches += 1u;
     if (item->kind == W_SEED_FRONTEND_EXPR_AWAIT) all_awaits += 1u;
   }
-  return all_launches == 2u && all_task_launches == 2u && all_awaits == 2u;
+  return all_launches == launch_count && all_task_launches == launch_count &&
+         all_awaits == launch_count;
 }
 
 /* Existing ordinary targets retain the W-1577 path and are checked by HIR's
@@ -14980,10 +14998,11 @@ static bool hir0_function_cooperative_yields(
          yield_count <= W_SEED_HIR0_COOPERATIVE_MAX_YIELDS_PER_TASK;
 }
 
-/* Physical trace calls are accepted by HIR only as one complete two-sibling
- * scope.  This verifier intentionally rederives the launch/join relations
- * from caller-owned records instead of trusting a cooperative plan produced
- * by a downstream runtime. */
+/* Physical calls are accepted by HIR only as one complete sibling scope. The
+ * `.main` lane is bounded to one through the fixed seed ceiling; the
+ * historical cooperative trace lane remains exact-two. This verifier
+ * intentionally rederives launch/join relations from caller-owned records
+ * instead of trusting a downstream runtime plan. */
 static bool hir0_cooperative_trace_scope(const w_seed_hir0_program *program) {
   if (program == NULL || program->entry_count != 1u ||
       program->function_count > W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS ||
@@ -15011,9 +15030,12 @@ static bool hir0_cooperative_trace_scope(const w_seed_hir0_program *program) {
     return false;
   size_t physical_count = 0u;
   w_seed_hir0_call_execution_kind physical_kind = W_SEED_HIR0_CALL_DIRECT;
-  uint32_t call_instructions[2] = {W_SEED_HIR0_NONE, W_SEED_HIR0_NONE};
-  uint32_t launch_bindings[2] = {W_SEED_HIR0_NONE, W_SEED_HIR0_NONE};
-  uint32_t join_bindings[2] = {W_SEED_HIR0_NONE, W_SEED_HIR0_NONE};
+  uint32_t call_instructions[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {
+      W_SEED_HIR0_NONE};
+  uint32_t launch_bindings[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {
+      W_SEED_HIR0_NONE};
+  uint32_t join_bindings[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {
+      W_SEED_HIR0_NONE};
   for (size_t call_index = 0u; call_index < program->call_count;
        call_index += 1u) {
     const w_seed_hir0_call *call = &program->calls[call_index];
@@ -15024,7 +15046,7 @@ static bool hir0_cooperative_trace_scope(const w_seed_hir0_program *program) {
             W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED ||
         physical;
     if (!structured) continue;
-    if (!physical || physical_count >= 2u ||
+    if (!physical || physical_count >= W_SEED_HIR0_COOPERATIVE_MAX_TASKS ||
         call->owner_instruction >= program->instruction_count ||
         call->owner_block >= program->block_count ||
         program->blocks[call->owner_block].owner_function != root_function ||
@@ -15079,12 +15101,21 @@ static bool hir0_cooperative_trace_scope(const w_seed_hir0_program *program) {
     join_bindings[physical_count] = join_binding_index;
     physical_count += 1u;
   }
-  if (physical_count != 2u || call_instructions[0] >= call_instructions[1] ||
-      launch_bindings[0] >= launch_bindings[1])
+  if (physical_count == 0u) return false;
+  const size_t required_tasks =
+      physical_kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH
+          ? physical_count
+          : W_SEED_HIR0_COOPERATIVE_ORACLE_MAX_TASKS;
+  if (physical_count != required_tasks)
     return false;
-  if (join_bindings[0] >= join_bindings[1] ||
-      join_bindings[1] >= program->binding_count)
-    return false;
+  for (size_t ordinal = 1u; ordinal < required_tasks; ordinal += 1u) {
+    if (call_instructions[ordinal - 1u] >= call_instructions[ordinal] ||
+        launch_bindings[ordinal - 1u] >= launch_bindings[ordinal] ||
+        join_bindings[ordinal - 1u] >= join_bindings[ordinal])
+      return false;
+  }
+  for (size_t ordinal = 0u; ordinal < required_tasks; ordinal += 1u)
+    if (join_bindings[ordinal] >= program->binding_count) return false;
   /* Rewalk the one root block in instruction order.  The call-array order is
    * not the source relation by itself: launch and join bindings must match
    * the exact physical call immediately preceding each launch, and all joins
@@ -15113,13 +15144,13 @@ static bool hir0_cooperative_trace_scope(const w_seed_hir0_program *program) {
           binding->owner_instruction != instruction_index)
         return false;
       if (binding->task_role == W_SEED_HIR0_TASK_ROLE_LAUNCH) {
-        if (join_seen != 0u || launch_seen >= 2u ||
+        if (join_seen != 0u || launch_seen >= required_tasks ||
             instruction->binding_index != launch_bindings[launch_seen])
           return false;
         launch_seen += 1u;
       } else if (binding->task_role ==
                  W_SEED_HIR0_TASK_ROLE_AWAIT_RESULT) {
-        if (launch_seen != 2u || join_seen >= 2u ||
+        if (launch_seen != required_tasks || join_seen >= required_tasks ||
             instruction->binding_index != join_bindings[join_seen])
           return false;
         join_seen += 1u;
@@ -15136,7 +15167,7 @@ static bool hir0_cooperative_trace_scope(const w_seed_hir0_program *program) {
         call->owner_instruction != instruction_index)
       return false;
     if (hir0_call_is_physical_dispatch(call->execution_kind)) {
-      if (join_seen != 0u || physical_seen >= 2u ||
+      if (join_seen != 0u || physical_seen >= required_tasks ||
           instruction_index != call_instructions[physical_seen] ||
           instruction_index + 1u >= program->instruction_count ||
           program->instructions[instruction_index + 1u].binding_index !=
@@ -15154,10 +15185,11 @@ static bool hir0_cooperative_trace_scope(const w_seed_hir0_program *program) {
         !hir_text_is(program, identity->name, "print") ||
         call->argument_count != 1u || call->result_type >= program->type_count ||
         program->types[call->result_type].kind != W_SEED_HIR0_TYPE_UNIT ||
-        join_seen != 2u)
+        join_seen != required_tasks)
       return false;
   }
-  return physical_seen == 2u && launch_seen == 2u && join_seen == 2u;
+  return physical_seen == required_tasks && launch_seen == required_tasks &&
+         join_seen == required_tasks;
 }
 
 static bool verify_records(const w_seed_hir0_program *program) {

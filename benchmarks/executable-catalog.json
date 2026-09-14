@@ -977,6 +977,62 @@
       ]
     },
     {
+      "id": "restaurant-main-cardinality",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "partial-exploratory-ready",
+      "lane": "equivalent",
+      "scope": "Dispatch four scalar children through the bounded serial main domain, preserve their suspension points, join all results in lexical order, and print the exact receipt.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Dispatched 92\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-main-cardinality0.w",
+          "digest": "sha256:043f8c208741d482fe85c9b9de4ae62f68cae78a8b79cf438f527c41dc66454d",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-main-cardinality-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        },
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-main-cardinality0.w",
+          "digest": "sha256:043f8c208741d482fe85c9b9de4ae62f68cae78a8b79cf438f527c41dc66454d",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-main-cardinality-release",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only"
+        }
+      ],
+      "blockedLanguages": [
+        "c",
+        "rust"
+      ],
+      "blockers": [
+        "equivalent-main-domain-baselines"
+      ]
+    },
+    {
       "id": "restaurant-enum-switch",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",

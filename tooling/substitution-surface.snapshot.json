@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:434b82d9d34cde4ff0439545ae938a266717ce02f064c1ed0296dc243eec1d43",
+  "corpusDigest": "sha256:249fa037bf7ae8b633c4ae4d0a381bef640f8e268847b364f85b0aea77cfac40",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -7572,6 +7572,78 @@
             "nonWhitespaceCodePoints": 52,
             "lines": 1,
             "surfaceLexemes": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-main-domain-cardinality",
+      "task": {
+        "utf8Bytes": 132,
+        "codePoints": 132,
+        "nonWhitespaceCodePoints": 114,
+        "lines": 1,
+        "surfaceLexemes": 24
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:b3c264a2fad4a1cda62277105bce8b156bd2e753a98255aad78a4959eb686f13",
+        "metrics": {
+          "utf8Bytes": 364,
+          "codePoints": 364,
+          "nonWhitespaceCodePoints": 313,
+          "lines": 5,
+          "surfaceLexemes": 80
+        }
+      },
+      "alternatives": [
+        {
+          "name": "retain-exact-two-product-ceiling",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:2eeb72bfb66d815a64b2d38d4edc2a130ab91471b0535ff0009c04651bfc7868",
+          "metrics": {
+            "utf8Bytes": 36,
+            "codePoints": 36,
+            "nonWhitespaceCodePoints": 32,
+            "lines": 1,
+            "surfaceLexemes": 9
+          }
+        },
+        {
+          "name": "reuse-two-task-cooperative-oracle",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:cfb950bd51e8c7c4fa2130cbd12ef67603cf5677346260c3e1870adb991b9446",
+          "metrics": {
+            "utf8Bytes": 63,
+            "codePoints": 63,
+            "nonWhitespaceCodePoints": 55,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "fold-by-source-text-or-join-position",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:a2d1c37b245ffec8618bedfc098be3c8d4397301b54b793dd3944b576bb83a05",
+          "metrics": {
+            "utf8Bytes": 62,
+            "codePoints": 62,
+            "nonWhitespaceCodePoints": 52,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "admit-five-or-reordered-orphan",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:8364224ce4492232e4293448006491086f9edc61b6b68336a9a0f7ecec3b468a",
+          "metrics": {
+            "utf8Bytes": 65,
+            "codePoints": 65,
+            "nonWhitespaceCodePoints": 58,
+            "lines": 1,
+            "surfaceLexemes": 12
           }
         }
       ]

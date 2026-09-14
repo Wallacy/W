@@ -46,6 +46,18 @@ static uint8_t main_dispatch_windows_mlir[W_SEED_MLIR0_MAX_BYTES];
 static uint8_t main_dispatch_linux_mlir[W_SEED_MLIR0_MAX_BYTES];
 static size_t main_dispatch_windows_mlir_length;
 static size_t main_dispatch_linux_mlir_length;
+static uint8_t main_dispatch_k1_windows_mlir[W_SEED_MLIR0_MAX_BYTES];
+static uint8_t main_dispatch_k1_linux_mlir[W_SEED_MLIR0_MAX_BYTES];
+static size_t main_dispatch_k1_windows_mlir_length;
+static size_t main_dispatch_k1_linux_mlir_length;
+static uint8_t main_dispatch_k3_windows_mlir[W_SEED_MLIR0_MAX_BYTES];
+static uint8_t main_dispatch_k3_linux_mlir[W_SEED_MLIR0_MAX_BYTES];
+static size_t main_dispatch_k3_windows_mlir_length;
+static size_t main_dispatch_k3_linux_mlir_length;
+static uint8_t main_dispatch_k4_windows_mlir[W_SEED_MLIR0_MAX_BYTES];
+static uint8_t main_dispatch_k4_linux_mlir[W_SEED_MLIR0_MAX_BYTES];
+static size_t main_dispatch_k4_windows_mlir_length;
+static size_t main_dispatch_k4_linux_mlir_length;
 static uint8_t artifact[W_SEED_COOPERATIVE0_MAX_ARTIFACT_BYTES];
 static uint8_t stdout_bytes[W_SEED_COOPERATIVE0_MAX_STDOUT_BYTES];
 static w_seed_cooperative0_trace_event trace[W_SEED_COOPERATIVE0_MAX_TRACE_EVENTS];
@@ -142,6 +154,159 @@ static bool expect_native_negative_source(const char *source) {
   CHECK(memcmp(&result, &result_before, sizeof(result)) == 0);
   for (size_t index = 0u; index < sizeof(artifact); index += 1u)
     CHECK(artifact[index] == 0x66u);
+  (void)remove(NEGATIVE_PATH);
+  return true;
+}
+
+static bool main_selection_unused_slots_zero(
+    const w_seed_cooperative_selection0 *selection, size_t task_count) {
+  if (selection == NULL || task_count > W_SEED_HIR0_COOPERATIVE_MAX_TASKS)
+    return false;
+  for (size_t task = task_count;
+       task < W_SEED_HIR0_COOPERATIVE_MAX_TASKS; task += 1u)
+    if (selection->task_call_indices[task] != 0u ||
+        selection->task_function_indices[task] != 0u ||
+        selection->launch_binding_indices[task] != 0u ||
+        selection->join_binding_indices[task] != 0u ||
+        selection->task_yield_counts[task] != 0u)
+      return false;
+  return true;
+}
+
+static bool expect_main_cardinality_source(const char *source,
+                                           size_t task_count,
+                                           int64_t expected_sum,
+                                           size_t yields_per_task) {
+  CHECK(source != NULL && task_count >= 1u &&
+        task_count <= W_SEED_HIR0_COOPERATIVE_MAX_TASKS &&
+        yields_per_task >= 1u &&
+        yields_per_task <= W_SEED_HIR0_COOPERATIVE_MAX_YIELDS_PER_TASK);
+  CHECK(write_source(source));
+  static const w_seed_mlir0_target TARGETS[] = {
+      {W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU},
+      {W_SEED_MLIR0_TARGET_X86_64_PC_WINDOWS_MSVC}};
+  uint8_t *artifacts[2] = {main_dispatch_linux_mlir,
+                           main_dispatch_windows_mlir};
+  size_t *lengths[2] = {&main_dispatch_linux_mlir_length,
+                        &main_dispatch_windows_mlir_length};
+  if (task_count == 1u) {
+    artifacts[0] = main_dispatch_k1_linux_mlir;
+    artifacts[1] = main_dispatch_k1_windows_mlir;
+    lengths[0] = &main_dispatch_k1_linux_mlir_length;
+    lengths[1] = &main_dispatch_k1_windows_mlir_length;
+  } else if (task_count == 3u) {
+    artifacts[0] = main_dispatch_k3_linux_mlir;
+    artifacts[1] = main_dispatch_k3_windows_mlir;
+    lengths[0] = &main_dispatch_k3_linux_mlir_length;
+    lengths[1] = &main_dispatch_k3_windows_mlir_length;
+  } else if (task_count == W_SEED_HIR0_COOPERATIVE_MAX_TASKS) {
+    artifacts[0] = main_dispatch_k4_linux_mlir;
+    artifacts[1] = main_dispatch_k4_windows_mlir;
+    lengths[0] = &main_dispatch_k4_linux_mlir_length;
+    lengths[1] = &main_dispatch_k4_windows_mlir_length;
+  }
+  const uint32_t expected_yields = (uint32_t)(task_count * yields_per_task);
+  for (size_t target_index = 0u;
+       target_index < sizeof(TARGETS) / sizeof(TARGETS[0]); target_index += 1u) {
+    w_seed_native0_input input = native_input_for_path(NEGATIVE_PATH);
+    input.target = TARGETS[target_index];
+    (void)memset(artifacts[target_index], 0xa8, W_SEED_MLIR0_MAX_BYTES);
+    w_seed_native0_result native_result;
+    CHECK(w_seed_native0_run(
+              &input, &storage,
+              &(w_seed_native0_output){artifacts[target_index],
+                                       W_SEED_MLIR0_MAX_BYTES},
+              &native_result) == W_SEED_NATIVE0_OK);
+    *lengths[target_index] = native_result.mlir.written.mlir_bytes;
+    CHECK(native_result.status == W_SEED_NATIVE0_OK &&
+          *lengths[target_index] > 0u &&
+          contains_bytes(artifacts[target_index], *lengths[target_index],
+                         W_SEED_MLIR0_COOPERATIVE_EXECUTABLE_SCHEMA_VERSION) &&
+          contains_bytes(artifacts[target_index], *lengths[target_index],
+                         "func.call @w_seed_cooperative_core()") &&
+          contains_bytes(artifacts[target_index], *lengths[target_index],
+                         target_index == 0u
+                             ? W_SEED_MLIR0_TARGET_TRIPLE_LINUX
+                             : W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS) &&
+          contains_bytes(artifacts[target_index], *lengths[target_index],
+                         "%final_done"));
+    w_seed_cooperative_selection0 selection;
+    CHECK(w_seed_mlir0_select_cooperative(&storage.hir_program,
+                                          &storage.hir_result,
+                                          &selection) == W_SEED_MLIR0_OK &&
+          selection.execution_profile ==
+              W_SEED_HIR0_EXECUTION_PROFILE_MAIN_SERIAL &&
+          selection.task_count == task_count &&
+          selection.yield_count == expected_yields &&
+          main_selection_unused_slots_zero(&selection, task_count) &&
+          w_seed_mlir0_verify_cooperative_selection(
+              &storage.hir_program, &storage.hir_result, &selection));
+    size_t physical_calls = 0u;
+    for (size_t call = 0u; call < storage.hir_program.call_count; call += 1u)
+      if (storage.hir_program.calls[call].execution_kind ==
+          W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH)
+        physical_calls += 1u;
+    CHECK(physical_calls == task_count &&
+          w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
+
+    w_seed_mlir0_cooperative_counts counts = {0};
+    w_seed_mlir0_cooperative_result measured;
+    CHECK(w_seed_mlir0_measure_cooperative(
+              &storage.hir_program, &storage.hir_result, &selection, &counts,
+              &measured) == W_SEED_MLIR0_OK &&
+          counts.frame_count == task_count &&
+          counts.queue_capacity == task_count &&
+          counts.yield_count == expected_yields &&
+          counts.result_value == expected_sum &&
+          measured.required.result_value == expected_sum);
+    w_seed_mlir0_cooperative_result emitted;
+    CHECK(w_seed_mlir0_emit_cooperative(
+              &storage.hir_program, &storage.hir_result, &selection,
+              &(w_seed_mlir0_cooperative_output){cooperative_mlir,
+                                                 sizeof(cooperative_mlir)},
+              &emitted) == W_SEED_MLIR0_OK &&
+          emitted.required.result_value == expected_sum &&
+          emitted.written.mlir_bytes == counts.mlir_bytes &&
+          w_seed_mlir0_verify_cooperative_emission(
+              &storage.hir_program, &storage.hir_result, &selection,
+              cooperative_mlir, emitted.written.mlir_bytes, &emitted));
+    CHECK(contains_bytes(cooperative_mlir, emitted.written.mlir_bytes,
+                         "%final_done"));
+    if (task_count == 1u)
+      CHECK(contains_bytes(cooperative_mlir, emitted.written.mlir_bytes,
+                           "%final_result0") &&
+            !contains_bytes(cooperative_mlir, emitted.written.mlir_bytes,
+                            "%final_result1"));
+    if (task_count == W_SEED_HIR0_COOPERATIVE_MAX_TASKS)
+      CHECK(contains_bytes(cooperative_mlir, emitted.written.mlir_bytes,
+                           "%final_done3") &&
+            contains_bytes(cooperative_mlir, emitted.written.mlir_bytes,
+                           "%result_fold2"));
+
+    for (size_t slot = 0u; slot < W_SEED_HIR0_COOPERATIVE_MAX_TASKS;
+         slot += 1u) {
+      w_seed_cooperative_selection0 forged = selection;
+      forged.task_call_indices[slot] ^= 1u;
+      CHECK(!w_seed_mlir0_verify_cooperative_selection(
+          &storage.hir_program, &storage.hir_result, &forged));
+      forged = selection;
+      forged.task_function_indices[slot] ^= 1u;
+      CHECK(!w_seed_mlir0_verify_cooperative_selection(
+          &storage.hir_program, &storage.hir_result, &forged));
+      forged = selection;
+      forged.launch_binding_indices[slot] ^= 1u;
+      CHECK(!w_seed_mlir0_verify_cooperative_selection(
+          &storage.hir_program, &storage.hir_result, &forged));
+      forged = selection;
+      forged.join_binding_indices[slot] ^= 1u;
+      CHECK(!w_seed_mlir0_verify_cooperative_selection(
+          &storage.hir_program, &storage.hir_result, &forged));
+      forged = selection;
+      forged.task_yield_counts[slot] ^= 1u;
+      CHECK(!w_seed_mlir0_verify_cooperative_selection(
+          &storage.hir_program, &storage.hir_result, &forged));
+    }
+  }
   (void)remove(NEGATIVE_PATH);
   return true;
 }
@@ -516,6 +681,54 @@ static bool test_source_selected_main_dispatch(void) {
   return true;
 }
 
+static bool test_main_cardinalities(void) {
+  static const char MAIN_K1[] =
+      "async fn prepare(value: i64): i64 { await execution#yield() "
+      "await execution#yield() return value }\n"
+      "entry { let a = spawn<.main> prepare(value: 20) "
+      "let av = await a print(\"Dispatched ${av}\") }\n";
+  static const char MAIN_K3[] =
+      "async fn prepare(value: i64): i64 { await execution#yield() "
+      "await execution#yield() return value }\n"
+      "entry { let a = spawn<.main> prepare(value: 20) "
+      "let b = spawn<.main> prepare(value: 22) "
+      "let c = spawn<.main> prepare(value: 24) let av = await a "
+      "let bv = await b let cv = await c "
+      "print(\"Dispatched ${av + bv + cv}\") }\n";
+  static const char MAIN_K4[] =
+      "async fn prepare(value: i64): i64 { await execution#yield() "
+      "await execution#yield() return value }\n"
+      "entry { let a = spawn<.main> prepare(value: 20) "
+      "let b = spawn<.main> prepare(value: 22) "
+      "let c = spawn<.main> prepare(value: 24) "
+      "let d = spawn<.main> prepare(value: 26) let av = await a "
+      "let bv = await b let cv = await c let dv = await d "
+      "print(\"Dispatched ${av + bv + cv + dv}\") }\n";
+  CHECK(expect_main_cardinality_source(MAIN_K1, 1u, 20, 2u));
+  CHECK(expect_main_cardinality_source(MAIN_K3, 3u, 66, 2u));
+  CHECK(expect_main_cardinality_source(MAIN_K4, 4u, 92, 2u));
+  return true;
+}
+
+static bool expect_main_selection_unsupported_source(const char *source) {
+  CHECK(write_source(source));
+  const w_seed_native0_input input = native_input_for_path(NEGATIVE_PATH);
+  w_seed_native0_result native_result;
+  (void)memset(normal_artifact, 0x69, sizeof(normal_artifact));
+  CHECK(w_seed_native0_run(
+            &input, &storage,
+            &(w_seed_native0_output){normal_artifact,
+                                     sizeof(normal_artifact)},
+            &native_result) == W_SEED_NATIVE0_OK);
+  w_seed_cooperative_selection0 selection;
+  (void)memset(&selection, 0x6a, sizeof(selection));
+  CHECK(w_seed_mlir0_select_cooperative(&storage.hir_program,
+                                        &storage.hir_result, &selection) ==
+        W_SEED_MLIR0_UNSUPPORTED);
+  (void)remove(NEGATIVE_PATH);
+  return true;
+}
+
 static bool test_negative_shapes(void) {
   static const char ZERO_YIELDS[] =
       "async fn prepare(value: i64): i64 { return value }\n"
@@ -547,19 +760,33 @@ static bool test_negative_shapes(void) {
       "entry { let left = async prepare(value: 20) "
       "let right = async prepare(value: 22) let first = await left "
       "let second = await right print(\"${first + second}\") }\n";
-  static const char MAIN_ONE_LAUNCH[] =
-      "async fn prepare(value: i64): i64 { await execution#yield() "
-      "return value }\n"
-      "entry { let pending = spawn<.main> prepare(value: 20) "
-      "let value = await pending print(\"${value}\") }\n";
-  static const char MAIN_THREE_LAUNCHES[] =
+  static const char MAIN_FIVE_LAUNCHES[] =
       "async fn prepare(value: i64): i64 { await execution#yield() "
       "return value }\n"
       "entry { let a = spawn<.main> prepare(value: 20) "
       "let b = spawn<.main> prepare(value: 22) "
       "let c = spawn<.main> prepare(value: 24) "
-      "let av = await a let bv = await b let cv = await c "
-      "print(\"${av + bv + cv}\") }\n";
+      "let d = spawn<.main> prepare(value: 26) "
+      "let e = spawn<.main> prepare(value: 28) let av = await a "
+      "let bv = await b let cv = await c let dv = await d let ev = await e "
+      "print(\"${av + bv + cv + dv + ev}\") }\n";
+  static const char MAIN_JOIN_REORDER[] =
+      "async fn prepare(value: i64): i64 { await execution#yield() "
+      "return value }\n"
+      "entry { let a = spawn<.main> prepare(value: 20) "
+      "let b = spawn<.main> prepare(value: 22) let bv = await b "
+      "let av = await a print(\"${bv + av}\") }\n";
+  static const char MAIN_ORPHAN_LAUNCH[] =
+      "async fn prepare(value: i64): i64 { await execution#yield() "
+      "return value }\n"
+      "entry { let a = spawn<.main> prepare(value: 20) "
+      "let b = spawn<.main> prepare(value: 22) let av = await a "
+      "let duplicate = await a print(\"${av + duplicate}\") }\n";
+  static const char MAIN_NO_SPAWN[] =
+      "async fn prepare(value: i64): i64 { await execution#yield() "
+      "return value }\n"
+      "entry { let a = async prepare(value: 20) let av = await a "
+      "print(\"Dispatched ${av}\") }\n";
   static const char MAIN_MIXED_LAUNCH[] =
       "async fn prepare(value: i64): i64 { await execution#yield() "
       "return value }\n"
@@ -581,11 +808,13 @@ static bool test_negative_shapes(void) {
   CHECK(expect_negative_source(CHILD_EFFECT));
   CHECK(expect_negative_source(THROWING_CHILD));
   CHECK(expect_negative_source(RECURSIVE_HELPER));
-  CHECK(expect_native_negative_source(MAIN_ONE_LAUNCH));
-  CHECK(expect_native_negative_source(MAIN_THREE_LAUNCHES));
+  CHECK(expect_native_negative_source(MAIN_FIVE_LAUNCHES));
+  CHECK(expect_native_negative_source(MAIN_JOIN_REORDER));
+  CHECK(expect_native_negative_source(MAIN_ORPHAN_LAUNCH));
   CHECK(expect_native_negative_source(MAIN_MIXED_LAUNCH));
   CHECK(expect_native_negative_source(MAIN_ZERO_YIELDS));
   CHECK(expect_native_negative_source(MAIN_SYNC_CHILD));
+  CHECK(expect_main_selection_unsupported_source(MAIN_NO_SPAWN));
   return true;
 }
 
@@ -778,10 +1007,10 @@ static bool test_cooperative_product_selection(void) {
                                         &storage.hir_result, &selection) ==
         W_SEED_MLIR0_OK);
   static const uint8_t EXPECTED_DIGEST[32] = {
-      0x87u, 0x3du, 0x5fu, 0x7eu, 0x68u, 0xa6u, 0xeau, 0x6bu,
-      0x8bu, 0xd7u, 0x68u, 0x97u, 0x4eu, 0x33u, 0x68u, 0xfbu,
-      0x0cu, 0x3eu, 0x9cu, 0x19u, 0x22u, 0xb0u, 0xc9u, 0xfbu,
-      0xf4u, 0xc6u, 0x4fu, 0x40u, 0xb5u, 0xc0u, 0xc4u, 0x77u};
+      0x44u, 0xd2u, 0x74u, 0x4du, 0xf9u, 0xcdu, 0x66u, 0x07u,
+      0xc6u, 0x5bu, 0x7cu, 0xaeu, 0xa7u, 0x14u, 0xe2u, 0x90u,
+      0xdcu, 0xe4u, 0x94u, 0xefu, 0x98u, 0x2cu, 0xa9u, 0xc0u,
+      0x2du, 0xe7u, 0x38u, 0x0au, 0x9cu, 0x0du, 0xe8u, 0xc6u};
   static const uint32_t EXPECTED_CALLS[2] = {1u, 2u};
   static const uint32_t EXPECTED_FUNCTIONS[2] = {1u, 1u};
   static const uint32_t EXPECTED_LAUNCHES[2] = {2u, 3u};
@@ -791,7 +1020,7 @@ static bool test_cooperative_product_selection(void) {
   CHECK(memcmp(selection.schema, W_SEED_COOPERATIVE_SELECTION0_SCHEMA_VERSION,
               sizeof(selection.schema)) == 0 &&
         selection.root_function_index == 2u &&
-        selection.task_count == W_SEED_HIR0_COOPERATIVE_MAX_TASKS &&
+        selection.task_count == W_SEED_HIR0_COOPERATIVE_ORACLE_MAX_TASKS &&
         selection.function_count == 3u && selection.instruction_count == 12u &&
         selection.binding_count == 6u && selection.call_count == 4u &&
         selection.yield_count == 4u &&
@@ -805,6 +1034,8 @@ static bool test_cooperative_product_selection(void) {
                sizeof(EXPECTED_JOINS)) == 0 &&
         memcmp(selection.task_yield_counts, EXPECTED_YIELDS,
                sizeof(EXPECTED_YIELDS)) == 0 &&
+        main_selection_unused_slots_zero(
+            &selection, W_SEED_HIR0_COOPERATIVE_ORACLE_MAX_TASKS) &&
         selection.execution_profile ==
             W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE &&
         memcmp(selection.reserved, ZERO_RESERVED, sizeof(ZERO_RESERVED)) == 0 &&
@@ -1147,6 +1378,7 @@ static bool test_cooperative_product_selection(void) {
 int main(int argc, char **argv) {
   const bool ok = test_cooperative_fixture() &&
                   test_source_selected_main_dispatch() &&
+                  test_main_cardinalities() &&
                   test_negative_shapes() &&
                    test_transactional_boundaries() &&
                    test_cooperative_product_selection();
@@ -1186,6 +1418,44 @@ int main(int argc, char **argv) {
     const size_t written = fwrite(main_dispatch_windows_mlir, sizeof(uint8_t),
                                   main_dispatch_windows_mlir_length, stdout);
     return written == main_dispatch_windows_mlir_length && fflush(stdout) == 0
+               ? 0
+               : 1;
+  }
+  if (ok && argc == 2 && argv != NULL &&
+      strcmp(argv[1], "--emit-main-dispatch-k1-linux-mlir") == 0) {
+    const size_t written =
+        fwrite(main_dispatch_k1_linux_mlir, sizeof(uint8_t),
+               main_dispatch_k1_linux_mlir_length, stdout);
+    return written == main_dispatch_k1_linux_mlir_length && fflush(stdout) == 0
+               ? 0
+               : 1;
+  }
+  if (ok && argc == 2 && argv != NULL &&
+      strcmp(argv[1], "--emit-main-dispatch-k1-windows-mlir") == 0) {
+    const size_t written =
+        fwrite(main_dispatch_k1_windows_mlir, sizeof(uint8_t),
+               main_dispatch_k1_windows_mlir_length, stdout);
+    return written == main_dispatch_k1_windows_mlir_length &&
+                   fflush(stdout) == 0
+               ? 0
+               : 1;
+  }
+  if (ok && argc == 2 && argv != NULL &&
+      strcmp(argv[1], "--emit-main-dispatch-k4-linux-mlir") == 0) {
+    const size_t written =
+        fwrite(main_dispatch_k4_linux_mlir, sizeof(uint8_t),
+               main_dispatch_k4_linux_mlir_length, stdout);
+    return written == main_dispatch_k4_linux_mlir_length && fflush(stdout) == 0
+               ? 0
+               : 1;
+  }
+  if (ok && argc == 2 && argv != NULL &&
+      strcmp(argv[1], "--emit-main-dispatch-k4-windows-mlir") == 0) {
+    const size_t written =
+        fwrite(main_dispatch_k4_windows_mlir, sizeof(uint8_t),
+               main_dispatch_k4_windows_mlir_length, stdout);
+    return written == main_dispatch_k4_windows_mlir_length &&
+                   fflush(stdout) == 0
                ? 0
                : 1;
   }

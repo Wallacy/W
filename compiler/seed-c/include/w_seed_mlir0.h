@@ -27,9 +27,9 @@ extern "C" {
 /* Target-neutral M2 cooperative product emission is a scalar MLIR core.  It
  * has no target triple, data-layout, runtime, or process-entry contract. */
 #define W_SEED_MLIR0_COOPERATIVE_SCHEMA_VERSION \
-  "w-seed-mlir0-cooperative-1"
+  "w-seed-mlir0-cooperative-2"
 #define W_SEED_MLIR0_COOPERATIVE_EXECUTABLE_SCHEMA_VERSION \
-  "w-seed-mlir0-cooperative-executable-1"
+  "w-seed-mlir0-cooperative-executable-2"
 /* The unsuffixed aliases retain the byte-for-byte Linux seed contract. */
 #define W_SEED_MLIR0_TARGET_TRIPLE W_SEED_MLIR0_TARGET_TRIPLE_LINUX
 /* The dynamic seed artifact is bounded by 64 HIR values, 64 interpolation

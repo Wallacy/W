@@ -91,6 +91,11 @@ function exactExecution(result, label) {
     fail(`${label} output differs from Cooperative 88\\n`);
 }
 
+function exactExpectedExecution(result, label, expectedOutput) {
+  if (!result.stdout.equals(expectedOutput) || result.stderr.length !== 0)
+    fail(label + " output differs from expected main-domain output\n");
+}
+
 function exactMainDispatchExecution(result, label) {
   if (!result.stdout.equals(mainDispatchExpected) || result.stderr.length !== 0)
     fail(`${label} output differs from Dispatched 88\\n`);
@@ -128,6 +133,10 @@ try {
     ["windows", "--emit-cooperative-windows-mlir"],
     ["main-linux", "--emit-main-dispatch-linux-mlir"],
     ["main-windows", "--emit-main-dispatch-windows-mlir"],
+    ["main-k1-linux", "--emit-main-dispatch-k1-linux-mlir"],
+    ["main-k1-windows", "--emit-main-dispatch-k1-windows-mlir"],
+    ["main-k4-linux", "--emit-main-dispatch-k4-linux-mlir"],
+    ["main-k4-windows", "--emit-main-dispatch-k4-windows-mlir"],
   ];
   const files = {};
   for (const [name, mode] of modes) {
@@ -173,6 +182,28 @@ try {
       sdk.path, "/Brepro", "/opt:ref", "/opt:icf", "/incremental:no"]);
     exactMainDispatchExecution(run(mainExecutable, []),
       "Windows main-domain PE");
+    for (const [name, expectedOutput] of [
+      ["k1", Buffer.from("Dispatched 20\n")],
+      ["k4", Buffer.from("Dispatched 92\n")],
+    ]) {
+      const mainLlvmCardinality = join(directory,
+        "main-" + name + "-windows.ll");
+      const mainObjectCardinality = join(directory,
+        "main-" + name + "-windows.obj");
+      const mainExecutableCardinality = join(directory,
+        "main-dispatch-" + name + ".exe");
+      run(tools.mlirTranslate, ["--mlir-to-llvmir",
+        files["main-" + name + "-windows"].lowered,
+        "-o", mainLlvmCardinality]);
+      run(tools.llc, ["-filetype=obj", "-mtriple=x86_64-pc-windows-msvc",
+        "-O3", mainLlvmCardinality, "-o", mainObjectCardinality]);
+      run(tools.lldLink, ["/entry:mainCRTStartup", "/subsystem:console",
+        "/nodefaultlib", "/machine:x64",
+        "/out:" + mainExecutableCardinality, mainObjectCardinality,
+        sdk.path, "/Brepro", "/opt:ref", "/opt:icf", "/incremental:no"]);
+      exactExpectedExecution(run(mainExecutableCardinality, []),
+        "Windows main-domain " + name + " PE", expectedOutput);
+    }
   }
 
   let linuxEvidence = "blocked";
@@ -213,6 +244,34 @@ try {
     exactMainDispatchExecution(
       run("wsl.exe", ["-d", "Ubuntu", "--", wslMainExecutable]),
       "Windows-cross-linked Linux/WSL main-domain ELF");
+    for (const [name, expectedOutput] of [
+      ["k1", Buffer.from("Dispatched 20\n")],
+      ["k4", Buffer.from("Dispatched 92\n")],
+    ]) {
+      const mainLlvmCardinality = join(directory,
+        "main-" + name + "-linux.ll");
+      const mainObjectCardinality = join(directory,
+        "main-" + name + "-linux.o");
+      const mainExecutableCardinality = join(directory,
+        "main-dispatch-" + name + "-linux");
+      run(tools.mlirTranslate, ["--mlir-to-llvmir",
+        files["main-" + name + "-linux"].lowered,
+        "-o", mainLlvmCardinality]);
+      run(tools.llc, ["-filetype=obj", "-mtriple=x86_64-unknown-linux-gnu",
+        "-relocation-model=pic", "-O3", mainLlvmCardinality,
+        "-o", mainObjectCardinality]);
+      run(tools.ldLld, ["-pie", "--no-dynamic-linker", "-e", "_start",
+        "--gc-sections", "-z", "noexecstack", "-s", mainObjectCardinality,
+        wrt0Object, "-o", mainExecutableCardinality]);
+      assertCrtFreeElf(await readFile(mainExecutableCardinality));
+      const wslMainCardinality = run("wsl.exe", ["-d", "Ubuntu", "--",
+        "wslpath", "-a", mainExecutableCardinality.replaceAll("\\", "/")])
+        .stdout.toString().trim();
+      exactExpectedExecution(
+        run("wsl.exe", ["-d", "Ubuntu", "--", wslMainCardinality]),
+        "Windows-cross-linked Linux/WSL main-domain " + name + " ELF",
+        expectedOutput);
+    }
     linuxEvidence = "windows-host-cross-link+target-execution";
   } else if (process.platform === "linux") {
     const linker = tools.ldLld;
@@ -247,6 +306,29 @@ try {
       assertCrtFreeElf(await readFile(mainExecutable));
       exactMainDispatchExecution(run(mainExecutable, []),
         "native Linux main-domain ELF");
+      for (const [name, expectedOutput] of [
+        ["k1", Buffer.from("Dispatched 20\n")],
+        ["k4", Buffer.from("Dispatched 92\n")],
+      ]) {
+        const mainLlvmCardinality = join(directory,
+          "main-" + name + "-linux.ll");
+        const mainObjectCardinality = join(directory,
+          "main-" + name + "-linux.o");
+        const mainExecutableCardinality = join(directory,
+          "main-dispatch-" + name + "-linux");
+        run(tools.mlirTranslate, ["--mlir-to-llvmir",
+          files["main-" + name + "-linux"].lowered,
+          "-o", mainLlvmCardinality]);
+        run(tools.llc, ["-filetype=obj", "-mtriple=x86_64-unknown-linux-gnu",
+          "-relocation-model=pic", "-O3", mainLlvmCardinality,
+          "-o", mainObjectCardinality]);
+        run(linker, ["-pie", "--no-dynamic-linker", "-e", "_start",
+          "--gc-sections", "-z", "noexecstack", "-s",
+          mainObjectCardinality, wrt0Object, "-o", mainExecutableCardinality]);
+        assertCrtFreeElf(await readFile(mainExecutableCardinality));
+        exactExpectedExecution(run(mainExecutableCardinality, []),
+          "native Linux main-domain " + name + " ELF", expectedOutput);
+      }
       linuxEvidence = "native-crt-free-link+execution";
     }
   }
