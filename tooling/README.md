@@ -321,6 +321,11 @@ and separate exploratory Windows and Linux/WSL2 W measurements. The explicit
 `bun benchmark run ... --platform linux-wsl-x64` lane invokes public
 Windows-host `w build` for the Linux target and executes only the retained ELF
 through WSL2; it is same-host diagnostic evidence, not a cross-platform rank.
+Runtime measurement stages the ELF and the bounded native measurement helper on
+the WSL-native `/tmp` filesystem. Linux `CLOCK_MONOTONIC`, `fork`/`exec`, and
+`wait4` samples therefore exclude `wsl.exe` startup and DrvFS access. Compile
+latency still describes the Windows-host cross-build, while runtime CPU and
+peak RSS describe the root Linux process and do not aggregate descendants.
 Current evidence cannot narrow required
 emission or release fanout for macOS or another applicable target.
 

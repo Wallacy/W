@@ -12,6 +12,7 @@ import {
   deriveSummary,
   EXECUTABLE_CHILD_KILL_SIGNAL,
   EXECUTABLE_CHILD_TIMEOUT_MS,
+  linuxNativeReceiptSamples,
   nativeReceiptSamples,
   parseBenchmarkArguments,
   publishRecord,
@@ -158,6 +159,45 @@ test("native receipts map Job CPU and root working set without relabeling commit
   const inconsistent = structuredClone(receipt);
   inconsistent.samples[0].jobCpuNs = 11201;
   assert.throws(() => nativeReceiptSamples(inconsistent, 1), /inconsistent native measurement/u);
+});
+
+test("Linux native receipts map wait4 root CPU and RSS without WSL startup", () => {
+  const receipt = {
+    schema: "w-linux-native-benchmark/1",
+    status: "ok",
+    warmupCount: 0,
+    sampleCount: 1,
+    oracle: true,
+    samples: [{
+      wallNs: 401000,
+      userCpuNs: 120000,
+      systemCpuNs: 230000,
+      cpuNs: 350000,
+      peakRssBytes: 1261568,
+      exitCode: 0,
+      stdoutBytes: 6,
+      stderrBytes: 0,
+    }],
+    measurement: "Linux CLOCK_MONOTONIC wall time; one fresh fork/exec/wait4 child per sample; root-process rusage CPU and peak RSS; direct-child process-group best-effort timeout containment",
+  };
+  assert.deepEqual(linuxNativeReceiptSamples(receipt, 1, "Linux test", {
+    exitCode: 0, stdoutBytes: 6, stderrBytes: 0,
+  }), [{
+    wallNs: "401000",
+    cpuUserUs: "120",
+    cpuSystemUs: "230",
+    cpuTotalUs: "350",
+    peakRssBytes: "1261568",
+  }]);
+  const inconsistent = structuredClone(receipt);
+  inconsistent.samples[0].cpuNs += 1;
+  assert.throws(() => linuxNativeReceiptSamples(inconsistent, 1),
+    /inconsistent Linux native measurement/u);
+  const subMicrosecond = structuredClone(receipt);
+  subMicrosecond.samples[0].userCpuNs += 1;
+  subMicrosecond.samples[0].cpuNs += 1;
+  assert.throws(() => linuxNativeReceiptSamples(subMicrosecond, 1),
+    /inconsistent Linux native measurement/u);
 });
 
 test("summary arithmetic means use integer floor and preserve zero CPU", () => {

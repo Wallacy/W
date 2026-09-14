@@ -69,10 +69,14 @@ export const RESULTS_DIRECTORY = path.resolve(ROOT, "benchmarks", "results");
 const CATALOG_PATH = path.resolve(ROOT, "benchmarks", "executable-catalog.json");
 const SEED_C_PATH = path.resolve(ROOT, "compiler", "seed-c");
 const NATIVE_BENCHMARK_ABI = "w-native-benchmark/2";
+const LINUX_NATIVE_BENCHMARK_ABI = "w-linux-native-benchmark/1";
 const NATIVE_BENCHMARK_TARGET = "w_seed_native_benchmark_cli";
 const NATIVE_BENCHMARK_CAPTURE_LIMIT = 65_536;
+const LINUX_NATIVE_BENCHMARK_SOURCE = path.resolve(ROOT, "tooling", "wsl-native-benchmark.c");
+const WSL_BENCHMARK_DIRECTORY_PATTERN = /^\/tmp\/w-executable-benchmark-[A-Za-z0-9]+$/u;
 const RUNNER_SOURCE_PATHS = Object.freeze([
   path.resolve(import.meta.dir, "executable-benchmark-runner.mjs"),
+  LINUX_NATIVE_BENCHMARK_SOURCE,
   path.join(SEED_C_PATH, "include", "w_seed_native_benchmark.h"),
   path.join(SEED_C_PATH, "src", "w_seed_native_benchmark.c"),
   path.join(SEED_C_PATH, "cli", "native_benchmark.c"),
@@ -332,7 +336,7 @@ export function benchmarkUsage() {
     "",
     "Options: --target <runnable-catalog-id> (default hello), --language w|c|rust (default w), --platform windows-x64|linux-wsl-x64 (default windows-x64), --warmup <n> (default 1), --compile-samples <odd n> (default 9), --run-samples <odd n> (default 101). --samples sets both counts.",
     "The output must be a new JSON file under benchmarks/results.",
-    "The default is Windows x86_64 exploratory executable evidence. --platform linux-wsl-x64 selects the catalog's Linux public W source and builds/runs its ELF artifact through WSL2 on this host; that lane is same-physical-hardware diagnostic-only and same-host-only. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses the public w build Release source-to-PE candidate on Windows and the pinned Linux/WSL public build route on WSL2; process-argument workloads validate all declared argument cases before timing and pin the declared timed vector; process-handler-lifecycle uses the private GCC/MinGW handler composite and remains contextual/non-ranking. Public C requires Clang with final C23, the MSVC ABI, and the DLL runtime; Rust uses rustc edition 2024.",
+    "The default is Windows x86_64 exploratory executable evidence. --platform linux-wsl-x64 selects the catalog's Linux public W source and cross-builds its ELF on this Windows host; runtime samples execute from WSL-native /tmp under Linux CLOCK_MONOTONIC/wait4, excluding wsl.exe startup and DrvFS target access. That lane is same-physical-hardware diagnostic-only and same-host-only. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses the public w build Release source-to-PE candidate on Windows and the pinned Linux/WSL public build route on WSL2; process-argument workloads validate all declared argument cases before timing and pin the declared timed vector; process-handler-lifecycle uses the private GCC/MinGW handler composite and remains contextual/non-ranking. Public C requires Clang with final C23, the MSVC ABI, and the DLL runtime; Rust uses rustc edition 2024.",
     `Timeout guard: ${EXECUTABLE_TIMEOUT_STATUS}.`,
   ].join("\n");
 }
@@ -508,6 +512,8 @@ function sampleSeries(warmup, raw, measurementKernel = "bun-direct/1") {
       zeroAllowed: true,
       disclosure: measurementKernel === NATIVE_BENCHMARK_ABI
         ? "Windows Job Object CPU counters originate in 100 ns units and are normalized with floor rounding to catalog microseconds; zero-valued samples are preserved."
+        : measurementKernel === LINUX_NATIVE_BENCHMARK_ABI
+          ? "Linux wait4 root-process CPU counters originate in microseconds and are normalized without claiming finer precision; zero-valued samples are preserved."
         : "Bun resourceUsage reports CPU counters in microseconds; zero-valued samples are preserved and do not imply nanosecond precision.",
     },
   };
@@ -569,6 +575,53 @@ export function nativeReceiptSamples(receipt, expectedCount, label = "native ben
   });
 }
 
+export function linuxNativeReceiptSamples(receipt, expectedCount, label = "Linux native benchmark",
+                                          expected = undefined) {
+  const receiptFields = ["measurement", "oracle", "sampleCount", "samples",
+    "schema", "status", "warmupCount"];
+  if (!isObject(receipt) || receipt.schema !== LINUX_NATIVE_BENCHMARK_ABI ||
+      receipt.status !== "ok" || receipt.warmupCount !== 0 ||
+      receipt.sampleCount !== expectedCount || receipt.oracle !== true ||
+      !Array.isArray(receipt.samples) || receipt.samples.length !== expectedCount ||
+      Object.keys(receipt).sort().join("\0") !== receiptFields.sort().join("\0")) {
+    fail(`${label} receipt identity or sample count is invalid`);
+  }
+  if (typeof receipt.measurement !== "string" ||
+      !/CLOCK_MONOTONIC.*fork\/exec\/wait4.*root-process/iu.test(receipt.measurement)) {
+    fail(`${label} measurement disclosure is invalid`);
+  }
+  return receipt.samples.map((sample, index) => {
+    const name = `${label}.samples[${index}]`;
+    const sampleFields = ["cpuNs", "exitCode", "peakRssBytes", "stderrBytes",
+      "stdoutBytes", "systemCpuNs", "userCpuNs", "wallNs"];
+    if (!isObject(sample) ||
+        Object.keys(sample).sort().join("\0") !== sampleFields.sort().join("\0")) {
+      fail(`${name} fields are invalid`);
+    }
+    const wall = nativeCounter(sample.wallNs, `${name}.wallNs`);
+    const user = nativeCounter(sample.userCpuNs, `${name}.userCpuNs`);
+    const system = nativeCounter(sample.systemCpuNs, `${name}.systemCpuNs`);
+    const total = nativeCounter(sample.cpuNs, `${name}.cpuNs`);
+    const rss = nativeCounter(sample.peakRssBytes, `${name}.peakRssBytes`);
+    if (wall === 0n || rss === 0n || total !== user + system ||
+        user % 1000n !== 0n || system % 1000n !== 0n || total % 1000n !== 0n) {
+      fail(`${name} contains an inconsistent Linux native measurement`);
+    }
+    if (expected && (sample.exitCode !== expected.exitCode ||
+        sample.stdoutBytes !== expected.stdoutBytes ||
+        sample.stderrBytes !== expected.stderrBytes)) {
+      fail(`${name} does not match the requested exact oracle receipt`);
+    }
+    return {
+      wallNs: wall.toString(10),
+      cpuUserUs: (user / 1000n).toString(10),
+      cpuSystemUs: (system / 1000n).toString(10),
+      cpuTotalUs: (total / 1000n).toString(10),
+      peakRssBytes: rss.toString(10),
+    };
+  });
+}
+
 async function prepareNativeBenchmark(executor, tempRoot) {
   const cmake = Bun.which("cmake");
   const ninja = Bun.which("ninja");
@@ -597,6 +650,73 @@ async function prepareNativeBenchmark(executor, tempRoot) {
   const executable = path.join(buildDirectory, "w_seed_native_benchmark.exe");
   await regularFile(executable, "native benchmark executable");
   return { abi: NATIVE_BENCHMARK_ABI, executable, digest: await sha256File(executable) };
+}
+
+async function prepareLinuxNativeBenchmark(executor, runtime) {
+  const made = await executeWsl(executor, runtime, "/usr/bin/mktemp",
+    ["-d", "/tmp/w-executable-benchmark-XXXXXXXX"], {}, "Linux native benchmark temp directory");
+  requireSuccess(made, "Linux native benchmark temp directory");
+  const candidate = outputText(made.stdout).trim();
+  if (!WSL_BENCHMARK_DIRECTORY_PATTERN.test(candidate)) {
+    fail("Linux native benchmark returned an invalid temporary directory");
+  }
+  const directory = candidate;
+  const executable = `${directory}/measure`;
+  try {
+    if (made.stderr.length !== 0) fail("Linux native benchmark temp directory wrote stderr");
+    const compilerPathResult = await executeWsl(executor, runtime, "/usr/bin/readlink",
+      ["-f", "--", "/usr/bin/cc"], {}, "Linux native benchmark compiler path");
+    requireSuccess(compilerPathResult, "Linux native benchmark compiler path");
+    const compiler = outputText(compilerPathResult.stdout).trim();
+    if (!/^\/usr\/bin\/[A-Za-z0-9.+_-]+$/u.test(compiler) || compilerPathResult.stderr.length !== 0) {
+      fail("Linux native benchmark compiler path is invalid");
+    }
+    await wslRegularFile(executor, runtime, compiler, "Linux native benchmark compiler");
+    const versionResult = await executeWsl(executor, runtime, compiler,
+      ["--version"], {}, "Linux native benchmark compiler version");
+    requireSuccess(versionResult, "Linux native benchmark compiler version");
+    const compilerVersion = outputText(versionResult.stdout).split(/\r?\n/u)[0]?.trim();
+    if (!compilerVersion || compilerVersion.length > 240) fail("Linux native benchmark compiler version is invalid");
+    const digestResult = await executeWsl(executor, runtime, "/usr/bin/sha256sum",
+      ["--", compiler], {}, "Linux native benchmark compiler digest");
+    requireSuccess(digestResult, "Linux native benchmark compiler digest");
+    const digestMatch = outputText(digestResult.stdout).match(/^([0-9a-f]{64})\s/u);
+    if (!digestMatch || digestResult.stderr.length !== 0) fail("Linux native benchmark compiler digest is invalid");
+    const compiled = await executeWsl(executor, runtime, compiler, [
+      "-O3", "-std=gnu2x", "-Wall", "-Wextra", "-Werror",
+      wslPath(LINUX_NATIVE_BENCHMARK_SOURCE), "-o", executable,
+    ], {}, "Linux native benchmark build");
+    requireSuccess(compiled, "Linux native benchmark build");
+    const permission = await executeWsl(executor, runtime, "/usr/bin/chmod",
+      ["0500", "--", executable], {}, "Linux native benchmark permissions");
+    requireSuccess(permission, "Linux native benchmark permissions");
+    await wslRegularFile(executor, runtime, executable, "Linux native benchmark executable");
+    return {
+      abi: LINUX_NATIVE_BENCHMARK_ABI,
+      directory,
+      executable,
+      compiler,
+      compilerVersion,
+      compilerDigest: `sha256:${digestMatch[1]}`,
+      sourceDigest: await sha256File(LINUX_NATIVE_BENCHMARK_SOURCE),
+    };
+  } catch (error) {
+    await cleanupWslOwned(executor, runtime, directory);
+    throw error;
+  }
+}
+
+async function cleanupWslOwned(executor, runtime, directory) {
+  if (directory === undefined) return;
+  if (!WSL_BENCHMARK_DIRECTORY_PATTERN.test(directory)) {
+    fail(`refusing to clean unowned WSL directory: ${directory}`);
+  }
+  const removed = await executeWsl(executor, runtime, "/usr/bin/rm",
+    ["-rf", "--", directory], {}, "Linux native benchmark cleanup");
+  requireSuccess(removed, "Linux native benchmark cleanup");
+  const probe = await executeWsl(executor, runtime, "/usr/bin/stat",
+    ["--", directory], {}, "Linux native benchmark cleanup probe");
+  if (probe.exitCode === 0) fail(`owned WSL temporary directory remains: ${directory}`);
 }
 
 async function measureNativeBatch(context, artifact, argumentsVector, oracle,
@@ -659,6 +779,79 @@ async function nativeRuntimeSeries(context, artifact, argumentsVector, oracle,
   };
 }
 
+async function measureLinuxNativeBatch(context, artifact, argumentsVector, oracle,
+                                       count, label) {
+  const stdout = Buffer.from(oracle.stdout, "utf8");
+  const stderr = Buffer.from(oracle.stderr, "utf8");
+  if (stdout.length > NATIVE_BENCHMARK_CAPTURE_LIMIT || stderr.length > NATIVE_BENCHMARK_CAPTURE_LIMIT) {
+    fail(`${label} oracle exceeds the Linux native capture limit`);
+  }
+  const request = {
+    executable: artifact,
+    cwd: context.nativeBenchmark.directory ?? path.posix.dirname(artifact),
+    arguments: [...argumentsVector],
+    warmup: 0,
+    samples: count,
+    timeoutMs: EXECUTABLE_CHILD_TIMEOUT_MS,
+    expectedExitCode: oracle.exitCode,
+    expectedStdoutHex: stdout.toString("hex"),
+    expectedStderrHex: stderr.toString("hex"),
+  };
+  let receipt;
+  if (typeof context.nativeBenchmark.measureBatch === "function") {
+    receipt = await context.nativeBenchmark.measureBatch(request);
+  } else {
+    const args = [
+      "--exe", request.executable,
+      "--cwd", request.cwd,
+      ...request.arguments.flatMap((argument) => ["--arg", argument]),
+      "--warmup", "0",
+      "--samples", String(request.samples),
+      "--timeout-ms", String(request.timeoutMs),
+      "--expect-exit", String(request.expectedExitCode),
+      "--expect-stdout-hex", request.expectedStdoutHex,
+      "--expect-stderr-hex", request.expectedStderrHex,
+    ];
+    const measured = await executeWsl(context.executor, context.wslRuntime,
+      context.nativeBenchmark.executable, args,
+      { timeout: (request.samples + 1) * request.timeoutMs + 60_000 }, label);
+    requireSuccess(measured, label);
+    if (measured.stderr.length !== 0) fail(`${label} wrote stderr`);
+    try {
+      receipt = JSON.parse(outputText(measured.stdout));
+    } catch (error) {
+      fail(`${label} did not emit one Linux native receipt: ${error.message}`);
+    }
+  }
+  return linuxNativeReceiptSamples(receipt, count, label, {
+    exitCode: oracle.exitCode,
+    stdoutBytes: stdout.length,
+    stderrBytes: stderr.length,
+  });
+}
+
+async function linuxNativeRuntimeSeries(context, artifact, argumentsVector, oracle,
+                                        warmupCount, sampleCount, label) {
+  let stagedArtifact = artifact;
+  if (typeof context.nativeBenchmark.measureBatch !== "function") {
+    stagedArtifact = `${context.nativeBenchmark.directory}/target`;
+    const copied = await executeWsl(context.executor, context.wslRuntime, "/usr/bin/cp",
+      ["--", wslPath(artifact), stagedArtifact], {}, `${label} stage Linux artifact`);
+    requireSuccess(copied, `${label} stage Linux artifact`);
+    const permission = await executeWsl(context.executor, context.wslRuntime, "/usr/bin/chmod",
+      ["0500", "--", stagedArtifact], {}, `${label} Linux artifact permissions`);
+    requireSuccess(permission, `${label} Linux artifact permissions`);
+    await wslRegularFile(context.executor, context.wslRuntime, stagedArtifact,
+      `${label} staged Linux artifact`);
+  }
+  return {
+    warmup: await measureLinuxNativeBatch(context, stagedArtifact, argumentsVector, oracle,
+      warmupCount, `${label} warmup`),
+    raw: await measureLinuxNativeBatch(context, stagedArtifact, argumentsVector, oracle,
+      sampleCount, `${label} raw`),
+  };
+}
+
 function outputText(bytes) {
   try { return textDecoder.decode(bytes); } catch { return "<non-UTF-8 output>"; }
 }
@@ -704,7 +897,11 @@ async function executeWsl(executor, runtime, command, args, options, label) {
 }
 
 async function wslRegularFile(executor, runtime, filePath, label) {
-  if (typeof filePath !== "string" || !(filePath.startsWith("/tmp/") || filePath.startsWith("/mnt/"))) fail(`${label} must be a WSL-visible temporary file`);
+  if (typeof filePath !== "string" ||
+      !(filePath.startsWith("/tmp/") || filePath.startsWith("/mnt/") ||
+        /^\/usr\/bin\/[A-Za-z0-9.+_-]+$/u.test(filePath))) {
+    fail(`${label} must be a bounded WSL-visible file`);
+  }
   const result = await executeWsl(executor, runtime, "stat", ["--format=%F:%s", "--", filePath], {}, `${label} stat`);
   requireSuccess(result, `${label} stat`);
   const output = outputText(result.stdout).trim();
@@ -2004,7 +2201,9 @@ function protocol(context, workload = undefined) {
     : `${language} compile measures the direct compiler process only; compiler descendants are not aggregated.`;
   const processEntry = isProcessArgumentWorkload(workload?.id);
   const runScope = isWslPlatform(context.platformTarget)
-    ? "Runtime wall time and host counters cover one fresh wsl.exe invocation per sample; Linux process-tree CPU/RSS are not separately aggregated."
+    ? context.nativeBenchmark?.abi === LINUX_NATIVE_BENCHMARK_ABI
+      ? "Runtime samples are measured inside WSL2 around one fresh Linux fork/exec/wait4 child; WSL startup, Windows interop, and DrvFS target access are outside every sample. CPU and peak RSS describe the root Linux process; descendants are not aggregated."
+      : "Test-only runtime observations cover one fresh wsl.exe wrapper per sample; Linux process-tree CPU/RSS are not separately aggregated."
     : context.nativeBenchmark
     ? "Production run CPU covers the complete contained Job tree and peak working set covers the root target process."
     : "Test-only run observations cover the direct target process; descendants are not aggregated.";
@@ -2037,10 +2236,10 @@ function protocol(context, workload = undefined) {
       ? ["warmup-discarded", "fresh-process-per-sample", "fixed-variant-order", "pinned-runtime-vector", "correctness-before-timing"]
       : ["warmup-discarded", "fresh-process-per-sample", "fixed-variant-order"],
     unknownNoiseControls: ["host-scheduler", "filesystem-cache", "thermal-state"],
-    directProcessDisclosure: context.nativeBenchmark
-      ? "Runtime wall time uses Windows QPC; CPU uses aggregate Job Object user/kernel accounting normalized to floor microseconds; peak working set is the root process, while Job peak commit remains a distinct receipt fact and is not mislabeled as RSS. Compile samples remain Bun direct-process observations."
-      : isWslPlatform(context.platformTarget)
-        ? `Bun direct-process CPU and RSS counters cover the wsl.exe wrapper and its Linux child only as reported by the host; process-tree CPU/RSS are not aggregated. The artifact is executed through WSL2 for ${EXECUTABLE_ARTIFACT_TARGET_LINUX}; ${EXECUTABLE_TIMEOUT_STATUS}.`
+    directProcessDisclosure: context.nativeBenchmark?.abi === LINUX_NATIVE_BENCHMARK_ABI
+      ? `Runtime wall time uses Linux CLOCK_MONOTONIC inside WSL2 around fork/exec/wait4; wait4 root-process CPU and peak RSS are reported, descendants are not aggregated, and a direct-child process group provides bounded best-effort timeout containment while independently re-sessioned descendants are outside that containment. The helper and ${EXECUTABLE_ARTIFACT_TARGET_LINUX} target are staged on the WSL-native /tmp filesystem before timing. Compile samples remain Windows-host Bun direct-process observations.`
+      : context.nativeBenchmark
+        ? "Runtime wall time uses Windows QPC; CPU uses aggregate Job Object user/kernel accounting normalized to floor microseconds; peak working set is the root process, while Job peak commit remains a distinct receipt fact and is not mislabeled as RSS. Compile samples remain Bun direct-process observations."
       : `Bun direct-process CPU and RSS counters cover spawned processes only; process-tree CPU/RSS are not aggregated. ${EXECUTABLE_TIMEOUT_STATUS}.`,
   };
 }
@@ -2237,6 +2436,15 @@ function toolchainProvenance(context) {
           crossLinker: context.linuxWslProfile.linkerRecord?.relativePath ?? path.basename(context.linuxWslProfile.linker ?? "ld.lld.exe"),
         },
         compilerVersion: context.publicW.compilerVersion ?? LINUX_TOOLCHAIN_VERSION,
+        runtimeMeasurementKernel: context.nativeBenchmark?.abi === LINUX_NATIVE_BENCHMARK_ABI
+          ? {
+            abi: context.nativeBenchmark.abi,
+            compiler: context.nativeBenchmark.compiler,
+            compilerVersion: context.nativeBenchmark.compilerVersion,
+            compilerDigest: context.nativeBenchmark.compilerDigest,
+            sourceDigest: context.nativeBenchmark.sourceDigest,
+          }
+          : { abi: "bun-direct-test/1" },
       };
     }
     return {
@@ -2536,6 +2744,7 @@ async function runBenchmarkUnlocked(options = {}, dependencies = {}) {
     ? await prepareProcessGate(executor, dependencies, publish)
     : undefined;
   let tempRoot;
+  let nativeBenchmark;
   const retained = [];
   try {
     tempRoot = await mkdtemp(path.join(os.tmpdir(), RUN_DIRECTORY_PREFIX));
@@ -2550,11 +2759,23 @@ async function runBenchmarkUnlocked(options = {}, dependencies = {}) {
         target: isWslPlatform(platformTarget) ? EXECUTABLE_ARTIFACT_TARGET_LINUX : EXECUTABLE_ARTIFACT_TARGET_MSVC,
       }
       : languageToolchain;
-    const nativeBenchmark = isWslPlatform(platformTarget)
-      ? undefined
-      : dependencies.nativeBenchmark ??
-        (dependencies.testOnly === true ? undefined :
-          await prepareNativeBenchmark(executor, tempRoot));
+    nativeBenchmark = dependencies.nativeBenchmark ??
+      (dependencies.testOnly === true
+        ? undefined
+        : isWslPlatform(platformTarget)
+          ? await prepareLinuxNativeBenchmark(executor, wslRuntime)
+          : await prepareNativeBenchmark(executor, tempRoot));
+    if (isWslPlatform(platformTarget) && dependencies.testOnly === true && nativeBenchmark === undefined) {
+      fail(`test-only ${platformTarget} requires an injected ${LINUX_NATIVE_BENCHMARK_ABI} adapter`);
+    }
+    if (nativeBenchmark !== undefined) {
+      const expectedAbi = isWslPlatform(platformTarget)
+        ? LINUX_NATIVE_BENCHMARK_ABI
+        : NATIVE_BENCHMARK_ABI;
+      if (nativeBenchmark.abi !== expectedAbi) {
+        fail(`${platformTarget} runtime benchmark must use ${expectedAbi}`);
+      }
+    }
     const context = {
       executor,
       catalog,
@@ -2597,13 +2818,18 @@ async function runBenchmarkUnlocked(options = {}, dependencies = {}) {
     const timedExpected = timedOracleCase ?? oracle;
     if (context.nativeBenchmark) {
       const runtimeEnvironment = processTarget ? clearProcessFaultEnvironment() : undefined;
-      const nativeSeries = await nativeRuntimeSeries(
-        context, correctness.compiled.artifact, processTarget
-          ? context.processExecution.timedInput
-          : timedArguments,
-        processTarget ? { exitCode: 0, stdout: "", stderr: "" } : timedExpected,
-        warmup, runSamples, `${language} ${target}`, runtimeEnvironment,
-      );
+      const nativeSeries = isWslPlatform(platformTarget)
+        ? await linuxNativeRuntimeSeries(
+          context, correctness.compiled.artifact, timedArguments, timedExpected,
+          warmup, runSamples, `${language} ${target}`,
+        )
+        : await nativeRuntimeSeries(
+          context, correctness.compiled.artifact, processTarget
+            ? context.processExecution.timedInput
+            : timedArguments,
+          processTarget ? { exitCode: 0, stdout: "", stderr: "" } : timedExpected,
+          warmup, runSamples, `${language} ${target}`, runtimeEnvironment,
+        );
       runWarmup.push(...nativeSeries.warmup);
       runRaw.push(...nativeSeries.raw);
     } else if (processTarget) {
@@ -2644,6 +2870,11 @@ async function runBenchmarkUnlocked(options = {}, dependencies = {}) {
     return { record, outputPath };
   } finally {
     for (const directory of retained) await cleanupOwned(directory);
+    if (typeof nativeBenchmark !== "undefined" &&
+        nativeBenchmark?.abi === LINUX_NATIVE_BENCHMARK_ABI &&
+        typeof nativeBenchmark.measureBatch !== "function") {
+      await cleanupWslOwned(executor, wslRuntime, nativeBenchmark.directory);
+    }
     await cleanupOwned(tempRoot);
   }
 }
