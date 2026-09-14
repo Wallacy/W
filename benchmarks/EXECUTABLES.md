@@ -49,7 +49,7 @@ Current portable-release values. Lower is better; `—` means no published measu
 
 ### Windows x64
 
-| Workload | Language | Target | Runtime | Artifact | .text B | .rdata B | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |
+| Workload | Language | Target | Runtime | Artifact | .text B | .rdata B | Compile p50 | Cold p50 | Cold p95 | Peak RSS | CPU mean |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | bool-short-circuit | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 966 | 308 | 182.0096 ms | 16.9107 ms | 17.9359 ms | 3756032 B (3.58 MiB) | 11.912 ms |
 | hello | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3446 | 2596 | 126.1595 ms | 17.1805 ms | 18.1178 ms | 4808704 B (4.59 MiB) | 13.459 ms |
@@ -127,19 +127,20 @@ Current portable-release values. Lower is better; `—` means no published measu
 
 ### Linux x64
 
-| Workload | Language | Target | Runtime | Artifact | .text B | .rdata B | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |
+| Workload | Language | Target | Runtime | Artifact | .text B | .rdata B | Compile p50 | Cold p50 | Cold p95 | Peak RSS | CPU mean |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 
 No native Linux x64 measurements are published.
 
 ### Linux x64 via WSL2
 
-| Workload | Language | Target | Runtime | Artifact | .text B | .rdata B | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |
+| Workload | Language | Target | Runtime | Artifact | .text B | .rdata B | Compile p50 | Cold p50 | Cold p95 | Peak RSS | CPU mean |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | restaurant-main-cardinality | w | Linux x64 / WSL2 | CRT-free | 3008 B (2.9 KiB) | — | — | 206.0878 ms | 141.023 µs | 201.573 µs | 671744 B (656.0 KiB) | 47 µs |
 | restaurant-main-dispatch | w | Linux x64 / WSL2 | CRT-free | 2768 B (2.7 KiB) | — | — | 208.7803 ms | 155.999 µs | 376.322 µs | 679936 B (664.0 KiB) | 50 µs |
 
 Artifact size counts only the emitted executable file. On Windows it excludes imported runtime DLLs. Windows public W is CRT-free; public C and Rust import the MSVC runtime. The private process-handler composite remains a Windows GCC/MinGW contextual lane. Native Linux records, when published, are kept in their own Linux x64 / GNU lane; W's current Linux product route is also CRT-free.
+Cold p50/p95 measure one complete fresh-process launch, execution, and wait per sample. They are startup observations dominated by the platform process path for very small programs, not an estimate of steady-state body throughput. A future body-throughput lane must use a separately identified batched or persistent harness and publish its harness baseline.
 Each projection row is compact: every displayed metric chooses the lower value across pinned categories on that same platform, so cells may come from distinct toolchain/recipe categories. The machine catalog retains those category and provenance identities; no value is selected across platform sections. WSL rows remain host-partitioned and are never pooled across hosts.
 Linux x64 via WSL2 is Linux-target evidence on a Windows host, not native Linux support. It is accepted for same-host regression and same-physical-hardware diagnostics only; WSL values are not rankable across hosts. WSL provenance records the host mode, comparison purpose, and rankability explicitly.
 The `.text B` and `.rdata B` columns are the unique PE sections' validated VirtualSize; VirtualSize includes padding and zero-fill and is not a useful-instruction count. `—` means absent, ambiguous, or not measured. Linux ELF metadata is kept separate from PE metadata. Only source-backed workloads with a materialized source and runner-supported recipe appear here; planned/backlog entries remain in the catalog. CPU is the arithmetic mean of 101 fresh-process counters; an all-zero estimate is omitted.
