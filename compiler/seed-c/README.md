@@ -1902,9 +1902,29 @@ ceiling only.
 This is frontend/HIR evidence, not parallel execution. Native0 and MLIR0 do not
 yet select or emit this route, the public CLI remains fail-closed, and there is
 no provider, overlap, executable-catalog entry, timing, or performance claim.
-The next slice must independently derive a parallel selection and prove the
-same observable result at provider capacity one and two before adding a public
-executable route.
+W-1589 now owns the independent parallel selection. The next slice must prove
+the same observable result at provider capacity one and two before adding a
+public executable route.
+
+### Bounded parallel selection proof (W-1589)
+
+`w_seed_parallel_selection0` consumes only verified HIR37. Its fixed
+`w-seed-parallel-selection0-1` record rederives the single anonymous root and
+copies one through four parallel task-call indices, target functions, launch
+bindings, lexical join bindings, exact `.domain` placement facts, HIR counts,
+and the HIR semantic digest. Unused slots and reserved bytes are zero.
+
+Selection and verification reject non-parallel structured calls, mixed or
+forged placement, malformed peer bindings, truncated HIR, and destination
+overlap with the HIR descriptor, result, or any HIR backing range. Selection
+uses a local candidate and publishes only after every check, so failure leaves
+the caller-owned destination unchanged. Verification compares explicit fields
+rather than implicit C padding.
+
+Provider capacity is not a field in PARSEL0. The same semantic selection must
+later run under capacities one and two. This boundary has no provider, MLIR,
+thread, runtime task, public executable, overlap evidence, or benchmark result;
+its disposition is `compiler-lifecycle`.
 
 ### Closed local payloadless enum exhaustive switch (W-1563)
 

@@ -7755,6 +7755,78 @@
         "no provider, MLIR, runtime, public executable, overlap, target, or performance claim is introduced"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-parallel-selection-proof",
+      "reviewItem": "bounded parallel selection against provider-capacity identity, trusted lowering records, and premature execution claims",
+      "decisions": ["W-1589"],
+      "task": "Derive a canonical backend-facing parallel selection from verified HIR without embedding provider policy or claiming execution.",
+      "selected": {
+        "language": "w-internal",
+        "source": [
+          "PARSEL0.select(verifiedHIR)",
+          "tasks = lexicalPairs(calls: .parallelDomain, launches: .launch, joins: .awaitResult)",
+          "providerCapacity = absent"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "trust-lowering-record",
+          "language": "w-internal-rejected",
+          "source": ["copy call indices without independently verifying HIR and launch/join ownership"],
+          "expectedDifference": "The selected boundary re-verifies HIR37 and rederives every selected relation."
+        },
+        {
+          "name": "embed-provider-capacity",
+          "language": "w-internal-rejected",
+          "source": ["selection.providerCapacity = 2"],
+          "expectedDifference": "The selected proof excludes physical capacity so capacities one and two consume identical semantics."
+        },
+        {
+          "name": "publish-partial-selection",
+          "language": "w-internal-rejected",
+          "source": ["write selected tasks before alias and relation checks finish"],
+          "expectedDifference": "The selected API builds a local canonical candidate and publishes only after all checks."
+        },
+        {
+          "name": "treat-selection-as-execution",
+          "language": "w-internal-rejected",
+          "source": ["report PARSEL0 success as worker overlap"],
+          "expectedDifference": "The selected milestone stops before provider, MLIR, runtime, executable, target, and performance evidence."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_parallel_selection0.h",
+          "symbol": "w_seed_parallel_selection0",
+          "claim": "The fixed caller-owned record contains semantic selection facts and no provider-capacity field."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_parallel_selection0.c",
+          "symbol": "parallel_selection_derive",
+          "claim": "The selector independently derives one-through-four lexical task relations from verified HIR37."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_parallel_selection0.c",
+          "symbol": "parallel_selection_aliases_input",
+          "claim": "The transactional boundary rejects output overlap with the HIR descriptor, result, and backing ranges."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_parallel_domain_placement_hir",
+          "claim": "Focused tests cover k=1, k=2, k=4, canonical tails, forged records, aliases, lifetime independence, and unsupported input."
+        }
+      ],
+      "checks": [
+        "PARSEL0 re-verifies HIR37 before deriving a selection",
+        "one through four task calls pair with lexical launch and await-result bindings",
+        "exact placement facts and HIR semantic identity are copied into a canonical fixed record",
+        "unused slots and reserved bytes are zero",
+        "provider capacity is absent from semantic selection",
+        "invalid, unsupported, aliased, mixed, and forged records fail without destination mutation",
+        "no provider, runtime, target, executable, overlap, or performance result is claimed"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }
