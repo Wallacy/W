@@ -368,7 +368,7 @@ until equivalent serial-main-domain baselines exist. This bounded seed evidence
 makes no general runtime, scheduler, parallelism, cancellation, stable ABI,
 target-adapter, benchmark-ranking, or performance claim. No syntax changes.
 
-W-1588 adds an IR-only parallel-placement boundary. Frontend26 accepts exact
+W-1588 adds an IR-only parallel-placement boundary. Frontend27 accepts exact
 `spawn<.domain>` only from a caller-owned concurrent domain with the parallel
 capability. HIR37 owns and independently verifies the copied identity, mode,
 capabilities, pure non-suspending scalar child graph, and lexical joins. The

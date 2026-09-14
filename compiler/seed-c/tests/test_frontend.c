@@ -38,6 +38,8 @@ enum {
   TEST_ENUM_SUBSET_MEMBERS = 256,
   TEST_FIELDS = 64,
   TEST_DECLARATIONS = 32,
+  TEST_ACCELERATOR_MODULES = 16,
+  TEST_ACCELERATOR_KERNELS = 64,
   TEST_TYPES = 128,
   TEST_FUNCTIONS = 32,
   TEST_PARAMETERS = 128,
@@ -94,6 +96,10 @@ typedef struct {
   w_seed_frontend_type_declaration type_declarations[TEST_DECLARATIONS];
   w_seed_frontend_alias aliases[TEST_DECLARATIONS];
   w_seed_frontend_const_declaration const_declarations[TEST_DECLARATIONS];
+  w_seed_frontend_accelerator_module
+      accelerator_modules[TEST_ACCELERATOR_MODULES];
+  w_seed_frontend_accelerator_kernel
+      accelerator_kernels[TEST_ACCELERATOR_KERNELS];
   w_seed_frontend_type types[TEST_TYPES];
   w_seed_frontend_function functions[TEST_FUNCTIONS];
   w_seed_frontend_parameter parameters[TEST_PARAMETERS];
@@ -193,6 +199,10 @@ static void fixture_fill_output(fixture *fixture_value, uint8_t value) {
   (void)memset(fixture_value->aliases, value, sizeof(fixture_value->aliases));
   (void)memset(fixture_value->const_declarations, value,
                sizeof(fixture_value->const_declarations));
+  (void)memset(fixture_value->accelerator_modules, value,
+               sizeof(fixture_value->accelerator_modules));
+  (void)memset(fixture_value->accelerator_kernels, value,
+               sizeof(fixture_value->accelerator_kernels));
   (void)memset(fixture_value->types, value, sizeof(fixture_value->types));
   (void)memset(fixture_value->functions, value,
                sizeof(fixture_value->functions));
@@ -265,6 +275,10 @@ static bool fixture_output_is(const fixture *fixture_value, uint8_t value,
                           value) &&
           all_bytes_equal(fixture_value->const_declarations,
                           sizeof(fixture_value->const_declarations), value) &&
+          all_bytes_equal(fixture_value->accelerator_modules,
+                          sizeof(fixture_value->accelerator_modules), value) &&
+          all_bytes_equal(fixture_value->accelerator_kernels,
+                          sizeof(fixture_value->accelerator_kernels), value) &&
          all_bytes_equal(fixture_value->types, sizeof(fixture_value->types),
                          value) &&
          all_bytes_equal(fixture_value->functions,
@@ -390,6 +404,10 @@ static bool fixture_parse(fixture *fixture_value, const char *text) {
       .alias_capacity = TEST_DECLARATIONS,
       .const_declarations = fixture_value->const_declarations,
       .const_declaration_capacity = TEST_DECLARATIONS,
+      .accelerator_modules = fixture_value->accelerator_modules,
+      .accelerator_module_capacity = TEST_ACCELERATOR_MODULES,
+      .accelerator_kernels = fixture_value->accelerator_kernels,
+      .accelerator_kernel_capacity = TEST_ACCELERATOR_KERNELS,
       .types = fixture_value->types,
       .type_capacity = TEST_TYPES,
       .functions = fixture_value->functions,
@@ -2630,7 +2648,7 @@ static bool test_local_binding_resolution(void) {
         W_SEED_FRONTEND_OK);
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-26") &&
+                         "w-seed-frontend-27") &&
         value->result.written.statements == 2u);
   const w_seed_frontend_statement *binding = &value->statements[0];
   CHECK(binding->kind == W_SEED_FRONTEND_STMT_LET &&
@@ -2669,8 +2687,8 @@ static bool test_local_binding_resolution(void) {
   }
   CHECK(binding_symbol != W_SEED_FRONTEND_NONE &&
         message_expression != W_SEED_FRONTEND_NONE &&
-        receipt_contains(value, "schema=w-seed-frontend-26\n",
-                         strlen("schema=w-seed-frontend-26\n")));
+        receipt_contains(value, "schema=w-seed-frontend-27\n",
+                         strlen("schema=w-seed-frontend-27\n")));
 
   fixture *trivia = &fixture_a;
   CHECK(fixture_parse(
@@ -5105,7 +5123,7 @@ static bool test_local_assignment_projection(void) {
                     "}\n"));
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-26") &&
+                         "w-seed-frontend-27") &&
         value->result.written.statements == 2u);
   CHECK(value->statements[0].kind == W_SEED_FRONTEND_STMT_VAR &&
         value->statements[0].effective_type != W_SEED_FRONTEND_NONE &&
@@ -5606,6 +5624,101 @@ static bool test_repeat_projection(void) {
   return true;
 }
 
+static bool test_accelerator_module_frontend(void) {
+  static const char source[] =
+      "fn kernel(): i64 { return 42 }\n"
+      "export const kernels = accelerator.module<{ hello: kernel }>()\n"
+      "entry { }\n";
+  fixture *value = &fixture_const;
+  CHECK(fixture_run(value, source));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
+        value->result.status == W_SEED_FRONTEND_OK &&
+        value->result.required.accelerator_modules == 1u &&
+        value->result.required.accelerator_kernels == 1u &&
+        value->result.written.accelerator_modules == 1u &&
+        value->result.written.accelerator_kernels == 1u);
+  const w_seed_frontend_accelerator_module *module =
+      &value->accelerator_modules[0];
+  const w_seed_frontend_accelerator_kernel *kernel =
+      &value->accelerator_kernels[0];
+  CHECK(module->module_index == 0u &&
+        module->const_declaration_index == 0u &&
+        module->first_kernel == 0u && module->kernel_count == 1u &&
+        module->span.start_byte < module->span.end_byte);
+  CHECK(kernel->module_index == 0u &&
+        kernel->owner_accelerator_module == 0u && kernel->ordinal == 0u &&
+        frontend_text_is(kernel->label, "hello") &&
+        kernel->function_index == 0u &&
+        kernel->span.start_byte >= module->span.start_byte &&
+        kernel->span.end_byte <= module->span.end_byte);
+  CHECK(value->const_declarations[0].initializer_expression ==
+            W_SEED_FRONTEND_NONE &&
+        value->const_declarations[0].effective_type == W_SEED_FRONTEND_NONE &&
+        !value->const_declarations[0].lowerable);
+  CHECK(receipt_contains(
+      value, "accelerator-module=0|const=0",
+      sizeof("accelerator-module=0|const=0") - 1u));
+  CHECK(receipt_contains(
+      value, "accelerator-kernel=0|owner=0|ordinal=0|label=5:68656c6c6f",
+      sizeof("accelerator-kernel=0|owner=0|ordinal=0|label=5:68656c6c6f") -
+          1u));
+
+  static const char composed[] =
+      "fn first(): i64 { return 1 }\n"
+      "fn second(): i64 { return 2 }\n"
+      "export const kernels = accelerator.module<{ first: first, second: "
+      "second }>()\n"
+      "entry { }\n";
+  CHECK(fixture_run(value, composed));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        value->result.written.accelerator_modules == 1u &&
+        value->result.written.accelerator_kernels == 2u &&
+        value->accelerator_modules[0].first_kernel == 0u &&
+        value->accelerator_modules[0].kernel_count == 2u &&
+        value->accelerator_kernels[0].ordinal == 0u &&
+        frontend_text_is(value->accelerator_kernels[0].label, "first") &&
+        value->accelerator_kernels[0].function_index == 0u &&
+        value->accelerator_kernels[1].ordinal == 1u &&
+        frontend_text_is(value->accelerator_kernels[1].label, "second") &&
+        value->accelerator_kernels[1].function_index == 1u);
+
+  static const char *const rejected[] = {
+      "export const kernels = accelerator.module<{}>()\n",
+      "export const kernels = accelerator.module<{ hello: missing }>()\n",
+      "fn kernel(): i64 { return 42 } export const kernels = "
+      "accelerator.module<{ hello: kernel, hello: kernel }>()\n",
+      "fn kernel(): i64 { return 42 } export const kernels = "
+      "accelerator.module<{ hello: kernel }>(42)\n",
+  };
+  for (size_t index = 0u; index < sizeof(rejected) / sizeof(rejected[0]);
+       index += 1u) {
+    CHECK(fixture_run(value, rejected[index]));
+    CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
+          value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+          value->result.written.accelerator_modules == 0u &&
+          value->result.written.accelerator_kernels == 0u &&
+          has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+  }
+
+  const uint8_t sentinel = 0xa5u;
+  CHECK(fixture_parse(value, source));
+  fixture_fill_output(value, sentinel);
+  value->output.accelerator_modules = NULL;
+  value->output.accelerator_module_capacity = 0u;
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_CAPACITY);
+  CHECK(fixture_output_is(value, sentinel, true));
+
+  CHECK(fixture_parse(value, source));
+  fixture_fill_output(value, sentinel);
+  value->output.accelerator_kernels = NULL;
+  value->output.accelerator_kernel_capacity = 0u;
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_CAPACITY);
+  CHECK(fixture_output_is(value, sentinel, true));
+  return true;
+}
+
 int main(void) {
   if (!test_short_entry_frontend()) return 1;
   if (!test_scalar_if_frontend_subset()) return 1;
@@ -5637,5 +5750,6 @@ int main(void) {
   if (!test_structured_async_projection()) return 1;
   if (!test_while_projection()) return 1;
   if (!test_repeat_projection()) return 1;
+  if (!test_accelerator_module_frontend()) return 1;
   return 0;
 }

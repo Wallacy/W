@@ -39483,7 +39483,7 @@ print("Dispatched ${first + second + third + fourth}")
 #### 26.4.1.69 W-1588 — verified explicit parallel-domain placement
 
 W-1588 establishes the compiler boundary required before a real parallel
-provider may execute `spawn<.domain>`. Frontend schema `w-seed-frontend-26`
+provider may execute `spawn<.domain>`. Frontend schema `w-seed-frontend-27`
 accepts that exact seed spelling only when caller-owned product input binds the
 exact `.domain` identity. The binding separates a scheduling mode from
 capabilities: this slice requires mode `CONCURRENT` and capability `PARALLEL`.
@@ -39949,17 +39949,22 @@ and missing-kernel cases fail closed. A separate diagnostic catalog records
 temporary artifact sizes and in-process H2D, dispatch-plus-synchronize, D2H,
 and end-to-end p50/p95 values. It is not a W product ranking.
 
-The seed parser now preserves `accelerator.module<{ hello: kernel }>()` as a
+The seed parser preserves `accelerator.module<{ hello: kernel }>()` as a
 contract envelope containing a static-record owner and named static-field
-owners. The CST remains caller-owned, lossless, deterministic, and
-source-backed; malformed labels, separators, values, or closes recover without
-inventing frontend semantics. This is parser evidence only.
+owners. Frontend schema `w-seed-frontend-27` recognizes only this compiler head
+with a nonempty static record, zero runtime arguments, unique labels, and direct
+same-document function symbols. It publishes caller-owned accelerator-module
+and ordered kernel-binding records that retain the module const, label, source
+span, and local function identity. These records contain no provider, target,
+queue, pointer, device ABI, or MLIR identity. Multiple fields are admitted;
+the one-kernel Hello is an evidence minimum, not a language limit. Empty or
+malformed records, duplicate labels, missing functions, and runtime arguments
+fail closed before accelerator records are published.
 
-This evidence is not source-backed W, a W runtime/provider, a public
+This source-to-frontend evidence is not a W runtime/provider, a public
 `w build`/`w run` route, a supported GPU ABI, or homogeneous pinned production
-support. The roadmap item remains open until canonical
-`accelerator.module<{...}>()` source and its typed `.launch` cross frontend
-semantics, independently verified W IR, host/device artifact
+support. The roadmap item remains open until the typed `.launch` relation and
+frontend records cross independently verified W device IR, host/device artifact
 generation, a supported provider launch and join, and result verification.
 
 #### 26.4.2 Execução RUN0 interna e bounded

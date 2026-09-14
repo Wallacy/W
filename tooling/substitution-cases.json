@@ -7708,7 +7708,7 @@
         {
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH",
-          "claim": "Frontend26 preserves explicit parallel-domain syntax and caller-owned placement facts."
+          "claim": "Frontend27 preserves explicit parallel-domain syntax and caller-owned placement facts."
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
@@ -8653,6 +8653,7 @@
       "source": [
         "gpu0 = verify(twoFunctions, sevenOperations, result: 42)",
         "cst = parse(accelerator.module<{ hello: kernel }>())",
+        "frontend = bind(moduleConst, orderedLabels, directLocalKernelIdentities)",
         "artifacts = emit(hostMLIR, deviceMLIR)",
         "ptx = lower(deviceMLIR, target: sm_86)",
         "assert cudaDriver.launch(ptx).join().readback == 42",
@@ -8663,8 +8664,8 @@
       {
         "name": "call-gpu0-source-backed-w",
         "language": "w-internal-rejected",
-        "source": ["present the C23 witness as canonical accelerator.module source"],
-        "expectedDifference": "The selected evidence begins at a target-neutral C23 semantic seed; the W source, frontend, and verified-W-IR bridge remain open."
+        "source": ["present the separate C23 witness and frontend bindings as a complete W GPU source route"],
+        "expectedDifference": "The selected evidence reaches bounded frontend module and kernel identities, but typed launch and the verified-W-IR bridge remain open."
       },
       {
         "name": "embed-cuda-in-semantic-ir",
@@ -8698,6 +8699,11 @@
         "claim": "The seed parser preserves the canonical static record and named field owners and rejects malformed variants."
       },
       {
+        "path": "compiler/seed-c/tests/test_frontend.c",
+        "symbol": "test_accelerator_module_frontend",
+        "claim": "Frontend27 binds one or multiple ordered labels to direct local function identities and rejects malformed or incomplete accelerator modules transactionally."
+      },
+      {
         "path": "compiler/seed-c/src/w_seed_gpu0.c",
         "symbol": "w_seed_gpu0_verify",
         "claim": "The provider-free verifier re-derives the bounded semantic program, artifacts, phases, and exact result."
@@ -8720,12 +8726,13 @@
     ],
     "checks": [
       "two functions and seven operations remain an evidence shape rather than a language or ABI ceiling",
+      "Frontend27 module and kernel bindings remain target and provider neutral",
       "host and device artifacts retain separate identities and exact verification",
       "forbidden device effects, malformed records, aliases, capacities, and forged artifacts fail closed",
       "the available CUDA adapter returns 42 and rejects missing providers and kernels",
       "mixed MLIR and Clang versions remain explicit",
       "diagnostic metrics stay separate from source-backed W product rankings",
-      "rank 1 remains open until accelerator.module crosses source, verified W IR, artifacts, provider launch/join, and result"
+      "rank 1 remains open until typed launch crosses verified W IR, artifacts, provider launch/join, and result"
     ],
     "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
   }

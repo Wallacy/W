@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-26"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-27"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -375,6 +375,9 @@ typedef struct {
   size_t const_bytes;
   /* Append-only module const declaration records. */
   size_t const_declarations;
+  /* Append-only compiler-owned accelerator module and kernel bindings. */
+  size_t accelerator_modules;
+  size_t accelerator_kernels;
 } w_seed_frontend_counts;
 
 typedef struct {
@@ -549,6 +552,26 @@ typedef struct {
    * source annotation index and is never populated by inference. */
   uint32_t effective_type;
 } w_seed_frontend_const_declaration;
+
+/* Compiler-owned synthesis records for `accelerator.module<{...}>()`.  They
+ * preserve semantic identities only; provider, target, queue, pointer, and
+ * physical ABI data belong to later lowering/provider layers. */
+typedef struct {
+  uint32_t module_index;
+  uint32_t const_declaration_index;
+  w_seed_span span;
+  uint32_t first_kernel;
+  uint32_t kernel_count;
+} w_seed_frontend_accelerator_module;
+
+typedef struct {
+  uint32_t module_index;
+  uint32_t owner_accelerator_module;
+  uint32_t ordinal;
+  w_seed_frontend_text label;
+  w_seed_span span;
+  uint32_t function_index;
+} w_seed_frontend_accelerator_kernel;
 
 typedef struct {
   uint32_t module_index;
@@ -1001,6 +1024,11 @@ typedef struct {
   /* Append-only module const declaration output. */
   w_seed_frontend_const_declaration *const_declarations;
   size_t const_declaration_capacity;
+  /* Append-only compiler-owned accelerator synthesis records. */
+  w_seed_frontend_accelerator_module *accelerator_modules;
+  size_t accelerator_module_capacity;
+  w_seed_frontend_accelerator_kernel *accelerator_kernels;
+  size_t accelerator_kernel_capacity;
   /* Append-only switch-arm output arrays. */
   w_seed_frontend_switch_arm *switch_arms;
   size_t switch_arm_capacity;

@@ -58,15 +58,15 @@ gate.
 W-1601 now supplies the target-neutral two-function/seven-operation GPU0
 witness, separate host/device MLIR, GPU/NVVM/PTX lowering, actual result `42`
 on the available RTX A400, and a diagnostic-only in-process metric snapshot.
-The seed parser also preserves the canonical `accelerator.module<{...}>()`
-static record structurally. The recipe is mixed MLIR 23.1.1 plus Clang 22 and
-the route is not yet source-backed through frontend/IR or backed by a W
-runtime/provider. Rank 1 therefore remains open until frontend accelerator
-semantics and verified W device IR supply the same artifact, provider, launch,
-join, and result evidence. Only then does the queue generalize task storage,
-cancellation, and scheduling. This keeps early target partitioning and GPU
-applicability evidence available while those later representations are still
-cheap to change. W-1597 remains a legality
+The seed parser and Frontend27 also preserve the canonical
+`accelerator.module<{...}>()` static record and ordered direct local kernel
+bindings. The recipe is mixed MLIR 23.1.1 plus Clang 22 and the route is not yet
+linked through typed launch and verified device IR or backed by a W
+runtime/provider. Rank 1 therefore remains open until verified W device IR
+supplies the same artifact, provider, launch, join, and result evidence. Only
+then does the queue generalize task storage, cancellation, and scheduling. This
+keeps early target partitioning and GPU applicability evidence available while
+those later representations are still cheap to change. W-1597 remains a legality
 certificate only; target policy must still combine it with observability and
 cost facts and compare any direct-call artifact with the W-1600 physical
 reference.
