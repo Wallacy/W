@@ -1928,29 +1928,33 @@ evidence, or benchmark result; its disposition is `compiler-lifecycle`.
 
 ### Bounded Windows parallel provider component (W-1590)
 
-`w_seed_parallel_provider0` is the first physical PARSEL0 consumer. It
-re-verifies HIR37 and the selection, validates an exact call/function mapping
-for signed-`i64` jobs, and executes one through four pure non-suspending jobs at
-provider capacity one or two. The implementation is fixed-storage and no-heap.
+`w_seed_parallel_provider0` is the first physical PARSEL0 consumer. PARINV0
+re-verifies HIR37 and the selection, derives exact call/function/argument-value
+facts for signed-`i64` jobs, and dry-evaluates them through the bounded checked
+scalar authority. PARPROV0 then executes one through four pure non-suspending
+HIR-derived jobs at provider capacity one or two. Its input exposes no callback
+or arbitrary context. The implementation is fixed-storage and no-heap.
 Capacity two uses Windows x64 Kernel32 threads in waves of at most two; capacity
 one is the serial equivalence lane.
 
 The semantic outcome excludes provider kind and capacity and seals lexical
 function/value pairs with the HIR semantic digest. The physical receipt is a
-separate record containing capacity and maximum simultaneous active callbacks.
-The capacity-two test uses a two-party event rendezvous, so overlap is proved by
-two callbacks being active at once rather than by a wall-clock threshold. k=1,
+separate record containing capacity and maximum simultaneous active workers.
+The capacity-two provider uses an internal two-party active-worker rendezvous,
+so overlap is proved by two workers being active at once rather than by a
+wall-clock threshold. k=1,
 k=2, and k=4 exercise the provider; the k=2 witness proves overlap and exact
 semantic equality with capacity one.
 
 Both outputs publish only after complete success. Alias checks cover the input,
-jobs, selection, HIR descriptor/result, and all HIR backing ranges. Invalid
-capacity or mapping, task failure, provider failure, forged outcomes, and
+invocation plan, selection, HIR descriptor/result, and all HIR backing ranges.
+Invalid capacity or plan, checked arithmetic failure, provider failure, forged outcomes, and
 aliases leave outputs unchanged. Created Windows handles are joined and closed
 before publication.
 
-The callback is a private seed bridge, not an emitted W ABI. This host component
-does not prove CRT-free target linkage, Linux/WSL support, public commands,
+PARINV0 is a compiler-host proof/evaluator, not a retained W runtime
+interpreter or emitted W ABI. This host component does not prove CRT-free target
+linkage, Linux/WSL support, runtime-dependent input, public commands,
 cancellation, a scheduler or worker pool, benchmark measurements, or
 performance. Those remain explicit implementation gaps.
 
