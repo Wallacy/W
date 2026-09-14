@@ -470,7 +470,7 @@ static benchmark_status run_sample(const benchmark_options *options,
 
 static bool print_error(benchmark_status status, int error_number,
                         uint32_t failed_index, bool warmup) {
-  if (printf("{\"schema\":\"%s\",\"status\":\"error\"," 
+  if (printf("{\"schema\":\"%s\",\"status\":\"error\","
                "\"error\":\"%s\",\"errno\":%d,\"failedIndex\":%" PRIu32
                ",\"phase\":\"%s\"}\n",
                W_LINUX_BENCHMARK_SCHEMA, status_name(status), error_number,
@@ -481,7 +481,7 @@ static bool print_error(benchmark_status status, int error_number,
 
 static bool print_success(const benchmark_options *options,
                           const benchmark_sample *samples) {
-  if (printf("{\"schema\":\"%s\",\"status\":\"ok\"," 
+  if (printf("{\"schema\":\"%s\",\"status\":\"ok\","
                "\"warmupCount\":%" PRIu32 ",\"sampleCount\":%" PRIu32
                ",\"oracle\":%s,\"samples\":[",
                W_LINUX_BENCHMARK_SCHEMA, options->warmup_count,
