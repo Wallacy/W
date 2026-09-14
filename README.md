@@ -2,16 +2,22 @@
 
 > Working draft. Joy for humans. Clarity for machines.
 
-W is an experimental language and compiler research project for native
-applications, systems, concurrency, parallelism, and scientific computing.
-The repository contains design contracts, executable specifications, and a
+W is an experimental general-purpose systems language designed for human
+clarity and machine optimization. Its goal is to turn explicit, verifiable
+semantics into portable native code with predictable costs: structured
+concurrency and parallelism, proof-directed memory, small CRT-free binaries,
+reproducible builds, and benchmark-driven performance across CPU, GPU,
+server, desktop, embedded, WebAssembly, and scientific-computing targets.
+
+That is the engineering objective, not a claim about the current product. The
+repository contains design contracts, executable specifications, and a
 bounded seed compiler. The complete compiler, runtime, SDK, package manager,
 and registry are not implemented.
 
 The seed is a real caller-owned C implementation for selected language
-surfaces. It has a native lowering path and a local Windows x64 candidate
-route. The evidence is correctness-scoped unless a source explicitly states
-otherwise.
+surfaces. It has a native lowering path, a local Windows x64 candidate route,
+and a bounded Windows-host cross-build route for Linux x64. The evidence is
+correctness-scoped unless a source explicitly states otherwise.
 
 ## Start here
 
