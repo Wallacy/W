@@ -8538,6 +8538,110 @@
       "one-to-four tasks and 128 events remain seed evidence ceilings without source-HIR, scheduler, provider, runtime, ABI, benchmark, or performance claims"
     ],
     "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+  },
+  {
+    "id": "R0-process-parallel-provider-link",
+    "reviewItem": "bounded dual-target process/parallel linkage against direct-call substitution, CRT fallback, hidden runtime input, target conflation, and premature public or benchmark claims",
+    "decisions": ["W-1600"],
+    "task": "Link and execute the composed process root and emitted task entry through explicit bounded Windows and Linux providers without turning seed storage into a language ABI.",
+    "selected": {
+      "language": "w-internal",
+      "source": [
+        "windows = PARLINK1.link(processRoot, taskEntry, Kernel32Provider)",
+        "linux = PARLINK1.link(processRoot, taskEntry, LinuxSyscallProvider)",
+        "assert run(windows, arguments: []) == .success",
+        "assert run(windows, arguments: [\"payload\"]) == .success",
+        "assert run(linux, arguments: []) == .success",
+        "assert run(linux, arguments: [\"payload\"]) == .success",
+        "assert injectedProviderFailure == 3"
+      ]
+    },
+    "alternatives": [
+      {
+        "name": "replace-launch-with-direct-call",
+        "language": "w-internal-rejected",
+        "source": ["call taskEntry(argument) in the process root"],
+        "expectedDifference": "The selected reference crosses explicit provider launch and lexical join before any W-1597 optimization policy is evaluated."
+      },
+      {
+        "name": "link-host-crt",
+        "language": "w-internal-rejected",
+        "source": ["link libc or the Microsoft CRT for entry, arguments, threads, or exit"],
+        "expectedDifference": "The selected adapters use only Kernel32 or raw Linux syscalls and link without default libraries."
+      },
+      {
+        "name": "bake-runtime-input",
+        "language": "w-internal-rejected",
+        "source": ["compile Arguments.isEmpty as a constant"],
+        "expectedDifference": "The selected products execute both empty and nonempty runtime-input cases through the same emitted source route."
+      },
+      {
+        "name": "publish-frame-as-task-abi",
+        "language": "w-internal-rejected",
+        "source": ["declare the four-slot frame and fixed Linux child stack as Task layout"],
+        "expectedDifference": "The selected storage is explicitly private seed-provider evidence and cannot define language, scheduler, or ABI limits."
+      },
+      {
+        "name": "pool-windows-and-linux-evidence",
+        "language": "w-internal-rejected",
+        "source": ["report one generic host execution result"],
+        "expectedDifference": "The selected gate preserves distinct native Windows and Windows-cross-linked Linux/WSL target evidence."
+      },
+      {
+        "name": "publish-benchmark-result",
+        "language": "w-internal-rejected",
+        "source": ["record timing or rank the private adapters as public W executables"],
+        "expectedDifference": "The selected evidence is compiler-lifecycle correctness only; public build/run and benchmark publication remain gaps."
+      }
+    ],
+    "sourceRefs": [
+      {
+        "path": "compiler/seed-c/src/w_seed_mlir0.c",
+        "symbol": "append_process_parallel_root",
+        "claim": "The emitted root reserves the bounded opaque frame and retains explicit launch and join calls."
+      },
+      {
+        "path": "compiler/seed-c/runtime/w_seed_process_parallel_windows0.ll",
+        "symbol": "w_seed_parallel_launch_task_0",
+        "claim": "The CRT-free Windows adapter physically launches the emitted task through Kernel32."
+      },
+      {
+        "path": "compiler/seed-c/runtime/w_seed_process_parallel_windows0.ll",
+        "symbol": "w_seed_parallel_join_task_0",
+        "claim": "The Windows adapter waits, closes the handle, and validates the task result before join success."
+      },
+      {
+        "path": "compiler/seed-c/runtime/w_seed_process_parallel_linux0.S",
+        "symbol": "w_seed_parallel_launch_task_0",
+        "claim": "The freestanding Linux adapter uses raw clone with a private fixed child stack."
+      },
+      {
+        "path": "compiler/seed-c/runtime/w_seed_process_parallel_linux0.S",
+        "symbol": "w_seed_parallel_join_task_0",
+        "claim": "The Linux adapter reaps the child with wait4 and validates the shared result."
+      },
+      {
+        "path": "tooling/check-parallel-mlir0.mjs",
+        "symbol": "processExecution",
+        "claim": "The focused gate links and executes empty, nonempty, and provider-failure Windows cases with exact silent exits."
+      },
+      {
+        "path": "tooling/check-parallel-mlir0.mjs",
+        "symbol": "processLinuxExecution",
+        "claim": "The focused gate cross-links and executes the corresponding CRT-free Linux ELF under WSL."
+      }
+    ],
+    "checks": [
+      "one unchanged source route preserves runtime empty and nonempty argument dependence",
+      "the emitted task entry executes through explicit provider launch and lexical join",
+      "Windows links with no default libraries and imports only required Kernel32 primitives",
+      "Linux links without a dynamic interpreter or runtime libraries and executes through raw syscalls",
+      "task results are validated before provider join succeeds",
+      "provider failure exits three while all executions keep stdout and stderr empty",
+      "the private frame and Linux child stack remain evidence-only rather than language, Task, scheduler, or ABI limits",
+      "public build/run, benchmarks, retained artifacts, timing, and performance are not claimed"
+    ],
+    "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

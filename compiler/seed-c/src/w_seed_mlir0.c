@@ -7718,9 +7718,10 @@ static bool append_process_parallel_root(
   if (!append_literal(artifact, capacity, offset,
                       "  llvm.func @w_seed_process_parallel_entry(%p0: !llvm.ptr, %p1: !llvm.ptr) -> i32 {\n"
                       "    %parallel_one = llvm.mlir.constant(1 : i64) : i64\n"
+                      "    %parallel_frame_slots = llvm.mlir.constant(4 : i64) : i64\n"
                       "    %parallel_buffer = llvm.alloca %parallel_one x i8 : (i64) -> !llvm.ptr\n"
                       "    %parallel_cursor = llvm.alloca %parallel_one x i64 : (i64) -> !llvm.ptr\n"
-                      "    %parallel_frame = llvm.alloca %parallel_one x i8 : (i64) -> !llvm.ptr\n"
+                      "    %parallel_frame = llvm.alloca %parallel_frame_slots x i64 : (i64) -> !llvm.ptr\n"
                       "    %parallel_result = llvm.alloca %parallel_one x i64 : (i64) -> !llvm.ptr\n"))
     return false;
   bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES] = {false};

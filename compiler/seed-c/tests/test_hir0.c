@@ -3350,6 +3350,10 @@ static bool test_process_parallel_mlir(void) {
                       "llvm.call @w_seed_parallel_launch_task_0(%parallel_frame") &&
         bytes_contain(artifact, counts.mlir_bytes,
                       "llvm.call @w_seed_parallel_join_task_0(%parallel_frame") &&
+        bytes_contain(artifact, counts.mlir_bytes,
+                      "%parallel_frame_slots = llvm.mlir.constant(4 : i64)") &&
+        bytes_contain(artifact, counts.mlir_bytes,
+                      "%parallel_frame = llvm.alloca %parallel_frame_slots x i64") &&
         bytes_contain(artifact, counts.mlir_bytes, "@w_seed_parallel_task_0") &&
         !bytes_contain(artifact, counts.mlir_bytes,
                        "@w_seed_parallel_launch_task_0(%parallel_frame, 40") &&
@@ -8163,7 +8167,7 @@ static bool emit_parallel_entry_mlir(void) {
   return true;
 }
 
-static bool emit_process_parallel_mlir(void) {
+static bool emit_process_parallel_mlir(bool windows) {
   CHECK(lower_process_parallel(PROCESS_PARALLEL_MLIR_SOURCE));
   w_seed_parallel_selection0 selection;
   CHECK(w_seed_parallel_selection0_select(
@@ -8172,7 +8176,8 @@ static bool emit_process_parallel_mlir(void) {
   static uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   w_seed_mlir0_process_parallel_result emitted;
   const w_seed_mlir0_target target = {
-      W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU};
+      windows ? W_SEED_MLIR0_TARGET_X86_64_PC_WINDOWS_MSVC
+              : W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU};
   CHECK(w_seed_mlir0_emit_process_parallel(
             &fixture.hir_program, &fixture.hir_result, &selection, &target,
             &(w_seed_mlir0_process_parallel_output){artifact, sizeof(artifact)},
@@ -8191,7 +8196,12 @@ int main(int argc, char **argv) {
   }
   if (argc == 2 && argv != NULL &&
       strcmp(argv[1], "--emit-process-parallel-mlir") == 0) {
-    if (!emit_process_parallel_mlir()) return 1;
+    if (!emit_process_parallel_mlir(false)) return 1;
+    return 0;
+  }
+  if (argc == 2 && argv != NULL &&
+      strcmp(argv[1], "--emit-process-parallel-windows-mlir") == 0) {
+    if (!emit_process_parallel_mlir(true)) return 1;
     return 0;
   }
   if (argc != 1) return 2;

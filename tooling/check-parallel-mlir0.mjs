@@ -57,12 +57,13 @@ async function tools() {
       mlirTranslate: get("mlir-translate.exe"),
       llc: get("llc.exe"),
       lldLink: get("lld-link.exe"),
+      ldLld: get("ld.lld.exe"),
     };
   }
   const get = (name) => Bun.which(name) ?? fail(`${name} is unavailable`);
   const result = {
     mlirOpt: get("mlir-opt"), mlirTranslate: get("mlir-translate"),
-    llc: get("llc"),
+    llc: get("llc"), ldLld: get("ld.lld"),
   };
   for (const tool of Object.values(result)) {
     const version = run(tool, ["--version"]).stdout.toString();
@@ -190,6 +191,110 @@ try {
       processLinuxBytes[1] !== 0x45 || processLinuxBytes[2] !== 0x4c ||
       processLinuxBytes[3] !== 0x46)
     fail("process Linux x86-64 ELF object header is invalid");
+  let processLinuxExecution = "not-run";
+  if (process.platform === "win32" && Bun.which("wsl.exe")) {
+    const linuxAdapterSource = resolve(seed, "runtime",
+      "w_seed_process_parallel_linux0.S");
+    const linuxAdapterObject = join(directory,
+      "process-parallel-linux-adapter.o");
+    const linuxExecutable = join(directory, "process-parallel-linux");
+    const toWslPath = (path) => run("wsl.exe", ["-d", "Ubuntu", "--",
+      "wslpath", "-a", path.replaceAll("\\", "/")])
+      .stdout.toString().trim();
+    const linuxAdapterSourceWsl = toWslPath(linuxAdapterSource);
+    const linuxAdapterObjectWsl = toWslPath(linuxAdapterObject);
+    run("wsl.exe", ["-d", "Ubuntu", "--", "gcc", "-c", "-x",
+      "assembler-with-cpp", linuxAdapterSourceWsl, "-o",
+      linuxAdapterObjectWsl]);
+    run(available.ldLld, ["-pie", "--no-dynamic-linker", "-e", "_start",
+      "--gc-sections", "-z", "noexecstack", "-s", processLinuxObject,
+      linuxAdapterObject, "-o", linuxExecutable]);
+    const linuxExecutableWsl = toWslPath(linuxExecutable);
+    exactExit("wsl.exe", ["-d", "Ubuntu", "--", linuxExecutableWsl], 0);
+    exactExit("wsl.exe", ["-d", "Ubuntu", "--", linuxExecutableWsl,
+      "payload"], 0);
+    exactExit("wsl.exe", ["-d", "Ubuntu", "--", linuxExecutableWsl, "!"], 3);
+    processLinuxExecution = "windows-cross-link+linux-wsl-crt-free";
+  } else if (process.platform === "linux") {
+    const linuxCompiler = Bun.which("gcc") ?? fail("gcc is unavailable");
+    const linuxAdapterSource = resolve(seed, "runtime",
+      "w_seed_process_parallel_linux0.S");
+    const linuxAdapterObject = join(directory,
+      "process-parallel-linux-adapter.o");
+    const linuxExecutable = join(directory, "process-parallel-linux");
+    run(linuxCompiler, ["-c", "-x", "assembler-with-cpp",
+      linuxAdapterSource, "-o", linuxAdapterObject]);
+    run(available.ldLld, ["-pie", "--no-dynamic-linker", "-e", "_start",
+      "--gc-sections", "-z", "noexecstack", "-s", processLinuxObject,
+      linuxAdapterObject, "-o", linuxExecutable]);
+    exactExit(linuxExecutable, [], 0);
+    exactExit(linuxExecutable, ["payload"], 0);
+    exactExit(linuxExecutable, ["!"], 3);
+    processLinuxExecution = "native-linux-crt-free";
+  }
+  let processWindowsObjectBytes = 0;
+  let processExecution = "not-run";
+  if (process.platform === "win32") {
+    const processWindowsEmitted = run(
+      witness, ["--emit-process-parallel-windows-mlir"]);
+    if (processWindowsEmitted.stderr.length !== 0 ||
+        processWindowsEmitted.stdout.length === 0 ||
+        processWindowsEmitted.stdout.includes(Buffer.from([0])))
+      fail("Windows process emitter produced stderr, no bytes, or an embedded NUL");
+    const processWindowsText = processWindowsEmitted.stdout.toString("utf8");
+    for (const marker of [
+      "w-seed-mlir0-process-parallel-1",
+      "llvm.target_triple = \"x86_64-pc-windows-msvc\"",
+      "llvm.func @w_seed_process_parallel_entry",
+      "llvm.func @w_seed_parallel_task_0",
+      "llvm.call @w_seed_parallel_launch_task_0",
+      "llvm.call @w_seed_parallel_join_task_0",
+    ]) if (!processWindowsText.includes(marker))
+      fail(`Windows process artifact omits ${marker}`);
+
+    const processWindowsInput = join(directory, "process-parallel-windows.mlir");
+    const processWindowsLowered = join(directory,
+      "process-parallel-windows-lowered.mlir");
+    const processWindowsLlvm = join(directory, "process-parallel-windows.ll");
+    const processWindowsObject = join(directory, "process-parallel-windows.obj");
+    const processAdapterSource = resolve(seed, "runtime",
+      "w_seed_process_parallel_windows0.ll");
+    const processAdapterObject = join(directory,
+      "process-parallel-windows-adapter.obj");
+    const processExecutable = join(directory, "process-parallel-windows.exe");
+    await writeFile(processWindowsInput, processWindowsEmitted.stdout);
+    run(available.mlirOpt, [processWindowsInput, "-o", processWindowsLowered,
+      "--convert-arith-to-llvm", "--convert-func-to-llvm",
+      "--reconcile-unrealized-casts", "--canonicalize", "--cse",
+      "--verify-each"]);
+    run(available.mlirTranslate, ["--mlir-to-llvmir", processWindowsLowered,
+      "-o", processWindowsLlvm]);
+    const processWindowsLlvmText = await readFile(processWindowsLlvm, "utf8");
+    if (!processWindowsLlvmText.includes(
+          "define i32 @w_seed_process_parallel_entry") ||
+        !processWindowsLlvmText.includes(
+          "define i64 @w_seed_parallel_task_0") ||
+        !processWindowsLlvmText.includes(
+          "call i1 @w_seed_parallel_launch_task_0") ||
+        !processWindowsLlvmText.includes(
+          "call i1 @w_seed_parallel_join_task_0"))
+      fail("translated Windows process LLVM omits explicit launch/join");
+    run(available.llc, ["-filetype=obj", "-mtriple=x86_64-pc-windows-msvc",
+      "-O3", processWindowsLlvm, "-o", processWindowsObject]);
+    run(available.llc, ["-filetype=obj", "-mtriple=x86_64-pc-windows-msvc",
+      "-O3", processAdapterSource, "-o", processAdapterObject]);
+    const { findWindowsSdkKernel32 } = await import("./windows-build-support.mjs");
+    const sdk = await findWindowsSdkKernel32();
+    run(available.lldLink, ["/entry:mainCRTStartup", "/subsystem:console",
+      "/nodefaultlib", "/machine:x64", `/out:${processExecutable}`,
+      processWindowsObject, processAdapterObject, sdk.path, "/Brepro",
+      "/opt:ref", "/opt:icf", "/incremental:no"]);
+    exactExit(processExecutable, [], 0);
+    exactExit(processExecutable, ["payload"], 0);
+    exactExit(processExecutable, ["!"], 3);
+    processWindowsObjectBytes = (await readFile(processWindowsObject)).length;
+    processExecution = "windows-crt-free-empty-nonempty-provider-fault";
+  }
   let emittedExecution = "not-run";
   if (process.platform === "win32") {
     const { findWindowsSdkKernel32 } = await import("./windows-build-support.mjs");
@@ -207,7 +312,7 @@ try {
     exactExit(executable, [], 0);
     emittedExecution = "windows-crt-free-runtime-values";
   }
-  console.log(`PARALLEL MLIR0: MLIR=23.1.1 tasks=2 processRoot=1 runtimeArguments=3 reachableFunctions=3 emittedExecution=${emittedExecution} windowsObjectBytes=${windowsBytes.length} linuxObjectBytes=${linuxBytes.length} processLinuxObjectBytes=${processLinuxBytes.length}`);
+  console.log(`PARALLEL MLIR0: MLIR=23.1.1 tasks=2 processRoot=1 runtimeArguments=3 reachableFunctions=3 emittedExecution=${emittedExecution} processExecution=${processExecution} processLinuxExecution=${processLinuxExecution} windowsObjectBytes=${windowsBytes.length} linuxObjectBytes=${linuxBytes.length} processWindowsObjectBytes=${processWindowsObjectBytes} processLinuxObjectBytes=${processLinuxBytes.length}`);
 } finally {
   await rm(directory, { recursive: true, force: true });
 }
