@@ -267,6 +267,16 @@ so the row does not claim scheduler quality, parallelism, or cross-language
 performance ranking. Windows and Linux/WSL measurements are separate platform
 evidence and are never combined into one ranking.
 
+`restaurant-main-cardinality` exercises the current upper endpoint of that
+seed route with four `spawn<.main>` children, lexical joins, and exact
+`Dispatched 92\n`. The implementation ceiling of four is caller-owned bounded
+storage, not a language limit or runtime ABI. The public `w run`/`w build`
+gates cover the source path on Windows and the Linux target through WSL2; the
+lower-level cooperative gate samples cardinalities one and four externally
+while its C product path validates every cardinality from one through four.
+C23 and Rust remain blocked until equivalent serial-main-domain baselines are
+defined, so this workload is also non-ranking across languages.
+
 The short facade is `bun benchmark`: use `list` to inspect catalog readiness,
 `run --target <runnable-catalog-id> --language w|c|rust --output benchmarks/results/<new>.json`
 for a local candidate measurement, `validate <json>` for a contained result,

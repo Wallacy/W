@@ -19,6 +19,7 @@ test("generated projection is current, compact, and sourced only from the live c
   assert.match(rendered, /### Linux x64/u);
   assert.match(rendered, /### Linux x64 via WSL2/u);
   assert.match(rendered, /\| restaurant-main-dispatch \| w \| Linux x64 \/ WSL2 \| CRT-free \| 2768 B/u);
+  assert.match(rendered, /\| restaurant-main-cardinality \| public-end-to-end \|/u);
   assert.match(rendered, /WSL values are not rankable across hosts\./u);
   assert.match(rendered, /\| Workload \| Language \| Target \| Runtime \| Artifact \| \.text B \| \.rdata B \| Compile p50 \| Run p50 \| Run p95 \| Peak RSS \| CPU mean \|/u);
   assert.match(rendered, /\| hello \| c \| Windows x64 \/ MSVC \| MSVC CRT DLL \| [0-9]+ B/u);
@@ -28,7 +29,7 @@ test("generated projection is current, compact, and sourced only from the live c
     new Set(workload.sources.map((source) => source.language)).size === 1 &&
     workload.sources.every((source) => source.language === "w"),
   );
-  assert.equal(partialWOnly.length, 18);
+  assert.equal(partialWOnly.length, 19);
   assert.ok(partialWOnly.every((workload) => rendered.includes(`| ${workload.id} |`)));
   assert.doesNotMatch(rendered, /restaurant-composition/u, "planned workloads stay out of the projection");
   assert.match(rendered, /Artifact size counts only the emitted executable file\. On Windows it excludes imported runtime DLLs\./u);

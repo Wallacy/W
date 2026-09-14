@@ -38,6 +38,8 @@ const restaurantAsyncYieldFixture = resolve(seedDirectory,
   "fixtures", "restaurant-async-yield.w")
 const restaurantMainDispatchFixture = resolve(seedDirectory,
   "fixtures", "restaurant-main-dispatch0.w")
+const restaurantMainCardinalityFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-main-cardinality0.w")
 const restaurantComparisonsFixture = resolve(seedDirectory, "fixtures", "restaurant-comparisons.w")
 const restaurantComparisonCompositionFixture = resolve(seedDirectory, "fixtures", "restaurant-comparison-composition.w")
 const restaurantBoolShortCircuitFixture = resolve(seedDirectory, "fixtures", "restaurant-bool-short-circuit.w")
@@ -506,6 +508,9 @@ try {
   expectExact(binary, ["run", restaurantMainDispatchFixture], 0,
     Buffer.from("Dispatched 88\n", "utf8"),
     "Restaurant physical main-domain dispatch")
+  expectExact(binary, ["run", restaurantMainCardinalityFixture], 0,
+    Buffer.from("Dispatched 92\n", "utf8"),
+    "Restaurant bounded main-domain cardinality")
   expectExact(binary, ["run", restaurantComparisonsFixture], 0,
     Buffer.from("Seat party\nSeat party\nWaitlist\n", "utf8"),
     "Restaurant signed-i64 admission comparison")
@@ -591,6 +596,8 @@ try {
     "restaurant-repeat-build.exe")
   const buildRestaurantMainDispatch = join(fixtureDirectory,
     "restaurant-main-dispatch-build.exe")
+  const buildRestaurantMainCardinality = join(fixtureDirectory,
+    "restaurant-main-cardinality-build.exe")
   const buildProcessInput = join(fixtureDirectory, "process-input-build.exe")
   const buildProcessArgumentsCount = join(fixtureDirectory,
     "process-arguments-count-build.exe")
@@ -651,6 +658,14 @@ try {
   expectExact(buildRestaurantMainDispatch, [], 0,
     Buffer.from("Dispatched 88\n", "utf8"),
     "execute built restaurant main-domain dispatch artifact")
+  expectExact(binary, ["build", restaurantMainCardinalityFixture, "--target",
+    targetTriple, "--output", buildRestaurantMainCardinality], 0,
+  Buffer.alloc(0), "build restaurant main-domain cardinality fixture")
+  assertPeX64(await readFile(buildRestaurantMainCardinality),
+    "built restaurant main-domain cardinality artifact")
+  expectExact(buildRestaurantMainCardinality, [], 0,
+    Buffer.from("Dispatched 92\n", "utf8"),
+    "execute built restaurant main-domain cardinality artifact")
   expectExact(binary, ["build", processInputFixture, "--target", targetTriple,
     "--output", buildProcessInput], 0, Buffer.alloc(0),
     "build public process-input fixture")
@@ -752,9 +767,9 @@ try {
   expectExact(buildProcessEnumPayload, ["payload"], 0,
     Buffer.from("enum-received false\n", "utf8"),
     "execute built enum payload process artifact with one argument")
-  expectExact(binary, ["build", restaurantMainDispatchFixture, "--target",
+  expectExact(binary, ["build", restaurantMainCardinalityFixture, "--target",
     linuxTargetTriple, "--output", buildLinuxTarget], 0, Buffer.alloc(0),
-  "cross-build restaurant main-domain dispatch for Linux")
+  "cross-build restaurant main-domain cardinality for Linux")
   const linuxBytes = await readFile(buildLinuxTarget)
   const linuxLayout = validateElfX64(linuxBytes, "w")
   assert(linuxLayout.elfLayout?.class === "ELF64" &&
@@ -764,8 +779,8 @@ try {
   const wsl = Bun.which("wsl.exe")
   assert(wsl, "WSL2 is unavailable for cross-built Linux target execution")
   expectExact(wsl, ["-d", "Ubuntu", "--", wslPath(buildLinuxTarget)], 0,
-    Buffer.from("Dispatched 88\n", "utf8"),
-  "execute cross-built main-domain Linux artifact through WSL2")
+    Buffer.from("Dispatched 92\n", "utf8"),
+  "execute cross-built main-domain cardinality Linux artifact through WSL2")
   expectBuildFailure(binary, ["build", helloFixture, "--target",
     "aarch64-unknown-linux-gnu", "--output", buildWrongTarget],
     "reject unsupported build target")

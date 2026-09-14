@@ -35,6 +35,8 @@ const restaurantAsyncYieldFixture = resolve(seedDirectory,
   "fixtures", "restaurant-async-yield.w")
 const restaurantMainDispatchFixture = resolve(seedDirectory,
   "fixtures", "restaurant-main-dispatch0.w")
+const restaurantMainCardinalityFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-main-cardinality0.w")
 const processArgumentsCountFixture = resolve(seedDirectory,
   "fixtures", "process-arguments-count.w")
 const processArgumentsOrderingFixture = resolve(seedDirectory,
@@ -836,6 +838,9 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantMainDispatchFixture)],
     Buffer.from("Dispatched 88\n", "utf8"),
     "Restaurant physical main-domain dispatch")
+  expectSuccess(binary, ["run", toWsl(restaurantMainCardinalityFixture)],
+    Buffer.from("Dispatched 92\n", "utf8"),
+    "Restaurant bounded main-domain cardinality")
   expectSuccess(binary, ["run", toWsl(w1531MinimalFixture)],
     Buffer.from("then\n", "utf8"), "W-1531 minimal if/else")
   expectSuccess(binary, ["run", toWsl(w1531NoElseFixture)],
@@ -933,6 +938,8 @@ try {
   const buildRestaurantRepeat = buildOutput("restaurant-repeat-build")
   const buildRestaurantMainDispatch = buildOutput(
     "restaurant-main-dispatch-build")
+  const buildRestaurantMainCardinality = buildOutput(
+    "restaurant-main-cardinality-build")
   const buildProcessInput = buildOutput("process-input-build")
   const buildProcessArgumentsCount = buildOutput("process-arguments-count-build")
   const buildProcessArgumentsOrdering = buildOutput(
@@ -984,6 +991,13 @@ try {
     Buffer.from("Dispatched 88\n", "utf8"),
     "execute built restaurant main-domain dispatch artifact")
   assertCrtFreeElf(await readBuildArtifact(buildRestaurantMainDispatch))
+  expectSuccess(binary, ["build", toWsl(restaurantMainCardinalityFixture),
+    "--target", targetTriple, "--output", buildRestaurantMainCardinality],
+  Buffer.alloc(0), "build restaurant main-domain cardinality fixture")
+  expectSuccess(buildRestaurantMainCardinality, [],
+    Buffer.from("Dispatched 92\n", "utf8"),
+    "execute built restaurant main-domain cardinality artifact")
+  assertCrtFreeElf(await readBuildArtifact(buildRestaurantMainCardinality))
   expectSuccess(binary, ["build", toWsl(processInputFixture), "--target",
     targetTriple, "--output", buildProcessInput], Buffer.alloc(0),
   "build Linux public process-input fixture")

@@ -6302,34 +6302,65 @@ static bool append_cooperative_task_arguments(
   return true;
 }
 
-static bool append_cooperative_core(
+static bool append_cooperative_state_types(uint8_t *artifact, size_t capacity,
+                                           size_t *offset, size_t task_count) {
+  if (artifact == NULL || offset == NULL || task_count == 0u ||
+      task_count > W_SEED_HIR0_COOPERATIVE_MAX_TASKS)
+    return false;
+  if (!append_literal(artifact, capacity, offset, "i32")) return false;
+  for (size_t task = 0u; task < task_count; task += 1u)
+    if (!append_literal(artifact, capacity, offset, ", i32")) return false;
+  for (size_t task = 0u; task < task_count; task += 1u)
+    if (!append_literal(artifact, capacity, offset, ", i1")) return false;
+  for (size_t task = 0u; task < task_count; task += 1u)
+    if (!append_literal(artifact, capacity, offset, ", i64")) return false;
+  return true;
+}
+
+static bool append_cooperative_core_counted(
     const w_seed_hir0_program *program,
     const w_seed_cooperative_selection0 *selection, uint8_t *artifact,
     size_t capacity, size_t *target_offset, int64_t *result_value) {
   if (program == NULL || selection == NULL || artifact == NULL ||
       target_offset == NULL || *target_offset > capacity ||
-      result_value == NULL ||
-      selection->task_count != W_SEED_HIR0_COOPERATIVE_MAX_TASKS ||
+      result_value == NULL || selection->task_count == 0u ||
+      selection->task_count > W_SEED_HIR0_COOPERATIVE_MAX_TASKS ||
+      (selection->execution_profile !=
+           W_SEED_HIR0_EXECUTION_PROFILE_MAIN_SERIAL &&
+       selection->execution_profile !=
+           W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE) ||
+      (selection->execution_profile ==
+           W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE &&
+       selection->task_count != W_SEED_HIR0_COOPERATIVE_ORACLE_MAX_TASKS) ||
       program->value_count > W_SEED_NATIVE_SUBSET0_MAX_VALUES)
     return false;
-  for (size_t task = 0u; task < W_SEED_HIR0_COOPERATIVE_MAX_TASKS; task += 1u) {
+  const size_t task_count = selection->task_count;
+  for (size_t task = 0u; task < task_count; task += 1u) {
     const uint32_t function_index = selection->task_function_indices[task];
     if (function_index >= program->function_count ||
+        program->functions[function_index].return_type >= program->type_count ||
         program->types[program->functions[function_index].return_type].kind !=
-            W_SEED_HIR0_TYPE_I64)
+            W_SEED_HIR0_TYPE_I64 ||
+        selection->task_call_indices[task] >= program->call_count)
       return false;
   }
+
   int64_t task_results[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {0};
   size_t evaluation_budget = MLIR0_COOPERATIVE_MAX_EVALUATION_STEPS;
-  for (size_t task = 0u; task < W_SEED_HIR0_COOPERATIVE_MAX_TASKS; task += 1u)
+  for (size_t task = 0u; task < task_count; task += 1u)
     if (!cooperative_evaluate_call(
             program, selection->task_call_indices[task], NULL, 0u, 0u,
-            &evaluation_budget,
-            &task_results[task]))
+            &evaluation_budget, &task_results[task]))
       return false;
-  if (!cooperative_checked_binary(W_SEED_HIR0_BINARY_ADD, task_results[0],
-                                  task_results[1], result_value))
-    return false;
+  *result_value = task_results[0];
+  for (size_t task = 1u; task < task_count; task += 1u) {
+    int64_t folded = 0;
+    if (!cooperative_checked_binary(W_SEED_HIR0_BINARY_ADD, *result_value,
+                                    task_results[task], &folded))
+      return false;
+    *result_value = folded;
+  }
+
   size_t offset = *target_offset;
   for (size_t function = 0u; function < program->function_count; function += 1u)
     if (function != selection->root_function_index &&
@@ -6339,12 +6370,11 @@ static bool append_cooperative_core(
   if (!append_literal(artifact, capacity, &offset,
                       "  func.func @w_seed_cooperative_core() -> i64 {\n"))
     return false;
+
   bool root_emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES] = {false};
-  for (size_t task = 0u; task < W_SEED_HIR0_COOPERATIVE_MAX_TASKS;
-       task += 1u) {
-    const uint32_t call_index = selection->task_call_indices[task];
-    if (call_index >= program->call_count) return false;
-    const w_seed_hir0_call *call = &program->calls[call_index];
+  for (size_t task = 0u; task < task_count; task += 1u) {
+    const w_seed_hir0_call *call =
+        &program->calls[selection->task_call_indices[task]];
     for (size_t argument = 0u; argument < call->argument_count;
          argument += 1u)
       if (!append_cooperative_value_tree(
@@ -6354,102 +6384,271 @@ static bool append_cooperative_core(
               root_emitted, artifact, capacity, &offset, 0u))
         return false;
   }
-  if (!append_literal(
-          artifact, capacity, &offset,
-          "    %pc_zero = arith.constant 0 : i32\n"
-          "    %pc_one = arith.constant 1 : i32\n"
-          "    %result_zero = arith.constant 0 : i64\n"
-          "    %false = arith.constant false\n"
-          "    %true = arith.constant true\n"
-          "    %pc_end0 = arith.constant ") ||
-      !append_size(artifact, capacity, &offset,
-                   selection->task_yield_counts[0] + 1u) ||
+
+  if (!append_literal(artifact, capacity, &offset,
+                      "    %turn_zero = arith.constant 0 : i32\n"
+                      "    %turn_one = arith.constant 1 : i32\n"
+                      "    %turn_limit = arith.constant "))
+    return false;
+  if (!append_size(artifact, capacity, &offset, task_count) ||
       !append_literal(artifact, capacity, &offset,
-                      " : i32\n    %pc_end1 = arith.constant ") ||
-      !append_size(artifact, capacity, &offset,
-                   selection->task_yield_counts[1] + 1u) ||
-      !append_literal(
-          artifact, capacity, &offset,
-          " : i32\n"
-          "    %final_turn, %final_pc0, %final_pc1, %final_done0, "
-          "%final_done1, %final_result0, %final_result1 = scf.while "
-          "(%turn = %false, %pc0 = %pc_zero, %pc1 = %pc_zero, "
-          "%done0 = %false, %done1 = %false, %result0 = %result_zero, "
-          "%result1 = %result_zero) : (i1, i32, i32, i1, i1, i64, i64) "
-          "-> (i1, i32, i32, i1, i1, i64, i64) {\n"
-          "      %both_done = arith.andi %done0, %done1 : i1\n"
-          "      %more = arith.xori %both_done, %true : i1\n"
-          "      scf.condition(%more) %turn, %pc0, %pc1, %done0, %done1, "
-          "%result0, %result1 : i1, i32, i32, i1, i1, i64, i64\n"
-          "    } do {\n"
-          "    ^bb0(%turn: i1, %pc0: i32, %pc1: i32, %done0: i1, "
-          "%done1: i1, %result0: i64, %result1: i64):\n"
-          "      %not_turn = arith.xori %turn, %true : i1\n"
-          "      %not_done0 = arith.xori %done0, %true : i1\n"
-          "      %not_done1 = arith.xori %done1, %true : i1\n"
-          "      %prefer0 = arith.ori %not_turn, %done1 : i1\n"
-          "      %prefer1 = arith.ori %turn, %done0 : i1\n"
-          "      %run0 = arith.andi %not_done0, %prefer0 : i1\n"
-          "      %run1 = arith.andi %not_done1, %prefer1 : i1\n"
-          "      %pc0_increment = arith.addi %pc0, %pc_one : i32\n"
-          "      %pc1_increment = arith.addi %pc1, %pc_one : i32\n"
-          "      %next_pc0 = arith.select %run0, %pc0_increment, %pc0 : i32\n"
-          "      %next_pc1 = arith.select %run1, %pc1_increment, %pc1 : i32\n"
-          "      %at_end0 = arith.cmpi eq, %next_pc0, %pc_end0 : i32\n"
-          "      %at_end1 = arith.cmpi eq, %next_pc1, %pc_end1 : i32\n"
-          "      %complete0 = arith.andi %run0, %at_end0 : i1\n"
-          "      %complete1 = arith.andi %run1, %at_end1 : i1\n"
-          "      %next_done0 = arith.ori %done0, %complete0 : i1\n"
-          "      %next_done1 = arith.ori %done1, %complete1 : i1\n"
-          "      %next_result0 = scf.if %complete0 -> (i64) {\n"
-          "        %task_result0 = func.call @w_coop_fn_") ||
-      !append_size(artifact, capacity, &offset,
-                   selection->task_function_indices[0]) ||
-      !append_literal(artifact, capacity, &offset, "(") ||
-      !append_cooperative_task_arguments(
-          program, selection->task_call_indices[0], root_emitted, artifact,
-          capacity, &offset, false) ||
-      !append_literal(artifact, capacity, &offset, ") : (") ||
-      !append_cooperative_task_arguments(
-          program, selection->task_call_indices[0], root_emitted, artifact,
-          capacity, &offset, true) ||
-      !append_literal(
-          artifact, capacity, &offset,
-          ") -> i64\n"
-          "        scf.yield %task_result0 : i64\n"
-          "      } else {\n"
-          "        scf.yield %result0 : i64\n"
-          "      }\n"
-          "      %next_result1 = scf.if %complete1 -> (i64) {\n"
-          "        %task_result1 = func.call @w_coop_fn_") ||
-      !append_size(artifact, capacity, &offset,
-                   selection->task_function_indices[1]) ||
-      !append_literal(artifact, capacity, &offset, "(") ||
-      !append_cooperative_task_arguments(
-          program, selection->task_call_indices[1], root_emitted, artifact,
-          capacity, &offset, false) ||
-      !append_literal(artifact, capacity, &offset, ") : (") ||
-      !append_cooperative_task_arguments(
-          program, selection->task_call_indices[1], root_emitted, artifact,
-          capacity, &offset, true) ||
-      !append_literal(
-          artifact, capacity, &offset,
-          ") -> i64\n"
-          "        scf.yield %task_result1 : i64\n"
-          "      } else {\n"
-          "        scf.yield %result1 : i64\n"
-          "      }\n"
-          "      %next_turn = arith.select %run0, %true, %false : i1\n"
-          "      scf.yield %next_turn, %next_pc0, %next_pc1, %next_done0, "
-          "%next_done1, %next_result0, %next_result1 : i1, i32, i32, i1, "
-          "i1, i64, i64\n"
-          "    }\n"
-          "    %result = arith.addi %final_result0, %final_result1 : i64\n"
-          "    return %result : i64\n"
-          "  }\n"))
+                      " : i32\n"
+                      "    %pc_zero = arith.constant 0 : i32\n"
+                      "    %pc_one = arith.constant 1 : i32\n"
+                      "    %result_zero = arith.constant 0 : i64\n"
+                      "    %false = arith.constant false\n"
+                      "    %true = arith.constant true\n"))
+    return false;
+  for (size_t task = 0u; task < task_count; task += 1u) {
+    if (!append_literal(artifact, capacity, &offset, "    %turn_slot") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, " = arith.constant ") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, " : i32\n    %pc_end") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, " = arith.constant ") ||
+        !append_size(artifact, capacity, &offset,
+                     selection->task_yield_counts[task] + 1u) ||
+        !append_literal(artifact, capacity, &offset, " : i32\n"))
+      return false;
+  }
+
+  if (!append_literal(artifact, capacity, &offset, "    %final_turn"))
+    return false;
+  for (size_t task = 0u; task < task_count; task += 1u)
+    if (!append_literal(artifact, capacity, &offset, ", %final_pc") ||
+        !append_size(artifact, capacity, &offset, task))
+      return false;
+  for (size_t task = 0u; task < task_count; task += 1u)
+    if (!append_literal(artifact, capacity, &offset, ", %final_done") ||
+        !append_size(artifact, capacity, &offset, task))
+      return false;
+  for (size_t task = 0u; task < task_count; task += 1u)
+    if (!append_literal(artifact, capacity, &offset, ", %final_result") ||
+        !append_size(artifact, capacity, &offset, task))
+      return false;
+  if (!append_literal(artifact, capacity, &offset,
+                      " = scf.while\n"
+                      "          (%turn = %turn_zero"))
+    return false;
+  for (size_t task = 0u; task < task_count; task += 1u)
+    if (!append_literal(artifact, capacity, &offset, ", %pc") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, " = %pc_zero"))
+      return false;
+  for (size_t task = 0u; task < task_count; task += 1u)
+    if (!append_literal(artifact, capacity, &offset, ", %done") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, " = %false"))
+      return false;
+  for (size_t task = 0u; task < task_count; task += 1u)
+    if (!append_literal(artifact, capacity, &offset, ", %result") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, " = %result_zero"))
+      return false;
+  if (!append_literal(artifact, capacity, &offset, ") : (") ||
+      !append_cooperative_state_types(artifact, capacity, &offset, task_count) ||
+      !append_literal(artifact, capacity, &offset, ") -> (") ||
+      !append_cooperative_state_types(artifact, capacity, &offset, task_count) ||
+      !append_literal(artifact, capacity, &offset, ") {\n"
+                      "      %all_done0 = arith.ori %done0, %false : i1\n"))
+    return false;
+  for (size_t task = 1u; task < task_count; task += 1u)
+    if (!append_literal(artifact, capacity, &offset, "      %all_done") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, " = arith.andi %all_done") ||
+        !append_size(artifact, capacity, &offset, task - 1u) ||
+        !append_literal(artifact, capacity, &offset, ", %done") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, " : i1\n"))
+      return false;
+  if (!append_literal(artifact, capacity, &offset,
+                      "      %more = arith.xori %all_done") ||
+      !append_size(artifact, capacity, &offset, task_count - 1u) ||
+      !append_literal(artifact, capacity, &offset, ", %true : i1\n"
+                      "      scf.condition(%more) %turn"))
+    return false;
+  for (size_t task = 0u; task < task_count; task += 1u)
+    if (!append_literal(artifact, capacity, &offset, ", %pc") ||
+        !append_size(artifact, capacity, &offset, task))
+      return false;
+  for (size_t task = 0u; task < task_count; task += 1u)
+    if (!append_literal(artifact, capacity, &offset, ", %done") ||
+        !append_size(artifact, capacity, &offset, task))
+      return false;
+  for (size_t task = 0u; task < task_count; task += 1u)
+    if (!append_literal(artifact, capacity, &offset, ", %result") ||
+        !append_size(artifact, capacity, &offset, task))
+      return false;
+  if (!append_literal(artifact, capacity, &offset, " : ") ||
+      !append_cooperative_state_types(artifact, capacity, &offset, task_count) ||
+      !append_literal(artifact, capacity, &offset,
+                      "\n    } do {\n    ^bb0(%turn: i32"))
+    return false;
+  for (size_t task = 0u; task < task_count; task += 1u)
+    if (!append_literal(artifact, capacity, &offset, ", %pc") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, ": i32"))
+      return false;
+  for (size_t task = 0u; task < task_count; task += 1u)
+    if (!append_literal(artifact, capacity, &offset, ", %done") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, ": i1"))
+      return false;
+  for (size_t task = 0u; task < task_count; task += 1u)
+    if (!append_literal(artifact, capacity, &offset, ", %result") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, ": i64"))
+      return false;
+  if (!append_literal(artifact, capacity, &offset, "):\n")) return false;
+
+  for (size_t task = 0u; task < task_count; task += 1u) {
+    if (!append_literal(artifact, capacity, &offset, "      %not_done") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, " = arith.xori %done") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, ", %true : i1\n"
+                        "      %is_turn") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset,
+                        " = arith.cmpi eq, %turn, %turn_slot") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, " : i32\n"
+                        "      %run") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, " = arith.andi %not_done") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, ", %is_turn") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, " : i1\n"
+                        "      %pc") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset,
+                        "_increment = arith.addi %pc") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, ", %pc_one : i32\n"
+                        "      %next_pc") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, " = arith.select %run") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, ", %pc") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, "_increment, %pc") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, " : i32\n"
+                        "      %at_end") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, " = arith.cmpi eq, %next_pc") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, ", %pc_end") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, " : i32\n"
+                        "      %complete") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset,
+                        " = arith.andi %run") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, ", %at_end") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, " : i1\n"
+                        "      %next_done") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, " = arith.ori %done") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, ", %complete") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, " : i1\n"))
+      return false;
+  }
+  for (size_t task = 0u; task < task_count; task += 1u) {
+    if (!append_literal(artifact, capacity, &offset, "      %next_result") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, " = scf.if %complete") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset,
+                        " -> (i64) {\n        %task_result") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, " = func.call @w_coop_fn_") ||
+        !append_size(artifact, capacity, &offset,
+                     selection->task_function_indices[task]) ||
+        !append_literal(artifact, capacity, &offset, "(") ||
+        !append_cooperative_task_arguments(
+            program, selection->task_call_indices[task], root_emitted, artifact,
+            capacity, &offset, false) ||
+        !append_literal(artifact, capacity, &offset, ") : (") ||
+        !append_cooperative_task_arguments(
+            program, selection->task_call_indices[task], root_emitted, artifact,
+            capacity, &offset, true) ||
+        !append_literal(artifact, capacity, &offset,
+                        ") -> i64\n        scf.yield %task_result") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset,
+                        " : i64\n      } else {\n"
+                        "        scf.yield %result") ||
+        !append_size(artifact, capacity, &offset, task) ||
+        !append_literal(artifact, capacity, &offset, " : i64\n      }\n"))
+      return false;
+  }
+  if (!append_literal(artifact, capacity, &offset,
+                      "      %turn_increment = arith.addi %turn, %turn_one : i32\n"
+                      "      %turn_wrap = arith.cmpi eq, %turn_increment, %turn_limit : i32\n"
+                      "      %next_turn = arith.select %turn_wrap, %turn_zero, %turn_increment : i32\n"
+                      "      scf.yield %next_turn"))
+    return false;
+  for (size_t task = 0u; task < task_count; task += 1u)
+    if (!append_literal(artifact, capacity, &offset, ", %next_pc") ||
+        !append_size(artifact, capacity, &offset, task))
+      return false;
+  for (size_t task = 0u; task < task_count; task += 1u)
+    if (!append_literal(artifact, capacity, &offset, ", %next_done") ||
+        !append_size(artifact, capacity, &offset, task))
+      return false;
+  for (size_t task = 0u; task < task_count; task += 1u)
+    if (!append_literal(artifact, capacity, &offset, ", %next_result") ||
+        !append_size(artifact, capacity, &offset, task))
+      return false;
+  if (!append_literal(artifact, capacity, &offset, " : ") ||
+      !append_cooperative_state_types(artifact, capacity, &offset, task_count) ||
+      !append_literal(artifact, capacity, &offset, "\n    }\n"))
+    return false;
+
+  if (task_count == 1u) {
+    if (!append_literal(artifact, capacity, &offset,
+                        "    %result = arith.addi %final_result0, %result_zero : i64\n"))
+      return false;
+  } else {
+    if (!append_literal(artifact, capacity, &offset,
+                        "    %result_fold0 = arith.addi %final_result0, %final_result1 : i64\n"))
+      return false;
+    for (size_t task = 2u; task < task_count; task += 1u)
+      if (!append_literal(artifact, capacity, &offset, "    %result_fold") ||
+          !append_size(artifact, capacity, &offset, task - 1u) ||
+          !append_literal(artifact, capacity, &offset, " = arith.addi %result_fold") ||
+          !append_size(artifact, capacity, &offset, task - 2u) ||
+          !append_literal(artifact, capacity, &offset, ", %final_result") ||
+          !append_size(artifact, capacity, &offset, task) ||
+          !append_literal(artifact, capacity, &offset, " : i64\n"))
+        return false;
+    if (!append_literal(artifact, capacity, &offset,
+                        "    %result = arith.addi %result_fold") ||
+        !append_size(artifact, capacity, &offset, task_count - 2u) ||
+        !append_literal(artifact, capacity, &offset,
+                        ", %result_zero : i64\n"))
+      return false;
+  }
+  if (!append_literal(artifact, capacity, &offset,
+                      "    return %result : i64\n  }\n"))
     return false;
   *target_offset = offset;
   return true;
+}
+
+static bool append_cooperative_core(
+    const w_seed_hir0_program *program,
+    const w_seed_cooperative_selection0 *selection, uint8_t *artifact,
+    size_t capacity, size_t *target_offset, int64_t *result_value) {
+  return append_cooperative_core_counted(program, selection, artifact, capacity,
+                                         target_offset, result_value);
 }
 
 static bool build_cooperative_artifact(
@@ -6482,11 +6681,40 @@ static bool cooperative_value_reads_binding(
          program->values[value_index].binding_index == binding_index;
 }
 
-/* The first process projection intentionally admits only output that can be
- * reconstructed from the target-neutral core result: arbitrary text actions
- * plus exactly one signed-i64 interpolation of the two joined outcomes.  The
- * text is copied from verified HIR; no expected Restaurant output is embedded
- * in the adapter. */
+static bool cooperative_collect_join_reads(
+    const w_seed_hir0_program *program,
+    const w_seed_cooperative_selection0 *selection, uint32_t value_index,
+    size_t *next_join_ordinal, size_t depth) {
+  if (program == NULL || selection == NULL || next_join_ordinal == NULL ||
+      value_index >= program->value_count ||
+      depth > W_SEED_HIR0_MAX_NESTING)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
+    if (value->binary_operator != W_SEED_HIR0_BINARY_ADD)
+      return false;
+    return cooperative_collect_join_reads(
+               program, selection, value->left_value, next_join_ordinal,
+               depth + 1u) &&
+           cooperative_collect_join_reads(
+               program, selection, value->right_value, next_join_ordinal,
+               depth + 1u);
+  }
+  if (value->kind != W_SEED_HIR0_VALUE_BINDING_READ) return false;
+  if (*next_join_ordinal >= selection->task_count ||
+      !cooperative_value_reads_binding(
+          program, value_index,
+          selection->join_binding_indices[*next_join_ordinal]))
+    return false;
+  *next_join_ordinal += 1u;
+  return true;
+}
+
+/* The first process projection admits only output that can be reconstructed
+ * from the target-neutral core result: arbitrary text actions plus exactly
+ * one signed-i64 interpolation whose additive leaves map one-to-one to the
+ * lexical joins. The text is copied from verified HIR; no expected workload
+ * output is embedded in the adapter. */
 static bool build_cooperative_output_plan(
     const w_seed_hir0_program *program,
     const w_seed_hir0_result *hir_result,
@@ -6497,23 +6725,21 @@ static bool build_cooperative_output_plan(
       !build_program_plan(program, hir_result, plan, false, false))
     return false;
   size_t result_actions = 0u;
+  size_t join_reads = 0u;
   for (size_t index = 0u; index < plan->action_count; index += 1u) {
     const mlir0_dynamic_action *action = &plan->actions[index];
     if (action->kind == MLIR0_DYNAMIC_TEXT) continue;
     if (action->kind != MLIR0_DYNAMIC_I64 ||
         action->value_index >= program->value_count)
       return false;
-    const w_seed_hir0_value *value = &program->values[action->value_index];
-    if (value->kind != W_SEED_HIR0_VALUE_BINARY_I64 ||
-        value->binary_operator != W_SEED_HIR0_BINARY_ADD ||
-        !cooperative_value_reads_binding(
-            program, value->left_value, selection->join_binding_indices[0]) ||
-        !cooperative_value_reads_binding(
-            program, value->right_value, selection->join_binding_indices[1]))
+    if (!cooperative_collect_join_reads(
+            program, selection, action->value_index, &join_reads,
+            0u))
       return false;
     result_actions += 1u;
   }
-  return result_actions == 1u && plan->text_bytes <= MLIR0_MAX_STDOUT_BYTES &&
+  return result_actions == 1u && join_reads == selection->task_count &&
+         plan->text_bytes <= MLIR0_MAX_STDOUT_BYTES &&
          plan->text_bytes <= MLIR0_MAX_STDOUT_BYTES - 20u;
 }
 

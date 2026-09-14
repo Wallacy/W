@@ -311,7 +311,8 @@ request may select one target, while CI/release fan-out can emit every supported
 target from the same core; host, emitted-target, and evidence matrices remain
 independent.
 
-W-1586 adds the bounded source-selected `spawn<.main>` product path.
+W-1586 adds the bounded exact-two source-selected `spawn<.main>` product
+path; W-1587 is its current bounded cardinality successor.
 Frontend25 and HIR35 preserve a distinct main-domain dispatch relation, and
 Native0 selects the physical state machine only from verified HIR. Run
 `bun tooling/check-cooperative-mlir0.mjs` for Windows and Windows-host Linux
@@ -330,6 +331,31 @@ The WSL environment receipt uses the stable Windows-host physical-memory total
 for host partitioning rather than WSL's dynamically provisioned `MemTotal`.
 Current evidence cannot narrow required
 emission or release fanout for macOS or another applicable target.
+
+W-1587 extends the physical seed `spawn<.main>` path from the W-1586 exact-two
+witness to one through four ordered sibling launches. HIR0 is
+`w-seed-hir0-36`, selection is the reserved caller-owned
+`w-seed-cooperative-selection0-2`, and four is a seed caller-owned array
+ceiling rather than a language, runtime, scheduler, or ABI bound. The
+Cooperative0 trace oracle remains exact-two. NativeSubset0 rederives and
+zeroes the selected record; MLIR0 schemas
+`w-seed-mlir0-cooperative-2`/`w-seed-mlir0-cooperative-executable-2` emit the
+count-driven serial FIFO core and target leaves, starting at ordinal zero and
+wrapping at the selected count. Joined signed-`i64` outcomes are folded in
+lexical order with one verified leaf per join.
+
+Focused k=1/k=3/k=4 cases complement k=2 with exact
+`Dispatched 20\n`/`Dispatched 66\n`/`Dispatched 92\n`; the lower-level
+external gate samples k=1 and k=4 endpoints, while the C product path covers
+k=1 through k=4. Separately, executable workload
+`restaurant-main-cardinality` owns the public k=4 `w run`/`w build` evidence on
+Windows and on the Linux target through WSL2. k=5, reordered or orphan joins,
+mixed launch kinds, and no-route sources fail closed. The primary
+`benchmarkDisposition` remains `compiler-lifecycle`; the executable catalog
+separately owns exploratory public W measurement, with C23 and Rust blocked
+until equivalent serial-main-domain baselines exist. This bounded seed evidence
+makes no general runtime, scheduler, parallelism, cancellation, stable ABI,
+target-adapter, benchmark-ranking, or performance claim. No syntax changes.
 
 ACQ0 executa CHK6 em
 storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou

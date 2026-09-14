@@ -1808,7 +1808,7 @@ to build any supported target. W-1586 owns the first bounded public product
 selection. Other target WRT/adapters, stable ABI, runtime/scheduler providers,
 parallel overlap, cancellation, and ranked benchmark evidence remain gaps.
 
-### Main-domain product dispatch (W-1586)
+### Main-domain product dispatch (W-1586 historical exact-two witness; W-1587 current bounded successor)
 
 Frontend25 records `spawn<.main>` separately from ordinary `async`. HIR35
 lowers the admitted pair to `STRUCTURED_ASYNC_MAIN_DISPATCH` with the
@@ -1847,6 +1847,38 @@ Current target leaves are evidence only. Every requested applicable target
 must receive an artifact, and release fanout must attempt every supported
 applicable target. macOS and other viable targets remain open even without a
 local execution machine.
+
+### Main-domain task cardinality (W-1587)
+
+W-1587 extends the physical seed `spawn<.main>` product from the W-1586
+exact-two witness to one through four ordered sibling launches in one linear
+root. HIR0 uses `w-seed-hir0-36`; the reserved caller-owned selection record is
+`w-seed-cooperative-selection0-2`. Four is a fixed caller-owned seed array
+ceiling, not a language semantic, runtime, scheduler, or ABI bound. The
+Cooperative0 compiler-host trace oracle remains exact-two.
+
+NativeSubset0 independently rederives the count from verified HIR, preserves
+lexical order, and zeroes unused selection slots. MLIR0 uses
+`w-seed-mlir0-cooperative-2` and
+`w-seed-mlir0-cooperative-executable-2`; its serial FIFO state machine starts
+at ordinal zero, wraps at the selected count, and left-folds signed-`i64`
+outcomes in lexical join order. The target-neutral core remains free of target,
+process, OS, runtime, scheduler-provider, and ABI facts.
+
+Focused k=1, k=3, and k=4 checks complement the retained k=2 source witness and
+produce exact `Dispatched 20\n`, `Dispatched 66\n`, and `Dispatched 92\n`.
+The lower-level external gate samples k=1 and k=4 endpoints, while the C
+product path covers k=1 through k=4. Separately, executable workload
+`restaurant-main-cardinality` owns the public k=4 fixture and exact `w run`/
+`w build` evidence on Windows and on the Linux target through WSL2. k=5,
+reordered or orphan/duplicate joins, mixed launch kinds, and a source without a
+main-dispatch route fail closed before output publication. The primary
+`benchmarkDisposition` remains `compiler-lifecycle`; the executable catalog
+separately owns exploratory public W measurement, with C23 and Rust blocked
+until equivalent serial-main-domain baselines exist. This bounded correctness
+evidence makes no general runtime, parallelism, scheduler, cancellation, stable
+ABI, target-adapter, benchmark-ranking, or performance claim, and it changes no
+W syntax.
 
 ### Closed local payloadless enum exhaustive switch (W-1563)
 

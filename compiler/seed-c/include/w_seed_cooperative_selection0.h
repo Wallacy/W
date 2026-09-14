@@ -10,13 +10,13 @@ extern "C" {
 #endif
 
 /* This is a target-neutral, caller-owned selection proof shared by the
- * NativeSubset0/MLIR0 boundary.  M1 intentionally admits a narrower
- * one-block product-selection subset than the full HIR35 envelope: exactly
- * two scalar async children and their reachable scalar helpers.  It carries
- * only copied HIR indices and proof facts; it is not a frame,
- * scheduler, or runtime ABI. */
+ * NativeSubset0/MLIR0 boundary. M1 admits a narrower one-block
+ * product-selection subset than the full HIR35 envelope: one through the
+ * bounded physical `.main` task ceiling, while the historical trace oracle
+ * remains exact-two. It carries only copied HIR indices and proof facts; it
+ * is not a frame, scheduler, or runtime ABI. */
 #define W_SEED_COOPERATIVE_SELECTION0_SCHEMA_VERSION \
-  "w-seed-cooperative-selection0-1"
+  "w-seed-cooperative-selection0-2"
 #define W_SEED_COOPERATIVE_SELECTION0_MAX_TASKS \
   W_SEED_HIR0_COOPERATIVE_MAX_TASKS
 

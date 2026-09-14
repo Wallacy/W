@@ -237,6 +237,7 @@ O corpus compara, no mínimo:
 - bounded Cooperative0 product selection and scalar state-machine core against reuse of host-oracle state, general scheduler claims, and target-specific IR.
 - bounded cooperative process projection and all-applicable-target coverage against hardcoded output, evidence-local architecture, and false cross-compilation claims.
 - bounded source-selected main-domain dispatch against pure-async elision, source-name heuristics, and evidence-limited target coverage.
+- bounded main-domain task cardinality against the exact-two product ceiling, a widened runtime claim, and non-lexical result folding.
 
 ### 1.1 Cobertura de substituições
 
@@ -7890,6 +7891,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1584 | target-neutral cooperative product selection and scalar state-machine core | W-1584 defines a target-neutral M1 selection boundary with versioned reserved schema `w-seed-cooperative-selection0-1` and caller-owned proof records. NativeSubset0 independently rederives a deliberately narrower one-block product-selection subset from verified HIR35: one fixed anonymous Unit root in one module, exactly two ordered scalar async children with one or two `execution#yield()` markers each, a complete reachable helper graph of at most 64 functions, and zero or more post-join `print` calls. The proof carries copied HIR indices and facts only and is not a frame, scheduler, runtime, or ABI record. MLIR0 reverifies the proof and emits schema `w-seed-mlir0-cooperative-1`, a target-neutral `func`/`arith`/`scf` scalar state machine with two logical frames, explicit PCs, completion states, outcomes, and no target, OS, ABI, runtime, or artifact-format facts. Normal W-1582 elision and the COOP0 compiler-host oracle remain unchanged. W-1584 itself makes no process projection, public artifact execution, product runtime, scheduler ABI, benchmark, or platform-support claim; W-1585 owns the separate bounded projections. | `source-backed-current` for the target-neutral selection boundary, its versioned caller-owned proof record, NativeSubset0's independent rederivation from verified HIR35, and the bounded transactional scalar MLIR state-machine core accepted by MLIR 23.1.1. Process/target projection belongs to W-1585. Public artifact execution, runtime and scheduler ABI, benchmark, and platform support remain outside W-1584. Windows/Linux evidence cannot restrict macOS or other viable LLVM targets. |
 | W-1585 | bounded cooperative process projections and target-coverage rule | The distinct `w-seed-mlir0-cooperative-executable-1` artifact reuses the independently verified W-1584 core and derives an ordered output plan from verified HIR rather than hardcoding Restaurant stdout. The bounded plan permits static UTF-8 fragments and exactly one signed-`i64` interpolation of the two joined outcomes. Windows x86_64 emits a CRT-free `mainCRTStartup`/Kernel32 PE; Linux x86_64 emits the same core through a `main`/`write` leaf. LLVM 23.1.1 on the Windows compiler host lowers both leaves, compiles the Linux leaf and shared WRT0 into separate objects, and uses `ld.lld` to produce a stripped static PIE without `PT_INTERP` or `DT_NEEDED`; WSL only executes that ELF. The 3072-byte PE and Linux ELF both exit zero with exact `Cooperative 88\n`. This proves the bounded Windows-to-Linux CRT-free edge, not general sysroot/SDK packaging or every host-target edge. Feature coverage defaults to all applicable catalog targets; unavailable local evidence never makes a target inapplicable, and an exclusion requires an explicit rationale and catalog record. Release fanout covers every supported applicable target and the cross-compilation goal is any supported host to any supported target. | `source-backed-current` only for the bounded transactional Windows/Linux projection emitter, exact target-specific IR, Windows CRT-free PE execution, Windows-host CRT-free Linux link plus target execution, shared WRT0 bytes, and the machine-checked coverage policy. W-1586 owns the later bounded public main-domain promotion. General public cooperative routing, macOS/other adapters, general cross-compilation, scheduler ABI, parallel overlap, cancellation, stable ABI, ranking, and target support remain gaps. |
 | W-1586 | bounded non-elidable main-domain dispatch | Frontend25 distinguishes `spawn<.main>` from ordinary `async`; HIR35 carries `STRUCTURED_ASYNC_MAIN_DISPATCH` under `MAIN_SERIAL`. The admitted source has exactly two uniform sibling launches, one or two yields per scalar child, lexical joins, and the W-1585 output plan. `.main` serial FIFO semantics forbid direct-call elision. Native0 selects the physical state machine only from verified HIR. Public Windows `w run`/`w build`, public Windows-host Linux cross-build, and the dual-target product gate execute exact `Dispatched 88\n` with CRT-free Windows and Linux products. Current evidence remains independent from all-applicable-target emission and release fanout. | `source-backed-current` only for the bounded frontend25/HIR35 relation, independent fail-closed verification, verified-HIR product selection, public Windows execution, public Windows-host Linux cross-build plus WSL2 execution, source/oracle catalog registration, and exploratory per-platform W measurements. Native-Linux-host CLI evidence remains blocked by its absent materialized Linux MLIR 23.1.1 toolchain. General Task counts, nested scopes, cancellation, parallel domains, scheduler providers, stable ABI, general cross-compilation, other target adapters, equivalent C23/Rust baselines, and ranked performance remain gaps. |
+| W-1587 | bounded main-domain task cardinality | HIR0 schema `w-seed-hir0-36` and reserved caller-owned selection schema `w-seed-cooperative-selection0-2` extend the physical `spawn<.main>` product cut from exactly two to one through four ordered sibling launches in one linear root. The value four is a seed caller-owned array ceiling, not a language semantic, runtime, or ABI bound. NativeSubset0 independently rederives the count and zeroes unused selection slots. MLIR0 schema `w-seed-mlir0-cooperative-2` and executable schema `w-seed-mlir0-cooperative-executable-2` emit a count-driven serial FIFO state machine that starts at launch ordinal zero, wraps at the selected count, and folds signed-`i64` outcomes in lexical join order. The bounded output plan proves one additive interpolation with one leaf per lexical join. The exact-two Cooperative0 compiler-host trace oracle remains unchanged. Focused k=1, k=3, and k=4 sources complement the existing k=2 witness; the lower-level external gate samples k=1 and k=4 endpoints, while the C product path covers k=1 through k=4. The executable workload `restaurant-main-cardinality` separately owns the public k=4 fixture and exact `w run`/`w build` output `Dispatched 92\n` on Windows and the Linux target through WSL2. k=5, reordered or orphan joins, mixed launch kinds, and a source without a main-dispatch route fail closed. This is bounded seed correctness evidence with primary `benchmarkDisposition: compiler-lifecycle`; the executable catalog separately owns exploratory public W measurement, while C23 and Rust remain blocked until equivalent serial-main-domain baselines exist. No general runtime, scheduler, parallelism, stable ABI, benchmark-ranking, or performance claim is made. | `source-backed-current` only for the HIR36 and selection-v2 cardinality proof, the count-driven target-neutral and target-specific MLIR emitters, the focused k=1/k=3/k=4 source cases plus the existing k=2 witness, the lower-level k=1/k=4 endpoint samples and C k=1..4 coverage, the public Windows and Linux/WSL k=4 source route, and the fail-closed k=5/order/orphan/mixed/no-route barriers. The four-task value is a seed caller-owned ceiling, not a language or ABI rule. Cooperative0 remains exact-two. Native runtime generality, scheduler providers, parallel execution, cancellation, stable ABI, other target adapters, and cross-language benchmark ranking remain gaps. `benchmarkDisposition: compiler-lifecycle`; the executable catalog separately owns exploratory measurement and C23/Rust remain blocked pending equivalent serial-main-domain baselines. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -12208,7 +12210,7 @@ General public cooperative routing, stable ABI, general cross-compilation,
 scheduler providers, overlap, cancellation, target support, and ranking remain
 future evidence.
 
-#### W-1586 — bounded non-elidable main-domain dispatch
+#### W-1586 — bounded non-elidable main-domain dispatch (Historical exact-two witness; W-1587 current bounded successor)
 
 W-1586 uses `spawn<.main>` as the first product case that cannot use the
 W-1582 immediate-resume optimization. The child bodies remain pure scalar
@@ -12249,3 +12251,44 @@ Windows and Linux evidence cannot remove macOS or another applicable target.
 Every requested applicable target must receive an artifact. Release fanout
 must attempt every supported applicable target. Target-specific startup may
 differ, but it must consume the same verified semantic core.
+
+#### W-1587 — bounded main-domain task cardinality
+
+W-1587 advances only the physical seed product boundary established by W-1586.
+HIR0 schema `w-seed-hir0-36` and reserved caller-owned selection schema
+`w-seed-cooperative-selection0-2` admit one through four ordered sibling
+`spawn<.main>` launches in one linear root. Four is a fixed caller-owned seed
+array ceiling, not a W language semantic, runtime, scheduler, or ABI bound.
+The exact-two Cooperative0 compiler-host trace oracle remains unchanged; its
+`COOPERATIVE_TRACE` profile still requires two tasks.
+
+NativeSubset0 independently rederives the positive physical count from
+verified HIR, keeps lexical launch/join order, and zeroes unused selection
+slots. MLIR0 schema `w-seed-mlir0-cooperative-2` and executable schema
+`w-seed-mlir0-cooperative-executable-2` scale the same target-neutral core and
+current target leaves. Their serial FIFO state machine starts at launch ordinal
+zero, advances and wraps at the selected count, and folds signed-`i64` outcomes
+in lexical join order. The verified output plan has one additive interpolation
+with one leaf per lexical join; it is not a source-text or join-position
+heuristic. The target-neutral core carries no target, process, OS, runtime,
+scheduler-provider, or ABI fact.
+
+Focused k=1, k=3, and k=4 source cases complement the retained k=2 witness.
+They produce `Dispatched 20\n`, `Dispatched 66\n`, and `Dispatched 92\n`.
+The lower-level external gate samples k=1 and k=4 endpoints, while the C
+product path covers every cardinality from k=1 through k=4. Separately, the
+executable workload `restaurant-main-cardinality` owns the public k=4 fixture
+and exact `w run`/`w build` evidence on Windows and on the Linux target through
+WSL2. HIR, selection, and output-plan checks reject k=5, reordered or
+orphan/duplicate joins, mixed launch kinds, and a source without a main-domain
+route before publication. These are seed fail-closed implementation barriers,
+not permanent language restrictions.
+
+The primary `benchmarkDisposition` remains `compiler-lifecycle`; the
+executable catalog separately owns exploratory public W measurement. C23 and
+Rust remain blocked until equivalent serial-main-domain baselines exist, so no
+cross-language benchmark ranking is claimed. This bounded seed evidence makes
+no general runtime, scheduler, parallelism, cancellation, stable ABI,
+target-adapter, or performance claim. Windows and Linux remain evidence lanes
+only; target coverage and release fanout remain governed independently, and no
+W syntax or grammar surface changes.

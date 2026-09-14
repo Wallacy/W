@@ -3987,10 +3987,10 @@ static bool cooperative_selection_derive(
     return false;
 
   uint32_t physical_calls[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {
-      W_SEED_HIR0_NONE, W_SEED_HIR0_NONE};
+      W_SEED_HIR0_NONE};
   uint32_t task_functions[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {
-      W_SEED_HIR0_NONE, W_SEED_HIR0_NONE};
-  uint32_t task_yields[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {0u, 0u};
+      W_SEED_HIR0_NONE};
+  uint32_t task_yields[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {0u};
   uint8_t state[W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS] = {0u};
   bool reachable[W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS] = {false};
   reachable[root_index] = true;
@@ -4030,12 +4030,17 @@ static bool cooperative_selection_derive(
     task_functions[physical_count] = identity->target_index;
     physical_count += 1u;
   }
-  if (physical_count != W_SEED_HIR0_COOPERATIVE_MAX_TASKS) return false;
+  if (physical_count == 0u) return false;
+  const size_t required_tasks =
+      physical_kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH
+          ? physical_count
+          : W_SEED_HIR0_COOPERATIVE_ORACLE_MAX_TASKS;
+  if (physical_count != required_tasks) return false;
 
   uint32_t launch_bindings[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {
-      W_SEED_HIR0_NONE, W_SEED_HIR0_NONE};
+      W_SEED_HIR0_NONE};
   uint32_t join_bindings[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {
-      W_SEED_HIR0_NONE, W_SEED_HIR0_NONE};
+      W_SEED_HIR0_NONE};
   size_t physical_seen = 0u;
   size_t launch_count = 0u;
   size_t join_count = 0u;
@@ -4054,11 +4059,12 @@ static bool cooperative_selection_derive(
           binding->owner_block != root->first_block)
         return false;
       if (binding->task_role == W_SEED_HIR0_TASK_ROLE_LAUNCH) {
-        if (join_count != 0u || launch_count >= 2u) return false;
+        if (join_count != 0u || launch_count >= required_tasks) return false;
         launch_bindings[launch_count] = instruction->binding_index;
         launch_count += 1u;
       } else if (binding->task_role == W_SEED_HIR0_TASK_ROLE_AWAIT_RESULT) {
-        if (launch_count != 2u || join_count >= 2u) return false;
+        if (launch_count != required_tasks || join_count >= required_tasks)
+          return false;
         join_bindings[join_count] = instruction->binding_index;
         join_count += 1u;
       } else {
@@ -4072,7 +4078,8 @@ static bool cooperative_selection_derive(
               W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE ||
           call->execution_kind ==
               W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH) {
-        if (physical_seen >= 2u || instruction->call_index != physical_calls[physical_seen] ||
+        if (physical_seen >= required_tasks ||
+            instruction->call_index != physical_calls[physical_seen] ||
             ordinal + 1u >= root_instruction_count)
           return false;
         const w_seed_hir0_instruction *binding_instruction =
@@ -4084,16 +4091,18 @@ static bool cooperative_selection_derive(
           return false;
         physical_seen += 1u;
       } else if (!cooperative_selection_host_print(program, call) ||
-                 launch_count != 2u || join_count != 2u) {
+                 launch_count != required_tasks ||
+                 join_count != required_tasks) {
         return false;
       }
     } else {
       return false;
     }
   }
-  if (physical_seen != 2u || launch_count != 2u || join_count != 2u)
+  if (physical_seen != required_tasks || launch_count != required_tasks ||
+      join_count != required_tasks)
     return false;
-  for (size_t task = 0u; task < 2u; task += 1u) {
+  for (size_t task = 0u; task < required_tasks; task += 1u) {
     const w_seed_hir0_binding *launch = &program->bindings[launch_bindings[task]];
     const w_seed_hir0_binding *join = &program->bindings[join_bindings[task]];
     const w_seed_hir0_call *call = &program->calls[physical_calls[task]];
@@ -4111,22 +4120,20 @@ static bool cooperative_selection_derive(
                W_SEED_COOPERATIVE_SELECTION0_SCHEMA_VERSION,
                sizeof(selection->schema));
   selection->root_function_index = root_index;
-  selection->task_count = W_SEED_HIR0_COOPERATIVE_MAX_TASKS;
+  selection->task_count = (uint32_t)required_tasks;
   selection->function_count = (uint32_t)program->function_count;
   selection->instruction_count = (uint32_t)program->instruction_count;
   selection->binding_count = (uint32_t)program->binding_count;
   selection->call_count = (uint32_t)program->call_count;
-  selection->task_call_indices[0] = physical_calls[0];
-  selection->task_call_indices[1] = physical_calls[1];
-  selection->task_function_indices[0] = task_functions[0];
-  selection->task_function_indices[1] = task_functions[1];
-  selection->launch_binding_indices[0] = launch_bindings[0];
-  selection->launch_binding_indices[1] = launch_bindings[1];
-  selection->join_binding_indices[0] = join_bindings[0];
-  selection->join_binding_indices[1] = join_bindings[1];
-  selection->task_yield_counts[0] = task_yields[0];
-  selection->task_yield_counts[1] = task_yields[1];
-  selection->yield_count = task_yields[0] + task_yields[1];
+  selection->yield_count = 0u;
+  for (size_t task = 0u; task < required_tasks; task += 1u) {
+    selection->task_call_indices[task] = physical_calls[task];
+    selection->task_function_indices[task] = task_functions[task];
+    selection->launch_binding_indices[task] = launch_bindings[task];
+    selection->join_binding_indices[task] = join_bindings[task];
+    selection->task_yield_counts[task] = task_yields[task];
+    selection->yield_count += task_yields[task];
+  }
   selection->execution_profile =
       physical_kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH
           ? W_SEED_HIR0_EXECUTION_PROFILE_MAIN_SERIAL
