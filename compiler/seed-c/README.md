@@ -1921,10 +1921,38 @@ uses a local candidate and publishes only after every check, so failure leaves
 the caller-owned destination unchanged. Verification compares explicit fields
 rather than implicit C padding.
 
-Provider capacity is not a field in PARSEL0. The same semantic selection must
-later run under capacities one and two. This boundary has no provider, MLIR,
-thread, runtime task, public executable, overlap evidence, or benchmark result;
-its disposition is `compiler-lifecycle`.
+Provider capacity is not a field in PARSEL0. W-1590 now runs the same semantic
+selection under capacities one and two in a bounded Windows component. PARSEL0
+itself has no provider, MLIR, thread, runtime task, public executable, overlap
+evidence, or benchmark result; its disposition is `compiler-lifecycle`.
+
+### Bounded Windows parallel provider component (W-1590)
+
+`w_seed_parallel_provider0` is the first physical PARSEL0 consumer. It
+re-verifies HIR37 and the selection, validates an exact call/function mapping
+for signed-`i64` jobs, and executes one through four pure non-suspending jobs at
+provider capacity one or two. The implementation is fixed-storage and no-heap.
+Capacity two uses Windows x64 Kernel32 threads in waves of at most two; capacity
+one is the serial equivalence lane.
+
+The semantic outcome excludes provider kind and capacity and seals lexical
+function/value pairs with the HIR semantic digest. The physical receipt is a
+separate record containing capacity and maximum simultaneous active callbacks.
+The capacity-two test uses a two-party event rendezvous, so overlap is proved by
+two callbacks being active at once rather than by a wall-clock threshold. k=1,
+k=2, and k=4 exercise the provider; the k=2 witness proves overlap and exact
+semantic equality with capacity one.
+
+Both outputs publish only after complete success. Alias checks cover the input,
+jobs, selection, HIR descriptor/result, and all HIR backing ranges. Invalid
+capacity or mapping, task failure, provider failure, forged outcomes, and
+aliases leave outputs unchanged. Created Windows handles are joined and closed
+before publication.
+
+The callback is a private seed bridge, not an emitted W ABI. This host component
+does not prove CRT-free target linkage, Linux/WSL support, public commands,
+cancellation, a scheduler or worker pool, benchmark measurements, or
+performance. Those remain explicit implementation gaps.
 
 ### Closed local payloadless enum exhaustive switch (W-1563)
 

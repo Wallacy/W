@@ -40,6 +40,7 @@ correctness-scoped unless a source explicitly states otherwise.
 | Virtual structured execution | A closed scalar async child may remain a compiler-only Task relation across finite root `execution#yield()` points and a finite acyclic same-module graph of pure scalar helpers after verified proof. No scheduler or overlap is claimed. |
 | Parallel placement IR | Exact `spawn<.domain>` can cross Frontend26 into HIR37 only with caller-owned concurrent-plus-parallel domain evidence. The HIR owns and independently verifies identity, mode, capability, lexical joins, and a pure non-suspending scalar child graph. No parallel provider or execution is claimed yet. |
 | Parallel selection proof | PARSEL0 independently derives a fixed caller-owned one-to-four-task selection from verified HIR37, copies lexical launch/join and placement facts, rejects aliases and forged records, and deliberately contains no provider-capacity field. It is not execution evidence. |
+| Windows parallel provider | PARPROV0 consumes verified HIR37 plus PARSEL0 through a private scalar callback seam. Capacity one and two produce identical semantic outcomes; a deterministic rendezvous proves two simultaneously active Windows x64 callbacks without a timing threshold. This is component evidence, not a public W executable or CRT-free target artifact. |
 | Enum payloads | The current bounded slice supports Bool and signed i64 payloads, captures, constructor values, and exhaustive switches. It has no public payload ABI. |
 | Enum subsets | The bounded seed target admits proper nonempty payloadless subsets of local enums with base tags and no wrapper allocation; focused checks and native Windows plus Linux/WSL execution are current. |
 | Source entry | entry { ... } and entry(functionName) are accepted in the bounded surface. An empty entry { } is valid. |
@@ -64,10 +65,10 @@ or `ref` use implies a heap, header, address, or storage class.
 - The seed implements bounded slices, not the full W language or runtime.
 - General types, general control flow, async runtime behavior, and provider
   integration remain outside the current product boundary.
-- Parallel-domain placement and its independent PARSEL0 selection are
-  represented and verified, but public build and run remain fail-closed until
-  a real target provider proves capacity-one equivalence and capacity-two
-  overlap.
+- Parallel-domain placement, PARSEL0 selection, and a bounded Windows x64
+  provider component are represented and verified. Public build and run remain
+  fail-closed until MLIR emits the invocation bridge and Windows plus Linux
+  target artifacts prove the same route end to end.
 - COOP0 remains a compiler-host trace oracle. A separate bounded cooperative
   core now lowers to Windows/Linux process projections. The Windows host also
   compiles and CRT-free-links the bounded Linux product with the shared WRT0;

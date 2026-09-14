@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:7ce2e7efdc4aa91137d2cd2b0c5ba0855ac4f598e39fbe1ab2d394d32193415a",
+  "corpusDigest": "sha256:6caf85fc0d89cb4450b5ee29caa53b3394af87033c19789b132dd6fdfe97ba89",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -7788,6 +7788,78 @@
             "nonWhitespaceCodePoints": 35,
             "lines": 1,
             "surfaceLexemes": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-parallel-provider-component",
+      "task": {
+        "utf8Bytes": 124,
+        "codePoints": 124,
+        "nonWhitespaceCodePoints": 108,
+        "lines": 1,
+        "surfaceLexemes": 18
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w-internal",
+        "sourceDigest": "sha256:9760e8f35c00b2b1dd98804679afdf1a47a454ec21d7b3aad6a72460513dfca0",
+        "metrics": {
+          "utf8Bytes": 229,
+          "codePoints": 229,
+          "nonWhitespaceCodePoints": 210,
+          "lines": 4,
+          "surfaceLexemes": 44
+        }
+      },
+      "alternatives": [
+        {
+          "name": "capacity-in-semantic-identity",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:2253a1ef65a8e5f8af869cefb6c3b76a48d0accf6bb35cd5cd114ba6471d8b37",
+          "metrics": {
+            "utf8Bytes": 36,
+            "codePoints": 36,
+            "nonWhitespaceCodePoints": 36,
+            "lines": 1,
+            "surfaceLexemes": 8
+          }
+        },
+        {
+          "name": "timing-proves-overlap",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:2f5bf1ad596547ea00fa6dd7ca07e75c900350881aa7ae2cd4e9b10aa363d6a2",
+          "metrics": {
+            "utf8Bytes": 54,
+            "codePoints": 54,
+            "nonWhitespaceCodePoints": 48,
+            "lines": 1,
+            "surfaceLexemes": 15
+          }
+        },
+        {
+          "name": "publish-before-join",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:6686fb34ce2659cf0bea66e053b40fa8d94318dca075064d734d419768f9a6e1",
+          "metrics": {
+            "utf8Bytes": 35,
+            "codePoints": 35,
+            "nonWhitespaceCodePoints": 33,
+            "lines": 1,
+            "surfaceLexemes": 8
+          }
+        },
+        {
+          "name": "callback-is-public-runtime",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:ad99a1d6d9b638cc76affbd65bad5c64520b622dfc2b99b65181f2ab905ec3c7",
+          "metrics": {
+            "utf8Bytes": 51,
+            "codePoints": 51,
+            "nonWhitespaceCodePoints": 43,
+            "lines": 1,
+            "surfaceLexemes": 9
           }
         }
       ]

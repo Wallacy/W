@@ -30,6 +30,7 @@ add_library(w_seed_source STATIC
   include/w_seed_process0.h
   include/w_seed_cooperative_selection0.h
   include/w_seed_parallel_selection0.h
+  include/w_seed_parallel_provider0.h
   include/w_seed_wrt0.h
   include/w_seed_source_binding_linux.h
   src/w_seed_manifest.c
@@ -62,6 +63,8 @@ add_library(w_seed_source STATIC
   src/w_seed_generic_validation.c
   src/w_seed_native_subset0.c
   src/w_seed_parallel_selection0.c
+  src/w_seed_parallel_provider0.c
+  src/w_seed_parallel_provider0_windows.c
   src/w_seed_native0.c
   src/w_seed_cooperative0.c
   src/w_seed_hlo0.c
@@ -173,7 +176,7 @@ add_executable(w_seed_ephemeral_provider_windows_tests
 target_link_libraries(w_seed_ephemeral_provider_windows_tests PRIVATE w_seed_source)
 
 if(WIN32)
-  target_link_libraries(w_seed_source PUBLIC ntdll)
+  target_link_libraries(w_seed_source PUBLIC ntdll kernel32)
 endif()
 
 add_executable(w_seed_ephemeral_driver_tests
