@@ -7983,6 +7983,68 @@
         "no provider, runtime input, process entry, executable, benchmark, timing, or performance claim is introduced"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-parallel-emitted-adapter",
+      "reviewItem": "CRT-free emitted parallel-entry execution against compiler-host HIR evaluation, copied task logic, compile-time-only values, and premature public-runtime claims",
+      "decisions": ["W-1594"],
+      "task": "Execute runtime-dependent values through the emitted Windows parallel task symbols without a C or HIR-evaluator target path.",
+      "selected": {
+        "language": "w-internal",
+        "source": [
+          "pid = Kernel32.currentProcessId()",
+          "workers = PARLINK0.start([task0(pid), task1(pid, 2)])",
+          "assert join(workers) == [pid + 1, pid + 3]",
+          "assert imports == [Kernel32]"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "retain-hir-evaluator",
+          "language": "w-internal-rejected",
+          "source": ["worker evaluates selected HIR records at runtime"],
+          "expectedDifference": "The selected adapter calls only compiler-emitted native task symbols."
+        },
+        {
+          "name": "compile-c-task-copy",
+          "language": "w-internal-rejected",
+          "source": ["rewrite task arithmetic in a C worker callback"],
+          "expectedDifference": "The adapter contains no task implementation and links the W-generated object directly."
+        },
+        {
+          "name": "constant-only-proof",
+          "language": "w-internal-rejected",
+          "source": ["execute wrappers whose launch values were embedded by the compiler"],
+          "expectedDifference": "The process ID is obtained after launch and must flow through both task signatures."
+        },
+        {
+          "name": "publish-runtime-product",
+          "language": "w-internal-rejected",
+          "source": ["register the private adapter executable as public w run benchmark evidence"],
+          "expectedDifference": "The selected milestone remains compiler-lifecycle evidence until W process input and both target providers are connected."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/runtime/w_seed_parallel_entry_windows0.ll",
+          "symbol": "w-seed-parallel-link0-windows-1",
+          "claim": "The CRT-free adapter obtains a runtime value, calls emitted task symbols on Kernel32 workers, joins, closes, and checks relational outcomes."
+        },
+        {
+          "path": "tooling/check-parallel-mlir0.mjs",
+          "symbol": "emittedExecution",
+          "claim": "The pinned gate compiles and links the adapter with the emitted COFF object and requires silent successful execution."
+        }
+      ],
+      "checks": [
+        "the adapter obtains a value only after process launch",
+        "both workers call the compiler-generated task symbols",
+        "the relational oracle rejects baked launch values",
+        "all successful workers are joined and handles are closed",
+        "LLD uses nodefaultlib and explicit Kernel32 only",
+        "no C task copy, target HIR evaluator, public command, benchmark, timing, or performance claim is introduced"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

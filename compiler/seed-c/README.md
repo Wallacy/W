@@ -2005,6 +2005,22 @@ Task or runtime ABI. Provider binding, runtime process input, a standalone
 executable, scheduling, cancellation, CRT-free imports, measurements, and
 performance remain gaps.
 
+### CRT-free Windows emitted-entry adapter (W-1594)
+
+PARLINK0 compiles
+`runtime/w_seed_parallel_entry_windows0.ll` with the pinned LLVM 23.1.1
+`llc`, links it with the W-1593 task object through LLD `/nodefaultlib`, and
+imports only Kernel32. The adapter obtains a runtime process ID, invokes the
+one- and two-argument generated task symbols on native workers, joins and
+closes their handles, and requires the exact relational outcomes `pid + 1`
+and `pid + 3`. It contains no C output, CRT, HIR evaluator, external callback,
+or copied task body.
+
+The focused command remains `bun check --target parallel-mlir0`; its PE is
+temporary and silent. This is private Windows x64 compiler-lifecycle evidence,
+not W process input, public execution, Linux provider support, stable ABI,
+benchmark data, or a performance claim.
+
 ### Closed local payloadless enum exhaustive switch (W-1563)
 
 HIR21 (`w-seed-hir0-21`) adds one explicit `SWITCH_ENUM` terminator and dense

@@ -39,10 +39,11 @@ not in this queue.
 
 ## Current checkpoint
 
-W-1593 is complete: PARMLIR0 emits mixed-arity runtime-parameterized task
-entries, normalizes named calls to declaration order, retains only the
-transitive task-body closure, and produces valid Windows COFF and Linux PIC ELF
-objects with MLIR/LLVM 23.1.1. Rank 1 is the only active product increment.
+W-1594 is complete: PARLINK0 connects mixed-arity W-1593 entries to a private
+CRT-free Windows Kernel32 adapter and proves that runtime-dependent values run
+through emitted W code without a target HIR evaluator. Rank 2, a W process-root
+witness with equivalent Windows and Linux/WSL execution, is the next product
+increment.
 
 The current fixed task counts and worker capacities are seed evidence limits.
 They must not become language, public ABI, or final runtime limits.

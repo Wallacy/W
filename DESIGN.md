@@ -39701,6 +39701,27 @@ runtime ownership, CRT-free target import set, benchmark, timing, or
 performance. It is bounded `compiler-lifecycle` evidence and does not enter the
 executable catalog.
 
+#### 26.4.1.75 W-1594 — CRT-free Windows adapter to emitted parallel entries
+
+PARLINK0 links the W-1593 Windows COFF task object with a minimal authored LLVM
+adapter. The adapter imports only Kernel32 operations, obtains a process ID at
+runtime, passes that value to both generated task symbols, executes them on two
+native workers, joins and closes both handles, and checks the relational
+outcomes `pid + 1` and `pid + 3`. A baked-value wrapper cannot satisfy this
+oracle. The adapter defines `mainCRTStartup`, links with `/nodefaultlib`, and
+contains no C artifact, CRT, HIR evaluator, callback supplied by the test, or
+copied task implementation.
+
+This proves a bounded physical path from runtime values through native workers
+into code emitted from W HIR. It does not replace PARPROV0's separate overlap
+and capacity evidence. The PID is an adversarial runtime value source, not the
+W process-input contract. The adapter is target-specific internal WRT evidence;
+its task signature remains unstable. Linux/WSL provider linkage, a W-authored
+process root, public `w run`/`w build`, arbitrary task arity or count,
+cancellation, scheduling, stable ABI, benchmark measurements, and performance
+remain gaps. PARLINK0 is `compiler-lifecycle` evidence and its temporary
+executable does not enter the executable catalog.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:
