@@ -121,6 +121,7 @@ test("release recipes prioritize runtime and strip distributable symbols", () =>
   assert.ok(W_LLD_LINK_FLAGS.includes("/Brepro"));
   assert.ok(W_LLD_LINK_FLAGS.includes("/opt:ref"));
   assert.ok(W_LLD_LINK_FLAGS.includes("/opt:icf"));
+  assert.ok(W_LLD_LINK_FLAGS.includes("/merge:.pdata=.rdata"));
   const all = [...C_RELEASE_FLAGS, ...CLANG_RELEASE_FLAGS, ...RUST_RELEASE_FLAGS, ...W_LLC_FLAGS, ...W_LLD_LINK_FLAGS];
   assert.equal(all.some((flag) => /(?:^|=)(?:s|z)$|native/iu.test(flag)), false);
 });

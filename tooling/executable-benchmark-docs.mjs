@@ -118,8 +118,11 @@ function formatValue(entry) {
 }
 
 function sourceLinks(workload) {
-  return workload.sources?.length
-    ? workload.sources.map((source) => jsonPathLink(projectionPath(source.path), source.language)).join(", ")
+  const sources = workload.sources?.filter((source, index, all) =>
+    all.findIndex((candidate) => candidate.language === source.language &&
+      candidate.path === source.path) === index);
+  return sources?.length
+    ? sources.map((source) => jsonPathLink(projectionPath(source.path), source.language)).join(", ")
     : "—";
 }
 

@@ -78,4 +78,5 @@ export const W_LLD_LINK_FLAGS = Object.freeze([
   "/opt:ref",
   "/opt:icf",
   "/incremental:no",
+  "/merge:.pdata=.rdata",
 ]);
