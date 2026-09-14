@@ -39924,6 +39924,38 @@ W-1597 direct-call optimization. It does not publish this route through
 Task ABI, establish reusable task storage, retain an executable, publish a
 benchmark, or make a timing or performance claim.
 
+#### 26.4.1.82 W-1601 — bounded target-neutral GPU0 witness and CUDA linkage evidence (Current design; implementation-evidence-gap)
+
+GPU0 is a caller-owned compiler-lifecycle witness for the smallest useful
+host/device split. Its bounded evidence program contains exactly one host root,
+one device kernel, and seven operations: allocate the device result, copy zero
+from host to device, launch, join, copy the result to host, verify it, and store
+`i32 42` in the kernel. These counts are evidence-shape constants, not language,
+ABI, device, or scheduler limits.
+
+The semantic record contains no provider, target, queue ordinal, pointer, MLIR
+handle, or physical ABI. It emits separate target-neutral host and device MLIR
+artifacts with independently verified identities and digests. The verifier
+re-derives ranges, effects, lifecycle phases, artifact bytes, result `42`, and
+all transactional outputs. Capture, suspension, recursion, host I/O, dynamic
+dispatch, host FFI, malformed UTF-8, aliases, short capacities, and forged
+records fail before caller-owned output changes.
+
+The available Windows experiment parses both artifacts with pinned MLIR/LLVM
+23.1.1, lowers the device module through GPU, NVVM, and LLVM dialects, and uses
+system Clang 22 to emit `sm_86` PTX. A small dynamic CUDA Driver adapter runs
+the kernel on the available NVIDIA RTX A400 and verifies `42`; missing-provider
+and missing-kernel cases fail closed. A separate diagnostic catalog records
+temporary artifact sizes and in-process H2D, dispatch-plus-synchronize, D2H,
+and end-to-end p50/p95 values. It is not a W product ranking.
+
+This evidence is not source-backed W, a W runtime/provider, a public
+`w build`/`w run` route, a supported GPU ABI, or homogeneous pinned production
+support. The roadmap item remains open until canonical
+`accelerator.module<{...}>()` source and its typed `.launch` cross parsing,
+frontend semantics, independently verified W IR, host/device artifact
+generation, a supported provider launch and join, and result verification.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

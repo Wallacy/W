@@ -2143,6 +2143,32 @@ storage, retained artifact, benchmark, timing, or performance. The W-1597
 direct-call candidate must later be selected by separate target facts and
 compared with this physical reference.
 
+### Target-neutral GPU0 and Windows CUDA linkage (W-1601)
+
+`w_seed_gpu0` is a caller-owned, provider-free semantic witness with one host
+root, one device kernel, and seven operations. It validates ranges, forbidden
+kernel effects, artifact identities, lifecycle phases, aliases, capacities,
+and exact result `42`, then emits separate target-neutral host and device MLIR.
+The fixed shape is evidence-only and does not constrain the language or ABI.
+
+`bun check --target gpu0` compiles the C23 unit and emitter, parses both
+artifacts with pinned MLIR/LLVM 23.1.1, lowers the device module through
+GPU/NVVM/LLVM, emits `sm_86` PTX with system Clang 22, and executes it through
+a dynamic `nvcuda.dll` Driver API adapter when the provider is available.
+Missing-provider and missing-kernel cases fail closed. Every produced file is
+temporary.
+
+`bun benchmark gpu0` refreshes the separate diagnostic snapshot in
+`benchmarks/GPU0.md`. Context, module, function lookup, and device allocation
+stay outside timing; H2D, launch-plus-synchronize, D2H, and complete round-trip
+use 101 warmups and 1001 in-process samples. These numbers are compiler/linkage
+diagnostics, not W product rankings.
+
+This package does not implement the canonical `accelerator.module` source
+bridge, a W runtime/provider, public GPU build/run, a supported GPU ABI, or a
+homogeneous pinned production toolchain. Those boundaries keep roadmap rank 1
+open.
+
 ### Closed local payloadless enum exhaustive switch (W-1563)
 
 HIR21 (`w-seed-hir0-21`) adds one explicit `SWITCH_ENUM` terminator and dense

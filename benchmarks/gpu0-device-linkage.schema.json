@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://w-lang.dev/schemas/gpu0-device-linkage-catalog-1.json",
+  "title": "W GPU0 device-linkage diagnostic catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "version",
+    "status",
+    "identity",
+    "correctness",
+    "protocol",
+    "artifacts",
+    "metrics",
+    "boundaries"
+  ],
+  "properties": {
+    "$schema": { "const": "w-gpu0-device-linkage-catalog-1" },
+    "version": { "const": 1 },
+    "status": { "const": "experimental-not-source-backed-w" },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform", "provider", "device", "computeCapability", "target", "driverVersion", "mlirVersion", "clangVersion", "recipe", "recipeDigest", "adapterSourceDigest", "gpu0CoreDigest"],
+      "properties": {
+        "platform": { "const": "windows-x64" },
+        "provider": { "const": "cuda-driver" },
+        "device": { "type": "string", "minLength": 1 },
+        "computeCapability": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+$" },
+        "target": { "type": "string", "pattern": "^sm_[0-9]+$" },
+        "driverVersion": { "type": "string", "minLength": 1 },
+        "mlirVersion": { "const": "23.1.1" },
+        "clangVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+        "recipe": { "const": "tooling/check-gpu0-cuda-windows.mjs" },
+        "recipeDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "adapterSourceDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "gpu0CoreDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+      }
+    },
+    "correctness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["expected", "observed"],
+      "properties": {
+        "expected": { "const": 42 },
+        "observed": { "const": 42 }
+      }
+    },
+    "protocol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["clock", "warmups", "samples", "aggregation", "contextModuleAllocationOutsideTiming"],
+      "properties": {
+        "clock": { "const": "QueryPerformanceCounter" },
+        "warmups": { "type": "integer", "minimum": 1, "maximum": 10001 },
+        "samples": { "type": "integer", "minimum": 1, "maximum": 10001 },
+        "aggregation": { "const": "nearest-rank" },
+        "contextModuleAllocationOutsideTiming": { "const": true }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "sizeBytes", "digest"],
+        "properties": {
+          "kind": { "enum": ["host-adapter", "host-mlir", "device-mlir", "device-ptx"] },
+          "sizeBytes": { "type": "integer", "minimum": 1 },
+          "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+        }
+      }
+    },
+    "metrics": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "unit", "p50", "p95"],
+        "properties": {
+          "id": { "enum": ["h2d", "dispatch-sync", "d2h", "end-to-end"] },
+          "unit": { "const": "ns" },
+          "p50": { "type": "integer", "minimum": 0 },
+          "p95": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "boundaries": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceBackedW", "wRuntimeOrProvider", "homogeneousPinnedToolchain", "productRanking"],
+      "properties": {
+        "sourceBackedW": { "const": false },
+        "wRuntimeOrProvider": { "const": false },
+        "homogeneousPinnedToolchain": { "const": false },
+        "productRanking": { "const": false }
+      }
+    }
+  }
+}

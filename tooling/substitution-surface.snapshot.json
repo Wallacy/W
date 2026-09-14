@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:c96dfa9884a8484e113b5317a58da7dd99e01660106abcda488a5a7c24fffb6a",
+  "corpusDigest": "sha256:2e7a01256f9c07f90cd0e6d11d3042a4f6f551d568ce26ffef172065b67bda84",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -8496,6 +8496,90 @@
             "nonWhitespaceCodePoints": 56,
             "lines": 1,
             "surfaceLexemes": 11
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-gpu0-device-linkage",
+      "task": {
+        "utf8Bytes": 144,
+        "codePoints": 144,
+        "nonWhitespaceCodePoints": 125,
+        "lines": 1,
+        "surfaceLexemes": 25
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w-internal",
+        "sourceDigest": "sha256:76bfbda6b6c8569725a0c1a5e183f8f7f2b08f149823b355324db82c8c92dad4",
+        "metrics": {
+          "utf8Bytes": 249,
+          "codePoints": 249,
+          "nonWhitespaceCodePoints": 224,
+          "lines": 5,
+          "surfaceLexemes": 53
+        }
+      },
+      "alternatives": [
+        {
+          "name": "call-gpu0-source-backed-w",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:704671b6b071f070a17569579d500ad438209de9a95da2529f4353d12508aedf",
+          "metrics": {
+            "utf8Bytes": 62,
+            "codePoints": 62,
+            "nonWhitespaceCodePoints": 55,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "embed-cuda-in-semantic-ir",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:e7e1ca01b8a736a9b8b2b216368bb52363964d2ddf212909137537d431ecc007",
+          "metrics": {
+            "utf8Bytes": 76,
+            "codePoints": 76,
+            "nonWhitespaceCodePoints": 65,
+            "lines": 1,
+            "surfaceLexemes": 15
+          }
+        },
+        {
+          "name": "reuse-spawn-domain-as-offload",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:e42c915b221c3c32d93a6ea41600857acaab4488e0a2eb9b120d62a84db903dc",
+          "metrics": {
+            "utf8Bytes": 49,
+            "codePoints": 49,
+            "nonWhitespaceCodePoints": 43,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "claim-homogeneous-toolchain",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:c673dc5e56ba4a26fa5b58ffc64489970e954726a7a891ebd0983a091a0fb80f",
+          "metrics": {
+            "utf8Bytes": 74,
+            "codePoints": 74,
+            "nonWhitespaceCodePoints": 63,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        },
+        {
+          "name": "rank-as-public-w-product",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:e82e15c6cba5535b846542e6d9815c08c3e7f5b3ef0c1a5518f1cf5b77ecdbc3",
+          "metrics": {
+            "utf8Bytes": 70,
+            "codePoints": 70,
+            "nonWhitespaceCodePoints": 61,
+            "lines": 1,
+            "surfaceLexemes": 14
           }
         }
       ]

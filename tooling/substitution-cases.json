@@ -8642,6 +8642,86 @@
       "public build/run, benchmarks, retained artifacts, timing, and performance are not claimed"
     ],
     "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
-    }
+  },
+  {
+    "id": "R0-gpu0-device-linkage",
+    "reviewItem": "bounded GPU0 target-neutral semantic and available CUDA execution against source-backed W claims, provider/runtime conflation, homogeneous toolchains, and premature public product support",
+    "decisions": ["W-1601"],
+    "task": "Preserve target-neutral host/device semantics while proving one available physical GPU execution without relabeling the C23 seed as a W product.",
+    "selected": {
+      "language": "w-internal",
+      "source": [
+        "gpu0 = verify(twoFunctions, sevenOperations, result: 42)",
+        "artifacts = emit(hostMLIR, deviceMLIR)",
+        "ptx = lower(deviceMLIR, target: sm_86)",
+        "assert cudaDriver.launch(ptx).join().readback == 42",
+        "record diagnostic phase distributions outside product rankings"
+      ]
+    },
+    "alternatives": [
+      {
+        "name": "call-gpu0-source-backed-w",
+        "language": "w-internal-rejected",
+        "source": ["present the C23 witness as canonical accelerator.module source"],
+        "expectedDifference": "The selected evidence begins at a target-neutral C23 semantic seed; the W source, frontend, and verified-W-IR bridge remain open."
+      },
+      {
+        "name": "embed-cuda-in-semantic-ir",
+        "language": "w-internal-rejected",
+        "source": ["store CUDA handles, device ordinal, target, and ABI in GPU0 semantic records"],
+        "expectedDifference": "The selected semantic records remain target and provider neutral; CUDA is a separate experimental adapter."
+      },
+      {
+        "name": "reuse-spawn-domain-as-offload",
+        "language": "w-internal-rejected",
+        "source": ["lower spawn<.domain> as an implicit GPU migration"],
+        "expectedDifference": "The selected route reserves GPU offload for accelerator.module and typed launch; ordinary parallel placement does not migrate code."
+      },
+      {
+        "name": "claim-homogeneous-toolchain",
+        "language": "w-internal-rejected",
+        "source": ["report MLIR 23.1.1 plus system Clang 22 as one pinned production toolchain"],
+        "expectedDifference": "The selected evidence identifies the mixed toolchain explicitly and makes no production-support claim."
+      },
+      {
+        "name": "rank-as-public-w-product",
+        "language": "w-internal-rejected",
+        "source": ["insert GPU0 phase timings into the public executable W/C/Rust rankings"],
+        "expectedDifference": "The selected diagnostic catalog is isolated because no source-backed W GPU product exists."
+      }
+    ],
+    "sourceRefs": [
+      {
+        "path": "compiler/seed-c/src/w_seed_gpu0.c",
+        "symbol": "w_seed_gpu0_verify",
+        "claim": "The provider-free verifier re-derives the bounded semantic program, artifacts, phases, and exact result."
+      },
+      {
+        "path": "tooling/check-gpu0-cuda-windows.mjs",
+        "symbol": "flattenKernelModule",
+        "claim": "The experimental gate lowers exactly one bounded GPU kernel and rejects unexpected wrappers or symbols."
+      },
+      {
+        "path": "compiler/seed-c/tests/gpu0_cuda_windows.c",
+        "symbol": "execute_iteration",
+        "claim": "The dynamic CUDA Driver adapter performs explicit H2D, launch, synchronize, D2H, and result verification."
+      },
+      {
+        "path": "benchmarks/gpu0-device-linkage-catalog.json",
+        "symbol": "metrics",
+        "claim": "The separate diagnostic snapshot records in-process phase distributions without product ranking."
+      }
+    ],
+    "checks": [
+      "two functions and seven operations remain an evidence shape rather than a language or ABI ceiling",
+      "host and device artifacts retain separate identities and exact verification",
+      "forbidden device effects, malformed records, aliases, capacities, and forged artifacts fail closed",
+      "the available CUDA adapter returns 42 and rejects missing providers and kernels",
+      "mixed MLIR and Clang versions remain explicit",
+      "diagnostic metrics stay separate from source-backed W product rankings",
+      "rank 1 remains open until accelerator.module crosses source, verified W IR, artifacts, provider launch/join, and result"
+    ],
+    "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+  }
   ]
 }

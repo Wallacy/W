@@ -17,6 +17,7 @@ import {
 } from "./executable-benchmark-machine.mjs";
 import { renderExecutableProjection, renderFromDisk, writeAtomicFile } from "./executable-benchmark-docs.mjs";
 import { benchmarkRunnerDigest, EXECUTABLE_MAX_SAMPLES, runBenchmark } from "./executable-benchmark-runner.mjs";
+import { checkGpu0Catalog, main as gpu0BenchmarkMain } from "./gpu0-device-linkage.mjs";
 
 const RESULTS_PATH = LOCAL_RESULTS_PATH;
 const RUN_TARGETS = EXECUTABLE_RUN_TARGETS;
@@ -54,7 +55,8 @@ export function parseBenchmarkCliArguments(argv) {
   if (!Array.isArray(argv)) fail("arguments must be an array");
   const command = argv[0] ?? "help";
   if (command === "help" || command === "--help" || command === "-h") return { command: "help" };
-  if (!["list", "run", "validate", "update", "prune", "check"].includes(command)) fail(`unknown command: ${command}`);
+  if (!["list", "run", "validate", "update", "prune", "check", "gpu0"].includes(command)) fail(`unknown command: ${command}`);
+  if (command === "gpu0") return { command, arguments: argv.slice(1) };
   if (command === "check") {
     if (argv.length !== 1) fail("check does not accept positional arguments or options");
     return { command };
@@ -112,7 +114,7 @@ export function parseBenchmarkCliArguments(argv) {
 
 export function benchmarkUsage() {
   return [
-    "usage: bun benchmark <list|run|validate|update|prune|check>",
+    "usage: bun benchmark <list|run|gpu0|validate|update|prune|check>",
     "",
     "  list",
     "  run --target <runnable-catalog-id> --language w|c|rust [--platform windows-x64|linux-wsl-x64] [--output benchmarks/results/<new>.json] [--warmup 1] [--compile-samples 9] [--run-samples 101]",
@@ -120,6 +122,7 @@ export function benchmarkUsage() {
     "  update <result.json>... (atomic lower-is-better live-catalog update; consumes local results on success)",
     "  prune (remove stale best-metric cells after a source digest change)",
     "  check",
+    "  gpu0 [run|check] [--warmups N] [--samples odd-N]",
     "",
     "Run measures one selected source with its catalog oracle. The default is native Windows x64. --platform linux-wsl-x64 selects the catalog's Linux source and cross-builds its ELF on this Windows host; production runtime samples execute in one native-helper batch from WSL-native /tmp and use Linux CLOCK_MONOTONIC plus wait4, excluding wsl.exe startup and DrvFS target access from each sample. Each sample still launches a fresh target process, so Run p50/p95 are product-invocation costs rather than in-process body-throughput measurements; a persistent body lane will use a distinct protocol. The WSL lane is same-physical-hardware diagnostic-only, never native-Linux or cross-host ranking evidence. Public C requires Clang with final C23, the MSVC ABI, and the DLL runtime; only process-handler-lifecycle retains its private GCC/MinGW composite. Rust uses rustc edition 2024 for the MSVC ABI. W uses the public w build Release source-to-PE candidate for Windows and the pinned Linux/WSL public build route for the explicit WSL lane; public process argument workloads, including process-entry, use their argument-dependent oracle; process-handler-lifecycle remains contextual/non-ranking; public-w-run targets require retained-artifact and separate compile-run support.",
   ].join("\n");
@@ -278,6 +281,7 @@ async function checkCommand(root = ROOT) {
   const projection = path.resolve(root, "benchmarks", "EXECUTABLES.md");
   const current = await readFile(projection, "utf8").catch((error) => error?.code === "ENOENT" ? undefined : Promise.reject(error));
   if (current !== rendered) fail(`generated projection is stale: ${path.relative(root, projection).replaceAll(path.sep, "/")}`);
+  if (root === ROOT) await checkGpu0Catalog();
   console.log("benchmark catalog/live-best/projection: current");
 }
 
@@ -290,6 +294,10 @@ export async function main(argv = process.argv.slice(2), dependencies = {}) {
   const options = parseBenchmarkCliArguments(argv);
   const root = dependencies.root ?? ROOT;
   if (options.command === "help") console.log(benchmarkUsage());
+  else if (options.command === "gpu0") {
+    const arguments_ = options.arguments.length === 0 ? ["run"] : options.arguments;
+    await (dependencies.gpu0BenchmarkMain ?? gpu0BenchmarkMain)(arguments_);
+  }
   else if (options.command === "list") await listCommand(root);
   else if (options.command === "check") await checkCommand(root);
   else if (options.command === "run") await (dependencies.runBenchmark ?? runCommand)(options, root);

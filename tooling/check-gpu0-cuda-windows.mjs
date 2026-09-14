@@ -1,16 +1,30 @@
 #!/usr/bin/env bun
 
 import { spawnSync } from "node:child_process";
+import crypto from "node:crypto";
 import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { defaultCacheDirectory } from "./acquire-mlir0-windows.mjs";
+import { CLANG_RELEASE_FLAGS } from "./executable-release-recipes.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const seed = path.join(root, "compiler", "seed-c");
 const unitSuccessOutput = "GPU0 target-neutral logical witness: passed\r\n";
 const successOutput = "GPU0 CUDA result: 42\r\n";
+const benchmarkMode = process.argv[2] === "--benchmark";
+const benchmarkWarmups = Number(process.argv[3] ?? "101");
+const benchmarkSamples = Number(process.argv[4] ?? "1001");
+
+if (process.argv.length > (benchmarkMode ? 5 : 2) ||
+    (!benchmarkMode && process.argv.length !== 2) ||
+    (benchmarkMode &&
+      (!Number.isSafeInteger(benchmarkWarmups) || benchmarkWarmups < 1 || benchmarkWarmups > 10001 ||
+       !Number.isSafeInteger(benchmarkSamples) || benchmarkSamples < 1 || benchmarkSamples > 10001 ||
+       benchmarkSamples % 2 === 0))) {
+  fail("usage: check-gpu0-cuda-windows.mjs [--benchmark <warmups> <odd-samples>]");
+}
 
 function fail(message) {
   throw new Error(message);
@@ -46,8 +60,30 @@ function requireSuccess(result, label) {
 }
 
 function skip(reason) {
-  console.log(`GPU0 CUDA integration: SKIP (${reason})`);
+  console.log(`${benchmarkMode ? "GPU0 CUDA benchmark" : "GPU0 CUDA integration"}: SKIP (${reason})`);
   process.exit(0);
+}
+
+function digest(bytes) {
+  return `sha256:${crypto.createHash("sha256").update(bytes).digest("hex")}`;
+}
+
+function percentile(values, probability) {
+  if (!Array.isArray(values) || values.length === 0) fail("timing samples are empty");
+  const sorted = [...values].sort((left, right) => left - right);
+  return sorted[Math.ceil(probability * sorted.length) - 1];
+}
+
+function summarizeTicks(samples, key, frequency) {
+  const nanoseconds = samples.map((sample) => {
+    const ticks = sample?.[key];
+    if (!Number.isSafeInteger(ticks) || ticks < 0) fail(`invalid ${key} timing sample`);
+    return Math.round((ticks * 1_000_000_000) / frequency);
+  });
+  return {
+    p50: percentile(nanoseconds, 0.50),
+    p95: percentile(nanoseconds, 0.95),
+  };
 }
 
 function exactlyOne(text, pattern, label) {
@@ -104,15 +140,16 @@ if (process.platform !== "win32") skip("native Windows evidence only");
 const provider = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "nvcuda.dll");
 if (!(await isFile(provider))) skip("nvcuda.dll is unavailable");
 
-const smi = run("nvidia-smi", ["--query-gpu=compute_cap,name", "--format=csv,noheader,nounits"], {
+const smi = run("nvidia-smi", ["--query-gpu=compute_cap,name,driver_version", "--format=csv,noheader,nounits"], {
   label: "nvidia-smi",
 });
 if (smi.status !== 0) skip("nvidia-smi or a CUDA device is unavailable");
 const firstGpu = smi.stdout.trim().split(/\r?\n/u)[0] ?? "";
-const gpuMatch = /^(\d+)\.(\d+),\s*(.+)$/u.exec(firstGpu);
+const gpuMatch = /^(\d+)\.(\d+),\s*(.+),\s*([^,]+)$/u.exec(firstGpu);
 if (gpuMatch === null) fail(`unexpected nvidia-smi output: ${JSON.stringify(firstGpu)}`);
 const chip = `sm_${gpuMatch[1]}${gpuMatch[2]}`;
 const gpuName = gpuMatch[3].trim();
+const driverVersion = gpuMatch[4].trim();
 
 const toolchain = defaultCacheDirectory();
 const receiptPath = path.join(toolchain, "w-mlir0-windows-materialized.json");
@@ -167,7 +204,7 @@ try {
 
   const strict = [
     "-std=c23", "-Wall", "-Wextra", "-Wpedantic", "-Wconversion",
-    "-Wsign-conversion", "-Wshadow", "-Werror", "-O2",
+    "-Wsign-conversion", "-Wshadow", "-Werror",
   ];
   const include = ["-I", path.join(seed, "include")];
   const commonSources = [
@@ -178,7 +215,7 @@ try {
     path.join(seed, "src", "w_seed_unicode_data.c"),
   ];
   const unitCompile = run(clang, [
-    ...strict, ...include, ...commonSources,
+    ...strict, "-O2", ...include, ...commonSources,
     path.join(seed, "tests", "test_gpu0.c"), "-o", unit,
   ], { label: "compile GPU0 unit" });
   requireSuccess(unitCompile, "compile GPU0 unit");
@@ -187,14 +224,15 @@ try {
   if (unitRun.stdout !== unitSuccessOutput || unitRun.stderr !== "")
     fail(`unexpected GPU0 unit output: ${JSON.stringify(unitRun)}`);
   const emitterCompile = run(clang, [
-    ...strict, ...include,
+    ...strict, "-O2", ...include,
     ...commonSources,
     path.join(seed, "tests", "gpu0_emit.c"),
     "-o", emitter,
   ], { label: "compile GPU0 emitter" });
   requireSuccess(emitterCompile, "compile GPU0 emitter");
   const adapterCompile = run(clang, [
-    ...strict, path.join(seed, "tests", "gpu0_cuda_windows.c"), "-o", adapter,
+    ...strict, ...CLANG_RELEASE_FLAGS,
+    path.join(seed, "tests", "gpu0_cuda_windows.c"), "-o", adapter,
   ], { label: "compile GPU0 CUDA adapter" });
   requireSuccess(adapterCompile, "compile GPU0 CUDA adapter");
 
@@ -252,11 +290,88 @@ try {
   if (wrongKernel.status !== 2 || wrongKernel.stdout !== "" || wrongKernel.stderr.length === 0)
     fail("missing-kernel adversarial did not fail closed");
 
-  console.log(
-    `GPU0 CUDA integration: PASS (${gpuName}; ${chip}; result 42; ` +
-    `mixed MLIR 23.1.1 + Clang ${clangVersionMatch[1]}; experimental, ` +
-    "not homogeneous pinned production support and not source-backed W)",
-  );
+  if (benchmarkMode) {
+    const benchmark = run(adapter, [
+      provider, ptx, "w_gpu0_kernel", "--benchmark",
+      String(benchmarkWarmups), String(benchmarkSamples),
+    ], { label: "benchmark GPU0 CUDA kernel" });
+    requireSuccess(benchmark, "benchmark GPU0 CUDA kernel");
+    if (benchmark.stderr !== "") fail(`unexpected GPU0 benchmark stderr: ${JSON.stringify(benchmark.stderr)}`);
+    let timings;
+    try {
+      timings = JSON.parse(benchmark.stdout);
+    } catch {
+      fail(`GPU0 benchmark output is not JSON: ${JSON.stringify(benchmark.stdout)}`);
+    }
+    if (timings?.schema !== "w-gpu0-cuda-timing-1" ||
+        !Number.isSafeInteger(timings.frequency) || timings.frequency <= 0 ||
+        timings.warmups !== benchmarkWarmups || timings.result !== 42 ||
+        !Array.isArray(timings.samples) || timings.samples.length !== benchmarkSamples)
+      fail("GPU0 benchmark output violates its timing contract");
+    for (const [index, sample] of timings.samples.entries()) {
+      if (sample === null || typeof sample !== "object" || Array.isArray(sample) ||
+          JSON.stringify(Object.keys(sample).sort()) !==
+            JSON.stringify(["d2h", "dispatchSync", "endToEnd", "h2d", "result"]) ||
+          sample.result !== 42)
+        fail(`GPU0 benchmark sample ${index} violates its correctness contract`);
+    }
+    const artifact = async (kind, file) => {
+      const bytes = await readFile(file);
+      return { kind, sizeBytes: bytes.length, digest: digest(bytes) };
+    };
+    const snapshot = {
+      $schema: "w-gpu0-device-linkage-catalog-1",
+      version: 1,
+      status: "experimental-not-source-backed-w",
+      identity: {
+        platform: "windows-x64",
+        provider: "cuda-driver",
+        device: gpuName,
+        computeCapability: `${gpuMatch[1]}.${gpuMatch[2]}`,
+        target: chip,
+        driverVersion,
+        mlirVersion: "23.1.1",
+        clangVersion: clangVersionMatch[1],
+        recipe: "tooling/check-gpu0-cuda-windows.mjs",
+        recipeDigest: digest(await readFile(path.join(root, "tooling", "check-gpu0-cuda-windows.mjs"))),
+        adapterSourceDigest: digest(await readFile(path.join(seed, "tests", "gpu0_cuda_windows.c"))),
+        gpu0CoreDigest: digest(await readFile(path.join(seed, "src", "w_seed_gpu0.c"))),
+      },
+      correctness: { expected: 42, observed: timings.result },
+      protocol: {
+        clock: "QueryPerformanceCounter",
+        warmups: benchmarkWarmups,
+        samples: benchmarkSamples,
+        aggregation: "nearest-rank",
+        contextModuleAllocationOutsideTiming: true,
+      },
+      artifacts: await Promise.all([
+        artifact("host-adapter", adapter),
+        artifact("host-mlir", host),
+        artifact("device-mlir", device),
+        artifact("device-ptx", ptx),
+      ]),
+      metrics: [
+        { id: "h2d", unit: "ns", ...summarizeTicks(timings.samples, "h2d", timings.frequency) },
+        { id: "dispatch-sync", unit: "ns", ...summarizeTicks(timings.samples, "dispatchSync", timings.frequency) },
+        { id: "d2h", unit: "ns", ...summarizeTicks(timings.samples, "d2h", timings.frequency) },
+        { id: "end-to-end", unit: "ns", ...summarizeTicks(timings.samples, "endToEnd", timings.frequency) },
+      ],
+      boundaries: {
+        sourceBackedW: false,
+        wRuntimeOrProvider: false,
+        homogeneousPinnedToolchain: false,
+        productRanking: false,
+      },
+    };
+    console.log(JSON.stringify(snapshot));
+  } else {
+    console.log(
+      `GPU0 CUDA integration: PASS (${gpuName}; ${chip}; result 42; ` +
+      `mixed MLIR 23.1.1 + Clang ${clangVersionMatch[1]}; experimental, ` +
+      "not homogeneous pinned production support and not source-backed W)",
+    );
+  }
 } finally {
   await rm(directory, { recursive: true, force: true });
 }
