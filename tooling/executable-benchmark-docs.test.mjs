@@ -18,7 +18,8 @@ test("generated projection is current, compact, and sourced only from the live c
   assert.match(rendered, /### Windows x64/u);
   assert.match(rendered, /### Linux x64/u);
   assert.match(rendered, /### Linux x64 via WSL2/u);
-  assert.match(rendered, /No Linux x64 via WSL2 same-physical-hardware diagnostic measurements are published\./u);
+  assert.match(rendered, /\| restaurant-main-dispatch \| w \| Linux x64 \/ WSL2 \| CRT-free \| 2768 B/u);
+  assert.match(rendered, /WSL values are not rankable across hosts\./u);
   assert.match(rendered, /\| Workload \| Language \| Target \| Runtime \| Artifact \| \.text B \| \.rdata B \| Compile p50 \| Run p50 \| Run p95 \| Peak RSS \| CPU mean \|/u);
   assert.match(rendered, /\| hello \| c \| Windows x64 \/ MSVC \| MSVC CRT DLL \| [0-9]+ B/u);
   assert.match(rendered, /\| hello \| w \| Windows x64 \/ MSVC \| CRT-free \| [0-9]+ B/u);

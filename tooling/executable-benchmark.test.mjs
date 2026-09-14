@@ -101,20 +101,23 @@ test("catalog stores compact live best cells and no immutable history", () => {
   const metricsByCell = Object.fromEntries(
     Object.entries(Object.groupBy(
       documents.catalog.bestMetrics.entries,
-      (entry) => `${entry.workloadId}/${entry.language}`,
+      (entry) => `${entry.workloadId}/${entry.language}/${entry.platformTarget}`,
     )).map(([cell, entries]) => [cell, entries.map((entry) => entry.metric).sort()]),
   );
   const retainedMetrics = ["artifact-size", "compile-latency"];
-  const nativeCompleteMetrics = [...retainedMetrics, "cpu-time", "peak-working-set",
+  const completeRuntimeMetrics = [...retainedMetrics, "cpu-time", "peak-working-set",
     "run-wall-p95", "run-wall-time"].sort();
   const declaredCells = new Set(documents.catalog.workloads.flatMap((workload) =>
-    workload.sources.map((source) => `${workload.id}/${source.language}`)));
+    workload.sources.map((source) =>
+      `${workload.id}/${source.language}/${source.platformTarget}`)));
   assert.ok(Object.keys(metricsByCell).every((cell) => declaredCells.has(cell)),
     "every live metric cell must still have a current workload source");
-  for (const requiredCell of ["hello/c", "hello/rust", "hello/w",
-    "restaurant-enum-switch/c", "restaurant-enum-switch/rust",
-    "restaurant-enum-switch/w", "restaurant-wmo/c", "restaurant-wmo/rust",
-    "restaurant-wmo/w"]) {
+  for (const requiredCell of ["hello/c/windows-x64", "hello/rust/windows-x64",
+    "hello/w/windows-x64", "restaurant-enum-switch/c/windows-x64",
+    "restaurant-enum-switch/rust/windows-x64",
+    "restaurant-enum-switch/w/windows-x64", "restaurant-wmo/c/windows-x64",
+    "restaurant-wmo/rust/windows-x64", "restaurant-wmo/w/windows-x64",
+    "restaurant-main-dispatch/w/linux-wsl-x64"]) {
     assert.ok(metricsByCell[requiredCell], `${requiredCell} must retain live evidence`);
   }
   for (const workloadId of ["hello", "process-entry", "restaurant-branch",
@@ -129,8 +132,8 @@ test("catalog stores compact live best cells and no immutable history", () => {
   for (const [cell, metrics] of Object.entries(metricsByCell)) {
     assert.ok(
       JSON.stringify(metrics) === JSON.stringify(retainedMetrics) ||
-      JSON.stringify(metrics) === JSON.stringify(nativeCompleteMetrics),
-      `${cell} must retain compile/artifact facts alone or one complete native runtime set`,
+      JSON.stringify(metrics) === JSON.stringify(completeRuntimeMetrics),
+      `${cell} must retain compile/artifact facts alone or one complete platform runtime set`,
     );
   }
   assert.ok(documents.catalog.bestMetrics.entries.every((entry) =>
