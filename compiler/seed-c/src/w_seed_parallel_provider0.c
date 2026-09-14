@@ -1,6 +1,7 @@
 #include "w_seed_parallel_provider0.h"
 
 #include "w_seed_parallel_provider0_platform.h"
+#include "w_seed_scalar_evaluator0.h"
 #include "w_seed_sha256.h"
 
 #include <limits.h>
@@ -67,7 +68,7 @@ static bool outputs_alias_input(
   W_PROVIDER0_ADD(input->program, 1u);
   W_PROVIDER0_ADD(input->hir_result, 1u);
   W_PROVIDER0_ADD(input->selection, 1u);
-  W_PROVIDER0_ADD(input->jobs, input->job_count);
+  W_PROVIDER0_ADD(input->invocation, 1u);
   const w_seed_hir0_program *program = input->program;
   W_PROVIDER0_ADD(program->modules, program->module_capacity);
   W_PROVIDER0_ADD(program->identities, program->identity_capacity);
@@ -109,6 +110,25 @@ static bool outputs_alias_input(
     for (size_t index = 0u; index < count; index += 1u)
       if (ranges_overlap(output_ranges[output], inputs[index])) return true;
   return false;
+}
+
+typedef struct {
+  const w_seed_hir0_program *program;
+  const w_seed_parallel_invocation0_plan *invocation;
+  uint32_t task_index;
+} provider_invocation_context;
+
+static bool provider_invoke_hir(void *raw, int64_t *value) {
+  const provider_invocation_context *context =
+      (const provider_invocation_context *)raw;
+  if (context == NULL || value == NULL ||
+      context->task_index >= context->invocation->task_count)
+    return false;
+  size_t budget = W_SEED_PARALLEL_INVOCATION0_STEP_BUDGET;
+  return w_seed_scalar_evaluator0_evaluate_call(
+      context->program,
+      context->invocation->tasks[context->task_index].call_index, &budget,
+      value);
 }
 
 static void sha_u32(w_seed_sha256_state *state, uint32_t value) {
@@ -195,58 +215,49 @@ w_seed_parallel_provider0_status w_seed_parallel_provider0_execute(
     w_seed_parallel_provider0_receipt *receipt) {
   if (input == NULL || outcomes == NULL || receipt == NULL ||
       input->program == NULL || input->hir_result == NULL ||
-      input->selection == NULL || input->jobs == NULL ||
-      input->job_count == 0u ||
-      input->job_count > W_SEED_PARALLEL_PROVIDER0_MAX_TASKS ||
+      input->selection == NULL || input->invocation == NULL ||
       input->provider_capacity == 0u ||
       input->provider_capacity > W_SEED_PARALLEL_PROVIDER0_MAX_CAPACITY ||
       !w_seed_parallel_selection0_verify(
           input->program, input->hir_result, input->selection) ||
-      input->job_count != input->selection->task_count)
+      !w_seed_parallel_invocation0_verify(
+          input->program, input->hir_result, input->selection,
+          input->invocation))
     return W_SEED_PARALLEL_PROVIDER0_INVALID;
-  for (size_t index = 0u; index < input->job_count; index += 1u)
-    if (input->jobs[index].invoke == NULL ||
-        input->jobs[index].call_index !=
-            input->selection->task_call_indices[index] ||
-        input->jobs[index].function_index !=
-            input->selection->task_function_indices[index] ||
-        input->jobs[index].call_index >= input->program->call_count ||
-        input->jobs[index].function_index >= input->program->function_count ||
-        input->program->calls[input->jobs[index].call_index].result_type >=
-            input->program->type_count ||
-        input->program->functions[input->jobs[index].function_index]
-                .return_type >= input->program->type_count ||
-        input->program
-                ->types[input->program->calls[input->jobs[index].call_index]
-                            .result_type]
-                .kind != W_SEED_HIR0_TYPE_I64 ||
-        input->program
-                ->types[input->program
-                            ->functions[input->jobs[index].function_index]
-                            .return_type]
-                .kind != W_SEED_HIR0_TYPE_I64)
-      return W_SEED_PARALLEL_PROVIDER0_INVALID;
   if (outputs_alias_input(input, outcomes, receipt))
     return W_SEED_PARALLEL_PROVIDER0_INVALID;
 
   int64_t values[W_SEED_PARALLEL_PROVIDER0_MAX_TASKS] = {0};
+  provider_invocation_context
+      contexts[W_SEED_PARALLEL_PROVIDER0_MAX_TASKS];
+  w_seed_parallel_provider0_internal_job
+      jobs[W_SEED_PARALLEL_PROVIDER0_MAX_TASKS];
+  for (size_t index = 0u; index < input->selection->task_count; index += 1u) {
+    contexts[index] = (provider_invocation_context){
+        input->program, input->invocation, (uint32_t)index};
+    jobs[index] = (w_seed_parallel_provider0_internal_job){
+        provider_invoke_hir, &contexts[index]};
+  }
   uint32_t started = 0u;
   uint32_t completed = 0u;
-  uint32_t maximum_active = 0u;
+  uint32_t maximum_active_workers = 0u;
   w_seed_parallel_provider0_kind provider_kind =
       W_SEED_PARALLEL_PROVIDER0_KIND_NONE;
   const w_seed_parallel_provider0_platform_status platform_status =
       w_seed_parallel_provider0_platform_execute(
-          input->jobs, input->job_count, input->provider_capacity, values,
-          &started, &completed, &maximum_active, &provider_kind);
+          jobs, input->selection->task_count, input->provider_capacity,
+          values, &started, &completed, &maximum_active_workers,
+          &provider_kind);
   if (platform_status == W_SEED_PARALLEL_PROVIDER0_PLATFORM_UNSUPPORTED)
     return W_SEED_PARALLEL_PROVIDER0_UNSUPPORTED;
   if (platform_status == W_SEED_PARALLEL_PROVIDER0_PLATFORM_TASK_FAILURE)
     return W_SEED_PARALLEL_PROVIDER0_TASK_FAILURE;
   if (platform_status != W_SEED_PARALLEL_PROVIDER0_PLATFORM_OK)
     return W_SEED_PARALLEL_PROVIDER0_PROVIDER_FAILURE;
-  if (started != input->job_count || completed != input->job_count ||
-      maximum_active == 0u || maximum_active > input->provider_capacity ||
+  if (started != input->selection->task_count ||
+      completed != input->selection->task_count ||
+      maximum_active_workers == 0u ||
+      maximum_active_workers > input->provider_capacity ||
       provider_kind == W_SEED_PARALLEL_PROVIDER0_KIND_NONE)
     return W_SEED_PARALLEL_PROVIDER0_PROVIDER_FAILURE;
 
@@ -255,12 +266,13 @@ w_seed_parallel_provider0_status w_seed_parallel_provider0_execute(
   (void)memcpy(outcome_candidate.schema,
                W_SEED_PARALLEL_PROVIDER0_SCHEMA_VERSION,
                sizeof(outcome_candidate.schema));
-  outcome_candidate.task_count = (uint32_t)input->job_count;
+  outcome_candidate.task_count = input->selection->task_count;
   (void)memcpy(outcome_candidate.hir_semantic_digest,
                input->hir_result->semantic_digest,
                sizeof(outcome_candidate.hir_semantic_digest));
-  for (size_t index = 0u; index < input->job_count; index += 1u) {
-    outcome_candidate.function_indices[index] = input->jobs[index].function_index;
+  for (size_t index = 0u; index < input->selection->task_count; index += 1u) {
+    outcome_candidate.function_indices[index] =
+        input->selection->task_function_indices[index];
     outcome_candidate.values[index] = values[index];
   }
   seal_outcomes(&outcome_candidate);
@@ -273,11 +285,11 @@ w_seed_parallel_provider0_status w_seed_parallel_provider0_execute(
   (void)memset(&receipt_candidate, 0, sizeof(receipt_candidate));
   receipt_candidate.provider_kind = provider_kind;
   receipt_candidate.provider_capacity = input->provider_capacity;
-  receipt_candidate.task_count = (uint32_t)input->job_count;
+  receipt_candidate.task_count = input->selection->task_count;
   receipt_candidate.started_count = started;
   receipt_candidate.completed_count = completed;
-  receipt_candidate.maximum_active = maximum_active;
-  receipt_candidate.overlap_observed = maximum_active > 1u;
+  receipt_candidate.maximum_active_workers = maximum_active_workers;
+  receipt_candidate.overlap_observed = maximum_active_workers > 1u;
   *outcomes = outcome_candidate;
   *receipt = receipt_candidate;
   return W_SEED_PARALLEL_PROVIDER0_OK;

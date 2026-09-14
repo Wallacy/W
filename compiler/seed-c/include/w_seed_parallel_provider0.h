@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "w_seed_parallel_selection0.h"
+#include "w_seed_parallel_invocation0.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,25 +33,11 @@ typedef enum {
   W_SEED_PARALLEL_PROVIDER0_KIND_WINDOWS_KERNEL32 = 1,
 } w_seed_parallel_provider0_kind;
 
-/* The admitted HIR subset proves pure, non-suspending scalar tasks. The
- * callback seam is private seed plumbing until MLIR emits the same ABI. A
- * callback must not retain pointers and publishes one i64 only on true. */
-typedef bool (*w_seed_parallel_provider0_task_fn)(void *context,
-                                                  int64_t *value);
-
-typedef struct {
-  uint32_t call_index;
-  uint32_t function_index;
-  w_seed_parallel_provider0_task_fn invoke;
-  void *context;
-} w_seed_parallel_provider0_job;
-
 typedef struct {
   const w_seed_hir0_program *program;
   const w_seed_hir0_result *hir_result;
   const w_seed_parallel_selection0 *selection;
-  const w_seed_parallel_provider0_job *jobs;
-  size_t job_count;
+  const w_seed_parallel_invocation0_plan *invocation;
   uint32_t provider_capacity;
 } w_seed_parallel_provider0_input;
 
@@ -68,24 +54,24 @@ typedef struct {
 } w_seed_parallel_provider0_outcomes;
 
 /* This record is physical evidence and is excluded from semantic identity.
- * overlap_observed is derived from simultaneous active callbacks, never from
- * elapsed-time thresholds. */
+ * overlap_observed is derived from simultaneous active workers at the
+ * provider rendezvous, never from callback duration or elapsed time. */
 typedef struct {
   w_seed_parallel_provider0_kind provider_kind;
   uint32_t provider_capacity;
   uint32_t task_count;
   uint32_t started_count;
   uint32_t completed_count;
-  uint32_t maximum_active;
+  uint32_t maximum_active_workers;
   bool overlap_observed;
   uint8_t reserved[3];
 } w_seed_parallel_provider0_receipt;
 
 /* Execution is transactional for outcomes and receipt: every non-OK return
  * leaves both caller-owned records bitwise unchanged. The closed seed subset
- * admits only side-effect-free callbacks, so task effects require no rollback.
- * Outputs must be disjoint from one another, the input records, jobs, and all
- * verified-HIR backing ranges. */
+ * admits only HIR-derived pure scalar evaluation, so task effects require no
+ * rollback. Outputs must be disjoint from one another, the input records,
+ * invocation plan, and all verified-HIR backing ranges. */
 w_seed_parallel_provider0_status w_seed_parallel_provider0_execute(
     const w_seed_parallel_provider0_input *input,
     w_seed_parallel_provider0_outcomes *outcomes,

@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:6caf85fc0d89cb4450b5ee29caa53b3394af87033c19789b132dd6fdfe97ba89",
+  "corpusDigest": "sha256:1c2cddebddda1070d2aa95065f9e867a45796b300faca6baedf81d7bf684abc9",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -7793,24 +7793,24 @@
       ]
     },
     {
-      "id": "R0-parallel-provider-component",
+      "id": "R0-parallel-hir-invocation",
       "task": {
-        "utf8Bytes": 124,
-        "codePoints": 124,
-        "nonWhitespaceCodePoints": 108,
+        "utf8Bytes": 149,
+        "codePoints": 149,
+        "nonWhitespaceCodePoints": 128,
         "lines": 1,
-        "surfaceLexemes": 18
+        "surfaceLexemes": 23
       },
       "selected": {
         "name": "selected",
         "language": "w-internal",
-        "sourceDigest": "sha256:9760e8f35c00b2b1dd98804679afdf1a47a454ec21d7b3aad6a72460513dfca0",
+        "sourceDigest": "sha256:abd76c1dc0880ce939385b07dbf481473bfe695f0d0cd9289b88bd42c02ceef7",
         "metrics": {
-          "utf8Bytes": 229,
-          "codePoints": 229,
-          "nonWhitespaceCodePoints": 210,
-          "lines": 4,
-          "surfaceLexemes": 44
+          "utf8Bytes": 263,
+          "codePoints": 263,
+          "nonWhitespaceCodePoints": 242,
+          "lines": 5,
+          "surfaceLexemes": 50
         }
       },
       "alternatives": [
@@ -7851,15 +7851,15 @@
           }
         },
         {
-          "name": "callback-is-public-runtime",
+          "name": "caller-controls-result",
           "language": "w-internal-rejected",
-          "sourceDigest": "sha256:ad99a1d6d9b638cc76affbd65bad5c64520b622dfc2b99b65181f2ab905ec3c7",
+          "sourceDigest": "sha256:fc1f567fe94e6f56ac2752d2b49d3b0e8503bd1bbfeaebcbe45e79f29f7df8d7",
           "metrics": {
-            "utf8Bytes": 51,
-            "codePoints": 51,
-            "nonWhitespaceCodePoints": 43,
+            "utf8Bytes": 60,
+            "codePoints": 60,
+            "nonWhitespaceCodePoints": 58,
             "lines": 1,
-            "surfaceLexemes": 9
+            "surfaceLexemes": 10
           }
         }
       ]

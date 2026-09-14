@@ -5,6 +5,7 @@
 
 #include "w_seed_native_subset0.h"
 #include "w_seed_product_closure0.h"
+#include "w_seed_scalar_evaluator0.h"
 #include "w_seed_sha256.h"
 
 enum {
@@ -5763,213 +5764,6 @@ static const char *cooperative_type_name(const w_seed_hir0_program *program,
   return NULL;
 }
 
-static bool cooperative_evaluate_function(
-    const w_seed_hir0_program *program, uint32_t function_index,
-    const int64_t parameters[W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS],
-    size_t parameter_count, size_t depth, size_t *budget, int64_t *result);
-
-static bool cooperative_evaluate_value(
-    const w_seed_hir0_program *program, uint32_t value_index,
-    const int64_t parameters[W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS],
-    size_t parameter_count, size_t depth, size_t *budget, int64_t *result);
-
-static bool cooperative_evaluate_call(
-    const w_seed_hir0_program *program, uint32_t call_index,
-    const int64_t caller_parameters[W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS],
-    size_t caller_parameter_count, size_t depth, size_t *budget,
-    int64_t *result) {
-  if (program == NULL || result == NULL || call_index >= program->call_count ||
-      depth > W_SEED_HIR0_MAX_NESTING || budget == NULL || *budget == 0u)
-    return false;
-  *budget -= 1u;
-  const w_seed_hir0_call *call = &program->calls[call_index];
-  if ((call->execution_kind != W_SEED_HIR0_CALL_DIRECT &&
-       call->execution_kind !=
-           W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE &&
-       call->execution_kind !=
-           W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH) ||
-      call->callee_identity >= program->identity_count ||
-      call->argument_count > W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS)
-    return false;
-  const w_seed_hir0_identity *identity =
-      &program->identities[call->callee_identity];
-  if (identity->kind != W_SEED_HIR0_IDENTITY_FUNCTION ||
-      identity->target_index >= program->function_count)
-    return false;
-  const w_seed_hir0_function *target =
-      &program->functions[identity->target_index];
-  if (call->argument_count != target->parameter_count ||
-      target->parameter_count > W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS ||
-      target->return_type >= program->type_count ||
-      program->types[target->return_type].kind != W_SEED_HIR0_TYPE_I64)
-    return false;
-  int64_t arguments[W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS] = {0};
-  bool seen[W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS] = {false};
-  for (size_t ordinal = 0u; ordinal < call->argument_count; ordinal += 1u) {
-    const w_seed_hir0_argument *argument =
-        &program->arguments[(size_t)call->first_argument + ordinal];
-    if (argument->parameter_ordinal >= call->argument_count ||
-        seen[argument->parameter_ordinal] ||
-        !cooperative_evaluate_value(
-            program, argument->value_index, caller_parameters,
-            caller_parameter_count, depth + 1u, budget,
-            &arguments[argument->parameter_ordinal]))
-      return false;
-    seen[argument->parameter_ordinal] = true;
-  }
-  return cooperative_evaluate_function(
-      program, identity->target_index, arguments, call->argument_count,
-      depth + 1u, budget, result);
-}
-
-static bool cooperative_checked_binary(w_seed_hir0_binary_operator operation,
-                                       int64_t left, int64_t right,
-                                       int64_t *result) {
-  if (result == NULL) return false;
-  switch (operation) {
-    case W_SEED_HIR0_BINARY_ADD:
-      if ((right > 0 && left > INT64_MAX - right) ||
-          (right < 0 && left < INT64_MIN - right))
-        return false;
-      *result = left + right;
-      return true;
-    case W_SEED_HIR0_BINARY_SUBTRACT:
-      if ((right < 0 && left > INT64_MAX + right) ||
-          (right > 0 && left < INT64_MIN + right))
-        return false;
-      *result = left - right;
-      return true;
-    case W_SEED_HIR0_BINARY_MULTIPLY:
-      if (left == 0 || right == 0) {
-        *result = 0;
-        return true;
-      }
-      if (left == -1) {
-        if (right == INT64_MIN) return false;
-        *result = -right;
-        return true;
-      }
-      if (right == -1) {
-        if (left == INT64_MIN) return false;
-        *result = -left;
-        return true;
-      }
-      if ((left > 0 && right > 0 && left > INT64_MAX / right) ||
-          (left > 0 && right < 0 && right < INT64_MIN / left) ||
-          (left < 0 && right > 0 && left < INT64_MIN / right) ||
-          (left < 0 && right < 0 && left < INT64_MAX / right))
-        return false;
-      *result = left * right;
-      return true;
-    case W_SEED_HIR0_BINARY_DIVIDE:
-      if (right == 0 || (left == INT64_MIN && right == -1)) return false;
-      *result = left / right;
-      return true;
-    case W_SEED_HIR0_BINARY_REMAINDER:
-      if (right == 0 || (left == INT64_MIN && right == -1)) return false;
-      *result = left % right;
-      return true;
-    default:
-      return false;
-  }
-}
-
-static bool cooperative_evaluate_value(
-    const w_seed_hir0_program *program, uint32_t value_index,
-    const int64_t parameters[W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS],
-    size_t parameter_count, size_t depth, size_t *budget, int64_t *result) {
-  if (program == NULL || result == NULL || value_index >= program->value_count ||
-      depth > W_SEED_HIR0_MAX_NESTING || budget == NULL || *budget == 0u)
-    return false;
-  *budget -= 1u;
-  const w_seed_hir0_value *value = &program->values[value_index];
-  if (value->type_index >= program->type_count ||
-      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_I64)
-    return false;
-  if (value->kind == W_SEED_HIR0_VALUE_CONST_I64) {
-    *result = value->integer_value;
-    return true;
-  }
-  if (value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ) {
-    if (value->parameter_index >= program->parameter_count) return false;
-    const size_t ordinal =
-        program->parameters[value->parameter_index].ordinal;
-    if (parameters == NULL || ordinal >= parameter_count) return false;
-    *result = parameters[ordinal];
-    return true;
-  }
-  if (value->kind == W_SEED_HIR0_VALUE_BINDING_READ) {
-    if (value->binding_index >= program->binding_count) return false;
-    return cooperative_evaluate_value(
-        program, program->bindings[value->binding_index].initializer_value,
-        parameters, parameter_count, depth + 1u, budget, result);
-  }
-  if (value->kind == W_SEED_HIR0_VALUE_CALL_RESULT)
-    return cooperative_evaluate_call(program, value->call_index, parameters,
-                                     parameter_count, depth + 1u, budget,
-                                     result);
-  if (value->kind != W_SEED_HIR0_VALUE_BINARY_I64) return false;
-  int64_t left = 0;
-  int64_t right = 0;
-  return cooperative_evaluate_value(program, value->left_value, parameters,
-                                    parameter_count, depth + 1u, budget,
-                                    &left) &&
-         cooperative_evaluate_value(program, value->right_value, parameters,
-                                    parameter_count, depth + 1u, budget,
-                                    &right) &&
-         cooperative_checked_binary(value->binary_operator, left, right,
-                                    result);
-}
-
-static bool cooperative_evaluate_function(
-    const w_seed_hir0_program *program, uint32_t function_index,
-    const int64_t parameters[W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS],
-    size_t parameter_count, size_t depth, size_t *budget, int64_t *result) {
-  if (program == NULL || result == NULL ||
-      function_index >= program->function_count ||
-      depth > W_SEED_HIR0_MAX_NESTING || budget == NULL || *budget == 0u)
-    return false;
-  *budget -= 1u;
-  const w_seed_hir0_function *function = &program->functions[function_index];
-  if (function->parameter_count != parameter_count ||
-      function->block_count != 1u ||
-      function->first_block >= program->block_count ||
-      function->return_type >= program->type_count ||
-      program->types[function->return_type].kind != W_SEED_HIR0_TYPE_I64)
-    return false;
-  const w_seed_hir0_block *block = &program->blocks[function->first_block];
-  for (size_t ordinal = 0u; ordinal < block->instruction_count;
-       ordinal += 1u) {
-    const w_seed_hir0_instruction *instruction =
-        &program->instructions[(size_t)block->first_instruction + ordinal];
-    int64_t ignored = 0;
-    if (instruction->kind == W_SEED_HIR0_INSTRUCTION_EXECUTION_YIELD)
-      continue;
-    if (instruction->kind == W_SEED_HIR0_INSTRUCTION_BINDING) {
-      if (instruction->binding_index >= program->binding_count ||
-          !cooperative_evaluate_value(
-              program,
-              program->bindings[instruction->binding_index].initializer_value,
-              parameters, parameter_count, depth + 1u, budget, &ignored))
-        return false;
-    } else if (instruction->kind == W_SEED_HIR0_INSTRUCTION_CALL) {
-      if (!cooperative_evaluate_call(program, instruction->call_index,
-                                     parameters, parameter_count, depth + 1u,
-                                     budget, &ignored))
-        return false;
-    } else {
-      return false;
-    }
-  }
-  if (block->terminator_index >= program->terminator_count) return false;
-  const w_seed_hir0_terminator *terminator =
-      &program->terminators[block->terminator_index];
-  return terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
-         cooperative_evaluate_value(program, terminator->value_index,
-                                    parameters, parameter_count, depth + 1u,
-                                    budget, result);
-}
-
 static bool append_cooperative_value_operand(
     const w_seed_hir0_program *program, uint32_t value_index,
     uint8_t *artifact, size_t capacity, size_t *offset, size_t depth);
@@ -6348,15 +6142,15 @@ static bool append_cooperative_core_counted(
   int64_t task_results[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {0};
   size_t evaluation_budget = MLIR0_COOPERATIVE_MAX_EVALUATION_STEPS;
   for (size_t task = 0u; task < task_count; task += 1u)
-    if (!cooperative_evaluate_call(
-            program, selection->task_call_indices[task], NULL, 0u, 0u,
-            &evaluation_budget, &task_results[task]))
+    if (!w_seed_scalar_evaluator0_evaluate_call(
+            program, selection->task_call_indices[task], &evaluation_budget,
+            &task_results[task]))
       return false;
   *result_value = task_results[0];
   for (size_t task = 1u; task < task_count; task += 1u) {
     int64_t folded = 0;
-    if (!cooperative_checked_binary(W_SEED_HIR0_BINARY_ADD, *result_value,
-                                    task_results[task], &folded))
+    if (!w_seed_scalar_evaluator0_checked_binary(
+            W_SEED_HIR0_BINARY_ADD, *result_value, task_results[task], &folded))
       return false;
     *result_value = folded;
   }

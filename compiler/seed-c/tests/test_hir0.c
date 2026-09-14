@@ -1,16 +1,14 @@
 #include "w_seed_hir0.h"
+#include "w_seed_parallel_invocation0.h"
 #include "w_seed_parallel_provider0.h"
 #include "w_seed_parallel_selection0.h"
+#include "w_seed_scalar_evaluator0.h"
 
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-
-#if defined(_WIN32) && defined(_WIN64)
-#include <windows.h>
-#endif
 
 /* Test-only seam for resealing an in-memory HIR mutation. This keeps the
  * production digest helpers private while distinguishing lifecycle rejection
@@ -29,51 +27,38 @@
     }                                                                          \
   } while (0)
 
-#if defined(_WIN32) && defined(_WIN64)
-typedef struct {
-  int64_t input;
-  HANDLE barrier;
-  volatile LONG *arrived;
-  LONG barrier_target;
-  bool fail;
-} parallel_provider_test_context;
-
-static bool parallel_provider_test_task(void *raw, int64_t *value) {
-  parallel_provider_test_context *context =
-      (parallel_provider_test_context *)raw;
-  if (context == NULL || value == NULL) return false;
-  if (context->barrier != NULL) {
-    const LONG arrived = InterlockedIncrement(context->arrived);
-    if (arrived == context->barrier_target && !SetEvent(context->barrier))
-      return false;
-    if (WaitForSingleObject(context->barrier, 5000u) != WAIT_OBJECT_0)
-      return false;
-  }
-  if (context->fail) return false;
-  *value = context->input + 1;
+static bool test_scalar_evaluator_edges(void) {
+  int64_t value = INT64_MIN;
+  CHECK(w_seed_scalar_evaluator0_checked_binary(
+            W_SEED_HIR0_BINARY_REMAINDER, INT64_MIN, -1, &value) &&
+        value == 0);
+  value = 0x5151;
+  CHECK(!w_seed_scalar_evaluator0_checked_binary(
+            W_SEED_HIR0_BINARY_DIVIDE, INT64_MIN, -1, &value) &&
+        value == 0x5151);
   return true;
 }
 
+#if defined(_WIN32) && defined(_WIN64)
 static bool test_parallel_provider_cardinality(
     const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
     const w_seed_parallel_selection0 *selection) {
   CHECK(program != NULL && hir_result != NULL && selection != NULL &&
         selection->task_count >= 1u &&
         selection->task_count <= W_SEED_PARALLEL_PROVIDER0_MAX_TASKS);
-  volatile LONG arrived = 0;
-  parallel_provider_test_context
-      contexts[W_SEED_PARALLEL_PROVIDER0_MAX_TASKS];
-  w_seed_parallel_provider0_job jobs[W_SEED_PARALLEL_PROVIDER0_MAX_TASKS];
-  for (size_t index = 0u; index < selection->task_count; index += 1u) {
-    contexts[index] = (parallel_provider_test_context){
-        20 + (int64_t)(index * 2u), NULL, &arrived, 0, false};
-    jobs[index] = (w_seed_parallel_provider0_job){
-        selection->task_call_indices[index],
-        selection->task_function_indices[index], parallel_provider_test_task,
-        &contexts[index]};
-  }
+  w_seed_parallel_invocation0_plan invocation;
+  CHECK(w_seed_parallel_invocation0_select(program, hir_result, selection,
+                                            &invocation) ==
+            W_SEED_PARALLEL_INVOCATION0_OK &&
+        w_seed_parallel_invocation0_verify(program, hir_result, selection,
+                                            &invocation));
+  int64_t direct_value = INT64_MIN;
+  CHECK(w_seed_parallel_invocation0_evaluate_task(
+            program, hir_result, selection, &invocation, 0u, &direct_value) ==
+            W_SEED_PARALLEL_INVOCATION0_OK &&
+        direct_value == 21);
   w_seed_parallel_provider0_input input = {
-      program, hir_result, selection, jobs, selection->task_count, 1u};
+      program, hir_result, selection, &invocation, 1u};
   w_seed_parallel_provider0_outcomes sequential;
   w_seed_parallel_provider0_receipt sequential_receipt;
   CHECK(w_seed_parallel_provider0_execute(&input, &sequential,
@@ -88,9 +73,9 @@ static bool test_parallel_provider_cardinality(
                                           &parallel_receipt) ==
             W_SEED_PARALLEL_PROVIDER0_OK &&
         memcmp(&parallel, &sequential, sizeof(parallel)) == 0 &&
-        sequential_receipt.maximum_active == 1u &&
-        parallel_receipt.maximum_active >= 1u &&
-        parallel_receipt.maximum_active <= 2u);
+        sequential_receipt.maximum_active_workers == 1u &&
+        parallel_receipt.maximum_active_workers >= 1u &&
+        parallel_receipt.maximum_active_workers <= 2u);
   return true;
 }
 
@@ -99,18 +84,40 @@ static bool test_parallel_provider_windows(
     const w_seed_parallel_selection0 *selection) {
   CHECK(program != NULL && hir_result != NULL && selection != NULL &&
         selection->task_count == 2u);
-  volatile LONG arrived = 0;
-  parallel_provider_test_context contexts[2] = {
-      {20, NULL, &arrived, 0, false}, {22, NULL, &arrived, 0, false}};
-  w_seed_parallel_provider0_job jobs[2];
-  for (size_t index = 0u; index < 2u; index += 1u)
-    jobs[index] = (w_seed_parallel_provider0_job){
-        selection->task_call_indices[index],
-        selection->task_function_indices[index], parallel_provider_test_task,
-        &contexts[index]};
+  w_seed_parallel_invocation0_plan invocation;
+  CHECK(w_seed_parallel_invocation0_select(program, hir_result, selection,
+                                            &invocation) ==
+            W_SEED_PARALLEL_INVOCATION0_OK &&
+        w_seed_parallel_invocation0_verify(program, hir_result, selection,
+                                            &invocation));
+  int64_t first_value = INT64_MIN;
+  int64_t second_value = INT64_MIN;
+  CHECK(w_seed_parallel_invocation0_evaluate_task(
+            program, hir_result, selection, &invocation, 0u, &first_value) ==
+            W_SEED_PARALLEL_INVOCATION0_OK &&
+        w_seed_parallel_invocation0_evaluate_task(
+            program, hir_result, selection, &invocation, 1u, &second_value) ==
+            W_SEED_PARALLEL_INVOCATION0_OK &&
+        first_value == 21 && second_value == 23);
+
+  union {
+    w_seed_parallel_selection0 selection;
+    w_seed_parallel_invocation0_plan invocation;
+  } invocation_alias;
+  (void)memset(&invocation_alias, 0x3d, sizeof(invocation_alias));
+  invocation_alias.selection = *selection;
+  unsigned char invocation_alias_before[sizeof(invocation_alias)];
+  (void)memcpy(invocation_alias_before, &invocation_alias,
+               sizeof(invocation_alias));
+  CHECK(w_seed_parallel_invocation0_select(
+            program, hir_result, &invocation_alias.selection,
+            &invocation_alias.invocation) ==
+            W_SEED_PARALLEL_INVOCATION0_INVALID &&
+        memcmp(&invocation_alias, invocation_alias_before,
+               sizeof(invocation_alias)) == 0);
 
   w_seed_parallel_provider0_input input = {
-      program, hir_result, selection, jobs, 2u, 1u};
+      program, hir_result, selection, &invocation, 1u};
   w_seed_parallel_provider0_outcomes sequential;
   w_seed_parallel_provider0_receipt sequential_receipt;
   (void)memset(&sequential, 0x5a, sizeof(sequential));
@@ -127,20 +134,13 @@ static bool test_parallel_provider_windows(
         sequential_receipt.provider_capacity == 1u &&
         sequential_receipt.started_count == 2u &&
         sequential_receipt.completed_count == 2u &&
-        sequential_receipt.maximum_active == 1u &&
+        sequential_receipt.maximum_active_workers == 1u &&
         !sequential_receipt.overlap_observed);
   w_seed_parallel_provider0_outcomes forged_outcomes = sequential;
   forged_outcomes.outcome_digest[0] ^= 1u;
   CHECK(!w_seed_parallel_provider0_verify_outcomes(
       program, hir_result, selection, &forged_outcomes));
 
-  HANDLE barrier = CreateEventW(NULL, TRUE, FALSE, NULL);
-  CHECK(barrier != NULL);
-  arrived = 0;
-  for (size_t index = 0u; index < 2u; index += 1u) {
-    contexts[index].barrier = barrier;
-    contexts[index].barrier_target = 2;
-  }
   input.provider_capacity = 2u;
   w_seed_parallel_provider0_outcomes parallel;
   w_seed_parallel_provider0_receipt parallel_receipt;
@@ -148,15 +148,12 @@ static bool test_parallel_provider_windows(
   (void)memset(&parallel_receipt, 0x6c, sizeof(parallel_receipt));
   const w_seed_parallel_provider0_status parallel_status =
       w_seed_parallel_provider0_execute(&input, &parallel, &parallel_receipt);
-  (void)CloseHandle(barrier);
-  for (size_t index = 0u; index < 2u; index += 1u)
-    contexts[index].barrier = NULL;
-  CHECK(parallel_status == W_SEED_PARALLEL_PROVIDER0_OK && arrived == 2 &&
+  CHECK(parallel_status == W_SEED_PARALLEL_PROVIDER0_OK &&
         memcmp(&parallel, &sequential, sizeof(parallel)) == 0 &&
         parallel_receipt.provider_capacity == 2u &&
         parallel_receipt.started_count == 2u &&
         parallel_receipt.completed_count == 2u &&
-        parallel_receipt.maximum_active == 2u &&
+        parallel_receipt.maximum_active_workers == 2u &&
         parallel_receipt.overlap_observed);
 
   w_seed_parallel_provider0_outcomes outcome_sentinel;
@@ -175,19 +172,14 @@ static bool test_parallel_provider_windows(
             0);
 
   input.provider_capacity = 1u;
-  contexts[1].fail = true;
-  CHECK(w_seed_parallel_provider0_execute(&input, &outcome_sentinel,
-                                          &receipt_sentinel) ==
-            W_SEED_PARALLEL_PROVIDER0_TASK_FAILURE &&
-        memcmp(&outcome_sentinel, &outcome_before, sizeof(outcome_before)) ==
-            0 &&
-        memcmp(&receipt_sentinel, &receipt_before, sizeof(receipt_before)) ==
-            0);
-  contexts[1].fail = false;
-
-  w_seed_parallel_provider0_job bad_jobs[2] = {jobs[0], jobs[1]};
-  bad_jobs[0].call_index ^= 1u;
-  input.jobs = bad_jobs;
+  w_seed_parallel_invocation0_plan forged_invocation = invocation;
+  forged_invocation.tasks[0].call_index ^= 1u;
+  int64_t forged_value = 0x6262;
+  CHECK(w_seed_parallel_invocation0_evaluate_task(
+            program, hir_result, selection, &forged_invocation, 0u,
+            &forged_value) == W_SEED_PARALLEL_INVOCATION0_INVALID &&
+        forged_value == 0x6262);
+  input.invocation = &forged_invocation;
   CHECK(w_seed_parallel_provider0_execute(&input, &outcome_sentinel,
                                           &receipt_sentinel) ==
             W_SEED_PARALLEL_PROVIDER0_INVALID &&
@@ -204,7 +196,7 @@ static bool test_parallel_provider_windows(
   selection_alias.selection = *selection;
   unsigned char alias_snapshot[sizeof(selection_alias)];
   (void)memcpy(alias_snapshot, &selection_alias, sizeof(selection_alias));
-  input.jobs = jobs;
+  input.invocation = &invocation;
   input.selection = &selection_alias.selection;
   CHECK(w_seed_parallel_provider0_execute(&input, &selection_alias.outcomes,
                                           &receipt_sentinel) ==
@@ -2943,6 +2935,24 @@ static bool test_parallel_domain_placement_hir(void) {
             W_SEED_PARALLEL_SELECTION0_UNSUPPORTED &&
         memcmp(&selection_sentinel, &selection_before,
                sizeof(selection_sentinel)) == 0);
+
+  static const char OVERFLOWING_TASK[] =
+      "fn prepare(value: i64): i64 { return value + 1 }\n"
+      "entry { let pending = spawn<.domain> "
+      "prepare(value: 9223372036854775807) let value = await pending }\n";
+  CHECK(lower_parallel_domain(OVERFLOWING_TASK));
+  CHECK(w_seed_parallel_selection0_select(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_PARALLEL_SELECTION0_OK);
+  w_seed_parallel_invocation0_plan invocation_sentinel;
+  (void)memset(&invocation_sentinel, 0x4e, sizeof(invocation_sentinel));
+  const w_seed_parallel_invocation0_plan invocation_before =
+      invocation_sentinel;
+  CHECK(w_seed_parallel_invocation0_select(
+            &fixture.hir_program, &fixture.hir_result, &selection,
+            &invocation_sentinel) == W_SEED_PARALLEL_INVOCATION0_UNSUPPORTED &&
+        memcmp(&invocation_sentinel, &invocation_before,
+               sizeof(invocation_before)) == 0);
   return true;
 }
 
@@ -7559,6 +7569,7 @@ static bool test_function_export_facts(void) {
 }
 
 int main(void) {
+  if (!test_scalar_evaluator_edges()) return 1;
   if (!test_frontend_inferred_call_interpolation()) return 1;
   if (!test_process_hir()) return 1;
   if (!test_process_input0_hir()) return 1;

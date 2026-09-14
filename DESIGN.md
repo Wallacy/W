@@ -39558,36 +39558,72 @@ entry {
 
 #### 26.4.1.71 W-1590 — bounded Windows parallel provider component
 
-W-1590 adds PARPROV0 as the first physical consumer of PARSEL0. The component
-re-verifies HIR37 and the exact selection before invoking one through four
-pure, non-suspending scalar jobs. Provider capacity is physical input and is
-bounded to one or two in this seed. Capacity one executes in lexical order;
-capacity two uses bounded Windows x64 Kernel32 threads in waves of at most two
-while publishing values in lexical join order.
+W-1590 adds PARPROV0 as the first physical consumer of PARSEL0. In its current
+W-1591-completed form, the component re-verifies HIR37, the exact selection,
+and a HIR-derived PARINV0 plan before invoking one through four pure,
+non-suspending scalar jobs. Provider capacity is physical input and is bounded
+to one or two in this seed. Capacity one executes in lexical order; capacity
+two uses bounded Windows x64 Kernel32 threads in waves of at most two while
+publishing values in lexical join order.
 
 Semantic outcomes and physical evidence are separate records. The semantic
 record contains selected function identities, signed-`i64` values, the HIR
 semantic digest, and a canonical outcome digest. It contains neither provider
 kind nor capacity, so capacity one and two must produce byte-identical semantic
 outcomes. The physical receipt records provider kind, requested capacity,
-started and completed counts, maximum simultaneous active callbacks, and
-whether overlap occurred. Overlap is derived from simultaneous active
-callbacks; elapsed time, speedup, and thread creation alone are not evidence.
+started and completed counts, maximum simultaneous active workers, and whether
+worker overlap occurred. Overlap is derived at the provider rendezvous;
+callback duration, elapsed time, speedup, and thread creation alone are not
+evidence.
 
 Both records are caller-owned and publish transactionally only after every job
 has completed and every handle has been joined and closed. Invalid HIR,
-selection, job mapping, scalar type, capacity, alias, provider failure, or task
-failure leaves both records unchanged. Output alias checks cover the input,
-jobs, HIR descriptor and result, selection, and every HIR backing range. The
-bounded implementation uses no heap and does not expose native handles.
+selection, invocation plan, scalar type, capacity, alias, provider failure, or
+task failure leaves both records unchanged. Output alias checks cover the
+input, plan, HIR descriptor and result, selection, and every HIR backing range.
+The bounded implementation uses no heap and does not expose native handles.
 
-The invocation callback remains a private seed bridge. It is not a W Task ABI,
-does not prove that emitted code corresponds to the selected HIR arguments,
-and does not make the host test executable CRT-free. Linux/WSL provider
-evidence, MLIR-generated invocation, public `w run`/`w build`, cancellation,
-worker pools, scheduling, and benchmarks remain later milestones. W-1590 is
-therefore `compiler-lifecycle` component evidence, not a product or performance
-claim.
+The provider contains only a private internal trampoline to the verified plan;
+no callback or arbitrary context crosses its public input boundary. This is
+not a W Task ABI and does not make the host test executable CRT-free. Linux/WSL
+provider evidence, MLIR-generated task entry points, public `w run`/`w build`,
+cancellation, worker pools, scheduling, and benchmarks remain later milestones.
+W-1590 is therefore `compiler-lifecycle` component evidence, not a product or
+performance claim.
+
+#### 26.4.1.72 W-1591 — HIR-derived bounded parallel invocation
+
+W-1591 removes the caller-controlled callback seam from PARPROV0. PARINV0
+re-verifies HIR37 and PARSEL0 and derives a fixed canonical plan containing the
+selected root, task call/function identities, exact parameter-ordinal argument
+value indices, relevant HIR counts, and the HIR semantic digest. Unused task
+and argument slots are zero. Provider capacity, native handles, function
+pointers, arbitrary contexts, and Task objects are absent from the plan.
+
+The admitted evaluator is a compiler-host authority for one pure signed-`i64`
+subset: concrete arguments, one-block non-throwing/non-unsafe/non-borrowing
+ordinary child functions, acyclic direct local helpers, constants,
+parameter/binding reads, checked negate and arithmetic, and direct call
+results. Selection dry-evaluates every task under a fixed depth and step
+budget; unsupported values, operators, control, recursion, overflow, and
+division or remainder failure reject the plan before physical work begins.
+This evaluator is seed compiler evidence, not a general W interpreter or WRT
+surface.
+
+PARPROV0 accepts the verified plan and capacity only. It constructs private
+jobs whose sole entry evaluates the selected HIR task; external code can no
+longer substitute a value unrelated to the source program. Capacity-two waves
+use an internal two-worker rendezvous after active registration, so overlap is
+proved without test-supplied callbacks or timing. Plan and provider outputs
+remain transactional and reject overlap with descriptors, proofs, or any HIR
+backing range.
+
+W-1591 is `compiler-lifecycle` component evidence. MLIR-emitted task entry
+points, runtime-dependent process inputs, Linux/WSL and other providers,
+CRT-free target imports, public commands, cancellation, scheduling, public
+benchmarks, and performance remain gaps. A public parallel product must replace
+compiler-host evaluation with emitted code while preserving this exact
+invocation proof and semantic/physical separation.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

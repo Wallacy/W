@@ -7829,15 +7829,16 @@
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     },
     {
-      "id": "R0-parallel-provider-component",
-      "reviewItem": "bounded Windows parallel provider evidence against capacity-dependent semantics, timing-based overlap claims, and callback/product conflation",
-      "decisions": ["W-1590"],
-      "task": "Execute one verified parallel selection at capacities one and two while separating semantic outcomes from physical evidence.",
+      "id": "R0-parallel-hir-invocation",
+      "reviewItem": "HIR-derived parallel invocation against caller-supplied results, unchecked arithmetic, and compiler-host/product conflation",
+      "decisions": ["W-1590", "W-1591"],
+      "task": "Derive one canonical invocation from verified HIR and execute it at capacities one and two while separating semantic outcomes from physical evidence.",
       "selected": {
         "language": "w-internal",
         "source": [
-          "outcomes = PARPROV0.execute(selection, jobs, capacity: 1)",
-          "parallelOutcomes = PARPROV0.execute(selection, jobs, capacity: 2)",
+          "invocation = PARINV0.select(hir, selection)",
+          "outcomes = PARPROV0.execute(invocation, capacity: 1)",
+          "parallelOutcomes = PARPROV0.execute(invocation, capacity: 2)",
           "assert outcomes.semanticBytes == parallelOutcomes.semanticBytes",
           "assert physicalReceipt.maximumActive == 2"
         ]
@@ -7862,13 +7863,18 @@
           "expectedDifference": "All jobs join and all handles close before the transactional semantic and physical commit."
         },
         {
-          "name": "callback-is-public-runtime",
+          "name": "caller-controls-result",
           "language": "w-internal-rejected",
-          "source": ["claim private callback bridge as emitted W Task ABI"],
-          "expectedDifference": "The component explicitly remains below MLIR invocation, public executable, CRT-free target, and benchmark claims."
+          "source": ["PARPROV0.execute(selection, callback: returnsUnrelatedValue)"],
+          "expectedDifference": "The provider exposes no caller callback or arbitrary context; only the HIR-derived plan can produce task values."
         }
       ],
       "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_parallel_invocation0.h",
+          "symbol": "w_seed_parallel_invocation0_plan",
+          "claim": "The fixed plan retains exact task calls, functions, argument-value indices, HIR counts, and semantic identity without provider policy."
+        },
         {
           "path": "compiler/seed-c/include/w_seed_parallel_provider0.h",
           "symbol": "w_seed_parallel_provider0_outcomes",
@@ -7877,12 +7883,12 @@
         {
           "path": "compiler/seed-c/src/w_seed_parallel_provider0.c",
           "symbol": "w_seed_parallel_provider0_execute",
-          "claim": "The core re-verifies HIR and selection, rejects aliases and mappings, stages results, and publishes transactionally."
+          "claim": "The core re-verifies HIR, selection, and invocation, constructs private evaluator jobs, stages results, and publishes transactionally."
         },
         {
           "path": "compiler/seed-c/src/w_seed_parallel_provider0_windows.c",
           "symbol": "w_seed_parallel_provider0_platform_execute",
-          "claim": "The Windows x64 leaf uses bounded Kernel32 waves and records simultaneous active callbacks."
+          "claim": "The Windows x64 leaf uses bounded Kernel32 waves and an internal active-worker rendezvous."
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
@@ -7891,12 +7897,13 @@
         }
       ],
       "checks": [
-        "verified HIR37 and PARSEL0 are rechecked before physical work",
+        "verified HIR37 and PARSEL0 are rechecked before PARINV0 publication and physical work",
+        "exact parameter-ordinal argument values and checked scalar work are derived from HIR",
         "k=1, k=2, and k=4 execute with capacity one and two",
         "semantic outcomes are byte-identical across capacities",
-        "capacity two proves two simultaneously active callbacks without timing",
-        "invalid mapping, capacity, forged outcomes, aliases, and task failure preserve outputs",
-        "the callback remains private component plumbing rather than a public W runtime claim"
+        "capacity two proves two simultaneously active workers without timing",
+        "invalid plan, capacity, checked failure, forged outcomes, and aliases preserve outputs",
+        "no callback or arbitrary context crosses the provider input boundary"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
