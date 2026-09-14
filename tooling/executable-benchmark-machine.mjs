@@ -1136,7 +1136,7 @@ function checkProtocol(protocol, name, errors) {
     push(errors, name + ".order must declare a supported deterministic measurement order.");
   }
   requiredString(protocol.resourceScope, name + ".resourceScope", errors);
-  if (!["w-native-benchmark/2", "bun-direct-test/1"].includes(protocol.measurementKernel)) {
+  if (!["w-native-benchmark/2", "w-linux-native-benchmark/1", "bun-direct-test/1"].includes(protocol.measurementKernel)) {
     push(errors, name + ".measurementKernel must identify the native production kernel or the bounded test adapter.");
   }
   stringArray(protocol.knownNoiseControls, name + ".knownNoiseControls", errors, 1);
@@ -1146,8 +1146,15 @@ function checkProtocol(protocol, name, errors) {
     /process[- ]tree.*aggregat|aggregat.*process[- ]tree/iu.test(disclosure);
   const nativeDisclosure = /QPC/iu.test(disclosure) && /Job Object/iu.test(disclosure) &&
     /working set/iu.test(disclosure) && /commit/iu.test(disclosure);
+  const linuxDisclosure = /CLOCK_MONOTONIC/iu.test(disclosure) && /wait4/iu.test(disclosure) &&
+    /root-process/iu.test(disclosure) && /descendants.*not aggregated/iu.test(disclosure) &&
+    /process group/iu.test(disclosure) && /best-effort/iu.test(disclosure);
   if (!requiredString(protocol.directProcessDisclosure, name + ".directProcessDisclosure", errors) ||
-      (protocol.measurementKernel === "w-native-benchmark/2" ? !nativeDisclosure : !legacyDisclosure)) {
+      (protocol.measurementKernel === "w-native-benchmark/2"
+        ? !nativeDisclosure
+        : protocol.measurementKernel === "w-linux-native-benchmark/1"
+          ? !linuxDisclosure
+          : !legacyDisclosure)) {
     push(errors, name + ".directProcessDisclosure must match the selected measurement kernel and distinguish process-tree CPU, root working set, and Job commit.");
   }
 }

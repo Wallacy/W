@@ -612,7 +612,7 @@
         "knownNoiseControls": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
         "unknownNoiseControls": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
         "directProcessDisclosure": { "type": "string" },
-        "measurementKernel": { "enum": ["w-native-benchmark/2", "bun-direct-test/1"] }
+        "measurementKernel": { "enum": ["w-native-benchmark/2", "w-linux-native-benchmark/1", "bun-direct-test/1"] }
       }
     },
     "environment": {
