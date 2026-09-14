@@ -23,7 +23,7 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:744223cd54ce64b55a7cbb863d8ba2b9d29d5aa8dc71383473237db6f614e3ff",
+    "sha256": "sha256:7b81155532fd6d0debeed252154e1f643ee266b910e12b74e3826d3da9c535c9",
     "count": 1593,
     "first": "W-001",
     "last": "W-1593"
@@ -2600,7 +2600,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8826b06cbbf264b37de3f293ae25d42cb383f3a1d092a335a43e4c8dce4b6018"
+        "sectionDigest": "sha256:94b3e02a2dd94522e7e1f84db2ad861352a4d7e2a76c44955a480b71a59f3b0e"
       },
       "evidence": [],
       "reason": "W-075 (IR, sha256:528b099ea1771b379e906a621404f52a601e0a7076df29dedae216285926d49a) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",
@@ -2633,7 +2633,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8826b06cbbf264b37de3f293ae25d42cb383f3a1d092a335a43e4c8dce4b6018"
+        "sectionDigest": "sha256:94b3e02a2dd94522e7e1f84db2ad861352a4d7e2a76c44955a480b71a59f3b0e"
       },
       "evidence": [],
       "reason": "W-076 (bootstrap, sha256:9455be981c70620bb9a74ee6c3591c02cefd15d40adfe497e690dd343d898baa) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",
@@ -2666,7 +2666,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8826b06cbbf264b37de3f293ae25d42cb383f3a1d092a335a43e4c8dce4b6018"
+        "sectionDigest": "sha256:94b3e02a2dd94522e7e1f84db2ad861352a4d7e2a76c44955a480b71a59f3b0e"
       },
       "evidence": [],
       "reason": "W-077 (build tool, sha256:ebaea877ffc8113004f6d6e6f85bf2c93a3e1ce24b01ff486683d5f41567a9f4) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",
@@ -3192,7 +3192,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8826b06cbbf264b37de3f293ae25d42cb383f3a1d092a335a43e4c8dce4b6018"
+        "sectionDigest": "sha256:94b3e02a2dd94522e7e1f84db2ad861352a4d7e2a76c44955a480b71a59f3b0e"
       },
       "evidence": [],
       "reason": "W-093 (GPU/HDL, sha256:56f429dcea9b67cb21d63b6563a3860242d6155b4f3674584de2f2c1ad24ec97) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",
@@ -3502,7 +3502,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8826b06cbbf264b37de3f293ae25d42cb383f3a1d092a335a43e4c8dce4b6018"
+        "sectionDigest": "sha256:94b3e02a2dd94522e7e1f84db2ad861352a4d7e2a76c44955a480b71a59f3b0e"
       },
       "evidence": [],
       "reason": "W-103 (camadas de memória, sha256:e593d375bcfade69c3b0a04e32365743c24f5e575ede6857d7ad4aa13931a40b) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",
@@ -9172,7 +9172,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8826b06cbbf264b37de3f293ae25d42cb383f3a1d092a335a43e4c8dce4b6018"
+        "sectionDigest": "sha256:94b3e02a2dd94522e7e1f84db2ad861352a4d7e2a76c44955a480b71a59f3b0e"
       },
       "evidence": [],
       "reason": "W-276 (bootstrap const, sha256:0ed43ce4ef1800368e3933fb8b52a80e8d1b388f08e25d14a68cb04d2f9e8d77) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",
@@ -12556,7 +12556,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8826b06cbbf264b37de3f293ae25d42cb383f3a1d092a335a43e4c8dce4b6018"
+        "sectionDigest": "sha256:94b3e02a2dd94522e7e1f84db2ad861352a4d7e2a76c44955a480b71a59f3b0e"
       },
       "evidence": [],
       "reason": "W-379 (explicação de performance, sha256:c0558e3961ea0856bfbf4f04117cb760bd994cfff4d7966c001362fc3215f6ef) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",
@@ -13766,7 +13766,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8826b06cbbf264b37de3f293ae25d42cb383f3a1d092a335a43e4c8dce4b6018"
+        "sectionDigest": "sha256:94b3e02a2dd94522e7e1f84db2ad861352a4d7e2a76c44955a480b71a59f3b0e"
       },
       "evidence": [],
       "reason": "W-416 (cópia shared, sha256:dddb9096250cca1b7b77cc45ad04c940d3366ea35d53107b1727313ab97e5c21) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",
@@ -14263,7 +14263,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8826b06cbbf264b37de3f293ae25d42cb383f3a1d092a335a43e4c8dce4b6018"
+        "sectionDigest": "sha256:94b3e02a2dd94522e7e1f84db2ad861352a4d7e2a76c44955a480b71a59f3b0e"
       },
       "evidence": [],
       "reason": "W-431 (COW de String, sha256:c5790c83cce2dd9a66e2b1632d8935bef0d664993ac22cd2c6b365a576611fc1) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",
@@ -19826,7 +19826,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8826b06cbbf264b37de3f293ae25d42cb383f3a1d092a335a43e4c8dce4b6018"
+        "sectionDigest": "sha256:94b3e02a2dd94522e7e1f84db2ad861352a4d7e2a76c44955a480b71a59f3b0e"
       },
       "evidence": [],
       "reason": "W-597 (sysroot, sha256:e3d02c97bb38229530265003286b0fd335a4140c2e2b8b482a5c8d508745482b) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",
@@ -19925,7 +19925,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8826b06cbbf264b37de3f293ae25d42cb383f3a1d092a335a43e4c8dce4b6018"
+        "sectionDigest": "sha256:94b3e02a2dd94522e7e1f84db2ad861352a4d7e2a76c44955a480b71a59f3b0e"
       },
       "evidence": [],
       "reason": "W-600 (claim de reprodução, sha256:2d56c2f406e5f3fa26e62fbd7ab891db8b7982cb00ddd957b55be6e850e660ce) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",
@@ -19958,7 +19958,7 @@
         "path": "DESIGN.md",
         "section": "20.4.12",
         "heading": "#### 20.4.12 LTO, intermediate artifacts e observabilidade",
-        "sectionDigest": "sha256:d8261200105e77506ef5af9e4a9fa6809984b36b64b88fcff3bdbee68bf480bc"
+        "sectionDigest": "sha256:d1be6c54c8fa8e47e8e6f3db4119dbc5aac65e34322bd0016f6f80f30ac7cbc1"
       },
       "evidence": [],
       "reason": "W-601 (granularidade física e optimization region, sha256:630163028d0387d29dfdbb9aa513664445a15b5a6574612c6fae1dad4f3b276f) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §20.4.12 / 20.4.12 LTO, intermediate artifacts e observabilidade.",
@@ -20761,9 +20761,9 @@
     },
     {
       "decisionId": "W-626",
-      "summary": "WMO/WPO, LTO e IR",
-      "canonicalClaim": "`release` aplica whole-module por default e amplia automaticamente até package/workspace/product quando o grafo é provadamente fechado; roots vêm do product e de boundaries observáveis, enquanto HIR, MLIR, summaries e bitcode são artifacts exatos da recipe e não package ABI",
-      "claimDigest": "sha256:7a72d1acf56ae11fd758e4a046476cdcfc61170adbb74058db2bcb44ab94317a",
+      "summary": "WMO/WPO, LTO, static W-owned closure e IR",
+      "canonicalClaim": "`release` aplica whole-module por default e amplia automaticamente até package/workspace/product quando o grafo é provadamente fechado; native products ligam a closure alcançável de std/WRT/adapters/providers estaticamente e sem CRT por default; roots vêm do product e de boundaries observáveis; shared W-owned components são product opt-in explícito; HIR, MLIR, summaries e bitcode são artifacts exatos da recipe e não package ABI",
+      "claimDigest": "sha256:12891622832751ab6bea0aaead13c60227232cd86c6757fb74e19283400a8733",
       "category": "implementation-evidence-gap",
       "basis": "current-ledger-claim-without-executable-witness",
       "authorityRef": {
@@ -20771,24 +20771,24 @@
         "path": "DESIGN.md",
         "section": "20.4.12",
         "heading": "#### 20.4.12 LTO, intermediate artifacts e observabilidade",
-        "sectionDigest": "sha256:d8261200105e77506ef5af9e4a9fa6809984b36b64b88fcff3bdbee68bf480bc"
+        "sectionDigest": "sha256:d1be6c54c8fa8e47e8e6f3db4119dbc5aac65e34322bd0016f6f80f30ac7cbc1"
       },
       "evidence": [],
-      "reason": "W-626 (WMO/WPO, LTO e IR, sha256:7a72d1acf56ae11fd758e4a046476cdcfc61170adbb74058db2bcb44ab94317a) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §20.4.12 / 20.4.12 LTO, intermediate artifacts e observabilidade.",
-      "stopCondition": "Do not claim W-626 as implemented. Close the packages-and-release gap at DESIGN.md §20.4.12 / 20.4.12 LTO, intermediate artifacts e observabilidade with WMO/WPO roots and closed-graph executable witness evidence and fresh digests.",
+      "reason": "W-626 (WMO/WPO, LTO, static W-owned closure e IR, sha256:12891622832751ab6bea0aaead13c60227232cd86c6757fb74e19283400a8733) has no general executable witness for component packages-and-release. The checked current contract is DESIGN.md §20.4.12 / 20.4.12 LTO, intermediate artifacts e observabilidade; bounded CRT-free seed artifacts do not prove general static closure.",
+      "stopCondition": "Do not claim W-626 as implemented. Close the packages-and-release gap at DESIGN.md §20.4.12 / 20.4.12 LTO, intermediate artifacts e observabilidade with WMO/WPO roots, CRT-free static W-owned closure, explicit dynamic-boundary receipts, and closed-graph executable witness evidence and fresh digests.",
       "selection": "explicit-ledger-id",
       "basisRef": {
         "kind": "ledger-row",
         "path": "RATIONALE.md",
         "section": "3. Ledger",
         "decisionId": "W-626",
-        "claimDigest": "sha256:7a72d1acf56ae11fd758e4a046476cdcfc61170adbb74058db2bcb44ab94317a"
+        "claimDigest": "sha256:12891622832751ab6bea0aaead13c60227232cd86c6757fb74e19283400a8733"
       },
       "gap": {
         "component": "packages-and-release",
         "gate": "DESIGN.md §20.4.12 / 20.4.12 LTO, intermediate artifacts e observabilidade",
         "missingEvidence": [
-          "WMO/WPO roots and closed-graph executable witness"
+          "WMO/WPO roots, CRT-free static W-owned closure, explicit dynamic-boundary receipts, and closed-graph executable witness"
         ]
       }
     },
@@ -28630,7 +28630,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8826b06cbbf264b37de3f293ae25d42cb383f3a1d092a335a43e4c8dce4b6018"
+        "sectionDigest": "sha256:94b3e02a2dd94522e7e1f84db2ad861352a4d7e2a76c44955a480b71a59f3b0e"
       },
       "evidence": [],
       "reason": "W-866 (limite de R0S, sha256:9feb577de22aaecacb25517125f4f58baadd1916bd6346af458f8def511ed35b) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",
@@ -38474,7 +38474,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8826b06cbbf264b37de3f293ae25d42cb383f3a1d092a335a43e4c8dce4b6018"
+        "sectionDigest": "sha256:94b3e02a2dd94522e7e1f84db2ad861352a4d7e2a76c44955a480b71a59f3b0e"
       },
       "evidence": [],
       "reason": "W-1170 (comparativos de execução, sha256:d7192d4dc4e461091ccc80cfa749d86d48ebfca924b2f93bdba702eb68a2b7e9) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",

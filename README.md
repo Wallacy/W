@@ -28,6 +28,7 @@ correctness-scoped unless a source explicitly states otherwise.
 - [DESIGN.md](DESIGN.md) is the authority for current language contracts.
 - [RATIONALE.md](RATIONALE.md) records reasons, alternatives, and evidence.
 - [Repository map](REPOSITORY.md) explains ownership and generated surfaces.
+- [Implementation roadmap](ROADMAP.md) is the ranked active work queue.
 - [Tooling guide](tooling/README.md) documents local checks and utilities.
 
 ## Current capabilities

@@ -54,6 +54,13 @@ security inspection, scheduling, and accounting rather than the W body. A
 future steady-state/body-throughput lane must have a distinct identity, use a
 bounded batched or persistent harness, publish the harness baseline, and never
 be merged with cold-start cells.
+The current Windows and Linux/WSL cold-start cells are not body-performance
+comparisons. Windows includes its process creation, security, Job Object,
+scheduler, and accounting path; the WSL lane times the Linux executable from a
+Linux-native helper inside an already-running distribution with
+`CLOCK_MONOTONIC` and `wait4`. Values such as Windows milliseconds and WSL
+hundreds of microseconds are therefore expected to differ by platform startup
+mechanism. Compare regressions only within the same platform and runner lane.
 Each result freezes a
 fixed-count, monotonic-clock, fresh-process protocol and a redacted environment;
 compile-side Bun CPU/working-set counters do not aggregate descendants. The

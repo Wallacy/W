@@ -1032,7 +1032,11 @@ after NCFG0 closure. It ends with two complete W builds under equivalent
 recipes, compared artifacts, and retained receipts. Filesystem fault tests and
 small compiler probes do not satisfy that follow-up or establish performance.
 
-### Ordered bundles
+### Superseded review queue
+
+This table is the queue captured by the system review and is no longer an
+active ordering authority. Closed and reordered work is intentionally not
+maintained here. Use the live ranked [implementation roadmap](ROADMAP.md).
 
 Effort is relative: S means a narrow correction; M means a cross-file bundle;
 L means a capability requiring implementation and platform evidence. These are
