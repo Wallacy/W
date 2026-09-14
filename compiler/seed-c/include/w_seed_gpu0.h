@@ -25,7 +25,6 @@ extern "C" {
 #define W_SEED_GPU0_EVIDENCE_RESULT_CAPACITY 64u
 #define W_SEED_GPU0_EVIDENCE_ARTIFACT_CAPACITY 8192u
 #define W_SEED_GPU0_RESULT_BYTES sizeof(int32_t)
-#define W_SEED_GPU0_EXPECTED_PAYLOAD INT32_C(42)
 #define W_SEED_GPU0_NONE UINT32_MAX
 
 typedef enum {
@@ -93,6 +92,11 @@ typedef struct {
 typedef struct {
   const char *name;
   size_t name_length;
+  /* A kernel's interface name is a field label. The implementation name in
+   * `name` remains private compiler identity. Host roots have no interface
+   * name. */
+  const char *interface_name;
+  size_t interface_name_length;
   w_seed_gpu0_function_role role;
   uint32_t first_operation;
   uint32_t operation_count;

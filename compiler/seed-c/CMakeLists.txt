@@ -35,6 +35,7 @@ add_library(w_seed_source STATIC
   include/w_seed_parallel_provider0.h
   include/w_seed_task_lifecycle0.h
   include/w_seed_gpu0.h
+  include/w_seed_gpu0_projection.h
   include/w_seed_gpu_module.h
   include/w_seed_scalar_evaluator0.h
   include/w_seed_wrt0.h
@@ -81,6 +82,7 @@ add_library(w_seed_source STATIC
   src/w_seed_hlo1.c
   src/w_seed_mlir0.c
   src/w_seed_gpu0.c
+  src/w_seed_gpu0_projection.c
   src/w_seed_gpu_module.c
   src/w_seed_hir0.c
   src/w_seed_product_closure0.c

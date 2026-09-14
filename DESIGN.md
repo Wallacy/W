@@ -39930,16 +39930,17 @@ GPU0 is a caller-owned compiler-lifecycle witness for the smallest useful
 host/device split. Its bounded evidence program contains exactly one host root,
 one device kernel, and seven operations: allocate the device result, copy zero
 from host to device, launch, join, copy the result to host, verify it, and store
-`i32 42` in the kernel. These counts are evidence-shape constants, not language,
-ABI, device, or scheduler limits.
+the verified `i32` payload in the kernel. The canonical fixture payload is `42`.
+These counts are evidence-shape constants, not language, ABI, device, or
+scheduler limits.
 
 The semantic record contains no provider, target, queue ordinal, pointer, MLIR
 handle, or physical ABI. It emits separate target-neutral host and device MLIR
 artifacts with independently verified identities and digests. The verifier
-re-derives ranges, effects, lifecycle phases, artifact bytes, result `42`, and
-all transactional outputs. Capture, suspension, recursion, host I/O, dynamic
-dispatch, host FFI, malformed UTF-8, aliases, short capacities, and forged
-records fail before caller-owned output changes.
+re-derives ranges, effects, lifecycle phases, artifact bytes, the matching
+verify/store payload, and all transactional outputs. Capture, suspension,
+recursion, host I/O, dynamic dispatch, host FFI, malformed UTF-8, aliases,
+short capacities, and forged records fail before caller-owned output changes.
 
 The available Windows experiment parses both artifacts with pinned MLIR/LLVM
 23.1.1, lowers the device module through GPU, NVVM, and LLVM dialects, and uses
@@ -39976,10 +39977,13 @@ device ABI limit.
 The bridge contains no provider, target, queue, pointer, launch, MLIR handle,
 or physical ABI. It is independently verified W device-module IR for the Hello
 slice, but it is not a W runtime/provider, a public `w build`/`w run` route, a
-supported GPU ABI, or homogeneous pinned production support. The roadmap item
-remains open until the typed `.launch` relation drives host/device artifact
-generation and a supported provider launch, join, and result verification from
-the same source.
+supported GPU ABI, or homogeneous pinned production support. A caller-owned
+provider-neutral projection selects one verified module field, copies the
+module const name, field label, and private implementation name into its own
+text store, and carries the verified payload into the exact GPU0 records. The
+roadmap item remains open until a typed `.launch` relation and supported
+provider launch, join, and result verification consume that source-backed
+projection.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

@@ -63,14 +63,17 @@ The seed parser and Frontend27 preserve the canonical
 bindings. The new `w-seed-gpu-module-1` bridge copies that meaning into
 independently verified, provider- and target-neutral device-module records; its
 first source-backed body slice proves zero-parameter signed-`i32` literal-return
-kernels and survives source/frontend teardown. The recipe is still mixed MLIR
-23.1.1 plus Clang 22, and no typed `.launch` connects this verified module to
-artifact generation or the available provider. Rank 1 therefore remains open
-until the same source drives host/device artifacts, provider launch, join, and
-result evidence. Only then does the queue generalize task storage,
-cancellation, and scheduling. W-1597 remains a legality certificate only;
-target policy must still combine it with observability and cost facts and
-compare any direct-call artifact with the W-1600 physical reference.
+kernels and survives source/frontend teardown. A caller-owned, provider-neutral
+projection now selects one verified module field, copies its host-root const
+name, kernel field label, private implementation name, and payload into the
+exact GPU0 records, and remains verifiable after bridge teardown. The recipe is
+still mixed MLIR 23.1.1 plus Clang 22. No typed `.launch`, runtime/provider
+launch, public GPU build/run, or supported GPU ABI is claimed; rank 1 therefore
+remains open until those public and physical boundaries have evidence. Only
+then does the queue generalize task storage, cancellation, and scheduling.
+W-1597 remains a legality certificate only; target policy must still combine it
+with observability and cost facts and compare any direct-call artifact with the
+W-1600 physical reference.
 
 The current fixed task counts and worker capacities are seed evidence limits.
 They must not become language, public ABI, or final runtime limits.

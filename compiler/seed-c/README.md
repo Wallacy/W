@@ -2152,8 +2152,10 @@ compared with this physical reference.
 `w_seed_gpu0` is a caller-owned, provider-free semantic witness with one host
 root, one device kernel, and seven operations. It validates ranges, forbidden
 kernel effects, artifact identities, lifecycle phases, aliases, capacities,
-and exact result `42`, then emits separate target-neutral host and device MLIR.
-The fixed shape is evidence-only and does not constrain the language or ABI.
+and the matching payload carried by its verify/store operation pair, then emits
+separate target-neutral host and device MLIR. The canonical fixture payload is
+`42`; the fixed shape is evidence-only and does not constrain the language or
+ABI.
 
 `bun check --target gpu0` compiles the C23 unit and emitter, parses both
 artifacts with pinned MLIR/LLVM 23.1.1, lowers the device module through
@@ -2186,11 +2188,18 @@ forged indices or payloads, receipt changes, and digest changes. The fixture
 zero-parameter, effect-free signed-`i32` literal return. Multiple module fields
 remain representable; this exact body shape is not a language or ABI limit.
 
-`bun check --target gpu0` runs this source bridge before the separate GPU0
-artifact/CUDA experiment. This package still does not implement typed
-`.launch`, source-driven host/device artifact generation, a W runtime/provider,
-public GPU build/run, a supported GPU ABI, or a homogeneous pinned production
-toolchain. Those boundaries keep roadmap rank 1 open.
+`w_seed_gpu0_program_from_gpu_module` is the provider-neutral projection after
+that independent verification. It selects one module field, copies the module
+const name, field label, and private implementation name into caller-owned
+projection text, and carries the verified kernel payload into the exact GPU0
+operation pair. The projected program remains verifiable after the bridge
+storage is released; no heap or provider/runtime handle is introduced.
+
+`bun check --target gpu0` runs this source bridge and projection before the
+separate GPU0 artifact/CUDA experiment. This package still does not implement
+typed `.launch`, a W runtime/provider, public GPU build/run, a supported GPU
+ABI, or a homogeneous pinned production toolchain. Those boundaries keep
+roadmap rank 1 open.
 
 ### Closed local payloadless enum exhaustive switch (W-1563)
 

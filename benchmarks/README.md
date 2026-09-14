@@ -138,7 +138,8 @@ Use `bun check --target gpu0` for correctness and `bun benchmark gpu0` to
 refresh the snapshot when CUDA is available. A missing provider produces a
 skip and never fabricates a result. These measurements are compiler-linkage
 diagnostics only; they cannot enter W/C/Rust or product rankings until the
-canonical W `accelerator.module` source route exists.
+canonical W `accelerator.module` source reaches a supported provider/product
+route.
 
 ### M3b executable candidate evidence
 

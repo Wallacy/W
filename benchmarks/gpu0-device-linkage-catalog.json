@@ -14,7 +14,7 @@
     "recipe": "tooling/check-gpu0-cuda-windows.mjs",
     "recipeDigest": "sha256:078d4021026a7f99eba70f66e6e2f96767d9a4c505265b1c50942829dd49a227",
     "adapterSourceDigest": "sha256:8430f3f88c0a5a858de2c2f88b4a4b863ae4c1aeec5b439812fe79fc8583100d",
-    "gpu0CoreDigest": "sha256:e81973baa387d6dbb47f78fa77d683cbc2092d83a0ce9baa896fc30311cae301"
+    "gpu0CoreDigest": "sha256:690b4b699f0fd74984fd7c62f5cc3316b0597899015bf3acf89b0b244c272ed1"
   },
   "correctness": {
     "expected": 42,
@@ -35,13 +35,13 @@
     },
     {
       "kind": "host-mlir",
-      "sizeBytes": 790,
-      "digest": "sha256:e8eeaf22c7f76d9113f66d9cacbfe406e4db319135296d6da3e7217d9c245f81"
+      "sizeBytes": 814,
+      "digest": "sha256:42ea3719133c173f1afd2045b350ce63cb99615206cd0ce84fefcc3519d955b0"
     },
     {
       "kind": "device-mlir",
-      "sizeBytes": 400,
-      "digest": "sha256:df31bf7daa5348206c66b3fb22024fca62e6f97dca84530834e30d22d3a6246f"
+      "sizeBytes": 428,
+      "digest": "sha256:4c7200b5e98c6df822203981e9388e8d8c33bd5f6021eab9758d2a78ee477e86"
     },
     {
       "kind": "device-ptx",
@@ -53,26 +53,26 @@
     {
       "id": "h2d",
       "unit": "ns",
-      "p50": 19000,
-      "p95": 19900
+      "p50": 2800,
+      "p95": 13800
     },
     {
       "id": "dispatch-sync",
       "unit": "ns",
-      "p50": 20100,
-      "p95": 20800
+      "p50": 6900,
+      "p95": 23700
     },
     {
       "id": "d2h",
       "unit": "ns",
-      "p50": 9900,
-      "p95": 24300
+      "p50": 7400,
+      "p95": 17000
     },
     {
       "id": "end-to-end",
       "unit": "ns",
-      "p50": 49100,
-      "p95": 63500
+      "p50": 17500,
+      "p95": 39500
     }
   ],
   "boundaries": {
