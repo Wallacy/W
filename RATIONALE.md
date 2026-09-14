@@ -241,6 +241,7 @@ O corpus compara, no mínimo:
 - verified explicit parallel-domain placement against ambient host inference, cooperative-yield reuse, and premature runtime claims.
 - bounded parallel selection against provider-capacity identity, trusted lowering records, and premature execution claims.
 - HIR-derived parallel invocation against caller-supplied results, unchecked arithmetic, and compiler-host/product conflation.
+- reachable parallel task-entry emission against whole-program leakage, implicit linker visibility, and premature runtime claims.
 
 ### 1.1 Cobertura de substituições
 
@@ -7899,6 +7900,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1589 | bounded parallel selection proof | PARSEL0 schema `w-seed-parallel-selection0-1` independently re-verifies HIR37 and derives one through four explicit parallel-domain calls, target functions, launch bindings, and lexical join bindings into a fixed caller-owned record. It copies the exact domain placement facts and HIR semantic digest, canonicalizes unused slots, rejects aliases and malformed or mixed relations, and publishes transactionally. Provider capacity is absent from the record and therefore cannot alter semantic identity. | `source-backed-current` only for the fixed PARSEL0 record, independent HIR-derived selection, k=1/k=2/k=4 tests, mutation and alias barriers, and transactional publication. No provider, MLIR, runtime task, overlap, public executable, target, benchmark result, or performance claim exists. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1590 | bounded Windows parallel provider component | PARPROV0 re-verifies HIR37, PARSEL0, and the HIR-derived PARINV0 plan, then runs one through four private scalar jobs at physical capacity one or two. Semantic outcomes exclude provider facts and are byte-identical across capacities; a separate receipt records simultaneous active workers. Windows x64 uses bounded Kernel32 threads and deterministic rendezvous evidence rather than callback duration or elapsed-time inference. | `source-backed-current` only for the private Windows x64 component, k=1/k=2/k=4 execution, capacity-one equivalence, capacity-two worker overlap, canonical outcomes, transactional publication, and adversarial failures. No callback or arbitrary context crosses the provider input boundary; Linux/WSL, MLIR-emitted task entry points, CRT-free target imports, public executables, cancellation, scheduling, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1591 | HIR-derived bounded parallel invocation | PARINV0 re-verifies HIR37/PARSEL0 and derives exact signed-`i64` call, function, argument-value, count, and digest facts into canonical fixed storage. PARPROV0 no longer accepts caller callbacks or contexts: private jobs evaluate only the verified plan through one bounded checked scalar authority. Capacity-one and capacity-two semantic outcomes remain byte-identical, while internal active-worker rendezvous proves overlap separately. | `source-backed-current` only for the bounded compiler-host plan/evaluator, transactional and alias barriers, checked-failure rejection, Windows x64 k=1/k=2/k=4 provider consumption, and internal overlap evidence. MLIR-emitted task entry points, runtime-dependent process roots, Linux/WSL/other providers, CRT-free target imports, public execution, cancellation, scheduling, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1592 | reachable parallel task-entry MLIR module | PARMLIR0 re-verifies HIR37/PARSEL0/PARINV0 and emits one target-neutral public signed-`i64` task entry per lexical launch plus only its reachable direct local helper closure. Helpers carry explicit internal LLVM linkage. The same MLIR bytes lower through MLIR/LLVM 23.1.1 to Windows x64 COFF and Linux x86-64 PIC ELF objects. | `source-backed-current` only for the bounded linkable task-entry module, exact reachability closure, transactional and alias barriers, explicit helper linkage, MLIR 23.1.1 lowering, and object-format evidence. Arguments are compile-time scalar values; provider linkage, runtime-dependent process input, public execution, CRT-free imports, cancellation, scheduling, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -12414,3 +12416,34 @@ The evaluator is not retained as a target runtime strategy. The next product
 step must emit equivalent task entry points through MLIR, then admit runtime-
 dependent process inputs so optimization cannot reduce the witness to constants.
 Only that source-to-artifact route can enter the executable benchmark catalog.
+
+#### W-1592 — reachable parallel task-entry MLIR module
+
+W-1591 closed the semantic input seam, but the Windows component still ran a
+compiler-host evaluator. Reusing that evaluator as a target runtime would make
+the implementation easier while proving the wrong product. W-1592 instead
+introduces PARMLIR0 as the smallest target artifact boundary: it consumes the
+same verified HIR37, PARSEL0, and PARINV0 chain and emits a callable function
+for each selected lexical task.
+
+The emitter walks values, calls, bindings, and direct local helpers from each
+task root. Only that union of reachable functions is materialized. A deliberately
+unused sibling helper is absent from MLIR and translated LLVM IR. Reachable
+helpers carry explicit LLVM internal linkage because MLIR `private` visibility
+alone did not constitute evidence of object-level linkage. Task entries remain
+public so a later provider adapter can bind them without exposing every source
+function.
+
+One target-neutral module is lowered by the exact MLIR/LLVM 23.1.1 tools to
+both a Windows x64 COFF object and a Linux x86-64 PIC ELF object. There is no
+target triple, process root, scheduler, provider, native handle, or runtime
+ownership in the input MLIR. The object-format checks prove only that both
+target leaves can consume the module; they do not prove a standalone or public
+W program.
+
+This cut deliberately retains compile-time scalar arguments in the emitted
+wrappers. The next product step must connect the provider to emitted symbol
+addresses and admit runtime-dependent process data so the workload cannot be
+constant-reduced. Until that end-to-end source route exists, PARMLIR0 remains
+compiler-lifecycle evidence and has no executable-catalog, timing, ranking, or
+performance result.

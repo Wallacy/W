@@ -1958,6 +1958,29 @@ linkage, Linux/WSL support, runtime-dependent input, public commands,
 cancellation, a scheduler or worker pool, benchmark measurements, or
 performance. Those remain explicit implementation gaps.
 
+### Reachable parallel task-entry MLIR module (W-1592)
+
+PARMLIR0 consumes verified HIR37, PARSEL0, and PARINV0 and emits one public
+`w_seed_parallel_task_<ordinal>() -> i64` function per selected task. It walks
+the argument and body value trees and emits only the reachable direct local
+helper closure. Helpers use explicit internal LLVM linkage; unrelated source
+functions, the cooperative core, process roots, providers, schedulers, and
+runtime symbols are absent.
+
+`w_seed_mlir0_measure_parallel_entries`,
+`w_seed_mlir0_emit_parallel_entries`, and
+`w_seed_mlir0_verify_parallel_entries` retain the caller-owned,
+all-or-nothing contract. Alias checks cover the output and result plus all
+verified HIR and proof inputs. The focused `bun check --target parallel-mlir0`
+gate lowers the exact target-neutral bytes with MLIR/LLVM 23.1.1 and emits a
+Windows x64 COFF object and a Linux x86-64 PIC ELF object in temporary storage.
+
+This is linkable compiler-lifecycle evidence. The wrappers currently retain
+compile-time signed-`i64` arguments. No provider calls these symbols yet; no
+runtime-dependent process input, standalone executable, CRT-free import set,
+cancellation, scheduling, benchmark measurement, or performance result is
+claimed.
+
 ### Closed local payloadless enum exhaustive switch (W-1563)
 
 HIR21 (`w-seed-hir0-21`) adds one explicit `SWITCH_ENUM` terminator and dense

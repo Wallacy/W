@@ -109,7 +109,8 @@
         { "package": "root", "script": "check:hir0" },
         { "package": "root", "script": "check:hlo0" },
         { "package": "root", "script": "check:hlo1" },
-        { "package": "root", "script": "check:cooperative-mlir0" }
+        { "package": "root", "script": "check:cooperative-mlir0" },
+        { "package": "root", "script": "check:parallel-mlir0" }
       ]
     },
     "root-benchmark": {
