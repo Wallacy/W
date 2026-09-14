@@ -1017,10 +1017,11 @@ async function environmentSnapshotWsl(executor, runtime) {
   const cpuModel = cpuInfo.match(/^model name\s*:\s*(.+)$/mi)?.[1]?.trim();
   const coresText = (await read("nproc", ["--all"], "WSL2 logical CPU count")).trim();
   const logicalCores = coresText.match(/^[1-9][0-9]*$/u)?.[0];
-  const memoryText = await read("cat", ["/proc/meminfo"], "WSL2 memory identity");
-  const memoryKb = memoryText.match(/^MemTotal:\s*([1-9][0-9]*)\s*kB$/mi)?.[1];
-  if (!cpuModel || !logicalCores || !memoryKb) fail("WSL2 environment identity is incomplete");
-  const ramBytes = (BigInt(memoryKb) * 1024n).toString(10);
+  const hostRamBytes = os.totalmem();
+  if (!cpuModel || !logicalCores || !Number.isSafeInteger(hostRamBytes) || hostRamBytes <= 0) {
+    fail("WSL2 environment identity is incomplete");
+  }
+  const ramBytes = String(hostRamBytes);
   const kernel = `linux-${kernelText.toLowerCase().replace(/[^a-z0-9._-]+/gu, "-")}`.slice(0, 64).replace(/-+$/u, "");
   const environment = {
     os: "linux",

@@ -326,6 +326,8 @@ the WSL-native `/tmp` filesystem. Linux `CLOCK_MONOTONIC`, `fork`/`exec`, and
 `wait4` samples therefore exclude `wsl.exe` startup and DrvFS access. Compile
 latency still describes the Windows-host cross-build, while runtime CPU and
 peak RSS describe the root Linux process and do not aggregate descendants.
+The WSL environment receipt uses the stable Windows-host physical-memory total
+for host partitioning rather than WSL's dynamically provisioned `MemTotal`.
 Current evidence cannot narrow required
 emission or release fanout for macOS or another applicable target.
 
