@@ -24,6 +24,7 @@ export const DEV_CLI_SCHEMA = "w-dev-cli-1";
 export const CHECK_TARGETS = Object.freeze([
   "quick",
   "compiler",
+  "gpu0",
   "docs",
   "studies",
   "benchmark",

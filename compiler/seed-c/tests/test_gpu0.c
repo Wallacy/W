@@ -189,6 +189,9 @@ static bool test_run_measure_verify(void) {
                        "memref.store %c42"));
   CHECK(contains_bytes(storage.device_artifact,
                        storage.result.measurement.device_artifact_bytes,
+                       "memref<1xi32, 1>"));
+  CHECK(contains_bytes(storage.device_artifact,
+                       storage.result.measurement.device_artifact_bytes,
                        "42 : i32"));
   CHECK(!contains_bytes(storage.host_artifact,
                         storage.result.measurement.host_artifact_bytes,

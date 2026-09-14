@@ -1183,6 +1183,18 @@
         }
       ]
     },
+    "check:gpu0": {
+      "description": "Validate GPU0 logical IR, MLIR GPU lowering, and available Windows CUDA execution.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-gpu0-cuda-windows.mjs"
+          ]
+        }
+      ]
+    },
     "check:hir0": {
       "description": "Internal check:hir0 command.",
       "steps": [

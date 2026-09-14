@@ -113,6 +113,12 @@
         { "package": "root", "script": "check:parallel-mlir0" }
       ]
     },
+    "root-gpu0": {
+      "description": "Target-neutral GPU0 unit, MLIR GPU lowering, and available Windows CUDA execution evidence.",
+      "steps": [
+        { "package": "root", "script": "check:gpu0" }
+      ]
+    },
     "root-benchmark": {
       "description": "Benchmark protocols, executable catalog integrity, and the native measurement kernel without public workload publication.",
       "steps": [

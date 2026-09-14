@@ -10,6 +10,10 @@
       "suite": "root-compiler",
       "description": "seed compiler and bounded native compiler gates"
     },
+    "gpu0": {
+      "suite": "root-gpu0",
+      "description": "target-neutral GPU witness plus available Windows CUDA evidence"
+    },
     "docs": {
       "suite": "root-docs",
       "description": "documentation projection freshness and links"
