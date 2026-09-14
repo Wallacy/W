@@ -1880,6 +1880,32 @@ evidence makes no general runtime, parallelism, scheduler, cancellation, stable
 ABI, target-adapter, benchmark-ranking, or performance claim, and it changes no
 W syntax.
 
+### Verified parallel-domain placement (W-1588)
+
+Frontend26 accepts exact `spawn<.domain>` only when its caller supplies an
+exact domain binding with scheduling mode `CONCURRENT` and capability
+`PARALLEL`. Mode and capabilities are distinct fields. The input table is
+caller-owned product evidence, participates in the frontend receipt, and is
+never an ambient runtime catalogue. Missing, duplicate, serial,
+capability-free, unknown, and malformed bindings reject before publication.
+
+HIR37 copies the `.domain` identity into its own text storage and records mode,
+capabilities, and the distinct
+`STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH` relation. Verification remains valid
+after frontend and domain input storage are discarded. The current bounded
+shape admits one through four lexical sibling launches of ordinary pure
+non-suspending scalar functions. It rejects async/yielding or effectful
+children, host calls, throws, unsafe and borrow clauses, nested tasks, and a
+mix of `.main` with `.domain`. The fixed four-slot storage remains a seed
+ceiling only.
+
+This is frontend/HIR evidence, not parallel execution. Native0 and MLIR0 do not
+yet select or emit this route, the public CLI remains fail-closed, and there is
+no provider, overlap, executable-catalog entry, timing, or performance claim.
+The next slice must independently derive a parallel selection and prove the
+same observable result at provider capacity one and two before adding a public
+executable route.
+
 ### Closed local payloadless enum exhaustive switch (W-1563)
 
 HIR21 (`w-seed-hir0-21`) adds one explicit `SWITCH_ENUM` terminator and dense

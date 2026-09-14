@@ -326,7 +326,7 @@ w_seed_native0_status w_seed_native0_run(
     const w_seed_native0_output *output, w_seed_native0_result *result);
 
 /* Explicit compiler-host oracle bridge. It runs the same source/parser/
- * frontend pipeline into HIR35's cooperative profile and then invokes
+ * frontend pipeline into the verified HIR0 cooperative profile and then invokes
  * Cooperative0's fixed single-thread oracle. It consumes only the dedicated
  * target-neutral source descriptor; no backend artifact is emitted or
  * executed. */

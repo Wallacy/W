@@ -2,12 +2,14 @@
 
 > Working draft. Joy for humans. Clarity for machines.
 
-W is an experimental general-purpose systems language designed for human
-clarity and machine optimization. Its goal is to turn explicit, verifiable
-semantics into portable native code with predictable costs: structured
-concurrency and parallelism, proof-directed memory, small CRT-free binaries,
-reproducible builds, and benchmark-driven performance across CPU, GPU,
-server, desktop, embedded, WebAssembly, and scientific-computing targets.
+W is a general-purpose systems language designed to make intent explicit for
+humans and optimization evident to machines. Its engineering goal is portable,
+safe, predictable, and measurably efficient native software, with the ambition
+to outperform C and Rust in execution time, memory use, and binary size where
+W's semantic model enables stronger optimization. Structured concurrency and
+parallelism, proof-directed memory, small CRT-free binaries, reproducible
+builds, and benchmark-driven development apply across CPU, GPU, server,
+desktop, embedded, WebAssembly, and scientific-computing targets.
 
 That is the engineering objective, not a claim about the current product. The
 repository contains design contracts, executable specifications, and a
@@ -36,6 +38,7 @@ correctness-scoped unless a source explicitly states otherwise.
 | Seed frontend | The seed provides lossless source reading, parsing, formatting, and bounded semantic validation. It is not the complete frontend. |
 | Native seed route | A verified HIR slice lowers through MLIR0 to native code for selected values, calls, returns, structured control flow, arithmetic, pre-test loops, and a bounded post-test `repeat`. |
 | Virtual structured execution | A closed scalar async child may remain a compiler-only Task relation across finite root `execution#yield()` points and a finite acyclic same-module graph of pure scalar helpers after verified proof. No scheduler or overlap is claimed. |
+| Parallel placement IR | Exact `spawn<.domain>` can cross Frontend26 into HIR37 only with caller-owned concurrent-plus-parallel domain evidence. The HIR owns and independently verifies identity, mode, capability, lexical joins, and a pure non-suspending scalar child graph. No parallel provider or execution is claimed yet. |
 | Enum payloads | The current bounded slice supports Bool and signed i64 payloads, captures, constructor values, and exhaustive switches. It has no public payload ABI. |
 | Enum subsets | The bounded seed target admits proper nonempty payloadless subsets of local enums with base tags and no wrapper allocation; focused checks and native Windows plus Linux/WSL execution are current. |
 | Source entry | entry { ... } and entry(functionName) are accepted in the bounded surface. An empty entry { } is valid. |
@@ -60,6 +63,9 @@ or `ref` use implies a heap, header, address, or storage class.
 - The seed implements bounded slices, not the full W language or runtime.
 - General types, general control flow, async runtime behavior, and provider
   integration remain outside the current product boundary.
+- Parallel-domain placement is represented in verified HIR, but public build
+  and run remain fail-closed until an independently verified selection and a
+  real target provider prove capacity-one equivalence and capacity-two overlap.
 - COOP0 remains a compiler-host trace oracle. A separate bounded cooperative
   core now lowers to Windows/Linux process projections. The Windows host also
   compiles and CRT-free-links the bounded Linux product with the shared WRT0;

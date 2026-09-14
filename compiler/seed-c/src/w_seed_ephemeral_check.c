@@ -422,7 +422,9 @@ w_seed_ephemeral_check_status w_seed_ephemeral_check_run(
       NULL,
       true,
       input->driver_staging_output->graph.resolved_imports,
-      resolved_import_count};
+      resolved_import_count,
+      NULL,
+      0u};
 
   /* The diagnostic adapter validates every primary and label against the
    * complete source inventory. Keep the adapter's parallel, caller-owned

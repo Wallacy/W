@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-25"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-26"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -35,6 +35,10 @@ extern "C" {
 #define W_SEED_FRONTEND_MAX_HOST_SYMBOLS 4096u
 #define W_SEED_FRONTEND_MAX_HOST_PARAMETERS 4096u
 #define W_SEED_FRONTEND_MAX_HOST_REQUIREMENTS 16u
+/* Caller-owned execution-domain input is intentionally tiny.  It is a
+ * binding table, not an ambient runtime catalogue. */
+#define W_SEED_FRONTEND_MAX_DOMAINS 64u
+#define W_SEED_FRONTEND_DOMAIN_IDENTITY ".domain"
 /* D1 uses an explicit 64-bit target profile.  This is a semantic target
  * fact, not a query of the host compiler's size_t width; changing it changes
  * normalized usize types and therefore the frontend receipt key. */
@@ -72,7 +76,30 @@ typedef enum {
   W_SEED_FRONTEND_FACT_EXECUTION_YIELD,
   /* Rejected use of the bounded mandatory `.main` domain dispatch. */
   W_SEED_FRONTEND_FACT_SPAWN_MAIN_LAUNCH,
+  /* Rejected use of an explicitly caller-bound parallel `.domain` dispatch.
+   * This fact is distinct from the serial `.main` lane. */
+  W_SEED_FRONTEND_FACT_SPAWN_PARALLEL_DOMAIN_LAUNCH,
 } w_seed_frontend_fact_kind;
+
+typedef enum {
+  W_SEED_FRONTEND_DOMAIN_MODE_SERIAL = 0,
+  W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT,
+} w_seed_frontend_domain_mode;
+
+typedef enum {
+  W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE = 0u,
+  W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL = 1u << 0,
+} w_seed_frontend_domain_capability;
+
+/* A caller-owned exact execution-domain binding.  The frontend never treats
+ * `.domain` as ambient: a source placement is supported only when this table
+ * contains the exact identity in concurrent mode with the parallel
+ * capability bit. */
+typedef struct {
+  w_seed_frontend_text name;
+  w_seed_frontend_domain_mode mode;
+  uint32_t capabilities;
+} w_seed_frontend_domain;
 
 typedef enum {
   W_SEED_FRONTEND_TYPE_INVALID = 0,
@@ -149,6 +176,9 @@ typedef enum {
   /* Exact `spawn<.main> localCall(...)`.  This is a mandatory serial-domain
    * dispatch, not an async initializer eligible for direct-call elision. */
   W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH,
+  /* Exact `spawn<.domain> localCall(...)`.  The caller-owned domain input
+   * record is retained by the placement fields on the expression. */
+  W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH,
 } w_seed_frontend_expr_kind;
 
 typedef enum {
@@ -296,6 +326,9 @@ typedef struct {
   bool import_resolution_complete;
   const w_seed_frontend_resolved_import *resolved_imports;
   size_t resolved_import_count;
+  /* Append-only caller-owned exact domain bindings. */
+  const w_seed_frontend_domain *domains;
+  size_t domain_count;
 } w_seed_frontend_input;
 
 typedef struct {
@@ -861,6 +894,11 @@ typedef struct {
   uint32_t task_result_type;
   uint32_t task_call_expression;
   uint32_t task_binding_statement;
+  /* Append-only explicit placement evidence. NONE/0 is required on every
+   * expression except SPAWN_PARALLEL_DOMAIN_LAUNCH. */
+  uint32_t domain_index;
+  w_seed_frontend_domain_mode domain_mode;
+  uint32_t domain_capabilities;
 } w_seed_frontend_expression;
 
 typedef enum {

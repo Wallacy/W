@@ -3705,7 +3705,7 @@ w_seed_native_subset0_select_process_executable(
 }
 
 /* W-1584 M1 is deliberately only a target-neutral admission boundary for a
- * one-block subset of the wider HIR35 cooperative envelope. Keep its proof
+ * one-block subset of the wider verified HIR0 cooperative envelope. Keep its proof
  * here rather than borrowing COOP0's execution-plan builder: a future emitter
  * must be unable to make a compiler-host oracle record look like a product
  * selection by construction. */

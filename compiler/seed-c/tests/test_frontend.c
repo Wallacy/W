@@ -123,6 +123,7 @@ typedef struct {
   w_seed_frontend_external_parameter host_parameters[2];
   w_seed_frontend_host_prelude_symbol host_symbols[2];
   w_seed_frontend_host_prelude host_scope;
+  w_seed_frontend_domain domains[2];
   uint8_t receipt[TEST_RECEIPT];
   w_seed_frontend_output output;
   w_seed_frontend_result result;
@@ -347,6 +348,8 @@ static bool fixture_parse(fixture *fixture_value, const char *text) {
   fixture_value->input.import_resolution_complete = false;
   fixture_value->input.resolved_imports = NULL;
   fixture_value->input.resolved_import_count = 0u;
+  fixture_value->input.domains = NULL;
+  fixture_value->input.domain_count = 0u;
   fixture_fill_output(fixture_value, 0);
   fixture_value->output = (w_seed_frontend_output){
       .modules = fixture_value->modules,
@@ -429,6 +432,29 @@ static bool fixture_parse(fixture *fixture_value, const char *text) {
 
 static bool fixture_run(fixture *fixture_value, const char *text) {
   CHECK(fixture_parse(fixture_value, text));
+  (void)w_seed_frontend_run(&fixture_value->input, &fixture_value->output,
+                            &fixture_value->result);
+  return true;
+}
+
+static void fixture_configure_domain(fixture *fixture_value,
+                                     w_seed_frontend_domain_mode mode,
+                                     uint32_t capabilities) {
+  fixture_value->domains[0] = (w_seed_frontend_domain){
+      .name = (w_seed_frontend_text){W_SEED_FRONTEND_DOMAIN_IDENTITY,
+                                     sizeof(W_SEED_FRONTEND_DOMAIN_IDENTITY) -
+                                         1u},
+      .mode = mode,
+      .capabilities = capabilities};
+  fixture_value->input.domains = fixture_value->domains;
+  fixture_value->input.domain_count = 1u;
+}
+
+static bool fixture_run_with_domain(fixture *fixture_value, const char *text,
+                                    w_seed_frontend_domain_mode mode,
+                                    uint32_t capabilities) {
+  if (!fixture_parse(fixture_value, text)) return false;
+  fixture_configure_domain(fixture_value, mode, capabilities);
   (void)w_seed_frontend_run(&fixture_value->input, &fixture_value->output,
                             &fixture_value->result);
   return true;
@@ -2604,7 +2630,7 @@ static bool test_local_binding_resolution(void) {
         W_SEED_FRONTEND_OK);
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-25") &&
+                         "w-seed-frontend-26") &&
         value->result.written.statements == 2u);
   const w_seed_frontend_statement *binding = &value->statements[0];
   CHECK(binding->kind == W_SEED_FRONTEND_STMT_LET &&
@@ -2643,8 +2669,8 @@ static bool test_local_binding_resolution(void) {
   }
   CHECK(binding_symbol != W_SEED_FRONTEND_NONE &&
         message_expression != W_SEED_FRONTEND_NONE &&
-        receipt_contains(value, "schema=w-seed-frontend-25\n",
-                         strlen("schema=w-seed-frontend-25\n")));
+        receipt_contains(value, "schema=w-seed-frontend-26\n",
+                         strlen("schema=w-seed-frontend-26\n")));
 
   fixture *trivia = &fixture_a;
   CHECK(fixture_parse(
@@ -5079,7 +5105,7 @@ static bool test_local_assignment_projection(void) {
                     "}\n"));
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-25") &&
+                         "w-seed-frontend-26") &&
         value->result.written.statements == 2u);
   CHECK(value->statements[0].kind == W_SEED_FRONTEND_STMT_VAR &&
         value->statements[0].effective_type != W_SEED_FRONTEND_NONE &&
@@ -5291,7 +5317,58 @@ static bool test_structured_async_projection(void) {
       "entry { let pending = spawn<.domain> prepare(value: 1) "
       "let result = await pending }\n"));
   CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
-        has_fact(value, W_SEED_FRONTEND_FACT_SPAWN_MAIN_LAUNCH));
+        has_fact(value,
+                 W_SEED_FRONTEND_FACT_SPAWN_PARALLEL_DOMAIN_LAUNCH));
+
+  static const char parallel_source[] =
+      "fn prepare(value: i64): i64 { return value }\n"
+      "entry { let pending = spawn<.domain> prepare(value: 1) "
+      "let result = await pending }\n";
+  CHECK(fixture_run_with_domain(
+      value, parallel_source, W_SEED_FRONTEND_DOMAIN_MODE_SERIAL,
+      W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(value,
+                 W_SEED_FRONTEND_FACT_SPAWN_PARALLEL_DOMAIN_LAUNCH));
+  CHECK(fixture_run_with_domain(
+      value, parallel_source, W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT,
+      W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(value,
+                 W_SEED_FRONTEND_FACT_SPAWN_PARALLEL_DOMAIN_LAUNCH));
+  CHECK(fixture_run_with_domain(
+      value, parallel_source, W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT,
+      W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        value->result.written.facts == 0u);
+  size_t parallel_spawns = 0u;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind !=
+        W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH)
+      continue;
+    CHECK(expression->supported && expression->domain_index == 0u &&
+          expression->domain_mode ==
+              W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT &&
+          expression->domain_capabilities ==
+              W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL &&
+          expression->task_call_expression <
+              value->result.written.expressions);
+    parallel_spawns += 1u;
+  }
+  CHECK(parallel_spawns == 1u &&
+        receipt_contains(value,
+                         "domain=0|7:2e646f6d61696e|mode=1|capabilities=1\n",
+                         strlen("domain=0|7:2e646f6d61696e|mode=1|capabilities=1\n")));
+
+  CHECK(fixture_parse(value, parallel_source));
+  fixture_configure_domain(value, W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT,
+                           W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL);
+  value->domains[1] = value->domains[0];
+  value->input.domain_count = 2u;
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_INVALID);
 
   CHECK(fixture_run(
       value,

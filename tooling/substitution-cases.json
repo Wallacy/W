@@ -7664,6 +7664,97 @@
         "the primary compiler-lifecycle evidence is separate from the executable catalog's exploratory public k=4 W measurement, with C23/Rust blocked and no cross-language benchmark ranking"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-parallel-domain-placement",
+      "reviewItem": "verified explicit parallel-domain placement against ambient host inference, cooperative-yield reuse, and premature runtime claims",
+      "decisions": ["W-1588"],
+      "task": "Preserve an explicit parallel-domain request through frontend and verified HIR before selecting or executing a provider.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "let firstTask = spawn<.domain> prepare(value: 20)",
+          "let secondTask = spawn<.domain> prepare(value: 22)",
+          "let first = await firstTask let second = await secondTask"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "infer-domain-from-host",
+          "language": "w-internal-rejected",
+          "source": ["treat spawn<.domain> as available whenever the compiler host can create threads"],
+          "expectedDifference": "The selected boundary requires an exact caller-owned `.domain` binding with concurrent mode and parallel capability."
+        },
+        {
+          "name": "reuse-cooperative-yield-proof",
+          "language": "w-internal-rejected",
+          "source": ["require execution#yield() in each parallel child"],
+          "expectedDifference": "The selected lane proves ordinary pure non-suspending scalar children and does not confuse cooperative suspension with parallel eligibility."
+        },
+        {
+          "name": "claim-provider-execution",
+          "language": "w-internal-rejected",
+          "source": ["lower the verified placement as evidence of worker overlap"],
+          "expectedDifference": "The selected slice stops before provider selection, MLIR emission, runtime execution, overlap, and performance evidence."
+        },
+        {
+          "name": "choose-first-matching-native-route",
+          "language": "w-internal-rejected",
+          "source": ["select process or task output by predicate order when both shapes match"],
+          "expectedDifference": "The selected native boundary rejects incompatible simultaneous route matches before emission."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_frontend.h",
+          "symbol": "W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH",
+          "claim": "Frontend26 preserves explicit parallel-domain syntax and caller-owned placement facts."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_frontend.c",
+          "symbol": "domain_input_ready",
+          "claim": "Frontend validates bounded caller-owned domain records before parsing the explicit placement."
+        },
+        {
+          "path": "compiler/seed-c/include/w_seed_hir0.h",
+          "symbol": "W_SEED_HIR0_CALL_STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH",
+          "claim": "HIR37 owns a distinct physical call kind and copied placement record."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "frontend_parallel_domain_preflight",
+          "claim": "HIR lowering independently admits only bounded pure non-suspending parallel-domain task graphs."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "hir0_physical_task_scope",
+          "claim": "Standalone HIR verification rejects forged placement and mixed physical task kinds."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native0.c",
+          "symbol": "effective_artifact_kind",
+          "claim": "Native auto-selection rejects incompatible process and task route matches."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_frontend.c",
+          "symbol": "test_structured_async_projection",
+          "claim": "Frontend tests cover missing, serial, capability-free, valid, and duplicate domain records."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_parallel_domain_placement_hir",
+          "claim": "HIR tests prove copied lifetime-independent placement and reject adversarial record mutations."
+        }
+      ],
+      "checks": [
+        "exact `.domain` resolution requires concurrent mode and parallel capability",
+        "HIR owns the placement identity and verifies it after frontend inputs are unavailable",
+        "one through four lexical ordinary pure non-suspending scalar children are the only admitted seed shape",
+        "missing, duplicate, serial, capability-free, mixed, async, effectful, and forged shapes fail closed",
+        "native auto-selection rejects incompatible route matches rather than relying on predicate order",
+        "no provider, MLIR, runtime, public executable, overlap, target, or performance claim is introduced"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }
