@@ -513,16 +513,32 @@ static bool hir_has_main_serial_dispatch(
   return false;
 }
 
-static w_seed_mlir0_artifact_kind effective_artifact_kind(
+static bool hir_has_process_shape(const w_seed_hir0_program *program) {
+  return program != NULL && program->external_module_count == 1u &&
+         program->external_symbol_count == 7u;
+}
+
+static bool effective_artifact_kind(
     const w_seed_hir0_program *program,
-    w_seed_mlir0_artifact_kind requested_kind) {
-  if (requested_kind != W_SEED_MLIR0_ARTIFACT_EXECUTABLE) return requested_kind;
-  if (program != NULL && program->external_module_count == 1u &&
-      program->external_symbol_count == 7u)
-    return W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE;
-  if (hir_has_main_serial_dispatch(program))
-    return W_SEED_MLIR0_ARTIFACT_COOPERATIVE_EXECUTABLE;
-  return requested_kind;
+    w_seed_mlir0_artifact_kind requested_kind,
+    w_seed_mlir0_artifact_kind *effective_kind) {
+  if (effective_kind == NULL) return false;
+  if (requested_kind != W_SEED_MLIR0_ARTIFACT_EXECUTABLE) {
+    *effective_kind = requested_kind;
+    return true;
+  }
+  const bool process_shape = hir_has_process_shape(program);
+  const bool main_dispatch = hir_has_main_serial_dispatch(program);
+  /* Artifact routes are semantic alternatives, not a precedence list.  A
+   * future HIR widening must define a composition explicitly instead of
+   * silently choosing whichever predicate happens to be checked first. */
+  if (process_shape && main_dispatch) return false;
+  *effective_kind = process_shape
+                        ? W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE
+                        : main_dispatch
+                              ? W_SEED_MLIR0_ARTIFACT_COOPERATIVE_EXECUTABLE
+                              : requested_kind;
+  return true;
 }
 
 static w_seed_native0_status emit_hir_program(
@@ -531,8 +547,9 @@ static w_seed_native0_status emit_hir_program(
     const w_seed_native0_output *output, w_seed_native0_result *result) {
   if (storage == NULL || target == NULL || output == NULL || result == NULL)
     return W_SEED_NATIVE0_INVALID;
-  artifact_kind =
-      effective_artifact_kind(&storage->hir_program, artifact_kind);
+  if (!effective_artifact_kind(&storage->hir_program, artifact_kind,
+                               &artifact_kind))
+    return W_SEED_NATIVE0_UNSUPPORTED;
   const w_seed_mlir0_input mlir_input = {
       .program = &storage->hir_program,
       .hir_result = &storage->hir_result,

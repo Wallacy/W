@@ -554,6 +554,29 @@ static bool frontend_array_ok(const void *pointer, size_t count,
   return count == 0u || count <= SIZE_MAX / element_size;
 }
 
+/* Domain bindings are caller-owned evidence, so HIR0 validates the table
+ * independently of the frontend's successful parse.  This keeps a forged
+ * frontend result from turning an arbitrary ordinal or capability word into
+ * placement proof. */
+static bool frontend_domain_input_ok(const w_seed_frontend_input *input) {
+  if (input == NULL ||
+      input->domain_count > (size_t)W_SEED_FRONTEND_MAX_DOMAINS ||
+      input->domain_count > (size_t)UINT32_MAX ||
+      (input->domain_count != 0u && input->domains == NULL))
+    return false;
+  const uint32_t known = W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL;
+  for (size_t index = 0u; index < input->domain_count; index += 1u) {
+    const w_seed_frontend_domain *domain = &input->domains[index];
+    if (!text_valid(domain->name) || domain->name.length == 0u ||
+        domain->mode > W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT ||
+        (domain->capabilities & ~known) != 0u)
+      return false;
+    for (size_t prior = 0u; prior < index; prior += 1u)
+      if (text_equal(domain->name, input->domains[prior].name)) return false;
+  }
+  return true;
+}
+
 static bool frontend_shape_ok(const w_seed_hir0_input *input) {
   if (input == NULL || input->frontend_input == NULL ||
       input->frontend_output == NULL || input->frontend_result == NULL)
@@ -579,7 +602,8 @@ static bool frontend_shape_ok(const w_seed_hir0_input *input) {
       (!frontend_input->import_resolution_complete &&
        frontend_input->resolved_import_count != 0u) ||
       (frontend_input->external_module_count != 0u &&
-       !frontend_input->import_resolution_complete))
+       !frontend_input->import_resolution_complete) ||
+      !frontend_domain_input_ok(frontend_input))
     return false;
 #define HIR0_FRONTEND_ARRAY(field, capacity_field, type)                       \
   if (!frontend_array_ok(output->field, result->written.field,               \
@@ -1432,7 +1456,8 @@ static bool frontend_enum_subset_canonical(
 
 static bool frontend_task_launch_kind(w_seed_frontend_expr_kind kind) {
   return kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH ||
-         kind == W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH;
+         kind == W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH ||
+         kind == W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH;
 }
 
 /* Task is a frontend-only virtual value in Async0. It may appear only as an
@@ -1785,28 +1810,21 @@ static bool frontend_cooperative_function_static_yields(
          yield_count <= W_SEED_HIR0_COOPERATIVE_MAX_YIELDS_PER_TASK;
 }
 
-/* The physical evidence lane is deliberately a stricter sibling scope than
- * ordinary Async0.  It is selected only by an explicit caller profile; the
- * normal profile never reaches this predicate and therefore retains the
- * W-1582 virtual-elision representation.  The source still carries no
- * scheduler ordering promise: the oracle lane asks for a bounded trace of
- * one permitted implementation schedule. */
-static bool frontend_cooperative_trace_preflight(
-    const w_seed_hir0_input *input) {
+/* Physical evidence lanes are deliberately stricter sibling scopes than
+ * ordinary Async0.  The source still carries no scheduler ordering promise:
+ * the bounded proof records only one permitted implementation shape.  The
+ * expected launch kind is supplied by the caller so the serial `.main`,
+ * caller-bound parallel `.domain`, and historical cooperative oracle lanes
+ * cannot be conflated. */
+static bool frontend_physical_trace_preflight(
+    const w_seed_hir0_input *input,
+    w_seed_frontend_expr_kind expected_launch,
+    size_t task_limit, size_t required_task_count) {
   if (input == NULL || input->frontend_output == NULL ||
       input->frontend_result == NULL ||
-      (input->execution_profile != W_SEED_HIR0_EXECUTION_PROFILE_NORMAL &&
-       input->execution_profile !=
-           W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE))
+      task_limit == 0u || task_limit > W_SEED_HIR0_PHYSICAL_MAX_TASKS ||
+      required_task_count > task_limit)
     return false;
-  const w_seed_frontend_expr_kind expected_launch =
-      input->execution_profile == W_SEED_HIR0_EXECUTION_PROFILE_NORMAL
-          ? W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH
-          : W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH;
-  const size_t task_limit =
-      input->execution_profile == W_SEED_HIR0_EXECUTION_PROFILE_NORMAL
-          ? W_SEED_HIR0_COOPERATIVE_MAX_TASKS
-          : W_SEED_HIR0_COOPERATIVE_ORACLE_MAX_TASKS;
   const w_seed_frontend_output *output = input->frontend_output;
   const w_seed_frontend_result *result = input->frontend_result;
   if (result->written.modules != 1u || result->written.entries != 1u ||
@@ -1832,12 +1850,12 @@ static bool frontend_cooperative_trace_preflight(
   size_t launch_count = 0u;
   size_t await_count = 0u;
   bool host_print_seen = false;
-  uint32_t launch_statements[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {
+  uint32_t launch_statements[W_SEED_HIR0_PHYSICAL_MAX_TASKS] = {
       W_SEED_FRONTEND_NONE};
-  uint32_t await_launch_statements[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {
+  uint32_t await_launch_statements[W_SEED_HIR0_PHYSICAL_MAX_TASKS] = {
       W_SEED_FRONTEND_NONE};
-  size_t launch_positions[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {0u};
-  size_t await_positions[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {0u};
+  size_t launch_positions[W_SEED_HIR0_PHYSICAL_MAX_TASKS] = {0u};
+  size_t await_positions[W_SEED_HIR0_PHYSICAL_MAX_TASKS] = {0u};
   uint32_t statement = root->first_statement;
   for (size_t position = 0u; position < root->statement_count;
        position += 1u) {
@@ -1904,8 +1922,7 @@ static bool frontend_cooperative_trace_preflight(
   if (statement != W_SEED_FRONTEND_NONE) return false;
   if (launch_count == 0u || launch_count != await_count ||
       launch_count > task_limit ||
-      (input->execution_profile == W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE &&
-       launch_count != W_SEED_HIR0_COOPERATIVE_ORACLE_MAX_TASKS) ||
+      (required_task_count != 0u && launch_count != required_task_count) ||
       launch_positions[launch_count - 1u] >= await_positions[0])
     return false;
   for (size_t ordinal = 1u; ordinal < launch_count; ordinal += 1u) {
@@ -1923,14 +1940,23 @@ static bool frontend_cooperative_trace_preflight(
       return false;
     const w_seed_frontend_expression *call =
         &output->expressions[launch->task_call_expression];
+    frontend_elision_path pure_path = {0};
+    const bool parallel_child =
+        expected_launch ==
+        W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH;
     if (call->kind != W_SEED_FRONTEND_EXPR_CALL ||
         call->resolved_callee_kind != W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION ||
         call->resolved_function_index == W_SEED_FRONTEND_NONE ||
         call->resolved_function_index >= result->written.functions ||
         output->functions[call->resolved_function_index].module_index !=
             root->module_index ||
-        !frontend_cooperative_function_static_yields(
-            input, call->resolved_function_index))
+        (parallel_child
+             ? (output->functions[call->resolved_function_index].is_async ||
+                !frontend_elision_function_never(
+                    input, call->resolved_function_index, root->module_index,
+                    &pure_path, 0u))
+             : !frontend_cooperative_function_static_yields(
+                   input, call->resolved_function_index)))
       return false;
     if (await_launch_statements[ordinal] != launch_statements[ordinal])
       return false;
@@ -1952,6 +1978,35 @@ static bool frontend_cooperative_trace_preflight(
          all_awaits == launch_count;
 }
 
+static bool frontend_cooperative_trace_preflight(
+    const w_seed_hir0_input *input) {
+  if (input == NULL ||
+      (input->execution_profile != W_SEED_HIR0_EXECUTION_PROFILE_NORMAL &&
+       input->execution_profile !=
+           W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE))
+    return false;
+  return frontend_physical_trace_preflight(
+      input,
+      input->execution_profile == W_SEED_HIR0_EXECUTION_PROFILE_NORMAL
+          ? W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH
+          : W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH,
+      input->execution_profile == W_SEED_HIR0_EXECUTION_PROFILE_NORMAL
+          ? W_SEED_HIR0_COOPERATIVE_MAX_TASKS
+          : W_SEED_HIR0_COOPERATIVE_ORACLE_MAX_TASKS,
+      input->execution_profile == W_SEED_HIR0_EXECUTION_PROFILE_NORMAL
+          ? 0u
+          : W_SEED_HIR0_COOPERATIVE_ORACLE_MAX_TASKS);
+}
+
+static bool frontend_parallel_domain_preflight(
+    const w_seed_hir0_input *input) {
+  return input != NULL &&
+         input->execution_profile == W_SEED_HIR0_EXECUTION_PROFILE_NORMAL &&
+         frontend_physical_trace_preflight(
+             input, W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH,
+             W_SEED_HIR0_PARALLEL_MAX_TASKS, 0u);
+}
+
 /* Existing ordinary targets retain the W-1577 path and are checked by HIR's
  * suspension proof. An explicit async target additionally requires this
  * preflight because its direct-entry fact is published only after emission. */
@@ -1968,6 +2023,7 @@ static bool frontend_structured_elision_preflight(
   const w_seed_frontend_output *output = input->frontend_output;
   const w_seed_frontend_result *result = input->frontend_result;
   bool has_main_spawn = false;
+  bool has_parallel_spawn = false;
   bool has_launch = false;
   for (size_t expression = 0u;
        expression < result->written.expressions; expression += 1u) {
@@ -1975,10 +2031,19 @@ static bool frontend_structured_elision_preflight(
         W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH)
       has_main_spawn = true;
     if (output->expressions[expression].kind ==
+        W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH)
+      has_parallel_spawn = true;
+    if (output->expressions[expression].kind ==
         W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH)
       has_launch = true;
   }
+  /* A root cannot mix the serial built-in lane with explicit parallel
+   * placement.  Keeping this rejection before any body proof makes the
+   * choice transactional and prevents a parallel launch from being hidden in
+   * the cooperative `.main` scope. */
+  if (has_main_spawn && has_parallel_spawn) return false;
   if (has_main_spawn) return frontend_cooperative_trace_preflight(input);
+  if (has_parallel_spawn) return frontend_parallel_domain_preflight(input);
   if (!has_launch) return true;
   frontend_elision_path path = {0};
   for (size_t expression = 0u;
@@ -2607,10 +2672,41 @@ static bool frontend_value_common_ok(
        (value->task_result_type != W_SEED_FRONTEND_NONE ||
         value->task_call_expression != W_SEED_FRONTEND_NONE ||
         value->task_binding_statement != W_SEED_FRONTEND_NONE)) ||
+      (value->kind != W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH &&
+       (value->domain_index != W_SEED_FRONTEND_NONE ||
+        value->domain_mode != W_SEED_FRONTEND_DOMAIN_MODE_SERIAL ||
+        value->domain_capabilities !=
+            W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE)) ||
       !frontend_span_ok(&input->frontend_input->documents[document_index],
                         value->span))
     return false;
   return true;
+}
+
+static bool frontend_parallel_launch_binding_ok(
+    const w_seed_hir0_input *input,
+    const w_seed_frontend_expression *launch) {
+  if (launch == NULL) return false;
+  if (launch->kind != W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH)
+    return launch->domain_index == W_SEED_FRONTEND_NONE &&
+           launch->domain_mode == W_SEED_FRONTEND_DOMAIN_MODE_SERIAL &&
+           launch->domain_capabilities ==
+               W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE;
+  if (input == NULL || input->frontend_input == NULL ||
+      launch->domain_index == W_SEED_FRONTEND_NONE ||
+      (size_t)launch->domain_index >= input->frontend_input->domain_count ||
+      input->frontend_input->domains == NULL)
+    return false;
+  const w_seed_frontend_domain *domain =
+      &input->frontend_input->domains[launch->domain_index];
+  const uint32_t known = W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL;
+  return text_is(domain->name, W_SEED_FRONTEND_DOMAIN_IDENTITY) &&
+         domain->mode == W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT &&
+         (domain->capabilities & ~known) == 0u &&
+         (domain->capabilities & W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL) !=
+             0u &&
+         launch->domain_mode == domain->mode &&
+         launch->domain_capabilities == domain->capabilities;
 }
 
 static bool frontend_value_has_no_resolution(
@@ -3972,6 +4068,7 @@ static bool frontend_task_launch_expression_ok(
   const w_seed_frontend_expression *launch = &output->expressions[root_index];
   if (!frontend_value_common_ok(input, launch, module_index, function_index,
                                 document_index) ||
+      !frontend_parallel_launch_binding_ok(input, launch) ||
       !frontend_task_launch_kind(launch->kind) || !launch->supported ||
       !text_is(launch->operator_text,
                launch->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH
@@ -6038,6 +6135,23 @@ static bool text_size_for_input(const w_seed_hir0_input *input, size_t *total) {
        index += 1u)
     if (!add_text_size(output->pattern_captures[index].name, &value))
       return false;
+  /* Parallel placement is copied once per accepted launch call. Keep the
+   * caller-owned identity in the HIR text budget even though the input table
+   * itself is intentionally not retained by HIR0. */
+  for (size_t index = 0u; index < result->written.expressions; index += 1u) {
+    const w_seed_frontend_expression *expression = &output->expressions[index];
+    if (expression->kind !=
+        W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH)
+      continue;
+    if (expression->domain_index == W_SEED_FRONTEND_NONE ||
+        (size_t)expression->domain_index >=
+            input->frontend_input->domain_count)
+      return false;
+    if (!add_text_size(
+            input->frontend_input->domains[expression->domain_index].name,
+            &value))
+      return false;
+  }
   return count_u32(value) && value <= W_SEED_HIR0_MAX_TEXT_BYTES
              ? (*total = value, true)
              : false;
@@ -6611,6 +6725,9 @@ static bool output_overlaps_input(const w_seed_hir0_input *input,
   if (output_overlaps_elements(outputs, output_count, frontend_input->documents,
                                frontend_input->document_count,
                                sizeof(w_seed_frontend_document)) ||
+      output_overlaps_elements(outputs, output_count, frontend_input->domains,
+                               frontend_input->domain_count,
+                               sizeof(w_seed_frontend_domain)) ||
       output_overlaps_elements(outputs, output_count,
                                frontend_input->external_modules,
                                frontend_input->external_module_count,
@@ -6672,6 +6789,11 @@ static bool output_overlaps_input(const w_seed_hir0_input *input,
                                       value->local_module_name))
       return true;
   }
+  for (size_t domain = 0u; domain < frontend_input->domain_count;
+       domain += 1u)
+    if (output_overlaps_frontend_text(
+            outputs, output_count, frontend_input->domains[domain].name))
+      return true;
   if (frontend_input->host_scope != NULL) {
     const w_seed_frontend_host_prelude *scope = frontend_input->host_scope;
     if (output_overlaps_frontend_text(outputs, output_count, scope->profile) ||
@@ -8468,6 +8590,10 @@ static size_t hir0_emit_call_layout_m2(hir0_emit_context *context,
   call->requirement_count = host_call ? identity->requirement_count : 0u;
   call->result_type = identity->return_type;
   call->execution_kind = W_SEED_HIR0_CALL_DIRECT;
+  call->placement = W_SEED_HIR0_CALL_PLACEMENT_NONE;
+  call->domain_identity = (w_seed_hir0_text){0u, 0u};
+  call->domain_mode = W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
+  call->domain_capabilities = 0u;
   call->source_expression = expression;
   call->source_span = source->span;
   instruction->result_type = call->result_type;
@@ -9175,14 +9301,39 @@ static size_t hir0_emit_expression_layout_m2(hir0_emit_context *context,
         call->resolved_function_index != W_SEED_FRONTEND_NONE &&
         frontend_elision_function_static_yields(
             &elision_input, call->resolved_function_index);
-    context->output->calls[*context->call_offset - 1u].execution_kind =
-        source->kind == W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH
-            ? W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH
-            : (cooperative_trace
-                   ? W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE
-                   : (static_yield
-                          ? W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED
-                          : W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED));
+    w_seed_hir0_call *emitted_call =
+        &context->output->calls[*context->call_offset - 1u];
+    if (source->kind == W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH) {
+      emitted_call->execution_kind =
+          W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH;
+      emitted_call->placement = W_SEED_HIR0_CALL_PLACEMENT_MAIN_SERIAL;
+      emitted_call->domain_identity = (w_seed_hir0_text){0u, 0u};
+      emitted_call->domain_mode = W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
+      emitted_call->domain_capabilities = 0u;
+    } else if (source->kind ==
+               W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH) {
+      emitted_call->execution_kind =
+          W_SEED_HIR0_CALL_STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH;
+      emitted_call->placement = W_SEED_HIR0_CALL_PLACEMENT_PARALLEL_DOMAIN;
+      const w_seed_frontend_domain *domain =
+          &context->frontend_input->domains[source->domain_index];
+      append_text_unchecked(domain->name, context->output->text_bytes,
+                            context->text_offset,
+                            &emitted_call->domain_identity);
+      emitted_call->domain_mode = domain->mode;
+      emitted_call->domain_capabilities = source->domain_capabilities;
+    } else {
+      emitted_call->execution_kind =
+          cooperative_trace
+              ? W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE
+              : (static_yield
+                     ? W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED
+                     : W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED);
+      emitted_call->placement = W_SEED_HIR0_CALL_PLACEMENT_NONE;
+      emitted_call->domain_identity = (w_seed_hir0_text){0u, 0u};
+      emitted_call->domain_mode = W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
+      emitted_call->domain_capabilities = 0u;
+    }
     return block;
   }
   if (source->kind == W_SEED_FRONTEND_EXPR_AWAIT)
@@ -10918,6 +11069,10 @@ static void digest_program(const w_seed_hir0_program *program,
     digest_u32(&state, value->requirement_count);
     digest_u32(&state, value->result_type);
     digest_u32(&state, (uint32_t)value->execution_kind);
+    digest_u32(&state, (uint32_t)value->placement);
+    digest_text(&state, program, value->domain_identity);
+    digest_u32(&state, (uint32_t)value->domain_mode);
+    digest_u32(&state, value->domain_capabilities);
   }
   for (size_t index = 0u; index < counts->host_parameters; index += 1u) {
     const w_seed_hir0_host_parameter *value = &program->host_parameters[index];
@@ -11122,6 +11277,10 @@ static void digest_provenance(const w_seed_hir0_program *program,
   for (size_t index = 0u; index < counts->calls; index += 1u) {
     digest_u32(&state, program->calls[index].source_expression);
     digest_span(&state, program->calls[index].source_span);
+    digest_u32(&state, (uint32_t)program->calls[index].placement);
+    digest_text(&state, program, program->calls[index].domain_identity);
+    digest_u32(&state, (uint32_t)program->calls[index].domain_mode);
+    digest_u32(&state, program->calls[index].domain_capabilities);
   }
   for (size_t index = 0u; index < counts->arguments; index += 1u)
     digest_span(&state, program->arguments[index].source_span);
@@ -14225,6 +14384,7 @@ static bool hir0_call_execution_kind_is_closed(
     case W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED:
     case W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE:
     case W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH:
+    case W_SEED_HIR0_CALL_STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH:
       return true;
     default:
       return false;
@@ -14234,7 +14394,35 @@ static bool hir0_call_execution_kind_is_closed(
 static bool hir0_call_is_physical_dispatch(
     w_seed_hir0_call_execution_kind kind) {
   return kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE ||
-         kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH;
+         kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH ||
+         kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH;
+}
+
+static bool hir0_call_placement_ok(const w_seed_hir0_program *program,
+                                   const w_seed_hir0_call *call) {
+  if (program == NULL || call == NULL) return false;
+  const bool main_dispatch =
+      call->execution_kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH;
+  const bool parallel_dispatch = call->execution_kind ==
+      W_SEED_HIR0_CALL_STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH;
+  const w_seed_hir0_call_placement_kind expected =
+      parallel_dispatch
+          ? W_SEED_HIR0_CALL_PLACEMENT_PARALLEL_DOMAIN
+          : (main_dispatch ? W_SEED_HIR0_CALL_PLACEMENT_MAIN_SERIAL
+                           : W_SEED_HIR0_CALL_PLACEMENT_NONE);
+  if (call->placement != expected) return false;
+  if (!parallel_dispatch)
+    return call->domain_identity.offset == 0u &&
+           call->domain_identity.count == 0u &&
+           call->domain_mode == W_SEED_FRONTEND_DOMAIN_MODE_SERIAL &&
+           call->domain_capabilities == 0u;
+  const uint32_t known = W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL;
+  return hir_text_is(program, call->domain_identity,
+                     W_SEED_FRONTEND_DOMAIN_IDENTITY) &&
+         call->domain_mode == W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT &&
+         (call->domain_capabilities & ~known) == 0u &&
+         (call->domain_capabilities &
+          W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL) != 0u;
 }
 
 static bool hir0_terminator_kind_is_closed(w_seed_hir0_terminator_kind kind) {
@@ -14999,11 +15187,11 @@ static bool hir0_function_cooperative_yields(
 }
 
 /* Physical calls are accepted by HIR only as one complete sibling scope. The
- * `.main` lane is bounded to one through the fixed seed ceiling; the
- * historical cooperative trace lane remains exact-two. This verifier
- * intentionally rederives launch/join relations from caller-owned records
- * instead of trusting a downstream runtime plan. */
-static bool hir0_cooperative_trace_scope(const w_seed_hir0_program *program) {
+ * `.main` and caller-bound `.domain` lanes are bounded by the fixed seed
+ * ceiling; the historical cooperative trace lane remains exact-two. This
+ * verifier intentionally rederives launch/join relations from caller-owned
+ * records instead of trusting a downstream runtime plan. */
+static bool hir0_physical_task_scope(const w_seed_hir0_program *program) {
   if (program == NULL || program->entry_count != 1u ||
       program->function_count > W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS ||
       program->entries == NULL || program->functions == NULL ||
@@ -15030,12 +15218,15 @@ static bool hir0_cooperative_trace_scope(const w_seed_hir0_program *program) {
     return false;
   size_t physical_count = 0u;
   w_seed_hir0_call_execution_kind physical_kind = W_SEED_HIR0_CALL_DIRECT;
-  uint32_t call_instructions[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {
+  uint32_t call_instructions[W_SEED_HIR0_PHYSICAL_MAX_TASKS] = {
       W_SEED_HIR0_NONE};
-  uint32_t launch_bindings[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {
+  uint32_t launch_bindings[W_SEED_HIR0_PHYSICAL_MAX_TASKS] = {
       W_SEED_HIR0_NONE};
-  uint32_t join_bindings[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {
+  uint32_t join_bindings[W_SEED_HIR0_PHYSICAL_MAX_TASKS] = {
       W_SEED_HIR0_NONE};
+  uint8_t body_never[HIR0_DIRECT_FUNCTION_BITSET_BYTES];
+  uint8_t parallel_helper_state[W_SEED_FRONTEND_MAX_CST_NODES] = {0};
+  hir0_compute_body_never(program, body_never);
   for (size_t call_index = 0u; call_index < program->call_count;
        call_index += 1u) {
     const w_seed_hir0_call *call = &program->calls[call_index];
@@ -15046,7 +15237,7 @@ static bool hir0_cooperative_trace_scope(const w_seed_hir0_program *program) {
             W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED ||
         physical;
     if (!structured) continue;
-    if (!physical || physical_count >= W_SEED_HIR0_COOPERATIVE_MAX_TASKS ||
+    if (!physical || physical_count >= W_SEED_HIR0_PHYSICAL_MAX_TASKS ||
         call->owner_instruction >= program->instruction_count ||
         call->owner_block >= program->block_count ||
         program->blocks[call->owner_block].owner_function != root_function ||
@@ -15058,11 +15249,19 @@ static bool hir0_cooperative_trace_scope(const w_seed_hir0_program *program) {
       return false;
     const w_seed_hir0_identity *identity =
         &program->identities[call->callee_identity];
+    const bool parallel_child =
+        call->execution_kind ==
+        W_SEED_HIR0_CALL_STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH;
     if (identity->kind != W_SEED_HIR0_IDENTITY_FUNCTION ||
         identity->target_index >= program->function_count ||
         program->functions[identity->target_index].module_index !=
             root->module_index ||
-        !hir0_function_cooperative_yields(program, identity->target_index))
+        (parallel_child
+             ? !hir0_static_yield_helper_graph(
+                   program, identity->target_index, root->module_index,
+                   body_never, parallel_helper_state, 0u)
+             : !hir0_function_cooperative_yields(program,
+                                                  identity->target_index)))
       return false;
     const size_t instruction_index = call->owner_instruction;
     if (instruction_index + 1u >= program->instruction_count)
@@ -15103,7 +15302,9 @@ static bool hir0_cooperative_trace_scope(const w_seed_hir0_program *program) {
   }
   if (physical_count == 0u) return false;
   const size_t required_tasks =
-      physical_kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH
+      (physical_kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH ||
+       physical_kind ==
+           W_SEED_HIR0_CALL_STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH)
           ? physical_count
           : W_SEED_HIR0_COOPERATIVE_ORACLE_MAX_TASKS;
   if (physical_count != required_tasks)
@@ -15529,11 +15730,12 @@ static bool verify_records(const w_seed_hir0_program *program) {
     if (value->owner_instruction >= program->instruction_count ||
         value->owner_block >= program->block_count ||
         value->callee_identity >= program->identity_count ||
-        (value->result_type != 0u &&
+         (value->result_type != 0u &&
          (!hir_type_index_valid(program, value->result_type) ||
            (value->result_type < 4u && value->result_type != 2u &&
             value->result_type != 3u))) ||
          !hir0_call_execution_kind_is_closed(value->execution_kind) ||
+         !hir0_call_placement_ok(program, value) ||
          value->first_argument != call_argument_cursor ||
          !range_valid(value->first_argument, value->argument_count,
                      program->argument_count) ||
@@ -15587,19 +15789,38 @@ static bool verify_records(const w_seed_hir0_program *program) {
           W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED;
       const bool physical_dispatch =
           hir0_call_is_physical_dispatch(value->execution_kind);
+      const bool parallel_dispatch =
+          value->execution_kind ==
+          W_SEED_HIR0_CALL_STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH;
       const bool target_non_suspending =
           !static_yield && target != NULL &&
           (target->suspension == W_SEED_HIR0_SUSPENSION_NEVER ||
            (target->is_async &&
             target->direct_entry == W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE));
+      bool physical_target_ok = true;
+      if (physical_dispatch && target != NULL) {
+        if (parallel_dispatch) {
+          uint8_t body_never[HIR0_DIRECT_FUNCTION_BITSET_BYTES];
+          uint8_t helper_state[W_SEED_FRONTEND_MAX_CST_NODES] = {0};
+          hir0_compute_body_never(program, body_never);
+          physical_target_ok =
+              !target->is_async &&
+              target->suspension == W_SEED_HIR0_SUSPENSION_NEVER &&
+              hir0_static_yield_helper_graph(
+                  program, identity->target_index, target->module_index,
+                  body_never, helper_state, 0u);
+        } else {
+          physical_target_ok =
+              target->is_async &&
+              target->direct_entry == W_SEED_HIR0_DIRECT_ENTRY_ABSENT &&
+              hir0_function_static_yields(program, identity->target_index);
+        }
+      }
       if (!local_call || identity->target_index >= program->function_count ||
           target == NULL || target->is_throws || target->is_unsafe ||
           target->has_borrow_clause ||
           (physical_dispatch
-               ? (!target->is_async ||
-                  target->direct_entry != W_SEED_HIR0_DIRECT_ENTRY_ABSENT ||
-                  !hir0_function_static_yields(program,
-                                                identity->target_index))
+               ? !physical_target_ok
                : (!target_non_suspending &&
                   !(static_yield && hir0_function_static_yields(
                                        program, identity->target_index)))) ||
@@ -16063,7 +16284,7 @@ static bool verify_records(const w_seed_hir0_program *program) {
       has_physical_dispatch = true;
       break;
     }
-  if (has_physical_dispatch && !hir0_cooperative_trace_scope(program))
+  if (has_physical_dispatch && !hir0_physical_task_scope(program))
     return false;
   return true;
 }

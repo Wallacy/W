@@ -365,6 +365,12 @@ static w_seed_frontend_text document_local_module_name(
 static bool validate_import_resolution(const w_seed_frontend_input *input,
                                        size_t *bad_document,
                                        w_seed_span *bad_span);
+static bool domain_input_ready(const w_seed_frontend_input *input);
+static bool caller_domain_binding(const frontend_context *context,
+                                  w_seed_frontend_text name,
+                                  uint32_t *domain_index,
+                                  w_seed_frontend_domain_mode *mode,
+                                  uint32_t *capabilities);
 static const w_seed_frontend_resolved_import *resolved_import_at(
     const frontend_context *context, size_t import_index);
 static bool resolved_import_index_for(const frontend_context *context,
@@ -3210,6 +3216,24 @@ static bool receipt_size_host_records(frontend_context *context) {
   return true;
 }
 
+static bool receipt_size_domain_records(frontend_context *context) {
+  if (context == NULL) return false;
+  for (size_t index = 0u; index < context->input.domain_count; index += 1u) {
+    const w_seed_frontend_domain *domain = &context->input.domains[index];
+    if (!receipt_size_literal(context, "domain=") ||
+        !receipt_size_size(context, index) ||
+        !receipt_size_literal(context, "|") ||
+        !receipt_size_text(context, domain->name) ||
+        !receipt_size_literal(context, "|mode=") ||
+        !receipt_size_size(context, (size_t)domain->mode) ||
+        !receipt_size_literal(context, "|capabilities=") ||
+        !receipt_size_size(context, domain->capabilities) ||
+        !receipt_size_literal(context, "\n"))
+      return false;
+  }
+  return true;
+}
+
 static bool receipt_size_module(frontend_context *context,
                                const w_seed_frontend_module *module) {
   return receipt_size_literal(context, "module=") &&
@@ -3473,7 +3497,9 @@ static bool receipt_size_call_identity(
 static bool receipt_size_task_expression(
     frontend_context *context, size_t expression_index,
     w_seed_frontend_expr_kind kind, uint32_t result_type,
-    uint32_t call_expression, uint32_t binding_statement) {
+    uint32_t call_expression, uint32_t binding_statement,
+    uint32_t domain_index, w_seed_frontend_domain_mode domain_mode,
+    uint32_t domain_capabilities) {
   return receipt_size_literal(context, "task-expression=") &&
          receipt_size_size(context, expression_index) &&
          receipt_size_literal(context, "|kind=") &&
@@ -3484,6 +3510,12 @@ static bool receipt_size_task_expression(
          receipt_size_size(context, call_expression) &&
          receipt_size_literal(context, "|binding=") &&
          receipt_size_size(context, binding_statement) &&
+         receipt_size_literal(context, "|domain=") &&
+         receipt_size_size(context, domain_index) &&
+         receipt_size_literal(context, "|domain-mode=") &&
+         receipt_size_size(context, (size_t)domain_mode) &&
+         receipt_size_literal(context, "|capabilities=") &&
+         receipt_size_size(context, domain_capabilities) &&
          receipt_size_literal(context, "\n");
 }
 
@@ -3919,6 +3951,46 @@ static bool document_ready(const w_seed_frontend_document *doc,
 
 static bool external_text_valid(w_seed_frontend_text text) {
   return text.length == 0 || text.data != NULL;
+}
+
+static bool domain_input_ready(const w_seed_frontend_input *input) {
+  if (input == NULL) return false;
+  if (input->domain_count != 0u && input->domains == NULL) return false;
+  if (input->domain_count > (size_t)W_SEED_FRONTEND_MAX_DOMAINS ||
+      input->domain_count > (size_t)UINT32_MAX)
+    return false;
+  const uint32_t known = W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL;
+  for (size_t index = 0u; index < input->domain_count; index += 1u) {
+    const w_seed_frontend_domain *domain = &input->domains[index];
+    if (!external_text_valid(domain->name) || domain->name.length == 0u ||
+        domain->mode > W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT ||
+        (domain->capabilities & ~known) != 0u)
+      return false;
+    for (size_t prior = 0u; prior < index; prior += 1u)
+      if (text_equal_text(domain->name, input->domains[prior].name))
+        return false;
+  }
+  return true;
+}
+
+static bool caller_domain_binding(const frontend_context *context,
+                                  w_seed_frontend_text name,
+                                  uint32_t *domain_index,
+                                  w_seed_frontend_domain_mode *mode,
+                                  uint32_t *capabilities) {
+  if (domain_index != NULL) *domain_index = W_SEED_FRONTEND_NONE;
+  if (mode != NULL) *mode = W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
+  if (capabilities != NULL) *capabilities = 0u;
+  if (context == NULL || context->input.domains == NULL) return false;
+  for (size_t index = 0u; index < context->input.domain_count; index += 1u) {
+    const w_seed_frontend_domain *domain = &context->input.domains[index];
+    if (!text_equal_text(domain->name, name)) continue;
+    if (domain_index != NULL) *domain_index = (uint32_t)index;
+    if (mode != NULL) *mode = domain->mode;
+    if (capabilities != NULL) *capabilities = domain->capabilities;
+    return true;
+  }
+  return false;
 }
 
 static bool external_input_ready(const w_seed_frontend_input *input) {
@@ -5256,7 +5328,8 @@ static bool measure_input(const w_seed_frontend_input *input,
       input->document_count == 0 ||
       input->document_count > (size_t)W_SEED_FRONTEND_MAX_DOCUMENTS ||
       input->document_count > (size_t)UINT32_MAX ||
-      !external_input_ready(input) || !host_prelude_input_ready(input)) {
+      !external_input_ready(input) || !host_prelude_input_ready(input) ||
+      !domain_input_ready(input)) {
     return false;
   }
   size_t total_const_declarations = 0u;
@@ -5424,6 +5497,10 @@ w_seed_frontend_status w_seed_frontend_measure(
     return result->status;
   }
   if (!receipt_size_host_records(&dry)) {
+    result->status = W_SEED_FRONTEND_INVALID;
+    return result->status;
+  }
+  if (!receipt_size_domain_records(&dry)) {
     result->status = W_SEED_FRONTEND_INVALID;
     return result->status;
   }
@@ -11511,6 +11588,9 @@ static bool expression_append(frontend_expression_parser *parser,
   record.task_result_type = W_SEED_FRONTEND_NONE;
   record.task_call_expression = W_SEED_FRONTEND_NONE;
   record.task_binding_statement = W_SEED_FRONTEND_NONE;
+  record.domain_index = W_SEED_FRONTEND_NONE;
+  record.domain_mode = W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
+  record.domain_capabilities = W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE;
   if (kind == W_SEED_FRONTEND_EXPR_IDENTIFIER) {
     for (size_t index = parser->context->active_pattern_capture_count;
          index > 0u; index -= 1u) {
@@ -12981,32 +13061,59 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
   if (token_text(parser->document, &token, "spawn")) {
     frontend_token_cursor look = parser->cursor;
     frontend_token spawn_token = {0};
+    const bool spawn_shape = cursor_take_text(&look, "spawn", &spawn_token);
+    frontend_token_cursor main_look = look;
+    frontend_token_cursor parallel_look = look;
     const bool exact_main_domain =
-        cursor_take_text(&look, "spawn", &spawn_token) &&
-        cursor_take_text(&look, "<", NULL) &&
-        cursor_take_text(&look, ".", NULL) &&
-        cursor_take_text(&look, "main", NULL) &&
-        cursor_take_text(&look, ">", NULL);
-    if (!exact_main_domain) {
+        spawn_shape && cursor_take_text(&main_look, "<", NULL) &&
+        cursor_take_text(&main_look, ".", NULL) &&
+        cursor_take_text(&main_look, "main", NULL) &&
+        cursor_take_text(&main_look, ">", NULL);
+    const bool exact_parallel_domain =
+        spawn_shape && cursor_take_text(&parallel_look, "<", NULL) &&
+        cursor_take_text(&parallel_look, ".", NULL) &&
+        cursor_take_text(&parallel_look, "domain", NULL) &&
+        cursor_take_text(&parallel_look, ">", NULL);
+    if (!exact_main_domain && !exact_parallel_domain) {
       const w_seed_span rejected = token.span;
       (void)context_append_fact(
-          parser->context, W_SEED_FRONTEND_FACT_SPAWN_MAIN_LAUNCH, rejected,
+          parser->context,
+          W_SEED_FRONTEND_FACT_SPAWN_PARALLEL_DOMAIN_LAUNCH, rejected,
           text_from_span(parser->document, rejected));
       return false;
     }
-    parser->cursor = look;
+    const bool parallel = exact_parallel_domain;
+    parser->cursor = parallel ? parallel_look : main_look;
     frontend_expr_value nested;
     if (!expression_parse_prefix(parser, &nested)) return false;
     const w_seed_span span = {spawn_token.span.start_byte,
                               nested.span.end_byte};
     const frontend_simple_type result_type = nested.type;
+    uint32_t domain_index = W_SEED_FRONTEND_NONE;
+    w_seed_frontend_domain_mode domain_mode =
+        W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
+    uint32_t domain_capabilities = W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE;
+    const bool domain_bound =
+        !parallel || caller_domain_binding(
+                         parser->context,
+                         (w_seed_frontend_text){W_SEED_FRONTEND_DOMAIN_IDENTITY,
+                                                sizeof(W_SEED_FRONTEND_DOMAIN_IDENTITY) -
+                                                    1u},
+                         &domain_index, &domain_mode, &domain_capabilities);
     const bool supported =
         nested.supported && nested.kind == W_SEED_FRONTEND_EXPR_CALL &&
         nested.is_local_call && task_result_kind_supported(result_type) &&
-        !parser->context->current_function_is_const;
+        !parser->context->current_function_is_const && domain_bound &&
+        (!parallel ||
+         (domain_mode == W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT &&
+          (domain_capabilities &
+           W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL) != 0u));
     if (!supported) {
       (void)context_append_fact(
-          parser->context, W_SEED_FRONTEND_FACT_SPAWN_MAIN_LAUNCH, span,
+          parser->context,
+          parallel ? W_SEED_FRONTEND_FACT_SPAWN_PARALLEL_DOMAIN_LAUNCH
+                   : W_SEED_FRONTEND_FACT_SPAWN_MAIN_LAUNCH,
+          span,
           text_from_span(parser->document, span));
       if (parser->context->current_function_is_const)
         (void)const_record_failure(parser->context, span,
@@ -13018,8 +13125,11 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
     value->is_external_enum_case = false;
     value->enum_index = W_SEED_FRONTEND_NONE;
     value->enum_case_index = W_SEED_FRONTEND_NONE;
+    const w_seed_frontend_expr_kind launch_kind =
+        parallel ? W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH
+                 : W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH;
     if (!expression_append(
-            parser, W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH, span,
+            parser, launch_kind, span,
             text_from_span(parser->document, span),
             text_from_span(parser->document, spawn_token.span),
             task_simple_type(result_type), supported, nested_index,
@@ -13038,6 +13148,9 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
           &parser->context->output->expressions[value->index];
       record->task_call_expression = nested_index;
       record->task_binding_statement = W_SEED_FRONTEND_NONE;
+      record->domain_index = domain_index;
+      record->domain_mode = domain_mode;
+      record->domain_capabilities = domain_capabilities;
       if (record->inferred_type != W_SEED_FRONTEND_NONE &&
           record->inferred_type < parser->context->count.types) {
         record->task_result_type =
@@ -13047,7 +13160,8 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
     } else if (!parser->context->emit &&
                !receipt_size_task_expression(
                    parser->context, value->index, value->kind,
-                   result_type_index, nested_index, W_SEED_FRONTEND_NONE)) {
+                   result_type_index, nested_index, W_SEED_FRONTEND_NONE,
+                   domain_index, domain_mode, domain_capabilities)) {
       return false;
     }
     return true;
@@ -13139,7 +13253,9 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
                    parser->context, value->index, value->kind,
                    result_type_index,
                    launch ? nested_index : W_SEED_FRONTEND_NONE,
-                   launch ? W_SEED_FRONTEND_NONE : binding_statement)) {
+                   launch ? W_SEED_FRONTEND_NONE : binding_statement,
+                   W_SEED_FRONTEND_NONE, W_SEED_FRONTEND_DOMAIN_MODE_SERIAL,
+                   W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE)) {
       return false;
     }
     return true;
@@ -13735,6 +13851,9 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.task_result_type = W_SEED_FRONTEND_NONE;
     fallback.task_call_expression = W_SEED_FRONTEND_NONE;
     fallback.task_binding_statement = W_SEED_FRONTEND_NONE;
+    fallback.domain_index = W_SEED_FRONTEND_NONE;
+    fallback.domain_mode = W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
+    fallback.domain_capabilities = W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE;
     fallback.member_name = (w_seed_frontend_text){NULL, 0};
     fallback.supported = false;
     if (actual_out != NULL) *actual_out = simple_type_unknown();
@@ -13785,6 +13904,9 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.task_result_type = W_SEED_FRONTEND_NONE;
     fallback.task_call_expression = W_SEED_FRONTEND_NONE;
     fallback.task_binding_statement = W_SEED_FRONTEND_NONE;
+    fallback.domain_index = W_SEED_FRONTEND_NONE;
+    fallback.domain_mode = W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
+    fallback.domain_capabilities = W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE;
     fallback.member_name = (w_seed_frontend_text){NULL, 0};
     fallback.supported = false;
     if (actual_out != NULL) *actual_out = simple_type_unknown();
@@ -14589,6 +14711,9 @@ static bool normalize_switch_expression(
   switch_record.task_result_type = W_SEED_FRONTEND_NONE;
   switch_record.task_call_expression = W_SEED_FRONTEND_NONE;
   switch_record.task_binding_statement = W_SEED_FRONTEND_NONE;
+  switch_record.domain_index = W_SEED_FRONTEND_NONE;
+  switch_record.domain_mode = W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
+  switch_record.domain_capabilities = W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE;
   switch_record.supported = subject_is_enum;
   uint32_t switch_index = W_SEED_FRONTEND_NONE;
   if (!context_append_expression(context, switch_record, &switch_index)) {
@@ -15033,7 +15158,9 @@ static bool normalize_statement_depth(frontend_context *context,
     const w_seed_span expression_span = doc->nodes[expression_node].raw_span;
     const bool root_launch =
         expression_value.kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH ||
-        expression_value.kind == W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH;
+        expression_value.kind == W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH ||
+        expression_value.kind ==
+            W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH;
     const bool root_await = expression_value.kind == W_SEED_FRONTEND_EXPR_AWAIT;
     const bool root_execution_yield =
         expression_value.kind == W_SEED_FRONTEND_EXPR_EXECUTION_YIELD;
@@ -16978,6 +17105,23 @@ static void receipt_write_host_records(frontend_receipt_writer *writer,
   }
 }
 
+static void receipt_write_domain_records(frontend_receipt_writer *writer,
+                                         const w_seed_frontend_input *input) {
+  if (writer == NULL || input == NULL) return;
+  for (size_t index = 0u; index < input->domain_count; index += 1u) {
+    const w_seed_frontend_domain *domain = &input->domains[index];
+    receipt_write_literal(writer, "domain=");
+    receipt_write_size(writer, index);
+    receipt_write_literal(writer, "|");
+    receipt_write_text(writer, domain->name);
+    receipt_write_literal(writer, "|mode=");
+    receipt_write_size(writer, (size_t)domain->mode);
+    receipt_write_literal(writer, "|capabilities=");
+    receipt_write_size(writer, domain->capabilities);
+    receipt_write_literal(writer, "\n");
+  }
+}
+
 static const char *fact_name(w_seed_frontend_fact_kind kind) {
   switch (kind) {
     case W_SEED_FRONTEND_FACT_UNSUPPORTED_NODE:
@@ -17004,6 +17148,8 @@ static const char *fact_name(w_seed_frontend_fact_kind kind) {
       return "execution-yield";
     case W_SEED_FRONTEND_FACT_SPAWN_MAIN_LAUNCH:
       return "spawn-main-launch";
+    case W_SEED_FRONTEND_FACT_SPAWN_PARALLEL_DOMAIN_LAUNCH:
+      return "spawn-parallel-domain-launch";
   }
   return "unknown";
 }
@@ -17036,6 +17182,7 @@ static void receipt_write_records(frontend_receipt_writer *writer,
   }
   receipt_write_external_records(writer, input);
   receipt_write_host_records(writer, input);
+  receipt_write_domain_records(writer, input);
   if (output != NULL) {
     for (size_t index = 0; index < context->count.modules; index += 1) {
       const w_seed_frontend_module *module = &output->modules[index];
@@ -17448,6 +17595,8 @@ static void receipt_write_records(frontend_receipt_writer *writer,
       }
       if (expression->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH ||
           expression->kind == W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH ||
+          expression->kind ==
+              W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH ||
           expression->kind == W_SEED_FRONTEND_EXPR_AWAIT) {
         receipt_write_literal(writer, "task-expression=");
         receipt_write_size(writer, index);
@@ -17459,6 +17608,12 @@ static void receipt_write_records(frontend_receipt_writer *writer,
         receipt_write_size(writer, expression->task_call_expression);
         receipt_write_literal(writer, "|binding=");
         receipt_write_size(writer, expression->task_binding_statement);
+        receipt_write_literal(writer, "|domain=");
+        receipt_write_size(writer, expression->domain_index);
+        receipt_write_literal(writer, "|domain-mode=");
+        receipt_write_size(writer, (size_t)expression->domain_mode);
+        receipt_write_literal(writer, "|capabilities=");
+        receipt_write_size(writer, expression->domain_capabilities);
         receipt_write_literal(writer, "\n");
       }
       if (expression->kind != W_SEED_FRONTEND_EXPR_CALL) continue;
@@ -17718,6 +17873,10 @@ w_seed_frontend_status w_seed_frontend_run(
     return result->status;
   }
   if (!receipt_size_host_records(&dry)) {
+    result->status = W_SEED_FRONTEND_INVALID;
+    return result->status;
+  }
+  if (!receipt_size_domain_records(&dry)) {
     result->status = W_SEED_FRONTEND_INVALID;
     return result->status;
   }

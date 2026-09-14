@@ -105,6 +105,7 @@ typedef struct {
   w_seed_frontend_external_parameter host_parameters[2];
   w_seed_frontend_host_prelude_symbol host_symbols[2];
   w_seed_frontend_host_prelude host_scope;
+  w_seed_frontend_domain domains[2];
   w_seed_frontend_external_parameter external_parameters[8];
   w_seed_frontend_external_symbol external_symbols[8];
   w_seed_frontend_external_module external_modules[2];
@@ -329,6 +330,29 @@ static void configure_host(void) {
 static bool fixture_frontend(const char *source) {
   CHECK(fixture_parse(source));
   configure_host();
+  CHECK(w_seed_frontend_run(&fixture.input, &fixture.output,
+                            &fixture.result) == W_SEED_FRONTEND_OK);
+  return true;
+}
+
+static void configure_parallel_domain(w_seed_frontend_domain_mode mode,
+                                      uint32_t capabilities) {
+  fixture.domains[0] = (w_seed_frontend_domain){
+      .name = (w_seed_frontend_text){W_SEED_FRONTEND_DOMAIN_IDENTITY,
+                                     sizeof(W_SEED_FRONTEND_DOMAIN_IDENTITY) -
+                                         1u},
+      .mode = mode,
+      .capabilities = capabilities};
+  fixture.input.domains = fixture.domains;
+  fixture.input.domain_count = 1u;
+}
+
+static bool fixture_parallel_domain_frontend(const char *source,
+                                             uint32_t capabilities) {
+  CHECK(fixture_parse(source));
+  configure_host();
+  configure_parallel_domain(W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT,
+                            capabilities);
   CHECK(w_seed_frontend_run(&fixture.input, &fixture.output,
                             &fixture.result) == W_SEED_FRONTEND_OK);
   return true;
@@ -610,6 +634,29 @@ static bool lower_single_print_host(const char *source) {
   configure_process_input_host();
   CHECK(w_seed_frontend_run(&fixture.input, &fixture.output, &fixture.result) ==
         W_SEED_FRONTEND_OK);
+  setup_hir_output();
+  const w_seed_hir0_input input = {
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
+  w_seed_hir0_counts measured;
+  w_seed_hir0_result measure_result;
+  CHECK(w_seed_hir0_measure(&input, &measured, &measure_result) ==
+        W_SEED_HIR0_OK);
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &fixture.hir_result) ==
+        W_SEED_HIR0_OK);
+  CHECK(w_seed_hir0_program_from_output(&fixture.hir_output,
+                                        &fixture.hir_result,
+                                        &fixture.hir_program));
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_counts = measured;
+  return true;
+}
+
+static bool lower_parallel_domain(const char *source) {
+  CHECK(fixture_parallel_domain_frontend(
+      source, W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL));
   setup_hir_output();
   const w_seed_hir0_input input = {
       .frontend_input = &fixture.input,
@@ -2524,6 +2571,67 @@ static bool test_structured_async_elision_hir(void) {
       .frontend_result = &fixture.result,
       .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   CHECK(w_seed_hir0_measure(&input, &counts, &result) != W_SEED_HIR0_OK);
+  return true;
+}
+
+static bool test_parallel_domain_placement_hir(void) {
+  static const char SOURCE[] =
+      "fn prepare(value: i64): i64 { return value + 1 }\n"
+      "entry { let left = spawn<.domain> prepare(value: 20) "
+      "let right = spawn<.domain> prepare(value: 22) "
+      "let first = await left let second = await right }\n";
+  CHECK(lower_parallel_domain(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  size_t parallel_calls = 0u;
+  size_t first_parallel = W_SEED_HIR0_NONE;
+  for (size_t index = 0u; index < program->call_count; index += 1u) {
+    const w_seed_hir0_call *call = &program->calls[index];
+    if (call->execution_kind !=
+        W_SEED_HIR0_CALL_STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH)
+      continue;
+    if (first_parallel == W_SEED_HIR0_NONE) first_parallel = index;
+    CHECK(call->placement == W_SEED_HIR0_CALL_PLACEMENT_PARALLEL_DOMAIN &&
+          call->domain_mode == W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT &&
+          call->domain_capabilities ==
+              W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL &&
+          hir_text_is(program, call->domain_identity,
+                      W_SEED_FRONTEND_DOMAIN_IDENTITY));
+    parallel_calls += 1u;
+  }
+  CHECK(parallel_calls == 2u && first_parallel != W_SEED_HIR0_NONE &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+
+  /* The verified program owns the identity bytes; frontend/profile storage
+   * can disappear before a later pass re-verifies the placement proof. */
+  (void)memset(fixture.domains, 0xa5, sizeof(fixture.domains));
+  (void)memset(&fixture.input, 0xa5, sizeof(fixture.input));
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_call saved = fixture.hir_calls[first_parallel];
+  fixture.hir_calls[first_parallel].placement =
+      W_SEED_HIR0_CALL_PLACEMENT_NONE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_calls[first_parallel] = saved;
+
+  fixture.hir_calls[first_parallel].domain_mode =
+      W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_calls[first_parallel] = saved;
+
+  fixture.hir_calls[first_parallel].domain_identity.count = 0u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_calls[first_parallel] = saved;
+
+  fixture.hir_calls[first_parallel].execution_kind =
+      W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_calls[first_parallel] = saved;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
   return true;
 }
 
@@ -7153,6 +7261,7 @@ int main(void) {
   if (!test_semantic_and_provenance_digests()) return 1;
   if (!test_function_parameter_records()) return 1;
   if (!test_structured_async_elision_hir()) return 1;
+  if (!test_parallel_domain_placement_hir()) return 1;
   if (!test_lowering_is_not_hello_hardcoded()) return 1;
   if (!test_local_binding_lowering()) return 1;
   if (!test_straight_line_mutation_ssa()) return 1;

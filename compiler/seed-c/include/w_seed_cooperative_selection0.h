@@ -11,7 +11,7 @@ extern "C" {
 
 /* This is a target-neutral, caller-owned selection proof shared by the
  * NativeSubset0/MLIR0 boundary. M1 admits a narrower one-block
- * product-selection subset than the full HIR35 envelope: one through the
+ * product-selection subset than the full verified HIR0 envelope: one through the
  * bounded physical `.main` task ceiling, while the historical trace oracle
  * remains exact-two. It carries only copied HIR indices and proof facts; it
  * is not a frame, scheduler, or runtime ABI. */

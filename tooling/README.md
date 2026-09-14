@@ -357,6 +357,15 @@ until equivalent serial-main-domain baselines exist. This bounded seed evidence
 makes no general runtime, scheduler, parallelism, cancellation, stable ABI,
 target-adapter, benchmark-ranking, or performance claim. No syntax changes.
 
+W-1588 adds an IR-only parallel-placement boundary. Frontend26 accepts exact
+`spawn<.domain>` only from a caller-owned concurrent domain with the parallel
+capability. HIR37 owns and independently verifies the copied identity, mode,
+capabilities, pure non-suspending scalar child graph, and lexical joins. The
+seed C unit suite covers missing, duplicate, serial, capability-free, mixed,
+and forged forms. No MLIR/provider/public executable exists for this route, so
+there is intentionally no executable benchmark or platform-performance gate
+yet; its disposition is `compiler-lifecycle`.
+
 ACQ0 executa CHK6 em
 storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou
 CLI. Execute `bun check --target acquisition` para compilar os cinco targets focais,

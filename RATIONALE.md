@@ -238,6 +238,7 @@ O corpus compara, no mínimo:
 - bounded cooperative process projection and all-applicable-target coverage against hardcoded output, evidence-local architecture, and false cross-compilation claims.
 - bounded source-selected main-domain dispatch against pure-async elision, source-name heuristics, and evidence-limited target coverage.
 - bounded main-domain task cardinality against the exact-two product ceiling, a widened runtime claim, and non-lexical result folding.
+- verified explicit parallel-domain placement against ambient host inference, cooperative-yield reuse, and premature runtime claims.
 
 ### 1.1 Cobertura de substituições
 
@@ -7892,6 +7893,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1585 | bounded cooperative process projections and target-coverage rule | The distinct `w-seed-mlir0-cooperative-executable-1` artifact reuses the independently verified W-1584 core and derives an ordered output plan from verified HIR rather than hardcoding Restaurant stdout. The bounded plan permits static UTF-8 fragments and exactly one signed-`i64` interpolation of the two joined outcomes. Windows x86_64 emits a CRT-free `mainCRTStartup`/Kernel32 PE; Linux x86_64 emits the same core through a `main`/`write` leaf. LLVM 23.1.1 on the Windows compiler host lowers both leaves, compiles the Linux leaf and shared WRT0 into separate objects, and uses `ld.lld` to produce a stripped static PIE without `PT_INTERP` or `DT_NEEDED`; WSL only executes that ELF. The 3072-byte PE and Linux ELF both exit zero with exact `Cooperative 88\n`. This proves the bounded Windows-to-Linux CRT-free edge, not general sysroot/SDK packaging or every host-target edge. Feature coverage defaults to all applicable catalog targets; unavailable local evidence never makes a target inapplicable, and an exclusion requires an explicit rationale and catalog record. Release fanout covers every supported applicable target and the cross-compilation goal is any supported host to any supported target. | `source-backed-current` only for the bounded transactional Windows/Linux projection emitter, exact target-specific IR, Windows CRT-free PE execution, Windows-host CRT-free Linux link plus target execution, shared WRT0 bytes, and the machine-checked coverage policy. W-1586 owns the later bounded public main-domain promotion. General public cooperative routing, macOS/other adapters, general cross-compilation, scheduler ABI, parallel overlap, cancellation, stable ABI, ranking, and target support remain gaps. |
 | W-1586 | bounded non-elidable main-domain dispatch | Frontend25 distinguishes `spawn<.main>` from ordinary `async`; HIR35 carries `STRUCTURED_ASYNC_MAIN_DISPATCH` under `MAIN_SERIAL`. The admitted source has exactly two uniform sibling launches, one or two yields per scalar child, lexical joins, and the W-1585 output plan. `.main` serial FIFO semantics forbid direct-call elision. Native0 selects the physical state machine only from verified HIR. Public Windows `w run`/`w build`, public Windows-host Linux cross-build, and the dual-target product gate execute exact `Dispatched 88\n` with CRT-free Windows and Linux products. Current evidence remains independent from all-applicable-target emission and release fanout. | `source-backed-current` only for the bounded frontend25/HIR35 relation, independent fail-closed verification, verified-HIR product selection, public Windows execution, public Windows-host Linux cross-build plus WSL2 execution, source/oracle catalog registration, and exploratory per-platform W measurements. Native-Linux-host CLI evidence remains blocked by its absent materialized Linux MLIR 23.1.1 toolchain. General Task counts, nested scopes, cancellation, parallel domains, scheduler providers, stable ABI, general cross-compilation, other target adapters, equivalent C23/Rust baselines, and ranked performance remain gaps. |
 | W-1587 | bounded main-domain task cardinality | HIR0 schema `w-seed-hir0-36` and reserved caller-owned selection schema `w-seed-cooperative-selection0-2` extend the physical `spawn<.main>` product cut from exactly two to one through four ordered sibling launches in one linear root. The value four is a seed caller-owned array ceiling, not a language semantic, runtime, or ABI bound. NativeSubset0 independently rederives the count and zeroes unused selection slots. MLIR0 schema `w-seed-mlir0-cooperative-2` and executable schema `w-seed-mlir0-cooperative-executable-2` emit a count-driven serial FIFO state machine that starts at launch ordinal zero, wraps at the selected count, and folds signed-`i64` outcomes in lexical join order. The bounded output plan proves one additive interpolation with one leaf per lexical join. The exact-two Cooperative0 compiler-host trace oracle remains unchanged. Focused k=1, k=3, and k=4 sources complement the existing k=2 witness; the lower-level external gate samples k=1 and k=4 endpoints, while the C product path covers k=1 through k=4. The executable workload `restaurant-main-cardinality` separately owns the public k=4 fixture and exact `w run`/`w build` output `Dispatched 92\n` on Windows and the Linux target through WSL2. k=5, reordered or orphan joins, mixed launch kinds, and a source without a main-dispatch route fail closed. This is bounded seed correctness evidence with primary `benchmarkDisposition: compiler-lifecycle`; the executable catalog separately owns exploratory public W measurement, while C23 and Rust remain blocked until equivalent serial-main-domain baselines exist. No general runtime, scheduler, parallelism, stable ABI, benchmark-ranking, or performance claim is made. | `source-backed-current` only for the HIR36 and selection-v2 cardinality proof, the count-driven target-neutral and target-specific MLIR emitters, the focused k=1/k=3/k=4 source cases plus the existing k=2 witness, the lower-level k=1/k=4 endpoint samples and C k=1..4 coverage, the public Windows and Linux/WSL k=4 source route, and the fail-closed k=5/order/orphan/mixed/no-route barriers. The four-task value is a seed caller-owned ceiling, not a language or ABI rule. Cooperative0 remains exact-two. Native runtime generality, scheduler providers, parallel execution, cancellation, stable ABI, other target adapters, and cross-language benchmark ranking remain gaps. `benchmarkDisposition: compiler-lifecycle`; the executable catalog separately owns exploratory measurement and C23/Rust remain blocked pending equivalent serial-main-domain baselines. |
+| W-1588 | verified explicit parallel-domain placement | Frontend26 accepts exact `spawn<.domain>` only with a caller-owned binding whose scheduling mode is concurrent and whose capability set contains parallel; HIR37 copies the domain identity, mode, and capabilities and carries a distinct physical call kind. The bounded witness proves one through four lexical sibling launches of ordinary pure non-suspending scalar children and rejects missing/duplicate/serial/capability-free bindings, async or effectful children, mixed physical kinds, and forged placement records. Native artifact auto-selection also rejects incompatible process/task route matches instead of using predicate order. | `source-backed-current` only for the bounded frontend/HIR placement relation, independent HIR verification after frontend lifetime ends, adversarial input/record checks, full seed C build, and unit suite. No parallel selection, MLIR/provider/runtime/public executable/overlap/platform/performance evidence exists. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -12292,3 +12294,38 @@ no general runtime, scheduler, parallelism, cancellation, stable ABI,
 target-adapter, or performance claim. Windows and Linux remain evidence lanes
 only; target coverage and release fanout remain governed independently, and no
 W syntax or grammar surface changes.
+
+#### W-1588 — verified explicit parallel-domain placement
+
+The first honest parallel implementation cannot begin with a thread API. It
+must first preserve why a child is eligible for another execution domain and
+prove that the product supplied that domain. Otherwise a backend could turn a
+misspelled or unavailable domain into ambient host behavior, erase the
+difference from `.main`, or claim parallelism for a body whose effects and
+mobility were never closed.
+
+The selected seed boundary therefore adds a caller-owned domain binding table
+to Frontend26. Scheduling mode and capabilities are separate facts: serial and
+concurrent describe admission, while parallel is an additional capability.
+The exact `.domain` seed identity is admitted only as concurrent plus parallel.
+The table participates in the frontend receipt; duplicate identities and
+unknown fields reject the whole input. This table is product evidence, not a
+global language catalogue or runtime object.
+
+HIR37 copies the domain identity and carries mode and capability facts on a
+distinct parallel-domain call relation. The verifier independently checks the
+copied record, the pure scalar child graph, lexical launch/join ownership, and
+the absence of mixed physical kinds. Unlike the serial `.main` witness, the
+parallel child is an ordinary non-suspending function and requires no
+artificial `yield`. That distinction prevents the cooperative state machine
+from becoming an accidental model for CPU parallel work.
+
+This milestone intentionally stops before emission. A host-only outcome
+reducer or timing of a C helper would not test a W product and would recreate
+the repository's earlier problem of expensive green tests with little product
+evidence. The follow-up must introduce a separate verified parallel selection
+and a small provider boundary, then execute capacity-one and capacity-two
+variants through the public source route. Provider overlap, not a fragile
+wall-clock speedup threshold, will be the correctness evidence for actual
+parallel execution. Only that public executable milestone will require an
+executable-catalog entry and initial Windows plus Linux-target measurements.

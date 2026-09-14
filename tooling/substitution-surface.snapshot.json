@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:249fa037bf7ae8b633c4ae4d0a381bef640f8e268847b364f85b0aea77cfac40",
+  "corpusDigest": "sha256:45220afe22a5608d12f63f3b263fec9bebf27a5d282efe1f6ee3551a1ec65f23",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -7642,6 +7642,78 @@
             "utf8Bytes": 65,
             "codePoints": 65,
             "nonWhitespaceCodePoints": 58,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-parallel-domain-placement",
+      "task": {
+        "utf8Bytes": 120,
+        "codePoints": 120,
+        "nonWhitespaceCodePoints": 105,
+        "lines": 1,
+        "surfaceLexemes": 19
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:2ae7205bf2968fc1c8d2cc583ce4c650fe42cd1a4b34aec8fbc892e8863a7777",
+        "metrics": {
+          "utf8Bytes": 158,
+          "codePoints": 158,
+          "nonWhitespaceCodePoints": 137,
+          "lines": 3,
+          "surfaceLexemes": 38
+        }
+      },
+      "alternatives": [
+        {
+          "name": "infer-domain-from-host",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:e09445481ab382d204d5f89d9a28b6f8922dec304e54bf0bf4dbb049e0a80c74",
+          "metrics": {
+            "utf8Bytes": 79,
+            "codePoints": 79,
+            "nonWhitespaceCodePoints": 69,
+            "lines": 1,
+            "surfaceLexemes": 15
+          }
+        },
+        {
+          "name": "reuse-cooperative-yield-proof",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:5164953549c25dbc55e17703f8d76ed1e2b64996075532e55a443a3b3ea0bd86",
+          "metrics": {
+            "utf8Bytes": 48,
+            "codePoints": 48,
+            "nonWhitespaceCodePoints": 43,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "claim-provider-execution",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:df9155e7b7102b65554a3a1b4786d2fe2615d3343e8c54439058f91a9c8efbe2",
+          "metrics": {
+            "utf8Bytes": 58,
+            "codePoints": 58,
+            "nonWhitespaceCodePoints": 50,
+            "lines": 1,
+            "surfaceLexemes": 9
+          }
+        },
+        {
+          "name": "choose-first-matching-native-route",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:2e07dafb2616e6aff2706a31617fad0b6453db6133ba662e493e57538da746a3",
+          "metrics": {
+            "utf8Bytes": 71,
+            "codePoints": 71,
+            "nonWhitespaceCodePoints": 60,
             "lines": 1,
             "surfaceLexemes": 12
           }

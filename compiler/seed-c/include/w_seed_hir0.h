@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-36"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-37"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -28,7 +28,11 @@ extern "C" {
 /* Product selection uses a small caller-owned fixed array for physical
  * `.main` dispatch. Four is an explicit seed implementation ceiling, not a
  * public runtime ABI or a general scheduler bound. */
-#define W_SEED_HIR0_COOPERATIVE_MAX_TASKS 4u
+#define W_SEED_HIR0_PHYSICAL_MAX_TASKS 4u
+#define W_SEED_HIR0_COOPERATIVE_MAX_TASKS W_SEED_HIR0_PHYSICAL_MAX_TASKS
+/* Explicit `.domain` placement shares the fixed seed task ceiling but has a
+ * separate semantic lane and selection API. */
+#define W_SEED_HIR0_PARALLEL_MAX_TASKS W_SEED_HIR0_PHYSICAL_MAX_TASKS
 /* Cooperative0's historical compiler-host trace remains exact-two. Keep its
  * oracle bound separate so the physical `.main` lane can grow safely. */
 #define W_SEED_HIR0_COOPERATIVE_ORACLE_MAX_TASKS 2u
@@ -95,7 +99,16 @@ typedef enum {
   /* A source `spawn<.main>` requires serial FIFO domain dispatch.  This
    * relation is physical even when the child body itself is pure. */
   W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH,
+  /* A source `spawn<.domain>` carries explicit caller-bound parallel-domain
+   * placement. It is evidence only; no scheduler or runtime is implied. */
+  W_SEED_HIR0_CALL_STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH,
 } w_seed_hir0_call_execution_kind;
+
+typedef enum {
+  W_SEED_HIR0_CALL_PLACEMENT_NONE = 0,
+  W_SEED_HIR0_CALL_PLACEMENT_MAIN_SERIAL,
+  W_SEED_HIR0_CALL_PLACEMENT_PARALLEL_DOMAIN,
+} w_seed_hir0_call_placement_kind;
 
 typedef enum {
   /* The historical HIR0 lowering profile.  Closed pure async children keep
@@ -554,6 +567,13 @@ typedef struct {
    * passes deterministically; no frontend pointer or runtime state survives. */
   uint32_t source_expression;
   w_seed_span source_span;
+  /* Append-only explicit placement evidence. Parallel calls carry the exact
+   * caller-bound domain identity and capability bits copied into HIR-owned
+   * text storage; all other calls carry the empty/none form. */
+  w_seed_hir0_call_placement_kind placement;
+  w_seed_hir0_text domain_identity;
+  w_seed_frontend_domain_mode domain_mode;
+  uint32_t domain_capabilities;
 } w_seed_hir0_call;
 
 typedef struct {

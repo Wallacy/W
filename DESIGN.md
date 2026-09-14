@@ -39464,6 +39464,57 @@ let fourth = await fourthTask
 print("Dispatched ${first + second + third + fourth}")
 ```
 
+#### 26.4.1.69 W-1588 — verified explicit parallel-domain placement
+
+W-1588 establishes the compiler boundary required before a real parallel
+provider may execute `spawn<.domain>`. Frontend schema `w-seed-frontend-26`
+accepts that exact seed spelling only when caller-owned product input binds the
+exact `.domain` identity. The binding separates a scheduling mode from
+capabilities: this slice requires mode `CONCURRENT` and capability `PARALLEL`.
+The domain is never ambient, inferred from the host, or selected from source
+text alone. Missing, duplicate, serial, capability-free, unknown, and malformed
+bindings fail closed.
+
+HIR0 schema `w-seed-hir0-37` copies the normalized domain identity into
+HIR-owned text and records mode, capabilities, and a distinct
+`STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH` call relation. Independent
+verification rechecks the placement after frontend storage may have been
+discarded. Non-domain calls require the empty placement form, and a root may
+not mix `.main` and `.domain` physical dispatch. This prevents later passes
+from confusing serial FIFO work, virtual async work, and parallel placement.
+
+The current admitted HIR witness is deliberately narrow: one through four
+ordered sibling launches in one anonymous root, lexical joins, ordinary local
+scalar children, and a finite acyclic graph of pure non-suspending scalar
+helpers. Parallel children do not need `yield`; this lane instead rejects
+async or suspending bodies, host calls, throws, unsafe or borrow clauses,
+nested tasks, effects, and mixed physical launch kinds. The value four remains
+a caller-owned seed storage ceiling, not a language, scheduler, or ABI limit.
+
+W-1588 publishes no parallel selection record, MLIR artifact, worker pool,
+thread, overlap, scheduler, runtime ABI, public `w run` route, executable
+catalog entry, or performance result. Native executable auto-selection was
+hardened so incompatible process and task artifact shapes reject rather than
+depending on predicate order. The next product milestone must independently
+derive a parallel selection from verified HIR, keep provider capacity outside
+semantic identity, execute the same semantics at capacity one and two, and
+prove provider overlap on each maintained target lane before claiming actual
+parallel execution. The benchmark disposition for W-1588 is
+`compiler-lifecycle`.
+
+```w
+fn prepare(value: i64): i64 {
+  return value + 1
+}
+
+entry {
+  let left = spawn<.domain> prepare(value: 20)
+  let right = spawn<.domain> prepare(value: 22)
+  let first = await left
+  let second = await right
+}
+```
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:
