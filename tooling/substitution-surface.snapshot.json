@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:c7c27a8f36687da2479b1331f0cc3a0908b964ca5e8b73cc31e0afd5dd91f955",
+  "corpusDigest": "sha256:b4a52ea85f95b10802177f93ca72f58a88ffc00cd99af74fb2256ae221b1870b",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -7867,22 +7867,22 @@
     {
       "id": "R0-parallel-mlir-entry",
       "task": {
-        "utf8Bytes": 164,
-        "codePoints": 164,
-        "nonWhitespaceCodePoints": 140,
+        "utf8Bytes": 199,
+        "codePoints": 199,
+        "nonWhitespaceCodePoints": 172,
         "lines": 1,
-        "surfaceLexemes": 28
+        "surfaceLexemes": 33
       },
       "selected": {
         "name": "selected",
         "language": "w-internal",
-        "sourceDigest": "sha256:1d61e295a910759c386b6cd1d683a9d41040a7c54aa33450163687d486982eae",
+        "sourceDigest": "sha256:05ad12e52971ef364a9433c42a0ec604a67c2a9a3e10433ab0cd078d4f2ce99d",
         "metrics": {
-          "utf8Bytes": 233,
-          "codePoints": 233,
-          "nonWhitespaceCodePoints": 216,
-          "lines": 4,
-          "surfaceLexemes": 41
+          "utf8Bytes": 350,
+          "codePoints": 350,
+          "nonWhitespaceCodePoints": 325,
+          "lines": 6,
+          "surfaceLexemes": 56
         }
       },
       "alternatives": [
@@ -7896,6 +7896,18 @@
             "nonWhitespaceCodePoints": 47,
             "lines": 1,
             "surfaceLexemes": 8
+          }
+        },
+        {
+          "name": "bake-launch-values",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:96d44d5f629dbc12a05d31620688df1c46de3f5317653254c5888b207e05e68a",
+          "metrics": {
+            "utf8Bytes": 62,
+            "codePoints": 62,
+            "nonWhitespaceCodePoints": 56,
+            "lines": 1,
+            "surfaceLexemes": 9
           }
         },
         {
