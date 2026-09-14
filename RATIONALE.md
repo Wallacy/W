@@ -245,6 +245,7 @@ O corpus compara, no mínimo:
 - CRT-free emitted parallel-entry execution against compiler-host HIR evaluation, copied task logic, compile-time-only values, and premature public-runtime claims.
 - process-root parallel dataflow against anonymous-entry-only HIR, target-shaped task records, hidden Task allocation, and premature executable claims.
 - process-root selection against implicit domain configuration, unproved parallel-as-direct lowering, target-specific selection records, and premature executable success.
+- proof-directed direct-call legality against silent semantic erasure, single-function flags, target-policy conflation, and premature performance claims.
 
 ### 1.1 Cobertura de substituições
 
@@ -7908,6 +7909,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1594 | CRT-free Windows adapter to emitted parallel entries | PARLINK0 links the W-1593 COFF task object with a minimal authored LLVM adapter, obtains a runtime PID, calls both generated task symbols on Kernel32 workers, joins and closes handles, and verifies `pid + 1` / `pid + 3`. `/nodefaultlib` plus `mainCRTStartup` leaves only explicit Kernel32 imports; no C artifact, HIR evaluator, test callback, or copied task body participates. | `source-backed-current` only for this bounded private Windows x64 emitted-code adapter and relational runtime-value oracle. It is not process-input semantics, a public command, Linux/WSL provider linkage, a stable Task ABI, arbitrary cardinality, cancellation, scheduling, benchmark evidence, or performance. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1595 | process-root and parallel-scope HIR composition | HIR37 now admits and independently verifies one bounded native-process root whose real `Arguments.isEmpty` value feeds one pure scalar prelude binding, then one `spawn<.domain>` task argument and its lexical `await`, before returning the resolved `ExitCode`. Existing HIR records express the complete dependency, so no Task object, process-specific task node, record-layout revision, or target fact is added. | `source-backed-current` only for the bounded frontend-to-verified-HIR composition and adversarial two-prelude rejection. Native0 domain configuration, process-root PARSEL0, MLIR composition, target provider linkage, public execution, benchmark results, and performance remain gaps. The one-prelude/one-task ceiling is seed evidence only. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1596 | Native0 domain admission and process-root selection | Native0 supplies one explicit caller-owned concurrent-plus-parallel `.domain` configuration, and the unchanged fixed PARSEL0 record now independently selects either its anonymous Unit root or the bounded W-1595 process root, including the direct prelude binding before the physical launch and lexical join. NativeSubset0 additionally requires local process calls to be DIRECT, so a parallel dispatch cannot be silently lowered as an ordinary call. | `source-backed-current` only for Native0 frontend/HIR admission, independent process-root PARSEL0 selection, transactional unsupported MLIR publication, and the parallel-as-direct rejection. Target process/parallel emission, provider linkage, public execution, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1597 | bounded parallel direct-call legality certificate | PARELIDE0 independently rederives a fixed one-task, immediate-join candidate from verified HIR37 and PARSEL0. It proves the unique virtual-task consumer and a closed acyclic pure, non-throwing, non-suspending local callee graph, then publishes a caller-owned fact record bound to the HIR semantic digest. It does not rewrite HIR or select an optimization. | `source-backed-current` only for the bounded certificate, independent verification, transactional and alias barriers, a two-task rejection, and the process-root pure-helper witness. Physical process/task MLIR composition, target observability and cost policy, direct-call emission, public execution, proof-language surface, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -12558,3 +12560,29 @@ non-suspending child whose immediate lexical join makes every execution
 observable equivalent. It must be represented as a proved transformation and
 verified independently; the accidental NativeSubset0 acceptance supplied
 neither proof nor a way to distinguish optimization from semantic loss.
+
+#### W-1597 — bounded parallel direct-call legality certificate
+
+A direct call is not inherently a weaker implementation of `spawn` followed
+by `await`. When the child cannot suspend, throw, perform effects, expose task
+identity, or overlap with other work in the scope, removing launch/join can be
+the best release implementation. The dangerous case is not elision itself; it
+is letting an emitter erase the relation because it cannot lower it.
+
+PARELIDE0 therefore records legality before target emission. It independently
+rechecks HIR and PARSEL0, requires exactly one launch and its immediately
+following lexical join, proves that the launch binding is consumed only by
+that join, and walks the complete reachable local callee graph. Cycles,
+host/external calls, nested execution, suspension, throwing, unsafe or borrow
+surfaces fail closed. The accepted process witness includes a second pure
+helper, so the evidence is a graph proof rather than a single-function flag.
+Two sibling tasks are deliberately rejected because their physical route may
+offer overlap.
+
+Legality is separate from selection. The target optimizer still needs product
+facts that make domain placement, task-local state, scheduling events,
+cancellation, tracing, and instrumentation unobservable, plus a cost decision
+that prefers the direct call. Debug or traced builds may therefore retain the
+physical route even when the structural certificate exists. The first
+optimized artifact must be checked against the physical provider-backed
+reference; W-1597 itself emits neither artifact and makes no performance claim.

@@ -2051,6 +2051,22 @@ emitter exists. The focused Native0 unit checks unchanged output and result on
 that failure. This is compiler-lifecycle evidence without provider linkage,
 public execution, benchmark data, or performance claims.
 
+### Parallel direct-call legality certificate (W-1597)
+
+`w_seed_parallel_elision0` rederives a fixed PARELIDE0 certificate from
+verified HIR37 plus PARSEL0. The current proof accepts exactly one task, an
+immediate lexical join, one virtual-task consumer, and a complete acyclic local
+callee graph that is pure, non-throwing, non-suspending, and free of host or
+external calls. The record is caller-owned, semantic-digest bound,
+transactional, alias-safe, and independently verifiable.
+
+The certificate does not rewrite the parallel HIR call or choose direct-call
+emission. A later target optimizer must separately prove that placement and
+execution events are unobservable and that its cost model prefers elision.
+The provider-backed launch/join route remains the correctness and performance
+reference. `bun check --target hir0` covers the positive process graph,
+forgeries, aliasing, transactional failure, and the two-task rejection.
+
 ### Closed local payloadless enum exhaustive switch (W-1563)
 
 HIR21 (`w-seed-hir0-21`) adds one explicit `SWITCH_ENUM` terminator and dense

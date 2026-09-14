@@ -42,17 +42,18 @@ not in this queue.
 
 ## Current checkpoint
 
-W-1596 is complete inside rank 1: Native0 supplies explicit `.domain`
+W-1597 is complete inside rank 1: Native0 supplies explicit `.domain`
 configuration, PARSEL0 independently selects the bounded process-root
-dependency chain, and the ordinary process emitter now rejects any attempt to
-erase parallel dispatch into a direct call. The next bounded step is explicit
+dependency chain, the ordinary process emitter rejects unproved erasure, and
+PARELIDE0 independently certifies the first one-task/immediate-join candidate
+without choosing the optimization. The next bounded step is explicit
 process-root plus task-entry MLIR composition; provider linkage and equivalent
-Windows/Linux execution then close rank 1. The CPU and GPU sentinels follow
-before task-storage and scheduler generalization so their measurements can
-still influence lowering, linkage, placement, and runtime heuristics cheaply.
-After the physical route proves the provider, the same one-task/immediate-join
-source is the first candidate for proof-directed direct-call elision; that
-optimization complements rather than substitutes for the physical witness.
+Windows/Linux execution then close rank 1. Once that physical reference is
+available, target policy can combine the W-1597 legality certificate with
+domain-observability and cost facts to select and compare a direct-call build.
+The CPU and GPU sentinels follow before task-storage and scheduler
+generalization so their measurements can still influence lowering, linkage,
+placement, and runtime heuristics cheaply.
 
 The current fixed task counts and worker capacities are seed evidence limits.
 They must not become language, public ABI, or final runtime limits.

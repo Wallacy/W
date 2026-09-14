@@ -39574,6 +39574,10 @@ entry {
 
 #### 26.4.1.71 W-1590 — bounded Windows parallel provider component
 
+**Example:** capacities one and two execute the same verified task set and
+must publish the same semantic outcome digest; only the physical receipt may
+report worker overlap.
+
 W-1590 adds PARPROV0 as the first physical consumer of PARSEL0. In its current
 W-1591-completed form, the component re-verifies HIR37, the exact selection,
 and a HIR-derived PARINV0 plan before invoking one through four pure,
@@ -39609,6 +39613,9 @@ performance claim.
 
 #### 26.4.1.72 W-1591 — HIR-derived bounded parallel invocation
 
+**Example:** PARINV0 derives task function and argument indices from verified
+HIR; callers cannot supply a replacement callback or result value.
+
 W-1591 removes the caller-controlled callback seam from PARPROV0. PARINV0
 re-verifies HIR37 and PARSEL0 and derives a fixed canonical plan containing the
 selected root, task call/function identities, exact parameter-ordinal argument
@@ -39643,6 +39650,9 @@ invocation proof and semantic/physical separation.
 
 #### 26.4.1.73 W-1592 — reachable zero-argument parallel task-entry MLIR module (historical)
 
+**Example:** the historical seed emitted one zero-argument public task entry
+per selected launch while omitting an unrelated local function.
+
 PARMLIR0 consumes only verified HIR37, PARSEL0, and PARINV0. It independently
 re-verifies that chain, derives the direct local helper closure reachable from
 the selected task calls and their argument value trees, and emits one public
@@ -39675,6 +39685,9 @@ PARMLIR0 contract.
 
 #### 26.4.1.74 W-1593 — runtime-parameterized parallel task-entry MLIR module
 
+**Example:** two selected entries receive their launch values as runtime
+parameters and call only the exact reachable local helper closure.
+
 PARMLIR0 schema `w-seed-mlir0-parallel-entry-2` retains the independently
 verified HIR37, PARSEL0, and PARINV0 boundary from W-1592, but every public
 `w_seed_parallel_task_<launch-ordinal>` wrapper now receives its signed-`i64`
@@ -39703,6 +39716,9 @@ executable catalog.
 
 #### 26.4.1.75 W-1594 — CRT-free Windows adapter to emitted parallel entries
 
+**Example:** the adapter obtains the current process ID after startup, passes
+it to both emitted task symbols, and checks the two joined relational results.
+
 PARLINK0 links the W-1593 Windows COFF task object with a minimal authored LLVM
 adapter. The adapter imports only Kernel32 operations, obtains a process ID at
 runtime, passes that value to both generated task symbols, executes them on two
@@ -39723,6 +39739,9 @@ remain gaps. PARLINK0 is `compiler-lifecycle` evidence and its temporary
 executable does not enter the executable catalog.
 
 #### 26.4.1.76 W-1595 — process-root and parallel-scope HIR composition
+
+**Example:** `Arguments.isEmpty` feeds one pure scalar binding, which becomes
+the runtime argument of one `spawn<.domain>` task and its lexical `await`.
 
 PROCPARHIR0 admits one bounded composition in the existing HIR37 schema: a
 resolved `std.process` entry may contain one pure scalar local-call binding,
@@ -39751,6 +39770,9 @@ next steps of the ranked process-witness increment.
 
 #### 26.4.1.77 W-1596 — Native0 domain admission and process-root selection
 
+**Example:** Native0 admits and PARSEL0 selects the process-root relation, but
+the ordinary direct-call emitter returns unsupported without publishing bytes.
+
 Native0 now supplies one caller-owned concurrent, parallel-capable `.domain`
 configuration to its frontend input. This is seed product configuration, not a
 language-default scheduler or provider choice. The existing fixed PARSEL0
@@ -39770,6 +39792,38 @@ This fail-closed boundary does not prohibit a later optimizer from replacing
 the physical relation with a direct call when an explicit, independently
 verified equivalence certificate proves that scheduling, cancellation,
 task-local state, identity, effects, and outcomes are unobservable.
+
+#### 26.4.1.78 W-1597 — bounded parallel direct-call legality certificate
+
+**Example:** the current process witness certifies one immediate join and a
+two-function pure scalar task graph, while the two-sibling witness is rejected.
+
+PARELIDE0 adds a versioned, caller-owned certificate for the first legal
+proof-directed erasure candidate. It accepts exactly one verified PARSEL0 task
+whose launch binding immediately precedes its lexical join, whose virtual Task
+binding has exactly that one consumer, and whose complete reachable local
+callee graph is acyclic, pure, non-throwing, non-suspending, and free of host,
+external, unsafe, borrow, and nested execution relations. The certificate
+copies only HIR indices, count witnesses, an explicit fact bitset, and the HIR
+semantic digest. Verification rederives every byte after frontend lifetime has
+ended; selection is transactional and rejects output/input aliasing.
+
+This record proves structural transformation legality, not profitability or a
+target decision. The HIR call remains
+`STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH`; PARELIDE0 does not rewrite it and
+does not authorize the ordinary direct-call emitter. A backend may consume the
+certificate only when its independently verified build policy also proves
+that execution-domain choice, task-local state, scheduling events, tracing,
+instrumentation, cancellation, and identity are unobservable for the selected
+product and that direct execution is preferable under the target cost model.
+Failure of either proof retains the physical launch/join path.
+
+The current certificate is bounded to one task and an immediate join because
+that shape has no intra-scope overlap opportunity. This is a seed evidence
+limit, not a language or ABI restriction. W-1597 adds no direct-call emission,
+physical provider composition, public executable, benchmark result, proof
+language surface, or general optimizer. The physical route remains the
+required reference against which any later elided artifact is compared.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 
