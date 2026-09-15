@@ -1601,6 +1601,61 @@ static bool test_phase2_parameter_requirements(void) {
   return true;
 }
 
+static bool test_defer_shapes(void) {
+  static const char source[] =
+      "enum Failure: Error { denied }\n"
+      "fn clean() { }\n"
+      "fn leaf(): i64 throws Failure { throw .denied }\n"
+      "fn relay(): i64 throws Failure {\n"
+      "  defer { clean() }\n"
+      "  return try leaf()\n"
+      "}\n"
+      "entry { }\n";
+  fixture value;
+  CHECK(fixture_init(&value, source,
+                     sizeof(value.nodes) / sizeof(value.nodes[0]),
+                     sizeof(value.issues) / sizeof(value.issues[0])));
+  CHECK(value.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(value.result.issue_count == 0u);
+  const w_seed_cst_index cleanup =
+      first_kind(&value, W_SEED_CST_DEFER_STATEMENT);
+  CHECK(cleanup != W_SEED_CST_NONE);
+  CHECK((value.nodes[cleanup].flags & W_SEED_CST_DEFER_FLAG_ASYNC) == 0u);
+  const w_seed_cst_index block =
+      direct_child_after(&value, cleanup, W_SEED_CST_BLOCK, 0u);
+  CHECK(block != W_SEED_CST_NONE);
+  CHECK(direct_child_after(&value, block, W_SEED_CST_EXPRESSION_STATEMENT,
+                           0u) != W_SEED_CST_NONE);
+  CHECK(check_leaf_partition(&value));
+  CHECK(check_tree_links(&value));
+
+  fixture asynchronous;
+  CHECK(fixture_init(&asynchronous, "fn f(){defer async { clean() }}\n",
+                     sizeof(asynchronous.nodes) /
+                         sizeof(asynchronous.nodes[0]),
+                     sizeof(asynchronous.issues) /
+                         sizeof(asynchronous.issues[0])));
+  CHECK(asynchronous.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(asynchronous.result.issue_count == 0u);
+  const w_seed_cst_index async_cleanup =
+      first_kind(&asynchronous, W_SEED_CST_DEFER_STATEMENT);
+  CHECK(async_cleanup != W_SEED_CST_NONE);
+  CHECK((asynchronous.nodes[async_cleanup].flags &
+         W_SEED_CST_DEFER_FLAG_ASYNC) != 0u);
+  CHECK(check_leaf_partition(&asynchronous));
+  CHECK(check_tree_links(&asynchronous));
+
+  fixture missing;
+  CHECK(fixture_init(&missing, "fn f(){defer clean()}\n",
+                     sizeof(missing.nodes) / sizeof(missing.nodes[0]),
+                     sizeof(missing.issues) / sizeof(missing.issues[0])));
+  CHECK(missing.result.status != W_SEED_PARSE_COMPLETE);
+  CHECK(has_issue(&missing, W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE));
+  CHECK(check_leaf_partition(&missing));
+  CHECK(check_tree_links(&missing));
+  return true;
+}
+
 static bool test_phase2_prefix_forms(void) {
   static const char *const prefixes[] = {"copy", "take", "pin", "inout", "ref"};
   for (size_t index = 0; index < sizeof(prefixes) / sizeof(prefixes[0]); index += 1) {
@@ -3515,6 +3570,7 @@ int main(void) {
       test_language_lock_shapes() &&
       test_phase2_parameter_and_argument_shapes() &&
       test_phase2_parameter_requirements() &&
+      test_defer_shapes() &&
       test_phase2_prefix_forms() &&
       test_short_entry_shapes() &&
       test_phase2_fatal_boundaries() &&

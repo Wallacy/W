@@ -236,6 +236,9 @@ typedef enum {
   W_SEED_FRONTEND_STMT_REPEAT,
   /* Append-only typed recoverable-error terminator. */
   W_SEED_FRONTEND_STMT_THROW,
+  /* Append-only lexical cleanup registration. The only source-backed seed
+   * form currently accepted is one synchronous direct local Unit call. */
+  W_SEED_FRONTEND_STMT_DEFER,
 } w_seed_frontend_stmt_kind;
 
 typedef struct {

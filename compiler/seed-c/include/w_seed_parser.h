@@ -114,6 +114,8 @@ typedef enum {
   W_SEED_CST_THROWS_TYPE,
   W_SEED_CST_THROW_STATEMENT,
   W_SEED_CST_TRY_EXPRESSION,
+  /* Append-only synchronous cleanup owner. */
+  W_SEED_CST_DEFER_STATEMENT,
 } w_seed_cst_kind;
 
 enum {
@@ -126,6 +128,8 @@ enum {
   W_SEED_CST_FUNCTION_FLAG_THROWS = 1u << 5,
   W_SEED_CST_FUNCTION_FLAG_UNSAFE = 1u << 6,
   W_SEED_CST_FUNCTION_FLAG_BORROWS = 1u << 7,
+  /* Append-only defer qualifier fact. */
+  W_SEED_CST_DEFER_FLAG_ASYNC = 1u << 8,
 };
 
 typedef enum {

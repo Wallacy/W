@@ -1193,6 +1193,100 @@ static bool test_typed_throw_projection(void) {
   return true;
 }
 
+static bool test_synchronous_defer_projection(void) {
+  static const char source[] =
+      "enum Failure: Error { denied }\n"
+      "fn clean() { }\n"
+      "fn leaf(): i64 throws Failure { throw .denied }\n"
+      "fn relay(): i64 throws Failure {\n"
+      "  defer { clean() }\n"
+      "  return try leaf()\n"
+      "}\n"
+      "entry { }\n";
+  fixture *value = &fixture_a;
+  CHECK(fixture_run(value, source));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE);
+  CHECK(value->result.status == W_SEED_FRONTEND_OK);
+  uint32_t clean_function = W_SEED_FRONTEND_NONE;
+  uint32_t relay_function = W_SEED_FRONTEND_NONE;
+  for (size_t index = 0u; index < value->result.written.functions; index += 1u) {
+    if (frontend_text_is(value->functions[index].name, "clean"))
+      clean_function = (uint32_t)index;
+    if (frontend_text_is(value->functions[index].name, "relay"))
+      relay_function = (uint32_t)index;
+  }
+  CHECK(clean_function != W_SEED_FRONTEND_NONE &&
+        relay_function != W_SEED_FRONTEND_NONE);
+  uint32_t cleanup_index = W_SEED_FRONTEND_NONE;
+  const w_seed_frontend_function *relay = &value->functions[relay_function];
+  for (size_t offset = 0u; offset < relay->statement_count; offset += 1u) {
+    const uint32_t index = relay->first_statement + (uint32_t)offset;
+    if (value->statements[index].kind == W_SEED_FRONTEND_STMT_DEFER) {
+      CHECK(cleanup_index == W_SEED_FRONTEND_NONE);
+      cleanup_index = index;
+    }
+  }
+  CHECK(cleanup_index != W_SEED_FRONTEND_NONE);
+  const w_seed_frontend_statement *cleanup = &value->statements[cleanup_index];
+  CHECK(cleanup->expression_index == W_SEED_FRONTEND_NONE &&
+        cleanup->first_child != W_SEED_FRONTEND_NONE &&
+        cleanup->child_count == 1u);
+  const w_seed_frontend_statement *body =
+      &value->statements[cleanup->first_child];
+  CHECK(body->kind == W_SEED_FRONTEND_STMT_EXPRESSION &&
+        body->next_sibling == W_SEED_FRONTEND_NONE &&
+        body->expression_index != W_SEED_FRONTEND_NONE);
+  const w_seed_frontend_expression *call =
+      &value->expressions[body->expression_index];
+  CHECK(call->kind == W_SEED_FRONTEND_EXPR_CALL && call->supported &&
+        call->resolved_callee_kind ==
+            W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION &&
+        call->resolved_function_index == clean_function &&
+        call->argument_count == 0u &&
+        call->first_argument <= value->result.written.arguments);
+
+  static const char *const rejected[] = {
+      "fn clean(){} fn f(){defer async {clean()}} entry{}",
+      "fn clean(){} fn f(){if true {defer {clean()}}} entry{}",
+      "fn clean(){} fn f(){defer {clean()} defer {clean()}} entry{}",
+      "async fn clean(){} fn f(){defer {clean()}} entry{}",
+      "enum E: Error { failed } fn clean() throws E {throw .failed} "
+      "fn f(){defer {clean()}} entry{}",
+      "fn clean(value:i64){} fn f(){defer {clean()}} entry{}",
+      "fn clean():i64{return 1} fn f(){defer {clean()}} entry{}",
+      "enum E: Error { failed } fn leaf():i64 throws E {throw .failed} "
+      "fn clean(){} fn f():i64 throws E{return try leaf();defer {clean()}} "
+      "entry{}",
+  };
+  fixture *invalid = &fixture_b;
+  for (size_t index = 0u; index < sizeof(rejected) / sizeof(rejected[0]);
+       index += 1u) {
+    CHECK(fixture_run(invalid, rejected[index]));
+    CHECK(invalid->parse.status == W_SEED_PARSE_COMPLETE);
+    CHECK(invalid->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  }
+
+  CHECK(fixture_parse(invalid, "fn f(){defer {cleanup()}} entry{}"));
+  invalid->host_symbols[0] = (w_seed_frontend_host_prelude_symbol){
+      .name = (w_seed_frontend_text){"cleanup", 7u},
+      .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+      .parameters = NULL,
+      .parameter_count = 0u,
+      .return_type = (w_seed_frontend_text){"()", 2u},
+      .is_const = false,
+      .requirements = NULL,
+      .requirement_count = 0u};
+  invalid->host_scope = (w_seed_frontend_host_prelude){
+      .profile = (w_seed_frontend_text){"native-process@1", 16u},
+      .symbols = invalid->host_symbols,
+      .symbol_count = 1u};
+  invalid->input.host_scope = &invalid->host_scope;
+  (void)w_seed_frontend_run(&invalid->input, &invalid->output,
+                            &invalid->result);
+  CHECK(invalid->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  return true;
+}
+
 static bool test_semantic_diagnostics(void) {
   fixture *condition = &fixture_condition;
   CHECK(fixture_run(condition,
@@ -6452,6 +6546,7 @@ int main(int argc, char **argv) {
   if (!test_declarations_and_determinism()) return 1;
   if (!test_enums_and_payloads()) return 1;
   if (!test_typed_throw_projection()) return 1;
+  if (!test_synchronous_defer_projection()) return 1;
   if (!test_enum_subsets()) return 1;
   if (!test_enum_values_constructors_and_switches()) return 1;
   if (!test_const_and_membership()) return 1;
