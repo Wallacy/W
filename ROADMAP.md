@@ -187,6 +187,14 @@ efficient. No 32-bit constraint or cost is imposed on 64-bit. This remains
 compiler-lifecycle evidence only, not a public Task/runtime/ABI, general
 cardinality, native-execution, attestation, or performance claim.
 
-Next comes a trusted provider attestation boundary, followed by an explicit
-panic boundary. Physical cancellation remains cooperative rather than thread
-termination.
+W-1621 adds compiler-owned local provider admission. PARBIND1 now requires an
+opaque process-local authority and calls the statically linked Windows x64
+provider through that wrapper. The authority receipt binds target, domain,
+profile, identity, generation, assurance, and contract digest to provenance;
+the callback remains only an untrusted task-body adapter whose completion is
+checked against HIR. This is not binary authentication or registry
+attestation. External signatures, roots, rotation, revocation, and freshness
+remain distribution-layer gaps and do not block the compiler roadmap.
+
+Next comes an explicit panic boundary. Physical cancellation remains
+cooperative rather than thread termination.

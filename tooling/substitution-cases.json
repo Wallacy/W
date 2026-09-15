@@ -9883,6 +9883,59 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-parallel-local-provider1",
+      "reviewItem": "local provider admission against callback authentication, caller-selected trust roots, semantic identity pollution, and partial publication",
+      "decisions": ["W-1621"],
+      "task": "Admit the exact statically linked Windows x64 parallel provider through a compiler-owned local authority without claiming cryptographic origin.",
+      "selected": {
+        "language": "w-internal",
+        "source": [
+          "compiler-owned wrapper opens one process-local authority for the closed PLATFORM1 contract",
+          "PARBIND1 matches target, domain, profile, identity, provider-contract generation, assurance, and contract digest",
+          "provider authority and physical facts remain provenance-only while task completions are independently checked against HIR",
+          "fieldwise receipt comparison and transactional alias/capacity barriers reject forged local admission without publication"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "callback-as-authority",
+          "language": "w-internal-rejected",
+          "source": ["authenticate provider origin from provider_job.invoke and returned SHA-256 bytes"],
+          "expectedDifference": "The callback is task-body code; neither its address nor a digest establishes provider origin."
+        },
+        {
+          "name": "caller-selected-root",
+          "language": "w-internal-rejected",
+          "source": ["accept an arbitrary caller-supplied provider receipt as the local trust root"],
+          "expectedDifference": "The local contract is closed by the compiler-owned wrapper and matched independently by PARBIND1."
+        },
+        {
+          "name": "provider-in-semantic-digest",
+          "language": "w-internal-rejected",
+          "source": ["hash local target, profile, generation, and capacity into semantic task identity"],
+          "expectedDifference": "Local admission and physical scheduling facts are provenance-only; semantic outcomes remain capacity-independent."
+        },
+        {
+          "name": "local-token-as-signature",
+          "language": "w-internal-rejected",
+          "source": ["publish the process-local seal as a portable signature or registry attestation"],
+          "expectedDifference": "The seal is private process state, not serialized evidence; external attestation remains a distribution boundary."
+        },
+        {
+          "name": "publish-before-authority-recheck",
+          "language": "w-internal-rejected",
+          "source": ["publish provider scratch before revalidating local authority and HIR"],
+          "expectedDifference": "PARBIND1 stages every output and commits only after the complete authority, provider, HIR, and completion relation passes."
+        }
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

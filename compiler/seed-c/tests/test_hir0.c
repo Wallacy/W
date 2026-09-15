@@ -6646,6 +6646,11 @@ static bool test_parallel_typed_binding1(void) {
   (void)memcpy(provider.identity,
                W_SEED_PARALLEL_TYPED_BINDING1_WINDOWS_IDENTITY,
                sizeof(W_SEED_PARALLEL_TYPED_BINDING1_WINDOWS_IDENTITY));
+  w_seed_parallel_local_provider1_authority provider_authority;
+  CHECK(w_seed_parallel_local_provider1_open(
+            W_SEED_PARALLEL_LOCAL_PROVIDER1_WINDOWS_AMD64,
+            &provider_authority) &&
+        w_seed_parallel_local_provider1_verify(&provider_authority));
   w_seed_parallel_typed_binding1_input input = {
       .hir_program = program,
       .hir_result = &fixture.hir_result,
@@ -6654,6 +6659,7 @@ static bool test_parallel_typed_binding1(void) {
       .task_count = 2u,
       .task_capacity = 2u,
       .provider_job = {typed_binding1_provider_invoke, &context},
+      .provider_authority = &provider_authority,
       .provider_capacity = 1u,
       .generation = 41u,
       .provider = provider};
@@ -6664,6 +6670,73 @@ static bool test_parallel_typed_binding1(void) {
             W_SEED_PARALLEL_TYPED_BINDING1_OK &&
         counts.completions == 2u && counts.records == 2u &&
         measured.written.completions == 0u && measured.written.records == 0u);
+  w_seed_parallel_local_provider1_authority unopened_authority;
+  (void)memset(&unopened_authority, 0x51, sizeof(unopened_authority));
+  const w_seed_parallel_local_provider1_authority unopened_before =
+      unopened_authority;
+  CHECK(!w_seed_parallel_local_provider1_open(0u, &unopened_authority) &&
+        memcmp(&unopened_authority, &unopened_before,
+               sizeof(unopened_authority)) == 0);
+  w_seed_parallel_local_provider1_authority forged_authority =
+      provider_authority;
+  forged_authority.receipt.contract_digest[0] ^= 1u;
+  CHECK(!w_seed_parallel_local_provider1_verify(&forged_authority));
+  forged_authority = provider_authority;
+  forged_authority.private_seal ^= (uintptr_t)1u;
+  CHECK(!w_seed_parallel_local_provider1_verify(&forged_authority));
+  forged_authority = provider_authority;
+  forged_authority.receipt.contract_digest[0] ^= 1u;
+  w_seed_parallel_typed_binding1_input forged_authority_input = input;
+  forged_authority_input.provider_authority = &forged_authority;
+  w_seed_parallel_typed_binding1_counts authority_counts;
+  w_seed_parallel_typed_binding1_result authority_result;
+  (void)memset(&authority_counts, 0x2e, sizeof(authority_counts));
+  (void)memset(&authority_result, 0xe2, sizeof(authority_result));
+  const w_seed_parallel_typed_binding1_counts authority_counts_before =
+      authority_counts;
+  const w_seed_parallel_typed_binding1_result authority_result_before =
+      authority_result;
+  CHECK(w_seed_parallel_typed_binding1_measure(
+            &forged_authority_input, &authority_counts, &authority_result) ==
+            W_SEED_PARALLEL_TYPED_BINDING1_AUTHORITY &&
+        memcmp(&authority_counts, &authority_counts_before,
+               sizeof(authority_counts)) == 0 &&
+        memcmp(&authority_result, &authority_result_before,
+               sizeof(authority_result)) == 0);
+  w_seed_parallel_platform1_completion local_sentinel_completions[2];
+  w_seed_parallel_platform1_receipt local_sentinel_receipt;
+  w_seed_parallel_provider0_kind local_sentinel_kind =
+      W_SEED_PARALLEL_PROVIDER0_KIND_NONE;
+  (void)memset(local_sentinel_completions, 0x4c,
+               sizeof(local_sentinel_completions));
+  (void)memset(&local_sentinel_receipt, 0xc4,
+               sizeof(local_sentinel_receipt));
+  const w_seed_parallel_platform1_completion
+      local_sentinel_completions_before[2] = {
+          local_sentinel_completions[0], local_sentinel_completions[1]};
+  const w_seed_parallel_platform1_receipt local_sentinel_receipt_before =
+      local_sentinel_receipt;
+  CHECK(w_seed_parallel_local_provider1_execute(
+            &forged_authority, &input.provider_job, input.task_count,
+            input.provider_capacity, local_sentinel_completions,
+            &local_sentinel_receipt, &local_sentinel_kind) ==
+            W_SEED_PARALLEL_PROVIDER0_PLATFORM_PROVIDER_FAILURE &&
+        memcmp(local_sentinel_completions,
+               local_sentinel_completions_before,
+               sizeof(local_sentinel_completions)) == 0 &&
+        memcmp(&local_sentinel_receipt, &local_sentinel_receipt_before,
+               sizeof(local_sentinel_receipt)) == 0 &&
+        local_sentinel_kind == W_SEED_PARALLEL_PROVIDER0_KIND_NONE);
+
+  w_seed_parallel_typed_binding1_input mismatched_provider_input = input;
+  mismatched_provider_input.provider.profile[0] ^= 1;
+  CHECK(w_seed_parallel_typed_binding1_measure(
+            &mismatched_provider_input, &authority_counts,
+            &authority_result) == W_SEED_PARALLEL_TYPED_BINDING1_AUTHORITY &&
+        memcmp(&authority_counts, &authority_counts_before,
+               sizeof(authority_counts)) == 0 &&
+        memcmp(&authority_result, &authority_result_before,
+               sizeof(authority_result)) == 0);
   context.requested[1].error_case_ordinal =
       measured.error_identity.case_ordinal;
 
@@ -6691,6 +6764,11 @@ static bool test_parallel_typed_binding1(void) {
         serial_records[1].call_index == error_call &&
         serial_records[0].callee_function != serial_records[1].callee_function &&
         serial_result.primary_error_task == 1u &&
+        serial_result.provenance.assurance ==
+            W_SEED_PARALLEL_TYPED_BINDING1_ASSURANCE_STATIC_LOCAL_PROVIDER &&
+        w_seed_parallel_local_provider1_receipt_equal(
+            &serial_result.provenance.local_authority,
+            &provider_authority.receipt) &&
         serial_receipt.started_count == 2u &&
         serial_receipt.settled_count == 2u &&
         serial_receipt.cancellation_source_index == 1u &&
@@ -7034,6 +7112,8 @@ static bool test_parallel_typed_binding1(void) {
       sentinel_completions, 2u, &sentinel_receipt, &sentinel_kind};
   const w_seed_parallel_typed_binding1_output short_output = {sentinel_records,
                                                               1u};
+  const w_seed_parallel_typed_binding1_output sentinel_output = {
+      sentinel_records, 2u};
   CHECK(w_seed_parallel_typed_binding1_run(
             &input, &sentinel_workspace, &short_output, &sentinel_result) ==
             W_SEED_PARALLEL_TYPED_BINDING1_CAPACITY &&
@@ -7052,9 +7132,41 @@ static bool test_parallel_typed_binding1(void) {
             &input, &sentinel_workspace, &alias_output, &sentinel_result) ==
         W_SEED_PARALLEL_TYPED_BINDING1_ALIAS);
 
+  struct {
+    w_seed_parallel_local_provider1_authority authority;
+    unsigned char padding[
+        sizeof(w_seed_parallel_typed_binding1_result) +
+        2u * sizeof(w_seed_parallel_typed_binding1_record)];
+  } authority_alias_state;
+  (void)memset(&authority_alias_state, 0x6a,
+               sizeof(authority_alias_state));
+  authority_alias_state.authority = provider_authority;
+  unsigned char authority_alias_before[sizeof(authority_alias_state)];
+  (void)memcpy(authority_alias_before, &authority_alias_state,
+               sizeof(authority_alias_state));
+  w_seed_parallel_typed_binding1_input authority_alias_input = input;
+  authority_alias_input.provider_authority = &authority_alias_state.authority;
+  alias_output.records =
+      (w_seed_parallel_typed_binding1_record *)(void *)&authority_alias_state;
+  CHECK(w_seed_parallel_typed_binding1_run(
+            &authority_alias_input, &sentinel_workspace, &alias_output,
+            &sentinel_result) == W_SEED_PARALLEL_TYPED_BINDING1_ALIAS &&
+        memcmp(&authority_alias_state, authority_alias_before,
+               sizeof(authority_alias_state)) == 0 &&
+        memcmp(&sentinel_result, &sentinel_result_before,
+               sizeof(sentinel_result)) == 0);
+  alias_output = sentinel_output;
+  CHECK(w_seed_parallel_typed_binding1_run(
+            &authority_alias_input, &sentinel_workspace, &alias_output,
+            (w_seed_parallel_typed_binding1_result *)(void *)
+                &authority_alias_state.authority) ==
+            W_SEED_PARALLEL_TYPED_BINDING1_ALIAS &&
+        memcmp(&authority_alias_state, authority_alias_before,
+               sizeof(authority_alias_state)) == 0 &&
+        memcmp(sentinel_records, sentinel_records_before,
+               sizeof(sentinel_records)) == 0);
+
   context.fail = true;
-  const w_seed_parallel_typed_binding1_output sentinel_output = {
-      sentinel_records, 2u};
   CHECK(w_seed_parallel_typed_binding1_run(
             &input, &sentinel_workspace, &sentinel_output, &sentinel_result) ==
             W_SEED_PARALLEL_TYPED_BINDING1_TASK_FAILURE &&
@@ -7114,6 +7226,16 @@ static bool test_parallel_typed_binding1(void) {
   CHECK(!w_seed_parallel_typed_binding1_verify(
       &input, &parallel_workspace, &parallel_output, &parallel_result));
   parallel_result.semantic_digest[0] ^= 1u;
+  parallel_result.provenance.local_authority.contract_digest[0] ^= 1u;
+  CHECK(!w_seed_parallel_typed_binding1_verify(
+      &input, &parallel_workspace, &parallel_output, &parallel_result));
+  parallel_result.provenance.local_authority.contract_digest[0] ^= 1u;
+  parallel_result.provenance.assurance =
+      W_SEED_PARALLEL_TYPED_BINDING1_ASSURANCE_EXECUTION_INTEGRITY;
+  CHECK(!w_seed_parallel_typed_binding1_verify(
+      &input, &parallel_workspace, &parallel_output, &parallel_result));
+  parallel_result.provenance.assurance =
+      W_SEED_PARALLEL_TYPED_BINDING1_ASSURANCE_STATIC_LOCAL_PROVIDER;
 
   /* The typed physical binding is deliberately a HIR41 witness: a typed
    * invoke without its exact dual-path cleanup must fail before publication. */
