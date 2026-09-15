@@ -4,6 +4,7 @@
 #include "w_seed_parallel_provider0.h"
 
 typedef bool (*w_seed_parallel_provider0_internal_task_fn)(void *context,
+                                                           size_t task_index,
                                                            int64_t *value);
 
 typedef struct {
@@ -20,7 +21,7 @@ typedef enum {
 
 w_seed_parallel_provider0_platform_status
 w_seed_parallel_provider0_platform_execute(
-    const w_seed_parallel_provider0_internal_job *jobs, size_t job_count,
+    const w_seed_parallel_provider0_internal_job *job, size_t job_count,
     uint32_t provider_capacity, int64_t *values, uint32_t *started_count,
     uint32_t *completed_count, uint32_t *maximum_active,
     w_seed_parallel_provider0_kind *provider_kind);

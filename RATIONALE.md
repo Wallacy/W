@@ -255,6 +255,7 @@ O corpus compara, no mínimo:
 - bounded provider-neutral accelerated request against producer lifetime coupling, identity substitution, mutable artifact references, and premature submission claims.
 - measured task-relation storage against fixed HIR ceilings, host-width identity, provider-policy leakage, and partial publication.
 - measured parallel invocation storage against fixed arity arrays, call-site label order, host-width identity, and partial publication.
+- measured Windows parallel execution against fixed logical storage, provider-dependent outcomes, missed rendezvous states, and hidden scratch mutation.
 
 ### 1.1 Cobertura de substituições
 
@@ -7929,6 +7930,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1605 | independent bounded accelerated provider request | ACCREQ0 consumes verified ACCBIND0 and GPU0 programs/results, cross-checks the descriptor, host root, kernel label, private function and signed-i32 result shape, and copies one provider-neutral request, identity text and exact device artifact into caller-owned storage. Its independent verifier survives both producer lifetimes, rehashes the artifact, and separates semantic identity from physical provenance. | `source-backed-current` only for the one-request C23 bridge, exact current GPU0 sentinel, copied artifact and identities, transactional capacity/alias barriers, teardown independence, adversarial verification and focused gate. It performs no provider submission and introduces no public ABI. General arguments/results, authenticated product closure, provider launch/join/result, cancellation/drain, residency, public GPU products, other accelerators, benchmark results and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1606 | measured parallel task-relation storage | HIR38 admits and verifies finite `.main` and `.domain` sibling scopes using caller-owned record counts rather than a four-slot temporary array. PARSEL1 consumes the `.domain` lane, measures exact task count, and publishes dense caller-owned call/function/launch/join records with domain facts and a semantic digest independent of provider capacity and compiler-host width. | `source-backed-current` only for finite HIR admission plus PARSEL1 measure/run/bridge/verify, transactional capacity and alias barriers, five-task `.main` and `.domain` evidence, and preserved fail-closed legacy product/selector boundaries. A measured `.main` product consumer, downstream PARINV0/PARPROV0/PARMLIR0 migration, scheduler storage, cancellation/outcomes, public execution, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1607 | measured parallel invocation storage | PARINV1 consumes verified HIR38 and PARSEL1, measures exact task and argument counts, normalizes named arguments into parameter order, and publishes dense caller-owned invocation relations with a canonical semantic digest. Its pure scalar proof resolves parameters through HIR relations without a fixed arity array. | `source-backed-current` only for PARINV1 measure/run/bridge/verify/evaluate, transactional capacity and alias barriers, five-task and seventeen-argument evidence, and preserved fail-closed PARINV0 limits. Provider, PARMLIR0 and public-product migration, cancellation/outcomes, scheduling, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1608 | measured Windows parallel provider | PARPROV1 consumes verified HIR38/PARSEL1/PARINV1, measures caller-owned outcomes and workspace, and executes any verified finite logical task count through constant-size Windows worker waves of capacity one or two. Semantic outcomes exclude provider capacity; a separate receipt records physical overlap. | `source-backed-current` only for the Windows x64 pure scalar component, five-task and seventeen-argument execution, capacity-one/two semantic equality, monotonic rendezvous, exact workspace, transactional semantic outputs, aliases, and independent verification. Workspace may contain partial physical values after failure. Linux/other providers, emitted task entries, cancellation/outcomes, general scheduling, public products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -12974,3 +12976,29 @@ PARINV0 boundaries reject them without mutation.
 This checkpoint does not migrate the physical provider or PARMLIR0. It adds no
 scheduler, runtime storage, cancellation, public executable, benchmark result,
 or performance claim.
+
+#### W-1608 — measured Windows parallel provider
+
+PARPROV0 stores four semantic outcomes and builds one stack job context per
+logical task. PARPROV1 instead consumes verified PARSEL1 and PARINV1. Measure
+reports exact caller-owned outcome and workspace counts. A single indexed job
+context feeds constant-size Windows waves, so logical task count does not change
+worker-frame storage. Provider capacity remains one or two in this witness.
+
+The workspace stores physical results until every wave succeeds. A provider or
+task failure can modify workspace bytes, but semantic outcomes, result, and
+receipt remain unchanged. After success, publication is infallible. Independent
+verification recomputes each pure scalar result and the canonical outcome
+digest. The digest excludes provider kind, capacity, and overlap facts.
+
+The initial implementation exposed a missed-state rendezvous: one fast worker
+could decrement the active count before its peer observed the overlap. The
+Windows adapter now uses monotonic ready and release counters. All workers in a
+wave become active before release, and no worker waits on a transient count.
+
+Five logical tasks execute in waves at capacities one and two with identical
+semantic outcomes. The capacity-two receipt proves two simultaneous workers. A
+seventeen-argument task also executes without a fixed arity array. This remains
+a private Windows compiler-lifecycle component. Linux, emitted task entry
+linkage, cancellation, scheduling, public execution, benchmarks, and performance
+remain open.

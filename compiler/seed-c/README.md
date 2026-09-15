@@ -2003,6 +2003,20 @@ or variable-length array. Five tasks and a seventeen-argument task pass
 PARINV1. PARINV0 still rejects its fixed compatibility limits transactionally.
 PARPROV0 and PARMLIR0 have not migrated to PARINV1.
 
+`w_seed_parallel_provider1` is the measured Windows successor. Measure reports
+one semantic outcome and one physical workspace value per PARINV1 task. The
+platform adapter receives one indexed job descriptor and executes constant-size
+waves at capacity one or two. Logical task count does not allocate a job array
+on the stack.
+
+Workspace is explicit scratch and can contain partial values after a provider
+or task failure. Outcomes, result, and receipt remain unchanged on failure.
+Successful capacity-one and capacity-two runs publish identical semantic
+digests; the separate receipt records capacity and maximum active workers. A
+monotonic ready/release barrier proves overlap without observing a transient
+active count. The current C23 test executes five tasks and one
+seventeen-argument task. PARMLIR0 and public products remain on PARPROV0.
+
 ### Bounded Windows parallel provider component (W-1590)
 
 `w_seed_parallel_provider0` is the first physical PARSEL0 consumer. PARINV0

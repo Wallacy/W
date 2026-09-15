@@ -401,6 +401,13 @@ five-task and seventeen-argument witnesses, and verifies capacity, producer
 alias, bridge, digest, and malformed-input barriers. The unchanged PARINV0
 failure proves that the compatibility limit did not leak into PARINV1.
 
+W-1608 adds PARPROV1 to the same gate on Windows x64. Five tasks execute at
+physical capacities one and two with identical semantic outcomes, and the
+capacity-two receipt proves overlap through a monotonic barrier. The gate also
+executes the seventeen-argument task and checks exact workspace, short
+capacities, producer aliases, and forged outcomes. No public executable or
+performance result is added.
+
 ACQ0 executa CHK6 em
 storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou
 CLI. Execute `bun check --target acquisition` para compilar os cinco targets focais,
