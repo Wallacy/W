@@ -40684,6 +40684,44 @@ fn leaf(): i64 throws Failure { throw .denied }
 fn relay(): i64 throws Failure { return try leaf() }
 ```
 
+#### 26.4.1.96 W-1616 — exact synchronous typed propagation in verified HIR
+
+HIR40 lowers the supported plain try localCall(...) form into one
+terminator-owned W_SEED_HIR0_TERMINATOR_INVOKE. The invoke owns the
+synchronous direct local call and has one normal successor and one typed-error
+successor. Each successor receives exactly one block argument at ordinal zero.
+The normal argument has the function return type. The error argument has the
+function error-enum type.
+
+The bounded relay has exactly three blocks in preorder: the invoke block, a
+normal block with RETURN_VALUE, and an error block with THROW. All three
+blocks are empty of instructions. The call descriptor has no ordinary
+instruction owner. The invoke does not carry ordinary edge arguments. Its
+normal and error values are implicit control outputs materialized as successor
+block-argument reads.
+
+The verifier rechecks the exact block partition, same-function successors,
+owner fields, source spans, block-argument owners and types, terminal kinds,
+callee identity, same-module relation, synchronous throws effect, matching
+error enum, result type, dense ranges, capacities, aliases, and digests. A
+missing, swapped, forged, or mismatched call, target, argument, or type fails
+closed after frontend storage is gone.
+
+This increment does not create an ordinary CALL instruction, Task, heap
+object, or packed Result carrier. ProductClosure0 rejects INVOKE because the
+typed propagation slice has no MLIR, native, or public product lowering.
+Catch regions, cleanup routing, conversions, general propagation, public ABI,
+benchmarks, and performance remain separate increments. These are seed
+evidence limits, not language limits.
+
+<!-- w-example role=logical-contract -->
+```w
+// excerpt-kind: logical-contract
+enum Failure: Error { denied }
+fn leaf(): i64 throws Failure { throw .denied }
+fn relay(): i64 throws Failure { return try leaf() }
+```
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

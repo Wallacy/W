@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-39"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-40"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -221,6 +221,12 @@ typedef enum {
   W_SEED_HIR0_TERMINATOR_SWITCH_ENUM,
   /* Recoverable typed error edge; value_index carries the concrete E. */
   W_SEED_HIR0_TERMINATOR_THROW,
+  /* A synchronous typed propagation point. The call is owned by this
+   * terminator (not by an ordinary CALL instruction); target_block is the
+   * normal successor and else_block is the typed error successor. Each
+   * successor receives its channel as block argument zero; these invoke
+   * results are implicit control outputs, not ordinary edge arguments. */
+  W_SEED_HIR0_TERMINATOR_INVOKE,
 } w_seed_hir0_terminator_kind;
 
 typedef enum {
@@ -558,7 +564,10 @@ typedef struct {
 } w_seed_hir0_requirement;
 
 typedef struct {
+  /* Ordinary calls are owned by an instruction. An invoke call is owned by
+   * its INVOKE terminator instead and carries no completed CALL instruction. */
   uint32_t owner_instruction;
+  uint32_t owner_terminator;
   uint32_t owner_block;
   uint32_t ordinal;
   uint32_t callee_identity;
@@ -657,8 +666,10 @@ typedef struct {
   uint32_t owner_block;
   w_seed_hir0_terminator_kind kind;
   uint32_t ordinal;
+  uint32_t call_index;
   uint32_t value_index;
   uint32_t result_type;
+  uint32_t error_type;
   /* BRANCH uses target_block and else_block. JUMP uses target_block and
    * requires else_block to be W_SEED_HIR0_NONE. RETURN uses neither field. */
   uint32_t target_block;

@@ -9619,6 +9619,59 @@
       }
     ],
     "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+  },
+  {
+    "id": "R0-hir0-typed-invoke",
+    "reviewItem": "exact synchronous typed propagation in verified HIR against ordinary CALL materialization, Task or heap substitution, packed Result carriers, unproved successor channels, and fail-open ProductClosure",
+    "decisions": ["W-1616"],
+    "task": "Lower one supported synchronous try localCall form into an independently verified HIR invoke relay with typed normal and error channels.",
+    "selected": {
+      "language": "w-internal",
+      "source": [
+        "HIR40 function relay owns a direct synchronous throwing local call",
+        "terminator = W_SEED_HIR0_TERMINATOR_INVOKE with normal and error successors",
+        "exact blocks = invoke, return-value, throw; instruction_count = 0; ProductClosure0 = rejected"
+      ]
+    },
+    "alternatives": [
+      {
+        "name": "ordinary-call-instruction",
+        "language": "w-internal-rejected",
+        "source": ["CALL instruction owns the throwing local call result"],
+        "expectedDifference": "The selected HIR owns the call by its INVOKE terminator and emits no ordinary CALL instruction."
+      },
+      {
+        "name": "packed-result-carrier",
+        "language": "w-internal-rejected",
+        "source": ["pack normal and error outcomes into a Result value"],
+        "expectedDifference": "Normal and error outcomes remain separate typed successor block arguments, not a packed Result value."
+      },
+      {
+        "name": "task-or-heap-materialization",
+        "language": "w-internal-rejected",
+        "source": ["allocate a Task or heap object for synchronous propagation"],
+        "expectedDifference": "The bounded HIR route creates no Task or heap allocation."
+      },
+      {
+        "name": "unproved-successor-channel",
+        "language": "w-internal-rejected",
+        "source": ["INVOKE target or error blocks have missing, swapped, or mismatched arguments"],
+        "expectedDifference": "The verifier rejects wrong successor ownership, types, target order, or call owner after resealing."
+      },
+      {
+        "name": "product-closure-acceptance",
+        "language": "w-internal-rejected",
+        "source": ["ProductClosure0 accepts INVOKE as an executable product terminator"],
+        "expectedDifference": "ProductClosure0 remains fail-closed because typed propagation has no MLIR or native product lowering."
+      },
+      {
+        "name": "downstream-lowering",
+        "language": "w-internal-rejected",
+        "source": ["lower INVOKE to MLIR, native execution, or the public ABI"],
+        "expectedDifference": "MLIR, native execution, and public ABI remain outside source-backed HIR evidence."
+      }
+    ],
+    "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
   }
   ]
 }

@@ -2875,7 +2875,8 @@ static w_seed_hir0_logical_operator hir_logical_operator(
 static bool frontend_call_expression_ok(
     const w_seed_hir0_input *input, size_t module_index,
     size_t function_index, size_t document_index, size_t statement_index,
-    uint32_t root_index, bool result_value, size_t *expression_cursor,
+    uint32_t root_index, bool result_value, bool allow_throwing,
+    bool materialize_result, size_t *expression_cursor,
     size_t *interpolation_segment_cursor, size_t *const_byte_cursor,
     size_t *call_total, size_t *argument_total, size_t *value_total,
     size_t *segment_total, size_t *value_bytes, size_t *logical_total);
@@ -3575,7 +3576,7 @@ static bool frontend_value_tree_ok(
   if (value->kind == W_SEED_FRONTEND_EXPR_CALL) {
     return frontend_call_expression_ok(
         input, module_index, function_index, document_index, use_statement,
-        root_index, true, expression_cursor, segment_cursor,
+        root_index, true, false, true, expression_cursor, segment_cursor,
         const_byte_cursor, call_total, argument_total, value_total,
         segment_total, value_bytes, logical_total);
   }
@@ -3863,7 +3864,8 @@ static bool frontend_local_call_target_ok(
 static bool frontend_call_expression_ok(
     const w_seed_hir0_input *input, size_t module_index,
     size_t function_index, size_t document_index, size_t statement_index,
-    uint32_t root_index, bool result_value, size_t *expression_cursor,
+    uint32_t root_index, bool result_value, bool allow_throwing,
+    bool materialize_result, size_t *expression_cursor,
     size_t *interpolation_segment_cursor, size_t *const_byte_cursor,
     size_t *call_total, size_t *argument_total, size_t *value_total,
     size_t *segment_total, size_t *value_bytes, size_t *logical_total) {
@@ -4022,7 +4024,8 @@ static bool frontend_call_expression_ok(
            add_size(*expression_cursor, 1u, expression_cursor) &&
            add_size(*value_total, 1u, value_total);
   }
-  if ((!host_call && !local_call) || (result_value && !local_call))
+  if ((!host_call && !local_call) || (result_value && !local_call) ||
+      (allow_throwing && !local_call))
     return false;
   if (callee->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER ||
       !callee->supported || callee->module_index != module_index ||
@@ -4066,6 +4069,7 @@ static bool frontend_call_expression_ok(
         (size_t)target_function->return_type >= result->written.types)
       return false;
     return_type = target_function->return_type;
+    if (target_function->is_throws != allow_throwing) return false;
     const w_seed_frontend_type_kind return_kind =
         output->types[return_type].kind;
     if ((!result_value && return_kind != W_SEED_FRONTEND_TYPE_UNIT) ||
@@ -4151,7 +4155,91 @@ static bool frontend_call_expression_ok(
   if ((size_t)root_index != *expression_cursor ||
       !add_size(*expression_cursor, 1u, expression_cursor) ||
       !add_size(*call_total, 1u, call_total) ||
-      (result_value && !add_size(*value_total, 1u, value_total)))
+      (result_value && materialize_result &&
+       !add_size(*value_total, 1u, value_total)))
+    return false;
+  return true;
+}
+
+/* A `try` expression is a control transfer, not a value wrapper.  The
+ * nested throwing call is therefore counted as an invoke-owned call, while
+ * its normal and error results are materialized later as typed successor
+ * block arguments. */
+static bool frontend_try_expression_ok(
+    const w_seed_hir0_input *input, size_t module_index,
+    size_t function_index, size_t document_index, size_t statement_index,
+    uint32_t root_index, size_t *expression_cursor,
+    size_t *interpolation_segment_cursor, size_t *const_byte_cursor,
+    size_t *call_total, size_t *argument_total, size_t *value_total,
+    size_t *segment_total, size_t *value_bytes, size_t *logical_total,
+    size_t *invoke_total) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || expression_cursor == NULL ||
+      interpolation_segment_cursor == NULL || const_byte_cursor == NULL ||
+      call_total == NULL || argument_total == NULL || value_total == NULL ||
+      segment_total == NULL || value_bytes == NULL || logical_total == NULL ||
+      invoke_total == NULL || root_index == W_SEED_FRONTEND_NONE ||
+      (size_t)root_index >= input->frontend_result->written.expressions)
+    return false;
+  const w_seed_frontend_output *output = input->frontend_output;
+  const w_seed_frontend_result *result = input->frontend_result;
+  const w_seed_frontend_expression *try_expression =
+      &output->expressions[root_index];
+  if (!frontend_value_common_ok(input, try_expression, module_index,
+                                function_index, document_index) ||
+      try_expression->kind != W_SEED_FRONTEND_EXPR_TRY ||
+      !try_expression->supported ||
+      !text_is(try_expression->operator_text, "try") ||
+      try_expression->left == W_SEED_FRONTEND_NONE ||
+      (size_t)try_expression->left >= result->written.expressions ||
+      try_expression->right != W_SEED_FRONTEND_NONE ||
+      try_expression->first_argument != W_SEED_FRONTEND_NONE ||
+      try_expression->argument_count != 0u ||
+      try_expression->first_interpolation_segment != W_SEED_FRONTEND_NONE ||
+      try_expression->interpolation_segment_count != 0u ||
+      try_expression->const_byte_offset != W_SEED_FRONTEND_NONE ||
+      try_expression->const_byte_count != 0u ||
+      try_expression->has_bool_value || try_expression->has_integer_value ||
+      !frontend_value_has_no_resolution(try_expression))
+    return false;
+  const w_seed_frontend_function *owner = &output->functions[function_index];
+  const w_seed_frontend_expression *call =
+      &output->expressions[try_expression->left];
+  if (!owner->is_throws || owner->is_const ||
+      owner->error_type == W_SEED_FRONTEND_NONE ||
+      call->kind != W_SEED_FRONTEND_EXPR_CALL || !call->supported ||
+      call->resolved_callee_kind != W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION ||
+      call->resolved_function_index == W_SEED_FRONTEND_NONE ||
+      (size_t)call->resolved_function_index >= result->written.functions ||
+      call->inferred_type == W_SEED_FRONTEND_NONE ||
+      try_expression->inferred_type != call->inferred_type)
+    return false;
+  const w_seed_frontend_function *target =
+      &output->functions[call->resolved_function_index];
+  if (!target->is_throws || target->is_async ||
+      target->error_type == W_SEED_FRONTEND_NONE ||
+      try_expression->propagated_error_enum == W_SEED_FRONTEND_NONE ||
+      (size_t)owner->error_type >= result->written.types ||
+      (size_t)target->error_type >= result->written.types ||
+      output->types[owner->error_type].kind != W_SEED_FRONTEND_TYPE_ENUM ||
+      output->types[target->error_type].kind != W_SEED_FRONTEND_TYPE_ENUM ||
+      output->types[owner->error_type].enum_base_index !=
+          try_expression->propagated_error_enum ||
+      output->types[target->error_type].enum_base_index !=
+          try_expression->propagated_error_enum ||
+      !frontend_type_is_scalar(&output->types[call->inferred_type]))
+    return false;
+  if (!frontend_call_expression_ok(
+          input, module_index, function_index, document_index, statement_index,
+          try_expression->left, true, true, false, expression_cursor,
+          interpolation_segment_cursor, const_byte_cursor, call_total,
+          argument_total, value_total, segment_total, value_bytes,
+          logical_total) ||
+      call->argument_count != 0u ||
+      (size_t)try_expression->left + 1u != *expression_cursor ||
+      !add_size(*value_total, 2u, value_total) ||
+      !add_size(*invoke_total, 1u, invoke_total) ||
+      !add_size(*expression_cursor, 1u, expression_cursor))
     return false;
   return true;
 }
@@ -4213,7 +4301,7 @@ static bool frontend_task_launch_expression_ok(
       call->inferred_type != launch->task_result_type ||
       !frontend_call_expression_ok(
           input, module_index, function_index, document_index, statement_index,
-          launch->task_call_expression, true, expression_cursor,
+          launch->task_call_expression, true, false, true, expression_cursor,
           interpolation_segment_cursor, const_byte_cursor, call_total,
           argument_total, value_total, segment_total, value_bytes,
           logical_total) ||
@@ -4753,6 +4841,7 @@ typedef struct {
   size_t *const_byte_cursor;
   size_t *bindings;
   size_t *calls;
+  size_t *invokes;
   size_t *yields;
   size_t *arguments;
   size_t *values;
@@ -5167,6 +5256,7 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
       if (!frontend_call_expression_ok(
               walk->input, walk->module_index, walk->function_index,
               walk->document_index, index, statement->expression_index, true,
+              false, true,
               walk->expression_cursor, walk->interpolation_segment_cursor,
               walk->const_byte_cursor, walk->calls, walk->arguments,
               walk->values, walk->segments, walk->value_bytes,
@@ -5271,6 +5361,7 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
     return frontend_call_expression_ok(
         walk->input, walk->module_index, walk->function_index,
         walk->document_index, index, statement->expression_index, false,
+        false, false,
         walk->expression_cursor, walk->interpolation_segment_cursor,
         walk->const_byte_cursor, walk->calls, walk->arguments, walk->values,
         walk->segments, walk->value_bytes, walk->logical_total);
@@ -5496,6 +5587,28 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
              &walk->output->types[return_expression->inferred_type],
              &walk->output->types[function->return_type])))
       return false;
+    if (return_expression->kind == W_SEED_FRONTEND_EXPR_TRY) {
+      if (branch || statement->next_sibling != W_SEED_FRONTEND_NONE ||
+          statement->binding_name.length != 0u ||
+          statement->declared_type != W_SEED_FRONTEND_NONE ||
+          statement->effective_type != W_SEED_FRONTEND_NONE ||
+          walk->output->types[function->return_type].kind ==
+              W_SEED_FRONTEND_TYPE_UNIT ||
+          !frontend_supported_types_equal_for_input(
+              walk->input,
+              &walk->output->types[return_expression->inferred_type],
+              &walk->output->types[function->return_type]) ||
+          !frontend_try_expression_ok(
+              walk->input, walk->module_index, walk->function_index,
+              walk->document_index, index, statement->expression_index,
+              walk->expression_cursor, walk->interpolation_segment_cursor,
+              walk->const_byte_cursor, walk->calls, walk->arguments,
+              walk->values, walk->segments, walk->value_bytes,
+              walk->logical_total, walk->invokes))
+        return false;
+      walk->has_value_return = true;
+      return true;
+    }
     if ((branch && !allow_branch_exit) ||
         statement->next_sibling != W_SEED_FRONTEND_NONE ||
         statement->binding_name.length != 0u ||
@@ -5576,6 +5689,7 @@ static bool hir0_walk_statement_chain(hir0_statement_walk *walk,
 
 static bool frontend_statement_and_expression_cfg_ok(
     const w_seed_hir0_input *input, size_t *binding_total, size_t *call_total,
+    size_t *invoke_total,
     size_t *yield_total,
     size_t *argument_total, size_t *value_total, size_t *segment_total,
     size_t *value_bytes, size_t *text_bytes, size_t *if_total,
@@ -5584,7 +5698,7 @@ static bool frontend_statement_and_expression_cfg_ok(
     size_t *switch_capture_total) {
   if (input == NULL || input->frontend_output == NULL ||
       input->frontend_result == NULL || binding_total == NULL ||
-      call_total == NULL || yield_total == NULL || argument_total == NULL ||
+      call_total == NULL || invoke_total == NULL || yield_total == NULL ||
       segment_total == NULL || value_bytes == NULL || text_bytes == NULL ||
       if_total == NULL || logical_total == NULL || merge_total == NULL ||
       while_total == NULL || switch_total == NULL || switch_edge_total == NULL ||
@@ -5594,6 +5708,7 @@ static bool frontend_statement_and_expression_cfg_ok(
   const w_seed_frontend_result *result = input->frontend_result;
   size_t bindings = 0u;
   size_t calls = 0u;
+  size_t invokes = 0u;
   size_t yields = 0u;
   size_t arguments = 0u;
   size_t values = 0u;
@@ -5640,6 +5755,7 @@ static bool frontend_statement_and_expression_cfg_ok(
         .const_byte_cursor = &const_byte_cursor,
         .bindings = &bindings,
         .calls = &calls,
+        .invokes = &invokes,
         .yields = &yields,
         .arguments = &arguments,
         .values = &values,
@@ -5700,7 +5816,8 @@ static bool frontend_statement_and_expression_cfg_ok(
       interpolation_segment_cursor != result->written.interpolation_segments ||
       const_byte_cursor != result->written.const_bytes ||
       switch_capture_count != result->written.pattern_captures ||
-      !count_u32(bindings) || !count_u32(calls) || !count_u32(yields) ||
+      !count_u32(bindings) || !count_u32(calls) || !count_u32(invokes) ||
+      !count_u32(yields) ||
       !count_u32(arguments) ||
       !count_u32(values) || !count_u32(segments) || !count_u32(if_count) ||
       !count_u32(logical_count) || !count_u32(merge_count) ||
@@ -5709,6 +5826,7 @@ static bool frontend_statement_and_expression_cfg_ok(
     return false;
   *binding_total = bindings;
   *call_total = calls;
+  *invoke_total = invokes;
   *yield_total = yields;
   *argument_total = arguments;
   *value_total = values;
@@ -5728,6 +5846,7 @@ static bool frontend_statement_and_expression_cfg_ok(
 
 static bool frontend_statement_and_expression_ok(
     const w_seed_hir0_input *input, size_t *binding_total, size_t *call_total,
+    size_t *invoke_total,
     size_t *yield_total,
     size_t *argument_total, size_t *value_total, size_t *segment_total,
     size_t *value_bytes, size_t *text_bytes, size_t *if_total,
@@ -5735,7 +5854,8 @@ static bool frontend_statement_and_expression_ok(
     size_t *loop_carrier_total, size_t *switch_total, size_t *switch_edge_total,
     size_t *switch_capture_total) {
   return frontend_statement_and_expression_cfg_ok(
-      input, binding_total, call_total, yield_total, argument_total, value_total,
+      input, binding_total, call_total, invoke_total, yield_total,
+      argument_total, value_total,
       segment_total, value_bytes, text_bytes, if_total, logical_total,
       merge_total, while_total, loop_carrier_total, switch_total, switch_edge_total,
       switch_capture_total);
@@ -6409,6 +6529,7 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
   /* HIR0 accepts a bounded linear subset and nested Unit structured CFG. */
   size_t binding_count = 0u;
   size_t call_count = 0u;
+  size_t invoke_count = 0u;
   size_t yield_count = 0u;
   size_t argument_count = 0u;
   size_t value_count = 0u;
@@ -6426,7 +6547,8 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
   size_t switch_edge_count = 0u;
   size_t switch_capture_count = 0u;
   if (!frontend_statement_and_expression_ok(
-                  input, &binding_count, &call_count, &yield_count,
+                  input, &binding_count, &call_count, &invoke_count,
+                  &yield_count,
                   &argument_count,
                   &value_count, &interpolation_segment_count, &value_bytes,
                   &ignored_text, &if_count, &logical_count, &merge_count,
@@ -6459,6 +6581,7 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
       !add_size(identities, host_symbols, &identities) ||
       !count_u32(identities) || !count_u32(functions) || !count_u32(entries) ||
       !count_u32(binding_count) || !count_u32(call_count) ||
+      !count_u32(invoke_count) ||
       !count_u32(yield_count) ||
       !count_u32(argument_count) || !count_u32(value_count) ||
       !count_u32(interpolation_segment_count) || !count_u32(value_bytes) ||
@@ -6540,6 +6663,8 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
       diamond_count > (SIZE_MAX - block_count) / 3u ||
       !add_size(block_count, diamond_count * 3u, &block_count) ||
       !add_size(block_count, repeat_count, &block_count) ||
+      invoke_count > (SIZE_MAX - block_count) / 2u ||
+      !add_size(block_count, invoke_count * 2u, &block_count) ||
       !count_u32(block_count))
     return HIR0_PREPARE_UNSUPPORTED;
   size_t terminal_if_count = 0u;
@@ -6557,15 +6682,23 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
       !add_size(block_argument_count, loop_carrier_count,
                 &block_argument_count))
     return HIR0_PREPARE_UNSUPPORTED;
+  const size_t explicit_edge_block_argument_count = block_argument_count;
+  if (invoke_count > (SIZE_MAX - block_argument_count) / 2u ||
+      !add_size(block_argument_count, invoke_count * 2u,
+                &block_argument_count))
+    return HIR0_PREPARE_UNSUPPORTED;
   if (!count_u32(block_argument_count)) return HIR0_PREPARE_UNSUPPORTED;
   counts->block_arguments = block_argument_count;
-  if (block_argument_count > SIZE_MAX / 2u ||
-      !add_size(block_argument_count, block_argument_count,
+  if (explicit_edge_block_argument_count > SIZE_MAX / 2u ||
+      !add_size(explicit_edge_block_argument_count,
+                explicit_edge_block_argument_count,
                 &counts->edge_arguments) ||
       !count_u32(counts->edge_arguments))
     return HIR0_PREPARE_UNSUPPORTED;
   counts->bindings = binding_count;
-  if (!add_size(binding_count, call_count, &counts->instructions) ||
+  if (invoke_count > call_count ||
+      !add_size(binding_count, call_count - invoke_count,
+                &counts->instructions) ||
       !add_size(counts->instructions, yield_count, &counts->instructions))
     return HIR0_PREPARE_UNSUPPORTED;
   if (!count_u32(counts->instructions)) return HIR0_PREPARE_UNSUPPORTED;
@@ -7792,6 +7925,24 @@ static size_t hir0_region_block_count(const hir0_emit_context *context,
       hir0_region_repeat_count(context, first_statement, depth);
   if (repeat_count > SIZE_MAX - diamond_blocks) return 0u;
   diamond_blocks += repeat_count;
+  size_t invoke_count = 0u;
+  uint32_t invoke_cursor = first_statement;
+  size_t invoke_guard = 0u;
+  while (invoke_cursor != W_SEED_FRONTEND_NONE &&
+         invoke_guard < context->frontend_result->written.statements) {
+    const w_seed_frontend_statement *statement =
+        &context->frontend->statements[invoke_cursor];
+    if (statement->kind == W_SEED_FRONTEND_STMT_RETURN &&
+        statement->expression_index != W_SEED_FRONTEND_NONE &&
+        context->frontend->expressions[statement->expression_index].kind ==
+            W_SEED_FRONTEND_EXPR_TRY &&
+        !add_size(invoke_count, 1u, &invoke_count))
+      return 0u;
+    invoke_cursor = statement->next_sibling;
+    invoke_guard += 1u;
+  }
+  if (invoke_count > (SIZE_MAX - diamond_blocks) / 2u) return 0u;
+  diamond_blocks += invoke_count * 2u;
   uint32_t cursor = first_statement;
   size_t guard = 0u;
   while (cursor != W_SEED_FRONTEND_NONE &&
@@ -7933,6 +8084,50 @@ static uint32_t hir0_emit_bool_value_m2(hir0_emit_context *context, bool value,
   return result;
 }
 
+static uint32_t hir0_emit_block_argument_read_m2(
+    hir0_emit_context *context, size_t owner_block, uint32_t owner_ordinal,
+    uint32_t block_argument_index, w_seed_span span) {
+  if (context == NULL || owner_block >= context->counts->blocks ||
+      block_argument_index >= context->counts->block_arguments)
+    return W_SEED_HIR0_NONE;
+  const uint32_t result = (uint32_t)*context->value_index;
+  const uint32_t type_index = context->output
+                                  ->block_arguments[block_argument_index]
+                                  .type_index;
+  context->output->values[*context->value_index] = (w_seed_hir0_value){
+      .kind = W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ,
+      .owner_kind = W_SEED_HIR0_VALUE_OWNER_TERMINATOR,
+      .owner_index = (uint32_t)owner_block,
+      .owner_ordinal = owner_ordinal,
+      .type_index = type_index,
+      .binding_index = W_SEED_HIR0_NONE,
+      .parameter_index = W_SEED_HIR0_NONE,
+      .call_index = W_SEED_HIR0_NONE,
+      .left_value = W_SEED_HIR0_NONE,
+      .right_value = W_SEED_HIR0_NONE,
+      .first_interpolation_segment = W_SEED_HIR0_NONE,
+      .interpolation_segment_count = 0u,
+      .first_enum_payload = 0u,
+      .enum_payload_count = 0u,
+      .pattern_capture_index = W_SEED_HIR0_NONE,
+      .binary_operator = W_SEED_HIR0_BINARY_ADD,
+      .unary_operator = W_SEED_HIR0_UNARY_NOT,
+      .block_argument_index = block_argument_index,
+      .integer_value = 0,
+      .unsigned_integer_value = 0u,
+      .bool_value = false,
+      .byte_offset = 0u,
+      .byte_count = 0u,
+      .source_span = span,
+      .external_module_index = W_SEED_HIR0_NONE,
+      .external_symbol_index = W_SEED_HIR0_NONE,
+      .member_name = {0u, 0u},
+      .enum_index = W_SEED_HIR0_NONE,
+      .enum_case_index = W_SEED_HIR0_NONE};
+  *context->value_index += 1u;
+  return result;
+}
+
 static const w_seed_frontend_switch_arm *hir0_switch_arm_for_ordinal(
     const hir0_emit_context *context,
     const w_seed_frontend_expression *root, size_t ordinal);
@@ -7958,6 +8153,9 @@ static size_t hir0_emit_expression_values_m2(hir0_emit_context *context,
         context, source->task_call_expression, current_block, statement_index,
         depth + 1u);
   if (source->kind == W_SEED_FRONTEND_EXPR_AWAIT)
+    return hir0_emit_expression_values_m2(context, source->left, current_block,
+                                          statement_index, depth + 1u);
+  if (source->kind == W_SEED_FRONTEND_EXPR_TRY)
     return hir0_emit_expression_values_m2(context, source->left, current_block,
                                           statement_index, depth + 1u);
   if (source->kind == W_SEED_FRONTEND_EXPR_IF) {
@@ -8307,6 +8505,9 @@ static size_t hir0_emit_expression_terms_m2(hir0_emit_context *context,
       source->kind == W_SEED_FRONTEND_EXPR_UNARY)
     return hir0_emit_expression_terms_m2(context, source->left, current_block,
                                          statement_index, depth + 1u);
+  if (source->kind == W_SEED_FRONTEND_EXPR_TRY)
+    return hir0_emit_expression_terms_m2(context, source->left, current_block,
+                                         statement_index, depth + 1u);
   if (source->kind == W_SEED_FRONTEND_EXPR_INTERPOLATED_STRING) {
     size_t block = current_block;
     for (size_t ordinal = 0u; ordinal < source->interpolation_segment_count;
@@ -8383,6 +8584,25 @@ static size_t hir0_emit_expression_terms_m2(hir0_emit_context *context,
     return join_block;
   }
   return current_block;
+}
+
+static void hir0_emit_try_return_terms_m2(
+    hir0_emit_context *context, const w_seed_frontend_statement *statement,
+    size_t invoke_block) {
+  const size_t normal_block = invoke_block + 1u;
+  const size_t error_block = invoke_block + 2u;
+  const w_seed_frontend_expression *try_expression =
+      &context->frontend->expressions[statement->expression_index];
+  w_seed_hir0_block *normal = &context->output->blocks[normal_block];
+  w_seed_hir0_block *error = &context->output->blocks[error_block];
+  context->output->terminators[normal_block].value_index =
+      hir0_emit_block_argument_read_m2(
+          context, normal_block, 0u, normal->first_block_argument,
+          try_expression->span);
+  context->output->terminators[error_block].value_index =
+      hir0_emit_block_argument_read_m2(
+          context, error_block, 0u, error->first_block_argument,
+          try_expression->span);
 }
 
 static void hir0_emit_chain_terms_m2(hir0_emit_context *context,
@@ -8572,6 +8792,11 @@ static void hir0_emit_chain_terms_m2(hir0_emit_context *context,
       const w_seed_frontend_expression *root =
           &context->frontend->expressions[statement->expression_index];
       if (statement->kind == W_SEED_FRONTEND_STMT_RETURN &&
+          root->kind == W_SEED_FRONTEND_EXPR_TRY) {
+        hir0_emit_try_return_terms_m2(context, statement, current_block);
+        return;
+      }
+      if (statement->kind == W_SEED_FRONTEND_STMT_RETURN &&
           root->kind == W_SEED_FRONTEND_EXPR_SWITCH) {
         const size_t dispatch = hir0_emit_expression_terms_m2(
             context, root->left, current_block, cursor, 0u);
@@ -8674,7 +8899,8 @@ static size_t hir0_emit_expression_layout_m2(hir0_emit_context *context,
 static size_t hir0_emit_call_layout_m2(hir0_emit_context *context,
                                        uint32_t expression,
                                        size_t current_block,
-                                       size_t statement_index, size_t depth) {
+                                       size_t statement_index, size_t depth,
+                                       bool invoke) {
   (void)statement_index;
   (void)depth;
   const w_seed_frontend_expression *source =
@@ -8724,24 +8950,31 @@ static size_t hir0_emit_call_layout_m2(hir0_emit_context *context,
             .expression_index,
         argument_block, statement_index, depth + 1u);
   current_block = argument_block;
-  hir0_begin_block_m2(context, current_block);
   const uint32_t emitted_call = (uint32_t)*context->call_offset;
-  const uint32_t emitted_instruction = (uint32_t)*context->instruction_offset;
+  const uint32_t emitted_instruction =
+      invoke ? W_SEED_HIR0_NONE : (uint32_t)*context->instruction_offset;
   w_seed_hir0_block *block = &context->output->blocks[current_block];
-  w_seed_hir0_instruction *instruction =
-      &context->output->instructions[*context->instruction_offset];
-  instruction->kind = W_SEED_HIR0_INSTRUCTION_CALL;
-  instruction->owner_block = (uint32_t)current_block;
-  instruction->ordinal = (uint32_t)(
-      *context->instruction_offset - block->first_instruction);
-  instruction->call_index = emitted_call;
-  instruction->binding_index = W_SEED_HIR0_NONE;
-  instruction->result_type = 0u;
-  instruction->source_span = source->span;
+  w_seed_hir0_instruction *instruction = NULL;
+  if (!invoke) {
+    hir0_begin_block_m2(context, current_block);
+    instruction = &context->output->instructions[*context->instruction_offset];
+    instruction->kind = W_SEED_HIR0_INSTRUCTION_CALL;
+    instruction->owner_block = (uint32_t)current_block;
+    instruction->ordinal = (uint32_t)(
+        *context->instruction_offset - block->first_instruction);
+    instruction->call_index = emitted_call;
+    instruction->binding_index = W_SEED_HIR0_NONE;
+    instruction->result_type = 0u;
+    instruction->source_span = source->span;
+  }
   w_seed_hir0_call *call = &context->output->calls[*context->call_offset];
   call->owner_instruction = emitted_instruction;
+  call->owner_terminator = invoke ? (uint32_t)current_block
+                                  : W_SEED_HIR0_NONE;
   call->owner_block = (uint32_t)current_block;
-  call->ordinal = instruction->ordinal;
+  call->ordinal = invoke
+                      ? context->output->blocks[current_block].instruction_count
+                      : instruction->ordinal;
   call->callee_identity = host_call
                               ? hir_host_identity_index(context->counts,
                                                         host_index)
@@ -8762,13 +8995,103 @@ static size_t hir0_emit_call_layout_m2(hir0_emit_context *context,
   call->domain_capabilities = 0u;
   call->source_expression = expression;
   call->source_span = source->span;
-  instruction->result_type = call->result_type;
+  if (!invoke) instruction->result_type = call->result_type;
   for (size_t argument = 0u; argument < source->argument_count; argument += 1u)
     context->output->arguments[first_argument + argument].owner_call =
         emitted_call;
-  *context->instruction_offset += 1u;
+  if (!invoke) *context->instruction_offset += 1u;
   *context->call_offset += 1u;
   return current_block;
+}
+
+static void hir0_emit_try_return_layout_m2(
+    hir0_emit_context *context, const w_seed_frontend_statement *statement,
+    size_t current_block) {
+  const w_seed_frontend_expression *try_expression =
+      &context->frontend->expressions[statement->expression_index];
+  const size_t invoke_block = hir0_emit_call_layout_m2(
+      context, try_expression->left, current_block, statement->expression_index,
+      0u, true);
+  const size_t normal_block = invoke_block + 1u;
+  const size_t error_block = invoke_block + 2u;
+  const uint32_t call_index = hir0_find_call_m2(
+      context, try_expression->left, invoke_block);
+  const uint32_t result_type = hir_type_from_frontend(
+      context->frontend, context->frontend_result,
+      try_expression->inferred_type);
+  const uint32_t error_type = hir_type_from_frontend(
+      context->frontend, context->frontend_result,
+      context->frontend->functions[context->function].error_type);
+  hir0_finish_block_m2(context, invoke_block);
+  context->output->terminators[invoke_block] = (w_seed_hir0_terminator){
+      .owner_block = (uint32_t)invoke_block,
+      .kind = W_SEED_HIR0_TERMINATOR_INVOKE,
+      .ordinal = context->output->blocks[invoke_block].instruction_count,
+      .call_index = call_index,
+      .value_index = W_SEED_HIR0_NONE,
+      .result_type = result_type,
+      .error_type = error_type,
+      .target_block = (uint32_t)normal_block,
+      .else_block = (uint32_t)error_block,
+      .first_edge_argument = W_SEED_HIR0_NONE,
+      .edge_argument_count = 0u,
+      .logical_operator = W_SEED_HIR0_LOGICAL_NONE,
+      .source_span = try_expression->span};
+  hir0_begin_block_m2(context, normal_block);
+  w_seed_hir0_block *normal = &context->output->blocks[normal_block];
+  normal->first_block_argument = (uint32_t)*context->block_argument_index;
+  normal->block_argument_count = 1u;
+  context->output->block_arguments[*context->block_argument_index] =
+      (w_seed_hir0_block_argument){
+          .owner_block = (uint32_t)normal_block,
+          .ordinal = 0u,
+          .type_index = result_type,
+          .source_span = try_expression->span};
+  *context->block_argument_index += 1u;
+  hir0_finish_block_m2(context, normal_block);
+  context->output->terminators[normal_block] = (w_seed_hir0_terminator){
+      .owner_block = (uint32_t)normal_block,
+      .kind = W_SEED_HIR0_TERMINATOR_RETURN_VALUE,
+      .ordinal = normal->instruction_count,
+      .call_index = W_SEED_HIR0_NONE,
+      .value_index = W_SEED_HIR0_NONE,
+      .result_type = context->output->functions[context->function].return_type,
+      .error_type = W_SEED_HIR0_NONE,
+      .target_block = W_SEED_HIR0_NONE,
+      .else_block = W_SEED_HIR0_NONE,
+      .first_edge_argument = W_SEED_HIR0_NONE,
+      .edge_argument_count = 0u,
+      .logical_operator = W_SEED_HIR0_LOGICAL_NONE,
+      .source_span = statement->span};
+  hir0_begin_block_m2(context, error_block);
+  w_seed_hir0_block *error = &context->output->blocks[error_block];
+  error->first_block_argument = (uint32_t)*context->block_argument_index;
+  error->block_argument_count = 1u;
+  context->output->block_arguments[*context->block_argument_index] =
+      (w_seed_hir0_block_argument){
+          .owner_block = (uint32_t)error_block,
+          .ordinal = 0u,
+          .type_index = error_type,
+          .source_span = try_expression->span};
+  *context->block_argument_index += 1u;
+  hir0_finish_block_m2(context, error_block);
+  context->output->terminators[error_block] = (w_seed_hir0_terminator){
+      .owner_block = (uint32_t)error_block,
+      .kind = W_SEED_HIR0_TERMINATOR_THROW,
+      .ordinal = error->instruction_count,
+      .call_index = W_SEED_HIR0_NONE,
+      .value_index = W_SEED_HIR0_NONE,
+      .result_type = error_type,
+      .error_type = W_SEED_HIR0_NONE,
+      .target_block = W_SEED_HIR0_NONE,
+      .else_block = W_SEED_HIR0_NONE,
+      .first_edge_argument = W_SEED_HIR0_NONE,
+      .edge_argument_count = 0u,
+      .logical_operator = W_SEED_HIR0_LOGICAL_NONE,
+      .source_span = statement->span};
+  if (call_index != W_SEED_HIR0_NONE)
+    context->output->calls[call_index].owner_terminator =
+        (uint32_t)invoke_block;
 }
 
 static size_t hir0_expression_layout_end_m2(const hir0_emit_context *context,
@@ -9382,6 +9705,12 @@ static void hir0_emit_chain_layout_m2(hir0_emit_context *context,
                statement->kind == W_SEED_FRONTEND_STMT_THROW) {
       if (statement->kind == W_SEED_FRONTEND_STMT_RETURN &&
           context->frontend->expressions[statement->expression_index].kind ==
+              W_SEED_FRONTEND_EXPR_TRY) {
+        hir0_emit_try_return_layout_m2(context, statement, current_block);
+        return;
+      }
+      if (statement->kind == W_SEED_FRONTEND_STMT_RETURN &&
+          context->frontend->expressions[statement->expression_index].kind ==
               W_SEED_FRONTEND_EXPR_SWITCH) {
         hir0_emit_switch_return_layout_m2(context, statement, current_block);
         return;
@@ -9512,6 +9841,9 @@ static size_t hir0_emit_expression_layout_m2(hir0_emit_context *context,
   if (source->kind == W_SEED_FRONTEND_EXPR_AWAIT)
     return hir0_emit_expression_layout_m2(context, source->left, current_block,
                                           statement_index, depth + 1u);
+  if (source->kind == W_SEED_FRONTEND_EXPR_TRY)
+    return hir0_emit_call_layout_m2(context, source->left, current_block,
+                                    statement_index, depth + 1u, true);
   if (source->kind == W_SEED_FRONTEND_EXPR_IF) {
     const size_t branch = hir0_emit_expression_layout_m2(
         context, source->left, current_block, statement_index, depth + 1u);
@@ -9578,7 +9910,7 @@ static size_t hir0_emit_expression_layout_m2(hir0_emit_context *context,
       return block;
     }
     return hir0_emit_call_layout_m2(context, expression, current_block,
-                                    statement_index, depth + 1u);
+                                    statement_index, depth + 1u, false);
   }
   if (source->kind == W_SEED_FRONTEND_EXPR_INTERPOLATED_STRING) {
     size_t block = current_block;
@@ -10960,6 +11292,11 @@ static void emit_records(const w_seed_hir0_input *input,
   for (size_t terminator = 0u; terminator < counts->terminators;
        terminator += 1u) {
     if (output->terminators[terminator].kind !=
+        W_SEED_HIR0_TERMINATOR_INVOKE) {
+      output->terminators[terminator].call_index = W_SEED_HIR0_NONE;
+      output->terminators[terminator].error_type = W_SEED_HIR0_NONE;
+    }
+    if (output->terminators[terminator].kind !=
         W_SEED_HIR0_TERMINATOR_SWITCH_ENUM) {
       output->terminators[terminator].switch_enum_index = W_SEED_HIR0_NONE;
       output->terminators[terminator].first_switch_edge = W_SEED_HIR0_NONE;
@@ -11239,6 +11576,7 @@ static void digest_program(const w_seed_hir0_program *program,
     const w_seed_hir0_call *value = &program->calls[index];
     HIR0_RECORD_TAG(8u);
     digest_u32(&state, value->owner_instruction);
+    digest_u32(&state, value->owner_terminator);
     digest_u32(&state, value->owner_block);
     digest_u32(&state, value->ordinal);
     digest_u32(&state, value->callee_identity);
@@ -11339,8 +11677,10 @@ static void digest_program(const w_seed_hir0_program *program,
     digest_u32(&state, value->owner_block);
     digest_u32(&state, (uint32_t)value->kind);
     digest_u32(&state, value->ordinal);
+    digest_u32(&state, value->call_index);
     digest_u32(&state, value->value_index);
     digest_u32(&state, value->result_type);
+    digest_u32(&state, value->error_type);
     digest_u32(&state, value->target_block);
     digest_u32(&state, value->else_block);
     digest_u32(&state, value->first_edge_argument);
@@ -12100,7 +12440,9 @@ static bool verify_block_argument_records(const w_seed_hir0_program *program) {
           &program->block_arguments[cursor + ordinal];
       if (argument->owner_block != block_index ||
           argument->ordinal != ordinal ||
-          (argument->type_index != 2u && argument->type_index != 3u) ||
+          !hir_type_index_valid(program, argument->type_index) ||
+          (argument->type_index < 4u && argument->type_index != 2u &&
+           argument->type_index != 3u) ||
           !span_valid(argument->source_span,
                       program->modules[module].source_length))
         return false;
@@ -12709,7 +13051,9 @@ static bool verify_value_tree(
 
   if (value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ) {
     if ((size_t)root_index != *value_cursor ||
-        (value->type_index != 2u && value->type_index != 3u) ||
+        !hir_type_index_valid(program, value->type_index) ||
+        (value->type_index < 4u && value->type_index != 2u &&
+         value->type_index != 3u) ||
         value->binding_index != W_SEED_HIR0_NONE ||
         value->parameter_index != W_SEED_HIR0_NONE ||
         value->call_index != W_SEED_HIR0_NONE ||
@@ -14165,6 +14509,137 @@ static bool verify_cfg_terminal_region(const w_seed_hir0_program *program,
           term->kind == W_SEED_HIR0_TERMINATOR_THROW);
 }
 
+/* A synchronous typed propagation slice is an invoke-owned three-block
+ * region.  The call descriptor is attached to the first block's INVOKE
+ * terminator; its normal and error successors each receive exactly one
+ * typed block argument and finish the function.  Keeping this proof separate
+ * from the structured branch verifier prevents a throwing call from being
+ * mistaken for an ordinary completed CALL instruction. */
+static bool verify_cfg_invoke(const w_seed_hir0_program *program,
+                              size_t function_index) {
+  if (program == NULL || function_index >= program->function_count)
+    return false;
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  if (function->block_count != 3u || program->block_count < 3u ||
+      function->first_block > program->block_count - 3u)
+    return false;
+  const size_t invoke_block = function->first_block;
+  const size_t normal_block = invoke_block + 1u;
+  const size_t error_block = invoke_block + 2u;
+  if (program->blocks[invoke_block].owner_function != function_index ||
+      program->blocks[normal_block].owner_function != function_index ||
+      program->blocks[error_block].owner_function != function_index)
+    return false;
+  const w_seed_hir0_block *invoke = &program->blocks[invoke_block];
+  const w_seed_hir0_block *normal = &program->blocks[normal_block];
+  const w_seed_hir0_block *error = &program->blocks[error_block];
+  const w_seed_hir0_terminator *invoke_term =
+      &program->terminators[invoke_block];
+  const w_seed_hir0_terminator *normal_term =
+      &program->terminators[normal_block];
+  const w_seed_hir0_terminator *error_term =
+      &program->terminators[error_block];
+  if (!function->is_throws || function->error_type == W_SEED_HIR0_NONE ||
+      !hir_type_index_valid(program, function->return_type) ||
+      (function->return_type < 4u && function->return_type != 2u &&
+       function->return_type != 3u) ||
+      !hir_type_index_valid(program, function->error_type) ||
+      program->types[function->error_type].kind != W_SEED_HIR0_TYPE_ENUM ||
+      invoke->instruction_count != 0u || normal->instruction_count != 0u ||
+      error->instruction_count != 0u || invoke->block_argument_count != 0u ||
+      invoke->first_block_argument != W_SEED_HIR0_NONE ||
+      invoke_term->owner_block != invoke_block ||
+      invoke_term->kind != W_SEED_HIR0_TERMINATOR_INVOKE ||
+      invoke_term->ordinal != invoke->instruction_count ||
+      invoke_term->call_index == W_SEED_HIR0_NONE ||
+      invoke_term->call_index >= program->call_count ||
+      invoke_term->value_index != W_SEED_HIR0_NONE ||
+      invoke_term->result_type != function->return_type ||
+      invoke_term->error_type != function->error_type ||
+      invoke_term->target_block != normal_block ||
+      invoke_term->else_block != error_block ||
+      invoke_term->first_edge_argument != W_SEED_HIR0_NONE ||
+      invoke_term->edge_argument_count != 0u ||
+      invoke_term->logical_operator != W_SEED_HIR0_LOGICAL_NONE ||
+      invoke_term->switch_enum_index != W_SEED_HIR0_NONE ||
+      invoke_term->first_switch_edge != W_SEED_HIR0_NONE ||
+      invoke_term->switch_edge_count != 0u ||
+      invoke_term->switch_carrier_width != 0u)
+    return false;
+  if (normal->block_argument_count != 1u ||
+      normal->first_block_argument == W_SEED_HIR0_NONE ||
+      error->block_argument_count != 1u ||
+      error->first_block_argument == W_SEED_HIR0_NONE ||
+      normal->first_block_argument >= program->block_argument_count ||
+      error->first_block_argument >= program->block_argument_count)
+    return false;
+  const w_seed_hir0_block_argument *normal_argument =
+      &program->block_arguments[normal->first_block_argument];
+  const w_seed_hir0_block_argument *error_argument =
+      &program->block_arguments[error->first_block_argument];
+  if (normal_argument->owner_block != normal_block ||
+      normal_argument->ordinal != 0u ||
+      normal_argument->type_index != function->return_type ||
+      error_argument->owner_block != error_block ||
+      error_argument->ordinal != 0u ||
+      error_argument->type_index != function->error_type ||
+      !span_equal(normal_argument->source_span, invoke_term->source_span) ||
+      !span_equal(error_argument->source_span, invoke_term->source_span))
+    return false;
+  if (normal_term->owner_block != normal_block ||
+      normal_term->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
+      normal_term->value_index == W_SEED_HIR0_NONE ||
+      normal_term->result_type != function->return_type ||
+      normal_term->call_index != W_SEED_HIR0_NONE ||
+      normal_term->error_type != W_SEED_HIR0_NONE ||
+      normal_term->target_block != W_SEED_HIR0_NONE ||
+      normal_term->else_block != W_SEED_HIR0_NONE ||
+      normal_term->first_edge_argument != W_SEED_HIR0_NONE ||
+      normal_term->edge_argument_count != 0u ||
+      normal_term->logical_operator != W_SEED_HIR0_LOGICAL_NONE ||
+      normal_term->switch_enum_index != W_SEED_HIR0_NONE ||
+      normal_term->first_switch_edge != W_SEED_HIR0_NONE ||
+      normal_term->switch_edge_count != 0u ||
+      normal_term->switch_carrier_width != 0u ||
+      error_term->owner_block != error_block ||
+      error_term->kind != W_SEED_HIR0_TERMINATOR_THROW ||
+      error_term->value_index == W_SEED_HIR0_NONE ||
+      error_term->result_type != function->error_type ||
+      error_term->call_index != W_SEED_HIR0_NONE ||
+      error_term->error_type != W_SEED_HIR0_NONE ||
+      error_term->target_block != W_SEED_HIR0_NONE ||
+      error_term->else_block != W_SEED_HIR0_NONE ||
+      error_term->first_edge_argument != W_SEED_HIR0_NONE ||
+      error_term->edge_argument_count != 0u ||
+      error_term->logical_operator != W_SEED_HIR0_LOGICAL_NONE ||
+      error_term->switch_enum_index != W_SEED_HIR0_NONE ||
+      error_term->first_switch_edge != W_SEED_HIR0_NONE ||
+      error_term->switch_edge_count != 0u ||
+      error_term->switch_carrier_width != 0u)
+    return false;
+  const w_seed_hir0_call *call = &program->calls[invoke_term->call_index];
+  if (call->owner_instruction != W_SEED_HIR0_NONE ||
+      call->owner_terminator != invoke_block ||
+      call->owner_block != invoke_block ||
+      call->execution_kind != W_SEED_HIR0_CALL_DIRECT ||
+      call->argument_count != 0u ||
+      call->result_type != function->return_type ||
+      call->callee_identity >= program->identity_count ||
+      program->identities[call->callee_identity].kind !=
+          W_SEED_HIR0_IDENTITY_FUNCTION ||
+      program->identities[call->callee_identity].target_index >=
+          program->function_count)
+    return false;
+  const w_seed_hir0_identity *identity =
+      &program->identities[call->callee_identity];
+  const w_seed_hir0_function *target =
+      &program->functions[identity->target_index];
+  return target->module_index == function->module_index &&
+         target->is_throws && !target->is_async &&
+         target->error_type == function->error_type &&
+         target->return_type == function->return_type;
+}
+
 static bool verify_cfg_function(const w_seed_hir0_program *program,
                                 size_t function_index) {
   if (program == NULL || function_index >= program->function_count) return false;
@@ -14175,6 +14650,10 @@ static bool verify_cfg_function(const w_seed_hir0_program *program,
       hir0_process_entry_function_index(program) == function_index)
     return verify_cfg_process_terminal_branch(program, function_index);
   const w_seed_hir0_function *function = &program->functions[function_index];
+  if (function->first_block < program->block_count &&
+      program->terminators[function->first_block].kind ==
+          W_SEED_HIR0_TERMINATOR_INVOKE)
+    return verify_cfg_invoke(program, function_index);
   if (function->first_block < program->block_count &&
       program->terminators[function->first_block].kind ==
           W_SEED_HIR0_TERMINATOR_BRANCH &&
@@ -14224,6 +14703,10 @@ static bool verify_logical_join_membership(
       hir0_process_entry_function_index(program) == function_index)
     return verify_cfg_process_terminal_branch(program, function_index);
   const w_seed_hir0_function *function = &program->functions[function_index];
+  if (function->first_block < program->block_count &&
+      program->terminators[function->first_block].kind ==
+          W_SEED_HIR0_TERMINATOR_INVOKE)
+    return verify_cfg_invoke(program, function_index);
   if (function->first_block < program->block_count &&
       program->terminators[function->first_block].kind ==
           W_SEED_HIR0_TERMINATOR_BRANCH &&
@@ -14660,6 +15143,7 @@ static bool hir0_terminator_kind_is_closed(w_seed_hir0_terminator_kind kind) {
     case W_SEED_HIR0_TERMINATOR_BRANCH:
     case W_SEED_HIR0_TERMINATOR_JUMP:
     case W_SEED_HIR0_TERMINATOR_SWITCH_ENUM:
+    case W_SEED_HIR0_TERMINATOR_INVOKE:
       return true;
     default:
       return false;
@@ -14721,6 +15205,24 @@ static uint32_t hir0_call_owner_function(const w_seed_hir0_program *program,
                                          size_t call_index) {
   if (program == NULL || call_index >= program->call_count) return W_SEED_HIR0_NONE;
   const w_seed_hir0_call *call = &program->calls[call_index];
+  if (call->owner_instruction == W_SEED_HIR0_NONE) {
+    if (call->owner_terminator == W_SEED_HIR0_NONE ||
+        call->owner_terminator >= program->terminator_count ||
+        call->owner_block >= program->block_count)
+      return W_SEED_HIR0_NONE;
+    const w_seed_hir0_terminator *terminator =
+        &program->terminators[call->owner_terminator];
+    if (terminator->kind != W_SEED_HIR0_TERMINATOR_INVOKE ||
+        terminator->call_index != call_index ||
+        terminator->owner_block != call->owner_block)
+      return W_SEED_HIR0_NONE;
+    const w_seed_hir0_block *block = &program->blocks[call->owner_block];
+    return block->owner_function < program->function_count
+               ? block->owner_function
+               : W_SEED_HIR0_NONE;
+  }
+  if (call->owner_terminator != W_SEED_HIR0_NONE)
+    return W_SEED_HIR0_NONE;
   if (call->owner_instruction >= program->instruction_count ||
       call->owner_block >= program->block_count)
     return W_SEED_HIR0_NONE;
@@ -15845,6 +16347,8 @@ static bool verify_records(const w_seed_hir0_program *program) {
       !verify_edge_argument_records(program))
     return false;
   size_t call_instruction_cursor = 0u;
+  size_t ordinary_call_count = 0u;
+  size_t invoke_call_cursor = 0u;
   size_t binding_instruction_cursor = 0u;
   size_t yield_instruction_count = 0u;
   for (size_t instruction = 0u; instruction < program->instruction_count;
@@ -15863,6 +16367,10 @@ static bool verify_records(const w_seed_hir0_program *program) {
                         .source_length))
       return false;
     if (value->kind == W_SEED_HIR0_INSTRUCTION_CALL) {
+      while (call_instruction_cursor < program->call_count &&
+             program->calls[call_instruction_cursor].owner_instruction ==
+                 W_SEED_HIR0_NONE)
+        call_instruction_cursor += 1u;
       if (value->call_index == W_SEED_HIR0_NONE ||
           (size_t)value->call_index >= program->call_count ||
           value->call_index != call_instruction_cursor ||
@@ -15870,6 +16378,7 @@ static bool verify_records(const w_seed_hir0_program *program) {
           program->calls[value->call_index].owner_instruction != instruction)
         return false;
       call_instruction_cursor += 1u;
+      ordinary_call_count += 1u;
     } else if (value->kind == W_SEED_HIR0_INSTRUCTION_BINDING) {
       if (value->binding_index == W_SEED_HIR0_NONE ||
           (size_t)value->binding_index >= program->binding_count ||
@@ -16005,7 +16514,7 @@ static bool verify_records(const w_seed_hir0_program *program) {
       return false;
     }
   }
-  if (call_instruction_cursor != program->call_count ||
+  if (call_instruction_cursor > program->call_count ||
       binding_instruction_cursor != program->binding_count ||
       call_instruction_cursor + binding_instruction_cursor +
               yield_instruction_count !=
@@ -16016,7 +16525,10 @@ static bool verify_records(const w_seed_hir0_program *program) {
   size_t call_argument_cursor = 0u;
   for (size_t call = 0u; call < program->call_count; call += 1u) {
     const w_seed_hir0_call *value = &program->calls[call];
-    if (value->owner_instruction >= program->instruction_count ||
+    const bool invoke_call = value->owner_instruction == W_SEED_HIR0_NONE;
+    if ((!invoke_call && value->owner_instruction >= program->instruction_count) ||
+        (invoke_call && (value->owner_terminator == W_SEED_HIR0_NONE ||
+                         value->owner_terminator >= program->terminator_count)) ||
         value->owner_block >= program->block_count ||
         value->callee_identity >= program->identity_count ||
          (value->result_type != 0u &&
@@ -16035,21 +16547,40 @@ static bool verify_records(const w_seed_hir0_program *program) {
                                          .module_index]
                         .source_length))
       return false;
-    const w_seed_hir0_instruction *instruction =
-        &program->instructions[value->owner_instruction];
+    const w_seed_hir0_instruction *instruction = NULL;
+    if (invoke_call) {
+      const w_seed_hir0_terminator *terminator =
+          &program->terminators[value->owner_terminator];
+      if (value->owner_terminator != value->owner_block ||
+          terminator->owner_block != value->owner_block ||
+          terminator->kind != W_SEED_HIR0_TERMINATOR_INVOKE ||
+          terminator->call_index != call ||
+          value->ordinal != program->blocks[value->owner_block]
+                                  .instruction_count)
+        return false;
+    } else {
+      if (value->owner_terminator != W_SEED_HIR0_NONE)
+        return false;
+      instruction = &program->instructions[value->owner_instruction];
+      if (instruction->kind != W_SEED_HIR0_INSTRUCTION_CALL ||
+          instruction->call_index != call ||
+          instruction->binding_index != W_SEED_HIR0_NONE ||
+          instruction->owner_block != value->owner_block ||
+          instruction->ordinal != value->ordinal ||
+          instruction->result_type != value->result_type)
+        return false;
+    }
     const w_seed_hir0_identity *identity = &program->identities[value->callee_identity];
     const bool host_call =
         identity->kind == W_SEED_HIR0_IDENTITY_HOST_PRELUDE;
     const bool local_call = identity->kind == W_SEED_HIR0_IDENTITY_FUNCTION;
-    if (instruction->kind != W_SEED_HIR0_INSTRUCTION_CALL ||
-        instruction->call_index != call ||
-        instruction->binding_index != W_SEED_HIR0_NONE ||
-        instruction->owner_block != value->owner_block ||
-        instruction->ordinal != value->ordinal ||
-        instruction->result_type != value->result_type ||
-        (!host_call && !local_call) ||
+    if ((!host_call && !local_call) ||
         identity->parameter_count != value->argument_count ||
         identity->return_type != value->result_type)
+      return false;
+    if (invoke_call &&
+        (value->execution_kind != W_SEED_HIR0_CALL_DIRECT || !local_call ||
+         value->argument_count != 0u || value->first_requirement != W_SEED_HIR0_NONE))
       return false;
     if (host_call) {
       if (value->callee_identity < host_base ||
@@ -16064,6 +16595,22 @@ static bool verify_records(const w_seed_hir0_program *program) {
                value->first_requirement != W_SEED_HIR0_NONE ||
                value->requirement_count != 0u) {
       return false;
+    }
+    if (local_call) {
+      const w_seed_hir0_function *target =
+          identity->target_index < program->function_count
+              ? &program->functions[identity->target_index]
+              : NULL;
+      const w_seed_hir0_function *owner_function =
+          &program->functions[program->blocks[value->owner_block]
+                                   .owner_function];
+      if (target == NULL ||
+          (invoke_call
+               ? (!owner_function->is_throws || !target->is_throws ||
+                  target->is_async ||
+                  target->error_type != owner_function->error_type)
+               : target->is_throws))
+        return false;
     }
     if (value->execution_kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED ||
         value->execution_kind ==
@@ -16284,6 +16831,10 @@ static bool verify_records(const w_seed_hir0_program *program) {
         value->ordinal != block->instruction_count ||
         !span_valid(value->source_span, source_length))
       return false;
+    if (value->kind != W_SEED_HIR0_TERMINATOR_INVOKE &&
+        (value->call_index != W_SEED_HIR0_NONE ||
+         value->error_type != W_SEED_HIR0_NONE))
+      return false;
     if ((uint32_t)value->logical_operator >
             (uint32_t)W_SEED_HIR0_LOGICAL_OR ||
         (value->kind != W_SEED_HIR0_TERMINATOR_BRANCH &&
@@ -16297,6 +16848,30 @@ static bool verify_records(const w_seed_hir0_program *program) {
           value->switch_edge_count != 0u ||
           value->switch_carrier_width != 0u)))
       return false;
+    if (value->kind == W_SEED_HIR0_TERMINATOR_INVOKE) {
+      if (value->call_index == W_SEED_HIR0_NONE ||
+          value->call_index >= program->call_count ||
+          value->value_index != W_SEED_HIR0_NONE ||
+          value->result_type == W_SEED_HIR0_NONE ||
+          !hir_type_index_valid(program, value->result_type) ||
+          (value->result_type < 4u && value->result_type != 2u &&
+           value->result_type != 3u) ||
+          value->error_type == W_SEED_HIR0_NONE ||
+          !hir_type_index_valid(program, value->error_type) ||
+          program->types[value->error_type].kind != W_SEED_HIR0_TYPE_ENUM ||
+          value->target_block == W_SEED_HIR0_NONE ||
+          value->else_block == W_SEED_HIR0_NONE ||
+          value->target_block >= program->block_count ||
+          value->else_block >= program->block_count ||
+          value->target_block == value->else_block ||
+          program->blocks[value->target_block].owner_function != function ||
+          program->blocks[value->else_block].owner_function != function ||
+          value->first_edge_argument != W_SEED_HIR0_NONE ||
+          value->edge_argument_count != 0u)
+        return false;
+      invoke_call_cursor += 1u;
+      continue;
+    }
     if (value->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
        if ((value->logical_operator == W_SEED_HIR0_LOGICAL_NONE
                ? (value->result_type != 0u && value->result_type != 2u &&
@@ -16545,11 +17120,14 @@ static bool verify_records(const w_seed_hir0_program *program) {
                        block->instruction_count),
             source_length, 0u, &value_cursor,
             &interpolation_segment_cursor, &value_byte_cursor) ||
-         !hir_type_assignable(program,
+      !hir_type_assignable(program,
                               program->values[value->value_index].type_index,
                               value->result_type))
       return false;
   }
+  if (invoke_call_cursor > program->call_count ||
+      ordinary_call_count != program->call_count - invoke_call_cursor)
+    return false;
   /* The bounded producer proves exact reachability from each function entry.
    * Contiguous arm ranges and forward joins prove acyclicity and common
    * postdominators outside the one exact natural-loop shape; that shape proves

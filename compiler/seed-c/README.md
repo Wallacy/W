@@ -220,6 +220,21 @@ conversions, non-direct or non-local calls, HIR/native lowering, catch, and
 cleanup remain unsupported. This is compiler-lifecycle correctness evidence,
 not a product or performance claim.
 
+Version 40 extends HIR0 with exact synchronous typed propagation. The
+terminator-owned W_SEED_HIR0_TERMINATOR_INVOKE owns the direct local call and
+routes to one normal successor and one typed-error successor. Each successor
+has one block argument at ordinal zero. The normal argument carries the
+function return type. The error argument carries the function error-enum type.
+
+The verified relay has exactly three empty blocks: invoke, normal return, and
+error throw. It has no ordinary CALL instruction, Task, heap object, or packed
+Result carrier. The HIR verifier checks the complete ownership, target, type,
+span, range, capacity, alias, and digest relations. ProductClosure0 rejects
+INVOKE because this slice has no MLIR, native, or public lowering. Catch,
+cleanup, conversions, general propagation, public ABI, benchmarks, and
+performance remain unsupported. This is source-backed-current evidence only
+for verified HIR.
+
 `w_seed_accelerated_invocation0` consumes only that successful Frontend28
 relation plus a verified `w_seed_gpu_module` program. ACCINV0 copies one exact
 zero-argument static launch and lexical await into caller-owned invocation and
