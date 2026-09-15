@@ -130,6 +130,28 @@ typedef struct {
   bool post_test_loop_functions[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS];
 } w_seed_native_subset0_process;
 
+/* Private compiler-lifecycle selector for the exact HIR40 synchronous typed
+ * propagation witness.  The selector publishes borrowed records only.  It
+ * does not define a public throwing ABI or a process exit policy. */
+typedef struct {
+  const w_seed_hir0_entry *entry;
+  const w_seed_hir0_function *leaf_function;
+  const w_seed_hir0_function *relay_function;
+  const w_seed_hir0_terminator *leaf_throw;
+  const w_seed_hir0_terminator *invoke;
+  const w_seed_hir0_terminator *normal_return;
+  const w_seed_hir0_terminator *error_throw;
+  uint32_t entry_function_index;
+  uint32_t leaf_function_index;
+  uint32_t relay_function_index;
+  uint32_t invoke_block_index;
+  uint32_t normal_block_index;
+  uint32_t error_block_index;
+  uint32_t error_type_index;
+  uint32_t error_enum_index;
+  uint32_t error_case_index;
+} w_seed_native_subset0_typed_propagation;
+
 w_seed_native_subset0_status w_seed_native_subset0_select(
     const w_seed_hir0_program *program,
     const w_seed_hir0_result *hir_result,
@@ -172,6 +194,21 @@ w_seed_native_subset0_select_process_parallel(
     const w_seed_hir0_result *hir_result,
     const w_seed_parallel_selection0 *parallel_selection,
     w_seed_native_subset0_process *selection);
+
+/* Select only the exact private one-case typed propagation witness.  This
+ * route is separate from select_program and cannot create an executable. */
+w_seed_native_subset0_status
+w_seed_native_subset0_select_typed_propagation(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    w_seed_native_subset0_typed_propagation *selection);
+
+/* Re-derive the private selection from verified HIR without trusting copied
+ * pointers or indices in the supplied selection. */
+bool w_seed_native_subset0_verify_typed_propagation(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    const w_seed_native_subset0_typed_propagation *selection);
 
 /* Select the target-neutral closed cooperative product shape. This is only
  * an admission record for a future emitter; it does not emit or execute. */

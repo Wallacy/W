@@ -9672,6 +9672,58 @@
       }
     ],
     "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
-  }
+    },
+    {
+      "id": "R0-mlir0-typed-propagation",
+      "reviewItem": "private exact typed-propagation MLIR lowering against a wider carrier, LLVM unwind, public ABI publication, unverified text emission, and fail-open ordinary products",
+      "decisions": ["W-1617"],
+      "task": "Lower the exact verified HIR40 invoke relay into optimizer-visible LLVM dialect control flow without freezing a public error ABI.",
+      "selected": {
+        "language": "w-internal",
+        "source": [
+          "private carrier = !llvm.struct<(i1, i64)> for one payloadless Failure.denied case",
+          "relay = llvm.call + extractvalue + llvm.cond_br to distinct normal and error blocks",
+          "dedicated measure/emit/verify APIs; ordinary product route remains rejected"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "three-field-carrier",
+          "language": "w-internal-rejected",
+          "source": ["carrier stores success, normal payload, and a separate error-case field"],
+          "expectedDifference": "The exact one-case error enum needs only an outcome bit and the normal i64 payload."
+        },
+        {
+          "name": "llvm-unwind",
+          "language": "w-internal-rejected",
+          "source": ["typed W failure lowers through llvm.invoke and an unwind edge"],
+          "expectedDifference": "Recoverable typed failure is explicit data and CFG, not platform exception unwinding."
+        },
+        {
+          "name": "public-error-abi",
+          "language": "w-internal-rejected",
+          "source": ["publish the private aggregate as W's stable enum or cross-module ABI"],
+          "expectedDifference": "The carrier is an optimizer-local experiment and freezes no public representation."
+        },
+        {
+          "name": "unverified-literal-emission",
+          "language": "w-internal-rejected",
+          "source": ["emit the known MLIR text without selecting and re-verifying the exact HIR program"],
+          "expectedDifference": "The dedicated route derives and verifies the exact HIR relation before measuring or publishing bytes."
+        },
+        {
+          "name": "ordinary-product-acceptance",
+          "language": "w-internal-rejected",
+          "source": ["allow the ordinary MLIR, native, or ProductClosure route to accept the throwing graph"],
+          "expectedDifference": "Only the private compiler-lifecycle adapter accepts the exact witness; product routes stay fail-closed."
+        }
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
+    }
   ]
 }

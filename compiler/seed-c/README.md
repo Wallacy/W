@@ -235,6 +235,24 @@ cleanup, conversions, general propagation, public ABI, benchmarks, and
 performance remain unsupported. This is source-backed-current evidence only
 for verified HIR.
 
+W-1617 adds a separate compiler-lifecycle MLIR adapter for that exact relay.
+It emits a private `!llvm.struct<(i1, i64)>` carrier, where zero is success,
+one is the only payloadless `Failure.denied` case, and the `i64` field carries
+the normal value. The relay uses a real `llvm.call`, extracts the two fields,
+and branches into explicit normal and error blocks. The same target-neutral
+text is produced for the current Linux and Windows selectors.
+
+`w_seed_mlir0_measure_typed_propagation`,
+`w_seed_mlir0_emit_typed_propagation`, and
+`w_seed_mlir0_verify_typed_propagation` are bounded, caller-owned,
+transactional, alias-safe, and digest-bound. The test binary's private
+`--emit-typed-propagation` mode lets repository tooling pass the exact output
+through `mlir-opt` and `mlir-translate`; it is not a public W command. The
+artifact has no unwind edge, Task, heap allocation, process root, `main`, or
+public ABI, and ordinary product selectors still reject it. Native product
+execution, catch, cleanup, conversions, general errors, benchmarks, and
+performance remain gaps.
+
 `w_seed_accelerated_invocation0` consumes only that successful Frontend28
 relation plus a verified `w_seed_gpu_module` program. ACCINV0 copies one exact
 zero-argument static launch and lexical await into caller-owned invocation and

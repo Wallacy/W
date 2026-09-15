@@ -292,11 +292,35 @@ try {
     "w_seed_mlir0_tests", "w_seed_mlir0_gate", "--parallel", "2"], root,
   "seed build", toolchainEnvironment)
 
-  const unit = run(resolve(buildDirectory, `w_seed_mlir0_tests${suffix}`), [])
+  const unitPath = resolve(buildDirectory, `w_seed_mlir0_tests${suffix}`)
+  const unit = run(unitPath, [])
   assert(unit.exitCode === 0, `unit tests failed: ${unit.stderrText}`)
   assert(unit.stderr.length === 0 &&
     unit.stdoutText.includes("verified HIR0 native subset"),
   "unit witness is missing or wrote to stderr")
+
+  const typedPropagation = run(unitPath, ["--emit-typed-propagation"])
+  assert(typedPropagation.exitCode === 0,
+    `typed propagation probe failed: ${typedPropagation.stderrText}`)
+  assert(typedPropagation.stderr.length === 0 && typedPropagation.stdout.length > 0,
+    "typed propagation probe did not emit one silent MLIR artifact")
+  const typedInput = resolve(artifactDirectory, "typed-propagation.mlir")
+  const typedVerified = resolve(artifactDirectory,
+    "typed-propagation.verified.mlir")
+  const typedLlvm = resolve(artifactDirectory, "typed-propagation.ll")
+  await writeFile(typedInput, typedPropagation.stdout)
+  const typedInputForTool = isWindows ? wslPath(typedInput) : typedInput
+  const typedVerifiedForTool = isWindows ? wslPath(typedVerified) : typedVerified
+  const typedLlvmForTool = isWindows ? wslPath(typedLlvm) : typedLlvm
+  invokeTool(tool("mlirOpt"), [typedInputForTool, "-o", typedVerifiedForTool,
+    "--verify-each"], "typed propagation mlir-opt")
+  invokeTool(tool("mlirTranslate"), ["--mlir-to-llvmir", typedVerifiedForTool,
+    "-o", typedLlvmForTool], "typed propagation mlir-translate")
+  const typedLlvmText = await readFile(typedLlvm, "utf8")
+  assert(typedLlvmText.includes("define internal { i1, i64 } @w_seed_typed_leaf") &&
+    typedLlvmText.includes("call { i1, i64 } @w_seed_typed_leaf") &&
+    typedLlvmText.includes("br i1") && !typedLlvmText.includes("invoke "),
+  "typed propagation LLVM translation lost the compact call/branch carrier")
 
   const seedGate = resolve(buildDirectory, `w_seed_mlir0_gate${suffix}`)
   const restaurantPath = resolve(artifactDirectory, "restaurant.w")

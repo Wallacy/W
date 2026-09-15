@@ -136,7 +136,7 @@ error enum. Async and spawn owners carry the thrown outcome without `try`, but
 HIR/native lowering, catch, cleanup, conversions, and optional or async `try`
 remain unsupported.
 
-W-1616 now carries the exact synchronous relation into HIR40. One
+W-1616 carries the exact synchronous relation into HIR40. One
 terminator-owned W_SEED_HIR0_TERMINATOR_INVOKE owns the direct local call and
 routes to normal and typed-error successor blocks with one typed block
 argument each. The verifier proves the exact three-block relay and rejects
@@ -147,7 +147,15 @@ only for verified HIR. MLIR/native lowering, public ABI, catch, cleanup,
 conversions, and performance remain gaps. Its benchmarkDisposition is
 compiler-lifecycle.
 
-Next comes continuation-safe cleanup and downstream propagation, then an
+W-1617 carries that relay across the first downstream compiler boundary. A
+dedicated private selector emits an optimizer-visible
+`!llvm.struct<(i1, i64)>` carrier, a real `llvm.call`, extracted outcome and
+payload, and explicit normal/error branches. MLIR/LLVM 23.1.1 accepts and
+translates the artifact. The carrier is not a public ABI; there is no unwind,
+Task, heap, process root, native product, or benchmark claim, and ordinary
+product routes remain fail-closed.
+
+Next comes continuation-safe cleanup on both typed paths, then an
 authenticated typed provider result and TASKLIFE binding, followed by an
 explicit panic boundary.
 Physical cancellation remains cooperative rather than thread termination.
