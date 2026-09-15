@@ -10054,6 +10054,59 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-source-panic-hir0",
+      "reviewItem": "source panic lowering against ordinary-call encoding, unrestricted message shapes, bottom-type poisoning, text-layout overlap, and runtime overclaim",
+      "decisions": ["W-1624"],
+      "task": "Lower the first bounded source panic form into independently verified HIR without claiming execution or public runtime behavior.",
+      "selected": {
+        "language": "w-internal",
+        "source": [
+          "the parser owns panic as a dedicated expression rather than an ordinary postfix call",
+          "the frontend admits exactly one unlabelled plain String literal and records Never as bottom flow",
+          "HIR0 copies the message and emits one closed PANIC terminator with no ordinary call or instruction",
+          "verification closes code, value ownership, type, ranges, receipts, digests, and disjoint Never/usize layout"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "panic-as-call",
+          "language": "w-internal-rejected",
+          "source": ["lower panic through the ordinary call ABI"],
+          "expectedDifference": "Panic is a control-flow terminator and cannot be mistaken for a recoverable function result."
+        },
+        {
+          "name": "never-equals-every-type",
+          "language": "w-internal-rejected",
+          "source": ["make Never globally equal to every expected type"],
+          "expectedDifference": "Never satisfies terminal flow without weakening ordinary type equality."
+        },
+        {
+          "name": "unbounded-message-surface",
+          "language": "w-internal-rejected",
+          "source": ["accept labelled, interpolated, computed, zero, or multiple panic messages in PANIC0"],
+          "expectedDifference": "The first verified slice accepts one bounded plain literal and fails closed on every other shape."
+        },
+        {
+          "name": "shared-never-usize-text",
+          "language": "w-internal-rejected",
+          "source": ["reuse or overwrite the canonical Never text range with native-process usize"],
+          "expectedDifference": "Canonical type names occupy disjoint stable ranges and are checked together by the process witness."
+        },
+        {
+          "name": "hir-equals-execution",
+          "language": "w-internal-rejected",
+          "source": ["claim PanicEvent delivery or physical fault-boundary teardown from HIR publication"],
+          "expectedDifference": "PANIC0 stops at verified HIR; MLIR/native lowering and runtime containment remain explicit gaps."
+        }
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

@@ -1630,6 +1630,86 @@ static bool lower_single_print_host(const char *source) {
   return true;
 }
 
+static bool test_explicit_panic_hir(void) {
+  static const char SOURCE[] =
+      "fn f(): i64 { panic(\"bounded literal\") }\n"
+      "fn main() { }\n"
+      "entry(main)\n";
+  CHECK(lower(SOURCE));
+  CHECK(fixture.hir_program.type_count == 5u &&
+        fixture.hir_program.function_count == 2u &&
+        fixture.hir_program.block_count == 2u &&
+        fixture.hir_program.instruction_count == 0u &&
+        fixture.hir_program.call_count == 0u &&
+        fixture.hir_program.argument_count == 0u &&
+        fixture.hir_program.value_count == 1u &&
+        fixture.hir_program.terminator_count == 2u);
+  const w_seed_hir0_function *function = &fixture.hir_program.functions[0];
+  CHECK(function->return_type == W_SEED_HIR0_TYPE_I64);
+  const w_seed_hir0_terminator *terminator =
+      &fixture.hir_program.terminators[0];
+  CHECK(terminator->kind == W_SEED_HIR0_TERMINATOR_PANIC &&
+        terminator->panic_code == W_SEED_HIR0_PANIC_CODE_EXPLICIT &&
+        terminator->call_index == W_SEED_HIR0_NONE &&
+        terminator->result_type == 4u &&
+        fixture.hir_program.types[terminator->result_type].kind ==
+            W_SEED_HIR0_TYPE_NEVER &&
+        terminator->value_index == 0u);
+  const w_seed_hir0_value *message =
+      &fixture.hir_program.values[terminator->value_index];
+  CHECK(message->kind == W_SEED_HIR0_VALUE_CONST_STRING &&
+        message->owner_kind == W_SEED_HIR0_VALUE_OWNER_TERMINATOR &&
+        message->owner_index == 0u && message->owner_ordinal == 0u &&
+        message->type_index == W_SEED_HIR0_TYPE_STRING &&
+        message->byte_offset == 0u && message->byte_count == 15u &&
+        memcmp(fixture.hir_program.value_bytes, "bounded literal", 15u) == 0);
+  const w_seed_hir0_panic_code saved_code = terminator->panic_code;
+  fixture.hir_terminators[0].panic_code = W_SEED_HIR0_PANIC_CODE_INVALID;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_terminators[0].panic_code = saved_code;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_terminators[1].panic_code = W_SEED_HIR0_PANIC_CODE_EXPLICIT;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_terminators[1].panic_code = W_SEED_HIR0_PANIC_CODE_INVALID;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  uint8_t semantic_digest[32];
+  (void)memcpy(semantic_digest, fixture.hir_result.semantic_digest,
+               sizeof(semantic_digest));
+  static const char DIFFERENT_MESSAGE[] =
+      "fn f(): i64 { panic(\"different literal\") }\n"
+      "fn main() { }\n"
+      "entry(main)\n";
+  CHECK(lower(DIFFERENT_MESSAGE));
+  CHECK(memcmp(semantic_digest, fixture.hir_result.semantic_digest,
+               sizeof(semantic_digest)) != 0);
+  return true;
+}
+
+static bool expect_panic_source_rejected(const char *panic_expression) {
+  char source[256];
+  const int written = snprintf(source, sizeof(source),
+                               "fn f(): i64 { %s }\n"
+                               "fn main() { }\n"
+                               "entry(main)\n",
+                               panic_expression);
+  CHECK(written > 0 && (size_t)written < sizeof(source));
+  CHECK(fixture_parse(source));
+  configure_host();
+  CHECK(w_seed_frontend_run(&fixture.input, &fixture.output,
+                            &fixture.result) != W_SEED_FRONTEND_OK);
+  return true;
+}
+
+static bool test_explicit_panic_rejections(void) {
+  CHECK(expect_panic_source_rejected("panic()"));
+  CHECK(expect_panic_source_rejected("panic(\"a\", \"b\")"));
+  CHECK(expect_panic_source_rejected("panic(message: \"a\")"));
+  CHECK(expect_panic_source_rejected("panic(1)"));
+  CHECK(expect_panic_source_rejected("panic(\"value ${1}\")"));
+  return true;
+}
+
 static bool lower_parallel_domain(const char *source) {
   CHECK(fixture_parallel_domain_frontend(
       source, W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL));
@@ -1728,6 +1808,31 @@ static bool lower_process_input0_generic(const char *source) {
                                         &fixture.hir_program));
   CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   fixture.hir_counts = measured;
+  return true;
+}
+
+static bool test_explicit_panic_process_layout(void) {
+  static const char SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { panic(\"process failed\") }\n"
+      "entry(run)\n";
+  CHECK(lower_process_input0_generic(SOURCE));
+  CHECK(fixture.hir_program.type_count == 9u &&
+        fixture.hir_program.types[7].kind == W_SEED_HIR0_TYPE_NEVER &&
+        fixture.hir_program.types[8].kind == W_SEED_HIR0_TYPE_USIZE &&
+        fixture.hir_program.terminator_count == 1u &&
+        fixture.hir_program.terminators[0].kind ==
+            W_SEED_HIR0_TERMINATOR_PANIC &&
+        fixture.hir_program.call_count == 0u &&
+        fixture.hir_program.instruction_count == 0u);
+  CHECK(memcmp(fixture.hir_program.text_bytes +
+                   fixture.hir_program.types[7].name.offset,
+               "Never", 5u) == 0 &&
+        memcmp(fixture.hir_program.text_bytes +
+                   fixture.hir_program.types[8].name.offset,
+               "usize", 5u) == 0);
   return true;
 }
 
@@ -10781,8 +10886,11 @@ int main(int argc, char **argv) {
   if (argc != 1) return 2;
   if (!test_scalar_evaluator_edges()) return 1;
   if (!test_frontend_inferred_call_interpolation()) return 1;
+  if (!test_explicit_panic_hir()) return 1;
+  if (!test_explicit_panic_rejections()) return 1;
   if (!test_process_hir()) return 1;
   if (!test_process_input0_hir()) return 1;
+  if (!test_explicit_panic_process_layout()) return 1;
   if (!test_process_arguments_count_hir()) return 1;
   if (!test_process_hir_adversarial()) return 1;
   if (!test_direct_entry_facts()) return 1;

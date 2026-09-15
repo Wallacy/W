@@ -569,6 +569,7 @@ static bool parse_pipeline_call_step(w_seed_parser *parser);
 static bool parse_pipeline_chain(w_seed_parser *parser);
 static bool parse_primary(w_seed_parser *parser, bool value_context);
 static bool parse_argument(w_seed_parser *parser);
+static bool parse_panic_expression(w_seed_parser *parser);
 
 static bool parse_pipeline_expression(w_seed_parser *parser,
                                       bool value_context);
@@ -1300,6 +1301,42 @@ static bool parse_capture_expression(w_seed_parser *parser, bool value_context) 
   return true;
 }
 
+/* `panic(...)` is a source-level owner rather than an ordinary postfix call.
+ * Keep the parser permissive about its argument shape; the frontend owns the
+ * bounded semantic admission and records unsupported shapes explicitly. */
+static bool parse_panic_expression(w_seed_parser *parser) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_PANIC_EXPRESSION, start) ==
+      W_SEED_CST_NONE)
+    return false;
+  (void)consume_text(parser, "panic", NULL);
+  if (!expect_text(parser, "(", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  if (!current_is_text(parser, ")")) {
+    if (!parse_argument(parser)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+    while (current_is_text(parser, ",")) {
+      (void)consume_text(parser, ",", NULL);
+      if (current_is_text(parser, ")")) break;
+      if (!parse_argument(parser)) {
+        pop_node(parser,
+                 parser->has_last_token ? parser->last_token_end : start);
+        return false;
+      }
+    }
+  }
+  if (!expect_text(parser, ")", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  pop_node(parser, parser->last_token_end);
+  return true;
+}
+
 static bool parse_primary(w_seed_parser *parser, bool value_context) {
   if (!skip_trivia(parser) || current_is_eof(parser)) return false;
   if (current_is_text(parser, "switch")) {
@@ -1337,6 +1374,9 @@ static bool parse_primary(w_seed_parser *parser, bool value_context) {
   }
   if (current_is_text(parser, "<") && next_adjacent_is_text(parser, "[")) {
     return parse_capture_expression(parser, value_context);
+  }
+  if (current_is_text(parser, "panic") && next_is_text(parser, "(")) {
+    return parse_panic_expression(parser);
   }
   if (current_is_kind(parser, W_SEED_LEX_ITEM_WORD) ||
       current_is_kind(parser, W_SEED_LEX_ITEM_NUMBER) ||

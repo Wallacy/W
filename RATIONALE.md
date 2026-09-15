@@ -262,6 +262,7 @@ O corpus compara, no mínimo:
 - local provider admission against callback authentication, caller-selected trust roots, semantic identity pollution, and partial publication.
 - explicit parallel panic signaling against panic-to-error conversion, wave-order ambiguity, semantic publication, and false physical-containment claims.
 - private root-child panic containment against forged wire evidence, partial publication, input alias corruption, unproved teardown, and descendant-tree overclaim.
+- source panic lowering against ordinary-call encoding, unrestricted message shapes, bottom-type poisoning, text-layout overlap, and runtime overclaim.
 - bounded dual-target process/parallel linkage against direct-call substitution, CRT fallback, hidden runtime input, target conflation, and premature public or benchmark claims.
 - bounded GPU0 target-neutral semantic and available CUDA execution against source-backed W claims, provider/runtime conflation, homogeneous toolchains, and premature public product support.
 - bounded static accelerated root binding against embedded provider handles, multiplied budgets, and unauthenticated claims.
@@ -7958,8 +7959,9 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1619 | integrity-bound typed provider completion | PARBIND1 independently verifies HIR41, derives the payloadless nominal error identity, and validates two lexically ordered PLATFORM1 completions against distinct HIR calls. Semantic records remain byte-identical across provider capacities one and two; physical facts are isolated in a provenance receipt that does not claim provider authentication. | `source-backed-current` only for the exact two-child Windows x64 seed witness, independent success evaluation, ordinal-to-nominal-error validation, dual-path cleanup requirement, caller-owned transactional publication, alias/capacity/forgery barriers, and capacity-one/two semantic equality. The two-child shape is not a language, HIR, scheduler, ABI, or runtime limit. External cryptographic provider attestation, native HIR execution, typed TASKLIFE, other platforms, public products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1620 | caller-owned typed TASKLIFE bridge | The separate target-neutral bridge consumes a fully verified PARBIND1 result for the exact two-task seed witness and builds a 22-event transaction. Task 0 is success. Task 1 maps nominal `Failure.denied` to TASKLIFE's internal generic `BODY` error while a typed sidecar and result retain the exact nominal identity. Cleanup precedes outcome commit, late fail-fast cancellation names task 1, and the joined scope commits the consumed error. Capacities one and two produce byte-identical semantic task, trace, typed-sidecar, and semantic-digest outputs while physical provenance differs. | `source-backed-current` only for the caller-owned typed bridge, exact two-task/22-event witness, generic reducer mapping with nominal sidecar preservation, cleanup-before-commit and late cancellation ordering, joined consumed-error scope, transactional output, alias/capacity/forgery/generation barriers, capacity-one/two semantic equality, and explicit proof-index versus Task-handle width separation. The `u32` fields are serialized proof indices/counts and do not define Task handle width. A future materialized Task handle is opaque and target-specialized; one native word is the baseline, while lowering may elide it or prove a narrower representation more efficient. No 32-bit constraint or cost is imposed on 64-bit. Public Task/runtime contracts, general cardinality, ABI, native HIR execution, external cryptographic provider attestation, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1621 | compiler-owned local provider admission | LOCALPROV1 opens one process-local opaque authority for the statically linked Windows x64 PLATFORM1 provider. PARBIND1 requires that authority and invokes the provider through the compiler-owned wrapper, binding target, domain, profile, identity, generation, assurance, and contract digest only into provenance. The callback remains an untrusted task-body adapter whose results are independently checked against HIR. | `source-backed-current` only for exact local static selection, authority revalidation before and after execution, provider-descriptor matching, target/domain/profile/identity/generation binding, caller-owned transactional PARBIND1 publication, authority/input alias rejection, and forged or unsupported authority tests. This is local admission, not binary authentication, a signature, registry attestation, rotation, revocation, freshness, native HIR execution, public capability, Task ABI, benchmark, or performance evidence. `benchmarkDisposition: compiler-lifecycle`. |
-| W-1622 | explicit parallel panic signal | PLATFORM1 carries panic as a distinct closed completion with an allocation-free code. Panic dominates recoverable error or cancellation in the same wave, records its lexical source, and cancels later unstarted tasks with a distinct boundary reason. PARBIND1 revalidates local authority and HIR, then returns a private panic signal without publishing semantic outcomes. | `source-backed-current` only for the private Windows x64 completion tag/code/receipt, deterministic same-wave dominance, unstarted-task cancellation, malformed-code rejection, PARBIND1 non-publication, and focused C23 tests. Source panic lowering, PanicEvent payloads, physical process/Wasm/compartment teardown, hardware-fault containment, cleanup guarantees, public Task/runtime ABI, other providers/targets, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
-| W-1623 | bounded private Windows x64 panic-boundary root-child containment | PANICBOUNDARY1 is a private compiler-lifecycle witness for one Windows x64 root child. A trusted private helper owns the verified HIR/PARBIND witness, emits one fixed big-endian, versioned frame, and remains alive while the parent proves the root child live, explicitly terminates and bounded-joins it, revalidates immutable HIR/PARBIND/authority inputs, and publishes a receipt transactionally. The unkeyed SHA-256 digest provides integrity and correlation only, not authentication; the helper is trusted private witness code, and the Job Object does not prove descendant-tree drain. | `source-backed-current` only for private Windows x64 root-child liveness, explicit termination, bounded join, fixed frame transport, immutable-input revalidation, transactional receipt publication, and focused C23 evidence. Source panic/PanicEvent, public Task/runtime/ABI/product behavior, hardware faults, cleanup/restart/supervision, descendants, other targets/providers, native HIR child execution, attestation, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1622 | explicit parallel panic signal | PLATFORM1 carries panic as a distinct closed completion with an allocation-free code. Panic dominates recoverable error or cancellation in the same wave, records its lexical source, and cancels later unstarted tasks with a distinct boundary reason. PARBIND1 revalidates local authority and HIR, then returns a private panic signal without publishing semantic outcomes. | `source-backed-current` only for the private Windows x64 completion tag/code/receipt, deterministic same-wave dominance, unstarted-task cancellation, malformed-code rejection, PARBIND1 non-publication, and focused C23 tests. Consumption of the verified-HIR panic terminator, PanicEvent payloads, physical process/Wasm/compartment teardown, hardware-fault containment, cleanup guarantees, public Task/runtime ABI, other providers/targets, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1623 | bounded private Windows x64 panic-boundary root-child containment | PANICBOUNDARY1 is a private compiler-lifecycle witness for one Windows x64 root child. A trusted private helper owns the verified HIR/PARBIND witness, emits one fixed big-endian, versioned frame, and remains alive while the parent proves the root child live, explicitly terminates and bounded-joins it, revalidates immutable HIR/PARBIND/authority inputs, and publishes a receipt transactionally. The unkeyed SHA-256 digest provides integrity and correlation only, not authentication; the helper is trusted private witness code, and the Job Object does not prove descendant-tree drain. | `source-backed-current` only for private Windows x64 root-child liveness, explicit termination, bounded join, fixed frame transport, immutable-input revalidation, transactional receipt publication, and focused C23 evidence. Source-panic execution and PanicEvent materialization, public Task/runtime/ABI/product behavior, hardware faults, cleanup/restart/supervision, descendants, other targets/providers, native HIR child execution, attestation, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1624 | bounded source panic to verified HIR0 | PANIC0 recognizes source `panic` as a dedicated owner and lowers exactly one unlabelled plain String literal to a verified HIR0 `PANIC` terminator with `Never` result, copied message value, closed explicit code, semantic/provenance digests, and no ordinary call or instruction. Invalid shapes fail closed and native-process `usize` remains disjoint from `Never`. | `source-backed-current` only for parser/frontend/HIR0 measure-run-verify, the exact literal shape, bottom-path completion, caller-owned transactional buffers, digest/receipt coverage, native-process layout coexistence, and focused C23 tests. Panic execution, `PanicEvent`, cleanup, boundary selection, teardown/restart, public Task/runtime ABI, MLIR/native lowering, other message forms, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -13429,8 +13431,9 @@ evidence covers same-wave error-plus-panic dominance, later cancellation,
 invalid panic codes, and byte-preserving PARBIND1 rejection.
 
 This is only a bounded signal from the current Windows x64 provider to its
-future fault-boundary controller. It does not lower source `panic`, materialize
-the bounded `PanicEvent`, terminate or restart a process/Wasm/compartment,
+future fault-boundary controller. It does not consume the verified-HIR `panic`
+terminator, materialize the bounded `PanicEvent`, terminate or restart a
+process/Wasm/compartment,
 contain hardware faults, guarantee user cleanup, publish an ABI, or establish
 performance. A later product slice must consume the signal and perform physical
 teardown; claiming containment before that would be false.
@@ -13439,7 +13442,7 @@ teardown; claiming containment before that would be false.
 
 PANICBOUNDARY1 is the first private process boundary for the W-1622 panic
 signal. It is a compiler-lifecycle witness for one Windows x64 root child, not
-source panic execution or a public runtime boundary. A trusted private helper
+source-panic execution or a public runtime boundary. A trusted private helper
 owns the verified HIR/PARBIND witness and emits one fixed big-endian,
 versioned frame. The parent proves the root child is live, explicitly
 terminates it, bounded-joins it, revalidates immutable HIR, PARBIND, and
@@ -13454,8 +13457,31 @@ The receipt therefore claims root-child liveness, termination, bounded join,
 and handle closure only.
 
 This is source-backed-current only for the bounded private Windows x64
-root-child route and its focused C23 evidence. Source `panic` and `PanicEvent`,
-public Task/runtime/ABI/product behavior, hardware-fault containment,
+root-child route and its focused C23 evidence. Source-panic execution and
+`PanicEvent`, public Task/runtime/ABI/product behavior, hardware-fault containment,
 cleanup/restart/supervision, descendant handling, other targets or providers,
 native HIR child execution, attestation, benchmarks, and performance remain
 gaps.
+
+#### W-1624 — bounded source panic to verified HIR0
+
+The physical panic work previously began downstream of source semantics: the
+parallel provider could transport a private panic signal and PANICBOUNDARY1
+could contain one synthetic root child, but neither proved that a W
+`panic(...)` reached HIR without being mistaken for a recoverable call.
+
+PANIC0 therefore closes the smallest upstream slice. The parser gives `panic`
+a dedicated CST owner. The frontend accepts exactly one unlabelled plain
+String literal, records `Never`, and rejects all other argument shapes. HIR0
+copies the message into its own value bytes and emits a dedicated `PANIC`
+terminator. No call or instruction is synthesized. The verifier independently
+reconstructs the value/terminator/type relation and checks schema, ranges,
+receipt, and semantic/provenance digests. A focused native-process case also
+guards the physical text layout of `Never` beside `usize`.
+
+This establishes source-to-verified-HIR evidence only. Keeping execution out
+of the same slice is intentional: otherwise a passing synthetic child boundary
+could be mistaken for a source panic implementation. MLIR/native lowering,
+`PanicEvent`, cleanup ordering, nearest-boundary selection, process/Wasm/
+compartment teardown, restart/supervision, public runtime/ABI behavior,
+benchmarks, and performance remain open.

@@ -2819,6 +2819,9 @@ static fingerprint_encode_status fingerprint_type(
     case W_SEED_FRONTEND_TYPE_STRING:
       fingerprint_u8(builder, 3u);
       return FINGERPRINT_ENCODED;
+    case W_SEED_FRONTEND_TYPE_NEVER:
+      fingerprint_u8(builder, 13u);
+      return FINGERPRINT_ENCODED;
     case W_SEED_FRONTEND_TYPE_BYTES:
       fingerprint_u8(builder, 4u);
       return FINGERPRINT_ENCODED;

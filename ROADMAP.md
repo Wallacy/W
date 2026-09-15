@@ -226,8 +226,8 @@ W-1622 adds a distinct private panic completion and fail-closed PARBIND1 signal.
 It preserves an allocation-free panic code, makes panic dominate recoverable
 outcomes settled in the same wave, and publishes no semantic task result. The
 next slice must consume that signal at a real process/Wasm/compartment boundary
-and perform physical teardown; source panic lowering and `PanicEvent` remain
-open. Physical cancellation remains cooperative rather than thread
+and perform physical teardown; verified-HIR panic consumption, `PanicEvent`,
+and source-panic execution remain open. Physical cancellation remains cooperative rather than thread
 termination.
 
 W-1623 adds only a private Windows x64 compiler-lifecycle root-child boundary
@@ -240,3 +240,11 @@ code, and the Job Object does not prove descendant-tree drain. Source
 panic/PanicEvent, public Task/runtime/ABI/product behavior, hardware faults,
 cleanup/restart/supervision, descendants, other targets/providers, native HIR
 child execution, attestation, benchmarks, and performance remain open.
+
+W-1624 closes the upstream source-to-verified-HIR slice for explicit panic.
+The accepted seed form is one unlabelled plain String literal; it becomes a
+`Never`-typed PANIC terminator with copied message bytes and no ordinary call
+or instruction. Invalid shapes fail closed, and a native-process witness keeps
+`Never` and `usize` layout disjoint. The next panic step is MLIR/native
+lowering into the selected fault boundary; `PanicEvent`, cleanup, teardown,
+restart, public runtime/ABI behavior, and performance remain open.

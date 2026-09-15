@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:9b937232eff3696212aea1de9eb6b76c93e0e25ff9ea7b4b40ce4ff830bad867",
+  "corpusDigest": "sha256:e5b38e124b4430b9bab67f7edba509094e877e44ecdc9cd6b3504e92af5b5c8d",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -10128,6 +10128,90 @@
             "nonWhitespaceCodePoints": 66,
             "lines": 1,
             "surfaceLexemes": 15
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-source-panic-hir0",
+      "task": {
+        "utf8Bytes": 128,
+        "codePoints": 128,
+        "nonWhitespaceCodePoints": 111,
+        "lines": 1,
+        "surfaceLexemes": 19
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w-internal",
+        "sourceDigest": "sha256:ba0d5e39e1a2c33a01e664157a6e03da0f1595a8784a7763f2ed4a976bd8e432",
+        "metrics": {
+          "utf8Bytes": 388,
+          "codePoints": 388,
+          "nonWhitespaceCodePoints": 331,
+          "lines": 4,
+          "surfaceLexemes": 66
+        }
+      },
+      "alternatives": [
+        {
+          "name": "panic-as-call",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:9d28ad27b407ae1d0e2081d3412f854a620e5e0bd151018fa86380c568fe21ba",
+          "metrics": {
+            "utf8Bytes": 41,
+            "codePoints": 41,
+            "nonWhitespaceCodePoints": 35,
+            "lines": 1,
+            "surfaceLexemes": 7
+          }
+        },
+        {
+          "name": "never-equals-every-type",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:84180ce03facf588168d49cd04498d9c9fb6ae5a05e411620e72bd4bc90aacba",
+          "metrics": {
+            "utf8Bytes": 48,
+            "codePoints": 48,
+            "nonWhitespaceCodePoints": 41,
+            "lines": 1,
+            "surfaceLexemes": 8
+          }
+        },
+        {
+          "name": "unbounded-message-surface",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:06ea9c84076cc4a5b0c9f445c7f0c019fb71c4fd882597cead16c055e429364c",
+          "metrics": {
+            "utf8Bytes": 83,
+            "codePoints": 83,
+            "nonWhitespaceCodePoints": 73,
+            "lines": 1,
+            "surfaceLexemes": 15
+          }
+        },
+        {
+          "name": "shared-never-usize-text",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:dc091904e6b591b394ceb9882fbb4ccb56666f213191dfc311ddd71a3fd7f27c",
+          "metrics": {
+            "utf8Bytes": 75,
+            "codePoints": 75,
+            "nonWhitespaceCodePoints": 65,
+            "lines": 1,
+            "surfaceLexemes": 13
+          }
+        },
+        {
+          "name": "hir-equals-execution",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:b0a339c924f980ee9ea9853404835b00141aad0258dc257042bf09f89e5ad982",
+          "metrics": {
+            "utf8Bytes": 82,
+            "codePoints": 82,
+            "nonWhitespaceCodePoints": 73,
+            "lines": 1,
+            "surfaceLexemes": 12
           }
         }
       ]

@@ -249,6 +249,7 @@ typedef struct {
   uint32_t default_integer_type_index;
   uint32_t builtin_i32_type_index;
   uint32_t builtin_bool_type_index;
+  uint32_t builtin_never_type_index;
   uint32_t inferred_string_type_index;
   bool normalizing_generic_domain;
   frontend_pending_application
@@ -525,6 +526,11 @@ static bool scalar_if_arm_expression_node(
     uint32_t *expression_node);
 static bool scalar_if_type(frontend_simple_type type);
 static frontend_simple_type simple_type_from_view(w_seed_frontend_text spelling);
+static bool receipt_size_panic_expression(frontend_context *context,
+                                          size_t expression_index,
+                                          w_seed_frontend_panic_code code,
+                                          uint32_t first_argument,
+                                          size_t argument_count);
 static frontend_simple_type infer_expression_span(frontend_context *context,
                                                    w_seed_span span);
 static frontend_simple_type literal_simple_type(
@@ -3670,6 +3676,22 @@ static bool receipt_size_try_expression(frontend_context *context,
          receipt_size_literal(context, "\n");
 }
 
+static bool receipt_size_panic_expression(frontend_context *context,
+                                         size_t expression_index,
+                                         w_seed_frontend_panic_code code,
+                                         uint32_t first_argument,
+                                         size_t argument_count) {
+  return receipt_size_literal(context, "panic-expression=") &&
+         receipt_size_size(context, expression_index) &&
+         receipt_size_literal(context, "|code=") &&
+         receipt_size_size(context, (size_t)code) &&
+         receipt_size_literal(context, "|arguments=") &&
+         receipt_size_size(context, first_argument) &&
+         receipt_size_literal(context, ":") &&
+         receipt_size_size(context, argument_count) &&
+         receipt_size_literal(context, "\n");
+}
+
 static bool receipt_size_external_enum_case_identity(
     frontend_context *context, size_t expression_index,
     uint32_t external_module_index, uint32_t external_symbol_index,
@@ -4878,6 +4900,10 @@ static frontend_simple_type simple_type_from_text(
     type.kind = W_SEED_FRONTEND_TYPE_STRING;
     return type;
   }
+  if (text_equal(spelling, "Never")) {
+    type.kind = W_SEED_FRONTEND_TYPE_NEVER;
+    return type;
+  }
   if (text_equal(spelling, "bytes") || text_equal(spelling, "Bytes")) {
     type.kind = W_SEED_FRONTEND_TYPE_BYTES;
     return type;
@@ -4952,7 +4978,8 @@ static bool type_equal(frontend_simple_type left, frontend_simple_type right) {
   if (left.kind == W_SEED_FRONTEND_TYPE_BOOL ||
       left.kind == W_SEED_FRONTEND_TYPE_STRING ||
       left.kind == W_SEED_FRONTEND_TYPE_BYTES ||
-      left.kind == W_SEED_FRONTEND_TYPE_UNIT) {
+      left.kind == W_SEED_FRONTEND_TYPE_UNIT ||
+      left.kind == W_SEED_FRONTEND_TYPE_NEVER) {
     return true;
   }
   if (left.kind == W_SEED_FRONTEND_TYPE_OPTION) {
@@ -5669,6 +5696,7 @@ w_seed_frontend_status w_seed_frontend_measure(
   dry.default_integer_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_i32_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_bool_type_index = W_SEED_FRONTEND_NONE;
+  dry.builtin_never_type_index = W_SEED_FRONTEND_NONE;
   dry.inferred_string_type_index = W_SEED_FRONTEND_NONE;
   dry.const_inferred_types = frontend_const_inferred_types_scratch;
   dry.const_declared_type_indices =
@@ -10025,6 +10053,8 @@ static frontend_simple_type simple_type_from_view(w_seed_frontend_text spelling)
     type.kind = W_SEED_FRONTEND_TYPE_BOOL;
   } else if (text_equal(spelling, "String")) {
     type.kind = W_SEED_FRONTEND_TYPE_STRING;
+  } else if (text_equal(spelling, "Never")) {
+    type.kind = W_SEED_FRONTEND_TYPE_NEVER;
   } else if (text_equal(spelling, "bytes") || text_equal(spelling, "Bytes")) {
     type.kind = W_SEED_FRONTEND_TYPE_BYTES;
   } else if (text_equal(spelling, "usize")) {
@@ -11730,6 +11760,31 @@ static bool output_type_index_for_simple(frontend_context *context,
     *index = context->builtin_bool_type_index;
     return true;
   }
+  if (type.kind == W_SEED_FRONTEND_TYPE_NEVER &&
+      text_equal(type.spelling, "Never")) {
+    if (context->builtin_never_type_index == W_SEED_FRONTEND_NONE) {
+      w_seed_frontend_type builtin;
+      (void)memset(&builtin, 0, sizeof(builtin));
+      builtin.kind = W_SEED_FRONTEND_TYPE_NEVER;
+      builtin.spelling = (w_seed_frontend_text){"Never", 5u};
+      builtin.nominal_name = builtin.spelling;
+      builtin.span = empty_span(0u);
+      builtin.element_type = W_SEED_FRONTEND_NONE;
+      builtin.return_type = W_SEED_FRONTEND_NONE;
+      builtin.first_parameter = W_SEED_FRONTEND_NONE;
+      builtin.enum_base_index = W_SEED_FRONTEND_NONE;
+      builtin.first_subset_member = W_SEED_FRONTEND_NONE;
+      builtin.subset_member_count = 0u;
+      builtin.generic_application_index = W_SEED_FRONTEND_NONE;
+      builtin.external_module_index = W_SEED_FRONTEND_NONE;
+      builtin.external_symbol_index = W_SEED_FRONTEND_NONE;
+      uint32_t builtin_index = W_SEED_FRONTEND_NONE;
+      if (!context_append_type(context, builtin, &builtin_index)) return false;
+      context->builtin_never_type_index = builtin_index;
+    }
+    *index = context->builtin_never_type_index;
+    return true;
+  }
   if (!context->emit || context->output == NULL) return true;
   if (type.kind == W_SEED_FRONTEND_TYPE_ENUM &&
       type.enum_index != W_SEED_FRONTEND_NONE &&
@@ -11962,6 +12017,7 @@ static bool expression_append(frontend_expression_parser *parser,
   record.task_call_expression = W_SEED_FRONTEND_NONE;
   record.task_binding_statement = W_SEED_FRONTEND_NONE;
   record.propagated_error_enum = W_SEED_FRONTEND_NONE;
+  record.panic_code = W_SEED_FRONTEND_PANIC_CODE_INVALID;
   record.domain_index = W_SEED_FRONTEND_NONE;
   record.domain_kind = W_SEED_FRONTEND_DOMAIN_HOST;
   record.domain_mode = W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
@@ -12287,6 +12343,131 @@ static bool expression_parse_interpolated_string(
   return true;
 }
 
+typedef struct {
+  w_seed_frontend_text label;
+  w_seed_span span;
+  uint32_t expression_index;
+  frontend_expr_value value;
+} frontend_panic_argument;
+
+/* Parse the explicit panic owner after its `panic` word has been consumed.
+ * The parser deliberately accepts arbitrary argument counts and expressions;
+ * the shape gate below records a frontend fact for everything outside the
+ * first bounded slice. */
+static bool expression_parse_panic(frontend_expression_parser *parser,
+                                   frontend_token panic_token,
+                                   frontend_expr_value *value) {
+  if (parser == NULL || value == NULL) return false;
+  frontend_token open;
+  if (!cursor_take_text(&parser->cursor, "(", &open)) return false;
+  frontend_panic_argument pending[W_SEED_FRONTEND_MAX_NESTING];
+  size_t argument_count = 0u;
+  bool shape_valid = true;
+  while (!cursor_peek_text(&parser->cursor, ")")) {
+    if (argument_count >= W_SEED_FRONTEND_MAX_NESTING) return false;
+    frontend_panic_argument *argument = &pending[argument_count];
+    (void)memset(argument, 0, sizeof(*argument));
+    argument->label = (w_seed_frontend_text){NULL, 0u};
+    argument->expression_index = W_SEED_FRONTEND_NONE;
+    frontend_token possible_label;
+    if (cursor_peek(&parser->cursor, &possible_label) &&
+        possible_label.kind == W_SEED_CST_WORD) {
+      frontend_token_cursor look = parser->cursor;
+      (void)cursor_take(&look, &possible_label);
+      if (cursor_peek_text(&look, ":")) {
+        (void)cursor_take(&parser->cursor, &possible_label);
+        (void)cursor_take_text(&parser->cursor, ":", NULL);
+        argument->label = text_from_span(parser->document,
+                                         possible_label.span);
+        shape_valid = false;
+      }
+    }
+    const frontend_simple_type saved_expected = parser->expected_type;
+    const bool saved_has_expected = parser->has_expected_type;
+    const bool saved_suppress_short = parser->suppress_short_diagnostic;
+    parser->expected_type = simple_type_from_view(
+        (w_seed_frontend_text){"String", 6u});
+    parser->has_expected_type = true;
+    parser->suppress_short_diagnostic = true;
+    if (!expression_parse_bp(parser, 0, &argument->value)) {
+      parser->expected_type = saved_expected;
+      parser->has_expected_type = saved_has_expected;
+      parser->suppress_short_diagnostic = saved_suppress_short;
+      return false;
+    }
+    parser->expected_type = saved_expected;
+    parser->has_expected_type = saved_has_expected;
+    parser->suppress_short_diagnostic = saved_suppress_short;
+    argument->span = argument->value.span;
+    if (argument->value.index >= (size_t)UINT32_MAX)
+      return false;
+    argument->expression_index = (uint32_t)argument->value.index;
+    if (argument->label.length != 0u || !argument->value.supported ||
+        argument->value.kind != W_SEED_FRONTEND_EXPR_STRING ||
+        argument->value.type.kind != W_SEED_FRONTEND_TYPE_STRING ||
+        argument->value.index == W_SEED_FRONTEND_NONE)
+      shape_valid = false;
+    argument_count += 1u;
+    if (!cursor_peek_text(&parser->cursor, ",")) break;
+    (void)cursor_take_text(&parser->cursor, ",", NULL);
+    if (cursor_peek_text(&parser->cursor, ")")) break;
+  }
+  frontend_token close;
+  if (!cursor_take_text(&parser->cursor, ")", &close)) return false;
+  const w_seed_span span = {panic_token.span.start_byte, close.span.end_byte};
+  const bool supported = shape_valid && argument_count == 1u;
+  if (!supported) {
+    (void)context_append_fact(parser->context,
+                              W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
+                              span, text_from_span(parser->document, span));
+  }
+  const frontend_simple_type never_type =
+      simple_type_from_view((w_seed_frontend_text){"Never", 5u});
+  if (!expression_append(
+          parser, W_SEED_FRONTEND_EXPR_PANIC, span,
+          text_from_span(parser->document, span),
+          (w_seed_frontend_text){"explicit", 8u}, never_type, supported,
+          (size_t)W_SEED_FRONTEND_NONE, (size_t)W_SEED_FRONTEND_NONE,
+          argument_count == 0u ? W_SEED_FRONTEND_NONE
+                               : (uint32_t)parser->context->count.arguments,
+          argument_count, value))
+    return false;
+  if (parser->context->emit && parser->context->output != NULL &&
+      value->index < parser->context->output->expression_capacity) {
+    w_seed_frontend_expression *record =
+        &parser->context->output->expressions[value->index];
+    record->panic_code = W_SEED_FRONTEND_PANIC_CODE_EXPLICIT;
+    record->first_argument = argument_count == 0u
+                                 ? W_SEED_FRONTEND_NONE
+                                 : (uint32_t)parser->context->count.arguments;
+    record->argument_count = (uint32_t)argument_count;
+  } else if (!parser->context->emit &&
+             !receipt_size_panic_expression(
+                 parser->context, value->index,
+                 W_SEED_FRONTEND_PANIC_CODE_EXPLICIT,
+                 argument_count == 0u ? W_SEED_FRONTEND_NONE
+                                      : (uint32_t)parser->context->count.arguments,
+                 argument_count)) {
+    return false;
+  }
+  const uint32_t owner = value->index >= (size_t)UINT32_MAX
+                             ? W_SEED_FRONTEND_NONE
+                             : (uint32_t)value->index;
+  for (size_t index = 0u; index < argument_count; index += 1u) {
+    w_seed_frontend_argument argument;
+    argument.module_index = (uint32_t)parser->context->module_index;
+    argument.owner_expression = owner;
+    argument.label = pending[index].label;
+    argument.span = pending[index].span;
+    argument.expression_index = pending[index].expression_index;
+    argument.resolved_parameter_ordinal = W_SEED_FRONTEND_NONE;
+    uint32_t ignored = W_SEED_FRONTEND_NONE;
+    if (!context_append_argument(parser->context, argument, &ignored))
+      return false;
+  }
+  return true;
+}
+
 static bool expression_parse_primary(frontend_expression_parser *parser,
                                      frontend_expr_value *value) {
   if (parser == NULL || value == NULL) return false;
@@ -12299,6 +12480,12 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
   const w_seed_frontend_text spelling = text_from_span(parser->document,
                                                         token.span);
   if (token.kind == W_SEED_CST_WORD) {
+    if (text_equal(spelling, "panic")) {
+      frontend_token next;
+      if (cursor_peek(&parser->cursor, &next) &&
+          token_text(parser->document, &next, "("))
+        return expression_parse_panic(parser, token, value);
+    }
     if (text_equal(spelling, "true") || text_equal(spelling, "false")) {
       return expression_append(parser, W_SEED_FRONTEND_EXPR_BOOL, token.span,
                                spelling, (w_seed_frontend_text){NULL, 0},
@@ -14473,6 +14660,7 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.task_call_expression = W_SEED_FRONTEND_NONE;
     fallback.task_binding_statement = W_SEED_FRONTEND_NONE;
     fallback.propagated_error_enum = W_SEED_FRONTEND_NONE;
+    fallback.panic_code = W_SEED_FRONTEND_PANIC_CODE_INVALID;
     fallback.domain_index = W_SEED_FRONTEND_NONE;
     fallback.domain_mode = W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
     fallback.domain_capabilities = W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE;
@@ -14529,6 +14717,7 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.task_call_expression = W_SEED_FRONTEND_NONE;
     fallback.task_binding_statement = W_SEED_FRONTEND_NONE;
     fallback.propagated_error_enum = W_SEED_FRONTEND_NONE;
+    fallback.panic_code = W_SEED_FRONTEND_PANIC_CODE_INVALID;
     fallback.domain_index = W_SEED_FRONTEND_NONE;
     fallback.domain_mode = W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
     fallback.domain_capabilities = W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE;
@@ -15339,6 +15528,7 @@ static bool normalize_switch_expression(
   switch_record.task_call_expression = W_SEED_FRONTEND_NONE;
   switch_record.task_binding_statement = W_SEED_FRONTEND_NONE;
   switch_record.propagated_error_enum = W_SEED_FRONTEND_NONE;
+  switch_record.panic_code = W_SEED_FRONTEND_PANIC_CODE_INVALID;
   switch_record.domain_index = W_SEED_FRONTEND_NONE;
   switch_record.domain_mode = W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
   switch_record.domain_capabilities = W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE;
@@ -19602,6 +19792,17 @@ static void receipt_write_records(frontend_receipt_writer *writer,
         receipt_write_size(writer, expression->propagated_error_enum);
         receipt_write_literal(writer, "\n");
       }
+      if (expression->kind == W_SEED_FRONTEND_EXPR_PANIC) {
+        receipt_write_literal(writer, "panic-expression=");
+        receipt_write_size(writer, index);
+        receipt_write_literal(writer, "|code=");
+        receipt_write_size(writer, (size_t)expression->panic_code);
+        receipt_write_literal(writer, "|arguments=");
+        receipt_write_size(writer, expression->first_argument);
+        receipt_write_literal(writer, ":");
+        receipt_write_size(writer, expression->argument_count);
+        receipt_write_literal(writer, "\n");
+      }
       if (expression->kind != W_SEED_FRONTEND_EXPR_CALL) continue;
       uint32_t callee_index = W_SEED_FRONTEND_NONE;
       if (expression->left != W_SEED_FRONTEND_NONE &&
@@ -19841,6 +20042,7 @@ w_seed_frontend_status w_seed_frontend_run(
   dry.default_integer_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_i32_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_bool_type_index = W_SEED_FRONTEND_NONE;
+  dry.builtin_never_type_index = W_SEED_FRONTEND_NONE;
   dry.inferred_string_type_index = W_SEED_FRONTEND_NONE;
   dry.const_inferred_types = frontend_const_inferred_types_scratch;
   dry.const_declared_type_indices =
@@ -19918,6 +20120,7 @@ w_seed_frontend_status w_seed_frontend_run(
   emit.default_integer_type_index = W_SEED_FRONTEND_NONE;
   emit.builtin_i32_type_index = W_SEED_FRONTEND_NONE;
   emit.builtin_bool_type_index = W_SEED_FRONTEND_NONE;
+  emit.builtin_never_type_index = W_SEED_FRONTEND_NONE;
   emit.inferred_string_type_index = W_SEED_FRONTEND_NONE;
   emit.const_inferred_types = frontend_const_inferred_types_scratch;
   emit.const_declared_type_indices =

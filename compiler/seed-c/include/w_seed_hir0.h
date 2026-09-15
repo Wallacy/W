@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-41"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-42"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -60,6 +60,8 @@ typedef enum {
   W_SEED_HIR0_TYPE_USIZE,
   /* A caller-owned closed enum case-set type. */
   W_SEED_HIR0_TYPE_ENUM_SUBSET,
+  /* Bottom type for a path that terminates with explicit panic. */
+  W_SEED_HIR0_TYPE_NEVER,
 } w_seed_hir0_type_kind;
 
 typedef enum {
@@ -227,7 +229,14 @@ typedef enum {
    * successor receives its channel as block argument zero; these invoke
    * results are implicit control outputs, not ordinary edge arguments. */
   W_SEED_HIR0_TERMINATOR_INVOKE,
+  /* Explicit panic with a copied bounded message. */
+  W_SEED_HIR0_TERMINATOR_PANIC,
 } w_seed_hir0_terminator_kind;
+
+typedef enum {
+  W_SEED_HIR0_PANIC_CODE_INVALID = 0,
+  W_SEED_HIR0_PANIC_CODE_EXPLICIT,
+} w_seed_hir0_panic_code;
 
 typedef enum {
   W_SEED_HIR0_REQUIREMENT_HOST_IDENTITY = 0,
@@ -684,6 +693,9 @@ typedef struct {
   uint32_t switch_edge_count;
   uint32_t switch_carrier_width;
   w_seed_span source_span;
+  /* Present only for TERMINATOR_PANIC. value_index points at the copied
+   * String payload in value_bytes. */
+  w_seed_hir0_panic_code panic_code;
 } w_seed_hir0_terminator;
 
 /* One statically-proven lexical cleanup registration.  The registration is

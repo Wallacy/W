@@ -41137,8 +41137,9 @@ body error, `TaskOutcome.error`, or `TaskOutcome.canceled`. Consequently the
 W-1620 lifecycle transaction cannot consume this path.
 
 This is the first bounded transport of panic across the parallel provider
-boundary, not complete fault containment. It does not yet emit `PanicEvent`,
-lower source `panic`, terminate a process/Wasm/compartment, guarantee user
+boundary, not complete fault containment. It does not yet consume the
+verified-HIR `panic` terminator, emit `PanicEvent`, terminate a
+process/Wasm/compartment, guarantee user
 cleanup, catch hardware faults, expose a public runtime ABI, or prove other
 providers and targets. The next product boundary must consume this private
 signal and physically terminate the nearest fault boundary.
@@ -41158,8 +41159,8 @@ provider-attestation authority. The Windows Job Object is a private
 kill-on-close aid; it does not prove descendant-tree drain. The receipt claims
 root-child liveness, termination, bounded join, and handle closure only.
 
-This remains compiler-lifecycle evidence only. Source `panic` and `PanicEvent`,
-public Task/runtime/ABI/product behavior, hardware-fault containment,
+This remains compiler-lifecycle evidence only. Source-panic execution and
+`PanicEvent`, public Task/runtime/ABI/product behavior, hardware-fault containment,
 cleanup/restart/supervision, descendant containment, other targets or
 providers, native HIR child execution, attestation, benchmarks, and performance
 remain gaps.
@@ -41176,6 +41177,35 @@ entry {
   await doomed // the nearest fault boundary terminates; no TaskOutcome exists
 }
 ```
+
+#### 26.4.1.104 W-1624 — bounded source panic to verified HIR0
+
+PANIC0 closes the first source-to-HIR part of the panic route. The seed parser
+recognizes `panic(...)` as its own expression owner rather than an ordinary
+call. The current frontend admission is deliberately narrow: exactly one
+unlabelled, non-interpolated `String` literal is accepted. Zero, multiple,
+labelled, non-string, interpolated, malformed, or over-bound argument forms
+fail closed before verified HIR publication.
+
+The accepted expression has the bottom type `Never`. `Never` satisfies a
+terminal control-flow path, including a non-`Unit` function or native-process
+handler, but it is not equal or assignable to arbitrary ordinary types. HIR0
+emits one `PANIC` terminator with code `explicit`; its `value_index` owns one
+copied constant-String value. It emits no ordinary call or instruction for the
+panic operation. The message/code relation participates in the semantic
+digest, while source identity and spans remain provenance.
+
+HIR0 remains caller-owned, allocation-free, measured, transactional, and
+independently verified. The verifier checks the closed code, `Never` result,
+terminator ownership and ordinal, copied String value, ranges, spans, schema,
+receipt, and digests. The canonical `Never` and native-process `usize` records
+have disjoint stable text ranges. Older ProductClosure0/HLO0 routes reject the
+new terminator instead of silently compiling it.
+
+This is not panic execution. It does not materialize `PanicEvent`, select the
+nearest fault boundary, run cleanup, terminate or restart a process/Wasm/
+compartment, define a public Task/runtime ABI, or lower PANIC0 to MLIR/native
+code. Those remain later lifecycle and product boundaries.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

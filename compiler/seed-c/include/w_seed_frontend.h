@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-32"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-33"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -133,7 +133,14 @@ typedef enum {
   /* Append-only opaque task handle.  The result type is carried by the
    * element_type relation on the normalized type record. */
   W_SEED_FRONTEND_TYPE_TASK,
+  /* Bottom type for expressions that do not complete normally. */
+  W_SEED_FRONTEND_TYPE_NEVER,
 } w_seed_frontend_type_kind;
+
+typedef enum {
+  W_SEED_FRONTEND_PANIC_CODE_INVALID = 0,
+  W_SEED_FRONTEND_PANIC_CODE_EXPLICIT,
+} w_seed_frontend_panic_code;
 
 typedef enum {
   W_SEED_FRONTEND_DECL_STRUCT = 0,
@@ -195,6 +202,8 @@ typedef enum {
   /* Exact `try localCall(...)` propagation marker. left is the resolved
    * throwing CALL and propagated_error_enum is its concrete enum identity. */
   W_SEED_FRONTEND_EXPR_TRY,
+  /* Explicit `panic(...)` terminator expression. */
+  W_SEED_FRONTEND_EXPR_PANIC,
 } w_seed_frontend_expr_kind;
 
 typedef enum {
@@ -962,6 +971,10 @@ typedef struct {
   /* Present only for TRY. It identifies the exact local error enum shared by
    * the called function and the lexical owner function. */
   uint32_t propagated_error_enum;
+  /* Present only for EXPR_PANIC. The message reuses the normalized String
+   * literal's const_byte_offset/count; the panic is a terminator, never a
+   * call. */
+  w_seed_frontend_panic_code panic_code;
   /* Append-only explicit placement evidence. NONE/default is required on
    * every expression except the two explicit-domain launch kinds. */
   uint32_t domain_index;

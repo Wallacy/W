@@ -2414,8 +2414,9 @@ same wave, records its source in the physical receipt, and cancels later
 unstarted work with a separate panic-boundary reason. PARBIND1 revalidates the
 local authority and HIR, then returns `W_SEED_PARALLEL_TYPED_BINDING1_PANIC`
 without publishing completions, semantic records, or result. It never maps the
-signal to typed `Error`, cancellation, or TASKLIFE. This does not yet implement
-source panic lowering, `PanicEvent`, or physical fault-boundary teardown.
+signal to typed `Error`, cancellation, or TASKLIFE. This does not yet consume
+the verified-HIR panic terminator, emit `PanicEvent`, or perform physical
+fault-boundary teardown.
 
 W-1623 adds PANICBOUNDARY1 as a private Windows x64 compiler-lifecycle
 root-child witness. A trusted private helper owns the verified HIR/PARBIND
@@ -2430,6 +2431,20 @@ This remains a root-child compiler-lifecycle boundary only. Source
 `panic`/`PanicEvent`, public Task/runtime/ABI/product behavior, hardware faults,
 cleanup/restart/supervision, descendants, other targets/providers, native HIR
 child execution, attestation, benchmarks, and performance remain unsupported.
+
+W-1624 adds PANIC0 before those physical boundaries. The parser recognizes
+`panic(...)` as a dedicated owner, the frontend admits exactly one unlabelled
+plain String literal with bottom type `Never`, and HIR0 emits a verified
+`PANIC` terminator whose copied String value is owned by that terminator. No
+ordinary call or instruction represents panic. Measure/run remain
+all-or-nothing in caller-owned storage; verification closes code, type,
+ownership, ranges, receipts, and semantic/provenance digests. A combined
+native-process fixture proves that the canonical `Never` and `usize` text
+ranges do not overlap.
+
+PANIC0 does not execute panic or lower it to MLIR/native code. `PanicEvent`,
+cleanup, fault-boundary selection, physical teardown/restart, public runtime
+ABI, other message forms, benchmarks, and performance remain unsupported.
 
 ### Bounded CRT-free process/parallel provider linkage (W-1600)
 
