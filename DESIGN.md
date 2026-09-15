@@ -40577,10 +40577,11 @@ the lexical cancellation source.
 The five-task C23 witness proves equal indexed completions for capacities one
 and two: one success, one typed error, and three cooperative fail-fast
 cancellations. A second witness starts with explicit cancellation and preserves
-the already-started sibling success. This is private Windows component evidence,
-not yet an authenticated PARPROV result, TASKLIFE binding, source-level throw,
-physical preemption, panic boundary, scheduler, Task ABI, public product,
-benchmark, or performance claim.
+the already-started sibling success. W-1619 later validates one exact completion
+against nominal HIR41, but does not authenticate provider origin or feed
+TASKLIFE. This remains private Windows component evidence, not general
+source-level throw, physical preemption, panic boundary, scheduler, Task ABI,
+public product, benchmark, or performance evidence.
 
 #### 26.4.1.93 W-1613 — bounded typed throw in verified HIR
 
@@ -40607,7 +40608,7 @@ Current evidence covers a local closed error enum and one terminal root
 `throw`, including a function whose normal return type differs from `E`.
 Non-`Error` enums and a branch-local throw fail closed. Payload construction,
 mixed return/throw CFG, `try`, `try?`, `do`/`catch`, cleanup edges, propagation,
-provider-result authentication, Task lifecycle binding, MLIR/native lowering,
+trusted provider origin, Task lifecycle binding, MLIR/native lowering,
 panic containment, public execution, benchmarks, and performance remain
 separate increments. These are seed evidence limits, not language limits.
 
@@ -40800,6 +40801,37 @@ fn relay(): i64 throws Failure {
   return try leaf()
 }
 ```
+
+#### 26.4.1.99 W-1619 — integrity-bound typed provider completion
+
+PARBIND1 is a separate private measured transaction above HIR41 and the
+Windows PLATFORM1 primitive. It independently verifies the exact typed invoke
+and its dual-path synchronous cleanup, derives the payloadless nominal error
+enum and case identity from HIR, and validates two lexically ordered physical
+completions against two distinct HIR calls. The first witness call is a pure
+synchronous signed-`i64` success whose value is independently evaluated; the
+second is the typed invoke and must report the derived case ordinal. A provider
+error code is physical provenance and never selects the W error case.
+
+The two-child shape is the size of this seed witness only. It is not a source
+language, HIR, scheduler, ABI, target, or runtime cardinality limit. Provider
+capacity one and two must publish byte-identical semantic records and semantic
+digests. Capacity, worker overlap, generation, provider identity, raw
+completion facts, and the PLATFORM1 receipt remain in a separate provenance
+record and may differ.
+
+Measure, run, and verify use caller-owned storage with checked capacities and
+pairwise alias barriers against every HIR backing range. PLATFORM1 output is
+staged privately because the primitive may alter scratch on failure; no caller
+output is published until the HIR relation, success value, nominal error case,
+physical receipt, and post-execution HIR identity all pass. The verifier
+reconstructs both semantic records and both digests.
+
+The provenance digest supplies integrity and deterministic resealing only. An
+arbitrary callback, a platform label, and SHA-256 do not authenticate provider
+origin. This increment therefore makes no attestation, trusted-provider,
+native-HIR-execution, Task ABI, TASKLIFE, public product, benchmark, or
+performance claim. Those are separate boundaries.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

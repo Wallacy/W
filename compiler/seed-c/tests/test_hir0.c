@@ -5,6 +5,7 @@
 #include "w_seed_parallel_lifecycle1.h"
 #include "w_seed_parallel_provider0.h"
 #include "w_seed_parallel_provider1.h"
+#include "w_seed_parallel_typed_binding1.h"
 #include "w_seed_parallel_selection0.h"
 #include "w_seed_parallel_selection1.h"
 #include "w_seed_parallel_elision0.h"
@@ -309,14 +310,14 @@ static bool test_platform1_invoke(
 static bool test_parallel_platform1_typed_completions(void) {
   test_platform1_context parallel_context = {0};
   parallel_context.requested[0] = (w_seed_parallel_platform1_completion){
-      W_SEED_PARALLEL_PLATFORM1_COMPLETION_SUCCESS, 10, 0u, 0u};
+      W_SEED_PARALLEL_PLATFORM1_COMPLETION_SUCCESS, 10, 0u, 0u, 0u};
   parallel_context.requested[1] = (w_seed_parallel_platform1_completion){
-      W_SEED_PARALLEL_PLATFORM1_COMPLETION_ERROR, 0, 2u, 0u};
+      W_SEED_PARALLEL_PLATFORM1_COMPLETION_ERROR, 0, 2u, 0u, 0u};
   for (size_t index = 2u; index < 5u; index += 1u)
     parallel_context.requested[index] =
         (w_seed_parallel_platform1_completion){
             W_SEED_PARALLEL_PLATFORM1_COMPLETION_SUCCESS,
-            10 + (int64_t)index, 0u, 0u};
+            10 + (int64_t)index, 0u, 0u, 0u};
   const w_seed_parallel_platform1_job parallel_job = {
       test_platform1_invoke, &parallel_context};
   w_seed_parallel_platform1_completion parallel_completions[5];
@@ -368,9 +369,9 @@ static bool test_parallel_platform1_typed_completions(void) {
 
   test_platform1_context canceled_context = {0};
   canceled_context.requested[0] = (w_seed_parallel_platform1_completion){
-      W_SEED_PARALLEL_PLATFORM1_COMPLETION_CANCELED, 0, 0u, 9u};
+      W_SEED_PARALLEL_PLATFORM1_COMPLETION_CANCELED, 0, 0u, 9u, 0u};
   canceled_context.requested[1] = (w_seed_parallel_platform1_completion){
-      W_SEED_PARALLEL_PLATFORM1_COMPLETION_SUCCESS, 11, 0u, 0u};
+      W_SEED_PARALLEL_PLATFORM1_COMPLETION_SUCCESS, 11, 0u, 0u, 0u};
   const w_seed_parallel_platform1_job canceled_job = {
       test_platform1_invoke, &canceled_context};
   w_seed_parallel_platform1_completion canceled_completions[5];
@@ -6561,6 +6562,335 @@ static bool test_typed_invoke_cleanup_hir(void) {
   return true;
 }
 
+#if defined(_WIN32) && defined(_WIN64)
+typedef struct {
+  w_seed_parallel_platform1_completion requested[2];
+  uint32_t calls[2];
+  bool fail;
+} typed_binding1_provider_context;
+
+static bool typed_binding1_provider_invoke(
+    void *raw, size_t task_index,
+    w_seed_parallel_platform1_completion *completion) {
+  typed_binding1_provider_context *context =
+      (typed_binding1_provider_context *)raw;
+  if (context == NULL || completion == NULL || task_index >= 2u ||
+      context->fail)
+    return false;
+  context->calls[task_index] += 1u;
+  *completion = context->requested[task_index];
+  return true;
+}
+
+static uint32_t typed_binding1_function_named(
+    const w_seed_hir0_program *program, const char *name) {
+  if (program == NULL || name == NULL) return W_SEED_HIR0_NONE;
+  for (size_t index = 0u; index < program->function_count; index += 1u)
+    if (hir_text_is(program, program->functions[index].name, name))
+      return (uint32_t)index;
+  return W_SEED_HIR0_NONE;
+}
+
+static bool test_parallel_typed_binding1(void) {
+  static const char SOURCE[] =
+      "enum Failure: Error { denied }\n"
+      "fn clean() { }\n"
+      "fn succeed(): i64 { return 42 }\n"
+      "fn successCaller(): i64 { return succeed() }\n"
+      "fn leaf(): i64 throws Failure { throw .denied }\n"
+      "fn relay(): i64 throws Failure { defer { clean() } return try leaf() }\n"
+      "entry { }\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  const uint32_t success_caller =
+      typed_binding1_function_named(program, "successCaller");
+  const uint32_t relay = typed_binding1_function_named(program, "relay");
+  CHECK(success_caller != W_SEED_HIR0_NONE && relay != W_SEED_HIR0_NONE);
+  const w_seed_hir0_function *success_function =
+      &program->functions[success_caller];
+  const w_seed_hir0_function *relay_function = &program->functions[relay];
+  CHECK(success_function->block_count == 1u &&
+        success_function->first_block < program->block_count &&
+        relay_function->block_count == 3u &&
+        relay_function->first_block < program->block_count);
+  const w_seed_hir0_block *success_block =
+      &program->blocks[success_function->first_block];
+  CHECK(success_block->instruction_count == 1u &&
+        success_block->first_instruction < program->instruction_count);
+  const w_seed_hir0_instruction *success_instruction =
+      &program->instructions[success_block->first_instruction];
+  const uint32_t success_call = success_instruction->call_index;
+  const uint32_t invoke_terminator =
+      program->blocks[relay_function->first_block].terminator_index;
+  CHECK(invoke_terminator < program->terminator_count);
+  const uint32_t error_call = program->terminators[invoke_terminator].call_index;
+  CHECK(success_call < program->call_count && error_call < program->call_count &&
+        success_call != error_call);
+
+  const w_seed_parallel_typed_binding1_task tasks[2] = {
+      {.lexical_index = 0u, .call_index = success_call},
+      {.lexical_index = 1u, .call_index = error_call}};
+  typed_binding1_provider_context context = {0};
+  context.requested[0] = (w_seed_parallel_platform1_completion){
+      .kind = W_SEED_PARALLEL_PLATFORM1_COMPLETION_SUCCESS,
+      .success_value = 42};
+  context.requested[1] = (w_seed_parallel_platform1_completion){
+      .kind = W_SEED_PARALLEL_PLATFORM1_COMPLETION_ERROR,
+      .error_code = 17u};
+  w_seed_parallel_typed_binding1_provider provider = {
+      .target = W_SEED_PARALLEL_TYPED_BINDING1_TARGET_WINDOWS_AMD64};
+  (void)memcpy(provider.profile,
+               W_SEED_PARALLEL_TYPED_BINDING1_WINDOWS_PROFILE,
+               sizeof(W_SEED_PARALLEL_TYPED_BINDING1_WINDOWS_PROFILE));
+  (void)memcpy(provider.identity,
+               W_SEED_PARALLEL_TYPED_BINDING1_WINDOWS_IDENTITY,
+               sizeof(W_SEED_PARALLEL_TYPED_BINDING1_WINDOWS_IDENTITY));
+  w_seed_parallel_typed_binding1_input input = {
+      .hir_program = program,
+      .hir_result = &fixture.hir_result,
+      .invoke_terminator = invoke_terminator,
+      .tasks = tasks,
+      .task_count = 2u,
+      .task_capacity = 2u,
+      .provider_job = {typed_binding1_provider_invoke, &context},
+      .provider_capacity = 1u,
+      .generation = 41u,
+      .provider = provider};
+
+  w_seed_parallel_typed_binding1_counts counts;
+  w_seed_parallel_typed_binding1_result measured;
+  CHECK(w_seed_parallel_typed_binding1_measure(&input, &counts, &measured) ==
+            W_SEED_PARALLEL_TYPED_BINDING1_OK &&
+        counts.completions == 2u && counts.records == 2u &&
+        measured.written.completions == 0u && measured.written.records == 0u);
+  context.requested[1].error_case_ordinal =
+      measured.error_identity.case_ordinal;
+
+  w_seed_parallel_platform1_completion serial_completions[2];
+  w_seed_parallel_platform1_receipt serial_receipt;
+  w_seed_parallel_provider0_kind serial_provider_kind =
+      W_SEED_PARALLEL_PROVIDER0_KIND_NONE;
+  w_seed_parallel_typed_binding1_record serial_records[2];
+  w_seed_parallel_typed_binding1_result serial_result;
+  const w_seed_parallel_typed_binding1_workspace serial_workspace = {
+      serial_completions, 2u, &serial_receipt, &serial_provider_kind};
+  const w_seed_parallel_typed_binding1_output serial_output = {serial_records,
+                                                               2u};
+  CHECK(w_seed_parallel_typed_binding1_run(
+            &input, &serial_workspace, &serial_output, &serial_result) ==
+            W_SEED_PARALLEL_TYPED_BINDING1_OK &&
+        w_seed_parallel_typed_binding1_verify(
+            &input, &serial_workspace, &serial_output, &serial_result) &&
+        serial_records[0].outcome ==
+            W_SEED_PARALLEL_TYPED_BINDING1_OUTCOME_SUCCESS &&
+        serial_records[0].success_value == 42 &&
+        serial_records[0].call_index == success_call &&
+        serial_records[1].outcome ==
+            W_SEED_PARALLEL_TYPED_BINDING1_OUTCOME_ERROR &&
+        serial_records[1].call_index == error_call &&
+        serial_records[0].callee_function != serial_records[1].callee_function &&
+        serial_result.primary_error_task == 1u &&
+        serial_receipt.started_count == 2u &&
+        serial_receipt.settled_count == 2u &&
+        serial_receipt.cancellation_source_index == 1u &&
+        serial_receipt.maximum_active == 1u);
+
+  input.provider_capacity = 2u;
+  (void)memset(context.calls, 0, sizeof(context.calls));
+  w_seed_parallel_platform1_completion parallel_completions[2];
+  w_seed_parallel_platform1_receipt parallel_receipt;
+  w_seed_parallel_provider0_kind parallel_provider_kind =
+      W_SEED_PARALLEL_PROVIDER0_KIND_NONE;
+  w_seed_parallel_typed_binding1_record parallel_records[2];
+  w_seed_parallel_typed_binding1_result parallel_result;
+  const w_seed_parallel_typed_binding1_workspace parallel_workspace = {
+      parallel_completions, 2u, &parallel_receipt, &parallel_provider_kind};
+  const w_seed_parallel_typed_binding1_output parallel_output = {
+      parallel_records, 2u};
+  CHECK(w_seed_parallel_typed_binding1_run(
+            &input, &parallel_workspace, &parallel_output, &parallel_result) ==
+            W_SEED_PARALLEL_TYPED_BINDING1_OK &&
+        w_seed_parallel_typed_binding1_verify(
+            &input, &parallel_workspace, &parallel_output, &parallel_result) &&
+        memcmp(serial_records, parallel_records, sizeof(serial_records)) == 0 &&
+        memcmp(serial_result.semantic_digest, parallel_result.semantic_digest,
+               sizeof(serial_result.semantic_digest)) == 0 &&
+        memcmp(serial_result.provenance.provenance_digest,
+               parallel_result.provenance.provenance_digest,
+               sizeof(serial_result.provenance.provenance_digest)) != 0 &&
+        parallel_receipt.maximum_active == 2u && context.calls[0] == 1u &&
+        context.calls[1] == 1u);
+
+  w_seed_parallel_typed_binding1_result sentinel_result;
+  w_seed_parallel_typed_binding1_record sentinel_records[2];
+  w_seed_parallel_platform1_completion sentinel_completions[2];
+  w_seed_parallel_platform1_receipt sentinel_receipt;
+  w_seed_parallel_provider0_kind sentinel_kind =
+      W_SEED_PARALLEL_PROVIDER0_KIND_NONE;
+  (void)memset(&sentinel_result, 0xa5, sizeof(sentinel_result));
+  (void)memset(sentinel_records, 0x5a, sizeof(sentinel_records));
+  (void)memset(sentinel_completions, 0x3c, sizeof(sentinel_completions));
+  (void)memset(&sentinel_receipt, 0xc3, sizeof(sentinel_receipt));
+  const w_seed_parallel_typed_binding1_result sentinel_result_before =
+      sentinel_result;
+  w_seed_parallel_typed_binding1_record sentinel_records_before[2];
+  w_seed_parallel_platform1_completion sentinel_completions_before[2];
+  (void)memcpy(sentinel_records_before, sentinel_records,
+               sizeof(sentinel_records));
+  (void)memcpy(sentinel_completions_before, sentinel_completions,
+               sizeof(sentinel_completions));
+  const w_seed_parallel_platform1_receipt sentinel_receipt_before =
+      sentinel_receipt;
+  const w_seed_parallel_typed_binding1_workspace sentinel_workspace = {
+      sentinel_completions, 2u, &sentinel_receipt, &sentinel_kind};
+  const w_seed_parallel_typed_binding1_output short_output = {sentinel_records,
+                                                              1u};
+  CHECK(w_seed_parallel_typed_binding1_run(
+            &input, &sentinel_workspace, &short_output, &sentinel_result) ==
+            W_SEED_PARALLEL_TYPED_BINDING1_CAPACITY &&
+        memcmp(&sentinel_result, &sentinel_result_before,
+               sizeof(sentinel_result)) == 0 &&
+        memcmp(sentinel_records, sentinel_records_before,
+               sizeof(sentinel_records)) == 0 &&
+        memcmp(sentinel_completions, sentinel_completions_before,
+               sizeof(sentinel_completions)) == 0 &&
+        memcmp(&sentinel_receipt, &sentinel_receipt_before,
+               sizeof(sentinel_receipt)) == 0);
+
+  w_seed_parallel_typed_binding1_output alias_output = {
+      (w_seed_parallel_typed_binding1_record *)(void *)&sentinel_result, 2u};
+  CHECK(w_seed_parallel_typed_binding1_run(
+            &input, &sentinel_workspace, &alias_output, &sentinel_result) ==
+        W_SEED_PARALLEL_TYPED_BINDING1_ALIAS);
+
+  context.fail = true;
+  const w_seed_parallel_typed_binding1_output sentinel_output = {
+      sentinel_records, 2u};
+  CHECK(w_seed_parallel_typed_binding1_run(
+            &input, &sentinel_workspace, &sentinel_output, &sentinel_result) ==
+            W_SEED_PARALLEL_TYPED_BINDING1_TASK_FAILURE &&
+        memcmp(&sentinel_result, &sentinel_result_before,
+               sizeof(sentinel_result)) == 0 &&
+        memcmp(sentinel_records, sentinel_records_before,
+               sizeof(sentinel_records)) == 0 &&
+        memcmp(sentinel_completions, sentinel_completions_before,
+               sizeof(sentinel_completions)) == 0);
+  context.fail = false;
+
+  context.requested[0].success_value = 43;
+  CHECK(w_seed_parallel_typed_binding1_run(
+            &input, &sentinel_workspace, &sentinel_output, &sentinel_result) ==
+            W_SEED_PARALLEL_TYPED_BINDING1_PROVIDER_FAILURE &&
+        memcmp(&sentinel_result, &sentinel_result_before,
+               sizeof(sentinel_result)) == 0 &&
+        memcmp(sentinel_records, sentinel_records_before,
+               sizeof(sentinel_records)) == 0 &&
+        memcmp(sentinel_completions, sentinel_completions_before,
+               sizeof(sentinel_completions)) == 0);
+  context.requested[0].success_value = 42;
+
+  context.requested[1].error_case_ordinal += 1u;
+  CHECK(w_seed_parallel_typed_binding1_run(
+            &input, &sentinel_workspace, &sentinel_output, &sentinel_result) ==
+            W_SEED_PARALLEL_TYPED_BINDING1_PROVIDER_FAILURE &&
+        memcmp(&sentinel_result, &sentinel_result_before,
+               sizeof(sentinel_result)) == 0 &&
+        memcmp(sentinel_records, sentinel_records_before,
+               sizeof(sentinel_records)) == 0);
+  context.requested[1].error_case_ordinal -= 1u;
+
+  context.requested[1] = (w_seed_parallel_platform1_completion){
+      .kind = W_SEED_PARALLEL_PLATFORM1_COMPLETION_CANCELED,
+      .cancel_reason = 9u};
+  CHECK(w_seed_parallel_typed_binding1_run(
+            &input, &sentinel_workspace, &sentinel_output, &sentinel_result) ==
+            W_SEED_PARALLEL_TYPED_BINDING1_CANCELED &&
+        memcmp(&sentinel_result, &sentinel_result_before,
+               sizeof(sentinel_result)) == 0 &&
+        memcmp(sentinel_records, sentinel_records_before,
+               sizeof(sentinel_records)) == 0);
+
+  w_seed_parallel_typed_binding1_record forged_records[2];
+  (void)memcpy(forged_records, parallel_records, sizeof(forged_records));
+  forged_records[0].call_index = error_call;
+  const w_seed_parallel_typed_binding1_output forged_output = {forged_records,
+                                                               2u};
+  CHECK(!w_seed_parallel_typed_binding1_verify(
+      &input, &parallel_workspace, &forged_output, &parallel_result));
+  parallel_completions[1].error_code += 1u;
+  CHECK(!w_seed_parallel_typed_binding1_verify(
+      &input, &parallel_workspace, &parallel_output, &parallel_result));
+  parallel_completions[1].error_code -= 1u;
+  parallel_result.semantic_digest[0] ^= 1u;
+  CHECK(!w_seed_parallel_typed_binding1_verify(
+      &input, &parallel_workspace, &parallel_output, &parallel_result));
+
+  /* The typed physical binding is deliberately a HIR41 witness: a typed
+   * invoke without its exact dual-path cleanup must fail before publication. */
+  static const char NO_CLEANUP_SOURCE[] =
+      "enum Failure: Error { denied }\n"
+      "fn succeed(): i64 { return 42 }\n"
+      "fn successCaller(): i64 { return succeed() }\n"
+      "fn leaf(): i64 throws Failure { throw .denied }\n"
+      "fn relay(): i64 throws Failure { return try leaf() }\n"
+      "entry { }\n";
+  CHECK(lower(NO_CLEANUP_SOURCE));
+  program = &fixture.hir_program;
+  const uint32_t no_cleanup_success_caller =
+      typed_binding1_function_named(program, "successCaller");
+  const uint32_t no_cleanup_relay =
+      typed_binding1_function_named(program, "relay");
+  CHECK(no_cleanup_success_caller != W_SEED_HIR0_NONE &&
+        no_cleanup_relay != W_SEED_HIR0_NONE);
+  const w_seed_hir0_function *no_cleanup_success_function =
+      &program->functions[no_cleanup_success_caller];
+  const w_seed_hir0_function *no_cleanup_relay_function =
+      &program->functions[no_cleanup_relay];
+  CHECK(no_cleanup_success_function->first_block < program->block_count &&
+        no_cleanup_relay_function->first_block < program->block_count);
+  const w_seed_hir0_block *no_cleanup_success_block =
+      &program->blocks[no_cleanup_success_function->first_block];
+  CHECK(no_cleanup_success_block->first_instruction <
+        program->instruction_count);
+  const uint32_t no_cleanup_success_call =
+      program->instructions[no_cleanup_success_block->first_instruction]
+          .call_index;
+  const uint32_t no_cleanup_invoke =
+      program->blocks[no_cleanup_relay_function->first_block]
+          .terminator_index;
+  CHECK(no_cleanup_success_call < program->call_count &&
+        no_cleanup_invoke < program->terminator_count &&
+        program->terminators[no_cleanup_invoke].call_index <
+            program->call_count);
+  const w_seed_parallel_typed_binding1_task no_cleanup_tasks[2] = {
+      {.lexical_index = 0u, .call_index = no_cleanup_success_call},
+      {.lexical_index = 1u,
+       .call_index = program->terminators[no_cleanup_invoke].call_index}};
+  input.hir_program = program;
+  input.hir_result = &fixture.hir_result;
+  input.invoke_terminator = no_cleanup_invoke;
+  input.tasks = no_cleanup_tasks;
+  w_seed_parallel_typed_binding1_counts rejected_counts;
+  w_seed_parallel_typed_binding1_result rejected_result;
+  (void)memset(&rejected_counts, 0x6b, sizeof(rejected_counts));
+  (void)memset(&rejected_result, 0xb6, sizeof(rejected_result));
+  const w_seed_parallel_typed_binding1_counts rejected_counts_before =
+      rejected_counts;
+  const w_seed_parallel_typed_binding1_result rejected_result_before =
+      rejected_result;
+  CHECK(w_seed_parallel_typed_binding1_measure(
+            &input, &rejected_counts, &rejected_result) ==
+            W_SEED_PARALLEL_TYPED_BINDING1_HIR &&
+        memcmp(&rejected_counts, &rejected_counts_before,
+               sizeof(rejected_counts)) == 0 &&
+        memcmp(&rejected_result, &rejected_result_before,
+               sizeof(rejected_result)) == 0);
+  return true;
+}
+#else
+static bool test_parallel_typed_binding1(void) { return true; }
+#endif
+
 static bool test_local_enum_payload_declarations_hir(void) {
   static const char SOURCE[] =
       "enum Course { starter main(price: i64) shared(i64, i64) }\n"
@@ -9948,6 +10278,7 @@ int main(int argc, char **argv) {
   if (!test_process_hir_adversarial()) return 1;
   if (!test_direct_entry_facts()) return 1;
   if (!test_typed_invoke_cleanup_hir()) return 1;
+  if (!test_parallel_typed_binding1()) return 1;
   if (!test_direct_entry_effect_barrier()) return 1;
   if (!test_short_entry_hir()) return 1;
   if (!test_signed_comparison_values()) return 1;

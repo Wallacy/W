@@ -43,13 +43,15 @@ static bool completion_valid(
   if (completion == NULL) return false;
   switch (completion->kind) {
     case W_SEED_PARALLEL_PLATFORM1_COMPLETION_SUCCESS:
-      return completion->error_code == 0u && completion->cancel_reason == 0u;
+      return completion->error_code == 0u && completion->cancel_reason == 0u &&
+             completion->error_case_ordinal == 0u;
     case W_SEED_PARALLEL_PLATFORM1_COMPLETION_ERROR:
       return completion->success_value == 0 && completion->error_code != 0u &&
              completion->cancel_reason == 0u;
     case W_SEED_PARALLEL_PLATFORM1_COMPLETION_CANCELED:
       return completion->success_value == 0 && completion->error_code == 0u &&
-             completion->cancel_reason != 0u;
+             completion->cancel_reason != 0u &&
+             completion->error_case_ordinal == 0u;
     default:
       return false;
   }
@@ -326,7 +328,7 @@ w_seed_parallel_provider0_platform_status w_seed_parallel_platform1_execute(
             : source->cancel_reason;
     while (first < job_count) {
       completions[first] = (w_seed_parallel_platform1_completion){
-          W_SEED_PARALLEL_PLATFORM1_COMPLETION_CANCELED, 0, 0u, reason};
+          W_SEED_PARALLEL_PLATFORM1_COMPLETION_CANCELED, 0, 0u, reason, 0u};
       receipt->canceled_before_start_count += 1u;
       first += 1u;
     }
