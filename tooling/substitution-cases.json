@@ -8655,6 +8655,80 @@
     "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
   },
   {
+    "id": "R0-parallel-platform-typed-completions",
+    "reviewItem": "typed physical completion waves against Boolean outcome collapse, fail-fast sibling rewriting, thread termination as cancellation, and panic-to-error substitution",
+    "decisions": ["W-1612"],
+    "task": "Execute tagged physical task completions in bounded Windows waves while preserving settled siblings and canceling only later unstarted work.",
+    "selected": {
+      "language": "w-internal",
+      "source": [
+        "completion = success(value) | error(code) | canceled(reason)",
+        "wave = PLATFORM1.execute(tasks, capacity: 2)",
+        "assert wave[0] == success(10)",
+        "assert wave[1] == error(2)",
+        "assert wave[2...] == canceled(failFast)",
+        "assert capacity(1).completions == capacity(2).completions"
+      ]
+    },
+    "alternatives": [
+      {
+        "name": "boolean-completion",
+        "language": "w-internal-rejected",
+        "source": ["callback returns true or false and every false value is task failure"],
+        "expectedDifference": "The selected callback carries canonical success, typed error, and canceled values independently from component status."
+      },
+      {
+        "name": "rewrite-settled-sibling",
+        "language": "w-internal-rejected",
+        "source": ["after one worker fails, rewrite every sibling in its completed wave as canceled"],
+        "expectedDifference": "Already-started siblings retain their actual completion; only later unstarted waves are synthesized as canceled."
+      },
+      {
+        "name": "terminate-worker",
+        "language": "w-internal-rejected",
+        "source": ["terminate running threads when fail-fast is requested"],
+        "expectedDifference": "Cancellation is cooperative at the wave boundary and never uses thread termination."
+      },
+      {
+        "name": "encode-panic-as-error",
+        "language": "w-internal-rejected",
+        "source": ["convert process, hardware, or callback faults into a typed W error completion"],
+        "expectedDifference": "Panic/fault containment is explicitly absent and cannot be substituted by the typed completion tags."
+      }
+    ],
+    "sourceRefs": [
+      {
+        "path": "compiler/seed-c/src/w_seed_parallel_provider0_platform.h",
+        "symbol": "w_seed_parallel_platform1_completion",
+        "claim": "The private provider completion uses an explicit tag and canonical tag-specific payload fields."
+      },
+      {
+        "path": "compiler/seed-c/src/w_seed_parallel_provider0_windows.c",
+        "symbol": "w_seed_parallel_platform1_execute",
+        "claim": "The Windows primitive executes constant-size waves, selects the lexical cancellation source, and marks only later unstarted tasks canceled."
+      },
+      {
+        "path": "compiler/seed-c/tests/test_hir0.c",
+        "symbol": "test_parallel_platform1_typed_completions",
+        "claim": "The C23 witness proves capacity-one/two equality, typed error, explicit cancellation, settled sibling preservation, receipts, and invalid-payload rejection."
+      },
+      {
+        "path": "tooling/check-hir0.mjs",
+        "symbol": "typed Windows completions",
+        "claim": "The clean focused HIR gate builds and executes the private typed provider witness."
+      }
+    ],
+    "checks": [
+      "success, error, and canceled use distinct canonical tags and payloads",
+      "typed error and cancellation are normal provider completions rather than component failures",
+      "the first lexical failure source prevents later waves from starting",
+      "an already-started sibling completion is never rewritten",
+      "capacity one and two produce equal indexed completions while receipts retain physical differences",
+      "panic/fault containment, authentication, TASKLIFE binding, source semantics, public ABI/products, benchmark, and performance remain unclaimed"
+    ],
+    "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+  },
+  {
     "id": "R0-process-parallel-provider-link",
     "reviewItem": "bounded dual-target process/parallel linkage against direct-call substitution, CRT fallback, hidden runtime input, target conflation, and premature public or benchmark claims",
     "decisions": ["W-1600"],

@@ -40556,6 +40556,32 @@ Windows compiler/component path. PARLIFE1 does not yet express provider typed
 failure, cancellation request or physical interruption, panic, a scheduler,
 public Task ABI, executable behavior, benchmark result, or performance.
 
+#### 26.4.1.92 W-1612 — typed physical completion primitive
+
+PLATFORM1 is a private Windows provider primitive whose task callback returns
+exactly one tagged completion: `success(i64)`, `error(code)`, or
+`canceled(reason)`. Unused payload fields must be zero. A normally returned
+typed error or cancellation is successful provider execution; it is not a
+thread failure. An invalid completion or failed callback is a component task
+failure. Provider creation/join failure remains separate. Panic and hardware
+fault containment are absent and cannot be encoded as typed error or canceled.
+
+Capacity one executes directly; capacity two uses the same monotonic
+ready/release rendezvous as PARPROV1. After the first lexical error or canceled
+completion in a completed wave, no later wave starts. Every not-started task
+receives an indexed canceled completion. A sibling already started in the same
+wave may settle normally; cancellation never rewrites it. The receipt separates
+started, settled, and canceled-before-start counts, maximum active workers, and
+the lexical cancellation source.
+
+The five-task C23 witness proves equal indexed completions for capacities one
+and two: one success, one typed error, and three cooperative fail-fast
+cancellations. A second witness starts with explicit cancellation and preserves
+the already-started sibling success. This is private Windows component evidence,
+not yet an authenticated PARPROV result, TASKLIFE binding, source-level throw,
+physical preemption, panic boundary, scheduler, Task ABI, public product,
+benchmark, or performance claim.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:
