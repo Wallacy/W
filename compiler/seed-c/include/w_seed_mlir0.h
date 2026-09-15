@@ -8,6 +8,7 @@
 #include "w_seed_cooperative_selection0.h"
 #include "w_seed_hir0.h"
 #include "w_seed_parallel_invocation0.h"
+#include "w_seed_parallel_invocation1.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,6 +36,8 @@ extern "C" {
  * scheduler, provider, runtime ownership, or target ABI. */
 #define W_SEED_MLIR0_PARALLEL_ENTRY_SCHEMA_VERSION \
   "w-seed-mlir0-parallel-entry-2"
+#define W_SEED_MLIR1_PARALLEL_ENTRY_RESULT_SCHEMA_VERSION \
+  "w-seed-mlir1-parallel-entry-result-1"
 /* A composed process/parallel artifact is deliberately a separate contract
  * from both the ordinary process executable and the target-neutral task
  * entries.  It is linkable MLIR: the process adapter and provider own the
@@ -147,6 +150,20 @@ typedef struct {
   size_t capacity;
 } w_seed_mlir0_parallel_entry_output;
 
+/* PARMLIR1 preserves the target-neutral MLIR text contract above while
+ * replacing PARSEL0/PARINV0's fixed storage with measured caller-owned
+ * relations. The extra digests bind the artifact to both producer proofs. */
+typedef struct {
+  w_seed_mlir0_status status;
+  w_seed_mlir0_parallel_entry_counts required;
+  w_seed_mlir0_parallel_entry_counts written;
+  char schema[sizeof(W_SEED_MLIR1_PARALLEL_ENTRY_RESULT_SCHEMA_VERSION)];
+  uint8_t hir_semantic_digest[32];
+  uint8_t selection_semantic_digest[32];
+  uint8_t invocation_semantic_digest[32];
+  uint8_t mlir_sha256[32];
+} w_seed_mlir1_parallel_entry_result;
+
 typedef struct {
   size_t mlir_bytes;
   uint32_t task_count;
@@ -241,6 +258,36 @@ bool w_seed_mlir0_verify_parallel_entries(
     const w_seed_parallel_invocation0_plan *invocation,
     const uint8_t *artifact, size_t artifact_bytes,
     const w_seed_mlir0_parallel_entry_result *result);
+
+/* Measured counterpart of the compatibility entry points above. Compatible
+ * inputs produce byte-identical MLIR; task and argument counts are supplied by
+ * PARSEL1/PARINV1 rather than bounded arrays in the proof records. */
+w_seed_mlir0_status w_seed_mlir1_measure_parallel_entries(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_parallel_selection1_program *selection,
+    const w_seed_parallel_selection1_result *selection_result,
+    const w_seed_parallel_invocation1_program *invocation,
+    const w_seed_parallel_invocation1_result *invocation_result,
+    w_seed_mlir0_parallel_entry_counts *counts,
+    w_seed_mlir1_parallel_entry_result *result);
+
+w_seed_mlir0_status w_seed_mlir1_emit_parallel_entries(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_parallel_selection1_program *selection,
+    const w_seed_parallel_selection1_result *selection_result,
+    const w_seed_parallel_invocation1_program *invocation,
+    const w_seed_parallel_invocation1_result *invocation_result,
+    const w_seed_mlir0_parallel_entry_output *output,
+    w_seed_mlir1_parallel_entry_result *result);
+
+bool w_seed_mlir1_verify_parallel_entries(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_parallel_selection1_program *selection,
+    const w_seed_parallel_selection1_result *selection_result,
+    const w_seed_parallel_invocation1_program *invocation,
+    const w_seed_parallel_invocation1_result *invocation_result,
+    const uint8_t *artifact, size_t artifact_bytes,
+    const w_seed_mlir1_parallel_entry_result *result);
 
 /* Compose the verified W-1595 process root with the verified W-1596
  * PARSEL0/PARINV0 task relation.  The artifact is intentionally linkable,

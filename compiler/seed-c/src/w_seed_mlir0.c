@@ -5918,7 +5918,8 @@ static bool append_cooperative_call(
   const w_seed_hir0_call *call = &program->calls[call_index];
   if (call->execution_kind != W_SEED_HIR0_CALL_DIRECT ||
       call->callee_identity >= program->identity_count ||
-      call->argument_count > W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS)
+      call->first_argument > program->argument_count ||
+      call->argument_count > program->argument_count - call->first_argument)
     return false;
   const w_seed_hir0_identity *identity =
       &program->identities[call->callee_identity];
@@ -5930,19 +5931,18 @@ static bool append_cooperative_call(
   if (call->argument_count != target->parameter_count ||
       cooperative_type_name(program, call->result_type) == NULL)
     return false;
-  uint32_t values[W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS];
-  for (size_t index = 0u; index < W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS;
-       index += 1u)
-    values[index] = W_SEED_HIR0_NONE;
-  for (size_t ordinal = 0u; ordinal < call->argument_count; ordinal += 1u) {
+  for (size_t argument_index = 0u; argument_index < call->argument_count;
+       argument_index += 1u) {
     const w_seed_hir0_argument *argument =
-        &program->arguments[(size_t)call->first_argument + ordinal];
+        &program->arguments[(size_t)call->first_argument + argument_index];
     if (argument->parameter_ordinal >= call->argument_count ||
-        values[argument->parameter_ordinal] != W_SEED_HIR0_NONE ||
         !append_cooperative_value_tree(program, argument->value_index, emitted,
                                        artifact, capacity, offset, 0u))
       return false;
-    values[argument->parameter_ordinal] = argument->value_index;
+    for (size_t previous = 0u; previous < argument_index; previous += 1u)
+      if (program->arguments[(size_t)call->first_argument + previous]
+              .parameter_ordinal == argument->parameter_ordinal)
+        return false;
   }
   if (!append_literal(artifact, capacity, offset, "    %ccall") ||
       !append_size(artifact, capacity, offset, call_index) ||
@@ -5951,13 +5951,21 @@ static bool append_cooperative_call(
       !append_size(artifact, capacity, offset, identity->target_index) ||
       !append_literal(artifact, capacity, offset, "("))
     return false;
-  for (size_t ordinal = 0u; ordinal < call->argument_count; ordinal += 1u)
+  for (size_t ordinal = 0u; ordinal < call->argument_count; ordinal += 1u) {
+    const w_seed_hir0_argument *ordered = NULL;
+    for (size_t argument_index = 0u; argument_index < call->argument_count;
+         argument_index += 1u) {
+      const w_seed_hir0_argument *candidate =
+          &program->arguments[(size_t)call->first_argument + argument_index];
+      if (candidate->parameter_ordinal == ordinal) ordered = candidate;
+    }
     if ((ordinal != 0u &&
          !append_literal(artifact, capacity, offset, ", ")) ||
-        values[ordinal] == W_SEED_HIR0_NONE ||
-        !append_cooperative_value_operand(program, values[ordinal], artifact,
-                                          capacity, offset, 0u))
+        ordered == NULL ||
+        !append_cooperative_value_operand(program, ordered->value_index,
+                                          artifact, capacity, offset, 0u))
       return false;
+  }
   if (!append_literal(artifact, capacity, offset, ") : ("))
     return false;
   for (size_t ordinal = 0u; ordinal < target->parameter_count; ordinal += 1u) {
@@ -5990,7 +5998,9 @@ static bool append_cooperative_function(
       cooperative_type_name(program, function->return_type);
   if (return_type == NULL || function->block_count != 1u ||
       function->first_block >= program->block_count ||
-      function->parameter_count > W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS ||
+      function->first_parameter > program->parameter_count ||
+      function->parameter_count >
+          program->parameter_count - function->first_parameter ||
       !append_literal(artifact, capacity, offset,
                       "  func.func private @w_coop_fn_") ||
       !append_size(artifact, capacity, offset, function_index) ||
@@ -6069,7 +6079,8 @@ static bool append_cooperative_task_arguments(
     return false;
   const w_seed_hir0_call *call = &program->calls[call_index];
   if (call->callee_identity >= program->identity_count ||
-      call->argument_count > W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS)
+      call->first_argument > program->argument_count ||
+      call->argument_count > program->argument_count - call->first_argument)
     return false;
   const w_seed_hir0_identity *identity =
       &program->identities[call->callee_identity];
@@ -6079,17 +6090,16 @@ static bool append_cooperative_task_arguments(
   const w_seed_hir0_function *target =
       &program->functions[identity->target_index];
   if (call->argument_count != target->parameter_count) return false;
-  uint32_t values[W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS];
-  for (size_t index = 0u; index < W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS;
-       index += 1u)
-    values[index] = W_SEED_HIR0_NONE;
-  for (size_t ordinal = 0u; ordinal < call->argument_count; ordinal += 1u) {
+  for (size_t argument_index = 0u; argument_index < call->argument_count;
+       argument_index += 1u) {
     const w_seed_hir0_argument *argument =
-        &program->arguments[(size_t)call->first_argument + ordinal];
-    if (argument->parameter_ordinal >= call->argument_count ||
-        values[argument->parameter_ordinal] != W_SEED_HIR0_NONE)
+        &program->arguments[(size_t)call->first_argument + argument_index];
+    if (argument->parameter_ordinal >= call->argument_count)
       return false;
-    values[argument->parameter_ordinal] = argument->value_index;
+    for (size_t previous = 0u; previous < argument_index; previous += 1u)
+      if (program->arguments[(size_t)call->first_argument + previous]
+              .parameter_ordinal == argument->parameter_ordinal)
+        return false;
     if (!types &&
         !append_cooperative_value_tree(program, argument->value_index, emitted,
                                        artifact, capacity, offset, 0u))
@@ -6099,7 +6109,14 @@ static bool append_cooperative_task_arguments(
     if (ordinal != 0u &&
         !append_literal(artifact, capacity, offset, ", "))
       return false;
-    if (values[ordinal] == W_SEED_HIR0_NONE) return false;
+    const w_seed_hir0_argument *ordered = NULL;
+    for (size_t argument_index = 0u; argument_index < call->argument_count;
+         argument_index += 1u) {
+      const w_seed_hir0_argument *candidate =
+          &program->arguments[(size_t)call->first_argument + argument_index];
+      if (candidate->parameter_ordinal == ordinal) ordered = candidate;
+    }
+    if (ordered == NULL) return false;
     if (types) {
       const char *type = cooperative_type_name(
           program,
@@ -6109,7 +6126,8 @@ static bool append_cooperative_task_arguments(
           !append_literal(artifact, capacity, offset, type))
         return false;
     } else if (!append_cooperative_value_operand(
-                   program, values[ordinal], artifact, capacity, offset, 0u)) {
+                   program, ordered->value_index, artifact, capacity, offset,
+                   0u)) {
       return false;
     }
   }
@@ -6606,26 +6624,65 @@ static bool parallel_mark_function(
                              depth + 1u);
 }
 
+typedef enum {
+  PARALLEL_ENTRY_VIEW_FIXED = 0,
+  PARALLEL_ENTRY_VIEW_MEASURED = 1,
+} parallel_entry_view_kind;
+
+typedef struct {
+  parallel_entry_view_kind kind;
+  size_t task_count;
+  const void *tasks;
+} parallel_entry_view;
+
+typedef struct {
+  uint32_t call_index;
+  uint32_t function_index;
+  uint32_t argument_count;
+} parallel_entry_task;
+
+static bool parallel_entry_task_at(const parallel_entry_view *view,
+                                   size_t index,
+                                   parallel_entry_task *task) {
+  if (view == NULL || task == NULL || view->tasks == NULL ||
+      index >= view->task_count)
+    return false;
+  if (view->kind == PARALLEL_ENTRY_VIEW_FIXED) {
+    const w_seed_parallel_invocation0_task *entry =
+        &((const w_seed_parallel_invocation0_task *)view->tasks)[index];
+    *task = (parallel_entry_task){entry->call_index, entry->function_index,
+                                  entry->argument_count};
+    return true;
+  }
+  if (view->kind == PARALLEL_ENTRY_VIEW_MEASURED) {
+    const w_seed_parallel_invocation1_task *entry =
+        &((const w_seed_parallel_invocation1_task *)view->tasks)[index];
+    *task = (parallel_entry_task){entry->call_index, entry->function_index,
+                                  entry->argument_count};
+    return true;
+  }
+  return false;
+}
+
 static bool build_parallel_entry_artifact(
-    const w_seed_hir0_program *program,
-    const w_seed_parallel_selection0 *selection,
-    const w_seed_parallel_invocation0_plan *invocation, uint8_t *artifact,
+    const w_seed_hir0_program *program, const parallel_entry_view *view,
+    uint8_t *artifact,
     size_t capacity, size_t *written, uint32_t *runtime_argument_count,
     uint32_t *reachable_function_count,
     uint8_t digest[MLIR0_DIGEST_BYTES]) {
-  if (program == NULL || selection == NULL || invocation == NULL ||
+  if (program == NULL || view == NULL ||
       artifact == NULL || written == NULL || runtime_argument_count == NULL ||
       reachable_function_count == NULL || digest == NULL ||
       program->function_count == 0u ||
       program->function_count > W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS ||
-      selection->task_count == 0u ||
-      selection->task_count > W_SEED_PARALLEL_INVOCATION0_MAX_TASKS ||
-      invocation->task_count != selection->task_count)
+      view->task_count == 0u || view->task_count > UINT32_MAX)
     return false;
   bool reachable[W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS] = {false};
-  for (size_t task = 0u; task < invocation->task_count; task += 1u) {
-    const w_seed_parallel_invocation0_task *entry = &invocation->tasks[task];
-    if (!parallel_mark_function(program, entry->function_index, reachable, 0u))
+  for (size_t task_index = 0u; task_index < view->task_count;
+       task_index += 1u) {
+    parallel_entry_task task;
+    if (!parallel_entry_task_at(view, task_index, &task) ||
+        !parallel_mark_function(program, task.function_index, reachable, 0u))
       return false;
   }
 
@@ -6644,23 +6701,28 @@ static bool build_parallel_entry_artifact(
       return false;
     function_count += 1u;
   }
-  for (size_t task = 0u; task < invocation->task_count; task += 1u) {
-    const w_seed_parallel_invocation0_task *entry = &invocation->tasks[task];
-    const w_seed_hir0_call *call = &program->calls[entry->call_index];
+  for (size_t task_index = 0u; task_index < view->task_count;
+       task_index += 1u) {
+    parallel_entry_task task;
+    if (!parallel_entry_task_at(view, task_index, &task) ||
+        task.call_index >= program->call_count ||
+        task.function_index >= program->function_count)
+      return false;
+    const w_seed_hir0_call *call = &program->calls[task.call_index];
     const w_seed_hir0_function *function =
-        &program->functions[entry->function_index];
-    if (entry->argument_count != call->argument_count ||
-        entry->argument_count != function->parameter_count ||
+        &program->functions[task.function_index];
+    if (task.argument_count != call->argument_count ||
+        task.argument_count != function->parameter_count ||
         function->first_parameter == W_SEED_HIR0_NONE ||
         function->first_parameter > program->parameter_count ||
         function->parameter_count >
             program->parameter_count - function->first_parameter ||
-        argument_count > UINT32_MAX - entry->argument_count)
+        argument_count > UINT32_MAX - task.argument_count)
       return false;
-    argument_count += entry->argument_count;
+    argument_count += task.argument_count;
     if (!append_literal(artifact, capacity, &offset,
                         "  func.func @w_seed_parallel_task_") ||
-        !append_size(artifact, capacity, &offset, task) ||
+        !append_size(artifact, capacity, &offset, task_index) ||
         !append_literal(artifact, capacity, &offset, "("))
       return false;
     for (size_t ordinal = 0u; ordinal < function->parameter_count;
@@ -6681,7 +6743,7 @@ static bool build_parallel_entry_artifact(
     if (!append_literal(artifact, capacity, &offset,
                         ") -> i64 {\n"
                         "    %task_result = func.call @w_coop_fn_") ||
-        !append_size(artifact, capacity, &offset, entry->function_index) ||
+        !append_size(artifact, capacity, &offset, task.function_index) ||
         !append_literal(artifact, capacity, &offset, "("))
       return false;
     for (size_t ordinal = 0u; ordinal < function->parameter_count;
@@ -6729,7 +6791,7 @@ static bool parallel_entry_ranges_alias(
     const w_seed_parallel_invocation0_plan *invocation,
     const w_seed_mlir0_parallel_entry_counts *counts,
     const w_seed_mlir0_parallel_entry_output *output,
-    const w_seed_mlir0_parallel_entry_result *result, size_t written) {
+    const w_seed_mlir0_parallel_entry_result *result) {
   if (program == NULL || hir_result == NULL || selection == NULL ||
       invocation == NULL)
     return true;
@@ -6753,7 +6815,7 @@ static bool parallel_entry_ranges_alias(
   ADD_PARALLEL_ENTRY_RANGE(output, output == NULL ? 0u : 1u,
                            sizeof(*output));
   if (output != NULL)
-    ADD_PARALLEL_ENTRY_RANGE(output->bytes, written, sizeof(uint8_t));
+    ADD_PARALLEL_ENTRY_RANGE(output->bytes, output->capacity, sizeof(uint8_t));
   const mlir0_range input_ranges[] = {
       {program->modules, program->module_capacity, sizeof(*program->modules)},
       {program->identities, program->identity_capacity,
@@ -6813,6 +6875,117 @@ static bool parallel_entry_ranges_alias(
                              input_ranges[index].count,
                              input_ranges[index].element_size);
 #undef ADD_PARALLEL_ENTRY_RANGE
+  for (size_t first = 0u; first < range_count; first += 1u)
+    for (size_t second = first + 1u; second < range_count; second += 1u)
+      if (range_pair_overlaps(&ranges[first], &ranges[second])) return true;
+  return false;
+}
+
+static bool parallel_entry1_ranges_alias(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_parallel_selection1_program *selection,
+    const w_seed_parallel_selection1_result *selection_result,
+    const w_seed_parallel_invocation1_program *invocation,
+    const w_seed_parallel_invocation1_result *invocation_result,
+    const w_seed_mlir0_parallel_entry_counts *counts,
+    const w_seed_mlir0_parallel_entry_output *output,
+    const w_seed_mlir1_parallel_entry_result *result) {
+  if (program == NULL || hir_result == NULL || selection == NULL ||
+      selection_result == NULL || invocation == NULL ||
+      invocation_result == NULL)
+    return true;
+  mlir0_range ranges[48];
+  size_t range_count = 0u;
+  const size_t range_capacity = sizeof(ranges) / sizeof(ranges[0]);
+#define ADD_PARALLEL_ENTRY1_RANGE(address, count, element_size)               \
+  do {                                                                        \
+    if (!range_add(ranges, range_capacity, &range_count, (address), (count),  \
+                   (element_size)))                                           \
+      return true;                                                            \
+  } while (0)
+  ADD_PARALLEL_ENTRY1_RANGE(program, 1u, sizeof(*program));
+  ADD_PARALLEL_ENTRY1_RANGE(hir_result, 1u, sizeof(*hir_result));
+  ADD_PARALLEL_ENTRY1_RANGE(selection, 1u, sizeof(*selection));
+  ADD_PARALLEL_ENTRY1_RANGE(selection_result, 1u,
+                            sizeof(*selection_result));
+  ADD_PARALLEL_ENTRY1_RANGE(invocation, 1u, sizeof(*invocation));
+  ADD_PARALLEL_ENTRY1_RANGE(invocation_result, 1u,
+                            sizeof(*invocation_result));
+  ADD_PARALLEL_ENTRY1_RANGE(selection->tasks, selection->task_capacity,
+                            sizeof(*selection->tasks));
+  ADD_PARALLEL_ENTRY1_RANGE(invocation->tasks, invocation->task_capacity,
+                            sizeof(*invocation->tasks));
+  ADD_PARALLEL_ENTRY1_RANGE(invocation->arguments,
+                            invocation->argument_capacity,
+                            sizeof(*invocation->arguments));
+  ADD_PARALLEL_ENTRY1_RANGE(counts, counts == NULL ? 0u : 1u,
+                            sizeof(*counts));
+  ADD_PARALLEL_ENTRY1_RANGE(result, result == NULL ? 0u : 1u,
+                            sizeof(*result));
+  ADD_PARALLEL_ENTRY1_RANGE(output, output == NULL ? 0u : 1u,
+                            sizeof(*output));
+  if (output != NULL)
+    ADD_PARALLEL_ENTRY1_RANGE(output->bytes, output->capacity,
+                              sizeof(uint8_t));
+  const mlir0_range input_ranges[] = {
+      {program->modules, program->module_capacity, sizeof(*program->modules)},
+      {program->identities, program->identity_capacity,
+       sizeof(*program->identities)},
+      {program->types, program->type_capacity, sizeof(*program->types)},
+      {program->enums, program->enum_capacity, sizeof(*program->enums)},
+      {program->enum_cases, program->enum_case_capacity,
+       sizeof(*program->enum_cases)},
+      {program->enum_case_parameters, program->enum_case_parameter_capacity,
+       sizeof(*program->enum_case_parameters)},
+      {program->enum_subset_members, program->enum_subset_member_capacity,
+       sizeof(*program->enum_subset_members)},
+      {program->enum_payloads, program->enum_payload_capacity,
+       sizeof(*program->enum_payloads)},
+      {program->switch_captures, program->switch_capture_capacity,
+       sizeof(*program->switch_captures)},
+      {program->functions, program->function_capacity,
+       sizeof(*program->functions)},
+      {program->parameters, program->parameter_capacity,
+       sizeof(*program->parameters)},
+      {program->blocks, program->block_capacity, sizeof(*program->blocks)},
+      {program->block_arguments, program->block_argument_capacity,
+       sizeof(*program->block_arguments)},
+      {program->edge_arguments, program->edge_argument_capacity,
+       sizeof(*program->edge_arguments)},
+      {program->switch_edges, program->switch_edge_capacity,
+       sizeof(*program->switch_edges)},
+      {program->instructions, program->instruction_capacity,
+       sizeof(*program->instructions)},
+      {program->bindings, program->binding_capacity,
+       sizeof(*program->bindings)},
+      {program->calls, program->call_capacity, sizeof(*program->calls)},
+      {program->host_parameters, program->host_parameter_capacity,
+       sizeof(*program->host_parameters)},
+      {program->arguments, program->argument_capacity,
+       sizeof(*program->arguments)},
+      {program->requirements, program->requirement_capacity,
+       sizeof(*program->requirements)},
+      {program->values, program->value_capacity, sizeof(*program->values)},
+      {program->interpolation_segments,
+       program->interpolation_segment_capacity,
+       sizeof(*program->interpolation_segments)},
+      {program->terminators, program->terminator_capacity,
+       sizeof(*program->terminators)},
+      {program->entries, program->entry_capacity, sizeof(*program->entries)},
+      {program->external_modules, program->external_module_capacity,
+       sizeof(*program->external_modules)},
+      {program->external_symbols, program->external_symbol_capacity,
+       sizeof(*program->external_symbols)},
+      {program->text_bytes, program->text_byte_capacity, sizeof(uint8_t)},
+      {program->value_bytes, program->value_byte_capacity, sizeof(uint8_t)},
+      {program->receipt, program->receipt_capacity, sizeof(uint8_t)},
+  };
+  for (size_t index = 0u;
+       index < sizeof(input_ranges) / sizeof(input_ranges[0]); index += 1u)
+    ADD_PARALLEL_ENTRY1_RANGE(input_ranges[index].address,
+                              input_ranges[index].count,
+                              input_ranges[index].element_size);
+#undef ADD_PARALLEL_ENTRY1_RANGE
   for (size_t first = 0u; first < range_count; first += 1u)
     for (size_t second = first + 1u; second < range_count; second += 1u)
       if (range_pair_overlaps(&ranges[first], &ranges[second])) return true;
@@ -7266,12 +7439,14 @@ w_seed_mlir0_status w_seed_mlir0_measure_parallel_entries(
   size_t written = 0u;
   uint32_t runtime_argument_count = 0u;
   uint32_t reachable_function_count = 0u;
+  const parallel_entry_view view = {
+      PARALLEL_ENTRY_VIEW_FIXED, invocation->task_count, invocation->tasks};
   if (!build_parallel_entry_artifact(
-          program, selection, invocation, artifact, sizeof(artifact), &written,
+          program, &view, artifact, sizeof(artifact), &written,
           &runtime_argument_count, &reachable_function_count, digest))
     return W_SEED_MLIR0_UNSUPPORTED;
   if (parallel_entry_ranges_alias(program, hir_result, selection, invocation,
-                                  counts, NULL, result, written))
+                                  counts, NULL, result))
     return W_SEED_MLIR0_ALIAS;
   const w_seed_mlir0_parallel_entry_counts candidate_counts = {
       written, selection->task_count, runtime_argument_count,
@@ -7306,12 +7481,14 @@ w_seed_mlir0_status w_seed_mlir0_emit_parallel_entries(
   size_t written = 0u;
   uint32_t runtime_argument_count = 0u;
   uint32_t reachable_function_count = 0u;
+  const parallel_entry_view view = {
+      PARALLEL_ENTRY_VIEW_FIXED, invocation->task_count, invocation->tasks};
   if (!build_parallel_entry_artifact(
-          program, selection, invocation, artifact, sizeof(artifact), &written,
+          program, &view, artifact, sizeof(artifact), &written,
           &runtime_argument_count, &reachable_function_count, digest))
     return W_SEED_MLIR0_UNSUPPORTED;
   if (parallel_entry_ranges_alias(program, hir_result, selection, invocation,
-                                  NULL, output, result, written))
+                                  NULL, output, result))
     return W_SEED_MLIR0_ALIAS;
   if (output->bytes == NULL || output->capacity < written)
     return W_SEED_MLIR0_CAPACITY;
@@ -7350,8 +7527,10 @@ bool w_seed_mlir0_verify_parallel_entries(
   size_t written = 0u;
   uint32_t runtime_argument_count = 0u;
   uint32_t reachable_function_count = 0u;
+  const parallel_entry_view view = {
+      PARALLEL_ENTRY_VIEW_FIXED, invocation->task_count, invocation->tasks};
   if (!build_parallel_entry_artifact(
-          program, selection, invocation, expected, sizeof(expected), &written,
+          program, &view, expected, sizeof(expected), &written,
           &runtime_argument_count, &reachable_function_count, digest))
     return false;
   return artifact_bytes == written &&
@@ -7369,6 +7548,175 @@ bool w_seed_mlir0_verify_parallel_entries(
          memcmp(result->hir_semantic_digest, hir_result->semantic_digest,
                 sizeof(result->hir_semantic_digest)) == 0 &&
           memcmp(result->mlir_sha256, digest, sizeof(digest)) == 0;
+}
+
+static void parallel_entry1_result_init(
+    w_seed_mlir1_parallel_entry_result *result,
+    const w_seed_mlir0_parallel_entry_counts *counts,
+    const w_seed_hir0_result *hir_result,
+    const w_seed_parallel_selection1_result *selection_result,
+    const w_seed_parallel_invocation1_result *invocation_result,
+    const uint8_t digest[MLIR0_DIGEST_BYTES], bool emitted) {
+  (void)memset(result, 0, sizeof(*result));
+  result->status = W_SEED_MLIR0_OK;
+  result->required = *counts;
+  if (emitted) result->written = *counts;
+  (void)memcpy(result->schema,
+               W_SEED_MLIR1_PARALLEL_ENTRY_RESULT_SCHEMA_VERSION,
+               sizeof(result->schema));
+  (void)memcpy(result->hir_semantic_digest, hir_result->semantic_digest,
+               sizeof(result->hir_semantic_digest));
+  (void)memcpy(result->selection_semantic_digest,
+               selection_result->semantic_digest,
+               sizeof(result->selection_semantic_digest));
+  (void)memcpy(result->invocation_semantic_digest,
+               invocation_result->semantic_digest,
+               sizeof(result->invocation_semantic_digest));
+  (void)memcpy(result->mlir_sha256, digest, sizeof(result->mlir_sha256));
+}
+
+w_seed_mlir0_status w_seed_mlir1_measure_parallel_entries(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_parallel_selection1_program *selection,
+    const w_seed_parallel_selection1_result *selection_result,
+    const w_seed_parallel_invocation1_program *invocation,
+    const w_seed_parallel_invocation1_result *invocation_result,
+    w_seed_mlir0_parallel_entry_counts *counts,
+    w_seed_mlir1_parallel_entry_result *result) {
+  if (program == NULL || hir_result == NULL || selection == NULL ||
+      selection_result == NULL || invocation == NULL ||
+      invocation_result == NULL || counts == NULL || result == NULL ||
+      !w_seed_parallel_invocation1_verify(
+          program, hir_result, selection, selection_result, invocation,
+          invocation_result))
+    return W_SEED_MLIR0_INVALID_HIR;
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  uint8_t digest[MLIR0_DIGEST_BYTES];
+  size_t written = 0u;
+  uint32_t runtime_argument_count = 0u;
+  uint32_t reachable_function_count = 0u;
+  const parallel_entry_view view = {
+      PARALLEL_ENTRY_VIEW_MEASURED, invocation->task_count, invocation->tasks};
+  if (!build_parallel_entry_artifact(
+          program, &view, artifact, sizeof(artifact), &written,
+          &runtime_argument_count, &reachable_function_count, digest))
+    return W_SEED_MLIR0_UNSUPPORTED;
+  if (parallel_entry1_ranges_alias(
+          program, hir_result, selection, selection_result, invocation,
+          invocation_result, counts, NULL, result))
+    return W_SEED_MLIR0_ALIAS;
+  const w_seed_mlir0_parallel_entry_counts candidate_counts = {
+      written, (uint32_t)selection->task_count, runtime_argument_count,
+      reachable_function_count};
+  w_seed_mlir1_parallel_entry_result candidate_result;
+  parallel_entry1_result_init(&candidate_result, &candidate_counts, hir_result,
+                              selection_result, invocation_result, digest,
+                              false);
+  *counts = candidate_counts;
+  *result = candidate_result;
+  return W_SEED_MLIR0_OK;
+}
+
+w_seed_mlir0_status w_seed_mlir1_emit_parallel_entries(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_parallel_selection1_program *selection,
+    const w_seed_parallel_selection1_result *selection_result,
+    const w_seed_parallel_invocation1_program *invocation,
+    const w_seed_parallel_invocation1_result *invocation_result,
+    const w_seed_mlir0_parallel_entry_output *output,
+    w_seed_mlir1_parallel_entry_result *result) {
+  if (program == NULL || hir_result == NULL || selection == NULL ||
+      selection_result == NULL || invocation == NULL ||
+      invocation_result == NULL || output == NULL || result == NULL ||
+      !w_seed_parallel_invocation1_verify(
+          program, hir_result, selection, selection_result, invocation,
+          invocation_result))
+    return W_SEED_MLIR0_INVALID_HIR;
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  uint8_t digest[MLIR0_DIGEST_BYTES];
+  size_t written = 0u;
+  uint32_t runtime_argument_count = 0u;
+  uint32_t reachable_function_count = 0u;
+  const parallel_entry_view view = {
+      PARALLEL_ENTRY_VIEW_MEASURED, invocation->task_count, invocation->tasks};
+  if (!build_parallel_entry_artifact(
+          program, &view, artifact, sizeof(artifact), &written,
+          &runtime_argument_count, &reachable_function_count, digest))
+    return W_SEED_MLIR0_UNSUPPORTED;
+  if (parallel_entry1_ranges_alias(
+          program, hir_result, selection, selection_result, invocation,
+          invocation_result, NULL, output, result))
+    return W_SEED_MLIR0_ALIAS;
+  if (output->bytes == NULL || output->capacity < written)
+    return W_SEED_MLIR0_CAPACITY;
+  const w_seed_mlir0_parallel_entry_counts candidate_counts = {
+      written, (uint32_t)selection->task_count, runtime_argument_count,
+      reachable_function_count};
+  w_seed_mlir1_parallel_entry_result candidate_result;
+  parallel_entry1_result_init(&candidate_result, &candidate_counts, hir_result,
+                              selection_result, invocation_result, digest,
+                              true);
+  (void)memcpy(output->bytes, artifact, written);
+  *result = candidate_result;
+  return W_SEED_MLIR0_OK;
+}
+
+bool w_seed_mlir1_verify_parallel_entries(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_parallel_selection1_program *selection,
+    const w_seed_parallel_selection1_result *selection_result,
+    const w_seed_parallel_invocation1_program *invocation,
+    const w_seed_parallel_invocation1_result *invocation_result,
+    const uint8_t *artifact, size_t artifact_bytes,
+    const w_seed_mlir1_parallel_entry_result *result) {
+  if (program == NULL || hir_result == NULL || selection == NULL ||
+      selection_result == NULL || invocation == NULL ||
+      invocation_result == NULL || artifact == NULL || result == NULL ||
+      result->status != W_SEED_MLIR0_OK ||
+      memcmp(result->schema,
+             W_SEED_MLIR1_PARALLEL_ENTRY_RESULT_SCHEMA_VERSION,
+             sizeof(result->schema)) != 0 ||
+      !w_seed_parallel_invocation1_verify(
+          program, hir_result, selection, selection_result, invocation,
+          invocation_result))
+    return false;
+  uint8_t expected[W_SEED_MLIR0_MAX_BYTES];
+  uint8_t digest[MLIR0_DIGEST_BYTES];
+  size_t written = 0u;
+  uint32_t runtime_argument_count = 0u;
+  uint32_t reachable_function_count = 0u;
+  const parallel_entry_view view = {
+      PARALLEL_ENTRY_VIEW_MEASURED, invocation->task_count, invocation->tasks};
+  if (!build_parallel_entry_artifact(
+          program, &view, expected, sizeof(expected), &written,
+          &runtime_argument_count, &reachable_function_count, digest))
+    return false;
+  const w_seed_mlir0_parallel_entry_counts counts = {
+      written, (uint32_t)selection->task_count, runtime_argument_count,
+      reachable_function_count};
+  return artifact_bytes == written &&
+         memcmp(artifact, expected, written) == 0 &&
+         result->required.mlir_bytes == counts.mlir_bytes &&
+         result->required.task_count == counts.task_count &&
+         result->required.runtime_argument_count ==
+             counts.runtime_argument_count &&
+         result->required.reachable_function_count ==
+             counts.reachable_function_count &&
+         result->written.mlir_bytes == counts.mlir_bytes &&
+         result->written.task_count == counts.task_count &&
+         result->written.runtime_argument_count ==
+             counts.runtime_argument_count &&
+         result->written.reachable_function_count ==
+             counts.reachable_function_count &&
+         memcmp(result->hir_semantic_digest, hir_result->semantic_digest,
+                sizeof(result->hir_semantic_digest)) == 0 &&
+         memcmp(result->selection_semantic_digest,
+                selection_result->semantic_digest,
+                sizeof(result->selection_semantic_digest)) == 0 &&
+         memcmp(result->invocation_semantic_digest,
+                invocation_result->semantic_digest,
+                sizeof(result->invocation_semantic_digest)) == 0 &&
+         memcmp(result->mlir_sha256, digest, sizeof(digest)) == 0;
 }
 
 /* W-1595/W-1596 composition -------------------------------------------------

@@ -256,6 +256,7 @@ O corpus compara, no mínimo:
 - measured task-relation storage against fixed HIR ceilings, host-width identity, provider-policy leakage, and partial publication.
 - measured parallel invocation storage against fixed arity arrays, call-site label order, host-width identity, and partial publication.
 - measured Windows parallel execution against fixed logical storage, provider-dependent outcomes, missed rendezvous states, and hidden scratch mutation.
+- measured parallel task-entry emission against compatibility ceilings, byte drift, unbound producer proofs, and partial publication.
 
 ### 1.1 Cobertura de substituições
 
@@ -7931,6 +7932,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1606 | measured parallel task-relation storage | HIR38 admits and verifies finite `.main` and `.domain` sibling scopes using caller-owned record counts rather than a four-slot temporary array. PARSEL1 consumes the `.domain` lane, measures exact task count, and publishes dense caller-owned call/function/launch/join records with domain facts and a semantic digest independent of provider capacity and compiler-host width. | `source-backed-current` only for finite HIR admission plus PARSEL1 measure/run/bridge/verify, transactional capacity and alias barriers, five-task `.main` and `.domain` evidence, and preserved fail-closed legacy product/selector boundaries. A measured `.main` product consumer, downstream PARINV0/PARPROV0/PARMLIR0 migration, scheduler storage, cancellation/outcomes, public execution, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1607 | measured parallel invocation storage | PARINV1 consumes verified HIR38 and PARSEL1, measures exact task and argument counts, normalizes named arguments into parameter order, and publishes dense caller-owned invocation relations with a canonical semantic digest. Its pure scalar proof resolves parameters through HIR relations without a fixed arity array. | `source-backed-current` only for PARINV1 measure/run/bridge/verify/evaluate, transactional capacity and alias barriers, five-task and seventeen-argument evidence, and preserved fail-closed PARINV0 limits. Provider, PARMLIR0 and public-product migration, cancellation/outcomes, scheduling, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1608 | measured Windows parallel provider | PARPROV1 consumes verified HIR38/PARSEL1/PARINV1, measures caller-owned outcomes and workspace, and executes any verified finite logical task count through constant-size Windows worker waves of capacity one or two. Semantic outcomes exclude provider capacity; a separate receipt records physical overlap. | `source-backed-current` only for the Windows x64 pure scalar component, five-task and seventeen-argument execution, capacity-one/two semantic equality, monotonic rendezvous, exact workspace, transactional semantic outputs, aliases, and independent verification. Workspace may contain partial physical values after failure. Linux/other providers, emitted task entries, cancellation/outcomes, general scheduling, public products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1609 | measured parallel task-entry emission | PARMLIR1 consumes verified HIR38/PARSEL1/PARINV1 and emits one runtime-parameterized task entry per measured task while preserving byte-identical `w-seed-mlir0-parallel-entry-2` artifacts for compatible inputs. | `source-backed-current` only for caller-owned measure/emit/verify, producer-digest binding, transaction and alias barriers, two-task byte equivalence, five-task and seventeen-argument C23 evidence, and MLIR/LLVM 23.1.1 Windows COFF plus Linux PIC ELF object emission for five tasks. The 64-function and 192-KiB seed bounds remain. Public products, cancellation/outcomes, provider-neutral scheduling, stable ABI, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -13002,3 +13004,25 @@ seventeen-argument task also executes without a fixed arity array. This remains
 a private Windows compiler-lifecycle component. Linux, emitted task entry
 linkage, cancellation, scheduling, public execution, benchmarks, and performance
 remain open.
+
+#### W-1609 — measured parallel task-entry emission
+
+PARMLIR0's artifact format was already target-neutral and runtime-parameterized,
+but its API consumed fixed PARSEL0/PARINV0 records. PARMLIR1 keeps those bytes
+stable and changes only the proof/storage boundary: verified measured records
+now determine task count, arity, function closure, and parameter order.
+
+The first implementation exposed a second copy of the old sixteen-argument
+ceiling inside MLIR emission. Replacing its temporary ordinal array with direct
+walks over verified argument relations removed that ceiling without heap or VLA
+storage. The tradeoff is bounded quadratic compiler work for argument ordering;
+later profiling can justify an explicit scratch index without changing output.
+
+The unit suite proves the legacy two-task artifact is byte-identical, emits five
+task wrappers, accepts a seventeen-argument wrapper, and rejects short capacity,
+aliases, and forged producer digests before publication. The focused toolchain
+gate lowers five-task output with pinned MLIR/LLVM 23.1.1 into Windows x64 COFF
+and Linux x86-64 PIC ELF objects. This completes capacity-independent task
+storage through selection, invocation, Windows component execution, and emitted
+task entries. It does not yet migrate public process products or define
+cancellation, scheduling, a Task ABI, or performance.

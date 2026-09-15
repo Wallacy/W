@@ -9166,6 +9166,78 @@
       "Linux providers, emitted task linkage, cancellation, scheduling, public execution, benchmarks, and performance remain unclaimed"
     ],
     "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+  },
+  {
+    "id": "R0-measured-parallel-entry-emission",
+    "reviewItem": "measured parallel task-entry emission against compatibility ceilings, byte drift, unbound producer proofs, and partial publication",
+    "decisions": ["W-1609"],
+    "task": "Emit the complete target-neutral task-entry artifact from measured parallel relations without changing compatible bytes or inheriting fixed task and argument arrays.",
+    "selected": {
+      "language": "w-internal",
+      "source": [
+        "counts = PARMLIR1.measure(verifiedHIR, verifiedSelection, verifiedInvocation)",
+        "artifact = PARMLIR1.emit(callerBytes(counts.mlirBytes))",
+        "entries = measuredTasks.map(runtimeParameterizedEntry)",
+        "result = bind(hirDigest, selectionDigest, invocationDigest, artifactDigest)"
+      ]
+    },
+    "alternatives": [
+      {
+        "name": "retain-four-task-emitter",
+        "language": "w-internal-rejected",
+        "source": ["for task in invocation.tasks[0..<4]"],
+        "expectedDifference": "PARMLIR1 walks every measured task and emits five task entries in the current witness."
+      },
+      {
+        "name": "retain-sixteen-argument-temporary",
+        "language": "w-internal-rejected",
+        "source": ["argumentByOrdinal[16]"],
+        "expectedDifference": "Parameter-order walks over verified relations accept the seventeen-argument witness without heap or VLA storage."
+      },
+      {
+        "name": "change-compatible-artifact-bytes",
+        "language": "w-internal-rejected",
+        "source": ["schema = w-seed-mlir1-parallel-entry-1"],
+        "expectedDifference": "The two-task compatibility witness is byte-identical under PARMLIR0 and PARMLIR1."
+      },
+      {
+        "name": "publish-before-proof-and-alias-preflight",
+        "language": "w-internal-rejected",
+        "source": ["write output while validating producer records"],
+        "expectedDifference": "Producer verification, complete construction, capacity, and pairwise alias checks precede publication."
+      }
+    ],
+    "sourceRefs": [
+      {
+        "path": "compiler/seed-c/include/w_seed_mlir0.h",
+        "symbol": "W_SEED_MLIR1_PARALLEL_ENTRY_RESULT_SCHEMA_VERSION",
+        "claim": "PARMLIR1 exposes measured caller-owned entry emission with result identity bound to HIR, selection, and invocation proofs."
+      },
+      {
+        "path": "compiler/seed-c/src/w_seed_mlir0.c",
+        "symbol": "w_seed_mlir1_emit_parallel_entries",
+        "claim": "The emitter verifies measured producers, constructs the complete artifact, checks capacity and aliases, then publishes bytes and result."
+      },
+      {
+        "path": "compiler/seed-c/tests/test_hir0.c",
+        "symbol": "test_parallel_mlir_entries1",
+        "claim": "The C23 witness proves compatible byte identity, five tasks, seventeen arguments, transactionality, aliases, and forged-proof rejection."
+      },
+      {
+        "path": "tooling/check-parallel-mlir0.mjs",
+        "symbol": "measuredTasks=5",
+        "claim": "The pinned MLIR/LLVM 23.1.1 gate lowers the measured five-task artifact to Windows x64 COFF and Linux x86-64 PIC ELF objects."
+      }
+    ],
+    "checks": [
+      "compatible PARMLIR0 and PARMLIR1 inputs produce byte-identical target-neutral MLIR",
+      "five tasks and seventeen arguments cross the measured emitter without compatibility arrays",
+      "result identity binds HIR, selection, invocation, and artifact digests",
+      "short capacity, aliases, malformed producers, forged state, and partial publication fail closed",
+      "the five-task artifact lowers to Windows COFF and Linux PIC ELF with pinned MLIR/LLVM 23.1.1",
+      "public products, cancellation, scheduling, stable ABI, benchmarks, and performance remain unclaimed"
+    ],
+    "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
   }
   ]
 }

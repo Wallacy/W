@@ -2001,7 +2001,8 @@ The shared pure scalar evaluator now resolves parameter values through HIR
 relations with a constant-size call frame. It has no fixed arity array, heap,
 or variable-length array. Five tasks and a seventeen-argument task pass
 PARINV1. PARINV0 still rejects its fixed compatibility limits transactionally.
-PARPROV0 and PARMLIR0 have not migrated to PARINV1.
+PARPROV1 and PARMLIR1 consume PARINV1; compatibility products remain on the
+fixed chain.
 
 `w_seed_parallel_provider1` is the measured Windows successor. Measure reports
 one semantic outcome and one physical workspace value per PARINV1 task. The
@@ -2015,7 +2016,26 @@ Successful capacity-one and capacity-two runs publish identical semantic
 digests; the separate receipt records capacity and maximum active workers. A
 monotonic ready/release barrier proves overlap without observing a transient
 active count. The current C23 test executes five tasks and one
-seventeen-argument task. PARMLIR0 and public products remain on PARPROV0.
+seventeen-argument task. PARMLIR1 now consumes the same measured relations;
+public products remain on the compatibility route.
+
+### Measured parallel task-entry MLIR (W-1609)
+
+`w_seed_mlir1_measure_parallel_entries`,
+`w_seed_mlir1_emit_parallel_entries`, and
+`w_seed_mlir1_verify_parallel_entries` consume verified HIR38, PARSEL1, and
+PARINV1. They preserve `w-seed-mlir0-parallel-entry-2` bytes for compatible
+inputs while deriving task and argument counts from caller-owned records.
+
+Argument ordering walks verified parameter ordinals directly, so no fixed
+arity array, heap, or VLA is required. Result identity binds all three producer
+digests plus the artifact digest. The C23 suite covers byte equivalence, five
+tasks, seventeen arguments, short capacity, aliases, and forged proofs. The
+focused `bun check --target parallel-mlir0` gate additionally lowers the
+five-task artifact to Windows x64 COFF and Linux x86-64 PIC ELF using pinned
+MLIR/LLVM 23.1.1. Existing function-reachability and artifact-size bounds remain
+seed implementation limits. Public process linkage, cancellation, general
+scheduling, ABI, benchmarks, and performance remain open.
 
 ### Bounded Windows parallel provider component (W-1590)
 

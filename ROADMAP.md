@@ -109,6 +109,9 @@ their migration is the next rank-2 dependency before cancellation work.
 W-1608 removes the fixed logical-task arrays from the Windows component.
 PARPROV1 executes five tasks through constant-size worker waves and produces
 the same semantic result at capacities one and two. It also executes the
-seventeen-argument witness. PARMLIR0 and the public process products still use
-the fixed compatibility chain. Migrating emitted task entries is the remaining
-rank-2 dependency before structured cancellation.
+seventeen-argument witness. W-1609 completes rank 2 for the compiler/component
+path: PARMLIR1 emits five runtime-parameterized task entries from measured
+records, accepts the seventeen-argument witness, preserves compatible PARMLIR0
+bytes, and lowers the five-task artifact to Windows COFF and Linux PIC ELF with
+MLIR/LLVM 23.1.1. Public process products retain their bounded compatibility
+route. Structured cancellation and outcomes are now the next active increment.
