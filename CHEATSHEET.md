@@ -1271,6 +1271,39 @@ test "launchers join through the lexical parent" for load {
 }
 ```
 
+Execution domains are static admission and placement requirements. The common
+host forms are declared once and selected at `spawn`; concurrent pipelines can
+inherit the current domain, while parallel pipelines name one explicitly:
+
+<!-- w-example role=logical-contract -->
+```w
+module domain_examples<
+  domains: [
+    .serial(.render),
+    .concurrent(.physics, maximum: 8, capabilities: [.parallel]),
+  ],
+>
+
+fn updateFrame(frame: u64): u64 { return frame + 1 }
+
+async fn schedule(frame: u64): u64 {
+  let render = spawn<.render> updateFrame(frame: frame)
+  let physics = spawn<.physics> updateFrame(frame: frame)
+  let (nextFrame, nextPhysics) = await (render, physics)
+  return nextFrame + nextPhysics
+}
+
+test "domains select admission at the call site" for schedule {
+  expect await schedule(frame: 20) == 42
+}
+```
+
+Names such as `.render`, `.physics`, `.inference`, `.thermal`, and
+`.blockingInterop` are product identities, not built-in hardware kinds. W
+provides `.main`; module contracts declare `.serial`, `.concurrent`, or
+`.accelerated` requirements. I/O, channels, transactions, locks, tests, and
+compiler proof phases do not acquire implicit domains.
+
 ## Tasks and cancellation
 
 <!-- w-example role=logical-contract -->

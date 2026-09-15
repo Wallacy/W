@@ -2942,6 +2942,56 @@ static bool test_parallel_domain_placement_hir(void) {
       "entry { let left = spawn<.domain> prepare(value: 20) "
       "let right = spawn<.domain> combine(right: 2, left: 20) "
       "let first = await left let second = await right }\n";
+
+  /* Frontend28 added accelerated-domain and module-field identities. HIR37
+   * does not represent them yet, so its boundary must reject every forged or
+   * unrepresented field instead of treating appended schema bytes as zero-cost
+   * metadata. */
+  CHECK(fixture_parallel_domain_frontend(
+      SOURCE, W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL));
+  setup_hir_output();
+  const w_seed_hir0_input frontend28_input = {
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
+  w_seed_hir0_counts frontend28_counts;
+  w_seed_hir0_result frontend28_result;
+  fixture.domains[0].kind = W_SEED_FRONTEND_DOMAIN_ACCELERATED;
+  fixture.domains[0].capabilities = W_SEED_FRONTEND_DOMAIN_CAPABILITY_DEVICE;
+  fixture.domains[0].maximum = 1u;
+  CHECK(w_seed_hir0_measure(&frontend28_input, &frontend28_counts,
+                            &frontend28_result) != W_SEED_HIR0_OK);
+  fixture.domains[0].kind = W_SEED_FRONTEND_DOMAIN_HOST;
+  fixture.domains[0].capabilities = W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL;
+  fixture.domains[0].maximum = 0u;
+  size_t frontend_launch = W_SEED_HIR0_NONE;
+  size_t frontend_call = W_SEED_HIR0_NONE;
+  for (size_t index = 0u; index < fixture.result.written.expressions;
+       index += 1u) {
+    if (fixture.expressions[index].kind ==
+            W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH &&
+        frontend_launch == W_SEED_HIR0_NONE)
+      frontend_launch = index;
+    if (fixture.expressions[index].kind == W_SEED_FRONTEND_EXPR_CALL &&
+        frontend_call == W_SEED_HIR0_NONE)
+      frontend_call = index;
+  }
+  CHECK(frontend_launch != W_SEED_HIR0_NONE &&
+        frontend_call != W_SEED_HIR0_NONE);
+  fixture.expressions[frontend_launch].domain_kind =
+      W_SEED_FRONTEND_DOMAIN_ACCELERATED;
+  fixture.expressions[frontend_launch].domain_maximum = 1u;
+  CHECK(w_seed_hir0_measure(&frontend28_input, &frontend28_counts,
+                            &frontend28_result) != W_SEED_HIR0_OK);
+  fixture.expressions[frontend_launch].domain_kind =
+      W_SEED_FRONTEND_DOMAIN_HOST;
+  fixture.expressions[frontend_launch].domain_maximum = 0u;
+  fixture.expressions[frontend_call].resolved_accelerator_module_index = 0u;
+  fixture.expressions[frontend_call].resolved_accelerator_kernel_index = 0u;
+  CHECK(w_seed_hir0_measure(&frontend28_input, &frontend28_counts,
+                            &frontend28_result) != W_SEED_HIR0_OK);
+
   CHECK(lower_parallel_domain(SOURCE));
   const w_seed_hir0_program *program = &fixture.hir_program;
   size_t parallel_calls = 0u;

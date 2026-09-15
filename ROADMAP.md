@@ -58,7 +58,7 @@ gate.
 W-1601 now supplies the target-neutral two-function/seven-operation GPU0
 witness, separate host/device MLIR, GPU/NVVM/PTX lowering, actual result `42`
 on the available RTX A400, and a diagnostic-only in-process metric snapshot.
-The seed parser and Frontend27 preserve the canonical
+The seed parser and Frontend28 preserve the canonical
 `accelerator.module<{...}>()` static record and ordered direct local kernel
 bindings. The new `w-seed-gpu-module-1` bridge copies that meaning into
 independently verified, provider- and target-neutral device-module records; its

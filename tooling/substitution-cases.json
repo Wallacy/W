@@ -7708,7 +7708,7 @@
         {
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH",
-          "claim": "Frontend27 preserves explicit parallel-domain syntax and caller-owned placement facts."
+          "claim": "Frontend28 preserves explicit parallel-domain syntax and caller-owned placement facts."
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
@@ -8702,7 +8702,7 @@
       {
         "path": "compiler/seed-c/tests/test_frontend.c",
         "symbol": "test_accelerator_module_frontend",
-        "claim": "Frontend27 binds one or multiple ordered labels to direct local function identities and rejects malformed or incomplete accelerator modules transactionally."
+        "claim": "Frontend28 binds one or multiple ordered labels to direct local function identities and rejects malformed or incomplete accelerator modules transactionally."
       },
       {
         "path": "compiler/seed-c/src/w_seed_gpu_module.c",
@@ -8712,7 +8712,7 @@
       {
         "path": "compiler/seed-c/tests/test_frontend.c",
         "symbol": "test_gpu_module_bridge",
-        "claim": "A versioned W fixture crosses Frontend27 into caller-owned device-module records and remains verifiable after source/frontend teardown."
+        "claim": "A versioned W fixture crosses Frontend28 into caller-owned device-module records and remains verifiable after source/frontend teardown."
       },
       {
         "path": "compiler/seed-c/src/w_seed_gpu0.c",
@@ -8737,7 +8737,7 @@
     ],
     "checks": [
       "two functions and seven operations remain an evidence shape rather than a language or ABI ceiling",
-      "Frontend27 module and kernel bindings remain target and provider neutral",
+      "Frontend28 module and kernel bindings remain target and provider neutral",
       "the bounded device-module bridge owns its records and remains verifiable after frontend teardown",
       "host and device artifacts retain separate identities and exact verification",
       "forbidden device effects, malformed records, aliases, capacities, and forged artifacts fail closed",
