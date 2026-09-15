@@ -6,6 +6,7 @@
  * surface used by this experimental probe.  It is not the W runtime.
  */
 
+#include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -191,6 +192,25 @@ static bool parse_iteration_count(const char *text, unsigned int *value) {
   return true;
 }
 
+static bool parse_expected_i32(const char *text, int32_t *value) {
+  if (text == NULL || value == NULL || text[0] == '\0') return false;
+  errno = 0;
+  char *end = NULL;
+  const long long parsed = strtoll(text, &end, 10);
+  if (errno == ERANGE || end == text || end == NULL || *end != '\0' ||
+      parsed < (long long)INT32_MIN || parsed > (long long)INT32_MAX)
+    return false;
+  const int32_t candidate = (int32_t)parsed;
+  char canonical[16];
+  const int written = snprintf(canonical, sizeof(canonical), "%ld",
+                               (long)candidate);
+  if (written <= 0 || (size_t)written >= sizeof(canonical) ||
+      strcmp(text, canonical) != 0)
+    return false;
+  *value = candidate;
+  return true;
+}
+
 static bool elapsed_ticks(LARGE_INTEGER start, LARGE_INTEGER end,
                           int64_t *result) {
   if (result == NULL || start.QuadPart < 0 || end.QuadPart < start.QuadPart)
@@ -201,6 +221,7 @@ static bool elapsed_ticks(LARGE_INTEGER start, LARGE_INTEGER end,
 
 static bool execute_iteration(const gpu0_cuda_api *api, CUfunction function,
                               CUdeviceptr device_result, int32_t *host_result,
+                              int32_t expected_result,
                               gpu0_cuda_timing *timing) {
   if (api == NULL || function == NULL || device_result == 0u ||
       host_result == NULL)
@@ -240,10 +261,11 @@ static bool execute_iteration(const gpu0_cuda_api *api, CUfunction function,
     report_cuda("cuMemcpyDtoH_v2", status);
     return false;
   }
-  if (*host_result != INT32_C(42)) {
+  if (*host_result != expected_result) {
     (void)fprintf(stderr,
-                  "GPU0 CUDA adapter: result verification failed (got %ld)\n",
-                  (long)*host_result);
+                  "GPU0 CUDA adapter: result verification failed "
+                  "(expected %ld, got %ld)\n",
+                  (long)expected_result, (long)*host_result);
     return false;
   }
   if (timing == NULL) return true;
@@ -258,17 +280,21 @@ static bool execute_iteration(const gpu0_cuda_api *api, CUfunction function,
 }
 
 int main(int argc, char **argv) {
-  const bool benchmark = argc == 7 && argv != NULL && argv[4] != NULL &&
-                         strcmp(argv[4], "--benchmark") == 0;
+  const bool benchmark = argc == 8 && argv != NULL && argv[5] != NULL &&
+                         strcmp(argv[5], "--benchmark") == 0;
   unsigned int warmup_count = 0u;
   unsigned int sample_count = 0u;
-  if ((argc != 4 && !benchmark) || argv == NULL || argv[1] == NULL || argv[2] == NULL ||
-      argv[3] == NULL || argv[1][0] == '\0' || argv[2][0] == '\0' ||
-      argv[3][0] == '\0' ||
-      (benchmark && (!parse_iteration_count(argv[5], &warmup_count) ||
-                     !parse_iteration_count(argv[6], &sample_count) ||
+  int32_t expected_result = 0;
+  if ((argc != 5 && !benchmark) || argv == NULL || argv[1] == NULL ||
+      argv[2] == NULL || argv[3] == NULL || argv[4] == NULL ||
+      argv[1][0] == '\0' || argv[2][0] == '\0' || argv[3][0] == '\0' ||
+      !parse_expected_i32(argv[4], &expected_result) ||
+      (benchmark && (!parse_iteration_count(argv[6], &warmup_count) ||
+                     !parse_iteration_count(argv[7], &sample_count) ||
                      (sample_count % 2u) == 0u))) {
-    report_message("usage: gpu0_cuda_windows.exe <provider.dll> <kernel.ptx> <kernel-name> [--benchmark <warmups> <odd-samples>]");
+    report_message("usage: gpu0_cuda_windows.exe <provider.dll> <kernel.ptx> "
+                   "<kernel-name> <expected-i32> "
+                   "[--benchmark <warmups> <odd-samples>]");
     return GPU0_CUDA_FAILURE;
   }
 
@@ -379,20 +405,21 @@ int main(int argc, char **argv) {
       goto cleanup;
     }
     for (unsigned int index = 0u; index < warmup_count; index += 1u) {
-      if (!execute_iteration(&api, function, device_result, &host_result, NULL)) {
+      if (!execute_iteration(&api, function, device_result, &host_result,
+                             expected_result, NULL)) {
         primary_failure = true;
         goto cleanup;
       }
     }
     for (unsigned int index = 0u; index < sample_count; index += 1u) {
       if (!execute_iteration(&api, function, device_result, &host_result,
-                             &timings[index])) {
+                             expected_result, &timings[index])) {
         primary_failure = true;
         goto cleanup;
       }
     }
   } else if (!execute_iteration(&api, function, device_result, &host_result,
-                                NULL)) {
+                                expected_result, NULL)) {
     primary_failure = true;
     goto cleanup;
   }
@@ -436,17 +463,18 @@ cleanup:
     for (unsigned int index = 0u; index < sample_count; index += 1u) {
       if (index != 0u) (void)fputc(',', stdout);
       (void)fprintf(stdout,
-                    "{\"result\":42,\"h2d\":%lld,\"dispatchSync\":%lld,\"d2h\":%lld,\"endToEnd\":%lld}",
+                    "{\"result\":%ld,\"h2d\":%lld,\"dispatchSync\":%lld,\"d2h\":%lld,\"endToEnd\":%lld}",
+                    (long)expected_result,
                     (long long)timings[index].h2d_ticks,
                     (long long)timings[index].dispatch_sync_ticks,
                     (long long)timings[index].d2h_ticks,
                     (long long)timings[index].end_to_end_ticks);
     }
-    (void)fputs("],\"result\":42}\n", stdout);
+    (void)fprintf(stdout, "],\"result\":%ld}\n", (long)expected_result);
   }
   free(timings);
   if (exit_code == GPU0_CUDA_SUCCESS && !benchmark)
-    (void)fprintf(stdout, "GPU0 CUDA result: 42\n");
+    (void)fprintf(stdout, "GPU0 CUDA result: %ld\n", (long)expected_result);
   return exit_code;
 }
 

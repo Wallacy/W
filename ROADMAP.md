@@ -76,7 +76,9 @@ verifier and contains no provider handle or launch. ACCREQ0 now cross-checks
 that binding with the independently verified GPU0 program and copies one exact
 device artifact plus its semantic and physical identities into a
 provider-neutral request that survives both producer lifetimes. The physical
-adapter still does not consume that request. Runtime/provider launch/join/result,
+adapter now accepts an explicit canonical signed-`i32` expectation and proves a
+valid mismatch after execution, but the checker still supplies that field and
+the kernel symbol directly instead of consuming ACCREQ0. Runtime/provider launch/join/result,
 public GPU build/run, and a supported GPU ABI remain open;
 rank 1 therefore stays open until those public and physical boundaries have
 evidence. The explicit

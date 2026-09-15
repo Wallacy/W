@@ -2210,8 +2210,12 @@ ABI.
 artifacts with pinned MLIR/LLVM 23.1.1, lowers the device module through
 GPU/NVVM/LLVM, emits `sm_86` PTX with system Clang 22, and executes it through
 a dynamic `nvcuda.dll` Driver API adapter when the provider is available.
-Missing-provider and missing-kernel cases fail closed. Every produced file is
-temporary.
+Missing-provider and missing-kernel cases fail closed. The adapter takes a
+canonical signed-`i32` expected result instead of embedding the sentinel;
+malformed expectations fail before provider loading and a valid-but-wrong
+expectation proves post-execution comparison. The gate currently passes `42`
+directly; transport from ACCREQ0 remains the next boundary. Every produced
+file is temporary.
 
 `bun benchmark gpu0` refreshes the separate diagnostic snapshot in
 `benchmarks/GPU0.md`. Context, module, function lookup, and device allocation

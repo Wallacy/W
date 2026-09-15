@@ -23,7 +23,7 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:c9c61f4d5596aa054eef87cc9e18ce30cb407b057831c78e6cf2208aa0296e70",
+    "sha256": "sha256:ec2e9e58eb7817339e415d5ea0dbd9fc29704ab034eccfcc1c38338070ffc752",
     "count": 1605,
     "first": "W-001",
     "last": "W-1605"
@@ -21869,7 +21869,7 @@
         "path": "DESIGN.md",
         "section": "26",
         "heading": "## 26. Plano de implementação",
-        "sectionDigest": "sha256:71841c04c31a200e255c2bc61af07baab70fe236b6f8125382e39c29a8462209"
+        "sectionDigest": "sha256:6c19ed13c565f06518d1779d3ebd3044124a7e446014a40eb478f6d4b01f643c"
       },
       "evidence": [],
       "reason": "W-659 (body de entry, sha256:f66ab57406ddb51303f9190376daf72d8f538bd7bd8adfbf9992ae3d7223e74e) has no executable witness for component implementation-plan. The checked current contract is DESIGN.md §26 / 26. Plano de implementação.",
@@ -56427,7 +56427,7 @@
         "path": "DESIGN.md",
         "section": "26.4.1.82",
         "heading": "#### 26.4.1.82 W-1601 — bounded target-neutral GPU0 witness and CUDA linkage evidence (Current design; implementation-evidence-gap)",
-        "sectionDigest": "sha256:47cbabbbb0d52b3b4800f8d37cc426fe14fbd537da57fa4fc0535ce928dce281"
+        "sectionDigest": "sha256:f4345f5bcd28dda539bae883978de9edb6c1b292cdc75a3aa35f140f601b9a36"
       },
       "evidence": [],
       "gap": {
@@ -56485,13 +56485,13 @@
           "path": "tooling/check-gpu0-cuda-windows.mjs",
           "symbol": "flattenKernelModule",
           "claim": "The experimental gate lowers exactly one GPU0 device kernel and executes it through the available CUDA Driver provider.",
-          "sha256": "sha256:078d4021026a7f99eba70f66e6e2f96767d9a4c505265b1c50942829dd49a227"
+          "sha256": "sha256:a09f9a9cf793b1145bdb713f55db7c929c1e0bfb3b8b1b79e924ce444d40e1f6"
         },
         {
           "path": "benchmarks/gpu0-device-linkage-catalog.json",
           "symbol": "metrics",
           "claim": "The isolated diagnostic catalog records temporary artifact sizes and in-process phase summaries without product ranking.",
-          "sha256": "sha256:48000477a63381a6c73ead182d9bd3349a7a3fd1efb42895b0ef1a44659e029a"
+          "sha256": "sha256:ead5a4ef7db440a6f6523da279a4843229a75b6ea5e10a15dc400f9721fde380"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",

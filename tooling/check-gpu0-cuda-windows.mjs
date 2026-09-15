@@ -272,27 +272,39 @@ try {
       !/\.visible\s+\.entry\s+w_gpu0_kernel\(/u.test(ptxText))
     fail("PTX does not expose the expected GPU0 kernel and target");
 
-  const executed = run(adapter, [provider, ptx, "w_gpu0_kernel"], {
+  const executed = run(adapter, [provider, ptx, "w_gpu0_kernel", "42"], {
     label: "execute GPU0 CUDA kernel",
   });
   requireSuccess(executed, "execute GPU0 CUDA kernel");
   if (executed.stdout !== successOutput || executed.stderr !== "")
     fail(`unexpected GPU0 CUDA output: ${JSON.stringify(executed)}`);
 
-  const missing = run(adapter, [path.join(directory, "missing-provider.dll"), ptx, "w_gpu0_kernel"], {
+  const missing = run(adapter, [path.join(directory, "missing-provider.dll"), ptx, "w_gpu0_kernel", "42"], {
     label: "missing GPU0 provider",
   });
   if (missing.status !== 2 || missing.stdout !== "" || missing.stderr.length === 0)
     fail("missing-provider adversarial did not fail closed");
-  const wrongKernel = run(adapter, [provider, ptx, "missing_kernel"], {
+  const wrongKernel = run(adapter, [provider, ptx, "missing_kernel", "42"], {
     label: "missing GPU0 kernel",
   });
   if (wrongKernel.status !== 2 || wrongKernel.stdout !== "" || wrongKernel.stderr.length === 0)
     fail("missing-kernel adversarial did not fail closed");
+  const invalidExpected = run(adapter, [provider, ptx, "w_gpu0_kernel", "not-i32"], {
+    label: "invalid GPU0 expected result",
+  });
+  if (invalidExpected.status !== 2 || invalidExpected.stdout !== "" ||
+      invalidExpected.stderr.length === 0)
+    fail("invalid-expected-result adversarial did not fail closed");
+  const wrongExpected = run(adapter, [provider, ptx, "w_gpu0_kernel", "41"], {
+    label: "mismatched GPU0 expected result",
+  });
+  if (wrongExpected.status !== 2 || wrongExpected.stdout !== "" ||
+      !wrongExpected.stderr.includes("expected 41, got 42"))
+    fail("mismatched-expected-result adversarial did not fail closed");
 
   if (benchmarkMode) {
     const benchmark = run(adapter, [
-      provider, ptx, "w_gpu0_kernel", "--benchmark",
+      provider, ptx, "w_gpu0_kernel", "42", "--benchmark",
       String(benchmarkWarmups), String(benchmarkSamples),
     ], { label: "benchmark GPU0 CUDA kernel" });
     requireSuccess(benchmark, "benchmark GPU0 CUDA kernel");
