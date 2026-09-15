@@ -8524,27 +8524,78 @@ static const char MLIR0_TYPED_PROPAGATION_ARTIFACT[] =
     "  }\n"
     "}\n";
 
+/* HIR41 keeps the cleanup as ordinary control-flow work.  The same direct
+ * Unit call is emitted in both successors before the carrier is rebuilt, so
+ * optimization can inline or erase it without a runtime cleanup stack. */
+static const char MLIR0_TYPED_CLEANUP_ARTIFACT[] =
+    "// " W_SEED_MLIR0_TYPED_CLEANUP_SCHEMA_VERSION "\n"
+    "// carrier: !llvm.struct<(i1, i64)>; cleanup: one direct Unit call on each typed successor.\n"
+    "module {\n"
+    "  llvm.func internal @w_seed_typed_clean() {\n"
+    "    llvm.return\n"
+    "  }\n"
+    "  llvm.func internal @w_seed_typed_leaf() -> !llvm.struct<(i1, i64)> {\n"
+    "    %leaf_outcome = llvm.mlir.constant(1 : i1) : i1\n"
+    "    %leaf_payload = llvm.mlir.constant(0 : i64) : i64\n"
+    "    %leaf_zero = llvm.mlir.zero : !llvm.struct<(i1, i64)>\n"
+    "    %leaf_with_outcome = llvm.insertvalue %leaf_outcome, %leaf_zero[0] : !llvm.struct<(i1, i64)>\n"
+    "    %leaf_result = llvm.insertvalue %leaf_payload, %leaf_with_outcome[1] : !llvm.struct<(i1, i64)>\n"
+    "    llvm.return %leaf_result : !llvm.struct<(i1, i64)>\n"
+    "  }\n"
+    "  llvm.func internal @w_seed_typed_relay() -> !llvm.struct<(i1, i64)> {\n"
+    "    %relay_call = llvm.call @w_seed_typed_leaf() : () -> !llvm.struct<(i1, i64)>\n"
+    "    %relay_outcome = llvm.extractvalue %relay_call[0] : !llvm.struct<(i1, i64)>\n"
+    "    %relay_payload = llvm.extractvalue %relay_call[1] : !llvm.struct<(i1, i64)>\n"
+    "    llvm.cond_br %relay_outcome, ^w_seed_typed_relay_b_4(%relay_outcome : i1), ^w_seed_typed_relay_b_3(%relay_payload : i64)\n"
+    "  ^w_seed_typed_relay_b_3(%relay_normal: i64):\n"
+    "    llvm.call @w_seed_typed_clean() : () -> ()\n"
+    "    %relay_success = llvm.mlir.constant(0 : i1) : i1\n"
+    "    %relay_normal_zero = llvm.mlir.zero : !llvm.struct<(i1, i64)>\n"
+    "    %relay_normal_outcome = llvm.insertvalue %relay_success, %relay_normal_zero[0] : !llvm.struct<(i1, i64)>\n"
+    "    %relay_normal_result = llvm.insertvalue %relay_normal, %relay_normal_outcome[1] : !llvm.struct<(i1, i64)>\n"
+    "    llvm.return %relay_normal_result : !llvm.struct<(i1, i64)>\n"
+    "  ^w_seed_typed_relay_b_4(%relay_error: i1):\n"
+    "    llvm.call @w_seed_typed_clean() : () -> ()\n"
+    "    %relay_error_payload = llvm.mlir.constant(0 : i64) : i64\n"
+    "    %relay_error_zero = llvm.mlir.zero : !llvm.struct<(i1, i64)>\n"
+    "    %relay_error_outcome = llvm.insertvalue %relay_error, %relay_error_zero[0] : !llvm.struct<(i1, i64)>\n"
+    "    %relay_error_result = llvm.insertvalue %relay_error_payload, %relay_error_outcome[1] : !llvm.struct<(i1, i64)>\n"
+    "    llvm.return %relay_error_result : !llvm.struct<(i1, i64)>\n"
+    "  }\n"
+    "}\n";
+
 _Static_assert(sizeof(MLIR0_TYPED_PROPAGATION_ARTIFACT) - 1u <=
                    W_SEED_MLIR0_MAX_BYTES,
                "w-seed typed propagation artifact exceeds the MLIR0 bound");
+_Static_assert(sizeof(MLIR0_TYPED_CLEANUP_ARTIFACT) - 1u <=
+                   W_SEED_MLIR0_MAX_BYTES,
+               "w-seed typed cleanup artifact exceeds the MLIR0 bound");
 
 static bool prepare_typed_propagation_artifact(
     const w_seed_hir0_program *program,
     const w_seed_hir0_result *hir_result,
     const w_seed_native_subset0_typed_propagation *selection,
-    const w_seed_mlir0_target *target, size_t *written,
+    const w_seed_mlir0_target *target, const uint8_t **artifact,
+    size_t *written,
     uint8_t digest[MLIR0_DIGEST_BYTES]) {
   if (program == NULL || hir_result == NULL || selection == NULL ||
-      !target_is_supported(target) || written == NULL || digest == NULL ||
+      !target_is_supported(target) || artifact == NULL || written == NULL ||
+      digest == NULL ||
       !w_seed_native_subset0_verify_typed_propagation(program, hir_result,
                                                        selection))
     return false;
-  const size_t artifact_bytes = sizeof(MLIR0_TYPED_PROPAGATION_ARTIFACT) - 1u;
-  *written = artifact_bytes;
+  const bool has_cleanup = selection->cleanup != NULL;
+  const uint8_t *artifact_bytes =
+      (const uint8_t *)(has_cleanup ? MLIR0_TYPED_CLEANUP_ARTIFACT
+                                   : MLIR0_TYPED_PROPAGATION_ARTIFACT);
+  const size_t artifact_size =
+      has_cleanup ? sizeof(MLIR0_TYPED_CLEANUP_ARTIFACT) - 1u
+                  : sizeof(MLIR0_TYPED_PROPAGATION_ARTIFACT) - 1u;
+  *artifact = artifact_bytes;
+  *written = artifact_size;
   w_seed_sha256_state state;
   w_seed_sha256_init(&state);
-  w_seed_sha256_update(&state, (const uint8_t *)MLIR0_TYPED_PROPAGATION_ARTIFACT,
-                       artifact_bytes);
+  w_seed_sha256_update(&state, artifact_bytes, artifact_size);
   w_seed_sha256_final(&state, digest);
   return true;
 }
@@ -8630,6 +8681,8 @@ static bool typed_propagation_ranges_alias(
   ADD_TYPED_RANGE(program->external_symbols,
                   program->external_symbol_capacity,
                   sizeof(*program->external_symbols));
+  ADD_TYPED_RANGE(program->cleanups, program->cleanup_capacity,
+                  sizeof(*program->cleanups));
   ADD_TYPED_RANGE(program->text_bytes, program->text_byte_capacity,
                   sizeof(uint8_t));
   ADD_TYPED_RANGE(program->value_bytes, program->value_byte_capacity,
@@ -8661,9 +8714,13 @@ static w_seed_mlir0_status typed_propagation_select(
 }
 
 static w_seed_mlir0_typed_propagation_counts typed_propagation_counts(
-    size_t written) {
+    size_t written, bool has_cleanup) {
   return (w_seed_mlir0_typed_propagation_counts){
-      written, 2u, 1u, W_SEED_MLIR0_TYPED_PROPAGATION_CARRIER_FIELDS};
+      .mlir_bytes = written,
+      .function_count = has_cleanup ? 3u : 2u,
+      .invoke_count = 1u,
+      .cleanup_count = has_cleanup ? 1u : 0u,
+      .carrier_field_count = W_SEED_MLIR0_TYPED_PROPAGATION_CARRIER_FIELDS};
 }
 
 static w_seed_mlir0_typed_propagation_result typed_propagation_result(
@@ -8695,15 +8752,17 @@ w_seed_mlir0_status w_seed_mlir0_measure_typed_propagation(
   if (selected != W_SEED_MLIR0_OK) return selected;
   if (!target_is_supported(target)) return W_SEED_MLIR0_UNSUPPORTED;
   uint8_t digest[MLIR0_DIGEST_BYTES];
+  const uint8_t *artifact = NULL;
   size_t written = 0u;
   if (!prepare_typed_propagation_artifact(program, hir_result, &selection,
-                                          target, &written, digest))
+                                          target, &artifact, &written, digest))
     return W_SEED_MLIR0_UNSUPPORTED;
+  (void)artifact;
   if (typed_propagation_ranges_alias(program, hir_result, target, counts,
                                      NULL, result, written))
     return W_SEED_MLIR0_ALIAS;
   const w_seed_mlir0_typed_propagation_counts candidate_counts =
-      typed_propagation_counts(written);
+      typed_propagation_counts(written, selection.cleanup != NULL);
   const w_seed_mlir0_typed_propagation_result candidate_result =
       typed_propagation_result(hir_result, &candidate_counts, digest, false);
   *counts = candidate_counts;
@@ -8725,9 +8784,10 @@ w_seed_mlir0_status w_seed_mlir0_emit_typed_propagation(
   if (selected != W_SEED_MLIR0_OK) return selected;
   if (!target_is_supported(target)) return W_SEED_MLIR0_UNSUPPORTED;
   uint8_t digest[MLIR0_DIGEST_BYTES];
+  const uint8_t *artifact = NULL;
   size_t written = 0u;
   if (!prepare_typed_propagation_artifact(program, hir_result, &selection,
-                                          target, &written, digest))
+                                          target, &artifact, &written, digest))
     return W_SEED_MLIR0_UNSUPPORTED;
   if (typed_propagation_ranges_alias(program, hir_result, target, NULL,
                                      output, result, written))
@@ -8735,10 +8795,10 @@ w_seed_mlir0_status w_seed_mlir0_emit_typed_propagation(
   if (output->bytes == NULL || output->capacity < written)
     return W_SEED_MLIR0_CAPACITY;
   const w_seed_mlir0_typed_propagation_counts candidate_counts =
-      typed_propagation_counts(written);
+      typed_propagation_counts(written, selection.cleanup != NULL);
   const w_seed_mlir0_typed_propagation_result candidate_result =
       typed_propagation_result(hir_result, &candidate_counts, digest, true);
-  (void)memcpy(output->bytes, MLIR0_TYPED_PROPAGATION_ARTIFACT, written);
+  (void)memcpy(output->bytes, artifact, written);
   *result = candidate_result;
   return W_SEED_MLIR0_OK;
 }
@@ -8757,14 +8817,16 @@ bool w_seed_mlir0_verify_typed_propagation(
     return false;
   if (!target_is_supported(target)) return false;
   uint8_t digest[MLIR0_DIGEST_BYTES];
+  const uint8_t *expected_artifact = NULL;
   size_t written = 0u;
   if (!prepare_typed_propagation_artifact(program, hir_result, &selection,
-                                          target, &written, digest))
+                                          target, &expected_artifact, &written,
+                                          digest))
     return false;
   const w_seed_mlir0_typed_propagation_counts counts =
-      typed_propagation_counts(written);
+      typed_propagation_counts(written, selection.cleanup != NULL);
   return artifact_bytes == written &&
-         memcmp(artifact, MLIR0_TYPED_PROPAGATION_ARTIFACT, written) == 0 &&
+         memcmp(artifact, expected_artifact, written) == 0 &&
          result->required.mlir_bytes == counts.mlir_bytes &&
          result->required.function_count == counts.function_count &&
          result->required.invoke_count == counts.invoke_count &&

@@ -44,12 +44,15 @@ extern "C" {
  * unresolved launch/join symbols, while the HIR task remains target-private. */
 #define W_SEED_MLIR0_PROCESS_PARALLEL_SCHEMA_VERSION \
   "w-seed-mlir0-process-parallel-1"
-/* Private compiler-lifecycle probe for one HIR40 synchronous typed invoke.
- * The carrier is an optimizer-visible two-field LLVM aggregate, not a W ABI:
- * field 0 is an i1 outcome (0 = success, 1 = the only Failure.denied case),
- * and field 1 is the i64 normal payload (zero on the error path). */
+/* Private compiler-lifecycle probes for one HIR40 synchronous typed invoke
+ * and its HIR41 one-cleanup extension. The carrier is an optimizer-visible
+ * two-field LLVM aggregate, not a W ABI: field 0 is an i1 outcome (0 =
+ * success, 1 = the only Failure.denied case), and field 1 is the i64 normal
+ * payload (zero on the error path). */
 #define W_SEED_MLIR0_TYPED_PROPAGATION_SCHEMA_VERSION \
   "w-seed-mlir0-typed-propagation-1"
+#define W_SEED_MLIR0_TYPED_CLEANUP_SCHEMA_VERSION \
+  "w-seed-mlir0-typed-cleanup-1"
 #define W_SEED_MLIR0_TYPED_PROPAGATION_CARRIER_FIELDS 2u
 /* The unsuffixed aliases retain the byte-for-byte Linux seed contract. */
 #define W_SEED_MLIR0_TARGET_TRIPLE W_SEED_MLIR0_TARGET_TRIPLE_LINUX
@@ -196,10 +199,12 @@ typedef struct {
 
 typedef struct {
   size_t mlir_bytes;
-  /* The private artifact materializes leaf and relay; the inline entry body
-   * is intentionally not emitted as a process root. */
+  /* The private artifact materializes leaf and relay, plus clean only for the
+   * HIR41 variant. The inline entry body is not emitted as a process root. */
   uint32_t function_count;
   uint32_t invoke_count;
+  /* Zero for the HIR40 artifact and one for the HIR41 cleanup artifact. */
+  uint32_t cleanup_count;
   /* The carrier is exactly {i1 outcome, i64 payload}. */
   uint32_t carrier_field_count;
 } w_seed_mlir0_typed_propagation_counts;
@@ -343,9 +348,10 @@ bool w_seed_mlir0_verify_process_parallel(
     const w_seed_mlir0_target *target, const uint8_t *artifact,
     size_t artifact_bytes, const w_seed_mlir0_process_parallel_result *result);
 
-/* Emit the exact private `leaf`/`relay` HIR40 propagation witness.  The
- * artifact has the private two-field carrier described above.  It has no
- * unwind edge, Task, heap, process root, or public ABI. */
+/* Emit either the exact private `leaf`/`relay` HIR40 propagation witness or
+ * its HIR41 `clean` extension. Both artifacts use the private two-field
+ * carrier described above and have no unwind edge, Task, heap, process root,
+ * or public ABI. */
 w_seed_mlir0_status w_seed_mlir0_measure_typed_propagation(
     const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
     const w_seed_mlir0_target *target,

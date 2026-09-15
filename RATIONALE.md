@@ -256,6 +256,7 @@ O corpus compara, no mínimo:
 - bounded typed-try propagation against erased error identity, unowned synchronous calls, async/spawn ownership confusion, optional try, conversion widening, and premature HIR/native/catch/cleanup support.
 - exact synchronous typed propagation in verified HIR against ordinary CALL materialization, Task or heap substitution, packed Result carriers, unproved successor channels, and fail-open ProductClosure.
 - private exact typed-propagation MLIR lowering against a wider carrier, LLVM unwind, public ABI publication, unverified text emission, and fail-open ordinary products.
+- exact synchronous cleanup preservation across typed propagation against erased cleanup, runtime cleanup stacks, unwind, and fail-open older products.
 - bounded dual-target process/parallel linkage against direct-call substitution, CRT fallback, hidden runtime input, target conflation, and premature public or benchmark claims.
 - bounded GPU0 target-neutral semantic and available CUDA execution against source-backed W claims, provider/runtime conflation, homogeneous toolchains, and premature public product support.
 - bounded static accelerated root binding against embedded provider handles, multiplied budgets, and unauthenticated claims.
@@ -7948,6 +7949,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1615 | bounded parser/frontend typed-try propagation | Frontend30 preserves the exact plain `try localCall(...)` relation only when a synchronous local `throws E` call and its lexical caller `throws E` declaration share the same nominal local error enum. A direct synchronous throwing call without a valid `try`, `try?`, async `try`, conversion, HIR/native lowering, catch, or cleanup remains unsupported. Async and spawn owners carry the thrown outcome without a `try` marker. | `source-backed-current` only for the parser CST wrapper, Frontend30 `EXPR_TRY` record, exact local enum identity, direct-call ownership rejection, async/spawn ownership relation, and focused parser/frontend tests. HIR/native lowering, conversions, catch, cleanup, public products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1616 | exact synchronous typed propagation in verified HIR | HIR40 lowers one exact synchronous typed-try relay into a terminator-owned W_SEED_HIR0_TERMINATOR_INVOKE with normal and typed-error successor block arguments. The relay has exactly three blocks, no ordinary CALL instruction, Task, heap, or packed Result carrier, and ProductClosure0 rejects the terminator. | source-backed-current only for the HIR40 three-block relay, terminator-owned call, typed successor arguments, exact verifier, ProductClosure0 fail-closed boundary, and C23 adversarial HIR evidence. MLIR/native lowering, public ABI, catch, cleanup, conversions, general propagation, benchmarks, and performance remain gaps. benchmarkDisposition: compiler-lifecycle. |
 | W-1617 | private MLIR lowering for exact typed propagation | The exact HIR40 relay lowers through a dedicated compiler-lifecycle route to an optimizer-visible two-field `{i1 outcome, i64 payload}` LLVM aggregate. The relay performs a real call, extracts the carrier, and branches into explicit normal and typed-error successors without unwind, Task, heap, process root, or public ABI. | `source-backed-current` only for the exact payloadless one-case `Failure.denied` selector, caller-owned transactional MLIR emission and verification, target-neutral artifact bytes, C23 adversarial tests, and MLIR/LLVM 23.1.1 parsing and translation. Native product execution, public enum or error ABI, catch, cleanup, conversions, general propagation, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1618 | synchronous cleanup across exact typed propagation | HIR41 binds one dominating synchronous `defer` to the exact typed invoke and materializes one ordinary direct cleanup call in each successor; a distinct private MLIR artifact preserves both calls before returning the compact carrier. | `source-backed-current` only for one local zero-argument nonthrowing Unit cleanup, one exact payloadless typed relay, caller-owned HIR records, transactional selector/emission, fail-closed pre-existing routes, C23 adversarial tests, and MLIR/LLVM 23.1.1 parsing and translation. Runtime cleanup stacks, closures, `defer async`, multiple or nested cleanup, catch, native products, public ABI, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -13233,3 +13235,30 @@ on failure. A private probe was also accepted by `mlir-opt` and translated to
 LLVM IR with MLIR/LLVM 23.1.1. This is correctness evidence only: native
 product execution, public ABI, catch, cleanup, conversions, general errors,
 benchmark results, and performance remain open.
+
+#### W-1618 — synchronous cleanup across exact typed propagation
+
+W-1618 deliberately does not introduce a general cleanup runtime. The
+frontend's one accepted synchronous `defer` shape is preserved in HIR41 as a
+cross-record obligation attached to the exact W-1616 invoke. Because the body
+is a proven direct local zero-argument nonthrowing `Unit` call, HIR can place
+the call directly in both terminal successors. This keeps cleanup visible to
+SSA optimization and avoids allocating a closure or runtime stack.
+
+The cleanup record names every relation needed for independent verification:
+owner, invoke, callee identity, both successor blocks, both ordinary
+instructions, both calls, and the lexical registration span. The verifier
+rechecks those owners, dense ranges, call effects and types, source
+containment, capacities, aliases, semantic/provenance digests, and receipt.
+Existing product and cooperative selectors reject a nonzero cleanup count, so
+no older route can silently erase the obligation.
+
+The dedicated typed-propagation adapter chooses a separate
+`w-seed-mlir0-typed-cleanup-1` artifact for HIR41 while preserving the HIR40
+artifact bytes. The new artifact defines the local cleanup and emits exactly
+one direct call in each normal/error block before returning the private
+two-field carrier. Focused C23 tests cover exact selection, output aliasing
+against cleanup storage, both target selectors, and call order. The emitted
+text also parses and translates through MLIR/LLVM 23.1.1. This is bounded
+compiler-lifecycle correctness evidence only; general cleanup, async cleanup,
+catch, native execution, public ABI, benchmarks, and performance remain open.

@@ -131,8 +131,10 @@ typedef struct {
 } w_seed_native_subset0_process;
 
 /* Private compiler-lifecycle selector for the exact HIR40 synchronous typed
- * propagation witness.  The selector publishes borrowed records only.  It
- * does not define a public throwing ABI or a process exit policy. */
+ * propagation witness and its HIR41 one-cleanup extension. The optional
+ * cleanup fields are all-null/all-NONE for HIR40. The selector publishes
+ * borrowed records only. It does not define a public throwing ABI or a
+ * process exit policy. */
 typedef struct {
   const w_seed_hir0_entry *entry;
   const w_seed_hir0_function *leaf_function;
@@ -141,9 +143,14 @@ typedef struct {
   const w_seed_hir0_terminator *invoke;
   const w_seed_hir0_terminator *normal_return;
   const w_seed_hir0_terminator *error_throw;
+  const w_seed_hir0_cleanup *cleanup;
+  const w_seed_hir0_function *cleanup_function;
+  const w_seed_hir0_call *normal_cleanup_call;
+  const w_seed_hir0_call *error_cleanup_call;
   uint32_t entry_function_index;
   uint32_t leaf_function_index;
   uint32_t relay_function_index;
+  uint32_t cleanup_function_index;
   uint32_t invoke_block_index;
   uint32_t normal_block_index;
   uint32_t error_block_index;
@@ -195,8 +202,9 @@ w_seed_native_subset0_select_process_parallel(
     const w_seed_parallel_selection0 *parallel_selection,
     w_seed_native_subset0_process *selection);
 
-/* Select only the exact private one-case typed propagation witness.  This
- * route is separate from select_program and cannot create an executable. */
+/* Select only the exact private one-case typed propagation witness, with
+ * either no cleanup (HIR40) or the one proven cleanup (HIR41). This route is
+ * separate from select_program and cannot create an executable. */
 w_seed_native_subset0_status
 w_seed_native_subset0_select_typed_propagation(
     const w_seed_hir0_program *program,

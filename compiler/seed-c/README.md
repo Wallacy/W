@@ -253,6 +253,26 @@ public ABI, and ordinary product selectors still reject it. Native product
 execution, catch, cleanup, conversions, general errors, benchmarks, and
 performance remain gaps.
 
+Version 41 adds one bounded synchronous cleanup relation to the exact typed
+propagation witness. The accepted `defer` body is one direct local
+zero-argument nonthrowing `Unit` call before the terminal `return try`.
+`w_seed_hir0_cleanup` binds the lexical registration to the invoke and to the
+ordinary cleanup instruction/call in each normal and error successor. The
+record participates in capacity and alias checks, receipts, semantic and
+provenance digests, independent verification, and frontend-lifetime tests.
+All older native, process, cooperative, and ProductClosure selectors reject a
+nonzero cleanup count.
+
+The existing typed-propagation MLIR API emits
+`w-seed-mlir0-typed-cleanup-1` for this HIR41 shape and leaves the HIR40
+artifact byte-identical. The private MLIR defines `clean`, calls it once in
+each successor before returning the compact `{i1, i64}` carrier, and remains
+target-neutral for the current Linux and Windows selectors. The private
+`--emit-typed-cleanup` test mode lets the repository gate parse and translate
+those exact bytes with MLIR/LLVM 23.1.1. This is not a public W command or ABI.
+Multiple or nested cleanup, `defer async`, runtime stacks, closures, catch,
+native products, benchmarks, and performance remain unsupported.
+
 `w_seed_accelerated_invocation0` consumes only that successful Frontend28
 relation plus a verified `w_seed_gpu_module` program. ACCINV0 copies one exact
 zero-argument static launch and lexical await into caller-owned invocation and
