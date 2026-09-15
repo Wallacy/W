@@ -40204,7 +40204,11 @@ The available Windows experiment parses both artifacts with pinned MLIR/LLVM
 23.1.1, lowers the device module through GPU, NVVM, and LLVM dialects, and uses
 system Clang 22 to emit `sm_86` PTX. A small dynamic CUDA Driver adapter runs
 the kernel on the available NVIDIA RTX A400 and verifies `42`; missing-provider
-and missing-kernel cases fail closed. A separate diagnostic catalog records
+and missing-kernel cases fail closed. The adapter no longer embeds that value:
+its private CLI accepts one canonical signed-`i32` expectation, rejects invalid
+text before provider loading, and fails after execution when the device result
+does not match. The current gate supplies `42`; deriving this field from
+verified ACCREQ0 is the next physical integration boundary. A separate diagnostic catalog records
 temporary artifact sizes and in-process H2D, dispatch-plus-synchronize, D2H,
 and end-to-end p50/p95 values. It is not a W product ranking.
 

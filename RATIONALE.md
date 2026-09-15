@@ -12723,7 +12723,11 @@ dynamic adapter loads `nvcuda.dll` at runtime, resolves the CUDA Driver API,
 launches one block and one thread, copies the result back, and verifies `42`.
 The observed device is NVIDIA RTX A400 (`sm_86`). Missing-provider and
 missing-kernel cases fail closed with exit `2`; the successful run prints
-`GPU0 CUDA result: 42`.
+`GPU0 CUDA result: 42`. The private adapter receives the expected signed-`i32`
+value as canonical decimal input rather than embedding `42`; malformed input
+is rejected before loading the provider and an intentional `41` mismatch fails
+after device execution. The checker still supplies the current sentinel
+directly, so ACCREQ0-to-adapter parameter transport remains open.
 
 The separate GPU0 diagnostic catalog measures 101 warmups and 1001 in-process
 samples after context, module, function, and device allocation setup. It keeps
