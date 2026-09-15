@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-31"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-32"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -456,10 +456,16 @@ typedef struct {
 } w_seed_frontend_import;
 
 typedef struct {
+  /* `name`/`local_name` retain source provenance. For a grouped named kernel
+   * import, these indices bind the canonical target `(module identity,
+   * public label)`; ordinary items retain NONE in all three fields. */
   uint32_t module_index;
   w_seed_frontend_text name;
   w_seed_frontend_text local_name;
   w_seed_span span;
+  uint32_t resolved_kernel_module_index;
+  uint32_t resolved_kernel_binding_index;
+  uint32_t resolved_kernel_function_index;
 } w_seed_frontend_import_item;
 
 typedef struct {

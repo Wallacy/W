@@ -5,10 +5,10 @@ Experimental compiler/linkage evidence on NVIDIA RTX A400 (sm_86, driver 581.42)
 | Observation | Value |
 | --- | ---: |
 | Correct result | 42 |
-| H2D p50 / p95 | 2.9 us / 3.5 us |
-| Dispatch + synchronize p50 / p95 | 7.1 us / 26.2 us |
-| D2H p50 / p95 | 7.6 us / 19.1 us |
-| End-to-end p50 / p95 | 17.7 us / 36.6 us |
+| H2D p50 / p95 | 2.9 us / 13.9 us |
+| Dispatch + synchronize p50 / p95 | 7.0 us / 25.0 us |
+| D2H p50 / p95 | 7.6 us / 17.7 us |
+| End-to-end p50 / p95 | 17.9 us / 35.5 us |
 | Host adapter | 14848 B |
 | Device MLIR | 423 B |
 | PTX | 502 B |

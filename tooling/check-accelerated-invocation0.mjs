@@ -66,7 +66,7 @@ try {
     `w_seed_accelerated_invocation0_tests${suffix}`), [fixture], environment);
   if (result.stderr.length !== 0) fail("test witness produced stderr");
   const output = result.stdout.toString().replaceAll("\r\n", "\n");
-  if (!output.includes("source->frontend31->gpu-module-2->program: PASS") ||
+  if (!output.includes("source->frontend32->gpu-module-2->program: PASS") ||
       !output.includes("teardown/negative barriers: PASS")) {
     fail("test witness output is incomplete");
   }

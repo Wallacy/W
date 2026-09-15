@@ -5902,6 +5902,300 @@ static bool test_repeat_projection(void) {
   return true;
 }
 
+/* Build the smallest explicit two-document resolver graph used by the
+ * Frontend32 kernel-import slice. The documents remain caller-owned; the
+ * frontend receives only their source/CST views and resolver edge records. */
+static bool setup_multidocument_kernel_case(
+    fixture *caller, fixture *provider, w_seed_frontend_document documents[2],
+    const char *caller_source, const char *provider_source,
+    w_seed_frontend_resolved_import_kind target_kind, uint32_t target_index) {
+  CHECK(caller != NULL && provider != NULL && documents != NULL &&
+        caller_source != NULL && provider_source != NULL);
+  CHECK(fixture_parse(caller, caller_source));
+  CHECK(fixture_parse(provider, provider_source));
+  caller->document.logical_source_id =
+      (w_seed_frontend_text){"caller-source", sizeof("caller-source") - 1u};
+  caller->document.module_id =
+      (w_seed_frontend_text){"caller", sizeof("caller") - 1u};
+  caller->document.local_module_name = caller->document.module_id;
+  provider->document.logical_source_id = (w_seed_frontend_text){
+      "provider-source", sizeof("provider-source") - 1u};
+  provider->document.module_id =
+      (w_seed_frontend_text){"provider", sizeof("provider") - 1u};
+  provider->document.local_module_name = provider->document.module_id;
+  w_seed_module_origin origins[TEST_IMPORTS];
+  w_seed_module_scan_result scan_result;
+  CHECK(w_seed_module_scan(
+            &caller->source, caller->nodes, caller->parse.node_count,
+            &caller->parse, origins, TEST_IMPORTS, &scan_result) ==
+        W_SEED_MODULE_SCAN_OK);
+  CHECK(scan_result.written <= TEST_IMPORTS);
+  for (size_t index = 0u; index < scan_result.written; index += 1u) {
+    caller->resolved_imports[index] = (w_seed_frontend_resolved_import){
+        .source_document_index = 0u,
+        .direct_import_ordinal = origins[index].direct_import_ordinal,
+        .import_declaration_span = origins[index].declaration_span,
+        .target_kind = target_kind,
+        .target_index = target_index};
+  }
+  documents[0] = caller->document;
+  documents[1] = provider->document;
+  caller->input.documents = documents;
+  caller->input.document_count = 2u;
+  caller->input.import_resolution_complete = true;
+  caller->input.resolved_imports = caller->resolved_imports;
+  caller->input.resolved_import_count = scan_result.written;
+  caller->input.external_modules = NULL;
+  caller->input.external_module_count = 0u;
+  if (target_kind == W_SEED_FRONTEND_RESOLVED_IMPORT_EXTERNAL_MODULE) {
+    caller->external_modules[0] = (w_seed_frontend_external_module){
+        .module_id =
+            (w_seed_frontend_text){"provider-external",
+                                   sizeof("provider-external") - 1u},
+        .symbols = NULL,
+        .symbol_count = 0u};
+    caller->input.external_modules = caller->external_modules;
+    caller->input.external_module_count = 1u;
+  }
+  fixture_configure_accelerated_domain(caller, 4u);
+  fixture_fill_output(caller, 0u);
+  return true;
+}
+
+static bool test_multidocument_kernel_import_frontend(void) {
+  static fixture caller;
+  static fixture provider;
+  static w_seed_frontend_document documents[2];
+  static const char provider_reordered[] =
+      "module provider<kernels: { forecast: forecastKernel, old: oldKernel }>\n"
+      "fn forecastKernel(): i64 { return 42 }\n"
+      "fn oldKernel(): i64 { return 7 }\n"
+      "export fn host(): i64 { return 9 }\n";
+  static const char provider_source[] =
+      "module provider<kernels: { old: oldKernel, forecast: forecastKernel }>\n"
+      "fn forecastKernel(): i64 { return 42 }\n"
+      "fn oldKernel(): i64 { return 7 }\n"
+      "export fn host(): i64 { return 9 }\n";
+  static const char caller_source[] =
+      "module caller\n"
+      "import { host } from provider\n"
+      "import kernel { old as renamed, forecast } from provider\n"
+      "entry { let hostResult = host() let pending = "
+      "spawn<.inference> renamed() let result = await pending }\n";
+  CHECK(setup_multidocument_kernel_case(
+      &caller, &provider, documents, caller_source, provider_source,
+      W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT, 1u));
+  CHECK(w_seed_frontend_run(&caller.input, &caller.output, &caller.result) ==
+        W_SEED_FRONTEND_OK);
+  CHECK(caller.result.written.modules == 2u &&
+        caller.result.written.imports == 2u &&
+        caller.result.written.import_items == 3u &&
+        caller.result.written.kernel_modules == 1u &&
+        caller.result.written.kernel_bindings == 2u &&
+        caller.kernel_modules[0].module_index == 1u &&
+        caller.kernel_bindings[0].owner_kernel_module == 0u &&
+        caller.kernel_bindings[1].owner_kernel_module == 0u &&
+        frontend_text_is(caller.kernel_bindings[0].label, "forecast") &&
+        frontend_text_is(caller.kernel_bindings[1].label, "old") &&
+        caller.kernel_bindings[0].function_index == 1u &&
+        caller.kernel_bindings[1].function_index == 2u);
+  CHECK(caller.import_items[0].resolved_kernel_module_index ==
+            W_SEED_FRONTEND_NONE &&
+        caller.import_items[0].resolved_kernel_binding_index ==
+            W_SEED_FRONTEND_NONE &&
+        caller.import_items[0].resolved_kernel_function_index ==
+            W_SEED_FRONTEND_NONE &&
+        frontend_text_is(caller.import_items[1].name, "old") &&
+        frontend_text_is(caller.import_items[1].local_name, "renamed") &&
+        caller.import_items[1].resolved_kernel_module_index == 0u &&
+        caller.import_items[1].resolved_kernel_binding_index == 1u &&
+        caller.import_items[1].resolved_kernel_function_index == 2u &&
+        frontend_text_is(caller.import_items[2].name, "forecast") &&
+        caller.import_items[2].resolved_kernel_module_index == 0u &&
+        caller.import_items[2].resolved_kernel_binding_index == 0u &&
+        caller.import_items[2].resolved_kernel_function_index == 1u);
+  CHECK(receipt_contains(&caller, "|kernel=0:1:2\n",
+                         sizeof("|kernel=0:1:2\n") - 1u) &&
+        receipt_contains(&caller, "|kernel=0:0:1\n",
+                         sizeof("|kernel=0:0:1\n") - 1u));
+  bool saw_kernel_call = false;
+  bool saw_ordinary_call = false;
+  for (size_t index = 0u; index < caller.result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &caller.expressions[index];
+    if (expression->kind != W_SEED_FRONTEND_EXPR_CALL) continue;
+    if (expression->resolved_callee_kind ==
+        W_SEED_FRONTEND_CALLEE_KERNEL_BINDING) {
+      CHECK(expression->supported && expression->module_index == 0u &&
+            expression->resolved_kernel_module_index == 0u &&
+            expression->resolved_kernel_binding_index == 1u &&
+            expression->resolved_function_index == 2u);
+      saw_kernel_call = true;
+    } else if (expression->resolved_callee_kind ==
+                   W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION &&
+               expression->resolved_function_index == 3u) {
+      saw_ordinary_call = true;
+    }
+  }
+  CHECK(saw_kernel_call && saw_ordinary_call);
+
+  /* Contract field order and local alias/order are provenance. The same
+   * canonical `(provider, label)` identities survive both reorderings. */
+  static const char reordered_caller_source[] =
+      "module caller\n"
+      "import kernel { forecast as first, old as second } from provider\n"
+      "entry { let pending = spawn<.inference> second() "
+      "let result = await pending }\n";
+  CHECK(setup_multidocument_kernel_case(
+      &caller, &provider, documents, reordered_caller_source,
+      provider_reordered, W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT, 1u));
+  CHECK(w_seed_frontend_run(&caller.input, &caller.output, &caller.result) ==
+        W_SEED_FRONTEND_OK);
+  CHECK(caller.result.written.import_items == 2u &&
+        frontend_text_is(caller.import_items[0].local_name, "first") &&
+        caller.import_items[0].resolved_kernel_module_index == 0u &&
+        caller.import_items[0].resolved_kernel_binding_index == 0u &&
+        caller.import_items[0].resolved_kernel_function_index == 1u &&
+        frontend_text_is(caller.import_items[1].local_name, "second") &&
+        caller.import_items[1].resolved_kernel_module_index == 0u &&
+        caller.import_items[1].resolved_kernel_binding_index == 1u &&
+        caller.import_items[1].resolved_kernel_function_index == 2u);
+  bool saw_reordered_kernel_call = false;
+  for (size_t index = 0u; index < caller.result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &caller.expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_CALL &&
+        expression->resolved_callee_kind ==
+            W_SEED_FRONTEND_CALLEE_KERNEL_BINDING) {
+      CHECK(expression->supported &&
+            expression->resolved_kernel_module_index == 0u &&
+            expression->resolved_kernel_binding_index == 1u &&
+            expression->resolved_function_index == 2u);
+      saw_reordered_kernel_call = true;
+    }
+  }
+  CHECK(saw_reordered_kernel_call);
+
+  /* The canonical relation is entirely index-based. Copy it before the
+   * producer-side fixture storage is torn down; no resolver pointer is part
+   * of the imported binding record. */
+  const uint32_t saved_module =
+      caller.import_items[1].resolved_kernel_module_index;
+  const uint32_t saved_binding =
+      caller.import_items[1].resolved_kernel_binding_index;
+  const uint32_t saved_function =
+      caller.import_items[1].resolved_kernel_function_index;
+  (void)memset(&provider, 0xa5, sizeof(provider));
+  CHECK(caller.import_items[1].resolved_kernel_module_index == saved_module &&
+        caller.import_items[1].resolved_kernel_binding_index == saved_binding &&
+        caller.import_items[1].resolved_kernel_function_index == saved_function);
+  return true;
+}
+
+static bool test_multidocument_kernel_import_rejections(void) {
+  static fixture caller;
+  static fixture provider;
+  static w_seed_frontend_document documents[2];
+  static const char caller_source[] =
+      "module caller\n"
+      "import kernel { forecast } from provider\n"
+      "entry { let pending = spawn<.inference> forecast() "
+      "let result = await pending }\n";
+  static const char provider_source[] =
+      "module provider<kernels: { forecast: forecastKernel }>\n"
+      "fn forecastKernel(): i64 { return 42 }\n";
+  CHECK(setup_multidocument_kernel_case(
+      &caller, &provider, documents, caller_source, provider_source,
+      W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT, 1u));
+  documents[1].module_id =
+      (w_seed_frontend_text){"forged", sizeof("forged") - 1u};
+  fixture_fill_output(&caller, 0xa5u);
+  CHECK(w_seed_frontend_run(&caller.input, &caller.output, &caller.result) ==
+        W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(&caller, W_SEED_FRONTEND_FACT_UNRESOLVED_IMPORTED_SYMBOL));
+
+  /* A self-edge is a forged resolver identity and must fail before output is
+   * touched. */
+  CHECK(setup_multidocument_kernel_case(
+      &caller, &provider, documents, caller_source, provider_source,
+      W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT, 1u));
+  caller.resolved_imports[0].target_index = 0u;
+  fixture_fill_output(&caller, 0xa5u);
+  CHECK(w_seed_frontend_run(&caller.input, &caller.output, &caller.result) ==
+        W_SEED_FRONTEND_INVALID && fixture_output_is(&caller, 0xa5u, true));
+
+  static const char missing_label_caller[] =
+      "module caller\n"
+      "import kernel { missing } from provider\n"
+      "entry { let pending = spawn<.inference> missing() "
+      "let result = await pending }\n";
+  CHECK(setup_multidocument_kernel_case(
+      &caller, &provider, documents, missing_label_caller, provider_source,
+      W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT, 1u));
+  CHECK(w_seed_frontend_run(&caller.input, &caller.output, &caller.result) ==
+        W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(&caller, W_SEED_FRONTEND_FACT_UNRESOLVED_IMPORTED_SYMBOL));
+
+  static const char collision_caller[] =
+      "module caller\n"
+      "import kernel { forecast as value } from provider\n"
+      "import { host as value } from provider\n"
+      "entry { let pending = spawn<.inference> value() "
+      "let result = await pending }\n";
+  static const char provider_with_host[] =
+      "module provider<kernels: { forecast: forecastKernel }>\n"
+      "fn forecastKernel(): i64 { return 42 }\n"
+      "export fn host(): i64 { return 9 }\n";
+  CHECK(setup_multidocument_kernel_case(
+      &caller, &provider, documents, collision_caller, provider_with_host,
+      W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT, 1u));
+  CHECK(w_seed_frontend_run(&caller.input, &caller.output, &caller.result) ==
+        W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(&caller, W_SEED_FRONTEND_FACT_DUPLICATE_LOCAL_SYMBOL));
+
+  static const char duplicate_caller[] =
+      "module caller\n"
+      "import kernel { forecast as renamed } from provider\n"
+      "import kernel { forecast as renamed } from provider\n"
+      "entry { let pending = spawn<.inference> renamed() "
+      "let result = await pending }\n";
+  CHECK(setup_multidocument_kernel_case(
+      &caller, &provider, documents, duplicate_caller, provider_source,
+      W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT, 1u));
+  CHECK(w_seed_frontend_run(&caller.input, &caller.output, &caller.result) ==
+        W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(&caller, W_SEED_FRONTEND_FACT_DUPLICATE_LOCAL_SYMBOL));
+
+  static const char generic_provider[] =
+      "module provider<kernels: { forecast: forecastKernel }>\n"
+      "fn forecastKernel<T>(value: T): T { return value }\n";
+  CHECK(setup_multidocument_kernel_case(
+      &caller, &provider, documents, caller_source, generic_provider,
+      W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT, 1u));
+  CHECK(w_seed_frontend_run(&caller.input, &caller.output, &caller.result) ==
+        W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(&caller, W_SEED_FRONTEND_FACT_UNSUPPORTED_NODE));
+
+  CHECK(setup_multidocument_kernel_case(
+      &caller, &provider, documents, caller_source, provider_source,
+      W_SEED_FRONTEND_RESOLVED_IMPORT_EXTERNAL_MODULE, 0u));
+  CHECK(w_seed_frontend_run(&caller.input, &caller.output, &caller.result) ==
+        W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(&caller, W_SEED_FRONTEND_FACT_UNRESOLVED_IMPORTED_SYMBOL));
+
+  static const char qualified_caller[] =
+      "module caller\n"
+      "import kernel provider as kernels\n"
+      "entry { }\n";
+  CHECK(setup_multidocument_kernel_case(
+      &caller, &provider, documents, qualified_caller, provider_source,
+      W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT, 1u));
+  CHECK(w_seed_frontend_run(&caller.input, &caller.output, &caller.result) ==
+        W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(&caller, W_SEED_FRONTEND_FACT_UNSUPPORTED_NODE));
+  return true;
+}
+
 static bool test_kernel_module_frontend(void) {
   static const char source[] =
       "module accelerated_invocation<kernels: { hello: kernel }>\n"
@@ -6687,6 +6981,8 @@ int main(int argc, char **argv) {
   if (!test_structured_async_projection()) return 1;
   if (!test_while_projection()) return 1;
   if (!test_repeat_projection()) return 1;
+  if (!test_multidocument_kernel_import_frontend()) return 1;
+  if (!test_multidocument_kernel_import_rejections()) return 1;
   if (!test_kernel_module_frontend()) return 1;
   return 0;
 }

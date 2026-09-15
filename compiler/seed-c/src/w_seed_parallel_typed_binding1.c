@@ -47,6 +47,17 @@ static bool add_range(typed_binding1_range *ranges, size_t capacity,
   return true;
 }
 
+static bool provider_job_valid(const w_seed_parallel_platform1_job *job) {
+  if (job == NULL || job->invoke == NULL ||
+      (job->context == NULL && job->context_bytes != 0u) ||
+      (job->context != NULL && job->context_bytes == 0u))
+    return false;
+  if (job->context == NULL) return true;
+  const uintptr_t start = (uintptr_t)job->context;
+  return job->context_bytes <= (size_t)UINTPTR_MAX &&
+         start <= UINTPTR_MAX - (uintptr_t)job->context_bytes;
+}
+
 static bool append_hir_ranges(const w_seed_hir0_program *program,
                               typed_binding1_range *ranges, size_t capacity,
                               size_t *count) {
@@ -115,7 +126,16 @@ static bool append_input_ranges(
       !add_range(ranges, capacity, count, input->tasks, input->task_capacity,
                  sizeof(*input->tasks)) ||
       !add_range(ranges, capacity, count, input->provider_authority, 1u,
-                 sizeof(*input->provider_authority)))
+                 sizeof(*input->provider_authority)) ||
+      !add_range(ranges, capacity, count, &input->provider_job, 1u,
+                 sizeof(input->provider_job)))
+    return false;
+  /* PLATFORM1 does not inspect the opaque callback context.  Its explicit
+   * caller-owned extent still participates in alias and lifetime barriers. */
+  if (!provider_job_valid(&input->provider_job) ||
+      (input->provider_job.context != NULL &&
+       !add_range(ranges, capacity, count, input->provider_job.context,
+                  input->provider_job.context_bytes, 1u)))
     return false;
   return true;
 }
@@ -506,7 +526,7 @@ static w_seed_parallel_typed_binding1_status validate_input(
           W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT ||
       input->task_capacity < input->task_count || input->generation == 0u ||
       (input->provider_capacity != 1u && input->provider_capacity != 2u) ||
-      input->provider_job.invoke == NULL)
+      !provider_job_valid(&input->provider_job))
     return W_SEED_PARALLEL_TYPED_BINDING1_INVALID;
   if (!authority_matches_provider(input->provider_authority,
                                   &input->provider))
@@ -551,6 +571,18 @@ static bool completion_is_error(
          completion->panic_code == W_SEED_PARALLEL_PLATFORM1_PANIC_NONE;
 }
 
+static bool completion_is_panic(
+    const w_seed_parallel_platform1_completion *completion) {
+  return completion != NULL &&
+         completion->kind == W_SEED_PARALLEL_PLATFORM1_COMPLETION_PANIC &&
+         completion->success_value == 0 && completion->error_code == 0u &&
+         completion->cancel_reason == 0u &&
+         completion->error_case_ordinal == 0u &&
+         completion->panic_code >= W_SEED_PARALLEL_PLATFORM1_PANIC_EXPLICIT &&
+         completion->panic_code <=
+             W_SEED_PARALLEL_PLATFORM1_PANIC_INTERNAL_CONTRACT;
+}
+
 static bool physical_facts_valid(
     const w_seed_parallel_typed_binding1_input *input,
     const w_seed_parallel_platform1_completion *completions,
@@ -578,6 +610,102 @@ static bool physical_facts_valid(
          completion_is_error(&completions[1], identity) &&
          receipt->cancellation_requested &&
          receipt->cancellation_source_index == 1u;
+}
+
+/* The panic-only boundary accepts one complete two-task wave: the ordinary
+ * direct call settled successfully and the verified throwing INVOKE produced
+ * the actual PLATFORM1 panic.  The receipt is checked independently of the
+ * completion so a signal can never be copied from an incomplete or forged
+ * physical report. */
+static bool panic_facts_valid(
+    const w_seed_parallel_typed_binding1_input *input,
+    const w_seed_parallel_platform1_completion *completions,
+    const w_seed_parallel_platform1_receipt *receipt,
+    w_seed_parallel_provider0_kind provider_kind,
+    const w_seed_parallel_typed_binding1_error_identity *identity,
+    uint32_t *panic_source_index) {
+  if (input == NULL || completions == NULL || receipt == NULL ||
+      identity == NULL || panic_source_index == NULL ||
+      provider_kind != W_SEED_PARALLEL_PROVIDER0_KIND_WINDOWS_KERNEL32 ||
+      input->task_count != W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT ||
+      receipt->started_count !=
+          W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT ||
+      receipt->settled_count !=
+          W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT ||
+      receipt->canceled_before_start_count != 0u ||
+      receipt->maximum_active != input->provider_capacity ||
+      !receipt->cancellation_requested ||
+      receipt->cancellation_source_index != 1u ||
+      !receipt->panic_requested || receipt->panic_source_index != 1u ||
+      !completion_is_success(&completions[0]) ||
+      !completion_is_panic(&completions[1]) ||
+      receipt->panic_code != completions[1].panic_code)
+    return false;
+  int64_t expected_success = 0;
+  size_t budget = 4096u;
+  if (!w_seed_scalar_evaluator0_evaluate_call(
+          input->hir_program, input->tasks[0].call_index, &budget,
+          &expected_success) ||
+      completions[0].success_value != expected_success ||
+      input->tasks[1].call_index != identity->call_index ||
+      input->tasks[1].lexical_index != 1u)
+    return false;
+  *panic_source_index = 1u;
+  return true;
+}
+
+static bool panic_signal_disjoint(
+    const w_seed_parallel_typed_binding1_input *input,
+    const w_seed_parallel_typed_binding1_panic_signal *signal) {
+  if (input == NULL || signal == NULL ||
+      input->task_capacity > SIZE_MAX / sizeof(*input->tasks))
+    return false;
+  typed_binding1_range signal_range;
+  if (!range_make(signal, 1u, sizeof(*signal), &signal_range)) return false;
+  typed_binding1_range inputs[W_TYPED_BINDING1_INPUT_RANGE_CAPACITY];
+  size_t input_count = 0u;
+  if (!append_input_ranges(input, inputs,
+                           W_TYPED_BINDING1_INPUT_RANGE_CAPACITY,
+                           &input_count))
+    return false;
+  for (size_t index = 0u; index < input_count; index += 1u)
+    if (ranges_overlap(inputs[index], signal_range)) return false;
+  return true;
+}
+
+static w_seed_parallel_typed_binding1_status execute_platform(
+    const w_seed_parallel_typed_binding1_input *input,
+    const w_seed_parallel_typed_binding1_error_identity *identity,
+    w_seed_parallel_platform1_completion completions[
+        W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT],
+    w_seed_parallel_platform1_receipt *receipt,
+    w_seed_parallel_provider0_kind *provider_kind) {
+  if (input == NULL || identity == NULL || completions == NULL ||
+      receipt == NULL || provider_kind == NULL)
+    return W_SEED_PARALLEL_TYPED_BINDING1_INVALID;
+  (void)memset(completions, 0,
+               sizeof(w_seed_parallel_platform1_completion) *
+                   W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT);
+  (void)memset(receipt, 0, sizeof(*receipt));
+  receipt->cancellation_source_index = UINT32_MAX;
+  const w_seed_parallel_provider0_platform_status platform_status =
+      w_seed_parallel_local_provider1_execute(
+          input->provider_authority, &input->provider_job, input->task_count,
+          input->provider_capacity, completions, receipt, provider_kind);
+  if (platform_status == W_SEED_PARALLEL_PROVIDER0_PLATFORM_UNSUPPORTED)
+    return W_SEED_PARALLEL_TYPED_BINDING1_UNSUPPORTED;
+  if (platform_status == W_SEED_PARALLEL_PROVIDER0_PLATFORM_TASK_FAILURE)
+    return W_SEED_PARALLEL_TYPED_BINDING1_TASK_FAILURE;
+  if (platform_status != W_SEED_PARALLEL_PROVIDER0_PLATFORM_OK)
+    return W_SEED_PARALLEL_TYPED_BINDING1_PROVIDER_FAILURE;
+  if (*provider_kind != W_SEED_PARALLEL_PROVIDER0_KIND_WINDOWS_KERNEL32)
+    return W_SEED_PARALLEL_TYPED_BINDING1_PROVIDER_FAILURE;
+  w_seed_parallel_typed_binding1_error_identity post_identity;
+  if (validate_input(input, &post_identity) !=
+          W_SEED_PARALLEL_TYPED_BINDING1_OK ||
+      !identity_equal(identity, &post_identity))
+    return W_SEED_PARALLEL_TYPED_BINDING1_HIR;
+  return W_SEED_PARALLEL_TYPED_BINDING1_OK;
 }
 
 static bool build_records(
@@ -809,30 +937,14 @@ w_seed_parallel_typed_binding1_status w_seed_parallel_typed_binding1_run(
    * all physical outputs local until semantic and typed-identity checks pass. */
   w_seed_parallel_platform1_completion completions[
       W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT];
-  (void)memset(completions, 0, sizeof(completions));
   w_seed_parallel_platform1_receipt receipt;
-  (void)memset(&receipt, 0, sizeof(receipt));
-  receipt.cancellation_source_index = UINT32_MAX;
   w_seed_parallel_provider0_kind provider_kind =
       W_SEED_PARALLEL_PROVIDER0_KIND_NONE;
-  const w_seed_parallel_provider0_platform_status platform_status =
-      w_seed_parallel_local_provider1_execute(
-          input->provider_authority,
-          &input->provider_job, input->task_count, input->provider_capacity,
-          completions, &receipt, &provider_kind);
-  if (platform_status == W_SEED_PARALLEL_PROVIDER0_PLATFORM_UNSUPPORTED)
-    return W_SEED_PARALLEL_TYPED_BINDING1_UNSUPPORTED;
-  if (platform_status == W_SEED_PARALLEL_PROVIDER0_PLATFORM_TASK_FAILURE)
-    return W_SEED_PARALLEL_TYPED_BINDING1_TASK_FAILURE;
-  if (platform_status != W_SEED_PARALLEL_PROVIDER0_PLATFORM_OK)
-    return W_SEED_PARALLEL_TYPED_BINDING1_PROVIDER_FAILURE;
-  if (provider_kind != W_SEED_PARALLEL_PROVIDER0_KIND_WINDOWS_KERNEL32)
-    return W_SEED_PARALLEL_TYPED_BINDING1_PROVIDER_FAILURE;
-  w_seed_parallel_typed_binding1_error_identity post_identity;
-  if (validate_input(input, &post_identity) !=
-          W_SEED_PARALLEL_TYPED_BINDING1_OK ||
-      !identity_equal(&identity, &post_identity))
-    return W_SEED_PARALLEL_TYPED_BINDING1_HIR;
+  const w_seed_parallel_typed_binding1_status platform_status =
+      execute_platform(input, &identity, completions, &receipt,
+                       &provider_kind);
+  if (platform_status != W_SEED_PARALLEL_TYPED_BINDING1_OK)
+    return platform_status;
   for (size_t task = 0u;
        task < W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT;
        task += 1u)
@@ -954,6 +1066,63 @@ bool w_seed_parallel_typed_binding1_verify(
                   workspace->receipt, semantic_digest, provenance_digest);
   return memcmp(result->provenance.provenance_digest, provenance_digest,
                 sizeof(provenance_digest)) == 0;
+}
+
+w_seed_parallel_typed_binding1_status
+w_seed_parallel_typed_binding1_panic_run(
+    const w_seed_parallel_typed_binding1_input *input,
+    w_seed_parallel_typed_binding1_panic_signal *signal) {
+  w_seed_parallel_typed_binding1_error_identity identity;
+  if (signal == NULL) return W_SEED_PARALLEL_TYPED_BINDING1_INVALID;
+  const w_seed_parallel_typed_binding1_status input_status =
+      validate_input(input, &identity);
+  if (input_status != W_SEED_PARALLEL_TYPED_BINDING1_OK)
+    return input_status;
+  if (!panic_signal_disjoint(input, signal))
+    return W_SEED_PARALLEL_TYPED_BINDING1_ALIAS;
+
+  w_seed_parallel_platform1_completion completions[
+      W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT];
+  w_seed_parallel_platform1_receipt receipt;
+  w_seed_parallel_provider0_kind provider_kind =
+      W_SEED_PARALLEL_PROVIDER0_KIND_NONE;
+  const w_seed_parallel_typed_binding1_status execute_status =
+      execute_platform(input, &identity, completions, &receipt,
+                       &provider_kind);
+  if (execute_status != W_SEED_PARALLEL_TYPED_BINDING1_OK)
+    return execute_status;
+
+  uint32_t panic_source_index = UINT32_MAX;
+  if (!panic_facts_valid(input, completions, &receipt, provider_kind,
+                         &identity, &panic_source_index)) {
+    for (size_t task = 0u;
+         task < W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT;
+         task += 1u)
+      if (completion_is_panic(&completions[task]))
+        return W_SEED_PARALLEL_TYPED_BINDING1_PANIC;
+    return W_SEED_PARALLEL_TYPED_BINDING1_TASK_FAILURE;
+  }
+
+  w_seed_parallel_typed_binding1_panic_signal candidate = {0};
+  candidate.source_index = panic_source_index;
+  candidate.lexical_index = input->tasks[panic_source_index].lexical_index;
+  candidate.call_index = input->tasks[panic_source_index].call_index;
+  candidate.panic_code = completions[panic_source_index].panic_code;
+  candidate.semantic_result_published = false;
+  (void)memcpy(candidate.hir_semantic_digest, input->hir_result->semantic_digest,
+               sizeof(candidate.hir_semantic_digest));
+  (void)memcpy(candidate.error_identity_digest, identity.digest,
+               sizeof(candidate.error_identity_digest));
+  candidate.started_count = receipt.started_count;
+  candidate.settled_count = receipt.settled_count;
+  candidate.canceled_before_start_count = receipt.canceled_before_start_count;
+  candidate.maximum_active = receipt.maximum_active;
+  candidate.cancellation_source_index = receipt.cancellation_source_index;
+  candidate.cancellation_requested = receipt.cancellation_requested;
+  candidate.panic_source_index = receipt.panic_source_index;
+  candidate.panic_requested = receipt.panic_requested;
+  *signal = candidate;
+  return W_SEED_PARALLEL_TYPED_BINDING1_OK;
 }
 
 enum {

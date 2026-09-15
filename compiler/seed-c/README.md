@@ -193,6 +193,16 @@ offload, missing bindings, and malformed accelerated bindings. Escape decoding,
 Boolean/String value Display, general Display conformance, general device IR,
 and native provider linkage outside those subsets remain gaps.
 
+Version 32 appends resolved kernel-module, kernel-binding, and target-function
+indices to each import item. Grouped named
+`import kernel { label as local } from module` resolves only through an
+explicit local-document resolver edge whose target module contract publishes
+that label. The canonical identity is the target module plus public label;
+alias and import order remain provenance. Ordinary imports and calls retain
+their host meaning. Qualified and external kernel projections, independent
+imported-invocation HIR, product reachability, and provider execution remain
+unsupported and fail closed.
+
 Version 29 gives `throws E` and `throw value` a typed compiler relation.
 The CST owns the throws type separately from the normal return type; frontend
 functions publish `error_type`, and a throw statement owns one contextually
@@ -291,7 +301,7 @@ integrity, not provider authentication. Native HIR execution, trusted
 attestation, typed TASKLIFE, other platform providers, public products,
 benchmarks, and performance remain unsupported.
 
-`w_seed_accelerated_invocation0` consumes only that successful Frontend31
+`w_seed_accelerated_invocation0` consumes only that successful Frontend32
 relation plus a verified `w_seed_gpu_module` program. ACCINV0 copies one exact
 zero-argument static launch and lexical await into caller-owned invocation and
 text storage. Its semantic digest binds domain policy, copied identities,
@@ -2407,6 +2417,20 @@ without publishing completions, semantic records, or result. It never maps the
 signal to typed `Error`, cancellation, or TASKLIFE. This does not yet implement
 source panic lowering, `PanicEvent`, or physical fault-boundary teardown.
 
+W-1623 adds PANICBOUNDARY1 as a private Windows x64 compiler-lifecycle
+root-child witness. A trusted private helper owns the verified HIR/PARBIND
+witness and emits one fixed big-endian, versioned frame. The parent proves the
+root child live, explicitly terminates and bounded-joins it, revalidates the
+immutable HIR, PARBIND, and authority inputs, and publishes the receipt only
+transactionally. The unkeyed SHA-256 digest provides integrity and correlation
+only, not authentication. The helper is trusted private witness code, and the
+Job Object does not prove descendant-tree drain.
+
+This remains a root-child compiler-lifecycle boundary only. Source
+`panic`/`PanicEvent`, public Task/runtime/ABI/product behavior, hardware faults,
+cleanup/restart/supervision, descendants, other targets/providers, native HIR
+child execution, attestation, benchmarks, and performance remain unsupported.
+
 ### Bounded CRT-free process/parallel provider linkage (W-1600)
 
 PARLINK1 closes the private physical reference for the W-1598 composition.
@@ -2465,18 +2489,22 @@ diagnostics, not W product rankings.
 
 The seed parser accepts a contextual module contract such as
 `module gpuHello<kernels: { hello: helloKernel }>` and emits distinct contract
-and kernel-field owners. Frontend31 then publishes provider-neutral
+and kernel-field owners. Frontend32 then publishes provider-neutral
 kernel-module and ordered kernel-binding records for nonempty, uniquely labeled
-contracts whose targets are direct same-document functions. Public labels are
-canonicalized before ordinals, and validation is transactional. Focused tests
-cover one and multiple kernels, deterministic receipts, exact ownership, short
-capacities, empty and malformed records, duplicate labels, missing functions,
-generic targets without specialization records, reorder invariance, and malformed
-or non-identifier contract values. Named and qualified `import kernel` forms are parser/module-scan
-coverage only; the seed does not resolve another module.
+contracts whose targets are direct same-document functions. Grouped named
+`import kernel { label as local } from module` projections resolve across an
+explicit local-document resolver edge and publish the canonical target module,
+kernel binding, and function indices; local alias and import order remain
+provenance only. Public labels are canonicalized before ordinals, and validation
+is transactional. Focused tests cover one and multiple kernels, deterministic
+receipts, exact ownership, short capacities, empty and malformed records,
+duplicate labels, missing functions, generic targets without specialization
+records, reorder invariance, malformed or non-identifier contract values, and
+cross-document alias/path/edge forgeries. Qualified and external kernel imports
+remain parser/module-scan-only and fail closed in this seed.
 
 `w_seed_gpu_module` is the next target-neutral compiler boundary. It validates
-Frontend31 independently, measures caller-owned module/kernel/text/receipt
+Frontend32 independently, measures caller-owned module/kernel/text/receipt
 storage, copies no frontend or source pointer, and publishes separate semantic
 and provenance digests. Its verifier works after source, CST, and frontend
 teardown and rejects aliases, short capacity, malformed spans and identities,

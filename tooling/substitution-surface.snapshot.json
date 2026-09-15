@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:0533cb8bf86027204a558762878840fca74dd5f3a69c65c79ae6a138dbd28ed6",
+  "corpusDigest": "sha256:d09eb121f1e28dbef6b30a4078bc6933f0b133c557fdbc38f7fcf85ce70d3751",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -10044,6 +10044,90 @@
             "nonWhitespaceCodePoints": 78,
             "lines": 1,
             "surfaceLexemes": 13
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-parallel-panic-boundary1",
+      "task": {
+        "utf8Bytes": 204,
+        "codePoints": 204,
+        "nonWhitespaceCodePoints": 176,
+        "lines": 1,
+        "surfaceLexemes": 37
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w-internal",
+        "sourceDigest": "sha256:949b3bd3db0d59f39dbc52382dffe9c6d399d09ac5cd4897812964cae3ded083",
+        "metrics": {
+          "utf8Bytes": 454,
+          "codePoints": 454,
+          "nonWhitespaceCodePoints": 390,
+          "lines": 4,
+          "surfaceLexemes": 77
+        }
+      },
+      "alternatives": [
+        {
+          "name": "dummy-child-after-parent-panic",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:d77f3626ab059365994b952b198a486ad27bac2d5d946872f218694a0416b17e",
+          "metrics": {
+            "utf8Bytes": 78,
+            "codePoints": 78,
+            "nonWhitespaceCodePoints": 65,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        },
+        {
+          "name": "wire-digest-as-authentication",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:60943fbaa57777ab8f1646a2a25d1658dfdb34858b5f5192879b693a1dc3484a",
+          "metrics": {
+            "utf8Bytes": 66,
+            "codePoints": 66,
+            "nonWhitespaceCodePoints": 56,
+            "lines": 1,
+            "surfaceLexemes": 13
+          }
+        },
+        {
+          "name": "publish-before-teardown",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:39e299fa9f86afab9425e70d3f328c43e9956b792903757b944d3eb2f4398afd",
+          "metrics": {
+            "utf8Bytes": 100,
+            "codePoints": 100,
+            "nonWhitespaceCodePoints": 86,
+            "lines": 1,
+            "surfaceLexemes": 17
+          }
+        },
+        {
+          "name": "alias-inner-hir-or-provider-context",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:494677d6cd778fa1b404d303e3cf96a336d0230d4ec361164569cb2ef56cca8c",
+          "metrics": {
+            "utf8Bytes": 85,
+            "codePoints": 85,
+            "nonWhitespaceCodePoints": 72,
+            "lines": 1,
+            "surfaceLexemes": 16
+          }
+        },
+        {
+          "name": "job-object-means-descendants-joined",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:0d6cd739ea783157cd9a26b35ad7863e28faa2b6f1673e4f57c13fdaf765e24b",
+          "metrics": {
+            "utf8Bytes": 76,
+            "codePoints": 76,
+            "nonWhitespaceCodePoints": 66,
+            "lines": 1,
+            "surfaceLexemes": 15
           }
         }
       ]

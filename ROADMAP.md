@@ -58,8 +58,9 @@ gate.
 W-1601 now supplies the target-neutral two-function/seven-operation GPU0
 witness, separate host/device MLIR, GPU/NVVM/PTX lowering, actual result `42`
 on the available RTX A400, and a diagnostic-only in-process metric snapshot.
-The seed parser and Frontend31 preserve the canonical module contract
-`kernels: { label: directFunction }` and ordered direct local kernel bindings.
+The seed parser and Frontend32 preserve the canonical module contract
+`kernels: { label: directFunction }`, ordered direct local kernel bindings, and
+grouped named projections across explicit local-document resolver edges.
 The new `w-seed-gpu-module-2` bridge copies that meaning into
 independently verified, provider- and target-neutral device-module records; its
 first source-backed body slice proves zero-parameter signed-`i32` literal-return
@@ -67,7 +68,7 @@ kernels and survives source/frontend teardown. A caller-owned, provider-neutral
 projection now selects one verified kernel binding, copies its module-contract
 module name, kernel label, private implementation name, and payload into the
 exact GPU0 records, and remains verifiable after bridge teardown. The recipe is
-still mixed MLIR 23.1.1 plus Clang 22. Frontend31 plus ACCINV0 preserve and
+still mixed MLIR 23.1.1 plus Clang 22. Frontend32 plus ACCINV0 preserve and
 independently verify the bounded static accelerated-domain invocation after
 producer teardown. ACCBIND0 additionally closes one caller-owned root/profile
 relation, including exact module/kernel-instance identity, ABI equality, and
@@ -79,7 +80,7 @@ provider-neutral request that survives both producer lifetimes. The physical
 gate now obtains the device MLIR, kernel symbol, and canonical signed-`i32`
 expectation from that verified ACCREQ0, then proves a valid mismatch after
 execution; the CUDA adapter remains a private process boundary. Runtime/provider launch/join/result,
-public GPU build/run, and a supported GPU ABI remain open;
+public GPU build/run, qualified/imported-invocation HIR, and a supported GPU ABI remain open;
 rank 1 therefore stays open until those public and physical boundaries have
 evidence. The explicit
 `Launch<Module>` route
@@ -203,3 +204,14 @@ next slice must consume that signal at a real process/Wasm/compartment boundary
 and perform physical teardown; source panic lowering and `PanicEvent` remain
 open. Physical cancellation remains cooperative rather than thread
 termination.
+
+W-1623 adds only a private Windows x64 compiler-lifecycle root-child boundary
+for that signal. A trusted private helper owns the verified HIR/PARBIND witness
+and emits a fixed big-endian, versioned frame. The parent proves the root child
+live, explicitly terminates and bounded-joins it, revalidates immutable inputs,
+and publishes a receipt transactionally. Its unkeyed digest provides integrity
+and correlation, not authentication. The helper is trusted private witness
+code, and the Job Object does not prove descendant-tree drain. Source
+panic/PanicEvent, public Task/runtime/ABI/product behavior, hardware faults,
+cleanup/restart/supervision, descendants, other targets/providers, native HIR
+child execution, attestation, benchmarks, and performance remain open.

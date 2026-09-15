@@ -1139,10 +1139,11 @@ let result = try await models.forecast.launch(
 )
 ```
 
-Resolver imports entre módulos, fechar reachability de produto e executar o
-launch qualificado são etapas posteriores ao seed; o seed atual preserva a
-forma em CST/module-scan e implementa somente o launch local definido pelo
-próprio module header.
+O Frontend32 resolve a forma nomeada entre documentos locais somente quando o
+resolver fornece uma aresta explícita e o módulo de destino publica a label no
+seu contrato `kernels`. A forma qualificada, o fechamento de reachability de
+produto e o launch qualificado permanecem etapas posteriores; o seed conserva
+essa forma em CST/module-scan e a rejeita antes de criar uma identidade parcial.
 
 O top-level aceita somente estas declarations:
 
@@ -13210,7 +13211,7 @@ Fallback precisa preservar a classe host/accelerated e todos os contratos de
 module, numeric mode, layout, effects e residency; incompatibilidade falha
 antes da entry.
 
-O Frontend31 materializa a primeira fatia bounded dessa relação. O input
+O Frontend32 estende a fatia bounded dessa relação. O input
 caller-owned discrimina domain host de accelerated, preserva submission,
 capabilities e `maximum`, e o call record liga exatamente o module contract,
 o module record, o kernel binding e a função original. O parser só concede a
@@ -40351,7 +40352,7 @@ and end-to-end p50/p95 values. It is not a W product ranking.
 
 The seed parser preserves a module contract such as
 `module gpuHello<kernels: { hello: helloKernel }>` and its contextual kernel
-fields. Frontend schema `w-seed-frontend-31` recognizes a nonempty contract
+fields. Frontend schema `w-seed-frontend-32` recognizes a nonempty contract
 record with unique public labels and direct same-document function symbols; a
 declaration may appear later in the module. It publishes caller-owned
 kernel-module and ordered kernel-binding records that retain the module name,
@@ -40363,7 +40364,7 @@ minimum, not a language limit. Empty or malformed records, duplicate labels,
 missing functions, generic targets without concrete specialization records,
 and runtime arguments fail closed before kernel records are published.
 
-**Exemplo da relação tipada preservada pelo Frontend31:**
+**Exemplo da relação tipada preservada pelo Frontend32:**
 
 ```w
 module gpuHello<
@@ -40393,11 +40394,13 @@ entry {
 ```
 
 Esta seção prova somente a identidade frontend do launch. O provider-backed
-product ainda não executa esse source. Os imports `import kernel { hello } from
-gpuHello` e `import kernel gpuHello as gpu` têm cobertura de parser/CST e
-module-scan, mas o seed ainda não resolve módulos externos.
+product ainda não executa esse source. `import kernel { hello } from gpuHello`
+agora resolve entre documentos locais ligados por uma aresta explícita do
+resolver e preserva os índices canônicos de módulo, binding e função. O import
+qualificado `import kernel gpuHello as gpu`, módulos externos, HIR independente
+para a projeção e execução de provider continuam fora desta fatia.
 
-The internal `w-seed-gpu-module-2` bridge now validates those Frontend31
+The internal `w-seed-gpu-module-2` bridge now validates those Frontend32
 records and copies the bounded device-module meaning into caller-owned module,
 kernel, text, and frontend-receipt stores. Its independent verifier re-derives
 the semantic digest from ordered module identities, labels, normalized signed
@@ -40423,7 +40426,7 @@ is bound to a supported provider launch, join, and result path.
 
 ACCINV0 é a primeira fronteira independente para a forma estática
 `spawn<domain> name()`, onde `domain` resolve para `.accelerated` e `name` é o
-binding de kernel local imediato. Ela consome Frontend31 e um
+binding de kernel local imediato. Ela consome Frontend32 e um
 programa gpu-module-2 já verificado, exige exatamente um launch zero-argument e
 seu único `await` lexical, e copia para storage caller-owned a identidade do
 domain, sua submission e budget, o module contract, public label, função
@@ -40441,7 +40444,7 @@ de publicar bytes.
 Um launch e zero argumentos são limites do array e do bridge seed, não da
 linguagem, scheduler ou ABI. ACCINV0 não contém provider, target, queue,
 pointer, geometry, transfer, residency, device-memory plan, MLIR handle ou ABI
-físico. O Frontend31 ainda não preserva o tipo nominal de falha da Task, por
+físico. O Frontend32 ainda não preserva o tipo nominal de falha da Task, por
 isso este schema também não alega `LaunchError` tipado. Argumentos e ownership,
 binding do product/root, provider launch/join/result, cancelamento/drain,
 produto GPU público, outros targets e performance permanecem gaps explícitos.
@@ -41096,6 +41099,27 @@ lower source `panic`, terminate a process/Wasm/compartment, guarantee user
 cleanup, catch hardware faults, expose a public runtime ABI, or prove other
 providers and targets. The next product boundary must consume this private
 signal and physically terminate the nearest fault boundary.
+
+#### 26.4.1.103 W-1623 — bounded private Windows x64 panic-boundary root-child containment
+
+PANICBOUNDARY1 is a private compiler-lifecycle witness for one Windows x64
+root-child process. A trusted private helper owns the verified HIR/PARBIND
+witness, emits one fixed big-endian, versioned frame, and remains alive while
+the parent validates that frame. The parent proves that the root child is live,
+explicitly terminates it, bounded-joins it, revalidates the immutable HIR,
+PARBIND, and authority inputs, and publishes the receipt only transactionally.
+
+The unkeyed SHA-256 frame and receipt digests provide integrity and correlation
+only, not authentication. The helper is trusted private witness code, not a
+provider-attestation authority. The Windows Job Object is a private
+kill-on-close aid; it does not prove descendant-tree drain. The receipt claims
+root-child liveness, termination, bounded join, and handle closure only.
+
+This remains compiler-lifecycle evidence only. Source `panic` and `PanicEvent`,
+public Task/runtime/ABI/product behavior, hardware-fault containment,
+cleanup/restart/supervision, descendant containment, other targets or
+providers, native HIR child execution, attestation, benchmarks, and performance
+remain gaps.
 
 <!-- w-example role=logical-contract -->
 ```w

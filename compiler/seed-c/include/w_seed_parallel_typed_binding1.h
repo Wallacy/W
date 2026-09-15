@@ -123,6 +123,26 @@ typedef struct {
   w_seed_parallel_provider0_kind *provider_kind;
 } w_seed_parallel_typed_binding1_workspace;
 
+/* This signal is a private PARBIND1 handoff.  It is not an Error case,
+ * TaskOutcome, Result carrier, public ABI, or source-language event. */
+typedef struct w_seed_parallel_typed_binding1_panic_signal {
+  uint32_t source_index;
+  uint32_t lexical_index;
+  uint32_t call_index;
+  w_seed_parallel_platform1_panic_code panic_code;
+  bool semantic_result_published;
+  uint8_t hir_semantic_digest[32];
+  uint8_t error_identity_digest[32];
+  uint32_t started_count;
+  uint32_t settled_count;
+  uint32_t canceled_before_start_count;
+  uint32_t maximum_active;
+  uint32_t cancellation_source_index;
+  bool cancellation_requested;
+  uint32_t panic_source_index;
+  bool panic_requested;
+} w_seed_parallel_typed_binding1_panic_signal;
+
 typedef struct {
   w_seed_parallel_typed_binding1_record *records;
   size_t record_capacity;
@@ -186,6 +206,17 @@ bool w_seed_parallel_typed_binding1_verify(
     const w_seed_parallel_typed_binding1_workspace *workspace,
     const w_seed_parallel_typed_binding1_output *output,
     const w_seed_parallel_typed_binding1_result *result);
+
+/* Private boundary-only operation.  It executes the already verified
+ * PLATFORM1 witness once, validates the complete physical receipt, and only
+ * then publishes a panic signal.  OK means that the signal was published;
+ * every other status leaves signal untouched.  This is deliberately
+ * separate from the ordinary run path so a non-OK PANIC cannot look like a
+ * partially committed binding transaction. */
+w_seed_parallel_typed_binding1_status
+w_seed_parallel_typed_binding1_panic_run(
+    const w_seed_parallel_typed_binding1_input *input,
+    w_seed_parallel_typed_binding1_panic_signal *signal);
 
 #ifdef __cplusplus
 }
