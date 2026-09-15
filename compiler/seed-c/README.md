@@ -1991,6 +1991,18 @@ task, and binds those records to the HIR38 semantic digest. A five-task source
 passes HIR38 and PARSEL1 while PARSEL0 rejects it unchanged. Provider capacity,
 workers, frames, cancellation, and Task identity remain outside this record.
 
+`w_seed_parallel_invocation1` consumes verified HIR38 and PARSEL1. It measures
+exact task and argument counts, then publishes dense caller-owned relations.
+Arguments are stored in declaration parameter order even when named call
+arguments use another order. Its canonical digest uses `u32` record counts and
+indices after explicit bounds; `size_t` remains a storage-capacity type only.
+
+The shared pure scalar evaluator now resolves parameter values through HIR
+relations with a constant-size call frame. It has no fixed arity array, heap,
+or variable-length array. Five tasks and a seventeen-argument task pass
+PARINV1. PARINV0 still rejects its fixed compatibility limits transactionally.
+PARPROV0 and PARMLIR0 have not migrated to PARINV1.
+
 ### Bounded Windows parallel provider component (W-1590)
 
 `w_seed_parallel_provider0` is the first physical PARSEL0 consumer. PARINV0

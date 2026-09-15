@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:ed29e76947c8277b6696e23dd3e98464fe1b3ca869c8d17d9e86325b04ce61a4",
+  "corpusDigest": "sha256:b8633f3707a28259a9ee4646e72f95707710648efd16d15268b86f63366253ba",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -8832,6 +8832,78 @@
             "nonWhitespaceCodePoints": 44,
             "lines": 1,
             "surfaceLexemes": 7
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-measured-parallel-invocation",
+      "task": {
+        "utf8Bytes": 147,
+        "codePoints": 147,
+        "nonWhitespaceCodePoints": 129,
+        "lines": 1,
+        "surfaceLexemes": 22
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w-internal",
+        "sourceDigest": "sha256:aa38c0cc98497a852bc16d3b5989018361c54ef5484ca0fd9d30ae8857c25d4f",
+        "metrics": {
+          "utf8Bytes": 304,
+          "codePoints": 304,
+          "nonWhitespaceCodePoints": 280,
+          "lines": 5,
+          "surfaceLexemes": 57
+        }
+      },
+      "alternatives": [
+        {
+          "name": "retain-fixed-four-by-sixteen-storage",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:b89daec6041deb5259e4c0a2c44e75f897f0e6c3ee30e421f8d1b4a628406ded",
+          "metrics": {
+            "utf8Bytes": 22,
+            "codePoints": 22,
+            "nonWhitespaceCodePoints": 21,
+            "lines": 2,
+            "surfaceLexemes": 8
+          }
+        },
+        {
+          "name": "preserve-call-site-label-order",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:65c8e0201001f4d4bb4de5bd5786c4082f97236e13c453a02afce5345f19794c",
+          "metrics": {
+            "utf8Bytes": 39,
+            "codePoints": 39,
+            "nonWhitespaceCodePoints": 37,
+            "lines": 1,
+            "surfaceLexemes": 8
+          }
+        },
+        {
+          "name": "materialize-native-task-handles",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:801b493a0d7bebe4757cefd7950213774ca8ce34ff39cd9804a763ad942a4d62",
+          "metrics": {
+            "utf8Bytes": 37,
+            "codePoints": 37,
+            "nonWhitespaceCodePoints": 35,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "publish-during-validation",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:68080666dbd511ff12257cb098a98ca225d5d742d57bcc2e258b67eccf5c2592",
+          "metrics": {
+            "utf8Bytes": 43,
+            "codePoints": 43,
+            "nonWhitespaceCodePoints": 38,
+            "lines": 1,
+            "surfaceLexemes": 6
           }
         }
       ]

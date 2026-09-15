@@ -1,6 +1,7 @@
 #include "w_seed_hir0.h"
 #include "w_seed_mlir0.h"
 #include "w_seed_parallel_invocation0.h"
+#include "w_seed_parallel_invocation1.h"
 #include "w_seed_parallel_provider0.h"
 #include "w_seed_parallel_selection0.h"
 #include "w_seed_parallel_selection1.h"
@@ -355,9 +356,9 @@ enum {
   TEST_ENUM_CASES = 32,
   TEST_ENUM_CASE_PARAMETERS = 16,
   TEST_SWITCH_ARMS = 32,
-  TEST_TYPES = 16,
+  TEST_TYPES = 32,
   TEST_FUNCTIONS = 8,
-  TEST_PARAMETERS = 8,
+  TEST_PARAMETERS = 32,
   TEST_ENTRIES = 4,
   TEST_STATEMENTS = 256,
   TEST_EXPRESSIONS = 256,
@@ -3049,6 +3050,71 @@ static bool test_parallel_domain_placement_hir(void) {
                W_SEED_FRONTEND_DOMAIN_IDENTITY) == 0 &&
         w_seed_parallel_selection0_verify(program, &fixture.hir_result,
                                           &selection));
+
+  w_seed_parallel_selection1_counts ordered_selection_counts;
+  w_seed_parallel_selection1_result ordered_selection_result;
+  CHECK(w_seed_parallel_selection1_measure(
+            program, &fixture.hir_result, &ordered_selection_counts,
+            &ordered_selection_result) == W_SEED_PARALLEL_SELECTION1_OK &&
+        ordered_selection_counts.tasks == 2u);
+  w_seed_parallel_selection1_task ordered_selection_tasks[2];
+  const w_seed_parallel_selection1_output ordered_selection_output = {
+      ordered_selection_tasks,
+      sizeof(ordered_selection_tasks) / sizeof(ordered_selection_tasks[0])};
+  CHECK(w_seed_parallel_selection1_run(
+            program, &fixture.hir_result, &ordered_selection_output,
+            &ordered_selection_result) == W_SEED_PARALLEL_SELECTION1_OK);
+  w_seed_parallel_selection1_program ordered_selection;
+  CHECK(w_seed_parallel_selection1_program_from_output(
+            &ordered_selection_output, &ordered_selection_result,
+            &ordered_selection) &&
+        w_seed_parallel_selection1_verify(
+            program, &fixture.hir_result, &ordered_selection,
+            &ordered_selection_result));
+
+  w_seed_parallel_invocation1_counts ordered_invocation_counts;
+  w_seed_parallel_invocation1_result ordered_invocation_result;
+  CHECK(w_seed_parallel_invocation1_measure(
+            program, &fixture.hir_result, &ordered_selection,
+            &ordered_selection_result, &ordered_invocation_counts,
+            &ordered_invocation_result) == W_SEED_PARALLEL_INVOCATION1_OK &&
+        ordered_invocation_counts.tasks == 2u &&
+        ordered_invocation_counts.arguments == 3u);
+  w_seed_parallel_invocation1_task ordered_invocation_tasks[2];
+  w_seed_parallel_invocation1_argument ordered_invocation_arguments[3];
+  const w_seed_parallel_invocation1_output ordered_invocation_output = {
+      ordered_invocation_tasks,
+      sizeof(ordered_invocation_tasks) / sizeof(ordered_invocation_tasks[0]),
+      ordered_invocation_arguments,
+      sizeof(ordered_invocation_arguments) /
+          sizeof(ordered_invocation_arguments[0])};
+  CHECK(w_seed_parallel_invocation1_run(
+            program, &fixture.hir_result, &ordered_selection,
+            &ordered_selection_result, &ordered_invocation_output,
+            &ordered_invocation_result) == W_SEED_PARALLEL_INVOCATION1_OK);
+  w_seed_parallel_invocation1_program ordered_invocation;
+  CHECK(w_seed_parallel_invocation1_program_from_output(
+            &ordered_invocation_output, &ordered_invocation_result,
+            &ordered_invocation) &&
+        w_seed_parallel_invocation1_verify(
+            program, &fixture.hir_result, &ordered_selection,
+            &ordered_selection_result, &ordered_invocation,
+            &ordered_invocation_result) &&
+        ordered_invocation.tasks[1].first_argument == 1u &&
+        ordered_invocation.tasks[1].argument_count == 2u &&
+        ordered_invocation.arguments[1].parameter_ordinal == 0u &&
+        ordered_invocation.arguments[2].parameter_ordinal == 1u &&
+        program->values[ordered_invocation.arguments[1].value_index]
+                .integer_value == 20 &&
+        program->values[ordered_invocation.arguments[2].value_index]
+                .integer_value == 2);
+  int64_t ordered_value = 0;
+  CHECK(w_seed_parallel_invocation1_evaluate_task(
+            program, &fixture.hir_result, &ordered_selection,
+            &ordered_selection_result, &ordered_invocation,
+            &ordered_invocation_result, 1u, &ordered_value) ==
+            W_SEED_PARALLEL_INVOCATION1_OK &&
+        ordered_value == 23);
   w_seed_parallel_elision0_certificate elision_sentinel;
   (void)memset(&elision_sentinel, 0x9d, sizeof(elision_sentinel));
   const w_seed_parallel_elision0_certificate elision_before =
@@ -3227,6 +3293,277 @@ static bool test_parallel_domain_placement_hir(void) {
            measured_program.tasks[ordinal - 1u].call_instruction <
                measured_program.tasks[ordinal].call_instruction));
 
+  w_seed_parallel_invocation1_counts measured_invocation;
+  w_seed_parallel_invocation1_result invocation1_result;
+  CHECK(w_seed_parallel_invocation1_measure(
+            &fixture.hir_program, &fixture.hir_result, &measured_program,
+            &selection1_result, &measured_invocation,
+            &invocation1_result) == W_SEED_PARALLEL_INVOCATION1_OK &&
+        measured_invocation.tasks == 5u &&
+        measured_invocation.arguments == 5u &&
+        invocation1_result.required.tasks == 5u &&
+        invocation1_result.required.arguments == 5u &&
+        invocation1_result.written.tasks == 0u &&
+        invocation1_result.written.arguments == 0u);
+  w_seed_parallel_invocation1_task invocation_tasks[5];
+  w_seed_parallel_invocation1_argument invocation_arguments[5];
+  (void)memset(invocation_tasks, 0x4a, sizeof(invocation_tasks));
+  (void)memset(invocation_arguments, 0x4b, sizeof(invocation_arguments));
+  const w_seed_parallel_invocation1_output invocation_output = {
+      invocation_tasks,
+      sizeof(invocation_tasks) / sizeof(invocation_tasks[0]),
+      invocation_arguments,
+      sizeof(invocation_arguments) / sizeof(invocation_arguments[0])};
+  CHECK(w_seed_parallel_invocation1_run(
+            &fixture.hir_program, &fixture.hir_result, &measured_program,
+            &selection1_result, &invocation_output, &invocation1_result) ==
+            W_SEED_PARALLEL_INVOCATION1_OK &&
+        invocation1_result.written.tasks == 5u &&
+        invocation1_result.written.arguments == 5u);
+  w_seed_parallel_invocation1_program invocation_program;
+  CHECK(w_seed_parallel_invocation1_program_from_output(
+            &invocation_output, &invocation1_result, &invocation_program) &&
+        invocation_program.task_count == 5u &&
+        invocation_program.argument_count == 5u &&
+        w_seed_parallel_invocation1_verify(
+            &fixture.hir_program, &fixture.hir_result, &measured_program,
+            &selection1_result, &invocation_program, &invocation1_result));
+  for (uint32_t task = 0u; task < 5u; task += 1u) {
+    CHECK(invocation_tasks[task].first_argument == task &&
+          invocation_tasks[task].argument_count == 1u &&
+          invocation_arguments[task].owner_task == task &&
+          invocation_arguments[task].parameter_ordinal == 0u &&
+          invocation_arguments[task].parameter_index <
+              fixture.hir_program.parameter_count &&
+          invocation_arguments[task].value_index <
+              fixture.hir_program.value_count);
+    int64_t evaluated = 0;
+    CHECK(w_seed_parallel_invocation1_evaluate_task(
+              &fixture.hir_program, &fixture.hir_result, &measured_program,
+              &selection1_result, &invocation_program, &invocation1_result,
+              task, &evaluated) == W_SEED_PARALLEL_INVOCATION1_OK &&
+          evaluated == (int64_t)(21u + task * 2u));
+  }
+
+  w_seed_parallel_invocation1_argument short_invocation_arguments[4];
+  (void)memset(short_invocation_arguments, 0x5c,
+               sizeof(short_invocation_arguments));
+  const w_seed_parallel_invocation1_argument
+      short_invocation_arguments_before[4] = {
+          short_invocation_arguments[0], short_invocation_arguments[1],
+          short_invocation_arguments[2], short_invocation_arguments[3]};
+  w_seed_parallel_invocation1_task short_invocation_tasks[5];
+  (void)memset(short_invocation_tasks, 0x5d,
+               sizeof(short_invocation_tasks));
+  const w_seed_parallel_invocation1_task short_invocation_tasks_before[5] = {
+      short_invocation_tasks[0], short_invocation_tasks[1],
+      short_invocation_tasks[2], short_invocation_tasks[3],
+      short_invocation_tasks[4]};
+  w_seed_parallel_invocation1_result short_invocation_result;
+  (void)memset(&short_invocation_result, 0x5e,
+               sizeof(short_invocation_result));
+  const w_seed_parallel_invocation1_result short_invocation_result_before =
+      short_invocation_result;
+  const w_seed_parallel_invocation1_output short_invocation_output = {
+      short_invocation_tasks,
+      sizeof(short_invocation_tasks) / sizeof(short_invocation_tasks[0]),
+      short_invocation_arguments,
+      sizeof(short_invocation_arguments) /
+          sizeof(short_invocation_arguments[0])};
+  CHECK(w_seed_parallel_invocation1_run(
+            &fixture.hir_program, &fixture.hir_result, &measured_program,
+            &selection1_result, &short_invocation_output,
+            &short_invocation_result) == W_SEED_PARALLEL_INVOCATION1_CAPACITY &&
+        memcmp(short_invocation_tasks, short_invocation_tasks_before,
+               sizeof(short_invocation_tasks)) == 0 &&
+        memcmp(short_invocation_arguments, short_invocation_arguments_before,
+               sizeof(short_invocation_arguments)) == 0 &&
+        memcmp(&short_invocation_result, &short_invocation_result_before,
+               sizeof(short_invocation_result)) == 0);
+
+  w_seed_parallel_invocation1_task short_task_storage[4];
+  w_seed_parallel_invocation1_argument complete_argument_storage[5];
+  (void)memset(short_task_storage, 0x5f, sizeof(short_task_storage));
+  (void)memset(complete_argument_storage, 0x60,
+               sizeof(complete_argument_storage));
+  const w_seed_parallel_invocation1_task short_task_storage_before[4] = {
+      short_task_storage[0], short_task_storage[1], short_task_storage[2],
+      short_task_storage[3]};
+  const w_seed_parallel_invocation1_argument
+      complete_argument_storage_before[5] = {
+          complete_argument_storage[0], complete_argument_storage[1],
+          complete_argument_storage[2], complete_argument_storage[3],
+          complete_argument_storage[4]};
+  short_invocation_result = short_invocation_result_before;
+  const w_seed_parallel_invocation1_output short_task_output = {
+      short_task_storage, 4u, complete_argument_storage, 5u};
+  CHECK(w_seed_parallel_invocation1_run(
+            &fixture.hir_program, &fixture.hir_result, &measured_program,
+            &selection1_result, &short_task_output,
+            &short_invocation_result) == W_SEED_PARALLEL_INVOCATION1_CAPACITY &&
+        memcmp(short_task_storage, short_task_storage_before,
+               sizeof(short_task_storage)) == 0 &&
+        memcmp(complete_argument_storage, complete_argument_storage_before,
+               sizeof(complete_argument_storage)) == 0 &&
+        memcmp(&short_invocation_result, &short_invocation_result_before,
+               sizeof(short_invocation_result)) == 0);
+
+  union {
+    w_seed_parallel_invocation1_counts counts;
+    w_seed_parallel_invocation1_result result;
+  } invocation_measure_alias;
+  (void)memset(&invocation_measure_alias, 0x63,
+               sizeof(invocation_measure_alias));
+  unsigned char invocation_measure_alias_before
+      [sizeof(invocation_measure_alias)];
+  (void)memcpy(invocation_measure_alias_before, &invocation_measure_alias,
+               sizeof(invocation_measure_alias));
+  CHECK(w_seed_parallel_invocation1_measure(
+            &fixture.hir_program, &fixture.hir_result, &measured_program,
+            &selection1_result, &invocation_measure_alias.counts,
+            &invocation_measure_alias.result) ==
+            W_SEED_PARALLEL_INVOCATION1_ALIAS &&
+        memcmp(&invocation_measure_alias, invocation_measure_alias_before,
+               sizeof(invocation_measure_alias)) == 0);
+
+  union {
+    w_seed_parallel_invocation1_task tasks[5];
+    w_seed_parallel_invocation1_result result;
+  } invocation_run_alias;
+  w_seed_parallel_invocation1_argument invocation_run_alias_arguments[5];
+  (void)memset(&invocation_run_alias, 0x64, sizeof(invocation_run_alias));
+  (void)memset(invocation_run_alias_arguments, 0x65,
+               sizeof(invocation_run_alias_arguments));
+  unsigned char invocation_run_alias_before[sizeof(invocation_run_alias)];
+  const w_seed_parallel_invocation1_argument
+      invocation_run_alias_arguments_before[5] = {
+          invocation_run_alias_arguments[0], invocation_run_alias_arguments[1],
+          invocation_run_alias_arguments[2], invocation_run_alias_arguments[3],
+          invocation_run_alias_arguments[4]};
+  (void)memcpy(invocation_run_alias_before, &invocation_run_alias,
+               sizeof(invocation_run_alias));
+  const w_seed_parallel_invocation1_output invocation_alias_output = {
+      invocation_run_alias.tasks,
+      sizeof(invocation_run_alias.tasks) /
+          sizeof(invocation_run_alias.tasks[0]),
+      invocation_run_alias_arguments,
+      sizeof(invocation_run_alias_arguments) /
+          sizeof(invocation_run_alias_arguments[0])};
+  CHECK(w_seed_parallel_invocation1_run(
+            &fixture.hir_program, &fixture.hir_result, &measured_program,
+            &selection1_result, &invocation_alias_output,
+            &invocation_run_alias.result) ==
+            W_SEED_PARALLEL_INVOCATION1_ALIAS &&
+        memcmp(&invocation_run_alias, invocation_run_alias_before,
+               sizeof(invocation_run_alias)) == 0 &&
+        memcmp(invocation_run_alias_arguments,
+               invocation_run_alias_arguments_before,
+               sizeof(invocation_run_alias_arguments)) == 0);
+
+  w_seed_parallel_invocation1_argument producer_alias_arguments[5];
+  (void)memset(producer_alias_arguments, 0x66,
+               sizeof(producer_alias_arguments));
+  const w_seed_parallel_invocation1_argument
+      producer_alias_arguments_before[5] = {
+          producer_alias_arguments[0], producer_alias_arguments[1],
+          producer_alias_arguments[2], producer_alias_arguments[3],
+          producer_alias_arguments[4]};
+  const w_seed_parallel_selection1_task measured_tasks_before[5] = {
+      measured_tasks[0], measured_tasks[1], measured_tasks[2],
+      measured_tasks[3], measured_tasks[4]};
+  w_seed_parallel_invocation1_result producer_alias_result;
+  (void)memset(&producer_alias_result, 0x67,
+               sizeof(producer_alias_result));
+  const w_seed_parallel_invocation1_result producer_alias_result_before =
+      producer_alias_result;
+  const w_seed_parallel_invocation1_output producer_alias_output = {
+      (w_seed_parallel_invocation1_task *)(void *)measured_tasks, 5u,
+      producer_alias_arguments, 5u};
+  CHECK(w_seed_parallel_invocation1_run(
+            &fixture.hir_program, &fixture.hir_result, &measured_program,
+            &selection1_result, &producer_alias_output,
+            &producer_alias_result) == W_SEED_PARALLEL_INVOCATION1_ALIAS &&
+        memcmp(measured_tasks, measured_tasks_before, sizeof(measured_tasks)) ==
+            0 &&
+        memcmp(producer_alias_arguments, producer_alias_arguments_before,
+               sizeof(producer_alias_arguments)) == 0 &&
+        memcmp(&producer_alias_result, &producer_alias_result_before,
+               sizeof(producer_alias_result)) == 0);
+
+  union {
+    w_seed_parallel_invocation1_result result;
+    w_seed_parallel_invocation1_program program;
+  } invocation_bridge_alias;
+  (void)memset(&invocation_bridge_alias, 0, sizeof(invocation_bridge_alias));
+  invocation_bridge_alias.result = invocation1_result;
+  unsigned char invocation_bridge_alias_before
+      [sizeof(invocation_bridge_alias)];
+  (void)memcpy(invocation_bridge_alias_before, &invocation_bridge_alias,
+               sizeof(invocation_bridge_alias));
+  CHECK(!w_seed_parallel_invocation1_program_from_output(
+            &invocation_output, &invocation_bridge_alias.result,
+            &invocation_bridge_alias.program) &&
+        memcmp(&invocation_bridge_alias, invocation_bridge_alias_before,
+               sizeof(invocation_bridge_alias)) == 0);
+
+  const w_seed_parallel_invocation1_result verified_invocation_result =
+      invocation1_result;
+  invocation1_result.semantic_digest[0] ^= 1u;
+  CHECK(!w_seed_parallel_invocation1_verify(
+      &fixture.hir_program, &fixture.hir_result, &measured_program,
+      &selection1_result, &invocation_program, &invocation1_result));
+  invocation1_result = verified_invocation_result;
+
+  union {
+    w_seed_parallel_invocation1_result result;
+    int64_t value;
+  } invocation_value_alias;
+  (void)memset(&invocation_value_alias, 0, sizeof(invocation_value_alias));
+  invocation_value_alias.result = invocation1_result;
+  unsigned char invocation_value_alias_before[sizeof(invocation_value_alias)];
+  (void)memcpy(invocation_value_alias_before, &invocation_value_alias,
+               sizeof(invocation_value_alias));
+  CHECK(w_seed_parallel_invocation1_evaluate_task(
+            &fixture.hir_program, &fixture.hir_result, &measured_program,
+            &selection1_result, &invocation_program,
+            &invocation_value_alias.result, 0u,
+            &invocation_value_alias.value) ==
+            W_SEED_PARALLEL_INVOCATION1_INVALID &&
+        memcmp(&invocation_value_alias, invocation_value_alias_before,
+               sizeof(invocation_value_alias)) == 0);
+
+  const w_seed_parallel_invocation1_argument first_invocation_argument =
+      invocation_arguments[0];
+  invocation_arguments[0].value_index = W_SEED_HIR0_NONE;
+  CHECK(!w_seed_parallel_invocation1_verify(
+      &fixture.hir_program, &fixture.hir_result, &measured_program,
+      &selection1_result, &invocation_program, &invocation1_result));
+  invocation_arguments[0] = first_invocation_argument;
+  CHECK(w_seed_parallel_invocation1_verify(
+      &fixture.hir_program, &fixture.hir_result, &measured_program,
+      &selection1_result, &invocation_program, &invocation1_result));
+
+  w_seed_parallel_invocation1_counts invalid_invocation_counts;
+  (void)memset(&invalid_invocation_counts, 0x68,
+               sizeof(invalid_invocation_counts));
+  const w_seed_parallel_invocation1_counts invalid_invocation_counts_before =
+      invalid_invocation_counts;
+  w_seed_parallel_invocation1_result invalid_invocation_result;
+  (void)memset(&invalid_invocation_result, 0x69,
+               sizeof(invalid_invocation_result));
+  const w_seed_parallel_invocation1_result invalid_invocation_result_before =
+      invalid_invocation_result;
+  selection1_result.semantic_digest[0] ^= 1u;
+  CHECK(w_seed_parallel_invocation1_measure(
+            &fixture.hir_program, &fixture.hir_result, &measured_program,
+            &selection1_result, &invalid_invocation_counts,
+            &invalid_invocation_result) == W_SEED_PARALLEL_INVOCATION1_INVALID &&
+        memcmp(&invalid_invocation_counts, &invalid_invocation_counts_before,
+               sizeof(invalid_invocation_counts)) == 0 &&
+        memcmp(&invalid_invocation_result, &invalid_invocation_result_before,
+               sizeof(invalid_invocation_result)) == 0);
+  selection1_result.semantic_digest[0] ^= 1u;
+
   w_seed_parallel_selection1_task short_tasks[4];
   (void)memset(short_tasks, 0x6d, sizeof(short_tasks));
   const w_seed_parallel_selection1_task short_before[4] = {
@@ -3313,6 +3650,80 @@ static bool test_parallel_domain_placement_hir(void) {
             W_SEED_PARALLEL_SELECTION0_UNSUPPORTED &&
         memcmp(&selection_sentinel, &selection_before,
                sizeof(selection_sentinel)) == 0);
+
+  static const char WIDE_TASK[] =
+      "fn wide(a0: i64, a1: i64, a2: i64, a3: i64, a4: i64, "
+      "a5: i64, a6: i64, a7: i64, a8: i64, a9: i64, a10: i64, "
+      "a11: i64, a12: i64, a13: i64, a14: i64, a15: i64, "
+      "a16: i64): i64 { return a0 + a16 }\n"
+      "entry { let pending = spawn<.domain> wide(a0: 0, a1: 1, a2: 2, "
+      "a3: 3, a4: 4, a5: 5, a6: 6, a7: 7, a8: 8, a9: 9, a10: 10, "
+      "a11: 11, a12: 12, a13: 13, a14: 14, a15: 15, a16: 16) "
+      "let value = await pending }\n";
+  CHECK(lower_parallel_domain(WIDE_TASK));
+  w_seed_parallel_selection1_counts wide_selection_counts;
+  w_seed_parallel_selection1_result wide_selection_result;
+  CHECK(w_seed_parallel_selection1_measure(
+            &fixture.hir_program, &fixture.hir_result, &wide_selection_counts,
+            &wide_selection_result) == W_SEED_PARALLEL_SELECTION1_OK &&
+        wide_selection_counts.tasks == 1u);
+  w_seed_parallel_selection1_task wide_selection_task[1];
+  const w_seed_parallel_selection1_output wide_selection_output = {
+      wide_selection_task, 1u};
+  CHECK(w_seed_parallel_selection1_run(
+            &fixture.hir_program, &fixture.hir_result, &wide_selection_output,
+            &wide_selection_result) == W_SEED_PARALLEL_SELECTION1_OK);
+  w_seed_parallel_selection1_program wide_selection;
+  CHECK(w_seed_parallel_selection1_program_from_output(
+            &wide_selection_output, &wide_selection_result, &wide_selection) &&
+        w_seed_parallel_selection1_verify(
+            &fixture.hir_program, &fixture.hir_result, &wide_selection,
+            &wide_selection_result));
+  w_seed_parallel_invocation1_counts wide_invocation_counts;
+  w_seed_parallel_invocation1_result wide_invocation_result;
+  CHECK(w_seed_parallel_invocation1_measure(
+            &fixture.hir_program, &fixture.hir_result, &wide_selection,
+            &wide_selection_result, &wide_invocation_counts,
+            &wide_invocation_result) == W_SEED_PARALLEL_INVOCATION1_OK &&
+        wide_invocation_counts.tasks == 1u &&
+        wide_invocation_counts.arguments == 17u);
+  w_seed_parallel_invocation1_task wide_invocation_task[1];
+  w_seed_parallel_invocation1_argument wide_invocation_arguments[17];
+  const w_seed_parallel_invocation1_output wide_invocation_output = {
+      wide_invocation_task, 1u, wide_invocation_arguments, 17u};
+  CHECK(w_seed_parallel_invocation1_run(
+            &fixture.hir_program, &fixture.hir_result, &wide_selection,
+            &wide_selection_result, &wide_invocation_output,
+            &wide_invocation_result) == W_SEED_PARALLEL_INVOCATION1_OK);
+  w_seed_parallel_invocation1_program wide_invocation;
+  CHECK(w_seed_parallel_invocation1_program_from_output(
+            &wide_invocation_output, &wide_invocation_result,
+            &wide_invocation) &&
+        wide_invocation.task_count == 1u &&
+        wide_invocation.argument_count == 17u &&
+        wide_invocation.arguments[16].parameter_ordinal == 16u &&
+        w_seed_parallel_invocation1_verify(
+            &fixture.hir_program, &fixture.hir_result, &wide_selection,
+            &wide_selection_result, &wide_invocation,
+            &wide_invocation_result));
+  int64_t wide_value = 0;
+  CHECK(w_seed_parallel_invocation1_evaluate_task(
+            &fixture.hir_program, &fixture.hir_result, &wide_selection,
+            &wide_selection_result, &wide_invocation,
+            &wide_invocation_result, 0u, &wide_value) ==
+            W_SEED_PARALLEL_INVOCATION1_OK &&
+        wide_value == 16);
+  CHECK(w_seed_parallel_selection0_select(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+            W_SEED_PARALLEL_SELECTION0_OK);
+  w_seed_parallel_invocation0_plan legacy_wide_plan;
+  (void)memset(&legacy_wide_plan, 0x77, sizeof(legacy_wide_plan));
+  const w_seed_parallel_invocation0_plan legacy_wide_before = legacy_wide_plan;
+  CHECK(w_seed_parallel_invocation0_select(
+            &fixture.hir_program, &fixture.hir_result, &selection,
+            &legacy_wide_plan) == W_SEED_PARALLEL_INVOCATION0_UNSUPPORTED &&
+        memcmp(&legacy_wide_plan, &legacy_wide_before,
+               sizeof(legacy_wide_plan)) == 0);
 
   static const char NO_PARALLEL_TASK[] = "entry { }\n";
   CHECK(lower_parallel_domain(NO_PARALLEL_TASK));

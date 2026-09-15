@@ -40414,6 +40414,34 @@ compiler-lifecycle evidence only: it adds no scheduler, allocation policy,
 provider execution, Task ABI, public command, benchmark result, or performance
 claim.
 
+#### 26.4.1.87 W-1607 — measured parallel invocation storage
+
+PARINV1 schema `w-seed-parallel-invocation1-1` consumes verified HIR38 and
+PARSEL1. `measure` reports exact task and argument counts. `run` accepts
+caller-owned ranges and publishes dense task and argument relations. Each task
+records its HIR call, target function, first argument, and argument count. Each
+argument records its owner task, parameter ordinal, parameter index, value
+index, and type index.
+
+Named call arguments are normalized into declaration parameter order. Zero
+arguments use an empty range. Semantic identity binds the HIR and PARSEL1
+digests, root function, canonical `u32` counts, and every emitted record.
+Compiler-host `size_t` is used only for storage capacities. These `u32` values
+are compiler record indices, not runtime Task handles or a target ABI.
+
+The scalar proof resolves parameters through verified HIR relations. It uses no
+fixed arity array, heap, or variable-length array. A constant-size frame grows
+only with bounded call depth. The independent verifier rederives all relations
+and the digest. Measure, run, bridge, verify, and evaluation reject malformed
+producers, insufficient capacity, overlapping storage, forged records, and
+checked arithmetic failure without partial publication.
+
+Five-task and seventeen-argument witnesses prove removal of the PARINV0 storage
+ceilings. PARINV0, PARPROV0, and PARMLIR0 retain their explicit bounded evidence
+until migrated. PARINV1 is compiler-lifecycle evidence. It defines no scheduler,
+runtime Task representation, provider capacity, public command, benchmark
+result, or performance claim.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:
