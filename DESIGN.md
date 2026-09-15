@@ -40599,7 +40599,7 @@ claim.
 
 #### 26.4.1.87 W-1607 — measured parallel invocation storage
 
-PARINV1 schema `w-seed-parallel-invocation1-1` consumes verified HIR38 and
+PARINV1 schema `w-seed-parallel-invocation1-2` consumes verified HIR38 and
 PARSEL1. `measure` reports exact task and argument counts. `run` accepts
 caller-owned ranges and publishes dense task and argument relations. Each task
 records its HIR call, target function, first argument, and argument count. Each
@@ -41229,6 +41229,62 @@ message rendering, guaranteed user cleanup, the nearest general fault
 boundary, process/Wasm/compartment containment, restart or supervision,
 parallel-provider composition, a public panic ABI, benchmarks, or performance.
 Those remain separate lifecycle and product boundaries.
+
+<!-- w-example role=logical-contract -->
+```w
+// excerpt-kind: logical-contract
+fn prepare(value: i64): i64 {
+  return value + 1
+}
+
+fn fail(): i64 {
+  panic("parallel invariant")
+}
+
+entry {
+  let firstTask = spawn<.domain> prepare(value: 20)
+  let secondTask = spawn<.domain> fail()
+  let first = await firstTask
+  let second = await secondTask
+}
+```
+
+#### 26.4.1.106 W-1626 — bounded source panic task in measured parallel invocation
+
+<!-- w-example role=logical-contract -->
+```w
+// excerpt-kind: logical-contract
+fn fail(): i64 {
+  panic("parallel invariant")
+}
+
+entry {
+  let task = spawn<.domain> fail()
+  let value = await task
+}
+```
+
+PARINV1 schema `w-seed-parallel-invocation1-2` consumes the verified HIR38 and
+PARSEL1 relations for a finite `.domain` scope. In addition to the existing
+scalar-value task, it accepts one exact source panic child: a same-module,
+non-async, non-throwing, scalar-signature function with one empty-instruction
+block whose terminator is explicit `PANIC` and whose copied message is a
+terminator-owned constant String. The frontend and both HIR physical checks
+apply that exact predicate only to the parallel dispatch lane; ordinary
+static-yield helper admission remains unchanged and strict.
+
+The measured invocation record marks this child as `TASK_PANIC` and stores its
+HIR terminator, message-value, and explicit-code indices. Those compiler-owned
+`u32` indices participate in the canonical semantic digest and are independently
+rederived by verification. A panic record never enters the scalar `i64` value
+lane: evaluation fails closed before changing the caller-owned output, while
+ordinary value tasks retain their existing proof and result behavior.
+
+This is source-to-compiler representation evidence only. It does not execute a
+provider, materialize `PanicEvent`, perform physical cleanup or lifecycle
+handling, define a public Task/runtime/ABI contract, or claim a native product,
+benchmark, or performance result. Provider composition and the later panic
+lifecycle boundary remain open.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

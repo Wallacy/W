@@ -264,6 +264,7 @@ O corpus compara, no mínimo:
 - private root-child panic containment against forged wire evidence, partial publication, input alias corruption, unproved teardown, and descendant-tree overclaim.
 - source panic lowering against ordinary-call encoding, unrestricted message shapes, bottom-type poisoning, text-layout overlap, and runtime overclaim.
 - executable panic lowering against empty-program admission, retained release payloads, recoverable control flow, and fault-boundary overclaim.
+- source-selected parallel panic tasks against scalar-value coercion, malformed HIR provenance, and provider/runtime overclaim.
 - bounded dual-target process/parallel linkage against direct-call substitution, CRT fallback, hidden runtime input, target conflation, and premature public or benchmark claims.
 - bounded GPU0 target-neutral semantic and available CUDA execution against source-backed W claims, provider/runtime conflation, homogeneous toolchains, and premature public product support.
 - bounded static accelerated root binding against embedded provider handles, multiplied budgets, and unauthenticated claims.
@@ -7964,6 +7965,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1623 | bounded private Windows x64 panic-boundary root-child containment | PANICBOUNDARY1 is a private compiler-lifecycle witness for one Windows x64 root child. A trusted private helper owns the verified HIR/PARBIND witness, emits one fixed big-endian, versioned frame, and remains alive while the parent proves the root child live, explicitly terminates and bounded-joins it, revalidates immutable HIR/PARBIND/authority inputs, and publishes a receipt transactionally. The unkeyed SHA-256 digest provides integrity and correlation only, not authentication; the helper is trusted private witness code, and the Job Object does not prove descendant-tree drain. | `source-backed-current` only for private Windows x64 root-child liveness, explicit termination, bounded join, fixed frame transport, immutable-input revalidation, transactional receipt publication, and focused C23 evidence. Source-panic execution and PanicEvent materialization, public Task/runtime/ABI/product behavior, hardware faults, cleanup/restart/supervision, descendants, other targets/providers, native HIR child execution, attestation, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1624 | bounded source panic to verified HIR0 | PANIC0 recognizes source `panic` as a dedicated owner and lowers exactly one unlabelled plain String literal to a verified HIR0 `PANIC` terminator with `Never` result, copied message value, closed explicit code, semantic/provenance digests, and no ordinary call or instruction. Invalid shapes fail closed and native-process `usize` remains disjoint from `Never`. | `source-backed-current` only for parser/frontend/HIR0 measure-run-verify, the exact literal shape, bottom-path completion, caller-owned transactional buffers, digest/receipt coverage, native-process layout coexistence, and focused C23 tests. Panic execution, `PanicEvent`, cleanup, boundary selection, teardown/restart, public Task/runtime ABI, MLIR/native lowering, other message forms, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1625 | bounded explicit panic through executable MLIR0 | A reachable verified-HIR `PANIC` terminator lowers through the existing executable and native-process routes to `llvm.intr.trap` followed by `llvm.unreachable`. The selector validates the copied literal, admits ordinary/process/mixed-CFG panic, keeps empty non-panic programs unsupported, strips the message from the release-style artifact, and preserves existing schemas and non-panic artifact bytes. | `source-backed-current` only for the bounded executable MLIR0/native route and focused C23 plus Linux/WSL evidence. `PanicEvent`, message output, stable status/signal, guaranteed user cleanup, general fault-boundary containment, restart/supervision, parallel-provider composition, public panic ABI, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1626 | bounded source panic task in measured parallel invocation | A real source `panic(...)` child selected by `spawn<.domain>` is admitted only through the exact frontend and HIR parallel physical predicates. PARINV1 records a private `PANIC` task with HIR terminator, message-value, and explicit-code indices in its canonical semantic digest; scalar evaluation rejects that non-value task without mutating its output. | `source-backed-current` only for the bounded source-to-HIR/PARSEL1/PARINV1 compiler boundary, exact panic identity, strict ordinary scalar lane, transactional verification, and focused C23 evidence. No provider execution, `PanicEvent`, cleanup, lifecycle, public Task/runtime/ABI, native product, benchmark, or performance claim is made. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -13509,3 +13511,24 @@ This is target-trap evidence, not full fault containment. It intentionally
 does not promise a stable exit status, signal, `PanicEvent`, user cleanup,
 message rendering, process/Wasm/compartment teardown, supervision, restart,
 parallel-provider composition, public ABI, benchmark, or performance result.
+
+#### W-1626 — bounded source panic task in measured parallel invocation
+
+The next narrow compiler slice carries a real source panic through the existing
+parallel selection and invocation records. A source child such as
+`fn fail(): i64 { panic("parallel invariant") }` may be selected by
+`spawn<.domain>` beside an ordinary scalar child. Frontend and HIR physical
+verification admit the child only through an exact explicit-string panic
+predicate; ordinary static-yield helper rules remain strict.
+
+PARINV1 schema version 2 records the selected task kind as private `PANIC`
+and binds the HIR terminator, copied message value, and explicit panic code
+indices into the canonical digest. The ordinary value lane remains unchanged.
+The scalar evaluator handles only `VALUE_I64`; a panic task fails closed before
+writing its output. These `u32` fields are compiler proof indices, not Task
+handles or an ABI.
+
+This proves representation and independent verification only. It does not run
+a provider, materialize `PanicEvent`, perform cleanup or lifecycle handling,
+define a public Task/runtime contract, execute a native product, or provide a
+benchmark or performance result. Those remain later composition boundaries.

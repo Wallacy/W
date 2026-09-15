@@ -256,3 +256,12 @@ HIR identity but is stripped from this release-style artifact. Empty non-panic
 programs and unrelated artifact kinds remain closed. The next panic increment
 is composition with the private parallel signal and a bounded `PanicEvent`/
 lifecycle boundary, not another synthetic artifact route.
+
+W-1626 extends only the measured PARINV1 compiler boundary. A real source
+`panic(...)` child selected by `spawn<.domain>` is admitted beside a scalar
+child through the exact frontend and HIR physical predicates. PARINV1 records
+the child as a private `PANIC` task with its HIR terminator, message-value, and
+explicit-code indices; its scalar evaluator rejects that task without
+mutating a value output. This does not execute a provider, materialize a
+`PanicEvent`, or define a public Task/runtime ABI. Provider execution,
+lifecycle, cleanup, and benchmarks remain open.

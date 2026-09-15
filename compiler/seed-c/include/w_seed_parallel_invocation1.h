@@ -14,7 +14,7 @@ extern "C" {
 /* PARINV1 turns measured PARSEL1 relations into a measured scalar invocation
  * plan. It is compiler evidence, not a public Task or provider ABI. */
 #define W_SEED_PARALLEL_INVOCATION1_SCHEMA_VERSION \
-  "w-seed-parallel-invocation1-1"
+  "w-seed-parallel-invocation1-2"
 #define W_SEED_PARALLEL_INVOCATION1_STEP_BUDGET 4096u
 
 typedef enum {
@@ -26,12 +26,26 @@ typedef enum {
   W_SEED_PARALLEL_INVOCATION1_EVALUATION_FAILURE,
 } w_seed_parallel_invocation1_status;
 
+/* A selected task either produces the bounded scalar result or terminates in
+ * the verified explicit-panic path.  This is compiler identity, not a public
+ * Task outcome or runtime ABI. */
+typedef enum {
+  W_SEED_PARALLEL_INVOCATION1_TASK_NONE = 0,
+  W_SEED_PARALLEL_INVOCATION1_TASK_VALUE_I64,
+  W_SEED_PARALLEL_INVOCATION1_TASK_PANIC,
+} w_seed_parallel_invocation1_task_kind;
+
 /* Every u32 is a canonical compiler-record index, not a runtime handle. */
 typedef struct {
   uint32_t call_index;
   uint32_t function_index;
   uint32_t first_argument;
   uint32_t argument_count;
+  w_seed_parallel_invocation1_task_kind kind;
+  /* Present only for TASK_PANIC.  Both fields are canonical HIR indices. */
+  uint32_t panic_terminator;
+  uint32_t panic_message_value;
+  w_seed_hir0_panic_code panic_code;
 } w_seed_parallel_invocation1_task;
 
 typedef struct {

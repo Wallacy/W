@@ -1858,6 +1858,64 @@ static bool frontend_cooperative_function_static_yields(
          yield_count <= W_SEED_HIR0_COOPERATIVE_MAX_YIELDS_PER_TASK;
 }
 
+/* A parallel child can be non-returning without becoming an ordinary scalar
+ * evaluator input.  Keep this exact source proof separate from the wider
+ * never-suspending helper graph so panic cannot silently enter direct-call
+ * elision or a recoverable outcome lane. */
+static bool frontend_parallel_panic_function(
+    const w_seed_hir0_input *input, size_t function_index,
+    uint32_t required_module) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL ||
+      function_index >= input->frontend_result->written.functions)
+    return false;
+  const w_seed_frontend_output *output = input->frontend_output;
+  const w_seed_frontend_result *result = input->frontend_result;
+  const w_seed_frontend_function *function =
+      &output->functions[function_index];
+  if (function->module_index != required_module || function->is_async ||
+      function->is_throws || function->is_unsafe ||
+      function->has_borrow_clause || function->is_anonymous_entry ||
+      !frontend_elision_scalar_type_ok(input, function->return_type) ||
+      function->statement_count != 1u ||
+      function->first_statement >= result->written.statements)
+    return false;
+  const w_seed_frontend_statement *statement =
+      &output->statements[function->first_statement];
+  if (statement->owner_function != function_index ||
+      statement->kind != W_SEED_FRONTEND_STMT_EXPRESSION ||
+      statement->next_sibling != W_SEED_FRONTEND_NONE ||
+      statement->expression_index >= result->written.expressions)
+    return false;
+  const w_seed_frontend_expression *panic =
+      &output->expressions[statement->expression_index];
+  if (panic->owner_function != function_index ||
+      panic->kind != W_SEED_FRONTEND_EXPR_PANIC || !panic->supported ||
+      panic->panic_code != W_SEED_FRONTEND_PANIC_CODE_EXPLICIT ||
+      panic->inferred_type >= result->written.types ||
+      output->types[panic->inferred_type].kind != W_SEED_FRONTEND_TYPE_NEVER ||
+      panic->argument_count != 1u ||
+      panic->first_argument >= result->written.arguments)
+    return false;
+  const w_seed_frontend_argument *argument =
+      &output->arguments[panic->first_argument];
+  if (argument->owner_expression != statement->expression_index ||
+      argument->label.length != 0u ||
+      argument->expression_index >= result->written.expressions)
+    return false;
+  const w_seed_frontend_expression *message =
+      &output->expressions[argument->expression_index];
+  return message->owner_function == function_index &&
+         message->kind == W_SEED_FRONTEND_EXPR_STRING && message->supported &&
+         (message->inferred_type == W_SEED_FRONTEND_NONE ||
+          (message->inferred_type < result->written.types &&
+           output->types[message->inferred_type].kind ==
+               W_SEED_FRONTEND_TYPE_STRING)) &&
+         message->const_byte_offset != W_SEED_FRONTEND_NONE &&
+         message->first_interpolation_segment == W_SEED_FRONTEND_NONE &&
+         message->interpolation_segment_count == 0u;
+}
+
 /* Physical evidence lanes are deliberately stricter sibling scopes than
  * ordinary Async0.  The source still carries no scheduler ordering promise:
  * the bounded proof records only one permitted implementation shape.  The
@@ -1956,9 +2014,12 @@ static bool frontend_physical_trace_preflight(
               root->module_index ||
           (parallel_child
                ? (output->functions[call->resolved_function_index].is_async ||
-                  !frontend_elision_function_never(
-                      input, call->resolved_function_index, root->module_index,
-                      &pure_path, 0u))
+                  (!frontend_elision_function_never(
+                       input, call->resolved_function_index,
+                       root->module_index, &pure_path, 0u) &&
+                   !frontend_parallel_panic_function(
+                       input, call->resolved_function_index,
+                       root->module_index)))
                : !frontend_cooperative_function_static_yields(
                      input, call->resolved_function_index)))
         return false;
@@ -16405,6 +16466,60 @@ static bool hir0_static_yield_scalar_type(
          kind == W_SEED_HIR0_TYPE_BOOL;
 }
 
+/* Exact non-returning child admitted only by the parallel physical lane.  The
+ * ordinary helper graph still requires a scalar return and a never-suspending
+ * body, so this predicate cannot convert panic into a value-producing call. */
+static bool hir0_parallel_panic_function(
+    const w_seed_hir0_program *program, uint32_t function_index,
+    uint32_t owner_module) {
+  if (program == NULL || function_index >= program->function_count)
+    return false;
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  if (function->module_index != owner_module || function->is_async ||
+      function->is_throws || function->is_unsafe ||
+      function->has_borrow_clause || function->is_anonymous_entry ||
+      !hir0_static_yield_scalar_type(program, function->return_type) ||
+      function->block_count != 1u ||
+      function->first_block >= program->block_count)
+    return false;
+  for (size_t ordinal = 0u; ordinal < function->parameter_count;
+       ordinal += 1u) {
+    const size_t parameter_index =
+        (size_t)function->first_parameter + ordinal;
+    if (parameter_index >= program->parameter_count ||
+        !hir0_static_yield_scalar_type(
+            program, program->parameters[parameter_index].type_index))
+      return false;
+  }
+  const w_seed_hir0_block *block = &program->blocks[function->first_block];
+  if (block->owner_function != function_index ||
+      block->instruction_count != 0u ||
+      block->terminator_index >= program->terminator_count)
+    return false;
+  const w_seed_hir0_terminator *terminator =
+      &program->terminators[block->terminator_index];
+  if (terminator->owner_block != function->first_block ||
+      terminator->kind != W_SEED_HIR0_TERMINATOR_PANIC ||
+      terminator->panic_code != W_SEED_HIR0_PANIC_CODE_EXPLICIT ||
+      terminator->result_type >= program->type_count ||
+      program->types[terminator->result_type].kind !=
+          W_SEED_HIR0_TYPE_NEVER ||
+      terminator->value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *message =
+      &program->values[terminator->value_index];
+  return message->kind == W_SEED_HIR0_VALUE_CONST_STRING &&
+         message->owner_kind == W_SEED_HIR0_VALUE_OWNER_TERMINATOR &&
+         message->owner_index == block->terminator_index &&
+         message->owner_ordinal == 0u &&
+         message->type_index < program->type_count &&
+         program->types[message->type_index].kind == W_SEED_HIR0_TYPE_STRING &&
+         message->byte_offset <= program->value_byte_count &&
+         message->byte_count <=
+             program->value_byte_count - message->byte_offset &&
+         (message->byte_count == 0u || program->value_bytes != NULL);
+}
+
 /* Independently re-prove the local helper graph instead of trusting frontend
  * acceptance or published suspension facts. State 1 detects recursion, state
  * 2 memoizes an accepted helper, and state 3 memoizes rejection. */
@@ -16678,9 +16793,11 @@ static bool hir0_physical_task_scope(const w_seed_hir0_program *program) {
         program->functions[identity->target_index].module_index !=
             root->module_index ||
         (parallel_child
-             ? !hir0_static_yield_helper_graph(
+             ? (!hir0_static_yield_helper_graph(
                    program, identity->target_index, root->module_index,
-                   body_never, parallel_helper_state, 0u)
+                   body_never, parallel_helper_state, 0u) &&
+                !hir0_parallel_panic_function(
+                    program, identity->target_index, root->module_index))
              : !hir0_function_cooperative_yields(program,
                                                   identity->target_index)))
       return false;
@@ -17324,9 +17441,11 @@ static bool verify_records(const w_seed_hir0_program *program) {
           physical_target_ok =
               !target->is_async &&
               target->suspension == W_SEED_HIR0_SUSPENSION_NEVER &&
-              hir0_static_yield_helper_graph(
-                  program, identity->target_index, target->module_index,
-                  body_never, helper_state, 0u);
+              (hir0_static_yield_helper_graph(
+                   program, identity->target_index, target->module_index,
+                   body_never, helper_state, 0u) ||
+               hir0_parallel_panic_function(
+                   program, identity->target_index, target->module_index));
         } else {
           physical_target_ok =
               target->is_async &&

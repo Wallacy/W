@@ -2112,6 +2112,13 @@ PARINV1. PARINV0 still rejects its fixed compatibility limits transactionally.
 PARPROV1 and PARMLIR1 consume PARINV1; compatibility products remain on the
 fixed chain.
 
+W-1626 extends this compiler-only invocation record with an exact source panic
+child selected by `spawn<.domain>`. Its task kind is private `PANIC`, with
+HIR-owned terminator, message-value, and explicit-code indices bound into the
+semantic digest. The scalar evaluator accepts only value tasks and rejects the
+panic record without mutating its output. This is not provider execution,
+`PanicEvent` delivery, cleanup/lifecycle handling, or a public Task/runtime/ABI.
+
 `w_seed_parallel_provider1` is the measured Windows successor. Measure reports
 one semantic outcome and one physical workspace value per PARINV1 task. The
 platform adapter receives one indexed job descriptor and executes constant-size
@@ -2459,6 +2466,14 @@ This is bounded target-trap evidence, not a public panic runtime. `PanicEvent`,
 stable status/signal, user cleanup, message rendering, general process/Wasm/
 compartment containment, restart/supervision, parallel-provider composition,
 public ABI, benchmarks, and performance remain unsupported.
+
+W-1626 carries the source panic child into measured PARINV1 only. The exact
+frontend and HIR physical predicates keep ordinary static-yield helper rules
+strict, and verification rederives the HIR terminator for the `PANIC` task,
+message-value, and code indices. Scalar evaluation fails closed without a
+value publication. Provider execution, `PanicEvent`, cleanup, lifecycle,
+public Task/runtime/ABI behavior, native products, benchmarks, and performance
+remain unsupported.
 
 ### Bounded CRT-free process/parallel provider linkage (W-1600)
 

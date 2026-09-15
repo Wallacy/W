@@ -4532,6 +4532,114 @@ static bool test_parallel_domain_placement_hir(void) {
   return true;
 }
 
+static bool test_parallel_panic_invocation1(void) {
+  static const char SOURCE[] =
+      "fn prepare(value: i64): i64 { return value + 1 }\n"
+      "fn fail(): i64 { panic(\"parallel invariant\") }\n"
+      "entry { let firstTask = spawn<.domain> prepare(value: 20) "
+      "let secondTask = spawn<.domain> fail() "
+      "let first = await firstTask let second = await secondTask }\n";
+  CHECK(lower_parallel_domain(SOURCE));
+
+  w_seed_parallel_selection1_counts selection_counts;
+  w_seed_parallel_selection1_result selection_result;
+  CHECK(w_seed_parallel_selection1_measure(
+            &fixture.hir_program, &fixture.hir_result, &selection_counts,
+            &selection_result) == W_SEED_PARALLEL_SELECTION1_OK &&
+        selection_counts.tasks == 2u);
+  w_seed_parallel_selection1_task selection_tasks[2];
+  const w_seed_parallel_selection1_output selection_output = {
+      selection_tasks, 2u};
+  CHECK(w_seed_parallel_selection1_run(
+            &fixture.hir_program, &fixture.hir_result, &selection_output,
+            &selection_result) == W_SEED_PARALLEL_SELECTION1_OK);
+  w_seed_parallel_selection1_program selection;
+  CHECK(w_seed_parallel_selection1_program_from_output(
+            &selection_output, &selection_result, &selection) &&
+        w_seed_parallel_selection1_verify(
+            &fixture.hir_program, &fixture.hir_result, &selection,
+            &selection_result));
+  w_seed_parallel_invocation1_counts invocation_counts;
+  w_seed_parallel_invocation1_result invocation_result;
+  CHECK(w_seed_parallel_invocation1_measure(
+            &fixture.hir_program, &fixture.hir_result, &selection,
+            &selection_result, &invocation_counts, &invocation_result) ==
+            W_SEED_PARALLEL_INVOCATION1_OK &&
+        invocation_counts.tasks == 2u && invocation_counts.arguments == 1u);
+  w_seed_parallel_invocation1_task invocation_tasks[2];
+  w_seed_parallel_invocation1_argument invocation_arguments[1];
+  const w_seed_parallel_invocation1_output invocation_output = {
+      invocation_tasks, 2u, invocation_arguments, 1u};
+  CHECK(w_seed_parallel_invocation1_run(
+            &fixture.hir_program, &fixture.hir_result, &selection,
+            &selection_result, &invocation_output, &invocation_result) ==
+        W_SEED_PARALLEL_INVOCATION1_OK);
+  w_seed_parallel_invocation1_program invocation;
+  CHECK(w_seed_parallel_invocation1_program_from_output(
+            &invocation_output, &invocation_result, &invocation) &&
+        w_seed_parallel_invocation1_verify(
+            &fixture.hir_program, &fixture.hir_result, &selection,
+            &selection_result, &invocation, &invocation_result));
+  CHECK(invocation.tasks[0].kind ==
+            W_SEED_PARALLEL_INVOCATION1_TASK_VALUE_I64 &&
+        invocation.tasks[0].panic_terminator == W_SEED_HIR0_NONE &&
+        invocation.tasks[0].panic_message_value == W_SEED_HIR0_NONE &&
+        invocation.tasks[0].panic_code == W_SEED_HIR0_PANIC_CODE_INVALID &&
+        invocation.tasks[1].kind ==
+            W_SEED_PARALLEL_INVOCATION1_TASK_PANIC &&
+        invocation.tasks[1].panic_terminator <
+            fixture.hir_program.terminator_count &&
+        invocation.tasks[1].panic_message_value <
+            fixture.hir_program.value_count &&
+        invocation.tasks[1].panic_code == W_SEED_HIR0_PANIC_CODE_EXPLICIT);
+  const w_seed_hir0_value *message =
+      &fixture.hir_program.values[invocation.tasks[1].panic_message_value];
+  CHECK(message->byte_count == sizeof("parallel invariant") - 1u &&
+        memcmp(fixture.hir_program.value_bytes + message->byte_offset,
+               "parallel invariant", sizeof("parallel invariant") - 1u) ==
+            0);
+
+  int64_t value = 0;
+  CHECK(w_seed_parallel_invocation1_evaluate_task(
+            &fixture.hir_program, &fixture.hir_result, &selection,
+            &selection_result, &invocation, &invocation_result, 0u, &value) ==
+            W_SEED_PARALLEL_INVOCATION1_OK &&
+        value == 21);
+  value = INT64_C(0x123456789abcdef);
+  const int64_t value_before = value;
+  CHECK(w_seed_parallel_invocation1_evaluate_task(
+            &fixture.hir_program, &fixture.hir_result, &selection,
+            &selection_result, &invocation, &invocation_result, 1u, &value) ==
+            W_SEED_PARALLEL_INVOCATION1_EVALUATION_FAILURE &&
+        value == value_before);
+
+  const w_seed_parallel_invocation1_task panic_task = invocation_tasks[1];
+  invocation_tasks[1].kind = W_SEED_PARALLEL_INVOCATION1_TASK_VALUE_I64;
+  CHECK(!w_seed_parallel_invocation1_verify(
+      &fixture.hir_program, &fixture.hir_result, &selection,
+      &selection_result, &invocation, &invocation_result));
+  invocation_tasks[1] = panic_task;
+  invocation_tasks[1].panic_terminator ^= 1u;
+  CHECK(!w_seed_parallel_invocation1_verify(
+      &fixture.hir_program, &fixture.hir_result, &selection,
+      &selection_result, &invocation, &invocation_result));
+  invocation_tasks[1] = panic_task;
+  invocation_tasks[1].panic_message_value = W_SEED_HIR0_NONE;
+  CHECK(!w_seed_parallel_invocation1_verify(
+      &fixture.hir_program, &fixture.hir_result, &selection,
+      &selection_result, &invocation, &invocation_result));
+  invocation_tasks[1] = panic_task;
+  invocation_tasks[1].panic_code = W_SEED_HIR0_PANIC_CODE_INVALID;
+  CHECK(!w_seed_parallel_invocation1_verify(
+      &fixture.hir_program, &fixture.hir_result, &selection,
+      &selection_result, &invocation, &invocation_result));
+  invocation_tasks[1] = panic_task;
+  CHECK(w_seed_parallel_invocation1_verify(
+      &fixture.hir_program, &fixture.hir_result, &selection,
+      &selection_result, &invocation, &invocation_result));
+  return true;
+}
+
 static bool test_process_parallel_composition_hir(void) {
   static const char SOURCE[] =
       "import { Arguments as ProcessArguments, Context as ProcessContext, "
@@ -10904,6 +11012,7 @@ int main(int argc, char **argv) {
   if (!test_function_parameter_records()) return 1;
   if (!test_structured_async_elision_hir()) return 1;
   if (!test_parallel_domain_placement_hir()) return 1;
+  if (!test_parallel_panic_invocation1()) return 1;
   if (!test_process_parallel_composition_hir()) return 1;
   if (!test_process_parallel_mlir()) return 1;
   if (!test_lowering_is_not_hello_hardcoded()) return 1;

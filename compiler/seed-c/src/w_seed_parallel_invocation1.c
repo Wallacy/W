@@ -20,6 +20,14 @@ typedef struct {
   uint8_t selection_semantic_digest[32];
 } parinv1_summary;
 
+typedef struct {
+  w_seed_parallel_invocation1_task_kind kind;
+  uint32_t panic_terminator;
+  uint32_t panic_message_value;
+  w_seed_hir0_panic_code panic_code;
+  size_t argument_count;
+} parinv1_task_semantics;
+
 enum {
   W_PARINV1_PRODUCER_RANGE_CAPACITY = 35u,
   W_PARINV1_COMPLETE_RANGE_CAPACITY = 39u,
@@ -211,7 +219,7 @@ static bool invocation_aliases_producers(
 
 static bool range_valid_or_empty(uint32_t first, uint32_t count,
                                  size_t total) {
-  if (count == 0u) return first == W_SEED_HIR0_NONE;
+  if (count == 0u) return first <= total;
   return first != W_SEED_HIR0_NONE && first <= total &&
          count <= total - first;
 }
@@ -237,10 +245,56 @@ static const w_seed_hir0_argument *argument_for_ordinal(
   return found;
 }
 
+static bool derive_panic_task_semantics(
+    const w_seed_hir0_program *program, uint32_t function_index,
+    parinv1_task_semantics *semantics) {
+  if (program == NULL || semantics == NULL ||
+      function_index >= program->function_count)
+    return false;
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  if (function->block_count != 1u ||
+      function->first_block >= program->block_count)
+    return false;
+  const w_seed_hir0_block *block = &program->blocks[function->first_block];
+  if (block->owner_function != function_index ||
+      block->instruction_count != 0u ||
+      block->terminator_index >= program->terminator_count)
+    return false;
+  const w_seed_hir0_terminator *terminator =
+      &program->terminators[block->terminator_index];
+  if (terminator->kind != W_SEED_HIR0_TERMINATOR_PANIC ||
+      terminator->panic_code != W_SEED_HIR0_PANIC_CODE_EXPLICIT ||
+      terminator->owner_block != function->first_block ||
+      terminator->value_index >= program->value_count ||
+      terminator->result_type >= program->type_count ||
+      program->types[terminator->result_type].kind !=
+          W_SEED_HIR0_TYPE_NEVER)
+    return false;
+  const w_seed_hir0_value *message =
+      &program->values[terminator->value_index];
+  if (message->kind != W_SEED_HIR0_VALUE_CONST_STRING ||
+      message->owner_kind != W_SEED_HIR0_VALUE_OWNER_TERMINATOR ||
+      message->owner_index != block->terminator_index ||
+      message->owner_ordinal != 0u ||
+      message->type_index >= program->type_count ||
+      program->types[message->type_index].kind != W_SEED_HIR0_TYPE_STRING ||
+      message->byte_offset > program->value_byte_count ||
+      message->byte_count > program->value_byte_count - message->byte_offset ||
+      (message->byte_count != 0u && program->value_bytes == NULL))
+    return false;
+  *semantics = (parinv1_task_semantics){
+      W_SEED_PARALLEL_INVOCATION1_TASK_PANIC,
+      block->terminator_index,
+      terminator->value_index,
+      terminator->panic_code,
+      0u};
+  return true;
+}
+
 static bool validate_task(const w_seed_hir0_program *program,
                           const w_seed_parallel_selection1_task *selected,
-                          size_t *argument_count) {
-  if (program == NULL || selected == NULL || argument_count == NULL ||
+                          parinv1_task_semantics *semantics) {
+  if (program == NULL || selected == NULL || semantics == NULL ||
       selected->call_index >= program->call_count ||
       selected->function_index >= program->function_count)
     return false;
@@ -277,10 +331,20 @@ static bool validate_task(const w_seed_hir0_program *program,
   }
   int64_t proof_value = 0;
   size_t budget = W_SEED_PARALLEL_INVOCATION1_STEP_BUDGET;
-  if (!w_seed_scalar_evaluator0_evaluate_call(
-          program, selected->call_index, &budget, &proof_value))
+  if (w_seed_scalar_evaluator0_evaluate_call(
+          program, selected->call_index, &budget, &proof_value)) {
+    *semantics = (parinv1_task_semantics){
+        W_SEED_PARALLEL_INVOCATION1_TASK_VALUE_I64,
+        W_SEED_HIR0_NONE,
+        W_SEED_HIR0_NONE,
+        W_SEED_HIR0_PANIC_CODE_INVALID,
+        call->argument_count};
+    return true;
+  }
+  if (!derive_panic_task_semantics(program, selected->function_index,
+                                   semantics))
     return false;
-  *argument_count = call->argument_count;
+  semantics->argument_count = call->argument_count;
   return true;
 }
 
@@ -295,11 +359,13 @@ static bool derive_summary(
     return false;
   size_t arguments = 0u;
   for (size_t task = 0u; task < selection->task_count; task += 1u) {
-    size_t task_arguments = 0u;
-    if (!validate_task(hir_program, &selection->tasks[task], &task_arguments) ||
-        task_arguments > UINT32_MAX || arguments > UINT32_MAX - task_arguments)
+    parinv1_task_semantics task_semantics;
+    if (!validate_task(hir_program, &selection->tasks[task],
+                       &task_semantics) ||
+        task_semantics.argument_count > UINT32_MAX ||
+        arguments > UINT32_MAX - task_semantics.argument_count)
       return false;
-    arguments += task_arguments;
+    arguments += task_semantics.argument_count;
   }
   *summary = (parinv1_summary){selection->task_count, arguments,
                               selection->root_function_index, {0}, {0}};
@@ -311,7 +377,7 @@ static bool derive_summary(
   return true;
 }
 
-static void emit_records(
+static bool emit_records(
     const w_seed_hir0_program *hir_program,
     const w_seed_parallel_selection1_program *selection,
     w_seed_parallel_invocation1_task *tasks,
@@ -322,12 +388,18 @@ static void emit_records(
     const w_seed_hir0_call *call = &hir_program->calls[selected->call_index];
     const w_seed_hir0_function *function =
         &hir_program->functions[selected->function_index];
+    parinv1_task_semantics task_semantics;
+    if (!validate_task(hir_program, selected, &task_semantics)) return false;
     tasks[task] = (w_seed_parallel_invocation1_task){
         selected->call_index,
         selected->function_index,
         call->argument_count == 0u ? W_SEED_HIR0_NONE
                                    : (uint32_t)argument_cursor,
-        call->argument_count};
+        call->argument_count,
+        task_semantics.kind,
+        task_semantics.panic_terminator,
+        task_semantics.panic_message_value,
+        task_semantics.panic_code};
     for (uint32_t ordinal = 0u; ordinal < call->argument_count; ordinal += 1u) {
       size_t matches = 0u;
       const w_seed_hir0_argument *argument =
@@ -339,6 +411,7 @@ static void emit_records(
       argument_cursor += 1u;
     }
   }
+  return true;
 }
 
 static void sha_u32(w_seed_sha256_state *state, uint32_t value) {
@@ -369,6 +442,10 @@ static void seal(const parinv1_summary *summary,
     sha_u32(&state, tasks[index].function_index);
     sha_u32(&state, tasks[index].first_argument);
     sha_u32(&state, tasks[index].argument_count);
+    sha_u32(&state, (uint32_t)tasks[index].kind);
+    sha_u32(&state, tasks[index].panic_terminator);
+    sha_u32(&state, tasks[index].panic_message_value);
+    sha_u32(&state, (uint32_t)tasks[index].panic_code);
   }
   for (size_t index = 0u; index < summary->argument_count; index += 1u) {
     sha_u32(&state, arguments[index].owner_task);
@@ -450,7 +527,9 @@ w_seed_parallel_invocation1_status w_seed_parallel_invocation1_run(
   if (outputs_alias_producers(hir_program, hir_result, selection,
                               selection_result, output, result))
     return W_SEED_PARALLEL_INVOCATION1_ALIAS;
-  emit_records(hir_program, selection, output->tasks, output->arguments);
+  if (!emit_records(hir_program, selection, output->tasks,
+                    output->arguments))
+    return W_SEED_PARALLEL_INVOCATION1_UNSUPPORTED;
   w_seed_parallel_invocation1_result candidate;
   make_result(&summary, output->tasks, output->arguments, true, &candidate);
   *result = candidate;
@@ -561,12 +640,18 @@ bool w_seed_parallel_invocation1_verify(
     const w_seed_hir0_call *call = &hir_program->calls[selected->call_index];
     const w_seed_hir0_function *function =
         &hir_program->functions[selected->function_index];
+    parinv1_task_semantics task_semantics;
+    if (!validate_task(hir_program, selected, &task_semantics)) return false;
     const w_seed_parallel_invocation1_task expected = {
         selected->call_index,
         selected->function_index,
         call->argument_count == 0u ? W_SEED_HIR0_NONE
                                    : (uint32_t)argument_cursor,
-        call->argument_count};
+        call->argument_count,
+        task_semantics.kind,
+        task_semantics.panic_terminator,
+        task_semantics.panic_message_value,
+        task_semantics.panic_code};
     if (memcmp(&invocation->tasks[task], &expected, sizeof(expected)) != 0)
       return false;
     for (uint32_t ordinal = 0u; ordinal < call->argument_count; ordinal += 1u) {
@@ -639,6 +724,9 @@ w_seed_parallel_invocation1_status w_seed_parallel_invocation1_evaluate_task(
                                     selection_result, invocation, result,
                                     value))
     return W_SEED_PARALLEL_INVOCATION1_INVALID;
+  if (invocation->tasks[task_index].kind !=
+      W_SEED_PARALLEL_INVOCATION1_TASK_VALUE_I64)
+    return W_SEED_PARALLEL_INVOCATION1_EVALUATION_FAILURE;
   int64_t candidate = 0;
   size_t budget = W_SEED_PARALLEL_INVOCATION1_STEP_BUDGET;
   if (!w_seed_scalar_evaluator0_evaluate_call(

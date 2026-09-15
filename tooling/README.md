@@ -415,6 +415,14 @@ toolchain gate lowers the five-task target-neutral artifact into Windows x64
 COFF and Linux x86-64 PIC ELF objects with MLIR/LLVM 23.1.1. It remains a
 compiler-lifecycle check, not a public executable benchmark.
 
+W-1626 extends the focused C23 HIR gate with a real source `panic(...)` child
+selected by `spawn<.domain>` beside a scalar child. PARINV1 stores the exact
+panic task identity and rejects scalar evaluation without mutating output;
+verification covers forged task kind and HIR provenance. This remains a
+`compiler-lifecycle` check only: it does not execute a provider or claim
+`PanicEvent`, cleanup/lifecycle behavior, public Task/runtime/ABI, a native
+product, or a benchmark.
+
 ACQ0 executa CHK6 em
 storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou
 CLI. Execute `bun check --target acquisition` para compilar os cinco targets focais,

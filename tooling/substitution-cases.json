@@ -10154,6 +10154,47 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-parallel-panic-invocation1",
+      "reviewItem": "source-selected parallel panic tasks against scalar-value coercion, malformed HIR provenance, and provider/runtime overclaim",
+      "decisions": ["W-1626"],
+      "task": "Represent one real source panic task selected by spawn<.domain> in PARINV1 without claiming provider execution, PanicEvent, or Task ABI.",
+      "selected": {
+        "language": "w-internal",
+        "source": [
+          "a real `fn fail(): i64 { panic(\"parallel invariant\") }` child is selected by `spawn<.domain>` beside a value-producing child",
+          "HIR physical verification admits only the exact explicit-string panic predicate in the parallel lane",
+          "PARINV1 records a PANIC task kind with terminator, message-value, and explicit-code indices in its canonical digest",
+          "scalar evaluation accepts only value tasks and fails closed for PANIC without mutating its output"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "coerce-panic-to-i64",
+          "language": "w-internal-rejected",
+          "source": ["treat the panic child as a scalar i64 result or synthesize a default value"],
+          "expectedDifference": "Panic is non-returning; PARINV1 keeps it distinct and never publishes a value."
+        },
+        {
+          "name": "provider-execution-claim",
+          "language": "w-internal-rejected",
+          "source": ["claim PARINV1 ran a provider, emitted PanicEvent, or defines Task ABI"],
+          "expectedDifference": "PARINV1 is compiler evidence only; provider, lifecycle, and public runtime boundaries remain open."
+        },
+        {
+          "name": "forge-panic-record",
+          "language": "w-internal-rejected",
+          "source": ["change task kind, terminator, message value, or panic code after run"],
+          "expectedDifference": "Independent verification recomputes the exact HIR-owned panic relation and rejects the mutation."
+        }
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }
