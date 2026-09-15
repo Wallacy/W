@@ -516,8 +516,8 @@ static bool frontend_counts_equal(const w_seed_frontend_counts *left,
   HIR0_COUNT(const_elements);
   HIR0_COUNT(const_bytes);
   HIR0_COUNT(const_declarations);
-  HIR0_COUNT(accelerator_modules);
-  HIR0_COUNT(accelerator_kernels);
+  HIR0_COUNT(kernel_modules);
+  HIR0_COUNT(kernel_bindings);
 #undef HIR0_COUNT
   return true;
 }
@@ -641,10 +641,10 @@ static bool frontend_shape_ok(const w_seed_hir0_input *input) {
   HIR0_FRONTEND_ARRAY(interpolation_segments, interpolation_segment_capacity,
                       w_seed_frontend_interpolation_segment);
   HIR0_FRONTEND_ARRAY(arguments, argument_capacity, w_seed_frontend_argument);
-  HIR0_FRONTEND_ARRAY(accelerator_modules, accelerator_module_capacity,
-                      w_seed_frontend_accelerator_module);
-  HIR0_FRONTEND_ARRAY(accelerator_kernels, accelerator_kernel_capacity,
-                      w_seed_frontend_accelerator_kernel);
+  HIR0_FRONTEND_ARRAY(kernel_modules, kernel_module_capacity,
+                      w_seed_frontend_kernel_module);
+  HIR0_FRONTEND_ARRAY(kernel_bindings, kernel_binding_capacity,
+                      w_seed_frontend_kernel_binding);
   HIR0_FRONTEND_ARRAY(switch_arms, switch_arm_capacity,
                       w_seed_frontend_switch_arm);
   HIR0_FRONTEND_ARRAY(pattern_captures, pattern_capture_capacity,
@@ -2754,8 +2754,8 @@ static bool frontend_value_common_ok(
     size_t module_index, size_t function_index, size_t document_index) {
   if (value == NULL || !value->supported || value->module_index != module_index ||
       value->owner_function != function_index ||
-      value->resolved_accelerator_module_index != W_SEED_FRONTEND_NONE ||
-      value->resolved_accelerator_kernel_index != W_SEED_FRONTEND_NONE ||
+      value->resolved_kernel_module_index != W_SEED_FRONTEND_NONE ||
+      value->resolved_kernel_binding_index != W_SEED_FRONTEND_NONE ||
       ((value->kind != W_SEED_FRONTEND_EXPR_CALL) &&
        (value->first_argument != W_SEED_FRONTEND_NONE ||
         value->argument_count != 0u)) ||
@@ -2832,8 +2832,8 @@ static bool frontend_value_has_no_resolution(
          value->resolved_host_symbol_index == W_SEED_FRONTEND_NONE &&
          value->resolved_external_module_index == W_SEED_FRONTEND_NONE &&
          value->resolved_external_symbol_index == W_SEED_FRONTEND_NONE &&
-         value->resolved_accelerator_module_index == W_SEED_FRONTEND_NONE &&
-         value->resolved_accelerator_kernel_index == W_SEED_FRONTEND_NONE &&
+         value->resolved_kernel_module_index == W_SEED_FRONTEND_NONE &&
+         value->resolved_kernel_binding_index == W_SEED_FRONTEND_NONE &&
          value->resolved_local_ordinal == W_SEED_FRONTEND_NONE &&
          value->resolved_const_declaration == W_SEED_FRONTEND_NONE &&
          value->resolved_pattern_capture == W_SEED_FRONTEND_NONE &&
@@ -6554,6 +6554,16 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
   if (!frontend_sources_ok(input)) return HIR0_PREPARE_INVALID;
   if (!host_shape_ok(input->frontend_input->host_scope))
     return HIR0_PREPARE_INVALID;
+  /* Kernel imports are compiler identity projections, not ordinary HIR
+   * bindings.  Multi-module projection resolution is intentionally outside
+   * this seed; reject the record before the ordinary import graph walk can
+   * reinterpret it as a value/type import. */
+  for (size_t import_index = 0u;
+       import_index < frontend_result->written.imports; import_index += 1u) {
+    if (input->frontend_output->imports[import_index].kind ==
+        W_SEED_FRONTEND_IMPORT_KERNEL)
+      return HIR0_PREPARE_UNSUPPORTED;
+  }
   if (frontend_task_result_is_unsupported(input))
     return HIR0_PREPARE_UNSUPPORTED;
   /* HIR0 is intentionally closed. Classify frontend families that have no
@@ -6582,8 +6592,8 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
       frontend_result->written.const_values != 0u ||
       frontend_result->written.const_elements != 0u ||
       frontend_result->written.const_declarations != 0u ||
-      frontend_result->written.accelerator_modules != 0u ||
-      frontend_result->written.accelerator_kernels != 0u ||
+      frontend_result->written.kernel_modules != 0u ||
+      frontend_result->written.kernel_bindings != 0u ||
       frontend_result->written.parameters > W_SEED_HIR0_MAX_TEXT_BYTES)
     return HIR0_PREPARE_UNSUPPORTED;
   if (!frontend_module_ranges_ok(input) || !frontend_type_records_ok(input) ||
@@ -7080,8 +7090,8 @@ static bool output_overlaps_input(const w_seed_hir0_input *input,
   HIR0_INPUT_RANGE(enum_cases, w_seed_frontend_enum_case);
   HIR0_INPUT_RANGE(enum_case_parameters, w_seed_frontend_enum_case_parameter);
   HIR0_INPUT_RANGE(const_declarations, w_seed_frontend_const_declaration);
-  HIR0_INPUT_RANGE(accelerator_modules, w_seed_frontend_accelerator_module);
-  HIR0_INPUT_RANGE(accelerator_kernels, w_seed_frontend_accelerator_kernel);
+  HIR0_INPUT_RANGE(kernel_modules, w_seed_frontend_kernel_module);
+  HIR0_INPUT_RANGE(kernel_bindings, w_seed_frontend_kernel_binding);
   HIR0_INPUT_RANGE(switch_arms, w_seed_frontend_switch_arm);
   HIR0_INPUT_RANGE(pattern_captures, w_seed_frontend_pattern_capture);
   HIR0_INPUT_RANGE(enum_subset_members, w_seed_frontend_enum_subset_member);

@@ -16,7 +16,7 @@ extern "C" {
  * statically placed accelerated invocation. It is not a HIR record, a queue,
  * a provider handle, a launch ABI, or a device-memory plan. */
 #define W_SEED_ACCELERATED_INVOCATION0_SCHEMA_VERSION \
-  "w-seed-accelerated-invocation0-1"
+  "w-seed-accelerated-invocation0-2"
 #define W_SEED_ACCELERATED_INVOCATION0_SHA256_BYTES 32u
 #define W_SEED_ACCELERATED_INVOCATION0_MAX_INVOCATIONS 1u
 #define W_SEED_ACCELERATED_INVOCATION0_NONE UINT32_MAX
@@ -40,16 +40,16 @@ typedef struct {
   const w_seed_gpu_module_result *gpu_module_result;
 } w_seed_accelerated_invocation0_input;
 
-/* One exact `spawn<accelerated-domain> descriptor.field()` relation followed
- * by its lexical `await` join. ACCINV0 v1 deliberately accepts only the
- * zero-parameter bridge proven by gpu-module-1. Runtime argument records and
+/* One exact `spawn<accelerated-domain> kernel()` relation followed
+ * by its lexical `await` join. ACCINV0 v2 deliberately accepts only the
+ * zero-parameter bridge proven by gpu-module-2. Runtime argument records and
  * residency are deferred to a later schema. Identity text is copied to the
  * projection text store; all source indices/spans are provenance only. */
 typedef struct {
   uint32_t frontend_module_index;
   uint32_t frontend_owner_function_index;
-  uint32_t frontend_accelerator_module_index;
-  uint32_t frontend_accelerator_kernel_index;
+  uint32_t frontend_kernel_module_index;
+  uint32_t frontend_kernel_binding_index;
   uint32_t gpu_module_index;
   uint32_t gpu_kernel_index;
   uint32_t source_launch_expression;
@@ -106,8 +106,8 @@ typedef struct {
   uint32_t frontend_expression_count;
   uint32_t frontend_type_count;
   uint32_t frontend_domain_count;
-  uint32_t frontend_accelerator_module_count;
-  uint32_t frontend_accelerator_kernel_count;
+  uint32_t frontend_kernel_module_count;
+  uint32_t frontend_kernel_binding_count;
   uint32_t gpu_module_count;
   uint32_t gpu_kernel_count;
   uint8_t frontend_receipt_digest[W_SEED_ACCELERATED_INVOCATION0_SHA256_BYTES];
@@ -128,8 +128,8 @@ typedef struct {
   uint32_t frontend_expression_count;
   uint32_t frontend_type_count;
   uint32_t frontend_domain_count;
-  uint32_t frontend_accelerator_module_count;
-  uint32_t frontend_accelerator_kernel_count;
+  uint32_t frontend_kernel_module_count;
+  uint32_t frontend_kernel_binding_count;
   uint32_t gpu_module_count;
   uint32_t gpu_kernel_count;
   uint8_t frontend_receipt_digest[W_SEED_ACCELERATED_INVOCATION0_SHA256_BYTES];

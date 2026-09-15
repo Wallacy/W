@@ -4,7 +4,10 @@
   "id": "DYN1",
   "gate": "DYN0-G1",
   "researchState": "historical",
-  "successorDecisions": ["W-1398", "W-1399"],
+  "successorDecisions": [
+    "W-1398",
+    "W-1399"
+  ],
   "title": "Versioned dynamic behavior, generation switching, and bounded export",
   "question": "Can W cover controlled REPL and typed service/plugin hot change with immutable snapshots, generation-safe switch and export without arbitrary evaluation or live-frame mutation?",
   "languageDesign": "partial",
@@ -167,7 +170,7 @@
     {
       "path": "reference/last-light/build.w",
       "symbol": "name: \"compile-final-menu\"",
-      "digest": "sha256:53943d95e353121b18807492c3d7282df2bfb77b1a89cbf3859d8d4637ef44fc",
+      "digest": "sha256:3f2c504a2d139ac24a44dd58892436f7d1ff608b5f3edf11913c445006548c75",
       "claim": "package recipe and resolution identity"
     },
     {

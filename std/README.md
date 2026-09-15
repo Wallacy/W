@@ -167,14 +167,16 @@ namespace fica na mesma authority. O provider
 `std.fs@1` continua missing; o source não executa syscalls nem concede cwd
 ambiental.
 `accelerator/contracts.w` materializa `Limits`, `KernelModule` e o owner
-`Launch<Module>`. O compiler sintetiza descriptors e launch stubs tipados de
-um static record de module scope; `accelerator.module` não é uma função runtime.
-Famílias genéricas materializam somente o conjunto finito alcançável, sem JIT
-implícito. O módulo não fornece reflection ou registry runtime. O scope liga
-module, queue, device e provider generation e exige close assíncrono com drain.
-No caminho estático comum, um domain `.accelerated` possui essa relation no root
-e `spawn<domain> descriptor.field(...)` não repete o owner; `open` e
-`.launch(using:)` permanecem para seleção runtime avançada.
+`Launch<Module>`. O compiler sintetiza a família e os launch stubs tipados do
+campo contextual `kernels: { label: directFunction }` no module contract;
+nenhum descriptor runtime é criado. Famílias genéricas materializam somente o
+conjunto finito alcançável, sem JIT implícito. O módulo não fornece reflection
+ou registry runtime. O scope liga module, queue, device e provider generation e
+exige close assíncrono com drain. No caminho estático comum, um domain
+`.accelerated` possui essa relation no root e
+`spawn<domain> name(...)`/`spawn<domain> alias.name(...)` não repete o owner;
+`accelerator.open<module: alias>(...)` e `.launch(using:)` permanecem para
+seleção runtime avançada.
 O provider `std.accelerator@1` continua missing. Transfer e device storage
 permanecem contratos explícitos de `std.tensor`.
 `simd/contracts.w` materializa somente o enum nominal `ReductionMode`.

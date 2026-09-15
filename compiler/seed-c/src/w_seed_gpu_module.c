@@ -8,9 +8,9 @@
 #include "w_seed_unicode.h"
 
 static const char GPU_MODULE_SEMANTIC_TAG[] =
-    "w-seed-gpu-module-semantic-1";
+    "w-seed-gpu-module-semantic-2";
 static const char GPU_MODULE_PROVENANCE_TAG[] =
-    "w-seed-gpu-module-provenance-1";
+    "w-seed-gpu-module-provenance-2";
 
 typedef struct {
   uintptr_t begin;
@@ -82,8 +82,8 @@ static bool frontend_counts_equal(const w_seed_frontend_counts *left,
   GPU_MODULE_COUNT(const_elements);
   GPU_MODULE_COUNT(const_bytes);
   GPU_MODULE_COUNT(const_declarations);
-  GPU_MODULE_COUNT(accelerator_modules);
-  GPU_MODULE_COUNT(accelerator_kernels);
+  GPU_MODULE_COUNT(kernel_modules);
+  GPU_MODULE_COUNT(kernel_bindings);
 #undef GPU_MODULE_COUNT
   return true;
 }
@@ -144,10 +144,6 @@ static bool identifier(w_seed_frontend_text text) {
     offset += width;
   }
   return true;
-}
-
-static bool span_equal(w_seed_span left, w_seed_span right) {
-  return left.start_byte == right.start_byte && left.end_byte == right.end_byte;
 }
 
 static bool span_contains(w_seed_span owner, w_seed_span child) {
@@ -248,28 +244,25 @@ static bool frontend_shape(const w_seed_gpu_module_input *input) {
       frontend_input->document_count == 0u ||
       frontend_input->document_count != result->written.modules ||
       result->written.modules > UINT32_MAX ||
-      result->written.const_declarations > UINT32_MAX ||
-      result->written.accelerator_modules > UINT32_MAX ||
-      result->written.accelerator_kernels > UINT32_MAX ||
+      result->written.kernel_modules > UINT32_MAX ||
+      result->written.kernel_bindings > UINT32_MAX ||
       result->written.functions > UINT32_MAX ||
       result->written.statements > UINT32_MAX ||
       result->written.expressions > UINT32_MAX ||
       result->written.types > UINT32_MAX ||
       frontend_input->documents == NULL ||
-      result->written.accelerator_modules == 0u ||
-      result->written.accelerator_kernels == 0u ||
+      result->written.kernel_modules == 0u ||
+      result->written.kernel_bindings == 0u ||
       result->written.facts != 0u || result->written.diagnostics != 0u)
     return false;
 #define GPU_MODULE_ARRAY(field, capacity_field, type)                         \
   if (!array_valid(output->field, result->written.field,                     \
                    output->capacity_field, sizeof(type))) return false
   GPU_MODULE_ARRAY(modules, module_capacity, w_seed_frontend_module);
-  GPU_MODULE_ARRAY(const_declarations, const_declaration_capacity,
-                   w_seed_frontend_const_declaration);
-  GPU_MODULE_ARRAY(accelerator_modules, accelerator_module_capacity,
-                   w_seed_frontend_accelerator_module);
-  GPU_MODULE_ARRAY(accelerator_kernels, accelerator_kernel_capacity,
-                   w_seed_frontend_accelerator_kernel);
+  GPU_MODULE_ARRAY(kernel_modules, kernel_module_capacity,
+                   w_seed_frontend_kernel_module);
+  GPU_MODULE_ARRAY(kernel_bindings, kernel_binding_capacity,
+                   w_seed_frontend_kernel_binding);
   GPU_MODULE_ARRAY(functions, function_capacity, w_seed_frontend_function);
   GPU_MODULE_ARRAY(statements, statement_capacity, w_seed_frontend_statement);
   GPU_MODULE_ARRAY(expressions, expression_capacity,
@@ -320,7 +313,7 @@ static w_seed_gpu_module_status frontend_preflight(
 }
 
 static bool kernel_body(const w_seed_gpu_module_input *input,
-                        const w_seed_frontend_accelerator_kernel *binding,
+                        const w_seed_frontend_kernel_binding *binding,
                         const w_seed_frontend_function **function_out,
                         const w_seed_frontend_statement **statement_out,
                         const w_seed_frontend_expression **expression_out,
@@ -373,8 +366,8 @@ static bool scan_frontend(const w_seed_gpu_module_input *input,
   const w_seed_frontend_result *result = input->frontend_result;
   gpu_module_scan candidate;
   (void)memset(&candidate, 0, sizeof(candidate));
-  candidate.counts.modules = result->written.accelerator_modules;
-  candidate.counts.kernels = result->written.accelerator_kernels;
+  candidate.counts.modules = result->written.kernel_modules;
+  candidate.counts.kernels = result->written.kernel_bindings;
   candidate.counts.frontend_receipt_bytes = result->written.receipt_bytes;
 
   w_seed_sha256_state semantic;
@@ -402,14 +395,13 @@ static bool scan_frontend(const w_seed_gpu_module_input *input,
   size_t kernel_cursor = 0u;
   size_t text_bytes = 0u;
   for (size_t module_index = 0u;
-       module_index < result->written.accelerator_modules; module_index += 1u) {
-    const w_seed_frontend_accelerator_module *module =
-        &output->accelerator_modules[module_index];
+       module_index < result->written.kernel_modules; module_index += 1u) {
+    const w_seed_frontend_kernel_module *module =
+        &output->kernel_modules[module_index];
     if (module->module_index >= result->written.modules ||
-        module->const_declaration_index >= result->written.const_declarations ||
         module->first_kernel != kernel_cursor || module->kernel_count == 0u ||
         !range_valid(module->first_kernel, module->kernel_count,
-                     result->written.accelerator_kernels))
+                     result->written.kernel_bindings))
       return false;
     const w_seed_frontend_module *frontend_module =
         &output->modules[module->module_index];
@@ -417,20 +409,9 @@ static bool scan_frontend(const w_seed_gpu_module_input *input,
       return false;
     const w_seed_frontend_document *document =
         &frontend_input->documents[frontend_module->document_index];
-    const w_seed_frontend_const_declaration *declaration =
-        &output->const_declarations[module->const_declaration_index];
-    if (declaration->module_index != module->module_index ||
-        !identifier(declaration->name) ||
-        declaration->initializer_expression != W_SEED_FRONTEND_NONE ||
-        declaration->declared_type != W_SEED_FRONTEND_NONE ||
-        declaration->effective_type != W_SEED_FRONTEND_NONE ||
-        declaration->has_explicit_type || declaration->lowerable ||
-        !source_span_valid(document, frontend_module->span) ||
-        !source_span_valid(document, declaration->span) ||
-        !source_span_valid(document, declaration->body_span) ||
+    if (!source_span_valid(document, frontend_module->span) ||
         !source_span_valid(document, module->span) ||
-        !span_equal(declaration->body_span, module->span) ||
-        !span_contains(declaration->span, module->span) ||
+        !span_contains(frontend_module->span, module->span) ||
         !text_equal(frontend_module->source_id, document->logical_source_id) ||
         !text_equal(frontend_module->module_id, document->module_id) ||
         !text_equal(frontend_module->local_module_name,
@@ -438,7 +419,8 @@ static bool scan_frontend(const w_seed_gpu_module_input *input,
       return false;
     const w_seed_frontend_text module_texts[] = {
         frontend_module->source_id, frontend_module->module_id,
-        frontend_module->local_module_name, declaration->name};
+        frontend_module->local_module_name,
+        (w_seed_frontend_text){"kernels", sizeof("kernels") - 1u}};
     for (size_t index = 0u;
          index < sizeof(module_texts) / sizeof(module_texts[0]); index += 1u) {
       if (!text_valid(module_texts[index]) ||
@@ -448,20 +430,19 @@ static bool scan_frontend(const w_seed_gpu_module_input *input,
     }
     hash_u64(&semantic, (uint64_t)module->kernel_count);
     hash_u32(&provenance, module->module_index);
-    hash_u32(&provenance, module->const_declaration_index);
     hash_span(&provenance, frontend_module->span);
-    hash_span(&provenance, declaration->span);
+    hash_span(&provenance, module->span);
 
     for (size_t ordinal = 0u; ordinal < module->kernel_count; ordinal += 1u) {
       const size_t binding_index = kernel_cursor + ordinal;
-      const w_seed_frontend_accelerator_kernel *binding =
-          &output->accelerator_kernels[binding_index];
+      const w_seed_frontend_kernel_binding *binding =
+          &output->kernel_bindings[binding_index];
       const w_seed_frontend_function *function = NULL;
       const w_seed_frontend_statement *statement = NULL;
       const w_seed_frontend_expression *expression = NULL;
       int64_t payload = 0;
       if (binding->module_index != module->module_index ||
-          binding->owner_accelerator_module != module_index ||
+          binding->owner_kernel_module != module_index ||
           binding->ordinal != ordinal || !identifier(binding->label) ||
           !source_span_valid(document, binding->span) ||
           !span_contains(module->span, binding->span) ||
@@ -478,7 +459,7 @@ static bool scan_frontend(const w_seed_gpu_module_input *input,
         return false;
       for (size_t prior = 0u; prior < ordinal; prior += 1u)
         if (text_equal(binding->label,
-                       output->accelerator_kernels[kernel_cursor + prior].label))
+                       output->kernel_bindings[kernel_cursor + prior].label))
           return false;
       if (!add_size(text_bytes, binding->label.length, &text_bytes) ||
           !add_size(text_bytes, function->name.length, &text_bytes))
@@ -501,7 +482,7 @@ static bool scan_frontend(const w_seed_gpu_module_input *input,
     if (!add_size(kernel_cursor, module->kernel_count, &kernel_cursor))
       return false;
   }
-  if (kernel_cursor != result->written.accelerator_kernels) return false;
+  if (kernel_cursor != result->written.kernel_bindings) return false;
   candidate.counts.text_bytes = text_bytes;
   w_seed_sha256_final(&semantic, candidate.semantic_digest);
   w_seed_sha256_update(&provenance, candidate.semantic_digest,
@@ -574,12 +555,12 @@ static bool destinations_exclude_input(
   GPU_MODULE_SOURCE(frontend->const_declarations,
                     frontend_result->written.const_declarations,
                     w_seed_frontend_const_declaration);
-  GPU_MODULE_SOURCE(frontend->accelerator_modules,
-                    frontend_result->written.accelerator_modules,
-                    w_seed_frontend_accelerator_module);
-  GPU_MODULE_SOURCE(frontend->accelerator_kernels,
-                    frontend_result->written.accelerator_kernels,
-                    w_seed_frontend_accelerator_kernel);
+  GPU_MODULE_SOURCE(frontend->kernel_modules,
+                    frontend_result->written.kernel_modules,
+                    w_seed_frontend_kernel_module);
+  GPU_MODULE_SOURCE(frontend->kernel_bindings,
+                    frontend_result->written.kernel_bindings,
+                    w_seed_frontend_kernel_binding);
   GPU_MODULE_SOURCE(frontend->functions, frontend_result->written.functions,
                     w_seed_frontend_function);
   GPU_MODULE_SOURCE(frontend->statements, frontend_result->written.statements,
@@ -651,20 +632,17 @@ static void emit_records(const w_seed_gpu_module_input *input,
   size_t text_offset = 0u;
   size_t kernel_cursor = 0u;
   for (size_t module_index = 0u;
-       module_index < result->written.accelerator_modules; module_index += 1u) {
-    const w_seed_frontend_accelerator_module *source =
-        &frontend->accelerator_modules[module_index];
+       module_index < result->written.kernel_modules; module_index += 1u) {
+    const w_seed_frontend_kernel_module *source =
+        &frontend->kernel_modules[module_index];
     const w_seed_frontend_module *frontend_module =
         &frontend->modules[source->module_index];
-    const w_seed_frontend_const_declaration *declaration =
-        &frontend->const_declarations[source->const_declaration_index];
     w_seed_gpu_module_record record;
     (void)memset(&record, 0, sizeof(record));
     record.frontend_module_index = source->module_index;
-    record.frontend_accelerator_module_index = (uint32_t)module_index;
-    record.frontend_const_declaration_index = source->const_declaration_index;
+    record.frontend_kernel_module_index = (uint32_t)module_index;
     record.source_span = frontend_module->span;
-    record.const_span = declaration->span;
+    record.kernel_contract_span = source->span;
     record.first_kernel = kernel_cursor;
     record.kernel_count = source->kernel_count;
     copy_text(output->text, &text_offset, frontend_module->source_id,
@@ -674,13 +652,15 @@ static void emit_records(const w_seed_gpu_module_input *input,
     copy_text(output->text, &text_offset, frontend_module->local_module_name,
               &record.local_module_name_offset,
               &record.local_module_name_bytes);
-    copy_text(output->text, &text_offset, declaration->name,
-              &record.const_name_offset, &record.const_name_bytes);
+    copy_text(output->text, &text_offset,
+              (w_seed_frontend_text){"kernels", sizeof("kernels") - 1u},
+              &record.kernel_contract_name_offset,
+              &record.kernel_contract_name_bytes);
     output->modules[module_index] = record;
     for (size_t ordinal = 0u; ordinal < source->kernel_count; ordinal += 1u) {
       const size_t binding_index = kernel_cursor + ordinal;
-      const w_seed_frontend_accelerator_kernel *binding =
-          &frontend->accelerator_kernels[binding_index];
+      const w_seed_frontend_kernel_binding *binding =
+          &frontend->kernel_bindings[binding_index];
       const w_seed_frontend_function *function =
           &frontend->functions[binding->function_index];
       const w_seed_frontend_statement *statement =
@@ -693,7 +673,7 @@ static void emit_records(const w_seed_gpu_module_input *input,
       (void)memset(&kernel, 0, sizeof(kernel));
       kernel.owner_module = module_index;
       kernel.ordinal = ordinal;
-      kernel.frontend_accelerator_kernel_index = (uint32_t)binding_index;
+      kernel.frontend_kernel_binding_index = (uint32_t)binding_index;
       kernel.frontend_function_index = binding->function_index;
       kernel.frontend_statement_index = function->first_statement;
       kernel.frontend_expression_index = statement->expression_index;
@@ -838,17 +818,17 @@ static bool program_digests(const w_seed_gpu_module_program *program,
     const w_seed_gpu_module_record *module = &program->modules[index];
     const size_t offsets[] = {module->source_id_offset, module->module_id_offset,
                               module->local_module_name_offset,
-                              module->const_name_offset};
+                              module->kernel_contract_name_offset};
     const size_t lengths[] = {module->source_id_bytes, module->module_id_bytes,
                               module->local_module_name_bytes,
-                              module->const_name_bytes};
-    if (module->frontend_accelerator_module_index != index ||
+                              module->kernel_contract_name_bytes};
+    if (module->frontend_kernel_module_index != index ||
         module->first_kernel != kernel_cursor || module->kernel_count == 0u ||
         !range_valid(module->first_kernel, module->kernel_count,
                      program->kernel_count) ||
         !span_ordered(module->source_span) ||
-        !span_ordered(module->const_span) ||
-        !span_contains(module->source_span, module->const_span))
+        !span_ordered(module->kernel_contract_span) ||
+        !span_contains(module->source_span, module->kernel_contract_span))
       return false;
     for (size_t text = 0u; text < 4u; text += 1u) {
       if (offsets[text] != text_cursor ||
@@ -863,19 +843,19 @@ static bool program_digests(const w_seed_gpu_module_program *program,
                                 module->module_id_bytes), false) ||
         !identifier(program_text(program, module->local_module_name_offset,
                                  module->local_module_name_bytes)) ||
-        !identifier(program_text(program, module->const_name_offset,
-                                 module->const_name_bytes)))
+        !text_equal(program_text(program, module->kernel_contract_name_offset,
+                                 module->kernel_contract_name_bytes),
+                    (w_seed_frontend_text){"kernels", sizeof("kernels") - 1u}))
       return false;
     hash_u64(&semantic, (uint64_t)module->kernel_count);
     hash_u32(&provenance, module->frontend_module_index);
-    hash_u32(&provenance, module->frontend_const_declaration_index);
     hash_span(&provenance, module->source_span);
-    hash_span(&provenance, module->const_span);
+    hash_span(&provenance, module->kernel_contract_span);
     for (size_t ordinal = 0u; ordinal < module->kernel_count; ordinal += 1u) {
       const size_t kernel_index = kernel_cursor + ordinal;
       const w_seed_gpu_module_kernel *kernel = &program->kernels[kernel_index];
       if (kernel->owner_module != index || kernel->ordinal != ordinal ||
-          kernel->frontend_accelerator_kernel_index != kernel_index ||
+          kernel->frontend_kernel_binding_index != kernel_index ||
           kernel->return_bit_width != 32u || !kernel->return_is_signed ||
           kernel->payload < 0 || kernel->payload > INT32_MAX ||
           !span_ordered(kernel->field_span) ||
@@ -883,7 +863,7 @@ static bool program_digests(const w_seed_gpu_module_program *program,
           !span_ordered(kernel->body_span) ||
           !span_ordered(kernel->statement_span) ||
           !span_ordered(kernel->expression_span) ||
-          !span_contains(module->const_span, kernel->field_span) ||
+          !span_contains(module->kernel_contract_span, kernel->field_span) ||
           !span_contains(module->source_span, kernel->function_span) ||
           !span_contains(kernel->function_span, kernel->body_span) ||
           !span_contains(kernel->body_span, kernel->statement_span) ||

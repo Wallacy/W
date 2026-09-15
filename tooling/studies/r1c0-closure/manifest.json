@@ -151,7 +151,7 @@
     {
       "id": "R1-avf0-availability-feature",
       "path": "tooling/studies/avf0-availability-feature/bundle.json",
-      "digest": "sha256:e5b4852b730fd9f42da110d0cfb7e01dfe3cd2bc8bbe24940ff82f01431a0673"
+      "digest": "sha256:f8107e21fb6109066eee8c6ee6154fcbb74e929a79cfe3ba46baf6383ed14890"
     },
     {
       "id": "R1-borrow-expressivity",
@@ -226,7 +226,7 @@
     {
       "id": "R1-dyn1-versioned-behavior",
       "path": "tooling/studies/dyn1-versioned-behavior/bundle.json",
-      "digest": "sha256:40aa78a52167c028ef3c3f606742c7e68271dd5da783de7ab4dc6315074786da"
+      "digest": "sha256:a86b0b825abbabbdcaa411857c6a98015876463a11a6be560d7d0f46fdbbe058"
     },
     {
       "id": "R1-end-relative-access",
@@ -256,7 +256,7 @@
     {
       "id": "R1-hrd0-hot-reload-dev",
       "path": "tooling/studies/hrd0-hot-reload-dev/bundle.json",
-      "digest": "sha256:f74a168fb6b8eb382690cf88599effee88503e9025d6b3ed9b38c4acc3a4fddc"
+      "digest": "sha256:a96d5fd2b144b0ecbfd2cc468bdbd30c572ce591091a03e2a7fd2b320f623215"
     },
     {
       "id": "R1-imports-last-light",
@@ -266,7 +266,7 @@
     {
       "id": "R1-manifest-surface",
       "path": "tooling/studies/r1-manifest-surface/bundle.json",
-      "digest": "sha256:2b048b617cad8ffc62827b82f2fb386d9ffc4f1b193718a3b161760e2bc39bb7"
+      "digest": "sha256:36094e90e8a2372a58d67a81256a868209c7da37e15038e9c22f926903f24647"
     },
     {
       "id": "R1-multiple-initializers",
@@ -281,7 +281,7 @@
     {
       "id": "R1-pkg1-project-transaction",
       "path": "tooling/studies/pkg1-project-transaction/bundle.json",
-      "digest": "sha256:f79489392fbda7e3ca2d247f9f0a9df8b4200eea46d5ebee6c168f0cb8d0dc67"
+      "digest": "sha256:05ccffe7c99858d96636c8d222a74cd94ce73f55ef6fb3fa962b6db933bfe506"
     },
     {
       "id": "R1-post-test-loop",
@@ -336,7 +336,7 @@
     {
       "id": "R1-static-contract-syntax",
       "path": "tooling/studies/r1-static-contract-syntax/bundle.json",
-      "digest": "sha256:46b3c3cbbdda32944c6133c70bdda35d24bb5a7711be34b2b303630703659e96"
+      "digest": "sha256:a8a9de2810db5ae9442b406d3097e60b82704382dc2ad72ce634de2ef9ce0f91"
     },
     {
       "id": "R1-suspend-accounting-names",
@@ -346,7 +346,7 @@
     {
       "id": "R1-syn2-dyn2-closure",
       "path": "tooling/studies/syn2-dyn2-closure/bundle.json",
-      "digest": "sha256:1b846ac8471c8342df598b306f52dc5a77888025b2871c7baaa2e4f9fa6f0ee8"
+      "digest": "sha256:879ab84d972d11751f4673acff37d6a6bcdbbccc7df46a24dd347716b2749d60"
     },
     {
       "id": "R1-tabular-adapters",

@@ -165,6 +165,10 @@
 (import_item name: (identifier) @module)
 (module_path (identifier) @module)
 (module_header name: (identifier) @module)
+(kernel_import_statement "kernel" @keyword)
+(kernel_contract_field "kernels" @keyword)
+(kernel_contract_item name: (identifier) @property)
+(kernel_contract_item function: (identifier) @function)
 
 [
   "=" "+=" "-=" "*=" "/=" "%=" "**=" "<<=" ">>=" "&=" "^=" "|="

@@ -63,6 +63,8 @@ static bool all_bytes_equal(const void *object, size_t length,
 static bool test_forms_and_spans(void) {
   static const char source[] =
       "module kitchen\n"
+      "import kernel;\n"
+      "import kernel.foo;\n"
       "import dep;\n"
       "import dep.path;\n"
       "import alias from package.menu;\n"
@@ -70,7 +72,9 @@ static bool test_forms_and_spans(void) {
       "import {\n"
       "  value as renamed,\n"
       "  other as second,\n"
-      "} from kitchen.menu\n";
+      "} from kitchen.menu\n"
+      "import kernel { forecast } from models.forecast\n"
+      "import kernel models.forecast as models\n";
   fixture value;
   CHECK(parse_text(&value, source));
   CHECK(value.parse.status == W_SEED_PARSE_COMPLETE &&
@@ -80,17 +84,19 @@ static bool test_forms_and_spans(void) {
   CHECK(w_seed_module_scan(&value.source, value.nodes, value.parse.node_count,
                            &value.parse, NULL, 0u, &result) ==
         W_SEED_MODULE_SCAN_CAPACITY);
-  CHECK(result.required == 5u && result.written == 0u &&
+  CHECK(result.required == 9u && result.written == 0u &&
         result.has_module_header_name &&
         result.module_header_name_span.start_byte == 7u &&
         result.module_header_name_span.end_byte == 14u);
   CHECK(w_seed_module_scan(&value.source, value.nodes, value.parse.node_count,
-                           &value.parse, origins, 5u, &result) ==
+                           &value.parse, origins, 9u, &result) ==
         W_SEED_MODULE_SCAN_OK);
-  CHECK(result.required == 5u && result.written == 5u);
+  CHECK(result.required == 9u && result.written == 9u);
   static const char *const paths[] = {
-      "dep", "dep.path", "package.menu", "wildcard.path", "kitchen.menu"};
-  for (size_t index = 0u; index < 5u; index += 1u) {
+      "kernel", "kernel.foo", "dep", "dep.path", "package.menu",
+      "wildcard.path", "kitchen.menu", "models.forecast",
+      "models.forecast"};
+  for (size_t index = 0u; index < 9u; index += 1u) {
     CHECK(origins[index].kind == W_SEED_MODULE_ORIGIN_IMPORT);
     CHECK(origins[index].direct_import_ordinal == (uint32_t)index);
     CHECK(origins[index].cst_node_index < value.parse.node_count);

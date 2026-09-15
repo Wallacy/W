@@ -60,6 +60,108 @@
       return /\bpipeline\s*<(?:(?!>)[\s\S])*$/u.test(before) && /^\s*:/u.test(after);
     }
 
+    function isTrivia(token) {
+      return token.kind === "comment"
+        || token.kind === "doc-comment"
+        || token.kind === "comment-incomplete";
+    }
+
+    function nextCodeToken(position) {
+      let cursor = position + 1;
+      while (cursor < tokens.length && isTrivia(tokens[cursor])) cursor += 1;
+      return cursor < tokens.length ? cursor : -1;
+    }
+
+    function isIdentifierToken(token) {
+      return token?.kind === "identifier" || token?.kind === "keyword";
+    }
+
+    function isModulePathFrom(position) {
+      let cursor = position;
+      if (cursor < 0 || !isIdentifierToken(tokens[cursor])) return -1;
+      while (true) {
+        const dot = nextCodeToken(cursor);
+        if (dot < 0 || tokens[dot].value !== ".") return cursor;
+        const segment = nextCodeToken(dot);
+        if (segment < 0 || !isIdentifierToken(tokens[segment])) return -1;
+        cursor = segment;
+      }
+    }
+
+    function promoteKernelContexts() {
+      const codeTokens = tokens.map((token, position) => ({ token, position }))
+        .filter(({ token }) => !isTrivia(token));
+
+      function codePosition(position) {
+        return codeTokens.findIndex((entry) => entry.position === position);
+      }
+
+      // `kernel` is contextual after `import` only for a complete projection
+      // shape. Ordinary `import kernel` and `import kernel.foo` stay lexical
+      // module paths in this intentionally non-parsing fallback.
+      for (const { token, position } of codeTokens) {
+        if (token.value !== "kernel") continue;
+        const marker = codePosition(position);
+        const previous = marker > 0 ? codeTokens[marker - 1].token : null;
+        if (!previous || previous.value !== "import") continue;
+        const next = marker + 1 < codeTokens.length ? codeTokens[marker + 1] : null;
+        if (!next) continue;
+        if (next.token.value === "{") {
+          let depth = 1;
+          let cursor = marker + 2;
+          while (cursor < codeTokens.length && depth > 0) {
+            if (codeTokens[cursor].token.value === "{") depth += 1;
+            if (codeTokens[cursor].token.value === "}") depth -= 1;
+            cursor += 1;
+          }
+          const afterItems = cursor - 1 < codeTokens.length ? codeTokens[cursor - 1] : null;
+          const from = cursor < codeTokens.length ? codeTokens[cursor] : null;
+          const path = cursor + 1 < codeTokens.length ? codeTokens[cursor + 1] : null;
+          if (depth === 0 && afterItems?.token.value === "}" && from?.token.value === "from" && path
+            && isModulePathFrom(path.position) >= 0) {
+            token.kind = "keyword";
+          }
+          continue;
+        }
+        const pathEnd = isModulePathFrom(next.position);
+        if (pathEnd < 0) continue;
+        const as = marker + 1 < codeTokens.length
+          ? codeTokens.findIndex((entry, index) => index > marker && entry.position === pathEnd)
+          : -1;
+        const aliasWord = as >= 0 && as + 1 < codeTokens.length ? codeTokens[as + 1] : null;
+        if (aliasWord?.token.value === "as" && as + 2 < codeTokens.length
+          && isIdentifierToken(codeTokens[as + 2].token)) {
+          token.kind = "keyword";
+        }
+      }
+
+      // `kernels:` is contextual only inside a module header contract. This
+      // keeps ordinary labels, call arguments, and local bindings unchanged.
+      for (const { token, position } of codeTokens) {
+        if (token.value !== "module") continue;
+        const moduleIndex = codePosition(position);
+        const name = codeTokens[moduleIndex + 1];
+        const open = codeTokens[moduleIndex + 2];
+        if (!name || !open || !isIdentifierToken(name.token) || open.token.value !== "<") continue;
+        let depth = 1;
+        for (let cursor = moduleIndex + 3; cursor < codeTokens.length && depth > 0; cursor += 1) {
+          const candidate = codeTokens[cursor];
+          if (candidate.token.value === "<") {
+            depth += 1;
+            continue;
+          }
+          if (candidate.token.value === ">") {
+            depth -= 1;
+            continue;
+          }
+          if (depth === 1 && candidate.token.value === "kernels") {
+            const colon = cursor + 1 < codeTokens.length ? codeTokens[cursor + 1].token : null;
+            if (colon?.value === ":") candidate.token.kind = "keyword";
+          }
+        }
+      }
+    }
+
     while (index < source.length) {
       const char = source[index];
       if (/\s/u.test(char)) {
@@ -243,6 +345,7 @@
       add("punctuation", start, startLine, startColumn);
     }
 
+    promoteKernelContexts();
     delimiters.forEach((item) => notes.push({ tone: "warning", text: `Linha ${item.line}: delimitador ${item.char} sem fechamento.` }));
     return { tokens, notes };
   }

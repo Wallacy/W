@@ -43,8 +43,8 @@ enum {
   TEST_ENUM_SUBSET_MEMBERS = 64,
   TEST_FIELDS = 32,
   TEST_DECLARATIONS = 16,
-  TEST_ACCELERATOR_MODULES = 8,
-  TEST_ACCELERATOR_KERNELS = 16,
+  TEST_KERNEL_MODULES = 8,
+  TEST_KERNEL_BINDINGS = 16,
   TEST_TYPES = 64,
   TEST_FUNCTIONS = 16,
   TEST_PARAMETERS = 32,
@@ -106,10 +106,10 @@ typedef struct {
   w_seed_frontend_type_declaration type_declarations[TEST_DECLARATIONS];
   w_seed_frontend_alias aliases[TEST_DECLARATIONS];
   w_seed_frontend_const_declaration const_declarations[TEST_DECLARATIONS];
-  w_seed_frontend_accelerator_module
-      accelerator_modules[TEST_ACCELERATOR_MODULES];
-  w_seed_frontend_accelerator_kernel
-      accelerator_kernels[TEST_ACCELERATOR_KERNELS];
+  w_seed_frontend_kernel_module
+      kernel_modules[TEST_KERNEL_MODULES];
+  w_seed_frontend_kernel_binding
+      kernel_bindings[TEST_KERNEL_BINDINGS];
   w_seed_frontend_type types[TEST_TYPES];
   w_seed_frontend_function functions[TEST_FUNCTIONS];
   w_seed_frontend_parameter parameters[TEST_PARAMETERS];
@@ -136,8 +136,8 @@ typedef struct {
 } frontend_fixture;
 
 typedef struct {
-  w_seed_gpu_module_record modules[TEST_ACCELERATOR_MODULES];
-  w_seed_gpu_module_kernel kernels[TEST_ACCELERATOR_KERNELS];
+  w_seed_gpu_module_record modules[TEST_KERNEL_MODULES];
+  w_seed_gpu_module_kernel kernels[TEST_KERNEL_BINDINGS];
   uint8_t text[TEST_GPU_TEXT];
   uint8_t receipt[TEST_GPU_RECEIPT];
 } gpu_storage;
@@ -283,10 +283,10 @@ static bool parse_frontend(const char *source_text) {
       .alias_capacity = TEST_DECLARATIONS,
       .const_declarations = frontend.const_declarations,
       .const_declaration_capacity = TEST_DECLARATIONS,
-      .accelerator_modules = frontend.accelerator_modules,
-      .accelerator_module_capacity = TEST_ACCELERATOR_MODULES,
-      .accelerator_kernels = frontend.accelerator_kernels,
-      .accelerator_kernel_capacity = TEST_ACCELERATOR_KERNELS,
+      .kernel_modules = frontend.kernel_modules,
+      .kernel_module_capacity = TEST_KERNEL_MODULES,
+      .kernel_bindings = frontend.kernel_bindings,
+      .kernel_binding_capacity = TEST_KERNEL_BINDINGS,
       .types = frontend.types,
       .type_capacity = TEST_TYPES,
       .functions = frontend.functions,
@@ -328,8 +328,8 @@ static bool parse_frontend(const char *source_text) {
   CHECK(frontend_status == W_SEED_FRONTEND_OK);
   CHECK(frontend.parse.status == W_SEED_PARSE_COMPLETE &&
         frontend.result.status == W_SEED_FRONTEND_OK &&
-        frontend.result.written.accelerator_modules == 1u &&
-        frontend.result.written.accelerator_kernels == 1u &&
+        frontend.result.written.kernel_modules == 1u &&
+        frontend.result.written.kernel_bindings == 1u &&
         frontend.result.written.facts == 0u &&
         frontend.result.written.diagnostics == 0u);
   return true;
@@ -355,7 +355,7 @@ static w_seed_accelerated_binding0_closed_profile closed_profile(void) {
           sizeof(W_SEED_ACCELERATED_BINDING0_PROFILE_SCHEMA_VERSION) - 1u,
       .root_identity = {"root:main", 9u},
       .domain_identity = {"inference", 9u},
-      .descriptor_name = {"kernels", 7u},
+      .kernel_contract_name = {"kernels", 7u},
       .kernel_label = {"hello", 5u},
       .module_identity = {"example.kernels@1", 17u},
       .artifact_identity = {"artifact:gpu0", 13u},
@@ -406,9 +406,9 @@ static bool make_gpu_program(w_seed_gpu_module_program *program,
   (void)memset(&gpu, 0xa5, sizeof(gpu));
   w_seed_gpu_module_output output = {
       .modules = gpu.modules,
-      .module_capacity = TEST_ACCELERATOR_MODULES,
+      .module_capacity = TEST_KERNEL_MODULES,
       .kernels = gpu.kernels,
-      .kernel_capacity = TEST_ACCELERATOR_KERNELS,
+      .kernel_capacity = TEST_KERNEL_BINDINGS,
       .text = gpu.text,
       .text_capacity = sizeof(gpu.text),
       .frontend_receipt = gpu.receipt,
@@ -420,8 +420,8 @@ static bool make_gpu_program(w_seed_gpu_module_program *program,
         program->kernels[0].return_bit_width == 32u &&
         program->kernels[0].return_is_signed && program->kernels[0].payload == 42 &&
         text_is(program->text, program->text_bytes,
-                program->modules[0].const_name_offset,
-                program->modules[0].const_name_bytes, "kernels") &&
+                program->modules[0].kernel_contract_name_offset,
+                program->modules[0].kernel_contract_name_bytes, "kernels") &&
         text_is(program->text, program->text_bytes,
                 program->kernels[0].label_offset,
                 program->kernels[0].label_bytes, "hello") &&
@@ -577,8 +577,8 @@ static bool check_identity_and_relations(
                 record->function_name_offset, record->function_name_bytes,
                 "kernel"));
   CHECK(record->frontend_module_index == 0u &&
-        record->frontend_accelerator_module_index == 0u &&
-        record->frontend_accelerator_kernel_index == 0u &&
+        record->frontend_kernel_module_index == 0u &&
+        record->frontend_kernel_binding_index == 0u &&
         record->gpu_module_index == 0u && record->gpu_kernel_index == 0u &&
         record->domain_index == 0u &&
         record->domain_kind == W_SEED_FRONTEND_DOMAIN_ACCELERATED &&
@@ -728,14 +728,14 @@ static bool test_negative_boundaries(
         memcmp(&before_result, &result, sizeof(result)) == 0);
   call->argument_count = saved_argument_count;
 
-  const uint32_t saved_module = call->resolved_accelerator_module_index;
-  call->resolved_accelerator_module_index =
+  const uint32_t saved_module = call->resolved_kernel_module_index;
+  call->resolved_kernel_module_index =
       W_SEED_ACCELERATED_INVOCATION0_NONE;
   CHECK(w_seed_accelerated_invocation0_measure(&input, &saved_counts, &result) ==
         W_SEED_ACCELERATED_INVOCATION0_UNSUPPORTED);
   CHECK(memcmp(&before_counts, &saved_counts, sizeof(saved_counts)) == 0 &&
         memcmp(&before_result, &result, sizeof(result)) == 0);
-  call->resolved_accelerator_module_index = saved_module;
+  call->resolved_kernel_module_index = saved_module;
 
   const w_seed_frontend_domain_kind saved_domain_kind = frontend.domains[0].kind;
   frontend.domains[0].kind = W_SEED_FRONTEND_DOMAIN_HOST;
@@ -882,7 +882,7 @@ static bool test_accelerated_invocation(const char *fixture_path,
   CHECK(w_seed_accelerated_request0_verify(&request_program, &request_result));
   if (emit_path != NULL)
     return emit_request_artifact(emit_path, &request_program, &request_result);
-  (void)printf("ACCINV0 source->frontend28->gpu-module-1->program: PASS\n");
+  (void)printf("ACCINV0 source->frontend31->gpu-module-2->program: PASS\n");
   (void)printf("ACCINV0 identities/spans/digests/teardown/negative barriers: PASS\n");
   (void)printf("ACCREQ0 source-derived request/artifact/teardown: PASS\n");
   return true;

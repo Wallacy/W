@@ -7,9 +7,9 @@
 #include "w_seed_source.h"
 
 static const char ACCREQ0_SEMANTIC_TAG[] =
-    "w-seed-accelerated-request0-semantic-1";
+    "w-seed-accelerated-request0-semantic-2";
 static const char ACCREQ0_PROVENANCE_TAG[] =
-    "w-seed-accelerated-request0-provenance-1";
+    "w-seed-accelerated-request0-provenance-2";
 static const uint8_t ACCREQ0_KERNEL_SYMBOL[] = "w_gpu0_kernel";
 
 enum { ACCREQ0_TEXT_FIELDS = 14, ACCREQ0_INPUT_RANGES = 24 };
@@ -181,7 +181,7 @@ static w_seed_accelerated_request0_status collect(
   } while (0)
   BIND_TEXT(0u, root);
   BIND_TEXT(1u, domain);
-  BIND_TEXT(2u, descriptor);
+  BIND_TEXT(2u, kernel_contract_name);
   BIND_TEXT(3u, module_identity);
   BIND_TEXT(4u, artifact_identity);
   BIND_TEXT(5u, kernel_label);
@@ -243,7 +243,7 @@ static w_seed_accelerated_request0_status collect(
   } while (0)
   APPEND(0u, root);
   APPEND(1u, domain);
-  APPEND(2u, descriptor);
+  APPEND(2u, kernel_contract_name);
   APPEND(3u, module_identity);
   APPEND(4u, artifact_identity);
   APPEND(5u, kernel_label);
@@ -416,7 +416,7 @@ static bool program_texts(const w_seed_accelerated_request0_program *program,
                           request_text text[ACCREQ0_TEXT_FIELDS]) {
   const size_t offsets[] = {
       record->root_offset,          record->domain_offset,
-      record->descriptor_offset,    record->module_identity_offset,
+      record->kernel_contract_name_offset, record->module_identity_offset,
       record->artifact_identity_offset, record->kernel_label_offset,
       record->function_name_offset, record->kernel_instance_offset,
       record->target_offset,        record->provider_class_offset,
@@ -425,7 +425,7 @@ static bool program_texts(const w_seed_accelerated_request0_program *program,
   };
   const size_t bytes[] = {
       record->root_bytes,          record->domain_bytes,
-      record->descriptor_bytes,    record->module_identity_bytes,
+      record->kernel_contract_name_bytes, record->module_identity_bytes,
       record->artifact_identity_bytes, record->kernel_label_bytes,
       record->function_name_bytes, record->kernel_instance_bytes,
       record->target_bytes,        record->provider_class_bytes,

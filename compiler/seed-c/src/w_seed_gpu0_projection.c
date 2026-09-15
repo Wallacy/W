@@ -147,8 +147,8 @@ bool w_seed_gpu0_program_from_gpu_module(
   const char *host_name = NULL;
   const char *interface_name = NULL;
   const char *implementation_name = NULL;
-  if (!projection_text(module_program, module->const_name_offset,
-                       module->const_name_bytes, &host_name) ||
+  if (!projection_text(module_program, module->kernel_contract_name_offset,
+                       module->kernel_contract_name_bytes, &host_name) ||
       !projection_text(module_program, kernel->label_offset, kernel->label_bytes,
                        &interface_name) ||
       !projection_text(module_program, kernel->function_name_offset,
@@ -160,13 +160,13 @@ bool w_seed_gpu0_program_from_gpu_module(
   size_t interface_offset = 0u;
   size_t implementation_offset = 0u;
   size_t text_bytes = 0u;
-  if (!projection_add_size(module->const_name_bytes, kernel->label_bytes,
+  if (!projection_add_size(module->kernel_contract_name_bytes, kernel->label_bytes,
                            &implementation_offset) ||
       !projection_add_size(implementation_offset,
                            kernel->function_name_bytes, &text_bytes) ||
       text_bytes > output->text_capacity)
     return false;
-  interface_offset = module->const_name_bytes;
+  interface_offset = module->kernel_contract_name_bytes;
   const w_seed_gpu0_range host_result = {
       W_SEED_GPU0_ADDRESS_HOST, 0u, W_SEED_GPU0_RESULT_BYTES,
       W_SEED_GPU0_RESULT_BYTES};
@@ -177,7 +177,7 @@ bool w_seed_gpu0_program_from_gpu_module(
   const w_seed_gpu0_function functions[
       W_SEED_GPU0_EVIDENCE_FUNCTION_CAPACITY] = {
       {.name = host_name,
-       .name_length = module->const_name_bytes,
+       .name_length = module->kernel_contract_name_bytes,
        .interface_name = NULL,
        .interface_name_length = 0u,
        .role = W_SEED_GPU0_FUNCTION_HOST_ROOT,
@@ -255,7 +255,7 @@ bool w_seed_gpu0_program_from_gpu_module(
 
   /* All validation and artifact measurement above are source-only. Commit the
    * copied identities and records only after the final failure point. */
-  (void)memcpy(output->text, host_name, module->const_name_bytes);
+  (void)memcpy(output->text, host_name, module->kernel_contract_name_bytes);
   (void)memcpy(output->text + interface_offset, interface_name,
                kernel->label_bytes);
   (void)memcpy(output->text + implementation_offset, implementation_name,

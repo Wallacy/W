@@ -1,13 +1,13 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "0f936e95b7c670c219bd30dd04358070a0dbbdfb4046988dd2206ec7f9b8f6b7",
+  "catalogDigest": "aa9b374a77834bc2903e7fbfd2774e79f841680465e7bfef21d78a1e816a3e98",
   "summary": {
     "modules": 32,
     "catalogedApis": 436,
     "draftCatalogedApis": 436,
     "missingCatalogedApis": 0,
-    "qualifiedReferenceSurfaces": 90,
+    "qualifiedReferenceSurfaces": 89,
     "referenceRequirements": 35,
     "contractedReferenceRequirements": 35,
     "missingReferenceRequirements": 0,
@@ -231,15 +231,15 @@
           "queue-receipts"
         ]
       },
-      "catalogedDeclarationsDigest": "e3715bc10e89146dd3e0e0f8cea871bcc337bf182e937cb9507a9e787713b554",
+      "catalogedDeclarationsDigest": "91df614aaeadb172de0cbc6e58b41b4c5a5c615b7298311804abac8711d49d59",
       "apis": [
         {
           "symbol": "KernelModule",
           "kind": "protocol",
           "signature": "export protocol KernelModule",
           "declarationDigest": "ac3c135052b05f36fdcf5bf5382c8f976b688df3f94806afca1dbec575df2a12",
-          "line": 88,
-          "profile": "accelerator-module",
+          "line": 93,
+          "profile": "kernel-module-contract",
           "status": "draft"
         },
         {
@@ -247,7 +247,7 @@
           "kind": "struct",
           "signature": "export struct Launch<Module: KernelModule>",
           "declarationDigest": "3939a2e92b6c260db7c1819868b298cf41949c2895c60ef36a2f3790118da705",
-          "line": 100,
+          "line": 105,
           "profile": "accelerator-launch",
           "members": [
             {
@@ -255,7 +255,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn close() throws LaunchError",
-                  "line": 107
+                  "line": 112
                 }
               ],
               "profile": "accelerator-launch"
@@ -268,7 +268,7 @@
           "kind": "enum",
           "signature": "export enum LaunchError: Error",
           "declarationDigest": "0cc3e89f4c88510fb7830f116e55dc519b2e6624355a9f71b0bc275e45b65bff",
-          "line": 12,
+          "line": 17,
           "profile": "accelerator-launch",
           "status": "draft"
         },
@@ -277,7 +277,7 @@
           "kind": "struct",
           "signature": "export struct Limits: Copy & Equatable",
           "declarationDigest": "774268a699f03d221189d3c15ab55c7fc331cf57eca6a3e300de6e95f9ec3e1e",
-          "line": 27,
+          "line": 32,
           "profile": "value-contract",
           "members": [
             {
@@ -285,7 +285,7 @@
               "overloads": [
                 {
                   "signature": "export const init( maximumInFlight: usize<(1...)>, maximumCommandBytes: u64<(1...)>, maximumArgumentBytes: u64<(1...)>, maximumResultBytes: u64<(1...)>, maximumDependencyEdges: usize<(1...)>, maximumRetainedDeviceBytes: u64<(1...)>, maximumCompletionRecords: usize<(1...)>, maximumCleanupSteps: u64<(1...)>, )",
-                  "line": 37
+                  "line": 42
                 }
               ],
               "profile": "value-contract"
@@ -295,7 +295,7 @@
               "overloads": [
                 {
                   "signature": "export static fn standard(): Limits",
-                  "line": 57
+                  "line": 62
                 }
               ],
               "profile": "value-contract"
@@ -308,18 +308,18 @@
           "kind": "struct",
           "signature": "export struct ModuleIdentity: Copy & Equatable",
           "declarationDigest": "d100cef2c563c7ee1e12ab7b6a830610937c3483ccaa0d8455ee26328984326b",
-          "line": 71,
-          "profile": "accelerator-module",
+          "line": 76,
+          "profile": "kernel-module-contract",
           "members": [
             {
               "symbol": "same",
               "overloads": [
                 {
                   "signature": "export fn same(as other: ref ModuleIdentity): Bool",
-                  "line": 78
+                  "line": 83
                 }
               ],
-              "profile": "accelerator-module"
+              "profile": "kernel-module-contract"
             }
           ],
           "status": "draft"
@@ -327,9 +327,9 @@
         {
           "symbol": "open",
           "kind": "fn",
-          "signature": "export async fn open<Module: KernelModule>( module: ref Module, on queue: ref tensor.Queue, limits: ref Limits, ): Launch<Module> throws LaunchError",
-          "declarationDigest": "8bd7eae595a35bfbdaab4fbd1f2897788c58a25659580331070b853f5f55da87",
-          "line": 112,
+          "signature": "export async fn open<module: KernelModule>( on queue: ref tensor.Queue, limits: ref Limits, ): Launch<module> throws LaunchError",
+          "declarationDigest": "498f8f7a8e09b7bdfb532cce5707274cab761069e706ecc283835bf2e9f2771e",
+          "line": 117,
           "profile": "accelerator-launch",
           "status": "draft"
         }
@@ -8309,7 +8309,7 @@
           "transfer-cancellation"
         ]
       },
-      "catalogedDeclarationsDigest": "e1a1d65eca0ab5c13c261e044222e1a420febd37b4bd99d298dd807ac1ab11ab",
+      "catalogedDeclarationsDigest": "41411344e3abea201e9498dc25113ea721b9c80f13dee9446ee64494ca6f9154",
       "apis": [
         {
           "symbol": "Device",
@@ -8432,9 +8432,9 @@
         {
           "symbol": "transfer",
           "kind": "fn",
-          "signature": "export async fn transfer<Element, shape: StaticList<usize>>( source: take Tensor<Element, shape>, target: ref Device, on queue: ref Queue?, limits: ref Limits, ): Tensor<Element, shape> throws TensorError",
-          "declarationDigest": "bd6508a8f8c254da49cd541e5d0e5248db496d025d1a5854209c0142c32ac000",
-          "line": 110,
+          "signature": "export async fn transfer<to: ExecutionDomainId, Element, shape: StaticList<usize>,>( source: take Tensor<Element, shape>, limits: ref Limits, ): Tensor<Element, shape> throws TensorError",
+          "declarationDigest": "0ec3338e13000bc89fc633c78e0d31036fb63ced28c59afca7427483d67f2763",
+          "line": 129,
           "profile": "tensor-carrier",
           "status": "draft"
         }
@@ -9257,14 +9257,6 @@
       "status": "draft",
       "consumers": [
         "reference/last-light/device_execution_oracle.w"
-      ]
-    },
-    {
-      "module": "std.accelerator",
-      "surface": "module",
-      "status": "draft",
-      "consumers": [
-        "reference/last-light/ai_harness.w"
       ]
     },
     {
@@ -10112,21 +10104,21 @@
       "consumer": "reference/last-light/system_escapes.w"
     },
     {
-      "id": "dev0-accelerator-module-synthesis",
-      "module": "std.accelerator",
-      "surface": "module",
-      "kind": "compiler-synthesis",
-      "status": "draft",
-      "profile": "accelerator-module-synthesis",
-      "consumer": "reference/last-light/ai_harness.w"
-    },
-    {
       "id": "dev0-accelerator-open",
       "module": "std.accelerator",
       "surface": "open",
       "status": "draft",
       "profile": "accelerator-launch",
       "consumer": "reference/last-light/device_execution_oracle.w"
+    },
+    {
+      "id": "dev0-kernel-module-contract",
+      "module": "std.accelerator",
+      "surface": "kernels",
+      "kind": "compiler-synthesis",
+      "status": "draft",
+      "profile": "kernel-module-contract",
+      "consumer": "reference/last-light/ai_harness.w"
     },
     {
       "id": "fs0-file-snapshot",

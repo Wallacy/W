@@ -19,9 +19,9 @@
   } while (0)
 
 static const char ACCINV_SEMANTIC_TAG[] =
-    "w-seed-accelerated-invocation0-semantic-1";
+    "w-seed-accelerated-invocation0-semantic-2";
 static const char ACCINV_PROVENANCE_TAG[] =
-    "w-seed-accelerated-invocation0-provenance-1";
+    "w-seed-accelerated-invocation0-provenance-2";
 
 typedef struct {
   w_seed_accelerated_invocation0_record record;
@@ -97,8 +97,8 @@ static bool make_verified_invocation(void) {
   *record = (w_seed_accelerated_invocation0_record){
       .frontend_module_index = 0u,
       .frontend_owner_function_index = 0u,
-      .frontend_accelerator_module_index = 0u,
-      .frontend_accelerator_kernel_index = 0u,
+      .frontend_kernel_module_index = 0u,
+      .frontend_kernel_binding_index = 0u,
       .gpu_module_index = 0u,
       .gpu_kernel_index = 0u,
       .source_launch_expression = 1u,
@@ -142,8 +142,8 @@ static bool make_verified_invocation(void) {
       .frontend_expression_count = 3u,
       .frontend_type_count = 1u,
       .frontend_domain_count = 1u,
-      .frontend_accelerator_module_count = 1u,
-      .frontend_accelerator_kernel_count = 1u,
+      .frontend_kernel_module_count = 1u,
+      .frontend_kernel_binding_count = 1u,
       .gpu_module_count = 1u,
       .gpu_kernel_count = 1u,
   };
@@ -181,8 +181,8 @@ static bool make_verified_invocation(void) {
 
   hash_u32(&provenance, record->frontend_module_index);
   hash_u32(&provenance, record->frontend_owner_function_index);
-  hash_u32(&provenance, record->frontend_accelerator_module_index);
-  hash_u32(&provenance, record->frontend_accelerator_kernel_index);
+  hash_u32(&provenance, record->frontend_kernel_module_index);
+  hash_u32(&provenance, record->frontend_kernel_binding_index);
   hash_u32(&provenance, record->gpu_module_index);
   hash_u32(&provenance, record->gpu_kernel_index);
   hash_u32(&provenance, record->source_launch_expression);
@@ -223,8 +223,8 @@ static bool make_verified_invocation(void) {
       .frontend_expression_count = 3u,
       .frontend_type_count = 1u,
       .frontend_domain_count = 1u,
-      .frontend_accelerator_module_count = 1u,
-      .frontend_accelerator_kernel_count = 1u,
+      .frontend_kernel_module_count = 1u,
+      .frontend_kernel_binding_count = 1u,
       .gpu_module_count = 1u,
       .gpu_kernel_count = 1u,
   };
@@ -254,7 +254,7 @@ static w_seed_accelerated_binding0_closed_profile make_profile(void) {
           sizeof(W_SEED_ACCELERATED_BINDING0_PROFILE_SCHEMA_VERSION) - 1u,
       .root_identity = {"root:main", 9u},
       .domain_identity = {"inference", 9u},
-      .descriptor_name = {"kernels", 7u},
+      .kernel_contract_name = {"kernels", 7u},
       .kernel_label = {"hello", 5u},
       .module_identity = {"example.kernels@1", 17u},
       .artifact_identity = {"artifact:gpu0", 13u},

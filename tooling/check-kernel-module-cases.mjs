@@ -38,7 +38,7 @@ function matches(actual, expected, location) {
   }
 }
 
-if (corpus.$schema !== "w-kernel-module-cases-1") errors.push("schema")
+if (corpus.$schema !== "w-kernel-module-cases-2") errors.push("schema")
 if (corpus.status !== "design-oracle-input") errors.push("status")
 if (!Array.isArray(corpus.cases) || corpus.cases.length < 20) errors.push("coverage")
 

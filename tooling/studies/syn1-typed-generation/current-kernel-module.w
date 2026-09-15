@@ -1,10 +1,10 @@
-import accelerator from std
+module current_kernel_module<
+  kernels: { score: scoreKernel },
+>
 
-export type ScoreKernel = fn(f32): f32
-
-export const lastLightKernels = accelerator.module<{
-  score: ScoreKernel,
-}>()
+fn scoreKernel(value: f32): f32 {
+  return value
+}
 
 fn exposeKernels(): String {
   return "kernel module"

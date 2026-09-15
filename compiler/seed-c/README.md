@@ -180,16 +180,16 @@ built-in integer, Boolean, or String interpolation. It defaults unconstrained
 integer interpolation to canonical signed `i64`. Version 16 retains those
 append-only records and adds resolver-owned external nominal identity pairs;
 W-1542 documents its bounded `std.process` use. Version 27 appends
-provider-neutral accelerator-module and ordered kernel-binding records for
-exact `accelerator.module<{...}>()` static records. The separate
+provider-neutral kernel-module and ordered kernel-binding records for module
+contracts with `kernels: { label: directFunction }`. The separate
 `w_seed_gpu_module` bridge owns and independently verifies the first bounded
 signed-`i32` device-module slice. HIR0 and MLIR0 lower only their bounded
-subsets. Version 28 appends a discriminated caller-owned domain kind and the
+subsets. Version 31 appends a discriminated caller-owned domain kind and the
 exact typed relation from `spawn<domain>` (where the selected domain is
 accelerated) to an immediate
-accelerator-module field, including module/kernel indices and the static
-submission budget. It rejects bare or `async` module-field calls, host-domain
-offload, missing fields, and malformed accelerated bindings. Escape decoding,
+kernel binding, including module/kernel indices and the static
+submission budget. It rejects bare or `async` kernel calls, host-domain
+offload, missing bindings, and malformed accelerated bindings. Escape decoding,
 Boolean/String value Display, general Display conformance, general device IR,
 and native provider linkage outside those subsets remain gaps.
 
@@ -291,7 +291,7 @@ integrity, not provider authentication. Native HIR execution, trusted
 attestation, typed TASKLIFE, other platform providers, public products,
 benchmarks, and performance remain unsupported.
 
-`w_seed_accelerated_invocation0` consumes only that successful Frontend28
+`w_seed_accelerated_invocation0` consumes only that successful Frontend31
 relation plus a verified `w_seed_gpu_module` program. ACCINV0 copies one exact
 zero-argument static launch and lexical await into caller-owned invocation and
 text storage. Its semantic digest binds domain policy, copied identities,
@@ -308,7 +308,7 @@ the nominal `LaunchError` carried by the eventual Task type.
 
 `w_seed_accelerated_binding0` consumes only a verified ACCINV0 program/result
 and one closed product/profile record. ACCBIND0 copies the root, canonical
-domain, local descriptor, module, artifact, kernel-instance, target and
+domain, local module, module, artifact, kernel-instance, target and
 provider-class identities into caller-owned storage. It accepts only the
 reject fallback in this first slice, requires the selected instance and
 provider ABI to match the closed record, and sets the effective in-flight
@@ -323,7 +323,7 @@ submission, join, result, transfer, residency, public product route or
 supported GPU ABI is implemented here.
 
 `w_seed_accelerated_request0` consumes only verified ACCBIND0 and GPU0
-program/results. ACCREQ0 cross-checks the source-local descriptor, GPU0 host
+program/results. ACCREQ0 cross-checks the source module-contract root, GPU0 host
 root, kernel label, private device function and explicit signed-`i32` result
 shape, then copies one request, every identity byte and the exact device
 artifact into caller-owned storage. Semantic identity excludes queue, device,
@@ -2463,27 +2463,31 @@ stay outside timing; H2D, launch-plus-synchronize, D2H, and complete round-trip
 use 101 warmups and 1001 in-process samples. These numbers are compiler/linkage
 diagnostics, not W product rankings.
 
-The seed parser accepts `accelerator.module<{ hello: kernel }>()` and emits
-distinct `W_SEED_CST_STATIC_RECORD` and `W_SEED_CST_STATIC_FIELD` owners.
-Frontend28 then publishes provider-neutral accelerator-module and ordered
-kernel-binding records for nonempty, uniquely labeled static records whose
-values are direct same-document functions. Focused tests cover one and multiple
-kernels, deterministic receipts, exact ownership, short capacities, empty and
-malformed records, duplicate labels, missing functions, and runtime arguments.
+The seed parser accepts a contextual module contract such as
+`module gpuHello<kernels: { hello: helloKernel }>` and emits distinct contract
+and kernel-field owners. Frontend31 then publishes provider-neutral
+kernel-module and ordered kernel-binding records for nonempty, uniquely labeled
+contracts whose targets are direct same-document functions. Public labels are
+canonicalized before ordinals, and validation is transactional. Focused tests
+cover one and multiple kernels, deterministic receipts, exact ownership, short
+capacities, empty and malformed records, duplicate labels, missing functions,
+generic targets without specialization records, reorder invariance, and malformed
+or non-identifier contract values. Named and qualified `import kernel` forms are parser/module-scan
+coverage only; the seed does not resolve another module.
 
 `w_seed_gpu_module` is the next target-neutral compiler boundary. It validates
-Frontend28 independently, measures caller-owned module/kernel/text/receipt
+Frontend31 independently, measures caller-owned module/kernel/text/receipt
 storage, copies no frontend or source pointer, and publishes separate semantic
 and provenance digests. Its verifier works after source, CST, and frontend
 teardown and rejects aliases, short capacity, malformed spans and identities,
 forged indices or payloads, receipt changes, and digest changes. The fixture
 `fixtures/gpu0-module.w` proves the current function-body slice: a direct,
-zero-parameter, effect-free signed-`i32` literal return. Multiple module fields
+zero-parameter, effect-free signed-`i32` literal return. Multiple kernel bindings
 remain representable; this exact body shape is not a language or ABI limit.
 
 `w_seed_gpu0_program_from_gpu_module` is the provider-neutral projection after
-that independent verification. It selects one module field, copies the module
-const name, field label, and private implementation name into caller-owned
+that independent verification. It selects one kernel binding, copies the module
+module name, public label, and private implementation name into caller-owned
 projection text, and carries the verified kernel payload into the exact GPU0
 operation pair. The projected program remains verifiable after the bridge
 storage is released; no heap or provider/runtime handle is introduced.

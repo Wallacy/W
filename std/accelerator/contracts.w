@@ -1,13 +1,16 @@
 // Structured accelerator launch contracts.
 //
 // This file is a parseable SDK draft. The provider is missing.
-// `accelerator.module` is a compiler synthesis head cataloged separately. It
-// is not an exported runtime function. `open` is the provider boundary for a
-// descriptor and artifact that the compiler already validated. KernelModule
-// is a public constraint with compiler-owned conformance; user types cannot
-// conform manually. A static `.accelerated` execution domain owns the same
-// launch relation at its root and uses `spawn<domain> descriptor.field(...)`;
-// this explicit API remains for runtime device or queue selection.
+// `kernels: { label: directFunction }` is a compiler-owned contextual field of
+// a module contract, not an exported runtime function or descriptor. `open`
+// is the provider boundary for a module projection and artifact that the
+// compiler already validated; callers spell the advanced route as
+// `accelerator.open<module: alias>(on: ref queue, limits: ref limits)`.
+// KernelModule is a public constraint with compiler-owned conformance; user
+// types cannot conform manually. A static `.accelerated` execution domain
+// owns the same launch relation at its root and uses
+// `spawn<domain> name(...)` or `spawn<domain> alias.name(...)`; this explicit
+// API remains for runtime device or queue selection.
 
 import tensor from std
 
@@ -111,19 +114,17 @@ export struct Launch<Module: KernelModule> {
   }
 }
 
-export async fn open<Module: KernelModule>(
-  module: ref Module,
+export async fn open<module: KernelModule>(
   on queue: ref tensor.Queue,
   limits: ref Limits,
-): Launch<Module> throws LaunchError {
+): Launch<module> throws LaunchError {
   let raw = unsafe {
-    try await stdAcceleratorOpen(
-      ref module,
+    try await stdAcceleratorOpen<module>(
       ref queue,
       ref limits,
     )
   }
-  let handle = TypedLaunchHandle<Module>(validatedRaw: raw)
+  let handle = TypedLaunchHandle<module>(validatedRaw: raw)
   return Launch(validatedHandle: handle)
 }
 
@@ -136,8 +137,7 @@ foreign intrinsic from "std.accelerator@1" {
     _ right: ref ModuleIdentityHandle,
   ): Bool
 
-  async fn stdAcceleratorOpen<Module: KernelModule>(
-    _ module: ref Module,
+  async fn stdAcceleratorOpen<module: KernelModule>(
     _ queue: ref tensor.Queue,
     _ limits: ref Limits,
   ): LaunchHandle throws LaunchError

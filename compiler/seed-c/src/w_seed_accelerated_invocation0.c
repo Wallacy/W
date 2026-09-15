@@ -8,9 +8,9 @@
 #include "w_seed_unicode.h"
 
 static const char ACCINV0_SEMANTIC_TAG[] =
-    "w-seed-accelerated-invocation0-semantic-1";
+    "w-seed-accelerated-invocation0-semantic-2";
 static const char ACCINV0_PROVENANCE_TAG[] =
-    "w-seed-accelerated-invocation0-provenance-1";
+    "w-seed-accelerated-invocation0-provenance-2";
 
 typedef struct {
   uintptr_t begin;
@@ -31,8 +31,8 @@ typedef struct {
   uint32_t frontend_expression_count;
   uint32_t frontend_type_count;
   uint32_t frontend_domain_count;
-  uint32_t frontend_accelerator_module_count;
-  uint32_t frontend_accelerator_kernel_count;
+  uint32_t frontend_kernel_module_count;
+  uint32_t frontend_kernel_binding_count;
   uint32_t gpu_module_count;
   uint32_t gpu_kernel_count;
   uint8_t frontend_receipt_digest[
@@ -235,8 +235,8 @@ static bool frontend_counts_equal(const w_seed_frontend_counts *left,
   ACCINV0_COUNT(const_elements);
   ACCINV0_COUNT(const_bytes);
   ACCINV0_COUNT(const_declarations);
-  ACCINV0_COUNT(accelerator_modules);
-  ACCINV0_COUNT(accelerator_kernels);
+  ACCINV0_COUNT(kernel_modules);
+  ACCINV0_COUNT(kernel_bindings);
 #undef ACCINV0_COUNT
   return true;
 }
@@ -310,8 +310,8 @@ static void record_hash_provenance(
     const uint8_t gpu_provenance_digest[32]) {
   hash_u32(state, record->frontend_module_index);
   hash_u32(state, record->frontend_owner_function_index);
-  hash_u32(state, record->frontend_accelerator_module_index);
-  hash_u32(state, record->frontend_accelerator_kernel_index);
+  hash_u32(state, record->frontend_kernel_module_index);
+  hash_u32(state, record->frontend_kernel_binding_index);
   hash_u32(state, record->gpu_module_index);
   hash_u32(state, record->gpu_kernel_index);
   hash_u32(state, record->source_launch_expression);
@@ -379,8 +379,8 @@ static bool program_metadata_valid(
     const w_seed_accelerated_invocation0_program *program) {
   return program != NULL && program->frontend_module_count != 0u &&
          program->frontend_domain_count != 0u &&
-         program->frontend_accelerator_module_count != 0u &&
-         program->frontend_accelerator_kernel_count != 0u &&
+         program->frontend_kernel_module_count != 0u &&
+         program->frontend_kernel_binding_count != 0u &&
          program->gpu_module_count != 0u && program->gpu_kernel_count != 0u &&
          program->frontend_function_count != 0u &&
          program->frontend_statement_count != 0u &&
@@ -405,10 +405,10 @@ static bool program_records_valid(
       &program->invocations[0];
   if (record->frontend_module_index >= program->frontend_module_count ||
       record->frontend_owner_function_index >= program->frontend_function_count ||
-      record->frontend_accelerator_module_index >=
-          program->frontend_accelerator_module_count ||
-      record->frontend_accelerator_kernel_index >=
-          program->frontend_accelerator_kernel_count ||
+      record->frontend_kernel_module_index >=
+          program->frontend_kernel_module_count ||
+      record->frontend_kernel_binding_index >=
+          program->frontend_kernel_binding_count ||
       record->gpu_module_index >= program->gpu_module_count ||
       record->gpu_kernel_index >= program->gpu_kernel_count ||
       record->source_launch_expression >= program->frontend_expression_count ||
@@ -535,10 +535,10 @@ static bool frontend_sources_exclude(
   ACCINV0_FRONTEND_ARRAY(modules, module_capacity, w_seed_frontend_module);
   ACCINV0_FRONTEND_ARRAY(const_declarations, const_declaration_capacity,
                          w_seed_frontend_const_declaration);
-  ACCINV0_FRONTEND_ARRAY(accelerator_modules, accelerator_module_capacity,
-                         w_seed_frontend_accelerator_module);
-  ACCINV0_FRONTEND_ARRAY(accelerator_kernels, accelerator_kernel_capacity,
-                         w_seed_frontend_accelerator_kernel);
+  ACCINV0_FRONTEND_ARRAY(kernel_modules, kernel_module_capacity,
+                         w_seed_frontend_kernel_module);
+  ACCINV0_FRONTEND_ARRAY(kernel_bindings, kernel_binding_capacity,
+                         w_seed_frontend_kernel_binding);
   ACCINV0_FRONTEND_ARRAY(functions, function_capacity, w_seed_frontend_function);
   ACCINV0_FRONTEND_ARRAY(parameters, parameter_capacity,
                          w_seed_frontend_parameter);
@@ -559,8 +559,8 @@ static bool frontend_sources_exclude(
        index < frontend_result->written.const_declarations; index += 1u)
     ACCINV0_TEXT(frontend_output->const_declarations[index].name);
   for (size_t index = 0u;
-       index < frontend_result->written.accelerator_kernels; index += 1u)
-    ACCINV0_TEXT(frontend_output->accelerator_kernels[index].label);
+       index < frontend_result->written.kernel_bindings; index += 1u)
+    ACCINV0_TEXT(frontend_output->kernel_bindings[index].label);
   for (size_t index = 0u; index < frontend_result->written.functions; index += 1u)
     ACCINV0_TEXT(frontend_output->functions[index].name);
   for (size_t index = 0u;
@@ -667,8 +667,8 @@ static w_seed_accelerated_invocation0_status preflight(
       frontend_result->written.statements > UINT32_MAX ||
       frontend_result->written.expressions > UINT32_MAX ||
        frontend_result->written.types > UINT32_MAX ||
-      frontend_result->written.accelerator_modules > UINT32_MAX ||
-      frontend_result->written.accelerator_kernels > UINT32_MAX)
+      frontend_result->written.kernel_modules > UINT32_MAX ||
+      frontend_result->written.kernel_bindings > UINT32_MAX)
     return W_SEED_ACCELERATED_INVOCATION0_INCONSISTENT;
 #define ACCINV0_FRONTEND_VALID(field, capacity_field, type)                   \
   if (!array_valid(frontend_output->field, frontend_result->written.field,    \
@@ -677,10 +677,10 @@ static w_seed_accelerated_invocation0_status preflight(
   ACCINV0_FRONTEND_VALID(modules, module_capacity, w_seed_frontend_module);
   ACCINV0_FRONTEND_VALID(const_declarations, const_declaration_capacity,
                          w_seed_frontend_const_declaration);
-  ACCINV0_FRONTEND_VALID(accelerator_modules, accelerator_module_capacity,
-                         w_seed_frontend_accelerator_module);
-  ACCINV0_FRONTEND_VALID(accelerator_kernels, accelerator_kernel_capacity,
-                         w_seed_frontend_accelerator_kernel);
+  ACCINV0_FRONTEND_VALID(kernel_modules, kernel_module_capacity,
+                         w_seed_frontend_kernel_module);
+  ACCINV0_FRONTEND_VALID(kernel_bindings, kernel_binding_capacity,
+                         w_seed_frontend_kernel_binding);
   ACCINV0_FRONTEND_VALID(functions, function_capacity, w_seed_frontend_function);
   ACCINV0_FRONTEND_VALID(parameters, parameter_capacity,
                          w_seed_frontend_parameter);
@@ -747,10 +747,10 @@ static bool scan_find_source(const w_seed_accelerated_invocation0_input *input,
       (uint32_t)frontend_result->written.expressions;
   scan->frontend_type_count = (uint32_t)frontend_result->written.types;
   scan->frontend_domain_count = (uint32_t)frontend_input->domain_count;
-  scan->frontend_accelerator_module_count =
-      (uint32_t)frontend_result->written.accelerator_modules;
-  scan->frontend_accelerator_kernel_count =
-      (uint32_t)frontend_result->written.accelerator_kernels;
+  scan->frontend_kernel_module_count =
+      (uint32_t)frontend_result->written.kernel_modules;
+  scan->frontend_kernel_binding_count =
+      (uint32_t)frontend_result->written.kernel_bindings;
   scan->gpu_module_count = (uint32_t)gpu_program->module_count;
   scan->gpu_kernel_count = (uint32_t)gpu_program->kernel_count;
 
@@ -801,47 +801,46 @@ static bool scan_find_source(const w_seed_accelerated_invocation0_input *input,
       call->left == W_SEED_ACCELERATED_INVOCATION0_NONE ||
       (size_t)call->left >= frontend_result->written.expressions ||
       call->resolved_callee_kind !=
-          W_SEED_FRONTEND_CALLEE_ACCELERATOR_MODULE_FIELD ||
-      call->resolved_accelerator_module_index ==
+          W_SEED_FRONTEND_CALLEE_KERNEL_BINDING ||
+      call->resolved_kernel_module_index ==
           W_SEED_ACCELERATED_INVOCATION0_NONE ||
-      call->resolved_accelerator_kernel_index ==
+      call->resolved_kernel_binding_index ==
           W_SEED_ACCELERATED_INVOCATION0_NONE ||
       call->resolved_function_index == W_SEED_ACCELERATED_INVOCATION0_NONE)
     return false;
   const w_seed_frontend_expression *callee = &output->expressions[call->left];
-  if (callee->kind != W_SEED_FRONTEND_EXPR_MEMBER || !callee->supported ||
+  if (callee->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER || !callee->supported ||
       callee->module_index != call->module_index ||
       callee->owner_function != call->owner_function ||
       callee->resolved_callee_kind !=
-          W_SEED_FRONTEND_CALLEE_ACCELERATOR_MODULE_FIELD ||
-      callee->resolved_accelerator_module_index !=
-          call->resolved_accelerator_module_index ||
-      callee->resolved_accelerator_kernel_index !=
-          call->resolved_accelerator_kernel_index ||
+          W_SEED_FRONTEND_CALLEE_KERNEL_BINDING ||
+      callee->resolved_kernel_module_index !=
+          call->resolved_kernel_module_index ||
+      callee->resolved_kernel_binding_index !=
+          call->resolved_kernel_binding_index ||
       callee->resolved_function_index != call->resolved_function_index ||
-      callee->member_name.length == 0u)
+      callee->spelling.length == 0u)
     return false;
   if (launch->module_index != call->module_index ||
       launch->owner_function != call->owner_function)
     return false;
-  const uint32_t module_index = call->resolved_accelerator_module_index;
-  const uint32_t kernel_index = call->resolved_accelerator_kernel_index;
+  const uint32_t module_index = call->resolved_kernel_module_index;
+  const uint32_t kernel_index = call->resolved_kernel_binding_index;
   const uint32_t function_index = call->resolved_function_index;
-  if (module_index >= frontend_result->written.accelerator_modules ||
-      kernel_index >= frontend_result->written.accelerator_kernels ||
+  if (module_index >= frontend_result->written.kernel_modules ||
+      kernel_index >= frontend_result->written.kernel_bindings ||
       function_index >= frontend_result->written.functions)
     return false;
-  const w_seed_frontend_accelerator_module *module =
-      &output->accelerator_modules[module_index];
-  const w_seed_frontend_accelerator_kernel *kernel =
-      &output->accelerator_kernels[kernel_index];
+  const w_seed_frontend_kernel_module *module =
+      &output->kernel_modules[module_index];
+  const w_seed_frontend_kernel_binding *kernel =
+      &output->kernel_bindings[kernel_index];
   const w_seed_frontend_function *function = &output->functions[function_index];
   if (module->module_index != call->module_index ||
       kernel->module_index != call->module_index ||
-      kernel->owner_accelerator_module != module_index ||
+      kernel->owner_kernel_module != module_index ||
        kernel->function_index != function_index ||
-      !text_equal(kernel->label, callee->member_name) ||
-      module->const_declaration_index >= frontend_result->written.const_declarations ||
+      !text_equal(kernel->label, callee->spelling) ||
        function->module_index != call->module_index ||
        function->return_type >= frontend_result->written.types ||
        function->parameter_count != 0u || call->argument_count != 0u ||
@@ -871,19 +870,17 @@ static bool scan_find_source(const w_seed_accelerated_invocation0_input *input,
   size_t gpu_module_index = SIZE_MAX;
   for (size_t index = 0u; index < gpu_program->module_count; index += 1u) {
     const w_seed_gpu_module_record *candidate = &gpu_program->modules[index];
-    if (candidate->frontend_accelerator_module_index != module_index) continue;
+    if (candidate->frontend_kernel_module_index != module_index) continue;
     if (gpu_module_index != SIZE_MAX) return false;
     gpu_module_index = index;
-    if (candidate->frontend_module_index != call->module_index ||
-        candidate->frontend_const_declaration_index !=
-            module->const_declaration_index)
+    if (candidate->frontend_module_index != call->module_index)
       return false;
   }
   if (gpu_module_index == SIZE_MAX) return false;
   size_t gpu_kernel_index = SIZE_MAX;
   for (size_t index = 0u; index < gpu_program->kernel_count; index += 1u) {
     const w_seed_gpu_module_kernel *candidate = &gpu_program->kernels[index];
-    if (candidate->frontend_accelerator_kernel_index != kernel_index ||
+    if (candidate->frontend_kernel_binding_index != kernel_index ||
         candidate->owner_module != gpu_module_index)
       continue;
     if (gpu_kernel_index != SIZE_MAX) return false;
@@ -910,8 +907,8 @@ static bool scan_find_source(const w_seed_accelerated_invocation0_input *input,
   if (gpu_kernel_index == SIZE_MAX || !identifier(scan->function_name)) return false;
   const w_seed_gpu_module_record *gpu_module =
       &gpu_program->modules[gpu_module_index];
-  if (!gpu_text(gpu_program, gpu_module->const_name_offset,
-                gpu_module->const_name_bytes, &scan->module_name) ||
+  if (!gpu_text(gpu_program, gpu_module->kernel_contract_name_offset,
+                gpu_module->kernel_contract_name_bytes, &scan->module_name) ||
       !identifier(scan->module_name) ||
       !gpu_text(gpu_program, gpu_program->kernels[gpu_kernel_index].label_offset,
                 gpu_program->kernels[gpu_kernel_index].label_bytes,
@@ -920,8 +917,8 @@ static bool scan_find_source(const w_seed_accelerated_invocation0_input *input,
   scan->domain_name = domain->name;
   scan->invocation.frontend_module_index = call->module_index;
   scan->invocation.frontend_owner_function_index = call->owner_function;
-  scan->invocation.frontend_accelerator_module_index = module_index;
-  scan->invocation.frontend_accelerator_kernel_index = kernel_index;
+  scan->invocation.frontend_kernel_module_index = module_index;
+  scan->invocation.frontend_kernel_binding_index = kernel_index;
   if (gpu_module_index > UINT32_MAX || gpu_kernel_index > UINT32_MAX)
     return false;
   scan->invocation.gpu_module_index = (uint32_t)gpu_module_index;
@@ -1053,10 +1050,10 @@ static w_seed_accelerated_invocation0_result result_from_scan(
   result.frontend_expression_count = scan->frontend_expression_count;
   result.frontend_type_count = scan->frontend_type_count;
   result.frontend_domain_count = scan->frontend_domain_count;
-  result.frontend_accelerator_module_count =
-      scan->frontend_accelerator_module_count;
-  result.frontend_accelerator_kernel_count =
-      scan->frontend_accelerator_kernel_count;
+  result.frontend_kernel_module_count =
+      scan->frontend_kernel_module_count;
+  result.frontend_kernel_binding_count =
+      scan->frontend_kernel_binding_count;
   result.gpu_module_count = scan->gpu_module_count;
   result.gpu_kernel_count = scan->gpu_kernel_count;
   (void)memcpy(result.frontend_receipt_digest, scan->frontend_receipt_digest,
@@ -1093,10 +1090,10 @@ static bool result_matches_program(
       result->frontend_expression_count != program->frontend_expression_count ||
       result->frontend_type_count != program->frontend_type_count ||
       result->frontend_domain_count != program->frontend_domain_count ||
-      result->frontend_accelerator_module_count !=
-          program->frontend_accelerator_module_count ||
-      result->frontend_accelerator_kernel_count !=
-          program->frontend_accelerator_kernel_count ||
+      result->frontend_kernel_module_count !=
+          program->frontend_kernel_module_count ||
+      result->frontend_kernel_binding_count !=
+          program->frontend_kernel_binding_count ||
       result->gpu_module_count != program->gpu_module_count ||
       result->gpu_kernel_count != program->gpu_kernel_count ||
       memcmp(result->frontend_receipt_digest, program->frontend_receipt_digest,
@@ -1234,10 +1231,10 @@ bool w_seed_accelerated_invocation0_program_from_output(
   candidate.frontend_expression_count = result->frontend_expression_count;
   candidate.frontend_type_count = result->frontend_type_count;
   candidate.frontend_domain_count = result->frontend_domain_count;
-  candidate.frontend_accelerator_module_count =
-      result->frontend_accelerator_module_count;
-  candidate.frontend_accelerator_kernel_count =
-      result->frontend_accelerator_kernel_count;
+  candidate.frontend_kernel_module_count =
+      result->frontend_kernel_module_count;
+  candidate.frontend_kernel_binding_count =
+      result->frontend_kernel_binding_count;
   candidate.gpu_module_count = result->gpu_module_count;
   candidate.gpu_kernel_count = result->gpu_kernel_count;
   (void)memcpy(candidate.frontend_receipt_digest,

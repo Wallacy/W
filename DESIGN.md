@@ -907,10 +907,12 @@ package {
 }
 ```
 
-O schema v0 do header de módulo publica somente o slot nomeado `domains`. Ele
-declara requirements estáticos. Pools, capacity, queues e fallbacks pertencem
-ao execution profile do package e não são slots de módulo. W não possui
-`parallelDefault`: `spawn` e `parallelMap` selecionam o domínio no call site.
+O schema v0 do header de módulo publica os slots contextuais `domains` e
+`kernels`. `domains` declara requirements estáticos; `kernels` declara as
+raízes reutilizáveis da família de kernels do módulo. Pools, capacity, queues e
+fallbacks pertencem ao execution profile do package e não são slots de módulo.
+W não possui `parallelDefault`: `spawn` e `parallelMap` selecionam o domínio no
+call site.
 
 Esta subseção é normativa para raízes de documento, imports e declarations.
 Ela usa `type`, `expression`, `pattern`, `static_argument`, `parameter_list` e
@@ -921,8 +923,14 @@ document = module_source | manifest_document ;
 
 module_source = module_header? import_declaration*
                 top_level_declaration* EOF ;
-module_header = "module" identifier contract_arguments? ";"? ;
-contract_arguments = "<" static_argument ("," static_argument)* ","? ">" ;
+module_header = "module" identifier module_contract? ";"? ;
+module_contract = "<" module_contract_field
+                 ("," module_contract_field)* ","? ">" ;
+module_contract_field = static_argument | kernel_contract_field ;
+kernel_contract_field = "kernels" ":" kernel_contract_record ;
+kernel_contract_record = "{" kernel_contract_item
+                         ("," kernel_contract_item)* ","? "}" ;
+kernel_contract_item = identifier ":" identifier ;
 
 manifest_document = build_manifest EOF ;
 build_manifest = package_manifest workspace_manifest?
@@ -1054,6 +1062,7 @@ parser de bodies:
 
 ```ebnf
 import_declaration = ordinary_import
+                   | kernel_import
                    | reexport_declaration
                    | service_import
                    | domain_import ;
@@ -1070,6 +1079,13 @@ reexport_item = identifier ("as" identifier)? ;
 
 named_imports = "{" import_item ("," import_item)* ","? "}" ;
 import_item = identifier ("as" identifier)? ;
+
+kernel_import = "import" "kernel"
+                (named_kernel_imports "from" module_path
+                 | module_path "as" identifier) ";"? ;
+named_kernel_imports = "{" kernel_import_item
+                       ("," kernel_import_item)* ","? "}" ;
+kernel_import_item = identifier ("as" identifier)? ;
 
 domain_import = "import" "domain" named_imports
                 "from" module_path ";"? ;
@@ -1092,6 +1108,41 @@ local. `export { A }` continua o export coletivo de declarations locais.
 também não existem. `as` aparece em imports comuns e em reexports nomeados.
 A projeção inteira de um módulo com `import service` mantém sua forma especial
 `import service module as binding`.
+
+`import kernel` é uma projeção contextual, não uma keyword global: o marcador
+só é consumido quando a forma nomeada (`{ ... } from module`) ou qualificada
+(`module as alias`) está completa. Assim, `import kernel` e `import kernel.foo`
+continuam sendo imports ordinários de módulos com esses nomes. A projeção de
+kernel importa identidades conhecidas pelo compiler, não um valor runtime, uma
+authority ou um binding de função ordinário. O import comum da função subjacente
+continua sendo a call host; ele não é criado implicitamente pelo import de
+kernel. Aliases de kernel registram somente proveniência local e nunca mudam a
+`ModuleIdentity` ou o `KernelInstanceId` de origem. Uma colisão entre alias de
+kernel e símbolo/import local é diagnosticada.
+
+Na forma nomeada, o item sem alias só pode ser o callee imediato de
+`spawn<domain> name(args)`. Na forma qualificada, o projection alias pode ser
+usado como `spawn<domain> alias.name(args)` e como a origem estática do caminho
+dinâmico avançado. A forma dinâmica explicita a projeção no contrato de
+`open`:
+
+```w
+import kernel models as models
+
+var launch = try await accelerator.open<module: models>(
+  on: ref queue,
+  limits: ref limits,
+)
+let result = try await models.forecast.launch(
+  using: ref launch,
+  features: ref features,
+)
+```
+
+Resolver imports entre módulos, fechar reachability de produto e executar o
+launch qualificado são etapas posteriores ao seed; o seed atual preserva a
+forma em CST/module-scan e implementa somente o launch local definido pelo
+próprio module header.
 
 O top-level aceita somente estas declarations:
 
@@ -4581,6 +4632,75 @@ module kitchen<
   ],
 >
 ```
+
+Um módulo que fornece kernels declara a família no mesmo contrato, usando o
+campo contextual `kernels`:
+
+```w
+module models<
+  kernels: {
+    forecast: forecastKernel,
+    normalize: normalizeKernel,
+  },
+>
+
+fn forecastKernel(features: ref Features): Scores { ... }
+fn normalizeKernel(values: inout Scores) { ... }
+```
+
+`kernels` não é uma keyword global nem uma lista runtime. Cada item é um label
+público e um símbolo de função direto do módulo; a declaração da função pode
+vir depois do header e ser resolvida no módulo inteiro. O módulo contém uma
+única família de kernels; famílias independentes usam módulos independentes.
+O contrato publica roots reutilizáveis, enquanto o product/profile liga
+`domain`, provider, target, numeric mode e as especializações finitas que seus
+launch sites alcançam.
+
+Os labels são a ordem canônica da interface: a normalização ordena por label
+público, portanto reordenar o texto não altera `ModuleIdentity`, ordinais
+semânticos ou os `KernelInstanceId`s derivados. Label duplicado é erro. Renomear
+o label muda a interface; renomear o símbolo privado ou alterar seu body muda
+somente a implementation identity. Um target genérico é uma família permitida
+pela linguagem, mas só pode virar launch quando houver um registro de
+especialização concreto.
+
+O kernel projection é separado do import ordinário:
+
+```w
+import kernel { forecast, normalize as scale } from models
+import kernel models as modelsKernels
+
+let task = spawn<.inference> forecast(features: ref features)
+let other = spawn<.inference> modelsKernels.normalize(values: inout values)
+```
+
+Essas projeções carregam identidades conhecidas pelo compiler e sua proveniência
+local; não são values, bindings de função ou authority. O alias não altera a
+origem do módulo ou do kernel. Um import comum de `forecastKernel` continua
+sendo a call host e não é criado implicitamente pelo import de kernel. Colisões
+entre um alias de kernel, um símbolo local e um alias de import comum são
+diagnosticadas; o caller pode dar alias ao import comum.
+
+O item nomeado sem alias só resolve como o callee imediato de um `spawn` para
+um domínio acelerado. O alias qualificado resolve para esse mesmo caminho e
+também fornece a projeção estática para launch dinâmico:
+
+```w
+var launch = try await accelerator.open<module: modelsKernels>(
+  on: ref queue,
+  limits: ref limits,
+)
+let result = try await modelsKernels.forecast.launch(
+  using: ref launch,
+  features: ref features,
+)
+```
+
+Importar, abrir ou projetar não cria estado runtime. A reachability do product
+fecha somente os `KernelInstanceId`s usados; imports e roots não usados são
+eliminados. O seed preserva as duas formas de import em CST/module-scan, mas
+ainda só resolve o launch local definido pelo header do próprio módulo: resolver
+multi-módulo, launch dinâmico qualificado e DCE de product são etapas futuras.
 
 O header usa `<...>` porque modifica o contrato de um módulo nomeado. Os valores
 são enum-like e possuem tipos conhecidos.
@@ -13074,10 +13194,11 @@ lógico possui uma queue/generation; vários módulos podem compartilhar o domai
 enquanto queues independentes exigem domains estáticos distintos. A validação e
 o binding ocorrem antes da entry e o root drena a relation no shutdown. Não há
 lookup por string ou escolha runtime escondida. A forma pública estática é
-somente `spawn<domain> descriptor.field(args...)`, com o field como callee
-imediato e um domain `.accelerated` compatível. Chamada nua do field, chamada
-`async` do field ou `spawn` em domain host é rejeitada; a função kernel original
-continua uma call direta de host.
+somente `spawn<domain> name(args...)` para um item nomeado ou
+`spawn<domain> alias.name(args...)` para uma projeção qualificada, com o kernel
+como callee imediato e um domain `.accelerated` compatível. Chamada nua do
+kernel, chamada `async` do kernel ou `spawn` em domain host é rejeitada; a
+função subjacente continua uma call direta de host.
 
 Um binding estático resolve deterministicamente uma única queue/generation e
 um único device compatível antes da entry. Ele nunca escolhe entre devices a
@@ -13089,10 +13210,10 @@ Fallback precisa preservar a classe host/accelerated e todos os contratos de
 module, numeric mode, layout, effects e residency; incompatibilidade falha
 antes da entry.
 
-O Frontend28 materializa a primeira fatia bounded dessa relação. O input
+O Frontend31 materializa a primeira fatia bounded dessa relação. O input
 caller-owned discrimina domain host de accelerated, preserva submission,
-capabilities e `maximum`, e o call record liga exatamente o const descriptor,
-o module record, o field/kernel e a função original. O parser só concede a
+capabilities e `maximum`, e o call record liga exatamente o module contract,
+o module record, o kernel binding e a função original. O parser só concede a
 interpretação de field acelerado enquanto lê o operando imediato de um
 `spawn` ligado a domain accelerated. Essa evidência ainda depende do frontend;
 HIR independente, binding do product/root e provider continuam etapas
@@ -13124,7 +13245,7 @@ Domains aparecem somente em fronteiras de admissão de trabalho:
 | child ordinário | `spawn<domain> call(...)` | não seleciona executor runtime |
 | lane serial criada em runtime | não aplicável | `execution.openSerial(...)` + `Task.spawn(domain: ref, ...)` |
 | lote finito | `pipeline<tasks: .parallel<domain>, ...>`; `.concurrent` herda o atual | adapter explícito sobre uma lane serial quando necessário |
-| kernel fechado | `spawn<domain> descriptor.field(...)`, onde o domain resolve para `.accelerated` | `accelerator.open(...)` + `field.launch(using: ...)` |
+| kernel fechado | `spawn<domain> name(...)` ou `spawn<domain> alias.name(...)`, onde o domain resolve para `.accelerated` | `accelerator.open<module: alias>(...)` + `alias.name.launch(using: ...)` |
 | entry ou service instance | binding do product/runtime graph antes da admissão | reconfiguração pertence ao deployment, não à call |
 
 `await`, join, Channel, Stream, transaction, lock, allocator, test/bench e
@@ -13149,7 +13270,7 @@ domain apenas por ser assíncrona, custosa ou externa.
 | --- | --- | --- |
 | child host comum | admissão e ordem | `async` herda; `spawn<domain>` escolhe `.serial` ou `.concurrent` |
 | paralelismo CPU | colocação de trabalho divisível | `parallelMap<domain>` exige capability `.parallel` |
-| kernel acelerado | submissão tipada para artifact fechado | `spawn<domain> descriptor.field(...)`, onde `domain` resolve para `.accelerated` |
+| kernel acelerado | submissão tipada para artifact fechado | `spawn<domain> name(...)` ou `spawn<domain> alias.name(...)`, onde `domain` resolve para `.accelerated` |
 | UI/main thread | afinidade | entry/provider liga `.main`; child usa `spawn<.main>` quando precisa retornar |
 | foreign bloqueante | isolamento e budget de workers | domain host bounded com capability `.blocking` |
 | service handler | placement da instance/turn | runtime graph liga a service a um domain; a chamada não escolhe thread |
@@ -13208,8 +13329,8 @@ pacote declara os dois nomes. Um domínio serial `kitchen.thermal` pode usar o
 pool, mas conserva sua strand serial. O deployment não pode torná-lo paralelo.
 
 `.device` isolada não autoriza `spawn` a migrar W code arbitrário para GPU, DSP
-ou ASIC. W-1602 admite somente um field de `accelerator.module` como callee
-imediato de `spawn` num domain `.accelerated` compatível. Kernel selection,
+ou ASIC. W-1602 admite somente um item do module contract como callee imediato
+de `spawn` num domain `.accelerated` compatível. Kernel selection,
 artifact e o owner de launch seguem
 [12.7.2](#1272-device-domains-scopes-e-kernels). Um adapter pode usar um domain
 host com `.device` para seus próprios jobs; isso não transforma uma closure comum
@@ -13887,16 +14008,19 @@ podem mudar o resultado lógico.
 #### 12.7.2 Device domains, scopes e kernels
 
 **Exemplo:** o kernel direto continua uma função W comum. Um domain acelerado
-usa o mesmo `spawn<domain>` estruturado das outras execuções, e o field do
-descriptor seleciona estaticamente o kernel:
+usa o mesmo `spawn<domain>` estruturado das outras execuções, e o item do
+module contract seleciona estaticamente o kernel:
 
 ```w
-export const lastLightKernels = accelerator.module<{
-  forecast: forecastKernel,
-  normalize: normalizeKernel,
-}>()
+module models<
+  kernels: {
+    forecast: forecastKernel,
+    normalize: normalizeKernel,
+  },
+>
 
-let prediction = spawn<.inference> lastLightKernels.forecast(
+// Dentro de `models`, o label local `forecast` é o callee de kernel.
+let prediction = spawn<.inference> forecast(
   features: ref deviceFeatures,
   weights: ref deviceWeights,
 )
@@ -13904,9 +14028,9 @@ let deviceResult = try await prediction
 ```
 
 `forecastKernel(...)` continua a call direta de host. O compiler rejeita
-`lastLightKernels.forecast(...)` fora de `spawn`, rejeita
-`async lastLightKernels.forecast(...)` e rejeita um `spawn` para um domain host;
-o descriptor não é function value nem lookup runtime. A relation escondida do
+`forecast(...)` fora de `spawn`, rejeita `async forecast(...)` e rejeita um
+`spawn` para um domain host; a projeção não é function value nem lookup runtime.
+A relation escondida do
 path estático é tipada pela tupla exata `(domain identity, ModuleIdentity,
 KernelInstanceId)`. O execution profile/root a valida e liga antes da entry,
 mantém uma queue/generation por domain lógico e drena todas as submissions no
@@ -13954,9 +14078,11 @@ próprias descritas em 12.6.1.
 explícito. Ela não é necessária no caminho estático comum:
 
 ```w
+// Em um módulo consumidor:
+import kernel models as models
+
 let limits = accelerator.Limits.standard()
-var launch = try await accelerator.open(
-  module: ref lastLightKernels,
+var launch = try await accelerator.open<module: models>(
   on: ref queue,
   limits: ref limits,
 )
@@ -13968,7 +14094,7 @@ defer async {
   }
 }
 
-let prediction = async lastLightKernels.forecast.launch(
+let prediction = async models.forecast.launch(
   using: ref launch,
   features: ref deviceFeatures,
   weights: ref deviceWeights,
@@ -13976,12 +14102,14 @@ let prediction = async lastLightKernels.forecast.launch(
 let dynamicResult = try await prediction
 ```
 
-**W-1211 — descriptor fechado:** `accelerator.module<{...}>()` é uma síntese
-compile-time sobre static record. Cada field nomeia uma função kernel e gera um
-handle que participa do `spawn` acelerado estático e expõe o método `launch`
-para o caminho dinâmico. O descriptor possui identity, manifest de effects,
-ABI, address spaces, numeric modes e CPU implementation. Renomear um field muda
-a interface; lista heterogênea, lookup por string e registro runtime falham.
+**W-1211 — família fechada:** o campo contextual `kernels: { ... }` no module
+contract é uma declaração compile-time de roots. Cada label público nomeia uma
+função kernel direta e a projeção conhecida pelo compiler participa do `spawn`
+acelerado estático e expõe o método `launch` no caminho dinâmico. A família
+possui identity, manifest de effects, ABI, address spaces, numeric modes e CPU
+implementation. Labels são ordenados canonicamente; reordenar o source não
+muda a interface, mas renomear um label muda. Lista heterogênea, lookup por
+string e registro runtime falham.
 
 O símbolo original permanece chamável diretamente no host. O launch gerado
 recebe `using: ref accelerator.Launch<Module>` seguido dos parâmetros originais
@@ -13990,23 +14118,25 @@ e devolve o mesmo result type. Ele é `maySuspend` e adiciona somente
 retorna failures de domínio como valor. O manifest fecha os effects aceitos;
 recursion, task, service, host I/O, dynamic dispatch e FFI de host falham.
 
-**W-1284 — head de síntese:** `accelerator.module` é um head reservado do
-compiler, resolvido pelo import de `std.accelerator`. Ele não é função runtime,
-function value, provider call ou reflection. O único argumento é um static
-record não vazio em uma declaration `const` de module scope. Cada valor do
-record é um símbolo direto. A síntese produz um tipo nominal que conforma
-`KernelModule`, seus launch stubs e metadata verificável. Ela não aloca, registra
-ou adquire authority em runtime. `KernelModule` é um constraint público com
+**W-1284 — contrato contextual:** `kernels` é um campo reservado somente no
+header `module`, não um head global nem uma API de `std.accelerator`. Ele não é
+função runtime, function value, provider call ou reflection. O record não vazio
+contém labels públicos e símbolos diretos, e pode referir declarations
+posteriores do mesmo módulo. A síntese compiler-owned produz a família nominal,
+seus launch stubs e metadata verificável; não aloca, registra ou adquire
+authority em runtime. `KernelModule` continua um constraint público com
 conformance compiler-owned; um tipo comum não pode implementá-lo manualmente.
 
-**W-1285 — identidade em duas camadas:** a interface identity inclui o head,
-`SymbolId` do descriptor, fields em ordem, assinaturas normalizadas, parâmetros
-estáticos e effects. A implementation identity acrescenta HIR normalizada e o
-call graph transitivo permitido de cada kernel. `ModuleIdentity` liga as duas.
+**W-1285 — identidade em duas camadas:** a interface identity inclui o module
+identity, labels públicos em ordem canônica, assinaturas normalizadas,
+parâmetros estáticos e effects. A implementation identity acrescenta HIR
+normalizada, símbolo privado e call graph transitivo permitido de cada kernel.
+`ModuleIdentity` liga as duas.
 Path físico, timestamp, ordinal de device e checkout não entram na identidade.
-Renomear ou reordenar fields muda a interface. Renomear somente o callable
-privado preserva a interface e muda a implementation identity, assim como
-alterar a implementação.
+Renomear ou reordenar labels é tratado de forma distinta: renomear o label muda
+a interface, mas reordenar os fields mantém a interface e os ordinais
+canônicos. Renomear somente o callable privado preserva a interface e muda a
+implementation identity, assim como alterar a implementação.
 
 **W-1286 — especialização finita:** um field pode nomear uma família genérica.
 Cada uso normaliza argumentos de tipo e valores `const` na ordem declarada e
@@ -14193,9 +14323,9 @@ produzem `W-PIPELINE-0001`, `W-PIPELINE-0002`, `W-PIPELINE-0003`,
 `W-PIPELINE-0004` ou `W-PIPELINE-0005`.
 
 Um accelerated domain não satisfaz `.parallel` e, portanto,
-`.parallel<.inference>` é rejeitado. Um field de `accelerator.module` também
-não pode ser usado como body implícito da região: cada invocation precisa
-continuar sendo o `spawn<domain> descriptor.field(...)` explícito. O modo
+`.parallel<.inference>` é rejeitado. Um kernel contract item também não pode
+ser usado como body implícito da região: cada invocation precisa continuar
+sendo o `spawn<domain> name(...)` ou `spawn<domain> alias.name(...)` explícito. O modo
 `.barrier` não se aplica a accelerated domains, porque launch pode suspender e
 o ordering de device pertence a receipts/dependency edges, não ao ticket host.
 
@@ -27680,8 +27810,8 @@ por product. Um runtime dinâmico é permitido somente quando o target e a
 distribuição publicam uma ABI exata. O product registra seu provider e seu
 digest.
 
-Um target freestanding pode usar somente `core`. Um accelerator module pode não
-usar `libwrt`. Um process com tasks e services recebe somente as famílias
+Um target freestanding pode usar somente `core`. Um módulo com kernels ligados
+ao accelerator pode não usar `libwrt`. Um process com tasks e services recebe somente as famílias
 alcançáveis.
 
 #### 20.4.8 Inicialização e contexto de runtime
@@ -29634,12 +29764,13 @@ component quando uma falha precisar ser isolada do host.
 Uma library não estabiliza a ABI W por causa do container físico. Wasm
 Component e service ABI usam seus próprios product schemas.
 
-Um `.deviceBundle` cujo root exporta uma família `KernelModule` sem launch site
-concreto produz manifest, recipe e target-constraint digest source-backed. Ele
-não contém kernel executável e não satisfaz um launch sozinho. Quando todos os
-roots são `KernelInstanceId` concretos, o artifact é fechado, contém ao menos
-um instance alcançável e exatamente seus objects e launch manifest. O artifact
-record distingue `.sourceBacked` de
+Um `.deviceBundle` cujo root aponta para a família de kernels declarada no
+module contract, sem launch site concreto, produz manifest, recipe e
+target-constraint digest source-backed. O root é a família do módulo, não um
+descriptor ou valor runtime; o bundle não contém kernel executável e não
+satisfaz um launch sozinho. Quando todos os roots são `KernelInstanceId`
+concretos, o artifact é fechado, contém ao menos um instance alcançável e
+exatamente seus objects e launch manifest. O artifact record distingue `.sourceBacked` de
 `.closed`; essa classe é derivada do grafo e não é uma opção do source. Uma
 publicação binary-only só pode fornecer o conjunto finito fechado.
 
@@ -40218,19 +40349,21 @@ into the private CUDA adapter. A separate diagnostic catalog records
 temporary artifact sizes and in-process H2D, dispatch-plus-synchronize, D2H,
 and end-to-end p50/p95 values. It is not a W product ranking.
 
-The seed parser preserves `accelerator.module<{ hello: kernel }>()` as a
-contract envelope containing a static-record owner and named static-field
-owners. Frontend schema `w-seed-frontend-28` recognizes only this compiler head
-with a nonempty static record, zero runtime arguments, unique labels, and direct
-same-document function symbols. It publishes caller-owned accelerator-module
-and ordered kernel-binding records that retain the module const, label, source
-span, and local function identity. These records contain no provider, target,
-queue, pointer, device ABI, or MLIR identity. Multiple fields are admitted;
-the one-kernel Hello is an evidence minimum, not a language limit. Empty or
-malformed records, duplicate labels, missing functions, and runtime arguments
-fail closed before accelerator records are published.
+The seed parser preserves a module contract such as
+`module gpuHello<kernels: { hello: helloKernel }>` and its contextual kernel
+fields. Frontend schema `w-seed-frontend-31` recognizes a nonempty contract
+record with unique public labels and direct same-document function symbols; a
+declaration may appear later in the module. It publishes caller-owned
+kernel-module and ordered kernel-binding records that retain the module name,
+public label, source span, and local function identity. Labels are normalized
+by public spelling, so source reorder preserves semantic/interface identity.
+These records contain no provider, target, queue, pointer, device ABI, or MLIR
+identity. Multiple fields are admitted; the one-kernel Hello is an evidence
+minimum, not a language limit. Empty or malformed records, duplicate labels,
+missing functions, generic targets without concrete specialization records,
+and runtime arguments fail closed before kernel records are published.
 
-**Exemplo da relação tipada preservada pelo Frontend28:**
+**Exemplo da relação tipada preservada pelo Frontend31:**
 
 ```w
 module gpuHello<
@@ -40242,32 +40375,36 @@ module gpuHello<
       fallback: .reject,
     ),
   ],
+  kernels: {
+    hello: helloKernel,
+  },
 >
 
 fn helloKernel(): i32 { return 42 }
 
-const kernels = accelerator.module<{
-  hello: helloKernel,
-}>()
+// `kernels` é um campo contextual do module contract, não um valor.
+// A função pode ser declarada depois do header e resolvida no módulo inteiro.
 
 entry {
-  let pending = spawn<.inference> kernels.hello()
+  let pending = spawn<.inference> hello()
   let result = try await pending
   expect result == 42
 }
 ```
 
 Esta seção prova somente a identidade frontend do launch. O provider-backed
-product ainda não executa esse source.
+product ainda não executa esse source. Os imports `import kernel { hello } from
+gpuHello` e `import kernel gpuHello as gpu` têm cobertura de parser/CST e
+module-scan, mas o seed ainda não resolve módulos externos.
 
-The internal `w-seed-gpu-module-1` bridge now validates those Frontend28
+The internal `w-seed-gpu-module-2` bridge now validates those Frontend31
 records and copies the bounded device-module meaning into caller-owned module,
 kernel, text, and frontend-receipt stores. Its independent verifier re-derives
 the semantic digest from ordered module identities, labels, normalized signed
 `i32` return type, and payload; a separate provenance digest binds frontend
 indices, source spans, and the frontend receipt. The bridge survives the
 source, CST, and frontend lifetimes. Its first executable source slice accepts
-one or more module fields, while each referenced function is currently limited
+one or more kernel bindings, while each referenced function is currently limited
 to a zero-parameter, effect-free direct `return` of a nonnegative signed `i32`
 literal. That function-body limit is an implementation slice, not a language or
 device ABI limit.
@@ -40276,8 +40413,8 @@ The bridge contains no provider, target, queue, pointer, launch, MLIR handle,
 or physical ABI. It is independently verified W device-module IR for the Hello
 slice, but it is not a W runtime/provider, a public `w build`/`w run` route, a
 supported GPU ABI, or homogeneous pinned production support. A caller-owned
-provider-neutral projection selects one verified module field, copies the
-module const name, field label, and private implementation name into its own
+provider-neutral projection selects one verified kernel binding, copies the
+module name, public label, and private implementation name into its own
 text store, and carries the verified payload into the exact GPU0 records. The
 roadmap item remains open until the independently preserved static invocation
 is bound to a supported provider launch, join, and result path.
@@ -40285,11 +40422,11 @@ is bound to a supported provider launch, join, and result path.
 #### 26.4.1.83 W-1603 — relação acelerada independente e bounded
 
 ACCINV0 é a primeira fronteira independente para a forma estática
-`spawn<domain> descriptor.field()`, onde `domain` resolve para `.accelerated`.
-Ela consome Frontend28 e um
-programa gpu-module-1 já verificado, exige exatamente um launch zero-argument e
+`spawn<domain> name()`, onde `domain` resolve para `.accelerated` e `name` é o
+binding de kernel local imediato. Ela consome Frontend31 e um
+programa gpu-module-2 já verificado, exige exatamente um launch zero-argument e
 seu único `await` lexical, e copia para storage caller-owned a identidade do
-domain, sua submission e budget, o const do módulo, label do field, função
+domain, sua submission e budget, o module contract, public label, função
 privada, result shape, ordinais e spans. Um verifier separado continua válido
 depois que source, CST, frontend e gpu-module foram descartados.
 
@@ -40304,7 +40441,7 @@ de publicar bytes.
 Um launch e zero argumentos são limites do array e do bridge seed, não da
 linguagem, scheduler ou ABI. ACCINV0 não contém provider, target, queue,
 pointer, geometry, transfer, residency, device-memory plan, MLIR handle ou ABI
-físico. O Frontend28 ainda não preserva o tipo nominal de falha da Task, por
+físico. O Frontend31 ainda não preserva o tipo nominal de falha da Task, por
 isso este schema também não alega `LaunchError` tipado. Argumentos e ownership,
 binding do product/root, provider launch/join/result, cancelamento/drain,
 produto GPU público, outros targets e performance permanecem gaps explícitos.
@@ -40315,10 +40452,10 @@ forma curta de `entry` já execute suspensão no produto público.
 
 ACCBIND0 consumes an independently verified ACCINV0 program/result and one
 closed product/profile selection. It copies exactly one relation among the
-execution root, canonical domain identity, source-local descriptor name,
+execution root, canonical domain identity, source-local module name,
 `ModuleIdentity`, artifact identity, `KernelInstanceId`, target and provider
 ABI class into caller-owned storage. The canonical domain identity omits the
-source sigil (`inference`, not `.inference`); the local descriptor name is not
+source sigil (`inference`, not `.inference`); the local kernel-contract name is not
 substituted for `ModuleIdentity`. The selected module/kernel ordinals must
 match the verified invocation, while explicit membership and equal artifact
 and provider ABI digests close this bounded input relation.
@@ -40351,7 +40488,7 @@ evidence bound, not a W language, scheduler or ABI limit. No W syntax is added.
 
 ACCREQ0 joins two independently verified meanings without retaining either
 producer: one ACCBIND0 root/profile relation and one GPU0 host/device artifact
-program. The exact descriptor, host-root name, kernel label and private device
+program. The exact module-contract root, host-root name, kernel label and private device
 function must agree across both inputs. The first schema accepts only the
 single zero-argument signed-`i32` GPU0 sentinel and copies one provider-neutral
 request, all identity text and the exact device artifact into caller-owned

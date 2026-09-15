@@ -44,13 +44,13 @@
     {
       "id": "DYN1",
       "path": "../dyn1-versioned-behavior/study.json",
-      "digest": "sha256:ebbf77a1e7d03d3091cfbced88df7d828da2da90f696599f2846fb674295f6eb",
+      "digest": "sha256:3fa48abe121b9ee6463e869137e4ee7022cddfacf4697b360e0c2041b4111654",
       "claim": "typed generations, drain, stale rejection, export/import, and rejected mechanisms"
     },
     {
       "id": "SYN1",
       "path": "../syn1-typed-generation/study.json",
-      "digest": "sha256:16dd1258dddcbe93bdd85461e2afe267a81e8a52369dd464de9164e7c5aedcdf",
+      "digest": "sha256:8922d348f9a83e97746e67419fae7b43473556fdcf60d40ff8bbb93f7f3f1bea",
       "claim": "content-addressed generated module set and normal-unit reopen"
     },
     {
@@ -100,7 +100,7 @@
     {
       "path": "reference/last-light/build.w",
       "symbol": "name: \"compile-final-menu\"",
-      "digest": "sha256:53943d95e353121b18807492c3d7282df2bfb77b1a89cbf3859d8d4637ef44fc",
+      "digest": "sha256:3f2c504a2d139ac24a44dd58892436f7d1ff608b5f3edf11913c445006548c75",
       "claim": "package/build identity and existing profiles"
     },
     {

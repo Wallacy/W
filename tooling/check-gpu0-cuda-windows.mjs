@@ -273,7 +273,7 @@ try {
   });
   requireSuccess(invocationRun, "run accelerated invocation unit");
   const expectedInvocationOutput =
-    "ACCINV0 source->frontend28->gpu-module-1->program: PASS\r\n" +
+    "ACCINV0 source->frontend31->gpu-module-2->program: PASS\r\n" +
     "ACCINV0 identities/spans/digests/teardown/negative barriers: PASS\r\n" +
     "ACCREQ0 source-derived request/artifact/teardown: PASS\r\n";
   if (invocationRun.stdout !== expectedInvocationOutput || invocationRun.stderr !== "")
@@ -290,7 +290,7 @@ try {
     fail(`accelerated request metadata is not JSON: ${JSON.stringify(emitted.stdout)}`);
   }
   const emittedDevice = await readFile(device);
-  if (request?.schema !== "w-seed-accelerated-request0-1" ||
+  if (request?.schema !== "w-seed-accelerated-request0-2" ||
       typeof request.kernel !== "string" ||
       !/^[A-Za-z_][A-Za-z0-9_]*$/u.test(request.kernel) ||
       !Number.isSafeInteger(request.expected) ||

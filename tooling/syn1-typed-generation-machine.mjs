@@ -41,7 +41,7 @@ const PARSE_CACHE = new Map();
 const EXPECTED_SOURCE_REFS = new Map([
   ["last-light-reflection", ["reference/last-light/reflection.w", "export struct ReservationKey:", "closed Hashable and Reflectable synthesis"]],
   ["last-light-data", ["reference/last-light/data_formats.w", "export struct TabularTelemetryRow:", "closed data.Row schema synthesis"]],
-  ["last-light-kernels", ["reference/last-light/ai_harness.w", "export const lastLightKernels", "finite compiler-owned kernel synthesis"]],
+  ["last-light-kernels", ["reference/last-light/ai_harness.w", "module ai_harness<", "finite compiler-owned module-contract kernel family"]],
   ["last-light-menu-transform", ["reference/last-light/packages/menu-compiler/transform.w", "async fn transform(ctx: build.Context)", "hermetic typed transform"]],
   ["last-light-menu-compiler", ["reference/last-light/packages/menu-compiler/compiler.w", "export fn compileMenu(source: ref String)", "menu parser/compiler source"]],
   ["last-light-package", ["reference/last-light/build.w", "name: \"compile-final-menu\"", "build action and target separation"]],

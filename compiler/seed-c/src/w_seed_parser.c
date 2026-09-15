@@ -307,6 +307,75 @@ static bool next_is_text(w_seed_parser *parser, const char *text) {
   return span_text(parser, item.span, text);
 }
 
+/* `kernel` is a contextual import marker.  A bare module path such as
+ * `import kernel` or `import kernel.foo` must continue through the ordinary
+ * import grammar; only the complete named/qualified projection shape claims
+ * the marker.  This lookahead is deliberately lexical and does not consume
+ * parser state (fill_tokens only extends the caller-owned cache). */
+static bool import_kernel_projection_follows(w_seed_parser *parser) {
+  if (parser == NULL || !current_is_text(parser, "kernel")) return false;
+  size_t cache_index = 0u;
+  size_t significant = 0u;
+  w_seed_lex_item item;
+  bool have_path = false;
+  while (true) {
+    if (!fill_tokens(parser, cache_index + 1u)) return false;
+    item = parser->token_cache[cache_index].item;
+    if (item_is_trivia(&item)) {
+      cache_index += 1u;
+      continue;
+    }
+    if (item.kind == W_SEED_LEX_ITEM_EOF) return false;
+    if (significant == 0u) {
+      if (!span_text(parser, item.span, "kernel")) return false;
+      significant = 1u;
+      cache_index += 1u;
+      continue;
+    }
+    break;
+  }
+
+  /* The first token after the marker is either `{` (named projection) or the
+   * first segment of the qualified module path. */
+  if (span_text(parser, item.span, "{")) return true;
+  if (item.kind != W_SEED_LEX_ITEM_WORD || span_text(parser, item.span, "from"))
+    return false;
+  have_path = true;
+  cache_index += 1u;
+  while (true) {
+    size_t next_cache = cache_index;
+    w_seed_lex_item next;
+    while (true) {
+      if (!fill_tokens(parser, next_cache + 1u)) return false;
+      next = parser->token_cache[next_cache].item;
+      if (!item_is_trivia(&next)) break;
+      next_cache += 1u;
+    }
+    if (next.kind == W_SEED_LEX_ITEM_EOF) return false;
+    if (span_text(parser, next.span, ".")) {
+      next_cache += 1u;
+      while (true) {
+        if (!fill_tokens(parser, next_cache + 1u)) return false;
+        next = parser->token_cache[next_cache].item;
+        if (!item_is_trivia(&next)) break;
+        next_cache += 1u;
+      }
+      if (next.kind != W_SEED_LEX_ITEM_WORD) return false;
+      cache_index = next_cache + 1u;
+      continue;
+    }
+    if (!span_text(parser, next.span, "as")) return false;
+    next_cache += 1u;
+    while (true) {
+      if (!fill_tokens(parser, next_cache + 1u)) return false;
+      next = parser->token_cache[next_cache].item;
+      if (!item_is_trivia(&next)) break;
+      next_cache += 1u;
+    }
+    return have_path && next.kind == W_SEED_LEX_ITEM_WORD;
+  }
+}
+
 static bool next_adjacent_is_text(w_seed_parser *parser, const char *text) {
   if (!skip_trivia(parser) || current_is_eof(parser)) return false;
   const w_seed_span current = parser->token_cache[0].item.span;
@@ -2424,6 +2493,31 @@ static bool parse_import_declaration(w_seed_parser *parser) {
   if (push_node(parser, W_SEED_CST_IMPORT, start) == W_SEED_CST_NONE)
     return false;
   (void)consume_text(parser, "import", NULL);
+  /* `kernel` is contextual here; ordinary identifiers and module paths keep
+   * their existing meaning unless the complete projection shape follows. */
+  const bool kernel_projection = import_kernel_projection_follows(parser);
+  if (kernel_projection) (void)consume_text(parser, "kernel", NULL);
+  if (kernel_projection && !current_is_text(parser, "{")) {
+    const size_t item_start = current_span(parser).start_byte;
+    if (push_node(parser, W_SEED_CST_IMPORT_ITEM, item_start) ==
+        W_SEED_CST_NONE)
+      return false;
+    if (!parse_module_path(parser) ||
+        !expect_text(parser, "as", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN) ||
+        !current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+      append_missing(parser, current_span(parser).start_byte,
+                     W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+      pop_node(parser, parser->has_last_token ? parser->last_token_end
+                                              : item_start);
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+    (void)consume_current(parser, NULL);
+    pop_node(parser, parser->last_token_end);
+    if (current_is_text(parser, ";")) (void)consume_text(parser, ";", NULL);
+    pop_node(parser, parser->last_token_end);
+    return true;
+  }
   if (!current_is_text(parser, "{")) {
     if (current_is_text(parser, "*")) {
       const size_t item_start = current_span(parser).start_byte;
@@ -3429,6 +3523,13 @@ bool w_seed_parser_parse(w_seed_parser *parser, w_seed_parse_result *result) {
       goto done;
     }
     (void)consume_current(parser, NULL);
+    if (current_is_text(parser, "<")) {
+      if (!parse_contract_envelope(parser, parser->last_token_end, false)) {
+        pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+        unwind_frames(parser, parser->lexer.bounds.end_byte);
+        goto done;
+      }
+    }
     if (current_is_text(parser, ";")) (void)consume_text(parser, ";", NULL);
     pop_node(parser, parser->last_token_end);
   }

@@ -152,6 +152,8 @@ module.exports = grammar({
 
   word: ($) => $.identifier,
 
+  inline: ($) => [$._contextual_identifier],
+
   conflicts: ($) => [
     [$._expression, $.closure_parameter],
     [$._type_identifier, $._expression],
@@ -175,6 +177,7 @@ module.exports = grammar({
             choice(
               $.service_import_statement,
               $.domain_import_statement,
+              $.kernel_import_statement,
               $.import_statement,
               $.reexport_declaration,
             ),
@@ -187,12 +190,32 @@ module.exports = grammar({
     module_header: ($) =>
       seq(
         "module",
-        field("name", $.identifier),
+        field("name", $._contextual_identifier),
         optional(field("contract", $.module_contract)),
         optional(";"),
       ),
     module_contract: ($) =>
-      seq(token.immediate("<"), commaSep1($.manifest_argument), optional(","), ">"),
+      seq(
+        token.immediate("<"),
+        commaSep1(choice($.kernel_contract_field, $.manifest_argument)),
+        optional(","),
+        ">",
+      ),
+    kernel_contract_field: ($) =>
+      seq("kernels", ":", field("value", $.kernel_contract_record)),
+    kernel_contract_record: ($) =>
+      seq(
+        "{",
+        commaSep1($.kernel_contract_item),
+        optional(","),
+        "}",
+      ),
+    kernel_contract_item: ($) =>
+      seq(
+        field("name", $._contextual_identifier),
+        ":",
+        field("function", $._contextual_identifier),
+      ),
 
     domain_import_statement: ($) =>
       seq(
@@ -201,6 +224,25 @@ module.exports = grammar({
         field("items", $.named_imports),
         "from",
         field("module", $.module_path),
+        optional(";"),
+      ),
+
+    kernel_import_statement: ($) =>
+      seq(
+        "import",
+        "kernel",
+        choice(
+          seq(
+            field("items", $.named_imports),
+            "from",
+            field("module", $.module_path),
+          ),
+          seq(
+            field("module", $.module_path),
+            "as",
+            field("alias", $.identifier),
+          ),
+        ),
         optional(";"),
       ),
 
@@ -290,7 +332,11 @@ module.exports = grammar({
     named_imports: ($) => seq("{", commaSep1($.import_item), optional(","), "}"),
     import_item: ($) =>
       seq(field("name", $.identifier), optional(seq("as", field("alias", $.identifier)))),
-    module_path: ($) => prec.right(seq($.identifier, repeat(seq(".", $.identifier)))),
+    module_path: ($) =>
+      prec.right(seq(
+        $._contextual_identifier,
+        repeat(seq(".", $._contextual_identifier)),
+      )),
 
     _declaration: ($) =>
       choice(
@@ -2019,6 +2065,12 @@ module.exports = grammar({
 
     // Exact keyword tokens win in their syntactic positions. `word` lets
     // Tree-sitter build the keyword table from this shared identifier token.
+    _contextual_identifier: ($) =>
+      choice(
+        $.identifier,
+        alias("kernel", $.identifier),
+        alias("kernels", $.identifier),
+      ),
     identifier: (_) => /[A-Za-z_][A-Za-z0-9_]*/,
     tuple_index: (_) => /[0-9]+/,
     behavior_identifier: (_) => /[A-Z][A-Za-z0-9_]*/,

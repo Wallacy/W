@@ -9,7 +9,7 @@ const GRAMMAR = path.join(ROOT, "tooling", "tree-sitter-w", "grammar.js");
 const MANIFEST = path.join(ATLAS, "atlas-manifest.json");
 const SYNTAX_COVERAGE = path.join(ATLAS, "SYNTAX-COVERAGE.md");
 const DIGEST = /^sha256:[0-9a-f]{64}$/u;
-const RULE_SET_DIGEST = "sha256:866b57f39e89574d586890e57cf43d352de650e89607cb4417c3c5ee9b6c9621";
+const RULE_SET_DIGEST = "sha256:9f0797fa4c0ffeedf000fb99b216bf51c15284ceb067bb06d788c92b58e699d4";
 const SCHEMA = "w-syntax-atlas-1";
 
 const ROOT_KINDS = new Set(["module", "package", "workspace"]);
@@ -22,7 +22,8 @@ const EVIDENCE = new Set(["tree-sitter-parse-only", "tree-sitter-parse-only-prov
 // manifest; this list only prevents an accidental omission.
 const REQUIRED_VARIANT_IDS = [
   "root-module", "root-package", "root-workspace",
-  "import-ordinary", "import-domain", "import-service", "import-wildcard",
+  "import-ordinary", "import-kernel-named", "import-kernel-qualified", "import-domain", "import-service", "import-wildcard",
+  "module-kernel-contract",
   "entry-explicit", "allocator-named", "allocator-anonymous", "allocator-contextual-parameter", "allocator-contextual-call",
   "ownership-ref", "ownership-inout", "ownership-take", "ownership-shared", "ownership-weak", "ownership-view", "ownership-pin", "ownership-atomic",
   "execution-direct", "execution-await", "execution-sync", "execution-async-initializer", "execution-spawn",
@@ -65,7 +66,7 @@ const MANIFEST_RULES = new Set([
 const ROOT_RULES = new Set(["source_file", "module_header", "module_contract"]);
 
 const DIRECT_RULES = new Set([
-  "module_header", "domain_import_statement", "service_import_statement", "import_statement", "reexport_declaration", "reexport_item", "export_list_declaration",
+  "module_header", "domain_import_statement", "service_import_statement", "kernel_import_statement", "import_statement", "reexport_declaration", "reexport_item", "export_list_declaration",
   "function_declaration", "struct_declaration", "object_declaration", "service_declaration", "protocol_declaration",
   "enum_declaration", "initializer_declaration", "field_declaration", "computed_property_declaration", "property_requirement",
   "enum_case", "type_declaration", "alias_declaration", "dimension_declaration", "unit_declaration", "extension_declaration",
@@ -148,7 +149,7 @@ function markerForRule(name) {
   if (ROOT_RULES.has(name)) return "source-roots-imports";
   if (LEXICAL_RULES.has(name)) return "literals-and-collections";
   if (name === "foreign_body" || name.startsWith("foreign_")) return "callables-and-foreign";
-  if (["domain_import_statement", "service_import_statement", "named_service_imports", "service_import_item", "service_key_contract", "import_statement", "reexport_declaration", "reexport_item", "wildcard_import", "named_imports", "import_item", "module_path"].includes(name)) return "source-roots-imports";
+  if (["domain_import_statement", "service_import_statement", "kernel_import_statement", "named_service_imports", "service_import_item", "service_key_contract", "import_statement", "reexport_declaration", "reexport_item", "wildcard_import", "named_imports", "import_item", "module_path", "kernel_contract_field", "kernel_contract_item", "kernel_contract_record"].includes(name)) return "source-roots-imports";
   if (["function_declaration", "function_signature", "language_tag", "abi_contract", "parameter_list", "parameter_call_ownership", "parameter_type", "generic_parameters", "generic_parameter", "function_type", "function_type_parameter", "rest_marker", "borrow_clause", "borrow_pair", "slot_ref"].includes(name)) return "callables-and-foreign";
   if (["struct_declaration", "object_declaration", "service_declaration", "protocol_declaration", "enum_declaration", "primary_associated_types", "conformance_clause", "associated_type_requirement", "associated_const_requirement", "initializer_declaration", "field_declaration", "computed_property_declaration", "property_requirement", "enum_case", "type_declaration", "alias_declaration", "dimension_declaration", "unit_declaration", "extension_declaration", "behavior_declaration", "behavior_field_declaration", "behavior_facet_property", "behavior_initializer", "behavior_accessor", "behavior_accessor_kind", "behavior_initializer_parameters", "deinit_declaration", "const_declaration", "test_declaration", "export_list_declaration", "export_item"].includes(name)) return "data-declarations";
   if (["type", "type_name", "type_arguments", "type_argument", "static_argument_value", "contract_expression_argument", "static_record_literal", "static_array_literal", "fixed_array_type", "tuple_type", "labeled_tuple_type_element", "unit_literal"].includes(name)) return "types-and-contracts";
