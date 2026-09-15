@@ -8,6 +8,10 @@ static const uint8_t NATIVE_SUBSET0_SLOT[] = ".default";
 static const uint8_t NATIVE_SUBSET0_CALLEE[] = "print";
 static const uint8_t NATIVE_SUBSET0_REQUIREMENT[] = "Console";
 
+static bool native_panic_terminator_supported(
+    const w_seed_hir0_program *program, size_t terminator_index,
+    uint32_t function_index, const w_seed_hir0_terminator *terminator);
+
 static bool text_is(const w_seed_hir0_program *program,
                     w_seed_hir0_text text, const uint8_t *literal,
                     size_t literal_bytes) {
@@ -1759,10 +1763,10 @@ static bool program_scalar_cfg_is_supported(
 }
 
 /* The process entry may end in a terminal source-level if. HIR deliberately
- * elides that if's synthetic join because both arms return ExitCode directly.
- * Keep this admission separate from the ordinary diamond recognizer: the
- * shared maximum walker still proves forward-only edges and checks every
- * value/body shape before emission. */
+ * elides that if's synthetic join because each arm exits directly, either by
+ * returning ExitCode or by panicking. Keep this admission separate from the
+ * ordinary diamond recognizer: the shared maximum walker still proves
+ * forward-only edges and checks every value/body shape before emission. */
 static bool program_process_terminal_return_cfg_is_supported(
     const w_seed_hir0_program *program, size_t function_index) {
   if (program == NULL || function_index >= program->function_count)
@@ -1800,9 +1804,16 @@ static bool program_process_terminal_return_cfg_is_supported(
       then_return->owner_block != first_arm ||
       else_return->owner_block != second_arm)
     return false;
-  const w_seed_hir0_terminator *returns[] = {then_return, else_return};
+  const w_seed_hir0_terminator *arms[] = {then_return, else_return};
   for (size_t ordinal = 0u; ordinal < 2u; ordinal += 1u) {
-    const w_seed_hir0_terminator *terminator = returns[ordinal];
+    const w_seed_hir0_terminator *terminator = arms[ordinal];
+    if (terminator->kind == W_SEED_HIR0_TERMINATOR_PANIC) {
+      if (!native_panic_terminator_supported(
+              program, (size_t)(terminator - program->terminators),
+              (uint32_t)function_index, terminator))
+        return false;
+      continue;
+    }
     if (terminator->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
         terminator->result_type != function->return_type ||
         terminator->value_index >= program->value_count ||
@@ -2723,6 +2734,130 @@ static bool program_function_has_static_yields(
  * while a branch combines mutually-exclusive arm maxima with max(). The
  * private process-parallel projection may carry a direct call result through
  * the selected task closure; ordinary selectors keep this disabled. */
+static bool native_panic_terminator_supported(
+    const w_seed_hir0_program *program, size_t terminator_index,
+    uint32_t function_index, const w_seed_hir0_terminator *terminator) {
+  if (program == NULL || terminator == NULL ||
+      terminator_index >= program->terminator_count ||
+      function_index >= program->function_count ||
+      terminator->kind != W_SEED_HIR0_TERMINATOR_PANIC ||
+      terminator->panic_code != W_SEED_HIR0_PANIC_CODE_EXPLICIT ||
+      terminator->call_index != W_SEED_HIR0_NONE ||
+      terminator->value_index == W_SEED_HIR0_NONE ||
+      terminator->value_index >= program->value_count ||
+      terminator->result_type == W_SEED_HIR0_NONE ||
+      terminator->result_type >= program->type_count ||
+      program->types[terminator->result_type].kind !=
+          W_SEED_HIR0_TYPE_NEVER ||
+      terminator->owner_block >= program->block_count ||
+      program->blocks[terminator->owner_block].owner_function !=
+          function_index ||
+      terminator->target_block != W_SEED_HIR0_NONE ||
+      terminator->else_block != W_SEED_HIR0_NONE ||
+      terminator->first_edge_argument != W_SEED_HIR0_NONE ||
+      terminator->edge_argument_count != 0u ||
+      terminator->logical_operator != W_SEED_HIR0_LOGICAL_NONE ||
+      terminator->switch_enum_index != W_SEED_HIR0_NONE ||
+      terminator->first_switch_edge != W_SEED_HIR0_NONE ||
+      terminator->switch_edge_count != 0u ||
+      terminator->switch_carrier_width != 0u)
+    return false;
+  const w_seed_hir0_value *message =
+      &program->values[terminator->value_index];
+  if (message->kind != W_SEED_HIR0_VALUE_CONST_STRING ||
+      message->owner_kind != W_SEED_HIR0_VALUE_OWNER_TERMINATOR ||
+      message->owner_index != terminator_index ||
+      message->owner_ordinal != 0u || message->type_index != 1u ||
+      message->binding_index != W_SEED_HIR0_NONE ||
+      message->parameter_index != W_SEED_HIR0_NONE ||
+      message->call_index != W_SEED_HIR0_NONE ||
+      message->left_value != W_SEED_HIR0_NONE ||
+      message->right_value != W_SEED_HIR0_NONE ||
+      message->first_interpolation_segment != W_SEED_HIR0_NONE ||
+      message->interpolation_segment_count != 0u ||
+      message->byte_offset > program->value_byte_count ||
+      message->byte_count >
+          program->value_byte_count - message->byte_offset ||
+      message->byte_count > W_SEED_HIR0_MAX_VALUE_BYTES ||
+      (message->byte_count != 0u && program->value_bytes == NULL))
+    return false;
+  return program->types[message->type_index].kind == W_SEED_HIR0_TYPE_STRING;
+}
+
+/* Derive panic reachability from the selected entry call graph.  All blocks
+ * of a reachable function are inspected so a terminal CFG arm is admitted;
+ * dead functions do not contribute a panic fact. */
+static bool native_program_reachable_panic(
+    const w_seed_hir0_program *program, uint32_t root_function,
+    bool *has_panic) {
+  if (program == NULL || has_panic == NULL ||
+      root_function >= program->function_count ||
+      program->function_count > W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS)
+    return false;
+  bool reachable[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS] = {false};
+  uint32_t stack[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS] = {0u};
+  size_t stack_count = 0u;
+  reachable[root_function] = true;
+  stack[stack_count] = root_function;
+  stack_count += 1u;
+  bool found = false;
+  while (stack_count != 0u) {
+    const uint32_t function_index = stack[stack_count - 1u];
+    stack_count -= 1u;
+    const w_seed_hir0_function *function =
+        &program->functions[function_index];
+    if (function->first_block >= program->block_count ||
+        function->block_count == 0u ||
+        function->block_count > program->block_count - function->first_block)
+      return false;
+    for (size_t block_ordinal = 0u; block_ordinal < function->block_count;
+         block_ordinal += 1u) {
+      const size_t block_index =
+          (size_t)function->first_block + block_ordinal;
+      const w_seed_hir0_block *block = &program->blocks[block_index];
+      if (block->owner_function != function_index ||
+          (size_t)block->first_instruction > program->instruction_count ||
+          block->instruction_count >
+              program->instruction_count - block->first_instruction ||
+          block->terminator_index >= program->terminator_count)
+        return false;
+      const w_seed_hir0_terminator *terminator =
+          &program->terminators[block->terminator_index];
+      if (terminator->kind == W_SEED_HIR0_TERMINATOR_PANIC) {
+        if (!native_panic_terminator_supported(
+                program, block->terminator_index, function_index,
+                terminator))
+          return false;
+        found = true;
+      }
+      for (size_t instruction_ordinal = 0u;
+           instruction_ordinal < block->instruction_count;
+           instruction_ordinal += 1u) {
+        const w_seed_hir0_instruction *instruction =
+            &program->instructions[(size_t)block->first_instruction +
+                                   instruction_ordinal];
+        if (instruction->kind != W_SEED_HIR0_INSTRUCTION_CALL) continue;
+        if (instruction->call_index >= program->call_count) return false;
+        const w_seed_hir0_call *call = &program->calls[instruction->call_index];
+        if (call->callee_identity >= program->identity_count) return false;
+        const w_seed_hir0_identity *identity =
+            &program->identities[call->callee_identity];
+        if (identity->kind != W_SEED_HIR0_IDENTITY_FUNCTION) continue;
+        if (identity->target_index >= program->function_count) return false;
+        if (!reachable[identity->target_index]) {
+          reachable[identity->target_index] = true;
+          if (stack_count >= W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS)
+            return false;
+          stack[stack_count] = identity->target_index;
+          stack_count += 1u;
+        }
+      }
+    }
+  }
+  *has_panic = found;
+  return true;
+}
+
 static bool program_function_maximum(
     const w_seed_hir0_program *program, size_t function_index,
     const w_seed_native_subset0_process *process,
@@ -2923,6 +3058,15 @@ static bool program_function_maximum(
 
     const w_seed_hir0_terminator *terminator =
         &program->terminators[block->terminator_index];
+    if (terminator->kind == W_SEED_HIR0_TERMINATOR_PANIC) {
+      if (!native_panic_terminator_supported(
+              program, block->terminator_index, (uint32_t)function_index,
+              terminator))
+        return false;
+      /* Panic has no stdout contribution and never reaches a successor. */
+      block_maximum[local_block] = total;
+      continue;
+    }
     if (terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_UNIT) {
       if (function->return_type != 0u ||
           terminator->target_block != W_SEED_HIR0_NONE ||
@@ -3433,9 +3577,7 @@ w_seed_native_subset0_status w_seed_native_subset0_select_program(
       program->parameter_count > W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS ||
       program->block_count == 0u ||
       program->block_count > W_SEED_NATIVE_SUBSET0_MAX_BLOCKS ||
-      program->instruction_count == 0u ||
       program->instruction_count > W_SEED_NATIVE_SUBSET0_MAX_INSTRUCTIONS ||
-      program->call_count == 0u ||
       program->call_count > W_SEED_NATIVE_SUBSET0_MAX_CALLS ||
       program->binding_count > W_SEED_NATIVE_SUBSET0_MAX_BINDINGS ||
       program->value_count == 0u ||
@@ -3471,7 +3613,13 @@ w_seed_native_subset0_status w_seed_native_subset0_select_program(
             program, function, NULL, bindings, binding_reads, state, cached,
             &has_interpolation, &has_local_calls, false))
       return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
-  if (cached[entry->target_function] == 0u)
+  bool has_reachable_panic = false;
+  if (!native_program_reachable_panic(program, entry->target_function,
+                                      &has_reachable_panic))
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+  if ((!has_reachable_panic &&
+       (program->instruction_count == 0u || program->call_count == 0u)) ||
+      (!has_reachable_panic && cached[entry->target_function] == 0u))
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
   bool has_cfg = false;
   for (size_t function = 0u; function < program->function_count;
@@ -3514,6 +3662,7 @@ w_seed_native_subset0_status w_seed_native_subset0_select_program(
       .binding_count = program->binding_count,
       .call_count = program->call_count,
       .maximum_stdout_bytes = cached[entry->target_function],
+      .has_reachable_panic = has_reachable_panic,
       .has_interpolation = has_interpolation,
       .has_bool = has_bool,
       .has_local_calls = has_local_calls,
@@ -3827,6 +3976,13 @@ static bool process_function_body_supported(
     }
     const w_seed_hir0_terminator *terminator =
         &program->terminators[block->terminator_index];
+    if (terminator->kind == W_SEED_HIR0_TERMINATOR_PANIC) {
+      if (!native_panic_terminator_supported(
+              program, block->terminator_index, process->function_index,
+              terminator))
+        return false;
+      continue;
+    }
     if (terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE) {
       if (terminator->value_index >= program->value_count ||
           terminator->target_block != W_SEED_HIR0_NONE ||
@@ -4123,6 +4279,9 @@ select_process_executable_mode(
           parallel_selection != NULL))
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
   candidate.maximum_stdout_bytes = cached[candidate.function_index];
+  if (!native_program_reachable_panic(program, candidate.function_index,
+                                      &candidate.has_reachable_panic))
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
   for (size_t index = 0u; index < program->function_count; index += 1u)
     candidate.natural_loop_functions[index] =
         program_natural_loop_is_supported(program, index);

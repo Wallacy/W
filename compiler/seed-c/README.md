@@ -2446,6 +2446,20 @@ PANIC0 does not execute panic or lower it to MLIR/native code. `PanicEvent`,
 cleanup, fault-boundary selection, physical teardown/restart, public runtime
 ABI, other message forms, benchmarks, and performance remain unsupported.
 
+W-1625 extends only the existing executable and native-process MLIR0 routes.
+A reachable verified-HIR `PANIC` terminator in an ordinary entry, process
+handler, or bounded CFG arm emits `llvm.intr.trap` followed by
+`llvm.unreachable`. The copied String message is validated and remains covered
+by the HIR semantic digest, but it is not retained or printed by this
+release-style artifact. Empty non-panic programs remain unsupported;
+ProductClosure0 and sequence routes remain closed; existing schemas and
+non-panic artifact bytes are unchanged.
+
+This is bounded target-trap evidence, not a public panic runtime. `PanicEvent`,
+stable status/signal, user cleanup, message rendering, general process/Wasm/
+compartment containment, restart/supervision, parallel-provider composition,
+public ABI, benchmarks, and performance remain unsupported.
+
 ### Bounded CRT-free process/parallel provider linkage (W-1600)
 
 PARLINK1 closes the private physical reference for the W-1598 composition.
@@ -2779,6 +2793,11 @@ NAT1. HLO0, HLO1 e RUN0 continuam bootstrap, auditoria e recovery e rejeitam
 multi-call. O bundle tem
 `benchmarkDisposition: compiler-lifecycle`, correctness-only, sem timing ou
 result.
+
+For local development only, `W_MLIR0_DEVELOPMENT_PATCH_COMPAT=1` permits tools
+from the same `23.1.x` line and resolves version-suffixed WSL commands such as
+`mlir-opt-23`. Exact evidence remains pinned to 23.1.1; this switch neither
+rewrites receipts nor promotes a patch-compatible run to exact evidence.
 
 ### Direct-entry facts in HIR15 (W-1544)
 

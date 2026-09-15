@@ -570,9 +570,18 @@ static bool lower_process_hir(const uint8_t *source_bytes,
   w_seed_hir0_counts counts;
   w_seed_hir0_result result;
   CHECK(w_seed_hir0_measure(&input, &counts, &result) == W_SEED_HIR0_OK);
+  bool has_panic = false;
+  for (size_t index = 0u; index < fixture.frontend_result.written.expressions;
+       index += 1u) {
+    if (fixture.expressions[index].kind == W_SEED_FRONTEND_EXPR_PANIC) {
+      has_panic = true;
+      break;
+    }
+  }
   const size_t expected_external_symbols =
       process_input_frontend_mode ? 7u : 4u;
-  const size_t expected_types = process_input_frontend_mode ? 8u : 7u;
+  const size_t expected_types =
+      (process_input_frontend_mode ? 8u : 7u) + (has_panic ? 1u : 0u);
   CHECK(counts.external_modules == 1u &&
         counts.external_symbols == expected_external_symbols &&
         counts.types == expected_types);
@@ -591,9 +600,17 @@ static bool lower_process_input_hir(const uint8_t *source_bytes,
   const bool lowered = lower_process_hir(source_bytes, source_length);
   process_input_frontend_mode = false;
   if (!lowered) return false;
+  bool has_never = false;
+  for (size_t index = 0u; index < fixture.hir_program.type_count;
+       index += 1u) {
+    if (fixture.hir_program.types[index].kind == W_SEED_HIR0_TYPE_NEVER) {
+      has_never = true;
+      break;
+    }
+  }
   return fixture.hir_program.external_module_count == 1u &&
          fixture.hir_program.external_symbol_count == 7u &&
-         fixture.hir_program.type_count == 8u;
+         fixture.hir_program.type_count == (has_never ? 9u : 8u);
 }
 
 static w_seed_mlir0_input mlir_input(void) {
@@ -801,6 +818,158 @@ static bool emit_current(uint8_t *bytes, size_t capacity,
   return w_seed_mlir0_emit(&input, &TARGET,
                            &(w_seed_mlir0_output){bytes, capacity}, result) ==
          W_SEED_MLIR0_OK;
+}
+
+static bool test_reachable_panic_mlir(void) {
+  static const uint8_t ordinary_source[] =
+      "entry { panic(\"ordinary panic\") }\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  CHECK(lower_hir(ordinary_source, sizeof(ordinary_source) - 1u));
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.has_reachable_panic && selection.maximum_stdout_bytes == 0u);
+  w_seed_mlir0_input input = mlir_input();
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result result;
+  CHECK(w_seed_mlir0_measure(&input, &TARGET, &counts, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_emit(
+            &input, &TARGET,
+            &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(result.written.mlir_bytes == counts.mlir_bytes &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.target_triple = \"" W_SEED_MLIR0_TARGET_TRIPLE
+                       "\"") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "    \"llvm.intr.trap\"() : () -> ()\n"
+                       "    llvm.unreachable\n") &&
+        !contains_bytes(artifact, result.written.mlir_bytes, "ordinary panic"));
+  CHECK(w_seed_mlir0_emit(
+            &input, &WINDOWS_TARGET,
+            &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.target_triple = \""
+                       W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS "\"") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "    \"llvm.intr.trap\"() : () -> ()\n"
+                       "    llvm.unreachable\n") &&
+        !contains_bytes(artifact, result.written.mlir_bytes, "ordinary panic"));
+
+  static const uint8_t dead_source[] =
+      "fn dead() { panic(\"dead panic\") }\nentry {}\n";
+  CHECK(lower_hir(dead_source, sizeof(dead_source) - 1u));
+  CHECK(w_seed_native_subset0_select_program(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_UNSUPPORTED);
+  input = mlir_input();
+  CHECK(w_seed_mlir0_measure(&input, &TARGET, &counts, &result) ==
+        W_SEED_MLIR0_UNSUPPORTED);
+
+  CHECK(lower_hir(ordinary_source, sizeof(ordinary_source) - 1u));
+  const w_seed_hir0_terminator saved_terminator = fixture.hir_terminators[0];
+  fixture.hir_terminators[0].panic_code = W_SEED_HIR0_PANIC_CODE_INVALID;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_terminators[0] = saved_terminator;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  input = mlir_input();
+  CHECK(w_seed_mlir0_emit(
+            &input, &TARGET,
+            &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result) ==
+        W_SEED_MLIR0_OK);
+  const size_t written = result.written.mlir_bytes;
+  const w_seed_mlir0_result result_snapshot = result;
+  (void)memset(artifact, 0xa5u, sizeof(artifact));
+  CHECK(w_seed_mlir0_emit(
+            &input, &TARGET, &(w_seed_mlir0_output){artifact, written - 1u},
+            &result) == W_SEED_MLIR0_CAPACITY);
+  for (size_t index = 0u; index < sizeof(artifact); index += 1u)
+    CHECK(artifact[index] == 0xa5u);
+  CHECK(memcmp(&result, &result_snapshot, sizeof(result)) == 0);
+  uint8_t values_snapshot[sizeof(fixture.hir_values)];
+  (void)memcpy(values_snapshot, fixture.hir_values, sizeof(values_snapshot));
+  CHECK(w_seed_mlir0_emit(
+            &input, &TARGET,
+            &(w_seed_mlir0_output){(uint8_t *)fixture.hir_values,
+                                   sizeof(fixture.hir_values)},
+            &result) == W_SEED_MLIR0_ALIAS);
+  CHECK(memcmp(fixture.hir_values, values_snapshot, sizeof(values_snapshot)) ==
+        0);
+  return true;
+}
+
+static bool test_process_panic_mlir(void) {
+  static const uint8_t source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { panic(\"process panic\") }\n"
+      "entry(run)\n";
+  CHECK(lower_process_input_hir(source, sizeof(source) - 1u));
+  const w_seed_mlir0_input input = {
+      &fixture.hir_program, &fixture.hir_result,
+      W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE};
+  w_seed_native_subset0_process selection;
+  CHECK(w_seed_native_subset0_select_process_executable(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.has_reachable_panic && selection.maximum_stdout_bytes == 0u);
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result result;
+  CHECK(w_seed_mlir0_measure(&input, &TARGET, &counts, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_emit(
+            &input, &TARGET,
+            &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(result.written.mlir_bytes == counts.mlir_bytes &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.target_triple = \"" W_SEED_MLIR0_TARGET_TRIPLE
+                       "\"") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "    \"llvm.intr.trap\"() : () -> ()\n"
+                       "    llvm.unreachable\n") &&
+        !contains_bytes(artifact, result.written.mlir_bytes, "process panic"));
+  CHECK(w_seed_mlir0_emit(
+            &input, &WINDOWS_TARGET,
+            &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.target_triple = \""
+                       W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS "\"") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "    \"llvm.intr.trap\"() : () -> ()\n"
+                       "    llvm.unreachable\n") &&
+        !contains_bytes(artifact, result.written.mlir_bytes, "process panic"));
+
+  static const uint8_t branch_source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { if true { panic(\"process branch\") } "
+      "else { return .success } }\n"
+      "entry(run)\n";
+  CHECK(lower_process_input_hir(branch_source, sizeof(branch_source) - 1u));
+  CHECK(w_seed_native_subset0_select_process_executable(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.has_reachable_panic);
+  CHECK(w_seed_mlir0_emit(
+            &input, &TARGET,
+            &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.cond_br") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "    \"llvm.intr.trap\"() : () -> ()\n"
+                       "    llvm.unreachable\n") &&
+        !contains_bytes(artifact, result.written.mlir_bytes, "process branch"));
+
+  return true;
 }
 
 static bool test_process_arguments_count_comparison_mlir(void) {
@@ -4146,6 +4315,8 @@ int main(int argc, char **argv) {
     return emit_typed_cleanup_probe() ? 0 : 1;
   }
   if (argc != 1) return 2;
+  if (!test_reachable_panic_mlir()) return 1;
+  if (!test_process_panic_mlir()) return 1;
   if (!test_process_hir_is_closed_to_mlir()) return 1;
   if (!test_process_arguments_count_comparison_mlir()) return 1;
   if (!test_process_arguments_count_ordered_mlir()) return 1;

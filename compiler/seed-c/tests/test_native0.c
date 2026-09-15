@@ -1045,6 +1045,82 @@ static bool test_process_input0_public_artifact(void) {
   return true;
 }
 
+static bool test_panic_native_routes(void) {
+  static const uint8_t ordinary[] =
+      "entry { panic(\"native ordinary panic\") }\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source(ordinary, sizeof(ordinary) - 1u, "native-panic", 12u,
+                   output, sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK &&
+        selection.has_reachable_panic && selection.maximum_stdout_bytes == 0u);
+  CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "    \"llvm.intr.trap\"() : () -> ()\n"
+                       "    llvm.unreachable\n") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "native ordinary panic"));
+
+  CHECK(run_source_mode(
+            ordinary, sizeof(ordinary) - 1u, "native-panic", 12u,
+            &WINDOWS_TARGET, W_SEED_MLIR0_ARTIFACT_EXECUTABLE, output,
+            sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.target_triple = \""
+                       W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS "\"") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "    \"llvm.intr.trap\"() : () -> ()\n"
+                       "    llvm.unreachable\n") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "native ordinary panic"));
+
+  static const uint8_t process[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { panic(\"native process panic\") }\n"
+      "entry(run)\n";
+  CHECK(run_source_mode(
+            process, sizeof(process) - 1u, "native-process-panic", 20u,
+            &TARGET, W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE, output,
+            sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  w_seed_native_subset0_process process_selection;
+  CHECK(w_seed_native_subset0_select_process_executable(
+            &storage.hir_program, &storage.hir_result, &process_selection) ==
+        W_SEED_NATIVE_SUBSET0_OK && process_selection.has_reachable_panic &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "    \"llvm.intr.trap\"() : () -> ()\n"
+                       "    llvm.unreachable\n") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "native process panic"));
+  CHECK(run_source_mode(
+            process, sizeof(process) - 1u, "native-process-panic", 20u,
+            &WINDOWS_TARGET, W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE, output,
+            sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.target_triple = \""
+                       W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS "\"") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "    \"llvm.intr.trap\"() : () -> ()\n"
+                       "    llvm.unreachable\n") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "native process panic"));
+
+  static const uint8_t dead[] =
+      "fn dead() { panic(\"native dead panic\") }\nentry {}\n";
+  (void)memset(output, 0x6bu, sizeof(output));
+  uint8_t dead_output_snapshot[sizeof(output)];
+  (void)memcpy(dead_output_snapshot, output, sizeof(dead_output_snapshot));
+  const w_seed_native0_result dead_snapshot = result;
+  CHECK(run_source(dead, sizeof(dead) - 1u, "native-dead-panic", 17u, output,
+                   sizeof(output), &result) == W_SEED_NATIVE0_UNSUPPORTED);
+  CHECK(memcmp(output, dead_output_snapshot, sizeof(output)) == 0 &&
+        memcmp(&result, &dead_snapshot, sizeof(result)) == 0);
+  return true;
+}
+
 static bool test_process_arguments_count_public_artifact(void) {
   static const uint8_t source[] =
       "import { Arguments as ProcessArguments, Context as ProcessContext, "
@@ -2418,6 +2494,7 @@ int main(void) {
                         test_enum_subset_switch_native_lowering() &&
                         test_process_handler_catalog_and_artifact() &&
                         test_process_input0_public_artifact() &&
+                        test_panic_native_routes() &&
                         test_process_arguments_count_public_artifact() &&
                         test_process_arguments_count_ordered_native() &&
                         test_process_stdout_bounds() &&

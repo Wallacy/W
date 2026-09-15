@@ -513,8 +513,14 @@ w_seed_hlo0_status w_seed_hlo0_run(const w_seed_hlo0_input *input,
                                    w_seed_hlo0_output *output,
                                    w_seed_hlo0_result *result) {
   if (result == NULL) return W_SEED_HLO0_INVALID;
-  w_seed_hlo0_counts counts = {0u, 0u, 0u};
-  w_seed_hlo0_result measured = {0};
+  w_seed_hlo0_counts counts;
+  w_seed_hlo0_result measured;
+  /* GCC 15's interprocedural maybe-uninitialized pass does not preserve the
+   * aggregate initializer proof across the alias-range preflight.  An
+   * explicit byte initialization keeps the same semantics and the warning
+   * proof local without weakening -Werror. */
+  (void)memset(&counts, 0, sizeof(counts));
+  (void)memset(&measured, 0, sizeof(measured));
   const w_seed_hlo0_status measured_status =
       w_seed_hlo0_measure(input, &counts, &measured);
   if (measured_status != W_SEED_HLO0_OK) return measured_status;

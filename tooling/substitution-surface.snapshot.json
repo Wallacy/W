@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:e5b38e124b4430b9bab67f7edba509094e877e44ecdc9cd6b3504e92af5b5c8d",
+  "corpusDigest": "sha256:b76f74a4c047d5d4ca5a019455fafcc172ff29eb8debad5a4b26712a40506c13",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -10212,6 +10212,78 @@
             "nonWhitespaceCodePoints": 73,
             "lines": 1,
             "surfaceLexemes": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-source-panic-mlir0",
+      "task": {
+        "utf8Bytes": 145,
+        "codePoints": 145,
+        "nonWhitespaceCodePoints": 126,
+        "lines": 1,
+        "surfaceLexemes": 23
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w-internal",
+        "sourceDigest": "sha256:b136ce55b18f3458b2989e06e2c1fcc3380da5ef258877fa03b86cae37086fac",
+        "metrics": {
+          "utf8Bytes": 329,
+          "codePoints": 329,
+          "nonWhitespaceCodePoints": 287,
+          "lines": 4,
+          "surfaceLexemes": 59
+        }
+      },
+      "alternatives": [
+        {
+          "name": "second-panic-artifact-kind",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:7a19f198f6dea399e39552e6f60714f78732bc8e34c39798387262421acfc163",
+          "metrics": {
+            "utf8Bytes": 57,
+            "codePoints": 57,
+            "nonWhitespaceCodePoints": 49,
+            "lines": 1,
+            "surfaceLexemes": 9
+          }
+        },
+        {
+          "name": "empty-means-panic",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:aca95286bae8d931a9268b98b413905ad8b6c47253ec81c3ac1c79cf6537d337",
+          "metrics": {
+            "utf8Bytes": 67,
+            "codePoints": 67,
+            "nonWhitespaceCodePoints": 58,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "retain-message-by-default",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:cab0f04b50aa0c903fedabbe89150cab64caadc8fea0f71216e5858d75573ce6",
+          "metrics": {
+            "utf8Bytes": 61,
+            "codePoints": 61,
+            "nonWhitespaceCodePoints": 52,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "trap-is-panic-runtime",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:b7be6478ee8467ef60a44244b2691e4d5426035684211e47a6b231ff513d3e39",
+          "metrics": {
+            "utf8Bytes": 92,
+            "codePoints": 92,
+            "nonWhitespaceCodePoints": 80,
+            "lines": 1,
+            "surfaceLexemes": 17
           }
         }
       ]

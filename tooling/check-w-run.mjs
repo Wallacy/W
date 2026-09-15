@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs"
-import { lstat, mkdir, mkdtemp, readdir, readFile, rm, symlink, unlink, writeFile } from "node:fs/promises"
+import { chmod, lstat, mkdir, mkdtemp, readdir, readFile, rm, symlink, unlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { isAbsolute, join, resolve } from "node:path"
 
@@ -33,6 +33,8 @@ const restaurantAsyncJoinFixture = resolve(seedDirectory,
   "fixtures", "restaurant-async-join.w")
 const restaurantAsyncYieldFixture = resolve(seedDirectory,
   "fixtures", "restaurant-async-yield.w")
+const explicitPanicFixture = resolve(seedDirectory,
+  "fixtures", "panic-explicit.w")
 const restaurantMainDispatchFixture = resolve(seedDirectory,
   "fixtures", "restaurant-main-dispatch0.w")
 const restaurantMainCardinalityFixture = resolve(seedDirectory,
@@ -95,6 +97,8 @@ const { ci: ciMode } = import.meta.main
   ? parseArguments(process.argv.slice(2))
   : { ci: false }
 const expectedVersion = "23.1.1"
+const developmentPatchCompatibility =
+  process.env.W_MLIR0_DEVELOPMENT_PATCH_COMPAT === "1"
 const manifestPath = ciMode ? ciManifestPath : localManifestPath
 
 function assert(condition, message) {
@@ -282,7 +286,16 @@ function resolveLocalTool(command, role, externalRoot) {
   assert(/^[A-Za-z0-9._+-]+$/u.test(command),
     `local tool ${role} is not a simple command name`)
   if (externalRoot) return `${externalRoot}/bin/${command}`
-  if (isWindows) return wslWhich(command) ?? command
+  if (isWindows) {
+    if (developmentPatchCompatibility) {
+      const [major] = expectedVersion.split(".")
+      const compatible = wslWhich(`${command}-${major}`)
+      if (compatible) return compatible
+    }
+    const exact = wslWhich(command)
+    if (exact) return exact
+    return command
+  }
   return Bun.which(command) ?? command
 }
 
@@ -297,7 +310,9 @@ function versionProbe(command, versionArgs) {
   return {
     present,
     valid: present && result.exitCode === 0 &&
-      new RegExp(`\\b${escapedVersion(expectedVersion)}\\b`, "u").test(output),
+      new RegExp(developmentPatchCompatibility
+        ? `\\b${escapedVersion(expectedVersion.split(".").slice(0, 2).join("."))}\\.[0-9]+\\b`
+        : `\\b${escapedVersion(expectedVersion)}\\b`, "u").test(output),
     output,
   }
 }
@@ -532,7 +547,8 @@ if (!probes.some(([, probe]) => probe.present)) {
 for (const [role, probe] of probes)
   if (!probe.present) fail(`pinned toolchain is incomplete: ${role} is absent`)
 for (const [role, probe] of probes)
-  if (!probe.valid) fail(`${role} version is not ${expectedVersion}: ${probe.output.trim()}`)
+  if (!probe.valid) fail(`${role} version is not ${developmentPatchCompatibility
+    ? "in the 23.1.x development line" : expectedVersion}: ${probe.output.trim()}`)
 
 const hostProbe = (command, args) => isWindows ? wslRun(command, args) : spawn(command, args)
 const linkTarget = hostProbe(resolvedCommands.linkDriver, ["-V"])
@@ -541,7 +557,8 @@ assert(linkTarget.exitCode === 0 && /(?:^|\s)elf_x86_64(?:\s|$)/u.test(linkTarge
 "native linker does not report elf_x86_64 support")
 const linkVersion = hostProbe(resolvedCommands.linkDriver, ["--version"])
 assert(linkVersion.exitCode === 0, "native linker version probe failed")
-console.log(`W RUN: LLVM tools ${expectedVersion}; native linker ${resolvedCommands.linkDriver}: ` +
+console.log(`W RUN: LLVM tools ${developmentPatchCompatibility
+  ? "23.1.x development-compatible" : expectedVersion}; native linker ${resolvedCommands.linkDriver}: ` +
   `${linkVersion.stdoutBytes.toString().split(/\r?\n/u)[0]}; target elf_x86_64`)
 console.log("W RUN: stages MLIR → LLVM IR → llc PIC objects → WRT0 + direct static-PIE link (no CRT/libc)")
 
@@ -588,6 +605,14 @@ try {
   const sourcePath = isWindows ? wslPath(seedDirectory) : seedDirectory
   const toolDirectory = join(fixtureDirectory, "tool links")
   const toolPath = isWindows ? wslPath(toolDirectory) : toolDirectory
+  const failureTool = join(fixtureDirectory, "fail-tool")
+  await writeFile(failureTool, "#!/bin/sh\nexit 1\n")
+  if (isWindows) {
+    runRequired("WSL private failure-tool mode", "wsl.exe", [
+      "-d", "Ubuntu", "--", "chmod", "755", wslPath(failureTool),
+    ])
+  } else await chmod(failureTool, 0o755)
+  const failureToolForHost = isWindows ? wslPath(failureTool) : failureTool
   const toolNames = {
     mlirOpt: "mlir-opt",
     mlirTranslate: "mlir-translate",
@@ -893,6 +918,10 @@ try {
   assert(divisionFault.exitCode !== 0 && divisionFault.stdout.length === 0 &&
     divisionFault.stderr.length === 0,
   `runtime division by zero did not fail before output: ${resultSummary(divisionFault)}`)
+  const panicFault = invoke(binary, ["run", toWsl(explicitPanicFixture)])
+  assert(panicFault.exitCode !== 0 && panicFault.stdout.length === 0 &&
+    panicFault.stderr.length === 0,
+  `explicit panic did not terminate silently: ${resultSummary(panicFault)}`)
   expectSuccess(binary, ["run", toWsl(empty)], Buffer.from("\n"),
     "empty payload")
   expectSuccess(binary, ["run", toWsl(twoCalls)], Buffer.from("a\nb\n"),
@@ -1161,7 +1190,7 @@ try {
   }
   for (const role of ["mlirOpt", "mlirTranslate", "llc", "linkDriver"]) {
     try {
-      await replaceToolLink(role, "/usr/bin/false")
+      await replaceToolLink(role, failureToolForHost)
       expectSourceFailure(binary, toWsl(helloFixture), `${role} stage failure`)
       expectBuildFailure(binary, ["build", toWsl(helloFixture), "--target",
         targetTriple, "--output", buildOutput(`${role}-failure`)],

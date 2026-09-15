@@ -41199,13 +41199,36 @@ HIR0 remains caller-owned, allocation-free, measured, transactional, and
 independently verified. The verifier checks the closed code, `Never` result,
 terminator ownership and ordinal, copied String value, ranges, spans, schema,
 receipt, and digests. The canonical `Never` and native-process `usize` records
-have disjoint stable text ranges. Older ProductClosure0/HLO0 routes reject the
-new terminator instead of silently compiling it.
+have disjoint stable text ranges. ProductClosure0 and sequence routes reject
+the new terminator instead of silently compiling it; W-1625 extends only the
+bounded executable MLIR0 routes.
 
 This is not panic execution. It does not materialize `PanicEvent`, select the
 nearest fault boundary, run cleanup, terminate or restart a process/Wasm/
 compartment, define a public Task/runtime ABI, or lower PANIC0 to MLIR/native
 code. Those remain later lifecycle and product boundaries.
+
+#### 26.4.1.105 W-1625 — bounded explicit panic through executable MLIR0
+
+The existing executable and native-process MLIR0 routes accept a reachable,
+verified HIR0 `PANIC` terminator. The selector derives the panic fact from the
+reachable control-flow graph, validates the copied constant-String message,
+and does not admit an otherwise empty non-panic program. An ordinary entry, a
+native-process handler, or one reachable arm of a bounded CFG may terminate in
+panic.
+
+MLIR0 emits `llvm.intr.trap` immediately followed by `llvm.unreachable` at the
+terminator. The literal message remains part of verified HIR identity and its
+semantic digest, but the release-style native artifact does not retain or
+print those bytes. Existing non-panic artifact bytes and schemas remain
+unchanged. ProductClosure0 and sequence artifact kinds remain fail-closed.
+
+This cut proves source panic reaches a target trap in the bounded executable
+routes. It does not define `PanicEvent`, a stable process status or signal,
+message rendering, guaranteed user cleanup, the nearest general fault
+boundary, process/Wasm/compartment containment, restart or supervision,
+parallel-provider composition, a public panic ABI, benchmarks, or performance.
+Those remain separate lifecycle and product boundaries.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

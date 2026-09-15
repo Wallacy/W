@@ -248,3 +248,11 @@ or instruction. Invalid shapes fail closed, and a native-process witness keeps
 `Never` and `usize` layout disjoint. The next panic step is MLIR/native
 lowering into the selected fault boundary; `PanicEvent`, cleanup, teardown,
 restart, public runtime/ABI behavior, and performance remain open.
+
+W-1625 connects that verified terminator to the existing executable and
+native-process MLIR0 routes. A reachable ordinary/process/CFG panic becomes
+`llvm.intr.trap` followed by `llvm.unreachable`; its checked literal remains in
+HIR identity but is stripped from this release-style artifact. Empty non-panic
+programs and unrelated artifact kinds remain closed. The next panic increment
+is composition with the private parallel signal and a bounded `PanicEvent`/
+lifecycle boundary, not another synthetic artifact route.

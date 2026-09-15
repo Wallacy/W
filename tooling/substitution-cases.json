@@ -10107,6 +10107,53 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-source-panic-mlir0",
+      "reviewItem": "executable panic lowering against empty-program admission, retained release payloads, recoverable control flow, and fault-boundary overclaim",
+      "decisions": ["W-1625"],
+      "task": "Lower one reachable verified-HIR panic terminator through existing executable MLIR0 routes without inventing a runtime or a second artifact kind.",
+      "selected": {
+        "language": "w-internal",
+        "source": [
+          "derive panic only from a reachable verified-HIR PANIC terminator",
+          "validate and mark the copied String message while stripping it from the release-style artifact",
+          "emit llvm.intr.trap immediately followed by llvm.unreachable",
+          "admit ordinary entry, native-process handler, and bounded CFG arm while preserving empty non-panic rejection"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "second-panic-artifact-kind",
+          "language": "w-internal-rejected",
+          "source": ["create a separate artifact kind solely for explicit panic"],
+          "expectedDifference": "Panic is a terminator of the existing executable routes; a separate artifact would duplicate selection and linking policy."
+        },
+        {
+          "name": "empty-means-panic",
+          "language": "w-internal-rejected",
+          "source": ["accept any selected program with no ordinary instructions or output"],
+          "expectedDifference": "Only a reachable verified PANIC permits the zero-output route; empty non-panic programs remain unsupported."
+        },
+        {
+          "name": "retain-message-by-default",
+          "language": "w-internal-rejected",
+          "source": ["emit the literal message as an otherwise unused native global"],
+          "expectedDifference": "HIR retains semantic identity; this release-style artifact has no message-rendering contract and strips the bytes."
+        },
+        {
+          "name": "trap-is-panic-runtime",
+          "language": "w-internal-rejected",
+          "source": ["claim PanicEvent, cleanup, containment, restart, or stable process status from a target trap"],
+          "expectedDifference": "W-1625 proves bounded target termination only; lifecycle and public fault-boundary contracts remain separate."
+        }
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

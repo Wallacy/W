@@ -98,6 +98,9 @@ typedef struct {
   bool has_cfg;
   bool has_enum_switch;
   bool has_mutable_bindings;
+  /* True only when the selected entry call graph contains a verified panic
+   * terminator.  Panic text remains HIR evidence; it is not an output plan. */
+  bool has_reachable_panic;
   bool natural_loop_functions[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS];
   /* Verified five-block post-test repeat facts.  This is intentionally
    * separate from the pre-test natural-loop projection consumed by MLIR0. */
@@ -126,6 +129,9 @@ typedef struct {
   uint32_t arguments_parameter_ordinal;
   uint32_t context_parameter_ordinal;
   size_t maximum_stdout_bytes;
+  /* True only when the selected process entry call graph contains a verified
+   * panic terminator.  The message is validated but never emitted. */
+  bool has_reachable_panic;
   bool natural_loop_functions[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS];
   bool post_test_loop_functions[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS];
 } w_seed_native_subset0_process;

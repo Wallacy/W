@@ -24,7 +24,7 @@
         "reference/syntax-atlas/rejected.w-rejected.txt",
         "reference/syntax-atlas/reserved.w-reserved.txt"
       ],
-      "artifactsDigest": "sha256:74e1ac5e998b34a5dec2403cf3eaa4b8a9f1e1ccdb5e867afd64a919a84018ae"
+      "artifactsDigest": "sha256:020e871986e032cad17695949bdd531492fb8dc8ca462dc04285443476962ebb"
     },
     {
       "id": "drc0",
@@ -78,7 +78,7 @@
         "tooling/studies/avf0-availability-feature/study.json",
         "tooling/studies/avf0-availability-feature/typed-runtime-feature.w"
       ],
-      "artifactsDigest": "sha256:eedf09628a3a842022a446bbae738b368ba6b965cd549b89d1b6c19269c1a8f2"
+      "artifactsDigest": "sha256:54df4def58735bf7fe186cdfe6215c64d9bee90ffe76775e999dff7527860785"
     },
     {
       "id": "sec0",
@@ -222,7 +222,7 @@
         "tooling/syn1-typed-generation-reference.test.mjs",
         "tooling/syn1-typed-generation-results.snapshot.jsonl"
       ],
-      "artifactsDigest": "sha256:a356f1863fdd7e4dee17a018ada52ef1b93637b75cdf95f43be284e775dbb33e"
+      "artifactsDigest": "sha256:2c23dfd2569ccb5a51595cb30b02756eb0be23530e5240470762cf8ccc74ffe8"
     },
     {
       "id": "hrd0",
@@ -250,7 +250,7 @@
         "tooling/studies/hrd0-hot-reload-dev/split-runner.w",
         "tooling/studies/hrd0-hot-reload-dev/study.json"
       ],
-      "artifactsDigest": "sha256:d7ea5f3affc9cbd5dfaa6ab29d9d17a7bda09a8863ef064cf6af98012facb511"
+      "artifactsDigest": "sha256:c6d488832c8dc2988e9f2b6c2ea466e9b4b6bac6a4efbb4406687d0fbd85f3c3"
     },
     {
       "id": "dyn1",
@@ -278,7 +278,7 @@
         "tooling/studies/dyn1-versioned-behavior/persistent-generation-reference.txt",
         "tooling/studies/dyn1-versioned-behavior/study.json"
       ],
-      "artifactsDigest": "sha256:8ab273b9347e6b8162723e61af415cc0236654080e470fe3b103b0c78b5e9974"
+      "artifactsDigest": "sha256:e2d70d9c16a2bb258baef06c5366472d3f0fad37653f40646a014e55e73e8a05"
     },
     {
       "id": "atom1",

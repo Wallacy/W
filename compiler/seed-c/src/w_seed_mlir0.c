@@ -1819,6 +1819,7 @@ typedef struct {
   bool has_checked_multiply;
   bool has_checked_divide;
   bool has_checked_remainder;
+  bool has_reachable_panic;
   bool reachable_values[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
 } mlir0_program_plan;
 
@@ -1873,15 +1874,66 @@ static bool mark_program_reachable_functions(
   return true;
 }
 
+static bool mlir0_panic_message_valid(
+    const w_seed_hir0_program *program, size_t terminator_index,
+    uint32_t function_index, const w_seed_hir0_terminator *terminator) {
+  if (program == NULL || terminator == NULL ||
+      terminator_index >= program->terminator_count ||
+      function_index >= program->function_count ||
+      terminator->kind != W_SEED_HIR0_TERMINATOR_PANIC ||
+      terminator->panic_code != W_SEED_HIR0_PANIC_CODE_EXPLICIT ||
+      terminator->value_index == W_SEED_HIR0_NONE ||
+      terminator->value_index >= program->value_count ||
+      terminator->result_type == W_SEED_HIR0_NONE ||
+      terminator->result_type >= program->type_count ||
+      program->types[terminator->result_type].kind !=
+          W_SEED_HIR0_TYPE_NEVER ||
+      terminator->owner_block >= program->block_count ||
+      program->blocks[terminator->owner_block].owner_function !=
+          function_index ||
+      terminator->call_index != W_SEED_HIR0_NONE ||
+      terminator->target_block != W_SEED_HIR0_NONE ||
+      terminator->else_block != W_SEED_HIR0_NONE ||
+      terminator->first_edge_argument != W_SEED_HIR0_NONE ||
+      terminator->edge_argument_count != 0u ||
+      terminator->logical_operator != W_SEED_HIR0_LOGICAL_NONE ||
+      terminator->switch_enum_index != W_SEED_HIR0_NONE ||
+      terminator->first_switch_edge != W_SEED_HIR0_NONE ||
+      terminator->switch_edge_count != 0u ||
+      terminator->switch_carrier_width != 0u)
+    return false;
+  const w_seed_hir0_value *message =
+      &program->values[terminator->value_index];
+  return message->kind == W_SEED_HIR0_VALUE_CONST_STRING &&
+         message->owner_kind == W_SEED_HIR0_VALUE_OWNER_TERMINATOR &&
+         message->owner_index == terminator_index &&
+         message->owner_ordinal == 0u && message->type_index == 1u &&
+         message->binding_index == W_SEED_HIR0_NONE &&
+         message->parameter_index == W_SEED_HIR0_NONE &&
+         message->call_index == W_SEED_HIR0_NONE &&
+         message->left_value == W_SEED_HIR0_NONE &&
+         message->right_value == W_SEED_HIR0_NONE &&
+         message->first_interpolation_segment == W_SEED_HIR0_NONE &&
+         message->interpolation_segment_count == 0u &&
+         message->byte_offset <= program->value_byte_count &&
+         message->byte_count <=
+             program->value_byte_count - message->byte_offset &&
+         message->byte_count <= W_SEED_HIR0_MAX_VALUE_BYTES &&
+         (message->byte_count == 0u || program->value_bytes != NULL) &&
+         program->types[message->type_index].kind ==
+             W_SEED_HIR0_TYPE_STRING;
+}
+
 static bool mark_program_reachable_values(
     const w_seed_hir0_program *program,
     const bool reachable_functions[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS],
     bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES], bool *has_add,
     bool *has_subtract, bool *has_multiply, bool *has_divide,
-    bool *has_remainder) {
+    bool *has_remainder, bool *has_reachable_panic) {
   if (program == NULL || reachable_functions == NULL || reachable == NULL ||
       has_add == NULL || has_subtract == NULL || has_multiply == NULL ||
-      has_divide == NULL || has_remainder == NULL)
+      has_divide == NULL || has_remainder == NULL ||
+      has_reachable_panic == NULL)
     return false;
   for (size_t function_index = 0u;
        function_index < program->function_count; function_index += 1u) {
@@ -1940,7 +1992,14 @@ static bool mark_program_reachable_values(
       }
       const w_seed_hir0_terminator *terminator =
           &program->terminators[block->terminator_index];
-      if (terminator->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
+      if (terminator->kind == W_SEED_HIR0_TERMINATOR_PANIC) {
+        if (!mlir0_panic_message_valid(
+                program, block->terminator_index, (uint32_t)function_index,
+                terminator))
+          return false;
+        reachable[terminator->value_index] = true;
+        *has_reachable_panic = true;
+      } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
         if (!mark_reachable_value_tree(
                 program, terminator->value_index, reachable, has_add,
                 has_subtract, has_multiply, has_divide, has_remainder, 0u))
@@ -2159,9 +2218,6 @@ static bool build_program_plan(const w_seed_hir0_program *program,
     candidate.call_action_count[call_index] =
         candidate.action_count - candidate.call_first_action[call_index];
   }
-  if (!allow_empty &&
-      (candidate.action_count == 0u || candidate.text_bytes == 0u))
-    return false;
   for (size_t function_index = 0u;
        function_index < program->function_count; function_index += 1u) {
     candidate.omitted_functions[function_index] =
@@ -2171,7 +2227,11 @@ static bool build_program_plan(const w_seed_hir0_program *program,
           program, candidate.reachable_functions, candidate.reachable_values,
           &candidate.has_checked_add, &candidate.has_checked_subtract,
           &candidate.has_checked_multiply, &candidate.has_checked_divide,
-          &candidate.has_checked_remainder))
+          &candidate.has_checked_remainder, &candidate.has_reachable_panic))
+    return false;
+  if (!allow_empty &&
+      (candidate.action_count == 0u || candidate.text_bytes == 0u) &&
+      !candidate.has_reachable_panic)
     return false;
   candidate.has_bool = false;
   for (size_t action_index = 0u; action_index < candidate.action_count;
@@ -4420,7 +4480,17 @@ static bool append_program_function(
     }
     const w_seed_hir0_terminator *terminator =
         &program->terminators[block->terminator_index];
-    if (terminator->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
+    if (terminator->kind == W_SEED_HIR0_TERMINATOR_PANIC) {
+      if (terminator->value_index >= W_SEED_NATIVE_SUBSET0_MAX_VALUES ||
+          !plan->reachable_values[terminator->value_index] ||
+          !mlir0_panic_message_valid(
+              program, block->terminator_index, (uint32_t)function_index,
+              terminator) ||
+          !append_literal(artifact, capacity, offset,
+                          "    \"llvm.intr.trap\"() : () -> ()\n"
+                          "    llvm.unreachable\n"))
+        return false;
+    } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
       if (terminator->value_index >= program->value_count ||
           !append_program_value_tree(
               program, terminator->value_index, (uint32_t)function_index,
@@ -4615,12 +4685,14 @@ static bool build_program_artifact(
       (!selection->has_local_calls && !selection->has_cfg &&
        !selection->has_enum_switch &&
        !selection->has_mutable_bindings &&
-       selection->function_count <= 1u) ||
+       !selection->has_reachable_panic && selection->function_count <= 1u) ||
       !target_is_supported(target) || artifact == NULL || written == NULL ||
       digest == NULL || selection->maximum_stdout_bytes > MLIR0_MAX_STDOUT_BYTES)
     return false;
   mlir0_program_plan plan;
-  if (!build_program_plan(program, hir_result, &plan, false, true)) return false;
+  if (!build_program_plan(program, hir_result, &plan, false, true) ||
+      plan.has_reachable_panic != selection->has_reachable_panic)
+    return false;
   size_t offset = 0u;
   const bool windows = target_is_windows(target);
   if (!append_literal(artifact, capacity, &offset,
@@ -5089,7 +5161,8 @@ static bool build_process_executable_artifact(
 
   mlir0_program_plan plan;
   if (!build_program_plan(program, NULL, &plan, true, false) ||
-      !plan.reachable_functions[selection->function_index])
+      !plan.reachable_functions[selection->function_index] ||
+      plan.has_reachable_panic != selection->has_reachable_panic)
     return false;
   mlir0_process_emit_context process = {
       .function_index = selection->function_index,
@@ -5626,6 +5699,7 @@ w_seed_mlir0_status w_seed_mlir0_measure(
   } else if (program_selection.has_local_calls || program_selection.has_cfg ||
              program_selection.has_enum_switch ||
              program_selection.has_mutable_bindings ||
+             program_selection.has_reachable_panic ||
              program_selection.function_count > 1u) {
     if (!build_program_artifact(input->program, input->hir_result,
                                 &program_selection, target, artifact,
@@ -5715,6 +5789,7 @@ w_seed_mlir0_status w_seed_mlir0_emit(
   } else if (program_selection.has_local_calls || program_selection.has_cfg ||
              program_selection.has_enum_switch ||
              program_selection.has_mutable_bindings ||
+             program_selection.has_reachable_panic ||
              program_selection.function_count > 1u) {
     if (!build_program_artifact(input->program, input->hir_result,
                                 &program_selection, target, artifact,

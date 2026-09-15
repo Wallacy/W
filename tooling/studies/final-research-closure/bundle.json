@@ -20,7 +20,7 @@
     {
       "path": "../../../tooling/research-state-inventory.json",
       "symbol": "w-research-state-inventory-1",
-      "digest": "sha256:60fad4b9d968aba08fb5e5d1bc24d6aad7341a7371e4c442623cd2ee23ef9df1"
+      "digest": "sha256:63f85bbec346927126a37702039e2ced5b2b69a7690a61b4212eb0ed7bc1ae0e"
     },
     {
       "path": "../../../tooling/frontend-freeze-cases.json",
@@ -30,22 +30,22 @@
     {
       "path": "../../../tooling/hum0-human-review-protocol.json",
       "symbol": "w-hum0-human-review-protocol-1",
-      "digest": "sha256:47bc9a919b2dac20393eeefe30676e8b53bca5f9c10d4dae79704969c0df3aa0"
+      "digest": "sha256:9f86a61841caa5fe66d52589219fce857ee5391ec8a5153802748efcd57fa3d1"
     },
     {
       "path": "../../../tooling/design-freeze-classification.json",
       "symbol": "w-design-freeze-classification-1",
-      "digest": "sha256:63bdc1b9f9e08f6e1c3aba8483d82434cad69d428c38df4a6be5e880bf6fbeef"
+      "digest": "sha256:741fa4a49056c2e0894daf7baccf877cfb46702138a2423e4100f5759f006792"
     },
     {
       "path": "../../../RATIONALE.md",
       "symbol": "| W-707 | gate de design freeze",
-      "digest": "sha256:abaa22c2e54193c62785dddbedd44650b8e0a78723dc334babea5060e00dfb96"
+      "digest": "sha256:5b2e1ce7d419a39d87e1acc5b88fa017101de039d82389aa9e62d1bf4bf53273"
     },
     {
       "path": "../../../DESIGN.md",
       "symbol": "#### 24.4.2 FRC0 — snapshot histórico das gates de pesquisa",
-      "digest": "sha256:09d80031d074a1871afc8f64938b4b24fa4c2e23e245dda8a2cfb26b1e4b423d"
+      "digest": "sha256:ce8e375900ef33bd3ea984fc8c4a964d3b4706aee1a581cda8fda087749bf161"
     }
   ],
   "variants": [

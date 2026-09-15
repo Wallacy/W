@@ -37,12 +37,23 @@ const restaurantAsyncJoinFixture = resolve(seedDirectory,
   "fixtures", "restaurant-async-join.w")
 const restaurantAsyncYieldFixture = resolve(seedDirectory,
   "fixtures", "restaurant-async-yield.w")
+const explicitPanicFixture = resolve(seedDirectory,
+  "fixtures", "panic-explicit.w")
 const mlirHeaderPath = resolve(seedDirectory, "include", "w_seed_mlir0.h")
 const mlirSourcePath = resolve(seedDirectory, "src", "w_seed_mlir0.c")
 const manifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
 const targetTriple = "x86_64-unknown-linux-gnu"
 const expectedVersion = "23.1.1"
+const developmentPatchCompatibility =
+  process.env.W_MLIR0_DEVELOPMENT_PATCH_COMPAT === "1"
 const isWindows = process.platform === "win32"
+
+function acceptedVersionPattern() {
+  const [major, minor] = expectedVersion.split(".")
+  return developmentPatchCompatibility
+    ? `\\b${major}\\.${minor}\\.[0-9]+\\b`
+    : `\\b${expectedVersion.replaceAll(".", "\\.")}\\b`
+}
 
 function fail(message) {
   throw new Error(`MLIR0: ${message}`)
@@ -246,7 +257,7 @@ function versionProbe(role, command) {
     return {
       present: result.exitCode !== 127,
       valid: result.exitCode === 0 &&
-        new RegExp(`\\b${expectedVersion.replaceAll(".", "\\.")}\\b`, "u")
+        new RegExp(acceptedVersionPattern(), "u")
           .test(`${result.stdoutText}\n${result.stderrText}`),
       output: `${result.stdoutText}\n${result.stderrText}`,
     }
@@ -257,7 +268,7 @@ function versionProbe(role, command) {
   return {
     present: true,
     valid: result.exitCode === 0 &&
-      new RegExp(`\\b${expectedVersion.replaceAll(".", "\\.")}\\b`, "u")
+      new RegExp(acceptedVersionPattern(), "u")
         .test(`${result.stdoutText}\n${result.stderrText}`),
     output: `${result.stdoutText}\n${result.stderrText}`,
   }
@@ -274,7 +285,8 @@ if (versionProbes.some(([, probe]) => !probe.present))
   fail("MLIR/LLVM/Clang toolchain is incomplete")
 for (const [role, probe] of versionProbes) {
   if (!probe.valid)
-    fail(`${role} tool version is not ${expectedVersion}: ${probe.output.trim()}`)
+    fail(`${role} tool version is not ${developmentPatchCompatibility
+      ? "in the 23.1.x development line" : expectedVersion}: ${probe.output.trim()}`)
 }
 if (!cmake || !ninja || !compiler || !dialect)
   fail("seed C build toolchain is incomplete or lacks C23")
@@ -611,6 +623,7 @@ try {
     { name: "runtime-division-overflow", source: runtimeDivisionOverflowPath },
     { name: "runtime-remainder-zero", source: runtimeRemainderZeroPath },
     { name: "runtime-negation-overflow", source: runtimeNegationOverflowPath },
+    { name: "explicit-panic", source: explicitPanicFixture },
   ]) {
     const generated = run(seedGate, [fault.source])
     assert(generated.exitCode === 0 && generated.stderr.length === 0 &&
@@ -636,6 +649,13 @@ try {
       `${fault.name} generated executable`)
     assert(execution.exitCode !== 0 && execution.stdout.length === 0,
       `${fault.name} did not trap before publishing output`)
+    if (fault.name === "explicit-panic") {
+      const artifact = await readFile(input)
+      assert(artifact.includes("llvm.intr.trap") &&
+        artifact.includes("llvm.unreachable") &&
+        !artifact.includes("explicit invariant failure"),
+      "explicit panic did not lower to a stripped terminal trap")
+    }
   }
   assert(artifacts.get("restaurant-binding").equals(
     artifacts.get("restaurant-literal")),

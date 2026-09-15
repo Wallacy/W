@@ -16,27 +16,27 @@
 
 | Métrica | Valor |
 |---|---:|
-| linhas de `DESIGN.md` | 41723 |
-| tokens aproximados de `DESIGN.md` | 487400 |
-| linhas de `RATIONALE.md` | 13488 |
-| tokens aproximados de `RATIONALE.md` | 329300 |
+| linhas de `DESIGN.md` | 41746 |
+| tokens aproximados de `DESIGN.md` | 487800 |
+| linhas de `RATIONALE.md` | 13512 |
+| tokens aproximados de `RATIONALE.md` | 329800 |
 | seções numeradas | 27 |
-| seções terminais com evidência local | 455/479 |
-| decisões | 1624 (W-001–W-1624) |
+| seções terminais com evidência local | 455/480 |
+| decisões | 1625 (W-001–W-1625) |
 | famílias de viabilidade | 183 |
 | slices normativos de grammar | 6 |
-| requisitos de ratificação comparativa | 178 |
-| casos de substituição estruturados | 178/178 |
-| decisões referenciadas por casos R0 | 289/1624 |
-| decisões classificadas para design freeze | 1624/1624 (825 implementation-evidence-gap; 83 superseded; 200 source-backed-current; 508 oracle-backed-current; 8 rejected) |
-| decisões com evidência legada de fonte/oráculo | 655/1624 (289 source + 415 oracle + 8 explícitas; 57 overlaps) |
+| requisitos de ratificação comparativa | 179 |
+| casos de substituição estruturados | 179/179 |
+| decisões referenciadas por casos R0 | 290/1625 |
+| decisões classificadas para design freeze | 1625/1625 (825 implementation-evidence-gap; 83 superseded; 201 source-backed-current; 508 oracle-backed-current; 8 rejected) |
+| decisões com evidência legada de fonte/oráculo | 656/1625 (290 source + 415 oracle + 8 explícitas; 57 overlaps) |
 | decisões ainda sem classe de freeze | 0 |
 | decisões com múltiplos eixos obrigatórios | 2 |
-| formas R0 com baseline estática | 673 |
-| surface lexemes das formas vigentes R0 | 7105 total; mediana 34.5; máximo 151 |
+| formas R0 com baseline estática | 678 |
+| surface lexemes das formas vigentes R0 | 7164 total; mediana 35; máximo 151 |
 | bundles executáveis R1 | 57 |
 | variantes/tarefas R1 | 162/228 |
-| casos R0 promovidos a R1 | 69/178 |
+| casos R0 promovidos a R1 | 69/179 |
 | protocolo HUM0 | 8 slices/32 tasks; 0 human records/0 model records; structure-only |
 | casos do corpus Tree-sitter | 137 |
 | pares canônicos do formatter F0 | 31 |
@@ -168,15 +168,15 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | 23 | 31930–33480 | 19100 | Protocolos e pesquisas de ecossistema |
 | 24 | 33481–35639 | 33600 | Design freeze e pendências |
 | 25 | 35640–35850 | 1900 | Produto de referência Última Luz |
-| 26 | 35851–41723 | 79100 | Plano de implementação |
+| 26 | 35851–41746 | 79500 | Plano de implementação |
 
 ## Navegação compacta de RATIONALE
 
 | Seção | Linhas | Tokens aproximados | Tema |
 |---:|---:|---:|---|
-| 1 | 15–6288 | 102000 | Evidência comparativa |
-| 2 | 6289–6318 | 500 | Proveniência |
-| 3 | 6319–13488 | 226700 | Ledger |
+| 1 | 15–6289 | 102000 | Evidência comparativa |
+| 2 | 6290–6319 | 500 | Proveniência |
+| 3 | 6320–13512 | 227200 | Ledger |
 
 ## Bundles de leitura
 
@@ -188,7 +188,7 @@ Use um bundle para uma revisão de domínio. Depois leia somente os headings e I
 | segurança e execução | 9, 10, 11, 12, 13 | 9382–18526 | 105100 | ownership, errors, tasks, domains, services e entries |
 | std e performance | 14, 15, 16, 17, 18, 19 | 18527–27044 | 98500 | módulos, números, texto, tensors, custo, C e unsafe |
 | compiler e distribuição | 20, 21, 22, 23 | 27045–33480 | 71900 | frontend, HIR, packages, releases, tooling e protocolos |
-| validação e decisões | 24, 25, 26 | 33481–41723 | 114600 | freeze, Última Luz, gates e roadmap |
+| validação e decisões | 24, 25, 26 | 33481–41746 | 115000 | freeze, Última Luz, gates e roadmap |
 
 O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.
 

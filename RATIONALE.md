@@ -263,6 +263,7 @@ O corpus compara, no mínimo:
 - explicit parallel panic signaling against panic-to-error conversion, wave-order ambiguity, semantic publication, and false physical-containment claims.
 - private root-child panic containment against forged wire evidence, partial publication, input alias corruption, unproved teardown, and descendant-tree overclaim.
 - source panic lowering against ordinary-call encoding, unrestricted message shapes, bottom-type poisoning, text-layout overlap, and runtime overclaim.
+- executable panic lowering against empty-program admission, retained release payloads, recoverable control flow, and fault-boundary overclaim.
 - bounded dual-target process/parallel linkage against direct-call substitution, CRT fallback, hidden runtime input, target conflation, and premature public or benchmark claims.
 - bounded GPU0 target-neutral semantic and available CUDA execution against source-backed W claims, provider/runtime conflation, homogeneous toolchains, and premature public product support.
 - bounded static accelerated root binding against embedded provider handles, multiplied budgets, and unauthenticated claims.
@@ -7962,6 +7963,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1622 | explicit parallel panic signal | PLATFORM1 carries panic as a distinct closed completion with an allocation-free code. Panic dominates recoverable error or cancellation in the same wave, records its lexical source, and cancels later unstarted tasks with a distinct boundary reason. PARBIND1 revalidates local authority and HIR, then returns a private panic signal without publishing semantic outcomes. | `source-backed-current` only for the private Windows x64 completion tag/code/receipt, deterministic same-wave dominance, unstarted-task cancellation, malformed-code rejection, PARBIND1 non-publication, and focused C23 tests. Consumption of the verified-HIR panic terminator, PanicEvent payloads, physical process/Wasm/compartment teardown, hardware-fault containment, cleanup guarantees, public Task/runtime ABI, other providers/targets, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1623 | bounded private Windows x64 panic-boundary root-child containment | PANICBOUNDARY1 is a private compiler-lifecycle witness for one Windows x64 root child. A trusted private helper owns the verified HIR/PARBIND witness, emits one fixed big-endian, versioned frame, and remains alive while the parent proves the root child live, explicitly terminates and bounded-joins it, revalidates immutable HIR/PARBIND/authority inputs, and publishes a receipt transactionally. The unkeyed SHA-256 digest provides integrity and correlation only, not authentication; the helper is trusted private witness code, and the Job Object does not prove descendant-tree drain. | `source-backed-current` only for private Windows x64 root-child liveness, explicit termination, bounded join, fixed frame transport, immutable-input revalidation, transactional receipt publication, and focused C23 evidence. Source-panic execution and PanicEvent materialization, public Task/runtime/ABI/product behavior, hardware faults, cleanup/restart/supervision, descendants, other targets/providers, native HIR child execution, attestation, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1624 | bounded source panic to verified HIR0 | PANIC0 recognizes source `panic` as a dedicated owner and lowers exactly one unlabelled plain String literal to a verified HIR0 `PANIC` terminator with `Never` result, copied message value, closed explicit code, semantic/provenance digests, and no ordinary call or instruction. Invalid shapes fail closed and native-process `usize` remains disjoint from `Never`. | `source-backed-current` only for parser/frontend/HIR0 measure-run-verify, the exact literal shape, bottom-path completion, caller-owned transactional buffers, digest/receipt coverage, native-process layout coexistence, and focused C23 tests. Panic execution, `PanicEvent`, cleanup, boundary selection, teardown/restart, public Task/runtime ABI, MLIR/native lowering, other message forms, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1625 | bounded explicit panic through executable MLIR0 | A reachable verified-HIR `PANIC` terminator lowers through the existing executable and native-process routes to `llvm.intr.trap` followed by `llvm.unreachable`. The selector validates the copied literal, admits ordinary/process/mixed-CFG panic, keeps empty non-panic programs unsupported, strips the message from the release-style artifact, and preserves existing schemas and non-panic artifact bytes. | `source-backed-current` only for the bounded executable MLIR0/native route and focused C23 plus Linux/WSL evidence. `PanicEvent`, message output, stable status/signal, guaranteed user cleanup, general fault-boundary containment, restart/supervision, parallel-provider composition, public panic ABI, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -13485,3 +13487,25 @@ could be mistaken for a source panic implementation. MLIR/native lowering,
 `PanicEvent`, cleanup ordering, nearest-boundary selection, process/Wasm/
 compartment teardown, restart/supervision, public runtime/ABI behavior,
 benchmarks, and performance remain open.
+
+#### W-1625 — bounded explicit panic through executable MLIR0
+
+The next smallest slice connects that verified HIR terminator to the already
+real executable routes without inventing a second panic artifact kind or a W
+runtime dependency. Reachability is derived from verified HIR. The selected
+ordinary entry, native-process handler, or bounded CFG arm may end in `PANIC`;
+the emitter produces `llvm.intr.trap` and then `llvm.unreachable`. An empty
+non-panic program remains unsupported, so a missing body cannot masquerade as
+panic evidence.
+
+The source literal is still semantically relevant: it is copied and validated
+upstream and remains covered by the HIR semantic digest. Retaining it in this
+release-style machine artifact would add bytes without an observable contract,
+so MLIR0 marks the value reachable for verification but emits no message
+global and performs no output. ProductClosure0 and sequence routes stay closed,
+and existing non-panic artifacts stay byte-identical.
+
+This is target-trap evidence, not full fault containment. It intentionally
+does not promise a stable exit status, signal, `PanicEvent`, user cleanup,
+message rendering, process/Wasm/compartment teardown, supervision, restart,
+parallel-provider composition, public ABI, benchmark, or performance result.
