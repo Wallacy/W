@@ -3013,6 +3013,230 @@ static bool program_function_maximum(
   return true;
 }
 
+/* W-1617 is deliberately a separate native selector.  The ordinary program
+ * selector below remains non-throwing and therefore rejects this HIR.  Keep
+ * this witness exact so the private MLIR adapter never has to infer an error
+ * carrier from a general throwing CFG. */
+static bool typed_propagation_selection_derive(
+    const w_seed_hir0_program *program,
+    w_seed_native_subset0_typed_propagation *selection) {
+  if (program == NULL || selection == NULL || program->module_count != 1u ||
+      program->identity_count < 5u || program->type_count != 5u ||
+      program->function_count != 3u || program->parameter_count != 0u ||
+      program->block_count != 5u || program->block_argument_count != 2u ||
+      program->edge_argument_count != 0u || program->instruction_count != 0u ||
+      program->binding_count != 0u || program->call_count != 1u ||
+      program->argument_count != 0u ||
+      program->value_count != 3u ||
+      program->interpolation_segment_count != 0u ||
+      program->terminator_count != 5u || program->entry_count != 1u ||
+      program->enum_count != 1u || program->enum_case_count != 1u ||
+      program->enum_case_parameter_count != 0u ||
+      program->enum_subset_member_count != 0u ||
+      program->enum_payload_count != 0u || program->switch_edge_count != 0u ||
+      program->switch_capture_count != 0u ||
+      program->external_module_count != 0u ||
+      program->external_symbol_count != 0u)
+    return false;
+
+  const w_seed_hir0_enum *error_enum = &program->enums[0];
+  const w_seed_hir0_type *error_type = &program->types[4];
+  const w_seed_hir0_enum_case *error_case = &program->enum_cases[0];
+  if (error_type->kind != W_SEED_HIR0_TYPE_ENUM ||
+      error_type->enum_index != 0u || error_type->owner_module != 0u ||
+      !text_is(program, error_type->name, (const uint8_t *)"Failure", 7u) ||
+      error_enum->module_index != 0u || error_enum->type_index != 4u ||
+      !text_is(program, error_enum->name, (const uint8_t *)"Failure", 7u) ||
+      !error_enum->error_conformance || error_enum->first_case != 0u ||
+      error_enum->case_count != 1u || error_case->owner_enum != 0u ||
+      error_case->ordinal != 0u || error_case->tag != 0u ||
+      error_case->first_payload != 0u || error_case->payload_count != 0u ||
+      !text_is(program, error_case->name, (const uint8_t *)"denied", 6u))
+    return false;
+
+  const w_seed_hir0_entry *entry = &program->entries[0];
+  const w_seed_hir0_function *leaf = &program->functions[0];
+  const w_seed_hir0_function *relay = &program->functions[1];
+  const w_seed_hir0_function *entry_function = &program->functions[2];
+  if (program->identities[0].kind != W_SEED_HIR0_IDENTITY_MODULE ||
+      program->identities[0].owner_module != W_SEED_HIR0_NONE ||
+      program->identities[1].kind != W_SEED_HIR0_IDENTITY_FUNCTION ||
+      program->identities[1].target_index != 0u ||
+      program->identities[2].kind != W_SEED_HIR0_IDENTITY_FUNCTION ||
+      program->identities[2].target_index != 1u ||
+      program->identities[3].kind != W_SEED_HIR0_IDENTITY_FUNCTION ||
+      program->identities[3].target_index != 2u ||
+      program->identities[4].kind != W_SEED_HIR0_IDENTITY_ENTRY ||
+      program->identities[4].target_index != 0u ||
+      leaf->identity_index != 1u || relay->identity_index != 2u ||
+      entry_function->identity_index != 3u || entry->identity_index != 4u ||
+      !entry->is_body || entry->module_index != 0u ||
+      entry->target_function != 2u || entry->target_identity != 3u ||
+      entry->adapter_kind != W_SEED_HIR0_ENTRY_ADAPTER_DEFAULT_UNIT ||
+      entry_function->module_index != 0u ||
+      !entry_function->is_anonymous_entry || entry_function->is_async ||
+      entry_function->is_const || entry_function->is_throws ||
+      entry_function->is_unsafe || entry_function->has_borrow_clause ||
+      entry_function->parameter_count != 0u || entry_function->return_type != 0u ||
+      entry_function->first_block != 4u || entry_function->block_count != 1u ||
+      !text_is(program, leaf->name, (const uint8_t *)"leaf", 4u) ||
+      !text_is(program, relay->name, (const uint8_t *)"relay", 5u))
+    return false;
+
+  if (leaf->module_index != 0u || leaf->return_type != 2u ||
+      leaf->error_type != 4u || leaf->parameter_count != 0u ||
+      !leaf->is_throws || leaf->is_async || leaf->is_const || leaf->is_unsafe ||
+      leaf->has_borrow_clause || leaf->is_anonymous_entry ||
+      leaf->first_block != 0u || leaf->block_count != 1u ||
+      relay->module_index != 0u || relay->return_type != 2u ||
+      relay->error_type != 4u || relay->parameter_count != 0u ||
+      !relay->is_throws || relay->is_async || relay->is_const ||
+      relay->is_unsafe || relay->has_borrow_clause || relay->is_anonymous_entry ||
+      relay->first_block != 1u || relay->block_count != 3u)
+    return false;
+
+  const w_seed_hir0_block *leaf_block = &program->blocks[0];
+  const w_seed_hir0_block *invoke_block = &program->blocks[1];
+  const w_seed_hir0_block *normal_block = &program->blocks[2];
+  const w_seed_hir0_block *error_block = &program->blocks[3];
+  const w_seed_hir0_block *entry_block = &program->blocks[4];
+  if (leaf_block->owner_function != 0u || leaf_block->first_instruction != 0u ||
+      leaf_block->instruction_count != 0u || leaf_block->terminator_index != 0u ||
+      invoke_block->owner_function != 1u ||
+      invoke_block->first_instruction != 0u ||
+      invoke_block->instruction_count != 0u || invoke_block->terminator_index != 1u ||
+      invoke_block->block_argument_count != 0u ||
+      invoke_block->first_block_argument != W_SEED_HIR0_NONE ||
+      normal_block->owner_function != 1u ||
+      normal_block->first_instruction != 0u ||
+      normal_block->instruction_count != 0u || normal_block->terminator_index != 2u ||
+      normal_block->first_block_argument != 0u ||
+      normal_block->block_argument_count != 1u || error_block->owner_function != 1u ||
+      error_block->first_instruction != 0u ||
+      error_block->instruction_count != 0u || error_block->terminator_index != 3u ||
+      error_block->first_block_argument != 1u ||
+      error_block->block_argument_count != 1u || entry_block->owner_function != 2u ||
+      entry_block->first_instruction != 0u ||
+      entry_block->instruction_count != 0u || entry_block->terminator_index != 4u)
+    return false;
+
+  const w_seed_hir0_terminator *leaf_throw = &program->terminators[0];
+  const w_seed_hir0_terminator *invoke = &program->terminators[1];
+  const w_seed_hir0_terminator *normal_return = &program->terminators[2];
+  const w_seed_hir0_terminator *error_throw = &program->terminators[3];
+  const w_seed_hir0_terminator *entry_return = &program->terminators[4];
+  if (leaf_throw->owner_block != 0u ||
+      leaf_throw->kind != W_SEED_HIR0_TERMINATOR_THROW ||
+      leaf_throw->value_index != 0u || leaf_throw->result_type != 4u ||
+      invoke->owner_block != 1u ||
+      invoke->kind != W_SEED_HIR0_TERMINATOR_INVOKE || invoke->call_index != 0u ||
+      invoke->value_index != W_SEED_HIR0_NONE || invoke->result_type != 2u ||
+      invoke->error_type != 4u || invoke->target_block != 2u ||
+      invoke->else_block != 3u || normal_return->owner_block != 2u ||
+      normal_return->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
+      normal_return->value_index != 1u || normal_return->result_type != 2u ||
+      error_throw->owner_block != 3u ||
+      error_throw->kind != W_SEED_HIR0_TERMINATOR_THROW ||
+      error_throw->value_index != 2u || error_throw->result_type != 4u ||
+      entry_return->owner_block != 4u ||
+      entry_return->kind != W_SEED_HIR0_TERMINATOR_RETURN_UNIT)
+    return false;
+
+  const w_seed_hir0_block_argument *normal_argument =
+      &program->block_arguments[0];
+  const w_seed_hir0_block_argument *error_argument =
+      &program->block_arguments[1];
+  const w_seed_hir0_value *leaf_value = &program->values[0];
+  const w_seed_hir0_value *normal_value = &program->values[1];
+  const w_seed_hir0_value *error_value = &program->values[2];
+  if (normal_argument->owner_block != 2u || normal_argument->ordinal != 0u ||
+      normal_argument->type_index != 2u || error_argument->owner_block != 3u ||
+      error_argument->ordinal != 0u || error_argument->type_index != 4u ||
+      leaf_value->kind != W_SEED_HIR0_VALUE_ENUM_CASE ||
+      leaf_value->type_index != 4u || leaf_value->enum_index != 0u ||
+      leaf_value->enum_case_index != 0u || leaf_value->first_enum_payload != 0u ||
+      leaf_value->enum_payload_count != 0u ||
+      normal_value->kind != W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
+      normal_value->type_index != 2u || normal_value->block_argument_index != 0u ||
+      error_value->kind != W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
+      error_value->type_index != 4u || error_value->block_argument_index != 1u)
+    return false;
+
+  const w_seed_hir0_call *call = &program->calls[0];
+  if (call->owner_instruction != W_SEED_HIR0_NONE ||
+      call->owner_terminator != 1u || call->owner_block != 1u ||
+      call->ordinal != 0u || call->callee_identity >= program->identity_count ||
+      program->identities[call->callee_identity].kind !=
+          W_SEED_HIR0_IDENTITY_FUNCTION ||
+      program->identities[call->callee_identity].target_index != 0u ||
+      call->first_argument != 0u || call->argument_count != 0u ||
+      call->first_requirement != W_SEED_HIR0_NONE ||
+      call->requirement_count != 0u || call->result_type != 2u ||
+      call->execution_kind != W_SEED_HIR0_CALL_DIRECT)
+    return false;
+
+  *selection = (w_seed_native_subset0_typed_propagation){
+      .entry = entry,
+      .leaf_function = leaf,
+      .relay_function = relay,
+      .leaf_throw = leaf_throw,
+      .invoke = invoke,
+      .normal_return = normal_return,
+      .error_throw = error_throw,
+      .entry_function_index = 2u,
+      .leaf_function_index = 0u,
+      .relay_function_index = 1u,
+      .invoke_block_index = 1u,
+      .normal_block_index = 2u,
+      .error_block_index = 3u,
+      .error_type_index = 4u,
+      .error_enum_index = 0u,
+      .error_case_index = 0u};
+  return true;
+}
+
+w_seed_native_subset0_status
+w_seed_native_subset0_select_typed_propagation(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    w_seed_native_subset0_typed_propagation *selection) {
+  if (program == NULL || hir_result == NULL || selection == NULL ||
+      !w_seed_hir0_verify(program, hir_result))
+    return W_SEED_NATIVE_SUBSET0_INVALID;
+  w_seed_native_subset0_typed_propagation candidate;
+  if (!typed_propagation_selection_derive(program, &candidate))
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+  *selection = candidate;
+  return W_SEED_NATIVE_SUBSET0_OK;
+}
+
+bool w_seed_native_subset0_verify_typed_propagation(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    const w_seed_native_subset0_typed_propagation *selection) {
+  if (program == NULL || hir_result == NULL || selection == NULL ||
+      !w_seed_hir0_verify(program, hir_result))
+    return false;
+  w_seed_native_subset0_typed_propagation candidate;
+  if (!typed_propagation_selection_derive(program, &candidate)) return false;
+  return selection->entry == candidate.entry &&
+         selection->leaf_function == candidate.leaf_function &&
+         selection->relay_function == candidate.relay_function &&
+         selection->leaf_throw == candidate.leaf_throw &&
+         selection->invoke == candidate.invoke &&
+         selection->normal_return == candidate.normal_return &&
+         selection->error_throw == candidate.error_throw &&
+         selection->entry_function_index == candidate.entry_function_index &&
+         selection->leaf_function_index == candidate.leaf_function_index &&
+         selection->relay_function_index == candidate.relay_function_index &&
+         selection->invoke_block_index == candidate.invoke_block_index &&
+         selection->normal_block_index == candidate.normal_block_index &&
+         selection->error_block_index == candidate.error_block_index &&
+         selection->error_type_index == candidate.error_type_index &&
+         selection->error_enum_index == candidate.error_enum_index &&
+         selection->error_case_index == candidate.error_case_index;
+}
+
 w_seed_native_subset0_status w_seed_native_subset0_select_program(
     const w_seed_hir0_program *program,
     const w_seed_hir0_result *hir_result,

@@ -8486,3 +8486,294 @@ bool w_seed_mlir0_verify_process_parallel(
                 sizeof(result->hir_semantic_digest)) == 0 &&
          memcmp(result->mlir_sha256, digest, sizeof(digest)) == 0;
 }
+
+/* W-1617 is a compiler-lifecycle-only projection of the exact HIR40 witness.
+ * Keep its carrier target-neutral and small: i1 outcome 0 is success, i1
+ * outcome 1 is the only Failure.denied case, and the i64 lane is the normal
+ * payload (zero on the error path).  The aggregate is private MLIR text, not
+ * a public W calling convention. */
+static const char MLIR0_TYPED_PROPAGATION_ARTIFACT[] =
+    "// " W_SEED_MLIR0_TYPED_PROPAGATION_SCHEMA_VERSION "\n"
+    "// carrier: !llvm.struct<(i1, i64)>; outcome 0 = success, 1 = Failure.denied; payload = normal i64, zero for denied.\n"
+    "module {\n"
+    "  llvm.func internal @w_seed_typed_leaf() -> !llvm.struct<(i1, i64)> {\n"
+    "    %leaf_outcome = llvm.mlir.constant(1 : i1) : i1\n"
+    "    %leaf_payload = llvm.mlir.constant(0 : i64) : i64\n"
+    "    %leaf_zero = llvm.mlir.zero : !llvm.struct<(i1, i64)>\n"
+    "    %leaf_with_outcome = llvm.insertvalue %leaf_outcome, %leaf_zero[0] : !llvm.struct<(i1, i64)>\n"
+    "    %leaf_result = llvm.insertvalue %leaf_payload, %leaf_with_outcome[1] : !llvm.struct<(i1, i64)>\n"
+    "    llvm.return %leaf_result : !llvm.struct<(i1, i64)>\n"
+    "  }\n"
+    "  llvm.func internal @w_seed_typed_relay() -> !llvm.struct<(i1, i64)> {\n"
+    "    %relay_call = llvm.call @w_seed_typed_leaf() : () -> !llvm.struct<(i1, i64)>\n"
+    "    %relay_outcome = llvm.extractvalue %relay_call[0] : !llvm.struct<(i1, i64)>\n"
+    "    %relay_payload = llvm.extractvalue %relay_call[1] : !llvm.struct<(i1, i64)>\n"
+    "    llvm.cond_br %relay_outcome, ^w_seed_typed_relay_b_3(%relay_outcome : i1), ^w_seed_typed_relay_b_2(%relay_payload : i64)\n"
+    "  ^w_seed_typed_relay_b_2(%relay_normal: i64):\n"
+    "    %relay_success = llvm.mlir.constant(0 : i1) : i1\n"
+    "    %relay_normal_zero = llvm.mlir.zero : !llvm.struct<(i1, i64)>\n"
+    "    %relay_normal_outcome = llvm.insertvalue %relay_success, %relay_normal_zero[0] : !llvm.struct<(i1, i64)>\n"
+    "    %relay_normal_result = llvm.insertvalue %relay_normal, %relay_normal_outcome[1] : !llvm.struct<(i1, i64)>\n"
+    "    llvm.return %relay_normal_result : !llvm.struct<(i1, i64)>\n"
+    "  ^w_seed_typed_relay_b_3(%relay_error: i1):\n"
+    "    %relay_error_payload = llvm.mlir.constant(0 : i64) : i64\n"
+    "    %relay_error_zero = llvm.mlir.zero : !llvm.struct<(i1, i64)>\n"
+    "    %relay_error_outcome = llvm.insertvalue %relay_error, %relay_error_zero[0] : !llvm.struct<(i1, i64)>\n"
+    "    %relay_error_result = llvm.insertvalue %relay_error_payload, %relay_error_outcome[1] : !llvm.struct<(i1, i64)>\n"
+    "    llvm.return %relay_error_result : !llvm.struct<(i1, i64)>\n"
+    "  }\n"
+    "}\n";
+
+_Static_assert(sizeof(MLIR0_TYPED_PROPAGATION_ARTIFACT) - 1u <=
+                   W_SEED_MLIR0_MAX_BYTES,
+               "w-seed typed propagation artifact exceeds the MLIR0 bound");
+
+static bool prepare_typed_propagation_artifact(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    const w_seed_native_subset0_typed_propagation *selection,
+    const w_seed_mlir0_target *target, size_t *written,
+    uint8_t digest[MLIR0_DIGEST_BYTES]) {
+  if (program == NULL || hir_result == NULL || selection == NULL ||
+      !target_is_supported(target) || written == NULL || digest == NULL ||
+      !w_seed_native_subset0_verify_typed_propagation(program, hir_result,
+                                                       selection))
+    return false;
+  const size_t artifact_bytes = sizeof(MLIR0_TYPED_PROPAGATION_ARTIFACT) - 1u;
+  *written = artifact_bytes;
+  w_seed_sha256_state state;
+  w_seed_sha256_init(&state);
+  w_seed_sha256_update(&state, (const uint8_t *)MLIR0_TYPED_PROPAGATION_ARTIFACT,
+                       artifact_bytes);
+  w_seed_sha256_final(&state, digest);
+  return true;
+}
+
+static bool typed_propagation_ranges_alias(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    const w_seed_mlir0_target *target,
+    const w_seed_mlir0_typed_propagation_counts *counts,
+    const w_seed_mlir0_typed_propagation_output *output,
+    const w_seed_mlir0_typed_propagation_result *result, size_t written) {
+  if (program == NULL || hir_result == NULL || target == NULL) return true;
+  mlir0_range ranges[64];
+  size_t range_count = 0u;
+#define ADD_TYPED_RANGE(address, count, element_size)                         \
+  do {                                                                        \
+    if (!range_add(ranges, sizeof(ranges) / sizeof(ranges[0]), &range_count, \
+                   (address), (count), (element_size)))                      \
+      return true;                                                            \
+  } while (0)
+  ADD_TYPED_RANGE(program, 1u, sizeof(*program));
+  ADD_TYPED_RANGE(hir_result, 1u, sizeof(*hir_result));
+  ADD_TYPED_RANGE(target, 1u, sizeof(*target));
+  ADD_TYPED_RANGE(counts, counts == NULL ? 0u : 1u, sizeof(*counts));
+  ADD_TYPED_RANGE(output, output == NULL ? 0u : 1u, sizeof(*output));
+  ADD_TYPED_RANGE(result, result == NULL ? 0u : 1u, sizeof(*result));
+  ADD_TYPED_RANGE(program->modules, program->module_capacity,
+                  sizeof(*program->modules));
+  ADD_TYPED_RANGE(program->identities, program->identity_capacity,
+                  sizeof(*program->identities));
+  ADD_TYPED_RANGE(program->types, program->type_capacity,
+                  sizeof(*program->types));
+  ADD_TYPED_RANGE(program->enums, program->enum_capacity,
+                  sizeof(*program->enums));
+  ADD_TYPED_RANGE(program->enum_cases, program->enum_case_capacity,
+                  sizeof(*program->enum_cases));
+  ADD_TYPED_RANGE(program->enum_case_parameters,
+                  program->enum_case_parameter_capacity,
+                  sizeof(*program->enum_case_parameters));
+  ADD_TYPED_RANGE(program->enum_subset_members,
+                  program->enum_subset_member_capacity,
+                  sizeof(*program->enum_subset_members));
+  ADD_TYPED_RANGE(program->enum_payloads, program->enum_payload_capacity,
+                  sizeof(*program->enum_payloads));
+  ADD_TYPED_RANGE(program->switch_captures, program->switch_capture_capacity,
+                  sizeof(*program->switch_captures));
+  ADD_TYPED_RANGE(program->functions, program->function_capacity,
+                  sizeof(*program->functions));
+  ADD_TYPED_RANGE(program->parameters, program->parameter_capacity,
+                  sizeof(*program->parameters));
+  ADD_TYPED_RANGE(program->blocks, program->block_capacity,
+                  sizeof(*program->blocks));
+  ADD_TYPED_RANGE(program->block_arguments, program->block_argument_capacity,
+                  sizeof(*program->block_arguments));
+  ADD_TYPED_RANGE(program->edge_arguments, program->edge_argument_capacity,
+                  sizeof(*program->edge_arguments));
+  ADD_TYPED_RANGE(program->switch_edges, program->switch_edge_capacity,
+                  sizeof(*program->switch_edges));
+  ADD_TYPED_RANGE(program->instructions, program->instruction_capacity,
+                  sizeof(*program->instructions));
+  ADD_TYPED_RANGE(program->bindings, program->binding_capacity,
+                  sizeof(*program->bindings));
+  ADD_TYPED_RANGE(program->calls, program->call_capacity,
+                  sizeof(*program->calls));
+  ADD_TYPED_RANGE(program->host_parameters, program->host_parameter_capacity,
+                  sizeof(*program->host_parameters));
+  ADD_TYPED_RANGE(program->arguments, program->argument_capacity,
+                  sizeof(*program->arguments));
+  ADD_TYPED_RANGE(program->requirements, program->requirement_capacity,
+                  sizeof(*program->requirements));
+  ADD_TYPED_RANGE(program->values, program->value_capacity,
+                  sizeof(*program->values));
+  ADD_TYPED_RANGE(program->interpolation_segments,
+                  program->interpolation_segment_capacity,
+                  sizeof(*program->interpolation_segments));
+  ADD_TYPED_RANGE(program->terminators, program->terminator_capacity,
+                  sizeof(*program->terminators));
+  ADD_TYPED_RANGE(program->entries, program->entry_capacity,
+                  sizeof(*program->entries));
+  ADD_TYPED_RANGE(program->external_modules,
+                  program->external_module_capacity,
+                  sizeof(*program->external_modules));
+  ADD_TYPED_RANGE(program->external_symbols,
+                  program->external_symbol_capacity,
+                  sizeof(*program->external_symbols));
+  ADD_TYPED_RANGE(program->text_bytes, program->text_byte_capacity,
+                  sizeof(uint8_t));
+  ADD_TYPED_RANGE(program->value_bytes, program->value_byte_capacity,
+                  sizeof(uint8_t));
+  ADD_TYPED_RANGE(program->receipt, program->receipt_capacity,
+                  sizeof(uint8_t));
+  for (size_t first = 0u; first < range_count; first += 1u)
+    for (size_t second = first + 1u; second < range_count; second += 1u)
+      if (range_pair_overlaps(&ranges[first], &ranges[second])) return true;
+  if (output != NULL)
+    ADD_TYPED_RANGE(output->bytes, written, sizeof(uint8_t));
+#undef ADD_TYPED_RANGE
+  for (size_t first = 0u; first < range_count; first += 1u)
+    for (size_t second = first + 1u; second < range_count; second += 1u)
+      if (range_pair_overlaps(&ranges[first], &ranges[second])) return true;
+  return false;
+}
+
+static w_seed_mlir0_status typed_propagation_select(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    w_seed_native_subset0_typed_propagation *selection) {
+  const w_seed_native_subset0_status selected =
+      w_seed_native_subset0_select_typed_propagation(program, hir_result,
+                                                      selection);
+  if (selected == W_SEED_NATIVE_SUBSET0_OK) return W_SEED_MLIR0_OK;
+  if (selected == W_SEED_NATIVE_SUBSET0_UNSUPPORTED)
+    return W_SEED_MLIR0_UNSUPPORTED;
+  return W_SEED_MLIR0_INVALID_HIR;
+}
+
+static w_seed_mlir0_typed_propagation_counts typed_propagation_counts(
+    size_t written) {
+  return (w_seed_mlir0_typed_propagation_counts){
+      written, 2u, 1u, W_SEED_MLIR0_TYPED_PROPAGATION_CARRIER_FIELDS};
+}
+
+static w_seed_mlir0_typed_propagation_result typed_propagation_result(
+    const w_seed_hir0_result *hir_result,
+    const w_seed_mlir0_typed_propagation_counts *counts,
+    const uint8_t digest[MLIR0_DIGEST_BYTES], bool written) {
+  w_seed_mlir0_typed_propagation_result result;
+  (void)memset(&result, 0, sizeof(result));
+  result.status = W_SEED_MLIR0_OK;
+  result.required = *counts;
+  if (written) result.written = *counts;
+  (void)memcpy(result.hir_semantic_digest, hir_result->semantic_digest,
+               sizeof(result.hir_semantic_digest));
+  (void)memcpy(result.mlir_sha256, digest, sizeof(result.mlir_sha256));
+  return result;
+}
+
+w_seed_mlir0_status w_seed_mlir0_measure_typed_propagation(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_mlir0_target *target,
+    w_seed_mlir0_typed_propagation_counts *counts,
+    w_seed_mlir0_typed_propagation_result *result) {
+  if (program == NULL || hir_result == NULL || target == NULL ||
+      counts == NULL || result == NULL)
+    return W_SEED_MLIR0_INVALID_HIR;
+  w_seed_native_subset0_typed_propagation selection;
+  const w_seed_mlir0_status selected =
+      typed_propagation_select(program, hir_result, &selection);
+  if (selected != W_SEED_MLIR0_OK) return selected;
+  if (!target_is_supported(target)) return W_SEED_MLIR0_UNSUPPORTED;
+  uint8_t digest[MLIR0_DIGEST_BYTES];
+  size_t written = 0u;
+  if (!prepare_typed_propagation_artifact(program, hir_result, &selection,
+                                          target, &written, digest))
+    return W_SEED_MLIR0_UNSUPPORTED;
+  if (typed_propagation_ranges_alias(program, hir_result, target, counts,
+                                     NULL, result, written))
+    return W_SEED_MLIR0_ALIAS;
+  const w_seed_mlir0_typed_propagation_counts candidate_counts =
+      typed_propagation_counts(written);
+  const w_seed_mlir0_typed_propagation_result candidate_result =
+      typed_propagation_result(hir_result, &candidate_counts, digest, false);
+  *counts = candidate_counts;
+  *result = candidate_result;
+  return W_SEED_MLIR0_OK;
+}
+
+w_seed_mlir0_status w_seed_mlir0_emit_typed_propagation(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_mlir0_target *target,
+    const w_seed_mlir0_typed_propagation_output *output,
+    w_seed_mlir0_typed_propagation_result *result) {
+  if (program == NULL || hir_result == NULL || target == NULL ||
+      output == NULL || result == NULL)
+    return W_SEED_MLIR0_INVALID_HIR;
+  w_seed_native_subset0_typed_propagation selection;
+  const w_seed_mlir0_status selected =
+      typed_propagation_select(program, hir_result, &selection);
+  if (selected != W_SEED_MLIR0_OK) return selected;
+  if (!target_is_supported(target)) return W_SEED_MLIR0_UNSUPPORTED;
+  uint8_t digest[MLIR0_DIGEST_BYTES];
+  size_t written = 0u;
+  if (!prepare_typed_propagation_artifact(program, hir_result, &selection,
+                                          target, &written, digest))
+    return W_SEED_MLIR0_UNSUPPORTED;
+  if (typed_propagation_ranges_alias(program, hir_result, target, NULL,
+                                     output, result, written))
+    return W_SEED_MLIR0_ALIAS;
+  if (output->bytes == NULL || output->capacity < written)
+    return W_SEED_MLIR0_CAPACITY;
+  const w_seed_mlir0_typed_propagation_counts candidate_counts =
+      typed_propagation_counts(written);
+  const w_seed_mlir0_typed_propagation_result candidate_result =
+      typed_propagation_result(hir_result, &candidate_counts, digest, true);
+  (void)memcpy(output->bytes, MLIR0_TYPED_PROPAGATION_ARTIFACT, written);
+  *result = candidate_result;
+  return W_SEED_MLIR0_OK;
+}
+
+bool w_seed_mlir0_verify_typed_propagation(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_mlir0_target *target, const uint8_t *artifact,
+    size_t artifact_bytes,
+    const w_seed_mlir0_typed_propagation_result *result) {
+  if (program == NULL || hir_result == NULL || target == NULL ||
+      artifact == NULL || result == NULL || result->status != W_SEED_MLIR0_OK)
+    return false;
+  w_seed_native_subset0_typed_propagation selection;
+  if (typed_propagation_select(program, hir_result, &selection) !=
+      W_SEED_MLIR0_OK)
+    return false;
+  if (!target_is_supported(target)) return false;
+  uint8_t digest[MLIR0_DIGEST_BYTES];
+  size_t written = 0u;
+  if (!prepare_typed_propagation_artifact(program, hir_result, &selection,
+                                          target, &written, digest))
+    return false;
+  const w_seed_mlir0_typed_propagation_counts counts =
+      typed_propagation_counts(written);
+  return artifact_bytes == written &&
+         memcmp(artifact, MLIR0_TYPED_PROPAGATION_ARTIFACT, written) == 0 &&
+         result->required.mlir_bytes == counts.mlir_bytes &&
+         result->required.function_count == counts.function_count &&
+         result->required.invoke_count == counts.invoke_count &&
+         result->required.carrier_field_count == counts.carrier_field_count &&
+         result->written.mlir_bytes == counts.mlir_bytes &&
+         result->written.function_count == counts.function_count &&
+         result->written.invoke_count == counts.invoke_count &&
+         result->written.carrier_field_count == counts.carrier_field_count &&
+         memcmp(result->hir_semantic_digest, hir_result->semantic_digest,
+                sizeof(result->hir_semantic_digest)) == 0 &&
+         memcmp(result->mlir_sha256, digest, sizeof(digest)) == 0;
+}

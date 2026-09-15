@@ -40722,6 +40722,41 @@ fn leaf(): i64 throws Failure { throw .denied }
 fn relay(): i64 throws Failure { return try leaf() }
 ```
 
+#### 26.4.1.97 W-1617 — private MLIR lowering for exact typed propagation
+
+The exact HIR40 relay may enter a compiler-lifecycle-only MLIR route. Its
+temporary optimizer-visible carrier is `!llvm.struct<(i1, i64)>`: outcome zero
+means success, outcome one denotes the only payloadless `Failure.denied` case,
+and the `i64` lane carries the normal value and is zero on the error path. This
+two-field aggregate is a private lowering choice, not the W enum layout or a
+public calling convention.
+
+The emitted leaf returns the carrier. The relay performs a real `llvm.call`,
+extracts both fields, and uses `llvm.cond_br` to enter distinct normal and
+typed-error successor blocks corresponding to the verified HIR invoke. Each
+successor reconstructs and returns its terminal carrier. The artifact contains
+no unwind operation, Task, heap allocation, process root, `main`, or exit
+policy. Linux and Windows selectors intentionally emit identical target-neutral
+bytes at this boundary; later object and product lowering owns target-specific
+layout and ABI decisions.
+
+The dedicated measure, emit, and verify APIs are caller-owned, bounded,
+transactional, digest-bound, and reject aliasing or malformed HIR before
+publication. The ordinary MLIR/native and ProductClosure routes continue to
+reject this throwing shape. The repository probe feeds the exact emitted text
+to MLIR/LLVM 23.1.1; it verifies dialect parsing and LLVM translation without
+claiming a native product. Catch, cleanup, conversions, general typed errors,
+stable ABI, executable behavior, benchmarks, and performance remain separate
+increments.
+
+<!-- w-example role=logical-contract -->
+```w
+// excerpt-kind: logical-contract
+enum Failure: Error { denied }
+fn leaf(): i64 throws Failure { throw .denied }
+fn relay(): i64 throws Failure { return try leaf() }
+```
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

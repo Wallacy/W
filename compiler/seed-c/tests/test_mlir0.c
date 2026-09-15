@@ -8,6 +8,11 @@
 #include <stdio.h>
 #include <string.h>
 
+#if defined(_WIN32)
+#include <fcntl.h>
+#include <io.h>
+#endif
+
 #define CHECK(condition)                                                       \
   do {                                                                         \
     if (!(condition)) {                                                        \
@@ -3233,6 +3238,270 @@ static bool test_valid_hir_outside_subset(void) {
   return true;
 }
 
+static bool test_typed_propagation_mlir(void) {
+  static const uint8_t source[] =
+      "enum Failure: Error { denied }\n"
+      "fn leaf(): i64 throws Failure { throw .denied }\n"
+      "fn relay(): i64 throws Failure { return try leaf() }\n"
+      "entry { }\n";
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  CHECK(fixture.hir_program.function_count == 3u &&
+        fixture.hir_program.call_count == 1u &&
+        fixture.hir_program.terminator_count == 5u);
+
+  w_seed_native_subset0_typed_propagation selection;
+  CHECK(w_seed_native_subset0_select_typed_propagation(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(w_seed_native_subset0_verify_typed_propagation(
+            &fixture.hir_program, &fixture.hir_result, &selection));
+  const w_seed_native_subset0_typed_propagation saved_selection = selection;
+  selection.error_case_index = 1u;
+  CHECK(!w_seed_native_subset0_verify_typed_propagation(
+      &fixture.hir_program, &fixture.hir_result, &selection));
+  selection = saved_selection;
+
+  const w_seed_mlir0_input ordinary = mlir_input();
+  w_seed_mlir0_counts ordinary_counts = {0u};
+  w_seed_mlir0_result ordinary_result;
+  (void)memset(&ordinary_result, 0xa1, sizeof(ordinary_result));
+  const w_seed_mlir0_result ordinary_snapshot = ordinary_result;
+  CHECK(w_seed_mlir0_measure(&ordinary, &TARGET, &ordinary_counts,
+                             &ordinary_result) == W_SEED_MLIR0_UNSUPPORTED);
+  CHECK(memcmp(&ordinary_result, &ordinary_snapshot,
+               sizeof(ordinary_result)) == 0);
+
+  w_seed_mlir0_typed_propagation_counts counts;
+  w_seed_mlir0_typed_propagation_result measured;
+  CHECK(w_seed_mlir0_measure_typed_propagation(
+            &fixture.hir_program, &fixture.hir_result, &TARGET, &counts,
+            &measured) == W_SEED_MLIR0_OK);
+  CHECK(counts.mlir_bytes > 0u &&
+        counts.mlir_bytes < W_SEED_MLIR0_MAX_BYTES &&
+        counts.function_count == 2u && counts.invoke_count == 1u &&
+        counts.carrier_field_count ==
+            W_SEED_MLIR0_TYPED_PROPAGATION_CARRIER_FIELDS &&
+        measured.required.mlir_bytes == counts.mlir_bytes &&
+        measured.written.mlir_bytes == 0u);
+
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_typed_propagation_result emitted;
+  CHECK(w_seed_mlir0_emit_typed_propagation(
+            &fixture.hir_program, &fixture.hir_result, &TARGET,
+            &(w_seed_mlir0_typed_propagation_output){artifact, sizeof(artifact)},
+            &emitted) == W_SEED_MLIR0_OK);
+  CHECK(emitted.required.mlir_bytes == counts.mlir_bytes &&
+        emitted.written.mlir_bytes == counts.mlir_bytes &&
+        w_seed_mlir0_verify_typed_propagation(
+            &fixture.hir_program, &fixture.hir_result, &TARGET, artifact,
+            emitted.written.mlir_bytes, &emitted));
+  CHECK(contains_bytes(
+            artifact, emitted.written.mlir_bytes,
+            "// " W_SEED_MLIR0_TYPED_PROPAGATION_SCHEMA_VERSION "\n") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "!llvm.struct<(i1, i64)>") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.call @w_seed_typed_leaf()") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.extractvalue %relay_call[0]") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.extractvalue %relay_call[1]") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.cond_br %relay_outcome") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "^w_seed_typed_relay_b_2(%relay_payload : i64)") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "^w_seed_typed_relay_b_3(%relay_outcome : i1)") &&
+        count_bytes(artifact, emitted.written.mlir_bytes, "llvm.return") ==
+            3u &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes, "llvm.invoke") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes, "unwind") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes, "llvm.alloca") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes, "@main") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes, "ExitProcess"));
+
+  uint8_t windows_artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_typed_propagation_result windows_result;
+  CHECK(w_seed_mlir0_emit_typed_propagation(
+            &fixture.hir_program, &fixture.hir_result, &WINDOWS_TARGET,
+            &(w_seed_mlir0_typed_propagation_output){windows_artifact,
+                                                     sizeof(windows_artifact)},
+            &windows_result) == W_SEED_MLIR0_OK);
+  CHECK(windows_result.written.mlir_bytes == emitted.written.mlir_bytes &&
+        memcmp(windows_artifact, artifact, emitted.written.mlir_bytes) == 0 &&
+        memcmp(windows_result.mlir_sha256, emitted.mlir_sha256,
+               sizeof(emitted.mlir_sha256)) == 0);
+
+  const uint8_t saved_byte = artifact[emitted.written.mlir_bytes - 1u];
+  artifact[emitted.written.mlir_bytes - 1u] =
+      saved_byte == (uint8_t)'\n' ? (uint8_t)' ' : (uint8_t)'\n';
+  CHECK(!w_seed_mlir0_verify_typed_propagation(
+      &fixture.hir_program, &fixture.hir_result, &TARGET, artifact,
+      emitted.written.mlir_bytes, &emitted));
+  artifact[emitted.written.mlir_bytes - 1u] = saved_byte;
+
+  w_seed_mlir0_typed_propagation_result alias_result;
+  (void)memset(&alias_result, 0x53, sizeof(alias_result));
+  const w_seed_mlir0_typed_propagation_result alias_result_snapshot =
+      alias_result;
+  CHECK(w_seed_mlir0_measure_typed_propagation(
+            &fixture.hir_program, &fixture.hir_result, &TARGET,
+            (w_seed_mlir0_typed_propagation_counts *)(void *)&alias_result,
+            &alias_result) == W_SEED_MLIR0_ALIAS);
+  CHECK(memcmp(&alias_result, &alias_result_snapshot,
+               sizeof(alias_result)) == 0);
+
+  uint8_t hir_text_snapshot[sizeof(fixture.hir_text)];
+  (void)memcpy(hir_text_snapshot, fixture.hir_text, sizeof(hir_text_snapshot));
+  CHECK(w_seed_mlir0_measure_typed_propagation(
+            &fixture.hir_program, &fixture.hir_result, &TARGET,
+            (w_seed_mlir0_typed_propagation_counts *)(void *)fixture.hir_text,
+            &alias_result) == W_SEED_MLIR0_ALIAS);
+  CHECK(memcmp(fixture.hir_text, hir_text_snapshot,
+               sizeof(hir_text_snapshot)) == 0);
+
+  uint8_t short_artifact[W_SEED_MLIR0_MAX_BYTES];
+  uint8_t short_artifact_snapshot[W_SEED_MLIR0_MAX_BYTES];
+  (void)memset(short_artifact, 0x55, sizeof(short_artifact));
+  (void)memcpy(short_artifact_snapshot, short_artifact,
+               sizeof(short_artifact_snapshot));
+  const w_seed_mlir0_typed_propagation_result short_result_snapshot =
+      emitted;
+  CHECK(w_seed_mlir0_emit_typed_propagation(
+            &fixture.hir_program, &fixture.hir_result, &TARGET,
+            &(w_seed_mlir0_typed_propagation_output){
+                short_artifact, emitted.written.mlir_bytes - 1u},
+            &emitted) == W_SEED_MLIR0_CAPACITY);
+  CHECK(memcmp(short_artifact, short_artifact_snapshot,
+               sizeof(short_artifact)) == 0 &&
+        memcmp(&emitted, &short_result_snapshot, sizeof(emitted)) == 0);
+  CHECK(w_seed_mlir0_emit_typed_propagation(
+            &fixture.hir_program, &fixture.hir_result, &TARGET, NULL,
+            &emitted) == W_SEED_MLIR0_INVALID_HIR);
+  CHECK(memcmp(&emitted, &short_result_snapshot, sizeof(emitted)) == 0);
+  CHECK(w_seed_mlir0_emit_typed_propagation(
+            &fixture.hir_program, &fixture.hir_result, &TARGET,
+            &(w_seed_mlir0_typed_propagation_output){NULL, 0u}, &emitted) ==
+        W_SEED_MLIR0_CAPACITY);
+  CHECK(memcmp(&emitted, &short_result_snapshot, sizeof(emitted)) == 0);
+
+  CHECK(w_seed_mlir0_emit_typed_propagation(
+            &fixture.hir_program, &fixture.hir_result, &TARGET,
+            &(w_seed_mlir0_typed_propagation_output){
+                fixture.hir_text, sizeof(fixture.hir_text)},
+            &emitted) == W_SEED_MLIR0_ALIAS);
+  CHECK(memcmp(fixture.hir_text, hir_text_snapshot,
+               sizeof(fixture.hir_text)) == 0 &&
+        memcmp(&emitted, &short_result_snapshot, sizeof(emitted)) == 0);
+  const w_seed_hir0_program program_snapshot = fixture.hir_program;
+  CHECK(w_seed_mlir0_emit_typed_propagation(
+            &fixture.hir_program, &fixture.hir_result, &TARGET,
+            &(w_seed_mlir0_typed_propagation_output){artifact, sizeof(artifact)},
+            (w_seed_mlir0_typed_propagation_result *)(void *)&fixture.hir_program) ==
+        W_SEED_MLIR0_ALIAS);
+  CHECK(memcmp(&fixture.hir_program, &program_snapshot,
+               sizeof(fixture.hir_program)) == 0 &&
+        memcmp(&emitted, &short_result_snapshot, sizeof(emitted)) == 0);
+  CHECK(w_seed_mlir0_emit_typed_propagation(
+            &fixture.hir_program, &fixture.hir_result, &TARGET,
+            &(w_seed_mlir0_typed_propagation_output){
+                (uint8_t *)(void *)&emitted, sizeof(emitted)},
+            &emitted) == W_SEED_MLIR0_ALIAS);
+  CHECK(memcmp(&emitted, &short_result_snapshot, sizeof(emitted)) == 0);
+
+  struct {
+    w_seed_mlir0_target target;
+    uint8_t suffix[32];
+  } target_alias;
+  target_alias.target = TARGET;
+  (void)memset(target_alias.suffix, 0x57, sizeof(target_alias.suffix));
+  CHECK(w_seed_mlir0_emit_typed_propagation(
+            &fixture.hir_program, &fixture.hir_result, &target_alias.target,
+            &(w_seed_mlir0_typed_propagation_output){
+                (uint8_t *)(void *)&target_alias.target,
+                sizeof(target_alias.target)},
+            &emitted) == W_SEED_MLIR0_ALIAS);
+  CHECK(memcmp(&emitted, &short_result_snapshot, sizeof(emitted)) == 0 &&
+        target_alias.target.kind == TARGET.kind &&
+        target_alias.suffix[0] == 0x57u);
+
+  w_seed_mlir0_typed_propagation_result forged_result = emitted;
+  forged_result.required.carrier_field_count ^= 1u;
+  CHECK(!w_seed_mlir0_verify_typed_propagation(
+      &fixture.hir_program, &fixture.hir_result, &TARGET, artifact,
+      emitted.written.mlir_bytes, &forged_result));
+  forged_result = emitted;
+  forged_result.mlir_sha256[0] ^= 1u;
+  CHECK(!w_seed_mlir0_verify_typed_propagation(
+      &fixture.hir_program, &fixture.hir_result, &TARGET, artifact,
+      emitted.written.mlir_bytes, &forged_result));
+  w_seed_hir0_result forged_hir_result = fixture.hir_result;
+  forged_hir_result.semantic_digest[0] ^= 1u;
+  w_seed_mlir0_typed_propagation_counts forged_counts;
+  w_seed_mlir0_typed_propagation_result forged_api_result;
+  (void)memset(&forged_counts, 0x58, sizeof(forged_counts));
+  (void)memset(&forged_api_result, 0x59, sizeof(forged_api_result));
+  const w_seed_mlir0_typed_propagation_counts forged_counts_snapshot =
+      forged_counts;
+  const w_seed_mlir0_typed_propagation_result forged_api_snapshot =
+      forged_api_result;
+  CHECK(w_seed_mlir0_measure_typed_propagation(
+            &fixture.hir_program, &forged_hir_result, &TARGET, &forged_counts,
+            &forged_api_result) == W_SEED_MLIR0_INVALID_HIR);
+  CHECK(memcmp(&forged_counts, &forged_counts_snapshot,
+               sizeof(forged_counts)) == 0 &&
+        memcmp(&forged_api_result, &forged_api_snapshot,
+               sizeof(forged_api_result)) == 0);
+
+  static const uint8_t two_cases[] =
+      "enum Failure: Error { denied other }\n"
+      "fn leaf(): i64 throws Failure { throw .denied }\n"
+      "fn relay(): i64 throws Failure { return try leaf() }\n"
+      "entry { }\n";
+  CHECK(lower_hir(two_cases, sizeof(two_cases) - 1u));
+  w_seed_mlir0_typed_propagation_counts rejected_counts;
+  w_seed_mlir0_typed_propagation_result rejected_result;
+  (void)memset(&rejected_counts, 0x41, sizeof(rejected_counts));
+  (void)memset(&rejected_result, 0x42, sizeof(rejected_result));
+  const w_seed_mlir0_typed_propagation_counts rejected_counts_snapshot =
+      rejected_counts;
+  const w_seed_mlir0_typed_propagation_result rejected_result_snapshot =
+      rejected_result;
+  CHECK(w_seed_mlir0_measure_typed_propagation(
+            &fixture.hir_program, &fixture.hir_result, &TARGET,
+            &rejected_counts, &rejected_result) == W_SEED_MLIR0_UNSUPPORTED);
+  CHECK(memcmp(&rejected_counts, &rejected_counts_snapshot,
+               sizeof(rejected_counts)) == 0 &&
+        memcmp(&rejected_result, &rejected_result_snapshot,
+               sizeof(rejected_result)) == 0);
+  return true;
+}
+
+/* Compiler-lifecycle probe used by the repository gate to feed the exact
+ * emitted artifact to the pinned MLIR parser and translator.  This is not a
+ * public W command or executable ABI. */
+static bool emit_typed_propagation_probe(void) {
+  static const uint8_t source[] =
+      "enum Failure: Error { denied }\n"
+      "fn leaf(): i64 throws Failure { throw .denied }\n"
+      "fn relay(): i64 throws Failure { return try leaf() }\n"
+      "entry { }\n";
+  static uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  w_seed_mlir0_typed_propagation_result result;
+  CHECK(w_seed_mlir0_emit_typed_propagation(
+            &fixture.hir_program, &fixture.hir_result, &TARGET,
+            &(w_seed_mlir0_typed_propagation_output){artifact,
+                                                     sizeof(artifact)},
+            &result) == W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_verify_typed_propagation(
+      &fixture.hir_program, &fixture.hir_result, &TARGET, artifact,
+      result.written.mlir_bytes, &result));
+  return fwrite(artifact, 1u, result.written.mlir_bytes, stdout) ==
+             result.written.mlir_bytes &&
+         fflush(stdout) == 0;
+}
+
 static bool test_signed_comparison_artifacts(void) {
   static const char *const operators[] = {"==", "!=", "<", "<=", ">", ">="};
   static const char *const predicates[] = {"eq", "ne", "slt", "sle", "sgt", "sge"};
@@ -3690,7 +3959,15 @@ static bool test_post_test_repeat_structured_mlir(void) {
   return true;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+  if (argc == 2 && argv[1] != NULL &&
+      strcmp(argv[1], "--emit-typed-propagation") == 0) {
+#if defined(_WIN32)
+    if (_setmode(_fileno(stdout), _O_BINARY) == -1) return 3;
+#endif
+    return emit_typed_propagation_probe() ? 0 : 1;
+  }
+  if (argc != 1) return 2;
   if (!test_process_hir_is_closed_to_mlir()) return 1;
   if (!test_process_arguments_count_comparison_mlir()) return 1;
   if (!test_process_arguments_count_ordered_mlir()) return 1;
@@ -3728,6 +4005,7 @@ int main(void) {
   if (!test_capacity_and_all_or_nothing()) return 1;
   if (!test_aliases()) return 1;
   if (!test_invalid_hir_and_target()) return 1;
+  if (!test_typed_propagation_mlir()) return 1;
   if (!test_valid_hir_outside_subset()) return 1;
   (void)puts("seed MLIR0: verified HIR0 native subset and LLVM dialect barriers passed");
   return 0;

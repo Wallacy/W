@@ -255,6 +255,7 @@ O corpus compara, no mínimo:
 - bounded mixed return/throw terminal branches against hidden joins, arm fallthrough, normal/error channel collapse, and unproved continuation cleanup.
 - bounded typed-try propagation against erased error identity, unowned synchronous calls, async/spawn ownership confusion, optional try, conversion widening, and premature HIR/native/catch/cleanup support.
 - exact synchronous typed propagation in verified HIR against ordinary CALL materialization, Task or heap substitution, packed Result carriers, unproved successor channels, and fail-open ProductClosure.
+- private exact typed-propagation MLIR lowering against a wider carrier, LLVM unwind, public ABI publication, unverified text emission, and fail-open ordinary products.
 - bounded dual-target process/parallel linkage against direct-call substitution, CRT fallback, hidden runtime input, target conflation, and premature public or benchmark claims.
 - bounded GPU0 target-neutral semantic and available CUDA execution against source-backed W claims, provider/runtime conflation, homogeneous toolchains, and premature public product support.
 - bounded static accelerated root binding against embedded provider handles, multiplied budgets, and unauthenticated claims.
@@ -7946,6 +7947,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1614 | bounded mixed return/throw terminal branch | HIR39 admits one top-level complete `if` whose two lexical regions terminate independently with typed `return` or `throw`; no join block or hidden fallthrough is created, and verification rederives the disjoint preorder partition. | `source-backed-current` only for the bounded mixed `throw`/signed-`i64` return witness, exact arm ownership and type channels, and forged-jump rejection. Continuation after throw, nested terminal branches, cleanup/propagation/catch, provider and Task binding, MLIR/native execution, public products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1615 | bounded parser/frontend typed-try propagation | Frontend30 preserves the exact plain `try localCall(...)` relation only when a synchronous local `throws E` call and its lexical caller `throws E` declaration share the same nominal local error enum. A direct synchronous throwing call without a valid `try`, `try?`, async `try`, conversion, HIR/native lowering, catch, or cleanup remains unsupported. Async and spawn owners carry the thrown outcome without a `try` marker. | `source-backed-current` only for the parser CST wrapper, Frontend30 `EXPR_TRY` record, exact local enum identity, direct-call ownership rejection, async/spawn ownership relation, and focused parser/frontend tests. HIR/native lowering, conversions, catch, cleanup, public products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1616 | exact synchronous typed propagation in verified HIR | HIR40 lowers one exact synchronous typed-try relay into a terminator-owned W_SEED_HIR0_TERMINATOR_INVOKE with normal and typed-error successor block arguments. The relay has exactly three blocks, no ordinary CALL instruction, Task, heap, or packed Result carrier, and ProductClosure0 rejects the terminator. | source-backed-current only for the HIR40 three-block relay, terminator-owned call, typed successor arguments, exact verifier, ProductClosure0 fail-closed boundary, and C23 adversarial HIR evidence. MLIR/native lowering, public ABI, catch, cleanup, conversions, general propagation, benchmarks, and performance remain gaps. benchmarkDisposition: compiler-lifecycle. |
+| W-1617 | private MLIR lowering for exact typed propagation | The exact HIR40 relay lowers through a dedicated compiler-lifecycle route to an optimizer-visible two-field `{i1 outcome, i64 payload}` LLVM aggregate. The relay performs a real call, extracts the carrier, and branches into explicit normal and typed-error successors without unwind, Task, heap, process root, or public ABI. | `source-backed-current` only for the exact payloadless one-case `Failure.denied` selector, caller-owned transactional MLIR emission and verification, target-neutral artifact bytes, C23 adversarial tests, and MLIR/LLVM 23.1.1 parsing and translation. Native product execution, public enum or error ABI, catch, cleanup, conversions, general propagation, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -13204,3 +13206,30 @@ This evidence is source-backed-current only for the verified HIR slice. It
 does not claim MLIR or native lowering, public ABI, catch, cleanup, conversion,
 general propagation, or performance. The benchmarkDisposition is
 compiler-lifecycle, with correctness evidence only.
+
+#### W-1617 — private MLIR lowering for exact typed propagation
+
+W-1617 consumes only the exact HIR40 invoke witness selected independently from
+the ordinary native subset. The private artifact uses
+`!llvm.struct<(i1, i64)>`: zero selects the normal `i64` payload and one encodes
+the only payloadless `Failure.denied` case. The representation is deliberately
+local to this compiler-lifecycle experiment; it does not freeze W's enum,
+error, function, or cross-module ABI.
+
+The leaf returns an error carrier. The relay issues a real `llvm.call`, extracts
+the outcome and payload, and branches to the two successor blocks required by
+HIR40. Both blocks return carriers through explicit terminal paths. There is no
+LLVM unwind edge, hidden fallthrough, Task, heap allocation, process root,
+`main`, or error-to-exit mapping. The same MLIR text is emitted for the current
+Linux and Windows target selectors because physical target lowering is outside
+this adapter.
+
+Dedicated measure, emit, and verify entry points remain bounded,
+all-or-nothing, alias-safe, and bound to the verified HIR semantic digest and
+artifact digest. The ordinary product route still rejects the throwing graph.
+Focused C23 tests cover the exact selector, malformed selection, capacity,
+aliases, forged digests, unsupported error shapes, and unchanged publication
+on failure. A private probe was also accepted by `mlir-opt` and translated to
+LLVM IR with MLIR/LLVM 23.1.1. This is correctness evidence only: native
+product execution, public ABI, catch, cleanup, conversions, general errors,
+benchmark results, and performance remain open.
