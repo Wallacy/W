@@ -9724,6 +9724,52 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-mlir0-typed-cleanup",
+      "reviewItem": "exact synchronous cleanup preservation across typed propagation against erased cleanup, runtime cleanup stacks, unwind, and fail-open older products",
+      "decisions": ["W-1618"],
+      "task": "Preserve one proven synchronous defer on both exact typed-propagation successors without introducing a runtime cleanup stack or public error ABI.",
+      "selected": {
+        "language": "w-internal",
+        "source": [
+          "HIR41 cleanup record binds lexical defer, invoke, callee, and both successor calls",
+          "normal and error successors each execute one ordinary direct Unit cleanup call",
+          "a separate private MLIR artifact preserves both calls while the HIR40 artifact stays byte-identical"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "erase-cleanup",
+          "language": "w-internal-rejected",
+          "source": ["lower the typed invoke while dropping its lexical defer"],
+          "expectedDifference": "Both outcome paths must discharge the verified cleanup obligation before returning."
+        },
+        {
+          "name": "runtime-cleanup-stack",
+          "language": "w-internal-rejected",
+          "source": ["allocate a closure and push the one statically known cleanup onto a runtime stack"],
+          "expectedDifference": "The exact nonthrowing direct call is represented as ordinary successor work and remains optimizer-visible."
+        },
+        {
+          "name": "llvm-unwind-cleanup",
+          "language": "w-internal-rejected",
+          "source": ["route typed failure and cleanup through platform exception unwinding"],
+          "expectedDifference": "Recoverable typed failure and cleanup remain explicit data and CFG."
+        },
+        {
+          "name": "fail-open-product",
+          "language": "w-internal-rejected",
+          "source": ["let an older native, cooperative, or ProductClosure selector ignore cleanup records"],
+          "expectedDifference": "All pre-existing product routes reject nonzero cleanup_count explicitly."
+        }
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

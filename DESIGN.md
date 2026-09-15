@@ -40757,6 +40757,50 @@ fn leaf(): i64 throws Failure { throw .denied }
 fn relay(): i64 throws Failure { return try leaf() }
 ```
 
+#### 26.4.1.98 W-1618 — synchronous cleanup across exact typed propagation
+
+HIR41 extends only the exact W-1616 relay with one lexical synchronous
+`defer`. Its body must be one direct, local, zero-argument, nonthrowing `Unit`
+call, and the registration must dominate the terminal `return try` statement.
+The bounded program admits at most one such registration. Nested, repeated,
+late, argument-bearing, throwing, async, nonlocal, or non-`Unit` cleanup stays
+unsupported.
+
+The HIR owns one caller-provided cleanup record that binds the lexical `defer`
+span, owner function, invoke terminator, cleanup identity, and the normal/error
+blocks, instructions, and calls. Each successor contains one ordinary direct
+cleanup call before its terminal return or throw. Semantic hashing covers the
+cross-record relation; provenance hashing covers the lexical span. Capacity,
+alias, receipt, lifetime-independence, and independently resealed forgery tests
+remain all-or-nothing. Existing scalar, sequence, program, process,
+cooperative, and ProductClosure selectors reject nonzero cleanup records.
+
+The private typed-propagation MLIR API selects this exact HIR41 witness and
+emits a distinct versioned artifact. It defines the local cleanup function and
+places one `llvm.call` to it in each successor before rebuilding the private
+`!llvm.struct<(i1, i64)>` carrier. The HIR40 artifact remains byte-identical.
+Linux and Windows selectors still emit the same target-neutral MLIR. The
+repository evidence parses and translates the new artifact with MLIR/LLVM
+23.1.1 and confirms exactly two cleanup calls and no unwind, Task, heap,
+process root, or public ABI.
+
+This increment does not implement a runtime cleanup stack, cleanup closure,
+`defer async`, multiple or nested cleanup, catch, general propagation, native
+product execution, public error layout, benchmark result, or performance
+claim. Those remain separate product and lifecycle work.
+
+<!-- w-example role=logical-contract -->
+```w
+// excerpt-kind: logical-contract
+enum Failure: Error { denied }
+fn clean() { }
+fn leaf(): i64 throws Failure { throw .denied }
+fn relay(): i64 throws Failure {
+  defer { clean() }
+  return try leaf()
+}
+```
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

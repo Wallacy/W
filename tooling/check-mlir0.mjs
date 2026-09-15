@@ -322,6 +322,31 @@ try {
     typedLlvmText.includes("br i1") && !typedLlvmText.includes("invoke "),
   "typed propagation LLVM translation lost the compact call/branch carrier")
 
+  const typedCleanup = run(unitPath, ["--emit-typed-cleanup"])
+  assert(typedCleanup.exitCode === 0,
+    `typed cleanup probe failed: ${typedCleanup.stderrText}`)
+  assert(typedCleanup.stderr.length === 0 && typedCleanup.stdout.length > 0,
+    "typed cleanup probe did not emit one silent MLIR artifact")
+  const cleanupInput = resolve(artifactDirectory, "typed-cleanup.mlir")
+  const cleanupVerified = resolve(artifactDirectory, "typed-cleanup.verified.mlir")
+  const cleanupLlvm = resolve(artifactDirectory, "typed-cleanup.ll")
+  await writeFile(cleanupInput, typedCleanup.stdout)
+  const cleanupInputForTool = isWindows ? wslPath(cleanupInput) : cleanupInput
+  const cleanupVerifiedForTool = isWindows ? wslPath(cleanupVerified) : cleanupVerified
+  const cleanupLlvmForTool = isWindows ? wslPath(cleanupLlvm) : cleanupLlvm
+  invokeTool(tool("mlirOpt"), [cleanupInputForTool, "-o", cleanupVerifiedForTool,
+    "--verify-each"], "typed cleanup mlir-opt")
+  invokeTool(tool("mlirTranslate"), ["--mlir-to-llvmir", cleanupVerifiedForTool,
+    "-o", cleanupLlvmForTool], "typed cleanup mlir-translate")
+  const cleanupLlvmText = await readFile(cleanupLlvm, "utf8")
+  const cleanupCalls = cleanupLlvmText.match(/call void @w_seed_typed_clean\(\)/g) ?? []
+  assert(cleanupLlvmText.includes("define internal void @w_seed_typed_clean") &&
+    cleanupLlvmText.includes("define internal { i1, i64 } @w_seed_typed_leaf") &&
+    cleanupLlvmText.includes("call { i1, i64 } @w_seed_typed_leaf") &&
+    cleanupLlvmText.includes("br i1") && cleanupCalls.length === 2 &&
+    !cleanupLlvmText.includes("invoke "),
+  "typed cleanup LLVM translation lost either successor cleanup or compact carrier")
+
   const seedGate = resolve(buildDirectory, `w_seed_mlir0_gate${suffix}`)
   const restaurantPath = resolve(artifactDirectory, "restaurant.w")
   const restaurantLiteralPath = resolve(artifactDirectory, "restaurant-literal.w")
