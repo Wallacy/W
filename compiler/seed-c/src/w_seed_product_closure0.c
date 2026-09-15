@@ -166,6 +166,7 @@ static bool product_shape_supported(const w_seed_hir0_program *program) {
       program->enum_subset_member_count != 0u ||
       program->enum_payload_count != 0u || program->switch_edge_count != 0u ||
       program->switch_capture_count != 0u ||
+      program->cleanup_count != 0u ||
       program->parameter_count > W_SEED_PRODUCT_CLOSURE0_MAX_PARAMETERS ||
       program->block_count > W_SEED_PRODUCT_CLOSURE0_MAX_BLOCKS ||
       program->block_argument_count >
