@@ -6,6 +6,7 @@
 #include "w_seed_parallel_provider0.h"
 #include "w_seed_parallel_provider1.h"
 #include "w_seed_parallel_typed_binding1.h"
+#include "w_seed_parallel_typed_lifecycle1.h"
 #include "w_seed_parallel_selection0.h"
 #include "w_seed_parallel_selection1.h"
 #include "w_seed_parallel_elision0.h"
@@ -6721,6 +6722,294 @@ static bool test_parallel_typed_binding1(void) {
         parallel_receipt.maximum_active == 2u && context.calls[0] == 1u &&
         context.calls[1] == 1u);
 
+  w_seed_parallel_typed_binding1_input serial_binding_input = input;
+  serial_binding_input.provider_capacity = 1u;
+  const w_seed_parallel_typed_lifecycle1_input serial_lifecycle_input = {
+      &serial_binding_input, &serial_workspace, &serial_output, &serial_result,
+      73u};
+  const w_seed_parallel_typed_lifecycle1_input parallel_lifecycle_input = {
+      &input, &parallel_workspace, &parallel_output, &parallel_result, 73u};
+  w_seed_parallel_typed_lifecycle1_counts lifecycle_counts;
+  w_seed_parallel_typed_lifecycle1_result lifecycle_measured;
+  CHECK(w_seed_parallel_typed_lifecycle1_measure(
+            &parallel_lifecycle_input, &lifecycle_counts,
+            &lifecycle_measured) == W_SEED_PARALLEL_TYPED_LIFECYCLE1_OK &&
+        lifecycle_counts.task_specs == 2u &&
+        lifecycle_counts.events == 22u && lifecycle_counts.tasks == 2u &&
+        lifecycle_counts.trace_events == 22u &&
+        lifecycle_counts.typed_records == 2u &&
+        lifecycle_measured.written.events == 0u);
+  union {
+    w_seed_parallel_typed_lifecycle1_counts counts;
+    w_seed_parallel_typed_lifecycle1_result result;
+  } lifecycle_measure_alias;
+  (void)memset(&lifecycle_measure_alias, 0x91,
+               sizeof(lifecycle_measure_alias));
+  unsigned char lifecycle_measure_alias_before[
+      sizeof(lifecycle_measure_alias)];
+  (void)memcpy(lifecycle_measure_alias_before, &lifecycle_measure_alias,
+               sizeof(lifecycle_measure_alias));
+  CHECK(w_seed_parallel_typed_lifecycle1_measure(
+            &parallel_lifecycle_input, &lifecycle_measure_alias.counts,
+            &lifecycle_measure_alias.result) ==
+            W_SEED_PARALLEL_TYPED_LIFECYCLE1_ALIAS &&
+        memcmp(&lifecycle_measure_alias, lifecycle_measure_alias_before,
+               sizeof(lifecycle_measure_alias)) == 0);
+
+  w_seed_task_lifecycle0_task_spec serial_lifecycle_specs[2];
+  w_seed_task_lifecycle0_event serial_lifecycle_events[32];
+  w_seed_task_lifecycle0_task_record serial_lifecycle_reducer[2];
+  w_seed_task_lifecycle0_task_record serial_lifecycle_tasks[2];
+  w_seed_task_lifecycle0_event serial_lifecycle_trace[32];
+  w_seed_parallel_typed_lifecycle1_record serial_typed_records[2];
+  const w_seed_parallel_typed_lifecycle1_workspace serial_lifecycle_workspace = {
+      serial_lifecycle_specs, 2u, serial_lifecycle_events, 32u,
+      serial_lifecycle_reducer, 2u};
+  const w_seed_parallel_typed_lifecycle1_output serial_lifecycle_output = {
+      serial_lifecycle_tasks, 2u, serial_lifecycle_trace, 32u,
+      serial_typed_records, 2u};
+  w_seed_parallel_typed_lifecycle1_result serial_lifecycle_result;
+  CHECK(w_seed_parallel_typed_lifecycle1_run(
+            &serial_lifecycle_input, &serial_lifecycle_workspace,
+            &serial_lifecycle_output, &serial_lifecycle_result) ==
+            W_SEED_PARALLEL_TYPED_LIFECYCLE1_OK &&
+        w_seed_parallel_typed_lifecycle1_verify(
+            &serial_lifecycle_input, &serial_lifecycle_workspace,
+            &serial_lifecycle_output, &serial_lifecycle_result) &&
+        serial_lifecycle_result.primary_error_task == 1u &&
+        serial_lifecycle_result.lifecycle.scope.state ==
+            W_SEED_TASK_LIFECYCLE0_SCOPE_JOINED &&
+        serial_lifecycle_result.lifecycle.scope.outcome.kind ==
+            W_SEED_TASK_LIFECYCLE0_OUTCOME_ERROR &&
+        serial_lifecycle_tasks[0].outcome.kind ==
+            W_SEED_TASK_LIFECYCLE0_OUTCOME_SUCCESS &&
+        serial_lifecycle_tasks[0].settled_before_cancellation != 0u &&
+        serial_lifecycle_tasks[1].outcome.error_code ==
+            W_SEED_TASK_LIFECYCLE0_ERROR_BODY &&
+        serial_lifecycle_tasks[1].settled_before_cancellation != 0u &&
+        (uint32_t)serial_lifecycle_tasks[1].outcome.error_code !=
+            context.requested[1].error_code &&
+        serial_lifecycle_trace[7].kind ==
+            W_SEED_TASK_LIFECYCLE0_EVENT_TASK_CLEANUP &&
+        serial_lifecycle_trace[8].kind ==
+            W_SEED_TASK_LIFECYCLE0_EVENT_TASK_OUTCOME_COMMITTED &&
+        serial_lifecycle_trace[11].kind ==
+            W_SEED_TASK_LIFECYCLE0_EVENT_TASK_CLEANUP &&
+        serial_lifecycle_trace[12].kind ==
+            W_SEED_TASK_LIFECYCLE0_EVENT_TASK_OUTCOME_COMMITTED &&
+        serial_lifecycle_trace[13].kind ==
+            W_SEED_TASK_LIFECYCLE0_EVENT_SCOPE_CANCELLATION_REQUESTED &&
+        serial_lifecycle_trace[13].source_index == 1u &&
+        serial_lifecycle_trace[13].reason ==
+            W_SEED_TASK_LIFECYCLE0_CANCEL_REASON_ERROR_FAIL_FAST &&
+        serial_lifecycle_trace[13].snapshot.generation == 73u &&
+        serial_lifecycle_trace[13].snapshot.request_sequence == 13u &&
+        serial_lifecycle_trace[13].snapshot.source_index == 1u &&
+        serial_lifecycle_trace[13].snapshot.reason ==
+            W_SEED_TASK_LIFECYCLE0_CANCEL_REASON_ERROR_FAIL_FAST &&
+        serial_typed_records[1].semantic.error_case_ordinal ==
+            serial_result.error_identity.case_ordinal &&
+        memcmp(serial_typed_records[1].semantic.error_identity_digest,
+               serial_result.error_identity.digest,
+               sizeof(serial_result.error_identity.digest)) == 0);
+
+  w_seed_task_lifecycle0_task_spec parallel_lifecycle_specs[2];
+  w_seed_task_lifecycle0_event parallel_lifecycle_events[32];
+  w_seed_task_lifecycle0_task_record parallel_lifecycle_reducer[2];
+  w_seed_task_lifecycle0_task_record parallel_lifecycle_tasks[2];
+  w_seed_task_lifecycle0_event parallel_lifecycle_trace[32];
+  w_seed_parallel_typed_lifecycle1_record parallel_typed_records[2];
+  const w_seed_parallel_typed_lifecycle1_workspace
+      parallel_lifecycle_workspace = {
+          parallel_lifecycle_specs, 2u, parallel_lifecycle_events, 32u,
+          parallel_lifecycle_reducer, 2u};
+  const w_seed_parallel_typed_lifecycle1_output parallel_lifecycle_output = {
+      parallel_lifecycle_tasks, 2u, parallel_lifecycle_trace, 32u,
+      parallel_typed_records, 2u};
+  w_seed_parallel_typed_lifecycle1_result parallel_lifecycle_result;
+  CHECK(w_seed_parallel_typed_lifecycle1_run(
+            &parallel_lifecycle_input, &parallel_lifecycle_workspace,
+            &parallel_lifecycle_output, &parallel_lifecycle_result) ==
+            W_SEED_PARALLEL_TYPED_LIFECYCLE1_OK &&
+        w_seed_parallel_typed_lifecycle1_verify(
+            &parallel_lifecycle_input, &parallel_lifecycle_workspace,
+            &parallel_lifecycle_output, &parallel_lifecycle_result) &&
+        memcmp(serial_lifecycle_tasks, parallel_lifecycle_tasks,
+               sizeof(serial_lifecycle_tasks)) == 0 &&
+        memcmp(serial_lifecycle_trace, parallel_lifecycle_trace,
+               lifecycle_counts.trace_events *
+                   sizeof(*serial_lifecycle_trace)) == 0 &&
+        memcmp(serial_typed_records, parallel_typed_records,
+               sizeof(serial_typed_records)) == 0 &&
+        memcmp(serial_lifecycle_result.semantic_digest,
+               parallel_lifecycle_result.semantic_digest,
+               sizeof(serial_lifecycle_result.semantic_digest)) == 0 &&
+        memcmp(serial_lifecycle_result.provenance_digest,
+               parallel_lifecycle_result.provenance_digest,
+               sizeof(serial_lifecycle_result.provenance_digest)) != 0);
+
+  w_seed_task_lifecycle0_task_record lifecycle_sentinel_tasks[2];
+  w_seed_task_lifecycle0_event lifecycle_sentinel_trace[32];
+  w_seed_parallel_typed_lifecycle1_record lifecycle_sentinel_typed[2];
+  w_seed_parallel_typed_lifecycle1_result lifecycle_sentinel_result;
+  (void)memset(lifecycle_sentinel_tasks, 0x27,
+               sizeof(lifecycle_sentinel_tasks));
+  (void)memset(lifecycle_sentinel_trace, 0x72,
+               sizeof(lifecycle_sentinel_trace));
+  (void)memset(lifecycle_sentinel_typed, 0x4d,
+               sizeof(lifecycle_sentinel_typed));
+  (void)memset(&lifecycle_sentinel_result, 0xd4,
+               sizeof(lifecycle_sentinel_result));
+  w_seed_task_lifecycle0_task_record lifecycle_sentinel_tasks_before[2];
+  w_seed_task_lifecycle0_event lifecycle_sentinel_trace_before[32];
+  w_seed_parallel_typed_lifecycle1_record lifecycle_sentinel_typed_before[2];
+  (void)memcpy(lifecycle_sentinel_tasks_before, lifecycle_sentinel_tasks,
+               sizeof(lifecycle_sentinel_tasks));
+  (void)memcpy(lifecycle_sentinel_trace_before, lifecycle_sentinel_trace,
+               sizeof(lifecycle_sentinel_trace));
+  (void)memcpy(lifecycle_sentinel_typed_before, lifecycle_sentinel_typed,
+               sizeof(lifecycle_sentinel_typed));
+  const w_seed_parallel_typed_lifecycle1_result
+      lifecycle_sentinel_result_before = lifecycle_sentinel_result;
+  const w_seed_parallel_typed_lifecycle1_output short_lifecycle_output = {
+      lifecycle_sentinel_tasks, 2u, lifecycle_sentinel_trace, 21u,
+      lifecycle_sentinel_typed, 2u};
+  CHECK(w_seed_parallel_typed_lifecycle1_run(
+            &parallel_lifecycle_input, &parallel_lifecycle_workspace,
+            &short_lifecycle_output, &lifecycle_sentinel_result) ==
+            W_SEED_PARALLEL_TYPED_LIFECYCLE1_CAPACITY &&
+        memcmp(lifecycle_sentinel_tasks, lifecycle_sentinel_tasks_before,
+               sizeof(lifecycle_sentinel_tasks)) == 0 &&
+        memcmp(lifecycle_sentinel_trace, lifecycle_sentinel_trace_before,
+               sizeof(lifecycle_sentinel_trace)) == 0 &&
+        memcmp(lifecycle_sentinel_typed, lifecycle_sentinel_typed_before,
+               sizeof(lifecycle_sentinel_typed)) == 0 &&
+        memcmp(&lifecycle_sentinel_result, &lifecycle_sentinel_result_before,
+               sizeof(lifecycle_sentinel_result)) == 0);
+
+  for (size_t short_index = 0u; short_index < 6u; short_index += 1u) {
+    typedef struct {
+      w_seed_task_lifecycle0_task_spec specs[2];
+      w_seed_task_lifecycle0_event events[22];
+      w_seed_task_lifecycle0_task_record reducer[2];
+      w_seed_task_lifecycle0_task_record tasks[2];
+      w_seed_task_lifecycle0_event trace[22];
+      w_seed_parallel_typed_lifecycle1_record typed[2];
+      w_seed_parallel_typed_lifecycle1_result result;
+    } lifecycle_short_state;
+    lifecycle_short_state short_state;
+    (void)memset(&short_state, 0x6b, sizeof(short_state));
+    w_seed_parallel_typed_lifecycle1_workspace short_workspace = {
+        short_state.specs, 2u, short_state.events, 22u,
+        short_state.reducer, 2u};
+    w_seed_parallel_typed_lifecycle1_output short_output = {
+        short_state.tasks, 2u, short_state.trace, 22u, short_state.typed, 2u};
+    switch (short_index) {
+      case 0u:
+        short_workspace.task_spec_capacity = 1u;
+        break;
+      case 1u:
+        short_workspace.event_capacity = 21u;
+        break;
+      case 2u:
+        short_workspace.reducer_task_capacity = 1u;
+        break;
+      case 3u:
+        short_output.task_capacity = 1u;
+        break;
+      case 4u:
+        short_output.trace_capacity = 21u;
+        break;
+      default:
+        short_output.typed_record_capacity = 1u;
+        break;
+    }
+    const lifecycle_short_state short_state_before = short_state;
+    CHECK(w_seed_parallel_typed_lifecycle1_run(
+              &parallel_lifecycle_input, &short_workspace, &short_output,
+              &short_state.result) ==
+              W_SEED_PARALLEL_TYPED_LIFECYCLE1_CAPACITY &&
+          memcmp(&short_state, &short_state_before, sizeof(short_state)) == 0);
+  }
+
+  w_seed_parallel_typed_lifecycle1_output alias_lifecycle_output = {
+      lifecycle_sentinel_tasks, 2u, lifecycle_sentinel_trace, 32u,
+      (w_seed_parallel_typed_lifecycle1_record *)(void *)
+          &lifecycle_sentinel_result,
+      2u};
+  CHECK(w_seed_parallel_typed_lifecycle1_run(
+            &parallel_lifecycle_input, &parallel_lifecycle_workspace,
+            &alias_lifecycle_output, &lifecycle_sentinel_result) ==
+        W_SEED_PARALLEL_TYPED_LIFECYCLE1_ALIAS);
+
+  w_seed_parallel_typed_binding1_record parallel_records_before[2];
+  (void)memcpy(parallel_records_before, parallel_records,
+               sizeof(parallel_records));
+  alias_lifecycle_output = (w_seed_parallel_typed_lifecycle1_output){
+      (w_seed_task_lifecycle0_task_record *)(void *)parallel_records, 2u,
+      lifecycle_sentinel_trace, 32u, lifecycle_sentinel_typed, 2u};
+  lifecycle_sentinel_result = lifecycle_sentinel_result_before;
+  CHECK(w_seed_parallel_typed_lifecycle1_run(
+            &parallel_lifecycle_input, &parallel_lifecycle_workspace,
+            &alias_lifecycle_output, &lifecycle_sentinel_result) ==
+            W_SEED_PARALLEL_TYPED_LIFECYCLE1_ALIAS &&
+        memcmp(parallel_records, parallel_records_before,
+               sizeof(parallel_records)) == 0 &&
+        memcmp(lifecycle_sentinel_trace, lifecycle_sentinel_trace_before,
+               sizeof(lifecycle_sentinel_trace)) == 0 &&
+        memcmp(lifecycle_sentinel_typed, lifecycle_sentinel_typed_before,
+               sizeof(lifecycle_sentinel_typed)) == 0 &&
+        memcmp(&lifecycle_sentinel_result, &lifecycle_sentinel_result_before,
+               sizeof(lifecycle_sentinel_result)) == 0);
+
+  parallel_typed_records[1].semantic.error_case_ordinal += 1u;
+  CHECK(!w_seed_parallel_typed_lifecycle1_verify(
+      &parallel_lifecycle_input, &parallel_lifecycle_workspace,
+      &parallel_lifecycle_output, &parallel_lifecycle_result));
+  parallel_typed_records[1].semantic.error_case_ordinal -= 1u;
+  parallel_lifecycle_result.error_identity.digest[0] ^= 1u;
+  CHECK(!w_seed_parallel_typed_lifecycle1_verify(
+      &parallel_lifecycle_input, &parallel_lifecycle_workspace,
+      &parallel_lifecycle_output, &parallel_lifecycle_result));
+  parallel_lifecycle_result.error_identity.digest[0] ^= 1u;
+
+  w_seed_parallel_typed_lifecycle1_counts rejected_lifecycle_counts;
+  w_seed_parallel_typed_lifecycle1_result rejected_lifecycle_result;
+  (void)memset(&rejected_lifecycle_counts, 0x38,
+               sizeof(rejected_lifecycle_counts));
+  (void)memset(&rejected_lifecycle_result, 0x83,
+               sizeof(rejected_lifecycle_result));
+  const w_seed_parallel_typed_lifecycle1_counts
+      rejected_lifecycle_counts_before = rejected_lifecycle_counts;
+  const w_seed_parallel_typed_lifecycle1_result
+      rejected_lifecycle_result_before = rejected_lifecycle_result;
+  parallel_result.semantic_digest[0] ^= 1u;
+  CHECK(w_seed_parallel_typed_lifecycle1_measure(
+            &parallel_lifecycle_input, &rejected_lifecycle_counts,
+            &rejected_lifecycle_result) ==
+            W_SEED_PARALLEL_TYPED_LIFECYCLE1_UPSTREAM &&
+        memcmp(&rejected_lifecycle_counts,
+               &rejected_lifecycle_counts_before,
+               sizeof(rejected_lifecycle_counts)) == 0 &&
+        memcmp(&rejected_lifecycle_result,
+               &rejected_lifecycle_result_before,
+               sizeof(rejected_lifecycle_result)) == 0);
+  parallel_result.semantic_digest[0] ^= 1u;
+
+  w_seed_parallel_typed_lifecycle1_input overflow_lifecycle_input =
+      parallel_lifecycle_input;
+  overflow_lifecycle_input.scope_generation = UINT32_MAX - 1u;
+  CHECK(w_seed_parallel_typed_lifecycle1_measure(
+            &overflow_lifecycle_input, &rejected_lifecycle_counts,
+            &rejected_lifecycle_result) ==
+            W_SEED_PARALLEL_TYPED_LIFECYCLE1_UPSTREAM &&
+        memcmp(&rejected_lifecycle_counts,
+               &rejected_lifecycle_counts_before,
+               sizeof(rejected_lifecycle_counts)) == 0 &&
+        memcmp(&rejected_lifecycle_result,
+               &rejected_lifecycle_result_before,
+               sizeof(rejected_lifecycle_result)) == 0);
+
   w_seed_parallel_typed_binding1_result sentinel_result;
   w_seed_parallel_typed_binding1_record sentinel_records[2];
   w_seed_parallel_platform1_completion sentinel_completions[2];
@@ -6824,6 +7113,7 @@ static bool test_parallel_typed_binding1(void) {
   parallel_result.semantic_digest[0] ^= 1u;
   CHECK(!w_seed_parallel_typed_binding1_verify(
       &input, &parallel_workspace, &parallel_output, &parallel_result));
+  parallel_result.semantic_digest[0] ^= 1u;
 
   /* The typed physical binding is deliberately a HIR41 witness: a typed
    * invoke without its exact dual-path cleanup must fail before publication. */

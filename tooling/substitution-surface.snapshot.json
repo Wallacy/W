@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:df64bbb80fb8f599229da051902b599d6587b5db29db11807876e2ee64facaf3",
+  "corpusDigest": "sha256:eed11e4f9e9aec347e94cafbfc3f50dd7caa8f0d3d164235b0690f51e17a77e8",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -9780,6 +9780,102 @@
             "nonWhitespaceCodePoints": 65,
             "lines": 1,
             "surfaceLexemes": 18
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-parallel-typed-lifecycle1",
+      "task": {
+        "utf8Bytes": 133,
+        "codePoints": 133,
+        "nonWhitespaceCodePoints": 117,
+        "lines": 1,
+        "surfaceLexemes": 20
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w-internal",
+        "sourceDigest": "sha256:4744ef56f06116ba235d8687733035886d8c777b82172ded1dbd6a4ecd574c1c",
+        "metrics": {
+          "utf8Bytes": 640,
+          "codePoints": 640,
+          "nonWhitespaceCodePoints": 550,
+          "lines": 6,
+          "surfaceLexemes": 124
+        }
+      },
+      "alternatives": [
+        {
+          "name": "generic-error-only",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:fbe835eee0aec3de2b41d826d1af8f376a49b13083e73562602665826967fd57",
+          "metrics": {
+            "utf8Bytes": 59,
+            "codePoints": 59,
+            "nonWhitespaceCodePoints": 51,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "publish-before-reduce",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:398cf5635f70a5d394c9e51885d5c458d8738f7ce1e2acd96862728252e09922",
+          "metrics": {
+            "utf8Bytes": 74,
+            "codePoints": 74,
+            "nonWhitespaceCodePoints": 64,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "capacity-in-semantic-digest",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:b08c0172e1e5062d6c937e9045b6f944911b462fcd0e37a0381fd9a0bf1638ff",
+          "metrics": {
+            "utf8Bytes": 74,
+            "codePoints": 74,
+            "nonWhitespaceCodePoints": 64,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "u32-task-handle",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:cfb1e73949744e800a953974dbb6be4aef10a65e82c97aef771fd50b3907a3b2",
+          "metrics": {
+            "utf8Bytes": 70,
+            "codePoints": 70,
+            "nonWhitespaceCodePoints": 58,
+            "lines": 1,
+            "surfaceLexemes": 13
+          }
+        },
+        {
+          "name": "unverified-upstream",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:262b62e1be76ce32a9873c4c19f42b194b56255e0eb33c74fc1c357d344f6118",
+          "metrics": {
+            "utf8Bytes": 80,
+            "codePoints": 80,
+            "nonWhitespaceCodePoints": 73,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        },
+        {
+          "name": "early-fail-fast-cancel",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:c47b726d1c2bffc2fd0ee5e9cf70d99231408f244694ebe2710717cb83e5d38a",
+          "metrics": {
+            "utf8Bytes": 47,
+            "codePoints": 47,
+            "nonWhitespaceCodePoints": 40,
+            "lines": 1,
+            "surfaceLexemes": 8
           }
         }
       ]
