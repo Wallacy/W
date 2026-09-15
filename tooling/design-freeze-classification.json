@@ -56830,7 +56830,7 @@
           "path": "compiler/seed-c/src/w_seed_parallel_invocation1.c",
           "symbol": "w_seed_parallel_invocation1_verify",
           "claim": "The verifier independently rederives normalized task and argument relations and recomputes their canonical semantic digest.",
-          "sha256": "sha256:4ae0f8b926afcf79bcd29e3e02d155fa27b8cfd73ab6df1f6647ad2ad1f11f7f"
+          "sha256": "sha256:9dc8cfa33e3c31eb0271c604f2ed3737a0d3783d6335ff98b766ee2939b5563c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_scalar_evaluator0.c",
@@ -58053,7 +58053,7 @@
           "path": "compiler/seed-c/src/w_seed_parallel_invocation1.c",
           "symbol": "derive_panic_task_semantics",
           "claim": "PARINV1 derives exact HIR-owned panic semantics, binds them into the digest, and rejects panic in scalar evaluation.",
-          "sha256": "sha256:4ae0f8b926afcf79bcd29e3e02d155fa27b8cfd73ab6df1f6647ad2ad1f11f7f"
+          "sha256": "sha256:9dc8cfa33e3c31eb0271c604f2ed3737a0d3783d6335ff98b766ee2939b5563c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",

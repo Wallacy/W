@@ -219,6 +219,7 @@ static bool invocation_aliases_producers(
 
 static bool range_valid_or_empty(uint32_t first, uint32_t count,
                                  size_t total) {
+  /* HIR preserves the canonical cursor even for an empty range. */
   if (count == 0u) return first <= total;
   return first != W_SEED_HIR0_NONE && first <= total &&
          count <= total - first;
@@ -348,6 +349,33 @@ static bool validate_task(const w_seed_hir0_program *program,
   return true;
 }
 
+/* validate_task has already proved every selected task before emission. The
+ * writer therefore derives only from those validated records and contains
+ * no fallible operation after the first destination write. */
+static parinv1_task_semantics task_semantics_after_validation(
+    const w_seed_hir0_program *program,
+    const w_seed_parallel_selection1_task *selected) {
+  const w_seed_hir0_call *call = &program->calls[selected->call_index];
+  const w_seed_hir0_function *function =
+      &program->functions[selected->function_index];
+  const w_seed_hir0_block *block = &program->blocks[function->first_block];
+  const w_seed_hir0_terminator *terminator =
+      &program->terminators[block->terminator_index];
+  if (terminator->kind == W_SEED_HIR0_TERMINATOR_PANIC)
+    return (parinv1_task_semantics){
+        W_SEED_PARALLEL_INVOCATION1_TASK_PANIC,
+        block->terminator_index,
+        terminator->value_index,
+        terminator->panic_code,
+        call->argument_count};
+  return (parinv1_task_semantics){
+      W_SEED_PARALLEL_INVOCATION1_TASK_VALUE_I64,
+      W_SEED_HIR0_NONE,
+      W_SEED_HIR0_NONE,
+      W_SEED_HIR0_PANIC_CODE_INVALID,
+      call->argument_count};
+}
+
 static bool derive_summary(
     const w_seed_hir0_program *hir_program,
     const w_seed_hir0_result *hir_result,
@@ -377,7 +405,7 @@ static bool derive_summary(
   return true;
 }
 
-static bool emit_records(
+static void emit_records(
     const w_seed_hir0_program *hir_program,
     const w_seed_parallel_selection1_program *selection,
     w_seed_parallel_invocation1_task *tasks,
@@ -388,8 +416,8 @@ static bool emit_records(
     const w_seed_hir0_call *call = &hir_program->calls[selected->call_index];
     const w_seed_hir0_function *function =
         &hir_program->functions[selected->function_index];
-    parinv1_task_semantics task_semantics;
-    if (!validate_task(hir_program, selected, &task_semantics)) return false;
+    const parinv1_task_semantics task_semantics =
+        task_semantics_after_validation(hir_program, selected);
     tasks[task] = (w_seed_parallel_invocation1_task){
         selected->call_index,
         selected->function_index,
@@ -411,7 +439,6 @@ static bool emit_records(
       argument_cursor += 1u;
     }
   }
-  return true;
 }
 
 static void sha_u32(w_seed_sha256_state *state, uint32_t value) {
@@ -527,9 +554,7 @@ w_seed_parallel_invocation1_status w_seed_parallel_invocation1_run(
   if (outputs_alias_producers(hir_program, hir_result, selection,
                               selection_result, output, result))
     return W_SEED_PARALLEL_INVOCATION1_ALIAS;
-  if (!emit_records(hir_program, selection, output->tasks,
-                    output->arguments))
-    return W_SEED_PARALLEL_INVOCATION1_UNSUPPORTED;
+  emit_records(hir_program, selection, output->tasks, output->arguments);
   w_seed_parallel_invocation1_result candidate;
   make_result(&summary, output->tasks, output->arguments, true, &candidate);
   *result = candidate;
