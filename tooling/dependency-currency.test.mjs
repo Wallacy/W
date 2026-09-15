@@ -123,6 +123,9 @@ describe("dependency currency catalog", () => {
     expectError(errorsAfter((value) => {
       entry(value, "mlir0-llvm-clang").requirements.developmentCompatibilityLine = "23.x";
     }), "MLIR0 development compatibility line must be 23.1.x");
+    expectError(errorsAfter((value) => {
+      entry(value, "mlir0-llvm-clang").environment.observedHosts[1].status = "reproducible-evidence";
+    }), "MLIR0 observed hosts must preserve the Windows partial and WSL 23.1.x development lanes");
   });
 
   test("keeps external evaluations non-authoritative", () => {

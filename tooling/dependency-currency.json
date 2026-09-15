@@ -542,6 +542,23 @@
       },
       "successor": null,
       "components": ["MLIR", "LLVM", "Clang", "LLD"],
+      "environment": {
+        "observedHosts": [
+          {
+            "host": "windows-system",
+            "version": "23.1.1",
+            "status": "partial-clang-lld",
+            "missing": "mlir-opt,mlir-translate,llc,llvm-config"
+          },
+          {
+            "host": "wsl-ubuntu",
+            "version": "23.1.2",
+            "status": "development-compatible-23.1.x",
+            "tools": "clang,mlir-opt,mlir-translate,llc,llvm-config",
+            "missing": "ld.lld-23"
+          }
+        ]
+      },
       "releaseWatch": {
         "scheduleUrl": "https://llvm.org/",
         "releaseApi": "https://api.github.com/repos/llvm/llvm-project/releases?per_page=30",

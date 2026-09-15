@@ -253,6 +253,14 @@ function validateSpecialEntries(value, errors) {
     if (mlir.requirements?.developmentCompatibilityLine !== "23.1.x") {
       errors.push("MLIR0 development compatibility line must be 23.1.x");
     }
+    const observedHosts = mlir.environment?.observedHosts;
+    if (!Array.isArray(observedHosts) || observedHosts.length !== 2 ||
+        observedHosts[0]?.host !== "windows-system" || observedHosts[0]?.version !== "23.1.1" ||
+        observedHosts[0]?.status !== "partial-clang-lld" ||
+        observedHosts[1]?.host !== "wsl-ubuntu" || observedHosts[1]?.version !== "23.1.2" ||
+        observedHosts[1]?.status !== "development-compatible-23.1.x") {
+      errors.push("MLIR0 observed hosts must preserve the Windows partial and WSL 23.1.x development lanes");
+    }
     if (!Array.isArray(mlir.components) || JSON.stringify(mlir.components) !== JSON.stringify(["MLIR", "LLVM", "Clang", "LLD"])) {
       errors.push("MLIR0 components must include MLIR, LLVM, Clang, and LLD");
     }

@@ -146,6 +146,10 @@ Scope: WSL Linux MLIR0 development edge.
 Locations: `tooling/mlir0-toolchain.json`, `tooling/check-mlir0.mjs`, `tooling/check-parallel-mlir0.mjs`, `tooling/check-llvm-release.mjs`, `tooling/check-llvm-release.test.mjs`, `tooling/platform-support.json`, `tooling/platform-support.mjs`, `.github/workflows/llvm-release-watch.yml`, `PLATFORM-SUPPORT.md`.
 Latest stable: `version: 23.1.1; tag: llvmorg-23.1.1`.
 
+Environment and build requirements for `mlir0-llvm-clang`:
+- windows-system: version=23.1.1, status=partial-clang-lld, missing=mlir-opt,mlir-translate,llc,llvm-config.
+- wsl-ubuntu: version=23.1.2, status=development-compatible-23.1.x, tools=clang,mlir-opt,mlir-translate,llc,llvm-config, missing=ld.lld-23.
+
 Release watch for `mlir0-llvm-clang`: [official schedule](https://llvm.org/); scheduled CI `.github/workflows/llvm-release-watch.yml`.
 Next announced release: `23.1.2` on `2026-09-22` (`announced-not-released`).
 Manual check: `bun tooling/check-llvm-release.mjs`.
