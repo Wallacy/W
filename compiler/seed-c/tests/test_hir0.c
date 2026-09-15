@@ -928,7 +928,7 @@ enum {
   TEST_HIR_RECORDS = 512,
   TEST_HIR_TEXT = 4096,
   TEST_HIR_VALUES = 4096,
-  TEST_HIR_RECEIPT = 320,
+  TEST_HIR_RECEIPT = W_SEED_HIR0_MAX_RECEIPT_BYTES,
 };
 
 typedef struct {
@@ -1019,6 +1019,7 @@ typedef struct {
   w_seed_hir0_entry hir_entries[TEST_HIR_RECORDS];
   w_seed_hir0_external_module hir_external_modules[2];
   w_seed_hir0_external_symbol hir_external_symbols[8];
+  w_seed_hir0_cleanup hir_cleanups[TEST_HIR_RECORDS];
   uint8_t hir_text[TEST_HIR_TEXT];
   uint8_t hir_value_bytes[TEST_HIR_VALUES];
   uint8_t hir_receipt[TEST_HIR_RECEIPT];
@@ -1496,7 +1497,9 @@ static void setup_hir_output(void) {
       .external_modules = fixture.hir_external_modules,
       .external_module_capacity = 2u,
       .external_symbols = fixture.hir_external_symbols,
-      .external_symbol_capacity = 8u};
+      .external_symbol_capacity = 8u,
+      .cleanups = fixture.hir_cleanups,
+      .cleanup_capacity = TEST_HIR_RECORDS};
 }
 
 static bool lower(const char *source) {
@@ -2887,7 +2890,7 @@ static bool test_direct_entry_effect_barrier(void) {
       "async fn deferWork() { defer async { await cleanup() } }\n"
       "entry { }\n";
   CHECK(check_direct_entry_effect_barrier(DEFER_EFFECT_SOURCE,
-                                          W_SEED_FRONTEND_BARRIER));
+                                          W_SEED_FRONTEND_UNSUPPORTED));
   return true;
 }
 
@@ -6389,6 +6392,175 @@ static bool test_typed_invoke_hir(void) {
   return true;
 }
 
+static bool test_typed_invoke_cleanup_hir(void) {
+  static const char SOURCE[] =
+      "enum Failure: Error { denied }\n"
+      "fn clean() { }\n"
+      "fn leaf(): i64 throws Failure { throw .denied }\n"
+      "fn relay(): i64 throws Failure { defer { clean() } return try leaf() }\n"
+      "entry { }\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->cleanup_count == 1u && program->call_count == 3u &&
+        program->instruction_count == 2u && program->block_argument_count == 2u);
+  size_t relay_index = SIZE_MAX;
+  for (size_t index = 0u; index < program->function_count; index += 1u)
+    if (hir_text_is(program, program->functions[index].name, "relay"))
+      relay_index = index;
+  CHECK(relay_index != SIZE_MAX);
+  const w_seed_hir0_function *relay = &program->functions[relay_index];
+  CHECK(relay->block_count == 3u);
+  const uint32_t invoke_block = relay->first_block;
+  const uint32_t normal_block = invoke_block + 1u;
+  const uint32_t error_block = invoke_block + 2u;
+  const w_seed_hir0_cleanup *cleanup = &program->cleanups[0];
+  CHECK(cleanup->owner_function == relay_index &&
+        cleanup->invoke_terminator == invoke_block &&
+        cleanup->normal_block == normal_block &&
+        cleanup->error_block == error_block &&
+        cleanup->normal_instruction ==
+            program->blocks[normal_block].first_instruction &&
+        cleanup->error_instruction ==
+            program->blocks[error_block].first_instruction &&
+        cleanup->normal_call != cleanup->error_call &&
+        program->calls[cleanup->normal_call].callee_identity ==
+            cleanup->cleanup_identity &&
+        program->calls[cleanup->error_call].callee_identity ==
+            cleanup->cleanup_identity &&
+        program->instructions[cleanup->normal_instruction].kind ==
+            W_SEED_HIR0_INSTRUCTION_CALL &&
+        program->instructions[cleanup->error_instruction].kind ==
+            W_SEED_HIR0_INSTRUCTION_CALL &&
+        program->terminators[invoke_block].kind ==
+            W_SEED_HIR0_TERMINATOR_INVOKE &&
+        program->terminators[normal_block].kind ==
+            W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        program->terminators[error_block].kind ==
+            W_SEED_HIR0_TERMINATOR_THROW &&
+        program->values[program->terminators[normal_block].value_index].kind ==
+            W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        program->values[program->terminators[error_block].value_index].kind ==
+            W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_cleanup saved_cleanup = fixture.hir_cleanups[0];
+  const w_seed_hir0_block saved_error_block = fixture.hir_blocks[error_block];
+  const w_seed_hir0_instruction saved_normal_instruction =
+      fixture.hir_instructions[cleanup->normal_instruction];
+  const w_seed_hir0_call saved_normal_call =
+      fixture.hir_calls[cleanup->normal_call];
+  const w_seed_hir0_terminator saved_normal_terminator =
+      fixture.hir_terminators[normal_block];
+  const uint32_t invoke_call = fixture.hir_terminators[invoke_block].call_index;
+  CHECK(invoke_call < program->call_count);
+
+  fixture.hir_cleanups[0].owner_function = 0u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_cleanups[0] = saved_cleanup;
+
+  fixture.hir_cleanups[0].error_block = normal_block;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_cleanups[0] = saved_cleanup;
+
+  fixture.hir_cleanups[0].cleanup_identity =
+      fixture.hir_calls[invoke_call].callee_identity;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_cleanups[0] = saved_cleanup;
+
+  fixture.hir_blocks[error_block].instruction_count = 0u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_blocks[error_block] = saved_error_block;
+
+  fixture.hir_instructions[cleanup->normal_instruction].ordinal = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_instructions[cleanup->normal_instruction] =
+      saved_normal_instruction;
+
+  fixture.hir_calls[cleanup->normal_call].owner_block = error_block;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_calls[cleanup->normal_call] = saved_normal_call;
+
+  fixture.hir_calls[cleanup->normal_call].argument_count = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_calls[cleanup->normal_call] = saved_normal_call;
+
+  fixture.hir_terminators[normal_block].value_index = W_SEED_HIR0_NONE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[normal_block] = saved_normal_terminator;
+
+  fixture.hir_cleanups[0].source_span.end_byte =
+      program->modules[relay->module_index].source_length + 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_cleanups[0] = saved_cleanup;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  w_seed_product_closure0_counts closure_counts;
+  w_seed_product_closure0_result closure_result;
+  (void)memset(&closure_counts, 0xa5, sizeof(closure_counts));
+  (void)memset(&closure_result, 0x5a, sizeof(closure_result));
+  const w_seed_product_closure0_counts closure_counts_before = closure_counts;
+  const w_seed_product_closure0_result closure_result_before = closure_result;
+  const w_seed_product_closure0_input closure_input = {
+      .program = program, .hir_result = &fixture.hir_result};
+  CHECK(w_seed_product_closure0_measure(
+            &closure_input, &closure_counts, &closure_result) ==
+        W_SEED_PRODUCT_CLOSURE0_UNSUPPORTED &&
+        memcmp(&closure_counts, &closure_counts_before,
+               sizeof(closure_counts)) == 0 &&
+        memcmp(&closure_result, &closure_result_before,
+               sizeof(closure_result)) == 0);
+
+  const w_seed_hir0_input input = hir_input();
+  const uint8_t sentinel = 0xa5u;
+  w_seed_hir0_counts measured_counts;
+  w_seed_hir0_result measured_result;
+  CHECK(w_seed_hir0_measure(&input, &measured_counts, &measured_result) ==
+        W_SEED_HIR0_OK);
+  CHECK(measured_counts.cleanups == 1u);
+
+  setup_hir_output();
+  fill_hir_output(sentinel);
+  fixture.hir_output.cleanups = NULL;
+  fixture.hir_output.cleanup_capacity = 0u;
+  w_seed_hir0_result rejected_result;
+  (void)memset(&rejected_result, 0x5a, sizeof(rejected_result));
+  const w_seed_hir0_result rejected_before = rejected_result;
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &rejected_result) ==
+        W_SEED_HIR0_CAPACITY);
+  CHECK(hir_output_is_byte(sentinel) &&
+        memcmp(&rejected_result, &rejected_before,
+               sizeof(rejected_result)) == 0);
+
+  setup_hir_output();
+  fill_hir_output(sentinel);
+  w_seed_hir0_output alias = fixture.hir_output;
+  alias.cleanups = (w_seed_hir0_cleanup *)(void *)alias.calls;
+  rejected_result = rejected_before;
+  CHECK(w_seed_hir0_run(&input, &alias, &rejected_result) ==
+        W_SEED_HIR0_INVALID);
+  CHECK(hir_output_is_byte(sentinel) &&
+        memcmp(&rejected_result, &rejected_before,
+               sizeof(rejected_result)) == 0);
+
+  CHECK(lower(SOURCE));
+  (void)memset(&fixture.document, 0, sizeof(fixture.document));
+  (void)memset(&fixture.input, 0, sizeof(fixture.input));
+  (void)memset(&fixture.output, 0, sizeof(fixture.output));
+  (void)memset(&fixture.result, 0, sizeof(fixture.result));
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_local_enum_payload_declarations_hir(void) {
   static const char SOURCE[] =
       "enum Course { starter main(price: i64) shared(i64, i64) }\n"
@@ -6611,6 +6783,7 @@ static void fill_hir_output(uint8_t value) {
                sizeof(fixture.hir_external_modules));
   (void)memset(fixture.hir_external_symbols, value,
                sizeof(fixture.hir_external_symbols));
+  (void)memset(fixture.hir_cleanups, value, sizeof(fixture.hir_cleanups));
   (void)memset(fixture.hir_text, value, sizeof(fixture.hir_text));
   (void)memset(fixture.hir_value_bytes, value,
                sizeof(fixture.hir_value_bytes));
@@ -6651,6 +6824,7 @@ static bool hir_output_is_byte(uint8_t value) {
       (const uint8_t *)fixture.hir_entries,
       (const uint8_t *)fixture.hir_external_modules,
       (const uint8_t *)fixture.hir_external_symbols,
+      (const uint8_t *)fixture.hir_cleanups,
       fixture.hir_text,
       fixture.hir_value_bytes,
       fixture.hir_receipt};
@@ -6675,6 +6849,7 @@ static bool hir_output_is_byte(uint8_t value) {
       sizeof(fixture.hir_terminators), sizeof(fixture.hir_entries),
       sizeof(fixture.hir_external_modules),
       sizeof(fixture.hir_external_symbols),
+      sizeof(fixture.hir_cleanups),
       sizeof(fixture.hir_text), sizeof(fixture.hir_value_bytes),
       sizeof(fixture.hir_receipt)};
   for (size_t region = 0u; region < sizeof(sizes) / sizeof(sizes[0]);
@@ -9772,6 +9947,7 @@ int main(int argc, char **argv) {
   if (!test_process_arguments_count_hir()) return 1;
   if (!test_process_hir_adversarial()) return 1;
   if (!test_direct_entry_facts()) return 1;
+  if (!test_typed_invoke_cleanup_hir()) return 1;
   if (!test_direct_entry_effect_barrier()) return 1;
   if (!test_short_entry_hir()) return 1;
   if (!test_signed_comparison_values()) return 1;

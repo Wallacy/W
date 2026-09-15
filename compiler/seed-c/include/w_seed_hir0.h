@@ -15,12 +15,12 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-40"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-41"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
 #define W_SEED_HIR0_MAX_VALUE_BYTES (64u * 1024u)
-#define W_SEED_HIR0_MAX_RECEIPT_BYTES 320u
+#define W_SEED_HIR0_MAX_RECEIPT_BYTES 328u
 /* Cooperative0 is a deliberately closed physical-evidence lane.  Keep its
  * per-child yield budget in the HIR contract so frontend/HIR admission and
  * the host oracle cannot drift apart. */
@@ -686,6 +686,23 @@ typedef struct {
   w_seed_span source_span;
 } w_seed_hir0_terminator;
 
+/* One statically-proven lexical cleanup registration.  The registration is
+ * caller-owned evidence only: the invoke remains the control-flow owner and
+ * each typed successor owns its ordinary direct Unit cleanup call.  No
+ * runtime cleanup stack, closure, or hidden result carrier is implied. */
+typedef struct {
+  uint32_t owner_function;
+  uint32_t invoke_terminator;
+  uint32_t cleanup_identity;
+  uint32_t normal_block;
+  uint32_t error_block;
+  uint32_t normal_instruction;
+  uint32_t error_instruction;
+  uint32_t normal_call;
+  uint32_t error_call;
+  w_seed_span source_span;
+} w_seed_hir0_cleanup;
+
 typedef struct {
   uint32_t module_index;
   uint32_t identity_index;
@@ -738,6 +755,7 @@ typedef struct {
   size_t enum_case_parameters;
   size_t enum_subsets;
   size_t enum_subset_members;
+  size_t cleanups;
 } w_seed_hir0_counts;
 
 /* A program carries capacities so the verifier can reject a truncated or
@@ -833,6 +851,9 @@ typedef struct {
   const w_seed_hir0_external_symbol *external_symbols;
   size_t external_symbol_count;
   size_t external_symbol_capacity;
+  const w_seed_hir0_cleanup *cleanups;
+  size_t cleanup_count;
+  size_t cleanup_capacity;
 } w_seed_hir0_program;
 
 typedef struct {
@@ -896,6 +917,8 @@ typedef struct {
   size_t external_module_capacity;
   w_seed_hir0_external_symbol *external_symbols;
   size_t external_symbol_capacity;
+  w_seed_hir0_cleanup *cleanups;
+  size_t cleanup_capacity;
 } w_seed_hir0_output;
 
 typedef struct {

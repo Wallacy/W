@@ -54,7 +54,7 @@ enum {
   TEST_HIR_TEXT = 8192,
   TEST_HIR_VALUES = 4096,
   TEST_RECEIPT = 65536,
-  TEST_HIR_RECEIPT = 320,
+  TEST_HIR_RECEIPT = W_SEED_HIR0_MAX_RECEIPT_BYTES,
 };
 
 typedef struct {
@@ -139,6 +139,7 @@ typedef struct {
   w_seed_hir0_entry hir_entries[TEST_HIR_RECORDS];
   w_seed_hir0_external_module hir_external_modules[1];
   w_seed_hir0_external_symbol hir_external_symbols[1];
+  w_seed_hir0_cleanup hir_cleanups[TEST_HIR_RECORDS];
   uint8_t hir_text[TEST_HIR_TEXT];
   uint8_t hir_value_bytes[TEST_HIR_VALUES];
   uint8_t hir_receipt[TEST_HIR_RECEIPT];
@@ -335,7 +336,9 @@ static void setup_hir_output(multidoc_fixture *fixture) {
       .external_modules = fixture->hir_external_modules,
       .external_module_capacity = 1u,
       .external_symbols = fixture->hir_external_symbols,
-      .external_symbol_capacity = 1u};
+      .external_symbol_capacity = 1u,
+      .cleanups = fixture->hir_cleanups,
+      .cleanup_capacity = TEST_HIR_RECORDS};
 }
 
 static bool initialize_fixture(multidoc_fixture *fixture,
