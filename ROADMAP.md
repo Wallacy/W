@@ -98,3 +98,10 @@ dense caller-owned `.domain` task relations independently from worker capacity.
 Five siblings now cross verified HIR in both lanes and cross PARSEL1 for
 `.domain`; legacy product/selector consumers still stop at four until their
 incremental migration.
+
+W-1607 extends rank 2 through invocation storage. PARINV1 measures dense task
+and argument relations from verified PARSEL1, normalizes named arguments into
+parameter order, and removes the scalar evaluator's fixed sixteen-argument
+array. Five tasks and seventeen arguments pass this compiler boundary. The
+physical providers and PARMLIR0 still consume the fixed compatibility records;
+their migration is the next rank-2 dependency before cancellation work.

@@ -395,6 +395,12 @@ The same gate now admits five tasks into HIR38 and PARSEL1's measured
 caller-owned records while proving that fixed PARSEL0 rejects the larger scope
 without mutation.
 
+W-1607 extends that focused gate through PARINV1. The test measures exact task
+and argument storage, checks declaration-order argument normalization, runs
+five-task and seventeen-argument witnesses, and verifies capacity, producer
+alias, bridge, digest, and malformed-input barriers. The unchanged PARINV0
+failure proves that the compatibility limit did not leak into PARINV1.
+
 ACQ0 executa CHK6 em
 storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou
 CLI. Execute `bun check --target acquisition` para compilar os cinco targets focais,

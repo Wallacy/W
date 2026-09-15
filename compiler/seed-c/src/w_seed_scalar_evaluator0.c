@@ -2,8 +2,6 @@
 
 #include <limits.h>
 
-#define W_SEED_SCALAR_EVALUATOR0_MAX_ARGUMENTS 16u
-
 bool w_seed_scalar_evaluator0_checked_binary(
     w_seed_hir0_binary_operator operation, int64_t left, int64_t right,
     int64_t *result) {
@@ -62,21 +60,55 @@ static bool scalar_range(uint32_t first, uint32_t count, size_t total) {
   return first != W_SEED_HIR0_NONE && first <= total && count <= total - first;
 }
 
+/* Scalar evaluation is pure. Resolve a callee parameter through the verified
+ * HIR argument relation instead of materializing an arity-sized stack array.
+ * The frame size is constant and only call depth consumes stack space. */
+typedef struct scalar_parameter_frame {
+  const struct scalar_parameter_frame *caller;
+  uint32_t call_index;
+  size_t parameter_count;
+} scalar_parameter_frame;
+
 static bool scalar_evaluate_function(const w_seed_hir0_program *program,
                                      uint32_t function_index,
-                                     const int64_t *parameters,
+                                     const scalar_parameter_frame *parameters,
                                      size_t parameter_count, size_t depth,
                                      size_t *budget, int64_t *result);
 
 static bool scalar_evaluate_value(const w_seed_hir0_program *program,
                                   uint32_t value_index,
-                                  const int64_t *parameters,
+                                  const scalar_parameter_frame *parameters,
                                   size_t parameter_count, size_t depth,
                                   size_t *budget, int64_t *result);
 
+static const w_seed_hir0_argument *scalar_argument_for_ordinal(
+    const w_seed_hir0_program *program,
+    const scalar_parameter_frame *parameters, size_t ordinal) {
+  if (program == NULL || parameters == NULL ||
+      parameters->call_index >= program->call_count ||
+      ordinal >= parameters->parameter_count)
+    return NULL;
+  const w_seed_hir0_call *call = &program->calls[parameters->call_index];
+  if (call->argument_count != parameters->parameter_count ||
+      !scalar_range(call->first_argument, call->argument_count,
+                    program->argument_count))
+    return NULL;
+  const w_seed_hir0_argument *match = NULL;
+  for (size_t index = 0u; index < call->argument_count; index += 1u) {
+    const w_seed_hir0_argument *argument =
+        &program->arguments[(size_t)call->first_argument + index];
+    if (argument->owner_call != parameters->call_index ||
+        argument->parameter_ordinal != ordinal)
+      continue;
+    if (match != NULL) return NULL;
+    match = argument;
+  }
+  return match;
+}
+
 static bool scalar_evaluate_call(const w_seed_hir0_program *program,
                                  uint32_t call_index,
-                                 const int64_t *caller_parameters,
+                                 const scalar_parameter_frame *caller_parameters,
                                  size_t caller_parameter_count,
                                  bool root_dispatch, size_t depth,
                                  size_t *budget, int64_t *result) {
@@ -94,7 +126,6 @@ static bool scalar_evaluate_call(const w_seed_hir0_program *program,
         call->execution_kind ==
             W_SEED_HIR0_CALL_STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH));
   if (!dispatch || call->callee_identity >= program->identity_count ||
-      call->argument_count > W_SEED_SCALAR_EVALUATOR0_MAX_ARGUMENTS ||
       !scalar_range(call->first_argument, call->argument_count,
                     program->argument_count))
     return false;
@@ -108,29 +139,33 @@ static bool scalar_evaluate_call(const w_seed_hir0_program *program,
   if (function->parameter_count != call->argument_count ||
       !scalar_i64_type(program, function->return_type))
     return false;
-  int64_t arguments[W_SEED_SCALAR_EVALUATOR0_MAX_ARGUMENTS] = {0};
-  bool seen[W_SEED_SCALAR_EVALUATOR0_MAX_ARGUMENTS] = {false};
-  for (size_t ordinal = 0u; ordinal < call->argument_count; ordinal += 1u) {
+  for (size_t index = 0u; index < call->argument_count; index += 1u) {
     const w_seed_hir0_argument *argument =
-        &program->arguments[(size_t)call->first_argument + ordinal];
+        &program->arguments[(size_t)call->first_argument + index];
     if (argument->owner_call != call_index ||
-        argument->parameter_ordinal >= call->argument_count ||
-        seen[argument->parameter_ordinal] ||
-        !scalar_evaluate_value(
-            program, argument->value_index, caller_parameters,
-            caller_parameter_count, depth + 1u, budget,
-            &arguments[argument->parameter_ordinal]))
+        argument->parameter_ordinal >= call->argument_count)
       return false;
-    seen[argument->parameter_ordinal] = true;
+    for (size_t previous = 0u; previous < index; previous += 1u) {
+      const w_seed_hir0_argument *prior =
+          &program->arguments[(size_t)call->first_argument + previous];
+      if (prior->parameter_ordinal == argument->parameter_ordinal) return false;
+    }
+    int64_t ignored = 0;
+    if (!scalar_evaluate_value(program, argument->value_index,
+                               caller_parameters, caller_parameter_count,
+                               depth + 1u, budget, &ignored))
+      return false;
   }
-  return scalar_evaluate_function(program, identity->target_index, arguments,
+  const scalar_parameter_frame parameters = {
+      caller_parameters, call_index, call->argument_count};
+  return scalar_evaluate_function(program, identity->target_index, &parameters,
                                   call->argument_count, depth + 1u, budget,
                                   result);
 }
 
 static bool scalar_evaluate_value(const w_seed_hir0_program *program,
                                   uint32_t value_index,
-                                  const int64_t *parameters,
+                                  const scalar_parameter_frame *parameters,
                                   size_t parameter_count, size_t depth,
                                   size_t *budget, int64_t *result) {
   if (program == NULL || result == NULL || budget == NULL || *budget == 0u ||
@@ -146,9 +181,15 @@ static bool scalar_evaluate_value(const w_seed_hir0_program *program,
     case W_SEED_HIR0_VALUE_PARAMETER_READ: {
       if (value->parameter_index >= program->parameter_count) return false;
       const size_t ordinal = program->parameters[value->parameter_index].ordinal;
-      if (parameters == NULL || ordinal >= parameter_count) return false;
-      *result = parameters[ordinal];
-      return true;
+      const w_seed_hir0_argument *argument =
+          scalar_argument_for_ordinal(program, parameters, ordinal);
+      return argument != NULL && parameter_count == parameters->parameter_count &&
+             scalar_evaluate_value(program, argument->value_index,
+                                   parameters->caller,
+                                   parameters->caller == NULL
+                                       ? 0u
+                                       : parameters->caller->parameter_count,
+                                   depth + 1u, budget, result);
     }
     case W_SEED_HIR0_VALUE_BINDING_READ:
       return value->binding_index < program->binding_count &&
@@ -190,7 +231,7 @@ static bool scalar_evaluate_value(const w_seed_hir0_program *program,
 
 static bool scalar_evaluate_function(const w_seed_hir0_program *program,
                                      uint32_t function_index,
-                                     const int64_t *parameters,
+                                     const scalar_parameter_frame *parameters,
                                      size_t parameter_count, size_t depth,
                                      size_t *budget, int64_t *result) {
   if (program == NULL || result == NULL || budget == NULL || *budget == 0u ||

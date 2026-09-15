@@ -253,6 +253,8 @@ O corpus compara, no mínimo:
 - bounded GPU0 target-neutral semantic and available CUDA execution against source-backed W claims, provider/runtime conflation, homogeneous toolchains, and premature public product support.
 - bounded static accelerated root binding against embedded provider handles, multiplied budgets, and unauthenticated claims.
 - bounded provider-neutral accelerated request against producer lifetime coupling, identity substitution, mutable artifact references, and premature submission claims.
+- measured task-relation storage against fixed HIR ceilings, host-width identity, provider-policy leakage, and partial publication.
+- measured parallel invocation storage against fixed arity arrays, call-site label order, host-width identity, and partial publication.
 
 ### 1.1 Cobertura de substituições
 
@@ -7926,6 +7928,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1604 | independent bounded accelerated root binding | ACCBIND0 consumes a verified ACCINV0 relation plus one caller-supplied closed product/profile selection, copies the exact root/domain/descriptor/module/artifact/kernel-instance identity relation, requires selected-instance and provider-ABI agreement, and computes the effective admission maximum as the minimum of invocation, profile, root, deployment and resource limits. Its source-free verifier survives both owners; semantic identity excludes queue/device/generation while provenance binds them. | `source-backed-current` only for the one-relation caller-owned C23 bridge, reject-only fallback, exact budget composition, identity/ABI consistency, transactional capacity and alias barriers, teardown independence, adversarial verification, and focused gate. The upstream closed-profile receipts are assumed inputs rather than authenticated here. General profile closure, product signatures, arguments/ownership/residency, provider launch/join/result, cancellation/drain, public GPU products, other targets, benchmark results and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1605 | independent bounded accelerated provider request | ACCREQ0 consumes verified ACCBIND0 and GPU0 programs/results, cross-checks the descriptor, host root, kernel label, private function and signed-i32 result shape, and copies one provider-neutral request, identity text and exact device artifact into caller-owned storage. Its independent verifier survives both producer lifetimes, rehashes the artifact, and separates semantic identity from physical provenance. | `source-backed-current` only for the one-request C23 bridge, exact current GPU0 sentinel, copied artifact and identities, transactional capacity/alias barriers, teardown independence, adversarial verification and focused gate. It performs no provider submission and introduces no public ABI. General arguments/results, authenticated product closure, provider launch/join/result, cancellation/drain, residency, public GPU products, other accelerators, benchmark results and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1606 | measured parallel task-relation storage | HIR38 admits and verifies finite `.main` and `.domain` sibling scopes using caller-owned record counts rather than a four-slot temporary array. PARSEL1 consumes the `.domain` lane, measures exact task count, and publishes dense caller-owned call/function/launch/join records with domain facts and a semantic digest independent of provider capacity and compiler-host width. | `source-backed-current` only for finite HIR admission plus PARSEL1 measure/run/bridge/verify, transactional capacity and alias barriers, five-task `.main` and `.domain` evidence, and preserved fail-closed legacy product/selector boundaries. A measured `.main` product consumer, downstream PARINV0/PARPROV0/PARMLIR0 migration, scheduler storage, cancellation/outcomes, public execution, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1607 | measured parallel invocation storage | PARINV1 consumes verified HIR38 and PARSEL1, measures exact task and argument counts, normalizes named arguments into parameter order, and publishes dense caller-owned invocation relations with a canonical semantic digest. Its pure scalar proof resolves parameters through HIR relations without a fixed arity array. | `source-backed-current` only for PARINV1 measure/run/bridge/verify/evaluate, transactional capacity and alias barriers, five-task and seventeen-argument evidence, and preserved fail-closed PARINV0 limits. Provider, PARMLIR0 and public-product migration, cancellation/outcomes, scheduling, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -12947,3 +12950,27 @@ PARSEL0 still rejects it transactionally; the legacy `.main` product selector
 likewise retains its own four-slot boundary. This preserves existing downstream
 evidence instead of pretending it migrated. The next increment can move
 PARINV0 and provider inputs to PARSEL1 without changing language semantics.
+
+#### W-1607 — measured parallel invocation storage
+
+PARINV0 couples an otherwise verified invocation to four task slots and sixteen
+argument slots. Those capacities are useful compatibility witnesses, but they
+must not become language or runtime limits. PARINV1 consumes verified HIR38 and
+PARSEL1 instead. Its measure step derives exact task and argument counts before
+the caller supplies storage.
+
+Run publishes one dense task record and one dense argument record per verified
+relation. Argument records follow parameter ordinals, not call-site label order.
+The semantic digest encodes bounded counts as canonical `u32` values and excludes
+compiler-host pointer width and provider capacity. The record indices are
+compiler IR identities. They are not Task handles or target ABI fields.
+
+The pure scalar proof no longer allocates a fixed argument array. A constant-size
+call frame resolves parameter reads through verified HIR argument relations. A
+separate step and nesting budget still prevents hostile compiler-host graphs.
+Five tasks and a seventeen-argument task pass PARINV1, while the unchanged
+PARINV0 boundaries reject them without mutation.
+
+This checkpoint does not migrate the physical provider or PARMLIR0. It adds no
+scheduler, runtime storage, cancellation, public executable, benchmark result,
+or performance claim.
