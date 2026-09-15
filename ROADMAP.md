@@ -125,6 +125,9 @@ that measured lifecycle: provider capacities one and two produce identical
 five-task records, trace, and scope value. W-1612 adds the private Windows
 provider primitive for tagged success, error, and canceled completions. It
 preserves a settled sibling and cancels only later unstarted waves. The next
-dependency is an authenticated typed provider result and TASKLIFE binding,
-followed by source-level throw/cancellation and an explicit panic boundary.
+dependency was the producer side of typed failure: W-1613 now carries a
+terminal root `throw E` through parser, frontend29, and verified HIR39 while
+rejecting non-`Error` and unproved branch composition. Next comes the
+authenticated typed provider result and TASKLIFE binding, followed by typed
+throw/return CFG plus cleanup/propagation and an explicit panic boundary.
 Physical cancellation remains cooperative rather than thread termination.

@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-38"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-39"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -219,6 +219,8 @@ typedef enum {
   W_SEED_HIR0_TERMINATOR_JUMP,
   /* Closed local payloadless-enum exhaustive dispatch. */
   W_SEED_HIR0_TERMINATOR_SWITCH_ENUM,
+  /* Recoverable typed error edge; value_index carries the concrete E. */
+  W_SEED_HIR0_TERMINATOR_THROW,
 } w_seed_hir0_terminator_kind;
 
 typedef enum {
@@ -335,6 +337,8 @@ typedef struct {
   uint32_t module_index;
   uint32_t type_index;
   w_seed_hir0_text name;
+  /* Re-derived from the exact core `Error` conformance in frontend input. */
+  bool error_conformance;
   uint32_t first_case;
   uint32_t case_count;
   w_seed_span source_span;
@@ -413,6 +417,8 @@ typedef struct {
   w_seed_span source_span;
   w_seed_span body_span;
   uint32_t return_type;
+  /* NONE iff is_throws is false; otherwise the concrete closed error enum. */
+  uint32_t error_type;
   uint32_t first_parameter;
   uint32_t parameter_count;
   uint32_t first_block;

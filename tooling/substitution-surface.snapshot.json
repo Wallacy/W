@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:f7bdb4586bd2f378a6a29f1ea90771fded8f1250d787daf428a5ca8a974b75c3",
+  "corpusDigest": "sha256:eb99ea6d80d82fb432f047a865aeac79b2d15de3e3f138a39ab28dd4868b6b5c",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -9192,6 +9192,78 @@
             "nonWhitespaceCodePoints": 41,
             "lines": 1,
             "surfaceLexemes": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-hir0-typed-throw",
+      "task": {
+        "utf8Bytes": 130,
+        "codePoints": 130,
+        "nonWhitespaceCodePoints": 115,
+        "lines": 1,
+        "surfaceLexemes": 19
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w-internal",
+        "sourceDigest": "sha256:389efbb44f18f5fbf0d37297bb0927a91888438380bc0b69d02c9179b2fe7ce7",
+        "metrics": {
+          "utf8Bytes": 150,
+          "codePoints": 150,
+          "nonWhitespaceCodePoints": 130,
+          "lines": 4,
+          "surfaceLexemes": 37
+        }
+      },
+      "alternatives": [
+        {
+          "name": "erase-error-type",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:486ee71f9bb1343c4927fcf05efd5dea1e2a10c297cb22f9b644209ba513d25b",
+          "metrics": {
+            "utf8Bytes": 51,
+            "codePoints": 51,
+            "nonWhitespaceCodePoints": 46,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "encode-as-return",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:a946e52be222db9d1c9c14589f8217a59520b99ca28d0ab09b8d093199cdddae",
+          "metrics": {
+            "utf8Bytes": 21,
+            "codePoints": 21,
+            "nonWhitespaceCodePoints": 20,
+            "lines": 1,
+            "surfaceLexemes": 4
+          }
+        },
+        {
+          "name": "accept-any-enum",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:b4470493a6cb972e540c9deda2730013d000e8c83be05af63c474461b74ff084",
+          "metrics": {
+            "utf8Bytes": 23,
+            "codePoints": 23,
+            "nonWhitespaceCodePoints": 19,
+            "lines": 1,
+            "surfaceLexemes": 5
+          }
+        },
+        {
+          "name": "infer-error-downstream",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:35316e5af0ba032e6c477a6dcc6ad81fbb5ebe0fbd7c19fcf51536212d467a7f",
+          "metrics": {
+            "utf8Bytes": 61,
+            "codePoints": 61,
+            "nonWhitespaceCodePoints": 54,
+            "lines": 1,
+            "surfaceLexemes": 10
           }
         }
       ]

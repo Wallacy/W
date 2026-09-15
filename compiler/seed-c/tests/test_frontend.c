@@ -1060,6 +1060,47 @@ static bool test_enums_and_payloads(void) {
   return true;
 }
 
+static bool test_typed_throw_projection(void) {
+  static const char source[] =
+      "enum Failure: Error { denied }\n"
+      "fn fail(): () throws Failure { throw .denied }\n"
+      "entry { }\n";
+  fixture *value = &fixture_a;
+  CHECK(fixture_run(value, source));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE);
+  CHECK(value->result.status == W_SEED_FRONTEND_OK);
+  CHECK(value->result.written.enums == 1u &&
+        value->result.written.functions == 2u &&
+        value->result.written.statements == 1u);
+  const w_seed_frontend_function *function = &value->functions[0];
+  CHECK(function->is_throws &&
+        function->error_type != W_SEED_FRONTEND_NONE &&
+        function->error_type < value->result.written.types &&
+        value->types[function->error_type].kind == W_SEED_FRONTEND_TYPE_ENUM &&
+        value->types[function->error_type].enum_base_index == 0u);
+  CHECK(value->enums[0].conformance_type != W_SEED_FRONTEND_NONE &&
+        frontend_text_is(value->types[value->enums[0].conformance_type].spelling,
+                         "Error"));
+  CHECK(value->statements[0].kind == W_SEED_FRONTEND_STMT_THROW &&
+        value->statements[0].expression_index != W_SEED_FRONTEND_NONE);
+  const w_seed_frontend_expression *error =
+      &value->expressions[value->statements[0].expression_index];
+  CHECK(error->kind == W_SEED_FRONTEND_EXPR_ENUM_CASE);
+  CHECK(error->inferred_type != W_SEED_FRONTEND_NONE &&
+        error->inferred_type < value->result.written.types);
+  CHECK(value->types[error->inferred_type].kind == W_SEED_FRONTEND_TYPE_ENUM &&
+        value->types[error->inferred_type].enum_base_index == 0u);
+  CHECK(error->enum_index == 0u && error->enum_case_index == 0u);
+
+  fixture *invalid = &fixture_b;
+  CHECK(fixture_run(invalid,
+                    "enum Failure: Error { denied } "
+                    "fn fail(): () { throw .denied } entry { }"));
+  CHECK(invalid->parse.status == W_SEED_PARSE_COMPLETE);
+  CHECK(invalid->statements[0].kind == W_SEED_FRONTEND_STMT_UNSUPPORTED);
+  return true;
+}
+
 static bool test_semantic_diagnostics(void) {
   fixture *condition = &fixture_condition;
   CHECK(fixture_run(condition,
@@ -2163,8 +2204,9 @@ static bool test_host_scope_and_callee_identity(void) {
   CHECK(receipt_contains(value, "host-requirement=0|0|7:436f6e736f6c65",
                          strlen("host-requirement=0|0|7:436f6e736f6c65")));
   CHECK(receipt_contains(
-      value, "|async=0|throws=0|unsafe=0|borrows=0|anonymous=0\n",
-      strlen("|async=0|throws=0|unsafe=0|borrows=0|anonymous=0\n")));
+      value,
+      "|async=0|throws=0|error-type=4294967295|unsafe=0|borrows=0|anonymous=0\n",
+      strlen("|async=0|throws=0|error-type=4294967295|unsafe=0|borrows=0|anonymous=0\n")));
   w_seed_frontend_counts measured;
   w_seed_frontend_result measured_result;
   CHECK(w_seed_frontend_measure(&value->input, &measured, &measured_result) ==
@@ -2687,7 +2729,7 @@ static bool test_local_binding_resolution(void) {
         W_SEED_FRONTEND_OK);
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-28") &&
+                         W_SEED_FRONTEND_SCHEMA_VERSION) &&
         value->result.written.statements == 2u);
   const w_seed_frontend_statement *binding = &value->statements[0];
   CHECK(binding->kind == W_SEED_FRONTEND_STMT_LET &&
@@ -2726,8 +2768,8 @@ static bool test_local_binding_resolution(void) {
   }
   CHECK(binding_symbol != W_SEED_FRONTEND_NONE &&
         message_expression != W_SEED_FRONTEND_NONE &&
-        receipt_contains(value, "schema=w-seed-frontend-28\n",
-                         strlen("schema=w-seed-frontend-28\n")));
+        receipt_contains(value, "schema=" W_SEED_FRONTEND_SCHEMA_VERSION "\n",
+                         strlen("schema=" W_SEED_FRONTEND_SCHEMA_VERSION "\n")));
 
   fixture *trivia = &fixture_a;
   CHECK(fixture_parse(
@@ -5162,7 +5204,7 @@ static bool test_local_assignment_projection(void) {
                     "}\n"));
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-28") &&
+                         W_SEED_FRONTEND_SCHEMA_VERSION) &&
         value->result.written.statements == 2u);
   CHECK(value->statements[0].kind == W_SEED_FRONTEND_STMT_VAR &&
         value->statements[0].effective_type != W_SEED_FRONTEND_NONE &&
@@ -6317,6 +6359,7 @@ int main(int argc, char **argv) {
   if (!test_scalar_type_measure_emit_parity()) return 1;
   if (!test_declarations_and_determinism()) return 1;
   if (!test_enums_and_payloads()) return 1;
+  if (!test_typed_throw_projection()) return 1;
   if (!test_enum_subsets()) return 1;
   if (!test_enum_values_constructors_and_switches()) return 1;
   if (!test_const_and_membership()) return 1;

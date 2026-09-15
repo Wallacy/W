@@ -145,6 +145,7 @@ static bool product_terminator_kind_supported(w_seed_hir0_terminator_kind kind) 
     case W_SEED_HIR0_TERMINATOR_JUMP:
       return true;
     case W_SEED_HIR0_TERMINATOR_SWITCH_ENUM:
+    case W_SEED_HIR0_TERMINATOR_THROW:
       return false;
   }
   return false;

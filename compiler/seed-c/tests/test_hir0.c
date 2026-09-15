@@ -6110,6 +6110,87 @@ static bool test_local_enum_hir(void) {
   return true;
 }
 
+static bool test_typed_throw_hir(void) {
+  static const char SOURCE[] =
+      "enum Failure: Error { denied }\n"
+      "fn fail(): i64 throws Failure { throw .denied }\n"
+      "entry { }\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->enum_count == 1u && program->function_count == 2u &&
+        program->block_count == 2u && program->terminator_count == 2u &&
+        program->value_count == 1u);
+  CHECK(program->enums[0].error_conformance &&
+        program->enums[0].type_index == 4u &&
+        program->functions[0].is_throws &&
+        program->functions[0].return_type == W_SEED_HIR0_TYPE_I64 &&
+        program->functions[0].error_type == 4u &&
+        program->functions[1].is_anonymous_entry &&
+        !program->functions[1].is_throws &&
+        program->functions[1].error_type == W_SEED_HIR0_NONE);
+  CHECK(program->terminators[0].kind == W_SEED_HIR0_TERMINATOR_THROW &&
+        program->terminators[0].value_index == 0u &&
+        program->terminators[0].result_type == 4u &&
+        program->values[0].kind == W_SEED_HIR0_VALUE_ENUM_CASE &&
+        program->values[0].type_index == 4u &&
+        program->values[0].enum_index == 0u &&
+        program->values[0].enum_case_index == 0u);
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_function saved_function = fixture.hir_functions[0];
+  const w_seed_hir0_enum saved_enum = fixture.hir_enums[0];
+  const w_seed_hir0_terminator saved_terminator = fixture.hir_terminators[0];
+
+  fixture.hir_functions[0].error_type = W_SEED_HIR0_NONE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_functions[0] = saved_function;
+
+  fixture.hir_enums[0].error_conformance = false;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enums[0] = saved_enum;
+
+  fixture.hir_terminators[0].result_type = W_SEED_HIR0_TYPE_UNIT;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[0] = saved_terminator;
+
+  fixture.hir_terminators[0].kind = W_SEED_HIR0_TERMINATOR_RETURN_VALUE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[0] = saved_terminator;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  static const char NON_ERROR_SOURCE[] =
+      "enum Failure { denied }\n"
+      "fn fail(): () throws Failure { throw .denied }\n"
+      "entry { }\n";
+  CHECK(fixture_frontend(NON_ERROR_SOURCE));
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+  const w_seed_hir0_input input = hir_input();
+  w_seed_hir0_counts counts = fixture.hir_counts;
+  w_seed_hir0_result result = fixture.hir_result;
+  CHECK(w_seed_hir0_measure(&input, &counts, &result) != W_SEED_HIR0_OK);
+  CHECK(hir_output_is_byte(0xa5u));
+
+  static const char BRANCH_THROW_SOURCE[] =
+      "enum Failure: Error { denied }\n"
+      "fn fail(flag: Bool): i64 throws Failure { "
+      "if flag { throw .denied } return 1 }\n"
+      "entry { }\n";
+  CHECK(fixture_frontend(BRANCH_THROW_SOURCE));
+  setup_hir_output();
+  counts = fixture.hir_counts;
+  result = fixture.hir_result;
+  const w_seed_hir0_input branch_input = hir_input();
+  CHECK(w_seed_hir0_measure(&branch_input, &counts, &result) !=
+        W_SEED_HIR0_OK);
+  return true;
+}
+
 static bool test_local_enum_payload_declarations_hir(void) {
   static const char SOURCE[] =
       "enum Course { starter main(price: i64) shared(i64, i64) }\n"
@@ -9524,6 +9605,7 @@ int main(int argc, char **argv) {
   if (!test_bindings_across_functions()) return 1;
   if (!test_local_binding_verify_mutations()) return 1;
   if (!test_local_enum_hir()) return 1;
+  if (!test_typed_throw_hir()) return 1;
   if (!test_local_enum_payload_declarations_hir()) return 1;
   if (!test_local_enum_payload_constructor_hir()) return 1;
   if (!test_enum_switch_hir()) return 1;

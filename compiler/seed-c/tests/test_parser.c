@@ -1006,7 +1006,12 @@ static bool test_async_function_shapes(void) {
     CHECK(block != W_SEED_CST_NONE);
     CHECK(value.nodes[function].raw_span.end_byte ==
           value.nodes[block].raw_span.end_byte);
-    CHECK(has_direct_text(&value, function, W_SEED_CST_WORD, "throws"));
+    const w_seed_cst_index throws_type =
+        direct_child_after(&value, function, W_SEED_CST_THROWS_TYPE, 0);
+    CHECK(throws_type != W_SEED_CST_NONE);
+    CHECK(has_direct_text(&value, throws_type, W_SEED_CST_WORD, "throws"));
+    CHECK(direct_child_after(&value, throws_type, W_SEED_CST_TYPE, 0) !=
+          W_SEED_CST_NONE);
     const w_seed_cst_index return_statement =
         direct_child_after(&value, block, W_SEED_CST_RETURN_STATEMENT, 0);
     const w_seed_cst_index expression =
@@ -1550,6 +1555,21 @@ static bool test_phase2_parameter_requirements(void) {
     CHECK(parameter != W_SEED_CST_NONE);
     CHECK(node_span_text(&value, parameter, requirements[index]));
   }
+  fixture throwing;
+  CHECK(fixture_init(&throwing,
+                     "fn fail(): () throws Failure { throw .failed }\n",
+                     sizeof(throwing.nodes) / sizeof(throwing.nodes[0]),
+                     sizeof(throwing.issues) / sizeof(throwing.issues[0])));
+  CHECK(throwing.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(throwing.result.issue_count == 0u);
+  const w_seed_cst_index block = first_kind(&throwing, W_SEED_CST_BLOCK);
+  const w_seed_cst_index statement = direct_child_after(
+      &throwing, block, W_SEED_CST_THROW_STATEMENT, 0);
+  CHECK(statement != W_SEED_CST_NONE);
+  CHECK(direct_child_after(&throwing, statement, W_SEED_CST_EXPRESSION, 0) !=
+        W_SEED_CST_NONE);
+  CHECK(check_leaf_partition(&throwing));
+  CHECK(check_tree_links(&throwing));
   return true;
 }
 
