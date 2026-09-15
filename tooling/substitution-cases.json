@@ -8392,17 +8392,19 @@
   },
   {
     "id": "R0-task-lifecycle-reducer",
-    "reviewItem": "target-neutral TASKLIFE0 lifecycle reduction against scheduler substitution, cancellation races, cleanup/commit reordering, and unproved task ABI or performance claims",
-    "decisions": ["W-1599"],
-    "task": "Reduce a fixed caller-owned task lifecycle trace and independently verify outcomes, cancellation precedence, cleanup ordering, lexical joins, and exact snapshots.",
+    "reviewItem": "target-neutral measured task lifecycle reduction against scheduler substitution, cancellation races, cleanup/commit reordering, fixed storage ceilings, and unproved task ABI or performance claims",
+    "decisions": ["W-1599", "W-1610"],
+    "task": "Reduce caller-owned task lifecycle traces and independently verify outcomes, cancellation precedence, cleanup ordering, lexical joins, exact snapshots, and capacity-independent task/event storage.",
     "selected": {
       "language": "w-internal",
       "source": [
-        "transaction = callerOwned(scopeGeneration, tasks: 1..4, events: <= 128)",
-        "result = TASKLIFE0.run(transaction)",
+        "transaction = callerOwned(scopeGeneration, tasks, events)",
+        "counts = TASKLIFE1.measure(transaction)",
+        "result = TASKLIFE1.run(transaction, workspace: callerOwned(counts.tasks))",
         "outcome = success | error | canceled(snapshot)",
         "assert cleanup < outcomeCommit < join < release",
-        "assert verify(transaction, result)"
+        "assert verify(transaction, result)",
+        "assert TASKLIFE0.compatibleTrace == TASKLIFE1.compatibleTrace"
       ]
     },
     "alternatives": [
@@ -8450,9 +8452,9 @@
         "name": "claim-runtime-capacity",
         "language": "w-internal-rejected",
         "source": [
-          "treat four tasks or 128 events as a public scheduler or ABI limit"
+        "retain four tasks or 128 events as a current reducer, scheduler, or ABI limit"
         ],
-        "expectedDifference": "The selected bounds are seed evidence ceilings and do not establish source-HIR, scheduler, provider, runtime, ABI, or performance behavior."
+        "expectedDifference": "TASKLIFE1 uses measured caller-owned views; the historical bounds remain only in the TASKLIFE0 compatibility fixture and establish no source-HIR, scheduler, provider, runtime, ABI, or performance behavior."
       }
     ],
     "sourceRefs": [
@@ -8507,6 +8509,21 @@
         "claim": "Independent verification replays the transaction and compares every result field and digest."
       },
       {
+        "path": "compiler/seed-c/include/w_seed_task_lifecycle0.h",
+        "symbol": "w_seed_task_lifecycle1_transaction",
+        "claim": "TASKLIFE1 separates dense pointer/count semantic input from caller-owned physical workspace and output capacities."
+      },
+      {
+        "path": "compiler/seed-c/src/w_seed_task_lifecycle0.c",
+        "symbol": "w_seed_task_lifecycle1_run",
+        "claim": "Measured reduction rejects capacity, byte-count overflow, and pairwise aliases before transactional semantic publication."
+      },
+      {
+        "path": "compiler/seed-c/src/w_seed_task_lifecycle0.c",
+        "symbol": "w_seed_task_lifecycle1_verify",
+        "claim": "Independent measured verification replays the complete transaction into separate caller-owned scratch and compares task records, trace, scope, counts, and digest."
+      },
+      {
         "path": "compiler/seed-c/tests/test_task_lifecycle0.c",
         "symbol": "test_normal_lifecycle_and_measurement",
         "claim": "The focused C23 test proves success, cleanup, lexical join/release, measurement equality, and independent verification."
@@ -8527,6 +8544,16 @@
         "claim": "The focused test proves stale, orphan, reordered, missing, capacity, invalid-outcome, forgery, alias, and unchanged-output barriers."
       },
       {
+        "path": "compiler/seed-c/tests/test_task_lifecycle0.c",
+        "symbol": "test_measured_lifecycle_without_seed_cardinality_limit",
+        "claim": "The focused C23 test proves five-task fail-fast propagation, sibling cancellation, drain, deterministic typed-error publication, and transactional alias/capacity barriers."
+      },
+      {
+        "path": "compiler/seed-c/tests/test_task_lifecycle0.c",
+        "symbol": "test_measured_lifecycle_without_seed_event_limit",
+        "claim": "A valid 137-event trace proves that TASKLIFE1 does not inherit TASKLIFE0's embedded event ceiling."
+      },
+      {
         "path": "tooling/check-hir0.mjs",
         "symbol": "w_seed_task_lifecycle0_tests",
         "claim": "The focused HIR gate builds and runs the TASKLIFE0 C23 unit witness."
@@ -8540,7 +8567,7 @@
       "fail-fast cancellation drains siblings and lowest lexical/input error wins",
       "cleanup precedes outcome commit and lexical join precedes lexical release",
       "run, measure, and verify preserve exact caller-owned snapshots and reject aliases, forgeries, stale generations, reorderings, and missing events",
-      "one-to-four tasks and 128 events remain seed evidence ceilings without source-HIR, scheduler, provider, runtime, ABI, benchmark, or performance claims"
+      "TASKLIFE1 crosses the historical four-task and 128-event compatibility ceilings without source-HIR, scheduler, provider, runtime, ABI, benchmark, or performance claims"
     ],
     "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
   },

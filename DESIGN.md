@@ -40502,6 +40502,35 @@ to Windows x64 COFF and Linux x86-64 PIC ELF objects. Public process products,
 cancellation/outcomes, a provider-neutral scheduler, stable ABI, benchmarks,
 and performance remain outside this compiler-lifecycle evidence.
 
+#### 26.4.1.90 W-1610 — measured task-lifecycle transaction and reducer
+
+TASKLIFE1 preserves the W-1599 state machine while replacing its embedded
+four-task and 128-event arrays with measured caller-owned views. Logical
+`task_count` and `event_count` are canonical unsigned 32-bit values on every
+target. Physical capacities use `size_t`; this distinction does not change a
+Task value, language integer default, target ABI, or scheduler representation.
+
+The transaction points to dense task specifications and events. The caller
+supplies separate scratch task records and semantic output records. Scratch may
+change after an attempted reduction. Counts, task outcomes, copied trace, and
+the result descriptor are transactional: capacity, malformed input, overflow,
+or any pairwise alias among input, scratch, and semantic output is rejected
+before semantic publication.
+
+TASKLIFE0 remains a fixed compatibility fixture and is implemented through the
+same reducer. Compatible traces produce equal scope and task records. The C23
+suite proves a five-task fail-fast trace in which four unfinished siblings
+become canceled, all five run cleanup and lexical join/release, and the scope
+publishes the primary typed error only after drain. A separate 137-event trace
+proves that the former event ceiling is not inherited by TASKLIFE1.
+
+This is target-neutral lifecycle evidence. It does not yet bind the transaction
+to verified HIR or PARPROV1, interrupt a physical worker, define panic payloads,
+select a scheduler, publish a Task ABI, or establish benchmark/performance
+results. A cancellation request remains distinct from a committed canceled
+outcome; physical integration must preserve settled-before-cancel and complete
+cleanup/drain before publication.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

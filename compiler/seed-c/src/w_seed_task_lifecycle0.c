@@ -17,14 +17,25 @@ typedef struct {
   uint8_t has_error_candidate;
 } w_seed_task_lifecycle0_execution;
 
+typedef struct {
+  const char *schema;
+  const char *expected_schema;
+  size_t schema_size;
+  uint32_t scope_generation;
+  uint32_t task_count;
+  const w_seed_task_lifecycle0_task_spec *tasks;
+  uint32_t event_count;
+  const w_seed_task_lifecycle0_event *events;
+} w_seed_task_lifecycle_view;
+
 /* The reducer uses this compact state instead of a full result.  That keeps
  * the transaction scratch bounded without a stack-probe or a CRT helper. */
 typedef struct w_seed_task_lifecycle0_state {
   uint32_t transition_count;
   uint32_t primary_error_task;
   w_seed_task_lifecycle0_scope_record scope;
-  w_seed_task_lifecycle0_task_record
-      tasks[W_SEED_TASK_LIFECYCLE0_MAX_TASKS];
+  w_seed_task_lifecycle0_task_record *tasks;
+  size_t task_capacity;
 } w_seed_task_lifecycle0_state;
 
 static void zero_bytes(void *destination, size_t count) {
@@ -74,10 +85,10 @@ static bool memory_ranges_overlap(w_seed_task_lifecycle0_memory_range left,
          right.begin < left.end;
 }
 
-static bool schema_valid(const char *schema) {
-  return schema != NULL &&
-         bytes_equal(schema, W_SEED_TASK_LIFECYCLE0_SCHEMA_VERSION,
-                     sizeof(W_SEED_TASK_LIFECYCLE0_SCHEMA_VERSION));
+static bool schema_valid(const char *schema, const char *expected,
+                         size_t size) {
+  return schema != NULL && expected != NULL && size != 0u &&
+         bytes_equal(schema, expected, size);
 }
 
 static bool snapshot_empty(
@@ -90,9 +101,6 @@ static bool snapshot_empty(
 static bool snapshot_valid(
     const w_seed_task_lifecycle0_cancellation_snapshot *snapshot) {
   return snapshot != NULL && snapshot->generation != 0u &&
-         snapshot->request_sequence < W_SEED_TASK_LIFECYCLE0_MAX_EVENTS &&
-         (snapshot->source_index == W_SEED_TASK_LIFECYCLE0_NONE ||
-          snapshot->source_index < W_SEED_TASK_LIFECYCLE0_MAX_TASKS) &&
          snapshot->reason >=
              W_SEED_TASK_LIFECYCLE0_CANCEL_REASON_ERROR_FAIL_FAST &&
          snapshot->reason <= W_SEED_TASK_LIFECYCLE0_CANCEL_REASON_SUPERSEDED;
@@ -212,7 +220,7 @@ static bool task_event_kind(w_seed_task_lifecycle0_event_kind kind) {
 }
 
 static bool transaction_shape_valid(
-    const w_seed_task_lifecycle0_transaction *transaction,
+    const w_seed_task_lifecycle_view *transaction,
     w_seed_task_lifecycle0_status *status) {
   if (status == NULL) return false;
   *status = W_SEED_TASK_LIFECYCLE0_OK;
@@ -220,7 +228,9 @@ static bool transaction_shape_valid(
     *status = W_SEED_TASK_LIFECYCLE0_INVALID_ARGUMENT;
     return false;
   }
-  if (!schema_valid(transaction->schema) || transaction->scope_generation == 0u) {
+  if (!schema_valid(transaction->schema, transaction->expected_schema,
+                    transaction->schema_size) ||
+      transaction->scope_generation == 0u) {
     *status = W_SEED_TASK_LIFECYCLE0_MALFORMED;
     return false;
   }
@@ -228,16 +238,15 @@ static bool transaction_shape_valid(
     *status = W_SEED_TASK_LIFECYCLE0_MISSING;
     return false;
   }
-  if (transaction->task_count > W_SEED_TASK_LIFECYCLE0_MAX_TASKS ||
-      transaction->event_count > W_SEED_TASK_LIFECYCLE0_MAX_EVENTS) {
-    *status = W_SEED_TASK_LIFECYCLE0_CAPACITY;
-    return false;
-  }
   if (transaction->event_count == 0u) {
     *status = W_SEED_TASK_LIFECYCLE0_MISSING;
     return false;
   }
 
+  if (transaction->tasks == NULL || transaction->events == NULL) {
+    *status = W_SEED_TASK_LIFECYCLE0_INVALID_ARGUMENT;
+    return false;
+  }
   for (uint32_t task = 0u; task < transaction->task_count; task += 1u) {
     const w_seed_task_lifecycle0_task_spec *spec = &transaction->tasks[task];
     if (spec->generation == 0u || !outcome_valid(&spec->body_outcome) ||
@@ -271,10 +280,13 @@ static bool transaction_shape_valid(
 }
 
 static void state_initialize(
-    const w_seed_task_lifecycle0_transaction *transaction,
+    const w_seed_task_lifecycle_view *transaction,
     w_seed_task_lifecycle0_state *state) {
-  zero_bytes(state, sizeof(*state));
+  state->transition_count = 0u;
   state->primary_error_task = W_SEED_TASK_LIFECYCLE0_NONE;
+  zero_bytes(&state->scope, sizeof(state->scope));
+  zero_bytes(state->tasks,
+             (size_t)transaction->task_count * sizeof(*state->tasks));
   state->scope.state = W_SEED_TASK_LIFECYCLE0_SCOPE_UNINITIALIZED;
   state->scope.primary_error_task = W_SEED_TASK_LIFECYCLE0_NONE;
   for (uint32_t task = 0u; task < transaction->task_count; task += 1u) {
@@ -315,7 +327,7 @@ static bool scope_event_payload_empty(
 }
 
 static w_seed_task_lifecycle0_status event_header_valid(
-    const w_seed_task_lifecycle0_transaction *transaction,
+    const w_seed_task_lifecycle_view *transaction,
     const w_seed_task_lifecycle0_event *event,
     uint32_t event_index) {
   if (transaction == NULL || event == NULL)
@@ -351,7 +363,7 @@ static w_seed_task_lifecycle0_status make_canceled_outcome(
 }
 
 static w_seed_task_lifecycle0_status handle_task_event(
-    const w_seed_task_lifecycle0_transaction *transaction,
+    const w_seed_task_lifecycle_view *transaction,
     w_seed_task_lifecycle0_execution *execution,
     const w_seed_task_lifecycle0_event *event) {
   if (transaction == NULL || execution == NULL || execution->state == NULL ||
@@ -547,7 +559,7 @@ static bool i64_add_checked(int64_t left, int64_t right, int64_t *sum) {
 }
 
 static w_seed_task_lifecycle0_status derive_scope_outcome(
-    const w_seed_task_lifecycle0_transaction *transaction,
+    const w_seed_task_lifecycle_view *transaction,
     w_seed_task_lifecycle0_state *state,
     w_seed_task_lifecycle0_outcome *outcome,
     uint32_t *primary_error_task) {
@@ -595,7 +607,7 @@ static w_seed_task_lifecycle0_status derive_scope_outcome(
 }
 
 static w_seed_task_lifecycle0_status handle_scope_event(
-    const w_seed_task_lifecycle0_transaction *transaction,
+    const w_seed_task_lifecycle_view *transaction,
     w_seed_task_lifecycle0_execution *execution,
     const w_seed_task_lifecycle0_event *event) {
   if (transaction == NULL || execution == NULL || execution->state == NULL ||
@@ -796,12 +808,11 @@ static uint64_t digest_event(
 }
 
 static uint64_t transaction_digest(
-    const w_seed_task_lifecycle0_transaction *transaction) {
+    const w_seed_task_lifecycle_view *transaction) {
   uint64_t digest = UINT64_C(1469598103934665603);
   for (size_t byte = 0u;
-       byte < sizeof(W_SEED_TASK_LIFECYCLE0_SCHEMA_VERSION); byte += 1u)
-    digest = digest_mix(
-        digest, (uint8_t)W_SEED_TASK_LIFECYCLE0_SCHEMA_VERSION[byte]);
+       byte < transaction->schema_size; byte += 1u)
+    digest = digest_mix(digest, (uint8_t)transaction->expected_schema[byte]);
   digest = digest_u32(digest, transaction->scope_generation);
   digest = digest_u32(digest, transaction->task_count);
   for (uint32_t task = 0u; task < transaction->task_count; task += 1u) {
@@ -818,9 +829,12 @@ static uint64_t transaction_digest(
 }
 
 static w_seed_task_lifecycle0_status reduce_transaction(
-    const w_seed_task_lifecycle0_transaction *transaction,
+    const w_seed_task_lifecycle_view *transaction,
     w_seed_task_lifecycle0_state *state) {
   w_seed_task_lifecycle0_status status;
+  if (state == NULL || state->tasks == NULL ||
+      state->task_capacity < transaction->task_count)
+    return W_SEED_TASK_LIFECYCLE0_CAPACITY;
   if (!transaction_shape_valid(transaction, &status)) return status;
   state_initialize(transaction, state);
   w_seed_task_lifecycle0_execution execution = {
@@ -856,7 +870,7 @@ static w_seed_task_lifecycle0_status reduce_transaction(
 }
 
 static void result_from_state(
-    const w_seed_task_lifecycle0_transaction *transaction,
+    const w_seed_task_lifecycle_view *transaction,
     const w_seed_task_lifecycle0_state *state,
     w_seed_task_lifecycle0_result *result) {
   zero_bytes(result, sizeof(*result));
@@ -867,8 +881,7 @@ static void result_from_state(
   result->transition_count = state->transition_count;
   result->primary_error_task = state->primary_error_task;
   copy_bytes(&result->scope, &state->scope, sizeof(result->scope));
-  for (uint32_t task = 0u; task < W_SEED_TASK_LIFECYCLE0_MAX_TASKS;
-       task += 1u)
+  for (uint32_t task = 0u; task < transaction->task_count; task += 1u)
     copy_bytes(&result->tasks[task], &state->tasks[task],
                sizeof(result->tasks[task]));
   for (uint32_t event = 0u; event < transaction->event_count; event += 1u)
@@ -878,7 +891,7 @@ static void result_from_state(
 }
 
 static void measurement_from_state(
-    const w_seed_task_lifecycle0_transaction *transaction,
+    const w_seed_task_lifecycle_view *transaction,
     const w_seed_task_lifecycle0_state *state,
     w_seed_task_lifecycle0_measurement *measurement) {
   zero_bytes(measurement, sizeof(*measurement));
@@ -890,8 +903,7 @@ static void measurement_from_state(
   measurement->transition_count = state->transition_count;
   measurement->primary_error_task = state->primary_error_task;
   copy_bytes(&measurement->scope, &state->scope, sizeof(measurement->scope));
-  for (uint32_t task = 0u; task < W_SEED_TASK_LIFECYCLE0_MAX_TASKS;
-       task += 1u)
+  for (uint32_t task = 0u; task < transaction->task_count; task += 1u)
     copy_bytes(&measurement->tasks[task], &state->tasks[task],
                sizeof(measurement->tasks[task]));
   measurement->transaction_digest = transaction_digest(transaction);
@@ -964,11 +976,12 @@ static bool event_is_zero(const w_seed_task_lifecycle0_event *event) {
 }
 
 static bool result_matches_state(
-    const w_seed_task_lifecycle0_transaction *transaction,
+    const w_seed_task_lifecycle_view *transaction,
     const w_seed_task_lifecycle0_state *state,
     const w_seed_task_lifecycle0_result *result) {
   if (transaction == NULL || state == NULL || result == NULL ||
-      !schema_valid(result->schema) ||
+      !schema_valid(result->schema, transaction->expected_schema,
+                    transaction->schema_size) ||
       !bytes_equal(result->schema, transaction->schema, sizeof(result->schema)) ||
       result->scope_generation != transaction->scope_generation ||
       result->task_count != transaction->task_count ||
@@ -977,9 +990,14 @@ static bool result_matches_state(
       result->primary_error_task != state->primary_error_task ||
       !scope_record_equal(&result->scope, &state->scope))
     return false;
-  for (uint32_t task = 0u; task < W_SEED_TASK_LIFECYCLE0_MAX_TASKS;
-       task += 1u)
+  for (uint32_t task = 0u; task < transaction->task_count; task += 1u)
     if (!task_record_equal(&result->tasks[task], &state->tasks[task])) return false;
+  {
+    const w_seed_task_lifecycle0_task_record empty = {0};
+    for (uint32_t task = transaction->task_count;
+         task < W_SEED_TASK_LIFECYCLE0_MAX_TASKS; task += 1u)
+      if (!bytes_equal(&result->tasks[task], &empty, sizeof(empty))) return false;
+  }
   for (uint32_t event = 0u; event < transaction->event_count; event += 1u)
     if (!event_equal(&result->trace[event], &transaction->events[event]))
       return false;
@@ -990,11 +1008,12 @@ static bool result_matches_state(
 }
 
 static bool measurement_matches_state(
-    const w_seed_task_lifecycle0_transaction *transaction,
+    const w_seed_task_lifecycle_view *transaction,
     const w_seed_task_lifecycle0_state *state,
     const w_seed_task_lifecycle0_measurement *measurement) {
   if (transaction == NULL || state == NULL || measurement == NULL ||
-      !schema_valid(measurement->schema) ||
+      !schema_valid(measurement->schema, transaction->expected_schema,
+                    transaction->schema_size) ||
       !bytes_equal(measurement->schema, transaction->schema,
                    sizeof(measurement->schema)) ||
       measurement->scope_generation != transaction->scope_generation ||
@@ -1004,11 +1023,43 @@ static bool measurement_matches_state(
       measurement->primary_error_task != state->primary_error_task ||
       !scope_record_equal(&measurement->scope, &state->scope))
     return false;
-  for (uint32_t task = 0u; task < W_SEED_TASK_LIFECYCLE0_MAX_TASKS;
-       task += 1u)
+  for (uint32_t task = 0u; task < transaction->task_count; task += 1u)
     if (!task_record_equal(&measurement->tasks[task], &state->tasks[task]))
       return false;
+  {
+    const w_seed_task_lifecycle0_task_record empty = {0};
+    for (uint32_t task = transaction->task_count;
+         task < W_SEED_TASK_LIFECYCLE0_MAX_TASKS; task += 1u)
+      if (!bytes_equal(&measurement->tasks[task], &empty, sizeof(empty)))
+        return false;
+  }
   return measurement->transaction_digest == transaction_digest(transaction);
+}
+
+static w_seed_task_lifecycle_view lifecycle0_view(
+    const w_seed_task_lifecycle0_transaction *transaction) {
+  return (w_seed_task_lifecycle_view){
+      transaction == NULL ? NULL : transaction->schema,
+      W_SEED_TASK_LIFECYCLE0_SCHEMA_VERSION,
+      sizeof(W_SEED_TASK_LIFECYCLE0_SCHEMA_VERSION),
+      transaction == NULL ? 0u : transaction->scope_generation,
+      transaction == NULL ? 0u : transaction->task_count,
+      transaction == NULL ? NULL : transaction->tasks,
+      transaction == NULL ? 0u : transaction->event_count,
+      transaction == NULL ? NULL : transaction->events};
+}
+
+static w_seed_task_lifecycle_view lifecycle1_view(
+    const w_seed_task_lifecycle1_transaction *transaction) {
+  return (w_seed_task_lifecycle_view){
+      transaction == NULL ? NULL : transaction->schema,
+      W_SEED_TASK_LIFECYCLE1_SCHEMA_VERSION,
+      sizeof(W_SEED_TASK_LIFECYCLE1_SCHEMA_VERSION),
+      transaction == NULL ? 0u : transaction->scope_generation,
+      transaction == NULL ? 0u : transaction->task_count,
+      transaction == NULL ? NULL : transaction->tasks,
+      transaction == NULL ? 0u : transaction->event_count,
+      transaction == NULL ? NULL : transaction->events};
 }
 
 static bool output_aliases_transaction(
@@ -1029,11 +1080,19 @@ w_seed_task_lifecycle0_status w_seed_task_lifecycle0_run(
     return W_SEED_TASK_LIFECYCLE0_INVALID_ARGUMENT;
   if (output_aliases_transaction(transaction, result, sizeof(*result)))
     return W_SEED_TASK_LIFECYCLE0_ALIAS;
-  w_seed_task_lifecycle0_state state;
+  if (transaction->task_count > W_SEED_TASK_LIFECYCLE0_MAX_TASKS ||
+      transaction->event_count > W_SEED_TASK_LIFECYCLE0_MAX_EVENTS)
+    return W_SEED_TASK_LIFECYCLE0_CAPACITY;
+  w_seed_task_lifecycle0_task_record
+      task_storage[W_SEED_TASK_LIFECYCLE0_MAX_TASKS] = {0};
+  w_seed_task_lifecycle0_state state = {0u, W_SEED_TASK_LIFECYCLE0_NONE,
+                                        {0}, task_storage,
+                                        W_SEED_TASK_LIFECYCLE0_MAX_TASKS};
+  const w_seed_task_lifecycle_view view = lifecycle0_view(transaction);
   const w_seed_task_lifecycle0_status status =
-      reduce_transaction(transaction, &state);
+      reduce_transaction(&view, &state);
   if (status != W_SEED_TASK_LIFECYCLE0_OK) return status;
-  result_from_state(transaction, &state, result);
+  result_from_state(&view, &state, result);
   return W_SEED_TASK_LIFECYCLE0_OK;
 }
 
@@ -1044,11 +1103,19 @@ w_seed_task_lifecycle0_status w_seed_task_lifecycle0_measure(
     return W_SEED_TASK_LIFECYCLE0_INVALID_ARGUMENT;
   if (output_aliases_transaction(transaction, measurement, sizeof(*measurement)))
     return W_SEED_TASK_LIFECYCLE0_ALIAS;
-  w_seed_task_lifecycle0_state state;
+  if (transaction->task_count > W_SEED_TASK_LIFECYCLE0_MAX_TASKS ||
+      transaction->event_count > W_SEED_TASK_LIFECYCLE0_MAX_EVENTS)
+    return W_SEED_TASK_LIFECYCLE0_CAPACITY;
+  w_seed_task_lifecycle0_task_record
+      task_storage[W_SEED_TASK_LIFECYCLE0_MAX_TASKS] = {0};
+  w_seed_task_lifecycle0_state state = {0u, W_SEED_TASK_LIFECYCLE0_NONE,
+                                        {0}, task_storage,
+                                        W_SEED_TASK_LIFECYCLE0_MAX_TASKS};
+  const w_seed_task_lifecycle_view view = lifecycle0_view(transaction);
   const w_seed_task_lifecycle0_status status =
-      reduce_transaction(transaction, &state);
+      reduce_transaction(&view, &state);
   if (status != W_SEED_TASK_LIFECYCLE0_OK) return status;
-  measurement_from_state(transaction, &state, measurement);
+  measurement_from_state(&view, &state, measurement);
   return W_SEED_TASK_LIFECYCLE0_OK;
 }
 
@@ -1056,19 +1123,226 @@ bool w_seed_task_lifecycle0_verify(
   const w_seed_task_lifecycle0_transaction *transaction,
     const w_seed_task_lifecycle0_result *result) {
   if (transaction == NULL || result == NULL) return false;
-  w_seed_task_lifecycle0_state state;
-  return reduce_transaction(transaction, &state) ==
+  if (transaction->task_count > W_SEED_TASK_LIFECYCLE0_MAX_TASKS ||
+      transaction->event_count > W_SEED_TASK_LIFECYCLE0_MAX_EVENTS)
+    return false;
+  w_seed_task_lifecycle0_task_record
+      task_storage[W_SEED_TASK_LIFECYCLE0_MAX_TASKS] = {0};
+  w_seed_task_lifecycle0_state state = {0u, W_SEED_TASK_LIFECYCLE0_NONE,
+                                        {0}, task_storage,
+                                        W_SEED_TASK_LIFECYCLE0_MAX_TASKS};
+  const w_seed_task_lifecycle_view view = lifecycle0_view(transaction);
+  return reduce_transaction(&view, &state) ==
              W_SEED_TASK_LIFECYCLE0_OK &&
-         result_matches_state(transaction, &state, result);
+         result_matches_state(&view, &state, result);
 }
 
 bool w_seed_task_lifecycle0_verify_measurement(
   const w_seed_task_lifecycle0_transaction *transaction,
     const w_seed_task_lifecycle0_measurement *measurement) {
   if (transaction == NULL || measurement == NULL) return false;
-  w_seed_task_lifecycle0_state state;
-  if (reduce_transaction(transaction, &state) !=
+  if (transaction->task_count > W_SEED_TASK_LIFECYCLE0_MAX_TASKS ||
+      transaction->event_count > W_SEED_TASK_LIFECYCLE0_MAX_EVENTS)
+    return false;
+  w_seed_task_lifecycle0_task_record
+      task_storage[W_SEED_TASK_LIFECYCLE0_MAX_TASKS] = {0};
+  w_seed_task_lifecycle0_state state = {0u, W_SEED_TASK_LIFECYCLE0_NONE,
+                                        {0}, task_storage,
+                                        W_SEED_TASK_LIFECYCLE0_MAX_TASKS};
+  const w_seed_task_lifecycle_view view = lifecycle0_view(transaction);
+  if (reduce_transaction(&view, &state) !=
       W_SEED_TASK_LIFECYCLE0_OK)
     return false;
-  return measurement_matches_state(transaction, &state, measurement);
+  return measurement_matches_state(&view, &state, measurement);
+}
+
+static bool ranges_pairwise_disjoint(
+    const w_seed_task_lifecycle0_memory_range *ranges, size_t count) {
+  if (ranges == NULL) return false;
+  for (size_t left = 0u; left < count; left += 1u)
+    for (size_t right = left + 1u; right < count; right += 1u)
+      if (memory_ranges_overlap(ranges[left], ranges[right])) return false;
+  return true;
+}
+
+static bool lifecycle1_count_bytes_valid(uint32_t count,
+                                         size_t element_size) {
+  return element_size != 0u &&
+         (uintmax_t)count <= (uintmax_t)SIZE_MAX / (uintmax_t)element_size;
+}
+
+static bool lifecycle1_ranges_valid(
+    const w_seed_task_lifecycle1_transaction *transaction,
+    w_seed_task_lifecycle1_workspace workspace,
+    const w_seed_task_lifecycle1_output *output,
+    const w_seed_task_lifecycle1_counts *counts,
+    const w_seed_task_lifecycle1_result *result,
+    const w_seed_task_lifecycle1_output *output_descriptor) {
+  if (transaction == NULL || result == NULL) return false;
+  w_seed_task_lifecycle0_memory_range ranges[9];
+  size_t count = 0u;
+#define ADD_RANGE(pointer, elements, type)                                      \
+  do {                                                                          \
+    if (!memory_range_make((pointer), (elements), sizeof(type), &ranges[count])) \
+      return false;                                                              \
+    count += 1u;                                                                \
+  } while (0)
+  ADD_RANGE(transaction, 1u, *transaction);
+  ADD_RANGE(transaction->tasks, transaction->task_count,
+            w_seed_task_lifecycle0_task_spec);
+  ADD_RANGE(transaction->events, transaction->event_count,
+            w_seed_task_lifecycle0_event);
+  ADD_RANGE(workspace.tasks, transaction->task_count,
+            w_seed_task_lifecycle0_task_record);
+  if (output != NULL) {
+    ADD_RANGE(output->tasks, transaction->task_count,
+              w_seed_task_lifecycle0_task_record);
+    ADD_RANGE(output->trace, transaction->event_count,
+              w_seed_task_lifecycle0_event);
+  }
+  if (counts != NULL) ADD_RANGE(counts, 1u, *counts);
+  ADD_RANGE(result, 1u, *result);
+  if (output_descriptor != NULL)
+    ADD_RANGE(output_descriptor, 1u, *output_descriptor);
+#undef ADD_RANGE
+  return ranges_pairwise_disjoint(ranges, count);
+}
+
+static void lifecycle1_result_from_state(
+    const w_seed_task_lifecycle_view *transaction,
+    const w_seed_task_lifecycle0_state *state,
+    w_seed_task_lifecycle1_result *result) {
+  zero_bytes(result, sizeof(*result));
+  copy_bytes(result->schema, W_SEED_TASK_LIFECYCLE1_SCHEMA_VERSION,
+             sizeof(result->schema));
+  result->scope_generation = transaction->scope_generation;
+  result->task_count = transaction->task_count;
+  result->event_count = transaction->event_count;
+  result->transition_count = state->transition_count;
+  result->primary_error_task = state->primary_error_task;
+  copy_bytes(&result->scope, &state->scope, sizeof(result->scope));
+  result->transaction_digest = transaction_digest(transaction);
+}
+
+static bool lifecycle1_result_matches_state(
+    const w_seed_task_lifecycle_view *transaction,
+    const w_seed_task_lifecycle0_state *state,
+    const w_seed_task_lifecycle1_result *result) {
+  return transaction != NULL && state != NULL && result != NULL &&
+         schema_valid(result->schema, W_SEED_TASK_LIFECYCLE1_SCHEMA_VERSION,
+                      sizeof(W_SEED_TASK_LIFECYCLE1_SCHEMA_VERSION)) &&
+         result->scope_generation == transaction->scope_generation &&
+         result->task_count == transaction->task_count &&
+         result->event_count == transaction->event_count &&
+         result->transition_count == state->transition_count &&
+         result->primary_error_task == state->primary_error_task &&
+         scope_record_equal(&result->scope, &state->scope) &&
+         result->transaction_digest == transaction_digest(transaction);
+}
+
+w_seed_task_lifecycle0_status w_seed_task_lifecycle1_measure(
+    const w_seed_task_lifecycle1_transaction *transaction,
+    w_seed_task_lifecycle1_workspace workspace,
+    w_seed_task_lifecycle1_counts *counts,
+    w_seed_task_lifecycle1_result *result) {
+  if (transaction == NULL || counts == NULL || result == NULL)
+    return W_SEED_TASK_LIFECYCLE0_INVALID_ARGUMENT;
+  if ((size_t)transaction->task_count > workspace.task_capacity ||
+      !lifecycle1_count_bytes_valid(
+          transaction->task_count,
+          sizeof(w_seed_task_lifecycle0_task_record)) ||
+      !lifecycle1_count_bytes_valid(transaction->event_count,
+                                    sizeof(w_seed_task_lifecycle0_event)))
+    return W_SEED_TASK_LIFECYCLE0_CAPACITY;
+  const w_seed_task_lifecycle_view view = lifecycle1_view(transaction);
+  w_seed_task_lifecycle0_status status;
+  if (!transaction_shape_valid(&view, &status)) return status;
+  if (!lifecycle1_ranges_valid(transaction, workspace, NULL, counts, result,
+                               NULL))
+    return W_SEED_TASK_LIFECYCLE0_ALIAS;
+  w_seed_task_lifecycle0_state state = {
+      0u, W_SEED_TASK_LIFECYCLE0_NONE, {0}, workspace.tasks,
+      workspace.task_capacity};
+  status = reduce_transaction(&view, &state);
+  if (status != W_SEED_TASK_LIFECYCLE0_OK) return status;
+  const w_seed_task_lifecycle1_counts counts_candidate = {
+      transaction->task_count, transaction->event_count};
+  w_seed_task_lifecycle1_result result_candidate;
+  lifecycle1_result_from_state(&view, &state, &result_candidate);
+  *counts = counts_candidate;
+  *result = result_candidate;
+  return W_SEED_TASK_LIFECYCLE0_OK;
+}
+
+w_seed_task_lifecycle0_status w_seed_task_lifecycle1_run(
+    const w_seed_task_lifecycle1_transaction *transaction,
+    w_seed_task_lifecycle1_workspace workspace,
+    w_seed_task_lifecycle1_output output,
+    w_seed_task_lifecycle1_result *result) {
+  if (transaction == NULL || result == NULL)
+    return W_SEED_TASK_LIFECYCLE0_INVALID_ARGUMENT;
+  if ((size_t)transaction->task_count > workspace.task_capacity ||
+      (size_t)transaction->task_count > output.task_capacity ||
+      (size_t)transaction->event_count > output.event_capacity ||
+      !lifecycle1_count_bytes_valid(
+          transaction->task_count,
+          sizeof(w_seed_task_lifecycle0_task_record)) ||
+      !lifecycle1_count_bytes_valid(transaction->event_count,
+                                    sizeof(w_seed_task_lifecycle0_event)))
+    return W_SEED_TASK_LIFECYCLE0_CAPACITY;
+  const w_seed_task_lifecycle_view view = lifecycle1_view(transaction);
+  w_seed_task_lifecycle0_status status;
+  if (!transaction_shape_valid(&view, &status)) return status;
+  if (!lifecycle1_ranges_valid(transaction, workspace, &output, NULL, result,
+                               NULL))
+    return W_SEED_TASK_LIFECYCLE0_ALIAS;
+  w_seed_task_lifecycle0_state state = {
+      0u, W_SEED_TASK_LIFECYCLE0_NONE, {0}, workspace.tasks,
+      workspace.task_capacity};
+  status = reduce_transaction(&view, &state);
+  if (status != W_SEED_TASK_LIFECYCLE0_OK) return status;
+  w_seed_task_lifecycle1_result result_candidate;
+  lifecycle1_result_from_state(&view, &state, &result_candidate);
+  for (uint32_t task = 0u; task < transaction->task_count; task += 1u)
+    output.tasks[task] = state.tasks[task];
+  for (uint32_t event = 0u; event < transaction->event_count; event += 1u)
+    output.trace[event] = transaction->events[event];
+  *result = result_candidate;
+  return W_SEED_TASK_LIFECYCLE0_OK;
+}
+
+bool w_seed_task_lifecycle1_verify(
+    const w_seed_task_lifecycle1_transaction *transaction,
+    w_seed_task_lifecycle1_workspace workspace,
+    const w_seed_task_lifecycle1_output *output,
+    const w_seed_task_lifecycle1_result *result) {
+  if (transaction == NULL || output == NULL || result == NULL ||
+      (size_t)transaction->task_count > workspace.task_capacity ||
+      (size_t)transaction->task_count > output->task_capacity ||
+      (size_t)transaction->event_count > output->event_capacity ||
+      !lifecycle1_count_bytes_valid(
+          transaction->task_count,
+          sizeof(w_seed_task_lifecycle0_task_record)) ||
+      !lifecycle1_count_bytes_valid(transaction->event_count,
+                                    sizeof(w_seed_task_lifecycle0_event)))
+    return false;
+  const w_seed_task_lifecycle_view view = lifecycle1_view(transaction);
+  w_seed_task_lifecycle0_status status;
+  if (!transaction_shape_valid(&view, &status) ||
+      !lifecycle1_ranges_valid(transaction, workspace, output, NULL, result,
+                               output))
+    return false;
+  w_seed_task_lifecycle0_state state = {
+      0u, W_SEED_TASK_LIFECYCLE0_NONE, {0}, workspace.tasks,
+      workspace.task_capacity};
+  if (reduce_transaction(&view, &state) != W_SEED_TASK_LIFECYCLE0_OK ||
+      !lifecycle1_result_matches_state(&view, &state, result))
+    return false;
+  for (uint32_t task = 0u; task < transaction->task_count; task += 1u)
+    if (!task_record_equal(&output->tasks[task], &state.tasks[task]))
+      return false;
+  for (uint32_t event = 0u; event < transaction->event_count; event += 1u)
+    if (!event_equal(&output->trace[event], &transaction->events[event]))
+      return false;
+  return true;
 }
