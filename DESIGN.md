@@ -40937,6 +40937,42 @@ entry {
 }
 ```
 
+#### 26.4.1.102 W-1622 — explicit parallel panic signal
+
+PLATFORM1 preserves `panic` as a fourth private physical completion kind beside
+success, typed error, and cancellation. The completion carries one closed,
+allocation-free panic code. The physical receipt records whether panic was
+observed, its lexical source, and its code. Panic dominates recoverable error or
+cancellation settled in the same wave, and later unstarted tasks receive the
+distinct internal cancellation reason `panic-boundary`.
+
+PARBIND1 revalidates the local provider authority and verified HIR after
+physical execution, recognizes the panic tag, and returns a private boundary
+signal without publishing its completion workspace, semantic task records, or
+result. It never constructs the verified nominal `Error`, a generic TASKLIFE
+body error, `TaskOutcome.error`, or `TaskOutcome.canceled`. Consequently the
+W-1620 lifecycle transaction cannot consume this path.
+
+This is the first bounded transport of panic across the parallel provider
+boundary, not complete fault containment. It does not yet emit `PanicEvent`,
+lower source `panic`, terminate a process/Wasm/compartment, guarantee user
+cleanup, catch hardware faults, expose a public runtime ABI, or prove other
+providers and targets. The next product boundary must consume this private
+signal and physically terminate the nearest fault boundary.
+
+<!-- w-example role=logical-contract -->
+```w
+// excerpt-kind: logical-contract
+fn violateInvariant(): Never {
+  panic("parallel invariant failed")
+}
+
+entry {
+  let doomed = async violateInvariant()
+  await doomed // the nearest fault boundary terminates; no TaskOutcome exists
+}
+```
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

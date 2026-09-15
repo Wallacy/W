@@ -4,6 +4,23 @@
 
 #include "w_seed_parallel_provider0_platform.h"
 
+bool w_seed_parallel_platform1_receipt_equal(
+    const w_seed_parallel_platform1_receipt *left,
+    const w_seed_parallel_platform1_receipt *right) {
+  return left != NULL && right != NULL &&
+         left->started_count == right->started_count &&
+         left->settled_count == right->settled_count &&
+         left->canceled_before_start_count ==
+             right->canceled_before_start_count &&
+         left->maximum_active == right->maximum_active &&
+         left->cancellation_source_index ==
+             right->cancellation_source_index &&
+         left->cancellation_requested == right->cancellation_requested &&
+         left->panic_source_index == right->panic_source_index &&
+         left->panic_code == right->panic_code &&
+         left->panic_requested == right->panic_requested;
+}
+
 #if defined(_WIN32) && defined(_WIN64)
 
 #include <windows.h>
@@ -44,14 +61,24 @@ static bool completion_valid(
   switch (completion->kind) {
     case W_SEED_PARALLEL_PLATFORM1_COMPLETION_SUCCESS:
       return completion->error_code == 0u && completion->cancel_reason == 0u &&
-             completion->error_case_ordinal == 0u;
+             completion->error_case_ordinal == 0u &&
+             completion->panic_code == W_SEED_PARALLEL_PLATFORM1_PANIC_NONE;
     case W_SEED_PARALLEL_PLATFORM1_COMPLETION_ERROR:
       return completion->success_value == 0 && completion->error_code != 0u &&
-             completion->cancel_reason == 0u;
+             completion->cancel_reason == 0u &&
+             completion->panic_code == W_SEED_PARALLEL_PLATFORM1_PANIC_NONE;
     case W_SEED_PARALLEL_PLATFORM1_COMPLETION_CANCELED:
       return completion->success_value == 0 && completion->error_code == 0u &&
              completion->cancel_reason != 0u &&
-             completion->error_case_ordinal == 0u;
+             completion->error_case_ordinal == 0u &&
+             completion->panic_code == W_SEED_PARALLEL_PLATFORM1_PANIC_NONE;
+    case W_SEED_PARALLEL_PLATFORM1_COMPLETION_PANIC:
+      return completion->success_value == 0 && completion->error_code == 0u &&
+             completion->cancel_reason == 0u &&
+             completion->error_case_ordinal == 0u &&
+             completion->panic_code >= W_SEED_PARALLEL_PLATFORM1_PANIC_EXPLICIT &&
+             completion->panic_code <=
+                 W_SEED_PARALLEL_PLATFORM1_PANIC_INTERNAL_CONTRACT;
     default:
       return false;
   }
@@ -280,6 +307,7 @@ w_seed_parallel_provider0_platform_status w_seed_parallel_platform1_execute(
     return W_SEED_PARALLEL_PROVIDER0_PLATFORM_PROVIDER_FAILURE;
   (void)memset(receipt, 0, sizeof(*receipt));
   receipt->cancellation_source_index = UINT32_MAX;
+  receipt->panic_source_index = UINT32_MAX;
   *provider_kind = W_SEED_PARALLEL_PROVIDER0_KIND_WINDOWS_KERNEL32;
 
   volatile LONG active = 0;
@@ -306,7 +334,22 @@ w_seed_parallel_provider0_platform_status w_seed_parallel_platform1_execute(
                              &maximum);
     }
     if (status != W_SEED_PARALLEL_PROVIDER0_PLATFORM_OK) return status;
+    /* A panic ends the physical boundary and therefore dominates a
+     * recoverable error or cancellation settled in the same wave. */
     for (size_t index = first; index < first + count; index += 1u) {
+      if (completions[index].kind ==
+          W_SEED_PARALLEL_PLATFORM1_COMPLETION_PANIC) {
+        receipt->cancellation_requested = true;
+        receipt->cancellation_source_index = (uint32_t)index;
+        receipt->panic_requested = true;
+        receipt->panic_source_index = (uint32_t)index;
+        receipt->panic_code = completions[index].panic_code;
+        break;
+      }
+    }
+    for (size_t index = first;
+         index < first + count && !receipt->cancellation_requested;
+         index += 1u) {
       if (completions[index].kind ==
               W_SEED_PARALLEL_PLATFORM1_COMPLETION_ERROR ||
           completions[index].kind ==
@@ -325,10 +368,13 @@ w_seed_parallel_provider0_platform_status w_seed_parallel_platform1_execute(
     const uint32_t reason =
         source->kind == W_SEED_PARALLEL_PLATFORM1_COMPLETION_ERROR
             ? W_SEED_PARALLEL_PLATFORM1_CANCEL_FAIL_FAST
-            : source->cancel_reason;
+            : source->kind == W_SEED_PARALLEL_PLATFORM1_COMPLETION_PANIC
+                  ? W_SEED_PARALLEL_PLATFORM1_CANCEL_PANIC_BOUNDARY
+                  : source->cancel_reason;
     while (first < job_count) {
       completions[first] = (w_seed_parallel_platform1_completion){
-          W_SEED_PARALLEL_PLATFORM1_COMPLETION_CANCELED, 0, 0u, reason, 0u};
+          W_SEED_PARALLEL_PLATFORM1_COMPLETION_CANCELED, 0, 0u, reason, 0u,
+          W_SEED_PARALLEL_PLATFORM1_PANIC_NONE};
       receipt->canceled_before_start_count += 1u;
       first += 1u;
     }

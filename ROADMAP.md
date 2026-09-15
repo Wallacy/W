@@ -196,5 +196,10 @@ checked against HIR. This is not binary authentication or registry
 attestation. External signatures, roots, rotation, revocation, and freshness
 remain distribution-layer gaps and do not block the compiler roadmap.
 
-Next comes an explicit panic boundary. Physical cancellation remains
-cooperative rather than thread termination.
+W-1622 adds a distinct private panic completion and fail-closed PARBIND1 signal.
+It preserves an allocation-free panic code, makes panic dominate recoverable
+outcomes settled in the same wave, and publishes no semantic task result. The
+next slice must consume that signal at a real process/Wasm/compartment boundary
+and perform physical teardown; source panic lowering and `PanicEvent` remain
+open. Physical cancellation remains cooperative rather than thread
+termination.

@@ -9936,6 +9936,59 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-parallel-panic-signal1",
+      "reviewItem": "explicit parallel panic signaling against panic-to-error conversion, wave-order ambiguity, semantic publication, and false physical-containment claims",
+      "decisions": ["W-1622"],
+      "task": "Preserve panic as a distinct physical boundary signal across one parallel provider wave without exposing it as a recoverable W outcome.",
+      "selected": {
+        "language": "w-internal",
+        "source": [
+          "PLATFORM1 completion has a distinct PANIC tag and closed allocation-free code",
+          "panic dominates recoverable error or cancellation settled in the same wave",
+          "receipt records panic source/code and later unstarted tasks receive panic-boundary cancellation",
+          "PARBIND1 revalidates authority and HIR, then returns PANIC without publishing semantic outputs"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "panic-as-error",
+          "language": "w-internal-rejected",
+          "source": ["map panic to the verified nominal Error case or TASKLIFE BODY"],
+          "expectedDifference": "Panic is not recoverable Error and never enters TaskOutcome or the typed lifecycle transaction."
+        },
+        {
+          "name": "panic-as-cancel",
+          "language": "w-internal-rejected",
+          "source": ["publish the panicking task as canceled"],
+          "expectedDifference": "The provider retains a distinct panic source/code and uses cancellation only for later unstarted work."
+        },
+        {
+          "name": "lexical-error-wins-wave",
+          "language": "w-internal-rejected",
+          "source": ["let an earlier recoverable error hide a panic settled in the same physical wave"],
+          "expectedDifference": "Fault-boundary termination dominates recoverable outcomes; the first lexical panic is selected deterministically."
+        },
+        {
+          "name": "publish-panic-outcome",
+          "language": "w-internal-rejected",
+          "source": ["commit provider workspace and semantic task records before returning panic"],
+          "expectedDifference": "PARBIND1 stages physical values and leaves every semantic output unchanged on panic."
+        },
+        {
+          "name": "signal-equals-containment",
+          "language": "w-internal-rejected",
+          "source": ["claim that returning a private panic status physically terminates a process or compartment"],
+          "expectedDifference": "W-1622 proves only transport to a future boundary controller; physical teardown remains open."
+        }
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

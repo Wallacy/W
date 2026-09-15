@@ -2398,6 +2398,15 @@ registry attestation, rotation, revocation, freshness, or security conformance.
 The authority is unavailable on unsupported hosts, a forged receipt or seal
 fails before publication, and SHA-256 alone never upgrades the assurance.
 
+W-1622 extends the private PLATFORM1 completion with a distinct panic tag and
+closed allocation-free code. Panic dominates error/cancellation settled in the
+same wave, records its source in the physical receipt, and cancels later
+unstarted work with a separate panic-boundary reason. PARBIND1 revalidates the
+local authority and HIR, then returns `W_SEED_PARALLEL_TYPED_BINDING1_PANIC`
+without publishing completions, semantic records, or result. It never maps the
+signal to typed `Error`, cancellation, or TASKLIFE. This does not yet implement
+source panic lowering, `PanicEvent`, or physical fault-boundary teardown.
+
 ### Bounded CRT-free process/parallel provider linkage (W-1600)
 
 PARLINK1 closes the private physical reference for the W-1598 composition.

@@ -260,6 +260,7 @@ O corpus compara, no mínimo:
 - typed physical completion binding against numeric error conventions, fail-open publication, semantic identity polluted by provider capacity, and false authentication claims.
 - caller-owned typed TASKLIFE bridge against generic error collapse, premature publication, forged lifecycle traces, capacity-dependent semantic identity, and 32-bit Task-handle claims.
 - local provider admission against callback authentication, caller-selected trust roots, semantic identity pollution, and partial publication.
+- explicit parallel panic signaling against panic-to-error conversion, wave-order ambiguity, semantic publication, and false physical-containment claims.
 - bounded dual-target process/parallel linkage against direct-call substitution, CRT fallback, hidden runtime input, target conflation, and premature public or benchmark claims.
 - bounded GPU0 target-neutral semantic and available CUDA execution against source-backed W claims, provider/runtime conflation, homogeneous toolchains, and premature public product support.
 - bounded static accelerated root binding against embedded provider handles, multiplied budgets, and unauthenticated claims.
@@ -7956,6 +7957,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1619 | integrity-bound typed provider completion | PARBIND1 independently verifies HIR41, derives the payloadless nominal error identity, and validates two lexically ordered PLATFORM1 completions against distinct HIR calls. Semantic records remain byte-identical across provider capacities one and two; physical facts are isolated in a provenance receipt that does not claim provider authentication. | `source-backed-current` only for the exact two-child Windows x64 seed witness, independent success evaluation, ordinal-to-nominal-error validation, dual-path cleanup requirement, caller-owned transactional publication, alias/capacity/forgery barriers, and capacity-one/two semantic equality. The two-child shape is not a language, HIR, scheduler, ABI, or runtime limit. External cryptographic provider attestation, native HIR execution, typed TASKLIFE, other platforms, public products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1620 | caller-owned typed TASKLIFE bridge | The separate target-neutral bridge consumes a fully verified PARBIND1 result for the exact two-task seed witness and builds a 22-event transaction. Task 0 is success. Task 1 maps nominal `Failure.denied` to TASKLIFE's internal generic `BODY` error while a typed sidecar and result retain the exact nominal identity. Cleanup precedes outcome commit, late fail-fast cancellation names task 1, and the joined scope commits the consumed error. Capacities one and two produce byte-identical semantic task, trace, typed-sidecar, and semantic-digest outputs while physical provenance differs. | `source-backed-current` only for the caller-owned typed bridge, exact two-task/22-event witness, generic reducer mapping with nominal sidecar preservation, cleanup-before-commit and late cancellation ordering, joined consumed-error scope, transactional output, alias/capacity/forgery/generation barriers, capacity-one/two semantic equality, and explicit proof-index versus Task-handle width separation. The `u32` fields are serialized proof indices/counts and do not define Task handle width. A future materialized Task handle is opaque and target-specialized; one native word is the baseline, while lowering may elide it or prove a narrower representation more efficient. No 32-bit constraint or cost is imposed on 64-bit. Public Task/runtime contracts, general cardinality, ABI, native HIR execution, external cryptographic provider attestation, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1621 | compiler-owned local provider admission | LOCALPROV1 opens one process-local opaque authority for the statically linked Windows x64 PLATFORM1 provider. PARBIND1 requires that authority and invokes the provider through the compiler-owned wrapper, binding target, domain, profile, identity, generation, assurance, and contract digest only into provenance. The callback remains an untrusted task-body adapter whose results are independently checked against HIR. | `source-backed-current` only for exact local static selection, authority revalidation before and after execution, provider-descriptor matching, target/domain/profile/identity/generation binding, caller-owned transactional PARBIND1 publication, authority/input alias rejection, and forged or unsupported authority tests. This is local admission, not binary authentication, a signature, registry attestation, rotation, revocation, freshness, native HIR execution, public capability, Task ABI, benchmark, or performance evidence. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1622 | explicit parallel panic signal | PLATFORM1 carries panic as a distinct closed completion with an allocation-free code. Panic dominates recoverable error or cancellation in the same wave, records its lexical source, and cancels later unstarted tasks with a distinct boundary reason. PARBIND1 revalidates local authority and HIR, then returns a private panic signal without publishing semantic outcomes. | `source-backed-current` only for the private Windows x64 completion tag/code/receipt, deterministic same-wave dominance, unstarted-task cancellation, malformed-code rejection, PARBIND1 non-publication, and focused C23 tests. Source panic lowering, PanicEvent payloads, physical process/Wasm/compartment teardown, hardware-fault containment, cleanup guarantees, public Task/runtime ABI, other providers/targets, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -13379,3 +13381,33 @@ rotation, revocation, freshness, rollback protection, native HIR execution,
 public capabilities, Task ABI, benchmarks, and performance remain separate
 gaps. Those require a distribution verifier; an arbitrary callback plus a
 matching hash never acquires trusted assurance.
+
+#### W-1622 — explicit parallel panic signal
+
+The existing PLATFORM1 completion relation distinguished success, typed error,
+and cancellation but had no legal representation for panic. Reusing callback
+failure would classify an invariant failure as provider malfunction; reusing
+typed error or cancellation would make panic recoverable through W outcomes.
+W-1622 instead adds one private `PANIC` tag and a closed allocation-free code.
+
+When several tasks settle in one physical wave, any panic dominates a
+recoverable error or cancellation in that wave. The first lexical panic becomes
+the boundary source. The receipt records its index and code, and later
+unstarted tasks receive a distinct panic-boundary cancellation reason. This
+ordering is deterministic without pretending that a task which was never
+started could have panicked.
+
+PARBIND1 keeps the physical completion and receipt in staging, revalidates the
+compiler-owned local authority and HIR, and returns its private `PANIC` status.
+It publishes no completion workspace, semantic record, nominal error, typed
+lifecycle event, or result. The path therefore cannot be observed as
+`TaskOutcome.error` or `.canceled`, and TASKLIFE does not consume it. Focused C23
+evidence covers same-wave error-plus-panic dominance, later cancellation,
+invalid panic codes, and byte-preserving PARBIND1 rejection.
+
+This is only a bounded signal from the current Windows x64 provider to its
+future fault-boundary controller. It does not lower source `panic`, materialize
+the bounded `PanicEvent`, terminate or restart a process/Wasm/compartment,
+contain hardware faults, guarantee user cleanup, publish an ABI, or establish
+performance. A later product slice must consume the signal and perform physical
+teardown; claiming containment before that would be false.
