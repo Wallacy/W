@@ -40833,6 +40833,63 @@ origin. This increment therefore makes no attestation, trusted-provider,
 native-HIR-execution, Task ABI, TASKLIFE, public product, benchmark, or
 performance claim. Those are separate boundaries.
 
+#### 26.4.1.100 W-1620 — caller-owned typed TASKLIFE bridge
+
+The typed TASKLIFE bridge is a separate target-neutral transaction above a
+fully verified PARBIND1 result. It accepts only the exact two-task seed
+witness. Its transaction contains exactly 22 events. Task 0 settles with the
+verified signed-`i64` success. Task 1 settles with the nominal `Failure.denied`
+error, but TASKLIFE receives only its internal generic `BODY` error category.
+
+The typed sidecar record and bridge result retain the complete nominal error
+identity from PARBIND1. The reducer therefore cannot turn a generic lifecycle
+category into a new W error. Each task records active, body-settled, cleanup,
+and outcome-committed events in that order. The late fail-fast cancellation
+event names task 1 as its source. The reducer then joins and releases both
+tasks, drains the scope, commits the consumed error outcome, and joins the
+scope.
+
+Measure and run use caller-owned capacities and pairwise range checks. The
+transaction, event arrays, and reducer workspace are scratch and may change
+after an attempted run or verify. Run stages the task records, trace, typed
+sidecar, and result, then publishes the semantic output arrays and result only
+after the complete lifecycle relation passes. Verify reconstructs the
+transaction and compares the lifecycle, sidecar, semantic digest, and
+provenance digest. Capacity, alias, forged-result, forged-record, and
+generation violations fail closed without partial semantic publication.
+
+Provider capacities one and two must produce byte-identical semantic task,
+trace, typed-sidecar, and semantic-digest outputs. Their physical provenance
+may differ because the upstream provider receipt is different. The `u32` HIR
+and count fields are serialized proof indices and counts, not Task handle
+width. They do not define runtime representation width. A future materialized
+Task handle is opaque and target-specialized. One native word is the baseline.
+Target-specific lowering may elide the handle or prove a narrower
+representation more efficient without changing semantics. No 32-bit
+constraint or cost is imposed on a 64-bit target.
+
+This is source-backed-current only for the exact two-task seed bridge and its
+22-event lifecycle oracle. It is not a public Task or runtime contract, a
+general cardinality rule, an ABI, native HIR execution, trusted provider
+attestation, a benchmark, or a performance result. Trusted provider
+attestation is the next boundary. Panic containment follows it. Physical
+cancellation remains cooperative rather than thread termination.
+
+<!-- w-example role=logical-contract -->
+```w
+// excerpt-kind: logical-contract
+enum Failure: Error { denied }
+fn clean() { }
+fn succeed(): i64 { return 42 }
+fn successCaller(): i64 { return succeed() }
+fn leaf(): i64 throws Failure { throw .denied }
+fn relay(): i64 throws Failure {
+  defer { clean() }
+  return try leaf()
+}
+entry { }
+```
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

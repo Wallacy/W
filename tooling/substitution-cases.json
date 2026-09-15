@@ -9822,6 +9822,67 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-parallel-typed-lifecycle1",
+      "reviewItem": "caller-owned typed TASKLIFE bridge against generic error collapse, premature publication, forged lifecycle traces, capacity-dependent semantic identity, and 32-bit Task-handle claims",
+      "decisions": ["W-1620"],
+      "task": "Bridge one fully verified PARBIND1 typed completion into a caller-owned TASKLIFE1 transaction while retaining nominal error identity.",
+      "selected": {
+        "language": "w-internal",
+        "source": [
+          "separate typed bridge consumes only fully verified PARBIND1",
+          "exact seed shape = 2 tasks and 22 events; task0 = success; task1 = generic BODY internally",
+          "typed sidecar/result = exact Failure.denied; cleanup precedes commit; late cancel source = task1",
+          "capacity 1/2 = equal semantic task, trace, sidecar, and digest outputs; physical provenance may differ",
+          "u32 HIR/count fields = serialized proof indices/counts; future Task handle = opaque target-specialized, one native word by default, narrower or elided only when proven better",
+          "measure/run/verify = caller-owned and transactional; alias, capacity, forgery, and generation barriers fail closed"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "generic-error-only",
+          "language": "w-internal-rejected",
+          "source": ["map Failure.denied to TASKLIFE BODY without a typed sidecar"],
+          "expectedDifference": "The selected bridge keeps the exact nominal enum and case identity outside the reducer's generic error category."
+        },
+        {
+          "name": "publish-before-reduce",
+          "language": "w-internal-rejected",
+          "source": ["publish task records and trace before TASKLIFE reduction and digest checks"],
+          "expectedDifference": "Run stages every lifecycle output and publishes only after the complete relation passes."
+        },
+        {
+          "name": "capacity-in-semantic-digest",
+          "language": "w-internal-rejected",
+          "source": ["include provider capacity or physical receipt facts in the semantic digest"],
+          "expectedDifference": "Capacities one and two retain byte-identical semantic outputs and digest while provenance may differ."
+        },
+        {
+          "name": "u32-task-handle",
+          "language": "w-internal-rejected",
+          "source": ["treat serialized u32 task indices as the width of a future Task handle"],
+          "expectedDifference": "HIR and count fields are proof serialization; a materialized Task handle remains opaque and target-specialized, with one native word as the baseline and narrower or elided forms only when proven better."
+        },
+        {
+          "name": "unverified-upstream",
+          "language": "w-internal-rejected",
+          "source": ["construct TASKLIFE from caller-supplied PARBIND1 records without re-verification"],
+          "expectedDifference": "The bridge consumes only a fully verified PARBIND1 result and rejects forged records or digests."
+        },
+        {
+          "name": "early-fail-fast-cancel",
+          "language": "w-internal-rejected",
+          "source": ["cancel task 1 before cleanup and outcome commit"],
+          "expectedDifference": "The exact trace performs cleanup before commit and records the late cancellation after both task outcomes commit."
+        }
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

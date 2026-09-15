@@ -2360,6 +2360,31 @@ HIR41, while provider authentication and TASKLIFE input remain open. Callback
 failure is a component failure. Panic/fault containment, physical preemption,
 general source-level throw, a scheduler, Task ABI, and performance remain open.
 
+W-1620 adds `w_seed_parallel_typed_lifecycle1`, a separate target-neutral,
+caller-owned bridge from a fully verified PARBIND1 result into TASKLIFE1. The
+seed witness has exactly two tasks and a 22-event transaction. Task 0 retains
+the verified signed-`i64` success. Task 1 maps nominal `Failure.denied` to the
+reducer's internal generic `BODY` error. The typed sidecar and bridge result
+retain the complete nominal identity.
+
+The trace performs cleanup before each task outcome commit. A late fail-fast
+cancellation records task 1 as its source. Both tasks then join and release,
+the scope drains, the consumed error is committed, and the scope joins.
+Measure, run, and verify use caller-owned capacities, pairwise alias checks,
+staged output, and independent transaction and digest reconstruction. Short
+capacity, alias, forged records or digests, and generation overflow preserve
+the caller's semantic outputs.
+
+Capacity one and two produce byte-identical semantic task, trace, typed-sidecar,
+and semantic-digest outputs. Physical provenance may differ with the upstream
+receipt. `u32` HIR and count fields are serialized proof indices and counts,
+not Task handle width. A future materialized Task handle is opaque and
+target-specialized. One native word is the baseline; lowering may elide it or
+prove a narrower representation more efficient. No 32-bit constraint or cost
+is imposed on a 64-bit target. This is compiler-lifecycle correctness evidence
+only. It does not define a public Task/runtime/ABI, general cardinality,
+native HIR execution, trusted provider attestation, or performance.
+
 ### Bounded CRT-free process/parallel provider linkage (W-1600)
 
 PARLINK1 closes the private physical reference for the W-1598 composition.

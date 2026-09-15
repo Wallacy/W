@@ -1,5 +1,7 @@
 #include "w_seed_parallel_typed_binding1.h"
 
+#include "w_seed_parallel_typed_lifecycle1.h"
+
 #include "w_seed_scalar_evaluator0.h"
 #include "w_seed_sha256.h"
 
@@ -22,6 +24,7 @@ static bool range_make(const void *pointer, size_t count, size_t element_size,
   if (pointer == NULL || element_size == 0u || count > SIZE_MAX / element_size)
     return false;
   const size_t bytes = count * element_size;
+  if (bytes > (size_t)UINTPTR_MAX) return false;
   const uintptr_t start = (uintptr_t)pointer;
   if (start > UINTPTR_MAX - bytes) return false;
   *range = (typed_binding1_range){start, start + bytes, true};
@@ -908,5 +911,564 @@ bool w_seed_parallel_typed_binding1_verify(
   seal_provenance(input, *workspace->provider_kind, workspace->completions,
                   workspace->receipt, semantic_digest, provenance_digest);
   return memcmp(result->provenance.provenance_digest, provenance_digest,
+                sizeof(provenance_digest)) == 0;
+}
+
+enum {
+  W_TYPED_LIFECYCLE1_INPUT_RANGE_CAPACITY = 56u,
+  W_TYPED_LIFECYCLE1_EVENT_COUNT =
+      6u + 8u * W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT,
+};
+
+_Static_assert(W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT == 2u,
+               "typed lifecycle seed witness must contain two tasks");
+_Static_assert(W_TYPED_LIFECYCLE1_EVENT_COUNT == 22u,
+               "typed lifecycle seed trace must contain 22 events");
+
+static bool typed_lifecycle1_input_valid(
+    const w_seed_parallel_typed_lifecycle1_input *input) {
+  if (input == NULL || input->binding_input == NULL ||
+      input->binding_workspace == NULL || input->binding_output == NULL ||
+      input->binding_result == NULL || input->scope_generation == 0u ||
+      input->scope_generation >
+          UINT32_MAX - W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT ||
+      !w_seed_parallel_typed_binding1_verify(
+          input->binding_input, input->binding_workspace,
+          input->binding_output, input->binding_result) ||
+      input->binding_result->task_count !=
+          W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT ||
+      input->binding_result->scope_outcome !=
+          W_SEED_PARALLEL_TYPED_BINDING1_OUTCOME_ERROR ||
+      input->binding_result->primary_error_task != 1u)
+    return false;
+  const w_seed_parallel_typed_binding1_record *records =
+      input->binding_output->records;
+  return records[0].lexical_index == 0u &&
+         records[0].outcome ==
+             W_SEED_PARALLEL_TYPED_BINDING1_OUTCOME_SUCCESS &&
+         records[1].lexical_index == 1u &&
+         records[1].outcome ==
+             W_SEED_PARALLEL_TYPED_BINDING1_OUTCOME_ERROR &&
+         memcmp(records[1].error_identity_digest,
+                input->binding_result->error_identity.digest,
+                sizeof(records[1].error_identity_digest)) == 0;
+}
+
+static w_seed_parallel_typed_lifecycle1_counts typed_lifecycle1_counts(void) {
+  return (w_seed_parallel_typed_lifecycle1_counts){
+      W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT,
+      W_TYPED_LIFECYCLE1_EVENT_COUNT,
+      W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT,
+      W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT,
+      W_TYPED_LIFECYCLE1_EVENT_COUNT,
+      W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT};
+}
+
+static bool typed_lifecycle1_append_input_ranges(
+    const w_seed_parallel_typed_lifecycle1_input *input,
+    typed_binding1_range *ranges, size_t capacity, size_t *count) {
+  if (input == NULL || ranges == NULL || count == NULL ||
+      !add_range(ranges, capacity, count, input, 1u, sizeof(*input)) ||
+      !append_input_ranges(input->binding_input, ranges, capacity, count) ||
+      !add_range(ranges, capacity, count, input->binding_workspace, 1u,
+                 sizeof(*input->binding_workspace)) ||
+      !add_range(ranges, capacity, count,
+                 input->binding_workspace->completions,
+                 input->binding_workspace->completion_capacity,
+                 sizeof(*input->binding_workspace->completions)) ||
+      !add_range(ranges, capacity, count, input->binding_workspace->receipt,
+                 1u, sizeof(*input->binding_workspace->receipt)) ||
+      !add_range(ranges, capacity, count,
+                 input->binding_workspace->provider_kind, 1u,
+                 sizeof(*input->binding_workspace->provider_kind)) ||
+      !add_range(ranges, capacity, count, input->binding_output, 1u,
+                 sizeof(*input->binding_output)) ||
+      !add_range(ranges, capacity, count, input->binding_output->records,
+                 input->binding_output->record_capacity,
+                 sizeof(*input->binding_output->records)) ||
+      !add_range(ranges, capacity, count, input->binding_result, 1u,
+                 sizeof(*input->binding_result)))
+    return false;
+  return true;
+}
+
+static bool typed_lifecycle1_ranges_disjoint(
+    const w_seed_parallel_typed_lifecycle1_input *input,
+    const w_seed_parallel_typed_lifecycle1_workspace *workspace,
+    const w_seed_parallel_typed_lifecycle1_output *output,
+    const w_seed_parallel_typed_lifecycle1_counts *counts,
+    const w_seed_parallel_typed_lifecycle1_result *result,
+    w_seed_parallel_typed_lifecycle1_counts required) {
+  typed_binding1_range writable[11];
+  size_t writable_count = 0u;
+#define W_TYPED_LIFECYCLE1_RANGE(pointer, number)                             \
+  do {                                                                        \
+    if (!add_range(writable, sizeof(writable) / sizeof(writable[0]),          \
+                   &writable_count, (pointer), (number), sizeof(*(pointer)))) \
+      return false;                                                           \
+  } while (0)
+  if (workspace != NULL) {
+    W_TYPED_LIFECYCLE1_RANGE(workspace, 1u);
+    W_TYPED_LIFECYCLE1_RANGE(workspace->task_specs, required.task_specs);
+    W_TYPED_LIFECYCLE1_RANGE(workspace->events, required.events);
+    W_TYPED_LIFECYCLE1_RANGE(workspace->reducer_tasks,
+                             required.reducer_tasks);
+  }
+  if (output != NULL) {
+    W_TYPED_LIFECYCLE1_RANGE(output, 1u);
+    W_TYPED_LIFECYCLE1_RANGE(output->tasks, required.tasks);
+    W_TYPED_LIFECYCLE1_RANGE(output->trace, required.trace_events);
+    W_TYPED_LIFECYCLE1_RANGE(output->typed_records, required.typed_records);
+  }
+  if (counts != NULL) W_TYPED_LIFECYCLE1_RANGE(counts, 1u);
+  W_TYPED_LIFECYCLE1_RANGE(result, 1u);
+#undef W_TYPED_LIFECYCLE1_RANGE
+  for (size_t left = 0u; left < writable_count; left += 1u)
+    for (size_t right = left + 1u; right < writable_count; right += 1u)
+      if (ranges_overlap(writable[left], writable[right])) return false;
+
+  typed_binding1_range inputs[W_TYPED_LIFECYCLE1_INPUT_RANGE_CAPACITY];
+  size_t input_count = 0u;
+  if (!typed_lifecycle1_append_input_ranges(
+          input, inputs, W_TYPED_LIFECYCLE1_INPUT_RANGE_CAPACITY,
+          &input_count))
+    return false;
+  for (size_t out = 0u; out < writable_count; out += 1u)
+    for (size_t in = 0u; in < input_count; in += 1u)
+      if (ranges_overlap(writable[out], inputs[in])) return false;
+  return true;
+}
+
+static w_seed_task_lifecycle0_event typed_lifecycle1_event(
+    w_seed_task_lifecycle0_event_kind kind, uint32_t target,
+    uint32_t generation) {
+  w_seed_task_lifecycle0_event event;
+  (void)memset(&event, 0, sizeof(event));
+  event.kind = kind;
+  event.target_index = target;
+  event.generation = generation;
+  event.source_index = W_SEED_TASK_LIFECYCLE0_NONE;
+  return event;
+}
+
+static void typed_lifecycle1_append(
+    const w_seed_parallel_typed_lifecycle1_workspace *workspace,
+    uint32_t *written, w_seed_task_lifecycle0_event event) {
+  event.sequence = *written;
+  workspace->events[*written] = event;
+  *written += 1u;
+}
+
+static void typed_lifecycle1_build_transaction(
+    const w_seed_parallel_typed_lifecycle1_input *input,
+    const w_seed_parallel_typed_lifecycle1_workspace *workspace,
+    w_seed_task_lifecycle1_transaction *transaction) {
+  const w_seed_parallel_typed_binding1_record *records =
+      input->binding_output->records;
+  (void)memset(workspace->task_specs, 0,
+               sizeof(*workspace->task_specs) *
+                   W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT);
+  (void)memset(workspace->events, 0,
+               sizeof(*workspace->events) * W_TYPED_LIFECYCLE1_EVENT_COUNT);
+  for (uint32_t task = 0u;
+       task < W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT;
+       task += 1u) {
+    workspace->task_specs[task].task_id = task;
+    workspace->task_specs[task].lexical_index = records[task].lexical_index;
+    workspace->task_specs[task].generation =
+        input->scope_generation + task + 1u;
+  }
+  workspace->task_specs[0].body_outcome.kind =
+      W_SEED_TASK_LIFECYCLE0_OUTCOME_SUCCESS;
+  workspace->task_specs[0].body_outcome.success_value =
+      records[0].success_value;
+  workspace->task_specs[1].body_outcome.kind =
+      W_SEED_TASK_LIFECYCLE0_OUTCOME_ERROR;
+  workspace->task_specs[1].body_outcome.error_code =
+      W_SEED_TASK_LIFECYCLE0_ERROR_BODY;
+
+  uint32_t written = 0u;
+  typed_lifecycle1_append(
+      workspace, &written,
+      typed_lifecycle1_event(W_SEED_TASK_LIFECYCLE0_EVENT_SCOPE_OPEN,
+                             W_SEED_TASK_LIFECYCLE0_NONE,
+                             input->scope_generation));
+  for (uint32_t task = 0u;
+       task < W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT;
+       task += 1u)
+    typed_lifecycle1_append(
+        workspace, &written,
+        typed_lifecycle1_event(W_SEED_TASK_LIFECYCLE0_EVENT_TASK_RESERVED,
+                               task,
+                               workspace->task_specs[task].generation));
+  for (uint32_t task = 0u;
+       task < W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT;
+       task += 1u)
+    typed_lifecycle1_append(
+        workspace, &written,
+        typed_lifecycle1_event(W_SEED_TASK_LIFECYCLE0_EVENT_TASK_PUBLISHED,
+                               task,
+                               workspace->task_specs[task].generation));
+  for (uint32_t task = 0u;
+       task < W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT;
+       task += 1u) {
+    const uint32_t generation = workspace->task_specs[task].generation;
+    typed_lifecycle1_append(
+        workspace, &written,
+        typed_lifecycle1_event(W_SEED_TASK_LIFECYCLE0_EVENT_TASK_ACTIVE,
+                               task, generation));
+    w_seed_task_lifecycle0_event settled = typed_lifecycle1_event(
+        W_SEED_TASK_LIFECYCLE0_EVENT_TASK_BODY_SETTLED, task, generation);
+    settled.outcome = workspace->task_specs[task].body_outcome;
+    typed_lifecycle1_append(workspace, &written, settled);
+    typed_lifecycle1_append(
+        workspace, &written,
+        typed_lifecycle1_event(W_SEED_TASK_LIFECYCLE0_EVENT_TASK_CLEANUP,
+                               task, generation));
+    w_seed_task_lifecycle0_event committed = typed_lifecycle1_event(
+        W_SEED_TASK_LIFECYCLE0_EVENT_TASK_OUTCOME_COMMITTED, task,
+        generation);
+    committed.outcome = workspace->task_specs[task].body_outcome;
+    typed_lifecycle1_append(workspace, &written, committed);
+  }
+
+  w_seed_task_lifecycle0_event cancel = typed_lifecycle1_event(
+      W_SEED_TASK_LIFECYCLE0_EVENT_SCOPE_CANCELLATION_REQUESTED,
+      W_SEED_TASK_LIFECYCLE0_NONE, input->scope_generation);
+  cancel.source_index = 1u;
+  cancel.reason = W_SEED_TASK_LIFECYCLE0_CANCEL_REASON_ERROR_FAIL_FAST;
+  cancel.snapshot = (w_seed_task_lifecycle0_cancellation_snapshot){
+      input->scope_generation, written, 1u,
+      W_SEED_TASK_LIFECYCLE0_CANCEL_REASON_ERROR_FAIL_FAST};
+  typed_lifecycle1_append(workspace, &written, cancel);
+
+  for (uint32_t task = 0u;
+       task < W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT;
+       task += 1u) {
+    const uint32_t generation = workspace->task_specs[task].generation;
+    typed_lifecycle1_append(
+        workspace, &written,
+        typed_lifecycle1_event(W_SEED_TASK_LIFECYCLE0_EVENT_TASK_JOINED,
+                               task, generation));
+    typed_lifecycle1_append(
+        workspace, &written,
+        typed_lifecycle1_event(W_SEED_TASK_LIFECYCLE0_EVENT_TASK_RELEASED,
+                               task, generation));
+  }
+  typed_lifecycle1_append(
+      workspace, &written,
+      typed_lifecycle1_event(W_SEED_TASK_LIFECYCLE0_EVENT_SCOPE_DRAINING,
+                             W_SEED_TASK_LIFECYCLE0_NONE,
+                             input->scope_generation));
+  typed_lifecycle1_append(
+      workspace, &written,
+      typed_lifecycle1_event(
+          W_SEED_TASK_LIFECYCLE0_EVENT_SCOPE_CHILDREN_DRAINED,
+          W_SEED_TASK_LIFECYCLE0_NONE, input->scope_generation));
+  w_seed_task_lifecycle0_event scope_commit = typed_lifecycle1_event(
+      W_SEED_TASK_LIFECYCLE0_EVENT_SCOPE_OUTCOME_COMMITTED,
+      W_SEED_TASK_LIFECYCLE0_NONE, input->scope_generation);
+  scope_commit.outcome.kind = W_SEED_TASK_LIFECYCLE0_OUTCOME_ERROR;
+  scope_commit.outcome.error_code = W_SEED_TASK_LIFECYCLE0_ERROR_BODY;
+  typed_lifecycle1_append(workspace, &written, scope_commit);
+  typed_lifecycle1_append(
+      workspace, &written,
+      typed_lifecycle1_event(W_SEED_TASK_LIFECYCLE0_EVENT_SCOPE_JOINED,
+                             W_SEED_TASK_LIFECYCLE0_NONE,
+                             input->scope_generation));
+
+  (void)memset(transaction, 0, sizeof(*transaction));
+  (void)memcpy(transaction->schema, W_SEED_TASK_LIFECYCLE1_SCHEMA_VERSION,
+               sizeof(transaction->schema));
+  transaction->scope_generation = input->scope_generation;
+  transaction->task_count =
+      W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT;
+  transaction->tasks = workspace->task_specs;
+  transaction->event_count = written;
+  transaction->events = workspace->events;
+}
+
+static bool typed_lifecycle1_reducer_result_valid(
+    const w_seed_parallel_typed_lifecycle1_input *input,
+    const w_seed_task_lifecycle0_task_record *tasks,
+    const w_seed_task_lifecycle1_result *lifecycle) {
+  return input != NULL && tasks != NULL && lifecycle != NULL &&
+         lifecycle->task_count ==
+             W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT &&
+         lifecycle->event_count == W_TYPED_LIFECYCLE1_EVENT_COUNT &&
+         lifecycle->primary_error_task == 1u &&
+         lifecycle->scope.state == W_SEED_TASK_LIFECYCLE0_SCOPE_JOINED &&
+         lifecycle->scope.outcome.kind ==
+             W_SEED_TASK_LIFECYCLE0_OUTCOME_ERROR &&
+         lifecycle->scope.outcome.error_code ==
+             W_SEED_TASK_LIFECYCLE0_ERROR_BODY &&
+         tasks[0].state == W_SEED_TASK_LIFECYCLE0_TASK_RELEASED &&
+         tasks[0].outcome.kind == W_SEED_TASK_LIFECYCLE0_OUTCOME_SUCCESS &&
+         tasks[0].outcome.success_value ==
+             input->binding_output->records[0].success_value &&
+         tasks[1].state == W_SEED_TASK_LIFECYCLE0_TASK_RELEASED &&
+         tasks[1].outcome.kind == W_SEED_TASK_LIFECYCLE0_OUTCOME_ERROR &&
+         tasks[1].outcome.error_code == W_SEED_TASK_LIFECYCLE0_ERROR_BODY;
+}
+
+static void typed_lifecycle1_build_records(
+    const w_seed_parallel_typed_lifecycle1_input *input,
+    const w_seed_task_lifecycle0_task_record *tasks,
+    w_seed_parallel_typed_lifecycle1_record records[
+        W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT]) {
+  (void)memset(records, 0,
+               sizeof(*records) *
+                   W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT);
+  for (size_t task = 0u;
+       task < W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT;
+       task += 1u) {
+    records[task].semantic = input->binding_output->records[task];
+    records[task].state = tasks[task].state;
+    records[task].transition_count = tasks[task].transition_count;
+  }
+}
+
+static void typed_lifecycle1_seal_semantic(
+    const w_seed_parallel_typed_lifecycle1_input *input,
+    const w_seed_parallel_typed_lifecycle1_record *records,
+    uint64_t transaction_digest, uint8_t digest[32]) {
+  w_seed_sha256_state state;
+  w_seed_sha256_init(&state);
+  w_seed_sha256_update(
+      &state,
+      (const uint8_t *)W_SEED_PARALLEL_TYPED_LIFECYCLE1_SCHEMA_VERSION,
+      sizeof(W_SEED_PARALLEL_TYPED_LIFECYCLE1_SCHEMA_VERSION) - 1u);
+  w_seed_sha256_update(&state, input->binding_result->semantic_digest, 32u);
+  sha_u32(&state, input->scope_generation);
+  sha_u64(&state, transaction_digest);
+  for (size_t task = 0u;
+       task < W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT;
+       task += 1u) {
+    const w_seed_parallel_typed_binding1_record *semantic =
+        &records[task].semantic;
+    sha_u32(&state, semantic->lexical_index);
+    sha_u32(&state, semantic->call_index);
+    sha_u32(&state, semantic->callee_function);
+    sha_u32(&state, (uint32_t)semantic->outcome);
+    sha_i64(&state, semantic->success_value);
+    sha_u32(&state, semantic->error_type);
+    sha_u32(&state, semantic->error_enum_index);
+    sha_u32(&state, semantic->error_case_index);
+    sha_u32(&state, semantic->error_case_ordinal);
+    sha_u32(&state, semantic->error_case_tag);
+    w_seed_sha256_update(&state, semantic->error_identity_digest,
+                         sizeof(semantic->error_identity_digest));
+    sha_u32(&state, (uint32_t)records[task].state);
+    sha_u32(&state, records[task].transition_count);
+  }
+  sha_u32(&state, 1u);
+  sha_u32(&state, (uint32_t)W_SEED_PARALLEL_TYPED_BINDING1_OUTCOME_ERROR);
+  w_seed_sha256_final(&state, digest);
+}
+
+static void typed_lifecycle1_seal_provenance(
+    const w_seed_parallel_typed_lifecycle1_input *input,
+    const uint8_t semantic_digest[32], uint8_t digest[32]) {
+  w_seed_sha256_state state;
+  w_seed_sha256_init(&state);
+  w_seed_sha256_update(
+      &state,
+      (const uint8_t *)"w-seed-parallel-typed-lifecycle1-provenance-1",
+      sizeof("w-seed-parallel-typed-lifecycle1-provenance-1") - 1u);
+  w_seed_sha256_update(&state, semantic_digest, 32u);
+  w_seed_sha256_update(
+      &state, input->binding_result->provenance.provenance_digest, 32u);
+  w_seed_sha256_final(&state, digest);
+}
+
+static void typed_lifecycle1_result_base(
+    const w_seed_parallel_typed_lifecycle1_input *input,
+    w_seed_parallel_typed_lifecycle1_counts required,
+    w_seed_parallel_typed_lifecycle1_result *result) {
+  (void)memset(result, 0, sizeof(*result));
+  result->status = W_SEED_PARALLEL_TYPED_LIFECYCLE1_OK;
+  result->required = required;
+  (void)memcpy(result->schema,
+               W_SEED_PARALLEL_TYPED_LIFECYCLE1_SCHEMA_VERSION,
+               sizeof(result->schema));
+  result->task_count =
+      W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT;
+  result->event_count = W_TYPED_LIFECYCLE1_EVENT_COUNT;
+  result->scope_generation = input->scope_generation;
+  result->primary_error_task = 1u;
+  result->scope_outcome = W_SEED_PARALLEL_TYPED_BINDING1_OUTCOME_ERROR;
+  result->error_identity = input->binding_result->error_identity;
+  (void)memcpy(result->binding_semantic_digest,
+               input->binding_result->semantic_digest,
+               sizeof(result->binding_semantic_digest));
+  (void)memcpy(result->binding_provenance_digest,
+               input->binding_result->provenance.provenance_digest,
+               sizeof(result->binding_provenance_digest));
+}
+
+w_seed_parallel_typed_lifecycle1_status
+w_seed_parallel_typed_lifecycle1_measure(
+    const w_seed_parallel_typed_lifecycle1_input *input,
+    w_seed_parallel_typed_lifecycle1_counts *counts,
+    w_seed_parallel_typed_lifecycle1_result *result) {
+  if (counts == NULL || result == NULL)
+    return W_SEED_PARALLEL_TYPED_LIFECYCLE1_INVALID;
+  if (!typed_lifecycle1_input_valid(input))
+    return W_SEED_PARALLEL_TYPED_LIFECYCLE1_UPSTREAM;
+  const w_seed_parallel_typed_lifecycle1_counts required =
+      typed_lifecycle1_counts();
+  if (!typed_lifecycle1_ranges_disjoint(input, NULL, NULL, counts, result,
+                                        required))
+    return W_SEED_PARALLEL_TYPED_LIFECYCLE1_ALIAS;
+  w_seed_parallel_typed_lifecycle1_result candidate;
+  typed_lifecycle1_result_base(input, required, &candidate);
+  *counts = required;
+  *result = candidate;
+  return W_SEED_PARALLEL_TYPED_LIFECYCLE1_OK;
+}
+
+w_seed_parallel_typed_lifecycle1_status w_seed_parallel_typed_lifecycle1_run(
+    const w_seed_parallel_typed_lifecycle1_input *input,
+    const w_seed_parallel_typed_lifecycle1_workspace *workspace,
+    const w_seed_parallel_typed_lifecycle1_output *output,
+    w_seed_parallel_typed_lifecycle1_result *result) {
+  if (!typed_lifecycle1_input_valid(input))
+    return W_SEED_PARALLEL_TYPED_LIFECYCLE1_UPSTREAM;
+  if (workspace == NULL || output == NULL || result == NULL ||
+      workspace->task_specs == NULL || workspace->events == NULL ||
+      workspace->reducer_tasks == NULL || output->tasks == NULL ||
+      output->trace == NULL || output->typed_records == NULL)
+    return W_SEED_PARALLEL_TYPED_LIFECYCLE1_INVALID;
+  const w_seed_parallel_typed_lifecycle1_counts required =
+      typed_lifecycle1_counts();
+  if (workspace->task_spec_capacity < required.task_specs ||
+      workspace->event_capacity < required.events ||
+      workspace->reducer_task_capacity < required.reducer_tasks ||
+      output->task_capacity < required.tasks ||
+      output->trace_capacity < required.trace_events ||
+      output->typed_record_capacity < required.typed_records)
+    return W_SEED_PARALLEL_TYPED_LIFECYCLE1_CAPACITY;
+  if (!typed_lifecycle1_ranges_disjoint(input, workspace, output, NULL,
+                                        result, required))
+    return W_SEED_PARALLEL_TYPED_LIFECYCLE1_ALIAS;
+
+  w_seed_task_lifecycle1_transaction transaction;
+  typed_lifecycle1_build_transaction(input, workspace, &transaction);
+  if (transaction.event_count != W_TYPED_LIFECYCLE1_EVENT_COUNT)
+    return W_SEED_PARALLEL_TYPED_LIFECYCLE1_LIFECYCLE;
+  w_seed_task_lifecycle0_task_record staged_tasks[
+      W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT];
+  w_seed_task_lifecycle0_event staged_trace[W_TYPED_LIFECYCLE1_EVENT_COUNT];
+  w_seed_task_lifecycle1_result staged_lifecycle;
+  const w_seed_task_lifecycle0_status lifecycle_status =
+      w_seed_task_lifecycle1_run(
+          &transaction,
+          (w_seed_task_lifecycle1_workspace){
+              workspace->reducer_tasks, workspace->reducer_task_capacity},
+          (w_seed_task_lifecycle1_output){
+              staged_tasks,
+              W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT,
+              staged_trace, W_TYPED_LIFECYCLE1_EVENT_COUNT},
+          &staged_lifecycle);
+  if (lifecycle_status != W_SEED_TASK_LIFECYCLE0_OK ||
+      !typed_lifecycle1_reducer_result_valid(input, staged_tasks,
+                                             &staged_lifecycle))
+    return W_SEED_PARALLEL_TYPED_LIFECYCLE1_LIFECYCLE;
+
+  w_seed_parallel_typed_lifecycle1_record staged_typed[
+      W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT];
+  typed_lifecycle1_build_records(input, staged_tasks, staged_typed);
+  w_seed_parallel_typed_lifecycle1_result candidate;
+  typed_lifecycle1_result_base(input, required, &candidate);
+  candidate.written = required;
+  candidate.lifecycle = staged_lifecycle;
+  typed_lifecycle1_seal_semantic(input, staged_typed,
+                                 staged_lifecycle.transaction_digest,
+                                 candidate.semantic_digest);
+  typed_lifecycle1_seal_provenance(input, candidate.semantic_digest,
+                                   candidate.provenance_digest);
+
+  (void)memcpy(output->tasks, staged_tasks, sizeof(staged_tasks));
+  (void)memcpy(output->trace, staged_trace, sizeof(staged_trace));
+  (void)memcpy(output->typed_records, staged_typed, sizeof(staged_typed));
+  *result = candidate;
+  return W_SEED_PARALLEL_TYPED_LIFECYCLE1_OK;
+}
+
+bool w_seed_parallel_typed_lifecycle1_verify(
+    const w_seed_parallel_typed_lifecycle1_input *input,
+    const w_seed_parallel_typed_lifecycle1_workspace *workspace,
+    const w_seed_parallel_typed_lifecycle1_output *output,
+    const w_seed_parallel_typed_lifecycle1_result *result) {
+  if (!typed_lifecycle1_input_valid(input) || workspace == NULL ||
+      output == NULL || result == NULL || workspace->task_specs == NULL ||
+      workspace->events == NULL || workspace->reducer_tasks == NULL ||
+      output->tasks == NULL || output->trace == NULL ||
+      output->typed_records == NULL)
+    return false;
+  const w_seed_parallel_typed_lifecycle1_counts required =
+      typed_lifecycle1_counts();
+  if (workspace->task_spec_capacity < required.task_specs ||
+      workspace->event_capacity < required.events ||
+      workspace->reducer_task_capacity < required.reducer_tasks ||
+      output->task_capacity < required.tasks ||
+      output->trace_capacity < required.trace_events ||
+      output->typed_record_capacity < required.typed_records ||
+      !typed_lifecycle1_ranges_disjoint(input, workspace, output, NULL,
+                                        result, required))
+    return false;
+
+  w_seed_task_lifecycle1_transaction transaction;
+  typed_lifecycle1_build_transaction(input, workspace, &transaction);
+  if (transaction.event_count != W_TYPED_LIFECYCLE1_EVENT_COUNT ||
+      !w_seed_task_lifecycle1_verify(
+          &transaction,
+          (w_seed_task_lifecycle1_workspace){
+              workspace->reducer_tasks, workspace->reducer_task_capacity},
+          &(w_seed_task_lifecycle1_output){
+              output->tasks, output->task_capacity, output->trace,
+              output->trace_capacity},
+          &result->lifecycle) ||
+      !typed_lifecycle1_reducer_result_valid(input, output->tasks,
+                                             &result->lifecycle))
+    return false;
+  w_seed_parallel_typed_lifecycle1_record expected_records[
+      W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT];
+  typed_lifecycle1_build_records(input, output->tasks, expected_records);
+  if (memcmp(expected_records, output->typed_records,
+             sizeof(expected_records)) != 0 ||
+      result->status != W_SEED_PARALLEL_TYPED_LIFECYCLE1_OK ||
+      memcmp(result->schema,
+             W_SEED_PARALLEL_TYPED_LIFECYCLE1_SCHEMA_VERSION,
+             sizeof(result->schema)) != 0 ||
+      memcmp(&result->required, &required, sizeof(required)) != 0 ||
+      memcmp(&result->written, &required, sizeof(required)) != 0 ||
+      result->task_count !=
+          W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT ||
+      result->event_count != W_TYPED_LIFECYCLE1_EVENT_COUNT ||
+      result->scope_generation != input->scope_generation ||
+      result->primary_error_task != 1u ||
+      result->scope_outcome !=
+          W_SEED_PARALLEL_TYPED_BINDING1_OUTCOME_ERROR ||
+      !identity_equal(&result->error_identity,
+                      &input->binding_result->error_identity) ||
+      memcmp(result->binding_semantic_digest,
+             input->binding_result->semantic_digest,
+             sizeof(result->binding_semantic_digest)) != 0 ||
+      memcmp(result->binding_provenance_digest,
+             input->binding_result->provenance.provenance_digest,
+             sizeof(result->binding_provenance_digest)) != 0)
+    return false;
+  uint8_t semantic_digest[32];
+  typed_lifecycle1_seal_semantic(
+      input, expected_records, result->lifecycle.transaction_digest,
+      semantic_digest);
+  if (memcmp(result->semantic_digest, semantic_digest,
+             sizeof(semantic_digest)) != 0)
+    return false;
+  uint8_t provenance_digest[32];
+  typed_lifecycle1_seal_provenance(input, semantic_digest,
+                                   provenance_digest);
+  return memcmp(result->provenance_digest, provenance_digest,
                 sizeof(provenance_digest)) == 0;
 }

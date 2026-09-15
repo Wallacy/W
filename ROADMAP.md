@@ -171,7 +171,22 @@ identical across physical capacities one and two. The exact two-child array is
 a seed witness, not a language or ABI bound. Its receipt is not provider
 authentication and the callback is not native HIR execution.
 
-Next comes a typed TASKLIFE bridge that preserves this nominal error identity,
-followed by a distinct trusted-provider attestation boundary and an explicit
+W-1620 adds a separate caller-owned typed TASKLIFE bridge above fully verified
+PARBIND1. Its exact two-task seed transaction has 22 events. Task 0 succeeds.
+Task 1 maps nominal `Failure.denied` to TASKLIFE's internal generic `BODY`
+error, while a typed sidecar and result retain the exact nominal identity.
+Cleanup precedes commit. A late fail-fast cancellation names task 1, and the
+joined scope commits the consumed error. Capacities one and two produce equal
+semantic task, trace, typed-sidecar, and semantic-digest outputs, while their
+physical provenance differs. The bridge publishes transactionally and rejects
+capacity, alias, forgery, and generation violations. Its `u32` HIR and count
+fields are serialized proof indices and counts, not Task handle width. A future
+materialized Task handle is opaque and target-specialized. One native word is
+the baseline; lowering may elide it or prove a narrower representation more
+efficient. No 32-bit constraint or cost is imposed on 64-bit. This remains
+compiler-lifecycle evidence only, not a public Task/runtime/ABI, general
+cardinality, native-execution, attestation, or performance claim.
+
+Next comes a trusted provider attestation boundary, followed by an explicit
 panic boundary. Physical cancellation remains cooperative rather than thread
 termination.
