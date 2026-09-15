@@ -1,6 +1,11 @@
 #include "w_seed_accelerated_invocation0.h"
+#include "w_seed_accelerated_binding0.h"
+#include "w_seed_accelerated_request0.h"
+#include "w_seed_gpu0_projection.h"
 
 #include <stdbool.h>
+#include <inttypes.h>
+#include <limits.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -61,6 +66,9 @@ enum {
   TEST_GPU_TEXT = 1024,
   TEST_GPU_RECEIPT = TEST_RECEIPT,
   TEST_ACC_TEXT = 256,
+  TEST_BINDING_TEXT = 512,
+  TEST_GPU0_TEXT = 64,
+  TEST_REQUEST_TEXT = 512,
 };
 
 typedef struct {
@@ -139,10 +147,30 @@ typedef struct {
   uint8_t text[TEST_ACC_TEXT];
 } acc_storage;
 
+typedef struct {
+  w_seed_accelerated_binding0_record bindings[1];
+  uint8_t binding_text[TEST_BINDING_TEXT];
+  w_seed_gpu0_function functions[W_SEED_GPU0_EVIDENCE_FUNCTION_CAPACITY];
+  w_seed_gpu0_operation operations[W_SEED_GPU0_EVIDENCE_OPERATION_CAPACITY];
+  char gpu0_text[TEST_GPU0_TEXT];
+  uint8_t host_artifact[W_SEED_GPU0_EVIDENCE_ARTIFACT_CAPACITY];
+  uint8_t device_artifact[W_SEED_GPU0_EVIDENCE_ARTIFACT_CAPACITY];
+  int32_t host_result;
+  int32_t device_result;
+} accelerated_provider_storage;
+
+typedef struct {
+  w_seed_accelerated_request0_record requests[1];
+  uint8_t text[TEST_REQUEST_TEXT];
+  uint8_t device_artifact[W_SEED_GPU0_EVIDENCE_ARTIFACT_CAPACITY];
+} accelerated_request_storage;
+
 static frontend_fixture frontend;
 static gpu_storage gpu;
 static acc_storage accelerated;
 static acc_storage negative;
+static accelerated_provider_storage provider_storage;
+static accelerated_request_storage request_storage;
 
 static bool all_bytes_equal(const void *data, size_t bytes, uint8_t value) {
   if (bytes != 0u && data == NULL) return false;
@@ -315,6 +343,55 @@ static bool text_is(const uint8_t *text, size_t text_bytes, size_t offset,
          memcmp(text + offset, expected, bytes) == 0;
 }
 
+static void fill_digest(uint8_t digest[32], uint8_t seed) {
+  for (size_t index = 0u; index < 32u; index += 1u)
+    digest[index] = (uint8_t)(seed + (uint8_t)index);
+}
+
+static w_seed_accelerated_binding0_closed_profile closed_profile(void) {
+  w_seed_accelerated_binding0_closed_profile profile = {
+      .schema = W_SEED_ACCELERATED_BINDING0_PROFILE_SCHEMA_VERSION,
+      .schema_bytes =
+          sizeof(W_SEED_ACCELERATED_BINDING0_PROFILE_SCHEMA_VERSION) - 1u,
+      .root_identity = {"root:main", 9u},
+      .domain_identity = {"inference", 9u},
+      .descriptor_name = {"kernels", 7u},
+      .kernel_label = {"hello", 5u},
+      .module_identity = {"example.kernels@1", 17u},
+      .artifact_identity = {"artifact:gpu0", 13u},
+      .artifact_module_identity = {"example.kernels@1", 17u},
+      .kernel_instance_identity = {"instance:hello:0", 16u},
+      .artifact_target = {"nvptx64-nvidia-cuda", 19u},
+      .device_target = {"nvptx64-nvidia-cuda", 19u},
+      .provider_class = {"cuda", 4u},
+      .queue_identity = {"queue:0", 7u},
+      .device_identity = {"device:0", 8u},
+      .provider_generation = {"generation:1", 12u},
+      .bound_gpu_module_index = 0u,
+      .bound_gpu_kernel_index = 0u,
+      .profile_maximum = 8u,
+      .root_maximum = 6u,
+      .deployment_maximum = 3u,
+      .limits = {5u, 4096u, 1024u, 1024u, 8u, 65536u, 8u, 8u},
+      .submission = W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT,
+      .numeric_mode = W_SEED_ACCELERATED_BINDING0_NUMERIC_REPRODUCIBLE,
+      .fallback = W_SEED_ACCELERATED_BINDING0_FALLBACK_REJECT,
+      .artifact_closed = true,
+      .root_owned = true,
+      .provider_resolved = true,
+      .queue_device_match = true,
+      .selected_instance_member = true,
+  };
+  fill_digest(profile.artifact_provider_abi_digest, UINT8_C(0x20));
+  memcpy(profile.provider_abi_digest, profile.artifact_provider_abi_digest,
+         32u);
+  fill_digest(profile.artifact_instances_digest, UINT8_C(0x50));
+  fill_digest(profile.profile_semantic_digest, UINT8_C(0x80));
+  fill_digest(profile.profile_provenance_digest, UINT8_C(0xa0));
+  fill_digest(profile.root_binding_digest, UINT8_C(0xc0));
+  return profile;
+}
+
 static bool make_gpu_program(w_seed_gpu_module_program *program,
                              w_seed_gpu_module_result *result) {
   const w_seed_gpu_module_input input = {
@@ -392,6 +469,98 @@ static bool run_accelerated(const w_seed_gpu_module_program *gpu_program,
   CHECK(w_seed_accelerated_invocation0_program_from_output(&output, result,
                                                             program));
   CHECK(w_seed_accelerated_invocation0_verify(program, result));
+  return true;
+}
+
+static bool make_complete_request(
+    const w_seed_gpu_module_program *gpu_module_program,
+    const w_seed_gpu_module_result *gpu_module_result,
+    const w_seed_accelerated_invocation0_program *invocation_program,
+    const w_seed_accelerated_invocation0_result *invocation_result,
+    w_seed_accelerated_request0_program *request_program,
+    w_seed_accelerated_request0_result *request_result) {
+  (void)memset(&provider_storage, 0xa5, sizeof(provider_storage));
+  (void)memset(&request_storage, 0xa5, sizeof(request_storage));
+  w_seed_accelerated_binding0_closed_profile profile = closed_profile();
+  const w_seed_accelerated_binding0_input binding_input = {
+      invocation_program, invocation_result, &profile};
+  w_seed_accelerated_binding0_counts binding_counts;
+  w_seed_accelerated_binding0_result binding_result;
+  CHECK(w_seed_accelerated_binding0_measure(&binding_input, &binding_counts,
+                                             &binding_result) ==
+        W_SEED_ACCELERATED_BINDING0_OK);
+  const w_seed_accelerated_binding0_output binding_output = {
+      provider_storage.bindings, 1u, provider_storage.binding_text,
+      sizeof(provider_storage.binding_text)};
+  CHECK(w_seed_accelerated_binding0_run(&binding_input, &binding_output,
+                                         &binding_result) ==
+        W_SEED_ACCELERATED_BINDING0_OK);
+  w_seed_accelerated_binding0_program binding_program;
+  CHECK(w_seed_accelerated_binding0_program_from_output(
+      &binding_output, &binding_result, &binding_program));
+  CHECK(w_seed_accelerated_binding0_verify(&binding_program, &binding_result));
+
+  const w_seed_gpu0_projection_output projection_output = {
+      provider_storage.functions,
+      W_SEED_GPU0_EVIDENCE_FUNCTION_CAPACITY,
+      provider_storage.operations,
+      W_SEED_GPU0_EVIDENCE_OPERATION_CAPACITY,
+      provider_storage.gpu0_text,
+      sizeof(provider_storage.gpu0_text)};
+  w_seed_gpu0_program gpu0_program;
+  CHECK(w_seed_gpu0_program_from_gpu_module(
+      gpu_module_program, gpu_module_result, 0u, 0u, &projection_output,
+      &gpu0_program));
+  provider_storage.host_result = -1;
+  provider_storage.device_result = -1;
+  const w_seed_gpu0_output gpu0_output = {
+      provider_storage.host_artifact,
+      sizeof(provider_storage.host_artifact),
+      provider_storage.device_artifact,
+      sizeof(provider_storage.device_artifact),
+      &provider_storage.device_result,
+      &provider_storage.host_result};
+  w_seed_gpu0_result gpu0_result;
+  CHECK(w_seed_gpu0_run(&gpu0_program, &gpu0_output, &gpu0_result) ==
+        W_SEED_GPU0_OK);
+  CHECK(w_seed_gpu0_verify(&gpu0_program, &gpu0_output, &gpu0_result));
+
+  const w_seed_accelerated_request0_input request_input = {
+      &binding_program, &binding_result, &gpu0_program, &gpu0_output,
+      &gpu0_result};
+  w_seed_accelerated_request0_counts request_counts;
+  CHECK(w_seed_accelerated_request0_measure(
+            &request_input, &request_counts, request_result) ==
+        W_SEED_ACCELERATED_REQUEST0_OK);
+  const w_seed_accelerated_request0_output request_output = {
+      request_storage.requests,
+      1u,
+      request_storage.text,
+      sizeof(request_storage.text),
+      request_storage.device_artifact,
+      sizeof(request_storage.device_artifact)};
+  CHECK(w_seed_accelerated_request0_run(&request_input, &request_output,
+                                         request_result) ==
+        W_SEED_ACCELERATED_REQUEST0_OK);
+  CHECK(w_seed_accelerated_request0_program_from_output(
+      &request_output, request_result, request_program));
+  CHECK(w_seed_accelerated_request0_verify(request_program, request_result));
+  CHECK(request_program->request_count == 1u &&
+        request_program->requests[0].sentinel_expected_i32 == 42 &&
+        text_is(request_program->text, request_program->text_bytes,
+                request_program->requests[0].kernel_symbol_offset,
+                request_program->requests[0].kernel_symbol_bytes,
+                "w_gpu0_kernel"));
+
+  /* ACCREQ0 owns the complete request and artifact after physical and binding
+   * producer storage disappears. */
+  (void)memset(&profile, 0, sizeof(profile));
+  (void)memset(&binding_program, 0, sizeof(binding_program));
+  (void)memset(&binding_result, 0, sizeof(binding_result));
+  (void)memset(&gpu0_program, 0, sizeof(gpu0_program));
+  (void)memset(&gpu0_result, 0, sizeof(gpu0_result));
+  (void)memset(&provider_storage, 0, sizeof(provider_storage));
+  CHECK(w_seed_accelerated_request0_verify(request_program, request_result));
   return true;
 }
 
@@ -640,7 +809,52 @@ static bool test_negative_boundaries(
   return true;
 }
 
-static bool test_accelerated_invocation(const char *fixture_path) {
+static bool emit_request_artifact(
+    const char *path,
+    const w_seed_accelerated_request0_program *request_program,
+    const w_seed_accelerated_request0_result *request_result) {
+  CHECK(path != NULL && path[0] != '\0' &&
+        w_seed_accelerated_request0_verify(request_program, request_result));
+  const w_seed_accelerated_request0_record *request =
+      &request_program->requests[0];
+  CHECK(request->kernel_symbol_bytes <= (size_t)INT_MAX &&
+        request->kernel_symbol_offset <= request_program->text_bytes &&
+        request->kernel_symbol_bytes <=
+            request_program->text_bytes - request->kernel_symbol_offset);
+  FILE *existing = fopen(path, "rb");
+  if (existing != NULL) {
+    (void)fclose(existing);
+    return false;
+  }
+  FILE *file = fopen(path, "wb");
+  if (file == NULL) return false;
+  bool okay = fwrite(request_program->device_artifact, 1u,
+                     request_program->device_artifact_bytes, file) ==
+                  request_program->device_artifact_bytes &&
+              fflush(file) == 0;
+  if (fclose(file) != 0) okay = false;
+  if (!okay) {
+    (void)remove(path);
+    return false;
+  }
+  const int printed = fprintf(
+      stdout,
+      "{\"schema\":\"%s\",\"kernel\":\"%.*s\",\"expected\":%ld,"
+      "\"deviceArtifactBytes\":%" PRIuMAX "}\n",
+      W_SEED_ACCELERATED_REQUEST0_SCHEMA_VERSION,
+      (int)request->kernel_symbol_bytes,
+      (const char *)request_program->text + request->kernel_symbol_offset,
+      (long)request->sentinel_expected_i32,
+      (uintmax_t)request_program->device_artifact_bytes);
+  if (printed < 0 || fflush(stdout) != 0) {
+    (void)remove(path);
+    return false;
+  }
+  return true;
+}
+
+static bool test_accelerated_invocation(const char *fixture_path,
+                                        const char *emit_path) {
   char source[4096];
   CHECK(read_file(fixture_path, source, sizeof(source)));
   CHECK(parse_frontend(source));
@@ -655,19 +869,33 @@ static bool test_accelerated_invocation(const char *fixture_path) {
   CHECK(run_accelerated(&gpu_program, &gpu_result, &program, &result));
   CHECK(check_identity_and_relations(&program));
   CHECK(test_negative_boundaries(&gpu_program, &gpu_result, &program, &result));
+  w_seed_accelerated_request0_program request_program;
+  w_seed_accelerated_request0_result request_result;
+  CHECK(make_complete_request(&gpu_program, &gpu_result, &program, &result,
+                              &request_program, &request_result));
 
   (void)memset(&frontend, 0, sizeof(frontend));
   (void)memset(&gpu, 0, sizeof(gpu));
   CHECK(w_seed_accelerated_invocation0_verify(&program, &result));
+  (void)memset(&accelerated, 0, sizeof(accelerated));
+  (void)memset(&negative, 0, sizeof(negative));
+  CHECK(w_seed_accelerated_request0_verify(&request_program, &request_result));
+  if (emit_path != NULL)
+    return emit_request_artifact(emit_path, &request_program, &request_result);
   (void)printf("ACCINV0 source->frontend28->gpu-module-1->program: PASS\n");
   (void)printf("ACCINV0 identities/spans/digests/teardown/negative barriers: PASS\n");
+  (void)printf("ACCREQ0 source-derived request/artifact/teardown: PASS\n");
   return true;
 }
 
 int main(int argc, char **argv) {
-  if (argc != 2) {
-    (void)fprintf(stderr, "usage: %s <gpu-module-fixture>\n", argv[0]);
-    return 2;
-  }
-  return test_accelerated_invocation(argv[1]) ? 0 : 1;
+  if (argc == 2)
+    return test_accelerated_invocation(argv[1], NULL) ? 0 : 1;
+  if (argc == 4 && strcmp(argv[1], "--emit-request") == 0)
+    return test_accelerated_invocation(argv[2], argv[3]) ? 0 : 1;
+  (void)fprintf(stderr,
+                "usage: %s <gpu-module-fixture>\n"
+                "   or: %s --emit-request <gpu-module-fixture> <device.mlir>\n",
+                argv[0], argv[0]);
+  return 2;
 }

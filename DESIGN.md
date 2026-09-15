@@ -40207,8 +40207,9 @@ the kernel on the available NVIDIA RTX A400 and verifies `42`; missing-provider
 and missing-kernel cases fail closed. The adapter no longer embeds that value:
 its private CLI accepts one canonical signed-`i32` expectation, rejects invalid
 text before provider loading, and fails after execution when the device result
-does not match. The current gate supplies `42`; deriving this field from
-verified ACCREQ0 is the next physical integration boundary. A separate diagnostic catalog records
+does not match. The current gate derives the exact device artifact, kernel
+symbol, and expected signed-`i32` field from verified ACCREQ0 before crossing
+into the private CUDA adapter. A separate diagnostic catalog records
 temporary artifact sizes and in-process H2D, dispatch-plus-synchronize, D2H,
 and end-to-end p50/p95 values. It is not a W product ranking.
 
@@ -40371,9 +40372,10 @@ ACCREQ0 is not submission. It has no provider handle, CUDA call, scheduler,
 queue operation, completion receipt, cancellation, residency decision or
 public ABI. The fixed request count, kernel symbol, signed-`i32` result and
 sentinel value are seed evidence bounds, not language, ABI or runtime limits.
-The actual provider adapter does not yet consume ACCREQ0, so supported
-launch/join/result, public GPU products, other accelerators, benchmarking and
-performance remain explicit gaps. No W syntax is added.
+The physical gate now consumes ACCREQ0-owned artifact and parameter data, but
+the adapter is still a private process boundary rather than a supported runtime
+or ABI. Supported launch/join/result, public GPU products, other accelerators,
+product benchmarking and performance remain explicit gaps. No W syntax is added.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

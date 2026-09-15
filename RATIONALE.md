@@ -12726,8 +12726,8 @@ missing-kernel cases fail closed with exit `2`; the successful run prints
 `GPU0 CUDA result: 42`. The private adapter receives the expected signed-`i32`
 value as canonical decimal input rather than embedding `42`; malformed input
 is rejected before loading the provider and an intentional `41` mismatch fails
-after device execution. The checker still supplies the current sentinel
-directly, so ACCREQ0-to-adapter parameter transport remains open.
+after device execution. The checker now obtains the device MLIR, kernel symbol,
+and expected value from a source-derived, independently verified ACCREQ0.
 
 The separate GPU0 diagnostic catalog measures 101 warmups and 1001 in-process
 samples after context, module, function, and device allocation setup. It keeps
@@ -12912,6 +12912,7 @@ The implementation deliberately stops before submission. A schema-bound
 kernel symbol is data for the later provider adapter, not a public GPU ABI;
 there is no provider handle, queue call, launch, join or completion receipt.
 The one request, zero arguments and sentinel result are evidence bounds only.
-This preserves a narrow next step: make the physical adapter consume the
-verified request, then add supported launch/join/result evidence without
-reopening source or product selection.
+The physical gate now exports the verified request's device artifact, kernel
+symbol, and expected value into its private CUDA adapter. The remaining narrow
+step is a supported provider launch/join/result boundary and public product
+route, without reopening source or product selection.

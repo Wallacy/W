@@ -12,7 +12,6 @@ import { CLANG_RELEASE_FLAGS } from "./executable-release-recipes.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const seed = path.join(root, "compiler", "seed-c");
 const unitSuccessOutput = "GPU0 target-neutral logical witness: passed\r\n";
-const successOutput = "GPU0 CUDA result: 42\r\n";
 const benchmarkMode = process.argv[2] === "--benchmark";
 const benchmarkWarmups = Number(process.argv[3] ?? "101");
 const benchmarkSamples = Number(process.argv[4] ?? "1001");
@@ -42,6 +41,7 @@ async function isFile(file) {
 function run(executable, args, options = {}) {
   const result = spawnSync(executable, args, {
     cwd: options.cwd ?? root,
+    env: options.env ?? process.env,
     encoding: "utf8",
     windowsHide: true,
     maxBuffer: 16 * 1024 * 1024,
@@ -92,10 +92,19 @@ function exactlyOne(text, pattern, label) {
   return matches[0];
 }
 
-function flattenKernelModule(text, chip) {
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+function flattenKernelModule(text, chip, kernelSymbol) {
+  const escapedKernel = escapeRegExp(kernelSymbol);
   const functionMatch = exactlyOne(
     text,
-    /^\s*llvm\.func @w_gpu0_kernel\([^\n]*\) attributes \{gpu\.kernel, nvvm\.kernel\} \{/gmu,
+    new RegExp(
+      `^\\s*llvm\\.func @${escapedKernel}\\([^\\n]*\\) attributes ` +
+        "\\{gpu\\.kernel, nvvm\\.kernel\\} \\{",
+      "gmu",
+    ),
     "lowered GPU0 kernel",
   );
   exactlyOne(text, /gpu\.module @w_gpu0_device/gmu, "lowered GPU0 module");
@@ -176,8 +185,9 @@ const mlirTranslate = toolPath("mlir-translate.exe");
 if (!(await isFile(mlirOpt)) || !(await isFile(mlirTranslate)))
   skip("pinned MLIR tools are missing");
 
-const clang = "C:\\Program Files\\LLVM\\bin\\clang.exe";
+const clang = "C:/Program Files/LLVM/bin/clang.exe";
 if (!(await isFile(clang))) skip("system Clang with NVPTX is unavailable");
+const seedCompiler = Bun.which("gcc") ?? Bun.which("cc") ?? clang;
 const clangVersion = run(clang, ["--version"], { label: "clang --version" });
 requireSuccess(clangVersion, "clang --version");
 const clangVersionMatch = /clang version (\d+\.\d+\.\d+)/u.exec(clangVersion.stdout);
@@ -188,12 +198,20 @@ if (!/^\s*nvptx64\s+-/mu.test(clangTargets.stdout)) skip("system Clang has no NV
 
 const directory = await mkdtemp(path.join(os.tmpdir(), "w-gpu0-cuda-"));
 try {
-  const emitter = path.join(directory, "gpu0_emit.exe");
-  const unit = path.join(directory, "gpu0_unit.exe");
+  const build = path.join(directory, "seed-build");
+  const executableSuffix = process.platform === "win32" ? ".exe" : "";
+  const unit = path.join(build, `w_seed_gpu0_tests${executableSuffix}`);
+  const frontendUnit = path.join(build, `w_seed_frontend_tests${executableSuffix}`);
+  const bindingUnit = path.join(
+    build,
+    `w_seed_accelerated_binding0_tests${executableSuffix}`,
+  );
+  const requestEmitter = path.join(
+    build,
+    `w_seed_accelerated_invocation0_tests${executableSuffix}`,
+  );
   const adapter = path.join(directory, "gpu0_cuda_windows.exe");
-  const host = path.join(directory, "host.mlir");
   const device = path.join(directory, "device.mlir");
-  const hostChecked = path.join(directory, "host.checked.mlir");
   const deviceChecked = path.join(directory, "device.checked.mlir");
   const attached = path.join(directory, "device.attached.mlir");
   const lowered = path.join(directory, "device.lowered.mlir");
@@ -206,40 +224,89 @@ try {
     "-std=c23", "-Wall", "-Wextra", "-Wpedantic", "-Wconversion",
     "-Wsign-conversion", "-Wshadow", "-Werror",
   ];
-  const include = ["-I", path.join(seed, "include")];
-  const commonSources = [
-    path.join(seed, "src", "w_seed_gpu0.c"),
-    path.join(seed, "src", "w_seed_sha256.c"),
-    path.join(seed, "src", "w_seed_source.c"),
-    path.join(seed, "src", "w_seed_unicode.c"),
-    path.join(seed, "src", "w_seed_unicode_data.c"),
-  ];
-  const unitCompile = run(clang, [
-    ...strict, "-O2", ...include, ...commonSources,
-    path.join(seed, "tests", "test_gpu0.c"), "-o", unit,
-  ], { label: "compile GPU0 unit" });
-  requireSuccess(unitCompile, "compile GPU0 unit");
+  const cmake = Bun.which("cmake");
+  const ninja = Bun.which("ninja");
+  if (!cmake || !ninja) skip("CMake or Ninja is unavailable");
+  const buildEnvironment = { ...process.env, CC: seedCompiler };
+  const configure = run(cmake, [
+    "-S", seed, "-B", build, "-G", "Ninja",
+    "-DCMAKE_BUILD_TYPE=Release", "-DW_SEED_C_STANDARD=23",
+    `-DCMAKE_C_COMPILER=${seedCompiler}`,
+  ], { label: "configure integrated GPU0 seed build", env: buildEnvironment });
+  requireSuccess(configure, "configure integrated GPU0 seed build");
+  const seedBuild = run(cmake, [
+    "--build", build, "--target", "w_seed_frontend_tests",
+    "w_seed_accelerated_binding0_tests", "w_seed_gpu0_tests",
+    "w_seed_accelerated_invocation0_tests", "--parallel", "2",
+  ], { label: "build integrated GPU0 seed route", env: buildEnvironment });
+  requireSuccess(seedBuild, "build integrated GPU0 seed route");
   const unitRun = run(unit, [], { label: "run GPU0 unit" });
   requireSuccess(unitRun, "run GPU0 unit");
   if (unitRun.stdout !== unitSuccessOutput || unitRun.stderr !== "")
     fail(`unexpected GPU0 unit output: ${JSON.stringify(unitRun)}`);
-  const emitterCompile = run(clang, [
-    ...strict, "-O2", ...include,
-    ...commonSources,
-    path.join(seed, "tests", "gpu0_emit.c"),
-    "-o", emitter,
-  ], { label: "compile GPU0 emitter" });
-  requireSuccess(emitterCompile, "compile GPU0 emitter");
   const adapterCompile = run(clang, [
     ...strict, ...CLANG_RELEASE_FLAGS,
     path.join(seed, "tests", "gpu0_cuda_windows.c"), "-o", adapter,
   ], { label: "compile GPU0 CUDA adapter" });
   requireSuccess(adapterCompile, "compile GPU0 CUDA adapter");
 
-  const emitted = run(emitter, [host, device], { label: "GPU0 emitter" });
-  requireSuccess(emitted, "GPU0 emitter");
-  requireSuccess(run(mlirOpt, [host, "-o", hostChecked], { label: "parse host MLIR" }),
-    "parse host MLIR");
+  const fixture = path.join(seed, "fixtures", "accelerated-invocation0.w");
+  const moduleFixture = path.join(seed, "fixtures", "gpu0-module.w");
+  const frontendRun = run(frontendUnit, [moduleFixture], {
+    label: "run source-derived GPU module unit",
+  });
+  requireSuccess(frontendRun, "run source-derived GPU module unit");
+  if (frontendRun.stdout !== "" || frontendRun.stderr !== "")
+    fail("source-derived GPU module unit produced output");
+  const bindingRun = run(bindingUnit, [fixture], {
+    label: "run accelerated binding unit",
+  });
+  requireSuccess(bindingRun, "run accelerated binding unit");
+  const expectedBindingOutput =
+    "ACCBIND0 verified static root binding: PASS\r\n" +
+    "ACCBIND0 budgets/digests/teardown/negative barriers: PASS\r\n" +
+    "ACCREQ0 provider-neutral request: PASS\r\n";
+  if (bindingRun.stdout !== expectedBindingOutput || bindingRun.stderr !== "")
+    fail(`accelerated binding unit output is unexpected: ${JSON.stringify(bindingRun)}`);
+  const invocationRun = run(requestEmitter, [fixture], {
+    label: "run accelerated invocation unit",
+  });
+  requireSuccess(invocationRun, "run accelerated invocation unit");
+  const expectedInvocationOutput =
+    "ACCINV0 source->frontend28->gpu-module-1->program: PASS\r\n" +
+    "ACCINV0 identities/spans/digests/teardown/negative barriers: PASS\r\n" +
+    "ACCREQ0 source-derived request/artifact/teardown: PASS\r\n";
+  if (invocationRun.stdout !== expectedInvocationOutput || invocationRun.stderr !== "")
+    fail(`accelerated invocation unit output is unexpected: ${JSON.stringify(invocationRun)}`);
+  const emitted = run(requestEmitter, ["--emit-request", fixture, device], {
+    label: "emit verified accelerated request",
+  });
+  requireSuccess(emitted, "emit verified accelerated request");
+  if (emitted.stderr !== "") fail("accelerated request emitter produced stderr");
+  let request;
+  try {
+    request = JSON.parse(emitted.stdout);
+  } catch {
+    fail(`accelerated request metadata is not JSON: ${JSON.stringify(emitted.stdout)}`);
+  }
+  const emittedDevice = await readFile(device);
+  if (request?.schema !== "w-seed-accelerated-request0-1" ||
+      typeof request.kernel !== "string" ||
+      !/^[A-Za-z_][A-Za-z0-9_]*$/u.test(request.kernel) ||
+      !Number.isSafeInteger(request.expected) ||
+      request.expected < -2147483648 || request.expected > 2147483647 ||
+      !Number.isSafeInteger(request.deviceArtifactBytes) ||
+      request.deviceArtifactBytes <= 0 ||
+      request.deviceArtifactBytes !== emittedDevice.length)
+    fail("accelerated request metadata violates its gate contract");
+  const kernelSymbol = request.kernel;
+  const expectedResult = String(request.expected);
+  const duplicateEmission = run(requestEmitter, ["--emit-request", fixture, device], {
+    label: "reject duplicate accelerated request artifact",
+  });
+  if (duplicateEmission.status === 0 || duplicateEmission.stdout !== "" ||
+      digest(await readFile(device)) !== digest(emittedDevice))
+    fail("accelerated request emitter did not preserve an existing destination");
   requireSuccess(run(mlirOpt, [device, "-o", deviceChecked], { label: "parse device MLIR" }),
     "parse device MLIR");
   requireSuccess(run(mlirOpt, [
@@ -255,7 +322,9 @@ try {
     label: "lower GPU0 device MLIR",
   }), "lower GPU0 device MLIR");
 
-  const flattened = flattenKernelModule(await readFile(lowered, "utf8"), chip);
+  const flattened = flattenKernelModule(
+    await readFile(lowered, "utf8"), chip, kernelSymbol,
+  );
   await writeFile(flat, flattened, { encoding: "utf8", flag: "wx" });
   requireSuccess(run(mlirOpt, [flat, "-o", flatChecked], { label: "parse flat LLVM dialect" }),
     "parse flat LLVM dialect");
@@ -269,17 +338,19 @@ try {
   ], { label: "emit GPU0 PTX" }), "emit GPU0 PTX");
   const ptxText = await readFile(ptx, "utf8");
   if (!ptxText.includes(`.target ${chip}`) ||
-      !/\.visible\s+\.entry\s+w_gpu0_kernel\(/u.test(ptxText))
+      !new RegExp(`\\.visible\\s+\\.entry\\s+${escapeRegExp(kernelSymbol)}\\(`, "u")
+        .test(ptxText))
     fail("PTX does not expose the expected GPU0 kernel and target");
 
-  const executed = run(adapter, [provider, ptx, "w_gpu0_kernel", "42"], {
+  const executed = run(adapter, [provider, ptx, kernelSymbol, expectedResult], {
     label: "execute GPU0 CUDA kernel",
   });
   requireSuccess(executed, "execute GPU0 CUDA kernel");
-  if (executed.stdout !== successOutput || executed.stderr !== "")
+  if (executed.stdout !== `GPU0 CUDA result: ${request.expected}\r\n` ||
+      executed.stderr !== "")
     fail(`unexpected GPU0 CUDA output: ${JSON.stringify(executed)}`);
 
-  const missing = run(adapter, [path.join(directory, "missing-provider.dll"), ptx, "w_gpu0_kernel", "42"], {
+  const missing = run(adapter, [path.join(directory, "missing-provider.dll"), ptx, kernelSymbol, expectedResult], {
     label: "missing GPU0 provider",
   });
   if (missing.status !== 2 || missing.stdout !== "" || missing.stderr.length === 0)
@@ -290,23 +361,24 @@ try {
   if (wrongKernel.status !== 2 || wrongKernel.stdout !== "" || wrongKernel.stderr.length === 0)
     fail("missing-kernel adversarial did not fail closed");
   for (const invalid of ["not-i32", "01", "-0", "2147483648", "-2147483649"]) {
-    const invalidExpected = run(adapter, [provider, ptx, "w_gpu0_kernel", invalid], {
+    const invalidExpected = run(adapter, [provider, ptx, kernelSymbol, invalid], {
       label: "invalid GPU0 expected result",
     });
     if (invalidExpected.status !== 2 || invalidExpected.stdout !== "" ||
         invalidExpected.stderr.length === 0)
       fail(`invalid-expected-result adversarial did not fail closed: ${invalid}`);
   }
-  const wrongExpected = run(adapter, [provider, ptx, "w_gpu0_kernel", "41"], {
+  const mismatchedResult = request.expected === 41 ? 42 : 41;
+  const wrongExpected = run(adapter, [provider, ptx, kernelSymbol, String(mismatchedResult)], {
     label: "mismatched GPU0 expected result",
   });
   if (wrongExpected.status !== 2 || wrongExpected.stdout !== "" ||
-      !wrongExpected.stderr.includes("expected 41, got 42"))
+      !wrongExpected.stderr.includes(`expected ${mismatchedResult}, got ${request.expected}`))
     fail("mismatched-expected-result adversarial did not fail closed");
 
   if (benchmarkMode) {
     const benchmark = run(adapter, [
-      provider, ptx, "w_gpu0_kernel", "42", "--benchmark",
+      provider, ptx, kernelSymbol, expectedResult, "--benchmark",
       String(benchmarkWarmups), String(benchmarkSamples),
     ], { label: "benchmark GPU0 CUDA kernel" });
     requireSuccess(benchmark, "benchmark GPU0 CUDA kernel");
@@ -319,14 +391,14 @@ try {
     }
     if (timings?.schema !== "w-gpu0-cuda-timing-1" ||
         !Number.isSafeInteger(timings.frequency) || timings.frequency <= 0 ||
-        timings.warmups !== benchmarkWarmups || timings.result !== 42 ||
+        timings.warmups !== benchmarkWarmups || timings.result !== request.expected ||
         !Array.isArray(timings.samples) || timings.samples.length !== benchmarkSamples)
       fail("GPU0 benchmark output violates its timing contract");
     for (const [index, sample] of timings.samples.entries()) {
       if (sample === null || typeof sample !== "object" || Array.isArray(sample) ||
           JSON.stringify(Object.keys(sample).sort()) !==
             JSON.stringify(["d2h", "dispatchSync", "endToEnd", "h2d", "result"]) ||
-          sample.result !== 42)
+          sample.result !== request.expected)
         fail(`GPU0 benchmark sample ${index} violates its correctness contract`);
     }
     const artifact = async (kind, file) => {
@@ -351,7 +423,7 @@ try {
         adapterSourceDigest: digest(await readFile(path.join(seed, "tests", "gpu0_cuda_windows.c"))),
         gpu0CoreDigest: digest(await readFile(path.join(seed, "src", "w_seed_gpu0.c"))),
       },
-      correctness: { expected: 42, observed: timings.result },
+      correctness: { expected: request.expected, observed: timings.result },
       protocol: {
         clock: "QueryPerformanceCounter",
         warmups: benchmarkWarmups,
@@ -361,7 +433,6 @@ try {
       },
       artifacts: await Promise.all([
         artifact("host-adapter", adapter),
-        artifact("host-mlir", host),
         artifact("device-mlir", device),
         artifact("device-ptx", ptx),
       ]),
@@ -381,9 +452,9 @@ try {
     console.log(JSON.stringify(snapshot));
   } else {
     console.log(
-      `GPU0 CUDA integration: PASS (${gpuName}; ${chip}; result 42; ` +
+      `GPU0 CUDA integration: PASS (${gpuName}; ${chip}; result ${request.expected}; ` +
       `mixed MLIR 23.1.1 + Clang ${clangVersionMatch[1]}; experimental, ` +
-      "not homogeneous pinned production support and not source-backed W)",
+      "source-derived ACCREQ0, not homogeneous pinned production support)",
     );
   }
 } finally {
