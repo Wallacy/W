@@ -245,6 +245,7 @@ typedef struct {
   uint32_t current_module_const;
   uint32_t builtin_usize_type_index;
   uint32_t default_integer_type_index;
+  uint32_t builtin_i32_type_index;
   uint32_t builtin_bool_type_index;
   uint32_t inferred_string_type_index;
   bool normalizing_generic_domain;
@@ -270,8 +271,8 @@ typedef struct {
    * may erase the relation completely when no physical state must survive. */
   frontend_task_binding task_bindings[FRONTEND_MAX_TASK_BINDINGS];
   size_t task_binding_count;
-  uint32_t task_result_type_indices[4];
-  uint32_t task_type_indices[4];
+  uint32_t task_result_type_indices[5];
+  uint32_t task_type_indices[5];
 } frontend_context;
 
 /* These arrays are temporary per-thread inference workspace.  Each measure or
@@ -4547,6 +4548,14 @@ static bool task_result_kind_supported(frontend_simple_type type) {
   return type.kind == W_SEED_FRONTEND_TYPE_UNIT ||
          type.kind == W_SEED_FRONTEND_TYPE_BOOL ||
          type.kind == W_SEED_FRONTEND_TYPE_STRING ||
+          (type.kind == W_SEED_FRONTEND_TYPE_INTEGER && type.is_signed &&
+           (type.bit_width == 32u || type.bit_width == 64u));
+}
+
+static bool host_task_result_kind_supported(frontend_simple_type type) {
+  return type.kind == W_SEED_FRONTEND_TYPE_UNIT ||
+         type.kind == W_SEED_FRONTEND_TYPE_BOOL ||
+         type.kind == W_SEED_FRONTEND_TYPE_STRING ||
          (type.kind == W_SEED_FRONTEND_TYPE_INTEGER && type.is_signed &&
           type.bit_width == 64u);
 }
@@ -4576,6 +4585,11 @@ static bool task_result_slot(frontend_simple_type result, size_t *slot) {
   if (result.kind == W_SEED_FRONTEND_TYPE_INTEGER && result.is_signed &&
       result.bit_width == 64u) {
     *slot = 1u;
+    return true;
+  }
+  if (result.kind == W_SEED_FRONTEND_TYPE_INTEGER && result.is_signed &&
+      result.bit_width == 32u) {
+    *slot = 4u;
     return true;
   }
   if (result.kind == W_SEED_FRONTEND_TYPE_BOOL) {
@@ -5557,6 +5571,7 @@ w_seed_frontend_status w_seed_frontend_measure(
   dry.current_module_const = W_SEED_FRONTEND_NONE;
   dry.builtin_usize_type_index = W_SEED_FRONTEND_NONE;
   dry.default_integer_type_index = W_SEED_FRONTEND_NONE;
+  dry.builtin_i32_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_bool_type_index = W_SEED_FRONTEND_NONE;
   dry.inferred_string_type_index = W_SEED_FRONTEND_NONE;
   dry.const_inferred_types = frontend_const_inferred_types_scratch;
@@ -7494,6 +7509,11 @@ static bool context_append_type(frontend_context *context,
   const size_t ordinal = context->count.types;
   context->count.types += 1;
   if (!add_u32(ordinal, index)) return false;
+  if (value.kind == W_SEED_FRONTEND_TYPE_INTEGER && value.is_signed &&
+      value.bit_width == 32u && text_equal(value.spelling, "i32") &&
+      context->builtin_i32_type_index == W_SEED_FRONTEND_NONE) {
+    context->builtin_i32_type_index = *index;
+  }
   if (!context->emit && !receipt_size_type(context, &value)) return false;
   if (context->emit) {
     if (context->output == NULL || context->output->types == NULL ||
@@ -11434,6 +11454,33 @@ static bool output_type_index_for_simple(frontend_context *context,
     *index = context->default_integer_type_index;
     return true;
   }
+  if (type.kind == W_SEED_FRONTEND_TYPE_INTEGER && type.is_signed &&
+      type.bit_width == 32u && text_equal(type.spelling, "i32")) {
+    if (context->builtin_i32_type_index == W_SEED_FRONTEND_NONE) {
+      w_seed_frontend_type builtin;
+      (void)memset(&builtin, 0, sizeof(builtin));
+      builtin.kind = W_SEED_FRONTEND_TYPE_INTEGER;
+      builtin.spelling = (w_seed_frontend_text){"i32", 3u};
+      builtin.nominal_name = builtin.spelling;
+      builtin.span = empty_span(0u);
+      builtin.is_signed = true;
+      builtin.bit_width = 32u;
+      builtin.element_type = W_SEED_FRONTEND_NONE;
+      builtin.return_type = W_SEED_FRONTEND_NONE;
+      builtin.first_parameter = W_SEED_FRONTEND_NONE;
+      builtin.enum_base_index = W_SEED_FRONTEND_NONE;
+      builtin.first_subset_member = W_SEED_FRONTEND_NONE;
+      builtin.subset_member_count = 0u;
+      builtin.generic_application_index = W_SEED_FRONTEND_NONE;
+      builtin.external_module_index = W_SEED_FRONTEND_NONE;
+      builtin.external_symbol_index = W_SEED_FRONTEND_NONE;
+      uint32_t builtin_index = W_SEED_FRONTEND_NONE;
+      if (!context_append_type(context, builtin, &builtin_index)) return false;
+      context->builtin_i32_type_index = builtin_index;
+    }
+    *index = context->builtin_i32_type_index;
+    return true;
+  }
   if (type.kind == W_SEED_FRONTEND_TYPE_INTEGER && !type.is_signed &&
       type.bit_width == (uint16_t)W_SEED_FRONTEND_TARGET_USIZE_BITS &&
       text_equal(type.spelling, "usize")) {
@@ -13336,10 +13383,12 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
     const w_seed_span span = {spawn_token.span.start_byte,
                               nested.span.end_byte};
     const frontend_simple_type result_type = nested.type;
+    const bool result_supported =
+        accelerated ? task_result_kind_supported(result_type)
+                    : host_task_result_kind_supported(result_type);
     const bool call_supported =
         nested.supported && nested.kind == W_SEED_FRONTEND_EXPR_CALL &&
-        task_result_kind_supported(result_type) &&
-        !parser->context->current_function_is_const;
+        result_supported && !parser->context->current_function_is_const;
     const bool supported =
         call_supported && domain_bound &&
         ((main_domain && nested.is_local_call) ||
@@ -13432,7 +13481,7 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
       result_type = nested.type;
       supported = supported && nested.kind == W_SEED_FRONTEND_EXPR_CALL &&
                   nested.is_local_call &&
-                  task_result_kind_supported(result_type) &&
+                  host_task_result_kind_supported(result_type) &&
                   !parser->context->current_function_is_const;
     } else {
       binding = nested.kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
@@ -18627,6 +18676,7 @@ w_seed_frontend_status w_seed_frontend_run(
   dry.emit = false;
   dry.builtin_usize_type_index = W_SEED_FRONTEND_NONE;
   dry.default_integer_type_index = W_SEED_FRONTEND_NONE;
+  dry.builtin_i32_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_bool_type_index = W_SEED_FRONTEND_NONE;
   dry.inferred_string_type_index = W_SEED_FRONTEND_NONE;
   dry.const_inferred_types = frontend_const_inferred_types_scratch;
@@ -18703,6 +18753,7 @@ w_seed_frontend_status w_seed_frontend_run(
   emit.current_module_const = W_SEED_FRONTEND_NONE;
   emit.builtin_usize_type_index = W_SEED_FRONTEND_NONE;
   emit.default_integer_type_index = W_SEED_FRONTEND_NONE;
+  emit.builtin_i32_type_index = W_SEED_FRONTEND_NONE;
   emit.builtin_bool_type_index = W_SEED_FRONTEND_NONE;
   emit.inferred_string_type_index = W_SEED_FRONTEND_NONE;
   emit.const_inferred_types = frontend_const_inferred_types_scratch;

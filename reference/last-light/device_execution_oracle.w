@@ -69,6 +69,29 @@ export async fn forecastOnDevice<
   return try await prediction
 }
 
+export async fn prepareForecastInputs<
+  rows: usize,
+  inputs: usize,
+  outputs: usize,
+>(
+  features: take FeatureBatch<rows: rows, columns: inputs>,
+  weights: take WeightMatrix<inputs: inputs, outputs: outputs>,
+  limits: ref tensor.Limits,
+): (
+  FeatureBatch<rows: rows, columns: inputs>,
+  WeightMatrix<inputs: inputs, outputs: outputs>,
+) throws tensor.TensorError {
+  let deviceFeatures = try await tensor.transfer<to: .inference>(
+    source: take features,
+    limits: ref limits,
+  )
+  let deviceWeights = try await tensor.transfer<to: .inference>(
+    source: take weights,
+    limits: ref limits,
+  )
+  return (deviceFeatures, deviceWeights)
+}
+
 export async fn forecastOnSelectedDevice<
   rows: usize,
   inputs: usize,

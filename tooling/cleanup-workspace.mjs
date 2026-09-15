@@ -43,6 +43,7 @@ export const TEMP_DIRECTORY_PREFIXES = Object.freeze([
   "w-frontend-freeze-",
   "w-fz0-mutation-",
   "w-gpu0-",
+  "w-accinv0-",
   "w-hir0-",
   "w-hlo0-",
   "w-hlo0-cases-",

@@ -185,13 +185,28 @@ exact `accelerator.module<{...}>()` static records. The separate
 `w_seed_gpu_module` bridge owns and independently verifies the first bounded
 signed-`i32` device-module slice. HIR0 and MLIR0 lower only their bounded
 subsets. Version 28 appends a discriminated caller-owned domain kind and the
-exact typed relation from `spawn<acceleratedDomain>` to an immediate
+exact typed relation from `spawn<domain>` (where the selected domain is
+accelerated) to an immediate
 accelerator-module field, including module/kernel indices and the static
 submission budget. It rejects bare or `async` module-field calls, host-domain
 offload, missing fields, and malformed accelerated bindings. Escape decoding,
-Boolean/String value Display, general Display conformance, independent HIR
-lowering for the accelerated invocation, general device IR, and native
-provider linkage outside those subsets remain gaps.
+Boolean/String value Display, general Display conformance, general device IR,
+and native provider linkage outside those subsets remain gaps.
+
+`w_seed_accelerated_invocation0` consumes only that successful Frontend28
+relation plus a verified `w_seed_gpu_module` program. ACCINV0 copies one exact
+zero-argument static launch and lexical await into caller-owned invocation and
+text storage. Its semantic digest binds domain policy, copied identities,
+signed-`i32` result shape, and the device-module semantic digest; source
+ordinals, spans, frontend receipt, and device-module provenance remain in its
+provenance digest. `measure`, `run`, `program_from_output`, and `verify` are
+transactional and reject aliases, short capacities, malformed producers, and
+forged relations. Verification remains valid after source, frontend, and
+gpu-module storage is discarded. The one-invocation and zero-argument limits
+are the current seed array/bridge bounds, not W language or ABI limits.
+ACCINV0 contains no provider, target, queue, geometry, transfer, residency,
+pointer, launch handle, MLIR handle, or physical ABI, and it does not yet claim
+the nominal `LaunchError` carried by the eventual Task type.
 
 O seed materializa `Bool`, inteiros bounded (incluindo `usize`), strings simples
 sem escape, cases enum contextuais e `StaticList` caller-owned. Inteiros usam

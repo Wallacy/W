@@ -1183,6 +1183,18 @@
         }
       ]
     },
+    "check:accelerated-invocation0": {
+      "description": "Validate the independently verified static accelerated invocation relation.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-accelerated-invocation0.mjs"
+          ]
+        }
+      ]
+    },
     "check:gpu0": {
       "description": "Validate GPU0 logical IR, MLIR GPU lowering, and available Windows CUDA execution.",
       "steps": [

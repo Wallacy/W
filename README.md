@@ -83,8 +83,10 @@ or `ref` use implies a heap, header, address, or storage class.
   record and direct local kernel bindings; `w-seed-gpu-module-1` independently
   verifies the bounded device-module meaning after frontend teardown, and a
   caller-owned projection carries one verified field into exact GPU0 records
-  and device artifact text. Typed launch, supported provider/product linkage,
-  and the public W route remain open.
+  and device artifact text. ACCINV0 now independently preserves the exact
+  static domain/module/kernel launch and lexical join after all producer
+  lifetimes end. Supported provider/product linkage and the public W route
+  remain open.
 - COOP0 remains a compiler-host trace oracle. A separate bounded cooperative
   core now lowers to Windows/Linux process projections. The Windows host also
   compiles and CRT-free-links the bounded Linux product with the shared WRT0;
