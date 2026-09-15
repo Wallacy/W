@@ -155,7 +155,14 @@ translates the artifact. The carrier is not a public ABI; there is no unwind,
 Task, heap, process root, native product, or benchmark claim, and ordinary
 product routes remain fail-closed.
 
-Next comes continuation-safe cleanup on both typed paths, then an
-authenticated typed provider result and TASKLIFE binding, followed by an
-explicit panic boundary.
-Physical cancellation remains cooperative rather than thread termination.
+W-1618 preserves one dominating synchronous `defer` across that exact typed
+invoke. HIR41 records one cleanup obligation and materializes an ordinary
+direct cleanup call in both the normal and typed-error successors. A separate
+private MLIR artifact retains both calls before rebuilding the compact
+carrier, and MLIR/LLVM 23.1.1 verifies and translates it. Existing product and
+success-only provider routes remain fail-closed. General cleanup stacks,
+`defer async`, catch, native products, public ABI, and performance remain open.
+
+Next comes an authenticated typed provider result and TASKLIFE binding,
+followed by an explicit panic boundary. Physical cancellation remains
+cooperative rather than thread termination.
