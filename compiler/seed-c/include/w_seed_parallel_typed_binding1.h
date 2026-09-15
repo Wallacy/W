@@ -27,9 +27,10 @@ typedef enum {
   W_SEED_PARALLEL_TYPED_BINDING1_TARGET_WINDOWS_AMD64 = 1,
 } w_seed_parallel_typed_binding1_target_kind;
 
-/* PLATFORM1 execution is an integrity and provenance boundary.  It is not a
- * cryptographic provider-origin proof.  A future trusted authority can add a
- * stronger assurance without changing the semantic task records. */
+/* PLATFORM1 execution is an integrity and provenance boundary. The local
+ * compiler authority below is not a cryptographic provider-origin proof;
+ * external attestation can add stronger provenance without changing semantic
+ * task records. */
 typedef enum {
   W_SEED_PARALLEL_TYPED_BINDING1_ASSURANCE_NONE = 0,
   W_SEED_PARALLEL_TYPED_BINDING1_ASSURANCE_EXECUTION_INTEGRITY = 1,
@@ -53,6 +54,7 @@ typedef enum {
   W_SEED_PARALLEL_TYPED_BINDING1_PROVIDER_FAILURE,
   W_SEED_PARALLEL_TYPED_BINDING1_TASK_FAILURE,
   W_SEED_PARALLEL_TYPED_BINDING1_CANCELED,
+  W_SEED_PARALLEL_TYPED_BINDING1_PANIC,
   W_SEED_PARALLEL_TYPED_BINDING1_FORGERY,
 } w_seed_parallel_typed_binding1_status;
 

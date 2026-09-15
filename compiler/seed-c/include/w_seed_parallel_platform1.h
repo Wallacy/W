@@ -14,7 +14,20 @@ typedef enum {
   W_SEED_PARALLEL_PLATFORM1_COMPLETION_SUCCESS = 1,
   W_SEED_PARALLEL_PLATFORM1_COMPLETION_ERROR,
   W_SEED_PARALLEL_PLATFORM1_COMPLETION_CANCELED,
+  W_SEED_PARALLEL_PLATFORM1_COMPLETION_PANIC,
 } w_seed_parallel_platform1_completion_kind;
+
+/* Private stable panic categories. They are a boundary signal, never an Error
+ * case, TaskOutcome payload, or recoverable result. */
+typedef enum {
+  W_SEED_PARALLEL_PLATFORM1_PANIC_NONE = 0,
+  W_SEED_PARALLEL_PLATFORM1_PANIC_EXPLICIT,
+  W_SEED_PARALLEL_PLATFORM1_PANIC_BOUNDS,
+  W_SEED_PARALLEL_PLATFORM1_PANIC_OVERFLOW,
+  W_SEED_PARALLEL_PLATFORM1_PANIC_DIVISION_BY_ZERO,
+  W_SEED_PARALLEL_PLATFORM1_PANIC_OUT_OF_MEMORY,
+  W_SEED_PARALLEL_PLATFORM1_PANIC_INTERNAL_CONTRACT,
+} w_seed_parallel_platform1_panic_code;
 
 /* Physical-provider status is shared by the private PLATFORM1 declaration
  * and its implementation. Keeping the closed status type here prevents a
@@ -27,6 +40,7 @@ typedef enum {
 } w_seed_parallel_provider0_platform_status;
 
 #define W_SEED_PARALLEL_PLATFORM1_CANCEL_FAIL_FAST 1u
+#define W_SEED_PARALLEL_PLATFORM1_CANCEL_PANIC_BOUNDARY 2u
 
 /* The payload is valid only for its tag.  Unused fields must be zero. */
 typedef struct {
@@ -37,6 +51,7 @@ typedef struct {
   /* Provider-typed case ordinal.  The private PLATFORM1 primitive does not
    * interpret this value.  A typed binding must match it to verified HIR. */
   uint32_t error_case_ordinal;
+  w_seed_parallel_platform1_panic_code panic_code;
 } w_seed_parallel_platform1_completion;
 
 typedef bool (*w_seed_parallel_platform1_task_fn)(
@@ -58,7 +73,14 @@ typedef struct {
   uint32_t maximum_active;
   uint32_t cancellation_source_index;
   bool cancellation_requested;
+  uint32_t panic_source_index;
+  w_seed_parallel_platform1_panic_code panic_code;
+  bool panic_requested;
 } w_seed_parallel_platform1_receipt;
+
+bool w_seed_parallel_platform1_receipt_equal(
+    const w_seed_parallel_platform1_receipt *left,
+    const w_seed_parallel_platform1_receipt *right);
 
 w_seed_parallel_provider0_platform_status
 w_seed_parallel_platform1_execute(

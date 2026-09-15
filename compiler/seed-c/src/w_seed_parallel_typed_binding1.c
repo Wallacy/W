@@ -536,7 +536,8 @@ static bool completion_is_success(
   return completion != NULL &&
          completion->kind == W_SEED_PARALLEL_PLATFORM1_COMPLETION_SUCCESS &&
          completion->error_code == 0u && completion->cancel_reason == 0u &&
-         completion->error_case_ordinal == 0u;
+         completion->error_case_ordinal == 0u &&
+         completion->panic_code == W_SEED_PARALLEL_PLATFORM1_PANIC_NONE;
 }
 
 static bool completion_is_error(
@@ -546,7 +547,8 @@ static bool completion_is_error(
          completion->kind == W_SEED_PARALLEL_PLATFORM1_COMPLETION_ERROR &&
          completion->success_value == 0 && completion->error_code != 0u &&
          completion->cancel_reason == 0u &&
-         completion->error_case_ordinal == identity->case_ordinal;
+         completion->error_case_ordinal == identity->case_ordinal &&
+         completion->panic_code == W_SEED_PARALLEL_PLATFORM1_PANIC_NONE;
 }
 
 static bool physical_facts_valid(
@@ -562,7 +564,9 @@ static bool physical_facts_valid(
       receipt->settled_count !=
           W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT ||
       receipt->canceled_before_start_count != 0u || receipt->maximum_active == 0u ||
-      receipt->maximum_active > input->provider_capacity)
+      receipt->maximum_active > input->provider_capacity ||
+      receipt->panic_requested || receipt->panic_source_index != UINT32_MAX ||
+      receipt->panic_code != W_SEED_PARALLEL_PLATFORM1_PANIC_NONE)
     return false;
   int64_t expected_success = 0;
   size_t budget = 4096u;
@@ -696,6 +700,7 @@ static void seal_provenance(
     sha_u32(&state, completions[task].error_code);
     sha_u32(&state, completions[task].cancel_reason);
     sha_u32(&state, completions[task].error_case_ordinal);
+    sha_u32(&state, (uint32_t)completions[task].panic_code);
   }
   sha_u32(&state, receipt->started_count);
   sha_u32(&state, receipt->settled_count);
@@ -703,6 +708,9 @@ static void seal_provenance(
   sha_u32(&state, receipt->maximum_active);
   sha_u32(&state, receipt->cancellation_source_index);
   sha_bool(&state, receipt->cancellation_requested);
+  sha_u32(&state, receipt->panic_source_index);
+  sha_u32(&state, (uint32_t)receipt->panic_code);
+  sha_bool(&state, receipt->panic_requested);
   sha_u32(
       &state,
       (uint32_t)W_SEED_PARALLEL_TYPED_BINDING1_ASSURANCE_STATIC_LOCAL_PROVIDER);
@@ -820,6 +828,17 @@ w_seed_parallel_typed_binding1_status w_seed_parallel_typed_binding1_run(
     return W_SEED_PARALLEL_TYPED_BINDING1_PROVIDER_FAILURE;
   if (provider_kind != W_SEED_PARALLEL_PROVIDER0_KIND_WINDOWS_KERNEL32)
     return W_SEED_PARALLEL_TYPED_BINDING1_PROVIDER_FAILURE;
+  w_seed_parallel_typed_binding1_error_identity post_identity;
+  if (validate_input(input, &post_identity) !=
+          W_SEED_PARALLEL_TYPED_BINDING1_OK ||
+      !identity_equal(&identity, &post_identity))
+    return W_SEED_PARALLEL_TYPED_BINDING1_HIR;
+  for (size_t task = 0u;
+       task < W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT;
+       task += 1u)
+    if (completions[task].kind ==
+        W_SEED_PARALLEL_PLATFORM1_COMPLETION_PANIC)
+      return W_SEED_PARALLEL_TYPED_BINDING1_PANIC;
   if (!physical_facts_valid(input, completions, &receipt, provider_kind,
                             &identity)) {
     for (size_t task = 0u;
@@ -831,11 +850,6 @@ w_seed_parallel_typed_binding1_status w_seed_parallel_typed_binding1_run(
     return W_SEED_PARALLEL_TYPED_BINDING1_PROVIDER_FAILURE;
   }
 
-  w_seed_parallel_typed_binding1_error_identity post_identity;
-  if (validate_input(input, &post_identity) !=
-          W_SEED_PARALLEL_TYPED_BINDING1_OK ||
-      !identity_equal(&identity, &post_identity))
-    return W_SEED_PARALLEL_TYPED_BINDING1_HIR;
   w_seed_parallel_typed_binding1_record records[
       W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT];
   uint32_t primary_error_task = UINT32_MAX;
@@ -932,8 +946,8 @@ bool w_seed_parallel_typed_binding1_verify(
              sizeof(input->provider.profile)) != 0 ||
       memcmp(result->provenance.provider.identity, input->provider.identity,
              sizeof(input->provider.identity)) != 0 ||
-      memcmp(&result->provenance.upstream_receipt, workspace->receipt,
-             sizeof(*workspace->receipt)) != 0)
+      !w_seed_parallel_platform1_receipt_equal(
+          &result->provenance.upstream_receipt, workspace->receipt))
     return false;
   uint8_t provenance_digest[32];
   seal_provenance(input, *workspace->provider_kind, workspace->completions,

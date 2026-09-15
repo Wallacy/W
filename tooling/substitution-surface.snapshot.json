@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:7a9d33c9d073085f15ed4b96af54830873ac909efb9b4ab8ac8112abd1b60e6d",
+  "corpusDigest": "sha256:801c46a5b31559ba2f0226177aeee29488b227a9d7b74723d87e875857a07e6f",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -9960,6 +9960,90 @@
             "nonWhitespaceCodePoints": 60,
             "lines": 1,
             "surfaceLexemes": 9
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-parallel-panic-signal1",
+      "task": {
+        "utf8Bytes": 135,
+        "codePoints": 135,
+        "nonWhitespaceCodePoints": 115,
+        "lines": 1,
+        "surfaceLexemes": 22
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w-internal",
+        "sourceDigest": "sha256:4dd17383f8afe29f3cecad4c8e10b916d4ec227922585afe2e3d4bd85c7ef60e",
+        "metrics": {
+          "utf8Bytes": 343,
+          "codePoints": 343,
+          "nonWhitespaceCodePoints": 299,
+          "lines": 4,
+          "surfaceLexemes": 52
+        }
+      },
+      "alternatives": [
+        {
+          "name": "panic-as-error",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:96f11767f1e42b4658fc80cdd6f705ad1c1838c70d9788eceaa86e06ae006f9f",
+          "metrics": {
+            "utf8Bytes": 61,
+            "codePoints": 61,
+            "nonWhitespaceCodePoints": 51,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "panic-as-cancel",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:cb5458667892a74d9a15032f29c2dfdf62a979c329c71a1ac910b85181977c35",
+          "metrics": {
+            "utf8Bytes": 38,
+            "codePoints": 38,
+            "nonWhitespaceCodePoints": 33,
+            "lines": 1,
+            "surfaceLexemes": 6
+          }
+        },
+        {
+          "name": "lexical-error-wins-wave",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:544b5a05340d7d1b9e052c8f6ca64e9a869bd99bfb60129085c2223b6826e85b",
+          "metrics": {
+            "utf8Bytes": 79,
+            "codePoints": 79,
+            "nonWhitespaceCodePoints": 66,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        },
+        {
+          "name": "publish-panic-outcome",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:768b2372720c77838b35d19dc7b3c48695829c12c3a35c9b587099ad4dc60c12",
+          "metrics": {
+            "utf8Bytes": 74,
+            "codePoints": 74,
+            "nonWhitespaceCodePoints": 65,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "signal-equals-containment",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:acd2624740fafb0cb394d85b9bc41c5ec92040229d246a4145fef025ad16cda8",
+          "metrics": {
+            "utf8Bytes": 90,
+            "codePoints": 90,
+            "nonWhitespaceCodePoints": 78,
+            "lines": 1,
+            "surfaceLexemes": 13
           }
         }
       ]

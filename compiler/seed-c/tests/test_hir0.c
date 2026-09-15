@@ -311,14 +311,17 @@ static bool test_platform1_invoke(
 static bool test_parallel_platform1_typed_completions(void) {
   test_platform1_context parallel_context = {0};
   parallel_context.requested[0] = (w_seed_parallel_platform1_completion){
-      W_SEED_PARALLEL_PLATFORM1_COMPLETION_SUCCESS, 10, 0u, 0u, 0u};
+      W_SEED_PARALLEL_PLATFORM1_COMPLETION_SUCCESS, 10, 0u, 0u, 0u,
+      W_SEED_PARALLEL_PLATFORM1_PANIC_NONE};
   parallel_context.requested[1] = (w_seed_parallel_platform1_completion){
-      W_SEED_PARALLEL_PLATFORM1_COMPLETION_ERROR, 0, 2u, 0u, 0u};
+      W_SEED_PARALLEL_PLATFORM1_COMPLETION_ERROR, 0, 2u, 0u, 0u,
+      W_SEED_PARALLEL_PLATFORM1_PANIC_NONE};
   for (size_t index = 2u; index < 5u; index += 1u)
     parallel_context.requested[index] =
         (w_seed_parallel_platform1_completion){
             W_SEED_PARALLEL_PLATFORM1_COMPLETION_SUCCESS,
-            10 + (int64_t)index, 0u, 0u, 0u};
+            10 + (int64_t)index, 0u, 0u, 0u,
+            W_SEED_PARALLEL_PLATFORM1_PANIC_NONE};
   const w_seed_parallel_platform1_job parallel_job = {
       test_platform1_invoke, &parallel_context};
   w_seed_parallel_platform1_completion parallel_completions[5];
@@ -370,9 +373,11 @@ static bool test_parallel_platform1_typed_completions(void) {
 
   test_platform1_context canceled_context = {0};
   canceled_context.requested[0] = (w_seed_parallel_platform1_completion){
-      W_SEED_PARALLEL_PLATFORM1_COMPLETION_CANCELED, 0, 0u, 9u, 0u};
+      W_SEED_PARALLEL_PLATFORM1_COMPLETION_CANCELED, 0, 0u, 9u, 0u,
+      W_SEED_PARALLEL_PLATFORM1_PANIC_NONE};
   canceled_context.requested[1] = (w_seed_parallel_platform1_completion){
-      W_SEED_PARALLEL_PLATFORM1_COMPLETION_SUCCESS, 11, 0u, 0u, 0u};
+      W_SEED_PARALLEL_PLATFORM1_COMPLETION_SUCCESS, 11, 0u, 0u, 0u,
+      W_SEED_PARALLEL_PLATFORM1_PANIC_NONE};
   const w_seed_parallel_platform1_job canceled_job = {
       test_platform1_invoke, &canceled_context};
   w_seed_parallel_platform1_completion canceled_completions[5];
@@ -392,11 +397,54 @@ static bool test_parallel_platform1_typed_completions(void) {
               W_SEED_PARALLEL_PLATFORM1_COMPLETION_CANCELED &&
           canceled_completions[index].cancel_reason == 9u);
 
+  test_platform1_context panic_context = parallel_context;
+  (void)memset(panic_context.calls, 0, sizeof(panic_context.calls));
+  panic_context.requested[0] = (w_seed_parallel_platform1_completion){
+      .kind = W_SEED_PARALLEL_PLATFORM1_COMPLETION_ERROR,
+      .error_code = 2u};
+  panic_context.requested[1] = (w_seed_parallel_platform1_completion){
+      .kind = W_SEED_PARALLEL_PLATFORM1_COMPLETION_PANIC,
+      .panic_code = W_SEED_PARALLEL_PLATFORM1_PANIC_EXPLICIT};
+  const w_seed_parallel_platform1_job panic_job = {test_platform1_invoke,
+                                                    &panic_context};
+  w_seed_parallel_platform1_completion panic_completions[5];
+  w_seed_parallel_platform1_receipt panic_receipt;
+  w_seed_parallel_provider0_kind panic_kind =
+      W_SEED_PARALLEL_PROVIDER0_KIND_NONE;
+  CHECK(w_seed_parallel_platform1_execute(
+            &panic_job, 5u, 2u, panic_completions, &panic_receipt,
+            &panic_kind) == W_SEED_PARALLEL_PROVIDER0_PLATFORM_OK &&
+        panic_receipt.started_count == 2u &&
+        panic_receipt.settled_count == 2u &&
+        panic_receipt.canceled_before_start_count == 3u &&
+        panic_receipt.cancellation_requested &&
+        panic_receipt.cancellation_source_index == 1u &&
+        panic_receipt.panic_requested &&
+        panic_receipt.panic_source_index == 1u &&
+        panic_receipt.panic_code ==
+            W_SEED_PARALLEL_PLATFORM1_PANIC_EXPLICIT &&
+        panic_completions[0].kind ==
+            W_SEED_PARALLEL_PLATFORM1_COMPLETION_ERROR &&
+        panic_completions[1].kind ==
+            W_SEED_PARALLEL_PLATFORM1_COMPLETION_PANIC);
+  for (size_t index = 2u; index < 5u; index += 1u)
+    CHECK(panic_context.calls[index] == 0u &&
+          panic_completions[index].kind ==
+              W_SEED_PARALLEL_PLATFORM1_COMPLETION_CANCELED &&
+          panic_completions[index].cancel_reason ==
+              W_SEED_PARALLEL_PLATFORM1_CANCEL_PANIC_BOUNDARY);
+
   test_platform1_context invalid_context = parallel_context;
   (void)memset(invalid_context.calls, 0, sizeof(invalid_context.calls));
   invalid_context.requested[0].error_code = 1u;
   const w_seed_parallel_platform1_job invalid_job = {test_platform1_invoke,
                                                       &invalid_context};
+  CHECK(w_seed_parallel_platform1_execute(
+            &invalid_job, 5u, 1u, serial_completions, &serial_receipt,
+            &serial_kind) == W_SEED_PARALLEL_PROVIDER0_PLATFORM_TASK_FAILURE);
+  invalid_context.requested[0] = (w_seed_parallel_platform1_completion){
+      .kind = W_SEED_PARALLEL_PLATFORM1_COMPLETION_PANIC,
+      .panic_code = W_SEED_PARALLEL_PLATFORM1_PANIC_NONE};
   CHECK(w_seed_parallel_platform1_execute(
             &invalid_job, 5u, 1u, serial_completions, &serial_receipt,
             &serial_kind) == W_SEED_PARALLEL_PROVIDER0_PLATFORM_TASK_FAILURE);
@@ -7210,6 +7258,26 @@ static bool test_parallel_typed_binding1(void) {
                sizeof(sentinel_result)) == 0 &&
         memcmp(sentinel_records, sentinel_records_before,
                sizeof(sentinel_records)) == 0);
+
+  context.requested[1] = (w_seed_parallel_platform1_completion){
+      .kind = W_SEED_PARALLEL_PLATFORM1_COMPLETION_PANIC,
+      .panic_code = W_SEED_PARALLEL_PLATFORM1_PANIC_EXPLICIT};
+  CHECK(w_seed_parallel_typed_binding1_run(
+            &input, &sentinel_workspace, &sentinel_output, &sentinel_result) ==
+            W_SEED_PARALLEL_TYPED_BINDING1_PANIC &&
+        memcmp(&sentinel_result, &sentinel_result_before,
+               sizeof(sentinel_result)) == 0 &&
+        memcmp(sentinel_records, sentinel_records_before,
+               sizeof(sentinel_records)) == 0 &&
+        memcmp(sentinel_completions, sentinel_completions_before,
+               sizeof(sentinel_completions)) == 0 &&
+        memcmp(&sentinel_receipt, &sentinel_receipt_before,
+               sizeof(sentinel_receipt)) == 0 &&
+        sentinel_kind == W_SEED_PARALLEL_PROVIDER0_KIND_NONE);
+  context.requested[1] = (w_seed_parallel_platform1_completion){
+      .kind = W_SEED_PARALLEL_PLATFORM1_COMPLETION_ERROR,
+      .error_code = 17u,
+      .error_case_ordinal = measured.error_identity.case_ordinal};
 
   w_seed_parallel_typed_binding1_record forged_records[2];
   (void)memcpy(forged_records, parallel_records, sizeof(forged_records));
