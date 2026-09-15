@@ -183,6 +183,8 @@ static void relation_hashes(const w_seed_accelerated_binding0_record *relation,
   hash_u64(&state, relation->required_maximum);
   hash_u64(&state, relation->effective_maximum);
   hash_limits(&state, relation->limits);
+  hash_u32(&state, relation->result_bit_width);
+  hash_u32(&state, relation->result_is_signed ? 1u : 0u);
   hash_u32(&state, (uint32_t)relation->submission);
   hash_u32(&state, (uint32_t)relation->numeric_mode);
   hash_u32(&state, (uint32_t)relation->fallback);
@@ -334,6 +336,8 @@ static w_seed_accelerated_binding0_status collect(
     return W_SEED_ACCELERATED_BINDING0_RANGE;
   relation->limits = profile->limits;
   relation->limits.maximum_in_flight = relation->effective_maximum;
+  relation->result_bit_width = invocation->result_bit_width;
+  relation->result_is_signed = invocation->result_is_signed;
   relation->submission = profile->submission;
   relation->numeric_mode = profile->numeric_mode;
   relation->fallback = profile->fallback;
@@ -658,6 +662,7 @@ bool w_seed_accelerated_binding0_verify(
       !limits_valid(relation->limits) || relation->required_maximum == 0u ||
       relation->effective_maximum == 0u ||
       relation->effective_maximum > relation->required_maximum ||
+      relation->result_bit_width != 32u || !relation->result_is_signed ||
       relation->limits.maximum_in_flight != relation->effective_maximum ||
       relation->required_maximum != result->required_maximum ||
       relation->effective_maximum != result->effective_maximum ||

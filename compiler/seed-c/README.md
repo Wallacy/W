@@ -216,7 +216,8 @@ reject fallback in this first slice, requires the selected instance and
 provider ABI to match the closed record, and sets the effective in-flight
 limit to the exact minimum of the invocation, profile, root, deployment and
 resource-limit values. Queue, device and provider-generation identities are
-provenance rather than semantic identity. Its verifier survives producer and
+provenance rather than semantic identity; the signed-`i32` result shape remains
+explicit in the relation. Its verifier survives producer and
 profile teardown and rejects malformed offsets, forged digests, aliases and
 short capacities. The supplied closed-profile receipts are upstream evidence,
 not cryptographic authentication performed by ACCBIND0. No provider handle,

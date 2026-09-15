@@ -133,6 +133,9 @@ typedef struct {
   uint64_t effective_maximum;
   w_seed_accelerated_binding0_limits limits;
 
+  uint16_t result_bit_width;
+  bool result_is_signed;
+
   w_seed_frontend_domain_mode submission;
   w_seed_accelerated_binding0_numeric_mode numeric_mode;
   w_seed_accelerated_binding0_fallback fallback;
