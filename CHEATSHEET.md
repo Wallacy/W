@@ -1699,8 +1699,19 @@ test "atomic and lock operations expose their ordering" for Ledger {
 
 <!-- w-example role=logical-contract -->
 ```w
+module numerics<
+  domains: [
+    .accelerated(
+      .inference,
+      submission: .concurrent,
+      maximum: 4,
+      fallback: .reject,
+    ),
+  ],
+>
+
 import accelerator from std
-import { Tensor } from std.tensor
+import { Queue, Tensor } from std.tensor
 
 dimension Distance
 unit kilometer: Distance
@@ -1709,7 +1720,7 @@ type FeatureBatch<rows: usize, columns: usize> =
   Tensor<f32, shape: [rows, columns]>
 
 fn forecastKernel<rows: usize, inputs: usize, outputs: usize>(
-  _ features: ref FeatureBatch<rows: rows, columns: inputs>,
+  features: ref FeatureBatch<rows: rows, columns: inputs>,
   weights: ref Tensor<f32, shape: [inputs, outputs]>,
 ): FeatureBatch<rows: rows, columns: outputs> {
   return features @ weights
@@ -1718,6 +1729,44 @@ fn forecastKernel<rows: usize, inputs: usize, outputs: usize>(
 const kernels = accelerator.module<{
   forecast: forecastKernel,
 }>()
+
+async fn forecastOnConfiguredDomain<
+  rows: usize,
+  inputs: usize,
+  outputs: usize,
+>(
+  features: ref FeatureBatch<rows: rows, columns: inputs>,
+  weights: ref Tensor<f32, shape: [inputs, outputs]>,
+): FeatureBatch<rows: rows, columns: outputs> throws accelerator.LaunchError {
+  let pending = spawn<.inference> kernels.forecast(
+    features: ref features,
+    weights: ref weights,
+  )
+  return try await pending
+}
+
+async fn forecastOnSelectedQueue<
+  rows: usize,
+  inputs: usize,
+  outputs: usize,
+>(
+  features: ref FeatureBatch<rows: rows, columns: inputs>,
+  weights: ref Tensor<f32, shape: [inputs, outputs]>,
+  queue: ref Queue,
+  limits: ref accelerator.Limits,
+): FeatureBatch<rows: rows, columns: outputs> throws accelerator.LaunchError {
+  var launch = try await accelerator.open(
+    module: ref kernels,
+    on: ref queue,
+    limits: ref limits,
+  )
+  defer async { let _ = try? await (take launch).close() }
+  return try await kernels.forecast.launch(
+    using: ref launch,
+    features: ref features,
+    weights: ref weights,
+  )
+}
 
 fn numericSummary(): (Quantity<Distance>, i32, i32, [usize; 2], i32, i32, i32) {
   let distance = 12<kilometer>
@@ -1729,7 +1778,7 @@ fn numericSummary(): (Quantity<Distance>, i32, i32, [usize; 2], i32, i32, i32) {
   let xor = vector.reduceBitXor()
   let features: FeatureBatch<rows: 1, columns: 2> = [[1.0, 2.0]]
   let weights: Tensor<f32, shape: [2, 1]> = [[1.0], [0.5]]
-  let result = forecastKernel(features, weights: weights)
+  let result = forecastKernel(features: features, weights: weights)
   let _ = kernels
   return (distance, matrix[1][0], doubled[3], result.shape, sum, product, xor)
 }

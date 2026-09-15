@@ -26,7 +26,7 @@ not in this queue.
 
 | Rank | Increment | Completion boundary | What it enables |
 | ---: | --- | --- | --- |
-| 1 | GPU kernel Hello sentinel | Canonical `accelerator.module` W source crosses verified W IR into separate host/device artifacts, then launches and joins through a supported provider and verifies a known payload on the available GPU; end-to-end, dispatch, and transfer metrics stay separate | Tests CPU/GPU partitioning and MLIR GPU applicability before scheduler and memory abstractions harden |
+| 1 | Accelerated-domain GPU Hello sentinel | Canonical `spawn<acceleratedDomain> descriptor.field()` crosses verified W IR into separate host/device artifacts, binds the root-owned launch relation, then launches and joins through a supported provider and verifies a known payload on the available GPU; end-to-end, dispatch, and transfer metrics stay separate | Tests the common source surface, CPU/device partitioning and MLIR GPU applicability before scheduler and memory abstractions harden |
 | 2 | Capacity-independent task storage | Replace the seed one-to-four logical-task arrays with measured caller-owned records; logical task count and physical worker capacity remain separate; configured exhaustion fails before effects | Removes an implementation ceiling before scheduler generalization |
 | 3 | Structured cancellation and outcomes | Request, propagation, cleanup drain, typed failure, panic boundary, and deterministic outcome publication execute through the same native route | A usable structured-concurrency core rather than successful scalar jobs only |
 | 4 | Provider-neutral scheduler core | Target-neutral ready/task/frame state lowers once; Windows and Linux providers supply only platform primitives and cached topology/capacity facts | Portable concurrency without a platform-shaped language ABI |
@@ -67,10 +67,12 @@ kernels and survives source/frontend teardown. A caller-owned, provider-neutral
 projection now selects one verified module field, copies its host-root const
 name, kernel field label, private implementation name, and payload into the
 exact GPU0 records, and remains verifiable after bridge teardown. The recipe is
-still mixed MLIR 23.1.1 plus Clang 22. No typed `.launch`, runtime/provider
-launch, public GPU build/run, or supported GPU ABI is claimed; rank 1 therefore
-remains open until those public and physical boundaries have evidence. Only
-then does the queue generalize task storage, cancellation, and scheduling.
+still mixed MLIR 23.1.1 plus Clang 22. No typed accelerated-domain invocation,
+root-owned launch relation, runtime/provider launch, public GPU build/run, or
+supported GPU ABI is claimed; rank 1 therefore remains open until those public
+and physical boundaries have evidence. The explicit `Launch<Module>` route
+remains the later dynamic path, not the common static syntax. Only then does the
+queue generalize task storage, cancellation, and scheduling.
 W-1597 remains a legality certificate only; target policy must still combine it
 with observability and cost facts and compare any direct-call artifact with the
 W-1600 physical reference.

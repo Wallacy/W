@@ -341,6 +341,17 @@ type Label = BoundedString<{min: 1, max: 40}>
 
 let plan = spawn<.compute> optimize(take snapshot)
 unsafe fn<C> checksum(data: c.ptr<c.uchar>): c.uint { ... }
+
+module forecast<
+  domains: [
+    .accelerated(
+      .inference,
+      submission: .concurrent,
+      maximum: 4,
+      fallback: .reject,
+    ),
+  ],
+>
 ```
 
 `StaticList<T>` é um tipo compile-time de baseline. Ele é ordenado, imutável e
@@ -490,6 +501,15 @@ let plan = spawn<.compute> optimize(order)
 
 unsafe fn<Rust> checksum(...)
   → ForeignFunctionContract(language: .rust, abi: .c, safety: .unsafe)
+
+module forecast<domains: [.accelerated(.inference,
+  submission: .concurrent, maximum: 4, fallback: .reject)]>
+  → AcceleratedDomainContract(
+      name: .inference,
+      submission: .concurrent,
+      maximum: 4,
+      fallback: .reject,
+    )
 ```
 
 Os contratos estáticos seguem estas regras:
@@ -515,6 +535,23 @@ Nomes de argumentos fazem parte da compatibilidade source. A evidência fica em
 `spawn` publica `domain` como um slot dedicado do contrato de placement.
 `spawn<.compute>` fornece esse slot; o formatter preserva a forma source de cada
 schema e a HIR usa o domain normalizado.
+
+W-1602 acrescenta o construtor estático discriminado
+`.accelerated(name, submission:, maximum:, fallback:)`. Ele é um requisito de
+submissão de kernel para um domain lógico; não é um valor runtime e não escolhe
+provider, target, device ou queue. O contrato do módulo não cria authority; o
+binding do product materializa o owner root-scoped correspondente. `submission` controla
+somente a admissão serial ou concorrente das invocations aceleradas. Ele não
+adiciona `.parallel` às capabilities do domain e não muda as regras de
+`spawn<domain>`.
+
+`maximum` é um budget de invocations vivas que o profile e o host podem reduzir;
+não é um limite de cardinalidade da linguagem, do ABI ou da lista de fields.
+`fallback` precisa ser `.reject` ou um domain compatível declarado; fallback
+silencioso não existe. Dados runtime ficam nos argumentos da call e nunca entram
+em `<...>`. A baseline deriva a geometria de dispatch dos facts verificados do
+kernel e de suas shapes; uma configuração explícita por invocation permanece
+adiada até existir um caso que feche seu tipo, bounds e efeito na identidade.
 
 ### 3.3 Refinement, composição e layout
 
@@ -13010,6 +13047,73 @@ normaliza como set. Ele não dá ao enum uma semântica OR oculta. `serial`,
 lógica um e primeiro start FIFO. Nenhuma política física pode reordenar esse
 FIFO. Ela só escolhe entre jobs que o source deixa sem ordem contratual.
 
+**W-1602 — domínio acelerado estático:** a forma fechada
+`.accelerated(name, submission: .serial|.concurrent, maximum: ..., fallback: ...)`
+é uma requirement de submissão de kernel dentro de um domain lógico. `name` dá
+identidade estática ao domain; não nomeia provider, target, device ou queue.
+`submission` controla somente a admissão das invocations aceleradas e não
+adiciona `.parallel`, não transforma o domain host em paralelo e não autoriza
+offload de uma função W arbitrária. `maximum` é um budget positivo de
+invocations vivas que profile e deployment podem reduzir; não é um limite da
+linguagem, do ABI, nem da cardinalidade de fields. `fallback` é `.reject` ou um
+domain compatível declarado, nunca uma troca silenciosa.
+
+O profile estático e o root são owners da relation interna tipada para cada
+tupla exata `(domain identity, ModuleIdentity, KernelInstanceId)`. Cada domain
+lógico possui uma queue/generation; vários módulos podem compartilhar o domain,
+enquanto queues independentes exigem domains estáticos distintos. A validação e
+o binding ocorrem antes da entry e o root drena a relation no shutdown. Não há
+lookup por string ou escolha runtime escondida. A forma pública estática é
+somente `spawn<domain> descriptor.field(args...)`, com o field como callee
+imediato e um domain `.accelerated` compatível. Chamada nua do field, chamada
+`async` do field ou `spawn` em domain host é rejeitada; a função kernel original
+continua uma call direta de host.
+
+O caminho dinâmico/avançado continua usando `ExecutionDomainRef`,
+`accelerator.open` e `Launch<Module>`/`.launch(using:)` para seleção runtime de
+device ou queue. Os dois caminhos preservam `Task<T, LaunchError>`, receipts,
+cancelamento, drain e cleanup de W-1211–W-1218. Join imediato pode eliminar
+somente frame/Task por prova de equivalência; nunca pode eliminar submission,
+receipt ou drain. Transfer continua explícita, geometry continua argumento
+tipado da invocation, e a falha de profile, binding ou provider é typed.
+
+Esses domínios não absorvem outras superfícies: SIMD/vector é lowering;
+network/nonblocking I/O usa `await`/provider; UI usa `.main`/affinity; áudio
+realtime e interrupts pertencem ao entry/provider; service, distributed,
+workflow, isolation, process e sandbox não são execution domains; trabalho
+foreign bloqueante usa um domain host bounded. W-1483 continua sem slots
+portáveis de priority ou QoS.
+
+A regra de classificação é operacional: algo é um execution domain somente
+quando o scheduler precisa preservar uma propriedade estática de admissão,
+ordem, afinidade ou colocação de trabalho estruturado. Uma API não ganha um
+domain apenas por ser assíncrona, custosa ou externa.
+
+| Superfície | Papel do domain | Forma vigente |
+| --- | --- | --- |
+| child host comum | admissão e ordem | `async` herda; `spawn<domain>` escolhe `.serial` ou `.concurrent` |
+| paralelismo CPU | colocação de trabalho divisível | `parallelMap<domain>` exige capability `.parallel` |
+| kernel acelerado | submissão tipada para artifact fechado | `spawn<acceleratedDomain> descriptor.field(...)` |
+| UI/main thread | afinidade | entry/provider liga `.main`; child usa `spawn<.main>` quando precisa retornar |
+| foreign bloqueante | isolamento e budget de workers | domain host bounded com capability `.blocking` |
+| service handler | placement da instance/turn | runtime graph liga a service a um domain; a chamada não escolhe thread |
+| pipeline | cada node mantém sua própria colocação | calls comuns herdam; um node usa `spawn<domain>` quando muda de domain |
+| Channel/Stream | nenhuma colocação implícita | send/receive/operator suspende no Task atual; operators paralelos exigem domain explícito |
+| socket/file/timer não bloqueante | nenhum domain especial | provider + `await`; um domain aplicativo pode limitar trabalho posterior, não o I/O em si |
+| realtime audio/GPU presentation | domain pode ordenar trabalho, mas não cria garantia realtime | deadline, callback safety e device contract pertencem ao entry/provider |
+| interrupt/signal | não é child scheduling | adapter converte o evento para boundary segura antes de entrar em W |
+| process/sandbox | não é placement | authority, isolation e fault boundary explícitas |
+| service remoto/workflow/cluster | não é placement local | protocol, transport, durable workflow e deployment; trabalho local interno ainda pode escolher domains |
+| SIMD/vector/tensor lowering | não é scheduler | prova e lowering escolhem instruções/tiles/lanes |
+
+Nomes como `.inference`, `.graphics`, `.physics`, `.encoding` e `.thermal` são
+identidades do produto, não kinds universais nem promessas de hardware. Os
+kinds fechados descrevem a propriedade (`serial`, `concurrent`, `accelerated`);
+o profile liga a identidade ao recurso físico. Isso permite que `.inference`
+use GPU hoje, NPU amanhã ou falhe antes da entry sem mudar o source. Não se
+criam kinds `.gpu`, `.npu`, `.network`, `.database` ou `.background` na
+linguagem.
+
 **Exemplo normalizado:**
 
 ```text
@@ -13034,11 +13138,14 @@ pode remover affinity, isolation, ordering ou mobility.
 pacote declara os dois nomes. Um domínio serial `kitchen.thermal` pode usar o
 pool, mas conserva sua strand serial. O deployment não pode torná-lo paralelo.
 
-`.device` não autoriza `spawn` a migrar W code arbitrário para GPU, DSP ou ASIC.
-Kernel selection e launch usam o descriptor e o scope de
-[12.7.2](#1272-device-scopes-e-kernels). Um adapter pode usar um domain com
-`.device` para seus jobs de host; o kernel continua outro artifact. `await`,
-Os initializers `async` e `spawn` controlam o launch como qualquer operação suspensiva.
+`.device` isolada não autoriza `spawn` a migrar W code arbitrário para GPU, DSP
+ou ASIC. W-1602 admite somente um field de `accelerator.module` como callee
+imediato de `spawn` num domain `.accelerated` compatível. Kernel selection,
+artifact e o owner de launch seguem
+[12.7.2](#1272-device-domains-scopes-e-kernels). Um adapter pode usar um domain
+host com `.device` para seus próprios jobs; isso não transforma uma closure comum
+em kernel. `await`, os initializers `async` e `spawn` continuam controlando
+somente a relação estruturada correspondente.
 
 Um módulo publica requirements, mas não escolhe um domínio oculto para `spawn`
 ou `parallelMap`. Importar um módulo nunca cria executor, queue ou thread.
@@ -13704,10 +13811,11 @@ produzir o mesmo owner graph, outcome, drop ledger e happens-before projection.
 Diferenças físicas podem aparecer no trace e em `w explain execution`; elas não
 podem mudar o resultado lógico.
 
-#### 12.7.2 Device scopes e kernels
+#### 12.7.2 Device domains, scopes e kernels
 
-**Exemplo:** o kernel direto continua uma função W comum. O descriptor gera um
-launch tipado para device sem criar uma quinta forma de execução:
+**Exemplo:** o kernel direto continua uma função W comum. Um domain acelerado
+usa o mesmo `spawn<domain>` estruturado das outras execuções, e o field do
+descriptor seleciona estaticamente o kernel:
 
 ```w
 export const lastLightKernels = accelerator.module<{
@@ -13715,6 +13823,46 @@ export const lastLightKernels = accelerator.module<{
   normalize: normalizeKernel,
 }>()
 
+let prediction = spawn<.inference> lastLightKernels.forecast(
+  features: ref deviceFeatures,
+  weights: ref deviceWeights,
+)
+let deviceResult = try await prediction
+```
+
+`forecastKernel(...)` continua a call direta de host. O compiler rejeita
+`lastLightKernels.forecast(...)` fora de `spawn`, rejeita
+`async lastLightKernels.forecast(...)` e rejeita um `spawn` para um domain host;
+o descriptor não é function value nem lookup runtime. A relation escondida do
+path estático é tipada pela tupla exata `(domain identity, ModuleIdentity,
+KernelInstanceId)`. O execution profile/root a valida e liga antes da entry,
+mantém uma queue/generation por domain lógico e drena todas as submissions no
+shutdown. Módulos distintos podem compartilhar um domain; uma queue
+independente exige outro domain declarado.
+
+O resultado é `Task<T, LaunchError>` e segue as fases, receipts,
+cancelamento, cleanup e drain de W-1211–W-1218. Um join imediato pode ser
+eliminado somente por uma prova independente de equivalência; submission,
+receipt e drain continuam observáveis para ownership e lifecycle. Dados runtime
+ficam nos argumentos tipados da invocation, nunca na identidade `<...>`, e
+nenhuma transferência é inserida. A baseline deriva a geometria de dispatch dos
+facts do kernel e de suas shapes; uma configuração explícita por invocation
+permanece adiada. A forma dinâmica
+explícita de `accelerator.open`/`Launch<Module>`/`.launch(using:)` permanece
+disponível quando device ou queue são escolhidos em runtime; seus erros de
+admission, artifact, provider e generation continuam `LaunchError`.
+
+O contrato não escolhe GPU, FPGA, DSP, provider, target ou ABI. Um product pode
+ligar o domain a qualquer backend que prove ModuleIdentity, numeric/layout,
+effects, memory plan, limits e receipts; caso não possa, o link ou a admission
+falha conforme `fallback`, sem migrar closure W arbitrária. SIMD, I/O, UI,
+áudio, interrupt, service, workflow e isolation permanecem nas superfícies
+próprias descritas em 12.6.1.
+
+**Forma dinâmica avançada:** seleção runtime de device ou queue torna o owner
+explícito. Ela não é necessária no caminho estático comum:
+
+```w
 let limits = accelerator.Limits.standard()
 var launch = try await accelerator.open(
   module: ref lastLightKernels,
@@ -13734,12 +13882,13 @@ let prediction = async lastLightKernels.forecast.launch(
   features: ref deviceFeatures,
   weights: ref deviceWeights,
 )
-let deviceResult = try await prediction
+let dynamicResult = try await prediction
 ```
 
 **W-1211 — descriptor fechado:** `accelerator.module<{...}>()` é uma síntese
 compile-time sobre static record. Cada field nomeia uma função kernel e gera um
-handle com método `launch`. O descriptor possui identity, manifest de effects,
+handle que participa do `spawn` acelerado estático e expõe o método `launch`
+para o caminho dinâmico. O descriptor possui identity, manifest de effects,
 ABI, address spaces, numeric modes e CPU implementation. Renomear um field muda
 a interface; lista heterogênea, lookup por string e registro runtime falham.
 
@@ -13777,10 +13926,11 @@ por string nem JIT implícito. Uma library genérica distribui source ou um
 conjunto finito declarado; um binary sem o instance exigido não satisfaz o
 link. Shape runtime usa ABI dinâmica não genérica e não cria código.
 
-**W-1287 — stub e artifact:** o launch stub preserva labels, result e modos
-`take`, `copy`, `ref` e `inout`; ele acrescenta primeiro
-`using: ref Launch<Module>`, pode suspender e falha com `LaunchError`. O stub não
-insere transfer. A identity source-backed inclui classe, module, source recipe
+**W-1287 — invocation, stub e artifact:** a relation estática de `spawn`
+preserva labels, result e modos `take`, `copy`, `ref` e `inout` e liga o domain,
+o `ModuleIdentity` e o `KernelInstanceId`. O stub dinâmico preserva a mesma
+assinatura, acrescenta primeiro `using: ref Launch<Module>`, pode suspender e
+falha com `LaunchError`. Nenhuma forma insere transfer. A identity source-backed inclui classe, module, source recipe
 e target constraints. A identity closed acrescenta instances alcançados,
 target, numeric mode, feature digest e provider ABI. `open` valida
 esse artifact contra module, Queue e provider; ele não executa a síntese.
@@ -13789,8 +13939,10 @@ admission.
 `w explain synthesis` e o sidecar mostram essas identidades sem reflection
 runtime.
 
-**W-1212 — scope owned:** `accelerator.open` cria um `Launch<Module>` move-only
-ligado a um module, Queue, Device, provider generation e Limits. O lifecycle é:
+**W-1212 — scope owned:** no caminho dinâmico, `accelerator.open` cria um
+`Launch<Module>` move-only ligado a um module, Queue, Device, provider generation
+e Limits. No caminho estático de W-1602, o mesmo owner semântico pertence ao
+root do domain e não é repetido em cada call. O lifecycle é:
 
 ```text
 declared → opening → ready → closing → closed
@@ -13798,9 +13950,11 @@ declared → opening → ready → closing → closed
 ```
 
 O scope abre admission somente depois de validar module, queue, device, numeric
-profile e provider. `close` fecha admission, drena todos os submissions,
-recolhe errors assíncronos, libera registrations uma vez e consome o owner. Um
-device scope não depende de `deinit`; async cleanup usa `defer async`.
+profile e provider. `close` explícito ou shutdown do root fecha admission, drena
+todos os submissions, recolhe errors assíncronos e libera registrations uma vez.
+O owner dinâmico é consumido por `close`; o owner estático é consumido pelo
+teardown verificado do root. Um device scope não depende de `deinit`; async
+cleanup usa `defer async` quando o owner aparece no source.
 
 **W-1213 — ownership e transfer:** argumentos passam pelo mesmo staging de
 12.7.1. `take`, `copy`, `ref` e `inout` mantêm seu significado. Um tensor
@@ -25556,7 +25710,7 @@ policy usada. Trace e `w explain performance` registram kernel, layout,
 accumulator, vector width e device.
 
 Um kernel continua função W direta. O descriptor, scope, completion e provider
-ficam definidos uma vez em [12.7.2](#1272-device-scopes-e-kernels).
+ficam definidos uma vez em [12.7.2](#1272-device-domains-scopes-e-kernels).
 Transferência de device permanece explícita. Fusion pode eliminar um
 intermediate lógico, mas não pode inserir transferência oculta.
 

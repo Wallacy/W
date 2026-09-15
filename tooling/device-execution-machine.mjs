@@ -1,5 +1,6 @@
 const MODES = new Set(["take", "copy", "ref", "inout"])
 const NUMERIC_MODES = new Set(["strict", "reproducible", "fast"])
+const SUBMISSION_MODES = new Set(["serial", "concurrent"])
 
 export class DeviceExecutionModelError extends Error {
   constructor(code) {
@@ -153,6 +154,10 @@ function initialState() {
     provider: null,
     providerGeneration: null,
     numericMode: null,
+    ownerKind: null,
+    domainIdentity: null,
+    submission: null,
+    maximum: null,
     limits: null,
     invocations: {},
     happensBefore: [],
@@ -164,53 +169,80 @@ function initialState() {
   }
 }
 
+function openScope(state, operation, ownerKind) {
+  requireScope(state, ["uninitialized"])
+  requireString(operation.moduleIdentity, "W-DEVICE-0001")
+  if (operation.artifactClass !== "closed") fail("W-DEVICE-0001")
+  requireString(operation.artifactIdentity, "W-DEVICE-0001")
+  if (operation.artifactModuleIdentity !== operation.moduleIdentity) fail("W-DEVICE-0001")
+  requireDigest(operation.artifactProviderAbiDigest, "W-DEVICE-0001")
+  requireDigest(operation.providerAbiDigest, "W-DEVICE-0002")
+  if (operation.artifactProviderAbiDigest !== operation.providerAbiDigest) {
+    fail("W-DEVICE-0001")
+  }
+  requireString(operation.artifactTarget, "W-DEVICE-0001")
+  requireString(operation.deviceTarget, "W-DEVICE-0002")
+  if (operation.artifactTarget !== operation.deviceTarget) fail("W-DEVICE-0001")
+  if (
+    !Array.isArray(operation.artifactInstances) ||
+    operation.artifactInstances.length === 0 ||
+    new Set(operation.artifactInstances).size !== operation.artifactInstances.length
+  ) {
+    fail("W-DEVICE-0001")
+  }
+  for (const instance of operation.artifactInstances) requireString(instance, "W-DEVICE-0001")
+  requireString(operation.queueId, "W-DEVICE-0002")
+  requireString(operation.deviceId, "W-DEVICE-0002")
+  requireString(operation.provider, "W-DEVICE-0002")
+  requireString(operation.providerGeneration, "W-DEVICE-0006")
+  if (operation.providerResolved !== true) fail("W-DEVICE-0002")
+  if (operation.queueDeviceId !== operation.deviceId) fail("W-DEVICE-0002")
+  if (!NUMERIC_MODES.has(operation.numericMode)) fail("W-DEVICE-0007")
+  validateLimits(operation.limits)
+
+  if (ownerKind === "static-root") {
+    requireString(operation.domainIdentity, "W-PLACEMENT-0002")
+    if (operation.domainKind !== "accelerated") fail("W-PLACEMENT-0002")
+    if (!SUBMISSION_MODES.has(operation.submission)) fail("W-CONTRACT-0002")
+    requirePositive(operation.maximum, "W-CONTRACT-0002")
+    if (operation.fallback !== "reject") fail("W-PLACEMENT-0002")
+    if (operation.rootOwned !== true) fail("W-DEVICE-0004")
+    if (operation.calleeKind !== "acceleratorModuleField") fail("W-PLACEMENT-0004")
+    if (operation.calleeModuleIdentity !== operation.moduleIdentity) fail("W-DEVICE-0001")
+    if (operation.runtimeConfigurationInAngles === true) fail("W-CONTRACT-0002")
+    if (operation.implicitTransfer === true) fail("W-DEVICE-0003")
+  }
+
+  state.phase = "ready"
+  state.admissionOpen = true
+  state.moduleIdentity = operation.moduleIdentity
+  state.artifactClass = operation.artifactClass
+  state.artifactIdentity = operation.artifactIdentity
+  state.artifactInstances = [...operation.artifactInstances]
+  state.providerAbiDigest = operation.providerAbiDigest
+  state.deviceTarget = operation.deviceTarget
+  state.queueId = operation.queueId
+  state.deviceId = operation.deviceId
+  state.provider = operation.provider
+  state.providerGeneration = operation.providerGeneration
+  state.numericMode = operation.numericMode
+  state.ownerKind = ownerKind
+  state.domainIdentity = ownerKind === "static-root" ? operation.domainIdentity : null
+  state.submission = ownerKind === "static-root" ? operation.submission : null
+  state.maximum = ownerKind === "static-root" ? operation.maximum : null
+  state.limits = structuredClone(operation.limits)
+  state.logicalTrace.push(ownerKind === "static-root" ? "scope:ready:static-root" : "scope:ready:dynamic")
+}
+
 function applyOperation(state, operation) {
   switch (operation.op) {
     case "open": {
-      requireScope(state, ["uninitialized"])
-      requireString(operation.moduleIdentity, "W-DEVICE-0001")
-      if (operation.artifactClass !== "closed") fail("W-DEVICE-0001")
-      requireString(operation.artifactIdentity, "W-DEVICE-0001")
-      if (operation.artifactModuleIdentity !== operation.moduleIdentity) fail("W-DEVICE-0001")
-      requireDigest(operation.artifactProviderAbiDigest, "W-DEVICE-0001")
-      requireDigest(operation.providerAbiDigest, "W-DEVICE-0002")
-      if (operation.artifactProviderAbiDigest !== operation.providerAbiDigest) {
-        fail("W-DEVICE-0001")
-      }
-      requireString(operation.artifactTarget, "W-DEVICE-0001")
-      requireString(operation.deviceTarget, "W-DEVICE-0002")
-      if (operation.artifactTarget !== operation.deviceTarget) fail("W-DEVICE-0001")
-      if (
-        !Array.isArray(operation.artifactInstances) ||
-        operation.artifactInstances.length === 0 ||
-        new Set(operation.artifactInstances).size !== operation.artifactInstances.length
-      ) {
-        fail("W-DEVICE-0001")
-      }
-      for (const instance of operation.artifactInstances) requireString(instance, "W-DEVICE-0001")
-      requireString(operation.queueId, "W-DEVICE-0002")
-      requireString(operation.deviceId, "W-DEVICE-0002")
-      requireString(operation.provider, "W-DEVICE-0002")
-      requireString(operation.providerGeneration, "W-DEVICE-0006")
-      if (operation.providerResolved !== true) fail("W-DEVICE-0002")
-      if (operation.queueDeviceId !== operation.deviceId) fail("W-DEVICE-0002")
-      if (!NUMERIC_MODES.has(operation.numericMode)) fail("W-DEVICE-0007")
-      validateLimits(operation.limits)
-      state.phase = "ready"
-      state.admissionOpen = true
-      state.moduleIdentity = operation.moduleIdentity
-      state.artifactClass = operation.artifactClass
-      state.artifactIdentity = operation.artifactIdentity
-      state.artifactInstances = [...operation.artifactInstances]
-      state.providerAbiDigest = operation.providerAbiDigest
-      state.deviceTarget = operation.deviceTarget
-      state.queueId = operation.queueId
-      state.deviceId = operation.deviceId
-      state.provider = operation.provider
-      state.providerGeneration = operation.providerGeneration
-      state.numericMode = operation.numericMode
-      state.limits = structuredClone(operation.limits)
-      state.logicalTrace.push("scope:ready")
+      openScope(state, operation, "dynamic")
+      return
+    }
+
+    case "bindStatic": {
+      openScope(state, operation, "static-root")
       return
     }
 
@@ -469,6 +501,10 @@ function projectState(state) {
     queueId: state.queueId,
     deviceId: state.deviceId,
     providerGeneration: state.providerGeneration,
+    ownerKind: state.ownerKind,
+    domainIdentity: state.domainIdentity,
+    submission: state.submission,
+    maximum: state.maximum,
     invocations: Object.fromEntries(
       Object.entries(state.invocations).map(([id, item]) => [id, invocationProjection(item)]),
     ),
