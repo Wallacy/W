@@ -110,6 +110,9 @@ typedef enum {
   /* Append-only compile-time record owners used inside contract envelopes. */
   W_SEED_CST_STATIC_RECORD,
   W_SEED_CST_STATIC_FIELD,
+  /* Append-only typed recoverable-error owners. */
+  W_SEED_CST_THROWS_TYPE,
+  W_SEED_CST_THROW_STATEMENT,
 } w_seed_cst_kind;
 
 enum {

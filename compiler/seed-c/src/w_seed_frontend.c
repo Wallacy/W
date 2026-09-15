@@ -759,6 +759,19 @@ static w_seed_span empty_span(size_t offset) {
   return span;
 }
 
+static frontend_simple_type function_error_type(
+    const frontend_context *context, const w_seed_frontend_document *doc,
+    uint32_t function_node) {
+  const uint32_t throws_node =
+      first_direct_kind(doc, function_node, W_SEED_CST_THROWS_TYPE);
+  if (throws_node == W_SEED_CST_NONE) return simple_type_unknown();
+  const uint32_t type_node = direct_type_index(doc, throws_node);
+  return type_node == W_SEED_CST_NONE
+             ? simple_type_unknown()
+             : contextual_type_from_span(context, doc,
+                                         doc->nodes[type_node].raw_span);
+}
+
 static bool add_size(size_t left, size_t right, size_t *result) {
   if (right > SIZE_MAX - left) return false;
   *result = left + right;
@@ -3522,6 +3535,8 @@ static bool receipt_size_function(frontend_context *context,
          receipt_size_size(context, function->is_async ? 1u : 0u) &&
          receipt_size_literal(context, "|throws=") &&
          receipt_size_size(context, function->is_throws ? 1u : 0u) &&
+         receipt_size_literal(context, "|error-type=") &&
+         receipt_size_size(context, function->error_type) &&
          receipt_size_literal(context, "|unsafe=") &&
          receipt_size_size(context, function->is_unsafe ? 1u : 0u) &&
          receipt_size_literal(context, "|borrows=") &&
@@ -5186,6 +5201,7 @@ static bool kind_is_statement(w_seed_cst_kind kind) {
   return kind == W_SEED_CST_LET_STATEMENT ||
          kind == W_SEED_CST_VAR_STATEMENT ||
          kind == W_SEED_CST_RETURN_STATEMENT ||
+         kind == W_SEED_CST_THROW_STATEMENT ||
          kind == W_SEED_CST_IF_STATEMENT ||
          kind == W_SEED_CST_WHILE_STATEMENT ||
          kind == W_SEED_CST_GUARD_STATEMENT ||
@@ -9606,6 +9622,7 @@ static bool normalize_function(frontend_context *context, uint32_t node_index,
   value.parameter_count =
       (uint32_t)count_direct_kind(doc, node_index, W_SEED_CST_PARAMETER);
   value.return_type = W_SEED_FRONTEND_NONE;
+  value.error_type = W_SEED_FRONTEND_NONE;
   value.first_statement = (uint32_t)context->count.statements;
   value.statement_count = 0;
   const size_t first_task_binding = context->task_binding_count;
@@ -9668,6 +9685,15 @@ static bool normalize_function(frontend_context *context, uint32_t node_index,
     const w_seed_frontend_type unit =
         inferred_unit_type(empty_span(node->raw_span.end_byte));
     if (!context_append_type(context, unit, &value.return_type)) return false;
+  }
+  const uint32_t throws_node =
+      first_direct_kind(doc, node_index, W_SEED_CST_THROWS_TYPE);
+  if (throws_node != W_SEED_CST_NONE) {
+    const uint32_t type_node = direct_type_index(doc, throws_node);
+    if (type_node == W_SEED_CST_NONE ||
+        !normalize_type_tree(context, type_node, &value.error_type)) {
+      return false;
+    }
   }
   const uint32_t block_node = first_direct_kind(doc, node_index, W_SEED_CST_BLOCK);
   if (block_node != W_SEED_CST_NONE) {
@@ -9735,6 +9761,7 @@ static bool normalize_entry(frontend_context *context, uint32_t node_index,
     function.const_body_supported = true;
     function.is_async = false;
     function.is_throws = false;
+    function.error_type = W_SEED_FRONTEND_NONE;
     function.is_unsafe = false;
     function.has_borrow_clause = false;
     function.is_anonymous_entry = true;
@@ -15395,6 +15422,9 @@ static bool normalize_statement_depth(frontend_context *context,
     case W_SEED_CST_RETURN_STATEMENT:
       value.kind = W_SEED_FRONTEND_STMT_RETURN;
       break;
+    case W_SEED_CST_THROW_STATEMENT:
+      value.kind = W_SEED_FRONTEND_STMT_THROW;
+      break;
     case W_SEED_CST_IF_STATEMENT:
       value.kind = W_SEED_FRONTEND_STMT_IF;
       break;
@@ -15440,6 +15470,10 @@ static bool normalize_statement_depth(frontend_context *context,
   } else if (node->kind == W_SEED_CST_RETURN_STATEMENT &&
              context->function_node != NULL) {
     expected_outer = function_return_type(
+        context, doc, (uint32_t)(context->function_node - doc->nodes));
+  } else if (node->kind == W_SEED_CST_THROW_STATEMENT &&
+             context->function_node != NULL) {
+    expected_outer = function_error_type(
         context, doc, (uint32_t)(context->function_node - doc->nodes));
   } else if (node->kind == W_SEED_CST_FOR_STATEMENT) {
     expected_outer = simple_type_from_view(
@@ -15633,6 +15667,21 @@ static bool normalize_statement_depth(frontend_context *context,
             context, doc->nodes[expression_node].raw_span, actual.spelling,
             expected.spelling);
       }
+    }
+  }
+  if (node->kind == W_SEED_CST_THROW_STATEMENT) {
+    const bool function_throws = context->function_node != NULL &&
+        (context->function_node->flags & W_SEED_CST_FUNCTION_FLAG_THROWS) != 0u;
+    if (!function_throws || expression_node == W_SEED_CST_NONE ||
+        expected_outer.kind == W_SEED_FRONTEND_TYPE_UNKNOWN ||
+        normalized_actual.kind == W_SEED_FRONTEND_TYPE_UNKNOWN ||
+        !frontend_widening_allowed(context, normalized_actual,
+                                   expected_outer)) {
+      value.kind = W_SEED_FRONTEND_STMT_UNSUPPORTED;
+      (void)context_append_fact(context,
+                                W_SEED_FRONTEND_FACT_UNSUPPORTED_NODE,
+                                node->raw_span,
+                                text_from_span(doc, node->raw_span));
     }
   }
   if (node->kind == W_SEED_CST_RETURN_STATEMENT &&
@@ -18386,6 +18435,8 @@ static void receipt_write_records(frontend_receipt_writer *writer,
       receipt_write_size(writer, function->is_async ? 1u : 0u);
       receipt_write_literal(writer, "|throws=");
       receipt_write_size(writer, function->is_throws ? 1u : 0u);
+      receipt_write_literal(writer, "|error-type=");
+      receipt_write_size(writer, function->error_type);
       receipt_write_literal(writer, "|unsafe=");
       receipt_write_size(writer, function->is_unsafe ? 1u : 0u);
       receipt_write_literal(writer, "|borrows=");

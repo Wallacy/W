@@ -163,7 +163,7 @@ Cada aplicação tem owner type, head, envelope, argumentos ordenados e status d
 binding; cada argumento preserva ordinal, span, label, parâmetro, kind, o índice
 de type ou `ConstValue` e o índice sentinel/relacionado de `TypedConstExpr`. O
 root liga à aplicação por `generic_application_index`.
-`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-28`. Earlier D2/D3 fields
+`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-29`. Earlier D2/D3 fields
 anteriores permanecem append-only; a versão 6 acrescenta records, ranges,
 counts/capacities e relações de module const; a versão 7 acrescenta
 `effective_type` e preserva `declared_type` como annotation source-only para
@@ -192,6 +192,18 @@ submission budget. It rejects bare or `async` module-field calls, host-domain
 offload, missing fields, and malformed accelerated bindings. Escape decoding,
 Boolean/String value Display, general Display conformance, general device IR,
 and native provider linkage outside those subsets remain gaps.
+
+Version 29 gives `throws E` and `throw value` a typed compiler relation.
+The CST owns the throws type separately from the normal return type; frontend
+functions publish `error_type`, and a throw statement owns one contextually
+typed expression. HIR0 schema `w-seed-hir0-39` copies the concrete local enum,
+its exact core-`Error` conformance fact, and a typed `THROW` terminator into
+caller-owned records. The new fields are covered by semantic/provenance
+verification, receipts, capacity and alias barriers, and remain valid after
+frontend teardown. Current HIR evidence covers a terminal root throw only.
+Non-`Error` enums and branch-local throw fail closed; try/catch, cleanup,
+provider/Task binding, and MLIR/native execution are not implemented by this
+slice.
 
 `w_seed_accelerated_invocation0` consumes only that successful Frontend28
 relation plus a verified `w_seed_gpu_module` program. ACCINV0 copies one exact

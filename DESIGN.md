@@ -40582,6 +40582,45 @@ not yet an authenticated PARPROV result, TASKLIFE binding, source-level throw,
 physical preemption, panic boundary, scheduler, Task ABI, public product,
 benchmark, or performance claim.
 
+#### 26.4.1.93 W-1613 — bounded typed throw in verified HIR
+
+The seed compiler now preserves one concrete recoverable-error path from W
+source into independently verified HIR. Parser CST distinguishes the
+`throws E` type owner from the function return type and represents `throw`
+as a statement with one required expression. Frontend schema
+`w-seed-frontend-29` publishes `function.error_type` and a typed `THROW`
+statement. A nonthrowing function, a missing value, an unknown value type, or
+a value not assignable to `E` remains unsupported rather than being inferred
+from spelling downstream.
+
+HIR0 schema `w-seed-hir0-39` retains the concrete local enum type, an exact
+core-`Error` conformance fact, and a `THROW` terminator whose value and result
+type are `E`. The new fields participate in the semantic digest and receipt.
+Verification checks the function/error-enum relation, exact value ownership,
+type assignability, terminal shape, dense record ranges, capacities, aliases,
+and transactionality after frontend storage may have been discarded. A
+throwing async function cannot receive the current bounded direct-entry fact.
+Consumers that have no typed-error lowering, including ProductClosure0, reject
+the new terminator explicitly.
+
+Current evidence covers a local closed error enum and one terminal root
+`throw`, including a function whose normal return type differs from `E`.
+Non-`Error` enums and a branch-local throw fail closed. Payload construction,
+mixed return/throw CFG, `try`, `try?`, `do`/`catch`, cleanup edges, propagation,
+provider-result authentication, Task lifecycle binding, MLIR/native lowering,
+panic containment, public execution, benchmarks, and performance remain
+separate increments. These are seed evidence limits, not language limits.
+
+```w
+enum DispatchError: Error {
+  denied
+}
+
+fn dispatch(): i64 throws DispatchError {
+  throw .denied
+}
+```
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

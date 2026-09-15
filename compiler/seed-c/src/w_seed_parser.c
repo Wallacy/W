@@ -2078,6 +2078,23 @@ static bool parse_return_statement(w_seed_parser *parser) {
   return true;
 }
 
+static bool parse_throw_statement(w_seed_parser *parser) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_THROW_STATEMENT, start) == W_SEED_CST_NONE)
+    return false;
+  (void)consume_text(parser, "throw", NULL);
+  if (current_is_text(parser, ";") || current_is_text(parser, "}") ||
+      current_is_eof(parser) || !parse_expression(parser, 1, true)) {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  (void)statement_boundary(parser);
+  pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+  return true;
+}
+
 static bool parse_commit_statement(w_seed_parser *parser) {
   const size_t start = current_span(parser).start_byte;
   if (push_node(parser, W_SEED_CST_COMMIT_STATEMENT, start) ==
@@ -2284,6 +2301,7 @@ static bool parse_statement(w_seed_parser *parser) {
   if (current_is_text(parser, "let")) return parse_let_statement(parser);
   if (current_is_text(parser, "var")) return parse_var_statement(parser);
   if (current_is_text(parser, "return")) return parse_return_statement(parser);
+  if (current_is_text(parser, "throw")) return parse_throw_statement(parser);
   if (current_is_text(parser, "commit")) return parse_commit_statement(parser);
   if (current_is_text(parser, "if")) return parse_if_statement(parser);
   if (current_is_text(parser, "while")) return parse_while_statement(parser);
@@ -3254,8 +3272,13 @@ static bool parse_function(w_seed_parser *parser) {
   }
   if (current_is_text(parser, "throws")) {
     parser->nodes[function_node].flags |= W_SEED_CST_FUNCTION_FLAG_THROWS;
+    const size_t type_start = current_span(parser).start_byte;
+    if (push_node(parser, W_SEED_CST_THROWS_TYPE, type_start) ==
+        W_SEED_CST_NONE)
+      return false;
     (void)consume_text(parser, "throws", NULL);
     if (!parse_type(parser)) return false;
+    pop_node(parser, parser->last_token_end);
   }
   if (current_is_text(parser, "borrows")) {
     parser->nodes[function_node].flags |= W_SEED_CST_FUNCTION_FLAG_BORROWS;

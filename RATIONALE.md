@@ -251,6 +251,7 @@ O corpus compara, no mínimo:
 - target-neutral measured task lifecycle reduction against scheduler substitution, cancellation races, cleanup/commit reordering, fixed storage ceilings, and unproved task ABI or performance claims.
 - verified provider-outcome lifecycle binding against physical-capacity leakage, trusted outcome substitution, partial semantic publication, and premature failure, cancellation, panic, ABI, or performance claims.
 - typed physical completion waves against Boolean outcome collapse, fail-fast sibling rewriting, thread termination as cancellation, and panic-to-error substitution.
+- typed source throw against erased error identity, normal-return collapse, unconstrained enum conformance, and downstream spelling inference.
 - bounded dual-target process/parallel linkage against direct-call substitution, CRT fallback, hidden runtime input, target conflation, and premature public or benchmark claims.
 - bounded GPU0 target-neutral semantic and available CUDA execution against source-backed W claims, provider/runtime conflation, homogeneous toolchains, and premature public product support.
 - bounded static accelerated root binding against embedded provider handles, multiplied budgets, and unauthenticated claims.
@@ -7938,6 +7939,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1610 | measured task-lifecycle transaction and reducer | TASKLIFE1 reuses the W-1599 reducer over dense caller-owned task and event views, separates u32 semantic counts from `size_t` physical capacities, and removes the fixed four-task and 128-event ceilings from the current lifecycle contract. | `source-backed-current` only for shared TASKLIFE0/TASKLIFE1 reduction, transactional measure/run/verify, complete alias and capacity barriers, compatible fixed-record equality, a five-task fail-fast cancellation/drain witness, and a 137-event C23 witness. Verified-HIR/provider binding, physical interruption, panic payloads, scheduling, public Task ABI, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1611 | verified provider-outcome lifecycle binding | PARLIFE1 consumes verified successful PARPROV1 outcomes and their digest, derives measured TASKLIFE1 storage and a complete success trace, and publishes a checked lexical scope fold independently from provider capacity. | `source-backed-current` only for the five-task Windows compiler/component success path, provider-capacity-one/two byte equality, caller-owned measure/run/verify, complete upstream/output alias barriers, checked scope folding, and adversarial capacity/forgery evidence. Typed physical failure, cancellation request/interruption, panic, scheduling, public Task ABI/execution, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1612 | typed physical completion primitive | The private Windows PLATFORM1 provider callback returns a canonical tagged success, error, or canceled completion. A completed wave chooses the first lexical failure/cancellation source, preserves already-settled siblings, and cancels later unstarted tasks without treating typed outcomes as provider failure. | `source-backed-current` only for the private C23 Windows primitive, capacity-one/two five-task completion equality, monotonic capacity-two rendezvous, explicit cancellation propagation, started/settled/canceled-before-start receipt facts, and invalid-payload rejection. Authentication as a PARPROV result, TASKLIFE binding, source-level throw/cancel, physical preemption, panic containment, scheduling, public Task ABI/products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1613 | bounded typed throw in verified HIR | Parser CST separates the `throws E` type owner and `throw` statement; frontend29 preserves the concrete error type; HIR39 binds an exact core-`Error` local enum, the function error type, and a typed `THROW` terminator into caller-owned records, digests, receipts, and independent verification. | `source-backed-current` only for one terminal root throw with a local closed error enum, different normal/error result types, non-Error and branch-composition rejection, transactional publication, and adversarial HIR verification. Payload construction, mixed CFG, try/catch/cleanup, provider and Task binding, MLIR/native execution, public products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -13111,3 +13113,24 @@ authenticated against HIR/PARINV or consumed by TASKLIFE. Source-level throw and
 cancellation, polling for long-running bodies, provider-neutral scheduling, and
 panic containment remain later boundaries. In particular, a process or hardware
 fault must never be relabeled as a W error.
+
+#### W-1613 — bounded typed throw in verified HIR
+
+The provider completion work exposed a missing producer-side proof: a physical
+`error(code)` cannot safely become a language error until source and HIR carry
+the concrete `E`. This increment starts at the opposite end of that boundary.
+The CST gives `throws E` its own owner, frontend normalization records the
+resolved error type, and HIR stores both the local enum's exact core-`Error`
+conformance fact and the function's concrete error type. `THROW` owns one typed
+value tree and terminates the current root block; it never masquerades as a
+normal return, provider failure, panic, or cancellation.
+
+The verifier recomputes all structural relations from caller-owned HIR and
+binds the new fields into the semantic digest and receipt. The focused witness
+uses a signed-`i64` normal return with a distinct `Failure` error enum, proving
+that the channels are not collapsed. Mutated error types, conformance facts,
+terminator kinds, and result types reject after resealing. A non-`Error` enum
+and branch-local throw are also rejected before HIR publication. Branch/cleanup
+composition and downstream MLIR execution remain intentionally absent; the
+next error increment should connect this typed source edge to an authenticated
+provider outcome without inventing an error from callback data.

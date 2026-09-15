@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-28"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-29"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -231,6 +231,8 @@ typedef enum {
   W_SEED_FRONTEND_STMT_WHILE,
   /* Append-only post-test loop with a Bool condition and one child chain. */
   W_SEED_FRONTEND_STMT_REPEAT,
+  /* Append-only typed recoverable-error terminator. */
+  W_SEED_FRONTEND_STMT_THROW,
 } w_seed_frontend_stmt_kind;
 
 typedef struct {
@@ -664,6 +666,8 @@ typedef struct {
   uint32_t first_parameter;
   uint32_t parameter_count;
   uint32_t return_type;
+  /* NONE for nonthrowing functions; otherwise the concrete `throws E` type. */
+  uint32_t error_type;
   uint32_t first_statement;
   uint32_t statement_count;
   /* Append-only const capability and D0 body support flags. */
