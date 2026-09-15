@@ -98,6 +98,12 @@ typedef struct {
   uint32_t external_member_module_index;
   uint32_t external_member_symbol_index;
   const w_seed_frontend_external_symbol *external_member_symbol;
+  bool is_accelerator_module;
+  bool is_accelerator_member;
+  uint32_t accelerator_const_index;
+  uint32_t accelerator_module_index;
+  uint32_t accelerator_kernel_index;
+  uint32_t accelerator_function_index;
   bool is_local_call;
   uint32_t local_call_function;
   bool local_call_is_async;
@@ -371,8 +377,18 @@ static bool domain_input_ready(const w_seed_frontend_input *input);
 static bool caller_domain_binding(const frontend_context *context,
                                   w_seed_frontend_text name,
                                   uint32_t *domain_index,
+                                  w_seed_frontend_domain_kind *kind,
                                   w_seed_frontend_domain_mode *mode,
-                                  uint32_t *capabilities);
+                                  uint32_t *capabilities,
+                                  uint32_t *maximum);
+static bool accelerator_module_const_for_name(
+    const frontend_context *context, w_seed_frontend_text name,
+    uint32_t *const_index, uint32_t *accelerator_module_index);
+static bool accelerator_kernel_for_module(
+    const frontend_context *context, uint32_t const_index,
+    w_seed_frontend_text label, uint32_t *accelerator_module_index,
+    uint32_t *accelerator_kernel_index, uint32_t *function_index,
+    w_seed_frontend_text *function_name);
 static const w_seed_frontend_resolved_import *resolved_import_at(
     const frontend_context *context, size_t import_index);
 static bool resolved_import_index_for(const frontend_context *context,
@@ -3226,10 +3242,14 @@ static bool receipt_size_domain_records(frontend_context *context) {
         !receipt_size_size(context, index) ||
         !receipt_size_literal(context, "|") ||
         !receipt_size_text(context, domain->name) ||
+        !receipt_size_literal(context, "|kind=") ||
+        !receipt_size_size(context, (size_t)domain->kind) ||
         !receipt_size_literal(context, "|mode=") ||
         !receipt_size_size(context, (size_t)domain->mode) ||
         !receipt_size_literal(context, "|capabilities=") ||
         !receipt_size_size(context, domain->capabilities) ||
+        !receipt_size_literal(context, "|maximum=") ||
+        !receipt_size_size(context, domain->maximum) ||
         !receipt_size_literal(context, "\n"))
       return false;
   }
@@ -3514,7 +3534,8 @@ static bool receipt_size_call_identity(
     frontend_context *context, size_t call_index, size_t callee_index,
     w_seed_frontend_callee_kind kind,
     uint32_t host_symbol_index, uint32_t external_module_index,
-    uint32_t external_symbol_index) {
+    uint32_t external_symbol_index, uint32_t accelerator_module_index,
+    uint32_t accelerator_kernel_index) {
   return receipt_size_literal(context, "callee=") &&
          receipt_size_size(context, call_index) &&
          receipt_size_literal(context, "|identifier=") &&
@@ -3527,6 +3548,10 @@ static bool receipt_size_call_identity(
          receipt_size_size(context, external_module_index) &&
          receipt_size_literal(context, ":") &&
          receipt_size_size(context, external_symbol_index) &&
+         receipt_size_literal(context, "|accelerator=") &&
+         receipt_size_size(context, accelerator_module_index) &&
+         receipt_size_literal(context, ":") &&
+         receipt_size_size(context, accelerator_kernel_index) &&
          receipt_size_literal(context, "\n");
 }
 
@@ -3534,8 +3559,9 @@ static bool receipt_size_task_expression(
     frontend_context *context, size_t expression_index,
     w_seed_frontend_expr_kind kind, uint32_t result_type,
     uint32_t call_expression, uint32_t binding_statement,
-    uint32_t domain_index, w_seed_frontend_domain_mode domain_mode,
-    uint32_t domain_capabilities) {
+    uint32_t domain_index, w_seed_frontend_domain_kind domain_kind,
+    w_seed_frontend_domain_mode domain_mode, uint32_t domain_capabilities,
+    uint32_t domain_maximum) {
   return receipt_size_literal(context, "task-expression=") &&
          receipt_size_size(context, expression_index) &&
          receipt_size_literal(context, "|kind=") &&
@@ -3548,10 +3574,14 @@ static bool receipt_size_task_expression(
          receipt_size_size(context, binding_statement) &&
          receipt_size_literal(context, "|domain=") &&
          receipt_size_size(context, domain_index) &&
+         receipt_size_literal(context, "|domain-kind=") &&
+         receipt_size_size(context, (size_t)domain_kind) &&
          receipt_size_literal(context, "|domain-mode=") &&
          receipt_size_size(context, (size_t)domain_mode) &&
          receipt_size_literal(context, "|capabilities=") &&
          receipt_size_size(context, domain_capabilities) &&
+         receipt_size_literal(context, "|maximum=") &&
+         receipt_size_size(context, domain_maximum) &&
          receipt_size_literal(context, "\n");
 }
 
@@ -3995,12 +4025,22 @@ static bool domain_input_ready(const w_seed_frontend_input *input) {
   if (input->domain_count > (size_t)W_SEED_FRONTEND_MAX_DOMAINS ||
       input->domain_count > (size_t)UINT32_MAX)
     return false;
-  const uint32_t known = W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL;
+  const uint32_t known = W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL |
+                         W_SEED_FRONTEND_DOMAIN_CAPABILITY_DEVICE;
   for (size_t index = 0u; index < input->domain_count; index += 1u) {
     const w_seed_frontend_domain *domain = &input->domains[index];
     if (!external_text_valid(domain->name) || domain->name.length == 0u ||
+        domain->kind > W_SEED_FRONTEND_DOMAIN_ACCELERATED ||
         domain->mode > W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT ||
         (domain->capabilities & ~known) != 0u)
+      return false;
+    if (domain->kind == W_SEED_FRONTEND_DOMAIN_ACCELERATED &&
+        (domain->maximum == 0u ||
+         domain->capabilities != W_SEED_FRONTEND_DOMAIN_CAPABILITY_DEVICE))
+      return false;
+    if (domain->kind == W_SEED_FRONTEND_DOMAIN_HOST &&
+        (domain->capabilities & W_SEED_FRONTEND_DOMAIN_CAPABILITY_DEVICE) !=
+            0u)
       return false;
     for (size_t prior = 0u; prior < index; prior += 1u)
       if (text_equal_text(domain->name, input->domains[prior].name))
@@ -4012,18 +4052,32 @@ static bool domain_input_ready(const w_seed_frontend_input *input) {
 static bool caller_domain_binding(const frontend_context *context,
                                   w_seed_frontend_text name,
                                   uint32_t *domain_index,
+                                  w_seed_frontend_domain_kind *kind,
                                   w_seed_frontend_domain_mode *mode,
-                                  uint32_t *capabilities) {
+                                  uint32_t *capabilities,
+                                  uint32_t *maximum) {
   if (domain_index != NULL) *domain_index = W_SEED_FRONTEND_NONE;
+  if (kind != NULL) *kind = W_SEED_FRONTEND_DOMAIN_HOST;
   if (mode != NULL) *mode = W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
   if (capabilities != NULL) *capabilities = 0u;
+  if (maximum != NULL) *maximum = 0u;
   if (context == NULL || context->input.domains == NULL) return false;
   for (size_t index = 0u; index < context->input.domain_count; index += 1u) {
     const w_seed_frontend_domain *domain = &context->input.domains[index];
-    if (!text_equal_text(domain->name, name)) continue;
+    /* Source domains are spelled `.name`; the parser token deliberately
+     * carries only `name`, while caller-owned identities retain the leading
+     * dot used by receipts and build contracts. */
+    if (domain->name.length != name.length + 1u ||
+        domain->name.data == NULL || domain->name.data[0] != '.' ||
+        name.data == NULL ||
+        memcmp(domain->name.data + 1u, name.data, name.length) != 0) {
+      continue;
+    }
     if (domain_index != NULL) *domain_index = (uint32_t)index;
+    if (kind != NULL) *kind = domain->kind;
     if (mode != NULL) *mode = domain->mode;
     if (capabilities != NULL) *capabilities = domain->capabilities;
+    if (maximum != NULL) *maximum = domain->maximum;
     return true;
   }
   return false;
@@ -9755,6 +9809,10 @@ typedef struct {
   frontend_simple_type expected_type;
   bool has_expected_type;
   bool suppress_short_diagnostic;
+  /* Accelerator-module fields are callable only as the direct operand of a
+   * statically bound accelerated spawn. This parser-local permission avoids
+   * manufacturing an ordinary host-call interpretation for the same text. */
+  bool allow_accelerator_call;
 } frontend_expression_parser;
 
 static frontend_simple_type simple_type_from_view(w_seed_frontend_text spelling) {
@@ -11650,6 +11708,8 @@ static bool expression_append(frontend_expression_parser *parser,
   record.resolved_external_module_index = W_SEED_FRONTEND_NONE;
   record.resolved_external_symbol_index = W_SEED_FRONTEND_NONE;
   record.resolved_local_ordinal = W_SEED_FRONTEND_NONE;
+  record.resolved_accelerator_module_index = W_SEED_FRONTEND_NONE;
+  record.resolved_accelerator_kernel_index = W_SEED_FRONTEND_NONE;
   record.member_name = (w_seed_frontend_text){NULL, 0};
   record.resolved_const_declaration = W_SEED_FRONTEND_NONE;
   record.resolved_binding_statement = W_SEED_FRONTEND_NONE;
@@ -11661,8 +11721,10 @@ static bool expression_append(frontend_expression_parser *parser,
   record.task_call_expression = W_SEED_FRONTEND_NONE;
   record.task_binding_statement = W_SEED_FRONTEND_NONE;
   record.domain_index = W_SEED_FRONTEND_NONE;
+  record.domain_kind = W_SEED_FRONTEND_DOMAIN_HOST;
   record.domain_mode = W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
   record.domain_capabilities = W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE;
+  record.domain_maximum = 0u;
   if (kind == W_SEED_FRONTEND_EXPR_IDENTIFIER) {
     for (size_t index = parser->context->active_pattern_capture_count;
          index > 0u; index -= 1u) {
@@ -11777,6 +11839,12 @@ static bool expression_append(frontend_expression_parser *parser,
   value->operator_text = operator_text;
   value->span = span;
   value->is_local_call = false;
+  value->is_accelerator_module = false;
+  value->is_accelerator_member = false;
+  value->accelerator_const_index = W_SEED_FRONTEND_NONE;
+  value->accelerator_module_index = W_SEED_FRONTEND_NONE;
+  value->accelerator_kernel_index = W_SEED_FRONTEND_NONE;
+  value->accelerator_function_index = W_SEED_FRONTEND_NONE;
   value->local_call_function = W_SEED_FRONTEND_NONE;
   value->local_call_is_async = false;
   value->task_binding_statement = W_SEED_FRONTEND_NONE;
@@ -12086,6 +12154,8 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
         parser->context, spelling, token.span);
     bool resolved = type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN;
     uint32_t resolved_module_const = W_SEED_FRONTEND_NONE;
+    uint32_t resolved_accelerator_module = W_SEED_FRONTEND_NONE;
+    bool accelerator_module = false;
     if (!resolved) {
       /* A qualified external enum value starts with its imported nominal
        * type (for example `ProcessExitCode.success`).  Keep the type alias
@@ -12139,6 +12209,13 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
           resolved = type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN;
         }
       }
+      if (!resolved &&
+          accelerator_module_const_for_name(
+              parser->context, spelling, &resolved_module_const,
+              &resolved_accelerator_module)) {
+        accelerator_module = true;
+        resolved = true;
+      }
       if (!resolved) {
         (void)context_append_fact(
             parser->context, W_SEED_FRONTEND_FACT_UNRESOLVED_LOCAL_SYMBOL,
@@ -12156,6 +12233,14 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
         value->index < parser->context->output->expression_capacity) {
       parser->context->output->expressions[value->index]
           .resolved_const_declaration = resolved_module_const;
+    }
+    if (appended && accelerator_module) {
+      value->is_accelerator_module = true;
+      value->is_accelerator_member = false;
+      value->accelerator_const_index = resolved_module_const;
+      value->accelerator_module_index = resolved_accelerator_module;
+      value->accelerator_kernel_index = W_SEED_FRONTEND_NONE;
+      value->accelerator_function_index = W_SEED_FRONTEND_NONE;
     }
     return appended;
   }
@@ -12537,6 +12622,11 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       uint32_t external_module_index = W_SEED_FRONTEND_NONE;
       uint32_t external_symbol_index = W_SEED_FRONTEND_NONE;
       const w_seed_frontend_external_symbol *external_member = NULL;
+      uint32_t accelerator_module_index = W_SEED_FRONTEND_NONE;
+      uint32_t accelerator_kernel_index = W_SEED_FRONTEND_NONE;
+      uint32_t accelerator_function_index = W_SEED_FRONTEND_NONE;
+      w_seed_frontend_text accelerator_function_name = {NULL, 0u};
+      bool accelerator_member = false;
       if (value->type.kind == W_SEED_FRONTEND_TYPE_STATIC_LIST &&
           text_equal(member_name, "count")) {
         result_type = simple_type_from_view((w_seed_frontend_text){"usize", 5});
@@ -12551,6 +12641,24 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
         result_type = external_contextual_type(
             parser->context, external_member->return_type);
         supported = result_type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN;
+      }
+      if (!supported && parser->allow_accelerator_call &&
+          value->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+          value->supported && value->is_accelerator_module &&
+          accelerator_kernel_for_module(
+              parser->context, value->accelerator_const_index, member_name,
+              &accelerator_module_index, &accelerator_kernel_index,
+              &accelerator_function_index, &accelerator_function_name)) {
+        const w_seed_frontend_document *signature_doc = NULL;
+        uint32_t signature_node = W_SEED_CST_NONE;
+        accelerator_member = function_signature_for_name(
+            parser->context, accelerator_function_name, &signature_doc,
+            &signature_node);
+        if (accelerator_member) {
+          result_type = function_return_type(parser->context, signature_doc,
+                                             signature_node);
+          supported = result_type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN;
+        }
       }
       if (!supported) {
         (void)context_append_fact(
@@ -12580,6 +12688,17 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
           parser->context->output->expressions[value->index]
               .resolved_external_symbol_index = external_symbol_index;
         }
+        if (supported && accelerator_member) {
+          parser->context->output->expressions[value->index]
+              .resolved_callee_kind =
+              W_SEED_FRONTEND_CALLEE_ACCELERATOR_MODULE_FIELD;
+          parser->context->output->expressions[value->index]
+              .resolved_function_index = accelerator_function_index;
+          parser->context->output->expressions[value->index]
+              .resolved_accelerator_module_index = accelerator_module_index;
+          parser->context->output->expressions[value->index]
+              .resolved_accelerator_kernel_index = accelerator_kernel_index;
+        }
       }
       value->is_external_member = supported && external_member != NULL;
       value->external_member_module_index =
@@ -12590,10 +12709,24 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
                                     : W_SEED_FRONTEND_NONE;
       value->external_member_symbol =
           value->is_external_member ? external_member : NULL;
-      value->has_name = value->is_external_member;
+      value->is_accelerator_module = false;
+      value->is_accelerator_member = supported && accelerator_member;
+      value->accelerator_const_index = W_SEED_FRONTEND_NONE;
+      value->accelerator_module_index = value->is_accelerator_member
+                                            ? accelerator_module_index
+                                            : W_SEED_FRONTEND_NONE;
+      value->accelerator_kernel_index = value->is_accelerator_member
+                                            ? accelerator_kernel_index
+                                            : W_SEED_FRONTEND_NONE;
+      value->accelerator_function_index = value->is_accelerator_member
+                                              ? accelerator_function_index
+                                              : W_SEED_FRONTEND_NONE;
+      value->has_name = value->is_external_member || value->is_accelerator_member;
       value->name = value->is_external_member
                         ? member_name
-                        : (w_seed_frontend_text){NULL, 0u};
+                        : (value->is_accelerator_member
+                               ? accelerator_function_name
+                               : (w_seed_frontend_text){NULL, 0u});
       value->is_integer_literal = false;
       continue;
     }
@@ -13005,6 +13138,13 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
                                 span, text_from_span(parser->document, span));
     }
     const size_t callee_index = value->index;
+    const bool accelerator_call = value->is_accelerator_member;
+    const uint32_t accelerator_module_identity =
+        value->accelerator_module_index;
+    const uint32_t accelerator_kernel_identity =
+        value->accelerator_kernel_index;
+    const uint32_t accelerator_function_identity =
+        value->accelerator_function_index;
     const w_seed_frontend_text callee_name =
         value->has_name || value->is_enum_case
             ? text_from_span(parser->document, value->span)
@@ -13017,7 +13157,13 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
                            argument_count, value)) {
       return false;
     }
-    value->is_local_call = local_signature;
+    value->is_local_call = local_signature && !accelerator_call;
+    value->is_accelerator_module = false;
+    value->is_accelerator_member = accelerator_call;
+    value->accelerator_const_index = W_SEED_FRONTEND_NONE;
+    value->accelerator_module_index = accelerator_module_identity;
+    value->accelerator_kernel_index = accelerator_kernel_identity;
+    value->accelerator_function_index = accelerator_function_identity;
     value->local_call_is_async =
         local_signature && signature_doc != NULL &&
         signature_node < signature_doc->parse.node_count &&
@@ -13029,7 +13175,9 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       uint32_t host_symbol_identity = W_SEED_FRONTEND_NONE;
       uint32_t external_module_identity = W_SEED_FRONTEND_NONE;
       uint32_t external_symbol_identity = W_SEED_FRONTEND_NONE;
-      if (local_signature) {
+      if (accelerator_call) {
+        identity_kind = W_SEED_FRONTEND_CALLEE_ACCELERATOR_MODULE_FIELD;
+      } else if (local_signature) {
         identity_kind = W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION;
       } else if (external_signature_found && value->is_external_member) {
         identity_kind = W_SEED_FRONTEND_CALLEE_EXTERNAL_MODULE_SYMBOL;
@@ -13048,9 +13196,21 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       if (!receipt_size_call_identity(
               parser->context, value->index, callee_index,
               identity_kind, host_symbol_identity, external_module_identity,
-              external_symbol_identity)) {
+              external_symbol_identity, accelerator_module_identity,
+              accelerator_kernel_identity)) {
         return false;
       }
+    } else if (accelerator_call && parser->context->output != NULL &&
+               value->index < parser->context->output->expression_capacity) {
+      w_seed_frontend_expression *record =
+          &parser->context->output->expressions[value->index];
+      record->resolved_callee_kind =
+          W_SEED_FRONTEND_CALLEE_ACCELERATOR_MODULE_FIELD;
+      record->resolved_function_index = accelerator_function_identity;
+      record->resolved_accelerator_module_index =
+          accelerator_module_identity;
+      record->resolved_accelerator_kernel_index =
+          accelerator_kernel_identity;
     }
     value->is_integer_literal = false;
   }
@@ -13133,20 +13293,14 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
   if (token_text(parser->document, &token, "spawn")) {
     frontend_token_cursor look = parser->cursor;
     frontend_token spawn_token = {0};
-    const bool spawn_shape = cursor_take_text(&look, "spawn", &spawn_token);
-    frontend_token_cursor main_look = look;
-    frontend_token_cursor parallel_look = look;
-    const bool exact_main_domain =
-        spawn_shape && cursor_take_text(&main_look, "<", NULL) &&
-        cursor_take_text(&main_look, ".", NULL) &&
-        cursor_take_text(&main_look, "main", NULL) &&
-        cursor_take_text(&main_look, ">", NULL);
-    const bool exact_parallel_domain =
-        spawn_shape && cursor_take_text(&parallel_look, "<", NULL) &&
-        cursor_take_text(&parallel_look, ".", NULL) &&
-        cursor_take_text(&parallel_look, "domain", NULL) &&
-        cursor_take_text(&parallel_look, ">", NULL);
-    if (!exact_main_domain && !exact_parallel_domain) {
+    frontend_token domain_token = {0};
+    const bool spawn_shape =
+        cursor_take_text(&look, "spawn", &spawn_token) &&
+        cursor_take_text(&look, "<", NULL) &&
+        cursor_take_text(&look, ".", NULL) && cursor_take(&look, &domain_token) &&
+        domain_token.kind == W_SEED_CST_WORD &&
+        cursor_take_text(&look, ">", NULL);
+    if (!spawn_shape) {
       const w_seed_span rejected = token.span;
       (void)context_append_fact(
           parser->context,
@@ -13154,37 +13308,57 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
           text_from_span(parser->document, rejected));
       return false;
     }
-    const bool parallel = exact_parallel_domain;
-    parser->cursor = parallel ? parallel_look : main_look;
-    frontend_expr_value nested;
-    if (!expression_parse_prefix(parser, &nested)) return false;
-    const w_seed_span span = {spawn_token.span.start_byte,
-                              nested.span.end_byte};
-    const frontend_simple_type result_type = nested.type;
+    const w_seed_frontend_text domain_name =
+        text_from_span(parser->document, domain_token.span);
+    const bool main_domain = text_equal(domain_name, "main");
     uint32_t domain_index = W_SEED_FRONTEND_NONE;
+    w_seed_frontend_domain_kind domain_kind = W_SEED_FRONTEND_DOMAIN_HOST;
     w_seed_frontend_domain_mode domain_mode =
         W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
     uint32_t domain_capabilities = W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE;
+    uint32_t domain_maximum = 0u;
     const bool domain_bound =
-        !parallel || caller_domain_binding(
-                         parser->context,
-                         (w_seed_frontend_text){W_SEED_FRONTEND_DOMAIN_IDENTITY,
-                                                sizeof(W_SEED_FRONTEND_DOMAIN_IDENTITY) -
-                                                    1u},
-                         &domain_index, &domain_mode, &domain_capabilities);
-    const bool supported =
+        main_domain || caller_domain_binding(
+                           parser->context, domain_name, &domain_index,
+                           &domain_kind, &domain_mode, &domain_capabilities,
+                           &domain_maximum);
+    const bool accelerated =
+        !main_domain && domain_bound &&
+        domain_kind == W_SEED_FRONTEND_DOMAIN_ACCELERATED;
+    const bool host_custom = !main_domain && domain_bound && !accelerated;
+    parser->cursor = look;
+    frontend_expr_value nested;
+    const bool prior_accelerator_permission = parser->allow_accelerator_call;
+    parser->allow_accelerator_call = accelerated;
+    const bool nested_parsed = expression_parse_prefix(parser, &nested);
+    parser->allow_accelerator_call = prior_accelerator_permission;
+    if (!nested_parsed) return false;
+    const w_seed_span span = {spawn_token.span.start_byte,
+                              nested.span.end_byte};
+    const frontend_simple_type result_type = nested.type;
+    const bool call_supported =
         nested.supported && nested.kind == W_SEED_FRONTEND_EXPR_CALL &&
-        nested.is_local_call && task_result_kind_supported(result_type) &&
-        !parser->context->current_function_is_const && domain_bound &&
-        (!parallel ||
-         (domain_mode == W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT &&
+        task_result_kind_supported(result_type) &&
+        !parser->context->current_function_is_const;
+    const bool supported =
+        call_supported && domain_bound &&
+        ((main_domain && nested.is_local_call) ||
+         (host_custom && nested.is_local_call &&
+          domain_mode == W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT &&
           (domain_capabilities &
-           W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL) != 0u));
+           W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL) != 0u) ||
+         (accelerated && nested.is_accelerator_member &&
+          domain_maximum != 0u &&
+          (domain_capabilities & W_SEED_FRONTEND_DOMAIN_CAPABILITY_DEVICE) !=
+              0u));
     if (!supported) {
       (void)context_append_fact(
           parser->context,
-          parallel ? W_SEED_FRONTEND_FACT_SPAWN_PARALLEL_DOMAIN_LAUNCH
-                   : W_SEED_FRONTEND_FACT_SPAWN_MAIN_LAUNCH,
+          accelerated
+              ? W_SEED_FRONTEND_FACT_SPAWN_ACCELERATED_DOMAIN_LAUNCH
+              : (main_domain
+                     ? W_SEED_FRONTEND_FACT_SPAWN_MAIN_LAUNCH
+                     : W_SEED_FRONTEND_FACT_SPAWN_PARALLEL_DOMAIN_LAUNCH),
           span,
           text_from_span(parser->document, span));
       if (parser->context->current_function_is_const)
@@ -13198,8 +13372,11 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
     value->enum_index = W_SEED_FRONTEND_NONE;
     value->enum_case_index = W_SEED_FRONTEND_NONE;
     const w_seed_frontend_expr_kind launch_kind =
-        parallel ? W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH
-                 : W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH;
+        accelerated
+            ? W_SEED_FRONTEND_EXPR_SPAWN_ACCELERATED_DOMAIN_LAUNCH
+            : (main_domain
+                   ? W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH
+                   : W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH);
     if (!expression_append(
             parser, launch_kind, span,
             text_from_span(parser->document, span),
@@ -13221,8 +13398,10 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
       record->task_call_expression = nested_index;
       record->task_binding_statement = W_SEED_FRONTEND_NONE;
       record->domain_index = domain_index;
+      record->domain_kind = domain_kind;
       record->domain_mode = domain_mode;
       record->domain_capabilities = domain_capabilities;
+      record->domain_maximum = domain_maximum;
       if (record->inferred_type != W_SEED_FRONTEND_NONE &&
           record->inferred_type < parser->context->count.types) {
         record->task_result_type =
@@ -13233,7 +13412,8 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
                !receipt_size_task_expression(
                    parser->context, value->index, value->kind,
                    result_type_index, nested_index, W_SEED_FRONTEND_NONE,
-                   domain_index, domain_mode, domain_capabilities)) {
+                   domain_index, domain_kind, domain_mode,
+                   domain_capabilities, domain_maximum)) {
       return false;
     }
     return true;
@@ -13326,8 +13506,9 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
                    result_type_index,
                    launch ? nested_index : W_SEED_FRONTEND_NONE,
                    launch ? W_SEED_FRONTEND_NONE : binding_statement,
-                   W_SEED_FRONTEND_NONE, W_SEED_FRONTEND_DOMAIN_MODE_SERIAL,
-                   W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE)) {
+                   W_SEED_FRONTEND_NONE, W_SEED_FRONTEND_DOMAIN_HOST,
+                   W_SEED_FRONTEND_DOMAIN_MODE_SERIAL,
+                   W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE, 0u)) {
       return false;
     }
     return true;
@@ -13913,6 +14094,8 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.membership_case_count = 0;
     fallback.resolved_parameter_ordinal = W_SEED_FRONTEND_NONE;
     fallback.resolved_function_index = W_SEED_FRONTEND_NONE;
+    fallback.resolved_accelerator_module_index = W_SEED_FRONTEND_NONE;
+    fallback.resolved_accelerator_kernel_index = W_SEED_FRONTEND_NONE;
     fallback.resolved_local_ordinal = W_SEED_FRONTEND_NONE;
     fallback.resolved_const_declaration = W_SEED_FRONTEND_NONE;
     fallback.resolved_binding_statement = W_SEED_FRONTEND_NONE;
@@ -13966,6 +14149,8 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.membership_case_count = 0;
     fallback.resolved_parameter_ordinal = W_SEED_FRONTEND_NONE;
     fallback.resolved_function_index = W_SEED_FRONTEND_NONE;
+    fallback.resolved_accelerator_module_index = W_SEED_FRONTEND_NONE;
+    fallback.resolved_accelerator_kernel_index = W_SEED_FRONTEND_NONE;
     fallback.resolved_local_ordinal = W_SEED_FRONTEND_NONE;
     fallback.resolved_const_declaration = W_SEED_FRONTEND_NONE;
     fallback.resolved_binding_statement = W_SEED_FRONTEND_NONE;
@@ -14775,6 +14960,8 @@ static bool normalize_switch_expression(
   switch_record.membership_case_count = 0;
   switch_record.resolved_parameter_ordinal = W_SEED_FRONTEND_NONE;
   switch_record.resolved_function_index = W_SEED_FRONTEND_NONE;
+  switch_record.resolved_accelerator_module_index = W_SEED_FRONTEND_NONE;
+  switch_record.resolved_accelerator_kernel_index = W_SEED_FRONTEND_NONE;
   switch_record.resolved_binding_statement = W_SEED_FRONTEND_NONE;
   switch_record.resolved_pattern_capture = W_SEED_FRONTEND_NONE;
   switch_record.first_interpolation_segment = W_SEED_FRONTEND_NONE;
@@ -15232,7 +15419,9 @@ static bool normalize_statement_depth(frontend_context *context,
         expression_value.kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH ||
         expression_value.kind == W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH ||
         expression_value.kind ==
-            W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH;
+            W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH ||
+        expression_value.kind ==
+            W_SEED_FRONTEND_EXPR_SPAWN_ACCELERATED_DOMAIN_LAUNCH;
     const bool root_await = expression_value.kind == W_SEED_FRONTEND_EXPR_AWAIT;
     const bool root_execution_yield =
         expression_value.kind == W_SEED_FRONTEND_EXPR_EXECUTION_YIELD;
@@ -15786,6 +15975,176 @@ static bool normalize_accelerator_module_const(frontend_context *context,
         emitted_kernel != first_kernel + (uint32_t)ordinal)
       return false;
   }
+  return true;
+}
+
+static bool accelerator_const_shape(
+    const w_seed_frontend_document *doc, uint32_t const_node,
+    uint32_t *expression_node, uint32_t *record_node, size_t *field_count) {
+  if (expression_node != NULL) *expression_node = W_SEED_CST_NONE;
+  if (record_node != NULL) *record_node = W_SEED_CST_NONE;
+  if (field_count != NULL) *field_count = 0u;
+  if (doc == NULL || const_node >= doc->parse.node_count ||
+      doc->nodes[const_node].kind != W_SEED_CST_CONST_DECLARATION)
+    return false;
+  const uint32_t expression =
+      direct_kind_at(doc, const_node, W_SEED_CST_EXPRESSION, 0u);
+  if (expression == W_SEED_CST_NONE) return false;
+  const uint32_t envelope = direct_kind_at(
+      doc, expression, W_SEED_CST_CONTRACT_ENVELOPE, 0u);
+  if (envelope == W_SEED_CST_NONE ||
+      !exact_accelerator_module_head(doc, expression, envelope) ||
+      !exact_empty_call_suffix(doc, expression, envelope) ||
+      count_direct_kind(doc, expression, W_SEED_CST_CONTRACT_ENVELOPE) != 1u ||
+      count_direct_kind(doc, envelope, W_SEED_CST_STATIC_RECORD) != 1u)
+    return false;
+  const uint32_t record =
+      direct_kind_at(doc, envelope, W_SEED_CST_STATIC_RECORD, 0u);
+  const size_t fields = record == W_SEED_CST_NONE
+                            ? 0u
+                            : count_direct_kind(doc, record,
+                                                W_SEED_CST_STATIC_FIELD);
+  if (fields == 0u || fields > (size_t)UINT32_MAX) return false;
+  if (expression_node != NULL) *expression_node = expression;
+  if (record_node != NULL) *record_node = record;
+  if (field_count != NULL) *field_count = fields;
+  return true;
+}
+
+static bool accelerator_indices_for_const(
+    const frontend_context *context, uint32_t target_const_index,
+    uint32_t *module_index, uint32_t *first_kernel) {
+  if (module_index != NULL) *module_index = W_SEED_FRONTEND_NONE;
+  if (first_kernel != NULL) *first_kernel = W_SEED_FRONTEND_NONE;
+  if (context == NULL) return false;
+  size_t module_ordinal = 0u;
+  size_t kernel_ordinal = 0u;
+  size_t const_ordinal = 0u;
+  for (size_t document_index = 0u;
+       document_index < context->input.document_count; document_index += 1u) {
+    const w_seed_frontend_document *doc =
+        &context->input.documents[document_index];
+    uint32_t cursor = doc->nodes[doc->parse.root].first_child;
+    uint32_t child = W_SEED_CST_NONE;
+    size_t guard = 0u;
+    while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+      if (doc->nodes[child].kind == W_SEED_CST_CONST_DECLARATION) {
+        uint32_t record = W_SEED_CST_NONE;
+        size_t fields = 0u;
+        const bool is_accelerator =
+            accelerator_const_shape(doc, child, NULL, &record, &fields);
+        if (const_ordinal == (size_t)target_const_index) {
+          if (!is_accelerator || module_ordinal > (size_t)UINT32_MAX ||
+              kernel_ordinal > (size_t)UINT32_MAX)
+            return false;
+          if (module_index != NULL) *module_index = (uint32_t)module_ordinal;
+          if (first_kernel != NULL) *first_kernel = (uint32_t)kernel_ordinal;
+          return true;
+        }
+        if (is_accelerator) {
+          module_ordinal += 1u;
+          if (kernel_ordinal > SIZE_MAX - fields) return false;
+          kernel_ordinal += fields;
+        }
+        const_ordinal += 1u;
+      }
+      guard += 1u;
+    }
+  }
+  return false;
+}
+
+static bool accelerator_module_const_for_name(
+    const frontend_context *context, w_seed_frontend_text name,
+    uint32_t *const_index, uint32_t *accelerator_module_index) {
+  if (const_index != NULL) *const_index = W_SEED_FRONTEND_NONE;
+  if (accelerator_module_index != NULL)
+    *accelerator_module_index = W_SEED_FRONTEND_NONE;
+  const w_seed_frontend_document *doc = NULL;
+  uint32_t node = W_SEED_CST_NONE;
+  uint32_t resolved_const = W_SEED_FRONTEND_NONE;
+  if (!module_const_for_name(context, name, &resolved_const, NULL, &doc,
+                             &node) ||
+      doc != context_document(context) ||
+      !accelerator_const_shape(doc, node, NULL, NULL, NULL))
+    return false;
+  uint32_t resolved_module = W_SEED_FRONTEND_NONE;
+  if (!accelerator_indices_for_const(context, resolved_const,
+                                     &resolved_module, NULL))
+    return false;
+  if (const_index != NULL) *const_index = resolved_const;
+  if (accelerator_module_index != NULL)
+    *accelerator_module_index = resolved_module;
+  return true;
+}
+
+static bool accelerator_kernel_for_module(
+    const frontend_context *context, uint32_t const_index,
+    w_seed_frontend_text label, uint32_t *accelerator_module_index,
+    uint32_t *accelerator_kernel_index, uint32_t *function_index,
+    w_seed_frontend_text *function_name) {
+  if (accelerator_module_index != NULL)
+    *accelerator_module_index = W_SEED_FRONTEND_NONE;
+  if (accelerator_kernel_index != NULL)
+    *accelerator_kernel_index = W_SEED_FRONTEND_NONE;
+  if (function_index != NULL) *function_index = W_SEED_FRONTEND_NONE;
+  if (function_name != NULL) *function_name = (w_seed_frontend_text){NULL, 0u};
+  if (context == NULL || label.length == 0u) return false;
+  const w_seed_frontend_document *doc = context_document(context);
+  if (doc == NULL) return false;
+  uint32_t cursor = doc->nodes[doc->parse.root].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t guard = 0u;
+  uint32_t target_node = W_SEED_CST_NONE;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    uint32_t candidate = W_SEED_FRONTEND_NONE;
+    if (doc->nodes[child].kind == W_SEED_CST_CONST_DECLARATION &&
+        module_const_index_for_node(context, context->module_index, child,
+                                    &candidate) &&
+        candidate == const_index) {
+      target_node = child;
+      break;
+    }
+    guard += 1u;
+  }
+  uint32_t record = W_SEED_CST_NONE;
+  size_t fields = 0u;
+  if (target_node == W_SEED_CST_NONE ||
+      !accelerator_const_shape(doc, target_node, NULL, &record, &fields))
+    return false;
+  uint32_t module = W_SEED_FRONTEND_NONE;
+  uint32_t first_kernel = W_SEED_FRONTEND_NONE;
+  if (!accelerator_indices_for_const(context, const_index, &module,
+                                     &first_kernel))
+    return false;
+  bool found = false;
+  uint32_t found_function = W_SEED_FRONTEND_NONE;
+  w_seed_frontend_text found_name = {NULL, 0u};
+  uint32_t found_kernel = W_SEED_FRONTEND_NONE;
+  for (size_t ordinal = 0u; ordinal < fields; ordinal += 1u) {
+    const uint32_t field =
+        direct_kind_at(doc, record, W_SEED_CST_STATIC_FIELD, ordinal);
+    w_seed_frontend_text candidate_label = {NULL, 0u};
+    uint32_t candidate_function = W_SEED_FRONTEND_NONE;
+    if (field == W_SEED_CST_NONE ||
+        !accelerator_field_shape(context, field,
+                                 &candidate_label, &candidate_function))
+      return false;
+    if (!text_equal_text(candidate_label, label)) continue;
+    if (found || first_kernel > UINT32_MAX - (uint32_t)ordinal) return false;
+    found = true;
+    found_function = candidate_function;
+    found_kernel = first_kernel + (uint32_t)ordinal;
+    const uint32_t function_name_node =
+        direct_kind_at(doc, field, W_SEED_CST_WORD, 1u);
+    if (function_name_node == W_SEED_CST_NONE) return false;
+    found_name = text_from_span(doc, doc->nodes[function_name_node].raw_span);
+  }
+  if (!found) return false;
+  if (accelerator_module_index != NULL) *accelerator_module_index = module;
+  if (accelerator_kernel_index != NULL) *accelerator_kernel_index = found_kernel;
+  if (function_index != NULL) *function_index = found_function;
+  if (function_name != NULL) *function_name = found_name;
   return true;
 }
 
@@ -16664,6 +17023,101 @@ static bool resolve_frontend_links(frontend_context *context) {
       continue;
     }
     if (callee->kind == W_SEED_FRONTEND_EXPR_MEMBER) {
+      if (callee->resolved_callee_kind ==
+          W_SEED_FRONTEND_CALLEE_ACCELERATOR_MODULE_FIELD) {
+        if (!callee->supported || !expression->supported ||
+            callee->left == W_SEED_FRONTEND_NONE ||
+            (size_t)callee->left >= expression_index ||
+            callee->module_index != expression->module_index ||
+            callee->owner_function != expression->owner_function ||
+            callee->resolved_accelerator_module_index ==
+                W_SEED_FRONTEND_NONE ||
+            callee->resolved_accelerator_kernel_index ==
+                W_SEED_FRONTEND_NONE ||
+            callee->resolved_function_index == W_SEED_FRONTEND_NONE ||
+            (size_t)callee->resolved_accelerator_module_index >=
+                context->count.accelerator_modules ||
+            (size_t)callee->resolved_accelerator_kernel_index >=
+                context->count.accelerator_kernels ||
+            (size_t)callee->resolved_function_index >=
+                context->count.functions ||
+            context->output->accelerator_modules == NULL ||
+            context->output->accelerator_kernels == NULL) {
+          expression->supported = false;
+          continue;
+        }
+        const w_seed_frontend_expression *receiver =
+            &context->output->expressions[callee->left];
+        const w_seed_frontend_accelerator_module *module =
+            &context->output
+                 ->accelerator_modules[callee->resolved_accelerator_module_index];
+        const w_seed_frontend_accelerator_kernel *kernel =
+            &context->output
+                 ->accelerator_kernels[callee->resolved_accelerator_kernel_index];
+        if (receiver->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER ||
+            !receiver->supported ||
+            receiver->resolved_const_declaration !=
+                module->const_declaration_index ||
+            module->module_index != expression->module_index ||
+            kernel->module_index != expression->module_index ||
+            kernel->owner_accelerator_module !=
+                callee->resolved_accelerator_module_index ||
+            kernel->function_index != callee->resolved_function_index ||
+            !text_equal_text(kernel->label, callee->member_name)) {
+          expression->supported = false;
+          continue;
+        }
+        expression->resolved_callee_kind =
+            W_SEED_FRONTEND_CALLEE_ACCELERATOR_MODULE_FIELD;
+        expression->resolved_function_index = kernel->function_index;
+        expression->resolved_host_symbol_index = W_SEED_FRONTEND_NONE;
+        expression->resolved_external_module_index = W_SEED_FRONTEND_NONE;
+        expression->resolved_external_symbol_index = W_SEED_FRONTEND_NONE;
+        expression->resolved_accelerator_module_index =
+            callee->resolved_accelerator_module_index;
+        expression->resolved_accelerator_kernel_index =
+            callee->resolved_accelerator_kernel_index;
+        const w_seed_frontend_function *target_function =
+            &context->output->functions[kernel->function_index];
+        for (uint32_t offset = 0u; offset < expression->argument_count;
+             offset += 1u) {
+          const size_t argument_index =
+              (size_t)expression->first_argument + offset;
+          if (argument_index >= context->count.arguments) return false;
+          w_seed_frontend_argument *argument =
+              &context->output->arguments[argument_index];
+          uint32_t ordinal = W_SEED_FRONTEND_NONE;
+          if (argument->label.length == 0u) {
+            if (offset < target_function->parameter_count) {
+              const size_t parameter_index =
+                  (size_t)target_function->first_parameter + offset;
+              if (parameter_index >= context->count.parameters) return false;
+              if (context->output->parameters[parameter_index].label_kind ==
+                  W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY)
+                ordinal = offset;
+            }
+          } else {
+            for (uint32_t parameter_offset = 0u;
+                 parameter_offset < target_function->parameter_count;
+                 parameter_offset += 1u) {
+              const size_t parameter_index =
+                  (size_t)target_function->first_parameter + parameter_offset;
+              if (parameter_index >= context->count.parameters) return false;
+              if (text_equal_text(
+                      context->output->parameters[parameter_index].label,
+                      argument->label)) {
+                if (ordinal != W_SEED_FRONTEND_NONE) {
+                  ordinal = W_SEED_FRONTEND_NONE;
+                  break;
+                }
+                ordinal = parameter_offset;
+              }
+            }
+          }
+          argument->resolved_parameter_ordinal = ordinal;
+        }
+        continue;
+      }
       /* A receiver-aware external member is the only non-identifier callee
        * accepted by this seed. Its receiver must already be a lexical
        * parameter or local binding; a value-producing call, const, or
@@ -17388,10 +17842,14 @@ static void receipt_write_domain_records(frontend_receipt_writer *writer,
     receipt_write_size(writer, index);
     receipt_write_literal(writer, "|");
     receipt_write_text(writer, domain->name);
+    receipt_write_literal(writer, "|kind=");
+    receipt_write_size(writer, (size_t)domain->kind);
     receipt_write_literal(writer, "|mode=");
     receipt_write_size(writer, (size_t)domain->mode);
     receipt_write_literal(writer, "|capabilities=");
     receipt_write_size(writer, domain->capabilities);
+    receipt_write_literal(writer, "|maximum=");
+    receipt_write_size(writer, domain->maximum);
     receipt_write_literal(writer, "\n");
   }
 }
@@ -17424,6 +17882,8 @@ static const char *fact_name(w_seed_frontend_fact_kind kind) {
       return "spawn-main-launch";
     case W_SEED_FRONTEND_FACT_SPAWN_PARALLEL_DOMAIN_LAUNCH:
       return "spawn-parallel-domain-launch";
+    case W_SEED_FRONTEND_FACT_SPAWN_ACCELERATED_DOMAIN_LAUNCH:
+      return "spawn-accelerated-domain-launch";
   }
   return "unknown";
 }
@@ -17905,6 +18365,8 @@ static void receipt_write_records(frontend_receipt_writer *writer,
           expression->kind == W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH ||
           expression->kind ==
               W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH ||
+          expression->kind ==
+              W_SEED_FRONTEND_EXPR_SPAWN_ACCELERATED_DOMAIN_LAUNCH ||
           expression->kind == W_SEED_FRONTEND_EXPR_AWAIT) {
         receipt_write_literal(writer, "task-expression=");
         receipt_write_size(writer, index);
@@ -17918,10 +18380,14 @@ static void receipt_write_records(frontend_receipt_writer *writer,
         receipt_write_size(writer, expression->task_binding_statement);
         receipt_write_literal(writer, "|domain=");
         receipt_write_size(writer, expression->domain_index);
+        receipt_write_literal(writer, "|domain-kind=");
+        receipt_write_size(writer, (size_t)expression->domain_kind);
         receipt_write_literal(writer, "|domain-mode=");
         receipt_write_size(writer, (size_t)expression->domain_mode);
         receipt_write_literal(writer, "|capabilities=");
         receipt_write_size(writer, expression->domain_capabilities);
+        receipt_write_literal(writer, "|maximum=");
+        receipt_write_size(writer, expression->domain_maximum);
         receipt_write_literal(writer, "\n");
       }
       if (expression->kind != W_SEED_FRONTEND_EXPR_CALL) continue;
@@ -17942,6 +18408,12 @@ static void receipt_write_records(frontend_receipt_writer *writer,
       receipt_write_size(writer, expression->resolved_external_module_index);
       receipt_write_literal(writer, ":");
       receipt_write_size(writer, expression->resolved_external_symbol_index);
+      receipt_write_literal(writer, "|accelerator=");
+      receipt_write_size(writer,
+                         expression->resolved_accelerator_module_index);
+      receipt_write_literal(writer, ":");
+      receipt_write_size(writer,
+                         expression->resolved_accelerator_kernel_index);
       receipt_write_literal(writer, "\n");
     }
     for (size_t index = 0; index < context->count.facts; index += 1) {

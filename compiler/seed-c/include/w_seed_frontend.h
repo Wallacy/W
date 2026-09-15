@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-27"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-28"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -79,6 +79,8 @@ typedef enum {
   /* Rejected use of an explicitly caller-bound parallel `.domain` dispatch.
    * This fact is distinct from the serial `.main` lane. */
   W_SEED_FRONTEND_FACT_SPAWN_PARALLEL_DOMAIN_LAUNCH,
+  /* Rejected static submission of an accelerator-module field. */
+  W_SEED_FRONTEND_FACT_SPAWN_ACCELERATED_DOMAIN_LAUNCH,
 } w_seed_frontend_fact_kind;
 
 typedef enum {
@@ -87,18 +89,26 @@ typedef enum {
 } w_seed_frontend_domain_mode;
 
 typedef enum {
+  W_SEED_FRONTEND_DOMAIN_HOST = 0,
+  W_SEED_FRONTEND_DOMAIN_ACCELERATED,
+} w_seed_frontend_domain_kind;
+
+typedef enum {
   W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE = 0u,
   W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL = 1u << 0,
+  W_SEED_FRONTEND_DOMAIN_CAPABILITY_DEVICE = 1u << 1,
 } w_seed_frontend_domain_capability;
 
-/* A caller-owned exact execution-domain binding.  The frontend never treats
- * `.domain` as ambient: a source placement is supported only when this table
- * contains the exact identity in concurrent mode with the parallel
- * capability bit. */
+/* A caller-owned exact execution-domain binding. The frontend never treats a
+ * source identity as ambient or infers a binding from mode, capabilities, or
+ * maximum. Accelerated bindings carry logical admission facts only, never a
+ * provider, device, queue, artifact, or launch handle. */
 typedef struct {
   w_seed_frontend_text name;
+  w_seed_frontend_domain_kind kind;
   w_seed_frontend_domain_mode mode;
   uint32_t capabilities;
+  uint32_t maximum;
 } w_seed_frontend_domain;
 
 typedef enum {
@@ -179,6 +189,9 @@ typedef enum {
   /* Exact `spawn<.domain> localCall(...)`.  The caller-owned domain input
    * record is retained by the placement fields on the expression. */
   W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH,
+  /* Exact `spawn<acceleratedDomain> module.field(...)`. The selected domain,
+   * accelerator module and kernel field are indexed on the expression. */
+  W_SEED_FRONTEND_EXPR_SPAWN_ACCELERATED_DOMAIN_LAUNCH,
 } w_seed_frontend_expr_kind;
 
 typedef enum {
@@ -300,6 +313,7 @@ typedef enum {
   W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION,
   W_SEED_FRONTEND_CALLEE_HOST_PRELUDE_SYMBOL,
   W_SEED_FRONTEND_CALLEE_EXTERNAL_MODULE_SYMBOL,
+  W_SEED_FRONTEND_CALLEE_ACCELERATOR_MODULE_FIELD,
 } w_seed_frontend_callee_kind;
 
 typedef enum {
@@ -892,6 +906,10 @@ typedef struct {
   uint32_t resolved_external_module_index;
   uint32_t resolved_external_symbol_index;
   uint32_t resolved_local_ordinal;
+  /* Valid only for ACCELERATOR_MODULE_FIELD. These are semantic arena
+   * indices, never provider/device/queue handles. */
+  uint32_t resolved_accelerator_module_index;
+  uint32_t resolved_accelerator_kernel_index;
   w_seed_frontend_text member_name;
   /* Append-only resolution relation for a module const dependency. */
   uint32_t resolved_const_declaration;
@@ -917,11 +935,13 @@ typedef struct {
   uint32_t task_result_type;
   uint32_t task_call_expression;
   uint32_t task_binding_statement;
-  /* Append-only explicit placement evidence. NONE/0 is required on every
-   * expression except SPAWN_PARALLEL_DOMAIN_LAUNCH. */
+  /* Append-only explicit placement evidence. NONE/default is required on
+   * every expression except the two explicit-domain launch kinds. */
   uint32_t domain_index;
+  w_seed_frontend_domain_kind domain_kind;
   w_seed_frontend_domain_mode domain_mode;
   uint32_t domain_capabilities;
+  uint32_t domain_maximum;
 } w_seed_frontend_expression;
 
 typedef enum {

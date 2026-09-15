@@ -163,7 +163,7 @@ Cada aplicação tem owner type, head, envelope, argumentos ordenados e status d
 binding; cada argumento preserva ordinal, span, label, parâmetro, kind, o índice
 de type ou `ConstValue` e o índice sentinel/relacionado de `TypedConstExpr`. O
 root liga à aplicação por `generic_application_index`.
-`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-27`. Earlier D2/D3 fields
+`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-28`. Earlier D2/D3 fields
 anteriores permanecem append-only; a versão 6 acrescenta records, ranges,
 counts/capacities e relações de module const; a versão 7 acrescenta
 `effective_type` e preserva `declared_type` como annotation source-only para
@@ -184,9 +184,14 @@ provider-neutral accelerator-module and ordered kernel-binding records for
 exact `accelerator.module<{...}>()` static records. The separate
 `w_seed_gpu_module` bridge owns and independently verifies the first bounded
 signed-`i32` device-module slice. HIR0 and MLIR0 lower only their bounded
-subsets. Escape decoding, Boolean/String value Display, general Display
-conformance, typed accelerator launch, general device IR, and native lowering
-outside those subsets remain gaps.
+subsets. Version 28 appends a discriminated caller-owned domain kind and the
+exact typed relation from `spawn<acceleratedDomain>` to an immediate
+accelerator-module field, including module/kernel indices and the static
+submission budget. It rejects bare or `async` module-field calls, host-domain
+offload, missing fields, and malformed accelerated bindings. Escape decoding,
+Boolean/String value Display, general Display conformance, independent HIR
+lowering for the accelerated invocation, general device IR, and native
+provider linkage outside those subsets remain gaps.
 
 O seed materializa `Bool`, inteiros bounded (incluindo `usize`), strings simples
 sem escape, cases enum contextuais e `StaticList` caller-owned. Inteiros usam
@@ -1886,7 +1891,7 @@ W syntax.
 
 ### Verified parallel-domain placement (W-1588)
 
-Frontend27 accepts exact `spawn<.domain>` only when its caller supplies an
+Frontend28 accepts exact `spawn<.domain>` only when its caller supplies an
 exact domain binding with scheduling mode `CONCURRENT` and capability
 `PARALLEL`. Mode and capabilities are distinct fields. The input table is
 caller-owned product evidence, participates in the frontend receipt, and is
@@ -2172,14 +2177,14 @@ diagnostics, not W product rankings.
 
 The seed parser accepts `accelerator.module<{ hello: kernel }>()` and emits
 distinct `W_SEED_CST_STATIC_RECORD` and `W_SEED_CST_STATIC_FIELD` owners.
-Frontend27 then publishes provider-neutral accelerator-module and ordered
+Frontend28 then publishes provider-neutral accelerator-module and ordered
 kernel-binding records for nonempty, uniquely labeled static records whose
 values are direct same-document functions. Focused tests cover one and multiple
 kernels, deterministic receipts, exact ownership, short capacities, empty and
 malformed records, duplicate labels, missing functions, and runtime arguments.
 
 `w_seed_gpu_module` is the next target-neutral compiler boundary. It validates
-Frontend27 independently, measures caller-owned module/kernel/text/receipt
+Frontend28 independently, measures caller-owned module/kernel/text/receipt
 storage, copies no frontend or source pointer, and publishes separate semantic
 and provenance digests. Its verifier works after source, CST, and frontend
 teardown and rejects aliases, short capacity, malformed spans and identities,

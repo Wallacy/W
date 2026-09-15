@@ -13069,6 +13069,15 @@ imediato e um domain `.accelerated` compatível. Chamada nua do field, chamada
 `async` do field ou `spawn` em domain host é rejeitada; a função kernel original
 continua uma call direta de host.
 
+O Frontend28 materializa a primeira fatia bounded dessa relação. O input
+caller-owned discrimina domain host de accelerated, preserva submission,
+capabilities e `maximum`, e o call record liga exatamente o const descriptor,
+o module record, o field/kernel e a função original. O parser só concede a
+interpretação de field acelerado enquanto lê o operando imediato de um
+`spawn` ligado a domain accelerated. Essa evidência ainda depende do frontend;
+HIR independente, binding do product/root e provider continuam etapas
+posteriores e falham closed.
+
 O caminho dinâmico/avançado continua usando `ExecutionDomainRef`,
 `accelerator.open` e `Launch<Module>`/`.launch(using:)` para seleção runtime de
 device ou queue. Os dois caminhos preservam `Task<T, LaunchError>`, receipts,
@@ -13076,6 +13085,32 @@ cancelamento, drain e cleanup de W-1211–W-1218. Join imediato pode eliminar
 somente frame/Task por prova de equivalência; nunca pode eliminar submission,
 receipt ou drain. Transfer continua explícita, geometry continua argumento
 tipado da invocation, e a falha de profile, binding ou provider é typed.
+
+No caminho estático, `spawn` é também o verbo de launch: toda configuração
+lógica repetível fica na declaration do domain, e o product binding completa a
+relação com module artifact, provider class e owner root-scoped antes da entry.
+O call site conserva apenas a escolha explícita do domain e os argumentos do
+kernel. Acrescentar `.launch(...)` a esse caminho repetiria a mesma decisão sem
+dar authority nova. Isso não torna o domain uma queue ou um handle: múltiplos
+módulos podem compartilhar sua admissão, e a relação interna continua indexada
+pela tupla exata de domain, module e kernel. O spelling `.launch(using:)` fica
+reservado ao caminho em que a seleção runtime realmente entrega um
+`Launch<Module>` ao programa.
+
+Domains aparecem somente em fronteiras de admissão de trabalho:
+
+| Fronteira | Seleção estática | Seleção dinâmica |
+| --- | --- | --- |
+| child ordinário | `spawn<domain> call(...)` | `Task.spawn(domain: ref, input: ..., using: ...)` |
+| lote finito | `pipeline<tasks: .parallel<domain>, ...>`; `.concurrent` herda o atual | adapter explícito sobre `ExecutionDomainRef` |
+| kernel fechado | `spawn<acceleratedDomain> descriptor.field(...)` | `accelerator.open(...)` + `field.launch(using: ...)` |
+| entry ou service instance | binding do product/runtime graph antes da admissão | reconfiguração pertence ao deployment, não à call |
+
+`await`, join, Channel, Stream, transaction, lock, allocator, test/bench e
+compile-time/proof não recebem slot de domain. Eles executam no Task atual,
+descrevem outra authority ou pertencem a outra fase. Um adapter pode admitir
+trabalho num domain internamente, mas precisa conservar essa decisão em seu
+contrato e resource lens.
 
 Esses domínios não absorvem outras superfícies: SIMD/vector é lowering;
 network/nonblocking I/O usa `await`/provider; UI usa `.main`/affinity; áudio
@@ -13097,10 +13132,23 @@ domain apenas por ser assíncrona, custosa ou externa.
 | UI/main thread | afinidade | entry/provider liga `.main`; child usa `spawn<.main>` quando precisa retornar |
 | foreign bloqueante | isolamento e budget de workers | domain host bounded com capability `.blocking` |
 | service handler | placement da instance/turn | runtime graph liga a service a um domain; a chamada não escolhe thread |
+| actor-like isolated state | serialização de turns quando necessária | service ou owner isolado pode ser ligado a domain serial; `object` não ganha executor próprio |
 | pipeline | cada node mantém sua própria colocação | calls comuns herdam; um node usa `spawn<domain>` quando muda de domain |
 | Channel/Stream | nenhuma colocação implícita | send/receive/operator suspende no Task atual; operators paralelos exigem domain explícito |
 | socket/file/timer não bloqueante | nenhum domain especial | provider + `await`; um domain aplicativo pode limitar trabalho posterior, não o I/O em si |
 | realtime audio/GPU presentation | domain pode ordenar trabalho, mas não cria garantia realtime | deadline, callback safety e device contract pertencem ao entry/provider |
+| browser worker/worklet | placement host e affinity quando o target os oferece | product liga uma identidade lógica a worker/worklet; ausência do target falha em availability |
+| WebAssembly component/event loop | afinidade do host quando observável | entry/provider liga o loop; calls component seguem a boundary tipada, não um domain remoto |
+| NUMA/cache/CPU locality | afinidade de execução, não ownership de memória | domain pode carregar host affinity; allocator/storage declara locality e transfer separadamente |
+| GPU graphics pipeline/shader stage | artifact e pipeline de graphics, não uma Task W por fragmento | descriptor fechado entra no graphics provider; somente dispatch host estruturado usa `spawn` |
+| FPGA/stream kernel persistente | lifecycle de device ou service, não milhões de children | artifact fechado + owner/drain explícito; `spawn` cobre apenas uma invocation finita |
+| HPC collective | placement local de cada participant apenas | collective protocol/topology continua explícito; cluster ou rank não vira domain ambiental |
+| database/connection pool | resource admission, não scheduling semântico | operação async usa provider; adapter bloqueante pode usar domain `.blocking` bounded |
+| batching/rate limit | orçamento da operação ou resource | pipeline, Channel, service admission ou provider; não cria placement sozinho |
+| cleanup/deinit | retorna ao owner que adquiriu o recurso | não existe domain `.cleanup`; mudança de placement precisa estar no lifecycle do owner |
+| tracing/profiling | instrumentação do trabalho existente | instrumentation identity do profile; nunca cria queue, child ou ordering novo |
+| compile-time/const/proof | fase do compiler | nenhum execution domain runtime; budgets e determinismo pertencem ao compiler profile |
+| test/bench harness | isolamento do processo de medição | runner e product profile; não altera a semântica do programa medido |
 | interrupt/signal | não é child scheduling | adapter converte o evento para boundary segura antes de entrar em W |
 | process/sandbox | não é placement | authority, isolation e fault boundary explícitas |
 | service remoto/workflow/cluster | não é placement local | protocol, transport, durable workflow e deployment; trabalho local interno ainda pode escolher domains |
@@ -39637,7 +39685,7 @@ print("Dispatched ${first + second + third + fourth}")
 #### 26.4.1.69 W-1588 — verified explicit parallel-domain placement
 
 W-1588 establishes the compiler boundary required before a real parallel
-provider may execute `spawn<.domain>`. Frontend schema `w-seed-frontend-27`
+provider may execute `spawn<.domain>`. Frontend schema `w-seed-frontend-28`
 accepts that exact seed spelling only when caller-owned product input binds the
 exact `.domain` identity. The binding separates a scheduling mode from
 capabilities: this slice requires mode `CONCURRENT` and capability `PARALLEL`.
@@ -40106,7 +40154,7 @@ and end-to-end p50/p95 values. It is not a W product ranking.
 
 The seed parser preserves `accelerator.module<{ hello: kernel }>()` as a
 contract envelope containing a static-record owner and named static-field
-owners. Frontend schema `w-seed-frontend-27` recognizes only this compiler head
+owners. Frontend schema `w-seed-frontend-28` recognizes only this compiler head
 with a nonempty static record, zero runtime arguments, unique labels, and direct
 same-document function symbols. It publishes caller-owned accelerator-module
 and ordered kernel-binding records that retain the module const, label, source
@@ -40116,7 +40164,37 @@ the one-kernel Hello is an evidence minimum, not a language limit. Empty or
 malformed records, duplicate labels, missing functions, and runtime arguments
 fail closed before accelerator records are published.
 
-The internal `w-seed-gpu-module-1` bridge now validates those Frontend27
+**Exemplo da relação tipada preservada pelo Frontend28:**
+
+```w
+module gpuHello<
+  domains: [
+    .accelerated(
+      .inference,
+      submission: .serial,
+      maximum: 1,
+      fallback: .reject,
+    ),
+  ],
+>
+
+fn helloKernel(): i32 { return 42 }
+
+const kernels = accelerator.module<{
+  hello: helloKernel,
+}>()
+
+entry {
+  let pending = spawn<.inference> kernels.hello()
+  let result = try await pending
+  expect result == 42
+}
+```
+
+Esta seção prova somente a identidade frontend do launch. O provider-backed
+product ainda não executa esse source.
+
+The internal `w-seed-gpu-module-1` bridge now validates those Frontend28
 records and copies the bounded device-module meaning into caller-owned module,
 kernel, text, and frontend-receipt stores. Its independent verifier re-derives
 the semantic digest from ordered module identities, labels, normalized signed

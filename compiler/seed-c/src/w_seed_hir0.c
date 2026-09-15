@@ -570,8 +570,9 @@ static bool frontend_domain_input_ok(const w_seed_frontend_input *input) {
   for (size_t index = 0u; index < input->domain_count; index += 1u) {
     const w_seed_frontend_domain *domain = &input->domains[index];
     if (!text_valid(domain->name) || domain->name.length == 0u ||
+        domain->kind != W_SEED_FRONTEND_DOMAIN_HOST ||
         domain->mode > W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT ||
-        (domain->capabilities & ~known) != 0u)
+        (domain->capabilities & ~known) != 0u || domain->maximum != 0u)
       return false;
     for (size_t prior = 0u; prior < index; prior += 1u)
       if (text_equal(domain->name, input->domains[prior].name)) return false;
@@ -2695,6 +2696,8 @@ static bool frontend_value_common_ok(
     size_t module_index, size_t function_index, size_t document_index) {
   if (value == NULL || !value->supported || value->module_index != module_index ||
       value->owner_function != function_index ||
+      value->resolved_accelerator_module_index != W_SEED_FRONTEND_NONE ||
+      value->resolved_accelerator_kernel_index != W_SEED_FRONTEND_NONE ||
       ((value->kind != W_SEED_FRONTEND_EXPR_CALL) &&
        (value->first_argument != W_SEED_FRONTEND_NONE ||
         value->argument_count != 0u)) ||
@@ -2711,9 +2714,11 @@ static bool frontend_value_common_ok(
         value->task_binding_statement != W_SEED_FRONTEND_NONE)) ||
       (value->kind != W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH &&
        (value->domain_index != W_SEED_FRONTEND_NONE ||
+        value->domain_kind != W_SEED_FRONTEND_DOMAIN_HOST ||
         value->domain_mode != W_SEED_FRONTEND_DOMAIN_MODE_SERIAL ||
         value->domain_capabilities !=
-            W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE)) ||
+            W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE ||
+        value->domain_maximum != 0u)) ||
       !frontend_span_ok(&input->frontend_input->documents[document_index],
                         value->span))
     return false;
@@ -2726,9 +2731,11 @@ static bool frontend_parallel_launch_binding_ok(
   if (launch == NULL) return false;
   if (launch->kind != W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH)
     return launch->domain_index == W_SEED_FRONTEND_NONE &&
+           launch->domain_kind == W_SEED_FRONTEND_DOMAIN_HOST &&
            launch->domain_mode == W_SEED_FRONTEND_DOMAIN_MODE_SERIAL &&
            launch->domain_capabilities ==
-               W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE;
+               W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE &&
+           launch->domain_maximum == 0u;
   if (input == NULL || input->frontend_input == NULL ||
       launch->domain_index == W_SEED_FRONTEND_NONE ||
       (size_t)launch->domain_index >= input->frontend_input->domain_count ||
@@ -2738,12 +2745,16 @@ static bool frontend_parallel_launch_binding_ok(
       &input->frontend_input->domains[launch->domain_index];
   const uint32_t known = W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL;
   return text_is(domain->name, W_SEED_FRONTEND_DOMAIN_IDENTITY) &&
+         domain->kind == W_SEED_FRONTEND_DOMAIN_HOST &&
          domain->mode == W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT &&
+         domain->maximum == 0u &&
          (domain->capabilities & ~known) == 0u &&
          (domain->capabilities & W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL) !=
              0u &&
+         launch->domain_kind == domain->kind &&
          launch->domain_mode == domain->mode &&
-         launch->domain_capabilities == domain->capabilities;
+         launch->domain_capabilities == domain->capabilities &&
+         launch->domain_maximum == domain->maximum;
 }
 
 static bool frontend_value_has_no_resolution(
@@ -2761,6 +2772,8 @@ static bool frontend_value_has_no_resolution(
          value->resolved_host_symbol_index == W_SEED_FRONTEND_NONE &&
          value->resolved_external_module_index == W_SEED_FRONTEND_NONE &&
          value->resolved_external_symbol_index == W_SEED_FRONTEND_NONE &&
+         value->resolved_accelerator_module_index == W_SEED_FRONTEND_NONE &&
+         value->resolved_accelerator_kernel_index == W_SEED_FRONTEND_NONE &&
          value->resolved_local_ordinal == W_SEED_FRONTEND_NONE &&
          value->resolved_const_declaration == W_SEED_FRONTEND_NONE &&
          value->resolved_pattern_capture == W_SEED_FRONTEND_NONE &&

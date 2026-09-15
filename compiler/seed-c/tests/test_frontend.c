@@ -495,6 +495,18 @@ static void fixture_configure_domain(fixture *fixture_value,
   fixture_value->input.domain_count = 1u;
 }
 
+static void fixture_configure_accelerated_domain(fixture *fixture_value,
+                                                 uint32_t maximum) {
+  fixture_value->domains[0] = (w_seed_frontend_domain){
+      .name = (w_seed_frontend_text){".inference", 10u},
+      .kind = W_SEED_FRONTEND_DOMAIN_ACCELERATED,
+      .mode = W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT,
+      .capabilities = W_SEED_FRONTEND_DOMAIN_CAPABILITY_DEVICE,
+      .maximum = maximum};
+  fixture_value->input.domains = fixture_value->domains;
+  fixture_value->input.domain_count = 1u;
+}
+
 static bool fixture_run_with_domain(fixture *fixture_value, const char *text,
                                     w_seed_frontend_domain_mode mode,
                                     uint32_t capabilities) {
@@ -2675,7 +2687,7 @@ static bool test_local_binding_resolution(void) {
         W_SEED_FRONTEND_OK);
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-27") &&
+                         "w-seed-frontend-28") &&
         value->result.written.statements == 2u);
   const w_seed_frontend_statement *binding = &value->statements[0];
   CHECK(binding->kind == W_SEED_FRONTEND_STMT_LET &&
@@ -2714,8 +2726,8 @@ static bool test_local_binding_resolution(void) {
   }
   CHECK(binding_symbol != W_SEED_FRONTEND_NONE &&
         message_expression != W_SEED_FRONTEND_NONE &&
-        receipt_contains(value, "schema=w-seed-frontend-27\n",
-                         strlen("schema=w-seed-frontend-27\n")));
+        receipt_contains(value, "schema=w-seed-frontend-28\n",
+                         strlen("schema=w-seed-frontend-28\n")));
 
   fixture *trivia = &fixture_a;
   CHECK(fixture_parse(
@@ -5150,7 +5162,7 @@ static bool test_local_assignment_projection(void) {
                     "}\n"));
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-27") &&
+                         "w-seed-frontend-28") &&
         value->result.written.statements == 2u);
   CHECK(value->statements[0].kind == W_SEED_FRONTEND_STMT_VAR &&
         value->statements[0].effective_type != W_SEED_FRONTEND_NONE &&
@@ -5404,8 +5416,8 @@ static bool test_structured_async_projection(void) {
   }
   CHECK(parallel_spawns == 1u &&
         receipt_contains(value,
-                         "domain=0|7:2e646f6d61696e|mode=1|capabilities=1\n",
-                         strlen("domain=0|7:2e646f6d61696e|mode=1|capabilities=1\n")));
+                         "domain=0|7:2e646f6d61696e|kind=0|mode=1|capabilities=1|maximum=0\n",
+                         strlen("domain=0|7:2e646f6d61696e|kind=0|mode=1|capabilities=1|maximum=0\n")));
 
   CHECK(fixture_parse(value, parallel_source));
   fixture_configure_domain(value, W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT,
@@ -5689,6 +5701,145 @@ static bool test_accelerator_module_frontend(void) {
       value, "accelerator-kernel=0|owner=0|ordinal=0|label=5:68656c6c6f",
       sizeof("accelerator-kernel=0|owner=0|ordinal=0|label=5:68656c6c6f") -
           1u));
+
+  static const char accelerated_spawn[] =
+      "fn kernel(value: i64): i64 { return value }\n"
+      "export const kernels = accelerator.module<{ hello: kernel }>()\n"
+      "entry { let pending = spawn<.inference> kernels.hello(value: 42) "
+      "let result = await pending }\n";
+  CHECK(fixture_parse(value, accelerated_spawn));
+  fixture_configure_accelerated_domain(value, 4u);
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+            W_SEED_FRONTEND_OK &&
+        value->result.written.facts == 0u);
+  size_t accelerated_launch_count = 0u;
+  size_t accelerated_call_count = 0u;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind ==
+        W_SEED_FRONTEND_EXPR_SPAWN_ACCELERATED_DOMAIN_LAUNCH) {
+      CHECK(expression->supported && expression->domain_index == 0u &&
+            expression->domain_kind == W_SEED_FRONTEND_DOMAIN_ACCELERATED &&
+            expression->domain_mode ==
+                W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT &&
+            expression->domain_capabilities ==
+                W_SEED_FRONTEND_DOMAIN_CAPABILITY_DEVICE &&
+            expression->domain_maximum == 4u &&
+            expression->task_call_expression <
+                value->result.written.expressions);
+      accelerated_launch_count += 1u;
+    }
+    if (expression->kind == W_SEED_FRONTEND_EXPR_CALL &&
+        expression->resolved_callee_kind ==
+            W_SEED_FRONTEND_CALLEE_ACCELERATOR_MODULE_FIELD) {
+      CHECK(expression->supported &&
+            expression->resolved_accelerator_module_index == 0u &&
+            expression->resolved_accelerator_kernel_index == 0u &&
+            expression->resolved_function_index == 0u &&
+            expression->argument_count == 1u);
+      accelerated_call_count += 1u;
+    }
+  }
+  CHECK(accelerated_launch_count == 1u && accelerated_call_count == 1u);
+  CHECK(receipt_contains(
+      value,
+      "domain=0|10:2e696e666572656e6365|kind=1|mode=1|capabilities=2|maximum=4\n",
+      sizeof("domain=0|10:2e696e666572656e6365|kind=1|mode=1|capabilities=2|maximum=4\n") -
+          1u));
+  CHECK(receipt_contains(
+      value, "|kind=4|host=4294967295|external=4294967295:4294967295|accelerator=0:0\n",
+      sizeof("|kind=4|host=4294967295|external=4294967295:4294967295|accelerator=0:0\n") -
+          1u));
+
+  static const char *const rejected_launches[] = {
+      "fn kernel(value: i64): i64 { return value }\n"
+      "export const kernels = accelerator.module<{ hello: kernel }>()\n"
+      "entry { let value = kernels.hello(value: 42) }\n",
+      "fn kernel(value: i64): i64 { return value }\n"
+      "export const kernels = accelerator.module<{ hello: kernel }>()\n"
+      "entry { let pending = async kernels.hello(value: 42) }\n",
+      "fn kernel(value: i64): i64 { return value }\n"
+      "export const kernels = accelerator.module<{ hello: kernel }>()\n"
+      "entry { let pending = spawn<.inference> kernel(value: 42) }\n",
+      "fn kernel(value: i64): i64 { return value }\n"
+      "export const kernels = accelerator.module<{ hello: kernel }>()\n"
+      "entry { let pending = spawn<.inference> kernels.missing(value: 42) }\n",
+  };
+  for (size_t index = 0u;
+       index < sizeof(rejected_launches) / sizeof(rejected_launches[0]);
+       index += 1u) {
+    CHECK(fixture_parse(value, rejected_launches[index]));
+    fixture_configure_accelerated_domain(value, 4u);
+    CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+          W_SEED_FRONTEND_UNSUPPORTED);
+  }
+
+  CHECK(fixture_parse(value, accelerated_spawn));
+  fixture_configure_accelerated_domain(value, 0u);
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_INVALID);
+  CHECK(fixture_parse(value, accelerated_spawn));
+  fixture_configure_accelerated_domain(value, 4u);
+  value->domains[0].capabilities = W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE;
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_INVALID);
+  CHECK(fixture_parse(value, accelerated_spawn));
+  fixture_configure_accelerated_domain(value, 4u);
+  value->domains[0].capabilities |=
+      W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL;
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_INVALID);
+  CHECK(fixture_parse(value, accelerated_spawn));
+  fixture_configure_accelerated_domain(value, 4u);
+  value->domains[0].mode = W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+            W_SEED_FRONTEND_OK &&
+        value->result.written.facts == 0u);
+  CHECK(fixture_parse(value, accelerated_spawn));
+  fixture_configure_domain(value, W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT,
+                           W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL);
+  value->domains[0].name = (w_seed_frontend_text){".inference", 10u};
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_UNSUPPORTED);
+
+  static const char multiple_modules[] =
+      "fn first(): i64 { return 1 }\n"
+      "fn second(): i64 { return 2 }\n"
+      "export const primary = accelerator.module<{ first: first }>()\n"
+      "export const secondary = accelerator.module<{ second: second }>()\n"
+      "entry { let pending = spawn<.inference> secondary.second() "
+      "let result = await pending }\n";
+  CHECK(fixture_parse(value, multiple_modules));
+  fixture_configure_accelerated_domain(value, 2u);
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+            W_SEED_FRONTEND_OK &&
+        value->result.written.facts == 0u);
+  bool selected_second_module = false;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_CALL &&
+        expression->resolved_callee_kind ==
+            W_SEED_FRONTEND_CALLEE_ACCELERATOR_MODULE_FIELD) {
+      CHECK(expression->resolved_accelerator_module_index == 1u &&
+            expression->resolved_accelerator_kernel_index == 1u &&
+            expression->resolved_function_index == 1u);
+      selected_second_module = true;
+    }
+  }
+  CHECK(selected_second_module);
+
+  static const char nested_accelerator_call[] =
+      "fn kernel(value: i64): i64 { return value }\n"
+      "fn wrapper(value: i64): i64 { return value }\n"
+      "export const kernels = accelerator.module<{ hello: kernel }>()\n"
+      "entry { let pending = spawn<.inference> wrapper(value: "
+      "kernels.hello(value: 42)) }\n";
+  CHECK(fixture_parse(value, nested_accelerator_call));
+  fixture_configure_accelerated_domain(value, 4u);
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_UNSUPPORTED);
 
   static const char composed[] =
       "fn first(): i64 { return 1 }\n"

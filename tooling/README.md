@@ -106,7 +106,7 @@ production runtime warmup/sample series are sourced from the native receipt;
 compile series remain Bun-orchestrated direct-child observations.
 GPU0 stays in a separate diagnostic catalog because it is not yet a complete
 source-backed W product. `bun check --target gpu0` first proves the versioned W
-fixture through Frontend27 and the independently verified target/provider-free
+fixture through Frontend28 and the independently verified target/provider-free
 device-module bridge, and the caller-owned provider-neutral projection into
 GPU0 records and device artifact, then proves the separate MLIR GPU/NVVM
 lowering, CUDA result `42`, and fail-closed provider cases when the Windows
@@ -371,7 +371,7 @@ until equivalent serial-main-domain baselines exist. This bounded seed evidence
 makes no general runtime, scheduler, parallelism, cancellation, stable ABI,
 target-adapter, benchmark-ranking, or performance claim. No syntax changes.
 
-W-1588 adds an IR-only parallel-placement boundary. Frontend27 accepts exact
+W-1588 adds an IR-only parallel-placement boundary. Frontend28 accepts exact
 `spawn<.domain>` only from a caller-owned concurrent domain with the parallel
 capability. HIR37 owns and independently verifies the copied identity, mode,
 capabilities, pure non-suspending scalar child graph, and lexical joins. The

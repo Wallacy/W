@@ -67,7 +67,7 @@ try {
     fail("integration witness produced unexpected output")
   }
   process.stdout.write(
-    "GPU module bridge: W source -> Frontend27 -> verified gpu-module -> GPU0 projection -> verified device artifact passed\n",
+    "GPU module bridge: W source -> Frontend28 -> verified gpu-module -> GPU0 projection -> verified device artifact passed\n",
   )
 } finally {
   await rm(buildDirectory, { recursive: true, force: true })

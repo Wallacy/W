@@ -28,7 +28,7 @@ typedef enum {
   W_SEED_GPU_MODULE_INCONSISTENT,
 } w_seed_gpu_module_status;
 
-/* One compiler-owned module identity copied from a Frontend27 record. The
+/* One compiler-owned module identity copied from a Frontend28 record. The
  * text fields are offsets into the bridge output text store. */
 typedef struct {
   uint32_t frontend_module_index;
@@ -129,7 +129,7 @@ w_seed_gpu_module_status w_seed_gpu_module_measure(
     const w_seed_gpu_module_input *input, w_seed_gpu_module_counts *counts,
     w_seed_gpu_module_result *result);
 
-/* Validate and copy a Frontend27 module set into caller-owned bridge storage. */
+/* Validate and copy a Frontend28 module set into caller-owned bridge storage. */
 w_seed_gpu_module_status w_seed_gpu_module_run(
     const w_seed_gpu_module_input *input, w_seed_gpu_module_output *output,
     w_seed_gpu_module_result *result);
