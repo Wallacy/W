@@ -1905,10 +1905,11 @@ local execution machine.
 
 W-1587 extends the physical seed `spawn<.main>` product from the W-1586
 exact-two witness to one through four ordered sibling launches in one linear
-root. HIR0 uses `w-seed-hir0-36`; the reserved caller-owned selection record is
-`w-seed-cooperative-selection0-2`. Four is a fixed caller-owned seed array
-ceiling, not a language semantic, runtime, scheduler, or ABI bound. The
-Cooperative0 compiler-host trace oracle remains exact-two.
+root. The reserved caller-owned selection record is
+`w-seed-cooperative-selection0-2`. Four is its fixed product array capacity,
+not a language semantic, HIR38 admission rule, runtime, scheduler, or ABI
+bound. HIR38 preserves a larger finite verified relation for later measured
+consumers. The Cooperative0 compiler-host trace oracle remains exact-two.
 
 NativeSubset0 independently rederives the count from verified HIR, preserves
 lexical order, and zeroes unused selection slots. MLIR0 uses
@@ -1923,8 +1924,9 @@ produce exact `Dispatched 20\n`, `Dispatched 66\n`, and `Dispatched 92\n`.
 The lower-level external gate samples k=1 and k=4 endpoints, while the C
 product path covers k=1 through k=4. Separately, executable workload
 `restaurant-main-cardinality` owns the public k=4 fixture and exact `w run`/
-`w build` evidence on Windows and on the Linux target through WSL2. k=5,
-reordered or orphan/duplicate joins, mixed launch kinds, and a source without a
+`w build` evidence on Windows and on the Linux target through WSL2. The legacy
+product selector rejects k=5 without destination mutation; HIR38 does not.
+Reordered or orphan/duplicate joins, mixed launch kinds, and a source without a
 main-dispatch route fail closed before output publication. The primary
 `benchmarkDisposition` remains `compiler-lifecycle`; the executable catalog
 separately owns exploratory public W measurement, with C23 and Rust blocked
@@ -1942,15 +1944,16 @@ caller-owned product evidence, participates in the frontend receipt, and is
 never an ambient runtime catalogue. Missing, duplicate, serial,
 capability-free, unknown, and malformed bindings reject before publication.
 
-HIR37 copies the `.domain` identity into its own text storage and records mode,
+HIR38 copies the `.domain` identity into its own text storage and records mode,
 capabilities, and the distinct
 `STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH` relation. Verification remains valid
 after frontend and domain input storage are discarded. The current bounded
-shape admits one through four lexical sibling launches of ordinary pure
+shape admits a finite sibling scope bounded by verified HIR records, including
+the five-task witness, of ordinary pure
 non-suspending scalar functions. It rejects async/yielding or effectful
 children, host calls, throws, unsafe and borrow clauses, nested tasks, and a
-mix of `.main` with `.domain`. The fixed four-slot storage remains a seed
-ceiling only.
+mix of `.main` with `.domain`. Fixed four-slot storage remains only in legacy
+PARSEL0 and its bounded downstream witnesses.
 
 This is frontend/HIR evidence, not parallel execution. Native0 now admits the
 configured domain and PARSEL0 selects the process root, but MLIR0 does not yet
@@ -1962,7 +1965,7 @@ public executable route.
 
 ### Bounded parallel selection proof (W-1589)
 
-`w_seed_parallel_selection0` consumes only verified HIR37. Its fixed
+`w_seed_parallel_selection0` consumes only verified HIR38. Its fixed
 `w-seed-parallel-selection0-1` record rederives either the bounded anonymous
 Unit root or native-process root and
 copies one through four parallel task-call indices, target functions, launch
@@ -1981,10 +1984,17 @@ selection under capacities one and two in a bounded Windows component. PARSEL0
 itself has no provider, MLIR, thread, runtime task, public executable, overlap
 evidence, or benchmark result; its disposition is `compiler-lifecycle`.
 
+`w_seed_parallel_selection1` is the measured successor used for new scheduler
+work. It reports exact task count before publication, accepts caller-owned task
+records, copies one dense call/function/instruction/launch/join relation per
+task, and binds those records to the HIR38 semantic digest. A five-task source
+passes HIR38 and PARSEL1 while PARSEL0 rejects it unchanged. Provider capacity,
+workers, frames, cancellation, and Task identity remain outside this record.
+
 ### Bounded Windows parallel provider component (W-1590)
 
 `w_seed_parallel_provider0` is the first physical PARSEL0 consumer. PARINV0
-re-verifies HIR37 and the selection, derives exact call/function/argument-value
+re-verifies HIR38 and the selection, derives exact call/function/argument-value
 facts for signed-`i64` jobs, and dry-evaluates them through the bounded checked
 scalar authority. PARPROV0 then executes one through four pure non-suspending
 HIR-derived jobs at provider capacity one or two. Its input exposes no callback
@@ -2015,7 +2025,7 @@ performance. Those remain explicit implementation gaps.
 
 ### Reachable zero-argument parallel task-entry MLIR module (W-1592, historical)
 
-PARMLIR0 consumes verified HIR37, PARSEL0, and PARINV0 and emits one public
+PARMLIR0 consumes verified HIR38, PARSEL0, and PARINV0 and emits one public
 `w_seed_parallel_task_<ordinal>() -> i64` function per selected task. It walks
 the argument and body value trees and emits only the reachable direct local
 helper closure. Helpers use explicit internal LLVM linkage; unrelated source
@@ -2078,7 +2088,7 @@ benchmark data, or a performance claim.
 
 ### Process-root parallel HIR composition (W-1595)
 
-PROCPARHIR0 keeps HIR37's record layout and admits one resolved native-process
+PROCPARHIR0 keeps HIR38's record layout and admits one resolved native-process
 entry with a pure scalar prelude binding, one `spawn<.domain>` call, its
 lexical `await`, and an `ExitCode` return. The focused source makes
 `Arguments.isEmpty` feed the prelude and passes its result to the task, so the
@@ -2107,7 +2117,7 @@ public execution, benchmark data, or performance claims.
 ### Parallel direct-call legality certificate (W-1597)
 
 `w_seed_parallel_elision0` rederives a fixed PARELIDE0 certificate from
-verified HIR37 plus PARSEL0. The current proof accepts exactly one task, an
+verified HIR38 plus PARSEL0. The current proof accepts exactly one task, an
 immediate lexical join, one virtual-task consumer, and a complete acyclic local
 callee graph that is pure, non-throwing, non-suspending, and free of host or
 external calls. The record is caller-owned, semantic-digest bound,

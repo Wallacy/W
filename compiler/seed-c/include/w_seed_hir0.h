@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-37"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-38"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -25,13 +25,12 @@ extern "C" {
  * per-child yield budget in the HIR contract so frontend/HIR admission and
  * the host oracle cannot drift apart. */
 #define W_SEED_HIR0_COOPERATIVE_MAX_YIELDS_PER_TASK 2u
-/* Product selection uses a small caller-owned fixed array for physical
- * `.main` dispatch. Four is an explicit seed implementation ceiling, not a
- * public runtime ABI or a general scheduler bound. */
+/* Legacy bounded provider/selection witnesses still use this fixed record.
+ * HIR admission and verification do not use it as a task-count ceiling. */
 #define W_SEED_HIR0_PHYSICAL_MAX_TASKS 4u
 #define W_SEED_HIR0_COOPERATIVE_MAX_TASKS W_SEED_HIR0_PHYSICAL_MAX_TASKS
-/* Explicit `.domain` placement shares the fixed seed task ceiling but has a
- * separate semantic lane and selection API. */
+/* PARSEL0 remains a bounded compatibility witness until measured caller-owned
+ * task storage replaces it. */
 #define W_SEED_HIR0_PARALLEL_MAX_TASKS W_SEED_HIR0_PHYSICAL_MAX_TASKS
 /* Cooperative0's historical compiler-host trace remains exact-two. Keep its
  * oracle bound separate so the physical `.main` lane can grow safely. */

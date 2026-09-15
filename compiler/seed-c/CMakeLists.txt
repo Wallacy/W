@@ -30,6 +30,7 @@ add_library(w_seed_source STATIC
   include/w_seed_process0.h
   include/w_seed_cooperative_selection0.h
   include/w_seed_parallel_selection0.h
+  include/w_seed_parallel_selection1.h
   include/w_seed_parallel_elision0.h
   include/w_seed_parallel_invocation0.h
   include/w_seed_parallel_provider0.h
@@ -73,6 +74,7 @@ add_library(w_seed_source STATIC
   src/w_seed_generic_validation.c
   src/w_seed_native_subset0.c
   src/w_seed_parallel_selection0.c
+  src/w_seed_parallel_selection1.c
   src/w_seed_parallel_elision0.c
   src/w_seed_parallel_invocation0.c
   src/w_seed_parallel_provider0.c

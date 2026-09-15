@@ -3,6 +3,7 @@
 #include "w_seed_parallel_invocation0.h"
 #include "w_seed_parallel_provider0.h"
 #include "w_seed_parallel_selection0.h"
+#include "w_seed_parallel_selection1.h"
 #include "w_seed_parallel_elision0.h"
 #include "w_seed_scalar_evaluator0.h"
 
@@ -2600,6 +2601,26 @@ static bool test_structured_async_elision_hir(void) {
   reseal_hir_fixture();
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
 
+  static const char SPAWN_MAIN_FIVE_SOURCE[] =
+      "async fn prepare(value: i64): i64 { "
+      "await execution#yield() return value + 1 }\n"
+      "entry { let a = spawn<.main> prepare(value: 20) "
+      "let b = spawn<.main> prepare(value: 22) "
+      "let c = spawn<.main> prepare(value: 24) "
+      "let d = spawn<.main> prepare(value: 26) "
+      "let e = spawn<.main> prepare(value: 28) "
+      "let av = await a let bv = await b let cv = await c let dv = await d "
+      "let ev = await e }\n";
+  CHECK(lower(SPAWN_MAIN_FIVE_SOURCE));
+  program = &fixture.hir_program;
+  main_dispatches = 0u;
+  for (size_t call = 0u; call < program->call_count; call += 1u)
+    if (program->calls[call].execution_kind ==
+        W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH)
+      main_dispatches += 1u;
+  CHECK(main_dispatches == 5u &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+
   uint32_t task_type = W_SEED_FRONTEND_NONE;
   uint32_t scalar_expression = W_SEED_FRONTEND_NONE;
   for (size_t type = 0u; type < fixture.result.written.types; type += 1u)
@@ -2943,7 +2964,7 @@ static bool test_parallel_domain_placement_hir(void) {
       "let right = spawn<.domain> combine(right: 2, left: 20) "
       "let first = await left let second = await right }\n";
 
-  /* Frontend28 added accelerated-domain and module-field identities. HIR37
+  /* Frontend28 added accelerated-domain and module-field identities. HIR38
    * does not represent them yet, so its boundary must reject every forged or
    * unrepresented field instead of treating appended schema bytes as zero-cost
    * metadata. */
@@ -3162,6 +3183,136 @@ static bool test_parallel_domain_placement_hir(void) {
   CHECK(test_parallel_provider_cardinality(
       &fixture.hir_program, &fixture.hir_result, &selection));
 #endif
+
+  static const char FIVE_TASKS[] =
+      "fn prepare(value: i64): i64 { return value + 1 }\n"
+      "entry { let a = spawn<.domain> prepare(value: 20) "
+      "let b = spawn<.domain> prepare(value: 22) "
+      "let c = spawn<.domain> prepare(value: 24) "
+      "let d = spawn<.domain> prepare(value: 26) "
+      "let e = spawn<.domain> prepare(value: 28) "
+      "let av = await a let bv = await b let cv = await c let dv = await d "
+      "let ev = await e }\n";
+  CHECK(lower_parallel_domain(FIVE_TASKS));
+  w_seed_parallel_selection1_counts measured_selection;
+  w_seed_parallel_selection1_result selection1_result;
+  CHECK(w_seed_parallel_selection1_measure(
+            &fixture.hir_program, &fixture.hir_result, &measured_selection,
+            &selection1_result) == W_SEED_PARALLEL_SELECTION1_OK &&
+        measured_selection.tasks == 5u &&
+        selection1_result.required.tasks == 5u &&
+        selection1_result.written.tasks == 0u);
+  w_seed_parallel_selection1_task measured_tasks[5];
+  (void)memset(measured_tasks, 0xa5, sizeof(measured_tasks));
+  const w_seed_parallel_selection1_output measured_output = {
+      measured_tasks, sizeof(measured_tasks) / sizeof(measured_tasks[0])};
+  CHECK(w_seed_parallel_selection1_run(
+            &fixture.hir_program, &fixture.hir_result, &measured_output,
+            &selection1_result) == W_SEED_PARALLEL_SELECTION1_OK &&
+        selection1_result.written.tasks == 5u);
+  w_seed_parallel_selection1_program measured_program;
+  CHECK(w_seed_parallel_selection1_program_from_output(
+            &measured_output, &selection1_result, &measured_program) &&
+        measured_program.task_count == 5u &&
+        w_seed_parallel_selection1_verify(
+            &fixture.hir_program, &fixture.hir_result, &measured_program,
+            &selection1_result));
+  for (size_t ordinal = 0u; ordinal < measured_program.task_count;
+       ordinal += 1u)
+    CHECK(measured_program.tasks[ordinal].call_index <
+              fixture.hir_program.call_count &&
+          measured_program.tasks[ordinal].function_index <
+              fixture.hir_program.function_count &&
+          (ordinal == 0u ||
+           measured_program.tasks[ordinal - 1u].call_instruction <
+               measured_program.tasks[ordinal].call_instruction));
+
+  w_seed_parallel_selection1_task short_tasks[4];
+  (void)memset(short_tasks, 0x6d, sizeof(short_tasks));
+  const w_seed_parallel_selection1_task short_before[4] = {
+      short_tasks[0], short_tasks[1], short_tasks[2], short_tasks[3]};
+  w_seed_parallel_selection1_result short_result;
+  (void)memset(&short_result, 0x7e, sizeof(short_result));
+  const w_seed_parallel_selection1_result short_result_before = short_result;
+  const w_seed_parallel_selection1_output short_output = {
+      short_tasks, sizeof(short_tasks) / sizeof(short_tasks[0])};
+  CHECK(w_seed_parallel_selection1_run(
+            &fixture.hir_program, &fixture.hir_result, &short_output,
+            &short_result) == W_SEED_PARALLEL_SELECTION1_CAPACITY &&
+        memcmp(short_tasks, short_before, sizeof(short_tasks)) == 0 &&
+        memcmp(&short_result, &short_result_before, sizeof(short_result)) == 0);
+
+  union {
+    w_seed_parallel_selection1_counts counts;
+    w_seed_parallel_selection1_result result;
+  } measure_alias;
+  (void)memset(&measure_alias, 0x35, sizeof(measure_alias));
+  unsigned char measure_alias_before[sizeof(measure_alias)];
+  (void)memcpy(measure_alias_before, &measure_alias, sizeof(measure_alias));
+  CHECK(w_seed_parallel_selection1_measure(
+            &fixture.hir_program, &fixture.hir_result, &measure_alias.counts,
+            &measure_alias.result) == W_SEED_PARALLEL_SELECTION1_ALIAS &&
+        memcmp(&measure_alias, measure_alias_before, sizeof(measure_alias)) ==
+            0);
+
+  union {
+    w_seed_parallel_selection1_task tasks[5];
+    w_seed_parallel_selection1_result result;
+  } run_alias;
+  (void)memset(&run_alias, 0x46, sizeof(run_alias));
+  unsigned char run_alias_before[sizeof(run_alias)];
+  (void)memcpy(run_alias_before, &run_alias, sizeof(run_alias));
+  const w_seed_parallel_selection1_output alias_output = {
+      run_alias.tasks, sizeof(run_alias.tasks) / sizeof(run_alias.tasks[0])};
+  CHECK(w_seed_parallel_selection1_run(
+            &fixture.hir_program, &fixture.hir_result, &alias_output,
+            &run_alias.result) == W_SEED_PARALLEL_SELECTION1_ALIAS &&
+        memcmp(&run_alias, run_alias_before, sizeof(run_alias)) == 0);
+
+  union {
+    w_seed_parallel_selection1_result result;
+    w_seed_parallel_selection1_program program;
+  } bridge_alias;
+  (void)memset(&bridge_alias, 0, sizeof(bridge_alias));
+  bridge_alias.result = selection1_result;
+  unsigned char bridge_alias_before[sizeof(bridge_alias)];
+  (void)memcpy(bridge_alias_before, &bridge_alias, sizeof(bridge_alias));
+  CHECK(!w_seed_parallel_selection1_program_from_output(
+            &measured_output, &bridge_alias.result, &bridge_alias.program) &&
+        memcmp(&bridge_alias, bridge_alias_before, sizeof(bridge_alias)) == 0);
+
+  const w_seed_parallel_selection1_result verified_result = selection1_result;
+  selection1_result.schema[0] ^= 1;
+  CHECK(!w_seed_parallel_selection1_verify(
+      &fixture.hir_program, &fixture.hir_result, &measured_program,
+      &selection1_result));
+  selection1_result = verified_result;
+  selection1_result.domain_mode = W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
+  CHECK(!w_seed_parallel_selection1_verify(
+      &fixture.hir_program, &fixture.hir_result, &measured_program,
+      &selection1_result));
+  selection1_result = verified_result;
+  selection1_result.semantic_digest[0] ^= 1u;
+  CHECK(!w_seed_parallel_selection1_verify(
+      &fixture.hir_program, &fixture.hir_result, &measured_program,
+      &selection1_result));
+  selection1_result = verified_result;
+
+  const w_seed_parallel_selection1_task fifth_task = measured_tasks[4];
+  measured_tasks[4].call_index = W_SEED_HIR0_NONE;
+  CHECK(!w_seed_parallel_selection1_verify(
+      &fixture.hir_program, &fixture.hir_result, &measured_program,
+      &selection1_result));
+  measured_tasks[4] = fifth_task;
+  CHECK(w_seed_parallel_selection1_verify(
+      &fixture.hir_program, &fixture.hir_result, &measured_program,
+      &selection1_result));
+  selection_sentinel = selection_before;
+  CHECK(w_seed_parallel_selection0_select(
+            &fixture.hir_program, &fixture.hir_result, &selection_sentinel) ==
+            W_SEED_PARALLEL_SELECTION0_UNSUPPORTED &&
+        memcmp(&selection_sentinel, &selection_before,
+               sizeof(selection_sentinel)) == 0);
 
   static const char NO_PARALLEL_TASK[] = "entry { }\n";
   CHECK(lower_parallel_domain(NO_PARALLEL_TASK));

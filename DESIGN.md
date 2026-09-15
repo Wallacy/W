@@ -39674,24 +39674,25 @@ let second = await right
 let total = first + second
 ```
 
-#### 26.4.1.68 W-1587 — bounded main-domain task cardinality (Current bounded form)
+#### 26.4.1.68 W-1587 — bounded main-domain product cardinality
 
-W-1587 extends only the physical seed product boundary of W-1586. HIR0 schema
-`w-seed-hir0-36` and the reserved caller-owned selection schema
-`w-seed-cooperative-selection0-2` admit one through four ordered sibling
-`spawn<.main>` launches in one linear root. The value four is a fixed seed
-caller-owned array ceiling. It is not a W language semantic, a general runtime
-or scheduler limit, or an ABI contract. The historical Cooperative0 compiler-
-host trace oracle remains exact-two under
+W-1587 extends only the physical seed product boundary of W-1586. The reserved
+caller-owned selection schema `w-seed-cooperative-selection0-2` and its
+NativeSubset0/MLIR0 consumers admit one through four ordered sibling
+`spawn<.main>` launches in one linear root. The value four is that legacy
+product record's fixed caller-owned array ceiling. It is not a W language
+semantic, HIR admission rule, general runtime or scheduler limit, or ABI
+contract. The historical Cooperative0 compiler-host trace oracle remains
+exact-two under
 `W_SEED_HIR0_COOPERATIVE_ORACLE_MAX_TASKS`; W-1587 does not widen that oracle.
 
 Frontend25 still records `SPAWN_MAIN_LAUNCH` separately from
-`ASYNC_TASK_LAUNCH`. HIR36 and NativeSubset0 independently rederive the
-physical count from verified HIR, require a positive count through the seed
-ceiling, preserve lexical launch order, and zero unused caller-owned selection
-slots. `MAIN_SERIAL` remains a derived verified fact rather than a caller-
-selected lowering profile. The selection record is proof data only; it is not a
-frame, scheduler, runtime, or ABI record.
+`ASYNC_TASK_LAUNCH`. HIR38 independently rederives a positive finite relation
+bounded by its verified record counts. NativeSubset0 then applies the legacy
+one-through-four product capacity, preserves lexical launch order, and zeroes
+unused caller-owned selection slots. `MAIN_SERIAL` remains a derived verified
+fact rather than a caller-selected lowering profile. The selection record is
+proof data only; it is not a frame, scheduler, runtime, or ABI record.
 
 MLIR0 schema `w-seed-mlir0-cooperative-2` and executable schema
 `w-seed-mlir0-cooperative-executable-2` scale the target-neutral core and both
@@ -39711,10 +39712,12 @@ bounded endpoints, while its C product path validates every cardinality from
 k=1 through k=4. Separately, the executable workload
 `restaurant-main-cardinality` owns the public k=4 fixture and its exact
 `Dispatched 92\n` `w run`/`w build` evidence on Windows and on the Linux target
-through WSL2. HIR, selection, and output-plan checks reject k=5, reordered or
-orphan/duplicate joins, mixed launch kinds, and a source without a
-main-dispatch route before publication. These are fail-closed seed
-implementation boundaries, not permanent language restrictions.
+through WSL2. The bounded product selection/output path rejects k=5 without
+mutating its destination, while HIR38 retains the valid source relation for a
+future measured consumer. HIR and downstream checks still reject reordered or
+orphan/duplicate joins, mixed launch kinds, and a source without a main-
+dispatch route before publication. These are fail-closed seed implementation
+boundaries, not permanent language restrictions.
 
 The primary `benchmarkDisposition` for W-1587 remains `compiler-lifecycle`.
 The executable catalog separately owns the exploratory public k=4 W
@@ -39749,7 +39752,7 @@ The domain is never ambient, inferred from the host, or selected from source
 text alone. Missing, duplicate, serial, capability-free, unknown, and malformed
 bindings fail closed.
 
-HIR0 schema `w-seed-hir0-37` copies the normalized domain identity into
+HIR0 schema `w-seed-hir0-38` copies the normalized domain identity into
 HIR-owned text and records mode, capabilities, and a distinct
 `STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH` call relation. Independent
 verification rechecks the placement after frontend storage may have been
@@ -39757,13 +39760,15 @@ discarded. Non-domain calls require the empty placement form, and a root may
 not mix `.main` and `.domain` physical dispatch. This prevents later passes
 from confusing serial FIFO work, virtual async work, and parallel placement.
 
-The current admitted HIR witness is deliberately narrow: one through four
-ordered sibling launches in one anonymous root, lexical joins, ordinary local
+The current admitted HIR witness is deliberately narrow: a finite number of
+ordered sibling launches bounded by verified HIR record counts in one root,
+lexical joins, ordinary local
 scalar children, and a finite acyclic graph of pure non-suspending scalar
 helpers. Parallel children do not need `yield`; this lane instead rejects
 async or suspending bodies, host calls, throws, unsafe or borrow clauses,
-nested tasks, effects, and mixed physical launch kinds. The value four remains
-a caller-owned seed storage ceiling, not a language, scheduler, or ABI limit.
+nested tasks, effects, and mixed physical launch kinds. PARSEL0 and its
+downstream provider witnesses retain four fixed slots only as compatibility
+evidence; HIR admission and verification no longer use that storage ceiling.
 
 W-1588 publishes no parallel selection record, MLIR artifact, worker pool,
 thread, overlap, scheduler, runtime ABI, public `w run` route, executable
@@ -39793,7 +39798,7 @@ entry {
 
 W-1589 adds PARSEL0 as the first consumer of the W-1588 placement relation.
 `w-seed-parallel-selection0-1` is a fixed, caller-owned, no-heap proof record.
-It independently re-verifies HIR37, rederives the unique anonymous root, and
+It independently re-verifies HIR38, rederives the unique anonymous root, and
 selects one through four exact
 `STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH` calls. It copies each task call,
 target function, launch binding, and lexical join binding together with the
@@ -39837,7 +39842,7 @@ must publish the same semantic outcome digest; only the physical receipt may
 report worker overlap.
 
 W-1590 adds PARPROV0 as the first physical consumer of PARSEL0. In its current
-W-1591-completed form, the component re-verifies HIR37, the exact selection,
+W-1591-completed form, the component re-verifies HIR38, the exact selection,
 and a HIR-derived PARINV0 plan before invoking one through four pure,
 non-suspending scalar jobs. Provider capacity is physical input and is bounded
 to one or two in this seed. Capacity one executes in lexical order; capacity
@@ -39875,7 +39880,7 @@ performance claim.
 HIR; callers cannot supply a replacement callback or result value.
 
 W-1591 removes the caller-controlled callback seam from PARPROV0. PARINV0
-re-verifies HIR37 and PARSEL0 and derives a fixed canonical plan containing the
+re-verifies HIR38 and PARSEL0 and derives a fixed canonical plan containing the
 selected root, task call/function identities, exact parameter-ordinal argument
 value indices, relevant HIR counts, and the HIR semantic digest. Unused task
 and argument slots are zero. Provider capacity, native handles, function
@@ -39911,7 +39916,7 @@ invocation proof and semantic/physical separation.
 **Example:** the historical seed emitted one zero-argument public task entry
 per selected launch while omitting an unrelated local function.
 
-PARMLIR0 consumes only verified HIR37, PARSEL0, and PARINV0. It independently
+PARMLIR0 consumes only verified HIR38, PARSEL0, and PARINV0. It independently
 re-verifies that chain, derives the direct local helper closure reachable from
 the selected task calls and their argument value trees, and emits one public
 zero-argument signed-`i64` entry named
@@ -39947,7 +39952,7 @@ PARMLIR0 contract.
 parameters and call only the exact reachable local helper closure.
 
 PARMLIR0 schema `w-seed-mlir0-parallel-entry-2` retains the independently
-verified HIR37, PARSEL0, and PARINV0 boundary from W-1592, but every public
+verified HIR38, PARSEL0, and PARINV0 boundary from W-1592, but every public
 `w_seed_parallel_task_<launch-ordinal>` wrapper now receives its signed-`i64`
 arguments at runtime. Its arity and argument types derive from the selected
 function declaration. Wrapper argument order is canonical parameter-ordinal
@@ -40001,7 +40006,7 @@ executable does not enter the executable catalog.
 **Example:** `Arguments.isEmpty` feeds one pure scalar binding, which becomes
 the runtime argument of one `spawn<.domain>` task and its lexical `await`.
 
-PROCPARHIR0 admits one bounded composition in the existing HIR37 schema: a
+PROCPARHIR0 admits one bounded composition in the existing HIR38 schema: a
 resolved `std.process` entry may contain one pure scalar local-call binding,
 followed by one `spawn<.domain>` launch, its lexical `await`, and the normal
 `ExitCode` return. The scalar prelude may read the entry's real
@@ -40019,7 +40024,7 @@ ordinary root work, effectful children, or an invalid process ABI fail before
 HIR publication. The one-prelude/one-task shape is a seed evidence bound, not
 a language, runtime, or ABI limit.
 
-W-1595 changes admission and verification only; HIR37 record layout and digest
+W-1595 changes admission and verification only; HIR38 record layout and digest
 schema remain unchanged because every fact was already represented. It does
 not add Native0 domain configuration, PARSEL0 process-root selection, MLIR
 process/parallel composition, provider linkage, Linux/Windows execution, a
@@ -40376,6 +40381,38 @@ The physical gate now consumes ACCREQ0-owned artifact and parameter data, but
 the adapter is still a private process boundary rather than a supported runtime
 or ABI. Supported launch/join/result, public GPU products, other accelerators,
 product benchmarking and performance remain explicit gaps. No W syntax is added.
+
+#### 26.4.1.86 W-1606 — measured parallel task-relation storage
+
+HIR38 removes the four-task array from `.main` and `.domain` sibling-scope
+admission and independent verification. A finite physical sibling scope is bounded by the
+caller-owned HIR call, instruction, binding, and value ranges; validation walks
+those records and their lexical launch/join peers without allocating a Task
+object or fixed temporary task array.
+
+PARSEL1 schema `w-seed-parallel-selection1-1` is the first measured consumer
+and applies to the `.domain` lane.
+`measure` reports the exact logical task-record count. `run` accepts a
+caller-owned record range of at least that size and publishes one dense record
+per launch with call, target function, call instruction, launch binding, and
+join binding. The program copies the domain placement facts and binds the
+records to the HIR semantic digest. Provider worker capacity is deliberately
+absent and cannot change the selection's semantic identity. Task cardinality
+is encoded canonically as unsigned 32-bit data after an explicit bound check;
+`size_t` is used only for caller-storage capacities, so 32-bit and 64-bit
+compiler hosts compute the same semantic identity. The record's `u32` fields
+are HIR indices, not a materialized Task handle or target ABI.
+
+Measure, run, bridge, and verification reject malformed HIR, insufficient
+capacity, overlapping storage, forged relations, and digest drift without
+partial result publication. Five-task `.main` and `.domain` witnesses prove
+that HIR does not inherit either legacy four-slot product record; PARSEL1 also
+accepts the `.domain` witness while PARSEL0 rejects it transactionally. A
+measured `.main` product consumer and all fixed downstream consumers remain to
+migrate. This is
+compiler-lifecycle evidence only: it adds no scheduler, allocation policy,
+provider execution, Task ABI, public command, benchmark result, or performance
+claim.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

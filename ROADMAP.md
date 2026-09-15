@@ -91,3 +91,10 @@ W-1600 physical reference.
 
 The current fixed task counts and worker capacities are seed evidence limits.
 They must not become language, public ABI, or final runtime limits.
+
+W-1606 begins rank 2: HIR38 no longer uses a four-slot product array as an
+admission or verification limit for `.main` or `.domain`, and PARSEL1 measures
+dense caller-owned `.domain` task relations independently from worker capacity.
+Five siblings now cross verified HIR in both lanes and cross PARSEL1 for
+`.domain`; legacy product/selector consumers still stop at four until their
+incremental migration.
