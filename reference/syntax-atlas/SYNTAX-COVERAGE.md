@@ -8,6 +8,7 @@
 
 | Family | Blocks |
 | --- | --- |
+| entry | `entry-short-body`, `entry-declaration`, `module-run-entry` |
 | roots | `module-run-root`, `source-roots-imports` |
 | declarations | `data-declarations` |
 | types | `types-and-contracts` |
@@ -20,21 +21,29 @@
 | effects | `restricted-expressions` |
 | operators | `operators` |
 | streams | `stream-and-channel` |
-| entry | `entry-declaration`, `module-run-entry` |
 | manifest | `package-root`, `workspace-root` |
 
 | Variant | Syntax | Atlas block |
 | --- | --- | --- |
+| `entry-default-body` | `entry {` | `entry-short-body` |
+| `entry-default-handler` | `entry(runModuleRun)` | `module-run-entry` |
+| `entry-named-body` | `entry Diagnostics {` | `entry-declaration` |
+| `entry-named-handler` | `entry Atlas(runAtlas)` | `entry-declaration` |
 | `root-module` | `module atlas_language` | `source-roots-imports` |
 | `root-package` | `package {` | `package-root` |
 | `root-workspace` | `workspace {` | `workspace-root` |
 | `import-ordinary` | `import std.text` | `source-roots-imports` |
+| `import-module-binding` | `import text from std` | `source-roots-imports` |
+| `import-named` | `import { normalize as normalizeText } from std.text` | `source-roots-imports` |
+| `import-wildcard` | `import * from atlas.prelude` | `source-roots-imports` |
+| `reexport-wildcard` | `export * from atlas.foundation` | `source-roots-imports` |
+| `reexport-named` | `export { FoundationPlace as BasePlace } from atlas.foundation` | `source-roots-imports` |
+| `export-list` | `export { AtlasMarker, VersionedPlaceBox }` | `data-declarations` |
 | `import-kernel-named` | `import kernel { forecast as predict } from atlas.models` | `source-roots-imports` |
 | `import-kernel-qualified` | `import kernel atlas.models as models` | `source-roots-imports` |
 | `module-kernel-contract` | `kernels: { forecast: forecastKernel }` | `source-roots-imports` |
 | `import-domain` | `import domain` | `source-roots-imports` |
 | `import-service` | `import service` | `source-roots-imports` |
-| `import-wildcard` | `export * from atlas.foundation` | `source-roots-imports` |
 | `entry-explicit` | `entry Atlas` | `entry-declaration` |
 | `allocator-named` | `allocator scratch` | `allocator-and-bindings` |
 | `allocator-anonymous` | `allocator .fixed<capacity: 128>` | `allocator-and-bindings` |
@@ -52,7 +61,7 @@
 | `execution-await` | `try await concurrent` | `execution-forms` |
 | `execution-sync` | `try sync fetch` | `execution-forms` |
 | `execution-async-initializer` | `let concurrent = async` | `execution-forms` |
-| `execution-spawn` | `spawn<.compute>` | `execution-forms` |
+| `execution-spawn` | `spawn<.domain>` | `execution-forms` |
 | `callable-positional` | `_ order: String` | `callables-and-foreign` |
 | `callable-required-homonym` | `audit: String` | `callables-and-foreign` |
 | `callable-required-external` | `to destination: String` | `callables-and-foreign` |
@@ -62,6 +71,12 @@
 | `callable-any-fn` | `any mut async fn` | `callables-and-foreign` |
 | `callable-static` | `export static const fn` | `callables-and-foreign` |
 | `callable-generic` | `export fn describe<ID` | `callables-and-foreign` |
+| `callable-borrow-relation` | `borrows(0: [primary, fallback])` | `callables-and-foreign` |
+| `callable-abi` | `export unsafe fn<abi: .c> atlas_version` | `callables-and-foreign` |
+| `foreign-block` | `foreign c from "atlas.h"` | `callables-and-foreign` |
+| `foreign-type` | `type AtlasHandle` | `callables-and-foreign` |
+| `foreign-struct` | `struct AtlasPoint {` | `callables-and-foreign` |
+| `foreign-function` | `fn<abi: .c> atlas_hash` | `callables-and-foreign` |
 | `closure-copy` | `<[copy target]>` | `execution-forms` |
 | `closure-ref` | `<[ref borrowed]>` | `execution-forms` |
 | `closure-take` | `<[take moved]>` | `execution-forms` |
@@ -75,6 +90,8 @@
 | `property-var-ref` | `var replaceableView: ref String` | `data-declarations` |
 | `property-var-mut-ref` | `var title: mut ref String` | `data-declarations` |
 | `property-var-inout` | `var buffered: inout usize` | `data-declarations` |
+| `behavior-set-parameter` | `set(proposed: Place)` | `data-declarations` |
+| `behavior-storage` | `var Versioned visits` | `data-declarations` |
 | `pattern-enum` | `Signal.alert(level: let level)` | `patterns` |
 | `pattern-struct` | `Place(id, ...)` | `patterns` |
 | `pattern-inferred-struct` | `let { id: inferredId, ... } = place` | `patterns` |
@@ -83,11 +100,37 @@
 | `pattern-wildcard` | `case _:` | `patterns` |
 | `static-record` | `Config<{mode` | `types-and-contracts` |
 | `static-list` | `Signal<[.quiet` | `types-and-contracts` |
+| `literal-string-double` | `"city ${count}"` | `literals-and-collections` |
+| `literal-string-single` | `'city ${count}'` | `literals-and-collections` |
+| `literal-raw-double` | `#"raw city ${count}"#` | `literals-and-collections` |
+| `literal-raw-single` | `#'raw city ${count}'#` | `literals-and-collections` |
+| `literal-multiline` | `let multiline = """north` | `literals-and-collections` |
+| `literal-raw-multiline` | `let rawMultiline = #"""north ${count}` | `literals-and-collections` |
+| `literal-unit-suffix` | `12km` | `literals-and-collections` |
+| `literal-size` | `64KiB` | `literals-and-collections` |
+| `literal-unit` | `let empty = ()` | `types-and-contracts` |
+| `tuple-index` | `location.0` | `types-and-contracts` |
+| `generic-application` | `makePlace<String>` | `types-and-contracts` |
+| `control-break` | `break rows` | `control-flow` |
+| `pipe-member` | `|> .scaled(by: 3)` | `operators` |
 | `channel-send` | `Channel<send: String>` | `stream-and-channel` |
 | `channel-receive` | `Channel<receive: String>` | `stream-and-channel` |
 | `root-module-run` | `module atlas_execution` | `module-run-root` |
 
 ## Full snippets
+
+<details>
+<summary>Short default entry body · entry · entry-short-body</summary>
+
+**current** · **tree-sitter-parse-only**
+
+```w
+entry {
+  print("atlas short entry ready")
+}
+```
+
+</details>
 
 <details>
 <summary>Module-run root · roots · module-run-root</summary>
@@ -114,7 +157,9 @@ module atlas_language<
 >
 
 import std.text
-import { String as Text } from std.text
+import text from std
+import * from atlas.prelude
+import { normalize as normalizeText } from std.text
 import kernel { forecast as predict } from atlas.models
 import kernel atlas.models as models
 export * from atlas.foundation
@@ -170,7 +215,7 @@ export struct Place<ID> : Hashable {
   }
 
   deinit {
-    label
+    print("released ${label}")
   }
 }
 
@@ -232,6 +277,9 @@ behavior Initialized for Place {
   get {
     return current
   }
+  set(proposed: Place) {
+    current = proposed
+  }
 }
 
 behavior Versioned<Value> for Value {
@@ -260,7 +308,7 @@ struct VersionedPlaceBox {
 const DefaultLabel: String = "square"
 test "place label" for Place {
   let place = Place(id: "north", label: DefaultLabel)
-  place.describe()
+  expect place.describe() == DefaultLabel
 }
 
 test "qualified facet path" for VersionedPlaceBox {
@@ -268,17 +316,20 @@ test "qualified facet path" for VersionedPlaceBox {
   box.place.title = "avenue"
   let epoch = box.place#version.mutationEpoch
   let title = (box.place#value).title
-  epoch
-  title
+  expect epoch == 1
+  expect title == "avenue"
 }
 
 test "direct observer facets" for VersionedPlaceBox {
   var box = VersionedPlaceBox()
   let visits = box.visits
-  visits
-  box.visits#readCount
-  box.visits#mutationEpoch
+  expect visits == 0
+  expect box.visits#readCount == 1
+  expect box.visits#mutationEpoch == 0
 }
+
+struct AtlasMarker {}
+export { AtlasMarker, VersionedPlaceBox }
 ```
 
 </details>
@@ -308,6 +359,11 @@ fn makeDigest(): Digest {
   let location: Location = (district: "north", number: 4)
   let bytes: Digest = [0; 32]
   let value = if location.number > 0 { bytes } else { bytes }
+  let first = location.0
+  let empty = ()
+  let maker = makePlace<String>
+  let made = maker("east")
+  let _ = (first, empty, made)
   return value
 }
 ```
@@ -328,6 +384,13 @@ export static const fn makePlace<ID>(_ value: ID): Place<ID> {
   return Place(id: value, label: "center")
 }
 
+fn chooseLabel(
+  primary: ref String,
+  fallback: ref String,
+): ref String borrows(0: [primary, fallback]) {
+  return if primary.bytes.count > 0 { primary } else { fallback }
+}
+
 export mut fn rename(_ place: Place<String>, _ value: String) {
   place.title = value
 }
@@ -346,6 +409,19 @@ fn labelShapes(
 type Handler = any mut async fn(inout String, take Place<String>): String throws Signal
 type ForeignHandler = unsafe fn<abi: .c>(c.ptr<c.char>, c.int): c.int
 
+foreign c from "atlas.h" {
+  type AtlasHandle
+  struct AtlasPoint {
+    north: c.int
+    east: c.int
+  }
+  fn<abi: .c> atlas_hash(data: c.ptr<c.char>): c.int;
+}
+
+export unsafe fn<abi: .c> atlas_version(): c.int {
+  return 1
+}
+
 unsafe fn<lang: .c> c_hash(data: c.ptr<c.char>): c.int {
 }
 ```
@@ -362,13 +438,16 @@ fn values(): () {
   let count = 1_000
   let ratio = 0.5e2
   let distance = 9.81<m/s^2>
-  let speed = 12<km>
-  let bytes = 64<KiB>
-  let text = "city"
-  let raw = #"raw city"#
-  let rawInterpolated = #"city #${count}"#
+  let speed = 12km
+  let bytes = 64KiB
+  let text = "city ${count}"
+  let single = 'city ${count}'
+  let raw = #"raw city ${count}"#
+  let rawSingle = #'raw city ${count}'#
   let multiline = """north
 south"""
+  let rawMultiline = #"""north ${count}
+south"""#
   let scalar = 'N'
   let byte = b'\x4e'
   let enabled = true
@@ -377,21 +456,11 @@ south"""
   let map = ["north": 1]
   let repeated = [0; 4]
   let selected = (point).north
-  count
-  ratio
-  distance
-  speed
-  bytes
-  text
-  raw
-  multiline
-  scalar
-  byte
-  enabled
-  list
-  map
-  repeated
-  selected
+  let _ = (
+    count, ratio, distance, speed, bytes, text, single, raw, rawSingle,
+    multiline, rawMultiline, scalar, byte, enabled, list, map, repeated,
+    selected,
+  )
 }
 ```
 
@@ -494,6 +563,7 @@ fn walk(_ values: Array<i32>): i32 throws WalkError {
         continue rows
       } else {
         total += column
+        if total > 100 { break rows }
       }
     }
   }
@@ -532,7 +602,7 @@ async fn runTasks(): String throws AtlasError {
   let started = clock.now()
   let direct = try sync fetch("north")
   let concurrent = async fetch("east")
-  let parallel = spawn<.compute> fetch("south")
+  let parallel = spawn<.domain> fetch("south")
   let first = try await concurrent
   let second = try await parallel
   await execution#yield()
@@ -610,7 +680,7 @@ async fn restricted(_ target: String): String throws AtlasError {
     commit inspect(item)
   }
   let guarded = lock target as city {
-    city
+    city // atlas:value-tail
   }
   let transactionValue = try await pipeline<transaction: {
     isolation: .serializable,
@@ -621,7 +691,7 @@ async fn restricted(_ target: String): String throws AtlasError {
   let logical = target#label
   let observed = (target#version).mutationEpoch
   let unsafeValue = unsafe {
-    target
+    target // atlas:value-tail
   }
   let pinned = pin target
   let _ = captured
@@ -679,6 +749,7 @@ fn operatorSurface(_ payload: ref any Reflectable) {
   let logical = ready || pending && enabled
   let bitwise = value | other ^ fallback & bits
   let inspected = value |> normalize() |> inspect() |> render()
+  let memberPipeline = value |> .scaled(by: 3) |> .limited(to: 10) |> .render()
   let pipedDecoded = value |> try json.decode<Document>()
   let copied = copy value |> inspect()
   let pipeAfterCoalescing = (optionalValue ?? fallback) |> inspect()
@@ -761,6 +832,7 @@ fn operatorSurface(_ payload: ref any Reflectable) {
   let _ = logical
   let _ = bitwise
   let _ = inspected
+  let _ = memberPipeline
   let _ = pipedDecoded
   let _ = copied
   let _ = inverted
@@ -878,6 +950,10 @@ fn runAtlas() {
 }
 
 entry Atlas(runAtlas)
+
+entry Diagnostics {
+  print("atlas diagnostics ready")
+}
 ```
 
 </details>

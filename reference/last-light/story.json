@@ -1,0 +1,64 @@
+{
+  "$schema": "w-last-light-story-1",
+  "title": "The final service at the Last Light restaurant",
+  "premise": "Three shifts run before the observable universe closes: a quiet orbit proves the happy path, a photon rush stresses bounded concurrency, and a timeline collision makes overload and cancellation visible.",
+  "acts": [
+    {
+      "id": "open-the-doors",
+      "summary": "The build selects a product and entry, binds process capabilities, and opens the restaurant without executing imported entry modules.",
+      "atlasBlocks": ["package-root", "workspace-root", "module-run-root", "source-roots-imports", "entry-short-body", "entry-declaration", "module-run-entry"],
+      "sourceRefs": [
+        { "path": "reference/last-light/build.w", "symbol": "package {\n  schema: \"w.package/1\"" },
+        { "path": "reference/last-light/app.w", "symbol": "async fn runNative(" },
+        { "path": "reference/last-light/simulation_app.w", "symbol": "entry LastLightSimulation(runSimulation)" }
+      ],
+      "acceptance": ["one selected entry", "capabilities are explicit", "imports have no startup side effects"]
+    },
+    {
+      "id": "seat-the-guests",
+      "summary": "Named guests arrive with orders from three timelines; enums, refinements, patterns, literals, and units keep every value explicit.",
+      "atlasBlocks": ["data-declarations", "types-and-contracts", "literals-and-collections", "patterns", "operators"],
+      "sourceRefs": [
+        { "path": "reference/last-light/domain.w", "symbol": "export struct Order {" },
+        { "path": "reference/last-light/simulation.w", "symbol": "fn scenario(profile: SimulationProfile): Scenario" },
+        { "path": "reference/last-light/numerics.w", "symbol": "export type SeatNumber" }
+      ],
+      "acceptance": ["quiet orbit has three orders", "timeline identities remain data", "invalid refinements fail before service work"]
+    },
+    {
+      "id": "prepare-the-last-meal",
+      "summary": "The kitchen reserves stock, samples aroma, plans energy, mixes in a parallel domain, and closes every lease on success or failure.",
+      "atlasBlocks": ["callables-and-foreign", "allocator-and-bindings", "control-flow", "restricted-expressions"],
+      "sourceRefs": [
+        { "path": "reference/last-light/restaurant.w", "symbol": "async fn prepareDish(" },
+        { "path": "reference/last-light/kitchen.w", "symbol": "export fn expectedEnergy(\n  telemetry: ref OvenTelemetry," },
+        { "path": "reference/last-light/failure.w", "symbol": "export fn decodeWithCleanup(" }
+      ],
+      "acceptance": ["resource cleanup is single-owner", "energy and aroma failures are typed", "compensation remains observable"]
+    },
+    {
+      "id": "survive-the-rush",
+      "summary": "Structured tasks, bounded pipelines, streams, and directional channels process the photon rush without hiding ordering, backpressure, or cancellation.",
+      "atlasBlocks": ["execution-forms", "stream-and-channel"],
+      "sourceRefs": [
+        { "path": "reference/last-light/execution.w", "symbol": "export async fn mixAcrossTwoKitchens(" },
+        { "path": "reference/last-light/streams.w", "symbol": "export async fn serveOneByOne" },
+        { "path": "reference/last-light/restaurant.w", "symbol": "service lastLight: RestaurantApi" }
+      ],
+      "acceptance": ["children remain structured", "channel capacity is finite", "failure and cancellation preserve owners"]
+    },
+    {
+      "id": "close-at-the-end-of-time",
+      "summary": "The deterministic simulation renders a final manifest and event log, then proves replay and overload outcomes before shutdown drains the service graph.",
+      "atlasBlocks": [],
+      "sourceRefs": [
+        { "path": "reference/last-light/simulation.w", "symbol": "export fn writeSimulation(" },
+        { "path": "reference/last-light/simulation.w", "symbol": "test \"the quiet orbit completes without losing an order\"" },
+        { "path": "reference/last-light/simulation.w", "symbol": "test \"the timeline collision makes overload visible\"" },
+        { "path": "reference/last-light/simulation.w", "symbol": "test \"a simulation profile replays the same observable history\"" },
+        { "path": "reference/last-light/app.w", "symbol": "async fn shutdown(" }
+      ],
+      "acceptance": ["quiet orbit completes 3 and loses 0", "timeline collision completes 1 and exposes 3 departures", "photon rush replays the same observable history"]
+    }
+  ]
+}

@@ -1,7 +1,9 @@
 # Atlas sintático de W
 
 O atlas mostra a superfície sintática atual de W para leitura humana. Ele é
-separado do produto funcional Última Luz. Os exemplos usam nomes de cidade e
+separado do produto funcional Última Luz: o Atlas inventaria as formas
+atômicas; [`../last-light/STORY.md`](../last-light/STORY.md) liga todas as
+famílias a uma narrativa de aplicação. Os exemplos usam nomes de cidade e
 território somente para tornar a leitura local.
 
 ## Como navegar
@@ -48,6 +50,14 @@ Cada regra pública da grammar recebe uma classificação `direct`, `composed`,
 `root`, `lexical` ou `recovery`; uma regra nova sem classificação falha o
 checker.
 
+O checker também exige que os fontes exercitem de fato toda regra pública
+observável da grammar. `behavior_identifier` e `function_signature` são as
+duas exceções explícitas: seus spellings existem, mas o CST os publica como
+`identifier` e `function_declaration`. A lista de variantes cobre alternativas
+atômicas dentro de uma regra, como as quatro formas de `entry`, imports,
+strings ordinary/raw, ABI/foreign, borrows e pipe relativo. Combinações
+cartesianas não são novas formas e não são duplicadas.
+
 [`SYNTAX-COVERAGE.md`](SYNTAX-COVERAGE.md) é gerado dos blocos reais dos arquivos
 `.w`. Ele é uma cobertura técnica parse-only, não um guia editorial e não uma
 promessa de execução. Não edite o arquivo. Use o gerador para manter os
@@ -67,6 +77,13 @@ recovery. `tree-sitter-parse-only-provider-missing` e
 `tree-sitter-parse-only-compiler-runtime-missing` registram superfícies aceitas
 que ainda não possuem a rota de implementação correspondente. Este campo não
 é uma alegação de implementação.
+
+Mesmo antes do type checker completo, o Atlas não aceita placeholders de valor
+como statements. Um value comum precisa de binding, uso observável ou descarte
+explícito com `let _`; somente um tail real de value block usa o marker local
+`// atlas:value-tail`. O gate rejeita novamente uma variável solta. Calls ainda
+dependem do contrato de retorno declarado, portanto a evidência continua
+honestamente parse-only, não type-checked.
 
 Research, reserved, and rejected spellings stay in the companions
 [`reserved.w-reserved.txt`](reserved.w-reserved.txt) and
@@ -91,7 +108,8 @@ bun tooling/syntax-atlas.mjs --check
 
 O checker rejeita marker ausente, duplicado ou não listado, digest ou snippet
 stale, regra pública não classificada, bloco inválido, root incompatível e
-syntax coverage stale. Ele também parseia todos os `.w` do atlas sem recovery.
+syntax coverage stale. Ele também parseia todos os `.w` do atlas sem recovery,
+exige a ocorrência de cada regra observável e rejeita values soltos.
 
 Para atualizar os artefatos depois de uma alteração aprovada:
 

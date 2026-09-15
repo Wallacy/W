@@ -9,11 +9,13 @@
   },
   "sourceFiles": [
     "build.w",
+    "entry-short.w",
     "execution.w",
     "language.w",
     "operators.w"
   ],
   "pedagogicalOrder": [
+    "entry-short-body",
     "module-run-root",
     "source-roots-imports",
     "data-declarations",
@@ -1761,6 +1763,14 @@
   ],
   "families": [
     {
+      "family": "entry",
+      "blocks": [
+        "entry-short-body",
+        "entry-declaration",
+        "module-run-entry"
+      ]
+    },
+    {
       "family": "roots",
       "blocks": [
         "module-run-root",
@@ -1834,13 +1844,6 @@
       ]
     },
     {
-      "family": "entry",
-      "blocks": [
-        "entry-declaration",
-        "module-run-entry"
-      ]
-    },
-    {
       "family": "manifest",
       "blocks": [
         "package-root",
@@ -1849,6 +1852,38 @@
     }
   ],
   "variants": [
+    {
+      "id": "entry-default-body",
+      "block": "entry-short-body",
+      "construction": "default descriptor with an inline body",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "entry {"
+    },
+    {
+      "id": "entry-default-handler",
+      "block": "module-run-entry",
+      "construction": "default descriptor with a function handler",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "entry(runModuleRun)"
+    },
+    {
+      "id": "entry-named-body",
+      "block": "entry-declaration",
+      "construction": "named descriptor with an inline body",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "entry Diagnostics {"
+    },
+    {
+      "id": "entry-named-handler",
+      "block": "entry-declaration",
+      "construction": "named descriptor with a function handler",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "entry Atlas(runAtlas)"
+    },
     {
       "id": "root-module",
       "block": "source-roots-imports",
@@ -1880,6 +1915,54 @@
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
       "witness": "import std.text"
+    },
+    {
+      "id": "import-module-binding",
+      "block": "source-roots-imports",
+      "construction": "local module binding",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "import text from std"
+    },
+    {
+      "id": "import-named",
+      "block": "source-roots-imports",
+      "construction": "named import with a local alias",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "import { normalize as normalizeText } from std.text"
+    },
+    {
+      "id": "import-wildcard",
+      "block": "source-roots-imports",
+      "construction": "wildcard module import",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "import * from atlas.prelude"
+    },
+    {
+      "id": "reexport-wildcard",
+      "block": "source-roots-imports",
+      "construction": "wildcard re-export",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "export * from atlas.foundation"
+    },
+    {
+      "id": "reexport-named",
+      "block": "source-roots-imports",
+      "construction": "named re-export with a public alias",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "export { FoundationPlace as BasePlace } from atlas.foundation"
+    },
+    {
+      "id": "export-list",
+      "block": "data-declarations",
+      "construction": "collective export list",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "export { AtlasMarker, VersionedPlaceBox }"
     },
     {
       "id": "import-kernel-named",
@@ -1920,14 +2003,6 @@
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
       "witness": "import service"
-    },
-    {
-      "id": "import-wildcard",
-      "block": "source-roots-imports",
-      "construction": "wildcard re-export",
-      "designStatus": "current",
-      "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "export * from atlas.foundation"
     },
     {
       "id": "entry-explicit",
@@ -2071,7 +2146,7 @@
       "construction": "spawn binding",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "spawn<.compute>"
+      "witness": "spawn<.domain>"
     },
     {
       "id": "callable-positional",
@@ -2144,6 +2219,54 @@
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
       "witness": "export fn describe<ID"
+    },
+    {
+      "id": "callable-borrow-relation",
+      "block": "callables-and-foreign",
+      "construction": "explicit result-to-source borrow relation",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only-compiler-runtime-missing",
+      "witness": "borrows(0: [primary, fallback])"
+    },
+    {
+      "id": "callable-abi",
+      "block": "callables-and-foreign",
+      "construction": "exported function with an explicit ABI",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only-provider-missing",
+      "witness": "export unsafe fn<abi: .c> atlas_version"
+    },
+    {
+      "id": "foreign-block",
+      "block": "callables-and-foreign",
+      "construction": "foreign declaration sourced from a header",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only-provider-missing",
+      "witness": "foreign c from \"atlas.h\""
+    },
+    {
+      "id": "foreign-type",
+      "block": "callables-and-foreign",
+      "construction": "opaque foreign type declaration",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only-provider-missing",
+      "witness": "type AtlasHandle"
+    },
+    {
+      "id": "foreign-struct",
+      "block": "callables-and-foreign",
+      "construction": "foreign-layout struct declaration",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only-provider-missing",
+      "witness": "struct AtlasPoint {"
+    },
+    {
+      "id": "foreign-function",
+      "block": "callables-and-foreign",
+      "construction": "foreign function signature",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only-provider-missing",
+      "witness": "fn<abi: .c> atlas_hash"
     },
     {
       "id": "closure-copy",
@@ -2250,6 +2373,22 @@
       "witness": "var buffered: inout usize"
     },
     {
+      "id": "behavior-set-parameter",
+      "block": "data-declarations",
+      "construction": "behavior setter with an explicit proposed value",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only-compiler-runtime-missing",
+      "witness": "set(proposed: Place)"
+    },
+    {
+      "id": "behavior-storage",
+      "block": "data-declarations",
+      "construction": "stored property with a generic behavior",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only-compiler-runtime-missing",
+      "witness": "var Versioned visits"
+    },
+    {
       "id": "pattern-enum",
       "block": "patterns",
       "construction": "enum pattern",
@@ -2314,6 +2453,110 @@
       "witness": "Signal<[.quiet"
     },
     {
+      "id": "literal-string-double",
+      "block": "literals-and-collections",
+      "construction": "ordinary interpolating double-quoted string",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "\"city ${count}\""
+    },
+    {
+      "id": "literal-string-single",
+      "block": "literals-and-collections",
+      "construction": "ordinary interpolating single-quoted string",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "'city ${count}'"
+    },
+    {
+      "id": "literal-raw-double",
+      "block": "literals-and-collections",
+      "construction": "raw non-interpolating double-quoted string",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "#\"raw city ${count}\"#"
+    },
+    {
+      "id": "literal-raw-single",
+      "block": "literals-and-collections",
+      "construction": "raw non-interpolating single-quoted string",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "#'raw city ${count}'#"
+    },
+    {
+      "id": "literal-multiline",
+      "block": "literals-and-collections",
+      "construction": "ordinary multiline string",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "let multiline = \"\"\"north"
+    },
+    {
+      "id": "literal-raw-multiline",
+      "block": "literals-and-collections",
+      "construction": "raw non-interpolating multiline string",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "let rawMultiline = #\"\"\"north ${count}"
+    },
+    {
+      "id": "literal-unit-suffix",
+      "block": "literals-and-collections",
+      "construction": "closed unit suffix literal",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "12km"
+    },
+    {
+      "id": "literal-size",
+      "block": "literals-and-collections",
+      "construction": "binary size literal",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "64KiB"
+    },
+    {
+      "id": "literal-unit",
+      "block": "types-and-contracts",
+      "construction": "Unit value literal",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "let empty = ()"
+    },
+    {
+      "id": "tuple-index",
+      "block": "types-and-contracts",
+      "construction": "numeric tuple member access",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "location.0"
+    },
+    {
+      "id": "generic-application",
+      "block": "types-and-contracts",
+      "construction": "generic callable specialization as a value",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only-compiler-runtime-missing",
+      "witness": "makePlace<String>"
+    },
+    {
+      "id": "control-break",
+      "block": "control-flow",
+      "construction": "labeled loop break",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "break rows"
+    },
+    {
+      "id": "pipe-member",
+      "block": "operators",
+      "construction": "receiver-relative member pipeline",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only-compiler-runtime-missing",
+      "witness": "|> .scaled(by: 3)"
+    },
+    {
       "id": "channel-send",
       "block": "stream-and-channel",
       "construction": "send channel direction",
@@ -2340,9 +2583,27 @@
   ],
   "blocks": [
     {
+      "id": "entry-short-body",
+      "file": "entry-short.w",
+      "order": 0,
+      "line": 7,
+      "title": "Short default entry body",
+      "family": "entry",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "root": "module",
+      "grammarRefs": [],
+      "designRefs": [
+        "3.5.3"
+      ],
+      "sourceRefs": [],
+      "snippetDigest": "sha256:b3457ce7b9d58e73fcfb2c42dcc08c75918ad9a6344c5529d9ea7b54f7bcc4e9",
+      "snippetBytes": 45
+    },
+    {
       "id": "module-run-root",
       "file": "execution.w",
-      "order": 0,
+      "order": 1,
       "line": 1,
       "title": "Module-run root",
       "family": "roots",
@@ -2360,7 +2621,7 @@
     {
       "id": "source-roots-imports",
       "file": "language.w",
-      "order": 1,
+      "order": 2,
       "line": 1,
       "title": "Source roots and imports",
       "family": "roots",
@@ -2398,14 +2659,14 @@
           "digest": "sha256:d2d9bfb8518947101d1712519c4ef750ca99fe85038a5fa64de26f08d199ec0f"
         }
       ],
-      "snippetDigest": "sha256:9f66b7dedf41ccc43e3eb43d62ec367fefb7a84b0de2c290d8fa91ec710611ea",
-      "snippetBytes": 481
+      "snippetDigest": "sha256:97e93e49c05b65dc8a8613b9e8bf413cde40e6ac048904c843f18b2db6a89aee",
+      "snippetBytes": 542
     },
     {
       "id": "data-declarations",
       "file": "language.w",
-      "order": 2,
-      "line": 18,
+      "order": 3,
+      "line": 20,
       "title": "Data declarations, properties, and behaviors",
       "family": "declarations",
       "designStatus": "current",
@@ -2473,14 +2734,14 @@
           "digest": "sha256:13030d31b2805748975e212780b8102288962eb9c776278434638862f5b633bd"
         }
       ],
-      "snippetDigest": "sha256:794cb65267fc5117bc75ee4df3dcb6f6fb751f94f4affab1874bd42f3eb644f8",
-      "snippetBytes": 2803
+      "snippetDigest": "sha256:107b54289b2f7ef7805c7465a34cb5ec2037dbaa61875b640858790223508897",
+      "snippetBytes": 3031
     },
     {
       "id": "types-and-contracts",
       "file": "language.w",
-      "order": 3,
-      "line": 199,
+      "order": 4,
+      "line": 227,
       "title": "Type contracts, static values, and function types",
       "family": "types",
       "designStatus": "current",
@@ -2513,14 +2774,14 @@
           "digest": "sha256:4e8a1d38b0f002b7a3546ae103eba50e846e242039f8771ed588fae0fb87065e"
         }
       ],
-      "snippetDigest": "sha256:d4c607874669559808acac467f5fba30002e4328d8599e77353cee47b590b036",
-      "snippetBytes": 682
+      "snippetDigest": "sha256:24623d1ecad05bb75f19437b017a5fcdd15bb10be99ddae7f7414a6277e0b915",
+      "snippetBytes": 814
     },
     {
       "id": "callables-and-foreign",
       "file": "language.w",
-      "order": 4,
-      "line": 168,
+      "order": 5,
+      "line": 176,
       "title": "Callable modes, generics, and foreign bodies",
       "family": "callables",
       "designStatus": "current",
@@ -2560,14 +2821,14 @@
           "digest": "sha256:4e8a1d38b0f002b7a3546ae103eba50e846e242039f8771ed588fae0fb87065e"
         }
       ],
-      "snippetDigest": "sha256:08f66de8817c89eb677aae5a8f1e7eb4196882aae000e9d5aa4e1f971c1f9c5b",
-      "snippetBytes": 729
+      "snippetDigest": "sha256:9d1a976ecff0e14d8f94f5daf53de47be5d1e22553cd892790ae94c3d746d7cd",
+      "snippetBytes": 1136
     },
     {
       "id": "literals-and-collections",
       "file": "language.w",
-      "order": 5,
-      "line": 249,
+      "order": 6,
+      "line": 282,
       "title": "Literals, tuples, and collections",
       "family": "values",
       "designStatus": "current",
@@ -2593,14 +2854,14 @@
           "digest": "sha256:4af3f95f8895ed5a69b231ffd01ae4d58c89ce5e37bd9e49654a6849c9d7af3e"
         }
       ],
-      "snippetDigest": "sha256:2e452c9dd308d05601f8a525b9ef79cf564cd94b95cb9ca6231fff40edc735ac",
-      "snippetBytes": 583
+      "snippetDigest": "sha256:ca8738be3c49aed92df1370978207efad27e677c2be09e70e6bae10eb550a7b6",
+      "snippetBytes": 721
     },
     {
       "id": "patterns",
       "file": "language.w",
-      "order": 6,
-      "line": 223,
+      "order": 7,
+      "line": 256,
       "title": "Patterns, ranges, and matches",
       "family": "patterns",
       "designStatus": "current",
@@ -2639,7 +2900,7 @@
     {
       "id": "allocator-and-bindings",
       "file": "execution.w",
-      "order": 7,
+      "order": 8,
       "line": 11,
       "title": "Allocator scopes and bindings",
       "family": "ownership",
@@ -2669,7 +2930,7 @@
     {
       "id": "control-flow",
       "file": "execution.w",
-      "order": 8,
+      "order": 9,
       "line": 45,
       "title": "Control flow and cleanup",
       "family": "control",
@@ -2704,14 +2965,14 @@
           "digest": "sha256:c59db27e6acb51975c56109741934bb11d9b4ebce08edc6baaeefd6c8eac794c"
         }
       ],
-      "snippetDigest": "sha256:219bcaad6ebf9a800ae055ca7b3d6fce567e1c4f30965d9d7ed29061a3bf9e00",
-      "snippetBytes": 638
+      "snippetDigest": "sha256:ef91564f1dd5e7da5fe0cf420c3f3fa0001b818d341b444038973c00281736ef",
+      "snippetBytes": 676
     },
     {
       "id": "execution-forms",
       "file": "execution.w",
-      "order": 9,
-      "line": 83,
+      "order": 10,
+      "line": 84,
       "title": "Direct sync entry, await, async and spawn initializers, and calls",
       "family": "execution",
       "designStatus": "current",
@@ -2746,14 +3007,14 @@
           "digest": "sha256:c59db27e6acb51975c56109741934bb11d9b4ebce08edc6baaeefd6c8eac794c"
         }
       ],
-      "snippetDigest": "sha256:c28062855119f90c1949c11c01d79c1951c17db574eca837be29f7200d614a9f",
-      "snippetBytes": 1436
+      "snippetDigest": "sha256:b4deb5c6001d73e82e95a8dc0efb96730d9a926bc3494131c6bccd7fa600b4c8",
+      "snippetBytes": 1435
     },
     {
       "id": "restricted-expressions",
       "file": "execution.w",
-      "order": 10,
-      "line": 133,
+      "order": 11,
+      "line": 134,
       "title": "Pipelines, locks, transactions, unsafe, and closures",
       "family": "effects",
       "designStatus": "current",
@@ -2792,13 +3053,13 @@
           "digest": "sha256:b5d5da66b2d0a1552792cb8020542dc526707a6a7b8ed2b1a0392da08e4e23ae"
         }
       ],
-      "snippetDigest": "sha256:303d225d1e9764755453fd59368a548ed63be6617ee1aa8b4c2ae0c7cfd81e29",
-      "snippetBytes": 1458
+      "snippetDigest": "sha256:f233efc6293eff6b1c56fc1156b709bd87930afd1223b9185e91769812cb5ac9",
+      "snippetBytes": 1498
     },
     {
       "id": "operators",
       "file": "operators.w",
-      "order": 11,
+      "order": 12,
       "line": 1,
       "title": "Operators and numeric policies",
       "family": "operators",
@@ -2820,14 +3081,14 @@
         "18"
       ],
       "sourceRefs": [],
-      "snippetDigest": "sha256:ba25d23ea263b44324dbb4af50f3fb6295e6361733aeab347ff87bdf66e8d721",
-      "snippetBytes": 6097
+      "snippetDigest": "sha256:89bd8daa9148feca9d602100b0f7c8dd0139bb3818258e2fecadd9de1bf1c1e6",
+      "snippetBytes": 6202
     },
     {
       "id": "stream-and-channel",
       "file": "execution.w",
-      "order": 12,
-      "line": 199,
+      "order": 13,
+      "line": 200,
       "title": "Streams, channels, and directional contracts",
       "family": "streams",
       "designStatus": "current",
@@ -2854,8 +3115,8 @@
     {
       "id": "entry-declaration",
       "file": "language.w",
-      "order": 13,
-      "line": 287,
+      "order": 14,
+      "line": 313,
       "title": "Explicit entry descriptor",
       "family": "entry",
       "designStatus": "current",
@@ -2874,14 +3135,14 @@
           "digest": "sha256:d2d9bfb8518947101d1712519c4ef750ca99fe85038a5fa64de26f08d199ec0f"
         }
       ],
-      "snippetDigest": "sha256:942c5c36a57b4600e1dbbc3727284f6b358b81090dce7d37861da948e4f59caa",
-      "snippetBytes": 52
+      "snippetDigest": "sha256:24c636fee816d48b7d3b5fe3c98644ae286220a6dc1eede3ed9bebb212179e81",
+      "snippetBytes": 110
     },
     {
       "id": "module-run-entry",
       "file": "execution.w",
-      "order": 14,
-      "line": 228,
+      "order": 15,
+      "line": 229,
       "title": "Explicit module-run entry",
       "family": "entry",
       "designStatus": "current",
@@ -2898,7 +3159,7 @@
     {
       "id": "package-root",
       "file": "build.w",
-      "order": 15,
+      "order": 16,
       "line": 1,
       "title": "Package manifest root",
       "family": "manifest",
@@ -2931,7 +3192,7 @@
     {
       "id": "workspace-root",
       "file": "build.w",
-      "order": 16,
+      "order": 17,
       "line": 17,
       "title": "Workspace manifest root",
       "family": "manifest",
@@ -2975,6 +3236,6 @@
   ],
   "generated": {
     "coverage": "SYNTAX-COVERAGE.md",
-    "coverageDigest": "sha256:f5e107cbb9cad535b0c90f2bb470c8c2561e054fa3fbeb01a2870783652fa287"
+    "coverageDigest": "sha256:14127420aa222756e8e50028c8908ad105ae18e2363be3e0ba38e306430b4655"
   }
 }

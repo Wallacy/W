@@ -22,17 +22,21 @@ const EVIDENCE = new Set(["tree-sitter-parse-only", "tree-sitter-parse-only-prov
 // manifest; this list only prevents an accidental omission.
 const REQUIRED_VARIANT_IDS = [
   "root-module", "root-package", "root-workspace",
-  "import-ordinary", "import-kernel-named", "import-kernel-qualified", "import-domain", "import-service", "import-wildcard",
+  "import-ordinary", "import-module-binding", "import-named", "import-wildcard", "import-kernel-named", "import-kernel-qualified", "import-domain", "import-service",
+  "reexport-named", "reexport-wildcard", "export-list",
   "module-kernel-contract",
-  "entry-explicit", "allocator-named", "allocator-anonymous", "allocator-contextual-parameter", "allocator-contextual-call",
+  "entry-explicit", "entry-default-body", "entry-default-handler", "entry-named-body", "entry-named-handler",
+  "allocator-named", "allocator-anonymous", "allocator-contextual-parameter", "allocator-contextual-call",
   "ownership-ref", "ownership-inout", "ownership-take", "ownership-shared", "ownership-weak", "ownership-view", "ownership-pin", "ownership-atomic",
   "execution-direct", "execution-await", "execution-sync", "execution-async-initializer", "execution-spawn",
   "callable-positional", "callable-required-homonym", "callable-required-external", "callable-default", "callable-rest", "callable-some-fn", "callable-any-fn", "callable-static", "callable-generic",
+  "callable-borrow-relation", "callable-abi", "foreign-block", "foreign-type", "foreign-struct", "foreign-function",
   "closure-copy", "closure-ref", "closure-take", "closure-weak",
   "property-get", "property-set", "property-let-value", "property-let-ref",
   "property-var-value", "property-var-ref", "property-var-mut-ref", "property-var-inout",
   "pattern-enum", "pattern-struct", "pattern-inferred-struct", "pattern-tuple", "pattern-range", "pattern-wildcard",
-  "static-record", "static-list", "channel-send", "channel-receive",
+  "static-record", "static-list", "literal-string-double", "literal-string-single", "literal-raw-double", "literal-raw-single", "literal-multiline", "literal-raw-multiline", "literal-unit-suffix", "literal-size", "literal-unit", "tuple-index", "generic-application",
+  "control-break", "pipe-member", "behavior-storage", "behavior-set-parameter", "channel-send", "channel-receive",
 ];
 
 const LEXICAL_RULES = new Set([
@@ -57,6 +61,14 @@ const VISIBLE_RULES_MUST_NOT_BE_INTERNAL = new Set([
 const INTERNAL_RULES = new Set();
 
 const RECOVERY_RULES = new Set(["foreign_body_content"]);
+
+// These public grammar rules have source spellings but Tree-sitter deliberately
+// aliases their CST node to the consumer-facing node named here. Their spelling
+// still needs a variant witness; only the raw node name is unobservable.
+const ALIASED_CST_RULES = new Map([
+  ["behavior_identifier", "identifier"],
+  ["function_signature", "function_declaration"],
+]);
 
 const MANIFEST_RULES = new Set([
   "build_manifest", "package_manifest", "workspace_manifest", "manifest_record",
@@ -219,13 +231,30 @@ function parseW(file) {
   // that shim returns status null/EINVAL on some Node releases, which makes a
   // valid atlas fixture look like a recovery parse. Use the platform shell
   // only for this repository-owned launcher; POSIX keeps the direct binary.
-  const result = spawnSync(executable, ["parse", "--grammar-path", "tooling/tree-sitter-w", "--quiet", "--stat", relative], {
+  const result = spawnSync(executable, ["parse", "--grammar-path", "tooling/tree-sitter-w", relative], {
     cwd: ROOT,
     encoding: "utf8",
     shell: process.platform === "win32",
   });
   const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
-  return { ok: result.status === 0 && !/\b(?:ERROR|MISSING)\b/u.test(output), output };
+  const nodes = new Set([...output.matchAll(/\(([a-z][a-z0-9_]*)\s+\[/gu)].map((match) => match[1]));
+  return { ok: result.status === 0 && !/\b(?:ERROR|MISSING)\b/u.test(output), output, nodes };
+}
+
+function validateAtlasValueStatements(file, text, treeOutput) {
+  const lines = text.split("\n");
+  const expressionRows = new Set(
+    [...treeOutput.matchAll(/\(expression_statement \[(\d+),\s*\d+\]/gu)]
+      .map((match) => Number.parseInt(match[1], 10)),
+  );
+  for (const row of expressionRows) {
+    const line = lines[row] ?? "";
+    const source = line.replace(/\/\/.*$/u, "").trim().replace(/;$/u, "").trim();
+    const bareValue = /^[A-Za-z_][A-Za-z0-9_]*(?:[.#][A-Za-z_][A-Za-z0-9_]*)*$/u.test(source);
+    if (bareValue && !line.includes("// atlas:value-tail")) {
+      throw new Error(`${file}:${row + 1} has a bare value expression statement; bind it, discard it with let _, or mark a real value-block tail.`);
+    }
+  }
 }
 
 function parseAtlasFile(file) {
@@ -259,7 +288,8 @@ function parseAtlasFile(file) {
   if (open) throw new Error(`${file}:${open.startLine + 1} has an unclosed atlas marker.`);
   const parse = parseW(file);
   if (!parse.ok) throw new Error(`${file} does not parse without recovery.\n${parse.output.split("\n").filter((line) => /ERROR|MISSING|failed parses/u.test(line)).slice(0, 8).join("\n")}`);
-  return { file, text, blocks };
+  validateAtlasValueStatements(file, text, parse.output);
+  return { file, text, blocks, nodes: parse.nodes };
 }
 
 function validateSourceRefs(blocks) {
@@ -351,6 +381,17 @@ function deriveSnapshot(manifestInput) {
   }
   const allRules = grammarRules();
   const ruleSet = allRules.filter((name) => !name.startsWith("_"));
+  const observedNodes = new Set(files.flatMap((file) => [...file.nodes]));
+  const missingObservedRules = ruleSet.filter((name) =>
+    !RECOVERY_RULES.has(name) && !ALIASED_CST_RULES.has(name) && !observedNodes.has(name));
+  if (missingObservedRules.length) {
+    throw new Error(`atlas sources do not exercise public grammar rules: ${missingObservedRules.join(", ")}`);
+  }
+  for (const [sourceRule, aliasRule] of ALIASED_CST_RULES) {
+    if (!ruleSet.includes(sourceRule) || !observedNodes.has(aliasRule)) {
+      throw new Error(`aliased grammar witness ${sourceRule} -> ${aliasRule} is stale or absent.`);
+    }
+  }
   const actualDigest = digestBytes(Buffer.from(`${ruleSet.join("\n")}\n`, "utf8"));
   if (actualDigest !== RULE_SET_DIGEST) throw new Error(`grammar public-rule inventory changed: expected ${RULE_SET_DIGEST}, got ${actualDigest}. Classify the new rule before updating the atlas.`);
   const ruleEntries = ruleSet.map((name) => {
@@ -521,4 +562,4 @@ if (import.meta.main) {
   }
 }
 
-export { buildManifest, deriveSnapshot, renderCoverage, checkManifest, VISIBLE_RULES_MUST_NOT_BE_INTERNAL, REQUIRED_VARIANT_IDS, COMPANION_STATUSES };
+export { buildManifest, deriveSnapshot, renderCoverage, checkManifest, validateAtlasValueStatements, VISIBLE_RULES_MUST_NOT_BE_INTERNAL, REQUIRED_VARIANT_IDS, COMPANION_STATUSES };

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildManifest, checkManifest, deriveSnapshot, renderCoverage, VISIBLE_RULES_MUST_NOT_BE_INTERNAL, REQUIRED_VARIANT_IDS, COMPANION_STATUSES } from "./syntax-atlas.mjs";
+import { buildManifest, checkManifest, deriveSnapshot, renderCoverage, validateAtlasValueStatements, VISIBLE_RULES_MUST_NOT_BE_INTERNAL, REQUIRED_VARIANT_IDS, COMPANION_STATUSES } from "./syntax-atlas.mjs";
 
 const snapshot = deriveSnapshot();
 const coverage = renderCoverage(snapshot);
@@ -48,7 +48,7 @@ describe("syntax atlas coverage checker", () => {
   });
 
   test("rejects a role/evidence mutation", () => {
-    const errors = errorsFor((candidate) => { candidate.blocks[0].evidenceStatus = "tree-sitter-parse-only"; });
+    const errors = errorsFor((candidate) => { candidate.blocks[0].evidenceStatus = "tree-sitter-parse-only-provider-missing"; });
     expect(errors.some((error) => error.includes("marker, grammar refs, source ref, order, or snippet digest is stale"))).toBe(true);
   });
 
@@ -63,6 +63,19 @@ describe("syntax atlas coverage checker", () => {
       expect(entry?.surface).toBe("composed");
     }
     expect(snapshot.ruleEntries.some((rule) => rule.surface === "internal")).toBe(false);
+  });
+
+  test("atlas sources exercise every observable public grammar rule", () => {
+    expect(snapshot.ruleEntries).toHaveLength(217);
+    expect(snapshot.files.flatMap((file) => [...file.nodes])).toContain("pipe_member_call_template");
+    expect(snapshot.files.flatMap((file) => [...file.nodes])).toContain("foreign_declaration");
+    expect(snapshot.files.flatMap((file) => [...file.nodes])).toContain("unit_literal");
+  });
+
+  test("rejects bare value expression statements but permits explicit value-block tails", () => {
+    const tree = "(source_file [0, 0] - [2, 0]\n  (expression_statement [1, 2] - [1, 7]\n    (identifier [1, 2] - [1, 7])))";
+    expect(() => validateAtlasValueStatements("fixture.w", "fn f() {\n  value\n}\n", tree)).toThrow("bare value expression statement");
+    expect(() => validateAtlasValueStatements("fixture.w", "fn f() {\n  value // atlas:value-tail\n}\n", tree)).not.toThrow();
   });
 
   test("rejects a missing required accepted variant", () => {

@@ -5,7 +5,9 @@ module atlas_language<
 >
 
 import std.text
-import { String as Text } from std.text
+import text from std
+import * from atlas.prelude
+import { normalize as normalizeText } from std.text
 import kernel { forecast as predict } from atlas.models
 import kernel atlas.models as models
 export * from atlas.foundation
@@ -54,7 +56,7 @@ export struct Place<ID> : Hashable {
   }
 
   deinit {
-    label
+    print("released ${label}")
   }
 }
 
@@ -116,6 +118,9 @@ behavior Initialized for Place {
   get {
     return current
   }
+  set(proposed: Place) {
+    current = proposed
+  }
 }
 
 behavior Versioned<Value> for Value {
@@ -144,7 +149,7 @@ struct VersionedPlaceBox {
 const DefaultLabel: String = "square"
 test "place label" for Place {
   let place = Place(id: "north", label: DefaultLabel)
-  place.describe()
+  expect place.describe() == DefaultLabel
 }
 
 test "qualified facet path" for VersionedPlaceBox {
@@ -152,17 +157,20 @@ test "qualified facet path" for VersionedPlaceBox {
   box.place.title = "avenue"
   let epoch = box.place#version.mutationEpoch
   let title = (box.place#value).title
-  epoch
-  title
+  expect epoch == 1
+  expect title == "avenue"
 }
 
 test "direct observer facets" for VersionedPlaceBox {
   var box = VersionedPlaceBox()
   let visits = box.visits
-  visits
-  box.visits#readCount
-  box.visits#mutationEpoch
+  expect visits == 0
+  expect box.visits#readCount == 1
+  expect box.visits#mutationEpoch == 0
 }
+
+struct AtlasMarker {}
+export { AtlasMarker, VersionedPlaceBox }
 // atlas:end data-declarations
 
 // atlas:begin callables-and-foreign
@@ -172,6 +180,13 @@ export fn describe<ID, _ limit: usize>(_ value: ID, each labels: String...): Str
 
 export static const fn makePlace<ID>(_ value: ID): Place<ID> {
   return Place(id: value, label: "center")
+}
+
+fn chooseLabel(
+  primary: ref String,
+  fallback: ref String,
+): ref String borrows(0: [primary, fallback]) {
+  return if primary.bytes.count > 0 { primary } else { fallback }
 }
 
 export mut fn rename(_ place: Place<String>, _ value: String) {
@@ -191,6 +206,19 @@ fn labelShapes(
 
 type Handler = any mut async fn(inout String, take Place<String>): String throws Signal
 type ForeignHandler = unsafe fn<abi: .c>(c.ptr<c.char>, c.int): c.int
+
+foreign c from "atlas.h" {
+  type AtlasHandle
+  struct AtlasPoint {
+    north: c.int
+    east: c.int
+  }
+  fn<abi: .c> atlas_hash(data: c.ptr<c.char>): c.int;
+}
+
+export unsafe fn<abi: .c> atlas_version(): c.int {
+  return 1
+}
 
 unsafe fn<lang: .c> c_hash(data: c.ptr<c.char>): c.int {
 }
@@ -216,6 +244,11 @@ fn makeDigest(): Digest {
   let location: Location = (district: "north", number: 4)
   let bytes: Digest = [0; 32]
   let value = if location.number > 0 { bytes } else { bytes }
+  let first = location.0
+  let empty = ()
+  let maker = makePlace<String>
+  let made = maker("east")
+  let _ = (first, empty, made)
   return value
 }
 // atlas:end types-and-contracts
@@ -251,13 +284,16 @@ fn values(): () {
   let count = 1_000
   let ratio = 0.5e2
   let distance = 9.81<m/s^2>
-  let speed = 12<km>
-  let bytes = 64<KiB>
-  let text = "city"
-  let raw = #"raw city"#
-  let rawInterpolated = #"city #${count}"#
+  let speed = 12km
+  let bytes = 64KiB
+  let text = "city ${count}"
+  let single = 'city ${count}'
+  let raw = #"raw city ${count}"#
+  let rawSingle = #'raw city ${count}'#
   let multiline = """north
 south"""
+  let rawMultiline = #"""north ${count}
+south"""#
   let scalar = 'N'
   let byte = b'\x4e'
   let enabled = true
@@ -266,21 +302,11 @@ south"""
   let map = ["north": 1]
   let repeated = [0; 4]
   let selected = (point).north
-  count
-  ratio
-  distance
-  speed
-  bytes
-  text
-  raw
-  multiline
-  scalar
-  byte
-  enabled
-  list
-  map
-  repeated
-  selected
+  let _ = (
+    count, ratio, distance, speed, bytes, text, single, raw, rawSingle,
+    multiline, rawMultiline, scalar, byte, enabled, list, map, repeated,
+    selected,
+  )
 }
 // atlas:end literals-and-collections
 
@@ -290,4 +316,8 @@ fn runAtlas() {
 }
 
 entry Atlas(runAtlas)
+
+entry Diagnostics {
+  print("atlas diagnostics ready")
+}
 // atlas:end entry-declaration

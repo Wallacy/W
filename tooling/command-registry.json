@@ -553,7 +553,8 @@
           "cwd": ".",
           "args": [
             "test",
-            "tooling/syntax-atlas.test.mjs"
+            "tooling/syntax-atlas.test.mjs",
+            "tooling/last-light-story.test.mjs"
           ]
         },
         {
@@ -561,6 +562,14 @@
           "cwd": ".",
           "args": [
             "tooling/syntax-atlas.mjs",
+            "--check"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/last-light-story.mjs",
             "--check"
           ]
         }
@@ -578,6 +587,14 @@
           "cwd": ".",
           "args": [
             "tooling/syntax-atlas.mjs",
+            "--check"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/last-light-story.mjs",
             "--check"
           ]
         }

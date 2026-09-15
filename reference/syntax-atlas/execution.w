@@ -60,6 +60,7 @@ fn walk(_ values: Array<i32>): i32 throws WalkError {
         continue rows
       } else {
         total += column
+        if total > 100 { break rows }
       }
     }
   }
@@ -91,7 +92,7 @@ async fn runTasks(): String throws AtlasError {
   let started = clock.now()
   let direct = try sync fetch("north")
   let concurrent = async fetch("east")
-  let parallel = spawn<.compute> fetch("south")
+  let parallel = spawn<.domain> fetch("south")
   let first = try await concurrent
   let second = try await parallel
   await execution#yield()
@@ -162,7 +163,7 @@ async fn restricted(_ target: String): String throws AtlasError {
     commit inspect(item)
   }
   let guarded = lock target as city {
-    city
+    city // atlas:value-tail
   }
   let transactionValue = try await pipeline<transaction: {
     isolation: .serializable,
@@ -173,7 +174,7 @@ async fn restricted(_ target: String): String throws AtlasError {
   let logical = target#label
   let observed = (target#version).mutationEpoch
   let unsafeValue = unsafe {
-    target
+    target // atlas:value-tail
   }
   let pinned = pin target
   let _ = captured

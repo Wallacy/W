@@ -26,6 +26,7 @@ fn operatorSurface(_ payload: ref any Reflectable) {
   let logical = ready || pending && enabled
   let bitwise = value | other ^ fallback & bits
   let inspected = value |> normalize() |> inspect() |> render()
+  let memberPipeline = value |> .scaled(by: 3) |> .limited(to: 10) |> .render()
   let pipedDecoded = value |> try json.decode<Document>()
   let copied = copy value |> inspect()
   let pipeAfterCoalescing = (optionalValue ?? fallback) |> inspect()
@@ -108,6 +109,7 @@ fn operatorSurface(_ payload: ref any Reflectable) {
   let _ = logical
   let _ = bitwise
   let _ = inspected
+  let _ = memberPipeline
   let _ = pipedDecoded
   let _ = copied
   let _ = inverted

@@ -9,6 +9,13 @@ Adams. Os personagens, diálogos, pratos e eventos deste corpus são originais.
 Este é o produto de referência oficial do W. Ele orienta design, regressão,
 conformance, benchmarks, documentação e treinamento.
 
+A narrativa canônica e testável está em [`STORY.md`](STORY.md). Ela liga os
+três perfis determinísticos (`quietOrbit`, `photonRush` e
+`timelineCollision`) às cenas de abertura, atendimento, cozinha, execução e
+encerramento. O arquivo é gerado de [`story.json`](story.json); o gate exige
+que todo bloco do Atlas pertença a uma cena e que cada cena cite símbolos W
+reais e únicos.
+
 Ele não é uma coleção de snippets. Cada subsystem deve evoluir para uma rota
 operacional ou para um oracle negativo. O compiler, a std e o runtime só podem
 afirmar suporte quando a rota correspondente compila e passa seus gates.
