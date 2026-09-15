@@ -115,3 +115,11 @@ records, accepts the seventeen-argument witness, preserves compatible PARMLIR0
 bytes, and lowers the five-task artifact to Windows COFF and Linux PIC ELF with
 MLIR/LLVM 23.1.1. Public process products retain their bounded compatibility
 route. Structured cancellation and outcomes are now the next active increment.
+
+W-1610 opens rank 3 without reintroducing a storage ceiling. TASKLIFE1 runs the
+W-1599 lifecycle state machine over measured caller-owned task and event views.
+A five-task fail-fast witness cancels and drains four unfinished siblings before
+deterministic error publication, and a 137-event witness crosses the former
+fixed trace limit. The next dependency is verified-HIR and PARPROV1 outcome
+binding, followed by an explicit panic boundary; physical cancellation remains
+cooperative rather than thread termination.

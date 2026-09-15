@@ -248,7 +248,7 @@ O corpus compara, no mínimo:
 - process-root selection against implicit domain configuration, unproved parallel-as-direct lowering, target-specific selection records, and premature executable success.
 - proof-directed direct-call legality against silent semantic erasure, single-function flags, target-policy conflation, and premature performance claims.
 - explicit process-root plus task-entry MLIR composition against process-input loss, target-shaped wrappers, implicit provider linkage, and premature public execution claims.
-- target-neutral TASKLIFE0 lifecycle reduction against scheduler substitution, cancellation races, cleanup/commit reordering, and unproved task ABI or performance claims.
+- target-neutral measured task lifecycle reduction against scheduler substitution, cancellation races, cleanup/commit reordering, fixed storage ceilings, and unproved task ABI or performance claims.
 - bounded dual-target process/parallel linkage against direct-call substitution, CRT fallback, hidden runtime input, target conflation, and premature public or benchmark claims.
 - bounded GPU0 target-neutral semantic and available CUDA execution against source-backed W claims, provider/runtime conflation, homogeneous toolchains, and premature public product support.
 - bounded static accelerated root binding against embedded provider handles, multiplied budgets, and unauthenticated claims.
@@ -7933,6 +7933,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1607 | measured parallel invocation storage | PARINV1 consumes verified HIR38 and PARSEL1, measures exact task and argument counts, normalizes named arguments into parameter order, and publishes dense caller-owned invocation relations with a canonical semantic digest. Its pure scalar proof resolves parameters through HIR relations without a fixed arity array. | `source-backed-current` only for PARINV1 measure/run/bridge/verify/evaluate, transactional capacity and alias barriers, five-task and seventeen-argument evidence, and preserved fail-closed PARINV0 limits. Provider, PARMLIR0 and public-product migration, cancellation/outcomes, scheduling, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1608 | measured Windows parallel provider | PARPROV1 consumes verified HIR38/PARSEL1/PARINV1, measures caller-owned outcomes and workspace, and executes any verified finite logical task count through constant-size Windows worker waves of capacity one or two. Semantic outcomes exclude provider capacity; a separate receipt records physical overlap. | `source-backed-current` only for the Windows x64 pure scalar component, five-task and seventeen-argument execution, capacity-one/two semantic equality, monotonic rendezvous, exact workspace, transactional semantic outputs, aliases, and independent verification. Workspace may contain partial physical values after failure. Linux/other providers, emitted task entries, cancellation/outcomes, general scheduling, public products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1609 | measured parallel task-entry emission | PARMLIR1 consumes verified HIR38/PARSEL1/PARINV1 and emits one runtime-parameterized task entry per measured task while preserving byte-identical `w-seed-mlir0-parallel-entry-2` artifacts for compatible inputs. | `source-backed-current` only for caller-owned measure/emit/verify, producer-digest binding, transaction and alias barriers, two-task byte equivalence, five-task and seventeen-argument C23 evidence, and MLIR/LLVM 23.1.1 Windows COFF plus Linux PIC ELF object emission for five tasks. The 64-function and 192-KiB seed bounds remain. Public products, cancellation/outcomes, provider-neutral scheduling, stable ABI, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1610 | measured task-lifecycle transaction and reducer | TASKLIFE1 reuses the W-1599 reducer over dense caller-owned task and event views, separates u32 semantic counts from `size_t` physical capacities, and removes the fixed four-task and 128-event ceilings from the current lifecycle contract. | `source-backed-current` only for shared TASKLIFE0/TASKLIFE1 reduction, transactional measure/run/verify, complete alias and capacity barriers, compatible fixed-record equality, a five-task fail-fast cancellation/drain witness, and a 137-event C23 witness. Verified-HIR/provider binding, physical interruption, panic payloads, scheduling, public Task ABI, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -13026,3 +13027,33 @@ and Linux x86-64 PIC ELF objects. This completes capacity-independent task
 storage through selection, invocation, Windows component execution, and emitted
 task entries. It does not yet migrate public process products or define
 cancellation, scheduling, a Task ABI, or performance.
+
+#### W-1610 — measured task-lifecycle transaction and reducer
+
+W-1599 deliberately used embedded arrays to close lifecycle semantics before
+physical scheduling. Leaving those arrays on the active route after PARSEL1,
+PARINV1, PARPROV1, and PARMLIR1 became measured would have recreated the old
+logical-task limit at the cancellation boundary.
+
+TASKLIFE1 therefore changes storage ownership without changing the reducer's
+semantic state machine. Task and event records are dense caller-owned input;
+scratch task state is a separate explicit workspace; semantic task records and
+the copied trace are separate output. Semantic counts remain u32 so proofs and
+digests do not vary with compiler-host width, while `size_t` capacities protect
+physical addressability on 32- and 64-bit hosts. This is a serialization choice,
+not a claim that a Task is a 32-bit or 64-bit runtime object.
+
+The shared reducer exposed two useful requirements. Cancellation snapshots
+cannot validate against TASKLIFE0's historical maxima; their event sequence and
+source index must instead be checked against the enclosing transaction and the
+exact expected event. Byte-count multiplication must be checked against
+`size_t` before scratch or output ranges are formed. All input, workspace,
+counts, result, task-output, and trace ranges are pairwise disjoint.
+
+The focused tests preserve fixed-path behavior, then execute five logical tasks
+through fail-fast cancellation and complete cleanup, join, and release before
+publishing the lexical typed error. A second valid trace contains 137 events.
+These cases remove storage ceilings only. The next increment must bind lifecycle
+records to verified HIR and physical provider outcomes, with panic represented
+separately from typed failure and cancellation request separately from canceled
+completion.

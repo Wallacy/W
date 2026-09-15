@@ -23,10 +23,10 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:fb71d4cda5d0e804960bb330e4ddd03be5aaf60bbe979261161468d7374df139",
-    "count": 1609,
+    "sha256": "sha256:aa7fd88e9553e9e359e78b338e756689d49aad5123b40ee21404ced3da8ad8ed",
+    "count": 1610,
     "first": "W-001",
-    "last": "W-1609"
+    "last": "W-1610"
   },
   "epochs": [
     {
@@ -61,7 +61,7 @@
     }
   ],
   "preservedLegacyCoverage": {
-    "source": 274,
+    "source": 275,
     "oracle": 420,
     "explicit": 8,
     "overlap": 57
@@ -21869,7 +21869,7 @@
         "path": "DESIGN.md",
         "section": "26",
         "heading": "## 26. Plano de implementação",
-        "sectionDigest": "sha256:ae14dc8cf4e6e083ea2f587239ac421c84238135bde7d4c2d64366fb5ad5749f"
+        "sectionDigest": "sha256:4a0531b9c911d0dad5dfaa59a950877a2d14ffa1387737f7f72f504eb8c85222"
       },
       "evidence": [],
       "reason": "W-659 (body de entry, sha256:f66ab57406ddb51303f9190376daf72d8f538bd7bd8adfbf9992ae3d7223e74e) has no executable witness for component implementation-plan. The checked current contract is DESIGN.md §26 / 26. Plano de implementação.",
@@ -54873,7 +54873,7 @@
           "path": "tooling/check-hir0.mjs",
           "symbol": "w_seed_product_closure0_tests",
           "claim": "The focused HIR gate builds and executes the ProductClosure0 unit.",
-          "sha256": "sha256:3a930523e606b3a89e8991cf402484b295e64575bd982a76932704fe56e1eabe"
+          "sha256": "sha256:17728ad021b1c4700b2d55b7f98cfee053b412c2cce7445b838b6c493044e1f7"
         },
         {
           "path": "compiler/seed-c/cli/check.c",
@@ -56336,14 +56336,14 @@
         "kind": "source-case",
         "path": "tooling/substitution-cases.json",
         "caseId": "R0-task-lifecycle-reducer",
-        "caseDigest": "sha256:64b7e9d51a6b6c9f4a033701004157e93377bff7808755337ea722a60d66ae83"
+        "caseDigest": "sha256:51d49c5a89ea14015b384fea7afeb33ad93fc954e342889c120c5cb6e74a9fea"
       },
       "evidence": [
         {
           "kind": "source",
           "path": "tooling/substitution-cases.json",
           "caseId": "R0-task-lifecycle-reducer",
-          "caseDigest": "sha256:64b7e9d51a6b6c9f4a033701004157e93377bff7808755337ea722a60d66ae83"
+          "caseDigest": "sha256:51d49c5a89ea14015b384fea7afeb33ad93fc954e342889c120c5cb6e74a9fea"
         }
       ],
       "reason": "W-1599 (TASKLIFE0 target-neutral fixed caller-owned lifecycle reducer and oracle, sha256:4194b682a1492086adb960ea74f1155871315433b0a5f88e469065362d608f3e) is source-backed-current only for the fixed reducer, cancellation and outcome arbitration, cleanup/commit and join/release barriers, exact caller-owned snapshots, replay verification, and focused C23 evidence. Source-HIR integration, scheduler/provider linkage, parallel runtime, task ABI, benchmark results, and performance remain gaps.",
@@ -56783,7 +56783,7 @@
           "path": "tooling/check-hir0.mjs",
           "symbol": "HIR0: caller-owned verified single/multi-document HIR, bounded product closure, task lifecycle, and adversarial barriers passed",
           "claim": "The focused gate builds and executes the C23 HIR/PARSEL witness from a clean temporary directory.",
-          "sha256": "sha256:3a930523e606b3a89e8991cf402484b295e64575bd982a76932704fe56e1eabe"
+          "sha256": "sha256:17728ad021b1c4700b2d55b7f98cfee053b412c2cce7445b838b6c493044e1f7"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -56848,7 +56848,7 @@
           "path": "tooling/check-hir0.mjs",
           "symbol": "HIR0: caller-owned verified single/multi-document HIR, bounded product closure, task lifecycle, and adversarial barriers passed",
           "claim": "The focused gate builds and executes the C23 HIR, PARSEL1, and PARINV1 witness from a clean temporary directory.",
-          "sha256": "sha256:3a930523e606b3a89e8991cf402484b295e64575bd982a76932704fe56e1eabe"
+          "sha256": "sha256:17728ad021b1c4700b2d55b7f98cfee053b412c2cce7445b838b6c493044e1f7"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -56913,7 +56913,7 @@
           "path": "tooling/check-hir0.mjs",
           "symbol": "HIR0: caller-owned verified single/multi-document HIR, bounded product closure, task lifecycle, and adversarial barriers passed",
           "claim": "The focused gate builds and executes the measured Windows provider witness from a clean temporary directory.",
-          "sha256": "sha256:3a930523e606b3a89e8991cf402484b295e64575bd982a76932704fe56e1eabe"
+          "sha256": "sha256:17728ad021b1c4700b2d55b7f98cfee053b412c2cce7445b838b6c493044e1f7"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -56977,6 +56977,71 @@
       ],
       "benchmarkDisposition": "compiler-lifecycle",
       "benchmarkEvidence": "No public executable or performance benchmark result; the current gate proves target-neutral emission and dual-object compiler-lifecycle correctness only."
+    },
+    {
+      "decisionId": "W-1610",
+      "summary": "measured task-lifecycle transaction and reducer",
+      "canonicalClaim": "TASKLIFE1 reuses the W-1599 reducer over dense caller-owned task and event views, separates u32 semantic counts from `size_t` physical capacities, and removes the fixed four-task and 128-event ceilings from the current lifecycle contract.",
+      "claimDigest": "sha256:1dc2e1b3c0e8f74145fba831eb79d67e7c1d463a7ca449117d9b6f30ffb18b39",
+      "category": "source-backed-current",
+      "basis": "linked-source-comparison-case",
+      "authorityRef": {
+        "kind": "source-case",
+        "path": "tooling/substitution-cases.json",
+        "caseId": "R0-task-lifecycle-reducer",
+        "caseDigest": "sha256:51d49c5a89ea14015b384fea7afeb33ad93fc954e342889c120c5cb6e74a9fea"
+      },
+      "evidence": [
+        {
+          "kind": "source",
+          "path": "tooling/substitution-cases.json",
+          "caseId": "R0-task-lifecycle-reducer",
+          "caseDigest": "sha256:51d49c5a89ea14015b384fea7afeb33ad93fc954e342889c120c5cb6e74a9fea"
+        }
+      ],
+      "reason": "W-1610 (measured task-lifecycle transaction and reducer, sha256:1dc2e1b3c0e8f74145fba831eb79d67e7c1d463a7ca449117d9b6f30ffb18b39) is source-backed-current only for shared TASKLIFE0/TASKLIFE1 reduction, transactional measure/run/verify, complete alias and capacity barriers, compatible fixed-record equality, a five-task fail-fast cancellation/drain witness, and a 137-event C23 witness. Verified-HIR/provider binding, physical interruption, panic payloads, scheduling, public Task ABI, benchmarks, and performance remain gaps.",
+      "selection": "explicit-ledger-id",
+      "basisRef": {
+        "kind": "ledger-row",
+        "path": "RATIONALE.md",
+        "section": "3. Ledger",
+        "decisionId": "W-1610",
+        "claimDigest": "sha256:1dc2e1b3c0e8f74145fba831eb79d67e7c1d463a7ca449117d9b6f30ffb18b39"
+      },
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_task_lifecycle0.h",
+          "symbol": "w_seed_task_lifecycle1_transaction",
+          "claim": "TASKLIFE1 separates canonical u32 semantic counts from caller-owned size_t physical capacities.",
+          "sha256": "sha256:08bdaac7b5b27f736db6aaada3153bb4438a7802c67759760c0617486f302510"
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_task_lifecycle0.c",
+          "symbol": "w_seed_task_lifecycle1_run",
+          "claim": "The shared reducer publishes measured semantic outputs only after capacity, overflow, alias, and complete lifecycle validation.",
+          "sha256": "sha256:f2830031b67c88abf69bbad12806487a62501706034731fe7bd47dd58144da81"
+        },
+        {
+          "path": "compiler/seed-c/tests/test_task_lifecycle0.c",
+          "symbol": "test_measured_lifecycle_without_seed_cardinality_limit",
+          "claim": "The C23 witness proves five-task fail-fast cancellation, sibling drain, deterministic typed-error publication, and transactional barriers.",
+          "sha256": "sha256:4d73693bea3b07434fa10dcb368e3204baf198bdcd83cdfd7cd8f5ee2aa8b4c2"
+        },
+        {
+          "path": "compiler/seed-c/tests/test_task_lifecycle0.c",
+          "symbol": "test_measured_lifecycle_without_seed_event_limit",
+          "claim": "The C23 witness proves a valid 137-event lifecycle transaction beyond TASKLIFE0's compatibility ceiling.",
+          "sha256": "sha256:4d73693bea3b07434fa10dcb368e3204baf198bdcd83cdfd7cd8f5ee2aa8b4c2"
+        },
+        {
+          "path": "tooling/check-hir0.mjs",
+          "symbol": "measured task lifecycle",
+          "claim": "The clean focused HIR gate builds and executes the TASKLIFE1 C23 witnesses.",
+          "sha256": "sha256:17728ad021b1c4700b2d55b7f98cfee053b412c2cce7445b838b6c493044e1f7"
+        }
+      ],
+      "benchmarkDisposition": "compiler-lifecycle",
+      "benchmarkEvidence": "No public product or performance benchmark result; the current gate proves target-neutral lifecycle storage and reducer correctness only."
     }
   ],
   "auditSamples": {

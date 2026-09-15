@@ -2225,6 +2225,19 @@ failures. The one-to-four task and 128-event limits are seed evidence only.
 No source-HIR integration, scheduler, provider, parallel runtime, task ABI,
 benchmark, or performance claim is made.
 
+TASKLIFE1 reuses the same reducer with dense pointer/count views instead of
+embedded task and event arrays. Semantic counts are u32 on every target;
+caller-owned physical capacities are `size_t`. Measure and run use an explicit
+task-record workspace, reject byte-count overflow and every input/workspace/
+output alias, and publish semantic outputs only after complete reduction.
+Workspace is scratch and may change on failure.
+
+The focused suite includes compatible TASKLIFE0/TASKLIFE1 records, a five-task
+fail-fast trace whose four unfinished siblings cancel and drain before scope
+error publication, and a valid 137-event trace. These are target-neutral
+lifecycle witnesses. Verified-HIR/provider binding, physical interruption,
+panic representation, a scheduler, Task ABI, and performance remain open.
+
 ### Bounded CRT-free process/parallel provider linkage (W-1600)
 
 PARLINK1 closes the private physical reference for the W-1598 composition.

@@ -480,11 +480,376 @@ static bool test_adversarial_rejection_and_exact_snapshots(void) {
   return true;
 }
 
+#define LIFECYCLE1_TEST_TASKS 5u
+#define LIFECYCLE1_TEST_EVENTS 64u
+
+typedef struct {
+  w_seed_task_lifecycle0_task_spec tasks[LIFECYCLE1_TEST_TASKS];
+  w_seed_task_lifecycle0_event events[LIFECYCLE1_TEST_EVENTS];
+  w_seed_task_lifecycle1_transaction transaction;
+} lifecycle1_fixture;
+
+static void lifecycle1_append(lifecycle1_fixture *fixture,
+                              w_seed_task_lifecycle0_event event) {
+  event.sequence = fixture->transaction.event_count;
+  fixture->events[fixture->transaction.event_count] = event;
+  fixture->transaction.event_count += 1u;
+}
+
+static void lifecycle1_append_task(
+    lifecycle1_fixture *fixture, w_seed_task_lifecycle0_event_kind kind,
+    uint32_t task) {
+  lifecycle1_append(
+      fixture,
+      event_make(kind, fixture->transaction.event_count, task,
+                 fixture->tasks[task].generation));
+}
+
+static void lifecycle1_append_scope(
+    lifecycle1_fixture *fixture, w_seed_task_lifecycle0_event_kind kind) {
+  lifecycle1_append(
+      fixture,
+      event_make(kind, fixture->transaction.event_count,
+                 W_SEED_TASK_LIFECYCLE0_NONE,
+                 fixture->transaction.scope_generation));
+}
+
+static lifecycle1_fixture lifecycle1_five_task_fail_fast(void) {
+  lifecycle1_fixture fixture = {0};
+  memcpy(fixture.transaction.schema, W_SEED_TASK_LIFECYCLE1_SCHEMA_VERSION,
+         sizeof(fixture.transaction.schema));
+  fixture.transaction.scope_generation = 90u;
+  fixture.transaction.task_count = LIFECYCLE1_TEST_TASKS;
+  fixture.transaction.tasks = fixture.tasks;
+  fixture.transaction.events = fixture.events;
+  for (uint32_t task = 0u; task < LIFECYCLE1_TEST_TASKS; task += 1u) {
+    fixture.tasks[task].task_id = 100u + task;
+    fixture.tasks[task].lexical_index = task;
+    fixture.tasks[task].generation = 91u + task;
+    fixture.tasks[task].body_outcome = outcome_success((int64_t)task + 1);
+  }
+  fixture.tasks[0].body_outcome =
+      outcome_error(W_SEED_TASK_LIFECYCLE0_ERROR_BODY);
+  lifecycle1_append_scope(&fixture, W_SEED_TASK_LIFECYCLE0_EVENT_SCOPE_OPEN);
+  for (uint32_t task = 0u; task < LIFECYCLE1_TEST_TASKS; task += 1u)
+    lifecycle1_append_task(&fixture,
+                           W_SEED_TASK_LIFECYCLE0_EVENT_TASK_RESERVED, task);
+  for (uint32_t task = 0u; task < LIFECYCLE1_TEST_TASKS; task += 1u)
+    lifecycle1_append_task(&fixture,
+                           W_SEED_TASK_LIFECYCLE0_EVENT_TASK_PUBLISHED, task);
+
+  lifecycle1_append_task(&fixture, W_SEED_TASK_LIFECYCLE0_EVENT_TASK_ACTIVE,
+                         0u);
+  {
+    w_seed_task_lifecycle0_event event = event_make(
+        W_SEED_TASK_LIFECYCLE0_EVENT_TASK_BODY_SETTLED,
+        fixture.transaction.event_count, 0u, fixture.tasks[0].generation);
+    event.outcome = fixture.tasks[0].body_outcome;
+    lifecycle1_append(&fixture, event);
+  }
+  lifecycle1_append_task(&fixture, W_SEED_TASK_LIFECYCLE0_EVENT_TASK_CLEANUP,
+                         0u);
+  {
+    w_seed_task_lifecycle0_event event = event_make(
+        W_SEED_TASK_LIFECYCLE0_EVENT_TASK_OUTCOME_COMMITTED,
+        fixture.transaction.event_count, 0u, fixture.tasks[0].generation);
+    event.outcome = fixture.tasks[0].body_outcome;
+    lifecycle1_append(&fixture, event);
+  }
+
+  const uint32_t cancel_sequence = fixture.transaction.event_count;
+  {
+    w_seed_task_lifecycle0_event event = event_make(
+        W_SEED_TASK_LIFECYCLE0_EVENT_SCOPE_CANCELLATION_REQUESTED,
+        cancel_sequence, W_SEED_TASK_LIFECYCLE0_NONE,
+        fixture.transaction.scope_generation);
+    event.source_index = 0u;
+    event.reason = W_SEED_TASK_LIFECYCLE0_CANCEL_REASON_ERROR_FAIL_FAST;
+    event.snapshot = (w_seed_task_lifecycle0_cancellation_snapshot){
+        fixture.transaction.scope_generation, cancel_sequence, 0u,
+        W_SEED_TASK_LIFECYCLE0_CANCEL_REASON_ERROR_FAIL_FAST};
+    lifecycle1_append(&fixture, event);
+  }
+  for (uint32_t task = 1u; task < LIFECYCLE1_TEST_TASKS; task += 1u) {
+    lifecycle1_append_task(&fixture, W_SEED_TASK_LIFECYCLE0_EVENT_TASK_ACTIVE,
+                           task);
+    w_seed_task_lifecycle0_event settled = event_make(
+        W_SEED_TASK_LIFECYCLE0_EVENT_TASK_BODY_SETTLED,
+        fixture.transaction.event_count, task, fixture.tasks[task].generation);
+    settled.outcome = fixture.tasks[task].body_outcome;
+    lifecycle1_append(&fixture, settled);
+    lifecycle1_append_task(&fixture,
+                           W_SEED_TASK_LIFECYCLE0_EVENT_TASK_CLEANUP, task);
+    w_seed_task_lifecycle0_event committed = event_make(
+        W_SEED_TASK_LIFECYCLE0_EVENT_TASK_OUTCOME_COMMITTED,
+        fixture.transaction.event_count, task, fixture.tasks[task].generation);
+    committed.outcome.kind = W_SEED_TASK_LIFECYCLE0_OUTCOME_CANCELED;
+    committed.outcome.canceled =
+        (w_seed_task_lifecycle0_cancellation_snapshot){
+            fixture.transaction.scope_generation, cancel_sequence, 0u,
+            W_SEED_TASK_LIFECYCLE0_CANCEL_REASON_ERROR_FAIL_FAST};
+    lifecycle1_append(&fixture, committed);
+  }
+  for (uint32_t task = 0u; task < LIFECYCLE1_TEST_TASKS; task += 1u) {
+    lifecycle1_append_task(&fixture, W_SEED_TASK_LIFECYCLE0_EVENT_TASK_JOINED,
+                           task);
+    lifecycle1_append_task(&fixture,
+                           W_SEED_TASK_LIFECYCLE0_EVENT_TASK_RELEASED, task);
+  }
+  lifecycle1_append_scope(&fixture,
+                          W_SEED_TASK_LIFECYCLE0_EVENT_SCOPE_DRAINING);
+  lifecycle1_append_scope(&fixture,
+                          W_SEED_TASK_LIFECYCLE0_EVENT_SCOPE_CHILDREN_DRAINED);
+  {
+    w_seed_task_lifecycle0_event event = event_make(
+        W_SEED_TASK_LIFECYCLE0_EVENT_SCOPE_OUTCOME_COMMITTED,
+        fixture.transaction.event_count, W_SEED_TASK_LIFECYCLE0_NONE,
+        fixture.transaction.scope_generation);
+    event.outcome = outcome_error(W_SEED_TASK_LIFECYCLE0_ERROR_BODY);
+    lifecycle1_append(&fixture, event);
+  }
+  lifecycle1_append_scope(&fixture,
+                          W_SEED_TASK_LIFECYCLE0_EVENT_SCOPE_JOINED);
+  return fixture;
+}
+
+static bool test_measured_lifecycle_without_seed_cardinality_limit(void) {
+  lifecycle1_fixture fixture = lifecycle1_five_task_fail_fast();
+  /* Returning the fixture copies it, so restore its self-referential views. */
+  fixture.transaction.tasks = fixture.tasks;
+  fixture.transaction.events = fixture.events;
+  CHECK(fixture.transaction.task_count == 5u);
+  CHECK(fixture.transaction.event_count == 46u);
+
+  w_seed_task_lifecycle0_task_record measure_workspace_tasks[5] = {0};
+  w_seed_task_lifecycle1_workspace measure_workspace = {
+      measure_workspace_tasks, 5u};
+  w_seed_task_lifecycle1_counts counts = {0};
+  w_seed_task_lifecycle1_result measured = {0};
+  CHECK(w_seed_task_lifecycle1_measure(&fixture.transaction, measure_workspace,
+                                       &counts, &measured) ==
+        W_SEED_TASK_LIFECYCLE0_OK);
+  CHECK(counts.task_count == 5u && counts.event_count == 46u);
+
+  union {
+    w_seed_task_lifecycle1_counts counts;
+    w_seed_task_lifecycle1_result result;
+  } measure_alias;
+  memset(&measure_alias, 0x39, sizeof(measure_alias));
+  unsigned char measure_alias_before[sizeof(measure_alias)];
+  memcpy(measure_alias_before, &measure_alias, sizeof(measure_alias_before));
+  CHECK(w_seed_task_lifecycle1_measure(
+            &fixture.transaction, measure_workspace, &measure_alias.counts,
+            &measure_alias.result) == W_SEED_TASK_LIFECYCLE0_ALIAS);
+  CHECK(memcmp(&measure_alias, &measure_alias_before, sizeof(measure_alias)) ==
+        0);
+
+  w_seed_task_lifecycle0_task_record workspace_tasks[5] = {0};
+  w_seed_task_lifecycle0_task_record output_tasks[5] = {0};
+  w_seed_task_lifecycle0_event output_trace[LIFECYCLE1_TEST_EVENTS] = {0};
+  w_seed_task_lifecycle1_workspace workspace = {workspace_tasks, 5u};
+  w_seed_task_lifecycle1_output output = {output_tasks, 5u, output_trace,
+                                          LIFECYCLE1_TEST_EVENTS};
+  w_seed_task_lifecycle1_result result = {0};
+  CHECK(w_seed_task_lifecycle1_run(&fixture.transaction, workspace, output,
+                                   &result) == W_SEED_TASK_LIFECYCLE0_OK);
+  CHECK(w_seed_task_lifecycle1_verify(&fixture.transaction, measure_workspace,
+                                      &output, &result));
+  CHECK(result.transaction_digest == measured.transaction_digest);
+  CHECK(result.scope.state == W_SEED_TASK_LIFECYCLE0_SCOPE_JOINED);
+  CHECK(result.scope.outcome.kind == W_SEED_TASK_LIFECYCLE0_OUTCOME_ERROR);
+  CHECK(result.primary_error_task == 0u);
+  CHECK(output_tasks[0].outcome.kind ==
+        W_SEED_TASK_LIFECYCLE0_OUTCOME_ERROR);
+  for (uint32_t task = 1u; task < 5u; task += 1u) {
+    CHECK(output_tasks[task].state ==
+          W_SEED_TASK_LIFECYCLE0_TASK_RELEASED);
+    CHECK(output_tasks[task].outcome.kind ==
+          W_SEED_TASK_LIFECYCLE0_OUTCOME_CANCELED);
+    CHECK(output_tasks[task].outcome.canceled.request_sequence == 15u);
+  }
+
+  w_seed_task_lifecycle1_result sentinel;
+  memset(&sentinel, 0xA7, sizeof(sentinel));
+  const w_seed_task_lifecycle1_result before = sentinel;
+  const w_seed_task_lifecycle0_task_record output_tasks_before[5] = {
+      output_tasks[0], output_tasks[1], output_tasks[2], output_tasks[3],
+      output_tasks[4]};
+  w_seed_task_lifecycle0_event output_trace_before[LIFECYCLE1_TEST_EVENTS];
+  memcpy(output_trace_before, output_trace, sizeof(output_trace_before));
+  w_seed_task_lifecycle1_output short_output = output;
+  short_output.task_capacity = 4u;
+  CHECK(w_seed_task_lifecycle1_run(&fixture.transaction, workspace,
+                                   short_output, &sentinel) ==
+        W_SEED_TASK_LIFECYCLE0_CAPACITY);
+  CHECK(memcmp(&sentinel, &before, sizeof(sentinel)) == 0);
+  CHECK(memcmp(output_tasks, output_tasks_before, sizeof(output_tasks)) == 0);
+  CHECK(memcmp(output_trace, output_trace_before, sizeof(output_trace)) == 0);
+
+  w_seed_task_lifecycle1_output aliased_output = output;
+  aliased_output.tasks = workspace_tasks;
+  CHECK(w_seed_task_lifecycle1_run(&fixture.transaction, workspace,
+                                   aliased_output, &sentinel) ==
+        W_SEED_TASK_LIFECYCLE0_ALIAS);
+  CHECK(memcmp(&sentinel, &before, sizeof(sentinel)) == 0);
+  CHECK(memcmp(output_trace, output_trace_before, sizeof(output_trace)) == 0);
+
+  output_trace[0].sequence = 1u;
+  CHECK(!w_seed_task_lifecycle1_verify(&fixture.transaction, measure_workspace,
+                                       &output, &result));
+  output_trace[0].sequence = 0u;
+  result.transaction_digest += 1u;
+  CHECK(!w_seed_task_lifecycle1_verify(&fixture.transaction, measure_workspace,
+                                       &output, &result));
+  return true;
+}
+
+static bool test_lifecycle0_and_lifecycle1_compatible_results(void) {
+  const w_seed_task_lifecycle0_transaction fixed = valid_two_success();
+  w_seed_task_lifecycle0_result fixed_result = {0};
+  CHECK(w_seed_task_lifecycle0_run(&fixed, &fixed_result) ==
+        W_SEED_TASK_LIFECYCLE0_OK);
+
+  w_seed_task_lifecycle1_transaction measured_transaction = {0};
+  memcpy(measured_transaction.schema, W_SEED_TASK_LIFECYCLE1_SCHEMA_VERSION,
+         sizeof(measured_transaction.schema));
+  measured_transaction.scope_generation = fixed.scope_generation;
+  measured_transaction.task_count = fixed.task_count;
+  measured_transaction.tasks = fixed.tasks;
+  measured_transaction.event_count = fixed.event_count;
+  measured_transaction.events = fixed.events;
+  w_seed_task_lifecycle0_task_record workspace_tasks[2] = {0};
+  w_seed_task_lifecycle0_task_record output_tasks[2] = {0};
+  w_seed_task_lifecycle0_event output_trace[W_SEED_TASK_LIFECYCLE0_MAX_EVENTS] =
+      {0};
+  w_seed_task_lifecycle1_output output = {
+      output_tasks, 2u, output_trace, W_SEED_TASK_LIFECYCLE0_MAX_EVENTS};
+  w_seed_task_lifecycle1_result measured_result = {0};
+  CHECK(w_seed_task_lifecycle1_run(
+            &measured_transaction,
+            (w_seed_task_lifecycle1_workspace){workspace_tasks, 2u}, output,
+            &measured_result) == W_SEED_TASK_LIFECYCLE0_OK);
+  CHECK(memcmp(&measured_result.scope, &fixed_result.scope,
+               sizeof(measured_result.scope)) == 0);
+  CHECK(measured_result.transition_count == fixed_result.transition_count);
+  CHECK(measured_result.primary_error_task == fixed_result.primary_error_task);
+  CHECK(memcmp(output_tasks, fixed_result.tasks, sizeof(output_tasks)) == 0);
+  CHECK(memcmp(output_trace, fixed_result.trace,
+               (size_t)fixed.event_count * sizeof(output_trace[0])) == 0);
+  return true;
+}
+
+static void lifecycle1_append_external(
+    w_seed_task_lifecycle1_transaction *transaction,
+    w_seed_task_lifecycle0_event *events,
+    w_seed_task_lifecycle0_event event) {
+  event.sequence = transaction->event_count;
+  events[transaction->event_count] = event;
+  transaction->event_count += 1u;
+}
+
+static bool test_measured_lifecycle_without_seed_event_limit(void) {
+  w_seed_task_lifecycle0_task_spec task = {0};
+  task.task_id = 900u;
+  task.lexical_index = 0u;
+  task.generation = 201u;
+  task.body_outcome = outcome_success(9);
+  w_seed_task_lifecycle0_event events[160] = {0};
+  w_seed_task_lifecycle1_transaction transaction = {0};
+  memcpy(transaction.schema, W_SEED_TASK_LIFECYCLE1_SCHEMA_VERSION,
+         sizeof(transaction.schema));
+  transaction.scope_generation = 200u;
+  transaction.task_count = 1u;
+  transaction.tasks = &task;
+  transaction.events = events;
+
+#define APPEND_LONG(kind, target, generation)                                  \
+  lifecycle1_append_external(                                                  \
+      &transaction, events,                                                    \
+      event_make((kind), transaction.event_count, (target), (generation)))
+  APPEND_LONG(W_SEED_TASK_LIFECYCLE0_EVENT_SCOPE_OPEN,
+              W_SEED_TASK_LIFECYCLE0_NONE, transaction.scope_generation);
+  APPEND_LONG(W_SEED_TASK_LIFECYCLE0_EVENT_TASK_RESERVED, 0u,
+              task.generation);
+  APPEND_LONG(W_SEED_TASK_LIFECYCLE0_EVENT_TASK_PUBLISHED, 0u,
+              task.generation);
+  APPEND_LONG(W_SEED_TASK_LIFECYCLE0_EVENT_TASK_ACTIVE, 0u, task.generation);
+  for (uint32_t cycle = 0u; cycle < 62u; cycle += 1u) {
+    APPEND_LONG(W_SEED_TASK_LIFECYCLE0_EVENT_TASK_READY, 0u, task.generation);
+    APPEND_LONG(W_SEED_TASK_LIFECYCLE0_EVENT_TASK_ACTIVE, 0u,
+                task.generation);
+  }
+  {
+    w_seed_task_lifecycle0_event event = event_make(
+        W_SEED_TASK_LIFECYCLE0_EVENT_TASK_BODY_SETTLED,
+        transaction.event_count, 0u, task.generation);
+    event.outcome = task.body_outcome;
+    lifecycle1_append_external(&transaction, events, event);
+  }
+  APPEND_LONG(W_SEED_TASK_LIFECYCLE0_EVENT_TASK_CLEANUP, 0u,
+              task.generation);
+  {
+    w_seed_task_lifecycle0_event event = event_make(
+        W_SEED_TASK_LIFECYCLE0_EVENT_TASK_OUTCOME_COMMITTED,
+        transaction.event_count, 0u, task.generation);
+    event.outcome = task.body_outcome;
+    lifecycle1_append_external(&transaction, events, event);
+  }
+  APPEND_LONG(W_SEED_TASK_LIFECYCLE0_EVENT_TASK_JOINED, 0u, task.generation);
+  APPEND_LONG(W_SEED_TASK_LIFECYCLE0_EVENT_TASK_RELEASED, 0u, task.generation);
+  APPEND_LONG(W_SEED_TASK_LIFECYCLE0_EVENT_SCOPE_DRAINING,
+              W_SEED_TASK_LIFECYCLE0_NONE, transaction.scope_generation);
+  APPEND_LONG(W_SEED_TASK_LIFECYCLE0_EVENT_SCOPE_CHILDREN_DRAINED,
+              W_SEED_TASK_LIFECYCLE0_NONE, transaction.scope_generation);
+  {
+    w_seed_task_lifecycle0_event event = event_make(
+        W_SEED_TASK_LIFECYCLE0_EVENT_SCOPE_OUTCOME_COMMITTED,
+        transaction.event_count, W_SEED_TASK_LIFECYCLE0_NONE,
+        transaction.scope_generation);
+    event.outcome = outcome_success(9);
+    lifecycle1_append_external(&transaction, events, event);
+  }
+  APPEND_LONG(W_SEED_TASK_LIFECYCLE0_EVENT_SCOPE_JOINED,
+              W_SEED_TASK_LIFECYCLE0_NONE, transaction.scope_generation);
+#undef APPEND_LONG
+  CHECK(transaction.event_count == 137u);
+
+  w_seed_task_lifecycle0_task_record measure_task = {0};
+  w_seed_task_lifecycle1_counts counts = {0};
+  w_seed_task_lifecycle1_result measured = {0};
+  CHECK(w_seed_task_lifecycle1_measure(
+            &transaction,
+            (w_seed_task_lifecycle1_workspace){&measure_task, 1u}, &counts,
+            &measured) == W_SEED_TASK_LIFECYCLE0_OK);
+  CHECK(counts.event_count == 137u);
+
+  w_seed_task_lifecycle0_task_record workspace_task = {0};
+  w_seed_task_lifecycle0_task_record output_task = {0};
+  w_seed_task_lifecycle0_event output_trace[160] = {0};
+  w_seed_task_lifecycle1_output output = {&output_task, 1u, output_trace,
+                                          160u};
+  w_seed_task_lifecycle1_result result = {0};
+  CHECK(w_seed_task_lifecycle1_run(
+            &transaction,
+            (w_seed_task_lifecycle1_workspace){&workspace_task, 1u}, output,
+            &result) == W_SEED_TASK_LIFECYCLE0_OK);
+  CHECK(result.scope.outcome.kind == W_SEED_TASK_LIFECYCLE0_OUTCOME_SUCCESS);
+  CHECK(result.scope.outcome.success_value == 9);
+  CHECK(w_seed_task_lifecycle1_verify(
+      &transaction,
+      (w_seed_task_lifecycle1_workspace){&measure_task, 1u}, &output,
+      &result));
+  return true;
+}
+
 int main(void) {
   const bool ok = test_normal_lifecycle_and_measurement() &&
                   test_suspended_path_and_lexical_error_selection() &&
                   test_cancellation_race_and_monotonicity() &&
-                  test_adversarial_rejection_and_exact_snapshots();
+                  test_adversarial_rejection_and_exact_snapshots() &&
+                  test_measured_lifecycle_without_seed_cardinality_limit() &&
+                  test_lifecycle0_and_lifecycle1_compatible_results() &&
+                  test_measured_lifecycle_without_seed_event_limit();
   if (!ok) return 1;
   puts("task_lifecycle0 tests: ok");
   return 0;

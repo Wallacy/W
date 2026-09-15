@@ -2,6 +2,7 @@
 #define W_SEED_TASK_LIFECYCLE0_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -243,6 +244,72 @@ bool w_seed_task_lifecycle0_verify(
 bool w_seed_task_lifecycle0_verify_measurement(
     const w_seed_task_lifecycle0_transaction *transaction,
     const w_seed_task_lifecycle0_measurement *measurement);
+
+/*
+ * TASKLIFE1 removes TASKLIFE0's embedded storage ceilings.  The semantic
+ * counts remain u32 so they are stable on 32- and 64-bit targets; size_t is
+ * used only for physical caller-owned capacities.  None of these records is
+ * a runtime task object or task ABI.
+ */
+#define W_SEED_TASK_LIFECYCLE1_SCHEMA_VERSION \
+  "w-seed-task-lifecycle1-1"
+
+typedef struct {
+  char schema[sizeof(W_SEED_TASK_LIFECYCLE1_SCHEMA_VERSION)];
+  uint32_t scope_generation;
+  uint32_t task_count;
+  const w_seed_task_lifecycle0_task_spec *tasks;
+  uint32_t event_count;
+  const w_seed_task_lifecycle0_event *events;
+} w_seed_task_lifecycle1_transaction;
+
+typedef struct {
+  w_seed_task_lifecycle0_task_record *tasks;
+  size_t task_capacity;
+} w_seed_task_lifecycle1_workspace;
+
+typedef struct {
+  uint32_t task_count;
+  uint32_t event_count;
+} w_seed_task_lifecycle1_counts;
+
+typedef struct {
+  w_seed_task_lifecycle0_task_record *tasks;
+  size_t task_capacity;
+  w_seed_task_lifecycle0_event *trace;
+  size_t event_capacity;
+} w_seed_task_lifecycle1_output;
+
+typedef struct {
+  char schema[sizeof(W_SEED_TASK_LIFECYCLE1_SCHEMA_VERSION)];
+  uint32_t scope_generation;
+  uint32_t task_count;
+  uint32_t event_count;
+  uint32_t transition_count;
+  uint32_t primary_error_task;
+  w_seed_task_lifecycle0_scope_record scope;
+  uint64_t transaction_digest;
+} w_seed_task_lifecycle1_result;
+
+/* Workspace is scratch and may change on failure.  Counts, output, and result
+ * are transactional and remain byte-for-byte unchanged on failure. */
+w_seed_task_lifecycle0_status w_seed_task_lifecycle1_measure(
+    const w_seed_task_lifecycle1_transaction *transaction,
+    w_seed_task_lifecycle1_workspace workspace,
+    w_seed_task_lifecycle1_counts *counts,
+    w_seed_task_lifecycle1_result *result);
+
+w_seed_task_lifecycle0_status w_seed_task_lifecycle1_run(
+    const w_seed_task_lifecycle1_transaction *transaction,
+    w_seed_task_lifecycle1_workspace workspace,
+    w_seed_task_lifecycle1_output output,
+    w_seed_task_lifecycle1_result *result);
+
+bool w_seed_task_lifecycle1_verify(
+    const w_seed_task_lifecycle1_transaction *transaction,
+    w_seed_task_lifecycle1_workspace workspace,
+    const w_seed_task_lifecycle1_output *output,
+    const w_seed_task_lifecycle1_result *result);
 
 #ifdef __cplusplus
 }
