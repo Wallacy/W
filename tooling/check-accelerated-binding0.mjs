@@ -68,7 +68,8 @@ try {
   const output = result.stdout.toString().replaceAll("\r\n", "\n");
   const expected =
     "ACCBIND0 verified static root binding: PASS\n" +
-    "ACCBIND0 budgets/digests/teardown/negative barriers: PASS\n";
+    "ACCBIND0 budgets/digests/teardown/negative barriers: PASS\n" +
+    "ACCREQ0 provider-neutral request: PASS\n";
   if (output !== expected) fail("test witness output is not exact");
   process.stdout.write(
     "ACCBIND0: independently verified accelerated root binding passed\n",

@@ -72,8 +72,12 @@ independently verify the bounded static accelerated-domain invocation after
 producer teardown. ACCBIND0 additionally closes one caller-owned root/profile
 relation, including exact module/kernel-instance identity, ABI equality, and
 the minimum effective admission budget. It is not a signed product-profile
-verifier and contains no provider handle or launch. Runtime/provider
-launch/join/result, public GPU build/run, and a supported GPU ABI remain open;
+verifier and contains no provider handle or launch. ACCREQ0 now cross-checks
+that binding with the independently verified GPU0 program and copies one exact
+device artifact plus its semantic and physical identities into a
+provider-neutral request that survives both producer lifetimes. The physical
+adapter still does not consume that request. Runtime/provider launch/join/result,
+public GPU build/run, and a supported GPU ABI remain open;
 rank 1 therefore stays open until those public and physical boundaries have
 evidence. The explicit
 `Launch<Module>` route

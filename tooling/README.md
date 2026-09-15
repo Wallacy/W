@@ -108,7 +108,10 @@ GPU0 stays in a separate diagnostic catalog because it is not yet a complete
 source-backed W product. `bun check --target gpu0` first proves the versioned W
 fixture through Frontend28 and the independently verified target/provider-free
 device-module bridge, and the caller-owned provider-neutral projection into
-GPU0 records and device artifact, then proves the separate MLIR GPU/NVVM
+GPU0 records and device artifact. The accelerated binding gate additionally
+cross-checks verified ACCBIND0 and GPU0 meanings into one independently
+verified ACCREQ0 request whose copied artifact survives producer teardown.
+The GPU gate then proves the separate MLIR GPU/NVVM
 lowering, CUDA result `42`, and fail-closed provider cases when the Windows
 provider is available. `bun benchmark gpu0` refreshes
 only `benchmarks/gpu0-device-linkage-catalog.json` and its concise

@@ -224,6 +224,19 @@ not cryptographic authentication performed by ACCBIND0. No provider handle,
 submission, join, result, transfer, residency, public product route or
 supported GPU ABI is implemented here.
 
+`w_seed_accelerated_request0` consumes only verified ACCBIND0 and GPU0
+program/results. ACCREQ0 cross-checks the source-local descriptor, GPU0 host
+root, kernel label, private device function and explicit signed-`i32` result
+shape, then copies one request, every identity byte and the exact device
+artifact into caller-owned storage. Semantic identity excludes queue, device,
+generation and source ordinals; provenance binds those facts. Its independent
+verifier reconstructs dense text ranges, rehashes the artifact and survives
+both producer lifetimes. Measure, emission and bridging fail closed on aliases,
+short capacity, malformed producers and forged records or digests. This is a
+provider-neutral compiler boundary, not a submission API: it contains no
+provider handle, CUDA call, queue operation, completion receipt or public ABI,
+and the existing CUDA adapter does not yet consume it.
+
 O seed materializa `Bool`, inteiros bounded (incluindo `usize`), strings simples
 sem escape, cases enum contextuais e `StaticList` caller-owned. Inteiros usam
 bytes little-endian canônicos; strings usam offsets em `const_bytes`; listas
