@@ -289,12 +289,14 @@ try {
   });
   if (wrongKernel.status !== 2 || wrongKernel.stdout !== "" || wrongKernel.stderr.length === 0)
     fail("missing-kernel adversarial did not fail closed");
-  const invalidExpected = run(adapter, [provider, ptx, "w_gpu0_kernel", "not-i32"], {
-    label: "invalid GPU0 expected result",
-  });
-  if (invalidExpected.status !== 2 || invalidExpected.stdout !== "" ||
-      invalidExpected.stderr.length === 0)
-    fail("invalid-expected-result adversarial did not fail closed");
+  for (const invalid of ["not-i32", "01", "-0", "2147483648", "-2147483649"]) {
+    const invalidExpected = run(adapter, [provider, ptx, "w_gpu0_kernel", invalid], {
+      label: "invalid GPU0 expected result",
+    });
+    if (invalidExpected.status !== 2 || invalidExpected.stdout !== "" ||
+        invalidExpected.stderr.length === 0)
+      fail(`invalid-expected-result adversarial did not fail closed: ${invalid}`);
+  }
   const wrongExpected = run(adapter, [provider, ptx, "w_gpu0_kernel", "41"], {
     label: "mismatched GPU0 expected result",
   });

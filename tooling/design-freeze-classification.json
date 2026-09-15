@@ -56485,13 +56485,13 @@
           "path": "tooling/check-gpu0-cuda-windows.mjs",
           "symbol": "flattenKernelModule",
           "claim": "The experimental gate lowers exactly one GPU0 device kernel and executes it through the available CUDA Driver provider.",
-          "sha256": "sha256:a09f9a9cf793b1145bdb713f55db7c929c1e0bfb3b8b1b79e924ce444d40e1f6"
+          "sha256": "sha256:a35840e5c7eaa88911244434d31a7f1b39b20544fa26c153aa25159b4c80d511"
         },
         {
           "path": "benchmarks/gpu0-device-linkage-catalog.json",
           "symbol": "metrics",
           "claim": "The isolated diagnostic catalog records temporary artifact sizes and in-process phase summaries without product ranking.",
-          "sha256": "sha256:ead5a4ef7db440a6f6523da279a4843229a75b6ea5e10a15dc400f9721fde380"
+          "sha256": "sha256:026ed63305c19989c7be521dd93a2a73fead02a28841b42f507b5d7174a992f9"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
