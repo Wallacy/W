@@ -122,7 +122,9 @@ A five-task fail-fast witness cancels and drains four unfinished siblings before
 deterministic error publication, and a 137-event witness crosses the former
 fixed trace limit. W-1611 now binds verified successful PARPROV1 outcomes into
 that measured lifecycle: provider capacities one and two produce identical
-five-task records, trace, and scope value. The next dependency is a typed
-physical completion relation for success, language error, and cancellation,
-followed by an explicit panic boundary. Physical cancellation remains
-cooperative rather than thread termination.
+five-task records, trace, and scope value. W-1612 adds the private Windows
+provider primitive for tagged success, error, and canceled completions. It
+preserves a settled sibling and cancels only later unstarted waves. The next
+dependency is an authenticated typed provider result and TASKLIFE binding,
+followed by source-level throw/cancellation and an explicit panic boundary.
+Physical cancellation remains cooperative rather than thread termination.

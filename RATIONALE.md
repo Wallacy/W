@@ -250,6 +250,7 @@ O corpus compara, no mínimo:
 - explicit process-root plus task-entry MLIR composition against process-input loss, target-shaped wrappers, implicit provider linkage, and premature public execution claims.
 - target-neutral measured task lifecycle reduction against scheduler substitution, cancellation races, cleanup/commit reordering, fixed storage ceilings, and unproved task ABI or performance claims.
 - verified provider-outcome lifecycle binding against physical-capacity leakage, trusted outcome substitution, partial semantic publication, and premature failure, cancellation, panic, ABI, or performance claims.
+- typed physical completion waves against Boolean outcome collapse, fail-fast sibling rewriting, thread termination as cancellation, and panic-to-error substitution.
 - bounded dual-target process/parallel linkage against direct-call substitution, CRT fallback, hidden runtime input, target conflation, and premature public or benchmark claims.
 - bounded GPU0 target-neutral semantic and available CUDA execution against source-backed W claims, provider/runtime conflation, homogeneous toolchains, and premature public product support.
 - bounded static accelerated root binding against embedded provider handles, multiplied budgets, and unauthenticated claims.
@@ -7936,6 +7937,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1609 | measured parallel task-entry emission | PARMLIR1 consumes verified HIR38/PARSEL1/PARINV1 and emits one runtime-parameterized task entry per measured task while preserving byte-identical `w-seed-mlir0-parallel-entry-2` artifacts for compatible inputs. | `source-backed-current` only for caller-owned measure/emit/verify, producer-digest binding, transaction and alias barriers, two-task byte equivalence, five-task and seventeen-argument C23 evidence, and MLIR/LLVM 23.1.1 Windows COFF plus Linux PIC ELF object emission for five tasks. The 64-function and 192-KiB seed bounds remain. Public products, cancellation/outcomes, provider-neutral scheduling, stable ABI, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1610 | measured task-lifecycle transaction and reducer | TASKLIFE1 reuses the W-1599 reducer over dense caller-owned task and event views, separates u32 semantic counts from `size_t` physical capacities, and removes the fixed four-task and 128-event ceilings from the current lifecycle contract. | `source-backed-current` only for shared TASKLIFE0/TASKLIFE1 reduction, transactional measure/run/verify, complete alias and capacity barriers, compatible fixed-record equality, a five-task fail-fast cancellation/drain witness, and a 137-event C23 witness. Verified-HIR/provider binding, physical interruption, panic payloads, scheduling, public Task ABI, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1611 | verified provider-outcome lifecycle binding | PARLIFE1 consumes verified successful PARPROV1 outcomes and their digest, derives measured TASKLIFE1 storage and a complete success trace, and publishes a checked lexical scope fold independently from provider capacity. | `source-backed-current` only for the five-task Windows compiler/component success path, provider-capacity-one/two byte equality, caller-owned measure/run/verify, complete upstream/output alias barriers, checked scope folding, and adversarial capacity/forgery evidence. Typed physical failure, cancellation request/interruption, panic, scheduling, public Task ABI/execution, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1612 | typed physical completion primitive | The private Windows PLATFORM1 provider callback returns a canonical tagged success, error, or canceled completion. A completed wave chooses the first lexical failure/cancellation source, preserves already-settled siblings, and cancels later unstarted tasks without treating typed outcomes as provider failure. | `source-backed-current` only for the private C23 Windows primitive, capacity-one/two five-task completion equality, monotonic capacity-two rendezvous, explicit cancellation propagation, started/settled/canceled-before-start receipt facts, and invalid-payload rejection. Authentication as a PARPROV result, TASKLIFE binding, source-level throw/cancel, physical preemption, panic containment, scheduling, public Task ABI/products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -13083,3 +13085,29 @@ success-only by construction. The next cut must extend the physical provider
 completion record with explicit success, typed language error, and cancellation
 tags. Panic remains a separate boundary and physical cancellation remains
 cooperative; neither is inferred from worker termination.
+
+#### W-1612 — typed physical completion primitive
+
+The Boolean callback beneath PARPROV1 could distinguish successful evaluation
+from component failure, but it could not carry a language error or cancellation
+without collapsing them into worker status. PLATFORM1 introduces a separate
+private callback and completion union while leaving the compatibility path
+unchanged. The provider regards all three canonical completion tags as normally
+settled work; only callback failure, an invalid tagged payload, or platform
+failure uses the component status channel.
+
+Fail-fast is applied at a physical scheduling boundary. Every worker already in
+the current capacity-two wave reaches the rendezvous and may settle. The first
+lexical error or cancellation then prevents later waves from starting. Their
+indexed records become canceled with either the fail-fast reason or the original
+cancellation reason. This preserves settled-before-cancel without attempting
+unsafe thread termination or adding a poll to a proven finite scalar body.
+
+The C23 witness returns one success and one typed error from the first wave and
+derives three cancellations. Capacity one reaches the same indexed completion
+vector; only maximum-active differs in the receipt. A separate explicit-cancel
+case preserves its already-started sibling success. These outcomes are not yet
+authenticated against HIR/PARINV or consumed by TASKLIFE. Source-level throw and
+cancellation, polling for long-running bodies, provider-neutral scheduling, and
+panic containment remain later boundaries. In particular, a process or hardware
+fault must never be relabeled as a W error.

@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:9ae32f38b0af9da5eaf207752d07da2a1e18d594eab111431ceae8e64b939228",
+  "corpusDigest": "sha256:f7bdb4586bd2f378a6a29f1ea90771fded8f1250d787daf428a5ca8a974b75c3",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -8472,6 +8472,78 @@
             "nonWhitespaceCodePoints": 75,
             "lines": 1,
             "surfaceLexemes": 15
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-parallel-platform-typed-completions",
+      "task": {
+        "utf8Bytes": 140,
+        "codePoints": 140,
+        "nonWhitespaceCodePoints": 122,
+        "lines": 1,
+        "surfaceLexemes": 20
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w-internal",
+        "sourceDigest": "sha256:40c590f8b7f851c7aaad4bba327b0142553d2c3e7b237e3d5b740b4c58c6e152",
+        "metrics": {
+          "utf8Bytes": 260,
+          "codePoints": 260,
+          "nonWhitespaceCodePoints": 233,
+          "lines": 6,
+          "surfaceLexemes": 79
+        }
+      },
+      "alternatives": [
+        {
+          "name": "boolean-completion",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:e0152df0fcd3f1f4a2bd4e57319bc1a380ba89784b422c6a4dad9c38f2cb4b55",
+          "metrics": {
+            "utf8Bytes": 68,
+            "codePoints": 68,
+            "nonWhitespaceCodePoints": 57,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        },
+        {
+          "name": "rewrite-settled-sibling",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:ba9f124f2c2568861e25714200790b2b409a2154a8075ec5950881cf8cb2942e",
+          "metrics": {
+            "utf8Bytes": 79,
+            "codePoints": 79,
+            "nonWhitespaceCodePoints": 67,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        },
+        {
+          "name": "terminate-worker",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:02abcb440069413ab9d07cd478fe4ab7b5cefe93acccf2229b61bad37e503cff",
+          "metrics": {
+            "utf8Bytes": 53,
+            "codePoints": 53,
+            "nonWhitespaceCodePoints": 47,
+            "lines": 1,
+            "surfaceLexemes": 9
+          }
+        },
+        {
+          "name": "encode-panic-as-error",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:bde0856584fe2413e2889be9d135dd7dfca298bd623bd038a9fcc0c72f823e53",
+          "metrics": {
+            "utf8Bytes": 77,
+            "codePoints": 77,
+            "nonWhitespaceCodePoints": 66,
+            "lines": 1,
+            "surfaceLexemes": 14
           }
         }
       ]

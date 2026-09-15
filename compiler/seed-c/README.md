@@ -2247,6 +2247,21 @@ forgery, and lifecycle-result forgery fail closed without semantic publication.
 Typed physical failure/cancellation, physical interruption, panic
 representation, a scheduler, Task ABI, and performance remain open.
 
+The private Windows PLATFORM1 primitive is the next physical boundary. Its
+callback returns a canonical tagged completion (`success`, `error`, or
+`canceled`) rather than a Boolean or thread exit code. Capacity-two workers use
+the monotonic wave rendezvous. After a completed wave contains an error or
+cancellation, later waves are not started and receive canceled records; a
+sibling already settled in that wave is preserved. The receipt reports started,
+settled, canceled-before-start, maximum-active, and cancellation-source facts.
+
+The focused witness produces equal five-task completions at capacities one and
+two, exercises an explicit cancellation, and rejects a noncanonical tagged
+payload. These records are still private platform scratch: they are not yet an
+authenticated PARPROV result or TASKLIFE input. Callback failure is a component
+failure. Panic/fault containment, physical preemption, source-level throw, a
+scheduler, Task ABI, and performance remain open.
+
 ### Bounded CRT-free process/parallel provider linkage (W-1600)
 
 PARLINK1 closes the private physical reference for the W-1598 composition.

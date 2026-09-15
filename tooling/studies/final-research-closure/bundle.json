@@ -35,17 +35,17 @@
     {
       "path": "../../../tooling/design-freeze-classification.json",
       "symbol": "w-design-freeze-classification-1",
-      "digest": "sha256:d5da82c7c8a3e601053f426ffed43aa8524ea3ac1f01b4a22a9b1eeb05cc1570"
+      "digest": "sha256:0b46dd6d70bd950b82f5018cf2135b4780f03bc464a3dc46611e712065eb7d3c"
     },
     {
       "path": "../../../RATIONALE.md",
       "symbol": "| W-707 | gate de design freeze",
-      "digest": "sha256:d7e0bb31286c24335a977452b85cc1290d6409e46994d09c58b148691f8cd5b2"
+      "digest": "sha256:a5a15fededb9aed568b7e7151544397de2c6e58c0e05ddd132af42e54229f119"
     },
     {
       "path": "../../../DESIGN.md",
       "symbol": "#### 24.4.2 FRC0 — snapshot histórico das gates de pesquisa",
-      "digest": "sha256:7fa8f549afef5e4a85e9cd0bb47a4f5cacdf152efe090036a660dfe68d670df1"
+      "digest": "sha256:23bfdc4370656e82ab2a9232944914f7986040bf684d6c87907eb0286aa1808a"
     }
   ],
   "variants": [

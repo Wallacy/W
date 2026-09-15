@@ -23,6 +23,7 @@
  * not extracted a second time at link. */
 #include "../src/w_seed_hir0.c"
 #include "../src/w_seed_native_subset0.h"
+#include "../src/w_seed_parallel_provider0_platform.h"
 
 #define CHECK(condition)                                                       \
   do {                                                                         \
@@ -289,6 +290,116 @@ static bool test_parallel_mlir_entries1(
 }
 
 #if defined(_WIN32) && defined(_WIN64)
+typedef struct {
+  w_seed_parallel_platform1_completion requested[5];
+  uint32_t calls[5];
+} test_platform1_context;
+
+static bool test_platform1_invoke(
+    void *raw, size_t task_index,
+    w_seed_parallel_platform1_completion *completion) {
+  test_platform1_context *context = (test_platform1_context *)raw;
+  if (context == NULL || completion == NULL || task_index >= 5u) return false;
+  context->calls[task_index] += 1u;
+  *completion = context->requested[task_index];
+  return true;
+}
+
+static bool test_parallel_platform1_typed_completions(void) {
+  test_platform1_context parallel_context = {0};
+  parallel_context.requested[0] = (w_seed_parallel_platform1_completion){
+      W_SEED_PARALLEL_PLATFORM1_COMPLETION_SUCCESS, 10, 0u, 0u};
+  parallel_context.requested[1] = (w_seed_parallel_platform1_completion){
+      W_SEED_PARALLEL_PLATFORM1_COMPLETION_ERROR, 0, 2u, 0u};
+  for (size_t index = 2u; index < 5u; index += 1u)
+    parallel_context.requested[index] =
+        (w_seed_parallel_platform1_completion){
+            W_SEED_PARALLEL_PLATFORM1_COMPLETION_SUCCESS,
+            10 + (int64_t)index, 0u, 0u};
+  const w_seed_parallel_platform1_job parallel_job = {
+      test_platform1_invoke, &parallel_context};
+  w_seed_parallel_platform1_completion parallel_completions[5];
+  w_seed_parallel_platform1_receipt parallel_receipt;
+  w_seed_parallel_provider0_kind parallel_kind =
+      W_SEED_PARALLEL_PROVIDER0_KIND_NONE;
+  CHECK(w_seed_parallel_platform1_execute(
+            &parallel_job, 5u, 2u, parallel_completions, &parallel_receipt,
+            &parallel_kind) == W_SEED_PARALLEL_PROVIDER0_PLATFORM_OK &&
+        parallel_kind == W_SEED_PARALLEL_PROVIDER0_KIND_WINDOWS_KERNEL32 &&
+        parallel_receipt.started_count == 2u &&
+        parallel_receipt.settled_count == 2u &&
+        parallel_receipt.canceled_before_start_count == 3u &&
+        parallel_receipt.maximum_active == 2u &&
+        parallel_receipt.cancellation_requested &&
+        parallel_receipt.cancellation_source_index == 1u &&
+        parallel_completions[0].kind ==
+            W_SEED_PARALLEL_PLATFORM1_COMPLETION_SUCCESS &&
+        parallel_completions[0].success_value == 10 &&
+        parallel_completions[1].kind ==
+            W_SEED_PARALLEL_PLATFORM1_COMPLETION_ERROR &&
+        parallel_completions[1].error_code == 2u);
+  for (size_t index = 2u; index < 5u; index += 1u)
+    CHECK(parallel_context.calls[index] == 0u &&
+          parallel_completions[index].kind ==
+              W_SEED_PARALLEL_PLATFORM1_COMPLETION_CANCELED &&
+          parallel_completions[index].cancel_reason ==
+              W_SEED_PARALLEL_PLATFORM1_CANCEL_FAIL_FAST);
+
+  test_platform1_context serial_context = parallel_context;
+  (void)memset(serial_context.calls, 0, sizeof(serial_context.calls));
+  const w_seed_parallel_platform1_job serial_job = {test_platform1_invoke,
+                                                     &serial_context};
+  w_seed_parallel_platform1_completion serial_completions[5];
+  w_seed_parallel_platform1_receipt serial_receipt;
+  w_seed_parallel_provider0_kind serial_kind =
+      W_SEED_PARALLEL_PROVIDER0_KIND_NONE;
+  CHECK(w_seed_parallel_platform1_execute(
+            &serial_job, 5u, 1u, serial_completions, &serial_receipt,
+            &serial_kind) == W_SEED_PARALLEL_PROVIDER0_PLATFORM_OK &&
+        serial_kind == parallel_kind &&
+        serial_receipt.started_count == 2u &&
+        serial_receipt.settled_count == 2u &&
+        serial_receipt.canceled_before_start_count == 3u &&
+        serial_receipt.maximum_active == 1u &&
+        serial_receipt.cancellation_source_index == 1u &&
+        memcmp(serial_completions, parallel_completions,
+               sizeof(serial_completions)) == 0);
+
+  test_platform1_context canceled_context = {0};
+  canceled_context.requested[0] = (w_seed_parallel_platform1_completion){
+      W_SEED_PARALLEL_PLATFORM1_COMPLETION_CANCELED, 0, 0u, 9u};
+  canceled_context.requested[1] = (w_seed_parallel_platform1_completion){
+      W_SEED_PARALLEL_PLATFORM1_COMPLETION_SUCCESS, 11, 0u, 0u};
+  const w_seed_parallel_platform1_job canceled_job = {
+      test_platform1_invoke, &canceled_context};
+  w_seed_parallel_platform1_completion canceled_completions[5];
+  w_seed_parallel_platform1_receipt canceled_receipt;
+  w_seed_parallel_provider0_kind canceled_kind =
+      W_SEED_PARALLEL_PROVIDER0_KIND_NONE;
+  CHECK(w_seed_parallel_platform1_execute(
+            &canceled_job, 5u, 2u, canceled_completions, &canceled_receipt,
+            &canceled_kind) == W_SEED_PARALLEL_PROVIDER0_PLATFORM_OK &&
+        canceled_receipt.cancellation_source_index == 0u &&
+        canceled_completions[0].kind ==
+            W_SEED_PARALLEL_PLATFORM1_COMPLETION_CANCELED &&
+        canceled_completions[1].kind ==
+            W_SEED_PARALLEL_PLATFORM1_COMPLETION_SUCCESS);
+  for (size_t index = 2u; index < 5u; index += 1u)
+    CHECK(canceled_completions[index].kind ==
+              W_SEED_PARALLEL_PLATFORM1_COMPLETION_CANCELED &&
+          canceled_completions[index].cancel_reason == 9u);
+
+  test_platform1_context invalid_context = parallel_context;
+  (void)memset(invalid_context.calls, 0, sizeof(invalid_context.calls));
+  invalid_context.requested[0].error_code = 1u;
+  const w_seed_parallel_platform1_job invalid_job = {test_platform1_invoke,
+                                                      &invalid_context};
+  CHECK(w_seed_parallel_platform1_execute(
+            &invalid_job, 5u, 1u, serial_completions, &serial_receipt,
+            &serial_kind) == W_SEED_PARALLEL_PROVIDER0_PLATFORM_TASK_FAILURE);
+  return true;
+}
+
 static bool test_parallel_provider_cardinality(
     const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
     const w_seed_parallel_selection0 *selection) {
@@ -465,7 +576,8 @@ static bool test_parallel_provider1_windows(
     const w_seed_parallel_invocation1_result *invocation_result) {
   CHECK(program != NULL && hir_result != NULL && selection != NULL &&
         selection_result != NULL && invocation != NULL &&
-        invocation_result != NULL && selection->task_count == 5u);
+        invocation_result != NULL && selection->task_count == 5u &&
+        test_parallel_platform1_typed_completions());
   w_seed_parallel_provider1_input input = {
       program,       hir_result,        selection, selection_result,
       invocation,    invocation_result, 1u};
