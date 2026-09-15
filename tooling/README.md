@@ -351,12 +351,12 @@ Current evidence cannot narrow required
 emission or release fanout for macOS or another applicable target.
 
 W-1587 extends the physical seed `spawn<.main>` path from the W-1586 exact-two
-witness to one through four ordered sibling launches. HIR0 is
-`w-seed-hir0-36`, selection is the reserved caller-owned
-`w-seed-cooperative-selection0-2`, and four is a seed caller-owned array
-ceiling rather than a language, runtime, scheduler, or ABI bound. The
-Cooperative0 trace oracle remains exact-two. NativeSubset0 rederives and
-zeroes the selected record; MLIR0 schemas
+witness to one through four ordered sibling launches in the current product.
+Selection uses reserved caller-owned `w-seed-cooperative-selection0-2`; four is
+that legacy product record's capacity rather than a language, HIR38, runtime,
+scheduler, or ABI bound. HIR38 preserves larger finite verified relations for
+later measured consumers. The Cooperative0 trace oracle remains exact-two.
+NativeSubset0 rederives and zeroes the selected record; MLIR0 schemas
 `w-seed-mlir0-cooperative-2`/`w-seed-mlir0-cooperative-executable-2` emit the
 count-driven serial FIFO core and target leaves, starting at ordinal zero and
 wrapping at the selected count. Joined signed-`i64` outcomes are folded in
@@ -367,7 +367,8 @@ Focused k=1/k=3/k=4 cases complement k=2 with exact
 external gate samples k=1 and k=4 endpoints, while the C product path covers
 k=1 through k=4. Separately, executable workload
 `restaurant-main-cardinality` owns the public k=4 `w run`/`w build` evidence on
-Windows and on the Linux target through WSL2. k=5, reordered or orphan joins,
+Windows and on the Linux target through WSL2. The bounded product selector
+rejects k=5 transactionally while HIR38 retains it; reordered or orphan joins,
 mixed launch kinds, and no-route sources fail closed. The primary
 `benchmarkDisposition` remains `compiler-lifecycle`; the executable catalog
 separately owns exploratory public W measurement, with C23 and Rust blocked
@@ -377,7 +378,7 @@ target-adapter, benchmark-ranking, or performance claim. No syntax changes.
 
 W-1588 adds an IR-only parallel-placement boundary. Frontend28 accepts exact
 `spawn<.domain>` only from a caller-owned concurrent domain with the parallel
-capability. HIR37 owns and independently verifies the copied identity, mode,
+capability. HIR38 owns and independently verifies the copied identity, mode,
 capabilities, pure non-suspending scalar child graph, and lexical joins. The
 seed C unit suite covers missing, duplicate, serial, capability-free, mixed,
 and forged forms. No MLIR/provider/public executable exists for this route, so
@@ -385,11 +386,14 @@ there is intentionally no executable benchmark or platform-performance gate
 yet; its disposition is `compiler-lifecycle`.
 
 W-1589 adds the fixed `w-seed-parallel-selection0-1` PARSEL0 proof. The seed C
-HIR test derives one, two, and four task selections from verified HIR37,
+HIR test derives one, two, and four task selections from verified HIR38,
 checks copied placement and lexical launch/join facts, canonical zero tails,
 record mutations, HIR lifetime independence, output/input alias rejection, and
 transactional failure. Provider capacity is intentionally absent. This is a
 compiler-lifecycle gate only; it adds no executable or performance benchmark.
+The same gate now admits five tasks into HIR38 and PARSEL1's measured
+caller-owned records while proving that fixed PARSEL0 rejects the larger scope
+without mutation.
 
 ACQ0 executa CHK6 em
 storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou

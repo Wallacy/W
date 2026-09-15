@@ -7588,7 +7588,7 @@
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_SCHEMA_VERSION",
-          "claim": "HIR0 schema w-seed-hir0-36 carries the one-through-four seed ceiling while the Cooperative0 oracle ceiling remains two."
+          "claim": "HIR38 preserves a finite verified main-domain relation independently from the legacy product record's four-slot capacity; the Cooperative0 oracle remains exact-two."
         },
         {
           "path": "compiler/seed-c/include/w_seed_cooperative_selection0.h",
@@ -7603,7 +7603,12 @@
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "frontend_cooperative_trace_preflight",
-          "claim": "HIR preflight admits positive one-through-four main-domain cardinality, preserves order, and keeps the exact-two Cooperative0 trace oracle."
+          "claim": "HIR preflight admits a positive finite main-domain relation bounded by verified records, preserves order, and keeps the exact-two Cooperative0 trace oracle."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_structured_async_elision_hir",
+          "claim": "The C23 HIR witness admits and independently verifies five ordered main-domain tasks without a fixed temporary task array."
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
@@ -7652,7 +7657,7 @@
         }
       ],
       "checks": [
-        "HIR0 and selection admit one through four ordered main-domain launches and reject zero or k=5",
+        "HIR38 admits finite ordered main-domain relations while the current product selection admits one through four and rejects k=5 transactionally",
         "the Cooperative0 compiler-host trace oracle remains exact-two",
         "NativeSubset0 independently rederives the count and zeroes unused selection slots",
         "MLIR0 starts serial FIFO at ordinal zero, wraps at the selected count, and folds lexical signed-i64 joins",
@@ -7718,7 +7723,7 @@
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_CALL_STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH",
-          "claim": "HIR37 owns a distinct physical call kind and copied placement record."
+          "claim": "HIR38 owns a distinct physical call kind and copied placement record."
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -7749,7 +7754,7 @@
       "checks": [
         "exact `.domain` resolution requires concurrent mode and parallel capability",
         "HIR owns the placement identity and verifies it after frontend inputs are unavailable",
-        "one through four lexical ordinary pure non-suspending scalar children are the only admitted seed shape",
+        "a finite lexical sibling scope bounded by verified HIR record counts is admitted for ordinary pure non-suspending scalar children",
         "missing, duplicate, serial, capability-free, mixed, async, effectful, and forged shapes fail closed",
         "native auto-selection rejects incompatible route matches rather than relying on predicate order",
         "no provider, MLIR, runtime, public executable, overlap, target, or performance claim is introduced"
@@ -7774,7 +7779,7 @@
           "name": "trust-lowering-record",
           "language": "w-internal-rejected",
           "source": ["copy call indices without independently verifying HIR and launch/join ownership"],
-          "expectedDifference": "The selected boundary re-verifies HIR37 and rederives every selected relation."
+          "expectedDifference": "The selected boundary re-verifies HIR38 and rederives every selected relation."
         },
         {
           "name": "embed-provider-capacity",
@@ -7804,7 +7809,7 @@
         {
           "path": "compiler/seed-c/src/w_seed_parallel_selection0.c",
           "symbol": "parallel_selection_derive",
-          "claim": "The selector independently derives one-through-four lexical task relations from verified HIR37."
+          "claim": "The compatibility selector independently derives one-through-four lexical task relations from verified HIR38."
         },
         {
           "path": "compiler/seed-c/src/w_seed_parallel_selection0.c",
@@ -7818,7 +7823,7 @@
         }
       ],
       "checks": [
-        "PARSEL0 re-verifies HIR37 before deriving a selection",
+        "PARSEL0 re-verifies HIR38 before deriving a compatibility selection",
         "one through four task calls pair with lexical launch and await-result bindings",
         "exact placement facts and HIR semantic identity are copied into a canonical fixed record",
         "unused slots and reserved bytes are zero",
@@ -7897,7 +7902,7 @@
         }
       ],
       "checks": [
-        "verified HIR37 and PARSEL0 are rechecked before PARINV0 publication and physical work",
+        "verified HIR38 and PARSEL0 are rechecked before PARINV0 publication and physical work",
         "exact parameter-ordinal argument values and checked scalar work are derived from HIR",
         "k=1, k=2, and k=4 execute with capacity one and two",
         "semantic outcomes are byte-identical across capacities",
@@ -7972,7 +7977,7 @@
         }
       ],
       "checks": [
-        "HIR37, PARSEL0, and PARINV0 are re-verified before emission",
+        "HIR38, PARSEL0, and PARINV0 are re-verified before emission",
         "one public runtime-parameterized signed-i64 entry is emitted per lexical task",
         "wrapper arity and types derive from declarations and use parameter-ordinal order",
         "call-site argument values are not embedded in wrappers",
@@ -8925,6 +8930,84 @@
       "semantic identity excludes queue, device, generation and source ordinals while provenance binds them",
       "malformed producers, mismatches, aliases, short capacities, artifact mutation and forged digests fail closed",
       "provider submission, public ABI, general arguments/results and performance are not claimed"
+    ],
+    "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+  },
+  {
+    "id": "R0-measured-parallel-selection",
+    "reviewItem": "measured task-relation storage against fixed HIR ceilings, host-width identity, provider-policy leakage, and partial publication",
+    "decisions": ["W-1606"],
+    "task": "Derive a dense caller-owned parallel selection for every verified HIR task relation without turning a seed storage capacity into a language limit.",
+    "selected": {
+      "language": "w-internal",
+      "source": [
+        "counts = PARSEL1.measure(verifiedHIR)",
+        "selection = PARSEL1.run(verifiedHIR, callerStorage(counts.tasks))",
+        "tasks = lexicalPairs(calls: .parallelDomain, launches: .launch, joins: .awaitResult)",
+        "semanticDigest = hash(schema, hirDigest, placement, u32(taskCount), tasks)",
+        "providerCapacity = absent"
+      ]
+    },
+    "alternatives": [
+      {
+        "name": "retain-four-slot-language-ceiling",
+        "language": "w-internal-rejected",
+        "source": ["if tasks.count > 4 { reject program }"],
+        "expectedDifference": "HIR38 admits a finite verified record-count scope; only the legacy PARSEL0 compatibility consumer retains four slots."
+      },
+      {
+        "name": "hash-host-size-t",
+        "language": "w-internal-rejected",
+        "source": ["semanticDigest.add(nativeBytes(taskCount))"],
+        "expectedDifference": "The selected digest encodes the already-u32-bounded semantic count canonically, independent of 32-bit or 64-bit compiler-host width."
+      },
+      {
+        "name": "embed-provider-capacity",
+        "language": "w-internal-rejected",
+        "source": ["selection.providerCapacity = availableWorkers"],
+        "expectedDifference": "Logical task relations remain independent from worker, thread, lane, device, or queue capacity."
+      },
+      {
+        "name": "publish-before-preflight",
+        "language": "w-internal-rejected",
+        "source": ["write tasks while validating aliases and relations"],
+        "expectedDifference": "Measure, derivation, capacity, and alias checks complete before caller task records or result bytes change."
+      }
+    ],
+    "sourceRefs": [
+      {
+        "path": "compiler/seed-c/include/w_seed_parallel_selection1.h",
+        "symbol": "W_SEED_PARALLEL_SELECTION1_SCHEMA_VERSION",
+        "claim": "PARSEL1 exposes exact measured counts and caller-owned dense task storage without a provider-capacity field."
+      },
+      {
+        "path": "compiler/seed-c/src/w_seed_parallel_selection1.c",
+        "symbol": "w_seed_parallel_selection1_run",
+        "claim": "The transactional producer re-verifies HIR, derives the complete task count, checks capacity and aliases, and only then writes caller storage."
+      },
+      {
+        "path": "compiler/seed-c/src/w_seed_parallel_selection1.c",
+        "symbol": "w_seed_parallel_selection1_verify",
+        "claim": "The independent verifier rederives every lexical call/function/launch/join relation and recomputes a target-width-independent semantic digest."
+      },
+      {
+        "path": "compiler/seed-c/tests/test_hir0.c",
+        "symbol": "test_parallel_domain_placement_hir",
+          "claim": "The C23 witness proves five-task `.main` and `.domain` HIR admission, measured `.domain` selection, exact short-capacity and alias barriers, bridge transactionality, forged-result rejection, and legacy compatibility failure."
+      },
+      {
+        "path": "tooling/check-hir0.mjs",
+        "symbol": "HIR0: caller-owned verified single/multi-document HIR, bounded product closure, task lifecycle, and adversarial barriers passed",
+        "claim": "The focused gate configures a clean C23 build, executes the HIR/PARSEL witnesses, and deletes the temporary build directory."
+      }
+    ],
+    "checks": [
+      "HIR38 admits finite `.main` and `.domain` sibling scopes bounded by verified record counts rather than a four-task constant",
+      "PARSEL1 measures the exact task count and publishes one dense record per lexical call/launch/join relation",
+      "semantic identity is canonical across 32-bit and 64-bit compiler hosts and excludes provider capacity",
+      "short capacity, aliases, malformed HIR, forged task/result state, and partial publication fail closed",
+      "five-task `.main` and `.domain` witnesses pass HIR; the `.domain` witness passes PARSEL1 while fixed legacy consumers remain explicit unsupported boundaries",
+      "downstream scheduler storage, provider migration, public execution, target evidence, benchmarks, and performance remain unclaimed"
     ],
     "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
   }
