@@ -2235,8 +2235,17 @@ Workspace is scratch and may change on failure.
 The focused suite includes compatible TASKLIFE0/TASKLIFE1 records, a five-task
 fail-fast trace whose four unfinished siblings cancel and drain before scope
 error publication, and a valid 137-event trace. These are target-neutral
-lifecycle witnesses. Verified-HIR/provider binding, physical interruption,
-panic representation, a scheduler, Task ABI, and performance remain open.
+lifecycle witnesses.
+
+PARLIFE1 binds the ordered successful outcomes of a verified PARPROV1
+execution to a measured TASKLIFE1 transaction. It derives exact caller-owned
+scratch and semantic output counts, emits the complete reserve/publish/body/
+cleanup/commit/join/release trace, and folds task values into the scope outcome
+with checked signed arithmetic. Provider capacities one and two yield
+byte-identical lifecycle output for five tasks. Capacity, alias, producer
+forgery, and lifecycle-result forgery fail closed without semantic publication.
+Typed physical failure/cancellation, physical interruption, panic
+representation, a scheduler, Task ABI, and performance remain open.
 
 ### Bounded CRT-free process/parallel provider linkage (W-1600)
 

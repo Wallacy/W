@@ -1,5 +1,7 @@
 #include "w_seed_parallel_provider1.h"
 
+#include "w_seed_parallel_lifecycle1.h"
+
 #include "w_seed_parallel_provider0_platform.h"
 #include "w_seed_scalar_evaluator0.h"
 #include "w_seed_sha256.h"
@@ -420,4 +422,361 @@ bool w_seed_parallel_provider1_verify_outcomes(
   seal_outcomes(input, outcomes, outcome_count, expected_digest);
   return memcmp(result->outcome_digest, expected_digest,
                 sizeof(expected_digest)) == 0;
+}
+
+enum { W_PARLIFE1_INPUT_RANGE_CAPACITY = 44u };
+
+static bool parallel_lifecycle1_counts(
+    const w_seed_parallel_lifecycle1_input *input,
+    w_seed_parallel_lifecycle1_counts *counts, uint32_t *event_count) {
+  if (input == NULL || counts == NULL || event_count == NULL ||
+      input->provider_input == NULL || input->provider_outcomes == NULL ||
+      input->provider_result == NULL || input->scope_generation == 0u ||
+      input->provider_outcome_count == 0u ||
+      input->provider_outcome_count > UINT32_MAX ||
+      input->scope_generation >
+          UINT32_MAX - (uint32_t)input->provider_outcome_count)
+    return false;
+  const uint32_t tasks = (uint32_t)input->provider_outcome_count;
+  if (tasks > (UINT32_MAX - 5u) / 8u) return false;
+  *event_count = 5u + tasks * 8u;
+  *counts = (w_seed_parallel_lifecycle1_counts){
+      input->provider_outcome_count, (size_t)*event_count,
+      input->provider_outcome_count, (size_t)*event_count};
+  return true;
+}
+
+static bool parallel_lifecycle1_input_valid(
+    const w_seed_parallel_lifecycle1_input *input,
+    w_seed_parallel_lifecycle1_counts *counts, uint32_t *event_count) {
+  if (!parallel_lifecycle1_counts(input, counts, event_count) ||
+      input->provider_input->selection == NULL ||
+      input->provider_input->selection->task_count !=
+          input->provider_outcome_count ||
+      !w_seed_parallel_provider1_verify_outcomes(
+          input->provider_input, input->provider_outcomes,
+          input->provider_outcome_count, input->provider_result))
+    return false;
+  int64_t sum = 0;
+  for (size_t task = 0u; task < input->provider_outcome_count; task += 1u) {
+    const int64_t value = input->provider_outcomes[task].value;
+    if ((value > 0 && sum > INT64_MAX - value) ||
+        (value < 0 && sum < INT64_MIN - value))
+      return false;
+    sum += value;
+  }
+  return true;
+}
+
+static bool parallel_lifecycle1_append_input_ranges(
+    const w_seed_parallel_lifecycle1_input *input, provider1_range *ranges,
+    size_t capacity, size_t *count) {
+  return input != NULL && ranges != NULL && count != NULL &&
+         add_range(ranges, capacity, count, input, 1u, sizeof(*input)) &&
+         append_input_ranges(input->provider_input, ranges, capacity, count,
+                             true) &&
+         add_range(ranges, capacity, count, input->provider_outcomes,
+                   input->provider_outcome_count,
+                   sizeof(*input->provider_outcomes)) &&
+         add_range(ranges, capacity, count, input->provider_result, 1u,
+                   sizeof(*input->provider_result));
+}
+
+static bool parallel_lifecycle1_ranges_disjoint(
+    const w_seed_parallel_lifecycle1_input *input,
+    const w_seed_parallel_lifecycle1_workspace *workspace,
+    const w_seed_parallel_lifecycle1_output *output,
+    const w_seed_parallel_lifecycle1_counts *counts,
+    const w_seed_parallel_lifecycle1_result *result,
+    w_seed_parallel_lifecycle1_counts required) {
+  provider1_range writable[8];
+  size_t writable_count = 0u;
+#define W_PARLIFE1_RANGE(pointer, number)                                      \
+  do {                                                                         \
+    if (!add_range(writable, sizeof(writable) / sizeof(writable[0]),           \
+                   &writable_count, (pointer), (number), sizeof(*(pointer))))  \
+      return false;                                                            \
+  } while (0)
+  if (workspace != NULL) {
+    W_PARLIFE1_RANGE(workspace, 1u);
+    W_PARLIFE1_RANGE(workspace->task_specs, required.task_specs);
+    W_PARLIFE1_RANGE(workspace->events, required.events);
+    W_PARLIFE1_RANGE(workspace->reducer_tasks, required.task_records);
+  }
+  if (output != NULL) {
+    W_PARLIFE1_RANGE(output, 1u);
+    W_PARLIFE1_RANGE(output->tasks, required.task_records);
+    W_PARLIFE1_RANGE(output->trace, required.trace_events);
+  }
+  if (counts != NULL) W_PARLIFE1_RANGE(counts, 1u);
+  W_PARLIFE1_RANGE(result, 1u);
+#undef W_PARLIFE1_RANGE
+  for (size_t left = 0u; left < writable_count; left += 1u)
+    for (size_t right = left + 1u; right < writable_count; right += 1u)
+      if (ranges_overlap(writable[left], writable[right])) return false;
+
+  provider1_range inputs[W_PARLIFE1_INPUT_RANGE_CAPACITY];
+  size_t input_count = 0u;
+  if (!parallel_lifecycle1_append_input_ranges(
+          input, inputs, W_PARLIFE1_INPUT_RANGE_CAPACITY, &input_count))
+    return false;
+  for (size_t out = 0u; out < writable_count; out += 1u)
+    for (size_t in = 0u; in < input_count; in += 1u)
+      if (ranges_overlap(writable[out], inputs[in])) return false;
+  return true;
+}
+
+static w_seed_task_lifecycle0_event parallel_lifecycle1_event(
+    w_seed_task_lifecycle0_event_kind kind, uint32_t sequence,
+    uint32_t target, uint32_t generation) {
+  w_seed_task_lifecycle0_event event;
+  (void)memset(&event, 0, sizeof(event));
+  event.kind = kind;
+  event.sequence = sequence;
+  event.target_index = target;
+  event.generation = generation;
+  event.source_index = W_SEED_TASK_LIFECYCLE0_NONE;
+  return event;
+}
+
+static void parallel_lifecycle1_append(
+    const w_seed_parallel_lifecycle1_workspace *workspace, uint32_t *count,
+    w_seed_task_lifecycle0_event event) {
+  event.sequence = *count;
+  workspace->events[*count] = event;
+  *count += 1u;
+}
+
+static bool parallel_lifecycle1_build_transaction(
+    const w_seed_parallel_lifecycle1_input *input,
+    const w_seed_parallel_lifecycle1_workspace *workspace,
+    uint32_t event_count,
+    w_seed_task_lifecycle1_transaction *transaction) {
+  if (input == NULL || workspace == NULL || transaction == NULL) return false;
+  int64_t sum = 0;
+  for (size_t task = 0u; task < input->provider_outcome_count; task += 1u) {
+    const int64_t value = input->provider_outcomes[task].value;
+    if ((value > 0 && sum > INT64_MAX - value) ||
+        (value < 0 && sum < INT64_MIN - value))
+      return false;
+    sum += value;
+  }
+  (void)memset(workspace->task_specs, 0,
+               input->provider_outcome_count * sizeof(*workspace->task_specs));
+  (void)memset(workspace->events, 0,
+               (size_t)event_count * sizeof(*workspace->events));
+  for (uint32_t task = 0u; task < (uint32_t)input->provider_outcome_count;
+       task += 1u) {
+    workspace->task_specs[task].task_id = task;
+    workspace->task_specs[task].lexical_index = task;
+    workspace->task_specs[task].generation = input->scope_generation + task + 1u;
+    workspace->task_specs[task].body_outcome.kind =
+        W_SEED_TASK_LIFECYCLE0_OUTCOME_SUCCESS;
+    workspace->task_specs[task].body_outcome.success_value =
+        input->provider_outcomes[task].value;
+  }
+
+  uint32_t written = 0u;
+  parallel_lifecycle1_append(
+      workspace, &written,
+      parallel_lifecycle1_event(W_SEED_TASK_LIFECYCLE0_EVENT_SCOPE_OPEN,
+                                written, W_SEED_TASK_LIFECYCLE0_NONE,
+                                input->scope_generation));
+  for (uint32_t task = 0u; task < (uint32_t)input->provider_outcome_count;
+       task += 1u)
+    parallel_lifecycle1_append(
+        workspace, &written,
+        parallel_lifecycle1_event(
+            W_SEED_TASK_LIFECYCLE0_EVENT_TASK_RESERVED, written, task,
+            workspace->task_specs[task].generation));
+  for (uint32_t task = 0u; task < (uint32_t)input->provider_outcome_count;
+       task += 1u)
+    parallel_lifecycle1_append(
+        workspace, &written,
+        parallel_lifecycle1_event(
+            W_SEED_TASK_LIFECYCLE0_EVENT_TASK_PUBLISHED, written, task,
+            workspace->task_specs[task].generation));
+  for (uint32_t task = 0u; task < (uint32_t)input->provider_outcome_count;
+       task += 1u) {
+    const uint32_t generation = workspace->task_specs[task].generation;
+    parallel_lifecycle1_append(
+        workspace, &written,
+        parallel_lifecycle1_event(W_SEED_TASK_LIFECYCLE0_EVENT_TASK_ACTIVE,
+                                  written, task, generation));
+    w_seed_task_lifecycle0_event settled = parallel_lifecycle1_event(
+        W_SEED_TASK_LIFECYCLE0_EVENT_TASK_BODY_SETTLED, written, task,
+        generation);
+    settled.outcome = workspace->task_specs[task].body_outcome;
+    parallel_lifecycle1_append(workspace, &written, settled);
+    parallel_lifecycle1_append(
+        workspace, &written,
+        parallel_lifecycle1_event(W_SEED_TASK_LIFECYCLE0_EVENT_TASK_CLEANUP,
+                                  written, task, generation));
+    w_seed_task_lifecycle0_event committed = parallel_lifecycle1_event(
+        W_SEED_TASK_LIFECYCLE0_EVENT_TASK_OUTCOME_COMMITTED, written, task,
+        generation);
+    committed.outcome = workspace->task_specs[task].body_outcome;
+    parallel_lifecycle1_append(workspace, &written, committed);
+  }
+  for (uint32_t task = 0u; task < (uint32_t)input->provider_outcome_count;
+       task += 1u) {
+    const uint32_t generation = workspace->task_specs[task].generation;
+    parallel_lifecycle1_append(
+        workspace, &written,
+        parallel_lifecycle1_event(W_SEED_TASK_LIFECYCLE0_EVENT_TASK_JOINED,
+                                  written, task, generation));
+    parallel_lifecycle1_append(
+        workspace, &written,
+        parallel_lifecycle1_event(W_SEED_TASK_LIFECYCLE0_EVENT_TASK_RELEASED,
+                                  written, task, generation));
+  }
+  parallel_lifecycle1_append(
+      workspace, &written,
+      parallel_lifecycle1_event(W_SEED_TASK_LIFECYCLE0_EVENT_SCOPE_DRAINING,
+                                written, W_SEED_TASK_LIFECYCLE0_NONE,
+                                input->scope_generation));
+  parallel_lifecycle1_append(
+      workspace, &written,
+      parallel_lifecycle1_event(
+          W_SEED_TASK_LIFECYCLE0_EVENT_SCOPE_CHILDREN_DRAINED, written,
+          W_SEED_TASK_LIFECYCLE0_NONE, input->scope_generation));
+  w_seed_task_lifecycle0_event committed = parallel_lifecycle1_event(
+      W_SEED_TASK_LIFECYCLE0_EVENT_SCOPE_OUTCOME_COMMITTED, written,
+      W_SEED_TASK_LIFECYCLE0_NONE, input->scope_generation);
+  committed.outcome.kind = W_SEED_TASK_LIFECYCLE0_OUTCOME_SUCCESS;
+  committed.outcome.success_value = sum;
+  parallel_lifecycle1_append(workspace, &written, committed);
+  parallel_lifecycle1_append(
+      workspace, &written,
+      parallel_lifecycle1_event(W_SEED_TASK_LIFECYCLE0_EVENT_SCOPE_JOINED,
+                                written, W_SEED_TASK_LIFECYCLE0_NONE,
+                                input->scope_generation));
+  if (written != event_count) return false;
+
+  (void)memset(transaction, 0, sizeof(*transaction));
+  (void)memcpy(transaction->schema, W_SEED_TASK_LIFECYCLE1_SCHEMA_VERSION,
+               sizeof(transaction->schema));
+  transaction->scope_generation = input->scope_generation;
+  transaction->task_count = (uint32_t)input->provider_outcome_count;
+  transaction->tasks = workspace->task_specs;
+  transaction->event_count = event_count;
+  transaction->events = workspace->events;
+  return true;
+}
+
+static void parallel_lifecycle1_result_base(
+    const w_seed_parallel_lifecycle1_input *input,
+    w_seed_parallel_lifecycle1_counts required,
+    w_seed_parallel_lifecycle1_result *result) {
+  (void)memset(result, 0, sizeof(*result));
+  result->status = W_SEED_PARALLEL_LIFECYCLE1_OK;
+  result->required = required;
+  (void)memcpy(result->schema, W_SEED_PARALLEL_LIFECYCLE1_SCHEMA_VERSION,
+               sizeof(result->schema));
+  result->task_count = (uint32_t)input->provider_outcome_count;
+  result->event_count = (uint32_t)required.events;
+  (void)memcpy(result->provider_outcome_digest,
+               input->provider_result->outcome_digest,
+               sizeof(result->provider_outcome_digest));
+}
+
+w_seed_parallel_lifecycle1_status w_seed_parallel_lifecycle1_measure(
+    const w_seed_parallel_lifecycle1_input *input,
+    w_seed_parallel_lifecycle1_counts *counts,
+    w_seed_parallel_lifecycle1_result *result) {
+  w_seed_parallel_lifecycle1_counts required;
+  uint32_t event_count = 0u;
+  if (counts == NULL || result == NULL ||
+      !parallel_lifecycle1_input_valid(input, &required, &event_count))
+    return W_SEED_PARALLEL_LIFECYCLE1_INVALID;
+  if (!parallel_lifecycle1_ranges_disjoint(input, NULL, NULL, counts, result,
+                                           required))
+    return W_SEED_PARALLEL_LIFECYCLE1_ALIAS;
+  w_seed_parallel_lifecycle1_result candidate;
+  parallel_lifecycle1_result_base(input, required, &candidate);
+  *counts = required;
+  *result = candidate;
+  return W_SEED_PARALLEL_LIFECYCLE1_OK;
+}
+
+w_seed_parallel_lifecycle1_status w_seed_parallel_lifecycle1_run(
+    const w_seed_parallel_lifecycle1_input *input,
+    const w_seed_parallel_lifecycle1_workspace *workspace,
+    const w_seed_parallel_lifecycle1_output *output,
+    w_seed_parallel_lifecycle1_result *result) {
+  w_seed_parallel_lifecycle1_counts required;
+  uint32_t event_count = 0u;
+  if (workspace == NULL || output == NULL || result == NULL ||
+      !parallel_lifecycle1_input_valid(input, &required, &event_count))
+    return W_SEED_PARALLEL_LIFECYCLE1_INVALID;
+  if (workspace->task_spec_capacity < required.task_specs ||
+      workspace->event_capacity < required.events ||
+      workspace->reducer_task_capacity < required.task_records ||
+      output->task_capacity < required.task_records ||
+      output->trace_capacity < required.trace_events)
+    return W_SEED_PARALLEL_LIFECYCLE1_CAPACITY;
+  if (!parallel_lifecycle1_ranges_disjoint(input, workspace, output, NULL,
+                                           result, required))
+    return W_SEED_PARALLEL_LIFECYCLE1_ALIAS;
+
+  w_seed_task_lifecycle1_transaction transaction;
+  if (!parallel_lifecycle1_build_transaction(input, workspace, event_count,
+                                              &transaction))
+    return W_SEED_PARALLEL_LIFECYCLE1_LIFECYCLE;
+  w_seed_parallel_lifecycle1_result candidate;
+  parallel_lifecycle1_result_base(input, required, &candidate);
+  const w_seed_task_lifecycle0_status status = w_seed_task_lifecycle1_run(
+      &transaction,
+      (w_seed_task_lifecycle1_workspace){workspace->reducer_tasks,
+                                         workspace->reducer_task_capacity},
+      (w_seed_task_lifecycle1_output){output->tasks, output->task_capacity,
+                                      output->trace, output->trace_capacity},
+      &candidate.lifecycle);
+  if (status != W_SEED_TASK_LIFECYCLE0_OK)
+    return W_SEED_PARALLEL_LIFECYCLE1_LIFECYCLE;
+  candidate.written = required;
+  *result = candidate;
+  return W_SEED_PARALLEL_LIFECYCLE1_OK;
+}
+
+bool w_seed_parallel_lifecycle1_verify(
+    const w_seed_parallel_lifecycle1_input *input,
+    const w_seed_parallel_lifecycle1_workspace *workspace,
+    const w_seed_parallel_lifecycle1_output *output,
+    const w_seed_parallel_lifecycle1_result *result) {
+  w_seed_parallel_lifecycle1_counts required;
+  uint32_t event_count = 0u;
+  if (workspace == NULL || output == NULL || result == NULL ||
+      !parallel_lifecycle1_input_valid(input, &required, &event_count) ||
+      workspace->task_spec_capacity < required.task_specs ||
+      workspace->event_capacity < required.events ||
+      workspace->reducer_task_capacity < required.task_records ||
+      output->task_capacity < required.task_records ||
+      output->trace_capacity < required.trace_events ||
+      !parallel_lifecycle1_ranges_disjoint(input, workspace, output, NULL,
+                                           result, required))
+    return false;
+  w_seed_task_lifecycle1_transaction transaction;
+  if (!parallel_lifecycle1_build_transaction(input, workspace, event_count,
+                                              &transaction))
+    return false;
+  if (result->status != W_SEED_PARALLEL_LIFECYCLE1_OK ||
+      memcmp(result->schema, W_SEED_PARALLEL_LIFECYCLE1_SCHEMA_VERSION,
+             sizeof(result->schema)) != 0 ||
+      memcmp(&result->required, &required, sizeof(required)) != 0 ||
+      memcmp(&result->written, &required, sizeof(required)) != 0 ||
+      result->task_count != (uint32_t)input->provider_outcome_count ||
+      result->event_count != event_count ||
+      memcmp(result->provider_outcome_digest,
+             input->provider_result->outcome_digest,
+             sizeof(result->provider_outcome_digest)) != 0)
+    return false;
+  return w_seed_task_lifecycle1_verify(
+      &transaction,
+      (w_seed_task_lifecycle1_workspace){workspace->reducer_tasks,
+                                         workspace->reducer_task_capacity},
+      &(w_seed_task_lifecycle1_output){
+          output->tasks, output->task_capacity, output->trace,
+          output->trace_capacity},
+      &result->lifecycle);
 }

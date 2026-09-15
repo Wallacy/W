@@ -249,6 +249,7 @@ O corpus compara, no mínimo:
 - proof-directed direct-call legality against silent semantic erasure, single-function flags, target-policy conflation, and premature performance claims.
 - explicit process-root plus task-entry MLIR composition against process-input loss, target-shaped wrappers, implicit provider linkage, and premature public execution claims.
 - target-neutral measured task lifecycle reduction against scheduler substitution, cancellation races, cleanup/commit reordering, fixed storage ceilings, and unproved task ABI or performance claims.
+- verified provider-outcome lifecycle binding against physical-capacity leakage, trusted outcome substitution, partial semantic publication, and premature failure, cancellation, panic, ABI, or performance claims.
 - bounded dual-target process/parallel linkage against direct-call substitution, CRT fallback, hidden runtime input, target conflation, and premature public or benchmark claims.
 - bounded GPU0 target-neutral semantic and available CUDA execution against source-backed W claims, provider/runtime conflation, homogeneous toolchains, and premature public product support.
 - bounded static accelerated root binding against embedded provider handles, multiplied budgets, and unauthenticated claims.
@@ -7934,6 +7935,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1608 | measured Windows parallel provider | PARPROV1 consumes verified HIR38/PARSEL1/PARINV1, measures caller-owned outcomes and workspace, and executes any verified finite logical task count through constant-size Windows worker waves of capacity one or two. Semantic outcomes exclude provider capacity; a separate receipt records physical overlap. | `source-backed-current` only for the Windows x64 pure scalar component, five-task and seventeen-argument execution, capacity-one/two semantic equality, monotonic rendezvous, exact workspace, transactional semantic outputs, aliases, and independent verification. Workspace may contain partial physical values after failure. Linux/other providers, emitted task entries, cancellation/outcomes, general scheduling, public products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1609 | measured parallel task-entry emission | PARMLIR1 consumes verified HIR38/PARSEL1/PARINV1 and emits one runtime-parameterized task entry per measured task while preserving byte-identical `w-seed-mlir0-parallel-entry-2` artifacts for compatible inputs. | `source-backed-current` only for caller-owned measure/emit/verify, producer-digest binding, transaction and alias barriers, two-task byte equivalence, five-task and seventeen-argument C23 evidence, and MLIR/LLVM 23.1.1 Windows COFF plus Linux PIC ELF object emission for five tasks. The 64-function and 192-KiB seed bounds remain. Public products, cancellation/outcomes, provider-neutral scheduling, stable ABI, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1610 | measured task-lifecycle transaction and reducer | TASKLIFE1 reuses the W-1599 reducer over dense caller-owned task and event views, separates u32 semantic counts from `size_t` physical capacities, and removes the fixed four-task and 128-event ceilings from the current lifecycle contract. | `source-backed-current` only for shared TASKLIFE0/TASKLIFE1 reduction, transactional measure/run/verify, complete alias and capacity barriers, compatible fixed-record equality, a five-task fail-fast cancellation/drain witness, and a 137-event C23 witness. Verified-HIR/provider binding, physical interruption, panic payloads, scheduling, public Task ABI, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1611 | verified provider-outcome lifecycle binding | PARLIFE1 consumes verified successful PARPROV1 outcomes and their digest, derives measured TASKLIFE1 storage and a complete success trace, and publishes a checked lexical scope fold independently from provider capacity. | `source-backed-current` only for the five-task Windows compiler/component success path, provider-capacity-one/two byte equality, caller-owned measure/run/verify, complete upstream/output alias barriers, checked scope folding, and adversarial capacity/forgery evidence. Typed physical failure, cancellation request/interruption, panic, scheduling, public Task ABI/execution, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -13053,7 +13055,31 @@ counts, result, task-output, and trace ranges are pairwise disjoint.
 The focused tests preserve fixed-path behavior, then execute five logical tasks
 through fail-fast cancellation and complete cleanup, join, and release before
 publishing the lexical typed error. A second valid trace contains 137 events.
-These cases remove storage ceilings only. The next increment must bind lifecycle
-records to verified HIR and physical provider outcomes, with panic represented
-separately from typed failure and cancellation request separately from canceled
-completion.
+These cases remove storage ceilings only. W-1611 subsequently binds verified
+successful physical provider outcomes. Typed provider failure and cancellation
+remain the next increment, with panic represented separately from typed failure
+and cancellation request separately from canceled completion.
+
+#### W-1611 — verified provider-outcome lifecycle binding
+
+The measured reducer made lifecycle cardinality honest, but PARPROV1 success
+outcomes still ended at a detached digest. PARLIFE1 closes that boundary without
+turning a provider callback, worker handle, or capacity fact into task semantics.
+It independently verifies the full HIR/PARSEL1/PARINV1/PARPROV1 chain, then
+derives one lexical TASKLIFE1 task per ordered provider outcome.
+
+The generated trace is deliberately explicit: reserve and publish all children,
+settle and clean each successful body, commit outcomes, join and release in
+lexical order, drain the scope, and only then publish its checked signed-`i64`
+fold. Exact measurement and pairwise range checks precede semantic writes.
+Scratch remains caller-owned and disposable; output and result are
+transactional. Rebuilding the transaction during verification prevents a
+caller-supplied trace from becoming authority.
+
+The five-task provider witness produces identical lifecycle task records, trace,
+and result at physical capacities one and two. That equality is evidence that
+capacity remains a receipt fact rather than semantic identity. This cut is
+success-only by construction. The next cut must extend the physical provider
+completion record with explicit success, typed language error, and cancellation
+tags. Panic remains a separate boundary and physical cancellation remains
+cooperative; neither is inferred from worker termination.

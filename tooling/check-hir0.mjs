@@ -69,7 +69,7 @@ try {
     fail("task lifecycle unit witness is missing")
   }
   process.stdout.write(
-    "HIR0: caller-owned verified single/multi-document HIR, bounded product closure, measured task lifecycle, and adversarial barriers passed\n",
+    "HIR0: caller-owned verified single/multi-document HIR, bounded product closure, measured task lifecycle, provider-bound success outcomes, and adversarial barriers passed\n",
   )
 } finally {
   await rm(buildDirectory, { recursive: true, force: true })

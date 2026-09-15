@@ -2,6 +2,7 @@
 #include "w_seed_mlir0.h"
 #include "w_seed_parallel_invocation0.h"
 #include "w_seed_parallel_invocation1.h"
+#include "w_seed_parallel_lifecycle1.h"
 #include "w_seed_parallel_provider0.h"
 #include "w_seed_parallel_provider1.h"
 #include "w_seed_parallel_selection0.h"
@@ -532,6 +533,173 @@ static bool test_parallel_provider1_windows(
     CHECK(parallel_outcomes[index].function_index ==
               sequential_outcomes[index].function_index &&
           parallel_outcomes[index].value == sequential_outcomes[index].value);
+
+  w_seed_parallel_lifecycle1_input lifecycle_input = {
+      &input, parallel_outcomes, 5u, &parallel_result, 300u};
+  w_seed_parallel_lifecycle1_counts lifecycle_counts;
+  w_seed_parallel_lifecycle1_result lifecycle_measured;
+  CHECK(w_seed_parallel_lifecycle1_measure(
+            &lifecycle_input, &lifecycle_counts, &lifecycle_measured) ==
+            W_SEED_PARALLEL_LIFECYCLE1_OK &&
+        lifecycle_counts.task_specs == 5u &&
+        lifecycle_counts.events == 45u &&
+        lifecycle_counts.task_records == 5u &&
+        lifecycle_counts.trace_events == 45u &&
+        lifecycle_measured.written.task_specs == 0u &&
+        lifecycle_measured.written.events == 0u &&
+        lifecycle_measured.written.task_records == 0u &&
+        lifecycle_measured.written.trace_events == 0u);
+  union {
+    w_seed_parallel_lifecycle1_counts counts;
+    w_seed_parallel_lifecycle1_result result;
+  } lifecycle_measure_alias;
+  (void)memset(&lifecycle_measure_alias, 0x80,
+               sizeof(lifecycle_measure_alias));
+  unsigned char lifecycle_measure_alias_before[sizeof(lifecycle_measure_alias)];
+  (void)memcpy(lifecycle_measure_alias_before, &lifecycle_measure_alias,
+               sizeof(lifecycle_measure_alias_before));
+  CHECK(w_seed_parallel_lifecycle1_measure(
+            &lifecycle_input, &lifecycle_measure_alias.counts,
+            &lifecycle_measure_alias.result) ==
+            W_SEED_PARALLEL_LIFECYCLE1_ALIAS &&
+        memcmp(&lifecycle_measure_alias, lifecycle_measure_alias_before,
+               sizeof(lifecycle_measure_alias)) == 0);
+
+  w_seed_task_lifecycle0_task_spec lifecycle_specs[5];
+  w_seed_task_lifecycle0_event lifecycle_events[45];
+  w_seed_task_lifecycle0_task_record lifecycle_reducer[5];
+  w_seed_task_lifecycle0_task_record lifecycle_tasks[5];
+  w_seed_task_lifecycle0_event lifecycle_trace[45];
+  const w_seed_parallel_lifecycle1_workspace lifecycle_workspace = {
+      lifecycle_specs, 5u, lifecycle_events, 45u, lifecycle_reducer, 5u};
+  const w_seed_parallel_lifecycle1_output lifecycle_output = {
+      lifecycle_tasks, 5u, lifecycle_trace, 45u};
+  w_seed_parallel_lifecycle1_result lifecycle_result;
+  CHECK(w_seed_parallel_lifecycle1_run(
+            &lifecycle_input, &lifecycle_workspace, &lifecycle_output,
+            &lifecycle_result) == W_SEED_PARALLEL_LIFECYCLE1_OK &&
+        w_seed_parallel_lifecycle1_verify(
+            &lifecycle_input, &lifecycle_workspace, &lifecycle_output,
+            &lifecycle_result) &&
+        lifecycle_result.lifecycle.scope.state ==
+            W_SEED_TASK_LIFECYCLE0_SCOPE_JOINED &&
+        lifecycle_result.lifecycle.scope.outcome.kind ==
+            W_SEED_TASK_LIFECYCLE0_OUTCOME_SUCCESS &&
+        lifecycle_result.lifecycle.scope.outcome.success_value == 125 &&
+        memcmp(lifecycle_result.provider_outcome_digest,
+               parallel_result.outcome_digest,
+               sizeof(lifecycle_result.provider_outcome_digest)) == 0);
+  for (size_t index = 0u; index < 5u; index += 1u)
+    CHECK(lifecycle_tasks[index].state ==
+              W_SEED_TASK_LIFECYCLE0_TASK_RELEASED &&
+          lifecycle_tasks[index].outcome.kind ==
+              W_SEED_TASK_LIFECYCLE0_OUTCOME_SUCCESS &&
+          lifecycle_tasks[index].outcome.success_value ==
+              parallel_outcomes[index].value);
+
+  input.provider_capacity = 1u;
+  lifecycle_input.provider_outcomes = sequential_outcomes;
+  lifecycle_input.provider_result = &sequential_result;
+  w_seed_task_lifecycle0_task_spec sequential_specs[5];
+  w_seed_task_lifecycle0_event sequential_events[45];
+  w_seed_task_lifecycle0_task_record sequential_reducer[5];
+  w_seed_task_lifecycle0_task_record sequential_tasks[5];
+  w_seed_task_lifecycle0_event sequential_trace[45];
+  const w_seed_parallel_lifecycle1_workspace sequential_lifecycle_workspace = {
+      sequential_specs, 5u, sequential_events, 45u, sequential_reducer, 5u};
+  const w_seed_parallel_lifecycle1_output sequential_lifecycle_output = {
+      sequential_tasks, 5u, sequential_trace, 45u};
+  w_seed_parallel_lifecycle1_result sequential_lifecycle_result;
+  CHECK(w_seed_parallel_lifecycle1_run(
+            &lifecycle_input, &sequential_lifecycle_workspace,
+            &sequential_lifecycle_output, &sequential_lifecycle_result) ==
+            W_SEED_PARALLEL_LIFECYCLE1_OK &&
+        w_seed_parallel_lifecycle1_verify(
+            &lifecycle_input, &sequential_lifecycle_workspace,
+            &sequential_lifecycle_output, &sequential_lifecycle_result) &&
+        memcmp(&sequential_lifecycle_result, &lifecycle_result,
+               sizeof(lifecycle_result)) == 0 &&
+        memcmp(sequential_tasks, lifecycle_tasks,
+               sizeof(lifecycle_tasks)) == 0 &&
+        memcmp(sequential_trace, lifecycle_trace,
+               sizeof(lifecycle_trace)) == 0);
+
+  w_seed_task_lifecycle0_task_record short_lifecycle_tasks[5];
+  w_seed_task_lifecycle0_event short_lifecycle_trace[45];
+  (void)memset(short_lifecycle_tasks, 0x81, sizeof(short_lifecycle_tasks));
+  (void)memset(short_lifecycle_trace, 0x82, sizeof(short_lifecycle_trace));
+  w_seed_parallel_lifecycle1_result lifecycle_sentinel;
+  (void)memset(&lifecycle_sentinel, 0x83, sizeof(lifecycle_sentinel));
+  const w_seed_task_lifecycle0_task_record short_lifecycle_tasks_before[5] = {
+      short_lifecycle_tasks[0], short_lifecycle_tasks[1],
+      short_lifecycle_tasks[2], short_lifecycle_tasks[3],
+      short_lifecycle_tasks[4]};
+  w_seed_task_lifecycle0_event short_lifecycle_trace_before[45];
+  (void)memcpy(short_lifecycle_trace_before, short_lifecycle_trace,
+               sizeof(short_lifecycle_trace_before));
+  const w_seed_parallel_lifecycle1_result lifecycle_sentinel_before =
+      lifecycle_sentinel;
+  const w_seed_parallel_lifecycle1_output short_lifecycle_output = {
+      short_lifecycle_tasks, 5u, short_lifecycle_trace, 44u};
+  CHECK(w_seed_parallel_lifecycle1_run(
+            &lifecycle_input, &lifecycle_workspace, &short_lifecycle_output,
+            &lifecycle_sentinel) == W_SEED_PARALLEL_LIFECYCLE1_CAPACITY &&
+        memcmp(short_lifecycle_tasks, short_lifecycle_tasks_before,
+               sizeof(short_lifecycle_tasks)) == 0 &&
+        memcmp(short_lifecycle_trace, short_lifecycle_trace_before,
+               sizeof(short_lifecycle_trace)) == 0 &&
+        memcmp(&lifecycle_sentinel, &lifecycle_sentinel_before,
+               sizeof(lifecycle_sentinel)) == 0);
+
+  const w_seed_parallel_provider1_outcome parallel_outcomes_before[5] = {
+      parallel_outcomes[0], parallel_outcomes[1], parallel_outcomes[2],
+      parallel_outcomes[3], parallel_outcomes[4]};
+  lifecycle_input.provider_outcomes = parallel_outcomes;
+  lifecycle_input.provider_result = &parallel_result;
+  input.provider_capacity = 2u;
+  const w_seed_parallel_lifecycle1_workspace lifecycle_alias_workspace = {
+      (w_seed_task_lifecycle0_task_spec *)(void *)parallel_outcomes, 5u,
+      lifecycle_events, 45u, lifecycle_reducer, 5u};
+  CHECK(w_seed_parallel_lifecycle1_run(
+            &lifecycle_input, &lifecycle_alias_workspace, &lifecycle_output,
+            &lifecycle_sentinel) == W_SEED_PARALLEL_LIFECYCLE1_ALIAS &&
+        memcmp(parallel_outcomes, parallel_outcomes_before,
+               sizeof(parallel_outcomes)) == 0 &&
+        memcmp(&lifecycle_sentinel, &lifecycle_sentinel_before,
+               sizeof(lifecycle_sentinel)) == 0);
+  w_seed_task_lifecycle0_task_record lifecycle_tasks_before_alias[5];
+  w_seed_task_lifecycle0_event lifecycle_trace_before_alias[45];
+  (void)memcpy(lifecycle_tasks_before_alias, lifecycle_tasks,
+               sizeof(lifecycle_tasks_before_alias));
+  (void)memcpy(lifecycle_trace_before_alias, lifecycle_trace,
+               sizeof(lifecycle_trace_before_alias));
+  CHECK(w_seed_parallel_lifecycle1_run(
+            &lifecycle_input, &lifecycle_workspace, &lifecycle_output,
+            (w_seed_parallel_lifecycle1_result *)(void *)lifecycle_tasks) ==
+            W_SEED_PARALLEL_LIFECYCLE1_ALIAS &&
+        memcmp(lifecycle_tasks, lifecycle_tasks_before_alias,
+               sizeof(lifecycle_tasks)) == 0 &&
+        memcmp(lifecycle_trace, lifecycle_trace_before_alias,
+               sizeof(lifecycle_trace)) == 0);
+
+  w_seed_parallel_lifecycle1_result forged_lifecycle = lifecycle_result;
+  forged_lifecycle.lifecycle.transaction_digest ^= UINT64_C(1);
+  CHECK(!w_seed_parallel_lifecycle1_verify(
+      &lifecycle_input, &lifecycle_workspace, &lifecycle_output,
+      &forged_lifecycle));
+  w_seed_parallel_provider1_result forged_provider = parallel_result;
+  forged_provider.outcome_digest[0] ^= 1u;
+  lifecycle_input.provider_result = &forged_provider;
+  CHECK(w_seed_parallel_lifecycle1_run(
+            &lifecycle_input, &lifecycle_workspace, &lifecycle_output,
+            &lifecycle_sentinel) == W_SEED_PARALLEL_LIFECYCLE1_INVALID &&
+        memcmp(&lifecycle_sentinel, &lifecycle_sentinel_before,
+               sizeof(lifecycle_sentinel)) == 0 &&
+        memcmp(lifecycle_tasks, sequential_tasks, sizeof(lifecycle_tasks)) ==
+            0 &&
+        memcmp(lifecycle_trace, sequential_trace, sizeof(lifecycle_trace)) ==
+            0);
+  lifecycle_input.provider_result = &parallel_result;
 
   w_seed_parallel_provider1_outcome short_outcomes[4];
   int64_t short_workspace[5];

@@ -120,6 +120,9 @@ W-1610 opens rank 3 without reintroducing a storage ceiling. TASKLIFE1 runs the
 W-1599 lifecycle state machine over measured caller-owned task and event views.
 A five-task fail-fast witness cancels and drains four unfinished siblings before
 deterministic error publication, and a 137-event witness crosses the former
-fixed trace limit. The next dependency is verified-HIR and PARPROV1 outcome
-binding, followed by an explicit panic boundary; physical cancellation remains
+fixed trace limit. W-1611 now binds verified successful PARPROV1 outcomes into
+that measured lifecycle: provider capacities one and two produce identical
+five-task records, trace, and scope value. The next dependency is a typed
+physical completion relation for success, language error, and cancellation,
+followed by an explicit panic boundary. Physical cancellation remains
 cooperative rather than thread termination.
