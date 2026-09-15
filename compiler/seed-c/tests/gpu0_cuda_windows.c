@@ -6,7 +6,6 @@
  * surface used by this experimental probe.  It is not the W runtime.
  */
 
-#include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -194,20 +193,27 @@ static bool parse_iteration_count(const char *text, unsigned int *value) {
 
 static bool parse_expected_i32(const char *text, int32_t *value) {
   if (text == NULL || value == NULL || text[0] == '\0') return false;
-  errno = 0;
-  char *end = NULL;
-  const long long parsed = strtoll(text, &end, 10);
-  if (errno == ERANGE || end == text || end == NULL || *end != '\0' ||
-      parsed < (long long)INT32_MIN || parsed > (long long)INT32_MAX)
-    return false;
-  const int32_t candidate = (int32_t)parsed;
-  char canonical[16];
-  const int written = snprintf(canonical, sizeof(canonical), "%ld",
-                               (long)candidate);
-  if (written <= 0 || (size_t)written >= sizeof(canonical) ||
-      strcmp(text, canonical) != 0)
-    return false;
-  *value = candidate;
+  const char *cursor = text;
+  const bool negative = *cursor == '-';
+  if (negative && *++cursor == '\0') return false;
+  if (*cursor == '0' && cursor[1] != '\0') return false;
+  const uint32_t limit = negative ? UINT32_C(2147483648) :
+                                    UINT32_C(2147483647);
+  uint32_t magnitude = 0u;
+  do {
+    if (*cursor < '0' || *cursor > '9') return false;
+    const uint32_t digit = (uint32_t)(*cursor - '0');
+    if (magnitude > (limit - digit) / 10u) return false;
+    magnitude = magnitude * 10u + digit;
+    cursor += 1;
+  } while (*cursor != '\0');
+  if (negative && magnitude == 0u) return false;
+  if (negative && magnitude == UINT32_C(2147483648))
+    *value = INT32_MIN;
+  else if (negative)
+    *value = -(int32_t)magnitude;
+  else
+    *value = (int32_t)magnitude;
   return true;
 }
 

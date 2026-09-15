@@ -12,8 +12,8 @@
     "mlirVersion": "23.1.1",
     "clangVersion": "22.1.8",
     "recipe": "tooling/check-gpu0-cuda-windows.mjs",
-    "recipeDigest": "sha256:a09f9a9cf793b1145bdb713f55db7c929c1e0bfb3b8b1b79e924ce444d40e1f6",
-    "adapterSourceDigest": "sha256:121b528fbbdd063b5ed7f1da4cd23114baa53430694d4bd1be0164dcba8e253c",
+    "recipeDigest": "sha256:a35840e5c7eaa88911244434d31a7f1b39b20544fa26c153aa25159b4c80d511",
+    "adapterSourceDigest": "sha256:22e60f6318452135b5a00bd8acac3c3219449b877359660b1395eae5e4c53e76",
     "gpu0CoreDigest": "sha256:690b4b699f0fd74984fd7c62f5cc3316b0597899015bf3acf89b0b244c272ed1"
   },
   "correctness": {
@@ -31,7 +31,7 @@
     {
       "kind": "host-adapter",
       "sizeBytes": 14848,
-      "digest": "sha256:67a11aaf9e69291a373211eafb1d2092405c6c89fdc75a4cbf2701c87c466f7a"
+      "digest": "sha256:9dfedd83e88aa74d7ab1be864ae15d20a4802bd5f010e5c78edca54c3a5acdfb"
     },
     {
       "kind": "host-mlir",
@@ -54,25 +54,25 @@
       "id": "h2d",
       "unit": "ns",
       "p50": 2900,
-      "p95": 15300
+      "p95": 13400
     },
     {
       "id": "dispatch-sync",
       "unit": "ns",
-      "p50": 6800,
-      "p95": 29400
+      "p50": 6700,
+      "p95": 9500
     },
     {
       "id": "d2h",
       "unit": "ns",
-      "p50": 7400,
-      "p95": 17800
+      "p50": 7300,
+      "p95": 17700
     },
     {
       "id": "end-to-end",
       "unit": "ns",
-      "p50": 17300,
-      "p95": 40400
+      "p50": 19500,
+      "p95": 29100
     }
   ],
   "boundaries": {

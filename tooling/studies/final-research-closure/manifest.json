@@ -55,7 +55,7 @@
       "id": "FRC0-bundle",
       "role": "bundle",
       "path": "tooling/studies/final-research-closure/bundle.json",
-      "digest": "sha256:f365e7b6d39cd1f66eece68eb8338559095bd3b08ec6025e74e883fb9decaa78"
+      "digest": "sha256:0312f5e9f7dbe7238b18880b503b6fac88bcf8efa8bb982ac0047c81a3f45a19"
     },
     {
       "id": "FRC0-study",
@@ -181,7 +181,7 @@
       "id": "FRC0-classification",
       "role": "classification",
       "path": "tooling/design-freeze-classification.json",
-      "digest": "sha256:f93848b45f277e20d1b68a1fb6908c697b15fc404c1c8296805a1f651d9d8b41"
+      "digest": "sha256:58fd3bfb48cd22d61c70d5a2d2505dce9edc2531b1b0502cd955f32849db17a2"
     },
     {
       "id": "FRC0-ledger",
