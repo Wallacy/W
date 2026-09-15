@@ -12,7 +12,7 @@
     "mlirVersion": "23.1.1",
     "clangVersion": "22.1.8",
     "recipe": "tooling/check-gpu0-cuda-windows.mjs",
-    "recipeDigest": "sha256:a35840e5c7eaa88911244434d31a7f1b39b20544fa26c153aa25159b4c80d511",
+    "recipeDigest": "sha256:4a44beee5b72487d3f3e0188e1c0dcd6f648461219037d08031a50c5cbf734ed",
     "adapterSourceDigest": "sha256:22e60f6318452135b5a00bd8acac3c3219449b877359660b1395eae5e4c53e76",
     "gpu0CoreDigest": "sha256:690b4b699f0fd74984fd7c62f5cc3316b0597899015bf3acf89b0b244c272ed1"
   },
@@ -34,14 +34,9 @@
       "digest": "sha256:9dfedd83e88aa74d7ab1be864ae15d20a4802bd5f010e5c78edca54c3a5acdfb"
     },
     {
-      "kind": "host-mlir",
-      "sizeBytes": 814,
-      "digest": "sha256:42ea3719133c173f1afd2045b350ce63cb99615206cd0ce84fefcc3519d955b0"
-    },
-    {
       "kind": "device-mlir",
-      "sizeBytes": 428,
-      "digest": "sha256:4c7200b5e98c6df822203981e9388e8d8c33bd5f6021eab9758d2a78ee477e86"
+      "sizeBytes": 423,
+      "digest": "sha256:af6483b71c9d9c1142acf7a97f363264d1494b4b1ca645b938d526ac157a74c4"
     },
     {
       "kind": "device-ptx",
@@ -54,25 +49,25 @@
       "id": "h2d",
       "unit": "ns",
       "p50": 2900,
-      "p95": 13400
+      "p95": 14400
     },
     {
       "id": "dispatch-sync",
       "unit": "ns",
-      "p50": 6700,
-      "p95": 9500
+      "p50": 6900,
+      "p95": 34000
     },
     {
       "id": "d2h",
       "unit": "ns",
-      "p50": 7300,
-      "p95": 17700
+      "p50": 7500,
+      "p95": 17400
     },
     {
       "id": "end-to-end",
       "unit": "ns",
-      "p50": 19500,
-      "p95": 29100
+      "p50": 17500,
+      "p95": 47100
     }
   ],
   "boundaries": {

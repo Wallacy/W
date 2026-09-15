@@ -23,7 +23,7 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:ec2e9e58eb7817339e415d5ea0dbd9fc29704ab034eccfcc1c38338070ffc752",
+    "sha256": "sha256:186bded886ed6ce4e08ba40109ccc1773b3ee5129c41996843b0b36b86518d50",
     "count": 1605,
     "first": "W-001",
     "last": "W-1605"
@@ -21869,7 +21869,7 @@
         "path": "DESIGN.md",
         "section": "26",
         "heading": "## 26. Plano de implementação",
-        "sectionDigest": "sha256:6c19ed13c565f06518d1779d3ebd3044124a7e446014a40eb478f6d4b01f643c"
+        "sectionDigest": "sha256:b6291ecab04ba9e969eb2cb475fa100bdc2f562fc884e746a4ce7190821ceb4b"
       },
       "evidence": [],
       "reason": "W-659 (body de entry, sha256:f66ab57406ddb51303f9190376daf72d8f538bd7bd8adfbf9992ae3d7223e74e) has no executable witness for component implementation-plan. The checked current contract is DESIGN.md §26 / 26. Plano de implementação.",
@@ -53189,7 +53189,7 @@
           "path": "compiler/seed-c/CMakeLists.txt",
           "symbol": "W_MLIR0_LINUX_LINK_DRIVER",
           "claim": "The opt-in Linux build requires an absolute linker that advertises elf_x86_64 support.",
-          "sha256": "sha256:32961a27fe3922edf750b1b6d46b8716ea2c9ab50cd0511c1e3dab894dce213d"
+          "sha256": "sha256:384859a52f1eeb26bfc8e1c2ea55d1b2d35905b64f09a2fd1eaa165acfdc90c1"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -56427,7 +56427,7 @@
         "path": "DESIGN.md",
         "section": "26.4.1.82",
         "heading": "#### 26.4.1.82 W-1601 — bounded target-neutral GPU0 witness and CUDA linkage evidence (Current design; implementation-evidence-gap)",
-        "sectionDigest": "sha256:f4345f5bcd28dda539bae883978de9edb6c1b292cdc75a3aa35f140f601b9a36"
+        "sectionDigest": "sha256:16e016e69f887fe42573d8cac1f755fb0269f41a5290046dac0096611e182c06"
       },
       "evidence": [],
       "gap": {
@@ -56485,13 +56485,13 @@
           "path": "tooling/check-gpu0-cuda-windows.mjs",
           "symbol": "flattenKernelModule",
           "claim": "The experimental gate lowers exactly one GPU0 device kernel and executes it through the available CUDA Driver provider.",
-          "sha256": "sha256:a35840e5c7eaa88911244434d31a7f1b39b20544fa26c153aa25159b4c80d511"
+          "sha256": "sha256:4a44beee5b72487d3f3e0188e1c0dcd6f648461219037d08031a50c5cbf734ed"
         },
         {
           "path": "benchmarks/gpu0-device-linkage-catalog.json",
           "symbol": "metrics",
           "claim": "The isolated diagnostic catalog records temporary artifact sizes and in-process phase summaries without product ranking.",
-          "sha256": "sha256:026ed63305c19989c7be521dd93a2a73fead02a28841b42f507b5d7174a992f9"
+          "sha256": "sha256:643104bb56887a03d8f8c319d929350694d81a769bf816d92a5dcf3d6472bb08"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -56606,7 +56606,7 @@
           "path": "compiler/seed-c/tests/test_accelerated_invocation0.c",
           "symbol": "source->frontend28->gpu-module-1->program: PASS",
           "claim": "The C23 fixture covers the real producer chain, teardown, capacities, aliases, and forged relations.",
-          "sha256": "sha256:5c4be970717a4e50807722b1554c532c7676376ad439163aedd6589a47f3c099"
+          "sha256": "sha256:dd3f08c4900448f096496fe3899901ba056958667f447d87465155a2f513b1d1"
         },
         {
           "path": "tooling/check-accelerated-invocation0.mjs",

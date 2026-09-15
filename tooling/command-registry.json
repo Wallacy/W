@@ -1208,7 +1208,7 @@
       ]
     },
     "check:gpu0": {
-      "description": "Validate GPU0 logical IR, MLIR GPU lowering, and available Windows CUDA execution.",
+      "description": "Validate the source-derived ACCREQ0 GPU route, MLIR GPU lowering, and available Windows CUDA execution.",
       "steps": [
         {
           "kind": "bun",

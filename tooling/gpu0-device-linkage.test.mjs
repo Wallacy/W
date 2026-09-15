@@ -17,7 +17,7 @@ const live = JSON.parse(await readFile(
 describe("GPU0 diagnostic catalog", () => {
   test("live snapshot and concise projection are current", async () => {
     expect(validateGpu0Catalog(structuredClone(live))).toEqual(live);
-    expect(renderGpu0Catalog(live)).toContain("not source-backed W");
+    expect(renderGpu0Catalog(live)).toContain("not yet a complete W executable");
     await expect(checkGpu0Catalog()).resolves.toEqual(live);
   });
 

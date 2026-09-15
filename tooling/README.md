@@ -111,8 +111,9 @@ device-module bridge, and the caller-owned provider-neutral projection into
 GPU0 records and device artifact. The accelerated binding gate additionally
 cross-checks verified ACCBIND0 and GPU0 meanings into one independently
 verified ACCREQ0 request whose copied artifact survives producer teardown.
-The GPU gate then proves the separate MLIR GPU/NVVM
-lowering, CUDA result `42`, and fail-closed provider cases when the Windows
+The GPU gate obtains the exact device MLIR, kernel symbol, and expected result
+from that ACCREQ0, then proves MLIR GPU/NVVM lowering, CUDA result `42`, and
+fail-closed provider cases when the Windows
 provider is available. `bun benchmark gpu0` refreshes
 only `benchmarks/gpu0-device-linkage-catalog.json` and its concise
 `benchmarks/GPU0.md` projection from 101 warmups and 1001 in-process samples;

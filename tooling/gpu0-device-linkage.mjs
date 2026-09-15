@@ -56,7 +56,7 @@ export function validateGpu0Catalog(value) {
       value.protocol.samples % 2 === 0 || value.protocol.aggregation !== "nearest-rank" ||
       value.protocol.contextModuleAllocationOutsideTiming !== true)
     fail("benchmark protocol is invalid");
-  uniqueKinds(value.artifacts, ["host-adapter", "host-mlir", "device-mlir", "device-ptx"], "artifact");
+  uniqueKinds(value.artifacts, ["host-adapter", "device-mlir", "device-ptx"], "artifact");
   for (const artifact of value.artifacts) {
     if (!exactKeys(artifact, ["kind", "sizeBytes", "digest"]) ||
         !Number.isSafeInteger(artifact.sizeBytes) || artifact.sizeBytes < 1 ||
@@ -85,7 +85,7 @@ export function renderGpu0Catalog(value) {
   const metric = Object.fromEntries(value.metrics.map((entry) => [entry.id, entry]));
   return `# GPU0 device-linkage diagnostic\n\n` +
     `Experimental compiler/linkage evidence on ${value.identity.device} (${value.identity.target}, driver ${value.identity.driverVersion}). ` +
-    `It is not source-backed W, a W runtime/provider, homogeneous toolchain support, or a product ranking.\n\n` +
+    `Its device request is derived from the W fixture through ACCREQ0; it is not yet a complete W executable, a W runtime/provider, homogeneous toolchain support, or a product ranking.\n\n` +
     `| Observation | Value |\n| --- | ---: |\n` +
     `| Correct result | ${value.correctness.observed} |\n` +
     `| H2D p50 / p95 | ${formatNanoseconds(metric.h2d.p50)} / ${formatNanoseconds(metric.h2d.p95)} |\n` +
@@ -93,7 +93,7 @@ export function renderGpu0Catalog(value) {
     `| D2H p50 / p95 | ${formatNanoseconds(metric.d2h.p50)} / ${formatNanoseconds(metric.d2h.p95)} |\n` +
     `| End-to-end p50 / p95 | ${formatNanoseconds(metric["end-to-end"].p50)} / ${formatNanoseconds(metric["end-to-end"].p95)} |\n` +
     `| Host adapter | ${artifact["host-adapter"].sizeBytes} B |\n` +
-    `| Host / device MLIR | ${artifact["host-mlir"].sizeBytes} B / ${artifact["device-mlir"].sizeBytes} B |\n` +
+    `| Device MLIR | ${artifact["device-mlir"].sizeBytes} B |\n` +
     `| PTX | ${artifact["device-ptx"].sizeBytes} B |\n` +
     `| Protocol | ${value.protocol.warmups} warmups, ${value.protocol.samples} in-process samples |\n` +
     `| Toolchain | MLIR ${value.identity.mlirVersion} + Clang ${value.identity.clangVersion} |\n\n` +

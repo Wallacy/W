@@ -125,11 +125,12 @@ readiness or completeness.
 
 ### GPU0 diagnostic lane
 
-GPU0 deliberately stays outside `executable-catalog.json`: the current C23
-semantic witness and CUDA adapter are not a source-backed W executable.
+GPU0 deliberately stays outside `executable-catalog.json`: its device request
+is source-derived through ACCREQ0, but the current C23 witness and private CUDA
+adapter are not a complete source-backed W executable.
 [`gpu0-device-linkage-catalog.json`](gpu0-device-linkage-catalog.json) keeps one
 current native-Windows diagnostic snapshot, and [`GPU0.md`](GPU0.md) is its
-concise human projection. It records temporary host/device artifact sizes and
+concise human projection. It records temporary adapter/device artifact sizes and
 nearest-rank p50/p95 for in-process H2D, dispatch-plus-synchronize, D2H, and
 complete round trip. Context, module lookup, and device allocation happen
 before warmup and timing. No binary or raw run history is retained.

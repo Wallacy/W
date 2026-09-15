@@ -61,14 +61,14 @@
     },
     "artifacts": {
       "type": "array",
-      "minItems": 4,
-      "maxItems": 4,
+      "minItems": 3,
+      "maxItems": 3,
       "items": {
         "type": "object",
         "additionalProperties": false,
         "required": ["kind", "sizeBytes", "digest"],
         "properties": {
-          "kind": { "enum": ["host-adapter", "host-mlir", "device-mlir", "device-ptx"] },
+          "kind": { "enum": ["host-adapter", "device-mlir", "device-ptx"] },
           "sizeBytes": { "type": "integer", "minimum": 1 },
           "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
         }

@@ -2206,16 +2206,18 @@ separate target-neutral host and device MLIR. The canonical fixture payload is
 `42`; the fixed shape is evidence-only and does not constrain the language or
 ABI.
 
-`bun check --target gpu0` compiles the C23 unit and emitter, parses both
-artifacts with pinned MLIR/LLVM 23.1.1, lowers the device module through
+`bun check --target gpu0` uses one C23 seed build for the source/module,
+ACCINV0, ACCBIND0, ACCREQ0, and GPU0 witnesses. It obtains the exact device
+artifact, kernel symbol, and expected result from the independently verified
+ACCREQ0, parses that artifact with pinned MLIR/LLVM 23.1.1, and lowers it through
 GPU/NVVM/LLVM, emits `sm_86` PTX with system Clang 22, and executes it through
 a dynamic `nvcuda.dll` Driver API adapter when the provider is available.
 Missing-provider and missing-kernel cases fail closed. The adapter takes a
 canonical signed-`i32` expected result instead of embedding the sentinel;
 malformed expectations fail before provider loading and a valid-but-wrong
-expectation proves post-execution comparison. The gate currently passes `42`
-directly; transport from ACCREQ0 remains the next boundary. Every produced
-file is temporary.
+expectation proves post-execution comparison. Every produced file is temporary;
+the adapter remains a private process boundary rather than a public W runtime
+or provider ABI.
 
 `bun benchmark gpu0` refreshes the separate diagnostic snapshot in
 `benchmarks/GPU0.md`. Context, module, function lookup, and device allocation
@@ -2248,8 +2250,8 @@ projection text, and carries the verified kernel payload into the exact GPU0
 operation pair. The projected program remains verifiable after the bridge
 storage is released; no heap or provider/runtime handle is introduced.
 
-`bun check --target gpu0` runs this source bridge and projection before the
-separate GPU0 artifact/CUDA experiment. This package still does not implement
+`bun check --target gpu0` runs this source bridge and projection through the
+ACCREQ0-derived GPU0 artifact/CUDA experiment. This package still does not implement
 typed `.launch`, a W runtime/provider, public GPU build/run, a supported GPU
 ABI, or a homogeneous pinned production toolchain. Those boundaries keep
 roadmap rank 1 open.

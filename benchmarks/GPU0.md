@@ -1,16 +1,16 @@
 # GPU0 device-linkage diagnostic
 
-Experimental compiler/linkage evidence on NVIDIA RTX A400 (sm_86, driver 581.42). It is not source-backed W, a W runtime/provider, homogeneous toolchain support, or a product ranking.
+Experimental compiler/linkage evidence on NVIDIA RTX A400 (sm_86, driver 581.42). Its device request is derived from the W fixture through ACCREQ0; it is not yet a complete W executable, a W runtime/provider, homogeneous toolchain support, or a product ranking.
 
 | Observation | Value |
 | --- | ---: |
 | Correct result | 42 |
-| H2D p50 / p95 | 2.9 us / 13.4 us |
-| Dispatch + synchronize p50 / p95 | 6.7 us / 9.5 us |
-| D2H p50 / p95 | 7.3 us / 17.7 us |
-| End-to-end p50 / p95 | 19.5 us / 29.1 us |
+| H2D p50 / p95 | 2.9 us / 14.4 us |
+| Dispatch + synchronize p50 / p95 | 6.9 us / 34.0 us |
+| D2H p50 / p95 | 7.5 us / 17.4 us |
+| End-to-end p50 / p95 | 17.5 us / 47.1 us |
 | Host adapter | 14848 B |
-| Host / device MLIR | 814 B / 428 B |
+| Device MLIR | 423 B |
 | PTX | 502 B |
 | Protocol | 101 warmups, 1001 in-process samples |
 | Toolchain | MLIR 23.1.1 + Clang 22.1.8 |
