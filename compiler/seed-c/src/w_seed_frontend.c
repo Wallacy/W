@@ -5217,6 +5217,7 @@ static bool kind_is_statement(w_seed_cst_kind kind) {
          kind == W_SEED_CST_VAR_STATEMENT ||
          kind == W_SEED_CST_RETURN_STATEMENT ||
          kind == W_SEED_CST_THROW_STATEMENT ||
+         kind == W_SEED_CST_DEFER_STATEMENT ||
          kind == W_SEED_CST_IF_STATEMENT ||
          kind == W_SEED_CST_WHILE_STATEMENT ||
          kind == W_SEED_CST_GUARD_STATEMENT ||
@@ -15520,6 +15521,12 @@ static bool normalize_statement_depth(frontend_context *context,
     case W_SEED_CST_THROW_STATEMENT:
       value.kind = W_SEED_FRONTEND_STMT_THROW;
       break;
+    case W_SEED_CST_DEFER_STATEMENT:
+      value.kind =
+          (node->flags & W_SEED_CST_DEFER_FLAG_ASYNC) == 0u
+              ? W_SEED_FRONTEND_STMT_DEFER
+              : W_SEED_FRONTEND_STMT_UNSUPPORTED;
+      break;
     case W_SEED_CST_IF_STATEMENT:
       value.kind = W_SEED_FRONTEND_STMT_IF;
       break;
@@ -15840,7 +15847,8 @@ static bool normalize_statement_depth(frontend_context *context,
       node->kind == W_SEED_CST_WHILE_STATEMENT ||
       node->kind == W_SEED_CST_REPEAT_STATEMENT ||
       node->kind == W_SEED_CST_GUARD_STATEMENT ||
-      node->kind == W_SEED_CST_FOR_STATEMENT) {
+      node->kind == W_SEED_CST_FOR_STATEMENT ||
+      node->kind == W_SEED_CST_DEFER_STATEMENT) {
     uint32_t child_cursor = node->first_child;
     uint32_t child = W_SEED_CST_NONE;
     size_t guard = 0;
@@ -16910,6 +16918,106 @@ static bool expression_is_call_callee(const frontend_context *context,
       return true;
   }
   return false;
+}
+
+/* Validate the first bounded cleanup relation only after local call identity
+ * has been resolved. A defer remains a lexical registration in frontend; no
+ * runtime cleanup stack or closure is materialized here. The accepted slice
+ * is exactly one top-level synchronous defer whose body is one direct local,
+ * zero-argument, nonthrowing Unit call. */
+static bool frontend_cleanup_relations_supported(
+    const frontend_context *context) {
+  if (context == NULL || context->output == NULL ||
+      (context->count.functions != 0u && context->output->functions == NULL) ||
+      (context->count.statements != 0u && context->output->statements == NULL) ||
+      (context->count.expressions != 0u && context->output->expressions == NULL) ||
+      (context->count.types != 0u && context->output->types == NULL))
+    return false;
+  for (size_t function_index = 0u; function_index < context->count.functions;
+       function_index += 1u) {
+    const w_seed_frontend_function *function =
+        &context->output->functions[function_index];
+    if (function->first_statement > context->count.statements ||
+        function->statement_count >
+            context->count.statements - function->first_statement)
+      return false;
+    size_t cleanup_count = 0u;
+    for (size_t offset = 0u; offset < function->statement_count; offset += 1u) {
+      const w_seed_frontend_statement *candidate =
+          &context->output->statements[function->first_statement + offset];
+      if (candidate->owner_function == function_index &&
+          candidate->kind == W_SEED_FRONTEND_STMT_DEFER)
+        cleanup_count += 1u;
+    }
+    if (cleanup_count == 0u) continue;
+    if (cleanup_count != 1u || function->first_statement == W_SEED_FRONTEND_NONE)
+      return false;
+
+    uint32_t cursor = function->first_statement;
+    uint32_t cleanup_index = W_SEED_FRONTEND_NONE;
+    bool terminal_seen = false;
+    size_t guard = 0u;
+    while (cursor != W_SEED_FRONTEND_NONE &&
+           guard < function->statement_count) {
+      if ((size_t)cursor < function->first_statement ||
+          (size_t)cursor >=
+              (size_t)function->first_statement + function->statement_count)
+        return false;
+      const w_seed_frontend_statement *statement =
+          &context->output->statements[cursor];
+      if (statement->owner_function != function_index) return false;
+      if (statement->kind == W_SEED_FRONTEND_STMT_DEFER) {
+        if (terminal_seen || cleanup_index != W_SEED_FRONTEND_NONE) return false;
+        cleanup_index = cursor;
+      }
+      if (statement->kind == W_SEED_FRONTEND_STMT_RETURN ||
+          statement->kind == W_SEED_FRONTEND_STMT_THROW)
+        terminal_seen = true;
+      cursor = statement->next_sibling;
+      guard += 1u;
+    }
+    if (cursor != W_SEED_FRONTEND_NONE ||
+        cleanup_index == W_SEED_FRONTEND_NONE)
+      return false;
+
+    const w_seed_frontend_statement *cleanup =
+        &context->output->statements[cleanup_index];
+    if (cleanup->expression_index != W_SEED_FRONTEND_NONE ||
+        cleanup->condition_expression != W_SEED_FRONTEND_NONE ||
+        cleanup->first_child == W_SEED_FRONTEND_NONE ||
+        cleanup->child_count != 1u ||
+        (size_t)cleanup->first_child >= context->count.statements)
+      return false;
+    const w_seed_frontend_statement *body =
+        &context->output->statements[cleanup->first_child];
+    if (body->owner_function != function_index ||
+        body->kind != W_SEED_FRONTEND_STMT_EXPRESSION ||
+        body->next_sibling != W_SEED_FRONTEND_NONE ||
+        body->first_child != W_SEED_FRONTEND_NONE || body->child_count != 0u ||
+        body->expression_index == W_SEED_FRONTEND_NONE ||
+        (size_t)body->expression_index >= context->count.expressions)
+      return false;
+    const w_seed_frontend_expression *call =
+        &context->output->expressions[body->expression_index];
+    if (call->kind != W_SEED_FRONTEND_EXPR_CALL || !call->supported ||
+        call->owner_function != function_index ||
+        call->resolved_callee_kind != W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION ||
+        call->resolved_function_index == W_SEED_FRONTEND_NONE ||
+        (size_t)call->resolved_function_index >= context->count.functions ||
+        call->argument_count != 0u ||
+        (size_t)call->first_argument > context->count.arguments)
+      return false;
+    const w_seed_frontend_function *target =
+        &context->output->functions[call->resolved_function_index];
+    if (target->module_index != function->module_index || target->is_async ||
+        target->is_throws || target->parameter_count != 0u ||
+        target->return_type == W_SEED_FRONTEND_NONE ||
+        (size_t)target->return_type >= context->count.types ||
+        context->output->types[target->return_type].kind !=
+            W_SEED_FRONTEND_TYPE_UNIT)
+      return false;
+  }
+  return true;
 }
 
 /* A declaration is visible in its direct sibling chain and in a descendant
@@ -19027,7 +19135,8 @@ w_seed_frontend_status w_seed_frontend_run(
     result->status = W_SEED_FRONTEND_INVALID;
     return result->status;
   }
-  bool resolved_link_unsupported = false;
+  bool resolved_link_unsupported =
+      !frontend_cleanup_relations_supported(&emit);
   for (size_t index = 0u; index < emit.count.expressions; index += 1u) {
     const w_seed_frontend_expression *expression = &output->expressions[index];
     if (expression->kind == W_SEED_FRONTEND_EXPR_TRY &&

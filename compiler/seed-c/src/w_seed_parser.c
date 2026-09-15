@@ -2105,6 +2105,25 @@ static bool parse_throw_statement(w_seed_parser *parser) {
   return true;
 }
 
+static bool parse_defer_statement(w_seed_parser *parser) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_DEFER_STATEMENT, start) ==
+      W_SEED_CST_NONE)
+    return false;
+  (void)consume_text(parser, "defer", NULL);
+  if (current_is_text(parser, "async")) {
+    parser->nodes[parser->frames[parser->frame_count - 1].node].flags |=
+        W_SEED_CST_DEFER_FLAG_ASYNC;
+    (void)consume_text(parser, "async", NULL);
+  }
+  if (!parse_block(parser, false)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  pop_node(parser, parser->last_token_end);
+  return true;
+}
+
 static bool parse_commit_statement(w_seed_parser *parser) {
   const size_t start = current_span(parser).start_byte;
   if (push_node(parser, W_SEED_CST_COMMIT_STATEMENT, start) ==
@@ -2312,6 +2331,7 @@ static bool parse_statement(w_seed_parser *parser) {
   if (current_is_text(parser, "var")) return parse_var_statement(parser);
   if (current_is_text(parser, "return")) return parse_return_statement(parser);
   if (current_is_text(parser, "throw")) return parse_throw_statement(parser);
+  if (current_is_text(parser, "defer")) return parse_defer_statement(parser);
   if (current_is_text(parser, "commit")) return parse_commit_statement(parser);
   if (current_is_text(parser, "if")) return parse_if_statement(parser);
   if (current_is_text(parser, "while")) return parse_while_statement(parser);
