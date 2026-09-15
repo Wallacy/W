@@ -273,6 +273,24 @@ those exact bytes with MLIR/LLVM 23.1.1. This is not a public W command or ABI.
 Multiple or nested cleanup, `defer async`, runtime stacks, closures, catch,
 native products, benchmarks, and performance remain unsupported.
 
+`w_seed_parallel_typed_binding1` adds the next private boundary without
+widening the success-only provider or lifecycle schemas. It re-verifies the
+exact HIR41 typed invoke and dual-path cleanup, derives the payloadless nominal
+error identity, and validates one independently evaluated success completion
+plus one typed-error completion from PLATFORM1. The provider error code is
+never interpreted as a W enum case; an explicit case ordinal must match the
+verified HIR identity.
+
+The current two-task array is only the seed witness shape. It is not a W,
+HIR, scheduler, target, runtime, or ABI limit. Physical capacities one and two
+produce identical semantic records and different physical provenance. The
+adapter stages all PLATFORM1 writes until its checks pass, publishes into
+caller-owned storage transactionally, rejects aliases against all HIR backing
+ranges, and supports independent verification. Its SHA-256 receipt proves
+integrity, not provider authentication. Native HIR execution, trusted
+attestation, typed TASKLIFE, other platform providers, public products,
+benchmarks, and performance remain unsupported.
+
 `w_seed_accelerated_invocation0` consumes only that successful Frontend28
 relation plus a verified `w_seed_gpu_module` program. ACCINV0 copies one exact
 zero-argument static launch and lexical await into caller-owned invocation and
@@ -2337,10 +2355,10 @@ settled, canceled-before-start, maximum-active, and cancellation-source facts.
 
 The focused witness produces equal five-task completions at capacities one and
 two, exercises an explicit cancellation, and rejects a noncanonical tagged
-payload. These records are still private platform scratch: they are not yet an
-authenticated PARPROV result or TASKLIFE input. Callback failure is a component
-failure. Panic/fault containment, physical preemption, source-level throw, a
-scheduler, Task ABI, and performance remain open.
+payload. W-1619 later validates one exact error completion against nominal
+HIR41, while provider authentication and TASKLIFE input remain open. Callback
+failure is a component failure. Panic/fault containment, physical preemption,
+general source-level throw, a scheduler, Task ABI, and performance remain open.
 
 ### Bounded CRT-free process/parallel provider linkage (W-1600)
 

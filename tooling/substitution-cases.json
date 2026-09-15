@@ -9770,6 +9770,58 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-parallel-typed-binding1",
+      "reviewItem": "typed physical completion binding against numeric error conventions, fail-open publication, semantic identity polluted by provider capacity, and false authentication claims",
+      "decisions": ["W-1619"],
+      "task": "Bind one bounded physical failure to its verified nominal HIR41 error identity while keeping physical provenance separate from semantic outcomes.",
+      "selected": {
+        "language": "w-internal",
+        "source": [
+          "derive the payloadless error enum and case identity from verified HIR41",
+          "validate staged PLATFORM1 completions against two distinct HIR calls before publication",
+          "keep capacity-dependent physical facts outside byte-identical semantic records"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "numeric-error-convention",
+          "language": "w-internal-rejected",
+          "source": ["interpret provider error code 17 as Failure.denied"],
+          "expectedDifference": "A physical code cannot select a nominal W error case; the explicit ordinal must match verified HIR identity."
+        },
+        {
+          "name": "publish-provider-scratch",
+          "language": "w-internal-rejected",
+          "source": ["let PLATFORM1 write caller-visible completions before semantic validation"],
+          "expectedDifference": "Provider scratch is staged and caller-owned outputs remain unchanged on every failure."
+        },
+        {
+          "name": "capacity-in-semantic-identity",
+          "language": "w-internal-rejected",
+          "source": ["hash worker capacity and overlap into semantic task outcomes"],
+          "expectedDifference": "Capacities one and two retain identical semantic records while physical receipts remain distinct."
+        },
+        {
+          "name": "digest-as-authentication",
+          "language": "w-internal-rejected",
+          "source": ["treat a SHA-256 provenance digest as proof of provider origin"],
+          "expectedDifference": "The digest supplies integrity and deterministic resealing only; trusted attestation remains a separate boundary."
+        },
+        {
+          "name": "two-task-language-limit",
+          "language": "w-internal-rejected",
+          "source": ["promote the two-record seed witness to a Task, HIR, scheduler, or ABI maximum"],
+          "expectedDifference": "Two is only the finite comparison shape of PARBIND1."
+        }
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

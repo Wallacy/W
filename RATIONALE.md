@@ -257,6 +257,7 @@ O corpus compara, no mínimo:
 - exact synchronous typed propagation in verified HIR against ordinary CALL materialization, Task or heap substitution, packed Result carriers, unproved successor channels, and fail-open ProductClosure.
 - private exact typed-propagation MLIR lowering against a wider carrier, LLVM unwind, public ABI publication, unverified text emission, and fail-open ordinary products.
 - exact synchronous cleanup preservation across typed propagation against erased cleanup, runtime cleanup stacks, unwind, and fail-open older products.
+- typed physical completion binding against numeric error conventions, fail-open publication, semantic identity polluted by provider capacity, and false authentication claims.
 - bounded dual-target process/parallel linkage against direct-call substitution, CRT fallback, hidden runtime input, target conflation, and premature public or benchmark claims.
 - bounded GPU0 target-neutral semantic and available CUDA execution against source-backed W claims, provider/runtime conflation, homogeneous toolchains, and premature public product support.
 - bounded static accelerated root binding against embedded provider handles, multiplied budgets, and unauthenticated claims.
@@ -7950,6 +7951,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1616 | exact synchronous typed propagation in verified HIR | HIR40 lowers one exact synchronous typed-try relay into a terminator-owned W_SEED_HIR0_TERMINATOR_INVOKE with normal and typed-error successor block arguments. The relay has exactly three blocks, no ordinary CALL instruction, Task, heap, or packed Result carrier, and ProductClosure0 rejects the terminator. | source-backed-current only for the HIR40 three-block relay, terminator-owned call, typed successor arguments, exact verifier, ProductClosure0 fail-closed boundary, and C23 adversarial HIR evidence. MLIR/native lowering, public ABI, catch, cleanup, conversions, general propagation, benchmarks, and performance remain gaps. benchmarkDisposition: compiler-lifecycle. |
 | W-1617 | private MLIR lowering for exact typed propagation | The exact HIR40 relay lowers through a dedicated compiler-lifecycle route to an optimizer-visible two-field `{i1 outcome, i64 payload}` LLVM aggregate. The relay performs a real call, extracts the carrier, and branches into explicit normal and typed-error successors without unwind, Task, heap, process root, or public ABI. | `source-backed-current` only for the exact payloadless one-case `Failure.denied` selector, caller-owned transactional MLIR emission and verification, target-neutral artifact bytes, C23 adversarial tests, and MLIR/LLVM 23.1.1 parsing and translation. Native product execution, public enum or error ABI, catch, cleanup, conversions, general propagation, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1618 | synchronous cleanup across exact typed propagation | HIR41 binds one dominating synchronous `defer` to the exact typed invoke and materializes one ordinary direct cleanup call in each successor; a distinct private MLIR artifact preserves both calls before returning the compact carrier. | `source-backed-current` only for one local zero-argument nonthrowing Unit cleanup, one exact payloadless typed relay, caller-owned HIR records, transactional selector/emission, fail-closed pre-existing routes, C23 adversarial tests, and MLIR/LLVM 23.1.1 parsing and translation. Runtime cleanup stacks, closures, `defer async`, multiple or nested cleanup, catch, native products, public ABI, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1619 | integrity-bound typed provider completion | PARBIND1 independently verifies HIR41, derives the payloadless nominal error identity, and validates two lexically ordered PLATFORM1 completions against distinct HIR calls. Semantic records remain byte-identical across provider capacities one and two; physical facts are isolated in a provenance receipt that does not claim provider authentication. | `source-backed-current` only for the exact two-child Windows x64 seed witness, independent success evaluation, ordinal-to-nominal-error validation, dual-path cleanup requirement, caller-owned transactional publication, alias/capacity/forgery barriers, and capacity-one/two semantic equality. The two-child shape is not a language, HIR, scheduler, ABI, or runtime limit. Trusted provider attestation, native HIR execution, typed TASKLIFE, other platforms, public products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -13118,11 +13120,12 @@ unsafe thread termination or adding a poll to a proven finite scalar body.
 The C23 witness returns one success and one typed error from the first wave and
 derives three cancellations. Capacity one reaches the same indexed completion
 vector; only maximum-active differs in the receipt. A separate explicit-cancel
-case preserves its already-started sibling success. These outcomes are not yet
-authenticated against HIR/PARINV or consumed by TASKLIFE. Source-level throw and
-cancellation, polling for long-running bodies, provider-neutral scheduling, and
-panic containment remain later boundaries. In particular, a process or hardware
-fault must never be relabeled as a W error.
+case preserves its already-started sibling success. W-1619 now validates one
+exact PLATFORM1 error against a nominal HIR41 case, but it does not authenticate
+provider origin or feed TASKLIFE. General source-level throw/cancellation,
+polling for long-running bodies, provider-neutral scheduling, and panic
+containment remain later boundaries. In particular, a process or hardware fault
+must never be relabeled as a W error.
 
 #### W-1613 — bounded typed throw in verified HIR
 
@@ -13140,10 +13143,11 @@ binds the new fields into the semantic digest and receipt. The focused witness
 uses a signed-`i64` normal return with a distinct `Failure` error enum, proving
 that the channels are not collapsed. Mutated error types, conformance facts,
 terminator kinds, and result types reject after resealing. A non-`Error` enum
-and branch-local throw are also rejected before HIR publication. Branch/cleanup
-composition and downstream MLIR execution remain intentionally absent; the
-next error increment should connect this typed source edge to an authenticated
-provider outcome without inventing an error from callback data.
+and branch-local throw are also rejected before HIR publication. W-1618 later
+adds the exact cleanup relation, and W-1619 connects that bounded nominal edge
+to an integrity-bound physical completion without inventing an error from a
+numeric callback code. Trusted provider origin and general composition remain
+open.
 
 #### W-1614 — bounded mixed return/throw terminal branch
 
@@ -13262,3 +13266,34 @@ against cleanup storage, both target selectors, and call order. The emitted
 text also parses and translates through MLIR/LLVM 23.1.1. This is bounded
 compiler-lifecycle correctness evidence only; general cleanup, async cleanup,
 catch, native execution, public ABI, benchmarks, and performance remain open.
+
+#### W-1619 — integrity-bound typed provider completion
+
+The existing success-only provider and lifecycle components could not preserve
+the nominal `Failure.denied` identity. W-1619 therefore adds a separate
+PARBIND1 transaction rather than widening PARPROV1 or PARLIFE1. The adapter
+re-verifies the exact HIR41 invoke and cleanup relation, derives enum/case
+indices, ordinal, tag, and identity digest from the verified program, and
+requires the provider completion to carry that ordinal explicitly. Its raw
+error code remains physical data and has no language-level meaning.
+
+The current source-backed witness has two distinct lexical calls: one pure
+nonthrowing signed-`i64` call and one throwing invoke. The success payload is
+checked with the bounded scalar evaluator. The error completion is checked
+against the HIR-derived nominal identity. Capacity one and two produce the
+same semantic records and digest; their worker-overlap receipts and provenance
+digests differ. The fixed two-record array is only this seed comparison shape,
+not a limit that may escape into source semantics or a future Task ABI.
+
+PLATFORM1 may modify its scratch before reporting failure, so PARBIND1 stages
+all completions and physical receipt fields privately. It publishes the
+caller-owned workspace, semantic records, and result only after every check,
+then independently reconstructs them in `verify`. Focused C23 tests cover
+exact and short capacity, aliases, provider failure, cancellation, wrong
+success values, wrong error ordinals, forged records/digests, capacity-one/two
+equivalence, and rejection of the same typed invoke without the HIR41 cleanup.
+
+SHA-256 binds integrity and provenance; it is not provider authentication.
+The callback is still test/provider code rather than an attested native HIR
+entry. Trusted origin, native execution, typed TASKLIFE preservation, other
+platforms, public ABI/product routes, benchmarks, and performance remain open.

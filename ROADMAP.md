@@ -163,6 +163,15 @@ carrier, and MLIR/LLVM 23.1.1 verifies and translates it. Existing product and
 success-only provider routes remain fail-closed. General cleanup stacks,
 `defer async`, catch, native products, public ABI, and performance remain open.
 
-Next comes an authenticated typed provider result and TASKLIFE binding,
-followed by an explicit panic boundary. Physical cancellation remains
-cooperative rather than thread termination.
+W-1619 adds the first integrity-bound typed physical completion without
+widening the success-only provider/lifecycle contracts. It derives the nominal
+payloadless error case from verified HIR41, checks an independent success
+value, stages PLATFORM1 output transactionally, and keeps semantic records
+identical across physical capacities one and two. The exact two-child array is
+a seed witness, not a language or ABI bound. Its receipt is not provider
+authentication and the callback is not native HIR execution.
+
+Next comes a typed TASKLIFE bridge that preserves this nominal error identity,
+followed by a distinct trusted-provider attestation boundary and an explicit
+panic boundary. Physical cancellation remains cooperative rather than thread
+termination.
