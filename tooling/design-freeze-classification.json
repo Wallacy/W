@@ -23,7 +23,7 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:362008bb9d62ebb71124e1c83c9d184004fa51e7346cb84476d72ca22ea4a298",
+    "sha256": "sha256:0638cf96ea358383a40431d2f297acceff128dfdfb1083c3d845d08f819dc7ef",
     "count": 1604,
     "first": "W-001",
     "last": "W-1604"
@@ -21869,7 +21869,7 @@
         "path": "DESIGN.md",
         "section": "26",
         "heading": "## 26. Plano de implementação",
-        "sectionDigest": "sha256:23a66bc0769c8231de5b83fdcc51dc614ef3bad7453b4a7d2340fed91bd9860d"
+        "sectionDigest": "sha256:e0ac8a2f06583b7d97f0a4d278fdc9de5edac9c28b5791b5688703248513dd8f"
       },
       "evidence": [],
       "reason": "W-659 (body de entry, sha256:f66ab57406ddb51303f9190376daf72d8f538bd7bd8adfbf9992ae3d7223e74e) has no executable witness for component implementation-plan. The checked current contract is DESIGN.md §26 / 26. Plano de implementação.",
@@ -56653,13 +56653,13 @@
           "path": "compiler/seed-c/src/w_seed_accelerated_binding0.c",
           "symbol": "w_seed_accelerated_binding0_verify",
           "claim": "The independent verifier re-derives dense record ranges and semantic and provenance digests without producer storage.",
-          "sha256": "sha256:53d886356b3d979b35af05ac101f1d3850e550e104156fbeffd0f3eaec547a8a"
+          "sha256": "sha256:a63a81ca9a01dbb9dad2fadd23ac8c9168946728e934745dc8e3058c226abf2f"
         },
         {
           "path": "compiler/seed-c/tests/test_accelerated_binding0.c",
           "symbol": "ACCBIND0 budgets/digests/teardown/negative barriers: PASS",
           "claim": "The C23 witness covers exact budgets, physical-provenance separation, teardown, capacities, aliases, and forged relations.",
-          "sha256": "sha256:e348169a2913a71aee4a2b62e2545a53a257502cebb58f25d552911bacd7bdd5"
+          "sha256": "sha256:e15159e8a0af85fec3b7e0ff390c911da0b8f8d1f4316a03fda2c2636a4c8ade"
         },
         {
           "path": "tooling/check-accelerated-binding0.mjs",

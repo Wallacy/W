@@ -333,7 +333,9 @@ static bool test_binding(void) {
   CHECK(execute_binding(&profile, &binding, &program, &result));
   CHECK(program.relations[0].required_maximum == 4u &&
         program.relations[0].effective_maximum == 3u &&
-        program.relations[0].limits.maximum_in_flight == 3u);
+        program.relations[0].limits.maximum_in_flight == 3u &&
+        program.relations[0].result_bit_width == 32u &&
+        program.relations[0].result_is_signed);
 
   w_seed_accelerated_binding0_closed_profile changed = profile;
   changed.queue_identity =
@@ -433,6 +435,10 @@ static bool test_binding(void) {
   CHECK(!w_seed_accelerated_binding0_verify(&program, &forged_result));
   saved = binding.relation[0];
   binding.relation[0].queue_offset += 1u;
+  CHECK(!w_seed_accelerated_binding0_verify(&program, &result));
+  binding.relation[0] = saved;
+  saved = binding.relation[0];
+  binding.relation[0].result_bit_width = 64u;
   CHECK(!w_seed_accelerated_binding0_verify(&program, &result));
   binding.relation[0] = saved;
   forged_result = result;

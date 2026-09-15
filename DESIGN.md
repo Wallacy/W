@@ -40322,7 +40322,7 @@ closed relation and cannot be inferred or silently selected.
 
 Semantic identity includes the root/domain/module/kernel-instance/artifact
 relation, target and provider ABI class, numeric mode, submission policy,
-normalized limits and upstream semantic receipts. Queue identity, device
+normalized limits, exact result shape and upstream semantic receipts. Queue identity, device
 identity, provider generation, physical ordinals and upstream provenance are
 bound only by the provenance digest. `measure`, `run`,
 `program_from_output`, and `verify` are transactional, reject overlapping

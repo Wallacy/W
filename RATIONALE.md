@@ -12866,7 +12866,8 @@ input/output alias rejection, and the independent verifier needs neither the
 profile nor ACCINV0 owner after emission.
 
 The bridge proves internal consistency, not authenticity of its caller-supplied
-closure receipts. Public product signature verification, provider handles,
+closure receipts. The exact signed-`i32` result shape is retained rather than
+recovered from provider bytes. Public product signature verification, provider handles,
 submission, completion, typed task failure, residency, cancellation and drain
 remain later boundaries. The one-relation capacity is seed evidence only and
 introduces no new language syntax.
