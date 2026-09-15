@@ -134,7 +134,20 @@ return/throw arms and no hidden join. W-1615 adds the bounded parser/frontend
 throwing callee and one lexical throwing caller with the same nominal local
 error enum. Async and spawn owners carry the thrown outcome without `try`, but
 HIR/native lowering, catch, cleanup, conversions, and optional or async `try`
-remain unsupported. Next comes continuation-safe cleanup and downstream
-propagation, then an authenticated typed provider result and TASKLIFE binding,
-followed by an explicit panic boundary.
+remain unsupported.
+
+W-1616 now carries the exact synchronous relation into HIR40. One
+terminator-owned W_SEED_HIR0_TERMINATOR_INVOKE owns the direct local call and
+routes to normal and typed-error successor blocks with one typed block
+argument each. The verifier proves the exact three-block relay and rejects
+forged ownership, target, type, and argument relations. No ordinary CALL
+instruction, Task, heap, or packed Result carrier is introduced, and
+ProductClosure0 remains fail-closed for INVOKE. This is source-backed-current
+only for verified HIR. MLIR/native lowering, public ABI, catch, cleanup,
+conversions, and performance remain gaps. Its benchmarkDisposition is
+compiler-lifecycle.
+
+Next comes continuation-safe cleanup and downstream propagation, then an
+authenticated typed provider result and TASKLIFE binding, followed by an
+explicit panic boundary.
 Physical cancellation remains cooperative rather than thread termination.

@@ -8,6 +8,7 @@
 #include "w_seed_parallel_selection0.h"
 #include "w_seed_parallel_selection1.h"
 #include "w_seed_parallel_elision0.h"
+#include "w_seed_product_closure0.h"
 #include "w_seed_scalar_evaluator0.h"
 
 #include <stdbool.h>
@@ -6235,6 +6236,159 @@ static bool test_typed_throw_hir(void) {
   return true;
 }
 
+static bool test_typed_invoke_hir(void) {
+  static const char SOURCE[] =
+      "enum Failure: Error { denied }\n"
+      "fn leaf(): i64 throws Failure { throw .denied }\n"
+      "fn relay(): i64 throws Failure { return try leaf() }\n"
+      "entry { }\n";
+  CHECK(lower(SOURCE));
+  w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 3u && program->block_count == 5u &&
+        program->instruction_count == 0u && program->call_count == 1u &&
+        program->block_argument_count == 2u &&
+        program->edge_argument_count == 0u &&
+        program->terminator_count == 5u && program->value_count == 3u);
+  const w_seed_hir0_function *relay = &program->functions[1];
+  CHECK(relay->is_throws && relay->return_type == W_SEED_HIR0_TYPE_I64 &&
+        relay->error_type == 4u && relay->block_count == 3u);
+  const uint32_t invoke_block = relay->first_block;
+  const uint32_t normal_block = invoke_block + 1u;
+  const uint32_t error_block = invoke_block + 2u;
+  const w_seed_hir0_terminator *invoke =
+      &program->terminators[invoke_block];
+  CHECK(invoke->kind == W_SEED_HIR0_TERMINATOR_INVOKE &&
+        invoke->call_index == 0u && invoke->value_index == W_SEED_HIR0_NONE &&
+        invoke->result_type == W_SEED_HIR0_TYPE_I64 &&
+        invoke->error_type == relay->error_type &&
+        invoke->target_block == normal_block &&
+        invoke->else_block == error_block &&
+        program->blocks[normal_block].block_argument_count == 1u &&
+        program->blocks[error_block].block_argument_count == 1u &&
+        program->block_arguments[program->blocks[normal_block]
+                                     .first_block_argument]
+                .type_index == W_SEED_HIR0_TYPE_I64 &&
+        program->block_arguments[program->blocks[error_block]
+                                     .first_block_argument]
+                .type_index == relay->error_type);
+  const w_seed_hir0_call *call = &program->calls[invoke->call_index];
+  CHECK(call->owner_instruction == W_SEED_HIR0_NONE &&
+        call->owner_terminator == invoke_block &&
+        call->owner_block == invoke_block &&
+        call->execution_kind == W_SEED_HIR0_CALL_DIRECT &&
+        program->identities[call->callee_identity].target_index == 0u &&
+        program->terminators[normal_block].kind ==
+            W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        program->terminators[error_block].kind ==
+            W_SEED_HIR0_TERMINATOR_THROW &&
+        program->values[program->terminators[normal_block].value_index].kind ==
+            W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        program->values[program->terminators[error_block].value_index].kind ==
+            W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+
+  w_seed_product_closure0_counts closure_counts;
+  w_seed_product_closure0_result closure_result;
+  (void)memset(&closure_counts, 0xa5, sizeof(closure_counts));
+  (void)memset(&closure_result, 0x5a, sizeof(closure_result));
+  const w_seed_product_closure0_counts closure_counts_before = closure_counts;
+  const w_seed_product_closure0_result closure_result_before = closure_result;
+  const w_seed_product_closure0_input closure_input = {
+      .program = program, .hir_result = &fixture.hir_result};
+  CHECK(w_seed_product_closure0_measure(
+            &closure_input, &closure_counts, &closure_result) ==
+        W_SEED_PRODUCT_CLOSURE0_UNSUPPORTED);
+  CHECK(memcmp(&closure_counts, &closure_counts_before,
+               sizeof(closure_counts)) == 0 &&
+        memcmp(&closure_result, &closure_result_before,
+               sizeof(closure_result)) == 0);
+
+  (void)memset(&fixture.document, 0, sizeof(fixture.document));
+  (void)memset(&fixture.input, 0, sizeof(fixture.input));
+  (void)memset(&fixture.output, 0, sizeof(fixture.output));
+  (void)memset(&fixture.result, 0, sizeof(fixture.result));
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_terminator saved_invoke = fixture.hir_terminators[invoke_block];
+  const w_seed_hir0_call saved_call = fixture.hir_calls[0];
+  const w_seed_hir0_block_argument saved_normal_argument =
+      fixture.hir_block_arguments[program->blocks[normal_block]
+                                      .first_block_argument];
+  const w_seed_hir0_block_argument saved_error_argument =
+      fixture.hir_block_arguments[program->blocks[error_block]
+                                      .first_block_argument];
+  const w_seed_hir0_value saved_normal_value =
+      fixture.hir_values[fixture.hir_terminators[normal_block].value_index];
+  const w_seed_hir0_value saved_error_value =
+      fixture.hir_values[fixture.hir_terminators[error_block].value_index];
+  fixture.hir_terminators[invoke_block].target_block = error_block;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[invoke_block] = saved_invoke;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_terminators[invoke_block].call_index = W_SEED_HIR0_NONE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[invoke_block] = saved_invoke;
+  fixture.hir_terminators[invoke_block].error_type = W_SEED_HIR0_TYPE_I64;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[invoke_block] = saved_invoke;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_calls[0].owner_instruction = 0u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_calls[0] = saved_call;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_calls[0].owner_terminator = error_block;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_calls[0] = saved_call;
+  fixture.hir_calls[0].callee_identity = program->entries[0].identity_index;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_calls[0] = saved_call;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_block_arguments[program->blocks[normal_block]
+                                  .first_block_argument]
+      .type_index = relay->error_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_block_arguments[program->blocks[normal_block]
+                                  .first_block_argument] = saved_normal_argument;
+
+  fixture.hir_block_arguments[program->blocks[error_block]
+                                  .first_block_argument]
+      .type_index = W_SEED_HIR0_TYPE_I64;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_block_arguments[program->blocks[error_block]
+                                  .first_block_argument] = saved_error_argument;
+  fixture.hir_values[fixture.hir_terminators[normal_block].value_index]
+      .block_argument_index = program->blocks[error_block].first_block_argument;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[fixture.hir_terminators[normal_block].value_index] =
+      saved_normal_value;
+  fixture.hir_values[fixture.hir_terminators[error_block].value_index]
+      .block_argument_index = program->blocks[normal_block].first_block_argument;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[fixture.hir_terminators[error_block].value_index] =
+      saved_error_value;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_local_enum_payload_declarations_hir(void) {
   static const char SOURCE[] =
       "enum Course { starter main(price: i64) shared(i64, i64) }\n"
@@ -9650,6 +9804,7 @@ int main(int argc, char **argv) {
   if (!test_local_binding_verify_mutations()) return 1;
   if (!test_local_enum_hir()) return 1;
   if (!test_typed_throw_hir()) return 1;
+  if (!test_typed_invoke_hir()) return 1;
   if (!test_local_enum_payload_declarations_hir()) return 1;
   if (!test_local_enum_payload_constructor_hir()) return 1;
   if (!test_enum_switch_hir()) return 1;

@@ -254,6 +254,7 @@ O corpus compara, no mínimo:
 - typed source throw against erased error identity, normal-return collapse, unconstrained enum conformance, and downstream spelling inference.
 - bounded mixed return/throw terminal branches against hidden joins, arm fallthrough, normal/error channel collapse, and unproved continuation cleanup.
 - bounded typed-try propagation against erased error identity, unowned synchronous calls, async/spawn ownership confusion, optional try, conversion widening, and premature HIR/native/catch/cleanup support.
+- exact synchronous typed propagation in verified HIR against ordinary CALL materialization, Task or heap substitution, packed Result carriers, unproved successor channels, and fail-open ProductClosure.
 - bounded dual-target process/parallel linkage against direct-call substitution, CRT fallback, hidden runtime input, target conflation, and premature public or benchmark claims.
 - bounded GPU0 target-neutral semantic and available CUDA execution against source-backed W claims, provider/runtime conflation, homogeneous toolchains, and premature public product support.
 - bounded static accelerated root binding against embedded provider handles, multiplied budgets, and unauthenticated claims.
@@ -7944,6 +7945,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1613 | bounded typed throw in verified HIR | Parser CST separates the `throws E` type owner and `throw` statement; frontend29 preserves the concrete error type; HIR39 binds an exact core-`Error` local enum, the function error type, and a typed `THROW` terminator into caller-owned records, digests, receipts, and independent verification. | `source-backed-current` only for one terminal root throw with a local closed error enum, different normal/error result types, non-Error and branch-composition rejection, transactional publication, and adversarial HIR verification. Payload construction, mixed CFG, try/catch/cleanup, provider and Task binding, MLIR/native execution, public products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1614 | bounded mixed return/throw terminal branch | HIR39 admits one top-level complete `if` whose two lexical regions terminate independently with typed `return` or `throw`; no join block or hidden fallthrough is created, and verification rederives the disjoint preorder partition. | `source-backed-current` only for the bounded mixed `throw`/signed-`i64` return witness, exact arm ownership and type channels, and forged-jump rejection. Continuation after throw, nested terminal branches, cleanup/propagation/catch, provider and Task binding, MLIR/native execution, public products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1615 | bounded parser/frontend typed-try propagation | Frontend30 preserves the exact plain `try localCall(...)` relation only when a synchronous local `throws E` call and its lexical caller `throws E` declaration share the same nominal local error enum. A direct synchronous throwing call without a valid `try`, `try?`, async `try`, conversion, HIR/native lowering, catch, or cleanup remains unsupported. Async and spawn owners carry the thrown outcome without a `try` marker. | `source-backed-current` only for the parser CST wrapper, Frontend30 `EXPR_TRY` record, exact local enum identity, direct-call ownership rejection, async/spawn ownership relation, and focused parser/frontend tests. HIR/native lowering, conversions, catch, cleanup, public products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1616 | exact synchronous typed propagation in verified HIR | HIR40 lowers one exact synchronous typed-try relay into a terminator-owned W_SEED_HIR0_TERMINATOR_INVOKE with normal and typed-error successor block arguments. The relay has exactly three blocks, no ordinary CALL instruction, Task, heap, or packed Result carrier, and ProductClosure0 rejects the terminator. | source-backed-current only for the HIR40 three-block relay, terminator-owned call, typed successor arguments, exact verifier, ProductClosure0 fail-closed boundary, and C23 adversarial HIR evidence. MLIR/native lowering, public ABI, catch, cleanup, conversions, general propagation, benchmarks, and performance remain gaps. benchmarkDisposition: compiler-lifecycle. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -13176,3 +13178,29 @@ optional and async barriers. HIR/native lowering, catch, cleanup, and public
 execution remain outside this increment. The `compiler-lifecycle`
 classification records correctness evidence only and publishes no performance
 measurement.
+
+#### W-1616 — exact synchronous typed propagation in verified HIR
+
+W-1616 consumes the Frontend30 typed-try relation at the HIR boundary. HIR40
+publishes one terminator-owned W_SEED_HIR0_TERMINATOR_INVOKE for the exact
+synchronous direct local call. The call descriptor has no ordinary instruction
+owner. The invoke has one normal successor and one error successor.
+
+The verifier requires one exact three-block preorder relay. The first block
+contains no instruction and owns the invoke. The normal successor contains one
+block argument of the function return type and returns that argument. The
+error successor contains one block argument of the function error-enum type
+and throws that argument. The invoke has no ordinary edge arguments. The
+successor arguments are implicit control outputs, not a packed Result value.
+
+The verifier rechecks same-module callee identity, synchronous throws effects,
+matching error enums, result and successor types, target order, block and
+terminator ownership, spans, dense ranges, capacities, aliases, and digests.
+Mutated targets, call owners, error types, or successor arguments fail after
+resealing. ProductClosure0 rejects INVOKE because downstream typed-error
+lowering is not available.
+
+This evidence is source-backed-current only for the verified HIR slice. It
+does not claim MLIR or native lowering, public ABI, catch, cleanup, conversion,
+general propagation, or performance. The benchmarkDisposition is
+compiler-lifecycle, with correctness evidence only.
