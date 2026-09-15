@@ -273,7 +273,7 @@ try {
   });
   requireSuccess(invocationRun, "run accelerated invocation unit");
   const expectedInvocationOutput =
-    "ACCINV0 source->frontend31->gpu-module-2->program: PASS\r\n" +
+    "ACCINV0 source->frontend32->gpu-module-2->program: PASS\r\n" +
     "ACCINV0 identities/spans/digests/teardown/negative barriers: PASS\r\n" +
     "ACCREQ0 source-derived request/artifact/teardown: PASS\r\n";
   if (invocationRun.stdout !== expectedInvocationOutput || invocationRun.stderr !== "")

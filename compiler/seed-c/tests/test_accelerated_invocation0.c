@@ -882,7 +882,7 @@ static bool test_accelerated_invocation(const char *fixture_path,
   CHECK(w_seed_accelerated_request0_verify(&request_program, &request_result));
   if (emit_path != NULL)
     return emit_request_artifact(emit_path, &request_program, &request_result);
-  (void)printf("ACCINV0 source->frontend31->gpu-module-2->program: PASS\n");
+  (void)printf("ACCINV0 source->frontend32->gpu-module-2->program: PASS\n");
   (void)printf("ACCINV0 identities/spans/digests/teardown/negative barriers: PASS\n");
   (void)printf("ACCREQ0 source-derived request/artifact/teardown: PASS\n");
   return true;

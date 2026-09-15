@@ -8891,7 +8891,17 @@
       {
         "path": "compiler/seed-c/tests/test_frontend.c",
         "symbol": "test_kernel_module_frontend",
-        "claim": "Frontend31 binds one or multiple canonical public labels to direct local function identities and rejects malformed or incomplete module contracts transactionally."
+        "claim": "Frontend32 binds one or multiple canonical public labels to direct local function identities and rejects malformed or incomplete module contracts transactionally."
+      },
+      {
+        "path": "compiler/seed-c/tests/test_frontend.c",
+        "symbol": "test_multidocument_kernel_import_frontend",
+        "claim": "Frontend32 resolves grouped named kernel imports across explicit local-document edges while keeping target module and public label canonical and aliases provenance-only."
+      },
+      {
+        "path": "compiler/seed-c/tests/test_frontend.c",
+        "symbol": "test_multidocument_kernel_import_rejections",
+        "claim": "Frontend32 rejects forged resolver edges, missing labels, alias collisions, generic families, external targets, and qualified projections before a partial kernel identity is published."
       },
       {
         "path": "compiler/seed-c/src/w_seed_gpu_module.c",
@@ -8901,7 +8911,7 @@
       {
         "path": "compiler/seed-c/tests/test_frontend.c",
         "symbol": "test_gpu_module_bridge",
-        "claim": "A versioned W fixture crosses Frontend31 into caller-owned device-module records and remains verifiable after source/frontend teardown."
+        "claim": "A versioned W fixture crosses Frontend32 into caller-owned device-module records and remains verifiable after source/frontend teardown."
       },
       {
         "path": "compiler/seed-c/src/w_seed_gpu0.c",
@@ -8926,7 +8936,9 @@
     ],
     "checks": [
       "two functions and seven operations remain an evidence shape rather than a language or ABI ceiling",
-      "Frontend31 module and kernel bindings remain target and provider neutral",
+      "Frontend32 module and kernel bindings remain target and provider neutral",
+      "grouped named kernel imports require an explicit local-document edge and target module contract label",
+      "qualified imports and independent imported-invocation HIR remain open",
       "the bounded device-module bridge owns its records and remains verifiable after frontend teardown",
       "host and device artifacts retain separate identities and exact verification",
       "forbidden device effects, malformed records, aliases, capacities, and forged artifacts fail closed",
@@ -8979,7 +8991,7 @@
       },
       {
         "path": "compiler/seed-c/tests/test_accelerated_invocation0.c",
-        "symbol": "source->frontend31->gpu-module-2->program: PASS",
+        "symbol": "source->frontend32->gpu-module-2->program: PASS",
         "claim": "The C23 fixture exercises the real producer chain, teardown independence, aliases, capacities, and forged relations."
       },
       {
@@ -9981,6 +9993,59 @@
           "language": "w-internal-rejected",
           "source": ["claim that returning a private panic status physically terminates a process or compartment"],
           "expectedDifference": "W-1622 proves only transport to a future boundary controller; physical teardown remains open."
+        }
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
+    },
+    {
+      "id": "R0-parallel-panic-boundary1",
+      "reviewItem": "private root-child panic containment against forged wire evidence, partial publication, input alias corruption, unproved teardown, and descendant-tree overclaim",
+      "decisions": ["W-1623"],
+      "task": "Consume one verified private panic signal in a real Windows x64 root-child process, prove that child live before teardown, terminate and bounded-join it, then publish one independently verifiable receipt.",
+      "selected": {
+        "language": "w-internal",
+        "source": [
+          "a trusted private helper owns and executes the HIR/PARBIND witness inside the child",
+          "a fixed big-endian versioned frame binds nonce, sequence, panic facts, HIR identity, and local authority integrity",
+          "the parent proves the root child is live, terminates it explicitly, and joins within one bounded deadline",
+          "all reachable caller-owned input ranges are disjoint from output and immutable input identity is revalidated before transactional receipt publication"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "dummy-child-after-parent-panic",
+          "language": "w-internal-rejected",
+          "source": ["execute panic in the parent and launch an unrelated child only to terminate it"],
+          "expectedDifference": "The selected helper itself owns and executes the verified witness before reporting panic and remaining live for teardown."
+        },
+        {
+          "name": "wire-digest-as-authentication",
+          "language": "w-internal-rejected",
+          "source": ["treat the unkeyed SHA-256 frame digest as proof of external origin"],
+          "expectedDifference": "The helper is a trusted compiler-lifecycle witness and the digest provides integrity/correlation only; product attestation remains open."
+        },
+        {
+          "name": "publish-before-teardown",
+          "language": "w-internal-rejected",
+          "source": ["publish the panic receipt after reading the frame but before proving root-child termination and join"],
+          "expectedDifference": "The selected transaction publishes only after live-before-teardown, explicit termination, bounded join, handle closure, and parent revalidation all succeed."
+        },
+        {
+          "name": "alias-inner-hir-or-provider-context",
+          "language": "w-internal-rejected",
+          "source": ["store the receipt inside an HIR array, byte buffer, or opaque provider context extent"],
+          "expectedDifference": "The selected barrier enumerates all HIR ranges and the explicit provider context extent before any child effect."
+        },
+        {
+          "name": "job-object-means-descendants-joined",
+          "language": "w-internal-rejected",
+          "source": ["claim closing a kill-on-close Job Object proves every descendant was drained"],
+          "expectedDifference": "W-1623 proves only the identified root child; descendant-tree containment and join remain explicit gaps."
         }
       ],
       "measures": [

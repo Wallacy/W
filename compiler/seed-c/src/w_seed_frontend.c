@@ -102,6 +102,8 @@ typedef struct {
   uint32_t kernel_module_index;
   uint32_t kernel_binding_index;
   uint32_t kernel_function_index;
+  const w_seed_frontend_document *kernel_function_doc;
+  uint32_t kernel_function_node;
   bool is_local_call;
   uint32_t local_call_function;
   bool local_call_is_async;
@@ -405,6 +407,14 @@ static bool kernel_binding_for_name(
     frontend_context *context, w_seed_frontend_text name,
     uint32_t *kernel_module_index, uint32_t *kernel_binding_index,
     uint32_t *function_index, w_seed_frontend_text *function_name);
+static bool kernel_import_binding_for_name(
+    frontend_context *context, w_seed_frontend_text name,
+    uint32_t *kernel_module_index, uint32_t *kernel_binding_index,
+    uint32_t *function_index, w_seed_frontend_text *function_name,
+    const w_seed_frontend_document **function_doc, uint32_t *function_node);
+static bool kernel_import_item_for_name(
+    const frontend_context *context, w_seed_frontend_text name,
+    const w_seed_frontend_import_item **item);
 static bool normalize_kernel_module_contract(frontend_context *context);
 static const w_seed_frontend_resolved_import *resolved_import_at(
     const frontend_context *context, size_t import_index);
@@ -3388,6 +3398,12 @@ static bool receipt_size_import_item(
          receipt_size_text(context, item->local_name) &&
          receipt_size_literal(context, "|span=") &&
          receipt_size_span(context, item->span) &&
+         receipt_size_literal(context, "|kernel=") &&
+         receipt_size_size(context, item->resolved_kernel_module_index) &&
+         receipt_size_literal(context, ":") &&
+         receipt_size_size(context, item->resolved_kernel_binding_index) &&
+         receipt_size_literal(context, ":") &&
+         receipt_size_size(context, item->resolved_kernel_function_index) &&
          receipt_size_literal(context, "\n");
 }
 
@@ -8613,6 +8629,21 @@ static bool normalize_import(frontend_context *context, uint32_t node_index,
           doc, doc->nodes[child].raw_span, &imported_name);
       item.name = imported_name;
       item.span = doc->nodes[child].raw_span;
+      item.resolved_kernel_module_index = W_SEED_FRONTEND_NONE;
+      item.resolved_kernel_binding_index = W_SEED_FRONTEND_NONE;
+      item.resolved_kernel_function_index = W_SEED_FRONTEND_NONE;
+      if (value.kind == W_SEED_FRONTEND_IMPORT_KERNEL && saw_from) {
+        uint32_t kernel_module = W_SEED_FRONTEND_NONE;
+        uint32_t kernel_binding = W_SEED_FRONTEND_NONE;
+        uint32_t kernel_function = W_SEED_FRONTEND_NONE;
+        if (kernel_import_binding_for_name(
+                context, item.local_name, &kernel_module, &kernel_binding,
+                &kernel_function, NULL, NULL, NULL)) {
+          item.resolved_kernel_module_index = kernel_module;
+          item.resolved_kernel_binding_index = kernel_binding;
+          item.resolved_kernel_function_index = kernel_function;
+        }
+      }
       uint32_t item_index = W_SEED_FRONTEND_NONE;
       if (!context_append_import_item(context, item, &item_index)) return false;
     }
@@ -12054,6 +12085,8 @@ static bool expression_append(frontend_expression_parser *parser,
   value->kernel_module_index = W_SEED_FRONTEND_NONE;
   value->kernel_binding_index = W_SEED_FRONTEND_NONE;
   value->kernel_function_index = W_SEED_FRONTEND_NONE;
+  value->kernel_function_doc = NULL;
+  value->kernel_function_node = W_SEED_CST_NONE;
   value->local_call_function = W_SEED_FRONTEND_NONE;
   value->local_call_is_async = false;
   value->local_call_is_throws = false;
@@ -12369,20 +12402,36 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
     uint32_t resolved_kernel_binding = W_SEED_FRONTEND_NONE;
     uint32_t resolved_kernel_function = W_SEED_FRONTEND_NONE;
     w_seed_frontend_text resolved_kernel_function_name = {NULL, 0u};
+    const w_seed_frontend_document *resolved_kernel_doc = NULL;
+    uint32_t resolved_kernel_node = W_SEED_CST_NONE;
     bool kernel_binding = false;
     if (parser->allow_accelerator_call &&
         kernel_binding_for_name(
             parser->context, spelling, &resolved_kernel_module,
             &resolved_kernel_binding, &resolved_kernel_function,
             &resolved_kernel_function_name)) {
-      const w_seed_frontend_document *kernel_doc = NULL;
-      uint32_t kernel_node = W_SEED_CST_NONE;
       if (!function_signature_for_name(parser->context,
                                        resolved_kernel_function_name,
-                                       &kernel_doc, &kernel_node)) {
+                                       &resolved_kernel_doc,
+                                       &resolved_kernel_node)) {
         return false;
       }
-      type = function_return_type(parser->context, kernel_doc, kernel_node);
+      type = function_return_type(parser->context, resolved_kernel_doc,
+                                  resolved_kernel_node);
+      resolved = type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN;
+      kernel_binding = resolved;
+    } else if (parser->allow_accelerator_call &&
+               kernel_import_binding_for_name(
+                   parser->context, spelling, &resolved_kernel_module,
+                   &resolved_kernel_binding, &resolved_kernel_function,
+                   &resolved_kernel_function_name, &resolved_kernel_doc,
+                   &resolved_kernel_node)) {
+      if (resolved_kernel_doc == NULL ||
+          resolved_kernel_node == W_SEED_CST_NONE) {
+        return false;
+      }
+      type = function_return_type(parser->context, resolved_kernel_doc,
+                                  resolved_kernel_node);
       resolved = type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN;
       kernel_binding = resolved;
     }
@@ -12466,6 +12515,8 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
       value->kernel_module_index = resolved_kernel_module;
       value->kernel_binding_index = resolved_kernel_binding;
       value->kernel_function_index = resolved_kernel_function;
+      value->kernel_function_doc = resolved_kernel_doc;
+      value->kernel_function_node = resolved_kernel_node;
       if (parser->context->emit && parser->context->output != NULL &&
           value->index < parser->context->output->expression_capacity) {
         w_seed_frontend_expression *record =
@@ -12836,6 +12887,40 @@ static bool call_label_known(const frontend_context *context,
   return false;
 }
 
+static bool call_label_known_for_signature(
+    const w_seed_frontend_document *owner_doc, uint32_t function_node,
+    w_seed_frontend_text label) {
+  if (owner_doc == NULL || function_node == W_SEED_CST_NONE ||
+      function_node >= owner_doc->parse.node_count)
+    return false;
+  const uint32_t parameters =
+      first_direct_kind(owner_doc, function_node, W_SEED_CST_PARAMETER_LIST);
+  if (parameters == W_SEED_CST_NONE) return false;
+  uint32_t cursor = owner_doc->nodes[parameters].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t guard = 0;
+  while (next_child(owner_doc, &cursor, &child) &&
+         guard < owner_doc->parse.node_count) {
+    if (owner_doc->nodes[child].kind == W_SEED_CST_PARAMETER) {
+      const w_seed_frontend_label_kind policy = parameter_label_kind(
+          owner_doc, owner_doc->nodes[child].raw_span);
+      const w_seed_frontend_text parameter_label =
+          parameter_external_label_from_span(owner_doc,
+                                             owner_doc->nodes[child].raw_span);
+      if (label.length == 0) {
+        return policy == W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY;
+      }
+      if (policy == W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY) {
+        guard += 1;
+        continue;
+      }
+      if (text_equal_text(parameter_label, label)) return true;
+    }
+    guard += 1;
+  }
+  return false;
+}
+
 static bool expression_parse_postfix(frontend_expression_parser *parser,
                                      frontend_expr_value *value) {
   bool enum_case_constructor_called = false;
@@ -12976,10 +13061,17 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     if (enum_case_constructor) enum_case_constructor_called = true;
     const w_seed_frontend_document *signature_doc = NULL;
     uint32_t signature_node = W_SEED_CST_NONE;
-    const bool local_signature =
+    bool local_signature =
         !value->is_external_member && value->has_name && function_signature_for_name(
                                 parser->context, value->name, &signature_doc,
                                 &signature_node);
+    if (!local_signature && value->is_kernel_binding &&
+        value->kernel_function_doc != NULL &&
+        value->kernel_function_node != W_SEED_CST_NONE) {
+      signature_doc = value->kernel_function_doc;
+      signature_node = value->kernel_function_node;
+      local_signature = true;
+    }
     const w_seed_frontend_external_symbol *external_signature = NULL;
     const bool external_signature_found =
         value->is_external_member
@@ -13026,8 +13118,14 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
             }
           }
         } else {
-          known = call_label_known(parser->context, value->name, label,
-                                   &resolved);
+          if (local_signature) {
+            resolved = true;
+            known = call_label_known_for_signature(signature_doc, signature_node,
+                                                   label);
+          } else {
+            known = call_label_known(parser->context, value->name, label,
+                                     &resolved);
+          }
           if (!resolved) {
             known = external_label_known(parser->context, value->name, label,
                                          &resolved);
@@ -13257,8 +13355,12 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     }
     if (value->has_name && !value->is_external_member) {
       bool resolved = false;
-      (void)call_label_known(parser->context, value->name,
-                             (w_seed_frontend_text){NULL, 0}, &resolved);
+      if (local_signature) {
+        resolved = true;
+      } else {
+        (void)call_label_known(parser->context, value->name,
+                               (w_seed_frontend_text){NULL, 0}, &resolved);
+      }
       if (!resolved) {
         (void)external_label_known(parser->context, value->name,
                                    (w_seed_frontend_text){NULL, 0}, &resolved);
@@ -16173,15 +16275,50 @@ static bool module_kernel_contract_shape(
   return true;
 }
 
-static bool kernel_binding_field_shape(
-    const frontend_context *context, uint32_t field_node,
-    w_seed_frontend_text *label, w_seed_frontend_text *function_name,
-    uint32_t *function_index) {
-  const w_seed_frontend_document *doc = context_document(context);
+static bool function_index_for_document_node(
+    const frontend_context *context, size_t document_index,
+    uint32_t function_node, uint32_t *function_index) {
+  if (function_index != NULL) *function_index = W_SEED_FRONTEND_NONE;
+  if (context == NULL || function_index == NULL ||
+      document_index >= context->input.document_count)
+    return false;
+  size_t ordinal = 0u;
+  for (size_t index = 0u; index < context->input.document_count; index += 1u) {
+    const w_seed_frontend_document *doc = &context->input.documents[index];
+    uint32_t cursor = doc->nodes[doc->parse.root].first_child;
+    uint32_t child = W_SEED_CST_NONE;
+    size_t guard = 0u;
+    while (next_child(doc, &cursor, &child) &&
+           guard < doc->parse.node_count) {
+      const bool emits_function =
+          doc->nodes[child].kind == W_SEED_CST_FUNCTION ||
+          (doc->nodes[child].kind == W_SEED_CST_ENTRY &&
+           first_direct_kind(doc, child, W_SEED_CST_BLOCK) !=
+               W_SEED_CST_NONE);
+      if (emits_function) {
+        if (index == document_index &&
+            doc->nodes[child].kind == W_SEED_CST_FUNCTION &&
+            child == function_node) {
+          return add_u32(ordinal, function_index);
+        }
+        if (ordinal == SIZE_MAX) return false;
+        ordinal += 1u;
+      }
+      guard += 1u;
+    }
+  }
+  return false;
+}
+
+static bool kernel_binding_field_shape_for_document(
+    const frontend_context *context, const w_seed_frontend_document *doc,
+    uint32_t field_node, w_seed_frontend_text *label,
+    w_seed_frontend_text *function_name, uint32_t *function_index) {
   if (label != NULL) *label = (w_seed_frontend_text){NULL, 0u};
   if (function_name != NULL) *function_name = (w_seed_frontend_text){NULL, 0u};
   if (function_index != NULL) *function_index = W_SEED_FRONTEND_NONE;
-  if (doc == NULL || label == NULL || function_name == NULL ||
+  if (context == NULL || doc == NULL || label == NULL ||
+      function_name == NULL ||
       function_index == NULL || field_node >= doc->parse.node_count ||
       count_direct_kind(doc, field_node, W_SEED_CST_WORD) != 2u ||
       count_direct_kind(doc, field_node, W_SEED_CST_PUNCTUATION) != 1u) {
@@ -16200,11 +16337,12 @@ static bool kernel_binding_field_shape(
   }
   *label = text_from_span(doc, doc->nodes[label_node].raw_span);
   *function_name = text_from_span(doc, doc->nodes[function_node].raw_span);
-  const w_seed_frontend_document *owner_doc = NULL;
   uint32_t owner_node = W_SEED_CST_NONE;
-  if (!function_declaration_for_name(context, *function_name, function_index,
-                                     &owner_doc, &owner_node) ||
-      owner_doc != doc || owner_node == W_SEED_CST_NONE) {
+  if (!function_in_document(doc, *function_name, false, &owner_node) ||
+      owner_node == W_SEED_CST_NONE ||
+      function_index_for_document_node(
+          context, context_document_index_for(context, doc), owner_node,
+          function_index) == false) {
     return false;
   }
   /* A generic function is only a family until a concrete specialization is
@@ -16213,6 +16351,15 @@ static bool kernel_binding_field_shape(
    * than manufacturing a false concrete identity. */
   return first_direct_kind(doc, owner_node, W_SEED_CST_GENERIC_PARAMETERS) ==
          W_SEED_CST_NONE;
+}
+
+static bool kernel_binding_field_shape(
+    const frontend_context *context, uint32_t field_node,
+    w_seed_frontend_text *label, w_seed_frontend_text *function_name,
+    uint32_t *function_index) {
+  return kernel_binding_field_shape_for_document(
+      context, context_document(context), field_node, label, function_name,
+      function_index);
 }
 
 static bool kernel_binding_field_label(
@@ -16228,10 +16375,9 @@ static bool kernel_binding_field_label(
   return label->length != 0u;
 }
 
-static bool kernel_contract_validate_fields(
-    const frontend_context *context, uint32_t record_node,
-    size_t field_count) {
-  const w_seed_frontend_document *doc = context_document(context);
+static bool kernel_contract_validate_fields_for_document(
+    const frontend_context *context, const w_seed_frontend_document *doc,
+    uint32_t record_node, size_t field_count) {
   if (context == NULL || doc == NULL || record_node == W_SEED_CST_NONE ||
       record_node >= doc->parse.node_count || field_count == 0u ||
       count_direct_kind(doc, record_node, W_SEED_CST_STATIC_FIELD) !=
@@ -16252,8 +16398,8 @@ static bool kernel_contract_validate_fields(
       w_seed_frontend_text label = {NULL, 0u};
       w_seed_frontend_text function_name = {NULL, 0u};
       uint32_t function_index = W_SEED_FRONTEND_NONE;
-      if (!kernel_binding_field_shape(context, outer, &label, &function_name,
-                                       &function_index))
+      if (!kernel_binding_field_shape_for_document(
+              context, doc, outer, &label, &function_name, &function_index))
         return false;
       (void)function_name;
       (void)function_index;
@@ -16277,6 +16423,13 @@ static bool kernel_contract_validate_fields(
     outer_guard += 1u;
   }
   return validated == field_count;
+}
+
+static bool kernel_contract_validate_fields(
+    const frontend_context *context, uint32_t record_node,
+    size_t field_count) {
+  return kernel_contract_validate_fields_for_document(
+      context, context_document(context), record_node, field_count);
 }
 
 static bool kernel_contract_fields_are_valid(
@@ -16374,6 +16527,42 @@ static bool kernel_binding_indices_for_document(
   return false;
 }
 
+/* The contract emitter publishes fields in public-label order. Compute that
+ * same rank independently of source field order so a reordered contract keeps
+ * one canonical binding identity. */
+static bool kernel_contract_rank_for_label(
+    const w_seed_frontend_document *doc, uint32_t record_node,
+    w_seed_frontend_text name, size_t *rank, uint32_t *field_node) {
+  if (rank != NULL) *rank = 0u;
+  if (field_node != NULL) *field_node = W_SEED_CST_NONE;
+  if (doc == NULL || rank == NULL || field_node == NULL ||
+      record_node == W_SEED_CST_NONE || name.length == 0u)
+    return false;
+  bool found = false;
+  uint32_t cursor = doc->nodes[record_node].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t guard = 0u;
+  while (next_child(doc, &cursor, &child) &&
+         guard < doc->parse.node_count) {
+    if (child < doc->parse.node_count &&
+        doc->nodes[child].kind == W_SEED_CST_STATIC_FIELD) {
+      w_seed_frontend_text label = {NULL, 0u};
+      if (!kernel_binding_field_label(doc, child, &label)) return false;
+      const int comparison = diagnostic_compare_text(label, name);
+      if (comparison < 0) {
+        if (*rank == SIZE_MAX) return false;
+        *rank += 1u;
+      } else if (comparison == 0) {
+        if (found) return false;
+        found = true;
+        *field_node = child;
+      }
+    }
+    guard += 1u;
+  }
+  return found;
+}
+
 static bool kernel_binding_for_name(
     frontend_context *context, w_seed_frontend_text name,
     uint32_t *kernel_module_index, uint32_t *kernel_binding_index,
@@ -16401,40 +16590,214 @@ static bool kernel_binding_for_name(
     return false;
   }
   size_t rank = 0u;
-  bool found = false;
-  uint32_t cursor = doc->nodes[record].first_child;
+  uint32_t field_node = W_SEED_CST_NONE;
+  if (!kernel_contract_rank_for_label(doc, record, name, &rank,
+                                      &field_node) ||
+      rank > (size_t)UINT32_MAX - first_binding)
+    return false;
+  w_seed_frontend_text label = {NULL, 0u};
+  w_seed_frontend_text target_name = {NULL, 0u};
+  uint32_t target_function = W_SEED_FRONTEND_NONE;
+  if (!kernel_binding_field_shape(context, field_node, &label, &target_name,
+                                  &target_function))
+    return false;
+  if (kernel_module_index != NULL) *kernel_module_index = module;
+  if (kernel_binding_index != NULL)
+    *kernel_binding_index = first_binding + (uint32_t)rank;
+  if (function_index != NULL) *function_index = target_function;
+  if (function_name != NULL) *function_name = target_name;
+  return true;
+}
+
+/* Resolve one public label against a specific source document's module
+ * contract. The document index is the resolver-owned module identity; the
+ * contract label is the public identity. Source field order is never used for
+ * the binding ordinal. */
+static bool kernel_binding_for_document_name(
+    const frontend_context *context, size_t document_index,
+    w_seed_frontend_text name, uint32_t *kernel_module_index,
+    uint32_t *kernel_binding_index, uint32_t *function_index,
+    w_seed_frontend_text *function_name,
+    const w_seed_frontend_document **function_doc, uint32_t *function_node) {
+  if (kernel_module_index != NULL)
+    *kernel_module_index = W_SEED_FRONTEND_NONE;
+  if (kernel_binding_index != NULL)
+    *kernel_binding_index = W_SEED_FRONTEND_NONE;
+  if (function_index != NULL) *function_index = W_SEED_FRONTEND_NONE;
+  if (function_name != NULL) *function_name = (w_seed_frontend_text){NULL, 0};
+  if (function_doc != NULL) *function_doc = NULL;
+  if (function_node != NULL) *function_node = W_SEED_CST_NONE;
+  if (context == NULL || name.length == 0u ||
+      document_index >= context->input.document_count)
+    return false;
+  const w_seed_frontend_document *doc =
+      &context->input.documents[document_index];
+  uint32_t record = W_SEED_CST_NONE;
+  size_t fields = 0u;
+  if (!module_kernel_contract_shape(doc, &record, NULL, &fields) ||
+      record == W_SEED_CST_NONE ||
+      !kernel_contract_validate_fields_for_document(context, doc, record,
+                                                    fields)) {
+    return false;
+  }
+  uint32_t module = W_SEED_FRONTEND_NONE;
+  uint32_t first_binding = W_SEED_FRONTEND_NONE;
+  if (!kernel_binding_indices_for_document(context, document_index, &module,
+                                           &first_binding)) {
+    return false;
+  }
+  size_t rank = 0u;
+  uint32_t field_node = W_SEED_CST_NONE;
+  if (!kernel_contract_rank_for_label(doc, record, name, &rank,
+                                      &field_node) ||
+      rank > (size_t)UINT32_MAX - first_binding)
+    return false;
+  w_seed_frontend_text label = {NULL, 0};
+  w_seed_frontend_text target_name = {NULL, 0};
+  uint32_t target_function = W_SEED_FRONTEND_NONE;
+  if (!kernel_binding_field_shape_for_document(
+          context, doc, field_node, &label, &target_name, &target_function))
+    return false;
+  if (kernel_module_index != NULL) *kernel_module_index = module;
+  if (kernel_binding_index != NULL)
+    *kernel_binding_index = first_binding + (uint32_t)rank;
+  if (function_index != NULL) *function_index = target_function;
+  if (function_name != NULL) *function_name = target_name;
+  if (function_doc != NULL) *function_doc = doc;
+  if (function_node != NULL) {
+    uint32_t target_node = W_SEED_CST_NONE;
+    if (!function_in_document(doc, target_name, false, &target_node))
+      return false;
+    *function_node = target_node;
+  }
+  return true;
+}
+
+/* Grouped named kernel imports are the one cross-document projection in this
+ * slice. The resolver edge chooses the target document, while the target
+ * module's contract label chooses the binding. Local alias and import order
+ * are deliberately excluded from the canonical identity. */
+static bool kernel_import_binding_for_name(
+    frontend_context *context, w_seed_frontend_text name,
+    uint32_t *kernel_module_index, uint32_t *kernel_binding_index,
+    uint32_t *function_index, w_seed_frontend_text *function_name,
+    const w_seed_frontend_document **function_doc, uint32_t *function_node) {
+  if (kernel_module_index != NULL)
+    *kernel_module_index = W_SEED_FRONTEND_NONE;
+  if (kernel_binding_index != NULL)
+    *kernel_binding_index = W_SEED_FRONTEND_NONE;
+  if (function_index != NULL) *function_index = W_SEED_FRONTEND_NONE;
+  if (function_name != NULL) *function_name = (w_seed_frontend_text){NULL, 0};
+  if (function_doc != NULL) *function_doc = NULL;
+  if (function_node != NULL) *function_node = W_SEED_CST_NONE;
+  if (context == NULL || name.length == 0u ||
+      !context->input.import_resolution_complete ||
+      import_local_alias_is_ambiguous(context, name)) {
+    return false;
+  }
+  const w_seed_frontend_document *doc = context_document(context);
+  if (doc == NULL || doc->parse.root >= doc->parse.node_count) return false;
+  uint32_t cursor = doc->nodes[doc->parse.root].first_child;
   uint32_t child = W_SEED_CST_NONE;
+  uint32_t direct_ordinal = 0u;
   size_t guard = 0u;
+  bool found = false;
   while (next_child(doc, &cursor, &child) &&
          guard < doc->parse.node_count) {
-    if (child < doc->parse.node_count &&
-        doc->nodes[child].kind == W_SEED_CST_STATIC_FIELD) {
-      w_seed_frontend_text label = {NULL, 0u};
-      if (!kernel_binding_field_label(doc, child, &label))
-        return false;
-      const int comparison = diagnostic_compare_text(label, name);
-      if (comparison < 0) {
-        if (rank == SIZE_MAX) return false;
-        rank += 1u;
-      } else if (comparison == 0) {
-        if (found) return false;
-        found = true;
-        w_seed_frontend_text target_name = {NULL, 0u};
-        uint32_t target_function = W_SEED_FRONTEND_NONE;
-        if (!kernel_binding_field_shape(context, child, &label, &target_name,
-                                        &target_function))
-          return false;
-        if (rank > (size_t)UINT32_MAX - first_binding) return false;
-        if (kernel_module_index != NULL) *kernel_module_index = module;
-        if (kernel_binding_index != NULL)
-          *kernel_binding_index = first_binding + (uint32_t)rank;
-        if (function_index != NULL) *function_index = target_function;
-        if (function_name != NULL) *function_name = target_name;
-      }
+    if (doc->nodes[child].kind != W_SEED_CST_IMPORT ||
+        !import_is_kernel_projection(doc, doc->nodes[child].raw_span) ||
+        !import_has_from(doc, doc->nodes[child].raw_span)) {
+      if (doc->nodes[child].kind == W_SEED_CST_IMPORT) direct_ordinal += 1u;
+      guard += 1u;
+      continue;
     }
+    size_t edge_index = SIZE_MAX;
+    const w_seed_frontend_resolved_import *edge = NULL;
+    if (!resolved_import_index_for(context, context->module_index,
+                                   direct_ordinal, &edge_index) ||
+        (edge = resolved_import_at(context, edge_index)) == NULL ||
+        edge->target_kind != W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT ||
+        (size_t)edge->target_index >= context->input.document_count) {
+      direct_ordinal += 1u;
+      guard += 1u;
+      continue;
+    }
+    w_seed_span path_span = empty_span(doc->nodes[child].raw_span.start_byte);
+    if (!w_seed_module_scan_import_path_span(
+            doc->source, doc->nodes, doc->parse.node_count,
+            doc->nodes[child].raw_span, &path_span) ||
+        !text_equal_text(text_from_span(doc, path_span),
+                         document_module_name(
+                             &context->input.documents[edge->target_index]))) {
+      direct_ordinal += 1u;
+      guard += 1u;
+      continue;
+    }
+    uint32_t item_cursor = doc->nodes[child].first_child;
+    uint32_t item = W_SEED_CST_NONE;
+    size_t item_guard = 0u;
+    while (next_child(doc, &item_cursor, &item) &&
+           item_guard < doc->parse.node_count) {
+      if (doc->nodes[item].kind == W_SEED_CST_IMPORT_ITEM) {
+        w_seed_frontend_text imported_name = {NULL, 0};
+        const w_seed_frontend_text local_name = import_item_local_name(
+            doc, doc->nodes[item].raw_span, &imported_name);
+        if (imported_name.length != 0u &&
+            text_equal_text(local_name, name)) {
+          if (found ||
+              !kernel_binding_for_document_name(
+                  context, edge->target_index, imported_name,
+                  kernel_module_index, kernel_binding_index, function_index,
+                  function_name, function_doc, function_node)) {
+            return false;
+          }
+          found = true;
+        }
+      }
+      item_guard += 1u;
+    }
+    direct_ordinal += 1u;
     guard += 1u;
   }
   return found;
+}
+
+/* Link validation uses the emitted import-item record as the source of the
+ * caller-local spelling. This prevents a forged or stale expression identity
+ * from being accepted merely because its numeric kernel indices are in range. */
+static bool kernel_import_item_for_name(
+    const frontend_context *context, w_seed_frontend_text name,
+    const w_seed_frontend_import_item **item) {
+  if (item != NULL) *item = NULL;
+  if (context == NULL || context->output == NULL || item == NULL ||
+      context->output->imports == NULL ||
+      context->output->import_items == NULL)
+    return false;
+  const w_seed_frontend_import_item *found = NULL;
+  for (size_t import_index = 0u; import_index < context->count.imports;
+       import_index += 1u) {
+    const w_seed_frontend_import *import_value =
+        &context->output->imports[import_index];
+    if (import_value->module_index != context->module_index ||
+        import_value->kind != W_SEED_FRONTEND_IMPORT_KERNEL ||
+        import_value->item_count == 0u ||
+        (size_t)import_value->first_item > context->count.import_items ||
+        (size_t)import_value->item_count >
+            context->count.import_items - import_value->first_item)
+      continue;
+    for (size_t offset = 0u; offset < import_value->item_count; offset += 1u) {
+      const w_seed_frontend_import_item *candidate =
+          &context->output->import_items[(size_t)import_value->first_item +
+                                         offset];
+      if (text_equal_text(candidate->local_name, name)) {
+        if (found != NULL) return false;
+        found = candidate;
+      }
+    }
+  }
+  if (found == NULL) return false;
+  *item = found;
+  return true;
 }
 
 static bool normalize_kernel_module_contract(frontend_context *context) {
@@ -17691,20 +18054,50 @@ static bool resolve_frontend_links(frontend_context *context) {
       const w_seed_frontend_kernel_binding *binding =
           &context->output
                ->kernel_bindings[callee->resolved_kernel_binding_index];
+      const w_seed_frontend_import_item *import_item = NULL;
+      const bool imported_kernel =
+          kernel_import_item_for_name(context, callee->spelling,
+                                      &import_item);
+      uint32_t checked_module = W_SEED_FRONTEND_NONE;
+      uint32_t checked_binding = W_SEED_FRONTEND_NONE;
+      uint32_t checked_function = W_SEED_FRONTEND_NONE;
+      const bool imported_identity =
+          imported_kernel &&
+          kernel_import_binding_for_name(
+              context, callee->spelling, &checked_module, &checked_binding,
+              &checked_function, NULL, NULL, NULL) &&
+          import_item != NULL &&
+          import_item->module_index == expression->module_index &&
+          import_item->resolved_kernel_module_index == checked_module &&
+          import_item->resolved_kernel_binding_index == checked_binding &&
+          import_item->resolved_kernel_function_index == checked_function &&
+          callee->resolved_kernel_module_index == checked_module &&
+          callee->resolved_kernel_binding_index == checked_binding &&
+          callee->resolved_function_index == checked_function &&
+          import_item->name.length != 0u &&
+          text_equal_text(binding->label, import_item->name);
+      const bool local_identity =
+          !imported_kernel &&
+          module->module_index == expression->module_index &&
+          binding->module_index == expression->module_index &&
+          text_equal_text(binding->label, callee->spelling);
       const size_t module_end =
           (size_t)module->first_kernel + (size_t)module->kernel_count;
-      if (module->module_index != expression->module_index ||
+      if ((!local_identity && !imported_identity) ||
+          (imported_identity &&
+           module->module_index == expression->module_index) ||
           (size_t)callee->resolved_kernel_binding_index <
               (size_t)module->first_kernel ||
           module_end < (size_t)module->first_kernel ||
           (size_t)callee->resolved_kernel_binding_index >= module_end ||
-          binding->module_index != expression->module_index ||
+          binding->module_index != module->module_index ||
           binding->owner_kernel_module !=
               callee->resolved_kernel_module_index ||
           binding->ordinal !=
               callee->resolved_kernel_binding_index - module->first_kernel ||
           binding->function_index != callee->resolved_function_index ||
-          !text_equal_text(binding->label, callee->spelling)) {
+          (local_identity &&
+           !text_equal_text(binding->label, callee->spelling))) {
         expression->supported = false;
         continue;
       }
@@ -18286,6 +18679,8 @@ static bool resolve_imports(frontend_context *context) {
       }
       const w_seed_frontend_text path = text_from_span(doc, path_span);
       const bool named_import = import_has_from(doc, declaration_span);
+      const bool kernel_projection =
+          import_is_kernel_projection(doc, declaration_span);
       w_seed_frontend_import_target_kind target_kind =
           W_SEED_FRONTEND_IMPORT_UNRESOLVED;
       uint32_t target_index = W_SEED_FRONTEND_NONE;
@@ -18308,6 +18703,17 @@ static bool resolve_imports(frontend_context *context) {
             context, W_SEED_FRONTEND_FACT_UNRESOLVED_IMPORTED_SYMBOL,
             declaration_span, path);
       }
+      if (kernel_projection && !named_import &&
+          context->input.import_resolution_complete) {
+        /* Qualified kernel projections have no specialization-safe binding
+         * record in this slice. Keep the parser/module-scan evidence, but
+         * reject the projection before it can become a value path. */
+        if (!context_append_fact(context,
+                                 W_SEED_FRONTEND_FACT_UNSUPPORTED_NODE,
+                                 declaration_span, path)) {
+          return false;
+        }
+      }
       if (named_import) {
         uint32_t item_cursor = doc->nodes[child].first_child;
         uint32_t item = W_SEED_CST_NONE;
@@ -18329,7 +18735,28 @@ static bool resolve_imports(frontend_context *context) {
             if (!context->input.import_resolution_complete) {
               exported = false;
             } else if (imported_name.length != 0u) {
-              if (target_kind == W_SEED_FRONTEND_IMPORT_LOCAL_DOCUMENT) {
+              if (kernel_projection) {
+                /* The path is source evidence; the explicit local edge and
+                 * target module identity are semantic authority. External
+                 * modules cannot provide compiler-owned kernel contracts. */
+                w_seed_span target_path_span =
+                    empty_span(declaration_span.start_byte);
+                const bool target_path_matches =
+                    target_kind == W_SEED_FRONTEND_IMPORT_LOCAL_DOCUMENT &&
+                    (size_t)target_index < context->input.document_count &&
+                    w_seed_module_scan_import_path_span(
+                        doc->source, doc->nodes, doc->parse.node_count,
+                        declaration_span, &target_path_span) &&
+                    text_equal_text(
+                        text_from_span(doc, target_path_span),
+                        document_module_name(
+                            &context->input.documents[target_index]));
+                exported =
+                    target_path_matches &&
+                    kernel_binding_for_document_name(
+                        context, target_index, imported_name, NULL, NULL, NULL,
+                        NULL, NULL, NULL);
+              } else if (target_kind == W_SEED_FRONTEND_IMPORT_LOCAL_DOCUMENT) {
                 exported =
                     (size_t)target_index < context->input.document_count &&
                     exported_symbol_in_document(
@@ -18761,6 +19188,12 @@ static void receipt_write_records(frontend_receipt_writer *writer,
         receipt_write_text(writer, import_item->local_name);
         receipt_write_literal(writer, "|span=");
         receipt_write_span(writer, import_item->span);
+        receipt_write_literal(writer, "|kernel=");
+        receipt_write_size(writer, import_item->resolved_kernel_module_index);
+        receipt_write_literal(writer, ":");
+        receipt_write_size(writer, import_item->resolved_kernel_binding_index);
+        receipt_write_literal(writer, ":");
+        receipt_write_size(writer, import_item->resolved_kernel_function_index);
         receipt_write_literal(writer, "\n");
       }
     }

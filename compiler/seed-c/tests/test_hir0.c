@@ -323,7 +323,7 @@ static bool test_parallel_platform1_typed_completions(void) {
             10 + (int64_t)index, 0u, 0u, 0u,
             W_SEED_PARALLEL_PLATFORM1_PANIC_NONE};
   const w_seed_parallel_platform1_job parallel_job = {
-      test_platform1_invoke, &parallel_context};
+      test_platform1_invoke, &parallel_context, sizeof(parallel_context)};
   w_seed_parallel_platform1_completion parallel_completions[5];
   w_seed_parallel_platform1_receipt parallel_receipt;
   w_seed_parallel_provider0_kind parallel_kind =
@@ -353,8 +353,8 @@ static bool test_parallel_platform1_typed_completions(void) {
 
   test_platform1_context serial_context = parallel_context;
   (void)memset(serial_context.calls, 0, sizeof(serial_context.calls));
-  const w_seed_parallel_platform1_job serial_job = {test_platform1_invoke,
-                                                     &serial_context};
+  const w_seed_parallel_platform1_job serial_job = {
+      test_platform1_invoke, &serial_context, sizeof(serial_context)};
   w_seed_parallel_platform1_completion serial_completions[5];
   w_seed_parallel_platform1_receipt serial_receipt;
   w_seed_parallel_provider0_kind serial_kind =
@@ -379,7 +379,7 @@ static bool test_parallel_platform1_typed_completions(void) {
       W_SEED_PARALLEL_PLATFORM1_COMPLETION_SUCCESS, 11, 0u, 0u, 0u,
       W_SEED_PARALLEL_PLATFORM1_PANIC_NONE};
   const w_seed_parallel_platform1_job canceled_job = {
-      test_platform1_invoke, &canceled_context};
+      test_platform1_invoke, &canceled_context, sizeof(canceled_context)};
   w_seed_parallel_platform1_completion canceled_completions[5];
   w_seed_parallel_platform1_receipt canceled_receipt;
   w_seed_parallel_provider0_kind canceled_kind =
@@ -405,8 +405,8 @@ static bool test_parallel_platform1_typed_completions(void) {
   panic_context.requested[1] = (w_seed_parallel_platform1_completion){
       .kind = W_SEED_PARALLEL_PLATFORM1_COMPLETION_PANIC,
       .panic_code = W_SEED_PARALLEL_PLATFORM1_PANIC_EXPLICIT};
-  const w_seed_parallel_platform1_job panic_job = {test_platform1_invoke,
-                                                    &panic_context};
+  const w_seed_parallel_platform1_job panic_job = {
+      test_platform1_invoke, &panic_context, sizeof(panic_context)};
   w_seed_parallel_platform1_completion panic_completions[5];
   w_seed_parallel_platform1_receipt panic_receipt;
   w_seed_parallel_provider0_kind panic_kind =
@@ -437,8 +437,8 @@ static bool test_parallel_platform1_typed_completions(void) {
   test_platform1_context invalid_context = parallel_context;
   (void)memset(invalid_context.calls, 0, sizeof(invalid_context.calls));
   invalid_context.requested[0].error_code = 1u;
-  const w_seed_parallel_platform1_job invalid_job = {test_platform1_invoke,
-                                                      &invalid_context};
+  const w_seed_parallel_platform1_job invalid_job = {
+      test_platform1_invoke, &invalid_context, sizeof(invalid_context)};
   CHECK(w_seed_parallel_platform1_execute(
             &invalid_job, 5u, 1u, serial_completions, &serial_receipt,
             &serial_kind) == W_SEED_PARALLEL_PROVIDER0_PLATFORM_TASK_FAILURE);
@@ -448,6 +448,34 @@ static bool test_parallel_platform1_typed_completions(void) {
   CHECK(w_seed_parallel_platform1_execute(
             &invalid_job, 5u, 1u, serial_completions, &serial_receipt,
             &serial_kind) == W_SEED_PARALLEL_PROVIDER0_PLATFORM_TASK_FAILURE);
+  const w_seed_parallel_platform1_job missing_context_extent = {
+      test_platform1_invoke, &invalid_context, 0u};
+  (void)memset(serial_completions, 0x4eu, sizeof(serial_completions));
+  (void)memset(&serial_receipt, 0x9du, sizeof(serial_receipt));
+  serial_kind = W_SEED_PARALLEL_PROVIDER0_KIND_NONE;
+  const w_seed_parallel_platform1_completion
+      missing_context_completions_before[5] = {
+          serial_completions[0], serial_completions[1], serial_completions[2],
+          serial_completions[3], serial_completions[4]};
+  const w_seed_parallel_platform1_receipt missing_context_receipt_before =
+      serial_receipt;
+  const uint32_t missing_context_calls_before = invalid_context.calls[0];
+  CHECK(w_seed_parallel_platform1_execute(
+            &missing_context_extent, 5u, 1u, serial_completions,
+            &serial_receipt, &serial_kind) ==
+            W_SEED_PARALLEL_PROVIDER0_PLATFORM_PROVIDER_FAILURE &&
+        invalid_context.calls[0] == missing_context_calls_before &&
+        memcmp(serial_completions, missing_context_completions_before,
+               sizeof(serial_completions)) == 0 &&
+        memcmp(&serial_receipt, &missing_context_receipt_before,
+               sizeof(serial_receipt)) == 0 &&
+        serial_kind == W_SEED_PARALLEL_PROVIDER0_KIND_NONE);
+  const w_seed_parallel_platform1_job null_context_extent = {
+      test_platform1_invoke, NULL, sizeof(invalid_context)};
+  CHECK(w_seed_parallel_platform1_execute(
+            &null_context_extent, 5u, 1u, serial_completions, &serial_receipt,
+            &serial_kind) ==
+        W_SEED_PARALLEL_PROVIDER0_PLATFORM_PROVIDER_FAILURE);
   return true;
 }
 
@@ -3574,25 +3602,25 @@ static bool test_parallel_domain_placement_hir(void) {
       "let right = spawn<.domain> combine(right: 2, left: 20) "
       "let first = await left let second = await right }\n";
 
-  /* Frontend31 added accelerated-domain and kernel-binding identities. HIR38
+  /* Frontend32 added accelerated-domain and kernel-binding identities. HIR38
    * does not represent them yet, so its boundary must reject every forged or
    * unrepresented field instead of treating appended schema bytes as zero-cost
    * metadata. */
   CHECK(fixture_parallel_domain_frontend(
       SOURCE, W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL));
   setup_hir_output();
-  const w_seed_hir0_input frontend31_input = {
+  const w_seed_hir0_input frontend32_input = {
       .frontend_input = &fixture.input,
       .frontend_output = &fixture.output,
       .frontend_result = &fixture.result,
       .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
-  w_seed_hir0_counts frontend31_counts;
-  w_seed_hir0_result frontend31_result;
+  w_seed_hir0_counts frontend32_counts;
+  w_seed_hir0_result frontend32_result;
   fixture.domains[0].kind = W_SEED_FRONTEND_DOMAIN_ACCELERATED;
   fixture.domains[0].capabilities = W_SEED_FRONTEND_DOMAIN_CAPABILITY_DEVICE;
   fixture.domains[0].maximum = 1u;
-  CHECK(w_seed_hir0_measure(&frontend31_input, &frontend31_counts,
-                            &frontend31_result) != W_SEED_HIR0_OK);
+  CHECK(w_seed_hir0_measure(&frontend32_input, &frontend32_counts,
+                            &frontend32_result) != W_SEED_HIR0_OK);
   fixture.domains[0].kind = W_SEED_FRONTEND_DOMAIN_HOST;
   fixture.domains[0].capabilities = W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL;
   fixture.domains[0].maximum = 0u;
@@ -3613,15 +3641,15 @@ static bool test_parallel_domain_placement_hir(void) {
   fixture.expressions[frontend_launch].domain_kind =
       W_SEED_FRONTEND_DOMAIN_ACCELERATED;
   fixture.expressions[frontend_launch].domain_maximum = 1u;
-  CHECK(w_seed_hir0_measure(&frontend31_input, &frontend31_counts,
-                            &frontend31_result) != W_SEED_HIR0_OK);
+  CHECK(w_seed_hir0_measure(&frontend32_input, &frontend32_counts,
+                            &frontend32_result) != W_SEED_HIR0_OK);
   fixture.expressions[frontend_launch].domain_kind =
       W_SEED_FRONTEND_DOMAIN_HOST;
   fixture.expressions[frontend_launch].domain_maximum = 0u;
   fixture.expressions[frontend_call].resolved_kernel_module_index = 0u;
   fixture.expressions[frontend_call].resolved_kernel_binding_index = 0u;
-  CHECK(w_seed_hir0_measure(&frontend31_input, &frontend31_counts,
-                            &frontend31_result) != W_SEED_HIR0_OK);
+  CHECK(w_seed_hir0_measure(&frontend32_input, &frontend32_counts,
+                            &frontend32_result) != W_SEED_HIR0_OK);
 
   CHECK(lower_parallel_domain(SOURCE));
   const w_seed_hir0_program *program = &fixture.hir_program;
@@ -6706,7 +6734,8 @@ static bool test_parallel_typed_binding1(void) {
       .tasks = tasks,
       .task_count = 2u,
       .task_capacity = 2u,
-      .provider_job = {typed_binding1_provider_invoke, &context},
+      .provider_job = {typed_binding1_provider_invoke, &context,
+                       sizeof(context)},
       .provider_authority = &provider_authority,
       .provider_capacity = 1u,
       .generation = 41u,

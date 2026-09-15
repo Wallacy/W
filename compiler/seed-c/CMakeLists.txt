@@ -39,6 +39,7 @@ add_library(w_seed_source STATIC
   include/w_seed_parallel_platform1.h
   include/w_seed_parallel_local_provider1.h
   include/w_seed_parallel_typed_binding1.h
+  include/w_seed_parallel_panic_boundary1.h
   include/w_seed_parallel_typed_lifecycle1.h
   include/w_seed_parallel_lifecycle1.h
   include/w_seed_task_lifecycle0.h
@@ -90,6 +91,7 @@ add_library(w_seed_source STATIC
   src/w_seed_parallel_provider1.c
   src/w_seed_parallel_local_provider1.c
   src/w_seed_parallel_typed_binding1.c
+  src/w_seed_parallel_panic_boundary1.c
   src/w_seed_task_lifecycle0.c
   src/w_seed_scalar_evaluator0.c
   src/w_seed_native0.c
@@ -689,6 +691,20 @@ add_executable(w_seed_hir0_tests
 )
 target_link_libraries(w_seed_hir0_tests PRIVATE w_seed_source)
 
+add_executable(w_seed_parallel_panic_boundary1_helper
+  tests/parallel_panic_boundary1_helper.c
+  tests/parallel_panic_boundary1_witness.c
+)
+target_link_libraries(w_seed_parallel_panic_boundary1_helper PRIVATE
+  w_seed_source)
+
+add_executable(w_seed_parallel_panic_boundary1_tests
+  tests/test_parallel_panic_boundary1.c
+  tests/parallel_panic_boundary1_witness.c
+)
+target_link_libraries(w_seed_parallel_panic_boundary1_tests PRIVATE
+  w_seed_source)
+
 add_executable(w_seed_task_lifecycle0_tests
   tests/test_task_lifecycle0.c
 )
@@ -769,6 +785,7 @@ if(WIN32 AND NOT MSVC)
   # the wmain-based CLI and self-launching integration test.
   target_link_options(w_seed_native_benchmark_cli PRIVATE -municode)
   target_link_options(w_seed_native_benchmark_tests PRIVATE -municode)
+  target_link_options(w_seed_parallel_panic_boundary1_helper PRIVATE -municode)
 endif()
 
 if(MSVC)
@@ -859,6 +876,8 @@ if(MSVC)
   target_compile_options(w_seed_cooperative0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_wrt0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_hir0_tests PRIVATE /W4 /WX)
+  target_compile_options(w_seed_parallel_panic_boundary1_helper PRIVATE /W4 /WX)
+  target_compile_options(w_seed_parallel_panic_boundary1_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_task_lifecycle0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_hir0_multidoc_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_product_closure0_tests PRIVATE /W4 /WX)
@@ -1348,6 +1367,24 @@ else()
     -Wshadow
     -Werror
   )
+  target_compile_options(w_seed_parallel_panic_boundary1_helper PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
+  target_compile_options(w_seed_parallel_panic_boundary1_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
   target_compile_options(w_seed_gpu0_tests PRIVATE
     -Wall
     -Wextra
@@ -1478,6 +1515,11 @@ add_test(NAME w_seed_native0_unit COMMAND w_seed_native0_tests)
 add_test(NAME w_seed_cooperative0_unit COMMAND w_seed_cooperative0_tests)
 add_test(NAME w_seed_wrt0_unit COMMAND w_seed_wrt0_tests)
 add_test(NAME w_seed_hir0_unit COMMAND w_seed_hir0_tests)
+add_test(NAME w_seed_parallel_panic_boundary1_unit
+  COMMAND w_seed_parallel_panic_boundary1_tests
+    $<TARGET_FILE:w_seed_parallel_panic_boundary1_helper>)
+set_tests_properties(w_seed_parallel_panic_boundary1_unit PROPERTIES
+  SKIP_RETURN_CODE 77)
 add_test(NAME w_seed_task_lifecycle0_unit COMMAND w_seed_task_lifecycle0_tests)
 add_test(NAME w_seed_hir0_multidoc_unit COMMAND w_seed_hir0_multidoc_tests)
 add_test(NAME w_seed_product_closure0_unit COMMAND w_seed_product_closure0_tests)

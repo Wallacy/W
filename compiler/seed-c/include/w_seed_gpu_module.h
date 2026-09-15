@@ -129,7 +129,7 @@ w_seed_gpu_module_status w_seed_gpu_module_measure(
     const w_seed_gpu_module_input *input, w_seed_gpu_module_counts *counts,
     w_seed_gpu_module_result *result);
 
-/* Validate and copy a Frontend31 module-contract set into caller-owned bridge
+/* Validate and copy a Frontend32 module-contract set into caller-owned bridge
  * storage. */
 w_seed_gpu_module_status w_seed_gpu_module_run(
     const w_seed_gpu_module_input *input, w_seed_gpu_module_output *output,

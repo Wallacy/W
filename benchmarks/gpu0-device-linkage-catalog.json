@@ -12,7 +12,7 @@
     "mlirVersion": "23.1.1",
     "clangVersion": "22.1.8",
     "recipe": "tooling/check-gpu0-cuda-windows.mjs",
-    "recipeDigest": "sha256:3fe31c1baefabebdf4326126b86e98d4eb48c3dd18c716ebfed3672520e0f821",
+    "recipeDigest": "sha256:680bc7c2dd4eb353619b1fdcf9725a4668b056bd679f0e9f807da37a4e840f4f",
     "adapterSourceDigest": "sha256:22e60f6318452135b5a00bd8acac3c3219449b877359660b1395eae5e4c53e76",
     "gpu0CoreDigest": "sha256:690b4b699f0fd74984fd7c62f5cc3316b0597899015bf3acf89b0b244c272ed1"
   },
@@ -49,25 +49,25 @@
       "id": "h2d",
       "unit": "ns",
       "p50": 2900,
-      "p95": 3500
+      "p95": 13900
     },
     {
       "id": "dispatch-sync",
       "unit": "ns",
-      "p50": 7100,
-      "p95": 26200
+      "p50": 7000,
+      "p95": 25000
     },
     {
       "id": "d2h",
       "unit": "ns",
       "p50": 7600,
-      "p95": 19100
+      "p95": 17700
     },
     {
       "id": "end-to-end",
       "unit": "ns",
-      "p50": 17700,
-      "p95": 36600
+      "p50": 17900,
+      "p95": 35500
     }
   ],
   "boundaries": {

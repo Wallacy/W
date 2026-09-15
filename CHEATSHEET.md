@@ -1827,8 +1827,40 @@ test "numeric types preserve dimensions and lanes" for numericSummary {
 }
 ```
 
-Um módulo consumidor usa a projeção qualificada e mantém o import ordinário
-da função separado para o caminho host:
+O caminho estático comum importa labels de kernel nominalmente. A identidade
+continua sendo a do módulo de origem; `predict` é apenas o nome local:
+
+<!-- w-example role=logical-contract -->
+```w
+module numerics_batch<
+  domains: [
+    .accelerated(
+      .inference,
+      submission: .serial,
+      maximum: 2,
+      fallback: .reject,
+    ),
+  ],
+>
+
+import kernel { forecast as predict } from numerics
+import accelerator from std
+import { FeatureBatch, Tensor } from numerics
+
+async fn predictBatch<rows: usize, inputs: usize, outputs: usize>(
+  features: ref FeatureBatch<rows: rows, columns: inputs>,
+  weights: ref Tensor<f32, shape: [inputs, outputs]>,
+): FeatureBatch<rows: rows, columns: outputs> throws accelerator.LaunchError {
+  let pending = spawn<.inference> predict(
+    features: ref features,
+    weights: ref weights,
+  )
+  return try await pending
+}
+```
+
+O caminho dinâmico avançado usa a projeção qualificada e mantém o import
+ordinário da função separado para a chamada host:
 
 <!-- w-example role=logical-contract -->
 ```w

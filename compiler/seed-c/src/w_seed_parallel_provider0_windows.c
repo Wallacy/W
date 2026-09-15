@@ -27,6 +27,17 @@ bool w_seed_parallel_platform1_receipt_equal(
 
 #include <string.h>
 
+static bool platform1_job_valid(const w_seed_parallel_platform1_job *job) {
+  if (job == NULL || job->invoke == NULL ||
+      (job->context == NULL && job->context_bytes != 0u) ||
+      (job->context != NULL && job->context_bytes == 0u))
+    return false;
+  if (job->context == NULL) return true;
+  const uintptr_t start = (uintptr_t)job->context;
+  return job->context_bytes <= (size_t)UINTPTR_MAX &&
+         start <= UINTPTR_MAX - (uintptr_t)job->context_bytes;
+}
+
 typedef struct {
   const w_seed_parallel_provider0_internal_job *job;
   size_t task_index;
@@ -300,7 +311,7 @@ w_seed_parallel_provider0_platform_status w_seed_parallel_platform1_execute(
     w_seed_parallel_platform1_completion *completions,
     w_seed_parallel_platform1_receipt *receipt,
     w_seed_parallel_provider0_kind *provider_kind) {
-  if (job == NULL || job->invoke == NULL || completions == NULL ||
+  if (!platform1_job_valid(job) || completions == NULL ||
       receipt == NULL || provider_kind == NULL || job_count == 0u ||
       job_count > UINT32_MAX ||
       (provider_capacity != 1u && provider_capacity != 2u))

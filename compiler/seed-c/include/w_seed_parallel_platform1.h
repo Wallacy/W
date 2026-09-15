@@ -61,6 +61,10 @@ typedef bool (*w_seed_parallel_platform1_task_fn)(
 typedef struct {
   w_seed_parallel_platform1_task_fn invoke;
   void *context;
+  /* The callback context is opaque to PLATFORM1, but its caller-owned
+   * extent is explicit for alias and lifetime barriers.  A non-null context
+   * must have a non-zero extent.  A null context must have extent zero. */
+  size_t context_bytes;
 } w_seed_parallel_platform1_job;
 
 /* These facts describe one physical PLATFORM1 execution.  They are not a
