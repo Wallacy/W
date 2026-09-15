@@ -23,10 +23,10 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:2234076b0b964cede7e52d8790227db7a34be46fed7d782a578a146ee2017771",
-    "count": 1603,
+    "sha256": "sha256:362008bb9d62ebb71124e1c83c9d184004fa51e7346cb84476d72ca22ea4a298",
+    "count": 1604,
     "first": "W-001",
-    "last": "W-1603"
+    "last": "W-1604"
   },
   "epochs": [
     {
@@ -61,7 +61,7 @@
     }
   ],
   "preservedLegacyCoverage": {
-    "source": 268,
+    "source": 269,
     "oracle": 420,
     "explicit": 8,
     "overlap": 57
@@ -21869,7 +21869,7 @@
         "path": "DESIGN.md",
         "section": "26",
         "heading": "## 26. Plano de implementação",
-        "sectionDigest": "sha256:65dfa3095d14f86a693a5944416372f700ec8df800f830c80657703a918329c9"
+        "sectionDigest": "sha256:23a66bc0769c8231de5b83fdcc51dc614ef3bad7453b4a7d2340fed91bd9860d"
       },
       "evidence": [],
       "reason": "W-659 (body de entry, sha256:f66ab57406ddb51303f9190376daf72d8f538bd7bd8adfbf9992ae3d7223e74e) has no executable witness for component implementation-plan. The checked current contract is DESIGN.md §26 / 26. Plano de implementação.",
@@ -53189,7 +53189,7 @@
           "path": "compiler/seed-c/CMakeLists.txt",
           "symbol": "W_MLIR0_LINUX_LINK_DRIVER",
           "claim": "The opt-in Linux build requires an absolute linker that advertises elf_x86_64 support.",
-          "sha256": "sha256:357130f7e3cd5de1ab5ec533d28d63c3ae69eb9650f451e141e79274bd6a8f36"
+          "sha256": "sha256:d490a56fb2c6b4bba8bedca27d576be86daadebb424345b22947f06cd48bb836"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -56613,6 +56613,59 @@
           "symbol": "ACCINV0: independently verified accelerated invocation relation passed",
           "claim": "The focused gate configures, builds, executes, and cleans the bounded C23 witness.",
           "sha256": "sha256:9fc5e439cdebd3de05295ca237f4612ab1116c9e5a7b181f1c656c5dfbc25020"
+        }
+      ],
+      "benchmarkDisposition": "compiler-lifecycle",
+      "benchmarkEvidence": "No timing or public product benchmark result; the current gate is bounded compiler-lifecycle correctness evidence only."
+    },
+    {
+      "decisionId": "W-1604",
+      "summary": "independent bounded accelerated root binding",
+      "canonicalClaim": "ACCBIND0 consumes a verified ACCINV0 relation plus one caller-supplied closed product/profile selection, copies the exact root/domain/descriptor/module/artifact/kernel-instance identity relation, requires selected-instance and provider-ABI agreement, and computes the effective admission maximum as the minimum of invocation, profile, root, deployment and resource limits. Its source-free verifier survives both owners; semantic identity excludes queue/device/generation while provenance binds them.",
+      "claimDigest": "sha256:13de4389e5984f21edf664588c3509fe5cc169c64d538c10a03315ea654c7df4",
+      "category": "source-backed-current",
+      "basis": "linked-source-comparison-case",
+      "authorityRef": {
+        "kind": "source-case",
+        "path": "tooling/substitution-cases.json",
+        "caseId": "R0-accelerated-root-binding",
+        "caseDigest": "sha256:00c80660ca1a447536d0e2cd3bf06e6ae947c1f257117733073dd7aed65cf32d"
+      },
+      "evidence": [
+        {
+          "kind": "source",
+          "path": "tooling/substitution-cases.json",
+          "caseId": "R0-accelerated-root-binding",
+          "caseDigest": "sha256:00c80660ca1a447536d0e2cd3bf06e6ae947c1f257117733073dd7aed65cf32d"
+        }
+      ],
+      "reason": "W-1604 (independent bounded accelerated root binding, sha256:13de4389e5984f21edf664588c3509fe5cc169c64d538c10a03315ea654c7df4) is source-backed-current only for the one-relation caller-owned C23 ACCBIND0 bridge, exact minimum budget composition, reject-only fallback, copied identity and ABI consistency, semantic/provenance split, teardown independence, transactional capacity and alias barriers, adversarial independent verification, and focused gate. Caller-supplied profile authenticity, general profile closure, arguments and ownership, residency, provider launch/join/result, cancellation/drain, public GPU products, other targets, benchmark results, and performance remain gaps.",
+      "selection": "explicit-ledger-id",
+      "basisRef": {
+        "kind": "ledger-row",
+        "path": "RATIONALE.md",
+        "section": "3. Ledger",
+        "decisionId": "W-1604",
+        "claimDigest": "sha256:13de4389e5984f21edf664588c3509fe5cc169c64d538c10a03315ea654c7df4"
+      },
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_accelerated_binding0.c",
+          "symbol": "w_seed_accelerated_binding0_verify",
+          "claim": "The independent verifier re-derives dense record ranges and semantic and provenance digests without producer storage.",
+          "sha256": "sha256:53d886356b3d979b35af05ac101f1d3850e550e104156fbeffd0f3eaec547a8a"
+        },
+        {
+          "path": "compiler/seed-c/tests/test_accelerated_binding0.c",
+          "symbol": "ACCBIND0 budgets/digests/teardown/negative barriers: PASS",
+          "claim": "The C23 witness covers exact budgets, physical-provenance separation, teardown, capacities, aliases, and forged relations.",
+          "sha256": "sha256:e348169a2913a71aee4a2b62e2545a53a257502cebb58f25d552911bacd7bdd5"
+        },
+        {
+          "path": "tooling/check-accelerated-binding0.mjs",
+          "symbol": "ACCBIND0: independently verified accelerated root binding passed",
+          "claim": "The focused gate configures, builds, executes, and cleans the bounded C23 witness.",
+          "sha256": "sha256:3f69c21f876b570e97e0ae85a448de74393bb26f570fbf7032967d0ccebf9a0d"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",

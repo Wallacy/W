@@ -69,9 +69,13 @@ name, kernel field label, private implementation name, and payload into the
 exact GPU0 records, and remains verifiable after bridge teardown. The recipe is
 still mixed MLIR 23.1.1 plus Clang 22. Frontend28 plus ACCINV0 preserve and
 independently verify the bounded static accelerated-domain invocation after
-producer teardown, but no root-owned binding, runtime/provider launch, public
-GPU build/run, or supported GPU ABI is claimed; rank 1 therefore remains open
-until those public and physical boundaries have evidence. The explicit
+producer teardown. ACCBIND0 additionally closes one caller-owned root/profile
+relation, including exact module/kernel-instance identity, ABI equality, and
+the minimum effective admission budget. It is not a signed product-profile
+verifier and contains no provider handle or launch. Runtime/provider
+launch/join/result, public GPU build/run, and a supported GPU ABI remain open;
+rank 1 therefore stays open until those public and physical boundaries have
+evidence. The explicit
 `Launch<Module>` route
 remains the later dynamic path, not the common static syntax. Only then does the
 queue generalize task storage, cancellation, and scheduling.

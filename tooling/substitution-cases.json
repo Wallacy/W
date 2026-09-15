@@ -8807,6 +8807,66 @@
       "one invocation and zero arguments remain evidence limits only"
     ],
     "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+  },
+  {
+    "id": "R0-accelerated-root-binding",
+    "reviewItem": "bounded static accelerated root binding against embedded provider handles, multiplied budgets, and unauthenticated claims",
+    "decisions": ["W-1604"],
+    "task": "Bind one independently verified accelerated invocation to a closed root/profile relation without retaining physical provider state.",
+    "selected": {
+      "language": "w-internal",
+      "source": [
+        "invocation = verify(accinv0)",
+        "binding = copyClosed(root, domain, ModuleIdentity, KernelInstanceId, artifact, providerAbi)",
+        "binding.maximum = min(invocation, profile, root, deployment, limits)",
+        "assert verify(binding) after teardown(invocationOwner, profileOwner)"
+      ]
+    },
+    "alternatives": [
+      {
+        "name": "embed-provider-handles",
+        "language": "w-internal-rejected",
+        "source": ["store device, queue and provider pointers in the static binding"],
+        "expectedDifference": "The selected relation stores copied identities only; provider launch and lifecycle remain a later boundary."
+      },
+      {
+        "name": "multiply-capacity-per-module",
+        "language": "w-internal-rejected",
+        "source": ["effectiveMaximum = domainMaximum * moduleCount"],
+        "expectedDifference": "The selected relation takes the exact minimum of every constraining owner."
+      },
+      {
+        "name": "claim-profile-authenticity",
+        "language": "w-internal-rejected",
+        "source": ["treat caller-supplied closure receipts as a verified public signature"],
+        "expectedDifference": "ACCBIND0 proves internal consistency only; product signature verification remains explicit future work."
+      }
+    ],
+    "sourceRefs": [
+      {
+        "path": "compiler/seed-c/src/w_seed_accelerated_binding0.c",
+        "symbol": "w_seed_accelerated_binding0_verify",
+        "claim": "The independent verifier re-derives dense text partitions and semantic/provenance digests without either producer owner."
+      },
+      {
+        "path": "compiler/seed-c/tests/test_accelerated_binding0.c",
+        "symbol": "ACCBIND0 budgets/digests/teardown/negative barriers: PASS",
+        "claim": "The C23 witness covers exact budget composition, provenance-only physical identity, teardown, capacities, aliases, and forgeries."
+      },
+      {
+        "path": "tooling/check-accelerated-binding0.mjs",
+        "symbol": "ACCBIND0: independently verified accelerated root binding passed",
+        "claim": "The focused gate configures C23 from scratch, builds and executes the witness, and removes temporary artifacts."
+      }
+    ],
+    "checks": [
+      "canonical domain, local descriptor, module identity and kernel instance remain distinct and exact",
+      "effective admission is the minimum of invocation, profile, root, deployment and resource limits",
+      "queue, device and generation changes preserve semantic identity but change provenance",
+      "compatible fallback, identity mismatch, ABI mismatch, aliases, short capacities and forged output fail closed",
+      "closed-profile authenticity, provider launch, public products and performance are not claimed"
+    ],
+    "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
   }
   ]
 }
