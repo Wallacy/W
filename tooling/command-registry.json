@@ -1195,6 +1195,18 @@
         }
       ]
     },
+    "check:accelerated-binding0": {
+      "description": "Validate the independently verified static accelerated root binding.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-accelerated-binding0.mjs"
+          ]
+        }
+      ]
+    },
     "check:gpu0": {
       "description": "Validate GPU0 logical IR, MLIR GPU lowering, and available Windows CUDA execution.",
       "steps": [

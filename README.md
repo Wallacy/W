@@ -85,8 +85,11 @@ or `ref` use implies a heap, header, address, or storage class.
   caller-owned projection carries one verified field into exact GPU0 records
   and device artifact text. ACCINV0 now independently preserves the exact
   static domain/module/kernel launch and lexical join after all producer
-  lifetimes end. Supported provider/product linkage and the public W route
-  remain open.
+  lifetimes end. ACCBIND0 now copies one closed root/profile selection, binds
+  its module and kernel-instance identities, and composes all admission limits
+  by their exact minimum without retaining provider handles. Profile
+  authenticity, provider launch/join/result, and the public W route remain
+  open.
 - COOP0 remains a compiler-host trace oracle. A separate bounded cooperative
   core now lowers to Windows/Linux process projections. The Windows host also
   compiles and CRT-free-links the bounded Linux product with the shared WRT0;

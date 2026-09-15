@@ -40301,6 +40301,42 @@ produto GPU público, outros targets e performance permanecem gaps explícitos.
 O source usado por este bridge é testemunho frontend-only: ele não alega que a
 forma curta de `entry` já execute suspensão no produto público.
 
+#### 26.4.1.84 W-1604 — independent bounded accelerated root binding
+
+ACCBIND0 consumes an independently verified ACCINV0 program/result and one
+closed product/profile selection. It copies exactly one relation among the
+execution root, canonical domain identity, source-local descriptor name,
+`ModuleIdentity`, artifact identity, `KernelInstanceId`, target and provider
+ABI class into caller-owned storage. The canonical domain identity omits the
+source sigil (`inference`, not `.inference`); the local descriptor name is not
+substituted for `ModuleIdentity`. The selected module/kernel ordinals must
+match the verified invocation, while explicit membership and equal artifact
+and provider ABI digests close this bounded input relation.
+
+Admission capacity is not multiplied per module. ACCBIND0 computes
+`effectiveMaximum` as the exact minimum of the invocation-domain maximum,
+profile maximum, root maximum, deployment maximum and
+`limits.maximumInFlight`, then records that result in the normalized limits.
+The first schema is reject-only: a compatible fallback requires a second
+closed relation and cannot be inferred or silently selected.
+
+Semantic identity includes the root/domain/module/kernel-instance/artifact
+relation, target and provider ABI class, numeric mode, submission policy,
+normalized limits and upstream semantic receipts. Queue identity, device
+identity, provider generation, physical ordinals and upstream provenance are
+bound only by the provenance digest. `measure`, `run`,
+`program_from_output`, and `verify` are transactional, reject overlapping
+storage, and keep verification valid after ACCINV0 and profile owners are
+released.
+
+This bridge validates consistency of a caller-supplied closed profile; it does
+not authenticate its origin or verify a public product signature. It contains
+no provider handle, pointer, queue object, launch geometry, transfer plan,
+submission, completion receipt or result storage. Provider launch/join/result,
+residency, cancellation/drain, signed product closure, public GPU build/run,
+other targets and performance remain explicit gaps. One binding is the seed
+evidence bound, not a W language, scheduler or ABI limit. No W syntax is added.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

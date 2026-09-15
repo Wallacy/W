@@ -208,6 +208,21 @@ ACCINV0 contains no provider, target, queue, geometry, transfer, residency,
 pointer, launch handle, MLIR handle, or physical ABI, and it does not yet claim
 the nominal `LaunchError` carried by the eventual Task type.
 
+`w_seed_accelerated_binding0` consumes only a verified ACCINV0 program/result
+and one closed product/profile record. ACCBIND0 copies the root, canonical
+domain, local descriptor, module, artifact, kernel-instance, target and
+provider-class identities into caller-owned storage. It accepts only the
+reject fallback in this first slice, requires the selected instance and
+provider ABI to match the closed record, and sets the effective in-flight
+limit to the exact minimum of the invocation, profile, root, deployment and
+resource-limit values. Queue, device and provider-generation identities are
+provenance rather than semantic identity. Its verifier survives producer and
+profile teardown and rejects malformed offsets, forged digests, aliases and
+short capacities. The supplied closed-profile receipts are upstream evidence,
+not cryptographic authentication performed by ACCBIND0. No provider handle,
+submission, join, result, transfer, residency, public product route or
+supported GPU ABI is implemented here.
+
 O seed materializa `Bool`, inteiros bounded (incluindo `usize`), strings simples
 sem escape, cases enum contextuais e `StaticList` caller-owned. Inteiros usam
 bytes little-endian canônicos; strings usam offsets em `const_bytes`; listas

@@ -114,10 +114,11 @@
       ]
     },
     "root-gpu0": {
-      "description": "Source-backed GPU module and accelerated-invocation bridges, target-neutral GPU0 unit, MLIR GPU lowering, and available Windows CUDA execution evidence.",
+      "description": "Source-backed GPU module, accelerated-invocation, and static-root binding bridges plus target-neutral GPU0 unit, MLIR GPU lowering, and available Windows CUDA execution evidence.",
       "steps": [
         { "package": "root", "script": "check:gpu-module" },
         { "package": "root", "script": "check:accelerated-invocation0" },
+        { "package": "root", "script": "check:accelerated-binding0" },
         { "package": "root", "script": "check:gpu0" }
       ]
     },
