@@ -96,7 +96,156 @@
       "source": { "path": "reference/last-light/ai_harness.w", "symbol": "lastLightKernels" },
       "decisions": ["W-1212", "W-1218"],
       "operations": [{ "$use": "openCuda" }],
-      "expect": { "status": "accepted", "phase": "ready" }
+      "expect": { "status": "accepted", "phase": "ready", "ownerKind": "dynamic" }
+    },
+    {
+      "id": "DEV0-accepted-static-accelerated-domain",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "spawn<.inference>" },
+      "decisions": ["W-656", "W-1212", "W-1218", "W-1602"],
+      "operations": [
+        {
+          "$use": "openCuda",
+          "with": {
+            "op": "bindStatic",
+            "domainIdentity": "inference",
+            "domainKind": "accelerated",
+            "submission": "concurrent",
+            "maximum": 8,
+            "fallback": "reject",
+            "rootOwned": true,
+            "calleeKind": "acceleratorModuleField",
+            "calleeModuleIdentity": "last-light-kernels-v1",
+            "runtimeConfigurationInAngles": false,
+            "implicitTransfer": false
+          }
+        }
+      ],
+      "expect": {
+        "status": "accepted",
+        "phase": "ready",
+        "ownerKind": "static-root",
+        "domainIdentity": "inference",
+        "submission": "concurrent",
+        "maximum": 8
+      }
+    },
+    {
+      "id": "DEV0-rejected-static-domain-nonaccelerated",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": ".accelerated" },
+      "decisions": ["W-1602"],
+      "operations": [
+        {
+          "$use": "openCuda",
+          "with": {
+            "op": "bindStatic",
+            "domainIdentity": "inference",
+            "domainKind": "concurrent",
+            "submission": "concurrent",
+            "maximum": 8,
+            "fallback": "reject",
+            "rootOwned": true,
+            "calleeKind": "acceleratorModuleField",
+            "calleeModuleIdentity": "last-light-kernels-v1"
+          }
+        }
+      ],
+      "expect": { "status": "rejected", "error": "W-PLACEMENT-0002", "phase": "uninitialized" }
+    },
+    {
+      "id": "DEV0-rejected-static-domain-ordinary-callable",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "forecastKernel" },
+      "decisions": ["W-656", "W-1602"],
+      "operations": [
+        {
+          "$use": "openCuda",
+          "with": {
+            "op": "bindStatic",
+            "domainIdentity": "inference",
+            "domainKind": "accelerated",
+            "submission": "concurrent",
+            "maximum": 8,
+            "fallback": "reject",
+            "rootOwned": true,
+            "calleeKind": "ordinaryFunction",
+            "calleeModuleIdentity": "last-light-kernels-v1"
+          }
+        }
+      ],
+      "expect": { "status": "rejected", "error": "W-PLACEMENT-0004", "phase": "uninitialized" }
+    },
+    {
+      "id": "DEV0-rejected-static-domain-module-mismatch",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "lastLightKernels.forecast" },
+      "decisions": ["W-1287", "W-1602"],
+      "operations": [
+        {
+          "$use": "openCuda",
+          "with": {
+            "op": "bindStatic",
+            "domainIdentity": "inference",
+            "domainKind": "accelerated",
+            "submission": "serial",
+            "maximum": 1,
+            "fallback": "reject",
+            "rootOwned": true,
+            "calleeKind": "acceleratorModuleField",
+            "calleeModuleIdentity": "other-module"
+          }
+        }
+      ],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0001", "phase": "uninitialized" }
+    },
+    {
+      "id": "DEV0-rejected-static-domain-runtime-angle-data",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "features: ref features" },
+      "decisions": ["W-1602"],
+      "operations": [
+        {
+          "$use": "openCuda",
+          "with": {
+            "op": "bindStatic",
+            "domainIdentity": "inference",
+            "domainKind": "accelerated",
+            "submission": "concurrent",
+            "maximum": 8,
+            "fallback": "reject",
+            "rootOwned": true,
+            "calleeKind": "acceleratorModuleField",
+            "calleeModuleIdentity": "last-light-kernels-v1",
+            "runtimeConfigurationInAngles": true
+          }
+        }
+      ],
+      "expect": { "status": "rejected", "error": "W-CONTRACT-0002", "phase": "uninitialized" }
+    },
+    {
+      "id": "DEV0-rejected-static-domain-hidden-transfer",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "weights: ref weights" },
+      "decisions": ["W-1217", "W-1602"],
+      "operations": [
+        {
+          "$use": "openCuda",
+          "with": {
+            "op": "bindStatic",
+            "domainIdentity": "inference",
+            "domainKind": "accelerated",
+            "submission": "concurrent",
+            "maximum": 8,
+            "fallback": "reject",
+            "rootOwned": true,
+            "calleeKind": "acceleratorModuleField",
+            "calleeModuleIdentity": "last-light-kernels-v1",
+            "implicitTransfer": true
+          }
+        }
+      ],
+      "expect": { "status": "rejected", "error": "W-DEVICE-0003", "phase": "uninitialized" }
     },
     {
       "id": "DEV0-rejected-artifact-module-mismatch",

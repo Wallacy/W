@@ -5,7 +5,9 @@
 // is not an exported runtime function. `open` is the provider boundary for a
 // descriptor and artifact that the compiler already validated. KernelModule
 // is a public constraint with compiler-owned conformance; user types cannot
-// conform manually.
+// conform manually. A static `.accelerated` execution domain owns the same
+// launch relation at its root and uses `spawn<domain> descriptor.field(...)`;
+// this explicit API remains for runtime device or queue selection.
 
 import tensor from std
 

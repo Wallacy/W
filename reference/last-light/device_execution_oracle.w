@@ -3,6 +3,17 @@
 // The host oracle models lifecycle and provider evidence. It does not execute
 // W, submit a kernel, allocate device memory, or call a driver.
 
+module device_execution_oracle<
+  domains: [
+    .accelerated(
+      .inference,
+      submission: .concurrent,
+      maximum: 8,
+      fallback: .reject,
+    ),
+  ],
+>
+
 import accelerator from std
 import tensor from std
 import {
@@ -44,6 +55,21 @@ export fn nextDeviceInvocationPhase(
 }
 
 export async fn forecastOnDevice<
+  rows: usize,
+  inputs: usize,
+  outputs: usize,
+>(
+  features: ref FeatureBatch<rows: rows, columns: inputs>,
+  weights: ref WeightMatrix<inputs: inputs, outputs: outputs>,
+): FeatureBatch<rows: rows, columns: outputs> throws accelerator.LaunchError {
+  let prediction = spawn<.inference> lastLightKernels.forecast(
+    features: ref features,
+    weights: ref weights,
+  )
+  return try await prediction
+}
+
+export async fn forecastOnSelectedDevice<
   rows: usize,
   inputs: usize,
   outputs: usize,

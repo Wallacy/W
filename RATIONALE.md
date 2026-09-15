@@ -6963,7 +6963,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-653 | blocking drain | cancel remove job não iniciado; foreign frame iniciado mantém owner até retorno ou fault boundary física | matar thread; liberar buffer cedo; task detached após deadline |
 | W-654 | lifecycle de service call | envelope commit, admission, turn e outcome commit fixam ownership, cancellation e unknown outcome | cancellation presume ausência de efeito; retry mutante; abandono do turn |
 | W-655 | deadline remoto | caller local mantém authority; remaining duration cruza; strict exige timebase/synchronization provada | resetar timeout em cada hop; garantia end-to-end sem clock proof |
-| W-656 | device execution | ordinary `spawn` não faz offload; transfer, kernel artifact, launch e sync ficam explícitos em T2 | `.device` migra closure; auto-transfer; GPU como thread pool |
+| W-656 | device execution (refinado por W-1602) | `spawn` comum não migra closure; somente field de descriptor em domain `.accelerated` produz submission, com artifact e transfer ainda explícitos no contrato | `.device` migra closure; auto-transfer; GPU como thread pool |
 | W-657 | nomes de quantity | dimensão já dá identidade; nomes físicos locais usam `alias`; `type` exige distinção adicional de domínio | newtype para toda unit; conversão implícita entre newtypes |
 | W-658 | duração operacional | `Duration` T1 é signed, exact e nanosecond; layout opaco; physical quantity converte com exactness ou rounding explícito | `f64`; infinity; alias de physical quantity; attosecond na baseline |
 | W-659 | body de entry | body contém statements W; forma simples depende de adapter declarado pelo host profile | body como key/value; registro runtime; ignorar parâmetros sem adapter |
@@ -7518,8 +7518,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1208 | censo sem coletor | profile debug/test registra control-block edges e reporta SCC que nenhum root alcança somente depois de admission close e drain; não coleta nem muda drop | coletor default, relatório antes do drain, ciclo alcançável chamado de leak, deinit executado pelo detector |
 | W-1209 | evidence de ciclos e captures M1/S0 | S0 fixa capture explícita e diagnostics; M1 deriva SCC forte, edge rompível, roots e residual pós-drain; Last Light fornece consumer | checker por substring, graph fornecendo resposta esperada, chamar oracle de runtime/compiler ou leak sanitizer real |
 | W-1210 | claim de concorrência e paralelismo | quatro formas de execução compartilham ownership/lifetime; children drenam; synchronization forma um happens-before explicável; schedulers e providers reais precisam provar equivalência, liveness e cleanup | declarar problema resolvido por syntax, thread por task, lock-free universal, copy/share oculto, oracle host chamado de runtime |
-| W-1211 | descriptor fechado de kernel | `accelerator.module<{...}>()` sintetiza module identity, manifest e launch stubs tipados a partir de um static record; a função original permanece chamável no host | lista heterogênea runtime, lookup por string, reflection ou interface sem nome estável |
-| W-1212 | scope de launch owned | `Launch<Module>` é move-only, pertence a module/queue/device/provider generation e fecha admission antes de drenar e liberar uma vez | deinit assíncrono, scope copiável, owner sem close ou cleanup fire-and-forget |
+| W-1211 | descriptor fechado de kernel | `accelerator.module<{...}>()` sintetiza module identity, manifest e fields tipados para `spawn` acelerado ou launch dinâmico; a função original permanece chamável no host | lista heterogênea runtime, lookup por string, reflection ou interface sem nome estável |
+| W-1212 | scope de launch owned | o owner de launch pertence ao root do domain estático ou aparece como `Launch<Module>` move-only no caminho dinâmico; ambos fecham admission antes de drenar e liberar uma vez | deinit assíncrono, scope copiável, owner sem close ou cleanup fire-and-forget |
 | W-1213 | ownership e transfer de device | staging preserva take/copy/ref/inout; tensor borrowed reside no device ou mapping provado; transfer e host read são explícitos | copy ou materialization escondida, ref escapante, queue concedendo owner |
 | W-1214 | submission estruturada | invocation passa por staging, submit, execução, drain, cleanup, commit e join; cancellation pós-submit não presume preemption | cancel como rollback, output antes de drain, task detached ou provider sem join |
 | W-1215 | queue e happens-before | provider cunha submit/completion receipts; dependencies vêm de owners/loans/results/waits; cross-queue exige handoff explícito | caller `ready`, ordem global implícita, queue order como ownership ou host visibility |
@@ -7594,7 +7594,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1284 | head de síntese de kernel | `accelerator.module` é compiler-owned, recebe static record em const de module scope e produz a única conformance KernelModule sem runtime call/registry/authority | conformance manual, função runtime, macro user-defined, descriptor local ou reflection |
 | W-1285 | identidade de module | interface cobre fields/signatures; implementation acrescenta callable privado, HIR/call graph; paths, tempo e ordinal físico ficam fora | hash de arquivo, rename privado quebrar interface, identity ambiental ou uma identity única |
 | W-1286 | especialização finita | identidades canônicas de tipo e ConstIR derivam KernelInstanceId; bundle genérico é source-backed e binary-only contém conjunto finito fechado | JIT implícito, lookup por string, evaluator duplicado no linker ou binary incompleto |
-| W-1287 | stub e artifact | stub preserva labels/ownership e acrescenta Launch; artifact liga instances, target, numeric mode, features e provider ABI; open só valida/abre | transfer escondida, open compilar, artifact sem target facts ou launch sem failure typed |
+| W-1287 | invocation, stub e artifact | `spawn` estático liga domain/module/instance; stub dinâmico preserva labels/ownership e acrescenta Launch; artifact liga instances, target, numeric mode, features e provider ABI | transfer escondida, open compilar, artifact sem target facts ou launch sem failure typed |
 | W-1288 | subject explícito de refinement | `value` é binding contextual imutável do candidate dentro do predicate e baixa para a mesma ConstIR de `.member`; lookup lexical exige qualificação | `value` ambiental, shadow dependente de imports, storage sintético ou HIR diferente para a forma longa |
 | W-1289 | members associados diretos | `const` e `static fn` pertencem ao namespace compile-time do tipo; protocol só é necessário para requisito generic; mutable type storage continua ausente | companion obrigatório, metatype runtime, `static var`, módulo singleton ou witness sem consumidor polimórfico |
 | W-1290 | labels callable uniformes (histórico; superseded by W-1514) | `name: T` exigia `name:` em qualquer índice; `external internal: T` exigia `external:`; `named` não era modifier; `_ name: T` era positional-only; labels selecionavam overload antes dos tipos; initializers e enum payloads permaneciam record-like | labels inferidas pela posição, modifier contextual `named`, label opcional no mesmo slot, reorder, ranking por tipo |
@@ -7918,6 +7918,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1599 | TASKLIFE0 target-neutral fixed caller-owned lifecycle reducer and oracle | TASKLIFE0 provides a target-neutral fixed caller-owned reducer and oracle for bounded logical task lifecycles. It replays task and scope states, publishes tagged success, error, and canceled outcomes, preserves settled-before-cancel precedence, enforces cleanup before commit, drains siblings after fail-fast cancellation, arbitrates lexical/input errors, and orders joins and releases lexically. Transaction and measurement snapshots are replayed and digest-checked. The one-to-four task and 128-event ceilings are seed evidence only. No source-HIR integration, scheduler, provider, parallel runtime, task ABI, benchmark, or performance claim is made. | `source-backed-current` only for the fixed TASKLIFE0 state reducer, cancellation and outcome arbitration, cleanup/commit and join/release barriers, exact caller-owned snapshots, independent replay verification, and focused C23 evidence. Source-HIR integration, scheduler/provider linkage, parallel runtime, task ABI, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1600 | bounded CRT-free process/parallel provider linkage on Windows and Linux | PARLINK1 binds the W-1598 process root and private task entry to explicit target adapters. Windows x64 uses Kernel32 runtime input, `CreateThread`, lexical wait, handle close, and result validation. Linux x86-64 reads the initial process stack and uses raw `clone`, `wait4`, and exit syscalls with a fixed private provider stack. Both routes preserve empty/nonempty runtime input, execute the emitted task, and fail closed through exit 3 under a gate-only injected provider fault. They link without CRT/default libraries and execute with empty stdout/stderr. The four-slot frame and Linux child stack are private seed-provider evidence. | `source-backed-current` only for the unchanged bounded source-to-provider composition, Windows x64 CRT-free execution, Windows-host cross-link plus Linux/WSL CRT-free execution, empty/nonempty runtime-input cases, explicit launch/join, task-result validation, and injected provider-failure exit. Public `w build`/`w run`, general argument decoding, scheduler/task ABI/storage, retained artifacts, benchmarks, timing, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1601 | bounded GPU0 target-neutral semantic witness and available CUDA execution | GPU0 is a target-neutral, provider-free C23 semantic seed with exactly two functions and seven operations. It emits separate host/device MLIR artifacts and keeps host/device identities, lifecycle, dispatch/join/memory metrics, alias, capacity, range, effect, forgery, and transactional failure checks separate. The seed parser and Frontend27 structurally preserve canonical `accelerator.module<{ hello: kernel }>()`, compiler-owned module identity, ordered labels, and direct local kernel identities. The `w-seed-gpu-module-1` bridge independently validates and copies the bounded signed-`i32` literal-return device-module meaning into caller-owned records with separate semantic and provenance digests and no provider, target, queue, pointer, launch, ABI, or MLIR handle; verification survives source/frontend teardown. A caller-owned provider-neutral projection selects one verified module field, copies its module const name, field label, private implementation name, and verified payload into the exact GPU0 records, and remains valid after bridge teardown. The focused Windows gate separately parses GPU0 artifacts with pinned MLIR/LLVM 23.1.1, lowers GPU/NVVM, translates LLVM dialect, and uses system Clang 22.1.8 for `nvptx64` PTX. A dynamic `nvcuda.dll` Driver API adapter launches the kernel on NVIDIA RTX A400 (`sm_86`), returns and verifies 42, and fails closed for a missing provider or kernel. A separate diagnostic-only catalog records temporary artifact sizes and in-process phase distributions. This is compiler-lifecycle evidence, not a complete source-to-provider W route, a W runtime/provider, public product, supported GPU ABI, homogeneous production support, or a product/language ranking. | `implementation-evidence-gap` for the W source-to-provider product route. Independently verified bounded device-module records and the provider-neutral exact GPU0 projection are current; typed launch, supported provider launch/join/result, public product route, and homogeneous production toolchain evidence remain open. `benchmarkDisposition: compiler-lifecycle`; the diagnostic catalog cannot be promoted as W product performance. |
+| W-1602 | static accelerated-domain submission | `.accelerated(name, submission:, maximum:, fallback:)` adds a target-neutral domain requirement. The common source path is `spawn<domain> descriptor.field(args...)`; the product/root owns the typed launch relation, while `accelerator.open` and `.launch(using:)` remain the explicit dynamic path. Host calls, transfers, artifact requirements, Task lifetime, typed launch failures, receipts and drain remain distinct. | `oracle-backed-current`: DEV0 validates the static-root relation, kind/callee/module checks, static-only configuration, explicit transfer and the shared lifecycle. Frontend/HIR records, profile/root binding, provider composition, public build/run and performance evidence remain open. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -12745,3 +12746,59 @@ W runtime or provider, a public product, a supported GPU ABI, homogeneous
 production support, or a W product performance result. Rank 1 remains open
 until typed launch and the frontend records cross the remaining public and
 physical provider boundaries for launch, join, and result evidence.
+
+#### W-1602 — static accelerated-domain submission
+
+The prior surface required every common device call to repeat a runtime
+`Launch<Module>` owner even when the package already fixed the module closure,
+provider class, queue policy, limits and fallback. That repetition exposed a
+lowering detail without adding authority at the call site. W-1602 makes the
+static product/root own that typed relation and uses the existing structured
+placement form:
+
+```w
+let task = spawn<.inference> lastLightKernels.forecast(
+  features: ref deviceFeatures,
+  weights: ref deviceWeights,
+)
+let result = try await task
+```
+
+This is not arbitrary offload. The callee must be an immediate field of a
+closed `accelerator.module` descriptor and the selected domain must have the
+`.accelerated` kind. The normalized relation retains the exact domain identity,
+`ModuleIdentity`, `KernelInstanceId`, argument ownership, result and
+`LaunchError`. A bare descriptor-field call, `async` field call, host-domain
+spawn or string lookup is rejected. Calling the original kernel symbol remains
+an ordinary host call.
+
+Acceleration and scheduling are orthogonal. `submission: .serial` or
+`.concurrent` orders and admits device invocations; it says nothing about the
+number of lanes inside a kernel. GPU, FPGA, DSP and NPU are possible physical
+bindings, not source domain names. Kernel features, numeric modes, address
+spaces and finite specializations remain artifact requirements. The domain
+owns placement, admission, maximum live invocations, queue/generation and
+fallback. Data remains in the ordinary argument list and transfer remains
+explicit. Dispatch geometry is compiler/provider-derived in the baseline; an
+explicit per-invocation surface is deferred until a real workload closes its
+type and bounds.
+
+One logical static domain binds one queue/generation and may host several
+module identities. Separate queues require separate domains. Selection that is
+truly dynamic continues to use public `accelerator.open`, `Launch<Module>` and
+`.launch(using:)`; hiding the raw provider handle does not erase its semantic
+lifecycle. Both paths preserve staging, submission, receipts, cancellation,
+drain and cleanup. DEV0 models both owners with the same state machine and
+rejects non-accelerated domains, ordinary callees, module mismatch, runtime
+data in the static envelope and hidden transfer. This is design-oracle
+evidence, not a claim that frontend lowering or a device provider exists.
+A proved immediate join may erase only the virtual Task/frame, never required
+provider work.
+
+The design rejects a universal domain abstraction. Host main/serial/concurrent
+and bounded blocking pools remain domains. UI composes main-thread affinity;
+nonblocking I/O composes provider suspension; realtime audio and interrupts are
+entry/provider contracts; SIMD is a lowering choice; services, distributed
+workflows, process and sandbox are isolation or authority boundaries. This
+keeps `spawn` from becoming an RPC, subprocess, vectorization and callback API
+at once.

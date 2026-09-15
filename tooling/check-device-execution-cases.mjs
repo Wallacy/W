@@ -90,6 +90,10 @@ for (const [index, item] of (corpus.cases ?? []).entries()) {
   expectField(item.id, "status", result.status, expected.status)
   expectField(item.id, "error", result.error, expected.error)
   expectField(item.id, "phase", result.state.phase, expected.phase)
+  expectField(item.id, "ownerKind", result.state.ownerKind, expected.ownerKind)
+  expectField(item.id, "domainIdentity", result.state.domainIdentity, expected.domainIdentity)
+  expectField(item.id, "submission", result.state.submission, expected.submission)
+  expectField(item.id, "maximum", result.state.maximum, expected.maximum)
   expectField(
     item.id,
     "outcomes",
@@ -116,6 +120,7 @@ for (const decision of [
   "W-1216",
   "W-1217",
   "W-1218",
+  "W-1602",
 ]) {
   const covered = (corpus.cases ?? []).filter((item) => item.decisions?.includes(decision))
   if (!covered.some((item) => item.kind === "accepted")) {

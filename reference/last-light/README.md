@@ -3141,20 +3141,26 @@ corpus. Ele não compila ou executa W.
 Famílias: kernel descriptor, Launch owned, Queue, device memory, submission,
 completion receipt, cancellation, fault, limits e equivalência CPU/device.
 
-`device_execution_oracle.w` abre um `accelerator.Launch` para o descriptor
-fechado de `ai_harness.w`. O initializer `async` continua sendo a forma estruturada; o
-device não acrescenta uma quinta forma de execução. O resultado só chega ao
-host por `tensor.transfer` explícito.
+`device_execution_oracle.w` declara um domain `.accelerated` e usa
+`spawn<.inference> lastLightKernels.forecast(...)` como caminho estático comum.
+O product/root possui a relation tipada de launch e a drena no shutdown;
+`accelerator.open` e `.launch(using:)` permanecem no mesmo fixture como caminho
+dinâmico para seleção explícita de Queue ou Device. O device não acrescenta uma
+quinta forma de execução, e o resultado só chega ao host por
+`tensor.transfer` explícito.
 
 Aceite:
 
-- cada field de `accelerator.module<{...}>()` nomeia um kernel e um launch stub
-  tipado; o descriptor é `const` de module scope e aceita somente símbolos
+- cada field de `accelerator.module<{...}>()` nomeia um kernel, participa do
+  `spawn` acelerado estático e mantém um launch stub tipado para o caminho
+  dinâmico; o descriptor é `const` de module scope e aceita somente símbolos
   diretos sem capture, suspension ou failure;
 - cada especialização alcançável normaliza argumentos de tipo e valores const,
   possui identity e artifact; instances ausentes e JIT runtime falham, enquanto
   instances não usados são removidos;
-- `Launch` pertence a module, Queue, Device, provider generation e Limits;
+- o owner de launch pertence ao root do domain estático ou aparece como
+  `Launch<Module>` no caminho dinâmico; ambos pertencem a module, Queue, Device,
+  provider generation e Limits;
 - `take`, `copy`, `ref` e `inout` preservam owners e loans durante staging;
 - cancelamento pré-submit impede o launch; pós-submit aguarda provider drain;
 - submit e completion receipts são cunhados pelo provider. O caller não declara
