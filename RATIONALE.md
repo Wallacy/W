@@ -259,6 +259,7 @@ O corpus compara, no mínimo:
 - exact synchronous cleanup preservation across typed propagation against erased cleanup, runtime cleanup stacks, unwind, and fail-open older products.
 - typed physical completion binding against numeric error conventions, fail-open publication, semantic identity polluted by provider capacity, and false authentication claims.
 - caller-owned typed TASKLIFE bridge against generic error collapse, premature publication, forged lifecycle traces, capacity-dependent semantic identity, and 32-bit Task-handle claims.
+- local provider admission against callback authentication, caller-selected trust roots, semantic identity pollution, and partial publication.
 - bounded dual-target process/parallel linkage against direct-call substitution, CRT fallback, hidden runtime input, target conflation, and premature public or benchmark claims.
 - bounded GPU0 target-neutral semantic and available CUDA execution against source-backed W claims, provider/runtime conflation, homogeneous toolchains, and premature public product support.
 - bounded static accelerated root binding against embedded provider handles, multiplied budgets, and unauthenticated claims.
@@ -7952,8 +7953,9 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1616 | exact synchronous typed propagation in verified HIR | HIR40 lowers one exact synchronous typed-try relay into a terminator-owned W_SEED_HIR0_TERMINATOR_INVOKE with normal and typed-error successor block arguments. The relay has exactly three blocks, no ordinary CALL instruction, Task, heap, or packed Result carrier, and ProductClosure0 rejects the terminator. | source-backed-current only for the HIR40 three-block relay, terminator-owned call, typed successor arguments, exact verifier, ProductClosure0 fail-closed boundary, and C23 adversarial HIR evidence. MLIR/native lowering, public ABI, catch, cleanup, conversions, general propagation, benchmarks, and performance remain gaps. benchmarkDisposition: compiler-lifecycle. |
 | W-1617 | private MLIR lowering for exact typed propagation | The exact HIR40 relay lowers through a dedicated compiler-lifecycle route to an optimizer-visible two-field `{i1 outcome, i64 payload}` LLVM aggregate. The relay performs a real call, extracts the carrier, and branches into explicit normal and typed-error successors without unwind, Task, heap, process root, or public ABI. | `source-backed-current` only for the exact payloadless one-case `Failure.denied` selector, caller-owned transactional MLIR emission and verification, target-neutral artifact bytes, C23 adversarial tests, and MLIR/LLVM 23.1.1 parsing and translation. Native product execution, public enum or error ABI, catch, cleanup, conversions, general propagation, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1618 | synchronous cleanup across exact typed propagation | HIR41 binds one dominating synchronous `defer` to the exact typed invoke and materializes one ordinary direct cleanup call in each successor; a distinct private MLIR artifact preserves both calls before returning the compact carrier. | `source-backed-current` only for one local zero-argument nonthrowing Unit cleanup, one exact payloadless typed relay, caller-owned HIR records, transactional selector/emission, fail-closed pre-existing routes, C23 adversarial tests, and MLIR/LLVM 23.1.1 parsing and translation. Runtime cleanup stacks, closures, `defer async`, multiple or nested cleanup, catch, native products, public ABI, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
-| W-1619 | integrity-bound typed provider completion | PARBIND1 independently verifies HIR41, derives the payloadless nominal error identity, and validates two lexically ordered PLATFORM1 completions against distinct HIR calls. Semantic records remain byte-identical across provider capacities one and two; physical facts are isolated in a provenance receipt that does not claim provider authentication. | `source-backed-current` only for the exact two-child Windows x64 seed witness, independent success evaluation, ordinal-to-nominal-error validation, dual-path cleanup requirement, caller-owned transactional publication, alias/capacity/forgery barriers, and capacity-one/two semantic equality. The two-child shape is not a language, HIR, scheduler, ABI, or runtime limit. Trusted provider attestation, native HIR execution, typed TASKLIFE, other platforms, public products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
-| W-1620 | caller-owned typed TASKLIFE bridge | The separate target-neutral bridge consumes a fully verified PARBIND1 result for the exact two-task seed witness and builds a 22-event transaction. Task 0 is success. Task 1 maps nominal `Failure.denied` to TASKLIFE's internal generic `BODY` error while a typed sidecar and result retain the exact nominal identity. Cleanup precedes outcome commit, late fail-fast cancellation names task 1, and the joined scope commits the consumed error. Capacities one and two produce byte-identical semantic task, trace, typed-sidecar, and semantic-digest outputs while physical provenance differs. | `source-backed-current` only for the caller-owned typed bridge, exact two-task/22-event witness, generic reducer mapping with nominal sidecar preservation, cleanup-before-commit and late cancellation ordering, joined consumed-error scope, transactional output, alias/capacity/forgery/generation barriers, capacity-one/two semantic equality, and explicit proof-index versus Task-handle width separation. The `u32` fields are serialized proof indices/counts and do not define Task handle width. A future materialized Task handle is opaque and target-specialized; one native word is the baseline, while lowering may elide it or prove a narrower representation more efficient. No 32-bit constraint or cost is imposed on 64-bit. Public Task/runtime contracts, general cardinality, ABI, native HIR execution, trusted provider attestation, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1619 | integrity-bound typed provider completion | PARBIND1 independently verifies HIR41, derives the payloadless nominal error identity, and validates two lexically ordered PLATFORM1 completions against distinct HIR calls. Semantic records remain byte-identical across provider capacities one and two; physical facts are isolated in a provenance receipt that does not claim provider authentication. | `source-backed-current` only for the exact two-child Windows x64 seed witness, independent success evaluation, ordinal-to-nominal-error validation, dual-path cleanup requirement, caller-owned transactional publication, alias/capacity/forgery barriers, and capacity-one/two semantic equality. The two-child shape is not a language, HIR, scheduler, ABI, or runtime limit. External cryptographic provider attestation, native HIR execution, typed TASKLIFE, other platforms, public products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1620 | caller-owned typed TASKLIFE bridge | The separate target-neutral bridge consumes a fully verified PARBIND1 result for the exact two-task seed witness and builds a 22-event transaction. Task 0 is success. Task 1 maps nominal `Failure.denied` to TASKLIFE's internal generic `BODY` error while a typed sidecar and result retain the exact nominal identity. Cleanup precedes outcome commit, late fail-fast cancellation names task 1, and the joined scope commits the consumed error. Capacities one and two produce byte-identical semantic task, trace, typed-sidecar, and semantic-digest outputs while physical provenance differs. | `source-backed-current` only for the caller-owned typed bridge, exact two-task/22-event witness, generic reducer mapping with nominal sidecar preservation, cleanup-before-commit and late cancellation ordering, joined consumed-error scope, transactional output, alias/capacity/forgery/generation barriers, capacity-one/two semantic equality, and explicit proof-index versus Task-handle width separation. The `u32` fields are serialized proof indices/counts and do not define Task handle width. A future materialized Task handle is opaque and target-specialized; one native word is the baseline, while lowering may elide it or prove a narrower representation more efficient. No 32-bit constraint or cost is imposed on 64-bit. Public Task/runtime contracts, general cardinality, ABI, native HIR execution, external cryptographic provider attestation, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1621 | compiler-owned local provider admission | LOCALPROV1 opens one process-local opaque authority for the statically linked Windows x64 PLATFORM1 provider. PARBIND1 requires that authority and invokes the provider through the compiler-owned wrapper, binding target, domain, profile, identity, generation, assurance, and contract digest only into provenance. The callback remains an untrusted task-body adapter whose results are independently checked against HIR. | `source-backed-current` only for exact local static selection, authority revalidation before and after execution, provider-descriptor matching, target/domain/profile/identity/generation binding, caller-owned transactional PARBIND1 publication, authority/input alias rejection, and forged or unsupported authority tests. This is local admission, not binary authentication, a signature, registry attestation, rotation, revocation, freshness, native HIR execution, public capability, Task ABI, benchmark, or performance evidence. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -13334,7 +13336,46 @@ imposed on a 64-bit target.
 
 This evidence is source-backed-current only for the exact bridge and its
 22-event seed oracle. It does not define a public Task or runtime contract,
-general cardinality, an ABI, native HIR execution, trusted provider
-attestation, a benchmark, or performance. Trusted provider attestation is the
-next boundary. Panic containment follows it. Physical cancellation remains
-cooperative rather than thread termination.
+general cardinality, an ABI, native HIR execution, external provider
+attestation, a benchmark, or performance. W-1621 closes only local static
+provider admission. Panic containment follows it. Physical cancellation
+remains cooperative rather than thread termination.
+
+#### W-1621 — compiler-owned local provider admission
+
+W-1619 deliberately refused to treat a callback address, provider label, or
+SHA-256 digest as proof of provider origin. W-1621 closes the smaller boundary
+that the local compiler can actually prove: the selected Windows x64 provider
+is the exact implementation statically linked into the current compiler
+process.
+
+`LOCALPROV1` opens a process-local authority for one closed provider contract.
+The authority carries a canonical receipt for target, `.cpu.parallel` domain,
+profile, identity, provider-contract generation, local-assurance kind, and a
+digest of those fields. Its private seal is compared only with a compiler-owned
+static object. The seal is not serialized, hashed, published, or exposed as W
+identity. It is not an access-control or cryptographic primitive; C code in the
+same address space can copy the authority, while safe W cannot construct or
+inspect it.
+
+PARBIND1 requires that authority, matches its receipt to the requested provider
+descriptor, and reaches PLATFORM1 only through the compiler-owned wrapper. It
+revalidates authority and HIR after physical execution, keeps provider scratch
+private until all completion relations pass, and records the local contract
+only in provenance. Capacity one and two therefore retain the same semantic
+records and digest. The execution generation and the provider-contract
+generation are distinct provenance facts.
+
+The callback remains task-body code. Its address and returned bytes do not
+authenticate the provider, choose a nominal W error, or bypass HIR validation.
+Fieldwise receipt comparison avoids depending on C struct padding. Focused C23
+tests reject wrong seals, contract digests, profiles, authority/output aliases,
+short capacity, and forged result provenance without partial publication.
+
+This evidence is source-backed-current only for exact compiler-owned local
+admission of the statically linked Windows x64 seed provider. Binary integrity,
+code signing, registry or remote attestation, trusted-root persistence,
+rotation, revocation, freshness, rollback protection, native HIR execution,
+public capabilities, Task ABI, benchmarks, and performance remain separate
+gaps. Those require a distribution verifier; an arbitrary callback plus a
+matching hash never acquires trusted assurance.

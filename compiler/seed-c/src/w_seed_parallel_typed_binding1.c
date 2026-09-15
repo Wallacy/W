@@ -14,7 +14,7 @@ typedef struct {
   bool active;
 } typed_binding1_range;
 
-enum { W_TYPED_BINDING1_INPUT_RANGE_CAPACITY = 48u };
+enum { W_TYPED_BINDING1_INPUT_RANGE_CAPACITY = 49u };
 
 static bool range_make(const void *pointer, size_t count, size_t element_size,
                        typed_binding1_range *range) {
@@ -113,7 +113,9 @@ static bool append_input_ranges(
                  sizeof(*input->hir_result)) ||
       !append_hir_ranges(input->hir_program, ranges, capacity, count) ||
       !add_range(ranges, capacity, count, input->tasks, input->task_capacity,
-                 sizeof(*input->tasks)))
+                 sizeof(*input->tasks)) ||
+      !add_range(ranges, capacity, count, input->provider_authority, 1u,
+                 sizeof(*input->provider_authority)))
     return false;
   return true;
 }
@@ -213,6 +215,18 @@ static bool provider_descriptor_valid(
                 sizeof(expected_profile)) == 0 &&
          memcmp(provider->identity, expected_identity,
                 sizeof(expected_identity)) == 0;
+}
+
+static bool authority_matches_provider(
+    const w_seed_parallel_local_provider1_authority *authority,
+    const w_seed_parallel_typed_binding1_provider *provider) {
+  return w_seed_parallel_local_provider1_verify(authority) &&
+         provider_descriptor_valid(provider) &&
+         authority->receipt.target == (uint32_t)provider->target &&
+         memcmp(authority->receipt.profile, provider->profile,
+                sizeof(provider->profile)) == 0 &&
+         memcmp(authority->receipt.identity, provider->identity,
+                sizeof(provider->identity)) == 0;
 }
 
 static bool range_u32_valid(uint32_t first, uint32_t count, size_t capacity) {
@@ -492,9 +506,11 @@ static w_seed_parallel_typed_binding1_status validate_input(
           W_SEED_PARALLEL_TYPED_BINDING1_WITNESS_TASK_COUNT ||
       input->task_capacity < input->task_count || input->generation == 0u ||
       (input->provider_capacity != 1u && input->provider_capacity != 2u) ||
-      input->provider_job.invoke == NULL ||
-      !provider_descriptor_valid(&input->provider))
+      input->provider_job.invoke == NULL)
     return W_SEED_PARALLEL_TYPED_BINDING1_INVALID;
+  if (!authority_matches_provider(input->provider_authority,
+                                  &input->provider))
+    return W_SEED_PARALLEL_TYPED_BINDING1_AUTHORITY;
   if (!derive_error_identity(input, identity) ||
       input->tasks[0].lexical_index != 0u ||
       !success_call_valid(input->hir_program, input->tasks[0].call_index,
@@ -662,6 +678,12 @@ static void seal_provenance(
   w_seed_sha256_update(
       &state, (const uint8_t *)input->provider.identity,
       sizeof(input->provider.identity));
+  w_seed_sha256_update(
+      &state, input->provider_authority->receipt.contract_digest,
+      sizeof(input->provider_authority->receipt.contract_digest));
+  sha_u32(&state, input->provider_authority->receipt.generation);
+  sha_u32(&state,
+          (uint32_t)input->provider_authority->receipt.assurance);
   sha_u32(&state, (uint32_t)input->provider.target);
   sha_u32(&state, (uint32_t)provider_kind);
   sha_u32(&state, input->provider_capacity);
@@ -683,7 +705,7 @@ static void seal_provenance(
   sha_bool(&state, receipt->cancellation_requested);
   sha_u32(
       &state,
-      (uint32_t)W_SEED_PARALLEL_TYPED_BINDING1_ASSURANCE_EXECUTION_INTEGRITY);
+      (uint32_t)W_SEED_PARALLEL_TYPED_BINDING1_ASSURANCE_STATIC_LOCAL_PROVIDER);
   w_seed_sha256_final(&state, digest);
 }
 
@@ -786,7 +808,8 @@ w_seed_parallel_typed_binding1_status w_seed_parallel_typed_binding1_run(
   w_seed_parallel_provider0_kind provider_kind =
       W_SEED_PARALLEL_PROVIDER0_KIND_NONE;
   const w_seed_parallel_provider0_platform_status platform_status =
-      w_seed_parallel_platform1_execute(
+      w_seed_parallel_local_provider1_execute(
+          input->provider_authority,
           &input->provider_job, input->task_count, input->provider_capacity,
           completions, &receipt, &provider_kind);
   if (platform_status == W_SEED_PARALLEL_PROVIDER0_PLATFORM_UNSUPPORTED)
@@ -832,12 +855,14 @@ w_seed_parallel_typed_binding1_status w_seed_parallel_typed_binding1_run(
                 scope_outcome,
                 primary_error_task, candidate.semantic_digest);
   candidate.provenance.provider = input->provider;
+  candidate.provenance.local_authority =
+      input->provider_authority->receipt;
   candidate.provenance.provider_kind = provider_kind;
   candidate.provenance.provider_capacity = input->provider_capacity;
   candidate.provenance.generation = input->generation;
   candidate.provenance.upstream_receipt = receipt;
   candidate.provenance.assurance =
-      W_SEED_PARALLEL_TYPED_BINDING1_ASSURANCE_EXECUTION_INTEGRITY;
+      W_SEED_PARALLEL_TYPED_BINDING1_ASSURANCE_STATIC_LOCAL_PROVIDER;
   (void)memcpy(candidate.provenance.semantic_digest,
                candidate.semantic_digest,
                sizeof(candidate.provenance.semantic_digest));
@@ -898,7 +923,10 @@ bool w_seed_parallel_typed_binding1_verify(
       result->provenance.provider_capacity != input->provider_capacity ||
       result->provenance.generation != input->generation ||
       result->provenance.assurance !=
-          W_SEED_PARALLEL_TYPED_BINDING1_ASSURANCE_EXECUTION_INTEGRITY ||
+          W_SEED_PARALLEL_TYPED_BINDING1_ASSURANCE_STATIC_LOCAL_PROVIDER ||
+      !w_seed_parallel_local_provider1_receipt_equal(
+          &result->provenance.local_authority,
+          &input->provider_authority->receipt) ||
       result->provenance.provider.target != input->provider.target ||
       memcmp(result->provenance.provider.profile, input->provider.profile,
              sizeof(input->provider.profile)) != 0 ||

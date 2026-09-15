@@ -40890,6 +40890,53 @@ fn relay(): i64 throws Failure {
 entry { }
 ```
 
+#### 26.4.1.101 W-1621 — compiler-owned local provider admission
+
+LOCALPROV1 is a process-local compiler component for the exact statically
+linked Windows x64 PLATFORM1 provider. Its open operation produces an opaque
+authority whose private seal is meaningful only in the current process. The
+authority carries a canonical receipt for target, execution domain, profile,
+identity, generation, local-assurance kind, and a digest of that provider
+contract. The private seal value is never hashed, serialized, published, or
+used as a W-visible identity.
+
+PARBIND1 now requires this authority, verifies that its canonical receipt
+matches the requested provider descriptor, and invokes PLATFORM1 only through
+the compiler-owned wrapper. It revalidates the authority with the rest of the
+input after physical execution. The provider receipt and contract digest are
+provenance only; they do not alter semantic task records, nominal errors, the
+W-1620 lifecycle, capabilities, effects, interfaces, or ABI.
+
+The `provider_job.invoke` callback is the bounded task-body adapter, not the
+provider authority. Its address and its returned bytes cannot authenticate a
+provider. PARBIND1 continues to validate every completion against verified
+HIR41, independently evaluates the success call, and stages all caller-visible
+output until the complete relation passes.
+
+This closes local static provider selection only. It does not establish binary
+integrity, code signing, registry or remote attestation, DSSE/in-toto/SLSA
+verification, trusted-root persistence, rotation, revocation, freshness,
+rollback protection, native HIR execution, or security conformance. Those
+require a distinct external verifier and distribution authority. An arbitrary
+callback plus SHA-256 never acquires trusted assurance.
+
+<!-- w-example role=logical-contract -->
+```w
+// excerpt-kind: logical-contract
+module local_provider_example<
+  domains: [
+    .concurrent(.localParallel, maximum: 2, capabilities: [.parallel]),
+  ],
+>
+
+fn calculate(): i64 { return 42 }
+
+entry {
+  let value = spawn<.localParallel> calculate()
+  print("${await value}")
+}
+```
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

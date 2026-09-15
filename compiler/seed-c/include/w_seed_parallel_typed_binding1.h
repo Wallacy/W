@@ -2,6 +2,7 @@
 #define W_SEED_PARALLEL_TYPED_BINDING1_H
 
 #include "w_seed_hir0.h"
+#include "w_seed_parallel_local_provider1.h"
 #include "w_seed_parallel_platform1.h"
 
 #ifdef __cplusplus
@@ -32,6 +33,7 @@ typedef enum {
 typedef enum {
   W_SEED_PARALLEL_TYPED_BINDING1_ASSURANCE_NONE = 0,
   W_SEED_PARALLEL_TYPED_BINDING1_ASSURANCE_EXECUTION_INTEGRITY = 1,
+  W_SEED_PARALLEL_TYPED_BINDING1_ASSURANCE_STATIC_LOCAL_PROVIDER = 2,
 } w_seed_parallel_typed_binding1_assurance_kind;
 
 typedef enum {
@@ -47,6 +49,7 @@ typedef enum {
   W_SEED_PARALLEL_TYPED_BINDING1_CAPACITY,
   W_SEED_PARALLEL_TYPED_BINDING1_ALIAS,
   W_SEED_PARALLEL_TYPED_BINDING1_HIR,
+  W_SEED_PARALLEL_TYPED_BINDING1_AUTHORITY,
   W_SEED_PARALLEL_TYPED_BINDING1_PROVIDER_FAILURE,
   W_SEED_PARALLEL_TYPED_BINDING1_TASK_FAILURE,
   W_SEED_PARALLEL_TYPED_BINDING1_CANCELED,
@@ -125,6 +128,7 @@ typedef struct {
 
 typedef struct {
   w_seed_parallel_typed_binding1_provider provider;
+  w_seed_parallel_local_provider1_receipt local_authority;
   w_seed_parallel_provider0_kind provider_kind;
   uint32_t provider_capacity;
   uint32_t generation;
@@ -158,6 +162,7 @@ typedef struct {
   size_t task_count;
   size_t task_capacity;
   w_seed_parallel_platform1_job provider_job;
+  const w_seed_parallel_local_provider1_authority *provider_authority;
   uint32_t provider_capacity;
   uint32_t generation;
   w_seed_parallel_typed_binding1_provider provider;

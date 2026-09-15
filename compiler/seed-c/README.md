@@ -2385,6 +2385,19 @@ is imposed on a 64-bit target. This is compiler-lifecycle correctness evidence
 only. It does not define a public Task/runtime/ABI, general cardinality,
 native HIR execution, trusted provider attestation, or performance.
 
+W-1621 adds `w_seed_parallel_local_provider1`, a compiler-owned local admission
+wrapper for the exact statically linked Windows x64 PLATFORM1 provider. Its
+opaque process-local authority binds a canonical target/domain/profile/
+identity/generation contract receipt. PARBIND1 requires and revalidates that
+authority, executes PLATFORM1 through the wrapper, and includes the contract
+receipt only in provenance. The task callback remains untrusted body code and
+every returned completion is still checked against verified HIR.
+
+This is local static selection, not binary authentication, code signing,
+registry attestation, rotation, revocation, freshness, or security conformance.
+The authority is unavailable on unsupported hosts, a forged receipt or seal
+fails before publication, and SHA-256 alone never upgrades the assurance.
+
 ### Bounded CRT-free process/parallel provider linkage (W-1600)
 
 PARLINK1 closes the private physical reference for the W-1598 composition.
