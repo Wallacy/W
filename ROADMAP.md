@@ -36,7 +36,32 @@ not in this queue.
 | 8 | Incremental compiler and test selection | No-op, local-body, interface, and product-root edits reuse exact artifacts and run only risk-relevant gates, with mutation evidence that product failures are still detected | Faster human and AI iteration without hollow green checks |
 | 9 | Native toolchain and cross-target distribution | Reproducible signed LLVM/MLIR/LLD target packs cover the Windows/Linux/macOS host-target baseline, with exact SDK and ABI provenance | Compact offline `w` distribution and supported cross compilation |
 | 10 | Package, registry, service, and sandbox slices | Signed binary-first package plus source fallback, independent verification, one local/external service provider, and bounded sandbox execution | Ecosystem work built on a stable executable/runtime boundary |
-| 11 | UI, scientific, accelerator, and proof-mode witnesses | Promote one real application or numerical workload at a time through correctness, target applicability, resource receipts, and benchmark evidence; the GPU Hello remains the earlier architecture sentinel | Broader targets without expanding the language from untested abstractions |
+| 11 | UI, native graphics, scientific, accelerator, and proof-mode witnesses | Promote one real application or numerical workload at a time through correctness, target applicability, resource receipts, and benchmark evidence; native UI closes platform ABI, window/input/event-loop, graphics/shader, audio and optional WebView providers without making them language primitives; the GPU Hello remains the earlier architecture sentinel | Broader targets without expanding the language from untested abstractions |
+
+## Native application completeness
+
+The language-level ownership, effects, ABI, callback, domain and kernel models
+are sufficient foundations for an SDL-like library written primarily in W.
+That does not mean the current SDK can deliver one. “No SDL” still requires the
+operating-system window server, input stack, audio service and GPU driver APIs.
+The first-party route keeps those raw boundaries inside target SDK/providers so
+ordinary applications use safe W modules rather than C wrappers.
+
+The finite dependency order is:
+
+1. target-owned platform ABI adapters, including Windows COM and Apple
+   Objective-C/blocks ownership where required;
+2. window, display, input and event-loop contracts with main-thread affinity,
+   wake/quit, resize/DPI, reentrancy and shutdown;
+3. graphics resource, shader artifact, command, synchronization,
+   surface/swapchain and presentation lifecycle;
+4. realtime audio formats, clocks, deadlines, no-allocation callbacks, xrun and
+   device-change behavior;
+5. asset/resource packaging and an optional WebView provider.
+
+These are SDK/provider and implementation gaps unless an executable slice
+proves that a missing general language rule is required. They must not delay the
+current structured-cancellation and lifecycle ranks.
 
 ## Current checkpoint
 

@@ -32,7 +32,7 @@ describe("dependency currency catalog", () => {
   test("validates the checked-in catalog and generated projection", () => {
     expect(validateDependencyCurrency(source).errors).toEqual([]);
     expect(source.$schema).toBe("w-dependency-currency-1");
-    expect(source.observedAt).toBe("2026-09-11");
+    expect(source.observedAt).toBe("2026-09-15");
     expect(source.dependencies.map((item) => item.classification)).toEqual(
       expect.arrayContaining(DEPENDENCY_CLASSES),
     );
@@ -74,7 +74,10 @@ describe("dependency currency catalog", () => {
     }), "MLIR0 current evidence must be 23.1.1");
     expectError(errorsAfter((value) => {
       entry(value, "mlir0-llvm-clang").selected.promotion = "promoted";
-    }), "MLIR0 successor promotion must remain blocked");
+    }), "MLIR0 support promotion must remain gated");
+    expectError(errorsAfter((value) => {
+      entry(value, "mlir0-llvm-clang").successor = { version: "23.1.2" };
+    }), "MLIR0 successor must remain null until a newer stable release is selected");
     expectError(errorsAfter((value) => {
       entry(value, "unicode-ucd").selected.version = "16.0.0";
     }), "Unicode UCD current and selected snapshots must remain 17.0.0");
@@ -110,6 +113,18 @@ describe("dependency currency catalog", () => {
     }), "vscode-engine-floor.successor must remain null");
   });
 
+  test("permits development patch movement without weakening exact release receipts", () => {
+    expectError(errorsAfter((value) => {
+      value.policy.toolchainPatchCompatibility.releaseReceiptsRemainExact = false;
+    }), "policy.toolchainPatchCompatibility.releaseReceiptsRemainExact must be true");
+    expectError(errorsAfter((value) => {
+      value.policy.toolchainPatchCompatibility.majorMinorChangeRequiresMigration = false;
+    }), "policy.toolchainPatchCompatibility.majorMinorChangeRequiresMigration must be true");
+    expectError(errorsAfter((value) => {
+      entry(value, "mlir0-llvm-clang").requirements.developmentCompatibilityLine = "23.x";
+    }), "MLIR0 development compatibility line must be 23.1.x");
+  });
+
   test("keeps external evaluations non-authoritative", () => {
     expectError(errorsAfter((value) => {
       entry(value, "portable-mlir-toolchain").status = "current";
@@ -143,7 +158,7 @@ describe("dependency currency catalog", () => {
     }), "selected Tree-sitter integrity");
     expectError(errorsAfter((value) => {
       entry(value, "mlir0-llvm-clang").selected.commit = "0000000000000000000000000000000000000000";
-    }), "tooling/platform-support.json successorCommit must match the selected MLIR successor");
+    }), "tooling/platform-support.json selectedCommit must match the selected MLIR toolchain");
   });
 
   test("rejects manual projection drift", () => {

@@ -149,7 +149,7 @@ These plans are future work. They are not native host or target support evidence
 | `plan-windows-native-llvm-23-1-1` | windows | x86_64, aarch64 | llvm-project @ llvmorg-23.1.1<br>commit: 6dfe1677ab8dffbc6ec13d53a1e0215d75147689 | MLIR, Clang, LLD | Release / Ninja / X86, AArch64 / lld-link, ld.lld, ld64.lld | mlir-opt, mlir-translate, clang, lld, llvm-config (required, required, required, required) | required CI, required smoke, blocked-until-all-evidence | native-build-acquisition-provenance<br>Native Windows MLIR and LLVM bundle<br>Reproducible release outputs<br>SHA256, SBOM, provenance, and signing records<br>CI and native smoke evidence<br>SDK, sysroot, linker, and packaging evidence |
 | `plan-macos-native-llvm-23-1-1` | macos | x86_64, aarch64 | llvm-project @ llvmorg-23.1.1<br>commit: 6dfe1677ab8dffbc6ec13d53a1e0215d75147689 | MLIR, Clang, LLD | Release / Ninja / X86, AArch64 / lld-link, ld.lld, ld64.lld | mlir-opt, mlir-translate, clang, lld, llvm-config (required, required, required, required) | required CI, required smoke, blocked-until-all-evidence | native-build-acquisition-provenance<br>Native macOS MLIR and LLVM bundle<br>Reproducible release outputs<br>SHA256, SBOM, provenance, and signing records<br>CI and native smoke evidence<br>SDK, sysroot, linker, and packaging evidence |
 
-Each future plan pins llvmorg-23.1.1 at commit 6dfe1677ab8dffbc6ec13d53a1e0215d75147689 and builds MLIR, Clang, and LLD with Release and Ninja.
+Each native plan pins llvmorg-23.1.1 at commit 6dfe1677ab8dffbc6ec13d53a1e0215d75147689 and builds MLIR, Clang, and LLD with Release and Ninja.
 The native-build-acquisition-provenance blocker remains until exact outputs, provenance, and host evidence exist.
 Promotion waits for pinned outputs, SHA256, SBOM, provenance, signing, CI, and smoke evidence.
 
@@ -164,14 +164,15 @@ The portable MLIR record is a possible bootstrap, mirror, or rebuild input for a
 
 ## Policy
 
-- Observed: 2026-08-31.
+- Observed: 2026-09-15.
 - Reference breadth goal: `at-least-rust-breadth`.
 - Rust target tiers imported: no.
 - Feature coverage: `all-applicable-targets`; missing local evidence does not make a target inapplicable.
 - Requested target sets are complete: `true`; evidence availability cannot narrow emission: `true`.
 - Release fanout: `all-supported-applicable-targets`; cross-compilation goal: `any-supported-host-to-any-supported-target`.
 - Current evidence version: `23.1.1` (current).
-- Future native plan policy: `llvmorg-23.1.1-exact-pin-with-build-provenance-gate`; successor: `llvmorg-23.1.1` at `6dfe1677ab8dffbc6ec13d53a1e0215d75147689`.
+- Native plan policy: `llvmorg-23.1.1-exact-pin-with-build-provenance-gate`; selected toolchain: `llvmorg-23.1.1` at `6dfe1677ab8dffbc6ec13d53a1e0215d75147689`.
+- Development patch line: `23.1.x` via `release-notes-and-focused-gates`; release receipts remain `exact-version`.
 - Build and provenance blocker: `native-build-acquisition-provenance`.
 - The breadth goal is comparative. It is not an inherited Rust claim or tier snapshot.
 
@@ -187,7 +188,7 @@ The portable MLIR record is a possible bootstrap, mirror, or rebuild input for a
 
 The current row references [tooling/mlir0-toolchain.json](tooling/mlir0-toolchain.json).
 The manifest target is `x86_64-unknown-linux-gnu` with MLIR, LLVM, and Clang 23.1.1.
-This 23.1.1 version is factual current evidence and is marked `current`; it is not the intended future native-plan release.
+This 23.1.1 version is factual current evidence and is marked `current`; native support still depends on the separate promotion axes.
 The manifest records WSL Linux evidence and no Windows native evidence.
 
 ## Benchmark disposition
