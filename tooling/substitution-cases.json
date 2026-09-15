@@ -8747,6 +8747,66 @@
       "rank 1 remains open until typed launch drives artifacts, provider launch/join, and result from the same source"
     ],
     "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+  },
+  {
+    "id": "R0-accelerated-invocation-relation",
+    "reviewItem": "relação acelerada bounded independente contra índices frontend emprestados, estado físico de provider embutido e limites seed publicados como ABI",
+    "decisions": ["W-1603"],
+    "task": "Preserve one exact accelerated-domain module-field launch and lexical join after frontend and device-module teardown without introducing physical provider state.",
+    "selected": {
+      "language": "w-internal",
+      "source": [
+        "frontend = verify(spawn<.inference> kernels.hello())",
+        "deviceModule = verify(accelerator.module<{ hello: kernel }>())",
+        "invocation = independentlyCopy(domainPolicy, moduleIdentity, kernelIdentity, signedI32Result, lexicalAwait)",
+        "assert verify(invocation) after teardown(frontend, deviceModule)"
+      ]
+    },
+    "alternatives": [
+      {
+        "name": "retain-frontend-pointers",
+        "language": "w-internal-rejected",
+        "source": ["store borrowed frontend records in the launch plan"],
+        "expectedDifference": "The selected bridge owns every identity byte and remains verifiable after all producers are released."
+      },
+      {
+        "name": "embed-physical-provider",
+        "language": "w-internal-rejected",
+        "source": ["store target, device, queue, pointer, or launch handle in ACCINV0"],
+        "expectedDifference": "The selected relation is provider and target neutral; root binding and physical submission remain later boundaries."
+      },
+      {
+        "name": "publish-seed-cardinality",
+        "language": "w-internal-rejected",
+        "source": ["declare one invocation and zero arguments as W language or ABI limits"],
+        "expectedDifference": "The selected cardinality is only the first bounded bridge slice."
+      }
+    ],
+    "sourceRefs": [
+      {
+        "path": "compiler/seed-c/src/w_seed_accelerated_invocation0.c",
+        "symbol": "w_seed_accelerated_invocation0_verify",
+        "claim": "The independent verifier re-derives record ranges and semantic and provenance digests without source or producer storage."
+      },
+      {
+        "path": "compiler/seed-c/tests/test_accelerated_invocation0.c",
+        "symbol": "source->frontend28->gpu-module-1->program: PASS",
+        "claim": "The C23 fixture exercises the real producer chain, teardown independence, aliases, capacities, and forged relations."
+      },
+      {
+        "path": "tooling/check-accelerated-invocation0.mjs",
+        "symbol": "ACCINV0: independently verified accelerated invocation relation passed",
+        "claim": "The focused gate configures C23 from scratch, builds the bridge test, executes the W fixture, and removes temporary artifacts."
+      }
+    ],
+    "checks": [
+      "the exact accelerated domain, module field, result shape, and lexical await survive producer teardown",
+      "semantic identity excludes source ordinals while provenance binds them and both producer receipts",
+      "invalid producers, unsupported shapes, aliases, short capacities, and resealed forgeries fail before publication",
+      "provider, target, queue, geometry, transfer, residency, public build/run, and performance are not claimed",
+      "one invocation and zero arguments remain evidence limits only"
+    ],
+    "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
   }
   ]
 }

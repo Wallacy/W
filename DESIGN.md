@@ -79,7 +79,7 @@ gates de parsing e dos codecs de referência.
 
 ### 0.1 Promessa
 
-**Exemplo:** `spawn<.compute>` seleciona no source um domínio com capability
+**Exemplo:** `spawn<.domain>` seleciona no source um domínio com capability
 paralela e continua legível sem conhecer o executor.
 
 > **Prazer para humanos. Clareza para máquinas.**
@@ -12723,7 +12723,7 @@ escolha one-shot por completion order consome handles de children já criados:
 
 ```w
 let primary = async readMenuMirror(take primaryRequest)
-let fallback = spawn<.network> readMenuMirror(take fallbackRequest)
+let fallback = async readMenuMirror(take fallbackRequest)
 let candidates: [Task<MirroredMenu, MenuMirrorError>; 2] = [primary, fallback]
 let settlement = await (take candidates).firstSettled()
 ```
@@ -12851,8 +12851,8 @@ Uma task observa o sinal:
 
 - antes e depois de um suspension point;
 - em I/O que aceita cancelamento;
-- em uma boundary de task group;
-  - em `execution#checkCancellation()` para loops longos.
+- em uma boundary de child estruturado ou node de pipeline;
+- em `execution#checkCancellation()` para loops longos.
 
 `execution#checkCancellation()` só existe em código async. Ele executa uma saída de
 controle distinta de `throws E`. `catch` não intercepta essa saída. Cleanup
@@ -13000,7 +13000,7 @@ fica visível em seus módulos. Outro módulo importa o nome explicitamente:
 ```w
 import domain { thermal as ovenThermal } from kitchen
 
-let profile = async sampleOven()
+let profile = spawn<.ovenThermal> sampleOven()
 ```
 
 O alias continua um member enum-like no contexto de domain. O import não cria
@@ -13014,8 +13014,8 @@ com capability `.parallel`.
 
 ```w
 let menu = async loadMenu()      // herda o domain placement atual
-let plan = spawn<.compute> optimize(snapshot)
-let bill = spawn<.compute> price(order)
+let plan = spawn<.domain> optimize(snapshot)
+let bill = spawn<.domain> price(order)
 ```
 
 O compiler normaliza nomes de domain como um enum fechado por módulo. O usuário
@@ -13033,6 +13033,8 @@ O schema lógico de cada domain contém:
 
 ```text
 identity
+kind: host or accelerated
+submission: serial or concurrent
 capabilities: StaticList<ExecutionCapability>
 capacity: range constrained by host
 fallback: compatible domain or reject
@@ -13041,11 +13043,19 @@ instrumentation identity
 ```
 
 `ExecutionCapability` é um enum. O schema valida a lista, rejeita duplicatas e a
-normaliza como set. Ele não dá ao enum uma semântica OR oculta. `serial`,
-`parallel`, `concurrent`, `barrierDispatch`, `nonBlockingIo`, `blocking`,
-`affine` e `device` são capabilities distintas. `.serial(name)` inclui capacity
-lógica um e primeiro start FIFO. Nenhuma política física pode reordenar esse
-FIFO. Ela só escolhe entre jobs que o source deixa sem ordem contratual.
+normaliza como set. Ele não dá ao enum uma semântica OR oculta. `serial` e
+`concurrent` são modos de submissão, não capabilities; `host` e `accelerated`
+são kinds disjuntos. As capabilities portáteis adicionais são `parallel`,
+`barrierDispatch` e `blocking`; affinity permanece um requisito tipado
+separado. A forma `.accelerated(...)` implica a classe accelerated e não exige
+uma capability `.device` redundante no source. Nonblocking I/O não é
+capability de domain: a
+registration pertence ao provider e `await` suspende o Task atual sem ocupar
+um worker. `.serial(name)` inclui capacity lógica um e primeiro start FIFO.
+Nenhuma política de admissão pode reordenar esse FIFO. Para um domain
+accelerated, isso não promete conclusão física em ordem: dependências de
+receipts e o modo reproducibility do profile/provider fecham essa propriedade
+quando ela for necessária.
 
 **W-1602 — domínio acelerado estático:** a forma fechada
 `.accelerated(name, submission: .serial|.concurrent, maximum: ..., fallback: ...)`
@@ -13068,6 +13078,16 @@ somente `spawn<domain> descriptor.field(args...)`, com o field como callee
 imediato e um domain `.accelerated` compatível. Chamada nua do field, chamada
 `async` do field ou `spawn` em domain host é rejeitada; a função kernel original
 continua uma call direta de host.
+
+Um binding estático resolve deterministicamente uma única queue/generation e
+um único device compatível antes da entry. Ele nunca escolhe entre devices a
+cada invocation. Um product que não consegue fechar essa escolha falha no link;
+seleção runtime usa `accelerator.open`. `maximum` é agregado por domain, não
+replicado por módulo. O limite efetivo é o menor entre requirement do módulo,
+execution profile, root/product, deployment e uma região lexical aplicável.
+Fallback precisa preservar a classe host/accelerated e todos os contratos de
+module, numeric mode, layout, effects e residency; incompatibilidade falha
+antes da entry.
 
 O Frontend28 materializa a primeira fatia bounded dessa relação. O input
 caller-owned discrimina domain host de accelerated, preserva submission,
@@ -13101,9 +13121,10 @@ Domains aparecem somente em fronteiras de admissão de trabalho:
 
 | Fronteira | Seleção estática | Seleção dinâmica |
 | --- | --- | --- |
-| child ordinário | `spawn<domain> call(...)` | `Task.spawn(domain: ref, input: ..., using: ...)` |
-| lote finito | `pipeline<tasks: .parallel<domain>, ...>`; `.concurrent` herda o atual | adapter explícito sobre `ExecutionDomainRef` |
-| kernel fechado | `spawn<acceleratedDomain> descriptor.field(...)` | `accelerator.open(...)` + `field.launch(using: ...)` |
+| child ordinário | `spawn<domain> call(...)` | não seleciona executor runtime |
+| lane serial criada em runtime | não aplicável | `execution.openSerial(...)` + `Task.spawn(domain: ref, ...)` |
+| lote finito | `pipeline<tasks: .parallel<domain>, ...>`; `.concurrent` herda o atual | adapter explícito sobre uma lane serial quando necessário |
+| kernel fechado | `spawn<domain> descriptor.field(...)`, onde o domain resolve para `.accelerated` | `accelerator.open(...)` + `field.launch(using: ...)` |
 | entry ou service instance | binding do product/runtime graph antes da admissão | reconfiguração pertence ao deployment, não à call |
 
 `await`, join, Channel, Stream, transaction, lock, allocator, test/bench e
@@ -13128,7 +13149,7 @@ domain apenas por ser assíncrona, custosa ou externa.
 | --- | --- | --- |
 | child host comum | admissão e ordem | `async` herda; `spawn<domain>` escolhe `.serial` ou `.concurrent` |
 | paralelismo CPU | colocação de trabalho divisível | `parallelMap<domain>` exige capability `.parallel` |
-| kernel acelerado | submissão tipada para artifact fechado | `spawn<acceleratedDomain> descriptor.field(...)` |
+| kernel acelerado | submissão tipada para artifact fechado | `spawn<domain> descriptor.field(...)`, onde `domain` resolve para `.accelerated` |
 | UI/main thread | afinidade | entry/provider liga `.main`; child usa `spawn<.main>` quando precisa retornar |
 | foreign bloqueante | isolamento e budget de workers | domain host bounded com capability `.blocking` |
 | service handler | placement da instance/turn | runtime graph liga a service a um domain; a chamada não escolhe thread |
@@ -13630,6 +13651,7 @@ Um execution profile é um record data-only do package. Ele fixa este envelope:
 | `tasks` | máximos de tasks vivas, frame bytes e timers |
 | `pools` | capacity física mínima e máxima |
 | `domains` | pool, capabilities, ready budget e fallback por domain |
+| `domains.acceleratedBindings` | relação root-scoped fechada por `(unit, domain, ModuleIdentity, KernelInstanceId)`, queue/generation, provider class, limites e modo de reproducibility |
 | `domains.dynamicSerial` | pool, owners vivos, budget agregado e máximo por lane |
 | `cleanup` | grace bounds de cleanup assíncrono e blocking drain |
 
@@ -13657,8 +13679,11 @@ contratos de package e module. Dois domains podem compartilhar pool sem perder
 seus contracts. `dynamicSerial` usa um subenvelope do pool; o runtime não toma
 budget de outro campo quando `live`, `aggregateReady` ou `laneMaximum` termina.
 
-O linker rejeita binding ausente, capability insuficiente, fallback cíclico e
-budget impossível. Library ou device bundle sem task runtime alcançável omite
+O linker rejeita binding ausente ou ambíguo, capability insuficiente, fallback
+cíclico ou entre classes incompatíveis e budget impossível. Para accelerated
+bindings, o limite efetivo é a interseção dos limites de module, domain,
+product/root e deployment; nenhum módulo multiplica o budget do domain. Library
+ou device bundle sem task runtime alcançável omite
 `executionProfile`. Depois do packing, cada unit com task runtime recebe o
 profile do product. Budgets são por unit; o artifact index registra cada máximo
 e a soma. Unit sem task não recebe pool por reachability indireta.
@@ -13900,6 +13925,24 @@ explícita de `accelerator.open`/`Launch<Module>`/`.launch(using:)` permanece
 disponível quando device ou queue são escolhidos em runtime; seus erros de
 admission, artifact, provider e generation continuam `LaunchError`.
 
+O domain acelerado também pode aparecer como parâmetro estático de uma
+operação explícita de preparação de recurso, sem transformar essa operação em
+placement ou esconder transferência:
+
+```w
+let deviceFeatures = try await tensor.transfer<to: .inference>(
+  source: take features,
+  limits: ref transferLimits,
+)
+```
+
+O product resolve `.inference` para o mesmo accelerated binding usado por
+`spawn`; a HIR registra `resident(.inference)` no owner devolvido. O call é o
+efeito de transfer observável e cobra seus bytes/receipts. Não expõe `Device`
+ou `Queue`, não escolhe hardware em runtime e não torna domain uma API de
+storage. A forma dinâmica existente de `tensor.transfer(... target: ref Device,
+on: ref Queue?, ...)` permanece para seleção runtime.
+
 O contrato não escolhe GPU, FPGA, DSP, provider, target ou ABI. Um product pode
 ligar o domain a qualquer backend que prove ModuleIdentity, numeric/layout,
 effects, memory plan, limits e receipts; caso não possa, o link ou a admission
@@ -14011,6 +14054,11 @@ borrowed precisa residir no Device da Queue ou ter mapping host-shared provado.
 de payload são APIs explícitas de `std.tensor`; launch nunca as insere. Scalars
 `Copy` podem entrar no command record quando a ABI publica seus bytes e o
 receipt cobra esse custo.
+
+No caminho estático, `tensor.transfer<to: domain>` usa o accelerated binding do
+root e anota o owner resultante com a mesma residency. No caminho dinâmico,
+`target: ref Device` e `on: ref Queue?` continuam explícitos. Esses overloads
+não são intercambiáveis por inferência e nunca inserem uma cópia no launch.
 
 O result owner só fica disponível depois de completion e cleanup. Host code não
 lê device storage sem transferência explícita.
@@ -14143,6 +14191,13 @@ efeitos, owner e uncertainty. O modo `transaction` está definido na seção
 terminator, combinação/nesting, cardinalidade/limit e ordering/errors inválidos
 produzem `W-PIPELINE-0001`, `W-PIPELINE-0002`, `W-PIPELINE-0003`,
 `W-PIPELINE-0004` ou `W-PIPELINE-0005`.
+
+Um accelerated domain não satisfaz `.parallel` e, portanto,
+`.parallel<.inference>` é rejeitado. Um field de `accelerator.module` também
+não pode ser usado como body implícito da região: cada invocation precisa
+continuar sendo o `spawn<domain> descriptor.field(...)` explícito. O modo
+`.barrier` não se aplica a accelerated domains, porque launch pode suspender e
+o ordering de device pertence a receipts/dependency edges, não ao ticket host.
 
 #### 12.8.1 Proveniência W-1482 (superseded por W-1511)
 
@@ -26675,8 +26730,9 @@ task e invoca a operation uma vez na task corrente. O binding entra no task
 frame antes da call. `get()` devolve um `ref T` ligado ao binding corrente ou ao
 default quando não existe binding.
 
-Um child captura o binding corrente quando é criado por initializer `async`, task group
-ou `spawn<domain>`. O child não observa um rebind posterior do parent. O mesmo
+Um child captura o binding corrente quando é criado por initializer `async`,
+node `pipeline<tasks: ...>` ou `spawn<domain>`. O child não observa um rebind
+posterior do parent. O mesmo
 binding imutável pode cruzar o domain porque `T` é `shareable`; não existe copy,
 retain ou lookup ambiental. O scope drena esses children antes de remover o
 binding. Success, error, cancellation e panic boundary restauram o binding
@@ -40213,9 +40269,37 @@ supported GPU ABI, or homogeneous pinned production support. A caller-owned
 provider-neutral projection selects one verified module field, copies the
 module const name, field label, and private implementation name into its own
 text store, and carries the verified payload into the exact GPU0 records. The
-roadmap item remains open until a typed `.launch` relation and supported
-provider launch, join, and result verification consume that source-backed
-projection.
+roadmap item remains open until the independently preserved static invocation
+is bound to a supported provider launch, join, and result path.
+
+#### 26.4.1.83 W-1603 — relação acelerada independente e bounded
+
+ACCINV0 é a primeira fronteira independente para a forma estática
+`spawn<domain> descriptor.field()`, onde `domain` resolve para `.accelerated`.
+Ela consome Frontend28 e um
+programa gpu-module-1 já verificado, exige exatamente um launch zero-argument e
+seu único `await` lexical, e copia para storage caller-owned a identidade do
+domain, sua submission e budget, o const do módulo, label do field, função
+privada, result shape, ordinais e spans. Um verifier separado continua válido
+depois que source, CST, frontend e gpu-module foram descartados.
+
+O digest semântico liga a política do domain, as identidades copiadas, o result
+shape e o digest semântico do módulo de device. Índices e spans pertencem ao
+digest de provenance, junto aos receipts dos producers. Assim, formatação ou
+comentários podem alterar provenance sem inventar outro programa acelerado.
+Measure, run e `program_from_output` são all-or-nothing; capacities curtas,
+overflow, producer inconsistente, shape fora do subset e aliases falham antes
+de publicar bytes.
+
+Um launch e zero argumentos são limites do array e do bridge seed, não da
+linguagem, scheduler ou ABI. ACCINV0 não contém provider, target, queue,
+pointer, geometry, transfer, residency, device-memory plan, MLIR handle ou ABI
+físico. O Frontend28 ainda não preserva o tipo nominal de falha da Task, por
+isso este schema também não alega `LaunchError` tipado. Argumentos e ownership,
+binding do product/root, provider launch/join/result, cancelamento/drain,
+produto GPU público, outros targets e performance permanecem gaps explícitos.
+O source usado por este bridge é testemunho frontend-only: ele não alega que a
+forma curta de `entry` já execute suspensão no produto público.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

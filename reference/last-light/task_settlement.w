@@ -37,7 +37,7 @@ export async fn firstMenuMirror(
   fallbackRequest: take MenuMirrorRequest,
 ): TaskSettlement<MirroredMenu, MenuMirrorError> {
   let primary = async readMenuMirror(request: take primaryRequest)
-  let fallback = spawn<.network> readMenuMirror(request: take fallbackRequest)
+  let fallback = async readMenuMirror(request: take fallbackRequest)
   let candidates: [Task<MirroredMenu, MenuMirrorError>; 2] = [primary, fallback]
   return await (take candidates).firstSettled()
 }

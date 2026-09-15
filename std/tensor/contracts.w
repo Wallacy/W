@@ -123,6 +123,25 @@ export async fn transfer<Element, shape: StaticList<usize>>(
   }
 }
 
+// A static product can prepare storage for a declared accelerated domain
+// without exposing a runtime Device or Queue handle. This remains an explicit
+// transfer effect; `spawn<to>` never inserts it.
+export async fn transfer<
+  to: ExecutionDomainId,
+  Element,
+  shape: StaticList<usize>,
+>(
+  source: take Tensor<Element, shape>,
+  limits: ref Limits,
+): Tensor<Element, shape> throws TensorError {
+  return unsafe {
+    try await stdTensorTransferToDomain<to: to>(
+      take source,
+      limits,
+    )
+  }
+}
+
 foreign intrinsic from "std.tensor@1" {
   type DeviceHandle
   type QueueHandle
@@ -140,6 +159,14 @@ foreign intrinsic from "std.tensor@1" {
     _ source: take Tensor<Element, shape>,
     _ target: ref Device,
     _ queue: ref Queue?,
+    _ limits: ref Limits,
+  ): Tensor<Element, shape> throws TensorError
+  async fn stdTensorTransferToDomain<
+    to: ExecutionDomainId,
+    Element,
+    shape: StaticList<usize>,
+  >(
+    _ source: take Tensor<Element, shape>,
     _ limits: ref Limits,
   ): Tensor<Element, shape> throws TensorError
 }

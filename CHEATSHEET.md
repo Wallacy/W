@@ -1744,7 +1744,8 @@ module numerics<
 >
 
 import accelerator from std
-import { Queue, Tensor } from std.tensor
+import tensor from std
+import { Limits as TensorLimits, Queue, Tensor } from std.tensor
 
 dimension Distance
 unit kilometer: Distance
@@ -1776,6 +1777,29 @@ async fn forecastOnConfiguredDomain<
     weights: ref weights,
   )
   return try await pending
+}
+
+async fn prepareForConfiguredDomain<
+  rows: usize,
+  inputs: usize,
+  outputs: usize,
+>(
+  features: take FeatureBatch<rows: rows, columns: inputs>,
+  weights: take Tensor<f32, shape: [inputs, outputs]>,
+  limits: ref TensorLimits,
+): (
+  FeatureBatch<rows: rows, columns: inputs>,
+  Tensor<f32, shape: [inputs, outputs]>,
+) throws tensor.TensorError {
+  let deviceFeatures = try await tensor.transfer<to: .inference>(
+    source: take features,
+    limits: ref limits,
+  )
+  let deviceWeights = try await tensor.transfer<to: .inference>(
+    source: take weights,
+    limits: ref limits,
+  )
+  return (deviceFeatures, deviceWeights)
 }
 
 async fn forecastOnSelectedQueue<

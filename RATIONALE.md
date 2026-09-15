@@ -96,6 +96,7 @@ O corpus compara, no mínimo:
 - units `<>` contra `[]`;
 - alias de quantity contra newtype para todo nome físico;
 - `spawn<.compute>` contra `spawn<domain: .compute>` e `spawn on .compute`;
+- relação acelerada bounded independente contra índices frontend emprestados, estado físico de provider embutido e limites seed publicados como ABI;
 - `T<(.member predicate)>` contra `value.member`, `where` e constructor;
 - `Array<u8><(.count <= 64)>` contra uma static list no mesmo envelope;
 - `: self` explícito com fallthrough contra retorno implícito do receiver e `return self` equivalente;
@@ -7917,8 +7918,9 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1598 | explicit process-root and task-entry MLIR composition | PARMLIR0 emits one bounded process-root module that preserves runtime `Arguments.isEmpty` through a direct scalar prelude and into one task argument before lexical join. Caller-owned transactional measure, emit, and verify operations publish separate counts, bytes, and digest records. The target-private task wrapper is distinct from the process root. The module declares unresolved provider-owned launch and join symbols and keeps the ordinary process selector direct-only. Pinned MLIR/LLVM 23.1.1 parse, lower, and translate checks produce a Linux x86-64 PIC ELF object. No provider linkage, public execution, benchmark, performance, or direct-call selection claim is made. | `source-backed-current` only for the bounded process-root/task-wrapper composition, separate transactional measure/emit/verify APIs, explicit unresolved launch/join declarations, direct-only ordinary process selection, and MLIR/LLVM 23.1.1 Linux ELF object evidence. Provider linkage, public execution, benchmark results, performance, and direct-call selection remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1599 | TASKLIFE0 target-neutral fixed caller-owned lifecycle reducer and oracle | TASKLIFE0 provides a target-neutral fixed caller-owned reducer and oracle for bounded logical task lifecycles. It replays task and scope states, publishes tagged success, error, and canceled outcomes, preserves settled-before-cancel precedence, enforces cleanup before commit, drains siblings after fail-fast cancellation, arbitrates lexical/input errors, and orders joins and releases lexically. Transaction and measurement snapshots are replayed and digest-checked. The one-to-four task and 128-event ceilings are seed evidence only. No source-HIR integration, scheduler, provider, parallel runtime, task ABI, benchmark, or performance claim is made. | `source-backed-current` only for the fixed TASKLIFE0 state reducer, cancellation and outcome arbitration, cleanup/commit and join/release barriers, exact caller-owned snapshots, independent replay verification, and focused C23 evidence. Source-HIR integration, scheduler/provider linkage, parallel runtime, task ABI, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1600 | bounded CRT-free process/parallel provider linkage on Windows and Linux | PARLINK1 binds the W-1598 process root and private task entry to explicit target adapters. Windows x64 uses Kernel32 runtime input, `CreateThread`, lexical wait, handle close, and result validation. Linux x86-64 reads the initial process stack and uses raw `clone`, `wait4`, and exit syscalls with a fixed private provider stack. Both routes preserve empty/nonempty runtime input, execute the emitted task, and fail closed through exit 3 under a gate-only injected provider fault. They link without CRT/default libraries and execute with empty stdout/stderr. The four-slot frame and Linux child stack are private seed-provider evidence. | `source-backed-current` only for the unchanged bounded source-to-provider composition, Windows x64 CRT-free execution, Windows-host cross-link plus Linux/WSL CRT-free execution, empty/nonempty runtime-input cases, explicit launch/join, task-result validation, and injected provider-failure exit. Public `w build`/`w run`, general argument decoding, scheduler/task ABI/storage, retained artifacts, benchmarks, timing, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
-| W-1601 | bounded GPU0 target-neutral semantic witness and available CUDA execution | GPU0 is a target-neutral, provider-free C23 semantic seed with separate host/device MLIR artifacts and exact lifecycle, identity, dispatch, memory, alias, capacity, effect and transactional checks. Frontend28 preserves both the closed accelerator module and the bounded static domain invocation identity. Independent caller-owned bridges preserve the device-module meaning and project one verified field into GPU0 without provider, target, queue, pointer, launch handle or MLIR handle. The focused Windows gate lowers with pinned MLIR/LLVM 23.1.1, emits PTX with Clang 22.1.8 and executes through the CUDA Driver on NVIDIA RTX A400 (`sm_86`), verifying `42`. Diagnostic sizes and phase distributions are not product rankings. | `implementation-evidence-gap` for the complete W source-to-provider product route. Frontend28 invocation identity, independent device-module records, GPU0 projection and experimental CUDA execution are current; independent invocation HIR, public artifact routing, supported provider launch/join/result, homogeneous production toolchain and performance ranking remain open. `benchmarkDisposition: compiler-lifecycle`. |
-| W-1602 | static accelerated-domain submission | `.accelerated(name, submission:, maximum:, fallback:)` adds a target-neutral domain requirement. In the static path `spawn<domain> descriptor.field(args...)` is the launch surface; the product/root owns the typed relation and lifecycle. `accelerator.open` plus `.launch(using:)` remains the explicit dynamic path. Host calls, transfers, artifact requirements, Task lifetime, typed launch failures, receipts and drain remain distinct. | `oracle-backed-current`: DEV0 validates the static-root relation and lifecycle, while Frontend28 preserves the bounded kind/domain/module/kernel relation and rejects contextual misuse. Independent invocation HIR, profile/root binding, provider composition, public build/run and performance evidence remain open. |
+| W-1601 | bounded GPU0 target-neutral semantic witness and available CUDA execution | GPU0 is a target-neutral, provider-free C23 semantic seed with separate host/device MLIR artifacts and exact lifecycle, identity, dispatch, memory, alias, capacity, effect and transactional checks. Frontend28 preserves both the closed accelerator module and the bounded static domain invocation identity. Independent caller-owned bridges preserve the device-module meaning and project one verified field into GPU0 without provider, target, queue, pointer, launch handle or MLIR handle. The focused Windows gate lowers with pinned MLIR/LLVM 23.1.1, emits PTX with Clang 22.1.8 and executes through the CUDA Driver on NVIDIA RTX A400 (`sm_86`), verifying `42`. Diagnostic sizes and phase distributions are not product rankings. | `implementation-evidence-gap` for the complete W source-to-provider product route. Frontend28 invocation identity, independent device-module and ACCINV0 invocation records, GPU0 projection and experimental CUDA execution are current; public artifact routing, supported provider launch/join/result, homogeneous production toolchain and performance ranking remain open. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1602 | static accelerated-domain submission | `.accelerated(name, submission:, maximum:, fallback:)` adds a target-neutral domain requirement. In the static path `spawn<domain> descriptor.field(args...)` is the launch surface; the product/root owns the typed relation and lifecycle. `accelerator.open` plus `.launch(using:)` remains the explicit dynamic path. Host calls, transfers, artifact requirements, Task lifetime, typed launch failures, receipts and drain remain distinct. | `oracle-backed-current`: DEV0 validates the static-root relation and lifecycle, while Frontend28 preserves the bounded kind/domain/module/kernel relation and rejects contextual misuse. ACCINV0 independently preserves the first zero-argument invocation and lexical join. General arguments/ownership/residency, profile/root binding, provider composition, public build/run and performance evidence remain open. |
+| W-1603 | independent bounded accelerated invocation relation | ACCINV0 consumes Frontend28 plus a verified gpu-module-1 program and copies one exact zero-argument `spawn<domain> descriptor.field()`, where the domain is accelerated, and its lexical `await` into caller-owned, provider-neutral records. Its verifier survives source, CST, frontend, and gpu-module teardown. Semantic identity binds domain policy, copied identities, result shape, and the device-module semantic digest; provenance binds source ordinals/spans and producer receipts. | `source-backed-current` only for the exact one-invocation signed-`i32` seed slice, transactional C23 implementation, adversarial verifier, and focused gate. One invocation and zero arguments are seed evidence limits, not language or ABI bounds. Typed task failure, arguments/ownership/residency, geometry, root/profile binding, provider launch/join/result, public GPU product, other targets, benchmark, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -12803,8 +12805,38 @@ positive maximum. The expression graph binds the immediate descriptor field
 to exact accelerator-module, kernel and original-function indices. Bare field
 calls, `async` field calls, host-domain offload, missing fields, zero budgets
 and device-less accelerated bindings fail closed. The records still depend on
-frontend storage; independent invocation HIR, root/profile binding and
-provider execution remain open.
+frontend storage. ACCINV0 closes the first independent zero-argument invocation
+and lexical-join slice; general arguments/ownership/residency, root/profile
+binding and provider execution remain open.
+
+#### W-1603 — independent bounded accelerated invocation relation
+
+Frontend records are not an acceptable launch-plan boundary because their
+indices and text borrow source-owned storage. ACCINV0 therefore consumes the
+already successful Frontend28 result together with an independently verified
+gpu-module-1 program and copies the exact static relation into its own bounded
+storage. The first slice contains one zero-argument invocation and one lexical
+join. It preserves the accelerated domain identity and policy, module const,
+kernel label, private function identity, normalized signed-`i32` result shape,
+source ordinals, and containing spans. It contains no provider, target, queue,
+pointer, launch handle, device-memory plan, MLIR handle, or physical ABI.
+
+The semantic digest deliberately excludes frontend and gpu-module ordinals and
+source spans. It binds the copied names, domain class/submission/budget, result
+shape, and the gpu-module semantic digest, so changing the selected device
+program changes invocation identity. The provenance digest binds producer
+receipts, source ordinals/spans, and the semantic digest. Equivalent source
+formatting can therefore preserve semantic identity while changing provenance.
+
+Measure and emission are caller-owned transactions. Invalid producers,
+unsupported shapes, short capacities, overflow, and every destination/input
+alias fail before output changes. `program_from_output` publishes a view only
+after independent verification, and that verifier does not read source,
+frontend, or gpu-module storage. The value one and zero-argument shape are
+current evidence bounds only. General arguments, ownership and residency,
+typed `LaunchError`, geometry, root/profile binding, artifact selection,
+provider submission, cancellation/drain, public build/run, targets, and
+performance remain later boundaries. No additional W syntax is introduced.
 
 The design rejects a universal domain abstraction. Host main/serial/concurrent
 and bounded blocking pools remain domains. UI composes main-thread affinity;
@@ -12812,4 +12844,8 @@ nonblocking I/O composes provider suspension; realtime audio and interrupts are
 entry/provider contracts; SIMD is a lowering choice; services, distributed
 workflows, process and sandbox are isolation or authority boundaries. This
 keeps `spawn` from becoming an RPC, subprocess, vectorization and callback API
-at once.
+at once. The review also removes the orphan `nonBlockingIo` execution
+capability: registering an operation with an I/O provider and suspending the
+current Task does not occupy or characterize an execution domain. A bounded
+host domain remains appropriate only for genuinely blocking adapters or for
+application work performed after completion.

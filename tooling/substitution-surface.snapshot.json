@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:34a328a33b8632af5a3b1cf58fef73d3fbb632993fcadffbb927c3298a21d75b",
+  "corpusDigest": "sha256:497f5d28c1dce2ca165e8a25349e87a41929d5c824947df8cbb5e83c45f89f81",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -8580,6 +8580,66 @@
             "nonWhitespaceCodePoints": 61,
             "lines": 1,
             "surfaceLexemes": 14
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-accelerated-invocation-relation",
+      "task": {
+        "utf8Bytes": 161,
+        "codePoints": 161,
+        "nonWhitespaceCodePoints": 143,
+        "lines": 1,
+        "surfaceLexemes": 26
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w-internal",
+        "sourceDigest": "sha256:6b86b01690094ec4e4f75c524f3640e8e6d93df179a4c5f17830345f7905a80d",
+        "metrics": {
+          "utf8Bytes": 288,
+          "codePoints": 288,
+          "nonWhitespaceCodePoints": 267,
+          "lines": 4,
+          "surfaceLexemes": 58
+        }
+      },
+      "alternatives": [
+        {
+          "name": "retain-frontend-pointers",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:3c8bba8de6bc04f7812b06c2d96179da8ecef73495b4c534726e63c4a1d842c2",
+          "metrics": {
+            "utf8Bytes": 50,
+            "codePoints": 50,
+            "nonWhitespaceCodePoints": 43,
+            "lines": 1,
+            "surfaceLexemes": 8
+          }
+        },
+        {
+          "name": "embed-physical-provider",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:e51bdd5e1d82a061d8d487e1e1c8fd7ca43864327543d97d25907696b5d07cfa",
+          "metrics": {
+            "utf8Bytes": 65,
+            "codePoints": 65,
+            "nonWhitespaceCodePoints": 56,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        },
+        {
+          "name": "publish-seed-cardinality",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:56490d27e6598be3c808c6fc0464809f71bc71276ea3a6a077482a7cd02eea34",
+          "metrics": {
+            "utf8Bytes": 69,
+            "codePoints": 69,
+            "nonWhitespaceCodePoints": 58,
+            "lines": 1,
+            "surfaceLexemes": 12
           }
         }
       ]
