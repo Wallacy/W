@@ -9088,6 +9088,84 @@
       "provider and PARMLIR0 migration, cancellation, scheduling, public execution, benchmarks, and performance remain unclaimed"
     ],
     "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+  },
+  {
+    "id": "R0-measured-parallel-provider",
+    "reviewItem": "measured Windows parallel execution against fixed logical storage, provider-dependent outcomes, missed rendezvous states, and hidden scratch mutation",
+    "decisions": ["W-1608"],
+    "task": "Execute measured logical tasks through bounded physical capacity without fixed logical arrays or provider-dependent semantic outcomes.",
+    "selected": {
+      "language": "w-internal",
+      "source": [
+        "counts = PARPROV1.measure(verifiedHIR, verifiedSelection, verifiedInvocation)",
+        "provider = windowsKernel32(capacity: 2, indexedJob: evaluateVerifiedCall)",
+        "workspace = callerStorage(counts.workspaceValues)",
+        "outcomes = provider.execute(tasks, workspace)",
+        "semanticDigest = hash(hirDigest, selectionDigest, invocationDigest, outcomes)"
+      ]
+    },
+    "alternatives": [
+      {
+        "name": "logical-task-sized-stack-jobs",
+        "language": "w-internal-rejected",
+        "source": ["jobs[taskCount]", "values[taskCount]"],
+        "expectedDifference": "One indexed descriptor and constant-size waves separate logical count from worker-frame storage."
+      },
+      {
+        "name": "capacity-in-semantic-result",
+        "language": "w-internal-rejected",
+        "source": ["outcomeDigest.add(providerCapacity)"],
+        "expectedDifference": "Capacity one and two produce identical semantic bytes; physical facts stay in a separate receipt."
+      },
+      {
+        "name": "transient-active-count-rendezvous",
+        "language": "w-internal-rejected",
+        "source": ["wait until activeWorkers == waveSize"],
+        "expectedDifference": "Monotonic ready/release state cannot miss overlap when another worker completes quickly."
+      },
+      {
+        "name": "implicit-failure-scratch",
+        "language": "w-internal-rejected",
+        "source": ["write semantic outcomes while workers complete"],
+        "expectedDifference": "Caller workspace is explicit and may change on failure; semantic outcomes and receipts publish only after complete success."
+      }
+    ],
+    "sourceRefs": [
+      {
+        "path": "compiler/seed-c/include/w_seed_parallel_provider1.h",
+        "symbol": "W_SEED_PARALLEL_PROVIDER1_SCHEMA_VERSION",
+        "claim": "PARPROV1 exposes measured caller outcomes and explicit physical workspace while keeping provider facts outside semantic identity."
+      },
+      {
+        "path": "compiler/seed-c/src/w_seed_parallel_provider1.c",
+        "symbol": "w_seed_parallel_provider1_execute",
+        "claim": "The provider verifies once, runs indexed jobs into workspace, and publishes semantic outcomes only after complete physical success."
+      },
+      {
+        "path": "compiler/seed-c/src/w_seed_parallel_provider0_windows.c",
+        "symbol": "parallel_windows_entry",
+        "claim": "The shared Windows adapter uses a monotonic ready/release barrier and constant-size worker waves."
+      },
+      {
+        "path": "compiler/seed-c/tests/test_hir0.c",
+        "symbol": "test_parallel_provider1_windows",
+        "claim": "The C23 witness executes five tasks at two capacities, proves semantic equality and overlap, and checks capacity, alias, and forgery barriers."
+      },
+      {
+        "path": "tooling/check-hir0.mjs",
+        "symbol": "HIR0: caller-owned verified single/multi-document HIR, bounded product closure, task lifecycle, and adversarial barriers passed",
+        "claim": "The focused gate builds and executes the measured Windows provider witness from a clean temporary directory."
+      }
+    ],
+    "checks": [
+      "logical task count uses measured caller storage while worker waves remain bounded by physical capacity",
+      "capacity one and two publish identical semantic outcomes and separate physical receipts",
+      "the monotonic ready/release barrier proves overlap without timing or a transient-state wait",
+      "failure may modify only declared workspace; semantic outputs and receipts remain transactional",
+      "five tasks and a seventeen-argument task cross the Windows component without PARPROV0 limits",
+      "Linux providers, emitted task linkage, cancellation, scheduling, public execution, benchmarks, and performance remain unclaimed"
+    ],
+    "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
   }
   ]
 }

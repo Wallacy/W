@@ -40442,6 +40442,37 @@ until migrated. PARINV1 is compiler-lifecycle evidence. It defines no scheduler,
 runtime Task representation, provider capacity, public command, benchmark
 result, or performance claim.
 
+#### 26.4.1.88 W-1608 — measured Windows parallel provider
+
+PARPROV1 schema `w-seed-parallel-provider1-1` consumes verified HIR38,
+PARSEL1, and PARINV1. Measure reports exact semantic-outcome and physical
+workspace counts. The caller supplies both ranges. The provider accepts any
+finite verified logical task count representable by those records. Its current
+physical capacity is one or two Windows x64 Kernel32 workers.
+
+One indexed job descriptor serves every task. The Windows adapter uses
+constant-size waves and no logical-task-sized stack array. A monotonic
+ready/release barrier holds each wave until all workers are active. It cannot
+miss overlap when a task finishes quickly. Capacity two must report two
+simultaneously active workers for a multi-task successful execution.
+
+Workspace is explicit physical scratch. Provider or task failure may modify
+workspace values. Semantic outcomes, result, and receipt remain bitwise
+unchanged on every failure. Capacity and alias checks finish before physical
+work. Successful physical work completes before infallible semantic
+publication.
+
+The semantic outcome digest binds HIR, selection, invocation, function indices,
+and signed-`i64` values. It excludes provider kind, worker capacity, and overlap.
+The physical receipt owns those excluded facts. Independent verification
+re-evaluates the pure scalar calls and recomputes the digest without trusting
+workspace.
+
+Five tasks produce equal semantic outcomes at capacities one and two. A
+seventeen-argument task also crosses the provider. This evidence does not define
+a Task ABI, scheduler, worker pool, cancellation, Linux provider, public
+executable, benchmark result, or performance claim.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

@@ -115,20 +115,18 @@ static bool outputs_alias_input(
 typedef struct {
   const w_seed_hir0_program *program;
   const w_seed_parallel_invocation0_plan *invocation;
-  uint32_t task_index;
 } provider_invocation_context;
 
-static bool provider_invoke_hir(void *raw, int64_t *value) {
+static bool provider_invoke_hir(void *raw, size_t task_index, int64_t *value) {
   const provider_invocation_context *context =
       (const provider_invocation_context *)raw;
   if (context == NULL || value == NULL ||
-      context->task_index >= context->invocation->task_count)
+      task_index >= context->invocation->task_count)
     return false;
   size_t budget = W_SEED_PARALLEL_INVOCATION0_STEP_BUDGET;
   return w_seed_scalar_evaluator0_evaluate_call(
       context->program,
-      context->invocation->tasks[context->task_index].call_index, &budget,
-      value);
+      context->invocation->tasks[task_index].call_index, &budget, value);
 }
 
 static void sha_u32(w_seed_sha256_state *state, uint32_t value) {
@@ -228,16 +226,9 @@ w_seed_parallel_provider0_status w_seed_parallel_provider0_execute(
     return W_SEED_PARALLEL_PROVIDER0_INVALID;
 
   int64_t values[W_SEED_PARALLEL_PROVIDER0_MAX_TASKS] = {0};
-  provider_invocation_context
-      contexts[W_SEED_PARALLEL_PROVIDER0_MAX_TASKS];
-  w_seed_parallel_provider0_internal_job
-      jobs[W_SEED_PARALLEL_PROVIDER0_MAX_TASKS];
-  for (size_t index = 0u; index < input->selection->task_count; index += 1u) {
-    contexts[index] = (provider_invocation_context){
-        input->program, input->invocation, (uint32_t)index};
-    jobs[index] = (w_seed_parallel_provider0_internal_job){
-        provider_invoke_hir, &contexts[index]};
-  }
+  provider_invocation_context context = {input->program, input->invocation};
+  const w_seed_parallel_provider0_internal_job job = {provider_invoke_hir,
+                                                       &context};
   uint32_t started = 0u;
   uint32_t completed = 0u;
   uint32_t maximum_active_workers = 0u;
@@ -245,7 +236,7 @@ w_seed_parallel_provider0_status w_seed_parallel_provider0_execute(
       W_SEED_PARALLEL_PROVIDER0_KIND_NONE;
   const w_seed_parallel_provider0_platform_status platform_status =
       w_seed_parallel_provider0_platform_execute(
-          jobs, input->selection->task_count, input->provider_capacity,
+          &job, input->selection->task_count, input->provider_capacity,
           values, &started, &completed, &maximum_active_workers,
           &provider_kind);
   if (platform_status == W_SEED_PARALLEL_PROVIDER0_PLATFORM_UNSUPPORTED)

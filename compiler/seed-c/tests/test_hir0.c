@@ -3,6 +3,7 @@
 #include "w_seed_parallel_invocation0.h"
 #include "w_seed_parallel_invocation1.h"
 #include "w_seed_parallel_provider0.h"
+#include "w_seed_parallel_provider1.h"
 #include "w_seed_parallel_selection0.h"
 #include "w_seed_parallel_selection1.h"
 #include "w_seed_parallel_elision0.h"
@@ -336,6 +337,164 @@ static bool test_parallel_provider_windows(
             0 &&
         memcmp(&receipt_sentinel, &receipt_before, sizeof(receipt_before)) ==
             0);
+  return true;
+}
+
+static bool test_parallel_provider1_windows(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_parallel_selection1_program *selection,
+    const w_seed_parallel_selection1_result *selection_result,
+    const w_seed_parallel_invocation1_program *invocation,
+    const w_seed_parallel_invocation1_result *invocation_result) {
+  CHECK(program != NULL && hir_result != NULL && selection != NULL &&
+        selection_result != NULL && invocation != NULL &&
+        invocation_result != NULL && selection->task_count == 5u);
+  w_seed_parallel_provider1_input input = {
+      program,       hir_result,        selection, selection_result,
+      invocation,    invocation_result, 1u};
+  w_seed_parallel_provider1_counts counts;
+  w_seed_parallel_provider1_result measured;
+  CHECK(w_seed_parallel_provider1_measure(&input, &counts, &measured) ==
+            W_SEED_PARALLEL_PROVIDER1_OK &&
+        counts.outcomes == 5u && counts.workspace_values == 5u &&
+        measured.written.outcomes == 0u &&
+        measured.written.workspace_values == 0u);
+
+  w_seed_parallel_provider1_outcome sequential_outcomes[5];
+  int64_t sequential_workspace[5];
+  const w_seed_parallel_provider1_output sequential_output = {
+      sequential_outcomes, 5u, sequential_workspace, 5u};
+  w_seed_parallel_provider1_result sequential_result;
+  w_seed_parallel_provider1_receipt sequential_receipt;
+  CHECK(w_seed_parallel_provider1_execute(
+            &input, &sequential_output, &sequential_result,
+            &sequential_receipt) == W_SEED_PARALLEL_PROVIDER1_OK &&
+        w_seed_parallel_provider1_verify_outcomes(
+            &input, sequential_outcomes, 5u, &sequential_result) &&
+        sequential_receipt.provider_kind ==
+            W_SEED_PARALLEL_PROVIDER1_KIND_WINDOWS_KERNEL32 &&
+        sequential_receipt.provider_capacity == 1u &&
+        sequential_receipt.task_count == 5u &&
+        sequential_receipt.started_count == 5u &&
+        sequential_receipt.completed_count == 5u &&
+        sequential_receipt.maximum_active_workers == 1u &&
+        !sequential_receipt.overlap_observed);
+  for (size_t index = 0u; index < 5u; index += 1u)
+    CHECK(sequential_outcomes[index].function_index ==
+              invocation->tasks[index].function_index &&
+          sequential_outcomes[index].value == 21 + (int64_t)(index * 2u) &&
+          sequential_workspace[index] == sequential_outcomes[index].value);
+
+  input.provider_capacity = 2u;
+  w_seed_parallel_provider1_counts parallel_counts;
+  w_seed_parallel_provider1_result parallel_measured;
+  CHECK(w_seed_parallel_provider1_measure(
+            &input, &parallel_counts, &parallel_measured) ==
+            W_SEED_PARALLEL_PROVIDER1_OK &&
+        memcmp(&parallel_counts, &counts, sizeof(counts)) == 0 &&
+        memcmp(&parallel_measured, &measured, sizeof(measured)) == 0);
+  w_seed_parallel_provider1_outcome parallel_outcomes[5];
+  int64_t parallel_workspace[5];
+  const w_seed_parallel_provider1_output parallel_output = {
+      parallel_outcomes, 5u, parallel_workspace, 5u};
+  w_seed_parallel_provider1_result parallel_result;
+  w_seed_parallel_provider1_receipt parallel_receipt;
+  CHECK(w_seed_parallel_provider1_execute(
+            &input, &parallel_output, &parallel_result, &parallel_receipt) ==
+            W_SEED_PARALLEL_PROVIDER1_OK &&
+        memcmp(&parallel_result, &sequential_result,
+               sizeof(parallel_result)) == 0 &&
+        w_seed_parallel_provider1_verify_outcomes(
+            &input, parallel_outcomes, 5u, &parallel_result) &&
+        parallel_receipt.provider_capacity == 2u &&
+        parallel_receipt.task_count == 5u &&
+        parallel_receipt.started_count == 5u &&
+        parallel_receipt.completed_count == 5u &&
+        parallel_receipt.maximum_active_workers == 2u &&
+        parallel_receipt.overlap_observed);
+  for (size_t index = 0u; index < 5u; index += 1u)
+    CHECK(parallel_outcomes[index].function_index ==
+              sequential_outcomes[index].function_index &&
+          parallel_outcomes[index].value == sequential_outcomes[index].value);
+
+  w_seed_parallel_provider1_outcome short_outcomes[4];
+  int64_t short_workspace[5];
+  (void)memset(short_outcomes, 0x71, sizeof(short_outcomes));
+  (void)memset(short_workspace, 0x72, sizeof(short_workspace));
+  const w_seed_parallel_provider1_outcome short_outcomes_before[4] = {
+      short_outcomes[0], short_outcomes[1], short_outcomes[2],
+      short_outcomes[3]};
+  const int64_t short_workspace_before[5] = {
+      short_workspace[0], short_workspace[1], short_workspace[2],
+      short_workspace[3], short_workspace[4]};
+  w_seed_parallel_provider1_result result_sentinel;
+  w_seed_parallel_provider1_receipt receipt_sentinel;
+  (void)memset(&result_sentinel, 0x73, sizeof(result_sentinel));
+  (void)memset(&receipt_sentinel, 0x74, sizeof(receipt_sentinel));
+  const w_seed_parallel_provider1_result result_before = result_sentinel;
+  const w_seed_parallel_provider1_receipt receipt_before = receipt_sentinel;
+  const w_seed_parallel_provider1_output short_output = {
+      short_outcomes, 4u, short_workspace, 5u};
+  CHECK(w_seed_parallel_provider1_execute(
+            &input, &short_output, &result_sentinel, &receipt_sentinel) ==
+            W_SEED_PARALLEL_PROVIDER1_CAPACITY &&
+        memcmp(short_outcomes, short_outcomes_before,
+               sizeof(short_outcomes)) == 0 &&
+        memcmp(short_workspace, short_workspace_before,
+               sizeof(short_workspace)) == 0 &&
+        memcmp(&result_sentinel, &result_before, sizeof(result_before)) == 0 &&
+        memcmp(&receipt_sentinel, &receipt_before, sizeof(receipt_before)) ==
+            0);
+
+  w_seed_parallel_provider1_outcome complete_outcomes[5];
+  int64_t short_workspace_values[4];
+  (void)memset(complete_outcomes, 0x75, sizeof(complete_outcomes));
+  (void)memset(short_workspace_values, 0x76,
+               sizeof(short_workspace_values));
+  const w_seed_parallel_provider1_outcome complete_outcomes_before[5] = {
+      complete_outcomes[0], complete_outcomes[1], complete_outcomes[2],
+      complete_outcomes[3], complete_outcomes[4]};
+  const int64_t short_workspace_values_before[4] = {
+      short_workspace_values[0], short_workspace_values[1],
+      short_workspace_values[2], short_workspace_values[3]};
+  const w_seed_parallel_provider1_output short_workspace_output = {
+      complete_outcomes, 5u, short_workspace_values, 4u};
+  CHECK(w_seed_parallel_provider1_execute(
+            &input, &short_workspace_output, &result_sentinel,
+            &receipt_sentinel) == W_SEED_PARALLEL_PROVIDER1_CAPACITY &&
+        memcmp(complete_outcomes, complete_outcomes_before,
+               sizeof(complete_outcomes)) == 0 &&
+        memcmp(short_workspace_values, short_workspace_values_before,
+               sizeof(short_workspace_values)) == 0 &&
+        memcmp(&result_sentinel, &result_before, sizeof(result_before)) == 0 &&
+        memcmp(&receipt_sentinel, &receipt_before, sizeof(receipt_before)) ==
+            0);
+
+  const w_seed_parallel_invocation1_task invocation_tasks_before[5] = {
+      invocation->tasks[0], invocation->tasks[1], invocation->tasks[2],
+      invocation->tasks[3], invocation->tasks[4]};
+  int64_t alias_workspace[5];
+  const w_seed_parallel_provider1_output alias_output = {
+      (w_seed_parallel_provider1_outcome *)(void *)invocation->tasks, 5u,
+      alias_workspace, 5u};
+  CHECK(w_seed_parallel_provider1_execute(
+            &input, &alias_output, &result_sentinel, &receipt_sentinel) ==
+            W_SEED_PARALLEL_PROVIDER1_ALIAS &&
+        memcmp(invocation->tasks, invocation_tasks_before,
+               sizeof(invocation_tasks_before)) == 0 &&
+        memcmp(&result_sentinel, &result_before, sizeof(result_before)) == 0 &&
+        memcmp(&receipt_sentinel, &receipt_before, sizeof(receipt_before)) ==
+            0);
+
+  w_seed_parallel_provider1_result forged_result = sequential_result;
+  forged_result.outcome_digest[0] ^= 1u;
+  input.provider_capacity = 1u;
+  CHECK(!w_seed_parallel_provider1_verify_outcomes(
+      &input, sequential_outcomes, 5u, &forged_result));
+  sequential_outcomes[0].value ^= 1;
+  CHECK(!w_seed_parallel_provider1_verify_outcomes(
+      &input, sequential_outcomes, 5u, &sequential_result));
+  sequential_outcomes[0].value ^= 1;
   return true;
 }
 #endif
@@ -3542,6 +3701,11 @@ static bool test_parallel_domain_placement_hir(void) {
   CHECK(w_seed_parallel_invocation1_verify(
       &fixture.hir_program, &fixture.hir_result, &measured_program,
       &selection1_result, &invocation_program, &invocation1_result));
+#if defined(_WIN32) && defined(_WIN64)
+  CHECK(test_parallel_provider1_windows(
+      &fixture.hir_program, &fixture.hir_result, &measured_program,
+      &selection1_result, &invocation_program, &invocation1_result));
+#endif
 
   w_seed_parallel_invocation1_counts invalid_invocation_counts;
   (void)memset(&invalid_invocation_counts, 0x68,
@@ -3713,6 +3877,24 @@ static bool test_parallel_domain_placement_hir(void) {
             &wide_invocation_result, 0u, &wide_value) ==
             W_SEED_PARALLEL_INVOCATION1_OK &&
         wide_value == 16);
+#if defined(_WIN32) && defined(_WIN64)
+  w_seed_parallel_provider1_input wide_provider_input = {
+      &fixture.hir_program, &fixture.hir_result, &wide_selection,
+      &wide_selection_result, &wide_invocation, &wide_invocation_result, 1u};
+  w_seed_parallel_provider1_outcome wide_outcome[1];
+  int64_t wide_workspace[1];
+  const w_seed_parallel_provider1_output wide_provider_output = {
+      wide_outcome, 1u, wide_workspace, 1u};
+  w_seed_parallel_provider1_result wide_provider_result;
+  w_seed_parallel_provider1_receipt wide_provider_receipt;
+  CHECK(w_seed_parallel_provider1_execute(
+            &wide_provider_input, &wide_provider_output, &wide_provider_result,
+            &wide_provider_receipt) == W_SEED_PARALLEL_PROVIDER1_OK &&
+        wide_outcome[0].value == 16 && wide_workspace[0] == 16 &&
+        w_seed_parallel_provider1_verify_outcomes(
+            &wide_provider_input, wide_outcome, 1u,
+            &wide_provider_result));
+#endif
   CHECK(w_seed_parallel_selection0_select(
             &fixture.hir_program, &fixture.hir_result, &selection) ==
             W_SEED_PARALLEL_SELECTION0_OK);

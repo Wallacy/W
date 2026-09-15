@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:b8633f3707a28259a9ee4646e72f95707710648efd16d15268b86f63366253ba",
+  "corpusDigest": "sha256:0232f86ddd7e22e2b298f938669d2fc268b11f5642b899c250c4cd42971fdf12",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -8902,6 +8902,78 @@
             "utf8Bytes": 43,
             "codePoints": 43,
             "nonWhitespaceCodePoints": 38,
+            "lines": 1,
+            "surfaceLexemes": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-measured-parallel-provider",
+      "task": {
+        "utf8Bytes": 134,
+        "codePoints": 134,
+        "nonWhitespaceCodePoints": 119,
+        "lines": 1,
+        "surfaceLexemes": 19
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w-internal",
+        "sourceDigest": "sha256:fc3d0e4db553062dfe6b57dce601dfc1239a9f42c220090c5ec1d90fb1586eaa",
+        "metrics": {
+          "utf8Bytes": 325,
+          "codePoints": 325,
+          "nonWhitespaceCodePoints": 302,
+          "lines": 5,
+          "surfaceLexemes": 54
+        }
+      },
+      "alternatives": [
+        {
+          "name": "logical-task-sized-stack-jobs",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:5dea28465f0810c392f838acf89c44e64312162fb9ca59b73bf86e099af8fee2",
+          "metrics": {
+            "utf8Bytes": 33,
+            "codePoints": 33,
+            "nonWhitespaceCodePoints": 32,
+            "lines": 2,
+            "surfaceLexemes": 8
+          }
+        },
+        {
+          "name": "capacity-in-semantic-result",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:07ad2121f04dddae2f7c4e41295a03432c576b02213435b9e6a9cb3f8f60f680",
+          "metrics": {
+            "utf8Bytes": 35,
+            "codePoints": 35,
+            "nonWhitespaceCodePoints": 35,
+            "lines": 1,
+            "surfaceLexemes": 6
+          }
+        },
+        {
+          "name": "transient-active-count-rendezvous",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:6ea8145862ba66ba0d2e9402e84b5d9c28961d8ed54ac86f916c5f6d8b321892",
+          "metrics": {
+            "utf8Bytes": 36,
+            "codePoints": 36,
+            "nonWhitespaceCodePoints": 32,
+            "lines": 1,
+            "surfaceLexemes": 6
+          }
+        },
+        {
+          "name": "implicit-failure-scratch",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:9ba173d6157b21e3574165ee87e7a03318538b14cfcc113537acfece657767ea",
+          "metrics": {
+            "utf8Bytes": 46,
+            "codePoints": 46,
+            "nonWhitespaceCodePoints": 41,
             "lines": 1,
             "surfaceLexemes": 6
           }

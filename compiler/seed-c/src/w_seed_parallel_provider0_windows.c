@@ -10,9 +10,12 @@
 
 typedef struct {
   const w_seed_parallel_provider0_internal_job *job;
+  size_t task_index;
   volatile LONG *start_state;
   volatile LONG *active;
   volatile LONG *maximum_active;
+  volatile LONG *ready;
+  volatile LONG *release;
   LONG wave_size;
   int64_t value;
   bool invoked;
@@ -38,27 +41,33 @@ static DWORD WINAPI parallel_windows_entry(void *raw) {
   if (start < 0) return 1u;
   const LONG active = InterlockedIncrement(task->active);
   update_maximum(task->maximum_active, active);
-  while (task->wave_size > 1 &&
-         InterlockedCompareExchange(task->active, 0, 0) < task->wave_size)
+  const LONG ready = InterlockedIncrement(task->ready);
+  if (ready == task->wave_size)
+    (void)InterlockedExchange(task->release, 1);
+  while (InterlockedCompareExchange(task->release, 0, 0) == 0)
     (void)SwitchToThread();
   task->invoked = true;
-  task->succeeded = task->job->invoke(task->job->context, &task->value);
+  task->succeeded =
+      task->job->invoke(task->job->context, task->task_index, &task->value);
   (void)InterlockedDecrement(task->active);
   return task->succeeded ? 0u : 1u;
 }
 
 static w_seed_parallel_provider0_platform_status execute_wave(
-    const w_seed_parallel_provider0_internal_job *jobs, size_t count,
-    int64_t *values,
+    const w_seed_parallel_provider0_internal_job *job, size_t first,
+    size_t count, int64_t *values,
     uint32_t *started_count, uint32_t *completed_count, volatile LONG *active,
     volatile LONG *maximum_active) {
   volatile LONG start_state = 0;
+  volatile LONG ready = 0;
+  volatile LONG release = 0;
   HANDLE threads[2] = {NULL, NULL};
   parallel_windows_task tasks[2];
   for (size_t index = 0u; index < count; index += 1u) {
     tasks[index] = (parallel_windows_task){
-        &jobs[index], &start_state, active, maximum_active, (LONG)count, 0,
-        false, false};
+        job,          first + index, &start_state, active,
+        maximum_active, &ready,      &release,      (LONG)count,
+        0,            false,         false};
     threads[index] =
         CreateThread(NULL, 0u, parallel_windows_entry, &tasks[index], 0u, NULL);
     if (threads[index] == NULL) {
@@ -95,14 +104,14 @@ static w_seed_parallel_provider0_platform_status execute_wave(
 
 w_seed_parallel_provider0_platform_status
 w_seed_parallel_provider0_platform_execute(
-    const w_seed_parallel_provider0_internal_job *jobs, size_t job_count,
+    const w_seed_parallel_provider0_internal_job *job, size_t job_count,
     uint32_t provider_capacity, int64_t *values, uint32_t *started_count,
     uint32_t *completed_count, uint32_t *maximum_active,
     w_seed_parallel_provider0_kind *provider_kind) {
-  if (jobs == NULL || values == NULL || started_count == NULL ||
+  if (job == NULL || job->invoke == NULL || values == NULL ||
+      started_count == NULL ||
       completed_count == NULL || maximum_active == NULL ||
-      provider_kind == NULL || job_count == 0u ||
-      job_count > W_SEED_PARALLEL_PROVIDER0_MAX_TASKS ||
+      provider_kind == NULL || job_count == 0u || job_count > UINT32_MAX ||
       (provider_capacity != 1u && provider_capacity != 2u))
     return W_SEED_PARALLEL_PROVIDER0_PLATFORM_PROVIDER_FAILURE;
   *started_count = 0u;
@@ -113,7 +122,7 @@ w_seed_parallel_provider0_platform_execute(
     for (size_t index = 0u; index < job_count; index += 1u) {
       int64_t value = 0;
       *started_count += 1u;
-      if (!jobs[index].invoke(jobs[index].context, &value))
+      if (!job->invoke(job->context, index, &value))
         return W_SEED_PARALLEL_PROVIDER0_PLATFORM_TASK_FAILURE;
       values[index] = value;
       *completed_count += 1u;
@@ -130,7 +139,7 @@ w_seed_parallel_provider0_platform_execute(
     uint32_t wave_started = 0u;
     uint32_t wave_completed = 0u;
     const w_seed_parallel_provider0_platform_status wave_status =
-        execute_wave(jobs + first, count, values + first, &wave_started,
+        execute_wave(job, first, count, values + first, &wave_started,
                      &wave_completed, &active, &maximum);
     if (wave_status != W_SEED_PARALLEL_PROVIDER0_PLATFORM_OK) {
       *started_count += wave_started;
@@ -149,11 +158,11 @@ w_seed_parallel_provider0_platform_execute(
 
 w_seed_parallel_provider0_platform_status
 w_seed_parallel_provider0_platform_execute(
-    const w_seed_parallel_provider0_internal_job *jobs, size_t job_count,
+    const w_seed_parallel_provider0_internal_job *job, size_t job_count,
     uint32_t provider_capacity, int64_t *values, uint32_t *started_count,
     uint32_t *completed_count, uint32_t *maximum_active,
     w_seed_parallel_provider0_kind *provider_kind) {
-  (void)jobs;
+  (void)job;
   (void)job_count;
   (void)provider_capacity;
   (void)values;
