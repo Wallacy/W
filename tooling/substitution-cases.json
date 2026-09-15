@@ -2168,7 +2168,7 @@
           "claim": "RUN0 gate checks dynamic payloads, trivia, noop/comment/two-call/outside-subset rejection and empty output."
         }
       ],
-      "checks": [
+    "checks": [
         "bun run check:hlo0 — dynamic Hello, Table 42 remains open and empty payload identities; adversarial inputs produce no stdout",
         "bun run check:hlo1 — dynamic C artifacts execute byte-for-byte, differ across payloads, and preserve trivia identity",
         "bun run check:run0 — dynamic sink output, shared-verifier faults and no-partial-output source barriers"
@@ -9551,13 +9551,72 @@
         "claim": "The C23 witness proves mixed signed-i64 return and typed error exits and rejects a forged cross-arm jump."
       }
     ],
-    "checks": [
+      "checks": [
       "the branch condition has two lexical same-function successors",
       "both regions terminate without a join or fallthrough",
       "normal return and typed throw retain independent types",
       "a canonical-looking cross-arm jump rejects after resealing",
       "a throwing branch followed by continuation remains unsupported",
       "cleanup, catch, provider/Task binding, native execution, benchmarks, and performance remain unclaimed"
+    ],
+    "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+  },
+  {
+    "id": "R0-frontend-typed-try",
+    "reviewItem": "bounded typed-try propagation against erased error identity, unowned synchronous calls, async/spawn ownership confusion, optional try, conversion widening, and premature HIR/native/catch/cleanup support",
+    "decisions": ["W-1615"],
+    "task": "Preserve one concrete local error enum across an exact plain `try` propagation marker while keeping unsupported owners and lowerings fail-closed.",
+    "selected": {
+      "language": "w",
+      "source": [
+        "enum Failure: Error { denied }",
+        "fn leaf(): i64 throws Failure { throw .denied }",
+        "fn relay(): i64 throws Failure { return try leaf() }"
+      ]
+    },
+    "alternatives": [
+      {
+        "name": "unowned-direct-call",
+        "language": "w-internal-rejected",
+        "source": ["fn relay(): i64 throws Failure { return leaf() }"],
+        "expectedDifference": "A direct synchronous call to a throwing local function has no valid effect owner and is rejected."
+      },
+      {
+        "name": "different-error-identity",
+        "language": "w-internal-rejected",
+        "source": ["fn leaf(): i64 throws SourceFailure", "fn relay(): i64 throws RelayFailure { return try leaf() }"],
+        "expectedDifference": "Propagation requires the same nominal local error enum in the callee and lexical caller."
+      },
+      {
+        "name": "async-or-spawn-owner",
+        "language": "w",
+        "source": ["async leaf()", "spawn<.main> leaf()"],
+        "expectedDifference": "A supported async or spawn owner carries the throwing outcome without an EXPR_TRY marker."
+      },
+      {
+        "name": "optional-try",
+        "language": "w-internal-rejected",
+        "source": ["return try? leaf()"],
+        "expectedDifference": "The optional form remains unsupported and does not become typed propagation."
+      },
+      {
+        "name": "async-try",
+        "language": "w-internal-rejected",
+        "source": ["return try await leaf()"],
+        "expectedDifference": "An async try expression is outside the synchronous direct-call relation."
+      },
+      {
+        "name": "conversion-widening",
+        "language": "w-internal-rejected",
+        "source": ["return try convert(leaf())"],
+        "expectedDifference": "Conversion and nested-call forms do not receive the exact EXPR_TRY propagation marker."
+      },
+      {
+        "name": "lowering-before-proof",
+        "language": "w-internal-rejected",
+        "source": ["lower EXPR_TRY directly to HIR/native"],
+        "expectedDifference": "The parser/frontend slice publishes no HIR, native, catch, or cleanup lowering."
+      }
     ],
     "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
   }

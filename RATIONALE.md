@@ -253,6 +253,7 @@ O corpus compara, no mínimo:
 - typed physical completion waves against Boolean outcome collapse, fail-fast sibling rewriting, thread termination as cancellation, and panic-to-error substitution.
 - typed source throw against erased error identity, normal-return collapse, unconstrained enum conformance, and downstream spelling inference.
 - bounded mixed return/throw terminal branches against hidden joins, arm fallthrough, normal/error channel collapse, and unproved continuation cleanup.
+- bounded typed-try propagation against erased error identity, unowned synchronous calls, async/spawn ownership confusion, optional try, conversion widening, and premature HIR/native/catch/cleanup support.
 - bounded dual-target process/parallel linkage against direct-call substitution, CRT fallback, hidden runtime input, target conflation, and premature public or benchmark claims.
 - bounded GPU0 target-neutral semantic and available CUDA execution against source-backed W claims, provider/runtime conflation, homogeneous toolchains, and premature public product support.
 - bounded static accelerated root binding against embedded provider handles, multiplied budgets, and unauthenticated claims.
@@ -7942,6 +7943,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1612 | typed physical completion primitive | The private Windows PLATFORM1 provider callback returns a canonical tagged success, error, or canceled completion. A completed wave chooses the first lexical failure/cancellation source, preserves already-settled siblings, and cancels later unstarted tasks without treating typed outcomes as provider failure. | `source-backed-current` only for the private C23 Windows primitive, capacity-one/two five-task completion equality, monotonic capacity-two rendezvous, explicit cancellation propagation, started/settled/canceled-before-start receipt facts, and invalid-payload rejection. Authentication as a PARPROV result, TASKLIFE binding, source-level throw/cancel, physical preemption, panic containment, scheduling, public Task ABI/products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1613 | bounded typed throw in verified HIR | Parser CST separates the `throws E` type owner and `throw` statement; frontend29 preserves the concrete error type; HIR39 binds an exact core-`Error` local enum, the function error type, and a typed `THROW` terminator into caller-owned records, digests, receipts, and independent verification. | `source-backed-current` only for one terminal root throw with a local closed error enum, different normal/error result types, non-Error and branch-composition rejection, transactional publication, and adversarial HIR verification. Payload construction, mixed CFG, try/catch/cleanup, provider and Task binding, MLIR/native execution, public products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1614 | bounded mixed return/throw terminal branch | HIR39 admits one top-level complete `if` whose two lexical regions terminate independently with typed `return` or `throw`; no join block or hidden fallthrough is created, and verification rederives the disjoint preorder partition. | `source-backed-current` only for the bounded mixed `throw`/signed-`i64` return witness, exact arm ownership and type channels, and forged-jump rejection. Continuation after throw, nested terminal branches, cleanup/propagation/catch, provider and Task binding, MLIR/native execution, public products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1615 | bounded parser/frontend typed-try propagation | Frontend30 preserves the exact plain `try localCall(...)` relation only when a synchronous local `throws E` call and its lexical caller `throws E` declaration share the same nominal local error enum. A direct synchronous throwing call without a valid `try`, `try?`, async `try`, conversion, HIR/native lowering, catch, or cleanup remains unsupported. Async and spawn owners carry the thrown outcome without a `try` marker. | `source-backed-current` only for the parser CST wrapper, Frontend30 `EXPR_TRY` record, exact local enum identity, direct-call ownership rejection, async/spawn ownership relation, and focused parser/frontend tests. HIR/native lowering, conversions, catch, cleanup, public products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -13152,3 +13154,25 @@ throw arm into the return arm is rejected even after the HIR is resealed. An
 `if` followed by a continuation still fails closed because its cleanup and
 error-routing obligations are not represented yet. Nested terminal branches,
 catch regions, provider binding, and MLIR lowering remain later increments.
+
+#### W-1615 — bounded parser/frontend typed-try propagation
+
+W-1615 records the consumer-side edge for the typed error relation. The parser
+adds a `W_SEED_CST_TRY_EXPRESSION` owner for `try` prefixes, including the
+recognized but unsupported adjacent `try?` form. Frontend30 adds `EXPR_TRY`
+with the nested call index and the concrete `propagated_error_enum` identity.
+
+The accepted witness is one direct local synchronous call whose declaration
+uses `throws E`, inside a lexical caller that also uses `throws E` with the
+same nominal local enum. The frontend receipt records the relation after link
+resolution. A direct throwing call without a valid `try` owner, mismatched
+local enum, optional or async `try`, and conversion forms fail closed. Async
+and spawn owners are separate effect owners for a throwing call and therefore
+do not need a `try` marker.
+
+The focused parser and frontend cases cover the CST shape, result-type copy,
+receipt identity, direct-call rejection, enum-identity rejection, and the
+optional and async barriers. HIR/native lowering, catch, cleanup, and public
+execution remain outside this increment. The `compiler-lifecycle`
+classification records correctness evidence only and publishes no performance
+measurement.

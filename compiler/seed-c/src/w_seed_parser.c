@@ -1497,12 +1497,22 @@ static bool parse_prefix(w_seed_parser *parser, bool value_context) {
     (void)consume_current(parser, NULL);
     return parse_prefix(parser, value_context);
   }
-  if (current_is_text(parser, "try") || current_is_text(parser, "await")) {
+  if (current_is_text(parser, "try")) {
+    const size_t start = current_span(parser).start_byte;
+    if (push_node(parser, W_SEED_CST_TRY_EXPRESSION, start) ==
+        W_SEED_CST_NONE)
+      return false;
     (void)consume_current(parser, NULL);
     if (current_is_text(parser, "?") && parser->has_last_token &&
         current_span(parser).start_byte == parser->last_token_end) {
       (void)consume_current(parser, NULL);
     }
+    const bool parsed = parse_prefix(parser, value_context);
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return parsed;
+  }
+  if (current_is_text(parser, "await")) {
+    (void)consume_current(parser, NULL);
     return parse_prefix(parser, value_context);
   }
   if (current_is_text(parser, "async")) {

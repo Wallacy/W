@@ -2769,6 +2769,8 @@ static bool frontend_value_common_ok(
        (value->task_result_type != W_SEED_FRONTEND_NONE ||
         value->task_call_expression != W_SEED_FRONTEND_NONE ||
         value->task_binding_statement != W_SEED_FRONTEND_NONE)) ||
+      (value->kind != W_SEED_FRONTEND_EXPR_TRY &&
+       value->propagated_error_enum != W_SEED_FRONTEND_NONE) ||
       (value->kind != W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH &&
        (value->domain_index != W_SEED_FRONTEND_NONE ||
         value->domain_kind != W_SEED_FRONTEND_DOMAIN_HOST ||

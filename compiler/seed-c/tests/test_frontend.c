@@ -1092,12 +1092,104 @@ static bool test_typed_throw_projection(void) {
         value->types[error->inferred_type].enum_base_index == 0u);
   CHECK(error->enum_index == 0u && error->enum_case_index == 0u);
 
+  static const char propagation_source[] =
+      "enum Failure: Error { denied }\n"
+      "fn leaf(): i64 throws Failure { throw .denied }\n"
+      "fn relay(): i64 throws Failure { return try leaf() }\n"
+      "entry { }\n";
+  CHECK(fixture_run(value, propagation_source));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE);
+  CHECK(value->result.status == W_SEED_FRONTEND_OK);
+  const w_seed_frontend_expression *try_expression = NULL;
+  for (size_t index = 0u; index < value->result.written.expressions; index += 1u) {
+    if (value->expressions[index].kind == W_SEED_FRONTEND_EXPR_TRY) {
+      CHECK(try_expression == NULL);
+      try_expression = &value->expressions[index];
+    }
+  }
+  CHECK(try_expression != NULL && try_expression->supported &&
+        try_expression->left != W_SEED_FRONTEND_NONE &&
+        try_expression->left < value->result.written.expressions &&
+        try_expression->propagated_error_enum == 0u &&
+        try_expression->inferred_type < value->result.written.types &&
+        value->types[try_expression->inferred_type].kind ==
+            W_SEED_FRONTEND_TYPE_INTEGER &&
+        value->types[try_expression->inferred_type].is_signed &&
+        value->types[try_expression->inferred_type].bit_width == 64u &&
+        frontend_text_is(try_expression->operator_text, "try"));
+  const w_seed_frontend_expression *propagated_call =
+      &value->expressions[try_expression->left];
+  CHECK(propagated_call->kind == W_SEED_FRONTEND_EXPR_CALL &&
+        propagated_call->supported &&
+        propagated_call->resolved_callee_kind ==
+            W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION &&
+        propagated_call->resolved_function_index == 0u &&
+        propagated_call->inferred_type == try_expression->inferred_type);
+  CHECK(receipt_contains(
+      value, "try-expression=", strlen("try-expression=")));
+
   fixture *invalid = &fixture_b;
   CHECK(fixture_run(invalid,
                     "enum Failure: Error { denied } "
                     "fn fail(): () { throw .denied } entry { }"));
   CHECK(invalid->parse.status == W_SEED_PARSE_COMPLETE);
   CHECK(invalid->statements[0].kind == W_SEED_FRONTEND_STMT_UNSUPPORTED);
+
+  CHECK(fixture_run(
+      invalid,
+      "enum Failure: Error { denied } "
+      "fn leaf(): i64 throws Failure { throw .denied } "
+      "fn relay(): i64 throws Failure { return leaf() } entry { }"));
+  CHECK(invalid->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  bool rejected_unmarked_call = false;
+  for (size_t index = 0u; index < invalid->result.written.expressions; index += 1u) {
+    const w_seed_frontend_expression *candidate = &invalid->expressions[index];
+    if (candidate->kind == W_SEED_FRONTEND_EXPR_CALL &&
+        candidate->resolved_function_index == 0u) {
+      rejected_unmarked_call = !candidate->supported;
+    }
+  }
+  CHECK(rejected_unmarked_call);
+
+  CHECK(fixture_run(
+      invalid,
+      "enum SourceFailure: Error { denied } "
+      "enum RelayFailure: Error { rejected } "
+      "fn leaf(): i64 throws SourceFailure { throw .denied } "
+      "fn relay(): i64 throws RelayFailure { return try leaf() } entry { }"));
+  CHECK(invalid->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  CHECK(has_fact(invalid, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+
+  CHECK(fixture_run(
+      invalid,
+      "enum Failure: Error { denied } "
+      "fn leaf(): i64 throws Failure { throw .denied } "
+      "fn relay(): i64 { return try leaf() } entry { }"));
+  CHECK(invalid->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  CHECK(has_fact(invalid, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+
+  CHECK(fixture_run(
+      invalid,
+      "enum Failure: Error { denied } fn leaf(): i64 { return 1 } "
+      "fn relay(): i64 throws Failure { return try leaf() } entry { }"));
+  CHECK(invalid->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  CHECK(has_fact(invalid, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+
+  CHECK(fixture_run(
+      invalid,
+      "enum Failure: Error { denied } "
+      "fn leaf(): i64 throws Failure { throw .denied } "
+      "fn relay(): i64 throws Failure { return try? leaf() } entry { }"));
+  CHECK(invalid->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  CHECK(has_fact(invalid, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+
+  CHECK(fixture_run(
+      invalid,
+      "enum Failure: Error { denied } "
+      "async fn leaf(): i64 throws Failure { throw .denied } "
+      "fn relay(): i64 throws Failure { return try leaf() } entry { }"));
+  CHECK(invalid->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  CHECK(has_fact(invalid, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
   return true;
 }
 
