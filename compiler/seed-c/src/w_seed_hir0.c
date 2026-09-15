@@ -4419,6 +4419,9 @@ typedef struct {
 
 static bool frontend_function_has_terminal_if(const w_seed_hir0_input *input,
                                               size_t function_index);
+static bool frontend_if_is_terminal(
+    const w_seed_hir0_input *input,
+    const w_seed_frontend_statement *statement);
 
 static bool frontend_function_root_contains(
     const w_seed_frontend_output *output,
@@ -4767,12 +4770,11 @@ typedef struct {
   bool loop_continuation_seen;
   uint32_t loop_root_statements[HIR0_MAX_BRANCH_ASSIGNMENTS];
   size_t loop_root_count;
-  bool allow_branch_return;
 } hir0_statement_walk;
 
 static bool hir0_walk_statement_chain(hir0_statement_walk *walk,
                                       uint32_t first_statement, bool branch,
-                                      size_t depth);
+                                      bool allow_branch_exit, size_t depth);
 
 static bool frontend_assignment_expression_ok(
     hir0_statement_walk *walk, size_t statement_index,
@@ -5084,7 +5086,8 @@ static bool binding_index_for_statement(
     size_t use_statement, uint32_t target_statement, uint32_t *out);
 
 static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
-                                bool branch, size_t depth) {
+                                bool branch, bool allow_branch_exit,
+                                size_t depth) {
   if (walk == NULL || walk->input == NULL || walk->output == NULL ||
       walk->result == NULL || index == W_SEED_FRONTEND_NONE ||
       (size_t)index >= walk->result->written.statements)
@@ -5101,7 +5104,7 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
       statement->kind != W_SEED_FRONTEND_STMT_EXPRESSION &&
       statement->kind != W_SEED_FRONTEND_STMT_IF &&
       !(statement->kind == W_SEED_FRONTEND_STMT_RETURN &&
-        walk->allow_branch_return) &&
+        allow_branch_exit) &&
       statement->kind != W_SEED_FRONTEND_STMT_THROW)
     return false;
   if (statement->kind == W_SEED_FRONTEND_STMT_LET ||
@@ -5456,10 +5459,12 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
              add_size(*walk->values, merge.count, walk->values) &&
              add_size(*walk->merge_total, merge.count, walk->merge_total);
     }
+    const bool terminal =
+        !branch && frontend_if_is_terminal(walk->input, statement);
     if (!hir0_walk_statement_chain(walk, statement->first_child, true,
-                                   depth + 1u) ||
+                                   terminal, depth + 1u) ||
         !hir0_walk_statement_chain(walk, statement->else_child, true,
-                                   depth + 1u))
+                                   terminal, depth + 1u))
       return false;
     return true;
   }
@@ -5489,7 +5494,7 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
              &walk->output->types[return_expression->inferred_type],
              &walk->output->types[function->return_type])))
       return false;
-    if ((branch && !walk->allow_branch_return) ||
+    if ((branch && !allow_branch_exit) ||
         statement->next_sibling != W_SEED_FRONTEND_NONE ||
         statement->binding_name.length != 0u ||
         statement->declared_type != W_SEED_FRONTEND_NONE ||
@@ -5519,7 +5524,7 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
   if (statement->kind == W_SEED_FRONTEND_STMT_THROW) {
     const w_seed_frontend_function *function =
         &walk->output->functions[walk->function_index];
-    if (branch || !function->is_throws ||
+    if ((branch && !allow_branch_exit) || !function->is_throws ||
         function->error_type == W_SEED_FRONTEND_NONE ||
         (size_t)function->error_type >= walk->result->written.types ||
         statement->next_sibling != W_SEED_FRONTEND_NONE ||
@@ -5553,13 +5558,14 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
 
 static bool hir0_walk_statement_chain(hir0_statement_walk *walk,
                                       uint32_t first_statement, bool branch,
-                                      size_t depth) {
+                                      bool allow_branch_exit, size_t depth) {
   if (walk == NULL || first_statement == W_SEED_FRONTEND_NONE) return true;
   uint32_t cursor = first_statement;
   size_t guard = 0u;
   while (cursor != W_SEED_FRONTEND_NONE &&
          guard < walk->result->written.statements) {
-    if (!hir0_walk_statement(walk, cursor, branch, depth)) return false;
+    if (!hir0_walk_statement(walk, cursor, branch, allow_branch_exit, depth))
+      return false;
     cursor = walk->output->statements[cursor].next_sibling;
     guard += 1u;
   }
@@ -5651,15 +5657,14 @@ static bool frontend_statement_and_expression_cfg_ok(
         .loop_continuation_seen = false,
         .loop_root_statements = {0u},
         .loop_root_count = 0u,
-        .allow_branch_return = frontend_function_has_terminal_if(
-            input, function_index),
     };
     /* An empty declaration (notably `entry {}` used as a separate test
      * entry) owns no statement record; its first_statement is the append
      * cursor at the end of the shared table. */
     const bool walked =
         function->statement_count == 0u ||
-        hir0_walk_statement_chain(&walk, function->first_statement, false, 0u);
+        hir0_walk_statement_chain(&walk, function->first_statement, false,
+                                  false, 0u);
     if (!walked || relation_if_count != function_if_count ||
         (return_kind == W_SEED_FRONTEND_TYPE_UNIT && walk.has_value_return) ||
         (return_kind != W_SEED_FRONTEND_TYPE_UNIT &&
@@ -6002,7 +6007,7 @@ static bool frontend_usize_count_comparison_ok(
   return (left_count && right_literal) || (right_count && left_literal);
 }
 
-static bool frontend_statement_chain_ends_in_return(
+static bool frontend_statement_chain_ends_in_exit(
     const w_seed_hir0_input *input, uint32_t first_statement) {
   if (input == NULL || input->frontend_output == NULL ||
       input->frontend_result == NULL)
@@ -6014,11 +6019,25 @@ static bool frontend_statement_chain_ends_in_return(
     const w_seed_frontend_statement *statement =
         &input->frontend_output->statements[cursor];
     if (statement->next_sibling == W_SEED_FRONTEND_NONE)
-      return statement->kind == W_SEED_FRONTEND_STMT_RETURN;
+      return statement->kind == W_SEED_FRONTEND_STMT_RETURN ||
+             statement->kind == W_SEED_FRONTEND_STMT_THROW;
     cursor = statement->next_sibling;
     guard += 1u;
   }
   return false;
+}
+
+static bool frontend_if_is_terminal(
+    const w_seed_hir0_input *input,
+    const w_seed_frontend_statement *statement) {
+  return input != NULL && statement != NULL &&
+         statement->kind == W_SEED_FRONTEND_STMT_IF &&
+         statement->next_sibling == W_SEED_FRONTEND_NONE &&
+         statement->first_child != W_SEED_FRONTEND_NONE &&
+         statement->else_child != W_SEED_FRONTEND_NONE &&
+         frontend_statement_chain_ends_in_exit(input,
+                                               statement->first_child) &&
+         frontend_statement_chain_ends_in_exit(input, statement->else_child);
 }
 
 static bool frontend_function_has_terminal_if(const w_seed_hir0_input *input,
@@ -6038,13 +6057,7 @@ static bool frontend_function_has_terminal_if(const w_seed_hir0_input *input,
     const w_seed_frontend_statement *statement =
         &input->frontend_output->statements[cursor];
     if (statement->next_sibling == W_SEED_FRONTEND_NONE)
-      return statement->kind == W_SEED_FRONTEND_STMT_IF &&
-             statement->first_child != W_SEED_FRONTEND_NONE &&
-             statement->else_child != W_SEED_FRONTEND_NONE &&
-             frontend_statement_chain_ends_in_return(input,
-                                                     statement->first_child) &&
-             frontend_statement_chain_ends_in_return(input,
-                                                     statement->else_child);
+      return frontend_if_is_terminal(input, statement);
     cursor = statement->next_sibling;
     guard += 1u;
   }
@@ -7729,8 +7742,8 @@ static size_t hir0_region_switch_extra_count(
   return total;
 }
 
-static bool hir0_chain_ends_in_return(const hir0_emit_context *context,
-                                      uint32_t first_statement, size_t depth) {
+static bool hir0_chain_ends_in_exit(const hir0_emit_context *context,
+                                    uint32_t first_statement, size_t depth) {
   if (context == NULL || depth > W_SEED_HIR0_MAX_NESTING)
     return false;
   uint32_t cursor = first_statement;
@@ -7740,7 +7753,8 @@ static bool hir0_chain_ends_in_return(const hir0_emit_context *context,
     const w_seed_frontend_statement *statement =
         &context->frontend->statements[cursor];
     if (statement->next_sibling == W_SEED_FRONTEND_NONE)
-      return statement->kind == W_SEED_FRONTEND_STMT_RETURN;
+      return statement->kind == W_SEED_FRONTEND_STMT_RETURN ||
+             statement->kind == W_SEED_FRONTEND_STMT_THROW;
     cursor = statement->next_sibling;
     guard += 1u;
   }
@@ -7755,10 +7769,10 @@ static bool hir0_terminal_if(const hir0_emit_context *context,
          statement->next_sibling == W_SEED_FRONTEND_NONE &&
          statement->first_child != W_SEED_FRONTEND_NONE &&
          statement->else_child != W_SEED_FRONTEND_NONE &&
-         hir0_chain_ends_in_return(context, statement->first_child,
-                                   depth + 1u) &&
-         hir0_chain_ends_in_return(context, statement->else_child,
-                                   depth + 1u);
+         hir0_chain_ends_in_exit(context, statement->first_child,
+                                 depth + 1u) &&
+         hir0_chain_ends_in_exit(context, statement->else_child,
+                                 depth + 1u);
 }
 
 static size_t hir0_region_block_count(const hir0_emit_context *context,
@@ -14116,6 +14130,39 @@ static bool verify_cfg_process_terminal_branch(
   return true;
 }
 
+/* A terminal conditional has no synthetic join: both lexical regions end in
+ * RETURN or THROW.  Verify its preorder block partition independently from
+ * ordinary diamonds so a missing join cannot be accepted by accident. */
+static bool verify_cfg_terminal_region(const w_seed_hir0_program *program,
+                                       uint32_t function_index, size_t start,
+                                       size_t end, size_t depth) {
+  if (program == NULL || start >= end || end > program->block_count ||
+      depth > W_SEED_HIR0_MAX_NESTING)
+    return false;
+  const w_seed_hir0_block *block = &program->blocks[start];
+  const w_seed_hir0_terminator *term = &program->terminators[start];
+  if (block->owner_function != function_index) return false;
+  if (term->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
+    if (term->logical_operator != W_SEED_HIR0_LOGICAL_NONE ||
+        term->result_type != 0u ||
+        term->target_block != start + 1u || term->else_block <= start + 1u ||
+        term->else_block >= end ||
+        term->first_edge_argument != W_SEED_HIR0_NONE ||
+        term->edge_argument_count != 0u ||
+        program->blocks[term->target_block].owner_function != function_index ||
+        program->blocks[term->else_block].owner_function != function_index)
+      return false;
+    return verify_cfg_terminal_region(program, function_index, start + 1u,
+                                      term->else_block, depth + 1u) &&
+           verify_cfg_terminal_region(program, function_index,
+                                      term->else_block, end, depth + 1u);
+  }
+  return start + 1u == end &&
+         (term->kind == W_SEED_HIR0_TERMINATOR_RETURN_UNIT ||
+          term->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
+          term->kind == W_SEED_HIR0_TERMINATOR_THROW);
+}
+
 static bool verify_cfg_function(const w_seed_hir0_program *program,
                                 size_t function_index) {
   if (program == NULL || function_index >= program->function_count) return false;
@@ -14126,6 +14173,13 @@ static bool verify_cfg_function(const w_seed_hir0_program *program,
       hir0_process_entry_function_index(program) == function_index)
     return verify_cfg_process_terminal_branch(program, function_index);
   const w_seed_hir0_function *function = &program->functions[function_index];
+  if (function->first_block < program->block_count &&
+      program->terminators[function->first_block].kind ==
+          W_SEED_HIR0_TERMINATOR_BRANCH &&
+      verify_cfg_terminal_region(
+          program, (uint32_t)function_index, function->first_block,
+          (size_t)function->first_block + function->block_count, 0u))
+    return true;
   if (function->first_block < program->block_count &&
       program->terminators[function->first_block].kind ==
           W_SEED_HIR0_TERMINATOR_SWITCH_ENUM)
@@ -14168,6 +14222,13 @@ static bool verify_logical_join_membership(
       hir0_process_entry_function_index(program) == function_index)
     return verify_cfg_process_terminal_branch(program, function_index);
   const w_seed_hir0_function *function = &program->functions[function_index];
+  if (function->first_block < program->block_count &&
+      program->terminators[function->first_block].kind ==
+          W_SEED_HIR0_TERMINATOR_BRANCH &&
+      verify_cfg_terminal_region(
+          program, (uint32_t)function_index, function->first_block,
+          (size_t)function->first_block + function->block_count, 0u))
+    return true;
   if (function->first_block < program->block_count &&
       program->terminators[function->first_block].kind ==
           W_SEED_HIR0_TERMINATOR_SWITCH_ENUM)

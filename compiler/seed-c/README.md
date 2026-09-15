@@ -200,10 +200,12 @@ typed expression. HIR0 schema `w-seed-hir0-39` copies the concrete local enum,
 its exact core-`Error` conformance fact, and a typed `THROW` terminator into
 caller-owned records. The new fields are covered by semantic/provenance
 verification, receipts, capacity and alias barriers, and remain valid after
-frontend teardown. Current HIR evidence covers a terminal root throw only.
-Non-`Error` enums and branch-local throw fail closed; try/catch, cleanup,
-provider/Task binding, and MLIR/native execution are not implemented by this
-slice.
+frontend teardown. Current HIR evidence covers a terminal root throw and one
+complete top-level conditional whose two arms end in return or throw. That
+branch has no synthetic join, and verification rejects cross-arm jump forgery.
+Non-`Error` enums and a throwing branch with a later continuation fail closed;
+nested terminal branches, try/catch, cleanup, provider/Task binding, and
+MLIR/native execution are not implemented by this slice.
 
 `w_seed_accelerated_invocation0` consumes only that successful Frontend28
 relation plus a verified `w_seed_gpu_module` program. ACCINV0 copies one exact

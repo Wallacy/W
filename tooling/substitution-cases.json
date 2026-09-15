@@ -9499,6 +9499,67 @@
       "try/catch, cleanup, provider/Task binding, native execution, benchmarks, and performance remain unclaimed"
     ],
     "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+  },
+  {
+    "id": "R0-hir0-mixed-error-exit",
+    "reviewItem": "bounded mixed return/throw terminal branches against hidden joins, arm fallthrough, normal/error channel collapse, and unproved continuation cleanup",
+    "decisions": ["W-1614"],
+    "task": "Represent one complete conditional with independent normal-return and typed-error exits without manufacturing a join or fallthrough edge.",
+    "selected": {
+      "language": "w",
+      "source": [
+        "fn dispatch(isDenied: Bool): i64 throws DispatchError {",
+        "  if isDenied { throw .denied } else { return 7 }",
+        "}"
+      ]
+    },
+    "alternatives": [
+      {
+        "name": "hidden-join",
+        "language": "w-internal-rejected",
+        "source": ["throw arm jumps into the return arm before leaving the function"],
+        "expectedDifference": "The selected HIR has two disjoint terminal regions and no synthetic join."
+      },
+      {
+        "name": "error-as-return",
+        "language": "w-internal-rejected",
+        "source": ["both arms return one erased tagged integer"],
+        "expectedDifference": "RETURN_VALUE and THROW retain distinct normal and recoverable-error types."
+      },
+      {
+        "name": "implicit-fallthrough",
+        "language": "w-internal-rejected",
+        "source": ["if denied { throw .denied } else { 7 }"] ,
+        "expectedDifference": "Both admitted arms end in an explicit terminal statement."
+      },
+      {
+        "name": "continuation-without-cleanup-proof",
+        "language": "w-internal-rejected",
+        "source": ["if denied { throw .denied }", "return 7"],
+        "expectedDifference": "A throwing branch followed by continuation remains outside the bounded CFG until cleanup and routing are represented."
+      }
+    ],
+    "sourceRefs": [
+      {
+        "path": "compiler/seed-c/src/w_seed_hir0.c",
+        "symbol": "verify_cfg_terminal_region",
+        "claim": "The verifier rederives the complete disjoint preorder partition and accepts only return or throw leaves."
+      },
+      {
+        "path": "compiler/seed-c/tests/test_hir0.c",
+        "symbol": "test_typed_throw_hir",
+        "claim": "The C23 witness proves mixed signed-i64 return and typed error exits and rejects a forged cross-arm jump."
+      }
+    ],
+    "checks": [
+      "the branch condition has two lexical same-function successors",
+      "both regions terminate without a join or fallthrough",
+      "normal return and typed throw retain independent types",
+      "a canonical-looking cross-arm jump rejects after resealing",
+      "a throwing branch followed by continuation remains unsupported",
+      "cleanup, catch, provider/Task binding, native execution, benchmarks, and performance remain unclaimed"
+    ],
+    "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
   }
   ]
 }
