@@ -8572,6 +8572,89 @@
     "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
   },
   {
+    "id": "R0-parallel-provider-lifecycle-binding",
+    "reviewItem": "verified provider-outcome lifecycle binding against physical-capacity leakage, trusted outcome substitution, partial semantic publication, and premature failure, cancellation, panic, ABI, or performance claims",
+    "decisions": ["W-1611"],
+    "task": "Bind verified successful physical provider outcomes to a measured structured lifecycle without making worker capacity, provider handles, or unimplemented failure families semantic.",
+    "selected": {
+      "language": "w-internal",
+      "source": [
+        "outcomes = verify(PARPROV1.execute(PARINV1))",
+        "counts = PARLIFE1.measure(outcomes)",
+        "lifecycle = PARLIFE1.run(outcomes, workspace: callerOwned(counts))",
+        "assert lifecycle.scope == success(checkedLexicalFold(outcomes))",
+        "assert capacity(1).lifecycle == capacity(2).lifecycle",
+        "assert verify(outcomes, lifecycle)"
+      ]
+    },
+    "alternatives": [
+      {
+        "name": "trust-provider-output",
+        "language": "w-internal-rejected",
+        "source": ["copy provider values into task outcomes without verifying the producer chain or digest"],
+        "expectedDifference": "PARLIFE1 independently verifies PARPROV1 and rebuilds the complete TASKLIFE1 transaction during verification."
+      },
+      {
+        "name": "make-capacity-semantic",
+        "language": "w-internal-rejected",
+        "source": ["include worker capacity or overlap in task records and lifecycle identity"],
+        "expectedDifference": "Provider capacities one and two produce byte-identical lifecycle output; physical facts remain in the provider receipt."
+      },
+      {
+        "name": "publish-partial-lifecycle",
+        "language": "w-internal-rejected",
+        "source": ["write task records before capacity, alias, producer, fold, and lifecycle validation completes"],
+        "expectedDifference": "Measure, checked fold, capacity, and pairwise alias barriers precede transactional semantic publication."
+      },
+      {
+        "name": "invent-failure-semantics",
+        "language": "w-internal-rejected",
+        "source": ["map worker termination or absent provider fields to typed error, cancellation, or panic"],
+        "expectedDifference": "This cut is success-only; typed error/cancellation require an explicit provider completion relation and panic remains separate."
+      }
+    ],
+    "sourceRefs": [
+      {
+        "path": "compiler/seed-c/include/w_seed_parallel_lifecycle1.h",
+        "symbol": "w_seed_parallel_lifecycle1_input",
+        "claim": "The bridge consumes the complete verified provider relation, ordered outcomes, result digest, and one scope generation."
+      },
+      {
+        "path": "compiler/seed-c/src/w_seed_parallel_provider1.c",
+        "symbol": "w_seed_parallel_lifecycle1_measure",
+        "claim": "Measurement derives exact caller-owned scratch and output counts only after producer and checked-fold validation."
+      },
+      {
+        "path": "compiler/seed-c/src/w_seed_parallel_provider1.c",
+        "symbol": "w_seed_parallel_lifecycle1_run",
+        "claim": "Run builds a complete success transaction and publishes semantic records only through TASKLIFE1 after capacity and alias barriers."
+      },
+      {
+        "path": "compiler/seed-c/src/w_seed_parallel_provider1.c",
+        "symbol": "w_seed_parallel_lifecycle1_verify",
+        "claim": "Verification revalidates PARPROV1, reconstructs the transaction, and independently verifies task records, trace, scope, and digests."
+      },
+      {
+        "path": "compiler/seed-c/tests/test_hir0.c",
+        "symbol": "test_parallel_provider1_windows",
+        "claim": "The C23 witness proves five-task provider binding, capacity-one/two semantic equality, exact scope folding, capacity, alias, and forgery rejection."
+      },
+      {
+        "path": "tooling/check-hir0.mjs",
+        "symbol": "w_seed_hir0_tests",
+        "claim": "The focused HIR gate builds and runs the provider-bound lifecycle witness."
+      }
+    ],
+    "checks": [
+      "verified PARPROV1 outcomes become lexical success tasks and a checked scope fold",
+      "provider capacities one and two produce byte-identical task records, trace, and lifecycle result",
+      "measure derives exact task, event, scratch, and output counts",
+      "capacity, pairwise alias, producer forgery, and lifecycle forgery fail closed",
+      "typed physical failure, cancellation, panic, scheduler, public ABI/execution, benchmark, and performance remain unclaimed"
+    ],
+    "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+  },
+  {
     "id": "R0-process-parallel-provider-link",
     "reviewItem": "bounded dual-target process/parallel linkage against direct-call substitution, CRT fallback, hidden runtime input, target conflation, and premature public or benchmark claims",
     "decisions": ["W-1600"],

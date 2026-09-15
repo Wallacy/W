@@ -36,6 +36,7 @@ add_library(w_seed_source STATIC
   include/w_seed_parallel_invocation0.h
   include/w_seed_parallel_provider0.h
   include/w_seed_parallel_provider1.h
+  include/w_seed_parallel_lifecycle1.h
   include/w_seed_task_lifecycle0.h
   include/w_seed_gpu0.h
   include/w_seed_gpu0_projection.h

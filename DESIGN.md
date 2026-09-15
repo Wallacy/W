@@ -40524,12 +40524,37 @@ become canceled, all five run cleanup and lexical join/release, and the scope
 publishes the primary typed error only after drain. A separate 137-event trace
 proves that the former event ceiling is not inherited by TASKLIFE1.
 
-This is target-neutral lifecycle evidence. It does not yet bind the transaction
-to verified HIR or PARPROV1, interrupt a physical worker, define panic payloads,
-select a scheduler, publish a Task ABI, or establish benchmark/performance
-results. A cancellation request remains distinct from a committed canceled
-outcome; physical integration must preserve settled-before-cancel and complete
-cleanup/drain before publication.
+TASKLIFE1 by itself is target-neutral lifecycle evidence and does not bind a
+provider. W-1611 binds its successful path to verified PARPROV1. Typed physical
+failure/cancellation, worker interruption, panic payloads, scheduler selection,
+a public Task ABI, and benchmark/performance results remain open. A cancellation
+request remains distinct from a committed canceled outcome; physical
+integration must preserve settled-before-cancel and complete cleanup/drain
+before publication.
+
+#### 26.4.1.91 W-1611 — verified provider-outcome lifecycle binding
+
+PARLIFE1 schema `w-seed-parallel-lifecycle1-1` binds successful verified
+PARPROV1 outcomes to one TASKLIFE1 transaction. The input carries the complete
+verified PARPROV1 relation, its ordered outcomes and result digest, plus a
+nonzero scope generation. Measure derives exact caller-owned task, event,
+scratch, and output capacities. Logical counts remain independent from physical
+provider capacity.
+
+Each provider outcome becomes one success task in lexical order. The bridge
+constructs reserve and publish phases, task activity, body settlement, cleanup,
+outcome commit, lexical join and release, then scope drain and commit. The scope
+success value is the checked signed-`i64` fold of the ordered task outcomes.
+Every descriptor and backing range from verified HIR through lifecycle output
+is pairwise disjoint. Capacity, alias, invalid producer evidence, digest
+forgery, or fold overflow fails before semantic output publication; scratch is
+explicit and may change after an attempted run or verification.
+
+Provider capacities one and two produce byte-identical lifecycle task records,
+trace, and result for the five-task witness. This proves only the successful
+Windows compiler/component path. PARLIFE1 does not yet express provider typed
+failure, cancellation request or physical interruption, panic, a scheduler,
+public Task ABI, executable behavior, benchmark result, or performance.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 
