@@ -252,6 +252,7 @@ O corpus compara, no mínimo:
 - bounded dual-target process/parallel linkage against direct-call substitution, CRT fallback, hidden runtime input, target conflation, and premature public or benchmark claims.
 - bounded GPU0 target-neutral semantic and available CUDA execution against source-backed W claims, provider/runtime conflation, homogeneous toolchains, and premature public product support.
 - bounded static accelerated root binding against embedded provider handles, multiplied budgets, and unauthenticated claims.
+- bounded provider-neutral accelerated request against producer lifetime coupling, identity substitution, mutable artifact references, and premature submission claims.
 
 ### 1.1 Cobertura de substituições
 
@@ -7923,6 +7924,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1602 | static accelerated-domain submission | `.accelerated(name, submission:, maximum:, fallback:)` adds a target-neutral domain requirement. In the static path `spawn<domain> descriptor.field(args...)` is the launch surface; the product/root owns the typed relation and lifecycle. `accelerator.open` plus `.launch(using:)` remains the explicit dynamic path. Host calls, transfers, artifact requirements, Task lifetime, typed launch failures, receipts and drain remain distinct. | `oracle-backed-current`: DEV0 validates the static-root relation and lifecycle, while Frontend28 preserves the bounded kind/domain/module/kernel relation and rejects contextual misuse. ACCINV0 independently preserves the first zero-argument invocation and lexical join; ACCBIND0 proves one caller-owned static root/profile relation and exact budget composition. General arguments/ownership/residency, authenticated profile closure, provider composition, public build/run and performance evidence remain open. |
 | W-1603 | independent bounded accelerated invocation relation | ACCINV0 consumes Frontend28 plus a verified gpu-module-1 program and copies one exact zero-argument `spawn<domain> descriptor.field()`, where the domain is accelerated, and its lexical `await` into caller-owned, provider-neutral records. Its verifier survives source, CST, frontend, and gpu-module teardown. Semantic identity binds domain policy, copied identities, result shape, and the device-module semantic digest; provenance binds source ordinals/spans and producer receipts. | `source-backed-current` only for the exact one-invocation signed-`i32` seed slice, transactional C23 implementation, adversarial verifier, and focused gate. One invocation and zero arguments are seed evidence limits, not language or ABI bounds. Typed task failure, arguments/ownership/residency, geometry, authenticated product/profile closure, provider launch/join/result, public GPU product, other targets, benchmark, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1604 | independent bounded accelerated root binding | ACCBIND0 consumes a verified ACCINV0 relation plus one caller-supplied closed product/profile selection, copies the exact root/domain/descriptor/module/artifact/kernel-instance identity relation, requires selected-instance and provider-ABI agreement, and computes the effective admission maximum as the minimum of invocation, profile, root, deployment and resource limits. Its source-free verifier survives both owners; semantic identity excludes queue/device/generation while provenance binds them. | `source-backed-current` only for the one-relation caller-owned C23 bridge, reject-only fallback, exact budget composition, identity/ABI consistency, transactional capacity and alias barriers, teardown independence, adversarial verification, and focused gate. The upstream closed-profile receipts are assumed inputs rather than authenticated here. General profile closure, product signatures, arguments/ownership/residency, provider launch/join/result, cancellation/drain, public GPU products, other targets, benchmark results and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1605 | independent bounded accelerated provider request | ACCREQ0 consumes verified ACCBIND0 and GPU0 programs/results, cross-checks the descriptor, host root, kernel label, private function and signed-i32 result shape, and copies one provider-neutral request, identity text and exact device artifact into caller-owned storage. Its independent verifier survives both producer lifetimes, rehashes the artifact, and separates semantic identity from physical provenance. | `source-backed-current` only for the one-request C23 bridge, exact current GPU0 sentinel, copied artifact and identities, transactional capacity/alias barriers, teardown independence, adversarial verification and focused gate. It performs no provider submission and introduces no public ABI. General arguments/results, authenticated product closure, provider launch/join/result, cancellation/drain, residency, public GPU products, other accelerators, benchmark results and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -12883,3 +12885,29 @@ capability: registering an operation with an I/O provider and suspending the
 current Task does not occupy or characterize an execution domain. A bounded
 host domain remains appropriate only for genuinely blocking adapters or for
 application work performed after completion.
+
+#### W-1605 — independent bounded accelerated provider request
+
+The closed root/profile relation and the target-neutral GPU0 artifact were
+previously verified in isolation. Passing either producer-owned graph directly
+to a provider would couple lifetimes and let physical state substitute for
+semantic identity. ACCREQ0 therefore copies their common meaning into a third,
+provider-neutral boundary. It requires exact agreement among the source-local
+descriptor, GPU0 host-root name, kernel label, private function and explicit
+signed-`i32` result shape before publishing anything.
+
+The request owns every identity byte and the exact device artifact. Its
+semantic digest binds placement-independent identities, the GPU0
+device-artifact structural identity and contents, result shape and upstream
+semantic receipts. Queue, device, generation,
+physical ordinals and upstream provenance affect only the provenance digest.
+The verifier reconstructs dense text slices, rehashes the device artifact and
+recomputes both digests without reading ACCBIND0, GPU0 or source storage.
+
+The implementation deliberately stops before submission. A schema-bound
+kernel symbol is data for the later provider adapter, not a public GPU ABI;
+there is no provider handle, queue call, launch, join or completion receipt.
+The one request, zero arguments and sentinel result are evidence bounds only.
+This preserves a narrow next step: make the physical adapter consume the
+verified request, then add supported launch/join/result evidence without
+reopening source or product selection.

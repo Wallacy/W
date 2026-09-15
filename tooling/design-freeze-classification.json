@@ -23,10 +23,10 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:0638cf96ea358383a40431d2f297acceff128dfdfb1083c3d845d08f819dc7ef",
-    "count": 1604,
+    "sha256": "sha256:c9c61f4d5596aa054eef87cc9e18ce30cb407b057831c78e6cf2208aa0296e70",
+    "count": 1605,
     "first": "W-001",
-    "last": "W-1604"
+    "last": "W-1605"
   },
   "epochs": [
     {
@@ -61,7 +61,7 @@
     }
   ],
   "preservedLegacyCoverage": {
-    "source": 269,
+    "source": 270,
     "oracle": 420,
     "explicit": 8,
     "overlap": 57
@@ -21869,7 +21869,7 @@
         "path": "DESIGN.md",
         "section": "26",
         "heading": "## 26. Plano de implementação",
-        "sectionDigest": "sha256:e0ac8a2f06583b7d97f0a4d278fdc9de5edac9c28b5791b5688703248513dd8f"
+        "sectionDigest": "sha256:71841c04c31a200e255c2bc61af07baab70fe236b6f8125382e39c29a8462209"
       },
       "evidence": [],
       "reason": "W-659 (body de entry, sha256:f66ab57406ddb51303f9190376daf72d8f538bd7bd8adfbf9992ae3d7223e74e) has no executable witness for component implementation-plan. The checked current contract is DESIGN.md §26 / 26. Plano de implementação.",
@@ -53189,7 +53189,7 @@
           "path": "compiler/seed-c/CMakeLists.txt",
           "symbol": "W_MLIR0_LINUX_LINK_DRIVER",
           "claim": "The opt-in Linux build requires an absolute linker that advertises elf_x86_64 support.",
-          "sha256": "sha256:d490a56fb2c6b4bba8bedca27d576be86daadebb424345b22947f06cd48bb836"
+          "sha256": "sha256:32961a27fe3922edf750b1b6d46b8716ea2c9ab50cd0511c1e3dab894dce213d"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -56659,13 +56659,66 @@
           "path": "compiler/seed-c/tests/test_accelerated_binding0.c",
           "symbol": "ACCBIND0 budgets/digests/teardown/negative barriers: PASS",
           "claim": "The C23 witness covers exact budgets, physical-provenance separation, teardown, capacities, aliases, and forged relations.",
-          "sha256": "sha256:e15159e8a0af85fec3b7e0ff390c911da0b8f8d1f4316a03fda2c2636a4c8ade"
+          "sha256": "sha256:adeab0be4bb722d7b924bb19f5def8e416e11ba7b413ade22489980b34128f0d"
         },
         {
           "path": "tooling/check-accelerated-binding0.mjs",
           "symbol": "ACCBIND0: independently verified accelerated root binding passed",
           "claim": "The focused gate configures, builds, executes, and cleans the bounded C23 witness.",
-          "sha256": "sha256:3f69c21f876b570e97e0ae85a448de74393bb26f570fbf7032967d0ccebf9a0d"
+          "sha256": "sha256:9c7663f0e6a38d7ae93dbec996a04889078ddff2f41f56281084c974391d1b87"
+        }
+      ],
+      "benchmarkDisposition": "compiler-lifecycle",
+      "benchmarkEvidence": "No timing or public product benchmark result; the current gate is bounded compiler-lifecycle correctness evidence only."
+    },
+    {
+      "decisionId": "W-1605",
+      "summary": "independent bounded accelerated provider request",
+      "canonicalClaim": "ACCREQ0 consumes verified ACCBIND0 and GPU0 programs/results, cross-checks the descriptor, host root, kernel label, private function and signed-i32 result shape, and copies one provider-neutral request, identity text and exact device artifact into caller-owned storage. Its independent verifier survives both producer lifetimes, rehashes the artifact, and separates semantic identity from physical provenance.",
+      "claimDigest": "sha256:2176e09149e89fd98d76a7dc2e67453e90f1be53d6763091895830028618b722",
+      "category": "source-backed-current",
+      "basis": "linked-source-comparison-case",
+      "authorityRef": {
+        "kind": "source-case",
+        "path": "tooling/substitution-cases.json",
+        "caseId": "R0-accelerated-provider-request",
+        "caseDigest": "sha256:07a0797501a1a5424dc1f9a48011c6e71489c1076a10b39f91956849aae88e2c"
+      },
+      "evidence": [
+        {
+          "kind": "source",
+          "path": "tooling/substitution-cases.json",
+          "caseId": "R0-accelerated-provider-request",
+          "caseDigest": "sha256:07a0797501a1a5424dc1f9a48011c6e71489c1076a10b39f91956849aae88e2c"
+        }
+      ],
+      "reason": "W-1605 (independent bounded accelerated provider request, sha256:2176e09149e89fd98d76a7dc2e67453e90f1be53d6763091895830028618b722) is source-backed-current only for the one-request caller-owned C23 ACCREQ0 bridge, exact GPU0 sentinel, copied identity and artifact bytes, semantic/provenance split, teardown independence, transactional capacity and alias barriers, adversarial independent verification, and focused gate. Provider submission, public ABI, general arguments/results, authenticated product closure, cancellation/drain, residency, public GPU products, other accelerators, benchmark results, and performance remain gaps.",
+      "selection": "explicit-ledger-id",
+      "basisRef": {
+        "kind": "ledger-row",
+        "path": "RATIONALE.md",
+        "section": "3. Ledger",
+        "decisionId": "W-1605",
+        "claimDigest": "sha256:2176e09149e89fd98d76a7dc2e67453e90f1be53d6763091895830028618b722"
+      },
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_accelerated_request0.c",
+          "symbol": "w_seed_accelerated_request0_verify",
+          "claim": "The independent verifier reconstructs dense identities, rehashes the copied device artifact, and recomputes semantic and provenance digests without producer storage.",
+          "sha256": "sha256:a9d77c88ee8f97f70b75898ef46948adfb5c0d6a7d3b741decb0ba71ccfdac32"
+        },
+        {
+          "path": "compiler/seed-c/tests/test_accelerated_binding0.c",
+          "symbol": "ACCREQ0 provider-neutral request: PASS",
+          "claim": "The C23 witness covers producer cross-checks, copied artifact and identity, teardown, capacities, aliases, and forged request state.",
+          "sha256": "sha256:adeab0be4bb722d7b924bb19f5def8e416e11ba7b413ade22489980b34128f0d"
+        },
+        {
+          "path": "tooling/check-accelerated-binding0.mjs",
+          "symbol": "ACCBIND0: independently verified accelerated root binding passed",
+          "claim": "The focused gate configures C23 from scratch, builds and executes the combined binding/request witness, and removes temporary artifacts.",
+          "sha256": "sha256:9c7663f0e6a38d7ae93dbec996a04889078ddff2f41f56281084c974391d1b87"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",

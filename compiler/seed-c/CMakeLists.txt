@@ -39,6 +39,7 @@ add_library(w_seed_source STATIC
   include/w_seed_gpu_module.h
   include/w_seed_accelerated_invocation0.h
   include/w_seed_accelerated_binding0.h
+  include/w_seed_accelerated_request0.h
   include/w_seed_scalar_evaluator0.h
   include/w_seed_wrt0.h
   include/w_seed_source_binding_linux.h
@@ -88,6 +89,7 @@ add_library(w_seed_source STATIC
   src/w_seed_gpu_module.c
   src/w_seed_accelerated_invocation0.c
   src/w_seed_accelerated_binding0.c
+  src/w_seed_accelerated_request0.c
   src/w_seed_hir0.c
   src/w_seed_product_closure0.c
   src/w_seed_process0.c

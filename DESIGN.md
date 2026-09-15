@@ -40337,6 +40337,40 @@ residency, cancellation/drain, signed product closure, public GPU build/run,
 other targets and performance remain explicit gaps. One binding is the seed
 evidence bound, not a W language, scheduler or ABI limit. No W syntax is added.
 
+#### 26.4.1.85 W-1605 — independent bounded accelerated provider request
+
+ACCREQ0 joins two independently verified meanings without retaining either
+producer: one ACCBIND0 root/profile relation and one GPU0 host/device artifact
+program. The exact descriptor, host-root name, kernel label and private device
+function must agree across both inputs. The first schema accepts only the
+single zero-argument signed-`i32` GPU0 sentinel and copies one provider-neutral
+request, all identity text and the exact device artifact into caller-owned
+storage.
+
+The request carries the selected root, domain, module, artifact,
+`KernelInstanceId`, target, provider class, schema-bound kernel symbol, queue,
+device and provider generation. It also retains explicit result width and
+signedness, the GPU0 result value, the GPU0 device-artifact structural identity
+and content digest, both upstream semantic identities and the ACCBIND0
+provenance. Semantic identity excludes
+queue, device, generation and source ordinals; provenance binds those physical
+and source-specific facts. The device artifact is independently rehashed.
+
+`measure`, `run`, `program_from_output` and `verify` are heap-free,
+transactional and fail closed on malformed producers, mismatched identities,
+overflow, insufficient capacity, overlapping descriptors or buffers, and
+forged records, artifacts or digests. Independent verification needs only the
+ACCREQ0-owned program and result after all ACCBIND0 and GPU0 owners are
+released.
+
+ACCREQ0 is not submission. It has no provider handle, CUDA call, scheduler,
+queue operation, completion receipt, cancellation, residency decision or
+public ABI. The fixed request count, kernel symbol, signed-`i32` result and
+sentinel value are seed evidence bounds, not language, ABI or runtime limits.
+The actual provider adapter does not yet consume ACCREQ0, so supported
+launch/join/result, public GPU products, other accelerators, benchmarking and
+performance remain explicit gaps. No W syntax is added.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

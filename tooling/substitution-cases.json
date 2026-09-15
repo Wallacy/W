@@ -8867,6 +8867,66 @@
       "closed-profile authenticity, provider launch, public products and performance are not claimed"
     ],
     "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+  },
+  {
+    "id": "R0-accelerated-provider-request",
+    "reviewItem": "bounded provider-neutral accelerated request against producer lifetime coupling, identity substitution, mutable artifact references, and premature submission claims",
+    "decisions": ["W-1605"],
+    "task": "Join one verified accelerated root binding and one verified GPU0 artifact into an independently verifiable provider request without submitting it.",
+    "selected": {
+      "language": "w-internal",
+      "source": [
+        "binding = verify(accbind0)",
+        "gpu = verify(gpu0)",
+        "request = copyRequest(binding, gpu.deviceArtifact)",
+        "assert verify(request) after teardown(bindingOwner, gpuOwner)"
+      ]
+    },
+    "alternatives": [
+      {
+        "name": "retain-producer-pointers",
+        "language": "w-internal-rejected",
+        "source": ["request.binding = &binding; request.artifact = gpu.deviceArtifact"],
+        "expectedDifference": "The selected request owns all identity and artifact bytes and survives both producer lifetimes."
+      },
+      {
+        "name": "substitute-physical-identity",
+        "language": "w-internal-rejected",
+        "source": ["semanticIdentity = hash(queue, device, providerGeneration)"],
+        "expectedDifference": "Physical placement changes provenance, not placement-independent request meaning."
+      },
+      {
+        "name": "claim-submission",
+        "language": "w-internal-rejected",
+        "source": ["request proves provider launch and completion"],
+        "expectedDifference": "ACCREQ0 ends before any provider handle, queue operation, launch, join, or result receipt."
+      }
+    ],
+    "sourceRefs": [
+      {
+        "path": "compiler/seed-c/src/w_seed_accelerated_request0.c",
+        "symbol": "w_seed_accelerated_request0_verify",
+        "claim": "The independent verifier reconstructs dense identities, rehashes the copied device artifact, and recomputes semantic and provenance digests without producer storage."
+      },
+      {
+        "path": "compiler/seed-c/tests/test_accelerated_binding0.c",
+        "symbol": "ACCREQ0 provider-neutral request: PASS",
+        "claim": "The C23 witness covers producer cross-checks, copied artifact and identity, teardown, capacities, aliases, and forged request state."
+      },
+      {
+        "path": "tooling/check-accelerated-binding0.mjs",
+        "symbol": "ACCBIND0: independently verified accelerated root binding passed",
+        "claim": "The focused gate configures C23 from scratch, builds and executes the combined binding/request witness, and removes temporary artifacts."
+      }
+    ],
+    "checks": [
+      "descriptor, host root, kernel label, private function and result shape agree across both verified inputs",
+      "all identity and device-artifact bytes are copied before producer teardown",
+      "semantic identity excludes queue, device, generation and source ordinals while provenance binds them",
+      "malformed producers, mismatches, aliases, short capacities, artifact mutation and forged digests fail closed",
+      "provider submission, public ABI, general arguments/results and performance are not claimed"
+    ],
+    "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
   }
   ]
 }
