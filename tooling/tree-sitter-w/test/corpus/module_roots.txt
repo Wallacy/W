@@ -217,3 +217,62 @@ fn afterHeader() {}
     (identifier)
     (parameter_list)
     (block)))
+
+==================
+Kernel module contracts and contextual import marker
+==================
+
+module kernel_named<
+  kernels: { forecast: forecastKernel },
+>
+
+import kernel;
+import kernel.foo;
+import kernel { forecast as predict } from models
+import kernel models as kernels
+
+fn forecastKernel() {}
+fn kernel() {}
+fn kernels() {}
+
+---
+
+(source_file
+  (module_header
+    (identifier)
+    (module_contract
+      (kernel_contract_field
+        (kernel_contract_record
+          (kernel_contract_item
+            (identifier)
+            (identifier))))))
+  (import_statement
+    (module_path
+      (identifier)))
+  (import_statement
+    (module_path
+      (identifier)
+      (identifier)))
+  (kernel_import_statement
+    (named_imports
+      (import_item
+        (identifier)
+        (identifier)))
+    (module_path
+      (identifier)))
+  (kernel_import_statement
+    (module_path
+      (identifier))
+    (identifier))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (block))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (block))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (block)))

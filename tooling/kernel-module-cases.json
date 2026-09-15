@@ -1,12 +1,12 @@
 {
-  "$schema": "w-kernel-module-cases-1",
+  "$schema": "w-kernel-module-cases-2",
   "status": "design-oracle-input",
   "module": {
-    "head": "std.accelerator.module@1",
-    "scope": "module-const",
+    "contract": "module-kernels@1",
+    "declarationKind": "module-header",
     "conformanceOrigin": "compiler",
-    "symbolId": "last_light.ai_harness::lastLightKernels",
-    "recordKind": "static-record",
+    "moduleId": "last_light.ai_harness",
+    "familyKind": "kernel-family",
     "runtimeLookup": false,
     "physicalPath": "D:/checkout-a/reference/last-light/ai_harness.w",
     "fields": [
@@ -72,17 +72,17 @@
       "expect": { "accepted": true, "fields": ["forecast", "normalize"], "runtimeAllocation": false, "runtimeReflection": false }
     },
     {
-      "id": "KM0-NEG-wrong-synthesis-head",
+      "id": "KM0-NEG-wrong-module-contract",
       "kind": "negative",
       "decisions": ["W-1211", "W-1284"],
-      "input": { "subject": "module", "modulePatch": { "head": "user.module@1" } },
+      "input": { "subject": "module", "modulePatch": { "contract": "user.module@1" } },
       "expect": { "accepted": false, "error": "W-KERNEL-0001" }
     },
     {
-      "id": "KM0-NEG-local-synthesis",
+      "id": "KM0-NEG-local-module-contract",
       "kind": "negative",
       "decisions": ["W-1284", "W-1285"],
-      "input": { "subject": "module", "modulePatch": { "scope": "function-local" } },
+      "input": { "subject": "module", "modulePatch": { "declarationKind": "function-local" } },
       "expect": { "accepted": false, "error": "W-KERNEL-0001" }
     },
     {
@@ -96,7 +96,7 @@
       "id": "KM0-NEG-runtime-list",
       "kind": "negative",
       "decisions": ["W-1284"],
-      "input": { "subject": "module", "modulePatch": { "recordKind": "runtime-list" } },
+      "input": { "subject": "module", "modulePatch": { "familyKind": "runtime-list" } },
       "expect": { "accepted": false, "error": "W-KERNEL-0002" }
     },
     {
@@ -339,6 +339,99 @@
       "decisions": ["W-1285", "W-1287"],
       "input": { "subject": "artifact", "artifactClass": "closed", "reachable": ["forecast"], "materialized": ["forecast"], "targetPatch": { "featuresDigest": "unknown" } },
       "expect": { "accepted": false, "error": "W-KERNEL-0007" }
+    },
+    {
+      "id": "KM0-POS-named-kernel-projection",
+      "kind": "positive",
+      "decisions": ["W-1286", "W-1287"],
+      "input": {
+        "subject": "projection",
+        "projectionKind": "named",
+        "modulePath": "last_light.ai_harness",
+        "route": "spawn",
+        "localBindings": ["hostForecast"],
+        "items": [{ "field": "forecast", "localName": "predict", "specialization": "forecast" }]
+      },
+      "expect": {
+        "accepted": true,
+        "projectionKind": "named",
+        "route": "spawn-immediate",
+        "projections": [{ "localName": "predict", "field": "forecast" }],
+        "runtimeAllocation": false,
+        "runtimeReflection": false,
+        "authority": false,
+        "ordinaryBindingCreated": false,
+        "aliasesAffectIdentity": false
+      }
+    },
+    {
+      "id": "KM0-POS-qualified-kernel-projection-open",
+      "kind": "positive",
+      "decisions": ["W-1286", "W-1287"],
+      "input": {
+        "subject": "projection",
+        "projectionKind": "qualified",
+        "modulePath": "last_light.ai_harness",
+        "alias": "models",
+        "route": "open",
+        "items": [{ "field": "forecast", "specialization": "forecast" }]
+      },
+      "expect": {
+        "accepted": true,
+        "projectionKind": "qualified",
+        "projectionAlias": "models",
+        "route": "open-qualified",
+        "projections": [{ "localName": "models.forecast", "field": "forecast" }],
+        "runtimeAllocation": false,
+        "runtimeReflection": false,
+        "authority": false,
+        "ordinaryBindingCreated": false,
+        "aliasesAffectIdentity": false
+      }
+    },
+    {
+      "id": "KM0-NEG-kernel-projection-module-mismatch",
+      "kind": "negative",
+      "decisions": ["W-1287"],
+      "input": {
+        "subject": "projection",
+        "projectionKind": "qualified",
+        "modulePath": "other.module",
+        "alias": "models",
+        "route": "spawn",
+        "items": [{ "field": "forecast", "specialization": "forecast" }]
+      },
+      "expect": { "accepted": false, "error": "W-KERNEL-0008" }
+    },
+    {
+      "id": "KM0-NEG-kernel-projection-alias-collision",
+      "kind": "negative",
+      "decisions": ["W-1287"],
+      "input": {
+        "subject": "projection",
+        "projectionKind": "named",
+        "modulePath": "last_light.ai_harness",
+        "route": "spawn",
+        "localBindings": ["predict"],
+        "items": [{ "field": "forecast", "localName": "predict", "specialization": "forecast" }]
+      },
+      "expect": { "accepted": false, "error": "W-KERNEL-0008" }
+    },
+    {
+      "id": "KM0-NEG-kernel-projection-duplicate-item",
+      "kind": "negative",
+      "decisions": ["W-1287"],
+      "input": {
+        "subject": "projection",
+        "projectionKind": "named",
+        "modulePath": "last_light.ai_harness",
+        "route": "spawn",
+        "items": [
+          { "field": "forecast", "localName": "predict", "specialization": "forecast" },
+          { "field": "forecast", "localName": "predictAgain", "specialization": "forecast" }
+        ]
+      },
+      "expect": { "accepted": false, "error": "W-KERNEL-0008" }
     }
   ]
 }

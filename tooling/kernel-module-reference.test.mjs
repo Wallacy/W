@@ -18,7 +18,7 @@ test("physical checkout paths do not affect module identity", () => {
   assert.equal(left.identity, right.identity)
 })
 
-test("field names and normalized HIR affect distinct identities", () => {
+test("public labels are canonical while private implementation affects identity", () => {
   const base = deriveKernelModuleContract({ subject: "module", module: module() })
   const changed = module()
   changed.fields[0].name = "forecastV2"
@@ -32,7 +32,8 @@ test("field names and normalized HIR affect distinct identities", () => {
     subject: "module",
     module: reorderedFields,
   })
-  assert.notEqual(base.interfaceIdentity, reorderedResult.interfaceIdentity)
+  assert.equal(base.interfaceIdentity, reorderedResult.interfaceIdentity)
+  assert.equal(base.identity, reorderedResult.identity)
 
   const changedHir = module()
   changedHir.fields[0].hirDigest =
@@ -255,4 +256,93 @@ test("artifact identity canonicalizes reachable instance order", () => {
   })
   assert.equal(first.accepted, true)
   assert.equal(first.artifactIdentity, reordered.artifactIdentity)
+})
+
+test("named and qualified kernel projections preserve origin identities", () => {
+  const namedInput = {
+    subject: "projection",
+    module: module(),
+    projectionKind: "named",
+    modulePath: corpus.module.moduleId,
+    route: "spawn",
+    items: [{
+      field: "forecast",
+      localName: "predict",
+      staticArguments: forecastArguments(),
+    }],
+  }
+  const renamedNamedInput = structuredClone(namedInput)
+  renamedNamedInput.items[0].localName = "forecastForDevice"
+  const named = deriveKernelModuleContract(namedInput)
+  const renamedNamed = deriveKernelModuleContract(renamedNamedInput)
+  assert.equal(named.accepted, true)
+  assert.equal(named.moduleIdentity, renamedNamed.moduleIdentity)
+  assert.equal(named.projectionIdentity, renamedNamed.projectionIdentity)
+  assert.equal(
+    named.projections[0].origin.moduleIdentity,
+    renamedNamed.projections[0].origin.moduleIdentity,
+  )
+  assert.equal(
+    named.projections[0].origin.kernelInstanceId,
+    renamedNamed.projections[0].origin.kernelInstanceId,
+  )
+  assert.notEqual(named.provenanceIdentity, renamedNamed.provenanceIdentity)
+  assert.notEqual(named.projections[0].localName, renamedNamed.projections[0].localName)
+
+  const qualifiedInput = {
+    subject: "projection",
+    module: module(),
+    projectionKind: "qualified",
+    modulePath: corpus.module.moduleId,
+    alias: "models",
+    route: "open",
+    items: [{ field: "forecast", staticArguments: forecastArguments() }],
+  }
+  const renamedQualifiedInput = structuredClone(qualifiedInput)
+  renamedQualifiedInput.alias = "ai"
+  const qualified = deriveKernelModuleContract(qualifiedInput)
+  const renamedQualified = deriveKernelModuleContract(renamedQualifiedInput)
+  assert.equal(qualified.accepted, true)
+  assert.equal(qualified.moduleIdentity, renamedQualified.moduleIdentity)
+  assert.equal(qualified.projectionIdentity, renamedQualified.projectionIdentity)
+  assert.notEqual(qualified.provenanceIdentity, renamedQualified.provenanceIdentity)
+  assert.equal(
+    qualified.projections[0].origin.kernelInstanceId,
+    renamedQualified.projections[0].origin.kernelInstanceId,
+  )
+  assert.equal(qualified.runtimeAllocation, false)
+  assert.equal(qualified.ordinaryBindingCreated, false)
+
+  const reorderedQualifiedInput = structuredClone(qualifiedInput)
+  reorderedQualifiedInput.alias = "renamedModels"
+  reorderedQualifiedInput.items.push({
+    field: "normalize",
+    staticArguments: structuredClone(corpus.normalizeArguments),
+  })
+  const reordered = structuredClone(reorderedQualifiedInput)
+  reordered.items.reverse()
+  const qualifiedTwo = deriveKernelModuleContract(reorderedQualifiedInput)
+  const reorderedTwo = deriveKernelModuleContract(reordered)
+  assert.equal(qualifiedTwo.projectionIdentity, reorderedTwo.projectionIdentity)
+  assert.equal(qualifiedTwo.moduleIdentity, reorderedTwo.moduleIdentity)
+  assert.notEqual(qualifiedTwo.provenanceIdentity, reorderedTwo.provenanceIdentity)
+  assert.deepEqual(
+    reorderedTwo.projections.map((projection) => projection.localName),
+    ["renamedModels.normalize", "renamedModels.forecast"],
+  )
+})
+
+test("kernel projection aliases collide with ordinary local bindings", () => {
+  const result = deriveKernelModuleContract({
+    subject: "projection",
+    module: module(),
+    projectionKind: "qualified",
+    modulePath: corpus.module.moduleId,
+    alias: "models",
+    route: "spawn",
+    localBindings: ["models"],
+    items: [{ field: "forecast", staticArguments: forecastArguments() }],
+  })
+  assert.equal(result.accepted, false)
+  assert.equal(result.error, "W-KERNEL-0008")
 })

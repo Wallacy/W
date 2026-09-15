@@ -68,6 +68,25 @@ assert.deepEqual(portalTokens("place#version.mutationEpoch\nvalue |> try json.de
 const transactionTokens = portalTokens("transaction\npipeline<transaction: {}>");
 assert.equal(transactionTokens.find((token) => token.value === "transaction")?.kind, "identifier", "bare transaction must remain an identifier");
 assert.equal(transactionTokens.filter((token) => token.value === "transaction")[1]?.kind, "keyword", "pipeline transaction label must be contextual");
+const kernelSource = `module models<kernels: { forecast: forecastKernel }>
+import kernel { forecast as predict } from models
+import kernel models as kernels
+import kernel
+import kernel.foo
+configure(kernels: value)
+let kernels = 1`;
+const kernelTokens = portalTokens(kernelSource);
+const kernelValues = kernelTokens.filter((token) => token.value === "kernel" || token.value === "kernels");
+assert.deepEqual(kernelValues.map(({ value, kind }) => ({ value, kind })), [
+  { value: "kernels", kind: "keyword" },
+  { value: "kernel", kind: "keyword" },
+  { value: "kernel", kind: "keyword" },
+  { value: "kernels", kind: "identifier" },
+  { value: "kernel", kind: "identifier" },
+  { value: "kernel", kind: "identifier" },
+  { value: "kernels", kind: "identifier" },
+  { value: "kernels", kind: "identifier" },
+], "portal kernel/kernels recognition must remain contextual");
 const rawTokens = portalTokens("let raw = #\"place#facet\"#");
 assert.equal(rawTokens.at(-1)?.kind, "string", "raw hash strings must remain strings");
 
@@ -97,6 +116,12 @@ const pipelineContractPattern = tm.repository?.["pipeline-contract"]?.patterns?.
 assert.ok(pipelineContractPattern, "TextMate must define a structural pipeline contract context");
 assert.match(pipelineContractPattern.begin, /pipeline/u);
 assert.match(pipelineContractPattern.patterns?.find((pattern) => pattern.match?.includes("transaction"))?.match ?? "", /transaction/u);
+const moduleContractPattern = tm.repository?.["module-contract"]?.patterns?.[0];
+assert.ok(moduleContractPattern, "TextMate must define a structural module contract context");
+assert.match(moduleContractPattern.begin, /module/u);
+const moduleKernelPattern = moduleContractPattern.patterns?.find((pattern) => pattern.match?.includes("kernels"))?.match ?? "";
+assert.match(moduleKernelPattern, /kernels/u);
+assert.doesNotMatch(keywordPatterns.filter((pattern) => pattern.match?.includes("kernels")).map((pattern) => pattern.match).join("\n"), /kernels/u, "TextMate must keep kernels out of global keyword patterns");
 const behaviorBodyPattern = tm.repository?.["behavior-bodies"]?.patterns?.[0];
 assert.ok(behaviorBodyPattern, "TextMate must define a behavior body context");
 assert.match(behaviorBodyPattern.begin, /behavior/u);

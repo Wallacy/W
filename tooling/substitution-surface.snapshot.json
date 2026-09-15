@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:801c46a5b31559ba2f0226177aeee29488b227a9d7b74723d87e875857a07e6f",
+  "corpusDigest": "sha256:0533cb8bf86027204a558762878840fca74dd5f3a69c65c79ae6a138dbd28ed6",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -8656,13 +8656,13 @@
       "selected": {
         "name": "selected",
         "language": "w-internal",
-        "sourceDigest": "sha256:447c963fa6d1cb93d66c98d7951c8ae7b60f3876305de5d7d8c0cb05a563f691",
+        "sourceDigest": "sha256:82fd67c0239f829939e07265a618174a58624d704678278f9a656069b4025ae0",
         "metrics": {
-          "utf8Bytes": 444,
-          "codePoints": 444,
-          "nonWhitespaceCodePoints": 404,
+          "utf8Bytes": 456,
+          "codePoints": 456,
+          "nonWhitespaceCodePoints": 414,
           "lines": 8,
-          "surfaceLexemes": 88
+          "surfaceLexemes": 87
         }
       },
       "alternatives": [
@@ -8731,22 +8731,22 @@
     {
       "id": "R0-accelerated-invocation-relation",
       "task": {
-        "utf8Bytes": 161,
-        "codePoints": 161,
-        "nonWhitespaceCodePoints": 143,
+        "utf8Bytes": 179,
+        "codePoints": 179,
+        "nonWhitespaceCodePoints": 160,
         "lines": 1,
-        "surfaceLexemes": 26
+        "surfaceLexemes": 29
       },
       "selected": {
         "name": "selected",
         "language": "w-internal",
-        "sourceDigest": "sha256:6b86b01690094ec4e4f75c524f3640e8e6d93df179a4c5f17830345f7905a80d",
+        "sourceDigest": "sha256:370cb3f46c15bb040cf78febfc385b92df1ffbaedbda45e010e50e6585d3bf69",
         "metrics": {
-          "utf8Bytes": 288,
-          "codePoints": 288,
-          "nonWhitespaceCodePoints": 267,
+          "utf8Bytes": 297,
+          "codePoints": 297,
+          "nonWhitespaceCodePoints": 274,
           "lines": 4,
-          "surfaceLexemes": 58
+          "surfaceLexemes": 57
         }
       },
       "alternatives": [

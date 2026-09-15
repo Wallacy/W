@@ -1,10 +1,13 @@
 // atlas:begin source-roots-imports
 module atlas_language<
   domains: [.serial],
+  kernels: { forecast: forecastKernel },
 >
 
 import std.text
 import { String as Text } from std.text
+import kernel { forecast as predict } from atlas.models
+import kernel atlas.models as models
 export * from atlas.foundation
 export { FoundationPlace as BasePlace } from atlas.foundation
 import domain { District } from atlas.domain

@@ -1229,7 +1229,7 @@
             "sourceRefs": [
               {
                 "path": "reference/last-light/ai_harness.w",
-                "symbol": "lastLightKernels"
+                "symbol": "module ai_harness<"
               }
             ],
             "id": "kernel-synthesis"
@@ -1386,12 +1386,12 @@
           },
           {
             "path": "tooling/syn1-typed-generation-cases.json",
-            "digest": "sha256:f6155b1458d16d9d54d36d8dcb900196357fbb335e345f90c4643b4d090d2287",
+            "digest": "sha256:b6c3e45a9cec670dbba64509ffce4dbadd1c2c2c2512066361a3fec8e08cad84",
             "claim": "SYN1 schema-3 65-case A/B/C/D corpus with module sets, strict events, action graphs, exact dependencies, maps, baseline refs, and target variants."
           },
           {
             "path": "tooling/syn1-typed-generation-machine.mjs",
-            "digest": "sha256:9995e1973602477d834b8e5a3bc09bc875ba2bbd4af2a25717d7dbae04fb7118",
+            "digest": "sha256:58f690a91d449cc8cd12e09ec121c8cad00f0a2fe1f80106adb2a6aa84dd5445",
             "claim": "SYN1 host machine for W parsing and bounded source shape; semantic phase trace, interface publication, compiler cache, and provider remain candidate or missing evidence."
           },
           {

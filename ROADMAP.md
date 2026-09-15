@@ -26,7 +26,7 @@ not in this queue.
 
 | Rank | Increment | Completion boundary | What it enables |
 | ---: | --- | --- | --- |
-| 1 | Accelerated-domain GPU Hello sentinel | Canonical `spawn<domain> descriptor.field()`, with an accelerated domain, crosses verified W IR into separate host/device artifacts, binds the root-owned launch relation, then launches and joins through a supported provider and verifies a known payload on the available GPU; end-to-end, dispatch, and transfer metrics stay separate | Tests the common source surface, CPU/device partitioning and MLIR GPU applicability before scheduler and memory abstractions harden |
+| 1 | Accelerated-domain GPU Hello sentinel | Canonical `module ...<kernels: { label: directFunction }>` plus `spawn<domain> label()`, with an accelerated domain, crosses verified W IR into separate host/device artifacts, binds the root-owned launch relation, then launches and joins through a supported provider and verifies a known payload on the available GPU; end-to-end, dispatch, and transfer metrics stay separate | Tests the common source surface, CPU/device partitioning and MLIR GPU applicability before scheduler and memory abstractions harden |
 | 2 | Capacity-independent task storage | Replace the seed one-to-four logical-task arrays with measured caller-owned records; logical task count and physical worker capacity remain separate; configured exhaustion fails before effects | Removes an implementation ceiling before scheduler generalization |
 | 3 | Structured cancellation and outcomes | Request, propagation, cleanup drain, typed failure, panic boundary, and deterministic outcome publication execute through the same native route | A usable structured-concurrency core rather than successful scalar jobs only |
 | 4 | Provider-neutral scheduler core | Target-neutral ready/task/frame state lowers once; Windows and Linux providers supply only platform primitives and cached topology/capacity facts | Portable concurrency without a platform-shaped language ABI |
@@ -58,16 +58,16 @@ gate.
 W-1601 now supplies the target-neutral two-function/seven-operation GPU0
 witness, separate host/device MLIR, GPU/NVVM/PTX lowering, actual result `42`
 on the available RTX A400, and a diagnostic-only in-process metric snapshot.
-The seed parser and Frontend28 preserve the canonical
-`accelerator.module<{...}>()` static record and ordered direct local kernel
-bindings. The new `w-seed-gpu-module-1` bridge copies that meaning into
+The seed parser and Frontend31 preserve the canonical module contract
+`kernels: { label: directFunction }` and ordered direct local kernel bindings.
+The new `w-seed-gpu-module-2` bridge copies that meaning into
 independently verified, provider- and target-neutral device-module records; its
 first source-backed body slice proves zero-parameter signed-`i32` literal-return
 kernels and survives source/frontend teardown. A caller-owned, provider-neutral
-projection now selects one verified module field, copies its host-root const
-name, kernel field label, private implementation name, and payload into the
+projection now selects one verified kernel binding, copies its module-contract
+module name, kernel label, private implementation name, and payload into the
 exact GPU0 records, and remains verifiable after bridge teardown. The recipe is
-still mixed MLIR 23.1.1 plus Clang 22. Frontend28 plus ACCINV0 preserve and
+still mixed MLIR 23.1.1 plus Clang 22. Frontend31 plus ACCINV0 preserve and
 independently verify the bounded static accelerated-domain invocation after
 producer teardown. ACCBIND0 additionally closes one caller-owned root/profile
 relation, including exact module/kernel-instance identity, ABI equality, and

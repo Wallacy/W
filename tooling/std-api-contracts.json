@@ -841,14 +841,14 @@
       "bounds": ["total-bytes", "representation-count", "text-bytes", "image-bytes", "image-width", "image-height", "image-pixels", "json-depth", "json-nodes"],
       "complexity": { "time": "linear-bounded-payload", "space": "bounded-by-limits" }
     },
-    "accelerator-module": {
+    "kernel-module-contract": {
       "capabilities": [],
       "effects": [],
       "failures": { "mode": "none", "types": [] },
-      "bounds": ["nominal-module-identity", "closed-descriptor", "no-runtime-reflection"],
+      "bounds": ["nominal-module-identity", "contextual-kernel-contract", "no-runtime-reflection"],
       "complexity": { "time": "constant", "space": "fixed-handle" }
     },
-    "accelerator-module-synthesis": {
+    "kernel-module-synthesis": {
       "capabilities": [],
       "effects": [],
       "failures": { "mode": "none", "types": [] },
@@ -3027,8 +3027,8 @@
       "apis": [
         { "symbol": "LaunchError", "kind": "enum", "profile": "accelerator-launch" },
         { "symbol": "Limits", "kind": "struct", "profile": "value-contract", "members": [{ "symbol": "init", "profile": "value-contract" }, { "symbol": "standard", "profile": "value-contract" }] },
-        { "symbol": "ModuleIdentity", "kind": "struct", "profile": "accelerator-module", "members": [{ "symbol": "same", "profile": "accelerator-module" }] },
-        { "symbol": "KernelModule", "kind": "protocol", "profile": "accelerator-module" },
+        { "symbol": "ModuleIdentity", "kind": "struct", "profile": "kernel-module-contract", "members": [{ "symbol": "same", "profile": "kernel-module-contract" }] },
+        { "symbol": "KernelModule", "kind": "protocol", "profile": "kernel-module-contract" },
         { "symbol": "Launch", "kind": "struct", "profile": "accelerator-launch", "members": [{ "symbol": "close", "profile": "accelerator-launch" }] },
         { "symbol": "open", "kind": "fn", "profile": "accelerator-launch" }
       ]
@@ -3400,18 +3400,18 @@
       "status": "draft"
     },
     {
-      "id": "dev0-accelerator-module-synthesis",
+      "id": "dev0-kernel-module-contract",
       "module": "std.accelerator",
-      "surface": "module",
+      "surface": "kernels",
       "kind": "compiler-synthesis",
       "consumer": "reference/last-light/ai_harness.w",
-      "consumerToken": "accelerator.module",
+      "consumerToken": "kernels:",
       "designAnchor": "12.7.2",
       "oracle": {
         "path": "tooling/kernel-module-cases.json",
         "decisions": ["W-1284", "W-1285", "W-1286", "W-1287"]
       },
-      "profile": "accelerator-module-synthesis",
+      "profile": "kernel-module-contract",
       "status": "draft"
     },
     {

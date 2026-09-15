@@ -1033,8 +1033,8 @@ typedef struct {
   w_seed_frontend_external_symbol external_symbols[8];
   w_seed_frontend_external_module external_modules[2];
   w_seed_frontend_resolved_import resolved_imports[4];
-  w_seed_frontend_accelerator_module accelerator_modules[4];
-  w_seed_frontend_accelerator_kernel accelerator_kernels[8];
+  w_seed_frontend_kernel_module kernel_modules[4];
+  w_seed_frontend_kernel_binding kernel_bindings[8];
   uint8_t const_bytes[TEST_SOURCE];
   uint8_t frontend_receipt[TEST_RECEIPT];
   w_seed_frontend_output output;
@@ -1184,14 +1184,14 @@ static bool fixture_parse(const char *text) {
       .function_capacity = TEST_FUNCTIONS,
       .parameters = fixture.parameters,
       .parameter_capacity = TEST_PARAMETERS,
-      .accelerator_modules = fixture.accelerator_modules,
-      .accelerator_module_capacity =
-          sizeof(fixture.accelerator_modules) /
-          sizeof(fixture.accelerator_modules[0]),
-      .accelerator_kernels = fixture.accelerator_kernels,
-      .accelerator_kernel_capacity =
-          sizeof(fixture.accelerator_kernels) /
-          sizeof(fixture.accelerator_kernels[0]),
+      .kernel_modules = fixture.kernel_modules,
+      .kernel_module_capacity =
+          sizeof(fixture.kernel_modules) /
+          sizeof(fixture.kernel_modules[0]),
+      .kernel_bindings = fixture.kernel_bindings,
+      .kernel_binding_capacity =
+          sizeof(fixture.kernel_bindings) /
+          sizeof(fixture.kernel_bindings[0]),
       .entries = fixture.entries,
       .entry_capacity = TEST_ENTRIES,
       .statements = fixture.statements,
@@ -3574,25 +3574,25 @@ static bool test_parallel_domain_placement_hir(void) {
       "let right = spawn<.domain> combine(right: 2, left: 20) "
       "let first = await left let second = await right }\n";
 
-  /* Frontend28 added accelerated-domain and module-field identities. HIR38
+  /* Frontend31 added accelerated-domain and kernel-binding identities. HIR38
    * does not represent them yet, so its boundary must reject every forged or
    * unrepresented field instead of treating appended schema bytes as zero-cost
    * metadata. */
   CHECK(fixture_parallel_domain_frontend(
       SOURCE, W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL));
   setup_hir_output();
-  const w_seed_hir0_input frontend28_input = {
+  const w_seed_hir0_input frontend31_input = {
       .frontend_input = &fixture.input,
       .frontend_output = &fixture.output,
       .frontend_result = &fixture.result,
       .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
-  w_seed_hir0_counts frontend28_counts;
-  w_seed_hir0_result frontend28_result;
+  w_seed_hir0_counts frontend31_counts;
+  w_seed_hir0_result frontend31_result;
   fixture.domains[0].kind = W_SEED_FRONTEND_DOMAIN_ACCELERATED;
   fixture.domains[0].capabilities = W_SEED_FRONTEND_DOMAIN_CAPABILITY_DEVICE;
   fixture.domains[0].maximum = 1u;
-  CHECK(w_seed_hir0_measure(&frontend28_input, &frontend28_counts,
-                            &frontend28_result) != W_SEED_HIR0_OK);
+  CHECK(w_seed_hir0_measure(&frontend31_input, &frontend31_counts,
+                            &frontend31_result) != W_SEED_HIR0_OK);
   fixture.domains[0].kind = W_SEED_FRONTEND_DOMAIN_HOST;
   fixture.domains[0].capabilities = W_SEED_FRONTEND_DOMAIN_CAPABILITY_PARALLEL;
   fixture.domains[0].maximum = 0u;
@@ -3613,15 +3613,15 @@ static bool test_parallel_domain_placement_hir(void) {
   fixture.expressions[frontend_launch].domain_kind =
       W_SEED_FRONTEND_DOMAIN_ACCELERATED;
   fixture.expressions[frontend_launch].domain_maximum = 1u;
-  CHECK(w_seed_hir0_measure(&frontend28_input, &frontend28_counts,
-                            &frontend28_result) != W_SEED_HIR0_OK);
+  CHECK(w_seed_hir0_measure(&frontend31_input, &frontend31_counts,
+                            &frontend31_result) != W_SEED_HIR0_OK);
   fixture.expressions[frontend_launch].domain_kind =
       W_SEED_FRONTEND_DOMAIN_HOST;
   fixture.expressions[frontend_launch].domain_maximum = 0u;
-  fixture.expressions[frontend_call].resolved_accelerator_module_index = 0u;
-  fixture.expressions[frontend_call].resolved_accelerator_kernel_index = 0u;
-  CHECK(w_seed_hir0_measure(&frontend28_input, &frontend28_counts,
-                            &frontend28_result) != W_SEED_HIR0_OK);
+  fixture.expressions[frontend_call].resolved_kernel_module_index = 0u;
+  fixture.expressions[frontend_call].resolved_kernel_binding_index = 0u;
+  CHECK(w_seed_hir0_measure(&frontend31_input, &frontend31_counts,
+                            &frontend31_result) != W_SEED_HIR0_OK);
 
   CHECK(lower_parallel_domain(SOURCE));
   const w_seed_hir0_program *program = &fixture.hir_program;
@@ -8491,10 +8491,10 @@ static bool test_closed_frontend_barriers(void) {
        &fixture.result.written.const_elements},
       {&fixture.result.required.const_declarations,
        &fixture.result.written.const_declarations},
-      {&fixture.result.required.accelerator_modules,
-       &fixture.result.written.accelerator_modules},
-      {&fixture.result.required.accelerator_kernels,
-       &fixture.result.written.accelerator_kernels},
+      {&fixture.result.required.kernel_modules,
+       &fixture.result.written.kernel_modules},
+      {&fixture.result.required.kernel_bindings,
+       &fixture.result.written.kernel_bindings},
   };
   for (size_t index = 0u; index < sizeof(unsupported) / sizeof(unsupported[0]);
        index += 1u) {

@@ -20,8 +20,8 @@ import {
   FeatureBatch,
   WeightMatrix,
   forecastKernel,
-  lastLightKernels,
 } from ai_harness
+import kernel ai_harness as models
 
 export enum DeviceInvocationPhase {
   staged
@@ -62,7 +62,7 @@ export async fn forecastOnDevice<
   features: ref FeatureBatch<rows: rows, columns: inputs>,
   weights: ref WeightMatrix<inputs: inputs, outputs: outputs>,
 ): FeatureBatch<rows: rows, columns: outputs> throws accelerator.LaunchError {
-  let prediction = spawn<.inference> lastLightKernels.forecast(
+  let prediction = spawn<.inference> models.forecast(
     features: ref features,
     weights: ref weights,
   )
@@ -102,8 +102,7 @@ export async fn forecastOnSelectedDevice<
   queue: ref tensor.Queue,
   limits: ref accelerator.Limits,
 ): FeatureBatch<rows: rows, columns: outputs> throws accelerator.LaunchError {
-  var launch = try await accelerator.open(
-    module: ref lastLightKernels,
+  var launch = try await accelerator.open<module: models>(
     on: ref queue,
     limits: ref limits,
   )
@@ -115,7 +114,7 @@ export async fn forecastOnSelectedDevice<
     }
   }
 
-  let prediction = async lastLightKernels.forecast.launch(
+  let prediction = async models.forecast.launch(
     using: ref launch,
     features: ref features,
     weights: ref weights,

@@ -16,7 +16,7 @@ extern "C" {
  * sentinel. It owns copied identity and device-artifact bytes. It contains no
  * provider handle, pointer, submission receipt, or public ABI. */
 #define W_SEED_ACCELERATED_REQUEST0_SCHEMA_VERSION \
-  "w-seed-accelerated-request0-1"
+  "w-seed-accelerated-request0-2"
 #define W_SEED_ACCELERATED_REQUEST0_SHA256_BYTES 32u
 #define W_SEED_ACCELERATED_REQUEST0_MAX_REQUESTS 1u
 
@@ -46,8 +46,8 @@ typedef struct {
   size_t root_bytes;
   size_t domain_offset;
   size_t domain_bytes;
-  size_t descriptor_offset;
-  size_t descriptor_bytes;
+  size_t kernel_contract_name_offset;
+  size_t kernel_contract_name_bytes;
   size_t module_identity_offset;
   size_t module_identity_bytes;
   size_t artifact_identity_offset;

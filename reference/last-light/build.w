@@ -796,13 +796,12 @@ package {
       targets: ["embedded"]
       capabilities: [.clock, .interrupts, .mmio]
     },
-    // Descriptor-only roots derive a source-backed module manifest. A host
+    // Module-contract roots derive a source-backed module manifest. A host
     // product with concrete launch sites derives the closed device artifact.
     {
       name: "last-light-accelerators"
       kind: .deviceBundle
       module: "ai_harness"
-      exports: ["ai_harness::lastLightKernels"]
       host: "w.host/accelerator-module@1"
       targets: ["accelerators"]
       capabilities: [.deviceMemory, .workgroups]

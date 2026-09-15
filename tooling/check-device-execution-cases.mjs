@@ -52,7 +52,7 @@ function expandOperations(item, index) {
   return expanded
 }
 
-if (corpus.$schema !== "w-device-execution-cases-1") errors.push("schema")
+if (corpus.$schema !== "w-device-execution-cases-2") errors.push("schema")
 if (corpus.status !== "design-oracle-input") errors.push("status")
 if (!Array.isArray(corpus.cases) || corpus.cases.length < 24) errors.push("coverage")
 

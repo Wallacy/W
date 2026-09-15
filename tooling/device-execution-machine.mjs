@@ -207,7 +207,7 @@ function openScope(state, operation, ownerKind) {
     requirePositive(operation.maximum, "W-CONTRACT-0002")
     if (operation.fallback !== "reject") fail("W-PLACEMENT-0002")
     if (operation.rootOwned !== true) fail("W-DEVICE-0004")
-    if (operation.calleeKind !== "acceleratorModuleField") fail("W-PLACEMENT-0004")
+    if (operation.calleeKind !== "kernelBinding") fail("W-PLACEMENT-0004")
     if (operation.calleeModuleIdentity !== operation.moduleIdentity) fail("W-DEVICE-0001")
     if (operation.runtimeConfigurationInAngles === true) fail("W-CONTRACT-0002")
     if (operation.implicitTransfer === true) fail("W-DEVICE-0003")

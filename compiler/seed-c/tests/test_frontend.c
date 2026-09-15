@@ -40,8 +40,8 @@ enum {
   TEST_ENUM_SUBSET_MEMBERS = 256,
   TEST_FIELDS = 64,
   TEST_DECLARATIONS = 32,
-  TEST_ACCELERATOR_MODULES = 16,
-  TEST_ACCELERATOR_KERNELS = 64,
+  TEST_KERNEL_MODULES = 16,
+  TEST_KERNEL_BINDINGS = 64,
   TEST_TYPES = 128,
   TEST_FUNCTIONS = 32,
   TEST_PARAMETERS = 128,
@@ -98,10 +98,10 @@ typedef struct {
   w_seed_frontend_type_declaration type_declarations[TEST_DECLARATIONS];
   w_seed_frontend_alias aliases[TEST_DECLARATIONS];
   w_seed_frontend_const_declaration const_declarations[TEST_DECLARATIONS];
-  w_seed_frontend_accelerator_module
-      accelerator_modules[TEST_ACCELERATOR_MODULES];
-  w_seed_frontend_accelerator_kernel
-      accelerator_kernels[TEST_ACCELERATOR_KERNELS];
+  w_seed_frontend_kernel_module
+      kernel_modules[TEST_KERNEL_MODULES];
+  w_seed_frontend_kernel_binding
+      kernel_bindings[TEST_KERNEL_BINDINGS];
   w_seed_frontend_type types[TEST_TYPES];
   w_seed_frontend_function functions[TEST_FUNCTIONS];
   w_seed_frontend_parameter parameters[TEST_PARAMETERS];
@@ -159,8 +159,8 @@ static fixture fixture_mutation;
 static fixture fixture_async;
 
 typedef struct {
-  w_seed_gpu_module_record modules[TEST_ACCELERATOR_MODULES];
-  w_seed_gpu_module_kernel kernels[TEST_ACCELERATOR_KERNELS];
+  w_seed_gpu_module_record modules[TEST_KERNEL_MODULES];
+  w_seed_gpu_module_kernel kernels[TEST_KERNEL_BINDINGS];
   uint8_t text[8192];
   uint8_t receipt[TEST_RECEIPT];
 } gpu_module_storage;
@@ -226,10 +226,10 @@ static void fixture_fill_output(fixture *fixture_value, uint8_t value) {
   (void)memset(fixture_value->aliases, value, sizeof(fixture_value->aliases));
   (void)memset(fixture_value->const_declarations, value,
                sizeof(fixture_value->const_declarations));
-  (void)memset(fixture_value->accelerator_modules, value,
-               sizeof(fixture_value->accelerator_modules));
-  (void)memset(fixture_value->accelerator_kernels, value,
-               sizeof(fixture_value->accelerator_kernels));
+  (void)memset(fixture_value->kernel_modules, value,
+               sizeof(fixture_value->kernel_modules));
+  (void)memset(fixture_value->kernel_bindings, value,
+               sizeof(fixture_value->kernel_bindings));
   (void)memset(fixture_value->types, value, sizeof(fixture_value->types));
   (void)memset(fixture_value->functions, value,
                sizeof(fixture_value->functions));
@@ -302,10 +302,10 @@ static bool fixture_output_is(const fixture *fixture_value, uint8_t value,
                           value) &&
           all_bytes_equal(fixture_value->const_declarations,
                           sizeof(fixture_value->const_declarations), value) &&
-          all_bytes_equal(fixture_value->accelerator_modules,
-                          sizeof(fixture_value->accelerator_modules), value) &&
-          all_bytes_equal(fixture_value->accelerator_kernels,
-                          sizeof(fixture_value->accelerator_kernels), value) &&
+          all_bytes_equal(fixture_value->kernel_modules,
+                          sizeof(fixture_value->kernel_modules), value) &&
+          all_bytes_equal(fixture_value->kernel_bindings,
+                          sizeof(fixture_value->kernel_bindings), value) &&
          all_bytes_equal(fixture_value->types, sizeof(fixture_value->types),
                          value) &&
          all_bytes_equal(fixture_value->functions,
@@ -431,10 +431,10 @@ static bool fixture_parse(fixture *fixture_value, const char *text) {
       .alias_capacity = TEST_DECLARATIONS,
       .const_declarations = fixture_value->const_declarations,
       .const_declaration_capacity = TEST_DECLARATIONS,
-      .accelerator_modules = fixture_value->accelerator_modules,
-      .accelerator_module_capacity = TEST_ACCELERATOR_MODULES,
-      .accelerator_kernels = fixture_value->accelerator_kernels,
-      .accelerator_kernel_capacity = TEST_ACCELERATOR_KERNELS,
+      .kernel_modules = fixture_value->kernel_modules,
+      .kernel_module_capacity = TEST_KERNEL_MODULES,
+      .kernel_bindings = fixture_value->kernel_bindings,
+      .kernel_binding_capacity = TEST_KERNEL_BINDINGS,
       .types = fixture_value->types,
       .type_capacity = TEST_TYPES,
       .functions = fixture_value->functions,
@@ -1434,6 +1434,17 @@ static bool append_many_piece(char *destination, size_t capacity,
   char piece[64];
   const int written = snprintf(piece, sizeof(piece), "%s%llu%s", prefix,
                                (unsigned long long)index, suffix);
+  if (written < 0 || (size_t)written >= sizeof(piece)) return false;
+  return append_many_source(destination, capacity, length, piece);
+}
+
+static bool append_kernel_contract_field(char *destination, size_t capacity,
+                                         size_t *length, size_t index,
+                                         bool last) {
+  char piece[64];
+  const int written = snprintf(
+      piece, sizeof(piece), "k%llu: f%llu%s", (unsigned long long)index,
+      (unsigned long long)index, last ? "" : ", ");
   if (written < 0 || (size_t)written >= sizeof(piece)) return false;
   return append_many_source(destination, capacity, length, piece);
 }
@@ -5891,49 +5902,87 @@ static bool test_repeat_projection(void) {
   return true;
 }
 
-static bool test_accelerator_module_frontend(void) {
+static bool test_kernel_module_frontend(void) {
   static const char source[] =
+      "module accelerated_invocation<kernels: { hello: kernel }>\n"
       "fn kernel(): i64 { return 42 }\n"
-      "export const kernels = accelerator.module<{ hello: kernel }>()\n"
       "entry { }\n";
   fixture *value = &fixture_const;
   CHECK(fixture_run(value, source));
   CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
         value->result.status == W_SEED_FRONTEND_OK &&
-        value->result.required.accelerator_modules == 1u &&
-        value->result.required.accelerator_kernels == 1u &&
-        value->result.written.accelerator_modules == 1u &&
-        value->result.written.accelerator_kernels == 1u);
-  const w_seed_frontend_accelerator_module *module =
-      &value->accelerator_modules[0];
-  const w_seed_frontend_accelerator_kernel *kernel =
-      &value->accelerator_kernels[0];
+        value->result.required.kernel_modules == 1u &&
+        value->result.required.kernel_bindings == 1u &&
+        value->result.written.kernel_modules == 1u &&
+        value->result.written.kernel_bindings == 1u);
+  const w_seed_frontend_kernel_module *module =
+      &value->kernel_modules[0];
+  const w_seed_frontend_kernel_binding *kernel =
+      &value->kernel_bindings[0];
   CHECK(module->module_index == 0u &&
-        module->const_declaration_index == 0u &&
         module->first_kernel == 0u && module->kernel_count == 1u &&
         module->span.start_byte < module->span.end_byte);
   CHECK(kernel->module_index == 0u &&
-        kernel->owner_accelerator_module == 0u && kernel->ordinal == 0u &&
+        kernel->owner_kernel_module == 0u && kernel->ordinal == 0u &&
         frontend_text_is(kernel->label, "hello") &&
         kernel->function_index == 0u &&
         kernel->span.start_byte >= module->span.start_byte &&
         kernel->span.end_byte <= module->span.end_byte);
-  CHECK(value->const_declarations[0].initializer_expression ==
-            W_SEED_FRONTEND_NONE &&
-        value->const_declarations[0].effective_type == W_SEED_FRONTEND_NONE &&
-        !value->const_declarations[0].lowerable);
   CHECK(receipt_contains(
-      value, "accelerator-module=0|const=0",
-      sizeof("accelerator-module=0|const=0") - 1u));
+      value, "kernel-module=0|span=",
+      sizeof("kernel-module=0|span=") - 1u));
   CHECK(receipt_contains(
-      value, "accelerator-kernel=0|owner=0|ordinal=0|label=5:68656c6c6f",
-      sizeof("accelerator-kernel=0|owner=0|ordinal=0|label=5:68656c6c6f") -
+      value, "kernel-binding=0|owner=0|ordinal=0|label=5:68656c6c6f",
+      sizeof("kernel-binding=0|owner=0|ordinal=0|label=5:68656c6c6f") -
           1u));
 
+  /* Projection imports are source provenance only in the seed.  Their kind,
+   * qualified alias, ordinary-name distinction, and item ranges all remain
+   * explicit frontend receipt identity. */
+  static const char projection_imports[] =
+      "module import_surface\n"
+      "import kernel { forecast, old as renamed } from models.forecast\n"
+      "import kernel models.forecast as models\n"
+      "import kernel;\n"
+      "import kernel.foo;\n";
+  CHECK(fixture_run(value, projection_imports));
+  CHECK(value->result.written.imports == 4u &&
+        value->result.written.import_items == 5u &&
+        value->imports[0].kind == W_SEED_FRONTEND_IMPORT_KERNEL &&
+        frontend_text_is(value->imports[0].path, "models.forecast") &&
+        value->imports[0].alias.length == 0u &&
+        value->imports[0].first_item == 0u &&
+        value->imports[0].item_count == 2u &&
+        value->imports[1].kind == W_SEED_FRONTEND_IMPORT_KERNEL &&
+        frontend_text_is(value->imports[1].alias, "models") &&
+        value->imports[1].first_item == 2u &&
+        value->imports[1].item_count == 1u &&
+        value->imports[2].kind == W_SEED_FRONTEND_IMPORT_ORDINARY &&
+        frontend_text_is(value->imports[2].path, "kernel") &&
+        value->imports[3].kind == W_SEED_FRONTEND_IMPORT_ORDINARY &&
+        frontend_text_is(value->imports[3].path, "kernel.foo") &&
+        frontend_text_is(value->import_items[1].local_name, "renamed") &&
+        frontend_text_is(value->import_items[1].name, "old") &&
+        receipt_contains(value, "|kind=1|alias=0:",
+                         sizeof("|kind=1|alias=0:") - 1u) &&
+        receipt_contains(value,
+                         "import-item=1|module=0|name=3:6f6c64|local=7:72656e616d6564",
+                         sizeof("import-item=1|module=0|name=3:6f6c64|local=7:72656e616d6564") -
+                             1u));
+
+  static const char kernel_alias_collision[] =
+      "module collision\n"
+      "import kernel models.forecast as value\n"
+      "import { Other as value } from other\n"
+      "fn local(): i64 { return 1 }\n";
+  CHECK(fixture_run(value, kernel_alias_collision));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(value, W_SEED_FRONTEND_FACT_DUPLICATE_LOCAL_SYMBOL));
+
   static const char accelerated_spawn[] =
+      "module accelerated_invocation<kernels: { hello: kernel }>\n"
       "fn kernel(value: i64): i64 { return value }\n"
-      "export const kernels = accelerator.module<{ hello: kernel }>()\n"
-      "entry { let pending = spawn<.inference> kernels.hello(value: 42) "
+      "entry { let pending = spawn<.inference> hello(value: 42) "
       "let result = await pending }\n";
   CHECK(fixture_parse(value, accelerated_spawn));
   fixture_configure_accelerated_domain(value, 4u);
@@ -5960,10 +6009,10 @@ static bool test_accelerator_module_frontend(void) {
     }
     if (expression->kind == W_SEED_FRONTEND_EXPR_CALL &&
         expression->resolved_callee_kind ==
-            W_SEED_FRONTEND_CALLEE_ACCELERATOR_MODULE_FIELD) {
+            W_SEED_FRONTEND_CALLEE_KERNEL_BINDING) {
       CHECK(expression->supported &&
-            expression->resolved_accelerator_module_index == 0u &&
-            expression->resolved_accelerator_kernel_index == 0u &&
+            expression->resolved_kernel_module_index == 0u &&
+            expression->resolved_kernel_binding_index == 0u &&
             expression->resolved_function_index == 0u &&
             expression->argument_count == 1u);
       accelerated_call_count += 1u;
@@ -5976,23 +6025,23 @@ static bool test_accelerator_module_frontend(void) {
       sizeof("domain=0|10:2e696e666572656e6365|kind=1|mode=1|capabilities=2|maximum=4\n") -
           1u));
   CHECK(receipt_contains(
-      value, "|kind=4|host=4294967295|external=4294967295:4294967295|accelerator=0:0\n",
-      sizeof("|kind=4|host=4294967295|external=4294967295:4294967295|accelerator=0:0\n") -
+      value, "|kind=4|host=4294967295|external=4294967295:4294967295|kernel=0:0\n",
+      sizeof("|kind=4|host=4294967295|external=4294967295:4294967295|kernel=0:0\n") -
           1u));
 
   static const char *const rejected_launches[] = {
+      "module accelerated_invocation<kernels: { hello: kernel }>\n"
       "fn kernel(value: i64): i64 { return value }\n"
-      "export const kernels = accelerator.module<{ hello: kernel }>()\n"
-      "entry { let value = kernels.hello(value: 42) }\n",
+      "entry { let value = hello(value: 42) }\n",
+      "module accelerated_invocation<kernels: { hello: kernel }>\n"
       "fn kernel(value: i64): i64 { return value }\n"
-      "export const kernels = accelerator.module<{ hello: kernel }>()\n"
-      "entry { let pending = async kernels.hello(value: 42) }\n",
+      "entry { let pending = async hello(value: 42) }\n",
+      "module accelerated_invocation<kernels: { hello: kernel }>\n"
       "fn kernel(value: i64): i64 { return value }\n"
-      "export const kernels = accelerator.module<{ hello: kernel }>()\n"
       "entry { let pending = spawn<.inference> kernel(value: 42) }\n",
+      "module accelerated_invocation<kernels: { hello: kernel }>\n"
       "fn kernel(value: i64): i64 { return value }\n"
-      "export const kernels = accelerator.module<{ hello: kernel }>()\n"
-      "entry { let pending = spawn<.inference> kernels.missing(value: 42) }\n",
+      "entry { let pending = spawn<.inference> missing(value: 42) }\n",
   };
   for (size_t index = 0u;
        index < sizeof(rejected_launches) / sizeof(rejected_launches[0]);
@@ -6032,11 +6081,9 @@ static bool test_accelerator_module_frontend(void) {
         W_SEED_FRONTEND_UNSUPPORTED);
 
   static const char multiple_modules[] =
+      "module primary<kernels: { first: first }>\n"
       "fn first(): i64 { return 1 }\n"
-      "fn second(): i64 { return 2 }\n"
-      "export const primary = accelerator.module<{ first: first }>()\n"
-      "export const secondary = accelerator.module<{ second: second }>()\n"
-      "entry { let pending = spawn<.inference> secondary.second() "
+      "entry { let pending = spawn<.inference> first() "
       "let result = await pending }\n";
   CHECK(fixture_parse(value, multiple_modules));
   fixture_configure_accelerated_domain(value, 2u);
@@ -6049,76 +6096,141 @@ static bool test_accelerator_module_frontend(void) {
     const w_seed_frontend_expression *expression = &value->expressions[index];
     if (expression->kind == W_SEED_FRONTEND_EXPR_CALL &&
         expression->resolved_callee_kind ==
-            W_SEED_FRONTEND_CALLEE_ACCELERATOR_MODULE_FIELD) {
-      CHECK(expression->resolved_accelerator_module_index == 1u &&
-            expression->resolved_accelerator_kernel_index == 1u &&
-            expression->resolved_function_index == 1u);
+            W_SEED_FRONTEND_CALLEE_KERNEL_BINDING) {
+      CHECK(expression->resolved_kernel_module_index == 0u &&
+            expression->resolved_kernel_binding_index == 0u &&
+            expression->resolved_function_index == 0u);
       selected_second_module = true;
     }
   }
   CHECK(selected_second_module);
 
   static const char nested_accelerator_call[] =
+      "module accelerated_invocation<kernels: { hello: kernel }>\n"
       "fn kernel(value: i64): i64 { return value }\n"
       "fn wrapper(value: i64): i64 { return value }\n"
-      "export const kernels = accelerator.module<{ hello: kernel }>()\n"
       "entry { let pending = spawn<.inference> wrapper(value: "
-      "kernels.hello(value: 42)) }\n";
+      "hello(value: 42)) }\n";
   CHECK(fixture_parse(value, nested_accelerator_call));
   fixture_configure_accelerated_domain(value, 4u);
   CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
         W_SEED_FRONTEND_UNSUPPORTED);
 
   static const char composed[] =
+      "module composed<kernels: { first: first, second: second }>\n"
       "fn first(): i64 { return 1 }\n"
       "fn second(): i64 { return 2 }\n"
-      "export const kernels = accelerator.module<{ first: first, second: "
-      "second }>()\n"
       "entry { }\n";
   CHECK(fixture_run(value, composed));
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
-        value->result.written.accelerator_modules == 1u &&
-        value->result.written.accelerator_kernels == 2u &&
-        value->accelerator_modules[0].first_kernel == 0u &&
-        value->accelerator_modules[0].kernel_count == 2u &&
-        value->accelerator_kernels[0].ordinal == 0u &&
-        frontend_text_is(value->accelerator_kernels[0].label, "first") &&
-        value->accelerator_kernels[0].function_index == 0u &&
-        value->accelerator_kernels[1].ordinal == 1u &&
-        frontend_text_is(value->accelerator_kernels[1].label, "second") &&
-        value->accelerator_kernels[1].function_index == 1u);
+        value->result.written.kernel_modules == 1u &&
+        value->result.written.kernel_bindings == 2u &&
+        value->kernel_modules[0].first_kernel == 0u &&
+        value->kernel_modules[0].kernel_count == 2u &&
+        value->kernel_bindings[0].ordinal == 0u &&
+        frontend_text_is(value->kernel_bindings[0].label, "first") &&
+        value->kernel_bindings[0].function_index == 0u &&
+        value->kernel_bindings[1].ordinal == 1u &&
+        frontend_text_is(value->kernel_bindings[1].label, "second") &&
+        value->kernel_bindings[1].function_index == 1u);
+
+  /* Public labels, rather than source field order, define canonical ordinals.
+   * Reordering the contract therefore preserves the module/binding interface
+   * identity while the source spans remain provenance-specific. */
+  static const char composed_reordered[] =
+      "module composed<kernels: { second: second, first: first }>\n"
+      "fn first(): i64 { return 1 }\n"
+      "fn second(): i64 { return 2 }\n"
+      "entry { }\n";
+  fixture *reordered = &fixture_a;
+  CHECK(fixture_run(reordered, composed_reordered));
+  CHECK(reordered->result.status == W_SEED_FRONTEND_OK &&
+        reordered->result.written.kernel_modules == 1u &&
+        reordered->result.written.kernel_bindings == 2u &&
+        reordered->kernel_modules[0].module_index ==
+            value->kernel_modules[0].module_index &&
+        reordered->kernel_modules[0].first_kernel ==
+            value->kernel_modules[0].first_kernel &&
+        reordered->kernel_modules[0].kernel_count ==
+            value->kernel_modules[0].kernel_count &&
+        reordered->kernel_bindings[0].ordinal ==
+            value->kernel_bindings[0].ordinal &&
+        frontend_text_is(reordered->kernel_bindings[0].label, "first") &&
+        reordered->kernel_bindings[0].function_index ==
+            value->kernel_bindings[0].function_index &&
+        reordered->kernel_bindings[1].ordinal ==
+            value->kernel_bindings[1].ordinal &&
+        frontend_text_is(reordered->kernel_bindings[1].label, "second") &&
+        reordered->kernel_bindings[1].function_index ==
+            value->kernel_bindings[1].function_index);
+
+  /* The implementation has no small fixed kernel-field ceiling. */
+  size_t many_kernel_length = 0u;
+  CHECK(append_many_source(long_source, sizeof(long_source),
+                           &many_kernel_length,
+                           "module many<kernels: { "));
+  for (size_t index = 0u; index < 24u; index += 1u)
+    CHECK(append_kernel_contract_field(
+        long_source, sizeof(long_source), &many_kernel_length, index,
+        index == 23u));
+  CHECK(append_many_source(long_source, sizeof(long_source),
+                           &many_kernel_length, " }>\n"));
+  for (size_t index = 0u; index < 24u; index += 1u)
+    CHECK(append_many_piece(long_source, sizeof(long_source),
+                            &many_kernel_length, index, "fn f",
+                            "(): i64 { return 0 }\n"));
+  CHECK(fixture_run(reordered, long_source));
+  CHECK(reordered->result.status == W_SEED_FRONTEND_OK &&
+        reordered->result.written.kernel_modules == 1u &&
+        reordered->result.written.kernel_bindings == 24u &&
+        reordered->result.written.functions == 24u);
 
   static const char *const rejected[] = {
-      "export const kernels = accelerator.module<{}>()\n",
-      "export const kernels = accelerator.module<{ hello: missing }>()\n",
-      "fn kernel(): i64 { return 42 } export const kernels = "
-      "accelerator.module<{ hello: kernel, hello: kernel }>()\n",
-      "fn kernel(): i64 { return 42 } export const kernels = "
-      "accelerator.module<{ hello: kernel }>(42)\n",
+      "module missing<kernels: { hello: missing }>\n",
+      "module duplicate<kernels: { hello: kernel, hello: kernel }>\n"
+      "fn kernel(): i64 { return 42 }\n",
+      "module generic<kernels: { hello: kernel }>\n"
+      "fn kernel<T>(value: T): T { return value }\n",
   };
   for (size_t index = 0u; index < sizeof(rejected) / sizeof(rejected[0]);
        index += 1u) {
     CHECK(fixture_run(value, rejected[index]));
     CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
           value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
-          value->result.written.accelerator_modules == 0u &&
-          value->result.written.accelerator_kernels == 0u &&
-          has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+          value->result.written.kernel_modules == 0u &&
+          value->result.written.kernel_bindings == 0u &&
+          has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_NODE));
+  }
+
+  /* Invalid contract targets are transactional: no partially published
+   * module/binding record can survive either a missing target, duplicate
+   * public label, or a generic target without a concrete specialization. */
+  const uint8_t contract_sentinel = 0xa5u;
+  for (size_t index = 0u; index < sizeof(rejected) / sizeof(rejected[0]);
+       index += 1u) {
+    CHECK(fixture_parse(value, rejected[index]));
+    fixture_fill_output(value, contract_sentinel);
+    CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+          W_SEED_FRONTEND_UNSUPPORTED);
+    CHECK(all_bytes_equal(value->kernel_modules,
+                          sizeof(value->kernel_modules), contract_sentinel) &&
+          all_bytes_equal(value->kernel_bindings,
+                          sizeof(value->kernel_bindings), contract_sentinel));
   }
 
   const uint8_t sentinel = 0xa5u;
   CHECK(fixture_parse(value, source));
   fixture_fill_output(value, sentinel);
-  value->output.accelerator_modules = NULL;
-  value->output.accelerator_module_capacity = 0u;
+  value->output.kernel_modules = NULL;
+  value->output.kernel_module_capacity = 0u;
   CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
         W_SEED_FRONTEND_CAPACITY);
   CHECK(fixture_output_is(value, sentinel, true));
 
   CHECK(fixture_parse(value, source));
   fixture_fill_output(value, sentinel);
-  value->output.accelerator_kernels = NULL;
-  value->output.accelerator_kernel_capacity = 0u;
+  value->output.kernel_bindings = NULL;
+  value->output.kernel_binding_capacity = 0u;
   CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
         W_SEED_FRONTEND_CAPACITY);
   CHECK(fixture_output_is(value, sentinel, true));
@@ -6164,8 +6276,8 @@ static bool test_gpu_module_bridge(const char *path) {
   CHECK(fixture_run(value, source));
   CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
         value->result.status == W_SEED_FRONTEND_OK &&
-        value->result.written.accelerator_modules == 1u &&
-        value->result.written.accelerator_kernels == 1u);
+        value->result.written.kernel_modules == 1u &&
+        value->result.written.kernel_bindings == 1u);
 
   const w_seed_gpu_module_input input = {
       .frontend_input = &value->input,
@@ -6185,9 +6297,9 @@ static bool test_gpu_module_bridge(const char *path) {
   (void)memset(&gpu_storage, 0xa5, sizeof(gpu_storage));
   w_seed_gpu_module_output output = {
       .modules = gpu_storage.modules,
-      .module_capacity = TEST_ACCELERATOR_MODULES,
+      .module_capacity = TEST_KERNEL_MODULES,
       .kernels = gpu_storage.kernels,
-      .kernel_capacity = TEST_ACCELERATOR_KERNELS,
+      .kernel_capacity = TEST_KERNEL_BINDINGS,
       .text = gpu_storage.text,
       .text_capacity = sizeof(gpu_storage.text),
       .frontend_receipt = gpu_storage.receipt,
@@ -6209,8 +6321,8 @@ static bool test_gpu_module_bridge(const char *path) {
   CHECK(program.module_count == 1u && program.kernel_count == 1u &&
         program.modules[0].first_kernel == 0u &&
         program.modules[0].kernel_count == 1u &&
-        gpu_text_is(&program, program.modules[0].const_name_offset,
-                    program.modules[0].const_name_bytes, "kernels") &&
+        gpu_text_is(&program, program.modules[0].kernel_contract_name_offset,
+                    program.modules[0].kernel_contract_name_bytes, "kernels") &&
         program.kernels[0].owner_module == 0u &&
         program.kernels[0].ordinal == 0u &&
         program.kernels[0].return_bit_width == 32u &&
@@ -6239,7 +6351,8 @@ static bool test_gpu_module_bridge(const char *path) {
   CHECK(projected.function_count == 2u && projected.operation_count == 7u &&
         projected.functions[0].role == W_SEED_GPU0_FUNCTION_HOST_ROOT &&
         projected.functions[0].interface_name == NULL &&
-        projected.functions[0].name_length == program.modules[0].const_name_bytes &&
+        projected.functions[0].name_length ==
+            program.modules[0].kernel_contract_name_bytes &&
         projected.functions[0].name == projection_storage.text &&
         memcmp(projected.functions[0].name, "kernels",
                projected.functions[0].name_length) == 0 &&
@@ -6247,13 +6360,15 @@ static bool test_gpu_module_bridge(const char *path) {
         projected.functions[1].interface_name_length ==
             program.kernels[0].label_bytes &&
         projected.functions[1].interface_name ==
-            projection_storage.text + program.modules[0].const_name_bytes &&
+            projection_storage.text +
+                program.modules[0].kernel_contract_name_bytes &&
         memcmp(projected.functions[1].interface_name, "hello",
                projected.functions[1].interface_name_length) == 0 &&
         projected.functions[1].name_length ==
             program.kernels[0].function_name_bytes &&
         projected.functions[1].name ==
-            projection_storage.text + program.modules[0].const_name_bytes +
+            projection_storage.text +
+                program.modules[0].kernel_contract_name_bytes +
                 program.kernels[0].label_bytes &&
         memcmp(projected.functions[1].name, "helloKernel",
                projected.functions[1].name_length) == 0 &&
@@ -6345,8 +6460,8 @@ static bool test_gpu_module_bridge(const char *path) {
   CHECK(all_bytes_equal(&short_projected, sizeof(short_projected), 0xa5u));
 
   static const char non42_source[] =
+      "module payloads<kernels: { value: payloadKernel }>\n"
       "fn payloadKernel(): i32 { return 43 }\n"
-      "export const payloads = accelerator.module<{ value: payloadKernel }>()\n"
       "entry { }\n";
   fixture *non42 = &fixture_a;
   CHECK(fixture_run(non42, non42_source));
@@ -6357,9 +6472,9 @@ static bool test_gpu_module_bridge(const char *path) {
   (void)memset(&gpu_non42_storage, 0xa5, sizeof(gpu_non42_storage));
   w_seed_gpu_module_output non42_output = {
       .modules = gpu_non42_storage.modules,
-      .module_capacity = TEST_ACCELERATOR_MODULES,
+      .module_capacity = TEST_KERNEL_MODULES,
       .kernels = gpu_non42_storage.kernels,
-      .kernel_capacity = TEST_ACCELERATOR_KERNELS,
+      .kernel_capacity = TEST_KERNEL_BINDINGS,
       .text = gpu_non42_storage.text,
       .text_capacity = sizeof(gpu_non42_storage.text),
       .frontend_receipt = gpu_non42_storage.receipt,
@@ -6409,11 +6524,11 @@ static bool test_gpu_module_bridge(const char *path) {
                            &non42_run.result));
 
   static const char trivia_source[] =
+      "module gpu0<kernels: { hello: helloKernel }>\n"
       "fn helloKernel(): i32 {\n"
       "  // semantic identity ignores source trivia\n"
       "  return 42\n"
       "}\n\n"
-      "export const kernels = accelerator.module<{ hello: helloKernel }>()\n"
       "entry { }\n";
   fixture *trivia = &fixture_b;
   CHECK(fixture_run(trivia, trivia_source));
@@ -6425,9 +6540,9 @@ static bool test_gpu_module_bridge(const char *path) {
                sizeof(gpu_capacity_storage));
   w_seed_gpu_module_output trivia_output = {
       .modules = gpu_capacity_storage.modules,
-      .module_capacity = TEST_ACCELERATOR_MODULES,
+      .module_capacity = TEST_KERNEL_MODULES,
       .kernels = gpu_capacity_storage.kernels,
-      .kernel_capacity = TEST_ACCELERATOR_KERNELS,
+      .kernel_capacity = TEST_KERNEL_BINDINGS,
       .text = gpu_capacity_storage.text,
       .text_capacity = sizeof(gpu_capacity_storage.text),
       .frontend_receipt = gpu_capacity_storage.receipt,
@@ -6493,8 +6608,8 @@ static bool test_gpu_module_bridge(const char *path) {
         W_SEED_GPU_MODULE_INCONSISTENT);
   value->result.required.functions -= 1u;
 
-  const uint32_t saved_function = value->accelerator_kernels[0].function_index;
-  value->accelerator_kernels[0].function_index = UINT32_MAX;
+  const uint32_t saved_function = value->kernel_bindings[0].function_index;
+  value->kernel_bindings[0].function_index = UINT32_MAX;
   (void)memset(&unchanged_counts, sentinel, sizeof(unchanged_counts));
   (void)memset(&unchanged_result, sentinel, sizeof(unchanged_result));
   CHECK(w_seed_gpu_module_measure(&input, &unchanged_counts,
@@ -6502,7 +6617,7 @@ static bool test_gpu_module_bridge(const char *path) {
         W_SEED_GPU_MODULE_UNSUPPORTED);
   CHECK(all_bytes_equal(&unchanged_counts, sizeof(unchanged_counts), sentinel) &&
         all_bytes_equal(&unchanged_result, sizeof(unchanged_result), sentinel));
-  value->accelerator_kernels[0].function_index = saved_function;
+  value->kernel_bindings[0].function_index = saved_function;
 
   const int64_t saved_payload = program.kernels[0].payload;
   gpu_storage.kernels[0].payload = 43;
@@ -6512,7 +6627,7 @@ static bool test_gpu_module_bridge(const char *path) {
 
   const w_seed_span saved_field_span = gpu_storage.kernels[0].field_span;
   gpu_storage.kernels[0].field_span.start_byte =
-      gpu_storage.modules[0].const_span.end_byte + 1u;
+      gpu_storage.modules[0].kernel_contract_span.end_byte + 1u;
   CHECK(!w_seed_gpu_module_verify(&program, &result));
   gpu_storage.kernels[0].field_span = saved_field_span;
   CHECK(w_seed_gpu_module_verify(&program, &result));
@@ -6572,6 +6687,6 @@ int main(int argc, char **argv) {
   if (!test_structured_async_projection()) return 1;
   if (!test_while_projection()) return 1;
   if (!test_repeat_projection()) return 1;
-  if (!test_accelerator_module_frontend()) return 1;
+  if (!test_kernel_module_frontend()) return 1;
   return 0;
 }

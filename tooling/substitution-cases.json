@@ -8841,8 +8841,8 @@
       "language": "w-internal",
       "source": [
         "gpu0 = verify(twoFunctions, sevenOperations, result: 42)",
-        "cst = parse(accelerator.module<{ hello: kernel }>())",
-        "frontend = bind(moduleConst, orderedLabels, directLocalKernelIdentities)",
+        "cst = parse(module gpuHello<kernels: { hello: helloKernel }>)",
+        "frontend = bind(kernelModule, canonicalLabels, directLocalKernelIdentities)",
         "deviceModule = independentlyVerify(frontend, signedI32LiteralReturn)",
         "artifacts = emit(hostMLIR, deviceMLIR)",
         "ptx = lower(deviceMLIR, target: sm_86)",
@@ -8867,7 +8867,7 @@
         "name": "reuse-spawn-domain-as-offload",
         "language": "w-internal-rejected",
         "source": ["lower spawn<.domain> as an implicit GPU migration"],
-        "expectedDifference": "The selected route reserves GPU offload for accelerator.module and typed launch; ordinary parallel placement does not migrate code."
+        "expectedDifference": "The selected route reserves GPU offload for a module-contract kernel binding and typed launch; ordinary parallel placement does not migrate code."
       },
       {
         "name": "claim-homogeneous-toolchain",
@@ -8885,13 +8885,13 @@
     "sourceRefs": [
       {
         "path": "compiler/seed-c/tests/test_parser.c",
-        "symbol": "accelerator_module_text",
-        "claim": "The seed parser preserves the canonical static record and named field owners and rejects malformed variants."
+        "symbol": "test_phase2_import_binding_test_forms",
+        "claim": "The seed parser preserves named and qualified kernel projections while keeping ordinary kernel-named imports ordinary."
       },
       {
         "path": "compiler/seed-c/tests/test_frontend.c",
-        "symbol": "test_accelerator_module_frontend",
-        "claim": "Frontend28 binds one or multiple ordered labels to direct local function identities and rejects malformed or incomplete accelerator modules transactionally."
+        "symbol": "test_kernel_module_frontend",
+        "claim": "Frontend31 binds one or multiple canonical public labels to direct local function identities and rejects malformed or incomplete module contracts transactionally."
       },
       {
         "path": "compiler/seed-c/src/w_seed_gpu_module.c",
@@ -8901,7 +8901,7 @@
       {
         "path": "compiler/seed-c/tests/test_frontend.c",
         "symbol": "test_gpu_module_bridge",
-        "claim": "A versioned W fixture crosses Frontend28 into caller-owned device-module records and remains verifiable after source/frontend teardown."
+        "claim": "A versioned W fixture crosses Frontend31 into caller-owned device-module records and remains verifiable after source/frontend teardown."
       },
       {
         "path": "compiler/seed-c/src/w_seed_gpu0.c",
@@ -8926,7 +8926,7 @@
     ],
     "checks": [
       "two functions and seven operations remain an evidence shape rather than a language or ABI ceiling",
-      "Frontend28 module and kernel bindings remain target and provider neutral",
+      "Frontend31 module and kernel bindings remain target and provider neutral",
       "the bounded device-module bridge owns its records and remains verifiable after frontend teardown",
       "host and device artifacts retain separate identities and exact verification",
       "forbidden device effects, malformed records, aliases, capacities, and forged artifacts fail closed",
@@ -8941,12 +8941,12 @@
     "id": "R0-accelerated-invocation-relation",
     "reviewItem": "relação acelerada bounded independente contra índices frontend emprestados, estado físico de provider embutido e limites seed publicados como ABI",
     "decisions": ["W-1603"],
-    "task": "Preserve one exact accelerated-domain module-field launch and lexical join after frontend and device-module teardown without introducing physical provider state.",
+    "task": "Preserve one exact accelerated-domain module-contract kernel-binding launch and lexical join after frontend and device-module teardown without introducing physical provider state.",
     "selected": {
       "language": "w-internal",
       "source": [
         "frontend = verify(spawn<.inference> kernels.hello())",
-        "deviceModule = verify(accelerator.module<{ hello: kernel }>())",
+        "deviceModule = verify(module gpuHello<kernels: { hello: helloKernel }>)",
         "invocation = independentlyCopy(domainPolicy, moduleIdentity, kernelIdentity, signedI32Result, lexicalAwait)",
         "assert verify(invocation) after teardown(frontend, deviceModule)"
       ]
@@ -8979,7 +8979,7 @@
       },
       {
         "path": "compiler/seed-c/tests/test_accelerated_invocation0.c",
-        "symbol": "source->frontend28->gpu-module-1->program: PASS",
+        "symbol": "source->frontend31->gpu-module-2->program: PASS",
         "claim": "The C23 fixture exercises the real producer chain, teardown independence, aliases, capacities, and forged relations."
       },
       {
@@ -8989,7 +8989,7 @@
       }
     ],
     "checks": [
-      "the exact accelerated domain, module field, result shape, and lexical await survive producer teardown",
+      "the exact accelerated domain, kernel binding, result shape, and lexical await survive producer teardown",
       "semantic identity excludes source ordinals while provenance binds them and both producer receipts",
       "invalid producers, unsupported shapes, aliases, short capacities, and resealed forgeries fail before publication",
       "provider, target, queue, geometry, transfer, residency, public build/run, and performance are not claimed",
@@ -9049,7 +9049,7 @@
       }
     ],
     "checks": [
-      "canonical domain, local descriptor, module identity and kernel instance remain distinct and exact",
+      "canonical domain, local module-contract root, module identity and kernel instance remain distinct and exact",
       "effective admission is the minimum of invocation, profile, root, deployment and resource limits",
       "queue, device and generation changes preserve semantic identity but change provenance",
       "compatible fallback, identity mismatch, ABI mismatch, aliases, short capacities and forged output fail closed",
@@ -9109,7 +9109,7 @@
       }
     ],
     "checks": [
-      "descriptor, host root, kernel label, private function and result shape agree across both verified inputs",
+      "module-contract root, host root, kernel label, private function and result shape agree across both verified inputs",
       "all identity and device-artifact bytes are copied before producer teardown",
       "semantic identity excludes queue, device, generation and source ordinals while provenance binds them",
       "malformed producers, mismatches, aliases, short capacities, artifact mutation and forged digests fail closed",

@@ -23,8 +23,8 @@ typedef struct {
   size_t text_capacity;
 } w_seed_gpu0_projection_output;
 
-/* Project one verified module field into the exact GPU0 shape. The module
- * index selects a compiler-owned module and kernel ordinal selects its field.
+/* Project one verified kernel binding into the exact GPU0 shape. The module
+ * index selects a compiler-owned module and kernel ordinal selects its binding.
  * Destination records and identity text remain caller-owned; no heap storage
  * or provider/runtime mechanism is used. */
 bool w_seed_gpu0_program_from_gpu_module(

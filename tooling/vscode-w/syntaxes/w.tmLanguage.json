@@ -8,6 +8,7 @@
     { "include": "#units" },
     { "include": "#numbers" },
     { "include": "#pipeline-contract" },
+    { "include": "#module-contract" },
     { "include": "#behavior-bodies" },
     { "include": "#keywords" },
     { "include": "#declarations" },
@@ -167,6 +168,14 @@
           "match": "\\b(?:abi|alias|allocator|behavior|const|deployment|dimension|domain|entry|enum|export|extension|fn|foreign|from|import|let|module|object|package|protocol|service|struct|test|type|unit|var|workspace)\\b"
         },
         {
+          "name": "keyword.contextual.kernel.w",
+          "match": "\\b(import)(\\s+)(kernel)(?=\\s*(?:\\{|[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*\\s+as\\b))",
+          "captures": {
+            "1": { "name": "keyword.declaration.w" },
+            "3": { "name": "keyword.contextual.kernel.w" }
+          }
+        },
+        {
           "name": "keyword.effect.w",
           "match": "\\b(?:async|await|panic|spawn|static|throws|try|unsafe)\\b"
         },
@@ -203,6 +212,31 @@
             {
               "name": "keyword.control.contextual.w",
               "match": "\\btransaction(?=\\s*:)"
+            }
+          ]
+        }
+      ]
+    },
+    "module-contract": {
+      "patterns": [
+        {
+          "name": "meta.module.contract.w",
+          "begin": "(\\bmodule)(\\s+)([A-Za-z_][A-Za-z0-9_]*)(\\s*<)",
+          "beginCaptures": {
+            "1": { "name": "keyword.declaration.w" },
+            "3": { "name": "entity.name.namespace.w" },
+            "4": { "name": "punctuation.definition.module.contract.begin.w" }
+          },
+          "end": ">",
+          "endCaptures": {
+            "0": { "name": "punctuation.definition.module.contract.end.w" }
+          },
+          "patterns": [
+            { "include": "#comments" },
+            { "include": "#strings" },
+            {
+              "name": "keyword.contextual.kernel.w",
+              "match": "\\b(kernels)(?=\\s*:)"
             }
           ]
         }

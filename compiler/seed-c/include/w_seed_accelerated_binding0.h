@@ -15,7 +15,7 @@ extern "C" {
  * verified ACCINV0 relation and a closed product/profile selection. It does
  * not own a provider handle, queue, device, source, or launch. */
 #define W_SEED_ACCELERATED_BINDING0_SCHEMA_VERSION \
-  "w-seed-accelerated-binding0-1"
+  "w-seed-accelerated-binding0-2"
 #define W_SEED_ACCELERATED_BINDING0_PROFILE_SCHEMA_VERSION \
   "w-seed-accelerated-profile0-1"
 #define W_SEED_ACCELERATED_BINDING0_SHA256_BYTES 32u
@@ -74,7 +74,7 @@ typedef struct {
 
   w_seed_accelerated_binding0_text root_identity;
   w_seed_accelerated_binding0_text domain_identity;
-  w_seed_accelerated_binding0_text descriptor_name;
+  w_seed_accelerated_binding0_text kernel_contract_name;
   w_seed_accelerated_binding0_text kernel_label;
   w_seed_accelerated_binding0_text module_identity;
   w_seed_accelerated_binding0_text artifact_identity;
@@ -144,8 +144,8 @@ typedef struct {
   size_t root_bytes;
   size_t domain_offset;
   size_t domain_bytes;
-  size_t descriptor_offset;
-  size_t descriptor_bytes;
+  size_t kernel_contract_name_offset;
+  size_t kernel_contract_name_bytes;
   size_t module_identity_offset;
   size_t module_identity_bytes;
   size_t artifact_identity_offset;

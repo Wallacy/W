@@ -120,6 +120,36 @@ static bool parse_import_path(const w_seed_source *source,
   if (!next_expected(&tokens, source, "import", &token)) return false;
 
   if (!token_next(&tokens, &token)) return false;
+  /* `kernel` is contextual to import declarations.  Do not reinterpret an
+   * ordinary imported symbol named kernel unless the following token proves
+   * one of the two kernel-projection forms. */
+  if (token_is_text(source, &token, "kernel")) {
+    module_scan_tokens lookahead = tokens;
+    module_scan_token next;
+    const bool is_projection =
+        token_next(&lookahead, &next) &&
+        (token_is_text(source, &next, "{") ||
+         (token_is_word(&next) && !token_is_text(source, &next, "from")));
+    if (is_projection) {
+      if (token_is_text(source, &next, "{")) {
+        /* Continue through the named projection grammar below. */
+        tokens = lookahead;
+        token = next;
+      } else {
+        /* `tokens` still points immediately after the contextual marker.
+         * Start the qualified path there; using `lookahead` would skip its
+         * first segment and make `models.forecast` scan as `forecast`. */
+        module_scan_tokens path_tokens = tokens;
+        if (!parse_path(&path_tokens, source, path_span) ||
+            !next_expected(&path_tokens, source, "as", NULL) ||
+            !token_next(&path_tokens, &next) || !token_is_word(&next)) {
+          return false;
+        }
+        tokens = path_tokens;
+        goto import_trailing;
+      }
+    }
+  }
   if (token_is_text(source, &token, "{")) {
     bool need_name = true;
     bool saw_name = false;
@@ -201,6 +231,7 @@ static bool parse_import_path(const w_seed_source *source,
     return false;
   }
 
+import_trailing:
   if (token_next(&tokens, &token)) {
     if (!token_is_text(source, &token, ";") || token_next(&tokens, &token)) {
       return false;
@@ -276,11 +307,10 @@ static bool header_name_span(const w_seed_source *source,
     return false;
   }
   *name_span = token.span;
-  if (token_next(&tokens, &token)) {
-    if (!token_is_text(source, &token, ";") || token_next(&tokens, &token)) {
-      return false;
-    }
-  }
+  /* The header may carry the contextual module contract after the name. The
+   * parser owns its structural validation; the scanner only extracts the
+   * header identity and therefore intentionally ignores the remaining header
+   * tokens (including an optional semicolon). */
   return source_span_valid(source, *name_span) &&
          name_span->start_byte < name_span->end_byte;
 }

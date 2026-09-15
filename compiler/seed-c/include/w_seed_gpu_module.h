@@ -13,7 +13,7 @@ extern "C" {
 
 /* This bridge is an internal, target-neutral compiler record. It does not
  * select a provider, carry a target, or expose a launch/runtime ABI. */
-#define W_SEED_GPU_MODULE_SCHEMA_VERSION "w-seed-gpu-module-1"
+#define W_SEED_GPU_MODULE_SCHEMA_VERSION "w-seed-gpu-module-2"
 #define W_SEED_GPU_MODULE_SHA256_BYTES 32u
 #define W_SEED_GPU_MODULE_NONE UINT32_MAX
 
@@ -28,22 +28,22 @@ typedef enum {
   W_SEED_GPU_MODULE_INCONSISTENT,
 } w_seed_gpu_module_status;
 
-/* One compiler-owned module identity copied from a Frontend28 record. The
+/* One compiler-owned module identity copied from a frontend kernel-module
+ * record. The
  * text fields are offsets into the bridge output text store. */
 typedef struct {
   uint32_t frontend_module_index;
-  uint32_t frontend_accelerator_module_index;
-  uint32_t frontend_const_declaration_index;
+  uint32_t frontend_kernel_module_index;
   w_seed_span source_span;
-  w_seed_span const_span;
+  w_seed_span kernel_contract_span;
   size_t source_id_offset;
   size_t source_id_bytes;
   size_t module_id_offset;
   size_t module_id_bytes;
   size_t local_module_name_offset;
   size_t local_module_name_bytes;
-  size_t const_name_offset;
-  size_t const_name_bytes;
+  size_t kernel_contract_name_offset;
+  size_t kernel_contract_name_bytes;
   size_t first_kernel;
   size_t kernel_count;
 } w_seed_gpu_module_record;
@@ -53,7 +53,7 @@ typedef struct {
 typedef struct {
   size_t owner_module;
   size_t ordinal;
-  uint32_t frontend_accelerator_kernel_index;
+  uint32_t frontend_kernel_binding_index;
   uint32_t frontend_function_index;
   uint32_t frontend_statement_index;
   uint32_t frontend_expression_index;
@@ -129,7 +129,8 @@ w_seed_gpu_module_status w_seed_gpu_module_measure(
     const w_seed_gpu_module_input *input, w_seed_gpu_module_counts *counts,
     w_seed_gpu_module_result *result);
 
-/* Validate and copy a Frontend28 module set into caller-owned bridge storage. */
+/* Validate and copy a Frontend31 module-contract set into caller-owned bridge
+ * storage. */
 w_seed_gpu_module_status w_seed_gpu_module_run(
     const w_seed_gpu_module_input *input, w_seed_gpu_module_output *output,
     w_seed_gpu_module_result *result);

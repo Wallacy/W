@@ -1741,6 +1741,9 @@ module numerics<
       fallback: .reject,
     ),
   ],
+  kernels: {
+    forecast: forecastKernel,
+  },
 >
 
 import accelerator from std
@@ -1760,10 +1763,6 @@ fn forecastKernel<rows: usize, inputs: usize, outputs: usize>(
   return features @ weights
 }
 
-const kernels = accelerator.module<{
-  forecast: forecastKernel,
-}>()
-
 async fn forecastOnConfiguredDomain<
   rows: usize,
   inputs: usize,
@@ -1772,7 +1771,7 @@ async fn forecastOnConfiguredDomain<
   features: ref FeatureBatch<rows: rows, columns: inputs>,
   weights: ref Tensor<f32, shape: [inputs, outputs]>,
 ): FeatureBatch<rows: rows, columns: outputs> throws accelerator.LaunchError {
-  let pending = spawn<.inference> kernels.forecast(
+  let pending = spawn<.inference> forecast(
     features: ref features,
     weights: ref weights,
   )
@@ -1802,29 +1801,6 @@ async fn prepareForConfiguredDomain<
   return (deviceFeatures, deviceWeights)
 }
 
-async fn forecastOnSelectedQueue<
-  rows: usize,
-  inputs: usize,
-  outputs: usize,
->(
-  features: ref FeatureBatch<rows: rows, columns: inputs>,
-  weights: ref Tensor<f32, shape: [inputs, outputs]>,
-  queue: ref Queue,
-  limits: ref accelerator.Limits,
-): FeatureBatch<rows: rows, columns: outputs> throws accelerator.LaunchError {
-  var launch = try await accelerator.open(
-    module: ref kernels,
-    on: ref queue,
-    limits: ref limits,
-  )
-  defer async { let _ = try? await (take launch).close() }
-  return try await kernels.forecast.launch(
-    using: ref launch,
-    features: ref features,
-    weights: ref weights,
-  )
-}
-
 fn numericSummary(): (Quantity<Distance>, i32, i32, [usize; 2], i32, i32, i32) {
   let distance = 12<kilometer>
   let matrix = [[1, 2], [3, 4]]
@@ -1836,7 +1812,6 @@ fn numericSummary(): (Quantity<Distance>, i32, i32, [usize; 2], i32, i32, i32) {
   let features: FeatureBatch<rows: 1, columns: 2> = [[1.0, 2.0]]
   let weights: Tensor<f32, shape: [2, 1]> = [[1.0], [0.5]]
   let result = forecastKernel(features: features, weights: weights)
-  let _ = kernels
   return (distance, matrix[1][0], doubled[3], result.shape, sum, product, xor)
 }
 
@@ -1849,6 +1824,41 @@ test "numeric types preserve dimensions and lanes" for numericSummary {
   expect result.4 == 10
   expect result.5 == 24
   expect result.6 == 4
+}
+```
+
+Um módulo consumidor usa a projeção qualificada e mantém o import ordinário
+da função separado para o caminho host:
+
+<!-- w-example role=logical-contract -->
+```w
+module numerics_client
+
+import accelerator from std
+import { FeatureBatch, Tensor, forecastKernel } from numerics
+import { Queue } from std.tensor
+import kernel numerics as kernels
+
+async fn forecastOnSelectedQueue<
+  rows: usize,
+  inputs: usize,
+  outputs: usize,
+>(
+  features: ref FeatureBatch<rows: rows, columns: inputs>,
+  weights: ref Tensor<f32, shape: [inputs, outputs]>,
+  queue: ref Queue,
+  limits: ref accelerator.Limits,
+): FeatureBatch<rows: rows, columns: outputs> throws accelerator.LaunchError {
+  var launch = try await accelerator.open<module: kernels>(
+    on: ref queue,
+    limits: ref limits,
+  )
+  defer async { let _ = try? await (take launch).close() }
+  return try await kernels.forecast.launch(
+    using: ref launch,
+    features: ref features,
+    weights: ref weights,
+  )
 }
 ```
 

@@ -29,6 +29,9 @@
 | `root-package` | `package {` | `package-root` |
 | `root-workspace` | `workspace {` | `workspace-root` |
 | `import-ordinary` | `import std.text` | `source-roots-imports` |
+| `import-kernel-named` | `import kernel { forecast as predict } from atlas.models` | `source-roots-imports` |
+| `import-kernel-qualified` | `import kernel atlas.models as models` | `source-roots-imports` |
+| `module-kernel-contract` | `kernels: { forecast: forecastKernel }` | `source-roots-imports` |
 | `import-domain` | `import domain` | `source-roots-imports` |
 | `import-service` | `import service` | `source-roots-imports` |
 | `import-wildcard` | `export * from atlas.foundation` | `source-roots-imports` |
@@ -107,10 +110,13 @@ import { Stream, Channel, ChannelSendError } from std.stream
 ```w
 module atlas_language<
   domains: [.serial],
+  kernels: { forecast: forecastKernel },
 >
 
 import std.text
 import { String as Text } from std.text
+import kernel { forecast as predict } from atlas.models
+import kernel atlas.models as models
 export * from atlas.foundation
 export { FoundationPlace as BasePlace } from atlas.foundation
 import domain { District } from atlas.domain

@@ -9,6 +9,7 @@ const ALLOWED_EFFECTS = new Set([
 ])
 const PARAMETER_DOMAINS = new Set(["type", "value"])
 const NUMERIC_MODES = new Set(["strict", "reproducible", "fast"])
+const IDENTIFIER_ENCODER = new TextEncoder()
 
 class KernelModuleError extends Error {
   constructor(code) {
@@ -31,6 +32,16 @@ function requireString(value, code) {
 
 function requireDigest(value, code) {
   if (!/^sha256:[0-9a-f]{64}$/.test(value ?? "")) fail(code)
+}
+
+function compareIdentifier(left, right) {
+  const leftBytes = IDENTIFIER_ENCODER.encode(left)
+  const rightBytes = IDENTIFIER_ENCODER.encode(right)
+  const length = Math.min(leftBytes.length, rightBytes.length)
+  for (let index = 0; index < length; index += 1) {
+    if (leftBytes[index] !== rightBytes[index]) return leftBytes[index] - rightBytes[index]
+  }
+  return leftBytes.length - rightBytes.length
 }
 
 function normalizeStaticParameters(parameters) {
@@ -84,14 +95,14 @@ function normalizeField(field) {
 
 function normalizeModule(module) {
   if (
-    module?.head !== "std.accelerator.module@1" ||
-    module.scope !== "module-const" ||
+    module?.contract !== "module-kernels@1" ||
+    module.declarationKind !== "module-header" ||
     module.conformanceOrigin !== "compiler"
   ) {
     fail("W-KERNEL-0001")
   }
-  requireString(module.symbolId, "W-KERNEL-0001")
-  if (module.recordKind !== "static-record" || module.runtimeLookup === true) {
+  requireString(module.moduleId, "W-KERNEL-0001")
+  if (module.familyKind !== "kernel-family" || module.runtimeLookup === true) {
     fail("W-KERNEL-0002")
   }
   if (!Array.isArray(module.fields) || module.fields.length === 0) fail("W-KERNEL-0002")
@@ -102,10 +113,13 @@ function normalizeModule(module) {
     if (names.has(field.name)) fail("W-KERNEL-0002")
     names.add(field.name)
   }
+  // Public labels define canonical interface order.  Source reorder changes
+  // provenance only; it must not change ModuleIdentity or ordinals.
+  fields.sort((left, right) => compareIdentifier(left.name, right.name))
 
   const interfaceIdentity = digest({
-    head: module.head,
-    symbolId: module.symbolId,
+    contract: module.contract,
+    moduleId: module.moduleId,
     conformanceOrigin: module.conformanceOrigin,
     fields: fields.map((field) => ({
       name: field.name,
@@ -127,8 +141,8 @@ function normalizeModule(module) {
     fail("W-KERNEL-0002")
   }
   return {
-    head: module.head,
-    symbolId: module.symbolId,
+    contract: module.contract,
+    moduleId: module.moduleId,
     fields,
     interfaceIdentity,
     implementationIdentity,
@@ -172,6 +186,97 @@ function specialize(module, fieldName, staticArguments) {
     callableId: field.callableId,
     staticArguments: argumentsNormalized,
     identity,
+  }
+}
+
+function normalizeProjection(input, module) {
+  requireString(input.modulePath, "W-KERNEL-0008")
+  if (input.modulePath !== module.moduleId) fail("W-KERNEL-0008")
+  if (!new Set(["named", "qualified"]).has(input.projectionKind)) {
+    fail("W-KERNEL-0008")
+  }
+  if (!Array.isArray(input.items) || input.items.length === 0) {
+    fail("W-KERNEL-0008")
+  }
+
+  const occupied = new Set()
+  for (const name of input.localBindings ?? []) {
+    requireString(name, "W-KERNEL-0008")
+    if (occupied.has(name)) fail("W-KERNEL-0008")
+    occupied.add(name)
+  }
+
+  let projectionAlias = null
+  if (input.projectionKind === "qualified") {
+    requireString(input.alias, "W-KERNEL-0008")
+    if (occupied.has(input.alias)) fail("W-KERNEL-0008")
+    occupied.add(input.alias)
+    projectionAlias = input.alias
+    if (!new Set(["spawn", "open"]).has(input.route)) fail("W-KERNEL-0008")
+  } else if (input.route !== "spawn") {
+    fail("W-KERNEL-0008")
+  }
+
+  const projections = []
+  const fields = new Set()
+  for (const item of input.items) {
+    requireString(item?.field, "W-KERNEL-0008")
+    if (fields.has(item.field)) fail("W-KERNEL-0008")
+    fields.add(item.field)
+    const localName = input.projectionKind === "named"
+      ? (item.localName ?? item.field)
+      : `${projectionAlias}.${item.field}`
+    if (input.projectionKind === "named") {
+      requireString(localName, "W-KERNEL-0008")
+      if (occupied.has(localName)) fail("W-KERNEL-0008")
+      occupied.add(localName)
+    }
+    const instance = specialize(module, item.field, item.staticArguments ?? [])
+    projections.push({
+      localName,
+      field: instance.field,
+      moduleIdentity: module.identity,
+      kernelInstanceId: instance.identity,
+      origin: {
+        moduleIdentity: module.identity,
+        kernelInstanceId: instance.identity,
+      },
+    })
+  }
+
+  return {
+    moduleIdentity: module.identity,
+    projectionKind: input.projectionKind,
+    projectionAlias,
+    route: input.projectionKind === "named"
+      ? "spawn-immediate"
+      : input.route === "open" ? "open-qualified" : "spawn-qualified",
+    projectionIdentity: digest({
+      moduleIdentity: module.identity,
+      kernels: projections
+        .map((projection) => ({
+          field: projection.field,
+          kernelInstanceId: projection.kernelInstanceId,
+        }))
+        .sort((left, right) =>
+          compareIdentifier(left.field, right.field)
+          || compareIdentifier(left.kernelInstanceId, right.kernelInstanceId)),
+    }),
+    provenanceIdentity: digest({
+      projectionKind: input.projectionKind,
+      modulePath: input.modulePath,
+      alias: projectionAlias,
+      projections: projections.map((projection) => ({
+        localName: projection.localName,
+        field: projection.field,
+      })),
+    }),
+    projections,
+    runtimeAllocation: false,
+    runtimeReflection: false,
+    authority: false,
+    ordinaryBindingCreated: false,
+    aliasesAffectIdentity: false,
   }
 }
 
@@ -278,6 +383,12 @@ export function deriveKernelModuleContract(input) {
         hiddenTransfer: false,
       }
     }
+    if (input.subject === "projection") {
+      return {
+        accepted: true,
+        ...normalizeProjection(input, module),
+      }
+    }
     if (input.subject === "artifact") return deriveArtifact(input, module)
     fail("W-KERNEL-0001")
   } catch (error) {
@@ -327,6 +438,18 @@ export function prepareKernelModuleCase(corpus, testCase) {
     if (input.artifactClass === "closed") {
       input.target = { ...structuredClone(corpus.target), ...(input.targetPatch ?? {}) }
     }
+  }
+  if (input.subject === "projection") {
+    input.items = (input.items ?? []).map((item) => {
+      if (item.specialization === undefined || item.staticArguments !== undefined) {
+        return item
+      }
+      const specialization = corpusSpecialization(corpus, item.specialization)
+      return {
+        ...item,
+        staticArguments: specialization.staticArguments,
+      }
+    })
   }
   delete input.modulePatch
   delete input.duplicateField

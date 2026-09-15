@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-30"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-31"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -79,7 +79,7 @@ typedef enum {
   /* Rejected use of an explicitly caller-bound parallel `.domain` dispatch.
    * This fact is distinct from the serial `.main` lane. */
   W_SEED_FRONTEND_FACT_SPAWN_PARALLEL_DOMAIN_LAUNCH,
-  /* Rejected static submission of an accelerator-module field. */
+  /* Rejected static submission of a kernel binding. */
   W_SEED_FRONTEND_FACT_SPAWN_ACCELERATED_DOMAIN_LAUNCH,
 } w_seed_frontend_fact_kind;
 
@@ -189,8 +189,8 @@ typedef enum {
   /* Exact `spawn<.domain> localCall(...)`.  The caller-owned domain input
    * record is retained by the placement fields on the expression. */
   W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH,
-  /* Exact `spawn<acceleratedDomain> module.field(...)`. The selected domain,
-   * accelerator module and kernel field are indexed on the expression. */
+  /* Exact `spawn<acceleratedDomain> kernel(...)`. The selected domain,
+   * kernel module and binding are indexed on the expression. */
   W_SEED_FRONTEND_EXPR_SPAWN_ACCELERATED_DOMAIN_LAUNCH,
   /* Exact `try localCall(...)` propagation marker. left is the resolved
    * throwing CALL and propagated_error_enum is its concrete enum identity. */
@@ -321,7 +321,7 @@ typedef enum {
   W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION,
   W_SEED_FRONTEND_CALLEE_HOST_PRELUDE_SYMBOL,
   W_SEED_FRONTEND_CALLEE_EXTERNAL_MODULE_SYMBOL,
-  W_SEED_FRONTEND_CALLEE_ACCELERATOR_MODULE_FIELD,
+  W_SEED_FRONTEND_CALLEE_KERNEL_BINDING,
 } w_seed_frontend_callee_kind;
 
 typedef enum {
@@ -397,9 +397,9 @@ typedef struct {
   size_t const_bytes;
   /* Append-only module const declaration records. */
   size_t const_declarations;
-  /* Append-only compiler-owned accelerator module and kernel bindings. */
-  size_t accelerator_modules;
-  size_t accelerator_kernels;
+  /* Append-only compiler-owned kernel-module and kernel-binding records. */
+  size_t kernel_modules;
+  size_t kernel_bindings;
 } w_seed_frontend_counts;
 
 typedef struct {
@@ -433,10 +433,18 @@ typedef enum {
   W_SEED_FRONTEND_IMPORT_EXTERNAL_MODULE,
 } w_seed_frontend_import_target_kind;
 
+/* `kernel` is a projection of compiler-known identities. It is not an
+ * ordinary value import and never creates runtime state. */
+typedef enum {
+  W_SEED_FRONTEND_IMPORT_ORDINARY = 0,
+  W_SEED_FRONTEND_IMPORT_KERNEL,
+} w_seed_frontend_import_kind;
+
 typedef struct {
   /* The import path is source evidence. target_kind/index is the only
    * resolved identity used by frontend consumers. */
   uint32_t module_index;
+  w_seed_frontend_import_kind kind;
   w_seed_frontend_text path;
   w_seed_frontend_text alias;
   w_seed_span span;
@@ -575,25 +583,24 @@ typedef struct {
   uint32_t effective_type;
 } w_seed_frontend_const_declaration;
 
-/* Compiler-owned synthesis records for `accelerator.module<{...}>()`.  They
- * preserve semantic identities only; provider, target, queue, pointer, and
- * physical ABI data belong to later lowering/provider layers. */
+/* Compiler-owned synthesis records for a module contract's `kernels` field.
+ * They preserve semantic identities only. Provider, target, queue, pointer,
+ * and physical ABI data belong to later lowering/provider layers. */
 typedef struct {
   uint32_t module_index;
-  uint32_t const_declaration_index;
   w_seed_span span;
   uint32_t first_kernel;
   uint32_t kernel_count;
-} w_seed_frontend_accelerator_module;
+} w_seed_frontend_kernel_module;
 
 typedef struct {
   uint32_t module_index;
-  uint32_t owner_accelerator_module;
+  uint32_t owner_kernel_module;
   uint32_t ordinal;
   w_seed_frontend_text label;
   w_seed_span span;
   uint32_t function_index;
-} w_seed_frontend_accelerator_kernel;
+} w_seed_frontend_kernel_binding;
 
 typedef struct {
   uint32_t module_index;
@@ -916,12 +923,13 @@ typedef struct {
   uint32_t resolved_external_module_index;
   uint32_t resolved_external_symbol_index;
   uint32_t resolved_local_ordinal;
-  /* Valid only for ACCELERATOR_MODULE_FIELD. These are semantic arena
+  /* Valid only for KERNEL_BINDING. These are semantic arena
    * indices, never provider/device/queue handles. */
-  uint32_t resolved_accelerator_module_index;
-  uint32_t resolved_accelerator_kernel_index;
+  uint32_t resolved_kernel_module_index;
+  uint32_t resolved_kernel_binding_index;
   w_seed_frontend_text member_name;
-  /* Append-only resolution relation for a module const dependency. */
+  /* Append-only source relation retained for ordinary module consts. Kernel
+   * projections never populate this field. */
   uint32_t resolved_const_declaration;
   /* Append-only normalized simple String literal slice.  The offset is
    * W_SEED_FRONTEND_NONE for every other expression kind.  An empty String
@@ -1057,11 +1065,11 @@ typedef struct {
   /* Append-only module const declaration output. */
   w_seed_frontend_const_declaration *const_declarations;
   size_t const_declaration_capacity;
-  /* Append-only compiler-owned accelerator synthesis records. */
-  w_seed_frontend_accelerator_module *accelerator_modules;
-  size_t accelerator_module_capacity;
-  w_seed_frontend_accelerator_kernel *accelerator_kernels;
-  size_t accelerator_kernel_capacity;
+  /* Append-only compiler-owned kernel-module synthesis records. */
+  w_seed_frontend_kernel_module *kernel_modules;
+  size_t kernel_module_capacity;
+  w_seed_frontend_kernel_binding *kernel_bindings;
+  size_t kernel_binding_capacity;
   /* Append-only switch-arm output arrays. */
   w_seed_frontend_switch_arm *switch_arms;
   size_t switch_arm_capacity;

@@ -7,9 +7,9 @@
 #include "w_seed_source.h"
 
 static const char ACCBIND0_SEMANTIC_TAG[] =
-    "w-seed-accelerated-binding0-semantic-1";
+    "w-seed-accelerated-binding0-semantic-2";
 static const char ACCBIND0_PROVENANCE_TAG[] =
-    "w-seed-accelerated-binding0-provenance-1";
+    "w-seed-accelerated-binding0-provenance-2";
 
 enum { ACCBIND0_TEXT_FIELDS = 15, ACCBIND0_MAX_RANGES = 40 };
 
@@ -264,7 +264,7 @@ static w_seed_accelerated_binding0_status collect(
   const w_seed_accelerated_binding0_text profile_text[] = {
       profile->root_identity,
       profile->domain_identity,
-      profile->descriptor_name,
+      profile->kernel_contract_name,
       profile->module_identity,
       profile->artifact_identity,
       profile->artifact_module_identity,
@@ -300,13 +300,13 @@ static w_seed_accelerated_binding0_status collect(
     return W_SEED_ACCELERATED_BINDING0_MISMATCH;
 
   accbind0_text domain;
-  accbind0_text descriptor;
+  accbind0_text kernel_contract;
   accbind0_text kernel;
   accbind0_text function;
   if (!accinv_text(input->invocation_program, invocation->domain_name_offset,
                    invocation->domain_name_bytes, &domain) ||
       !accinv_text(input->invocation_program, invocation->module_name_offset,
-                   invocation->module_name_bytes, &descriptor) ||
+                   invocation->module_name_bytes, &kernel_contract) ||
       !accinv_text(input->invocation_program, invocation->kernel_label_offset,
                    invocation->kernel_label_bytes, &kernel) ||
       !accinv_text(input->invocation_program, invocation->function_name_offset,
@@ -315,8 +315,8 @@ static w_seed_accelerated_binding0_status collect(
   if (domain.bytes < 2u || domain.data[0] != '.' ||
       !text_equal_bytes(profile->domain_identity, domain.data + 1u,
                         domain.bytes - 1u) ||
-      !text_equal_bytes(profile->descriptor_name, descriptor.data,
-                        descriptor.bytes) ||
+      !text_equal_bytes(profile->kernel_contract_name, kernel_contract.data,
+                        kernel_contract.bytes) ||
       !text_equal_bytes(profile->kernel_label, kernel.data, kernel.bytes))
     return W_SEED_ACCELERATED_BINDING0_MISMATCH;
 
@@ -367,8 +367,8 @@ static w_seed_accelerated_binding0_status collect(
          profile->root_identity.bytes, root);
   ASSIGN(1u, (const uint8_t *)profile->domain_identity.data,
          profile->domain_identity.bytes, domain);
-  ASSIGN(2u, (const uint8_t *)profile->descriptor_name.data,
-         profile->descriptor_name.bytes, descriptor);
+  ASSIGN(2u, (const uint8_t *)profile->kernel_contract_name.data,
+         profile->kernel_contract_name.bytes, kernel_contract_name);
   ASSIGN(3u, (const uint8_t *)profile->module_identity.data,
          profile->module_identity.bytes, module_identity);
   ASSIGN(4u, (const uint8_t *)profile->artifact_identity.data,
@@ -451,7 +451,7 @@ static bool append_input_ranges(const w_seed_accelerated_binding0_input *input,
   const w_seed_accelerated_binding0_text text[] = {
       input->profile->root_identity,
       input->profile->domain_identity,
-      input->profile->descriptor_name,
+      input->profile->kernel_contract_name,
       input->profile->kernel_label,
       input->profile->module_identity,
       input->profile->artifact_identity,
@@ -570,7 +570,7 @@ static bool program_texts(
   const size_t offsets[] = {
       relation->root_offset,
       relation->domain_offset,
-      relation->descriptor_offset,
+      relation->kernel_contract_name_offset,
       relation->module_identity_offset,
       relation->artifact_identity_offset,
       relation->artifact_module_identity_offset,
@@ -587,7 +587,7 @@ static bool program_texts(
   const size_t sizes[] = {
       relation->root_bytes,
       relation->domain_bytes,
-      relation->descriptor_bytes,
+      relation->kernel_contract_name_bytes,
       relation->module_identity_bytes,
       relation->artifact_identity_bytes,
       relation->artifact_module_identity_bytes,

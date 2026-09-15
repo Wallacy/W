@@ -106,7 +106,7 @@ production runtime warmup/sample series are sourced from the native receipt;
 compile series remain Bun-orchestrated direct-child observations.
 GPU0 stays in a separate diagnostic catalog because it is not yet a complete
 source-backed W product. `bun check --target gpu0` first proves the versioned W
-fixture through Frontend28 and the independently verified target/provider-free
+fixture through Frontend31 and the independently verified target/provider-free
 device-module bridge, and the caller-owned provider-neutral projection into
 GPU0 records and device artifact. The accelerated binding gate additionally
 cross-checks verified ACCBIND0 and GPU0 meanings into one independently

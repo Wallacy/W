@@ -6982,7 +6982,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-653 | blocking drain | cancel remove job não iniciado; foreign frame iniciado mantém owner até retorno ou fault boundary física | matar thread; liberar buffer cedo; task detached após deadline |
 | W-654 | lifecycle de service call | envelope commit, admission, turn e outcome commit fixam ownership, cancellation e unknown outcome | cancellation presume ausência de efeito; retry mutante; abandono do turn |
 | W-655 | deadline remoto | caller local mantém authority; remaining duration cruza; strict exige timebase/synchronization provada | resetar timeout em cada hop; garantia end-to-end sem clock proof |
-| W-656 | device execution (refinado por W-1602) | `spawn` comum não migra closure; somente field de descriptor em domain `.accelerated` produz submission, com artifact e transfer ainda explícitos no contrato | `.device` migra closure; auto-transfer; GPU como thread pool |
+| W-656 | device execution (refinado por W-1602) | `spawn` comum não migra closure; somente kernel binding do contrato de módulo em domain `.accelerated` produz submission, com artifact e transfer ainda explícitos no contrato | `.device` migra closure; auto-transfer; GPU como thread pool |
 | W-657 | nomes de quantity | dimensão já dá identidade; nomes físicos locais usam `alias`; `type` exige distinção adicional de domínio | newtype para toda unit; conversão implícita entre newtypes |
 | W-658 | duração operacional | `Duration` T1 é signed, exact e nanosecond; layout opaco; physical quantity converte com exactness ou rounding explícito | `f64`; infinity; alias de physical quantity; attosecond na baseline |
 | W-659 | body de entry | body contém statements W; forma simples depende de adapter declarado pelo host profile | body como key/value; registro runtime; ignorar parâmetros sem adapter |
@@ -7537,7 +7537,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1208 | censo sem coletor | profile debug/test registra control-block edges e reporta SCC que nenhum root alcança somente depois de admission close e drain; não coleta nem muda drop | coletor default, relatório antes do drain, ciclo alcançável chamado de leak, deinit executado pelo detector |
 | W-1209 | evidence de ciclos e captures M1/S0 | S0 fixa capture explícita e diagnostics; M1 deriva SCC forte, edge rompível, roots e residual pós-drain; Last Light fornece consumer | checker por substring, graph fornecendo resposta esperada, chamar oracle de runtime/compiler ou leak sanitizer real |
 | W-1210 | claim de concorrência e paralelismo | quatro formas de execução compartilham ownership/lifetime; children drenam; synchronization forma um happens-before explicável; schedulers e providers reais precisam provar equivalência, liveness e cleanup | declarar problema resolvido por syntax, thread por task, lock-free universal, copy/share oculto, oracle host chamado de runtime |
-| W-1211 | descriptor fechado de kernel | `accelerator.module<{...}>()` sintetiza module identity, manifest e fields tipados para `spawn` acelerado ou launch dinâmico; a função original permanece chamável no host | lista heterogênea runtime, lookup por string, reflection ou interface sem nome estável |
+| W-1211 | família fechada de kernel | o campo contextual `kernels: { label: function }` no module contract sintetiza module identity, manifest e projections tipadas para `spawn` acelerado ou launch dinâmico; a função original permanece chamável no host | lista heterogênea runtime, lookup por string, reflection ou interface sem nome estável |
 | W-1212 | scope de launch owned | o owner de launch pertence ao root do domain estático ou aparece como `Launch<Module>` move-only no caminho dinâmico; ambos fecham admission antes de drenar e liberar uma vez | deinit assíncrono, scope copiável, owner sem close ou cleanup fire-and-forget |
 | W-1213 | ownership e transfer de device | staging preserva take/copy/ref/inout; tensor borrowed reside no device ou mapping provado; transfer e host read são explícitos | copy ou materialization escondida, ref escapante, queue concedendo owner |
 | W-1214 | submission estruturada | invocation passa por staging, submit, execução, drain, cleanup, commit e join; cancellation pós-submit não presume preemption | cancel como rollback, output antes de drain, task detached ou provider sem join |
@@ -7610,10 +7610,10 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1281 | FormData lógico | lista W ordered de String ou Blob+filename; append/set/delete preservam o standard e falha não publica mutation parcial | object dinâmico, DOM form, filename como Path, unordered map, mutação parcial |
 | W-1282 | multipart bounded | FormDataLimits + MessageLimits precedem attachment; host escolhe boundary; encoder streams Blob com backpressure | boundary do caller, collect completo, tamanho unchecked, Content-Type divergente |
 | W-1283 | Body Web completo | BodySource aceita String, Bytes, URLSearchParams, Blob, FormData e stream; blob/formData consuming exigem limits | BodyInit apagado, stubs parciais, materialização sem limit, provider extra para Blob |
-| W-1284 | head de síntese de kernel | `accelerator.module` é compiler-owned, recebe static record em const de module scope e produz a única conformance KernelModule sem runtime call/registry/authority | conformance manual, função runtime, macro user-defined, descriptor local ou reflection |
-| W-1285 | identidade de module | interface cobre fields/signatures; implementation acrescenta callable privado, HIR/call graph; paths, tempo e ordinal físico ficam fora | hash de arquivo, rename privado quebrar interface, identity ambiental ou uma identity única |
+| W-1284 | contrato contextual de kernel | `kernels` é compiler-owned somente no header de `module`, recebe labels e símbolos diretos (inclusive declarations posteriores) e produz a única conformance KernelModule sem runtime call/registry/authority | conformance manual, função runtime, macro user-defined, descriptor local ou reflection |
+| W-1285 | identidade de module | interface cobre labels públicos em ordem canônica e signatures; implementation acrescenta callable privado, HIR/call graph; paths, tempo e ordinal físico ficam fora | hash de arquivo, reorder textual quebrar interface, rename privado quebrar interface, identity ambiental ou uma identity única |
 | W-1286 | especialização finita | identidades canônicas de tipo e ConstIR derivam KernelInstanceId; bundle genérico é source-backed e binary-only contém conjunto finito fechado | JIT implícito, lookup por string, evaluator duplicado no linker ou binary incompleto |
-| W-1287 | invocation, stub e artifact | `spawn` estático liga domain/module/instance; stub dinâmico preserva labels/ownership e acrescenta Launch; artifact liga instances, target, numeric mode, features e provider ABI | transfer escondida, open compilar, artifact sem target facts ou launch sem failure typed |
+| W-1287 | invocation, stub e artifact | `spawn` estático liga domain/module/instance por binding nomeado ou projection qualificada; stub dinâmico preserva labels/ownership e acrescenta Launch; artifact liga instances, target, numeric mode, features e provider ABI | transfer escondida, open compilar, artifact sem target facts ou launch sem failure typed |
 | W-1288 | subject explícito de refinement | `value` é binding contextual imutável do candidate dentro do predicate e baixa para a mesma ConstIR de `.member`; lookup lexical exige qualificação | `value` ambiental, shadow dependente de imports, storage sintético ou HIR diferente para a forma longa |
 | W-1289 | members associados diretos | `const` e `static fn` pertencem ao namespace compile-time do tipo; protocol só é necessário para requisito generic; mutable type storage continua ausente | companion obrigatório, metatype runtime, `static var`, módulo singleton ou witness sem consumidor polimórfico |
 | W-1290 | labels callable uniformes (histórico; superseded by W-1514) | `name: T` exigia `name:` em qualquer índice; `external internal: T` exigia `external:`; `named` não era modifier; `_ name: T` era positional-only; labels selecionavam overload antes dos tipos; initializers e enum payloads permaneciam record-like | labels inferidas pela posição, modifier contextual `named`, label opcional no mesmo slot, reorder, ranking por tipo |
@@ -7936,11 +7936,11 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1598 | explicit process-root and task-entry MLIR composition | PARMLIR0 emits one bounded process-root module that preserves runtime `Arguments.isEmpty` through a direct scalar prelude and into one task argument before lexical join. Caller-owned transactional measure, emit, and verify operations publish separate counts, bytes, and digest records. The target-private task wrapper is distinct from the process root. The module declares unresolved provider-owned launch and join symbols and keeps the ordinary process selector direct-only. Pinned MLIR/LLVM 23.1.1 parse, lower, and translate checks produce a Linux x86-64 PIC ELF object. No provider linkage, public execution, benchmark, performance, or direct-call selection claim is made. | `source-backed-current` only for the bounded process-root/task-wrapper composition, separate transactional measure/emit/verify APIs, explicit unresolved launch/join declarations, direct-only ordinary process selection, and MLIR/LLVM 23.1.1 Linux ELF object evidence. Provider linkage, public execution, benchmark results, performance, and direct-call selection remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1599 | TASKLIFE0 target-neutral fixed caller-owned lifecycle reducer and oracle | TASKLIFE0 provides a target-neutral fixed caller-owned reducer and oracle for bounded logical task lifecycles. It replays task and scope states, publishes tagged success, error, and canceled outcomes, preserves settled-before-cancel precedence, enforces cleanup before commit, drains siblings after fail-fast cancellation, arbitrates lexical/input errors, and orders joins and releases lexically. Transaction and measurement snapshots are replayed and digest-checked. The one-to-four task and 128-event ceilings are seed evidence only. No source-HIR integration, scheduler, provider, parallel runtime, task ABI, benchmark, or performance claim is made. | `source-backed-current` only for the fixed TASKLIFE0 state reducer, cancellation and outcome arbitration, cleanup/commit and join/release barriers, exact caller-owned snapshots, independent replay verification, and focused C23 evidence. Source-HIR integration, scheduler/provider linkage, parallel runtime, task ABI, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1600 | bounded CRT-free process/parallel provider linkage on Windows and Linux | PARLINK1 binds the W-1598 process root and private task entry to explicit target adapters. Windows x64 uses Kernel32 runtime input, `CreateThread`, lexical wait, handle close, and result validation. Linux x86-64 reads the initial process stack and uses raw `clone`, `wait4`, and exit syscalls with a fixed private provider stack. Both routes preserve empty/nonempty runtime input, execute the emitted task, and fail closed through exit 3 under a gate-only injected provider fault. They link without CRT/default libraries and execute with empty stdout/stderr. The four-slot frame and Linux child stack are private seed-provider evidence. | `source-backed-current` only for the unchanged bounded source-to-provider composition, Windows x64 CRT-free execution, Windows-host cross-link plus Linux/WSL CRT-free execution, empty/nonempty runtime-input cases, explicit launch/join, task-result validation, and injected provider-failure exit. Public `w build`/`w run`, general argument decoding, scheduler/task ABI/storage, retained artifacts, benchmarks, timing, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
-| W-1601 | bounded GPU0 target-neutral semantic witness and available CUDA execution | GPU0 is a target-neutral, provider-free C23 semantic seed with separate host/device MLIR artifacts and exact lifecycle, identity, dispatch, memory, alias, capacity, effect and transactional checks. Frontend28 preserves both the closed accelerator module and the bounded static domain invocation identity. Independent caller-owned bridges preserve the device-module meaning and project one verified field into GPU0 without provider, target, queue, pointer, launch handle or MLIR handle. The focused Windows gate lowers with pinned MLIR/LLVM 23.1.1, emits PTX with Clang 22.1.8 and executes through the CUDA Driver on NVIDIA RTX A400 (`sm_86`), verifying `42`. Diagnostic sizes and phase distributions are not product rankings. | `implementation-evidence-gap` for the complete W source-to-provider product route. Frontend28 invocation identity, independent device-module, ACCINV0 invocation and ACCBIND0 root/profile relation records, GPU0 projection and experimental CUDA execution are current; authenticated product closure, public artifact routing, supported provider launch/join/result, homogeneous production toolchain and performance ranking remain open. `benchmarkDisposition: compiler-lifecycle`. |
-| W-1602 | static accelerated-domain submission | `.accelerated(name, submission:, maximum:, fallback:)` adds a target-neutral domain requirement. In the static path `spawn<domain> descriptor.field(args...)` is the launch surface; the product/root owns the typed relation and lifecycle. `accelerator.open` plus `.launch(using:)` remains the explicit dynamic path. Host calls, transfers, artifact requirements, Task lifetime, typed launch failures, receipts and drain remain distinct. | `oracle-backed-current`: DEV0 validates the static-root relation and lifecycle, while Frontend28 preserves the bounded kind/domain/module/kernel relation and rejects contextual misuse. ACCINV0 independently preserves the first zero-argument invocation and lexical join; ACCBIND0 proves one caller-owned static root/profile relation and exact budget composition. General arguments/ownership/residency, authenticated profile closure, provider composition, public build/run and performance evidence remain open. |
-| W-1603 | independent bounded accelerated invocation relation | ACCINV0 consumes Frontend28 plus a verified gpu-module-1 program and copies one exact zero-argument `spawn<domain> descriptor.field()`, where the domain is accelerated, and its lexical `await` into caller-owned, provider-neutral records. Its verifier survives source, CST, frontend, and gpu-module teardown. Semantic identity binds domain policy, copied identities, result shape, and the device-module semantic digest; provenance binds source ordinals/spans and producer receipts. | `source-backed-current` only for the exact one-invocation signed-`i32` seed slice, transactional C23 implementation, adversarial verifier, and focused gate. One invocation and zero arguments are seed evidence limits, not language or ABI bounds. Typed task failure, arguments/ownership/residency, geometry, authenticated product/profile closure, provider launch/join/result, public GPU product, other targets, benchmark, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
-| W-1604 | independent bounded accelerated root binding | ACCBIND0 consumes a verified ACCINV0 relation plus one caller-supplied closed product/profile selection, copies the exact root/domain/descriptor/module/artifact/kernel-instance identity relation, requires selected-instance and provider-ABI agreement, and computes the effective admission maximum as the minimum of invocation, profile, root, deployment and resource limits. Its source-free verifier survives both owners; semantic identity excludes queue/device/generation while provenance binds them. | `source-backed-current` only for the one-relation caller-owned C23 bridge, reject-only fallback, exact budget composition, identity/ABI consistency, transactional capacity and alias barriers, teardown independence, adversarial verification, and focused gate. The upstream closed-profile receipts are assumed inputs rather than authenticated here. General profile closure, product signatures, arguments/ownership/residency, provider launch/join/result, cancellation/drain, public GPU products, other targets, benchmark results and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
-| W-1605 | independent bounded accelerated provider request | ACCREQ0 consumes verified ACCBIND0 and GPU0 programs/results, cross-checks the descriptor, host root, kernel label, private function and signed-i32 result shape, and copies one provider-neutral request, identity text and exact device artifact into caller-owned storage. Its independent verifier survives both producer lifetimes, rehashes the artifact, and separates semantic identity from physical provenance. | `source-backed-current` only for the one-request C23 bridge, exact current GPU0 sentinel, copied artifact and identities, transactional capacity/alias barriers, teardown independence, adversarial verification and focused gate. It performs no provider submission and introduces no public ABI. General arguments/results, authenticated product closure, provider launch/join/result, cancellation/drain, residency, public GPU products, other accelerators, benchmark results and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1601 | bounded GPU0 target-neutral semantic witness and available CUDA execution | GPU0 is a target-neutral, provider-free C23 semantic seed with separate host/device MLIR artifacts and exact lifecycle, identity, dispatch, memory, alias, capacity, effect and transactional checks. Frontend31 preserves the module contract and the bounded local static-domain invocation identity. Independent caller-owned bridges preserve the device-module meaning and project one verified kernel binding into GPU0 without provider, target, queue, pointer, launch handle or MLIR handle. The focused Windows gate lowers with pinned MLIR/LLVM 23.1.1, emits PTX with Clang 22.1.8 and executes through the CUDA Driver on NVIDIA RTX A400 (`sm_86`), verifying `42`. Diagnostic sizes and phase distributions are not product rankings. | `implementation-evidence-gap` for the complete W source-to-provider product route. Frontend31 local invocation identity, independent device-module, ACCINV0 invocation and ACCBIND0 root/profile relation records, GPU0 projection and experimental CUDA execution are current; kernel imports are grammar/CST/module-scan only, while multi-module resolver, qualified dynamic launch, product reachability/DCE, authenticated product closure, public artifact routing, supported provider launch/join/result, homogeneous production toolchain and performance ranking remain open. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1602 | static accelerated-domain submission | `.accelerated(name, submission:, maximum:, fallback:)` adds a target-neutral domain requirement. In the static path `spawn<domain> name(args...)` or `spawn<domain> alias.name(args...)` is the launch surface; the product/root owns the typed relation and lifecycle. `accelerator.open<module: alias>(...)` plus `.launch(using:)` remains the explicit dynamic path. Host calls, transfers, artifact requirements, Task lifetime, typed launch failures, receipts and drain remain distinct. | `oracle-backed-current`: DEV0 validates the static-root relation and lifecycle, while Frontend31 preserves the bounded kind/domain/module/kernel relation and rejects contextual misuse. ACCINV0 independently preserves the first zero-argument invocation and lexical join; ACCBIND0 proves one caller-owned static root/profile relation and exact budget composition. General arguments/ownership/residency, authenticated profile closure, provider composition, public build/run and performance evidence remain open. |
+| W-1603 | independent bounded accelerated invocation relation | ACCINV0 consumes Frontend31 plus a verified gpu-module-2 program and copies one exact zero-argument `spawn<domain> name()`, where the domain is accelerated and the callee is the immediate local kernel binding, together with its lexical `await` into caller-owned, provider-neutral records. Its verifier survives source, CST, frontend, and gpu-module teardown. Semantic identity binds domain policy, copied identities, result shape, and the device-module semantic digest; provenance binds source ordinals/spans and producer receipts. | `source-backed-current` only for the exact one-invocation signed-`i32` seed slice, transactional C23 implementation, adversarial verifier, and focused gate. Named and qualified kernel imports are grammar/CST/module-scan evidence only; multi-module resolution and qualified dynamic launch remain gaps. One invocation and zero arguments are seed evidence limits, not language or ABI bounds. Typed task failure, arguments/ownership/residency, geometry, authenticated product/profile closure, provider launch/join/result, public GPU product, other targets, benchmark, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1604 | independent bounded accelerated root binding | ACCBIND0 consumes a verified ACCINV0 relation plus one caller-supplied closed product/profile selection, copies the exact root/domain/module/artifact/kernel-instance identity relation, requires selected-instance and provider-ABI agreement, and computes the effective admission maximum as the minimum of invocation, profile, root, deployment and resource limits. Its source-free verifier survives both owners; semantic identity excludes queue/device/generation while provenance binds them. | `source-backed-current` only for the one-relation caller-owned C23 bridge, reject-only fallback, exact budget composition, identity/ABI consistency, transactional capacity and alias barriers, teardown independence, adversarial verification, and focused gate. The upstream closed-profile receipts are assumed inputs rather than authenticated here. General profile closure, product signatures, arguments/ownership/residency, provider launch/join/result, cancellation/drain, public GPU products, other targets, benchmark results and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1605 | independent bounded accelerated provider request | ACCREQ0 consumes verified ACCBIND0 and GPU0 programs/results, cross-checks the module-contract root, host root, kernel label, private function and signed-i32 result shape, and copies one provider-neutral request, identity text and exact device artifact into caller-owned storage. Its independent verifier survives both producer lifetimes, rehashes the artifact, and separates semantic identity from physical provenance. | `source-backed-current` only for the one-request C23 bridge, exact current GPU0 sentinel, copied artifact and identities, transactional capacity/alias barriers, teardown independence, adversarial verification and focused gate. It performs no provider submission and introduces no public ABI. General arguments/results, authenticated product closure, provider launch/join/result, cancellation/drain, residency, public GPU products, other accelerators, benchmark results and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1606 | measured parallel task-relation storage | HIR38 admits and verifies finite `.main` and `.domain` sibling scopes using caller-owned record counts rather than a four-slot temporary array. PARSEL1 consumes the `.domain` lane, measures exact task count, and publishes dense caller-owned call/function/launch/join records with domain facts and a semantic digest independent of provider capacity and compiler-host width. | `source-backed-current` only for finite HIR admission plus PARSEL1 measure/run/bridge/verify, transactional capacity and alias barriers, five-task `.main` and `.domain` evidence, and preserved fail-closed legacy product/selector boundaries. A measured `.main` product consumer, downstream PARINV0/PARPROV0/PARMLIR0 migration, scheduler storage, cancellation/outcomes, public execution, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1607 | measured parallel invocation storage | PARINV1 consumes verified HIR38 and PARSEL1, measures exact task and argument counts, normalizes named arguments into parameter order, and publishes dense caller-owned invocation relations with a canonical semantic digest. Its pure scalar proof resolves parameters through HIR relations without a fixed arity array. | `source-backed-current` only for PARINV1 measure/run/bridge/verify/evaluate, transactional capacity and alias barriers, five-task and seventeen-argument evidence, and preserved fail-closed PARINV0 limits. Provider, PARMLIR0 and public-product migration, cancellation/outcomes, scheduling, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1608 | measured Windows parallel provider | PARPROV1 consumes verified HIR38/PARSEL1/PARINV1, measures caller-owned outcomes and workspace, and executes any verified finite logical task count through constant-size Windows worker waves of capacity one or two. Semantic outcomes exclude provider capacity; a separate receipt records physical overlap. | `source-backed-current` only for the Windows x64 pure scalar component, five-task and seventeen-argument execution, capacity-one/two semantic equality, monotonic rendezvous, exact workspace, transactional semantic outputs, aliases, and independent verification. Workspace may contain partial physical values after failure. Linux/other providers, emitted task entries, cancellation/outcomes, general scheduling, public products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
@@ -12772,27 +12772,34 @@ retains only their nearest-rank p50/p95 summaries plus temporary artifact
 sizes and digests. It does not enter the public executable catalog or compare
 W, C, and Rust.
 
-The seed parser accepts the canonical module constructor shape and emits
-explicit `STATIC_RECORD` and `STATIC_FIELD` CST owners inside its contract
-envelope. Frontend28 recognizes the exact compiler head with zero runtime
-arguments and publishes caller-owned module and ordered kernel-binding records.
-It binds unique labels to direct same-document functions while excluding
-provider, target, queue, pointer, device ABI, and MLIR identities. Positive
-evidence covers one and multiple kernels, exact owners, spans, deterministic
-receipts, and short capacities; empty or malformed records, duplicate labels,
-missing functions, and runtime arguments fail closed.
+The seed parser accepts a contextual module contract such as
+`module gpuHello<kernels: { hello: helloKernel }>` and emits its named kernel
+items inside the contract envelope. Frontend31 recognizes a nonempty contract
+record with unique public labels and direct same-document functions, including
+declarations that appear later in the module. It publishes caller-owned
+kernel-module and ordered kernel-binding records while excluding provider,
+target, queue, pointer, device ABI, and MLIR identities. Public labels are
+canonicalized before ordinals and identity are derived, so textual reorder is
+stable; alias spellings are provenance only. Positive evidence covers one and
+multiple kernels, exact owners, spans, deterministic receipts, reorder
+invariance, and short capacities; empty or malformed records, duplicate labels,
+missing functions, generic targets without specialization records, and runtime
+arguments fail closed.
 
 This remains compiler-lifecycle evidence only. The source now reaches bounded
-frontend semantic identities, a bounded typed frontend invocation relation,
-independently verified device-module records, and a caller-owned
+frontend semantic identities, a bounded local typed frontend invocation
+relation, independently verified device-module records, and a caller-owned
 provider-neutral GPU0 projection for one selected field, but not independent
-invocation HIR or a supported provider route. The projection copies the module
-const name, field label, and private implementation name into caller-owned text
-and carries the verified payload into the exact GPU0 operation pair. It is not a
-W runtime or provider, a public product, a supported GPU ABI, homogeneous
-production support, or a W product performance result. Rank 1 remains open
-until the invocation crosses independent HIR and the remaining public and
-physical provider boundaries for launch, join, and result evidence.
+invocation HIR or a supported provider route. Kernel imports are currently
+preserved only through grammar/CST/module-scan; multi-module resolution,
+qualified dynamic launch, product reachability/DCE, and general HIR integration
+remain gaps. The projection copies the module name, public label, and private
+implementation name into caller-owned text and carries the verified payload
+into the exact GPU0 operation pair. It is not a W runtime or provider, a public
+product, a supported GPU ABI, homogeneous production support, or a W product
+performance result. Rank 1 remains open until the invocation crosses
+independent HIR and the remaining public and physical provider boundaries for
+launch, join, and result evidence.
 
 #### W-1602 — static accelerated-domain submission
 
@@ -12801,22 +12808,24 @@ The prior surface required every common device call to repeat a runtime
 provider class, queue policy, limits and fallback. That repetition exposed a
 lowering detail without adding authority at the call site. W-1602 makes the
 static product/root own that typed relation and uses the existing structured
-placement form:
+placement form with a module-contract kernel projection:
 
 ```w
-let task = spawn<.inference> lastLightKernels.forecast(
+import kernel models as models
+
+let task = spawn<.inference> models.forecast(
   features: ref deviceFeatures,
   weights: ref deviceWeights,
 )
 let result = try await task
 ```
 
-This is not arbitrary offload. The callee must be an immediate field of a
-closed `accelerator.module` descriptor and the selected domain must have the
-`.accelerated` kind. The normalized relation retains the exact domain identity,
+This is not arbitrary offload. The callee must be an immediate named or
+qualified projection from a closed module contract and the selected domain must
+have the `.accelerated` kind. The normalized relation retains the exact domain identity,
 `ModuleIdentity`, `KernelInstanceId`, argument ownership, result and
-`LaunchError`. A bare descriptor-field call, `async` field call, host-domain
-spawn or string lookup is rejected. Calling the original kernel symbol remains
+`LaunchError`. A bare kernel call, `async` kernel call, host-domain spawn or
+string lookup is rejected. Calling the original kernel symbol remains
 an ordinary host call.
 
 Acceleration and scheduling are orthogonal. `submission: .serial` or
@@ -12842,27 +12851,27 @@ evidence, not a claim that frontend lowering or a device provider exists.
 A proved immediate join may erase only the virtual Task/frame, never required
 provider work.
 
-Frontend28 implements the first bounded source relation without pretending to
+Frontend31 implements the first bounded source relation without pretending to
 implement that provider work. Its caller-owned domain record discriminates
 host and accelerated kinds and retains submission mode, capabilities and a
-positive maximum. The expression graph binds the immediate descriptor field
-to exact accelerator-module, kernel and original-function indices. Bare field
-calls, `async` field calls, host-domain offload, missing fields, zero budgets
-and device-less accelerated bindings fail closed. The records still depend on
-frontend storage. ACCINV0 closes the first independent zero-argument invocation
-and lexical-join slice; ACCBIND0 closes one bounded caller-owned root/profile
-relation. General arguments/ownership/residency, authenticated product closure
-and provider execution remain open.
+positive maximum. The expression graph binds the immediate kernel binding
+to exact kernel-module, kernel-binding and original-function indices. Bare
+kernel calls, `async` kernel calls, host-domain offload, missing bindings, zero
+budgets and device-less accelerated bindings fail closed. The records still
+depend on frontend storage. ACCINV0 closes the first independent zero-argument
+invocation and lexical-join slice; ACCBIND0 closes one bounded caller-owned
+root/profile relation. General arguments/ownership/residency, authenticated
+product closure and provider execution remain open.
 
 #### W-1603 — independent bounded accelerated invocation relation
 
 Frontend records are not an acceptable launch-plan boundary because their
 indices and text borrow source-owned storage. ACCINV0 therefore consumes the
-already successful Frontend28 result together with an independently verified
-gpu-module-1 program and copies the exact static relation into its own bounded
+already successful Frontend31 result together with an independently verified
+gpu-module-2 program and copies the exact static relation into its own bounded
 storage. The first slice contains one zero-argument invocation and one lexical
-join. It preserves the accelerated domain identity and policy, module const,
-kernel label, private function identity, normalized signed-`i32` result shape,
+join. It preserves the accelerated domain identity and policy, module contract,
+public kernel label, private function identity, normalized signed-`i32` result shape,
 source ordinals, and containing spans. It contains no provider, target, queue,
 pointer, launch handle, device-memory plan, MLIR handle, or physical ABI.
 
@@ -12889,7 +12898,7 @@ Preserving a static invocation is insufficient until the product root resolves
 it to one closed domain/module/kernel-instance relation. ACCBIND0 establishes
 that next boundary without embedding a provider handle. It consumes only a
 verified ACCINV0 program/result and a caller-owned closed profile, verifies the
-canonical domain name, local descriptor, module and kernel identities, selected
+canonical domain name, local module-contract root, module and kernel identities, selected
 instance membership assertion, target equality and provider ABI digest, then
 copies every identity byte into its own bounded output.
 
@@ -12933,7 +12942,7 @@ previously verified in isolation. Passing either producer-owned graph directly
 to a provider would couple lifetimes and let physical state substitute for
 semantic identity. ACCREQ0 therefore copies their common meaning into a third,
 provider-neutral boundary. It requires exact agreement among the source-local
-descriptor, GPU0 host-root name, kernel label, private function and explicit
+module-contract root, GPU0 host-root name, kernel label, private function and explicit
 signed-`i32` result shape before publishing anything.
 
 The request owns every identity byte and the exact device artifact. Its

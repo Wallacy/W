@@ -95,7 +95,7 @@ last-light-audio / LastLightAudio
   → callback com deadline
   → sem allocation ou blocking
 
-last-light-accelerators / export lastLightKernels
+last-light-accelerators / ai_harness kernel family
   → tensor kernels
   → NVVM, ROCDL ou SPIR-V
 
@@ -3138,11 +3138,12 @@ corpus. Ele não compila ou executa W.
 
 ### 3.47 Scope dos Computadores que Cabem em Outros Computadores
 
-Famílias: kernel descriptor, Launch owned, Queue, device memory, submission,
+Famílias: module-contract kernel binding, Launch owned, Queue, device memory, submission,
 completion receipt, cancellation, fault, limits e equivalência CPU/device.
 
-`device_execution_oracle.w` declara um domain `.accelerated` e usa
-`spawn<.inference> lastLightKernels.forecast(...)` como caminho estático comum.
+`device_execution_oracle.w` declara um domain `.accelerated`, importa a família
+com `import kernel ai_harness as models` e usa
+`spawn<.inference> models.forecast(...)` como caminho estático comum.
 O product/root possui a relation tipada de launch e a drena no shutdown;
 `accelerator.open` e `.launch(using:)` permanecem no mesmo fixture como caminho
 dinâmico para seleção explícita de Queue ou Device. O device não acrescenta uma
@@ -3151,10 +3152,10 @@ quinta forma de execução, e o resultado só chega ao host por
 
 Aceite:
 
-- cada field de `accelerator.module<{...}>()` nomeia um kernel, participa do
-  `spawn` acelerado estático e mantém um launch stub tipado para o caminho
-  dinâmico; o descriptor é `const` de module scope e aceita somente símbolos
-  diretos sem capture, suspension ou failure;
+- cada item `label: function` do campo `kernels` no module contract nomeia um
+  kernel, participa do `spawn` acelerado estático e mantém um launch stub
+  tipado para o caminho dinâmico; o campo é compiler-owned e aceita somente
+  símbolos diretos sem capture, suspension ou failure;
 - cada especialização alcançável normaliza argumentos de tipo e valores const,
   possui identity e artifact; instances ausentes e JIT runtime falham, enquanto
   instances não usados são removidos;

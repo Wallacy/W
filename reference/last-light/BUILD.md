@@ -373,7 +373,7 @@ sharing business rules does not require dispatching every frame through services
 | Mobile app/game | `last-light-mobile` / `LastLightMobile`; `app.resume`, `app.suspend`, `app.notification` are `hostBindings` | `mobile_app.w` plus shared domain; device install, input, suspend/resume and resource-loss witness |
 | Audio device | `last-light-audio` / `LastLightAudio` | `audio.w`, `audio_app.w`; provider, deadline, allocation and shutdown evidence (the `std/audio` provider is absent) |
 | Firmware/device | `last-light-controller` / `LastLightController`; tick/interrupt are `hostBindings` | `controller_app.w`, `hardware.w`, `horizon.w`; board/emulator, MMIO, interrupt and placement witness |
-| Accelerator compute | `last-light-accelerators`, export `ai_harness::lastLightKernels`, no entry | `ai_harness.w`; restricted kernel/device-result witness; compute does not imply graphics presentation |
+| Accelerator compute | `last-light-accelerators`, root `ai_harness` kernel family, no entry | `ai_harness.w`; restricted kernel/device-result witness; compute does not imply graphics presentation |
 | Scientific/ML and telemetry | `last-light-ai-lab` / `LastLightAiLab`; `last-light-observatory` / `LastLightObservatory` | `ai_lab_app.w`, `ai_harness.w`, `observatory_app.w`; numerical reference, training/inference step and real telemetry/service evidence |
 | Libraries and FFI | `last-light-horizon-w`, `last-light-horizon-c`; exports, no entry or host | `horizon.w`, `abi.w`; ABI/layout evidence, plus load/unload for dynamic libraries and tamper rejection for trusted distribution |
 | Server benchmark | `last-light-benchmark` / `LastLightBenchmark` | `benchmark_app.w`; real HTTP/database workload, failure behavior and matched production-profile measurements |
@@ -461,10 +461,10 @@ O primeiro gate embedded exige:
 | `amdgcn-amd-amdhsa` | MLIR GPU → ROCDL |
 | `spirv64-unknown-vulkan` | MLIR GPU → SPIR-V |
 
-`last-light-accelerators` exporta a família genérica `lastLightKernels`. Sem
-launch sites concretos nesse product, o resultado é um module manifest
-source-backed, a recipe reproduzível e as constraints de target; ele não afirma
-conter kernels executáveis. Um host product que fecha `KernelInstanceId`s
+`last-light-accelerators` aponta para a família declarada no module contract de
+`ai_harness`. Sem launch sites concretos nesse product, o resultado é um module
+manifest source-backed, uma recipe reproduzível e as constraints de target; ele
+não afirma conter kernels executáveis. Um host product que fecha `KernelInstanceId`s
 materializa os objects exatos para o target. Esse host mantém device selection, transfer,
 launch, synchronization e errors.
 

@@ -45,7 +45,7 @@
       "id": "bundle",
       "role": "bundle",
       "path": "tooling/studies/asic0-evidence-gap-closure/bundle.json",
-      "digest": "sha256:0aae4baf69137343dac503a6079d3d07388ef648e83946f5017202dbad0eb377"
+      "digest": "sha256:026c935bc0c172252c609e51fd4af61cdd0ff6226a7e5a069e55fb6ec787a433"
     },
     {
       "id": "study",
@@ -111,7 +111,7 @@
       "id": "avf-study",
       "role": "avf-study",
       "path": "tooling/studies/avf0-availability-feature/study.json",
-      "digest": "sha256:9234620d416374526b67a535343b306fd710b4f455215c5b560b7a6fb8f2631c"
+      "digest": "sha256:e2619b27d4822f61f5ff88719ca2a6cc2e3b3e92126dac9c0d39253247c26332"
     },
     {
       "id": "avf-corpus",

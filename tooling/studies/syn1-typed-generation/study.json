@@ -41,7 +41,7 @@
       "role": "fixture-current",
       "disposition": "fixture",
       "fixture": true,
-      "digest": "sha256:ce17f54d10400e65f6f5b98a764d530402e67e49bedf93e18e8318641a00c0a3"
+      "digest": "sha256:88051dd352ac60725f805a40725e83a74cbf230a319bbec90594a89395cc06dd"
     },
     {
       "id": "candidate-generated-module",
@@ -89,9 +89,9 @@
     {
       "id": "last-light-kernels",
       "path": "reference/last-light/ai_harness.w",
-      "symbol": "export const lastLightKernels",
-      "claim": "finite compiler-owned kernel synthesis",
-      "digest": "sha256:25733ecf867973a49cdfa2e71bb97a6e232df8856ca73f49c85a2a86bd8e03c0"
+      "symbol": "module ai_harness<",
+      "claim": "finite compiler-owned module-contract kernel family",
+      "digest": "sha256:5b6f3ed7bc6fc98e59e0e13480820e6609e17362f71400a6017a6b03fd9c310e"
     },
     {
       "id": "last-light-menu-transform",
@@ -112,7 +112,7 @@
       "path": "reference/last-light/build.w",
       "symbol": "name: \"compile-final-menu\"",
       "claim": "build action and target separation",
-      "digest": "sha256:53943d95e353121b18807492c3d7282df2bfb77b1a89cbf3859d8d4637ef44fc"
+      "digest": "sha256:3f2c504a2d139ac24a44dd58892436f7d1ff608b5f3edf11913c445006548c75"
     },
     {
       "id": "last-light-final-menu",

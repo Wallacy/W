@@ -4,8 +4,8 @@
   "sourceOfTruth": "atlas-manifest.json metadata plus terse source markers and snippets in the atlas .w files. SYNTAX-COVERAGE.md is generated.",
   "grammar": {
     "path": "tooling/tree-sitter-w/grammar.js",
-    "digest": "sha256:d697ca80b5be2513513ccb120b7aec9668fa98e13575a0a3caf4849741ebe3fd",
-    "publicRuleSetDigest": "sha256:866b57f39e89574d586890e57cf43d352de650e89607cb4417c3c5ee9b6c9621"
+    "digest": "sha256:a68282a97a5debf2d3307ccb2afcca4998e546c1a83d9ac273be3155b579147e",
+    "publicRuleSetDigest": "sha256:9f0797fa4c0ffeedf000fb99b216bf51c15284ceb067bb06d788c92b58e699d4"
   },
   "sourceFiles": [
     "build.w",
@@ -836,6 +836,38 @@
       "reason": "Direct source construction shown in the data-declarations atlas block.",
       "markers": [
         "data-declarations"
+      ]
+    },
+    {
+      "name": "kernel_contract_field",
+      "surface": "composed",
+      "reason": "Composed by the source-roots-imports atlas block.",
+      "markers": [
+        "source-roots-imports"
+      ]
+    },
+    {
+      "name": "kernel_contract_item",
+      "surface": "composed",
+      "reason": "Composed by the source-roots-imports atlas block.",
+      "markers": [
+        "source-roots-imports"
+      ]
+    },
+    {
+      "name": "kernel_contract_record",
+      "surface": "composed",
+      "reason": "Composed by the source-roots-imports atlas block.",
+      "markers": [
+        "source-roots-imports"
+      ]
+    },
+    {
+      "name": "kernel_import_statement",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the source-roots-imports atlas block.",
+      "markers": [
+        "source-roots-imports"
       ]
     },
     {
@@ -1850,6 +1882,30 @@
       "witness": "import std.text"
     },
     {
+      "id": "import-kernel-named",
+      "block": "source-roots-imports",
+      "construction": "named kernel projection import",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "import kernel { forecast as predict } from atlas.models"
+    },
+    {
+      "id": "import-kernel-qualified",
+      "block": "source-roots-imports",
+      "construction": "qualified kernel projection import",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "import kernel atlas.models as models"
+    },
+    {
+      "id": "module-kernel-contract",
+      "block": "source-roots-imports",
+      "construction": "module kernel contract",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "kernels: { forecast: forecastKernel }"
+    },
+    {
       "id": "import-domain",
       "block": "source-roots-imports",
       "construction": "domain import",
@@ -2315,6 +2371,10 @@
         "domain_import_statement",
         "import_item",
         "import_statement",
+        "kernel_contract_field",
+        "kernel_contract_item",
+        "kernel_contract_record",
+        "kernel_import_statement",
         "module_contract",
         "module_header",
         "module_path",
@@ -2338,14 +2398,14 @@
           "digest": "sha256:d2d9bfb8518947101d1712519c4ef750ca99fe85038a5fa64de26f08d199ec0f"
         }
       ],
-      "snippetDigest": "sha256:dd82ab13d8392f9cfcf2c1360c9f2494779cdee8478f7b4a02ff6f00cce14f54",
-      "snippetBytes": 347
+      "snippetDigest": "sha256:9f66b7dedf41ccc43e3eb43d62ec367fefb7a84b0de2c290d8fa91ec710611ea",
+      "snippetBytes": 481
     },
     {
       "id": "data-declarations",
       "file": "language.w",
       "order": 2,
-      "line": 15,
+      "line": 18,
       "title": "Data declarations, properties, and behaviors",
       "family": "declarations",
       "designStatus": "current",
@@ -2420,7 +2480,7 @@
       "id": "types-and-contracts",
       "file": "language.w",
       "order": 3,
-      "line": 196,
+      "line": 199,
       "title": "Type contracts, static values, and function types",
       "family": "types",
       "designStatus": "current",
@@ -2460,7 +2520,7 @@
       "id": "callables-and-foreign",
       "file": "language.w",
       "order": 4,
-      "line": 165,
+      "line": 168,
       "title": "Callable modes, generics, and foreign bodies",
       "family": "callables",
       "designStatus": "current",
@@ -2507,7 +2567,7 @@
       "id": "literals-and-collections",
       "file": "language.w",
       "order": 5,
-      "line": 246,
+      "line": 249,
       "title": "Literals, tuples, and collections",
       "family": "values",
       "designStatus": "current",
@@ -2540,7 +2600,7 @@
       "id": "patterns",
       "file": "language.w",
       "order": 6,
-      "line": 220,
+      "line": 223,
       "title": "Patterns, ranges, and matches",
       "family": "patterns",
       "designStatus": "current",
@@ -2795,7 +2855,7 @@
       "id": "entry-declaration",
       "file": "language.w",
       "order": 13,
-      "line": 284,
+      "line": 287,
       "title": "Explicit entry descriptor",
       "family": "entry",
       "designStatus": "current",
@@ -2862,7 +2922,7 @@
         {
           "path": "reference/last-light/build.w",
           "symbol": "package {",
-          "digest": "sha256:53943d95e353121b18807492c3d7282df2bfb77b1a89cbf3859d8d4637ef44fc"
+          "digest": "sha256:3f2c504a2d139ac24a44dd58892436f7d1ff608b5f3edf11913c445006548c75"
         }
       ],
       "snippetDigest": "sha256:44876160bc88c3baf20a592326d9cdb4fc40ef3804e3b7ef1d0c9d2251d2e325",
@@ -2888,7 +2948,7 @@
         {
           "path": "reference/last-light/build.w",
           "symbol": "workspace {",
-          "digest": "sha256:53943d95e353121b18807492c3d7282df2bfb77b1a89cbf3859d8d4637ef44fc"
+          "digest": "sha256:3f2c504a2d139ac24a44dd58892436f7d1ff608b5f3edf11913c445006548c75"
         }
       ],
       "snippetDigest": "sha256:538bc3384f73031187fc9f9ad2caec358951f8e584c075e9cf212ac0075db345",
@@ -2915,6 +2975,6 @@
   ],
   "generated": {
     "coverage": "SYNTAX-COVERAGE.md",
-    "coverageDigest": "sha256:5efd84cd7b03607305eb7d76112e4cb7817cbe22203c44bb095fb7d7221669ba"
+    "coverageDigest": "sha256:f5e107cbb9cad535b0c90f2bb470c8c2561e054fa3fbeb01a2870783652fa287"
   }
 }

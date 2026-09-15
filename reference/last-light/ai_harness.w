@@ -1,6 +1,13 @@
 // Host/device tensor contracts for forecasting and anomaly detection.
 
-import accelerator from std
+module ai_harness<
+  kernels: {
+    forecast: forecastKernel,
+    normalize: normalizeKernel,
+    trainLinear: trainLinearKernel,
+  },
+>
+
 import { Tensor } from std.tensor
 
 export type FeatureBatch<rows: usize, columns: usize> =
@@ -59,13 +66,9 @@ export fn trainLinearKernel<
   )
 }
 
-// The compiler closes this module-scope family. Products materialize only the
-// finite kernel specializations reachable from their launch sites.
-export const lastLightKernels = accelerator.module<{
-  forecast: forecastKernel,
-  normalize: normalizeKernel,
-  trainLinear: trainLinearKernel,
-}>()
+// The module contract declares reusable roots. Products materialize only the
+// finite kernel specializations reachable from their launch sites; the contract
+// field is not a runtime descriptor or value.
 
 test "matrix contraction fixes the output shape" for forecastKernel {
   let features: FeatureBatch<rows: 2, columns: 3> = [

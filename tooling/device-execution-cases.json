@@ -1,5 +1,5 @@
 {
-  "$schema": "w-device-execution-cases-1",
+  "$schema": "w-device-execution-cases-2",
   "status": "design-oracle-input",
   "fixtures": {
     "openCuda": [
@@ -93,7 +93,7 @@
     {
       "id": "DEV0-accepted-static-module-open",
       "kind": "accepted",
-      "source": { "path": "reference/last-light/ai_harness.w", "symbol": "lastLightKernels" },
+      "source": { "path": "reference/last-light/ai_harness.w", "symbol": "module ai_harness<" },
       "decisions": ["W-1212", "W-1218"],
       "operations": [{ "$use": "openCuda" }],
       "expect": { "status": "accepted", "phase": "ready", "ownerKind": "dynamic" }
@@ -114,7 +114,7 @@
             "maximum": 8,
             "fallback": "reject",
             "rootOwned": true,
-            "calleeKind": "acceleratorModuleField",
+            "calleeKind": "kernelBinding",
             "calleeModuleIdentity": "last-light-kernels-v1",
             "runtimeConfigurationInAngles": false,
             "implicitTransfer": false
@@ -146,7 +146,7 @@
             "maximum": 8,
             "fallback": "reject",
             "rootOwned": true,
-            "calleeKind": "acceleratorModuleField",
+            "calleeKind": "kernelBinding",
             "calleeModuleIdentity": "last-light-kernels-v1"
           }
         }
@@ -179,7 +179,7 @@
     {
       "id": "DEV0-rejected-static-domain-module-mismatch",
       "kind": "rejected",
-      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "lastLightKernels.forecast" },
+      "source": { "path": "reference/last-light/device_execution_oracle.w", "symbol": "models.forecast" },
       "decisions": ["W-1287", "W-1602"],
       "operations": [
         {
@@ -192,7 +192,7 @@
             "maximum": 1,
             "fallback": "reject",
             "rootOwned": true,
-            "calleeKind": "acceleratorModuleField",
+            "calleeKind": "kernelBinding",
             "calleeModuleIdentity": "other-module"
           }
         }
@@ -215,7 +215,7 @@
             "maximum": 8,
             "fallback": "reject",
             "rootOwned": true,
-            "calleeKind": "acceleratorModuleField",
+            "calleeKind": "kernelBinding",
             "calleeModuleIdentity": "last-light-kernels-v1",
             "runtimeConfigurationInAngles": true
           }
@@ -239,7 +239,7 @@
             "maximum": 8,
             "fallback": "reject",
             "rootOwned": true,
-            "calleeKind": "acceleratorModuleField",
+            "calleeKind": "kernelBinding",
             "calleeModuleIdentity": "last-light-kernels-v1",
             "implicitTransfer": true
           }
@@ -250,7 +250,7 @@
     {
       "id": "DEV0-rejected-artifact-module-mismatch",
       "kind": "rejected",
-      "source": { "path": "reference/last-light/ai_harness.w", "symbol": "accelerator.module" },
+      "source": { "path": "reference/last-light/ai_harness.w", "symbol": "module ai_harness<" },
       "decisions": ["W-1212", "W-1218", "W-1287"],
       "operations": [{ "$use": "openCuda", "with": { "artifactModuleIdentity": "other-module" } }],
       "expect": { "status": "rejected", "error": "W-DEVICE-0001", "phase": "uninitialized" }
@@ -266,7 +266,7 @@
     {
       "id": "DEV0-rejected-artifact-provider-abi-mismatch",
       "kind": "rejected",
-      "source": { "path": "reference/last-light/ai_harness.w", "symbol": "lastLightKernels" },
+      "source": { "path": "reference/last-light/ai_harness.w", "symbol": "module ai_harness<" },
       "decisions": ["W-1212", "W-1287"],
       "operations": [{ "$use": "openCuda", "with": { "artifactProviderAbiDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" } }],
       "expect": { "status": "rejected", "error": "W-DEVICE-0001" }
@@ -274,7 +274,7 @@
     {
       "id": "DEV0-rejected-artifact-target-mismatch",
       "kind": "rejected",
-      "source": { "path": "reference/last-light/ai_harness.w", "symbol": "lastLightKernels" },
+      "source": { "path": "reference/last-light/ai_harness.w", "symbol": "module ai_harness<" },
       "decisions": ["W-1212", "W-1287"],
       "operations": [{ "$use": "openCuda", "with": { "artifactTarget": "rocdl-gfx1200" } }],
       "expect": { "status": "rejected", "error": "W-DEVICE-0001" }

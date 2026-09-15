@@ -99,6 +99,7 @@ const CST = Object.freeze({
   ENUM_PATTERN: 69,
   WILDCARD_PATTERN: 70,
   LITERAL_PATTERN: 71,
+  THROWS_TYPE: 81,
 })
 
 const ISSUE = Object.freeze({
@@ -573,8 +574,12 @@ function assertAsyncFunction(parsed, bytes, label, exported = false) {
       directKind(parsed, functionNode.index, CST.BLOCK).length !== 1) {
     fail(`${label} FUNCTION parameter/return/block owners are incomplete`)
   }
-  if (!words.some((node) => nodeText(parsed, bytes, node) === "throws")) {
-    fail(`${label} FUNCTION does not preserve raw throws WORD`)
+  const throwsOwners = directKind(parsed, functionNode.index, CST.THROWS_TYPE)
+  if (throwsOwners.length !== 1 ||
+      !descendants(parsed, throwsOwners[0].index)
+        .some((node) => node.kind === CST.WORD &&
+          nodeText(parsed, bytes, node) === "throws")) {
+    fail(`${label} FUNCTION does not preserve its typed throws owner`)
   }
   const block = directKind(parsed, functionNode.index, CST.BLOCK)[0]
   if (functionNode.end !== block.end) fail(`${label} FUNCTION span does not end at BLOCK`)
@@ -748,7 +753,8 @@ function assertLanguageLock(parsed, bytes, label, { lockCount = 1, prefix = null
   const outer = expressions.find((node) =>
     descendants(parsed, node.index).some((child) => child.index === lock.index))
   if (!outer) fail(`${label} LOCK has no owning outer EXPRESSION`)
-  if (prefix !== null && !directKind(parsed, outer.index, CST.WORD)
+  if (prefix !== null && !descendants(parsed, outer.index)
+      .filter((node) => node.kind === CST.WORD)
       .some((word) => nodeText(parsed, bytes, word) === prefix)) {
     fail(`${label} outer EXPRESSION does not preserve ${prefix}`)
   }
