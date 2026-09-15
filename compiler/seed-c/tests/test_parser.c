@@ -1402,9 +1402,15 @@ static bool test_language_lock_shapes(void) {
     const w_seed_cst_index expression =
         direct_child_after(&value, return_statement, W_SEED_CST_EXPRESSION, 0);
     CHECK(expression != W_SEED_CST_NONE);
-    if (positive[index].prefix != NULL) {
+    if (positive[index].prefix != NULL &&
+        strcmp(positive[index].prefix, "try") != 0) {
       CHECK(has_direct_text(&value, expression, W_SEED_CST_WORD,
                             positive[index].prefix));
+    } else if (positive[index].prefix != NULL) {
+      const w_seed_cst_index try_owner = direct_child_after(
+          &value, expression, W_SEED_CST_TRY_EXPRESSION, 0);
+      CHECK(try_owner != W_SEED_CST_NONE);
+      CHECK(has_direct_text(&value, try_owner, W_SEED_CST_WORD, "try"));
     }
 
     fixture repeat;
@@ -1570,6 +1576,28 @@ static bool test_phase2_parameter_requirements(void) {
         W_SEED_CST_NONE);
   CHECK(check_leaf_partition(&throwing));
   CHECK(check_tree_links(&throwing));
+
+  fixture propagating;
+  CHECK(fixture_init(
+      &propagating,
+      "enum Failure: Error { denied } "
+      "fn leaf(): i64 throws Failure { throw .denied } "
+      "fn relay(): i64 throws Failure { return try leaf() }\n",
+      sizeof(propagating.nodes) / sizeof(propagating.nodes[0]),
+      sizeof(propagating.issues) / sizeof(propagating.issues[0])));
+  CHECK(propagating.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(propagating.result.issue_count == 0u);
+  const w_seed_cst_index try_expression =
+      first_kind(&propagating, W_SEED_CST_TRY_EXPRESSION);
+  CHECK(try_expression != W_SEED_CST_NONE);
+  CHECK(has_direct_text(&propagating, try_expression, W_SEED_CST_WORD,
+                        "try"));
+  CHECK(has_direct_text(&propagating, try_expression, W_SEED_CST_WORD,
+                        "leaf"));
+  CHECK(direct_child_after(&propagating, try_expression,
+                           W_SEED_CST_PUNCTUATION, 0) != W_SEED_CST_NONE);
+  CHECK(check_leaf_partition(&propagating));
+  CHECK(check_tree_links(&propagating));
   return true;
 }
 

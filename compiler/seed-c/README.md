@@ -207,6 +207,19 @@ Non-`Error` enums and a throwing branch with a later continuation fail closed;
 nested terminal branches, try/catch, cleanup, provider/Task binding, and
 MLIR/native execution are not implemented by this slice.
 
+Version 30 adds `W_SEED_CST_TRY_EXPRESSION` and Frontend30 schema
+`w-seed-frontend-30`. The parser wraps `try` and adjacent `try?` prefixes, but
+frontend support is limited to exact plain `try localCall(...)`. The nested
+call must be synchronous, local, and declared `throws E`; the lexical caller
+must also declare `throws E` and use the same nominal local error enum. The
+`EXPR_TRY` record copies the call result type, records the call index, and
+publishes `propagated_error_enum` in the receipt. A direct synchronous
+throwing call without a valid `try` owner is unsupported. Supported async or
+spawn owners carry the thrown outcome without `try`. Optional or async `try`,
+conversions, non-direct or non-local calls, HIR/native lowering, catch, and
+cleanup remain unsupported. This is compiler-lifecycle correctness evidence,
+not a product or performance claim.
+
 `w_seed_accelerated_invocation0` consumes only that successful Frontend28
 relation plus a verified `w_seed_gpu_module` program. ACCINV0 copies one exact
 zero-argument static launch and lexical await into caller-owned invocation and

@@ -40647,6 +40647,43 @@ fn dispatch(isDenied: Bool): i64 throws DispatchError {
 }
 ```
 
+#### 26.4.1.95 W-1615 — bounded parser/frontend typed-try propagation
+
+The seed parser now wraps a `try` prefix in `W_SEED_CST_TRY_EXPRESSION`.
+The CST also preserves adjacent `try?` syntax. This recognition is syntactic
+and does not make every `try` form supported.
+
+Frontend schema `w-seed-frontend-30` adds `W_SEED_FRONTEND_EXPR_TRY` and the
+`propagated_error_enum` relation. The supported form is exactly
+`try localCall(...)` when all of these facts hold:
+
+- the nested expression is a direct local call;
+- the callee is synchronous and declares `throws E`;
+- the lexical caller declares `throws E`;
+- both declarations use the same nominal local error enum;
+- the caller is not `const`.
+
+The `EXPR_TRY` record preserves the nested call index and its result type. It
+copies the concrete local enum identity into `propagated_error_enum` and adds
+the relation to the frontend receipt. Link resolution rechecks the owner,
+callee, local module, throwing declarations, enum identity, result type, and
+async barrier.
+
+A direct synchronous call to a throwing local function is unsupported when it
+has no valid `try` owner. An otherwise supported `async` or `spawn` launch owns
+the throwing call and does not need an `EXPR_TRY` marker. `try?`, `try await`,
+conversion forms, non-local or non-direct calls, and const callers remain
+unsupported. This increment adds no HIR or native/MLIR `try` lowering, catch
+region, cleanup route, or public product behavior.
+
+<!-- w-example role=logical-contract -->
+```w
+// excerpt-kind: logical-contract
+enum Failure: Error { denied }
+fn leaf(): i64 throws Failure { throw .denied }
+fn relay(): i64 throws Failure { return try leaf() }
+```
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

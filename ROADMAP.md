@@ -129,7 +129,12 @@ dependency was the producer side of typed failure: W-1613 now carries a
 terminal root `throw E` through parser, frontend29, and verified HIR39 while
 rejecting non-`Error` and unproved branch composition. W-1614 adds the first
 mixed normal/error CFG: one complete top-level conditional with independent
-return/throw arms and no hidden join. Next comes continuation-safe cleanup and
+return/throw arms and no hidden join. W-1615 adds the bounded parser/frontend
+`try localCall(...)` propagation marker. It requires one synchronous local
+throwing callee and one lexical throwing caller with the same nominal local
+error enum. Async and spawn owners carry the thrown outcome without `try`, but
+HIR/native lowering, catch, cleanup, conversions, and optional or async `try`
+remain unsupported. Next comes continuation-safe cleanup and downstream
 propagation, then an authenticated typed provider result and TASKLIFE binding,
 followed by an explicit panic boundary.
 Physical cancellation remains cooperative rather than thread termination.

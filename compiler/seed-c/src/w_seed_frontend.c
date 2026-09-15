@@ -107,6 +107,8 @@ typedef struct {
   bool is_local_call;
   uint32_t local_call_function;
   bool local_call_is_async;
+  bool local_call_is_throws;
+  frontend_simple_type local_call_error_type;
   uint32_t task_binding_statement;
 } frontend_expr_value;
 
@@ -3598,6 +3600,19 @@ static bool receipt_size_task_expression(
          receipt_size_size(context, domain_capabilities) &&
          receipt_size_literal(context, "|maximum=") &&
          receipt_size_size(context, domain_maximum) &&
+         receipt_size_literal(context, "\n");
+}
+
+static bool receipt_size_try_expression(frontend_context *context,
+                                        size_t expression_index,
+                                        uint32_t call_expression,
+                                        uint32_t error_enum) {
+  return receipt_size_literal(context, "try-expression=") &&
+         receipt_size_size(context, expression_index) &&
+         receipt_size_literal(context, "|call=") &&
+         receipt_size_size(context, call_expression) &&
+         receipt_size_literal(context, "|error-enum=") &&
+         receipt_size_size(context, error_enum) &&
          receipt_size_literal(context, "\n");
 }
 
@@ -11794,6 +11809,7 @@ static bool expression_append(frontend_expression_parser *parser,
   record.task_result_type = W_SEED_FRONTEND_NONE;
   record.task_call_expression = W_SEED_FRONTEND_NONE;
   record.task_binding_statement = W_SEED_FRONTEND_NONE;
+  record.propagated_error_enum = W_SEED_FRONTEND_NONE;
   record.domain_index = W_SEED_FRONTEND_NONE;
   record.domain_kind = W_SEED_FRONTEND_DOMAIN_HOST;
   record.domain_mode = W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
@@ -11921,6 +11937,8 @@ static bool expression_append(frontend_expression_parser *parser,
   value->accelerator_function_index = W_SEED_FRONTEND_NONE;
   value->local_call_function = W_SEED_FRONTEND_NONE;
   value->local_call_is_async = false;
+  value->local_call_is_throws = false;
+  value->local_call_error_type = simple_type_unknown();
   value->task_binding_statement = W_SEED_FRONTEND_NONE;
   if (kind == W_SEED_FRONTEND_EXPR_ENUM_MEMBERSHIP) {
     value->enum_index = record.enum_index;
@@ -13243,6 +13261,16 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
         signature_node < signature_doc->parse.node_count &&
         (signature_doc->nodes[signature_node].flags &
          W_SEED_CST_FUNCTION_FLAG_ASYNC) != 0u;
+    value->local_call_is_throws =
+        local_signature && signature_doc != NULL &&
+        signature_node < signature_doc->parse.node_count &&
+        (signature_doc->nodes[signature_node].flags &
+         W_SEED_CST_FUNCTION_FLAG_THROWS) != 0u;
+    value->local_call_error_type =
+        value->local_call_is_throws
+            ? function_error_type(parser->context, signature_doc,
+                                  signature_node)
+            : simple_type_unknown();
     if (!parser->context->emit) {
       w_seed_frontend_callee_kind identity_kind =
           W_SEED_FRONTEND_CALLEE_NONE;
@@ -13363,6 +13391,70 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
           (size_t)W_SEED_FRONTEND_NONE, (size_t)W_SEED_FRONTEND_NONE,
           W_SEED_FRONTEND_NONE, 0u, value);
     }
+  }
+  if (token_text(parser->document, &token, "try")) {
+    frontend_token try_token = {0};
+    (void)cursor_take(&parser->cursor, &try_token);
+    bool optional = false;
+    frontend_token question = {0};
+    frontend_token_cursor look = parser->cursor;
+    if (cursor_take_text(&look, "?", &question) &&
+        question.span.start_byte == try_token.span.end_byte) {
+      parser->cursor = look;
+      optional = true;
+    }
+    frontend_expr_value nested;
+    if (!expression_parse_prefix(parser, &nested)) return false;
+    const w_seed_span span = {try_token.span.start_byte, nested.span.end_byte};
+    const bool owner_throws =
+        parser->context->function_node != NULL &&
+        (parser->context->function_node->flags &
+         W_SEED_CST_FUNCTION_FLAG_THROWS) != 0u;
+    const frontend_simple_type owner_error =
+        owner_throws
+            ? function_error_type(
+                  parser->context, parser->document,
+                  (uint32_t)(parser->context->function_node -
+                             parser->document->nodes))
+            : simple_type_unknown();
+    const bool supported =
+        !optional && nested.supported &&
+        nested.kind == W_SEED_FRONTEND_EXPR_CALL && nested.is_local_call &&
+        !nested.local_call_is_async && nested.local_call_is_throws &&
+        owner_throws && !parser->context->current_function_is_const &&
+        type_equal(nested.local_call_error_type, owner_error);
+    if (!supported) {
+      (void)context_append_fact(
+          parser->context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION, span,
+          text_from_span(parser->document, span));
+    }
+    const uint32_t error_enum =
+        supported ? owner_error.enum_index : W_SEED_FRONTEND_NONE;
+    const uint32_t call_expression =
+        nested.index >= (size_t)UINT32_MAX ? W_SEED_FRONTEND_NONE
+                                           : (uint32_t)nested.index;
+    value->is_enum_case = false;
+    value->is_external_enum_case = false;
+    value->enum_index = W_SEED_FRONTEND_NONE;
+    value->enum_case_index = W_SEED_FRONTEND_NONE;
+    if (!expression_append(
+            parser, W_SEED_FRONTEND_EXPR_TRY, span,
+            text_from_span(parser->document, span),
+            text_from_span(parser->document, try_token.span), nested.type,
+            supported, nested.index, (size_t)W_SEED_FRONTEND_NONE,
+            W_SEED_FRONTEND_NONE, 0u, value)) {
+      return false;
+    }
+    if (parser->context->emit && parser->context->output != NULL &&
+        value->index < parser->context->output->expression_capacity) {
+      parser->context->output->expressions[value->index]
+          .propagated_error_enum = error_enum;
+    } else if (!parser->context->emit &&
+               !receipt_size_try_expression(parser->context, value->index,
+                                            call_expression, error_enum)) {
+      return false;
+    }
+    return true;
   }
   if (token_text(parser->document, &token, "spawn")) {
     frontend_token_cursor look = parser->cursor;
@@ -14182,6 +14274,7 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.task_result_type = W_SEED_FRONTEND_NONE;
     fallback.task_call_expression = W_SEED_FRONTEND_NONE;
     fallback.task_binding_statement = W_SEED_FRONTEND_NONE;
+    fallback.propagated_error_enum = W_SEED_FRONTEND_NONE;
     fallback.domain_index = W_SEED_FRONTEND_NONE;
     fallback.domain_mode = W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
     fallback.domain_capabilities = W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE;
@@ -14237,6 +14330,7 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.task_result_type = W_SEED_FRONTEND_NONE;
     fallback.task_call_expression = W_SEED_FRONTEND_NONE;
     fallback.task_binding_statement = W_SEED_FRONTEND_NONE;
+    fallback.propagated_error_enum = W_SEED_FRONTEND_NONE;
     fallback.domain_index = W_SEED_FRONTEND_NONE;
     fallback.domain_mode = W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
     fallback.domain_capabilities = W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE;
@@ -15046,6 +15140,7 @@ static bool normalize_switch_expression(
   switch_record.task_result_type = W_SEED_FRONTEND_NONE;
   switch_record.task_call_expression = W_SEED_FRONTEND_NONE;
   switch_record.task_binding_statement = W_SEED_FRONTEND_NONE;
+  switch_record.propagated_error_enum = W_SEED_FRONTEND_NONE;
   switch_record.domain_index = W_SEED_FRONTEND_NONE;
   switch_record.domain_mode = W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
   switch_record.domain_capabilities = W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE;
@@ -17458,6 +17553,85 @@ static bool resolve_frontend_links(frontend_context *context) {
       argument->resolved_parameter_ordinal = ordinal;
     }
   }
+  for (size_t expression_index = 0u;
+       expression_index < context->count.expressions; expression_index += 1u) {
+    w_seed_frontend_expression *expression =
+        &context->output->expressions[expression_index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_TRY) {
+      bool valid = expression->left != W_SEED_FRONTEND_NONE &&
+                   (size_t)expression->left < expression_index &&
+                   expression->right == W_SEED_FRONTEND_NONE &&
+                   expression->first_argument == W_SEED_FRONTEND_NONE &&
+                   expression->argument_count == 0u &&
+                   text_equal(expression->operator_text, "try") &&
+                   expression->owner_function != W_SEED_FRONTEND_NONE &&
+                   (size_t)expression->owner_function <
+                       context->count.functions;
+      const w_seed_frontend_expression *call =
+          valid ? &context->output->expressions[expression->left] : NULL;
+      const w_seed_frontend_function *owner =
+          valid ? &context->output->functions[expression->owner_function]
+                : NULL;
+      const w_seed_frontend_function *target = NULL;
+      if (valid &&
+          (call->kind != W_SEED_FRONTEND_EXPR_CALL || !call->supported ||
+           call->module_index != expression->module_index ||
+           call->owner_function != expression->owner_function ||
+           call->resolved_callee_kind !=
+               W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION ||
+           call->resolved_function_index == W_SEED_FRONTEND_NONE ||
+           (size_t)call->resolved_function_index >= context->count.functions)) {
+        valid = false;
+      }
+      if (valid) target =
+          &context->output->functions[call->resolved_function_index];
+      if (!valid || !owner->is_throws || !target->is_throws ||
+          owner->error_type == W_SEED_FRONTEND_NONE ||
+          target->error_type == W_SEED_FRONTEND_NONE ||
+          (size_t)owner->error_type >= context->count.types ||
+          (size_t)target->error_type >= context->count.types ||
+          context->output->types[owner->error_type].kind !=
+              W_SEED_FRONTEND_TYPE_ENUM ||
+          context->output->types[target->error_type].kind !=
+              W_SEED_FRONTEND_TYPE_ENUM ||
+          context->output->types[owner->error_type].enum_base_index !=
+              context->output->types[target->error_type].enum_base_index ||
+          expression->propagated_error_enum !=
+              context->output->types[owner->error_type].enum_base_index ||
+          expression->inferred_type != call->inferred_type ||
+          target->is_async) {
+        expression->supported = false;
+      }
+      continue;
+    }
+    if (expression->kind != W_SEED_FRONTEND_EXPR_CALL ||
+        expression->resolved_callee_kind !=
+            W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION ||
+        expression->resolved_function_index == W_SEED_FRONTEND_NONE ||
+        (size_t)expression->resolved_function_index >=
+            context->count.functions ||
+        !context->output->functions[expression->resolved_function_index]
+             .is_throws) {
+      continue;
+    }
+    size_t effect_owners = 0u;
+    for (size_t candidate_index = 0u;
+         candidate_index < context->count.expressions; candidate_index += 1u) {
+      const w_seed_frontend_expression *candidate =
+          &context->output->expressions[candidate_index];
+      const bool owns_throwing_call =
+          candidate->kind == W_SEED_FRONTEND_EXPR_TRY ||
+          candidate->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH ||
+          candidate->kind == W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH ||
+          candidate->kind ==
+              W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH;
+      if (owns_throwing_call && candidate->left == expression_index &&
+          candidate->supported) {
+        effect_owners += 1u;
+      }
+    }
+    if (effect_owners != 1u) expression->supported = false;
+  }
   return true;
 }
 
@@ -18490,6 +18664,15 @@ static void receipt_write_records(frontend_receipt_writer *writer,
         receipt_write_size(writer, expression->domain_maximum);
         receipt_write_literal(writer, "\n");
       }
+      if (expression->kind == W_SEED_FRONTEND_EXPR_TRY) {
+        receipt_write_literal(writer, "try-expression=");
+        receipt_write_size(writer, index);
+        receipt_write_literal(writer, "|call=");
+        receipt_write_size(writer, expression->left);
+        receipt_write_literal(writer, "|error-enum=");
+        receipt_write_size(writer, expression->propagated_error_enum);
+        receipt_write_literal(writer, "\n");
+      }
       if (expression->kind != W_SEED_FRONTEND_EXPR_CALL) continue;
       uint32_t callee_index = W_SEED_FRONTEND_NONE;
       if (expression->left != W_SEED_FRONTEND_NONE &&
@@ -18844,6 +19027,25 @@ w_seed_frontend_status w_seed_frontend_run(
     result->status = W_SEED_FRONTEND_INVALID;
     return result->status;
   }
+  bool resolved_link_unsupported = false;
+  for (size_t index = 0u; index < emit.count.expressions; index += 1u) {
+    const w_seed_frontend_expression *expression = &output->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_TRY &&
+        !expression->supported) {
+      resolved_link_unsupported = true;
+      break;
+    }
+    if (expression->kind == W_SEED_FRONTEND_EXPR_CALL &&
+        expression->resolved_callee_kind ==
+            W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION &&
+        expression->resolved_function_index != W_SEED_FRONTEND_NONE &&
+        (size_t)expression->resolved_function_index < emit.count.functions &&
+        output->functions[expression->resolved_function_index].is_throws &&
+        !expression->supported) {
+      resolved_link_unsupported = true;
+      break;
+    }
+  }
   frontend_receipt_writer writer = {output->receipt, output->receipt_capacity, 0,
                                     false};
   receipt_write_records(&writer, input, output, &emit);
@@ -18860,7 +19062,7 @@ w_seed_frontend_status w_seed_frontend_run(
   result->receipt_bytes = writer.length;
   if (emit.count.diagnostics != 0) {
     result->status = W_SEED_FRONTEND_DIAGNOSTICS;
-  } else if (emit.count.facts != 0) {
+  } else if (emit.count.facts != 0 || resolved_link_unsupported) {
     result->status = W_SEED_FRONTEND_UNSUPPORTED;
   } else {
     result->status = W_SEED_FRONTEND_OK;

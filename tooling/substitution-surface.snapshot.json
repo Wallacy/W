@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:95b99a863434906780692e6c3d67bddff28b1928bd965fff35a6f030d4b303a9",
+  "corpusDigest": "sha256:13ac875e423bae696aea7f4d8e8d9aef9d4195165059fe70c3f9d492e390e6b4",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -9336,6 +9336,114 @@
             "nonWhitespaceCodePoints": 29,
             "lines": 2,
             "surfaceLexemes": 9
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-frontend-typed-try",
+      "task": {
+        "utf8Bytes": 145,
+        "codePoints": 145,
+        "nonWhitespaceCodePoints": 126,
+        "lines": 1,
+        "surfaceLexemes": 25
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:d04936701735ec0848b5d9b4c2e464dd32e0b6684410960e9fab7537c5a13034",
+        "metrics": {
+          "utf8Bytes": 131,
+          "codePoints": 131,
+          "nonWhitespaceCodePoints": 107,
+          "lines": 3,
+          "surfaceLexemes": 35
+        }
+      },
+      "alternatives": [
+        {
+          "name": "unowned-direct-call",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:f81b4e325f88409fbb14c74d0d7dbc52bbebf32d70aab76de363ad5eb9cbd42c",
+          "metrics": {
+            "utf8Bytes": 48,
+            "codePoints": 48,
+            "nonWhitespaceCodePoints": 40,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        },
+        {
+          "name": "different-error-identity",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:833b13aa9687de7146a81ffa781dd5d6f11d8102138a03e7b28a7cc3da0da9fd",
+          "metrics": {
+            "utf8Bytes": 93,
+            "codePoints": 93,
+            "nonWhitespaceCodePoints": 79,
+            "lines": 2,
+            "surfaceLexemes": 23
+          }
+        },
+        {
+          "name": "async-or-spawn-owner",
+          "language": "w",
+          "sourceDigest": "sha256:f54ebe34821b4ebccbaf06dc72a160211b713448ce302e19fc05d7b662f08f5d",
+          "metrics": {
+            "utf8Bytes": 32,
+            "codePoints": 32,
+            "nonWhitespaceCodePoints": 29,
+            "lines": 2,
+            "surfaceLexemes": 12
+          }
+        },
+        {
+          "name": "optional-try",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:58acc648aa2c18bfaeb3a47931a20f16843798269aa460214589e29106a0e445",
+          "metrics": {
+            "utf8Bytes": 18,
+            "codePoints": 18,
+            "nonWhitespaceCodePoints": 16,
+            "lines": 1,
+            "surfaceLexemes": 6
+          }
+        },
+        {
+          "name": "async-try",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:57f9099c150d5898ceeca0360f4647d218768d8bcd91c07fd8b7e1a32320ecab",
+          "metrics": {
+            "utf8Bytes": 23,
+            "codePoints": 23,
+            "nonWhitespaceCodePoints": 20,
+            "lines": 1,
+            "surfaceLexemes": 6
+          }
+        },
+        {
+          "name": "conversion-widening",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:4f77bb713ec3ef8ce10221043eb217175be49368896e453141b503306b8ee24b",
+          "metrics": {
+            "utf8Bytes": 26,
+            "codePoints": 26,
+            "nonWhitespaceCodePoints": 24,
+            "lines": 1,
+            "surfaceLexemes": 8
+          }
+        },
+        {
+          "name": "lowering-before-proof",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:1362587653eb0103af7756c94b649bf0ab46812ec89674ec8042156a8921aa0e",
+          "metrics": {
+            "utf8Bytes": 37,
+            "codePoints": 37,
+            "nonWhitespaceCodePoints": 33,
+            "lines": 1,
+            "surfaceLexemes": 7
           }
         }
       ]

@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-29"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-30"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -192,6 +192,9 @@ typedef enum {
   /* Exact `spawn<acceleratedDomain> module.field(...)`. The selected domain,
    * accelerator module and kernel field are indexed on the expression. */
   W_SEED_FRONTEND_EXPR_SPAWN_ACCELERATED_DOMAIN_LAUNCH,
+  /* Exact `try localCall(...)` propagation marker. left is the resolved
+   * throwing CALL and propagated_error_enum is its concrete enum identity. */
+  W_SEED_FRONTEND_EXPR_TRY,
 } w_seed_frontend_expr_kind;
 
 typedef enum {
@@ -939,6 +942,9 @@ typedef struct {
   uint32_t task_result_type;
   uint32_t task_call_expression;
   uint32_t task_binding_statement;
+  /* Present only for TRY. It identifies the exact local error enum shared by
+   * the called function and the lexical owner function. */
+  uint32_t propagated_error_enum;
   /* Append-only explicit placement evidence. NONE/default is required on
    * every expression except the two explicit-domain launch kinds. */
   uint32_t domain_index;

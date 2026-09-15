@@ -113,6 +113,7 @@ typedef enum {
   /* Append-only typed recoverable-error owners. */
   W_SEED_CST_THROWS_TYPE,
   W_SEED_CST_THROW_STATEMENT,
+  W_SEED_CST_TRY_EXPRESSION,
 } w_seed_cst_kind;
 
 enum {
