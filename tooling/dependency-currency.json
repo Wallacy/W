@@ -2,7 +2,7 @@
   "$schema": "w-dependency-currency-1",
   "version": 1,
   "status": "operational-catalog",
-  "observedAt": "2026-09-11",
+  "observedAt": "2026-09-15",
   "policy": {
     "managedDependency": {
       "selector": "exact",
@@ -17,6 +17,14 @@
     "environment": {
       "recordObservedVersions": true,
       "claimExactPin": false
+    },
+    "toolchainPatchCompatibility": {
+      "default": "same-major-minor-compatible",
+      "developmentMayUseUnpinnedPatch": true,
+      "releaseReceiptsRemainExact": true,
+      "reviewReleaseNotes": true,
+      "gateObservedDifferences": true,
+      "majorMinorChangeRequiresMigration": true
     },
     "releaseWatch": {
       "authority": "official-upstream-only",
@@ -251,7 +259,7 @@
         "latestStable": "4.4.3",
         "observedHosts": [
           { "host": "windows", "version": "3.29.2" },
-          { "host": "wsl-ubuntu", "version": "3.28.3" }
+          { "host": "wsl-ubuntu", "version": "4.2.3" }
         ]
       },
       "requirements": {
@@ -293,7 +301,7 @@
         "latestStable": "1.13.2",
         "observedHosts": [
           { "host": "windows", "version": "1.12.0" },
-          { "host": "wsl-ubuntu", "version": "1.11.1" }
+          { "host": "wsl-ubuntu", "version": "1.13.2" }
         ]
       },
       "gap": {
@@ -340,7 +348,7 @@
       "environment": {
         "observedHosts": [
           { "host": "windows", "compiler": "GCC", "version": "13.2.0" },
-          { "host": "wsl-ubuntu", "compiler": "GCC", "version": "13.3.0" }
+          { "host": "wsl-ubuntu", "compiler": "GCC", "version": "15.2.0" }
         ]
       },
       "gap": {
@@ -476,7 +484,7 @@
       "successor": null,
       "environment": {
         "observedHosts": [
-          { "host": "windows", "rustc": "1.94.0" },
+          { "host": "windows", "rustc": "1.98.1" },
           { "host": "wsl-ubuntu", "rustc": null, "status": "not-installed" }
         ]
       },
@@ -489,7 +497,7 @@
       "id": "mlir0-llvm-clang",
       "name": "MLIR, LLVM, and Clang MLIR0 evidence",
       "classification": "evidence-snapshot",
-      "status": "current-with-native-plan-gap",
+      "status": "current-reproducible-evidence",
       "scope": "WSL Linux MLIR0 development edge",
       "source": {
         "kind": "official-release-and-repository-evidence",
@@ -529,16 +537,10 @@
         "tagObject": "e7ce3600b55034ddf819638f395e3c475fad5be2",
         "commit": "6dfe1677ab8dffbc6ec13d53a1e0215d75147689",
         "selector": "llvmorg-23.1.1",
-        "status": "successor-for-new-bundles-only",
-        "promotion": "blocked"
+        "status": "current-reproducible-evidence",
+        "promotion": "support-gated"
       },
-      "successor": {
-        "version": "23.1.1",
-        "tag": "llvmorg-23.1.1",
-        "tagObject": "e7ce3600b55034ddf819638f395e3c475fad5be2",
-        "commit": "6dfe1677ab8dffbc6ec13d53a1e0215d75147689",
-        "status": "successor-candidate"
-      },
+      "successor": null,
       "components": ["MLIR", "LLVM", "Clang", "LLD"],
       "releaseWatch": {
         "scheduleUrl": "https://llvm.org/",
@@ -561,7 +563,8 @@
         "preserveCurrent": true,
         "currentEvidenceMustRemain": "23.1.1",
         "newBundleExactStablePin": true,
-        "zeroPromotion": true,
+        "developmentCompatibilityLine": "23.1.x",
+        "supportPromotionRequiresGates": true,
         "artifacts": ["mlir-opt", "mlir-translate", "clang", "lld", "llvm-config"]
       }
     },

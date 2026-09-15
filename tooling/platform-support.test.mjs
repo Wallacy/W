@@ -114,11 +114,14 @@ describe("platform support catalog", () => {
     expect(source.policy.dependencyCurrency).toEqual({
       currentEvidenceVersion: "23.1.1",
       currentEvidenceCurrencyStatus: "current",
-      futureNativePlanPolicy: "llvmorg-23.1.1-exact-pin-with-build-provenance-gate",
-      successorVersion: "23.1.1",
-      successorTag: "llvmorg-23.1.1",
-      successorTagObject: "e7ce3600b55034ddf819638f395e3c475fad5be2",
-      successorCommit: "6dfe1677ab8dffbc6ec13d53a1e0215d75147689",
+      nativePlanPolicy: "llvmorg-23.1.1-exact-pin-with-build-provenance-gate",
+      selectedVersion: "23.1.1",
+      selectedTag: "llvmorg-23.1.1",
+      selectedTagObject: "e7ce3600b55034ddf819638f395e3c475fad5be2",
+      selectedCommit: "6dfe1677ab8dffbc6ec13d53a1e0215d75147689",
+      developmentCompatibilityLine: "23.1.x",
+      patchCompatibility: "release-notes-and-focused-gates",
+      releaseReceipts: "exact-version",
       promotionBlocker: "native-build-acquisition-provenance",
     });
     expect(renderPlatformSupport(source, { root: rootDirectory })).toBe(
@@ -375,14 +378,14 @@ describe("platform support catalog", () => {
     expectError(errors, "outputs must require mlir-opt, mlir-translate, clang, lld, llvm-config");
   });
 
-  test("rejects a future native plan pinned to current evidence", () => {
+  test("rejects a native plan pinned to a different toolchain", () => {
     const errors = errorsAfter((value) => {
       value.nativeToolchainPlans[0].source.tag = "llvmorg-20.1.2";
     });
     expectError(errors, "source must pin llvmorg-23.1.1 with tag object e7ce3600b55034ddf819638f395e3c475fad5be2");
   });
 
-  test("rejects floating or nightly future native plan versions", () => {
+  test("rejects floating or nightly native plan versions", () => {
     const errors = errorsAfter((value) => {
       value.nativeToolchainPlans[0].source.tag = "latest";
       value.nativeToolchainPlans[1].source.tag = "nightly";

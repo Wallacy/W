@@ -2,7 +2,7 @@
   "$schema": "w-platform-support-1",
   "version": 1,
   "status": "operational-evidence",
-  "observed": "2026-08-31",
+  "observed": "2026-09-15",
   "benchmarkDisposition": {
     "kind": "not-applicable",
     "reason": "This record gates metadata, projection, and policy. It has no runtime or performance measurement."
@@ -32,7 +32,7 @@
           "url": "https://llvm.org/docs/CMake.html"
         }
       ],
-      "observed": "2026-08-31",
+      "observed": "2026-09-15",
       "importsRustTiers": false
     },
     "llvmTripleIsInsufficient": true,
@@ -69,11 +69,14 @@
     "dependencyCurrency": {
       "currentEvidenceVersion": "23.1.1",
       "currentEvidenceCurrencyStatus": "current",
-      "futureNativePlanPolicy": "llvmorg-23.1.1-exact-pin-with-build-provenance-gate",
-      "successorVersion": "23.1.1",
-      "successorTag": "llvmorg-23.1.1",
-      "successorTagObject": "e7ce3600b55034ddf819638f395e3c475fad5be2",
-      "successorCommit": "6dfe1677ab8dffbc6ec13d53a1e0215d75147689",
+      "nativePlanPolicy": "llvmorg-23.1.1-exact-pin-with-build-provenance-gate",
+      "selectedVersion": "23.1.1",
+      "selectedTag": "llvmorg-23.1.1",
+      "selectedTagObject": "e7ce3600b55034ddf819638f395e3c475fad5be2",
+      "selectedCommit": "6dfe1677ab8dffbc6ec13d53a1e0215d75147689",
+      "developmentCompatibilityLine": "23.1.x",
+      "patchCompatibility": "release-notes-and-focused-gates",
+      "releaseReceipts": "exact-version",
       "promotionBlocker": "native-build-acquisition-provenance"
     }
   },

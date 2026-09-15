@@ -2247,7 +2247,7 @@
         {
           "path": "tooling/mlir0-toolchain.json",
           "symbol": "pipeline",
-          "claim": "The pinned manifest records MLIR/LLVM/Clang 20.1.2, llvm-config, target, host evidence and the mlir-opt → mlir-translate → clang LLVM IR recipe."
+          "claim": "The pinned manifest records MLIR/LLVM/Clang 23.1.1, llvm-config, target, host evidence and the mlir-opt → mlir-translate → clang LLVM IR recipe."
         },
         {
           "path": "tooling/check-mlir0.mjs",
@@ -2290,7 +2290,7 @@
           "compilerHosts: separate from targets",
           "crossCompilation: nine host-to-target edges plus WSL development evidence",
           "externalToolchainCandidates: one evaluation-only third-party record; no W claim",
-          "dependencyCurrency: current evidence 20.1.2 preserved; successor 23.1.0 selected/not promoted with signed tag object and peeled commit; native plans blocked on build/acquisition/provenance"
+          "dependencyCurrency: current reproducible evidence and selected toolchain are 23.1.1 with signed tag object and peeled commit; native support remains blocked on build/acquisition/provenance"
         ]
       },
       "alternatives": [
@@ -2360,15 +2360,15 @@
       "id": "R0-dependency-currency-catalog",
       "reviewItem": "catálogo operacional de dependency currency contra selectors floating, floors elevados e evidência histórica promovida.",
       "decisions": ["W-1508"],
-      "task": "Record managed dependency currency, compatibility floors, preserved evidence, and successor provenance in one deterministic operational catalog.",
+      "task": "Record managed dependency currency, compatibility floors, preserved evidence, and selected-toolchain provenance in one deterministic operational catalog.",
       "selected": {
         "language": "metadata",
         "source": [
           "tooling/dependency-currency.json",
           "managed: exact latest stable selectors",
           "compatibility: floors and recipes do not rise for currency",
-          "evidence: MLIR 20.1.2 and Unicode 17.0.0 preserved",
-          "successor: LLVM 23.1.0 signed tag object and peeled commit, not promoted",
+          "evidence: MLIR 23.1.1 and Unicode 17.0.0 are current reproducible snapshots",
+          "selected: LLVM 23.1.1 signed tag object and peeled commit, support-gated",
           "platform: exact native plans remain blocked on build/acquisition/provenance"
         ]
       },
@@ -2388,8 +2388,8 @@
         {
           "name": "promote-historical-evidence",
           "language": "metadata-rejected",
-          "source": ["MLIR current evidence: 23.1.0", "Unicode snapshot: 18.0.0"],
-          "expectedDifference": "Historical evidence remains preserved; successor selection and currency observation do not implicitly promote support or replace Unicode 17.0.0."
+          "source": ["MLIR current evidence: 23.1.2 experimental host snapshot", "Unicode snapshot: 18.0.0"],
+          "expectedDifference": "A newer host snapshot does not replace pinned reproducible evidence, implicitly promote support, or replace Unicode 17.0.0."
         }
       ],
       "sourceRefs": [
@@ -2412,7 +2412,7 @@
       "checks": [
         "bun test tooling/dependency-currency.test.mjs — adversarial floating selectors, floor raising, evidence promotion, lock/catalog drift, and URL drift",
         "bun tooling/dependency-currency.mjs --check — exact package, lock, workflow, README, platform, source, and projection validation",
-        "bun run check:platform-support — successor tag object, peeled commit, native-plan blocker, and no-support-promotion gate"
+        "bun run check:platform-support — selected tag object, peeled commit, native-plan blocker, and no-support-promotion gate"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     },

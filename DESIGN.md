@@ -4665,6 +4665,22 @@ somente a implementation identity. Um target genérico é uma família permitida
 pela linguagem, mas só pode virar launch quando houver um registro de
 especialização concreto.
 
+O label publica uma **interface de kernel**, não transforma a função backing em
+um export ordinário. A função pode continuar privada e chamável diretamente no
+módulo host, mas todos os tipos nominais observáveis em parâmetros e resultado
+da interface precisam ser export-visible ou carriers públicos do SDK. Um
+kernel importado que exponha tipo privado é rejeitado antes do HIR. Não existe
+`export kernel import`: outro módulo importa a projeção diretamente do módulo
+que possui o contrato, preservando `ModuleIdentity` e provenance.
+
+Uma família genérica é especializada pelo call site: argumentos de tipo e
+`const` explícitos ou inferidos precisam produzir uma instância concreta antes
+do launch. O product fecha exatamente as instâncias alcançáveis. Uma cápsula
+binary-only enumera esse conjunto finito e falha no link quando falta uma
+instância; source-backed distribution pode materializá-la pela recipe pinada.
+Não há registro runtime, lookup por string ou uma segunda sintaxe de
+especialização no `kernels` record.
+
 O kernel projection é separado do import ordinário:
 
 ```w
@@ -4699,9 +4715,10 @@ let result = try await modelsKernels.forecast.launch(
 
 Importar, abrir ou projetar não cria estado runtime. A reachability do product
 fecha somente os `KernelInstanceId`s usados; imports e roots não usados são
-eliminados. O seed preserva as duas formas de import em CST/module-scan, mas
-ainda só resolve o launch local definido pelo header do próprio módulo: resolver
-multi-módulo, launch dinâmico qualificado e DCE de product são etapas futuras.
+eliminados. O seed preserva as duas formas de import em CST/module-scan e o
+Frontend32 resolve a forma nomeada por arestas locais explícitas. A projeção
+qualificada, imported-invocation HIR independente, launch dinâmico qualificado e
+DCE de product são etapas futuras.
 
 O header usa `<...>` porque modifica o contrato de um módulo nomeado. Os valores
 são enum-like e possuem tipos conhecidos.
@@ -13211,6 +13228,14 @@ Fallback precisa preservar a classe host/accelerated e todos os contratos de
 module, numeric mode, layout, effects e residency; incompatibilidade falha
 antes da entry.
 
+O campo `fallback` trata somente de outro **domain lógico acelerado** capaz de
+preservar a mesma relação de submission. CPU fallback não é um domain host
+substituído no call site: ele é uma implementação do mesmo kernel fechado,
+selecionada e validada pelo product/provider antes da entry contra module,
+numeric mode, layout, effects e memory plan. Depois de `submitted`, W nunca
+migra a invocation automaticamente de device para CPU; falha ou perda do device
+segue o outcome do launch e seu drain.
+
 O Frontend32 estende a fatia bounded dessa relação. O input
 caller-owned discrimina domain host de accelerated, preserva submission,
 capabilities e `maximum`, e o call record liga exatamente o module contract,
@@ -14226,6 +14251,24 @@ Launch, fecha admission e drena ou põe em quarantine owners que o host ainda n�
 pode liberar. Completion de generation antiga é suprimida depois do drain. Uma
 falha de kernel não faz unwind W no device; ela chega como error do launch ou
 falha a device fault boundary conforme o manifest.
+
+A classificação de outcome é única nesta fronteira:
+
+| Ponto | Outcome observável | Obrigação antes de publicar |
+| --- | --- | --- |
+| budget lógico esgotado antes de staging | child cancelado por admission | nenhuma operação de provider; cleanup local |
+| artifact, binding ou provider inválido antes de submit | `LaunchError` | staging desfeito e owners devolvidos |
+| cancelamento antes de submit | child cancelado | submission impedida e staging limpo |
+| cancelamento depois de submit | cancel request pendente | provider conclui ou drena; settled-before-cancel vence |
+| body/device conclui e drain confirma | success ou failure tipada do launch | completion receipt validado, mutations publicadas e cleanup concluído |
+| device loss ou protocol fault antes do commit do outcome | `LaunchError.deviceLost` ou fault boundary declarada | nenhum result é publicado; owners são drenados ou quarantined pelo root |
+| trap/panic do kernel | forma fixada pelo manifest: launch failure ou fault boundary | nunca unwind W no device; siblings e root seguem a policy da boundary |
+
+Um result só vence quando `providerDrained` confirma a generation corrente.
+`bodySettled` isolado não torna storage legível e não sobrevive a device loss
+antes desse receipt. Quarantine é estado interno do owner/root: user code recebe
+o failure tipado e não ganha acesso ao payload; `close` ou teardown continua
+responsável por drain, término da boundary e liberação final.
 
 **W-1217 — profile e equivalência:** Limits cobrem invocations vivas, command
 bytes, argument bytes, result bytes, dependency edges, device allocation

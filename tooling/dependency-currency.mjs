@@ -236,7 +236,7 @@ function validateSpecialEntries(value, errors) {
     errors.push("mlir0-llvm-clang entry is required");
   } else {
     if (mlir.current?.version !== "23.1.1") errors.push("MLIR0 current evidence must be 23.1.1");
-    if (mlir.selected?.version !== "23.1.1") errors.push("MLIR0 selected successor must be 23.1.1");
+    if (mlir.selected?.version !== "23.1.1") errors.push("MLIR0 selected toolchain must be 23.1.1");
     if (mlir.selected?.tag !== "llvmorg-23.1.1") errors.push("MLIR0 selected tag must be llvmorg-23.1.1");
     if (mlir.selected?.tagObject !== "e7ce3600b55034ddf819638f395e3c475fad5be2") {
       errors.push("MLIR0 selected tag object is not the verified llvmorg-23.1.1 tag");
@@ -244,10 +244,14 @@ function validateSpecialEntries(value, errors) {
     if (mlir.selected?.commit !== "6dfe1677ab8dffbc6ec13d53a1e0215d75147689") {
       errors.push("MLIR0 selected commit is not the verified peeled llvmorg-23.1.1 commit");
     }
-    if (mlir.selected?.promotion !== "blocked") errors.push("MLIR0 successor promotion must remain blocked");
-    if (mlir.requirements?.zeroPromotion !== true) errors.push("MLIR0 must declare zero promotion");
+    if (mlir.selected?.promotion !== "support-gated") errors.push("MLIR0 support promotion must remain gated");
+    if (mlir.successor !== null) errors.push("MLIR0 successor must remain null until a newer stable release is selected");
+    if (mlir.requirements?.supportPromotionRequiresGates !== true) errors.push("MLIR0 must gate support promotion independently from toolchain currency");
     if (mlir.requirements?.currentEvidenceMustRemain !== "23.1.1") {
       errors.push("MLIR0 must declare 23.1.1 as the current evidence snapshot");
+    }
+    if (mlir.requirements?.developmentCompatibilityLine !== "23.1.x") {
+      errors.push("MLIR0 development compatibility line must be 23.1.x");
     }
     if (!Array.isArray(mlir.components) || JSON.stringify(mlir.components) !== JSON.stringify(["MLIR", "LLVM", "Clang", "LLD"])) {
       errors.push("MLIR0 components must include MLIR, LLVM, Clang, and LLD");
@@ -336,29 +340,29 @@ function validateRepositoryConsistency(value, root, errors) {
   const platformCurrency = platformSupport?.policy?.dependencyCurrency;
   if (mlir && platformCurrency) {
     const expected = {
-      successorVersion: mlir.version,
-      successorTag: mlir.tag,
-      successorTagObject: mlir.tagObject,
-      successorCommit: mlir.commit,
+      selectedVersion: mlir.version,
+      selectedTag: mlir.tag,
+      selectedTagObject: mlir.tagObject,
+      selectedCommit: mlir.commit,
     };
     for (const [field, expectedValue] of Object.entries(expected)) {
       if (platformCurrency[field] !== expectedValue) {
-        errors.push(`tooling/platform-support.json ${field} must match the selected MLIR successor`);
+        errors.push(`tooling/platform-support.json ${field} must match the selected MLIR toolchain`);
       }
     }
     if (platformCurrency.promotionBlocker !== "native-build-acquisition-provenance") {
       errors.push("tooling/platform-support.json must retain the native-build-acquisition-provenance promotion blocker");
     }
     if (!platformDocument.includes(mlir.tag) || !platformDocument.includes(mlir.commit)) {
-      errors.push("PLATFORM-SUPPORT.md must publish the selected MLIR successor tag and peeled commit");
+      errors.push("PLATFORM-SUPPORT.md must publish the selected MLIR tag and peeled commit");
     }
     const plans = platformSupport.nativeToolchainPlans;
     if (!Array.isArray(plans) || plans.length === 0) {
-      errors.push("tooling/platform-support.json must contain native toolchain plans for the selected successor");
+      errors.push("tooling/platform-support.json must contain native toolchain plans for the selected toolchain");
     } else {
       for (const plan of plans) {
         if (plan.source?.tag !== mlir.tag || plan.source?.tagObject !== mlir.tagObject || plan.source?.commit !== mlir.commit) {
-          errors.push(`native toolchain plan ${plan.id ?? "<unknown>"} must match the selected MLIR successor`);
+          errors.push(`native toolchain plan ${plan.id ?? "<unknown>"} must match the selected MLIR toolchain`);
         }
         if (!Array.isArray(plan.gaps) || !plan.gaps.includes("native-build-acquisition-provenance")) {
           errors.push(`native toolchain plan ${plan.id ?? "<unknown>"} must retain the promotion blocker`);
@@ -374,8 +378,8 @@ export function validateDependencyCurrency(value, { root = repositoryRoot } = {}
   if (value.$schema !== DEPENDENCY_CURRENCY_SCHEMA) errors.push(`catalog.$schema must be ${DEPENDENCY_CURRENCY_SCHEMA}`);
   if (value.version !== 1) errors.push("catalog.version must be 1");
   if (value.status !== "operational-catalog") errors.push("catalog.status must be operational-catalog");
-  if (value.observedAt !== "2026-09-11" || !DATE_PATTERN.test(value.observedAt ?? "")) {
-    errors.push("catalog.observedAt must be 2026-09-11");
+  if (value.observedAt !== "2026-09-15" || !DATE_PATTERN.test(value.observedAt ?? "")) {
+    errors.push("catalog.observedAt must be 2026-09-15");
   }
   if (!isObject(value.policy)) {
     errors.push("catalog.policy must be an object");
@@ -392,6 +396,22 @@ export function validateDependencyCurrency(value, { root = repositoryRoot } = {}
     }
     if (value.policy.environment?.claimExactPin !== false) {
       errors.push("policy.environment.claimExactPin must be false");
+    }
+    const patchCompatibility = value.policy.toolchainPatchCompatibility;
+    if (patchCompatibility?.default !== "same-major-minor-compatible") {
+      errors.push("policy.toolchainPatchCompatibility.default must be same-major-minor-compatible");
+    }
+    if (patchCompatibility?.developmentMayUseUnpinnedPatch !== true) {
+      errors.push("policy.toolchainPatchCompatibility.developmentMayUseUnpinnedPatch must be true");
+    }
+    if (patchCompatibility?.releaseReceiptsRemainExact !== true) {
+      errors.push("policy.toolchainPatchCompatibility.releaseReceiptsRemainExact must be true");
+    }
+    if (patchCompatibility?.reviewReleaseNotes !== true || patchCompatibility?.gateObservedDifferences !== true) {
+      errors.push("policy.toolchainPatchCompatibility must review release notes and gate observed differences");
+    }
+    if (patchCompatibility?.majorMinorChangeRequiresMigration !== true) {
+      errors.push("policy.toolchainPatchCompatibility.majorMinorChangeRequiresMigration must be true");
     }
     const watch = value.policy.releaseWatch;
     if (watch?.authority !== "official-upstream-only") errors.push("policy.releaseWatch.authority must be official-upstream-only");
@@ -532,6 +552,9 @@ export function renderDependencyCurrency(value) {
     "- External evaluations remain non-authoritative and cannot promote W support.",
     "- Official upstream releases are checked weekly after LLVM's release day and may also be checked manually.",
     "- A new stable LLVM release is pinned by annotated tag object and peeled commit, probed in isolation, and adopted only for new work after all affected gates pass.",
+    "- Toolchain patch releases within the selected major.minor line are development-compatible by default after release-note review and focused gates.",
+    "- Release artifacts and evidence receipts still record the exact patch version; observed incompatibility overrides patch compatibility.",
+    "- A major or minor toolchain change requires an explicit migration.",
     "- Historical toolchain evidence remains immutable; an upgrade never rewrites prior receipts.",
     "",
   ];
