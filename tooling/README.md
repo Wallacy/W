@@ -408,6 +408,13 @@ executes the seventeen-argument task and checks exact workspace, short
 capacities, producer aliases, and forged outcomes. No public executable or
 performance result is added.
 
+W-1609 extends `bun check --target parallel-mlir0` with PARMLIR1. The unit
+proves compatible two-task output is byte-identical and covers five tasks,
+seventeen arguments, capacities, aliases, and forged producer proofs. The
+toolchain gate lowers the five-task target-neutral artifact into Windows x64
+COFF and Linux x86-64 PIC ELF objects with MLIR/LLVM 23.1.1. It remains a
+compiler-lifecycle check, not a public executable benchmark.
+
 ACQ0 executa CHK6 em
 storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou
 CLI. Execute `bun check --target acquisition` para compilar os cinco targets focais,

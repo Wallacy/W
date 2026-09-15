@@ -171,6 +171,122 @@ static bool test_parallel_mlir_entries(
   return true;
 }
 
+static bool test_parallel_mlir_entries1(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_parallel_selection1_program *selection,
+    const w_seed_parallel_selection1_result *selection_result,
+    const w_seed_parallel_invocation1_program *invocation,
+    const w_seed_parallel_invocation1_result *invocation_result,
+    const w_seed_parallel_selection0 *compatible_selection,
+    uint32_t expected_tasks, uint32_t expected_arguments,
+    const char *expected_symbol) {
+  w_seed_mlir0_parallel_entry_counts counts;
+  w_seed_mlir1_parallel_entry_result measured;
+  const w_seed_mlir0_status measure_status =
+      w_seed_mlir1_measure_parallel_entries(
+          program, hir_result, selection, selection_result, invocation,
+          invocation_result, &counts, &measured);
+  CHECK(measure_status == W_SEED_MLIR0_OK &&
+        counts.mlir_bytes > 0u && counts.mlir_bytes < W_SEED_MLIR0_MAX_BYTES &&
+        counts.task_count == expected_tasks &&
+        counts.runtime_argument_count == expected_arguments &&
+        measured.required.mlir_bytes == counts.mlir_bytes &&
+        measured.written.mlir_bytes == 0u &&
+        strcmp(measured.schema,
+               W_SEED_MLIR1_PARALLEL_ENTRY_RESULT_SCHEMA_VERSION) == 0);
+
+  union {
+    w_seed_mlir0_parallel_entry_counts counts;
+    w_seed_mlir1_parallel_entry_result result;
+  } measure_alias;
+  (void)memset(&measure_alias, 0x49, sizeof(measure_alias));
+  unsigned char measure_alias_before[sizeof(measure_alias)];
+  (void)memcpy(measure_alias_before, &measure_alias, sizeof(measure_alias));
+  CHECK(w_seed_mlir1_measure_parallel_entries(
+            program, hir_result, selection, selection_result, invocation,
+            invocation_result, &measure_alias.counts,
+            &measure_alias.result) == W_SEED_MLIR0_ALIAS &&
+        memcmp(&measure_alias, measure_alias_before, sizeof(measure_alias)) ==
+            0);
+
+  static uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  (void)memset(artifact, 0xa5, sizeof(artifact));
+  w_seed_mlir1_parallel_entry_result emitted;
+  CHECK(w_seed_mlir1_emit_parallel_entries(
+            program, hir_result, selection, selection_result, invocation,
+            invocation_result,
+            &(w_seed_mlir0_parallel_entry_output){artifact, sizeof(artifact)},
+            &emitted) == W_SEED_MLIR0_OK &&
+        emitted.written.mlir_bytes == counts.mlir_bytes &&
+        w_seed_mlir1_verify_parallel_entries(
+            program, hir_result, selection, selection_result, invocation,
+            invocation_result, artifact, counts.mlir_bytes, &emitted) &&
+        bytes_contain(artifact, counts.mlir_bytes, expected_symbol));
+
+  if (compatible_selection != NULL) {
+    w_seed_parallel_invocation0_plan legacy_invocation;
+    CHECK(w_seed_parallel_invocation0_select(
+              program, hir_result, compatible_selection, &legacy_invocation) ==
+          W_SEED_PARALLEL_INVOCATION0_OK);
+    static uint8_t legacy_artifact[W_SEED_MLIR0_MAX_BYTES];
+    w_seed_mlir0_parallel_entry_result legacy_result;
+    CHECK(w_seed_mlir0_emit_parallel_entries(
+              program, hir_result, compatible_selection, &legacy_invocation,
+              &(w_seed_mlir0_parallel_entry_output){legacy_artifact,
+                                                    sizeof(legacy_artifact)},
+              &legacy_result) == W_SEED_MLIR0_OK &&
+          legacy_result.written.mlir_bytes == counts.mlir_bytes &&
+          memcmp(legacy_artifact, artifact, counts.mlir_bytes) == 0);
+  }
+
+  uint8_t short_artifact[32];
+  (void)memset(short_artifact, 0x5a, sizeof(short_artifact));
+  const uint8_t short_before[32] = {
+      0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
+      0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
+      0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
+      0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a};
+  w_seed_mlir1_parallel_entry_result sentinel;
+  (void)memset(&sentinel, 0x6b, sizeof(sentinel));
+  const w_seed_mlir1_parallel_entry_result sentinel_before = sentinel;
+  CHECK(w_seed_mlir1_emit_parallel_entries(
+            program, hir_result, selection, selection_result, invocation,
+            invocation_result,
+            &(w_seed_mlir0_parallel_entry_output){short_artifact,
+                                                  sizeof(short_artifact)},
+            &sentinel) == W_SEED_MLIR0_CAPACITY &&
+        memcmp(short_artifact, short_before, sizeof(short_artifact)) == 0 &&
+        memcmp(&sentinel, &sentinel_before, sizeof(sentinel)) == 0);
+
+  static union {
+    uint8_t bytes[W_SEED_MLIR0_MAX_BYTES];
+    w_seed_mlir1_parallel_entry_result result;
+  } alias;
+  (void)memset(&alias, 0x7c, sizeof(alias));
+  static uint8_t alias_before[sizeof(alias)];
+  (void)memcpy(alias_before, &alias, sizeof(alias));
+  CHECK(w_seed_mlir1_emit_parallel_entries(
+            program, hir_result, selection, selection_result, invocation,
+            invocation_result,
+            &(w_seed_mlir0_parallel_entry_output){alias.bytes,
+                                                  sizeof(alias.bytes)},
+            &alias.result) == W_SEED_MLIR0_ALIAS &&
+        memcmp(&alias, alias_before, sizeof(alias)) == 0);
+
+  w_seed_parallel_invocation1_result forged_invocation_result =
+      *invocation_result;
+  forged_invocation_result.semantic_digest[0] ^= 1u;
+  CHECK(w_seed_mlir1_emit_parallel_entries(
+            program, hir_result, selection, selection_result, invocation,
+            &forged_invocation_result,
+            &(w_seed_mlir0_parallel_entry_output){short_artifact,
+                                                  sizeof(short_artifact)},
+            &sentinel) == W_SEED_MLIR0_INVALID_HIR &&
+        memcmp(short_artifact, short_before, sizeof(short_artifact)) == 0 &&
+        memcmp(&sentinel, &sentinel_before, sizeof(sentinel)) == 0);
+  return true;
+}
+
 #if defined(_WIN32) && defined(_WIN64)
 static bool test_parallel_provider_cardinality(
     const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
@@ -3274,6 +3390,11 @@ static bool test_parallel_domain_placement_hir(void) {
             &ordered_invocation_result, 1u, &ordered_value) ==
             W_SEED_PARALLEL_INVOCATION1_OK &&
         ordered_value == 23);
+  CHECK(test_parallel_mlir_entries1(
+      program, &fixture.hir_result, &ordered_selection,
+      &ordered_selection_result, &ordered_invocation,
+      &ordered_invocation_result, &selection, 2u, 3u,
+      "func.func @w_seed_parallel_task_1"));
   w_seed_parallel_elision0_certificate elision_sentinel;
   (void)memset(&elision_sentinel, 0x9d, sizeof(elision_sentinel));
   const w_seed_parallel_elision0_certificate elision_before =
@@ -3487,6 +3608,10 @@ static bool test_parallel_domain_placement_hir(void) {
         w_seed_parallel_invocation1_verify(
             &fixture.hir_program, &fixture.hir_result, &measured_program,
             &selection1_result, &invocation_program, &invocation1_result));
+  CHECK(test_parallel_mlir_entries1(
+      &fixture.hir_program, &fixture.hir_result, &measured_program,
+      &selection1_result, &invocation_program, &invocation1_result, NULL, 5u,
+      5u, "func.func @w_seed_parallel_task_4"));
   for (uint32_t task = 0u; task < 5u; task += 1u) {
     CHECK(invocation_tasks[task].first_argument == task &&
           invocation_tasks[task].argument_count == 1u &&
@@ -3870,6 +3995,10 @@ static bool test_parallel_domain_placement_hir(void) {
             &fixture.hir_program, &fixture.hir_result, &wide_selection,
             &wide_selection_result, &wide_invocation,
             &wide_invocation_result));
+  CHECK(test_parallel_mlir_entries1(
+      &fixture.hir_program, &fixture.hir_result, &wide_selection,
+      &wide_selection_result, &wide_invocation, &wide_invocation_result, NULL,
+      1u, 17u, "%arg16: i64"));
   int64_t wide_value = 0;
   CHECK(w_seed_parallel_invocation1_evaluate_task(
             &fixture.hir_program, &fixture.hir_result, &wide_selection,
@@ -8975,6 +9104,65 @@ static bool emit_parallel_entry_mlir(void) {
   return true;
 }
 
+static bool emit_parallel_entry1_mlir(void) {
+  static const char SOURCE[] =
+      "fn prepare(value: i64): i64 { return value + 1 }\n"
+      "entry { let a = spawn<.domain> prepare(value: 20) "
+      "let b = spawn<.domain> prepare(value: 22) "
+      "let c = spawn<.domain> prepare(value: 24) "
+      "let d = spawn<.domain> prepare(value: 26) "
+      "let e = spawn<.domain> prepare(value: 28) "
+      "let av = await a let bv = await b let cv = await c let dv = await d "
+      "let ev = await e }\n";
+  CHECK(lower_parallel_domain(SOURCE));
+  w_seed_parallel_selection1_counts selection_counts;
+  w_seed_parallel_selection1_result selection_result;
+  CHECK(w_seed_parallel_selection1_measure(
+            &fixture.hir_program, &fixture.hir_result, &selection_counts,
+            &selection_result) == W_SEED_PARALLEL_SELECTION1_OK &&
+        selection_counts.tasks == 5u);
+  w_seed_parallel_selection1_task selection_tasks[5];
+  const w_seed_parallel_selection1_output selection_output = {
+      selection_tasks, 5u};
+  CHECK(w_seed_parallel_selection1_run(
+            &fixture.hir_program, &fixture.hir_result, &selection_output,
+            &selection_result) == W_SEED_PARALLEL_SELECTION1_OK);
+  w_seed_parallel_selection1_program selection;
+  CHECK(w_seed_parallel_selection1_program_from_output(
+      &selection_output, &selection_result, &selection));
+
+  w_seed_parallel_invocation1_counts invocation_counts;
+  w_seed_parallel_invocation1_result invocation_result;
+  CHECK(w_seed_parallel_invocation1_measure(
+            &fixture.hir_program, &fixture.hir_result, &selection,
+            &selection_result, &invocation_counts, &invocation_result) ==
+            W_SEED_PARALLEL_INVOCATION1_OK &&
+        invocation_counts.tasks == 5u && invocation_counts.arguments == 5u);
+  w_seed_parallel_invocation1_task invocation_tasks[5];
+  w_seed_parallel_invocation1_argument invocation_arguments[5];
+  const w_seed_parallel_invocation1_output invocation_output = {
+      invocation_tasks, 5u, invocation_arguments, 5u};
+  CHECK(w_seed_parallel_invocation1_run(
+            &fixture.hir_program, &fixture.hir_result, &selection,
+            &selection_result, &invocation_output, &invocation_result) ==
+        W_SEED_PARALLEL_INVOCATION1_OK);
+  w_seed_parallel_invocation1_program invocation;
+  CHECK(w_seed_parallel_invocation1_program_from_output(
+      &invocation_output, &invocation_result, &invocation));
+
+  static uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir1_parallel_entry_result emitted;
+  CHECK(w_seed_mlir1_emit_parallel_entries(
+            &fixture.hir_program, &fixture.hir_result, &selection,
+            &selection_result, &invocation, &invocation_result,
+            &(w_seed_mlir0_parallel_entry_output){artifact, sizeof(artifact)},
+            &emitted) == W_SEED_MLIR0_OK &&
+        fwrite(artifact, 1u, emitted.written.mlir_bytes, stdout) ==
+            emitted.written.mlir_bytes &&
+        fflush(stdout) == 0);
+  return true;
+}
+
 static bool emit_process_parallel_mlir(bool windows) {
   CHECK(lower_process_parallel(PROCESS_PARALLEL_MLIR_SOURCE));
   w_seed_parallel_selection0 selection;
@@ -9000,6 +9188,11 @@ int main(int argc, char **argv) {
   if (argc == 2 && argv != NULL &&
       strcmp(argv[1], "--emit-parallel-entry-mlir") == 0) {
     if (!emit_parallel_entry_mlir()) return 1;
+    return 0;
+  }
+  if (argc == 2 && argv != NULL &&
+      strcmp(argv[1], "--emit-parallel-entry1-mlir") == 0) {
+    if (!emit_parallel_entry1_mlir()) return 1;
     return 0;
   }
   if (argc == 2 && argv != NULL &&

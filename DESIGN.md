@@ -40473,6 +40473,35 @@ seventeen-argument task also crosses the provider. This evidence does not define
 a Task ABI, scheduler, worker pool, cancellation, Linux provider, public
 executable, benchmark result, or performance claim.
 
+#### 26.4.1.89 W-1609 — measured parallel task-entry emission
+
+PARMLIR1 consumes verified HIR38, PARSEL1, and PARINV1. It preserves the
+target-neutral `w-seed-mlir0-parallel-entry-2` artifact grammar and emits one
+runtime-parameterized `w_seed_parallel_task_<ordinal>` entry for every measured
+logical task. Compatible PARSEL0/PARINV0 inputs produce byte-identical MLIR.
+Task and argument cardinality no longer inherit the four-task and
+sixteen-argument compatibility arrays.
+
+Measure and emit bind their result to the HIR, selection, and invocation
+semantic digests. Caller output, counts, and result are published only after
+producer verification, complete in-memory construction, capacity checks, and
+pairwise alias checks over every descriptor and backing range. Verification
+reconstructs the complete artifact and all counts without trusting emitted
+bytes.
+
+The emitter resolves named arguments through verified parameter ordinals. It
+uses neither heap allocation nor variable-length arrays; compiler work may be
+quadratic in argument count while this bounded seed favors a simple, auditable
+representation. The existing 64-function reachability bound and 192-KiB
+artifact buffer remain explicit seed limits, not W language or Task ABI limits.
+
+The C23 unit proves byte identity for the former two-task path, five emitted
+task entries, a seventeen-argument entry, transactionality, aliases, and forged
+proof rejection. The focused MLIR/LLVM 23.1.1 gate lowers the five-task artifact
+to Windows x64 COFF and Linux x86-64 PIC ELF objects. Public process products,
+cancellation/outcomes, a provider-neutral scheduler, stable ABI, benchmarks,
+and performance remain outside this compiler-lifecycle evidence.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

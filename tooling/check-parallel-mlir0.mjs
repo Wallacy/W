@@ -101,6 +101,16 @@ try {
     "llvm.target_triple", "@main", "@mainCRTStartup"])
     if (text.includes(forbidden)) fail(`artifact unexpectedly contains ${forbidden}`);
 
+  const measuredEmitted = run(witness, ["--emit-parallel-entry1-mlir"]);
+  if (measuredEmitted.stderr.length !== 0 ||
+      measuredEmitted.stdout.includes(Buffer.from([0])))
+    fail("measured emitter produced stderr or embedded NUL");
+  const measuredText = measuredEmitted.stdout.toString("utf8");
+  for (let task = 0; task < 5; task += 1)
+    if (!measuredText.includes(
+      `func.func @w_seed_parallel_task_${task}(%arg0: i64) -> i64`))
+      fail(`measured artifact omits task ${task}`);
+
   const available = await tools();
   const input = join(directory, "parallel-entry.mlir");
   const lowered = join(directory, "parallel-entry-lowered.mlir");
@@ -137,6 +147,38 @@ try {
       linuxBytes[1] !== 0x45 || linuxBytes[2] !== 0x4c ||
       linuxBytes[3] !== 0x46)
     fail("Linux x86-64 ELF object header is invalid");
+
+  const measuredInput = join(directory, "parallel-entry1.mlir");
+  const measuredLowered = join(directory, "parallel-entry1-lowered.mlir");
+  const measuredLlvm = join(directory, "parallel-entry1.ll");
+  const measuredWindowsObject = join(directory, "parallel-entry1.obj");
+  const measuredLinuxObject = join(directory, "parallel-entry1.o");
+  await writeFile(measuredInput, measuredEmitted.stdout);
+  run(available.mlirOpt, [measuredInput, "-o", measuredLowered,
+    "--convert-arith-to-llvm", "--convert-func-to-llvm",
+    "--reconcile-unrealized-casts", "--canonicalize", "--cse",
+    "--verify-each"]);
+  run(available.mlirTranslate, ["--mlir-to-llvmir", measuredLowered,
+    "-o", measuredLlvm]);
+  const measuredLlvmText = await readFile(measuredLlvm, "utf8");
+  for (let task = 0; task < 5; task += 1)
+    if (!new RegExp(`define i64 @w_seed_parallel_task_${task}\\(i64 `, "u")
+      .test(measuredLlvmText))
+      fail(`translated measured LLVM omits task ${task}`);
+  run(available.llc, ["-filetype=obj", "-mtriple=x86_64-pc-windows-msvc",
+    "-O3", measuredLlvm, "-o", measuredWindowsObject]);
+  run(available.llc, ["-filetype=obj", "-mtriple=x86_64-unknown-linux-gnu",
+    "-relocation-model=pic", "-O3", measuredLlvm, "-o",
+    measuredLinuxObject]);
+  const measuredWindowsBytes = await readFile(measuredWindowsObject);
+  const measuredLinuxBytes = await readFile(measuredLinuxObject);
+  if (measuredWindowsBytes.length < 2 || measuredWindowsBytes[0] !== 0x64 ||
+      measuredWindowsBytes[1] !== 0x86)
+    fail("measured Windows x64 COFF object header is invalid");
+  if (measuredLinuxBytes.length < 4 || measuredLinuxBytes[0] !== 0x7f ||
+      measuredLinuxBytes[1] !== 0x45 || measuredLinuxBytes[2] !== 0x4c ||
+      measuredLinuxBytes[3] !== 0x46)
+    fail("measured Linux x86-64 ELF object header is invalid");
 
   const processEmitted = run(witness, ["--emit-process-parallel-mlir"]);
   if (processEmitted.stderr.length !== 0 || processEmitted.stdout.length === 0 ||
@@ -312,7 +354,7 @@ try {
     exactExit(executable, [], 0);
     emittedExecution = "windows-crt-free-runtime-values";
   }
-  console.log(`PARALLEL MLIR0: MLIR=23.1.1 tasks=2 processRoot=1 runtimeArguments=3 reachableFunctions=3 emittedExecution=${emittedExecution} processExecution=${processExecution} processLinuxExecution=${processLinuxExecution} windowsObjectBytes=${windowsBytes.length} linuxObjectBytes=${linuxBytes.length} processWindowsObjectBytes=${processWindowsObjectBytes} processLinuxObjectBytes=${processLinuxBytes.length}`);
+  console.log(`PARALLEL MLIR0: MLIR=23.1.1 tasks=2 measuredTasks=5 processRoot=1 runtimeArguments=3 reachableFunctions=3 emittedExecution=${emittedExecution} processExecution=${processExecution} processLinuxExecution=${processLinuxExecution} windowsObjectBytes=${windowsBytes.length} linuxObjectBytes=${linuxBytes.length} measuredWindowsObjectBytes=${measuredWindowsBytes.length} measuredLinuxObjectBytes=${measuredLinuxBytes.length} processWindowsObjectBytes=${processWindowsObjectBytes} processLinuxObjectBytes=${processLinuxBytes.length}`);
 } finally {
   await rm(directory, { recursive: true, force: true });
 }
