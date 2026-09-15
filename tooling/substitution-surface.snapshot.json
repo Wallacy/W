@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:eb99ea6d80d82fb432f047a865aeac79b2d15de3e3f138a39ab28dd4868b6b5c",
+  "corpusDigest": "sha256:95b99a863434906780692e6c3d67bddff28b1928bd965fff35a6f030d4b303a9",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -9264,6 +9264,78 @@
             "nonWhitespaceCodePoints": 54,
             "lines": 1,
             "surfaceLexemes": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-hir0-mixed-error-exit",
+      "task": {
+        "utf8Bytes": 137,
+        "codePoints": 137,
+        "nonWhitespaceCodePoints": 121,
+        "lines": 1,
+        "surfaceLexemes": 22
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:549f297ea88ae8aa99b7f71fbe4264337c19b56e89e4e4122b40d3a8539e5fc0",
+        "metrics": {
+          "utf8Bytes": 107,
+          "codePoints": 107,
+          "nonWhitespaceCodePoints": 87,
+          "lines": 3,
+          "surfaceLexemes": 25
+        }
+      },
+      "alternatives": [
+        {
+          "name": "hidden-join",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:aa60c1f72f12727e2f16bb1b091b8c9de57458a7916f6465ef0572690eccb1aa",
+          "metrics": {
+            "utf8Bytes": 63,
+            "codePoints": 63,
+            "nonWhitespaceCodePoints": 53,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "error-as-return",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:3a2825bf4f0ca535dd0704f1616e4b8be94162131f3c9810735ec4a385a01279",
+          "metrics": {
+            "utf8Bytes": 42,
+            "codePoints": 42,
+            "nonWhitespaceCodePoints": 36,
+            "lines": 1,
+            "surfaceLexemes": 7
+          }
+        },
+        {
+          "name": "implicit-fallthrough",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:96a3b6f0837b1712424885ba30bd5e8f74090f59265a0801fc866d5431563ebc",
+          "metrics": {
+            "utf8Bytes": 38,
+            "codePoints": 38,
+            "nonWhitespaceCodePoints": 29,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "continuation-without-cleanup-proof",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:6474fd80525f597236f415bdb93061baa862ef6df0689cfdcef7b6d28367da83",
+          "metrics": {
+            "utf8Bytes": 36,
+            "codePoints": 36,
+            "nonWhitespaceCodePoints": 29,
+            "lines": 2,
+            "surfaceLexemes": 9
           }
         }
       ]

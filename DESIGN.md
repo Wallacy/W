@@ -40621,6 +40621,32 @@ fn dispatch(): i64 throws DispatchError {
 }
 ```
 
+#### 26.4.1.94 W-1614 — bounded mixed return/throw terminal branch
+
+HIR39 now admits one top-level terminal `if` in a throwing function when both
+arms are present and each lexical arm ends in either `return` or `throw`.
+There is no synthetic join block: the condition block branches to two disjoint
+preorder regions, and every region terminates through the function's normal or
+recoverable-error channel. The verifier independently walks that partition,
+checks exact ownership and target boundaries, and rejects a forged jump that
+would silently merge one arm into the other.
+
+This is a structured-CFG extension of W-1613, not a new syntax or record
+schema. It does not admit an `if` with a continuation after a throwing arm,
+nested terminal conditionals, cleanup, error propagation, catch regions, or
+downstream typed-error lowering. ProductClosure0 and executable consumers
+therefore continue to reject every `THROW` terminator.
+
+```w
+fn dispatch(isDenied: Bool): i64 throws DispatchError {
+  if isDenied {
+    throw .denied
+  } else {
+    return 7
+  }
+}
+```
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

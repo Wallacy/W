@@ -6163,6 +6163,36 @@ static bool test_typed_throw_hir(void) {
   reseal_hir_fixture();
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
 
+  static const char MIXED_EXIT_SOURCE[] =
+      "enum Failure: Error { denied }\n"
+      "fn fail(flag: Bool): i64 throws Failure { "
+      "if flag { throw .denied } else { return 7 } }\n"
+      "entry { }\n";
+  CHECK(lower(MIXED_EXIT_SOURCE));
+  program = &fixture.hir_program;
+  CHECK(program->functions[0].is_throws &&
+        program->functions[0].return_type == W_SEED_HIR0_TYPE_I64 &&
+        program->functions[0].error_type == 4u &&
+        program->functions[0].block_count == 3u &&
+        program->terminators[0].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[0].target_block == 1u &&
+        program->terminators[0].else_block == 2u &&
+        program->terminators[1].kind == W_SEED_HIR0_TERMINATOR_THROW &&
+        program->terminators[1].result_type == 4u &&
+        program->terminators[2].kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        program->terminators[2].result_type == W_SEED_HIR0_TYPE_I64);
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  const w_seed_hir0_terminator saved_mixed_throw = fixture.hir_terminators[1];
+  fixture.hir_terminators[1].kind = W_SEED_HIR0_TERMINATOR_JUMP;
+  fixture.hir_terminators[1].value_index = W_SEED_HIR0_NONE;
+  fixture.hir_terminators[1].result_type = 0u;
+  fixture.hir_terminators[1].target_block = 2u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[1] = saved_mixed_throw;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
   static const char NON_ERROR_SOURCE[] =
       "enum Failure { denied }\n"
       "fn fail(): () throws Failure { throw .denied }\n"
@@ -6187,6 +6217,20 @@ static bool test_typed_throw_hir(void) {
   result = fixture.hir_result;
   const w_seed_hir0_input branch_input = hir_input();
   CHECK(w_seed_hir0_measure(&branch_input, &counts, &result) !=
+        W_SEED_HIR0_OK);
+
+  static const char EARLY_BRANCH_THROW_SOURCE[] =
+      "enum Failure: Error { denied }\n"
+      "fn fail(first: Bool, second: Bool): i64 throws Failure { "
+      "if first { throw .denied } "
+      "if second { throw .denied } else { return 7 } }\n"
+      "entry { }\n";
+  CHECK(fixture_frontend(EARLY_BRANCH_THROW_SOURCE));
+  setup_hir_output();
+  counts = fixture.hir_counts;
+  result = fixture.hir_result;
+  const w_seed_hir0_input early_branch_input = hir_input();
+  CHECK(w_seed_hir0_measure(&early_branch_input, &counts, &result) !=
         W_SEED_HIR0_OK);
   return true;
 }

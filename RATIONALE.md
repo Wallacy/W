@@ -252,6 +252,7 @@ O corpus compara, no mínimo:
 - verified provider-outcome lifecycle binding against physical-capacity leakage, trusted outcome substitution, partial semantic publication, and premature failure, cancellation, panic, ABI, or performance claims.
 - typed physical completion waves against Boolean outcome collapse, fail-fast sibling rewriting, thread termination as cancellation, and panic-to-error substitution.
 - typed source throw against erased error identity, normal-return collapse, unconstrained enum conformance, and downstream spelling inference.
+- bounded mixed return/throw terminal branches against hidden joins, arm fallthrough, normal/error channel collapse, and unproved continuation cleanup.
 - bounded dual-target process/parallel linkage against direct-call substitution, CRT fallback, hidden runtime input, target conflation, and premature public or benchmark claims.
 - bounded GPU0 target-neutral semantic and available CUDA execution against source-backed W claims, provider/runtime conflation, homogeneous toolchains, and premature public product support.
 - bounded static accelerated root binding against embedded provider handles, multiplied budgets, and unauthenticated claims.
@@ -7940,6 +7941,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1611 | verified provider-outcome lifecycle binding | PARLIFE1 consumes verified successful PARPROV1 outcomes and their digest, derives measured TASKLIFE1 storage and a complete success trace, and publishes a checked lexical scope fold independently from provider capacity. | `source-backed-current` only for the five-task Windows compiler/component success path, provider-capacity-one/two byte equality, caller-owned measure/run/verify, complete upstream/output alias barriers, checked scope folding, and adversarial capacity/forgery evidence. Typed physical failure, cancellation request/interruption, panic, scheduling, public Task ABI/execution, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1612 | typed physical completion primitive | The private Windows PLATFORM1 provider callback returns a canonical tagged success, error, or canceled completion. A completed wave chooses the first lexical failure/cancellation source, preserves already-settled siblings, and cancels later unstarted tasks without treating typed outcomes as provider failure. | `source-backed-current` only for the private C23 Windows primitive, capacity-one/two five-task completion equality, monotonic capacity-two rendezvous, explicit cancellation propagation, started/settled/canceled-before-start receipt facts, and invalid-payload rejection. Authentication as a PARPROV result, TASKLIFE binding, source-level throw/cancel, physical preemption, panic containment, scheduling, public Task ABI/products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1613 | bounded typed throw in verified HIR | Parser CST separates the `throws E` type owner and `throw` statement; frontend29 preserves the concrete error type; HIR39 binds an exact core-`Error` local enum, the function error type, and a typed `THROW` terminator into caller-owned records, digests, receipts, and independent verification. | `source-backed-current` only for one terminal root throw with a local closed error enum, different normal/error result types, non-Error and branch-composition rejection, transactional publication, and adversarial HIR verification. Payload construction, mixed CFG, try/catch/cleanup, provider and Task binding, MLIR/native execution, public products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1614 | bounded mixed return/throw terminal branch | HIR39 admits one top-level complete `if` whose two lexical regions terminate independently with typed `return` or `throw`; no join block or hidden fallthrough is created, and verification rederives the disjoint preorder partition. | `source-backed-current` only for the bounded mixed `throw`/signed-`i64` return witness, exact arm ownership and type channels, and forged-jump rejection. Continuation after throw, nested terminal branches, cleanup/propagation/catch, provider and Task binding, MLIR/native execution, public products, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -13134,3 +13136,19 @@ and branch-local throw are also rejected before HIR publication. Branch/cleanup
 composition and downstream MLIR execution remain intentionally absent; the
 next error increment should connect this typed source edge to an authenticated
 provider outcome without inventing an error from callback data.
+
+#### W-1614 — bounded mixed return/throw terminal branch
+
+A useful error path must coexist with the function's normal result without
+encoding either as the other. The first CFG increment therefore accepts one
+complete terminal conditional. Its condition block has two lexical successor
+regions and deliberately no join: each arm ends in a normal return or a typed
+throw, and all blocks belong to exactly one region. The existing value verifier
+continues to prove the return and error types separately.
+
+The dedicated terminal-region verifier prevents the ordinary diamond logic
+from interpreting a missing join as success. A forged canonical jump from the
+throw arm into the return arm is rejected even after the HIR is resealed. An
+`if` followed by a continuation still fails closed because its cleanup and
+error-routing obligations are not represented yet. Nested terminal branches,
+catch regions, provider binding, and MLIR lowering remain later increments.
