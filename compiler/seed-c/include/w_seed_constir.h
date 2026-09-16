@@ -85,6 +85,8 @@ typedef enum {
   W_SEED_CONSTIR_OPERATOR_BIT_OR,
   W_SEED_CONSTIR_OPERATOR_BIT_XOR,
   W_SEED_CONSTIR_OPERATOR_POWER,
+  /* Append-only unary integer bitwise complement. */
+  W_SEED_CONSTIR_OPERATOR_BIT_NOT,
 } w_seed_constir_operator;
 
 typedef enum {

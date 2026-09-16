@@ -475,9 +475,12 @@ static bool bits_divide_unsigned(constir_bits dividend, constir_bits divisor,
     constir_bits shifted = *remainder;
     for (size_t index = sizeof(shifted.bytes); index > 0; index -= 1) {
       const uint8_t carry = index > 1u ? shifted.bytes[index - 2u] : 0u;
+      const uint32_t shifted_byte =
+          (uint32_t)shifted.bytes[index - 1u] << 1u;
+      const uint32_t carry_bit =
+          (carry & UINT8_C(0x80)) != 0u ? UINT32_C(1) : UINT32_C(0);
       shifted.bytes[index - 1u] =
-          (uint8_t)((shifted.bytes[index - 1u] << 1) |
-                    ((carry & 0x80u) != 0u ? 1u : 0u));
+          (uint8_t)(shifted_byte | carry_bit);
     }
     shifted.bytes[0] = (uint8_t)(shifted.bytes[0] |
                                  ((dividend.bytes[bit / 8u] >> (bit % 8u)) & 1u));
@@ -555,6 +558,7 @@ static w_seed_constir_operator unary_operator_for_text(
     w_seed_frontend_text text) {
   if (text_is(text, "!")) return W_SEED_CONSTIR_OPERATOR_NOT;
   if (text_is(text, "-")) return W_SEED_CONSTIR_OPERATOR_NEGATE;
+  if (text_is(text, "~")) return W_SEED_CONSTIR_OPERATOR_BIT_NOT;
   return W_SEED_CONSTIR_OPERATOR_INVALID;
 }
 
@@ -563,6 +567,8 @@ static bool operator_is_supported(w_seed_constir_operator operator,
   if (operator == W_SEED_CONSTIR_OPERATOR_NOT)
     return type_kind == W_SEED_FRONTEND_TYPE_BOOL;
   if (operator == W_SEED_CONSTIR_OPERATOR_NEGATE)
+    return type_kind == W_SEED_FRONTEND_TYPE_INTEGER;
+  if (operator == W_SEED_CONSTIR_OPERATOR_BIT_NOT)
     return type_kind == W_SEED_FRONTEND_TYPE_INTEGER;
   if (operator == W_SEED_CONSTIR_OPERATOR_AND ||
       operator == W_SEED_CONSTIR_OPERATOR_OR)
@@ -2495,6 +2501,12 @@ static bool eval_integer_unary(const w_seed_constir_node *node,
       if (bits_compare_unsigned(&bits, &minimum) == 0) return false;
     }
     bits_mask(&bits, node->type_bit_width, node->type_is_signed);
+  } else if (node->normalized_operator == W_SEED_CONSTIR_OPERATOR_BIT_NOT) {
+    for (size_t index = 0u; index < sizeof(bits.bytes); index += 1u)
+      bits.bytes[index] = (uint8_t)~bits.bytes[index];
+    /* Keep only the logical width, then restore the canonical signed
+     * representation when the complemented sign bit is set. */
+    bits_mask(&bits, node->type_bit_width, node->type_is_signed);
   } else {
     return false;
   }
@@ -3126,7 +3138,8 @@ static bool node_operator_valid(const w_seed_constir_node *node) {
   switch (node->kind) {
     case W_SEED_CONSTIR_NODE_UNARY:
       return node->normalized_operator == W_SEED_CONSTIR_OPERATOR_NOT ||
-             node->normalized_operator == W_SEED_CONSTIR_OPERATOR_NEGATE;
+             node->normalized_operator == W_SEED_CONSTIR_OPERATOR_NEGATE ||
+             node->normalized_operator == W_SEED_CONSTIR_OPERATOR_BIT_NOT;
     case W_SEED_CONSTIR_NODE_BINARY:
       return node->normalized_operator >= W_SEED_CONSTIR_OPERATOR_ADD &&
              node->normalized_operator <= W_SEED_CONSTIR_OPERATOR_POWER;
@@ -4108,6 +4121,11 @@ static bool validate_program(const w_seed_constir_program *program) {
                 !node_matches_type(left, W_SEED_FRONTEND_TYPE_BOOL, false, 0u,
                                    W_SEED_CONSTIR_NONE))) ||
               (node->normalized_operator == W_SEED_CONSTIR_OPERATOR_NEGATE &&
+               (node->type_kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+                !node_matches_type(left, node->type_kind, node->type_is_signed,
+                                   node->type_bit_width,
+                                   node->enum_base_index))) ||
+              (node->normalized_operator == W_SEED_CONSTIR_OPERATOR_BIT_NOT &&
                (node->type_kind != W_SEED_FRONTEND_TYPE_INTEGER ||
                 !node_matches_type(left, node->type_kind, node->type_is_signed,
                                    node->type_bit_width,

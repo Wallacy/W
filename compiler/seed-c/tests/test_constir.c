@@ -307,6 +307,28 @@ static bool fixture_lower(fixture *value, const char *text) {
   return true;
 }
 
+static bool fixture_lower_with_unary_operator(fixture *value, const char *text,
+                                              const char *operator_text) {
+  CHECK(value != NULL && text != NULL && operator_text != NULL);
+  CHECK(fixture_parse(value, text));
+  size_t unary_count = 0u;
+  for (size_t index = 0u;
+       index < value->frontend_result.written.expressions; index += 1u) {
+    w_seed_frontend_expression *expression =
+        &value->expressions[index];
+    if (expression->kind != W_SEED_FRONTEND_EXPR_UNARY) continue;
+    expression->operator_text =
+        (w_seed_frontend_text){operator_text, strlen(operator_text)};
+    unary_count += 1u;
+  }
+  CHECK(unary_count != 0u);
+  const w_seed_constir_input input = {
+      &value->frontend_input, &value->frontend_output, &value->frontend_result};
+  CHECK(w_seed_constir_run(&input, &value->constir_output,
+                           &value->constir_result) == W_SEED_CONSTIR_OK);
+  return true;
+}
+
 static w_seed_constir_program fixture_program(const fixture *value) {
   return (w_seed_constir_program){
       .functions = value->constir_functions,
@@ -780,6 +802,138 @@ static bool test_diagnostics_and_quotas(void) {
                                 (w_seed_constir_quota){100u, 0u, 8u, SIZE_MAX},
                                 &workspace, &result_value, &result) ==
         W_SEED_CONSTIR_OK && result.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_NONE);
+  return true;
+}
+
+static void complement_case(uint16_t width, bool signed_value, size_t case_index,
+                            uint8_t input[W_SEED_CONSTIR_INTEGER_BYTES],
+                            uint8_t expected[W_SEED_CONSTIR_INTEGER_BYTES]) {
+  (void)memset(input, 0, W_SEED_CONSTIR_INTEGER_BYTES);
+  const size_t bytes = (size_t)width / 8u;
+  if (case_index == 1u) {
+    for (size_t index = 0u; index < bytes; index += 1u)
+      input[index] = 0xffu;
+    if (signed_value) {
+      for (size_t index = bytes; index < W_SEED_CONSTIR_INTEGER_BYTES;
+           index += 1u)
+        input[index] = 0xffu;
+    }
+  } else if (case_index == 2u) {
+    input[bytes - 1u] = 0x80u;
+    if (signed_value) {
+      for (size_t index = bytes; index < W_SEED_CONSTIR_INTEGER_BYTES;
+           index += 1u)
+        input[index] = 0xffu;
+    }
+  }
+  for (size_t index = 0u; index < W_SEED_CONSTIR_INTEGER_BYTES; index += 1u)
+    expected[index] = (uint8_t)~input[index];
+  if (!signed_value) {
+    for (size_t index = bytes; index < W_SEED_CONSTIR_INTEGER_BYTES;
+         index += 1u)
+      expected[index] = 0u;
+  } else if ((expected[bytes - 1u] & 0x80u) != 0u) {
+    for (size_t index = bytes; index < W_SEED_CONSTIR_INTEGER_BYTES;
+         index += 1u)
+      expected[index] = 0xffu;
+  }
+}
+
+static bool test_integer_bitwise_complement(void) {
+  static const char source[] =
+      "const fn complementU8(value: u8): u8 { return -value }\n"
+      "const fn complementU64(value: u64): u64 { return -value }\n"
+      "const fn complementI8(value: i8): i8 { return -value }\n"
+      "const fn complementI64(value: i64): i64 { return -value }\n";
+  static const uint16_t widths[] = {8u, 64u, 8u, 64u};
+  static const bool signedness[] = {false, false, true, true};
+  CHECK(fixture_lower_with_unary_operator(&first_fixture, source, "~"));
+  CHECK(fixture_lower(&second_fixture, source));
+  CHECK(first_fixture.constir_result.written.functions == 4u &&
+        first_fixture.constir_result.written.parameters == 4u &&
+        second_fixture.constir_result.written.functions == 4u);
+  CHECK(memcmp(first_fixture.constir_functions[0].body_digest,
+               second_fixture.constir_functions[0].body_digest, 32u) != 0);
+
+  const w_seed_constir_program program = fixture_program(&first_fixture);
+  for (uint32_t function_index = 0u; function_index < 4u;
+       function_index += 1u) {
+    const w_seed_constir_function *function =
+        &first_fixture.constir_functions[function_index];
+    CHECK(function->lowerable && function->root_node != W_SEED_CONSTIR_NONE);
+    const w_seed_constir_node *root =
+        &first_fixture.constir_nodes[function->root_node];
+    CHECK(root->kind == W_SEED_CONSTIR_NODE_UNARY &&
+          root->normalized_operator == W_SEED_CONSTIR_OPERATOR_BIT_NOT &&
+          root->type_kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+          root->type_is_signed == signedness[function_index] &&
+          root->type_bit_width == widths[function_index]);
+    for (size_t case_index = 0u; case_index < 3u; case_index += 1u) {
+      uint8_t input_bytes[W_SEED_CONSTIR_INTEGER_BYTES];
+      uint8_t expected_bytes[W_SEED_CONSTIR_INTEGER_BYTES];
+      complement_case(widths[function_index], signedness[function_index],
+                      case_index, input_bytes, expected_bytes);
+      w_seed_constir_value argument;
+      CHECK(w_seed_constir_value_integer(
+          first_fixture.constir_parameters[function_index].type_index,
+          W_SEED_FRONTEND_TYPE_INTEGER, signedness[function_index],
+          widths[function_index], input_bytes, &argument));
+      w_seed_constir_value output;
+      w_seed_constir_eval_result evaluation;
+      w_seed_constir_eval_frame frames[2];
+      w_seed_constir_eval_workspace workspace = {frames, 2u};
+      CHECK(w_seed_constir_evaluate(
+                &program, function_index, &argument, 1u,
+                (w_seed_constir_quota){16u, 0u, 1u, SIZE_MAX}, &workspace,
+                &output, &evaluation) == W_SEED_CONSTIR_OK &&
+            evaluation.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_NONE &&
+            output.kind == W_SEED_CONSTIR_VALUE_INTEGER &&
+            output.type_kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+            output.type_is_signed == signedness[function_index] &&
+            output.type_bit_width == widths[function_index] &&
+            memcmp(output.integer_value, expected_bytes,
+                   W_SEED_CONSTIR_INTEGER_BYTES) == 0);
+    }
+  }
+
+  /* A valid complement node must not accept a binary operator forgery. */
+  const uint32_t root_index = first_fixture.constir_functions[0].root_node;
+  w_seed_constir_node saved_root = first_fixture.constir_nodes[root_index];
+  first_fixture.constir_nodes[root_index].normalized_operator =
+      W_SEED_CONSTIR_OPERATOR_POWER;
+  CHECK(!w_seed_constir_validate_program(&program));
+  w_seed_constir_value argument;
+  uint8_t zero_bytes[W_SEED_CONSTIR_INTEGER_BYTES] = {0u};
+  CHECK(w_seed_constir_value_integer(
+      first_fixture.constir_parameters[0].type_index,
+      W_SEED_FRONTEND_TYPE_INTEGER, false, 8u, zero_bytes, &argument));
+  w_seed_constir_value output;
+  w_seed_constir_eval_result evaluation;
+  w_seed_constir_eval_frame frames[2];
+  w_seed_constir_eval_workspace workspace = {frames, 2u};
+  CHECK(w_seed_constir_evaluate(
+            &program, 0u, &argument, 1u,
+            (w_seed_constir_quota){16u, 0u, 1u, SIZE_MAX}, &workspace, &output,
+            &evaluation) == W_SEED_CONSTIR_INVALID &&
+        evaluation.consumed_steps == 0u);
+  first_fixture.constir_nodes[root_index] = saved_root;
+
+  /* The same node shape rejects a non-integer result type forgery. */
+  first_fixture.constir_nodes[root_index].type_kind =
+      W_SEED_FRONTEND_TYPE_BOOL;
+  first_fixture.constir_nodes[root_index].type_is_signed = false;
+  first_fixture.constir_nodes[root_index].type_bit_width = 0u;
+  first_fixture.constir_nodes[root_index].enum_base_index =
+      W_SEED_CONSTIR_NONE;
+  CHECK(!w_seed_constir_validate_program(&program));
+  first_fixture.constir_nodes[root_index] = saved_root;
+
+  static const char bool_source[] =
+      "const fn boolComplement(value: Bool): Bool { return !value }\n";
+  CHECK(fixture_lower_with_unary_operator(&second_fixture, bool_source, "~"));
+  CHECK(second_fixture.constir_result.written.functions == 1u &&
+        !second_fixture.constir_functions[0].lowerable &&
+        second_fixture.constir_result.written.nodes == 0u);
   return true;
 }
 
@@ -2017,6 +2171,7 @@ int main(void) {
   if (!test_can_move_and_digest()) return 1;
   if (!test_static_list_stage_path()) return 1;
   if (!test_diagnostics_and_quotas()) return 1;
+  if (!test_integer_bitwise_complement()) return 1;
   if (!test_labels_relations_and_parentheses()) return 1;
   if (!test_typed_literal_projection()) return 1;
   if (!test_string_literals_and_comparisons()) return 1;
