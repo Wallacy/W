@@ -115,6 +115,7 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-scalar-if | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 630 | 224 | 179.4772 ms | 16.8189 ms | 17.1398 ms | 3756032 B (3.58 MiB) | 10.674 ms |
 | restaurant-unary-interpolation | w | Windows x64 / MSVC | CRT-free | 2560 B (2.5 KiB) | 454 | 208 | 173.7539 ms | 16.9549 ms | 17.1994 ms | 3756032 B (3.58 MiB) | 11.912 ms |
 | restaurant-unary-negate | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 582 | 228 | 176.128 ms | 16.1193 ms | 17.1021 ms | 3756032 B (3.58 MiB) | 11.448 ms |
+| restaurant-unsigned | w | Windows x64 / MSVC | CRT-free | 2560 B (2.5 KiB) | 662 | 292 | 177.6862 ms | 15.1126 ms | 17.9711 ms | 3153920 B (3.01 MiB) | 9.282 ms |
 | restaurant-while | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3510 | 2624 | 127.5739 ms | 17.9865 ms | 19.0065 ms | 4833280 B (4.61 MiB) | 12.53 ms |
 | restaurant-while | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79688 | 28348 | 1.0761812 s | 17.952 ms | 18.2702 ms | 4870144 B (4.64 MiB) | 12.221 ms |
 | restaurant-while | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 598 | 220 | 177.0692 ms | 16.0735 ms | 16.9968 ms | 3756032 B (3.58 MiB) | 11.602 ms |
