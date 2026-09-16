@@ -11,19 +11,25 @@ Neither bundle produces a language or product-runtime result.
 [`executable-catalog.json`](executable-catalog.json) is the machine-readable
 catalog of executable workloads. It keeps stable IDs for `hello`,
 `process-entry`, `process-enum-payload`, `process-arguments-count`,
-`process-handler-lifecycle`, nineteen
-source-backed Restaurant workloads, and the future full Restaurant
-composition. Hello has W, C, and Rust sources. The `restaurant-branch` witness
-and the `restaurant-enum-switch` witness also have public `w build` Release
-source-to-PE candidates plus C and Rust sources verified against their exact
-oracles. The other
-Restaurant witnesses remain W-only with explicit C/Rust blockers. Public C
+`process-handler-lifecycle`, 36 source-backed Restaurant workloads, and the
+future full Restaurant composition. Hello has W, C, and Rust sources. Thirteen
+Restaurant witnesses, including branch, loop, enum, async/yield, and strict-f64
+slices, also have independent C and Rust sources verified against exact
+oracles. The remaining Restaurant witnesses are W-only with explicit C/Rust
+blockers. Public C
 uses final C23 through Clang and the MSVC ABI; the private handler composite
 retains its explicitly contextual GCC/MinGW lane. Equivalent Hello sources live in
 [`executable/`](executable/) and share the exact `Hello, world!\n` / exit `0`
 oracle. The shared public artifact target is `x86_64-pc-windows-msvc` for W,
-Clang C, and Rust. Public C has no silent GCC or c2x fallback.
-the current Rust baseline uses edition 2024.
+Clang C, and Rust. Public C has no silent GCC or c2x fallback. The current Rust
+baseline uses edition 2024.
+
+The `restaurant-f64-strict` witness is `not-performance-ready`. W's current
+Windows and WSL artifacts are compile-time-folded semantic/output witnesses,
+not algorithmically comparable runtime-f64 work. C and Rust retain runtime
+operations as independent correctness references. The catalog excludes this
+workload from live best-metric derivation and equivalent-runtime ranking until
+runtime-equivalent W evidence exists.
 
 The catalog declares compile latency, median and P95 target-run wall time,
 user/system/total CPU time, peak working set, artifact size, exit code, and
@@ -47,6 +53,12 @@ section's name, VirtualSize, and raw size, as defined by the
 padding and zero-fill; it is not a useful-instruction count. Historical cells
 without this optional metadata remain `not measured`, and missing or ambiguous
 `.text`/`.rdata` sections are not fabricated as zero.
+Linux/WSL runner-bound results retain the named ELF section `sh_size` values as
+decimal byte counts, including `.text` and `.rodata` (and any other named
+sections present in the bounded section table). The human projection labels
+these as ELF measurements; ELF `.rodata` is not a byte-equivalent replacement
+for PE `.rdata`. Historical cells without this optional metadata remain `not
+measured`, and missing or ambiguous ELF sections are not fabricated as zero.
 The current runtime series is a target-run measurement: each raw sample
 creates, executes, and waits for one fresh target process, while production
 samples are collected by one native helper batch per warmup/raw series. This

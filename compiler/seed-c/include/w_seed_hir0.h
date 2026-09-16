@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-47"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-48"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -65,6 +65,8 @@ typedef enum {
   /* Canonical fixed-width unsigned integer. Source `UInt` and `u64` share
    * this logical identity; target-width usize remains distinct. */
   W_SEED_HIR0_TYPE_U64,
+  /* Canonical IEEE-754 binary64 scalar. */
+  W_SEED_HIR0_TYPE_F64,
 } w_seed_hir0_type_kind;
 
 typedef enum {
@@ -174,6 +176,9 @@ typedef enum {
   /* A fixed-width unsigned-64 literal, distinct from both signed i64 and
    * target-width usize even when all three use an i64 physical carrier. */
   W_SEED_HIR0_VALUE_CONST_U64,
+  W_SEED_HIR0_VALUE_CONST_FLOAT,
+  W_SEED_HIR0_VALUE_BINARY_FLOAT,
+  W_SEED_HIR0_VALUE_UNARY_FLOAT,
 } w_seed_hir0_value_kind;
 
 typedef enum {
@@ -658,6 +663,7 @@ typedef struct {
   uint32_t block_argument_index;
   int64_t integer_value;
   uint64_t unsigned_integer_value;
+  uint64_t float_bits;
   bool bool_value;
   uint32_t byte_offset;
   uint32_t byte_count;

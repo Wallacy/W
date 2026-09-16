@@ -247,7 +247,7 @@ mlir-opt → mlir-translate → llc → native host link`; HLO0, HLO1, and RUN0 
 bootstrap, audit, and recovery, not prerequisites for that route. The current
 Linux/WSL adapter remains `w-seed-mlir0-15` with exact 23.1.1 toolchain
 evidence acquired from the verified external portable bundle;
-the live producer is `w-seed-mlir0-22`, the current Windows label is
+the live producer is `w-seed-mlir0-23`, the current Windows label is
 `w-seed-mlir0-windows-8`, and Native0 is `w-seed-native0-9`. Historical pinned
 toolchain manifests retain the schema they actually validated; the
 private `PROCESS_HANDLER` artifact uses

@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-35"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-36"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -928,6 +928,11 @@ typedef struct {
   bool bool_value;
   bool has_integer_value;
   uint8_t integer_value[16];
+  /* Canonical IEEE-754 binary64 bits for a supported f64 literal.  The
+   * frontend materializes once; downstream stages never reparse source
+   * spelling or depend on the host floating representation. */
+  bool has_float_value;
+  uint64_t float_bits;
   /* Append-only frontend resolution facts for downstream const lowering. */
   uint32_t resolved_parameter_ordinal;
   uint32_t resolved_function_index;

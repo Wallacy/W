@@ -6,6 +6,20 @@ semântico são fatias fechadas caller-owned. O target bootstrap `w` usa o núcl
 privado para o perfil CHK9 de root efêmera explícita e imports locais
 alcançáveis. O target bootstrap não é um compiler driver completo.
 
+## Limite de toolchain e distribuição
+
+Desenvolvimento e bootstrap podem usar um compiler C23, CMake, Bun e ferramentas
+externas MLIR/LLVM. Esses requisitos pertencem ao host de desenvolvimento.
+Uma distribuição pública de `w` deve ser autocontida (self-contained) e não
+deve exigir esses itens na máquina target. O pacote deve incluir o compiler W, os
+target packs assinados e o runtime necessário. Ele não deve baixar uma toolchain
+silenciosamente. O pacote público ainda é futuro.
+
+A rota nativa de source W é `W source → verified HIR → MLIR → LLVM IR → object →
+link`. Ela nunca converte W source em C. O orçamento inicial do compiler
+empacotado é `<=64 MiB` comprimido. A prioridade de Release é performance, não
+tamanho. A ambição cross-target permanece para todos os targets suportados.
+
 ## Política de dialeto C
 
 O seed usa C23 como padrão explícito no CMake, nos probes e checkers C, na
@@ -21,9 +35,10 @@ correctness-only e sem resultado C23 final. A lane `c11-recovery` exige
 solicitação explícita.
 
 O código continua compilável em C11 recovery. Essa escolha não cria requisito
-C23 para uma ABI C externa. C permanece backend de validation, differential e
-recovery; MLIR0 é a rota nativa primária somente para o subset fechado, e W/MLIR
-geral continua futuro.
+C23 para uma ABI C externa. C permanece implementação de bootstrap e suporte de
+validation, differential e recovery. C não é backend de codegen nativo W. MLIR0
+é a rota nativa primária somente para o subset fechado, e W/MLIR geral continua
+futuro.
 
 ## Native benchmark measurement kernel
 
@@ -1209,6 +1224,8 @@ output e exit verificados.
 `include/w_seed_hlo1.h` e `src/w_seed_hlo1.c` consomem um plano HLO0 já
 validado e produzem, sem heap, um arquivo C conservador bounded em buffer
 caller-owned; o build primário o compila em modo C23.
+HLO1 produz C somente para validação e recovery de desenvolvimento. Ele não é a
+rota nativa de source W nem um componente da distribuição pública.
 `measure` e `emit` revalidam o plano completo antes de qualquer escrita. Em
 qualquer falha, os records e buffers do caller permanecem inalterados; alias,
 capacidade curta, plano corrompido e payload fora do subset retornam status.
@@ -2768,6 +2785,36 @@ count plus signed and unsigned left-shift overflow. Masked shifts, rotates,
 other widths, compound assignment, SIMD, and matrix operations remain outside
 this bounded slice.
 
+### Strict `f64` scalar slice
+
+The seed frontend, verified HIR0, NativeSubset0 selector, and MLIR0 preserve a
+bounded strict `f64` path. Decimal literals retain exact IEEE 754 binary64
+bits. The frontend accepts the `_f64` suffix, including integer-looking
+decimal spellings, preserves finite subnormals and IEEE underflow to signed
+zero, and rejects overflow, non-finite values, and hexadecimal-float syntax.
+HIR semantic digests include the exact bits. Mixed integer/`f64` expressions
+remain fail-closed until their conversion lowering is implemented.
+
+MLIR0 emits direct `llvm.fadd`, `llvm.fsub`, `llvm.fmul`, `llvm.fdiv`, and
+`llvm.fneg` operations. Comparisons use ordered predicates except `!=`, which
+uses `une`. No fast-math flag is present. Runtime arithmetic may produce
+infinity or NaN even though a source literal cannot spell either value.
+
+[`fixtures/restaurant-f64-strict.w`](fixtures/restaurant-f64-strict.w)
+exercises all implemented arithmetic and comparison operators, signed zero,
+and runtime NaN behavior. It prints exactly `Float strict ok\n`. Focused HIR
+tests cover exact bits, digest identity, invalid operators, and forged
+non-finite constants. The MLIR gate checks every opcode and predicate before
+native execution.
+
+This slice does not implement casts, other widths, floating remainder, power,
+interpolation, formatting, fast-math profiles, SIMD, or matrix operations.
+Its executable is registered in the live catalog, but it is intentionally
+`not-performance-ready`: the release artifact folds the complete expression
+tree at compile time while the C and Rust references retain runtime floating
+operations. It is therefore a semantic/output witness, not equivalent work
+for ranking or live best metrics.
+
 ### Closed local payloadless enum exhaustive switch (W-1563)
 
 HIR21 (`w-seed-hir0-21`) adds one explicit `SWITCH_ENUM` terminator and dense
@@ -2970,9 +3017,10 @@ mutation. The current private handler mode is described in the W-1546 section
 below. `directEntry`, argument access, providers, ABI lowering, runtime input,
 native execution, Windows, and performance remained gaps at that boundary.
 
-O gate `bun check --target mlir0` comprova source → parser/frontend → HIR0 → MLIR0 →
-`mlir-opt` verify → `mlir-translate` LLVM IR → `clang -x ir` native link →
-executable for Hello, Restaurant binding, Restaurant literal, linear output,
+Na receita Linux legada, o gate `bun check --target mlir0` comprova source →
+parser/frontend → HIR0 → MLIR0 → `mlir-opt` verify → `mlir-translate` LLVM IR →
+`clang -x ir` link-driver bridge → executable for Hello, Restaurant binding,
+Restaurant literal, linear output,
 empty output, `restaurant-interpolation.w`, the Bool/String Restaurant witness,
 a direct-call Restaurant witness, and a scalar-return Restaurant witness. It
 also runs the W-1531 Restaurant diamond, separate minimal and no-else
@@ -3006,6 +3054,10 @@ NAT1. HLO0, HLO1 e RUN0 continuam bootstrap, auditoria e recovery e rejeitam
 multi-call. O bundle tem
 `benchmarkDisposition: compiler-lifecycle`, correctness-only, sem timing ou
 result.
+
+`clang -x ir` recebe LLVM IR já gerado somente como ponte temporária do driver
+de link no Linux. Ele não transforma W em C, não é um C backend e não pertence
+à distribuição pública.
 
 For local development only, `W_MLIR0_DEVELOPMENT_PATCH_COMPAT=1` permits tools
 from the same `23.1.x` line and resolves version-suffixed WSL commands such as
@@ -3415,9 +3467,10 @@ bytes. It does not discover source recursively, from cwd or PATH, or through
 imports, packages, workspaces, registries or network. Native0 is caller-owned
 and no-heap; the logical source id is the opaque basename supplied by the
 caller, including hyphens and the terminal `.w`, rather than a W identifier or
-module name. The direct route is
-`source → parser/frontend → verified HIR0 → MLIR0 → mlir-opt →
-mlir-translate → llc → native host link`. HLO0, HLO1 and RUN0 are not
+module name. The native route is
+`W source → parser/frontend → verified HIR0 → MLIR0 → LLVM IR → object → link →
+target executable`. The current development gate realizes these stages with
+`mlir-opt`, `mlir-translate`, and `llc`. HLO0, HLO1 and RUN0 are not
 prerequisites. `llc` emits position-independent program and WRT0 objects. The
 absolute native linker produces a static PIE with compiler-owned `_start`,
 stdout write, and exit adapters. The final ELF has no `PT_INTERP`,
@@ -3454,7 +3507,9 @@ The active local WSL lane resolves LLVM 23.1.1 tools from
 `W_MLIR0_TOOLCHAIN_ROOT`, not versioned `/usr/bin` names. The public runner
 uses host GCC/cc 13.3.0 and target `x86_64-linux-gnu`; its gate checks exact
 output, stage failures, missing tools, restored execution, and cleanup.
-The host compiler builds the C seed separately from LLVM object generation.
+The host compiler builds the C seed separately from LLVM object generation. It
+does not lower W source to C. GCC/cc and the external LLVM tools are development
+host prerequisites, not target-machine requirements for a packaged `w`.
 Run `bun tooling/command-runner.mjs --command check:w-run -- --ci` only on Linux x64 with the acquired CI tools.
 Mandatory mode fails when prerequisites are absent. It cannot pass through SKIP.
 
@@ -3528,6 +3583,10 @@ profile option in this seed. `w build` retains only the published executable.
 The route supports the current seed subset, including `restaurant-if.w`,
 without changing language semantics. Separate compile/run benchmark migration
 is not part of this bundle.
+
+The current Hello observations are 2,048 bytes for the Windows CRT-free PE and
+2,096 bytes for the Linux/WSL CRT-free PIE. These artifact values do not change
+the `<=64 MiB` packaged-compiler budget.
 
 The Linux/WSL and native Windows gates cover the retained-artifact route:
 

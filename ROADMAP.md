@@ -11,7 +11,13 @@ not in this queue.
 - Prefer vertical source-to-native slices over isolated infrastructure.
 - Generalize only after a bounded implementation exposes the real invariants.
 - Keep logical semantics independent from storage, worker, and seed capacities.
-- Preserve verified HIR as the authority and lower directly through MLIR/LLVM.
+- Preserve verified HIR as the authority and lower native W source directly
+  through MLIR/LLVM. A C23 compiler, CMake, Bun, and external MLIR/LLVM tools
+  may support development and bootstrap only.
+- Keep the initial packaged compiler within `<=64 MiB` compressed. Prioritize
+  Release performance over size and require benchmark evidence for size work.
+- Preserve the cross-target goal: any supported compiler host can emit any
+  supported target without downloading a cross toolchain.
 - Default native products are CRT-free and statically close W-owned runtime and
   standard-library code by reachability.
 - Optimize the largest proved closed graph; retain only observable product and
@@ -102,6 +108,10 @@ retained. The Windows reduction folds unwind metadata into the existing
 read-only section while preserving separate executable and writable sections.
 The sub-1-KiB target remains an optimization opportunity, not a completion
 gate.
+
+The maintained native route is `W source → verified HIR → MLIR → LLVM IR →
+object → link`. It never lowers W source through C. The C23 oracle remains an
+independent validation reference, not a native W backend.
 
 W-1601 now supplies the target-neutral two-function/seven-operation GPU0
 witness, separate host/device MLIR, GPU/NVVM/PTX lowering, actual result `42`

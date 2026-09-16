@@ -639,6 +639,16 @@ static bool append_i64_carrier_bits(uint8_t *buffer, size_t capacity,
          append_u64(buffer, capacity, offset, UINT64_MAX - value + 1u);
 }
 
+static bool append_u64_hex_bits(uint8_t *buffer, size_t capacity,
+                                size_t *offset, uint64_t value) {
+  uint8_t digits[18] = {'0', 'x'};
+  for (size_t index = 0u; index < 16u; index += 1u) {
+    const unsigned shift = (unsigned)((15u - index) * 4u);
+    digits[index + 2u] = (uint8_t)MLIR0_HEX[(value >> shift) & 0x0fu];
+  }
+  return append_bytes(buffer, capacity, offset, digits, sizeof(digits));
+}
+
 /* cf.switch parses case literals as signed APInt values in MLIR 23.1.1.
  * Render the canonical unsigned HIR tag as its sign-equivalent spelling when
  * the carrier's sign bit is set; the iN bit pattern remains unchanged. */
@@ -1228,7 +1238,8 @@ static bool mark_reachable_value_tree(
                has_remainder, depth + 1u);
   }
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL ||
-      value->kind == W_SEED_HIR0_VALUE_UNARY_I64) {
+      value->kind == W_SEED_HIR0_VALUE_UNARY_I64 ||
+      value->kind == W_SEED_HIR0_VALUE_UNARY_FLOAT) {
     if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64 &&
         value->unary_operator == W_SEED_HIR0_UNARY_NEGATE &&
         !mlir0_value_is_constant_i64(program, value_index, 0u))
@@ -1272,6 +1283,13 @@ static bool mark_reachable_value_tree(
                                      has_add, has_subtract, has_multiply,
                                      has_divide, has_remainder, depth + 1u);
   }
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_FLOAT)
+    return mark_reachable_value_tree(program, value->left_value, reachable,
+                                     has_add, has_subtract, has_multiply,
+                                     has_divide, has_remainder, depth + 1u) &&
+           mark_reachable_value_tree(program, value->right_value, reachable,
+                                     has_add, has_subtract, has_multiply,
+                                     has_divide, has_remainder, depth + 1u);
   if (value->kind == W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON)
     return mark_reachable_value_tree(program, value->left_value, reachable,
                                      has_add, has_subtract, has_multiply,
@@ -1699,6 +1717,88 @@ static bool append_binary_value_operation(
   return append_binary_value_operation_in_loop(
       program, value_index, function_index, process, NULL, artifact, capacity,
       offset);
+}
+
+static const char *float_binary_operation(
+    w_seed_hir0_binary_operator operation) {
+  switch (operation) {
+    case W_SEED_HIR0_BINARY_ADD:
+      return "llvm.fadd";
+    case W_SEED_HIR0_BINARY_SUBTRACT:
+      return "llvm.fsub";
+    case W_SEED_HIR0_BINARY_MULTIPLY:
+      return "llvm.fmul";
+    case W_SEED_HIR0_BINARY_DIVIDE:
+      return "llvm.fdiv";
+    case W_SEED_HIR0_BINARY_EQUAL:
+      return "llvm.fcmp \"oeq\"";
+    case W_SEED_HIR0_BINARY_NOT_EQUAL:
+      return "llvm.fcmp \"une\"";
+    case W_SEED_HIR0_BINARY_LESS:
+      return "llvm.fcmp \"olt\"";
+    case W_SEED_HIR0_BINARY_LESS_EQUAL:
+      return "llvm.fcmp \"ole\"";
+    case W_SEED_HIR0_BINARY_GREATER:
+      return "llvm.fcmp \"ogt\"";
+    case W_SEED_HIR0_BINARY_GREATER_EQUAL:
+      return "llvm.fcmp \"oge\"";
+    case W_SEED_HIR0_BINARY_REMAINDER:
+    case W_SEED_HIR0_BINARY_BIT_AND:
+    case W_SEED_HIR0_BINARY_BIT_OR:
+    case W_SEED_HIR0_BINARY_BIT_XOR:
+    case W_SEED_HIR0_BINARY_SHIFT_LEFT:
+    case W_SEED_HIR0_BINARY_SHIFT_RIGHT:
+    case W_SEED_HIR0_BINARY_POWER:
+      return NULL;
+  }
+  return NULL;
+}
+
+static bool append_binary_float_operation_in_loop(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop, uint8_t *artifact,
+    size_t capacity, size_t *offset) {
+  if (program == NULL || artifact == NULL || offset == NULL ||
+      value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  const char *operation = float_binary_operation(value->binary_operator);
+  return value->kind == W_SEED_HIR0_VALUE_BINARY_FLOAT &&
+         operation != NULL &&
+         append_literal(artifact, capacity, offset, "    %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, " = ") &&
+         append_literal(artifact, capacity, offset, operation) &&
+         append_literal(artifact, capacity, offset, " ") &&
+         append_program_value_operand_in_loop(
+             program, value->left_value, function_index, process, loop,
+             artifact, capacity, offset) &&
+         append_literal(artifact, capacity, offset, ", ") &&
+         append_program_value_operand_in_loop(
+             program, value->right_value, function_index, process, loop,
+             artifact, capacity, offset) &&
+         append_literal(artifact, capacity, offset, " : f64\n");
+}
+
+static bool append_unary_float_operation_in_loop(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop, uint8_t *artifact,
+    size_t capacity, size_t *offset) {
+  if (program == NULL || artifact == NULL || offset == NULL ||
+      value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  return value->kind == W_SEED_HIR0_VALUE_UNARY_FLOAT &&
+         value->unary_operator == W_SEED_HIR0_UNARY_NEGATE &&
+         append_literal(artifact, capacity, offset, "    %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, " = llvm.fneg ") &&
+         append_program_value_operand_in_loop(
+             program, value->left_value, function_index, process, loop,
+             artifact, capacity, offset) &&
+         append_literal(artifact, capacity, offset, " : f64\n");
 }
 
 static bool append_usize_count_comparison_operation_in_loop(
@@ -2623,12 +2723,15 @@ static bool append_program_value_operand_in_loop(
            append_literal(artifact, capacity, offset, "%call") &&
            append_size(artifact, capacity, offset, value->call_index);
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL ||
-      value->kind == W_SEED_HIR0_VALUE_UNARY_I64)
+      value->kind == W_SEED_HIR0_VALUE_UNARY_I64 ||
+      value->kind == W_SEED_HIR0_VALUE_UNARY_FLOAT)
     return value->type_index < program->type_count &&
            ((value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL &&
              program->types[value->type_index].kind == W_SEED_HIR0_TYPE_BOOL) ||
             (value->kind == W_SEED_HIR0_VALUE_UNARY_I64 &&
-             program->types[value->type_index].kind == W_SEED_HIR0_TYPE_I64)) &&
+             program->types[value->type_index].kind == W_SEED_HIR0_TYPE_I64) ||
+            (value->kind == W_SEED_HIR0_VALUE_UNARY_FLOAT &&
+             program->types[value->type_index].kind == W_SEED_HIR0_TYPE_F64)) &&
            append_literal(artifact, capacity, offset, "%v") &&
            append_size(artifact, capacity, offset, value_index);
   if (value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ) {
@@ -2677,8 +2780,10 @@ static bool append_program_value_operand_in_loop(
   return (value->kind == W_SEED_HIR0_VALUE_CONST_I64 ||
           value->kind == W_SEED_HIR0_VALUE_CONST_USIZE ||
           value->kind == W_SEED_HIR0_VALUE_CONST_U64 ||
+          value->kind == W_SEED_HIR0_VALUE_CONST_FLOAT ||
           value->kind == W_SEED_HIR0_VALUE_CONST_BOOL ||
           value->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
+          value->kind == W_SEED_HIR0_VALUE_BINARY_FLOAT ||
           value->kind == W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON ||
           value->kind == W_SEED_HIR0_VALUE_PATTERN_CAPTURE_READ ||
           value->kind == W_SEED_HIR0_VALUE_ENUM_CASE ||
@@ -2841,6 +2946,18 @@ static bool append_program_value_tree(
     emitted[value_index] = true;
     return true;
   }
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_FLOAT) {
+    if (value->left_value >= program->value_count ||
+        !append_program_value_tree(program, value->left_value, function_index,
+                                   process, emitted, artifact, capacity,
+                                   offset, depth + 1u) ||
+        !append_unary_float_operation_in_loop(
+            program, value_index, function_index, process, NULL, artifact,
+            capacity, offset))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
   if (value->kind == W_SEED_HIR0_VALUE_INTERPOLATED_STRING) {
     for (size_t ordinal = 0u; ordinal < value->interpolation_segment_count;
          ordinal += 1u) {
@@ -2874,6 +2991,22 @@ static bool append_program_value_tree(
     emitted[value_index] = true;
     return true;
   }
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_FLOAT) {
+    if (value->left_value >= program->value_count ||
+        value->right_value >= program->value_count ||
+        !append_program_value_tree(program, value->left_value, function_index,
+                                   process, emitted, artifact, capacity,
+                                   offset, depth + 1u) ||
+        !append_program_value_tree(program, value->right_value, function_index,
+                                   process, emitted, artifact, capacity,
+                                   offset, depth + 1u) ||
+        !append_binary_float_operation_in_loop(
+            program, value_index, function_index, process, NULL, artifact,
+            capacity, offset))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
   if (value->kind == W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON) {
     if (!append_program_value_tree(program, value->left_value, function_index,
                                    process, emitted, artifact, capacity,
@@ -2902,6 +3035,19 @@ static bool append_program_value_tree(
         !append_i64_carrier_bits(artifact, capacity, offset,
                                  value->unsigned_integer_value) ||
         !append_literal(artifact, capacity, offset, " : i64) : i64\n"))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_FLOAT) {
+    if (value->type_index >= program->type_count ||
+        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_F64 ||
+        !append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        " = llvm.mlir.constant(") ||
+        !append_u64_hex_bits(artifact, capacity, offset, value->float_bits) ||
+        !append_literal(artifact, capacity, offset, " : f64) : f64\n"))
       return false;
     emitted[value_index] = true;
     return true;
@@ -3430,6 +3576,18 @@ static bool append_program_value_tree_in_loop(
     emitted[value_index] = true;
     return true;
   }
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_FLOAT) {
+    if (value->left_value >= program->value_count ||
+        !append_program_value_tree_in_loop(
+            program, value->left_value, function_index, process, loop, emitted,
+            artifact, capacity, offset, depth + 1u) ||
+        !append_unary_float_operation_in_loop(
+            program, value_index, function_index, process, loop, artifact,
+            capacity, offset))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
   if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
     if (value->left_value >= program->value_count ||
         value->right_value >= program->value_count ||
@@ -3440,6 +3598,22 @@ static bool append_program_value_tree_in_loop(
             program, value->right_value, function_index, process, loop, emitted,
             artifact, capacity, offset, depth + 1u) ||
         !append_binary_value_operation_in_loop(
+            program, value_index, function_index, process, loop, artifact,
+            capacity, offset))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_FLOAT) {
+    if (value->left_value >= program->value_count ||
+        value->right_value >= program->value_count ||
+        !append_program_value_tree_in_loop(
+            program, value->left_value, function_index, process, loop, emitted,
+            artifact, capacity, offset, depth + 1u) ||
+        !append_program_value_tree_in_loop(
+            program, value->right_value, function_index, process, loop, emitted,
+            artifact, capacity, offset, depth + 1u) ||
+        !append_binary_float_operation_in_loop(
             program, value_index, function_index, process, loop, artifact,
             capacity, offset))
       return false;
@@ -3561,6 +3735,7 @@ static const char *program_type_name(const w_seed_hir0_program *program,
   }
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_I64) return "i64";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_U64) return "i64";
+  if (program->types[type_index].kind == W_SEED_HIR0_TYPE_F64) return "f64";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_USIZE) return "i64";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_BOOL) return "i1";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_ENUM ||

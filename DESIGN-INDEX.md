@@ -27,9 +27,9 @@
 | slices normativos de grammar | 6 |
 | requisitos de ratificação comparativa | 184 |
 | casos de substituição estruturados | 184/184 |
-| decisões referenciadas por casos R0 | 295/1630 |
-| decisões classificadas para design freeze | 1630/1630 (825 implementation-evidence-gap; 83 superseded; 206 source-backed-current; 508 oracle-backed-current; 8 rejected) |
-| decisões com evidência legada de fonte/oráculo | 661/1630 (295 source + 415 oracle + 8 explícitas; 57 overlaps) |
+| decisões referenciadas por casos R0 | 296/1630 |
+| decisões classificadas para design freeze | 1630/1630 (824 implementation-evidence-gap; 83 superseded; 207 source-backed-current; 508 oracle-backed-current; 8 rejected) |
+| decisões com evidência legada de fonte/oráculo | 662/1630 (296 source + 415 oracle + 8 explícitas; 57 overlaps) |
 | decisões ainda sem classe de freeze | 0 |
 | decisões com múltiplos eixos obrigatórios | 2 |
 | formas R0 com baseline estática | 698 |

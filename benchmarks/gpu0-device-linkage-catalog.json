@@ -13,7 +13,7 @@
     "clangVersion": "22.1.8",
     "recipe": "tooling/check-gpu0-cuda-windows.mjs",
     "recipeDigest": "sha256:a4a4d9add9935366a5995d5e209f1e82e75bfdb2945e7a1f98091e0c01dbe80b",
-    "adapterSourceDigest": "sha256:b0897cde1062252f1e94b328dea73a554f40559ce94f7074fdd02e8eab9cdfd7",
+    "adapterSourceDigest": "sha256:6fab8da4bb604b7e7482163932847e6807a0b69c269aa0802c90d10b30ab575a",
     "gpu0CoreDigest": "sha256:690b4b699f0fd74984fd7c62f5cc3316b0597899015bf3acf89b0b244c272ed1"
   },
   "correctness": {

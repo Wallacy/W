@@ -19,8 +19,10 @@ function run(command, args) {
     stderr: "pipe",
   })
   if (result.exitCode !== 0) {
+    const stdout = result.stdout.toString().trim()
     const stderr = result.stderr.toString().trim()
-    fail(command + " " + args.join(" ") + " failed" + (stderr ? ": " + stderr : ""))
+    const detail = [stdout, stderr].filter(Boolean).join("\n")
+    fail(command + " " + args.join(" ") + " failed" + (detail ? ":\n" + detail : ""))
   }
   return result
 }

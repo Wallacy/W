@@ -230,8 +230,30 @@ static bool gate_fixture_paths(gate_fixture *fixture) {
   if (fixture == NULL) return false;
   (void)memset(fixture, 0, sizeof(*fixture));
   fixture->base_fd = -1;
-  char directory_template[] = "/tmp/w-seed-source-binding-XXXXXX";
-  char *directory = mkdtemp(directory_template);
+  struct stat root_stat;
+  if (stat("/", &root_stat) != 0) return false;
+  const char *const candidates[] = {
+      "/var/tmp", getenv("HOME"), getenv("TMPDIR"), "/tmp"};
+  char directory_template[GATE_PATH_CAPACITY];
+  char *directory = NULL;
+  for (size_t index = 0u;
+       index < sizeof(candidates) / sizeof(candidates[0]); index += 1u) {
+    const char *candidate = candidates[index];
+    struct stat candidate_stat;
+    if (candidate == NULL || candidate[0] != '/' ||
+        stat(candidate, &candidate_stat) != 0 ||
+        !S_ISDIR(candidate_stat.st_mode) ||
+        candidate_stat.st_dev != root_stat.st_dev ||
+        access(candidate, W_OK | X_OK) != 0)
+      continue;
+    const int written = snprintf(directory_template,
+                                 sizeof(directory_template),
+                                 "%s/w-seed-source-binding-XXXXXX",
+                                 candidate);
+    if (written < 0 || (size_t)written >= sizeof(directory_template)) continue;
+    directory = mkdtemp(directory_template);
+    if (directory != NULL) break;
+  }
   if (directory == NULL || !gate_copy(fixture->root, sizeof(fixture->root),
                                        directory))
     return false;

@@ -21,6 +21,21 @@ Network is forbidden during compiler invocation for silent toolchain acquisition
 Registry dependency fetch remains a separately authorized policy and is not silently
 performed by this toolchain boundary.
 
+## Contract boundary
+
+Development and bootstrap may use a C23 compiler, CMake, Bun, and external
+MLIR/LLVM tools. These tools belong to the development host and cache. They are
+not target-machine requirements for the public package.
+
+The public `w` distribution must be self-contained. A target machine needs
+none of the C23 compiler, CMake, Bun, or MLIR/LLVM command-line tools. The
+package contains the W executable, signed target packs, and required runtime
+components. This is a distribution contract, not a released-package claim.
+
+The native route is `W source → verified HIR → MLIR → LLVM IR → object → link → target executable`.
+It never lowers W source to C. The legacy Linux `clang -x ir` gate uses
+Clang only as a temporary link-driver bridge for generated LLVM IR.
+
 ## Profile boundary
 
 W program profiles are `debug, release, benchmark`.
@@ -111,8 +126,9 @@ Apple SDK and license evidence is a blocker.
 
 ## Budget and measurement
 
-The initial compressed package goal is `50 MiB`.
-The provisional host gate is `<= 64 MiB`.
+The initial compressed package budget is `<= 64 MiB`.
+The `50 MiB` value is an optimization goal.
+Release performance has priority over package size.
 Failure must be visible and receive explicit review. It must not remove target packs silently.
 
 Every release measurement records:
@@ -133,7 +149,8 @@ Every release measurement records:
 
 The recipe-scoped `build:w-windows@W-1532` observation records
 10214400 bytes for `w.exe` and
-2560 file/container bytes for the Hello PE.
+2048 bytes for the Windows Hello PE.
+The live Linux/WSL Hello PIE is 2096 bytes.
 The Hello PE has no CRT in this observation. Section, code, and import bytes are
 not measured here. These are recipe-local observations, not a portable minimum,
 performance result, or package-size proof.

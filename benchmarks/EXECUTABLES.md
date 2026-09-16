@@ -34,6 +34,7 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-power | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-power.w) | source-backed | partial-exploratory-ready |
 | restaurant-power-prefix | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-power-prefix.w) | source-backed | partial-exploratory-ready |
 | restaurant-compound | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-compound.w) | source-backed | partial-exploratory-ready |
+| restaurant-f64-strict | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-f64-strict.w), [c](./executable/restaurant_f64_strict.c), [rust](./executable/restaurant_f64_strict.rs) | source-backed | not-performance-ready |
 | restaurant-unsigned | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-unsigned.w) | source-backed | partial-exploratory-ready |
 | restaurant-linear | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-linear.w) | source-backed | partial-exploratory-ready |
 | restaurant-runtime-divrem | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-runtime-divrem.w) | source-backed | partial-exploratory-ready |
@@ -139,14 +140,14 @@ Current portable-release values. Lower is better; `—` means no published measu
 
 ### Linux x64
 
-| Workload | Language | Target | Runtime | Artifact | .text B | .rdata B | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |
+| Workload | Language | Target | Runtime | Artifact | ELF .text B | ELF .rodata B | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 
 No native Linux x64 measurements are published.
 
 ### Linux x64 via WSL2
 
-| Workload | Language | Target | Runtime | Artifact | .text B | .rdata B | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |
+| Workload | Language | Target | Runtime | Artifact | ELF .text B | ELF .rodata B | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | hello | w | Linux x64 / WSL2 | CRT-free | 2096 B (2.0 KiB) | — | — | 174.7567 ms | 166.803 µs | 322.492 µs | 671744 B (656.0 KiB) | 82 µs |
 | restaurant-compound | w | Linux x64 / WSL2 | CRT-free | 3152 B (3.1 KiB) | — | — | 204.9902 ms | 117.035 µs | 323.922 µs | 671744 B (656.0 KiB) | 45 µs |
@@ -162,5 +163,5 @@ Run p50/p95 measure one complete target-process invocation (launch, execution, a
 Do not compare Windows milliseconds with Linux/WSL microseconds as W-body speed. The Windows lane includes process creation, security, Job Object, scheduler, and accounting work; the WSL lane times the Linux executable from a Linux-native helper inside an already-running distribution with CLOCK_MONOTONIC and wait4. Compare regressions only within the same platform and runner lane.
 Each projection row is compact: every displayed metric chooses the lower value across pinned categories on that same platform, so cells may come from distinct toolchain/recipe categories. The machine catalog retains those category and provenance identities; no value is selected across platform sections. WSL rows remain host-partitioned and are never pooled across hosts.
 Linux x64 via WSL2 is Linux-target evidence on a Windows host, not native Linux support. It is accepted for same-host regression and same-physical-hardware diagnostics only; WSL values are not rankable across hosts. WSL provenance records the host mode, comparison purpose, and rankability explicitly.
-The `.text B` and `.rdata B` columns are the unique PE sections' validated VirtualSize; VirtualSize includes padding and zero-fill and is not a useful-instruction count. `—` means absent, ambiguous, or not measured. Linux ELF metadata is kept separate from PE metadata. Only source-backed workloads with a materialized source and runner-supported recipe appear here; planned/backlog entries remain in the catalog. CPU is the arithmetic mean of 101 fresh target-process counters; an all-zero estimate is omitted.
+The Windows `.text B` and `.rdata B` columns are the unique PE sections' validated VirtualSize; VirtualSize includes padding and zero-fill and is not a useful-instruction count. Linux and WSL use explicitly labeled `ELF .text B` and `ELF .rodata B` columns containing the unique named ELF sections' `sh_size`; they are not byte-equivalent PE `.rdata` measurements. `—` means absent, ambiguous, or not measured. Linux ELF metadata is kept separate from PE metadata. Only source-backed workloads with a materialized source and runner-supported recipe appear here; planned/backlog entries remain in the catalog. CPU is the arithmetic mean of 101 fresh target-process counters; an all-zero estimate is omitted.
 Machine contract and provenance: [executable-catalog.json](./executable-catalog.json). Manual commands: [README](./README.md#manual-reproduction).

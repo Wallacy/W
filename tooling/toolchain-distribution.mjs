@@ -234,8 +234,10 @@ function validate() {
 
   if (manifest.platformRequirements?.apple !== "Apple SDK and license evidence is a blocker")
     error("Apple SDK/license blocker must remain explicit")
-  if (manifest.budget?.goalCompressedMiB !== 50 ||
+  if (manifest.budget?.goalCompressedMiB !== 64 ||
+      manifest.budget?.optimizationGoalCompressedMiB !== 50 ||
       manifest.budget?.provisionalGateCompressedMiB !== 64 ||
+      manifest.budget?.priority !== "performance-first-no-size-tradeoff" ||
       manifest.budget?.measurement !== "required" ||
       manifest.budget?.failurePolicy !== "visible-failure-and-explicit-review" ||
       manifest.budget?.observation?.recipe !== "build:w-windows@W-1532" ||
@@ -244,6 +246,8 @@ function validate() {
       manifest.budget?.observation?.wExecutableIncludesBackend !== false ||
       !Number.isInteger(manifest.budget?.observation?.helloWindowsPeBytes) ||
       manifest.budget.observation.helloWindowsPeBytes <= 0 ||
+      !Number.isInteger(manifest.budget?.observation?.helloLinuxWslPieBytes) ||
+      manifest.budget.observation.helloLinuxWslPieBytes <= 0 ||
       manifest.budget?.observation?.helloWindowsPeHasCrt !== false ||
       manifest.budget?.observation?.isBudgetProof !== false)
     error("distribution budget policy is invalid")
@@ -303,6 +307,21 @@ The current Windows cache is described by
 Network is forbidden during compiler invocation for silent toolchain acquisition.
 Registry dependency fetch remains a separately authorized policy and is not silently
 performed by this toolchain boundary.
+
+## Contract boundary
+
+Development and bootstrap may use a C23 compiler, CMake, Bun, and external
+MLIR/LLVM tools. These tools belong to the development host and cache. They are
+not target-machine requirements for the public package.
+
+The public ${tick}w${tick} distribution must be self-contained. A target machine needs
+none of the C23 compiler, CMake, Bun, or MLIR/LLVM command-line tools. The
+package contains the W executable, signed target packs, and required runtime
+components. This is a distribution contract, not a released-package claim.
+
+The native route is ${tick}W source → verified HIR → MLIR → LLVM IR → object → link → target executable${tick}.
+It never lowers W source to C. The legacy Linux ${tick}clang -x ir${tick} gate uses
+Clang only as a temporary link-driver bridge for generated LLVM IR.
 
 ## Profile boundary
 
@@ -384,8 +403,9 @@ Apple SDK and license evidence is a blocker.
 
 ## Budget and measurement
 
-The initial compressed package goal is ${tick}${manifest.budget.goalCompressedMiB} MiB${tick}.
-The provisional host gate is ${tick}<= ${manifest.budget.provisionalGateCompressedMiB} MiB${tick}.
+The initial compressed package budget is ${tick}<= ${manifest.budget.goalCompressedMiB} MiB${tick}.
+The ${tick}${manifest.budget.optimizationGoalCompressedMiB} MiB${tick} value is an optimization goal.
+Release performance has priority over package size.
 Failure must be visible and receive explicit review. It must not remove target packs silently.
 
 Every release measurement records:
@@ -406,7 +426,8 @@ Every release measurement records:
 
 The recipe-scoped ${tick}${manifest.budget.observation.recipe}${tick} observation records
 ${manifest.budget.observation.wExecutableBytes} bytes for ${tick}w.exe${tick} and
-${manifest.budget.observation.helloWindowsPeBytes} file/container bytes for the Hello PE.
+${manifest.budget.observation.helloWindowsPeBytes} bytes for the Windows Hello PE.
+The live Linux/WSL Hello PIE is ${manifest.budget.observation.helloLinuxWslPieBytes} bytes.
 The Hello PE has no CRT in this observation. Section, code, and import bytes are
 not measured here. These are recipe-local observations, not a portable minimum,
 performance result, or package-size proof.

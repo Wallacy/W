@@ -473,9 +473,30 @@ static bool rmdir_if_present(const char *path) {
 static bool linux_environment_init(linux_environment *environment) {
   (void)memset(environment, 0, sizeof(*environment));
   environment->base_fd = -1;
-  (void)memcpy(environment->root, "/tmp/w-own0-XXXXXX",
-               sizeof("/tmp/w-own0-XXXXXX"));
-  if (mkdtemp(environment->root) == NULL ||
+  struct stat root_stat;
+  if (stat("/", &root_stat) != 0) return false;
+  const char *const candidates[] = {
+      "/var/tmp", getenv("HOME"), getenv("TMPDIR"), "/tmp"};
+  bool created = false;
+  for (size_t index = 0u;
+       index < sizeof(candidates) / sizeof(candidates[0]); index += 1u) {
+    const char *candidate = candidates[index];
+    struct stat candidate_stat;
+    if (candidate == NULL || candidate[0] != '/' ||
+        stat(candidate, &candidate_stat) != 0 ||
+        !S_ISDIR(candidate_stat.st_mode) ||
+        candidate_stat.st_dev != root_stat.st_dev ||
+        access(candidate, W_OK | X_OK) != 0)
+      continue;
+    const int written = snprintf(environment->root, sizeof(environment->root),
+                                 "%s/w-own0-XXXXXX", candidate);
+    if (written < 0 || (size_t)written >= sizeof(environment->root)) continue;
+    if (mkdtemp(environment->root) != NULL) {
+      created = true;
+      break;
+    }
+  }
+  if (!created ||
       !path_join(environment->root, "a", environment->a) ||
       !path_join(environment->a, "b", environment->b) ||
       !path_join(environment->a, "moved", environment->moved) ||

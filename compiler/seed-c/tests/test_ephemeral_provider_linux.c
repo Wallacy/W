@@ -300,8 +300,29 @@ static bool create_environment(linux_environment *environment) {
   if (environment == NULL) return false;
   (void)memset(environment, 0, sizeof(*environment));
   environment->base_dir_fd = -1;
-  char template_path[] = "/tmp/w-seed-ephemeral-provider-XXXXXX";
-  char *directory = mkdtemp(template_path);
+  struct stat root_stat;
+  if (stat("/", &root_stat) != 0) return false;
+  const char *const candidates[] = {
+      "/var/tmp", getenv("HOME"), getenv("TMPDIR"), "/tmp"};
+  char template_path[TEST_PATH_CAPACITY];
+  char *directory = NULL;
+  for (size_t index = 0u;
+       index < sizeof(candidates) / sizeof(candidates[0]); index += 1u) {
+    const char *candidate = candidates[index];
+    struct stat candidate_stat;
+    if (candidate == NULL || candidate[0] != '/' ||
+        stat(candidate, &candidate_stat) != 0 ||
+        !S_ISDIR(candidate_stat.st_mode) ||
+        candidate_stat.st_dev != root_stat.st_dev ||
+        access(candidate, W_OK | X_OK) != 0)
+      continue;
+    const int written = snprintf(template_path, sizeof(template_path),
+                                 "%s/w-seed-ephemeral-provider-XXXXXX",
+                                 candidate);
+    if (written < 0 || (size_t)written >= sizeof(template_path)) continue;
+    directory = mkdtemp(template_path);
+    if (directory != NULL) break;
+  }
   if (directory == NULL ||
       !copy_c_string(environment->directory, sizeof(environment->directory),
                      directory))

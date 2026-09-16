@@ -300,7 +300,10 @@ static bool test_helper_faults(const char *helper_path) {
     CHECK(w_seed_parallel_panic_boundary1_witness_init(&witness));
     w_seed_parallel_panic_boundary1_input input = make_input(
         helper_path, CASES[index].fault, 0x1000000000000000ULL + index + 1u);
-    input.timeout_ms = 250u;
+    input.timeout_ms =
+        CASES[index].fault == W_SEED_PARALLEL_PANIC_BOUNDARY1_FAULT_TIMEOUT
+            ? 250u
+            : W_SEED_PARALLEL_PANIC_BOUNDARY1_DEFAULT_TIMEOUT_MS;
     w_seed_parallel_panic_boundary1_receipt receipt;
     (void)memset(&receipt, 0x8b, sizeof(receipt));
     const w_seed_parallel_panic_boundary1_receipt before = receipt;
@@ -308,7 +311,13 @@ static bool test_helper_faults(const char *helper_path) {
         w_seed_parallel_panic_boundary1_run(
             &input,
             &(w_seed_parallel_panic_boundary1_output){&receipt, 1u});
-    CHECK(status == CASES[index].expected);
+    if (status != CASES[index].expected) {
+      (void)fprintf(stderr,
+                    "panic boundary fault case %u returned %u, expected %u\n",
+                    (unsigned int)index, (unsigned int)status,
+                    (unsigned int)CASES[index].expected);
+      return false;
+    }
     CHECK(memcmp(&receipt, &before, sizeof(receipt)) == 0);
   }
   return true;

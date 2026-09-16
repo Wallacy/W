@@ -1143,11 +1143,14 @@ int main(int argc, char **argv) {
     free(device_artifact);
     return GPU0_CUDA_FAILURE;
   }
-  const bool ran = benchmark
-      ? run_benchmark(argv[1], argv[3], expected_cli, &request, ptx, ptx_bytes,
-                      &artifact_receipt, warmup_count, sample_count)
-      : run_normal(argv[1], argv[3], expected_cli, &request, ptx, ptx_bytes,
-                   &artifact_receipt);
+  bool ran = false;
+  if (benchmark)
+    ran = run_benchmark(argv[1], argv[3], expected_cli, &request, ptx,
+                        ptx_bytes, &artifact_receipt, warmup_count,
+                        sample_count);
+  else
+    ran = run_normal(argv[1], argv[3], expected_cli, &request, ptx, ptx_bytes,
+                     &artifact_receipt);
   free(metadata_bytes);
   free(ptx);
   free(device_artifact);

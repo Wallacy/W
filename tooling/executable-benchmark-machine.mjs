@@ -41,6 +41,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-power",
   "restaurant-power-prefix",
   "restaurant-compound",
+  "restaurant-f64-strict",
   "restaurant-unsigned",
   "restaurant-linear",
   "restaurant-runtime-divrem",
@@ -175,6 +176,7 @@ export const PROCESS_ARGUMENT_WORKLOAD_IDS = Object.freeze([
   PROCESS_ARGUMENTS_COUNT_WORKLOAD_ID,
   PROCESS_ARGUMENTS_ORDERING_WORKLOAD_ID,
 ]);
+export const RESTAURANT_F64_STRICT_WORKLOAD_ID = "restaurant-f64-strict";
 export function isProcessArgumentWorkload(workloadId) {
   return PROCESS_ARGUMENT_WORKLOAD_IDS.includes(workloadId);
 }
@@ -252,6 +254,10 @@ export const OPTIMIZABLE_METRICS = Object.freeze([
   "artifact-size",
 ]);
 export const BEST_METRIC_ORDER = Object.freeze([...OPTIMIZABLE_METRICS]);
+const BEST_METRIC_BENCHMARK_STATUSES = Object.freeze([
+  "partial-exploratory-ready",
+  "exploratory-ready",
+]);
 export const LOCAL_RESULTS_PATH = "benchmarks/results";
 export const BEST_METRICS_STATUS = "current";
 export const BEST_CATEGORY_AXES = Object.freeze([
@@ -361,6 +367,9 @@ const PE_LAYOUT_FIELDS = Object.freeze([
 ]);
 const PE_SECTION_FIELDS = Object.freeze(["name", "virtualSize", "rawSize"]);
 const PE_SECTION_NAME_PATTERN = /^[\x20-\x7e]{1,8}$/u;
+const ELF_LAYOUT_FIELDS = Object.freeze(["class", "data", "machine", "type"]);
+const ELF_SECTION_FIELDS = Object.freeze(["name", "sizeBytes"]);
+const ELF_SECTION_NAME_PATTERN = /^[\x20-\x7e]{1,255}$/u;
 export const PROTOCOL_FIELDS = Object.freeze([
   "warmupMinimum", "rawMinimum", "rawParity", "arithmeticMeanRounding", "stopRule", "wallClock",
   "processIsolation", "runtimeScope", "order", "resourceScope", "knownNoiseControls",
@@ -379,6 +388,10 @@ const SOURCE_ELIGIBILITY = Object.freeze({
     eligibility: "exploratory-private-composite",
   }),
   wDeferred: Object.freeze({
+    comparability: "deferred-until-M3b",
+    eligibility: "deferred-to-M3b",
+  }),
+  strictF64: Object.freeze({
     comparability: "deferred-until-M3b",
     eligibility: "deferred-to-M3b",
   }),
@@ -1017,6 +1030,7 @@ function executableHostSlugSupportsPlatform(host, platformTarget) {
 
 function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PLATFORM_TARGET_WINDOWS) {
   if (platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) return SOURCE_ELIGIBILITY.wslDiagnostic;
+  if (workload?.id === RESTAURANT_F64_STRICT_WORKLOAD_ID) return SOURCE_ELIGIBILITY.strictF64;
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) return SOURCE_ELIGIBILITY.processHandler;
   if (language === "c") return SOURCE_ELIGIBILITY.cPublic;
   if (language === "rust") return SOURCE_ELIGIBILITY.rust;
@@ -1310,11 +1324,27 @@ function checkPeLayout(layout, name, errors, artifactSize = undefined) {
 }
 
 function checkElfLayout(layout, name, errors) {
-  if (!exactKeys(layout, name, ["class", "data", "machine", "type"], errors)) return;
+  const fields = Object.prototype.hasOwnProperty.call(layout ?? {}, "sections")
+    ? [...ELF_LAYOUT_FIELDS, "sections"]
+    : ELF_LAYOUT_FIELDS;
+  if (!exactKeys(layout, name, fields, errors)) return;
   if (layout.class !== "ELF64") push(errors, `${name}.class must identify an ELF64 artifact.`);
   if (layout.data !== "little-endian") push(errors, `${name}.data must identify little-endian ELF.`);
   if (layout.machine !== "x86-64") push(errors, `${name}.machine must identify x86-64 ELF.`);
   if (!['executable', 'pie'].includes(layout.type)) push(errors, `${name}.type must identify an executable or PIE ELF.`);
+  if (layout.sections === undefined) return;
+  if (!Array.isArray(layout.sections) || layout.sections.length > 65_535) {
+    push(errors, `${name}.sections must contain at most 65535 named ELF sections.`);
+    return;
+  }
+  for (const [index, section] of layout.sections.entries()) {
+    const sectionName = `${name}.sections[${index}]`;
+    if (!exactKeys(section, sectionName, ELF_SECTION_FIELDS, errors)) continue;
+    if (typeof section.name !== "string" || !ELF_SECTION_NAME_PATTERN.test(section.name)) {
+      push(errors, `${sectionName}.name must be one to 255 printable ASCII characters.`);
+    }
+    decimal(section.sizeBytes, `${sectionName}.sizeBytes`, errors);
+  }
 }
 
 function checkArtifactCleanliness(cleanliness, name, errors) {
@@ -1471,6 +1501,9 @@ export function validateExecutableResult(result, catalog = loadExecutableDocumen
   if (hasPeLayout && !hasArtifactCleanliness) {
     push(errors, "executable result.artifact.peLayout requires validated artifact.cleanliness.");
   }
+  if (hasElfLayout && !hasArtifactCleanliness) {
+    push(errors, "executable result.artifact.elfLayout requires validated artifact.cleanliness.");
+  }
   if (hasPeLayout) artifactFields.push("peLayout");
   if (hasElfLayout) artifactFields.push("elfLayout");
   if (exactKeys(result.artifact, "executable result.artifact", artifactFields, errors)) {
@@ -1528,6 +1561,10 @@ function bestMetricIsEligible(record, metric) {
   // CPU estimate from quantized per-process counters. An all-zero mean still
   // cannot establish a useful lower-is-better cell.
   return value !== undefined && (!metric.startsWith("cpu-") || value !== "0");
+}
+
+function workloadAllowsBestMetrics(workload) {
+  return BEST_METRIC_BENCHMARK_STATUSES.includes(workload?.benchmarkStatus);
 }
 
 function categoryIdentity(value) {
@@ -1661,6 +1698,7 @@ export function deriveExecutableBestMetrics(catalog, results) {
     if (ids.has(record.id)) throw new Error(`executable results contain duplicate id: ${record.id}`);
     ids.add(record.id);
     const workload = workloadFor(catalog, record.workloadId);
+    if (!workloadAllowsBestMetrics(workload)) continue;
     const source = sourceFor(workload, record.language, record.platformTarget);
     if (!source) continue;
     const category = {
@@ -1732,6 +1770,9 @@ export function validateExecutableBestMetric(record, catalog = loadExecutableDoc
   const workload = workloadFor(catalog, record.workloadId);
   const source = sourceFor(workload, record.language, record.platformTarget);
   if (!workload || workload.status !== "source-oracle-ready") push(errors, "executable best metric must identify a ready workload.");
+  if (workload && !workloadAllowsBestMetrics(workload)) {
+    push(errors, "executable best metric must identify a workload eligible for live best metrics.");
+  }
   if (!OPTIMIZABLE_METRICS.includes(record.metric)) push(errors, "executable best metric must be optimizable, never exit-code/stdout/stderr.");
   if (!EXECUTABLE_LANGUAGES.includes(record.language) || !source) push(errors, "executable best metric.language must identify a materialized source.");
   if (!EXECUTABLE_PLATFORM_TARGETS.includes(record.platformTarget)) push(errors, "executable best metric.platformTarget must identify a closed platform lane.");
@@ -1834,8 +1875,9 @@ export function pruneExecutableBestMetrics(catalog) {
   const retained = [];
   const removedMetrics = [];
   for (const entry of entries) {
-    const source = sourceFor(workloadFor(catalog, entry?.workloadId), entry?.language, entry?.platformTarget);
-    if (source && entry?.provenance?.sourceDigest !== executableSourceDigest(source)) removedMetrics.push(entry.metric);
+    const workload = workloadFor(catalog, entry?.workloadId);
+    const source = sourceFor(workload, entry?.language, entry?.platformTarget);
+    if (source && (!workloadAllowsBestMetrics(workload) || entry?.provenance?.sourceDigest !== executableSourceDigest(source))) removedMetrics.push(entry.metric);
     else retained.push(entry);
   }
   const changed = retained.length !== entries.length;

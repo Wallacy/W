@@ -1,5 +1,5 @@
-import { mkdtemp, rm } from "node:fs/promises"
-import { tmpdir } from "node:os"
+import { access, constants, mkdtemp, rm, stat } from "node:fs/promises"
+import { homedir, tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { dialectArgs, dialectDisclosure, probeCDialect, requireCDialect } from "./c-dialect.mjs"
 
@@ -76,22 +76,56 @@ function wslPath(windowsPath) {
   return value
 }
 
+function wslRootFilesystemTemporaryBase() {
+  const homeExecution = runRequired(
+    "WSL home discovery",
+    "wsl.exe",
+    ["-d", "Ubuntu", "--", "printenv", "HOME"],
+  )
+  const home = homeExecution.stdout.toString().trim()
+  const rootDevice = runRequired(
+    "WSL root device discovery",
+    "wsl.exe",
+    ["-d", "Ubuntu", "--", "stat", "-c", "%d", "--", "/"],
+  ).stdout.toString().trim()
+  for (const candidate of ["/var/tmp", home, "/tmp"]) {
+    if (!candidate.startsWith("/") || candidate.includes("\0") ||
+        candidate.includes("\n")) continue
+    const probe = spawn("wsl.exe", [
+      "-d", "Ubuntu", "--", "stat", "-c", "%d", "--", candidate,
+    ])
+    const writable = spawn("wsl.exe", [
+      "-d", "Ubuntu", "--", "test", "-d", candidate, "-a", "-w", candidate,
+      "-a", "-x", candidate,
+    ])
+    if (probe.exitCode === 0 && probe.stdout.toString().trim() === rootDevice &&
+        writable.exitCode === 0) return candidate
+  }
+  fail("no writable temporary directory exists on the WSL root filesystem")
+}
+
 function wslTemporaryFixture() {
+  const base = wslRootFilesystemTemporaryBase()
   const execution = runRequired(
     "WSL fixture creation",
     "wsl.exe",
-    ["-d", "Ubuntu", "--", "mktemp", "-d", "-t", "w-manifest-fixture-XXXXXX"],
+    ["-d", "Ubuntu", "--", "mktemp", "-d", "-p", base,
+      "w-manifest-fixture-XXXXXX"],
   )
   const value = execution.stdout.toString().trim()
-  if (!/^\/tmp\/w-manifest-fixture-[A-Za-z0-9]+$/u.test(value)) {
+  if (!value.startsWith(`${base}/`) ||
+      !/^w-manifest-fixture-[A-Za-z0-9]+$/u.test(value.slice(base.length + 1))) {
     fail("WSL fixture creation returned an unallowlisted path")
   }
-  return value
+  return { path: value, base }
 }
 
-function removeWslTemporaryFixture(path) {
-  if (path === undefined) return
-  if (!/^\/tmp\/w-manifest-fixture-[A-Za-z0-9]+$/u.test(path)) {
+function removeWslTemporaryFixture(fixture) {
+  if (fixture === undefined) return
+  if (!fixture.path.startsWith(`${fixture.base}/`) ||
+      !/^w-manifest-fixture-[A-Za-z0-9]+$/u.test(
+        fixture.path.slice(fixture.base.length + 1),
+      )) {
     fail("refusing to remove an unallowlisted WSL fixture")
   }
   runRequired("WSL fixture cleanup", "wsl.exe", [
@@ -101,8 +135,22 @@ function removeWslTemporaryFixture(path) {
     "rm",
     "-rf",
     "--",
-    path,
+    fixture.path,
   ])
+}
+
+async function nativeRootFilesystemTemporaryBase() {
+  const rootDevice = (await stat("/")).dev
+  for (const candidate of ["/var/tmp", homedir(), tmpdir()]) {
+    try {
+      const value = await stat(candidate)
+      await access(candidate, constants.W_OK | constants.X_OK)
+      if (value.isDirectory() && value.dev === rootDevice) return candidate
+    } catch {
+      // Try the next closed candidate.
+    }
+  }
+  fail("no writable temporary directory exists on the native root filesystem")
 }
 
 function canonicalOutput(output, label) {
@@ -132,7 +180,10 @@ try {
   if (process.platform === "win32") {
     wslFixtureDirectory = wslTemporaryFixture()
   } else {
-    fixtureDirectory = await mkdtemp(join(tmpdir(), "w-manifest-fixture-"))
+    fixtureDirectory = await mkdtemp(join(
+      await nativeRootFilesystemTemporaryBase(),
+      "w-manifest-fixture-",
+    ))
   }
   const binaryName = "w_seed_manifest_linux_gate"
   const binaryPath = join(buildDirectory, binaryName)
@@ -140,7 +191,7 @@ try {
   if (process.platform === "win32") {
     const wslRoot = wslPath(root)
     const wslBuild = wslPath(buildDirectory)
-    const wslFixture = wslFixtureDirectory
+    const wslFixture = wslFixtureDirectory.path
     const sources = gateSources.map(
       (source) => `${wslRoot}/compiler/seed-c/${source}`,
     )

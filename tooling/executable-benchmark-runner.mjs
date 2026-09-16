@@ -2016,6 +2016,7 @@ const ELF_SHT_SYMTAB = 2;
 const ELF_SHT_STRTAB = 3;
 const ELF_SHT_DYNSYM = 11;
 const ELF_SHT_NOBITS = 8;
+const ELF_SECTION_NAME_MAX_LENGTH = 255;
 
 function elfRange(bytes, offset, length, label, language) {
   if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(length) || offset < 0 || length < 0 ||
@@ -2099,34 +2100,41 @@ export function validateElfX64(bytes, language = "w") {
     const header = sectionOffset + index * sectionSize;
     const kind = elfU32(bytes, header + 4, `ELF section header ${index}`, language);
     const fileOffset = elfU64(bytes, header + 24, `ELF section ${index} file offset`, language);
-    const fileSize = elfU64(bytes, header + 32, `ELF section ${index} file size`, language);
+    const sectionSizeBytes = elfU64(bytes, header + 32, `ELF section ${index} sh_size`, language);
     if (kind !== ELF_SHT_NOBITS) {
-      elfRange(bytes, fileOffset, fileSize, `ELF section ${index} file range`, language);
-      knownEnd = Math.max(knownEnd, fileOffset + fileSize);
+      elfRange(bytes, fileOffset, sectionSizeBytes, `ELF section ${index} file range`, language);
+      knownEnd = Math.max(knownEnd, fileOffset + sectionSizeBytes);
     }
     if (kind === ELF_SHT_SYMTAB) fail(`${language} artifact contains an ELF symbol table`);
     if (kind === ELF_SHT_DYNSYM) {
-      const symbolBytes = bytes.subarray(fileOffset, fileOffset + fileSize);
-      if (fileSize !== 24 || symbolBytes.some((byte) => byte !== 0)) {
+      const symbolBytes = bytes.subarray(fileOffset, fileOffset + sectionSizeBytes);
+      if (sectionSizeBytes !== 24 || symbolBytes.some((byte) => byte !== 0)) {
         fail(`${language} artifact contains exported ELF dynamic symbols`);
       }
     }
-    sections.push({ header, kind, fileOffset, fileSize });
+    sections.push({ header, kind, fileOffset, sectionSizeBytes });
   }
+  const namedSections = [];
   if (sectionCount > 0 && sectionStringIndex !== 0 && sectionStringIndex !== 0xffff) {
     if (sectionStringIndex >= sectionCount) fail(`${language} artifact has an invalid ELF section-name string table`);
     const strings = sections[sectionStringIndex];
     if (strings.kind !== ELF_SHT_STRTAB) fail(`${language} artifact section-name string table has the wrong type`);
-    const stringBytes = bytes.subarray(strings.fileOffset, strings.fileOffset + strings.fileSize);
+    const stringBytes = bytes.subarray(strings.fileOffset, strings.fileOffset + strings.sectionSizeBytes);
     for (const section of sections) {
       const nameOffset = elfU32(bytes, section.header, "ELF section name offset", language);
       if (nameOffset >= stringBytes.length) fail(`${language} artifact has an invalid ELF section name`);
       const end = stringBytes.indexOf(0, nameOffset);
       if (end < 0) fail(`${language} artifact has an unterminated ELF section name`);
-      const name = stringBytes.subarray(nameOffset, end).toString("ascii");
+      const nameBytes = stringBytes.subarray(nameOffset, end);
+      if (nameBytes.length > ELF_SECTION_NAME_MAX_LENGTH ||
+          nameBytes.some((byte) => byte < 0x20 || byte > 0x7e)) {
+        fail(`${language} artifact has an invalid ELF section name`);
+      }
+      const name = nameBytes.toString("ascii");
       if (name.startsWith(".debug") || name === ".symtab") {
         fail(`${language} artifact contains ELF debug or symbol section ${name}`);
       }
+      if (name.length > 0) namedSections.push({ name, sizeBytes: String(section.sectionSizeBytes) });
     }
   }
   if (bytes.length > knownEnd) fail(`${language} artifact contains ELF overlay bytes`);
@@ -2144,6 +2152,7 @@ export function validateElfX64(bytes, language = "w") {
       data: "little-endian",
       machine: "x86-64",
       type: type === 3 ? "pie" : "executable",
+      sections: namedSections,
     },
   };
 }

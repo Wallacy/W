@@ -42,6 +42,7 @@ import {
   PROCESS_HANDLER_LIFECYCLE_EXECUTION_STRUCTURE_CLASS,
   PROCESS_HANDLER_LIFECYCLE_STRUCTURE_CLASS,
   PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID,
+  RESTAURANT_F64_STRICT_WORKLOAD_ID,
   ROOT,
   deriveExecutableBestMetrics,
   executableEquivalenceKey,
@@ -68,6 +69,16 @@ const VALID_PE_LAYOUT = {
   sizeOfHeaders: "512",
   sections: [{ name: ".text", virtualSize: "384", rawSize: "512" }],
 };
+const VALID_ELF_LAYOUT = {
+  class: "ELF64",
+  data: "little-endian",
+  machine: "x86-64",
+  type: "pie",
+  sections: [
+    { name: ".text", sizeBytes: "384" },
+    { name: ".rodata", sizeBytes: "128" },
+  ],
+};
 
 test("catalog stores compact live best cells and no immutable history", () => {
   assert.deepEqual(validateExecutableCatalog(documents.catalog, documents), []);
@@ -80,7 +91,7 @@ test("catalog stores compact live best cells and no immutable history", () => {
     ["deferred-until-M3b", "promotable-after-equivalence", "contextual-non-ranking-private-composite", "same-physical-hardware-diagnostic-only"]);
   assert.deepEqual(documents.schema.$defs.source.properties.eligibility.enum,
     ["promotable-after-equivalence", "deferred-to-M3b", "exploratory-private-composite", "same-physical-hardware-diagnostic-only"]);
-  for (const definition of ["catalog", "result", "bestMetric", "bestMetrics", "bestMetricProvenance", "sample", "sampleSeries", "processExecution", "processSupportSource", "sourceSupport"]) {
+  for (const definition of ["catalog", "result", "bestMetric", "bestMetrics", "bestMetricProvenance", "sample", "sampleSeries", "processExecution", "processSupportSource", "sourceSupport", "elfLayout", "elfSection"]) {
     assert.equal(documents.schema.$defs[definition].additionalProperties, false);
   }
   assert.deepEqual(documents.catalog.comparabilityAxes, EXECUTABLE_COMPARABILITY_AXES);
@@ -302,6 +313,80 @@ test("process-enum-payload C and Rust variants retain independent runtime enum p
   assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
 });
 
+test("strict f64 references retain independent runtime operations", () => {
+  const workload = documents.catalog.workloads.find((item) =>
+    item.id === RESTAURANT_F64_STRICT_WORKLOAD_ID);
+  assert.ok(workload);
+  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.deepEqual(workload.blockedLanguages, []);
+  assert.deepEqual(workload.blockers, [
+    "w-f64-compile-time-folded",
+    "runtime-f64-equivalence",
+  ]);
+  assert.deepEqual(new Set(workload.sources.map((source) => source.language)),
+    new Set(EXECUTABLE_LANGUAGES));
+  assert.deepEqual(workload.sources
+    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
+    .map((source) => [source.comparability, source.eligibility]), [
+      ["deferred-until-M3b", "deferred-to-M3b"],
+      ["deferred-until-M3b", "deferred-to-M3b"],
+      ["deferred-until-M3b", "deferred-to-M3b"],
+    ]);
+  const wsl = workload.sources.find((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
+  assert.deepEqual([wsl.comparability, wsl.eligibility], [
+    "same-physical-hardware-diagnostic-only",
+    "same-physical-hardware-diagnostic-only",
+  ]);
+  const c = readFileSync(
+    `${ROOT}/benchmarks/executable/restaurant_f64_strict.c`, "utf8");
+  const rust = readFileSync(
+    `${ROOT}/benchmarks/executable/restaurant_f64_strict.rs`, "utf8");
+  assert.match(c, /volatile double/u);
+  assert.match(c, /sum_left \+ sum_right/u);
+  assert.match(c, /difference_left - difference_right/u);
+  assert.match(c, /product_left \* product_right/u);
+  assert.match(c, /quotient_left \/ quotient_right/u);
+  assert.match(c, /nan != nan/u);
+  assert.doesNotMatch(c, /fast-math/iu);
+  assert.match(rust, /black_box/u);
+  assert.match(rust, /nan != nan/u);
+  assert.doesNotMatch(rust, /fast-math/iu);
+});
+
+test("not-performance-ready strict f64 evidence cannot become live best metrics", () => {
+  const result = validResult();
+  const workload = documents.catalog.workloads.find((item) => item.id === RESTAURANT_F64_STRICT_WORKLOAD_ID);
+  const source = workload.sources.find((item) => item.language === "rust" && item.platformTarget === EXECUTABLE_PLATFORM_TARGET);
+  result.id = `${RESTAURANT_F64_STRICT_WORKLOAD_ID}-rust-example`;
+  result.workloadId = RESTAURANT_F64_STRICT_WORKLOAD_ID;
+  result.identity.sourceDigest = source.digest;
+  result.identity.recipe = source.recipe;
+  result.identity.recipeClass = source.recipeClass;
+  result.identity.eligibility = source.eligibility;
+  result.equivalenceKey = executableEquivalenceKey(
+    documents.catalog,
+    RESTAURANT_F64_STRICT_WORKLOAD_ID,
+    EXECUTABLE_PLATFORM_TARGET,
+    "release",
+    source.recipeClass,
+  );
+  result.correctness.oracleId = `${RESTAURANT_F64_STRICT_WORKLOAD_ID}:exact-output`;
+  result.correctness.stdoutDigest = exactOutputDigest(workload.oracle.stdout);
+  result.provenance.sourceDigest = source.digest;
+  assert.deepEqual(validateExecutableResult(result, documents.catalog), []);
+
+  const derived = deriveExecutableBestMetrics(documents.catalog, [result]);
+  assert.equal(derived.entries.length, 0);
+
+  const forbidden = clone(documents.catalog.bestMetrics.entries[0]);
+  forbidden.workloadId = RESTAURANT_F64_STRICT_WORKLOAD_ID;
+  forbidden.provenance.sourceDigest = source.digest;
+  assert.match(
+    validateExecutableBestMetric(forbidden, documents.catalog).join("\n"),
+    /eligible for live best metrics/u,
+  );
+});
+
 test("process-arguments-ordering catalog pins the count-dependent seating contract", () => {
   const workload = documents.catalog.workloads.find((item) => item.id === PROCESS_ARGUMENTS_ORDERING_WORKLOAD_ID);
   assert.ok(workload);
@@ -450,7 +535,7 @@ function wslCatalogAndResult(language = "rust", hostVariant = "microsoft-standar
     comparisonPurpose: "same-physical-hardware-diagnostic-only",
     rankability: "same-host-only",
   };
-  result.artifact.elfLayout = { class: "ELF64", data: "little-endian", machine: "x86-64", type: "pie" };
+  result.artifact.elfLayout = clone(VALID_ELF_LAYOUT);
   return { catalog, result };
 }
 
@@ -532,6 +617,28 @@ test("platform lanes stay closed, partitioned, and reject WSL masquerading as na
   toolchainVariant.identity.toolchain = "gcc-13-linux";
   const partitioned = deriveExecutableBestMetrics(catalog, [result, toolchainVariant]);
   assert.equal(new Set(partitioned.entries.map((entry) => entry.categoryId)).size, 2);
+});
+
+test("ELF layout retains optional named section sizes and rejects forged metadata", () => {
+  const { catalog, result } = wslCatalogAndResult();
+  assert.deepEqual(validateExecutableResult(result, catalog), []);
+  assert.deepEqual(result.artifact.elfLayout.sections, VALID_ELF_LAYOUT.sections);
+
+  const malformedSize = clone(result);
+  malformedSize.artifact.elfLayout.sections[0].sizeBytes = "01";
+  assert.match(validateExecutableResult(malformedSize, catalog).join("\n"), /canonical decimal/u);
+
+  const malformedName = clone(result);
+  malformedName.artifact.elfLayout.sections[0].name = "";
+  assert.match(validateExecutableResult(malformedName, catalog).join("\n"), /printable ASCII/u);
+
+  const extraField = clone(result);
+  extraField.artifact.elfLayout.sections[0].sh_size = "384";
+  assert.match(validateExecutableResult(extraField, catalog).join("\n"), /closed object shape/u);
+
+  const tooManySections = clone(result);
+  tooManySections.artifact.elfLayout.sections = Array.from({ length: 65_536 }, () => ({ name: ".text", sizeBytes: "1" }));
+  assert.match(validateExecutableResult(tooManySections, catalog).join("\n"), /at most 65535/u);
 });
 
 test("best derivation excludes zero CPU and preserves category/provenance", () => {

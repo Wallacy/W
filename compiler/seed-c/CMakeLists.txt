@@ -873,6 +873,10 @@ if(MSVC)
   target_compile_options(w_seed_check_pipeline_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_check_host_tests PRIVATE /W4 /WX)
   target_compile_options(w PRIVATE /W4 /WX)
+  # The bounded seed still uses recursive verified-HIR layout walkers. Reserve
+  # enough virtual stack for current enum/product graphs until those walkers
+  # become iterative. Windows commits stack pages on demand.
+  target_link_options(w PRIVATE /STACK:8388608)
   target_compile_options(w_seed_run_cli_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_build_cli_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_frontend_tests PRIVATE /W4 /WX)
@@ -905,6 +909,10 @@ if(MSVC)
   target_compile_options(w_seed_constir_probe PRIVATE /W4 /WX)
   target_compile_options(w_seed_constir_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_generic_validation_tests PRIVATE /W4 /WX)
+  # The generic-validation depth corpus intentionally reaches the bounded
+  # seed const-dependency limit. Keep the bootstrap test independent of the
+  # platform linker's small default stack while the walker remains recursive.
+  target_link_options(w_seed_generic_validation_tests PRIVATE /STACK:8388608)
 else()
   target_compile_options(w_seed_source_tests PRIVATE
     -Wall
@@ -1500,6 +1508,14 @@ else()
     -Wshadow
     -Werror
   )
+endif()
+
+if(WIN32 AND NOT MSVC)
+  # Match the Windows seed/test virtual-stack reserve when the bootstrap is
+  # built with MinGW. Pages are committed on demand; this is not a W limit.
+  target_link_options(w PRIVATE -Wl,--stack,8388608)
+  target_link_options(w_seed_generic_validation_tests PRIVATE
+    -Wl,--stack,8388608)
 endif()
 
 enable_testing()

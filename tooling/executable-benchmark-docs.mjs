@@ -192,6 +192,22 @@ function sectionVirtualSizeCell(group, name) {
   return section?.virtualSize ?? "—";
 }
 
+function sectionSizeCell(group, name) {
+  const entry = group.metrics.get("artifact-size");
+  const section = uniqueSection(entry?.elfLayout, name);
+  return section?.sizeBytes ?? "—";
+}
+
+function tableHeader(platformTarget) {
+  const sectionLabels = platformTarget === EXECUTABLE_PLATFORM_TARGET_WINDOWS
+    ? [".text B", ".rdata B"]
+    : ["ELF .text B", "ELF .rodata B"];
+  return [
+    `| Workload | Language | Target | Runtime | Artifact | ${sectionLabels[0]} | ${sectionLabels[1]} | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |`,
+    "| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+  ];
+}
+
 function projectionWorkload(workload) {
   return workload?.status === "source-oracle-ready" &&
     workload.sourceReadiness === "source-and-oracle-ready" &&
@@ -238,10 +254,6 @@ export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
     lines.push(`| ${workload.id} | ${workload.structureClass} | ${sourceLinks(workload)} | ${workload.oracle.status} | ${workload.benchmarkStatus} |`);
   }
   lines.push("", "## Best values");
-  const tableHeader = [
-    "| Workload | Language | Target | Runtime | Artifact | .text B | .rdata B | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |",
-    "| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
-  ];
   for (const [platformTarget, label] of [
     [EXECUTABLE_PLATFORM_TARGET_WINDOWS, "Windows x64"],
     [EXECUTABLE_PLATFORM_TARGET_LINUX, "Linux x64"],
@@ -249,7 +261,7 @@ export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
   ]) {
     const platformRows = rows.filter((group) => group.entry.platformTarget === platformTarget);
     lines.push("", `### ${label}`);
-    lines.push("", ...tableHeader);
+    lines.push("", ...tableHeader(platformTarget));
     if (platformRows.length === 0) {
       lines.push("", platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL
         ? "No Linux x64 via WSL2 same-physical-hardware diagnostic measurements are published."
@@ -258,7 +270,10 @@ export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
     }
     for (const group of platformRows) {
       const entry = group.entry;
-      lines.push(`| ${entry.workloadId} | ${entry.language} | ${targetLabel(entry)} | ${runtimeLabel(entry)} | ${artifactCell(group)} | ${sectionVirtualSizeCell(group, ".text")} | ${sectionVirtualSizeCell(group, ".rdata")} | ${metricCell(group, "compile-latency")} | ${metricCell(group, "run-wall-time")} | ${metricCell(group, "run-wall-p95")} | ${metricCell(group, "peak-working-set")} | ${metricCell(group, "cpu-time")} |`);
+      const sections = platformTarget === EXECUTABLE_PLATFORM_TARGET_WINDOWS
+        ? [sectionVirtualSizeCell(group, ".text"), sectionVirtualSizeCell(group, ".rdata")]
+        : [sectionSizeCell(group, ".text"), sectionSizeCell(group, ".rodata")];
+      lines.push(`| ${entry.workloadId} | ${entry.language} | ${targetLabel(entry)} | ${runtimeLabel(entry)} | ${artifactCell(group)} | ${sections[0]} | ${sections[1]} | ${metricCell(group, "compile-latency")} | ${metricCell(group, "run-wall-time")} | ${metricCell(group, "run-wall-p95")} | ${metricCell(group, "peak-working-set")} | ${metricCell(group, "cpu-time")} |`);
     }
   }
   lines.push(
@@ -268,7 +283,7 @@ export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
     "Do not compare Windows milliseconds with Linux/WSL microseconds as W-body speed. The Windows lane includes process creation, security, Job Object, scheduler, and accounting work; the WSL lane times the Linux executable from a Linux-native helper inside an already-running distribution with CLOCK_MONOTONIC and wait4. Compare regressions only within the same platform and runner lane.",
     "Each projection row is compact: every displayed metric chooses the lower value across pinned categories on that same platform, so cells may come from distinct toolchain/recipe categories. The machine catalog retains those category and provenance identities; no value is selected across platform sections. WSL rows remain host-partitioned and are never pooled across hosts.",
     "Linux x64 via WSL2 is Linux-target evidence on a Windows host, not native Linux support. It is accepted for same-host regression and same-physical-hardware diagnostics only; WSL values are not rankable across hosts. WSL provenance records the host mode, comparison purpose, and rankability explicitly.",
-    "The `.text B` and `.rdata B` columns are the unique PE sections' validated VirtualSize; VirtualSize includes padding and zero-fill and is not a useful-instruction count. `—` means absent, ambiguous, or not measured. Linux ELF metadata is kept separate from PE metadata. Only source-backed workloads with a materialized source and runner-supported recipe appear here; planned/backlog entries remain in the catalog. CPU is the arithmetic mean of 101 fresh target-process counters; an all-zero estimate is omitted.",
+    "The Windows `.text B` and `.rdata B` columns are the unique PE sections' validated VirtualSize; VirtualSize includes padding and zero-fill and is not a useful-instruction count. Linux and WSL use explicitly labeled `ELF .text B` and `ELF .rodata B` columns containing the unique named ELF sections' `sh_size`; they are not byte-equivalent PE `.rdata` measurements. `—` means absent, ambiguous, or not measured. Linux ELF metadata is kept separate from PE metadata. Only source-backed workloads with a materialized source and runner-supported recipe appear here; planned/backlog entries remain in the catalog. CPU is the arithmetic mean of 101 fresh target-process counters; an all-zero estimate is omitted.",
     `Machine contract and provenance: ${jsonPathLink(projectionPath("benchmarks/executable-catalog.json"), "executable-catalog.json")}. Manual commands: [README](./README.md#manual-reproduction).`,
   );
   return lines.join("\n");

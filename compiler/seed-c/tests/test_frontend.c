@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <locale.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -5121,6 +5122,179 @@ static bool test_scalar_type_measure_emit_parity(void) {
   return true;
 }
 
+static bool test_f64_scalar_projection(void) {
+  fixture *value = &fixture_literal;
+  CHECK(fixture_parse(
+      value,
+      "entry { let sum = 1.5 + 2.25_f64 let difference = 9.5 - 5.5 "
+      "let product = 1.5 * 2.0 let quotient = 7.5e0 / 2.5 "
+      "let negative = -0.0 let valid = sum == 3.75 && "
+      "difference != 5.0 && product < 4.0 && quotient <= 3.0 && "
+      "sum > 3.0 && sum >= 3.75 }\n"));
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+            W_SEED_FRONTEND_OK &&
+        counts_equal(&value->result.required, &value->result.written));
+  size_t literal_count = 0u;
+  size_t float_operator_count = 0u;
+  bool saw_one_point_five = false;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_FLOAT) {
+      CHECK(expression->supported && expression->has_float_value &&
+            expression->inferred_type < value->result.written.types &&
+            value->types[expression->inferred_type].kind ==
+                W_SEED_FRONTEND_TYPE_FLOAT &&
+            value->types[expression->inferred_type].bit_width == 64u);
+      literal_count += 1u;
+      if (expression->float_bits == UINT64_C(0x3ff8000000000000))
+        saw_one_point_five = true;
+    }
+    if ((expression->kind == W_SEED_FRONTEND_EXPR_BINARY ||
+         expression->kind == W_SEED_FRONTEND_EXPR_UNARY) &&
+        expression->inferred_type < value->result.written.types &&
+        value->types[expression->inferred_type].kind ==
+            W_SEED_FRONTEND_TYPE_FLOAT)
+      float_operator_count += 1u;
+  }
+  CHECK(literal_count >= 14u && float_operator_count == 5u &&
+        saw_one_point_five);
+
+  CHECK(fixture_parse(
+      value,
+      "entry { let integral = 1_f64 let subnormal = 5e-324_f64 "
+      "let underflow = 1e-400_f64 let zero = 0.0_f64 }\n"));
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+            W_SEED_FRONTEND_OK &&
+        counts_equal(&value->result.required, &value->result.written));
+  size_t strict_literal_count = 0u;
+  bool saw_integral_bits = false;
+  bool saw_subnormal_bits = false;
+  bool saw_underflow_zero_bits = false;
+  bool saw_zero_bits = false;
+  size_t zero_bits_count = 0u;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind != W_SEED_FRONTEND_EXPR_FLOAT) continue;
+    CHECK(expression->supported && expression->has_float_value &&
+          expression->inferred_type < value->result.written.types &&
+          value->types[expression->inferred_type].kind ==
+              W_SEED_FRONTEND_TYPE_FLOAT &&
+          value->types[expression->inferred_type].bit_width == 64u);
+    strict_literal_count += 1u;
+    if (expression->float_bits == UINT64_C(0x3ff0000000000000))
+      saw_integral_bits = true;
+    if (expression->float_bits == UINT64_C(0x0000000000000001))
+      saw_subnormal_bits = true;
+    if (expression->float_bits == UINT64_C(0x0000000000000000)) {
+      zero_bits_count += 1u;
+      if (fixture_span_text_is(value, 0u, expression->span,
+                               "1e-400_f64"))
+        saw_underflow_zero_bits = true;
+      if (fixture_span_text_is(value, 0u, expression->span, "0.0_f64"))
+        saw_zero_bits = true;
+    }
+  }
+  CHECK(strict_literal_count == 4u && saw_integral_bits &&
+        saw_subnormal_bits && saw_underflow_zero_bits && saw_zero_bits &&
+        zero_bits_count == 2u);
+
+  CHECK(fixture_run(value, "entry { let overflow = 1e999_f64 }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+  CHECK(fixture_parse(value, "entry { let hex = 0x1.0p0_f64 }\n"));
+  (void)w_seed_frontend_run(&value->input, &value->output, &value->result);
+  CHECK((value->parse.status != W_SEED_PARSE_COMPLETE &&
+         value->result.status == W_SEED_FRONTEND_BARRIER) ||
+        (value->parse.status == W_SEED_PARSE_COMPLETE &&
+         value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+         has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION)));
+
+  static const char *const mixed_sources[] = {
+      "entry { let sum = 1_i32 + 2.0_f64 }\n",
+      "entry { let equal = 1_f64 == 2_i32 }\n",
+  };
+  for (size_t index = 0u;
+       index < sizeof(mixed_sources) / sizeof(mixed_sources[0]); index += 1u) {
+    CHECK(fixture_run(value, mixed_sources[index]));
+    CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+          has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+  }
+
+  CHECK(fixture_parse(value, "entry { let invalid = 1e999 }\n"));
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+            W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+  return true;
+}
+
+static bool test_f64_locale_isolation(void) {
+  enum { TEST_LOCALE_NAME_BYTES = 128 };
+  const char *current_locale = setlocale(LC_NUMERIC, NULL);
+  CHECK(current_locale != NULL);
+  const size_t current_length = strlen(current_locale);
+  CHECK(current_length < TEST_LOCALE_NAME_BYTES);
+  char saved_locale[TEST_LOCALE_NAME_BYTES];
+  (void)memcpy(saved_locale, current_locale, current_length + 1u);
+
+  /* Use names accepted by the maintained Windows/MSVC and POSIX bootstrap
+   * hosts. A host without an installed non-C locale skips this targeted branch
+   * after restoring its original locale; the available-locale branch proves
+   * both decimal interpretation and process-locale preservation. */
+  static const char *const candidates[] = {
+      "de-DE", "German_Germany.1252", "de_DE.UTF-8", "de_DE.utf8",
+      "de_DE", "pt_BR.UTF-8", "pt_BR", "fr-FR", "French_France.1252",
+      "fr_FR.UTF-8", "fr_FR"};
+  char active_locale[TEST_LOCALE_NAME_BYTES];
+  bool has_non_c_locale = false;
+  for (size_t index = 0u; index < sizeof(candidates) / sizeof(candidates[0]);
+       index += 1u) {
+    const char *candidate = setlocale(LC_NUMERIC, candidates[index]);
+    if (candidate == NULL || strcmp(candidate, "C") == 0 ||
+        strcmp(candidate, "POSIX") == 0)
+      continue;
+    const size_t candidate_length = strlen(candidate);
+    if (candidate_length >= sizeof(active_locale)) continue;
+    (void)memcpy(active_locale, candidate, candidate_length + 1u);
+    has_non_c_locale = true;
+    break;
+  }
+  if (!has_non_c_locale) {
+    CHECK(setlocale(LC_NUMERIC, saved_locale) != NULL);
+    return true;
+  }
+
+  fixture *value = &fixture_literal;
+  const bool parsed = fixture_parse(
+      value, "entry { let locale_value = 1.5_f64 }\n");
+  w_seed_frontend_status status = W_SEED_FRONTEND_INVALID;
+  bool saw_expected_value = false;
+  if (parsed) {
+    status = w_seed_frontend_run(&value->input, &value->output,
+                                 &value->result);
+    for (size_t index = 0u; index < value->result.written.expressions;
+         index += 1u) {
+      const w_seed_frontend_expression *expression =
+          &value->expressions[index];
+      if (expression->kind == W_SEED_FRONTEND_EXPR_FLOAT &&
+          expression->supported && expression->has_float_value &&
+          expression->float_bits == UINT64_C(0x3ff8000000000000)) {
+        saw_expected_value = true;
+        break;
+      }
+    }
+  }
+  const char *after_locale = setlocale(LC_NUMERIC, NULL);
+  const bool locale_unchanged =
+      after_locale != NULL && strcmp(after_locale, active_locale) == 0;
+  const bool restored = setlocale(LC_NUMERIC, saved_locale) != NULL;
+  CHECK(restored);
+  CHECK(parsed && status == W_SEED_FRONTEND_OK && saw_expected_value &&
+        locale_unchanged);
+  return true;
+}
+
 typedef enum {
   PROCESS_NEGATIVE_NONCONST = 0,
   PROCESS_NEGATIVE_MODULE,
@@ -6952,6 +7126,8 @@ int main(int argc, char **argv) {
   if (!test_short_entry_frontend()) return 1;
   if (!test_scalar_if_frontend_subset()) return 1;
   if (!test_scalar_type_measure_emit_parity()) return 1;
+  if (!test_f64_scalar_projection()) return 1;
+  if (!test_f64_locale_isolation()) return 1;
   if (!test_declarations_and_determinism()) return 1;
   if (!test_enums_and_payloads()) return 1;
   if (!test_typed_throw_projection()) return 1;

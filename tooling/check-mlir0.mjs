@@ -33,6 +33,8 @@ const restaurantPowerPrefixFixture = resolve(seedDirectory,
   "fixtures", "restaurant-power-prefix.w")
 const restaurantCompoundFixture = resolve(seedDirectory,
   "fixtures", "restaurant-compound.w")
+const restaurantF64StrictFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-f64-strict.w")
 const restaurantMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-mutation.w")
 const restaurantConditionalMutationFixture = resolve(seedDirectory,
@@ -57,7 +59,7 @@ const manifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
 const targetTriple = "x86_64-unknown-linux-gnu"
 const expectedVersion = "23.1.1"
 const developmentPatchCompatibility =
-  process.env.W_MLIR0_DEVELOPMENT_PATCH_COMPAT === "1"
+  process.env.W_MLIR0_DEVELOPMENT_PATCH_COMPAT !== "0"
 const isWindows = process.platform === "win32"
 
 function acceptedVersionPattern() {
@@ -243,6 +245,19 @@ const externalToolchainRoot = process.env.W_MLIR0_TOOLCHAIN_ROOT === undefined
   ? undefined : normalizeExternalToolchainRoot(
     process.env.W_MLIR0_TOOLCHAIN_ROOT)
 
+function compatibleHostCommand(command) {
+  if (!developmentPatchCompatibility ||
+      !/^[A-Za-z0-9._+-]+$/u.test(command)) return undefined
+  const major = expectedVersion.split(".")[0]
+  const versioned = `${command}-${major}`
+  if (!isWindows) return Bun.which(versioned) ?? undefined
+  const probe = run(wsl, ["-d", "Ubuntu", "--", "sh", "-lc",
+    `command -v ${versioned}`], root)
+  if (probe.exitCode !== 0) return undefined
+  const value = probe.stdoutText.trim()
+  return /^\/[A-Za-z0-9._+\-/]+$/u.test(value) ? value : undefined
+}
+
 function resolveToolCommand(role, environmentName) {
   const override = process.env[environmentName]
   let value = override !== undefined ? override :
@@ -251,6 +266,8 @@ function resolveToolCommand(role, environmentName) {
     assert(/^[A-Za-z0-9._+-]+$/u.test(value),
       `manifest command ${role} is not a simple command name`)
     value = `${externalToolchainRoot}/bin/${value}`
+  } else if (override === undefined && externalToolchainRoot === undefined) {
+    value = compatibleHostCommand(value) ?? value
   }
   return asCommand(value, environmentName, override === undefined)
 }
@@ -605,6 +622,8 @@ try {
       expected: Buffer.from("Power prefix -4/4/512/-9/-27\n", "utf8") },
     { name: "restaurant-compound", source: restaurantCompoundFixture,
       expected: Buffer.from("Compound 11\n", "utf8") },
+    { name: "restaurant-f64-strict", source: restaurantF64StrictFixture,
+      expected: Buffer.from("Float strict ok\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
   ]
   const artifacts = new Map()
@@ -813,6 +832,21 @@ try {
     powerArtifact.includes("llvm.call @w_seed_checked_power_i64") &&
     powerArtifact.includes("llvm.call @w_seed_checked_power_u64"),
   "checked power lost exponentiation-by-squaring or signedness")
+  const f64Artifact = artifacts.get("restaurant-f64-strict").toString("utf8")
+  assert(f64Artifact.includes("llvm.fadd") &&
+    f64Artifact.includes("llvm.fsub") &&
+    f64Artifact.includes("llvm.fmul") &&
+    f64Artifact.includes("llvm.fdiv") &&
+    f64Artifact.includes("llvm.fneg") &&
+    f64Artifact.includes('llvm.fcmp "oeq"') &&
+    f64Artifact.includes('llvm.fcmp "une"') &&
+    f64Artifact.includes('llvm.fcmp "olt"') &&
+    f64Artifact.includes('llvm.fcmp "ole"') &&
+    f64Artifact.includes('llvm.fcmp "ogt"') &&
+    f64Artifact.includes('llvm.fcmp "oge"') &&
+    f64Artifact.includes("0x3ff8000000000000 : f64") &&
+    !f64Artifact.includes("fastmath"),
+  "strict f64 lowering lost an operator, predicate, bit pattern, or strict mode")
   const wmoArtifact = artifacts.get("restaurant-wmo")
   assert(!artifacts.get("hello").includes("@w_seed_checked_") &&
     wmoArtifact.includes("@w_fn_0(") &&

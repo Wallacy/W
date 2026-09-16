@@ -320,6 +320,61 @@ function fakePeX64({
   return bytes;
 }
 
+function fakeElfX64({
+  sectionDefinitions = [
+    { name: ".text", type: 1, sizeBytes: 17 },
+    { name: ".rodata", type: 1, sizeBytes: 23 },
+    { name: ".bss", type: 8, sizeBytes: 41 },
+  ],
+} = {}) {
+  const sectionNames = ["", ...sectionDefinitions.map((section) => section.name), ".shstrtab"];
+  const nameOffsets = new Map();
+  let nameOffset = 0;
+  const stringTable = Buffer.alloc(sectionNames.reduce((total, name) => total + Buffer.byteLength(name) + 1, 0));
+  for (const name of sectionNames) {
+    nameOffsets.set(name, nameOffset);
+    Buffer.from(name, "ascii").copy(stringTable, nameOffset);
+    nameOffset += Buffer.byteLength(name) + 1;
+  }
+  let dataOffset = 64;
+  const sections = sectionDefinitions.map((section) => {
+    const fileOffset = dataOffset;
+    if (section.type !== 8) dataOffset += section.sizeBytes;
+    return { ...section, fileOffset };
+  });
+  const stringTableOffset = dataOffset;
+  const sectionTableOffset = stringTableOffset + stringTable.length;
+  const sectionCount = sections.length + 2;
+  const bytes = Buffer.alloc(sectionTableOffset + sectionCount * 64);
+  bytes[0] = 0x7f;
+  bytes.write("ELF", 1, "ascii");
+  bytes[4] = 2;
+  bytes[5] = 1;
+  bytes[6] = 1;
+  bytes.writeUInt16LE(3, 16);
+  bytes.writeUInt16LE(0x3e, 18);
+  bytes.writeUInt32LE(1, 20);
+  bytes.writeBigUInt64LE(BigInt(sectionTableOffset), 40);
+  bytes.writeUInt16LE(64, 52);
+  bytes.writeUInt16LE(64, 58);
+  bytes.writeUInt16LE(sectionCount, 60);
+  bytes.writeUInt16LE(sectionCount - 1, 62);
+  stringTable.copy(bytes, stringTableOffset);
+  for (const [index, section] of sections.entries()) {
+    const header = sectionTableOffset + (index + 1) * 64;
+    bytes.writeUInt32LE(nameOffsets.get(section.name), header);
+    bytes.writeUInt32LE(section.type, header + 4);
+    bytes.writeBigUInt64LE(BigInt(section.fileOffset), header + 24);
+    bytes.writeBigUInt64LE(BigInt(section.sizeBytes), header + 32);
+  }
+  const stringHeader = sectionTableOffset + (sectionCount - 1) * 64;
+  bytes.writeUInt32LE(nameOffsets.get(".shstrtab"), stringHeader);
+  bytes.writeUInt32LE(3, stringHeader + 4);
+  bytes.writeBigUInt64LE(BigInt(stringTableOffset), stringHeader + 24);
+  bytes.writeBigUInt64LE(BigInt(stringTable.length), stringHeader + 32);
+  return bytes;
+}
+
 function fakeResourceUsage() {
   return { cpuTime: { user: 1, system: 1 }, maxRSS: 4096 };
 }
@@ -646,6 +701,7 @@ test("bounded ELF verifier records Linux x86_64 layout and rejects loader and ov
       data: "little-endian",
       machine: "x86-64",
       type: "pie",
+      sections: [],
     },
   });
   assert.equal(validateElfX64(minimalElf).peLayout, undefined);
@@ -658,6 +714,31 @@ test("bounded ELF verifier records Linux x86_64 layout and rejects loader and ov
   interpElf.writeUInt32LE(3, 64);
   assert.throws(() => validateElfX64(interpElf), /PT_INTERP/u);
   assert.throws(() => validateElfX64(Buffer.concat([minimalElf, Buffer.from("overlay", "ascii")])), /overlay/u);
+});
+
+test("bounded ELF verifier retains named sh_size values and rejects malformed section metadata", () => {
+  const image = fakeElfX64();
+  const layout = validateElfX64(image).elfLayout;
+  assert.deepEqual(layout.sections.slice(0, 3), [
+    { name: ".text", sizeBytes: "17" },
+    { name: ".rodata", sizeBytes: "23" },
+    { name: ".bss", sizeBytes: "41" },
+  ]);
+  assert.ok(layout.sections.some((section) => section.name === ".shstrtab"));
+  assert.equal(Object.hasOwn(layout.sections[0], "fileSize"), false);
+
+  const invalidRange = fakeElfX64();
+  const sectionTable = Number(invalidRange.readBigUInt64LE(40));
+  const rodataHeader = sectionTable + 2 * 64;
+  invalidRange.writeBigUInt64LE(BigInt(invalidRange.length), rodataHeader + 24);
+  invalidRange.writeBigUInt64LE(1n, rodataHeader + 32);
+  assert.throws(() => validateElfX64(invalidRange), /ELF section 2 file range/u);
+
+  const invalidName = fakeElfX64();
+  const textName = invalidName.indexOf(Buffer.from(".text", "ascii"));
+  assert.ok(textName >= 0);
+  invalidName[textName] = 0x1f;
+  assert.throws(() => validateElfX64(invalidName), /invalid ELF section name/u);
 });
 
 test("assertOracle rejects altered exit, stdout and stderr", () => {

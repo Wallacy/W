@@ -64,6 +64,8 @@ const restaurantPowerPrefixFixture = resolve(seedDirectory,
   "fixtures", "restaurant-power-prefix.w")
 const restaurantCompoundFixture = resolve(seedDirectory,
   "fixtures", "restaurant-compound.w")
+const restaurantF64StrictFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-f64-strict.w")
 const restaurantMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-mutation.w")
 const restaurantConditionalMutationFixture = resolve(seedDirectory,
@@ -108,7 +110,7 @@ const { ci: ciMode } = import.meta.main
   : { ci: false }
 const expectedVersion = "23.1.1"
 const developmentPatchCompatibility =
-  process.env.W_MLIR0_DEVELOPMENT_PATCH_COMPAT === "1"
+  !ciMode && process.env.W_MLIR0_DEVELOPMENT_PATCH_COMPAT !== "0"
 const manifestPath = ciMode ? ciManifestPath : localManifestPath
 
 function assert(condition, message) {
@@ -924,6 +926,9 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantCompoundFixture)],
     Buffer.from("Compound 11\n", "utf8"),
     "Restaurant checked compound assignment")
+  expectSuccess(binary, ["run", toWsl(restaurantF64StrictFixture)],
+    Buffer.from("Float strict ok\n", "utf8"),
+    "Restaurant strict f64 arithmetic and IEEE comparisons")
   expectSuccess(binary, ["run", toWsl(restaurantMutationFixture)],
     Buffer.from("Open 6\n", "utf8"),
     "Restaurant straight-line local mutation")

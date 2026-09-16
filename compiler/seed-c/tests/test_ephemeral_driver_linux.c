@@ -271,8 +271,32 @@ static bool create_environment(linux_environment *environment) {
   if (environment == NULL) return false;
   (void)memset(environment, 0, sizeof(*environment));
   environment->base_dir_fd = -1;
-  char directory_template[] = "/tmp/w-seed-ephemeral-driver-XXXXXX";
-  char *directory = mkdtemp(directory_template);
+  struct stat root_stat;
+  if (stat("/", &root_stat) != 0) return false;
+  const char *const candidates[] = {
+      "/var/tmp", getenv("HOME"), getenv("TMPDIR"), "/tmp"};
+  char temp_parent[TEST_PATH] = {0};
+  char directory_template[TEST_PATH];
+  char *directory = NULL;
+  for (size_t index = 0u;
+       index < sizeof(candidates) / sizeof(candidates[0]); index += 1u) {
+    const char *candidate = candidates[index];
+    struct stat candidate_stat;
+    if (candidate == NULL || candidate[0] != '/' ||
+        stat(candidate, &candidate_stat) != 0 ||
+        !S_ISDIR(candidate_stat.st_mode) ||
+        candidate_stat.st_dev != root_stat.st_dev ||
+        access(candidate, W_OK | X_OK) != 0 ||
+        !copy_c_string(temp_parent, sizeof(temp_parent), candidate))
+      continue;
+    const int written = snprintf(directory_template,
+                                 sizeof(directory_template),
+                                 "%s/w-seed-ephemeral-driver-XXXXXX",
+                                 candidate);
+    if (written < 0 || (size_t)written >= sizeof(directory_template)) continue;
+    directory = mkdtemp(directory_template);
+    if (directory != NULL) break;
+  }
   if (directory == NULL ||
       !copy_c_string(environment->directory, sizeof(environment->directory),
                      directory))
@@ -281,7 +305,13 @@ static bool create_environment(linux_environment *environment) {
   if (!path_join(environment->directory, "nested", nested, sizeof(nested)) ||
       mkdir(nested, (mode_t)0700) != 0)
     return false;
-  char outside_template[] = "/tmp/w-seed-ephemeral-driver-outside-XXXXXX";
+  char outside_template[TEST_PATH];
+  const int outside_written = snprintf(
+      outside_template, sizeof(outside_template),
+      "%s/w-seed-ephemeral-driver-outside-XXXXXX", temp_parent);
+  if (outside_written < 0 ||
+      (size_t)outside_written >= sizeof(outside_template))
+    return false;
   const int outside = mkstemp(outside_template);
   if (outside < 0 || close(outside) != 0 ||
       !copy_c_string(environment->outside_path,

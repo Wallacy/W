@@ -17,9 +17,18 @@ bounded seed compiler. The complete compiler, runtime, SDK, package manager,
 and registry are not implemented.
 
 The seed is a real caller-owned C implementation for selected language
-surfaces. It has a native lowering path, a local Windows x64 candidate route,
-and a bounded Windows-host cross-build route for Linux x64. The evidence is
-correctness-scoped unless a source explicitly states otherwise.
+surfaces. Its C23 compiler, CMake, Bun, and external MLIR/LLVM tools are
+development and bootstrap dependencies. The native W route is
+`W source → verified HIR → MLIR → LLVM IR → object → link`; it never lowers W
+source to C. It has a local Windows x64 candidate route and a bounded
+Windows-host cross-build route for Linux x64. The evidence is correctness-scoped
+unless a source explicitly states otherwise.
+
+The public `w` distribution is a separate contract. It must be self-contained
+on the target machine and require none of the C23 compiler, CMake, Bun, or
+MLIR/LLVM command-line tools. It includes signed target packs and required
+runtime components, and it never downloads a missing toolchain silently. The
+public package is not released.
 
 ## Start here
 
@@ -51,7 +60,7 @@ correctness-scoped unless a source explicitly states otherwise.
 | Source entry | entry { ... } and entry(functionName) are accepted in the bounded surface. An empty entry { } is valid. |
 | Public CLI | Explicit source paths support w check, bounded w run, and bounded w build on configured routes. Package and workspace resolution are outside this surface. |
 | Public process entry | The bounded Windows and CRT-free Linux/WSL routes lower normal verified HIR/MLIR bodies. [`process-input0.w`](compiler/seed-c/fixtures/process-input0.w) is the minimal fixture. [`process-enum-payload.w`](compiler/seed-c/fixtures/process-enum-payload.w) composes helpers, enum payloads, switch, and interpolation. Identity, owner, CFG, stdout, argument bounds, and exit-range proofs remain required. |
-| Windows candidate | A local Windows x64 route uses the pinned LLVM, MLIR, and LLD toolchain when its prerequisites are materialized. |
+| Windows candidate | A local Windows x64 development route uses the pinned LLVM, MLIR, and LLD toolchain when its prerequisites are materialized. |
 | Benchmarks | WBench records exact-oracle executable evidence and current artifact or timing cells when available. The published status remains exploratory and measurement-only. |
 
 The enum payload carrier is an internal implementation detail. Bool and
@@ -178,9 +187,16 @@ Required local tools:
 - For the native Windows route, Visual Studio, the Windows SDK, CMake, Ninja,
   and the materialized MLIR/LLVM/LLD cache.
 
+These are development and bootstrap prerequisites. They are not target-machine
+requirements for the self-contained public `w` distribution.
+
 Use [dependencies](DEPENDENCIES.md), [toolchain](TOOLCHAIN.md), and
 [platform support](PLATFORM-SUPPORT.md) for current prerequisites. These
 documents own version and support inventories.
+
+The legacy Linux `clang -x ir` check uses Clang only as a temporary link-driver
+bridge for generated LLVM IR. It is not a C backend and is not a public package
+dependency.
 
 Install the Tree-sitter workspace and run the fast repository checks:
 

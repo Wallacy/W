@@ -441,7 +441,21 @@
         "class": { "const": "ELF64" },
         "data": { "const": "little-endian" },
         "machine": { "const": "x86-64" },
-        "type": { "enum": ["executable", "pie"] }
+        "type": { "enum": ["executable", "pie"] },
+        "sections": {
+          "type": "array",
+          "maxItems": 65535,
+          "items": { "$ref": "#/$defs/elfSection" }
+        }
+      }
+    },
+    "elfSection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "sizeBytes"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[ -~]{1,255}$" },
+        "sizeBytes": { "$ref": "#/$defs/decimal" }
       }
     },
     "artifactCleanliness": {

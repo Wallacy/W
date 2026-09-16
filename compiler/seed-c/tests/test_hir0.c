@@ -3161,6 +3161,23 @@ static bool test_semantic_and_provenance_digests(void) {
         0);
   CHECK(memcmp(provenance, fixture.hir_result.provenance_digest,
                sizeof(provenance)) != 0);
+
+  static const char FLOAT_A[] = "entry { let value = 1.5 }\n";
+  static const char FLOAT_EQUIVALENT[] =
+      "entry { // equivalent f64 spelling\n let value = 1.500_f64 }\n";
+  static const char FLOAT_B[] = "entry { let value = 1.75 }\n";
+  CHECK(lower(FLOAT_A));
+  (void)memcpy(semantic, fixture.hir_result.semantic_digest, sizeof(semantic));
+  (void)memcpy(provenance, fixture.hir_result.provenance_digest,
+               sizeof(provenance));
+  CHECK(lower(FLOAT_EQUIVALENT));
+  CHECK(memcmp(semantic, fixture.hir_result.semantic_digest, sizeof(semantic)) ==
+            0 &&
+        memcmp(provenance, fixture.hir_result.provenance_digest,
+               sizeof(provenance)) != 0);
+  CHECK(lower(FLOAT_B));
+  CHECK(memcmp(semantic, fixture.hir_result.semantic_digest,
+               sizeof(semantic)) != 0);
   return true;
 }
 
@@ -13257,6 +13274,168 @@ static bool test_canonical_u64_scalar(void) {
   return true;
 }
 
+static bool test_canonical_f64_scalar(void) {
+  static const char SOURCE[] =
+      "entry { let sum = 1.5 + 2.25_f64 let difference = 9.5 - 5.5 "
+      "let product = 1.5 * 2.0 let quotient = 7.5e0 / 2.5 "
+      "let signedZero = -0.0 let nan = 0.0 / 0.0 "
+      "let valid = sum == 3.75 && quotient != 4.0 && sum > 3.0 && "
+      "sum >= 3.75 && quotient < 4.0 && quotient <= 3.0 && "
+      "signedZero == 0.0 && nan != nan "
+      "if valid { print(message: \"Float strict ok\", suffix: \"\") } "
+      "else { print(message: \"Float strict bad\", suffix: \"\") } }\n";
+  CHECK(lower(SOURCE));
+  CHECK(fixture.hir_program.type_count == 5u &&
+        fixture.hir_program.types[4].kind == W_SEED_HIR0_TYPE_F64 &&
+        fixture.hir_program.types[4].name.count == 3u &&
+        memcmp(fixture.hir_program.text_bytes +
+                   fixture.hir_program.types[4].name.offset,
+               "f64", 3u) == 0);
+
+  size_t literal_one_point_five = SIZE_MAX;
+  size_t add = SIZE_MAX;
+  size_t subtract = SIZE_MAX;
+  size_t multiply = SIZE_MAX;
+  size_t divide = SIZE_MAX;
+  size_t negate = SIZE_MAX;
+  size_t unordered_not_equal = SIZE_MAX;
+  for (size_t index = 0u; index < fixture.hir_program.value_count; index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_values[index];
+    if (value->kind == W_SEED_HIR0_VALUE_CONST_FLOAT &&
+        value->float_bits == UINT64_C(0x3ff8000000000000))
+      literal_one_point_five = index;
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_FLOAT &&
+        value->binary_operator == W_SEED_HIR0_BINARY_ADD)
+      add = index;
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_FLOAT &&
+        value->binary_operator == W_SEED_HIR0_BINARY_SUBTRACT)
+      subtract = index;
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_FLOAT &&
+        value->binary_operator == W_SEED_HIR0_BINARY_MULTIPLY)
+      multiply = index;
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_FLOAT &&
+        value->binary_operator == W_SEED_HIR0_BINARY_DIVIDE)
+      divide = index;
+    if (value->kind == W_SEED_HIR0_VALUE_UNARY_FLOAT)
+      negate = index;
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_FLOAT &&
+        value->binary_operator == W_SEED_HIR0_BINARY_NOT_EQUAL)
+      unordered_not_equal = index;
+  }
+  CHECK(literal_one_point_five != SIZE_MAX && add != SIZE_MAX &&
+        subtract != SIZE_MAX && multiply != SIZE_MAX && divide != SIZE_MAX &&
+        negate != SIZE_MAX &&
+        unordered_not_equal != SIZE_MAX &&
+        fixture.hir_values[add].type_index == 4u &&
+        fixture.hir_values[subtract].type_index == 4u &&
+        fixture.hir_values[multiply].type_index == 4u &&
+        fixture.hir_values[divide].type_index == 4u &&
+        fixture.hir_values[negate].type_index == 4u &&
+        fixture.hir_values[unordered_not_equal].type_index == 3u);
+
+  const w_seed_hir0_value saved_literal =
+      fixture.hir_values[literal_one_point_five];
+  fixture.hir_values[literal_one_point_five].float_bits =
+      UINT64_C(0x7ff0000000000000);
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[literal_one_point_five] = saved_literal;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  const w_seed_hir0_value saved_add = fixture.hir_values[add];
+  fixture.hir_values[add].binary_operator = W_SEED_HIR0_BINARY_REMAINDER;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[add] = saved_add;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
+static bool test_frontend_tree_bounds_forgery(void) {
+  static const char SOURCE[] =
+      "entry { let arithmetic = 1.5 + 2.25 let logical = true && false }\n";
+  CHECK(fixture_frontend(SOURCE));
+  setup_hir_output();
+  const w_seed_hir0_input input = hir_input();
+  size_t floating_binary = SIZE_MAX;
+  size_t logical_binary = SIZE_MAX;
+  for (size_t index = 0u;
+       index < fixture.result.written.expressions; index += 1u) {
+    const w_seed_frontend_expression *expression =
+        &fixture.expressions[index];
+    if (expression->kind != W_SEED_FRONTEND_EXPR_BINARY ||
+        expression->left == W_SEED_FRONTEND_NONE ||
+        expression->right == W_SEED_FRONTEND_NONE ||
+        (size_t)expression->left >= fixture.result.written.expressions ||
+        (size_t)expression->right >= fixture.result.written.expressions)
+      continue;
+    const w_seed_frontend_expression *left =
+        &fixture.expressions[expression->left];
+    const w_seed_frontend_expression *right =
+        &fixture.expressions[expression->right];
+    if (text_is(expression->operator_text, "+") &&
+        left->inferred_type != W_SEED_FRONTEND_NONE &&
+        right->inferred_type != W_SEED_FRONTEND_NONE &&
+        (size_t)left->inferred_type < fixture.result.written.types &&
+        (size_t)right->inferred_type < fixture.result.written.types &&
+        fixture.types[left->inferred_type].kind ==
+            W_SEED_FRONTEND_TYPE_FLOAT &&
+        fixture.types[right->inferred_type].kind ==
+            W_SEED_FRONTEND_TYPE_FLOAT)
+      floating_binary = index;
+    if (text_is(expression->operator_text, "&&")) logical_binary = index;
+  }
+  CHECK(floating_binary != SIZE_MAX && logical_binary != SIZE_MAX);
+
+  w_seed_hir0_counts counts;
+  w_seed_hir0_result result;
+  (void)memset(&counts, 0x4au, sizeof(counts));
+  (void)memset(&result, 0x4bu, sizeof(result));
+  const w_seed_hir0_counts counts_before = counts;
+  const w_seed_hir0_result result_before = result;
+  const uint32_t invalid_expression =
+      (uint32_t)fixture.result.written.expressions;
+  const w_seed_frontend_expression saved_floating =
+      fixture.expressions[floating_binary];
+  fixture.expressions[floating_binary].left = invalid_expression;
+  CHECK(w_seed_hir0_measure(&input, &counts, &result) != W_SEED_HIR0_OK &&
+        memcmp(&counts, &counts_before, sizeof(counts)) == 0 &&
+        memcmp(&result, &result_before, sizeof(result)) == 0);
+  fixture.expressions[floating_binary] = saved_floating;
+
+  fixture.expressions[floating_binary].right = invalid_expression;
+  CHECK(w_seed_hir0_measure(&input, &counts, &result) != W_SEED_HIR0_OK &&
+        memcmp(&counts, &counts_before, sizeof(counts)) == 0 &&
+        memcmp(&result, &result_before, sizeof(result)) == 0);
+  fixture.expressions[floating_binary] = saved_floating;
+
+  const w_seed_frontend_expression saved_logical_left =
+      fixture.expressions[logical_binary];
+  const uint32_t logical_left = saved_logical_left.left;
+  const w_seed_frontend_expression saved_left =
+      fixture.expressions[logical_left];
+  fixture.expressions[logical_left].inferred_type =
+      (uint32_t)fixture.result.written.types;
+  CHECK(w_seed_hir0_measure(&input, &counts, &result) != W_SEED_HIR0_OK &&
+        memcmp(&counts, &counts_before, sizeof(counts)) == 0 &&
+        memcmp(&result, &result_before, sizeof(result)) == 0);
+  fixture.expressions[logical_left] = saved_left;
+
+  const uint32_t logical_right = saved_logical_left.right;
+  const w_seed_frontend_expression saved_right =
+      fixture.expressions[logical_right];
+  fixture.expressions[logical_right].inferred_type =
+      (uint32_t)fixture.result.written.types;
+  CHECK(w_seed_hir0_measure(&input, &counts, &result) != W_SEED_HIR0_OK &&
+        memcmp(&counts, &counts_before, sizeof(counts)) == 0 &&
+        memcmp(&result, &result_before, sizeof(result)) == 0);
+  fixture.expressions[logical_right] = saved_right;
+  fixture.expressions[logical_binary] = saved_logical_left;
+  return true;
+}
+
 static bool test_checked_shift_values(void) {
   static const char SOURCE[] =
       "fn signed(value: Int, count: UInt): Int { return value >> count }\n"
@@ -13629,6 +13808,8 @@ int main(int argc, char **argv) {
   if (!test_signed_comparison_values()) return 1;
   if (!test_signed_bitwise_values()) return 1;
   if (!test_canonical_u64_scalar()) return 1;
+  if (!test_canonical_f64_scalar()) return 1;
+  if (!test_frontend_tree_bounds_forgery()) return 1;
   if (!test_checked_shift_values()) return 1;
   if (!test_checked_power_values()) return 1;
   if (!test_i64_unary_bit_not_positive()) return 1;

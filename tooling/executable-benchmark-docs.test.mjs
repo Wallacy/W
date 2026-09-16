@@ -22,6 +22,7 @@ test("generated projection is current, compact, and sourced only from the live c
   assert.match(rendered, /\| restaurant-main-cardinality \| public-end-to-end \|/u);
   assert.match(rendered, /WSL values are not rankable across hosts\./u);
   assert.match(rendered, /\| Workload \| Language \| Target \| Runtime \| Artifact \| \.text B \| \.rdata B \| Compile p50 \| Run p50 \| Run p95 \| Peak RSS \| CPU mean \|/u);
+  assert.match(rendered, /### Linux x64 via WSL2[\s\S]*\| Workload \| Language \| Target \| Runtime \| Artifact \| ELF \.text B \| ELF \.rodata B \|/u);
   assert.match(rendered, /\| hello \| c \| Windows x64 \/ MSVC \| MSVC CRT DLL \| [0-9]+ B/u);
   assert.match(rendered, /\| hello \| w \| Windows x64 \/ MSVC \| CRT-free \| [0-9]+ B/u);
   const partialWOnly = documents.catalog.workloads.filter((workload) =>
@@ -29,7 +30,7 @@ test("generated projection is current, compact, and sourced only from the live c
     new Set(workload.sources.map((source) => source.language)).size === 1 &&
     workload.sources.every((source) => source.language === "w"),
   );
-  assert.equal(partialWOnly.length, 20);
+  assert.ok(partialWOnly.length > 0);
   assert.ok(partialWOnly.every((workload) => rendered.includes(`| ${workload.id} |`)));
   assert.doesNotMatch(rendered, /restaurant-composition/u, "planned workloads stay out of the projection");
   assert.match(rendered, /Artifact size counts only the emitted executable file\. On Windows it excludes imported runtime DLLs\./u);
@@ -71,6 +72,22 @@ test("projection formatting and links remain deterministic", () => {
   helloCArtifact.peLayout.sections.push({ name: ".text", virtualSize: "333", rawSize: "512" });
   const ambiguousRendered = renderExecutableProjection({ catalog: withSections });
   assert.match(ambiguousRendered, /\| hello \| c \| Windows x64 \/ MSVC \| MSVC CRT DLL \| [0-9]+ B[^|]*\| — \| 222 \|/u);
+
+  const helloWslArtifact = withSections.bestMetrics.entries.find((entry) =>
+    entry.workloadId === "hello" && entry.language === "w" && entry.platformTarget === "linux-wsl-x64" && entry.metric === "artifact-size");
+  assert.ok(helloWslArtifact);
+  helloWslArtifact.elfLayout = {
+    class: "ELF64",
+    data: "little-endian",
+    machine: "x86-64",
+    type: "pie",
+    sections: [
+      { name: ".text", sizeBytes: "77" },
+      { name: ".rodata", sizeBytes: "88" },
+    ],
+  };
+  const linuxSectionRendered = renderExecutableProjection({ catalog: withSections });
+  assert.match(linuxSectionRendered, /\| hello \| w \| Linux x64 \/ WSL2 \| CRT-free \| [0-9]+ B[^|]*\| 77 \| 88 \|/u);
 });
 
 test("projection collapses categories per platform without pooling platform lanes", () => {

@@ -1,11 +1,53 @@
+#if defined(__linux__) && !defined(_GNU_SOURCE)
+/* glibc exposes strtod_l under its GNU feature set even when the translation
+ * unit uses a strict language mode. */
+#define _GNU_SOURCE 1
+#endif
+
+#if !defined(_WIN32) &&                                                   \
+    (defined(__linux__) || defined(__unix__) || defined(__unix) ||         \
+     defined(__APPLE__))
+/* glibc and other POSIX libcs hide the per-locale conversion APIs unless a
+ * POSIX.1-2008 feature level is selected before any system header. */
+#if !defined(_POSIX_C_SOURCE)
+#define _POSIX_C_SOURCE 200809L
+#endif
+#endif
+
 #include "w_seed_frontend.h"
 
+#include <errno.h>
+#include <float.h>
 #include <limits.h>
+#include <locale.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 _Static_assert(sizeof(size_t) * CHAR_BIT >= W_SEED_FRONTEND_TARGET_USIZE_BITS,
                "w-seed D1 requires a host that can represent target usize");
+_Static_assert(CHAR_BIT == 8,
+               "w-seed f64 requires 8-bit host bytes");
+_Static_assert(sizeof(double) == sizeof(uint64_t),
+               "w-seed f64 requires a 64-bit double carrier");
+_Static_assert(sizeof(double) * (size_t)CHAR_BIT == 64u,
+               "w-seed f64 requires a 64-bit double carrier");
+_Static_assert(FLT_RADIX == 2,
+               "w-seed f64 requires a binary double carrier");
+_Static_assert(DBL_MANT_DIG == 53,
+               "w-seed f64 requires binary64 precision");
+_Static_assert(DBL_MIN_EXP == -1021,
+               "w-seed f64 requires binary64 minimum exponent");
+_Static_assert(DBL_MAX_EXP == 1024,
+               "w-seed f64 requires binary64 maximum exponent");
+#if defined(DBL_HAS_SUBNORM)
+_Static_assert(DBL_HAS_SUBNORM == 1,
+               "w-seed f64 requires binary64 subnormal support");
+#endif
+#if defined(DBL_IS_IEC_60559)
+_Static_assert(DBL_IS_IEC_60559 == 1,
+               "w-seed f64 requires an IEC 60559 double carrier");
+#endif
 
 /* Internal scratch ceilings stay below the CST budget so dry/emit passes do
  * not create multi-megabyte stack frames. Crossing one records an explicit
@@ -22,6 +64,7 @@ _Static_assert(sizeof(size_t) * CHAR_BIT >= W_SEED_FRONTEND_TARGET_USIZE_BITS,
 #define FRONTEND_DIAGNOSTIC_CATEGORY_TEXT_MAX 128u
 #define FRONTEND_DIAGNOSTIC_CATEGORY_SLOTS \
   (W_SEED_FRONTEND_MAX_CST_NODES * 2u)
+#define FRONTEND_FLOAT_LITERAL_BYTES 256u
 
 /* This spelling is an implementation identity only.  The angle brackets
  * cannot occur in a source word, so a short entry cannot collide with a user
@@ -249,6 +292,7 @@ typedef struct {
   uint32_t default_integer_type_index;
   uint32_t builtin_i32_type_index;
   uint32_t builtin_u64_type_index;
+  uint32_t builtin_f64_type_index;
   uint32_t builtin_bool_type_index;
   uint32_t builtin_never_type_index;
   uint32_t inferred_string_type_index;
@@ -4664,6 +4708,79 @@ static bool integer_literal_value(w_seed_frontend_text text, size_t body_end,
   return true;
 }
 
+/* Return the end of the decimal body for a floating suffix.  The lexer keeps
+ * the suffix in the same lossless number span, so callers must remove it
+ * before checking the radix or handing the spelling to the decimal converter. */
+static bool float_literal_body_end(w_seed_frontend_text text,
+                                   size_t *body_end) {
+  if (body_end == NULL || text.length == 0u) return false;
+  *body_end = text.length;
+  if (text.length >= 4u && text.data[text.length - 4u] == '_' &&
+      (text.data[text.length - 3u] == 'f' ||
+       text.data[text.length - 3u] == 'F') &&
+      text.data[text.length - 2u] == '6' &&
+      text.data[text.length - 1u] == '4') {
+    *body_end = text.length - 4u;
+  }
+  return *body_end != 0u;
+}
+
+static bool decimal_float_body(w_seed_frontend_text text, size_t body_end) {
+  if (text.data == NULL || body_end == 0u || body_end > text.length)
+    return false;
+  if (body_end >= 2u && text.data[0] == '0' &&
+      (text.data[1] == 'x' || text.data[1] == 'X')) {
+    return false;
+  }
+  bool saw_digit = false;
+  for (size_t index = 0u; index < body_end; index += 1u) {
+    const uint8_t byte = (uint8_t)text.data[index];
+    if (ascii_is_digit(byte)) {
+      saw_digit = true;
+      continue;
+    }
+    if (byte == (uint8_t)'_' || byte == (uint8_t)'.' ||
+        byte == (uint8_t)'e' || byte == (uint8_t)'E' ||
+        byte == (uint8_t)'+' || byte == (uint8_t)'-') {
+      continue;
+    }
+    return false;
+  }
+  return saw_digit;
+}
+
+/* Parse through a private C numeric locale.  The frontend must not use
+ * ambient locale state: source decimal points are always ASCII '.', and a
+ * parser call must not mutate the process-wide locale seen by other code. */
+static bool frontend_strtod_c_locale(const char *text, char **tail,
+                                     double *value) {
+  if (text == NULL || tail == NULL || value == NULL) return false;
+  *tail = NULL;
+  *value = 0.0;
+#if defined(_WIN32)
+  _locale_t c_locale = _create_locale(LC_NUMERIC, "C");
+  if (c_locale == NULL) return false;
+  errno = 0;
+  *value = _strtod_l(text, tail, c_locale);
+  const int conversion_errno = errno;
+  _free_locale(c_locale);
+  errno = conversion_errno;
+  return true;
+#elif defined(__linux__) || defined(__unix__) || defined(__unix) || \
+    defined(__APPLE__)
+  locale_t c_locale = newlocale(LC_NUMERIC_MASK, "C", (locale_t)0);
+  if (c_locale == (locale_t)0) return false;
+  errno = 0;
+  *value = strtod_l(text, tail, c_locale);
+  const int conversion_errno = errno;
+  freelocale(c_locale);
+  errno = conversion_errno;
+  return true;
+#else
+#error "w-seed f64 parsing requires a per-locale C conversion API"
+#endif
+}
+
 static frontend_simple_type simple_type_unknown(void) {
   frontend_simple_type type;
   (void)memset(&type, 0, sizeof(type));
@@ -5754,6 +5871,7 @@ w_seed_frontend_status w_seed_frontend_measure(
   dry.default_integer_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_i32_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_u64_type_index = W_SEED_FRONTEND_NONE;
+  dry.builtin_f64_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_bool_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_never_type_index = W_SEED_FRONTEND_NONE;
   dry.inferred_string_type_index = W_SEED_FRONTEND_NONE;
@@ -10238,17 +10356,31 @@ static frontend_simple_type literal_simple_type(
     type.kind = W_SEED_FRONTEND_TYPE_BOOL;
     return type;
   }
+  size_t body_end = text.length;
+  const bool has_f64_suffix = float_literal_body_end(text, &body_end) &&
+                              body_end != text.length;
   bool floating = false;
   const bool hexadecimal =
-      text.length >= 2 && text.data[0] == '0' &&
+      body_end >= 2 && text.data[0] == '0' &&
       (text.data[1] == 'x' || text.data[1] == 'X');
-  for (size_t index = 0; index < text.length; index += 1) {
+  for (size_t index = 0; index < body_end; index += 1) {
     if (text.data[index] == '.' ||
         (!hexadecimal && (text.data[index] == 'e' ||
                           text.data[index] == 'E'))) {
       floating = true;
       break;
     }
+  }
+  if (hexadecimal &&
+      (floating || (has_f64_suffix && body_end != 0u))) {
+    /* W has no hexadecimal floating literal form.  Keep hexadecimal integer
+     * literals available, but never reinterpret a radix-prefixed spelling as
+     * f64 merely because it contains a fraction, exponent, or _f64 suffix. */
+    return type;
+  }
+  if (has_f64_suffix) {
+    if (!decimal_float_body(text, body_end)) return type;
+    floating = true;
   }
   if (floating) {
     type.kind = W_SEED_FRONTEND_TYPE_FLOAT;
@@ -10260,7 +10392,7 @@ static frontend_simple_type literal_simple_type(
       type.bit_width = 32;
     }
   } else {
-    size_t body_end = text.length;
+    body_end = text.length;
     bool has_suffix = false;
     bool is_signed = true;
     uint16_t width = 0;
@@ -11796,6 +11928,30 @@ static bool output_type_index_for_simple(frontend_context *context,
     *index = context->builtin_u64_type_index;
     return true;
   }
+  if (type.kind == W_SEED_FRONTEND_TYPE_FLOAT && type.bit_width == 64u) {
+    if (context->builtin_f64_type_index == W_SEED_FRONTEND_NONE) {
+      w_seed_frontend_type builtin;
+      (void)memset(&builtin, 0, sizeof(builtin));
+      builtin.kind = W_SEED_FRONTEND_TYPE_FLOAT;
+      builtin.spelling = (w_seed_frontend_text){"f64", 3u};
+      builtin.nominal_name = builtin.spelling;
+      builtin.span = empty_span(0u);
+      builtin.bit_width = 64u;
+      builtin.element_type = W_SEED_FRONTEND_NONE;
+      builtin.return_type = W_SEED_FRONTEND_NONE;
+      builtin.first_parameter = W_SEED_FRONTEND_NONE;
+      builtin.enum_base_index = W_SEED_FRONTEND_NONE;
+      builtin.first_subset_member = W_SEED_FRONTEND_NONE;
+      builtin.generic_application_index = W_SEED_FRONTEND_NONE;
+      builtin.external_module_index = W_SEED_FRONTEND_NONE;
+      builtin.external_symbol_index = W_SEED_FRONTEND_NONE;
+      uint32_t builtin_index = W_SEED_FRONTEND_NONE;
+      if (!context_append_type(context, builtin, &builtin_index)) return false;
+      context->builtin_f64_type_index = builtin_index;
+    }
+    *index = context->builtin_f64_type_index;
+    return true;
+  }
   if (type.kind == W_SEED_FRONTEND_TYPE_INTEGER && !type.is_signed &&
       type.bit_width == (uint16_t)W_SEED_FRONTEND_TARGET_USIZE_BITS &&
       text_equal(type.spelling, "usize")) {
@@ -12086,6 +12242,8 @@ static bool expression_append(frontend_expression_parser *parser,
   record.bool_value = false;
   record.has_integer_value = false;
   (void)memset(record.integer_value, 0, sizeof(record.integer_value));
+  record.has_float_value = false;
+  record.float_bits = 0u;
   record.const_byte_offset = W_SEED_FRONTEND_NONE;
   record.const_byte_count = 0u;
   record.resolved_parameter_ordinal = W_SEED_FRONTEND_NONE;
@@ -12150,6 +12308,56 @@ static bool expression_append(frontend_expression_parser *parser,
     (void)has_suffix;
     (void)is_signed;
     (void)width;
+  } else if (kind == W_SEED_FRONTEND_EXPR_FLOAT &&
+             type.kind == W_SEED_FRONTEND_TYPE_FLOAT &&
+             type.bit_width == 64u) {
+    char normalized[FRONTEND_FLOAT_LITERAL_BYTES];
+    size_t body_end = spelling.length;
+    const bool has_f64_suffix = float_literal_body_end(spelling, &body_end) &&
+                                body_end != spelling.length;
+    const bool hexadecimal =
+        body_end >= 2u && spelling.data[0] == '0' &&
+        (spelling.data[1] == 'x' || spelling.data[1] == 'X');
+    if (hexadecimal || (has_f64_suffix &&
+                        !decimal_float_body(spelling, body_end))) {
+      supported = false;
+    }
+    size_t length = 0u;
+    for (size_t index = 0u; supported && index < body_end; index += 1u) {
+      if (spelling.data[index] == '_') continue;
+      if (length + 1u >= sizeof(normalized)) {
+        supported = false;
+        break;
+      }
+      normalized[length++] = spelling.data[index];
+    }
+    if (supported && length != 0u) {
+      normalized[length] = '\0';
+      char *tail = NULL;
+      errno = 0;
+      double parsed = 0.0;
+      const bool converted =
+          frontend_strtod_c_locale(normalized, &tail, &parsed);
+      const bool finite = parsed == parsed && parsed <= DBL_MAX &&
+                          parsed >= -DBL_MAX;
+      const bool range_error_is_underflow =
+          errno == ERANGE &&
+          (parsed == 0.0 || (parsed > -DBL_MIN && parsed < DBL_MIN));
+      if (!converted || tail == normalized || tail == NULL || *tail != '\0' ||
+          !finite || (errno == ERANGE && !range_error_is_underflow)) {
+        supported = false;
+      } else {
+        record.has_float_value = true;
+        (void)memcpy(&record.float_bits, &parsed, sizeof(record.float_bits));
+      }
+    } else {
+      supported = false;
+    }
+    if (!supported) {
+      (void)context_append_fact(
+          parser->context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION, span,
+          spelling);
+    }
   }
   if (kind == W_SEED_FRONTEND_EXPR_STRING && supported) {
     /* Keep the same source-backed subset as ConstValue String.  The
@@ -14482,6 +14690,19 @@ static bool expression_append_binary(frontend_expression_parser *parser,
   const bool shift = text_equal(operator_text, "<<") ||
                      text_equal(operator_text, ">>");
   const bool power = text_equal(operator_text, "**");
+  const bool mixed_integer_f64 =
+      (left->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+       right->type.kind == W_SEED_FRONTEND_TYPE_FLOAT &&
+       right->type.bit_width == 64u) ||
+      (left->type.kind == W_SEED_FRONTEND_TYPE_FLOAT &&
+       left->type.bit_width == 64u &&
+       right->type.kind == W_SEED_FRONTEND_TYPE_INTEGER);
+  if (arithmetic_or_comparison && mixed_integer_f64) {
+    /* Integer/f64 conversion lowering is outside this bounded seed.  Do not
+     * accept a mixed tree whose downstream representation would silently
+     * depend on that gap. */
+    supported = false;
+  }
   if (arithmetic_or_comparison &&
       left->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
       right->type.kind == W_SEED_FRONTEND_TYPE_INTEGER) {
@@ -15053,6 +15274,17 @@ static frontend_simple_type infer_expression_span_inner(
   }
   if (text_equal(first_text, "!")) {
     return simple_type_from_view((w_seed_frontend_text){"Bool", 4});
+  }
+  if (text_equal(first_text, "-") || text_equal(first_text, "~")) {
+    const w_seed_span operand_span =
+        trim_span(doc, (w_seed_span){first.span.end_byte, span.end_byte});
+    const frontend_simple_type operand =
+        infer_expression_span_inner(context, operand_span, depth + 1u);
+    if (text_equal(first_text, "-"))
+      return type_is_numeric(operand) ? operand : simple_type_unknown();
+    return operand.kind == W_SEED_FRONTEND_TYPE_INTEGER
+               ? operand
+               : simple_type_unknown();
   }
   /* A direct call's arguments may contain member syntax (for example an enum
    * case literal). Resolve the callee before the generic operator scan, but
@@ -20224,6 +20456,7 @@ w_seed_frontend_status w_seed_frontend_run(
   dry.default_integer_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_i32_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_u64_type_index = W_SEED_FRONTEND_NONE;
+  dry.builtin_f64_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_bool_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_never_type_index = W_SEED_FRONTEND_NONE;
   dry.inferred_string_type_index = W_SEED_FRONTEND_NONE;
@@ -20303,6 +20536,7 @@ w_seed_frontend_status w_seed_frontend_run(
   emit.default_integer_type_index = W_SEED_FRONTEND_NONE;
   emit.builtin_i32_type_index = W_SEED_FRONTEND_NONE;
   emit.builtin_u64_type_index = W_SEED_FRONTEND_NONE;
+  emit.builtin_f64_type_index = W_SEED_FRONTEND_NONE;
   emit.builtin_bool_type_index = W_SEED_FRONTEND_NONE;
   emit.builtin_never_type_index = W_SEED_FRONTEND_NONE;
   emit.inferred_string_type_index = W_SEED_FRONTEND_NONE;

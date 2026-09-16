@@ -1136,10 +1136,18 @@ static bool pipe_read_bounded(
   for (;;) {
     DWORD available = 0u;
     if (PeekNamedPipe(read_handle, NULL, 0u, NULL, &available, NULL) == FALSE) {
-      if (WaitForSingleObject(process, 0u) == WAIT_OBJECT_0)
-        *status = W_SEED_PARALLEL_PANIC_BOUNDARY1_EARLY_EXIT;
-      else
+      if (GetLastError() == ERROR_BROKEN_PIPE) {
+        const DWORD state =
+            WaitForSingleObject(process, deadline_remaining(deadline));
+        if (state == WAIT_OBJECT_0)
+          *status = W_SEED_PARALLEL_PANIC_BOUNDARY1_EARLY_EXIT;
+        else if (state == WAIT_FAILED)
+          *status = W_SEED_PARALLEL_PANIC_BOUNDARY1_TEARDOWN;
+        else
+          *status = W_SEED_PARALLEL_PANIC_BOUNDARY1_PROTOCOL;
+      } else {
         *status = W_SEED_PARALLEL_PANIC_BOUNDARY1_PROTOCOL;
+      }
       return false;
     }
     if (available > W_SEED_PARALLEL_PANIC_BOUNDARY1_WIRE_BYTES) {
@@ -1215,10 +1223,12 @@ static w_seed_parallel_panic_boundary1_status child_cleanup(
     if (terminate && state == WAIT_TIMEOUT) {
       if (TerminateProcess(
               child->process.hProcess,
-              W_SEED_PARALLEL_PANIC_BOUNDARY1_TERMINATION_EXIT_CODE) == FALSE)
-        ok = false;
-      else
+              W_SEED_PARALLEL_PANIC_BOUNDARY1_TERMINATION_EXIT_CODE) != FALSE) {
         *terminated = true;
+      }
+      /* A failed termination can mean that the child exited after the
+       * zero-time probe. The bounded join below is the authoritative result;
+       * it still fails closed when the process remains live. */
     }
     if (state == WAIT_OBJECT_0 ||
         WaitForSingleObject(child->process.hProcess,
