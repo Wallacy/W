@@ -91,6 +91,7 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-branch-mutation-multi | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 710 | 232 | 178.4074 ms | 16.9609 ms | 17.2298 ms | 3756032 B (3.58 MiB) | 10.983 ms |
 | restaurant-comparison-composition | w | Windows x64 / MSVC | CRT-free | 3584 B (3.5 KiB) | 1142 | 252 | 182.438 ms | 16.999 ms | 18.0154 ms | 3756032 B (3.58 MiB) | 12.221 ms |
 | restaurant-comparisons | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 630 | 240 | 176.0019 ms | 16.0695 ms | 17.1013 ms | 3756032 B (3.58 MiB) | 10.829 ms |
+| restaurant-compound | w | Windows x64 / MSVC | CRT-free | 2560 B (2.5 KiB) | 982 | 292 | 183.8292 ms | 13.9363 ms | 15.3701 ms | 3153920 B (3.01 MiB) | 9.746 ms |
 | restaurant-conditional-mutation | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 662 | 232 | 177.8021 ms | 16.909 ms | 17.2469 ms | 3756032 B (3.58 MiB) | 11.138 ms |
 | restaurant-enum-bool-payload | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3542 | 2672 | 130.1575 ms | 17.9902 ms | 18.9828 ms | 4841472 B (4.62 MiB) | 12.84 ms |
 | restaurant-enum-bool-payload | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79848 | 28348 | 1.0835472 s | 17.9859 ms | 18.4323 ms | 4878336 B (4.65 MiB) | 13.149 ms |
@@ -146,6 +147,7 @@ No native Linux x64 measurements are published.
 | Workload | Language | Target | Runtime | Artifact | .text B | .rdata B | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | hello | w | Linux x64 / WSL2 | CRT-free | 2096 B (2.0 KiB) | — | — | 174.7567 ms | 166.803 µs | 322.492 µs | 671744 B (656.0 KiB) | 82 µs |
+| restaurant-compound | w | Linux x64 / WSL2 | CRT-free | 3152 B (3.1 KiB) | — | — | 204.9902 ms | 117.035 µs | 323.922 µs | 671744 B (656.0 KiB) | 45 µs |
 | restaurant-main-cardinality | w | Linux x64 / WSL2 | CRT-free | 3008 B (2.9 KiB) | — | — | 206.0878 ms | 141.023 µs | 201.573 µs | 671744 B (656.0 KiB) | 47 µs |
 | restaurant-main-dispatch | w | Linux x64 / WSL2 | CRT-free | 2768 B (2.7 KiB) | — | — | 208.7803 ms | 155.999 µs | 376.322 µs | 679936 B (664.0 KiB) | 50 µs |
 | restaurant-power | w | Linux x64 / WSL2 | CRT-free | 3088 B (3.0 KiB) | — | — | 201.5651 ms | 137.216 µs | 467.819 µs | 671744 B (656.0 KiB) | 61 µs |
