@@ -13308,6 +13308,50 @@ static bool test_checked_shift_values(void) {
   return true;
 }
 
+static bool test_checked_power_values(void) {
+  static const char SOURCE[] =
+      "fn signed(base: Int, exponent: UInt): Int { return base ** exponent }\n"
+      "fn unsigned(base: UInt, exponent: UInt): UInt { return base ** exponent }\n"
+      "entry { let a = signed(base: -3, exponent: 3_u64) "
+      "let b = unsigned(base: 2_u64, exponent: 10_u64) "
+      "print(message: \"${a}/${b}\", suffix: \"\") }\n";
+  CHECK(lower(SOURCE));
+  size_t signed_index = SIZE_MAX;
+  size_t unsigned_index = SIZE_MAX;
+  for (size_t index = 0u; index < fixture.hir_program.value_count; index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_values[index];
+    if (value->kind != W_SEED_HIR0_VALUE_BINARY_I64 ||
+        value->binary_operator != W_SEED_HIR0_BINARY_POWER ||
+        value->type_index >= fixture.hir_program.type_count)
+      continue;
+    if (fixture.hir_types[value->type_index].kind == W_SEED_HIR0_TYPE_I64)
+      signed_index = index;
+    if (fixture.hir_types[value->type_index].kind == W_SEED_HIR0_TYPE_U64)
+      unsigned_index = index;
+  }
+  CHECK(signed_index != SIZE_MAX && unsigned_index != SIZE_MAX);
+  const w_seed_hir0_value signed_value = fixture.hir_values[signed_index];
+  const w_seed_hir0_value unsigned_value = fixture.hir_values[unsigned_index];
+  CHECK(fixture.hir_values[signed_value.left_value].type_index ==
+            signed_value.type_index &&
+        fixture.hir_types[fixture.hir_values[signed_value.right_value]
+                              .type_index]
+                .kind == W_SEED_HIR0_TYPE_U64 &&
+        fixture.hir_values[unsigned_value.left_value].type_index ==
+            unsigned_value.type_index &&
+        fixture.hir_types[fixture.hir_values[unsigned_value.right_value]
+                              .type_index]
+                .kind == W_SEED_HIR0_TYPE_U64);
+  fixture.hir_values[signed_value.right_value].type_index =
+      signed_value.type_index;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  CHECK(lower(SOURCE));
+  fixture.hir_values[signed_index].type_index = unsigned_value.type_index;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  CHECK(lower(SOURCE));
+  return true;
+}
+
 static bool test_short_entry_hir(void) {
   static const char SOURCE[] =
       "entry { print(message: \"Hello, world!\", suffix: \"!\") }\n";
@@ -13536,6 +13580,7 @@ int main(int argc, char **argv) {
   if (!test_signed_bitwise_values()) return 1;
   if (!test_canonical_u64_scalar()) return 1;
   if (!test_checked_shift_values()) return 1;
+  if (!test_checked_power_values()) return 1;
   if (!test_i64_unary_bit_not_positive()) return 1;
   if (!test_canonical_and_copy_boundary()) return 1;
   if (!test_semantic_and_provenance_digests()) return 1;

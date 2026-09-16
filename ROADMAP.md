@@ -158,8 +158,11 @@ LLVM-dialect operations, and the maintained native routes. Checked `<<` and
 `>>` additionally preserve signed/unsigned logical type, require a `UInt`
 count, trap at counts greater than or equal to 64, use arithmetic versus
 logical right shift, and reject information-losing left shift. Exact
-`restaurant-bitwise` and `restaurant-shifts` sources/oracles own these bounded
-crosspoints. W-392 remains open for power, compound forms, other widths, named
+`restaurant-bitwise`, `restaurant-shifts`, and `restaurant-power`
+sources/oracles own these bounded crosspoints. Checked integer `**` uses a
+`UInt` exponent, keeps the base's signedness, defines `0 ** 0` as one, and
+lowers with logarithmic exponentiation by squaring. W-392 remains open for
+compound forms, other widths, named
 bit APIs, SIMD, and the complete integer operator matrix.
 W-1597 remains a legality certificate only; target policy must still combine it
 with observability and cost facts and compare any direct-call artifact with the

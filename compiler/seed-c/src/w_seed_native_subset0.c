@@ -1112,11 +1112,12 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
     const bool shift =
         value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
         value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_RIGHT;
+    const bool power = value->binary_operator == W_SEED_HIR0_BINARY_POWER;
     if (value->left_value >= program->value_count ||
         value->right_value >= program->value_count ||
         program->values[value->left_value].type_index >= program->type_count ||
         program->values[value->right_value].type_index >= program->type_count ||
-        (shift
+        ((shift || power)
              ? (program->types[program->values[value->left_value].type_index]
                         .kind != type ||
                 program->types[program->values[value->right_value].type_index]
@@ -1133,11 +1134,11 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
                                       owner_function, false, depth + 1u) &&
              program_value_lowerable(program, value->right_value,
                                       owner_function, false, depth + 1u);
-    if ((!shift &&
+    if ((!shift && !power &&
          value->binary_operator > W_SEED_HIR0_BINARY_REMAINDER &&
          (value->binary_operator < W_SEED_HIR0_BINARY_BIT_AND ||
           value->binary_operator > W_SEED_HIR0_BINARY_BIT_XOR)) ||
-        (shift ? (type != W_SEED_HIR0_TYPE_I64 &&
+        ((shift || power) ? (type != W_SEED_HIR0_TYPE_I64 &&
                   type != W_SEED_HIR0_TYPE_U64)
                : type != W_SEED_HIR0_TYPE_I64) ||
         !program_value_lowerable(program, value->left_value, owner_function,

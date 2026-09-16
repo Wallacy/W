@@ -348,6 +348,72 @@ static const char MLIR0_CHECKED_SHIFT_HELPERS[] =
     "    llvm.return %value : i64\n"
     "  }\n";
 
+/* Integer power is exponentiation by squaring. Every multiplication is
+ * checked before its result can feed the next iteration or escape. */
+static const char MLIR0_CHECKED_POWER_HELPERS[] =
+    "  llvm.func internal @w_seed_checked_power_i64(%base: i64, %exponent: i64) -> i64 {\n"
+    "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
+    "    %one = llvm.mlir.constant(1 : i64) : i64\n"
+    "    llvm.br ^power_loop(%base, %exponent, %one : i64, i64, i64)\n"
+    "  ^power_loop(%current: i64, %remaining: i64, %accumulator: i64):\n"
+    "    %done = llvm.icmp \"eq\" %remaining, %zero : i64\n"
+    "    llvm.cond_br %done, ^power_done(%accumulator : i64), ^power_step\n"
+    "  ^power_step:\n"
+    "    %bit = llvm.and %remaining, %one : i64\n"
+    "    %odd = llvm.icmp \"ne\" %bit, %zero : i64\n"
+    "    llvm.cond_br %odd, ^power_accumulate, ^power_advance(%accumulator : i64)\n"
+    "  ^power_accumulate:\n"
+    "    %acc_pair = \"llvm.intr.smul.with.overflow\"(%accumulator, %current) : (i64, i64) -> !llvm.struct<(i64, i1)>\n"
+    "    %acc_value = llvm.extractvalue %acc_pair[0] : !llvm.struct<(i64, i1)>\n"
+    "    %acc_overflow = llvm.extractvalue %acc_pair[1] : !llvm.struct<(i64, i1)>\n"
+    "    llvm.cond_br %acc_overflow, ^power_fault, ^power_advance(%acc_value : i64)\n"
+    "  ^power_advance(%next_accumulator: i64):\n"
+    "    %next_remaining = llvm.lshr %remaining, %one : i64\n"
+    "    %last = llvm.icmp \"eq\" %next_remaining, %zero : i64\n"
+    "    llvm.cond_br %last, ^power_done(%next_accumulator : i64), ^power_square\n"
+    "  ^power_square:\n"
+    "    %base_pair = \"llvm.intr.smul.with.overflow\"(%current, %current) : (i64, i64) -> !llvm.struct<(i64, i1)>\n"
+    "    %base_value = llvm.extractvalue %base_pair[0] : !llvm.struct<(i64, i1)>\n"
+    "    %base_overflow = llvm.extractvalue %base_pair[1] : !llvm.struct<(i64, i1)>\n"
+    "    llvm.cond_br %base_overflow, ^power_fault, ^power_loop(%base_value, %next_remaining, %next_accumulator : i64, i64, i64)\n"
+    "  ^power_fault:\n"
+    "    \"llvm.intr.trap\"() : () -> ()\n"
+    "    llvm.unreachable\n"
+    "  ^power_done(%result: i64):\n"
+    "    llvm.return %result : i64\n"
+    "  }\n"
+    "  llvm.func internal @w_seed_checked_power_u64(%base: i64, %exponent: i64) -> i64 {\n"
+    "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
+    "    %one = llvm.mlir.constant(1 : i64) : i64\n"
+    "    llvm.br ^power_loop(%base, %exponent, %one : i64, i64, i64)\n"
+    "  ^power_loop(%current: i64, %remaining: i64, %accumulator: i64):\n"
+    "    %done = llvm.icmp \"eq\" %remaining, %zero : i64\n"
+    "    llvm.cond_br %done, ^power_done(%accumulator : i64), ^power_step\n"
+    "  ^power_step:\n"
+    "    %bit = llvm.and %remaining, %one : i64\n"
+    "    %odd = llvm.icmp \"ne\" %bit, %zero : i64\n"
+    "    llvm.cond_br %odd, ^power_accumulate, ^power_advance(%accumulator : i64)\n"
+    "  ^power_accumulate:\n"
+    "    %acc_pair = \"llvm.intr.umul.with.overflow\"(%accumulator, %current) : (i64, i64) -> !llvm.struct<(i64, i1)>\n"
+    "    %acc_value = llvm.extractvalue %acc_pair[0] : !llvm.struct<(i64, i1)>\n"
+    "    %acc_overflow = llvm.extractvalue %acc_pair[1] : !llvm.struct<(i64, i1)>\n"
+    "    llvm.cond_br %acc_overflow, ^power_fault, ^power_advance(%acc_value : i64)\n"
+    "  ^power_advance(%next_accumulator: i64):\n"
+    "    %next_remaining = llvm.lshr %remaining, %one : i64\n"
+    "    %last = llvm.icmp \"eq\" %next_remaining, %zero : i64\n"
+    "    llvm.cond_br %last, ^power_done(%next_accumulator : i64), ^power_square\n"
+    "  ^power_square:\n"
+    "    %base_pair = \"llvm.intr.umul.with.overflow\"(%current, %current) : (i64, i64) -> !llvm.struct<(i64, i1)>\n"
+    "    %base_value = llvm.extractvalue %base_pair[0] : !llvm.struct<(i64, i1)>\n"
+    "    %base_overflow = llvm.extractvalue %base_pair[1] : !llvm.struct<(i64, i1)>\n"
+    "    llvm.cond_br %base_overflow, ^power_fault, ^power_loop(%base_value, %next_remaining, %next_accumulator : i64, i64, i64)\n"
+    "  ^power_fault:\n"
+    "    \"llvm.intr.trap\"() : () -> ()\n"
+    "    llvm.unreachable\n"
+    "  ^power_done(%result: i64):\n"
+    "    llvm.return %result : i64\n"
+    "  }\n";
+
 static const char MLIR0_BOOL_HELPER[] =
     "  llvm.func internal @w_seed_append_bool(%buffer: !llvm.ptr, %offset: i64, %value: i1) -> i64 {\n"
     "    %bool_one = llvm.mlir.constant(1 : i64) : i64\n"
@@ -447,6 +513,7 @@ static const char MLIR0_U64_HELPER[] =
    (sizeof(MLIR0_CHECKED_I64_SUBTRACT_HELPER) - 1u) +                   \
    (sizeof(MLIR0_CHECKED_I64_MULTIPLY_HELPER) - 1u) +                   \
    (sizeof(MLIR0_CHECKED_SHIFT_HELPERS) - 1u) +                         \
+   (sizeof(MLIR0_CHECKED_POWER_HELPERS) - 1u) +                         \
    (sizeof(MLIR0_U64_HELPER) - 1u) +                                   \
    (sizeof(MLIR0_BOOL_HELPER) - 1u) + MLIR0_DYNAMIC_SKELETON_MAX_BYTES + \
    ((size_t)MLIR0_MAX_STDOUT_BYTES * MLIR0_ESCAPE_BYTES_PER_INPUT) +         \
@@ -719,6 +786,7 @@ typedef struct {
   bool has_checked_divide;
   bool has_checked_remainder;
   bool has_checked_shifts;
+  bool has_checked_power;
   bool reachable_values[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
 } mlir0_dynamic_plan;
 
@@ -733,6 +801,9 @@ static bool mark_reachable_value_tree(
     bool *has_remainder, size_t depth);
 
 static bool reachable_values_have_checked_shift(
+    const w_seed_hir0_program *program,
+    const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES]);
+static bool reachable_values_have_checked_power(
     const w_seed_hir0_program *program,
     const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES]);
 
@@ -813,6 +884,35 @@ static bool value_string_bytes(const w_seed_hir0_program *program,
     return true;
   }
   return false;
+}
+
+static bool reachable_values_have_checked_power(
+    const w_seed_hir0_program *program,
+    const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES]) {
+  if (program == NULL || reachable == NULL ||
+      program->value_count > W_SEED_NATIVE_SUBSET0_MAX_VALUES)
+    return false;
+  for (size_t value_index = 0u; value_index < program->value_count;
+       value_index += 1u)
+    if (reachable[value_index] &&
+        program->values[value_index].kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+        program->values[value_index].binary_operator ==
+            W_SEED_HIR0_BINARY_POWER)
+      return true;
+  return false;
+}
+
+static const char *checked_power_helper(
+    const w_seed_hir0_program *program, const w_seed_hir0_value *value) {
+  if (program == NULL || value == NULL ||
+      value->type_index >= program->type_count ||
+      value->binary_operator != W_SEED_HIR0_BINARY_POWER)
+    return NULL;
+  if (program->types[value->type_index].kind == W_SEED_HIR0_TYPE_I64)
+    return "@w_seed_checked_power_i64";
+  if (program->types[value->type_index].kind == W_SEED_HIR0_TYPE_U64)
+    return "@w_seed_checked_power_u64";
+  return NULL;
 }
 
 static bool build_dynamic_plan(
@@ -917,6 +1017,8 @@ static bool build_dynamic_plan(
       return false;
   candidate.has_checked_shifts = reachable_values_have_checked_shift(
       program, candidate.reachable_values);
+  candidate.has_checked_power = reachable_values_have_checked_power(
+      program, candidate.reachable_values);
   *plan = candidate;
   return true;
 }
@@ -989,6 +1091,7 @@ static const char *binary_operation(w_seed_hir0_binary_operator operation) {
       return "llvm.xor";
     case W_SEED_HIR0_BINARY_SHIFT_LEFT:
     case W_SEED_HIR0_BINARY_SHIFT_RIGHT:
+    case W_SEED_HIR0_BINARY_POWER:
       return NULL;
   }
   return NULL;
@@ -1551,12 +1654,13 @@ static bool append_binary_value_operation_in_loop(
   const bool shift =
       value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
       value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_RIGHT;
-  const char *helper = shift
-                           ? checked_shift_helper(program, value)
-                           : (constant_division
-                                  ? NULL
-                                  : checked_binary_helper(
-                                        value->binary_operator));
+  const bool power = value->binary_operator == W_SEED_HIR0_BINARY_POWER;
+  const char *helper =
+      shift ? checked_shift_helper(program, value)
+            : (power ? checked_power_helper(program, value)
+                     : (constant_division
+                            ? NULL
+                            : checked_binary_helper(value->binary_operator)));
   if (!append_literal(artifact, capacity, offset, "    %v") ||
       !append_size(artifact, capacity, offset, value_index) ||
       !append_literal(artifact, capacity, offset, " = "))
@@ -1928,6 +2032,9 @@ static bool build_dynamic_artifact(
       (plan.has_checked_shifts &&
        !append_literal(artifact, capacity, &offset,
                        MLIR0_CHECKED_SHIFT_HELPERS)) ||
+      (plan.has_checked_power &&
+       !append_literal(artifact, capacity, &offset,
+                       MLIR0_CHECKED_POWER_HELPERS)) ||
       (plan.has_u64 &&
        !append_literal(artifact, capacity, &offset, MLIR0_U64_HELPER)) ||
       (plan.has_bool &&
@@ -2032,6 +2139,7 @@ typedef struct {
   bool has_checked_divide;
   bool has_checked_remainder;
   bool has_checked_shifts;
+  bool has_checked_power;
   bool has_reachable_panic;
   bool reachable_values[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
 } mlir0_program_plan;
@@ -2448,6 +2556,8 @@ static bool build_program_plan(const w_seed_hir0_program *program,
           &candidate.has_checked_remainder, &candidate.has_reachable_panic))
     return false;
   candidate.has_checked_shifts = reachable_values_have_checked_shift(
+      program, candidate.reachable_values);
+  candidate.has_checked_power = reachable_values_have_checked_power(
       program, candidate.reachable_values);
   if (!allow_empty &&
       (candidate.action_count == 0u || candidate.text_bytes == 0u) &&
@@ -4962,6 +5072,9 @@ static bool build_program_artifact(
       (plan.has_checked_shifts &&
        !append_literal(artifact, capacity, &offset,
                        MLIR0_CHECKED_SHIFT_HELPERS)) ||
+      (plan.has_checked_power &&
+       !append_literal(artifact, capacity, &offset,
+                       MLIR0_CHECKED_POWER_HELPERS)) ||
       (plan.has_u64 &&
        !append_literal(artifact, capacity, &offset, MLIR0_U64_HELPER)) ||
       (plan.has_bool &&
@@ -6187,6 +6300,7 @@ static bool append_cooperative_value_tree(
         break;
       case W_SEED_HIR0_BINARY_SHIFT_LEFT:
       case W_SEED_HIR0_BINARY_SHIFT_RIGHT:
+      case W_SEED_HIR0_BINARY_POWER:
         break;
     }
     if ((operation == NULL && predicate == NULL) ||

@@ -3672,6 +3672,7 @@ static bool frontend_value_tree_ok(
                             operation <= W_SEED_HIR0_BINARY_GREATER_EQUAL;
     const bool shift = operation == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
                        operation == W_SEED_HIR0_BINARY_SHIFT_RIGHT;
+    const bool power = operation == W_SEED_HIR0_BINARY_POWER;
     if (value->left == W_SEED_FRONTEND_NONE ||
         value->right == W_SEED_FRONTEND_NONE ||
         !frontend_value_tree_ok(input, module_index, function_index,
@@ -3691,10 +3692,10 @@ static bool frontend_value_tree_ok(
         (comparison
              ? output->types[value->inferred_type].kind !=
                    W_SEED_FRONTEND_TYPE_BOOL
-             : (shift ? !(frontend_expression_is_i64(output, value) ||
+             : ((shift || power) ? !(frontend_expression_is_i64(output, value) ||
                            frontend_expression_is_u64(output, value))
                       : !frontend_expression_is_i64(output, value))) ||
-        (shift ? !((frontend_expression_is_i64(output, value) &&
+        ((shift || power) ? !((frontend_expression_is_i64(output, value) &&
                     frontend_expression_is_i64(
                         output, &output->expressions[value->left])) ||
                    (frontend_expression_is_u64(output, value) &&
@@ -3702,7 +3703,7 @@ static bool frontend_value_tree_ok(
                         output, &output->expressions[value->left])))
                : !frontend_expression_is_i64(
                      output, &output->expressions[value->left])) ||
-        (shift ? !frontend_expression_is_u64(
+        ((shift || power) ? !frontend_expression_is_u64(
                      output, &output->expressions[value->right])
                : !frontend_expression_is_i64(
                      output, &output->expressions[value->right])) ||
@@ -3711,7 +3712,7 @@ static bool frontend_value_tree_ok(
         value->const_byte_offset != W_SEED_FRONTEND_NONE ||
         value->const_byte_count != 0u || value->has_bool_value ||
         value->has_integer_value ||
-        (uint32_t)operation > (uint32_t)W_SEED_HIR0_BINARY_SHIFT_RIGHT ||
+        (uint32_t)operation > (uint32_t)W_SEED_HIR0_BINARY_POWER ||
         !add_size(*value_total, 1u, value_total) ||
         !add_size(*expression_cursor, 1u, expression_cursor))
       return false;
@@ -7885,6 +7886,7 @@ static w_seed_hir0_binary_operator hir_binary_operator(
   if (text_is(text, "^")) return W_SEED_HIR0_BINARY_BIT_XOR;
   if (text_is(text, "<<")) return W_SEED_HIR0_BINARY_SHIFT_LEFT;
   if (text_is(text, ">>")) return W_SEED_HIR0_BINARY_SHIFT_RIGHT;
+  if (text_is(text, "**")) return W_SEED_HIR0_BINARY_POWER;
   return (w_seed_hir0_binary_operator)UINT32_MAX;
 }
 
@@ -13715,8 +13717,9 @@ static bool verify_value_tree(
     const bool shift =
         value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
         value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_RIGHT;
+    const bool power = value->binary_operator == W_SEED_HIR0_BINARY_POWER;
     if ((uint32_t)value->binary_operator >
-            (uint32_t)W_SEED_HIR0_BINARY_SHIFT_RIGHT ||
+            (uint32_t)W_SEED_HIR0_BINARY_POWER ||
         value->left_value == W_SEED_HIR0_NONE ||
         value->right_value == W_SEED_HIR0_NONE ||
         !verify_value_tree(program, value->left_value,
@@ -13730,7 +13733,7 @@ static bool verify_value_tree(
                            depth + 1u, value_cursor, segment_cursor,
                            byte_cursor) ||
         (size_t)root_index != *value_cursor ||
-        (shift
+        ((shift || power)
              ? (!hir_type_index_valid(program, value->type_index) ||
                 !hir_type_index_valid(
                     program, program->values[value->left_value].type_index) ||

@@ -1662,7 +1662,7 @@ ownership, carrier order, initial and updated values, version chains, condition
 dependence, dominance, and exit projection.
 
 Native0 schema `w-seed-native0-9` records a dedicated post-test fact. MLIR0
-schema `w-seed-mlir0-19` and Windows label `w-seed-mlir0-windows-8` lower it to
+schema `w-seed-mlir0-20` and Windows label `w-seed-mlir0-windows-8` lower it to
 one structured `scf.while` with a private Bool carrier initialized to true.
 Each body trip yields the updated signed tuple and trailing condition. Safe
 constant division remains `llvm.sdiv`; dynamic division remains checked. No
@@ -1761,6 +1761,23 @@ wired but is not current evidence when the local MLIR toolchain is unavailable.
 Suspending callees, explicit domains, cancellation, arbitration, sharing,
 runtime owners, additional result types, and physical Task state remain outside
 this bounded slice.
+
+### Source-backed checked 64-bit power (bounded W-392/W-769)
+
+Canonical `Int` and `UInt` bases now cross the seed frontend, verified HIR0,
+NativeSubset0 program selector, and MLIR0 for `**` with a `UInt` exponent. The
+result keeps the base type, `0 ** 0` is one, and parsing is right-associative.
+MLIR0 emits signed or unsigned demand-driven helpers using exponentiation by
+squaring, so work is logarithmic in the exponent; every accumulator and base
+square multiply uses the corresponding LLVM overflow intrinsic and traps
+before publishing a wrapped result.
+
+[`fixtures/restaurant-power.w`](fixtures/restaurant-power.w) crosses function
+boundaries and prints exactly `Power -27/1024/1/512\n`; its last term exercises
+right association. Focused gates also require signed and unsigned runtime
+overflow to terminate without output. Prefix/power interaction remains a
+separate frontend completeness item, as do other widths, named power policies,
+compound assignment, floating power, SIMD, timing, and ranking.
 
 ### Explicit-async direct-entry Task elision (W-1578)
 

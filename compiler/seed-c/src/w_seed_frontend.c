@@ -1116,8 +1116,9 @@ static frontend_const_infer_value const_infer_bp(
     if (precedence < minimum_precedence || !is_binary_operator(operator_text))
       break;
     (void)cursor_take(&parser->cursor, &operator_token);
+    const bool power = text_equal(operator_text, "**");
     frontend_const_infer_value right =
-        const_infer_bp(parser, precedence + 1);
+        const_infer_bp(parser, power ? precedence : precedence + 1);
     if (!right.valid) return right;
     const bool logical = text_equal(operator_text, "&&") ||
                          text_equal(operator_text, "||");
@@ -1172,7 +1173,7 @@ static frontend_const_infer_value const_infer_bp(
       } else {
         return const_infer_value_invalid(false);
       }
-    } else if (shift) {
+    } else if (shift || power) {
       const frontend_simple_type uint_type =
           simple_type_from_view((w_seed_frontend_text){"UInt", 4u});
       if (value.type.kind == W_SEED_FRONTEND_TYPE_UNKNOWN ||
@@ -5246,7 +5247,7 @@ static bool frontend_widening_allowed(const frontend_context *context,
 
 static bool is_binary_operator(w_seed_frontend_text text) {
   static const char *const operators[] = {
-      "+",  "-",  "*",  "/",  "%",  "&",  "|",  "^",  "<<", ">>",
+      "+",  "-",  "*",  "**", "/",  "%",  "&",  "|",  "^",  "<<", ">>",
       "==", "!=", "<",  "<=", ">",  ">=", "&&", "||", "in", "..<",
       "=",
   };
@@ -5277,6 +5278,7 @@ static int operator_precedence(w_seed_frontend_text text) {
       text_equal(text, "%")) {
     return 11;
   }
+  if (text_equal(text, "**")) return 12;
   return -1;
 }
 
@@ -14431,7 +14433,8 @@ static bool expression_parse_bp_inner(frontend_expression_parser *parser,
       continue;
     }
     frontend_expr_value right;
-    const int next_precedence = precedence + 1;
+    const bool power = text_equal(operator_text, "**");
+    const int next_precedence = power ? precedence : precedence + 1;
     if (!expression_parse_bp(parser, next_precedence, &right)) return false;
     const w_seed_span span = {value->span.start_byte, right.span.end_byte};
     frontend_simple_type result_type = value->type;
@@ -14472,7 +14475,7 @@ static bool expression_parse_bp_inner(frontend_expression_parser *parser,
       }
       result_type = value->type;
     }
-    if (shift) {
+    if (shift || power) {
       const frontend_simple_type uint_type =
           simple_type_from_view((w_seed_frontend_text){"UInt", 4u});
       if (expression_value_is_unsuffixed_integer(value)) {

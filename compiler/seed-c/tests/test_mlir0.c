@@ -3074,6 +3074,39 @@ static bool test_checked_shift_artifact(void) {
   return true;
 }
 
+static bool test_checked_power_artifact(void) {
+  static const uint8_t source[] =
+      "fn signed(base: Int, exponent: UInt): Int { return base ** exponent }\n"
+      "fn unsigned(base: UInt, exponent: UInt): UInt { return base ** exponent }\n"
+      "entry { let a = signed(base: -3, exponent: 3_u64) "
+      "let b = unsigned(base: 2_u64, exponent: 10_u64) "
+      "let c = signed(base: 0, exponent: 0_u64) "
+      "print(\"${a}/${b}/${c}\") }\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.func internal @w_seed_checked_power_i64") == 1u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.func internal @w_seed_checked_power_u64") == 1u &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.intr.smul.with.overflow") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.intr.umul.with.overflow") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.lshr %remaining, %one : i64") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.call @w_seed_checked_power_i64") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.call @w_seed_checked_power_u64"));
+  return true;
+}
+
 static bool expect_sequence_unsupported(void) {
   const w_seed_mlir0_input input = mlir_input();
   uint8_t output[W_SEED_MLIR0_MAX_BYTES];
@@ -4466,6 +4499,7 @@ int main(int argc, char **argv) {
   if (!test_signed_bitwise_artifact()) return 1;
   if (!test_signed_bit_not_artifact()) return 1;
   if (!test_checked_shift_artifact()) return 1;
+  if (!test_checked_power_artifact()) return 1;
   if (!test_interpolation_semantic_barriers()) return 1;
   if (!test_linear_sequence()) return 1;
   if (!test_capacity_and_all_or_nothing()) return 1;

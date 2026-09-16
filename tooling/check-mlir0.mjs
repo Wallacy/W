@@ -27,6 +27,8 @@ const restaurantUnsignedFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unsigned.w")
 const restaurantShiftsFixture = resolve(seedDirectory,
   "fixtures", "restaurant-shifts.w")
+const restaurantPowerFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-power.w")
 const restaurantMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-mutation.w")
 const restaurantConditionalMutationFixture = resolve(seedDirectory,
@@ -403,6 +405,10 @@ try {
     "runtime-unsigned-shift-overflow.w")
   const runtimeSignedShiftOverflowPath = resolve(artifactDirectory,
     "runtime-signed-shift-overflow.w")
+  const runtimeSignedPowerOverflowPath = resolve(artifactDirectory,
+    "runtime-signed-power-overflow.w")
+  const runtimeUnsignedPowerOverflowPath = resolve(artifactDirectory,
+    "runtime-unsigned-power-overflow.w")
   const emptyPath = resolve(artifactDirectory, "empty.w")
   await writeFile(restaurantPath,
     `fn serve() { let message = "Table 42 remains open" print(message) }\nentry(serve)\n`)
@@ -493,6 +499,16 @@ try {
     'entry { let result = shift(' +
     'value: 9223372036854775807, count: 1_u64) ' +
     'print("success ${result}") }\n')
+  await writeFile(runtimeSignedPowerOverflowPath,
+    'fn power(base: Int, exponent: UInt): Int { return base ** exponent }\n' +
+    'entry { let result = power(' +
+    'base: 9223372036854775807, exponent: 2_u64) ' +
+    'print("success ${result}") }\n')
+  await writeFile(runtimeUnsignedPowerOverflowPath,
+    'fn power(base: UInt, exponent: UInt): UInt { return base ** exponent }\n' +
+    'entry { let result = power(' +
+    'base: 18446744073709551615_u64, exponent: 2_u64) ' +
+    'print("success ${result}") }\n')
   await writeFile(emptyPath, `fn main() { print("") }\nentry(main)\n`)
   const products = [
     { name: "hello", source: canonicalFixture,
@@ -579,6 +595,8 @@ try {
       expected: Buffer.from("Unsigned 18446744073709551615\n", "utf8") },
     { name: "restaurant-shifts", source: restaurantShiftsFixture,
       expected: Buffer.from("Shifts -4/15/-48/48\n", "utf8") },
+    { name: "restaurant-power", source: restaurantPowerFixture,
+      expected: Buffer.from("Power -27/1024/1/512\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
   ]
   const artifacts = new Map()
@@ -660,6 +678,10 @@ try {
       source: runtimeUnsignedShiftOverflowPath },
     { name: "runtime-signed-shift-overflow",
       source: runtimeSignedShiftOverflowPath },
+    { name: "runtime-signed-power-overflow",
+      source: runtimeSignedPowerOverflowPath },
+    { name: "runtime-unsigned-power-overflow",
+      source: runtimeUnsignedPowerOverflowPath },
     { name: "explicit-panic", source: explicitPanicFixture },
   ]) {
     const generated = run(seedGate, [fault.source])
@@ -772,6 +794,17 @@ try {
     shiftsArtifact.includes(
       "llvm.call @w_seed_checked_shift_left_u64"),
   "checked shifts lost width guards, signedness, or runtime lowering")
+  const powerArtifact = artifacts.get("restaurant-power")
+  assert(powerArtifact.includes(
+    "llvm.func internal @w_seed_checked_power_i64") &&
+    powerArtifact.includes(
+      "llvm.func internal @w_seed_checked_power_u64") &&
+    powerArtifact.includes("llvm.intr.smul.with.overflow") &&
+    powerArtifact.includes("llvm.intr.umul.with.overflow") &&
+    powerArtifact.includes("llvm.lshr %remaining, %one : i64") &&
+    powerArtifact.includes("llvm.call @w_seed_checked_power_i64") &&
+    powerArtifact.includes("llvm.call @w_seed_checked_power_u64"),
+  "checked power lost exponentiation-by-squaring or signedness")
   const wmoArtifact = artifacts.get("restaurant-wmo")
   assert(!artifacts.get("hello").includes("@w_seed_checked_") &&
     wmoArtifact.includes("@w_fn_0(") &&
