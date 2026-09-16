@@ -114,6 +114,7 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-repeat | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 694 | 268 | 177.678 ms | 16.009 ms | 17.0043 ms | 3756032 B (3.58 MiB) | 11.602 ms |
 | restaurant-runtime-divrem | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 758 | 240 | 178.0803 ms | 16.4971 ms | 17.1205 ms | 3756032 B (3.58 MiB) | 11.912 ms |
 | restaurant-scalar-if | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 630 | 224 | 179.4772 ms | 16.8189 ms | 17.1398 ms | 3756032 B (3.58 MiB) | 10.674 ms |
+| restaurant-shifts | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 1110 | 380 | 182.0784 ms | 14.6547 ms | 16.261 ms | 3153920 B (3.01 MiB) | 10.829 ms |
 | restaurant-unary-interpolation | w | Windows x64 / MSVC | CRT-free | 2560 B (2.5 KiB) | 454 | 208 | 173.7539 ms | 16.9549 ms | 17.1994 ms | 3756032 B (3.58 MiB) | 11.912 ms |
 | restaurant-unary-negate | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 582 | 228 | 176.128 ms | 16.1193 ms | 17.1021 ms | 3756032 B (3.58 MiB) | 11.448 ms |
 | restaurant-unsigned | w | Windows x64 / MSVC | CRT-free | 2560 B (2.5 KiB) | 662 | 292 | 177.6862 ms | 15.1126 ms | 17.9711 ms | 3153920 B (3.01 MiB) | 9.282 ms |
@@ -144,6 +145,7 @@ No native Linux x64 measurements are published.
 | hello | w | Linux x64 / WSL2 | CRT-free | 2096 B (2.0 KiB) | — | — | 174.7567 ms | 166.803 µs | 322.492 µs | 671744 B (656.0 KiB) | 82 µs |
 | restaurant-main-cardinality | w | Linux x64 / WSL2 | CRT-free | 3008 B (2.9 KiB) | — | — | 206.0878 ms | 141.023 µs | 201.573 µs | 671744 B (656.0 KiB) | 47 µs |
 | restaurant-main-dispatch | w | Linux x64 / WSL2 | CRT-free | 2768 B (2.7 KiB) | — | — | 208.7803 ms | 155.999 µs | 376.322 µs | 679936 B (664.0 KiB) | 50 µs |
+| restaurant-shifts | w | Linux x64 / WSL2 | CRT-free | 3232 B (3.2 KiB) | — | — | 296.9381 ms | 172.112 µs | 886.504 µs | 671744 B (656.0 KiB) | 84 µs |
 | restaurant-unsigned | w | Linux x64 / WSL2 | CRT-free | 2640 B (2.6 KiB) | — | — | 203.3243 ms | 149.993 µs | 565.18 µs | 671744 B (656.0 KiB) | 76 µs |
 
 Artifact size counts only the emitted executable file. On Windows it excludes imported runtime DLLs. Windows public W is CRT-free; public C and Rust import the MSVC runtime. The private process-handler composite remains a Windows GCC/MinGW contextual lane. Native Linux records, when published, are kept in their own Linux x64 / GNU lane; W's current Linux product route is also CRT-free.
