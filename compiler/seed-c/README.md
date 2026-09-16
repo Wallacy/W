@@ -2119,6 +2119,28 @@ semantic digest. The scalar evaluator accepts only value tasks and rejects the
 panic record without mutating its output. This is not provider execution,
 `PanicEvent` delivery, cleanup/lifecycle handling, or a public Task/runtime/ABI.
 
+W-1627 adds `w_seed_parallel_panic_binding1` (PARPANIC1), a separate private
+bridge above verified HIR, PARSEL1, PARINV1, and the existing process-local
+PLATFORM1 authority. Its callback maps verified `VALUE_I64` tasks to exact
+scalar success and `TASK_PANIC` tasks to the explicit panic completion recorded
+by PARINV1. It accepts one or more panic tasks when the provider supports them,
+selects the receipt's deterministic lexical primary, validates all completion
+and cancellation facts, and publishes no semantic value. PARPROV1/PARLIFE1
+success-only and PARBIND1 typed-error semantics remain unchanged.
+
+The private signal copies source/module identity, source expression, relevant
+spans, source hash/length, proof indices, code, and literal message bytes into
+caller-owned buffers. Its semantic digest excludes provider capacity and
+physical facts; a separate provenance digest binds the local authority,
+generation, completions, counts, and cancellation. `measure`, `run`, and
+`verify` enforce checked capacities, full producer-range disjointness, exact
+signal pointers, all-or-nothing publication, and final infallible commit.
+The copied signal remains readable after frontend/HIR teardown, while
+independent verification still needs the live producer graph. Focused C23
+evidence is Windows x64 and compiler-lifecycle only; this bridge is not
+`PanicEvent`, a Task ABI/runtime, native HIR execution, cleanup/teardown, a
+public product, or a benchmark/performance claim.
+
 `w_seed_parallel_provider1` is the measured Windows successor. Measure reports
 one semantic outcome and one physical workspace value per PARINV1 task. The
 platform adapter receives one indexed job descriptor and executes constant-size

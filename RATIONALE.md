@@ -265,6 +265,7 @@ O corpus compara, no mínimo:
 - source panic lowering against ordinary-call encoding, unrestricted message shapes, bottom-type poisoning, text-layout overlap, and runtime overclaim.
 - executable panic lowering against empty-program admission, retained release payloads, recoverable control flow, and fault-boundary overclaim.
 - source-selected parallel panic tasks against scalar-value coercion, malformed HIR provenance, and provider/runtime overclaim.
+- source-selected parallel panic provider binding against success-only route widening, forged physical receipts, copied-identity loss, and authority overclaim.
 - bounded dual-target process/parallel linkage against direct-call substitution, CRT fallback, hidden runtime input, target conflation, and premature public or benchmark claims.
 - bounded GPU0 target-neutral semantic and available CUDA execution against source-backed W claims, provider/runtime conflation, homogeneous toolchains, and premature public product support.
 - bounded static accelerated root binding against embedded provider handles, multiplied budgets, and unauthenticated claims.
@@ -7966,6 +7967,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1624 | bounded source panic to verified HIR0 | PANIC0 recognizes source `panic` as a dedicated owner and lowers exactly one unlabelled plain String literal to a verified HIR0 `PANIC` terminator with `Never` result, copied message value, closed explicit code, semantic/provenance digests, and no ordinary call or instruction. Invalid shapes fail closed and native-process `usize` remains disjoint from `Never`. | `source-backed-current` only for parser/frontend/HIR0 measure-run-verify, the exact literal shape, bottom-path completion, caller-owned transactional buffers, digest/receipt coverage, native-process layout coexistence, and focused C23 tests. Panic execution, `PanicEvent`, cleanup, boundary selection, teardown/restart, public Task/runtime ABI, MLIR/native lowering, other message forms, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1625 | bounded explicit panic through executable MLIR0 | A reachable verified-HIR `PANIC` terminator lowers through the existing executable and native-process routes to `llvm.intr.trap` followed by `llvm.unreachable`. The selector validates the copied literal, admits ordinary/process/mixed-CFG panic, keeps empty non-panic programs unsupported, strips the message from the release-style artifact, and preserves existing schemas and non-panic artifact bytes. | `source-backed-current` only for the bounded executable MLIR0/native route and focused C23 plus Linux/WSL evidence. `PanicEvent`, message output, stable status/signal, guaranteed user cleanup, general fault-boundary containment, restart/supervision, parallel-provider composition, public panic ABI, benchmarks, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1626 | bounded source panic task in measured parallel invocation | A real source `panic(...)` child selected by `spawn<.domain>` is admitted only through the exact frontend and HIR parallel physical predicates. PARINV1 records a private `PANIC` task with HIR terminator, message-value, and explicit-code indices in its canonical semantic digest; scalar evaluation rejects that non-value task without mutating its output. | `source-backed-current` only for the bounded source-to-HIR/PARSEL1/PARINV1 compiler boundary, exact panic identity, strict ordinary scalar lane, transactional verification, and focused C23 evidence. No provider execution, `PanicEvent`, cleanup, lifecycle, public Task/runtime/ABI, native product, benchmark, or performance claim is made. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1627 | bounded source-selected panic through the private local provider | PARPANIC1 schema `w-seed-parallel-panic-binding1-1` separately carries verified source-selected PARINV1 panic tasks through the existing process-local Windows PLATFORM1 authority and publishes one copied, independently verifiable private signal with no semantic value; semantic identity excludes provider capacity and physical receipt facts, which remain in a separate provenance digest, while PARPROV1/PARLIFE1 success-only and PARBIND1 typed-error semantics remain unchanged. | `source-backed-current` only for the bounded source-to-HIR/PARSEL1/PARINV1/PARPANIC1 Windows x64 compiler boundary, exact copied source and module identity, message and span preservation across teardown, complete provider receipt and local-authority revalidation, capacity and writable-range alias barriers, two-panic semantic equality with distinct provenance, no-panic non-publication, and focused C23 evidence. The local authority proves only the existing static process-local seal and receipt, not signature, attestation, freshness, registry trust, or native-HIR execution. Public `PanicEvent`, Task ABI/runtime, cleanup or general teardown, other targets/providers, native HIR execution, public product, benchmark, and performance claims remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -13532,3 +13534,53 @@ This proves representation and independent verification only. It does not run
 a provider, materialize `PanicEvent`, perform cleanup or lifecycle handling,
 define a public Task/runtime contract, execute a native product, or provide a
 benchmark or performance result. Those remain later composition boundaries.
+
+#### W-1627 — bounded source-selected panic through the private local provider
+
+The next slice composes the verified source panic task with the existing
+private provider boundary, but keeps the ownership and semantic lanes separate.
+PARPANIC1 is a new `w-seed-parallel-panic-binding1-1` component consuming
+verified HIR, PARSEL1, PARINV1, a process-local PLATFORM1 authority, provider
+capacity, and generation. PARPROV1 and PARLIFE1 remain success-only, and
+PARBIND1's typed-error contract is unchanged. The compiler-owned callback maps
+verified `VALUE_I64` tasks to exact scalar success and `TASK_PANIC` tasks to the
+explicit panic completion already recorded by PARINV1; it neither executes HIR
+or the MLIR trap nor fabricates ordinary errors or cancellation.
+
+The plan may contain one or more panic tasks when the existing PLATFORM1 wave
+logic supports them. The primary signal is the receipt's deterministic lexical
+`panic_source_index`, which is checked again against the PARINV1 task. Run and
+verify require the complete completion/receipt facts: panic code and dominance,
+source and cancellation indices, started/settled/canceled counts, provider
+kind/capacity, authority receipt, and generation. The local authority proves
+only the static process-local seal and receipt already available in this
+workspace. It does not provide cryptographic signature, attestation, freshness,
+registry trust, or native-HIR execution.
+
+After those checks, the bridge commits one private signal with no semantic
+value. It copies source/module identity, derivable source expression, relevant
+function/call/terminator spans, source hash/length, HIR proof indices, explicit
+code, and literal bytes into caller-owned buffers. Signal pointers must point
+exactly to those buffers, so the signal remains readable after frontend and
+HIR teardown; independent verification still depends on the live producer
+graph. Semantic digest input is limited to producer semantic digests and this
+copied identity, including the primary indices, code, spans, source facts, and
+message bytes. Authority, capacity, generation, completions, physical counts,
+and cancellation belong only to the separate provenance digest.
+
+`measure`, `run`, and `verify` are caller-owned and bounded. They check exact
+capacities, checked arithmetic, full producer extents, and pairwise disjoint
+writable ranges. Failed calls preserve published buffers and result; provider
+completion scratch is the sole permitted mutation on a failed provider
+execution. `run` stages all variable bytes and records and has no fallible step
+after the final infallible commit writes the first output byte.
+
+The focused C23 witness proves the exact mixed source route on the Windows x64
+local provider, forged task/index/message/digest/authority/receipt rejection,
+capacity and all writable-range aliases, unchanged success-only behavior, two
+panic tasks with capacity-independent semantic identity and distinct physical
+provenance, no-panic non-publication, copied-message verification, and producer
+teardown readability. This remains bounded `compiler-lifecycle` evidence only;
+it does not materialize `PanicEvent`, define Task ABI/runtime behavior, claim
+native HIR execution, cleanup, general teardown, other targets/providers, a
+public product, a benchmark, or performance.

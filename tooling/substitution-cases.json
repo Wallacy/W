@@ -10195,6 +10195,71 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-parallel-panic-binding1",
+      "reviewItem": "source-selected parallel panic provider binding against success-only route widening, forged physical receipts, copied-identity loss, and authority overclaim",
+      "decisions": [
+        "W-1627"
+      ],
+      "task": "Carry verified source-selected PARINV1 panic tasks through the existing private Windows local-provider boundary and publish one copied, independently verifiable panic signal without changing success-only or typed-error routes.",
+      "selected": {
+        "language": "w-internal",
+        "source": [
+          "PARPANIC1 is a separate w-seed-parallel-panic-binding1-1 component above verified HIR, PARSEL1, PARINV1, and one process-local provider authority",
+          "the compiler-owned adapter maps VALUE_I64 to the exact scalar success and TASK_PANIC to the exact explicit PLATFORM1 panic completion",
+          "the signal copies source/module identity, relevant spans, source hash/length, code, indices, and literal bytes into caller-owned buffers with no semantic value",
+          "semantic digest excludes capacity and physical receipt facts while provenance binds authority, provider, generation, counts, cancellation, and every completion"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "widen-success-route",
+          "language": "w-internal-rejected",
+          "source": [
+            "make PARPROV1 or PARLIFE1 publish a panic through their success-only schema"
+          ],
+          "expectedDifference": "PARPANIC1 remains a separate private component, preserving the existing success-only and typed-error semantics."
+        },
+        {
+          "name": "fabricate-receipt",
+          "language": "w-internal-rejected",
+          "source": [
+            "accept a forged task kind, source index, completion, cancellation count, provider kind, authority, or generation"
+          ],
+          "expectedDifference": "Run and verify rederive the source panic identity, validate the complete PLATFORM1 physical receipt, and revalidate the local authority."
+        },
+        {
+          "name": "borrow-producer-bytes",
+          "language": "w-internal-rejected",
+          "source": [
+            "publish signal pointers into HIR/frontend source or retain a live producer view"
+          ],
+          "expectedDifference": "The final commit copies identity and message bytes into caller-owned buffers; the signal remains readable after producer teardown, while independent verification still needs live producers."
+        },
+        {
+          "name": "physical-semantic-mix",
+          "language": "w-internal-rejected",
+          "source": [
+            "include provider capacity, generation, or receipt counts in semantic identity"
+          ],
+          "expectedDifference": "Capacity-one and capacity-two runs share semantic identity; authority and physical facts are isolated in provenance."
+        },
+        {
+          "name": "authority-attestation",
+          "language": "w-internal-rejected",
+          "source": [
+            "treat the process-local seal as a signature, attestation, freshness proof, registry trust, or native-HIR execution authority"
+          ],
+          "expectedDifference": "The authority authenticates only the existing static process-local seal and receipt at this private boundary."
+        }
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

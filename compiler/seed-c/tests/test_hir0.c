@@ -2,6 +2,7 @@
 #include "w_seed_mlir0.h"
 #include "w_seed_parallel_invocation0.h"
 #include "w_seed_parallel_invocation1.h"
+#include "w_seed_parallel_panic_binding1.h"
 #include "w_seed_parallel_lifecycle1.h"
 #include "w_seed_parallel_provider0.h"
 #include "w_seed_parallel_provider1.h"
@@ -4638,6 +4639,984 @@ static bool test_parallel_panic_invocation1(void) {
       &fixture.hir_program, &fixture.hir_result, &selection,
       &selection_result, &invocation, &invocation_result));
   return true;
+}
+
+static bool test_parallel_panic_binding1(void) {
+#if !defined(_WIN32) || !defined(_WIN64)
+  /* The current local PLATFORM1 authority is deliberately Windows-only. */
+  return true;
+#else
+  static const char SOURCE[] =
+      "fn prepare(value: i64): i64 { return value + 1 }\n"
+      "fn fail(): i64 { panic(\"parallel invariant\") }\n"
+      "entry { let firstTask = spawn<.domain> prepare(value: 20) "
+      "let secondTask = spawn<.domain> fail() "
+      "let first = await firstTask let second = await secondTask }\n";
+  CHECK(lower_parallel_domain(SOURCE));
+
+  w_seed_parallel_selection1_counts selection_counts;
+  w_seed_parallel_selection1_result selection_result;
+  CHECK(w_seed_parallel_selection1_measure(
+            &fixture.hir_program, &fixture.hir_result, &selection_counts,
+            &selection_result) == W_SEED_PARALLEL_SELECTION1_OK &&
+        selection_counts.tasks == 2u);
+  w_seed_parallel_selection1_task selection_tasks[2];
+  const w_seed_parallel_selection1_output selection_output = {
+      selection_tasks, 2u};
+  CHECK(w_seed_parallel_selection1_run(
+            &fixture.hir_program, &fixture.hir_result, &selection_output,
+            &selection_result) == W_SEED_PARALLEL_SELECTION1_OK);
+  w_seed_parallel_selection1_program selection;
+  CHECK(w_seed_parallel_selection1_program_from_output(
+            &selection_output, &selection_result, &selection) &&
+        w_seed_parallel_selection1_verify(
+            &fixture.hir_program, &fixture.hir_result, &selection,
+            &selection_result));
+
+  w_seed_parallel_invocation1_counts invocation_counts;
+  w_seed_parallel_invocation1_result invocation_result;
+  CHECK(w_seed_parallel_invocation1_measure(
+            &fixture.hir_program, &fixture.hir_result, &selection,
+            &selection_result, &invocation_counts, &invocation_result) ==
+            W_SEED_PARALLEL_INVOCATION1_OK &&
+        invocation_counts.tasks == 2u && invocation_counts.arguments == 1u);
+  w_seed_parallel_invocation1_task invocation_tasks[2];
+  w_seed_parallel_invocation1_argument invocation_arguments[1];
+  const w_seed_parallel_invocation1_output invocation_output = {
+      invocation_tasks, 2u, invocation_arguments, 1u};
+  CHECK(w_seed_parallel_invocation1_run(
+            &fixture.hir_program, &fixture.hir_result, &selection,
+            &selection_result, &invocation_output, &invocation_result) ==
+        W_SEED_PARALLEL_INVOCATION1_OK);
+  w_seed_parallel_invocation1_program invocation;
+  CHECK(w_seed_parallel_invocation1_program_from_output(
+            &invocation_output, &invocation_result, &invocation) &&
+        w_seed_parallel_invocation1_verify(
+            &fixture.hir_program, &fixture.hir_result, &selection,
+            &selection_result, &invocation, &invocation_result));
+
+  w_seed_parallel_local_provider1_authority authority;
+  CHECK(w_seed_parallel_local_provider1_open(
+            W_SEED_PARALLEL_LOCAL_PROVIDER1_WINDOWS_AMD64, &authority) &&
+        w_seed_parallel_local_provider1_verify(&authority));
+  const w_seed_parallel_panic_binding1_input input = {
+      &fixture.hir_program, &fixture.hir_result, &selection,
+      &selection_result, &invocation, &invocation_result, &authority, 1u,
+      7u};
+
+  w_seed_parallel_panic_binding1_counts required;
+  w_seed_parallel_panic_binding1_result measured;
+  CHECK(w_seed_parallel_panic_binding1_measure(&input, &required, &measured) ==
+            W_SEED_PARALLEL_PANIC_BINDING1_OK &&
+        required.source_id_bytes != 0u && required.module_id_bytes != 0u &&
+        required.message_bytes == sizeof("parallel invariant") - 1u &&
+        measured.required.source_id_bytes == required.source_id_bytes &&
+        measured.required.module_id_bytes == required.module_id_bytes &&
+        measured.required.message_bytes == required.message_bytes &&
+        measured.written.source_id_bytes == 0u &&
+        measured.written.module_id_bytes == 0u &&
+        measured.written.message_bytes == 0u && measured.task_count == 2u &&
+        measured.panic_count == 1u && measured.source_task_index == 1u &&
+        measured.generation == 7u);
+
+  union measure_alias_storage {
+    w_seed_parallel_panic_binding1_counts counts;
+    w_seed_parallel_panic_binding1_result result;
+  } measure_alias;
+  (void)memset(&measure_alias, 0x2au, sizeof(measure_alias));
+  const union measure_alias_storage measure_alias_before = measure_alias;
+  CHECK(w_seed_parallel_panic_binding1_measure(
+            &input, &measure_alias.counts, &measure_alias.result) ==
+            W_SEED_PARALLEL_PANIC_BINDING1_ALIAS &&
+        memcmp(&measure_alias, &measure_alias_before,
+               sizeof(measure_alias)) == 0);
+
+  uint8_t source_id[128];
+  uint8_t module_id[128];
+  uint8_t message[128];
+  w_seed_parallel_panic_binding1_signal signal;
+  w_seed_parallel_platform1_completion completions[2];
+  w_seed_parallel_platform1_receipt receipt;
+  w_seed_parallel_provider0_kind provider_kind;
+  const w_seed_parallel_panic_binding1_workspace workspace = {
+      completions, 2u, &receipt, &provider_kind};
+  const w_seed_parallel_panic_binding1_output output = {
+      source_id, sizeof(source_id), module_id, sizeof(module_id), message,
+      sizeof(message), &signal};
+  w_seed_parallel_panic_binding1_result result;
+  (void)memset(source_id, 0xa0, sizeof(source_id));
+  (void)memset(module_id, 0xa1, sizeof(module_id));
+  (void)memset(message, 0xa2, sizeof(message));
+  CHECK(w_seed_parallel_panic_binding1_run(&input, &workspace, &output,
+                                           &result) ==
+            W_SEED_PARALLEL_PANIC_BINDING1_OK &&
+        result.required.source_id_bytes == required.source_id_bytes &&
+        result.required.module_id_bytes == required.module_id_bytes &&
+        result.required.message_bytes == required.message_bytes &&
+        result.written.source_id_bytes == required.source_id_bytes &&
+        result.written.module_id_bytes == required.module_id_bytes &&
+        result.written.message_bytes == required.message_bytes &&
+        result.task_count == 2u && result.panic_count == 1u &&
+        result.source_task_index == 1u && result.generation == 7u);
+
+  const w_seed_parallel_invocation1_task *panic_task = &invocation.tasks[1];
+  const w_seed_hir0_module *panic_module =
+      &fixture.hir_program.modules[
+          fixture.hir_program.functions[panic_task->function_index]
+              .module_index];
+  const w_seed_hir0_value *panic_message =
+      &fixture.hir_program.values[panic_task->panic_message_value];
+  const w_seed_hir0_call *panic_call =
+      &fixture.hir_program.calls[panic_task->call_index];
+  const w_seed_hir0_function *panic_function =
+      &fixture.hir_program.functions[panic_task->function_index];
+  const w_seed_hir0_terminator *panic_terminator =
+      &fixture.hir_program.terminators[panic_task->panic_terminator];
+  CHECK(signal.source_task_index == 1u && signal.lexical_index == 1u &&
+        signal.call_index == panic_task->call_index &&
+        signal.function_index == panic_task->function_index &&
+        signal.module_index == panic_function->module_index &&
+        signal.source_expression == panic_call->source_expression &&
+        signal.terminator_index == panic_task->panic_terminator &&
+        signal.message_value_index == panic_task->panic_message_value &&
+        signal.panic_code == W_SEED_HIR0_PANIC_CODE_EXPLICIT &&
+        !signal.semantic_value_published &&
+        memcmp(&signal.function_span, &panic_function->source_span,
+               sizeof(signal.function_span)) == 0 &&
+        memcmp(&signal.call_span, &panic_call->source_span,
+               sizeof(signal.call_span)) == 0 &&
+        memcmp(&signal.terminator_span, &panic_terminator->source_span,
+               sizeof(signal.terminator_span)) == 0 &&
+        signal.source_length == panic_module->source_length &&
+        memcmp(signal.source_sha256, panic_module->source_sha256,
+               sizeof(signal.source_sha256)) == 0 &&
+        signal.source_id_bytes == source_id &&
+        signal.source_id_byte_count == panic_module->source_id.count &&
+        signal.module_id_bytes == module_id &&
+        signal.module_id_byte_count == panic_module->module_id.count &&
+        signal.message_bytes == message &&
+        signal.message_byte_count == panic_message->byte_count &&
+        memcmp(source_id,
+               fixture.hir_text + panic_module->source_id.offset,
+               required.source_id_bytes) == 0 &&
+        memcmp(module_id,
+               fixture.hir_text + panic_module->module_id.offset,
+               required.module_id_bytes) == 0 &&
+        memcmp(message, fixture.hir_value_bytes + panic_message->byte_offset,
+               required.message_bytes) == 0 &&
+        signal.provider_kind == W_SEED_PARALLEL_PROVIDER0_KIND_WINDOWS_KERNEL32 &&
+        signal.provider_capacity == 1u && signal.generation == 7u &&
+        signal.platform_receipt.started_count == 2u &&
+        signal.platform_receipt.settled_count == 2u &&
+        signal.platform_receipt.canceled_before_start_count == 0u &&
+        signal.platform_receipt.maximum_active == 1u &&
+        signal.platform_receipt.cancellation_requested &&
+        signal.platform_receipt.cancellation_source_index == 1u &&
+        signal.platform_receipt.panic_requested &&
+        signal.platform_receipt.panic_source_index == 1u &&
+        signal.platform_receipt.panic_code ==
+            W_SEED_PARALLEL_PLATFORM1_PANIC_EXPLICIT &&
+        w_seed_parallel_panic_binding1_verify(
+            &input, &workspace, &output, &result));
+
+  uint8_t source_before[sizeof(source_id)];
+  uint8_t module_before[sizeof(module_id)];
+  uint8_t message_before[sizeof(message)];
+  (void)memcpy(source_before, source_id, sizeof(source_id));
+  (void)memcpy(module_before, module_id, sizeof(module_id));
+  (void)memcpy(message_before, message, sizeof(message));
+  const w_seed_parallel_panic_binding1_signal signal_before = signal;
+  const w_seed_parallel_panic_binding1_result result_before = result;
+
+  w_seed_parallel_panic_binding1_output short_output = output;
+  short_output.message_capacity = required.message_bytes - 1u;
+  uint8_t short_source[128];
+  uint8_t short_module[128];
+  uint8_t short_message[128];
+  w_seed_parallel_panic_binding1_signal short_signal;
+  w_seed_parallel_panic_binding1_result short_result;
+  w_seed_parallel_platform1_completion short_completions[2];
+  w_seed_parallel_platform1_receipt short_receipt;
+  w_seed_parallel_provider0_kind short_provider_kind;
+  (void)memset(short_source, 0xa1, sizeof(short_source));
+  (void)memset(short_module, 0xa2, sizeof(short_module));
+  (void)memset(short_message, 0xa3, sizeof(short_message));
+  (void)memset(&short_signal, 0xa4, sizeof(short_signal));
+  (void)memset(&short_result, 0xa5, sizeof(short_result));
+  (void)memset(short_completions, 0xa6, sizeof(short_completions));
+  (void)memset(&short_receipt, 0xa7, sizeof(short_receipt));
+  (void)memset(&short_provider_kind, 0xa8, sizeof(short_provider_kind));
+  short_output.source_id_bytes = short_source;
+  short_output.module_id_bytes = short_module;
+  short_output.message_bytes = short_message;
+  short_output.signal = &short_signal;
+  const w_seed_parallel_panic_binding1_workspace short_workspace = {
+      short_completions, 2u, &short_receipt, &short_provider_kind};
+  uint8_t short_source_before[sizeof(short_source)];
+  uint8_t short_module_before[sizeof(short_module)];
+  uint8_t short_message_before[sizeof(short_message)];
+  (void)memcpy(short_source_before, short_source, sizeof(short_source));
+  (void)memcpy(short_module_before, short_module, sizeof(short_module));
+  (void)memcpy(short_message_before, short_message, sizeof(short_message));
+  const w_seed_parallel_panic_binding1_signal short_signal_before =
+      short_signal;
+  const w_seed_parallel_panic_binding1_result short_result_before =
+      short_result;
+  CHECK(w_seed_parallel_panic_binding1_run(&input, &short_workspace,
+                                           &short_output, &short_result) ==
+            W_SEED_PARALLEL_PANIC_BINDING1_CAPACITY &&
+        memcmp(short_source, short_source_before, sizeof(short_source)) == 0 &&
+        memcmp(short_module, short_module_before, sizeof(short_module)) == 0 &&
+        memcmp(short_message, short_message_before, sizeof(short_message)) == 0 &&
+        memcmp(&short_signal, &short_signal_before,
+               sizeof(short_signal)) == 0 &&
+        memcmp(&short_result, &short_result_before,
+               sizeof(short_result)) == 0);
+
+  uint8_t alias_source[128];
+  uint8_t alias_module[128];
+  uint8_t alias_message[128];
+  w_seed_parallel_panic_binding1_signal alias_signal;
+  w_seed_parallel_panic_binding1_result alias_result;
+  (void)memset(alias_source, 0xb1, sizeof(alias_source));
+  (void)memset(alias_module, 0xb2, sizeof(alias_module));
+  (void)memset(alias_message, 0xb3, sizeof(alias_message));
+  (void)memset(&alias_signal, 0xb4, sizeof(alias_signal));
+  (void)memset(&alias_result, 0xb5, sizeof(alias_result));
+  const w_seed_parallel_panic_binding1_output alias_output = {
+      alias_source, sizeof(alias_source), alias_source, sizeof(alias_source),
+      alias_message, sizeof(alias_message), &alias_signal};
+  uint8_t alias_source_before[sizeof(alias_source)];
+  (void)memcpy(alias_source_before, alias_source, sizeof(alias_source));
+  const w_seed_parallel_panic_binding1_result alias_result_before =
+      alias_result;
+  CHECK(w_seed_parallel_panic_binding1_run(
+            &input, &workspace, &alias_output, &alias_result) ==
+            W_SEED_PARALLEL_PANIC_BINDING1_ALIAS &&
+        memcmp(alias_source, alias_source_before, sizeof(alias_source)) == 0 &&
+        memcmp(&alias_result, &alias_result_before,
+               sizeof(alias_result)) == 0);
+
+  /* PARPROV1 remains success-only: its scalar adapter reaches task failure
+   * on the verified source panic and does not publish a partial result. */
+  const w_seed_parallel_provider1_input success_only_input = {
+      &fixture.hir_program, &fixture.hir_result, &selection,
+      &selection_result, &invocation, &invocation_result, 1u};
+  w_seed_parallel_provider1_outcome success_only_outcomes[2];
+  int64_t success_only_workspace[2];
+  w_seed_parallel_provider1_result success_only_result;
+  w_seed_parallel_provider1_receipt success_only_receipt;
+  (void)memset(success_only_outcomes, 0xc1, sizeof(success_only_outcomes));
+  (void)memset(success_only_workspace, 0xc2, sizeof(success_only_workspace));
+  (void)memset(&success_only_result, 0xc3, sizeof(success_only_result));
+  (void)memset(&success_only_receipt, 0xc4, sizeof(success_only_receipt));
+  const w_seed_parallel_provider1_outcome success_only_outcomes_before[2] = {
+      success_only_outcomes[0], success_only_outcomes[1]};
+  const w_seed_parallel_provider1_result success_only_result_before =
+      success_only_result;
+  const w_seed_parallel_provider1_receipt success_only_receipt_before =
+      success_only_receipt;
+  CHECK(w_seed_parallel_provider1_execute(
+            &success_only_input,
+            &(w_seed_parallel_provider1_output){
+                success_only_outcomes, 2u, success_only_workspace, 2u},
+            &success_only_result, &success_only_receipt) ==
+            W_SEED_PARALLEL_PROVIDER1_TASK_FAILURE &&
+        memcmp(success_only_outcomes, success_only_outcomes_before,
+               sizeof(success_only_outcomes)) == 0 &&
+        memcmp(&success_only_result, &success_only_result_before,
+               sizeof(success_only_result)) == 0 &&
+        memcmp(&success_only_receipt, &success_only_receipt_before,
+               sizeof(success_only_receipt)) == 0);
+
+  w_seed_parallel_panic_binding1_input forged_input = input;
+  w_seed_parallel_panic_binding1_counts forged_counts;
+  w_seed_parallel_panic_binding1_result forged_result;
+  (void)memset(&forged_counts, 0xd1, sizeof(forged_counts));
+  (void)memset(&forged_result, 0xd2, sizeof(forged_result));
+  const w_seed_parallel_panic_binding1_counts forged_counts_before =
+      forged_counts;
+  const w_seed_parallel_panic_binding1_result forged_result_before =
+      forged_result;
+  w_seed_parallel_invocation1_task saved_task = invocation_tasks[1];
+  invocation_tasks[1].kind = W_SEED_PARALLEL_INVOCATION1_TASK_VALUE_I64;
+  CHECK(w_seed_parallel_panic_binding1_measure(
+            &input, &forged_counts, &forged_result) ==
+            W_SEED_PARALLEL_PANIC_BINDING1_HIR &&
+        memcmp(&forged_counts, &forged_counts_before,
+               sizeof(forged_counts)) == 0 &&
+        memcmp(&forged_result, &forged_result_before,
+               sizeof(forged_result)) == 0);
+  invocation_tasks[1] = saved_task;
+  invocation_tasks[1].call_index = W_SEED_HIR0_NONE;
+  CHECK(w_seed_parallel_panic_binding1_measure(
+            &input, &forged_counts, &forged_result) ==
+            W_SEED_PARALLEL_PANIC_BINDING1_HIR);
+  invocation_tasks[1] = saved_task;
+  invocation_tasks[1].panic_terminator ^= 1u;
+  CHECK(w_seed_parallel_panic_binding1_measure(
+            &input, &forged_counts, &forged_result) ==
+            W_SEED_PARALLEL_PANIC_BINDING1_HIR);
+  invocation_tasks[1] = saved_task;
+  invocation_tasks[1].panic_message_value = W_SEED_HIR0_NONE;
+  CHECK(w_seed_parallel_panic_binding1_measure(
+            &input, &forged_counts, &forged_result) ==
+            W_SEED_PARALLEL_PANIC_BINDING1_HIR);
+  invocation_tasks[1] = saved_task;
+  const w_seed_parallel_invocation1_result saved_invocation_result =
+      invocation_result;
+  invocation_result.semantic_digest[0] ^= 1u;
+  CHECK(w_seed_parallel_panic_binding1_measure(
+            &input, &forged_counts, &forged_result) ==
+            W_SEED_PARALLEL_PANIC_BINDING1_HIR);
+  invocation_result = saved_invocation_result;
+  CHECK(w_seed_parallel_panic_binding1_measure(
+            &input, &forged_counts, &forged_result) ==
+            W_SEED_PARALLEL_PANIC_BINDING1_OK);
+
+  w_seed_parallel_local_provider1_authority forged_authority = authority;
+  forged_authority.receipt.generation ^= 1u;
+  forged_input.provider_authority = &forged_authority;
+  CHECK(w_seed_parallel_panic_binding1_run(&forged_input, &workspace, &output,
+                                           &result) ==
+            W_SEED_PARALLEL_PANIC_BINDING1_AUTHORITY &&
+        memcmp(source_id, source_before, sizeof(source_id)) == 0 &&
+        memcmp(module_id, module_before, sizeof(module_id)) == 0 &&
+        memcmp(message, message_before, sizeof(message)) == 0 &&
+        memcmp(&signal, &signal_before, sizeof(signal)) == 0 &&
+        memcmp(&result, &result_before, sizeof(result)) == 0);
+  forged_input.provider_authority = &authority;
+  forged_input.generation = 0u;
+  CHECK(w_seed_parallel_panic_binding1_run(&forged_input, &workspace, &output,
+                                           &result) ==
+            W_SEED_PARALLEL_PANIC_BINDING1_INVALID &&
+        memcmp(source_id, source_before, sizeof(source_id)) == 0 &&
+        memcmp(&signal, &signal_before, sizeof(signal)) == 0 &&
+        memcmp(&result, &result_before, sizeof(result)) == 0);
+  forged_input.generation = input.generation;
+
+  const w_seed_parallel_platform1_receipt saved_receipt = receipt;
+  receipt.cancellation_source_index ^= 1u;
+  CHECK(!w_seed_parallel_panic_binding1_verify(&input, &workspace, &output,
+                                               &result));
+  receipt = saved_receipt;
+  const w_seed_parallel_platform1_completion saved_completion = completions[0];
+  completions[0].kind = W_SEED_PARALLEL_PLATFORM1_COMPLETION_PANIC;
+  CHECK(!w_seed_parallel_panic_binding1_verify(&input, &workspace, &output,
+                                               &result));
+  completions[0] = saved_completion;
+  const w_seed_parallel_provider0_kind saved_kind = provider_kind;
+  provider_kind = W_SEED_PARALLEL_PROVIDER0_KIND_NONE;
+  CHECK(!w_seed_parallel_panic_binding1_verify(&input, &workspace, &output,
+                                               &result));
+  provider_kind = saved_kind;
+  const uint8_t *saved_message_pointer = signal.message_bytes;
+  signal.message_bytes = message + 1u;
+  CHECK(!w_seed_parallel_panic_binding1_verify(&input, &workspace, &output,
+                                               &result));
+  signal.message_bytes = saved_message_pointer;
+  const size_t saved_message_count = signal.message_byte_count;
+  signal.message_byte_count += 1u;
+  CHECK(!w_seed_parallel_panic_binding1_verify(&input, &workspace, &output,
+                                               &result));
+  signal.message_byte_count = saved_message_count;
+  const uint8_t saved_result_digest = result.semantic_digest[0];
+  result.semantic_digest[0] ^= 1u;
+  CHECK(!w_seed_parallel_panic_binding1_verify(&input, &workspace, &output,
+                                               &result));
+  result.semantic_digest[0] = saved_result_digest;
+  CHECK(w_seed_parallel_panic_binding1_verify(&input, &workspace, &output,
+                                              &result));
+
+  uint8_t source_id_two[128];
+  uint8_t module_id_two[128];
+  uint8_t message_two[128];
+  w_seed_parallel_panic_binding1_signal signal_two;
+  w_seed_parallel_platform1_completion completions_two[2];
+  w_seed_parallel_platform1_receipt receipt_two;
+  w_seed_parallel_provider0_kind provider_kind_two;
+  const w_seed_parallel_panic_binding1_workspace workspace_two = {
+      completions_two, 2u, &receipt_two, &provider_kind_two};
+  const w_seed_parallel_panic_binding1_output output_two = {
+      source_id_two, sizeof(source_id_two), module_id_two, sizeof(module_id_two),
+      message_two, sizeof(message_two), &signal_two};
+  w_seed_parallel_panic_binding1_result result_two;
+  w_seed_parallel_panic_binding1_input input_two = input;
+  input_two.provider_capacity = 2u;
+  CHECK(w_seed_parallel_panic_binding1_run(
+            &input_two, &workspace_two, &output_two, &result_two) ==
+            W_SEED_PARALLEL_PANIC_BINDING1_OK &&
+        w_seed_parallel_panic_binding1_verify(
+            &input_two, &workspace_two, &output_two, &result_two) &&
+        memcmp(result.semantic_digest, result_two.semantic_digest,
+               sizeof(result.semantic_digest)) == 0 &&
+        memcmp(result.provenance_digest, result_two.provenance_digest,
+               sizeof(result.provenance_digest)) != 0 &&
+        memcmp(message, message_two, required.message_bytes) == 0);
+
+  enum {
+    PANIC_ALIAS_WORKSPACE = 0u,
+    PANIC_ALIAS_COMPLETIONS,
+    PANIC_ALIAS_RECEIPT,
+    PANIC_ALIAS_PROVIDER_KIND,
+    PANIC_ALIAS_OUTPUT,
+    PANIC_ALIAS_SOURCE,
+    PANIC_ALIAS_MODULE,
+    PANIC_ALIAS_MESSAGE,
+    PANIC_ALIAS_SIGNAL,
+    PANIC_ALIAS_RESULT,
+  };
+  typedef struct {
+    unsigned pointer_slot;
+    unsigned target_slot;
+  } panic_alias_pair;
+  /* The ten writable ranges have 45 unordered pairs. Three descriptor-to-
+   * descriptor argument reinterpretations are not representable in C; the
+   * remaining 42 pointer/range cases are exercised below. */
+  static const panic_alias_pair PANIC_ALIAS_PAIRS[] = {
+      {PANIC_ALIAS_COMPLETIONS, PANIC_ALIAS_WORKSPACE},
+      {PANIC_ALIAS_RECEIPT, PANIC_ALIAS_WORKSPACE},
+      {PANIC_ALIAS_PROVIDER_KIND, PANIC_ALIAS_WORKSPACE},
+      {PANIC_ALIAS_SOURCE, PANIC_ALIAS_WORKSPACE},
+      {PANIC_ALIAS_MODULE, PANIC_ALIAS_WORKSPACE},
+      {PANIC_ALIAS_MESSAGE, PANIC_ALIAS_WORKSPACE},
+      {PANIC_ALIAS_SIGNAL, PANIC_ALIAS_WORKSPACE},
+      {PANIC_ALIAS_RECEIPT, PANIC_ALIAS_COMPLETIONS},
+      {PANIC_ALIAS_PROVIDER_KIND, PANIC_ALIAS_COMPLETIONS},
+      {PANIC_ALIAS_COMPLETIONS, PANIC_ALIAS_OUTPUT},
+      {PANIC_ALIAS_SOURCE, PANIC_ALIAS_COMPLETIONS},
+      {PANIC_ALIAS_MODULE, PANIC_ALIAS_COMPLETIONS},
+      {PANIC_ALIAS_MESSAGE, PANIC_ALIAS_COMPLETIONS},
+      {PANIC_ALIAS_SIGNAL, PANIC_ALIAS_COMPLETIONS},
+      {PANIC_ALIAS_COMPLETIONS, PANIC_ALIAS_RESULT},
+      {PANIC_ALIAS_PROVIDER_KIND, PANIC_ALIAS_RECEIPT},
+      {PANIC_ALIAS_RECEIPT, PANIC_ALIAS_OUTPUT},
+      {PANIC_ALIAS_SOURCE, PANIC_ALIAS_RECEIPT},
+      {PANIC_ALIAS_MODULE, PANIC_ALIAS_RECEIPT},
+      {PANIC_ALIAS_MESSAGE, PANIC_ALIAS_RECEIPT},
+      {PANIC_ALIAS_SIGNAL, PANIC_ALIAS_RECEIPT},
+      {PANIC_ALIAS_RECEIPT, PANIC_ALIAS_RESULT},
+      {PANIC_ALIAS_PROVIDER_KIND, PANIC_ALIAS_OUTPUT},
+      {PANIC_ALIAS_SOURCE, PANIC_ALIAS_PROVIDER_KIND},
+      {PANIC_ALIAS_MODULE, PANIC_ALIAS_PROVIDER_KIND},
+      {PANIC_ALIAS_MESSAGE, PANIC_ALIAS_PROVIDER_KIND},
+      {PANIC_ALIAS_SIGNAL, PANIC_ALIAS_PROVIDER_KIND},
+      {PANIC_ALIAS_PROVIDER_KIND, PANIC_ALIAS_RESULT},
+      {PANIC_ALIAS_SOURCE, PANIC_ALIAS_OUTPUT},
+      {PANIC_ALIAS_MODULE, PANIC_ALIAS_OUTPUT},
+      {PANIC_ALIAS_MESSAGE, PANIC_ALIAS_OUTPUT},
+      {PANIC_ALIAS_SIGNAL, PANIC_ALIAS_OUTPUT},
+      {PANIC_ALIAS_MODULE, PANIC_ALIAS_SOURCE},
+      {PANIC_ALIAS_MESSAGE, PANIC_ALIAS_SOURCE},
+      {PANIC_ALIAS_SIGNAL, PANIC_ALIAS_SOURCE},
+      {PANIC_ALIAS_SOURCE, PANIC_ALIAS_RESULT},
+      {PANIC_ALIAS_MESSAGE, PANIC_ALIAS_MODULE},
+      {PANIC_ALIAS_SIGNAL, PANIC_ALIAS_MODULE},
+      {PANIC_ALIAS_MODULE, PANIC_ALIAS_RESULT},
+      {PANIC_ALIAS_SIGNAL, PANIC_ALIAS_MESSAGE},
+      {PANIC_ALIAS_MESSAGE, PANIC_ALIAS_RESULT},
+      {PANIC_ALIAS_SIGNAL, PANIC_ALIAS_RESULT},
+  };
+  for (size_t pair_index = 0u;
+       pair_index < sizeof(PANIC_ALIAS_PAIRS) / sizeof(PANIC_ALIAS_PAIRS[0]);
+       pair_index += 1u) {
+    uint8_t alias_source_bytes[128];
+    uint8_t alias_module_bytes[128];
+    uint8_t alias_message_bytes[128];
+    w_seed_parallel_platform1_completion alias_completions[2];
+    w_seed_parallel_platform1_receipt alias_receipt;
+    w_seed_parallel_provider0_kind alias_provider_kind;
+    w_seed_parallel_panic_binding1_signal pair_alias_signal;
+    w_seed_parallel_panic_binding1_result pair_alias_result;
+    (void)memset(alias_source_bytes, 0x31, sizeof(alias_source_bytes));
+    (void)memset(alias_module_bytes, 0x32, sizeof(alias_module_bytes));
+    (void)memset(alias_message_bytes, 0x33, sizeof(alias_message_bytes));
+    (void)memset(alias_completions, 0x34, sizeof(alias_completions));
+    (void)memset(&alias_receipt, 0x35, sizeof(alias_receipt));
+    (void)memset(&alias_provider_kind, 0x36, sizeof(alias_provider_kind));
+    (void)memset(&pair_alias_signal, 0x37, sizeof(pair_alias_signal));
+    (void)memset(&pair_alias_result, 0x38, sizeof(pair_alias_result));
+    w_seed_parallel_panic_binding1_workspace alias_workspace = {
+        alias_completions, 2u, &alias_receipt, &alias_provider_kind};
+    w_seed_parallel_panic_binding1_output pair_alias_output = {
+        alias_source_bytes, sizeof(alias_source_bytes), alias_module_bytes,
+        sizeof(alias_module_bytes), alias_message_bytes,
+        sizeof(alias_message_bytes), &pair_alias_signal};
+    uint8_t source_snapshot[sizeof(alias_source_bytes)];
+    uint8_t module_snapshot[sizeof(alias_module_bytes)];
+    uint8_t message_snapshot[sizeof(alias_message_bytes)];
+    w_seed_parallel_platform1_completion completion_snapshot[2];
+    w_seed_parallel_platform1_receipt receipt_snapshot;
+    w_seed_parallel_provider0_kind provider_kind_snapshot;
+    w_seed_parallel_panic_binding1_signal signal_snapshot;
+    w_seed_parallel_panic_binding1_result result_snapshot;
+    (void)memcpy(source_snapshot, alias_source_bytes,
+                 sizeof(source_snapshot));
+    (void)memcpy(module_snapshot, alias_module_bytes,
+                 sizeof(module_snapshot));
+    (void)memcpy(message_snapshot, alias_message_bytes,
+                 sizeof(message_snapshot));
+    (void)memcpy(completion_snapshot, alias_completions,
+                 sizeof(completion_snapshot));
+    receipt_snapshot = alias_receipt;
+    provider_kind_snapshot = alias_provider_kind;
+    signal_snapshot = pair_alias_signal;
+    result_snapshot = pair_alias_result;
+
+    const panic_alias_pair pair = PANIC_ALIAS_PAIRS[pair_index];
+    w_seed_parallel_panic_binding1_workspace *workspace_argument =
+        &alias_workspace;
+    const w_seed_parallel_panic_binding1_output *output_argument =
+        &pair_alias_output;
+    w_seed_parallel_panic_binding1_result *result_argument =
+        &pair_alias_result;
+    void *target = NULL;
+    switch (pair.target_slot) {
+      case PANIC_ALIAS_WORKSPACE:
+        target = (void *)&alias_workspace;
+        break;
+      case PANIC_ALIAS_COMPLETIONS:
+        target = (void *)alias_workspace.completions;
+        break;
+      case PANIC_ALIAS_RECEIPT:
+        target = (void *)alias_workspace.receipt;
+        break;
+      case PANIC_ALIAS_PROVIDER_KIND:
+        target = (void *)alias_workspace.provider_kind;
+        break;
+      case PANIC_ALIAS_OUTPUT:
+        target = (void *)&pair_alias_output;
+        break;
+      case PANIC_ALIAS_SOURCE:
+        target = (void *)pair_alias_output.source_id_bytes;
+        break;
+      case PANIC_ALIAS_MODULE:
+        target = (void *)pair_alias_output.module_id_bytes;
+        break;
+      case PANIC_ALIAS_MESSAGE:
+        target = (void *)pair_alias_output.message_bytes;
+        break;
+      case PANIC_ALIAS_SIGNAL:
+        target = (void *)pair_alias_output.signal;
+        break;
+      case PANIC_ALIAS_RESULT:
+        target = (void *)&pair_alias_result;
+        break;
+      default:
+        CHECK(false);
+    }
+    switch (pair.pointer_slot) {
+      case PANIC_ALIAS_COMPLETIONS:
+        alias_workspace.completions =
+            (w_seed_parallel_platform1_completion *)target;
+        break;
+      case PANIC_ALIAS_RECEIPT:
+        alias_workspace.receipt =
+            (w_seed_parallel_platform1_receipt *)target;
+        break;
+      case PANIC_ALIAS_PROVIDER_KIND:
+        alias_workspace.provider_kind =
+            (w_seed_parallel_provider0_kind *)target;
+        break;
+      case PANIC_ALIAS_SOURCE:
+        pair_alias_output.source_id_bytes = (uint8_t *)target;
+        break;
+      case PANIC_ALIAS_MODULE:
+        pair_alias_output.module_id_bytes = (uint8_t *)target;
+        break;
+      case PANIC_ALIAS_MESSAGE:
+        pair_alias_output.message_bytes = (uint8_t *)target;
+        break;
+      case PANIC_ALIAS_SIGNAL:
+        pair_alias_output.signal =
+            (w_seed_parallel_panic_binding1_signal *)target;
+        break;
+      default:
+        CHECK(false);
+    }
+    CHECK(w_seed_parallel_panic_binding1_run(
+              &input, workspace_argument, output_argument, result_argument) ==
+              W_SEED_PARALLEL_PANIC_BINDING1_ALIAS &&
+          memcmp(alias_source_bytes, source_snapshot,
+                 sizeof(alias_source_bytes)) == 0 &&
+          memcmp(alias_module_bytes, module_snapshot,
+                 sizeof(alias_module_bytes)) == 0 &&
+          memcmp(alias_message_bytes, message_snapshot,
+                 sizeof(alias_message_bytes)) == 0 &&
+          memcmp(alias_completions, completion_snapshot,
+                 sizeof(alias_completions)) == 0 &&
+          memcmp(&alias_receipt, &receipt_snapshot, sizeof(alias_receipt)) ==
+              0 &&
+          memcmp(&alias_provider_kind, &provider_kind_snapshot,
+                 sizeof(alias_provider_kind)) == 0 &&
+          memcmp(&pair_alias_signal, &signal_snapshot,
+                 sizeof(pair_alias_signal)) == 0 &&
+          memcmp(&pair_alias_result, &result_snapshot,
+                 sizeof(pair_alias_result)) == 0);
+  }
+
+  typedef struct {
+    const void *pointer;
+    size_t bytes;
+  } panic_input_alias_target;
+  const panic_input_alias_target PANIC_INPUT_ALIAS_TARGETS[] = {
+      {&input, sizeof(input)},
+      {&fixture.hir_program, sizeof(fixture.hir_program)},
+      {fixture.hir_modules, sizeof(fixture.hir_modules)},
+      {&fixture.hir_result, sizeof(fixture.hir_result)},
+      {&selection, sizeof(selection)},
+      {selection_tasks, sizeof(selection_tasks)},
+      {&selection_result, sizeof(selection_result)},
+      {&invocation, sizeof(invocation)},
+      {invocation_tasks, sizeof(invocation_tasks)},
+      {invocation_arguments, sizeof(invocation_arguments)},
+      {&invocation_result, sizeof(invocation_result)},
+      {&authority, sizeof(authority)},
+  };
+  for (size_t target_index = 0u;
+       target_index < sizeof(PANIC_INPUT_ALIAS_TARGETS) /
+                          sizeof(PANIC_INPUT_ALIAS_TARGETS[0]);
+       target_index += 1u) {
+    uint8_t alias_source_bytes[128];
+    uint8_t alias_module_bytes[128];
+    uint8_t alias_message_bytes[128];
+    w_seed_parallel_platform1_completion alias_completions[2];
+    w_seed_parallel_platform1_receipt alias_receipt;
+    w_seed_parallel_provider0_kind alias_provider_kind;
+    w_seed_parallel_panic_binding1_signal input_alias_signal;
+    w_seed_parallel_panic_binding1_result input_alias_result;
+    (void)memset(alias_source_bytes, 0x41, sizeof(alias_source_bytes));
+    (void)memset(alias_module_bytes, 0x42, sizeof(alias_module_bytes));
+    (void)memset(alias_message_bytes, 0x43, sizeof(alias_message_bytes));
+    (void)memset(alias_completions, 0x44, sizeof(alias_completions));
+    (void)memset(&alias_receipt, 0x45, sizeof(alias_receipt));
+    (void)memset(&alias_provider_kind, 0x46, sizeof(alias_provider_kind));
+    (void)memset(&input_alias_signal, 0x47, sizeof(input_alias_signal));
+    (void)memset(&input_alias_result, 0x48, sizeof(input_alias_result));
+    w_seed_parallel_panic_binding1_workspace alias_workspace = {
+        alias_completions, 2u, &alias_receipt, &alias_provider_kind};
+    w_seed_parallel_panic_binding1_output input_alias_output = {
+        alias_source_bytes, sizeof(alias_source_bytes), alias_module_bytes,
+        sizeof(alias_module_bytes), alias_message_bytes,
+        sizeof(alias_message_bytes), &input_alias_signal};
+    uint8_t source_snapshot[sizeof(alias_source_bytes)];
+    uint8_t module_snapshot[sizeof(alias_module_bytes)];
+    uint8_t message_snapshot[sizeof(alias_message_bytes)];
+    (void)memcpy(source_snapshot, alias_source_bytes,
+                 sizeof(source_snapshot));
+    (void)memcpy(module_snapshot, alias_module_bytes,
+                 sizeof(module_snapshot));
+    (void)memcpy(message_snapshot, alias_message_bytes,
+                 sizeof(message_snapshot));
+    const w_seed_parallel_panic_binding1_signal signal_snapshot =
+        input_alias_signal;
+    const w_seed_parallel_panic_binding1_result result_snapshot =
+        input_alias_result;
+    input_alias_output.message_bytes = (uint8_t *)(void *)PANIC_INPUT_ALIAS_TARGETS[
+        target_index]
+                                                   .pointer;
+    input_alias_output.message_capacity = required.message_bytes;
+    CHECK(PANIC_INPUT_ALIAS_TARGETS[target_index].bytes >=
+              required.message_bytes &&
+          w_seed_parallel_panic_binding1_run(
+              &input, &alias_workspace, &input_alias_output,
+              &input_alias_result) ==
+              W_SEED_PARALLEL_PANIC_BINDING1_ALIAS &&
+          memcmp(alias_source_bytes, source_snapshot,
+                 sizeof(alias_source_bytes)) == 0 &&
+          memcmp(alias_module_bytes, module_snapshot,
+                 sizeof(alias_module_bytes)) == 0 &&
+          memcmp(alias_message_bytes, message_snapshot,
+                 sizeof(alias_message_bytes)) == 0 &&
+          memcmp(&input_alias_signal, &signal_snapshot,
+                 sizeof(input_alias_signal)) == 0 &&
+          memcmp(&input_alias_result, &result_snapshot,
+                 sizeof(input_alias_result)) == 0);
+  }
+
+  static const char TWO_PANICS[] =
+      "fn firstPanic(): i64 { panic(\"first panic\") }\n"
+      "fn secondPanic(): i64 { panic(\"second panic\") }\n"
+      "entry { let firstTask = spawn<.domain> firstPanic() "
+      "let secondTask = spawn<.domain> secondPanic() "
+      "let first = await firstTask let second = await secondTask }\n";
+  CHECK(lower_parallel_domain(TWO_PANICS));
+  w_seed_parallel_selection1_counts two_selection_counts;
+  w_seed_parallel_selection1_result two_selection_result;
+  CHECK(w_seed_parallel_selection1_measure(
+            &fixture.hir_program, &fixture.hir_result, &two_selection_counts,
+            &two_selection_result) == W_SEED_PARALLEL_SELECTION1_OK &&
+        two_selection_counts.tasks == 2u);
+  w_seed_parallel_selection1_task two_selection_tasks[2];
+  const w_seed_parallel_selection1_output two_selection_output = {
+      two_selection_tasks, 2u};
+  CHECK(w_seed_parallel_selection1_run(
+            &fixture.hir_program, &fixture.hir_result, &two_selection_output,
+            &two_selection_result) == W_SEED_PARALLEL_SELECTION1_OK);
+  w_seed_parallel_selection1_program two_selection;
+  CHECK(w_seed_parallel_selection1_program_from_output(
+            &two_selection_output, &two_selection_result, &two_selection) &&
+        w_seed_parallel_selection1_verify(
+            &fixture.hir_program, &fixture.hir_result, &two_selection,
+            &two_selection_result));
+  w_seed_parallel_invocation1_counts two_invocation_counts;
+  w_seed_parallel_invocation1_result two_invocation_result;
+  CHECK(w_seed_parallel_invocation1_measure(
+            &fixture.hir_program, &fixture.hir_result, &two_selection,
+            &two_selection_result, &two_invocation_counts,
+            &two_invocation_result) == W_SEED_PARALLEL_INVOCATION1_OK &&
+        two_invocation_counts.tasks == 2u &&
+        two_invocation_counts.arguments == 0u);
+  w_seed_parallel_invocation1_task two_invocation_tasks[2];
+  const w_seed_parallel_invocation1_output two_invocation_output = {
+      two_invocation_tasks, 2u, NULL, 0u};
+  CHECK(w_seed_parallel_invocation1_run(
+            &fixture.hir_program, &fixture.hir_result, &two_selection,
+            &two_selection_result, &two_invocation_output,
+            &two_invocation_result) == W_SEED_PARALLEL_INVOCATION1_OK);
+  w_seed_parallel_invocation1_program two_invocation;
+  CHECK(w_seed_parallel_invocation1_program_from_output(
+            &two_invocation_output, &two_invocation_result, &two_invocation) &&
+        w_seed_parallel_invocation1_verify(
+            &fixture.hir_program, &fixture.hir_result, &two_selection,
+            &two_selection_result, &two_invocation,
+            &two_invocation_result) &&
+        two_invocation.tasks[0].kind ==
+            W_SEED_PARALLEL_INVOCATION1_TASK_PANIC &&
+        two_invocation.tasks[1].kind ==
+            W_SEED_PARALLEL_INVOCATION1_TASK_PANIC);
+  const w_seed_parallel_panic_binding1_input two_input = {
+      &fixture.hir_program, &fixture.hir_result, &two_selection,
+      &two_selection_result, &two_invocation, &two_invocation_result,
+      &authority, 1u, 11u};
+  w_seed_parallel_panic_binding1_counts two_required;
+  w_seed_parallel_panic_binding1_result two_measured;
+  CHECK(w_seed_parallel_panic_binding1_measure(
+            &two_input, &two_required, &two_measured) ==
+            W_SEED_PARALLEL_PANIC_BINDING1_OK &&
+        two_measured.task_count == 2u && two_measured.panic_count == 2u &&
+        two_measured.source_task_index == 0u);
+
+  uint8_t two_source_one[128];
+  uint8_t two_module_one[128];
+  uint8_t two_message_one[128];
+  w_seed_parallel_panic_binding1_signal two_signal_one;
+  w_seed_parallel_platform1_completion two_completions_one[2];
+  w_seed_parallel_platform1_receipt two_receipt_one;
+  w_seed_parallel_provider0_kind two_kind_one;
+  const w_seed_parallel_panic_binding1_workspace two_workspace_one = {
+      two_completions_one, 2u, &two_receipt_one, &two_kind_one};
+  const w_seed_parallel_panic_binding1_output two_output_one = {
+      two_source_one, sizeof(two_source_one), two_module_one,
+      sizeof(two_module_one), two_message_one, sizeof(two_message_one),
+      &two_signal_one};
+  w_seed_parallel_panic_binding1_result two_result_one;
+  CHECK(w_seed_parallel_panic_binding1_run(
+            &two_input, &two_workspace_one, &two_output_one,
+            &two_result_one) == W_SEED_PARALLEL_PANIC_BINDING1_OK &&
+        two_result_one.panic_count == 2u &&
+        two_result_one.source_task_index == 0u &&
+        two_signal_one.source_task_index == 0u &&
+        two_signal_one.lexical_index == 0u &&
+        two_signal_one.message_byte_count == sizeof("first panic") - 1u &&
+        memcmp(two_message_one, "first panic", sizeof("first panic") - 1u) ==
+            0 &&
+        two_signal_one.platform_receipt.panic_source_index == 0u &&
+        two_signal_one.platform_receipt.cancellation_source_index == 0u &&
+        two_signal_one.platform_receipt.started_count == 1u &&
+        two_signal_one.platform_receipt.settled_count == 1u &&
+        two_signal_one.platform_receipt.canceled_before_start_count == 1u &&
+        two_signal_one.platform_receipt.maximum_active == 1u &&
+        w_seed_parallel_panic_binding1_verify(
+            &two_input, &two_workspace_one, &two_output_one,
+            &two_result_one));
+
+  uint8_t two_source_two[128];
+  uint8_t two_module_two[128];
+  uint8_t two_message_two[128];
+  w_seed_parallel_panic_binding1_signal two_signal_two;
+  w_seed_parallel_platform1_completion two_completions_two[2];
+  w_seed_parallel_platform1_receipt two_receipt_two;
+  w_seed_parallel_provider0_kind two_kind_two;
+  const w_seed_parallel_panic_binding1_workspace two_workspace_two = {
+      two_completions_two, 2u, &two_receipt_two, &two_kind_two};
+  const w_seed_parallel_panic_binding1_output two_output_two = {
+      two_source_two, sizeof(two_source_two), two_module_two,
+      sizeof(two_module_two), two_message_two, sizeof(two_message_two),
+      &two_signal_two};
+  w_seed_parallel_panic_binding1_result two_result_two;
+  w_seed_parallel_panic_binding1_input two_input_capacity_two = two_input;
+  two_input_capacity_two.provider_capacity = 2u;
+  CHECK(w_seed_parallel_panic_binding1_run(
+            &two_input_capacity_two, &two_workspace_two, &two_output_two,
+            &two_result_two) == W_SEED_PARALLEL_PANIC_BINDING1_OK &&
+        two_result_two.panic_count == 2u &&
+        two_result_two.source_task_index == 0u &&
+        two_signal_two.source_task_index == 0u &&
+        two_signal_two.lexical_index == 0u &&
+        two_signal_two.platform_receipt.panic_source_index == 0u &&
+        two_signal_two.platform_receipt.cancellation_source_index == 0u &&
+        two_signal_two.platform_receipt.started_count == 2u &&
+        two_signal_two.platform_receipt.settled_count == 2u &&
+        two_signal_two.platform_receipt.canceled_before_start_count == 0u &&
+        two_signal_two.platform_receipt.maximum_active == 2u &&
+        memcmp(two_result_one.semantic_digest, two_result_two.semantic_digest,
+               sizeof(two_result_one.semantic_digest)) == 0 &&
+        memcmp(two_result_one.provenance_digest,
+               two_result_two.provenance_digest,
+               sizeof(two_result_one.provenance_digest)) != 0 &&
+        memcmp(two_message_one, two_message_two,
+               sizeof("first panic") - 1u) == 0 &&
+        w_seed_parallel_panic_binding1_verify(
+            &two_input_capacity_two, &two_workspace_two, &two_output_two,
+            &two_result_two));
+
+  static const char VALUE_ONLY[] =
+      "fn prepare(value: i64): i64 { return value + 1 }\n"
+      "entry { let pending = spawn<.domain> prepare(value: 20) "
+      "let value = await pending }\n";
+  CHECK(lower_parallel_domain(VALUE_ONLY));
+  w_seed_parallel_selection1_counts no_panic_selection_counts;
+  w_seed_parallel_selection1_result no_panic_selection_result;
+  CHECK(w_seed_parallel_selection1_measure(
+            &fixture.hir_program, &fixture.hir_result,
+            &no_panic_selection_counts, &no_panic_selection_result) ==
+            W_SEED_PARALLEL_SELECTION1_OK &&
+        no_panic_selection_counts.tasks == 1u);
+  w_seed_parallel_selection1_task no_panic_selection_tasks[1];
+  const w_seed_parallel_selection1_output no_panic_selection_output = {
+      no_panic_selection_tasks, 1u};
+  CHECK(w_seed_parallel_selection1_run(
+            &fixture.hir_program, &fixture.hir_result,
+            &no_panic_selection_output, &no_panic_selection_result) ==
+        W_SEED_PARALLEL_SELECTION1_OK);
+  w_seed_parallel_selection1_program no_panic_selection;
+  CHECK(w_seed_parallel_selection1_program_from_output(
+            &no_panic_selection_output, &no_panic_selection_result,
+            &no_panic_selection) &&
+        w_seed_parallel_selection1_verify(
+            &fixture.hir_program, &fixture.hir_result, &no_panic_selection,
+            &no_panic_selection_result));
+  w_seed_parallel_invocation1_counts no_panic_invocation_counts;
+  w_seed_parallel_invocation1_result no_panic_invocation_result;
+  CHECK(w_seed_parallel_invocation1_measure(
+            &fixture.hir_program, &fixture.hir_result, &no_panic_selection,
+            &no_panic_selection_result, &no_panic_invocation_counts,
+            &no_panic_invocation_result) ==
+            W_SEED_PARALLEL_INVOCATION1_OK &&
+        no_panic_invocation_counts.tasks == 1u);
+  w_seed_parallel_invocation1_task no_panic_invocation_tasks[1];
+  w_seed_parallel_invocation1_argument no_panic_invocation_arguments[1];
+  const w_seed_parallel_invocation1_output no_panic_invocation_output = {
+      no_panic_invocation_tasks, 1u, no_panic_invocation_arguments, 1u};
+  CHECK(w_seed_parallel_invocation1_run(
+            &fixture.hir_program, &fixture.hir_result, &no_panic_selection,
+            &no_panic_selection_result, &no_panic_invocation_output,
+            &no_panic_invocation_result) ==
+        W_SEED_PARALLEL_INVOCATION1_OK);
+  w_seed_parallel_invocation1_program no_panic_invocation;
+  CHECK(w_seed_parallel_invocation1_program_from_output(
+            &no_panic_invocation_output, &no_panic_invocation_result,
+            &no_panic_invocation) &&
+        w_seed_parallel_invocation1_verify(
+            &fixture.hir_program, &fixture.hir_result, &no_panic_selection,
+            &no_panic_selection_result, &no_panic_invocation,
+            &no_panic_invocation_result));
+  const w_seed_parallel_panic_binding1_input no_panic_input = {
+      &fixture.hir_program, &fixture.hir_result, &no_panic_selection,
+      &no_panic_selection_result, &no_panic_invocation,
+      &no_panic_invocation_result, &authority, 1u, 13u};
+  w_seed_parallel_panic_binding1_counts no_panic_counts;
+  w_seed_parallel_panic_binding1_result no_panic_result;
+  (void)memset(&no_panic_counts, 0x61, sizeof(no_panic_counts));
+  (void)memset(&no_panic_result, 0x62, sizeof(no_panic_result));
+  const w_seed_parallel_panic_binding1_counts no_panic_counts_before =
+      no_panic_counts;
+  const w_seed_parallel_panic_binding1_result no_panic_result_before =
+      no_panic_result;
+  CHECK(w_seed_parallel_panic_binding1_measure(
+            &no_panic_input, &no_panic_counts, &no_panic_result) ==
+            W_SEED_PARALLEL_PANIC_BINDING1_NO_PANIC &&
+        memcmp(&no_panic_counts, &no_panic_counts_before,
+               sizeof(no_panic_counts)) == 0 &&
+        memcmp(&no_panic_result, &no_panic_result_before,
+               sizeof(no_panic_result)) == 0);
+  uint8_t no_panic_source[128];
+  uint8_t no_panic_module[128];
+  uint8_t no_panic_message[128];
+  w_seed_parallel_platform1_completion no_panic_completions[1];
+  w_seed_parallel_platform1_receipt no_panic_receipt;
+  w_seed_parallel_provider0_kind no_panic_kind;
+  w_seed_parallel_panic_binding1_signal no_panic_signal;
+  (void)memset(no_panic_source, 0x63, sizeof(no_panic_source));
+  (void)memset(no_panic_module, 0x64, sizeof(no_panic_module));
+  (void)memset(no_panic_message, 0x65, sizeof(no_panic_message));
+  (void)memset(no_panic_completions, 0x66, sizeof(no_panic_completions));
+  (void)memset(&no_panic_receipt, 0x67, sizeof(no_panic_receipt));
+  (void)memset(&no_panic_kind, 0x68, sizeof(no_panic_kind));
+  (void)memset(&no_panic_signal, 0x69, sizeof(no_panic_signal));
+  w_seed_parallel_panic_binding1_workspace no_panic_workspace = {
+      no_panic_completions, 1u, &no_panic_receipt, &no_panic_kind};
+  const w_seed_parallel_panic_binding1_output no_panic_output = {
+      no_panic_source, sizeof(no_panic_source), no_panic_module,
+      sizeof(no_panic_module), no_panic_message, sizeof(no_panic_message),
+      &no_panic_signal};
+  w_seed_parallel_panic_binding1_result no_panic_run_result;
+  (void)memset(&no_panic_run_result, 0x6a, sizeof(no_panic_run_result));
+  uint8_t no_panic_source_before[sizeof(no_panic_source)];
+  uint8_t no_panic_module_before[sizeof(no_panic_module)];
+  uint8_t no_panic_message_before[sizeof(no_panic_message)];
+  (void)memcpy(no_panic_source_before, no_panic_source,
+               sizeof(no_panic_source));
+  (void)memcpy(no_panic_module_before, no_panic_module,
+               sizeof(no_panic_module));
+  (void)memcpy(no_panic_message_before, no_panic_message,
+               sizeof(no_panic_message));
+  const w_seed_parallel_panic_binding1_signal no_panic_signal_before =
+      no_panic_signal;
+  const w_seed_parallel_panic_binding1_result no_panic_run_before =
+      no_panic_run_result;
+  const w_seed_parallel_platform1_completion no_panic_completion_before =
+      no_panic_completions[0];
+  const w_seed_parallel_platform1_receipt no_panic_receipt_before =
+      no_panic_receipt;
+  const w_seed_parallel_provider0_kind no_panic_kind_before = no_panic_kind;
+  CHECK(w_seed_parallel_panic_binding1_run(
+            &no_panic_input, &no_panic_workspace, &no_panic_output,
+            &no_panic_run_result) == W_SEED_PARALLEL_PANIC_BINDING1_NO_PANIC &&
+        memcmp(no_panic_source, no_panic_source_before,
+               sizeof(no_panic_source)) == 0 &&
+        memcmp(no_panic_module, no_panic_module_before,
+               sizeof(no_panic_module)) == 0 &&
+        memcmp(no_panic_message, no_panic_message_before,
+               sizeof(no_panic_message)) == 0 &&
+        memcmp(&no_panic_signal, &no_panic_signal_before,
+               sizeof(no_panic_signal)) == 0 &&
+        memcmp(&no_panic_run_result, &no_panic_run_before,
+               sizeof(no_panic_run_result)) == 0 &&
+        memcmp(&no_panic_completions[0], &no_panic_completion_before,
+               sizeof(no_panic_completion_before)) == 0 &&
+        memcmp(&no_panic_receipt, &no_panic_receipt_before,
+               sizeof(no_panic_receipt)) == 0 &&
+        memcmp(&no_panic_kind, &no_panic_kind_before,
+               sizeof(no_panic_kind)) == 0);
+
+  uint8_t teardown_source[128];
+  uint8_t teardown_module[128];
+  uint8_t teardown_message[128];
+  (void)memcpy(teardown_source, source_id, sizeof(teardown_source));
+  (void)memcpy(teardown_module, module_id, sizeof(teardown_module));
+  (void)memcpy(teardown_message, message, sizeof(teardown_message));
+  (void)memset(fixture.hir_text, 0, fixture.hir_program.text_byte_count);
+  (void)memset(fixture.hir_value_bytes, 0,
+               fixture.hir_program.value_byte_count);
+  CHECK(signal.source_id_bytes == source_id &&
+        signal.module_id_bytes == module_id && signal.message_bytes == message &&
+        memcmp(source_id, teardown_source, sizeof(teardown_source)) == 0 &&
+        memcmp(module_id, teardown_module, sizeof(teardown_module)) == 0 &&
+        memcmp(message, teardown_message, sizeof(teardown_message)) == 0);
+  return true;
+#endif
 }
 
 static bool test_process_parallel_composition_hir(void) {
@@ -11013,6 +11992,7 @@ int main(int argc, char **argv) {
   if (!test_structured_async_elision_hir()) return 1;
   if (!test_parallel_domain_placement_hir()) return 1;
   if (!test_parallel_panic_invocation1()) return 1;
+  if (!test_parallel_panic_binding1()) return 1;
   if (!test_process_parallel_composition_hir()) return 1;
   if (!test_process_parallel_mlir()) return 1;
   if (!test_lowering_is_not_hello_hardcoded()) return 1;

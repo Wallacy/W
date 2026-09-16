@@ -265,3 +265,17 @@ explicit-code indices; its scalar evaluator rejects that task without
 mutating a value output. This does not execute a provider, materialize a
 `PanicEvent`, or define a public Task/runtime ABI. Provider execution,
 lifecycle, cleanup, and benchmarks remain open.
+
+W-1627 adds the separate PARPANIC1 (`w-seed-parallel-panic-binding1-1`) bridge
+from verified HIR/PARSEL1/PARINV1 through the existing process-local Windows
+PLATFORM1 authority. Its compiler-owned adapter maps scalar value tasks and
+source-selected panic tasks to their exact checked completions, then publishes
+one caller-owned private signal only after complete receipt, authority, identity,
+digest, capacity, and alias validation. The signal copies source/module
+identity, relevant spans, source facts, code, indices, and message bytes; no
+semantic value is published. Semantic identity excludes provider capacity and
+physical receipt facts, which remain in a separate provenance digest. Existing
+success-only PARPROV1/PARLIFE1 and typed PARBIND1 semantics remain unchanged.
+The focused C23 evidence is Windows x64 and `compiler-lifecycle` only; public
+`PanicEvent`, Task ABI/runtime, native-HIR execution, cleanup/teardown,
+portability, benchmark, and performance claims remain open.

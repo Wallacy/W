@@ -423,6 +423,19 @@ verification covers forged task kind and HIR provenance. This remains a
 `PanicEvent`, cleanup/lifecycle behavior, public Task/runtime/ABI, a native
 product, or a benchmark.
 
+W-1627 extends the focused C23 HIR gate through the separate PARPANIC1 private
+bridge. The exact source-selected PARINV1 panic plan crosses the existing
+Windows x64 process-local PLATFORM1 authority; the compiler-owned callback
+maps scalar values and explicit panic completions without changing PARPROV1,
+PARLIFE1, or PARBIND1 semantics. The unit verifies copied source/module
+identity and message bytes, exact receipt and authority facts, semantic versus
+provenance digest separation across capacities, producer teardown readability,
+two panic tasks, no-panic non-publication, pairwise representable writable-range
+aliases, and descriptor barriers. This remains bounded `compiler-lifecycle`
+evidence only: it does not
+claim `PanicEvent`, Task ABI/runtime, native HIR execution, cleanup/teardown,
+portability, a public product, or a benchmark/performance result.
+
 ACQ0 executa CHK6 em
 storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou
 CLI. Execute `bun check --target acquisition` para compilar os cinco targets focais,

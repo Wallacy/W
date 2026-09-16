@@ -41286,6 +41286,77 @@ handling, define a public Task/runtime/ABI contract, or claim a native product,
 benchmark, or performance result. Provider composition and the later panic
 lifecycle boundary remain open.
 
+#### 26.4.1.107 W-1627 — bounded source-selected panic through the private local provider
+
+<!-- w-example role=logical-contract -->
+```w
+// excerpt-kind: logical-contract
+fn prepare(value: i64): i64 {
+  return value + 1
+}
+
+fn fail(): i64 {
+  panic("parallel invariant")
+}
+
+entry {
+  let firstTask = spawn<.domain> prepare(value: 20)
+  let secondTask = spawn<.domain> fail()
+  let first = await firstTask
+  let second = await secondTask
+}
+```
+
+PARPANIC1 schema `w-seed-parallel-panic-binding1-1` is a separate private
+compiler-lifecycle component. It consumes verified HIR0, PARSEL1 and PARINV1
+records, one verified process-local PLATFORM1 authority, a provider capacity,
+and a caller generation. It does not widen success-only PARPROV1/PARLIFE1 or
+typed-error PARBIND1. The provider authority proves only the existing static
+process-local seal and receipt; it is not a signature, attestation, freshness
+proof, registry trust, or native-HIR execution authority.
+
+The compiler-owned callback maps a `VALUE_I64` invocation task to the exact
+checked scalar success and a `TASK_PANIC` task to the exact explicit panic
+completion recorded by PARINV1. It fabricates neither ordinary errors nor
+cancellation and does not execute HIR or the MLIR trap. One or more source
+panic tasks are admitted when PLATFORM1 supports them. The published primary
+is the receipt's `panic_source_index`, revalidated as a panic task; its lexical
+identity is deterministic. The complete physical receipt must agree with all
+completion tags, explicit code, panic dominance, started/settled/canceled
+counts, cancellation source, provider kind, authority, and generation facts.
+
+After validation, PARPANIC1 publishes one private signal and no semantic value.
+The signal copies source and module identity, the derivable source expression,
+function/call/terminator spans, HIR source length and hash, panic code and all
+HIR proof indices, plus literal message bytes. Variable bytes are copied into
+caller-owned output buffers, and signal pointers must point exactly into those
+buffers. The copied record remains readable after frontend and HIR teardown;
+independent verification intentionally still requires the live producer graph.
+
+The semantic digest covers only copied semantic identity: producer semantic
+digests, primary indices, code, source/module identity, source hash and length,
+relevant spans, literal bytes, and the absence of a semantic value. Provider
+authority, capacity, generation, completion records, physical counts, and
+cancellation are kept in a separate provenance digest. `measure`, `run`, and
+`verify` use caller-owned exact capacities, checked ranges and overflow-safe
+arithmetic. Every writable descriptor, buffer, signal, result, and workspace
+range is disjoint from every producer range and from its writable peers. Failed
+operations leave published outputs/results unchanged; provider scratch is the
+only permitted mutation on a failed execution. `run` stages the signal and
+result locally and performs its first output write only at the final infallible
+commit.
+
+The focused C23 witness carries the exact mixed `spawn<.domain>` source through
+HIR/PARSEL1/PARINV1 and the Windows x64 local provider, checks copied identity
+and message bytes, rejects forged task/index/message/digest/authority/receipt
+facts, exercises capacity and alias barriers, preserves the existing
+success-only routes, proves two panic tasks and capacity-independent semantic
+identity, and proves a no-panic plan does not publish. This is Windows x64
+evidence only and remains a bounded compiler-lifecycle bridge. It does not
+materialize `PanicEvent`, define a Task ABI or runtime, claim native HIR
+execution, cleanup, teardown, portability, a public product, a benchmark, or
+performance.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:
