@@ -45,6 +45,15 @@ bool w_seed_scalar_evaluator0_checked_binary(
       if (right == 0) return false;
       *result = left == INT64_MIN && right == -1 ? 0 : left % right;
       return true;
+    case W_SEED_HIR0_BINARY_BIT_AND:
+      *result = left & right;
+      return true;
+    case W_SEED_HIR0_BINARY_BIT_OR:
+      *result = left | right;
+      return true;
+    case W_SEED_HIR0_BINARY_BIT_XOR:
+      *result = left ^ right;
+      return true;
     default:
       return false;
   }

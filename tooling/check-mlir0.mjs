@@ -21,6 +21,8 @@ const restaurantUnaryNegateFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unary-negate.w")
 const restaurantUnaryInterpolationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unary-interpolation.w")
+const restaurantBitwiseFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-bitwise.w")
 const restaurantMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-mutation.w")
 const restaurantConditionalMutationFixture = resolve(seedDirectory,
@@ -547,6 +549,8 @@ try {
       expected: Buffer.from("Prepared 42\n", "utf8") },
     { name: "restaurant-async-yield", source: restaurantAsyncYieldFixture,
       expected: Buffer.from("Prepared 88\n", "utf8") },
+    { name: "restaurant-bitwise", source: restaurantBitwiseFixture,
+      expected: Buffer.from("Flags 14\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
   ]
   const artifacts = new Map()
@@ -695,6 +699,13 @@ try {
   assert(typedArithmeticArtifact.includes("llvm.sdiv %v") &&
     typedArithmeticArtifact.includes("llvm.srem %v"),
   "constant division and remainder did not retain LLVM arithmetic lowering")
+  const signedBitwiseArtifact = artifacts.get("restaurant-bitwise")
+  assert(signedBitwiseArtifact.includes("llvm.and ") &&
+    signedBitwiseArtifact.includes("llvm.xor ") &&
+    signedBitwiseArtifact.includes("llvm.or ") &&
+    signedBitwiseArtifact.includes("llvm.call @w_fn_0") &&
+    !signedBitwiseArtifact.includes("w_seed_checked_bit"),
+  "signed bitwise operations were folded, reordered, or helper-lowered")
   const wmoArtifact = artifacts.get("restaurant-wmo")
   assert(!artifacts.get("hello").includes("@w_seed_checked_") &&
     wmoArtifact.includes("@w_fn_0(") &&

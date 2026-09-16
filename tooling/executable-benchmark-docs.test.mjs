@@ -29,7 +29,7 @@ test("generated projection is current, compact, and sourced only from the live c
     new Set(workload.sources.map((source) => source.language)).size === 1 &&
     workload.sources.every((source) => source.language === "w"),
   );
-  assert.equal(partialWOnly.length, 19);
+  assert.equal(partialWOnly.length, 20);
   assert.ok(partialWOnly.every((workload) => rendered.includes(`| ${workload.id} |`)));
   assert.doesNotMatch(rendered, /restaurant-composition/u, "planned workloads stay out of the projection");
   assert.match(rendered, /Artifact size counts only the emitted executable file\. On Windows it excludes imported runtime DLLs\./u);

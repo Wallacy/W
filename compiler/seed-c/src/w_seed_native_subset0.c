@@ -294,6 +294,15 @@ static bool evaluate_i64(const w_seed_hir0_program *program,
       if (right == 0) return false;
       *result = left == INT64_MIN && right == -1 ? 0 : left % right;
       return true;
+    case W_SEED_HIR0_BINARY_BIT_AND:
+      *result = left & right;
+      return true;
+    case W_SEED_HIR0_BINARY_BIT_OR:
+      *result = left | right;
+      return true;
+    case W_SEED_HIR0_BINARY_BIT_XOR:
+      *result = left ^ right;
+      return true;
     default:
       return false;
   }
@@ -318,7 +327,9 @@ static bool program_value_is_constant_i64(
            program_value_is_constant_i64(program, value->left_value,
                                          depth + 1u);
   if (value->kind != W_SEED_HIR0_VALUE_BINARY_I64 ||
-      value->binary_operator > W_SEED_HIR0_BINARY_REMAINDER)
+      (value->binary_operator > W_SEED_HIR0_BINARY_REMAINDER &&
+       (value->binary_operator < W_SEED_HIR0_BINARY_BIT_AND ||
+        value->binary_operator > W_SEED_HIR0_BINARY_BIT_XOR)))
     return false;
   return program_value_is_constant_i64(program, value->left_value,
                                        depth + 1u) &&
@@ -1080,7 +1091,9 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
                                       owner_function, false, depth + 1u) &&
              program_value_lowerable(program, value->right_value,
                                       owner_function, false, depth + 1u);
-    if (value->binary_operator > W_SEED_HIR0_BINARY_REMAINDER ||
+    if ((value->binary_operator > W_SEED_HIR0_BINARY_REMAINDER &&
+         (value->binary_operator < W_SEED_HIR0_BINARY_BIT_AND ||
+          value->binary_operator > W_SEED_HIR0_BINARY_BIT_XOR)) ||
         type != W_SEED_HIR0_TYPE_I64 ||
         !program_value_lowerable(program, value->left_value, owner_function,
                                  false, depth + 1u) ||
@@ -1369,7 +1382,9 @@ static bool process_value_lowerable(
     if (value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
         value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL)
       return program->types[value->type_index].kind == W_SEED_HIR0_TYPE_BOOL;
-    if (value->binary_operator > W_SEED_HIR0_BINARY_REMAINDER ||
+    if ((value->binary_operator > W_SEED_HIR0_BINARY_REMAINDER &&
+         (value->binary_operator < W_SEED_HIR0_BINARY_BIT_AND ||
+          value->binary_operator > W_SEED_HIR0_BINARY_BIT_XOR)) ||
         program->types[value->type_index].kind != W_SEED_HIR0_TYPE_I64)
       return false;
     if (program_value_is_constant_i64(program, value_index, 0u)) {

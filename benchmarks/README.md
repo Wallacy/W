@@ -11,7 +11,7 @@ Neither bundle produces a language or product-runtime result.
 [`executable-catalog.json`](executable-catalog.json) is the machine-readable
 catalog of executable workloads. It keeps stable IDs for `hello`,
 `process-entry`, `process-enum-payload`, `process-arguments-count`,
-`process-handler-lifecycle`, eighteen
+`process-handler-lifecycle`, nineteen
 source-backed Restaurant workloads, and the future full Restaurant
 composition. Hello has W, C, and Rust sources. The `restaurant-branch` witness
 and the `restaurant-enum-switch` witness also have public `w build` Release

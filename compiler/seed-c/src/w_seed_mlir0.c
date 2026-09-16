@@ -815,7 +815,9 @@ static bool mlir0_value_is_constant_i64(const w_seed_hir0_program *program,
            mlir0_value_is_constant_i64(program, value->left_value,
                                        depth + 1u);
   return value->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
-         value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER &&
+         (value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER ||
+          (value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
+           value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR)) &&
          mlir0_value_is_constant_i64(program, value->left_value, depth + 1u) &&
          mlir0_value_is_constant_i64(program, value->right_value, depth + 1u);
 }
@@ -857,6 +859,12 @@ static const char *binary_operation(w_seed_hir0_binary_operator operation) {
       return "llvm.icmp \"sgt\"";
     case W_SEED_HIR0_BINARY_GREATER_EQUAL:
       return "llvm.icmp \"sge\"";
+    case W_SEED_HIR0_BINARY_BIT_AND:
+      return "llvm.and";
+    case W_SEED_HIR0_BINARY_BIT_OR:
+      return "llvm.or";
+    case W_SEED_HIR0_BINARY_BIT_XOR:
+      return "llvm.xor";
   }
   return NULL;
 }
@@ -5931,6 +5939,15 @@ static bool append_cooperative_value_tree(
         break;
       case W_SEED_HIR0_BINARY_GREATER_EQUAL:
         predicate = "sge";
+        break;
+      case W_SEED_HIR0_BINARY_BIT_AND:
+        operation = "arith.andi ";
+        break;
+      case W_SEED_HIR0_BINARY_BIT_OR:
+        operation = "arith.ori ";
+        break;
+      case W_SEED_HIR0_BINARY_BIT_XOR:
+        operation = "arith.xori ";
         break;
     }
     if ((operation == NULL && predicate == NULL) ||

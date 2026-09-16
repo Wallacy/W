@@ -548,6 +548,12 @@ static bool evaluate_value(const w_seed_hir0_program *program, uint32_t value_in
               (left.integer == INT64_MIN && right.integer == -1))
             return false;
           return value_from_i64(left.integer % right.integer, out);
+        case W_SEED_HIR0_BINARY_BIT_AND:
+          return value_from_i64(left.integer & right.integer, out);
+        case W_SEED_HIR0_BINARY_BIT_OR:
+          return value_from_i64(left.integer | right.integer, out);
+        case W_SEED_HIR0_BINARY_BIT_XOR:
+          return value_from_i64(left.integer ^ right.integer, out);
         case W_SEED_HIR0_BINARY_EQUAL:
           boolean = left.integer == right.integer;
           break;

@@ -3646,7 +3646,7 @@ static bool frontend_value_tree_ok(
         value->const_byte_offset != W_SEED_FRONTEND_NONE ||
         value->const_byte_count != 0u || value->has_bool_value ||
         value->has_integer_value ||
-        (uint32_t)operation > (uint32_t)W_SEED_HIR0_BINARY_GREATER_EQUAL ||
+        (uint32_t)operation > (uint32_t)W_SEED_HIR0_BINARY_BIT_XOR ||
         !add_size(*value_total, 1u, value_total) ||
         !add_size(*expression_cursor, 1u, expression_cursor))
       return false;
@@ -7799,6 +7799,9 @@ static w_seed_hir0_binary_operator hir_binary_operator(
   if (text_is(text, "<=")) return W_SEED_HIR0_BINARY_LESS_EQUAL;
   if (text_is(text, ">")) return W_SEED_HIR0_BINARY_GREATER;
   if (text_is(text, ">=")) return W_SEED_HIR0_BINARY_GREATER_EQUAL;
+  if (text_is(text, "&")) return W_SEED_HIR0_BINARY_BIT_AND;
+  if (text_is(text, "|")) return W_SEED_HIR0_BINARY_BIT_OR;
+  if (text_is(text, "^")) return W_SEED_HIR0_BINARY_BIT_XOR;
   return (w_seed_hir0_binary_operator)UINT32_MAX;
 }
 
@@ -13581,7 +13584,7 @@ static bool verify_value_tree(
 
   if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
     if ((uint32_t)value->binary_operator >
-            (uint32_t)W_SEED_HIR0_BINARY_GREATER_EQUAL ||
+            (uint32_t)W_SEED_HIR0_BINARY_BIT_XOR ||
         value->left_value == W_SEED_HIR0_NONE ||
         value->right_value == W_SEED_HIR0_NONE ||
         !verify_value_tree(program, value->left_value,
@@ -13598,7 +13601,10 @@ static bool verify_value_tree(
         program->values[value->left_value].type_index != 2u ||
         program->values[value->right_value].type_index != 2u ||
         value->type_index !=
-            (value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL ? 3u : 2u) ||
+            (value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
+                     value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL
+                 ? 3u
+                 : 2u) ||
         value->binding_index != W_SEED_HIR0_NONE ||
         value->parameter_index != W_SEED_HIR0_NONE ||
         value->first_interpolation_segment != W_SEED_HIR0_NONE ||

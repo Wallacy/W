@@ -53,6 +53,8 @@ const restaurantUnaryNegateFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unary-negate.w")
 const restaurantUnaryInterpolationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unary-interpolation.w")
+const restaurantBitwiseFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-bitwise.w")
 const restaurantMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-mutation.w")
 const restaurantConditionalMutationFixture = resolve(seedDirectory,
@@ -540,6 +542,9 @@ try {
       "false/true/true/true/false/false\n" +
       "false/true/false/false/true/true\nAllowed true\nAllowed false\n", "utf8"),
     "Restaurant comparison operators, signed endpoints, and Bool composition")
+  expectExact(binary, ["run", restaurantBitwiseFixture], 0,
+    Buffer.from("Flags 14\n", "utf8"),
+    "Signed-i64 bitwise precedence and runtime lowering")
   expectExact(binary, ["run", restaurantBoolShortCircuitFixture], 0,
     Buffer.from(
       "Override checked\nClosed allowed true\nCapacity checked\n" +

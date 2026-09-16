@@ -2961,6 +2961,30 @@ static bool test_checked_arithmetic_adversarial(void) {
   return true;
 }
 
+static bool test_signed_bitwise_artifact(void) {
+  static const uint8_t source[] =
+      "fn bits(left: i64, right: i64): i64 { "
+      "return left | right ^ left & right }\n"
+      "fn main() { let result = bits(left: 10, right: 12) "
+      "print(\"${result}\") }\nentry(main)\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        count_bytes(artifact, emitted.written.mlir_bytes, "llvm.and ") == 1u &&
+        count_bytes(artifact, emitted.written.mlir_bytes, "llvm.xor ") == 1u &&
+        count_bytes(artifact, emitted.written.mlir_bytes, "llvm.or ") == 1u &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.call @w_fn_0") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "w_seed_checked_bit"));
+  return true;
+}
+
 static bool expect_sequence_unsupported(void) {
   const w_seed_mlir0_input input = mlir_input();
   uint8_t output[W_SEED_MLIR0_MAX_BYTES];
@@ -4349,6 +4373,7 @@ int main(int argc, char **argv) {
   if (!test_logical_nested_diamond()) return 1;
   if (!test_logical_mlir_adversarial()) return 1;
   if (!test_checked_arithmetic_adversarial()) return 1;
+  if (!test_signed_bitwise_artifact()) return 1;
   if (!test_interpolation_semantic_barriers()) return 1;
   if (!test_linear_sequence()) return 1;
   if (!test_capacity_and_all_or_nothing()) return 1;

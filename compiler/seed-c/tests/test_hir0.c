@@ -13153,6 +13153,40 @@ static bool test_signed_comparison_values(void) {
   return true;
 }
 
+static bool test_signed_bitwise_values(void) {
+  static const char SOURCE[] =
+      "fn bits(left: i64, right: i64): i64 { "
+      "return left | right ^ left & right }\n"
+      "fn main() { let result = bits(left: 10, right: 12) "
+      "print(message: \"${result}\", suffix: \"\") }\nentry(main)\n";
+  CHECK(lower(SOURCE));
+  size_t and_index = SIZE_MAX;
+  size_t xor_index = SIZE_MAX;
+  size_t or_index = SIZE_MAX;
+  for (size_t index = 0u; index < fixture.hir_program.value_count; index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_values[index];
+    if (value->kind != W_SEED_HIR0_VALUE_BINARY_I64) continue;
+    if (value->binary_operator == W_SEED_HIR0_BINARY_BIT_AND)
+      and_index = index;
+    else if (value->binary_operator == W_SEED_HIR0_BINARY_BIT_XOR)
+      xor_index = index;
+    else if (value->binary_operator == W_SEED_HIR0_BINARY_BIT_OR)
+      or_index = index;
+  }
+  CHECK(and_index != SIZE_MAX && xor_index != SIZE_MAX && or_index != SIZE_MAX);
+  CHECK(fixture.hir_values[or_index].type_index == 2u &&
+        fixture.hir_values[or_index].right_value == xor_index &&
+        fixture.hir_values[xor_index].right_value == and_index &&
+        fixture.hir_values[and_index].type_index == 2u);
+  const w_seed_hir0_value saved = fixture.hir_values[or_index];
+  fixture.hir_values[or_index].binary_operator =
+      (w_seed_hir0_binary_operator)UINT32_MAX;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[or_index] = saved;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_short_entry_hir(void) {
   static const char SOURCE[] =
       "entry { print(message: \"Hello, world!\", suffix: \"!\") }\n";
@@ -13378,6 +13412,7 @@ int main(int argc, char **argv) {
   if (!test_direct_entry_effect_barrier()) return 1;
   if (!test_short_entry_hir()) return 1;
   if (!test_signed_comparison_values()) return 1;
+  if (!test_signed_bitwise_values()) return 1;
   if (!test_canonical_and_copy_boundary()) return 1;
   if (!test_semantic_and_provenance_digests()) return 1;
   if (!test_function_parameter_records()) return 1;

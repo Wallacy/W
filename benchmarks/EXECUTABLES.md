@@ -29,6 +29,7 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-enum-bool-payload | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-enum-bool-payload.w), [c](./executable/restaurant_enum_bool_payload.c), [rust](./executable/restaurant_enum_bool_payload.rs) | source-backed | exploratory-ready |
 | restaurant-comparisons | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-comparisons.w) | source-backed | partial-exploratory-ready |
 | restaurant-comparison-composition | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-comparison-composition.w) | source-backed | partial-exploratory-ready |
+| restaurant-bitwise | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-bitwise.w) | source-backed | partial-exploratory-ready |
 | restaurant-linear | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-linear.w) | source-backed | partial-exploratory-ready |
 | restaurant-runtime-divrem | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-runtime-divrem.w) | source-backed | partial-exploratory-ready |
 | restaurant-unary-negate | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-unary-negate.w) | source-backed | partial-exploratory-ready |

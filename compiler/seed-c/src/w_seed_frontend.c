@@ -1130,7 +1130,10 @@ static frontend_const_infer_value const_infer_bp(
                             text_equal(operator_text, "-") ||
                             text_equal(operator_text, "*") ||
                             text_equal(operator_text, "/") ||
-                            text_equal(operator_text, "%");
+                            text_equal(operator_text, "%") ||
+                            text_equal(operator_text, "&") ||
+                            text_equal(operator_text, "|") ||
+                            text_equal(operator_text, "^");
     frontend_simple_type result_type = simple_type_unknown();
     if (logical) {
       if ((value.type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
@@ -5219,8 +5222,8 @@ static bool frontend_widening_allowed(const frontend_context *context,
 
 static bool is_binary_operator(w_seed_frontend_text text) {
   static const char *const operators[] = {
-      "+",  "-",  "*",  "/",  "%",  "==", "!=", "<", "<=", ">",
-      ">=", "&&", "||", "in", "..<", "=",
+      "+",  "-",  "*",  "/",  "%",  "&",  "|",  "^",  "==", "!=",
+      "<",  "<=", ">",  ">=", "&&", "||", "in", "..<", "=",
   };
   for (size_t index = 0; index < sizeof(operators) / sizeof(operators[0]);
        index += 1) {
@@ -5233,17 +5236,20 @@ static int operator_precedence(w_seed_frontend_text text) {
   if (text_equal(text, "=")) return 0;
   if (text_equal(text, "||")) return 1;
   if (text_equal(text, "&&")) return 2;
-  if (text_equal(text, "==") || text_equal(text, "!=")) return 3;
-  if (text_equal(text, "in")) return 4;
+  if (text_equal(text, "|")) return 3;
+  if (text_equal(text, "^")) return 4;
+  if (text_equal(text, "&")) return 5;
+  if (text_equal(text, "==") || text_equal(text, "!=")) return 6;
+  if (text_equal(text, "in")) return 7;
   if (text_equal(text, "<") || text_equal(text, "<=") ||
       text_equal(text, ">") || text_equal(text, ">=")) {
-    return 4;
+    return 7;
   }
-  if (text_equal(text, "..<")) return 5;
-  if (text_equal(text, "+") || text_equal(text, "-")) return 6;
+  if (text_equal(text, "..<")) return 8;
+  if (text_equal(text, "+") || text_equal(text, "-")) return 9;
   if (text_equal(text, "*") || text_equal(text, "/") ||
       text_equal(text, "%")) {
-    return 7;
+    return 10;
   }
   return -1;
 }
@@ -14403,8 +14409,10 @@ static bool expression_parse_bp_inner(frontend_expression_parser *parser,
     const bool arithmetic_or_comparison =
         text_equal(operator_text, "+") || text_equal(operator_text, "-") ||
         text_equal(operator_text, "*") || text_equal(operator_text, "/") ||
-        text_equal(operator_text, "%") || text_equal(operator_text, "==") ||
-        text_equal(operator_text, "!=") || text_equal(operator_text, "<") ||
+        text_equal(operator_text, "%") || text_equal(operator_text, "&") ||
+        text_equal(operator_text, "|") || text_equal(operator_text, "^") ||
+        text_equal(operator_text, "==") || text_equal(operator_text, "!=") ||
+        text_equal(operator_text, "<") ||
         text_equal(operator_text, "<=") || text_equal(operator_text, ">") ||
         text_equal(operator_text, ">=");
     if (arithmetic_or_comparison &&
