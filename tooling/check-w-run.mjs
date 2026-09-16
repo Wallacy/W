@@ -56,6 +56,8 @@ const restaurantUnaryInterpolationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unary-interpolation.w")
 const restaurantUnsignedFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unsigned.w")
+const restaurantShiftsFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-shifts.w")
 const restaurantMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-mutation.w")
 const restaurantConditionalMutationFixture = resolve(seedDirectory,
@@ -904,6 +906,9 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantUnsignedFixture)],
     Buffer.from("Unsigned 18446744073709551615\n", "utf8"),
     "Restaurant full-width UInt parameter, return, and interpolation")
+  expectSuccess(binary, ["run", toWsl(restaurantShiftsFixture)],
+    Buffer.from("Shifts -4/15/-48/48\n", "utf8"),
+    "Restaurant checked signed and unsigned shifts")
   expectSuccess(binary, ["run", toWsl(restaurantMutationFixture)],
     Buffer.from("Open 6\n", "utf8"),
     "Restaurant straight-line local mutation")

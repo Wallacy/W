@@ -25,6 +25,8 @@ const restaurantBitwiseFixture = resolve(seedDirectory,
   "fixtures", "restaurant-bitwise.w")
 const restaurantUnsignedFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unsigned.w")
+const restaurantShiftsFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-shifts.w")
 const restaurantMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-mutation.w")
 const restaurantConditionalMutationFixture = resolve(seedDirectory,
@@ -395,6 +397,12 @@ try {
     "runtime-remainder-zero.w")
   const runtimeNegationOverflowPath = resolve(artifactDirectory,
     "runtime-negation-overflow.w")
+  const runtimeShiftCountPath = resolve(artifactDirectory,
+    "runtime-shift-count.w")
+  const runtimeUnsignedShiftOverflowPath = resolve(artifactDirectory,
+    "runtime-unsigned-shift-overflow.w")
+  const runtimeSignedShiftOverflowPath = resolve(artifactDirectory,
+    "runtime-signed-shift-overflow.w")
   const emptyPath = resolve(artifactDirectory, "empty.w")
   await writeFile(restaurantPath,
     `fn serve() { let message = "Table 42 remains open" print(message) }\nentry(serve)\n`)
@@ -471,6 +479,20 @@ try {
     'fn main() { let result = negate(' +
     'value: 0 - 9223372036854775807 - 1) ' +
     'print("success ${result}") }\nentry(main)\n')
+  await writeFile(runtimeShiftCountPath,
+    'fn shift(value: UInt, count: UInt): UInt { return value >> count }\n' +
+    'entry { let result = shift(value: 1_u64, count: 64_u64) ' +
+    'print("success ${result}") }\n')
+  await writeFile(runtimeUnsignedShiftOverflowPath,
+    'fn shift(value: UInt, count: UInt): UInt { return value << count }\n' +
+    'entry { let result = shift(' +
+    'value: 18446744073709551615_u64, count: 1_u64) ' +
+    'print("success ${result}") }\n')
+  await writeFile(runtimeSignedShiftOverflowPath,
+    'fn shift(value: Int, count: UInt): Int { return value << count }\n' +
+    'entry { let result = shift(' +
+    'value: 9223372036854775807, count: 1_u64) ' +
+    'print("success ${result}") }\n')
   await writeFile(emptyPath, `fn main() { print("") }\nentry(main)\n`)
   const products = [
     { name: "hello", source: canonicalFixture,
@@ -555,6 +577,8 @@ try {
       expected: Buffer.from("Flags 14/-15\n", "utf8") },
     { name: "restaurant-unsigned", source: restaurantUnsignedFixture,
       expected: Buffer.from("Unsigned 18446744073709551615\n", "utf8") },
+    { name: "restaurant-shifts", source: restaurantShiftsFixture,
+      expected: Buffer.from("Shifts -4/15/-48/48\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
   ]
   const artifacts = new Map()
@@ -631,6 +655,11 @@ try {
     { name: "runtime-division-overflow", source: runtimeDivisionOverflowPath },
     { name: "runtime-remainder-zero", source: runtimeRemainderZeroPath },
     { name: "runtime-negation-overflow", source: runtimeNegationOverflowPath },
+    { name: "runtime-shift-count", source: runtimeShiftCountPath },
+    { name: "runtime-unsigned-shift-overflow",
+      source: runtimeUnsignedShiftOverflowPath },
+    { name: "runtime-signed-shift-overflow",
+      source: runtimeSignedShiftOverflowPath },
     { name: "explicit-panic", source: explicitPanicFixture },
   ]) {
     const generated = run(seedGate, [fault.source])
@@ -721,6 +750,28 @@ try {
     unsignedArtifact.includes("llvm.call @w_fn_0") &&
     !unsignedArtifact.includes("llvm.call @w_seed_append_i64"),
   "UInt did not retain its unsigned full-width lowering and formatter")
+  const shiftsArtifact = artifacts.get("restaurant-shifts")
+  assert(shiftsArtifact.includes(
+    "llvm.func internal @w_seed_checked_shift_left_i64") &&
+    shiftsArtifact.includes(
+      "llvm.func internal @w_seed_checked_shift_left_u64") &&
+    shiftsArtifact.includes(
+      "llvm.func internal @w_seed_checked_shift_right_i64") &&
+    shiftsArtifact.includes(
+      "llvm.func internal @w_seed_checked_shift_right_u64") &&
+    shiftsArtifact.includes('llvm.icmp "uge" %count, %width : i64') &&
+    shiftsArtifact.includes("llvm.shl %left, %count : i64") &&
+    shiftsArtifact.includes("llvm.ashr %left, %count : i64") &&
+    shiftsArtifact.includes("llvm.lshr %left, %count : i64") &&
+    shiftsArtifact.includes(
+      "llvm.call @w_seed_checked_shift_right_i64") &&
+    shiftsArtifact.includes(
+      "llvm.call @w_seed_checked_shift_right_u64") &&
+    shiftsArtifact.includes(
+      "llvm.call @w_seed_checked_shift_left_i64") &&
+    shiftsArtifact.includes(
+      "llvm.call @w_seed_checked_shift_left_u64"),
+  "checked shifts lost width guards, signedness, or runtime lowering")
   const wmoArtifact = artifacts.get("restaurant-wmo")
   assert(!artifacts.get("hello").includes("@w_seed_checked_") &&
     wmoArtifact.includes("@w_fn_0(") &&

@@ -1135,6 +1135,8 @@ static frontend_const_infer_value const_infer_bp(
                             text_equal(operator_text, "&") ||
                             text_equal(operator_text, "|") ||
                             text_equal(operator_text, "^");
+    const bool shift = text_equal(operator_text, "<<") ||
+                       text_equal(operator_text, ">>");
     frontend_simple_type result_type = simple_type_unknown();
     if (logical) {
       if ((value.type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
@@ -1170,6 +1172,27 @@ static frontend_const_infer_value const_infer_bp(
       } else {
         return const_infer_value_invalid(false);
       }
+    } else if (shift) {
+      const frontend_simple_type uint_type =
+          simple_type_from_view((w_seed_frontend_text){"UInt", 4u});
+      if (value.type.kind == W_SEED_FRONTEND_TYPE_UNKNOWN ||
+          value.unsuffixed_integer) {
+        value.type = const_default_integer_type();
+        value.unsuffixed_integer = false;
+      }
+      if (right.type.kind == W_SEED_FRONTEND_TYPE_UNKNOWN ||
+          right.unsuffixed_integer) {
+        if (right.unsuffixed_integer &&
+            !unsuffixed_integer_fits(right.spelling, uint_type))
+          return const_infer_value_invalid(false);
+        right.type = uint_type;
+        right.unsuffixed_integer = false;
+      }
+      if (value.type.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+          value.type.bit_width != 64u ||
+          !frontend_type_equal(parser->context, right.type, uint_type))
+        return const_infer_value_invalid(false);
+      result_type = value.type;
     } else if (arithmetic) {
       if (!const_infer_integer_join(parser->context, &value, &right,
                                     &result_type))
@@ -5223,8 +5246,9 @@ static bool frontend_widening_allowed(const frontend_context *context,
 
 static bool is_binary_operator(w_seed_frontend_text text) {
   static const char *const operators[] = {
-      "+",  "-",  "*",  "/",  "%",  "&",  "|",  "^",  "==", "!=",
-      "<",  "<=", ">",  ">=", "&&", "||", "in", "..<", "=",
+      "+",  "-",  "*",  "/",  "%",  "&",  "|",  "^",  "<<", ">>",
+      "==", "!=", "<",  "<=", ">",  ">=", "&&", "||", "in", "..<",
+      "=",
   };
   for (size_t index = 0; index < sizeof(operators) / sizeof(operators[0]);
        index += 1) {
@@ -5247,10 +5271,11 @@ static int operator_precedence(w_seed_frontend_text text) {
     return 7;
   }
   if (text_equal(text, "..<")) return 8;
-  if (text_equal(text, "+") || text_equal(text, "-")) return 9;
+  if (text_equal(text, "<<") || text_equal(text, ">>")) return 9;
+  if (text_equal(text, "+") || text_equal(text, "-")) return 10;
   if (text_equal(text, "*") || text_equal(text, "/") ||
       text_equal(text, "%")) {
-    return 10;
+    return 11;
   }
   return -1;
 }
@@ -14420,6 +14445,8 @@ static bool expression_parse_bp_inner(frontend_expression_parser *parser,
         text_equal(operator_text, "<") ||
         text_equal(operator_text, "<=") || text_equal(operator_text, ">") ||
         text_equal(operator_text, ">=");
+    const bool shift = text_equal(operator_text, "<<") ||
+                       text_equal(operator_text, ">>");
     if (arithmetic_or_comparison &&
         value->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
         right.type.kind == W_SEED_FRONTEND_TYPE_INTEGER) {
@@ -14445,7 +14472,26 @@ static bool expression_parse_bp_inner(frontend_expression_parser *parser,
       }
       result_type = value->type;
     }
-    if (text_equal(operator_text, "&&") || text_equal(operator_text, "||")) {
+    if (shift) {
+      const frontend_simple_type uint_type =
+          simple_type_from_view((w_seed_frontend_text){"UInt", 4u});
+      if (expression_value_is_unsuffixed_integer(value)) {
+        if (!expression_value_set_type(parser, value,
+                                       const_default_integer_type()))
+          return false;
+      }
+      if (expression_value_is_unsuffixed_integer(&right)) {
+        if (!unsuffixed_integer_fits(right.type.spelling, uint_type) ||
+            !expression_value_set_type(parser, &right, uint_type))
+          return false;
+      }
+      result_type = value->type;
+      if (value->type.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+          value->type.bit_width != 64u ||
+          !frontend_type_equal(parser->context, right.type, uint_type))
+        supported = false;
+    } else if (text_equal(operator_text, "&&") ||
+               text_equal(operator_text, "||")) {
       result_type = simple_type_from_view((w_seed_frontend_text){"Bool", 4});
       if (!type_is_bool(value->type) || !type_is_bool(right.type)) supported = false;
     } else if (text_equal(operator_text, "..<")) {

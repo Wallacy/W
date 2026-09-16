@@ -57,6 +57,8 @@ const restaurantBitwiseFixture = resolve(seedDirectory,
   "fixtures", "restaurant-bitwise.w")
 const restaurantUnsignedFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unsigned.w")
+const restaurantShiftsFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-shifts.w")
 const restaurantMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-mutation.w")
 const restaurantConditionalMutationFixture = resolve(seedDirectory,
@@ -573,6 +575,9 @@ try {
   expectExact(binary, ["run", restaurantUnsignedFixture], 0,
     Buffer.from("Unsigned 18446744073709551615\n", "utf8"),
     "Restaurant full-width UInt parameter, return, and interpolation")
+  expectExact(binary, ["run", restaurantShiftsFixture], 0,
+    Buffer.from("Shifts -4/15/-48/48\n", "utf8"),
+    "Restaurant checked signed and unsigned shifts")
   expectExact(binary, ["run", restaurantMutationFixture], 0,
     Buffer.from("Open 6\n", "utf8"),
     "Restaurant straight-line local mutation")

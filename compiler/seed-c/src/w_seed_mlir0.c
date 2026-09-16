@@ -285,6 +285,69 @@ static const char MLIR0_CHECKED_I64_REMAINDER_HELPER[] =
     "    llvm.return %value : i64\n"
     "  }\n";
 
+/* Shift counts are checked before every LLVM shift so an out-of-range count
+ * can never become poison. Checked left shifts also prove that reversing the
+ * result recovers the source value, which rejects every lost high bit. */
+static const char MLIR0_CHECKED_SHIFT_HELPERS[] =
+    "  llvm.func internal @w_seed_checked_shift_left_i64(%left: i64, %count: i64) -> i64 {\n"
+    "    %width = llvm.mlir.constant(64 : i64) : i64\n"
+    "    %invalid = llvm.icmp \"uge\" %count, %width : i64\n"
+    "    llvm.cond_br %invalid, ^shift_fault, ^shift_apply\n"
+    "  ^shift_fault:\n"
+    "    \"llvm.intr.trap\"() : () -> ()\n"
+    "    llvm.unreachable\n"
+    "  ^shift_apply:\n"
+    "    %value = llvm.shl %left, %count : i64\n"
+    "    %restored = llvm.ashr %value, %count : i64\n"
+    "    %overflow = llvm.icmp \"ne\" %restored, %left : i64\n"
+    "    llvm.cond_br %overflow, ^shift_overflow, ^shift_ok\n"
+    "  ^shift_overflow:\n"
+    "    \"llvm.intr.trap\"() : () -> ()\n"
+    "    llvm.unreachable\n"
+    "  ^shift_ok:\n"
+    "    llvm.return %value : i64\n"
+    "  }\n"
+    "  llvm.func internal @w_seed_checked_shift_left_u64(%left: i64, %count: i64) -> i64 {\n"
+    "    %width = llvm.mlir.constant(64 : i64) : i64\n"
+    "    %invalid = llvm.icmp \"uge\" %count, %width : i64\n"
+    "    llvm.cond_br %invalid, ^shift_fault, ^shift_apply\n"
+    "  ^shift_fault:\n"
+    "    \"llvm.intr.trap\"() : () -> ()\n"
+    "    llvm.unreachable\n"
+    "  ^shift_apply:\n"
+    "    %value = llvm.shl %left, %count : i64\n"
+    "    %restored = llvm.lshr %value, %count : i64\n"
+    "    %overflow = llvm.icmp \"ne\" %restored, %left : i64\n"
+    "    llvm.cond_br %overflow, ^shift_overflow, ^shift_ok\n"
+    "  ^shift_overflow:\n"
+    "    \"llvm.intr.trap\"() : () -> ()\n"
+    "    llvm.unreachable\n"
+    "  ^shift_ok:\n"
+    "    llvm.return %value : i64\n"
+    "  }\n"
+    "  llvm.func internal @w_seed_checked_shift_right_i64(%left: i64, %count: i64) -> i64 {\n"
+    "    %width = llvm.mlir.constant(64 : i64) : i64\n"
+    "    %invalid = llvm.icmp \"uge\" %count, %width : i64\n"
+    "    llvm.cond_br %invalid, ^shift_fault, ^shift_ok\n"
+    "  ^shift_fault:\n"
+    "    \"llvm.intr.trap\"() : () -> ()\n"
+    "    llvm.unreachable\n"
+    "  ^shift_ok:\n"
+    "    %value = llvm.ashr %left, %count : i64\n"
+    "    llvm.return %value : i64\n"
+    "  }\n"
+    "  llvm.func internal @w_seed_checked_shift_right_u64(%left: i64, %count: i64) -> i64 {\n"
+    "    %width = llvm.mlir.constant(64 : i64) : i64\n"
+    "    %invalid = llvm.icmp \"uge\" %count, %width : i64\n"
+    "    llvm.cond_br %invalid, ^shift_fault, ^shift_ok\n"
+    "  ^shift_fault:\n"
+    "    \"llvm.intr.trap\"() : () -> ()\n"
+    "    llvm.unreachable\n"
+    "  ^shift_ok:\n"
+    "    %value = llvm.lshr %left, %count : i64\n"
+    "    llvm.return %value : i64\n"
+    "  }\n";
+
 static const char MLIR0_BOOL_HELPER[] =
     "  llvm.func internal @w_seed_append_bool(%buffer: !llvm.ptr, %offset: i64, %value: i1) -> i64 {\n"
     "    %bool_one = llvm.mlir.constant(1 : i64) : i64\n"
@@ -383,6 +446,7 @@ static const char MLIR0_U64_HELPER[] =
    (sizeof(MLIR0_CHECKED_I64_ADD_HELPER) - 1u) +                        \
    (sizeof(MLIR0_CHECKED_I64_SUBTRACT_HELPER) - 1u) +                   \
    (sizeof(MLIR0_CHECKED_I64_MULTIPLY_HELPER) - 1u) +                   \
+   (sizeof(MLIR0_CHECKED_SHIFT_HELPERS) - 1u) +                         \
    (sizeof(MLIR0_U64_HELPER) - 1u) +                                   \
    (sizeof(MLIR0_BOOL_HELPER) - 1u) + MLIR0_DYNAMIC_SKELETON_MAX_BYTES + \
    ((size_t)MLIR0_MAX_STDOUT_BYTES * MLIR0_ESCAPE_BYTES_PER_INPUT) +         \
@@ -654,6 +718,7 @@ typedef struct {
   bool has_checked_multiply;
   bool has_checked_divide;
   bool has_checked_remainder;
+  bool has_checked_shifts;
   bool reachable_values[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
 } mlir0_dynamic_plan;
 
@@ -666,6 +731,10 @@ static bool mark_reachable_value_tree(
     bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES], bool *has_add,
     bool *has_subtract, bool *has_multiply, bool *has_divide,
     bool *has_remainder, size_t depth);
+
+static bool reachable_values_have_checked_shift(
+    const w_seed_hir0_program *program,
+    const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES]);
 
 static bool mlir0_value_has_safe_constant_divisor(
     const w_seed_hir0_program *program, const w_seed_hir0_value *value);
@@ -806,7 +875,10 @@ static bool build_dynamic_plan(
           if (!dynamic_plan_append_i64(&candidate, effective_index))
             return false;
         } else if (type == W_SEED_HIR0_TYPE_U64) {
-          if (effective->kind != W_SEED_HIR0_VALUE_CONST_U64 ||
+          if ((effective->kind != W_SEED_HIR0_VALUE_CONST_U64 &&
+               effective->kind != W_SEED_HIR0_VALUE_PARAMETER_READ &&
+               effective->kind != W_SEED_HIR0_VALUE_CALL_RESULT &&
+               effective->kind != W_SEED_HIR0_VALUE_BINARY_I64) ||
               !dynamic_plan_append_u64(&candidate, effective_index))
             return false;
         } else if (type == W_SEED_HIR0_TYPE_BOOL) {
@@ -843,6 +915,8 @@ static bool build_dynamic_plan(
             &candidate.has_checked_divide,
             &candidate.has_checked_remainder, 0u))
       return false;
+  candidate.has_checked_shifts = reachable_values_have_checked_shift(
+      program, candidate.reachable_values);
   *plan = candidate;
   return true;
 }
@@ -913,6 +987,9 @@ static const char *binary_operation(w_seed_hir0_binary_operator operation) {
       return "llvm.or";
     case W_SEED_HIR0_BINARY_BIT_XOR:
       return "llvm.xor";
+    case W_SEED_HIR0_BINARY_SHIFT_LEFT:
+    case W_SEED_HIR0_BINARY_SHIFT_RIGHT:
+      return NULL;
   }
   return NULL;
 }
@@ -956,6 +1033,43 @@ static const char *checked_binary_helper(
     default:
       return NULL;
   }
+}
+
+static const char *checked_shift_helper(
+    const w_seed_hir0_program *program, const w_seed_hir0_value *value) {
+  if (program == NULL || value == NULL ||
+      value->type_index >= program->type_count)
+    return NULL;
+  const bool is_signed =
+      program->types[value->type_index].kind == W_SEED_HIR0_TYPE_I64;
+  const bool is_unsigned =
+      program->types[value->type_index].kind == W_SEED_HIR0_TYPE_U64;
+  if (!is_signed && !is_unsigned) return NULL;
+  if (value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT)
+    return is_signed ? "@w_seed_checked_shift_left_i64"
+                     : "@w_seed_checked_shift_left_u64";
+  if (value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_RIGHT)
+    return is_signed ? "@w_seed_checked_shift_right_i64"
+                     : "@w_seed_checked_shift_right_u64";
+  return NULL;
+}
+
+static bool reachable_values_have_checked_shift(
+    const w_seed_hir0_program *program,
+    const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES]) {
+  if (program == NULL || reachable == NULL ||
+      program->value_count > W_SEED_NATIVE_SUBSET0_MAX_VALUES)
+    return false;
+  for (size_t value_index = 0u; value_index < program->value_count;
+       value_index += 1u) {
+    const w_seed_hir0_value *value = &program->values[value_index];
+    if (reachable[value_index] &&
+        value->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+        (value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
+         value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_RIGHT))
+      return true;
+  }
+  return false;
 }
 
 static void note_checked_binary_operator(
@@ -1434,9 +1548,15 @@ static bool append_binary_value_operation_in_loop(
       mlir0_value_has_safe_constant_divisor(program, value) ||
       (value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER &&
        mlir0_value_is_constant_i64(program, value_index, 0u));
-  const char *helper = constant_division
-                           ? NULL
-                           : checked_binary_helper(value->binary_operator);
+  const bool shift =
+      value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
+      value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_RIGHT;
+  const char *helper = shift
+                           ? checked_shift_helper(program, value)
+                           : (constant_division
+                                  ? NULL
+                                  : checked_binary_helper(
+                                        value->binary_operator));
   if (!append_literal(artifact, capacity, offset, "    %v") ||
       !append_size(artifact, capacity, offset, value_index) ||
       !append_literal(artifact, capacity, offset, " = "))
@@ -1805,6 +1925,9 @@ static bool build_dynamic_artifact(
                                   plan.has_checked_divide,
                                   plan.has_checked_remainder, artifact,
                                   capacity, &offset) ||
+      (plan.has_checked_shifts &&
+       !append_literal(artifact, capacity, &offset,
+                       MLIR0_CHECKED_SHIFT_HELPERS)) ||
       (plan.has_u64 &&
        !append_literal(artifact, capacity, &offset, MLIR0_U64_HELPER)) ||
       (plan.has_bool &&
@@ -1908,6 +2031,7 @@ typedef struct {
   bool has_checked_multiply;
   bool has_checked_divide;
   bool has_checked_remainder;
+  bool has_checked_shifts;
   bool has_reachable_panic;
   bool reachable_values[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
 } mlir0_program_plan;
@@ -2323,6 +2447,8 @@ static bool build_program_plan(const w_seed_hir0_program *program,
           &candidate.has_checked_multiply, &candidate.has_checked_divide,
           &candidate.has_checked_remainder, &candidate.has_reachable_panic))
     return false;
+  candidate.has_checked_shifts = reachable_values_have_checked_shift(
+      program, candidate.reachable_values);
   if (!allow_empty &&
       (candidate.action_count == 0u || candidate.text_bytes == 0u) &&
       !candidate.has_reachable_panic)
@@ -4833,6 +4959,9 @@ static bool build_program_artifact(
                                   plan.has_checked_divide,
                                   plan.has_checked_remainder, artifact,
                                   capacity, &offset) ||
+      (plan.has_checked_shifts &&
+       !append_literal(artifact, capacity, &offset,
+                       MLIR0_CHECKED_SHIFT_HELPERS)) ||
       (plan.has_u64 &&
        !append_literal(artifact, capacity, &offset, MLIR0_U64_HELPER)) ||
       (plan.has_bool &&
@@ -6055,6 +6184,9 @@ static bool append_cooperative_value_tree(
         break;
       case W_SEED_HIR0_BINARY_BIT_XOR:
         operation = "arith.xori ";
+        break;
+      case W_SEED_HIR0_BINARY_SHIFT_LEFT:
+      case W_SEED_HIR0_BINARY_SHIFT_RIGHT:
         break;
     }
     if ((operation == NULL && predicate == NULL) ||

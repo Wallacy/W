@@ -238,7 +238,9 @@ static bool frontend_type_supported(const w_seed_frontend_type *type) {
     return text_is(type->spelling, HIR0_BOOL_NAME);
   if (type->kind == W_SEED_FRONTEND_TYPE_INTEGER) {
     if (type->is_signed)
-      return type->bit_width == 64u && text_is(type->spelling, HIR0_I64_NAME);
+      return type->bit_width == 64u &&
+             (text_is(type->spelling, HIR0_I64_NAME) ||
+              text_is(type->spelling, "Int"));
     return type->bit_width == 64u &&
            (text_is(type->spelling, HIR0_U64_NAME) ||
             text_is(type->spelling, "UInt"));
@@ -259,7 +261,9 @@ static bool frontend_type_is_i64(const w_seed_frontend_type *type) {
   return type != NULL && text_valid(type->spelling) &&
          type->task_result_type == W_SEED_FRONTEND_NONE &&
          type->kind == W_SEED_FRONTEND_TYPE_INTEGER && type->is_signed &&
-         type->bit_width == 64u && text_is(type->spelling, HIR0_I64_NAME);
+         type->bit_width == 64u &&
+         (text_is(type->spelling, HIR0_I64_NAME) ||
+          text_is(type->spelling, "Int"));
 }
 
 static bool frontend_type_is_core_error(
@@ -3666,6 +3670,8 @@ static bool frontend_value_tree_ok(
         hir_binary_operator(value->operator_text);
     const bool comparison = operation >= W_SEED_HIR0_BINARY_EQUAL &&
                             operation <= W_SEED_HIR0_BINARY_GREATER_EQUAL;
+    const bool shift = operation == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
+                       operation == W_SEED_HIR0_BINARY_SHIFT_RIGHT;
     if (value->left == W_SEED_FRONTEND_NONE ||
         value->right == W_SEED_FRONTEND_NONE ||
         !frontend_value_tree_ok(input, module_index, function_index,
@@ -3682,17 +3688,30 @@ static bool frontend_value_tree_ok(
                                 logical_total) ||
         (size_t)root_index != *expression_cursor ||
         value->inferred_type == W_SEED_FRONTEND_NONE ||
-        (comparison ? output->types[value->inferred_type].kind !=
-                          W_SEED_FRONTEND_TYPE_BOOL
-                    : !frontend_expression_is_i64(output, value)) ||
-        !frontend_expression_is_i64(output, &output->expressions[value->left]) ||
-        !frontend_expression_is_i64(output, &output->expressions[value->right]) ||
+        (comparison
+             ? output->types[value->inferred_type].kind !=
+                   W_SEED_FRONTEND_TYPE_BOOL
+             : (shift ? !(frontend_expression_is_i64(output, value) ||
+                           frontend_expression_is_u64(output, value))
+                      : !frontend_expression_is_i64(output, value))) ||
+        (shift ? !((frontend_expression_is_i64(output, value) &&
+                    frontend_expression_is_i64(
+                        output, &output->expressions[value->left])) ||
+                   (frontend_expression_is_u64(output, value) &&
+                    frontend_expression_is_u64(
+                        output, &output->expressions[value->left])))
+               : !frontend_expression_is_i64(
+                     output, &output->expressions[value->left])) ||
+        (shift ? !frontend_expression_is_u64(
+                     output, &output->expressions[value->right])
+               : !frontend_expression_is_i64(
+                     output, &output->expressions[value->right])) ||
         !frontend_value_has_no_resolution(value) ||
         value->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
         value->const_byte_offset != W_SEED_FRONTEND_NONE ||
         value->const_byte_count != 0u || value->has_bool_value ||
         value->has_integer_value ||
-        (uint32_t)operation > (uint32_t)W_SEED_HIR0_BINARY_BIT_XOR ||
+        (uint32_t)operation > (uint32_t)W_SEED_HIR0_BINARY_SHIFT_RIGHT ||
         !add_size(*value_total, 1u, value_total) ||
         !add_size(*expression_cursor, 1u, expression_cursor))
       return false;
@@ -7864,6 +7883,8 @@ static w_seed_hir0_binary_operator hir_binary_operator(
   if (text_is(text, "&")) return W_SEED_HIR0_BINARY_BIT_AND;
   if (text_is(text, "|")) return W_SEED_HIR0_BINARY_BIT_OR;
   if (text_is(text, "^")) return W_SEED_HIR0_BINARY_BIT_XOR;
+  if (text_is(text, "<<")) return W_SEED_HIR0_BINARY_SHIFT_LEFT;
+  if (text_is(text, ">>")) return W_SEED_HIR0_BINARY_SHIFT_RIGHT;
   return (w_seed_hir0_binary_operator)UINT32_MAX;
 }
 
@@ -13691,8 +13712,11 @@ static bool verify_value_tree(
   }
 
   if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
+    const bool shift =
+        value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
+        value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_RIGHT;
     if ((uint32_t)value->binary_operator >
-            (uint32_t)W_SEED_HIR0_BINARY_BIT_XOR ||
+            (uint32_t)W_SEED_HIR0_BINARY_SHIFT_RIGHT ||
         value->left_value == W_SEED_HIR0_NONE ||
         value->right_value == W_SEED_HIR0_NONE ||
         !verify_value_tree(program, value->left_value,
@@ -13706,13 +13730,28 @@ static bool verify_value_tree(
                            depth + 1u, value_cursor, segment_cursor,
                            byte_cursor) ||
         (size_t)root_index != *value_cursor ||
-        program->values[value->left_value].type_index != 2u ||
-        program->values[value->right_value].type_index != 2u ||
-        value->type_index !=
-            (value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
-                     value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL
-                 ? 3u
-                 : 2u) ||
+        (shift
+             ? (!hir_type_index_valid(program, value->type_index) ||
+                !hir_type_index_valid(
+                    program, program->values[value->left_value].type_index) ||
+                !hir_type_index_valid(
+                    program, program->values[value->right_value].type_index) ||
+                program->values[value->left_value].type_index !=
+                    value->type_index ||
+                (program->types[value->type_index].kind !=
+                     W_SEED_HIR0_TYPE_I64 &&
+                 program->types[value->type_index].kind !=
+                     W_SEED_HIR0_TYPE_U64) ||
+                program->types[program->values[value->right_value].type_index]
+                        .kind != W_SEED_HIR0_TYPE_U64)
+             : (program->values[value->left_value].type_index != 2u ||
+                program->values[value->right_value].type_index != 2u ||
+                value->type_index !=
+                    (value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
+                             value->binary_operator <=
+                                 W_SEED_HIR0_BINARY_GREATER_EQUAL
+                         ? 3u
+                         : 2u))) ||
         value->binding_index != W_SEED_HIR0_NONE ||
         value->parameter_index != W_SEED_HIR0_NONE ||
         value->first_interpolation_segment != W_SEED_HIR0_NONE ||

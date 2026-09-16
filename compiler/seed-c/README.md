@@ -1662,7 +1662,7 @@ ownership, carrier order, initial and updated values, version chains, condition
 dependence, dominance, and exit projection.
 
 Native0 schema `w-seed-native0-9` records a dedicated post-test fact. MLIR0
-schema `w-seed-mlir0-18` and Windows label `w-seed-mlir0-windows-8` lower it to
+schema `w-seed-mlir0-19` and Windows label `w-seed-mlir0-windows-8` lower it to
 one structured `scf.while` with a private Bool carrier initialized to true.
 Each body trip yields the updated signed tuple and trailing condition. Safe
 constant division remains `llvm.sdiv`; dynamic division remains checked. No
@@ -2694,12 +2694,30 @@ and executes the exact source on the maintained Linux/WSL lane. The source and
 exact `Flags 14\n` oracle are registered as `restaurant-bitwise` in the public
 Windows executable benchmark catalog.
 
-This does not close W-392. Shifts and their trap/masked policies, power,
-compound assignments, widths other than `i64`, named bit primitives,
-SIMD, or matrix operations remain separate increments. The language benchmark
+This does not close W-392. Power, compound assignments, widths other than
+`i64`/`u64`, named bit primitives, SIMD, or matrix operations remain separate
+increments. The language benchmark
 disposition is `required`; the broader `integer-bit-mix` learner/idiomatic/
 frontier unit remains open even though this public product crosspoint is now
 source-backed.
+
+### Source-backed checked 64-bit shifts (partial W-392)
+
+The seed frontend, verified HIR0, NativeSubset0 program selector, and MLIR0
+preserve `<<` and `>>` over signed `Int` and unsigned `UInt`. The right operand
+is always `UInt`; the result keeps the left operand's logical type. MLIR0 emits
+demand-driven checked helpers: every operation rejects counts at least 64,
+signed right shift uses `llvm.ashr`, unsigned right shift uses `llvm.lshr`, and
+left shift reverses the result to reject discarded bits before publishing it.
+
+[`fixtures/restaurant-shifts.w`](fixtures/restaurant-shifts.w) crosses four
+function boundaries and prints exactly `Shifts -4/15/-48/48\n`. Focused HIR
+tests reject forged right-operand/result/operator records. Focused MLIR and
+tooling checks require all four helpers, their width guards, the signedness-
+correct LLVM operations, exact native output, and traps for an out-of-range
+count plus signed and unsigned left-shift overflow. Masked shifts, rotates,
+other widths, compound assignment, SIMD, and matrix operations remain outside
+this bounded slice.
 
 ### Closed local payloadless enum exhaustive switch (W-1563)
 

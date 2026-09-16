@@ -3036,6 +3036,44 @@ static bool test_signed_bit_not_artifact(void) {
   return true;
 }
 
+static bool test_checked_shift_artifact(void) {
+  static const uint8_t source[] =
+      "fn signedRight(value: Int, count: UInt): Int { return value >> count }\n"
+      "fn unsignedRight(value: UInt, count: UInt): UInt { return value >> count }\n"
+      "fn signedLeft(value: Int, count: UInt): Int { return value << count }\n"
+      "fn unsignedLeft(value: UInt, count: UInt): UInt { return value << count }\n"
+      "entry { let a = signedRight(value: -16, count: 2_u64) "
+      "let b = unsignedRight(value: 18446744073709551615_u64, count: 60_u64) "
+      "let c = signedLeft(value: -3, count: 4_u64) "
+      "let d = unsignedLeft(value: 3_u64, count: 4_u64) "
+      "print(\"${a}/${b}/${c}/${d}\") }\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.func internal @w_seed_checked_shift_left_i64") == 1u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.func internal @w_seed_checked_shift_left_u64") == 1u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.func internal @w_seed_checked_shift_right_i64") == 1u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.func internal @w_seed_checked_shift_right_u64") == 1u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.icmp \"uge\" %count, %width : i64") == 4u &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.ashr %left, %count : i64") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.lshr %left, %count : i64") &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.shl %left, %count : i64") == 2u);
+  return true;
+}
+
 static bool expect_sequence_unsupported(void) {
   const w_seed_mlir0_input input = mlir_input();
   uint8_t output[W_SEED_MLIR0_MAX_BYTES];
@@ -4427,6 +4465,7 @@ int main(int argc, char **argv) {
   if (!test_checked_arithmetic_adversarial()) return 1;
   if (!test_signed_bitwise_artifact()) return 1;
   if (!test_signed_bit_not_artifact()) return 1;
+  if (!test_checked_shift_artifact()) return 1;
   if (!test_interpolation_semantic_barriers()) return 1;
   if (!test_linear_sequence()) return 1;
   if (!test_capacity_and_all_or_nothing()) return 1;

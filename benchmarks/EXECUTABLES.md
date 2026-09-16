@@ -30,6 +30,7 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-comparisons | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-comparisons.w) | source-backed | partial-exploratory-ready |
 | restaurant-comparison-composition | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-comparison-composition.w) | source-backed | partial-exploratory-ready |
 | restaurant-bitwise | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-bitwise.w) | source-backed | partial-exploratory-ready |
+| restaurant-shifts | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-shifts.w) | source-backed | partial-exploratory-ready |
 | restaurant-unsigned | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-unsigned.w) | source-backed | partial-exploratory-ready |
 | restaurant-linear | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-linear.w) | source-backed | partial-exploratory-ready |
 | restaurant-runtime-divrem | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-runtime-divrem.w) | source-backed | partial-exploratory-ready |

@@ -41,6 +41,26 @@ not in this queue.
 | 13 | Package, registry, service and sandbox slices | Signed binary-first packages, source fallback, independent verification, one service provider and bounded sandbox execution work against the stable compiler/runtime boundary | Opens the ecosystem without freezing premature compiler internals |
 | 14 | UI, native graphics, scientific and proof-mode applications | Promote one real workload at a time through correctness, applicability, resource receipts and benchmark evidence; platform SDK/providers remain outside the language core | Broadens targets from proven primitives instead of speculative abstractions |
 
+### Active rank 1 closure order
+
+Close the scalar surface in dependency order rather than resuming the later
+physical scheduler experiments:
+
+1. canonical signed, unsigned, Boolean and floating scalar identities,
+   literals and conversions;
+2. prefix, arithmetic, comparison, bitwise, shift, overflow and compound
+   operators, each with its specified checked or explicit wrapping policy;
+3. Boolean short-circuiting, scalar `if`, exhaustive scalar selection and
+   conditional expressions;
+4. labelled/positional calls, returns, overload identity and ordinary scalar
+   mutation;
+5. one computation witness that exercises the completed surface against an
+   independent optimized C23 oracle on Windows and Linux/WSL.
+
+An item is closed only by exact source-to-native execution and adversarial
+failure evidence. Parser acceptance, design oracles, hand-built HIR, and a
+backend-only artifact are supporting evidence, not completion.
+
 ## Native application completeness
 
 The language-level ownership, effects, ABI, callback, domain and kernel models
@@ -132,14 +152,15 @@ plumbing sentinel `42`; external MLIR → NVVM → PTX remains tooling-owned.
 This is compiler-lifecycle correctness evidence only, with no public GPU
 runtime/ABI or other provider/target claim.
 
-The first rank-1 increment is now executable: signed-`i64` `&`, `|`, `^`, and
-unary `~`
-cross exact W source, canonical precedence, verified HIR0, direct LLVM-dialect
-operations, and the maintained Linux/WSL native route. The same source reaches
-the public Windows product builder through its executable-catalog owner. The
-exact `restaurant-bitwise` source/oracle is owned by that catalog. W-392
-remains open for shifts and their failure policies, power, compound forms,
-other widths, and named bit APIs.
+The first rank-1 increments are now executable. Signed-`i64` `&`, `|`, `^`,
+and unary `~` cross exact W source, canonical precedence, verified HIR0, direct
+LLVM-dialect operations, and the maintained native routes. Checked `<<` and
+`>>` additionally preserve signed/unsigned logical type, require a `UInt`
+count, trap at counts greater than or equal to 64, use arithmetic versus
+logical right shift, and reject information-losing left shift. Exact
+`restaurant-bitwise` and `restaurant-shifts` sources/oracles own these bounded
+crosspoints. W-392 remains open for power, compound forms, other widths, named
+bit APIs, SIMD, and the complete integer operator matrix.
 W-1597 remains a legality certificate only; target policy must still combine it
 with observability and cost facts and compare any direct-call artifact with the
 W-1600 physical reference.
