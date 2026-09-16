@@ -246,15 +246,28 @@
     {
       "id": "R0-power-precedence",
       "reviewItem": "power matemática com exponent prefix contra unary que vence power",
-      "decisions": ["W-769"],
-      "task": "Evaluate negative two squared according to mathematical precedence.",
-      "selected": { "language": "w", "source": ["let value = -2 ** 2"] },
+      "decisions": ["W-769", "W-1152"],
+      "task": "Evaluate prefix and right-associated integer power according to mathematical precedence.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "let leftPrefix = -2 ** 2_u64",
+          "let basePrefix = (-2_i64) ** 2_u64",
+          "let rightAssociated = 2 ** 3_u64 ** 2_u64"
+        ]
+      },
       "alternatives": [
         {
           "name": "unary-first",
           "language": "alternative-grammar",
-          "source": ["let value = (-2) ** 2"],
+          "source": ["let leftPrefix = (-2_i64) ** 2_u64"],
           "expectedDifference": "Unary-first grammar changes the unparenthesized result from -4 to 4."
+        },
+        {
+          "name": "left-associated-power",
+          "language": "alternative-grammar",
+          "source": ["let rightAssociated = (2 ** 3_u64) ** 2_u64"],
+          "expectedDifference": "Left-associated power changes the result from 512 to 64."
         }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]

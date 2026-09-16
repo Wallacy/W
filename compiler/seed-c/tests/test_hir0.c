@@ -13363,6 +13363,42 @@ static bool test_checked_power_values(void) {
   configure_host();
   CHECK(w_seed_frontend_run(&fixture.input, &fixture.output,
                             &fixture.result) != W_SEED_FRONTEND_OK);
+  static const char PRECEDENCE_SOURCE[] =
+      "entry { let a = -2 ** 2 let b = (-2_i64) ** 2 "
+      "let c = 2 ** 3_u64 ** 2_u64 let d = ~2 ** 3 "
+      "let e = (~2_i64) ** 3 }\n";
+  CHECK(lower(PRECEDENCE_SOURCE));
+  bool unary_owns_power = false;
+  bool power_owns_unary = false;
+  bool power_owns_power = false;
+  for (size_t index = 0u; index < fixture.hir_program.value_count; index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_values[index];
+    if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64 &&
+        value->left_value < fixture.hir_program.value_count &&
+        fixture.hir_values[value->left_value].kind ==
+            W_SEED_HIR0_VALUE_BINARY_I64 &&
+        fixture.hir_values[value->left_value].binary_operator ==
+            W_SEED_HIR0_BINARY_POWER)
+      unary_owns_power = true;
+    if (value->kind != W_SEED_HIR0_VALUE_BINARY_I64 ||
+        value->binary_operator != W_SEED_HIR0_BINARY_POWER)
+      continue;
+    if (value->left_value < fixture.hir_program.value_count &&
+        fixture.hir_values[value->left_value].kind ==
+            W_SEED_HIR0_VALUE_UNARY_I64)
+      power_owns_unary = true;
+    if (value->right_value < fixture.hir_program.value_count &&
+        fixture.hir_values[value->right_value].kind ==
+            W_SEED_HIR0_VALUE_BINARY_I64 &&
+        fixture.hir_values[value->right_value].binary_operator ==
+            W_SEED_HIR0_BINARY_POWER)
+      power_owns_power = true;
+  }
+  CHECK(unary_owns_power && power_owns_unary && power_owns_power);
+  CHECK(fixture_parse("entry { let invalid = 2 ** -1 }\n"));
+  configure_host();
+  CHECK(w_seed_frontend_run(&fixture.input, &fixture.output,
+                            &fixture.result) != W_SEED_FRONTEND_OK);
   return true;
 }
 

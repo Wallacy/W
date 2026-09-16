@@ -61,18 +61,18 @@
     }
   ],
   "preservedLegacyCoverage": {
-    "source": 295,
+    "source": 296,
     "oracle": 420,
     "explicit": 8,
     "overlap": 57
   },
   "archiveGapDistribution": {
-    "count": 964,
+    "count": 963,
     "byCategory": {
       "source-backed-current": 1,
       "oracle-backed-current": 90,
       "research-gated": 0,
-      "implementation-evidence-gap": 813,
+      "implementation-evidence-gap": 812,
       "superseded": 53,
       "rejected": 7
     },
@@ -105,7 +105,7 @@
         "source-backed-current": 0,
         "oracle-backed-current": 3,
         "research-gated": 0,
-        "implementation-evidence-gap": 12,
+        "implementation-evidence-gap": 11,
         "superseded": 12,
         "rejected": 1
       },
@@ -1765,7 +1765,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "helloFixture",
           "claim": "The public Linux/WSL runner executes the short-entry Hello fixture with exact output.",
-          "sha256": "sha256:36ae02cd8c8fc406296157cc016c177569a2e9619182798fe8168ef03440d420"
+          "sha256": "sha256:82d113c7cfe29b6acc8501e084c3e9c88b3bfaa313bb28a027cbc8076827ff41"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -16898,7 +16898,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "normalize_entry",
           "claim": "Frontend15 synthesizes one private Unit function and records the direct entry target relation.",
-          "sha256": "sha256:a666b39d19573ed47ee944393c9874783ecc077ac6641e4a8c646e7e265ddcaa"
+          "sha256": "sha256:dfa08ae6679f6e23fadef3daab22831fc43add86110c09db5838f1d952bddbf0"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -16910,7 +16910,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_short_entry_hir",
           "claim": "HIR tests cover private identity, forged modes, and semantic and provenance digests.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -25503,17 +25503,17 @@
         "kind": "source-case",
         "path": "tooling/substitution-cases.json",
         "caseId": "R0-power-precedence",
-        "caseDigest": "sha256:c08816011edba211b650fef44d7414ed31ca96549b8d53350477b5db4c402c05"
+        "caseDigest": "sha256:d28019d5fd25ef712a0fb5f4b68a054cd63bbbee83d7cdbfcc35b183fc9d3701"
       },
       "evidence": [
         {
           "kind": "source",
           "path": "tooling/substitution-cases.json",
           "caseId": "R0-power-precedence",
-          "caseDigest": "sha256:c08816011edba211b650fef44d7414ed31ca96549b8d53350477b5db4c402c05"
+          "caseDigest": "sha256:d28019d5fd25ef712a0fb5f4b68a054cd63bbbee83d7cdbfcc35b183fc9d3701"
         }
       ],
-      "reason": "W-769 (power e prefix, sha256:19c6cd02d7704d83dc3adf966234050e30bdf7987f3d60af299868b1e6618782) has a linked comparative source case and a bounded checked Int/UInt right-associative power executable witness. Prefix-versus-power interaction remains comparison-only and is not claimed as implemented.",
+      "reason": "W-769 (power e prefix, sha256:19c6cd02d7704d83dc3adf966234050e30bdf7987f3d60af299868b1e6618782) has a linked comparative source case plus the bounded restaurant-power-prefix executable witness for left-prefix precedence, parenthesized prefixed bases, right association, and an independent UInt exponent context. Other numeric widths and floating-point power remain outside this bounded implementation claim.",
       "selection": "explicit-ledger-id",
       "basisRef": {
         "kind": "ledger-row",
@@ -37898,18 +37898,23 @@
       "summary": "R1E0 power boundary",
       "canonicalClaim": "bundle cobre `**` right-associative, unary base/exponent, `^` XOR e a separação de unit grammar",
       "claimDigest": "sha256:2824e1c60376f82a98137e99e6f992002c6f310612eeb859b7d2d57d0bda21a2",
-      "category": "implementation-evidence-gap",
-      "basis": "current-ledger-claim-without-executable-witness",
+      "category": "source-backed-current",
+      "basis": "linked-source-comparison-case",
       "authorityRef": {
-        "kind": "design-contract",
-        "path": "DESIGN.md",
-        "section": "3.5",
-        "heading": "### 3.5 Parsing, formatter e gate",
-        "sectionDigest": "sha256:436d42b5959f44adba324dbdb32a0ac4573efa6a940887ad55c73b2bffed0982"
+        "kind": "source-case",
+        "path": "tooling/substitution-cases.json",
+        "caseId": "R0-power-precedence",
+        "caseDigest": "sha256:d28019d5fd25ef712a0fb5f4b68a054cd63bbbee83d7cdbfcc35b183fc9d3701"
       },
-      "evidence": [],
-      "reason": "W-1152 (R1E0 power boundary, sha256:2824e1c60376f82a98137e99e6f992002c6f310612eeb859b7d2d57d0bda21a2) now has executable evidence for right-associative checked Int/UInt power and the distinct XOR token. The syntax-and-grammar component at DESIGN.md §3.5 / 3.5 Parsing, formatter e gate still lacks the unary base/exponent boundary.",
-      "stopCondition": "Do not claim W-1152 as implemented. Close syntax-and-grammar at DESIGN.md §3.5 / 3.5 Parsing, formatter e gate with R1E0 unary/power precedence executable witnesses for unary bases and unary exponents plus fresh evidence.",
+      "evidence": [
+        {
+          "kind": "source",
+          "path": "tooling/substitution-cases.json",
+          "caseId": "R0-power-precedence",
+          "caseDigest": "sha256:d28019d5fd25ef712a0fb5f4b68a054cd63bbbee83d7cdbfcc35b183fc9d3701"
+        }
+      ],
+      "reason": "W-1152 (R1E0 power boundary, sha256:2824e1c60376f82a98137e99e6f992002c6f310612eeb859b7d2d57d0bda21a2) is source-backed-current for the bounded checked Int/UInt executable route: `**` is right-associative, binds before prefix on its left, accepts parenthesized prefixed bases, keeps `^` as XOR, and rejects negative exponents through the UInt requirement. Other widths, floats, and named power APIs remain gaps under their numeric decisions rather than this grammar boundary.",
       "selection": "explicit-ledger-id",
       "basisRef": {
         "kind": "ledger-row",
@@ -37917,13 +37922,6 @@
         "section": "3. Ledger",
         "decisionId": "W-1152",
         "claimDigest": "sha256:2824e1c60376f82a98137e99e6f992002c6f310612eeb859b7d2d57d0bda21a2"
-      },
-      "gap": {
-        "component": "syntax-and-grammar",
-        "gate": "DESIGN.md §3.5 / 3.5 Parsing, formatter e gate",
-        "missingEvidence": [
-          "R1E0 unary/power precedence executable witnesses"
-        ]
       }
     },
     {
@@ -50772,19 +50770,19 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/include/w_seed_frontend.h",
-          "sha256": "sha256:685053666778a575c558ae1a7ef7d3810d1a4cb6d48866b35254bd4bb25304b4",
+          "sha256": "sha256:930badee4dfd0b83b88dfa29fe26a606ebe1a1f0cfb5d4632e46f2db0b6857e8",
           "symbol": "W_SEED_FRONTEND_SCHEMA_VERSION",
           "claim": "Frontend schema version and binding relation fields."
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
-          "sha256": "sha256:a666b39d19573ed47ee944393c9874783ecc077ac6641e4a8c646e7e265ddcaa",
+          "sha256": "sha256:dfa08ae6679f6e23fadef3daab22831fc43add86110c09db5838f1d952bddbf0",
           "symbol": "resolved_binding_statement",
           "claim": "Frontend publishes the lexical binding relation."
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad",
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c",
           "symbol": "w_seed_hir0_binding",
           "claim": "HIR0 v2 binding record and schema fields."
         },
@@ -50808,7 +50806,7 @@
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94",
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9",
           "symbol": "test_local_binding_lowering",
           "claim": "HIR0 unit covers binding lowering and copied bytes."
         },
@@ -50838,7 +50836,7 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:8ce3a20ccf232de6f9ebf1e919669bad02f09ed5667249101a2ad819797667a7",
+          "sha256": "sha256:1e2fcbaa3fbd61f2df7a7e3118e3642fe59a856f9a4ed502c154e96983ca7020",
           "symbol": "const products = [",
           "claim": "MLIR0 gate verifies, translates, links and runs the accepted products."
         }
@@ -50880,7 +50878,7 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/include/w_seed_mlir0.h",
-          "sha256": "sha256:81999dc19f4c5444edc4b1f0202bc8c1a48f08d0dd068f75e15a1753ee0dd04d",
+          "sha256": "sha256:d536e20207893bfa15ba17b1cb9a304cd75f21ba586d9b5d44f4b79c3f53965c",
           "symbol": "w_seed_mlir0_input",
           "claim": "MLIR0 accepts only the caller-owned HIR0 program and verification result input."
         },
@@ -50910,7 +50908,7 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:8ce3a20ccf232de6f9ebf1e919669bad02f09ed5667249101a2ad819797667a7",
+          "sha256": "sha256:1e2fcbaa3fbd61f2df7a7e3118e3642fe59a856f9a4ed502c154e96983ca7020",
           "symbol": "const products = [",
           "claim": "The gate checks direct HIR0-to-native products and exact runtime output."
         },
@@ -50987,7 +50985,7 @@
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "sha256": "sha256:36ae02cd8c8fc406296157cc016c177569a2e9619182798fe8168ef03440d420",
+          "sha256": "sha256:82d113c7cfe29b6acc8501e084c3e9c88b3bfaa313bb28a027cbc8076827ff41",
           "symbol": "const expectedHelp =",
           "claim": "The product gate covers Linux and WSL execution, rejection cases and cleanup."
         },
@@ -51034,7 +51032,7 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/include/w_seed_mlir0.h",
-          "sha256": "sha256:81999dc19f4c5444edc4b1f0202bc8c1a48f08d0dd068f75e15a1753ee0dd04d",
+          "sha256": "sha256:d536e20207893bfa15ba17b1cb9a304cd75f21ba586d9b5d44f4b79c3f53965c",
           "symbol": "w_seed_mlir0_input",
           "claim": "MLIR0 v3 accepts the caller-owned verified-HIR input."
         },
@@ -51058,7 +51056,7 @@
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
-          "sha256": "sha256:c341b28b883b744a0d9d27657aa8f145b06532f308b121e209e3b0246ea5e38d",
+          "sha256": "sha256:5ddaede2d6a7ed19905c590589e75324b8a1d56233133cb863e864708b80debe",
           "symbol": "test_products",
           "claim": "Native0 covers the v2 sequence route."
         },
@@ -51070,13 +51068,13 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:8ce3a20ccf232de6f9ebf1e919669bad02f09ed5667249101a2ad819797667a7",
+          "sha256": "sha256:1e2fcbaa3fbd61f2df7a7e3118e3642fe59a856f9a4ed502c154e96983ca7020",
           "symbol": "const products = [",
           "claim": "The MLIR0 gate executes the canonical sequence and adversarial limits."
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "sha256": "sha256:36ae02cd8c8fc406296157cc016c177569a2e9619182798fe8168ef03440d420",
+          "sha256": "sha256:82d113c7cfe29b6acc8501e084c3e9c88b3bfaa313bb28a027cbc8076827ff41",
           "symbol": "const expectedHelp =",
           "claim": "The public gate runs both versioned hyphenated fixtures directly."
         },
@@ -51129,13 +51127,13 @@
         },
         {
           "path": "compiler/seed-c/include/w_seed_frontend.h",
-          "sha256": "sha256:685053666778a575c558ae1a7ef7d3810d1a4cb6d48866b35254bd4bb25304b4",
+          "sha256": "sha256:930badee4dfd0b83b88dfa29fe26a606ebe1a1f0cfb5d4632e46f2db0b6857e8",
           "symbol": "w_seed_frontend_interpolation_segment",
           "claim": "Frontend schema v12 publishes explicit ordered text and expression segments."
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
-          "sha256": "sha256:a666b39d19573ed47ee944393c9874783ecc077ac6641e4a8c646e7e265ddcaa",
+          "sha256": "sha256:dfa08ae6679f6e23fadef3daab22831fc43add86110c09db5838f1d952bddbf0",
           "symbol": "expression_parse_interpolated_string",
           "claim": "The frontend normalizes interpolation segments and canonical built-in types."
         },
@@ -51153,7 +51151,7 @@
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94",
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9",
           "symbol": "test_typed_interpolation_value_tree",
           "claim": "The later HIR milestone consumes the unchanged W-1523 frontend segment shape."
         }
@@ -51194,7 +51192,7 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad",
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c",
           "symbol": "w_seed_hir0_value",
           "claim": "HIR0 schema v3 defines typed postorder values, ownership, and interpolation segments."
         },
@@ -51206,7 +51204,7 @@
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94",
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9",
           "symbol": "test_typed_interpolation_value_tree",
           "claim": "The unit proves exact graph shape, bytes, capacities, aliases, mutations, digests, and receipts."
         }
@@ -51324,7 +51322,7 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:8ce3a20ccf232de6f9ebf1e919669bad02f09ed5667249101a2ad819797667a7",
+          "sha256": "sha256:1e2fcbaa3fbd61f2df7a7e3118e3642fe59a856f9a4ed502c154e96983ca7020",
           "symbol": "Buffer.from([0x41, 0x00, 0x34, 0x32, 0x0a])",
           "claim": "The native gate proves exact counted output containing NUL followed by runtime decimal interpolation."
         }
@@ -51365,7 +51363,7 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
-          "sha256": "sha256:a666b39d19573ed47ee944393c9874783ecc077ac6641e4a8c646e7e265ddcaa",
+          "sha256": "sha256:dfa08ae6679f6e23fadef3daab22831fc43add86110c09db5838f1d952bddbf0",
           "symbol": "expression_tree_contains",
           "claim": "Frontend supplies canonical Bool identity and resolves a binding nested inside the bounded argument tree."
         },
@@ -51389,7 +51387,7 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:8ce3a20ccf232de6f9ebf1e919669bad02f09ed5667249101a2ad819797667a7",
+          "sha256": "sha256:1e2fcbaa3fbd61f2df7a7e3118e3642fe59a856f9a4ed502c154e96983ca7020",
           "symbol": "builtin-display",
           "claim": "The gate verifies, translates, links, and executes the combined Restaurant and NUL String products."
         }
@@ -51448,13 +51446,13 @@
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94",
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9",
           "symbol": "test_typed_immutable_binding_values",
           "claim": "The unit proves typed binding roots and adversarial owner, index, and type rejection."
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:8ce3a20ccf232de6f9ebf1e919669bad02f09ed5667249101a2ad819797667a7",
+          "sha256": "sha256:1e2fcbaa3fbd61f2df7a7e3118e3642fe59a856f9a4ed502c154e96983ca7020",
           "symbol": "typed-bindings",
           "claim": "The product gate preserves llvm.mul and executes exact typed Restaurant output."
         }
@@ -51513,13 +51511,13 @@
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94",
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9",
           "symbol": "test_local_unit_call_and_parameter_reads",
           "claim": "The unit proves indexed parameter reads and source-order versus ABI-order separation."
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:8ce3a20ccf232de6f9ebf1e919669bad02f09ed5667249101a2ad819797667a7",
+          "sha256": "sha256:1e2fcbaa3fbd61f2df7a7e3118e3642fe59a856f9a4ed502c154e96983ca7020",
           "symbol": "direct-call",
           "claim": "The product gate verifies, translates, links, and executes the direct-call Restaurant witness."
         }
@@ -51578,13 +51576,13 @@
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94",
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9",
           "symbol": "test_scalar_return_and_call_result",
           "claim": "The unit proves the return terminator and indexed call-result binding."
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:8ce3a20ccf232de6f9ebf1e919669bad02f09ed5667249101a2ad819797667a7",
+          "sha256": "sha256:1e2fcbaa3fbd61f2df7a7e3118e3642fe59a856f9a4ed502c154e96983ca7020",
           "symbol": "scalar-return",
           "claim": "The product gate verifies, translates, links, and executes exact scalar-return Restaurant output."
         }
@@ -51643,19 +51641,19 @@
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94",
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9",
           "symbol": "test_if_diamond_cfg",
           "claim": "The unit proves diamond topology, condition typing, ownership, and forged-target rejection."
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:8ce3a20ccf232de6f9ebf1e919669bad02f09ed5667249101a2ad819797667a7",
+          "sha256": "sha256:1e2fcbaa3fbd61f2df7a7e3118e3642fe59a856f9a4ed502c154e96983ca7020",
           "symbol": "restaurant-if",
           "claim": "The focal gate verifies the typed condition, both arms, one join, and exact Restaurant output."
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "sha256": "sha256:36ae02cd8c8fc406296157cc016c177569a2e9619182798fe8168ef03440d420",
+          "sha256": "sha256:82d113c7cfe29b6acc8501e084c3e9c88b3bfaa313bb28a027cbc8076827ff41",
           "symbol": "W-1531 frontier exploration source-style candidate",
           "claim": "The public runner executes the Restaurant witness, separate minimum/no-else microproofs, and learner, idiomatic, and frontier source-style candidates with the same Restaurant stdout; frontier is exploratory and correctness-only."
         }
@@ -51708,7 +51706,7 @@
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5",
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643",
           "symbol": "main",
           "claim": "The native gate builds and executes the bounded Windows fixtures and negative cases."
         },
@@ -51885,25 +51883,25 @@
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94",
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9",
           "symbol": "test_nested_if_depth_boundary",
           "claim": "The HIR unit accepts depth 64 and rejects depth 65."
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
-          "sha256": "sha256:c341b28b883b744a0d9d27657aa8f145b06532f308b121e209e3b0246ea5e38d",
+          "sha256": "sha256:5ddaede2d6a7ed19905c590589e75324b8a1d56233133cb863e864708b80debe",
           "symbol": "test_nested_depth_and_linear_analysis",
           "claim": "The Native0 unit exercises a full binary nested structural stress witness, accepts depth 64 and emits it as MLIR, and rejects depth 65 with unchanged output/result snapshots."
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:8ce3a20ccf232de6f9ebf1e919669bad02f09ed5667249101a2ad819797667a7",
+          "sha256": "sha256:1e2fcbaa3fbd61f2df7a7e3118e3642fe59a856f9a4ed502c154e96983ca7020",
           "symbol": "restaurant-nested-if",
           "claim": "The MLIR0 gate verifies, translates, links, and executes the nested Restaurant fixture with exact four-case stdout."
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "sha256": "sha256:36ae02cd8c8fc406296157cc016c177569a2e9619182798fe8168ef03440d420",
+          "sha256": "sha256:82d113c7cfe29b6acc8501e084c3e9c88b3bfaa313bb28a027cbc8076827ff41",
           "symbol": "restaurant-nested-if",
           "claim": "The public runner executes the nested Restaurant fixture through the verified native route with exact stdout."
         },
@@ -52001,7 +51999,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "statement_for_expression",
           "claim": "Existing bounded expression-tree walks locate prior-binding operands without downstream name resolution.",
-          "sha256": "sha256:a666b39d19573ed47ee944393c9874783ecc077ac6641e4a8c646e7e265ddcaa"
+          "sha256": "sha256:dfa08ae6679f6e23fadef3daab22831fc43add86110c09db5838f1d952bddbf0"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -52025,13 +52023,13 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurant-comparison-composition",
           "claim": "The Linux gate checks signed boundaries, Bool composition, exact stdout, and rejected types.",
-          "sha256": "sha256:36ae02cd8c8fc406296157cc016c177569a2e9619182798fe8168ef03440d420"
+          "sha256": "sha256:82d113c7cfe29b6acc8501e084c3e9c88b3bfaa313bb28a027cbc8076827ff41"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurant-comparison-composition",
           "claim": "The Windows gate checks the same bounded native comparison behavior.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52084,7 +52082,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_logical_adversarial_barriers",
           "claim": "HIR units cover logical positives and malformed owner, range, edge, dominance, capacity, alias, and transaction boundaries.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -52102,13 +52100,13 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantBoolShortCircuitFixture",
           "claim": "The Linux gate checks exact short-circuit stdout through the public native route.",
-          "sha256": "sha256:36ae02cd8c8fc406296157cc016c177569a2e9619182798fe8168ef03440d420"
+          "sha256": "sha256:82d113c7cfe29b6acc8501e084c3e9c88b3bfaa313bb28a027cbc8076827ff41"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantBoolShortCircuitFixture",
           "claim": "The Windows gate checks the same exact short-circuit stdout through the native Windows route.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52173,7 +52171,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_scalar_if_value_diamond",
           "claim": "HIR tests reject forged result type, logical mode, incoming owner/ordinal/type, join target, block argument range/type and read location transactionally.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -52191,7 +52189,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantScalarIfFixture",
           "claim": "The public Windows gate checks exact scalar-if stdout through the native Windows route.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52232,13 +52230,13 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_SCHEMA_VERSION",
           "claim": "HIR0 publishes schema w-seed-hir0-13 for the checked arithmetic route.",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad"
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c"
         },
         {
           "path": "compiler/seed-c/include/w_seed_mlir0.h",
           "symbol": "W_SEED_MLIR0_SCHEMA_VERSION",
           "claim": "MLIR0 publishes schema w-seed-mlir0-15 and Windows label w-seed-mlir0-windows-6.",
-          "sha256": "sha256:81999dc19f4c5444edc4b1f0202bc8c1a48f08d0dd068f75e15a1753ee0dd04d"
+          "sha256": "sha256:d536e20207893bfa15ba17b1cb9a304cd75f21ba586d9b5d44f4b79c3f53965c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
@@ -52298,7 +52296,7 @@
           "path": "tooling/check-mlir0.mjs",
           "symbol": "const products = [",
           "claim": "The integrated gate executes the Restaurant witness, typed output 10 -6 16 4 2, safe constants, and overflow fault boundary.",
-          "sha256": "sha256:8ce3a20ccf232de6f9ebf1e919669bad02f09ed5667249101a2ad819797667a7"
+          "sha256": "sha256:1e2fcbaa3fbd61f2df7a7e3118e3642fe59a856f9a4ed502c154e96983ca7020"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52345,7 +52343,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "normalize_entry",
           "claim": "Frontend15 synthesizes one private Unit function and records the direct entry target relation.",
-          "sha256": "sha256:a666b39d19573ed47ee944393c9874783ecc077ac6641e4a8c646e7e265ddcaa"
+          "sha256": "sha256:dfa08ae6679f6e23fadef3daab22831fc43add86110c09db5838f1d952bddbf0"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -52369,7 +52367,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_short_entry_hir",
           "claim": "HIR tests cover private identity, forged modes, and semantic and provenance digests.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/fixtures/hlo0-hello.w",
@@ -52387,7 +52385,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "helloFixture",
           "claim": "The public Linux/WSL runner executes the short-entry Hello fixture with exact output.",
-          "sha256": "sha256:36ae02cd8c8fc406296157cc016c177569a2e9619182798fe8168ef03440d420"
+          "sha256": "sha256:82d113c7cfe29b6acc8501e084c3e9c88b3bfaa313bb28a027cbc8076827ff41"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52428,7 +52426,7 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_SCHEMA_VERSION",
           "claim": "Frontend16 publishes append-only external nominal identity fields.",
-          "sha256": "sha256:685053666778a575c558ae1a7ef7d3810d1a4cb6d48866b35254bd4bb25304b4"
+          "sha256": "sha256:930badee4dfd0b83b88dfa29fe26a606ebe1a1f0cfb5d4632e46f2db0b6857e8"
         },
         {
           "path": "compiler/seed-c/src/w_seed_parser.c",
@@ -52446,7 +52444,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "external_identity_pair_valid",
           "claim": "Frontend16 validates external nominal identity pairs and the bounded ExitCode success projection.",
-          "sha256": "sha256:a666b39d19573ed47ee944393c9874783ecc077ac6641e4a8c646e7e265ddcaa"
+          "sha256": "sha256:dfa08ae6679f6e23fadef3daab22831fc43add86110c09db5838f1d952bddbf0"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
@@ -52499,7 +52497,7 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_SCHEMA_VERSION",
           "claim": "HIR14 publishes append-only external identity and entry-adapter records.",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad"
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -52511,7 +52509,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_process_hir_adversarial",
           "claim": "HIR tests cover copied lifetime, aliases, forgeries, bounds, overlap, receipts, and digests.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/tests/test_hlo0.c",
@@ -52564,31 +52562,31 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_SCHEMA_VERSION",
           "claim": "HIR15 publishes the append-only schema containing the independent direct-entry facts.",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad"
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "w_seed_hir0_suspension_kind",
           "claim": "HIR15 defines the independent NEVER and MAY suspension facts.",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad"
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "w_seed_hir0_direct_entry_kind",
           "claim": "HIR15 defines the independent ABSENT and AVAILABLE direct-entry facts.",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad"
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "w_seed_hir0_function",
           "claim": "Each caller-owned HIR function record carries both independent facts.",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad"
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "normalize_function",
           "claim": "The frontend assigns is_async from the explicit CST async modifier before HIR publication.",
-          "sha256": "sha256:a666b39d19573ed47ee944393c9874783ecc077ac6641e4a8c646e7e265ddcaa"
+          "sha256": "sha256:dfa08ae6679f6e23fadef3daab22831fc43add86110c09db5838f1d952bddbf0"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -52624,13 +52622,13 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_direct_entry_facts",
           "claim": "The C unit covers bounded fact publication, local-call propagation cases, and forged-fact rejection.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_direct_entry_effect_barrier",
           "claim": "The C unit verifies unsupported effect/defer boundaries fail closed without mutating HIR output or result state.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52714,25 +52712,25 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_SCHEMA_VERSION",
           "claim": "HIR16 publishes closed lifecycle, release-contract, and entry-cleanup fields in caller-owned records.",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad"
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "w_seed_hir0_lifecycle_kind",
           "claim": "The lifecycle enum distinguishes UNKNOWN, VALUE_COPY, and ENTRY_ROOT_OWNER without a generic ownership waiver.",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad"
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "w_seed_hir0_release_contract_kind",
           "claim": "The release enum keeps PROCESS_V1_WRAPPER_RELEASE versioned and compiler-owned.",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad"
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "w_seed_hir0_entry_cleanup_kind",
           "claim": "Each entry records cleanup kind and exact owner-parameter range separately from root drain and reclamation.",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad"
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -52756,7 +52754,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_process_hir_adversarial",
           "claim": "The HIR unit covers scalar and unknown lifecycle facts, exact process owners, resealed forged release or String lifecycle values, and shortened or rebound cleanup-range mutations.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/tests/test_hlo0.c",
@@ -52786,7 +52784,7 @@
           "path": "compiler/seed-c/include/w_seed_mlir0.h",
           "symbol": "W_SEED_MLIR0_PROCESS_SCHEMA_VERSION",
           "claim": "The private PROCESS_HANDLER artifact has a separate versioned MLIR schema.",
-          "sha256": "sha256:81999dc19f4c5444edc4b1f0202bc8c1a48f08d0dd068f75e15a1753ee0dd04d"
+          "sha256": "sha256:d536e20207893bfa15ba17b1cb9a304cd75f21ba586d9b5d44f4b79c3f53965c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
@@ -52816,7 +52814,7 @@
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_process_handler_catalog_and_artifact",
           "claim": "The Native0 unit covers catalog selection, artifact separation, reverse cleanup order, no-main/no-I/O output, and transactional failures.",
-          "sha256": "sha256:c341b28b883b744a0d9d27657aa8f145b06532f308b121e209e3b0246ea5e38d"
+          "sha256": "sha256:5ddaede2d6a7ed19905c590589e75324b8a1d56233133cb863e864708b80debe"
         },
         {
           "path": "compiler/seed-c/tests/process_entry0_gate.c",
@@ -52905,7 +52903,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "normalize_expression",
           "claim": "Frontend preserves resolver-owned Arguments.isEmpty and ExitCode.failure(i64) identities for the public process forms.",
-          "sha256": "sha256:a666b39d19573ed47ee944393c9874783ecc077ac6641e4a8c646e7e265ddcaa"
+          "sha256": "sha256:dfa08ae6679f6e23fadef3daab22831fc43add86110c09db5838f1d952bddbf0"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -52929,19 +52927,19 @@
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_process_input0_public_artifact",
           "claim": "Native0 tests selection identity, capacity transactionality, and target rejection.",
-          "sha256": "sha256:c341b28b883b744a0d9d27657aa8f145b06532f308b121e209e3b0246ea5e38d"
+          "sha256": "sha256:5ddaede2d6a7ed19905c590589e75324b8a1d56233133cb863e864708b80debe"
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_process_enum_payload_public_artifact",
           "claim": "Native0 tests the public enum-payload process composition and its exact output contract.",
-          "sha256": "sha256:c341b28b883b744a0d9d27657aa8f145b06532f308b121e209e3b0246ea5e38d"
+          "sha256": "sha256:5ddaede2d6a7ed19905c590589e75324b8a1d56233133cb863e864708b80debe"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "processInputFixture",
           "claim": "The pinned public gate runs both fixtures from source and from the same built PE across no-argument, empty-argument, and payload cases.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         }
       ],
       "benchmarkDisposition": "deferred",
@@ -53022,7 +53020,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "normalize_expression_node",
           "claim": "Frontend normalizes an unparenthesized trailing nested scalar if as a value-block tail.",
-          "sha256": "sha256:a666b39d19573ed47ee944393c9874783ecc077ac6641e4a8c646e7e265ddcaa"
+          "sha256": "sha256:dfa08ae6679f6e23fadef3daab22831fc43add86110c09db5838f1d952bddbf0"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -53058,13 +53056,13 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_nested_scalar_if_value_diamond",
           "claim": "HIR tests assert two nested typed scalar diamonds and reject a forged root type, branch, join and incoming records transactionally.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_nested_scalar_if_depth_boundary",
           "claim": "HIR tests accept scalar-if depth 64 and reject depth 65 without changing caller-owned output or result.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -53076,7 +53074,7 @@
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_nested_scalar_if_value_native",
           "claim": "Native0 tests exact nested fixture output and reject a forged outer branch target transactionally.",
-          "sha256": "sha256:c341b28b883b744a0d9d27657aa8f145b06532f308b121e209e3b0246ea5e38d"
+          "sha256": "sha256:5ddaede2d6a7ed19905c590589e75324b8a1d56233133cb863e864708b80debe"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-nested-scalar-if.w",
@@ -53088,31 +53086,31 @@
           "path": "tooling/check-mlir0.mjs",
           "symbol": "restaurantNestedScalarIfFixture",
           "claim": "The MLIR0 gate runs the nested Restaurant source through native execution and checks exact stdout, empty stderr and exit zero.",
-          "sha256": "sha256:8ce3a20ccf232de6f9ebf1e919669bad02f09ed5667249101a2ad819797667a7"
+          "sha256": "sha256:1e2fcbaa3fbd61f2df7a7e3118e3642fe59a856f9a4ed502c154e96983ca7020"
         },
         {
           "path": "tooling/executable-benchmark-machine.mjs",
           "symbol": "EXECUTABLE_WORKLOAD_IDS",
           "claim": "The live executable workload catalog includes restaurant-nested-scalar-if beside restaurant-scalar-if.",
-          "sha256": "sha256:3345b89dad562c3b2f53c3171ee5511b94772da7fdc567df6efe6873fbe83163"
+          "sha256": "sha256:07c6d17e1acc7f6e4f9cdba98dbfb1125c15d64d5628cc4b5b84be6098ca55b9"
         },
         {
           "path": "benchmarks/executable-catalog.json",
           "symbol": "restaurant-nested-scalar-if",
           "claim": "The executable catalog records the W source and exact oracle as public-end-to-end and source/oracle-ready with timing deferred.",
-          "sha256": "sha256:54481e131ccfae5f415bcaf5e2ce95b2d3219f1d5437bdf53ba08abc8f76f516"
+          "sha256": "sha256:a452136bce921bbe44c8c0357d04f001108496bd665c933ae221181d0b32dc56"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_SCHEMA_VERSION",
           "claim": "Nested scalar-if lowering reuses the existing public HIR0 record schema.",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad"
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c"
         },
         {
           "path": "compiler/seed-c/include/w_seed_mlir0.h",
           "symbol": "W_SEED_MLIR0_SCHEMA_VERSION",
           "claim": "Nested scalar-if lowering reuses the existing public MLIR0 record schema.",
-          "sha256": "sha256:81999dc19f4c5444edc4b1f0202bc8c1a48f08d0dd068f75e15a1753ee0dd04d"
+          "sha256": "sha256:d536e20207893bfa15ba17b1cb9a304cd75f21ba586d9b5d44f4b79c3f53965c"
         },
         {
           "path": "compiler/seed-c/include/w_seed_native0.h",
@@ -53171,7 +53169,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "assertCrtFreeElf",
           "claim": "The gate rejects a retained ELF with a program interpreter or any DT_NEEDED dependency before execution.",
-          "sha256": "sha256:36ae02cd8c8fc406296157cc016c177569a2e9619182798fe8168ef03440d420"
+          "sha256": "sha256:82d113c7cfe29b6acc8501e084c3e9c88b3bfaa313bb28a027cbc8076827ff41"
         },
         {
           "path": "tooling/check-w-run.test.mjs",
@@ -53254,13 +53252,13 @@
           "path": "tooling/check-mlir0.mjs",
           "symbol": "restaurantRuntimeDivremFixture",
           "claim": "The Linux gate proves exact output and runtime fault-before-output behavior.",
-          "sha256": "sha256:8ce3a20ccf232de6f9ebf1e919669bad02f09ed5667249101a2ad819797667a7"
+          "sha256": "sha256:1e2fcbaa3fbd61f2df7a7e3118e3642fe59a856f9a4ed502c154e96983ca7020"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantRuntimeDivremFixture",
           "claim": "The native Windows runner proves exact output for the same source witness.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53301,7 +53299,7 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_VALUE_UNARY_I64",
           "claim": "HIR0 publishes an explicit checked signed-i64 unary value.",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad"
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -53325,13 +53323,13 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_i64_unary_negate_positive",
           "claim": "HIR units cover the positive record and forged operator/type rejection.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_unary_i64_native_selector",
           "claim": "Native0 proves direct safe constant lowering without the checked helper.",
-          "sha256": "sha256:c341b28b883b744a0d9d27657aa8f145b06532f308b121e209e3b0246ea5e38d"
+          "sha256": "sha256:5ddaede2d6a7ed19905c590589e75324b8a1d56233133cb863e864708b80debe"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-unary-negate.w",
@@ -53343,13 +53341,13 @@
           "path": "tooling/check-mlir0.mjs",
           "symbol": "restaurantUnaryNegateFixture",
           "claim": "The Linux gate proves exact output and runtime overflow fault-before-output.",
-          "sha256": "sha256:8ce3a20ccf232de6f9ebf1e919669bad02f09ed5667249101a2ad819797667a7"
+          "sha256": "sha256:1e2fcbaa3fbd61f2df7a7e3118e3642fe59a856f9a4ed502c154e96983ca7020"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantUnaryNegateFixture",
           "claim": "The native Windows runner proves exact output for the same source.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53390,7 +53388,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "expression_parse_interpolated_string",
           "claim": "The frontend applies canonical i64 context before publishing a leading prefix-negative interpolation tree.",
-          "sha256": "sha256:a666b39d19573ed47ee944393c9874783ecc077ac6641e4a8c646e7e265ddcaa"
+          "sha256": "sha256:dfa08ae6679f6e23fadef3daab22831fc43add86110c09db5838f1d952bddbf0"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
@@ -53402,7 +53400,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_direct_i64_unary_interpolation",
           "claim": "HIR units retain the explicit typed unary tree as an interpolation value.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-unary-interpolation.w",
@@ -53414,13 +53412,13 @@
           "path": "tooling/check-mlir0.mjs",
           "symbol": "restaurantUnaryInterpolationFixture",
           "claim": "The Linux native route proves exact output and direct constant lowering without the checked helper.",
-          "sha256": "sha256:8ce3a20ccf232de6f9ebf1e919669bad02f09ed5667249101a2ad819797667a7"
+          "sha256": "sha256:1e2fcbaa3fbd61f2df7a7e3118e3642fe59a856f9a4ed502c154e96983ca7020"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantUnaryInterpolationFixture",
           "claim": "The native Windows public runner executes the same direct source witness.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53461,13 +53459,13 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "w_seed_hir0_binding",
           "claim": "HIR18 records source identity and the preceding SSA version.",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad"
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "mutable_binding_for_name",
           "claim": "The frontend admits only a preceding mutable binding target.",
-          "sha256": "sha256:a666b39d19573ed47ee944393c9874783ecc077ac6641e4a8c646e7e265ddcaa"
+          "sha256": "sha256:dfa08ae6679f6e23fadef3daab22831fc43add86110c09db5838f1d952bddbf0"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -53479,7 +53477,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_straight_line_mutation_ssa",
           "claim": "HIR tests cover read selection and forged version chains.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -53497,7 +53495,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantMutationFixture",
           "claim": "The native Windows public runner executes the mutation witness.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53544,7 +53542,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_conditional_mutation_merge",
           "claim": "HIR tests prove the root read, scalar join, and single ordered update.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -53562,13 +53560,13 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantConditionalMutationFixture",
           "claim": "The Linux/WSL public runner executes the same source witness.",
-          "sha256": "sha256:36ae02cd8c8fc406296157cc016c177569a2e9619182798fe8168ef03440d420"
+          "sha256": "sha256:82d113c7cfe29b6acc8501e084c3e9c88b3bfaa313bb28a027cbc8076827ff41"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantConditionalMutationFixture",
           "claim": "The native Windows public runner executes the same source witness.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53609,7 +53607,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_bool_mutation_ssa",
           "claim": "HIR tests retain two Boolean versions and the explicit parameter read.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -53627,13 +53625,13 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantBoolMutationFixture",
           "claim": "The Linux/WSL public runner executes exact Boolean output.",
-          "sha256": "sha256:36ae02cd8c8fc406296157cc016c177569a2e9619182798fe8168ef03440d420"
+          "sha256": "sha256:82d113c7cfe29b6acc8501e084c3e9c88b3bfaa313bb28a027cbc8076827ff41"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantBoolMutationFixture",
           "claim": "The native Windows public runner executes the same witness.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53680,13 +53678,13 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_branch_local_mutation_merge",
           "claim": "HIR tests prove two incoming values, one join argument, and one successor binding version.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_branch_local_mutation_barriers",
           "claim": "HIR tests reject missing else, unequal targets, and extra arm statements.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -53704,13 +53702,13 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantBranchMutationFixture",
           "claim": "The Linux/WSL public runner executes exact joined output.",
-          "sha256": "sha256:36ae02cd8c8fc406296157cc016c177569a2e9619182798fe8168ef03440d420"
+          "sha256": "sha256:82d113c7cfe29b6acc8501e084c3e9c88b3bfaa313bb28a027cbc8076827ff41"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantBranchMutationFixture",
           "claim": "The native Windows public runner executes the same witness.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53757,13 +53755,13 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_multi_branch_mutation_merge",
           "claim": "HIR tests prove declaration-order join arguments, merged versions, and edge-list barriers.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_branch_local_mutation_barriers",
           "claim": "HIR tests reject missing, duplicate, unmatched, dependent, effectful, and nested branch shapes.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -53781,19 +53779,19 @@
           "path": "tooling/check-mlir0.mjs",
           "symbol": "restaurantMultiBranchMutationFixture",
           "claim": "The MLIR gate checks the two-parameter join and typed two-operand branches.",
-          "sha256": "sha256:8ce3a20ccf232de6f9ebf1e919669bad02f09ed5667249101a2ad819797667a7"
+          "sha256": "sha256:1e2fcbaa3fbd61f2df7a7e3118e3642fe59a856f9a4ed502c154e96983ca7020"
         },
         {
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantMultiBranchMutationFixture",
           "claim": "The Linux/WSL public runner executes exact joined output.",
-          "sha256": "sha256:36ae02cd8c8fc406296157cc016c177569a2e9619182798fe8168ef03440d420"
+          "sha256": "sha256:82d113c7cfe29b6acc8501e084c3e9c88b3bfaa313bb28a027cbc8076827ff41"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantMultiBranchMutationFixture",
           "claim": "The native Windows public runner executes the same witness.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53887,13 +53885,13 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_while_mutation_ssa",
           "claim": "The focused witness proves explicit header and edge arguments and adversarial record barriers.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_while_mutation_barriers",
           "claim": "Source barriers reject unsupported effectful, nested, multi-statement, and non-i64 loop shapes.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53958,19 +53956,19 @@
           "path": "tooling/check-mlir0.mjs",
           "symbol": "restaurantWhileFixture",
           "claim": "The MLIR gate checks structured input, converted CFG, exact native output, and an unsupported loop barrier.",
-          "sha256": "sha256:8ce3a20ccf232de6f9ebf1e919669bad02f09ed5667249101a2ad819797667a7"
+          "sha256": "sha256:1e2fcbaa3fbd61f2df7a7e3118e3642fe59a856f9a4ed502c154e96983ca7020"
         },
         {
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantWhileFixture",
           "claim": "The public Linux/WSL runner executes exact Served 3 output.",
-          "sha256": "sha256:36ae02cd8c8fc406296157cc016c177569a2e9619182798fe8168ef03440d420"
+          "sha256": "sha256:82d113c7cfe29b6acc8501e084c3e9c88b3bfaa313bb28a027cbc8076827ff41"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantWhileFixture",
           "claim": "The pinned native Windows 23.1.1 runner executes exact Served 3 output.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54017,13 +54015,13 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_local_enum_hir",
           "claim": "Focused HIR tests prove local enum and case records, nominal type identity, local case values, VALUE_COPY/NONE lifecycle, forged-record rejection, and capacity/alias barriers.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_enum_frontend_storage",
           "claim": "Native0 tests prove frontend to verified-HIR admission and unchanged output/result when the MLIR boundary returns unsupported.",
-          "sha256": "sha256:c341b28b883b744a0d9d27657aa8f145b06532f308b121e209e3b0246ea5e38d"
+          "sha256": "sha256:5ddaede2d6a7ed19905c590589e75324b8a1d56233133cb863e864708b80debe"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54088,13 +54086,13 @@
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_enum_switch_native_lowering",
           "claim": "Native0 tests cover reordered arms, local calls, the exact Restaurant fixture, and the emitted switch markers.",
-          "sha256": "sha256:c341b28b883b744a0d9d27657aa8f145b06532f308b121e209e3b0246ea5e38d"
+          "sha256": "sha256:5ddaede2d6a7ed19905c590589e75324b8a1d56233133cb863e864708b80debe"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantEnumFixture",
           "claim": "The pinned Windows 23.1.1 gate executes restaurant-enum.w with exact output, empty stderr, and zero exit.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54141,25 +54139,25 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_function_export_facts",
           "claim": "Focused HIR tests distinguish exported, private, and synthesized-entry functions and reject forged facts.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "tooling/check-mlir0.mjs",
           "symbol": "restaurantWmoFixture",
           "claim": "The MLIR gate proves the used local helper is retained while unused functions, text, and checked-divide support are omitted.",
-          "sha256": "sha256:8ce3a20ccf232de6f9ebf1e919669bad02f09ed5667249101a2ad819797667a7"
+          "sha256": "sha256:1e2fcbaa3fbd61f2df7a7e3118e3642fe59a856f9a4ed502c154e96983ca7020"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantWmoFixture",
           "claim": "The pinned Windows native gate executes the same-module product closure with exact output.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         },
         {
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantWmoFixture",
           "claim": "The Linux/WSL native gate executes the same source with exact output.",
-          "sha256": "sha256:36ae02cd8c8fc406296157cc016c177569a2e9619182798fe8168ef03440d420"
+          "sha256": "sha256:82d113c7cfe29b6acc8501e084c3e9c88b3bfaa313bb28a027cbc8076827ff41"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54218,19 +54216,19 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_process_arguments_count_hir",
           "claim": "Focused HIR tests prove positive count records and bindings plus optional-selector, owner-escape, identity, metadata, type, receiver, and resealed-forgery rejection.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_process_arguments_count_public_artifact",
           "claim": "Native0 tests prove direct-print interpolation reaches the count helper while raw process owners and invalid selectors remain rejected.",
-          "sha256": "sha256:c341b28b883b744a0d9d27657aa8f145b06532f308b121e209e3b0246ea5e38d"
+          "sha256": "sha256:5ddaede2d6a7ed19905c590589e75324b8a1d56233133cb863e864708b80debe"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "processArgumentsCountFixture",
           "claim": "The pinned Windows gate executes one built PE for zero, empty, multiple, and exactly 256 user arguments with exact output and exit status.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         }
       ],
       "benchmarkDisposition": "deferred",
@@ -54289,7 +54287,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_process_arguments_count_hir",
           "claim": "Focused HIR tests cover both operand orders and the comparison identity, type, owner, and forged-record barriers.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -54301,13 +54299,13 @@
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_process_arguments_count_public_artifact",
           "claim": "Native0 tests prove the HIR27 comparison reaches the public artifact while raw process owners remain rejected.",
-          "sha256": "sha256:c341b28b883b744a0d9d27657aa8f145b06532f308b121e209e3b0246ea5e38d"
+          "sha256": "sha256:5ddaede2d6a7ed19905c590589e75324b8a1d56233133cb863e864708b80debe"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "processArgumentsCountFixture",
           "claim": "The pinned Windows gate proves the branch and runtime count cases on the canonical flat-import fixture.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         }
       ],
       "benchmarkDisposition": "deferred",
@@ -54360,19 +54358,19 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_process_arguments_count_hir",
           "claim": "Focused HIR tests compare flat/selective semantic and provenance digests.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "processArgumentsCountFixture",
           "claim": "The Windows gate builds the canonical flat-import process fixture and checks exact runtime outputs.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "processArgumentsCountSelectiveImportFixture",
           "claim": "The Windows gate compares complete PE bytes for the selective-import witness and checks the same exact runtime outputs.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         }
       ],
       "benchmarkDisposition": "deferred",
@@ -54468,7 +54466,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_while_multi_carrier_ssa",
           "claim": "Focused HIR tests cover canonical ordering, sequential dependencies, general exit values, and adversarial tuple forgeries.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -54480,7 +54478,7 @@
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_multi_carrier_native_subset_selector",
           "claim": "Native0 requires the multi-carrier source to complete the full source-to-MLIR route before testing forged selector records.",
-          "sha256": "sha256:c341b28b883b744a0d9d27657aa8f145b06532f308b121e209e3b0246ea5e38d"
+          "sha256": "sha256:5ddaede2d6a7ed19905c590589e75324b8a1d56233133cb863e864708b80debe"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-while-multi.w",
@@ -54492,13 +54490,13 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantWhileMultiFixture",
           "claim": "The Linux/WSL route executes exact Served 9 output from the public source.",
-          "sha256": "sha256:36ae02cd8c8fc406296157cc016c177569a2e9619182798fe8168ef03440d420"
+          "sha256": "sha256:82d113c7cfe29b6acc8501e084c3e9c88b3bfaa313bb28a027cbc8076827ff41"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantWhileMultiFixture",
           "claim": "The native Windows 23.1.1 route executes the same exact source and output.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54539,7 +54537,7 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_SCHEMA_VERSION",
           "claim": "The existing HIR0 schema remains sufficient for the continuation binding and instruction records.",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad"
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -54569,7 +54567,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_while_post_loop_continuation_ssa",
           "claim": "Focused HIR tests cover continuation version links, return dependence, and malformed exit records.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -54581,7 +54579,7 @@
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_post_loop_continuation_native_subset",
           "claim": "Focused Native0 tests execute the fixture and reject forged continuation metadata and unsupported post-loop forms.",
-          "sha256": "sha256:c341b28b883b744a0d9d27657aa8f145b06532f308b121e209e3b0246ea5e38d"
+          "sha256": "sha256:5ddaede2d6a7ed19905c590589e75324b8a1d56233133cb863e864708b80debe"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-while-post.w",
@@ -54593,13 +54591,13 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantWhilePostFixture",
           "claim": "The Linux/WSL route executes the exact post-loop fixture and Final 9 oracle.",
-          "sha256": "sha256:36ae02cd8c8fc406296157cc016c177569a2e9619182798fe8168ef03440d420"
+          "sha256": "sha256:82d113c7cfe29b6acc8501e084c3e9c88b3bfaa313bb28a027cbc8076827ff41"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantWhilePostFixture",
           "claim": "The native Windows route executes the same post-loop fixture and Final 9 oracle.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54891,13 +54889,13 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "resolved local-module graph fixture",
           "claim": "The Windows public gate runs and builds the graph and rejects a private target.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         },
         {
           "path": "tooling/check-w-run.mjs",
           "symbol": "resolved local-module graph",
           "claim": "The Linux/WSL public gate runs and builds the graph and rejects a private target.",
-          "sha256": "sha256:36ae02cd8c8fc406296157cc016c177569a2e9619182798fe8168ef03440d420"
+          "sha256": "sha256:82d113c7cfe29b6acc8501e084c3e9c88b3bfaa313bb28a027cbc8076827ff41"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54938,7 +54936,7 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "w_seed_hir0_task_role",
           "claim": "HIR30 publishes closed proof roles without defining a runtime Task representation.",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad"
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -54956,19 +54954,19 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_structured_async_elision_hir",
           "claim": "Focused C23 tests cover scalar elision and adversarial Task relation mutations.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_virtual_structured_task_product",
           "claim": "Native0 proves that the bounded source emits ordinary scalar calls without Task-specific runtime symbols.",
-          "sha256": "sha256:c341b28b883b744a0d9d27657aa8f145b06532f308b121e209e3b0246ea5e38d"
+          "sha256": "sha256:5ddaede2d6a7ed19905c590589e75324b8a1d56233133cb863e864708b80debe"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurant async join fixture",
           "claim": "The Windows public gate builds and executes the source with exact output and empty stderr.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -55021,19 +55019,19 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_structured_async_elision_hir",
           "claim": "Focused tests cover i64 and Bool direct-entry elision, forgeries, unsupported bodies, and all-or-nothing output.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_async_direct_entry_product",
           "claim": "Native lowering emits an ordinary scalar call without Task or WRT symbols.",
-          "sha256": "sha256:c341b28b883b744a0d9d27657aa8f145b06532f308b121e209e3b0246ea5e38d"
+          "sha256": "sha256:5ddaede2d6a7ed19905c590589e75324b8a1d56233133cb863e864708b80debe"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurant async join fixture",
           "claim": "The Windows public route builds and runs the explicit async fixture with exact output.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -55074,7 +55072,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "expression_parse_prefix_inner",
           "claim": "The frontend preserves exact execution yield as a Unit semantic expression inside async functions.",
-          "sha256": "sha256:a666b39d19573ed47ee944393c9874783ecc077ac6641e4a8c646e7e265ddcaa"
+          "sha256": "sha256:dfa08ae6679f6e23fadef3daab22831fc43add86110c09db5838f1d952bddbf0"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -55098,13 +55096,13 @@
           "path": "tooling/check-mlir0.mjs",
           "symbol": "restaurant-async-yield",
           "claim": "The product retains scalar work and rejects Task, async, yield, and WRT surface.",
-          "sha256": "sha256:8ce3a20ccf232de6f9ebf1e919669bad02f09ed5667249101a2ad819797667a7"
+          "sha256": "sha256:1e2fcbaa3fbd61f2df7a7e3118e3642fe59a856f9a4ed502c154e96983ca7020"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurant async yield fixture",
           "claim": "The Windows public route executes the bounded source with exact output and empty stderr.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -55145,7 +55143,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "expression_parse_prefix_inner",
           "claim": "Frontend24 preserves every execution yield while interning their canonical Unit type identity.",
-          "sha256": "sha256:a666b39d19573ed47ee944393c9874783ecc077ac6641e4a8c646e7e265ddcaa"
+          "sha256": "sha256:dfa08ae6679f6e23fadef3daab22831fc43add86110c09db5838f1d952bddbf0"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -55169,19 +55167,19 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_structured_async_elision_hir",
           "claim": "Focused tests accept one, two, and three markers and reject zero markers under the plural relation and nested calls.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "tooling/check-mlir0.mjs",
           "symbol": "restaurant-async-yield",
           "claim": "The product retains scalar work and rejects Task, async, yield, and WRT surface.",
-          "sha256": "sha256:8ce3a20ccf232de6f9ebf1e919669bad02f09ed5667249101a2ad819797667a7"
+          "sha256": "sha256:1e2fcbaa3fbd61f2df7a7e3118e3642fe59a856f9a4ed502c154e96983ca7020"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurant async yield fixture",
           "claim": "The Windows public route executes the two-yield source with exact output and empty stderr.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -55260,7 +55258,7 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED",
           "claim": "HIR33 retains one execution relation while allowing a fully proved bounded local helper graph.",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad"
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -55272,19 +55270,19 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_structured_async_elision_hir",
           "claim": "Focused tests cover direct and nested helper graphs, forged relations, direct and mutual cycles, and effectful helper rejection.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_virtual_static_yield_helper_product",
           "claim": "Native lowering retains ordinary helper calls while emitting no Task, async, yield, or WRT surface.",
-          "sha256": "sha256:c341b28b883b744a0d9d27657aa8f145b06532f308b121e209e3b0246ea5e38d"
+          "sha256": "sha256:5ddaede2d6a7ed19905c590589e75324b8a1d56233133cb863e864708b80debe"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurant async yield fixture",
           "claim": "The Windows public route executes the helper-bearing source with exact output and empty stderr.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -55325,7 +55323,7 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE",
           "claim": "HIR34 carries a distinct cooperative trace call kind and explicit execution profile.",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad"
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c"
         },
         {
           "path": "compiler/seed-c/include/w_seed_cooperative0.h",
@@ -55412,7 +55410,7 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS",
           "claim": "The HIR34 cooperative envelope supplies the shared 64-function bound.",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad"
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
@@ -55481,7 +55479,7 @@
           "path": "compiler/seed-c/include/w_seed_mlir0.h",
           "symbol": "W_SEED_MLIR0_ARTIFACT_COOPERATIVE_EXECUTABLE",
           "claim": "The bounded seed exposes a distinct cooperative process projection without redefining the target-neutral core.",
-          "sha256": "sha256:81999dc19f4c5444edc4b1f0202bc8c1a48f08d0dd068f75e15a1753ee0dd04d"
+          "sha256": "sha256:d536e20207893bfa15ba17b1cb9a304cd75f21ba586d9b5d44f4b79c3f53965c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
@@ -55568,13 +55566,13 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH",
           "claim": "Frontend25 preserves main-domain launch intent separately from ordinary async.",
-          "sha256": "sha256:685053666778a575c558ae1a7ef7d3810d1a4cb6d48866b35254bd4bb25304b4"
+          "sha256": "sha256:930badee4dfd0b83b88dfa29fe26a606ebe1a1f0cfb5d4632e46f2db0b6857e8"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_CALL_STRUCTURED_ASYNC_MAIN_DISPATCH",
           "claim": "HIR35 carries the non-elidable main-domain dispatch relation.",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad"
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_native0.c",
@@ -55604,13 +55602,13 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantMainDispatchFixture",
           "claim": "Public Windows w run and w build execute exact output.",
-          "sha256": "sha256:27edd6b8cadca108ad4949df1ff601cda327416d25a7b30419f63994026467e5"
+          "sha256": "sha256:c0c7185e71a3bcb421a81df472e4cfe97229bcfd3576f11ddb414d00b8ab7643"
         },
         {
           "path": "benchmarks/executable-catalog.json",
           "symbol": "restaurant-main-dispatch",
           "claim": "The executable catalog owns the source, oracle, blockers, and live measurement lane.",
-          "sha256": "sha256:54481e131ccfae5f415bcaf5e2ce95b2d3219f1d5437bdf53ba08abc8f76f516"
+          "sha256": "sha256:a452136bce921bbe44c8c0357d04f001108496bd665c933ae221181d0b32dc56"
         },
         {
           "path": "tooling/platform-support.json",
@@ -55655,7 +55653,7 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_SCHEMA_VERSION",
           "claim": "HIR38 preserves finite main-domain relations independently from the legacy product record's four-slot capacity while the Cooperative0 oracle ceiling remains two.",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad"
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c"
         },
         {
           "path": "compiler/seed-c/include/w_seed_cooperative_selection0.h",
@@ -55667,7 +55665,7 @@
           "path": "compiler/seed-c/include/w_seed_mlir0.h",
           "symbol": "W_SEED_MLIR0_COOPERATIVE_SCHEMA_VERSION",
           "claim": "MLIR0 schema version 2 identifies the count-driven target-neutral and executable emitters.",
-          "sha256": "sha256:81999dc19f4c5444edc4b1f0202bc8c1a48f08d0dd068f75e15a1753ee0dd04d"
+          "sha256": "sha256:d536e20207893bfa15ba17b1cb9a304cd75f21ba586d9b5d44f4b79c3f53965c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -55679,7 +55677,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_structured_async_elision_hir",
           "claim": "The C23 HIR witness admits and independently verifies five ordered main-domain tasks without a fixed temporary task array.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
@@ -55754,19 +55752,19 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH",
           "claim": "Frontend28 preserves explicit parallel-domain syntax and caller-owned placement facts.",
-          "sha256": "sha256:685053666778a575c558ae1a7ef7d3810d1a4cb6d48866b35254bd4bb25304b4"
+          "sha256": "sha256:930badee4dfd0b83b88dfa29fe26a606ebe1a1f0cfb5d4632e46f2db0b6857e8"
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "domain_input_ready",
           "claim": "Frontend validates bounded caller-owned domain records before parsing explicit placement.",
-          "sha256": "sha256:a666b39d19573ed47ee944393c9874783ecc077ac6641e4a8c646e7e265ddcaa"
+          "sha256": "sha256:dfa08ae6679f6e23fadef3daab22831fc43add86110c09db5838f1d952bddbf0"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_CALL_STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH",
           "claim": "HIR38 owns a distinct physical call kind and copied placement record.",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad"
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -55796,7 +55794,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_parallel_domain_placement_hir",
           "claim": "HIR tests prove copied lifetime-independent placement and reject adversarial record mutations.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         }
       ]
     },
@@ -55853,7 +55851,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_parallel_domain_placement_hir",
           "claim": "Focused tests cover cardinality, canonical records, forgery, aliases, lifetime independence, and unsupported input.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         }
       ]
     },
@@ -55910,7 +55908,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_parallel_provider_windows",
           "claim": "The focused test proves semantic equivalence and deterministic two-worker overlap.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         }
       ]
     },
@@ -56559,7 +56557,7 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_EXPR_SPAWN_ACCELERATED_DOMAIN_LAUNCH",
           "claim": "Frontend32 publishes a distinct accelerated-domain launch and exact module/kernel-binding callee identity.",
-          "sha256": "sha256:685053666778a575c558ae1a7ef7d3810d1a4cb6d48866b35254bd4bb25304b4"
+          "sha256": "sha256:930badee4dfd0b83b88dfa29fe26a606ebe1a1f0cfb5d4632e46f2db0b6857e8"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
@@ -56777,7 +56775,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_parallel_domain_placement_hir",
           "claim": "The C23 witness covers five tasks, exact capacity, aliases, bridge transactionality, forged state, and PARSEL0 compatibility failure.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "tooling/check-hir0.mjs",
@@ -56842,7 +56840,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_parallel_domain_placement_hir",
           "claim": "The C23 witness covers reordered labels, five tasks, seventeen arguments, capacities, aliases, forgeries, evaluation, and legacy failures.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "tooling/check-hir0.mjs",
@@ -56907,7 +56905,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_parallel_provider1_windows",
           "claim": "The C23 witness covers five-task capacity equality, physical overlap, seventeen arguments, capacities, aliases, and forged outcomes.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "tooling/check-hir0.mjs",
@@ -56954,7 +56952,7 @@
           "path": "compiler/seed-c/include/w_seed_mlir0.h",
           "symbol": "W_SEED_MLIR1_PARALLEL_ENTRY_RESULT_SCHEMA_VERSION",
           "claim": "PARMLIR1 exposes measured caller-owned entry emission with result identity bound to HIR, selection, and invocation proofs.",
-          "sha256": "sha256:81999dc19f4c5444edc4b1f0202bc8c1a48f08d0dd068f75e15a1753ee0dd04d"
+          "sha256": "sha256:d536e20207893bfa15ba17b1cb9a304cd75f21ba586d9b5d44f4b79c3f53965c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
@@ -56966,7 +56964,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_parallel_mlir_entries1",
           "claim": "The C23 witness proves compatible byte identity, five tasks, seventeen arguments, transactionality, aliases, and forged-proof rejection.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "tooling/check-parallel-mlir0.mjs",
@@ -57090,7 +57088,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_parallel_provider1_windows",
           "claim": "The C23 witness proves five-task provider binding, capacity-independent semantic identity, checked scope folding, transactionality, aliases, and forgery rejection.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "tooling/check-hir0.mjs",
@@ -57149,7 +57147,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_parallel_platform1_typed_completions",
           "claim": "The C23 witness proves capacity-independent indexed completions, explicit error/cancellation, settled sibling preservation, receipts, and invalid-tag rejection.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "tooling/check-hir0.mjs",
@@ -57202,13 +57200,13 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "w_seed_frontend_function",
           "claim": "Frontend29 publishes the concrete function error type and typed throw statement.",
-          "sha256": "sha256:685053666778a575c558ae1a7ef7d3810d1a4cb6d48866b35254bd4bb25304b4"
+          "sha256": "sha256:930badee4dfd0b83b88dfa29fe26a606ebe1a1f0cfb5d4632e46f2db0b6857e8"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_TERMINATOR_THROW",
           "claim": "HIR39 represents a recoverable error as a distinct typed terminator.",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad"
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -57220,7 +57218,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_typed_throw_hir",
           "claim": "The C23 witness proves typed root throw and rejects mutations, non-Error enums, and unimplemented branch composition.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -57267,7 +57265,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_typed_throw_hir",
           "claim": "The C23 witness proves mixed signed-i64 return and typed error exits and rejects a forged cross-arm jump.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -57320,19 +57318,19 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_EXPR_TRY",
           "claim": "Frontend30 publishes the EXPR_TRY kind and its concrete propagated error enum relation.",
-          "sha256": "sha256:685053666778a575c558ae1a7ef7d3810d1a4cb6d48866b35254bd4bb25304b4"
+          "sha256": "sha256:930badee4dfd0b83b88dfa29fe26a606ebe1a1f0cfb5d4632e46f2db0b6857e8"
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "expression_parse_prefix_inner",
           "claim": "Frontend parsing admits only the exact synchronous local typed-try shape and records its nested call and enum identity.",
-          "sha256": "sha256:a666b39d19573ed47ee944393c9874783ecc077ac6641e4a8c646e7e265ddcaa"
+          "sha256": "sha256:dfa08ae6679f6e23fadef3daab22831fc43add86110c09db5838f1d952bddbf0"
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "resolve_frontend_links",
           "claim": "Frontend link resolution rechecks lexical ownership, local callee identity, matching error enums, result type, and async barriers.",
-          "sha256": "sha256:a666b39d19573ed47ee944393c9874783ecc077ac6641e4a8c646e7e265ddcaa"
+          "sha256": "sha256:dfa08ae6679f6e23fadef3daab22831fc43add86110c09db5838f1d952bddbf0"
         },
         {
           "path": "compiler/seed-c/tests/test_parser.c",
@@ -57385,13 +57383,13 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_SCHEMA_VERSION",
           "claim": "HIR0 advances to schema w-seed-hir0-40 for the typed invoke propagation slice.",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad"
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_TERMINATOR_INVOKE",
           "claim": "The terminator-owned invoke kind carries normal and typed-error successors without an ordinary CALL instruction.",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad"
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -57421,7 +57419,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_typed_invoke_hir",
           "claim": "The C23 witness proves the exact relay and rejects forged targets, owners, error types, and successor block arguments.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "tooling/check-hir0.mjs",
@@ -57468,7 +57466,7 @@
           "path": "compiler/seed-c/include/w_seed_mlir0.h",
           "symbol": "W_SEED_MLIR0_TYPED_PROPAGATION_SCHEMA_VERSION",
           "claim": "The dedicated API names the private typed-propagation schema and two-field carrier.",
-          "sha256": "sha256:81999dc19f4c5444edc4b1f0202bc8c1a48f08d0dd068f75e15a1753ee0dd04d"
+          "sha256": "sha256:d536e20207893bfa15ba17b1cb9a304cd75f21ba586d9b5d44f4b79c3f53965c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
@@ -57498,7 +57496,7 @@
           "path": "tooling/check-mlir0.mjs",
           "symbol": "--emit-typed-propagation",
           "claim": "The repository gate feeds the exact emitted artifact through mlir-opt and mlir-translate when the pinned lane is available.",
-          "sha256": "sha256:8ce3a20ccf232de6f9ebf1e919669bad02f09ed5667249101a2ad819797667a7"
+          "sha256": "sha256:1e2fcbaa3fbd61f2df7a7e3118e3642fe59a856f9a4ed502c154e96983ca7020"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -57539,7 +57537,7 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "w_seed_hir0_cleanup",
           "claim": "HIR41 publishes the caller-owned cleanup relation and its capacity/count surface.",
-          "sha256": "sha256:88b23e9d2c097c18db0c6732182123492a8117b3b8a4589af0e79ff6ae711aad"
+          "sha256": "sha256:720701cd617eb667e4dbd560d810410f8e59ec70d6ee8485cf326e73a25cb38c"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -57563,7 +57561,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_typed_invoke_cleanup_hir",
           "claim": "The HIR C23 witness covers exact records, forgeries, capacity, alias, lifetime independence, and fail-closed ProductClosure.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -57575,7 +57573,7 @@
           "path": "tooling/check-mlir0.mjs",
           "symbol": "--emit-typed-cleanup",
           "claim": "The gate parses and translates the emitted cleanup artifact and checks exactly two LLVM cleanup calls.",
-          "sha256": "sha256:8ce3a20ccf232de6f9ebf1e919669bad02f09ed5667249101a2ad819797667a7"
+          "sha256": "sha256:1e2fcbaa3fbd61f2df7a7e3118e3642fe59a856f9a4ed502c154e96983ca7020"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -57628,7 +57626,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_parallel_typed_binding1",
           "claim": "The C23 witness covers capacity-one/two semantic equality, distinct physical provenance, cleanup absence, aliases, short capacity, cancellation, provider failure, and forgeries.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -57687,7 +57685,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_parallel_typed_binding1",
           "claim": "The C23 witness checks the two-task/22-event ordering, nominal sidecar preservation, transactional failures, and capacity-one/two semantic equality with different provenance.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -57746,7 +57744,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_parallel_typed_binding1",
           "claim": "The C23 witness covers canonical admission, forged seals and receipts, descriptor mismatch, authority aliases, transactional failure, provenance forgery, and capacity-independent semantics.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -57805,7 +57803,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_parallel_platform1_typed_completions",
           "claim": "The C23 witnesses cover error-plus-panic dominance, lexical source and code, later cancellation, malformed panic, and PARBIND1 output preservation.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -57935,7 +57933,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "expression_parse_panic",
           "claim": "The frontend accepts one unlabelled plain String literal, records Never and a closed explicit code, and fails closed on other shapes.",
-          "sha256": "sha256:a666b39d19573ed47ee944393c9874783ecc077ac6641e4a8c646e7e265ddcaa"
+          "sha256": "sha256:dfa08ae6679f6e23fadef3daab22831fc43add86110c09db5838f1d952bddbf0"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -57947,7 +57945,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_explicit_panic_hir",
           "claim": "Focused C23 tests cover source-to-HIR success, invalid shapes, no-call encoding, digest changes, record forgeries, and native-process Never/usize coexistence.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -58006,7 +58004,7 @@
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_panic_native_routes",
           "claim": "Native0 proves ordinary and process artifacts use the same bounded target-trap route while dead panic remains unsupported transactionally.",
-          "sha256": "sha256:c341b28b883b744a0d9d27657aa8f145b06532f308b121e209e3b0246ea5e38d"
+          "sha256": "sha256:5ddaede2d6a7ed19905c590589e75324b8a1d56233133cb863e864708b80debe"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -58065,7 +58063,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_parallel_panic_invocation1",
           "claim": "Focused C23 coverage proves source selection, panic identity, non-mutation on scalar evaluation, and forged-record rejection.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -58124,7 +58122,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_parallel_panic_binding1",
           "claim": "Focused C23 tests prove copied panic identity/message, receipt and authority forgeries, capacity/alias barriers, two-panics semantic equality, no-panic non-publication, and producer teardown readability.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -58177,7 +58175,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_parallel_panic_lifecycle1",
           "claim": "Focused C23 coverage proves semantic equality, event ordering, rederived no-panic classification, forgeries, aliases, output preservation, and teardown-readable message bytes.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -58230,7 +58228,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_parallel_panic_host_registry1",
           "claim": "Focused C23 coverage proves real event creation and close, state seams, capacity equality, forgeries, aliases, replay verification, and cleanup of still-owned handles.",
-          "sha256": "sha256:a71dd29c4f9dc20ef07a97bb397cba09cbc4edfb1b38888d80cdaca90dbf8c94"
+          "sha256": "sha256:85a08fb4cdbeb64ff21a5614f5a1a9106b20aaca8ddec4800f857af69579e6b9"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",

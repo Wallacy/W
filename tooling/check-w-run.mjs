@@ -60,6 +60,8 @@ const restaurantShiftsFixture = resolve(seedDirectory,
   "fixtures", "restaurant-shifts.w")
 const restaurantPowerFixture = resolve(seedDirectory,
   "fixtures", "restaurant-power.w")
+const restaurantPowerPrefixFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-power-prefix.w")
 const restaurantCompoundFixture = resolve(seedDirectory,
   "fixtures", "restaurant-compound.w")
 const restaurantMutationFixture = resolve(seedDirectory,
@@ -916,6 +918,9 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantPowerFixture)],
     Buffer.from("Power -27/1024/1/512\n", "utf8"),
     "Restaurant checked signed and unsigned power")
+  expectSuccess(binary, ["run", toWsl(restaurantPowerPrefixFixture)],
+    Buffer.from("Power prefix -4/4/512/-9/-27\n", "utf8"),
+    "Restaurant prefix and power precedence")
   expectSuccess(binary, ["run", toWsl(restaurantCompoundFixture)],
     Buffer.from("Compound 11\n", "utf8"),
     "Restaurant checked compound assignment")

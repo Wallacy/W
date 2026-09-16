@@ -158,11 +158,15 @@ LLVM-dialect operations, and the maintained native routes. Checked `<<` and
 `>>` additionally preserve signed/unsigned logical type, require a `UInt`
 count, trap at counts greater than or equal to 64, use arithmetic versus
 logical right shift, and reject information-losing left shift. Exact
-`restaurant-bitwise`, `restaurant-shifts`, `restaurant-power`, and
-`restaurant-compound`
+`restaurant-bitwise`, `restaurant-shifts`, `restaurant-power`,
+`restaurant-power-prefix`, and `restaurant-compound`
 sources/oracles own these bounded crosspoints. Checked integer `**` uses a
 `UInt` exponent, keeps the base's signedness, defines `0 ** 0` as one, and
-lowers with logarithmic exponentiation by squaring. The eleven compound
+lowers with logarithmic exponentiation by squaring. The parser now proves the
+W-769/W-1152 boundary as well: power is right-associative, binds before a
+prefix on its left, accepts a prefixed base when parenthesized, and gives its
+exponent an independent `UInt` inference context. A negative exponent remains
+invalid. The eleven compound
 assignment forms now reuse the same checked operation and SSA versioning;
 immutable targets fail closed. W-392 remains open for other widths, named
 bit APIs, SIMD, and the complete integer operator matrix.

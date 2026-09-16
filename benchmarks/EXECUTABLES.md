@@ -32,6 +32,7 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-bitwise | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-bitwise.w) | source-backed | partial-exploratory-ready |
 | restaurant-shifts | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-shifts.w) | source-backed | partial-exploratory-ready |
 | restaurant-power | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-power.w) | source-backed | partial-exploratory-ready |
+| restaurant-power-prefix | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-power-prefix.w) | source-backed | partial-exploratory-ready |
 | restaurant-compound | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-compound.w) | source-backed | partial-exploratory-ready |
 | restaurant-unsigned | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-unsigned.w) | source-backed | partial-exploratory-ready |
 | restaurant-linear | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-linear.w) | source-backed | partial-exploratory-ready |

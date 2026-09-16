@@ -1662,7 +1662,7 @@ ownership, carrier order, initial and updated values, version chains, condition
 dependence, dominance, and exit projection.
 
 Native0 schema `w-seed-native0-9` records a dedicated post-test fact. MLIR0
-schema `w-seed-mlir0-21` and Windows label `w-seed-mlir0-windows-8` lower it to
+schema `w-seed-mlir0-22` and Windows label `w-seed-mlir0-windows-8` lower it to
 one structured `scf.while` with a private Bool carrier initialized to true.
 Each body trip yields the updated signed tuple and trailing condition. Safe
 constant division remains `llvm.sdiv`; dynamic division remains checked. No
@@ -1679,7 +1679,7 @@ catalog separately owns exploratory W/C23/Rust measurements.
 
 ### Checked scalar compound assignment
 
-Frontend34 accepts `+=`, `-=`, `*=`, `/=`, `%=`, `**=`, `<<=`, `>>=`, `&=`,
+Frontend35 accepts `+=`, `-=`, `*=`, `/=`, `%=`, `**=`, `<<=`, `>>=`, `&=`,
 `^=`, and `|=` only for one mutable local identifier in the bounded scalar
 subset. It records one target place, one read of the previous SSA version, the
 ordinary checked operation, and one replacement. Assignment remains Unit and
@@ -1687,12 +1687,27 @@ cannot chain. A `let` target, unsupported type, invalid `UInt` shift/power
 count, or any operation overflow fails through the same frontend or native
 barrier as its non-compound operation.
 
-HIR0 schema `w-seed-hir0-46` verifies the normalized value tree rather than
+HIR0 schema `w-seed-hir0-47` verifies the normalized value tree rather than
 inventing a second compound arithmetic family. MLIR0 schema
-`w-seed-mlir0-21` consequently emits the same demand-driven checked helpers
+`w-seed-mlir0-22` consequently emits the same demand-driven checked helpers
 and no source-variable stack slot. `restaurant-compound.w` exercises all
 eleven forms and prints exactly `Compound 11\n` through the maintained native
 routes. General member/index places and broader numeric widths remain gaps.
+
+### Prefix and power precedence
+
+Frontend35 implements the grammar boundary directly: postfix expressions bind
+the base, `**` binds more tightly than a prefix on its left, and the exponent
+accepts another prefix expression. Power remains right-associative. Therefore
+`-2 ** 2` is `-(2 ** 2)`, `(-2_i64) ** 2` keeps the negative base, and
+`2 ** 3_u64 ** 2_u64` is `2 ** (3_u64 ** 2_u64)`. Checked integer power still requires a
+`UInt` exponent, so a negative integer exponent fails closed.
+
+HIR0 schema `w-seed-hir0-47` and MLIR0 schema `w-seed-mlir0-22` need no
+precedence-specific value kind: they verify and lower the resulting unary and
+power tree. `restaurant-power-prefix.w` executes the distinguishing cases on
+the maintained native routes and prints exactly
+`Power prefix -4/4/512/-9/-27\n`.
 
 ### Resolved local-document graph in verified HIR (W-1575)
 

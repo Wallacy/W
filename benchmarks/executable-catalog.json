@@ -1547,6 +1547,62 @@
       ]
     },
     {
+      "id": "restaurant-power-prefix",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "partial-exploratory-ready",
+      "lane": "equivalent",
+      "scope": "Execute prefix and checked power composition with power-before-left-prefix precedence, prefixed bases, right association, and exact output.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Power prefix -4/4/512/-9/-27\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-power-prefix.w",
+          "digest": "sha256:9e9908d05e2c9ef4c4d238b9b36ac41ab288bfaa6fdc9a607c119f032512c76c",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-power-prefix-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        },
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-power-prefix.w",
+          "digest": "sha256:9e9908d05e2c9ef4c4d238b9b36ac41ab288bfaa6fdc9a607c119f032512c76c",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-power-prefix-release",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only"
+        }
+      ],
+      "blockedLanguages": [
+        "c",
+        "rust"
+      ],
+      "blockers": [
+        "independent-c-rust-source-equivalents"
+      ]
+    },
+    {
       "id": "restaurant-compound",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",

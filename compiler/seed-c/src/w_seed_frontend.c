@@ -5248,7 +5248,7 @@ static bool frontend_widening_allowed(const frontend_context *context,
 
 static bool is_binary_operator(w_seed_frontend_text text) {
   static const char *const operators[] = {
-      "+",  "-",  "*",  "**", "/",  "%",  "&",  "|",  "^",  "<<", ">>",
+      "+",  "-",  "*",  "/",  "%",  "&",  "|",  "^",  "<<", ">>",
       "==", "!=", "<",  "<=", ">",  ">=", "&&", "||", "in", "..<",
       "=",  "+=", "-=", "*=", "/=", "%=", "**=", "<<=", ">>=", "&=",
       "^=", "|=",
@@ -12281,6 +12281,15 @@ static bool expression_parse_bp(frontend_expression_parser *parser,
 static bool expression_parse_prefix(frontend_expression_parser *parser,
                                      frontend_expr_value *value);
 
+static bool expression_parse_power(frontend_expression_parser *parser,
+                                   frontend_expr_value *value);
+
+static bool expression_append_binary(frontend_expression_parser *parser,
+                                     w_seed_frontend_text operator_text,
+                                     frontend_expr_value *left,
+                                     frontend_expr_value *right,
+                                     frontend_expr_value *value);
+
 static bool interpolation_display_supported(frontend_simple_type type) {
   return type.kind == W_SEED_FRONTEND_TYPE_INTEGER ||
          type.kind == W_SEED_FRONTEND_TYPE_BOOL ||
@@ -14189,8 +14198,7 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
     if (appended) value->is_integer_literal = false;
     return appended;
   }
-  if (!expression_parse_primary(parser, value)) return false;
-  return expression_parse_postfix(parser, value);
+  return expression_parse_power(parser, value);
 }
 
 static bool expression_parse_prefix(frontend_expression_parser *parser,
@@ -14203,6 +14211,38 @@ static bool expression_parse_prefix(frontend_expression_parser *parser,
   const bool result = expression_parse_prefix_inner(parser, value);
   parser->depth -= 1u;
   return result;
+}
+
+static bool expression_parse_power(frontend_expression_parser *parser,
+                                   frontend_expr_value *value) {
+  if (parser == NULL || value == NULL ||
+      !expression_parse_primary(parser, value) ||
+      !expression_parse_postfix(parser, value))
+    return false;
+  frontend_token operator_token;
+  if (!cursor_peek(&parser->cursor, &operator_token) ||
+      !token_text(parser->document, &operator_token, "**"))
+    return true;
+  (void)cursor_take(&parser->cursor, &operator_token);
+  frontend_expr_value left = *value;
+  frontend_expr_value right;
+  /* The exponent owns its unsigned-integer context.  Do not let an outer
+   * expected type (for example the i64 default used by a leading negative
+   * interpolation) pre-type an unsuffixed exponent before the binary power
+   * rule can infer UInt.  Keeping the exponent initially unconstrained also
+   * means a unary negative exponent remains a non-literal tree and is
+   * rejected by the ordinary UInt requirement below. */
+  const frontend_simple_type saved_expected_type = parser->expected_type;
+  const bool saved_has_expected_type = parser->has_expected_type;
+  parser->expected_type = simple_type_unknown();
+  parser->has_expected_type = false;
+  const bool parsed_right = expression_parse_prefix(parser, &right);
+  parser->expected_type = saved_expected_type;
+  parser->has_expected_type = saved_has_expected_type;
+  if (!parsed_right) return false;
+  return expression_append_binary(
+      parser, text_from_span(parser->document, operator_token.span), &left,
+      &right, value);
 }
 
 typedef struct {
@@ -14675,9 +14715,7 @@ static bool expression_parse_bp_inner(frontend_expression_parser *parser,
     }
     frontend_expr_value left = *value;
     frontend_expr_value right;
-    const bool power = text_equal(operator_text, "**");
-    const int next_precedence = power ? precedence : precedence + 1;
-    if (!expression_parse_bp(parser, next_precedence, &right) ||
+    if (!expression_parse_bp(parser, precedence + 1, &right) ||
         !expression_append_binary(parser, operator_text, &left, &right,
                                   value))
       return false;
