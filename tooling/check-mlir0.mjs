@@ -35,6 +35,8 @@ const restaurantCompoundFixture = resolve(seedDirectory,
   "fixtures", "restaurant-compound.w")
 const restaurantF64StrictFixture = resolve(seedDirectory,
   "fixtures", "restaurant-f64-strict.w")
+const restaurantUIntArithmeticFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-arithmetic.w")
 const restaurantMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-mutation.w")
 const restaurantConditionalMutationFixture = resolve(seedDirectory,
@@ -430,6 +432,16 @@ try {
     "runtime-signed-power-overflow.w")
   const runtimeUnsignedPowerOverflowPath = resolve(artifactDirectory,
     "runtime-unsigned-power-overflow.w")
+  const runtimeUIntAddOverflowPath = resolve(artifactDirectory,
+    "runtime-uint-add-overflow.w")
+  const runtimeUIntSubtractUnderflowPath = resolve(artifactDirectory,
+    "runtime-uint-subtract-underflow.w")
+  const runtimeUIntMultiplyOverflowPath = resolve(artifactDirectory,
+    "runtime-uint-multiply-overflow.w")
+  const runtimeUIntDivisionZeroPath = resolve(artifactDirectory,
+    "runtime-uint-division-zero.w")
+  const runtimeUIntRemainderZeroPath = resolve(artifactDirectory,
+    "runtime-uint-remainder-zero.w")
   const emptyPath = resolve(artifactDirectory, "empty.w")
   await writeFile(restaurantPath,
     `fn serve() { let message = "Table 42 remains open" print(message) }\nentry(serve)\n`)
@@ -530,6 +542,27 @@ try {
     'entry { let result = power(' +
     'base: 18446744073709551615_u64, exponent: 2_u64) ' +
     'print("success ${result}") }\n')
+  await writeFile(runtimeUIntAddOverflowPath,
+    'fn add(left: UInt, right: UInt): UInt { return left + right }\n' +
+    'entry { let result = add(left: 18446744073709551615_u64, right: 1_u64) ' +
+    'print("success ${result}") }\n')
+  await writeFile(runtimeUIntSubtractUnderflowPath,
+    'fn subtract(left: UInt, right: UInt): UInt { return left - right }\n' +
+    'entry { let result = subtract(left: 0_u64, right: 1_u64) ' +
+    'print("success ${result}") }\n')
+  await writeFile(runtimeUIntMultiplyOverflowPath,
+    'fn multiply(left: UInt, right: UInt): UInt { return left * right }\n' +
+    'entry { let result = multiply(' +
+    'left: 18446744073709551615_u64, right: 2_u64) ' +
+    'print("success ${result}") }\n')
+  await writeFile(runtimeUIntDivisionZeroPath,
+    'fn divide(left: UInt, right: UInt): UInt { return left / right }\n' +
+    'entry { let result = divide(left: 8_u64, right: 0_u64) ' +
+    'print("success ${result}") }\n')
+  await writeFile(runtimeUIntRemainderZeroPath,
+    'fn remainder(left: UInt, right: UInt): UInt { return left % right }\n' +
+    'entry { let result = remainder(left: 8_u64, right: 0_u64) ' +
+    'print("success ${result}") }\n')
   await writeFile(emptyPath, `fn main() { print("") }\nentry(main)\n`)
   const products = [
     { name: "hello", source: canonicalFixture,
@@ -624,6 +657,10 @@ try {
       expected: Buffer.from("Compound 11\n", "utf8") },
     { name: "restaurant-f64-strict", source: restaurantF64StrictFixture,
       expected: Buffer.from("Float strict ok\n", "utf8") },
+    { name: "restaurant-uint-arithmetic", source: restaurantUIntArithmeticFixture,
+      expected: Buffer.from(
+        "UInt 9223372036854775810/9223372036854775809/21; div 7; rem 2; " +
+        "cmp true/true/true/true/false/true/true\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
   ]
   const artifacts = new Map()
@@ -709,6 +746,13 @@ try {
       source: runtimeSignedPowerOverflowPath },
     { name: "runtime-unsigned-power-overflow",
       source: runtimeUnsignedPowerOverflowPath },
+    { name: "runtime-uint-add-overflow", source: runtimeUIntAddOverflowPath },
+    { name: "runtime-uint-subtract-underflow",
+      source: runtimeUIntSubtractUnderflowPath },
+    { name: "runtime-uint-multiply-overflow",
+      source: runtimeUIntMultiplyOverflowPath },
+    { name: "runtime-uint-division-zero", source: runtimeUIntDivisionZeroPath },
+    { name: "runtime-uint-remainder-zero", source: runtimeUIntRemainderZeroPath },
     { name: "explicit-panic", source: explicitPanicFixture },
   ]) {
     const generated = run(seedGate, [fault.source])
@@ -847,6 +891,32 @@ try {
     f64Artifact.includes("0x3ff8000000000000 : f64") &&
     !f64Artifact.includes("fastmath"),
   "strict f64 lowering lost an operator, predicate, bit pattern, or strict mode")
+  const uintArithmeticArtifact =
+    artifacts.get("restaurant-uint-arithmetic").toString("utf8")
+  assert(uintArithmeticArtifact.includes("@w_seed_checked_add_u64") &&
+    uintArithmeticArtifact.includes("@w_seed_checked_subtract_u64") &&
+    uintArithmeticArtifact.includes("@w_seed_checked_multiply_u64") &&
+    uintArithmeticArtifact.includes("@w_seed_checked_divide_u64") &&
+    uintArithmeticArtifact.includes("@w_seed_checked_remainder_u64") &&
+    uintArithmeticArtifact.includes("llvm.intr.uadd.with.overflow") &&
+    uintArithmeticArtifact.includes("llvm.intr.usub.with.overflow") &&
+    uintArithmeticArtifact.includes("llvm.intr.umul.with.overflow") &&
+    uintArithmeticArtifact.includes("llvm.udiv") &&
+    uintArithmeticArtifact.includes("llvm.urem") &&
+    uintArithmeticArtifact.includes('llvm.icmp "eq"') &&
+    uintArithmeticArtifact.includes('llvm.icmp "ne"') &&
+    uintArithmeticArtifact.includes('llvm.icmp "ult"') &&
+    uintArithmeticArtifact.includes('llvm.icmp "ule"') &&
+    uintArithmeticArtifact.includes('llvm.icmp "ugt"') &&
+    uintArithmeticArtifact.includes('llvm.icmp "uge"') &&
+    !uintArithmeticArtifact.includes("@w_seed_checked_add_i64") &&
+    !uintArithmeticArtifact.includes("@w_seed_checked_subtract_i64") &&
+    !uintArithmeticArtifact.includes("@w_seed_checked_multiply_i64") &&
+    !uintArithmeticArtifact.includes('llvm.icmp "slt"') &&
+    !uintArithmeticArtifact.includes('llvm.icmp "sle"') &&
+    !uintArithmeticArtifact.includes('llvm.icmp "sgt"') &&
+    !uintArithmeticArtifact.includes('llvm.icmp "sge"'),
+  "UInt lowering lost checked helpers, unsigned operations, or predicates")
   const wmoArtifact = artifacts.get("restaurant-wmo")
   assert(!artifacts.get("hello").includes("@w_seed_checked_") &&
     wmoArtifact.includes("@w_fn_0(") &&

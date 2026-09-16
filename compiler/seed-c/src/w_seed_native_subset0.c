@@ -250,6 +250,73 @@ static bool checked_i64_multiply(int64_t left, int64_t right,
   return true;
 }
 
+/* U64 is a logical unsigned type even though Native0's bounded ABI carries
+ * it in the same 64-bit slot as i64. Keep all constant evaluation unsigned;
+ * converting through int64_t would turn values above INT64_MAX into a
+ * different mathematical value before the overflow check runs. */
+static bool checked_u64_add(uint64_t left, uint64_t right, uint64_t *result) {
+  if (result == NULL || right > UINT64_MAX - left) return false;
+  *result = left + right;
+  return true;
+}
+
+static bool checked_u64_subtract(uint64_t left, uint64_t right,
+                                 uint64_t *result) {
+  if (result == NULL || right > left) return false;
+  *result = left - right;
+  return true;
+}
+
+static bool checked_u64_multiply(uint64_t left, uint64_t right,
+                                 uint64_t *result) {
+  if (result == NULL || (left != 0u && right > UINT64_MAX / left))
+    return false;
+  *result = left * right;
+  return true;
+}
+
+static bool evaluate_u64(const w_seed_hir0_program *program,
+                         uint32_t value_index, size_t depth,
+                         uint64_t *result) {
+  if (program == NULL || result == NULL || depth > 256u ||
+      value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->type_index >= program->type_count ||
+      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64)
+    return false;
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_U64) {
+    *result = value->unsigned_integer_value;
+    return true;
+  }
+  if (value->kind != W_SEED_HIR0_VALUE_BINARY_U64 ||
+      value->binary_operator > W_SEED_HIR0_BINARY_REMAINDER)
+    return false;
+  uint64_t left = 0u;
+  uint64_t right = 0u;
+  if (!evaluate_u64(program, value->left_value, depth + 1u, &left) ||
+      !evaluate_u64(program, value->right_value, depth + 1u, &right))
+    return false;
+  switch (value->binary_operator) {
+    case W_SEED_HIR0_BINARY_ADD:
+      return checked_u64_add(left, right, result);
+    case W_SEED_HIR0_BINARY_SUBTRACT:
+      return checked_u64_subtract(left, right, result);
+    case W_SEED_HIR0_BINARY_MULTIPLY:
+      return checked_u64_multiply(left, right, result);
+    case W_SEED_HIR0_BINARY_DIVIDE:
+      if (right == 0u) return false;
+      *result = left / right;
+      return true;
+    case W_SEED_HIR0_BINARY_REMAINDER:
+      if (right == 0u) return false;
+      *result = left % right;
+      return true;
+    default:
+      return false;
+  }
+}
+
 static bool evaluate_i64(const w_seed_hir0_program *program,
                          uint32_t value_index, size_t depth,
                          int64_t *result) {
@@ -340,6 +407,23 @@ static bool program_value_is_constant_i64(
   return program_value_is_constant_i64(program, value->left_value,
                                        depth + 1u) &&
          program_value_is_constant_i64(program, value->right_value,
+                                       depth + 1u);
+}
+
+static bool program_value_is_constant_u64(
+    const w_seed_hir0_program *program, uint32_t value_index, size_t depth) {
+  if (program == NULL || depth > 256u || value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->type_index >= program->type_count ||
+      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64)
+    return false;
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_U64) return true;
+  return value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
+         value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER &&
+         program_value_is_constant_u64(program, value->left_value,
+                                       depth + 1u) &&
+         program_value_is_constant_u64(program, value->right_value,
                                        depth + 1u);
 }
 
@@ -589,6 +673,7 @@ static bool interpolation_maximum_bytes(
           effective->kind == W_SEED_HIR0_VALUE_CALL_RESULT ||
           effective->kind == W_SEED_HIR0_VALUE_UNARY_I64 ||
           effective->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
+          effective->kind == W_SEED_HIR0_VALUE_BINARY_U64 ||
           effective->kind ==
               W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON ||
           effective->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER;
@@ -1158,6 +1243,48 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
     if (program_value_is_constant_i64(program, value_index, 0u)) {
       int64_t ignored = 0;
       if (!evaluate_i64(program, value_index, 0u, &ignored)) return false;
+    }
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64) {
+    const bool comparison =
+        value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
+        value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL;
+    const bool arithmetic =
+        value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER;
+    if ((!arithmetic && !comparison) ||
+        value->left_value >= program->value_count ||
+        value->right_value >= program->value_count ||
+        program->values[value->left_value].type_index >= program->type_count ||
+        program->values[value->right_value].type_index >= program->type_count ||
+        program->types[program->values[value->left_value].type_index].kind !=
+            W_SEED_HIR0_TYPE_U64 ||
+        program->types[program->values[value->right_value].type_index].kind !=
+            W_SEED_HIR0_TYPE_U64 ||
+        (comparison ? type != W_SEED_HIR0_TYPE_BOOL
+                    : type != W_SEED_HIR0_TYPE_U64) ||
+        !program_value_lowerable(program, value->left_value, owner_function,
+                                 false, depth + 1u) ||
+        !program_value_lowerable(program, value->right_value, owner_function,
+                                 false, depth + 1u))
+      return false;
+    if (arithmetic && program_value_is_constant_u64(program, value_index, 0u)) {
+      uint64_t ignored = 0u;
+      if (!evaluate_u64(program, value_index, 0u, &ignored)) return false;
+    } else if (comparison) {
+      /* A comparison may contain a constant arithmetic tree on either side;
+       * evaluate each side independently so overflow and zero division still
+       * fail closed even though the comparison itself is not arithmetic. */
+      if (program_value_is_constant_u64(program, value->left_value, 0u)) {
+        uint64_t ignored = 0u;
+        if (!evaluate_u64(program, value->left_value, 0u, &ignored))
+          return false;
+      }
+      if (program_value_is_constant_u64(program, value->right_value, 0u)) {
+        uint64_t ignored = 0u;
+        if (!evaluate_u64(program, value->right_value, 0u, &ignored))
+          return false;
+      }
     }
     return true;
   }
@@ -3722,6 +3849,16 @@ w_seed_native_subset0_status w_seed_native_subset0_select_program(
   for (size_t function = 0u; function < program->function_count;
        function += 1u)
     if (program->functions[function].block_count > 1u) has_cfg = true;
+  bool has_u64_binary = false;
+  for (size_t value = 0u; value < program->value_count; value += 1u)
+    if (program->values[value].kind == W_SEED_HIR0_VALUE_BINARY_U64) {
+      has_u64_binary = true;
+      break;
+    }
+  /* The finite U64 bundle is linear/local-call only. Existing i64-carrier
+   * shift/power loop forms remain governed by their established recognizers,
+   * but ordinary BINARY_U64 never crosses a CFG/loop boundary here. */
+  if (has_u64_binary && has_cfg) return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
   bool has_bool = false;
   for (size_t value = 0u; value < program->value_count; value += 1u)
     if (program->values[value].type_index < program->type_count &&
@@ -4002,6 +4139,7 @@ static bool process_local_call_supported(
              W_SEED_HIR0_TYPE_NOMINAL &&
          (call->result_type == 0u ||
           program->types[call->result_type].kind == W_SEED_HIR0_TYPE_I64 ||
+          program->types[call->result_type].kind == W_SEED_HIR0_TYPE_U64 ||
           program->types[call->result_type].kind == W_SEED_HIR0_TYPE_BOOL ||
           program_enum_type_supported(program, call->result_type, NULL, NULL));
 }

@@ -201,6 +201,29 @@ static const char MLIR0_RUNTIME_HELPERS[] =
     "    llvm.return %append_final : i64\n"
     "  }\n";
 
+/* U64-only dynamic artifacts do not need the signed decimal appender above.
+ * Keep the common copy helper separate so their text cannot accidentally
+ * advertise a signed helper or predicate. */
+static const char MLIR0_RUNTIME_COPY_HELPER[] =
+    "  llvm.func internal @w_seed_copy(%destination: !llvm.ptr, %offset: i64, %source: !llvm.ptr, %length: i64) -> i64 {\n"
+    "    %copy_zero = llvm.mlir.constant(0 : i64) : i64\n"
+    "    %copy_one = llvm.mlir.constant(1 : i64) : i64\n"
+    "    %copy_end = llvm.add %offset, %length : i64\n"
+    "    %copy_empty = llvm.icmp \"eq\" %length, %copy_zero : i64\n"
+    "    llvm.cond_br %copy_empty, ^copy_done, ^copy_loop(%copy_zero : i64)\n"
+    "  ^copy_loop(%copy_index: i64):\n"
+    "    %copy_source = llvm.getelementptr %source[%copy_index] : (!llvm.ptr, i64) -> !llvm.ptr, i8\n"
+    "    %copy_byte = llvm.load %copy_source : !llvm.ptr -> i8\n"
+    "    %copy_position = llvm.add %offset, %copy_index : i64\n"
+    "    %copy_destination = llvm.getelementptr %destination[%copy_position] : (!llvm.ptr, i64) -> !llvm.ptr, i8\n"
+    "    llvm.store %copy_byte, %copy_destination : i8, !llvm.ptr\n"
+    "    %copy_next = llvm.add %copy_index, %copy_one : i64\n"
+    "    %copy_more = llvm.icmp \"ult\" %copy_next, %length : i64\n"
+    "    llvm.cond_br %copy_more, ^copy_loop(%copy_next : i64), ^copy_done\n"
+    "  ^copy_done:\n"
+    "    llvm.return %copy_end : i64\n"
+    "  }\n";
+
 /* Language-level signed-i64 arithmetic is routed through these closed
  * helpers. The LLVM overflow intrinsics produce the mathematical result and
  * an overflow flag; the flagged edge terminates at the bounded fault
@@ -282,6 +305,75 @@ static const char MLIR0_CHECKED_I64_REMAINDER_HELPER[] =
     "    llvm.return %zero : i64\n"
     "  ^checked_ok:\n"
     "    %value = llvm.srem %left, %right : i64\n"
+    "    llvm.return %value : i64\n"
+    "  }\n";
+
+/* Unsigned arithmetic uses the same physical i64 carrier, but its dynamic
+ * safety boundary is independent from signed arithmetic. The add/sub/mul
+ * helpers consume the LLVM unsigned overflow intrinsics; division and
+ * remainder guard zero before issuing the unsigned operation. */
+static const char MLIR0_CHECKED_U64_ADD_HELPER[] =
+    "  llvm.func internal @w_seed_checked_add_u64(%left: i64, %right: i64) -> i64 {\n"
+    "    %pair = \"llvm.intr.uadd.with.overflow\"(%left, %right) : (i64, i64) -> !llvm.struct<(i64, i1)>\n"
+    "    %value = llvm.extractvalue %pair[0] : !llvm.struct<(i64, i1)>\n"
+    "    %overflow = llvm.extractvalue %pair[1] : !llvm.struct<(i64, i1)>\n"
+    "    llvm.cond_br %overflow, ^u64_checked_overflow, ^u64_checked_ok\n"
+    "  ^u64_checked_overflow:\n"
+    "    \"llvm.intr.trap\"() : () -> ()\n"
+    "    llvm.unreachable\n"
+    "  ^u64_checked_ok:\n"
+    "    llvm.return %value : i64\n"
+    "  }\n";
+
+static const char MLIR0_CHECKED_U64_SUBTRACT_HELPER[] =
+    "  llvm.func internal @w_seed_checked_subtract_u64(%left: i64, %right: i64) -> i64 {\n"
+    "    %pair = \"llvm.intr.usub.with.overflow\"(%left, %right) : (i64, i64) -> !llvm.struct<(i64, i1)>\n"
+    "    %value = llvm.extractvalue %pair[0] : !llvm.struct<(i64, i1)>\n"
+    "    %overflow = llvm.extractvalue %pair[1] : !llvm.struct<(i64, i1)>\n"
+    "    llvm.cond_br %overflow, ^u64_checked_overflow, ^u64_checked_ok\n"
+    "  ^u64_checked_overflow:\n"
+    "    \"llvm.intr.trap\"() : () -> ()\n"
+    "    llvm.unreachable\n"
+    "  ^u64_checked_ok:\n"
+    "    llvm.return %value : i64\n"
+    "  }\n";
+
+static const char MLIR0_CHECKED_U64_MULTIPLY_HELPER[] =
+    "  llvm.func internal @w_seed_checked_multiply_u64(%left: i64, %right: i64) -> i64 {\n"
+    "    %pair = \"llvm.intr.umul.with.overflow\"(%left, %right) : (i64, i64) -> !llvm.struct<(i64, i1)>\n"
+    "    %value = llvm.extractvalue %pair[0] : !llvm.struct<(i64, i1)>\n"
+    "    %overflow = llvm.extractvalue %pair[1] : !llvm.struct<(i64, i1)>\n"
+    "    llvm.cond_br %overflow, ^u64_checked_overflow, ^u64_checked_ok\n"
+    "  ^u64_checked_overflow:\n"
+    "    \"llvm.intr.trap\"() : () -> ()\n"
+    "    llvm.unreachable\n"
+    "  ^u64_checked_ok:\n"
+    "    llvm.return %value : i64\n"
+    "  }\n";
+
+static const char MLIR0_CHECKED_U64_DIVIDE_HELPER[] =
+    "  llvm.func internal @w_seed_checked_divide_u64(%left: i64, %right: i64) -> i64 {\n"
+    "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
+    "    %zero_divisor = llvm.icmp \"eq\" %right, %zero : i64\n"
+    "    llvm.cond_br %zero_divisor, ^u64_checked_fault, ^u64_checked_ok\n"
+    "  ^u64_checked_fault:\n"
+    "    \"llvm.intr.trap\"() : () -> ()\n"
+    "    llvm.unreachable\n"
+    "  ^u64_checked_ok:\n"
+    "    %value = llvm.udiv %left, %right : i64\n"
+    "    llvm.return %value : i64\n"
+    "  }\n";
+
+static const char MLIR0_CHECKED_U64_REMAINDER_HELPER[] =
+    "  llvm.func internal @w_seed_checked_remainder_u64(%left: i64, %right: i64) -> i64 {\n"
+    "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
+    "    %zero_divisor = llvm.icmp \"eq\" %right, %zero : i64\n"
+    "    llvm.cond_br %zero_divisor, ^u64_checked_fault, ^u64_checked_ok\n"
+    "  ^u64_checked_fault:\n"
+    "    \"llvm.intr.trap\"() : () -> ()\n"
+    "    llvm.unreachable\n"
+    "  ^u64_checked_ok:\n"
+    "    %value = llvm.urem %left, %right : i64\n"
     "    llvm.return %value : i64\n"
     "  }\n";
 
@@ -790,11 +882,17 @@ typedef struct {
   size_t action_count;
   bool has_bool;
   bool has_u64;
+  bool has_i64;
   bool has_checked_add;
   bool has_checked_subtract;
   bool has_checked_multiply;
   bool has_checked_divide;
   bool has_checked_remainder;
+  bool has_checked_u64_add;
+  bool has_checked_u64_subtract;
+  bool has_checked_u64_multiply;
+  bool has_checked_u64_divide;
+  bool has_checked_u64_remainder;
   bool has_checked_shifts;
   bool has_checked_power;
   bool reachable_values[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
@@ -820,6 +918,12 @@ static bool reachable_values_have_checked_power(
 static bool mlir0_value_has_safe_constant_divisor(
     const w_seed_hir0_program *program, const w_seed_hir0_value *value);
 
+static void derive_reachable_u64_helpers(
+    const w_seed_hir0_program *program,
+    const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES], bool *has_add,
+    bool *has_subtract, bool *has_multiply, bool *has_divide,
+    bool *has_remainder);
+
 static bool dynamic_plan_append_text(mlir0_dynamic_plan *plan,
                                      const uint8_t *bytes, size_t length) {
   if (plan == NULL || (length != 0u && bytes == NULL)) return false;
@@ -843,6 +947,7 @@ static bool dynamic_plan_append_i64(mlir0_dynamic_plan *plan,
   plan->actions[plan->action_count] =
       (mlir0_dynamic_action){MLIR0_DYNAMIC_I64, 0u, 0u, value_index};
   plan->action_count += 1u;
+  plan->has_i64 = true;
   return true;
 }
 
@@ -988,12 +1093,15 @@ static bool build_dynamic_plan(
           if ((effective->kind != W_SEED_HIR0_VALUE_CONST_U64 &&
                effective->kind != W_SEED_HIR0_VALUE_PARAMETER_READ &&
                effective->kind != W_SEED_HIR0_VALUE_CALL_RESULT &&
-               effective->kind != W_SEED_HIR0_VALUE_BINARY_I64) ||
+               effective->kind != W_SEED_HIR0_VALUE_BINARY_I64 &&
+               effective->kind != W_SEED_HIR0_VALUE_BINARY_U64) ||
               !dynamic_plan_append_u64(&candidate, effective_index))
             return false;
         } else if (type == W_SEED_HIR0_TYPE_BOOL) {
           if ((effective->kind != W_SEED_HIR0_VALUE_CONST_BOOL &&
                effective->kind != W_SEED_HIR0_VALUE_BINARY_I64 &&
+               effective->kind != W_SEED_HIR0_VALUE_BINARY_U64 &&
+               effective->kind != W_SEED_HIR0_VALUE_CALL_RESULT &&
                effective->kind !=
                    W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON) ||
               !dynamic_plan_append_bool(&candidate, effective_index))
@@ -1029,6 +1137,11 @@ static bool build_dynamic_plan(
       program, candidate.reachable_values);
   candidate.has_checked_power = reachable_values_have_checked_power(
       program, candidate.reachable_values);
+  derive_reachable_u64_helpers(
+      program, candidate.reachable_values, &candidate.has_checked_u64_add,
+      &candidate.has_checked_u64_subtract, &candidate.has_checked_u64_multiply,
+      &candidate.has_checked_u64_divide,
+      &candidate.has_checked_u64_remainder);
   *plan = candidate;
   return true;
 }
@@ -1056,6 +1169,23 @@ static bool mlir0_value_is_constant_i64(const w_seed_hir0_program *program,
          mlir0_value_is_constant_i64(program, value->right_value, depth + 1u);
 }
 
+static bool mlir0_value_is_constant_u64(const w_seed_hir0_program *program,
+                                        uint32_t value_index, size_t depth) {
+  if (program == NULL || depth > 256u || value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->type_index >= program->type_count ||
+      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64)
+    return false;
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_U64) return true;
+  return value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
+         value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER &&
+         mlir0_value_is_constant_u64(program, value->left_value,
+                                      depth + 1u) &&
+         mlir0_value_is_constant_u64(program, value->right_value,
+                                      depth + 1u);
+}
+
 static bool mlir0_value_has_safe_constant_divisor(
     const w_seed_hir0_program *program, const w_seed_hir0_value *value) {
   if (program == NULL || value == NULL ||
@@ -1063,10 +1193,14 @@ static bool mlir0_value_has_safe_constant_divisor(
       value->right_value >= program->value_count)
     return false;
   const w_seed_hir0_value *divisor = &program->values[value->right_value];
-  return divisor->kind == W_SEED_HIR0_VALUE_CONST_I64 &&
+  if (divisor->kind == W_SEED_HIR0_VALUE_CONST_I64)
+    return divisor->type_index < program->type_count &&
+           program->types[divisor->type_index].kind == W_SEED_HIR0_TYPE_I64 &&
+           divisor->integer_value != 0 && divisor->integer_value != -1;
+  return divisor->kind == W_SEED_HIR0_VALUE_CONST_U64 &&
          divisor->type_index < program->type_count &&
-         program->types[divisor->type_index].kind == W_SEED_HIR0_TYPE_I64 &&
-         divisor->integer_value != 0 && divisor->integer_value != -1;
+         program->types[divisor->type_index].kind == W_SEED_HIR0_TYPE_U64 &&
+         divisor->unsigned_integer_value != 0u;
 }
 
 static const char *binary_operation(w_seed_hir0_binary_operator operation) {
@@ -1143,6 +1277,48 @@ static const char *checked_binary_helper(
       return "@w_seed_checked_divide_i64";
     case W_SEED_HIR0_BINARY_REMAINDER:
       return "@w_seed_checked_remainder_i64";
+    default:
+      return NULL;
+  }
+}
+
+static const char *checked_u64_binary_helper(
+    w_seed_hir0_binary_operator operation) {
+  switch (operation) {
+    case W_SEED_HIR0_BINARY_ADD:
+      return "@w_seed_checked_add_u64";
+    case W_SEED_HIR0_BINARY_SUBTRACT:
+      return "@w_seed_checked_subtract_u64";
+    case W_SEED_HIR0_BINARY_MULTIPLY:
+      return "@w_seed_checked_multiply_u64";
+    case W_SEED_HIR0_BINARY_DIVIDE:
+      return "@w_seed_checked_divide_u64";
+    case W_SEED_HIR0_BINARY_REMAINDER:
+      return "@w_seed_checked_remainder_u64";
+    default:
+      return NULL;
+  }
+}
+
+static const char *u64_binary_operation(
+    w_seed_hir0_binary_operator operation) {
+  switch (operation) {
+    case W_SEED_HIR0_BINARY_DIVIDE:
+      return "llvm.udiv";
+    case W_SEED_HIR0_BINARY_REMAINDER:
+      return "llvm.urem";
+    case W_SEED_HIR0_BINARY_EQUAL:
+      return "llvm.icmp \"eq\"";
+    case W_SEED_HIR0_BINARY_NOT_EQUAL:
+      return "llvm.icmp \"ne\"";
+    case W_SEED_HIR0_BINARY_LESS:
+      return "llvm.icmp \"ult\"";
+    case W_SEED_HIR0_BINARY_LESS_EQUAL:
+      return "llvm.icmp \"ule\"";
+    case W_SEED_HIR0_BINARY_GREATER:
+      return "llvm.icmp \"ugt\"";
+    case W_SEED_HIR0_BINARY_GREATER_EQUAL:
+      return "llvm.icmp \"uge\"";
     default:
       return NULL;
   }
@@ -1283,6 +1459,13 @@ static bool mark_reachable_value_tree(
                                      has_add, has_subtract, has_multiply,
                                      has_divide, has_remainder, depth + 1u);
   }
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64)
+    return mark_reachable_value_tree(program, value->left_value, reachable,
+                                     has_add, has_subtract, has_multiply,
+                                     has_divide, has_remainder, depth + 1u) &&
+           mark_reachable_value_tree(program, value->right_value, reachable,
+                                     has_add, has_subtract, has_multiply,
+                                     has_divide, has_remainder, depth + 1u);
   if (value->kind == W_SEED_HIR0_VALUE_BINARY_FLOAT)
     return mark_reachable_value_tree(program, value->left_value, reachable,
                                      has_add, has_subtract, has_multiply,
@@ -1298,6 +1481,68 @@ static bool mark_reachable_value_tree(
                                      has_add, has_subtract, has_multiply,
                                      has_divide, has_remainder, depth + 1u);
   return true;
+}
+
+static void note_checked_u64_binary_operator(
+    w_seed_hir0_binary_operator operation, bool safe_constant_divisor,
+    bool constant_remainder, bool *has_add, bool *has_subtract,
+    bool *has_multiply, bool *has_divide, bool *has_remainder) {
+  if (has_add == NULL || has_subtract == NULL || has_multiply == NULL ||
+      has_divide == NULL || has_remainder == NULL)
+    return;
+  if (operation == W_SEED_HIR0_BINARY_ADD)
+    *has_add = true;
+  else if (operation == W_SEED_HIR0_BINARY_SUBTRACT)
+    *has_subtract = true;
+  else if (operation == W_SEED_HIR0_BINARY_MULTIPLY)
+    *has_multiply = true;
+  else if (operation == W_SEED_HIR0_BINARY_DIVIDE &&
+           !safe_constant_divisor)
+    *has_divide = true;
+  else if (operation == W_SEED_HIR0_BINARY_REMAINDER &&
+           !constant_remainder)
+    *has_remainder = true;
+}
+
+static void derive_reachable_u64_helpers(
+    const w_seed_hir0_program *program,
+    const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES], bool *has_add,
+    bool *has_subtract, bool *has_multiply, bool *has_divide,
+    bool *has_remainder) {
+  if (program == NULL || reachable == NULL || has_add == NULL ||
+      has_subtract == NULL || has_multiply == NULL || has_divide == NULL ||
+      has_remainder == NULL ||
+      program->value_count > W_SEED_NATIVE_SUBSET0_MAX_VALUES)
+    return;
+  for (size_t value_index = 0u; value_index < program->value_count;
+       value_index += 1u) {
+    const w_seed_hir0_value *value = &program->values[value_index];
+    if (!reachable[value_index] ||
+        value->kind != W_SEED_HIR0_VALUE_BINARY_U64)
+      continue;
+    note_checked_u64_binary_operator(
+        value->binary_operator,
+        mlir0_value_has_safe_constant_divisor(program, value),
+        value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER &&
+            mlir0_value_is_constant_u64(program, (uint32_t)value_index, 0u),
+        has_add, has_subtract, has_multiply, has_divide, has_remainder);
+  }
+}
+
+static bool reachable_values_have_u64(
+    const w_seed_hir0_program *program,
+    const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES]) {
+  if (program == NULL || reachable == NULL ||
+      program->value_count > W_SEED_NATIVE_SUBSET0_MAX_VALUES)
+    return false;
+  for (size_t value_index = 0u; value_index < program->value_count;
+       value_index += 1u)
+    if (reachable[value_index] && program->values[value_index].type_index <
+                                     program->type_count &&
+        program->types[program->values[value_index].type_index].kind ==
+            W_SEED_HIR0_TYPE_U64)
+      return true;
+  return false;
 }
 
 static bool append_checked_i64_helpers(
@@ -1321,6 +1566,32 @@ static bool append_checked_i64_helpers(
   if (has_remainder &&
       !append_literal(artifact, capacity, offset,
                       MLIR0_CHECKED_I64_REMAINDER_HELPER))
+    return false;
+  return true;
+}
+
+static bool append_checked_u64_helpers(
+    bool has_add, bool has_subtract, bool has_multiply, bool has_divide,
+    bool has_remainder, uint8_t *artifact, size_t capacity, size_t *offset) {
+  if (has_add &&
+      !append_literal(artifact, capacity, offset,
+                      MLIR0_CHECKED_U64_ADD_HELPER))
+    return false;
+  if (has_subtract &&
+      !append_literal(artifact, capacity, offset,
+                      MLIR0_CHECKED_U64_SUBTRACT_HELPER))
+    return false;
+  if (has_multiply &&
+      !append_literal(artifact, capacity, offset,
+                      MLIR0_CHECKED_U64_MULTIPLY_HELPER))
+    return false;
+  if (has_divide &&
+      !append_literal(artifact, capacity, offset,
+                      MLIR0_CHECKED_U64_DIVIDE_HELPER))
+    return false;
+  if (has_remainder &&
+      !append_literal(artifact, capacity, offset,
+                      MLIR0_CHECKED_U64_REMAINDER_HELPER))
     return false;
   return true;
 }
@@ -1719,6 +1990,58 @@ static bool append_binary_value_operation(
       offset);
 }
 
+static bool append_binary_u64_value_operation(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    uint8_t *artifact, size_t capacity, size_t *offset) {
+  if (program == NULL || artifact == NULL || offset == NULL ||
+      value_index >= program->value_count ||
+      program->values[value_index].kind != W_SEED_HIR0_VALUE_BINARY_U64)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  const bool comparison =
+      value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
+      value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL;
+  const bool constant_division =
+      mlir0_value_has_safe_constant_divisor(program, value) ||
+      (value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER &&
+       mlir0_value_is_constant_u64(program, value_index, 0u));
+  const char *helper =
+      comparison || constant_division
+          ? NULL
+          : checked_u64_binary_helper(value->binary_operator);
+  if (!append_literal(artifact, capacity, offset, "    %v") ||
+      !append_size(artifact, capacity, offset, value_index) ||
+      !append_literal(artifact, capacity, offset, " = "))
+    return false;
+  if (helper != NULL)
+    return append_literal(artifact, capacity, offset, "llvm.call ") &&
+           append_literal(artifact, capacity, offset, helper) &&
+           append_literal(artifact, capacity, offset, "(") &&
+           append_program_value_operand(program, value->left_value,
+                                        function_index, process, artifact,
+                                        capacity, offset) &&
+           append_literal(artifact, capacity, offset, ", ") &&
+           append_program_value_operand(program, value->right_value,
+                                        function_index, process, artifact,
+                                        capacity, offset) &&
+           append_literal(artifact, capacity, offset,
+                          ") : (i64, i64) -> i64\n");
+  const char *operation = u64_binary_operation(value->binary_operator);
+  return operation != NULL &&
+         append_literal(artifact, capacity, offset, operation) &&
+         append_literal(artifact, capacity, offset, " ") &&
+         append_program_value_operand(program, value->left_value,
+                                      function_index, process, artifact,
+                                      capacity, offset) &&
+         append_literal(artifact, capacity, offset, ", ") &&
+         append_program_value_operand(program, value->right_value,
+                                      function_index, process, artifact,
+                                      capacity, offset) &&
+         append_literal(artifact, capacity, offset, comparison ? " : i64\n"
+                                                                  : " : i64\n");
+}
+
 static const char *float_binary_operation(
     w_seed_hir0_binary_operator operation) {
   switch (operation) {
@@ -2007,6 +2330,11 @@ static bool append_value_operations(const w_seed_hir0_program *program,
       if (!append_binary_value_operation(program, (uint32_t)index, 0u, NULL,
                                          artifact, capacity, offset))
         return false;
+    } else if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64) {
+      if (!append_binary_u64_value_operation(program, (uint32_t)index, 0u,
+                                             NULL, artifact, capacity,
+                                             offset))
+        return false;
     } else if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64) {
       if (!append_unary_i64_operation(program, (uint32_t)index, 0u, NULL,
                                       artifact, capacity, offset))
@@ -2122,13 +2450,22 @@ static bool build_dynamic_artifact(
       (windows &&
        !append_literal(artifact, capacity, &offset,
                        MLIR0_WINDOWS_BUFFER_GLOBAL)) ||
-      !append_literal(artifact, capacity, &offset, MLIR0_RUNTIME_HELPERS) ||
+      !append_literal(artifact, capacity, &offset,
+                      (!plan.has_i64 &&
+                       reachable_values_have_u64(program,
+                                                 plan.reachable_values))
+                          ? MLIR0_RUNTIME_COPY_HELPER
+                          : MLIR0_RUNTIME_HELPERS) ||
       !append_checked_i64_helpers(plan.has_checked_add,
                                   plan.has_checked_subtract,
                                   plan.has_checked_multiply,
                                   plan.has_checked_divide,
                                   plan.has_checked_remainder, artifact,
                                   capacity, &offset) ||
+      !append_checked_u64_helpers(
+          plan.has_checked_u64_add, plan.has_checked_u64_subtract,
+          plan.has_checked_u64_multiply, plan.has_checked_u64_divide,
+          plan.has_checked_u64_remainder, artifact, capacity, &offset) ||
       (plan.has_checked_shifts &&
        !append_literal(artifact, capacity, &offset,
                        MLIR0_CHECKED_SHIFT_HELPERS)) ||
@@ -2233,11 +2570,17 @@ typedef struct {
   bool omitted_functions[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS];
   bool has_bool;
   bool has_u64;
+  bool has_i64;
   bool has_checked_add;
   bool has_checked_subtract;
   bool has_checked_multiply;
   bool has_checked_divide;
   bool has_checked_remainder;
+  bool has_checked_u64_add;
+  bool has_checked_u64_subtract;
+  bool has_checked_u64_multiply;
+  bool has_checked_u64_divide;
+  bool has_checked_u64_remainder;
   bool has_checked_shifts;
   bool has_checked_power;
   bool has_reachable_panic;
@@ -2489,7 +2832,6 @@ static bool mlir_product_closure_shape_candidate(
       case W_SEED_HIR0_VALUE_PARAMETER_READ:
       case W_SEED_HIR0_VALUE_CONST_I64:
       case W_SEED_HIR0_VALUE_CONST_BOOL:
-      case W_SEED_HIR0_VALUE_CONST_U64:
       case W_SEED_HIR0_VALUE_BINARY_I64:
       case W_SEED_HIR0_VALUE_INTERPOLATED_STRING:
       case W_SEED_HIR0_VALUE_CALL_RESULT:
@@ -2497,6 +2839,11 @@ static bool mlir_product_closure_shape_candidate(
       case W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ:
       case W_SEED_HIR0_VALUE_UNARY_I64:
         break;
+      case W_SEED_HIR0_VALUE_CONST_U64:
+      case W_SEED_HIR0_VALUE_BINARY_U64:
+        /* Ordinary unsigned arithmetic/comparisons are outside the
+         * ProductClosure0 scalar contract in this bundle. */
+        return false;
       default:
         return false;
     }
@@ -2536,6 +2883,7 @@ static bool program_plan_append_value(mlir0_program_plan *plan,
   if (type == W_SEED_HIR0_TYPE_I64 || type == W_SEED_HIR0_TYPE_USIZE) {
     plan->actions[plan->action_count] =
         (mlir0_dynamic_action){MLIR0_DYNAMIC_I64, 0u, 0u, value_index};
+    plan->has_i64 = true;
   } else if (type == W_SEED_HIR0_TYPE_U64) {
     plan->actions[plan->action_count] =
         (mlir0_dynamic_action){MLIR0_DYNAMIC_U64, 0u, 0u, value_index};
@@ -2659,6 +3007,11 @@ static bool build_program_plan(const w_seed_hir0_program *program,
       program, candidate.reachable_values);
   candidate.has_checked_power = reachable_values_have_checked_power(
       program, candidate.reachable_values);
+  derive_reachable_u64_helpers(
+      program, candidate.reachable_values, &candidate.has_checked_u64_add,
+      &candidate.has_checked_u64_subtract, &candidate.has_checked_u64_multiply,
+      &candidate.has_checked_u64_divide,
+      &candidate.has_checked_u64_remainder);
   if (!allow_empty &&
       (candidate.action_count == 0u || candidate.text_bytes == 0u) &&
       !candidate.has_reachable_panic)
@@ -2783,6 +3136,7 @@ static bool append_program_value_operand_in_loop(
           value->kind == W_SEED_HIR0_VALUE_CONST_FLOAT ||
           value->kind == W_SEED_HIR0_VALUE_CONST_BOOL ||
           value->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
+          value->kind == W_SEED_HIR0_VALUE_BINARY_U64 ||
           value->kind == W_SEED_HIR0_VALUE_BINARY_FLOAT ||
           value->kind == W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON ||
           value->kind == W_SEED_HIR0_VALUE_PATTERN_CAPTURE_READ ||
@@ -2987,6 +3341,22 @@ static bool append_program_value_tree(
                                    offset, depth + 1u) ||
         !append_binary_value_operation(program, value_index, function_index,
                                        process, artifact, capacity, offset))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64) {
+    if (value->left_value >= program->value_count ||
+        value->right_value >= program->value_count ||
+        !append_program_value_tree(program, value->left_value, function_index,
+                                   process, emitted, artifact, capacity,
+                                   offset, depth + 1u) ||
+        !append_program_value_tree(program, value->right_value, function_index,
+                                   process, emitted, artifact, capacity,
+                                   offset, depth + 1u) ||
+        !append_binary_u64_value_operation(
+            program, value_index, function_index, process, artifact, capacity,
+            offset))
       return false;
     emitted[value_index] = true;
     return true;
@@ -3636,6 +4006,9 @@ static bool append_program_value_tree_in_loop(
     emitted[value_index] = true;
     return true;
   }
+  /* The finite U64 bundle is linear/local-call only; never let an
+   * accidentally bypassed selector lower BINARY_U64 into a loop body. */
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64) return false;
 
   /* Constants, parameters, calls, and other already materialized values do
    * not contain a loop block argument in the natural-loop subset.  Reuse the
@@ -5237,13 +5610,22 @@ static bool build_program_artifact(
       (windows &&
        !append_literal(artifact, capacity, &offset,
                        MLIR0_WINDOWS_BUFFER_GLOBAL)) ||
-      !append_literal(artifact, capacity, &offset, MLIR0_RUNTIME_HELPERS) ||
+      !append_literal(artifact, capacity, &offset,
+                      (!plan.has_i64 &&
+                       reachable_values_have_u64(program,
+                                                 plan.reachable_values))
+                          ? MLIR0_RUNTIME_COPY_HELPER
+                          : MLIR0_RUNTIME_HELPERS) ||
       !append_checked_i64_helpers(plan.has_checked_add,
                                   plan.has_checked_subtract,
                                   plan.has_checked_multiply,
                                   plan.has_checked_divide,
                                   plan.has_checked_remainder, artifact,
                                   capacity, &offset) ||
+      !append_checked_u64_helpers(
+          plan.has_checked_u64_add, plan.has_checked_u64_subtract,
+          plan.has_checked_u64_multiply, plan.has_checked_u64_divide,
+          plan.has_checked_u64_remainder, artifact, capacity, &offset) ||
       (plan.has_checked_shifts &&
        !append_literal(artifact, capacity, &offset,
                        MLIR0_CHECKED_SHIFT_HELPERS)) ||
@@ -5736,10 +6118,14 @@ static bool build_process_executable_artifact(
        !append_literal(artifact, capacity, &offset,
                        MLIR0_WINDOWS_BUFFER_GLOBAL)) ||
        !append_literal(artifact, capacity, &offset, MLIR0_RUNTIME_HELPERS) ||
-      !append_checked_i64_helpers(
+       !append_checked_i64_helpers(
           plan.has_checked_add, plan.has_checked_subtract,
           plan.has_checked_multiply, plan.has_checked_divide,
           plan.has_checked_remainder, artifact, capacity, &offset) ||
+       !append_checked_u64_helpers(
+           plan.has_checked_u64_add, plan.has_checked_u64_subtract,
+           plan.has_checked_u64_multiply, plan.has_checked_u64_divide,
+           plan.has_checked_u64_remainder, artifact, capacity, &offset) ||
        (plan.has_u64 &&
         !append_literal(artifact, capacity, &offset, MLIR0_U64_HELPER)) ||
        (plan.has_bool &&
@@ -8852,7 +9238,11 @@ static bool build_process_parallel_artifact(
       !append_checked_i64_helpers(
           plan.has_checked_add, plan.has_checked_subtract,
           plan.has_checked_multiply, plan.has_checked_divide,
-          plan.has_checked_remainder, artifact, capacity, &offset))
+          plan.has_checked_remainder, artifact, capacity, &offset) ||
+      !append_checked_u64_helpers(
+          plan.has_checked_u64_add, plan.has_checked_u64_subtract,
+          plan.has_checked_u64_multiply, plan.has_checked_u64_divide,
+          plan.has_checked_u64_remainder, artifact, capacity, &offset))
     return false;
   for (size_t function = 0u; function < program->function_count; function += 1u)
     if (plan.reachable_functions[function] &&

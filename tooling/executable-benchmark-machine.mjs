@@ -42,6 +42,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-power-prefix",
   "restaurant-compound",
   "restaurant-f64-strict",
+  "restaurant-uint-arithmetic",
   "restaurant-unsigned",
   "restaurant-linear",
   "restaurant-runtime-divrem",
@@ -177,6 +178,7 @@ export const PROCESS_ARGUMENT_WORKLOAD_IDS = Object.freeze([
   PROCESS_ARGUMENTS_ORDERING_WORKLOAD_ID,
 ]);
 export const RESTAURANT_F64_STRICT_WORKLOAD_ID = "restaurant-f64-strict";
+export const RESTAURANT_UINT_ARITHMETIC_WORKLOAD_ID = "restaurant-uint-arithmetic";
 export function isProcessArgumentWorkload(workloadId) {
   return PROCESS_ARGUMENT_WORKLOAD_IDS.includes(workloadId);
 }
@@ -1030,7 +1032,8 @@ function executableHostSlugSupportsPlatform(host, platformTarget) {
 
 function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PLATFORM_TARGET_WINDOWS) {
   if (platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) return SOURCE_ELIGIBILITY.wslDiagnostic;
-  if (workload?.id === RESTAURANT_F64_STRICT_WORKLOAD_ID) return SOURCE_ELIGIBILITY.strictF64;
+  if (workload?.id === RESTAURANT_F64_STRICT_WORKLOAD_ID ||
+      workload?.id === RESTAURANT_UINT_ARITHMETIC_WORKLOAD_ID) return SOURCE_ELIGIBILITY.strictF64;
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) return SOURCE_ELIGIBILITY.processHandler;
   if (language === "c") return SOURCE_ELIGIBILITY.cPublic;
   if (language === "rust") return SOURCE_ELIGIBILITY.rust;

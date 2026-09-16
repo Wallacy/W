@@ -43,6 +43,7 @@ import {
   PROCESS_HANDLER_LIFECYCLE_STRUCTURE_CLASS,
   PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID,
   RESTAURANT_F64_STRICT_WORKLOAD_ID,
+  RESTAURANT_UINT_ARITHMETIC_WORKLOAD_ID,
   ROOT,
   deriveExecutableBestMetrics,
   executableEquivalenceKey,
@@ -351,6 +352,64 @@ test("strict f64 references retain independent runtime operations", () => {
   assert.match(rust, /black_box/u);
   assert.match(rust, /nan != nan/u);
   assert.doesNotMatch(rust, /fast-math/iu);
+});
+
+test("checked UInt arithmetic catalog pins fixed-input references and deferred equivalence", () => {
+  const workload = documents.catalog.workloads.find((item) =>
+    item.id === RESTAURANT_UINT_ARITHMETIC_WORKLOAD_ID);
+  assert.ok(workload);
+  assert.equal(workload.structureClass, "public-end-to-end");
+  assert.equal(workload.status, "source-oracle-ready");
+  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
+  assert.equal(workload.demoEvidence, "bounded-w-demo");
+  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.equal(workload.scope,
+    "Validate successful fixed-input checked UInt arithmetic and comparisons with exact output. Fault behavior is outside scope because W traps while the C23 and Rust references exit 1.");
+  assert.deepEqual(workload.oracle, {
+    kind: "exact-output",
+    status: "source-backed",
+    exitCode: 0,
+    stdout: "UInt 9223372036854775810/9223372036854775809/21; div 7; rem 2; cmp true/true/true/true/false/true/true\n",
+    stderr: "",
+  });
+  assert.deepEqual(workload.blockedLanguages, []);
+  assert.deepEqual(workload.blockers, [
+    "w-uint-compile-time-folded",
+    "runtime-uint-equivalence",
+  ]);
+  assert.deepEqual(workload.sources.map((source) => [source.language, source.platformTarget]), [
+    ["w", EXECUTABLE_PLATFORM_TARGET],
+    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
+    ["c", EXECUTABLE_PLATFORM_TARGET],
+    ["rust", EXECUTABLE_PLATFORM_TARGET],
+  ]);
+  assert.ok(workload.sources.every((source) => source.recipeClass === "restaurant-uint-arithmetic-release"));
+  assert.deepEqual(workload.sources
+    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
+    .map((source) => [source.comparability, source.eligibility]), [
+      ["deferred-until-M3b", "deferred-to-M3b"],
+      ["deferred-until-M3b", "deferred-to-M3b"],
+      ["deferred-until-M3b", "deferred-to-M3b"],
+    ]);
+  const wsl = workload.sources.find((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
+  assert.deepEqual([wsl.comparability, wsl.eligibility], [
+    "same-physical-hardware-diagnostic-only",
+    "same-physical-hardware-diagnostic-only",
+  ]);
+  const c = readFileSync(
+    `${ROOT}/benchmarks/executable/restaurant_uint_arithmetic.c`, "utf8");
+  const rust = readFileSync(
+    `${ROOT}/benchmarks/executable/restaurant_uint_arithmetic.rs`, "utf8");
+  assert.match(c, /volatile uint64_t/u);
+  assert.match(c, /checked_add_u64/u);
+  assert.match(c, /checked_divide_u64/u);
+  assert.match(c, /checked_remainder_u64/u);
+  assert.match(rust, /black_box/u);
+  assert.match(rust, /checked_add_u64/u);
+  assert.match(rust, /checked_divide_u64/u);
+  assert.match(rust, /checked_remainder_u64/u);
+  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
+  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
 });
 
 test("not-performance-ready strict f64 evidence cannot become live best metrics", () => {

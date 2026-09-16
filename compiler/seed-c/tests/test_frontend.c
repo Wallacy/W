@@ -5122,6 +5122,104 @@ static bool test_scalar_type_measure_emit_parity(void) {
   return true;
 }
 
+static bool test_u64_binary_frontend(void) {
+  static const char SOURCE[] =
+      "fn unsigned(left: UInt, right: UInt): UInt { "
+      "let add = left + right "
+      "let subtract = left - right "
+      "let multiply = left * right "
+      "let divide = left / 0_u64 "
+      "let remainder = left % 0_u64 "
+      "let equal = left == right "
+      "let notEqual = left != right "
+      "let less = left < right "
+      "let lessEqual = left <= right "
+      "let greater = left > right "
+      "let greaterEqual = left >= right "
+      "let overflowAdd = 18446744073709551615_u64 + 1_u64 "
+      "let underflow = 0_u64 - 1_u64 "
+      "let overflowMultiply = 18446744073709551615_u64 * 2_u64 "
+      "let contextual = left + 1 return add }\n"
+      "entry { }\n";
+  fixture *value = &fixture_literal;
+  CHECK(fixture_run(value, SOURCE));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
+        value->result.status == W_SEED_FRONTEND_OK &&
+        counts_equal(&value->result.required, &value->result.written));
+
+  size_t arithmetic_count[5] = {0u, 0u, 0u, 0u, 0u};
+  size_t comparison_count[6] = {0u, 0u, 0u, 0u, 0u, 0u};
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind != W_SEED_FRONTEND_EXPR_BINARY) continue;
+    size_t *count = NULL;
+    const char *operators[] = {"+", "-", "*", "/", "%", "==", "!=",
+                               "<", "<=", ">", ">="};
+    size_t operator_index = 0u;
+    for (; operator_index < sizeof(operators) / sizeof(operators[0]);
+         operator_index += 1u) {
+      if (frontend_text_is(expression->operator_text, operators[operator_index]))
+        break;
+    }
+    CHECK(operator_index < sizeof(operators) / sizeof(operators[0]) &&
+          expression->supported && expression->left < value->result.written.expressions &&
+          expression->right < value->result.written.expressions &&
+          expression->inferred_type < value->result.written.types);
+    const w_seed_frontend_expression *left =
+        &value->expressions[expression->left];
+    const w_seed_frontend_expression *right =
+        &value->expressions[expression->right];
+    CHECK(left->inferred_type < value->result.written.types &&
+          right->inferred_type < value->result.written.types);
+    const w_seed_frontend_type *left_type = &value->types[left->inferred_type];
+    const w_seed_frontend_type *right_type =
+        &value->types[right->inferred_type];
+    const w_seed_frontend_type *result_type =
+        &value->types[expression->inferred_type];
+    if (operator_index < 5u) {
+      count = &arithmetic_count[operator_index];
+      CHECK(left_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+            right_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+            !left_type->is_signed && !right_type->is_signed &&
+            left_type->bit_width == 64u && right_type->bit_width == 64u &&
+            result_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+            !result_type->is_signed && result_type->bit_width == 64u);
+    } else {
+      count = &comparison_count[operator_index - 5u];
+      CHECK(left_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+            right_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+            !left_type->is_signed && !right_type->is_signed &&
+            left_type->bit_width == 64u && right_type->bit_width == 64u &&
+            result_type->kind == W_SEED_FRONTEND_TYPE_BOOL);
+    }
+    *count += 1u;
+  }
+  CHECK(arithmetic_count[0] == 3u && arithmetic_count[1] == 2u &&
+        arithmetic_count[2] == 2u && arithmetic_count[3] == 1u &&
+        arithmetic_count[4] == 1u && comparison_count[0] == 1u &&
+        comparison_count[1] == 1u && comparison_count[2] == 1u &&
+        comparison_count[3] == 1u && comparison_count[4] == 1u &&
+        comparison_count[5] == 1u);
+
+  CHECK(fixture_run(value,
+                    "fn bad(value: UInt): UInt { return -value }\n"
+                    "entry { }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+  CHECK(fixture_run(value,
+                    "fn bad(value: UInt): UInt { return ~value }\n"
+                    "entry { }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+  CHECK(fixture_run(value,
+                    "fn mixed(left: Int, right: UInt): Int { "
+                    "return left + right }\nentry { }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+  return true;
+}
+
 static bool test_f64_scalar_projection(void) {
   fixture *value = &fixture_literal;
   CHECK(fixture_parse(
@@ -7126,6 +7224,7 @@ int main(int argc, char **argv) {
   if (!test_short_entry_frontend()) return 1;
   if (!test_scalar_if_frontend_subset()) return 1;
   if (!test_scalar_type_measure_emit_parity()) return 1;
+  if (!test_u64_binary_frontend()) return 1;
   if (!test_f64_scalar_projection()) return 1;
   if (!test_f64_locale_isolation()) return 1;
   if (!test_declarations_and_determinism()) return 1;

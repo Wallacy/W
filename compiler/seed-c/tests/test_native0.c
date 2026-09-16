@@ -207,7 +207,7 @@ static bool make_nested_tree_source(char *buffer, size_t capacity,
 
 static bool test_products(void) {
   CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-9") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-23") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-24") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -2366,6 +2366,141 @@ static bool test_signed_comparison_products(void) {
   return true;
 }
 
+static bool test_unsigned_binary_u64_slice(void) {
+  static const uint8_t source[] =
+      "fn add(left: UInt, right: UInt): UInt { return left + right }\n"
+      "fn subtract(left: UInt, right: UInt): UInt { return left - right }\n"
+      "fn multiply(left: UInt, right: UInt): UInt { return left * right }\n"
+      "fn divide(left: UInt, right: UInt): UInt { return left / right }\n"
+      "fn remainder(left: UInt, right: UInt): UInt { return left % right }\n"
+      "fn equal(left: UInt, right: UInt): Bool { return left == right }\n"
+      "fn notEqual(left: UInt, right: UInt): Bool { return left != right }\n"
+      "fn less(left: UInt, right: UInt): Bool { return left < right }\n"
+      "fn lessEqual(left: UInt, right: UInt): Bool { return left <= right }\n"
+      "fn greater(left: UInt, right: UInt): Bool { return left > right }\n"
+      "fn greaterEqual(left: UInt, right: UInt): Bool { return left >= right }\n"
+      "fn main() { let high = 9223372036854775808_u64 "
+      "let maximum = 18446744073709551615_u64 "
+      "let sum = add(left: high, right: 2_u64) "
+      "let difference = subtract(left: sum, right: 1_u64) "
+      "let product = multiply(left: 3_u64, right: 7_u64) "
+      "let quotient = divide(left: 23_u64, right: 3_u64) "
+      "let remaining = remainder(left: 23_u64, right: 3_u64) "
+      "let eq = equal(left: high, right: high) "
+      "let ne = notEqual(left: high, right: 9223372036854775807_u64) "
+      "let lt = less(left: high, right: maximum) "
+      "let le = lessEqual(left: high, right: high) "
+      "let gt = greater(left: maximum, right: high) "
+      "let ge = greaterEqual(left: high, right: high) "
+      "print(\"${sum} ${difference} ${product} ${quotient} ${remaining} "
+      "${eq} ${ne} ${lt} ${le} ${gt} ${ge}\") }\n"
+      "entry(main)\n";
+  uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source(source, sizeof(source) - 1u, "uint-binary", 11u, output,
+                   sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  size_t binary_u64_count = 0u;
+  for (size_t index = 0u; index < storage.hir_program.value_count;
+       index += 1u)
+    if (storage.hir_program.values[index].kind ==
+        W_SEED_HIR0_VALUE_BINARY_U64)
+      binary_u64_count += 1u;
+  CHECK(binary_u64_count == 11u);
+  CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.mlir.constant(-9223372036854775808 : i64) : i64") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.mlir.constant(-1 : i64) : i64"));
+  CHECK(count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.call @w_seed_checked_add_u64") == 1u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.call @w_seed_checked_subtract_u64") == 1u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.call @w_seed_checked_multiply_u64") == 1u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.call @w_seed_checked_divide_u64") == 1u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.call @w_seed_checked_remainder_u64") == 1u);
+  CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.icmp \"eq\"") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.icmp \"ne\"") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.icmp \"ult\"") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.icmp \"ule\"") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.icmp \"ugt\"") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.icmp \"uge\""));
+  CHECK(!contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "@w_seed_checked_add_i64") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "@w_seed_checked_subtract_i64") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "@w_seed_checked_multiply_i64") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "@w_seed_checked_divide_i64") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "@w_seed_checked_remainder_i64") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "llvm.intr.sadd.with.overflow") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "llvm.intr.ssub.with.overflow") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "llvm.intr.smul.with.overflow") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "llvm.icmp \"slt\"") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "llvm.icmp \"sle\"") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "llvm.icmp \"sgt\"") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "llvm.icmp \"sge\"") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "@w_seed_append_i64"));
+
+  static const uint8_t rejected_constants[][192] = {
+      "fn main() { let x = 18446744073709551615_u64 + 1_u64 "
+      "print(\"${x}\") }\nentry(main)\n",
+      "fn main() { let x = 0_u64 - 1_u64 print(\"${x}\") }\n"
+      "entry(main)\n",
+      "fn main() { let x = 18446744073709551615_u64 * 2_u64 "
+      "print(\"${x}\") }\nentry(main)\n",
+      "fn main() { let x = 1_u64 / 0_u64 print(\"${x}\") }\n"
+      "entry(main)\n",
+      "fn main() { let x = 1_u64 % 0_u64 print(\"${x}\") }\n"
+      "entry(main)\n"};
+  for (size_t index = 0u;
+       index < sizeof(rejected_constants) / sizeof(rejected_constants[0]);
+       index += 1u) {
+    (void)memset(output, 0x71u, sizeof(output));
+    (void)memset(&result, 0x72u, sizeof(result));
+    const w_seed_native0_result snapshot = result;
+    CHECK(run_source(rejected_constants[index],
+                     strlen((const char *)rejected_constants[index]),
+                     "uint-rejected", 13u, output, sizeof(output), &result) !=
+          W_SEED_NATIVE0_OK);
+    CHECK(memcmp(&result, &snapshot, sizeof(result)) == 0);
+    for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+      CHECK(output[byte] == 0x71u);
+  }
+
+  static const uint8_t cfg_source[] =
+      "fn choose(flag: Bool): UInt { return if flag { 1_u64 + 2_u64 } "
+      "else { 3_u64 } }\n"
+      "fn main() { let value = choose(flag: true) print(\"${value}\") }\n"
+      "entry(main)\n";
+  (void)memset(output, 0x81u, sizeof(output));
+  (void)memset(&result, 0x82u, sizeof(result));
+  const w_seed_native0_result cfg_snapshot = result;
+  CHECK(run_source(cfg_source, sizeof(cfg_source) - 1u, "uint-cfg", 8u,
+                   output, sizeof(output), &result) != W_SEED_NATIVE0_OK);
+  CHECK(memcmp(&result, &cfg_snapshot, sizeof(result)) == 0);
+  for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+    CHECK(output[byte] == 0x81u);
+  return true;
+}
+
 static bool test_virtual_structured_task_product(void) {
   static const uint8_t source[] =
       "fn prepare(value: i64): i64 { return value }\n"
@@ -2487,6 +2622,7 @@ int main(void) {
                         test_virtual_static_yield_helper_product() &&
                         test_async_direct_entry_product() &&
                         test_signed_comparison_products() && test_products() &&
+                        test_unsigned_binary_u64_slice() &&
                         test_enum_frontend_storage() &&
                         test_enum_payload_native_lowering() &&
                         test_bool_payload_native_lowering() &&

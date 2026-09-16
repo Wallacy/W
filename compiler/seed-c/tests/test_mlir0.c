@@ -34,9 +34,9 @@ enum {
   TEST_IMPORT_ITEMS = 8,
   TEST_STRUCTS = 4,
   TEST_FIELDS = 8,
-  TEST_TYPES = 16,
-  TEST_FUNCTIONS = 8,
-  TEST_PARAMETERS = 8,
+  TEST_TYPES = 64,
+  TEST_FUNCTIONS = 16,
+  TEST_PARAMETERS = 32,
   TEST_ENTRIES = 4,
   TEST_STATEMENTS = 64,
   TEST_EXPRESSIONS = 128,
@@ -46,7 +46,7 @@ enum {
   TEST_DIAGNOSTICS = 8,
   TEST_RECEIPT = 65536,
   TEST_HIR_IDENTITIES = 32,
-  TEST_HIR_RECORDS = 64,
+  TEST_HIR_RECORDS = 128,
   TEST_HIR_TEXT = 4096,
   TEST_HIR_VALUES = 4096,
   TEST_HIR_RECEIPT = W_SEED_HIR0_MAX_RECEIPT_BYTES,
@@ -2052,6 +2052,125 @@ static bool test_unsigned_scalar_return_call_result(void) {
                        "llvm.call @w_seed_append_u64") &&
         !contains_bytes(artifact, emitted.written.mlir_bytes,
                         "llvm.call @w_seed_append_i64"));
+  return true;
+}
+
+static bool test_unsigned_binary_u64_slice(void) {
+  static const uint8_t source[] =
+      "fn arithmetic(left: UInt, right: UInt): UInt { return (((left + right) "
+      "- right) * right) / right % right }\n"
+      "fn equal(value: UInt): Bool { return value == 9223372036854775808_u64 }\n"
+      "fn notEqual(value: UInt): Bool { return value != 9223372036854775807_u64 }\n"
+      "fn less(value: UInt): Bool { return value < 18446744073709551615_u64 }\n"
+      "fn lessEqual(value: UInt): Bool { return value <= 9223372036854775808_u64 }\n"
+      "fn greater(value: UInt): Bool { return value > 9223372036854775807_u64 }\n"
+      "fn greaterEqual(value: UInt): Bool { return value >= 9223372036854775808_u64 }\n"
+      "entry { let high = 9223372036854775808_u64 "
+      "let maximum = 18446744073709551615_u64 "
+      "let calculated = arithmetic(left: 23_u64, right: 3_u64) "
+      "let eq = equal(value: high) "
+      "let ne = notEqual(value: high) "
+      "let lt = less(value: high) "
+      "let le = lessEqual(value: high) "
+      "let gt = greater(value: maximum) "
+      "let ge = greaterEqual(value: high) "
+      "print(\"${calculated} "
+      "${eq} ${ne} ${lt} ${le} ${gt} ${ge}\") }\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  size_t binary_u64_count = 0u;
+  for (size_t index = 0u; index < fixture.hir_program.value_count;
+       index += 1u)
+    if (fixture.hir_program.values[index].kind ==
+        W_SEED_HIR0_VALUE_BINARY_U64)
+      binary_u64_count += 1u;
+  CHECK(binary_u64_count == 11u);
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        memcmp(measured.mlir_sha256, emitted.mlir_sha256,
+               sizeof(measured.mlir_sha256)) == 0);
+  CHECK(contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.mlir.constant(-9223372036854775808 : i64) : i64") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.mlir.constant(-1 : i64) : i64"));
+  CHECK(count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.call @w_seed_checked_add_u64") == 1u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.call @w_seed_checked_subtract_u64") == 1u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.call @w_seed_checked_multiply_u64") == 1u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.call @w_seed_checked_divide_u64") == 1u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.call @w_seed_checked_remainder_u64") == 1u);
+  CHECK(contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.intr.uadd.with.overflow") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.intr.usub.with.overflow") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.intr.umul.with.overflow") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.udiv %left, %right : i64") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.urem %left, %right : i64"));
+  CHECK(contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.icmp \"eq\"") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.icmp \"ne\"") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.icmp \"ult\"") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.icmp \"ule\"") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.icmp \"ugt\"") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.icmp \"uge\""));
+  CHECK(!contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "@w_seed_checked_add_i64") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "@w_seed_checked_subtract_i64") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "@w_seed_checked_multiply_i64") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "@w_seed_checked_divide_i64") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "@w_seed_checked_remainder_i64") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "llvm.intr.sadd.with.overflow") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "llvm.intr.ssub.with.overflow") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "llvm.intr.smul.with.overflow") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "llvm.icmp \"slt\"") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "llvm.icmp \"sle\"") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "llvm.icmp \"sgt\"") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "llvm.icmp \"sge\"") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "@w_seed_append_i64"));
+
+  static const uint8_t reachability_source[] =
+      "fn dead(value: UInt): UInt { return value + 1_u64 }\n"
+      "entry { print(\"${18446744073709551615_u64 == "
+      "18446744073709551615_u64}\") }\n";
+  CHECK(lower_hir(reachability_source, sizeof(reachability_source) - 1u));
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.icmp \"eq\"") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "@w_seed_checked_add_u64") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes, "@w_fn_0(") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "@w_seed_append_i64"));
   return true;
 }
 
@@ -4487,6 +4606,7 @@ int main(int argc, char **argv) {
   if (!test_checked_helper_reachability()) return 1;
   if (!test_scalar_return_call_result()) return 1;
   if (!test_unsigned_scalar_return_call_result()) return 1;
+  if (!test_unsigned_binary_u64_slice()) return 1;
   if (!test_scalar_if_value_diamond()) return 1;
   if (!test_nested_scalar_if_value_diamond()) return 1;
   if (!test_if_diamond_cfg()) return 1;

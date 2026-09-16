@@ -237,6 +237,8 @@ static bool scalar_evaluate_value(const w_seed_hir0_program *program,
              w_seed_scalar_evaluator0_checked_binary(
                  value->binary_operator, left, right, result);
     }
+    case W_SEED_HIR0_VALUE_BINARY_U64:
+      return false;
     default:
       return false;
   }

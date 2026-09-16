@@ -581,6 +581,8 @@ static bool evaluate_value(const w_seed_hir0_program *program, uint32_t value_in
       }
       return value_from_bool(boolean, out);
     }
+    case W_SEED_HIR0_VALUE_BINARY_U64:
+      return false;
     default:
       return false;
   }

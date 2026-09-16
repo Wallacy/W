@@ -2815,6 +2815,24 @@ tree at compile time while the C and Rust references retain runtime floating
 operations. It is therefore a semantic/output witness, not equivalent work
 for ranking or live best metrics.
 
+### Source-backed checked `UInt`/`u64` arithmetic and comparisons
+
+HIR0 schema `w-seed-hir0-49` represents ordinary unsigned arithmetic and
+comparisons with the distinct `BINARY_U64` value kind. Native0 and MLIR0
+schemas are `w-seed-native0-9` and `w-seed-mlir0-24` (Windows label
+`w-seed-mlir0-windows-9`). Native constant trees are evaluated as `uint64_t`
+with checked add/subtract/multiply and zero-guarded divide/remainder; overflow
+or division by zero fails closed. MLIR0 keeps the physical carrier as `i64`,
+uses unsigned overflow intrinsics and zero-guarded `udiv`/`urem` helpers for
+runtime values, and emits `eq`, `ne`, `ult`, `ule`, `ugt`, and `uge` predicates.
+Only reachable unsigned helpers are emitted, so a pure-UInt artifact does not
+pull in signed arithmetic or signed-decimal helpers.
+
+This is a finite linear/local-function-call slice. UInt CFGs and loops,
+cooperative execution, and ProductClosure0 remain explicitly unsupported;
+typed-U64 shift/power values retain their existing `BINARY_I64` carrier
+exception.
+
 ### Closed local payloadless enum exhaustive switch (W-1563)
 
 HIR21 (`w-seed-hir0-21`) adds one explicit `SWITCH_ENUM` terminator and dense

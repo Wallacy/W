@@ -66,6 +66,8 @@ const restaurantCompoundFixture = resolve(seedDirectory,
   "fixtures", "restaurant-compound.w")
 const restaurantF64StrictFixture = resolve(seedDirectory,
   "fixtures", "restaurant-f64-strict.w")
+const restaurantUIntArithmeticFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-arithmetic.w")
 const restaurantMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-mutation.w")
 const restaurantConditionalMutationFixture = resolve(seedDirectory,
@@ -929,6 +931,11 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantF64StrictFixture)],
     Buffer.from("Float strict ok\n", "utf8"),
     "Restaurant strict f64 arithmetic and IEEE comparisons")
+  expectSuccess(binary, ["run", toWsl(restaurantUIntArithmeticFixture)],
+    Buffer.from(
+      "UInt 9223372036854775810/9223372036854775809/21; div 7; rem 2; " +
+      "cmp true/true/true/true/false/true/true\n", "utf8"),
+    "Restaurant checked UInt arithmetic and comparisons")
   expectSuccess(binary, ["run", toWsl(restaurantMutationFixture)],
     Buffer.from("Open 6\n", "utf8"),
     "Restaurant straight-line local mutation")
