@@ -28,6 +28,7 @@ static const char HIR0_UNIT_NAME[] = "()";
 static const char HIR0_STRING_NAME[] = "String";
 static const char HIR0_NEVER_NAME[] = "Never";
 static const char HIR0_I64_NAME[] = "i64";
+static const char HIR0_U64_NAME[] = "u64";
 static const char HIR0_BOOL_NAME[] = "Bool";
 static const char HIR0_USIZE_NAME[] = "usize";
 static const char HIR0_SLOT_NAME[] = ".default";
@@ -235,10 +236,30 @@ static bool frontend_type_supported(const w_seed_frontend_type *type) {
     return text_is(type->spelling, HIR0_NEVER_NAME);
   if (type->kind == W_SEED_FRONTEND_TYPE_BOOL)
     return text_is(type->spelling, HIR0_BOOL_NAME);
-  if (type->kind == W_SEED_FRONTEND_TYPE_INTEGER)
-    return type->is_signed && type->bit_width == 64u &&
-           text_is(type->spelling, HIR0_I64_NAME);
+  if (type->kind == W_SEED_FRONTEND_TYPE_INTEGER) {
+    if (type->is_signed)
+      return type->bit_width == 64u && text_is(type->spelling, HIR0_I64_NAME);
+    return type->bit_width == 64u &&
+           (text_is(type->spelling, HIR0_U64_NAME) ||
+            text_is(type->spelling, "UInt"));
+  }
   return false;
+}
+
+static bool frontend_type_is_u64(const w_seed_frontend_type *type) {
+  return type != NULL && text_valid(type->spelling) &&
+         type->task_result_type == W_SEED_FRONTEND_NONE &&
+         type->kind == W_SEED_FRONTEND_TYPE_INTEGER && !type->is_signed &&
+         type->bit_width == 64u &&
+         (text_is(type->spelling, HIR0_U64_NAME) ||
+          text_is(type->spelling, "UInt"));
+}
+
+static bool frontend_type_is_i64(const w_seed_frontend_type *type) {
+  return type != NULL && text_valid(type->spelling) &&
+         type->task_result_type == W_SEED_FRONTEND_NONE &&
+         type->kind == W_SEED_FRONTEND_TYPE_INTEGER && type->is_signed &&
+         type->bit_width == 64u && text_is(type->spelling, HIR0_I64_NAME);
 }
 
 static bool frontend_type_is_core_error(
@@ -274,6 +295,17 @@ static bool frontend_has_never_type(const w_seed_hir0_input *input) {
        index += 1u)
     if (input->frontend_output->types[index].kind ==
         W_SEED_FRONTEND_TYPE_NEVER)
+      return true;
+  return false;
+}
+
+static bool frontend_has_u64_type(const w_seed_hir0_input *input) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || input->frontend_output->types == NULL)
+    return false;
+  for (size_t index = 0u; index < input->frontend_result->written.types;
+       index += 1u)
+    if (frontend_type_is_u64(&input->frontend_output->types[index]))
       return true;
   return false;
 }
@@ -2985,10 +3017,18 @@ static bool frontend_external_type_is(const w_seed_hir0_input *input,
 static bool frontend_expression_is_i64(
     const w_seed_frontend_output *output,
     const w_seed_frontend_expression *expression) {
-  if (expression->inferred_type == W_SEED_FRONTEND_NONE) return false;
-  const w_seed_frontend_type *type = &output->types[expression->inferred_type];
-  return type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
-         type->bit_width == 64u && type->is_signed;
+  return output != NULL && expression != NULL &&
+         expression->inferred_type != W_SEED_FRONTEND_NONE &&
+         frontend_type_is_i64(&output->types[expression->inferred_type]);
+}
+
+static bool frontend_expression_is_u64(
+    const w_seed_frontend_output *output,
+    const w_seed_frontend_expression *expression) {
+  if (output == NULL || expression == NULL ||
+      expression->inferred_type == W_SEED_FRONTEND_NONE)
+    return false;
+  return frontend_type_is_u64(&output->types[expression->inferred_type]);
 }
 
 static bool frontend_expression_is_bool(
@@ -3077,6 +3117,7 @@ static bool frontend_type_is_scalar(const w_seed_frontend_type *type) {
          (type->kind == W_SEED_FRONTEND_TYPE_BOOL ||
           (type->kind == W_SEED_FRONTEND_TYPE_INTEGER && type->is_signed &&
            type->bit_width == 64u) ||
+          frontend_type_is_u64(type) ||
           frontend_type_is_usize(type));
 }
 
@@ -3791,11 +3832,14 @@ static bool frontend_value_tree_ok(
         !add_size(*value_bytes, value->const_byte_count, value_bytes))
       return false;
   } else if (value->kind == W_SEED_FRONTEND_EXPR_INTEGER) {
-    int64_t ignored = 0;
+    int64_t signed_value = 0;
+    uint64_t unsigned_value = 0u;
     if (value->inferred_type == W_SEED_FRONTEND_NONE ||
-        output->types[value->inferred_type].kind !=
-            W_SEED_FRONTEND_TYPE_INTEGER ||
-        !frontend_integer_i64(value, &ignored) ||
+        (size_t)value->inferred_type >= result->written.types ||
+        ((!frontend_expression_is_i64(output, value) ||
+          !frontend_integer_i64(value, &signed_value)) &&
+         (!frontend_expression_is_u64(output, value) ||
+          !frontend_integer_u64(value, &unsigned_value))) ||
         !frontend_value_has_no_resolution(value) ||
         value->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
         value->const_byte_offset != W_SEED_FRONTEND_NONE ||
@@ -4163,8 +4207,8 @@ static bool frontend_call_expression_ok(
          !frontend_local_enum_type_supported(input,
                                              &output->types[return_type])) ||
         (return_kind == W_SEED_FRONTEND_TYPE_INTEGER &&
-         (!output->types[return_type].is_signed ||
-          output->types[return_type].bit_width != 64u)))
+         !frontend_type_is_i64(&output->types[return_type]) &&
+         !frontend_type_is_u64(&output->types[return_type])))
       return false;
     parameter_count = target_function->parameter_count;
   }
@@ -6587,10 +6631,14 @@ static bool text_size_for_input(const w_seed_hir0_input *input, size_t *total) {
   if (input == NULL || total == NULL) return false;
   const w_seed_frontend_output *output = input->frontend_output;
   const w_seed_frontend_result *result = input->frontend_result;
-  size_t value = frontend_has_public_process(input) ? 20u : 15u;
-  /* Canonical Unit, String, i64, Bool, bounded Never, and public-process
-   * usize. Never is reserved before the optional usize tail record. */
+  size_t value = 15u;
+  /* Canonical Unit, String, i64 and Bool are always present. Canonical u64,
+   * bounded Never and public-process usize are appended only when used. */
+  if (frontend_has_u64_type(input) && !add_size(value, 3u, &value))
+    return false;
   if (frontend_has_never_type(input) && !add_size(value, 5u, &value))
+    return false;
+  if (frontend_has_public_process(input) && !add_size(value, 5u, &value))
     return false;
   for (size_t index = 0u; index < result->written.modules; index += 1u) {
     const w_seed_frontend_module *module = &output->modules[index];
@@ -6803,11 +6851,14 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
       frontend_result->written.kernel_bindings != 0u ||
       frontend_result->written.parameters > W_SEED_HIR0_MAX_TEXT_BYTES)
     return HIR0_PREPARE_UNSUPPORTED;
-  if (!frontend_module_ranges_ok(input) || !frontend_type_records_ok(input) ||
+  if (!frontend_module_ranges_ok(input) ||
+      !frontend_type_records_ok(input) ||
       !frontend_task_usage_ok(input) ||
-      !frontend_function_ranges_ok(input) || !frontend_entry_records_ok(input) ||
-      (frontend_result->written.aliases == 0u &&
-       !frontend_symbol_records_ok(input)))
+      !frontend_function_ranges_ok(input) ||
+      !frontend_entry_records_ok(input))
+    return HIR0_PREPARE_INVALID;
+  if (frontend_result->written.aliases == 0u &&
+      !frontend_symbol_records_ok(input))
     return HIR0_PREPARE_INVALID;
   /* Structured launch target facts are consumed by the post-emission direct
    * entry publication.  Recompute the bounded body proof now as well so an
@@ -6855,14 +6906,11 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
   size_t switch_capture_count = 0u;
   size_t cleanup_count = 0u;
   if (!frontend_statement_and_expression_ok(
-                  input, &binding_count, &call_count, &invoke_count,
-                  &yield_count,
-                  &argument_count,
-                  &value_count, &interpolation_segment_count, &value_bytes,
-                  &ignored_text, &if_count, &logical_count, &merge_count,
-                  &while_count, &loop_carrier_count, &switch_count,
-                  &switch_edge_count,
-                  &switch_capture_count, &cleanup_count))
+          input, &binding_count, &call_count, &invoke_count, &yield_count,
+          &argument_count, &value_count, &interpolation_segment_count,
+          &value_bytes, &ignored_text, &if_count, &logical_count,
+          &merge_count, &while_count, &loop_carrier_count, &switch_count,
+          &switch_edge_count, &switch_capture_count, &cleanup_count))
     return HIR0_PREPARE_UNSUPPORTED;
   /* The frontend walk counts the lexical cleanup call once. HIR41 emits the
    * same ordinary call on both typed INVOKE successors. */
@@ -6947,6 +6995,8 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
       return HIR0_PREPARE_UNSUPPORTED;
   }
   if (!add_size(counts->types, enum_subset_type_count, &counts->types) ||
+      !add_size(counts->types, frontend_has_u64_type(input) ? 1u : 0u,
+                &counts->types) ||
       !add_size(counts->types, frontend_has_never_type(input) ? 1u : 0u,
                 &counts->types) ||
       !add_size(counts->types, counts->external_symbols == 7u ? 1u : 0u,
@@ -7630,10 +7680,12 @@ static uint32_t hir_type_from_frontend(const w_seed_frontend_output *output,
                                          &enum_subset_type_count))
     return W_SEED_HIR0_NONE;
   bool has_never_type = false;
+  bool has_u64_type = false;
   for (size_t index = 0u; index < result->written.types; index += 1u)
     if (output->types[index].kind == W_SEED_FRONTEND_TYPE_NEVER) {
       has_never_type = true;
-      break;
+    } else if (frontend_type_is_u64(&output->types[index])) {
+      has_u64_type = true;
     }
   if (type->kind == W_SEED_FRONTEND_TYPE_ENUM &&
       type->enum_base_index != W_SEED_FRONTEND_NONE) {
@@ -7650,13 +7702,17 @@ static uint32_t hir_type_from_frontend(const w_seed_frontend_output *output,
                         subset_ordinal);
     }
   }
+  const size_t optional_type_base = local_enum_type_base +
+                                    result->written.enums +
+                                    enum_subset_type_count;
+  if (frontend_type_is_u64(type) && has_u64_type)
+    return (uint32_t)optional_type_base;
   if (type->kind == W_SEED_FRONTEND_TYPE_NEVER && has_never_type)
-    return (uint32_t)(local_enum_type_base + result->written.enums +
-                      enum_subset_type_count);
+    return (uint32_t)(optional_type_base + (has_u64_type ? 1u : 0u));
   if (frontend_type_is_usize(type)) {
     if (external_types == 3u)
-      return (uint32_t)(local_enum_type_base + result->written.enums +
-                        enum_subset_type_count + (has_never_type ? 1u : 0u));
+      return (uint32_t)(optional_type_base + (has_u64_type ? 1u : 0u) +
+                        (has_never_type ? 1u : 0u));
   }
   return W_SEED_HIR0_NONE;
 }
@@ -11174,6 +11230,11 @@ static uint32_t hir0_emit_value_m2(
       target->type_index = hir_type_from_frontend(
           context->frontend, context->frontend_result, source->inferred_type);
       (void)frontend_integer_u64(source, &target->unsigned_integer_value);
+    } else if (frontend_expression_is_u64(context->frontend, source)) {
+      target->kind = W_SEED_HIR0_VALUE_CONST_U64;
+      target->type_index = hir_type_from_frontend(
+          context->frontend, context->frontend_result, source->inferred_type);
+      (void)frontend_integer_u64(source, &target->unsigned_integer_value);
     } else {
       target->kind = W_SEED_HIR0_VALUE_CONST_I64;
       target->type_index = 2u;
@@ -11306,20 +11367,20 @@ static void emit_records(const w_seed_hir0_input *input,
   (void)memcpy(output->text_bytes + 8u, HIR0_I64_NAME, 3u);
   (void)memcpy(output->text_bytes + 11u, HIR0_BOOL_NAME, 4u);
   const bool has_public_process = counts->external_symbols == 7u;
+  const bool has_u64_type = frontend_has_u64_type(input);
   const bool has_never_type = frontend_has_never_type(input);
-  const size_t never_type_base =
+  const size_t optional_type_base =
       4u + (counts->external_modules == 0u ? 0u : 3u);
-  const size_t never_type_index =
-      never_type_base + counts->enums + counts->enum_subsets;
-  const size_t usize_type_index =
-      never_type_index + (has_never_type ? 1u : 0u);
-  if (has_public_process) {
-    const size_t usize_text_offset = 15u + (has_never_type ? 5u : 0u);
-    (void)memcpy(output->text_bytes + usize_text_offset, HIR0_USIZE_NAME, 5u);
-    output->types[usize_type_index] = (w_seed_hir0_type){
-        .kind = W_SEED_HIR0_TYPE_USIZE,
+  size_t optional_type_index =
+      optional_type_base + counts->enums + counts->enum_subsets;
+  size_t usize_type_index = SIZE_MAX;
+  text_offset = 15u;
+  if (has_u64_type) {
+    (void)memcpy(output->text_bytes + text_offset, HIR0_U64_NAME, 3u);
+    output->types[optional_type_index] = (w_seed_hir0_type){
+        .kind = W_SEED_HIR0_TYPE_U64,
         .owner_module = W_SEED_HIR0_NONE,
-        .name = {(uint32_t)usize_text_offset, 5u},
+        .name = {(uint32_t)text_offset, 3u},
         .external_module_index = W_SEED_HIR0_NONE,
         .external_symbol_index = W_SEED_HIR0_NONE,
         .enum_index = W_SEED_HIR0_NONE,
@@ -11327,16 +11388,16 @@ static void emit_records(const w_seed_hir0_input *input,
         .subset_member_count = 0u,
         .lifecycle = W_SEED_HIR0_LIFECYCLE_UNKNOWN,
         .release_contract = W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN};
+    optional_type_index += 1u;
+    text_offset += 3u;
   }
-  text_offset = has_public_process ? 20u : 15u;
   if (has_never_type) {
-    const size_t never_text_offset = 15u;
-    (void)memcpy(output->text_bytes + never_text_offset, HIR0_NEVER_NAME,
+    (void)memcpy(output->text_bytes + text_offset, HIR0_NEVER_NAME,
                  sizeof(HIR0_NEVER_NAME) - 1u);
-    output->types[never_type_index] = (w_seed_hir0_type){
+    output->types[optional_type_index] = (w_seed_hir0_type){
         .kind = W_SEED_HIR0_TYPE_NEVER,
         .owner_module = W_SEED_HIR0_NONE,
-        .name = {(uint32_t)never_text_offset, 5u},
+        .name = {(uint32_t)text_offset, 5u},
         .external_module_index = W_SEED_HIR0_NONE,
         .external_symbol_index = W_SEED_HIR0_NONE,
         .enum_index = W_SEED_HIR0_NONE,
@@ -11344,9 +11405,24 @@ static void emit_records(const w_seed_hir0_input *input,
         .subset_member_count = 0u,
         .lifecycle = W_SEED_HIR0_LIFECYCLE_VALUE_COPY,
         .release_contract = W_SEED_HIR0_RELEASE_CONTRACT_NONE};
-    /* Never occupies 15..20.  A public-process usize tail already occupies
-     * 20..25, so the copied dynamic text starts after both canonical names. */
-    text_offset = has_public_process ? 25u : 20u;
+    optional_type_index += 1u;
+    text_offset += 5u;
+  }
+  if (has_public_process) {
+    usize_type_index = optional_type_index;
+    (void)memcpy(output->text_bytes + text_offset, HIR0_USIZE_NAME, 5u);
+    output->types[optional_type_index] = (w_seed_hir0_type){
+        .kind = W_SEED_HIR0_TYPE_USIZE,
+        .owner_module = W_SEED_HIR0_NONE,
+        .name = {(uint32_t)text_offset, 5u},
+        .external_module_index = W_SEED_HIR0_NONE,
+        .external_symbol_index = W_SEED_HIR0_NONE,
+        .enum_index = W_SEED_HIR0_NONE,
+        .first_subset_member = W_SEED_HIR0_NONE,
+        .subset_member_count = 0u,
+        .lifecycle = W_SEED_HIR0_LIFECYCLE_UNKNOWN,
+        .release_contract = W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN};
+    text_offset += 5u;
   }
   for (size_t module = 0u; module < counts->external_modules; module += 1u) {
     const w_seed_frontend_external_module *source =
@@ -12728,10 +12804,12 @@ static bool verify_external_records(const w_seed_hir0_program *program) {
 static bool hir_enum_subset_layout(const w_seed_hir0_program *program,
                                    size_t *subset_base,
                                    size_t *subset_count,
+                                   uint32_t *u64_type_index,
                                    uint32_t *usize_type_index,
                                    uint32_t *never_type_index) {
   if (program == NULL || subset_base == NULL || subset_count == NULL ||
-      usize_type_index == NULL || never_type_index == NULL ||
+      u64_type_index == NULL || usize_type_index == NULL ||
+      never_type_index == NULL ||
       (program->external_module_count != 0u &&
        program->external_module_count != 1u) ||
       (program->external_module_count == 0u &&
@@ -12746,6 +12824,7 @@ static bool hir_enum_subset_layout(const w_seed_hir0_program *program,
       program->type_count < base + program->enum_count)
     return false;
   *subset_base = base + program->enum_count;
+  *u64_type_index = W_SEED_HIR0_NONE;
   *usize_type_index = W_SEED_HIR0_NONE;
   *never_type_index = W_SEED_HIR0_NONE;
   size_t tail = program->type_count;
@@ -12757,6 +12836,11 @@ static bool hir_enum_subset_layout(const w_seed_hir0_program *program,
   if (tail > *subset_base &&
       program->types[tail - 1u].kind == W_SEED_HIR0_TYPE_NEVER) {
     *never_type_index = (uint32_t)(tail - 1u);
+    tail -= 1u;
+  }
+  if (tail > *subset_base &&
+      program->types[tail - 1u].kind == W_SEED_HIR0_TYPE_U64) {
+    *u64_type_index = (uint32_t)(tail - 1u);
     tail -= 1u;
   }
   if (tail < *subset_base) return false;
@@ -12865,9 +12949,12 @@ static bool verify_enum_subset_records(const w_seed_hir0_program *program) {
   size_t subset_count = 0u;
   uint32_t usize_type_index = W_SEED_HIR0_NONE;
   uint32_t never_type_index = W_SEED_HIR0_NONE;
+  uint32_t u64_type_index = W_SEED_HIR0_NONE;
   if (!hir_enum_subset_layout(program, &subset_base, &subset_count,
-                              &usize_type_index, &never_type_index))
+                              &u64_type_index, &usize_type_index,
+                              &never_type_index))
     return false;
+  (void)u64_type_index;
   (void)usize_type_index;
   (void)never_type_index;
   size_t member_cursor = 0u;
@@ -12983,8 +13070,10 @@ static bool hir_type_index_valid(const w_seed_hir0_program *program,
   size_t subset_count = 0u;
   uint32_t usize_type_index = W_SEED_HIR0_NONE;
   uint32_t never_type_index = W_SEED_HIR0_NONE;
+  uint32_t u64_type_index = W_SEED_HIR0_NONE;
   if (!hir_enum_subset_layout(program, &subset_base, &subset_count,
-                              &usize_type_index, &never_type_index))
+                              &u64_type_index, &usize_type_index,
+                              &never_type_index))
     return false;
   if (type_index >= subset_base &&
       type_index < subset_base + subset_count) {
@@ -12998,6 +13087,15 @@ static bool hir_type_index_valid(const w_seed_hir0_program *program,
            type->external_symbol_index == W_SEED_HIR0_NONE &&
            (size_t)type_index == subset_base + ordinal;
   }
+  if (u64_type_index != W_SEED_HIR0_NONE && type_index == u64_type_index)
+    return type->kind == W_SEED_HIR0_TYPE_U64 &&
+           type->owner_module == W_SEED_HIR0_NONE &&
+           type->external_module_index == W_SEED_HIR0_NONE &&
+           type->external_symbol_index == W_SEED_HIR0_NONE &&
+           type->enum_index == W_SEED_HIR0_NONE &&
+           type->first_subset_member == W_SEED_HIR0_NONE &&
+           type->subset_member_count == 0u &&
+           hir_text_is(program, type->name, HIR0_U64_NAME);
   if (never_type_index != W_SEED_HIR0_NONE &&
       type_index == never_type_index)
     return type->kind == W_SEED_HIR0_TYPE_NEVER &&
@@ -13349,6 +13447,7 @@ static bool verify_value_tree(
       (value->kind != W_SEED_HIR0_VALUE_PATTERN_CAPTURE_READ &&
        value->pattern_capture_index != W_SEED_HIR0_NONE) ||
       (value->kind != W_SEED_HIR0_VALUE_CONST_USIZE &&
+       value->kind != W_SEED_HIR0_VALUE_CONST_U64 &&
        value->unsigned_integer_value != 0u))
     return false;
 
@@ -13863,6 +13962,14 @@ static bool verify_value_tree(
     if (value->type_index != 2u ||
         value->binding_index != W_SEED_HIR0_NONE ||
         value->parameter_index != W_SEED_HIR0_NONE || value->bool_value ||
+        value->byte_offset != 0u || value->byte_count != 0u)
+      return false;
+  } else if (value->kind == W_SEED_HIR0_VALUE_CONST_U64) {
+    if (!hir_type_index_valid(program, value->type_index) ||
+        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64 ||
+        value->binding_index != W_SEED_HIR0_NONE ||
+        value->parameter_index != W_SEED_HIR0_NONE ||
+        value->integer_value != 0 || value->bool_value ||
         value->byte_offset != 0u || value->byte_count != 0u)
       return false;
   } else if (value->kind == W_SEED_HIR0_VALUE_CONST_USIZE) {
@@ -15590,6 +15697,7 @@ static bool hir0_expected_type_lifecycle(
     case W_SEED_HIR0_TYPE_ENUM:
     case W_SEED_HIR0_TYPE_ENUM_SUBSET:
     case W_SEED_HIR0_TYPE_NEVER:
+    case W_SEED_HIR0_TYPE_U64:
       *lifecycle = W_SEED_HIR0_LIFECYCLE_VALUE_COPY;
       *release_contract = W_SEED_HIR0_RELEASE_CONTRACT_NONE;
       return true;
@@ -15812,6 +15920,7 @@ static bool hir0_value_kind_is_closed(w_seed_hir0_value_kind kind) {
     case W_SEED_HIR0_VALUE_PARAMETER_READ:
     case W_SEED_HIR0_VALUE_CONST_I64:
     case W_SEED_HIR0_VALUE_CONST_USIZE:
+    case W_SEED_HIR0_VALUE_CONST_U64:
     case W_SEED_HIR0_VALUE_CONST_BOOL:
     case W_SEED_HIR0_VALUE_BINARY_I64:
     case W_SEED_HIR0_VALUE_INTERPOLATED_STRING:
@@ -15926,6 +16035,7 @@ static bool hir0_type_is_blocked(const w_seed_hir0_program *program,
     case W_SEED_HIR0_TYPE_ENUM:
     case W_SEED_HIR0_TYPE_ENUM_SUBSET:
     case W_SEED_HIR0_TYPE_NEVER:
+    case W_SEED_HIR0_TYPE_U64:
       return false;
     case W_SEED_HIR0_TYPE_STRING:
     case W_SEED_HIR0_TYPE_NOMINAL:
@@ -16228,6 +16338,7 @@ static bool hir0_interpolated_string_is_direct_print_argument(
       const w_seed_hir0_value *child = &program->values[segment->value_index];
       if (child->type_index >= program->type_count ||
           (program->types[child->type_index].kind != W_SEED_HIR0_TYPE_I64 &&
+           program->types[child->type_index].kind != W_SEED_HIR0_TYPE_U64 &&
            program->types[child->type_index].kind != W_SEED_HIR0_TYPE_BOOL &&
            program->types[child->type_index].kind != W_SEED_HIR0_TYPE_USIZE))
         return false;
@@ -18163,10 +18274,13 @@ bool w_seed_hir0_verify(const w_seed_hir0_program *program,
   size_t subset_count = 0u;
   uint32_t usize_type_index = W_SEED_HIR0_NONE;
   uint32_t never_type_index = W_SEED_HIR0_NONE;
+  uint32_t u64_type_index = W_SEED_HIR0_NONE;
   if (!hir_enum_subset_layout(program, &subset_base, &subset_count,
-                              &usize_type_index, &never_type_index))
+                              &u64_type_index, &usize_type_index,
+                              &never_type_index))
     return false;
   (void)subset_base;
+  (void)u64_type_index;
   (void)usize_type_index;
   (void)never_type_index;
   w_seed_hir0_counts counts = {

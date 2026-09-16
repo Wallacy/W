@@ -23,6 +23,8 @@ const restaurantUnaryInterpolationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unary-interpolation.w")
 const restaurantBitwiseFixture = resolve(seedDirectory,
   "fixtures", "restaurant-bitwise.w")
+const restaurantUnsignedFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-unsigned.w")
 const restaurantMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-mutation.w")
 const restaurantConditionalMutationFixture = resolve(seedDirectory,
@@ -551,6 +553,8 @@ try {
       expected: Buffer.from("Prepared 88\n", "utf8") },
     { name: "restaurant-bitwise", source: restaurantBitwiseFixture,
       expected: Buffer.from("Flags 14/-15\n", "utf8") },
+    { name: "restaurant-unsigned", source: restaurantUnsignedFixture,
+      expected: Buffer.from("Unsigned 18446744073709551615\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
   ]
   const artifacts = new Map()
@@ -708,6 +712,15 @@ try {
     signedBitwiseArtifact.includes("llvm.call @w_fn_0") &&
     !signedBitwiseArtifact.includes("w_seed_checked_bit"),
   "signed bitwise operations were folded, reordered, or helper-lowered")
+  const unsignedArtifact = artifacts.get("restaurant-unsigned")
+  assert(unsignedArtifact.includes("llvm.mlir.constant(-1 : i64) : i64") &&
+    unsignedArtifact.includes("llvm.func internal @w_seed_append_u64") &&
+    unsignedArtifact.includes("llvm.call @w_seed_append_u64") &&
+    unsignedArtifact.includes("llvm.udiv") &&
+    unsignedArtifact.includes("llvm.urem") &&
+    unsignedArtifact.includes("llvm.call @w_fn_0") &&
+    !unsignedArtifact.includes("llvm.call @w_seed_append_i64"),
+  "UInt did not retain its unsigned full-width lowering and formatter")
   const wmoArtifact = artifacts.get("restaurant-wmo")
   assert(!artifacts.get("hello").includes("@w_seed_checked_") &&
     wmoArtifact.includes("@w_fn_0(") &&

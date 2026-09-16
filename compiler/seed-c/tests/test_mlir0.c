@@ -2027,6 +2027,34 @@ static bool test_scalar_return_call_result(void) {
   return true;
 }
 
+static bool test_unsigned_scalar_return_call_result(void) {
+  static const uint8_t source[] =
+      "fn identity(value: UInt): UInt { return value }\n"
+      "entry { let value = identity(value: 18446744073709551615_u64) "
+      "print(\"Unsigned ${value}\") }\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.mlir.constant(-1 : i64) : i64") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.func internal @w_seed_append_u64") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes, "llvm.udiv") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes, "llvm.urem") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "%call0 = llvm.call @w_fn_0") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.call @w_seed_append_u64") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "llvm.call @w_seed_append_i64"));
+  return true;
+}
+
 static bool test_scalar_if_value_diamond(void) {
   static const uint8_t source[] =
       "fn serve(isOpen: Bool, openCount: i64, closedCount: i64): i64 { "
@@ -4387,6 +4415,7 @@ int main(int argc, char **argv) {
   if (!test_checked_runtime_arithmetic()) return 1;
   if (!test_checked_helper_reachability()) return 1;
   if (!test_scalar_return_call_result()) return 1;
+  if (!test_unsigned_scalar_return_call_result()) return 1;
   if (!test_scalar_if_value_diamond()) return 1;
   if (!test_nested_scalar_if_value_diamond()) return 1;
   if (!test_if_diamond_cfg()) return 1;

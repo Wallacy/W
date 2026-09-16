@@ -1092,7 +1092,9 @@ performs downstream textual lookup.
 W-1524 introduced the postorder value graph in schema `w-seed-hir0-3`. Current
 schema `w-seed-hir0-9` gives binding initializers explicit roots in that graph,
 adds indexed parameter reads, and carries scalar terminator and call results.
-The canonical type table contains Unit, String, signed `i64`, and Bool.
+The canonical base type table contains Unit, String, signed `i64`, and Bool.
+When a source uses `UInt` or `u64`, HIR0 appends one canonical unsigned `u64`
+type without conflating it with the target-width `usize` type.
 `w_seed_hir0_value` is a typed
 postorder graph with explicit argument, binary-parent, or interpolation-segment
 ownership. `w_seed_hir0_interpolation_segment` discriminates copied text bytes
@@ -1283,9 +1285,12 @@ ou ranges HIR falham sem alterar result ou output. O texto não tem NUL
 implícito. O único target é `x86_64-unknown-linux-gnu`; o módulo fixa
 `llvm.target_triple` and contains only builtin and LLVM dialect. The static
 path escapes each payload byte and uses POSIX `write`. The interpolation path
-uses a bounded stack buffer, a counted text bank, internal LLVM-dialect copy
-and signed-`i64` decimal helpers, an on-demand Bool helper, and one checked
-`write`. Its generated MLIR contains no `snprintf`, `%ld`, or variadic call.
+uses a bounded stack buffer, a counted text bank, internal LLVM-dialect copy,
+signed-`i64` decimal helpers, an on-demand unsigned-`u64` helper using
+`udiv`/`urem`, an on-demand Bool helper, and one checked `write`. The unsigned
+carrier remains physical `i64` in LLVM dialect, but formatting preserves all
+64 bits, including `UInt.max`. Generated MLIR contains no `snprintf`, `%ld`,
+or variadic call.
 There is no W-level `printInt`, C source generation, custom W dialect,
 TableGen, or object cache.
 
@@ -1657,7 +1662,7 @@ ownership, carrier order, initial and updated values, version chains, condition
 dependence, dominance, and exit projection.
 
 Native0 schema `w-seed-native0-9` records a dedicated post-test fact. MLIR0
-schema `w-seed-mlir0-17` and Windows label `w-seed-mlir0-windows-8` lower it to
+schema `w-seed-mlir0-18` and Windows label `w-seed-mlir0-windows-8` lower it to
 one structured `scf.while` with a private Bool carrier initialized to true.
 Each body trip yields the updated signed tuple and trailing condition. Safe
 constant division remains `llvm.sdiv`; dynamic division remains checked. No

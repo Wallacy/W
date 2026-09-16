@@ -620,6 +620,29 @@ static bool interpolation_maximum_bytes(
           bytes = 20u;
           break;
         }
+        case W_SEED_HIR0_TYPE_U64:
+          if (runtime_value) {
+            if (process != NULL
+                    ? !process_value_lowerable(
+                          program,
+                          (uint32_t)(effective - program->values),
+                          program->blocks[program->instructions[current_instruction]
+                                              .owner_block]
+                              .owner_function,
+                          process, false, 0u)
+                    : !program_value_lowerable(
+                          program,
+                          (uint32_t)(effective - program->values),
+                          program->blocks[program->instructions[current_instruction]
+                                              .owner_block]
+                              .owner_function,
+                          false, 0u))
+              return false;
+          } else if (effective->kind != W_SEED_HIR0_VALUE_CONST_U64) {
+            return false;
+          }
+          bytes = 20u;
+          break;
         case W_SEED_HIR0_TYPE_USIZE:
           if (!runtime_value || process == NULL ||
               !process_value_lowerable(
@@ -943,6 +966,8 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
   const w_seed_hir0_type_kind type = program->types[value->type_index].kind;
   if (value->kind == W_SEED_HIR0_VALUE_CONST_I64)
     return type == W_SEED_HIR0_TYPE_I64;
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_U64)
+    return type == W_SEED_HIR0_TYPE_U64;
   if (value->kind == W_SEED_HIR0_VALUE_CONST_BOOL)
     return type == W_SEED_HIR0_TYPE_BOOL;
   if (value->kind == W_SEED_HIR0_VALUE_CONST_STRING)
@@ -987,6 +1012,7 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
   }
   if (value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ) {
     const bool scalar = type == W_SEED_HIR0_TYPE_I64 ||
+                        type == W_SEED_HIR0_TYPE_U64 ||
                         type == W_SEED_HIR0_TYPE_BOOL;
     const bool enumeration =
         (type == W_SEED_HIR0_TYPE_ENUM ||
@@ -1056,7 +1082,8 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
            block->block_argument_count != 0u;
   }
   if (value->kind == W_SEED_HIR0_VALUE_CALL_RESULT) {
-    if ((type != W_SEED_HIR0_TYPE_I64 && type != W_SEED_HIR0_TYPE_BOOL &&
+    if ((type != W_SEED_HIR0_TYPE_I64 && type != W_SEED_HIR0_TYPE_U64 &&
+         type != W_SEED_HIR0_TYPE_BOOL &&
          !program_enum_type_supported(program, value->type_index, NULL, NULL)) ||
         value->call_index >= program->call_count)
       return false;
@@ -2910,6 +2937,7 @@ static bool program_function_maximum(
       (!(program->types[function->return_type].kind ==
              W_SEED_HIR0_TYPE_UNIT ||
          program->types[function->return_type].kind == W_SEED_HIR0_TYPE_I64 ||
+         program->types[function->return_type].kind == W_SEED_HIR0_TYPE_U64 ||
          program->types[function->return_type].kind == W_SEED_HIR0_TYPE_BOOL ||
          program_enum_type_supported(program, function->return_type, NULL,
                                       NULL)) &&
@@ -2948,6 +2976,7 @@ static bool program_function_maximum(
     if (type_index >= program->type_count) return false;
     const bool scalar_or_enum =
         program->types[type_index].kind == W_SEED_HIR0_TYPE_I64 ||
+        program->types[type_index].kind == W_SEED_HIR0_TYPE_U64 ||
         program->types[type_index].kind == W_SEED_HIR0_TYPE_BOOL ||
         program_enum_type_supported(program, type_index, NULL, NULL);
     const bool process_owner =

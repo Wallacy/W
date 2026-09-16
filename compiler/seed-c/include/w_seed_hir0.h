@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-42"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-43"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -62,6 +62,9 @@ typedef enum {
   W_SEED_HIR0_TYPE_ENUM_SUBSET,
   /* Bottom type for a path that terminates with explicit panic. */
   W_SEED_HIR0_TYPE_NEVER,
+  /* Canonical fixed-width unsigned integer. Source `UInt` and `u64` share
+   * this logical identity; target-width usize remains distinct. */
+  W_SEED_HIR0_TYPE_U64,
 } w_seed_hir0_type_kind;
 
 typedef enum {
@@ -168,6 +171,9 @@ typedef enum {
    * compile-time integer literal. The count child remains logical USIZE; only
    * the process MLIR adapter chooses its physical type. */
   W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON,
+  /* A fixed-width unsigned-64 literal, distinct from both signed i64 and
+   * target-width usize even when all three use an i64 physical carrier. */
+  W_SEED_HIR0_VALUE_CONST_U64,
 } w_seed_hir0_value_kind;
 
 typedef enum {

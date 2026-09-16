@@ -13217,6 +13217,46 @@ static bool test_signed_bitwise_values(void) {
   return true;
 }
 
+static bool test_canonical_u64_scalar(void) {
+  static const char SOURCE[] =
+      "fn identity(value: UInt): UInt { return value }\n"
+      "entry { let value = identity(value: 18446744073709551615_u64) "
+      "print(message: \"Unsigned ${value}\", suffix: \"\") }\n";
+  CHECK(lower(SOURCE));
+  CHECK(fixture.hir_program.type_count == 5u &&
+        fixture.hir_program.types[4].kind == W_SEED_HIR0_TYPE_U64 &&
+        fixture.hir_program.types[4].name.count == 3u &&
+        memcmp(fixture.hir_program.text_bytes +
+                   fixture.hir_program.types[4].name.offset,
+               "u64", 3u) == 0);
+  CHECK(fixture.hir_program.functions[0].return_type == 4u &&
+        fixture.hir_program.parameters[0].type_index == 4u);
+  size_t literal_index = SIZE_MAX;
+  for (size_t index = 0u; index < fixture.hir_program.value_count; index += 1u)
+    if (fixture.hir_program.values[index].kind ==
+        W_SEED_HIR0_VALUE_CONST_U64) {
+      CHECK(literal_index == SIZE_MAX);
+      literal_index = index;
+    }
+  CHECK(literal_index != SIZE_MAX &&
+        fixture.hir_program.values[literal_index].type_index == 4u &&
+        fixture.hir_program.values[literal_index].unsigned_integer_value ==
+            UINT64_MAX);
+
+  const w_seed_hir0_type saved_type = fixture.hir_types[4];
+  fixture.hir_types[4].kind = W_SEED_HIR0_TYPE_USIZE;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_types[4] = saved_type;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  const w_seed_hir0_value saved_value = fixture.hir_values[literal_index];
+  fixture.hir_values[literal_index].kind = W_SEED_HIR0_VALUE_CONST_I64;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[literal_index] = saved_value;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_short_entry_hir(void) {
   static const char SOURCE[] =
       "entry { print(message: \"Hello, world!\", suffix: \"!\") }\n";
@@ -13443,6 +13483,7 @@ int main(int argc, char **argv) {
   if (!test_short_entry_hir()) return 1;
   if (!test_signed_comparison_values()) return 1;
   if (!test_signed_bitwise_values()) return 1;
+  if (!test_canonical_u64_scalar()) return 1;
   if (!test_i64_unary_bit_not_positive()) return 1;
   if (!test_canonical_and_copy_boundary()) return 1;
   if (!test_semantic_and_provenance_digests()) return 1;

@@ -1435,6 +1435,47 @@
       ]
     },
     {
+      "id": "restaurant-unsigned",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "partial-exploratory-ready",
+      "lane": "equivalent",
+      "scope": "Pass UInt.max through a direct W call and return, then preserve exact unsigned decimal interpolation.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Unsigned 18446744073709551615\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-unsigned.w",
+          "digest": "sha256:73422d7e8a154c688dce4ee6f5ad9b2f2b16b50d85c0556431ed37c20c472d75",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-unsigned-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        }
+      ],
+      "blockedLanguages": [
+        "c",
+        "rust"
+      ],
+      "blockers": [
+        "independent-c-rust-source-equivalents"
+      ]
+    },
+    {
       "id": "restaurant-linear",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",

@@ -333,6 +333,35 @@ static const char MLIR0_BOOL_HELPER[] =
     "    llvm.return %bool_false_end : i64\n"
     "  }\n";
 
+static const char MLIR0_U64_HELPER[] =
+    "  llvm.func internal @w_seed_append_u64(%buffer: !llvm.ptr, %offset: i64, %value: i64) -> i64 {\n"
+    "    %uappend_zero = llvm.mlir.constant(0 : i64) : i64\n"
+    "    %uappend_one = llvm.mlir.constant(1 : i64) : i64\n"
+    "    %uappend_ten = llvm.mlir.constant(10 : i64) : i64\n"
+    "    %uappend_ascii_zero = llvm.mlir.constant(48 : i64) : i64\n"
+    "    llvm.br ^uappend_count(%value, %value, %offset, %uappend_one : i64, i64, i64, i64)\n"
+    "  ^uappend_count(%uappend_original: i64, %uappend_current: i64, %uappend_digit_start: i64, %uappend_digits: i64):\n"
+    "    %uappend_count_quotient = llvm.udiv %uappend_current, %uappend_ten : i64\n"
+    "    %uappend_count_more = llvm.icmp \"ne\" %uappend_count_quotient, %uappend_zero : i64\n"
+    "    %uappend_next_digits = llvm.add %uappend_digits, %uappend_one : i64\n"
+    "    llvm.cond_br %uappend_count_more, ^uappend_count(%uappend_original, %uappend_count_quotient, %uappend_digit_start, %uappend_next_digits : i64, i64, i64, i64), ^uappend_begin(%uappend_original, %uappend_digit_start, %uappend_digits : i64, i64, i64)\n"
+    "  ^uappend_begin(%uappend_begin_value: i64, %uappend_begin_start: i64, %uappend_begin_digits: i64):\n"
+    "    %uappend_end = llvm.add %uappend_begin_start, %uappend_begin_digits : i64\n"
+    "    llvm.br ^uappend_write(%uappend_begin_value, %uappend_end, %uappend_end : i64, i64, i64)\n"
+    "  ^uappend_write(%uappend_remaining: i64, %uappend_position: i64, %uappend_result: i64):\n"
+    "    %uappend_remainder = llvm.urem %uappend_remaining, %uappend_ten : i64\n"
+    "    %uappend_digit_value = llvm.add %uappend_remainder, %uappend_ascii_zero : i64\n"
+    "    %uappend_digit = llvm.trunc %uappend_digit_value : i64 to i8\n"
+    "    %uappend_write_position = llvm.sub %uappend_position, %uappend_one : i64\n"
+    "    %uappend_address = llvm.getelementptr %buffer[%uappend_write_position] : (!llvm.ptr, i64) -> !llvm.ptr, i8\n"
+    "    llvm.store %uappend_digit, %uappend_address : i8, !llvm.ptr\n"
+    "    %uappend_quotient = llvm.udiv %uappend_remaining, %uappend_ten : i64\n"
+    "    %uappend_more = llvm.icmp \"ne\" %uappend_quotient, %uappend_zero : i64\n"
+    "    llvm.cond_br %uappend_more, ^uappend_write(%uappend_quotient, %uappend_write_position, %uappend_result : i64, i64, i64), ^uappend_done(%uappend_result : i64)\n"
+    "  ^uappend_done(%uappend_final: i64):\n"
+    "    llvm.return %uappend_final : i64\n"
+    "  }\n";
+
 #define MLIR0_FIXED_LITERAL_BYTES                                            \
   ((sizeof(MLIR0_SCHEMA_COMMENT) - 1u) + (sizeof(MLIR0_PREFIX) - 1u) +       \
    (sizeof(MLIR0_GLOBAL_MIDDLE) - 1u) + (sizeof(MLIR0_GLOBAL_SUFFIX) - 1u) + \
@@ -354,6 +383,7 @@ static const char MLIR0_BOOL_HELPER[] =
    (sizeof(MLIR0_CHECKED_I64_ADD_HELPER) - 1u) +                        \
    (sizeof(MLIR0_CHECKED_I64_SUBTRACT_HELPER) - 1u) +                   \
    (sizeof(MLIR0_CHECKED_I64_MULTIPLY_HELPER) - 1u) +                   \
+   (sizeof(MLIR0_U64_HELPER) - 1u) +                                   \
    (sizeof(MLIR0_BOOL_HELPER) - 1u) + MLIR0_DYNAMIC_SKELETON_MAX_BYTES + \
    ((size_t)MLIR0_MAX_STDOUT_BYTES * MLIR0_ESCAPE_BYTES_PER_INPUT) +         \
    ((size_t)MLIR0_DYNAMIC_MAX_ACTIONS * MLIR0_DYNAMIC_ACTION_MAX_BYTES) +    \
@@ -602,6 +632,7 @@ typedef enum {
   MLIR0_DYNAMIC_TEXT = 0,
   MLIR0_DYNAMIC_I64,
   MLIR0_DYNAMIC_BOOL,
+  MLIR0_DYNAMIC_U64,
 } mlir0_dynamic_action_kind;
 
 typedef struct {
@@ -617,6 +648,7 @@ typedef struct {
   mlir0_dynamic_action actions[MLIR0_DYNAMIC_MAX_ACTIONS];
   size_t action_count;
   bool has_bool;
+  bool has_u64;
   bool has_checked_add;
   bool has_checked_subtract;
   bool has_checked_multiply;
@@ -661,6 +693,17 @@ static bool dynamic_plan_append_i64(mlir0_dynamic_plan *plan,
   plan->actions[plan->action_count] =
       (mlir0_dynamic_action){MLIR0_DYNAMIC_I64, 0u, 0u, value_index};
   plan->action_count += 1u;
+  return true;
+}
+
+static bool dynamic_plan_append_u64(mlir0_dynamic_plan *plan,
+                                    uint32_t value_index) {
+  if (plan == NULL || plan->action_count >= MLIR0_DYNAMIC_MAX_ACTIONS)
+    return false;
+  plan->actions[plan->action_count] =
+      (mlir0_dynamic_action){MLIR0_DYNAMIC_U64, 0u, 0u, value_index};
+  plan->action_count += 1u;
+  plan->has_u64 = true;
   return true;
 }
 
@@ -761,6 +804,10 @@ static bool build_dynamic_plan(
             program->types[embedded->type_index].kind;
         if (type == W_SEED_HIR0_TYPE_I64) {
           if (!dynamic_plan_append_i64(&candidate, effective_index))
+            return false;
+        } else if (type == W_SEED_HIR0_TYPE_U64) {
+          if (effective->kind != W_SEED_HIR0_VALUE_CONST_U64 ||
+              !dynamic_plan_append_u64(&candidate, effective_index))
             return false;
         } else if (type == W_SEED_HIR0_TYPE_BOOL) {
           if ((effective->kind != W_SEED_HIR0_VALUE_CONST_BOOL &&
@@ -1615,6 +1662,15 @@ static bool append_value_operations(const w_seed_hir0_program *program,
           !append_i64(artifact, capacity, offset, value->integer_value) ||
           !append_literal(artifact, capacity, offset, " : i64) : i64\n"))
         return false;
+    } else if (value->kind == W_SEED_HIR0_VALUE_CONST_U64) {
+      if (!append_literal(artifact, capacity, offset, "    %v") ||
+          !append_size(artifact, capacity, offset, index) ||
+          !append_literal(artifact, capacity, offset,
+                          " = llvm.mlir.constant(") ||
+          !append_i64_carrier_bits(artifact, capacity, offset,
+                                   value->unsigned_integer_value) ||
+          !append_literal(artifact, capacity, offset, " : i64) : i64\n"))
+        return false;
     } else if (value->kind == W_SEED_HIR0_VALUE_CONST_BOOL) {
       if (!append_literal(artifact, capacity, offset, "    %v") ||
           !append_size(artifact, capacity, offset, index) ||
@@ -1673,12 +1729,15 @@ static bool append_dynamic_actions(const mlir0_dynamic_plan *plan,
               artifact, capacity, offset,
               ") : (!llvm.ptr, i64, !llvm.ptr, i64) -> i64\n"))
         return false;
-    } else if (action->kind == MLIR0_DYNAMIC_I64) {
+    } else if (action->kind == MLIR0_DYNAMIC_I64 ||
+               action->kind == MLIR0_DYNAMIC_U64) {
       if (!append_literal(artifact, capacity, offset, "    %cursor") ||
           !append_size(artifact, capacity, offset, index + 1u) ||
           !append_literal(
               artifact, capacity, offset,
-              " = llvm.call @w_seed_append_i64(%buffer, %cursor") ||
+              action->kind == MLIR0_DYNAMIC_I64
+                  ? " = llvm.call @w_seed_append_i64(%buffer, %cursor"
+                  : " = llvm.call @w_seed_append_u64(%buffer, %cursor") ||
           !append_size(artifact, capacity, offset, index) ||
           !append_literal(artifact, capacity, offset, ", %v") ||
           !append_size(artifact, capacity, offset, action->value_index) ||
@@ -1746,6 +1805,8 @@ static bool build_dynamic_artifact(
                                   plan.has_checked_divide,
                                   plan.has_checked_remainder, artifact,
                                   capacity, &offset) ||
+      (plan.has_u64 &&
+       !append_literal(artifact, capacity, &offset, MLIR0_U64_HELPER)) ||
       (plan.has_bool &&
        !append_literal(artifact, capacity, &offset, MLIR0_BOOL_HELPER)))
     return false;
@@ -1841,6 +1902,7 @@ typedef struct {
   bool reachable_functions[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS];
   bool omitted_functions[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS];
   bool has_bool;
+  bool has_u64;
   bool has_checked_add;
   bool has_checked_subtract;
   bool has_checked_multiply;
@@ -2095,6 +2157,7 @@ static bool mlir_product_closure_shape_candidate(
       case W_SEED_HIR0_VALUE_PARAMETER_READ:
       case W_SEED_HIR0_VALUE_CONST_I64:
       case W_SEED_HIR0_VALUE_CONST_BOOL:
+      case W_SEED_HIR0_VALUE_CONST_U64:
       case W_SEED_HIR0_VALUE_BINARY_I64:
       case W_SEED_HIR0_VALUE_INTERPOLATED_STRING:
       case W_SEED_HIR0_VALUE_CALL_RESULT:
@@ -2141,6 +2204,10 @@ static bool program_plan_append_value(mlir0_program_plan *plan,
   if (type == W_SEED_HIR0_TYPE_I64 || type == W_SEED_HIR0_TYPE_USIZE) {
     plan->actions[plan->action_count] =
         (mlir0_dynamic_action){MLIR0_DYNAMIC_I64, 0u, 0u, value_index};
+  } else if (type == W_SEED_HIR0_TYPE_U64) {
+    plan->actions[plan->action_count] =
+        (mlir0_dynamic_action){MLIR0_DYNAMIC_U64, 0u, 0u, value_index};
+    plan->has_u64 = true;
   } else if (type == W_SEED_HIR0_TYPE_BOOL) {
     plan->actions[plan->action_count] =
         (mlir0_dynamic_action){MLIR0_DYNAMIC_BOOL, 0u, 0u, value_index};
@@ -2261,9 +2328,15 @@ static bool build_program_plan(const w_seed_hir0_program *program,
       !candidate.has_reachable_panic)
     return false;
   candidate.has_bool = false;
+  candidate.has_u64 = false;
   for (size_t action_index = 0u; action_index < candidate.action_count;
        action_index += 1u)
-    if (candidate.actions[action_index].kind == MLIR0_DYNAMIC_BOOL &&
+    if (candidate.actions[action_index].kind == MLIR0_DYNAMIC_U64 &&
+        candidate.actions[action_index].value_index <
+            W_SEED_NATIVE_SUBSET0_MAX_VALUES &&
+        candidate.reachable_values[candidate.actions[action_index].value_index])
+      candidate.has_u64 = true;
+    else if (candidate.actions[action_index].kind == MLIR0_DYNAMIC_BOOL &&
         candidate.actions[action_index].value_index <
             W_SEED_NATIVE_SUBSET0_MAX_VALUES &&
         candidate.reachable_values[candidate.actions[action_index].value_index])
@@ -2367,6 +2440,7 @@ static bool append_program_value_operand_in_loop(
   }
   return (value->kind == W_SEED_HIR0_VALUE_CONST_I64 ||
           value->kind == W_SEED_HIR0_VALUE_CONST_USIZE ||
+          value->kind == W_SEED_HIR0_VALUE_CONST_U64 ||
           value->kind == W_SEED_HIR0_VALUE_CONST_BOOL ||
           value->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
           value->kind == W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON ||
@@ -2578,9 +2652,13 @@ static bool append_program_value_tree(
     emitted[value_index] = true;
     return true;
   }
-  if (value->kind == W_SEED_HIR0_VALUE_CONST_USIZE) {
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_USIZE ||
+      value->kind == W_SEED_HIR0_VALUE_CONST_U64) {
     if (value->type_index >= program->type_count ||
-        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_USIZE ||
+        program->types[value->type_index].kind !=
+            (value->kind == W_SEED_HIR0_VALUE_CONST_USIZE
+                 ? W_SEED_HIR0_TYPE_USIZE
+                 : W_SEED_HIR0_TYPE_U64) ||
         !append_literal(artifact, capacity, offset, "    %v") ||
         !append_size(artifact, capacity, offset, value_index) ||
         !append_literal(artifact, capacity, offset,
@@ -3246,6 +3324,7 @@ static const char *program_type_name(const w_seed_hir0_program *program,
     return NULL;
   }
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_I64) return "i64";
+  if (program->types[type_index].kind == W_SEED_HIR0_TYPE_U64) return "i64";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_USIZE) return "i64";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_BOOL) return "i1";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_ENUM ||
@@ -3362,6 +3441,7 @@ static bool append_program_print_actions(
               ") : (!llvm.ptr, i64, !llvm.ptr, i64) -> i64\n"))
         return false;
     } else if (action->kind == MLIR0_DYNAMIC_I64 ||
+               action->kind == MLIR0_DYNAMIC_U64 ||
                action->kind == MLIR0_DYNAMIC_BOOL) {
       if (!append_literal(artifact, capacity, offset, "    %cursor") ||
           !append_size(artifact, capacity, offset, call_index) ||
@@ -3370,7 +3450,9 @@ static bool append_program_print_actions(
           !append_literal(artifact, capacity, offset,
                           action->kind == MLIR0_DYNAMIC_I64
                               ? " = llvm.call @w_seed_append_i64(%buffer, %cursor"
-                              : " = llvm.call @w_seed_append_bool(%buffer, %cursor") ||
+                              : action->kind == MLIR0_DYNAMIC_U64
+                                    ? " = llvm.call @w_seed_append_u64(%buffer, %cursor"
+                                    : " = llvm.call @w_seed_append_bool(%buffer, %cursor") ||
           !append_size(artifact, capacity, offset, call_index) ||
           !append_literal(artifact, capacity, offset, "_") ||
           !append_size(artifact, capacity, offset, ordinal) ||
@@ -3379,7 +3461,7 @@ static bool append_program_print_actions(
                                         function_index, process, artifact,
                                         capacity, offset) ||
           !append_literal(artifact, capacity, offset,
-                          action->kind == MLIR0_DYNAMIC_I64
+                          action->kind != MLIR0_DYNAMIC_BOOL
                               ? ") : (!llvm.ptr, i64, i64) -> i64\n"
                               : ") : (!llvm.ptr, i64, i1) -> i64\n"))
         return false;
@@ -4751,6 +4833,8 @@ static bool build_program_artifact(
                                   plan.has_checked_divide,
                                   plan.has_checked_remainder, artifact,
                                   capacity, &offset) ||
+      (plan.has_u64 &&
+       !append_literal(artifact, capacity, &offset, MLIR0_U64_HELPER)) ||
       (plan.has_bool &&
        !append_literal(artifact, capacity, &offset, MLIR0_BOOL_HELPER)))
     return false;
@@ -5239,6 +5323,8 @@ static bool build_process_executable_artifact(
           plan.has_checked_add, plan.has_checked_subtract,
           plan.has_checked_multiply, plan.has_checked_divide,
           plan.has_checked_remainder, artifact, capacity, &offset) ||
+       (plan.has_u64 &&
+        !append_literal(artifact, capacity, &offset, MLIR0_U64_HELPER)) ||
        (plan.has_bool &&
         !append_literal(artifact, capacity, &offset, MLIR0_BOOL_HELPER)) ||
        (windows
