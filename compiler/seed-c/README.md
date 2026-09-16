@@ -2157,6 +2157,23 @@ The evidence is bounded compiler-lifecycle correctness. Current upstream
 execution evidence is Windows x64. PANICBOUNDARY1, `PanicEvent`, runtime/ABI,
 cleanup, public product, benchmarks, and performance remain open.
 
+W-1629 adds `w_seed_parallel_panic_host_registry1` (PANICHOSTREG1), a private
+Windows x64 host bridge above a verified PANICLIFE1 view. Its caller-owned
+authority creates exactly one anonymous, non-inheritable Win32 event. The
+registry owns the event from successful `CreateEventW` and never accepts or
+exports an arbitrary handle. After complete validation, `release` calls
+`CloseHandle` once and publishes an `EVENT` record for `REGISTERED` to
+`RELEASED` plus the ordered events `RESOURCE_REGISTERED` and
+`RESOURCE_CLOSE_COMMITTED`. A pre-close fault leaves the event registered for
+`destroy`. A false or uncertain post-attempt result is terminal `UNCERTAIN`
+without retry or double-close. The raw handle remains in caller-owned C
+registry storage, but it is absent from output, result, semantic receipt, and
+digests. The one-resource shape is an evidence ceiling, not a language or
+runtime limit. The C23 witness is Windows x64 compiler-lifecycle
+correctness-only evidence. It does not claim PANICBOUNDARY1, a general
+registry, user cleanup, OS-object destruction, a public runtime or `PanicEvent`
+or Task ABI, native HIR execution, other targets, or performance.
+
 `w_seed_parallel_provider1` is the measured Windows successor. Measure reports
 one semantic outcome and one physical workspace value per PARINV1 task. The
 platform adapter receives one indexed job descriptor and executes constant-size

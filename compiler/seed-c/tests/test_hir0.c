@@ -3,6 +3,7 @@
 #include "w_seed_parallel_invocation0.h"
 #include "w_seed_parallel_invocation1.h"
 #include "w_seed_parallel_panic_binding1.h"
+#include "w_seed_parallel_panic_host_registry1.h"
 #include "w_seed_parallel_panic_lifecycle1.h"
 #include "w_seed_parallel_lifecycle1.h"
 #include "w_seed_parallel_provider0.h"
@@ -6145,6 +6146,867 @@ static bool test_parallel_panic_lifecycle1(void) {
                sizeof(teardown_message)) == 0 &&
         !w_seed_parallel_panic_lifecycle1_verify(
             &input, &lifecycle_output, &lifecycle_result));
+  return true;
+#endif
+}
+
+static bool test_parallel_panic_host_registry1(void) {
+#if !defined(_WIN32) || !defined(_WIN64)
+  /* PANICHOSTREG1 is a real Win32 CreateEventW/CloseHandle witness. The
+   * target-neutral PANICLIFE1 producer remains covered on every lane. */
+  return true;
+#else
+  static const char TWO_PANICS[] =
+      "fn firstPanic(): i64 { panic(\"first panic\") }\n"
+      "fn secondPanic(): i64 { panic(\"second panic\") }\n"
+      "entry { let firstTask = spawn<.domain> firstPanic() "
+      "let secondTask = spawn<.domain> secondPanic() "
+      "let first = await firstTask let second = await secondTask }\n";
+  panic_lifecycle_upstream_fixture upstream;
+  CHECK(prepare_panic_lifecycle_upstream(TWO_PANICS, 1u, true, &upstream));
+  const w_seed_parallel_panic_lifecycle1_input lifecycle_input = {
+      &upstream.panic_input, &upstream.panic_workspace, &upstream.panic_output,
+      &upstream.panic_result};
+  uint8_t lifecycle_message[128];
+  w_seed_parallel_panic_lifecycle1_event lifecycle_events[3];
+  w_seed_parallel_panic_lifecycle1_decision lifecycle_decision;
+  const w_seed_parallel_panic_lifecycle1_output lifecycle_output = {
+      lifecycle_message, sizeof(lifecycle_message), lifecycle_events,
+      sizeof(lifecycle_events) / sizeof(lifecycle_events[0]),
+      &lifecycle_decision};
+  w_seed_parallel_panic_lifecycle1_result lifecycle_result;
+  CHECK(w_seed_parallel_panic_lifecycle1_run(
+            &lifecycle_input, &lifecycle_output, &lifecycle_result) ==
+            W_SEED_PARALLEL_PANIC_LIFECYCLE1_OK &&
+        lifecycle_result.panic_count == 2u &&
+        lifecycle_result.source_task_index == 0u &&
+        w_seed_parallel_panic_lifecycle1_verify(
+            &lifecycle_input, &lifecycle_output, &lifecycle_result));
+  const w_seed_parallel_panic_host_registry1_input host_input = {
+      &lifecycle_input, &lifecycle_output, &lifecycle_result};
+
+  w_seed_parallel_panic_host_registry1_authority authority;
+  (void)memset(&authority, 0, sizeof(authority));
+  CHECK(w_seed_parallel_panic_host_registry1_open(
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_WINDOWS_AMD64, &authority) &&
+        w_seed_parallel_panic_host_registry1_authority_verify(&authority));
+  w_seed_parallel_panic_host_registry1_registry registry;
+  (void)memset(&registry, 0, sizeof(registry));
+  CHECK(w_seed_parallel_panic_host_registry1_open_event(
+            &authority, &registry, lifecycle_result.source_task_index,
+            lifecycle_result.generation) ==
+        W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK);
+  w_seed_parallel_panic_host_registry1_counts counts;
+  w_seed_parallel_panic_host_registry1_result measured;
+  CHECK(w_seed_parallel_panic_host_registry1_measure(
+            &host_input, &authority, &registry, &counts, &measured) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK &&
+        counts.records == 1u && counts.events == 2u &&
+        measured.required.records == 1u && measured.required.events == 2u &&
+        measured.written.records == 0u && measured.written.events == 0u &&
+        registry.state == W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_STATE_REGISTERED &&
+        registry.close_attempt_count == 0u &&
+        registry.close_success_count == 0u);
+
+  w_seed_parallel_panic_host_registry1_record record;
+  w_seed_parallel_panic_host_registry1_event events[2];
+  w_seed_parallel_panic_host_registry1_result result;
+  (void)memset(&record, 0xa1, sizeof(record));
+  (void)memset(events, 0xa2, sizeof(events));
+  (void)memset(&result, 0xa3, sizeof(result));
+  const w_seed_parallel_panic_host_registry1_record record_before = record;
+  const w_seed_parallel_panic_host_registry1_event events_before[2] = {
+      events[0], events[1]};
+  const w_seed_parallel_panic_host_registry1_result result_before = result;
+  const w_seed_parallel_panic_host_registry1_output output = {
+      &record, 1u, events, sizeof(events) / sizeof(events[0])};
+  CHECK(w_seed_parallel_panic_host_registry1_release(
+            &host_input, &authority, &registry, &output, &result) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK &&
+        record.resource_kind ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_RESOURCE_EVENT &&
+        record.from_state ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_STATE_REGISTERED &&
+        record.to_state ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_STATE_RELEASED &&
+        record.registered_count == 1u && record.released_count == 1u &&
+        record.event_count == 2u && events[0].sequence == 1u &&
+        events[0].kind ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_EVENT_RESOURCE_REGISTERED &&
+        events[1].sequence == 2u &&
+        events[1].kind ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_EVENT_RESOURCE_CLOSE_COMMITTED &&
+        result.primary_source_index == 0u && result.panic_count == 2u &&
+        result.close_attempted && result.close_succeeded &&
+        registry.state == W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_STATE_RELEASED &&
+        registry.private_event_handle == 0u &&
+        registry.close_attempt_count == 1u &&
+        registry.close_success_count == 1u &&
+        w_seed_parallel_panic_host_registry1_verify(
+            &host_input, &authority, &registry, &output, &result));
+  const w_seed_parallel_panic_host_registry1_record released_record = record;
+  const w_seed_parallel_panic_host_registry1_event released_events[2] = {
+      events[0], events[1]};
+  const w_seed_parallel_panic_host_registry1_result released_result = result;
+  CHECK(w_seed_parallel_panic_host_registry1_release(
+            &host_input, &authority, &registry, &output, &result) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_STATE &&
+        memcmp(&record, &released_record, sizeof(record)) == 0 &&
+        memcmp(events, released_events, sizeof(events)) == 0 &&
+        memcmp(&result, &released_result, sizeof(result)) == 0 &&
+        w_seed_parallel_panic_host_registry1_destroy(&authority, &registry) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK &&
+        registry.state ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_STATE_DESTROYED &&
+        registry.close_attempt_count == 1u &&
+        w_seed_parallel_panic_host_registry1_destroy(&authority, &registry) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK &&
+        memcmp(&record, &released_record, sizeof(record)) == 0 &&
+        memcmp(events, released_events, sizeof(events)) == 0 &&
+        memcmp(&result, &released_result, sizeof(result)) == 0);
+  (void)record_before;
+  (void)events_before;
+  (void)result_before;
+
+  /* A source-selected primary remains the first panic when more than one
+   * TASK_PANIC is present; the host transition still records one resource. */
+  CHECK(released_result.primary_source_index == 0u &&
+        released_result.panic_count == 2u);
+
+  /* Capacity 1 and 2 have the same semantic record/event bytes and digest;
+   * physical upstream provenance is allowed to differ. */
+  static const char MIXED_SOURCE[] =
+      "fn prepare(value: i64): i64 { return value + 1 }\n"
+      "fn fail(): i64 { panic(\"parallel invariant\") }\n"
+      "entry { let firstTask = spawn<.domain> prepare(value: 20) "
+      "let secondTask = spawn<.domain> fail() "
+      "let first = await firstTask let second = await secondTask }\n";
+  panic_lifecycle_upstream_fixture capacity_one;
+  CHECK(prepare_panic_lifecycle_upstream(MIXED_SOURCE, 1u, true,
+                                          &capacity_one));
+  const w_seed_parallel_panic_lifecycle1_input capacity_one_lifecycle_input = {
+      &capacity_one.panic_input, &capacity_one.panic_workspace,
+      &capacity_one.panic_output, &capacity_one.panic_result};
+  uint8_t capacity_one_message[128];
+  w_seed_parallel_panic_lifecycle1_event capacity_one_lifecycle_events[3];
+  w_seed_parallel_panic_lifecycle1_decision capacity_one_lifecycle_decision;
+  const w_seed_parallel_panic_lifecycle1_output capacity_one_lifecycle_output = {
+      capacity_one_message, sizeof(capacity_one_message),
+      capacity_one_lifecycle_events,
+      sizeof(capacity_one_lifecycle_events) /
+          sizeof(capacity_one_lifecycle_events[0]),
+      &capacity_one_lifecycle_decision};
+  w_seed_parallel_panic_lifecycle1_result capacity_one_lifecycle_result;
+  CHECK(w_seed_parallel_panic_lifecycle1_run(
+            &capacity_one_lifecycle_input, &capacity_one_lifecycle_output,
+            &capacity_one_lifecycle_result) ==
+            W_SEED_PARALLEL_PANIC_LIFECYCLE1_OK);
+  const w_seed_parallel_panic_host_registry1_input capacity_one_host_input = {
+      &capacity_one_lifecycle_input, &capacity_one_lifecycle_output,
+      &capacity_one_lifecycle_result};
+  w_seed_parallel_panic_host_registry1_authority capacity_one_authority;
+  w_seed_parallel_panic_host_registry1_registry capacity_one_registry;
+  (void)memset(&capacity_one_authority, 0, sizeof(capacity_one_authority));
+  (void)memset(&capacity_one_registry, 0, sizeof(capacity_one_registry));
+  CHECK(w_seed_parallel_panic_host_registry1_open(
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_WINDOWS_AMD64,
+            &capacity_one_authority) &&
+        w_seed_parallel_panic_host_registry1_open_event(
+            &capacity_one_authority, &capacity_one_registry,
+            capacity_one_lifecycle_result.source_task_index,
+            capacity_one_lifecycle_result.generation) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK);
+  w_seed_parallel_panic_host_registry1_record capacity_one_record;
+  w_seed_parallel_panic_host_registry1_event capacity_one_events[2];
+  w_seed_parallel_panic_host_registry1_result capacity_one_result;
+  const w_seed_parallel_panic_host_registry1_output capacity_one_output = {
+      &capacity_one_record, 1u, capacity_one_events, 2u};
+  CHECK(w_seed_parallel_panic_host_registry1_run(
+            &capacity_one_host_input, &capacity_one_authority,
+            &capacity_one_registry, &capacity_one_output,
+            &capacity_one_result) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK &&
+        w_seed_parallel_panic_host_registry1_destroy(&capacity_one_authority,
+                                                     &capacity_one_registry) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK);
+
+  panic_lifecycle_upstream_fixture capacity_two;
+  CHECK(prepare_panic_lifecycle_upstream(MIXED_SOURCE, 2u, true,
+                                          &capacity_two));
+  const w_seed_parallel_panic_lifecycle1_input capacity_two_lifecycle_input = {
+      &capacity_two.panic_input, &capacity_two.panic_workspace,
+      &capacity_two.panic_output, &capacity_two.panic_result};
+  uint8_t capacity_two_message[128];
+  w_seed_parallel_panic_lifecycle1_event capacity_two_lifecycle_events[3];
+  w_seed_parallel_panic_lifecycle1_decision capacity_two_lifecycle_decision;
+  const w_seed_parallel_panic_lifecycle1_output capacity_two_lifecycle_output = {
+      capacity_two_message, sizeof(capacity_two_message),
+      capacity_two_lifecycle_events,
+      sizeof(capacity_two_lifecycle_events) /
+          sizeof(capacity_two_lifecycle_events[0]),
+      &capacity_two_lifecycle_decision};
+  w_seed_parallel_panic_lifecycle1_result capacity_two_lifecycle_result;
+  CHECK(w_seed_parallel_panic_lifecycle1_run(
+            &capacity_two_lifecycle_input, &capacity_two_lifecycle_output,
+            &capacity_two_lifecycle_result) ==
+            W_SEED_PARALLEL_PANIC_LIFECYCLE1_OK);
+  const w_seed_parallel_panic_host_registry1_input capacity_two_host_input = {
+      &capacity_two_lifecycle_input, &capacity_two_lifecycle_output,
+      &capacity_two_lifecycle_result};
+  w_seed_parallel_panic_host_registry1_authority capacity_two_authority;
+  w_seed_parallel_panic_host_registry1_registry capacity_two_registry;
+  (void)memset(&capacity_two_authority, 0, sizeof(capacity_two_authority));
+  (void)memset(&capacity_two_registry, 0, sizeof(capacity_two_registry));
+  CHECK(w_seed_parallel_panic_host_registry1_open(
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_WINDOWS_AMD64,
+            &capacity_two_authority) &&
+        w_seed_parallel_panic_host_registry1_open_event(
+            &capacity_two_authority, &capacity_two_registry,
+            capacity_two_lifecycle_result.source_task_index,
+            capacity_two_lifecycle_result.generation) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK);
+  w_seed_parallel_panic_host_registry1_record capacity_two_record;
+  w_seed_parallel_panic_host_registry1_event capacity_two_events[2];
+  w_seed_parallel_panic_host_registry1_result capacity_two_result;
+  const w_seed_parallel_panic_host_registry1_output capacity_two_output = {
+      &capacity_two_record, 1u, capacity_two_events, 2u};
+  CHECK(w_seed_parallel_panic_host_registry1_run(
+            &capacity_two_host_input, &capacity_two_authority,
+            &capacity_two_registry, &capacity_two_output,
+            &capacity_two_result) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK &&
+        memcmp(&capacity_one_record, &capacity_two_record,
+               sizeof(capacity_one_record)) == 0 &&
+        memcmp(capacity_one_record.semantic_digest,
+               capacity_two_record.semantic_digest,
+               sizeof(capacity_one_record.semantic_digest)) == 0 &&
+        memcmp(capacity_one_events, capacity_two_events,
+               sizeof(capacity_one_events)) == 0 &&
+        memcmp(capacity_one_result.provenance_digest,
+               capacity_two_result.provenance_digest,
+               sizeof(capacity_one_result.provenance_digest)) != 0 &&
+        w_seed_parallel_panic_host_registry1_verify(
+            &capacity_two_host_input, &capacity_two_authority,
+            &capacity_two_registry, &capacity_two_output, &capacity_two_result));
+
+  /* No-panic classification is rederived from the live producer, even when
+   * a caller forges a lifecycle result status over a real panic. */
+  panic_lifecycle_upstream_fixture forged;
+  CHECK(prepare_panic_lifecycle_upstream(MIXED_SOURCE, 1u, true, &forged));
+  const w_seed_parallel_panic_lifecycle1_input forged_lifecycle_input = {
+      &forged.panic_input, &forged.panic_workspace, &forged.panic_output,
+      &forged.panic_result};
+  uint8_t forged_message[128];
+  w_seed_parallel_panic_lifecycle1_event forged_lifecycle_events[3];
+  w_seed_parallel_panic_lifecycle1_decision forged_lifecycle_decision;
+  const w_seed_parallel_panic_lifecycle1_output forged_lifecycle_output = {
+      forged_message, sizeof(forged_message), forged_lifecycle_events, 3u,
+      &forged_lifecycle_decision};
+  w_seed_parallel_panic_lifecycle1_result forged_lifecycle_result;
+  CHECK(w_seed_parallel_panic_lifecycle1_run(
+            &forged_lifecycle_input, &forged_lifecycle_output,
+            &forged_lifecycle_result) ==
+        W_SEED_PARALLEL_PANIC_LIFECYCLE1_OK);
+  const w_seed_parallel_panic_host_registry1_input forged_host_input = {
+      &forged_lifecycle_input, &forged_lifecycle_output,
+      &forged_lifecycle_result};
+  w_seed_parallel_panic_host_registry1_authority forged_authority;
+  w_seed_parallel_panic_host_registry1_registry forged_registry;
+  (void)memset(&forged_authority, 0, sizeof(forged_authority));
+  (void)memset(&forged_registry, 0, sizeof(forged_registry));
+  CHECK(w_seed_parallel_panic_host_registry1_open(
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_WINDOWS_AMD64,
+            &forged_authority) &&
+        w_seed_parallel_panic_host_registry1_open_event(
+            &forged_authority, &forged_registry,
+            forged_lifecycle_result.source_task_index,
+            forged_lifecycle_result.generation) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK);
+  w_seed_parallel_panic_host_registry1_record forged_record;
+  w_seed_parallel_panic_host_registry1_event forged_events[2];
+  w_seed_parallel_panic_host_registry1_result forged_result;
+  (void)memset(&forged_record, 0x71, sizeof(forged_record));
+  (void)memset(forged_events, 0x72, sizeof(forged_events));
+  (void)memset(&forged_result, 0x73, sizeof(forged_result));
+  const w_seed_parallel_panic_host_registry1_record forged_record_before =
+      forged_record;
+  const w_seed_parallel_panic_host_registry1_event forged_events_before[2] = {
+      forged_events[0], forged_events[1]};
+  const w_seed_parallel_panic_host_registry1_result forged_result_before =
+      forged_result;
+  forged_lifecycle_result.status = W_SEED_PARALLEL_PANIC_LIFECYCLE1_NO_PANIC;
+  const w_seed_parallel_panic_host_registry1_output forged_output = {
+      &forged_record, 1u, forged_events, 2u};
+  CHECK(w_seed_parallel_panic_host_registry1_release(
+            &forged_host_input, &forged_authority, &forged_registry,
+            &forged_output, &forged_result) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_UPSTREAM &&
+        memcmp(&forged_record, &forged_record_before,
+               sizeof(forged_record)) == 0 &&
+        memcmp(forged_events, forged_events_before, sizeof(forged_events)) == 0 &&
+        memcmp(&forged_result, &forged_result_before,
+               sizeof(forged_result)) == 0 &&
+        forged_registry.state ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_STATE_REGISTERED &&
+        w_seed_parallel_panic_host_registry1_destroy(&forged_authority,
+                                                     &forged_registry) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK);
+
+  /* The valid no-panic result is rederived and leaves all host publications
+   * unchanged; the registry owner still destroys its registered event. */
+  static const char VALUE_ONLY[] =
+      "fn prepare(value: i64): i64 { return value + 1 }\n"
+      "entry { let pending = spawn<.domain> prepare(value: 20) "
+      "let value = await pending }\n";
+  panic_lifecycle_upstream_fixture no_panic;
+  CHECK(prepare_panic_lifecycle_upstream(VALUE_ONLY, 1u, false, &no_panic));
+  const w_seed_parallel_panic_lifecycle1_input no_panic_lifecycle_input = {
+      &no_panic.panic_input, &no_panic.panic_workspace, &no_panic.panic_output,
+      &no_panic.panic_result};
+  uint8_t no_panic_message[128];
+  w_seed_parallel_panic_lifecycle1_event no_panic_lifecycle_events[3];
+  w_seed_parallel_panic_lifecycle1_decision no_panic_lifecycle_decision;
+  w_seed_parallel_panic_lifecycle1_result no_panic_lifecycle_result;
+  (void)memset(no_panic_message, 0x81, sizeof(no_panic_message));
+  (void)memset(no_panic_lifecycle_events, 0x82,
+               sizeof(no_panic_lifecycle_events));
+  (void)memset(&no_panic_lifecycle_decision, 0x83,
+               sizeof(no_panic_lifecycle_decision));
+  (void)memset(&no_panic_lifecycle_result, 0x84,
+               sizeof(no_panic_lifecycle_result));
+  const w_seed_parallel_panic_lifecycle1_output no_panic_lifecycle_output = {
+      no_panic_message, sizeof(no_panic_message), no_panic_lifecycle_events, 3u,
+      &no_panic_lifecycle_decision};
+  const w_seed_parallel_panic_host_registry1_input no_panic_host_input = {
+      &no_panic_lifecycle_input, &no_panic_lifecycle_output,
+      &no_panic_lifecycle_result};
+  w_seed_parallel_panic_host_registry1_authority no_panic_authority;
+  w_seed_parallel_panic_host_registry1_registry no_panic_registry;
+  (void)memset(&no_panic_authority, 0, sizeof(no_panic_authority));
+  (void)memset(&no_panic_registry, 0, sizeof(no_panic_registry));
+  CHECK(w_seed_parallel_panic_host_registry1_open(
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_WINDOWS_AMD64,
+            &no_panic_authority) &&
+        w_seed_parallel_panic_host_registry1_open_event(
+            &no_panic_authority, &no_panic_registry, 1u, 101u) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK);
+  w_seed_parallel_panic_host_registry1_record no_panic_record;
+  w_seed_parallel_panic_host_registry1_event no_panic_events[2];
+  w_seed_parallel_panic_host_registry1_result no_panic_result;
+  (void)memset(&no_panic_record, 0x91, sizeof(no_panic_record));
+  (void)memset(no_panic_events, 0x92, sizeof(no_panic_events));
+  (void)memset(&no_panic_result, 0x93, sizeof(no_panic_result));
+  const w_seed_parallel_panic_host_registry1_record no_panic_record_before =
+      no_panic_record;
+  const w_seed_parallel_panic_host_registry1_event no_panic_events_before[2] = {
+      no_panic_events[0], no_panic_events[1]};
+  const w_seed_parallel_panic_host_registry1_result no_panic_result_before =
+      no_panic_result;
+  const w_seed_parallel_panic_host_registry1_output no_panic_output = {
+      &no_panic_record, 1u, no_panic_events, 2u};
+  CHECK(w_seed_parallel_panic_host_registry1_release(
+            &no_panic_host_input, &no_panic_authority, &no_panic_registry,
+            &no_panic_output, &no_panic_result) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_NO_PANIC &&
+        memcmp(&no_panic_record, &no_panic_record_before,
+               sizeof(no_panic_record)) == 0 &&
+        memcmp(no_panic_events, no_panic_events_before,
+               sizeof(no_panic_events)) == 0 &&
+        memcmp(&no_panic_result, &no_panic_result_before,
+               sizeof(no_panic_result)) == 0 &&
+        no_panic_registry.state ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_STATE_REGISTERED &&
+        w_seed_parallel_panic_host_registry1_destroy(&no_panic_authority,
+                                                     &no_panic_registry) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK);
+
+  /* Pre-close injection is recoverable by destroy; post-close uncertainty is
+   * terminal and destroy never attempts a second CloseHandle. */
+  panic_lifecycle_upstream_fixture fault_upstream;
+  CHECK(prepare_panic_lifecycle_upstream(MIXED_SOURCE, 1u, true,
+                                          &fault_upstream));
+  const w_seed_parallel_panic_lifecycle1_input fault_lifecycle_input = {
+      &fault_upstream.panic_input, &fault_upstream.panic_workspace,
+      &fault_upstream.panic_output, &fault_upstream.panic_result};
+  uint8_t fault_lifecycle_message[128];
+  w_seed_parallel_panic_lifecycle1_event fault_lifecycle_events[3];
+  w_seed_parallel_panic_lifecycle1_decision fault_lifecycle_decision;
+  const w_seed_parallel_panic_lifecycle1_output fault_lifecycle_output = {
+      fault_lifecycle_message, sizeof(fault_lifecycle_message),
+      fault_lifecycle_events, 3u, &fault_lifecycle_decision};
+  w_seed_parallel_panic_lifecycle1_result fault_lifecycle_result;
+  CHECK(w_seed_parallel_panic_lifecycle1_run(
+            &fault_lifecycle_input, &fault_lifecycle_output,
+            &fault_lifecycle_result) ==
+        W_SEED_PARALLEL_PANIC_LIFECYCLE1_OK);
+  const w_seed_parallel_panic_host_registry1_input fault_host_input = {
+      &fault_lifecycle_input, &fault_lifecycle_output,
+      &fault_lifecycle_result};
+  w_seed_parallel_panic_host_registry1_authority fault_authority;
+  w_seed_parallel_panic_host_registry1_registry fault_registry;
+  (void)memset(&fault_authority, 0, sizeof(fault_authority));
+  (void)memset(&fault_registry, 0, sizeof(fault_registry));
+  CHECK(w_seed_parallel_panic_host_registry1_open(
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_WINDOWS_AMD64,
+            &fault_authority) &&
+        w_seed_parallel_panic_host_registry1_open_event(
+            &fault_authority, &fault_registry,
+            fault_lifecycle_result.source_task_index,
+            fault_lifecycle_result.generation) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK &&
+        w_seed_parallel_panic_host_registry1_test_set_fault(
+            &fault_registry,
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_TEST_FAULT_PRE_CLOSE_FAILURE) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK);
+  w_seed_parallel_panic_host_registry1_record fault_record;
+  w_seed_parallel_panic_host_registry1_event fault_events[2];
+  w_seed_parallel_panic_host_registry1_result fault_result;
+  (void)memset(&fault_record, 0xa4, sizeof(fault_record));
+  (void)memset(fault_events, 0xa5, sizeof(fault_events));
+  (void)memset(&fault_result, 0xa6, sizeof(fault_result));
+  const w_seed_parallel_panic_host_registry1_record fault_record_before =
+      fault_record;
+  const w_seed_parallel_panic_host_registry1_event fault_events_before[2] = {
+      fault_events[0], fault_events[1]};
+  const w_seed_parallel_panic_host_registry1_result fault_result_before =
+      fault_result;
+  const w_seed_parallel_panic_host_registry1_output fault_output = {
+      &fault_record, 1u, fault_events, 2u};
+  CHECK(w_seed_parallel_panic_host_registry1_release(
+            &fault_host_input, &fault_authority, &fault_registry, &fault_output,
+            &fault_result) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_RELEASE_BLOCKED &&
+        fault_registry.state ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_STATE_REGISTERED &&
+        fault_registry.private_event_handle != 0u &&
+        fault_registry.close_attempt_count == 0u &&
+        memcmp(&fault_record, &fault_record_before, sizeof(fault_record)) == 0 &&
+        memcmp(fault_events, fault_events_before, sizeof(fault_events)) == 0 &&
+        memcmp(&fault_result, &fault_result_before, sizeof(fault_result)) == 0 &&
+        w_seed_parallel_panic_host_registry1_destroy(&fault_authority,
+                                                     &fault_registry) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK);
+
+  panic_lifecycle_upstream_fixture uncertain_upstream;
+  CHECK(prepare_panic_lifecycle_upstream(MIXED_SOURCE, 1u, true,
+                                          &uncertain_upstream));
+  const w_seed_parallel_panic_lifecycle1_input uncertain_lifecycle_input = {
+      &uncertain_upstream.panic_input, &uncertain_upstream.panic_workspace,
+      &uncertain_upstream.panic_output, &uncertain_upstream.panic_result};
+  uint8_t uncertain_lifecycle_message[128];
+  w_seed_parallel_panic_lifecycle1_event uncertain_lifecycle_events[3];
+  w_seed_parallel_panic_lifecycle1_decision uncertain_lifecycle_decision;
+  const w_seed_parallel_panic_lifecycle1_output uncertain_lifecycle_output = {
+      uncertain_lifecycle_message, sizeof(uncertain_lifecycle_message),
+      uncertain_lifecycle_events, 3u, &uncertain_lifecycle_decision};
+  w_seed_parallel_panic_lifecycle1_result uncertain_lifecycle_result;
+  CHECK(w_seed_parallel_panic_lifecycle1_run(
+            &uncertain_lifecycle_input, &uncertain_lifecycle_output,
+            &uncertain_lifecycle_result) ==
+        W_SEED_PARALLEL_PANIC_LIFECYCLE1_OK);
+  const w_seed_parallel_panic_host_registry1_input uncertain_host_input = {
+      &uncertain_lifecycle_input, &uncertain_lifecycle_output,
+      &uncertain_lifecycle_result};
+  w_seed_parallel_panic_host_registry1_authority uncertain_authority;
+  w_seed_parallel_panic_host_registry1_registry uncertain_registry;
+  (void)memset(&uncertain_authority, 0, sizeof(uncertain_authority));
+  (void)memset(&uncertain_registry, 0, sizeof(uncertain_registry));
+  CHECK(w_seed_parallel_panic_host_registry1_open(
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_WINDOWS_AMD64,
+            &uncertain_authority) &&
+        w_seed_parallel_panic_host_registry1_open_event(
+            &uncertain_authority, &uncertain_registry,
+            uncertain_lifecycle_result.source_task_index,
+            uncertain_lifecycle_result.generation) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK &&
+        w_seed_parallel_panic_host_registry1_test_set_fault(
+            &uncertain_registry,
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_TEST_FAULT_POST_CLOSE_RESULT_UNCERTAIN) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK);
+  w_seed_parallel_panic_host_registry1_record uncertain_record;
+  w_seed_parallel_panic_host_registry1_event uncertain_events[2];
+  w_seed_parallel_panic_host_registry1_result uncertain_result;
+  (void)memset(&uncertain_record, 0xb4, sizeof(uncertain_record));
+  (void)memset(uncertain_events, 0xb5, sizeof(uncertain_events));
+  (void)memset(&uncertain_result, 0xb6, sizeof(uncertain_result));
+  const w_seed_parallel_panic_host_registry1_record uncertain_record_before =
+      uncertain_record;
+  const w_seed_parallel_panic_host_registry1_event uncertain_events_before[2] = {
+      uncertain_events[0], uncertain_events[1]};
+  const w_seed_parallel_panic_host_registry1_result uncertain_result_before =
+      uncertain_result;
+  const w_seed_parallel_panic_host_registry1_output uncertain_output = {
+      &uncertain_record, 1u, uncertain_events, 2u};
+  CHECK(w_seed_parallel_panic_host_registry1_release(
+            &uncertain_host_input, &uncertain_authority, &uncertain_registry,
+            &uncertain_output, &uncertain_result) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_RELEASE_UNCERTAIN &&
+        uncertain_registry.state ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_STATE_UNCERTAIN &&
+        uncertain_registry.private_event_handle == 0u &&
+        uncertain_registry.close_attempt_count == 1u &&
+        uncertain_registry.close_success_count == 0u &&
+        memcmp(&uncertain_record, &uncertain_record_before,
+               sizeof(uncertain_record)) == 0 &&
+        memcmp(uncertain_events, uncertain_events_before,
+               sizeof(uncertain_events)) == 0 &&
+        memcmp(&uncertain_result, &uncertain_result_before,
+               sizeof(uncertain_result)) == 0 &&
+        w_seed_parallel_panic_host_registry1_destroy(&uncertain_authority,
+                                                     &uncertain_registry) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_RELEASE_UNCERTAIN &&
+        uncertain_registry.close_attempt_count == 1u &&
+        w_seed_parallel_panic_host_registry1_destroy(&uncertain_authority,
+                                                     &uncertain_registry) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_RELEASE_UNCERTAIN);
+
+  /* Capacity, authority, primary/generation, and upstream digest forgeries
+   * fail before the one physical effect and preserve all publications. */
+  panic_lifecycle_upstream_fixture adversarial;
+  CHECK(prepare_panic_lifecycle_upstream(MIXED_SOURCE, 1u, true,
+                                          &adversarial));
+  const w_seed_parallel_panic_lifecycle1_input adversarial_lifecycle_input = {
+      &adversarial.panic_input, &adversarial.panic_workspace,
+      &adversarial.panic_output, &adversarial.panic_result};
+  uint8_t adversarial_lifecycle_message[128];
+  w_seed_parallel_panic_lifecycle1_event adversarial_lifecycle_events[3];
+  w_seed_parallel_panic_lifecycle1_decision adversarial_lifecycle_decision;
+  const w_seed_parallel_panic_lifecycle1_output adversarial_lifecycle_output = {
+      adversarial_lifecycle_message, sizeof(adversarial_lifecycle_message),
+      adversarial_lifecycle_events, 3u, &adversarial_lifecycle_decision};
+  w_seed_parallel_panic_lifecycle1_result adversarial_lifecycle_result;
+  CHECK(w_seed_parallel_panic_lifecycle1_run(
+            &adversarial_lifecycle_input, &adversarial_lifecycle_output,
+            &adversarial_lifecycle_result) ==
+        W_SEED_PARALLEL_PANIC_LIFECYCLE1_OK);
+  const w_seed_parallel_panic_host_registry1_input adversarial_host_input = {
+      &adversarial_lifecycle_input, &adversarial_lifecycle_output,
+      &adversarial_lifecycle_result};
+  w_seed_parallel_panic_host_registry1_authority adversarial_authority;
+  w_seed_parallel_panic_host_registry1_registry adversarial_registry;
+  (void)memset(&adversarial_authority, 0, sizeof(adversarial_authority));
+  (void)memset(&adversarial_registry, 0, sizeof(adversarial_registry));
+  CHECK(w_seed_parallel_panic_host_registry1_open(
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_WINDOWS_AMD64,
+            &adversarial_authority) &&
+        w_seed_parallel_panic_host_registry1_open_event(
+            &adversarial_authority, &adversarial_registry,
+            adversarial_lifecycle_result.source_task_index,
+            adversarial_lifecycle_result.generation) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK);
+  w_seed_parallel_panic_host_registry1_record adversarial_record;
+  w_seed_parallel_panic_host_registry1_event adversarial_events[2];
+  w_seed_parallel_panic_host_registry1_result adversarial_result;
+  (void)memset(&adversarial_record, 0xc1, sizeof(adversarial_record));
+  (void)memset(adversarial_events, 0xc2, sizeof(adversarial_events));
+  (void)memset(&adversarial_result, 0xc3, sizeof(adversarial_result));
+  const w_seed_parallel_panic_host_registry1_record adversarial_record_before =
+      adversarial_record;
+  const w_seed_parallel_panic_host_registry1_event adversarial_events_before[2] = {
+      adversarial_events[0], adversarial_events[1]};
+  const w_seed_parallel_panic_host_registry1_result adversarial_result_before =
+      adversarial_result;
+  w_seed_parallel_panic_host_registry1_output short_output = {
+      &adversarial_record, 0u, adversarial_events, 2u};
+  CHECK(w_seed_parallel_panic_host_registry1_release(
+            &adversarial_host_input, &adversarial_authority,
+            &adversarial_registry, &short_output, &adversarial_result) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_CAPACITY &&
+        memcmp(&adversarial_record, &adversarial_record_before,
+               sizeof(adversarial_record)) == 0 &&
+        memcmp(adversarial_events, adversarial_events_before,
+               sizeof(adversarial_events)) == 0 &&
+        memcmp(&adversarial_result, &adversarial_result_before,
+               sizeof(adversarial_result)) == 0);
+  short_output.record_capacity = 1u;
+  short_output.event_capacity = 1u;
+  CHECK(w_seed_parallel_panic_host_registry1_release(
+            &adversarial_host_input, &adversarial_authority,
+            &adversarial_registry, &short_output, &adversarial_result) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_CAPACITY);
+  w_seed_parallel_panic_host_registry1_authority bad_authority =
+      adversarial_authority;
+  bad_authority.receipt.contract_digest[0] ^= 1u;
+  short_output.event_capacity = 2u;
+  CHECK(w_seed_parallel_panic_host_registry1_release(
+            &adversarial_host_input, &bad_authority, &adversarial_registry,
+            &short_output, &adversarial_result) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_AUTHORITY &&
+        adversarial_registry.close_attempt_count == 0u);
+  CHECK(w_seed_parallel_panic_host_registry1_destroy(&adversarial_authority,
+                                                     &adversarial_registry) ==
+        W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK);
+
+  /* A primary mismatch is independently rejected before the registry effect;
+   * this case owns a fresh authority/registry and publication snapshot. */
+  w_seed_parallel_panic_host_registry1_authority wrong_primary_authority;
+  w_seed_parallel_panic_host_registry1_registry wrong_primary_registry;
+  w_seed_parallel_panic_host_registry1_record wrong_primary_record;
+  w_seed_parallel_panic_host_registry1_event wrong_primary_events[2];
+  w_seed_parallel_panic_host_registry1_result wrong_primary_result;
+  (void)memset(&wrong_primary_authority, 0, sizeof(wrong_primary_authority));
+  (void)memset(&wrong_primary_registry, 0, sizeof(wrong_primary_registry));
+  (void)memset(&wrong_primary_record, 0xe1, sizeof(wrong_primary_record));
+  (void)memset(wrong_primary_events, 0xe2, sizeof(wrong_primary_events));
+  (void)memset(&wrong_primary_result, 0xe3, sizeof(wrong_primary_result));
+  const w_seed_parallel_panic_host_registry1_record wrong_primary_record_before =
+      wrong_primary_record;
+  const w_seed_parallel_panic_host_registry1_event wrong_primary_events_before[2] = {
+      wrong_primary_events[0], wrong_primary_events[1]};
+  const w_seed_parallel_panic_host_registry1_result wrong_primary_result_before =
+      wrong_primary_result;
+  CHECK(w_seed_parallel_panic_host_registry1_open(
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_WINDOWS_AMD64,
+            &wrong_primary_authority) &&
+        w_seed_parallel_panic_host_registry1_open_event(
+            &wrong_primary_authority, &wrong_primary_registry,
+            adversarial_lifecycle_result.source_task_index + 1u,
+            adversarial_lifecycle_result.generation) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK);
+  const w_seed_parallel_panic_host_registry1_output wrong_primary_output = {
+      &wrong_primary_record, 1u, wrong_primary_events, 2u};
+  CHECK(w_seed_parallel_panic_host_registry1_release(
+            &adversarial_host_input, &wrong_primary_authority,
+            &wrong_primary_registry, &wrong_primary_output,
+            &wrong_primary_result) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_FORGERY &&
+        wrong_primary_registry.close_attempt_count == 0u &&
+        memcmp(&wrong_primary_record, &wrong_primary_record_before,
+               sizeof(wrong_primary_record)) == 0 &&
+        memcmp(wrong_primary_events, wrong_primary_events_before,
+               sizeof(wrong_primary_events)) == 0 &&
+        memcmp(&wrong_primary_result, &wrong_primary_result_before,
+               sizeof(wrong_primary_result)) == 0 &&
+        w_seed_parallel_panic_host_registry1_destroy(&wrong_primary_authority,
+                                                     &wrong_primary_registry) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK);
+
+  /* A generation mismatch has the same pre-effect guarantee, with a fresh
+   * registry so no prior failure state can mask the relation check. */
+  w_seed_parallel_panic_host_registry1_authority wrong_generation_authority;
+  w_seed_parallel_panic_host_registry1_registry wrong_generation_registry;
+  w_seed_parallel_panic_host_registry1_record wrong_generation_record;
+  w_seed_parallel_panic_host_registry1_event wrong_generation_events[2];
+  w_seed_parallel_panic_host_registry1_result wrong_generation_result;
+  (void)memset(&wrong_generation_authority, 0,
+               sizeof(wrong_generation_authority));
+  (void)memset(&wrong_generation_registry, 0, sizeof(wrong_generation_registry));
+  (void)memset(&wrong_generation_record, 0xe4,
+               sizeof(wrong_generation_record));
+  (void)memset(wrong_generation_events, 0xe5,
+               sizeof(wrong_generation_events));
+  (void)memset(&wrong_generation_result, 0xe6,
+               sizeof(wrong_generation_result));
+  const w_seed_parallel_panic_host_registry1_record wrong_generation_record_before =
+      wrong_generation_record;
+  const w_seed_parallel_panic_host_registry1_event wrong_generation_events_before[2] = {
+      wrong_generation_events[0], wrong_generation_events[1]};
+  const w_seed_parallel_panic_host_registry1_result wrong_generation_result_before =
+      wrong_generation_result;
+  CHECK(w_seed_parallel_panic_host_registry1_open(
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_WINDOWS_AMD64,
+            &wrong_generation_authority) &&
+        w_seed_parallel_panic_host_registry1_open_event(
+            &wrong_generation_authority, &wrong_generation_registry,
+            adversarial_lifecycle_result.source_task_index,
+            adversarial_lifecycle_result.generation + 1u) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK);
+  const w_seed_parallel_panic_host_registry1_output wrong_generation_output = {
+      &wrong_generation_record, 1u, wrong_generation_events, 2u};
+  CHECK(w_seed_parallel_panic_host_registry1_release(
+            &adversarial_host_input, &wrong_generation_authority,
+            &wrong_generation_registry, &wrong_generation_output,
+            &wrong_generation_result) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_FORGERY &&
+        wrong_generation_registry.close_attempt_count == 0u &&
+        memcmp(&wrong_generation_record, &wrong_generation_record_before,
+               sizeof(wrong_generation_record)) == 0 &&
+        memcmp(wrong_generation_events, wrong_generation_events_before,
+               sizeof(wrong_generation_events)) == 0 &&
+        memcmp(&wrong_generation_result, &wrong_generation_result_before,
+               sizeof(wrong_generation_result)) == 0 &&
+        w_seed_parallel_panic_host_registry1_destroy(
+            &wrong_generation_authority, &wrong_generation_registry) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK);
+
+  /* An upstream provenance mutation is not reclassified as NO_PANIC and also
+   * cannot close the independently registered event. */
+  w_seed_parallel_panic_host_registry1_authority bad_digest_authority;
+  w_seed_parallel_panic_host_registry1_registry bad_digest_registry;
+  w_seed_parallel_panic_host_registry1_record bad_digest_record;
+  w_seed_parallel_panic_host_registry1_event bad_digest_events[2];
+  w_seed_parallel_panic_host_registry1_result bad_digest_result;
+  (void)memset(&bad_digest_authority, 0, sizeof(bad_digest_authority));
+  (void)memset(&bad_digest_registry, 0, sizeof(bad_digest_registry));
+  (void)memset(&bad_digest_record, 0xe7, sizeof(bad_digest_record));
+  (void)memset(bad_digest_events, 0xe8, sizeof(bad_digest_events));
+  (void)memset(&bad_digest_result, 0xe9, sizeof(bad_digest_result));
+  const w_seed_parallel_panic_host_registry1_record bad_digest_record_before =
+      bad_digest_record;
+  const w_seed_parallel_panic_host_registry1_event bad_digest_events_before[2] = {
+      bad_digest_events[0], bad_digest_events[1]};
+  const w_seed_parallel_panic_host_registry1_result bad_digest_result_before =
+      bad_digest_result;
+  CHECK(w_seed_parallel_panic_host_registry1_open(
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_WINDOWS_AMD64,
+            &bad_digest_authority) &&
+        w_seed_parallel_panic_host_registry1_open_event(
+            &bad_digest_authority, &bad_digest_registry,
+            adversarial_lifecycle_result.source_task_index,
+            adversarial_lifecycle_result.generation) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK);
+  adversarial_lifecycle_result.provenance_digest[0] ^= 1u;
+  const w_seed_parallel_panic_host_registry1_output bad_digest_output = {
+      &bad_digest_record, 1u, bad_digest_events, 2u};
+  CHECK(w_seed_parallel_panic_host_registry1_release(
+            &adversarial_host_input, &bad_digest_authority,
+            &bad_digest_registry, &bad_digest_output, &bad_digest_result) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_UPSTREAM &&
+        bad_digest_registry.close_attempt_count == 0u &&
+        memcmp(&bad_digest_record, &bad_digest_record_before,
+               sizeof(bad_digest_record)) == 0 &&
+        memcmp(bad_digest_events, bad_digest_events_before,
+               sizeof(bad_digest_events)) == 0 &&
+        memcmp(&bad_digest_result, &bad_digest_result_before,
+               sizeof(bad_digest_result)) == 0);
+  adversarial_lifecycle_result.provenance_digest[0] ^= 1u;
+  CHECK(w_seed_parallel_panic_host_registry1_destroy(&bad_digest_authority,
+                                                     &bad_digest_registry) ==
+        W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK);
+
+  /* A representable producer-buffer alias is rejected before close. */
+  panic_lifecycle_upstream_fixture alias_upstream;
+  CHECK(prepare_panic_lifecycle_upstream(MIXED_SOURCE, 1u, true,
+                                          &alias_upstream));
+  const w_seed_parallel_panic_lifecycle1_input alias_lifecycle_input = {
+      &alias_upstream.panic_input, &alias_upstream.panic_workspace,
+      &alias_upstream.panic_output, &alias_upstream.panic_result};
+  uint8_t alias_lifecycle_message[128];
+  w_seed_parallel_panic_lifecycle1_event alias_lifecycle_events[3];
+  w_seed_parallel_panic_lifecycle1_decision alias_lifecycle_decision;
+  w_seed_parallel_panic_lifecycle1_output alias_lifecycle_output = {
+      alias_lifecycle_message, sizeof(alias_lifecycle_message),
+      alias_lifecycle_events, 3u, &alias_lifecycle_decision};
+  w_seed_parallel_panic_lifecycle1_result alias_lifecycle_result;
+  CHECK(w_seed_parallel_panic_lifecycle1_run(
+            &alias_lifecycle_input, &alias_lifecycle_output,
+            &alias_lifecycle_result) == W_SEED_PARALLEL_PANIC_LIFECYCLE1_OK);
+  const w_seed_parallel_panic_host_registry1_input alias_host_input = {
+      &alias_lifecycle_input, &alias_lifecycle_output, &alias_lifecycle_result};
+  w_seed_parallel_panic_host_registry1_authority alias_authority;
+  w_seed_parallel_panic_host_registry1_registry alias_registry;
+  (void)memset(&alias_authority, 0, sizeof(alias_authority));
+  (void)memset(&alias_registry, 0, sizeof(alias_registry));
+  CHECK(w_seed_parallel_panic_host_registry1_open(
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_WINDOWS_AMD64,
+            &alias_authority) &&
+        w_seed_parallel_panic_host_registry1_open_event(
+            &alias_authority, &alias_registry,
+            alias_lifecycle_result.source_task_index,
+            alias_lifecycle_result.generation) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK);
+  union host_record_message_alias {
+    w_seed_parallel_panic_host_registry1_record record;
+    uint8_t message[128];
+  } host_record_message_alias;
+  (void)memset(&host_record_message_alias, 0xd1,
+               sizeof(host_record_message_alias));
+  (void)memcpy(host_record_message_alias.message, alias_lifecycle_message,
+               sizeof(alias_lifecycle_message));
+  alias_lifecycle_output.message_bytes = host_record_message_alias.message;
+  alias_lifecycle_decision.message_bytes = host_record_message_alias.message;
+  w_seed_parallel_panic_host_registry1_event alias_events[2];
+  w_seed_parallel_panic_host_registry1_result alias_result;
+  (void)memset(alias_events, 0xd2, sizeof(alias_events));
+  (void)memset(&alias_result, 0xd3, sizeof(alias_result));
+  uint8_t alias_record_bytes_before[sizeof(host_record_message_alias.message)];
+  (void)memcpy(alias_record_bytes_before, host_record_message_alias.message,
+               sizeof(alias_record_bytes_before));
+  const w_seed_parallel_panic_host_registry1_event alias_events_before[2] = {
+      alias_events[0], alias_events[1]};
+  const w_seed_parallel_panic_host_registry1_result alias_result_before =
+      alias_result;
+  w_seed_parallel_panic_host_registry1_output alias_output = {
+      &host_record_message_alias.record, 1u, alias_events, 2u};
+  CHECK(w_seed_parallel_panic_host_registry1_release(
+            &alias_host_input, &alias_authority, &alias_registry, &alias_output,
+            &alias_result) == W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_ALIAS &&
+        memcmp(host_record_message_alias.message, alias_record_bytes_before,
+               sizeof(alias_record_bytes_before)) == 0 &&
+        memcmp(alias_events, alias_events_before, sizeof(alias_events)) == 0 &&
+        memcmp(&alias_result, &alias_result_before, sizeof(alias_result)) == 0 &&
+        w_seed_parallel_panic_host_registry1_destroy(&alias_authority,
+                                                     &alias_registry) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK);
+
+  /* Replay verification rejects each isolated semantic record/event mutation
+   * and both result digest classes while the producer graph is still live. */
+  capacity_two_record.registered_count ^= 1u;
+  CHECK(!w_seed_parallel_panic_host_registry1_verify(
+      &capacity_two_host_input, &capacity_two_authority, &capacity_two_registry,
+      &capacity_two_output, &capacity_two_result));
+  capacity_two_record.registered_count ^= 1u;
+  capacity_two_record.semantic_digest[0] ^= 1u;
+  CHECK(!w_seed_parallel_panic_host_registry1_verify(
+      &capacity_two_host_input, &capacity_two_authority, &capacity_two_registry,
+      &capacity_two_output, &capacity_two_result));
+  capacity_two_record.semantic_digest[0] ^= 1u;
+  capacity_two_events[0].sequence = 0u;
+  CHECK(!w_seed_parallel_panic_host_registry1_verify(
+      &capacity_two_host_input, &capacity_two_authority, &capacity_two_registry,
+      &capacity_two_output, &capacity_two_result));
+  capacity_two_events[0].sequence = 1u;
+  capacity_two_events[0].kind =
+      W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_EVENT_NONE;
+  CHECK(!w_seed_parallel_panic_host_registry1_verify(
+      &capacity_two_host_input, &capacity_two_authority, &capacity_two_registry,
+      &capacity_two_output, &capacity_two_result));
+  capacity_two_events[0].kind =
+      W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_EVENT_RESOURCE_REGISTERED;
+  capacity_two_events[1].sequence = 3u;
+  CHECK(!w_seed_parallel_panic_host_registry1_verify(
+      &capacity_two_host_input, &capacity_two_authority, &capacity_two_registry,
+      &capacity_two_output, &capacity_two_result));
+  capacity_two_events[1].sequence = 2u;
+  capacity_two_events[1].kind =
+      W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_EVENT_RESOURCE_REGISTERED;
+  CHECK(!w_seed_parallel_panic_host_registry1_verify(
+      &capacity_two_host_input, &capacity_two_authority, &capacity_two_registry,
+      &capacity_two_output, &capacity_two_result));
+  capacity_two_events[1].kind =
+      W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_EVENT_RESOURCE_CLOSE_COMMITTED;
+  capacity_two_result.lifecycle_semantic_digest[0] ^= 1u;
+  CHECK(!w_seed_parallel_panic_host_registry1_verify(
+      &capacity_two_host_input, &capacity_two_authority, &capacity_two_registry,
+      &capacity_two_output, &capacity_two_result));
+  capacity_two_result.lifecycle_semantic_digest[0] ^= 1u;
+  capacity_two_result.provenance_digest[0] ^= 1u;
+  CHECK(!w_seed_parallel_panic_host_registry1_verify(
+      &capacity_two_host_input, &capacity_two_authority, &capacity_two_registry,
+      &capacity_two_output, &capacity_two_result));
+  capacity_two_result.provenance_digest[0] ^= 1u;
+  CHECK(w_seed_parallel_panic_host_registry1_verify(
+      &capacity_two_host_input, &capacity_two_authority, &capacity_two_registry,
+      &capacity_two_output, &capacity_two_result));
+
+  /* Published host records remain readable after producer storage is torn
+   * down; independent verify is intentionally no longer possible. */
+  (void)memset(capacity_two.panic_output.message_bytes, 0,
+               capacity_two.panic_output.message_capacity);
+  (void)memset(capacity_two.message, 0, sizeof(capacity_two.message));
+  CHECK(memcmp(&capacity_two_record, &capacity_one_record,
+               sizeof(capacity_two_record)) == 0 &&
+        memcmp(capacity_two_events, capacity_one_events,
+               sizeof(capacity_two_events)) == 0 &&
+        memcmp(&capacity_two_result, &capacity_one_result,
+               sizeof(capacity_two_result)) != 0 &&
+        !w_seed_parallel_panic_host_registry1_verify(
+            &capacity_two_host_input, &capacity_two_authority,
+            &capacity_two_registry, &capacity_two_output,
+            &capacity_two_result) &&
+        w_seed_parallel_panic_host_registry1_destroy(&capacity_two_authority,
+                                                     &capacity_two_registry) ==
+            W_SEED_PARALLEL_PANIC_HOST_REGISTRY1_OK);
   return true;
 #endif
 }
@@ -12524,6 +13386,7 @@ int main(int argc, char **argv) {
   if (!test_parallel_panic_invocation1()) return 1;
   if (!test_parallel_panic_binding1()) return 1;
   if (!test_parallel_panic_lifecycle1()) return 1;
+  if (!test_parallel_panic_host_registry1()) return 1;
   if (!test_process_parallel_composition_hir()) return 1;
   if (!test_process_parallel_mlir()) return 1;
   if (!test_lowering_is_not_hello_hardcoded()) return 1;

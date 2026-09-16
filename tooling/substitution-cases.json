@@ -10317,6 +10317,64 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-parallel-panic-host-registry1",
+      "reviewItem": "private Windows host resource release against arbitrary-handle registration, double-close retry, semantic physical leakage, and registry/runtime overclaim",
+      "decisions": [
+        "W-1629"
+      ],
+      "task": "Prove one private host-owned event release above a verified PANICLIFE1 primary without claiming a general registry or runtime cleanup.",
+      "selected": {
+        "language": "w-internal",
+        "source": [
+          "PANICHOSTREG1 creates exactly one anonymous, non-inheritable Win32 event and owns it from successful CreateEventW",
+          "release validates the PANICLIFE1 view, authority, registry state, capacities, and representable writable ranges before one CloseHandle call",
+          "a true close result publishes one EVENT transition and RESOURCE_REGISTERED then RESOURCE_CLOSE_COMMITTED events",
+          "pre-close failure preserves REGISTERED for destroy, while false or uncertain post-attempt results become terminal UNCERTAIN without retry or double-close",
+          "semantic record and events exclude raw HANDLE and physical facts, while the caller-owned result keeps provenance and capacities one and two retain semantic equality"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "register-external-handle",
+          "language": "w-internal-rejected",
+          "source": [
+            "accept an arbitrary caller-supplied HANDLE or expose a duplicated event handle"
+          ],
+          "expectedDifference": "The authority creates the one event internally and the handle is absent from outputs, digests, and the semantic receipt."
+        },
+        {
+          "name": "retry-uncertain-close",
+          "language": "w-internal-rejected",
+          "source": [
+            "retry CloseHandle or call it again after an uncertain post-attempt result"
+          ],
+          "expectedDifference": "UNCERTAIN is terminal after one physical attempt, so no retry or double-close is permitted."
+        },
+        {
+          "name": "physical-semantic-mix",
+          "language": "w-internal-rejected",
+          "source": [
+            "include the raw handle, provider capacity, generation, or close receipt in semantic identity"
+          ],
+          "expectedDifference": "Semantic record and event identity remains capacity-independent, while physical facts stay in provenance."
+        },
+        {
+          "name": "general-registry-claim",
+          "language": "w-internal-rejected",
+          "source": [
+            "claim general resource-registry coverage, user defer/deinit, OS-object destruction, or public runtime cleanup"
+          ],
+          "expectedDifference": "This slice proves one host event release only and does not compose PANICBOUNDARY1 or a public runtime."
+        }
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

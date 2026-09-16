@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:1b517cb6b39b700c930377f5eeb277db00f1a5d59a0f829e8832d680aa9b48d8",
+  "corpusDigest": "sha256:ba8b7ae03183c99c99690602053802f7792a85067de47226e7a8e8ad2ebf2526",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -10500,6 +10500,78 @@
             "nonWhitespaceCodePoints": 65,
             "lines": 1,
             "surfaceLexemes": 11
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-parallel-panic-host-registry1",
+      "task": {
+        "utf8Bytes": 134,
+        "codePoints": 134,
+        "nonWhitespaceCodePoints": 116,
+        "lines": 1,
+        "surfaceLexemes": 22
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w-internal",
+        "sourceDigest": "sha256:bac5bcdd7af4f6617ff20b193da6c4610ff3cead33d3a977d580cde96088c400",
+        "metrics": {
+          "utf8Bytes": 684,
+          "codePoints": 684,
+          "nonWhitespaceCodePoints": 598,
+          "lines": 5,
+          "surfaceLexemes": 104
+        }
+      },
+      "alternatives": [
+        {
+          "name": "register-external-handle",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:45031a7c8dea26981964c3122e1c491bb77e4cbcb8d88a3ddf1580fe53d738d1",
+          "metrics": {
+            "utf8Bytes": 78,
+            "codePoints": 78,
+            "nonWhitespaceCodePoints": 68,
+            "lines": 1,
+            "surfaceLexemes": 13
+          }
+        },
+        {
+          "name": "retry-uncertain-close",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:877c3ec9f1690c4c6b13dd8071816f0d02bdd05d66cb79b72162c927af9562bc",
+          "metrics": {
+            "utf8Bytes": 73,
+            "codePoints": 73,
+            "nonWhitespaceCodePoints": 63,
+            "lines": 1,
+            "surfaceLexemes": 13
+          }
+        },
+        {
+          "name": "physical-semantic-mix",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:b8d6f8568bdf30a28d4c4052f4d015b746fd45cbdba259c01c314880fe317e4e",
+          "metrics": {
+            "utf8Bytes": 92,
+            "codePoints": 92,
+            "nonWhitespaceCodePoints": 80,
+            "lines": 1,
+            "surfaceLexemes": 16
+          }
+        },
+        {
+          "name": "general-registry-claim",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:29f2bc6774f85647f1a48bf864638dcacaefd569bac2994012d1051739f7a1ea",
+          "metrics": {
+            "utf8Bytes": 109,
+            "codePoints": 109,
+            "nonWhitespaceCodePoints": 98,
+            "lines": 1,
+            "surfaceLexemes": 21
           }
         }
       ]

@@ -41406,6 +41406,59 @@ It does not compose PANICBOUNDARY1, evaluate a resource registry, materialize
 `PanicEvent`, define Task ABI/runtime behavior, claim native-HIR execution,
 cleanup, portability, a public product, a benchmark, or performance.
 
+#### 26.4.1.109 W-1629 — private Windows x64 host resource release witness
+
+PANICHOSTREG1 schema `w-seed-parallel-panic-host-registry1-1` is a private
+Windows x64 host component above a verified PANICLIFE1 view. Its separate
+caller-owned authority opens a registry that creates exactly one anonymous,
+non-inheritable Win32 event. The registry owns that event from successful
+`CreateEventW`. It does not accept an arbitrary external handle or expose or
+duplicate the created handle in its output, result, semantic record, events, or
+digests.
+
+`release` revalidates the complete PANICLIFE1 view, authority, registry state,
+capacities, and writable-range barriers before the physical effect. It calls
+`CloseHandle` exactly once for the registered event. A true `CloseHandle`
+result is the only physical evidence of release in this slice. The component
+does not inspect a post-close slot or claim destruction of the underlying
+object. A `PRE_CLOSE_FAILURE` leaves the registry `REGISTERED`, and
+`destroy` closes the still-owned event. A failed close result or an injected
+post-attempt uncertainty records terminal `UNCERTAIN`, leaves published output
+and result storage unchanged, and never retries or double-closes. `RELEASED`
+has exactly one attempted and one successful close. `UNCERTAIN` has exactly
+one attempted and zero successful closes.
+
+Successful publication contains one semantic `EVENT` record for the
+`REGISTERED` to `RELEASED` transition and exactly two ordered semantic events,
+`RESOURCE_REGISTERED` and `RESOURCE_CLOSE_COMMITTED`. Semantic identity
+excludes the raw handle, addresses, process facts, provider capacity, and
+physical receipt details. The pointer-free provenance result retains the
+verified PANICLIFE1 identity, upstream digests, authority and generation,
+registry state, and the `CloseHandle` success fact. Therefore provider
+capacities one and two can produce semantically identical record and events
+with different provenance. The single-resource shape is an evidence ceiling,
+not a language or runtime registry limit.
+
+`measure`, `run`, and `verify` use caller-owned storage, checked capacities,
+overflow-safe ranges, and complete representable pairwise writable alias
+barriers. All validation occurs before `CloseHandle`. `run` stages the record,
+events, and result before its final infallible commit. `verify` replays the
+PANICLIFE1 contracts and local digests, but does not query the operating
+system after close. The raw handle remains in caller-owned registry storage
+because that storage is a C struct. It is absent from published outputs,
+digests, and the semantic receipt.
+
+The focused C23 witness uses real `CreateEventW` and `CloseHandle` calls, a
+multi-panic PANICLIFE1 primary, capacity equality, pre-close failure,
+post-attempt uncertainty, double-release and destroy states, upstream and
+authority forgeries, alias barriers, and replay verification. This is
+Windows x64 compiler-lifecycle correctness evidence only. It does not compose
+PANICBOUNDARY1, implement a general resource registry, accept an external
+handle, claim user `defer`/`deinit`, destroy an OS object, define runtime or
+public `PanicEvent`/Task ABI behavior, execute native HIR, support another
+target, or provide performance evidence. Its `benchmarkDisposition` is
+`compiler-lifecycle`.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

@@ -448,6 +448,25 @@ does not call a provider or own a workspace, and the slice does not claim
 PANICBOUNDARY1, resource-registry evaluation, `PanicEvent`, runtime/ABI,
 native-HIR execution, cleanup, portability, a public product, or a benchmark.
 
+W-1629 extends the same focused C23 HIR gate with PANICHOSTREG1, a private
+Windows x64 host witness above verified PANICLIFE1. The authority creates one
+anonymous, non-inheritable Win32 event and transfers ownership to the
+caller-owned registry at successful `CreateEventW`. Complete pre-effect
+validation precedes one `CloseHandle` call. A true result publishes the
+semantic `REGISTERED` to `RELEASED` transition and the ordered events
+`RESOURCE_REGISTERED` and `RESOURCE_CLOSE_COMMITTED`. PRE_CLOSE_FAILURE keeps
+the event registered for `destroy`. A false or uncertain result after the
+real call is terminal `UNCERTAIN` with no retry or double-close. Semantic
+record/events are independent of upstream capacity, while provenance records
+the authority, generation, and physical close fact. The raw handle remains in
+caller-owned C storage but is absent from outputs and digests. Checks cover
+real CreateEventW/CloseHandle, capacity equality, multi-panic primary
+correlation, forgeries, alias barriers, and replay verification. This is
+correctness-only `compiler-lifecycle` evidence. It does not claim a general
+registry, arbitrary-handle registration, PANICBOUNDARY1, user cleanup or
+OS-object destruction, runtime/public `PanicEvent` or Task ABI, native HIR,
+other targets, or performance.
+
 ACQ0 executa CHK6 em
 storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou
 CLI. Execute `bun check --target acquisition` para compilar os cinco targets focais,

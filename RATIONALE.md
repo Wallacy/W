@@ -267,6 +267,7 @@ O corpus compara, no mínimo:
 - source-selected parallel panic tasks against scalar-value coercion, malformed HIR provenance, and provider/runtime overclaim.
 - source-selected parallel panic provider binding against success-only route widening, forged physical receipts, copied-identity loss, and authority overclaim.
 - private panic lifecycle decision against normal-outcome publication, event-order loss, forged no-panic status, provenance leakage, and premature boundary claims.
+- private Windows host resource release against arbitrary-handle registration, double-close retry, semantic physical leakage, and registry/runtime overclaim.
 - bounded dual-target process/parallel linkage against direct-call substitution, CRT fallback, hidden runtime input, target conflation, and premature public or benchmark claims.
 - bounded GPU0 target-neutral semantic and available CUDA execution against source-backed W claims, provider/runtime conflation, homogeneous toolchains, and premature public product support.
 - bounded static accelerated root binding against embedded provider handles, multiplied budgets, and unauthenticated claims.
@@ -7970,6 +7971,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1626 | bounded source panic task in measured parallel invocation | A real source `panic(...)` child selected by `spawn<.domain>` is admitted only through the exact frontend and HIR parallel physical predicates. PARINV1 records a private `PANIC` task with HIR terminator, message-value, and explicit-code indices in its canonical semantic digest; scalar evaluation rejects that non-value task without mutating its output. | `source-backed-current` only for the bounded source-to-HIR/PARSEL1/PARINV1 compiler boundary, exact panic identity, strict ordinary scalar lane, transactional verification, and focused C23 evidence. No provider execution, `PanicEvent`, cleanup, lifecycle, public Task/runtime/ABI, native product, benchmark, or performance claim is made. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1627 | bounded source-selected panic through the private local provider | PARPANIC1 schema `w-seed-parallel-panic-binding1-1` separately carries verified source-selected PARINV1 panic tasks through the existing process-local Windows PLATFORM1 authority and publishes one copied, independently verifiable private signal with no semantic value; semantic identity excludes provider capacity and physical receipt facts, which remain in a separate provenance digest, while PARPROV1/PARLIFE1 success-only and PARBIND1 typed-error semantics remain unchanged. | `source-backed-current` only for the bounded source-to-HIR/PARSEL1/PARINV1/PARPANIC1 Windows x64 compiler boundary, exact copied source and module identity, message and span preservation across teardown, complete provider receipt and local-authority revalidation, capacity and writable-range alias barriers, two-panic semantic equality with distinct provenance, no-panic non-publication, and focused C23 evidence. The local authority proves only the existing static process-local seal and receipt, not signature, attestation, freshness, registry trust, or native-HIR execution. Public `PanicEvent`, Task ABI/runtime, cleanup or general teardown, other targets/providers, native HIR execution, public product, benchmark, and performance claims remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1628 | bounded private panic lifecycle decision | PANICLIFE1 schema `w-seed-parallel-panic-lifecycle1-1` is a separate target-neutral private bridge above a verified PARPANIC1 view. It publishes one caller-owned panic decision and exactly three ordered semantic events, with no normal outcome, and keeps source/provider/receipt facts only in provenance. | `source-backed-current` only for the bounded PANICLIFE1 decision, copied message and event publication, deterministic PARPANIC1 primary consumption, semantic identity across upstream capacities one and two, provenance separation, rederived no-panic classification, all-or-nothing output and result preservation, complete representable writable-range barriers, upstream forgery rejection, and teardown-readable output. PANICLIFE1 has no provider call or own workspace. PANICBOUNDARY1, resource-registry evaluation, `PanicEvent`, Task ABI/runtime, native HIR execution, cleanup, portability, public product, benchmark, and performance remain gaps. Upstream runtime evidence is Windows x64, while this bridge is target-neutral. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1629 | private Windows x64 host resource release witness | PANICHOSTREG1 schema `w-seed-parallel-panic-host-registry1-1` is a private Windows x64 host bridge above a verified PANICLIFE1 view. Its caller-owned authority creates exactly one anonymous, non-inheritable Win32 event, owns it from successful `CreateEventW`, and publishes one semantic `EVENT` record with ordered registration and close-commit events after one successful `CloseHandle`. Pre-close failure preserves `REGISTERED` for destroy, while a false or uncertain post-attempt result is terminal `UNCERTAIN` without retry or double-close. The raw handle stays out of published outputs and digests, while physical facts remain in provenance. | `source-backed-current` only for the private Windows x64 event creation and one-close release witness, PANICLIFE1 correlation, semantic equality across upstream capacities one and two, provenance separation, caller-owned transactional records, pre-effect validation, uncertainty and destroy states, complete representable alias barriers, and focused C23 evidence. Capacity one is an evidence ceiling, not a language or runtime limit. PANICBOUNDARY1, a general registry, arbitrary external handles, user defer/deinit, OS-object destruction, runtime/public PanicEvent or Task ABI, native HIR execution, other targets, benchmark, and performance claims remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -13633,3 +13635,41 @@ neutral. Its current execution evidence inherits Windows x64 from PARPANIC1.
 The evidence is bounded `compiler-lifecycle` correctness only. PANICBOUNDARY1,
 resource-registry evaluation, cleanup, runtime behavior, native HIR execution,
 other targets, public products, benchmarks, and performance remain open.
+
+#### W-1629 — private Windows x64 host resource release witness
+
+PANICHOSTREG1 is the smallest physical host slice after PANICLIFE1. It keeps
+the registry separate from PANICBOUNDARY1 and accepts no arbitrary external
+handle. Its authority creates exactly one anonymous, non-inheritable Win32
+event inside caller-owned registry storage. Ownership starts when
+`CreateEventW` succeeds, so a failed create does not create a release
+obligation.
+
+The release path validates the verified PANICLIFE1 view, authority, registry
+state, capacities, and representable writable ranges before it calls
+`CloseHandle`. A successful return is the only physical release evidence. The
+slice does not inspect a reused handle slot or claim destruction of the
+underlying event object. A pre-close injected failure preserves `REGISTERED`
+and leaves `destroy` responsible for the still-owned handle. A close result
+that is false or intentionally uncertain after the one real call becomes
+terminal `UNCERTAIN`. No retry or second close is allowed. `RELEASED` and
+`UNCERTAIN` receipts make the one-attempt state explicit.
+
+The semantic record has one `EVENT` transition from `REGISTERED` to `RELEASED`
+and two ordered events. Its digest excludes handle, address, process, provider
+capacity, generation, and physical receipt facts. The pointer-free result
+keeps those facts in provenance and links the PANICLIFE1 semantic and
+provenance digests. Thus upstream capacity one and two have equal semantic
+record and event content while provenance differs. The raw handle remains in
+the caller-owned C registry storage, but it is absent from published outputs,
+digests, and the semantic receipt.
+
+The C23 witness covers real event creation and close, capacity equality,
+multi-panic primary correlation, pre-close and post-attempt fault seams,
+double-release and destroy state transitions, malformed authority and
+upstream views, alias barriers, and replay verification. The test harness
+cleans every still-owned event explicitly. The evidence is a private Windows
+x64 compiler-lifecycle correctness witness with a single-resource ceiling.
+It does not prove PANICBOUNDARY1, a general registry, external-handle
+registration, user `defer`/`deinit`, OS-object destruction, a runtime or public
+`PanicEvent`/Task ABI, native HIR execution, another target, or performance.

@@ -294,3 +294,21 @@ This remains bounded `compiler-lifecycle` evidence. The bridge is target
 neutral, but current upstream execution evidence is Windows x64. PANICBOUNDARY1,
 `PanicEvent`, runtime/ABI, cleanup, public product, benchmarks, and performance
 remain open.
+
+W-1629 adds PANICHOSTREG1 (`w-seed-parallel-panic-host-registry1-1`) as a
+private Windows x64 host witness above a verified PANICLIFE1 view. Its
+caller-owned authority creates exactly one anonymous, non-inheritable Win32
+event and owns it from successful `CreateEventW`. `release` validates all
+inputs and ranges, calls `CloseHandle` once, and publishes one semantic
+`EVENT` transition with `RESOURCE_REGISTERED` and
+`RESOURCE_CLOSE_COMMITTED` only after a true close result. A pre-close fault
+leaves `REGISTERED` for `destroy`. A false or uncertain result after the real
+attempt is terminal `UNCERTAIN` with no retry or double-close. The raw handle
+is absent from outputs and digests, but remains in caller-owned C registry
+storage. Capacity one is an evidence ceiling only. Semantic record/events are
+capacity-independent while provenance retains authority, generation, and
+physical close facts. This remains correctness-only `compiler-lifecycle`
+evidence. It does not compose PANICBOUNDARY1, implement a general registry,
+accept arbitrary handles, claim user cleanup or OS-object destruction, define
+runtime/public `PanicEvent` or Task ABI behavior, execute native HIR, support
+other targets, or measure performance.
