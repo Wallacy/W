@@ -1662,7 +1662,7 @@ ownership, carrier order, initial and updated values, version chains, condition
 dependence, dominance, and exit projection.
 
 Native0 schema `w-seed-native0-9` records a dedicated post-test fact. MLIR0
-schema `w-seed-mlir0-20` and Windows label `w-seed-mlir0-windows-8` lower it to
+schema `w-seed-mlir0-21` and Windows label `w-seed-mlir0-windows-8` lower it to
 one structured `scf.while` with a private Bool carrier initialized to true.
 Each body trip yields the updated signed tuple and trailing condition. Safe
 constant division remains `llvm.sdiv`; dynamic division remains checked. No
@@ -1676,6 +1676,23 @@ performance evidence. Nested/mixed loops, calls/effects in the body, aggregate
 or non-`i64` carriers, labels, `break`, `continue`, general CFG, ABI/layout,
 other targets, timing, and ranking remain outside this slice. The executable
 catalog separately owns exploratory W/C23/Rust measurements.
+
+### Checked scalar compound assignment
+
+Frontend34 accepts `+=`, `-=`, `*=`, `/=`, `%=`, `**=`, `<<=`, `>>=`, `&=`,
+`^=`, and `|=` only for one mutable local identifier in the bounded scalar
+subset. It records one target place, one read of the previous SSA version, the
+ordinary checked operation, and one replacement. Assignment remains Unit and
+cannot chain. A `let` target, unsupported type, invalid `UInt` shift/power
+count, or any operation overflow fails through the same frontend or native
+barrier as its non-compound operation.
+
+HIR0 schema `w-seed-hir0-46` verifies the normalized value tree rather than
+inventing a second compound arithmetic family. MLIR0 schema
+`w-seed-mlir0-21` consequently emits the same demand-driven checked helpers
+and no source-variable stack slot. `restaurant-compound.w` exercises all
+eleven forms and prints exactly `Compound 11\n` through the maintained native
+routes. General member/index places and broader numeric widths remain gaps.
 
 ### Resolved local-document graph in verified HIR (W-1575)
 

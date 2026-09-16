@@ -13349,6 +13349,20 @@ static bool test_checked_power_values(void) {
   fixture.hir_values[signed_index].type_index = unsigned_value.type_index;
   CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   CHECK(lower(SOURCE));
+  static const char COMPOUND_SOURCE[] =
+      "entry { var value = 8 value += 2 value -= 1 value *= 4 "
+      "value /= 3 value %= 5 value **= 3_u64 value <<= 2_u64 "
+      "value >>= 1_u64 value &= 15 value ^= 3 value |= 8 }\n";
+  CHECK(lower(COMPOUND_SOURCE));
+  size_t compound_operator_count = 0u;
+  for (size_t index = 0u; index < fixture.hir_program.value_count; index += 1u)
+    if (fixture.hir_values[index].kind == W_SEED_HIR0_VALUE_BINARY_I64)
+      compound_operator_count += 1u;
+  CHECK(compound_operator_count == 11u);
+  CHECK(fixture_parse("entry { let value = 1 value += 2 }\n"));
+  configure_host();
+  CHECK(w_seed_frontend_run(&fixture.input, &fixture.output,
+                            &fixture.result) != W_SEED_FRONTEND_OK);
   return true;
 }
 

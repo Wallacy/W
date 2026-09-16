@@ -29,6 +29,8 @@ const restaurantShiftsFixture = resolve(seedDirectory,
   "fixtures", "restaurant-shifts.w")
 const restaurantPowerFixture = resolve(seedDirectory,
   "fixtures", "restaurant-power.w")
+const restaurantCompoundFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-compound.w")
 const restaurantMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-mutation.w")
 const restaurantConditionalMutationFixture = resolve(seedDirectory,
@@ -597,6 +599,8 @@ try {
       expected: Buffer.from("Shifts -4/15/-48/48\n", "utf8") },
     { name: "restaurant-power", source: restaurantPowerFixture,
       expected: Buffer.from("Power -27/1024/1/512\n", "utf8") },
+    { name: "restaurant-compound", source: restaurantCompoundFixture,
+      expected: Buffer.from("Compound 11\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
   ]
   const artifacts = new Map()

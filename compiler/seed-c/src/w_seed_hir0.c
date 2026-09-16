@@ -155,6 +155,17 @@ static bool text_is(w_seed_frontend_text text, const char *literal) {
           (text.data != NULL && memcmp(text.data, literal, length) == 0));
 }
 
+static bool frontend_assignment_operator(w_seed_frontend_text text) {
+  static const char *const operators[] = {
+      "=",  "+=", "-=", "*=", "/=", "%=", "**=", "<<=", ">>=", "&=",
+      "^=", "|=",
+  };
+  for (size_t index = 0u;
+       index < sizeof(operators) / sizeof(operators[0]); index += 1u)
+    if (text_is(text, operators[index])) return true;
+  return false;
+}
+
 static bool text_equal(w_seed_frontend_text left,
                        w_seed_frontend_text right) {
   return left.length == right.length &&
@@ -4798,7 +4809,7 @@ static bool frontend_branch_assignment_record(
   const w_seed_frontend_expression *assignment =
       &output->expressions[statement->expression_index];
   if (assignment->kind != W_SEED_FRONTEND_EXPR_ASSIGNMENT ||
-      !text_is(assignment->operator_text, "=") ||
+      !frontend_assignment_operator(assignment->operator_text) ||
       assignment->left == W_SEED_FRONTEND_NONE ||
       assignment->right == W_SEED_FRONTEND_NONE ||
       (size_t)assignment->left >= result->written.expressions ||
@@ -5031,7 +5042,7 @@ static bool frontend_assignment_expression_ok(
   if (!frontend_value_common_ok(walk->input, root, walk->module_index,
                                 walk->function_index, walk->document_index) ||
       root->kind != W_SEED_FRONTEND_EXPR_ASSIGNMENT ||
-      !text_is(root->operator_text, "=") ||
+      !frontend_assignment_operator(root->operator_text) ||
       root->left == W_SEED_FRONTEND_NONE ||
       root->right == W_SEED_FRONTEND_NONE ||
       (root->inferred_type != W_SEED_FRONTEND_NONE &&

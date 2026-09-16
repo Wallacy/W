@@ -1547,6 +1547,62 @@
       ]
     },
     {
+      "id": "restaurant-compound",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "partial-exploratory-ready",
+      "lane": "equivalent",
+      "scope": "Execute all eleven checked scalar compound assignments on one mutable local and preserve exact SSA result output.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Compound 11\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-compound.w",
+          "digest": "sha256:2dd15bc8d499ab419d4cb9f807a8a031d47416d3da5589f84598555a4c9a4951",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-compound-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        },
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-compound.w",
+          "digest": "sha256:2dd15bc8d499ab419d4cb9f807a8a031d47416d3da5589f84598555a4c9a4951",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-compound-release",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only"
+        }
+      ],
+      "blockedLanguages": [
+        "c",
+        "rust"
+      ],
+      "blockers": [
+        "independent-c-rust-source-equivalents"
+      ]
+    },
+    {
       "id": "restaurant-unsigned",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",

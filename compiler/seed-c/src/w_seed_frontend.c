@@ -248,6 +248,7 @@ typedef struct {
   uint32_t builtin_usize_type_index;
   uint32_t default_integer_type_index;
   uint32_t builtin_i32_type_index;
+  uint32_t builtin_u64_type_index;
   uint32_t builtin_bool_type_index;
   uint32_t builtin_never_type_index;
   uint32_t inferred_string_type_index;
@@ -5249,7 +5250,8 @@ static bool is_binary_operator(w_seed_frontend_text text) {
   static const char *const operators[] = {
       "+",  "-",  "*",  "**", "/",  "%",  "&",  "|",  "^",  "<<", ">>",
       "==", "!=", "<",  "<=", ">",  ">=", "&&", "||", "in", "..<",
-      "=",
+      "=",  "+=", "-=", "*=", "/=", "%=", "**=", "<<=", ">>=", "&=",
+      "^=", "|=",
   };
   for (size_t index = 0; index < sizeof(operators) / sizeof(operators[0]);
        index += 1) {
@@ -5258,8 +5260,30 @@ static bool is_binary_operator(w_seed_frontend_text text) {
   return false;
 }
 
+static bool compound_assignment_operator(w_seed_frontend_text text,
+                                         w_seed_frontend_text *operation) {
+  static const struct {
+    const char *assignment;
+    const char *operation;
+  } operators[] = {{"+=", "+"},   {"-=", "-"},   {"*=", "*"},
+                   {"/=", "/"},   {"%=", "%"},   {"**=", "**"},
+                   {"<<=", "<<"}, {">>=", ">>"}, {"&=", "&"},
+                   {"^=", "^"},   {"|=", "|"}};
+  for (size_t index = 0u;
+       index < sizeof(operators) / sizeof(operators[0]); index += 1u) {
+    if (!text_equal(text, operators[index].assignment)) continue;
+    if (operation != NULL) {
+      operation->data = operators[index].operation;
+      operation->length = strlen(operators[index].operation);
+    }
+    return true;
+  }
+  return false;
+}
+
 static int operator_precedence(w_seed_frontend_text text) {
-  if (text_equal(text, "=")) return 0;
+  if (text_equal(text, "=") || compound_assignment_operator(text, NULL))
+    return 0;
   if (text_equal(text, "||")) return 1;
   if (text_equal(text, "&&")) return 2;
   if (text_equal(text, "|")) return 3;
@@ -5729,6 +5753,7 @@ w_seed_frontend_status w_seed_frontend_measure(
   dry.builtin_usize_type_index = W_SEED_FRONTEND_NONE;
   dry.default_integer_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_i32_type_index = W_SEED_FRONTEND_NONE;
+  dry.builtin_u64_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_bool_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_never_type_index = W_SEED_FRONTEND_NONE;
   dry.inferred_string_type_index = W_SEED_FRONTEND_NONE;
@@ -11740,6 +11765,38 @@ static bool output_type_index_for_simple(frontend_context *context,
     return true;
   }
   if (type.kind == W_SEED_FRONTEND_TYPE_INTEGER && !type.is_signed &&
+      type.bit_width == 64u &&
+      (text_equal(type.spelling, "u64") ||
+       text_equal(type.spelling, "UInt") ||
+       (type.spelling.data != NULL && type.spelling.length >= 4u &&
+        memcmp(type.spelling.data + type.spelling.length - 4u, "_u64", 4u) ==
+            0))) {
+    if (context->builtin_u64_type_index == W_SEED_FRONTEND_NONE) {
+      w_seed_frontend_type builtin;
+      (void)memset(&builtin, 0, sizeof(builtin));
+      builtin.kind = W_SEED_FRONTEND_TYPE_INTEGER;
+      builtin.spelling = (w_seed_frontend_text){"UInt", 4u};
+      builtin.nominal_name = builtin.spelling;
+      builtin.span = empty_span(0u);
+      builtin.is_signed = false;
+      builtin.bit_width = 64u;
+      builtin.element_type = W_SEED_FRONTEND_NONE;
+      builtin.return_type = W_SEED_FRONTEND_NONE;
+      builtin.first_parameter = W_SEED_FRONTEND_NONE;
+      builtin.enum_base_index = W_SEED_FRONTEND_NONE;
+      builtin.first_subset_member = W_SEED_FRONTEND_NONE;
+      builtin.subset_member_count = 0u;
+      builtin.generic_application_index = W_SEED_FRONTEND_NONE;
+      builtin.external_module_index = W_SEED_FRONTEND_NONE;
+      builtin.external_symbol_index = W_SEED_FRONTEND_NONE;
+      uint32_t builtin_index = W_SEED_FRONTEND_NONE;
+      if (!context_append_type(context, builtin, &builtin_index)) return false;
+      context->builtin_u64_type_index = builtin_index;
+    }
+    *index = context->builtin_u64_type_index;
+    return true;
+  }
+  if (type.kind == W_SEED_FRONTEND_TYPE_INTEGER && !type.is_signed &&
       type.bit_width == (uint16_t)W_SEED_FRONTEND_TARGET_USIZE_BITS &&
       text_equal(type.spelling, "usize")) {
     if (context->builtin_usize_type_index == W_SEED_FRONTEND_NONE) {
@@ -14364,6 +14421,165 @@ static bool expression_parse_membership(
   return true;
 }
 
+static bool expression_append_binary(frontend_expression_parser *parser,
+                                     w_seed_frontend_text operator_text,
+                                     frontend_expr_value *left,
+                                     frontend_expr_value *right,
+                                     frontend_expr_value *value) {
+  if (parser == NULL || left == NULL || right == NULL || value == NULL)
+    return false;
+  const w_seed_span span = {left->span.start_byte, right->span.end_byte};
+  frontend_simple_type result_type = left->type;
+  bool supported = left->supported && right->supported;
+  const bool arithmetic_or_comparison =
+      text_equal(operator_text, "+") || text_equal(operator_text, "-") ||
+      text_equal(operator_text, "*") || text_equal(operator_text, "/") ||
+      text_equal(operator_text, "%") || text_equal(operator_text, "&") ||
+      text_equal(operator_text, "|") || text_equal(operator_text, "^") ||
+      text_equal(operator_text, "==") || text_equal(operator_text, "!=") ||
+      text_equal(operator_text, "<") || text_equal(operator_text, "<=") ||
+      text_equal(operator_text, ">") || text_equal(operator_text, ">=");
+  const bool shift = text_equal(operator_text, "<<") ||
+                     text_equal(operator_text, ">>");
+  const bool power = text_equal(operator_text, "**");
+  if (arithmetic_or_comparison &&
+      left->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+      right->type.kind == W_SEED_FRONTEND_TYPE_INTEGER) {
+    /* Default two unconstrained integer literals to i64. Otherwise coerce
+     * exactly one unsuffixed literal when the other operand is concrete and
+     * the literal is representable. Child records and the root then carry
+     * the same semantic type. */
+    if (expression_value_is_unsuffixed_integer(left) &&
+        expression_value_is_unsuffixed_integer(right)) {
+      const frontend_simple_type default_type = const_default_integer_type();
+      if (!expression_value_set_type(parser, left, default_type) ||
+          !expression_value_set_type(parser, right, default_type))
+        return false;
+    } else if (expression_value_is_unsuffixed_integer(left) &&
+               right->type.bit_width != 0u &&
+               unsuffixed_integer_fits(left->type.spelling, right->type)) {
+      if (!expression_value_set_type(parser, left, right->type)) return false;
+    } else if (expression_value_is_unsuffixed_integer(right) &&
+               left->type.bit_width != 0u &&
+               unsuffixed_integer_fits(right->type.spelling, left->type)) {
+      if (!expression_value_set_type(parser, right, left->type)) return false;
+    }
+    result_type = left->type;
+  }
+  if (shift || power) {
+    const frontend_simple_type uint_type =
+        simple_type_from_view((w_seed_frontend_text){"UInt", 4u});
+    if (expression_value_is_unsuffixed_integer(left) &&
+        !expression_value_set_type(parser, left, const_default_integer_type()))
+      return false;
+    if (expression_value_is_unsuffixed_integer(right) &&
+        (!unsuffixed_integer_fits(right->type.spelling, uint_type) ||
+         !expression_value_set_type(parser, right, uint_type)))
+      return false;
+    result_type = left->type;
+    if (left->type.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+        left->type.bit_width != 64u ||
+        !frontend_type_equal(parser->context, right->type, uint_type))
+      supported = false;
+  } else if (text_equal(operator_text, "&&") ||
+             text_equal(operator_text, "||")) {
+    result_type = simple_type_from_view((w_seed_frontend_text){"Bool", 4u});
+    if (!type_is_bool(left->type) || !type_is_bool(right->type))
+      supported = false;
+  } else if (text_equal(operator_text, "..<")) {
+    result_type =
+        simple_type_from_view((w_seed_frontend_text){"Range<usize>", 12u});
+    /* A range is a usize-boundary expression. Give an unsuffixed integer
+     * literal the contextual unsigned type before comparing the operands. */
+    frontend_simple_type expected_element = simple_type_unknown();
+    if (parser->has_expected_type &&
+        parser->expected_type.kind == W_SEED_FRONTEND_TYPE_RANGE &&
+        parser->expected_type.spelling.length > 7u &&
+        parser->expected_type.spelling.data != NULL) {
+      const size_t element_length = parser->expected_type.spelling.length - 7u;
+      expected_element = simple_type_from_view((w_seed_frontend_text){
+          parser->expected_type.spelling.data + 6u, element_length});
+    }
+    const bool left_unsuffixed =
+        left->is_integer_literal &&
+        left->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+        left->type.is_signed && left->type.bit_width == 0u;
+    const bool right_unsuffixed =
+        right->is_integer_literal &&
+        right->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+        right->type.is_signed && right->type.bit_width == 0u;
+    if (left_unsuffixed) {
+      frontend_simple_type target = expected_element;
+      if (target.kind != W_SEED_FRONTEND_TYPE_INTEGER &&
+          right->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+          !right->type.is_signed)
+        target = right->type;
+      if (target.kind == W_SEED_FRONTEND_TYPE_INTEGER && !target.is_signed &&
+          !expression_value_set_type(parser, left, target))
+        return false;
+    }
+    if (right_unsuffixed) {
+      frontend_simple_type target = expected_element;
+      if (target.kind != W_SEED_FRONTEND_TYPE_INTEGER &&
+          left->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+          !left->type.is_signed)
+        target = left->type;
+      if (target.kind == W_SEED_FRONTEND_TYPE_INTEGER && !target.is_signed &&
+          !expression_value_set_type(parser, right, target))
+        return false;
+    }
+    if (left->type.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+        right->type.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+        left->type.is_signed != right->type.is_signed ||
+        left->type.bit_width != right->type.bit_width)
+      supported = false;
+  } else if (text_equal(operator_text, "==") ||
+             text_equal(operator_text, "!=") ||
+             text_equal(operator_text, "<") ||
+             text_equal(operator_text, "<=") ||
+             text_equal(operator_text, ">") ||
+             text_equal(operator_text, ">=") ||
+             text_equal(operator_text, "in")) {
+    result_type = simple_type_from_view((w_seed_frontend_text){"Bool", 4u});
+    if (!frontend_type_equal(parser->context, left->type, right->type) &&
+        !(type_is_numeric(left->type) && type_is_numeric(right->type) &&
+          (frontend_widening_allowed(parser->context, left->type,
+                                     right->type) ||
+           frontend_widening_allowed(parser->context, right->type,
+                                     left->type))))
+      supported = false;
+  } else if (type_is_numeric(left->type) && type_is_numeric(right->type)) {
+    if (!frontend_type_equal(parser->context, left->type, right->type)) {
+      result_type = frontend_widening_allowed(parser->context, left->type,
+                                              right->type)
+                        ? right->type
+                        : (frontend_widening_allowed(parser->context,
+                                                     right->type, left->type)
+                               ? left->type
+                               : simple_type_unknown());
+      if (result_type.kind == W_SEED_FRONTEND_TYPE_UNKNOWN) supported = false;
+    }
+  } else {
+    supported = false;
+  }
+  if (!supported)
+    (void)context_append_fact(parser->context,
+                              W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
+                              span, text_from_span(parser->document, span));
+  if (!expression_append(
+          parser,
+          supported ? (text_equal(operator_text, "..<")
+                           ? W_SEED_FRONTEND_EXPR_RANGE
+                           : W_SEED_FRONTEND_EXPR_BINARY)
+                    : W_SEED_FRONTEND_EXPR_UNSUPPORTED,
+          span, text_from_span(parser->document, span), operator_text,
+          result_type, supported, left->index, right->index,
+          W_SEED_FRONTEND_NONE, 0u, value))
+    return false;
+  value->is_integer_literal = false;
+  return true;
+}
+
 static bool expression_parse_bp_inner(frontend_expression_parser *parser,
                                       int minimum_precedence,
                                       frontend_expr_value *value) {
@@ -14381,18 +14597,43 @@ static bool expression_parse_bp_inner(frontend_expression_parser *parser,
       break;
     }
     (void)cursor_take(&parser->cursor, &operator_token);
-    if (text_equal(operator_text, "=")) {
+    w_seed_frontend_text compound_operation = {NULL, 0u};
+    const bool compound =
+        compound_assignment_operator(operator_text, &compound_operation);
+    if (text_equal(operator_text, "=") || compound) {
       const frontend_expr_value left = *value;
+      frontend_expr_value replacement_left = left;
+      if (compound &&
+          !expression_append(
+              parser, W_SEED_FRONTEND_EXPR_IDENTIFIER, left.span, left.name,
+              (w_seed_frontend_text){NULL, 0u}, left.type, left.supported,
+              W_SEED_FRONTEND_NONE, W_SEED_FRONTEND_NONE,
+              W_SEED_FRONTEND_NONE, 0u, &replacement_left))
+        return false;
       const frontend_simple_type saved_expected = parser->expected_type;
       const bool saved_has_expected = parser->has_expected_type;
-      parser->expected_type = left.type;
+      const bool unsigned_rhs =
+          compound && (text_equal(compound_operation, "<<") ||
+                       text_equal(compound_operation, ">>") ||
+                       text_equal(compound_operation, "**"));
+      parser->expected_type = unsigned_rhs
+                                  ? simple_type_unknown()
+                                  : left.type;
       parser->has_expected_type =
-          left.type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN;
+          !unsigned_rhs && left.type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN;
       frontend_expr_value right;
       const bool parsed = expression_parse_bp(parser, precedence + 1, &right);
       parser->expected_type = saved_expected;
       parser->has_expected_type = saved_has_expected;
       if (!parsed) return false;
+      if (compound) {
+        frontend_expr_value operation_value;
+        if (!expression_append_binary(parser, compound_operation,
+                                      &replacement_left, &right,
+                                      &operation_value))
+          return false;
+        right = operation_value;
+      }
       bool supported =
           left.kind == W_SEED_FRONTEND_EXPR_IDENTIFIER && left.supported &&
           right.supported &&
@@ -14432,173 +14673,14 @@ static bool expression_parse_bp_inner(frontend_expression_parser *parser,
       }
       continue;
     }
+    frontend_expr_value left = *value;
     frontend_expr_value right;
     const bool power = text_equal(operator_text, "**");
     const int next_precedence = power ? precedence : precedence + 1;
-    if (!expression_parse_bp(parser, next_precedence, &right)) return false;
-    const w_seed_span span = {value->span.start_byte, right.span.end_byte};
-    frontend_simple_type result_type = value->type;
-    bool supported = value->supported && right.supported;
-    const bool arithmetic_or_comparison =
-        text_equal(operator_text, "+") || text_equal(operator_text, "-") ||
-        text_equal(operator_text, "*") || text_equal(operator_text, "/") ||
-        text_equal(operator_text, "%") || text_equal(operator_text, "&") ||
-        text_equal(operator_text, "|") || text_equal(operator_text, "^") ||
-        text_equal(operator_text, "==") || text_equal(operator_text, "!=") ||
-        text_equal(operator_text, "<") ||
-        text_equal(operator_text, "<=") || text_equal(operator_text, ">") ||
-        text_equal(operator_text, ">=");
-    const bool shift = text_equal(operator_text, "<<") ||
-                       text_equal(operator_text, ">>");
-    if (arithmetic_or_comparison &&
-        value->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
-        right.type.kind == W_SEED_FRONTEND_TYPE_INTEGER) {
-      /* Default two unconstrained integer literals to i64.  Otherwise coerce
-       * exactly one unsuffixed literal when the other operand is concrete and
-       * the literal is representable.  Child records and the root then carry
-       * the same semantic type. */
-      if (expression_value_is_unsuffixed_integer(value) &&
-          expression_value_is_unsuffixed_integer(&right)) {
-        const frontend_simple_type default_type = const_default_integer_type();
-        if (!expression_value_set_type(parser, value, default_type) ||
-            !expression_value_set_type(parser, &right, default_type)) {
-          return false;
-        }
-      } else if (expression_value_is_unsuffixed_integer(value) &&
-          right.type.bit_width != 0u &&
-          unsuffixed_integer_fits(value->type.spelling, right.type)) {
-        if (!expression_value_set_type(parser, value, right.type)) return false;
-      } else if (expression_value_is_unsuffixed_integer(&right) &&
-                 value->type.bit_width != 0u &&
-                 unsuffixed_integer_fits(right.type.spelling, value->type)) {
-        if (!expression_value_set_type(parser, &right, value->type)) return false;
-      }
-      result_type = value->type;
-    }
-    if (shift || power) {
-      const frontend_simple_type uint_type =
-          simple_type_from_view((w_seed_frontend_text){"UInt", 4u});
-      if (expression_value_is_unsuffixed_integer(value)) {
-        if (!expression_value_set_type(parser, value,
-                                       const_default_integer_type()))
-          return false;
-      }
-      if (expression_value_is_unsuffixed_integer(&right)) {
-        if (!unsuffixed_integer_fits(right.type.spelling, uint_type) ||
-            !expression_value_set_type(parser, &right, uint_type))
-          return false;
-      }
-      result_type = value->type;
-      if (value->type.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
-          value->type.bit_width != 64u ||
-          !frontend_type_equal(parser->context, right.type, uint_type))
-        supported = false;
-    } else if (text_equal(operator_text, "&&") ||
-               text_equal(operator_text, "||")) {
-      result_type = simple_type_from_view((w_seed_frontend_text){"Bool", 4});
-      if (!type_is_bool(value->type) || !type_is_bool(right.type)) supported = false;
-    } else if (text_equal(operator_text, "..<")) {
-      result_type = simple_type_from_view((w_seed_frontend_text){"Range<usize>", 12});
-
-      /* A range is a usize-boundary expression.  Give an unsuffixed integer
-       * literal the contextual unsigned type before comparing the operands.
-       * This keeps `1..<stages.count` source-backed and makes both dry and
-       * emit passes observe the same supported root metadata. */
-      frontend_simple_type expected_element = simple_type_unknown();
-      if (parser->has_expected_type &&
-          parser->expected_type.kind == W_SEED_FRONTEND_TYPE_RANGE &&
-          parser->expected_type.spelling.length > 7u &&
-          parser->expected_type.spelling.data != NULL) {
-        const size_t element_length =
-            parser->expected_type.spelling.length - 7u;
-        expected_element = simple_type_from_view((w_seed_frontend_text){
-            parser->expected_type.spelling.data + 6u, element_length});
-      }
-      const bool left_unsuffixed =
-          value->is_integer_literal &&
-          value->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
-          value->type.is_signed && value->type.bit_width == 0u;
-      const bool right_unsuffixed =
-          right.is_integer_literal &&
-          right.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
-          right.type.is_signed && right.type.bit_width == 0u;
-      if (left_unsuffixed) {
-        frontend_simple_type target = expected_element;
-        if (target.kind != W_SEED_FRONTEND_TYPE_INTEGER &&
-            right.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
-            !right.type.is_signed) {
-          target = right.type;
-        }
-        if (target.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
-            !target.is_signed &&
-            !expression_value_set_type(parser, value, target)) {
-          return false;
-        }
-      }
-      if (right_unsuffixed) {
-        frontend_simple_type target = expected_element;
-        if (target.kind != W_SEED_FRONTEND_TYPE_INTEGER &&
-            value->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
-            !value->type.is_signed) {
-          target = value->type;
-        }
-        if (target.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
-            !target.is_signed &&
-            !expression_value_set_type(parser, &right, target)) {
-          return false;
-        }
-      }
-      if (value->type.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
-          right.type.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
-          value->type.is_signed != right.type.is_signed ||
-          value->type.bit_width != right.type.bit_width) {
-        supported = false;
-      }
-    } else if (text_equal(operator_text, "==") ||
-               text_equal(operator_text, "!=") || text_equal(operator_text, "<") ||
-               text_equal(operator_text, "<=") || text_equal(operator_text, ">") ||
-               text_equal(operator_text, ">=") || text_equal(operator_text, "in")) {
-      result_type = simple_type_from_view((w_seed_frontend_text){"Bool", 4});
-      if (!frontend_type_equal(parser->context, value->type, right.type) &&
-          !(type_is_numeric(value->type) && type_is_numeric(right.type) &&
-            (frontend_widening_allowed(parser->context, value->type,
-                                       right.type) ||
-             frontend_widening_allowed(parser->context, right.type,
-                                       value->type)))) {
-        supported = false;
-      }
-    } else if (type_is_numeric(value->type) && type_is_numeric(right.type)) {
-      if (!frontend_type_equal(parser->context, value->type, right.type)) {
-        result_type = frontend_widening_allowed(parser->context, value->type,
-                                                right.type)
-                          ? right.type
-                          : (frontend_widening_allowed(parser->context,
-                                                       right.type,
-                                                       value->type)
-                                 ? value->type
-                                 : simple_type_unknown());
-        if (result_type.kind == W_SEED_FRONTEND_TYPE_UNKNOWN) supported = false;
-      }
-    } else {
-      supported = false;
-    }
-    if (!supported) {
-      (void)context_append_fact(parser->context,
-                                W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
-                                span, text_from_span(parser->document, span));
-    }
-    if (!expression_append(parser,
-                           supported
-                               ? (text_equal(operator_text, "..<")
-                                      ? W_SEED_FRONTEND_EXPR_RANGE
-                                      : W_SEED_FRONTEND_EXPR_BINARY)
-                               : W_SEED_FRONTEND_EXPR_UNSUPPORTED,
-                           span, text_from_span(parser->document, span),
-                           operator_text, result_type, supported, value->index,
-                           right.index, W_SEED_FRONTEND_NONE, 0, value)) {
+    if (!expression_parse_bp(parser, next_precedence, &right) ||
+        !expression_append_binary(parser, operator_text, &left, &right,
+                                  value))
       return false;
-    }
-    value->is_integer_literal = false;
   }
   return true;
 }
@@ -20103,6 +20185,7 @@ w_seed_frontend_status w_seed_frontend_run(
   dry.builtin_usize_type_index = W_SEED_FRONTEND_NONE;
   dry.default_integer_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_i32_type_index = W_SEED_FRONTEND_NONE;
+  dry.builtin_u64_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_bool_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_never_type_index = W_SEED_FRONTEND_NONE;
   dry.inferred_string_type_index = W_SEED_FRONTEND_NONE;
@@ -20181,6 +20264,7 @@ w_seed_frontend_status w_seed_frontend_run(
   emit.builtin_usize_type_index = W_SEED_FRONTEND_NONE;
   emit.default_integer_type_index = W_SEED_FRONTEND_NONE;
   emit.builtin_i32_type_index = W_SEED_FRONTEND_NONE;
+  emit.builtin_u64_type_index = W_SEED_FRONTEND_NONE;
   emit.builtin_bool_type_index = W_SEED_FRONTEND_NONE;
   emit.builtin_never_type_index = W_SEED_FRONTEND_NONE;
   emit.inferred_string_type_index = W_SEED_FRONTEND_NONE;
