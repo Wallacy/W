@@ -176,6 +176,14 @@ measurements remain ignored under `benchmarks/results/`; only a rerun from a
 clean committed HEAD may update the compact catalog, and raw results are
 consumed after successful publication.
 
+Windows runtime cells currently measure cold process invocation with QPC:
+native launch setup, target execution, Job Object quiescence, and bounded
+capture are inside each sample. They are not body-throughput measurements. A
+future steady lane requires equivalent W/C/Rust adapter artifacts exposing one
+stable callable ABI, an untimed handshake and warmup, fixed timed batches, and
+an output digest. Its no-op harness cost is reported separately and is never
+subtracted from samples; cold and steady receipts remain distinct.
+
 #### Public process-entry executable measurements
 
 The `process-entry` workload is the public end-to-end process contract. Run

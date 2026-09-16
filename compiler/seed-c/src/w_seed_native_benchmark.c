@@ -481,6 +481,36 @@ static bool job_cpu_times_ns(
   return true;
 }
 
+static bool wait_for_job_empty(HANDLE completion_port, LARGE_INTEGER deadline,
+                               LARGE_INTEGER frequency, DWORD *error_out) {
+  if (completion_port == NULL) {
+    if (error_out != NULL) *error_out = ERROR_INVALID_HANDLE;
+    return false;
+  }
+  for (;;) {
+    DWORD remaining_ms = 0u;
+    if (!qpc_remaining_ms(deadline, frequency, &remaining_ms)) {
+      if (error_out != NULL) *error_out = GetLastError();
+      return false;
+    }
+    if (remaining_ms == 0u) {
+      if (error_out != NULL) *error_out = ERROR_TIMEOUT;
+      return false;
+    }
+    DWORD message = 0u;
+    ULONG_PTR completion_key = 0u;
+    LPOVERLAPPED overlapped = NULL;
+    if (!GetQueuedCompletionStatus(completion_port, &message, &completion_key,
+                                   &overlapped, remaining_ms)) {
+      const DWORD error = GetLastError();
+      if (error_out != NULL)
+        *error_out = error == WAIT_TIMEOUT ? ERROR_TIMEOUT : error;
+      return false;
+    }
+    if (message == JOB_OBJECT_MSG_ACTIVE_PROCESS_ZERO) return true;
+  }
+}
+
 static bool join_reader_threads_until_deadline(
     HANDLE reader_threads[2], LARGE_INTEGER deadline, LARGE_INTEGER frequency,
     DWORD *error_out) {
@@ -529,6 +559,7 @@ static native_benchmark_one_result run_one(
   HANDLE stderr_write = NULL;
   HANDLE stdin_handle = INVALID_HANDLE_VALUE;
   HANDLE job = NULL;
+  HANDLE completion_port = NULL;
   HANDLE reader_threads[2] = {NULL, NULL};
   PROCESS_INFORMATION process_information = {0};
   native_benchmark_reader readers[2] = {
@@ -586,6 +617,14 @@ static native_benchmark_one_result run_one(
 
   job = CreateJobObjectW(NULL, NULL);
   if (job == NULL) goto process_failure;
+  completion_port = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0u, 1u);
+  if (completion_port == NULL) goto process_failure;
+  JOBOBJECT_ASSOCIATE_COMPLETION_PORT completion = {
+      job, completion_port};
+  if (!SetInformationJobObject(
+          job, JobObjectAssociateCompletionPortInformation, &completion,
+          (DWORD)sizeof(completion)))
+    goto process_failure;
   job_limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
   if (!SetInformationJobObject(job, JobObjectExtendedLimitInformation,
                                &job_limits, (DWORD)sizeof(job_limits)))
@@ -655,21 +694,31 @@ static native_benchmark_one_result run_one(
   }
   process_waited = true;
 
-  for (;;) {
-    if (!job_accounting(job, &job_accounting_information,
-                        &job_memory_information, &accounting_error))
-      goto metrics_failure_with_error;
-    if (job_accounting_information.ActiveProcesses == 0u) break;
-    if (!qpc_remaining_ms(deadline, frequency, &remaining_ms))
-      goto metrics_failure;
-    if (remaining_ms == 0u) {
-      /* A root that leaves a live descendant is not a valid finite sample. */
+  /* The completion port reports JOB_OBJECT_MSG_ACTIVE_PROCESS_ZERO without a
+   * scheduler-tick poll. Sleep(1) can round up to about 15.6 ms on Windows and
+   * otherwise dominate the post-exit portion of short-process samples. */
+  if (!wait_for_job_empty(completion_port, deadline, frequency, &reader_error)) {
+    if (reader_error == ERROR_TIMEOUT) {
+      /* The root has exited, but a descendant kept the Job Object live. */
       (void)TerminateJobObject(job, 1u);
       outcome = one_failure(W_SEED_NATIVE_BENCHMARK_TREE_INCOMPLETE,
                             ERROR_TIMEOUT);
       goto cleanup;
     }
-    Sleep(remaining_ms < 2u ? remaining_ms : 1u);
+    outcome = one_failure(W_SEED_NATIVE_BENCHMARK_WAIT, reader_error);
+    goto cleanup;
+  }
+
+  if (!job_accounting(job, &job_accounting_information,
+                      &job_memory_information, &accounting_error))
+    goto metrics_failure_with_error;
+  if (job_accounting_information.ActiveProcesses != 0u) {
+    /* The signaled state and accounting snapshot must agree before metrics
+     * are accepted. A live descendant is not a finite sample. */
+    (void)TerminateJobObject(job, 1u);
+    outcome = one_failure(W_SEED_NATIVE_BENCHMARK_TREE_INCOMPLETE,
+                          ERROR_TIMEOUT);
+    goto cleanup;
   }
 
   if (!GetExitCodeProcess(process_information.hProcess, &exit_code))
@@ -810,6 +859,10 @@ cleanup:
   if (job != NULL) {
     (void)CloseHandle(job);
     job = NULL;
+  }
+  if (completion_port != NULL) {
+    (void)CloseHandle(completion_port);
+    completion_port = NULL;
   }
   if (!readers_joined) {
     for (size_t index = 0u; index < 2u; index += 1u)

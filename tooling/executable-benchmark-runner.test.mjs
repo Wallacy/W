@@ -148,7 +148,7 @@ test("native receipts map Job CPU and root working set without relabeling commit
       stderrBytes: 0,
     }],
     summary: {},
-    measurement: "bounded native test receipt",
+    measurement: "Windows QPC wall time for each cold target-process invocation; bounded stdout/stderr capture is included; helper orchestration and Bun caller time are excluded; no steady body lane is claimed; bounded native test receipt",
   };
   assert.deepEqual(nativeReceiptSamples(receipt, 1), [{
     wallNs: "101",
@@ -160,6 +160,9 @@ test("native receipts map Job CPU and root working set without relabeling commit
   const inconsistent = structuredClone(receipt);
   inconsistent.samples[0].jobCpuNs = 11201;
   assert.throws(() => nativeReceiptSamples(inconsistent, 1), /inconsistent native measurement/u);
+  const ambiguous = structuredClone(receipt);
+  ambiguous.measurement = "Windows QPC wall time; native test receipt";
+  assert.throws(() => nativeReceiptSamples(ambiguous, 1), /measurement disclosure is invalid/u);
 });
 
 test("Linux native receipts map wait4 root CPU and RSS without WSL startup", () => {

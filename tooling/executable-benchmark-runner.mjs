@@ -535,6 +535,10 @@ export function nativeReceiptSamples(receipt, expectedCount, label = "native ben
       Object.keys(receipt).sort().join("\0") !== receiptFields.sort().join("\0")) {
     fail(`${label} receipt identity or sample count is invalid`);
   }
+  if (typeof receipt.measurement !== "string" ||
+      !/QPC.*cold target-process.*capture/iu.test(receipt.measurement)) {
+    fail(`${label} measurement disclosure is invalid`);
+  }
   return receipt.samples.map((sample, index) => {
     const name = `${label}.samples[${index}]`;
     if (!isObject(sample)) fail(`${name} must be an object`);
@@ -2206,8 +2210,8 @@ function protocol(context, workload = undefined) {
       ? "Runtime samples are measured inside WSL2 around one fresh Linux fork/exec/wait4 child in a native helper batch; WSL startup, Windows interop, and DrvFS target access are outside every sample. CPU and peak RSS describe the root Linux process; descendants are not aggregated."
       : "Test-only runtime observations cover one fresh wsl.exe wrapper per sample; Linux process-tree CPU/RSS are not separately aggregated."
     : context.nativeBenchmark
-    ? "Production run CPU covers the complete contained Job tree and peak working set covers the root target process."
-    : "Test-only run observations cover the direct target process; descendants are not aggregated.";
+      ? "Production run samples are cold target-process invocations. Wall time includes native launch setup, CreateProcessW, target execution, Job Object quiescence, and bounded stdout/stderr capture. The helper and Bun orchestration are outside each sample. No steady in-process body metric is retained."
+      : "Test-only run observations cover the direct target process; descendants are not aggregated.";
   const argumentContract = processEntry ? processArgumentOracleFor(workload.id) : undefined;
   const argumentCaseLabels = argumentContract?.cases?.map((testCase) => {
     if (testCase.arguments.length === 0) return "no-argument";
@@ -2241,7 +2245,7 @@ function protocol(context, workload = undefined) {
     directProcessDisclosure: context.nativeBenchmark?.abi === LINUX_NATIVE_BENCHMARK_ABI
       ? `Runtime wall time uses Linux CLOCK_MONOTONIC inside WSL2 around fork/exec/wait4; wait4 root-process CPU and peak RSS are reported, descendants are not aggregated, and a direct-child process group provides bounded best-effort timeout containment while independently re-sessioned descendants are outside that containment. The helper and ${EXECUTABLE_ARTIFACT_TARGET_LINUX} target are staged on the WSL-native /tmp filesystem before timing. Compile samples remain Windows-host Bun direct-process observations.`
       : context.nativeBenchmark
-        ? "Runtime wall time uses Windows QPC; CPU uses aggregate Job Object user/kernel accounting normalized to floor microseconds; peak working set is the root process, while Job peak commit remains a distinct receipt fact and is not mislabeled as RSS. Compile samples remain Bun direct-process observations."
+        ? "Runtime wall time uses Windows QPC for each cold target-process invocation and includes launch setup, target execution, Job Object quiescence, and bounded stdout/stderr capture. It is not a steady in-process body metric. CPU uses aggregate Job Object user/kernel accounting normalized to floor microseconds. Peak working set is the root process. Job peak commit remains a distinct receipt fact and is not mislabeled as RSS. Compile samples remain Bun direct-process observations."
       : `Bun direct-process CPU and RSS counters cover spawned processes only; process-tree CPU/RSS are not aggregated. ${EXECUTABLE_TIMEOUT_STATUS}.`,
   };
 }
@@ -2269,7 +2273,7 @@ function processProtocol(context) {
     ],
     unknownNoiseControls: ["host-scheduler", "filesystem-cache", "thermal-state"],
     directProcessDisclosure: context.nativeBenchmark
-      ? `Runtime wall time uses Windows QPC; CPU aggregates the contained Job Object, peak working set describes the root PE, and Job peak commit remains a distinct receipt fact rather than RSS. Compile samples remain Bun direct-child observations. The final artifact target is ${EXECUTABLE_ARTIFACT_TARGET_MINGW}; W and Rust handler objects originate from ${RUST_TARGET}, while the private composite uses a GCC MinGW C ABI link and is contextual/non-ranking, not a production MSVC CRT claim.`
+      ? `Runtime wall time uses Windows QPC for each cold target-process invocation and includes launch setup, target execution, Job Object quiescence, and bounded stdout/stderr capture. It is not a steady in-process body metric. CPU aggregates the contained Job Object. Peak working set describes the root PE. Job peak commit remains a distinct receipt fact rather than RSS. Compile samples remain Bun direct-child observations. The final artifact target is ${EXECUTABLE_ARTIFACT_TARGET_MINGW}; W and Rust handler objects originate from ${RUST_TARGET}, while the private composite uses a GCC MinGW C ABI link and is contextual/non-ranking, not a production MSVC CRT claim.`
       : `Bun direct-process CPU and RSS counters cover each spawned compiler, lowering tool, linker and runtime process only; process-tree CPU/RSS are not aggregated. The final artifact target is ${EXECUTABLE_ARTIFACT_TARGET_MINGW}; W and Rust handler objects originate from ${RUST_TARGET}, while the private composite uses a GCC MinGW C ABI link and is contextual/non-ranking, not a production MSVC CRT claim. ${EXECUTABLE_TIMEOUT_STATUS}`,
   };
 }

@@ -306,10 +306,13 @@ static void print_success(const native_benchmark_options *options,
       ",\"jobCpuNs\":{\"min\":%" PRIu64 ",\"median\":%" PRIu64
       ",\"p95\":%" PRIu64 ",\"mean\":%" PRIu64
       "},\"peakJobCommitBytes\":%" PRIu64
-      "},\"measurement\":\"Windows QPC wall time; direct process CPU and "
-      "working set; Job Object CPU and peak commit with kill-on-close "
-      "containment; one deadline covers launch, execution, descendants, and "
-      "capture\"}\n",
+      "},\"measurement\":\"Windows QPC wall time for each cold target-process "
+      "invocation; native launch setup, execution, descendants, Job Object "
+      "quiescence, and bounded stdout/stderr capture are included; direct "
+      "process CPU and working set are separate from Job Object CPU and peak "
+      "commit; helper orchestration and Bun caller time are excluded; "
+      "kill-on-close containment; one deadline covers the invocation; no "
+      "steady body lane is claimed\"}\n",
       wall_minimum, wall_median, wall_p95, wall_mean,
       cpu_minimum, cpu_median, cpu_p95, cpu_mean,
       maximum_rss(samples, options->sample_count),
