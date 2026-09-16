@@ -1,23 +1,21 @@
-#include "w_seed_accelerated_invocation0.h"
-#include "w_seed_accelerated_binding0.h"
-#include "w_seed_accelerated_request0.h"
-#include "w_seed_gpu0_projection.h"
+#include "test_accelerated_provider0_fixture.h"
 
-#include <stdbool.h>
-#include <inttypes.h>
-#include <limits.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <stdio.h>
+#include "w_seed_accelerated_binding0.h"
+#include "w_seed_accelerated_invocation0.h"
+#include "w_seed_gpu0_projection.h"
+#include "w_seed_sha256.h"
+
 #include <string.h>
 
-#define CHECK(condition)                                                        \
-  do {                                                                          \
-    if (!(condition)) {                                                         \
-      (void)fprintf(stderr, "accelerated invocation check failed: %s (%s:%d)\n", \
-                    #condition, __FILE__, __LINE__);                           \
-      return false;                                                             \
-    }                                                                           \
+#include <stdio.h>
+
+#define CHECK(condition)                                                       \
+  do {                                                                         \
+    if (!(condition)) {                                                        \
+      (void)fprintf(stderr, "provider0 fixture failed: %s (%s:%d)\n",       \
+                    #condition, __FILE__, __LINE__);                          \
+      return false;                                                            \
+    }                                                                          \
   } while (0)
 
 enum {
@@ -106,10 +104,8 @@ typedef struct {
   w_seed_frontend_type_declaration type_declarations[TEST_DECLARATIONS];
   w_seed_frontend_alias aliases[TEST_DECLARATIONS];
   w_seed_frontend_const_declaration const_declarations[TEST_DECLARATIONS];
-  w_seed_frontend_kernel_module
-      kernel_modules[TEST_KERNEL_MODULES];
-  w_seed_frontend_kernel_binding
-      kernel_bindings[TEST_KERNEL_BINDINGS];
+  w_seed_frontend_kernel_module kernel_modules[TEST_KERNEL_MODULES];
+  w_seed_frontend_kernel_binding kernel_bindings[TEST_KERNEL_BINDINGS];
   w_seed_frontend_type types[TEST_TYPES];
   w_seed_frontend_function functions[TEST_FUNCTIONS];
   w_seed_frontend_parameter parameters[TEST_PARAMETERS];
@@ -168,42 +164,8 @@ typedef struct {
 static frontend_fixture frontend;
 static gpu_storage gpu;
 static acc_storage accelerated;
-static acc_storage negative;
 static accelerated_provider_storage provider_storage;
 static accelerated_request_storage request_storage;
-
-static bool all_bytes_equal(const void *data, size_t bytes, uint8_t value) {
-  if (bytes != 0u && data == NULL) return false;
-  const uint8_t *cursor = (const uint8_t *)data;
-  for (size_t index = 0u; index < bytes; index += 1u)
-    if (cursor[index] != value) return false;
-  return true;
-}
-
-static bool open_file(FILE **file, const char *path, const char *mode) {
-  if (file == NULL || path == NULL || mode == NULL) return false;
-  *file = NULL;
-#if defined(_WIN32)
-  return fopen_s(file, path, mode) == 0 && *file != NULL;
-#else
-  *file = fopen(path, mode);
-  return *file != NULL;
-#endif
-}
-
-static bool read_file(const char *path, char *buffer, size_t capacity) {
-  if (path == NULL || buffer == NULL || capacity < 2u) return false;
-  FILE *file = NULL;
-  if (!open_file(&file, path, "rb")) return false;
-  const size_t bytes = fread(buffer, 1u, capacity - 1u, file);
-  const int extra = fgetc(file);
-  const bool valid = !ferror(file) && extra == EOF && bytes != 0u &&
-                     memchr(buffer, '\0', bytes) == NULL;
-  (void)fclose(file);
-  if (!valid) return false;
-  buffer[bytes] = '\0';
-  return true;
-}
 
 static bool parse_frontend(const char *source_text) {
   (void)memset(&frontend, 0, sizeof(frontend));
@@ -346,14 +308,6 @@ static bool parse_frontend(const char *source_text) {
   return true;
 }
 
-static bool text_is(const uint8_t *text, size_t text_bytes, size_t offset,
-                    size_t bytes, const char *expected) {
-  const size_t expected_bytes = strlen(expected);
-  return text != NULL && expected != NULL && offset <= text_bytes &&
-         bytes <= text_bytes - offset && bytes == expected_bytes &&
-         memcmp(text + offset, expected, bytes) == 0;
-}
-
 static void fill_digest(uint8_t digest[32], uint8_t seed) {
   for (size_t index = 0u; index < 32u; index += 1u)
     digest[index] = (uint8_t)(seed + (uint8_t)index);
@@ -403,6 +357,14 @@ static w_seed_accelerated_binding0_closed_profile closed_profile(void) {
   return profile;
 }
 
+static bool text_is(const uint8_t *text, size_t text_bytes, size_t offset,
+                    size_t bytes, const char *expected) {
+  const size_t expected_bytes = strlen(expected);
+  return text != NULL && expected != NULL && offset <= text_bytes &&
+         bytes <= text_bytes - offset && bytes == expected_bytes &&
+         memcmp(text + offset, expected, bytes) == 0;
+}
+
 static bool make_gpu_program(w_seed_gpu_module_program *program,
                              w_seed_gpu_module_result *result) {
   const w_seed_gpu_module_input input = {
@@ -440,13 +402,6 @@ static bool make_gpu_program(w_seed_gpu_module_program *program,
                 program->kernels[0].function_name_offset,
                 program->kernels[0].function_name_bytes, "kernel"));
   return true;
-}
-
-static size_t find_expression(w_seed_frontend_expr_kind kind) {
-  for (size_t index = 0u; index < frontend.result.written.expressions;
-       index += 1u)
-    if (frontend.output.expressions[index].kind == kind) return index;
-  return SIZE_MAX;
 }
 
 static bool run_accelerated(const w_seed_gpu_module_program *gpu_program,
@@ -563,383 +518,119 @@ static bool make_complete_request(
                 request_program->requests[0].kernel_symbol_bytes,
                 "w_gpu0_kernel"));
 
-  /* ACCREQ0 owns the complete request and artifact after physical and binding
-   * producer storage disappears. */
+  /* The provider receives only ACCREQ0. Clear every producer and prove that
+   * its copied request/artifact remain independently verifiable. */
   (void)memset(&profile, 0, sizeof(profile));
   (void)memset(&binding_program, 0, sizeof(binding_program));
   (void)memset(&binding_result, 0, sizeof(binding_result));
   (void)memset(&gpu0_program, 0, sizeof(gpu0_program));
   (void)memset(&gpu0_result, 0, sizeof(gpu0_result));
   (void)memset(&provider_storage, 0, sizeof(provider_storage));
+  (void)memset(&frontend, 0, sizeof(frontend));
+  (void)memset(&gpu, 0, sizeof(gpu));
+  (void)memset(&accelerated, 0, sizeof(accelerated));
   CHECK(w_seed_accelerated_request0_verify(request_program, request_result));
   return true;
 }
 
-static bool check_identity_and_relations(
-    const w_seed_accelerated_invocation0_program *program) {
-  const w_seed_accelerated_invocation0_record *record = &program->invocations[0];
-  CHECK(text_is(program->text, program->text_bytes, record->domain_name_offset,
-                record->domain_name_bytes, ".inference"));
-  CHECK(text_is(program->text, program->text_bytes, record->module_name_offset,
-                record->module_name_bytes, "kernels"));
-  CHECK(text_is(program->text, program->text_bytes, record->kernel_label_offset,
-                record->kernel_label_bytes, "hello"));
-  CHECK(text_is(program->text, program->text_bytes,
-                record->function_name_offset, record->function_name_bytes,
-                "kernel"));
-  CHECK(record->frontend_module_index == 0u &&
-        record->frontend_kernel_module_index == 0u &&
-        record->frontend_kernel_binding_index == 0u &&
-        record->gpu_module_index == 0u && record->gpu_kernel_index == 0u &&
-        record->domain_index == 0u &&
-        record->domain_kind == W_SEED_FRONTEND_DOMAIN_ACCELERATED &&
-        record->submission == W_SEED_FRONTEND_DOMAIN_MODE_CONCURRENT &&
-        record->domain_capabilities == W_SEED_FRONTEND_DOMAIN_CAPABILITY_DEVICE &&
-        record->domain_maximum == 4u && record->result_bit_width == 32u &&
-        record->result_is_signed);
-  CHECK(program->frontend_domain_count == 1u);
-  CHECK(record->source_launch_expression != W_SEED_ACCELERATED_INVOCATION0_NONE &&
-        record->source_call_expression != W_SEED_ACCELERATED_INVOCATION0_NONE &&
-        record->source_await_expression != W_SEED_ACCELERATED_INVOCATION0_NONE &&
-        record->source_launch_binding_statement !=
-            W_SEED_ACCELERATED_INVOCATION0_NONE &&
-        record->source_result_binding_statement !=
-            W_SEED_ACCELERATED_INVOCATION0_NONE);
-  CHECK(record->launch_span.start_byte <= record->call_span.start_byte &&
-        record->call_span.end_byte <= record->launch_span.end_byte &&
-        record->launch_binding_span.start_byte <= record->call_span.start_byte &&
-        record->call_span.end_byte <= record->launch_binding_span.end_byte &&
-        record->result_binding_span.start_byte <= record->await_span.start_byte &&
-        record->await_span.end_byte <= record->result_binding_span.end_byte &&
-        record->call_span.end_byte <= record->await_span.start_byte &&
-        record->launch_binding_span.end_byte <=
-            record->result_binding_span.start_byte);
-  return true;
+static void test_hash_u64(w_seed_sha256_state *state, uint64_t value) {
+  uint8_t bytes[8];
+  for (size_t index = 0u; index < sizeof(bytes); index += 1u)
+    bytes[index] = (uint8_t)(value >> (index * 8u));
+  w_seed_sha256_update(state, bytes, sizeof(bytes));
 }
 
-static bool test_negative_boundaries(
-    const w_seed_gpu_module_program *gpu_program,
-    const w_seed_gpu_module_result *gpu_result,
-    const w_seed_accelerated_invocation0_program *good_program,
-    const w_seed_accelerated_invocation0_result *good_result) {
-  const w_seed_accelerated_invocation0_input input = {
-      .frontend_input = &frontend.input,
-      .frontend_output = &frontend.output,
-      .frontend_result = &frontend.result,
-      .gpu_module_program = gpu_program,
-      .gpu_module_result = gpu_result};
-  w_seed_accelerated_invocation0_counts saved_counts;
-  w_seed_accelerated_invocation0_result result;
-  (void)memset(&result, 0x5a, sizeof(result));
-  saved_counts = (w_seed_accelerated_invocation0_counts){0x5a, 0x5a};
-  const w_seed_accelerated_invocation0_counts before_counts = saved_counts;
-  const w_seed_accelerated_invocation0_result before_result = result;
-
-  const w_seed_frontend_text saved_schema = frontend.result.schema_version;
-  frontend.result.schema_version = (w_seed_frontend_text){"forged", 6u};
-  CHECK(w_seed_accelerated_invocation0_measure(&input, &saved_counts, &result) ==
-        W_SEED_ACCELERATED_INVOCATION0_INVALID_SCHEMA);
-  CHECK(memcmp(&before_counts, &saved_counts, sizeof(saved_counts)) == 0 &&
-        memcmp(&before_result, &result, sizeof(result)) == 0);
-  frontend.result.schema_version = saved_schema;
-
-  const size_t saved_frontend_types = frontend.result.written.types;
-  frontend.result.written.types += 1u;
-  CHECK(w_seed_accelerated_invocation0_measure(&input, &saved_counts, &result) ==
-        W_SEED_ACCELERATED_INVOCATION0_INCONSISTENT);
-  CHECK(memcmp(&before_counts, &saved_counts, sizeof(saved_counts)) == 0 &&
-        memcmp(&before_result, &result, sizeof(result)) == 0);
-  frontend.result.written.types = saved_frontend_types;
-
-  const size_t saved_gpu_kernels = gpu_result->written.kernels;
-  ((w_seed_gpu_module_result *)(void *)gpu_result)->written.kernels += 1u;
-  CHECK(w_seed_accelerated_invocation0_measure(&input, &saved_counts, &result) ==
-        W_SEED_ACCELERATED_INVOCATION0_INCONSISTENT);
-  CHECK(memcmp(&before_counts, &saved_counts, sizeof(saved_counts)) == 0 &&
-        memcmp(&before_result, &result, sizeof(result)) == 0);
-  ((w_seed_gpu_module_result *)(void *)gpu_result)->written.kernels =
-      saved_gpu_kernels;
-
-  const size_t call_index = find_expression(W_SEED_FRONTEND_EXPR_CALL);
-  const size_t launch_index =
-      find_expression(W_SEED_FRONTEND_EXPR_SPAWN_ACCELERATED_DOMAIN_LAUNCH);
-  const size_t await_index = find_expression(W_SEED_FRONTEND_EXPR_AWAIT);
-  CHECK(call_index != SIZE_MAX && launch_index != SIZE_MAX &&
-        await_index != SIZE_MAX);
-  w_seed_frontend_expression *call = &frontend.output.expressions[call_index];
-  w_seed_frontend_expression *launch =
-      &frontend.output.expressions[launch_index];
-  w_seed_frontend_expression *await =
-      &frontend.output.expressions[await_index];
-  CHECK(call->left < frontend.result.written.expressions);
-  w_seed_frontend_expression *callee =
-      &frontend.output.expressions[call->left];
-  CHECK(good_program->invocations[0].source_launch_binding_statement <
-            frontend.result.written.statements &&
-        good_program->invocations[0].source_result_binding_statement <
-            frontend.result.written.statements);
-  w_seed_frontend_statement *launch_binding = &frontend.output.statements[
-      good_program->invocations[0].source_launch_binding_statement];
-  w_seed_frontend_statement *result_binding = &frontend.output.statements[
-      good_program->invocations[0].source_result_binding_statement];
-
-  const uint32_t saved_launch_owner = launch->owner_function;
-  launch->owner_function = 0u;
-  CHECK(w_seed_accelerated_invocation0_measure(&input, &saved_counts, &result) ==
-        W_SEED_ACCELERATED_INVOCATION0_UNSUPPORTED);
-  CHECK(memcmp(&before_counts, &saved_counts, sizeof(saved_counts)) == 0 &&
-        memcmp(&before_result, &result, sizeof(result)) == 0);
-  launch->owner_function = saved_launch_owner;
-
-  const uint32_t saved_callee_module = callee->module_index;
-  callee->module_index = 1u;
-  CHECK(w_seed_accelerated_invocation0_measure(&input, &saved_counts, &result) ==
-        W_SEED_ACCELERATED_INVOCATION0_UNSUPPORTED);
-  CHECK(memcmp(&before_counts, &saved_counts, sizeof(saved_counts)) == 0 &&
-        memcmp(&before_result, &result, sizeof(result)) == 0);
-  callee->module_index = saved_callee_module;
-
-  const uint32_t saved_callee_owner = callee->owner_function;
-  callee->owner_function = 0u;
-  CHECK(w_seed_accelerated_invocation0_measure(&input, &saved_counts, &result) ==
-        W_SEED_ACCELERATED_INVOCATION0_UNSUPPORTED);
-  CHECK(memcmp(&before_counts, &saved_counts, sizeof(saved_counts)) == 0 &&
-        memcmp(&before_result, &result, sizeof(result)) == 0);
-  callee->owner_function = saved_callee_owner;
-
-  const uint32_t saved_await_module = await->module_index;
-  await->module_index = 1u;
-  CHECK(w_seed_accelerated_invocation0_measure(&input, &saved_counts, &result) ==
-        W_SEED_ACCELERATED_INVOCATION0_UNSUPPORTED);
-  CHECK(memcmp(&before_counts, &saved_counts, sizeof(saved_counts)) == 0 &&
-        memcmp(&before_result, &result, sizeof(result)) == 0);
-  await->module_index = saved_await_module;
-
-  const uint32_t saved_launch_binding_module = launch_binding->module_index;
-  launch_binding->module_index = 1u;
-  CHECK(w_seed_accelerated_invocation0_measure(&input, &saved_counts, &result) ==
-        W_SEED_ACCELERATED_INVOCATION0_UNSUPPORTED);
-  CHECK(memcmp(&before_counts, &saved_counts, sizeof(saved_counts)) == 0 &&
-        memcmp(&before_result, &result, sizeof(result)) == 0);
-  launch_binding->module_index = saved_launch_binding_module;
-
-  const uint32_t saved_result_binding_module = result_binding->module_index;
-  result_binding->module_index = 1u;
-  CHECK(w_seed_accelerated_invocation0_measure(&input, &saved_counts, &result) ==
-        W_SEED_ACCELERATED_INVOCATION0_UNSUPPORTED);
-  CHECK(memcmp(&before_counts, &saved_counts, sizeof(saved_counts)) == 0 &&
-        memcmp(&before_result, &result, sizeof(result)) == 0);
-  result_binding->module_index = saved_result_binding_module;
-
-  const uint32_t saved_argument_count = call->argument_count;
-  call->argument_count = 1u;
-  CHECK(w_seed_accelerated_invocation0_measure(&input, &saved_counts, &result) ==
-        W_SEED_ACCELERATED_INVOCATION0_UNSUPPORTED);
-  CHECK(memcmp(&before_counts, &saved_counts, sizeof(saved_counts)) == 0 &&
-        memcmp(&before_result, &result, sizeof(result)) == 0);
-  call->argument_count = saved_argument_count;
-
-  const uint32_t saved_module = call->resolved_kernel_module_index;
-  call->resolved_kernel_module_index =
-      W_SEED_ACCELERATED_INVOCATION0_NONE;
-  CHECK(w_seed_accelerated_invocation0_measure(&input, &saved_counts, &result) ==
-        W_SEED_ACCELERATED_INVOCATION0_UNSUPPORTED);
-  CHECK(memcmp(&before_counts, &saved_counts, sizeof(saved_counts)) == 0 &&
-        memcmp(&before_result, &result, sizeof(result)) == 0);
-  call->resolved_kernel_module_index = saved_module;
-
-  const w_seed_frontend_domain_kind saved_domain_kind = frontend.domains[0].kind;
-  frontend.domains[0].kind = W_SEED_FRONTEND_DOMAIN_HOST;
-  CHECK(w_seed_accelerated_invocation0_measure(&input, &saved_counts, &result) ==
-        W_SEED_ACCELERATED_INVOCATION0_UNSUPPORTED);
-  CHECK(memcmp(&before_counts, &saved_counts, sizeof(saved_counts)) == 0 &&
-        memcmp(&before_result, &result, sizeof(result)) == 0);
-  frontend.domains[0].kind = saved_domain_kind;
-
-  const w_seed_frontend_expr_kind saved_await_kind =
-      frontend.output.expressions[await_index].kind;
-  frontend.output.expressions[await_index].kind = W_SEED_FRONTEND_EXPR_INTEGER;
-  CHECK(w_seed_accelerated_invocation0_measure(&input, &saved_counts, &result) ==
-        W_SEED_ACCELERATED_INVOCATION0_UNSUPPORTED);
-  CHECK(memcmp(&before_counts, &saved_counts, sizeof(saved_counts)) == 0 &&
-        memcmp(&before_result, &result, sizeof(result)) == 0);
-  frontend.output.expressions[await_index].kind = saved_await_kind;
-
-  const w_seed_frontend_expression saved_extra = frontend.output.expressions[0];
-  frontend.output.expressions[0] = frontend.output.expressions[launch_index];
-  CHECK(w_seed_accelerated_invocation0_measure(&input, &saved_counts, &result) ==
-        W_SEED_ACCELERATED_INVOCATION0_UNSUPPORTED);
-  CHECK(memcmp(&before_counts, &saved_counts, sizeof(saved_counts)) == 0 &&
-        memcmp(&before_result, &result, sizeof(result)) == 0);
-  frontend.output.expressions[0] = saved_extra;
-
-  w_seed_accelerated_invocation0_output output = {
-      .invocations = negative.invocations,
-      .invocation_capacity = 0u,
-      .text = negative.text,
-      .text_capacity = sizeof(negative.text)};
-  (void)memset(&negative, 0x5a, sizeof(negative));
-  CHECK(w_seed_accelerated_invocation0_run(&input, &output, &result) ==
-        W_SEED_ACCELERATED_INVOCATION0_CAPACITY);
-  CHECK(all_bytes_equal(&negative, sizeof(negative), 0x5a));
-  output.invocations = NULL;
-  CHECK(w_seed_accelerated_invocation0_run(&input, &output, &result) ==
-        W_SEED_ACCELERATED_INVOCATION0_CAPACITY);
-
-  output = (w_seed_accelerated_invocation0_output){
-      .invocations = accelerated.invocations,
-      .invocation_capacity = 1u,
-      .text = (uint8_t *)(void *)accelerated.invocations,
-      .text_capacity = sizeof(accelerated.invocations)};
-  CHECK(w_seed_accelerated_invocation0_run(&input, &output, &result) ==
-        W_SEED_ACCELERATED_INVOCATION0_ALIAS);
-  CHECK(w_seed_accelerated_invocation0_verify(good_program, good_result));
-
-  w_seed_accelerated_invocation0_program forged = *good_program;
-  const uint32_t saved_index = accelerated.invocations[0].gpu_kernel_index;
-  accelerated.invocations[0].gpu_kernel_index = 1u;
-  CHECK(!w_seed_accelerated_invocation0_verify(&forged, good_result));
-  accelerated.invocations[0].gpu_kernel_index = saved_index;
-  const w_seed_span saved_span = accelerated.invocations[0].call_span;
-  accelerated.invocations[0].call_span.end_byte = saved_span.end_byte + 1u;
-  CHECK(!w_seed_accelerated_invocation0_verify(&forged, good_result));
-  accelerated.invocations[0].call_span = saved_span;
-  const uint32_t saved_capability = accelerated.invocations[0].domain_capabilities;
-  accelerated.invocations[0].domain_capabilities =
-      W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE;
-  CHECK(!w_seed_accelerated_invocation0_verify(&forged, good_result));
-  accelerated.invocations[0].domain_capabilities = saved_capability;
-  const uint8_t saved_text = accelerated.text[0];
-  accelerated.text[0] = (uint8_t)'?';
-  CHECK(!w_seed_accelerated_invocation0_verify(&forged, good_result));
-  accelerated.text[0] = saved_text;
-  w_seed_accelerated_invocation0_result forged_result = *good_result;
-  forged_result.semantic_digest[0] ^= UINT8_C(1);
-  CHECK(!w_seed_accelerated_invocation0_verify(good_program, &forged_result));
-  CHECK(w_seed_accelerated_invocation0_verify(good_program, good_result));
-  return true;
+static void test_hash_bytes(w_seed_sha256_state *state, const uint8_t *bytes,
+                            size_t count) {
+  test_hash_u64(state, (uint64_t)count);
+  if (count != 0u) w_seed_sha256_update(state, bytes, count);
 }
 
-static bool emit_request_artifact(
-    const char *path,
+static void test_text_digest(const char *text, size_t bytes,
+                             uint8_t digest[32]) {
+  w_seed_sha256_state state;
+  w_seed_sha256_init(&state);
+  test_hash_bytes(&state, (const uint8_t *)text, bytes);
+  w_seed_sha256_final(&state, digest);
+}
+
+static bool make_native_receipt(
     const w_seed_accelerated_request0_program *request_program,
-    const w_seed_accelerated_request0_result *request_result) {
-  CHECK(path != NULL && path[0] != '\0' &&
-        w_seed_accelerated_request0_verify(request_program, request_result));
+    const uint8_t *native_bytes, size_t native_byte_count,
+    w_seed_accelerated_provider0_artifact_receipt *receipt) {
+  CHECK(request_program != NULL && request_program->request_count == 1u &&
+        request_program->requests != NULL && request_program->text != NULL &&
+        native_bytes != NULL && native_byte_count != 0u && receipt != NULL);
   const w_seed_accelerated_request0_record *request =
       &request_program->requests[0];
-  CHECK(request->kernel_symbol_bytes <= (size_t)INT_MAX &&
-        request->kernel_symbol_offset <= request_program->text_bytes &&
-        request->kernel_symbol_bytes <=
-            request_program->text_bytes - request->kernel_symbol_offset);
-  FILE *existing = NULL;
-  if (open_file(&existing, path, "rb")) {
-    (void)fclose(existing);
-    return false;
-  }
-  FILE *file = NULL;
-  if (!open_file(&file, path, "wb")) return false;
-  bool okay = fwrite(request_program->device_artifact, 1u,
-                     request_program->device_artifact_bytes, file) ==
-                  request_program->device_artifact_bytes &&
-              fflush(file) == 0;
-  if (fclose(file) != 0) okay = false;
-  if (!okay) {
-    (void)remove(path);
-    return false;
-  }
-  const int printed = fprintf(
-      stdout,
-      "{\"schema\":\"%s\",\"kernel\":\"%.*s\",\"expected\":%ld,"
-      "\"deviceArtifactBytes\":%" PRIuMAX,
-      W_SEED_ACCELERATED_REQUEST0_SCHEMA_VERSION,
-      (int)request->kernel_symbol_bytes,
-      (const char *)request_program->text + request->kernel_symbol_offset,
-      (long)request->sentinel_expected_i32,
-      (uintmax_t)request_program->device_artifact_bytes);
-  if (printed < 0) {
-    (void)remove(path);
-    return false;
-  }
-  const struct {
-    const char *name;
-    const uint8_t *digest;
-  } digests[] = {
-      {"requestSemanticDigest", request_result->semantic_digest},
-      {"requestProvenanceDigest", request_result->provenance_digest},
-      {"bindingSemanticDigest", request->binding_semantic_digest},
-      {"bindingProvenanceDigest", request->binding_provenance_digest},
-      {"gpuSemanticIdentity", request->gpu_semantic_identity},
-      {"deviceArtifactIdentityDigest", request->device_artifact_identity_digest},
-      {"deviceArtifactDigest", request->device_artifact_digest},
-  };
-  for (size_t index = 0u; index < sizeof(digests) / sizeof(digests[0]);
-       index += 1u) {
-    if (fprintf(stdout, ",\"%s\":\"sha256:", digests[index].name) < 0) {
-      (void)remove(path);
-      return false;
-    }
-    for (size_t byte = 0u; byte < 32u; byte += 1u)
-      if (fprintf(stdout, "%02x", (unsigned int)digests[index].digest[byte]) <
-          0) {
-        (void)remove(path);
-        return false;
-      }
-    if (fputc('"', stdout) == EOF) {
-      (void)remove(path);
-      return false;
-    }
-  }
-  if (fputs("}\n", stdout) == EOF || fflush(stdout) != 0) {
-    (void)remove(path);
-    return false;
-  }
+  CHECK(request->target_offset <= request_program->text_bytes &&
+        request->target_bytes <=
+            request_program->text_bytes - request->target_offset &&
+        request->provider_class_offset <= request_program->text_bytes &&
+        request->provider_class_bytes <= request_program->text_bytes -
+            request->provider_class_offset);
+  const char *target = (const char *)request_program->text +
+                       request->target_offset;
+  const char *provider = (const char *)request_program->text +
+                         request->provider_class_offset;
+  (void)memset(receipt, 0, sizeof(*receipt));
+  (void)memcpy(receipt->schema,
+               W_SEED_ACCELERATED_PROVIDER0_ARTIFACT_RECEIPT_SCHEMA_VERSION,
+               sizeof(receipt->schema));
+  (void)memcpy(receipt->request_device_artifact_digest,
+               request->device_artifact_digest, 32u);
+  test_text_digest(target, request->target_bytes, receipt->target_digest);
+  test_text_digest(provider, request->provider_class_bytes,
+                   receipt->provider_abi_class_digest);
+  w_seed_sha256_state state;
+  w_seed_sha256_init(&state);
+  w_seed_sha256_update(&state, native_bytes, native_byte_count);
+  w_seed_sha256_final(&state, receipt->native_artifact_digest);
+  static const char link_tag[] =
+      "w-seed-accelerated-native-artifact-link-1";
+  w_seed_sha256_init(&state);
+  w_seed_sha256_update(&state, (const uint8_t *)link_tag,
+                       sizeof(link_tag) - 1u);
+  w_seed_sha256_update(&state, receipt->request_device_artifact_digest, 32u);
+  w_seed_sha256_update(&state, receipt->target_digest, 32u);
+  w_seed_sha256_update(&state, receipt->provider_abi_class_digest, 32u);
+  w_seed_sha256_update(&state, receipt->native_artifact_digest, 32u);
+  w_seed_sha256_final(&state, receipt->link_digest);
   return true;
 }
 
-static bool test_accelerated_invocation(const char *fixture_path,
-                                        const char *emit_path) {
-  char source[4096];
-  CHECK(read_file(fixture_path, source, sizeof(source)));
+bool w_seed_test_accelerated_provider0_make_request(
+    w_seed_accelerated_request0_program *request_program,
+    w_seed_accelerated_request0_result *request_result) {
+  if (request_program == NULL || request_result == NULL) return false;
+  const char source[] =
+      "module accelerated_invocation<kernels: { hello: kernel }>\n"
+      "fn kernel(): i32 { return 42 }\n"
+      "entry {\n"
+      "  let pending = spawn<.inference> hello()\n"
+      "  let result = await pending\n"
+      "}\n";
   CHECK(parse_frontend(source));
   w_seed_gpu_module_program gpu_program;
   w_seed_gpu_module_result gpu_result;
   (void)memset(&gpu_program, 0, sizeof(gpu_program));
   (void)memset(&gpu_result, 0, sizeof(gpu_result));
   CHECK(make_gpu_program(&gpu_program, &gpu_result));
-  w_seed_accelerated_invocation0_program program;
-  w_seed_accelerated_invocation0_result result;
-  (void)memset(&program, 0, sizeof(program));
-  CHECK(run_accelerated(&gpu_program, &gpu_result, &program, &result));
-  CHECK(check_identity_and_relations(&program));
-  CHECK(test_negative_boundaries(&gpu_program, &gpu_result, &program, &result));
-  w_seed_accelerated_request0_program request_program;
-  w_seed_accelerated_request0_result request_result;
-  CHECK(make_complete_request(&gpu_program, &gpu_result, &program, &result,
-                              &request_program, &request_result));
-
-  (void)memset(&frontend, 0, sizeof(frontend));
-  (void)memset(&gpu, 0, sizeof(gpu));
-  CHECK(w_seed_accelerated_invocation0_verify(&program, &result));
-  (void)memset(&accelerated, 0, sizeof(accelerated));
-  (void)memset(&negative, 0, sizeof(negative));
-  CHECK(w_seed_accelerated_request0_verify(&request_program, &request_result));
-  if (emit_path != NULL)
-    return emit_request_artifact(emit_path, &request_program, &request_result);
-  (void)printf("ACCINV0 source->frontend32->gpu-module-2->program: PASS\n");
-  (void)printf("ACCINV0 identities/spans/digests/teardown/negative barriers: PASS\n");
-  (void)printf("ACCREQ0 source-derived request/artifact/teardown: PASS\n");
-  return true;
+  w_seed_accelerated_invocation0_program invocation_program;
+  w_seed_accelerated_invocation0_result invocation_result;
+  (void)memset(&invocation_program, 0, sizeof(invocation_program));
+  (void)memset(&invocation_result, 0, sizeof(invocation_result));
+  CHECK(run_accelerated(&gpu_program, &gpu_result, &invocation_program,
+                        &invocation_result));
+  return make_complete_request(&gpu_program, &gpu_result, &invocation_program,
+                               &invocation_result, request_program,
+                               request_result);
 }
 
-int main(int argc, char **argv) {
-  if (argc == 2)
-    return test_accelerated_invocation(argv[1], NULL) ? 0 : 1;
-  if (argc == 4 && strcmp(argv[1], "--emit-request") == 0)
-    return test_accelerated_invocation(argv[2], argv[3]) ? 0 : 1;
-  (void)fprintf(stderr,
-                "usage: %s <gpu-module-fixture>\n"
-                "   or: %s --emit-request <gpu-module-fixture> <device.mlir>\n",
-                argv[0], argv[0]);
-  return 2;
+bool w_seed_test_accelerated_provider0_make_native_receipt(
+    const w_seed_accelerated_request0_program *request_program,
+    const uint8_t *native_bytes, size_t native_byte_count,
+    w_seed_accelerated_provider0_artifact_receipt *receipt) {
+  return make_native_receipt(request_program, native_bytes, native_byte_count,
+                             receipt);
 }

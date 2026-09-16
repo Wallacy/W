@@ -12,8 +12,8 @@
     "mlirVersion": "23.1.1",
     "clangVersion": "22.1.8",
     "recipe": "tooling/check-gpu0-cuda-windows.mjs",
-    "recipeDigest": "sha256:680bc7c2dd4eb353619b1fdcf9725a4668b056bd679f0e9f807da37a4e840f4f",
-    "adapterSourceDigest": "sha256:22e60f6318452135b5a00bd8acac3c3219449b877359660b1395eae5e4c53e76",
+    "recipeDigest": "sha256:a4a4d9add9935366a5995d5e209f1e82e75bfdb2945e7a1f98091e0c01dbe80b",
+    "adapterSourceDigest": "sha256:b0897cde1062252f1e94b328dea73a554f40559ce94f7074fdd02e8eab9cdfd7",
     "gpu0CoreDigest": "sha256:690b4b699f0fd74984fd7c62f5cc3316b0597899015bf3acf89b0b244c272ed1"
   },
   "correctness": {

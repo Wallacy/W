@@ -7,7 +7,6 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { defaultCacheDirectory } from "./acquire-mlir0-windows.mjs";
-import { CLANG_RELEASE_FLAGS } from "./executable-release-recipes.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const seed = path.join(root, "compiler", "seed-c");
@@ -210,8 +209,12 @@ try {
     build,
     `w_seed_accelerated_invocation0_tests${executableSuffix}`,
   );
-  const adapter = path.join(directory, "gpu0_cuda_windows.exe");
+  const adapter = path.join(
+    build,
+    `w_seed_gpu0_cuda_windows${executableSuffix}`,
+  );
   const device = path.join(directory, "device.mlir");
+  const requestMetadata = path.join(directory, "request.json");
   const deviceChecked = path.join(directory, "device.checked.mlir");
   const attached = path.join(directory, "device.attached.mlir");
   const lowered = path.join(directory, "device.lowered.mlir");
@@ -220,10 +223,6 @@ try {
   const llvm = path.join(directory, "device.ll");
   const ptx = path.join(directory, "device.ptx");
 
-  const strict = [
-    "-std=c23", "-Wall", "-Wextra", "-Wpedantic", "-Wconversion",
-    "-Wsign-conversion", "-Wshadow", "-Werror",
-  ];
   const cmake = Bun.which("cmake");
   const ninja = Bun.which("ninja");
   if (!cmake || !ninja) skip("CMake or Ninja is unavailable");
@@ -237,19 +236,14 @@ try {
   const seedBuild = run(cmake, [
     "--build", build, "--target", "w_seed_frontend_tests",
     "w_seed_accelerated_binding0_tests", "w_seed_gpu0_tests",
-    "w_seed_accelerated_invocation0_tests", "--parallel", "2",
+    "w_seed_accelerated_invocation0_tests", "w_seed_gpu0_cuda_windows",
+    "--parallel", "2",
   ], { label: "build integrated GPU0 seed route", env: buildEnvironment });
   requireSuccess(seedBuild, "build integrated GPU0 seed route");
   const unitRun = run(unit, [], { label: "run GPU0 unit" });
   requireSuccess(unitRun, "run GPU0 unit");
   if (unitRun.stdout !== unitSuccessOutput || unitRun.stderr !== "")
     fail(`unexpected GPU0 unit output: ${JSON.stringify(unitRun)}`);
-  const adapterCompile = run(clang, [
-    ...strict, ...CLANG_RELEASE_FLAGS,
-    path.join(seed, "tests", "gpu0_cuda_windows.c"), "-o", adapter,
-  ], { label: "compile GPU0 CUDA adapter" });
-  requireSuccess(adapterCompile, "compile GPU0 CUDA adapter");
-
   const fixture = path.join(seed, "fixtures", "accelerated-invocation0.w");
   const moduleFixture = path.join(seed, "fixtures", "gpu0-module.w");
   const frontendRun = run(frontendUnit, [moduleFixture], {
@@ -299,6 +293,7 @@ try {
       request.deviceArtifactBytes <= 0 ||
       request.deviceArtifactBytes !== emittedDevice.length)
     fail("accelerated request metadata violates its gate contract");
+  await writeFile(requestMetadata, emitted.stdout, { encoding: "utf8", flag: "wx" });
   const kernelSymbol = request.kernel;
   const expectedResult = String(request.expected);
   const duplicateEmission = run(requestEmitter, ["--emit-request", fixture, device], {
@@ -342,7 +337,9 @@ try {
         .test(ptxText))
     fail("PTX does not expose the expected GPU0 kernel and target");
 
-  const executed = run(adapter, [provider, ptx, kernelSymbol, expectedResult], {
+  const executed = run(adapter, [
+    provider, ptx, kernelSymbol, expectedResult, device, requestMetadata,
+  ], {
     label: "execute GPU0 CUDA kernel",
   });
   requireSuccess(executed, "execute GPU0 CUDA kernel");
@@ -350,18 +347,25 @@ try {
       executed.stderr !== "")
     fail(`unexpected GPU0 CUDA output: ${JSON.stringify(executed)}`);
 
-  const missing = run(adapter, [path.join(directory, "missing-provider.dll"), ptx, kernelSymbol, expectedResult], {
+  const missing = run(adapter, [
+    path.join(directory, "missing-provider.dll"), ptx, kernelSymbol,
+    expectedResult, device, requestMetadata,
+  ], {
     label: "missing GPU0 provider",
   });
   if (missing.status !== 2 || missing.stdout !== "" || missing.stderr.length === 0)
     fail("missing-provider adversarial did not fail closed");
-  const wrongKernel = run(adapter, [provider, ptx, "missing_kernel", "42"], {
+  const wrongKernel = run(adapter, [
+    provider, ptx, "missing_kernel", "42", device, requestMetadata,
+  ], {
     label: "missing GPU0 kernel",
   });
   if (wrongKernel.status !== 2 || wrongKernel.stdout !== "" || wrongKernel.stderr.length === 0)
     fail("missing-kernel adversarial did not fail closed");
   for (const invalid of ["not-i32", "01", "-0", "2147483648", "-2147483649"]) {
-    const invalidExpected = run(adapter, [provider, ptx, kernelSymbol, invalid], {
+    const invalidExpected = run(adapter, [
+      provider, ptx, kernelSymbol, invalid, device, requestMetadata,
+    ], {
       label: "invalid GPU0 expected result",
     });
     if (invalidExpected.status !== 2 || invalidExpected.stdout !== "" ||
@@ -369,7 +373,10 @@ try {
       fail(`invalid-expected-result adversarial did not fail closed: ${invalid}`);
   }
   const mismatchedResult = request.expected === 41 ? 42 : 41;
-  const wrongExpected = run(adapter, [provider, ptx, kernelSymbol, String(mismatchedResult)], {
+  const wrongExpected = run(adapter, [
+    provider, ptx, kernelSymbol, String(mismatchedResult), device,
+    requestMetadata,
+  ], {
     label: "mismatched GPU0 expected result",
   });
   if (wrongExpected.status !== 2 || wrongExpected.stdout !== "" ||
@@ -379,7 +386,8 @@ try {
   if (benchmarkMode) {
     const benchmark = run(adapter, [
       provider, ptx, kernelSymbol, expectedResult, "--benchmark",
-      String(benchmarkWarmups), String(benchmarkSamples),
+      String(benchmarkWarmups), String(benchmarkSamples), device,
+      requestMetadata,
     ], { label: "benchmark GPU0 CUDA kernel" });
     requireSuccess(benchmark, "benchmark GPU0 CUDA kernel");
     if (benchmark.stderr !== "") fail(`unexpected GPU0 benchmark stderr: ${JSON.stringify(benchmark.stderr)}`);

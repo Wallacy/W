@@ -23,10 +23,10 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:9b4a8f7bd486ed2492b34da717904b9203ad568518dfc3052f09720f1224cd21",
-    "count": 1629,
+    "sha256": "sha256:a1ab0d9208ee1972badc62163542cfc914ca9a2076e6b1a50282ed9bf4a44e43",
+    "count": 1630,
     "first": "W-001",
-    "last": "W-1629"
+    "last": "W-1630"
   },
   "epochs": [
     {
@@ -61,7 +61,7 @@
     }
   ],
   "preservedLegacyCoverage": {
-    "source": 294,
+    "source": 295,
     "oracle": 420,
     "explicit": 8,
     "overlap": 57
@@ -21869,7 +21869,7 @@
         "path": "DESIGN.md",
         "section": "26",
         "heading": "## 26. Plano de implementação",
-        "sectionDigest": "sha256:d6f5521d8a60e0e5634b628fbc98da8fb3ce7fdd5f2ecae043f7e7018cdf8cfc"
+        "sectionDigest": "sha256:0a12ad817323e00d6fc922df1dd0433174e75dcd1b5cee36cb02b54f9170ba92"
       },
       "evidence": [],
       "reason": "W-659 (body de entry, sha256:f66ab57406ddb51303f9190376daf72d8f538bd7bd8adfbf9992ae3d7223e74e) has no executable witness for component implementation-plan. The checked current contract is DESIGN.md §26 / 26. Plano de implementação.",
@@ -53189,7 +53189,7 @@
           "path": "compiler/seed-c/CMakeLists.txt",
           "symbol": "W_MLIR0_LINUX_LINK_DRIVER",
           "claim": "The opt-in Linux build requires an absolute linker that advertises elf_x86_64 support.",
-          "sha256": "sha256:ed6d38436cb61bb4651483e9ca8bff566fd7151c82e627db434e8d967e23deb0"
+          "sha256": "sha256:872a6466064294bf8df423158bf89d5b4d8ca833b2bced756a209455100e0b59"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -56491,13 +56491,13 @@
           "path": "tooling/check-gpu0-cuda-windows.mjs",
           "symbol": "flattenKernelModule",
           "claim": "The experimental gate lowers exactly one GPU0 device kernel and executes it through the available CUDA Driver provider.",
-          "sha256": "sha256:680bc7c2dd4eb353619b1fdcf9725a4668b056bd679f0e9f807da37a4e840f4f"
+          "sha256": "sha256:a4a4d9add9935366a5995d5e209f1e82e75bfdb2945e7a1f98091e0c01dbe80b"
         },
         {
           "path": "benchmarks/gpu0-device-linkage-catalog.json",
           "symbol": "metrics",
           "claim": "The isolated diagnostic catalog records temporary artifact sizes and in-process phase summaries without product ranking.",
-          "sha256": "sha256:18cb14f0fe9e3020cdd77cc75573910944a708a69c4dfb62bbc7c964fb4d8be7"
+          "sha256": "sha256:0ab3518ba49c7a1cbcb1a118af4138a2448b068009bc137fc442675dcdebed39"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -56612,7 +56612,7 @@
           "path": "compiler/seed-c/tests/test_accelerated_invocation0.c",
           "symbol": "source->frontend32->gpu-module-2->program: PASS",
           "claim": "The C23 fixture covers the real producer chain, teardown, capacities, aliases, and forged relations.",
-          "sha256": "sha256:8970bfcdde0014138d304c7ac2b81481faafd6ec6c5c813404f1a63e883dc971"
+          "sha256": "sha256:f319f1e323228dcc9848f1ab5fd1510f65b4e2c90c0ed83722c110273ce8a22c"
         },
         {
           "path": "tooling/check-accelerated-invocation0.mjs",
@@ -58235,6 +58235,71 @@
       ],
       "benchmarkDisposition": "compiler-lifecycle",
       "benchmarkEvidence": "No public product or performance benchmark result; current evidence is a private Windows x64 host resource release witness with correctness-only C23 checks."
+    },
+    {
+      "decisionId": "W-1630",
+      "summary": "bounded private provider-neutral GPU launch/join/result boundary",
+      "canonicalClaim": "ACCPROV0 schema `w-seed-accelerated-provider0-1` consumes one verified ACCREQ0 and caller-owned native artifact/receipt whose link binds the request device-artifact digest, target, provider ABI class, and native-artifact digest; its caller-owned state enforces the exact staged, submitted, device-running, body-settled, provider-drained, cleanup, outcome-committed, and joined lifecycle with every writable output bound before provider effect. The semantic outcome contains only the successful signed-i32 result shape/value and lifecycle order, while provider/target/device/queue/generation/status/timing facts remain in pointer-free physical provenance. Failure, device loss, stale generation, protocol mismatch, wrong result, false or malformed callback, or cleanup uncertainty publishes no semantic outcome and cannot be retried or double-cleaned. The existing Windows CUDA route exercises this boundary and preserves plumbing result 42; MLIR/NVVM/PTX materialization remains tooling-owned.",
+      "claimDigest": "sha256:9116bb842be399c0e44b1097287473c1d6c75f134906a7f2aff454caa4fd7927",
+      "category": "source-backed-current",
+      "basis": "linked-source-comparison-case",
+      "authorityRef": {
+        "kind": "source-case",
+        "path": "tooling/substitution-cases.json",
+        "caseId": "R0-accelerated-provider0",
+        "caseDigest": "sha256:6d68d96ac295268985d3054ac7412e10cdd5e3a35f2cca2e63a1151cacd56bd7"
+      },
+      "evidence": [
+        {
+          "kind": "source",
+          "path": "tooling/substitution-cases.json",
+          "caseId": "R0-accelerated-provider0",
+          "caseDigest": "sha256:6d68d96ac295268985d3054ac7412e10cdd5e3a35f2cca2e63a1151cacd56bd7"
+        }
+      ],
+      "reason": "W-1630 (bounded private provider-neutral GPU launch/join/result boundary, sha256:9116bb842be399c0e44b1097287473c1d6c75f134906a7f2aff454caa4fd7927) is source-backed-current only for the private target/provider-neutral ACCPROV0 core, reproducible native-artifact receipt, pre-effect validation and output binding, exact lifecycle, semantic/provenance separation, conservative callback and cleanup uncertainty, terminal retry barriers, producer teardown, adversarial fake-provider evidence, and the existing Windows x64 CUDA adapter path. The provider ABI class remains a provider-neutral compatibility requirement rather than concrete provider identity. Public GPU build/run, stable runtime/provider ABI, general scheduling/residency/cancellation, matrix/operator lowering, binary authentication, other providers/targets, benchmark results, and performance remain gaps.",
+      "selection": "explicit-ledger-id",
+      "basisRef": {
+        "kind": "ledger-row",
+        "path": "RATIONALE.md",
+        "section": "3. Ledger",
+        "decisionId": "W-1630",
+        "claimDigest": "sha256:9116bb842be399c0e44b1097287473c1d6c75f134906a7f2aff454caa4fd7927"
+      },
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_accelerated_provider0.h",
+          "symbol": "w_seed_accelerated_provider0_begin",
+          "claim": "ACCPROV0 defines the caller-owned request, native-artifact receipt, authority, semantic outcome, physical receipt, and exact lifecycle state.",
+          "sha256": "sha256:5d8baf22d35342a64bc3bd63eabd22aa9b6b8719fc285835afc0c9335a5ae304"
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_accelerated_provider0.c",
+          "symbol": "w_seed_accelerated_provider0_run",
+          "claim": "The target-neutral core preflights ranges and aliases, maps callback facts, commits only after drain and cleanup, and blocks retry after uncertainty.",
+          "sha256": "sha256:25ddf752a586ae441319aedfc4ed05e506aee0ed101f24e38f13843849378eb9"
+        },
+        {
+          "path": "compiler/seed-c/tests/test_accelerated_provider0.c",
+          "symbol": "test_provider0_boundary",
+          "claim": "Focused C23 coverage proves success, lifecycle faults, device loss, malformed callbacks, aliases, producer teardown, duplicate calls, cleanup uncertainty, and semantic/provenance separation.",
+          "sha256": "sha256:a6462eaf4e8358eee6dcc1ab46b7efe59a31f3d4170f860f0d3d1eadac8103b9"
+        },
+        {
+          "path": "compiler/seed-c/tests/gpu0_cuda_windows.c",
+          "symbol": "run_normal",
+          "claim": "The existing Windows CUDA adapter exercises the normal GPU0 path through ACCPROV0 and reuses the H2D, launch, synchronize, D2H, release, unload, and context-destroy sequence.",
+          "sha256": "sha256:b0897cde1062252f1e94b328dea73a554f40559ce94f7074fdd02e8eab9cdfd7"
+        },
+        {
+          "path": "tooling/check-gpu0-cuda-windows.mjs",
+          "symbol": "const executed = run(adapter",
+          "claim": "The real GPU0 gate builds the integrated adapter, binds the PTX receipt to ACCREQ0, and checks exact result 42 plus fail-closed provider/kernel cases.",
+          "sha256": "sha256:a4a4d9add9935366a5995d5e209f1e82e75bfdb2945e7a1f98091e0c01dbe80b"
+        }
+      ],
+      "benchmarkDisposition": "compiler-lifecycle",
+      "benchmarkEvidence": "No public product or performance benchmark result; current evidence is one private target-neutral provider boundary with a Windows x64 CUDA adapter and correctness-only C23/GPU checks."
     }
   ],
   "auditSamples": {

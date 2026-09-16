@@ -85,7 +85,7 @@ export function renderGpu0Catalog(value) {
   const metric = Object.fromEntries(value.metrics.map((entry) => [entry.id, entry]));
   return `# GPU0 device-linkage diagnostic\n\n` +
     `Experimental compiler/linkage evidence on ${value.identity.device} (${value.identity.target}, driver ${value.identity.driverVersion}). ` +
-    `Its device request is derived from the W fixture through ACCREQ0; it is not yet a complete W executable, a W runtime/provider, homogeneous toolchain support, or a product ranking.\n\n` +
+    `Its device request is derived from the W fixture through ACCREQ0 and the normal correctness path crosses private ACCPROV0; it is not yet a complete W executable, a W runtime/provider, homogeneous toolchain support, or a product ranking.\n\n` +
     `| Observation | Value |\n| --- | ---: |\n` +
     `| Correct result | ${value.correctness.observed} |\n` +
     `| H2D p50 / p95 | ${formatNanoseconds(metric.h2d.p50)} / ${formatNanoseconds(metric.h2d.p95)} |\n` +

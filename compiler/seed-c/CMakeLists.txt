@@ -52,6 +52,7 @@ add_library(w_seed_source STATIC
   include/w_seed_accelerated_invocation0.h
   include/w_seed_accelerated_binding0.h
   include/w_seed_accelerated_request0.h
+  include/w_seed_accelerated_provider0.h
   include/w_seed_scalar_evaluator0.h
   include/w_seed_wrt0.h
   include/w_seed_source_binding_linux.h
@@ -111,6 +112,7 @@ add_library(w_seed_source STATIC
   src/w_seed_accelerated_invocation0.c
   src/w_seed_accelerated_binding0.c
   src/w_seed_accelerated_request0.c
+  src/w_seed_accelerated_provider0.c
   src/w_seed_hir0.c
   src/w_seed_product_closure0.c
   src/w_seed_process0.c
@@ -633,6 +635,12 @@ add_executable(w_seed_accelerated_binding0_tests
 )
 target_link_libraries(w_seed_accelerated_binding0_tests PRIVATE w_seed_source)
 
+add_executable(w_seed_accelerated_provider0_tests
+  tests/test_accelerated_provider0_fixture.c
+  tests/test_accelerated_provider0.c
+)
+target_link_libraries(w_seed_accelerated_provider0_tests PRIVATE w_seed_source)
+
 add_executable(w_seed_hlo0_tests
   tests/test_hlo0.c
 )
@@ -672,6 +680,7 @@ target_link_libraries(w_seed_gpu0_tests PRIVATE w_seed_source)
 add_executable(w_seed_gpu0_cuda_windows
   tests/gpu0_cuda_windows.c
 )
+target_link_libraries(w_seed_gpu0_cuda_windows PRIVATE w_seed_source)
 
 add_executable(w_seed_native0_tests
   tests/test_native0.c
@@ -869,6 +878,7 @@ if(MSVC)
   target_compile_options(w_seed_frontend_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_accelerated_invocation0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_accelerated_binding0_tests PRIVATE /W4 /WX)
+  target_compile_options(w_seed_accelerated_provider0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_hlo0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_hlo0_gate PRIVATE /W4 /WX)
   target_compile_options(w_seed_hlo1_tests PRIVATE /W4 /WX)
@@ -1256,6 +1266,15 @@ else()
     -Wshadow
     -Werror
   )
+  target_compile_options(w_seed_accelerated_provider0_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
   target_compile_options(w_seed_constir_probe PRIVATE
     -Wall
     -Wextra
@@ -1513,6 +1532,8 @@ add_test(NAME w_seed_accelerated_invocation0_integration
 add_test(NAME w_seed_accelerated_binding0_integration
   COMMAND w_seed_accelerated_binding0_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/accelerated-invocation0.w)
+add_test(NAME w_seed_accelerated_provider0_unit
+  COMMAND w_seed_accelerated_provider0_tests)
 add_test(NAME w_seed_hlo0_unit COMMAND w_seed_hlo0_tests)
 add_test(NAME w_seed_hlo1_unit COMMAND w_seed_hlo1_tests)
 add_test(NAME w_seed_mlir0_unit COMMAND w_seed_mlir0_tests)

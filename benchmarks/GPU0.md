@@ -1,6 +1,6 @@
 # GPU0 device-linkage diagnostic
 
-Experimental compiler/linkage evidence on NVIDIA RTX A400 (sm_86, driver 581.42). Its device request is derived from the W fixture through ACCREQ0; it is not yet a complete W executable, a W runtime/provider, homogeneous toolchain support, or a product ranking.
+Experimental compiler/linkage evidence on NVIDIA RTX A400 (sm_86, driver 581.42). Its device request is derived from the W fixture through ACCREQ0 and the normal correctness path crosses private ACCPROV0; it is not yet a complete W executable, a W runtime/provider, homogeneous toolchain support, or a product ranking.
 
 | Observation | Value |
 | --- | ---: |

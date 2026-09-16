@@ -41459,6 +41459,75 @@ public `PanicEvent`/Task ABI behavior, execute native HIR, support another
 target, or provide performance evidence. Its `benchmarkDisposition` is
 `compiler-lifecycle`.
 
+#### 26.4.1.110 W-1630 — bounded private provider-neutral GPU launch/join/result boundary
+
+**Example:** one verified ACCREQ0 plus a matching native-artifact receipt
+produces signed-`i32` value `42` only after the eight lifecycle phases; a
+device-loss or uncertain-cleanup callback leaves the semantic outcome
+unpublished while its physical receipt records the terminal failure.
+
+ACCPROV0 schema `w-seed-accelerated-provider0-1` is a private,
+target/provider-neutral compiler-lifecycle boundary above one independently
+verified ACCREQ0. It consumes one caller-owned native artifact descriptor and
+bytes plus `w-seed-accelerated-native-artifact0-1`. The artifact receipt is
+reproducible from the ACCREQ0 device-artifact digest, target, provider ABI
+class, and native-artifact digest; the provider ABI class is a
+provider-neutral representation/compatibility requirement, not concrete
+provider instance identity. A process-local, compiler-owned authority binds
+one statically selected callback implementation and generation. This seal prevents an
+unbound token in the process, but it is not binary authentication,
+attestation, freshness, or registry trust.
+
+The core is caller-owned and has no hidden host heap. `begin` validates the
+authority, ACCREQ0, native artifact, receipt link, capacities, and every
+representable writable range before invoking the stage callback. It binds the
+exact outcome and receipt addresses into state. The stepwise submit, join, and
+destroy calls require those same addresses and the matching receipt, so no
+new writable range or replacement output can appear after a provider effect.
+The request, artifact, authority, callback context, and bound outputs must
+remain valid through destroy; ACCREQ0 itself is already copied and can outlive
+its source/frontend/GPU/invocation/binding producers.
+
+The normal lifecycle is exactly
+`staged → submitted → deviceRunning → bodySettled → providerDrained → cleanup
+→ outcomeCommitted → joined`. The semantic outcome publishes only the
+successful signed-`i32` result shape/value and this lifecycle/event order,
+with the ACCREQ0 semantic digest. It contains no concrete provider, target,
+device, queue, generation, raw status, timing, or handle. The pointer-free
+physical receipt carries provider ABI class, target, implementation identity,
+device, queue, generation, request/native digests, callback/phase/cleanup
+facts, raw provider status, and its provenance digest. Provider-specific
+identity changes therefore cannot change semantic identity.
+
+Provider failure, device loss, stale generation, protocol mismatch, callback
+false or malformed event, wrong result, and cleanup failure publish no
+semantic outcome. A callback that may have had an effect is treated
+conservatively even when it returns false or reports `effect_started=false`;
+cleanup is attempted at most once when safe. An uncertain post-effect or
+cleanup result becomes terminal, preventing retry or double cleanup. A
+successful outcome is committed only after provider drain and cleanup success;
+failure receipts remain physical evidence without publishing an outcome.
+
+The focused C23 provider witness uses a standalone fixture builder and an
+adversarial fake provider. It covers success and stepwise execution, each
+lifecycle fault, device loss, false/malformed callback events, wrong result,
+stale generation, wrong request/native digests, capacity and all output-pair
+aliases, exact-output substitution rejection, producer teardown, duplicate
+run/destroy calls, cleanup uncertainty, and unchanged semantic output on
+failure. It also proves that provider-specific provenance changes leave the
+semantic digest unchanged. The existing Windows CUDA adapter reuses the
+physical H2D → `cuLaunchKernel` → `cuCtxSynchronize` → D2H → free/unload/context
+destroy sequence through ACCPROV0 and preserves result `42`. MLIR → NVVM → PTX
+materialization remains tooling-owned; its PTX bytes are bound by the native
+artifact receipt.
+
+This is one private target-neutral core with one Windows x64 CUDA evidence
+adapter. It does not add a public GPU command, stable runtime/provider ABI,
+general scheduling/residency/cancellation, another provider or target,
+matrix/operator lowering, binary authentication, or a benchmark result. The
+permanent `42` value remains a plumbing sentinel only. Its
+`benchmarkDisposition` is `compiler-lifecycle`.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

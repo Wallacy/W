@@ -272,6 +272,7 @@ O corpus compara, no mínimo:
 - bounded GPU0 target-neutral semantic and available CUDA execution against source-backed W claims, provider/runtime conflation, homogeneous toolchains, and premature public product support.
 - bounded static accelerated root binding against embedded provider handles, multiplied budgets, and unauthenticated claims.
 - bounded provider-neutral accelerated request against producer lifetime coupling, identity substitution, mutable artifact references, and premature submission claims.
+- private provider-neutral GPU launch/join/result against provider identity leakage, late alias discovery, uncertain callback effects, and public-runtime overclaim.
 - measured task-relation storage against fixed HIR ceilings, host-width identity, provider-policy leakage, and partial publication.
 - measured parallel invocation storage against fixed arity arrays, call-site label order, host-width identity, and partial publication.
 - measured Windows parallel execution against fixed logical storage, provider-dependent outcomes, missed rendezvous states, and hidden scratch mutation.
@@ -7972,6 +7973,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1627 | bounded source-selected panic through the private local provider | PARPANIC1 schema `w-seed-parallel-panic-binding1-1` separately carries verified source-selected PARINV1 panic tasks through the existing process-local Windows PLATFORM1 authority and publishes one copied, independently verifiable private signal with no semantic value; semantic identity excludes provider capacity and physical receipt facts, which remain in a separate provenance digest, while PARPROV1/PARLIFE1 success-only and PARBIND1 typed-error semantics remain unchanged. | `source-backed-current` only for the bounded source-to-HIR/PARSEL1/PARINV1/PARPANIC1 Windows x64 compiler boundary, exact copied source and module identity, message and span preservation across teardown, complete provider receipt and local-authority revalidation, capacity and writable-range alias barriers, two-panic semantic equality with distinct provenance, no-panic non-publication, and focused C23 evidence. The local authority proves only the existing static process-local seal and receipt, not signature, attestation, freshness, registry trust, or native-HIR execution. Public `PanicEvent`, Task ABI/runtime, cleanup or general teardown, other targets/providers, native HIR execution, public product, benchmark, and performance claims remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1628 | bounded private panic lifecycle decision | PANICLIFE1 schema `w-seed-parallel-panic-lifecycle1-1` is a separate target-neutral private bridge above a verified PARPANIC1 view. It publishes one caller-owned panic decision and exactly three ordered semantic events, with no normal outcome, and keeps source/provider/receipt facts only in provenance. | `source-backed-current` only for the bounded PANICLIFE1 decision, copied message and event publication, deterministic PARPANIC1 primary consumption, semantic identity across upstream capacities one and two, provenance separation, rederived no-panic classification, all-or-nothing output and result preservation, complete representable writable-range barriers, upstream forgery rejection, and teardown-readable output. PANICLIFE1 has no provider call or own workspace. PANICBOUNDARY1, resource-registry evaluation, `PanicEvent`, Task ABI/runtime, native HIR execution, cleanup, portability, public product, benchmark, and performance remain gaps. Upstream runtime evidence is Windows x64, while this bridge is target-neutral. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1629 | private Windows x64 host resource release witness | PANICHOSTREG1 schema `w-seed-parallel-panic-host-registry1-1` is a private Windows x64 host bridge above a verified PANICLIFE1 view. Its caller-owned authority creates exactly one anonymous, non-inheritable Win32 event, owns it from successful `CreateEventW`, and publishes one semantic `EVENT` record with ordered registration and close-commit events after one successful `CloseHandle`. Pre-close failure preserves `REGISTERED` for destroy, while a false or uncertain post-attempt result is terminal `UNCERTAIN` without retry or double-close. The raw handle stays out of published outputs and digests, while physical facts remain in provenance. | `source-backed-current` only for the private Windows x64 event creation and one-close release witness, PANICLIFE1 correlation, semantic equality across upstream capacities one and two, provenance separation, caller-owned transactional records, pre-effect validation, uncertainty and destroy states, complete representable alias barriers, and focused C23 evidence. Capacity one is an evidence ceiling, not a language or runtime limit. PANICBOUNDARY1, a general registry, arbitrary external handles, user defer/deinit, OS-object destruction, runtime/public PanicEvent or Task ABI, native HIR execution, other targets, benchmark, and performance claims remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1630 | bounded private provider-neutral GPU launch/join/result boundary | ACCPROV0 schema `w-seed-accelerated-provider0-1` consumes one verified ACCREQ0 and caller-owned native artifact/receipt whose link binds the request device-artifact digest, target, provider ABI class, and native-artifact digest; its caller-owned state enforces the exact staged, submitted, device-running, body-settled, provider-drained, cleanup, outcome-committed, and joined lifecycle with every writable output bound before provider effect. The semantic outcome contains only the successful signed-i32 result shape/value and lifecycle order, while provider/target/device/queue/generation/status/timing facts remain in pointer-free physical provenance. Failure, device loss, stale generation, protocol mismatch, wrong result, false or malformed callback, or cleanup uncertainty publishes no semantic outcome and cannot be retried or double-cleaned. The existing Windows CUDA route exercises this boundary and preserves plumbing result 42; MLIR/NVVM/PTX materialization remains tooling-owned. | `source-backed-current` only for the private target/provider-neutral ACCPROV0 core, reproducible native-artifact receipt, pre-effect validation and output binding, exact lifecycle, semantic/provenance separation, conservative callback and cleanup uncertainty, terminal retry barriers, producer teardown, adversarial fake-provider evidence, and the existing Windows x64 CUDA adapter path. The provider ABI class remains a provider-neutral compatibility requirement rather than concrete provider identity. Public GPU build/run, stable runtime/provider ABI, general scheduling/residency/cancellation, matrix/operator lowering, binary authentication, other providers/targets, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -13673,3 +13675,74 @@ x64 compiler-lifecycle correctness witness with a single-resource ceiling.
 It does not prove PANICBOUNDARY1, a general registry, external-handle
 registration, user `defer`/`deinit`, OS-object destruction, a runtime or public
 `PanicEvent`/Task ABI, native HIR execution, another target, or performance.
+
+#### W-1630 — bounded private provider-neutral GPU launch/join/result boundary
+
+ACCPROV0 closes the next private compiler-lifecycle seam after ACCREQ0. The
+core consumes one independently verified, caller-owned ACCREQ0 and one
+caller-owned native artifact descriptor/byte range. The accompanying
+`w-seed-accelerated-native-artifact0-1` receipt recomputes target and provider
+ABI-class digests, the native-artifact digest, and a link digest over those
+facts plus the ACCREQ0 device-artifact digest. The provider ABI class is the
+provider-neutral representation/compatibility requirement already carried by
+ACCBIND0/ACCREQ0; it is not a concrete provider instance identity.
+
+The authority is process-local and compiler-owned. It copies one static
+implementation identity and generation and seals the callback vtable/context
+binding. That authority is deliberate selection and lifetime evidence only;
+the seal is not a signature, binary authentication, attestation, freshness
+proof, or registry trust. The core has no hidden host allocation. `begin`
+preflights verified request/artifact/authority data, bounded text and artifact
+capacity, and all representable aliases between the input graph, state,
+outcome, and receipt. It then binds the exact outcome and receipt addresses.
+The stepwise API accepts only those addresses and the matching receipt, so a
+caller cannot introduce a new writable range after stage/submit/join has had
+an effect. Request, artifact, authority, callback context, and bound outputs
+remain caller-owned and live until `destroy` completes.
+
+The state machine is deliberately exact:
+`staged → submitted → deviceRunning → bodySettled → providerDrained → cleanup
+→ outcomeCommitted → joined`. `begin` performs the stage callback; submit and
+join are separate callbacks; destroy performs the one cleanup callback and,
+only when drain and cleanup both succeed, commits the outcome and final join
+phases. The semantic outcome has only the signed-`i32` result shape/value,
+ACCREQ0 semantic digest, and phase order. The physical receipt is separate and
+pointer-free: it retains provider ABI class, target, implementation identity,
+device, queue, generation, request/native digests, phase/callback/cleanup
+facts, raw provider status, and a provenance digest. Changing those physical
+identities changes provenance but not semantic digest.
+
+The failure rule is conservative because a callback can have effects before
+returning. A false return or invalid event shape is not evidence of
+`effect_started=false`; after an attempted callback the state requires one
+safe cleanup attempt. Device loss, stale generation, provider failure,
+protocol mismatch, wrong result, and cleanup false/uncertain produce no
+semantic result. An uncertain post-effect or cleanup outcome is terminal, so
+retry and double cleanup are impossible. Failure may update the physical
+receipt, but the caller's semantic outcome remains unpublished.
+
+The adversarial C23 unit uses a standalone fixture builder rather than
+including the upstream invocation test. It covers success and stepwise use,
+each lifecycle fault, `DEVICE_LOST`, callback false and malformed events,
+wrong result, stale generation, wrong request/native digests, capacity,
+outcome↔input and every output-pair alias, exact-output substitution after
+begin, producer teardown before provider execution, cleanup false/uncertain,
+duplicate run/destroy calls, unchanged semantic outcome on all failures, and
+provider-specific provenance changes with an unchanged semantic digest.
+
+The real normal GPU0 check now reuses `gpu0_cuda_windows.c` through ACCPROV0.
+The adapter still dynamically loads `nvcuda.dll` and executes the existing
+H2D → `cuLaunchKernel` → `cuCtxSynchronize` → D2H → device free/module unload/
+context destroy sequence. The external MLIR → NVVM → PTX materialization stays
+tooling-owned, while the native-artifact receipt binds the PTX bytes to the
+ACCREQ0 artifact digest, target, and provider ABI class. The observed result is
+the existing plumbing sentinel `42`, not a new benchmark or public support
+claim. Focused GCC/CMake and strict Clang C23 checks, the provider unit, and
+`bun check --target gpu0` are correctness evidence only.
+
+This bundle does not add public `w run`/`w build` GPU reachability, a stable
+runtime/provider ABI, general result buffers/shapes, residency, scheduling,
+cancellation, matrix/operator lowering, another provider/target, or binary
+authentication. The target-neutral core is evidence that this boundary can be
+implemented without provider identity entering semantic output; the only
+physical implementation evidence in this cut is Windows x64 CUDA.

@@ -343,7 +343,9 @@ both producer lifetimes. Measure, emission and bridging fail closed on aliases,
 short capacity, malformed producers and forged records or digests. This is a
 provider-neutral compiler boundary, not a submission API: it contains no
 provider handle, CUDA call, queue operation, completion receipt or public ABI,
-and the existing CUDA adapter does not yet consume it.
+and the existing CUDA adapter consumes it only through the private ACCPROV0
+boundary described below. The provider-class field remains a provider-neutral
+compatibility requirement, not concrete provider identity.
 
 O seed materializa `Bool`, inteiros bounded (incluindo `usize`), strings simples
 sem escape, cases enum contextuais e `StaticList` caller-owned. Inteiros usam
@@ -2624,6 +2626,49 @@ ACCREQ0-derived GPU0 artifact/CUDA experiment. This package still does not imple
 typed `.launch`, a W runtime/provider, public GPU build/run, a supported GPU
 ABI, or a homogeneous pinned production toolchain. Those boundaries keep
 roadmap rank 1 open.
+
+### Private provider-neutral GPU launch/join/result boundary (W-1630)
+
+`w_seed_accelerated_provider0` (ACCPROV0) consumes exactly one verified,
+caller-owned ACCREQ0 and one caller-owned provider-native artifact descriptor,
+bytes, and reproducibility receipt. The receipt binds the ACCREQ0
+device-artifact digest, target, provider ABI class, and native-artifact digest.
+The core has no hidden host heap. A process-local compiler-owned authority
+selects one statically bound callback implementation and generation; its seal
+is an accidental-unbinding guard, not binary authentication or attestation.
+
+`begin` validates the complete request/artifact/authority envelope, capacities,
+and all representable writable aliases before stage, then binds the exact
+outcome and receipt addresses. Stepwise submit, join, and destroy require those
+same addresses and receipt, so no new writable range can appear after an
+effect. The state machine is exactly
+`staged → submitted → deviceRunning → bodySettled → providerDrained → cleanup
+→ outcomeCommitted → joined`. The outcome publishes only the successful
+signed-`i32` value/result shape, ACCREQ0 semantic digest, and lifecycle order.
+Provider ABI class, target, implementation, device, queue, generation, raw
+status, request/native digests, and cleanup facts remain in a separate
+pointer-free physical receipt.
+
+Provider failure, `DEVICE_LOST`, stale generation, protocol mismatch, wrong
+result, false/malformed callback, or cleanup false/uncertain publishes no
+semantic outcome. A possibly effectful callback is treated conservatively even
+when it returns false or reports `effect_started=false`; cleanup is attempted
+once when safe, and an uncertain post-effect/cleanup state is terminal so
+retry and double cleanup are impossible. The focused C23 fake-provider suite
+also proves capacities, outcome↔input and every output-pair alias, exact-output
+substitution rejection, unchanged failure outcomes, producer teardown, and
+unchanged semantic digest under provider-specific provenance changes.
+
+The normal `bun check --target gpu0` route reuses the existing
+`gpu0_cuda_windows.c` adapter through ACCPROV0. Its physical sequence remains
+H2D → `cuLaunchKernel` → `cuCtxSynchronize` → D2H → free/unload/context destroy
+and returns the existing plumbing sentinel `42`. External MLIR → NVVM → PTX
+materialization remains tooling-owned, with the PTX bytes bound by the native
+artifact receipt. This is private Windows x64 CUDA evidence plus a
+target-neutral core; it is not public GPU build/run, a stable runtime/provider
+ABI, general residency/scheduling/cancellation, matrix/operator lowering, or
+support for another provider or target. `benchmarkDisposition` remains
+`compiler-lifecycle`; no new benchmark result is published.
 
 ### Closed local payloadless enum exhaustive switch (W-1563)
 

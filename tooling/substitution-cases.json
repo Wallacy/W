@@ -10375,6 +10375,80 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-accelerated-provider0",
+      "reviewItem": "private provider-neutral GPU launch/join/result against provider identity leakage, late alias discovery, uncertain callback effects, and public-runtime overclaim",
+      "decisions": [
+        "W-1630"
+      ],
+      "task": "Prove one bounded private ACCPROV0 launch/join/result lifecycle consuming verified ACCREQ0 and a reproducible native artifact without exposing concrete provider identity in semantic output.",
+      "selected": {
+        "language": "w-internal",
+        "source": [
+          "ACCPROV0 consumes exactly one verified ACCREQ0 and caller-owned native artifact descriptor/bytes; its reproducibility receipt binds the request device-artifact digest, target, provider ABI class, and native-artifact digest",
+          "begin preflights every caller-owned input/output range and alias, binds the exact outcome and receipt addresses, and the core has no hidden host heap; later stepwise calls cannot introduce a writable range after provider effect",
+          "the exact staged, submitted, device-running, body-settled, provider-drained, cleanup, outcome-committed, and joined order is recorded semantically, while provider class, target, implementation, device, queue, generation, raw status, digests, and cleanup facts stay in pointer-free provenance",
+          "false or malformed callbacks, provider failure, device loss, stale generation, protocol mismatch, wrong result, and cleanup failure are fail-closed; an attempted effect receives at most one cleanup and terminal state prevents retry or double cleanup",
+          "the normal Windows CUDA adapter reuses H2D, launch, synchronize, D2H, free, unload, and context-destroy through ACCPROV0; MLIR/NVVM/PTX remains tooling-owned and the existing plumbing sentinel remains 42"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "late-output-preflight",
+          "language": "w-internal-rejected",
+          "source": [
+            "let stepwise destroy discover or substitute the outcome/receipt writable ranges after submit or join"
+          ],
+          "expectedDifference": "begin preflights all writable ranges and binds both output addresses before stage; later steps accept only those exact addresses."
+        },
+        {
+          "name": "trust-false-event",
+          "language": "w-internal-rejected",
+          "source": [
+            "trust callback false or an invalid event shape, including effect_started=false, to skip cleanup"
+          ],
+          "expectedDifference": "Every attempted provider callback is treated conservatively as effect-capable; cleanup is attempted once when safe and uncertainty becomes terminal."
+        },
+        {
+          "name": "publish-provider-identity",
+          "language": "w-internal-rejected",
+          "source": [
+            "include concrete provider, target, device, queue, generation, raw status, or timing in semantic result identity"
+          ],
+          "expectedDifference": "The signed-i32 value/result shape and lifecycle order are semantic; concrete physical facts remain in the separate receipt."
+        },
+        {
+          "name": "retry-uncertain-effect",
+          "language": "w-internal-rejected",
+          "source": [
+            "retry a callback or cleanup after a post-submit effect is false, malformed, failed, or uncertain"
+          ],
+          "expectedDifference": "The state is terminal after uncertain effect or cleanup, so no retry or double cleanup is possible."
+        },
+        {
+          "name": "fake-provider-route",
+          "language": "w-internal-rejected",
+          "source": [
+            "add a second fake physical route instead of exercising the existing CUDA adapter"
+          ],
+          "expectedDifference": "The normal GPU0 correctness path uses the existing dynamic CUDA Driver sequence through ACCPROV0; the fake provider is unit-only state-machine evidence."
+        },
+        {
+          "name": "public-gpu-runtime",
+          "language": "w-internal-rejected",
+          "source": [
+            "promote the private boundary to public w run/build, a stable GPU ABI, general residency/scheduling, or support for another provider/target"
+          ],
+          "expectedDifference": "W-1630 closes only compiler-lifecycle correctness for one private target-neutral core and one Windows CUDA evidence adapter."
+        }
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

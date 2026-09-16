@@ -29,7 +29,7 @@ not in this queue.
 | 1 | Accelerated-domain GPU Hello sentinel | Canonical `module ...<kernels: { label: directFunction }>` plus `spawn<domain> label()`, with an accelerated domain, crosses verified W IR into separate host/device artifacts, binds the root-owned launch relation, then launches and joins through a supported provider and verifies a known payload on the available GPU; end-to-end, dispatch, and transfer metrics stay separate | Tests the common source surface, CPU/device partitioning and MLIR GPU applicability before scheduler and memory abstractions harden |
 | 2 | Capacity-independent task storage | Replace the seed one-to-four logical-task arrays with measured caller-owned records; logical task count and physical worker capacity remain separate; configured exhaustion fails before effects | Removes an implementation ceiling before scheduler generalization |
 | 3 | Structured cancellation and outcomes | Request, propagation, cleanup drain, typed failure, panic boundary, and deterministic outcome publication execute through the same native route | A usable structured-concurrency core rather than successful scalar jobs only |
-| 4 | Provider-neutral scheduler core | Target-neutral ready/task/frame state lowers once; Windows and Linux providers supply only platform primitives and cached topology/capacity facts | Portable concurrency without a platform-shaped language ABI |
+| 4 | Provider-neutral scheduler core | Target-neutral ready/task/frame state lowers once; capability-selected providers supply only platform primitives and cached topology/capacity facts. The contract must remain implementable across Windows, Linux, macOS, iOS, Android, WebAssembly and future viable targets; evidence from one host never narrows that universe | Portable concurrency without a platform-shaped language ABI |
 | 5 | Resource-bearing enum and ownership slice | `Result`-like payload enum, exhaustive match, move, borrow, cleanup, typed success/failure, and adversarial rejection execute natively | Concrete memory-management invariants for general aggregates and tasks |
 | 6 | General verified HIR and lowering | Expand types, calls, CFG, ownership/effects, and diagnostics in small executable slices while preserving independent verification | Moves from bounded demonstrations toward ordinary programs |
 | 7 | Closed-graph optimizer and static closure | Whole-module is the minimum optimized region; proved package/workspace/product closure internalizes and eliminates unused WRT/std/provider code without changing observable roots | Generalizes the optimization rules first exercised by the Hello sentinel |
@@ -104,13 +104,29 @@ device artifact plus its semantic and physical identities into a
 provider-neutral request that survives both producer lifetimes. The physical
 gate now obtains the device MLIR, kernel symbol, and canonical signed-`i32`
 expectation from that verified ACCREQ0, then proves a valid mismatch after
-execution; the CUDA adapter remains a private process boundary. Runtime/provider launch/join/result,
+execution; the CUDA adapter remains a private process boundary. General
+runtime/provider launch/join/result,
 public GPU build/run, qualified/imported-invocation HIR, and a supported GPU ABI remain open;
 rank 1 therefore stays open until those public and physical boundaries have
 evidence. The explicit
 `Launch<Module>` route
 remains the later dynamic path, not the common static syntax. Only then does the
 queue generalize task storage, cancellation, and scheduling.
+
+W-1630 now closes one bounded private ACCPROV0 launch/join/result boundary
+above verified ACCREQ0. The target/provider-neutral core binds all caller-owned
+outcome and receipt ranges before stage and records the exact
+`staged → submitted → deviceRunning → bodySettled → providerDrained → cleanup
+→ outcomeCommitted → joined` lifecycle. Its semantic output contains only the
+successful signed-`i32` value/result shape and lifecycle order; provider class,
+target, implementation, device, queue, generation, raw status, digests, and
+cleanup facts remain in pointer-free provenance. Failure, device loss, stale
+generation, protocol mismatch, wrong result, callback uncertainty, or cleanup
+uncertainty publishes no semantic result and prevents retry/double cleanup.
+The existing Windows CUDA adapter exercises this boundary and preserves the
+plumbing sentinel `42`; external MLIR → NVVM → PTX remains tooling-owned.
+This is compiler-lifecycle correctness evidence only, with no public GPU
+runtime/ABI or other provider/target claim.
 W-1597 remains a legality certificate only; target policy must still combine it
 with observability and cost facts and compare any direct-call artifact with the
 W-1600 physical reference.
