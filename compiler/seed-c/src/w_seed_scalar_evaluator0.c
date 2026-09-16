@@ -212,13 +212,17 @@ static bool scalar_evaluate_value(const w_seed_hir0_program *program,
                                   result);
     case W_SEED_HIR0_VALUE_UNARY_I64: {
       int64_t operand = 0;
-      if (value->unary_operator != W_SEED_HIR0_UNARY_NEGATE ||
+      if ((value->unary_operator != W_SEED_HIR0_UNARY_NEGATE &&
+           value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT) ||
           !scalar_evaluate_value(program, value->left_value, parameters,
-                                 parameter_count, depth + 1u, budget,
-                                 &operand) ||
-          operand == INT64_MIN)
+                                 parameter_count, depth + 1u, budget, &operand))
         return false;
-      *result = -operand;
+      if (value->unary_operator == W_SEED_HIR0_UNARY_NEGATE) {
+        if (operand == INT64_MIN) return false;
+        *result = -operand;
+      } else {
+        *result = ~operand;
+      }
       return true;
     }
     case W_SEED_HIR0_VALUE_BINARY_I64: {

@@ -1033,7 +1033,8 @@ static frontend_const_infer_value const_infer_prefix(
   frontend_token token;
   if (cursor_peek(&parser->cursor, &token) &&
       (token_text(parser->document, &token, "!") ||
-       token_text(parser->document, &token, "-"))) {
+       token_text(parser->document, &token, "-") ||
+       token_text(parser->document, &token, "~"))) {
     (void)cursor_take(&parser->cursor, &token);
     frontend_const_infer_value nested = const_infer_prefix(parser);
     if (!nested.valid) return nested;
@@ -14073,14 +14074,18 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
     return true;
   }
   if (token_text(parser->document, &token, "!") ||
-      token_text(parser->document, &token, "-")) {
+      token_text(parser->document, &token, "-") ||
+      token_text(parser->document, &token, "~")) {
     (void)cursor_take(&parser->cursor, &token);
     frontend_expr_value nested;
     if (!expression_parse_prefix(parser, &nested)) return false;
     const w_seed_span span = {token.span.start_byte, nested.span.end_byte};
-    const bool valid = token_text(parser->document, &token, "!")
-                           ? type_is_bool(nested.type)
-                           : type_is_numeric(nested.type);
+    const bool logical = token_text(parser->document, &token, "!");
+    const bool bitwise = token_text(parser->document, &token, "~");
+    const bool valid = logical ? type_is_bool(nested.type)
+                               : (bitwise ? nested.type.kind ==
+                                                W_SEED_FRONTEND_TYPE_INTEGER
+                                          : type_is_numeric(nested.type));
     if (!valid) {
       (void)context_append_fact(parser->context,
                                 W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
@@ -14092,7 +14097,7 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
               : W_SEED_FRONTEND_EXPR_UNSUPPORTED,
         span, text_from_span(parser->document, span),
         text_from_span(parser->document, token.span),
-        token_text(parser->document, &token, "!")
+        logical
             ? simple_type_from_view((w_seed_frontend_text){"Bool", 4})
             : nested.type,
         nested.supported && valid, nested.index,

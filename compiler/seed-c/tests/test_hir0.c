@@ -12644,6 +12644,36 @@ static bool test_i64_unary_negate_positive(void) {
   return true;
 }
 
+static bool test_i64_unary_bit_not_positive(void) {
+  static const char SOURCE[] =
+      "fn invert(value: i64): i64 { return ~value }\n"
+      "entry(invert)\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 1u && program->block_count == 1u &&
+        program->value_count == 2u &&
+        program->terminators[0].kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        program->terminators[0].value_index == 1u);
+  CHECK(program->values[0].kind == W_SEED_HIR0_VALUE_PARAMETER_READ &&
+        program->values[0].type_index == W_SEED_HIR0_TYPE_I64 &&
+        program->values[0].owner_kind == W_SEED_HIR0_VALUE_OWNER_UNARY &&
+        program->values[0].owner_index == 1u &&
+        program->values[1].kind == W_SEED_HIR0_VALUE_UNARY_I64 &&
+        program->values[1].unary_operator == W_SEED_HIR0_UNARY_BIT_NOT &&
+        program->values[1].type_index == W_SEED_HIR0_TYPE_I64 &&
+        program->values[1].left_value == 0u);
+
+  const w_seed_hir0_value saved = fixture.hir_values[1];
+  fixture.hir_values[1].unary_operator = W_SEED_HIR0_UNARY_NOT;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[1] = saved;
+  fixture.hir_values[1].type_index = W_SEED_HIR0_TYPE_BOOL;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[1] = saved;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_direct_i64_unary_interpolation(void) {
   static const char SOURCE[] =
       "entry { print(message: \"Balance ${-7}\", suffix: \"\") }\n";
@@ -13413,6 +13443,7 @@ int main(int argc, char **argv) {
   if (!test_short_entry_hir()) return 1;
   if (!test_signed_comparison_values()) return 1;
   if (!test_signed_bitwise_values()) return 1;
+  if (!test_i64_unary_bit_not_positive()) return 1;
   if (!test_canonical_and_copy_boundary()) return 1;
   if (!test_semantic_and_provenance_digests()) return 1;
   if (!test_function_parameter_records()) return 1;

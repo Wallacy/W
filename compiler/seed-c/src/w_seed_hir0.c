@@ -3210,7 +3210,8 @@ static bool frontend_loop_scalar_tree_ok(
     return value->left != W_SEED_FRONTEND_NONE &&
            value->right == W_SEED_FRONTEND_NONE &&
            (text_is(value->operator_text, "!") ||
-            text_is(value->operator_text, "-")) &&
+            text_is(value->operator_text, "-") ||
+            text_is(value->operator_text, "~")) &&
            frontend_unary_has_no_resolution(value) &&
            frontend_loop_scalar_tree_ok(input, module_index, function_index,
                                         document_index, value->left,
@@ -3335,16 +3336,19 @@ static bool frontend_scalar_if_tree_ok(
   if (value->kind == W_SEED_FRONTEND_EXPR_UNARY) {
     const bool logical_not = text_is(value->operator_text, "!");
     const bool numeric_negate = text_is(value->operator_text, "-");
+    const bool bit_not = text_is(value->operator_text, "~");
     return ((logical_not && frontend_expression_is_bool(output, value)) ||
-            (numeric_negate && frontend_expression_is_i64(output, value))) &&
+            ((numeric_negate || bit_not) &&
+             frontend_expression_is_i64(output, value))) &&
            !value->has_bool_value && !value->has_integer_value &&
            value->right == W_SEED_FRONTEND_NONE &&
            value->left != W_SEED_FRONTEND_NONE &&
            (size_t)value->left < input->frontend_result->written.expressions &&
            ((logical_not && frontend_expression_is_bool(
                                 output, &output->expressions[value->left])) ||
-            (numeric_negate && frontend_expression_is_i64(
-                                   output, &output->expressions[value->left]))) &&
+            ((numeric_negate || bit_not) &&
+             frontend_expression_is_i64(
+                 output, &output->expressions[value->left]))) &&
            frontend_scalar_if_tree_ok(input, module_index, function_index,
                                       document_index, value->left,
                                       allow_logical, depth + 1u);
@@ -3501,7 +3505,8 @@ static bool frontend_value_tree_ok(
   if (value->kind == W_SEED_FRONTEND_EXPR_UNARY) {
     const bool logical_not = text_is(value->operator_text, "!");
     const bool numeric_negate = text_is(value->operator_text, "-");
-    if ((!logical_not && !numeric_negate) ||
+    const bool bit_not = text_is(value->operator_text, "~");
+    if ((!logical_not && !numeric_negate && !bit_not) ||
         value->left == W_SEED_FRONTEND_NONE ||
         (size_t)value->left >= result->written.expressions ||
         value->right != W_SEED_FRONTEND_NONE ||
@@ -4686,7 +4691,8 @@ static bool frontend_i64_merge_value_shape(
                                           assigned_count, allowed_binding,
                                           depth + 1u);
   if (value->kind == W_SEED_FRONTEND_EXPR_UNARY)
-    return text_is(value->operator_text, "-") &&
+    return (text_is(value->operator_text, "-") ||
+            text_is(value->operator_text, "~")) &&
            frontend_i64_merge_value_shape(output, result, function,
                                           if_statement, value->left, assigned,
                                           assigned_count, allowed_binding,
@@ -10866,13 +10872,14 @@ static uint32_t hir0_emit_value_m2(
     const uint32_t result = (uint32_t)*context->value_index;
     w_seed_hir0_value *target = &context->output->values[*context->value_index];
     const bool numeric_negate = text_is(source->operator_text, "-");
+    const bool bit_not = text_is(source->operator_text, "~");
     *target = (w_seed_hir0_value){
-        .kind = numeric_negate ? W_SEED_HIR0_VALUE_UNARY_I64
-                               : W_SEED_HIR0_VALUE_UNARY_BOOL,
+        .kind = numeric_negate || bit_not ? W_SEED_HIR0_VALUE_UNARY_I64
+                                          : W_SEED_HIR0_VALUE_UNARY_BOOL,
         .owner_kind = owner_kind,
         .owner_index = owner_index,
         .owner_ordinal = owner_ordinal,
-        .type_index = numeric_negate ? 2u : 3u,
+        .type_index = numeric_negate || bit_not ? 2u : 3u,
         .binding_index = W_SEED_HIR0_NONE,
         .parameter_index = W_SEED_HIR0_NONE,
         .call_index = W_SEED_HIR0_NONE,
@@ -10881,8 +10888,10 @@ static uint32_t hir0_emit_value_m2(
         .first_interpolation_segment = W_SEED_HIR0_NONE,
         .interpolation_segment_count = 0u,
         .binary_operator = W_SEED_HIR0_BINARY_ADD,
-        .unary_operator = numeric_negate ? W_SEED_HIR0_UNARY_NEGATE
-                                         : W_SEED_HIR0_UNARY_NOT,
+        .unary_operator = numeric_negate
+                              ? W_SEED_HIR0_UNARY_NEGATE
+                              : (bit_not ? W_SEED_HIR0_UNARY_BIT_NOT
+                                         : W_SEED_HIR0_UNARY_NOT),
         .block_argument_index = W_SEED_HIR0_NONE,
         .integer_value = 0,
         .bool_value = false,
@@ -13641,7 +13650,8 @@ static bool verify_value_tree(
   }
 
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64) {
-    if (value->unary_operator != W_SEED_HIR0_UNARY_NEGATE ||
+    if ((value->unary_operator != W_SEED_HIR0_UNARY_NEGATE &&
+         value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT) ||
         value->type_index != 2u || value->binding_index != W_SEED_HIR0_NONE ||
         value->parameter_index != W_SEED_HIR0_NONE ||
         value->call_index != W_SEED_HIR0_NONE ||
@@ -14414,7 +14424,8 @@ static bool hir0_natural_loop_continuation_value_ok(
     return true;
   }
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64)
-    return value->unary_operator == W_SEED_HIR0_UNARY_NEGATE &&
+    return (value->unary_operator == W_SEED_HIR0_UNARY_NEGATE ||
+            value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT) &&
            value->binary_operator == W_SEED_HIR0_BINARY_ADD &&
            value->binding_index == W_SEED_HIR0_NONE &&
            value->parameter_index == W_SEED_HIR0_NONE &&

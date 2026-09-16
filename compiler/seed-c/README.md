@@ -2670,25 +2670,27 @@ ABI, general residency/scheduling/cancellation, matrix/operator lowering, or
 support for another provider or target. `benchmarkDisposition` remains
 `compiler-lifecycle`; no new benchmark result is published.
 
-### Source-backed signed-i64 binary bitwise slice (partial W-392)
+### Source-backed signed-i64 bitwise slice (partial W-392)
 
 The seed frontend, verified HIR0, NativeSubset0, scalar/cooperative evaluators,
-and MLIR0 now preserve `&`, `|`, and `^` for signed `i64`. The frontend uses
-the canonical precedence `|` below `^` below `&`; HIR operator values are
-append-only; MLIR0 emits direct `llvm.and`, `llvm.or`, and `llvm.xor` without a
-runtime helper. The exact Restaurant witness is
+and MLIR0 now preserve `&`, `|`, `^`, and unary `~` for signed `i64`. The
+frontend uses the canonical precedence `|` below `^` below `&`, with `~` in
+the prefix tier; HIR operator values are append-only; MLIR0 emits direct
+`llvm.and`, `llvm.or`, and `llvm.xor` without a runtime helper. Integer
+complement is an `llvm.xor` against the all-ones `i64` value. The exact
+Restaurant witness is
 [`fixtures/restaurant-bitwise.w`](fixtures/restaurant-bitwise.w): its operands
 cross a function boundary, so the lowering cannot be justified by replacing
 the expression with constant `14`.
 
-Focused HIR and MLIR units cover the source tree, precedence, forged operator
-rejection, and direct operation selection. `bun check --target mlir0` compiles
+Focused HIR and MLIR units cover the source tree, precedence, complement,
+forged operator rejection, and direct operation selection. `bun check --target mlir0` compiles
 and executes the exact source on the maintained Linux/WSL lane. The source and
 exact `Flags 14\n` oracle are registered as `restaurant-bitwise` in the public
 Windows executable benchmark catalog.
 
-This does not close W-392. Unary `~`, shifts and their trap/masked policies,
-power, compound assignments, widths other than `i64`, named bit primitives,
+This does not close W-392. Shifts and their trap/masked policies, power,
+compound assignments, widths other than `i64`, named bit primitives,
 SIMD, or matrix operations remain separate increments. The language benchmark
 disposition is `required`; the broader `integer-bit-mix` learner/idiomatic/
 frontier unit remains open even though this public product crosspoint is now

@@ -543,8 +543,8 @@ try {
       "false/true/false/false/true/true\nAllowed true\nAllowed false\n", "utf8"),
     "Restaurant comparison operators, signed endpoints, and Bool composition")
   expectExact(binary, ["run", restaurantBitwiseFixture], 0,
-    Buffer.from("Flags 14\n", "utf8"),
-    "Signed-i64 bitwise precedence and runtime lowering")
+    Buffer.from("Flags 14/-15\n", "utf8"),
+    "Signed-i64 bitwise precedence, complement, and runtime lowering")
   expectExact(binary, ["run", restaurantBoolShortCircuitFixture], 0,
     Buffer.from(
       "Override checked\nClosed allowed true\nCapacity checked\n" +

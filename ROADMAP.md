@@ -132,13 +132,14 @@ plumbing sentinel `42`; external MLIR → NVVM → PTX remains tooling-owned.
 This is compiler-lifecycle correctness evidence only, with no public GPU
 runtime/ABI or other provider/target claim.
 
-The first rank-1 increment is now executable: signed-`i64` `&`, `|`, and `^`
+The first rank-1 increment is now executable: signed-`i64` `&`, `|`, `^`, and
+unary `~`
 cross exact W source, canonical precedence, verified HIR0, direct LLVM-dialect
 operations, and the maintained Linux/WSL native route. The same source reaches
 the public Windows product builder through its executable-catalog owner. The
 exact `restaurant-bitwise` source/oracle is owned by that catalog. W-392
-remains open for unary complement, shifts and their
-failure policies, power, compound forms, other widths, and named bit APIs.
+remains open for shifts and their failure policies, power, compound forms,
+other widths, and named bit APIs.
 W-1597 remains a legality certificate only; target policy must still combine it
 with observability and cost facts and compare any direct-call artifact with the
 W-1600 physical reference.

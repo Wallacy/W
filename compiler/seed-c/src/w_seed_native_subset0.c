@@ -266,11 +266,16 @@ static bool evaluate_i64(const w_seed_hir0_program *program,
   }
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64) {
     int64_t operand = 0;
-    if (value->unary_operator != W_SEED_HIR0_UNARY_NEGATE ||
-        !evaluate_i64(program, value->left_value, depth + 1u, &operand) ||
-        operand == INT64_MIN)
+    if ((value->unary_operator != W_SEED_HIR0_UNARY_NEGATE &&
+         value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT) ||
+        !evaluate_i64(program, value->left_value, depth + 1u, &operand))
       return false;
-    *result = -operand;
+    if (value->unary_operator == W_SEED_HIR0_UNARY_NEGATE) {
+      if (operand == INT64_MIN) return false;
+      *result = -operand;
+    } else {
+      *result = ~operand;
+    }
     return true;
   }
   if (value->kind != W_SEED_HIR0_VALUE_BINARY_I64) return false;
@@ -322,7 +327,8 @@ static bool program_value_is_constant_i64(
     return false;
   if (value->kind == W_SEED_HIR0_VALUE_CONST_I64) return true;
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64)
-    return value->unary_operator == W_SEED_HIR0_UNARY_NEGATE &&
+    return (value->unary_operator == W_SEED_HIR0_UNARY_NEGATE ||
+            value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT) &&
            value->left_value != W_SEED_HIR0_NONE &&
            program_value_is_constant_i64(program, value->left_value,
                                          depth + 1u);
@@ -1008,7 +1014,8 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
   }
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64) {
     if (type != W_SEED_HIR0_TYPE_I64 ||
-        value->unary_operator != W_SEED_HIR0_UNARY_NEGATE ||
+        (value->unary_operator != W_SEED_HIR0_UNARY_NEGATE &&
+         value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT) ||
         value->left_value == W_SEED_HIR0_NONE ||
         value->right_value != W_SEED_HIR0_NONE ||
         value->binding_index != W_SEED_HIR0_NONE ||
@@ -1346,7 +1353,8 @@ static bool process_value_lowerable(
     }
     if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64) {
       if (program->types[value->type_index].kind != W_SEED_HIR0_TYPE_I64 ||
-          value->unary_operator != W_SEED_HIR0_UNARY_NEGATE ||
+          (value->unary_operator != W_SEED_HIR0_UNARY_NEGATE &&
+           value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT) ||
           value->left_value == W_SEED_HIR0_NONE ||
           value->right_value != W_SEED_HIR0_NONE ||
           value->binding_index != W_SEED_HIR0_NONE ||
@@ -1944,7 +1952,8 @@ static bool program_natural_loop_continuation_value_ok(
     return true;
   }
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64)
-    return value->unary_operator == W_SEED_HIR0_UNARY_NEGATE &&
+    return (value->unary_operator == W_SEED_HIR0_UNARY_NEGATE ||
+            value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT) &&
            value->left_value != W_SEED_HIR0_NONE &&
            value->right_value == W_SEED_HIR0_NONE &&
            program_natural_loop_continuation_value_ok(

@@ -204,6 +204,7 @@ typedef enum {
 typedef enum {
   W_SEED_HIR0_UNARY_NOT = 0,
   W_SEED_HIR0_UNARY_NEGATE,
+  W_SEED_HIR0_UNARY_BIT_NOT,
 } w_seed_hir0_unary_operator;
 
 typedef enum {

@@ -810,7 +810,8 @@ static bool mlir0_value_is_constant_i64(const w_seed_hir0_program *program,
     return false;
   if (value->kind == W_SEED_HIR0_VALUE_CONST_I64) return true;
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64)
-    return value->unary_operator == W_SEED_HIR0_UNARY_NEGATE &&
+    return (value->unary_operator == W_SEED_HIR0_UNARY_NEGATE ||
+            value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT) &&
            value->left_value != W_SEED_HIR0_NONE &&
            mlir0_value_is_constant_i64(program, value->left_value,
                                        depth + 1u);
@@ -965,6 +966,7 @@ static bool mark_reachable_value_tree(
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL ||
       value->kind == W_SEED_HIR0_VALUE_UNARY_I64) {
     if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64 &&
+        value->unary_operator == W_SEED_HIR0_UNARY_NEGATE &&
         !mlir0_value_is_constant_i64(program, value_index, 0u))
       *has_subtract = true;
     return value->left_value != W_SEED_HIR0_NONE &&
@@ -1508,9 +1510,26 @@ static bool append_unary_i64_operation_in_loop(
     return false;
   const w_seed_hir0_value *value = &program->values[value_index];
   if (value->kind != W_SEED_HIR0_VALUE_UNARY_I64 ||
-      value->unary_operator != W_SEED_HIR0_UNARY_NEGATE ||
+      (value->unary_operator != W_SEED_HIR0_UNARY_NEGATE &&
+       value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT) ||
       value->left_value == W_SEED_HIR0_NONE)
     return false;
+  if (value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT) {
+    return append_literal(artifact, capacity, offset, "    %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset,
+                          "_bit_not_mask = llvm.mlir.constant(-1 : i64) : i64\n") &&
+           append_literal(artifact, capacity, offset, "    %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset, " = llvm.xor ") &&
+           append_program_value_operand_in_loop(
+               program, value->left_value, function_index, process, loop,
+               artifact, capacity, offset) &&
+           append_literal(artifact, capacity, offset, ", %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset,
+                          "_bit_not_mask : i64\n");
+  }
   const bool constant =
       mlir0_value_is_constant_i64(program, value_index, 0u);
   if (!append_literal(artifact, capacity, offset, "    %v") ||
@@ -2495,7 +2514,8 @@ static bool append_program_value_tree(
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64) {
     if (value->type_index >= program->type_count ||
         program->types[value->type_index].kind != W_SEED_HIR0_TYPE_I64 ||
-        value->unary_operator != W_SEED_HIR0_UNARY_NEGATE ||
+        (value->unary_operator != W_SEED_HIR0_UNARY_NEGATE &&
+         value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT) ||
         value->left_value == W_SEED_HIR0_NONE ||
         value->right_value != W_SEED_HIR0_NONE ||
         value->binding_index != W_SEED_HIR0_NONE ||
@@ -3189,7 +3209,8 @@ static bool mlir0_natural_loop_continuation_value_ok(
     return true;
   }
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64)
-    return value->unary_operator == W_SEED_HIR0_UNARY_NEGATE &&
+    return (value->unary_operator == W_SEED_HIR0_UNARY_NEGATE ||
+            value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT) &&
            value->left_value != W_SEED_HIR0_NONE &&
            value->right_value == W_SEED_HIR0_NONE &&
            mlir0_natural_loop_continuation_value_ok(

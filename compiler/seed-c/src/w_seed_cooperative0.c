@@ -504,9 +504,13 @@ static bool evaluate_value(const w_seed_hir0_program *program, uint32_t value_in
       if (!evaluate_value(program, value->left_value, frame, &child,
                           depth + 1u) ||
           child.kind != W_SEED_COOPERATIVE0_VALUE_I64 ||
-          child.integer == INT64_MIN)
+          (value->unary_operator != W_SEED_HIR0_UNARY_NEGATE &&
+           value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT))
         return false;
-      return value_from_i64(-child.integer, out);
+      if (value->unary_operator == W_SEED_HIR0_UNARY_NEGATE)
+        return child.integer != INT64_MIN &&
+               value_from_i64(-child.integer, out);
+      return value_from_i64(~child.integer, out);
     }
     case W_SEED_HIR0_VALUE_UNARY_BOOL: {
       w_seed_cooperative0_value child;

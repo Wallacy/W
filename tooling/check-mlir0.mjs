@@ -550,7 +550,7 @@ try {
     { name: "restaurant-async-yield", source: restaurantAsyncYieldFixture,
       expected: Buffer.from("Prepared 88\n", "utf8") },
     { name: "restaurant-bitwise", source: restaurantBitwiseFixture,
-      expected: Buffer.from("Flags 14\n", "utf8") },
+      expected: Buffer.from("Flags 14/-15\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
   ]
   const artifacts = new Map()
@@ -703,6 +703,8 @@ try {
   assert(signedBitwiseArtifact.includes("llvm.and ") &&
     signedBitwiseArtifact.includes("llvm.xor ") &&
     signedBitwiseArtifact.includes("llvm.or ") &&
+    signedBitwiseArtifact.includes(
+      "_bit_not_mask = llvm.mlir.constant(-1 : i64)") &&
     signedBitwiseArtifact.includes("llvm.call @w_fn_0") &&
     !signedBitwiseArtifact.includes("w_seed_checked_bit"),
   "signed bitwise operations were folded, reordered, or helper-lowered")

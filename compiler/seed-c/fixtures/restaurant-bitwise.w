@@ -4,5 +4,5 @@ fn combineFlags(left: i64, right: i64): i64 {
 
 entry {
   let combined = combineFlags(left: 10, right: 12)
-  print("Flags ${combined}")
+  print("Flags ${combined}/${~combined}")
 }
