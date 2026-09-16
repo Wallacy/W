@@ -26,17 +26,20 @@ not in this queue.
 
 | Rank | Increment | Completion boundary | What it enables |
 | ---: | --- | --- | --- |
-| 1 | Accelerated-domain GPU Hello sentinel | Canonical `module ...<kernels: { label: directFunction }>` plus `spawn<domain> label()`, with an accelerated domain, crosses verified W IR into separate host/device artifacts, binds the root-owned launch relation, then launches and joins through a supported provider and verifies a known payload on the available GPU; end-to-end, dispatch, and transfer metrics stay separate | Tests the common source surface, CPU/device partitioning and MLIR GPU applicability before scheduler and memory abstractions harden |
-| 2 | Capacity-independent task storage | Replace the seed one-to-four logical-task arrays with measured caller-owned records; logical task count and physical worker capacity remain separate; configured exhaustion fails before effects | Removes an implementation ceiling before scheduler generalization |
-| 3 | Structured cancellation and outcomes | Request, propagation, cleanup drain, typed failure, panic boundary, and deterministic outcome publication execute through the same native route | A usable structured-concurrency core rather than successful scalar jobs only |
-| 4 | Provider-neutral scheduler core | Target-neutral ready/task/frame state lowers once; capability-selected providers supply only platform primitives and cached topology/capacity facts. The contract must remain implementable across Windows, Linux, macOS, iOS, Android, WebAssembly and future viable targets; evidence from one host never narrows that universe | Portable concurrency without a platform-shaped language ABI |
-| 5 | Resource-bearing enum and ownership slice | `Result`-like payload enum, exhaustive match, move, borrow, cleanup, typed success/failure, and adversarial rejection execute natively | Concrete memory-management invariants for general aggregates and tasks |
-| 6 | General verified HIR and lowering | Expand types, calls, CFG, ownership/effects, and diagnostics in small executable slices while preserving independent verification | Moves from bounded demonstrations toward ordinary programs |
-| 7 | Closed-graph optimizer and static closure | Whole-module is the minimum optimized region; proved package/workspace/product closure internalizes and eliminates unused WRT/std/provider code without changing observable roots | Generalizes the optimization rules first exercised by the Hello sentinel |
-| 8 | Incremental compiler and test selection | No-op, local-body, interface, and product-root edits reuse exact artifacts and run only risk-relevant gates, with mutation evidence that product failures are still detected | Faster human and AI iteration without hollow green checks |
-| 9 | Native toolchain and cross-target distribution | Reproducible signed LLVM/MLIR/LLD target packs cover the Windows/Linux/macOS host-target baseline, with exact SDK and ABI provenance | Compact offline `w` distribution and supported cross compilation |
-| 10 | Package, registry, service, and sandbox slices | Signed binary-first package plus source fallback, independent verification, one local/external service provider, and bounded sandbox execution | Ecosystem work built on a stable executable/runtime boundary |
-| 11 | UI, native graphics, scientific, accelerator, and proof-mode witnesses | Promote one real application or numerical workload at a time through correctness, target applicability, resource receipts, and benchmark evidence; native UI closes platform ABI, window/input/event-loop, graphics/shader, audio and optional WebView providers without making them language primitives; the GPU Hello remains the earlier architecture sentinel | Broader targets without expanding the language from untested abstractions |
+| 1 | Scalar literals and operators | Every designed scalar literal and operator family reaches verified HIR, direct MLIR/LLVM lowering, CRT-free Windows and Linux execution, checked failure or explicit wrapping policy, and an independent C23 oracle; syntax-only coverage does not count | Gives W C-level fine-grained arithmetic, comparison, logical and bit-manipulation capability before higher abstractions depend on it |
+| 2 | Bindings, assignment, functions and calls | Mutable and immutable bindings, compound assignment, labelled and positional anchors, ordinary calls, returns and overload resolution execute from exact W source without seed-only rewrites | Establishes reusable computation and a stable value-flow substrate |
+| 3 | Structured control flow | `if`/`else`, exhaustive selection, guards, loops, `break`, `continue` and multi-block returns lower to general verified CFG and execute adversarial branch and loop witnesses | Removes straight-line restrictions and provides the control substrate for errors, cleanup and scheduling |
+| 4 | Value aggregates and central enums | Tuples, structs, payload enums, exhaustive pattern matching and fixed arrays have verified layout-independent semantics plus efficient target layouts and native witnesses | Matches ordinary C data modelling while preserving W's enum-first design |
+| 5 | Modules, imports, generics and specialization | Multi-module calls, labelled imports, generic specialization and closed reachable graphs produce deterministic artifacts; unused private graph nodes disappear | Enables real programs and makes whole-module/product optimization the normal case |
+| 6 | Explicit views, borrows, storage and ownership | `ref`, `mut ref`, `inout`, moves, views, explicit storage/allocator choices and deterministic cleanup execute for value and resource-bearing aggregates | Establishes memory safety and cost without requiring automatic lifecycle machinery |
+| 7 | Errors and effect composition | Typed `throw`/`try`/`catch`, panic boundaries, cleanup and effect propagation compose over general CFG and resource-bearing values | Makes failure semantics complete before asynchronous propagation is generalized |
+| 8 | Arrays, matrices, SIMD and accelerator lowering | Static and dynamic collections, views, `@`, vectorization and one real CPU/GPU numerical witness share typed semantics and independent oracles; GPU launch remains a provider concern | Adds scientific and heterogeneous performance only after its scalar, CFG and ownership prerequisites are real |
+| 9 | Tasks and structured concurrency | `async`, `await`, `spawn`, groups, cancellation, deterministic outcomes and cleanup execute over measured caller-owned task records with no language-level child limit | Builds concurrency on the completed value, error and ownership model |
+| 10 | Provider-neutral scheduler | Target-neutral ready/task/frame state lowers once; capability-selected providers supply platform primitives and cached topology facts across Windows, Linux, macOS, iOS, Android, WebAssembly and future viable targets | Portable parallel execution without a platform-shaped language ABI |
+| 11 | Automatic lifecycle and memory optimization | Escape/liveness proofs choose registers, stack, arenas, regions or heap; virtual objects materialize only when identity/escape requires it; automatic cleanup remains semantically deterministic | Adds convenience after explicit ownership is measurable and trustworthy |
+| 12 | Incremental compiler, test selection and cross-target distribution | Exact dependency invalidation, risk-relevant gates and reproducible signed LLVM/MLIR/LLD target packs cover the Windows/Linux/macOS baseline | Fast human/AI iteration and compact offline cross compilation without hollow green tests |
+| 13 | Package, registry, service and sandbox slices | Signed binary-first packages, source fallback, independent verification, one service provider and bounded sandbox execution work against the stable compiler/runtime boundary | Opens the ecosystem without freezing premature compiler internals |
+| 14 | UI, native graphics, scientific and proof-mode applications | Promote one real workload at a time through correctness, applicability, resource receipts and benchmark evidence; platform SDK/providers remain outside the language core | Broadens targets from proven primitives instead of speculative abstractions |
 
 ## Native application completeness
 
@@ -60,8 +63,8 @@ The finite dependency order is:
 5. asset/resource packaging and an optional WebView provider.
 
 These are SDK/provider and implementation gaps unless an executable slice
-proves that a missing general language rule is required. They must not delay the
-current structured-cancellation and lifecycle ranks.
+proves that a missing general language rule is required. They must not displace
+the scalar, control-flow, aggregate and explicit-ownership prerequisites above.
 
 ## Current checkpoint
 
@@ -107,11 +110,12 @@ expectation from that verified ACCREQ0, then proves a valid mismatch after
 execution; the CUDA adapter remains a private process boundary. General
 runtime/provider launch/join/result,
 public GPU build/run, qualified/imported-invocation HIR, and a supported GPU ABI remain open;
-rank 1 therefore stays open until those public and physical boundaries have
-evidence. The explicit
+the accelerated application line therefore stays open until those public and
+physical boundaries have evidence. The explicit
 `Launch<Module>` route
 remains the later dynamic path, not the common static syntax. Only then does the
-queue generalize task storage, cancellation, and scheduling.
+queue returns to the lower-level language surface before generalizing task
+storage, cancellation, and scheduling.
 
 W-1630 now closes one bounded private ACCPROV0 launch/join/result boundary
 above verified ACCREQ0. The target/provider-neutral core binds all caller-owned
@@ -134,19 +138,19 @@ W-1600 physical reference.
 The current fixed task counts and worker capacities are seed evidence limits.
 They must not become language, public ABI, or final runtime limits.
 
-W-1606 begins rank 2: HIR38 no longer uses a four-slot product array as an
+W-1606 began the earlier task-storage line: HIR38 no longer uses a four-slot product array as an
 admission or verification limit for `.main` or `.domain`, and PARSEL1 measures
 dense caller-owned `.domain` task relations independently from worker capacity.
 Five siblings now cross verified HIR in both lanes and cross PARSEL1 for
 `.domain`; legacy product/selector consumers still stop at four until their
 incremental migration.
 
-W-1607 extends rank 2 through invocation storage. PARINV1 measures dense task
+W-1607 extends that line through invocation storage. PARINV1 measures dense task
 and argument relations from verified PARSEL1, normalizes named arguments into
 parameter order, and removes the scalar evaluator's fixed sixteen-argument
 array. Five tasks and seventeen arguments pass this compiler boundary. The
 physical providers and PARMLIR0 still consume the fixed compatibility records;
-their migration is the next rank-2 dependency before cancellation work.
+their migration remains a dependency before later cancellation work.
 
 W-1608 removes the fixed logical-task arrays from the Windows component.
 PARPROV1 executes five tasks through constant-size worker waves and produces
@@ -156,9 +160,10 @@ path: PARMLIR1 emits five runtime-parameterized task entries from measured
 records, accepts the seventeen-argument witness, preserves compatible PARMLIR0
 bytes, and lowers the five-task artifact to Windows COFF and Linux PIC ELF with
 MLIR/LLVM 23.1.1. Public process products retain their bounded compatibility
-route. Structured cancellation and outcomes are now the next active increment.
+route. This evidence is preserved, but the active queue now closes the scalar
+and control-flow surface before returning to structured cancellation.
 
-W-1610 opens rank 3 without reintroducing a storage ceiling. TASKLIFE1 runs the
+W-1610 opens the bounded structured-lifecycle line without reintroducing a storage ceiling. TASKLIFE1 runs the
 W-1599 lifecycle state machine over measured caller-owned task and event views.
 A five-task fail-fast witness cancels and drains four unfinished siblings before
 deterministic error publication, and a 137-event witness crosses the former
