@@ -41357,6 +41357,55 @@ materialize `PanicEvent`, define a Task ABI or runtime, claim native HIR
 execution, cleanup, teardown, portability, a public product, a benchmark, or
 performance.
 
+#### 26.4.1.108 W-1628 — bounded private panic lifecycle decision
+
+PANICLIFE1 schema `w-seed-parallel-panic-lifecycle1-1` is a separate,
+target-neutral private component above a verified PARPANIC1 view. It consumes
+the PARPANIC1 input, workspace, output, and result needed for independent
+verification. It owns no provider workspace, makes no provider call, and does
+not use TASKLIFE, `TaskOutcome`, `Error`/`Result`, a scheduler, or a runtime.
+
+When PARPANIC1 proves one or more panic tasks, PANICLIFE1 publishes one
+caller-owned decision and exactly three ordered events:
+`PANIC_OBSERVED`, `NORMAL_OUTCOME_PUBLICATION_FORBIDDEN`, and
+`FAULT_BOUNDARY_TERMINATION_REQUIRED`. The decision is
+`BOUNDARY_TERMINATION_REQUIRED` with normal outcome `NONE`, boundary action
+`TERMINATE_FAULT_BOUNDARY`, cleanup owner `BOUNDARY_HOST`, user cleanup
+`NOT_CLAIMED`, and resource registry `NOT_EVALUATED`. The primary remains the
+single deterministic PARPANIC1 primary. The three event sequence/kind pairs
+are semantic and participate in the semantic digest.
+
+The decision digest covers only panic code, copied literal message bytes,
+decision state, no-outcome and boundary-action fields, required cleanup
+fields, and the ordered event sequence. It excludes source/module identity,
+spans, task indices, producer digests, capacity, generation, provider facts,
+and physical receipts. The result keeps those facts in a separate provenance
+digest. PANICLIFE1 copies the message into its own caller-owned buffer, so the
+decision, events, and message remain readable after upstream output or HIR
+teardown. Independent verification still requires the live PARPANIC1 producer
+graph and rejects retargeted or forged pointers, lengths, events, digests, or
+upstream facts.
+
+`measure` reports the message byte count and exactly three events. `run`
+stages the decision, events, result, and digests locally, then performs one
+infallible final commit. `measure`, `run`, and `verify` use checked bounded
+capacities, overflow-safe ranges, complete representable pairwise writable
+alias barriers, and all-or-nothing publication. A failed call leaves the
+published decision, events, message, and result unchanged. A malformed or
+forged upstream `NO_PANIC` status is not trusted. PANICLIFE1 rederives absence
+with a local PARPANIC1 measure and returns `NO_PANIC` only when that measure
+returns `NO_PANIC`.
+
+The focused C23 witness proves the mixed `spawn<.domain>` source, a
+multi-panic primary, capacities one and two with semantically identical
+decision/events/message, upstream forgeries, event order and cardinality,
+short/null/alias barriers, unchanged outputs, and teardown readability. The
+implementation is target-neutral, but its current upstream execution evidence
+comes from Windows x64. This is bounded `compiler-lifecycle` evidence only.
+It does not compose PANICBOUNDARY1, evaluate a resource registry, materialize
+`PanicEvent`, define Task ABI/runtime behavior, claim native-HIR execution,
+cleanup, portability, a public product, a benchmark, or performance.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

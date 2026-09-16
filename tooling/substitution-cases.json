@@ -10260,6 +10260,63 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-parallel-panic-lifecycle1",
+      "reviewItem": "private panic lifecycle decision against normal-outcome publication, event-order loss, forged no-panic status, provenance leakage, and premature boundary claims",
+      "decisions": [
+        "W-1628"
+      ],
+      "task": "Publish one private target-neutral panic lifecycle decision and exactly three ordered events from a verified PARPANIC1 primary without claiming a public runtime boundary.",
+      "selected": {
+        "language": "w-internal",
+        "source": [
+          "PANICLIFE1 consumes the verified PARPANIC1 input, workspace, output, and result view without a provider call or a second workspace",
+          "the deterministic primary publishes BOUNDARY_TERMINATION_REQUIRED, no normal outcome, and exactly three ordered events",
+          "the semantic digest covers panic code, copied literal message, decision fields, and event sequence while provenance keeps source and physical facts",
+          "a local PARPANIC1 measure rederives no-panic absence, and the caller-owned message remains readable after upstream teardown"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "publish-normal-outcome",
+          "language": "w-internal-rejected",
+          "source": [
+            "publish a normal value, Error/Result, or TaskOutcome beside the panic decision"
+          ],
+          "expectedDifference": "PANICLIFE1 forbids normal outcome publication and exposes only the private fault-boundary decision state."
+        },
+        {
+          "name": "borrow-upstream-message",
+          "language": "w-internal-rejected",
+          "source": [
+            "point the lifecycle decision at upstream PARPANIC1 message storage"
+          ],
+          "expectedDifference": "The final commit copies message bytes into a lifecycle-owned caller buffer, while verify may still require live producers."
+        },
+        {
+          "name": "trust-no-panic-status",
+          "language": "w-internal-rejected",
+          "source": [
+            "return NO_PANIC only because the upstream result status says NO_PANIC"
+          ],
+          "expectedDifference": "PANICLIFE1 rederives absence with PARPANIC1 measure and rejects a forged status over a real panic plan."
+        },
+        {
+          "name": "compose-boundary-now",
+          "language": "w-internal-rejected",
+          "source": [
+            "compose PANICLIFE1 with PANICBOUNDARY1 or a resource registry in this slice"
+          ],
+          "expectedDifference": "The three-event record states that termination is required but does not perform boundary termination or registry evaluation."
+        }
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

@@ -279,3 +279,18 @@ success-only PARPROV1/PARLIFE1 and typed PARBIND1 semantics remain unchanged.
 The focused C23 evidence is Windows x64 and `compiler-lifecycle` only; public
 `PanicEvent`, Task ABI/runtime, native-HIR execution, cleanup/teardown,
 portability, benchmark, and performance claims remain open.
+
+W-1628 adds PANICLIFE1 (`w-seed-parallel-panic-lifecycle1-1`) as a separate
+target-neutral private bridge above verified PARPANIC1. It publishes one
+caller-owned decision and exactly three ordered events for the deterministic
+primary. The decision requires boundary termination, forbids normal outcome
+publication, and does not claim user cleanup or resource-registry evaluation.
+The semantic digest covers only panic code, copied message, decision fields,
+and event order. Source/provider/receipt facts remain provenance, so upstream
+capacities one and two produce semantically identical decision/event/message
+content. A local PARPANIC1 measure rederives no-panic absence instead of
+trusting a status field. PANICLIFE1 has no provider call or own workspace.
+This remains bounded `compiler-lifecycle` evidence. The bridge is target
+neutral, but current upstream execution evidence is Windows x64. PANICBOUNDARY1,
+`PanicEvent`, runtime/ABI, cleanup, public product, benchmarks, and performance
+remain open.

@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:caa3d0ea2d7560ac42a40175eacc995f63cc9ecdb4666803080cb0f7646c93d4",
+  "corpusDigest": "sha256:1b517cb6b39b700c930377f5eeb277db00f1a5d59a0f829e8832d680aa9b48d8",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -10428,6 +10428,78 @@
             "nonWhitespaceCodePoints": 109,
             "lines": 1,
             "surfaceLexemes": 24
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-parallel-panic-lifecycle1",
+      "task": {
+        "utf8Bytes": 170,
+        "codePoints": 170,
+        "nonWhitespaceCodePoints": 148,
+        "lines": 1,
+        "surfaceLexemes": 26
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w-internal",
+        "sourceDigest": "sha256:ba14a135ee9ac66aaecd63bb455ef3f23a6e6443dce1c673502547fc7fda4b0d",
+        "metrics": {
+          "utf8Bytes": 521,
+          "codePoints": 521,
+          "nonWhitespaceCodePoints": 453,
+          "lines": 4,
+          "surfaceLexemes": 82
+        }
+      },
+      "alternatives": [
+        {
+          "name": "publish-normal-outcome",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:8985f786956ef11adda504fafa53619db8757c14eca2e6920e8056ee6ced0cea",
+          "metrics": {
+            "utf8Bytes": 78,
+            "codePoints": 78,
+            "nonWhitespaceCodePoints": 68,
+            "lines": 1,
+            "surfaceLexemes": 15
+          }
+        },
+        {
+          "name": "borrow-upstream-message",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:72a0fd6c601b0f3d7908e19464d70011cae491dc41614aafccda75e9e4ad870a",
+          "metrics": {
+            "utf8Bytes": 66,
+            "codePoints": 66,
+            "nonWhitespaceCodePoints": 58,
+            "lines": 1,
+            "surfaceLexemes": 9
+          }
+        },
+        {
+          "name": "trust-no-panic-status",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:2689070534a04fb82770f58957b9aebddc867ff8da793c04bc5556e1b30593a9",
+          "metrics": {
+            "utf8Bytes": 69,
+            "codePoints": 69,
+            "nonWhitespaceCodePoints": 60,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "compose-boundary-now",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:c26c8775fc6c6f7af3728c0c1b1d3a4027f875dfadf30ecb00b5b557abdc0eb1",
+          "metrics": {
+            "utf8Bytes": 75,
+            "codePoints": 75,
+            "nonWhitespaceCodePoints": 65,
+            "lines": 1,
+            "surfaceLexemes": 11
           }
         }
       ]

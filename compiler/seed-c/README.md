@@ -2141,6 +2141,22 @@ evidence is Windows x64 and compiler-lifecycle only; this bridge is not
 `PanicEvent`, a Task ABI/runtime, native HIR execution, cleanup/teardown, a
 public product, or a benchmark/performance claim.
 
+W-1628 adds `w_seed_parallel_panic_lifecycle1` (PANICLIFE1), a target-neutral
+private bridge above the verified PARPANIC1 view. It publishes one
+caller-owned decision and exactly three ordered events for the deterministic
+primary. The decision requires `BOUNDARY_TERMINATION_REQUIRED`, forbids normal
+outcome publication, and does not claim user cleanup or resource-registry
+evaluation. Its semantic digest covers panic code, copied literal message,
+decision fields, and event order only. Source/provider/receipt facts remain in
+provenance, so capacities one and two produce semantically identical
+decision/event/message content. PANICLIFE1 has no provider call and no own
+workspace. It rederives no-panic absence with a local PARPANIC1 measure instead
+of trusting an upstream status field. The copied message remains readable
+after upstream teardown, while independent verification needs live producers.
+The evidence is bounded compiler-lifecycle correctness. Current upstream
+execution evidence is Windows x64. PANICBOUNDARY1, `PanicEvent`, runtime/ABI,
+cleanup, public product, benchmarks, and performance remain open.
+
 `w_seed_parallel_provider1` is the measured Windows successor. Measure reports
 one semantic outcome and one physical workspace value per PARINV1 task. The
 platform adapter receives one indexed job descriptor and executes constant-size

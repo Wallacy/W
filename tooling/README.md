@@ -436,6 +436,18 @@ evidence only: it does not
 claim `PanicEvent`, Task ABI/runtime, native HIR execution, cleanup/teardown,
 portability, a public product, or a benchmark/performance result.
 
+W-1628 extends the same focused C23 HIR gate with PANICLIFE1, a target-neutral
+private bridge above verified PARPANIC1. The unit checks the caller-owned
+decision, exactly three ordered events, copied message, semantic equality
+across upstream capacities, provenance separation, rederived no-panic
+classification, forged upstream and decision facts, event order/cardinality,
+short/null buffers, pairwise representable writable-range aliases, unchanged
+outputs, and teardown readability. This is bounded `compiler-lifecycle`
+correctness evidence. The upstream execution lane is Windows x64. PANICLIFE1
+does not call a provider or own a workspace, and the slice does not claim
+PANICBOUNDARY1, resource-registry evaluation, `PanicEvent`, runtime/ABI,
+native-HIR execution, cleanup, portability, a public product, or a benchmark.
+
 ACQ0 executa CHK6 em
 storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou
 CLI. Execute `bun check --target acquisition` para compilar os cinco targets focais,
