@@ -118,6 +118,8 @@ typedef enum {
   W_SEED_CST_DEFER_STATEMENT,
   /* Append-only explicit panic expression owner. */
   W_SEED_CST_PANIC_EXPRESSION,
+  /* Append-only tuple binding pattern owner. */
+  W_SEED_CST_TUPLE_PATTERN,
 } w_seed_cst_kind;
 
 enum {

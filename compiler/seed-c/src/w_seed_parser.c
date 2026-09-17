@@ -2140,19 +2140,78 @@ static bool statement_boundary(w_seed_parser *parser) {
   return true;
 }
 
+static bool tuple_binding_element(w_seed_parser *parser) {
+  if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD) ||
+      current_is_text(parser, "true") || current_is_text(parser, "false") ||
+      current_is_text(parser, "let") || current_is_text(parser, "var")) {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    return false;
+  }
+  (void)consume_current(parser, NULL);
+  return true;
+}
+
+/* Binding tuple patterns are a bounded projection of the canonical
+ * tuple_pattern rule: this seed accepts identifier/wildcard elements, the
+ * canonical singleton comma form, and an optional trailing comma.  A
+ * parenthesized single word is not a binding pattern and must not be accepted
+ * as one. */
+static bool parse_tuple_binding_pattern(w_seed_parser *parser) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_TUPLE_PATTERN, start) == W_SEED_CST_NONE)
+    return false;
+  (void)consume_text(parser, "(", NULL);
+  if (!tuple_binding_element(parser)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  if (!expect_text(parser, ",", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  if (!current_is_text(parser, ")")) {
+    if (!tuple_binding_element(parser)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+    while (current_is_text(parser, ",")) {
+      (void)consume_text(parser, ",", NULL);
+      if (current_is_text(parser, ")")) break;
+      if (!tuple_binding_element(parser)) {
+        pop_node(parser,
+                 parser->has_last_token ? parser->last_token_end : start);
+        return false;
+      }
+    }
+  }
+  if (!expect_text(parser, ")", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  pop_node(parser, parser->last_token_end);
+  return true;
+}
+
 static bool parse_binding_statement(w_seed_parser *parser, const char *keyword,
-                                    w_seed_cst_kind kind) {
+                                     w_seed_cst_kind kind) {
   const size_t start = current_span(parser).start_byte;
   if (push_node(parser, kind, start) == W_SEED_CST_NONE)
     return false;
   (void)consume_text(parser, keyword, NULL);
-  if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+  if (current_is_text(parser, "(")) {
+    if (!parse_tuple_binding_pattern(parser)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+  } else if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
     append_missing(parser, current_span(parser).start_byte,
                    W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
     pop_node(parser, parser->last_token_end);
     return false;
+  } else {
+    (void)consume_current(parser, NULL);
   }
-  (void)consume_current(parser, NULL);
   if (current_is_text(parser, ":")) {
     (void)consume_text(parser, ":", NULL);
     if (!parse_type(parser)) return false;

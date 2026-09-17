@@ -667,6 +667,59 @@ static bool test_phase2_import_binding_test_forms(void) {
   return true;
 }
 
+static bool test_tuple_binding_patterns(void) {
+  static const struct {
+    const char *text;
+    const char *pattern_text;
+    size_t elements;
+  } positive[] = {
+      {"fn f(){let (left,right)=pair}\n", "(left,right)", 2},
+      {"fn f(){let (only,)=single}\n", "(only,)", 1},
+      {"fn f(){var (_,value,)=triple}\n", "(_,value,)", 2},
+      {"fn f(){let (first,_,third):T=tuple}\n", "(first,_,third)", 3},
+  };
+  for (size_t index = 0; index < sizeof(positive) / sizeof(positive[0]);
+       index += 1) {
+    fixture value;
+    CHECK(fixture_init(&value, positive[index].text,
+                       sizeof(value.nodes) / sizeof(value.nodes[0]),
+                       sizeof(value.issues) / sizeof(value.issues[0])));
+    CHECK(value.result.status == W_SEED_PARSE_COMPLETE);
+    CHECK(value.result.issue_count == 0);
+    const w_seed_cst_index tuple =
+        first_kind(&value, W_SEED_CST_TUPLE_PATTERN);
+    CHECK(tuple != W_SEED_CST_NONE);
+    CHECK(node_span_text(&value, tuple, positive[index].pattern_text));
+    CHECK(count_direct_kind(&value, tuple, W_SEED_CST_WORD) ==
+          positive[index].elements);
+    CHECK(check_leaf_partition(&value));
+    CHECK(check_tree_links(&value));
+  }
+
+  static const char *const malformed[] = {
+      "fn f(){let (only)=value}\n",
+      "fn f(){let (left,42)=value}\n",
+      "fn f(){var (left,right value)=value}\n",
+      "fn f(){let (,right)=value}\n",
+      "fn f(){var (left,,right)=value}\n",
+      "fn f(){let (left,right=value}\n",
+  };
+  for (size_t index = 0; index < sizeof(malformed) / sizeof(malformed[0]);
+       index += 1) {
+    fixture value;
+    CHECK(fixture_init(&value, malformed[index],
+                       sizeof(value.nodes) / sizeof(value.nodes[0]),
+                       sizeof(value.issues) / sizeof(value.issues[0])));
+    CHECK(value.result.status != W_SEED_PARSE_COMPLETE);
+    CHECK(value.result.issue_count >= 1);
+    CHECK(has_issue(&value, W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN) ||
+          has_issue(&value, W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE));
+    CHECK(check_leaf_partition(&value));
+    CHECK(check_tree_links(&value));
+  }
+  return true;
+}
+
 static bool test_borrow_clause_shapes(void) {
   static const char text[] =
       "fn pick(primary:ref S,fallback:ref S):view S throws E "
@@ -3584,6 +3637,7 @@ int main(void) {
       test_parse_twice() &&
       test_phase2_declaration_tree() &&
       test_phase2_import_binding_test_forms() &&
+      test_tuple_binding_patterns() &&
       test_borrow_clause_shapes() &&
       test_async_function_shapes() &&
       test_pipeline_shapes() &&
