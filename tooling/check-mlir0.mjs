@@ -63,6 +63,8 @@ const restaurantUIntCountOnesFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-count-ones.w")
 const restaurantUIntCountZerosFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-count-zeros.w")
+const restaurantUIntLeadingZerosFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-leading-zeros.w")
 const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
@@ -732,6 +734,9 @@ try {
     { name: "restaurant-uint-count-zeros",
       source: restaurantUIntCountZerosFixture,
       expected: Buffer.from("Zeros 32\n", "utf8") },
+    { name: "restaurant-uint-leading-zeros",
+      source: restaurantUIntLeadingZerosFixture,
+      expected: Buffer.from("Leading 56/64\n", "utf8") },
     { name: "restaurant-uint-bit-not", source: restaurantUIntBitNotFixture,
       expected: Buffer.from("UInt not 18446744073709551615\n", "utf8") },
     { name: "restaurant-uint-bitwise", source: restaurantUIntBitwiseFixture,
@@ -1122,6 +1127,13 @@ try {
     uintCountZerosArtifact.includes("llvm.call @w_seed_append_u64") &&
     !uintCountZerosArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
   "u64.countZeros lost width-minus-popcount or total-operation semantics")
+  const uintLeadingZerosArtifact =
+    artifacts.get("restaurant-uint-leading-zeros").toString("utf8")
+  assert((uintLeadingZerosArtifact.match(/llvm\.intr\.ctlz/g) ?? []).length === 1 &&
+    uintLeadingZerosArtifact.includes("is_zero_poison = false") &&
+    uintLeadingZerosArtifact.includes("llvm.call @w_seed_append_u64") &&
+    !uintLeadingZerosArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
+  "u64.countLeadingZeros lost non-poison ctlz or total-operation semantics")
   const uintBitNotArtifact =
     artifacts.get("restaurant-uint-bit-not").toString("utf8")
   assert(uintBitNotArtifact.includes("llvm.xor") &&

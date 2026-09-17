@@ -95,6 +95,8 @@ const restaurantUIntCountOnesFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-count-ones.w")
 const restaurantUIntCountZerosFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-count-zeros.w")
+const restaurantUIntLeadingZerosFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-leading-zeros.w")
 const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
@@ -676,6 +678,9 @@ try {
   expectExact(binary, ["run", restaurantUIntCountZerosFixture], 0,
     Buffer.from("Zeros 32\n", "utf8"),
     "Restaurant UInt countZeros derives the full-width complement count")
+  expectExact(binary, ["run", restaurantUIntLeadingZerosFixture], 0,
+    Buffer.from("Leading 56/64\n", "utf8"),
+    "Restaurant UInt countLeadingZeros preserves the zero boundary")
   expectExact(binary, ["run", restaurantUIntBitNotFixture], 0,
     Buffer.from("UInt not 18446744073709551615\n", "utf8"),
     "Restaurant UInt bitwise complement")

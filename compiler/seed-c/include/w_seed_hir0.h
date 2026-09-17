@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-64"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-65"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -252,6 +252,8 @@ typedef enum {
   W_SEED_HIR0_UNARY_COUNT_ONES,
   /* Canonical u64.countZeros. Keep this identity append-only. */
   W_SEED_HIR0_UNARY_COUNT_ZEROS,
+  /* Canonical u64.countLeadingZeros. Keep this identity append-only. */
+  W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS,
 } w_seed_hir0_unary_operator;
 
 typedef enum {

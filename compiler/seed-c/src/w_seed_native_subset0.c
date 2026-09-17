@@ -314,7 +314,9 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
     if ((value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT &&
          value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
          value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES &&
-         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS) ||
+         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS &&
+         value->unary_operator !=
+             W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS) ||
         value->left_value == W_SEED_HIR0_NONE ||
         !evaluate_u64(program, value->left_value, depth + 1u, &operand))
       return false;
@@ -322,7 +324,8 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
       *result = 0u - operand;
     } else if (value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT) {
       *result = ~operand;
-    } else {
+    } else if (value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ONES ||
+               value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ZEROS) {
       uint64_t count = 0u;
       while (operand != 0u) {
         operand &= operand - 1u;
@@ -331,6 +334,17 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
       *result = value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ONES
                     ? count
                     : UINT64_C(64) - count;
+    } else {
+      uint64_t count = 0u;
+      if (operand == 0u) {
+        count = UINT64_C(64);
+      } else {
+        while ((operand & (UINT64_C(1) << 63u)) == 0u) {
+          operand <<= 1u;
+          count += 1u;
+        }
+      }
+      *result = count;
     }
     return true;
   }
@@ -534,7 +548,9 @@ static bool program_value_is_constant_u64(
     return (value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT ||
             value->unary_operator == W_SEED_HIR0_UNARY_WRAPPING_NEGATE ||
             value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ONES ||
-            value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ZEROS) &&
+            value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ZEROS ||
+            value->unary_operator ==
+                W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS) &&
            value->left_value != W_SEED_HIR0_NONE &&
            program_value_is_constant_u64(program, value->left_value,
                                          depth + 1u);
@@ -1284,7 +1300,9 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
         (value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT &&
          value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
          value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES &&
-         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS) ||
+         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS &&
+         value->unary_operator !=
+             W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS) ||
         value->left_value == W_SEED_HIR0_NONE ||
         value->right_value != W_SEED_HIR0_NONE ||
         value->binding_index != W_SEED_HIR0_NONE ||
@@ -1746,7 +1764,9 @@ static bool process_value_lowerable(
           (value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT &&
            value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
            value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES &&
-           value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS) ||
+           value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS &&
+           value->unary_operator !=
+               W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS) ||
           value->left_value == W_SEED_HIR0_NONE ||
           value->right_value != W_SEED_HIR0_NONE ||
           value->binding_index != W_SEED_HIR0_NONE ||

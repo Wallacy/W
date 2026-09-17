@@ -3003,6 +3003,90 @@
       ]
     },
     {
+      "id": "restaurant-uint-leading-zeros",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Validate fixed-input full-width UInt count of leading zero bits in 0x00000000000000f0 and zero, including the zero-to-bit-width boundary, with exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Leading 56/64\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-uint-leading-zeros.w",
+          "digest": "sha256:08602ea565ae3d7397bfc8ce36b5315a67195dcb4df3c308abba75b312aca7d4",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-uint-leading-zeros-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        },
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-uint-leading-zeros.w",
+          "digest": "sha256:08602ea565ae3d7397bfc8ce36b5315a67195dcb4df3c308abba75b312aca7d4",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-uint-leading-zeros-release",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only"
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/restaurant_uint_leading_zeros.c",
+          "digest": "sha256:3f10fc1b92f4e5e94f77f75102f22c100eafb266573442b27b747858e2f1df5d",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "clang-c23-msvc",
+          "recipeClass": "restaurant-uint-leading-zeros-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/restaurant_uint_leading_zeros.rs",
+          "digest": "sha256:145be598bda8040ed7ba0fbe519d8586b88d29adb91d0a352c36a308f925d586",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "restaurant-uint-leading-zeros-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        }
+      ],
+      "blockedLanguages": [],
+      "blockers": [
+        "w-uint-leading-zeros-compile-time-folded",
+        "runtime-uint-leading-zeros-equivalence"
+      ]
+    },
+    {
       "id": "restaurant-uint-bitwise",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",
