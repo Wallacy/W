@@ -123,6 +123,12 @@ input counts the one bits in `0xf0f0f0f00f0f0f0f_u64`, and its exact oracle is
 2024 references retain independent runtime operands. Runtime equivalence is not
 proven, so this workload has no performance ranking.
 
+The `restaurant-uint-count-zeros` witness is `not-performance-ready`. Its fixed
+input counts the zero bits in `0xf0f0f0f00f0f0f0f_u64`, and its exact oracle is
+`Zeros 32\n`. W may fold this operation in the final artifact. The C23 and Rust
+2024 references retain independent runtime operands. Runtime equivalence is not
+proven, so this workload has no performance ranking.
+
 The catalog declares compile latency, median and P95 target-run wall time,
 user/system/total CPU time, peak working set, artifact size, exit code, and
 stdout/stderr. A local

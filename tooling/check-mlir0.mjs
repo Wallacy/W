@@ -61,6 +61,8 @@ const restaurantUIntRotatedRightFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-rotated-right.w")
 const restaurantUIntCountOnesFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-count-ones.w")
+const restaurantUIntCountZerosFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-count-zeros.w")
 const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
@@ -727,6 +729,9 @@ try {
     { name: "restaurant-uint-count-ones",
       source: restaurantUIntCountOnesFixture,
       expected: Buffer.from("Ones 32\n", "utf8") },
+    { name: "restaurant-uint-count-zeros",
+      source: restaurantUIntCountZerosFixture,
+      expected: Buffer.from("Zeros 32\n", "utf8") },
     { name: "restaurant-uint-bit-not", source: restaurantUIntBitNotFixture,
       expected: Buffer.from("UInt not 18446744073709551615\n", "utf8") },
     { name: "restaurant-uint-bitwise", source: restaurantUIntBitwiseFixture,
@@ -1108,6 +1113,15 @@ try {
     uintCountOnesArtifact.includes("llvm.call @w_seed_append_u64") &&
     !uintCountOnesArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
   "u64.countOnes lost population-count or total-operation semantics")
+  const uintCountZerosArtifact =
+    artifacts.get("restaurant-uint-count-zeros").toString("utf8")
+  assert((uintCountZerosArtifact.match(/llvm\.intr\.ctpop/g) ?? []).length === 1 &&
+    uintCountZerosArtifact.includes(
+      "_count_width = llvm.mlir.constant(64 : i64)") &&
+    uintCountZerosArtifact.includes("_count_ones : i64") &&
+    uintCountZerosArtifact.includes("llvm.call @w_seed_append_u64") &&
+    !uintCountZerosArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
+  "u64.countZeros lost width-minus-popcount or total-operation semantics")
   const uintBitNotArtifact =
     artifacts.get("restaurant-uint-bit-not").toString("utf8")
   assert(uintBitNotArtifact.includes("llvm.xor") &&

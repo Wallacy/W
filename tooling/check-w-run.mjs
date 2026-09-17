@@ -92,6 +92,8 @@ const restaurantUIntRotatedRightFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-rotated-right.w")
 const restaurantUIntCountOnesFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-count-ones.w")
+const restaurantUIntCountZerosFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-count-zeros.w")
 const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
@@ -1008,6 +1010,9 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantUIntCountOnesFixture)],
     Buffer.from("Ones 32\n", "utf8"),
     "Restaurant UInt countOnes uses full-width population count")
+  expectSuccess(binary, ["run", toWsl(restaurantUIntCountZerosFixture)],
+    Buffer.from("Zeros 32\n", "utf8"),
+    "Restaurant UInt countZeros derives the full-width complement count")
   expectSuccess(binary, ["run", toWsl(restaurantUIntBitNotFixture)],
     Buffer.from("UInt not 18446744073709551615\n", "utf8"),
     "Restaurant UInt bitwise complement")

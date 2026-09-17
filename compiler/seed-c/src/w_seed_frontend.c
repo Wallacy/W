@@ -53,7 +53,8 @@ _Static_assert(W_SEED_FRONTEND_BUILTIN_NONE == 0 &&
                    W_SEED_FRONTEND_BUILTIN_U64_LOGICAL_SHIFT_RIGHT == 10 &&
                    W_SEED_FRONTEND_BUILTIN_U64_ROTATED_LEFT == 11 &&
                    W_SEED_FRONTEND_BUILTIN_U64_ROTATED_RIGHT == 12 &&
-                   W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES == 13,
+                   W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES == 13 &&
+                   W_SEED_FRONTEND_BUILTIN_U64_COUNT_ZEROS == 14,
                "w-seed frontend builtin identities are append-only");
 #if defined(DBL_HAS_SUBNORM)
 _Static_assert(DBL_HAS_SUBNORM == 1,
@@ -4133,13 +4134,15 @@ static bool builtin_u64_operation_is_supported(
          operation == W_SEED_FRONTEND_BUILTIN_U64_LOGICAL_SHIFT_RIGHT ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_ROTATED_LEFT ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_ROTATED_RIGHT ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ZEROS;
 }
 
 static bool builtin_u64_operation_is_unary(
     w_seed_frontend_builtin_operation operation) {
   return operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_NEGATE ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ZEROS;
 }
 
 static w_seed_frontend_builtin_operation builtin_u64_operation_for_member(
@@ -4168,6 +4171,8 @@ static w_seed_frontend_builtin_operation builtin_u64_operation_for_member(
     return W_SEED_FRONTEND_BUILTIN_U64_ROTATED_RIGHT;
   if (text_equal(member_name, "countOnes"))
     return W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES;
+  if (text_equal(member_name, "countZeros"))
+    return W_SEED_FRONTEND_BUILTIN_U64_COUNT_ZEROS;
   return W_SEED_FRONTEND_BUILTIN_NONE;
 }
 

@@ -2817,10 +2817,10 @@ for ranking or live best metrics.
 
 ### Source-backed checked `UInt`/`u64` operators
 
-HIR0 schema `w-seed-hir0-63` represents ordinary unsigned arithmetic,
+HIR0 schema `w-seed-hir0-64` represents ordinary unsigned arithmetic,
 comparisons, and binary bitwise operations with `BINARY_U64`, and bitwise complement with the distinct
 `UNARY_U64` value kind. Native0 and MLIR0 schemas are `w-seed-native0-9` and
-`w-seed-mlir0-38` (Windows label `w-seed-mlir0-windows-23`). Native constant
+`w-seed-mlir0-39` (Windows label `w-seed-mlir0-windows-24`). Native constant
 trees are evaluated as `uint64_t` with checked add/subtract/multiply,
 zero-guarded divide/remainder, and width-preserving complement; overflow or
 division by zero fails closed. MLIR0 keeps the physical carrier as `i64`, uses
@@ -2900,6 +2900,10 @@ proves full-width population count with zero, all-ones, and mixed-bit vectors
 in focused tests. Its distinct unary HIR identity lowers directly to
 `llvm.intr.ctpop`; the operation is total, allocation-free, and introduces no
 runtime helper or trap.
+[`fixtures/restaurant-uint-count-zeros.w`](fixtures/restaurant-uint-count-zeros.w)
+proves the complementary full-width zero count. Its distinct unary HIR
+identity lowers to `64 - llvm.intr.ctpop`, preserving the `zero -> bitWidth`
+boundary without allocation, helper calls, or traps.
 
 This is a finite linear/local-function-call and straight-line mutation slice.
 Other UInt arithmetic-policy families, UInt CFGs and loops,

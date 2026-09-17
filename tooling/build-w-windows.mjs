@@ -212,6 +212,13 @@ export const SMOKE_CASES = Object.freeze([
       "restaurant-uint-count-ones.w"),
     expectedStdout: "Ones 32\n",
   }),
+  Object.freeze({
+    id: "restaurant-uint-count-zeros",
+    fixture: "compiler/seed-c/fixtures/restaurant-uint-count-zeros.w",
+    absoluteFixture: resolve(seedDirectory, "fixtures",
+      "restaurant-uint-count-zeros.w"),
+    expectedStdout: "Zeros 32\n",
+  }),
 ])
 
 function fail(message) {

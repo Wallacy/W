@@ -1525,7 +1525,8 @@ static bool mlir0_value_is_constant_u64(const w_seed_hir0_program *program,
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64)
     return (value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT ||
             value->unary_operator == W_SEED_HIR0_UNARY_WRAPPING_NEGATE ||
-            value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ONES) &&
+            value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ONES ||
+            value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ZEROS) &&
            value->left_value != W_SEED_HIR0_NONE &&
            mlir0_value_is_constant_u64(program, value->left_value,
                                        depth + 1u);
@@ -2747,7 +2748,8 @@ static bool append_unary_u64_operation(
       program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64 ||
       (value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT &&
        value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
-       value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES) ||
+       value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES &&
+       value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS) ||
       value->left_value == W_SEED_HIR0_NONE ||
       value->right_value != W_SEED_HIR0_NONE ||
       value->binding_index != W_SEED_HIR0_NONE ||
@@ -2782,6 +2784,29 @@ static bool append_unary_u64_operation(
                                         function_index, process, artifact,
                                         capacity, offset) &&
            append_literal(artifact, capacity, offset, ") : (i64) -> i64\n");
+  }
+  if (value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ZEROS) {
+    return append_literal(artifact, capacity, offset, "    %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset,
+                          "_count_ones = \"llvm.intr.ctpop\"(") &&
+           append_program_value_operand(program, value->left_value,
+                                        function_index, process, artifact,
+                                        capacity, offset) &&
+           append_literal(artifact, capacity, offset, ") : (i64) -> i64\n") &&
+           append_literal(artifact, capacity, offset, "    %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(
+               artifact, capacity, offset,
+               "_count_width = llvm.mlir.constant(64 : i64) : i64\n") &&
+           append_literal(artifact, capacity, offset, "    %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset, " = llvm.sub %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset, "_count_width, %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset,
+                          "_count_ones : i64\n");
   }
   return append_literal(artifact, capacity, offset, "    %v") &&
          append_size(artifact, capacity, offset, value_index) &&
@@ -3893,7 +3918,8 @@ static bool append_program_value_tree(
         program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64 ||
         (value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT &&
          value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
-         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES) ||
+         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES &&
+         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS) ||
         value->left_value == W_SEED_HIR0_NONE ||
         value->right_value != W_SEED_HIR0_NONE ||
         value->binding_index != W_SEED_HIR0_NONE ||

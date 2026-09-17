@@ -313,7 +313,8 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
     uint64_t operand = 0u;
     if ((value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT &&
          value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
-         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES) ||
+         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES &&
+         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS) ||
         value->left_value == W_SEED_HIR0_NONE ||
         !evaluate_u64(program, value->left_value, depth + 1u, &operand))
       return false;
@@ -327,7 +328,9 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
         operand &= operand - 1u;
         count += 1u;
       }
-      *result = count;
+      *result = value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ONES
+                    ? count
+                    : UINT64_C(64) - count;
     }
     return true;
   }
@@ -530,7 +533,8 @@ static bool program_value_is_constant_u64(
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64)
     return (value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT ||
             value->unary_operator == W_SEED_HIR0_UNARY_WRAPPING_NEGATE ||
-            value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ONES) &&
+            value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ONES ||
+            value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ZEROS) &&
            value->left_value != W_SEED_HIR0_NONE &&
            program_value_is_constant_u64(program, value->left_value,
                                          depth + 1u);
@@ -1279,7 +1283,8 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
     if (type != W_SEED_HIR0_TYPE_U64 ||
         (value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT &&
          value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
-         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES) ||
+         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES &&
+         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS) ||
         value->left_value == W_SEED_HIR0_NONE ||
         value->right_value != W_SEED_HIR0_NONE ||
         value->binding_index != W_SEED_HIR0_NONE ||
@@ -1740,7 +1745,8 @@ static bool process_value_lowerable(
       if (program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64 ||
           (value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT &&
            value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
-           value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES) ||
+           value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES &&
+           value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS) ||
           value->left_value == W_SEED_HIR0_NONE ||
           value->right_value != W_SEED_HIR0_NONE ||
           value->binding_index != W_SEED_HIR0_NONE ||
