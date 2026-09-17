@@ -878,6 +878,7 @@ static bool interpolation_maximum_bytes(
           effective->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
           effective->kind == W_SEED_HIR0_VALUE_BINARY_U64 ||
           effective->kind == W_SEED_HIR0_VALUE_UNARY_U64 ||
+          effective->kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT ||
           effective->kind ==
               W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON ||
           effective->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER;
@@ -1436,6 +1437,21 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
     return program_value_lowerable(program, binding->initializer_value,
                                    owner_function, allow_string, depth + 1u);
   }
+  if (value->kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT) {
+    if ((type != W_SEED_HIR0_TYPE_U64 && type != W_SEED_HIR0_TYPE_BOOL) ||
+        value->left_value >= program->value_count ||
+        value->unsigned_integer_value > 1u ||
+        (value->unsigned_integer_value == 0u
+             ? type != W_SEED_HIR0_TYPE_U64
+             : type != W_SEED_HIR0_TYPE_BOOL))
+      return false;
+    const w_seed_hir0_value *tuple = &program->values[value->left_value];
+    return tuple->type_index < program->type_count &&
+           program->types[tuple->type_index].kind ==
+               W_SEED_HIR0_TYPE_U64_BOOL_TUPLE &&
+           program_value_lowerable(program, value->left_value, owner_function,
+                                   false, depth + 1u);
+  }
   if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
     const bool shift =
         value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
@@ -1500,10 +1516,13 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
         value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_ADD ||
         value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_SUBTRACT ||
         value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_MULTIPLY;
+    const bool overflowing =
+        value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_ADD;
     const bool bitwise =
         value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
         value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR;
-    if ((!arithmetic && !comparison && !bitwise && !wrapping) ||
+    if ((!arithmetic && !comparison && !bitwise && !wrapping &&
+         !overflowing) ||
         value->left_value >= program->value_count ||
         value->right_value >= program->value_count ||
         program->values[value->left_value].type_index >= program->type_count ||
@@ -1512,14 +1531,16 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
             W_SEED_HIR0_TYPE_U64 ||
         program->types[program->values[value->right_value].type_index].kind !=
             W_SEED_HIR0_TYPE_U64 ||
-        (comparison ? type != W_SEED_HIR0_TYPE_BOOL
-                    : type != W_SEED_HIR0_TYPE_U64) ||
+        (comparison
+             ? type != W_SEED_HIR0_TYPE_BOOL
+             : (overflowing ? type != W_SEED_HIR0_TYPE_U64_BOOL_TUPLE
+                            : type != W_SEED_HIR0_TYPE_U64)) ||
         !program_value_lowerable(program, value->left_value, owner_function,
                                  false, depth + 1u) ||
         !program_value_lowerable(program, value->right_value, owner_function,
                                  false, depth + 1u))
       return false;
-    if ((arithmetic || bitwise || wrapping) &&
+    if ((arithmetic || bitwise || wrapping) && !overflowing &&
         program_value_is_constant_u64(program, value_index, 0u)) {
       uint64_t ignored = 0u;
       if (!evaluate_u64(program, value_index, 0u, &ignored)) return false;
@@ -4135,7 +4156,8 @@ w_seed_native_subset0_status w_seed_native_subset0_select_program(
   bool has_u64_linear_value = false;
   for (size_t value = 0u; value < program->value_count; value += 1u)
     if (program->values[value].kind == W_SEED_HIR0_VALUE_BINARY_U64 ||
-        program->values[value].kind == W_SEED_HIR0_VALUE_UNARY_U64) {
+        program->values[value].kind == W_SEED_HIR0_VALUE_UNARY_U64 ||
+        program->values[value].kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT) {
       has_u64_linear_value = true;
       break;
     }

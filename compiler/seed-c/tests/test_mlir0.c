@@ -2260,6 +2260,41 @@ static bool test_u64_saturating_add_artifact(void) {
   return true;
 }
 
+static bool test_u64_overflowing_add_product_artifact(void) {
+  static const uint8_t source[] =
+      "entry { let pair = u64.overflowingAdd("
+      "18446744073709551615_u64, 1_u64) "
+      "let wrapped = pair.0 let overflowed = pair.1 "
+      "print(\"${wrapped}/${overflowed}\") }\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        memcmp(measured.mlir_sha256, emitted.mlir_sha256,
+               sizeof(measured.mlir_sha256)) == 0 &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.intr.uadd.with.overflow") == 1u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.extractvalue") == 2u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "!llvm.struct<(i64, i1)>") == 3u &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.call @w_seed_append_u64") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.call @w_seed_append_bool") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "@w_seed_checked_add_u64"));
+  return true;
+}
+
 static bool test_u64_saturating_subtract_artifact(void) {
   static const uint8_t source[] =
       "fn clamp(left: UInt, right: UInt): UInt { return "
@@ -5624,6 +5659,7 @@ int main(int argc, char **argv) {
   if (!test_unsigned_binary_u64_slice()) return 1;
   if (!test_u64_wrapping_add_artifact()) return 1;
   if (!test_u64_saturating_add_artifact()) return 1;
+  if (!test_u64_overflowing_add_product_artifact()) return 1;
   if (!test_u64_saturating_subtract_artifact()) return 1;
   if (!test_u64_saturating_multiply_artifact()) return 1;
   if (!test_u64_wrapping_subtract_artifact()) return 1;
