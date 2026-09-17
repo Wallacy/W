@@ -247,6 +247,13 @@ export const SMOKE_CASES = Object.freeze([
       "restaurant-uint-reversed-bytes.w"),
     expectedStdout: "Bytes 17279655951921914625\n",
   }),
+  Object.freeze({
+    id: "restaurant-uint-saturating-add",
+    fixture: "compiler/seed-c/fixtures/restaurant-uint-saturating-add.w",
+    absoluteFixture: resolve(seedDirectory, "fixtures",
+      "restaurant-uint-saturating-add.w"),
+    expectedStdout: "Saturated 18446744073709551615/11\n",
+  }),
 ])
 
 function fail(message) {

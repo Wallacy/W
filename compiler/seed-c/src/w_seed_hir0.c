@@ -174,7 +174,8 @@ static bool hir0_builtin_u64_operation_is_supported(
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_LEADING_ZEROS ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_TRAILING_ZEROS ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BITS ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BYTES;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BYTES ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_ADD;
 }
 
 static bool hir0_builtin_u64_operation_is_unary(
@@ -224,7 +225,9 @@ static bool hir0_builtin_u64_operation_member_matches(
          (operation == W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BITS &&
           text_is(member_name, "reversedBits")) ||
          (operation == W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BYTES &&
-          text_is(member_name, "reversedBytes"));
+          text_is(member_name, "reversedBytes")) ||
+         (operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_ADD &&
+          text_is(member_name, "saturatingAdd"));
 }
 
 static bool frontend_assignment_operator(w_seed_frontend_text text) {
@@ -11332,35 +11335,38 @@ static uint32_t hir0_emit_value_m2(
         W_SEED_HIR0_VALUE_OWNER_BINARY, W_SEED_HIR0_NONE, 1u, right_block,
         depth + 1u);
     const uint32_t result = (uint32_t)*context->value_index;
-    w_seed_hir0_binary_operator wrapping_operator =
+    w_seed_hir0_binary_operator binary_operator =
         W_SEED_HIR0_BINARY_WRAPPING_POWER;
     if (source->builtin_operation ==
         W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD)
-      wrapping_operator = W_SEED_HIR0_BINARY_WRAPPING_ADD;
+      binary_operator = W_SEED_HIR0_BINARY_WRAPPING_ADD;
     else if (source->builtin_operation ==
              W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SUBTRACT)
-      wrapping_operator = W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT;
+      binary_operator = W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT;
     else if (source->builtin_operation ==
              W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_MULTIPLY)
-      wrapping_operator = W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY;
+      binary_operator = W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY;
     else if (source->builtin_operation ==
              W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SHIFT_LEFT)
-      wrapping_operator = W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT;
+      binary_operator = W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT;
     else if (source->builtin_operation ==
              W_SEED_FRONTEND_BUILTIN_U64_MASKED_SHIFT_LEFT)
-      wrapping_operator = W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT;
+      binary_operator = W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT;
     else if (source->builtin_operation ==
              W_SEED_FRONTEND_BUILTIN_U64_MASKED_SHIFT_RIGHT)
-      wrapping_operator = W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT;
+      binary_operator = W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT;
     else if (source->builtin_operation ==
              W_SEED_FRONTEND_BUILTIN_U64_LOGICAL_SHIFT_RIGHT)
-      wrapping_operator = W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT;
+      binary_operator = W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT;
     else if (source->builtin_operation ==
              W_SEED_FRONTEND_BUILTIN_U64_ROTATED_LEFT)
-      wrapping_operator = W_SEED_HIR0_BINARY_ROTATED_LEFT;
+      binary_operator = W_SEED_HIR0_BINARY_ROTATED_LEFT;
     else if (source->builtin_operation ==
              W_SEED_FRONTEND_BUILTIN_U64_ROTATED_RIGHT)
-      wrapping_operator = W_SEED_HIR0_BINARY_ROTATED_RIGHT;
+      binary_operator = W_SEED_HIR0_BINARY_ROTATED_RIGHT;
+    else if (source->builtin_operation ==
+             W_SEED_FRONTEND_BUILTIN_U64_SATURATING_ADD)
+      binary_operator = W_SEED_HIR0_BINARY_SATURATING_ADD;
     context->output->values[*context->value_index] = (w_seed_hir0_value){
         .kind = W_SEED_HIR0_VALUE_BINARY_U64,
         .owner_kind = owner_kind,
@@ -11378,7 +11384,7 @@ static uint32_t hir0_emit_value_m2(
         .first_enum_payload = 0u,
         .enum_payload_count = 0u,
         .pattern_capture_index = W_SEED_HIR0_NONE,
-        .binary_operator = wrapping_operator,
+        .binary_operator = binary_operator,
         .unary_operator = W_SEED_HIR0_UNARY_NOT,
         .block_argument_index = W_SEED_HIR0_NONE,
         .integer_value = 0,
@@ -14429,7 +14435,8 @@ static bool verify_value_tree(
         value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT ||
         value->binary_operator == W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT ||
         value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_LEFT ||
-        value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_RIGHT;
+        value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_RIGHT ||
+        value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_ADD;
     const bool bitwise =
         value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
         value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR;

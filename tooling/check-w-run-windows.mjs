@@ -103,6 +103,8 @@ const restaurantUIntReversedBitsFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-reversed-bits.w")
 const restaurantUIntReversedBytesFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-reversed-bytes.w")
+const restaurantUIntSaturatingAddFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-saturating-add.w")
 const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
@@ -696,6 +698,9 @@ try {
   expectExact(binary, ["run", restaurantUIntReversedBytesFixture], 0,
     Buffer.from("Bytes 17279655951921914625\n", "utf8"),
     "Restaurant UInt reversedBytes is independent of host endianness")
+  expectExact(binary, ["run", restaurantUIntSaturatingAddFixture], 0,
+    Buffer.from("Saturated 18446744073709551615/11\n", "utf8"),
+    "Restaurant UInt saturatingAdd clamps overflow without trapping")
   expectExact(binary, ["run", restaurantUIntBitNotFixture], 0,
     Buffer.from("UInt not 18446744073709551615\n", "utf8"),
     "Restaurant UInt bitwise complement")

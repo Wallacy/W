@@ -2216,6 +2216,50 @@ static bool test_u64_wrapping_add_artifact(void) {
   return true;
 }
 
+static bool test_u64_saturating_add_artifact(void) {
+  static const uint8_t source[] =
+      "fn clamp(left: UInt, right: UInt): UInt { return "
+      "u64.saturatingAdd(left, right) }\n"
+      "entry { let maximum = clamp(left: 18446744073709551615_u64, "
+      "right: 1_u64) let ordinary = clamp(left: 7_u64, right: 5_u64) "
+      "print(\"${maximum}/${ordinary}\") }\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  size_t saturating_count = 0u;
+  for (size_t index = 0u; index < fixture.hir_program.value_count;
+       index += 1u)
+    if (fixture.hir_program.values[index].kind ==
+            W_SEED_HIR0_VALUE_BINARY_U64 &&
+        fixture.hir_program.values[index].binary_operator ==
+            W_SEED_HIR0_BINARY_SATURATING_ADD)
+      saturating_count += 1u;
+  CHECK(saturating_count == 1u && fixture.hir_program.call_count == 3u);
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        memcmp(measured.mlir_sha256, emitted.mlir_sha256,
+               sizeof(measured.mlir_sha256)) == 0 &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.intr.uadd.sat") == 1u &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "@w_seed_checked_add_u64") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "\"llvm.intr.trap\"() : () -> ()"));
+
+  static const uint8_t unreachable_source[] =
+      "entry { print(\"No saturating add\") }\n";
+  CHECK(lower_hir(unreachable_source, sizeof(unreachable_source) - 1u));
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "llvm.intr.uadd.sat"));
+  return true;
+}
+
 static bool test_u64_wrapping_subtract_artifact(void) {
   static const uint8_t source[] =
       "fn wrap(value: UInt): UInt { return u64.wrappingSubtract(value, 1_u64) }\n"
@@ -5483,6 +5527,7 @@ int main(int argc, char **argv) {
   if (!test_unsigned_scalar_return_call_result()) return 1;
   if (!test_unsigned_binary_u64_slice()) return 1;
   if (!test_u64_wrapping_add_artifact()) return 1;
+  if (!test_u64_saturating_add_artifact()) return 1;
   if (!test_u64_wrapping_subtract_artifact()) return 1;
   if (!test_u64_wrapping_multiply_artifact()) return 1;
   if (!test_u64_wrapping_negate_artifact()) return 1;
