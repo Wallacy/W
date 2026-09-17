@@ -2817,10 +2817,10 @@ for ranking or live best metrics.
 
 ### Source-backed checked `UInt`/`u64` operators
 
-HIR0 schema `w-seed-hir0-57` represents ordinary unsigned arithmetic,
+HIR0 schema `w-seed-hir0-58` represents ordinary unsigned arithmetic,
 comparisons, and binary bitwise operations with `BINARY_U64`, and bitwise complement with the distinct
 `UNARY_U64` value kind. Native0 and MLIR0 schemas are `w-seed-native0-9` and
-`w-seed-mlir0-32` (Windows label `w-seed-mlir0-windows-17`). Native constant
+`w-seed-mlir0-33` (Windows label `w-seed-mlir0-windows-18`). Native constant
 trees are evaluated as `uint64_t` with checked add/subtract/multiply,
 zero-guarded divide/remainder, and width-preserving complement; overflow or
 division by zero fails closed. MLIR0 keeps the physical carrier as `i64`, uses
@@ -2869,6 +2869,11 @@ proves full-width modulo left shift for a valid dynamic count. Its distinct HIR
 identity lowers to a reachable-only helper that rejects `count >= 64` before
 the unflagged `llvm.shl`, so it discards high bits without inheriting ordinary
 `checkedShiftLeft` lost-bit rejection or LLVM poison for an invalid count.
+[`fixtures/restaurant-uint-masked-shift-left.w`](fixtures/restaurant-uint-masked-shift-left.w)
+proves modulo-width count reduction with count `65`. Its distinct HIR identity
+lowers to a reachable-only helper that masks the count with `63` before the
+unflagged `llvm.shl`; counts `0`, `63`, `64`, and `65` remain valid and never
+take the checked or trapping shift path.
 
 This is a finite linear/local-function-call and straight-line mutation slice.
 Other UInt arithmetic-policy families, UInt CFGs and loops,

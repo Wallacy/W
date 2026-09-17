@@ -78,6 +78,14 @@ before the unsigned shift. The Rust 2024 reference validates the count before
 it calls `wrapping_shl`. Runtime equivalence is not proven, so this workload
 has no performance ranking.
 
+The `restaurant-uint-masked-shift-left` witness is `not-performance-ready`.
+Its fixed inputs shift `UInt` value `1` by count `65`, and its exact oracle is
+`Masked 2\n`. The C23 reference masks the runtime count with `63` before the
+unsigned shift to avoid undefined behavior. The Rust 2024 reference uses
+`wrapping_shl`, which masks the runtime count. W may fold this operation in the
+final artifact. Runtime equivalence is not proven, so this workload has no
+performance ranking.
+
 The catalog declares compile latency, median and P95 target-run wall time,
 user/system/total CPU time, peak working set, artifact size, exit code, and
 stdout/stderr. A local

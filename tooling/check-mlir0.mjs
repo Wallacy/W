@@ -49,6 +49,8 @@ const restaurantUIntWrappingPowerFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-power.w")
 const restaurantUIntWrappingShiftLeftFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-shift-left.w")
+const restaurantUIntMaskedShiftLeftFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-masked-shift-left.w")
 const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
@@ -697,6 +699,9 @@ try {
     { name: "restaurant-uint-wrapping-shift-left",
       source: restaurantUIntWrappingShiftLeftFixture,
       expected: Buffer.from("Wrapped 18446744073709551614\n", "utf8") },
+    { name: "restaurant-uint-masked-shift-left",
+      source: restaurantUIntMaskedShiftLeftFixture,
+      expected: Buffer.from("Masked 2\n", "utf8") },
     { name: "restaurant-uint-bit-not", source: restaurantUIntBitNotFixture,
       expected: Buffer.from("UInt not 18446744073709551615\n", "utf8") },
     { name: "restaurant-uint-bitwise", source: restaurantUIntBitwiseFixture,
@@ -1014,6 +1019,18 @@ try {
     !uintWrappingShiftLeftArtifact.includes("@w_seed_checked_shift_left_u64") &&
     !uintWrappingShiftLeftArtifact.includes("llvm.intr.ushl.with.overflow"),
   "u64.wrappingShiftLeft lost its count guard or gained checked-shift semantics")
+  const uintMaskedShiftLeftArtifact =
+    artifacts.get("restaurant-uint-masked-shift-left").toString("utf8")
+  assert((uintMaskedShiftLeftArtifact.match(
+    /llvm\.func internal @w_seed_masked_shift_left_u64/g) ?? []).length === 1 &&
+    uintMaskedShiftLeftArtifact.includes(
+      "llvm.call @w_seed_masked_shift_left_u64") &&
+    uintMaskedShiftLeftArtifact.includes("llvm.and %count, %mask : i64") &&
+    uintMaskedShiftLeftArtifact.includes("llvm.shl %left, %masked_count : i64") &&
+    uintMaskedShiftLeftArtifact.includes("llvm.call @w_seed_append_u64") &&
+    !uintMaskedShiftLeftArtifact.includes("@w_seed_checked_shift_left_u64") &&
+    !uintMaskedShiftLeftArtifact.includes("llvm.intr.ushl.with.overflow"),
+  "u64.maskedShiftLeft lost count masking or gained checked-shift semantics")
   const uintBitNotArtifact =
     artifacts.get("restaurant-uint-bit-not").toString("utf8")
   assert(uintBitNotArtifact.includes("llvm.xor") &&

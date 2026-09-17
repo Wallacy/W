@@ -47,7 +47,8 @@ _Static_assert(W_SEED_FRONTEND_BUILTIN_NONE == 0 &&
                    W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_MULTIPLY == 4 &&
                    W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_NEGATE == 5 &&
                    W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_POWER == 6 &&
-                   W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SHIFT_LEFT == 7,
+                   W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SHIFT_LEFT == 7 &&
+                   W_SEED_FRONTEND_BUILTIN_U64_MASKED_SHIFT_LEFT == 8,
                "w-seed frontend builtin identities are append-only");
 #if defined(DBL_HAS_SUBNORM)
 _Static_assert(DBL_HAS_SUBNORM == 1,
@@ -4121,7 +4122,8 @@ static bool builtin_u64_operation_is_wrapping(
          operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_MULTIPLY ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_NEGATE ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_POWER ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SHIFT_LEFT;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SHIFT_LEFT ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_MASKED_SHIFT_LEFT;
 }
 
 static bool builtin_u64_operation_is_unary_wrapping(
@@ -4143,6 +4145,8 @@ static w_seed_frontend_builtin_operation builtin_u64_operation_for_member(
     return W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_POWER;
   if (text_equal(member_name, "wrappingShiftLeft"))
     return W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SHIFT_LEFT;
+  if (text_equal(member_name, "maskedShiftLeft"))
+    return W_SEED_FRONTEND_BUILTIN_U64_MASKED_SHIFT_LEFT;
   return W_SEED_FRONTEND_BUILTIN_NONE;
 }
 

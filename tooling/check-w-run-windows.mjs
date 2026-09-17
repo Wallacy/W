@@ -81,6 +81,8 @@ const restaurantUIntWrappingPowerFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-power.w")
 const restaurantUIntWrappingShiftLeftFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-shift-left.w")
+const restaurantUIntMaskedShiftLeftFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-masked-shift-left.w")
 const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
@@ -641,6 +643,9 @@ try {
   expectExact(binary, ["run", restaurantUIntWrappingShiftLeftFixture], 0,
     Buffer.from("Wrapped 18446744073709551614\n", "utf8"),
     "Restaurant UInt wrappingShiftLeft with a valid count")
+  expectExact(binary, ["run", restaurantUIntMaskedShiftLeftFixture], 0,
+    Buffer.from("Masked 2\n", "utf8"),
+    "Restaurant UInt maskedShiftLeft reduces count modulo bit width")
   expectExact(binary, ["run", restaurantUIntBitNotFixture], 0,
     Buffer.from("UInt not 18446744073709551615\n", "utf8"),
     "Restaurant UInt bitwise complement")
