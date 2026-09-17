@@ -166,7 +166,8 @@ static bool hir0_builtin_u64_operation_is_wrapping(
          operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SHIFT_LEFT ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_MASKED_SHIFT_LEFT ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_MASKED_SHIFT_RIGHT ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_LOGICAL_SHIFT_RIGHT;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_LOGICAL_SHIFT_RIGHT ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_ROTATED_LEFT;
 }
 
 static bool hir0_builtin_u64_operation_is_unary_wrapping(
@@ -194,7 +195,9 @@ static bool hir0_builtin_u64_operation_member_matches(
          (operation == W_SEED_FRONTEND_BUILTIN_U64_MASKED_SHIFT_RIGHT &&
           text_is(member_name, "maskedShiftRight")) ||
          (operation == W_SEED_FRONTEND_BUILTIN_U64_LOGICAL_SHIFT_RIGHT &&
-          text_is(member_name, "logicalShiftRight"));
+          text_is(member_name, "logicalShiftRight")) ||
+         (operation == W_SEED_FRONTEND_BUILTIN_U64_ROTATED_LEFT &&
+          text_is(member_name, "rotatedLeft"));
 }
 
 static bool frontend_assignment_operator(w_seed_frontend_text text) {
@@ -11306,6 +11309,9 @@ static uint32_t hir0_emit_value_m2(
     else if (source->builtin_operation ==
              W_SEED_FRONTEND_BUILTIN_U64_LOGICAL_SHIFT_RIGHT)
       wrapping_operator = W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT;
+    else if (source->builtin_operation ==
+             W_SEED_FRONTEND_BUILTIN_U64_ROTATED_LEFT)
+      wrapping_operator = W_SEED_HIR0_BINARY_ROTATED_LEFT;
     context->output->values[*context->value_index] = (w_seed_hir0_value){
         .kind = W_SEED_HIR0_VALUE_BINARY_U64,
         .owner_kind = owner_kind,
@@ -14372,7 +14378,8 @@ static bool verify_value_tree(
         value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT ||
         value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT ||
         value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT ||
-        value->binary_operator == W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT;
+        value->binary_operator == W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT ||
+        value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_LEFT;
     const bool bitwise =
         value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
         value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR;

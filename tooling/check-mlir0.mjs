@@ -55,6 +55,8 @@ const restaurantUIntMaskedShiftRightFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-masked-shift-right.w")
 const restaurantUIntLogicalShiftRightFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-logical-shift-right.w")
+const restaurantUIntRotatedLeftFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-rotated-left.w")
 const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
@@ -712,6 +714,9 @@ try {
     { name: "restaurant-uint-logical-shift-right",
       source: restaurantUIntLogicalShiftRightFixture,
       expected: Buffer.from("Logical 64\n", "utf8") },
+    { name: "restaurant-uint-rotated-left",
+      source: restaurantUIntRotatedLeftFixture,
+      expected: Buffer.from("Rotated 3\n", "utf8") },
     { name: "restaurant-uint-bit-not", source: restaurantUIntBitNotFixture,
       expected: Buffer.from("UInt not 18446744073709551615\n", "utf8") },
     { name: "restaurant-uint-bitwise", source: restaurantUIntBitwiseFixture,
@@ -1067,6 +1072,16 @@ try {
     !uintLogicalShiftRightArtifact.includes("llvm.and %count, %mask : i64") &&
     !uintLogicalShiftRightArtifact.includes("@w_seed_checked_shift_right_u64"),
   "u64.logicalShiftRight lost zero fill or invalid-count trap semantics")
+  const uintRotatedLeftArtifact =
+    artifacts.get("restaurant-uint-rotated-left").toString("utf8")
+  assert((uintRotatedLeftArtifact.match(
+    /llvm\.func internal @w_seed_rotated_left_u64/g) ?? []).length === 1 &&
+    uintRotatedLeftArtifact.includes("llvm.call @w_seed_rotated_left_u64") &&
+    (uintRotatedLeftArtifact.match(/llvm\.intr\.fshl/g) ?? []).length === 1 &&
+    uintRotatedLeftArtifact.includes("llvm.call @w_seed_append_u64") &&
+    !uintRotatedLeftArtifact.includes("llvm.and %count, %mask : i64") &&
+    !uintRotatedLeftArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
+  "u64.rotatedLeft lost funnel-shift or modulo-width semantics")
   const uintBitNotArtifact =
     artifacts.get("restaurant-uint-bit-not").toString("utf8")
   assert(uintBitNotArtifact.includes("llvm.xor") &&

@@ -2583,6 +2583,90 @@
       ]
     },
     {
+      "id": "restaurant-uint-rotated-left",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Validate fixed-input full-width UInt rotated left of 0x8000000000000001 by 1 and exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Rotated 3\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-uint-rotated-left.w",
+          "digest": "sha256:221ac15b13795ad5d6a1dc599ef44bec564f0b3e0f23147d2ab9a58684007935",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-uint-rotated-left-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        },
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-uint-rotated-left.w",
+          "digest": "sha256:221ac15b13795ad5d6a1dc599ef44bec564f0b3e0f23147d2ab9a58684007935",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-uint-rotated-left-release",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only"
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/restaurant_uint_rotated_left.c",
+          "digest": "sha256:1dd1324c277d12cdd6567e15f3533c906e67484017811246d55f88b4b17fda96",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "clang-c23-msvc",
+          "recipeClass": "restaurant-uint-rotated-left-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/restaurant_uint_rotated_left.rs",
+          "digest": "sha256:e52cbe71da3ba66392ab8c854b70b98939ceb7344b4e13a47ef3f980bbb927f5",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "restaurant-uint-rotated-left-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        }
+      ],
+      "blockedLanguages": [],
+      "blockers": [
+        "w-uint-rotated-left-compile-time-folded",
+        "runtime-uint-rotated-left-equivalence"
+      ]
+    },
+    {
       "id": "restaurant-uint-bit-not",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",

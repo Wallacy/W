@@ -14097,6 +14097,46 @@ static bool test_u64_logical_shift_right(void) {
   return true;
 }
 
+static bool test_u64_rotated_left(void) {
+  static const char SOURCE[] =
+      "fn rotate(value: u64, count: u64): u64 { "
+      "return u64.rotatedLeft(value, count) }\n"
+      "entry { let zero = u64.rotatedLeft(1_u64, 0_u64) "
+      "let edge = u64.rotatedLeft(1_u64, 63_u64) "
+      "let width = u64.rotatedLeft(7_u64, 64_u64) "
+      "let next = u64.rotatedLeft(1_u64, 65_u64) }\n";
+  CHECK(lower(SOURCE));
+  size_t rotated_count = 0u;
+  size_t rotated_index = SIZE_MAX;
+  for (size_t index = 0u; index < fixture.hir_program.value_count;
+       index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_program.values[index];
+    if (value->kind != W_SEED_HIR0_VALUE_BINARY_U64) continue;
+    CHECK(value->binary_operator != W_SEED_HIR0_BINARY_SHIFT_LEFT &&
+          value->binary_operator != W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT);
+    if (value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_LEFT) {
+      CHECK(value->type_index < fixture.hir_program.type_count &&
+            fixture.hir_program.types[value->type_index].kind ==
+                W_SEED_HIR0_TYPE_U64 &&
+            value->left_value != W_SEED_HIR0_NONE &&
+            value->right_value != W_SEED_HIR0_NONE);
+      rotated_count += 1u;
+      rotated_index = index;
+    }
+  }
+  CHECK(rotated_count == 5u && rotated_index != SIZE_MAX &&
+        fixture.hir_program.call_count == 0u);
+  const w_seed_hir0_value saved = fixture.hir_values[rotated_index];
+  fixture.hir_values[rotated_index].binary_operator =
+      W_SEED_HIR0_BINARY_SHIFT_LEFT;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[rotated_index] = saved;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_canonical_f64_scalar(void) {
   static const char SOURCE[] =
       "entry { let sum = 1.5 + 2.25_f64 let difference = 9.5 - 5.5 "
@@ -14641,6 +14681,7 @@ int main(int argc, char **argv) {
   if (!test_u64_masked_shift_left()) return 1;
   if (!test_u64_masked_shift_right()) return 1;
   if (!test_u64_logical_shift_right()) return 1;
+  if (!test_u64_rotated_left()) return 1;
   if (!test_canonical_f64_scalar()) return 1;
   if (!test_frontend_tree_bounds_forgery()) return 1;
   if (!test_checked_shift_values()) return 1;

@@ -54,6 +54,7 @@ import {
   RESTAURANT_UINT_MASKED_SHIFT_LEFT_WORKLOAD_ID,
   RESTAURANT_UINT_MASKED_SHIFT_RIGHT_WORKLOAD_ID,
   RESTAURANT_UINT_LOGICAL_SHIFT_RIGHT_WORKLOAD_ID,
+  RESTAURANT_UINT_ROTATED_LEFT_WORKLOAD_ID,
   RESTAURANT_UINT_WRAPPING_SUBTRACT_WORKLOAD_ID,
   ROOT,
   deriveExecutableBestMetrics,
@@ -1040,6 +1041,68 @@ test("UInt logical-shift-right catalog keeps zero fill separate from ranking", (
   assert.match(rust, /u32::try_from\(count\)/u);
   assert.match(rust, /count >= u64::BITS/u);
   assert.match(rust, /value >> count/u);
+  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
+  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
+});
+
+test("UInt rotated-left catalog keeps runtime operands separate from ranking", () => {
+  const workload = documents.catalog.workloads.find((item) =>
+    item.id === RESTAURANT_UINT_ROTATED_LEFT_WORKLOAD_ID);
+  assert.ok(workload);
+  assert.equal(workload.structureClass, "public-end-to-end");
+  assert.equal(workload.status, "source-oracle-ready");
+  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
+  assert.equal(workload.demoEvidence, "bounded-w-demo");
+  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.equal(workload.scope,
+    "Validate fixed-input full-width UInt rotated left of 0x8000000000000001 by 1 and exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.");
+  assert.deepEqual(workload.oracle, {
+    kind: "exact-output",
+    status: "source-backed",
+    exitCode: 0,
+    stdout: "Rotated 3\n",
+    stderr: "",
+  });
+  assert.deepEqual(workload.blockedLanguages, []);
+  assert.deepEqual(workload.blockers, [
+    "w-uint-rotated-left-compile-time-folded",
+    "runtime-uint-rotated-left-equivalence",
+  ]);
+  assert.deepEqual(workload.sources.map((source) =>
+    [source.language, source.platformTarget]), [
+    ["w", EXECUTABLE_PLATFORM_TARGET],
+    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
+    ["c", EXECUTABLE_PLATFORM_TARGET],
+    ["rust", EXECUTABLE_PLATFORM_TARGET],
+  ]);
+  assert.ok(workload.sources.every((source) =>
+    source.recipeClass === "restaurant-uint-rotated-left-release"));
+  assert.deepEqual(workload.sources
+    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
+    .map((source) => [source.comparability, source.eligibility]), [
+      ["deferred-until-M3b", "deferred-to-M3b"],
+      ["deferred-until-M3b", "deferred-to-M3b"],
+      ["deferred-until-M3b", "deferred-to-M3b"],
+    ]);
+  const wsl = workload.sources.find((source) =>
+    source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
+  assert.deepEqual([wsl.comparability, wsl.eligibility], [
+    "same-physical-hardware-diagnostic-only",
+    "same-physical-hardware-diagnostic-only",
+  ]);
+  const c = readFileSync(
+    `${ROOT}/benchmarks/executable/restaurant_uint_rotated_left.c`, "utf8");
+  const rust = readFileSync(
+    `${ROOT}/benchmarks/executable/restaurant_uint_rotated_left.rs`, "utf8");
+  assert.match(c, /volatile uint64_t runtime_value/u);
+  assert.match(c, /volatile uint64_t runtime_count/u);
+  assert.match(c, /rotated_left_u64/u);
+  assert.match(c, /shift == 0/u);
+  assert.match(c, /value << shift/u);
+  assert.match(c, /value >> \(UINT64_C\(64\) - shift\)/u);
+  assert.match(rust, /black_box\(0x8000000000000001_u64\)/u);
+  assert.match(rust, /black_box\(1_u64\)/u);
+  assert.match(rust, /\.rotate_left\(/u);
   assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
   assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
 });
