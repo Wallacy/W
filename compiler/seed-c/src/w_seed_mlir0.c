@@ -1531,7 +1531,8 @@ static bool mlir0_value_is_constant_u64(const w_seed_hir0_program *program,
                 W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS ||
             value->unary_operator ==
                 W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS ||
-            value->unary_operator == W_SEED_HIR0_UNARY_REVERSED_BITS) &&
+            value->unary_operator == W_SEED_HIR0_UNARY_REVERSED_BITS ||
+            value->unary_operator == W_SEED_HIR0_UNARY_REVERSED_BYTES) &&
            value->left_value != W_SEED_HIR0_NONE &&
            mlir0_value_is_constant_u64(program, value->left_value,
                                        depth + 1u);
@@ -2757,7 +2758,8 @@ static bool append_unary_u64_operation(
        value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS &&
        value->unary_operator != W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS &&
        value->unary_operator != W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS &&
-       value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BITS) ||
+       value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BITS &&
+       value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BYTES) ||
       value->left_value == W_SEED_HIR0_NONE ||
       value->right_value != W_SEED_HIR0_NONE ||
       value->binding_index != W_SEED_HIR0_NONE ||
@@ -2845,6 +2847,16 @@ static bool append_unary_u64_operation(
            append_size(artifact, capacity, offset, value_index) &&
            append_literal(artifact, capacity, offset,
                           " = \"llvm.intr.bitreverse\"(") &&
+           append_program_value_operand(program, value->left_value,
+                                        function_index, process, artifact,
+                                        capacity, offset) &&
+           append_literal(artifact, capacity, offset, ") : (i64) -> i64\n");
+  }
+  if (value->unary_operator == W_SEED_HIR0_UNARY_REVERSED_BYTES) {
+    return append_literal(artifact, capacity, offset, "    %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset,
+                          " = \"llvm.intr.bswap\"(") &&
            append_program_value_operand(program, value->left_value,
                                         function_index, process, artifact,
                                         capacity, offset) &&
@@ -3966,7 +3978,8 @@ static bool append_program_value_tree(
              W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS &&
          value->unary_operator !=
              W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS &&
-         value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BITS) ||
+         value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BITS &&
+         value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BYTES) ||
         value->left_value == W_SEED_HIR0_NONE ||
         value->right_value != W_SEED_HIR0_NONE ||
         value->binding_index != W_SEED_HIR0_NONE ||

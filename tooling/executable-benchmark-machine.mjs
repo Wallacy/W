@@ -60,6 +60,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-uint-leading-zeros",
   "restaurant-uint-trailing-zeros",
   "restaurant-uint-reversed-bits",
+  "restaurant-uint-reversed-bytes",
   "restaurant-uint-bitwise",
   "restaurant-uint-compound",
   "restaurant-unsigned",
@@ -215,6 +216,7 @@ export const RESTAURANT_UINT_COUNT_ZEROS_WORKLOAD_ID = "restaurant-uint-count-ze
 export const RESTAURANT_UINT_LEADING_ZEROS_WORKLOAD_ID = "restaurant-uint-leading-zeros";
 export const RESTAURANT_UINT_TRAILING_ZEROS_WORKLOAD_ID = "restaurant-uint-trailing-zeros";
 export const RESTAURANT_UINT_REVERSED_BITS_WORKLOAD_ID = "restaurant-uint-reversed-bits";
+export const RESTAURANT_UINT_REVERSED_BYTES_WORKLOAD_ID = "restaurant-uint-reversed-bytes";
 export const RESTAURANT_UINT_BITWISE_WORKLOAD_ID = "restaurant-uint-bitwise";
 export const RESTAURANT_UINT_COMPOUND_WORKLOAD_ID = "restaurant-uint-compound";
 export function isProcessArgumentWorkload(workloadId) {
@@ -1090,7 +1092,8 @@ function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PL
       workload?.id === RESTAURANT_UINT_COUNT_ZEROS_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_LEADING_ZEROS_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_TRAILING_ZEROS_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_REVERSED_BITS_WORKLOAD_ID) return SOURCE_ELIGIBILITY.strictF64;
+      workload?.id === RESTAURANT_UINT_REVERSED_BITS_WORKLOAD_ID ||
+      workload?.id === RESTAURANT_UINT_REVERSED_BYTES_WORKLOAD_ID) return SOURCE_ELIGIBILITY.strictF64;
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) return SOURCE_ELIGIBILITY.processHandler;
   if (language === "c") return SOURCE_ELIGIBILITY.cPublic;
   if (language === "rust") return SOURCE_ELIGIBILITY.rust;

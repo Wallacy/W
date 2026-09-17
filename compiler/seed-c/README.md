@@ -2817,10 +2817,10 @@ for ranking or live best metrics.
 
 ### Source-backed checked `UInt`/`u64` operators
 
-HIR0 schema `w-seed-hir0-67` represents ordinary unsigned arithmetic,
+HIR0 schema `w-seed-hir0-68` represents ordinary unsigned arithmetic,
 comparisons, and binary bitwise operations with `BINARY_U64`, and bitwise complement with the distinct
 `UNARY_U64` value kind. Native0 and MLIR0 schemas are `w-seed-native0-9` and
-`w-seed-mlir0-42` (Windows label `w-seed-mlir0-windows-27`). Native constant
+`w-seed-mlir0-43` (Windows label `w-seed-mlir0-windows-28`). Native constant
 trees are evaluated as `uint64_t` with checked add/subtract/multiply,
 zero-guarded divide/remainder, and width-preserving complement; overflow or
 division by zero fails closed. MLIR0 keeps the physical carrier as `i64`, uses
@@ -2916,6 +2916,10 @@ the same total `zero -> bitWidth` boundary without allocation or runtime code.
 proves full-width bit reversal with a non-palindromic pattern. Its distinct
 unary HIR identity lowers directly to `llvm.intr.bitreverse`; endianness does
 not participate, and no helper, allocation, or trap is introduced.
+[`fixtures/restaurant-uint-reversed-bytes.w`](fixtures/restaurant-uint-reversed-bytes.w)
+proves byte-order reversal with the same non-palindromic pattern. Its distinct
+unary HIR identity lowers directly to `llvm.intr.bswap`; the operation is
+independent of host endianness and introduces no helper, allocation, or trap.
 
 This is a finite linear/local-function-call and straight-line mutation slice.
 Other UInt arithmetic-policy families, UInt CFGs and loops,

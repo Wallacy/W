@@ -69,6 +69,8 @@ const restaurantUIntTrailingZerosFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-trailing-zeros.w")
 const restaurantUIntReversedBitsFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-reversed-bits.w")
+const restaurantUIntReversedBytesFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-reversed-bytes.w")
 const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
@@ -747,6 +749,9 @@ try {
     { name: "restaurant-uint-reversed-bits",
       source: restaurantUIntReversedBitsFixture,
       expected: Buffer.from("Bits 17848844570815808640\n", "utf8") },
+    { name: "restaurant-uint-reversed-bytes",
+      source: restaurantUIntReversedBytesFixture,
+      expected: Buffer.from("Bytes 17279655951921914625\n", "utf8") },
     { name: "restaurant-uint-bit-not", source: restaurantUIntBitNotFixture,
       expected: Buffer.from("UInt not 18446744073709551615\n", "utf8") },
     { name: "restaurant-uint-bitwise", source: restaurantUIntBitwiseFixture,
@@ -1157,6 +1162,12 @@ try {
     uintReversedBitsArtifact.includes("llvm.call @w_seed_append_u64") &&
     !uintReversedBitsArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
   "u64.reversedBits lost direct bit-reverse or total-operation semantics")
+  const uintReversedBytesArtifact =
+    artifacts.get("restaurant-uint-reversed-bytes").toString("utf8")
+  assert((uintReversedBytesArtifact.match(/llvm\.intr\.bswap/g) ?? []).length === 1 &&
+    uintReversedBytesArtifact.includes("llvm.call @w_seed_append_u64") &&
+    !uintReversedBytesArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
+  "u64.reversedBytes lost direct byte-swap or total-operation semantics")
   const uintBitNotArtifact =
     artifacts.get("restaurant-uint-bit-not").toString("utf8")
   assert(uintBitNotArtifact.includes("llvm.xor") &&
