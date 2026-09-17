@@ -67,6 +67,8 @@ const restaurantUIntLeadingZerosFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-leading-zeros.w")
 const restaurantUIntTrailingZerosFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-trailing-zeros.w")
+const restaurantUIntReversedBitsFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-reversed-bits.w")
 const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
@@ -742,6 +744,9 @@ try {
     { name: "restaurant-uint-trailing-zeros",
       source: restaurantUIntTrailingZerosFixture,
       expected: Buffer.from("Trailing 12/64\n", "utf8") },
+    { name: "restaurant-uint-reversed-bits",
+      source: restaurantUIntReversedBitsFixture,
+      expected: Buffer.from("Bits 17848844570815808640\n", "utf8") },
     { name: "restaurant-uint-bit-not", source: restaurantUIntBitNotFixture,
       expected: Buffer.from("UInt not 18446744073709551615\n", "utf8") },
     { name: "restaurant-uint-bitwise", source: restaurantUIntBitwiseFixture,
@@ -1146,6 +1151,12 @@ try {
     uintTrailingZerosArtifact.includes("llvm.call @w_seed_append_u64") &&
     !uintTrailingZerosArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
   "u64.countTrailingZeros lost non-poison cttz or total-operation semantics")
+  const uintReversedBitsArtifact =
+    artifacts.get("restaurant-uint-reversed-bits").toString("utf8")
+  assert((uintReversedBitsArtifact.match(/llvm\.intr\.bitreverse/g) ?? []).length === 1 &&
+    uintReversedBitsArtifact.includes("llvm.call @w_seed_append_u64") &&
+    !uintReversedBitsArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
+  "u64.reversedBits lost direct bit-reverse or total-operation semantics")
   const uintBitNotArtifact =
     artifacts.get("restaurant-uint-bit-not").toString("utf8")
   assert(uintBitNotArtifact.includes("llvm.xor") &&

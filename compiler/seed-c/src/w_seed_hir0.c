@@ -172,7 +172,8 @@ static bool hir0_builtin_u64_operation_is_supported(
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ZEROS ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_LEADING_ZEROS ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_TRAILING_ZEROS;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_TRAILING_ZEROS ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BITS;
 }
 
 static bool hir0_builtin_u64_operation_is_unary(
@@ -181,7 +182,8 @@ static bool hir0_builtin_u64_operation_is_unary(
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ZEROS ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_LEADING_ZEROS ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_TRAILING_ZEROS;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_TRAILING_ZEROS ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BITS;
 }
 
 static bool hir0_builtin_u64_operation_member_matches(
@@ -216,7 +218,9 @@ static bool hir0_builtin_u64_operation_member_matches(
          (operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_LEADING_ZEROS &&
           text_is(member_name, "countLeadingZeros")) ||
          (operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_TRAILING_ZEROS &&
-          text_is(member_name, "countTrailingZeros"));
+          text_is(member_name, "countTrailingZeros")) ||
+         (operation == W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BITS &&
+          text_is(member_name, "reversedBits"));
 }
 
 static bool frontend_assignment_operator(w_seed_frontend_text text) {
@@ -11259,6 +11263,9 @@ static uint32_t hir0_emit_value_m2(
       else if (source->builtin_operation ==
                W_SEED_FRONTEND_BUILTIN_U64_COUNT_TRAILING_ZEROS)
         unary_operator = W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS;
+      else if (source->builtin_operation ==
+               W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BITS)
+        unary_operator = W_SEED_HIR0_UNARY_REVERSED_BITS;
       context->output->values[*context->value_index] = (w_seed_hir0_value){
           .kind = W_SEED_HIR0_VALUE_UNARY_U64,
           .owner_kind = owner_kind,
@@ -14567,7 +14574,8 @@ static bool verify_value_tree(
          value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES &&
          value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS &&
          value->unary_operator != W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS &&
-         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS) ||
+         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS &&
+         value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BITS) ||
         !hir_type_index_valid(program, value->type_index) ||
         program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64 ||
         value->binding_index != W_SEED_HIR0_NONE ||

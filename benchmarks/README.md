@@ -143,6 +143,12 @@ final artifact. The C23 and Rust 2024 references retain independent runtime
 operands. Runtime equivalence is not proven, so this workload has no
 performance ranking.
 
+The `restaurant-uint-reversed-bits` witness is `not-performance-ready`. Its
+fixed input reverses the bits in `0x0123456789abcdef_u64`, and its exact oracle
+is `Bits 17848844570815808640\n`. W may fold this operation in the final
+artifact. The C23 and Rust 2024 references retain independent runtime operands.
+Runtime equivalence is not proven, so this workload has no performance ranking.
+
 The catalog declares compile latency, median and P95 target-run wall time,
 user/system/total CPU time, peak working set, artifact size, exit code, and
 stdout/stderr. A local

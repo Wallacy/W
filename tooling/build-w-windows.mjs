@@ -233,6 +233,13 @@ export const SMOKE_CASES = Object.freeze([
       "restaurant-uint-trailing-zeros.w"),
     expectedStdout: "Trailing 12/64\n",
   }),
+  Object.freeze({
+    id: "restaurant-uint-reversed-bits",
+    fixture: "compiler/seed-c/fixtures/restaurant-uint-reversed-bits.w",
+    absoluteFixture: resolve(seedDirectory, "fixtures",
+      "restaurant-uint-reversed-bits.w"),
+    expectedStdout: "Bits 17848844570815808640\n",
+  }),
 ])
 
 function fail(message) {

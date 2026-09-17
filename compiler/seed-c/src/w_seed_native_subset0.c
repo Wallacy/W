@@ -318,7 +318,8 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
          value->unary_operator !=
              W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS &&
          value->unary_operator !=
-             W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS) ||
+             W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS &&
+         value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BITS) ||
         value->left_value == W_SEED_HIR0_NONE ||
         !evaluate_u64(program, value->left_value, depth + 1u, &operand))
       return false;
@@ -360,6 +361,13 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
         }
       }
       *result = count;
+    } else if (value->unary_operator == W_SEED_HIR0_UNARY_REVERSED_BITS) {
+      uint64_t reversed = 0u;
+      for (uint32_t bit = 0u; bit < 64u; bit += 1u) {
+        reversed = (reversed << 1u) | (operand & UINT64_C(1));
+        operand >>= 1u;
+      }
+      *result = reversed;
     } else {
       return false;
     }
@@ -569,7 +577,8 @@ static bool program_value_is_constant_u64(
             value->unary_operator ==
                 W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS ||
             value->unary_operator ==
-                W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS) &&
+                W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS ||
+            value->unary_operator == W_SEED_HIR0_UNARY_REVERSED_BITS) &&
            value->left_value != W_SEED_HIR0_NONE &&
            program_value_is_constant_u64(program, value->left_value,
                                          depth + 1u);
@@ -1323,7 +1332,8 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
          value->unary_operator !=
              W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS &&
          value->unary_operator !=
-             W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS) ||
+             W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS &&
+         value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BITS) ||
         value->left_value == W_SEED_HIR0_NONE ||
         value->right_value != W_SEED_HIR0_NONE ||
         value->binding_index != W_SEED_HIR0_NONE ||
@@ -1789,7 +1799,8 @@ static bool process_value_lowerable(
            value->unary_operator !=
                W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS &&
            value->unary_operator !=
-               W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS) ||
+               W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS &&
+           value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BITS) ||
           value->left_value == W_SEED_HIR0_NONE ||
           value->right_value != W_SEED_HIR0_NONE ||
           value->binding_index != W_SEED_HIR0_NONE ||

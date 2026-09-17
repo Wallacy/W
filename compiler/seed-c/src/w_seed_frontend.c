@@ -56,7 +56,8 @@ _Static_assert(W_SEED_FRONTEND_BUILTIN_NONE == 0 &&
                    W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES == 13 &&
                    W_SEED_FRONTEND_BUILTIN_U64_COUNT_ZEROS == 14 &&
                    W_SEED_FRONTEND_BUILTIN_U64_COUNT_LEADING_ZEROS == 15 &&
-                   W_SEED_FRONTEND_BUILTIN_U64_COUNT_TRAILING_ZEROS == 16,
+                   W_SEED_FRONTEND_BUILTIN_U64_COUNT_TRAILING_ZEROS == 16 &&
+                   W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BITS == 17,
                "w-seed frontend builtin identities are append-only");
 #if defined(DBL_HAS_SUBNORM)
 _Static_assert(DBL_HAS_SUBNORM == 1,
@@ -4139,7 +4140,8 @@ static bool builtin_u64_operation_is_supported(
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ZEROS ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_LEADING_ZEROS ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_TRAILING_ZEROS;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_TRAILING_ZEROS ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BITS;
 }
 
 static bool builtin_u64_operation_is_unary(
@@ -4148,7 +4150,8 @@ static bool builtin_u64_operation_is_unary(
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ZEROS ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_LEADING_ZEROS ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_TRAILING_ZEROS;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_TRAILING_ZEROS ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BITS;
 }
 
 static w_seed_frontend_builtin_operation builtin_u64_operation_for_member(
@@ -4183,6 +4186,8 @@ static w_seed_frontend_builtin_operation builtin_u64_operation_for_member(
     return W_SEED_FRONTEND_BUILTIN_U64_COUNT_LEADING_ZEROS;
   if (text_equal(member_name, "countTrailingZeros"))
     return W_SEED_FRONTEND_BUILTIN_U64_COUNT_TRAILING_ZEROS;
+  if (text_equal(member_name, "reversedBits"))
+    return W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BITS;
   return W_SEED_FRONTEND_BUILTIN_NONE;
 }
 
