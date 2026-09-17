@@ -135,6 +135,13 @@ export const SMOKE_CASES = Object.freeze([
       "restaurant-uint-wrapping-add.w"),
     expectedStdout: "Wrapped 0\n",
   }),
+  Object.freeze({
+    id: "restaurant-uint-wrapping-subtract",
+    fixture: "compiler/seed-c/fixtures/restaurant-uint-wrapping-subtract.w",
+    absoluteFixture: resolve(seedDirectory, "fixtures",
+      "restaurant-uint-wrapping-subtract.w"),
+    expectedStdout: "Wrapped 18446744073709551615\n",
+  }),
 ])
 
 function fail(message) {

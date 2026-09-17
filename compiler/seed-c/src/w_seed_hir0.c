@@ -156,6 +156,21 @@ static bool text_is(w_seed_frontend_text text, const char *literal) {
           (text.data != NULL && memcmp(text.data, literal, length) == 0));
 }
 
+static bool hir0_builtin_u64_operation_is_wrapping(
+    w_seed_frontend_builtin_operation operation) {
+  return operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SUBTRACT;
+}
+
+static bool hir0_builtin_u64_operation_member_matches(
+    w_seed_frontend_builtin_operation operation,
+    w_seed_frontend_text member_name) {
+  return (operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD &&
+          text_is(member_name, "wrappingAdd")) ||
+         (operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SUBTRACT &&
+          text_is(member_name, "wrappingSubtract"));
+}
+
 static bool frontend_assignment_operator(w_seed_frontend_text text) {
   static const char *const operators[] = {
       "=",  "+=", "-=", "*=", "/=", "%=", "**=", "<<=", ">>=", "&=",
@@ -4178,8 +4193,7 @@ static bool frontend_call_expression_ok(
                         call->span))
     return false;
   const w_seed_frontend_expression *callee = &output->expressions[call->left];
-  if (call->builtin_operation ==
-      W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD) {
+  if (hir0_builtin_u64_operation_is_wrapping(call->builtin_operation)) {
     const bool callee_shape =
         result_value && !allow_throwing && materialize_result &&
         call->resolved_callee_kind == W_SEED_FRONTEND_CALLEE_NONE &&
@@ -4195,12 +4209,12 @@ static bool frontend_call_expression_ok(
         callee->inferred_type != W_SEED_FRONTEND_NONE &&
         (size_t)callee->inferred_type < result->written.types &&
         frontend_expression_is_u64(output, callee) &&
-        callee->builtin_operation ==
-            W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD &&
+        callee->builtin_operation == call->builtin_operation &&
         callee->resolved_callee_kind == W_SEED_FRONTEND_CALLEE_NONE &&
         callee->resolved_external_module_index == W_SEED_FRONTEND_NONE &&
         callee->resolved_external_symbol_index == W_SEED_FRONTEND_NONE &&
-        text_is(callee->member_name, "wrappingAdd") &&
+        hir0_builtin_u64_operation_member_matches(call->builtin_operation,
+                                                  callee->member_name) &&
         text_is(callee->operator_text, ".") &&
         callee->left != W_SEED_FRONTEND_NONE &&
         (size_t)callee->left < root_index;
@@ -4209,7 +4223,7 @@ static bool frontend_call_expression_ok(
         &output->expressions[callee->left];
     if (receiver->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER ||
         receiver->builtin_operation !=
-            W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD ||
+            W_SEED_FRONTEND_BUILTIN_U64_RECEIVER ||
         !receiver->supported || !text_is(receiver->spelling, "u64") ||
         receiver->inferred_type == W_SEED_FRONTEND_NONE ||
         (size_t)receiver->inferred_type >= result->written.types ||
@@ -8904,8 +8918,7 @@ static size_t hir0_emit_expression_values_m2(hir0_emit_context *context,
       block = hir0_emit_expression_values_m2(
           context, argument_expression, block, statement_index, depth + 1u);
     }
-    if (source->builtin_operation ==
-        W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD)
+    if (hir0_builtin_u64_operation_is_wrapping(source->builtin_operation))
       return block;
     if (hir0_is_local_enum_constructor(context, source) ||
         hir0_is_external_enum_constructor(context, source))
@@ -10763,8 +10776,7 @@ static size_t hir0_emit_expression_layout_m2(hir0_emit_context *context,
     return hir0_emit_expression_layout_m2(context, source->left, current_block,
                                           statement_index, depth + 1u);
   if (source->kind == W_SEED_FRONTEND_EXPR_CALL) {
-    if (source->builtin_operation ==
-        W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD) {
+    if (hir0_builtin_u64_operation_is_wrapping(source->builtin_operation)) {
       size_t block = current_block;
       for (size_t ordinal = 0u; ordinal < source->argument_count;
            ordinal += 1u)
@@ -11165,8 +11177,7 @@ static uint32_t hir0_emit_value_m2(
   }
 
   if (source->kind == W_SEED_FRONTEND_EXPR_CALL &&
-      source->builtin_operation ==
-          W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD) {
+      hir0_builtin_u64_operation_is_wrapping(source->builtin_operation)) {
     if (source->argument_count != 2u ||
         source->first_argument == W_SEED_FRONTEND_NONE)
       return W_SEED_HIR0_NONE;
@@ -11189,6 +11200,10 @@ static uint32_t hir0_emit_value_m2(
         W_SEED_HIR0_VALUE_OWNER_BINARY, W_SEED_HIR0_NONE, 1u, right_block,
         depth + 1u);
     const uint32_t result = (uint32_t)*context->value_index;
+    const w_seed_hir0_binary_operator wrapping_operator =
+        source->builtin_operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD
+            ? W_SEED_HIR0_BINARY_WRAPPING_ADD
+            : W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT;
     context->output->values[*context->value_index] = (w_seed_hir0_value){
         .kind = W_SEED_HIR0_VALUE_BINARY_U64,
         .owner_kind = owner_kind,
@@ -11206,7 +11221,7 @@ static uint32_t hir0_emit_value_m2(
         .first_enum_payload = 0u,
         .enum_payload_count = 0u,
         .pattern_capture_index = W_SEED_HIR0_NONE,
-        .binary_operator = W_SEED_HIR0_BINARY_WRAPPING_ADD,
+        .binary_operator = wrapping_operator,
         .unary_operator = W_SEED_HIR0_UNARY_NOT,
         .block_argument_index = W_SEED_HIR0_NONE,
         .integer_value = 0,
@@ -14248,7 +14263,8 @@ static bool verify_value_tree(
     const bool arithmetic =
         value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER;
     const bool wrapping =
-        value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_ADD;
+        value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_ADD ||
+        value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT;
     const bool bitwise =
         value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
         value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR;

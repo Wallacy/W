@@ -2817,10 +2817,10 @@ for ranking or live best metrics.
 
 ### Source-backed checked `UInt`/`u64` operators
 
-HIR0 schema `w-seed-hir0-52` represents ordinary unsigned arithmetic,
+HIR0 schema `w-seed-hir0-53` represents ordinary unsigned arithmetic,
 comparisons, and binary bitwise operations with `BINARY_U64`, and bitwise complement with the distinct
 `UNARY_U64` value kind. Native0 and MLIR0 schemas are `w-seed-native0-9` and
-`w-seed-mlir0-27` (Windows label `w-seed-mlir0-windows-12`). Native constant
+`w-seed-mlir0-28` (Windows label `w-seed-mlir0-windows-13`). Native constant
 trees are evaluated as `uint64_t` with checked add/subtract/multiply,
 zero-guarded divide/remainder, and width-preserving complement; overflow or
 division by zero fails closed. MLIR0 keeps the physical carrier as `i64`, uses
@@ -2847,6 +2847,10 @@ prints exactly `Wrapped 0\n`. Its HIR operator cannot be confused with checked
 or overflow intrinsic. The canonical receiver and both arguments are `u64`,
 arguments are positional, and wrong receiver spelling, optional chaining,
 labels, signed operands, or a non-binary arity fail closed.
+[`fixtures/restaurant-uint-wrapping-subtract.w`](fixtures/restaurant-uint-wrapping-subtract.w)
+proves the corresponding underflow from zero to `UInt.max`. It retains a
+distinct HIR operator and lowers to unflagged `llvm.sub`, without the checked
+subtract helper or unsigned-overflow intrinsic.
 
 This is a finite linear/local-function-call and straight-line mutation slice.
 Other UInt compound families, UInt CFGs and loops,

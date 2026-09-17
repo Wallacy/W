@@ -207,7 +207,7 @@ static bool make_nested_tree_source(char *buffer, size_t capacity,
 
 static bool test_products(void) {
   CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-9") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-27") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-28") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -2572,6 +2572,77 @@ static bool test_u64_wrapping_add_slice(void) {
   return true;
 }
 
+static bool test_u64_wrapping_subtract_slice(void) {
+  static const uint8_t source[] =
+      "fn wrap(value: UInt): UInt { return u64.wrappingSubtract(value, 1_u64) }\n"
+      "fn main() { let result = wrap(value: 0_u64) "
+      "print(\"${result}\") }\n"
+      "entry(main)\n";
+  uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source(source, sizeof(source) - 1u, "uint-wrapping-subtract", 13u,
+                   output, sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  size_t wrapping_count = 0u;
+  for (size_t index = 0u; index < storage.hir_program.value_count;
+       index += 1u)
+    if (storage.hir_program.values[index].kind ==
+            W_SEED_HIR0_VALUE_BINARY_U64 &&
+        storage.hir_program.values[index].binary_operator ==
+            W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT)
+      wrapping_count += 1u;
+  CHECK(wrapping_count == 1u);
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  const size_t wrapper_start =
+      find_bytes(output, result.mlir.written.mlir_bytes,
+                 "llvm.func internal @w_fn_0", 0u);
+  const size_t entry_start =
+      find_bytes(output, result.mlir.written.mlir_bytes,
+                 "llvm.func internal @w_fn_1", wrapper_start);
+  CHECK(selection.has_local_calls && !selection.has_cfg &&
+        wrapper_start != SIZE_MAX && entry_start != SIZE_MAX &&
+        count_bytes(output + wrapper_start, entry_start - wrapper_start,
+                    "llvm.sub ") == wrapping_count &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "llvm.call @w_seed_checked_subtract_u64") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "llvm.intr.usub.with.overflow"));
+
+  static const uint8_t rejected[][220] = {
+      "fn bad(value: UInt): UInt { return UInt.wrappingSubtract(value, 1_u64) }\n"
+      "entry(bad)\n",
+      "fn bad(value: UInt): UInt { return u64.wrappingSubtract(value, 1_i64) }\n"
+      "entry(bad)\n",
+      "fn bad(value: UInt): UInt { return u64.wrappingSubtract(value) }\n"
+      "entry(bad)\n",
+      "fn bad(value: UInt): UInt { return u64.wrappingSubtract(value, 1_u64, "
+      "2_u64) }\nentry(bad)\n",
+      "fn bad(value: UInt): UInt { return u64.wrappingSubtract(left: value, "
+      "1_u64) }\nentry(bad)\n",
+      "fn bad(value: UInt): UInt { return u64?.wrappingSubtract(value, 1_u64) }\n"
+      "entry(bad)\n",
+      "fn bad(value: UInt): UInt { return u64.wrappingSubtract("
+      "u64.wrappingSubtract(value, 1_u64), 1_u64) }\nentry(bad)\n",
+      "const u64: UInt = 1_u64\n"
+      "fn bad(value: UInt): UInt { return u64.wrappingSubtract(value, 1_u64) }\n"
+      "entry(bad)\n"};
+  for (size_t index = 0u; index < sizeof(rejected) / sizeof(rejected[0]);
+       index += 1u) {
+    (void)memset(output, 0x93u, sizeof(output));
+    (void)memset(&result, 0x94u, sizeof(result));
+    const w_seed_native0_result snapshot = result;
+    CHECK(run_source(rejected[index], strlen((const char *)rejected[index]),
+                     "uint-wrapping-subtract-bad", 16u, output,
+                     sizeof(output), &result) != W_SEED_NATIVE0_OK);
+    CHECK(memcmp(&result, &snapshot, sizeof(result)) == 0);
+    for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+      CHECK(output[byte] == 0x93u);
+  }
+  return true;
+}
+
 static bool test_unsigned_unary_u64_slice(void) {
   static const uint8_t source[] =
       "fn invert(value: UInt): UInt { return ~value }\n"
@@ -2780,6 +2851,7 @@ int main(void) {
                         test_signed_comparison_products() && test_products() &&
                         test_unsigned_binary_u64_slice() &&
                         test_u64_wrapping_add_slice() &&
+                        test_u64_wrapping_subtract_slice() &&
                         test_unsigned_unary_u64_slice() &&
                         test_enum_frontend_storage() &&
                         test_enum_payload_native_lowering() &&

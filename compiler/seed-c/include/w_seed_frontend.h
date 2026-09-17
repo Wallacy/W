@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-37"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-38"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -338,6 +338,9 @@ typedef enum {
 typedef enum {
   W_SEED_FRONTEND_BUILTIN_NONE = 0,
   W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD,
+  W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SUBTRACT,
+  /* Type-namespace receiver marker; not an executable operation. */
+  W_SEED_FRONTEND_BUILTIN_U64_RECEIVER,
 } w_seed_frontend_builtin_operation;
 
 typedef enum {

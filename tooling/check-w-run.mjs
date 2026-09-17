@@ -70,6 +70,8 @@ const restaurantUIntArithmeticFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-arithmetic.w")
 const restaurantUIntWrappingAddFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-add.w")
+const restaurantUIntWrappingSubtractFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-wrapping-subtract.w")
 const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
@@ -947,6 +949,9 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantUIntWrappingAddFixture)],
     Buffer.from("Wrapped 0\n", "utf8"),
     "Restaurant UInt wrappingAdd at the unsigned maximum")
+  expectSuccess(binary, ["run", toWsl(restaurantUIntWrappingSubtractFixture)],
+    Buffer.from("Wrapped 18446744073709551615\n", "utf8"),
+    "Restaurant UInt wrappingSubtract below zero")
   expectSuccess(binary, ["run", toWsl(restaurantUIntBitNotFixture)],
     Buffer.from("UInt not 18446744073709551615\n", "utf8"),
     "Restaurant UInt bitwise complement")
