@@ -11,7 +11,7 @@ Neither bundle produces a language or product-runtime result.
 [`executable-catalog.json`](executable-catalog.json) is the machine-readable
 catalog of executable workloads. It keeps stable IDs for `hello`,
 `process-entry`, `process-enum-payload`, `process-arguments-count`,
-`process-handler-lifecycle`, 40 source-backed Restaurant workloads, and the
+`process-handler-lifecycle`, 41 source-backed Restaurant workloads, and the
 future full Restaurant composition. Hello has W, C, and Rust sources. Fifteen
 Restaurant witnesses, including branch, loop, enum, async/yield, strict-f64,
 and UInt arithmetic slices, also have independent C and Rust sources verified against exact
@@ -92,6 +92,14 @@ is `Masked 64\n`. The C23 reference masks the runtime count with `63` before
 the unsigned logical shift. The Rust 2024 reference uses `wrapping_shr`, which
 masks the runtime count. W may fold this operation in the final artifact.
 Runtime equivalence is not proven, so this workload has no performance ranking.
+
+The `restaurant-uint-logical-shift-right` witness is `not-performance-ready`.
+Its fixed inputs apply `logicalShiftRight` to `UInt` value `128` with count
+`1`, and its exact oracle is `Logical 64\n`. W may fold this operation in the
+final artifact. The C23 reference validates `count < 64` before the unsigned
+logical shift. The Rust 2024 reference validates the count before it applies
+`>>`. Runtime equivalence is not proven, so this workload has no performance
+ranking.
 
 The catalog declares compile latency, median and P95 target-run wall time,
 user/system/total CPU time, peak working set, artifact size, exit code, and

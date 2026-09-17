@@ -14059,6 +14059,44 @@ static bool test_u64_masked_shift_right(void) {
   return true;
 }
 
+static bool test_u64_logical_shift_right(void) {
+  static const char SOURCE[] =
+      "fn shift(value: u64, count: u64): u64 { "
+      "return u64.logicalShiftRight(value, count) }\n"
+      "entry { let zero = u64.logicalShiftRight(128_u64, 0_u64) "
+      "let edge = u64.logicalShiftRight(9223372036854775808_u64, 63_u64) }\n";
+  CHECK(lower(SOURCE));
+  size_t logical_count = 0u;
+  size_t logical_index = SIZE_MAX;
+  for (size_t index = 0u; index < fixture.hir_program.value_count;
+       index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_program.values[index];
+    if (value->kind != W_SEED_HIR0_VALUE_BINARY_U64) continue;
+    CHECK(value->binary_operator != W_SEED_HIR0_BINARY_SHIFT_RIGHT &&
+          value->binary_operator != W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT);
+    if (value->binary_operator == W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT) {
+      CHECK(value->type_index < fixture.hir_program.type_count &&
+            fixture.hir_program.types[value->type_index].kind ==
+                W_SEED_HIR0_TYPE_U64 &&
+            value->left_value != W_SEED_HIR0_NONE &&
+            value->right_value != W_SEED_HIR0_NONE);
+      logical_count += 1u;
+      logical_index = index;
+    }
+  }
+  CHECK(logical_count == 3u && logical_index != SIZE_MAX &&
+        fixture.hir_program.call_count == 0u);
+  const w_seed_hir0_value saved = fixture.hir_values[logical_index];
+  fixture.hir_values[logical_index].binary_operator =
+      W_SEED_HIR0_BINARY_SHIFT_RIGHT;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[logical_index] = saved;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_canonical_f64_scalar(void) {
   static const char SOURCE[] =
       "entry { let sum = 1.5 + 2.25_f64 let difference = 9.5 - 5.5 "
@@ -14602,6 +14640,7 @@ int main(int argc, char **argv) {
   if (!test_u64_wrapping_shift_left()) return 1;
   if (!test_u64_masked_shift_left()) return 1;
   if (!test_u64_masked_shift_right()) return 1;
+  if (!test_u64_logical_shift_right()) return 1;
   if (!test_canonical_f64_scalar()) return 1;
   if (!test_frontend_tree_bounds_forgery()) return 1;
   if (!test_checked_shift_values()) return 1;

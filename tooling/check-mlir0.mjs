@@ -53,6 +53,8 @@ const restaurantUIntMaskedShiftLeftFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-masked-shift-left.w")
 const restaurantUIntMaskedShiftRightFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-masked-shift-right.w")
+const restaurantUIntLogicalShiftRightFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-logical-shift-right.w")
 const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
@@ -707,6 +709,9 @@ try {
     { name: "restaurant-uint-masked-shift-right",
       source: restaurantUIntMaskedShiftRightFixture,
       expected: Buffer.from("Masked 64\n", "utf8") },
+    { name: "restaurant-uint-logical-shift-right",
+      source: restaurantUIntLogicalShiftRightFixture,
+      expected: Buffer.from("Logical 64\n", "utf8") },
     { name: "restaurant-uint-bit-not", source: restaurantUIntBitNotFixture,
       expected: Buffer.from("UInt not 18446744073709551615\n", "utf8") },
     { name: "restaurant-uint-bitwise", source: restaurantUIntBitwiseFixture,
@@ -1047,6 +1052,21 @@ try {
     uintMaskedShiftRightArtifact.includes("llvm.call @w_seed_append_u64") &&
     !uintMaskedShiftRightArtifact.includes("@w_seed_checked_shift_right_u64"),
   "u64.maskedShiftRight lost count masking or unsigned logical shift semantics")
+  const uintLogicalShiftRightArtifact =
+    artifacts.get("restaurant-uint-logical-shift-right").toString("utf8")
+  assert((uintLogicalShiftRightArtifact.match(
+    /llvm\.func internal @w_seed_logical_shift_right_u64/g) ?? []).length === 1 &&
+    uintLogicalShiftRightArtifact.includes(
+      "llvm.call @w_seed_logical_shift_right_u64") &&
+    uintLogicalShiftRightArtifact.includes(
+      "llvm.icmp \"uge\" %count, %width : i64") &&
+    uintLogicalShiftRightArtifact.includes("llvm.lshr %left, %count : i64") &&
+    uintLogicalShiftRightArtifact.includes("\"llvm.intr.trap\"() : () -> ()") &&
+    uintLogicalShiftRightArtifact.includes("llvm.unreachable") &&
+    uintLogicalShiftRightArtifact.includes("llvm.call @w_seed_append_u64") &&
+    !uintLogicalShiftRightArtifact.includes("llvm.and %count, %mask : i64") &&
+    !uintLogicalShiftRightArtifact.includes("@w_seed_checked_shift_right_u64"),
+  "u64.logicalShiftRight lost zero fill or invalid-count trap semantics")
   const uintBitNotArtifact =
     artifacts.get("restaurant-uint-bit-not").toString("utf8")
   assert(uintBitNotArtifact.includes("llvm.xor") &&

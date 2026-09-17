@@ -2499,6 +2499,90 @@
       ]
     },
     {
+      "id": "restaurant-uint-logical-shift-right",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Validate fixed-input full-width UInt logical right shift of 128 by count 1 and exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Logical 64\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-uint-logical-shift-right.w",
+          "digest": "sha256:abeaf96670927cd80b6e0bc04ca618d99c881ec161944dc072af4bfbe626798d",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-uint-logical-shift-right-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        },
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-uint-logical-shift-right.w",
+          "digest": "sha256:abeaf96670927cd80b6e0bc04ca618d99c881ec161944dc072af4bfbe626798d",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-uint-logical-shift-right-release",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only"
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/restaurant_uint_logical_shift_right.c",
+          "digest": "sha256:b84e0b843d91f4ec2d3fd1e14bf5d9010db39cce19ee0156873b9f7d4276bcac",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "clang-c23-msvc",
+          "recipeClass": "restaurant-uint-logical-shift-right-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/restaurant_uint_logical_shift_right.rs",
+          "digest": "sha256:5051aba4d8e7cae9ef791cc02e56aaeadd1bf04366b8d1006972043682968ddd",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "restaurant-uint-logical-shift-right-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        }
+      ],
+      "blockedLanguages": [],
+      "blockers": [
+        "w-uint-logical-shift-right-compile-time-folded",
+        "runtime-uint-logical-shift-right-equivalence"
+      ]
+    },
+    {
       "id": "restaurant-uint-bit-not",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",
