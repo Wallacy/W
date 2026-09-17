@@ -1556,7 +1556,8 @@ static bool parse_postfix(w_seed_parser *parser, bool value_context) {
     }
     if (current_is_text(parser, ".") || current_is_text(parser, "?.")) {
       (void)consume_current(parser, NULL);
-      if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+      if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD) &&
+          !current_is_kind(parser, W_SEED_LEX_ITEM_NUMBER)) {
         (void)record_issue(parser, W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN,
                            current_span(parser), W_SEED_PARSE_EXPECT_WORD);
         return false;

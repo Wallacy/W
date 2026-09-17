@@ -2949,6 +2949,7 @@ static fingerprint_encode_status fingerprint_type(
       fingerprint_mark_unsupported(builder);
       return FINGERPRINT_UNSUPPORTED;
     case W_SEED_FRONTEND_TYPE_TASK:
+    case W_SEED_FRONTEND_TYPE_TUPLE:
       fingerprint_mark_unsupported(builder);
       return FINGERPRINT_UNSUPPORTED;
     case W_SEED_FRONTEND_TYPE_INVALID:

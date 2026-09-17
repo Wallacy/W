@@ -717,6 +717,17 @@ static bool test_tuple_binding_patterns(void) {
     CHECK(check_leaf_partition(&value));
     CHECK(check_tree_links(&value));
   }
+
+  fixture projections;
+  CHECK(fixture_init(
+      &projections,
+      "fn f(pair:(u64,Bool)){let value=pair.0 let overflow=pair.1}\n",
+      sizeof(projections.nodes) / sizeof(projections.nodes[0]),
+      sizeof(projections.issues) / sizeof(projections.issues[0])));
+  CHECK(projections.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(projections.result.issue_count == 0);
+  CHECK(check_leaf_partition(&projections));
+  CHECK(check_tree_links(&projections));
   return true;
 }
 

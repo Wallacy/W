@@ -61,7 +61,8 @@ _Static_assert(W_SEED_FRONTEND_BUILTIN_NONE == 0 &&
                    W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BYTES == 18 &&
                    W_SEED_FRONTEND_BUILTIN_U64_SATURATING_ADD == 19 &&
                    W_SEED_FRONTEND_BUILTIN_U64_SATURATING_SUBTRACT == 20 &&
-                   W_SEED_FRONTEND_BUILTIN_U64_SATURATING_MULTIPLY == 21,
+                   W_SEED_FRONTEND_BUILTIN_U64_SATURATING_MULTIPLY == 21 &&
+                   W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD == 22,
                "w-seed frontend builtin identities are append-only");
 #if defined(DBL_HAS_SUBNORM)
 _Static_assert(DBL_HAS_SUBNORM == 1,
@@ -320,6 +321,7 @@ typedef struct {
   uint32_t builtin_u64_type_index;
   uint32_t builtin_f64_type_index;
   uint32_t builtin_bool_type_index;
+  uint32_t builtin_u64_bool_tuple_type_index;
   uint32_t builtin_never_type_index;
   uint32_t inferred_string_type_index;
   bool normalizing_generic_domain;
@@ -4149,7 +4151,8 @@ static bool builtin_u64_operation_is_supported(
          operation == W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BYTES ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_ADD ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_SUBTRACT ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_MULTIPLY;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_MULTIPLY ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD;
 }
 
 static bool builtin_u64_operation_is_unary(
@@ -4205,6 +4208,8 @@ static w_seed_frontend_builtin_operation builtin_u64_operation_for_member(
     return W_SEED_FRONTEND_BUILTIN_U64_SATURATING_SUBTRACT;
   if (text_equal(member_name, "saturatingMultiply"))
     return W_SEED_FRONTEND_BUILTIN_U64_SATURATING_MULTIPLY;
+  if (text_equal(member_name, "overflowingAdd"))
+    return W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD;
   return W_SEED_FRONTEND_BUILTIN_NONE;
 }
 
@@ -5983,6 +5988,7 @@ w_seed_frontend_status w_seed_frontend_measure(
   dry.builtin_u64_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_f64_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_bool_type_index = W_SEED_FRONTEND_NONE;
+  dry.builtin_u64_bool_tuple_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_never_type_index = W_SEED_FRONTEND_NONE;
   dry.inferred_string_type_index = W_SEED_FRONTEND_NONE;
   dry.const_inferred_types = frontend_const_inferred_types_scratch;
@@ -10382,6 +10388,14 @@ static frontend_simple_type simple_type_from_view(w_seed_frontend_text spelling)
   return type;
 }
 
+static frontend_simple_type u64_bool_tuple_type(void) {
+  frontend_simple_type type = simple_type_unknown();
+  type.kind = W_SEED_FRONTEND_TYPE_TUPLE;
+  type.spelling =
+      (w_seed_frontend_text){"(u64, Bool)", sizeof("(u64, Bool)") - 1u};
+  return type;
+}
+
 static void static_list_set_element(frontend_simple_type *list_type,
                                      frontend_simple_type element) {
   if (list_type == NULL) return;
@@ -11555,6 +11569,42 @@ static bool expression_is_direct_call(const w_seed_frontend_document *doc,
   return false;
 }
 
+static bool expression_is_exact_u64_builtin_call(
+    const w_seed_frontend_document *doc, w_seed_span span,
+    w_seed_frontend_builtin_operation expected_operation) {
+  if (doc == NULL || expected_operation == W_SEED_FRONTEND_BUILTIN_NONE)
+    return false;
+  frontend_token_cursor cursor = token_cursor_for(doc, span);
+  frontend_token receiver;
+  frontend_token dot;
+  frontend_token member;
+  frontend_token open;
+  if (!cursor_take(&cursor, &receiver) || receiver.kind != W_SEED_CST_WORD ||
+      !text_equal(text_from_span(doc, receiver.span), "u64") ||
+      !cursor_take(&cursor, &dot) || !token_text(doc, &dot, ".") ||
+      !cursor_take(&cursor, &member) || member.kind != W_SEED_CST_WORD ||
+      builtin_u64_operation_for_member(text_from_span(doc, member.span)) !=
+          expected_operation ||
+      !cursor_take(&cursor, &open) || !token_text(doc, &open, "("))
+    return false;
+  size_t depth = 1u;
+  frontend_token token;
+  while (cursor_take(&cursor, &token)) {
+    if (token_text(doc, &token, "(")) {
+      if (depth == SIZE_MAX) return false;
+      depth += 1u;
+    } else if (token_text(doc, &token, ")")) {
+      if (depth == 0u) return false;
+      depth -= 1u;
+      if (depth == 0u) {
+        frontend_token trailing;
+        return !cursor_take(&cursor, &trailing);
+      }
+    }
+  }
+  return false;
+}
+
 static frontend_simple_type binding_type_for_name(
     frontend_context *context, w_seed_frontend_text name,
     w_seed_span use_span) {
@@ -11887,6 +11937,31 @@ static bool output_type_index_for_simple(frontend_context *context,
   if (index == NULL) return false;
   *index = W_SEED_FRONTEND_NONE;
   if (context == NULL) return true;
+  if (type.kind == W_SEED_FRONTEND_TYPE_TUPLE &&
+      text_equal(type.spelling, "(u64, Bool)")) {
+    if (context->builtin_u64_bool_tuple_type_index == W_SEED_FRONTEND_NONE) {
+      w_seed_frontend_type tuple;
+      (void)memset(&tuple, 0, sizeof(tuple));
+      tuple.kind = W_SEED_FRONTEND_TYPE_TUPLE;
+      tuple.spelling = type.spelling;
+      tuple.nominal_name = (w_seed_frontend_text){NULL, 0u};
+      tuple.span = empty_span(0u);
+      tuple.element_type = W_SEED_FRONTEND_NONE;
+      tuple.return_type = W_SEED_FRONTEND_NONE;
+      tuple.first_parameter = W_SEED_FRONTEND_NONE;
+      tuple.enum_base_index = W_SEED_FRONTEND_NONE;
+      tuple.first_subset_member = W_SEED_FRONTEND_NONE;
+      tuple.subset_member_count = 0u;
+      tuple.generic_application_index = W_SEED_FRONTEND_NONE;
+      tuple.external_module_index = W_SEED_FRONTEND_NONE;
+      tuple.external_symbol_index = W_SEED_FRONTEND_NONE;
+      uint32_t tuple_index = W_SEED_FRONTEND_NONE;
+      if (!context_append_type(context, tuple, &tuple_index)) return false;
+      context->builtin_u64_bool_tuple_type_index = tuple_index;
+    }
+    *index = context->builtin_u64_bool_tuple_type_index;
+    return true;
+  }
   size_t task_slot = 0u;
   if (type.kind == W_SEED_FRONTEND_TYPE_TASK) {
     const frontend_simple_type result = task_result_simple_type(type);
@@ -13567,7 +13642,9 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       (void)cursor_take(&parser->cursor, &token);
       frontend_token member;
       if (!cursor_take(&parser->cursor, &member) ||
-          member.kind != W_SEED_CST_WORD) return false;
+          (member.kind != W_SEED_CST_WORD &&
+           member.kind != W_SEED_CST_NUMBER))
+        return false;
       const w_seed_span span = {value->span.start_byte, member.span.end_byte};
       const w_seed_frontend_text member_name =
           text_from_span(parser->document, member.span);
@@ -13587,8 +13664,25 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       const bool builtin_u64_member =
           builtin_u64_operation_is_supported(builtin_u64_member_operation);
       if (builtin_u64_member) {
-        result_type = simple_type_from_view((w_seed_frontend_text){"u64", 3u});
+        result_type = builtin_u64_member_operation ==
+                              W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD
+                          ? u64_bool_tuple_type()
+                          : simple_type_from_view(
+                                (w_seed_frontend_text){"u64", 3u});
         supported = true;
+      }
+      if (!supported && !optional_member && !followed_by_call &&
+          value->type.kind == W_SEED_FRONTEND_TYPE_TUPLE &&
+          text_equal(value->type.spelling, "(u64, Bool)")) {
+        if (text_equal(member_name, "0")) {
+          result_type =
+              simple_type_from_view((w_seed_frontend_text){"u64", 3u});
+          supported = true;
+        } else if (text_equal(member_name, "1")) {
+          result_type =
+              simple_type_from_view((w_seed_frontend_text){"Bool", 4u});
+          supported = true;
+        }
       }
       if (value->type.kind == W_SEED_FRONTEND_TYPE_STATIC_LIST &&
           text_equal(member_name, "count")) {
@@ -14063,7 +14157,11 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     if (enum_case_constructor) {
       return_type = value->type;
     } else if (builtin_u64_call) {
-      return_type = simple_type_from_view((w_seed_frontend_text){"u64", 3u});
+      return_type = builtin_u64_operation ==
+                            W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD
+                        ? u64_bool_tuple_type()
+                        : simple_type_from_view(
+                              (w_seed_frontend_text){"u64", 3u});
     } else if (local_signature) {
       return_type = function_return_type(parser->context, signature_doc,
                                           signature_node);
@@ -15499,6 +15597,10 @@ static frontend_simple_type infer_expression_span_inner(
                ? operand
                : simple_type_unknown();
   }
+  if (expression_is_exact_u64_builtin_call(
+          doc, span, W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD)) {
+    return u64_bool_tuple_type();
+  }
   /* A direct call's arguments may contain member syntax (for example an enum
    * case literal). Resolve the callee before the generic operator scan, but
    * only for an exact call span; a bare function name is not its result. The
@@ -15535,14 +15637,24 @@ static frontend_simple_type infer_expression_span_inner(
         cursor_take(&member_cursor, &member_dot) &&
         token_text(doc, &member_dot, ".") &&
         cursor_take(&member_cursor, &member_token) &&
-        member_token.kind == W_SEED_CST_WORD &&
+        (member_token.kind == W_SEED_CST_WORD ||
+         member_token.kind == W_SEED_CST_NUMBER) &&
         !cursor_peek(&member_cursor, &trailing)) {
       const frontend_simple_type receiver =
           binding_type_for_name(context, first_text, first.span);
+      const w_seed_frontend_text member_name =
+          text_from_span(doc, member_token.span);
+      if (receiver.kind == W_SEED_FRONTEND_TYPE_TUPLE &&
+          text_equal(receiver.spelling, "(u64, Bool)")) {
+        if (text_equal(member_name, "0"))
+          return simple_type_from_view((w_seed_frontend_text){"u64", 3u});
+        if (text_equal(member_name, "1"))
+          return simple_type_from_view((w_seed_frontend_text){"Bool", 4u});
+      }
       const w_seed_frontend_external_symbol *member = NULL;
       if (receiver.kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
           external_member_for_receiver(context, receiver,
-                                        text_from_span(doc, member_token.span),
+                                        member_name,
                                         NULL, NULL, &member) &&
           member != NULL) {
         return external_contextual_type(context, member->return_type);
@@ -20757,6 +20869,7 @@ w_seed_frontend_status w_seed_frontend_run(
   dry.builtin_u64_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_f64_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_bool_type_index = W_SEED_FRONTEND_NONE;
+  dry.builtin_u64_bool_tuple_type_index = W_SEED_FRONTEND_NONE;
   dry.builtin_never_type_index = W_SEED_FRONTEND_NONE;
   dry.inferred_string_type_index = W_SEED_FRONTEND_NONE;
   dry.const_inferred_types = frontend_const_inferred_types_scratch;
@@ -20837,6 +20950,7 @@ w_seed_frontend_status w_seed_frontend_run(
   emit.builtin_u64_type_index = W_SEED_FRONTEND_NONE;
   emit.builtin_f64_type_index = W_SEED_FRONTEND_NONE;
   emit.builtin_bool_type_index = W_SEED_FRONTEND_NONE;
+  emit.builtin_u64_bool_tuple_type_index = W_SEED_FRONTEND_NONE;
   emit.builtin_never_type_index = W_SEED_FRONTEND_NONE;
   emit.inferred_string_type_index = W_SEED_FRONTEND_NONE;
   emit.const_inferred_types = frontend_const_inferred_types_scratch;
