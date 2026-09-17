@@ -160,7 +160,13 @@ static bool hir0_builtin_u64_operation_is_wrapping(
     w_seed_frontend_builtin_operation operation) {
   return operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SUBTRACT ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_MULTIPLY;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_MULTIPLY ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_NEGATE;
+}
+
+static bool hir0_builtin_u64_operation_is_unary_wrapping(
+    w_seed_frontend_builtin_operation operation) {
+  return operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_NEGATE;
 }
 
 static bool hir0_builtin_u64_operation_member_matches(
@@ -171,7 +177,9 @@ static bool hir0_builtin_u64_operation_member_matches(
          (operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SUBTRACT &&
           text_is(member_name, "wrappingSubtract")) ||
          (operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_MULTIPLY &&
-          text_is(member_name, "wrappingMultiply"));
+          text_is(member_name, "wrappingMultiply")) ||
+         (operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_NEGATE &&
+          text_is(member_name, "wrappingNegate"));
 }
 
 static bool frontend_assignment_operator(w_seed_frontend_text text) {
@@ -4197,6 +4205,10 @@ static bool frontend_call_expression_ok(
     return false;
   const w_seed_frontend_expression *callee = &output->expressions[call->left];
   if (hir0_builtin_u64_operation_is_wrapping(call->builtin_operation)) {
+    const bool unary_wrapping =
+        hir0_builtin_u64_operation_is_unary_wrapping(
+            call->builtin_operation);
+    const size_t expected_argument_count = unary_wrapping ? 1u : 2u;
     const bool callee_shape =
         result_value && !allow_throwing && materialize_result &&
         call->resolved_callee_kind == W_SEED_FRONTEND_CALLEE_NONE &&
@@ -4204,7 +4216,7 @@ static bool frontend_call_expression_ok(
         call->resolved_host_symbol_index == W_SEED_FRONTEND_NONE &&
         call->resolved_external_module_index == W_SEED_FRONTEND_NONE &&
         call->resolved_external_symbol_index == W_SEED_FRONTEND_NONE &&
-        call->argument_count == 2u &&
+        call->argument_count == expected_argument_count &&
         call->inferred_type != W_SEED_FRONTEND_NONE &&
         (size_t)call->inferred_type < result->written.types &&
         frontend_expression_is_u64(output, call) &&
@@ -4242,7 +4254,8 @@ static bool frontend_call_expression_ok(
     } else {
       return false;
     }
-    for (size_t ordinal = 0u; ordinal < 2u; ordinal += 1u) {
+    for (size_t ordinal = 0u; ordinal < expected_argument_count;
+         ordinal += 1u) {
       const size_t argument_index = (size_t)call->first_argument + ordinal;
       if (argument_index >= result->written.arguments) return false;
       const w_seed_frontend_argument *argument =
@@ -11181,6 +11194,58 @@ static uint32_t hir0_emit_value_m2(
 
   if (source->kind == W_SEED_FRONTEND_EXPR_CALL &&
       hir0_builtin_u64_operation_is_wrapping(source->builtin_operation)) {
+    if (hir0_builtin_u64_operation_is_unary_wrapping(
+            source->builtin_operation)) {
+      if (source->argument_count != 1u ||
+          source->first_argument == W_SEED_FRONTEND_NONE)
+        return W_SEED_HIR0_NONE;
+      const w_seed_frontend_argument *argument =
+          &context->frontend
+               ->arguments[(size_t)source->first_argument];
+      const size_t operand_block = hir0_expression_layout_end_m2(
+          context, argument->expression_index, current_block, depth + 1u);
+      const uint32_t operand = hir0_emit_value_m2(
+          context, argument->expression_index,
+          W_SEED_HIR0_VALUE_OWNER_UNARY, W_SEED_HIR0_NONE, 0u,
+          operand_block, depth + 1u);
+      const uint32_t result = (uint32_t)*context->value_index;
+      context->output->values[*context->value_index] = (w_seed_hir0_value){
+          .kind = W_SEED_HIR0_VALUE_UNARY_U64,
+          .owner_kind = owner_kind,
+          .owner_index = owner_index,
+          .owner_ordinal = owner_ordinal,
+          .type_index = hir_type_from_frontend(
+              context->frontend, context->frontend_result, source->inferred_type),
+          .binding_index = W_SEED_HIR0_NONE,
+          .parameter_index = W_SEED_HIR0_NONE,
+          .call_index = W_SEED_HIR0_NONE,
+          .left_value = operand,
+          .right_value = W_SEED_HIR0_NONE,
+          .first_interpolation_segment = W_SEED_HIR0_NONE,
+          .interpolation_segment_count = 0u,
+          .first_enum_payload = 0u,
+          .enum_payload_count = 0u,
+          .pattern_capture_index = W_SEED_HIR0_NONE,
+          .binary_operator = W_SEED_HIR0_BINARY_ADD,
+          .unary_operator = W_SEED_HIR0_UNARY_WRAPPING_NEGATE,
+          .block_argument_index = W_SEED_HIR0_NONE,
+          .integer_value = 0,
+          .unsigned_integer_value = 0u,
+          .float_bits = 0u,
+          .bool_value = false,
+          .byte_offset = 0u,
+          .byte_count = 0u,
+          .source_span = source->span,
+          .external_module_index = W_SEED_HIR0_NONE,
+          .external_symbol_index = W_SEED_HIR0_NONE,
+          .member_name = {0u, 0u},
+          .enum_index = W_SEED_HIR0_NONE,
+          .enum_case_index = W_SEED_HIR0_NONE};
+      if (operand != W_SEED_HIR0_NONE)
+        context->output->values[operand].owner_index = result;
+      *context->value_index += 1u;
+      return result;
+    }
     if (source->argument_count != 2u ||
         source->first_argument == W_SEED_FRONTEND_NONE)
       return W_SEED_HIR0_NONE;
@@ -14419,7 +14484,8 @@ static bool verify_value_tree(
   }
 
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64) {
-    if (value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT ||
+    if ((value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT &&
+         value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE) ||
         !hir_type_index_valid(program, value->type_index) ||
         program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64 ||
         value->binding_index != W_SEED_HIR0_NONE ||

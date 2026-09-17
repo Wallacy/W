@@ -44,7 +44,8 @@ _Static_assert(W_SEED_FRONTEND_BUILTIN_NONE == 0 &&
                    W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD == 1 &&
                    W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SUBTRACT == 2 &&
                    W_SEED_FRONTEND_BUILTIN_U64_RECEIVER == 3 &&
-                   W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_MULTIPLY == 4,
+                   W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_MULTIPLY == 4 &&
+                   W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_NEGATE == 5,
                "w-seed frontend builtin identities are append-only");
 #if defined(DBL_HAS_SUBNORM)
 _Static_assert(DBL_HAS_SUBNORM == 1,
@@ -4115,7 +4116,13 @@ static bool builtin_u64_operation_is_wrapping(
     w_seed_frontend_builtin_operation operation) {
   return operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SUBTRACT ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_MULTIPLY;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_MULTIPLY ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_NEGATE;
+}
+
+static bool builtin_u64_operation_is_unary_wrapping(
+    w_seed_frontend_builtin_operation operation) {
+  return operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_NEGATE;
 }
 
 static w_seed_frontend_builtin_operation builtin_u64_operation_for_member(
@@ -4126,6 +4133,8 @@ static w_seed_frontend_builtin_operation builtin_u64_operation_for_member(
     return W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SUBTRACT;
   if (text_equal(member_name, "wrappingMultiply"))
     return W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_MULTIPLY;
+  if (text_equal(member_name, "wrappingNegate"))
+    return W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_NEGATE;
   return W_SEED_FRONTEND_BUILTIN_NONE;
 }
 
@@ -13619,6 +13628,8 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
                                      : W_SEED_FRONTEND_BUILTIN_NONE;
     const bool builtin_u64_wrapping =
         builtin_u64_operation_is_wrapping(builtin_u64_operation);
+    const bool builtin_u64_unary_wrapping =
+        builtin_u64_operation_is_unary_wrapping(builtin_u64_operation);
     size_t argument_count = 0;
     size_t enum_positional_argument_count = 0u;
     uint32_t enum_bound_parameters[W_SEED_FRONTEND_MAX_NESTING];
@@ -13952,7 +13963,8 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     } else if (host_signature_found &&
                host_signature->parameter_count != argument_count) {
       labels_valid = false;
-    } else if (builtin_u64_wrapping && argument_count != 2u) {
+    } else if (builtin_u64_wrapping &&
+               argument_count != (builtin_u64_unary_wrapping ? 1u : 2u)) {
       labels_valid = false;
     }
     if (value->has_name && !value->is_external_member) {
@@ -18590,6 +18602,10 @@ static bool resolve_frontend_links(frontend_context *context) {
     }
     if (callee->kind == W_SEED_FRONTEND_EXPR_MEMBER) {
       if (builtin_u64_operation_is_wrapping(expression->builtin_operation)) {
+        const bool unary_wrapping =
+            builtin_u64_operation_is_unary_wrapping(
+                expression->builtin_operation);
+        const size_t expected_argument_count = unary_wrapping ? 1u : 2u;
         const bool callee_shape =
             callee->supported && expression->supported &&
             callee->builtin_operation ==
@@ -18608,7 +18624,7 @@ static bool resolve_frontend_links(frontend_context *context) {
             text_equal(callee->operator_text, ".") &&
             expression->resolved_callee_kind ==
                 W_SEED_FRONTEND_CALLEE_NONE &&
-            expression->argument_count == 2u &&
+            expression->argument_count == expected_argument_count &&
             expression->first_argument != W_SEED_FRONTEND_NONE &&
             (size_t)expression->first_argument <= context->count.arguments;
         if (!callee_shape) {
@@ -18634,7 +18650,8 @@ static bool resolve_frontend_links(frontend_context *context) {
           expression->supported = false;
           continue;
         }
-        for (uint32_t offset = 0u; offset < 2u; offset += 1u) {
+        for (uint32_t offset = 0u;
+             offset < (uint32_t)expected_argument_count; offset += 1u) {
           const size_t argument_index =
               (size_t)expression->first_argument + offset;
           if (argument_index >= context->count.arguments) return false;

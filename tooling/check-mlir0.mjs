@@ -43,6 +43,8 @@ const restaurantUIntWrappingSubtractFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-subtract.w")
 const restaurantUIntWrappingMultiplyFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-multiply.w")
+const restaurantUIntWrappingNegateFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-wrapping-negate.w")
 const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
@@ -682,6 +684,9 @@ try {
     { name: "restaurant-uint-wrapping-multiply",
       source: restaurantUIntWrappingMultiplyFixture,
       expected: Buffer.from("Wrapped 18446744073709551614\n", "utf8") },
+    { name: "restaurant-uint-wrapping-negate",
+      source: restaurantUIntWrappingNegateFixture,
+      expected: Buffer.from("Wrapped 18446744073709551615\n", "utf8") },
     { name: "restaurant-uint-bit-not", source: restaurantUIntBitNotFixture,
       expected: Buffer.from("UInt not 18446744073709551615\n", "utf8") },
     { name: "restaurant-uint-bitwise", source: restaurantUIntBitwiseFixture,
@@ -965,6 +970,14 @@ try {
     !uintWrappingMultiplyArtifact.includes("@w_seed_checked_multiply_u64") &&
     !uintWrappingMultiplyArtifact.includes("llvm.intr.umul.with.overflow"),
   "u64.wrappingMultiply did not retain direct wrapping u64 lowering")
+  const uintWrappingNegateArtifact =
+    artifacts.get("restaurant-uint-wrapping-negate").toString("utf8")
+  assert(uintWrappingNegateArtifact.includes("llvm.mlir.constant(0 : i64)") &&
+    uintWrappingNegateArtifact.includes("llvm.sub") &&
+    uintWrappingNegateArtifact.includes("llvm.call @w_seed_append_u64") &&
+    !uintWrappingNegateArtifact.includes("@w_seed_checked_subtract_u64") &&
+    !uintWrappingNegateArtifact.includes("llvm.intr.usub.with.overflow"),
+  "u64.wrappingNegate did not retain direct wrapping u64 lowering")
   const uintBitNotArtifact =
     artifacts.get("restaurant-uint-bit-not").toString("utf8")
   assert(uintBitNotArtifact.includes("llvm.xor") &&

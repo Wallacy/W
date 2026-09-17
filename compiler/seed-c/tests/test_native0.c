@@ -207,7 +207,7 @@ static bool make_nested_tree_source(char *buffer, size_t capacity,
 
 static bool test_products(void) {
   CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-9") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-29") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-30") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -2714,6 +2714,65 @@ static bool test_u64_wrapping_multiply_slice(void) {
   return true;
 }
 
+static bool test_u64_wrapping_negate_slice(void) {
+  static const uint8_t source[] =
+      "fn wrap(value: UInt): UInt { return u64.wrappingNegate(value) }\n"
+      "fn main() { let result = wrap(value: 1_u64) print(\"${result}\") }\n"
+      "entry(main)\n";
+  uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source(source, sizeof(source) - 1u, "uint-wrapping-negate", 20u,
+                   output, sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  size_t wrapping_count = 0u;
+  for (size_t index = 0u; index < storage.hir_program.value_count;
+       index += 1u)
+    if (storage.hir_program.values[index].kind ==
+            W_SEED_HIR0_VALUE_UNARY_U64 &&
+        storage.hir_program.values[index].unary_operator ==
+            W_SEED_HIR0_UNARY_WRAPPING_NEGATE)
+      wrapping_count += 1u;
+  const size_t wrapper_start =
+      find_bytes(output, result.mlir.written.mlir_bytes,
+                 "llvm.func internal @w_fn_0", 0u);
+  const size_t entry_start =
+      find_bytes(output, result.mlir.written.mlir_bytes,
+                 "llvm.func internal @w_fn_1", wrapper_start);
+  CHECK(wrapping_count == 1u && wrapper_start != SIZE_MAX &&
+        entry_start != SIZE_MAX &&
+        count_bytes(output + wrapper_start, entry_start - wrapper_start,
+                    "_wrapping_negate_zero = llvm.mlir.constant(0 : i64)") ==
+            1u &&
+        count_bytes(output + wrapper_start, entry_start - wrapper_start,
+                    " = llvm.sub ") == 1u &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "llvm.call @w_seed_checked_subtract_u64") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "llvm.intr.usub.with.overflow"));
+
+  static const uint8_t rejected[][220] = {
+      "fn bad(value: UInt): UInt { return UInt.wrappingNegate(value) }\nentry(bad)\n",
+      "fn bad(value: UInt): UInt { return u64.wrappingNegate(1_i64) }\nentry(bad)\n",
+      "fn bad(value: UInt): UInt { return u64.wrappingNegate() }\nentry(bad)\n",
+      "fn bad(value: UInt): UInt { return u64.wrappingNegate(value, 1_u64) }\nentry(bad)\n",
+      "fn bad(value: UInt): UInt { return u64.wrappingNegate(value: value) }\nentry(bad)\n",
+      "fn bad(value: UInt): UInt { return u64?.wrappingNegate(value) }\nentry(bad)\n",
+      "fn bad(value: UInt): UInt { return u64.wrappingNegate(u64.wrappingNegate(value)) }\nentry(bad)\n",
+      "const u64: UInt = 1_u64\nfn bad(value: UInt): UInt { return u64.wrappingNegate(value) }\nentry(bad)\n"};
+  for (size_t index = 0u; index < sizeof(rejected) / sizeof(rejected[0]);
+       index += 1u) {
+    (void)memset(output, 0x97u, sizeof(output));
+    (void)memset(&result, 0x98u, sizeof(result));
+    const w_seed_native0_result snapshot = result;
+    CHECK(run_source(rejected[index], strlen((const char *)rejected[index]),
+                     "uint-wrapping-negate-bad", 24u, output, sizeof(output),
+                     &result) != W_SEED_NATIVE0_OK);
+    CHECK(memcmp(&result, &snapshot, sizeof(result)) == 0);
+    for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+      CHECK(output[byte] == 0x97u);
+  }
+  return true;
+}
+
 static bool test_unsigned_unary_u64_slice(void) {
   static const uint8_t source[] =
       "fn invert(value: UInt): UInt { return ~value }\n"
@@ -2924,6 +2983,7 @@ int main(void) {
                         test_u64_wrapping_add_slice() &&
                         test_u64_wrapping_subtract_slice() &&
                         test_u64_wrapping_multiply_slice() &&
+                        test_u64_wrapping_negate_slice() &&
                         test_unsigned_unary_u64_slice() &&
                         test_enum_frontend_storage() &&
                         test_enum_payload_native_lowering() &&

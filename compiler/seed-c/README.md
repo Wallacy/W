@@ -2817,10 +2817,10 @@ for ranking or live best metrics.
 
 ### Source-backed checked `UInt`/`u64` operators
 
-HIR0 schema `w-seed-hir0-54` represents ordinary unsigned arithmetic,
+HIR0 schema `w-seed-hir0-55` represents ordinary unsigned arithmetic,
 comparisons, and binary bitwise operations with `BINARY_U64`, and bitwise complement with the distinct
 `UNARY_U64` value kind. Native0 and MLIR0 schemas are `w-seed-native0-9` and
-`w-seed-mlir0-29` (Windows label `w-seed-mlir0-windows-14`). Native constant
+`w-seed-mlir0-30` (Windows label `w-seed-mlir0-windows-15`). Native constant
 trees are evaluated as `uint64_t` with checked add/subtract/multiply,
 zero-guarded divide/remainder, and width-preserving complement; overflow or
 division by zero fails closed. MLIR0 keeps the physical carrier as `i64`, uses
@@ -2855,6 +2855,10 @@ subtract helper or unsigned-overflow intrinsic.
 proves full-width modulo multiplication at `UInt.max * 2`. It retains another
 distinct HIR operator and lowers to unflagged `llvm.mul`, without the checked
 multiply helper or unsigned-overflow intrinsic.
+[`fixtures/restaurant-uint-wrapping-negate.w`](fixtures/restaurant-uint-wrapping-negate.w)
+proves unsigned modulo negation as `0 - value`. It uses a distinct unsigned
+unary HIR identity and lowers to an unflagged `llvm.sub` from zero, never to
+the signed checked-negate path.
 
 This is a finite linear/local-function-call and straight-line mutation slice.
 Other UInt compound families, UInt CFGs and loops,

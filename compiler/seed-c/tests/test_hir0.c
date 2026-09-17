@@ -13802,6 +13802,109 @@ static bool test_u64_wrapping_multiply(void) {
   return true;
 }
 
+static bool test_u64_wrapping_negate(void) {
+  static const char SOURCE[] =
+      "fn wrap(value: u64): u64 { return u64.wrappingNegate(value) }\n"
+      "entry { let result = u64.wrappingNegate(1_u64) }\n";
+  CHECK(lower(SOURCE));
+  size_t wrapping_count = 0u;
+  size_t wrapping_index = SIZE_MAX;
+  for (size_t index = 0u; index < fixture.hir_program.value_count;
+       index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_program.values[index];
+    if (value->kind != W_SEED_HIR0_VALUE_UNARY_U64) continue;
+    CHECK(value->unary_operator != W_SEED_HIR0_UNARY_NEGATE);
+    if (value->unary_operator == W_SEED_HIR0_UNARY_WRAPPING_NEGATE) {
+      CHECK(value->type_index < fixture.hir_program.type_count &&
+            fixture.hir_program.types[value->type_index].kind ==
+                W_SEED_HIR0_TYPE_U64 &&
+            value->left_value != W_SEED_HIR0_NONE &&
+            value->right_value == W_SEED_HIR0_NONE);
+      wrapping_count += 1u;
+      wrapping_index = index;
+    }
+  }
+  CHECK(wrapping_count == 2u && wrapping_index != SIZE_MAX &&
+        fixture.hir_program.call_count == 0u);
+  const w_seed_hir0_value saved = fixture.hir_values[wrapping_index];
+  fixture.hir_values[wrapping_index].unary_operator =
+      W_SEED_HIR0_UNARY_NEGATE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[wrapping_index] = saved;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  size_t frontend_wrapping_call = SIZE_MAX;
+  for (size_t index = 0u; index < fixture.result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression =
+        &fixture.expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_CALL &&
+        expression->builtin_operation ==
+            W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_NEGATE) {
+      frontend_wrapping_call = index;
+      break;
+    }
+  }
+  CHECK(frontend_wrapping_call != SIZE_MAX &&
+        fixture.result.written.types < UINT32_MAX);
+  const w_seed_frontend_expression saved_frontend_call =
+      fixture.expressions[frontend_wrapping_call];
+  const uint32_t member_index = saved_frontend_call.left;
+  CHECK(member_index != W_SEED_FRONTEND_NONE &&
+        (size_t)member_index < fixture.result.written.expressions);
+  const w_seed_frontend_expression saved_frontend_member =
+      fixture.expressions[member_index];
+  const uint32_t receiver_index = saved_frontend_member.left;
+  CHECK(receiver_index != W_SEED_FRONTEND_NONE &&
+        (size_t)receiver_index < fixture.result.written.expressions);
+  const w_seed_frontend_expression saved_frontend_receiver =
+      fixture.expressions[receiver_index];
+  CHECK(saved_frontend_call.first_argument != W_SEED_FRONTEND_NONE &&
+        (size_t)saved_frontend_call.first_argument <
+            fixture.result.written.arguments);
+  const size_t argument_index = (size_t)saved_frontend_call.first_argument;
+  const w_seed_frontend_argument saved_frontend_argument =
+      fixture.arguments[argument_index];
+  const w_seed_hir0_input invalid_input = hir_input();
+  for (size_t invalid_case = 0u; invalid_case < 5u; invalid_case += 1u) {
+    fixture.expressions[frontend_wrapping_call] = saved_frontend_call;
+    fixture.expressions[member_index] = saved_frontend_member;
+    fixture.expressions[receiver_index] = saved_frontend_receiver;
+    fixture.arguments[argument_index] = saved_frontend_argument;
+    if (invalid_case == 0u) {
+      fixture.expressions[receiver_index].builtin_operation =
+          W_SEED_FRONTEND_BUILTIN_NONE;
+    } else if (invalid_case == 1u) {
+      fixture.expressions[frontend_wrapping_call].argument_count = 2u;
+    } else if (invalid_case == 2u) {
+      fixture.arguments[argument_index].label =
+          saved_frontend_member.member_name;
+    } else if (invalid_case == 3u) {
+      fixture.expressions[frontend_wrapping_call].inferred_type =
+          (uint32_t)fixture.result.written.types;
+    } else {
+      fixture.expressions[frontend_wrapping_call].span.end_byte = SIZE_MAX;
+    }
+    setup_hir_output();
+    fill_hir_output(0xd4u);
+    w_seed_hir0_result rejected_hir;
+    (void)memset(&rejected_hir, 0x63, sizeof(rejected_hir));
+    const w_seed_hir0_result rejected_snapshot = rejected_hir;
+    CHECK(w_seed_hir0_run(&invalid_input, &fixture.hir_output,
+                          &rejected_hir) == W_SEED_HIR0_UNSUPPORTED);
+    CHECK(hir_output_is_byte(0xd4u));
+    CHECK(memcmp(&rejected_hir, &rejected_snapshot,
+                 sizeof(rejected_hir)) == 0);
+  }
+  fixture.expressions[frontend_wrapping_call] = saved_frontend_call;
+  fixture.expressions[member_index] = saved_frontend_member;
+  fixture.expressions[receiver_index] = saved_frontend_receiver;
+  fixture.arguments[argument_index] = saved_frontend_argument;
+  return true;
+}
+
 static bool test_canonical_f64_scalar(void) {
   static const char SOURCE[] =
       "entry { let sum = 1.5 + 2.25_f64 let difference = 9.5 - 5.5 "
@@ -14340,6 +14443,7 @@ int main(int argc, char **argv) {
   if (!test_u64_wrapping_add()) return 1;
   if (!test_u64_wrapping_subtract()) return 1;
   if (!test_u64_wrapping_multiply()) return 1;
+  if (!test_u64_wrapping_negate()) return 1;
   if (!test_canonical_f64_scalar()) return 1;
   if (!test_frontend_tree_bounds_forgery()) return 1;
   if (!test_checked_shift_values()) return 1;
