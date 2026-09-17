@@ -7540,6 +7540,78 @@ static bool test_straight_line_mutation_ssa(void) {
   return true;
 }
 
+static bool test_u64_bitwise_mutation_ssa(void) {
+  static const char SOURCE[] =
+      "entry {\n"
+      "  var value = 18446744073709551615_u64\n"
+      "  value &= 240_u64\n"
+      "  value ^= 170_u64\n"
+      "  value |= 5_u64\n"
+      "  print(message: \"UInt compound ${value}\", suffix: \"\")\n"
+      "}\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->binding_count == 4u && program->instruction_count == 5u &&
+        program->call_count == 1u);
+  uint32_t u64_type = W_SEED_HIR0_NONE;
+  for (size_t index = 0u; index < program->type_count; index += 1u)
+    if (program->types[index].kind == W_SEED_HIR0_TYPE_U64) {
+      CHECK(u64_type == W_SEED_HIR0_NONE);
+      u64_type = (uint32_t)index;
+    }
+  CHECK(u64_type != W_SEED_HIR0_NONE);
+  for (size_t index = 0u; index < program->binding_count; index += 1u) {
+    const w_seed_hir0_binding *binding = &program->bindings[index];
+    CHECK(binding->is_mutable && binding->source_binding == 0u &&
+          binding->type_index == u64_type &&
+          binding->name.count == 5u &&
+          memcmp(fixture.hir_text + binding->name.offset, "value", 5u) == 0);
+    CHECK(binding->owner_instruction == index &&
+          binding->initializer_value < program->value_count);
+    CHECK(binding->previous_version ==
+              (index == 0u ? W_SEED_HIR0_NONE : (uint32_t)(index - 1u)) &&
+          binding->next_version ==
+              (index + 1u == program->binding_count ? W_SEED_HIR0_NONE
+                                                     : (uint32_t)(index + 1u)));
+  }
+  CHECK(program->values[program->bindings[0].initializer_value].kind ==
+        W_SEED_HIR0_VALUE_CONST_U64);
+  const w_seed_hir0_binary_operator operators[] = {
+      W_SEED_HIR0_BINARY_BIT_AND, W_SEED_HIR0_BINARY_BIT_XOR,
+      W_SEED_HIR0_BINARY_BIT_OR};
+  for (size_t index = 0u; index < sizeof(operators) / sizeof(operators[0]);
+       index += 1u) {
+    const w_seed_hir0_binding *binding = &program->bindings[index + 1u];
+    const w_seed_hir0_value *replacement =
+        &program->values[binding->initializer_value];
+    CHECK(replacement->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
+          replacement->type_index == u64_type &&
+          replacement->binary_operator == operators[index] &&
+          replacement->left_value < program->value_count &&
+          replacement->right_value < program->value_count);
+    CHECK(program->values[replacement->left_value].kind ==
+              W_SEED_HIR0_VALUE_BINDING_READ &&
+          program->values[replacement->left_value].binding_index == index &&
+          program->values[replacement->left_value].type_index ==
+              u64_type &&
+          program->values[replacement->right_value].kind ==
+              W_SEED_HIR0_VALUE_CONST_U64 &&
+          program->values[replacement->right_value].type_index ==
+              u64_type);
+  }
+  bool saw_latest_read = false;
+  for (size_t index = 0u; index < program->value_count; index += 1u)
+    if (program->values[index].kind == W_SEED_HIR0_VALUE_BINDING_READ &&
+        program->values[index].binding_index == 3u &&
+        program->values[index].type_index == u64_type)
+      saw_latest_read = true;
+  CHECK(saw_latest_read);
+  for (size_t index = 0u; index < program->instruction_count; index += 1u)
+    CHECK(program->instructions[index].result_type == W_SEED_HIR0_TYPE_UNIT);
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_interleaved_mutation_versions(void) {
   static const char SOURCE[] =
       "entry {\n"
@@ -14027,6 +14099,7 @@ int main(int argc, char **argv) {
   if (!test_lowering_is_not_hello_hardcoded()) return 1;
   if (!test_local_binding_lowering()) return 1;
   if (!test_straight_line_mutation_ssa()) return 1;
+  if (!test_u64_bitwise_mutation_ssa()) return 1;
   if (!test_interleaved_mutation_versions()) return 1;
   if (!test_conditional_mutation_merge()) return 1;
   if (!test_bool_mutation_ssa()) return 1;

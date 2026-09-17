@@ -2836,9 +2836,12 @@ helpers.
 proves the public Linux/WSL and Windows `w run` routes with `~0_u64` producing
 exactly `18446744073709551615`;
 [`fixtures/restaurant-uint-bitwise.w`](fixtures/restaurant-uint-bitwise.w)
-proves the three binary operations over the same full-width domain. This is a
-finite linear/local-function-call
-slice. UInt CFGs and loops,
+proves the three binary operations over the same full-width domain;
+[`fixtures/restaurant-uint-compound.w`](fixtures/restaurant-uint-compound.w)
+proves `&=`, `^=`, and `|=` over one mutable local. HIR retains four typed SSA
+versions. MLIR lowers the updates to direct `and`, `xor`, and `or` operations.
+This is a finite linear/local-function-call and straight-line mutation slice.
+Other UInt compound families, UInt CFGs and loops,
 cooperative execution, and ProductClosure0 remain explicitly unsupported;
 typed-U64 shift/power values retain their existing `BINARY_I64` carrier
 exception.

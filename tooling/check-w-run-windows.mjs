@@ -73,6 +73,8 @@ const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bitwise.w")
+const restaurantUIntCompoundFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-compound.w")
 const restaurantMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-mutation.w")
 const restaurantConditionalMutationFixture = resolve(seedDirectory,
@@ -615,6 +617,9 @@ try {
   expectExact(binary, ["run", restaurantUIntBitwiseFixture], 0,
     Buffer.from("UInt bits 18446744073709551615\n", "utf8"),
     "Restaurant UInt binary bitwise operations")
+  expectExact(binary, ["run", restaurantUIntCompoundFixture], 0,
+    Buffer.from("UInt compound 95\n", "utf8"),
+    "Restaurant UInt compound bitwise mutation")
   expectExact(binary, ["run", restaurantMutationFixture], 0,
     Buffer.from("Open 6\n", "utf8"),
     "Restaurant straight-line local mutation")

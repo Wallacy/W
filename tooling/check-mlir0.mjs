@@ -41,6 +41,8 @@ const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bitwise.w")
+const restaurantUIntCompoundFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-compound.w")
 const restaurantMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-mutation.w")
 const restaurantConditionalMutationFixture = resolve(seedDirectory,
@@ -669,6 +671,8 @@ try {
       expected: Buffer.from("UInt not 18446744073709551615\n", "utf8") },
     { name: "restaurant-uint-bitwise", source: restaurantUIntBitwiseFixture,
       expected: Buffer.from("UInt bits 18446744073709551615\n", "utf8") },
+    { name: "restaurant-uint-compound", source: restaurantUIntCompoundFixture,
+      expected: Buffer.from("UInt compound 95\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
   ]
   const artifacts = new Map()
@@ -939,6 +943,16 @@ try {
     uintBitwiseArtifact.includes("llvm.call @w_fn_0") &&
     !uintBitwiseArtifact.includes("@w_seed_checked_"),
   "UInt binary bitwise lowering lost a direct operation or gained a signed helper")
+  const uintCompoundArtifact =
+    artifacts.get("restaurant-uint-compound").toString("utf8")
+  assert(uintCompoundArtifact.includes("llvm.and ") &&
+    uintCompoundArtifact.includes("llvm.xor ") &&
+    uintCompoundArtifact.includes("llvm.or "),
+  "UInt compound mutation lost direct bitwise lowering")
+  assert(uintCompoundArtifact.includes("llvm.call @w_seed_append_u64"),
+    "UInt compound mutation lost unsigned decimal output")
+  assert(!uintCompoundArtifact.includes("@w_seed_checked_"),
+    "UInt compound mutation gained an unrelated checked helper")
   const wmoArtifact = artifacts.get("restaurant-wmo")
   assert(!artifacts.get("hello").includes("@w_seed_checked_") &&
     wmoArtifact.includes("@w_fn_0(") &&

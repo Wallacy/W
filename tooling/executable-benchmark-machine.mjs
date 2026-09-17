@@ -45,6 +45,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-uint-arithmetic",
   "restaurant-uint-bit-not",
   "restaurant-uint-bitwise",
+  "restaurant-uint-compound",
   "restaurant-unsigned",
   "restaurant-linear",
   "restaurant-runtime-divrem",
@@ -183,6 +184,7 @@ export const RESTAURANT_F64_STRICT_WORKLOAD_ID = "restaurant-f64-strict";
 export const RESTAURANT_UINT_ARITHMETIC_WORKLOAD_ID = "restaurant-uint-arithmetic";
 export const RESTAURANT_UINT_BIT_NOT_WORKLOAD_ID = "restaurant-uint-bit-not";
 export const RESTAURANT_UINT_BITWISE_WORKLOAD_ID = "restaurant-uint-bitwise";
+export const RESTAURANT_UINT_COMPOUND_WORKLOAD_ID = "restaurant-uint-compound";
 export function isProcessArgumentWorkload(workloadId) {
   return PROCESS_ARGUMENT_WORKLOAD_IDS.includes(workloadId);
 }
@@ -1039,7 +1041,8 @@ function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PL
   if (workload?.id === RESTAURANT_F64_STRICT_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_ARITHMETIC_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_BIT_NOT_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_BITWISE_WORKLOAD_ID) return SOURCE_ELIGIBILITY.strictF64;
+      workload?.id === RESTAURANT_UINT_BITWISE_WORKLOAD_ID ||
+      workload?.id === RESTAURANT_UINT_COMPOUND_WORKLOAD_ID) return SOURCE_ELIGIBILITY.strictF64;
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) return SOURCE_ELIGIBILITY.processHandler;
   if (language === "c") return SOURCE_ELIGIBILITY.cPublic;
   if (language === "rust") return SOURCE_ELIGIBILITY.rust;

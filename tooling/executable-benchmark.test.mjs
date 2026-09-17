@@ -45,6 +45,7 @@ import {
   RESTAURANT_F64_STRICT_WORKLOAD_ID,
   RESTAURANT_UINT_ARITHMETIC_WORKLOAD_ID,
   RESTAURANT_UINT_BIT_NOT_WORKLOAD_ID,
+  RESTAURANT_UINT_COMPOUND_WORKLOAD_ID,
   ROOT,
   deriveExecutableBestMetrics,
   executableEquivalenceKey,
@@ -446,6 +447,44 @@ test("UInt bitwise complement catalog keeps correctness separate from ranking", 
   assert.match(c, /~runtime_zero/u);
   assert.match(rust, /black_box/u);
   assert.match(rust, /!black_box/u);
+});
+
+test("UInt compound catalog keeps correctness separate from ranking", () => {
+  const workload = documents.catalog.workloads.find((item) =>
+    item.id === RESTAURANT_UINT_COMPOUND_WORKLOAD_ID);
+  assert.ok(workload);
+  assert.equal(workload.structureClass, "public-end-to-end");
+  assert.equal(workload.status, "source-oracle-ready");
+  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
+  assert.equal(workload.demoEvidence, "bounded-w-demo");
+  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.equal(workload.oracle.stdout, "UInt compound 95\n");
+  assert.deepEqual(workload.blockedLanguages, []);
+  assert.deepEqual(workload.blockers, [
+    "w-uint-compound-compile-time-folded",
+    "runtime-uint-compound-equivalence",
+  ]);
+  assert.deepEqual(workload.sources.map((source) =>
+    [source.language, source.platformTarget]), [
+    ["w", EXECUTABLE_PLATFORM_TARGET],
+    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
+    ["c", EXECUTABLE_PLATFORM_TARGET],
+    ["rust", EXECUTABLE_PLATFORM_TARGET],
+  ]);
+  assert.ok(workload.sources.every((source) =>
+    source.recipeClass === "restaurant-uint-compound-release"));
+  const c = readFileSync(
+    `${ROOT}/benchmarks/executable/restaurant_uint_compound.c`, "utf8");
+  const rust = readFileSync(
+    `${ROOT}/benchmarks/executable/restaurant_uint_compound.rs`, "utf8");
+  assert.match(c, /value &= runtime_mask/u);
+  assert.match(c, /value \^= runtime_toggle/u);
+  assert.match(c, /value \|= runtime_set/u);
+  assert.match(rust, /value &= black_box\(240_u64\)/u);
+  assert.match(rust, /value \^= black_box\(170_u64\)/u);
+  assert.match(rust, /value \|= black_box\(5_u64\)/u);
+  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
+  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
 });
 
 test("not-performance-ready strict f64 evidence cannot become live best metrics", () => {

@@ -72,6 +72,8 @@ const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bitwise.w")
+const restaurantUIntCompoundFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-compound.w")
 const restaurantMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-mutation.w")
 const restaurantConditionalMutationFixture = resolve(seedDirectory,
@@ -946,6 +948,9 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantUIntBitwiseFixture)],
     Buffer.from("UInt bits 18446744073709551615\n", "utf8"),
     "Restaurant UInt binary bitwise operations")
+  expectSuccess(binary, ["run", toWsl(restaurantUIntCompoundFixture)],
+    Buffer.from("UInt compound 95\n", "utf8"),
+    "Restaurant UInt compound bitwise mutation")
   expectSuccess(binary, ["run", toWsl(restaurantMutationFixture)],
     Buffer.from("Open 6\n", "utf8"),
     "Restaurant straight-line local mutation")

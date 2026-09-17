@@ -169,17 +169,19 @@ LLVM-dialect operations, and the maintained native routes. Checked `<<` and
 count, trap at counts greater than or equal to 64, use arithmetic versus
 logical right shift, and reject information-losing left shift. Exact
 `restaurant-bitwise`, `restaurant-shifts`, `restaurant-power`,
-`restaurant-power-prefix`, and `restaurant-compound`
+`restaurant-power-prefix`, `restaurant-compound`, and
+`restaurant-uint-compound`
 sources/oracles own these bounded crosspoints. Checked integer `**` uses a
 `UInt` exponent, keeps the base's signedness, defines `0 ** 0` as one, and
 lowers with logarithmic exponentiation by squaring. The parser now proves the
 W-769/W-1152 boundary as well: power is right-associative, binds before a
 prefix on its left, accepts a prefixed base when parenthesized, and gives its
 exponent an independent `UInt` inference context. A negative exponent remains
-invalid. The eleven compound
-assignment forms now reuse the same checked operation and SSA versioning;
-immutable targets fail closed. W-392 remains open for other widths, named
-bit APIs, SIMD, and the complete integer operator matrix.
+invalid. The eleven signed compound assignment forms reuse the same checked
+operation and SSA versioning. Unsigned `&=`, `^=`, and `|=` now use the
+existing direct bit operations and typed SSA versions. Immutable targets fail
+closed. W-392 remains open for other widths, named bit APIs, other unsigned
+compound forms, SIMD, and the complete integer operator matrix.
 W-1597 remains a legality certificate only; target policy must still combine it
 with observability and cost facts and compare any direct-call artifact with the
 W-1600 physical reference.
