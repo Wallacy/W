@@ -2815,20 +2815,26 @@ tree at compile time while the C and Rust references retain runtime floating
 operations. It is therefore a semantic/output witness, not equivalent work
 for ranking or live best metrics.
 
-### Source-backed checked `UInt`/`u64` arithmetic and comparisons
+### Source-backed checked `UInt`/`u64` operators
 
-HIR0 schema `w-seed-hir0-49` represents ordinary unsigned arithmetic and
-comparisons with the distinct `BINARY_U64` value kind. Native0 and MLIR0
-schemas are `w-seed-native0-9` and `w-seed-mlir0-24` (Windows label
-`w-seed-mlir0-windows-9`). Native constant trees are evaluated as `uint64_t`
-with checked add/subtract/multiply and zero-guarded divide/remainder; overflow
-or division by zero fails closed. MLIR0 keeps the physical carrier as `i64`,
-uses unsigned overflow intrinsics and zero-guarded `udiv`/`urem` helpers for
-runtime values, and emits `eq`, `ne`, `ult`, `ule`, `ugt`, and `uge` predicates.
-Only reachable unsigned helpers are emitted, so a pure-UInt artifact does not
-pull in signed arithmetic or signed-decimal helpers.
+HIR0 schema `w-seed-hir0-50` represents ordinary unsigned arithmetic and
+comparisons with `BINARY_U64`, and bitwise complement with the distinct
+`UNARY_U64` value kind. Native0 and MLIR0 schemas are `w-seed-native0-9` and
+`w-seed-mlir0-25` (Windows label `w-seed-mlir0-windows-10`). Native constant
+trees are evaluated as `uint64_t` with checked add/subtract/multiply,
+zero-guarded divide/remainder, and width-preserving complement; overflow or
+division by zero fails closed. MLIR0 keeps the physical carrier as `i64`, uses
+unsigned overflow intrinsics and zero-guarded `udiv`/`urem` helpers for runtime
+values, emits `eq`, `ne`, `ult`, `ule`, `ugt`, and `uge` predicates, and lowers
+`~UInt` directly to XOR with an all-ones mask. It never routes complement
+through signed negation. Only reachable unsigned helpers are emitted, so a
+pure-UInt artifact does not pull in signed arithmetic or signed-decimal
+helpers.
 
-This is a finite linear/local-function-call slice. UInt CFGs and loops,
+[`fixtures/restaurant-uint-bit-not.w`](fixtures/restaurant-uint-bit-not.w)
+proves the public Linux/WSL and Windows `w run` routes with `~0_u64` producing
+exactly `18446744073709551615`. This is a finite linear/local-function-call
+slice. UInt CFGs and loops,
 cooperative execution, and ProductClosure0 remain explicitly unsupported;
 typed-U64 shift/power values retain their existing `BINARY_I64` carrier
 exception.

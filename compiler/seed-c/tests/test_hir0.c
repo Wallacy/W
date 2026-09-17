@@ -12691,6 +12691,80 @@ static bool test_i64_unary_bit_not_positive(void) {
   return true;
 }
 
+static bool test_u64_unary_bit_not_positive(void) {
+  static const char SOURCE[] =
+      "fn invert(value: UInt): UInt { return ~value }\n"
+      "entry(invert)\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  uint32_t u64_type = W_SEED_HIR0_NONE;
+  uint32_t i64_type = W_SEED_HIR0_NONE;
+  for (size_t index = 0u; index < program->type_count; index += 1u) {
+    if (program->types[index].kind == W_SEED_HIR0_TYPE_U64) {
+      CHECK(u64_type == W_SEED_HIR0_NONE);
+      u64_type = (uint32_t)index;
+    }
+    if (program->types[index].kind == W_SEED_HIR0_TYPE_I64) {
+      CHECK(i64_type == W_SEED_HIR0_NONE);
+      i64_type = (uint32_t)index;
+    }
+  }
+  CHECK(program->function_count == 1u && program->parameter_count == 1u &&
+        program->block_count == 1u && program->value_count == 2u &&
+        u64_type != W_SEED_HIR0_NONE && i64_type != W_SEED_HIR0_NONE &&
+        program->functions[0].return_type == u64_type &&
+        program->parameters[0].type_index == u64_type &&
+        program->types[u64_type].kind == W_SEED_HIR0_TYPE_U64);
+  CHECK(program->terminators[0].kind ==
+            W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        program->terminators[0].value_index == 1u);
+
+  const w_seed_hir0_value *operand = &program->values[0];
+  const w_seed_hir0_value *unary = &program->values[1];
+  CHECK(operand->kind == W_SEED_HIR0_VALUE_PARAMETER_READ &&
+        operand->type_index == u64_type &&
+        operand->owner_kind == W_SEED_HIR0_VALUE_OWNER_UNARY &&
+        operand->owner_index == 1u && operand->owner_ordinal == 0u &&
+        unary->kind == W_SEED_HIR0_VALUE_UNARY_U64 &&
+        unary->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT &&
+        unary->type_index == u64_type && unary->left_value == 0u &&
+        unary->right_value == W_SEED_HIR0_NONE &&
+        unary->owner_kind == W_SEED_HIR0_VALUE_OWNER_TERMINATOR &&
+        unary->owner_index == 0u && unary->owner_ordinal == 0u &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_value saved_unary = fixture.hir_values[1];
+  fixture.hir_values[1].unary_operator = W_SEED_HIR0_UNARY_NEGATE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[1] = saved_unary;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_values[1].type_index = i64_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[1] = saved_unary;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_value saved_operand = fixture.hir_values[0];
+  fixture.hir_values[0].type_index = i64_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[0] = saved_operand;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_values[1].left_value = W_SEED_HIR0_NONE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[1] = saved_unary;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_direct_i64_unary_interpolation(void) {
   static const char SOURCE[] =
       "entry { print(message: \"Balance ${-7}\", suffix: \"\") }\n";
@@ -13926,6 +14000,7 @@ int main(int argc, char **argv) {
   if (!test_checked_shift_values()) return 1;
   if (!test_checked_power_values()) return 1;
   if (!test_i64_unary_bit_not_positive()) return 1;
+  if (!test_u64_unary_bit_not_positive()) return 1;
   if (!test_canonical_and_copy_boundary()) return 1;
   if (!test_semantic_and_provenance_digests()) return 1;
   if (!test_function_parameter_records()) return 1;

@@ -207,7 +207,7 @@ static bool make_nested_tree_source(char *buffer, size_t capacity,
 
 static bool test_products(void) {
   CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-9") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-24") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-25") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -2501,6 +2501,91 @@ static bool test_unsigned_binary_u64_slice(void) {
   return true;
 }
 
+static bool test_unsigned_unary_u64_slice(void) {
+  static const uint8_t source[] =
+      "fn invert(value: UInt): UInt { return ~value }\n"
+      "fn main() { let high = ~9223372036854775808_u64 "
+      "let all = ~18446744073709551615_u64 "
+      "let zero = ~0_u64 "
+      "let runtime = invert(value: high) "
+      "print(\"${high}/${all}/${zero}/${runtime}\") }\n"
+      "entry(main)\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source(source, sizeof(source) - 1u, "uint-unary", 10u, output,
+                   sizeof(output), &result) == W_SEED_NATIVE0_OK);
+
+  size_t unary_u64_count = 0u;
+  for (size_t index = 0u; index < storage.hir_program.value_count;
+       index += 1u)
+    if (storage.hir_program.values[index].kind ==
+        W_SEED_HIR0_VALUE_UNARY_U64)
+      unary_u64_count += 1u;
+  CHECK(unary_u64_count == 4u);
+
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(!selection.has_cfg && selection.has_local_calls &&
+        selection.has_interpolation && selection.maximum_stdout_bytes == 84u);
+  CHECK(count_bytes(output, result.mlir.written.mlir_bytes, "llvm.xor") >=
+            unary_u64_count &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.mlir.constant(-9223372036854775808 : i64) : i64") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.mlir.constant(-1 : i64) : i64"));
+
+  /* A U64 unary value cannot widen the existing scalar CFG subset. */
+  static const uint8_t cfg_source[] =
+      "fn choose(flag: Bool, value: UInt): UInt { return if flag { ~value } "
+      "else { value } }\n"
+      "fn main() { let value = choose(flag: true, value: 0_u64) "
+      "print(\"${value}\") }\n"
+      "entry(main)\n";
+  (void)memset(output, 0x81u, sizeof(output));
+  (void)memset(&result, 0x82u, sizeof(result));
+  const w_seed_native0_result cfg_snapshot = result;
+  CHECK(run_source(cfg_source, sizeof(cfg_source) - 1u, "uint-unary-cfg", 14u,
+                   output, sizeof(output), &result) != W_SEED_NATIVE0_OK);
+  CHECK(memcmp(&result, &cfg_snapshot, sizeof(result)) == 0);
+  for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+    CHECK(output[byte] == 0x81u);
+
+  /* The loop recognizers remain i64-carrier-only even when the U64 value is
+   * otherwise a valid linear expression. */
+  static const uint8_t loop_source[] =
+      "fn looped(limit: i64, value: UInt) { var index = 0 "
+      "while index < limit { let inverted = ~value index = index + 1 } }\n"
+      "fn main() { looped(limit: 1, value: 0_u64) print(\"ok\") }\n"
+      "entry(main)\n";
+  (void)memset(output, 0x91u, sizeof(output));
+  (void)memset(&result, 0x92u, sizeof(result));
+  const w_seed_native0_result loop_snapshot = result;
+  CHECK(run_source(loop_source, sizeof(loop_source) - 1u,
+                   "uint-unary-loop", 15u, output, sizeof(output), &result) !=
+        W_SEED_NATIVE0_OK);
+  CHECK(memcmp(&result, &loop_snapshot, sizeof(result)) == 0);
+  for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+    CHECK(output[byte] == 0x91u);
+
+  /* UInt negation is invalid at the source/HIR boundary and must not reach
+   * Native0's emitter. */
+  static const uint8_t invalid_source[] =
+      "fn invalid(value: UInt): UInt { return -value }\n"
+      "entry(invalid)\n";
+  (void)memset(output, 0xa1u, sizeof(output));
+  (void)memset(&result, 0xa2u, sizeof(result));
+  const w_seed_native0_result invalid_snapshot = result;
+  CHECK(run_source(invalid_source, sizeof(invalid_source) - 1u,
+                   "uint-unary-invalid", 18u, output, sizeof(output),
+                   &result) != W_SEED_NATIVE0_OK);
+  CHECK(memcmp(&result, &invalid_snapshot, sizeof(result)) == 0);
+  for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+    CHECK(output[byte] == 0xa1u);
+  return true;
+}
+
 static bool test_virtual_structured_task_product(void) {
   static const uint8_t source[] =
       "fn prepare(value: i64): i64 { return value }\n"
@@ -2623,6 +2708,7 @@ int main(void) {
                         test_async_direct_entry_product() &&
                         test_signed_comparison_products() && test_products() &&
                         test_unsigned_binary_u64_slice() &&
+                        test_unsigned_unary_u64_slice() &&
                         test_enum_frontend_storage() &&
                         test_enum_payload_native_lowering() &&
                         test_bool_payload_native_lowering() &&

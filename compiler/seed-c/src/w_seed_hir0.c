@@ -3618,9 +3618,11 @@ static bool frontend_value_tree_ok(
         (size_t)value->inferred_type >= result->written.types ||
         (logical_not
              ? !frontend_expression_is_bool(output, value)
-             : (bit_not ? !frontend_expression_is_i64(output, value)
-                        : !(frontend_expression_is_i64(output, value) ||
-                            frontend_expression_is_f64(output, value)))) ||
+             : (bit_not
+                    ? !(frontend_expression_is_i64(output, value) ||
+                        frontend_expression_is_u64(output, value))
+                    : !(frontend_expression_is_i64(output, value) ||
+                        frontend_expression_is_f64(output, value)))) ||
         output->expressions[value->left].inferred_type ==
             W_SEED_FRONTEND_NONE ||
         (size_t)output->expressions[value->left].inferred_type >=
@@ -3629,8 +3631,12 @@ static bool frontend_value_tree_ok(
              ? !frontend_expression_is_bool(
                    output, &output->expressions[value->left])
              : (bit_not
-                    ? !frontend_expression_is_i64(
-                          output, &output->expressions[value->left])
+                    ? !((frontend_expression_is_i64(output, value) &&
+                         frontend_expression_is_i64(
+                             output, &output->expressions[value->left])) ||
+                        (frontend_expression_is_u64(output, value) &&
+                         frontend_expression_is_u64(
+                             output, &output->expressions[value->left])))
                     : !(frontend_expression_is_i64(
                             output, &output->expressions[value->left]) ||
                         frontend_expression_is_f64(
@@ -11084,15 +11090,19 @@ static uint32_t hir0_emit_value_m2(
     const bool bit_not = text_is(source->operator_text, "~");
     const bool floating = frontend_expression_is_f64(context->frontend,
                                                      source);
+    const bool unsigned_bit_not =
+        bit_not && frontend_expression_is_u64(context->frontend, source);
     *target = (w_seed_hir0_value){
         .kind = floating ? W_SEED_HIR0_VALUE_UNARY_FLOAT
-                         : (numeric_negate || bit_not
-                                ? W_SEED_HIR0_VALUE_UNARY_I64
-                                : W_SEED_HIR0_VALUE_UNARY_BOOL),
+                         : (unsigned_bit_not
+                                ? W_SEED_HIR0_VALUE_UNARY_U64
+                                : (numeric_negate || bit_not
+                                       ? W_SEED_HIR0_VALUE_UNARY_I64
+                                       : W_SEED_HIR0_VALUE_UNARY_BOOL)),
         .owner_kind = owner_kind,
         .owner_index = owner_index,
         .owner_ordinal = owner_ordinal,
-        .type_index = floating
+        .type_index = floating || unsigned_bit_not
                           ? hir_type_from_frontend(
                                 context->frontend, context->frontend_result,
                                 source->inferred_type)
@@ -14139,6 +14149,32 @@ static bool verify_value_tree(
     return true;
   }
 
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64) {
+    if (value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT ||
+        !hir_type_index_valid(program, value->type_index) ||
+        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64 ||
+        value->binding_index != W_SEED_HIR0_NONE ||
+        value->parameter_index != W_SEED_HIR0_NONE ||
+        value->call_index != W_SEED_HIR0_NONE ||
+        value->left_value == W_SEED_HIR0_NONE ||
+        value->right_value != W_SEED_HIR0_NONE ||
+        value->first_interpolation_segment != W_SEED_HIR0_NONE ||
+        value->interpolation_segment_count != 0u ||
+        value->binary_operator != W_SEED_HIR0_BINARY_ADD ||
+        value->block_argument_index != W_SEED_HIR0_NONE ||
+        value->integer_value != 0 || value->bool_value ||
+        value->byte_offset != 0u || value->byte_count != 0u ||
+        !verify_value_tree(
+            program, value->left_value, W_SEED_HIR0_VALUE_OWNER_UNARY,
+            root_index, 0u, current_block, current_instruction, source_length,
+            depth + 1u, value_cursor, segment_cursor, byte_cursor) ||
+        (size_t)root_index != *value_cursor ||
+        program->values[value->left_value].type_index != value->type_index)
+      return false;
+    *value_cursor += 1u;
+    return true;
+  }
+
   if (value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ) {
     if ((size_t)root_index != *value_cursor ||
         !hir_type_index_valid(program, value->type_index) ||
@@ -16302,6 +16338,7 @@ static bool hir0_value_kind_is_closed(w_seed_hir0_value_kind kind) {
     case W_SEED_HIR0_VALUE_CONST_BOOL:
     case W_SEED_HIR0_VALUE_BINARY_I64:
     case W_SEED_HIR0_VALUE_BINARY_U64:
+    case W_SEED_HIR0_VALUE_UNARY_U64:
     case W_SEED_HIR0_VALUE_INTERPOLATED_STRING:
     case W_SEED_HIR0_VALUE_CALL_RESULT:
     case W_SEED_HIR0_VALUE_UNARY_BOOL:

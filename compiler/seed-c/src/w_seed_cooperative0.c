@@ -512,6 +512,8 @@ static bool evaluate_value(const w_seed_hir0_program *program, uint32_t value_in
                value_from_i64(-child.integer, out);
       return value_from_i64(~child.integer, out);
     }
+    case W_SEED_HIR0_VALUE_UNARY_U64:
+      return false;
     case W_SEED_HIR0_VALUE_UNARY_BOOL: {
       w_seed_cooperative0_value child;
       if (!evaluate_value(program, value->left_value, frame, &child,

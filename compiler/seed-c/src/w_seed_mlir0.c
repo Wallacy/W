@@ -1094,7 +1094,8 @@ static bool build_dynamic_plan(
                effective->kind != W_SEED_HIR0_VALUE_PARAMETER_READ &&
                effective->kind != W_SEED_HIR0_VALUE_CALL_RESULT &&
                effective->kind != W_SEED_HIR0_VALUE_BINARY_I64 &&
-               effective->kind != W_SEED_HIR0_VALUE_BINARY_U64) ||
+               effective->kind != W_SEED_HIR0_VALUE_BINARY_U64 &&
+               effective->kind != W_SEED_HIR0_VALUE_UNARY_U64) ||
               !dynamic_plan_append_u64(&candidate, effective_index))
             return false;
         } else if (type == W_SEED_HIR0_TYPE_BOOL) {
@@ -1178,6 +1179,11 @@ static bool mlir0_value_is_constant_u64(const w_seed_hir0_program *program,
       program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64)
     return false;
   if (value->kind == W_SEED_HIR0_VALUE_CONST_U64) return true;
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64)
+    return value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT &&
+           value->left_value != W_SEED_HIR0_NONE &&
+           mlir0_value_is_constant_u64(program, value->left_value,
+                                       depth + 1u);
   return value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
          value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER &&
          mlir0_value_is_constant_u64(program, value->left_value,
@@ -1415,7 +1421,8 @@ static bool mark_reachable_value_tree(
   }
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL ||
       value->kind == W_SEED_HIR0_VALUE_UNARY_I64 ||
-      value->kind == W_SEED_HIR0_VALUE_UNARY_FLOAT) {
+      value->kind == W_SEED_HIR0_VALUE_UNARY_FLOAT ||
+      value->kind == W_SEED_HIR0_VALUE_UNARY_U64) {
     if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64 &&
         value->unary_operator == W_SEED_HIR0_UNARY_NEGATE &&
         !mlir0_value_is_constant_i64(program, value_index, 0u))
@@ -1541,6 +1548,30 @@ static bool reachable_values_have_u64(
                                      program->type_count &&
         program->types[program->values[value_index].type_index].kind ==
             W_SEED_HIR0_TYPE_U64)
+      return true;
+  return false;
+}
+
+static bool reachable_values_have_unary_u64(
+    const w_seed_hir0_program *program,
+    const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES]) {
+  if (program == NULL || reachable == NULL ||
+      program->value_count > W_SEED_NATIVE_SUBSET0_MAX_VALUES)
+    return false;
+  for (size_t value_index = 0u; value_index < program->value_count;
+       value_index += 1u)
+    if (reachable[value_index] &&
+        program->values[value_index].kind ==
+            W_SEED_HIR0_VALUE_UNARY_U64)
+      return true;
+  return false;
+}
+
+static bool program_has_unary_u64(const w_seed_hir0_program *program) {
+  if (program == NULL) return false;
+  for (size_t value_index = 0u; value_index < program->value_count;
+       value_index += 1u)
+    if (program->values[value_index].kind == W_SEED_HIR0_VALUE_UNARY_U64)
       return true;
   return false;
 }
@@ -2266,6 +2297,46 @@ static bool append_unary_i64_operation(
       offset);
 }
 
+/* UInt has a fixed-width i64 carrier in this seed.  Its bitwise complement
+ * is a pure bit operation, so it must not route through signed checked
+ * arithmetic or a negate helper.  This emitter is intentionally outside the
+ * natural-loop path; the finite UInt bundle is linear/local-call only. */
+static bool append_unary_u64_operation(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    uint8_t *artifact, size_t capacity, size_t *offset) {
+  if (program == NULL || artifact == NULL || offset == NULL ||
+      value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->kind != W_SEED_HIR0_VALUE_UNARY_U64 ||
+      value->type_index >= program->type_count ||
+      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64 ||
+      value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT ||
+      value->left_value == W_SEED_HIR0_NONE ||
+      value->right_value != W_SEED_HIR0_NONE ||
+      value->binding_index != W_SEED_HIR0_NONE ||
+      value->parameter_index != W_SEED_HIR0_NONE ||
+      value->call_index != W_SEED_HIR0_NONE ||
+      value->block_argument_index != W_SEED_HIR0_NONE)
+    return false;
+  return append_literal(artifact, capacity, offset, "    %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(
+             artifact, capacity, offset,
+             "_bit_not_mask = llvm.mlir.constant(-1 : i64) : i64\n") &&
+         append_literal(artifact, capacity, offset, "    %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, " = llvm.xor ") &&
+         append_program_value_operand(program, value->left_value,
+                                      function_index, process, artifact,
+                                      capacity, offset) &&
+         append_literal(artifact, capacity, offset, ", %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset,
+                        "_bit_not_mask : i64\n");
+}
+
 static bool append_program_block_argument_name(
     const w_seed_hir0_program *program, uint32_t block_argument_index,
     uint32_t function_index, uint8_t *artifact, size_t capacity,
@@ -2337,6 +2408,10 @@ static bool append_value_operations(const w_seed_hir0_program *program,
         return false;
     } else if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64) {
       if (!append_unary_i64_operation(program, (uint32_t)index, 0u, NULL,
+                                      artifact, capacity, offset))
+        return false;
+    } else if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64) {
+      if (!append_unary_u64_operation(program, (uint32_t)index, 0u, NULL,
                                       artifact, capacity, offset))
         return false;
     }
@@ -2841,6 +2916,7 @@ static bool mlir_product_closure_shape_candidate(
         break;
       case W_SEED_HIR0_VALUE_CONST_U64:
       case W_SEED_HIR0_VALUE_BINARY_U64:
+      case W_SEED_HIR0_VALUE_UNARY_U64:
         /* Ordinary unsigned arithmetic/comparisons are outside the
          * ProductClosure0 scalar contract in this bundle. */
         return false;
@@ -3077,14 +3153,17 @@ static bool append_program_value_operand_in_loop(
            append_size(artifact, capacity, offset, value->call_index);
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL ||
       value->kind == W_SEED_HIR0_VALUE_UNARY_I64 ||
-      value->kind == W_SEED_HIR0_VALUE_UNARY_FLOAT)
+      value->kind == W_SEED_HIR0_VALUE_UNARY_FLOAT ||
+      value->kind == W_SEED_HIR0_VALUE_UNARY_U64)
     return value->type_index < program->type_count &&
            ((value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL &&
              program->types[value->type_index].kind == W_SEED_HIR0_TYPE_BOOL) ||
             (value->kind == W_SEED_HIR0_VALUE_UNARY_I64 &&
              program->types[value->type_index].kind == W_SEED_HIR0_TYPE_I64) ||
             (value->kind == W_SEED_HIR0_VALUE_UNARY_FLOAT &&
-             program->types[value->type_index].kind == W_SEED_HIR0_TYPE_F64)) &&
+             program->types[value->type_index].kind == W_SEED_HIR0_TYPE_F64) ||
+            (value->kind == W_SEED_HIR0_VALUE_UNARY_U64 &&
+             program->types[value->type_index].kind == W_SEED_HIR0_TYPE_U64)) &&
            append_literal(artifact, capacity, offset, "%v") &&
            append_size(artifact, capacity, offset, value_index);
   if (value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ) {
@@ -3295,6 +3374,25 @@ static bool append_program_value_tree(
                                    process, emitted, artifact, capacity,
                                    offset, depth + 1u) ||
         !append_unary_i64_operation(program, value_index, function_index,
+                                    process, artifact, capacity, offset))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64) {
+    if (value->type_index >= program->type_count ||
+        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64 ||
+        value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT ||
+        value->left_value == W_SEED_HIR0_NONE ||
+        value->right_value != W_SEED_HIR0_NONE ||
+        value->binding_index != W_SEED_HIR0_NONE ||
+        value->parameter_index != W_SEED_HIR0_NONE ||
+        value->call_index != W_SEED_HIR0_NONE ||
+        value->block_argument_index != W_SEED_HIR0_NONE ||
+        !append_program_value_tree(program, value->left_value, function_index,
+                                   process, emitted, artifact, capacity,
+                                   offset, depth + 1u) ||
+        !append_unary_u64_operation(program, value_index, function_index,
                                     process, artifact, capacity, offset))
       return false;
     emitted[value_index] = true;
@@ -4007,8 +4105,11 @@ static bool append_program_value_tree_in_loop(
     return true;
   }
   /* The finite U64 bundle is linear/local-call only; never let an
-   * accidentally bypassed selector lower BINARY_U64 into a loop body. */
-  if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64) return false;
+   * accidentally bypassed selector lower an unsigned value into a loop
+   * body. */
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64 ||
+      value->kind == W_SEED_HIR0_VALUE_UNARY_U64)
+    return false;
 
   /* Constants, parameters, calls, and other already materialized values do
    * not contain a loop block argument in the natural-loop subset.  Reuse the
@@ -5267,6 +5368,9 @@ static bool append_program_function(
       function->first_block >= program->block_count ||
       function->block_count > program->block_count - function->first_block)
     return false;
+  if ((function->block_count > 1u || natural_loop || post_test_loop) &&
+      reachable_values_have_unary_u64(program, plan->reachable_values))
+    return false;
   if (!append_literal(artifact, capacity, offset,
                       "  llvm.func internal @w_fn_") ||
       !append_size(artifact, capacity, offset, function_index) ||
@@ -5588,6 +5692,13 @@ static bool build_program_artifact(
   if (!build_program_plan(program, hir_result, &plan, false, true) ||
       plan.has_reachable_panic != selection->has_reachable_panic)
     return false;
+  for (size_t function = 0u; function < program->function_count;
+       function += 1u)
+    if (program_has_unary_u64(program) &&
+        (selection->natural_loop_functions[function] ||
+         selection->post_test_loop_functions[function]))
+      return false;
+  if (program_has_unary_u64(program) && selection->has_cfg) return false;
   size_t offset = 0u;
   const bool windows = target_is_windows(target);
   if (!append_literal(artifact, capacity, &offset,
@@ -7170,7 +7281,8 @@ static bool append_cooperative_core_counted(
       (selection->execution_profile ==
            W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE &&
        selection->task_count != W_SEED_HIR0_COOPERATIVE_ORACLE_MAX_TASKS) ||
-      program->value_count > W_SEED_NATIVE_SUBSET0_MAX_VALUES)
+      program->value_count > W_SEED_NATIVE_SUBSET0_MAX_VALUES ||
+      program_has_unary_u64(program))
     return false;
   const size_t task_count = selection->task_count;
   for (size_t task = 0u; task < task_count; task += 1u) {
@@ -7572,6 +7684,10 @@ static bool parallel_mark_value(
     case W_SEED_HIR0_VALUE_UNARY_I64:
       return parallel_mark_value(program, value->left_value, reachable,
                                  depth + 1u);
+    case W_SEED_HIR0_VALUE_UNARY_U64:
+      /* UInt lowering is intentionally not part of the cooperative or
+       * parallel-entry scalar families. */
+      return false;
     case W_SEED_HIR0_VALUE_BINARY_I64:
       return parallel_mark_value(program, value->left_value, reachable,
                                  depth + 1u) &&
@@ -8047,7 +8163,8 @@ static bool build_cooperative_output_plan(
     mlir0_program_plan *plan) {
   if (program == NULL || hir_result == NULL || selection == NULL ||
       plan == NULL ||
-      !build_program_plan(program, hir_result, plan, false, false))
+      !build_program_plan(program, hir_result, plan, false, false) ||
+      program_has_unary_u64(program))
     return false;
   size_t result_actions = 0u;
   size_t join_reads = 0u;
@@ -9208,6 +9325,7 @@ static bool build_process_parallel_artifact(
       !plan.reachable_functions[process.function_index] ||
       plan.action_count != 0u)
     return false;
+  if (program_has_unary_u64(program)) return false;
 
   const w_seed_hir0_function *task =
       &program->functions[selection->task_function_indices[0]];

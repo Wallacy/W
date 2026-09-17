@@ -36,6 +36,7 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-compound | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-compound.w) | source-backed | partial-exploratory-ready |
 | restaurant-f64-strict | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-f64-strict.w), [c](./executable/restaurant_f64_strict.c), [rust](./executable/restaurant_f64_strict.rs) | source-backed | not-performance-ready |
 | restaurant-uint-arithmetic | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-uint-arithmetic.w), [c](./executable/restaurant_uint_arithmetic.c), [rust](./executable/restaurant_uint_arithmetic.rs) | source-backed | not-performance-ready |
+| restaurant-uint-bit-not | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-uint-bit-not.w), [c](./executable/restaurant_uint_bit_not.c), [rust](./executable/restaurant_uint_bit_not.rs) | source-backed | not-performance-ready |
 | restaurant-unsigned | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-unsigned.w) | source-backed | partial-exploratory-ready |
 | restaurant-linear | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-linear.w) | source-backed | partial-exploratory-ready |
 | restaurant-runtime-divrem | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-runtime-divrem.w) | source-backed | partial-exploratory-ready |

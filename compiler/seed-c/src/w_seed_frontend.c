@@ -1084,6 +1084,7 @@ static frontend_const_infer_value const_infer_prefix(
     frontend_const_infer_value nested = const_infer_prefix(parser);
     if (!nested.valid) return nested;
     const bool logical = token_text(parser->document, &token, "!");
+    const bool bitwise = token_text(parser->document, &token, "~");
     if (logical) {
       if (nested.type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
           nested.type.kind != W_SEED_FRONTEND_TYPE_BOOL)
@@ -1094,7 +1095,7 @@ static frontend_const_infer_value const_infer_prefix(
     if (nested.type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
         nested.type.kind != W_SEED_FRONTEND_TYPE_INTEGER)
       return const_infer_value_invalid(false);
-    if (nested.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+    if (!bitwise && nested.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
         !nested.type.is_signed)
       return const_infer_value_invalid(false);
     if (nested.type.kind == W_SEED_FRONTEND_TYPE_UNKNOWN ||
@@ -14390,11 +14391,10 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
         nested.type.kind == W_SEED_FRONTEND_TYPE_FLOAT ||
         (nested.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
          nested.type.is_signed);
-    const bool valid =
-        logical ? type_is_bool(nested.type)
-                : (bitwise ? nested.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
-                                 nested.type.is_signed
-                           : signed_numeric);
+    const bool valid = logical ? type_is_bool(nested.type)
+                               : (bitwise ? nested.type.kind ==
+                                                W_SEED_FRONTEND_TYPE_INTEGER
+                                          : signed_numeric);
     if (!valid) {
       (void)context_append_fact(parser->context,
                                 W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
@@ -15293,7 +15293,7 @@ static frontend_simple_type infer_expression_span_inner(
                       !operand.is_signed)
                  ? simple_type_unknown()
                  : (type_is_numeric(operand) ? operand : simple_type_unknown());
-    return operand.kind == W_SEED_FRONTEND_TYPE_INTEGER && operand.is_signed
+    return operand.kind == W_SEED_FRONTEND_TYPE_INTEGER
                ? operand
                : simple_type_unknown();
   }

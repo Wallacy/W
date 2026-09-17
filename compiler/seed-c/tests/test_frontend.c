@@ -5208,10 +5208,32 @@ static bool test_u64_binary_frontend(void) {
   CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
         has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
   CHECK(fixture_run(value,
-                    "fn bad(value: UInt): UInt { return ~value }\n"
+                    "fn invert(value: UInt): UInt { return ~value }\n"
                     "entry { }\n"));
-  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
-        has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
+        value->result.status == W_SEED_FRONTEND_OK &&
+        counts_equal(&value->result.required, &value->result.written));
+  uint32_t unary_index = W_SEED_FRONTEND_NONE;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind != W_SEED_FRONTEND_EXPR_UNARY) continue;
+    CHECK(unary_index == W_SEED_FRONTEND_NONE);
+    unary_index = (uint32_t)index;
+  }
+  CHECK(unary_index != W_SEED_FRONTEND_NONE);
+  const w_seed_frontend_expression *unary = &value->expressions[unary_index];
+  CHECK(unary->supported && frontend_text_is(unary->operator_text, "~") &&
+        unary->left < value->result.written.expressions &&
+        unary->right == W_SEED_FRONTEND_NONE &&
+        unary->inferred_type < value->result.written.types);
+  const w_seed_frontend_expression *operand =
+      &value->expressions[unary->left];
+  const w_seed_frontend_type *unary_type =
+      &value->types[unary->inferred_type];
+  CHECK(operand->supported && operand->inferred_type == unary->inferred_type &&
+        unary_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+        !unary_type->is_signed && unary_type->bit_width == 64u);
   CHECK(fixture_run(value,
                     "fn mixed(left: Int, right: UInt): Int { "
                     "return left + right }\nentry { }\n"));

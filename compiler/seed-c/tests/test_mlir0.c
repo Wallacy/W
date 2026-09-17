@@ -2174,6 +2174,101 @@ static bool test_unsigned_binary_u64_slice(void) {
   return true;
 }
 
+static bool test_unsigned_unary_bit_not_artifact(void) {
+  static const uint8_t dynamic_source[] =
+      "fn main() { print(\"UInt not ${~0_u64}\") }\n"
+      "entry(main)\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(lower_hir(dynamic_source, sizeof(dynamic_source) - 1u));
+  size_t unary_u64_count = 0u;
+  for (size_t index = 0u; index < fixture.hir_program.value_count;
+       index += 1u)
+    if (fixture.hir_program.values[index].kind ==
+        W_SEED_HIR0_VALUE_UNARY_U64)
+      unary_u64_count += 1u;
+  CHECK(unary_u64_count == 1u);
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "_bit_not_mask = llvm.mlir.constant(-1 : i64)") == 1u &&
+        count_bytes(artifact, emitted.written.mlir_bytes, "llvm.xor ") == 1u &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.call @w_seed_append_u64") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "@w_seed_checked_subtract_i64") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "@w_seed_checked_negate_i64"));
+
+  static const uint8_t local_source[] =
+      "fn invert(value: UInt): UInt { return ~value }\n"
+      "entry { let inverted = invert(value: 0_u64) "
+      "print(\"UInt not ${inverted}\") }\n";
+  CHECK(lower_hir(local_source, sizeof(local_source) - 1u));
+  unary_u64_count = 0u;
+  for (size_t index = 0u; index < fixture.hir_program.value_count;
+       index += 1u)
+    if (fixture.hir_program.values[index].kind ==
+        W_SEED_HIR0_VALUE_UNARY_U64)
+      unary_u64_count += 1u;
+  CHECK(unary_u64_count == 1u);
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.has_local_calls && !selection.has_cfg);
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "_bit_not_mask = llvm.mlir.constant(-1 : i64)") == 1u &&
+        count_bytes(artifact, emitted.written.mlir_bytes, "llvm.xor ") == 1u &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.call @w_fn_0") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.call @w_seed_append_u64") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "@w_seed_checked_subtract_i64") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "@w_seed_checked_negate_i64"));
+
+  static const uint8_t cfg_source[] =
+      "fn choose(flag: Bool, value: UInt): UInt { let inverted = ~value "
+      "if flag { return inverted } else { return value } }\n"
+      "fn main() { let result = choose(flag: true, value: 0_u64) "
+      "print(\"UInt ${result}\") }\n"
+      "entry(main)\n";
+  CHECK(lower_hir(cfg_source, sizeof(cfg_source) - 1u));
+  CHECK(w_seed_native_subset0_select_program(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_UNSUPPORTED);
+  const w_seed_mlir0_input input = mlir_input();
+  w_seed_mlir0_counts rejected_counts = {0x11u};
+  w_seed_mlir0_result rejected_measure;
+  (void)memset(&rejected_measure, 0x22u, sizeof(rejected_measure));
+  const w_seed_mlir0_result rejected_measure_snapshot = rejected_measure;
+  CHECK(w_seed_mlir0_measure(&input, &TARGET, &rejected_counts,
+                             &rejected_measure) == W_SEED_MLIR0_UNSUPPORTED);
+  CHECK(rejected_counts.mlir_bytes == 0x11u &&
+        memcmp(&rejected_measure, &rejected_measure_snapshot,
+               sizeof(rejected_measure)) == 0);
+  (void)memset(artifact, 0xa5u, sizeof(artifact));
+  w_seed_mlir0_result rejected_emit;
+  (void)memset(&rejected_emit, 0x33u, sizeof(rejected_emit));
+  const w_seed_mlir0_result rejected_emit_snapshot = rejected_emit;
+  CHECK(w_seed_mlir0_emit(
+            &input, &TARGET, &(w_seed_mlir0_output){artifact, sizeof(artifact)},
+            &rejected_emit) == W_SEED_MLIR0_UNSUPPORTED);
+  for (size_t index = 0u; index < sizeof(artifact); index += 1u)
+    CHECK(artifact[index] == 0xa5u);
+  CHECK(memcmp(&rejected_emit, &rejected_emit_snapshot,
+               sizeof(rejected_emit)) == 0);
+  return true;
+}
+
 static bool test_scalar_if_value_diamond(void) {
   static const uint8_t source[] =
       "fn serve(isOpen: Bool, openCount: i64, closedCount: i64): i64 { "
@@ -4607,6 +4702,7 @@ int main(int argc, char **argv) {
   if (!test_scalar_return_call_result()) return 1;
   if (!test_unsigned_scalar_return_call_result()) return 1;
   if (!test_unsigned_binary_u64_slice()) return 1;
+  if (!test_unsigned_unary_bit_not_artifact()) return 1;
   if (!test_scalar_if_value_diamond()) return 1;
   if (!test_nested_scalar_if_value_diamond()) return 1;
   if (!test_if_diamond_cfg()) return 1;

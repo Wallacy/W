@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-49"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-50"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -184,6 +184,8 @@ typedef enum {
   /* Unsigned u64 arithmetic/comparison value. Shifts and power retain the
    * typed BINARY_I64 carrier exception above. Comparisons return Bool. */
   W_SEED_HIR0_VALUE_BINARY_U64,
+  /* Unsigned u64 bitwise complement. Unary negation remains invalid. */
+  W_SEED_HIR0_VALUE_UNARY_U64,
 } w_seed_hir0_value_kind;
 
 typedef enum {

@@ -289,6 +289,15 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
     *result = value->unsigned_integer_value;
     return true;
   }
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64) {
+    uint64_t operand = 0u;
+    if (value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT ||
+        value->left_value == W_SEED_HIR0_NONE ||
+        !evaluate_u64(program, value->left_value, depth + 1u, &operand))
+      return false;
+    *result = ~operand;
+    return true;
+  }
   if (value->kind != W_SEED_HIR0_VALUE_BINARY_U64 ||
       value->binary_operator > W_SEED_HIR0_BINARY_REMAINDER)
     return false;
@@ -419,6 +428,11 @@ static bool program_value_is_constant_u64(
       program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64)
     return false;
   if (value->kind == W_SEED_HIR0_VALUE_CONST_U64) return true;
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64)
+    return value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT &&
+           value->left_value != W_SEED_HIR0_NONE &&
+           program_value_is_constant_u64(program, value->left_value,
+                                         depth + 1u);
   return value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
          value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER &&
          program_value_is_constant_u64(program, value->left_value,
@@ -674,6 +688,7 @@ static bool interpolation_maximum_bytes(
           effective->kind == W_SEED_HIR0_VALUE_UNARY_I64 ||
           effective->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
           effective->kind == W_SEED_HIR0_VALUE_BINARY_U64 ||
+          effective->kind == W_SEED_HIR0_VALUE_UNARY_U64 ||
           effective->kind ==
               W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON ||
           effective->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER;
@@ -1147,6 +1162,27 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
     }
     return true;
   }
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64) {
+    if (type != W_SEED_HIR0_TYPE_U64 ||
+        value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT ||
+        value->left_value == W_SEED_HIR0_NONE ||
+        value->right_value != W_SEED_HIR0_NONE ||
+        value->binding_index != W_SEED_HIR0_NONE ||
+        value->parameter_index != W_SEED_HIR0_NONE ||
+        value->call_index != W_SEED_HIR0_NONE ||
+        value->first_interpolation_segment != W_SEED_HIR0_NONE ||
+        value->interpolation_segment_count != 0u ||
+        value->binary_operator != W_SEED_HIR0_BINARY_ADD ||
+        value->block_argument_index != W_SEED_HIR0_NONE ||
+        !program_value_lowerable(program, value->left_value, owner_function,
+                                 false, depth + 1u))
+      return false;
+    if (program_value_is_constant_u64(program, value_index, 0u)) {
+      uint64_t ignored = 0u;
+      if (!evaluate_u64(program, value_index, 0u, &ignored)) return false;
+    }
+    return true;
+  }
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_FLOAT)
     return type == W_SEED_HIR0_TYPE_F64 &&
            value->unary_operator == W_SEED_HIR0_UNARY_NEGATE &&
@@ -1530,6 +1566,7 @@ static bool process_value_lowerable(
 
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL ||
       value->kind == W_SEED_HIR0_VALUE_UNARY_I64 ||
+      value->kind == W_SEED_HIR0_VALUE_UNARY_U64 ||
       value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
     if (value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL) {
       if (program->types[value->type_index].kind != W_SEED_HIR0_TYPE_BOOL ||
@@ -1566,6 +1603,27 @@ static bool process_value_lowerable(
       if (program_value_is_constant_i64(program, value_index, 0u)) {
         int64_t ignored = 0;
         if (!evaluate_i64(program, value_index, 0u, &ignored)) return false;
+      }
+      return true;
+    }
+    if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64) {
+      if (program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64 ||
+          value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT ||
+          value->left_value == W_SEED_HIR0_NONE ||
+          value->right_value != W_SEED_HIR0_NONE ||
+          value->binding_index != W_SEED_HIR0_NONE ||
+          value->parameter_index != W_SEED_HIR0_NONE ||
+          value->call_index != W_SEED_HIR0_NONE ||
+          value->first_interpolation_segment != W_SEED_HIR0_NONE ||
+          value->interpolation_segment_count != 0u ||
+          value->binary_operator != W_SEED_HIR0_BINARY_ADD ||
+          value->block_argument_index != W_SEED_HIR0_NONE ||
+          !process_value_lowerable(program, value->left_value, owner_function,
+                                   process, false, depth + 1u))
+        return false;
+      if (program_value_is_constant_u64(program, value_index, 0u)) {
+        uint64_t ignored = 0u;
+        if (!evaluate_u64(program, value_index, 0u, &ignored)) return false;
       }
       return true;
     }
@@ -3849,16 +3907,18 @@ w_seed_native_subset0_status w_seed_native_subset0_select_program(
   for (size_t function = 0u; function < program->function_count;
        function += 1u)
     if (program->functions[function].block_count > 1u) has_cfg = true;
-  bool has_u64_binary = false;
+  bool has_u64_linear_value = false;
   for (size_t value = 0u; value < program->value_count; value += 1u)
-    if (program->values[value].kind == W_SEED_HIR0_VALUE_BINARY_U64) {
-      has_u64_binary = true;
+    if (program->values[value].kind == W_SEED_HIR0_VALUE_BINARY_U64 ||
+        program->values[value].kind == W_SEED_HIR0_VALUE_UNARY_U64) {
+      has_u64_linear_value = true;
       break;
     }
   /* The finite U64 bundle is linear/local-call only. Existing i64-carrier
    * shift/power loop forms remain governed by their established recognizers,
-   * but ordinary BINARY_U64 never crosses a CFG/loop boundary here. */
-  if (has_u64_binary && has_cfg) return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+   * but ordinary BINARY_U64/UNARY_U64 never crosses a CFG/loop boundary here. */
+  if (has_u64_linear_value && has_cfg)
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
   bool has_bool = false;
   for (size_t value = 0u; value < program->value_count; value += 1u)
     if (program->values[value].type_index < program->type_count &&

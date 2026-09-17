@@ -225,6 +225,8 @@ static bool scalar_evaluate_value(const w_seed_hir0_program *program,
       }
       return true;
     }
+    case W_SEED_HIR0_VALUE_UNARY_U64:
+      return false;
     case W_SEED_HIR0_VALUE_BINARY_I64: {
       int64_t left = 0;
       int64_t right = 0;

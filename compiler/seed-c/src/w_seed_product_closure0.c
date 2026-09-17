@@ -137,6 +137,7 @@ static bool product_value_kind_supported(w_seed_hir0_value_kind kind) {
     case W_SEED_HIR0_VALUE_PATTERN_CAPTURE_READ:
     case W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON:
     case W_SEED_HIR0_VALUE_BINARY_U64:
+    case W_SEED_HIR0_VALUE_UNARY_U64:
       return false;
   }
   return false;
@@ -460,7 +461,8 @@ static bool mark_value(closure0_plan *plan,
       return false;
   } else if (value->kind == W_SEED_HIR0_VALUE_CALL_RESULT) {
     if (!mark_call(plan, program, value->call_index, depth + 1u)) return false;
-  } else if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64) {
+  } else if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64 ||
+             value->kind == W_SEED_HIR0_VALUE_UNARY_U64) {
     return false;
   } else if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
              value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL ||
@@ -1049,6 +1051,9 @@ static void digest_value(w_seed_sha256_state *state,
       digest_u32(state, value->left_value < program->value_count
                              ? plan->value_remap[value->left_value]
                              : W_SEED_PRODUCT_CLOSURE0_NONE);
+      break;
+    case W_SEED_HIR0_VALUE_UNARY_U64:
+      /* ProductClosure0 rejects this kind before digest publication. */
       break;
     case W_SEED_HIR0_VALUE_INTERPOLATED_STRING:
       digest_u32(state, value->interpolation_segment_count);
