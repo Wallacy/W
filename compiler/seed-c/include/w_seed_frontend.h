@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-36"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-37"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -332,6 +332,13 @@ typedef enum {
   W_SEED_FRONTEND_CALLEE_EXTERNAL_MODULE_SYMBOL,
   W_SEED_FRONTEND_CALLEE_KERNEL_BINDING,
 } w_seed_frontend_callee_kind;
+
+/* Closed compiler-owned associated operations. These are semantic identities,
+ * not module symbols or source rewrites. */
+typedef enum {
+  W_SEED_FRONTEND_BUILTIN_NONE = 0,
+  W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD,
+} w_seed_frontend_builtin_operation;
 
 typedef enum {
   W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT = 0,
@@ -939,6 +946,7 @@ typedef struct {
   /* Append-only discriminated callee identity. The numeric fields are valid
    * only for their corresponding kind and are never pointer identities. */
   w_seed_frontend_callee_kind resolved_callee_kind;
+  w_seed_frontend_builtin_operation builtin_operation;
   uint32_t resolved_host_symbol_index;
   uint32_t resolved_external_module_index;
   uint32_t resolved_external_symbol_index;

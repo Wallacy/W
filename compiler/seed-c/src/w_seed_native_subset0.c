@@ -301,7 +301,8 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
   if (value->kind != W_SEED_HIR0_VALUE_BINARY_U64 ||
       (value->binary_operator > W_SEED_HIR0_BINARY_REMAINDER &&
        (value->binary_operator < W_SEED_HIR0_BINARY_BIT_AND ||
-        value->binary_operator > W_SEED_HIR0_BINARY_BIT_XOR)))
+        (value->binary_operator > W_SEED_HIR0_BINARY_BIT_XOR &&
+         value->binary_operator != W_SEED_HIR0_BINARY_WRAPPING_ADD))))
     return false;
   uint64_t left = 0u;
   uint64_t right = 0u;
@@ -311,6 +312,9 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
   switch (value->binary_operator) {
     case W_SEED_HIR0_BINARY_ADD:
       return checked_u64_add(left, right, result);
+    case W_SEED_HIR0_BINARY_WRAPPING_ADD:
+      *result = left + right;
+      return true;
     case W_SEED_HIR0_BINARY_SUBTRACT:
       return checked_u64_subtract(left, right, result);
     case W_SEED_HIR0_BINARY_MULTIPLY:
@@ -447,7 +451,8 @@ static bool program_value_is_constant_u64(
   return value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
          (value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER ||
           (value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
-           value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR)) &&
+           value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR) ||
+          value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_ADD) &&
          program_value_is_constant_u64(program, value->left_value,
                                        depth + 1u) &&
          program_value_is_constant_u64(program, value->right_value,
@@ -1301,10 +1306,12 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
         value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL;
     const bool arithmetic =
         value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER;
+    const bool wrapping =
+        value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_ADD;
     const bool bitwise =
         value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
         value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR;
-    if ((!arithmetic && !comparison && !bitwise) ||
+    if ((!arithmetic && !comparison && !bitwise && !wrapping) ||
         value->left_value >= program->value_count ||
         value->right_value >= program->value_count ||
         program->values[value->left_value].type_index >= program->type_count ||
@@ -1320,7 +1327,7 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
         !program_value_lowerable(program, value->right_value, owner_function,
                                  false, depth + 1u))
       return false;
-    if ((arithmetic || bitwise) &&
+    if ((arithmetic || bitwise || wrapping) &&
         program_value_is_constant_u64(program, value_index, 0u)) {
       uint64_t ignored = 0u;
       if (!evaluate_u64(program, value_index, 0u, &ignored)) return false;

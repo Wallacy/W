@@ -2918,6 +2918,10 @@ static bool frontend_value_common_ok(
         value->task_binding_statement != W_SEED_FRONTEND_NONE)) ||
       (value->kind != W_SEED_FRONTEND_EXPR_TRY &&
        value->propagated_error_enum != W_SEED_FRONTEND_NONE) ||
+      (((value->kind != W_SEED_FRONTEND_EXPR_CALL &&
+         value->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+         value->kind != W_SEED_FRONTEND_EXPR_MEMBER) &&
+        value->builtin_operation != W_SEED_FRONTEND_BUILTIN_NONE)) ||
       (value->kind != W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH &&
        (value->domain_index != W_SEED_FRONTEND_NONE ||
         value->domain_kind != W_SEED_FRONTEND_DOMAIN_HOST ||
@@ -4165,15 +4169,94 @@ static bool frontend_call_expression_ok(
       call->owner_function != function_index ||
       call->left == W_SEED_FRONTEND_NONE ||
       (size_t)call->left >= result->written.expressions ||
-      (size_t)call->left != *expression_cursor ||
       call->right != W_SEED_FRONTEND_NONE ||
-      call->first_argument != *argument_total ||
       !range_valid(call->first_argument, call->argument_count,
                    result->written.arguments) ||
+      (call->builtin_operation == W_SEED_FRONTEND_BUILTIN_NONE &&
+       call->first_argument != *argument_total) ||
       !frontend_span_ok(&input->frontend_input->documents[document_index],
                         call->span))
     return false;
   const w_seed_frontend_expression *callee = &output->expressions[call->left];
+  if (call->builtin_operation ==
+      W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD) {
+    const bool callee_shape =
+        result_value && !allow_throwing && materialize_result &&
+        call->resolved_callee_kind == W_SEED_FRONTEND_CALLEE_NONE &&
+        call->resolved_function_index == W_SEED_FRONTEND_NONE &&
+        call->resolved_host_symbol_index == W_SEED_FRONTEND_NONE &&
+        call->resolved_external_module_index == W_SEED_FRONTEND_NONE &&
+        call->resolved_external_symbol_index == W_SEED_FRONTEND_NONE &&
+        call->argument_count == 2u &&
+        call->inferred_type != W_SEED_FRONTEND_NONE &&
+        (size_t)call->inferred_type < result->written.types &&
+        frontend_expression_is_u64(output, call) &&
+        callee->kind == W_SEED_FRONTEND_EXPR_MEMBER && callee->supported &&
+        callee->inferred_type != W_SEED_FRONTEND_NONE &&
+        (size_t)callee->inferred_type < result->written.types &&
+        frontend_expression_is_u64(output, callee) &&
+        callee->builtin_operation ==
+            W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD &&
+        callee->resolved_callee_kind == W_SEED_FRONTEND_CALLEE_NONE &&
+        callee->resolved_external_module_index == W_SEED_FRONTEND_NONE &&
+        callee->resolved_external_symbol_index == W_SEED_FRONTEND_NONE &&
+        text_is(callee->member_name, "wrappingAdd") &&
+        text_is(callee->operator_text, ".") &&
+        callee->left != W_SEED_FRONTEND_NONE &&
+        (size_t)callee->left < root_index;
+    if (!callee_shape) return false;
+    const w_seed_frontend_expression *receiver =
+        &output->expressions[callee->left];
+    if (receiver->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER ||
+        receiver->builtin_operation !=
+            W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD ||
+        !receiver->supported || !text_is(receiver->spelling, "u64") ||
+        receiver->inferred_type == W_SEED_FRONTEND_NONE ||
+        (size_t)receiver->inferred_type >= result->written.types ||
+        !frontend_expression_is_u64(output, receiver) ||
+        receiver->resolved_parameter_ordinal != W_SEED_FRONTEND_NONE ||
+        receiver->resolved_binding_statement != W_SEED_FRONTEND_NONE)
+      return false;
+    if ((size_t)callee->left == *expression_cursor &&
+        (size_t)call->left == *expression_cursor + 1u) {
+      *expression_cursor += 2u;
+    } else if ((size_t)call->left == *expression_cursor) {
+      *expression_cursor += 1u;
+    } else {
+      return false;
+    }
+    for (size_t ordinal = 0u; ordinal < 2u; ordinal += 1u) {
+      const size_t argument_index = (size_t)call->first_argument + ordinal;
+      if (argument_index >= result->written.arguments) return false;
+      const w_seed_frontend_argument *argument =
+          &output->arguments[argument_index];
+      if (argument->module_index != module_index ||
+          argument->owner_expression != call->left ||
+          argument->label.length != 0u ||
+          argument->resolved_parameter_ordinal != ordinal ||
+          argument->expression_index == W_SEED_FRONTEND_NONE ||
+          (size_t)argument->expression_index >= result->written.expressions ||
+          output->expressions[argument->expression_index].inferred_type ==
+              W_SEED_FRONTEND_NONE ||
+          (size_t)output->expressions[argument->expression_index]
+                  .inferred_type >= result->written.types ||
+          !frontend_expression_is_u64(
+              output, &output->expressions[argument->expression_index]) ||
+          !frontend_value_tree_ok(
+              input, module_index, function_index, document_index,
+              statement_index, argument->expression_index, 0u,
+              expression_cursor, interpolation_segment_cursor,
+              const_byte_cursor, value_total, segment_total, value_bytes,
+              call_total, argument_total, logical_total))
+        return false;
+    }
+    if (!add_size(*argument_total, call->argument_count, argument_total))
+      return false;
+    return (size_t)root_index == *expression_cursor &&
+           add_size(*expression_cursor, 1u, expression_cursor) &&
+           add_size(*value_total, 1u, value_total);
+  }
+  if ((size_t)call->left != *expression_cursor) return false;
   const bool enum_constructor =
       callee->kind == W_SEED_FRONTEND_EXPR_ENUM_CASE &&
       callee->enum_index != W_SEED_FRONTEND_NONE;
@@ -7037,6 +7120,7 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
   size_t invoke_count = 0u;
   size_t yield_count = 0u;
   size_t argument_count = 0u;
+  size_t builtin_argument_count = 0u;
   size_t value_count = 0u;
   size_t interpolation_segment_count = 0u;
   size_t enum_payload_count = 0u;
@@ -7060,6 +7144,16 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
           &merge_count, &while_count, &loop_carrier_count, &switch_count,
           &switch_edge_count, &switch_capture_count, &cleanup_count))
     return HIR0_PREPARE_UNSUPPORTED;
+  for (size_t expression = 0u;
+       expression < frontend_result->written.expressions; expression += 1u) {
+    const w_seed_frontend_expression *value =
+        &input->frontend_output->expressions[expression];
+    if (value->kind == W_SEED_FRONTEND_EXPR_CALL &&
+        value->builtin_operation != W_SEED_FRONTEND_BUILTIN_NONE &&
+        !add_size(builtin_argument_count, value->argument_count,
+                  &builtin_argument_count))
+      return HIR0_PREPARE_UNSUPPORTED;
+  }
   /* The frontend walk counts the lexical cleanup call once. HIR41 emits the
    * same ordinary call on both typed INVOKE successors. */
   if (!add_size(call_count, cleanup_count, &call_count))
@@ -7236,9 +7330,17 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
       return HIR0_PREPARE_UNSUPPORTED;
   }
   counts->host_parameters = host_parameters;
-  counts->arguments = argument_count - enum_payload_count -
-                      external_enum_constructor_argument_count -
-                      panic_argument_count;
+  size_t non_call_argument_count = 0u;
+  if (!add_size(enum_payload_count,
+                external_enum_constructor_argument_count,
+                &non_call_argument_count) ||
+      !add_size(non_call_argument_count, panic_argument_count,
+                &non_call_argument_count) ||
+      !add_size(non_call_argument_count, builtin_argument_count,
+                &non_call_argument_count) ||
+      non_call_argument_count > argument_count)
+    return HIR0_PREPARE_UNSUPPORTED;
+  counts->arguments = argument_count - non_call_argument_count;
   counts->enum_payloads = enum_payload_count;
   counts->requirements = requirements;
   counts->values = value_count;
@@ -8802,6 +8904,9 @@ static size_t hir0_emit_expression_values_m2(hir0_emit_context *context,
       block = hir0_emit_expression_values_m2(
           context, argument_expression, block, statement_index, depth + 1u);
     }
+    if (source->builtin_operation ==
+        W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD)
+      return block;
     if (hir0_is_local_enum_constructor(context, source) ||
         hir0_is_external_enum_constructor(context, source))
       return block;
@@ -10658,6 +10763,19 @@ static size_t hir0_emit_expression_layout_m2(hir0_emit_context *context,
     return hir0_emit_expression_layout_m2(context, source->left, current_block,
                                           statement_index, depth + 1u);
   if (source->kind == W_SEED_FRONTEND_EXPR_CALL) {
+    if (source->builtin_operation ==
+        W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD) {
+      size_t block = current_block;
+      for (size_t ordinal = 0u; ordinal < source->argument_count;
+           ordinal += 1u)
+        block = hir0_emit_expression_layout_m2(
+            context,
+            context->frontend
+                ->arguments[(size_t)source->first_argument + ordinal]
+                .expression_index,
+            block, statement_index, depth + 1u);
+      return block;
+    }
     if (hir0_is_local_enum_constructor(context, source) ||
         hir0_is_external_enum_constructor(context, source)) {
       size_t block = current_block;
@@ -11042,6 +11160,71 @@ static uint32_t hir0_emit_value_m2(
         .enum_case_index = W_SEED_HIR0_NONE};
     if (payload != W_SEED_HIR0_NONE)
       context->output->values[payload].owner_index = result;
+    *context->value_index += 1u;
+    return result;
+  }
+
+  if (source->kind == W_SEED_FRONTEND_EXPR_CALL &&
+      source->builtin_operation ==
+          W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD) {
+    if (source->argument_count != 2u ||
+        source->first_argument == W_SEED_FRONTEND_NONE)
+      return W_SEED_HIR0_NONE;
+    const w_seed_frontend_argument *left_argument =
+        &context->frontend
+             ->arguments[(size_t)source->first_argument];
+    const w_seed_frontend_argument *right_argument =
+        &context->frontend
+             ->arguments[(size_t)source->first_argument + 1u];
+    const size_t left_block = hir0_expression_layout_end_m2(
+        context, left_argument->expression_index, current_block, depth + 1u);
+    const uint32_t left = hir0_emit_value_m2(
+        context, left_argument->expression_index,
+        W_SEED_HIR0_VALUE_OWNER_BINARY, W_SEED_HIR0_NONE, 0u, left_block,
+        depth + 1u);
+    const size_t right_block = hir0_expression_layout_end_m2(
+        context, right_argument->expression_index, left_block, depth + 1u);
+    const uint32_t right = hir0_emit_value_m2(
+        context, right_argument->expression_index,
+        W_SEED_HIR0_VALUE_OWNER_BINARY, W_SEED_HIR0_NONE, 1u, right_block,
+        depth + 1u);
+    const uint32_t result = (uint32_t)*context->value_index;
+    context->output->values[*context->value_index] = (w_seed_hir0_value){
+        .kind = W_SEED_HIR0_VALUE_BINARY_U64,
+        .owner_kind = owner_kind,
+        .owner_index = owner_index,
+        .owner_ordinal = owner_ordinal,
+        .type_index = hir_type_from_frontend(
+            context->frontend, context->frontend_result, source->inferred_type),
+        .binding_index = W_SEED_HIR0_NONE,
+        .parameter_index = W_SEED_HIR0_NONE,
+        .call_index = W_SEED_HIR0_NONE,
+        .left_value = left,
+        .right_value = right,
+        .first_interpolation_segment = W_SEED_HIR0_NONE,
+        .interpolation_segment_count = 0u,
+        .first_enum_payload = 0u,
+        .enum_payload_count = 0u,
+        .pattern_capture_index = W_SEED_HIR0_NONE,
+        .binary_operator = W_SEED_HIR0_BINARY_WRAPPING_ADD,
+        .unary_operator = W_SEED_HIR0_UNARY_NOT,
+        .block_argument_index = W_SEED_HIR0_NONE,
+        .integer_value = 0,
+        .unsigned_integer_value = 0u,
+        .float_bits = 0u,
+        .bool_value = false,
+        .byte_offset = 0u,
+        .byte_count = 0u,
+        .source_span = source->span,
+        .external_module_index = W_SEED_HIR0_NONE,
+        .external_symbol_index = W_SEED_HIR0_NONE,
+        .member_name = {0u, 0u},
+        .enum_index = W_SEED_HIR0_NONE,
+        .enum_case_index = W_SEED_HIR0_NONE};
+    if (left != W_SEED_HIR0_NONE)
+      context->output->values[left].owner_index = result;
+    if (right != W_SEED_HIR0_NONE)
+      context->output->values[right].owner_index = result;
     *context->value_index += 1u;
     return result;
   }
@@ -14064,10 +14247,63 @@ static bool verify_value_tree(
         value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL;
     const bool arithmetic =
         value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER;
+    const bool wrapping =
+        value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_ADD;
     const bool bitwise =
         value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
         value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR;
-    if ((!arithmetic && !comparison && !bitwise) ||
+    if (wrapping) {
+      if (value->left_value == W_SEED_HIR0_NONE ||
+          value->left_value >= program->value_count ||
+          !verify_value_tree(program, value->left_value,
+                             W_SEED_HIR0_VALUE_OWNER_BINARY, root_index, 0u,
+                             current_block, current_instruction, source_length,
+                             depth + 1u, value_cursor, segment_cursor,
+                             byte_cursor))
+        return false;
+      if (value->right_value == W_SEED_HIR0_NONE ||
+          value->right_value >= program->value_count ||
+          !verify_value_tree(program, value->right_value,
+                             W_SEED_HIR0_VALUE_OWNER_BINARY, root_index, 1u,
+                             current_block, current_instruction, source_length,
+                             depth + 1u, value_cursor, segment_cursor,
+                             byte_cursor))
+        return false;
+      if ((size_t)root_index != *value_cursor ||
+          !hir_type_index_valid(program, value->type_index) ||
+          !hir_type_index_valid(
+              program, program->values[value->left_value].type_index) ||
+          !hir_type_index_valid(
+              program, program->values[value->right_value].type_index) ||
+          program->types[program->values[value->left_value].type_index].kind !=
+              W_SEED_HIR0_TYPE_U64 ||
+          program->types[program->values[value->right_value].type_index].kind !=
+              W_SEED_HIR0_TYPE_U64 ||
+          program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64 ||
+          value->unary_operator != W_SEED_HIR0_UNARY_NOT ||
+          value->block_argument_index != W_SEED_HIR0_NONE ||
+          value->binding_index != W_SEED_HIR0_NONE ||
+          value->parameter_index != W_SEED_HIR0_NONE ||
+          value->call_index != W_SEED_HIR0_NONE ||
+          value->first_interpolation_segment != W_SEED_HIR0_NONE ||
+          value->interpolation_segment_count != 0u ||
+          value->first_enum_payload != 0u ||
+          value->enum_payload_count != 0u ||
+          value->pattern_capture_index != W_SEED_HIR0_NONE ||
+          value->integer_value != 0 || value->unsigned_integer_value != 0u ||
+          value->float_bits != 0u || value->bool_value ||
+          value->byte_offset != 0u || value->byte_count != 0u ||
+          value->external_module_index != W_SEED_HIR0_NONE ||
+          value->external_symbol_index != W_SEED_HIR0_NONE ||
+          value->member_name.offset != 0u ||
+          value->member_name.count != 0u ||
+          value->enum_index != W_SEED_HIR0_NONE ||
+          value->enum_case_index != W_SEED_HIR0_NONE)
+        return false;
+      *value_cursor += 1u;
+      return true;
+    }
+    if ((!arithmetic && !comparison && !bitwise && !wrapping) ||
         value->left_value == W_SEED_HIR0_NONE ||
         value->right_value == W_SEED_HIR0_NONE ||
         !verify_value_tree(program, value->left_value,

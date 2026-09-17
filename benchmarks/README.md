@@ -36,6 +36,12 @@ covers only successful fixed-input output. W may fold constants in the optimized
 final artifact, and physical equivalence with C23 and Rust is not proven. Fault
 behavior is outside scope because W traps while the references exit `1`.
 
+The `restaurant-uint-wrapping-add` witness is `not-performance-ready`. Its
+fixed input adds `1` to `UInt`'s maximum and its exact oracle is `Wrapped 0\n`.
+W may fold this operation in the final artifact. The C23 and Rust 2024
+references retain independent runtime operands. Runtime equivalence is not
+proven, so this workload has no performance ranking.
+
 The catalog declares compile latency, median and P95 target-run wall time,
 user/system/total CPU time, peak working set, artifact size, exit code, and
 stdout/stderr. A local

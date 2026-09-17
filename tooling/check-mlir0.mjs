@@ -37,6 +37,8 @@ const restaurantF64StrictFixture = resolve(seedDirectory,
   "fixtures", "restaurant-f64-strict.w")
 const restaurantUIntArithmeticFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-arithmetic.w")
+const restaurantUIntWrappingAddFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-wrapping-add.w")
 const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
@@ -667,6 +669,9 @@ try {
       expected: Buffer.from(
         "UInt 9223372036854775810/9223372036854775809/21; div 7; rem 2; " +
         "cmp true/true/true/true/false/true/true\n", "utf8") },
+    { name: "restaurant-uint-wrapping-add",
+      source: restaurantUIntWrappingAddFixture,
+      expected: Buffer.from("Wrapped 0\n", "utf8") },
     { name: "restaurant-uint-bit-not", source: restaurantUIntBitNotFixture,
       expected: Buffer.from("UInt not 18446744073709551615\n", "utf8") },
     { name: "restaurant-uint-bitwise", source: restaurantUIntBitwiseFixture,
@@ -929,6 +934,13 @@ try {
     !uintArithmeticArtifact.includes('llvm.icmp "sgt"') &&
     !uintArithmeticArtifact.includes('llvm.icmp "sge"'),
   "UInt lowering lost checked helpers, unsigned operations, or predicates")
+  const uintWrappingAddArtifact =
+    artifacts.get("restaurant-uint-wrapping-add").toString("utf8")
+  assert(uintWrappingAddArtifact.includes("llvm.add %p0,") &&
+    uintWrappingAddArtifact.includes("llvm.call @w_seed_append_u64") &&
+    !uintWrappingAddArtifact.includes("@w_seed_checked_add_u64") &&
+    !uintWrappingAddArtifact.includes("llvm.intr.uadd.with.overflow"),
+  "u64.wrappingAdd did not retain direct wrapping u64 lowering")
   const uintBitNotArtifact =
     artifacts.get("restaurant-uint-bit-not").toString("utf8")
   assert(uintBitNotArtifact.includes("llvm.xor") &&

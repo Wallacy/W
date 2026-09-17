@@ -148,6 +148,9 @@ typedef struct {
   const w_seed_frontend_document *kernel_function_doc;
   uint32_t kernel_function_node;
   bool is_local_call;
+  bool is_builtin_u64_receiver;
+  bool is_builtin_u64_member;
+  w_seed_frontend_builtin_operation builtin_operation;
   uint32_t local_call_function;
   bool local_call_is_async;
   bool local_call_is_throws;
@@ -12253,6 +12256,11 @@ static bool expression_append(frontend_expression_parser *parser,
   record.resolved_parameter_ordinal = W_SEED_FRONTEND_NONE;
   record.resolved_function_index = W_SEED_FRONTEND_NONE;
   record.resolved_callee_kind = W_SEED_FRONTEND_CALLEE_NONE;
+  record.builtin_operation = (kind == W_SEED_FRONTEND_EXPR_CALL ||
+                              kind == W_SEED_FRONTEND_EXPR_IDENTIFIER ||
+                              kind == W_SEED_FRONTEND_EXPR_MEMBER)
+                                 ? value->builtin_operation
+                                 : W_SEED_FRONTEND_BUILTIN_NONE;
   record.resolved_host_symbol_index = W_SEED_FRONTEND_NONE;
   record.resolved_external_module_index = W_SEED_FRONTEND_NONE;
   record.resolved_external_symbol_index = W_SEED_FRONTEND_NONE;
@@ -12440,6 +12448,9 @@ static bool expression_append(frontend_expression_parser *parser,
   value->operator_text = operator_text;
   value->span = span;
   value->is_local_call = false;
+  value->is_builtin_u64_receiver = false;
+  value->is_builtin_u64_member = false;
+  value->builtin_operation = record.builtin_operation;
   value->is_kernel_binding = false;
   value->kernel_module_index = W_SEED_FRONTEND_NONE;
   value->kernel_binding_index = W_SEED_FRONTEND_NONE;
@@ -12896,6 +12907,7 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
     frontend_simple_type type = binding_type_for_name(
         parser->context, spelling, token.span);
     bool resolved = type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN;
+    bool builtin_u64_receiver = false;
     uint32_t resolved_module_const = W_SEED_FRONTEND_NONE;
     uint32_t resolved_kernel_module = W_SEED_FRONTEND_NONE;
     uint32_t resolved_kernel_binding = W_SEED_FRONTEND_NONE;
@@ -12987,6 +12999,19 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
           resolved = type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN;
         }
       }
+      if (!resolved && text_equal(spelling, "u64")) {
+        /* Primitive associated-operation receivers are considered only after
+         * every lexical, module, import, external, and host identity. This
+         * prevents a declaration or import alias named `u64` from being
+         * silently reinterpreted as the compiler-owned primitive. */
+        frontend_token next;
+        if (cursor_peek(&parser->cursor, &next) &&
+            token_text(parser->document, &next, ".")) {
+          type = simple_type_from_view(spelling);
+          resolved = true;
+          builtin_u64_receiver = true;
+        }
+      }
       if (!resolved) {
         (void)context_append_fact(
             parser->context, W_SEED_FRONTEND_FACT_UNRESOLVED_LOCAL_SYMBOL,
@@ -12994,6 +13019,9 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
       }
     }
     const bool identifier_supported = resolved;
+    value->builtin_operation =
+        builtin_u64_receiver ? W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD
+                              : W_SEED_FRONTEND_BUILTIN_NONE;
     const bool appended = expression_append(
         parser, W_SEED_FRONTEND_EXPR_IDENTIFIER, token.span, spelling,
         (w_seed_frontend_text){NULL, 0}, type, identifier_supported,
@@ -13025,6 +13053,9 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
         record->resolved_kernel_module_index = resolved_kernel_module;
         record->resolved_kernel_binding_index = resolved_kernel_binding;
       }
+    }
+    if (appended && builtin_u64_receiver) {
+      value->is_builtin_u64_receiver = true;
     }
     return appended;
   }
@@ -13428,6 +13459,8 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     if (!cursor_peek(&parser->cursor, &token)) break;
     if (token_text(parser->document, &token, ".") ||
         token_text(parser->document, &token, "?.")) {
+      const bool optional_member = token_text(parser->document, &token, "?.");
+      const bool builtin_u64_receiver = value->is_builtin_u64_receiver;
       (void)cursor_take(&parser->cursor, &token);
       frontend_token member;
       if (!cursor_take(&parser->cursor, &member) ||
@@ -13440,6 +13473,18 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       uint32_t external_module_index = W_SEED_FRONTEND_NONE;
       uint32_t external_symbol_index = W_SEED_FRONTEND_NONE;
       const w_seed_frontend_external_symbol *external_member = NULL;
+      frontend_token following;
+      const bool followed_by_call =
+          cursor_peek(&parser->cursor, &following) &&
+          token_text(parser->document, &following, "(");
+      const bool builtin_u64_member =
+          !optional_member && builtin_u64_receiver &&
+          text_equal(member_name, "wrappingAdd") && followed_by_call;
+      if (!optional_member && builtin_u64_receiver &&
+          text_equal(member_name, "wrappingAdd") && followed_by_call) {
+        result_type = simple_type_from_view((w_seed_frontend_text){"u64", 3u});
+        supported = true;
+      }
       if (value->type.kind == W_SEED_FRONTEND_TYPE_STATIC_LIST &&
           text_equal(member_name, "count")) {
         result_type = simple_type_from_view((w_seed_frontend_text){"usize", 5});
@@ -13460,6 +13505,10 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
             parser->context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
             span, text_from_span(parser->document, span));
       }
+      value->builtin_operation =
+          builtin_u64_member && supported
+              ? W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD
+              : W_SEED_FRONTEND_BUILTIN_NONE;
       if (!expression_append(parser,
                              supported ? W_SEED_FRONTEND_EXPR_MEMBER
                                        : W_SEED_FRONTEND_EXPR_UNSUPPORTED,
@@ -13502,6 +13551,8 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
                         ? member_name
                         : (w_seed_frontend_text){NULL, 0u};
       value->is_integer_literal = false;
+      value->is_builtin_u64_receiver = false;
+      value->is_builtin_u64_member = builtin_u64_member && supported;
       continue;
     }
     if (token_text(parser->document, &token, "[")) {
@@ -13537,6 +13588,7 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     if (!token_text(parser->document, &token, "(")) break;
     (void)cursor_take(&parser->cursor, &token);
     const uint32_t first_argument = (uint32_t)parser->context->count.arguments;
+    const bool builtin_u64_wrapping_add = value->is_builtin_u64_member;
     size_t argument_count = 0;
     size_t enum_positional_argument_count = 0u;
     uint32_t enum_bound_parameters[W_SEED_FRONTEND_MAX_NESTING];
@@ -13561,7 +13613,8 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     const w_seed_frontend_document *signature_doc = NULL;
     uint32_t signature_node = W_SEED_CST_NONE;
     bool local_signature =
-        !value->is_external_member && value->has_name && function_signature_for_name(
+        !builtin_u64_wrapping_add && !value->is_external_member &&
+        value->has_name && function_signature_for_name(
                                 parser->context, value->name, &signature_doc,
                                 &signature_node);
     if (!local_signature && value->is_kernel_binding &&
@@ -13573,14 +13626,15 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     }
     const w_seed_frontend_external_symbol *external_signature = NULL;
     const bool external_signature_found =
-        value->is_external_member
+        !builtin_u64_wrapping_add && (value->is_external_member
             ? (external_signature = value->external_member_symbol) != NULL
             : (!local_signature && value->has_name &&
                external_symbol_for_name(parser->context, value->name,
-                                        &external_signature));
+                                        &external_signature)));
     const w_seed_frontend_host_prelude_symbol *host_signature = NULL;
     const bool host_signature_found =
-        !local_signature && !external_signature_found && value->has_name &&
+        !builtin_u64_wrapping_add && !local_signature &&
+        !external_signature_found && value->has_name &&
         host_symbol_for_name(parser->context, value->name, &host_signature,
                              NULL);
     while (!cursor_peek_text(&parser->cursor, ")")) {
@@ -13647,12 +13701,18 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
               accepted_forms, accepted_count);
         }
       }
+      if (builtin_u64_wrapping_add && label.length != 0u) {
+        labels_valid = false;
+      }
       frontend_simple_type expected = simple_type_unknown();
       bool expected_found = false;
       bool enum_label_valid = false;
       bool enum_label_previous = false;
       uint32_t enum_parameter_ordinal = W_SEED_FRONTEND_NONE;
-      if (external_enum_case) {
+      if (builtin_u64_wrapping_add) {
+        expected = simple_type_from_view((w_seed_frontend_text){"u64", 3u});
+        expected_found = true;
+      } else if (external_enum_case) {
         expected_found = external_argument_expected(
             parser->context, value->external_member_symbol, argument_count,
             label, &expected);
@@ -13692,12 +13752,23 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       parser->suppress_short_diagnostic =
           !expected_found && !local_signature && !external_signature_found &&
           !host_signature_found;
+      const size_t nested_argument_start = parser->context->count.arguments;
       frontend_expr_value argument_value;
       if (!expression_parse_bp(parser, 0, &argument_value)) return false;
       parser->expected_type = saved_expected;
       parser->has_expected_type = saved_has_expected;
       parser->suppress_short_diagnostic = saved_suppress_short;
-      if (enum_case_constructor || local_signature ||
+      if (builtin_u64_wrapping_add &&
+          parser->context->count.arguments != nested_argument_start) {
+        /* Nested calls make the current argument arena non-contiguous. Fail
+         * closed until argument ranges carry explicit child indices. */
+        labels_valid = false;
+        (void)context_append_fact(
+            parser->context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
+            argument_value.span,
+            text_from_span(parser->document, argument_value.span));
+      }
+      if (builtin_u64_wrapping_add || enum_case_constructor || local_signature ||
           external_signature_found || host_signature_found) {
         if (!expected_found) {
           labels_valid = false;
@@ -13851,6 +13922,8 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     } else if (host_signature_found &&
                host_signature->parameter_count != argument_count) {
       labels_valid = false;
+    } else if (builtin_u64_wrapping_add && argument_count != 2u) {
+      labels_valid = false;
     }
     if (value->has_name && !value->is_external_member) {
       bool resolved = false;
@@ -13877,6 +13950,8 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     frontend_simple_type return_type = simple_type_unknown();
     if (enum_case_constructor) {
       return_type = value->type;
+    } else if (builtin_u64_wrapping_add) {
+      return_type = simple_type_from_view((w_seed_frontend_text){"u64", 3u});
     } else if (local_signature) {
       return_type = function_return_type(parser->context, signature_doc,
                                           signature_node);
@@ -13940,6 +14015,9 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
         value->has_name || value->is_enum_case
             ? text_from_span(parser->document, value->span)
             : (w_seed_frontend_text){NULL, 0u};
+    value->builtin_operation = builtin_u64_wrapping_add
+                                   ? W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD
+                                   : W_SEED_FRONTEND_BUILTIN_NONE;
     if (!expression_append(parser, W_SEED_FRONTEND_EXPR_CALL, span,
                            text_from_span(parser->document, span),
                            (w_seed_frontend_text){NULL, 0}, return_type,
@@ -13974,7 +14052,9 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       uint32_t host_symbol_identity = W_SEED_FRONTEND_NONE;
       uint32_t external_module_identity = W_SEED_FRONTEND_NONE;
       uint32_t external_symbol_identity = W_SEED_FRONTEND_NONE;
-      if (accelerator_call) {
+      if (builtin_u64_wrapping_add) {
+        identity_kind = W_SEED_FRONTEND_CALLEE_NONE;
+      } else if (accelerator_call) {
         identity_kind = W_SEED_FRONTEND_CALLEE_KERNEL_BINDING;
       } else if (local_signature) {
         identity_kind = W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION;
@@ -13996,7 +14076,13 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
               parser->context, value->index, callee_index,
               identity_kind, host_symbol_identity, external_module_identity,
               external_symbol_identity, kernel_module_identity,
-              kernel_binding_identity)) {
+              kernel_binding_identity) ||
+          (builtin_u64_wrapping_add &&
+           (!receipt_size_literal(parser->context, "builtin-operation=") ||
+            !receipt_size_size(
+                parser->context,
+                (size_t)W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD) ||
+            !receipt_size_literal(parser->context, "\n")))) {
         return false;
       }
     } else if (accelerator_call && parser->context->output != NULL &&
@@ -14010,6 +14096,10 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
           kernel_module_identity;
       record->resolved_kernel_binding_index =
           kernel_binding_identity;
+    } else if (builtin_u64_wrapping_add && parser->context->output != NULL &&
+               value->index < parser->context->output->expression_capacity) {
+      parser->context->output->expressions[value->index].builtin_operation =
+          W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD;
     }
     value->is_integer_literal = false;
   }
@@ -18361,7 +18451,11 @@ static bool resolve_frontend_links(frontend_context *context) {
                    expression->resolved_const_declaration ==
                        W_SEED_FRONTEND_NONE &&
                    !expression_is_call_callee(context,
-                                              (uint32_t)expression_index)) {
+                                              (uint32_t)expression_index) &&
+                   !(expression->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+                     expression->builtin_operation ==
+                         W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD &&
+                     text_equal(expression->spelling, "u64"))) {
           /* A typed identifier with no unambiguous lexical target is not a
            * supported local read.  This closes duplicate and nested scopes
            * without changing function, parameter, loop, or const links. */
@@ -18465,6 +18559,80 @@ static bool resolve_frontend_links(frontend_context *context) {
       continue;
     }
     if (callee->kind == W_SEED_FRONTEND_EXPR_MEMBER) {
+      if (expression->builtin_operation ==
+          W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD) {
+        const bool callee_shape =
+            callee->supported && expression->supported &&
+            callee->builtin_operation ==
+                W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD &&
+            callee->left != W_SEED_FRONTEND_NONE &&
+            (size_t)callee->left < expression_index &&
+            callee->module_index == expression->module_index &&
+            callee->owner_function == expression->owner_function &&
+            callee->resolved_callee_kind == W_SEED_FRONTEND_CALLEE_NONE &&
+            callee->resolved_external_module_index ==
+                W_SEED_FRONTEND_NONE &&
+            callee->resolved_external_symbol_index ==
+                W_SEED_FRONTEND_NONE &&
+            text_equal_text(callee->member_name,
+                            (w_seed_frontend_text){"wrappingAdd", 11u}) &&
+            text_equal(callee->operator_text, ".") &&
+            expression->resolved_callee_kind ==
+                W_SEED_FRONTEND_CALLEE_NONE &&
+            expression->argument_count == 2u &&
+            expression->first_argument != W_SEED_FRONTEND_NONE &&
+            (size_t)expression->first_argument <= context->count.arguments;
+        if (!callee_shape) {
+          expression->supported = false;
+          continue;
+        }
+        const w_seed_frontend_expression *receiver =
+            &context->output->expressions[callee->left];
+        const bool receiver_type_valid =
+            receiver->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+            receiver->builtin_operation ==
+                W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD &&
+            receiver->supported && text_equal(receiver->spelling, "u64") &&
+            receiver->resolved_parameter_ordinal == W_SEED_FRONTEND_NONE &&
+            receiver->resolved_binding_statement == W_SEED_FRONTEND_NONE &&
+            receiver->inferred_type != W_SEED_FRONTEND_NONE &&
+            (size_t)receiver->inferred_type < context->count.types &&
+            context->output->types[receiver->inferred_type].kind ==
+                W_SEED_FRONTEND_TYPE_INTEGER &&
+            !context->output->types[receiver->inferred_type].is_signed &&
+            context->output->types[receiver->inferred_type].bit_width == 64u;
+        if (!receiver_type_valid) {
+          expression->supported = false;
+          continue;
+        }
+        for (uint32_t offset = 0u; offset < 2u; offset += 1u) {
+          const size_t argument_index =
+              (size_t)expression->first_argument + offset;
+          if (argument_index >= context->count.arguments) return false;
+          w_seed_frontend_argument *argument =
+              &context->output->arguments[argument_index];
+          if (argument->owner_expression != expression->left ||
+              argument->label.length != 0u ||
+              argument->expression_index == W_SEED_FRONTEND_NONE ||
+              (size_t)argument->expression_index >= expression_index) {
+            expression->supported = false;
+            continue;
+          }
+          const w_seed_frontend_expression *operand =
+              &context->output->expressions[argument->expression_index];
+          if (!operand->supported || operand->inferred_type ==
+                                        W_SEED_FRONTEND_NONE ||
+              (size_t)operand->inferred_type >= context->count.types ||
+              context->output->types[operand->inferred_type].kind !=
+                  W_SEED_FRONTEND_TYPE_INTEGER ||
+              context->output->types[operand->inferred_type].is_signed ||
+              context->output->types[operand->inferred_type].bit_width != 64u) {
+            expression->supported = false;
+          }
+          argument->resolved_parameter_ordinal = offset;
+        }
+        continue;
+      }
       if (callee->resolved_callee_kind ==
           W_SEED_FRONTEND_CALLEE_KERNEL_BINDING) {
         if (!callee->supported || !expression->supported ||
@@ -20253,6 +20421,11 @@ static void receipt_write_records(frontend_receipt_writer *writer,
       receipt_write_size(writer,
                          expression->resolved_kernel_binding_index);
       receipt_write_literal(writer, "\n");
+      if (expression->builtin_operation != W_SEED_FRONTEND_BUILTIN_NONE) {
+        receipt_write_literal(writer, "builtin-operation=");
+        receipt_write_size(writer, (size_t)expression->builtin_operation);
+        receipt_write_literal(writer, "\n");
+      }
     }
     for (size_t index = 0; index < context->count.facts; index += 1) {
       const w_seed_frontend_fact *fact = &output->facts[index];

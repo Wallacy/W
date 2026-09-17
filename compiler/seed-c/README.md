@@ -2817,10 +2817,10 @@ for ranking or live best metrics.
 
 ### Source-backed checked `UInt`/`u64` operators
 
-HIR0 schema `w-seed-hir0-51` represents ordinary unsigned arithmetic,
+HIR0 schema `w-seed-hir0-52` represents ordinary unsigned arithmetic,
 comparisons, and binary bitwise operations with `BINARY_U64`, and bitwise complement with the distinct
 `UNARY_U64` value kind. Native0 and MLIR0 schemas are `w-seed-native0-9` and
-`w-seed-mlir0-26` (Windows label `w-seed-mlir0-windows-11`). Native constant
+`w-seed-mlir0-27` (Windows label `w-seed-mlir0-windows-12`). Native constant
 trees are evaluated as `uint64_t` with checked add/subtract/multiply,
 zero-guarded divide/remainder, and width-preserving complement; overflow or
 division by zero fails closed. MLIR0 keeps the physical carrier as `i64`, uses
@@ -2840,6 +2840,14 @@ proves the three binary operations over the same full-width domain;
 [`fixtures/restaurant-uint-compound.w`](fixtures/restaurant-uint-compound.w)
 proves `&=`, `^=`, and `|=` over one mutable local. HIR retains four typed SSA
 versions. MLIR lowers the updates to direct `and`, `xor`, and `or` operations.
+[`fixtures/restaurant-uint-wrapping-add.w`](fixtures/restaurant-uint-wrapping-add.w)
+proves the distinct `u64.wrappingAdd` identity at the unsigned maximum and
+prints exactly `Wrapped 0\n`. Its HIR operator cannot be confused with checked
+`+`; MLIR lowers it to an unflagged `llvm.add` and emits no checked-add helper
+or overflow intrinsic. The canonical receiver and both arguments are `u64`,
+arguments are positional, and wrong receiver spelling, optional chaining,
+labels, signed operands, or a non-binary arity fail closed.
+
 This is a finite linear/local-function-call and straight-line mutation slice.
 Other UInt compound families, UInt CFGs and loops,
 cooperative execution, and ProductClosure0 remain explicitly unsupported;

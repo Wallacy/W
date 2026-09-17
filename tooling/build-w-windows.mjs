@@ -128,6 +128,13 @@ export const SMOKE_CASES = Object.freeze([
     absoluteFixture: resolve(seedDirectory, "fixtures", "restaurant-mutation.w"),
     expectedStdout: "Open 6\n",
   }),
+  Object.freeze({
+    id: "restaurant-uint-wrapping-add",
+    fixture: "compiler/seed-c/fixtures/restaurant-uint-wrapping-add.w",
+    absoluteFixture: resolve(seedDirectory, "fixtures",
+      "restaurant-uint-wrapping-add.w"),
+    expectedStdout: "Wrapped 0\n",
+  }),
 ])
 
 function fail(message) {

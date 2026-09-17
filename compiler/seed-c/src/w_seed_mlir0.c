@@ -1187,7 +1187,8 @@ static bool mlir0_value_is_constant_u64(const w_seed_hir0_program *program,
   return value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
          (value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER ||
           (value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
-           value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR)) &&
+           value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR) ||
+          value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_ADD) &&
          mlir0_value_is_constant_u64(program, value->left_value,
                                       depth + 1u) &&
          mlir0_value_is_constant_u64(program, value->right_value,
@@ -1244,6 +1245,7 @@ static const char *binary_operation(w_seed_hir0_binary_operator operation) {
     case W_SEED_HIR0_BINARY_SHIFT_LEFT:
     case W_SEED_HIR0_BINARY_SHIFT_RIGHT:
     case W_SEED_HIR0_BINARY_POWER:
+    case W_SEED_HIR0_BINARY_WRAPPING_ADD:
       return NULL;
   }
   return NULL;
@@ -1333,6 +1335,8 @@ static const char *u64_binary_operation(
       return "llvm.or";
     case W_SEED_HIR0_BINARY_BIT_XOR:
       return "llvm.xor";
+    case W_SEED_HIR0_BINARY_WRAPPING_ADD:
+      return "llvm.add";
     default:
       return NULL;
   }
@@ -2041,12 +2045,14 @@ static bool append_binary_u64_value_operation(
   const bool comparison =
       value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
       value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL;
+  const bool wrapping =
+      value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_ADD;
   const bool constant_division =
       mlir0_value_has_safe_constant_divisor(program, value) ||
       (value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER &&
        mlir0_value_is_constant_u64(program, value_index, 0u));
   const char *helper =
-      comparison || constant_division
+      comparison || wrapping || constant_division
           ? NULL
           : checked_u64_binary_helper(value->binary_operator);
   if (!append_literal(artifact, capacity, offset, "    %v") ||
@@ -2111,6 +2117,7 @@ static const char *float_binary_operation(
     case W_SEED_HIR0_BINARY_SHIFT_LEFT:
     case W_SEED_HIR0_BINARY_SHIFT_RIGHT:
     case W_SEED_HIR0_BINARY_POWER:
+    case W_SEED_HIR0_BINARY_WRAPPING_ADD:
       return NULL;
   }
   return NULL;
@@ -6981,6 +6988,7 @@ static bool append_cooperative_value_tree(
       case W_SEED_HIR0_BINARY_SHIFT_LEFT:
       case W_SEED_HIR0_BINARY_SHIFT_RIGHT:
       case W_SEED_HIR0_BINARY_POWER:
+      case W_SEED_HIR0_BINARY_WRAPPING_ADD:
         break;
     }
     if ((operation == NULL && predicate == NULL) ||
