@@ -261,6 +261,13 @@ export const SMOKE_CASES = Object.freeze([
       "restaurant-uint-saturating-subtract.w"),
     expectedStdout: "Saturated subtract 0/10\n",
   }),
+  Object.freeze({
+    id: "restaurant-uint-saturating-multiply",
+    fixture: "compiler/seed-c/fixtures/restaurant-uint-saturating-multiply.w",
+    absoluteFixture: resolve(seedDirectory, "fixtures",
+      "restaurant-uint-saturating-multiply.w"),
+    expectedStdout: "Saturated multiply 18446744073709551615/42\n",
+  }),
 ])
 
 function fail(message) {

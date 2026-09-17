@@ -75,6 +75,8 @@ const restaurantUIntSaturatingAddFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-saturating-add.w")
 const restaurantUIntSaturatingSubtractFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-saturating-subtract.w")
+const restaurantUIntSaturatingMultiplyFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-saturating-multiply.w")
 const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
@@ -762,6 +764,9 @@ try {
     { name: "restaurant-uint-saturating-subtract",
       source: restaurantUIntSaturatingSubtractFixture,
       expected: Buffer.from("Saturated subtract 0/10\n", "utf8") },
+    { name: "restaurant-uint-saturating-multiply",
+      source: restaurantUIntSaturatingMultiplyFixture,
+      expected: Buffer.from("Saturated multiply 18446744073709551615/42\n", "utf8") },
     { name: "restaurant-uint-bit-not", source: restaurantUIntBitNotFixture,
       expected: Buffer.from("UInt not 18446744073709551615\n", "utf8") },
     { name: "restaurant-uint-bitwise", source: restaurantUIntBitwiseFixture,
@@ -1192,6 +1197,17 @@ try {
     !uintSaturatingSubtractArtifact.includes("@w_seed_checked_subtract_u64") &&
     !uintSaturatingSubtractArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
   "u64.saturatingSubtract lost direct saturation or total-operation semantics")
+  const uintSaturatingMultiplyArtifact =
+    artifacts.get("restaurant-uint-saturating-multiply").toString("utf8")
+  assert((uintSaturatingMultiplyArtifact.match(/llvm\.intr\.umul\.with\.overflow/g) ?? []).length === 1 &&
+    uintSaturatingMultiplyArtifact.includes("llvm.extractvalue") &&
+    uintSaturatingMultiplyArtifact.includes("llvm.select") &&
+    uintSaturatingMultiplyArtifact.includes("llvm.mlir.constant(-1 : i64)") &&
+    uintSaturatingMultiplyArtifact.includes("llvm.call @w_seed_append_u64") &&
+    !uintSaturatingMultiplyArtifact.includes("@w_seed_checked_multiply_u64") &&
+    !uintSaturatingMultiplyArtifact.includes("llvm.intr.umul.sat") &&
+    !uintSaturatingMultiplyArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
+  "u64.saturatingMultiply lost inline saturation or total-operation semantics")
   const uintBitNotArtifact =
     artifacts.get("restaurant-uint-bit-not").toString("utf8")
   assert(uintBitNotArtifact.includes("llvm.xor") &&

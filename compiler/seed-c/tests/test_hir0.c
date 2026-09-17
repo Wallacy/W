@@ -13716,6 +13716,51 @@ static bool test_u64_saturating_subtract(void) {
   return true;
 }
 
+static bool test_u64_saturating_multiply(void) {
+  static const char SOURCE[] =
+      "fn clamp(left: u64, right: u64): u64 { return "
+      "u64.saturatingMultiply(left, right) }\n"
+      "entry { let maximum = u64.saturatingMultiply("
+      "18446744073709551615_u64, 2_u64) "
+      "let ordinary = u64.saturatingMultiply(6_u64, 7_u64) }\n";
+  CHECK(lower(SOURCE));
+  size_t saturating_count = 0u;
+  size_t saturating_index = SIZE_MAX;
+  for (size_t index = 0u; index < fixture.hir_program.value_count;
+       index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_program.values[index];
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
+        value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_MULTIPLY) {
+      CHECK(value->type_index < fixture.hir_program.type_count &&
+            fixture.hir_program.types[value->type_index].kind ==
+                W_SEED_HIR0_TYPE_U64 &&
+            value->left_value != W_SEED_HIR0_NONE &&
+            value->right_value != W_SEED_HIR0_NONE);
+      saturating_count += 1u;
+      saturating_index = index;
+    }
+  }
+  CHECK(saturating_count == 3u && saturating_index != SIZE_MAX &&
+        fixture.hir_program.call_count == 0u);
+  const w_seed_hir0_value saved = fixture.hir_values[saturating_index];
+  fixture.hir_values[saturating_index].binary_operator =
+      W_SEED_HIR0_BINARY_POWER;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[saturating_index] = saved;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  static const char REJECTED[] =
+      "fn bad(value: UInt): UInt { return "
+      "UInt.saturatingMultiply(value, 2_u64) }\nentry(bad)\n";
+  CHECK(fixture_parse(REJECTED));
+  configure_host();
+  CHECK(w_seed_frontend_run(&fixture.input, &fixture.output, &fixture.result) !=
+        W_SEED_FRONTEND_OK);
+  return true;
+}
+
 static bool test_u64_wrapping_subtract(void) {
   static const char SOURCE[] =
       "fn wrap(value: u64): u64 { return u64.wrappingSubtract(value, 1_u64) }\n"
@@ -15022,6 +15067,7 @@ int main(int argc, char **argv) {
   if (!test_u64_wrapping_add()) return 1;
   if (!test_u64_saturating_add()) return 1;
   if (!test_u64_saturating_subtract()) return 1;
+  if (!test_u64_saturating_multiply()) return 1;
   if (!test_u64_wrapping_subtract()) return 1;
   if (!test_u64_wrapping_multiply()) return 1;
   if (!test_u64_wrapping_negate()) return 1;

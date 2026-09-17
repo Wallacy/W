@@ -1555,7 +1555,8 @@ static bool mlir0_value_is_constant_u64(const w_seed_hir0_program *program,
           value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_LEFT ||
           value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_RIGHT ||
           value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_ADD ||
-          value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_SUBTRACT) &&
+          value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_SUBTRACT ||
+          value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_MULTIPLY) &&
          mlir0_value_is_constant_u64(program, value->left_value,
                                       depth + 1u) &&
          mlir0_value_is_constant_u64(program, value->right_value,
@@ -1624,6 +1625,7 @@ static const char *binary_operation(w_seed_hir0_binary_operator operation) {
     case W_SEED_HIR0_BINARY_ROTATED_RIGHT:
     case W_SEED_HIR0_BINARY_SATURATING_ADD:
     case W_SEED_HIR0_BINARY_SATURATING_SUBTRACT:
+    case W_SEED_HIR0_BINARY_SATURATING_MULTIPLY:
       return NULL;
   }
   return NULL;
@@ -2443,6 +2445,8 @@ static bool append_binary_u64_value_operation(
       value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_ADD;
   const bool saturating_subtract =
       value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_SUBTRACT;
+  const bool saturating_multiply =
+      value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_MULTIPLY;
   const bool wrapping_power =
       value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_POWER;
   const bool wrapping_shift_left =
@@ -2477,8 +2481,55 @@ static bool append_binary_u64_value_operation(
   else if (rotated_right)
     helper = rotated_right_helper(program, value);
   else if (!comparison && !wrapping && !saturating_add &&
-           !saturating_subtract && !constant_division)
+           !saturating_subtract && !saturating_multiply && !constant_division)
     helper = checked_u64_binary_helper(value->binary_operator);
+
+  if (saturating_multiply) {
+    if (!append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_pair = \"llvm.intr.umul.with.overflow\"(") ||
+        !append_program_value_operand(program, value->left_value,
+                                      function_index, process, artifact,
+                                      capacity, offset) ||
+        !append_literal(artifact, capacity, offset, ", ") ||
+        !append_program_value_operand(program, value->right_value,
+                                      function_index, process, artifact,
+                                      capacity, offset) ||
+        !append_literal(artifact, capacity, offset,
+                        ") : (i64, i64) -> !llvm.struct<(i64, i1)>\n") ||
+        !append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_value = llvm.extractvalue %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_pair[0] : !llvm.struct<(i64, i1)>\n") ||
+        !append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_overflow = llvm.extractvalue %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_pair[1] : !llvm.struct<(i64, i1)>\n") ||
+        !append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_max = llvm.mlir.constant(-1 : i64) : i64\n") ||
+        !append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset, " = llvm.select %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_overflow, %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset, "_max, %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_value : i1, i64\n"))
+      return false;
+    return true;
+  }
   if (!append_literal(artifact, capacity, offset, "    %v") ||
       !append_size(artifact, capacity, offset, value_index) ||
       !append_literal(artifact, capacity, offset, " = "))
@@ -2577,6 +2628,7 @@ static const char *float_binary_operation(
     case W_SEED_HIR0_BINARY_ROTATED_RIGHT:
     case W_SEED_HIR0_BINARY_SATURATING_ADD:
     case W_SEED_HIR0_BINARY_SATURATING_SUBTRACT:
+    case W_SEED_HIR0_BINARY_SATURATING_MULTIPLY:
       return NULL;
   }
   return NULL;
@@ -7662,6 +7714,7 @@ static bool append_cooperative_value_tree(
       case W_SEED_HIR0_BINARY_ROTATED_RIGHT:
       case W_SEED_HIR0_BINARY_SATURATING_ADD:
       case W_SEED_HIR0_BINARY_SATURATING_SUBTRACT:
+      case W_SEED_HIR0_BINARY_SATURATING_MULTIPLY:
         break;
     }
     if ((operation == NULL && predicate == NULL) ||

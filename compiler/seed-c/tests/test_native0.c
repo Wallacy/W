@@ -207,7 +207,7 @@ static bool make_nested_tree_source(char *buffer, size_t capacity,
 
 static bool test_products(void) {
   CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-9") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-45") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-46") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -2710,6 +2710,83 @@ static bool test_u64_saturating_subtract_slice(void) {
   return true;
 }
 
+static bool test_u64_saturating_multiply_slice(void) {
+  static const uint8_t source[] =
+      "fn clamp(left: UInt, right: UInt): UInt { return "
+      "u64.saturatingMultiply(left, right) }\n"
+      "fn main() { let maximum = clamp(left: 18446744073709551615_u64, "
+      "right: 2_u64) let ordinary = clamp(left: 6_u64, right: 7_u64) "
+      "print(\"${maximum}/${ordinary}\") }\nentry(main)\n";
+  uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source(source, sizeof(source) - 1u, "uint-saturating-multiply",
+                   24u, output, sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  size_t saturating_count = 0u;
+  for (size_t index = 0u; index < storage.hir_program.value_count;
+       index += 1u)
+    if (storage.hir_program.values[index].kind ==
+            W_SEED_HIR0_VALUE_BINARY_U64 &&
+        storage.hir_program.values[index].binary_operator ==
+            W_SEED_HIR0_BINARY_SATURATING_MULTIPLY)
+      saturating_count += 1u;
+  CHECK(saturating_count == 1u && storage.hir_program.call_count == 3u);
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.has_local_calls && !selection.has_cfg &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.intr.umul.with.overflow") == 1u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.extractvalue") == 2u &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.select") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.mlir.constant(-1 : i64)") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "@w_seed_checked_multiply_u64") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "\"llvm.intr.umul.sat\"") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "\"llvm.intr.trap\"() : () -> ()"));
+
+  static const uint8_t rejected[][224] = {
+      "fn bad(value: UInt): UInt { return "
+      "UInt.saturatingMultiply(value, 2_u64) }\nentry(bad)\n",
+      "fn bad(value: Int): UInt { return "
+      "u64.saturatingMultiply(value, 2_u64) }\nentry(bad)\n",
+      "fn bad(value: UInt): UInt { return "
+      "u64.saturatingMultiply(value, 2_i64) }\nentry(bad)\n",
+      "fn bad(value: UInt): UInt { return "
+      "u64.saturatingMultiply(value) }\nentry(bad)\n",
+      "fn bad(value: UInt): UInt { return "
+      "u64.saturatingMultiply(value, 2_u64, 3_u64) }\nentry(bad)\n",
+      "fn bad(value: UInt): UInt { return "
+      "u64.saturatingMultiply(left: value, 2_u64) }\nentry(bad)\n",
+      "fn bad(value: UInt): UInt { return "
+      "u64?.saturatingMultiply(value, 2_u64) }\nentry(bad)\n",
+      "fn bad(value: UInt): UInt { return u64.saturatingMultiply("
+      "u64.saturatingMultiply(value, 2_u64), 3_u64) }\nentry(bad)\n",
+      "const u64: UInt = 1_u64\n"
+      "fn bad(value: UInt): UInt { return "
+      "u64.saturatingMultiply(value, 2_u64) }\nentry(bad)\n",
+      "fn bad(value: UInt): Int { return "
+      "u64.saturatingMultiply(value, 2_u64) }\nentry(bad)\n"};
+  for (size_t index = 0u; index < sizeof(rejected) / sizeof(rejected[0]);
+       index += 1u) {
+    (void)memset(output, 0x97u, sizeof(output));
+    (void)memset(&result, 0x98u, sizeof(result));
+    const w_seed_native0_result snapshot = result;
+    CHECK(run_source(rejected[index], strlen((const char *)rejected[index]),
+                     "uint-saturating-multiply-bad", 28u, output,
+                     sizeof(output), &result) != W_SEED_NATIVE0_OK);
+    CHECK(memcmp(&result, &snapshot, sizeof(result)) == 0);
+    for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+      CHECK(output[byte] == 0x97u);
+  }
+  return true;
+}
+
 static bool test_u64_wrapping_subtract_slice(void) {
   static const uint8_t source[] =
       "fn wrap(value: UInt): UInt { return u64.wrappingSubtract(value, 1_u64) }\n"
@@ -4089,6 +4166,7 @@ int main(void) {
                         test_u64_wrapping_add_slice() &&
                         test_u64_saturating_add_slice() &&
                         test_u64_saturating_subtract_slice() &&
+                        test_u64_saturating_multiply_slice() &&
                         test_u64_wrapping_subtract_slice() &&
                         test_u64_wrapping_multiply_slice() &&
                         test_u64_wrapping_power_slice() &&

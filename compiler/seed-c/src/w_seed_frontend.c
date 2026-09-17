@@ -60,7 +60,8 @@ _Static_assert(W_SEED_FRONTEND_BUILTIN_NONE == 0 &&
                    W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BITS == 17 &&
                    W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BYTES == 18 &&
                    W_SEED_FRONTEND_BUILTIN_U64_SATURATING_ADD == 19 &&
-                   W_SEED_FRONTEND_BUILTIN_U64_SATURATING_SUBTRACT == 20,
+                   W_SEED_FRONTEND_BUILTIN_U64_SATURATING_SUBTRACT == 20 &&
+                   W_SEED_FRONTEND_BUILTIN_U64_SATURATING_MULTIPLY == 21,
                "w-seed frontend builtin identities are append-only");
 #if defined(DBL_HAS_SUBNORM)
 _Static_assert(DBL_HAS_SUBNORM == 1,
@@ -4147,7 +4148,8 @@ static bool builtin_u64_operation_is_supported(
          operation == W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BITS ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BYTES ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_ADD ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_SUBTRACT;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_SUBTRACT ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_MULTIPLY;
 }
 
 static bool builtin_u64_operation_is_unary(
@@ -4201,6 +4203,8 @@ static w_seed_frontend_builtin_operation builtin_u64_operation_for_member(
     return W_SEED_FRONTEND_BUILTIN_U64_SATURATING_ADD;
   if (text_equal(member_name, "saturatingSubtract"))
     return W_SEED_FRONTEND_BUILTIN_U64_SATURATING_SUBTRACT;
+  if (text_equal(member_name, "saturatingMultiply"))
+    return W_SEED_FRONTEND_BUILTIN_U64_SATURATING_MULTIPLY;
   return W_SEED_FRONTEND_BUILTIN_NONE;
 }
 
