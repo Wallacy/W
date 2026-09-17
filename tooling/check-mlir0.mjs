@@ -73,6 +73,8 @@ const restaurantUIntReversedBytesFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-reversed-bytes.w")
 const restaurantUIntSaturatingAddFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-saturating-add.w")
+const restaurantUIntSaturatingSubtractFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-saturating-subtract.w")
 const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
@@ -757,6 +759,9 @@ try {
     { name: "restaurant-uint-saturating-add",
       source: restaurantUIntSaturatingAddFixture,
       expected: Buffer.from("Saturated 18446744073709551615/11\n", "utf8") },
+    { name: "restaurant-uint-saturating-subtract",
+      source: restaurantUIntSaturatingSubtractFixture,
+      expected: Buffer.from("Saturated subtract 0/10\n", "utf8") },
     { name: "restaurant-uint-bit-not", source: restaurantUIntBitNotFixture,
       expected: Buffer.from("UInt not 18446744073709551615\n", "utf8") },
     { name: "restaurant-uint-bitwise", source: restaurantUIntBitwiseFixture,
@@ -1180,6 +1185,13 @@ try {
     !uintSaturatingAddArtifact.includes("@w_seed_checked_add_u64") &&
     !uintSaturatingAddArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
   "u64.saturatingAdd lost direct saturation or total-operation semantics")
+  const uintSaturatingSubtractArtifact =
+    artifacts.get("restaurant-uint-saturating-subtract").toString("utf8")
+  assert((uintSaturatingSubtractArtifact.match(/llvm\.intr\.usub\.sat/g) ?? []).length === 1 &&
+    uintSaturatingSubtractArtifact.includes("llvm.call @w_seed_append_u64") &&
+    !uintSaturatingSubtractArtifact.includes("@w_seed_checked_subtract_u64") &&
+    !uintSaturatingSubtractArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
+  "u64.saturatingSubtract lost direct saturation or total-operation semantics")
   const uintBitNotArtifact =
     artifacts.get("restaurant-uint-bit-not").toString("utf8")
   assert(uintBitNotArtifact.includes("llvm.xor") &&

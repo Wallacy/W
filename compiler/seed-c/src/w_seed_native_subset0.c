@@ -395,7 +395,8 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
           value->binary_operator != W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT &&
           value->binary_operator != W_SEED_HIR0_BINARY_ROTATED_LEFT &&
           value->binary_operator != W_SEED_HIR0_BINARY_ROTATED_RIGHT &&
-          value->binary_operator != W_SEED_HIR0_BINARY_SATURATING_ADD))))
+          value->binary_operator != W_SEED_HIR0_BINARY_SATURATING_ADD &&
+          value->binary_operator != W_SEED_HIR0_BINARY_SATURATING_SUBTRACT))))
     return false;
   uint64_t left = 0u;
   uint64_t right = 0u;
@@ -410,6 +411,9 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
       return true;
     case W_SEED_HIR0_BINARY_SATURATING_ADD:
       *result = UINT64_MAX - left < right ? UINT64_MAX : left + right;
+      return true;
+    case W_SEED_HIR0_BINARY_SATURATING_SUBTRACT:
+      *result = left < right ? 0u : left - right;
       return true;
     case W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT:
       *result = left - right;
@@ -609,7 +613,8 @@ static bool program_value_is_constant_u64(
            value->binary_operator == W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT ||
            value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_LEFT ||
            value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_RIGHT ||
-           value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_ADD) &&
+           value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_ADD ||
+           value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_SUBTRACT) &&
          program_value_is_constant_u64(program, value->left_value,
                                        depth + 1u) &&
          program_value_is_constant_u64(program, value->right_value,
@@ -1483,7 +1488,8 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
         value->binary_operator == W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT ||
         value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_LEFT ||
         value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_RIGHT ||
-        value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_ADD;
+        value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_ADD ||
+        value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_SUBTRACT;
     const bool bitwise =
         value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
         value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR;

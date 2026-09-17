@@ -2817,10 +2817,10 @@ for ranking or live best metrics.
 
 ### Source-backed checked `UInt`/`u64` operators
 
-HIR0 schema `w-seed-hir0-69` represents ordinary unsigned arithmetic,
+HIR0 schema `w-seed-hir0-70` represents ordinary unsigned arithmetic,
 comparisons, and binary bitwise operations with `BINARY_U64`, and bitwise complement with the distinct
 `UNARY_U64` value kind. Native0 and MLIR0 schemas are `w-seed-native0-9` and
-`w-seed-mlir0-44` (Windows label `w-seed-mlir0-windows-29`). Native constant
+`w-seed-mlir0-45` (Windows label `w-seed-mlir0-windows-30`). Native constant
 trees are evaluated as `uint64_t` with checked add/subtract/multiply,
 zero-guarded divide/remainder, and width-preserving complement; overflow or
 division by zero fails closed. MLIR0 keeps the physical carrier as `i64`, uses
@@ -2923,6 +2923,10 @@ independent of host endianness and introduces no helper, allocation, or trap.
 [`fixtures/restaurant-uint-saturating-add.w`](fixtures/restaurant-uint-saturating-add.w)
 proves ordinary addition and overflow clamping at `UInt.max`. Its distinct
 binary HIR identity lowers directly to `llvm.intr.uadd.sat`, without a checked
+arithmetic helper, allocation, or trap.
+[`fixtures/restaurant-uint-saturating-subtract.w`](fixtures/restaurant-uint-saturating-subtract.w)
+proves ordinary subtraction and underflow clamping at zero. Its distinct
+binary HIR identity lowers directly to `llvm.intr.usub.sat`, without a checked
 arithmetic helper, allocation, or trap.
 
 This is a finite linear/local-function-call and straight-line mutation slice.

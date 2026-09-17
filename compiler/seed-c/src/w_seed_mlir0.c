@@ -1554,7 +1554,8 @@ static bool mlir0_value_is_constant_u64(const w_seed_hir0_program *program,
               W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT ||
           value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_LEFT ||
           value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_RIGHT ||
-          value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_ADD) &&
+          value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_ADD ||
+          value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_SUBTRACT) &&
          mlir0_value_is_constant_u64(program, value->left_value,
                                       depth + 1u) &&
          mlir0_value_is_constant_u64(program, value->right_value,
@@ -1622,6 +1623,7 @@ static const char *binary_operation(w_seed_hir0_binary_operator operation) {
     case W_SEED_HIR0_BINARY_ROTATED_LEFT:
     case W_SEED_HIR0_BINARY_ROTATED_RIGHT:
     case W_SEED_HIR0_BINARY_SATURATING_ADD:
+    case W_SEED_HIR0_BINARY_SATURATING_SUBTRACT:
       return NULL;
   }
   return NULL;
@@ -2439,6 +2441,8 @@ static bool append_binary_u64_value_operation(
       value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY;
   const bool saturating_add =
       value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_ADD;
+  const bool saturating_subtract =
+      value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_SUBTRACT;
   const bool wrapping_power =
       value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_POWER;
   const bool wrapping_shift_left =
@@ -2472,7 +2476,8 @@ static bool append_binary_u64_value_operation(
     helper = rotated_left_helper(program, value);
   else if (rotated_right)
     helper = rotated_right_helper(program, value);
-  else if (!comparison && !wrapping && !saturating_add && !constant_division)
+  else if (!comparison && !wrapping && !saturating_add &&
+           !saturating_subtract && !constant_division)
     helper = checked_u64_binary_helper(value->binary_operator);
   if (!append_literal(artifact, capacity, offset, "    %v") ||
       !append_size(artifact, capacity, offset, value_index) ||
@@ -2494,6 +2499,18 @@ static bool append_binary_u64_value_operation(
   if (saturating_add)
     return append_literal(artifact, capacity, offset,
                           "\"llvm.intr.uadd.sat\"(") &&
+           append_program_value_operand(program, value->left_value,
+                                        function_index, process, artifact,
+                                        capacity, offset) &&
+           append_literal(artifact, capacity, offset, ", ") &&
+           append_program_value_operand(program, value->right_value,
+                                        function_index, process, artifact,
+                                        capacity, offset) &&
+           append_literal(artifact, capacity, offset,
+                          ") : (i64, i64) -> i64\n");
+  if (saturating_subtract)
+    return append_literal(artifact, capacity, offset,
+                          "\"llvm.intr.usub.sat\"(") &&
            append_program_value_operand(program, value->left_value,
                                         function_index, process, artifact,
                                         capacity, offset) &&
@@ -2559,6 +2576,7 @@ static const char *float_binary_operation(
     case W_SEED_HIR0_BINARY_ROTATED_LEFT:
     case W_SEED_HIR0_BINARY_ROTATED_RIGHT:
     case W_SEED_HIR0_BINARY_SATURATING_ADD:
+    case W_SEED_HIR0_BINARY_SATURATING_SUBTRACT:
       return NULL;
   }
   return NULL;
@@ -7643,6 +7661,7 @@ static bool append_cooperative_value_tree(
       case W_SEED_HIR0_BINARY_ROTATED_LEFT:
       case W_SEED_HIR0_BINARY_ROTATED_RIGHT:
       case W_SEED_HIR0_BINARY_SATURATING_ADD:
+      case W_SEED_HIR0_BINARY_SATURATING_SUBTRACT:
         break;
     }
     if ((operation == NULL && predicate == NULL) ||
