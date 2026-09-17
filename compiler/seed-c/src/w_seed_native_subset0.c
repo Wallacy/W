@@ -303,7 +303,8 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
        (value->binary_operator < W_SEED_HIR0_BINARY_BIT_AND ||
         (value->binary_operator > W_SEED_HIR0_BINARY_BIT_XOR &&
          value->binary_operator != W_SEED_HIR0_BINARY_WRAPPING_ADD &&
-         value->binary_operator != W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT))))
+         value->binary_operator != W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT &&
+         value->binary_operator != W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY))))
     return false;
   uint64_t left = 0u;
   uint64_t right = 0u;
@@ -318,6 +319,9 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
       return true;
     case W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT:
       *result = left - right;
+      return true;
+    case W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY:
+      *result = left * right;
       return true;
     case W_SEED_HIR0_BINARY_SUBTRACT:
       return checked_u64_subtract(left, right, result);
@@ -457,7 +461,8 @@ static bool program_value_is_constant_u64(
           (value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
            value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR) ||
           value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_ADD ||
-          value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT) &&
+          value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT ||
+          value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY) &&
          program_value_is_constant_u64(program, value->left_value,
                                        depth + 1u) &&
          program_value_is_constant_u64(program, value->right_value,
@@ -1313,7 +1318,8 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
         value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER;
     const bool wrapping =
         value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_ADD ||
-        value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT;
+        value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT ||
+        value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY;
     const bool bitwise =
         value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
         value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR;

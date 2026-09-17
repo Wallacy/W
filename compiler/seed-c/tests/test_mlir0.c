@@ -2257,6 +2257,48 @@ static bool test_u64_wrapping_subtract_artifact(void) {
   return true;
 }
 
+static bool test_u64_wrapping_multiply_artifact(void) {
+  static const uint8_t source[] =
+      "fn wrap(value: UInt): UInt { return u64.wrappingMultiply(value, 2_u64) }\n"
+      "entry { let result = wrap(value: 18446744073709551615_u64) "
+      "print(\"${result}\") }\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  size_t wrapping_count = 0u;
+  for (size_t index = 0u; index < fixture.hir_program.value_count;
+       index += 1u)
+    if (fixture.hir_program.values[index].kind ==
+            W_SEED_HIR0_VALUE_BINARY_U64 &&
+        fixture.hir_program.values[index].binary_operator ==
+            W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY)
+      wrapping_count += 1u;
+  CHECK(wrapping_count == 1u && fixture.hir_program.call_count == 2u);
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        memcmp(measured.mlir_sha256, emitted.mlir_sha256,
+               sizeof(measured.mlir_sha256)) == 0);
+  const size_t wrapper_start =
+      find_bytes(artifact, emitted.written.mlir_bytes,
+                 "llvm.func internal @w_fn_0", 0u);
+  const size_t entry_start =
+      find_bytes(artifact, emitted.written.mlir_bytes,
+                 "llvm.func internal @w_fn_1", wrapper_start);
+  CHECK(wrapper_start != SIZE_MAX && entry_start != SIZE_MAX &&
+        count_bytes(artifact + wrapper_start, entry_start - wrapper_start,
+                    "llvm.mul ") == 1u &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "llvm.call @w_seed_checked_multiply_u64") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "llvm.intr.umul.with.overflow") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.call @w_seed_append_u64"));
+  return true;
+}
+
 static bool test_unsigned_unary_bit_not_artifact(void) {
   static const uint8_t dynamic_source[] =
       "fn main() { print(\"UInt not ${~0_u64}\") }\n"
@@ -4787,6 +4829,7 @@ int main(int argc, char **argv) {
   if (!test_unsigned_binary_u64_slice()) return 1;
   if (!test_u64_wrapping_add_artifact()) return 1;
   if (!test_u64_wrapping_subtract_artifact()) return 1;
+  if (!test_u64_wrapping_multiply_artifact()) return 1;
   if (!test_unsigned_unary_bit_not_artifact()) return 1;
   if (!test_scalar_if_value_diamond()) return 1;
   if (!test_nested_scalar_if_value_diamond()) return 1;

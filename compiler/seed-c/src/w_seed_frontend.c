@@ -40,6 +40,12 @@ _Static_assert(DBL_MIN_EXP == -1021,
                "w-seed f64 requires binary64 minimum exponent");
 _Static_assert(DBL_MAX_EXP == 1024,
                "w-seed f64 requires binary64 maximum exponent");
+_Static_assert(W_SEED_FRONTEND_BUILTIN_NONE == 0 &&
+                   W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD == 1 &&
+                   W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SUBTRACT == 2 &&
+                   W_SEED_FRONTEND_BUILTIN_U64_RECEIVER == 3 &&
+                   W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_MULTIPLY == 4,
+               "w-seed frontend builtin identities are append-only");
 #if defined(DBL_HAS_SUBNORM)
 _Static_assert(DBL_HAS_SUBNORM == 1,
                "w-seed f64 requires binary64 subnormal support");
@@ -4108,7 +4114,8 @@ static bool text_equal_text(w_seed_frontend_text left,
 static bool builtin_u64_operation_is_wrapping(
     w_seed_frontend_builtin_operation operation) {
   return operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SUBTRACT;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SUBTRACT ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_MULTIPLY;
 }
 
 static w_seed_frontend_builtin_operation builtin_u64_operation_for_member(
@@ -4117,6 +4124,8 @@ static w_seed_frontend_builtin_operation builtin_u64_operation_for_member(
     return W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD;
   if (text_equal(member_name, "wrappingSubtract"))
     return W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SUBTRACT;
+  if (text_equal(member_name, "wrappingMultiply"))
+    return W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_MULTIPLY;
   return W_SEED_FRONTEND_BUILTIN_NONE;
 }
 

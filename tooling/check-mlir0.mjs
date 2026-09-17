@@ -41,6 +41,8 @@ const restaurantUIntWrappingAddFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-add.w")
 const restaurantUIntWrappingSubtractFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-subtract.w")
+const restaurantUIntWrappingMultiplyFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-wrapping-multiply.w")
 const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
@@ -677,6 +679,9 @@ try {
     { name: "restaurant-uint-wrapping-subtract",
       source: restaurantUIntWrappingSubtractFixture,
       expected: Buffer.from("Wrapped 18446744073709551615\n", "utf8") },
+    { name: "restaurant-uint-wrapping-multiply",
+      source: restaurantUIntWrappingMultiplyFixture,
+      expected: Buffer.from("Wrapped 18446744073709551614\n", "utf8") },
     { name: "restaurant-uint-bit-not", source: restaurantUIntBitNotFixture,
       expected: Buffer.from("UInt not 18446744073709551615\n", "utf8") },
     { name: "restaurant-uint-bitwise", source: restaurantUIntBitwiseFixture,
@@ -953,6 +958,13 @@ try {
     !uintWrappingSubtractArtifact.includes("@w_seed_checked_subtract_u64") &&
     !uintWrappingSubtractArtifact.includes("llvm.intr.usub.with.overflow"),
   "u64.wrappingSubtract did not retain direct wrapping u64 lowering")
+  const uintWrappingMultiplyArtifact =
+    artifacts.get("restaurant-uint-wrapping-multiply").toString("utf8")
+  assert(uintWrappingMultiplyArtifact.includes("llvm.mul %p0,") &&
+    uintWrappingMultiplyArtifact.includes("llvm.call @w_seed_append_u64") &&
+    !uintWrappingMultiplyArtifact.includes("@w_seed_checked_multiply_u64") &&
+    !uintWrappingMultiplyArtifact.includes("llvm.intr.umul.with.overflow"),
+  "u64.wrappingMultiply did not retain direct wrapping u64 lowering")
   const uintBitNotArtifact =
     artifacts.get("restaurant-uint-bit-not").toString("utf8")
   assert(uintBitNotArtifact.includes("llvm.xor") &&

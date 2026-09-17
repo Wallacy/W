@@ -49,6 +49,13 @@ artifact. The C23 and Rust 2024 references retain independent runtime
 operands. Runtime equivalence is not proven, so this workload has no
 performance ranking.
 
+The `restaurant-uint-wrapping-multiply` witness is `not-performance-ready`.
+Its fixed input multiplies `UInt`'s maximum by `2` and its exact oracle is
+`Wrapped 18446744073709551614\n`. W may fold this operation in the final
+artifact. The C23 and Rust 2024 references retain independent runtime
+operands. Runtime equivalence is not proven, so this workload has no
+performance ranking.
+
 The catalog declares compile latency, median and P95 target-run wall time,
 user/system/total CPU time, peak working set, artifact size, exit code, and
 stdout/stderr. A local
