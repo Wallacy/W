@@ -88,6 +88,8 @@ const restaurantUIntLogicalShiftRightFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-logical-shift-right.w")
 const restaurantUIntRotatedLeftFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-rotated-left.w")
+const restaurantUIntRotatedRightFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-rotated-right.w")
 const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
@@ -997,6 +999,10 @@ try {
     ["run", toWsl(restaurantUIntRotatedLeftFixture)],
     Buffer.from("Rotated 3\n", "utf8"),
     "Restaurant UInt rotatedLeft reduces count modulo bit width")
+  expectSuccess(binary,
+    ["run", toWsl(restaurantUIntRotatedRightFixture)],
+    Buffer.from("Rotated 9223372036854775809\n", "utf8"),
+    "Restaurant UInt rotatedRight reduces count modulo bit width")
   expectSuccess(binary, ["run", toWsl(restaurantUIntBitNotFixture)],
     Buffer.from("UInt not 18446744073709551615\n", "utf8"),
     "Restaurant UInt bitwise complement")

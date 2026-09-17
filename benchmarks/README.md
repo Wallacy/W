@@ -109,6 +109,14 @@ before it performs the second shift. The Rust 2024 reference uses
 `rotate_left` with runtime operands. Runtime equivalence is not proven, so this
 workload has no performance ranking.
 
+The `restaurant-uint-rotated-right` witness is `not-performance-ready`. Its
+fixed inputs rotate `UInt` value `3` right by count `1`, and its exact oracle is
+`Rotated 9223372036854775809\n`. W may fold this operation in the final artifact.
+The C23 reference masks the runtime count and returns the input at count zero
+before it performs the second shift. The Rust 2024 reference uses
+`rotate_right` with runtime operands. Runtime equivalence is not proven, so
+this workload has no performance ranking.
+
 The catalog declares compile latency, median and P95 target-run wall time,
 user/system/total CPU time, peak working set, artifact size, exit code, and
 stdout/stderr. A local

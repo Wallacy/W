@@ -198,6 +198,13 @@ export const SMOKE_CASES = Object.freeze([
       "restaurant-uint-rotated-left.w"),
     expectedStdout: "Rotated 3\n",
   }),
+  Object.freeze({
+    id: "restaurant-uint-rotated-right",
+    fixture: "compiler/seed-c/fixtures/restaurant-uint-rotated-right.w",
+    absoluteFixture: resolve(seedDirectory, "fixtures",
+      "restaurant-uint-rotated-right.w"),
+    expectedStdout: "Rotated 9223372036854775809\n",
+  }),
 ])
 
 function fail(message) {

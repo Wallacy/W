@@ -53,6 +53,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-uint-masked-shift-right",
   "restaurant-uint-logical-shift-right",
   "restaurant-uint-rotated-left",
+  "restaurant-uint-rotated-right",
   "restaurant-uint-bit-not",
   "restaurant-uint-bitwise",
   "restaurant-uint-compound",
@@ -202,6 +203,7 @@ export const RESTAURANT_UINT_MASKED_SHIFT_LEFT_WORKLOAD_ID = "restaurant-uint-ma
 export const RESTAURANT_UINT_MASKED_SHIFT_RIGHT_WORKLOAD_ID = "restaurant-uint-masked-shift-right";
 export const RESTAURANT_UINT_LOGICAL_SHIFT_RIGHT_WORKLOAD_ID = "restaurant-uint-logical-shift-right";
 export const RESTAURANT_UINT_ROTATED_LEFT_WORKLOAD_ID = "restaurant-uint-rotated-left";
+export const RESTAURANT_UINT_ROTATED_RIGHT_WORKLOAD_ID = "restaurant-uint-rotated-right";
 export const RESTAURANT_UINT_BIT_NOT_WORKLOAD_ID = "restaurant-uint-bit-not";
 export const RESTAURANT_UINT_BITWISE_WORKLOAD_ID = "restaurant-uint-bitwise";
 export const RESTAURANT_UINT_COMPOUND_WORKLOAD_ID = "restaurant-uint-compound";
@@ -1072,7 +1074,8 @@ function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PL
       workload?.id === RESTAURANT_UINT_MASKED_SHIFT_LEFT_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_MASKED_SHIFT_RIGHT_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_LOGICAL_SHIFT_RIGHT_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_ROTATED_LEFT_WORKLOAD_ID) return SOURCE_ELIGIBILITY.strictF64;
+      workload?.id === RESTAURANT_UINT_ROTATED_LEFT_WORKLOAD_ID ||
+      workload?.id === RESTAURANT_UINT_ROTATED_RIGHT_WORKLOAD_ID) return SOURCE_ELIGIBILITY.strictF64;
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) return SOURCE_ELIGIBILITY.processHandler;
   if (language === "c") return SOURCE_ELIGIBILITY.cPublic;
   if (language === "rust") return SOURCE_ELIGIBILITY.rust;
