@@ -13905,6 +13905,42 @@ static bool test_u64_wrapping_negate(void) {
   return true;
 }
 
+static bool test_u64_wrapping_power(void) {
+  static const char SOURCE[] =
+      "fn power(base: u64, exponent: u64): u64 { "
+      "return u64.wrappingPower(base, exponent) }\n"
+      "entry { let result = u64.wrappingPower(3_u64, 40_u64) }\n";
+  CHECK(lower(SOURCE));
+  size_t wrapping_count = 0u;
+  size_t wrapping_index = SIZE_MAX;
+  for (size_t index = 0u; index < fixture.hir_program.value_count;
+       index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_program.values[index];
+    if (value->kind != W_SEED_HIR0_VALUE_BINARY_U64) continue;
+    CHECK(value->binary_operator != W_SEED_HIR0_BINARY_POWER);
+    if (value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_POWER) {
+      CHECK(value->type_index < fixture.hir_program.type_count &&
+            fixture.hir_program.types[value->type_index].kind ==
+                W_SEED_HIR0_TYPE_U64 &&
+            value->left_value != W_SEED_HIR0_NONE &&
+            value->right_value != W_SEED_HIR0_NONE);
+      wrapping_count += 1u;
+      wrapping_index = index;
+    }
+  }
+  CHECK(wrapping_count == 2u && wrapping_index != SIZE_MAX &&
+        fixture.hir_program.call_count == 0u);
+  const w_seed_hir0_value saved = fixture.hir_values[wrapping_index];
+  fixture.hir_values[wrapping_index].binary_operator =
+      W_SEED_HIR0_BINARY_POWER;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[wrapping_index] = saved;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_canonical_f64_scalar(void) {
   static const char SOURCE[] =
       "entry { let sum = 1.5 + 2.25_f64 let difference = 9.5 - 5.5 "
@@ -14444,6 +14480,7 @@ int main(int argc, char **argv) {
   if (!test_u64_wrapping_subtract()) return 1;
   if (!test_u64_wrapping_multiply()) return 1;
   if (!test_u64_wrapping_negate()) return 1;
+  if (!test_u64_wrapping_power()) return 1;
   if (!test_canonical_f64_scalar()) return 1;
   if (!test_frontend_tree_bounds_forgery()) return 1;
   if (!test_checked_shift_values()) return 1;

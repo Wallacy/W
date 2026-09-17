@@ -63,6 +63,13 @@ artifact. The C23 and Rust 2024 references retain independent runtime
 operands. Runtime equivalence is not proven, so this workload has no
 performance ranking.
 
+The `restaurant-uint-wrapping-power` witness is `not-performance-ready`. Its
+fixed inputs raise `UInt` `3` to `40` with wrapping arithmetic and its exact
+oracle is `Wrapped 12157665459056928801\n`. W may fold this operation in the
+final artifact. The C23 and Rust 2024 references retain independent runtime
+operands. Runtime equivalence is not proven, so this workload has no
+performance ranking.
+
 The catalog declares compile latency, median and P95 target-run wall time,
 user/system/total CPU time, peak working set, artifact size, exit code, and
 stdout/stderr. A local

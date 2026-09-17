@@ -161,7 +161,8 @@ static bool hir0_builtin_u64_operation_is_wrapping(
   return operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SUBTRACT ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_MULTIPLY ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_NEGATE;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_NEGATE ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_POWER;
 }
 
 static bool hir0_builtin_u64_operation_is_unary_wrapping(
@@ -179,7 +180,9 @@ static bool hir0_builtin_u64_operation_member_matches(
          (operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_MULTIPLY &&
           text_is(member_name, "wrappingMultiply")) ||
          (operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_NEGATE &&
-          text_is(member_name, "wrappingNegate"));
+          text_is(member_name, "wrappingNegate")) ||
+         (operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_POWER &&
+          text_is(member_name, "wrappingPower"));
 }
 
 static bool frontend_assignment_operator(w_seed_frontend_text text) {
@@ -11269,13 +11272,16 @@ static uint32_t hir0_emit_value_m2(
         depth + 1u);
     const uint32_t result = (uint32_t)*context->value_index;
     w_seed_hir0_binary_operator wrapping_operator =
-        W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY;
+        W_SEED_HIR0_BINARY_WRAPPING_POWER;
     if (source->builtin_operation ==
         W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD)
       wrapping_operator = W_SEED_HIR0_BINARY_WRAPPING_ADD;
     else if (source->builtin_operation ==
              W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SUBTRACT)
       wrapping_operator = W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT;
+    else if (source->builtin_operation ==
+             W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_MULTIPLY)
+      wrapping_operator = W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY;
     context->output->values[*context->value_index] = (w_seed_hir0_value){
         .kind = W_SEED_HIR0_VALUE_BINARY_U64,
         .owner_kind = owner_kind,
@@ -14337,7 +14343,8 @@ static bool verify_value_tree(
     const bool wrapping =
         value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_ADD ||
         value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT ||
-        value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY;
+        value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY ||
+        value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_POWER;
     const bool bitwise =
         value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
         value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR;

@@ -45,6 +45,8 @@ const restaurantUIntWrappingMultiplyFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-multiply.w")
 const restaurantUIntWrappingNegateFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-negate.w")
+const restaurantUIntWrappingPowerFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-wrapping-power.w")
 const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
@@ -687,6 +689,9 @@ try {
     { name: "restaurant-uint-wrapping-negate",
       source: restaurantUIntWrappingNegateFixture,
       expected: Buffer.from("Wrapped 18446744073709551615\n", "utf8") },
+    { name: "restaurant-uint-wrapping-power",
+      source: restaurantUIntWrappingPowerFixture,
+      expected: Buffer.from("Wrapped 12157665459056928801\n", "utf8") },
     { name: "restaurant-uint-bit-not", source: restaurantUIntBitNotFixture,
       expected: Buffer.from("UInt not 18446744073709551615\n", "utf8") },
     { name: "restaurant-uint-bitwise", source: restaurantUIntBitwiseFixture,
@@ -978,6 +983,18 @@ try {
     !uintWrappingNegateArtifact.includes("@w_seed_checked_subtract_u64") &&
     !uintWrappingNegateArtifact.includes("llvm.intr.usub.with.overflow"),
   "u64.wrappingNegate did not retain direct wrapping u64 lowering")
+  const uintWrappingPowerArtifact =
+    artifacts.get("restaurant-uint-wrapping-power").toString("utf8")
+  assert(uintWrappingPowerArtifact.includes(
+    "llvm.func internal @w_seed_wrapping_power_u64") &&
+    uintWrappingPowerArtifact.includes(
+      "llvm.call @w_seed_wrapping_power_u64") &&
+    uintWrappingPowerArtifact.includes("llvm.mul") &&
+    uintWrappingPowerArtifact.includes("llvm.lshr") &&
+    uintWrappingPowerArtifact.includes("llvm.call @w_seed_append_u64") &&
+    !uintWrappingPowerArtifact.includes("@w_seed_checked_power_u64") &&
+    !uintWrappingPowerArtifact.includes("llvm.intr.umul.with.overflow"),
+  "u64.wrappingPower did not retain runtime modulo exponentiation lowering")
   const uintBitNotArtifact =
     artifacts.get("restaurant-uint-bit-not").toString("utf8")
   assert(uintBitNotArtifact.includes("llvm.xor") &&
