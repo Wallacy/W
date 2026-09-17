@@ -841,14 +841,19 @@ static void complement_case(uint16_t width, bool signed_value, size_t case_index
 
 static bool test_integer_bitwise_complement(void) {
   static const char source[] =
+      "const fn complementU8(value: u8): u8 { return ~value }\n"
+      "const fn complementU64(value: u64): u64 { return ~value }\n"
+      "const fn complementI8(value: i8): i8 { return ~value }\n"
+      "const fn complementI64(value: i64): i64 { return ~value }\n";
+  static const char negation_source[] =
       "const fn complementU8(value: u8): u8 { return -value }\n"
       "const fn complementU64(value: u64): u64 { return -value }\n"
       "const fn complementI8(value: i8): i8 { return -value }\n"
       "const fn complementI64(value: i64): i64 { return -value }\n";
   static const uint16_t widths[] = {8u, 64u, 8u, 64u};
   static const bool signedness[] = {false, false, true, true};
-  CHECK(fixture_lower_with_unary_operator(&first_fixture, source, "~"));
-  CHECK(fixture_lower(&second_fixture, source));
+  CHECK(fixture_lower(&first_fixture, source));
+  CHECK(fixture_lower(&second_fixture, negation_source));
   CHECK(first_fixture.constir_result.written.functions == 4u &&
         first_fixture.constir_result.written.parameters == 4u &&
         second_fixture.constir_result.written.functions == 4u);
