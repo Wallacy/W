@@ -3786,6 +3786,9 @@ static bool frontend_value_tree_ok(
         (result_i64 && left_i64) || (result_u64 && left_u64);
     const bool ordinary_integer =
         operation <= W_SEED_HIR0_BINARY_REMAINDER;
+    const bool bitwise_integer =
+        operation >= W_SEED_HIR0_BINARY_BIT_AND &&
+        operation <= W_SEED_HIR0_BINARY_BIT_XOR;
     if (!frontend_value_tree_ok(input, module_index, function_index,
                                 document_index, use_statement, value->left,
                                 depth + 1u, expression_cursor, segment_cursor,
@@ -3816,7 +3819,7 @@ static bool frontend_value_tree_ok(
                     : (shift || power
                            ? (!same_integer_left_result_domain || !right_u64)
                            : (result_u64
-                                  ? (!ordinary_integer ||
+                                  ? ((!ordinary_integer && !bitwise_integer) ||
                                      !same_integer_result_domain)
                                   : (!result_i64 ||
                                      !same_integer_result_domain))))) ||
@@ -11152,10 +11155,13 @@ static uint32_t hir0_emit_value_m2(
         binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL;
     const bool u64_arithmetic =
         binary_operator <= W_SEED_HIR0_BINARY_REMAINDER;
+    const bool u64_bitwise =
+        binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
+        binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR;
     const bool unsigned_binary =
         frontend_expression_is_u64(
             context->frontend, &context->frontend->expressions[source->left]) &&
-        (u64_arithmetic || u64_comparison);
+        (u64_arithmetic || u64_comparison || u64_bitwise);
     *target = (w_seed_hir0_value){
         .kind = usize_count_comparison
                     ? W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON
@@ -14058,7 +14064,10 @@ static bool verify_value_tree(
         value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL;
     const bool arithmetic =
         value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER;
-    if ((!arithmetic && !comparison) ||
+    const bool bitwise =
+        value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
+        value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR;
+    if ((!arithmetic && !comparison && !bitwise) ||
         value->left_value == W_SEED_HIR0_NONE ||
         value->right_value == W_SEED_HIR0_NONE ||
         !verify_value_tree(program, value->left_value,

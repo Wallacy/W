@@ -39,6 +39,8 @@ const restaurantUIntArithmeticFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-arithmetic.w")
 const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
+const restaurantUIntBitwiseFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-bitwise.w")
 const restaurantMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-mutation.w")
 const restaurantConditionalMutationFixture = resolve(seedDirectory,
@@ -665,6 +667,8 @@ try {
         "cmp true/true/true/true/false/true/true\n", "utf8") },
     { name: "restaurant-uint-bit-not", source: restaurantUIntBitNotFixture,
       expected: Buffer.from("UInt not 18446744073709551615\n", "utf8") },
+    { name: "restaurant-uint-bitwise", source: restaurantUIntBitwiseFixture,
+      expected: Buffer.from("UInt bits 18446744073709551615\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
   ]
   const artifacts = new Map()
@@ -927,6 +931,14 @@ try {
     uintBitNotArtifact.includes("-1 : i64") &&
     !uintBitNotArtifact.includes("@w_seed_checked_negate_i64"),
   "UInt bitwise complement lost direct all-ones xor lowering")
+  const uintBitwiseArtifact =
+    artifacts.get("restaurant-uint-bitwise").toString("utf8")
+  assert(uintBitwiseArtifact.includes("llvm.and ") &&
+    uintBitwiseArtifact.includes("llvm.or ") &&
+    uintBitwiseArtifact.includes("llvm.xor ") &&
+    uintBitwiseArtifact.includes("llvm.call @w_fn_0") &&
+    !uintBitwiseArtifact.includes("@w_seed_checked_"),
+  "UInt binary bitwise lowering lost a direct operation or gained a signed helper")
   const wmoArtifact = artifacts.get("restaurant-wmo")
   assert(!artifacts.get("hello").includes("@w_seed_checked_") &&
     wmoArtifact.includes("@w_fn_0(") &&

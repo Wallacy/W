@@ -13361,6 +13361,9 @@ static bool test_u64_binary_values(void) {
       "let multiply = left * right "
       "let divide = left / 0_u64 "
       "let remainder = left % 0_u64 "
+      "let bitAnd = left & right "
+      "let bitOr = left | right "
+      "let bitXor = left ^ right "
       "let equal = left == right "
       "let notEqual = left != right "
       "let less = left < right "
@@ -13392,6 +13395,7 @@ static bool test_u64_binary_values(void) {
 
   size_t arithmetic_count[5] = {0u, 0u, 0u, 0u, 0u};
   size_t comparison_count[6] = {0u, 0u, 0u, 0u, 0u, 0u};
+  size_t bitwise_count[3] = {0u, 0u, 0u};
   size_t zero_literal_count = 0u;
   size_t maximum_literal_count = 0u;
   size_t first_binary_u64 = SIZE_MAX;
@@ -13424,12 +13428,18 @@ static bool test_u64_binary_values(void) {
     if (value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER) {
       arithmetic_count[value->binary_operator] += 1u;
       CHECK(value->type_index == u64_type);
-    } else {
+    } else if (value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
+               value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL) {
       CHECK(value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
             value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL &&
             value->type_index == bool_type);
       comparison_count[value->binary_operator - W_SEED_HIR0_BINARY_EQUAL] +=
           1u;
+    } else {
+      CHECK(value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
+            value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR &&
+            value->type_index == u64_type);
+      bitwise_count[value->binary_operator - W_SEED_HIR0_BINARY_BIT_AND] += 1u;
     }
   }
   CHECK(arithmetic_count[W_SEED_HIR0_BINARY_ADD] == 3u &&
@@ -13440,6 +13450,8 @@ static bool test_u64_binary_values(void) {
         comparison_count[0] == 1u && comparison_count[1] == 1u &&
         comparison_count[2] == 1u && comparison_count[3] == 1u &&
         comparison_count[4] == 1u && comparison_count[5] == 1u &&
+        bitwise_count[0] == 1u && bitwise_count[1] == 1u &&
+        bitwise_count[2] == 1u &&
         zero_literal_count >= 3u && maximum_literal_count >= 2u &&
         first_binary_u64 != SIZE_MAX);
 

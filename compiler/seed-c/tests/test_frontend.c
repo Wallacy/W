@@ -5130,6 +5130,9 @@ static bool test_u64_binary_frontend(void) {
       "let multiply = left * right "
       "let divide = left / 0_u64 "
       "let remainder = left % 0_u64 "
+      "let bitAnd = left & right "
+      "let bitOr = left | right "
+      "let bitXor = left ^ right "
       "let equal = left == right "
       "let notEqual = left != right "
       "let less = left < right "
@@ -5149,13 +5152,14 @@ static bool test_u64_binary_frontend(void) {
 
   size_t arithmetic_count[5] = {0u, 0u, 0u, 0u, 0u};
   size_t comparison_count[6] = {0u, 0u, 0u, 0u, 0u, 0u};
+  size_t bitwise_count[3] = {0u, 0u, 0u};
   for (size_t index = 0u; index < value->result.written.expressions;
        index += 1u) {
     const w_seed_frontend_expression *expression = &value->expressions[index];
     if (expression->kind != W_SEED_FRONTEND_EXPR_BINARY) continue;
     size_t *count = NULL;
     const char *operators[] = {"+", "-", "*", "/", "%", "==", "!=",
-                               "<", "<=", ">", ">="};
+                               "<", "<=", ">", ">=", "&", "|", "^"};
     size_t operator_index = 0u;
     for (; operator_index < sizeof(operators) / sizeof(operators[0]);
          operator_index += 1u) {
@@ -5185,13 +5189,21 @@ static bool test_u64_binary_frontend(void) {
             left_type->bit_width == 64u && right_type->bit_width == 64u &&
             result_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
             !result_type->is_signed && result_type->bit_width == 64u);
-    } else {
+    } else if (operator_index < 11u) {
       count = &comparison_count[operator_index - 5u];
       CHECK(left_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
             right_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
             !left_type->is_signed && !right_type->is_signed &&
             left_type->bit_width == 64u && right_type->bit_width == 64u &&
             result_type->kind == W_SEED_FRONTEND_TYPE_BOOL);
+    } else {
+      count = &bitwise_count[operator_index - 11u];
+      CHECK(left_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+            right_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+            !left_type->is_signed && !right_type->is_signed &&
+            left_type->bit_width == 64u && right_type->bit_width == 64u &&
+            result_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+            !result_type->is_signed && result_type->bit_width == 64u);
     }
     *count += 1u;
   }
@@ -5200,7 +5212,8 @@ static bool test_u64_binary_frontend(void) {
         arithmetic_count[4] == 1u && comparison_count[0] == 1u &&
         comparison_count[1] == 1u && comparison_count[2] == 1u &&
         comparison_count[3] == 1u && comparison_count[4] == 1u &&
-        comparison_count[5] == 1u);
+        comparison_count[5] == 1u && bitwise_count[0] == 1u &&
+        bitwise_count[1] == 1u && bitwise_count[2] == 1u);
 
   CHECK(fixture_run(value,
                     "fn bad(value: UInt): UInt { return -value }\n"

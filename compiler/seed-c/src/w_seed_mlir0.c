@@ -1185,7 +1185,9 @@ static bool mlir0_value_is_constant_u64(const w_seed_hir0_program *program,
            mlir0_value_is_constant_u64(program, value->left_value,
                                        depth + 1u);
   return value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
-         value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER &&
+         (value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER ||
+          (value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
+           value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR)) &&
          mlir0_value_is_constant_u64(program, value->left_value,
                                       depth + 1u) &&
          mlir0_value_is_constant_u64(program, value->right_value,
@@ -1325,6 +1327,12 @@ static const char *u64_binary_operation(
       return "llvm.icmp \"ugt\"";
     case W_SEED_HIR0_BINARY_GREATER_EQUAL:
       return "llvm.icmp \"uge\"";
+    case W_SEED_HIR0_BINARY_BIT_AND:
+      return "llvm.and";
+    case W_SEED_HIR0_BINARY_BIT_OR:
+      return "llvm.or";
+    case W_SEED_HIR0_BINARY_BIT_XOR:
+      return "llvm.xor";
     default:
       return NULL;
   }
