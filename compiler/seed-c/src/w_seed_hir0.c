@@ -30,6 +30,7 @@ static const char HIR0_NEVER_NAME[] = "Never";
 static const char HIR0_I64_NAME[] = "i64";
 static const char HIR0_U64_NAME[] = "u64";
 static const char HIR0_F64_NAME[] = "f64";
+static const char HIR0_U64_BOOL_TUPLE_NAME[] = "(u64, Bool)";
 static const char HIR0_BOOL_NAME[] = "Bool";
 static const char HIR0_USIZE_NAME[] = "usize";
 static const char HIR0_SLOT_NAME[] = ".default";
@@ -177,7 +178,8 @@ static bool hir0_builtin_u64_operation_is_supported(
          operation == W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BYTES ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_ADD ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_SUBTRACT ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_MULTIPLY;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_MULTIPLY ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD;
 }
 
 static bool hir0_builtin_u64_operation_is_unary(
@@ -233,7 +235,9 @@ static bool hir0_builtin_u64_operation_member_matches(
          (operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_SUBTRACT &&
           text_is(member_name, "saturatingSubtract")) ||
          (operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_MULTIPLY &&
-          text_is(member_name, "saturatingMultiply"));
+          text_is(member_name, "saturatingMultiply")) ||
+         (operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD &&
+          text_is(member_name, "overflowingAdd"));
 }
 
 static bool frontend_assignment_operator(w_seed_frontend_text text) {
@@ -360,6 +364,14 @@ static bool frontend_type_is_i64(const w_seed_frontend_type *type) {
           text_is(type->spelling, "Int"));
 }
 
+static bool frontend_type_is_u64_bool_tuple(
+    const w_seed_frontend_type *type) {
+  return type != NULL && text_valid(type->spelling) &&
+         type->task_result_type == W_SEED_FRONTEND_NONE &&
+         type->kind == W_SEED_FRONTEND_TYPE_TUPLE &&
+         text_is(type->spelling, HIR0_U64_BOOL_TUPLE_NAME);
+}
+
 static bool frontend_type_is_core_error(
     const w_seed_frontend_type *type) {
   return type != NULL && type->kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
@@ -419,6 +431,19 @@ static bool frontend_has_f64_type(const w_seed_hir0_input *input) {
         type->bit_width == 64u && text_is(type->spelling, HIR0_F64_NAME))
       return true;
   }
+  return false;
+}
+
+static bool frontend_has_u64_bool_tuple_type(
+    const w_seed_hir0_input *input) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || input->frontend_output->types == NULL)
+    return false;
+  for (size_t index = 0u; index < input->frontend_result->written.types;
+       index += 1u)
+    if (frontend_type_is_u64_bool_tuple(
+            &input->frontend_output->types[index]))
+      return true;
   return false;
 }
 
@@ -552,6 +577,7 @@ static bool frontend_hir_type_supported(
   }
   if (type->task_result_type != W_SEED_FRONTEND_NONE) return false;
   if (frontend_type_supported(type)) return true;
+  if (frontend_type_is_u64_bool_tuple(type)) return true;
   if (frontend_has_public_process(input) && frontend_type_is_usize(type))
     return true;
   if (frontend_local_enum_type_supported(input, type)) return true;
@@ -627,7 +653,8 @@ static bool frontend_supported_types_equal(
   if (frontend_type_is_usize(left) || frontend_type_is_usize(right))
     return frontend_type_is_usize(left) && frontend_type_is_usize(right);
   if (!frontend_type_supported(left) || !frontend_type_supported(right))
-    return false;
+    return frontend_type_is_u64_bool_tuple(left) &&
+           frontend_type_is_u64_bool_tuple(right);
   if (left->kind == W_SEED_FRONTEND_TYPE_INTEGER)
     return left->is_signed == right->is_signed &&
            left->bit_width == right->bit_width;
@@ -3070,6 +3097,29 @@ static bool frontend_value_has_no_resolution(
          value->member_name.length == 0u && text_valid(value->member_name);
 }
 
+static bool frontend_tuple_projection_has_no_resolution(
+    const w_seed_frontend_expression *value) {
+  return value != NULL && value->enum_index == W_SEED_FRONTEND_NONE &&
+         value->enum_case_index == W_SEED_FRONTEND_NONE &&
+         value->first_switch_arm == W_SEED_FRONTEND_NONE &&
+         value->switch_arm_count == 0u &&
+         value->first_membership_case == W_SEED_FRONTEND_NONE &&
+         value->membership_case_count == 0u &&
+         value->resolved_parameter_ordinal == W_SEED_FRONTEND_NONE &&
+         value->resolved_function_index == W_SEED_FRONTEND_NONE &&
+         value->resolved_callee_kind == W_SEED_FRONTEND_CALLEE_NONE &&
+         value->resolved_host_symbol_index == W_SEED_FRONTEND_NONE &&
+         value->resolved_external_module_index == W_SEED_FRONTEND_NONE &&
+         value->resolved_external_symbol_index == W_SEED_FRONTEND_NONE &&
+         value->resolved_kernel_module_index == W_SEED_FRONTEND_NONE &&
+         value->resolved_kernel_binding_index == W_SEED_FRONTEND_NONE &&
+         value->resolved_local_ordinal == W_SEED_FRONTEND_NONE &&
+         value->resolved_const_declaration == W_SEED_FRONTEND_NONE &&
+         value->resolved_pattern_capture == W_SEED_FRONTEND_NONE &&
+         value->resolved_binding_statement == W_SEED_FRONTEND_NONE &&
+         text_valid(value->member_name);
+}
+
 /* Unary records carry no callable, binding, loop, or switch resolution.  Enum
  * fields are not part of the unary expression contract and are intentionally
  * ignored here; the frontend's scalar prefix path does not initialize those
@@ -3117,6 +3167,11 @@ static bool frontend_external_member_value_ok(
     size_t function_index, size_t document_index,
     const w_seed_frontend_expression *value);
 
+static bool frontend_tuple_projection_value_ok(
+    const w_seed_hir0_input *input, size_t module_index,
+    size_t function_index, size_t document_index,
+    const w_seed_frontend_expression *value);
+
 static bool frontend_usize_count_comparison_ok(
     const w_seed_hir0_input *input, size_t module_index,
     size_t function_index, size_t document_index,
@@ -3148,6 +3203,15 @@ static bool frontend_expression_is_u64(
       expression->inferred_type == W_SEED_FRONTEND_NONE)
     return false;
   return frontend_type_is_u64(&output->types[expression->inferred_type]);
+}
+
+static bool frontend_expression_is_u64_bool_tuple(
+    const w_seed_frontend_output *output,
+    const w_seed_frontend_expression *expression) {
+  return output != NULL && expression != NULL &&
+         expression->inferred_type != W_SEED_FRONTEND_NONE &&
+         frontend_type_is_u64_bool_tuple(
+             &output->types[expression->inferred_type]);
 }
 
 static bool frontend_expression_is_f64(
@@ -3928,6 +3992,19 @@ static bool frontend_value_tree_ok(
   }
 
   if (value->kind == W_SEED_FRONTEND_EXPR_MEMBER) {
+    if (frontend_tuple_projection_value_ok(
+            input, module_index, function_index, document_index, value)) {
+      if (!frontend_value_tree_ok(
+              input, module_index, function_index, document_index,
+              use_statement, value->left, depth + 1u, expression_cursor,
+              segment_cursor, const_byte_cursor, value_total, segment_total,
+              value_bytes, call_total, argument_total, logical_total) ||
+          (size_t)root_index != *expression_cursor ||
+          !add_size(*expression_cursor, 1u, expression_cursor) ||
+          !add_size(*value_total, 1u, value_total))
+        return false;
+      return true;
+    }
     if (!frontend_external_member_value_ok(input, module_index, function_index,
                                            document_index, value) ||
         (size_t)value->left != *expression_cursor ||
@@ -4262,6 +4339,9 @@ static bool frontend_call_expression_ok(
     const bool unary =
         hir0_builtin_u64_operation_is_unary(
             call->builtin_operation);
+    const bool overflowing_add =
+        call->builtin_operation ==
+        W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD;
     const size_t expected_argument_count = unary ? 1u : 2u;
     const bool callee_shape =
         result_value && !allow_throwing && materialize_result &&
@@ -4273,11 +4353,15 @@ static bool frontend_call_expression_ok(
         call->argument_count == expected_argument_count &&
         call->inferred_type != W_SEED_FRONTEND_NONE &&
         (size_t)call->inferred_type < result->written.types &&
-        frontend_expression_is_u64(output, call) &&
+        (overflowing_add
+             ? frontend_expression_is_u64_bool_tuple(output, call)
+             : frontend_expression_is_u64(output, call)) &&
         callee->kind == W_SEED_FRONTEND_EXPR_MEMBER && callee->supported &&
         callee->inferred_type != W_SEED_FRONTEND_NONE &&
         (size_t)callee->inferred_type < result->written.types &&
-        frontend_expression_is_u64(output, callee) &&
+        (overflowing_add
+             ? frontend_expression_is_u64_bool_tuple(output, callee)
+             : frontend_expression_is_u64(output, callee)) &&
         callee->builtin_operation == call->builtin_operation &&
         callee->resolved_callee_kind == W_SEED_FRONTEND_CALLEE_NONE &&
         callee->resolved_external_module_index == W_SEED_FRONTEND_NONE &&
@@ -6679,6 +6763,42 @@ static bool frontend_external_member_value_ok(
          parameter->label_kind == W_SEED_FRONTEND_LABEL_REQUIRED;
 }
 
+static bool frontend_tuple_projection_value_ok(
+    const w_seed_hir0_input *input, size_t module_index,
+    size_t function_index, size_t document_index,
+    const w_seed_frontend_expression *value) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || value == NULL ||
+      !frontend_value_common_ok(input, value, module_index, function_index,
+                                document_index) ||
+      value->kind != W_SEED_FRONTEND_EXPR_MEMBER || !value->supported ||
+      !text_is(value->operator_text, ".") ||
+      value->left == W_SEED_FRONTEND_NONE ||
+      (size_t)value->left >= input->frontend_result->written.expressions ||
+      value->right != W_SEED_FRONTEND_NONE ||
+      value->first_argument != W_SEED_FRONTEND_NONE ||
+      value->argument_count != 0u ||
+      value->builtin_operation != W_SEED_FRONTEND_BUILTIN_NONE ||
+      value->inferred_type == W_SEED_FRONTEND_NONE ||
+      (size_t)value->inferred_type >= input->frontend_result->written.types ||
+      !frontend_tuple_projection_has_no_resolution(value) ||
+      value->const_byte_offset != W_SEED_FRONTEND_NONE ||
+      value->const_byte_count != 0u || value->has_bool_value ||
+      value->has_integer_value || value->has_float_value ||
+      value->first_interpolation_segment != W_SEED_FRONTEND_NONE ||
+      value->interpolation_segment_count != 0u)
+    return false;
+  const w_seed_frontend_expression *receiver =
+      &input->frontend_output->expressions[value->left];
+  if (!frontend_expression_is_u64_bool_tuple(input->frontend_output,
+                                             receiver))
+    return false;
+  return (text_is(value->member_name, "0") &&
+          frontend_expression_is_u64(input->frontend_output, value)) ||
+         (text_is(value->member_name, "1") &&
+          frontend_expression_is_bool(input->frontend_output, value));
+}
+
 /* Keep the only usize comparison at the public process boundary.  The
  * frontend contextualizes an unsuffixed literal against Args.count as usize;
  * HIR preserves that logical type in a dedicated constant record.  This
@@ -6945,13 +7065,17 @@ static bool text_size_for_input(const w_seed_hir0_input *input, size_t *total) {
   const w_seed_frontend_output *output = input->frontend_output;
   const w_seed_frontend_result *result = input->frontend_result;
   size_t value = 15u;
-  /* Canonical Unit, String, i64 and Bool are always present. Optional scalar
-   * identities are appended in the stable u64, f64, Never, usize order. */
+  /* Canonical Unit, String, i64 and Bool are always present. Optional value
+   * identities are appended in the stable u64, f64, Never, tuple, usize
+   * order. */
   if (frontend_has_u64_type(input) && !add_size(value, 3u, &value))
     return false;
   if (frontend_has_f64_type(input) && !add_size(value, 3u, &value))
     return false;
   if (frontend_has_never_type(input) && !add_size(value, 5u, &value))
+    return false;
+  if (frontend_has_u64_bool_tuple_type(input) &&
+      !add_size(value, sizeof(HIR0_U64_BOOL_TUPLE_NAME) - 1u, &value))
     return false;
   if (frontend_has_public_process(input) && !add_size(value, 5u, &value))
     return false;
@@ -7326,6 +7450,9 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
       !add_size(counts->types, frontend_has_f64_type(input) ? 1u : 0u,
                 &counts->types) ||
       !add_size(counts->types, frontend_has_never_type(input) ? 1u : 0u,
+                &counts->types) ||
+      !add_size(counts->types,
+                frontend_has_u64_bool_tuple_type(input) ? 1u : 0u,
                 &counts->types) ||
       !add_size(counts->types, counts->external_symbols == 7u ? 1u : 0u,
                 &counts->types) ||
@@ -8018,6 +8145,7 @@ static uint32_t hir_type_from_frontend(const w_seed_frontend_output *output,
   bool has_never_type = false;
   bool has_u64_type = false;
   bool has_f64_type = false;
+  bool has_u64_bool_tuple_type = false;
   for (size_t index = 0u; index < result->written.types; index += 1u)
     if (output->types[index].kind == W_SEED_FRONTEND_TYPE_NEVER) {
       has_never_type = true;
@@ -8026,6 +8154,8 @@ static uint32_t hir_type_from_frontend(const w_seed_frontend_output *output,
     } else if (output->types[index].kind == W_SEED_FRONTEND_TYPE_FLOAT &&
                output->types[index].bit_width == 64u) {
       has_f64_type = true;
+    } else if (frontend_type_is_u64_bool_tuple(&output->types[index])) {
+      has_u64_bool_tuple_type = true;
     }
   if (type->kind == W_SEED_FRONTEND_TYPE_ENUM &&
       type->enum_base_index != W_SEED_FRONTEND_NONE) {
@@ -8053,11 +8183,16 @@ static uint32_t hir_type_from_frontend(const w_seed_frontend_output *output,
   if (type->kind == W_SEED_FRONTEND_TYPE_NEVER && has_never_type)
     return (uint32_t)(optional_type_base + (has_u64_type ? 1u : 0u) +
                       (has_f64_type ? 1u : 0u));
+  if (frontend_type_is_u64_bool_tuple(type) && has_u64_bool_tuple_type)
+    return (uint32_t)(optional_type_base + (has_u64_type ? 1u : 0u) +
+                      (has_f64_type ? 1u : 0u) +
+                      (has_never_type ? 1u : 0u));
   if (frontend_type_is_usize(type)) {
     if (external_types == 3u)
       return (uint32_t)(optional_type_base + (has_u64_type ? 1u : 0u) +
                         (has_f64_type ? 1u : 0u) +
-                        (has_never_type ? 1u : 0u));
+                        (has_never_type ? 1u : 0u) +
+                        (has_u64_bool_tuple_type ? 1u : 0u));
   }
   return W_SEED_HIR0_NONE;
 }
@@ -11379,6 +11514,9 @@ static uint32_t hir0_emit_value_m2(
     else if (source->builtin_operation ==
              W_SEED_FRONTEND_BUILTIN_U64_SATURATING_MULTIPLY)
       binary_operator = W_SEED_HIR0_BINARY_SATURATING_MULTIPLY;
+    else if (source->builtin_operation ==
+             W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD)
+      binary_operator = W_SEED_HIR0_BINARY_OVERFLOWING_ADD;
     context->output->values[*context->value_index] = (w_seed_hir0_value){
         .kind = W_SEED_HIR0_VALUE_BINARY_U64,
         .owner_kind = owner_kind,
@@ -11690,14 +11828,24 @@ static uint32_t hir0_emit_value_m2(
   }
 
   if (source->kind == W_SEED_FRONTEND_EXPR_MEMBER) {
+    const bool tuple_projection =
+        source->left != W_SEED_FRONTEND_NONE &&
+        frontend_expression_is_u64_bool_tuple(
+            context->frontend,
+            &context->frontend->expressions[source->left]) &&
+        (text_is(source->member_name, "0") ||
+         text_is(source->member_name, "1"));
     const uint32_t receiver = hir0_emit_value_m2(
-        context, source->left, W_SEED_HIR0_VALUE_OWNER_EXTERNAL_MEMBER,
+        context, source->left,
+        tuple_projection ? W_SEED_HIR0_VALUE_OWNER_TUPLE_ELEMENT
+                         : W_SEED_HIR0_VALUE_OWNER_EXTERNAL_MEMBER,
         W_SEED_HIR0_NONE, 0u, current_block, depth + 1u);
     const uint32_t result = (uint32_t)*context->value_index;
     w_seed_hir0_value *target =
         &context->output->values[*context->value_index];
     *target = (w_seed_hir0_value){
-        .kind = W_SEED_HIR0_VALUE_EXTERNAL_MEMBER,
+        .kind = tuple_projection ? W_SEED_HIR0_VALUE_TUPLE_ELEMENT
+                                 : W_SEED_HIR0_VALUE_EXTERNAL_MEMBER,
         .owner_kind = owner_kind,
         .owner_index = owner_index,
         .owner_ordinal = owner_ordinal,
@@ -11714,14 +11862,24 @@ static uint32_t hir0_emit_value_m2(
         .unary_operator = W_SEED_HIR0_UNARY_NOT,
         .block_argument_index = W_SEED_HIR0_NONE,
         .integer_value = 0,
+        .unsigned_integer_value =
+            tuple_projection && text_is(source->member_name, "1") ? 1u : 0u,
+        .float_bits = 0u,
         .bool_value = false,
         .byte_offset = 0u,
         .byte_count = 0u,
         .source_span = source->span,
-        .external_module_index = source->resolved_external_module_index,
-        .external_symbol_index = source->resolved_external_symbol_index,
-        .member_name = context->output->external_symbols[
-            source->resolved_external_symbol_index].name,
+        .external_module_index = tuple_projection
+                                     ? W_SEED_HIR0_NONE
+                                     : source->resolved_external_module_index,
+        .external_symbol_index = tuple_projection
+                                     ? W_SEED_HIR0_NONE
+                                     : source->resolved_external_symbol_index,
+        .member_name = tuple_projection
+                           ? (w_seed_hir0_text){0u, 0u}
+                           : context->output->external_symbols[
+                                 source->resolved_external_symbol_index]
+                                 .name,
         .enum_index = W_SEED_HIR0_NONE,
         .enum_case_index = W_SEED_HIR0_NONE};
     if (receiver != W_SEED_HIR0_NONE)
@@ -11941,6 +12099,8 @@ static void emit_records(const w_seed_hir0_input *input,
   const bool has_u64_type = frontend_has_u64_type(input);
   const bool has_f64_type = frontend_has_f64_type(input);
   const bool has_never_type = frontend_has_never_type(input);
+  const bool has_u64_bool_tuple_type =
+      frontend_has_u64_bool_tuple_type(input);
   const size_t optional_type_base =
       4u + (counts->external_modules == 0u ? 0u : 3u);
   size_t optional_type_index =
@@ -11995,6 +12155,24 @@ static void emit_records(const w_seed_hir0_input *input,
         .release_contract = W_SEED_HIR0_RELEASE_CONTRACT_NONE};
     optional_type_index += 1u;
     text_offset += 5u;
+  }
+  if (has_u64_bool_tuple_type) {
+    const size_t name_length = sizeof(HIR0_U64_BOOL_TUPLE_NAME) - 1u;
+    (void)memcpy(output->text_bytes + text_offset,
+                 HIR0_U64_BOOL_TUPLE_NAME, name_length);
+    output->types[optional_type_index] = (w_seed_hir0_type){
+        .kind = W_SEED_HIR0_TYPE_U64_BOOL_TUPLE,
+        .owner_module = W_SEED_HIR0_NONE,
+        .name = {(uint32_t)text_offset, (uint32_t)name_length},
+        .external_module_index = W_SEED_HIR0_NONE,
+        .external_symbol_index = W_SEED_HIR0_NONE,
+        .enum_index = W_SEED_HIR0_NONE,
+        .first_subset_member = W_SEED_HIR0_NONE,
+        .subset_member_count = 0u,
+        .lifecycle = W_SEED_HIR0_LIFECYCLE_VALUE_COPY,
+        .release_contract = W_SEED_HIR0_RELEASE_CONTRACT_NONE};
+    optional_type_index += 1u;
+    text_offset += name_length;
   }
   if (has_public_process) {
     usize_type_index = optional_type_index;
@@ -13395,10 +13573,12 @@ static bool hir_enum_subset_layout(const w_seed_hir0_program *program,
                                    size_t *subset_count,
                                    uint32_t *u64_type_index,
                                    uint32_t *f64_type_index,
+                                   uint32_t *u64_bool_tuple_type_index,
                                    uint32_t *usize_type_index,
                                    uint32_t *never_type_index) {
   if (program == NULL || subset_base == NULL || subset_count == NULL ||
       u64_type_index == NULL || f64_type_index == NULL ||
+      u64_bool_tuple_type_index == NULL ||
       usize_type_index == NULL ||
       never_type_index == NULL ||
       (program->external_module_count != 0u &&
@@ -13419,11 +13599,18 @@ static bool hir_enum_subset_layout(const w_seed_hir0_program *program,
   *f64_type_index = W_SEED_HIR0_NONE;
   *usize_type_index = W_SEED_HIR0_NONE;
   *never_type_index = W_SEED_HIR0_NONE;
+  *u64_bool_tuple_type_index = W_SEED_HIR0_NONE;
   size_t tail = program->type_count;
   if (program->external_symbol_count == 7u) {
     if (program->type_count == *subset_base) return false;
     *usize_type_index = (uint32_t)(program->type_count - 1u);
     tail = *usize_type_index;
+  }
+  if (tail > *subset_base &&
+      program->types[tail - 1u].kind ==
+          W_SEED_HIR0_TYPE_U64_BOOL_TUPLE) {
+    *u64_bool_tuple_type_index = (uint32_t)(tail - 1u);
+    tail -= 1u;
   }
   if (tail > *subset_base &&
       program->types[tail - 1u].kind == W_SEED_HIR0_TYPE_NEVER) {
@@ -13548,13 +13735,16 @@ static bool verify_enum_subset_records(const w_seed_hir0_program *program) {
   uint32_t never_type_index = W_SEED_HIR0_NONE;
   uint32_t u64_type_index = W_SEED_HIR0_NONE;
   uint32_t f64_type_index = W_SEED_HIR0_NONE;
+  uint32_t u64_bool_tuple_type_index = W_SEED_HIR0_NONE;
   if (!hir_enum_subset_layout(program, &subset_base, &subset_count,
                               &u64_type_index, &f64_type_index,
+                              &u64_bool_tuple_type_index,
                               &usize_type_index,
                               &never_type_index))
     return false;
   (void)u64_type_index;
   (void)f64_type_index;
+  (void)u64_bool_tuple_type_index;
   (void)usize_type_index;
   (void)never_type_index;
   size_t member_cursor = 0u;
@@ -13672,8 +13862,10 @@ static bool hir_type_index_valid(const w_seed_hir0_program *program,
   uint32_t never_type_index = W_SEED_HIR0_NONE;
   uint32_t u64_type_index = W_SEED_HIR0_NONE;
   uint32_t f64_type_index = W_SEED_HIR0_NONE;
+  uint32_t u64_bool_tuple_type_index = W_SEED_HIR0_NONE;
   if (!hir_enum_subset_layout(program, &subset_base, &subset_count,
                               &u64_type_index, &f64_type_index,
+                              &u64_bool_tuple_type_index,
                               &usize_type_index,
                               &never_type_index))
     return false;
@@ -13719,6 +13911,18 @@ static bool hir_type_index_valid(const w_seed_hir0_program *program,
            type->first_subset_member == W_SEED_HIR0_NONE &&
            type->subset_member_count == 0u &&
            hir_text_is(program, type->name, HIR0_NEVER_NAME);
+  if (u64_bool_tuple_type_index != W_SEED_HIR0_NONE &&
+      type_index == u64_bool_tuple_type_index)
+    return type->kind == W_SEED_HIR0_TYPE_U64_BOOL_TUPLE &&
+           type->owner_module == W_SEED_HIR0_NONE &&
+           type->external_module_index == W_SEED_HIR0_NONE &&
+           type->external_symbol_index == W_SEED_HIR0_NONE &&
+           type->enum_index == W_SEED_HIR0_NONE &&
+           type->first_subset_member == W_SEED_HIR0_NONE &&
+           type->subset_member_count == 0u &&
+           type->lifecycle == W_SEED_HIR0_LIFECYCLE_VALUE_COPY &&
+           type->release_contract == W_SEED_HIR0_RELEASE_CONTRACT_NONE &&
+           hir_text_is(program, type->name, HIR0_U64_BOOL_TUPLE_NAME);
   return usize_type_index != W_SEED_HIR0_NONE &&
          type_index == usize_type_index &&
          type->kind == W_SEED_HIR0_TYPE_USIZE &&
@@ -14061,6 +14265,7 @@ static bool verify_value_tree(
        value->pattern_capture_index != W_SEED_HIR0_NONE) ||
       (value->kind != W_SEED_HIR0_VALUE_CONST_USIZE &&
        value->kind != W_SEED_HIR0_VALUE_CONST_U64 &&
+       value->kind != W_SEED_HIR0_VALUE_TUPLE_ELEMENT &&
        value->unsigned_integer_value != 0u) ||
       (value->kind != W_SEED_HIR0_VALUE_CONST_FLOAT &&
        value->float_bits != 0u))
@@ -14141,6 +14346,41 @@ static bool verify_value_tree(
         receiver->type_index != arguments_type ||
         receiver->parameter_index >= program->parameter_count ||
         program->parameters[receiver->parameter_index].ordinal != 0u)
+      return false;
+    *value_cursor += 1u;
+    return true;
+  }
+
+  if (value->kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT) {
+    if (value->unsigned_integer_value > 1u ||
+        !hir_type_index_valid(program, value->type_index) ||
+        program->types[value->type_index].kind !=
+            (value->unsigned_integer_value == 0u ? W_SEED_HIR0_TYPE_U64
+                                                 : W_SEED_HIR0_TYPE_BOOL) ||
+        value->binding_index != W_SEED_HIR0_NONE ||
+        value->parameter_index != W_SEED_HIR0_NONE ||
+        value->call_index != W_SEED_HIR0_NONE ||
+        value->left_value == W_SEED_HIR0_NONE ||
+        value->right_value != W_SEED_HIR0_NONE ||
+        value->first_interpolation_segment != W_SEED_HIR0_NONE ||
+        value->interpolation_segment_count != 0u ||
+        value->binary_operator != W_SEED_HIR0_BINARY_ADD ||
+        value->unary_operator != W_SEED_HIR0_UNARY_NOT ||
+        value->block_argument_index != W_SEED_HIR0_NONE ||
+        value->integer_value != 0 || value->float_bits != 0u ||
+        value->bool_value || value->byte_offset != 0u ||
+        value->byte_count != 0u ||
+        !verify_value_tree(program, value->left_value,
+                           W_SEED_HIR0_VALUE_OWNER_TUPLE_ELEMENT, root_index,
+                           0u, current_block, current_instruction,
+                           source_length, depth + 1u, value_cursor,
+                           segment_cursor, byte_cursor))
+      return false;
+    const w_seed_hir0_value *tuple = &program->values[value->left_value];
+    if ((size_t)root_index != *value_cursor ||
+        !hir_type_index_valid(program, tuple->type_index) ||
+        program->types[tuple->type_index].kind !=
+            W_SEED_HIR0_TYPE_U64_BOOL_TUPLE)
       return false;
     *value_cursor += 1u;
     return true;
@@ -14451,10 +14691,12 @@ static bool verify_value_tree(
         value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_ADD ||
         value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_SUBTRACT ||
         value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_MULTIPLY;
+    const bool overflowing =
+        value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_ADD;
     const bool bitwise =
         value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
         value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR;
-    if (wrapping) {
+    if (wrapping || overflowing) {
       if (value->left_value == W_SEED_HIR0_NONE ||
           value->left_value >= program->value_count ||
           !verify_value_tree(program, value->left_value,
@@ -14481,7 +14723,9 @@ static bool verify_value_tree(
               W_SEED_HIR0_TYPE_U64 ||
           program->types[program->values[value->right_value].type_index].kind !=
               W_SEED_HIR0_TYPE_U64 ||
-          program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64 ||
+          program->types[value->type_index].kind !=
+              (overflowing ? W_SEED_HIR0_TYPE_U64_BOOL_TUPLE
+                           : W_SEED_HIR0_TYPE_U64) ||
           value->unary_operator != W_SEED_HIR0_UNARY_NOT ||
           value->block_argument_index != W_SEED_HIR0_NONE ||
           value->binding_index != W_SEED_HIR0_NONE ||
@@ -16566,6 +16810,7 @@ static bool hir0_expected_type_lifecycle(
     case W_SEED_HIR0_TYPE_NEVER:
     case W_SEED_HIR0_TYPE_U64:
     case W_SEED_HIR0_TYPE_F64:
+    case W_SEED_HIR0_TYPE_U64_BOOL_TUPLE:
       *lifecycle = W_SEED_HIR0_LIFECYCLE_VALUE_COPY;
       *release_contract = W_SEED_HIR0_RELEASE_CONTRACT_NONE;
       return true;
@@ -16803,6 +17048,7 @@ static bool hir0_value_kind_is_closed(w_seed_hir0_value_kind kind) {
     case W_SEED_HIR0_VALUE_ENUM_CASE:
     case W_SEED_HIR0_VALUE_PATTERN_CAPTURE_READ:
     case W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON:
+    case W_SEED_HIR0_VALUE_TUPLE_ELEMENT:
       return true;
     default:
       /* A future value kind needs an explicit suspension/effect review before
@@ -16907,6 +17153,7 @@ static bool hir0_type_is_blocked(const w_seed_hir0_program *program,
     case W_SEED_HIR0_TYPE_NEVER:
     case W_SEED_HIR0_TYPE_U64:
     case W_SEED_HIR0_TYPE_F64:
+    case W_SEED_HIR0_TYPE_U64_BOOL_TUPLE:
       return false;
     case W_SEED_HIR0_TYPE_STRING:
     case W_SEED_HIR0_TYPE_NOMINAL:
@@ -19147,14 +19394,17 @@ bool w_seed_hir0_verify(const w_seed_hir0_program *program,
   uint32_t never_type_index = W_SEED_HIR0_NONE;
   uint32_t u64_type_index = W_SEED_HIR0_NONE;
   uint32_t f64_type_index = W_SEED_HIR0_NONE;
+  uint32_t u64_bool_tuple_type_index = W_SEED_HIR0_NONE;
   if (!hir_enum_subset_layout(program, &subset_base, &subset_count,
                               &u64_type_index, &f64_type_index,
+                              &u64_bool_tuple_type_index,
                               &usize_type_index,
                               &never_type_index))
     return false;
   (void)subset_base;
   (void)u64_type_index;
   (void)f64_type_index;
+  (void)u64_bool_tuple_type_index;
   (void)usize_type_index;
   (void)never_type_index;
   w_seed_hir0_counts counts = {

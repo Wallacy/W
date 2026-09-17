@@ -1626,6 +1626,7 @@ static const char *binary_operation(w_seed_hir0_binary_operator operation) {
     case W_SEED_HIR0_BINARY_SATURATING_ADD:
     case W_SEED_HIR0_BINARY_SATURATING_SUBTRACT:
     case W_SEED_HIR0_BINARY_SATURATING_MULTIPLY:
+    case W_SEED_HIR0_BINARY_OVERFLOWING_ADD:
       return NULL;
   }
   return NULL;
@@ -2629,6 +2630,7 @@ static const char *float_binary_operation(
     case W_SEED_HIR0_BINARY_SATURATING_ADD:
     case W_SEED_HIR0_BINARY_SATURATING_SUBTRACT:
     case W_SEED_HIR0_BINARY_SATURATING_MULTIPLY:
+    case W_SEED_HIR0_BINARY_OVERFLOWING_ADD:
       return NULL;
   }
   return NULL;
@@ -7715,6 +7717,7 @@ static bool append_cooperative_value_tree(
       case W_SEED_HIR0_BINARY_SATURATING_ADD:
       case W_SEED_HIR0_BINARY_SATURATING_SUBTRACT:
       case W_SEED_HIR0_BINARY_SATURATING_MULTIPLY:
+      case W_SEED_HIR0_BINARY_OVERFLOWING_ADD:
         break;
     }
     if ((operation == NULL && predicate == NULL) ||

@@ -138,6 +138,7 @@ static bool product_value_kind_supported(w_seed_hir0_value_kind kind) {
     case W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON:
     case W_SEED_HIR0_VALUE_BINARY_U64:
     case W_SEED_HIR0_VALUE_UNARY_U64:
+    case W_SEED_HIR0_VALUE_TUPLE_ELEMENT:
       return false;
   }
   return false;

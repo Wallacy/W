@@ -13672,6 +13672,103 @@ static bool test_u64_saturating_add(void) {
   return true;
 }
 
+static bool test_u64_overflowing_add_product(void) {
+  static const char SOURCE[] =
+      "entry { let pair = u64.overflowingAdd("
+      "18446744073709551615_u64, 1_u64) "
+      "let wrapped = pair.0 let overflowed = pair.1 }\n";
+  CHECK(lower(SOURCE));
+
+  uint32_t u64_type = W_SEED_HIR0_NONE;
+  uint32_t bool_type = W_SEED_HIR0_NONE;
+  uint32_t tuple_type = W_SEED_HIR0_NONE;
+  for (size_t index = 0u; index < fixture.hir_program.type_count; index += 1u) {
+    switch (fixture.hir_program.types[index].kind) {
+      case W_SEED_HIR0_TYPE_U64:
+        u64_type = (uint32_t)index;
+        break;
+      case W_SEED_HIR0_TYPE_BOOL:
+        bool_type = (uint32_t)index;
+        break;
+      case W_SEED_HIR0_TYPE_U64_BOOL_TUPLE:
+        tuple_type = (uint32_t)index;
+        break;
+      default:
+        break;
+    }
+  }
+  CHECK(u64_type != W_SEED_HIR0_NONE && bool_type != W_SEED_HIR0_NONE &&
+        tuple_type != W_SEED_HIR0_NONE);
+
+  size_t product_count = 0u;
+  size_t product_index = SIZE_MAX;
+  size_t projection_count = 0u;
+  size_t projection_indices[2] = {SIZE_MAX, SIZE_MAX};
+  for (size_t index = 0u; index < fixture.hir_program.value_count;
+       index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_program.values[index];
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
+        value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_ADD) {
+      CHECK(value->type_index == tuple_type &&
+            value->left_value != W_SEED_HIR0_NONE &&
+            value->right_value != W_SEED_HIR0_NONE &&
+            fixture.hir_program.values[value->left_value].type_index ==
+                u64_type &&
+            fixture.hir_program.values[value->right_value].type_index ==
+                u64_type);
+      product_count += 1u;
+      product_index = index;
+    } else if (value->kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT) {
+      CHECK(value->unsigned_integer_value < 2u &&
+            value->left_value != W_SEED_HIR0_NONE &&
+            value->right_value == W_SEED_HIR0_NONE &&
+            fixture.hir_program.values[value->left_value].kind ==
+                W_SEED_HIR0_VALUE_BINDING_READ &&
+            fixture.hir_program.values[value->left_value].type_index ==
+                tuple_type &&
+            value->type_index ==
+                (value->unsigned_integer_value == 0u ? u64_type : bool_type));
+      CHECK(projection_count < 2u);
+      projection_indices[projection_count] = index;
+      projection_count += 1u;
+    }
+  }
+  CHECK(product_count == 1u && product_index != SIZE_MAX &&
+        projection_count == 2u && projection_indices[0] != SIZE_MAX &&
+        projection_indices[1] != SIZE_MAX &&
+        fixture.hir_program.call_count == 0u);
+
+  const w_seed_hir0_value saved_product = fixture.hir_values[product_index];
+  fixture.hir_values[product_index].type_index = u64_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[product_index] = saved_product;
+  fixture.hir_values[product_index].binary_operator =
+      W_SEED_HIR0_BINARY_WRAPPING_ADD;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[product_index] = saved_product;
+
+  const size_t projection_index = projection_indices[1];
+  const w_seed_hir0_value saved_projection =
+      fixture.hir_values[projection_index];
+  fixture.hir_values[projection_index].unsigned_integer_value = 2u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[projection_index] = saved_projection;
+  fixture.hir_values[projection_index].type_index = u64_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[projection_index] = saved_projection;
+  fixture.hir_values[saved_projection.left_value].type_index = u64_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[saved_projection.left_value].type_index = tuple_type;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_u64_saturating_subtract(void) {
   static const char SOURCE[] =
       "fn clamp(left: u64, right: u64): u64 { return "
@@ -15066,6 +15163,7 @@ int main(int argc, char **argv) {
   if (!test_u64_binary_values()) return 1;
   if (!test_u64_wrapping_add()) return 1;
   if (!test_u64_saturating_add()) return 1;
+  if (!test_u64_overflowing_add_product()) return 1;
   if (!test_u64_saturating_subtract()) return 1;
   if (!test_u64_saturating_multiply()) return 1;
   if (!test_u64_wrapping_subtract()) return 1;
