@@ -5255,12 +5255,15 @@ static bool test_u64_binary_frontend(void) {
   return true;
 }
 
-static bool test_u64_overflowing_add_frontend(void) {
+static bool test_u64_overflowing_products_frontend(void) {
   static const char SOURCE[] =
       "entry { "
-      "let pair = u64.overflowingAdd(18446744073709551615_u64, 1_u64) "
-      "let wrapped = pair.0 "
-      "let overflowed = pair.1 "
+      "let added = u64.overflowingAdd(18446744073709551615_u64, 1_u64) "
+      "let subtracted = u64.overflowingSubtract(0_u64, 1_u64) "
+      "let multiplied = u64.overflowingMultiply(18446744073709551615_u64, 2_u64) "
+      "let addedValue = added.0 let addedOverflow = added.1 "
+      "let subtractedValue = subtracted.0 let subtractedOverflow = subtracted.1 "
+      "let multipliedValue = multiplied.0 let multipliedOverflow = multiplied.1 "
       "}\n";
   fixture *value = &fixture_literal;
   CHECK(fixture_run(value, SOURCE));
@@ -5268,44 +5271,55 @@ static bool test_u64_overflowing_add_frontend(void) {
         value->result.status == W_SEED_FRONTEND_OK &&
         counts_equal(&value->result.required, &value->result.written));
 
-  uint32_t call_index = W_SEED_FRONTEND_NONE;
-  uint32_t wrapped_index = W_SEED_FRONTEND_NONE;
-  uint32_t overflowed_index = W_SEED_FRONTEND_NONE;
+  size_t add_count = 0u;
+  size_t subtract_count = 0u;
+  size_t multiply_count = 0u;
+  size_t wrapped_count = 0u;
+  size_t overflowed_count = 0u;
   for (uint32_t index = 0u;
        (size_t)index < value->result.written.expressions; index += 1u) {
     const w_seed_frontend_expression *expression = &value->expressions[index];
     if (expression->kind == W_SEED_FRONTEND_EXPR_CALL &&
-        expression->builtin_operation ==
-            W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD) {
-      CHECK(call_index == W_SEED_FRONTEND_NONE && expression->supported &&
-            expression->argument_count == 2u &&
+        (expression->builtin_operation ==
+             W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD ||
+         expression->builtin_operation ==
+             W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT ||
+         expression->builtin_operation ==
+             W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY)) {
+      CHECK(expression->supported && expression->argument_count == 2u &&
             expression->inferred_type < value->result.written.types &&
             value->types[expression->inferred_type].kind ==
                 W_SEED_FRONTEND_TYPE_TUPLE &&
             frontend_text_is(value->types[expression->inferred_type].spelling,
                              "(u64, Bool)"));
-      call_index = index;
+      if (expression->builtin_operation ==
+          W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD)
+        add_count += 1u;
+      else if (expression->builtin_operation ==
+               W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT)
+        subtract_count += 1u;
+      else
+        multiply_count += 1u;
     } else if (expression->kind == W_SEED_FRONTEND_EXPR_MEMBER &&
                frontend_text_is(expression->member_name, "0")) {
-      CHECK(wrapped_index == W_SEED_FRONTEND_NONE && expression->supported &&
+      CHECK(expression->supported &&
             expression->inferred_type < value->result.written.types &&
             value->types[expression->inferred_type].kind ==
                 W_SEED_FRONTEND_TYPE_INTEGER &&
             !value->types[expression->inferred_type].is_signed &&
             value->types[expression->inferred_type].bit_width == 64u);
-      wrapped_index = index;
+      wrapped_count += 1u;
     } else if (expression->kind == W_SEED_FRONTEND_EXPR_MEMBER &&
                frontend_text_is(expression->member_name, "1")) {
-      CHECK(overflowed_index == W_SEED_FRONTEND_NONE && expression->supported &&
+      CHECK(expression->supported &&
             expression->inferred_type < value->result.written.types &&
             value->types[expression->inferred_type].kind ==
                 W_SEED_FRONTEND_TYPE_BOOL);
-      overflowed_index = index;
+      overflowed_count += 1u;
     }
   }
-  CHECK(call_index != W_SEED_FRONTEND_NONE &&
-        wrapped_index != W_SEED_FRONTEND_NONE &&
-        overflowed_index != W_SEED_FRONTEND_NONE);
+  CHECK(add_count == 1u && subtract_count == 1u && multiply_count == 1u &&
+        wrapped_count == 3u && overflowed_count == 3u);
 
   static const char *const REJECTED[] = {
       "entry { let pair = u64.overflowingAdd(1_u64, 2_u64) "
@@ -5314,6 +5328,8 @@ static bool test_u64_overflowing_add_frontend(void) {
       "entry { let pair = u64.overflowingAdd(1_u64) }\n",
       "entry { let pair = u64.overflowingAdd(1_u64, true) }\n",
       "entry { let pair = UInt.overflowingAdd(1_u64, 2_u64) }\n",
+      "entry { let pair = u64.overflowingSubtract(1_u64, true) }\n",
+      "entry { let pair = u64.overflowingMultiply(1_u64) }\n",
   };
   for (size_t index = 0u;
        index < sizeof(REJECTED) / sizeof(REJECTED[0]); index += 1u) {
@@ -7329,7 +7345,7 @@ int main(int argc, char **argv) {
   if (!test_scalar_if_frontend_subset()) return 1;
   if (!test_scalar_type_measure_emit_parity()) return 1;
   if (!test_u64_binary_frontend()) return 1;
-  if (!test_u64_overflowing_add_frontend()) return 1;
+  if (!test_u64_overflowing_products_frontend()) return 1;
   if (!test_f64_scalar_projection()) return 1;
   if (!test_f64_locale_isolation()) return 1;
   if (!test_declarations_and_determinism()) return 1;

@@ -179,7 +179,16 @@ static bool hir0_builtin_u64_operation_is_supported(
          operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_ADD ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_SUBTRACT ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_MULTIPLY ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY;
+}
+
+static bool hir0_builtin_u64_operation_returns_tuple(
+    w_seed_frontend_builtin_operation operation) {
+  return operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY;
 }
 
 static bool hir0_builtin_u64_operation_is_unary(
@@ -237,7 +246,11 @@ static bool hir0_builtin_u64_operation_member_matches(
          (operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_MULTIPLY &&
           text_is(member_name, "saturatingMultiply")) ||
          (operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD &&
-          text_is(member_name, "overflowingAdd"));
+          text_is(member_name, "overflowingAdd")) ||
+         (operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT &&
+          text_is(member_name, "overflowingSubtract")) ||
+         (operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY &&
+          text_is(member_name, "overflowingMultiply"));
 }
 
 static bool frontend_assignment_operator(w_seed_frontend_text text) {
@@ -4339,9 +4352,8 @@ static bool frontend_call_expression_ok(
     const bool unary =
         hir0_builtin_u64_operation_is_unary(
             call->builtin_operation);
-    const bool overflowing_add =
-        call->builtin_operation ==
-        W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD;
+    const bool overflowing = hir0_builtin_u64_operation_returns_tuple(
+        call->builtin_operation);
     const size_t expected_argument_count = unary ? 1u : 2u;
     const bool callee_shape =
         result_value && !allow_throwing && materialize_result &&
@@ -4353,13 +4365,13 @@ static bool frontend_call_expression_ok(
         call->argument_count == expected_argument_count &&
         call->inferred_type != W_SEED_FRONTEND_NONE &&
         (size_t)call->inferred_type < result->written.types &&
-        (overflowing_add
+        (overflowing
              ? frontend_expression_is_u64_bool_tuple(output, call)
              : frontend_expression_is_u64(output, call)) &&
         callee->kind == W_SEED_FRONTEND_EXPR_MEMBER && callee->supported &&
         callee->inferred_type != W_SEED_FRONTEND_NONE &&
         (size_t)callee->inferred_type < result->written.types &&
-        (overflowing_add
+        (overflowing
              ? frontend_expression_is_u64_bool_tuple(output, callee)
              : frontend_expression_is_u64(output, callee)) &&
         callee->builtin_operation == call->builtin_operation &&
@@ -11517,6 +11529,12 @@ static uint32_t hir0_emit_value_m2(
     else if (source->builtin_operation ==
              W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD)
       binary_operator = W_SEED_HIR0_BINARY_OVERFLOWING_ADD;
+    else if (source->builtin_operation ==
+             W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT)
+      binary_operator = W_SEED_HIR0_BINARY_OVERFLOWING_SUBTRACT;
+    else if (source->builtin_operation ==
+             W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY)
+      binary_operator = W_SEED_HIR0_BINARY_OVERFLOWING_MULTIPLY;
     context->output->values[*context->value_index] = (w_seed_hir0_value){
         .kind = W_SEED_HIR0_VALUE_BINARY_U64,
         .owner_kind = owner_kind,
@@ -14692,7 +14710,9 @@ static bool verify_value_tree(
         value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_SUBTRACT ||
         value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_MULTIPLY;
     const bool overflowing =
-        value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_ADD;
+        value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_ADD ||
+        value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_SUBTRACT ||
+        value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_MULTIPLY;
     const bool bitwise =
         value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
         value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR;

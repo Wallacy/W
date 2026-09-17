@@ -1153,8 +1153,12 @@ static bool program_has_tuple_product_values(
   for (size_t index = 0u; index < program->value_count; index += 1u)
     if (program->values[index].kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT ||
         (program->values[index].kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
-         program->values[index].binary_operator ==
-             W_SEED_HIR0_BINARY_OVERFLOWING_ADD))
+         (program->values[index].binary_operator ==
+              W_SEED_HIR0_BINARY_OVERFLOWING_ADD ||
+          program->values[index].binary_operator ==
+              W_SEED_HIR0_BINARY_OVERFLOWING_SUBTRACT ||
+          program->values[index].binary_operator ==
+              W_SEED_HIR0_BINARY_OVERFLOWING_MULTIPLY)))
       return true;
   return false;
 }
@@ -1639,6 +1643,8 @@ static const char *binary_operation(w_seed_hir0_binary_operator operation) {
     case W_SEED_HIR0_BINARY_SATURATING_SUBTRACT:
     case W_SEED_HIR0_BINARY_SATURATING_MULTIPLY:
     case W_SEED_HIR0_BINARY_OVERFLOWING_ADD:
+    case W_SEED_HIR0_BINARY_OVERFLOWING_SUBTRACT:
+    case W_SEED_HIR0_BINARY_OVERFLOWING_MULTIPLY:
       return NULL;
   }
   return NULL;
@@ -2465,8 +2471,10 @@ static bool append_binary_u64_value_operation(
       value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_SUBTRACT;
   const bool saturating_multiply =
       value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_MULTIPLY;
-  const bool overflowing_add =
-      value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_ADD;
+  const bool overflowing =
+      value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_ADD ||
+      value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_SUBTRACT ||
+      value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_MULTIPLY;
   const bool wrapping_power =
       value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_POWER;
   const bool wrapping_shift_left =
@@ -2501,15 +2509,25 @@ static bool append_binary_u64_value_operation(
   else if (rotated_right)
     helper = rotated_right_helper(program, value);
   else if (!comparison && !wrapping && !saturating_add &&
-           !saturating_subtract && !saturating_multiply && !overflowing_add &&
+           !saturating_subtract && !saturating_multiply && !overflowing &&
            !constant_division)
     helper = checked_u64_binary_helper(value->binary_operator);
 
-  if (overflowing_add)
+  if (overflowing) {
+    const char *intrinsic =
+        value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_ADD
+            ? "uadd"
+            : (value->binary_operator ==
+                       W_SEED_HIR0_BINARY_OVERFLOWING_SUBTRACT
+                   ? "usub"
+                   : "umul");
     return append_literal(artifact, capacity, offset, "    %v") &&
            append_size(artifact, capacity, offset, value_index) &&
            append_literal(artifact, capacity, offset,
-                          " = \"llvm.intr.uadd.with.overflow\"(") &&
+                          " = \"llvm.intr.") &&
+           append_literal(artifact, capacity, offset, intrinsic) &&
+           append_literal(artifact, capacity, offset,
+                          ".with.overflow\"(") &&
            append_program_value_operand(program, value->left_value,
                                         function_index, process, artifact,
                                         capacity, offset) &&
@@ -2519,6 +2537,7 @@ static bool append_binary_u64_value_operation(
                                         capacity, offset) &&
            append_literal(artifact, capacity, offset,
                           ") : (i64, i64) -> !llvm.struct<(i64, i1)>\n");
+  }
 
   if (saturating_multiply) {
     if (!append_literal(artifact, capacity, offset, "    %v") ||
@@ -2692,6 +2711,8 @@ static const char *float_binary_operation(
     case W_SEED_HIR0_BINARY_SATURATING_SUBTRACT:
     case W_SEED_HIR0_BINARY_SATURATING_MULTIPLY:
     case W_SEED_HIR0_BINARY_OVERFLOWING_ADD:
+    case W_SEED_HIR0_BINARY_OVERFLOWING_SUBTRACT:
+    case W_SEED_HIR0_BINARY_OVERFLOWING_MULTIPLY:
       return NULL;
   }
   return NULL;
@@ -7811,6 +7832,8 @@ static bool append_cooperative_value_tree(
       case W_SEED_HIR0_BINARY_SATURATING_SUBTRACT:
       case W_SEED_HIR0_BINARY_SATURATING_MULTIPLY:
       case W_SEED_HIR0_BINARY_OVERFLOWING_ADD:
+      case W_SEED_HIR0_BINARY_OVERFLOWING_SUBTRACT:
+      case W_SEED_HIR0_BINARY_OVERFLOWING_MULTIPLY:
         break;
     }
     if ((operation == NULL && predicate == NULL) ||

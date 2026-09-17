@@ -2260,12 +2260,16 @@ static bool test_u64_saturating_add_artifact(void) {
   return true;
 }
 
-static bool test_u64_overflowing_add_product_artifact(void) {
+static bool test_u64_overflowing_products_artifact(void) {
   static const uint8_t source[] =
-      "entry { let pair = u64.overflowingAdd("
-      "18446744073709551615_u64, 1_u64) "
-      "let wrapped = pair.0 let overflowed = pair.1 "
-      "print(\"${wrapped}/${overflowed}\") }\n";
+      "entry { "
+      "let added = u64.overflowingAdd(18446744073709551615_u64, 1_u64) "
+      "let subtracted = u64.overflowingSubtract(0_u64, 1_u64) "
+      "let multiplied = u64.overflowingMultiply(18446744073709551615_u64, 2_u64) "
+      "let addedValue = added.0 let addedOverflow = added.1 "
+      "let subtractedValue = subtracted.0 let subtractedOverflow = subtracted.1 "
+      "let multipliedValue = multiplied.0 let multipliedOverflow = multiplied.1 "
+      "print(\"${addedValue}/${addedOverflow}/${subtractedValue}/${subtractedOverflow}/${multipliedValue}/${multipliedOverflow}\") }\n";
   uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   w_seed_mlir0_counts counts;
   w_seed_mlir0_result measured;
@@ -2283,9 +2287,13 @@ static bool test_u64_overflowing_add_product_artifact(void) {
         count_bytes(artifact, emitted.written.mlir_bytes,
                     "llvm.intr.uadd.with.overflow") == 1u &&
         count_bytes(artifact, emitted.written.mlir_bytes,
-                    "llvm.extractvalue") == 2u &&
+                    "llvm.intr.usub.with.overflow") == 1u &&
         count_bytes(artifact, emitted.written.mlir_bytes,
-                    "!llvm.struct<(i64, i1)>") == 3u &&
+                    "llvm.intr.umul.with.overflow") == 1u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.extractvalue") == 6u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "!llvm.struct<(i64, i1)>") == 9u &&
         contains_bytes(artifact, emitted.written.mlir_bytes,
                        "llvm.call @w_seed_append_u64") &&
         contains_bytes(artifact, emitted.written.mlir_bytes,
@@ -5659,7 +5667,7 @@ int main(int argc, char **argv) {
   if (!test_unsigned_binary_u64_slice()) return 1;
   if (!test_u64_wrapping_add_artifact()) return 1;
   if (!test_u64_saturating_add_artifact()) return 1;
-  if (!test_u64_overflowing_add_product_artifact()) return 1;
+  if (!test_u64_overflowing_products_artifact()) return 1;
   if (!test_u64_saturating_subtract_artifact()) return 1;
   if (!test_u64_saturating_multiply_artifact()) return 1;
   if (!test_u64_wrapping_subtract_artifact()) return 1;

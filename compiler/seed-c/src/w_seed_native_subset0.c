@@ -1517,7 +1517,9 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
         value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_SUBTRACT ||
         value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_MULTIPLY;
     const bool overflowing =
-        value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_ADD;
+        value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_ADD ||
+        value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_SUBTRACT ||
+        value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_MULTIPLY;
     const bool bitwise =
         value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
         value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR;

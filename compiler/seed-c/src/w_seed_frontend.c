@@ -62,7 +62,9 @@ _Static_assert(W_SEED_FRONTEND_BUILTIN_NONE == 0 &&
                    W_SEED_FRONTEND_BUILTIN_U64_SATURATING_ADD == 19 &&
                    W_SEED_FRONTEND_BUILTIN_U64_SATURATING_SUBTRACT == 20 &&
                    W_SEED_FRONTEND_BUILTIN_U64_SATURATING_MULTIPLY == 21 &&
-                   W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD == 22,
+                   W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD == 22 &&
+                   W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT == 23 &&
+                   W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY == 24,
                "w-seed frontend builtin identities are append-only");
 #if defined(DBL_HAS_SUBNORM)
 _Static_assert(DBL_HAS_SUBNORM == 1,
@@ -4152,7 +4154,16 @@ static bool builtin_u64_operation_is_supported(
          operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_ADD ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_SUBTRACT ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_MULTIPLY ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY;
+}
+
+static bool builtin_u64_operation_returns_tuple(
+    w_seed_frontend_builtin_operation operation) {
+  return operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY;
 }
 
 static bool builtin_u64_operation_is_unary(
@@ -4210,6 +4221,10 @@ static w_seed_frontend_builtin_operation builtin_u64_operation_for_member(
     return W_SEED_FRONTEND_BUILTIN_U64_SATURATING_MULTIPLY;
   if (text_equal(member_name, "overflowingAdd"))
     return W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD;
+  if (text_equal(member_name, "overflowingSubtract"))
+    return W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT;
+  if (text_equal(member_name, "overflowingMultiply"))
+    return W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY;
   return W_SEED_FRONTEND_BUILTIN_NONE;
 }
 
@@ -13664,8 +13679,8 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       const bool builtin_u64_member =
           builtin_u64_operation_is_supported(builtin_u64_member_operation);
       if (builtin_u64_member) {
-        result_type = builtin_u64_member_operation ==
-                              W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD
+        result_type = builtin_u64_operation_returns_tuple(
+                              builtin_u64_member_operation)
                           ? u64_bool_tuple_type()
                           : simple_type_from_view(
                                 (w_seed_frontend_text){"u64", 3u});
@@ -14157,8 +14172,8 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     if (enum_case_constructor) {
       return_type = value->type;
     } else if (builtin_u64_call) {
-      return_type = builtin_u64_operation ==
-                            W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD
+      return_type = builtin_u64_operation_returns_tuple(
+                            builtin_u64_operation)
                         ? u64_bool_tuple_type()
                         : simple_type_from_view(
                               (w_seed_frontend_text){"u64", 3u});
@@ -15598,7 +15613,11 @@ static frontend_simple_type infer_expression_span_inner(
                : simple_type_unknown();
   }
   if (expression_is_exact_u64_builtin_call(
-          doc, span, W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD)) {
+          doc, span, W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD) ||
+      expression_is_exact_u64_builtin_call(
+          doc, span, W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT) ||
+      expression_is_exact_u64_builtin_call(
+          doc, span, W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY)) {
     return u64_bool_tuple_type();
   }
   /* A direct call's arguments may contain member syntax (for example an enum
