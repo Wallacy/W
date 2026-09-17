@@ -51,6 +51,7 @@ import {
   RESTAURANT_UINT_TRAILING_ZEROS_WORKLOAD_ID,
   RESTAURANT_UINT_REVERSED_BITS_WORKLOAD_ID,
   RESTAURANT_UINT_REVERSED_BYTES_WORKLOAD_ID,
+  RESTAURANT_UINT_OVERFLOWING_ADD_WORKLOAD_ID,
   RESTAURANT_UINT_SATURATING_ADD_WORKLOAD_ID,
   RESTAURANT_UINT_SATURATING_SUBTRACT_WORKLOAD_ID,
   RESTAURANT_UINT_SATURATING_MULTIPLY_WORKLOAD_ID,
@@ -735,6 +736,68 @@ test("UInt reversed-bytes catalog keeps correctness separate from ranking", () =
   assert.match(c, /value & UINT64_C\(0xff\)/u);
   assert.match(rust, /black_box\(0x0123_4567_89ab_cdef_u64\)/u);
   assert.match(rust, /\.swap_bytes\(\)/u);
+  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
+  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
+});
+
+test("UInt overflowing-add catalog keeps correctness separate from ranking", () => {
+  const workload = documents.catalog.workloads.find((item) =>
+    item.id === RESTAURANT_UINT_OVERFLOWING_ADD_WORKLOAD_ID);
+  assert.ok(workload);
+  assert.equal(workload.structureClass, "public-end-to-end");
+  assert.equal(workload.status, "source-oracle-ready");
+  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
+  assert.equal(workload.demoEvidence, "bounded-w-demo");
+  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.equal(workload.scope,
+    "Validate fixed-input full-width UInt overflowing addition at UINT64_MAX and 10, including wrapped values and overflow flags, with exact unsigned decimal and Boolean output. Performance ranking is deferred until W preserves equivalent runtime work.");
+  assert.deepEqual(workload.oracle, {
+    kind: "exact-output",
+    status: "source-backed",
+    exitCode: 0,
+    stdout: "Overflowing 0/true/11/false\n",
+    stderr: "",
+  });
+  assert.deepEqual(workload.blockedLanguages, []);
+  assert.deepEqual(workload.blockers, [
+    "w-uint-overflowing-add-compile-time-folded",
+    "runtime-uint-overflowing-add-equivalence",
+  ]);
+  assert.deepEqual(workload.sources.map((source) =>
+    [source.language, source.platformTarget]), [
+    ["w", EXECUTABLE_PLATFORM_TARGET],
+    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
+    ["c", EXECUTABLE_PLATFORM_TARGET],
+    ["rust", EXECUTABLE_PLATFORM_TARGET],
+  ]);
+  assert.ok(workload.sources.every((source) =>
+    source.recipeClass === "restaurant-uint-overflowing-add-release"));
+  assert.deepEqual(workload.sources
+    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
+    .map((source) => [source.comparability, source.eligibility]), [
+      ["deferred-until-M3b", "deferred-to-M3b"],
+      ["deferred-until-M3b", "deferred-to-M3b"],
+      ["deferred-until-M3b", "deferred-to-M3b"],
+    ]);
+  const wsl = workload.sources.find((source) =>
+    source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
+  assert.deepEqual([wsl.comparability, wsl.eligibility], [
+    "same-physical-hardware-diagnostic-only",
+    "same-physical-hardware-diagnostic-only",
+  ]);
+  const c = readFileSync(
+    `${ROOT}/benchmarks/executable/restaurant_uint_overflowing_add.c`, "utf8");
+  const rust = readFileSync(
+    `${ROOT}/benchmarks/executable/restaurant_uint_overflowing_add.rs`, "utf8");
+  assert.match(c, /volatile uint64_t runtime_maximum/u);
+  assert.match(c, /volatile uint64_t runtime_ordinary/u);
+  assert.match(c, /overflowing_add_u64/u);
+  assert.match(c, /wrapped < left/u);
+  assert.match(c, /bool overflow/u);
+  assert.match(rust, /black_box\(u64::MAX\)/u);
+  assert.match(rust, /black_box\(10_u64\)/u);
+  assert.match(rust, /\.overflowing_add\(/u);
+  assert.match(rust, /bool\)/u);
   assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
   assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
 });

@@ -61,6 +61,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-uint-trailing-zeros",
   "restaurant-uint-reversed-bits",
   "restaurant-uint-reversed-bytes",
+  "restaurant-uint-overflowing-add",
   "restaurant-uint-saturating-add",
   "restaurant-uint-saturating-subtract",
   "restaurant-uint-saturating-multiply",
@@ -203,6 +204,7 @@ export const PROCESS_ARGUMENT_WORKLOAD_IDS = Object.freeze([
 export const RESTAURANT_F64_STRICT_WORKLOAD_ID = "restaurant-f64-strict";
 export const RESTAURANT_UINT_ARITHMETIC_WORKLOAD_ID = "restaurant-uint-arithmetic";
 export const RESTAURANT_UINT_WRAPPING_ADD_WORKLOAD_ID = "restaurant-uint-wrapping-add";
+export const RESTAURANT_UINT_OVERFLOWING_ADD_WORKLOAD_ID = "restaurant-uint-overflowing-add";
 export const RESTAURANT_UINT_SATURATING_ADD_WORKLOAD_ID = "restaurant-uint-saturating-add";
 export const RESTAURANT_UINT_SATURATING_SUBTRACT_WORKLOAD_ID = "restaurant-uint-saturating-subtract";
 export const RESTAURANT_UINT_SATURATING_MULTIPLY_WORKLOAD_ID = "restaurant-uint-saturating-multiply";
@@ -1084,6 +1086,7 @@ function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PL
       workload?.id === RESTAURANT_UINT_BITWISE_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_COMPOUND_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_WRAPPING_ADD_WORKLOAD_ID ||
+      workload?.id === RESTAURANT_UINT_OVERFLOWING_ADD_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_SATURATING_ADD_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_SATURATING_SUBTRACT_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_SATURATING_MULTIPLY_WORKLOAD_ID ||

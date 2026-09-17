@@ -3339,6 +3339,90 @@
       ]
     },
     {
+      "id": "restaurant-uint-overflowing-add",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Validate fixed-input full-width UInt overflowing addition at UINT64_MAX and 10, including wrapped values and overflow flags, with exact unsigned decimal and Boolean output. Performance ranking is deferred until W preserves equivalent runtime work.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Overflowing 0/true/11/false\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-uint-overflowing-add.w",
+          "digest": "sha256:f389b43f9d942c945bdfba9b6c6dbcb6a68af63f4a3802e664912b92ccb88333",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-uint-overflowing-add-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        },
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-uint-overflowing-add.w",
+          "digest": "sha256:f389b43f9d942c945bdfba9b6c6dbcb6a68af63f4a3802e664912b92ccb88333",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-uint-overflowing-add-release",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only"
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/restaurant_uint_overflowing_add.c",
+          "digest": "sha256:3991b19c75b717455ed84eea356baf8f0269ee27de7881356020f0629ef3ac72",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "clang-c23-msvc",
+          "recipeClass": "restaurant-uint-overflowing-add-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/restaurant_uint_overflowing_add.rs",
+          "digest": "sha256:f9f4286aea388f6cc768f1442e99375adaa8a7954848348070db5523f091cfb5",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "restaurant-uint-overflowing-add-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        }
+      ],
+      "blockedLanguages": [],
+      "blockers": [
+        "w-uint-overflowing-add-compile-time-folded",
+        "runtime-uint-overflowing-add-equivalence"
+      ]
+    },
+    {
       "id": "restaurant-uint-saturating-add",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",
