@@ -2694,6 +2694,47 @@ static bool test_u64_rotated_right_artifact(void) {
   return true;
 }
 
+static bool test_u64_count_ones_artifact(void) {
+  static const uint8_t source[] =
+      "fn count(value: UInt): UInt { return u64.countOnes(value) }\n"
+      "entry { let zero = count(value: 0_u64) "
+      "let pattern = count(value: 0xf0f0f0f00f0f0f0f_u64) "
+      "print(\"${zero}/${pattern}\") }\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  size_t count_ones_count = 0u;
+  for (size_t index = 0u; index < fixture.hir_program.value_count;
+       index += 1u)
+    if (fixture.hir_program.values[index].kind ==
+            W_SEED_HIR0_VALUE_UNARY_U64 &&
+        fixture.hir_program.values[index].unary_operator ==
+            W_SEED_HIR0_UNARY_COUNT_ONES)
+      count_ones_count += 1u;
+  CHECK(count_ones_count == 1u);
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        memcmp(measured.mlir_sha256, emitted.mlir_sha256,
+               sizeof(measured.mlir_sha256)) == 0 &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.intr.ctpop") == 1u &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "\"llvm.intr.trap\"() : () -> ()"));
+
+  static const uint8_t unreachable_source[] =
+      "entry { print(\"No population count\") }\n";
+  CHECK(lower_hir(unreachable_source, sizeof(unreachable_source) - 1u));
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "llvm.intr.ctpop"));
+  return true;
+}
+
 static bool test_unsigned_unary_bit_not_artifact(void) {
   static const uint8_t dynamic_source[] =
       "fn main() { print(\"UInt not ${~0_u64}\") }\n"
@@ -5233,6 +5274,7 @@ int main(int argc, char **argv) {
   if (!test_u64_logical_shift_right_artifact()) return 1;
   if (!test_u64_rotated_left_artifact()) return 1;
   if (!test_u64_rotated_right_artifact()) return 1;
+  if (!test_u64_count_ones_artifact()) return 1;
   if (!test_unsigned_unary_bit_not_artifact()) return 1;
   if (!test_scalar_if_value_diamond()) return 1;
   if (!test_nested_scalar_if_value_diamond()) return 1;

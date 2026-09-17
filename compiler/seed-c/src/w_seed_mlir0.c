@@ -1524,7 +1524,8 @@ static bool mlir0_value_is_constant_u64(const w_seed_hir0_program *program,
   if (value->kind == W_SEED_HIR0_VALUE_CONST_U64) return true;
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64)
     return (value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT ||
-            value->unary_operator == W_SEED_HIR0_UNARY_WRAPPING_NEGATE) &&
+            value->unary_operator == W_SEED_HIR0_UNARY_WRAPPING_NEGATE ||
+            value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ONES) &&
            value->left_value != W_SEED_HIR0_NONE &&
            mlir0_value_is_constant_u64(program, value->left_value,
                                        depth + 1u);
@@ -2728,11 +2729,11 @@ static bool append_unary_i64_operation(
       offset);
 }
 
-/* UInt has a fixed-width i64 carrier in this seed.  Its bitwise complement
- * and wrapping negate are pure operations, so they must not route through
- * signed checked arithmetic or a negate helper.  This emitter is intentionally
- * outside the natural-loop path; the finite UInt bundle is linear/local-call
- * only. */
+/* UInt has a fixed-width i64 carrier in this seed. Its bitwise complement,
+ * wrapping negate, and bit counts are pure operations, so they must not route
+ * through signed checked arithmetic or a negate helper. This emitter is
+ * intentionally outside the natural-loop path; the finite UInt bundle is
+ * linear/local-call only. */
 static bool append_unary_u64_operation(
     const w_seed_hir0_program *program, uint32_t value_index,
     uint32_t function_index, const mlir0_process_emit_context *process,
@@ -2745,7 +2746,8 @@ static bool append_unary_u64_operation(
       value->type_index >= program->type_count ||
       program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64 ||
       (value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT &&
-       value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE) ||
+       value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
+       value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES) ||
       value->left_value == W_SEED_HIR0_NONE ||
       value->right_value != W_SEED_HIR0_NONE ||
       value->binding_index != W_SEED_HIR0_NONE ||
@@ -2770,6 +2772,16 @@ static bool append_unary_u64_operation(
                                         function_index, process, artifact,
                                         capacity, offset) &&
            append_literal(artifact, capacity, offset, " : i64\n");
+  }
+  if (value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ONES) {
+    return append_literal(artifact, capacity, offset, "    %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset,
+                          " = \"llvm.intr.ctpop\"(") &&
+           append_program_value_operand(program, value->left_value,
+                                        function_index, process, artifact,
+                                        capacity, offset) &&
+           append_literal(artifact, capacity, offset, ") : (i64) -> i64\n");
   }
   return append_literal(artifact, capacity, offset, "    %v") &&
          append_size(artifact, capacity, offset, value_index) &&
@@ -3880,7 +3892,8 @@ static bool append_program_value_tree(
     if (value->type_index >= program->type_count ||
         program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64 ||
         (value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT &&
-         value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE) ||
+         value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
+         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES) ||
         value->left_value == W_SEED_HIR0_NONE ||
         value->right_value != W_SEED_HIR0_NONE ||
         value->binding_index != W_SEED_HIR0_NONE ||

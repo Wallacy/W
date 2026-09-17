@@ -14177,6 +14177,42 @@ static bool test_u64_rotated_right(void) {
   return true;
 }
 
+static bool test_u64_count_ones(void) {
+  static const char SOURCE[] =
+      "fn count(value: u64): u64 { return u64.countOnes(value) }\n"
+      "entry { let zero = u64.countOnes(0_u64) "
+      "let full = u64.countOnes(18446744073709551615_u64) "
+      "let pattern = u64.countOnes(0xf0f0f0f00f0f0f0f_u64) }\n";
+  CHECK(lower(SOURCE));
+  size_t count_ones_count = 0u;
+  size_t count_ones_index = SIZE_MAX;
+  for (size_t index = 0u; index < fixture.hir_program.value_count;
+       index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_program.values[index];
+    if (value->kind != W_SEED_HIR0_VALUE_UNARY_U64) continue;
+    if (value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ONES) {
+      CHECK(value->type_index < fixture.hir_program.type_count &&
+            fixture.hir_program.types[value->type_index].kind ==
+                W_SEED_HIR0_TYPE_U64 &&
+            value->left_value != W_SEED_HIR0_NONE &&
+            value->right_value == W_SEED_HIR0_NONE);
+      count_ones_count += 1u;
+      count_ones_index = index;
+    }
+  }
+  CHECK(count_ones_count == 4u && count_ones_index != SIZE_MAX &&
+        fixture.hir_program.call_count == 0u);
+  const w_seed_hir0_value saved = fixture.hir_values[count_ones_index];
+  fixture.hir_values[count_ones_index].unary_operator =
+      (w_seed_hir0_unary_operator)99;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[count_ones_index] = saved;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_canonical_f64_scalar(void) {
   static const char SOURCE[] =
       "entry { let sum = 1.5 + 2.25_f64 let difference = 9.5 - 5.5 "
@@ -14723,6 +14759,7 @@ int main(int argc, char **argv) {
   if (!test_u64_logical_shift_right()) return 1;
   if (!test_u64_rotated_left()) return 1;
   if (!test_u64_rotated_right()) return 1;
+  if (!test_u64_count_ones()) return 1;
   if (!test_canonical_f64_scalar()) return 1;
   if (!test_frontend_tree_bounds_forgery()) return 1;
   if (!test_checked_shift_values()) return 1;

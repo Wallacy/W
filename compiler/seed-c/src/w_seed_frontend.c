@@ -52,7 +52,8 @@ _Static_assert(W_SEED_FRONTEND_BUILTIN_NONE == 0 &&
                    W_SEED_FRONTEND_BUILTIN_U64_MASKED_SHIFT_RIGHT == 9 &&
                    W_SEED_FRONTEND_BUILTIN_U64_LOGICAL_SHIFT_RIGHT == 10 &&
                    W_SEED_FRONTEND_BUILTIN_U64_ROTATED_LEFT == 11 &&
-                   W_SEED_FRONTEND_BUILTIN_U64_ROTATED_RIGHT == 12,
+                   W_SEED_FRONTEND_BUILTIN_U64_ROTATED_RIGHT == 12 &&
+                   W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES == 13,
                "w-seed frontend builtin identities are append-only");
 #if defined(DBL_HAS_SUBNORM)
 _Static_assert(DBL_HAS_SUBNORM == 1,
@@ -4119,7 +4120,7 @@ static bool text_equal_text(w_seed_frontend_text left,
          (left.length == 0 || memcmp(left.data, right.data, left.length) == 0);
 }
 
-static bool builtin_u64_operation_is_wrapping(
+static bool builtin_u64_operation_is_supported(
     w_seed_frontend_builtin_operation operation) {
   return operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SUBTRACT ||
@@ -4131,12 +4132,14 @@ static bool builtin_u64_operation_is_wrapping(
          operation == W_SEED_FRONTEND_BUILTIN_U64_MASKED_SHIFT_RIGHT ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_LOGICAL_SHIFT_RIGHT ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_ROTATED_LEFT ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_ROTATED_RIGHT;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_ROTATED_RIGHT ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES;
 }
 
-static bool builtin_u64_operation_is_unary_wrapping(
+static bool builtin_u64_operation_is_unary(
     w_seed_frontend_builtin_operation operation) {
-  return operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_NEGATE;
+  return operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_NEGATE ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES;
 }
 
 static w_seed_frontend_builtin_operation builtin_u64_operation_for_member(
@@ -4163,6 +4166,8 @@ static w_seed_frontend_builtin_operation builtin_u64_operation_for_member(
     return W_SEED_FRONTEND_BUILTIN_U64_ROTATED_LEFT;
   if (text_equal(member_name, "rotatedRight"))
     return W_SEED_FRONTEND_BUILTIN_U64_ROTATED_RIGHT;
+  if (text_equal(member_name, "countOnes"))
+    return W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES;
   return W_SEED_FRONTEND_BUILTIN_NONE;
 }
 
@@ -13543,7 +13548,7 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
               ? builtin_u64_operation_for_member(member_name)
               : W_SEED_FRONTEND_BUILTIN_NONE;
       const bool builtin_u64_member =
-          builtin_u64_operation_is_wrapping(builtin_u64_member_operation);
+          builtin_u64_operation_is_supported(builtin_u64_member_operation);
       if (builtin_u64_member) {
         result_type = simple_type_from_view((w_seed_frontend_text){"u64", 3u});
         supported = true;
@@ -13654,10 +13659,10 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     const w_seed_frontend_builtin_operation builtin_u64_operation =
         value->is_builtin_u64_member ? value->builtin_operation
                                      : W_SEED_FRONTEND_BUILTIN_NONE;
-    const bool builtin_u64_wrapping =
-        builtin_u64_operation_is_wrapping(builtin_u64_operation);
-    const bool builtin_u64_unary_wrapping =
-        builtin_u64_operation_is_unary_wrapping(builtin_u64_operation);
+    const bool builtin_u64_call =
+        builtin_u64_operation_is_supported(builtin_u64_operation);
+    const bool builtin_u64_unary =
+        builtin_u64_operation_is_unary(builtin_u64_operation);
     size_t argument_count = 0;
     size_t enum_positional_argument_count = 0u;
     uint32_t enum_bound_parameters[W_SEED_FRONTEND_MAX_NESTING];
@@ -13682,7 +13687,7 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     const w_seed_frontend_document *signature_doc = NULL;
     uint32_t signature_node = W_SEED_CST_NONE;
     bool local_signature =
-        !builtin_u64_wrapping && !value->is_external_member &&
+        !builtin_u64_call && !value->is_external_member &&
         value->has_name && function_signature_for_name(
                                 parser->context, value->name, &signature_doc,
                                 &signature_node);
@@ -13695,14 +13700,14 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     }
     const w_seed_frontend_external_symbol *external_signature = NULL;
     const bool external_signature_found =
-        !builtin_u64_wrapping && (value->is_external_member
+        !builtin_u64_call && (value->is_external_member
             ? (external_signature = value->external_member_symbol) != NULL
             : (!local_signature && value->has_name &&
                external_symbol_for_name(parser->context, value->name,
                                         &external_signature)));
     const w_seed_frontend_host_prelude_symbol *host_signature = NULL;
     const bool host_signature_found =
-        !builtin_u64_wrapping && !local_signature &&
+        !builtin_u64_call && !local_signature &&
         !external_signature_found && value->has_name &&
         host_symbol_for_name(parser->context, value->name, &host_signature,
                              NULL);
@@ -13770,7 +13775,7 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
               accepted_forms, accepted_count);
         }
       }
-      if (builtin_u64_wrapping && label.length != 0u) {
+      if (builtin_u64_call && label.length != 0u) {
         labels_valid = false;
       }
       frontend_simple_type expected = simple_type_unknown();
@@ -13778,7 +13783,7 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       bool enum_label_valid = false;
       bool enum_label_previous = false;
       uint32_t enum_parameter_ordinal = W_SEED_FRONTEND_NONE;
-      if (builtin_u64_wrapping) {
+      if (builtin_u64_call) {
         expected = simple_type_from_view((w_seed_frontend_text){"u64", 3u});
         expected_found = true;
       } else if (external_enum_case) {
@@ -13827,7 +13832,7 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       parser->expected_type = saved_expected;
       parser->has_expected_type = saved_has_expected;
       parser->suppress_short_diagnostic = saved_suppress_short;
-      if (builtin_u64_wrapping &&
+      if (builtin_u64_call &&
           parser->context->count.arguments != nested_argument_start) {
         /* Nested calls make the current argument arena non-contiguous. Fail
          * closed until argument ranges carry explicit child indices. */
@@ -13837,7 +13842,7 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
             argument_value.span,
             text_from_span(parser->document, argument_value.span));
       }
-      if (builtin_u64_wrapping || enum_case_constructor || local_signature ||
+      if (builtin_u64_call || enum_case_constructor || local_signature ||
           external_signature_found || host_signature_found) {
         if (!expected_found) {
           labels_valid = false;
@@ -13991,8 +13996,8 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     } else if (host_signature_found &&
                host_signature->parameter_count != argument_count) {
       labels_valid = false;
-    } else if (builtin_u64_wrapping &&
-               argument_count != (builtin_u64_unary_wrapping ? 1u : 2u)) {
+    } else if (builtin_u64_call &&
+               argument_count != (builtin_u64_unary ? 1u : 2u)) {
       labels_valid = false;
     }
     if (value->has_name && !value->is_external_member) {
@@ -14020,7 +14025,7 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     frontend_simple_type return_type = simple_type_unknown();
     if (enum_case_constructor) {
       return_type = value->type;
-    } else if (builtin_u64_wrapping) {
+    } else if (builtin_u64_call) {
       return_type = simple_type_from_view((w_seed_frontend_text){"u64", 3u});
     } else if (local_signature) {
       return_type = function_return_type(parser->context, signature_doc,
@@ -14085,7 +14090,7 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
         value->has_name || value->is_enum_case
             ? text_from_span(parser->document, value->span)
             : (w_seed_frontend_text){NULL, 0u};
-    value->builtin_operation = builtin_u64_wrapping
+    value->builtin_operation = builtin_u64_call
                                    ? builtin_u64_operation
                                    : W_SEED_FRONTEND_BUILTIN_NONE;
     if (!expression_append(parser, W_SEED_FRONTEND_EXPR_CALL, span,
@@ -14122,7 +14127,7 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       uint32_t host_symbol_identity = W_SEED_FRONTEND_NONE;
       uint32_t external_module_identity = W_SEED_FRONTEND_NONE;
       uint32_t external_symbol_identity = W_SEED_FRONTEND_NONE;
-      if (builtin_u64_wrapping) {
+      if (builtin_u64_call) {
         identity_kind = W_SEED_FRONTEND_CALLEE_NONE;
       } else if (accelerator_call) {
         identity_kind = W_SEED_FRONTEND_CALLEE_KERNEL_BINDING;
@@ -14147,7 +14152,7 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
               identity_kind, host_symbol_identity, external_module_identity,
               external_symbol_identity, kernel_module_identity,
               kernel_binding_identity) ||
-          (builtin_u64_wrapping &&
+          (builtin_u64_call &&
            (!receipt_size_literal(parser->context, "builtin-operation=") ||
             !receipt_size_size(
                 parser->context,
@@ -14166,7 +14171,7 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
           kernel_module_identity;
       record->resolved_kernel_binding_index =
           kernel_binding_identity;
-    } else if (builtin_u64_wrapping && parser->context->output != NULL &&
+    } else if (builtin_u64_call && parser->context->output != NULL &&
                value->index < parser->context->output->expression_capacity) {
       parser->context->output->expressions[value->index].builtin_operation =
           builtin_u64_operation;
@@ -18629,11 +18634,10 @@ static bool resolve_frontend_links(frontend_context *context) {
       continue;
     }
     if (callee->kind == W_SEED_FRONTEND_EXPR_MEMBER) {
-      if (builtin_u64_operation_is_wrapping(expression->builtin_operation)) {
-        const bool unary_wrapping =
-            builtin_u64_operation_is_unary_wrapping(
-                expression->builtin_operation);
-        const size_t expected_argument_count = unary_wrapping ? 1u : 2u;
+      if (builtin_u64_operation_is_supported(expression->builtin_operation)) {
+        const bool unary =
+            builtin_u64_operation_is_unary(expression->builtin_operation);
+        const size_t expected_argument_count = unary ? 1u : 2u;
         const bool callee_shape =
             callee->supported && expression->supported &&
             callee->builtin_operation ==

@@ -156,7 +156,7 @@ static bool text_is(w_seed_frontend_text text, const char *literal) {
           (text.data != NULL && memcmp(text.data, literal, length) == 0));
 }
 
-static bool hir0_builtin_u64_operation_is_wrapping(
+static bool hir0_builtin_u64_operation_is_supported(
     w_seed_frontend_builtin_operation operation) {
   return operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SUBTRACT ||
@@ -168,12 +168,14 @@ static bool hir0_builtin_u64_operation_is_wrapping(
          operation == W_SEED_FRONTEND_BUILTIN_U64_MASKED_SHIFT_RIGHT ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_LOGICAL_SHIFT_RIGHT ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_ROTATED_LEFT ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_ROTATED_RIGHT;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_ROTATED_RIGHT ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES;
 }
 
-static bool hir0_builtin_u64_operation_is_unary_wrapping(
+static bool hir0_builtin_u64_operation_is_unary(
     w_seed_frontend_builtin_operation operation) {
-  return operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_NEGATE;
+  return operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_NEGATE ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES;
 }
 
 static bool hir0_builtin_u64_operation_member_matches(
@@ -200,7 +202,9 @@ static bool hir0_builtin_u64_operation_member_matches(
          (operation == W_SEED_FRONTEND_BUILTIN_U64_ROTATED_LEFT &&
           text_is(member_name, "rotatedLeft")) ||
          (operation == W_SEED_FRONTEND_BUILTIN_U64_ROTATED_RIGHT &&
-          text_is(member_name, "rotatedRight"));
+          text_is(member_name, "rotatedRight")) ||
+         (operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES &&
+          text_is(member_name, "countOnes"));
 }
 
 static bool frontend_assignment_operator(w_seed_frontend_text text) {
@@ -4225,11 +4229,11 @@ static bool frontend_call_expression_ok(
                         call->span))
     return false;
   const w_seed_frontend_expression *callee = &output->expressions[call->left];
-  if (hir0_builtin_u64_operation_is_wrapping(call->builtin_operation)) {
-    const bool unary_wrapping =
-        hir0_builtin_u64_operation_is_unary_wrapping(
+  if (hir0_builtin_u64_operation_is_supported(call->builtin_operation)) {
+    const bool unary =
+        hir0_builtin_u64_operation_is_unary(
             call->builtin_operation);
-    const size_t expected_argument_count = unary_wrapping ? 1u : 2u;
+    const size_t expected_argument_count = unary ? 1u : 2u;
     const bool callee_shape =
         result_value && !allow_throwing && materialize_result &&
         call->resolved_callee_kind == W_SEED_FRONTEND_CALLEE_NONE &&
@@ -8955,7 +8959,7 @@ static size_t hir0_emit_expression_values_m2(hir0_emit_context *context,
       block = hir0_emit_expression_values_m2(
           context, argument_expression, block, statement_index, depth + 1u);
     }
-    if (hir0_builtin_u64_operation_is_wrapping(source->builtin_operation))
+    if (hir0_builtin_u64_operation_is_supported(source->builtin_operation))
       return block;
     if (hir0_is_local_enum_constructor(context, source) ||
         hir0_is_external_enum_constructor(context, source))
@@ -10813,7 +10817,7 @@ static size_t hir0_emit_expression_layout_m2(hir0_emit_context *context,
     return hir0_emit_expression_layout_m2(context, source->left, current_block,
                                           statement_index, depth + 1u);
   if (source->kind == W_SEED_FRONTEND_EXPR_CALL) {
-    if (hir0_builtin_u64_operation_is_wrapping(source->builtin_operation)) {
+    if (hir0_builtin_u64_operation_is_supported(source->builtin_operation)) {
       size_t block = current_block;
       for (size_t ordinal = 0u; ordinal < source->argument_count;
            ordinal += 1u)
@@ -11214,8 +11218,8 @@ static uint32_t hir0_emit_value_m2(
   }
 
   if (source->kind == W_SEED_FRONTEND_EXPR_CALL &&
-      hir0_builtin_u64_operation_is_wrapping(source->builtin_operation)) {
-    if (hir0_builtin_u64_operation_is_unary_wrapping(
+      hir0_builtin_u64_operation_is_supported(source->builtin_operation)) {
+    if (hir0_builtin_u64_operation_is_unary(
             source->builtin_operation)) {
       if (source->argument_count != 1u ||
           source->first_argument == W_SEED_FRONTEND_NONE)
@@ -11248,7 +11252,11 @@ static uint32_t hir0_emit_value_m2(
           .enum_payload_count = 0u,
           .pattern_capture_index = W_SEED_HIR0_NONE,
           .binary_operator = W_SEED_HIR0_BINARY_ADD,
-          .unary_operator = W_SEED_HIR0_UNARY_WRAPPING_NEGATE,
+          .unary_operator =
+              source->builtin_operation ==
+                      W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES
+                  ? W_SEED_HIR0_UNARY_COUNT_ONES
+                  : W_SEED_HIR0_UNARY_WRAPPING_NEGATE,
           .block_argument_index = W_SEED_HIR0_NONE,
           .integer_value = 0,
           .unsigned_integer_value = 0u,
@@ -14534,7 +14542,8 @@ static bool verify_value_tree(
 
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64) {
     if ((value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT &&
-         value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE) ||
+         value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
+         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES) ||
         !hir_type_index_valid(program, value->type_index) ||
         program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64 ||
         value->binding_index != W_SEED_HIR0_NONE ||

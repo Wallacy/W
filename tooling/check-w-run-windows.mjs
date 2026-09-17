@@ -91,6 +91,8 @@ const restaurantUIntRotatedLeftFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-rotated-left.w")
 const restaurantUIntRotatedRightFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-rotated-right.w")
+const restaurantUIntCountOnesFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-count-ones.w")
 const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
@@ -666,6 +668,9 @@ try {
   expectExact(binary, ["run", restaurantUIntRotatedRightFixture], 0,
     Buffer.from("Rotated 9223372036854775809\n", "utf8"),
     "Restaurant UInt rotatedRight reduces count modulo bit width")
+  expectExact(binary, ["run", restaurantUIntCountOnesFixture], 0,
+    Buffer.from("Ones 32\n", "utf8"),
+    "Restaurant UInt countOnes uses full-width population count")
   expectExact(binary, ["run", restaurantUIntBitNotFixture], 0,
     Buffer.from("UInt not 18446744073709551615\n", "utf8"),
     "Restaurant UInt bitwise complement")
