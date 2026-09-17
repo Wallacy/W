@@ -181,19 +181,22 @@ static bool hir0_builtin_u64_operation_is_supported(
          operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_MULTIPLY ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE;
 }
 
 static bool hir0_builtin_u64_operation_returns_tuple(
     w_seed_frontend_builtin_operation operation) {
   return operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE;
 }
 
 static bool hir0_builtin_u64_operation_is_unary(
     w_seed_frontend_builtin_operation operation) {
   return operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_NEGATE ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ZEROS ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_LEADING_ZEROS ||
@@ -250,7 +253,9 @@ static bool hir0_builtin_u64_operation_member_matches(
          (operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT &&
           text_is(member_name, "overflowingSubtract")) ||
          (operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY &&
-          text_is(member_name, "overflowingMultiply"));
+          text_is(member_name, "overflowingMultiply")) ||
+         (operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE &&
+          text_is(member_name, "overflowingNegate"));
 }
 
 static bool frontend_assignment_operator(w_seed_frontend_text text) {
@@ -11412,7 +11417,11 @@ static uint32_t hir0_emit_value_m2(
       const uint32_t result = (uint32_t)*context->value_index;
       w_seed_hir0_unary_operator unary_operator =
           W_SEED_HIR0_UNARY_WRAPPING_NEGATE;
-      if (source->builtin_operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES)
+      if (source->builtin_operation ==
+          W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE)
+        unary_operator = W_SEED_HIR0_UNARY_OVERFLOWING_NEGATE;
+      else if (source->builtin_operation ==
+               W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES)
         unary_operator = W_SEED_HIR0_UNARY_COUNT_ONES;
       else if (source->builtin_operation ==
                W_SEED_FRONTEND_BUILTIN_U64_COUNT_ZEROS)
@@ -14861,8 +14870,11 @@ static bool verify_value_tree(
   }
 
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64) {
+    const bool overflowing =
+        value->unary_operator == W_SEED_HIR0_UNARY_OVERFLOWING_NEGATE;
     if ((value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT &&
          value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
+         !overflowing &&
          value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES &&
          value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS &&
          value->unary_operator != W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS &&
@@ -14870,7 +14882,9 @@ static bool verify_value_tree(
          value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BITS &&
          value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BYTES) ||
         !hir_type_index_valid(program, value->type_index) ||
-        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64 ||
+        program->types[value->type_index].kind !=
+            (overflowing ? W_SEED_HIR0_TYPE_U64_BOOL_TUPLE
+                         : W_SEED_HIR0_TYPE_U64) ||
         value->binding_index != W_SEED_HIR0_NONE ||
         value->parameter_index != W_SEED_HIR0_NONE ||
         value->call_index != W_SEED_HIR0_NONE ||
@@ -14887,7 +14901,10 @@ static bool verify_value_tree(
             root_index, 0u, current_block, current_instruction, source_length,
             depth + 1u, value_cursor, segment_cursor, byte_cursor) ||
         (size_t)root_index != *value_cursor ||
-        program->values[value->left_value].type_index != value->type_index)
+        !hir_type_index_valid(program,
+                              program->values[value->left_value].type_index) ||
+        program->types[program->values[value->left_value].type_index].kind !=
+            W_SEED_HIR0_TYPE_U64)
       return false;
     *value_cursor += 1u;
     return true;

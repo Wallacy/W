@@ -5261,9 +5261,11 @@ static bool test_u64_overflowing_products_frontend(void) {
       "let added = u64.overflowingAdd(18446744073709551615_u64, 1_u64) "
       "let subtracted = u64.overflowingSubtract(0_u64, 1_u64) "
       "let multiplied = u64.overflowingMultiply(18446744073709551615_u64, 2_u64) "
+      "let negated = u64.overflowingNegate(1_u64) "
       "let addedValue = added.0 let addedOverflow = added.1 "
       "let subtractedValue = subtracted.0 let subtractedOverflow = subtracted.1 "
       "let multipliedValue = multiplied.0 let multipliedOverflow = multiplied.1 "
+      "let negatedValue = negated.0 let negatedOverflow = negated.1 "
       "}\n";
   fixture *value = &fixture_literal;
   CHECK(fixture_run(value, SOURCE));
@@ -5274,6 +5276,7 @@ static bool test_u64_overflowing_products_frontend(void) {
   size_t add_count = 0u;
   size_t subtract_count = 0u;
   size_t multiply_count = 0u;
+  size_t negate_count = 0u;
   size_t wrapped_count = 0u;
   size_t overflowed_count = 0u;
   for (uint32_t index = 0u;
@@ -5285,8 +5288,13 @@ static bool test_u64_overflowing_products_frontend(void) {
          expression->builtin_operation ==
              W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT ||
          expression->builtin_operation ==
-             W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY)) {
-      CHECK(expression->supported && expression->argument_count == 2u &&
+             W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY ||
+         expression->builtin_operation ==
+             W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE)) {
+      const bool negate = expression->builtin_operation ==
+                          W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE;
+      CHECK(expression->supported &&
+            expression->argument_count == (negate ? 1u : 2u) &&
             expression->inferred_type < value->result.written.types &&
             value->types[expression->inferred_type].kind ==
                 W_SEED_FRONTEND_TYPE_TUPLE &&
@@ -5298,8 +5306,11 @@ static bool test_u64_overflowing_products_frontend(void) {
       else if (expression->builtin_operation ==
                W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT)
         subtract_count += 1u;
-      else
+      else if (expression->builtin_operation ==
+               W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY)
         multiply_count += 1u;
+      else
+        negate_count += 1u;
     } else if (expression->kind == W_SEED_FRONTEND_EXPR_MEMBER &&
                frontend_text_is(expression->member_name, "0")) {
       CHECK(expression->supported &&
@@ -5319,7 +5330,8 @@ static bool test_u64_overflowing_products_frontend(void) {
     }
   }
   CHECK(add_count == 1u && subtract_count == 1u && multiply_count == 1u &&
-        wrapped_count == 3u && overflowed_count == 3u);
+        negate_count == 1u && wrapped_count == 4u &&
+        overflowed_count == 4u);
 
   static const char *const REJECTED[] = {
       "entry { let pair = u64.overflowingAdd(1_u64, 2_u64) "
@@ -5330,6 +5342,7 @@ static bool test_u64_overflowing_products_frontend(void) {
       "entry { let pair = UInt.overflowingAdd(1_u64, 2_u64) }\n",
       "entry { let pair = u64.overflowingSubtract(1_u64, true) }\n",
       "entry { let pair = u64.overflowingMultiply(1_u64) }\n",
+      "entry { let pair = u64.overflowingNegate(1_u64, 2_u64) }\n",
   };
   for (size_t index = 0u;
        index < sizeof(REJECTED) / sizeof(REJECTED[0]); index += 1u) {

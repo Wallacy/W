@@ -64,7 +64,8 @@ _Static_assert(W_SEED_FRONTEND_BUILTIN_NONE == 0 &&
                    W_SEED_FRONTEND_BUILTIN_U64_SATURATING_MULTIPLY == 21 &&
                    W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD == 22 &&
                    W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT == 23 &&
-                   W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY == 24,
+                   W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY == 24 &&
+                   W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE == 25,
                "w-seed frontend builtin identities are append-only");
 #if defined(DBL_HAS_SUBNORM)
 _Static_assert(DBL_HAS_SUBNORM == 1,
@@ -4156,19 +4157,22 @@ static bool builtin_u64_operation_is_supported(
          operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_MULTIPLY ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE;
 }
 
 static bool builtin_u64_operation_returns_tuple(
     w_seed_frontend_builtin_operation operation) {
   return operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE;
 }
 
 static bool builtin_u64_operation_is_unary(
     w_seed_frontend_builtin_operation operation) {
   return operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_NEGATE ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ZEROS ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_LEADING_ZEROS ||
@@ -4225,6 +4229,8 @@ static w_seed_frontend_builtin_operation builtin_u64_operation_for_member(
     return W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT;
   if (text_equal(member_name, "overflowingMultiply"))
     return W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY;
+  if (text_equal(member_name, "overflowingNegate"))
+    return W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE;
   return W_SEED_FRONTEND_BUILTIN_NONE;
 }
 
@@ -15617,7 +15623,9 @@ static frontend_simple_type infer_expression_span_inner(
       expression_is_exact_u64_builtin_call(
           doc, span, W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT) ||
       expression_is_exact_u64_builtin_call(
-          doc, span, W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY)) {
+          doc, span, W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY) ||
+      expression_is_exact_u64_builtin_call(
+          doc, span, W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE)) {
     return u64_bool_tuple_type();
   }
   /* A direct call's arguments may contain member syntax (for example an enum

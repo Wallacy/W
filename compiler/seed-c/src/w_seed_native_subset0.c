@@ -1353,9 +1353,13 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
     return true;
   }
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64) {
-    if (type != W_SEED_HIR0_TYPE_U64 ||
+    const bool overflowing =
+        value->unary_operator == W_SEED_HIR0_UNARY_OVERFLOWING_NEGATE;
+    if (type != (overflowing ? W_SEED_HIR0_TYPE_U64_BOOL_TUPLE
+                             : W_SEED_HIR0_TYPE_U64) ||
         (value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT &&
          value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
+         !overflowing &&
          value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES &&
          value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS &&
          value->unary_operator !=
@@ -1376,7 +1380,8 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
         !program_value_lowerable(program, value->left_value, owner_function,
                                  false, depth + 1u))
       return false;
-    if (program_value_is_constant_u64(program, value_index, 0u)) {
+    if (!overflowing &&
+        program_value_is_constant_u64(program, value_index, 0u)) {
       uint64_t ignored = 0u;
       if (!evaluate_u64(program, value_index, 0u, &ignored)) return false;
     }

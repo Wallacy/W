@@ -13678,9 +13678,11 @@ static bool test_u64_overflowing_products(void) {
       "let added = u64.overflowingAdd(18446744073709551615_u64, 1_u64) "
       "let subtracted = u64.overflowingSubtract(0_u64, 1_u64) "
       "let multiplied = u64.overflowingMultiply(18446744073709551615_u64, 2_u64) "
+      "let negated = u64.overflowingNegate(1_u64) "
       "let addedValue = added.0 let addedOverflow = added.1 "
       "let subtractedValue = subtracted.0 let subtractedOverflow = subtracted.1 "
-      "let multipliedValue = multiplied.0 let multipliedOverflow = multiplied.1 }\n";
+      "let multipliedValue = multiplied.0 let multipliedOverflow = multiplied.1 "
+      "let negatedValue = negated.0 let negatedOverflow = negated.1 }\n";
   CHECK(lower(SOURCE));
 
   uint32_t u64_type = W_SEED_HIR0_NONE;
@@ -13708,13 +13710,23 @@ static bool test_u64_overflowing_products(void) {
   size_t product_index = SIZE_MAX;
   size_t subtract_count = 0u;
   size_t multiply_count = 0u;
+  size_t negate_count = 0u;
   size_t projection_count = 0u;
-  size_t projection_indices[6] = {SIZE_MAX, SIZE_MAX, SIZE_MAX,
-                                  SIZE_MAX, SIZE_MAX, SIZE_MAX};
+  size_t projection_indices[8] = {SIZE_MAX, SIZE_MAX, SIZE_MAX, SIZE_MAX,
+                                  SIZE_MAX, SIZE_MAX, SIZE_MAX, SIZE_MAX};
   for (size_t index = 0u; index < fixture.hir_program.value_count;
        index += 1u) {
     const w_seed_hir0_value *value = &fixture.hir_program.values[index];
-    if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
+    if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64 &&
+        value->unary_operator == W_SEED_HIR0_UNARY_OVERFLOWING_NEGATE) {
+      CHECK(value->type_index == tuple_type &&
+            value->left_value != W_SEED_HIR0_NONE &&
+            value->right_value == W_SEED_HIR0_NONE &&
+            fixture.hir_program.values[value->left_value].type_index ==
+                u64_type);
+      product_count += 1u;
+      negate_count += 1u;
+    } else if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
         (value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_ADD ||
          value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_SUBTRACT ||
          value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_MULTIPLY)) {
@@ -13743,15 +13755,15 @@ static bool test_u64_overflowing_products(void) {
                 tuple_type &&
             value->type_index ==
                 (value->unsigned_integer_value == 0u ? u64_type : bool_type));
-      CHECK(projection_count < 6u);
+      CHECK(projection_count < 8u);
       projection_indices[projection_count] = index;
       projection_count += 1u;
     }
   }
-  CHECK(product_count == 3u && product_index != SIZE_MAX &&
-        subtract_count == 1u && multiply_count == 1u &&
-        projection_count == 6u && projection_indices[0] != SIZE_MAX &&
-        projection_indices[5] != SIZE_MAX &&
+  CHECK(product_count == 4u && product_index != SIZE_MAX &&
+        subtract_count == 1u && multiply_count == 1u && negate_count == 1u &&
+        projection_count == 8u && projection_indices[0] != SIZE_MAX &&
+        projection_indices[7] != SIZE_MAX &&
         fixture.hir_program.call_count == 0u);
 
   const w_seed_hir0_value saved_product = fixture.hir_values[product_index];

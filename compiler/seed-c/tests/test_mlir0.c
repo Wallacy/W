@@ -2266,10 +2266,12 @@ static bool test_u64_overflowing_products_artifact(void) {
       "let added = u64.overflowingAdd(18446744073709551615_u64, 1_u64) "
       "let subtracted = u64.overflowingSubtract(0_u64, 1_u64) "
       "let multiplied = u64.overflowingMultiply(18446744073709551615_u64, 2_u64) "
+      "let negated = u64.overflowingNegate(1_u64) "
       "let addedValue = added.0 let addedOverflow = added.1 "
       "let subtractedValue = subtracted.0 let subtractedOverflow = subtracted.1 "
       "let multipliedValue = multiplied.0 let multipliedOverflow = multiplied.1 "
-      "print(\"${addedValue}/${addedOverflow}/${subtractedValue}/${subtractedOverflow}/${multipliedValue}/${multipliedOverflow}\") }\n";
+      "let negatedValue = negated.0 let negatedOverflow = negated.1 "
+      "print(\"${addedValue}/${addedOverflow}/${subtractedValue}/${subtractedOverflow}/${multipliedValue}/${multipliedOverflow}/${negatedValue}/${negatedOverflow}\") }\n";
   uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   w_seed_mlir0_counts counts;
   w_seed_mlir0_result measured;
@@ -2287,13 +2289,13 @@ static bool test_u64_overflowing_products_artifact(void) {
         count_bytes(artifact, emitted.written.mlir_bytes,
                     "llvm.intr.uadd.with.overflow") == 1u &&
         count_bytes(artifact, emitted.written.mlir_bytes,
-                    "llvm.intr.usub.with.overflow") == 1u &&
+                    "llvm.intr.usub.with.overflow") == 2u &&
         count_bytes(artifact, emitted.written.mlir_bytes,
                     "llvm.intr.umul.with.overflow") == 1u &&
         count_bytes(artifact, emitted.written.mlir_bytes,
-                    "llvm.extractvalue") == 6u &&
+                    "llvm.extractvalue") == 8u &&
         count_bytes(artifact, emitted.written.mlir_bytes,
-                    "!llvm.struct<(i64, i1)>") == 9u &&
+                    "!llvm.struct<(i64, i1)>") == 12u &&
         contains_bytes(artifact, emitted.written.mlir_bytes,
                        "llvm.call @w_seed_append_u64") &&
         contains_bytes(artifact, emitted.written.mlir_bytes,

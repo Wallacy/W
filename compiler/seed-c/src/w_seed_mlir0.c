@@ -1152,6 +1152,9 @@ static bool program_has_tuple_product_values(
   if (program == NULL) return false;
   for (size_t index = 0u; index < program->value_count; index += 1u)
     if (program->values[index].kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT ||
+        (program->values[index].kind == W_SEED_HIR0_VALUE_UNARY_U64 &&
+         program->values[index].unary_operator ==
+             W_SEED_HIR0_UNARY_OVERFLOWING_NEGATE) ||
         (program->values[index].kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
          (program->values[index].binary_operator ==
               W_SEED_HIR0_BINARY_OVERFLOWING_ADD ||
@@ -2920,11 +2923,16 @@ static bool append_unary_u64_operation(
       value_index >= program->value_count)
     return false;
   const w_seed_hir0_value *value = &program->values[value_index];
+  const bool overflowing =
+      value->unary_operator == W_SEED_HIR0_UNARY_OVERFLOWING_NEGATE;
   if (value->kind != W_SEED_HIR0_VALUE_UNARY_U64 ||
       value->type_index >= program->type_count ||
-      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64 ||
+      program->types[value->type_index].kind !=
+          (overflowing ? W_SEED_HIR0_TYPE_U64_BOOL_TUPLE
+                       : W_SEED_HIR0_TYPE_U64) ||
       (value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT &&
        value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
+       !overflowing &&
        value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES &&
        value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS &&
        value->unary_operator != W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS &&
@@ -2938,6 +2946,24 @@ static bool append_unary_u64_operation(
       value->call_index != W_SEED_HIR0_NONE ||
       value->block_argument_index != W_SEED_HIR0_NONE)
     return false;
+  if (overflowing)
+    return append_literal(artifact, capacity, offset, "    %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(
+               artifact, capacity, offset,
+               "_overflowing_negate_zero = llvm.mlir.constant(0 : i64) : i64\n") &&
+           append_literal(artifact, capacity, offset, "    %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset,
+                          " = \"llvm.intr.usub.with.overflow\"(%v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset,
+                          "_overflowing_negate_zero, ") &&
+           append_program_value_operand(program, value->left_value,
+                                        function_index, process, artifact,
+                                        capacity, offset) &&
+           append_literal(artifact, capacity, offset,
+                          ") : (i64, i64) -> !llvm.struct<(i64, i1)>\n");
   if (value->unary_operator == W_SEED_HIR0_UNARY_WRAPPING_NEGATE) {
     return append_literal(artifact, capacity, offset, "    %v") &&
            append_size(artifact, capacity, offset, value_index) &&
@@ -3922,7 +3948,11 @@ static bool append_program_value_operand_in_loop(
             (value->kind == W_SEED_HIR0_VALUE_UNARY_FLOAT &&
              program->types[value->type_index].kind == W_SEED_HIR0_TYPE_F64) ||
             (value->kind == W_SEED_HIR0_VALUE_UNARY_U64 &&
-             program->types[value->type_index].kind == W_SEED_HIR0_TYPE_U64)) &&
+             (program->types[value->type_index].kind == W_SEED_HIR0_TYPE_U64 ||
+              (value->unary_operator ==
+                   W_SEED_HIR0_UNARY_OVERFLOWING_NEGATE &&
+               program->types[value->type_index].kind ==
+                   W_SEED_HIR0_TYPE_U64_BOOL_TUPLE)))) &&
            append_literal(artifact, capacity, offset, "%v") &&
            append_size(artifact, capacity, offset, value_index);
   if (value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ) {
@@ -4140,10 +4170,15 @@ static bool append_program_value_tree(
     return true;
   }
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64) {
+    const bool overflowing =
+        value->unary_operator == W_SEED_HIR0_UNARY_OVERFLOWING_NEGATE;
     if (value->type_index >= program->type_count ||
-        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64 ||
+        program->types[value->type_index].kind !=
+            (overflowing ? W_SEED_HIR0_TYPE_U64_BOOL_TUPLE
+                         : W_SEED_HIR0_TYPE_U64) ||
         (value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT &&
          value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
+         !overflowing &&
          value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES &&
          value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS &&
          value->unary_operator !=
