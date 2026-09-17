@@ -207,7 +207,7 @@ static bool make_nested_tree_source(char *buffer, size_t capacity,
 
 static bool test_products(void) {
   CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-9") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-40") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-41") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -3487,6 +3487,73 @@ static bool test_u64_count_leading_zeros_slice(void) {
   return true;
 }
 
+static bool test_u64_count_trailing_zeros_slice(void) {
+  static const uint8_t source[] =
+      "fn count(value: UInt): UInt { return u64.countTrailingZeros(value) }\n"
+      "fn main() { let zero = count(value: 0_u64) "
+      "let one = count(value: 1_u64) "
+      "let pattern = count(value: 0xf000_u64) "
+      "print(\"${zero}/${one}/${pattern}\") }\n"
+      "entry(main)\n";
+  uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source(source, sizeof(source) - 1u, "uint-trailing-zeros", 19u,
+                   output, sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  size_t count_trailing_count = 0u;
+  for (size_t index = 0u; index < storage.hir_program.value_count;
+       index += 1u)
+    if (storage.hir_program.values[index].kind ==
+            W_SEED_HIR0_VALUE_UNARY_U64 &&
+        storage.hir_program.values[index].unary_operator ==
+            W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS)
+      count_trailing_count += 1u;
+  CHECK(count_trailing_count == 1u && storage.hir_program.call_count == 4u);
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.has_local_calls && !selection.has_cfg &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.intr.cttz") == 1u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "is_zero_poison = false") == 1u &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "\"llvm.intr.trap\"() : () -> ()"));
+
+  static const char *const rejected[] = {
+      "fn bad(value: UInt): UInt { return "
+      "UInt.countTrailingZeros(value) }\nentry(bad)\n",
+      "fn bad(value: Int): UInt { return "
+      "u64.countTrailingZeros(value) }\nentry(bad)\n",
+      "fn bad(): UInt { return u64.countTrailingZeros() }\nentry(bad)\n",
+      "fn bad(value: UInt): UInt { return "
+      "u64.countTrailingZeros(value, value) }\nentry(bad)\n",
+      "fn bad(value: UInt): UInt { return "
+      "u64.countTrailingZeros(value: value) }\nentry(bad)\n",
+      "fn bad(value: UInt): UInt { return "
+      "u64?.countTrailingZeros(value) }\nentry(bad)\n",
+      "fn bad(value: UInt): UInt { return "
+      "u64.countTrailingZeros(u64.countTrailingZeros(value)) }\nentry(bad)\n",
+      "const u64: UInt = 1_u64\n"
+      "fn bad(value: UInt): UInt { return "
+      "u64.countTrailingZeros(value) }\nentry(bad)\n",
+      "fn bad(value: UInt): Int { return "
+      "u64.countTrailingZeros(value) }\nentry(bad)\n"};
+  for (size_t index = 0u; index < sizeof(rejected) / sizeof(rejected[0]);
+       index += 1u) {
+    (void)memset(output, 0xabu, sizeof(output));
+    (void)memset(&result, 0xacu, sizeof(result));
+    const w_seed_native0_result snapshot = result;
+    CHECK(run_source((const uint8_t *)rejected[index], strlen(rejected[index]),
+                     "uint-trailing-zeros-bad", 23u, output, sizeof(output),
+                     &result) != W_SEED_NATIVE0_OK);
+    CHECK(memcmp(&result, &snapshot, sizeof(result)) == 0);
+    for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+      CHECK(output[byte] == 0xabu);
+  }
+  return true;
+}
+
 static bool test_u64_wrapping_negate_slice(void) {
   static const uint8_t source[] =
       "fn wrap(value: UInt): UInt { return u64.wrappingNegate(value) }\n"
@@ -3766,6 +3833,7 @@ int main(void) {
                         test_u64_count_ones_slice() &&
                         test_u64_count_zeros_slice() &&
                         test_u64_count_leading_zeros_slice() &&
+                        test_u64_count_trailing_zeros_slice() &&
                         test_u64_wrapping_negate_slice() &&
                         test_unsigned_unary_u64_slice() &&
                         test_enum_frontend_storage() &&

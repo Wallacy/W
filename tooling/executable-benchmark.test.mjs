@@ -48,6 +48,7 @@ import {
   RESTAURANT_UINT_COUNT_ONES_WORKLOAD_ID,
   RESTAURANT_UINT_COUNT_ZEROS_WORKLOAD_ID,
   RESTAURANT_UINT_LEADING_ZEROS_WORKLOAD_ID,
+  RESTAURANT_UINT_TRAILING_ZEROS_WORKLOAD_ID,
   RESTAURANT_UINT_COMPOUND_WORKLOAD_ID,
   RESTAURANT_UINT_WRAPPING_ADD_WORKLOAD_ID,
   RESTAURANT_UINT_WRAPPING_MULTIPLY_WORKLOAD_ID,
@@ -594,6 +595,51 @@ test("UInt leading-zeros catalog keeps correctness separate from ranking", () =>
   assert.match(c, /value & mask/u);
   assert.match(rust, /black_box\(0x00000000000000f0_u64\)/u);
   assert.match(rust, /\.leading_zeros\(\)/u);
+  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
+  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
+});
+
+test("UInt trailing-zeros catalog keeps correctness separate from ranking", () => {
+  const workload = documents.catalog.workloads.find((item) =>
+    item.id === RESTAURANT_UINT_TRAILING_ZEROS_WORKLOAD_ID);
+  assert.ok(workload);
+  assert.equal(workload.structureClass, "public-end-to-end");
+  assert.equal(workload.status, "source-oracle-ready");
+  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
+  assert.equal(workload.demoEvidence, "bounded-w-demo");
+  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.equal(workload.scope,
+    "Validate fixed-input full-width UInt count of trailing zero bits in 0x000000000000f000 and zero, including the zero-to-bit-width boundary, with exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.");
+  assert.deepEqual(workload.oracle, {
+    kind: "exact-output",
+    status: "source-backed",
+    exitCode: 0,
+    stdout: "Trailing 12/64\n",
+    stderr: "",
+  });
+  assert.deepEqual(workload.blockedLanguages, []);
+  assert.deepEqual(workload.blockers, [
+    "w-uint-trailing-zeros-compile-time-folded",
+    "runtime-uint-trailing-zeros-equivalence",
+  ]);
+  assert.deepEqual(workload.sources.map((source) =>
+    [source.language, source.platformTarget]), [
+    ["w", EXECUTABLE_PLATFORM_TARGET],
+    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
+    ["c", EXECUTABLE_PLATFORM_TARGET],
+    ["rust", EXECUTABLE_PLATFORM_TARGET],
+  ]);
+  assert.ok(workload.sources.every((source) =>
+    source.recipeClass === "restaurant-uint-trailing-zeros-release"));
+  const c = readFileSync(
+    `${ROOT}/benchmarks/executable/restaurant_uint_trailing_zeros.c`, "utf8");
+  const rust = readFileSync(
+    `${ROOT}/benchmarks/executable/restaurant_uint_trailing_zeros.rs`, "utf8");
+  assert.match(c, /volatile uint64_t runtime_value/u);
+  assert.match(c, /count_trailing_zeros_u64/u);
+  assert.match(c, /value & mask/u);
+  assert.match(rust, /black_box\(0x000000000000f000_u64\)/u);
+  assert.match(rust, /\.trailing_zeros\(\)/u);
   assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
   assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
 });

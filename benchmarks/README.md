@@ -136,6 +136,13 @@ final artifact. The C23 and Rust 2024 references retain independent runtime
 operands. Runtime equivalence is not proven, so this workload has no
 performance ranking.
 
+The `restaurant-uint-trailing-zeros` witness is `not-performance-ready`. Its
+fixed inputs count the trailing zero bits in `0x000000000000f000_u64` and zero,
+and its exact oracle is `Trailing 12/64\n`. W may fold these operations in the
+final artifact. The C23 and Rust 2024 references retain independent runtime
+operands. Runtime equivalence is not proven, so this workload has no
+performance ranking.
+
 The catalog declares compile latency, median and P95 target-run wall time,
 user/system/total CPU time, peak working set, artifact size, exit code, and
 stdout/stderr. A local

@@ -96,6 +96,8 @@ const restaurantUIntCountZerosFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-count-zeros.w")
 const restaurantUIntLeadingZerosFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-leading-zeros.w")
+const restaurantUIntTrailingZerosFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-trailing-zeros.w")
 const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
@@ -1018,6 +1020,9 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantUIntLeadingZerosFixture)],
     Buffer.from("Leading 56/64\n", "utf8"),
     "Restaurant UInt countLeadingZeros preserves the zero boundary")
+  expectSuccess(binary, ["run", toWsl(restaurantUIntTrailingZerosFixture)],
+    Buffer.from("Trailing 12/64\n", "utf8"),
+    "Restaurant UInt countTrailingZeros preserves the zero boundary")
   expectSuccess(binary, ["run", toWsl(restaurantUIntBitNotFixture)],
     Buffer.from("UInt not 18446744073709551615\n", "utf8"),
     "Restaurant UInt bitwise complement")

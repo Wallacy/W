@@ -226,6 +226,13 @@ export const SMOKE_CASES = Object.freeze([
       "restaurant-uint-leading-zeros.w"),
     expectedStdout: "Leading 56/64\n",
   }),
+  Object.freeze({
+    id: "restaurant-uint-trailing-zeros",
+    fixture: "compiler/seed-c/fixtures/restaurant-uint-trailing-zeros.w",
+    absoluteFixture: resolve(seedDirectory, "fixtures",
+      "restaurant-uint-trailing-zeros.w"),
+    expectedStdout: "Trailing 12/64\n",
+  }),
 ])
 
 function fail(message) {
