@@ -70,6 +70,14 @@ final artifact. The C23 and Rust 2024 references retain independent runtime
 operands. Runtime equivalence is not proven, so this workload has no
 performance ranking.
 
+The `restaurant-uint-wrapping-shift-left` witness is `not-performance-ready`.
+Its fixed inputs apply `wrappingShiftLeft` to `UInt` maximum with count `1`,
+and its exact oracle is `Wrapped 18446744073709551614\n`. W may fold this
+operation in the final artifact. The C23 reference validates `count < 64`
+before the unsigned shift. The Rust 2024 reference validates the count before
+it calls `wrapping_shl`. Runtime equivalence is not proven, so this workload
+has no performance ranking.
+
 The catalog declares compile latency, median and P95 target-run wall time,
 user/system/total CPU time, peak working set, artifact size, exit code, and
 stdout/stderr. A local

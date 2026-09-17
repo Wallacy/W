@@ -47,6 +47,8 @@ const restaurantUIntWrappingNegateFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-negate.w")
 const restaurantUIntWrappingPowerFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-power.w")
+const restaurantUIntWrappingShiftLeftFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-wrapping-shift-left.w")
 const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
@@ -692,6 +694,9 @@ try {
     { name: "restaurant-uint-wrapping-power",
       source: restaurantUIntWrappingPowerFixture,
       expected: Buffer.from("Wrapped 12157665459056928801\n", "utf8") },
+    { name: "restaurant-uint-wrapping-shift-left",
+      source: restaurantUIntWrappingShiftLeftFixture,
+      expected: Buffer.from("Wrapped 18446744073709551614\n", "utf8") },
     { name: "restaurant-uint-bit-not", source: restaurantUIntBitNotFixture,
       expected: Buffer.from("UInt not 18446744073709551615\n", "utf8") },
     { name: "restaurant-uint-bitwise", source: restaurantUIntBitwiseFixture,
@@ -995,6 +1000,20 @@ try {
     !uintWrappingPowerArtifact.includes("@w_seed_checked_power_u64") &&
     !uintWrappingPowerArtifact.includes("llvm.intr.umul.with.overflow"),
   "u64.wrappingPower did not retain runtime modulo exponentiation lowering")
+  const uintWrappingShiftLeftArtifact =
+    artifacts.get("restaurant-uint-wrapping-shift-left").toString("utf8")
+  assert((uintWrappingShiftLeftArtifact.match(
+    /llvm\.func internal @w_seed_wrapping_shift_left_u64/g) ?? []).length === 1 &&
+    uintWrappingShiftLeftArtifact.includes(
+      "llvm.call @w_seed_wrapping_shift_left_u64") &&
+    uintWrappingShiftLeftArtifact.includes('llvm.icmp "uge"') &&
+    uintWrappingShiftLeftArtifact.includes("llvm.shl") &&
+    uintWrappingShiftLeftArtifact.includes('"llvm.intr.trap"()') &&
+    uintWrappingShiftLeftArtifact.includes("llvm.unreachable") &&
+    uintWrappingShiftLeftArtifact.includes("llvm.call @w_seed_append_u64") &&
+    !uintWrappingShiftLeftArtifact.includes("@w_seed_checked_shift_left_u64") &&
+    !uintWrappingShiftLeftArtifact.includes("llvm.intr.ushl.with.overflow"),
+  "u64.wrappingShiftLeft lost its count guard or gained checked-shift semantics")
   const uintBitNotArtifact =
     artifacts.get("restaurant-uint-bit-not").toString("utf8")
   assert(uintBitNotArtifact.includes("llvm.xor") &&

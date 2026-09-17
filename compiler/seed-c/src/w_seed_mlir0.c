@@ -535,6 +535,23 @@ static const char MLIR0_WRAPPING_POWER_HELPER[] =
     "    llvm.return %result : i64\n"
     "  }\n";
 
+/* Canonical u64.wrappingShiftLeft discards high bits but still rejects an
+ * invalid count. Keep the count guard in a reachable-only helper so dynamic
+ * counts cannot reach LLVM's poison-producing shift with count >= 64. The
+ * unflagged llvm.shl intentionally retains only the low 64 bits. */
+static const char MLIR0_WRAPPING_SHIFT_LEFT_HELPER[] =
+    "  llvm.func internal @w_seed_wrapping_shift_left_u64(%left: i64, %count: i64) -> i64 {\n"
+    "    %width = llvm.mlir.constant(64 : i64) : i64\n"
+    "    %invalid = llvm.icmp \"uge\" %count, %width : i64\n"
+    "    llvm.cond_br %invalid, ^wrapping_shift_left_fault, ^wrapping_shift_left_apply\n"
+    "  ^wrapping_shift_left_fault:\n"
+    "    \"llvm.intr.trap\"() : () -> ()\n"
+    "    llvm.unreachable\n"
+    "  ^wrapping_shift_left_apply:\n"
+    "    %value = llvm.shl %left, %count : i64\n"
+    "    llvm.return %value : i64\n"
+    "  }\n";
+
 static const char MLIR0_BOOL_HELPER[] =
     "  llvm.func internal @w_seed_append_bool(%buffer: !llvm.ptr, %offset: i64, %value: i1) -> i64 {\n"
     "    %bool_one = llvm.mlir.constant(1 : i64) : i64\n"
@@ -636,6 +653,7 @@ static const char MLIR0_U64_HELPER[] =
    (sizeof(MLIR0_CHECKED_SHIFT_HELPERS) - 1u) +                             \
    (sizeof(MLIR0_CHECKED_POWER_HELPERS) - 1u) +                             \
    (sizeof(MLIR0_WRAPPING_POWER_HELPER) - 1u) +                           \
+   (sizeof(MLIR0_WRAPPING_SHIFT_LEFT_HELPER) - 1u) +                     \
    (sizeof(MLIR0_U64_HELPER) - 1u) +                                       \
    (sizeof(MLIR0_BOOL_HELPER) - 1u) + MLIR0_DYNAMIC_SKELETON_MAX_BYTES +   \
    ((size_t)MLIR0_MAX_STDOUT_BYTES * MLIR0_ESCAPE_BYTES_PER_INPUT) +       \
@@ -926,6 +944,7 @@ typedef struct {
   bool has_checked_shifts;
   bool has_checked_power;
   bool has_wrapping_power;
+  bool has_wrapping_shift_left;
   bool reachable_values[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
 } mlir0_dynamic_plan;
 
@@ -943,6 +962,9 @@ static bool reachable_values_have_checked_shift(
     const w_seed_hir0_program *program,
     const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES]);
 static bool reachable_values_have_checked_power(
+    const w_seed_hir0_program *program,
+    const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES]);
+static bool reachable_values_have_wrapping_shift_left(
     const w_seed_hir0_program *program,
     const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES]);
 
@@ -1049,6 +1071,23 @@ static bool reachable_values_have_wrapping_power(
   return false;
 }
 
+static bool reachable_values_have_wrapping_shift_left(
+    const w_seed_hir0_program *program,
+    const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES]) {
+  if (program == NULL || reachable == NULL ||
+      program->value_count > W_SEED_NATIVE_SUBSET0_MAX_VALUES)
+    return false;
+  for (size_t value_index = 0u; value_index < program->value_count;
+       value_index += 1u) {
+    const w_seed_hir0_value *value = &program->values[value_index];
+    if (reachable[value_index] &&
+        value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
+        value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT)
+      return true;
+  }
+  return false;
+}
+
 static bool reachable_values_have_checked_power(
     const w_seed_hir0_program *program,
     const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES]) {
@@ -1087,6 +1126,17 @@ static const char *wrapping_power_helper(
       program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64)
     return NULL;
   return "@w_seed_wrapping_power_u64";
+}
+
+static const char *wrapping_shift_left_helper(
+    const w_seed_hir0_program *program, const w_seed_hir0_value *value) {
+  if (program == NULL || value == NULL ||
+      value->type_index >= program->type_count ||
+      value->kind != W_SEED_HIR0_VALUE_BINARY_U64 ||
+      value->binary_operator != W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT ||
+      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64)
+    return NULL;
+  return "@w_seed_wrapping_shift_left_u64";
 }
 
 static bool build_dynamic_plan(
@@ -1199,6 +1249,9 @@ static bool build_dynamic_plan(
       program, candidate.reachable_values);
   candidate.has_wrapping_power = reachable_values_have_wrapping_power(
       program, candidate.reachable_values);
+  candidate.has_wrapping_shift_left =
+      reachable_values_have_wrapping_shift_left(program,
+                                                candidate.reachable_values);
   derive_reachable_u64_helpers(
       program, candidate.reachable_values, &candidate.has_checked_u64_add,
       &candidate.has_checked_u64_subtract, &candidate.has_checked_u64_multiply,
@@ -1253,7 +1306,9 @@ static bool mlir0_value_is_constant_u64(const w_seed_hir0_program *program,
           value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_ADD ||
           value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT ||
           value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY ||
-          value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_POWER) &&
+          value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_POWER ||
+          value->binary_operator ==
+              W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT) &&
          mlir0_value_is_constant_u64(program, value->left_value,
                                       depth + 1u) &&
          mlir0_value_is_constant_u64(program, value->right_value,
@@ -1314,6 +1369,7 @@ static const char *binary_operation(w_seed_hir0_binary_operator operation) {
     case W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT:
     case W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY:
     case W_SEED_HIR0_BINARY_WRAPPING_POWER:
+    case W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT:
       return NULL;
   }
   return NULL;
@@ -1409,6 +1465,8 @@ static const char *u64_binary_operation(
       return "llvm.sub";
     case W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY:
       return "llvm.mul";
+    case W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT:
+      return "llvm.shl";
     default:
       return NULL;
   }
@@ -2123,16 +2181,20 @@ static bool append_binary_u64_value_operation(
       value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY;
   const bool wrapping_power =
       value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_POWER;
+  const bool wrapping_shift_left =
+      value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT;
   const bool constant_division =
       mlir0_value_has_safe_constant_divisor(program, value) ||
       (value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER &&
        mlir0_value_is_constant_u64(program, value_index, 0u));
   const char *helper = wrapping_power
                            ? wrapping_power_helper(program, value)
-                           : (comparison || wrapping || constant_division
-                                  ? NULL
-                                  : checked_u64_binary_helper(
-                                        value->binary_operator));
+                           : (wrapping_shift_left
+                                  ? wrapping_shift_left_helper(program, value)
+                                  : (comparison || wrapping || constant_division
+                                         ? NULL
+                                         : checked_u64_binary_helper(
+                                               value->binary_operator)));
   if (!append_literal(artifact, capacity, offset, "    %v") ||
       !append_size(artifact, capacity, offset, value_index) ||
       !append_literal(artifact, capacity, offset, " = "))
@@ -2199,6 +2261,7 @@ static const char *float_binary_operation(
     case W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT:
     case W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY:
     case W_SEED_HIR0_BINARY_WRAPPING_POWER:
+    case W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT:
       return NULL;
   }
   return NULL;
@@ -2666,6 +2729,9 @@ static bool build_dynamic_artifact(
       (plan.has_wrapping_power &&
        !append_literal(artifact, capacity, &offset,
                        MLIR0_WRAPPING_POWER_HELPER)) ||
+      (plan.has_wrapping_shift_left &&
+       !append_literal(artifact, capacity, &offset,
+                       MLIR0_WRAPPING_SHIFT_LEFT_HELPER)) ||
       (plan.has_u64 &&
        !append_literal(artifact, capacity, &offset, MLIR0_U64_HELPER)) ||
       (plan.has_bool &&
@@ -2778,6 +2844,7 @@ typedef struct {
   bool has_checked_shifts;
   bool has_checked_power;
   bool has_wrapping_power;
+  bool has_wrapping_shift_left;
   bool has_reachable_panic;
   bool reachable_values[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
 } mlir0_program_plan;
@@ -3205,6 +3272,9 @@ static bool build_program_plan(const w_seed_hir0_program *program,
       program, candidate.reachable_values);
   candidate.has_wrapping_power = reachable_values_have_wrapping_power(
       program, candidate.reachable_values);
+  candidate.has_wrapping_shift_left =
+      reachable_values_have_wrapping_shift_left(program,
+                                                candidate.reachable_values);
   derive_reachable_u64_helpers(
       program, candidate.reachable_values, &candidate.has_checked_u64_add,
       &candidate.has_checked_u64_subtract, &candidate.has_checked_u64_multiply,
@@ -5869,6 +5939,9 @@ static bool build_program_artifact(
       (plan.has_wrapping_power &&
        !append_literal(artifact, capacity, &offset,
                        MLIR0_WRAPPING_POWER_HELPER)) ||
+      (plan.has_wrapping_shift_left &&
+       !append_literal(artifact, capacity, &offset,
+                       MLIR0_WRAPPING_SHIFT_LEFT_HELPER)) ||
       (plan.has_u64 &&
        !append_literal(artifact, capacity, &offset, MLIR0_U64_HELPER)) ||
       (plan.has_bool &&
@@ -6369,6 +6442,9 @@ static bool build_process_executable_artifact(
       (plan.has_wrapping_power &&
        !append_literal(artifact, capacity, &offset,
                        MLIR0_WRAPPING_POWER_HELPER)) ||
+      (plan.has_wrapping_shift_left &&
+       !append_literal(artifact, capacity, &offset,
+                       MLIR0_WRAPPING_SHIFT_LEFT_HELPER)) ||
       (plan.has_u64 &&
        !append_literal(artifact, capacity, &offset, MLIR0_U64_HELPER)) ||
        (plan.has_bool &&
@@ -7109,6 +7185,7 @@ static bool append_cooperative_value_tree(
       case W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT:
       case W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY:
       case W_SEED_HIR0_BINARY_WRAPPING_POWER:
+      case W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT:
         break;
     }
     if ((operation == NULL && predicate == NULL) ||
