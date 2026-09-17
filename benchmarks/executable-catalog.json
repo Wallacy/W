@@ -2415,6 +2415,90 @@
       ]
     },
     {
+      "id": "restaurant-uint-masked-shift-right",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Validate fixed-input full-width UInt masked right shift of 128 by count 65 and exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Masked 64\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-uint-masked-shift-right.w",
+          "digest": "sha256:256bacee28df62d9ef179c80815dd63630d4e9f3107cd991213b366265a0a00c",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-uint-masked-shift-right-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        },
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-uint-masked-shift-right.w",
+          "digest": "sha256:256bacee28df62d9ef179c80815dd63630d4e9f3107cd991213b366265a0a00c",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-uint-masked-shift-right-release",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only"
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/restaurant_uint_masked_shift_right.c",
+          "digest": "sha256:0594290380f9113e51af4a2f303eede72e009db1cbd5c0a9e4a61754a03e7ea9",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "clang-c23-msvc",
+          "recipeClass": "restaurant-uint-masked-shift-right-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/restaurant_uint_masked_shift_right.rs",
+          "digest": "sha256:e313371e79fb1f3c8a24fe5ec780e81234900d0e089ec258dd169001b869d421",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "restaurant-uint-masked-shift-right-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        }
+      ],
+      "blockedLanguages": [],
+      "blockers": [
+        "w-uint-masked-shift-right-compile-time-folded",
+        "runtime-uint-masked-shift-right-equivalence"
+      ]
+    },
+    {
       "id": "restaurant-uint-bit-not",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",

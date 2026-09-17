@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-43"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-44"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -347,6 +347,8 @@ typedef enum {
   W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SHIFT_LEFT,
   /* Canonical u64.maskedShiftLeft. Keep this identity append-only. */
   W_SEED_FRONTEND_BUILTIN_U64_MASKED_SHIFT_LEFT,
+  /* Canonical u64.maskedShiftRight. Keep this identity append-only. */
+  W_SEED_FRONTEND_BUILTIN_U64_MASKED_SHIFT_RIGHT,
 } w_seed_frontend_builtin_operation;
 
 typedef enum {

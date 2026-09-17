@@ -207,7 +207,7 @@ static bool make_nested_tree_source(char *buffer, size_t capacity,
 
 static bool test_products(void) {
   CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-9") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-33") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-34") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -2970,6 +2970,85 @@ static bool test_u64_masked_shift_left_slice(void) {
   return true;
 }
 
+static bool test_u64_masked_shift_right_slice(void) {
+  static const uint8_t source[] =
+      "fn shift(value: UInt, count: UInt): UInt { "
+      "return u64.maskedShiftRight(value, count) }\n"
+      "fn main() { "
+      "let zero = shift(value: 128_u64, count: 0_u64) "
+      "let edge = shift(value: 9223372036854775808_u64, count: 63_u64) "
+      "let width = shift(value: 7_u64, count: 64_u64) "
+      "let next = shift(value: 128_u64, count: 65_u64) "
+      "print(\"${zero}/${edge}/${width}/${next}\") }\n"
+      "entry(main)\n";
+  uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source(source, sizeof(source) - 1u, "uint-masked-shift-right",
+                   23u, output, sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  size_t masked_count = 0u;
+  for (size_t index = 0u; index < storage.hir_program.value_count;
+       index += 1u)
+    if (storage.hir_program.values[index].kind ==
+            W_SEED_HIR0_VALUE_BINARY_U64 &&
+        storage.hir_program.values[index].binary_operator ==
+            W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT)
+      masked_count += 1u;
+  CHECK(masked_count == 1u && storage.hir_program.call_count == 5u);
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.has_local_calls && !selection.has_cfg &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.func internal @w_seed_masked_shift_right_u64") ==
+            1u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.call @w_seed_masked_shift_right_u64") == 1u &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.and %count, %mask : i64") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.lshr %left, %masked_count : i64") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "@w_seed_checked_shift_right_u64"));
+
+  static const char *const rejected[] = {
+      "fn bad(value: UInt, count: UInt): UInt { return "
+      "UInt.maskedShiftRight(value, count) }\nentry(bad)\n",
+      "fn bad(value: UInt, count: UInt): UInt { return "
+      "u64.maskedShiftRight(value, 1_i64) }\nentry(bad)\n",
+      "fn bad(value: UInt, count: UInt): UInt { return "
+      "u64.maskedShiftRight(1_i64, count) }\nentry(bad)\n",
+      "fn bad(value: UInt): UInt { return "
+      "u64.maskedShiftRight(value) }\nentry(bad)\n",
+      "fn bad(value: UInt, count: UInt): UInt { return "
+      "u64.maskedShiftRight(value, count, 1_u64) }\nentry(bad)\n",
+      "fn bad(value: UInt, count: UInt): UInt { return "
+      "u64.maskedShiftRight(value: value, count) }\nentry(bad)\n",
+      "fn bad(value: UInt, count: UInt): UInt { return "
+      "u64?.maskedShiftRight(value, count) }\nentry(bad)\n",
+      "fn bad(value: UInt, count: UInt): UInt { return "
+      "u64.maskedShiftRight(u64.maskedShiftRight(value, count), count) }\n"
+      "entry(bad)\n",
+      "const u64: UInt = 1_u64\n"
+      "fn bad(value: UInt, count: UInt): UInt { return "
+      "u64.maskedShiftRight(value, count) }\nentry(bad)\n",
+      "fn bad(value: UInt, count: UInt): Int { return "
+      "u64.maskedShiftRight(value, count) }\nentry(bad)\n"};
+  for (size_t index = 0u; index < sizeof(rejected) / sizeof(rejected[0]);
+       index += 1u) {
+    (void)memset(output, 0x9fu, sizeof(output));
+    (void)memset(&result, 0xa0u, sizeof(result));
+    const w_seed_native0_result snapshot = result;
+    CHECK(run_source((const uint8_t *)rejected[index], strlen(rejected[index]),
+                     "uint-masked-shift-right-bad", 27u, output,
+                     sizeof(output), &result) != W_SEED_NATIVE0_OK);
+    CHECK(memcmp(&result, &snapshot, sizeof(result)) == 0);
+    for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+      CHECK(output[byte] == 0x9fu);
+  }
+  return true;
+}
+
 static bool test_u64_wrapping_negate_slice(void) {
   static const uint8_t source[] =
       "fn wrap(value: UInt): UInt { return u64.wrappingNegate(value) }\n"
@@ -3242,6 +3321,7 @@ int main(void) {
                         test_u64_wrapping_power_slice() &&
                         test_u64_wrapping_shift_left_slice() &&
                         test_u64_masked_shift_left_slice() &&
+                        test_u64_masked_shift_right_slice() &&
                         test_u64_wrapping_negate_slice() &&
                         test_unsigned_unary_u64_slice() &&
                         test_enum_frontend_storage() &&

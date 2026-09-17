@@ -177,6 +177,13 @@ export const SMOKE_CASES = Object.freeze([
       "restaurant-uint-masked-shift-left.w"),
     expectedStdout: "Masked 2\n",
   }),
+  Object.freeze({
+    id: "restaurant-uint-masked-shift-right",
+    fixture: "compiler/seed-c/fixtures/restaurant-uint-masked-shift-right.w",
+    absoluteFixture: resolve(seedDirectory, "fixtures",
+      "restaurant-uint-masked-shift-right.w"),
+    expectedStdout: "Masked 64\n",
+  }),
 ])
 
 function fail(message) {

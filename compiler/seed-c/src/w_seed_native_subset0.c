@@ -330,7 +330,8 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
           value->binary_operator != W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY &&
           value->binary_operator != W_SEED_HIR0_BINARY_WRAPPING_POWER &&
           value->binary_operator != W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT &&
-          value->binary_operator != W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT))))
+          value->binary_operator != W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT &&
+          value->binary_operator != W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT))))
     return false;
   uint64_t left = 0u;
   uint64_t right = 0u;
@@ -359,6 +360,9 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
       return true;
     case W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT:
       *result = left << (right & UINT64_C(63));
+      return true;
+    case W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT:
+      *result = left >> (right & UINT64_C(63));
       return true;
     case W_SEED_HIR0_BINARY_SUBTRACT:
       return checked_u64_subtract(left, right, result);
@@ -503,7 +507,8 @@ static bool program_value_is_constant_u64(
            value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY ||
            value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_POWER ||
            value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT ||
-           value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT) &&
+           value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT ||
+           value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT) &&
          program_value_is_constant_u64(program, value->left_value,
                                        depth + 1u) &&
          program_value_is_constant_u64(program, value->right_value,
@@ -1364,7 +1369,8 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
         value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY ||
         value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_POWER ||
         value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT ||
-        value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT;
+        value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT ||
+        value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT;
     const bool bitwise =
         value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
         value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR;
