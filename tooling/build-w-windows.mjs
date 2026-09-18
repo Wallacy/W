@@ -264,6 +264,15 @@ export const SMOKE_CASES = Object.freeze([
       "1/false\n",
   }),
   Object.freeze({
+    id: "restaurant-uint-overflowing-family",
+    fixture: "compiler/seed-c/fixtures/restaurant-uint-overflowing-family.w",
+    absoluteFixture: resolve(seedDirectory, "fixtures",
+      "restaurant-uint-overflowing-family.w"),
+    expectedStdout:
+      "Overflowing family 41/false/18446744073709551615/true/42/false/" +
+      "18446744073709551614/true/0/false/18446744073709551615/true\n",
+  }),
+  Object.freeze({
     id: "restaurant-uint-saturating-add",
     fixture: "compiler/seed-c/fixtures/restaurant-uint-saturating-add.w",
     absoluteFixture: resolve(seedDirectory, "fixtures",

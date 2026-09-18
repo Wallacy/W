@@ -210,6 +210,7 @@ O corpus compara, no mínimo:
 - checked signed-i64 arithmetic against wrapped overflow, unreachable helpers, and runtime division/remainder.
 - bounded u64 overflowing exponentiation against repeated multiplication, exponent ceilings, precomputed answers, and unreachable helper retention.
 - bounded unsigned saturating negate and power against wrapping, linear exponentiation, precomputed answers, and unreachable helper retention.
+- bounded unsigned overflowing subtract, multiply, and negate against checked helpers, heap products, precomputed output, and a single shared flag rule.
 - short default entry against a magic main function, source-addressable synthetic identity, and duplicate default descriptors.
 - external process nominal identity against alias-spelling identity, first-match duplicate imports, and forged ExitCode success metadata.
 - caller-owned external identity, handler compatibility, alias-independent semantics, and downstream fail-closed behavior.
@@ -7978,6 +7979,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1630 | bounded private provider-neutral GPU launch/join/result boundary | ACCPROV0 schema `w-seed-accelerated-provider0-1` consumes one verified ACCREQ0 and caller-owned native artifact/receipt whose link binds the request device-artifact digest, target, provider ABI class, and native-artifact digest; its caller-owned state enforces the exact staged, submitted, device-running, body-settled, provider-drained, cleanup, outcome-committed, and joined lifecycle with every writable output bound before provider effect. The semantic outcome contains only the successful signed-i32 result shape/value and lifecycle order, while provider/target/device/queue/generation/status/timing facts remain in pointer-free physical provenance. Failure, device loss, stale generation, protocol mismatch, wrong result, false or malformed callback, or cleanup uncertainty publishes no semantic outcome and cannot be retried or double-cleaned. The existing Windows CUDA route exercises this boundary and preserves plumbing result 42; MLIR/NVVM/PTX materialization remains tooling-owned. | `source-backed-current` only for the private target/provider-neutral ACCPROV0 core, reproducible native-artifact receipt, pre-effect validation and output binding, exact lifecycle, semantic/provenance separation, conservative callback and cleanup uncertainty, terminal retry barriers, producer teardown, adversarial fake-provider evidence, and the existing Windows x64 CUDA adapter path. The provider ABI class remains a provider-neutral compatibility requirement rather than concrete provider identity. Public GPU build/run, stable runtime/provider ABI, general scheduling/residency/cancellation, matrix/operator lowering, binary authentication, other providers/targets, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1631 | bounded `u64.overflowingPower` executable lowering | Frontend60 and HIR75 preserve `u64.overflowingPower(base, exponent) -> (u64, Bool)` as one append-only builtin and virtual tuple product. MLIR0 emits one reachable-only exponentiation-by-squaring helper using unsigned overflow intrinsics, returns low bits modulo `2^64` plus a sticky exact-overflow flag, and defines `0^0` as `(1, false)` without heap, CRT, floating point, precomputation, or an exponent ceiling. | `source-backed-current` only for the bounded `u64` source-to-frontend-to-verified-HIR-to-MLIR/Native0 route, adversarial C23 tests, helper reachability, MLIR/LLVM 23.1.1 verification, and exact native execution of ordinary, overflow, wrapped, and zero-exponent cases. Other widths, const evaluation, stable ABI, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1632 | bounded unsigned saturating negate and power lowering | Frontend61 and HIR76 preserve `u64.saturatingNegate(value) -> u64` and `u64.saturatingPower(base, exponent) -> u64` as append-only operations. MLIR0 lowers negate to unsigned saturating subtraction from zero and emits one reachable-only exponentiation-by-squaring helper that clamps exact unsigned multiplication overflow to `u64.max`, defines `0^0` as `1`, and uses no exponent ceiling, heap, CRT, floating point, or precomputed result. | `source-backed-current` only for the bounded `u64` source-to-frontend-to-verified-HIR-to-MLIR/Native0 route, adversarial C23 tests, helper reachability, MLIR/LLVM 23.1.1 verification, and exact native execution. Other widths, const evaluation, stable ABI, benchmark ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1633 | bounded unsigned overflowing subtract, multiply, and negate execution | Frontend61 and HIR76 preserve `u64.overflowingSubtract`, `u64.overflowingMultiply`, and `u64.overflowingNegate` as append-only operations returning virtual `(u64, Bool)` products. MLIR0 emits unsigned overflow intrinsics and ordinary tuple projections; exact native execution covers ordinary and overflow boundaries without heap, runtime identity, checked helpers, or precomputed results. | `source-backed-current` only for the bounded `u64` source-to-frontend-to-verified-HIR-to-MLIR/Native0 route, adversarial C23 tests, exact intrinsic/projection shape, and exact Windows plus Linux/WSL execution. Other widths, const evaluation, stable ABI, benchmark ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -13881,3 +13883,21 @@ This keeps one operation body per policy while exercising multiple runtime
 inputs. Exact output proves zero and maximum negation, ordinary power, clamped
 power, and zero exponent. The evidence remains bounded to `u64` and does not
 claim const evaluation, other widths, stable ABI, ranking, or performance.
+
+W-1633 closes the remaining already-lowered unsigned overflowing family before
+new arithmetic surface is added. Subtract, multiply, and negate share one
+virtual `(u64, Bool)` representation, but their exact flags differ: unsigned
+subtract reports borrow, multiply reports a mathematical product outside the
+fixed-width range, and negate is subtraction from zero and therefore reports
+overflow for every nonzero operand. Keeping both lanes as SSA values avoids a
+heap object and preserves later scalar replacement and dead-projection removal.
+
+The executable fixture deliberately uses the public operations directly in a
+single `entry`. It exercises ordinary and boundary cases, including zero minus
+one, `u64.max * 2`, zero negation, and one negation. MLIR shape checks prove
+that unsigned overflow intrinsics and tuple projections remain reachable while
+unrelated checked helpers and Hello artifacts stay absent. C23 and Rust sources
+serve as independent exact-output oracles only: W currently sees constants, so
+performance ranking would compare different physical work and remains blocked.
+This decision claims neither a stable tuple ABI nor support for other widths or
+const evaluation.

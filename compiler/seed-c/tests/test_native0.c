@@ -3170,6 +3170,101 @@ static bool test_u64_overflowing_power_slice(void) {
   return true;
 }
 
+static bool test_u64_overflowing_family_slice(void) {
+  static const uint8_t source[] =
+      "entry { "
+      "let ordinarySubtract = u64.overflowingSubtract(42_u64, 1_u64) "
+      "let underflowSubtract = u64.overflowingSubtract(0_u64, 1_u64) "
+      "let ordinaryMultiply = u64.overflowingMultiply(6_u64, 7_u64) "
+      "let overflowMultiply = u64.overflowingMultiply(18446744073709551615_u64, 2_u64) "
+      "let zeroNegate = u64.overflowingNegate(0_u64) "
+      "let oneNegate = u64.overflowingNegate(1_u64) "
+      "print(\"Overflowing family \x24{ordinarySubtract.0}/\x24{ordinarySubtract.1}/\x24{underflowSubtract.0}/\x24{underflowSubtract.1}/\x24{ordinaryMultiply.0}/\x24{ordinaryMultiply.1}/\x24{overflowMultiply.0}/\x24{overflowMultiply.1}/\x24{zeroNegate.0}/\x24{zeroNegate.1}/\x24{oneNegate.0}/\x24{oneNegate.1}\") }\n";
+  uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source(source, sizeof(source) - 1u, "uint-overflowing-family",
+                   sizeof("uint-overflowing-family") - 1u, output,
+                   sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  size_t subtract_count = 0u;
+  size_t multiply_count = 0u;
+  size_t negate_count = 0u;
+  size_t projection_count = 0u;
+  for (size_t index = 0u; index < storage.hir_program.value_count;
+       index += 1u) {
+    const w_seed_hir0_value *value = &storage.hir_program.values[index];
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
+        value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_SUBTRACT)
+      subtract_count += 1u;
+    else if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
+             value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_MULTIPLY)
+      multiply_count += 1u;
+    else if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64 &&
+             value->unary_operator == W_SEED_HIR0_UNARY_OVERFLOWING_NEGATE)
+      negate_count += 1u;
+    else if (value->kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT)
+      projection_count += 1u;
+  }
+  CHECK(subtract_count == 2u && multiply_count == 2u && negate_count == 2u &&
+        projection_count == 12u && storage.hir_program.call_count == 1u);
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(!selection.has_local_calls && !selection.has_cfg &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.intr.usub.with.overflow") == 4u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.intr.umul.with.overflow") == 2u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.extractvalue") == projection_count &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.call @w_seed_append_u64") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.call @w_seed_append_bool") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "@w_seed_checked_subtract_u64") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "@w_seed_checked_multiply_u64") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "@w_seed_checked_negate_u64"));
+
+  static const char *const rejected[] = {
+      "entry { let pair = UInt.overflowingSubtract(1_u64, 2_u64) }\n",
+      "entry { let pair = u64.overflowingSubtract(1_u64) }\n",
+      "entry { let pair = u64.overflowingSubtract(1_u64, 2_u64, 3_u64) }\n",
+      "entry { let pair = u64.overflowingSubtract(1_i64, 2_u64) }\n",
+      "entry { let pair = u64.overflowingSubtract(1_u64, true) }\n",
+      "entry { let pair = u64.overflowingSubtract(left: 1_u64, 2_u64) }\n",
+      "entry { let value: UInt = u64.overflowingSubtract(1_u64, 2_u64) }\n",
+      "entry { let pair = UInt.overflowingMultiply(1_u64, 2_u64) }\n",
+      "entry { let pair = u64.overflowingMultiply(1_u64) }\n",
+      "entry { let pair = u64.overflowingMultiply(1_u64, 2_u64, 3_u64) }\n",
+      "entry { let pair = u64.overflowingMultiply(1_u64, 2_i64) }\n",
+      "entry { let pair = u64.overflowingMultiply(1_i64, 2_u64) }\n",
+      "entry { let pair = u64.overflowingMultiply(left: 1_u64, 2_u64) }\n",
+      "entry { let value: UInt = u64.overflowingMultiply(1_u64, 2_u64) }\n",
+      "entry { let pair = UInt.overflowingNegate(1_u64) }\n",
+      "entry { let pair = u64.overflowingNegate() }\n",
+      "entry { let pair = u64.overflowingNegate(1_u64, 2_u64) }\n",
+      "entry { let pair = u64.overflowingNegate(1_i64) }\n",
+      "entry { let pair = u64.overflowingNegate(true) }\n",
+      "entry { let value: UInt = u64.overflowingNegate(1_u64) }\n",
+      "entry { let pair = u64.overflowingSubtract(1_u64, 2_u64) let invalid = pair.2 }\n"};
+  for (size_t index = 0u; index < sizeof(rejected) / sizeof(rejected[0]);
+       index += 1u) {
+    (void)memset(output, 0x9fu, sizeof(output));
+    (void)memset(&result, 0xa0u, sizeof(result));
+    const w_seed_native0_result snapshot = result;
+    CHECK(run_source((const uint8_t *)rejected[index], strlen(rejected[index]),
+                     "uint-overflowing-family-bad", 26u, output,
+                     sizeof(output), &result) != W_SEED_NATIVE0_OK);
+    CHECK(memcmp(&result, &snapshot, sizeof(result)) == 0);
+    for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+      CHECK(output[byte] == 0x9fu);
+  }
+  return true;
+}
+
 static bool test_u64_wrapping_shift_left_slice(void) {
   static const uint8_t source[] =
       "fn shift(value: UInt, count: UInt): UInt { "
@@ -4323,6 +4418,7 @@ int main(void) {
                         test_u64_wrapping_multiply_slice() &&
                         test_u64_wrapping_power_slice() &&
                         test_u64_overflowing_power_slice() &&
+                        test_u64_overflowing_family_slice() &&
                         test_u64_wrapping_shift_left_slice() &&
                         test_u64_masked_shift_left_slice() &&
                         test_u64_masked_shift_right_slice() &&

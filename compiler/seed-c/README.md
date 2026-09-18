@@ -2840,6 +2840,14 @@ overflow to `u64.max`, and preserves `0^0 == 1`. The fixture executes zero and
 maximum negation, ordinary and clamped power, and zero exponent through
 reusable functions and a direct `entry` block.
 
+[`fixtures/restaurant-uint-overflowing-family.w`](fixtures/restaurant-uint-overflowing-family.w)
+closes the exact public/native witness for `u64.overflowingSubtract`,
+`u64.overflowingMultiply`, and `u64.overflowingNegate`. Their virtual
+`(u64, Bool)` products lower to unsigned overflow intrinsics plus tuple
+projections without allocation or checked helpers. Ordinary and overflow
+boundaries execute on Windows and Linux/WSL; the benchmark catalog records
+correctness only until W, C23, and Rust preserve equivalent runtime work.
+
 [`fixtures/restaurant-uint-bit-not.w`](fixtures/restaurant-uint-bit-not.w)
 proves the public Linux/WSL and Windows `w run` routes with `~0_u64` producing
 exactly `18446744073709551615`;

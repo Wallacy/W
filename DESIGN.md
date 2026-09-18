@@ -41841,6 +41841,34 @@ stable ABI, benchmark ranking, and performance remain gaps.
 **Example:** `u64.saturatingNegate(u64.max)` produces `0`, `2_u64^64` clamps
 to `u64.max`, and `0_u64^0` produces `1` through the emitted native executable.
 
+#### 26.4.1.113 W-1633 — bounded unsigned overflowing subtract, multiply, and negate execution
+
+The existing `u64.overflowingSubtract`, `u64.overflowingMultiply`, and
+`u64.overflowingNegate` contracts now have one exact public source-to-native
+witness. Frontend61 and HIR76 already preserve each operation as an append-only
+identity returning the virtual `(u64, Bool)` product. The two tuple lanes remain
+ordinary SSA values; they do not require a heap allocation, runtime identity,
+or a distinct object ABI.
+
+For subtraction, the first lane is the low result modulo `2^64` and the flag is
+true exactly when `left < right`. Multiplication likewise returns the low
+product and reports whether the mathematical product exceeds `u64.max`.
+Unsigned negation is `0 - value`, so its flag is true exactly for a nonzero
+operand. MLIR0 expresses these rules with unsigned overflow intrinsics and
+ordinary tuple projections; it does not retain checked-arithmetic helpers.
+
+Focused Native0 tests reject wrong receiver, arity, operand or result type,
+labels, and invalid tuple projections while preserving output and result on
+failure. The Restaurant fixture executes ordinary and overflowing boundaries
+for all three operations through MLIR/LLVM 23.1.1 and checks exact stdout. This
+is bounded compiler-lifecycle correctness evidence for `u64`, not evidence for
+other widths, const evaluation, a stable tuple ABI, benchmark ranking, or
+performance.
+
+**Example:** subtracting one from zero yields `(u64.max, true)`, multiplying
+`u64.max` by two yields `(u64.max - 1, true)`, and negating one yields
+`(u64.max, true)`.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

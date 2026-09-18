@@ -10594,6 +10594,72 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-u64-overflowing-family-native",
+      "reviewItem": "bounded unsigned overflowing subtract, multiply, and negate against checked helpers, heap products, precomputed output, and a single shared flag rule",
+      "decisions": [
+        "W-1633"
+      ],
+      "task": "Prove exact source-to-native u64 overflowing subtract, multiply, and negate values and flags with one virtual tuple representation.",
+      "selected": {
+        "language": "w-internal",
+        "source": [
+          "frontend and verified HIR preserve all three operations as append-only virtual (u64, Bool) products",
+          "subtract reports unsigned borrow, multiply reports exact product overflow, and negate reports a nonzero operand",
+          "MLIR0 uses unsigned overflow intrinsics and ordinary tuple projections without checked helpers or heap identity",
+          "the native fixture executes ordinary and overflowing boundaries with exact stdout on Windows and Linux/WSL",
+          "C23 and Rust are independent correctness oracles while equivalent runtime-work ranking remains blocked"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "heap-tuple-object",
+          "language": "w-internal-rejected",
+          "source": [
+            "allocate an object to carry the low value and overflow flag"
+          ],
+          "expectedDifference": "The product remains virtual SSA, allowing scalar replacement and unused-lane elimination without runtime identity."
+        },
+        {
+          "name": "checked-helper-reuse",
+          "language": "w-internal-rejected",
+          "source": [
+            "reuse trapping or Result-producing checked arithmetic helpers"
+          ],
+          "expectedDifference": "Overflowing operations return low bits plus a flag and therefore lower directly to non-trapping overflow intrinsics."
+        },
+        {
+          "name": "one-generic-overflow-rule",
+          "language": "w-internal-rejected",
+          "source": [
+            "derive every flag from one comparison independent of the operation"
+          ],
+          "expectedDifference": "Borrow, product overflow, and unsigned negation have distinct exact predicates despite sharing one tuple representation."
+        },
+        {
+          "name": "precomputed-fixture-output",
+          "language": "w-internal-rejected",
+          "source": [
+            "replace operations and projections with the expected output constants"
+          ],
+          "expectedDifference": "The fixture crosses the real source, verified HIR, MLIR, native link, and process-execution route."
+        },
+        {
+          "name": "performance-ranking-now",
+          "language": "w-internal-rejected",
+          "source": [
+            "rank constant-foldable W against runtime black-box C23 and Rust operands"
+          ],
+          "expectedDifference": "The catalog records correctness only until every language preserves equivalent runtime work."
+        }
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

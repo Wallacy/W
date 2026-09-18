@@ -11,8 +11,8 @@ Neither bundle produces a language or product-runtime result.
 [`executable-catalog.json`](executable-catalog.json) is the machine-readable
 catalog of executable workloads. It keeps stable IDs for `hello`,
 `process-entry`, `process-enum-payload`, `process-arguments-count`,
-`process-handler-lifecycle`, 47 source-backed Restaurant workloads, and the
-future full Restaurant composition. Hello has W, C, and Rust sources. Twenty-one
+`process-handler-lifecycle`, 48 source-backed Restaurant workloads, and the
+future full Restaurant composition. Hello has W, C, and Rust sources. Twenty-two
 Restaurant witnesses, including branch, loop, enum, async/yield, strict-f64,
 and UInt arithmetic slices, also have independent C and Rust sources verified against exact
 oracles. The remaining Restaurant witnesses are W-only with explicit C/Rust
@@ -171,6 +171,15 @@ The low bits and sticky overflow flags are printed for each result. W may fold
 these calls in the final artifact. The C23 and Rust 2024 references retain
 independent runtime operands. Runtime equivalence is not proven, so this
 workload has no performance ranking.
+
+The `restaurant-uint-overflowing-family` witness is `not-performance-ready`.
+Its fixed inputs exercise overflowing subtraction (`42 - 1` and `0 - 1`),
+multiplication (`6 * 7` and `UInt` maximum times `2`), and negation (`0` and
+`1`). Its exact oracle is
+`Overflowing family 41/false/18446744073709551615/true/42/false/18446744073709551614/true/0/false/18446744073709551615/true\n`.
+W may fold these calls in the final artifact. The C23 and Rust 2024 references
+retain independent runtime operands. Runtime equivalence is not proven, so
+this workload has no performance ranking.
 
 The `restaurant-uint-saturating-add` witness is `not-performance-ready`. Its
 fixed inputs apply saturating addition of `1` to `UInt` maximum and `10`, and

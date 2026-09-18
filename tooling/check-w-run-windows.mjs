@@ -107,6 +107,8 @@ const restaurantUIntOverflowingAddFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-overflowing-add.w")
 const restaurantUIntOverflowingPowerFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-overflowing-power.w")
+const restaurantUIntOverflowingFamilyFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-overflowing-family.w")
 const restaurantUIntSaturatingAddFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-saturating-add.w")
 const restaurantUIntSaturatingSubtractFixture = resolve(seedDirectory,
@@ -716,6 +718,12 @@ try {
       "Overflowing power 9223372036854775808/false; 0/true; 1/true; " +
       "1/false\n", "utf8"),
     "Restaurant UInt overflowingPower preserves sticky overflow")
+  expectExact(binary, ["run", restaurantUIntOverflowingFamilyFixture], 0,
+    Buffer.from(
+      "Overflowing family 41/false/18446744073709551615/true/42/false/" +
+      "18446744073709551614/true/0/false/18446744073709551615/true\n",
+      "utf8"),
+    "Restaurant UInt overflowing family preserves all operation flags")
   expectExact(binary, ["run", restaurantUIntSaturatingAddFixture], 0,
     Buffer.from("Saturated 18446744073709551615/11\n", "utf8"),
     "Restaurant UInt saturatingAdd clamps overflow without trapping")

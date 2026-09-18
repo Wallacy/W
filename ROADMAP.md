@@ -205,6 +205,14 @@ preserves `0^0 == 1`. The fixture executes all boundary cases through the
 native route. Other widths, const evaluation, stable ABI, ranking, and
 performance remain open.
 
+W-1633 closes exact native witnesses for the already-lowered unsigned
+`overflowingSubtract`, `overflowingMultiply`, and `overflowingNegate` family.
+Their `(u64, Bool)` products remain virtual SSA values, the native artifact uses
+unsigned overflow intrinsics and tuple projections directly, and Windows plus
+Linux/WSL exact execution covers ordinary and overflow boundaries. Other widths,
+const evaluation, stable ABI, equivalent runtime-work ranking, and performance
+remain open.
+
 The first rank-1 increments are now executable. Signed-`i64` `&`, `|`, `^`,
 and unary `~` cross exact W source, canonical precedence, verified HIR0, direct
 LLVM-dialect operations, and the maintained native routes. Checked `<<` and

@@ -49,6 +49,8 @@ const restaurantUIntWrappingPowerFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-power.w")
 const restaurantUIntOverflowingPowerFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-overflowing-power.w")
+const restaurantUIntOverflowingFamilyFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-overflowing-family.w")
 const restaurantUIntWrappingShiftLeftFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-shift-left.w")
 const restaurantUIntMaskedShiftLeftFixture = resolve(seedDirectory,
@@ -731,6 +733,12 @@ try {
       expected: Buffer.from(
         "Overflowing power 9223372036854775808/false; 0/true; 1/true; " +
         "1/false\n", "utf8") },
+    { name: "restaurant-uint-overflowing-family",
+      source: restaurantUIntOverflowingFamilyFixture,
+      expected: Buffer.from(
+        "Overflowing family 41/false/18446744073709551615/true/" +
+        "42/false/18446744073709551614/true/0/false/" +
+        "18446744073709551615/true\n", "utf8") },
     { name: "restaurant-uint-wrapping-shift-left",
       source: restaurantUIntWrappingShiftLeftFixture,
       expected: Buffer.from("Wrapped 18446744073709551614\n", "utf8") },
@@ -1096,6 +1104,19 @@ try {
     uintOverflowingPowerArtifact.includes("llvm.call @w_seed_append_bool") &&
     !uintOverflowingPowerArtifact.includes("@w_seed_checked_power_u64"),
   "u64.overflowingPower lost sticky-overflow exponentiation lowering")
+  const uintOverflowingFamilyArtifact =
+    artifacts.get("restaurant-uint-overflowing-family").toString("utf8")
+  assert((uintOverflowingFamilyArtifact.match(
+    /llvm\.intr\.usub\.with\.overflow/g) ?? []).length === 4 &&
+    (uintOverflowingFamilyArtifact.match(
+      /llvm\.intr\.umul\.with\.overflow/g) ?? []).length === 2 &&
+    (uintOverflowingFamilyArtifact.match(/llvm\.extractvalue/g) ?? []).length === 12 &&
+    uintOverflowingFamilyArtifact.includes("llvm.call @w_seed_append_u64") &&
+    uintOverflowingFamilyArtifact.includes("llvm.call @w_seed_append_bool") &&
+    !uintOverflowingFamilyArtifact.includes("@w_seed_checked_subtract_u64") &&
+    !uintOverflowingFamilyArtifact.includes("@w_seed_checked_multiply_u64") &&
+    !uintOverflowingFamilyArtifact.includes("@w_seed_checked_negate_u64"),
+  "u64 overflowing subtract/multiply/negate lost direct tuple lowering")
   const uintWrappingShiftLeftArtifact =
     artifacts.get("restaurant-uint-wrapping-shift-left").toString("utf8")
   assert((uintWrappingShiftLeftArtifact.match(
@@ -1271,6 +1292,8 @@ try {
     "UInt compound mutation gained an unrelated checked helper")
   const wmoArtifact = artifacts.get("restaurant-wmo")
   assert(!artifacts.get("hello").includes("@w_seed_checked_") &&
+    !artifacts.get("hello").includes("llvm.intr.usub.with.overflow") &&
+    !artifacts.get("hello").includes("llvm.intr.umul.with.overflow") &&
     !artifacts.get("hello").includes("@w_seed_overflowing_power_u64") &&
     !artifacts.get("hello").includes("@w_seed_saturating_power_u64") &&
     wmoArtifact.includes("@w_fn_0(") &&
