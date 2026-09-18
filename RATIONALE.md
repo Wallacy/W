@@ -211,6 +211,7 @@ O corpus compara, no mínimo:
 - bounded u64 overflowing exponentiation against repeated multiplication, exponent ceilings, precomputed answers, and unreachable helper retention.
 - bounded unsigned saturating negate and power against wrapping, linear exponentiation, precomputed answers, and unreachable helper retention.
 - bounded unsigned overflowing subtract, multiply, and negate against checked helpers, heap products, precomputed output, and a single shared flag rule.
+- bounded source-backed `u64` ConstIR7 policy evaluation.
 - short default entry against a magic main function, source-addressable synthetic identity, and duplicate default descriptors.
 - external process nominal identity against alias-spelling identity, first-match duplicate imports, and forged ExitCode success metadata.
 - caller-owned external identity, handler compatibility, alias-independent semantics, and downstream fail-closed behavior.
@@ -7980,6 +7981,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1631 | bounded `u64.overflowingPower` executable lowering | Frontend60 and HIR75 preserve `u64.overflowingPower(base, exponent) -> (u64, Bool)` as one append-only builtin and virtual tuple product. MLIR0 emits one reachable-only exponentiation-by-squaring helper using unsigned overflow intrinsics, returns low bits modulo `2^64` plus a sticky exact-overflow flag, and defines `0^0` as `(1, false)` without heap, CRT, floating point, precomputation, or an exponent ceiling. | `source-backed-current` only for the bounded `u64` source-to-frontend-to-verified-HIR-to-MLIR/Native0 route, adversarial C23 tests, helper reachability, MLIR/LLVM 23.1.1 verification, and exact native execution of ordinary, overflow, wrapped, and zero-exponent cases. Other widths, const evaluation, stable ABI, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1632 | bounded unsigned saturating negate and power lowering | Frontend61 and HIR76 preserve `u64.saturatingNegate(value) -> u64` and `u64.saturatingPower(base, exponent) -> u64` as append-only operations. MLIR0 lowers negate to unsigned saturating subtraction from zero and emits one reachable-only exponentiation-by-squaring helper that clamps exact unsigned multiplication overflow to `u64.max`, defines `0^0` as `1`, and uses no exponent ceiling, heap, CRT, floating point, or precomputed result. | `source-backed-current` only for the bounded `u64` source-to-frontend-to-verified-HIR-to-MLIR/Native0 route, adversarial C23 tests, helper reachability, MLIR/LLVM 23.1.1 verification, and exact native execution. Other widths, const evaluation, stable ABI, benchmark ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1633 | bounded unsigned overflowing subtract, multiply, and negate execution | Frontend61 and HIR76 preserve `u64.overflowingSubtract`, `u64.overflowingMultiply`, and `u64.overflowingNegate` as append-only operations returning virtual `(u64, Bool)` products. MLIR0 emits unsigned overflow intrinsics and ordinary tuple projections; exact native execution covers ordinary and overflow boundaries without heap, runtime identity, checked helpers, or precomputed results. | `source-backed-current` only for the bounded `u64` source-to-frontend-to-verified-HIR-to-MLIR/Native0 route, adversarial C23 tests, exact intrinsic/projection shape, and exact Windows plus Linux/WSL execution. Other widths, const evaluation, stable ABI, benchmark ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1634 | bounded source-backed `u64` ConstIR7 policy evaluation | ConstIR schema `w-seed-constir-7` accepts the ten existing closed `u64` policies—`saturatingAdd`, `saturatingSubtract`, `saturatingMultiply`, `saturatingNegate`, `saturatingPower`, `overflowingAdd`, `overflowingSubtract`, `overflowingMultiply`, `overflowingNegate`, and `overflowingPower`—and evaluates them with exact type/arity/receiver identity. Overflowing results are one allocation-free virtual `(u64, Bool)` value with checked `.0`/`.1` projections; power uses exponentiation by squaring and step quota. | `source-backed-current` only for the bounded C23 source-backed evaluator, exact ten-policy values and boundaries, tuple projections, zero heap/CRT/float/artificial exponent cap, quota diagnostics, result-byte accounting, and all-or-nothing invalid/capacity behavior. Frontend module-const tuple initializers, generic tuples, a stable tuple ABI, other widths, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`; no new public benchmark. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -13901,3 +13903,26 @@ serve as independent exact-output oracles only: W currently sees constants, so
 performance ranking would compare different physical work and remains blocked.
 This decision claims neither a stable tuple ABI nor support for other widths or
 const evaluation.
+
+W-1634 adds the missing ConstIR-side evidence without changing the public
+arithmetic surface. The current receipt schema is `w-seed-constir-7`, an
+append-only extension of the previous node record. The closed frontend shape
+admits exactly the ten existing `u64` policies: saturating and overflowing
+add, subtract, multiply, negate, and power. Requiring the canonical `u64`
+receiver, positional operands, exact arity, and exact result type keeps a
+source spelling that merely resembles a policy outside the evaluator.
+
+The overflowing family is represented as one virtual `(u64, Bool)` value.
+ConstIR evaluates the value without heap storage and exposes `.0` and `.1`
+through checked positional projection nodes, rather than inventing a generic
+tuple representation or ABI. Power uses exponentiation by squaring; each
+iteration consumes the step quota, so `W-CONST-0003` is observable and leaves
+no result when the quota is exhausted. The bounded implementation has no CRT
+or floating-point path, precomputed output, or artificial exponent ceiling.
+
+The C23 ConstIR evidence covers ordinary and boundary values for all ten
+policies, both tuple lanes, malformed builtin/projection records, result-byte
+quota, and all-or-nothing lowering. It is source-backed-current only for `u64`.
+Frontend module-const tuple initializers remain outside this slice, as do
+generic tuples, a stable tuple ABI, other widths, and performance. The
+`benchmarkDisposition` is `compiler-lifecycle`; no public benchmark is added.

@@ -213,6 +213,16 @@ Linux/WSL exact execution covers ordinary and overflow boundaries. Other widths,
 const evaluation, stable ABI, equivalent runtime-work ranking, and performance
 remain open.
 
+W-1634 closes the bounded source-backed-current ConstIR7 evaluation slice for
+the ten existing `u64` policies: saturating and overflowing add, subtract,
+multiply, negate, and power. ConstIR7 preserves the virtual `(u64, Bool)`
+product and checked `.0`/`.1` projections, while power uses exponentiation by
+squaring under the step quota. The slice has zero heap, CRT, floating-point
+conversion, precomputed result, and artificial exponent cap. It is limited to
+`u64`; frontend module-const tuple initializers, generic tuples, a stable tuple
+ABI, other widths, and performance remain open. `benchmarkDisposition` is
+`compiler-lifecycle`; no public benchmark is added.
+
 The first rank-1 increments are now executable. Signed-`i64` `&`, `|`, `^`,
 and unary `~` cross exact W source, canonical precedence, verified HIR0, direct
 LLVM-dialect operations, and the maintained native routes. Checked `<<` and

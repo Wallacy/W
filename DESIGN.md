@@ -3645,13 +3645,13 @@ barreira antes de publicar output, nunca truncamento ou `INVALID` silencioso.
 
 O schema de frontend sobe para `w-seed-frontend-7` e o de generic validation
 para `w-seed-generic-validation-8`; a identidade de specialization usa
-`w-seed-generic-specialization-2`. `w-seed-constir-6` e
-`w-seed-generic-fingerprint-1` permanecem. Annotation presence, source order,
+`w-seed-generic-specialization-2`. Na projeção histórica D7, `w-seed-constir-6`
+e `w-seed-generic-fingerprint-1` permanecem. Annotation presence, source order,
 spans/trivia, trabalho de inferência e índices process-local não entram no
 ConstIR body digest nem no fingerprint. Explicit e inferred semanticamente
 equivalentes publicam o mesmo tipo efetivo, valor normalizado e fingerprint.
 
-O ConstIR `w-seed-constir-6` registra cada declaration com origem
+O ConstIR histórico `w-seed-constir-6` registra cada declaration com origem
 `FRONTEND_CONST_DECLARATION` e relação/sentinel explícitos. Cada record D4 é
 uma função sintética zero-arg; cada identifier vira dependency `CALL`. A ordem
 é functions frontend, module const declarations na ordem frontend/source e
@@ -41868,6 +41868,34 @@ performance.
 **Example:** subtracting one from zero yields `(u64.max, true)`, multiplying
 `u64.max` by two yields `(u64.max - 1, true)`, and negating one yields
 `(u64.max, true)`.
+
+#### 26.4.1.114 W-1634 — bounded `u64` ConstIR7 policy evaluation
+
+The current ConstIR receipt schema is `w-seed-constir-7`. W-1634 is
+`source-backed-current` evidence for const evaluation of the ten existing
+closed `u64` policies: `saturatingAdd`, `saturatingSubtract`,
+`saturatingMultiply`, `saturatingNegate`, `saturatingPower`,
+`overflowingAdd`, `overflowingSubtract`, `overflowingMultiply`,
+`overflowingNegate`, and `overflowingPower`. The exact frontend receiver,
+argument arity, operand types, result types, and policy identity are required;
+the evaluator does not accept a look-alike member or a generic policy call.
+
+Overflowing policies produce the virtual allocation-free `(u64, Bool)` value.
+ConstIR records the product as one compiler-owned value and records `.0` and
+`.1` as checked positional projection nodes, yielding `u64` and `Bool`
+respectively. The evaluator uses exponentiation by squaring for both power
+policies. Each bounded iteration consumes the step quota, and an exhausted
+quota returns `W-CONST-0003` without publishing a value. There is no heap,
+CRT, floating-point conversion, precomputed result, or artificial exponent
+ceiling in this slice.
+
+The C23 ConstIR unit proves ordinary and boundary values for all ten policies,
+both tuple lanes, result-byte quota, malformed builtin/projection records, and
+all-or-nothing lowering. This remains only `u64` evidence. Frontend
+module-const tuple initializers remain outside the slice; generic tuples, a
+stable tuple ABI, other integer widths, and performance remain gaps. Its
+`benchmarkDisposition` is `compiler-lifecycle`, and W adds no public benchmark
+for this evidence.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

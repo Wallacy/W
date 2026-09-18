@@ -34,7 +34,7 @@ typedef struct {
   bool valid;
 } constir_value_result;
 
-static const uint8_t CONSTIR_RECEIPT_SCHEMA[] = "w-seed-constir-6";
+static const uint8_t CONSTIR_RECEIPT_SCHEMA[] = "w-seed-constir-7";
 
 static bool add_size(size_t left, size_t right, size_t *out) {
   if (out == NULL || right > SIZE_MAX - left) return false;
@@ -182,11 +182,135 @@ static bool frontend_string_slice_valid(const constir_lower_context *context,
   return count == 0u || context->frontend->const_bytes != NULL;
 }
 
+static bool constir_builtin_u64_operation_is_supported(
+    w_seed_frontend_builtin_operation operation) {
+  return operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_ADD ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_SUBTRACT ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_MULTIPLY ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_NEGATE ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_POWER ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_POWER;
+}
+
+static bool constir_builtin_u64_operation_is_unary(
+    w_seed_frontend_builtin_operation operation) {
+  return operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_NEGATE ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE;
+}
+
+static bool constir_builtin_u64_operation_returns_tuple(
+    w_seed_frontend_builtin_operation operation) {
+  return operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_POWER;
+}
+
+static bool constir_builtin_u64_operation_is_saturating(
+    w_seed_frontend_builtin_operation operation) {
+  return operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_ADD ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_SUBTRACT ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_MULTIPLY ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_NEGATE ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_POWER;
+}
+
+static bool constir_builtin_u64_member_matches(
+    w_seed_frontend_builtin_operation operation,
+    w_seed_frontend_text member_name) {
+  if (operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_ADD)
+    return text_is(member_name, "saturatingAdd");
+  if (operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_SUBTRACT)
+    return text_is(member_name, "saturatingSubtract");
+  if (operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_MULTIPLY)
+    return text_is(member_name, "saturatingMultiply");
+  if (operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_NEGATE)
+    return text_is(member_name, "saturatingNegate");
+  if (operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_POWER)
+    return text_is(member_name, "saturatingPower");
+  if (operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD)
+    return text_is(member_name, "overflowingAdd");
+  if (operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT)
+    return text_is(member_name, "overflowingSubtract");
+  if (operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY)
+    return text_is(member_name, "overflowingMultiply");
+  if (operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE)
+    return text_is(member_name, "overflowingNegate");
+  if (operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_POWER)
+    return text_is(member_name, "overflowingPower");
+  return false;
+}
+
 static bool constir_result_type_supported(w_seed_frontend_type_kind kind) {
   return kind == W_SEED_FRONTEND_TYPE_BOOL ||
          kind == W_SEED_FRONTEND_TYPE_INTEGER ||
          kind == W_SEED_FRONTEND_TYPE_ENUM ||
-         kind == W_SEED_FRONTEND_TYPE_ENUM_SUBSET;
+         kind == W_SEED_FRONTEND_TYPE_ENUM_SUBSET ||
+         kind == W_SEED_FRONTEND_TYPE_TUPLE;
+}
+
+static bool constir_frontend_type_is_u64(
+    const constir_lower_context *context, uint32_t type_index) {
+  const w_seed_frontend_type *type = frontend_type_at(context, type_index);
+  return type != NULL && type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+         !type->is_signed && type->bit_width == 64u &&
+         type->enum_base_index == W_SEED_FRONTEND_NONE &&
+         type->generic_application_index == W_SEED_FRONTEND_NONE &&
+         type->task_result_type == W_SEED_FRONTEND_NONE &&
+         type->external_module_index == W_SEED_FRONTEND_NONE &&
+         type->external_symbol_index == W_SEED_FRONTEND_NONE &&
+         (text_is(type->spelling, "u64") || text_is(type->spelling, "UInt"));
+}
+
+static bool constir_frontend_type_is_bool(
+    const constir_lower_context *context, uint32_t type_index) {
+  const w_seed_frontend_type *type = frontend_type_at(context, type_index);
+  return type != NULL && type->kind == W_SEED_FRONTEND_TYPE_BOOL &&
+         !type->is_signed && type->bit_width == 0u &&
+         text_is(type->spelling, "Bool") &&
+         type->element_type == W_SEED_FRONTEND_NONE &&
+         type->return_type == W_SEED_FRONTEND_NONE &&
+         type->first_parameter == W_SEED_FRONTEND_NONE &&
+         type->parameter_count == 0u &&
+         type->enum_base_index == W_SEED_FRONTEND_NONE &&
+         type->first_subset_member == W_SEED_FRONTEND_NONE &&
+         type->subset_member_count == 0u &&
+         type->generic_application_index == W_SEED_FRONTEND_NONE &&
+         type->task_result_type == W_SEED_FRONTEND_NONE &&
+         type->external_module_index == W_SEED_FRONTEND_NONE &&
+         type->external_symbol_index == W_SEED_FRONTEND_NONE;
+}
+
+static bool constir_frontend_type_is_u64_bool_tuple(
+    const constir_lower_context *context, uint32_t type_index) {
+  const w_seed_frontend_type *type = frontend_type_at(context, type_index);
+  return type != NULL && type->kind == W_SEED_FRONTEND_TYPE_TUPLE &&
+         !type->is_signed && type->bit_width == 0u &&
+         text_is(type->spelling, "(u64, Bool)") &&
+         type->element_type == W_SEED_FRONTEND_NONE &&
+         type->return_type == W_SEED_FRONTEND_NONE &&
+         type->first_parameter == W_SEED_FRONTEND_NONE &&
+         type->parameter_count == 0u &&
+         type->enum_base_index == W_SEED_FRONTEND_NONE &&
+         type->first_subset_member == W_SEED_FRONTEND_NONE &&
+         type->subset_member_count == 0u &&
+         type->generic_application_index == W_SEED_FRONTEND_NONE &&
+         type->task_result_type == W_SEED_FRONTEND_NONE &&
+         type->external_module_index == W_SEED_FRONTEND_NONE &&
+         type->external_symbol_index == W_SEED_FRONTEND_NONE;
+}
+
+static bool constir_result_type_supported_at(
+    const constir_lower_context *context, uint32_t type_index) {
+  const w_seed_frontend_type *type = frontend_type_at(context, type_index);
+  if (type == NULL || !constir_result_type_supported(type->kind)) return false;
+  return type->kind != W_SEED_FRONTEND_TYPE_TUPLE ||
+         constir_frontend_type_is_u64_bool_tuple(context, type_index);
 }
 
 static const w_seed_frontend_parameter *frontend_parameter_at(
@@ -217,6 +341,177 @@ static const w_seed_frontend_argument *frontend_argument_at(
     return NULL;
   }
   return &context->frontend->arguments[index];
+}
+
+/* This is the ConstIR copy of the frontend's closed builtin contract.  A
+ * source spelling that merely resembles a policy member must not enter the
+ * evaluator. */
+static bool frontend_builtin_u64_call_shape(
+    const constir_lower_context *context, uint32_t function_index,
+    uint32_t expression_index,
+    const w_seed_frontend_expression **call_out,
+    const w_seed_frontend_expression **callee_out,
+    const w_seed_frontend_expression **receiver_out) {
+  const w_seed_frontend_expression *call =
+      frontend_expression_at(context, expression_index);
+  if (call == NULL || call->kind != W_SEED_FRONTEND_EXPR_CALL ||
+      call->owner_function != function_index || !call->supported ||
+      !span_valid(call->span) ||
+      !constir_builtin_u64_operation_is_supported(call->builtin_operation) ||
+      call->left == W_SEED_FRONTEND_NONE || call->right != W_SEED_FRONTEND_NONE ||
+      call->first_argument == W_SEED_FRONTEND_NONE ||
+      call->resolved_callee_kind != W_SEED_FRONTEND_CALLEE_NONE ||
+      call->resolved_function_index != W_SEED_FRONTEND_NONE ||
+      call->resolved_host_symbol_index != W_SEED_FRONTEND_NONE ||
+      call->resolved_external_module_index != W_SEED_FRONTEND_NONE ||
+      call->resolved_external_symbol_index != W_SEED_FRONTEND_NONE ||
+      call->resolved_const_declaration != W_SEED_FRONTEND_NONE ||
+      call->resolved_parameter_ordinal != W_SEED_FRONTEND_NONE ||
+      call->resolved_local_ordinal != W_SEED_FRONTEND_NONE ||
+      call->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
+      call->resolved_pattern_capture != W_SEED_FRONTEND_NONE ||
+      (constir_builtin_u64_operation_is_unary(call->builtin_operation)
+           ? call->argument_count != 1u
+           : call->argument_count != 2u) ||
+      !range_valid(call->first_argument, call->argument_count,
+                   context->frontend_result->written.arguments))
+    return false;
+  const w_seed_frontend_expression *callee =
+      frontend_expression_at(context, call->left);
+  if (callee == NULL || callee->kind != W_SEED_FRONTEND_EXPR_MEMBER ||
+      callee->owner_function != function_index ||
+      callee->module_index != call->module_index || !callee->supported ||
+      !span_valid(callee->span) || callee->left == W_SEED_FRONTEND_NONE ||
+      callee->right != W_SEED_FRONTEND_NONE ||
+      callee->first_argument != W_SEED_FRONTEND_NONE ||
+      callee->argument_count != 0u ||
+      callee->builtin_operation != call->builtin_operation ||
+      !constir_builtin_u64_member_matches(call->builtin_operation,
+                                          callee->member_name) ||
+      !text_is(callee->operator_text, ".") ||
+      callee->resolved_callee_kind != W_SEED_FRONTEND_CALLEE_NONE ||
+      callee->resolved_function_index != W_SEED_FRONTEND_NONE ||
+      callee->resolved_host_symbol_index != W_SEED_FRONTEND_NONE ||
+      callee->resolved_external_module_index != W_SEED_FRONTEND_NONE ||
+      callee->resolved_external_symbol_index != W_SEED_FRONTEND_NONE ||
+      callee->resolved_const_declaration != W_SEED_FRONTEND_NONE ||
+      callee->resolved_parameter_ordinal != W_SEED_FRONTEND_NONE ||
+      callee->resolved_local_ordinal != W_SEED_FRONTEND_NONE ||
+      callee->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
+      callee->resolved_pattern_capture != W_SEED_FRONTEND_NONE ||
+      (size_t)call->left >= (size_t)expression_index)
+    return false;
+  const w_seed_frontend_expression *receiver =
+      frontend_expression_at(context, callee->left);
+  if (receiver == NULL || receiver->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER ||
+      receiver->owner_function != function_index ||
+      receiver->module_index != call->module_index || !receiver->supported ||
+      !span_valid(receiver->span) || !text_is(receiver->spelling, "u64") ||
+      receiver->builtin_operation != W_SEED_FRONTEND_BUILTIN_U64_RECEIVER ||
+      receiver->left != W_SEED_FRONTEND_NONE ||
+      receiver->right != W_SEED_FRONTEND_NONE ||
+      receiver->first_argument != W_SEED_FRONTEND_NONE ||
+      receiver->argument_count != 0u ||
+      receiver->resolved_callee_kind != W_SEED_FRONTEND_CALLEE_NONE ||
+      receiver->resolved_function_index != W_SEED_FRONTEND_NONE ||
+      receiver->resolved_host_symbol_index != W_SEED_FRONTEND_NONE ||
+      receiver->resolved_external_module_index != W_SEED_FRONTEND_NONE ||
+      receiver->resolved_external_symbol_index != W_SEED_FRONTEND_NONE ||
+      receiver->resolved_const_declaration != W_SEED_FRONTEND_NONE ||
+      receiver->resolved_parameter_ordinal != W_SEED_FRONTEND_NONE ||
+      receiver->resolved_local_ordinal != W_SEED_FRONTEND_NONE ||
+      receiver->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
+      receiver->resolved_pattern_capture != W_SEED_FRONTEND_NONE ||
+      !constir_frontend_type_is_u64(context, receiver->inferred_type) ||
+      !constir_frontend_type_is_u64(
+          context,
+          context->frontend->expressions[callee->left].inferred_type))
+    return false;
+  const bool tuple_result =
+      constir_builtin_u64_operation_returns_tuple(call->builtin_operation);
+  if ((tuple_result &&
+       !constir_frontend_type_is_u64_bool_tuple(context, call->inferred_type)) ||
+      (!tuple_result && !constir_frontend_type_is_u64(context, call->inferred_type)) ||
+      (tuple_result && !constir_frontend_type_is_u64_bool_tuple(
+                          context, callee->inferred_type)) ||
+      (!tuple_result && !constir_frontend_type_is_u64(
+                          context, callee->inferred_type)))
+    return false;
+  for (uint32_t offset = 0u; offset < call->argument_count; offset += 1u) {
+    const w_seed_frontend_argument *argument =
+        frontend_argument_at(context, call->first_argument + offset);
+    if (argument == NULL || argument->module_index != call->module_index ||
+        argument->owner_expression != call->left || argument->label.length != 0u ||
+        argument->resolved_parameter_ordinal != offset ||
+        argument->expression_index == W_SEED_FRONTEND_NONE ||
+        (size_t)argument->expression_index >= (size_t)expression_index)
+      return false;
+    const w_seed_frontend_expression *operand =
+        frontend_expression_at(context, argument->expression_index);
+    if (operand == NULL || operand->owner_function != function_index ||
+        !operand->supported ||
+        !constir_frontend_type_is_u64(context, operand->inferred_type))
+      return false;
+  }
+  if (call_out != NULL) *call_out = call;
+  if (callee_out != NULL) *callee_out = callee;
+  if (receiver_out != NULL) *receiver_out = receiver;
+  return true;
+}
+
+static bool frontend_tuple_projection_shape(
+    const constir_lower_context *context, uint32_t function_index,
+    uint32_t expression_index,
+    const w_seed_frontend_expression **projection_out,
+    const w_seed_frontend_expression **receiver_out,
+    uint32_t *element_out) {
+  const w_seed_frontend_expression *projection =
+      frontend_expression_at(context, expression_index);
+  if (projection == NULL || projection->kind != W_SEED_FRONTEND_EXPR_MEMBER ||
+      projection->owner_function != function_index || !projection->supported ||
+      !span_valid(projection->span) ||
+      !text_is(projection->operator_text, ".") ||
+      projection->left == W_SEED_FRONTEND_NONE ||
+      projection->right != W_SEED_FRONTEND_NONE ||
+      projection->first_argument != W_SEED_FRONTEND_NONE ||
+      projection->argument_count != 0u ||
+      projection->builtin_operation != W_SEED_FRONTEND_BUILTIN_NONE ||
+      projection->resolved_callee_kind != W_SEED_FRONTEND_CALLEE_NONE ||
+      projection->resolved_function_index != W_SEED_FRONTEND_NONE ||
+      projection->resolved_host_symbol_index != W_SEED_FRONTEND_NONE ||
+      projection->resolved_external_module_index != W_SEED_FRONTEND_NONE ||
+      projection->resolved_external_symbol_index != W_SEED_FRONTEND_NONE ||
+      projection->resolved_const_declaration != W_SEED_FRONTEND_NONE ||
+      projection->resolved_parameter_ordinal != W_SEED_FRONTEND_NONE ||
+      projection->resolved_local_ordinal != W_SEED_FRONTEND_NONE ||
+      projection->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
+      projection->resolved_pattern_capture != W_SEED_FRONTEND_NONE ||
+      (size_t)projection->left >= (size_t)expression_index)
+    return false;
+  uint32_t element = W_SEED_CONSTIR_NONE;
+  if (text_is(projection->member_name, "0"))
+    element = 0u;
+  else if (text_is(projection->member_name, "1"))
+    element = 1u;
+  else
+    return false;
+  const w_seed_frontend_expression *receiver =
+      frontend_expression_at(context, projection->left);
+  if (receiver == NULL || receiver->module_index != projection->module_index ||
+      receiver->owner_function != function_index || !receiver->supported ||
+      !constir_frontend_type_is_u64_bool_tuple(context,
+                                               receiver->inferred_type))
+    return false;
+  const bool result_u64 = element == 0u;
+  if ((result_u64 && !constir_frontend_type_is_u64(context,
+                                                   projection->inferred_type)) ||
+      (!result_u64 &&
+       !constir_frontend_type_is_bool(context, projection->inferred_type)))
+    return false;
+  if (projection_out != NULL) *projection_out = projection;
+  if (receiver_out != NULL) *receiver_out = receiver;
+  if (element_out != NULL) *element_out = element;
+  return true;
 }
 
 static const w_seed_frontend_switch_arm *frontend_switch_arm_at(
@@ -255,8 +550,21 @@ static bool function_base_supported(const constir_lower_context *context,
   }
   const w_seed_frontend_type *return_type =
       frontend_type_at(context, function->return_type);
-  if (return_type == NULL || !constir_result_type_supported(return_type->kind))
+  if (return_type == NULL ||
+      !constir_result_type_supported_at(context, function->return_type))
     return false;
+  for (uint32_t parameter_offset = 0u;
+       parameter_offset < function->parameter_count; parameter_offset += 1u) {
+    const w_seed_frontend_parameter *parameter = frontend_parameter_at(
+        context, function->first_parameter + parameter_offset);
+    if (parameter == NULL || parameter->type_index == W_SEED_FRONTEND_NONE)
+      return false;
+    const w_seed_frontend_type *parameter_type =
+        frontend_type_at(context, parameter->type_index);
+    if (parameter_type == NULL || parameter_type->kind ==
+                                     W_SEED_FRONTEND_TYPE_TUPLE)
+      return false;
+  }
   for (uint32_t offset = 0; offset < function->statement_count; offset += 1u) {
     const w_seed_frontend_statement *statement = frontend_statement_at(
         context, function->first_statement + offset);
@@ -510,7 +818,8 @@ static bool type_metadata(const constir_lower_context *context, uint32_t type_in
          type->kind == W_SEED_FRONTEND_TYPE_ENUM ||
          type->kind == W_SEED_FRONTEND_TYPE_ENUM_SUBSET ||
          type->kind == W_SEED_FRONTEND_TYPE_STATIC_LIST ||
-         type->kind == W_SEED_FRONTEND_TYPE_RANGE;
+         type->kind == W_SEED_FRONTEND_TYPE_RANGE ||
+         type->kind == W_SEED_FRONTEND_TYPE_TUPLE;
 }
 
 static bool integer_value_from_expression(const constir_lower_context *context,
@@ -1056,6 +1365,12 @@ static bool digest_type(const constir_lower_context *context, uint32_t type_inde
                                 member->enum_case_index, state)) return false;
       }
     }
+  } else if (kind == W_SEED_FRONTEND_TYPE_TUPLE) {
+    if (!constir_frontend_type_is_u64_bool_tuple(context, type_index))
+      return false;
+    const w_seed_frontend_type *type = frontend_type_at(context, type_index);
+    if (type == NULL) return false;
+    digest_text(state, type->spelling);
   }
   return true;
 }
@@ -1202,6 +1517,20 @@ static bool digest_expression(const constir_lower_context *context,
       break;
     }
     case W_SEED_FRONTEND_EXPR_MEMBER:
+      if (frontend_tuple_projection_shape(context, function_index,
+                                          expression_index, NULL, NULL,
+                                          NULL)) {
+        uint32_t element = W_SEED_CONSTIR_NONE;
+        if (!frontend_tuple_projection_shape(
+                context, function_index, expression_index, NULL, NULL,
+                &element) ||
+            !digest_expression(context, function_index, expression->left,
+                               state, depth + 1u))
+          return false;
+        digest_u8(state, 0x74u); /* fixed `(u64, Bool)` projection */
+        digest_u32(state, element);
+        break;
+      }
       if (expression->left == W_SEED_FRONTEND_NONE ||
           !text_is(expression->member_name, "count") ||
           !digest_expression(context, function_index, expression->left, state,
@@ -1265,6 +1594,28 @@ static bool digest_expression(const constir_lower_context *context,
       return true;
     }
     case W_SEED_FRONTEND_EXPR_CALL: {
+      w_seed_frontend_builtin_operation builtin = expression->builtin_operation;
+      if (constir_builtin_u64_operation_is_supported(builtin)) {
+        if (!frontend_builtin_u64_call_shape(context, function_index,
+                                             expression_index, NULL, NULL,
+                                             NULL))
+          return false;
+        digest_u8(state, 0x75u); /* exact u64 policy identity */
+        digest_u8(state, (uint8_t)builtin);
+        digest_u32(state, expression->argument_count);
+        for (uint32_t offset = 0u; offset < expression->argument_count;
+             offset += 1u) {
+          const w_seed_frontend_argument *argument = frontend_argument_at(
+              context, expression->first_argument + offset);
+          if (argument == NULL ||
+              !digest_expression(context, function_index,
+                                 argument->expression_index, state,
+                                 depth + 1u))
+            return false;
+          digest_u32(state, argument->resolved_parameter_ordinal);
+        }
+        return true;
+      }
       const w_seed_frontend_expression *callee =
           frontend_expression_at(context, expression->left);
       if (callee == NULL || callee->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER)
@@ -1441,7 +1792,9 @@ static bool digest_statement_chain(const constir_lower_context *context,
   return true;
 }
 
-static size_t receipt_node_bytes(void) { return 111u; }
+/* D7 appends builtin identity and tuple element ordinal to the D6 node
+ * record.  Older fields keep their byte order and width. */
+static size_t receipt_node_bytes(void) { return 116u; }
 static size_t receipt_function_bytes(void) { return 94u; }
 static size_t receipt_parameter_bytes(void) { return 40u; }
 static size_t receipt_call_argument_bytes(void) { return 28u; }
@@ -1807,8 +2160,7 @@ static bool lower_all(constir_lower_context *context) {
     uint32_t result_enum = W_SEED_FRONTEND_NONE;
     if (!type_metadata(context, declaration->effective_type, &result_kind,
                        &result_signed, &result_width, &result_enum) ||
-        (result_kind != W_SEED_FRONTEND_TYPE_BOOL &&
-         result_kind != W_SEED_FRONTEND_TYPE_INTEGER) ||
+        !constir_result_type_supported_at(context, declaration->effective_type) ||
         (result_kind == W_SEED_FRONTEND_TYPE_INTEGER && result_width == 0u))
       lowerable = false;
     uint32_t root = W_SEED_CONSTIR_NONE;
@@ -2137,6 +2489,9 @@ static bool write_receipt(const w_seed_constir_output *output,
     offset += sizeof(node->integer_value);
     write_u32_be(output->receipt, &offset, node->const_byte_offset);
     write_u32_be(output->receipt, &offset, node->const_byte_count);
+    output->receipt[offset] = (uint8_t)node->builtin_operation;
+    offset += 1u;
+    write_u32_be(output->receipt, &offset, node->tuple_element_index);
   }
   for (size_t index = 0; index < counts->call_arguments; index += 1) {
     const w_seed_constir_call_argument *argument = &output->call_arguments[index];
@@ -2390,7 +2745,8 @@ static bool eval_statement_chain(constir_eval_context *context,
 /* Result quota uses a versioned, host-independent scalar encoding.  The
  * prefix is: version(1), kind(1), type index(4), type kind(1), signed(1),
  * width(2), enum base(4), enum case(4).  Bool adds one payload byte, integer
- * adds 16 little-endian value bytes, and enum has no additional payload. */
+ * adds 16 little-endian value bytes, and the fixed `(u64, Bool)` value adds
+ * those integer bytes plus one overflow byte.  Enum has no payload. */
 static bool result_encoded_bytes(const w_seed_constir_value *value,
                                  size_t *bytes) {
   if (value == NULL || bytes == NULL ||
@@ -2406,6 +2762,19 @@ static bool result_encoded_bytes(const w_seed_constir_value *value,
       return true;
     case W_SEED_CONSTIR_VALUE_ENUM:
       *bytes = prefix;
+      return true;
+    case W_SEED_CONSTIR_VALUE_U64_BOOL_TUPLE:
+      if (value->type_kind != W_SEED_FRONTEND_TYPE_TUPLE ||
+          value->type_is_signed || value->type_bit_width != 0u ||
+          value->enum_base_index != W_SEED_CONSTIR_NONE ||
+          value->enum_case_index != W_SEED_CONSTIR_NONE ||
+          value->element_type_index != W_SEED_CONSTIR_NONE ||
+          value->elements != NULL || value->element_count != 0u ||
+          value->string_bytes != NULL || value->string_count != 0u)
+        return false;
+      for (size_t index = 8u; index < sizeof(value->integer_value); index += 1u)
+        if (value->integer_value[index] != 0u) return false;
+      *bytes = prefix + W_SEED_CONSTIR_INTEGER_BYTES + 1u;
       return true;
     default:
       return false;
@@ -2850,6 +3219,187 @@ static bool integer_power(const w_seed_constir_node *node,
   return true;
 }
 
+static bool u64_bits_from_value(const w_seed_constir_value *value,
+                                constir_bits *bits) {
+  if (value == NULL || bits == NULL ||
+      value->kind != W_SEED_CONSTIR_VALUE_INTEGER ||
+      value->type_kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+      value->type_is_signed || value->type_bit_width != 64u)
+    return false;
+  (void)memcpy(bits->bytes, value->integer_value, sizeof(bits->bytes));
+  for (size_t index = 8u; index < sizeof(bits->bytes); index += 1u)
+    if (bits->bytes[index] != 0u) return false;
+  return true;
+}
+
+static bool u64_multiply(const constir_bits *left, const constir_bits *right,
+                         constir_bits *out, bool *overflow) {
+  if (left == NULL || right == NULL || out == NULL) return false;
+  constir_bits product;
+  bool ignored_high = false;
+  if (!bits_multiply(left, right, &product, &ignored_high)) return false;
+  bool high = ignored_high;
+  for (size_t index = 8u; index < sizeof(product.bytes); index += 1u)
+    if (product.bytes[index] != 0u) high = true;
+  *out = product;
+  for (size_t index = 8u; index < sizeof(out->bytes); index += 1u)
+    out->bytes[index] = 0u;
+  if (overflow != NULL) *overflow = high;
+  return true;
+}
+
+static void u64_max_bits(constir_bits *bits) {
+  bits_zero(bits);
+  if (bits == NULL) return;
+  for (size_t index = 0u; index < 8u; index += 1u) bits->bytes[index] = 0xffu;
+}
+
+static bool u64_integer_result(const w_seed_constir_node *node,
+                               constir_bits bits,
+                               w_seed_constir_value *out) {
+  if (node == NULL || node->type_kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+      node->type_is_signed || node->type_bit_width != 64u)
+    return false;
+  return integer_result(node, bits, out);
+}
+
+static bool u64_tuple_result(const w_seed_constir_node *node,
+                             constir_bits bits, bool overflow,
+                             w_seed_constir_value *out) {
+  if (node == NULL || out == NULL ||
+      node->type_kind != W_SEED_FRONTEND_TYPE_TUPLE ||
+      node->type_is_signed || node->type_bit_width != 0u)
+    return false;
+  (void)memset(out, 0, sizeof(*out));
+  out->kind = W_SEED_CONSTIR_VALUE_U64_BOOL_TUPLE;
+  out->type_index = node->type_index;
+  out->type_kind = node->type_kind;
+  out->type_is_signed = false;
+  out->type_bit_width = 0u;
+  out->enum_base_index = W_SEED_CONSTIR_NONE;
+  out->enum_case_index = W_SEED_CONSTIR_NONE;
+  out->element_type_index = W_SEED_CONSTIR_NONE;
+  out->elements = NULL;
+  out->element_count = 0u;
+  (void)memcpy(out->integer_value, bits.bytes, sizeof(out->integer_value));
+  for (size_t index = 8u; index < sizeof(out->integer_value); index += 1u)
+    out->integer_value[index] = 0u;
+  out->bool_value = overflow;
+  return true;
+}
+
+static bool eval_u64_power(constir_eval_context *context,
+                           const w_seed_constir_node *node,
+                           constir_bits base, constir_bits exponent,
+                           bool saturating, constir_bits *out,
+                           bool *overflow) {
+  if (context == NULL || node == NULL || out == NULL || overflow == NULL)
+    return false;
+  constir_bits accumulator;
+  bits_zero(&accumulator);
+  accumulator.bytes[0] = 1u;
+  constir_bits current = base;
+  bool sticky = false;
+  while (!bits_is_zero(&exponent)) {
+    if (!eval_step(context, node->source_span)) return false;
+    if ((exponent.bytes[0] & 1u) != 0u) {
+      bool product_overflow = false;
+      constir_bits product;
+      if (!u64_multiply(&accumulator, &current, &product,
+                        &product_overflow))
+        return false;
+      sticky = sticky || product_overflow;
+      if (saturating && product_overflow) u64_max_bits(&product);
+      accumulator = product;
+    }
+    bits_shift_right_one(&exponent, 64u, false);
+    if (!bits_is_zero(&exponent)) {
+      bool square_overflow = false;
+      constir_bits square;
+      if (!u64_multiply(&current, &current, &square, &square_overflow))
+        return false;
+      sticky = sticky || square_overflow;
+      if (saturating && square_overflow) u64_max_bits(&square);
+      current = square;
+    }
+  }
+  *out = accumulator;
+  *overflow = sticky;
+  return true;
+}
+
+static bool eval_builtin_u64(constir_eval_context *context,
+                             const w_seed_constir_node *node,
+                             const w_seed_constir_value *left,
+                             const w_seed_constir_value *right,
+                             w_seed_constir_value *out) {
+  if (context == NULL || node == NULL || left == NULL || out == NULL ||
+      !constir_builtin_u64_operation_is_supported(node->builtin_operation))
+    return false;
+  const bool tuple =
+      constir_builtin_u64_operation_returns_tuple(node->builtin_operation);
+  const bool saturating =
+      constir_builtin_u64_operation_is_saturating(node->builtin_operation);
+  const bool unary =
+      constir_builtin_u64_operation_is_unary(node->builtin_operation);
+  constir_bits left_bits;
+  if (!u64_bits_from_value(left, &left_bits)) return false;
+  constir_bits result_bits;
+  bool overflow = false;
+  if (unary) {
+    if (right != NULL) return false;
+    constir_bits zero;
+    bits_zero(&zero);
+    if (!bits_subtract(&zero, &left_bits, &result_bits, &overflow))
+      return false;
+    if (saturating) {
+      bits_zero(&result_bits);
+      overflow = false;
+    }
+  } else {
+    if (right == NULL) return false;
+    constir_bits right_bits;
+    if (!u64_bits_from_value(right, &right_bits)) return false;
+    switch (node->builtin_operation) {
+      case W_SEED_FRONTEND_BUILTIN_U64_SATURATING_ADD:
+      case W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD: {
+        bool carry = false;
+        if (!bits_add(&left_bits, &right_bits, &result_bits, &carry))
+          return false;
+        overflow = carry;
+        for (size_t index = 8u; index < sizeof(result_bits.bytes); index += 1u)
+          if (result_bits.bytes[index] != 0u) overflow = true;
+        for (size_t index = 8u; index < sizeof(result_bits.bytes); index += 1u)
+          result_bits.bytes[index] = 0u;
+        if (saturating && overflow) u64_max_bits(&result_bits);
+        break;
+      }
+      case W_SEED_FRONTEND_BUILTIN_U64_SATURATING_SUBTRACT:
+      case W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT:
+        if (!bits_subtract(&left_bits, &right_bits, &result_bits, &overflow))
+          return false;
+        if (saturating && overflow) bits_zero(&result_bits);
+        break;
+      case W_SEED_FRONTEND_BUILTIN_U64_SATURATING_MULTIPLY:
+      case W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY:
+        if (!u64_multiply(&left_bits, &right_bits, &result_bits, &overflow))
+          return false;
+        if (saturating && overflow) u64_max_bits(&result_bits);
+        break;
+      case W_SEED_FRONTEND_BUILTIN_U64_SATURATING_POWER:
+      case W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_POWER:
+        if (!eval_u64_power(context, node, left_bits, right_bits, saturating,
+                            &result_bits, &overflow))
+          return false;
+        break;
+      default:
+        return false;
+    }
+  }
+  if (tuple) return u64_tuple_result(node, result_bits, overflow, out);
+  return u64_integer_result(node, result_bits, out);
+}
+
 static const w_seed_constir_function *program_function_for_frontend(
     const constir_eval_context *context, uint32_t frontend_function,
     size_t *index) {
@@ -3133,6 +3683,42 @@ static bool program_string_slice_valid(const w_seed_constir_program *program,
   return count == 0u || program->frontend_output->const_bytes != NULL;
 }
 
+static bool program_frontend_type_is_u64_bool_tuple(
+    const w_seed_constir_program *program, uint32_t type_index) {
+  if (program == NULL || program->frontend_output == NULL ||
+      program->frontend_result == NULL || program->frontend_output->types == NULL ||
+      type_index == W_SEED_CONSTIR_NONE ||
+      (size_t)type_index >= program->frontend_result->written.types)
+    return false;
+  const w_seed_frontend_type *type = &program->frontend_output->types[type_index];
+  return type->kind == W_SEED_FRONTEND_TYPE_TUPLE && !type->is_signed &&
+         type->bit_width == 0u && text_is(type->spelling, "(u64, Bool)") &&
+         type->element_type == W_SEED_FRONTEND_NONE &&
+         type->return_type == W_SEED_FRONTEND_NONE &&
+         type->first_parameter == W_SEED_FRONTEND_NONE &&
+         type->parameter_count == 0u &&
+         type->enum_base_index == W_SEED_FRONTEND_NONE &&
+         type->first_subset_member == W_SEED_FRONTEND_NONE &&
+         type->subset_member_count == 0u &&
+         type->generic_application_index == W_SEED_FRONTEND_NONE &&
+         type->task_result_type == W_SEED_FRONTEND_NONE &&
+         type->external_module_index == W_SEED_FRONTEND_NONE &&
+         type->external_symbol_index == W_SEED_FRONTEND_NONE;
+}
+
+static bool program_result_type_supported(const w_seed_constir_program *program,
+                                          uint32_t type_index) {
+  if (program == NULL || program->frontend_output == NULL ||
+      program->frontend_result == NULL || program->frontend_output->types == NULL ||
+      type_index == W_SEED_CONSTIR_NONE ||
+      (size_t)type_index >= program->frontend_result->written.types)
+    return false;
+  const w_seed_frontend_type *type = &program->frontend_output->types[type_index];
+  if (!constir_result_type_supported(type->kind)) return false;
+  return type->kind != W_SEED_FRONTEND_TYPE_TUPLE ||
+         program_frontend_type_is_u64_bool_tuple(program, type_index);
+}
+
 static bool node_operator_valid(const w_seed_constir_node *node) {
   if (node == NULL) return false;
   switch (node->kind) {
@@ -3154,6 +3740,9 @@ static bool node_operator_valid(const w_seed_constir_node *node) {
     case W_SEED_CONSTIR_NODE_LOCAL:
     case W_SEED_CONSTIR_NODE_STATIC_LIST_COUNT:
     case W_SEED_CONSTIR_NODE_STATIC_LIST_INDEX:
+      return node->normalized_operator == W_SEED_CONSTIR_OPERATOR_INVALID;
+    case W_SEED_CONSTIR_NODE_BUILTIN_U64:
+    case W_SEED_CONSTIR_NODE_TUPLE_ELEMENT:
       return node->normalized_operator == W_SEED_CONSTIR_OPERATOR_INVALID;
     default:
       return false;
@@ -3212,6 +3801,40 @@ static bool node_matches_type(const w_seed_constir_node *node,
   if (node_enum || expected_enum)
     return node_enum && expected_enum && node->enum_base_index == enum_base;
   return node->type_kind == kind;
+}
+
+static bool frontend_semantic_expression_index(
+    const constir_lower_context *context, uint32_t expression_index,
+    uint32_t function_index, uint32_t *semantic_index) {
+  if (context == NULL || semantic_index == NULL) return false;
+  uint32_t current = expression_index;
+  size_t guard = 0u;
+  while (guard <= W_SEED_FRONTEND_MAX_NESTING) {
+    const w_seed_frontend_expression *expression =
+        frontend_expression_at(context, current);
+    if (expression == NULL || expression->owner_function != function_index ||
+        !expression->supported || !span_valid(expression->span))
+      return false;
+    if (expression->kind != W_SEED_FRONTEND_EXPR_PARENTHESIS) {
+      *semantic_index = current;
+      return true;
+    }
+    if (expression->left == W_SEED_FRONTEND_NONE) return false;
+    current = expression->left;
+    guard += 1u;
+  }
+  return false;
+}
+
+static bool node_matches_frontend_expression(
+    const constir_lower_context *context,
+    const w_seed_constir_node *node, uint32_t expression_index,
+    uint32_t function_index) {
+  if (context == NULL || node == NULL) return false;
+  uint32_t semantic_index = W_SEED_FRONTEND_NONE;
+  return frontend_semantic_expression_index(context, expression_index,
+                                             function_index, &semantic_index) &&
+         node->frontend_expression == semantic_index;
 }
 
 static bool arithmetic_node_types_valid(const w_seed_constir_node *node,
@@ -3301,7 +3924,7 @@ static bool function_result_matches_node(const w_seed_constir_program *program,
       return false;
     const w_seed_frontend_type *type =
         &program->frontend_output->types[declaration->effective_type];
-    return constir_result_type_supported(type->kind) &&
+    return program_result_type_supported(program, declaration->effective_type) &&
            node_matches_type(node, type->kind, type->is_signed,
                              type->bit_width, type->enum_base_index);
   }
@@ -3317,7 +3940,8 @@ static bool function_result_matches_node(const w_seed_constir_program *program,
             program->frontend_result->written.types) return false;
     const w_seed_frontend_type *type =
         &program->frontend_output->types[frontend_function->return_type];
-    if (!constir_result_type_supported(type->kind)) return false;
+    if (!program_result_type_supported(program, frontend_function->return_type))
+      return false;
     return node_matches_type(node, type->kind, type->is_signed,
                              type->bit_width, type->enum_base_index);
   }
@@ -3331,7 +3955,8 @@ static bool function_result_matches_node(const w_seed_constir_program *program,
           (size_t)statement->expression_node < program->node_count) {
         const w_seed_constir_node *candidate =
             &program->nodes[statement->expression_node];
-        if (!constir_result_type_supported(candidate->type_kind)) return false;
+        if (!program_result_type_supported(program, candidate->type_index))
+          return false;
         return node_matches_type(node, candidate->type_kind,
                                  candidate->type_is_signed,
                                  candidate->type_bit_width,
@@ -3576,8 +4201,12 @@ static bool validate_function_origin(const w_seed_constir_program *program,
     const bool scalar =
         type->kind == W_SEED_FRONTEND_TYPE_BOOL ||
         (type->kind == W_SEED_FRONTEND_TYPE_INTEGER && type->bit_width != 0u);
+    const bool closed_tuple =
+        program_frontend_type_is_u64_bool_tuple(program,
+                                                declaration->effective_type);
     if (function->lowerable !=
-        (declaration->lowerable && expression->supported && scalar))
+        (declaration->lowerable && expression->supported &&
+         (scalar || closed_tuple)))
       return false;
     if (!function->lowerable) {
       if (function->node_count != 0u ||
@@ -3716,6 +4345,12 @@ static bool validate_function_origin(const w_seed_constir_program *program,
       expected_width != effective_width || expected_enum != effective_enum ||
       !expression->supported || !span_contains(typed->span, expression->span))
     return false;
+  /* Generic typed-pending records remain scalar-only in this D7 slice. */
+  const bool typed_scalar =
+      effective_kind == W_SEED_FRONTEND_TYPE_BOOL ||
+      (effective_kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+       effective_width != 0u);
+  if (!typed_scalar && function->lowerable) return false;
   if (function->lowerable) {
     if (function->parameter_count != 0u || function->first_parameter != 0u ||
         function->root_statement != W_SEED_CONSTIR_NONE ||
@@ -3809,14 +4444,16 @@ static bool validate_program(const w_seed_constir_program *program) {
          program->frontend_result != NULL &&
          (program->frontend_output->types == NULL ||
           program->frontend_result->written.types == 0u)))) return false;
-    if (!statement_mode && !constir_result_type_supported(
-                               program->nodes[function->root_node].type_kind))
+    if (!statement_mode &&
+        !program_result_type_supported(
+            program, program->nodes[function->root_node].type_index))
       return false;
     for (uint32_t offset = 0; offset < function->parameter_count; offset += 1) {
       const w_seed_constir_parameter *parameter = function_parameter_for_ordinal(
           &(constir_eval_context){.program = program}, function, offset);
       if (parameter == NULL || !span_valid(parameter->source_span) ||
           parameter->type_index == W_SEED_CONSTIR_NONE ||
+          parameter->type_kind == W_SEED_FRONTEND_TYPE_TUPLE ||
           (parameter->type_kind == W_SEED_FRONTEND_TYPE_INTEGER &&
            (parameter->type_bit_width == 0u || parameter->type_bit_width > 128u)))
         return false;
@@ -3875,8 +4512,9 @@ static bool validate_program(const w_seed_constir_program *program) {
                 statement->lower_node != W_SEED_CONSTIR_NONE ||
                 statement->upper_node != W_SEED_CONSTIR_NONE ||
                 statement->half_open != 0u || !local_fields_clear ||
-                !constir_result_type_supported(
-                    program->nodes[statement->expression_node].type_kind) ||
+                !program_result_type_supported(
+                    program,
+                    program->nodes[statement->expression_node].type_index) ||
                 !function_result_matches_node(
                     program, function,
                     &program->nodes[statement->expression_node]))
@@ -4025,6 +4663,12 @@ static bool validate_program(const w_seed_constir_program *program) {
           (node->const_byte_offset != W_SEED_CONSTIR_NONE ||
            node->const_byte_count != 0u))
         return false;
+      if (node->kind != W_SEED_CONSTIR_NODE_BUILTIN_U64 &&
+          node->builtin_operation != W_SEED_FRONTEND_BUILTIN_NONE)
+        return false;
+      if (node->kind != W_SEED_CONSTIR_NODE_TUPLE_ELEMENT &&
+          node->tuple_element_index != W_SEED_CONSTIR_NONE)
+        return false;
       switch (node->kind) {
         case W_SEED_CONSTIR_NODE_BOOL:
           if (node->type_kind != W_SEED_FRONTEND_TYPE_BOOL) return false;
@@ -4047,6 +4691,88 @@ static bool validate_program(const w_seed_constir_program *program) {
                                            node->const_byte_count))
             return false;
           break;
+        case W_SEED_CONSTIR_NODE_BUILTIN_U64: {
+          constir_lower_context frontend_context;
+          (void)memset(&frontend_context, 0, sizeof(frontend_context));
+          frontend_context.frontend = program->frontend_output;
+          frontend_context.frontend_result = program->frontend_result;
+          const w_seed_frontend_expression *call = NULL;
+          if (node->frontend_expression == W_SEED_CONSTIR_NONE ||
+              node->builtin_operation == W_SEED_FRONTEND_BUILTIN_NONE ||
+              node->call_target_function != W_SEED_CONSTIR_NONE ||
+              node->call_target_const_declaration != W_SEED_CONSTIR_NONE ||
+              node->first_call_argument != W_SEED_CONSTIR_NONE ||
+              node->call_argument_count != 0u ||
+              !frontend_builtin_u64_call_shape(
+                  &frontend_context, function->frontend_function,
+                  node->frontend_expression, &call, NULL, NULL) ||
+              call->builtin_operation != node->builtin_operation ||
+              !span_contains(node->source_span, call->span) ||
+              node->left == W_SEED_CONSTIR_NONE ||
+              !node_matches_frontend_expression(
+                  &frontend_context, &program->nodes[node->left],
+                  frontend_argument_at(&frontend_context, call->first_argument)
+                          ->expression_index,
+                  function->frontend_function))
+            return false;
+          const w_seed_frontend_argument *first_argument =
+              frontend_argument_at(&frontend_context, call->first_argument);
+          if (first_argument == NULL) return false;
+          if (!constir_builtin_u64_operation_is_unary(
+                  node->builtin_operation)) {
+            if (node->right == W_SEED_CONSTIR_NONE) return false;
+            const w_seed_frontend_argument *second_argument =
+                frontend_argument_at(&frontend_context,
+                                     call->first_argument + 1u);
+            if (second_argument == NULL ||
+                !node_matches_frontend_expression(
+                    &frontend_context, &program->nodes[node->right],
+                    second_argument->expression_index,
+                    function->frontend_function))
+              return false;
+          } else if (node->right != W_SEED_CONSTIR_NONE) {
+            return false;
+          }
+          const bool tuple =
+              constir_builtin_u64_operation_returns_tuple(node->builtin_operation);
+          if (tuple != (node->type_kind == W_SEED_FRONTEND_TYPE_TUPLE) ||
+              (tuple && !program_frontend_type_is_u64_bool_tuple(
+                            program, node->type_index)) ||
+              (!tuple && (node->type_kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+                          node->type_is_signed || node->type_bit_width != 64u)))
+            return false;
+          break;
+        }
+        case W_SEED_CONSTIR_NODE_TUPLE_ELEMENT: {
+          constir_lower_context frontend_context;
+          (void)memset(&frontend_context, 0, sizeof(frontend_context));
+          frontend_context.frontend = program->frontend_output;
+          frontend_context.frontend_result = program->frontend_result;
+          uint32_t element = W_SEED_CONSTIR_NONE;
+          const w_seed_frontend_expression *projection = NULL;
+          const w_seed_frontend_expression *receiver = NULL;
+          if (node->left == W_SEED_CONSTIR_NONE || node->right != W_SEED_CONSTIR_NONE ||
+              node->frontend_expression == W_SEED_CONSTIR_NONE ||
+              !frontend_tuple_projection_shape(
+                  &frontend_context, function->frontend_function,
+                  node->frontend_expression, &projection, &receiver, &element) ||
+              node->tuple_element_index != element ||
+              !span_contains(node->source_span, projection->span) ||
+              !node_matches_frontend_expression(
+                  &frontend_context, &program->nodes[node->left],
+                  projection->left, function->frontend_function))
+            return false;
+          if (element == 0u) {
+            if (node->type_kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+                node->type_is_signed || node->type_bit_width != 64u)
+              return false;
+          } else if (node->type_kind != W_SEED_FRONTEND_TYPE_BOOL ||
+                     node->type_is_signed || node->type_bit_width != 0u) {
+            return false;
+          }
+          (void)receiver;
+          break;
+        }
         case W_SEED_CONSTIR_NODE_ENUM_CASE:
           if ((node->type_kind != W_SEED_FRONTEND_TYPE_ENUM &&
                node->type_kind != W_SEED_FRONTEND_TYPE_ENUM_SUBSET) ||
@@ -4487,6 +5213,46 @@ static bool eval_node_at(constir_eval_context *context,
       (void)memcpy(value->integer_value, node->integer_value,
                    sizeof(value->integer_value));
       return true;
+    case W_SEED_CONSTIR_NODE_BUILTIN_U64: {
+      w_seed_constir_value left;
+      w_seed_constir_value right;
+      if (!eval_node_at(context, function, node->left, depth + 1u, &left))
+        return false;
+      if (constir_builtin_u64_operation_is_unary(node->builtin_operation)) {
+        if (node->right != W_SEED_CONSTIR_NONE ||
+            !eval_builtin_u64(context, node, &left, NULL, value))
+          return false;
+      } else if (!eval_node_at(context, function, node->right, depth + 1u,
+                               &right) ||
+                 !eval_builtin_u64(context, node, &left, &right, value)) {
+        return false;
+      }
+      return true;
+    }
+    case W_SEED_CONSTIR_NODE_TUPLE_ELEMENT: {
+      w_seed_constir_value tuple;
+      if (!eval_node_at(context, function, node->left, depth + 1u, &tuple) ||
+          tuple.kind != W_SEED_CONSTIR_VALUE_U64_BOOL_TUPLE ||
+          node->tuple_element_index > 1u)
+        return false;
+      if (node->tuple_element_index == 0u) {
+        (void)memset(value, 0, sizeof(*value));
+        value->kind = W_SEED_CONSTIR_VALUE_INTEGER;
+        value->type_index = node->type_index;
+        value->type_kind = W_SEED_FRONTEND_TYPE_INTEGER;
+        value->type_is_signed = false;
+        value->type_bit_width = 64u;
+        (void)memcpy(value->integer_value, tuple.integer_value,
+                     sizeof(value->integer_value));
+      } else {
+        (void)memset(value, 0, sizeof(*value));
+        value->kind = W_SEED_CONSTIR_VALUE_BOOL;
+        value->type_index = node->type_index;
+        value->type_kind = W_SEED_FRONTEND_TYPE_BOOL;
+        value->bool_value = tuple.bool_value;
+      }
+      return true;
+    }
     case W_SEED_CONSTIR_NODE_STRING:
       if (node->type_kind != W_SEED_FRONTEND_TYPE_STRING ||
           !program_string_slice_valid(context->program,
@@ -5160,6 +5926,8 @@ static bool lower_expression(constir_lower_context *context,
   node.normalized_operator = W_SEED_CONSTIR_OPERATOR_INVALID;
   node.const_byte_offset = W_SEED_CONSTIR_NONE;
   node.const_byte_count = 0u;
+  node.builtin_operation = W_SEED_FRONTEND_BUILTIN_NONE;
+  node.tuple_element_index = W_SEED_CONSTIR_NONE;
   node.enum_base_index = expression->enum_index;
   node.enum_case_index = expression->enum_case_index;
   node.source_span = expression->span;
@@ -5236,6 +6004,19 @@ static bool lower_expression(constir_lower_context *context,
       break;
     }
     case W_SEED_FRONTEND_EXPR_MEMBER: {
+      uint32_t tuple_element = W_SEED_CONSTIR_NONE;
+      if (frontend_tuple_projection_shape(
+              context, function_index, expression_index, NULL, NULL,
+              &tuple_element)) {
+        if (!lower_expression(context, function_index, expression->left,
+                              &node.left, depth + 1u)) {
+          mark_failure(context, expression->span, expression_index);
+          return false;
+        }
+        node.kind = W_SEED_CONSTIR_NODE_TUPLE_ELEMENT;
+        node.tuple_element_index = tuple_element;
+        break;
+      }
       if (expression->left == W_SEED_FRONTEND_NONE ||
           expression->member_name.length == 0u ||
           !text_is(expression->member_name, "count") ||
@@ -5303,6 +6084,39 @@ static bool lower_expression(constir_lower_context *context,
       node.kind = W_SEED_CONSTIR_NODE_BINARY;
       break;
     case W_SEED_FRONTEND_EXPR_CALL: {
+      if (constir_builtin_u64_operation_is_supported(
+              expression->builtin_operation)) {
+        if (!frontend_builtin_u64_call_shape(
+                context, function_index, expression_index, NULL, NULL,
+                NULL)) {
+          mark_failure(context, expression->span, expression_index);
+          return false;
+        }
+        const w_seed_frontend_argument *first_argument = frontend_argument_at(
+            context, expression->first_argument);
+        if (first_argument == NULL ||
+            !lower_expression(context, function_index,
+                              first_argument->expression_index, &node.left,
+                              depth + 1u)) {
+          mark_failure(context, expression->span, expression_index);
+          return false;
+        }
+        if (!constir_builtin_u64_operation_is_unary(
+                expression->builtin_operation)) {
+          const w_seed_frontend_argument *second_argument =
+              frontend_argument_at(context, expression->first_argument + 1u);
+          if (second_argument == NULL ||
+              !lower_expression(context, function_index,
+                                second_argument->expression_index, &node.right,
+                                depth + 1u)) {
+            mark_failure(context, expression->span, expression_index);
+            return false;
+          }
+        }
+        node.kind = W_SEED_CONSTIR_NODE_BUILTIN_U64;
+        node.builtin_operation = expression->builtin_operation;
+        break;
+      }
       const w_seed_frontend_expression *callee =
           frontend_expression_at(context, expression->left);
       if (callee == NULL || callee->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER) {

@@ -235,4 +235,4 @@ try {
   await rm(build, { recursive: true, force: true })
 }
 
-console.log("seed ConstIR: source-backed canMove/isValidStagePath, digest, membership, and barriers passed")
+console.log("seed ConstIR: bounded control flow, u64 numeric policies, virtual overflow products, digest, quotas, and barriers passed")

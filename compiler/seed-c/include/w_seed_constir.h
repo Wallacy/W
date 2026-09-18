@@ -11,8 +11,8 @@
 extern "C" {
 #endif
 
-/* Internal seed-C ConstIR D1-D6. This is not an importable W interface. */
-#define W_SEED_CONSTIR_SCHEMA_VERSION "w-seed-constir-6"
+/* Internal seed-C ConstIR D1-D7. This is not an importable W interface. */
+#define W_SEED_CONSTIR_SCHEMA_VERSION "w-seed-constir-7"
 #define W_SEED_CONSTIR_NONE UINT32_MAX
 #define W_SEED_CONSTIR_INTEGER_BYTES 16u
 #define W_SEED_CONSTIR_MAX_PARAMETERS 256u
@@ -52,6 +52,10 @@ typedef enum {
   W_SEED_CONSTIR_NODE_STATIC_LIST_INDEX,
   /* Append-only source-backed simple String literal node. */
   W_SEED_CONSTIR_NODE_STRING,
+  /* Append-only exact frontend u64 policy builtin call node. */
+  W_SEED_CONSTIR_NODE_BUILTIN_U64,
+  /* Append-only exact `(u64, Bool)` positional projection node. */
+  W_SEED_CONSTIR_NODE_TUPLE_ELEMENT,
 } w_seed_constir_node_kind;
 
 typedef enum {
@@ -107,6 +111,8 @@ typedef enum {
   W_SEED_CONSTIR_VALUE_STATIC_LIST,
   /* Append-only borrowed source-backed String value. */
   W_SEED_CONSTIR_VALUE_STRING,
+  /* Append-only allocation-free compiler-owned `(u64, Bool)` value. */
+  W_SEED_CONSTIR_VALUE_U64_BOOL_TUPLE,
 } w_seed_constir_value_kind;
 
 typedef struct {
@@ -161,6 +167,10 @@ typedef struct {
   /* Canonical offset/count into frontend_output.const_bytes for String. */
   uint32_t const_byte_offset;
   uint32_t const_byte_count;
+  /* Append-only exact frontend u64 builtin identity. */
+  w_seed_frontend_builtin_operation builtin_operation;
+  /* Append-only zero-based element ordinal for TUPLE_ELEMENT. */
+  uint32_t tuple_element_index;
 } w_seed_constir_node;
 
 typedef struct {

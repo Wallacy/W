@@ -1967,7 +1967,7 @@ static bool test_typed_const_expression_synthetic(void) {
   CHECK(computed_node->type_kind == W_SEED_FRONTEND_TYPE_INTEGER &&
         computed_node->type_bit_width == 64u &&
         computed_node->type_is_signed);
-  const size_t receipt_prefix = strlen("w-seed-constir-6");
+  const size_t receipt_prefix = strlen(W_SEED_CONSTIR_SCHEMA_VERSION);
   const size_t receipt_function_bytes = 94u;
   CHECK(first_fixture.constir_receipt[receipt_prefix] ==
             (uint8_t)W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_FUNCTION &&
@@ -2172,6 +2172,398 @@ static bool test_module_const_active_cycle_defense(void) {
   return true;
 }
 
+static bool constir_u64_is(const w_seed_constir_value *value, uint64_t expected) {
+  if (value == NULL || value->kind != W_SEED_CONSTIR_VALUE_INTEGER ||
+      value->type_kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+      value->type_is_signed || value->type_bit_width != 64u)
+    return false;
+  for (size_t index = 8u; index < W_SEED_CONSTIR_INTEGER_BYTES; index += 1u)
+    if (value->integer_value[index] != 0u) return false;
+  for (size_t index = 0u; index < 8u; index += 1u)
+    if (value->integer_value[index] != (uint8_t)(expected >> (index * 8u)))
+      return false;
+  return true;
+}
+
+static bool test_u64_policy_constir(void) {
+  static const char source[] =
+      "const fn satAdd(): u64 { return u64.saturatingAdd(18446744073709551615_u64, 1_u64) }\n"
+      "const fn satSubtract(): u64 { return u64.saturatingSubtract(0_u64, 1_u64) }\n"
+      "const fn satMultiply(): u64 { return u64.saturatingMultiply(18446744073709551615_u64, 2_u64) }\n"
+      "const fn satNegate(): u64 { return u64.saturatingNegate(18446744073709551615_u64) }\n"
+      "const fn satPower(): u64 { return u64.saturatingPower(2_u64, 64_u64) }\n"
+      "const fn satZeroPowerZero(): u64 { return u64.saturatingPower(0_u64, 0_u64) }\n"
+      "const fn ovAddValue(): u64 { return u64.overflowingAdd(18446744073709551615_u64, 1_u64).0 }\n"
+      "const fn ovAddFlag(): Bool { return u64.overflowingAdd(18446744073709551615_u64, 1_u64).1 }\n"
+      "const fn ovSubtractValue(): u64 { return u64.overflowingSubtract(0_u64, 1_u64).0 }\n"
+      "const fn ovSubtractFlag(): Bool { return u64.overflowingSubtract(0_u64, 1_u64).1 }\n"
+      "const fn ovMultiplyValue(): u64 { return u64.overflowingMultiply(18446744073709551615_u64, 2_u64).0 }\n"
+      "const fn ovMultiplyFlag(): Bool { return u64.overflowingMultiply(18446744073709551615_u64, 2_u64).1 }\n"
+      "const fn ovNegateValue(): u64 { return u64.overflowingNegate(1_u64).0 }\n"
+      "const fn ovNegateFlag(): Bool { return u64.overflowingNegate(1_u64).1 }\n"
+      "const fn ovPowerValue(): u64 { return u64.overflowingPower(2_u64, 64_u64).0 }\n"
+      "const fn ovPowerFlag(): Bool { return u64.overflowingPower(2_u64, 64_u64).1 }\n"
+      "const fn ovZeroPowerZeroValue(): u64 { return u64.overflowingPower(0_u64, 0_u64).0 }\n"
+      "const fn ovZeroPowerZeroFlag(): Bool { return u64.overflowingPower(0_u64, 0_u64).1 }\n";
+  fixture *value = &first_fixture;
+  CHECK(fixture_lower(value, source));
+  CHECK(value->constir_result.written.functions == 18u &&
+        value->constir_result.written.nodes != 0u &&
+        value->constir_result.written.receipt_bytes != 0u);
+  CHECK(fixture_constir_valid(value));
+  size_t builtin_count = 0u;
+  size_t projection_count = 0u;
+  size_t projection_zero_count = 0u;
+  size_t projection_one_count = 0u;
+  uint32_t builtin_node_index = W_SEED_CONSTIR_NONE;
+  uint32_t projection_node_index = W_SEED_CONSTIR_NONE;
+  bool saw_policy[10] = {false};
+  for (size_t index = 0u; index < value->constir_result.written.nodes;
+       index += 1u) {
+    const w_seed_constir_node *node = &value->constir_nodes[index];
+    if (node->kind == W_SEED_CONSTIR_NODE_BUILTIN_U64) {
+      bool tuple = false;
+      bool unary = false;
+      size_t policy_index = 0u;
+      switch (node->builtin_operation) {
+        case W_SEED_FRONTEND_BUILTIN_U64_SATURATING_ADD:
+          policy_index = 0u;
+          break;
+        case W_SEED_FRONTEND_BUILTIN_U64_SATURATING_SUBTRACT:
+          policy_index = 1u;
+          break;
+        case W_SEED_FRONTEND_BUILTIN_U64_SATURATING_MULTIPLY:
+          policy_index = 2u;
+          break;
+        case W_SEED_FRONTEND_BUILTIN_U64_SATURATING_NEGATE:
+          policy_index = 3u;
+          unary = true;
+          break;
+        case W_SEED_FRONTEND_BUILTIN_U64_SATURATING_POWER:
+          policy_index = 4u;
+          break;
+        case W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD:
+          policy_index = 5u;
+          tuple = true;
+          break;
+        case W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT:
+          policy_index = 6u;
+          tuple = true;
+          break;
+        case W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY:
+          policy_index = 7u;
+          tuple = true;
+          break;
+        case W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE:
+          policy_index = 8u;
+          tuple = true;
+          unary = true;
+          break;
+        case W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_POWER:
+          policy_index = 9u;
+          tuple = true;
+          break;
+        default:
+          CHECK(false);
+      }
+      saw_policy[policy_index] = true;
+      builtin_count += 1u;
+      if (builtin_node_index == W_SEED_CONSTIR_NONE)
+        builtin_node_index = (uint32_t)index;
+      CHECK(node->left != W_SEED_CONSTIR_NONE &&
+            (unary ? node->right == W_SEED_CONSTIR_NONE
+                   : node->right != W_SEED_CONSTIR_NONE));
+      if (tuple)
+        CHECK(node->type_kind == W_SEED_FRONTEND_TYPE_TUPLE &&
+              !node->type_is_signed && node->type_bit_width == 0u);
+      else
+        CHECK(node->type_kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+              !node->type_is_signed && node->type_bit_width == 64u);
+    } else if (node->kind == W_SEED_CONSTIR_NODE_TUPLE_ELEMENT) {
+      projection_count += 1u;
+      if (projection_node_index == W_SEED_CONSTIR_NONE)
+        projection_node_index = (uint32_t)index;
+      CHECK(node->left != W_SEED_CONSTIR_NONE &&
+            node->tuple_element_index <= 1u);
+      if (node->tuple_element_index == 0u) {
+        projection_zero_count += 1u;
+        CHECK(node->type_kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+              !node->type_is_signed && node->type_bit_width == 64u);
+      } else {
+        projection_one_count += 1u;
+        CHECK(node->type_kind == W_SEED_FRONTEND_TYPE_BOOL &&
+              !node->type_is_signed && node->type_bit_width == 0u);
+      }
+    }
+  }
+  CHECK(builtin_count == 18u && projection_count == 12u &&
+        projection_zero_count == 6u && projection_one_count == 6u &&
+        builtin_node_index != W_SEED_CONSTIR_NONE &&
+        projection_node_index != W_SEED_CONSTIR_NONE);
+  for (size_t index = 0u; index < sizeof(saw_policy) / sizeof(saw_policy[0]);
+       index += 1u)
+    CHECK(saw_policy[index]);
+  const w_seed_constir_program program = fixture_program(value);
+  w_seed_constir_eval_frame frames[8];
+  w_seed_constir_eval_workspace workspace = {frames, 8u};
+  const uint64_t scalar_expected[] = {
+      UINT64_MAX, 0u, UINT64_MAX, 0u, UINT64_MAX, 1u};
+  for (size_t function_index = 0u; function_index < 6u; function_index += 1u) {
+    w_seed_constir_value output;
+    w_seed_constir_eval_result result;
+    CHECK(w_seed_constir_evaluate(
+              &program, (uint32_t)function_index, NULL, 0u,
+              (w_seed_constir_quota){1000u, 0u, 8u, SIZE_MAX}, &workspace,
+              &output, &result) == W_SEED_CONSTIR_OK &&
+          result.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_NONE &&
+          result.consumed_heap_bytes == 0u &&
+          constir_u64_is(&output, scalar_expected[function_index]));
+  }
+  w_seed_constir_value output;
+  w_seed_constir_eval_result result;
+  const uint64_t overflowing_values[] = {
+      0u, 0u, UINT64_MAX, UINT64_MAX, UINT64_MAX - 1u, UINT64_MAX - 1u,
+      UINT64_MAX, UINT64_MAX, 0u, 0u, 1u, 1u};
+  const bool overflowing_flags[] = {true, true, true, true, true, true,
+                                    true, true, true, true, false, false};
+  for (size_t function_index = 6u; function_index < 18u;
+       function_index += 1u) {
+    CHECK(w_seed_constir_evaluate(
+              &program, (uint32_t)function_index, NULL, 0u,
+              (w_seed_constir_quota){1000u, 0u, 8u, SIZE_MAX}, &workspace,
+              &output, &result) == W_SEED_CONSTIR_OK &&
+          result.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_NONE &&
+          ((function_index - 6u) % 2u == 0u
+               ? constir_u64_is(&output, overflowing_values[function_index - 6u])
+               : (output.kind == W_SEED_CONSTIR_VALUE_BOOL &&
+                  output.bool_value == overflowing_flags[function_index - 6u])));
+  }
+  w_seed_constir_node saved_builtin = value->constir_nodes[builtin_node_index];
+  value->constir_nodes[builtin_node_index].builtin_operation =
+      W_SEED_FRONTEND_BUILTIN_NONE;
+  CHECK(!fixture_constir_valid(value));
+  CHECK(w_seed_constir_evaluate(
+            &program, 6u, NULL, 0u,
+            (w_seed_constir_quota){1000u, 0u, 8u, SIZE_MAX}, &workspace,
+            &output, &result) == W_SEED_CONSTIR_INVALID &&
+        result.consumed_steps == 0u);
+  value->constir_nodes[builtin_node_index] = saved_builtin;
+  CHECK(fixture_constir_valid(value));
+  saved_builtin = value->constir_nodes[builtin_node_index];
+  value->constir_nodes[builtin_node_index].type_kind =
+      W_SEED_FRONTEND_TYPE_BOOL;
+  value->constir_nodes[builtin_node_index].type_bit_width = 0u;
+  CHECK(!fixture_constir_valid(value));
+  value->constir_nodes[builtin_node_index] = saved_builtin;
+  CHECK(fixture_constir_valid(value));
+
+  w_seed_constir_node saved_projection = value->constir_nodes[projection_node_index];
+  value->constir_nodes[projection_node_index].tuple_element_index = 2u;
+  CHECK(!fixture_constir_valid(value));
+  value->constir_nodes[projection_node_index] = saved_projection;
+  CHECK(fixture_constir_valid(value));
+  saved_projection = value->constir_nodes[projection_node_index];
+  value->constir_nodes[projection_node_index].type_kind =
+      W_SEED_FRONTEND_TYPE_BOOL;
+  value->constir_nodes[projection_node_index].type_bit_width = 0u;
+  CHECK(!fixture_constir_valid(value));
+  value->constir_nodes[projection_node_index] = saved_projection;
+  CHECK(fixture_constir_valid(value));
+  saved_projection = value->constir_nodes[projection_node_index];
+  value->constir_nodes[projection_node_index].owner_function = UINT32_MAX - 1u;
+  CHECK(!fixture_constir_valid(value));
+  value->constir_nodes[projection_node_index] = saved_projection;
+  CHECK(fixture_constir_valid(value));
+  saved_projection = value->constir_nodes[projection_node_index];
+  value->constir_nodes[projection_node_index].left = builtin_node_index;
+  CHECK(!fixture_constir_valid(value));
+  value->constir_nodes[projection_node_index] = saved_projection;
+  CHECK(fixture_constir_valid(value));
+
+  static const char boundary_source[] =
+      "const fn satExactPower(): u64 { return u64.saturatingPower(2_u64, 63_u64) }\n"
+      "const fn satMaximumSquare(): u64 { return u64.saturatingPower(18446744073709551615_u64, 2_u64) }\n"
+      "const fn ovExactPowerValue(): u64 { return u64.overflowingPower(2_u64, 63_u64).0 }\n"
+      "const fn ovExactPowerFlag(): Bool { return u64.overflowingPower(2_u64, 63_u64).1 }\n"
+      "const fn ovMaximumSquareValue(): u64 { return u64.overflowingPower(18446744073709551615_u64, 2_u64).0 }\n"
+      "const fn ovMaximumSquareFlag(): Bool { return u64.overflowingPower(18446744073709551615_u64, 2_u64).1 }\n"
+      "const fn satNegateZero(): u64 { return u64.saturatingNegate(0_u64) }\n"
+      "const fn ovNegateZeroValue(): u64 { return u64.overflowingNegate(0_u64).0 }\n"
+      "const fn ovNegateZeroFlag(): Bool { return u64.overflowingNegate(0_u64).1 }\n"
+      "const fn ovNegateMaximumValue(): u64 { return u64.overflowingNegate(18446744073709551615_u64).0 }\n"
+      "const fn ovNegateMaximumFlag(): Bool { return u64.overflowingNegate(18446744073709551615_u64).1 }\n";
+  CHECK(fixture_lower(&second_fixture, boundary_source));
+  CHECK(second_fixture.constir_result.written.functions == 11u &&
+        fixture_constir_valid(&second_fixture));
+  const w_seed_constir_program boundary_program = fixture_program(&second_fixture);
+  w_seed_constir_eval_frame boundary_frames[4];
+  w_seed_constir_eval_workspace boundary_workspace = {boundary_frames, 4u};
+  const uint64_t boundary_values[] = {
+      UINT64_C(0x8000000000000000), UINT64_MAX, UINT64_C(0x8000000000000000),
+      1u, 0u, 0u, 1u};
+  const size_t boundary_value_indices[] = {0u, 1u, 2u, SIZE_MAX, 3u,
+                                           SIZE_MAX, 4u, 5u, SIZE_MAX, 6u,
+                                           SIZE_MAX};
+  const bool boundary_flags[] = {false, true};
+  for (size_t function_index = 0u; function_index < 11u;
+       function_index += 1u) {
+    w_seed_constir_value boundary_output;
+    w_seed_constir_eval_result boundary_result;
+    CHECK(w_seed_constir_evaluate(
+              &boundary_program, (uint32_t)function_index, NULL, 0u,
+              (w_seed_constir_quota){SIZE_MAX, 0u, 8u, SIZE_MAX},
+              &boundary_workspace, &boundary_output, &boundary_result) ==
+              W_SEED_CONSTIR_OK &&
+          boundary_result.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_NONE);
+    if (function_index == 3u || function_index == 5u || function_index == 8u ||
+        function_index == 10u)
+      CHECK(boundary_output.kind == W_SEED_CONSTIR_VALUE_BOOL &&
+            boundary_output.bool_value ==
+                ((function_index == 3u || function_index == 8u)
+                     ? boundary_flags[0]
+                     : boundary_flags[1]));
+    else
+      CHECK(boundary_value_indices[function_index] != SIZE_MAX &&
+            constir_u64_is(&boundary_output,
+                           boundary_values[boundary_value_indices[function_index]]));
+  }
+  w_seed_constir_value boundary_output;
+  w_seed_constir_eval_result power_result;
+  CHECK(w_seed_constir_evaluate(
+            &boundary_program, 0u, NULL, 0u,
+            (w_seed_constir_quota){SIZE_MAX, 0u, 8u, SIZE_MAX},
+            &boundary_workspace, &boundary_output, &power_result) ==
+            W_SEED_CONSTIR_OK &&
+        power_result.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_NONE &&
+        power_result.consumed_steps > 0u && power_result.consumed_steps < 63u);
+  const size_t power_steps = power_result.consumed_steps;
+  w_seed_constir_eval_result power_quota_first;
+  CHECK(w_seed_constir_evaluate(
+            &boundary_program, 0u, NULL, 0u,
+            (w_seed_constir_quota){power_steps - 1u, 0u, 8u, SIZE_MAX},
+            &boundary_workspace, &boundary_output, &power_quota_first) ==
+            W_SEED_CONSTIR_OK &&
+        power_quota_first.diagnostic ==
+            W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0003 &&
+        power_quota_first.consumed_steps == power_steps - 1u &&
+        boundary_output.kind == W_SEED_CONSTIR_VALUE_INVALID);
+  w_seed_constir_eval_result power_quota_second;
+  CHECK(w_seed_constir_evaluate(
+            &boundary_program, 0u, NULL, 0u,
+            (w_seed_constir_quota){power_steps - 1u, 0u, 8u, SIZE_MAX},
+            &boundary_workspace, &boundary_output, &power_quota_second) ==
+            W_SEED_CONSTIR_OK &&
+        power_quota_second.diagnostic == power_quota_first.diagnostic &&
+        power_quota_second.consumed_steps == power_quota_first.consumed_steps &&
+        boundary_output.kind == W_SEED_CONSTIR_VALUE_INVALID);
+  w_seed_constir_eval_result power_exact;
+  CHECK(w_seed_constir_evaluate(
+            &boundary_program, 0u, NULL, 0u,
+            (w_seed_constir_quota){power_steps, 0u, 8u, SIZE_MAX},
+            &boundary_workspace, &boundary_output, &power_exact) ==
+            W_SEED_CONSTIR_OK &&
+        power_exact.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_NONE &&
+        constir_u64_is(&boundary_output, UINT64_C(0x8000000000000000)));
+  CHECK(power_exact.consumed_result_bytes > 0u);
+  const size_t result_bytes = power_exact.consumed_result_bytes;
+  w_seed_constir_eval_result result_quota;
+  CHECK(w_seed_constir_evaluate(
+            &boundary_program, 0u, NULL, 0u,
+            (w_seed_constir_quota){SIZE_MAX, 0u, 8u, result_bytes - 1u},
+            &boundary_workspace, &boundary_output, &result_quota) ==
+            W_SEED_CONSTIR_OK &&
+        result_quota.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0003 &&
+        result_quota.consumed_result_bytes == result_bytes &&
+        boundary_output.kind == W_SEED_CONSTIR_VALUE_INVALID);
+  CHECK(w_seed_constir_evaluate(
+            &boundary_program, 0u, NULL, 0u,
+            (w_seed_constir_quota){SIZE_MAX, 0u, 8u, result_bytes},
+            &boundary_workspace, &boundary_output, &result_quota) ==
+            W_SEED_CONSTIR_OK &&
+        result_quota.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_NONE &&
+        result_quota.consumed_result_bytes == result_bytes);
+
+  static const char policy_digest_source[] =
+      "const fn policy(): u64 { return u64.saturatingAdd(18446744073709551615_u64, 1_u64) }\n";
+  static const char changed_policy_source[] =
+      "const fn policy(): u64 { return u64.saturatingSubtract(18446744073709551615_u64, 1_u64) }\n";
+  static const char changed_projection_source[] =
+      "const fn policy(): Bool { return u64.overflowingAdd(18446744073709551615_u64, 1_u64).1 }\n";
+  CHECK(fixture_lower(&first_fixture, policy_digest_source));
+  CHECK(fixture_lower(&second_fixture, changed_policy_source));
+  CHECK(memcmp(first_fixture.constir_functions[0].body_digest,
+               second_fixture.constir_functions[0].body_digest, 32u) != 0 &&
+        first_fixture.constir_result.written.receipt_bytes != 0u &&
+        second_fixture.constir_result.written.receipt_bytes != 0u &&
+        (first_fixture.constir_result.written.receipt_bytes !=
+             second_fixture.constir_result.written.receipt_bytes ||
+         memcmp(first_fixture.constir_receipt, second_fixture.constir_receipt,
+                first_fixture.constir_result.written.receipt_bytes) != 0));
+  CHECK(fixture_lower(&second_fixture, changed_projection_source));
+  CHECK(memcmp(first_fixture.constir_functions[0].body_digest,
+               second_fixture.constir_functions[0].body_digest, 32u) != 0);
+
+  static const char *const rejected_sources[] = {
+      "const fn bad(): u64 { return UInt.saturatingAdd(1_u64, 2_u64) }\n",
+      "const fn bad(): u64 { return u64.saturatingAdd(left: 1_u64, 2_u64) }\n",
+      "const fn bad(): u64 { return u64.saturatingAdd(1_u64) }\n",
+      "const fn bad(): u64 { return u64.saturatingAdd(true, 2_u64) }\n",
+      "const fn bad(): u64 { return u64.overflowingAdd(1_u64, 2_u64).2 }\n",
+      "const fn bad(): u64 { return u64.overflowingNegate(1_u64, 2_u64).0 }\n",
+      "const fn bad(): u64 { return u64.saturatingPower(1_u64, true) }\n",
+  };
+  for (size_t index = 0u;
+       index < sizeof(rejected_sources) / sizeof(rejected_sources[0]);
+       index += 1u) {
+    CHECK(fixture_lower(&second_fixture, rejected_sources[index]));
+    CHECK((second_fixture.frontend_result.status == W_SEED_FRONTEND_UNSUPPORTED ||
+           second_fixture.frontend_result.status == W_SEED_FRONTEND_DIAGNOSTICS) &&
+          second_fixture.constir_result.written.functions == 1u &&
+          !second_fixture.constir_functions[0].lowerable &&
+          second_fixture.constir_result.written.nodes == 0u &&
+          second_fixture.constir_result.written.diagnostics == 1u &&
+          second_fixture.constir_diagnostics[0].code ==
+              W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0001 &&
+          fixture_constir_valid(&second_fixture));
+  }
+
+  CHECK(fixture_parse(&second_fixture, policy_digest_source));
+  const w_seed_constir_input capacity_input = {
+      &second_fixture.frontend_input, &second_fixture.frontend_output,
+      &second_fixture.frontend_result};
+  (void)memset(second_fixture.constir_functions, 0xa5,
+               sizeof(second_fixture.constir_functions));
+  (void)memset(second_fixture.constir_nodes, 0xa5,
+               sizeof(second_fixture.constir_nodes));
+  (void)memset(second_fixture.constir_receipt, 0xa5,
+               sizeof(second_fixture.constir_receipt));
+#define CHECK_POLICY_SENTINELS()                                               \
+  CHECK(first_byte_equals(second_fixture.constir_functions, 0xa5u) &&          \
+        first_byte_equals(second_fixture.constir_nodes, 0xa5u) &&              \
+        second_fixture.constir_receipt[0] == 0xa5u)
+  w_seed_constir_result capacity_result;
+  fixture_init_output(&second_fixture);
+  second_fixture.constir_output.functions = NULL;
+  second_fixture.constir_output.function_capacity = 0u;
+  CHECK(w_seed_constir_run(&capacity_input, &second_fixture.constir_output,
+                           &capacity_result) == W_SEED_CONSTIR_CAPACITY);
+  CHECK_POLICY_SENTINELS();
+  fixture_init_output(&second_fixture);
+  second_fixture.constir_output.nodes = NULL;
+  second_fixture.constir_output.node_capacity = 0u;
+  CHECK(w_seed_constir_run(&capacity_input, &second_fixture.constir_output,
+                           &capacity_result) == W_SEED_CONSTIR_CAPACITY);
+  CHECK_POLICY_SENTINELS();
+  fixture_init_output(&second_fixture);
+  second_fixture.constir_output.receipt = NULL;
+  second_fixture.constir_output.receipt_capacity = 0u;
+  CHECK(w_seed_constir_run(&capacity_input, &second_fixture.constir_output,
+                           &capacity_result) == W_SEED_CONSTIR_CAPACITY);
+  CHECK_POLICY_SENTINELS();
+#undef CHECK_POLICY_SENTINELS
+  return true;
+}
+
 int main(void) {
   if (!test_can_move_and_digest()) return 1;
   if (!test_static_list_stage_path()) return 1;
@@ -2188,6 +2580,7 @@ int main(void) {
   if (!test_typed_const_expression_synthetic()) return 1;
   if (!test_module_const_synthetic_d4()) return 1;
   if (!test_module_const_active_cycle_defense()) return 1;
+  if (!test_u64_policy_constir()) return 1;
   (void)puts("constir tests passed");
   return 0;
 }

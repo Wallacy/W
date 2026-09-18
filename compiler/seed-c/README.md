@@ -3826,7 +3826,7 @@ torna um estágio medido. `startup` e `execution` permanecem na track
 `product-runtime` e deferred. Este corte não publica timing nem result.
 `hlo3-hello-world-runtime-benchmark` permanece deferred.
 
-## ConstIR D1-D6 seed
+## ConstIR D1-D7 seed
 
 `include/w_seed_constir.h` e `src/w_seed_constir.c` formam um executor interno
 caller-owned para uma projeção ConstIR D1. O componente recebe documentos CST,
@@ -3881,7 +3881,7 @@ referência a module const. Mismatch, unresolved ou relação corrompida é
 `INVALID`; untyped, `String`, enum/list/quantity/size, call, member/index,
 nested generic e imported const/head/predicate são `UNSUPPORTED`.
 
-`W_SEED_CONSTIR_SCHEMA_VERSION` é `w-seed-constir-6`. Cada declaration vira
+`W_SEED_CONSTIR_SCHEMA_VERSION` é `w-seed-constir-7`. Cada declaration vira
 função sintética zero-arg com origem `FRONTEND_CONST_DECLARATION`; cada
 identifier vira dependency `CALL`. A ordem é frontend functions, declarations
 de module const em source order e `TypedConstExpr`. O body digest exclui
@@ -3965,10 +3965,28 @@ entrada estrutural `INVALID`, sem diagnóstico W.
 ocorre, inclusive quando a quota de result bytes falha.
 Result bytes usa o encoding D1 versionado: prefixo explícito de version, kind,
 type e enum/value fields, seguido por payload Bool de um byte ou integer de 16
-bytes. Literals frontend usam magnitude não-negativa little-endian canônica com
+bytes; o produto `(u64, Bool)` acrescenta os 16 bytes inteiros e um byte de
+overflow. Literals frontend usam magnitude não-negativa little-endian canônica com
 bytes altos zero; nodes/values ConstIR usam little-endian canônico em
 two's-complement sign-extended para signed e zero-extended para unsigned,
 limitado a 128 bits. O encoding não usa `sizeof`, layout ou endianness do host.
+
+W-1634 é evidência `source-backed-current` bounded de avaliação ConstIR7 para
+as dez policies `u64` já existentes: `saturatingAdd`, `saturatingSubtract`,
+`saturatingMultiply`, `saturatingNegate`, `saturatingPower`,
+`overflowingAdd`, `overflowingSubtract`, `overflowingMultiply`,
+`overflowingNegate` e `overflowingPower`. A forma source-backed exige o
+receiver `u64` canônico, aridade posicional, tipos exatos e identidade fechada
+da policy. A família overflowing produz um produto virtual allocation-free
+`(u64, Bool)` e projections `.0`/`.1` verificadas para `u64`/`Bool`.
+
+Power usa exponentiation by squaring e cobra cada iteração na step quota;
+`W-CONST-0003` deixa o resultado inválido quando a quota acaba. A fatia não
+usa heap, CRT, floating point, resultado pré-calculado ou artificial exponent
+cap. Ela cobre somente `u64`: tuple initializer em frontend module-const,
+generic tuple, stable tuple ABI, outros widths e performance continuam gaps.
+O `benchmarkDisposition` é `compiler-lifecycle`; nenhum benchmark público novo
+é adicionado.
 
 ## Validação seed C de predicates genéricos
 

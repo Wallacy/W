@@ -10660,6 +10660,72 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-u64-policy-constir7",
+      "reviewItem": "bounded source-backed `u64` ConstIR7 policy evaluation",
+      "decisions": [
+        "W-1634"
+      ],
+      "task": "Prove one bounded source-backed ConstIR7 evaluator for the ten closed u64 arithmetic policies, virtual overflowing tuple projections, quota-bounded power, and transactional failure behavior.",
+      "selected": {
+        "language": "w-internal",
+        "source": [
+          "ConstIR schema w-seed-constir-7 accepts exactly the ten existing u64 policies: saturating and overflowing add, subtract, multiply, negate, and power",
+          "the evaluator checks receiver identity, arity, and exact u64 result type before dispatch and keeps invalid calls and insufficient capacity all-or-nothing",
+          "overflowing results are one allocation-free virtual (u64, Bool) value with checked .0 and .1 projections; power uses exponentiation by squaring under a step quota",
+          "the evaluator accounts result bytes and uses no heap, CRT, floating point, artificial exponent cap, or precomputed answer table",
+          "focused C23 tests and check-seed-constir.mjs cover exact policy values and boundaries, projections, quota diagnostics, wrong receiver/arity/type/result, and transactional failure"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "generic-tuples-or-direct-const-return",
+          "language": "w-internal-rejected",
+          "source": [
+            "generalize the evaluator to generic tuples or publish a direct tuple-valued const return"
+          ],
+          "expectedDifference": "W-1634 closes only the fixed virtual (u64, Bool) product; generic tuples and direct tuple const return remain outside the bounded surface."
+        },
+        {
+          "name": "module-const-tuple-normalization",
+          "language": "w-internal-rejected",
+          "source": [
+            "normalize a tuple-valued module const initializer through the frontend and ConstIR"
+          ],
+          "expectedDifference": "The current evidence evaluates explicit ConstIR functions; frontend module-const tuple normalization remains a gap."
+        },
+        {
+          "name": "other-integer-widths",
+          "language": "w-internal-rejected",
+          "source": [
+            "claim the same ten-policy evaluator for integer widths other than u64"
+          ],
+          "expectedDifference": "Only u64 is source-backed in this bounded package; other widths require independent evidence."
+        },
+        {
+          "name": "heap-or-runtime-arithmetic",
+          "language": "w-internal-rejected",
+          "source": [
+            "allocate tuple objects or defer policy arithmetic to CRT/runtime helpers"
+          ],
+          "expectedDifference": "The evidence requires allocation-free virtual values, exact local arithmetic, and no heap or CRT dependency."
+        },
+        {
+          "name": "stable-abi-and-performance-ranking",
+          "language": "w-internal-rejected",
+          "source": [
+            "publish a stable tuple ABI or rank backend/runtime performance against other languages"
+          ],
+          "expectedDifference": "ABI stability, backend/runtime ranking, and performance remain gaps; benchmarkDisposition is compiler-lifecycle only."
+        }
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

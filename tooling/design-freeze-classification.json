@@ -23,10 +23,10 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:b5b2ffd9bdede2e98a18a138ebffa044654f3b2c5d132a978ee861ece9f3fb3b",
-    "count": 1633,
+    "sha256": "sha256:44a572865708c0a36a610ca39b078a5741f9fb863ae4e05ac584b9095b041a77",
+    "count": 1634,
     "first": "W-001",
-    "last": "W-1633"
+    "last": "W-1634"
   },
   "epochs": [
     {
@@ -61,7 +61,7 @@
     }
   ],
   "preservedLegacyCoverage": {
-    "source": 299,
+    "source": 300,
     "oracle": 420,
     "explicit": 8,
     "overlap": 57
@@ -8844,7 +8844,7 @@
         "path": "DESIGN.md",
         "section": "3.6",
         "heading": "### 3.6 Avaliação compile-time",
-        "sectionDigest": "sha256:c1d1aa76c97df83d1a7a3f4b32e726fd28062c031846c75b7351d348da7732c9"
+        "sectionDigest": "sha256:ff9fdce1ecd9be9eb6c3459608831e9f9eaf429d91590a189c40e317e6f701b4"
       },
       "evidence": [],
       "reason": "W-266 (ConstRepresentable, sha256:90b4c7b3e4d0830b2b926c5d325275c9334a203a5bea825139204c83429adbd3) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §3.6 / 3.6 Avaliação compile-time.",
@@ -9139,7 +9139,7 @@
         "path": "DESIGN.md",
         "section": "3.6",
         "heading": "### 3.6 Avaliação compile-time",
-        "sectionDigest": "sha256:c1d1aa76c97df83d1a7a3f4b32e726fd28062c031846c75b7351d348da7732c9"
+        "sectionDigest": "sha256:ff9fdce1ecd9be9eb6c3459608831e9f9eaf429d91590a189c40e317e6f701b4"
       },
       "evidence": [],
       "reason": "W-275 (implementação const, sha256:67476e31f3aadeabf5231724f23262f2aa1e81be84f4bf3ff58e660f5d10d034) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §3.6 / 3.6 Avaliação compile-time.",
@@ -9238,7 +9238,7 @@
         "path": "DESIGN.md",
         "section": "3.6",
         "heading": "### 3.6 Avaliação compile-time",
-        "sectionDigest": "sha256:c1d1aa76c97df83d1a7a3f4b32e726fd28062c031846c75b7351d348da7732c9"
+        "sectionDigest": "sha256:ff9fdce1ecd9be9eb6c3459608831e9f9eaf429d91590a189c40e317e6f701b4"
       },
       "evidence": [],
       "reason": "W-278 (static argument, sha256:adc73a7fdb53d9856716e46312333e21af82254ae51a429f2fade2258c0c44b1) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §3.6 / 3.6 Avaliação compile-time.",
@@ -10447,7 +10447,7 @@
         "path": "DESIGN.md",
         "section": "3.6",
         "heading": "### 3.6 Avaliação compile-time",
-        "sectionDigest": "sha256:c1d1aa76c97df83d1a7a3f4b32e726fd28062c031846c75b7351d348da7732c9"
+        "sectionDigest": "sha256:ff9fdce1ecd9be9eb6c3459608831e9f9eaf429d91590a189c40e317e6f701b4"
       },
       "evidence": [],
       "reason": "W-315 (synthesis witness, sha256:424807a577a1df3b894da5906832b112288c632e82026959da7ea393742b3a57) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §3.6 / 3.6 Avaliação compile-time.",
@@ -11068,7 +11068,7 @@
         "path": "DESIGN.md",
         "section": "3.6",
         "heading": "### 3.6 Avaliação compile-time",
-        "sectionDigest": "sha256:c1d1aa76c97df83d1a7a3f4b32e726fd28062c031846c75b7351d348da7732c9"
+        "sectionDigest": "sha256:ff9fdce1ecd9be9eb6c3459608831e9f9eaf429d91590a189c40e317e6f701b4"
       },
       "evidence": [],
       "reason": "W-334 (DSL de transição, sha256:be32b39ec3c4927381962966b87db95e9b8585348d0fda7bdb7f229179243c09) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §3.6 / 3.6 Avaliação compile-time.",
@@ -12259,7 +12259,7 @@
         "path": "DESIGN.md",
         "section": "3.6",
         "heading": "### 3.6 Avaliação compile-time",
-        "sectionDigest": "sha256:c1d1aa76c97df83d1a7a3f4b32e726fd28062c031846c75b7351d348da7732c9"
+        "sectionDigest": "sha256:ff9fdce1ecd9be9eb6c3459608831e9f9eaf429d91590a189c40e317e6f701b4"
       },
       "evidence": [],
       "reason": "W-370 (predicate opaco, sha256:19d30b4dcf33d09bdcf6d1e1a288bd851f5c1ff493ebf3a70f45e9b3c83d970b) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §3.6 / 3.6 Avaliação compile-time.",
@@ -19298,7 +19298,7 @@
         "path": "DESIGN.md",
         "section": "3.6",
         "heading": "### 3.6 Avaliação compile-time",
-        "sectionDigest": "sha256:c1d1aa76c97df83d1a7a3f4b32e726fd28062c031846c75b7351d348da7732c9"
+        "sectionDigest": "sha256:ff9fdce1ecd9be9eb6c3459608831e9f9eaf429d91590a189c40e317e6f701b4"
       },
       "evidence": [],
       "reason": "W-581 (predicate de target, sha256:581ff9648a103cb2dcc482444b2c404820a7fb1e7581cbb113eadf2e5a94ad89) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §3.6 / 3.6 Avaliação compile-time.",
@@ -21869,7 +21869,7 @@
         "path": "DESIGN.md",
         "section": "26",
         "heading": "## 26. Plano de implementação",
-        "sectionDigest": "sha256:7442b8babe0d847e2a1e43343b1c28599d45a17d6e656aeb5f95ee9c74aebd46"
+        "sectionDigest": "sha256:9a9583bc7907227b0de42a876e2ebfb675a617388cc78e72723ad6e69365c6d3"
       },
       "evidence": [],
       "reason": "W-659 (body de entry, sha256:f66ab57406ddb51303f9190376daf72d8f538bd7bd8adfbf9992ae3d7223e74e) has no executable witness for component implementation-plan. The checked current contract is DESIGN.md §26 / 26. Plano de implementação.",
@@ -27989,7 +27989,7 @@
         "path": "DESIGN.md",
         "section": "3.6",
         "heading": "### 3.6 Avaliação compile-time",
-        "sectionDigest": "sha256:c1d1aa76c97df83d1a7a3f4b32e726fd28062c031846c75b7351d348da7732c9"
+        "sectionDigest": "sha256:ff9fdce1ecd9be9eb6c3459608831e9f9eaf429d91590a189c40e317e6f701b4"
       },
       "evidence": [],
       "reason": "W-846 (predicate const false, sha256:e2ffed0e73f7adb42a3a641699ff9b5364d8e7519871c472155845df0b8890a2) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §3.6 / 3.6 Avaliação compile-time.",
@@ -28055,7 +28055,7 @@
         "path": "DESIGN.md",
         "section": "3.6",
         "heading": "### 3.6 Avaliação compile-time",
-        "sectionDigest": "sha256:c1d1aa76c97df83d1a7a3f4b32e726fd28062c031846c75b7351d348da7732c9"
+        "sectionDigest": "sha256:ff9fdce1ecd9be9eb6c3459608831e9f9eaf429d91590a189c40e317e6f701b4"
       },
       "evidence": [],
       "reason": "W-848 (parâmetro de call const, sha256:2d64e5e0a8738ec3a15924267da06dc5ef901dd985d482fc0d00e3b2ce554122) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §3.6 / 3.6 Avaliação compile-time.",
@@ -30477,7 +30477,7 @@
         "path": "DESIGN.md",
         "section": "3.6",
         "heading": "### 3.6 Avaliação compile-time",
-        "sectionDigest": "sha256:c1d1aa76c97df83d1a7a3f4b32e726fd28062c031846c75b7351d348da7732c9"
+        "sectionDigest": "sha256:ff9fdce1ecd9be9eb6c3459608831e9f9eaf429d91590a189c40e317e6f701b4"
       },
       "evidence": [],
       "reason": "W-921 (inversão semântica de contrato fused, sha256:4d49a196faf9340ef7a62a037612f18d1b21bf8dda357763e6215b156256aa4d) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §3.6 / 3.6 Avaliação compile-time.",
@@ -55359,7 +55359,7 @@
           "path": "compiler/seed-c/tests/test_cooperative0.c",
           "symbol": "test_cooperative_fixture",
           "claim": "Focused tests verify the deterministic fixture, forged relations, and transactional capacity and alias boundaries.",
-          "sha256": "sha256:74439955375ed07e9a0e653a5d1c268086e225f40c5c1d63b9cf7629868f5d19"
+          "sha256": "sha256:23dde94382e7e05a08d52ee6c4dae3d0d323abbf6e095d906ea93cd7bb127903"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-cooperative0.w",
@@ -55440,7 +55440,7 @@
           "path": "compiler/seed-c/tests/test_cooperative0.c",
           "symbol": "test_cooperative_product_selection",
           "claim": "Focused tests cover exact selection facts, forged-field rejection, invalid HIR transactionality, and unchanged normal lowering.",
-          "sha256": "sha256:74439955375ed07e9a0e653a5d1c268086e225f40c5c1d63b9cf7629868f5d19"
+          "sha256": "sha256:23dde94382e7e05a08d52ee6c4dae3d0d323abbf6e095d906ea93cd7bb127903"
         }
       ]
     },
@@ -55503,7 +55503,7 @@
           "path": "compiler/seed-c/tests/test_cooperative0.c",
           "symbol": "test_cooperative_product_selection",
           "claim": "Focused tests prove deterministic dual-target bytes and transactional unsupported-target, unsupported-HIR, and capacity rejection.",
-          "sha256": "sha256:74439955375ed07e9a0e653a5d1c268086e225f40c5c1d63b9cf7629868f5d19"
+          "sha256": "sha256:23dde94382e7e05a08d52ee6c4dae3d0d323abbf6e095d906ea93cd7bb127903"
         },
         {
           "path": "tooling/check-cooperative-mlir0.mjs",
@@ -55584,7 +55584,7 @@
           "path": "compiler/seed-c/tests/test_cooperative0.c",
           "symbol": "test_source_selected_main_dispatch",
           "claim": "Focused tests prove two physical main dispatches and dual target leaves.",
-          "sha256": "sha256:74439955375ed07e9a0e653a5d1c268086e225f40c5c1d63b9cf7629868f5d19"
+          "sha256": "sha256:23dde94382e7e05a08d52ee6c4dae3d0d323abbf6e095d906ea93cd7bb127903"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-main-dispatch0.w",
@@ -55701,13 +55701,13 @@
           "path": "compiler/seed-c/tests/test_cooperative0.c",
           "symbol": "test_main_cardinalities",
           "claim": "Focused tests verify k=1, k=3, and k=4 main-domain cases alongside the retained k=2 witness and exact outputs.",
-          "sha256": "sha256:74439955375ed07e9a0e653a5d1c268086e225f40c5c1d63b9cf7629868f5d19"
+          "sha256": "sha256:23dde94382e7e05a08d52ee6c4dae3d0d323abbf6e095d906ea93cd7bb127903"
         },
         {
           "path": "compiler/seed-c/tests/test_cooperative0.c",
           "symbol": "test_negative_shapes",
           "claim": "Negative product tests reject k=5 transactionally and reject reordered or orphan/duplicate joins, mixed launch kinds, and no-route sources.",
-          "sha256": "sha256:74439955375ed07e9a0e653a5d1c268086e225f40c5c1d63b9cf7629868f5d19"
+          "sha256": "sha256:23dde94382e7e05a08d52ee6c4dae3d0d323abbf6e095d906ea93cd7bb127903"
         },
         {
           "path": "tooling/check-cooperative-mlir0.mjs",
@@ -58517,6 +58517,65 @@
       ],
       "benchmarkDisposition": "compiler-lifecycle",
       "benchmarkEvidence": "Correctness-only source-to-native execution; no timing, ranking, or performance result."
+    },
+    {
+      "decisionId": "W-1634",
+      "summary": "bounded source-backed `u64` ConstIR7 policy evaluation",
+      "canonicalClaim": "ConstIR schema `w-seed-constir-7` accepts the ten existing closed `u64` policies—`saturatingAdd`, `saturatingSubtract`, `saturatingMultiply`, `saturatingNegate`, `saturatingPower`, `overflowingAdd`, `overflowingSubtract`, `overflowingMultiply`, `overflowingNegate`, and `overflowingPower`—and evaluates them with exact type/arity/receiver identity. Overflowing results are one allocation-free virtual `(u64, Bool)` value with checked `.0`/`.1` projections; power uses exponentiation by squaring and step quota.",
+      "claimDigest": "sha256:253368dd965eaa11cb673bad6005168b51841dc23fa257db6fc87c81f68ffed0",
+      "category": "source-backed-current",
+      "basis": "linked-source-comparison-case",
+      "authorityRef": {
+        "kind": "source-case",
+        "path": "tooling/substitution-cases.json",
+        "caseId": "R0-u64-policy-constir7",
+        "caseDigest": "sha256:9dd55bf13f6216453c4ab2fd93aa39c812d11aaa64a6cf26e7eb313bf908ba2a"
+      },
+      "evidence": [
+        {
+          "kind": "source",
+          "path": "tooling/substitution-cases.json",
+          "caseId": "R0-u64-policy-constir7",
+          "caseDigest": "sha256:9dd55bf13f6216453c4ab2fd93aa39c812d11aaa64a6cf26e7eb313bf908ba2a"
+        }
+      ],
+      "reason": "W-1634 (bounded source-backed `u64` ConstIR7 policy evaluation, sha256:253368dd965eaa11cb673bad6005168b51841dc23fa257db6fc87c81f68ffed0) is source-backed-current only for the bounded C23 source-backed evaluator, exact ten-policy values and boundaries, virtual `(u64, Bool)` projections, zero heap/CRT/float/artificial exponent cap, quota diagnostics, result-byte accounting, and all-or-nothing invalid/capacity behavior. Generic tuples and direct tuple const return, frontend module-const tuple normalization, other widths, a stable tuple ABI, backend/runtime ranking, and performance remain gaps.",
+      "selection": "explicit-ledger-id",
+      "basisRef": {
+        "kind": "ledger-row",
+        "path": "RATIONALE.md",
+        "section": "3. Ledger",
+        "decisionId": "W-1634",
+        "claimDigest": "sha256:253368dd965eaa11cb673bad6005168b51841dc23fa257db6fc87c81f68ffed0"
+      },
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_constir.h",
+          "symbol": "W_SEED_CONSTIR_SCHEMA_VERSION",
+          "claim": "ConstIR publishes schema w-seed-constir-7 with append-only u64 policy-call and virtual (u64, Bool) projection/value records.",
+          "sha256": "sha256:219c6620567e10a898da1badb62fa1ca0b3a4231c524e6a4e5f056ac4f69fd72"
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_constir.c",
+          "symbol": "constir_builtin_u64_operation_is_supported",
+          "claim": "The evaluator closes the supported builtin set to the ten saturating and overflowing u64 add, subtract, multiply, negate, and power policies.",
+          "sha256": "sha256:0602742960cb54338a5b0d94ae20d7a80c002ecdfbe49fd713157bbaf20e4448"
+        },
+        {
+          "path": "compiler/seed-c/tests/test_constir.c",
+          "symbol": "test_u64_policy_constir",
+          "claim": "Focused C23 coverage checks exact policy values and boundaries, tuple projections, quota, malformed receiver/arity/type/result, and transactional sentinels.",
+          "sha256": "sha256:262b84441d2c8515aa5a855d41c6d956d614e45b88efffdb97ef43bc897b4398"
+        },
+        {
+          "path": "tooling/check-seed-constir.mjs",
+          "symbol": "seed ConstIR: bounded control flow, u64 numeric policies, virtual overflow products, digest, quotas, and barriers passed",
+          "claim": "The repository checker builds and runs the ConstIR C23 witness and verifies the bounded policy, digest, quota, and barrier checks.",
+          "sha256": "sha256:462eb0cbe69927219d082b35f24abbc6e649ad1ab21b83db2d2407d9b5cbd2a8"
+        }
+      ],
+      "benchmarkDisposition": "compiler-lifecycle",
+      "benchmarkEvidence": "Correctness-only source-backed ConstIR evaluation and C23 checker; no public benchmark, backend/runtime ranking, ABI result, or performance measurement."
     }
   ],
   "auditSamples": {
