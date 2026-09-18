@@ -18,7 +18,6 @@ export const DEFAULT_TEMP_MIN_AGE_MS = 24 * 60 * 60 * 1000;
 export const WORKSPACE_OUTPUTS = Object.freeze([
   { relativePath: "build", marker: "cmake" },
   { relativePath: "build/w-windows", marker: "known-output" },
-  { relativePath: ".local/build-seed", marker: "cmake" },
   { relativePath: "reference/last-light/build", marker: "known-output" },
   { relativePath: "portal/dist", marker: "known-output" },
   { relativePath: "tooling/tree-sitter-w/build", marker: "known-output" },
@@ -83,15 +82,13 @@ const ROOT_BUILD_PREFIX = "build-";
 const RANDOM_SUFFIX = /^[A-Za-z0-9]{6}$/;
 const BMD2_BUILD = /^w-bmd2-[0-9a-f]{8}-build-([A-Za-z0-9]{6})$/;
 const BMD2_ARCHIVE = /^w-bmd2-(?:baseline|candidate)-archive-([A-Za-z0-9]{6})$/;
-const PROTECTED_ENTRY_NAMES = new Set([".local", ".git", "history", "node_modules", "sessions"]);
+const PROTECTED_ENTRY_NAMES = new Set([".git", "history", "node_modules", "sessions"]);
 const PROTECTED_WORKSPACE_PATHS = Object.freeze([
   ".git",
-  ".local",
   "benchmarks/results",
   "history",
   "node_modules",
 ]);
-const CODEX_BUILD_OUTPUT = ".local/build-seed";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -166,7 +163,6 @@ function normalizeKeepPaths(values, workspaceRoot, tempRoot) {
 }
 
 function hasProtectedWorkspaceIntersection(candidate, workspaceRoot) {
-  if (samePath(candidate, path.join(workspaceRoot, CODEX_BUILD_OUTPUT))) return false;
   return PROTECTED_WORKSPACE_PATHS.some((relativePath) =>
     pathsIntersect(candidate, path.join(workspaceRoot, relativePath)));
 }

@@ -554,8 +554,8 @@ W. Não use um status de estudo como uma promessa de produto.
 
 ## Manutenção
 
-Antes de uma mudança, leia `.local/W.md`, `.local/W-WORKFLOW.md` e
-`.local/WRITING.md`. Preserve uma única fonte por conceito:
+Antes de uma mudança, leia `REPOSITORY.md` e a seção aplicável de
+`CONTRIBUTING.md`. Preserve uma única fonte por conceito:
 
 1. altere a fonte canônica;
 2. regenere somente as projeções afetadas;

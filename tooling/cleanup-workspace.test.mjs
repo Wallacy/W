@@ -214,21 +214,6 @@ describe("workspace cleanup", () => {
     expect(await exists(path.join(workspace, "build"))).toBe(true);
   });
 
-  test("selects only the closed seed build below the protected .local root", async () => {
-    const seed = await makeCMakeBuild(path.join(".local", "build-seed"));
-    const retained = path.join(workspace, ".local", "notes.md");
-    await makeFile(retained, "keep");
-
-    const plan = await collectCleanupPlan(options());
-    expect(plan.candidates.map((candidate) => candidate.path)).toEqual([seed]);
-    expect(plan.refused).toEqual([]);
-
-    const report = await applyCleanupPlan(plan, { mountProof: noMounts });
-    expect(report.refused).toEqual([]);
-    expect(await exists(seed)).toBe(false);
-    expect(await exists(retained)).toBe(true);
-  });
-
   test("removes an empty known build root", async () => {
     const build = path.join(workspace, "build");
     await mkdir(build);

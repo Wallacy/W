@@ -23,6 +23,8 @@ tooling/vscode-w/dist/
 *.tgz
 
 # Editor and operating-system artifacts
+/.local/
+/AGENTS.md
 /.vscode/
 .idea/
 .DS_Store

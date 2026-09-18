@@ -107,9 +107,11 @@ os outputs. Preserve `src/scanner.c`, que é authored e versionado. Execute
 Contribuições em português e inglês são aceitas. Preserve o idioma da seção
 quando uma tradução completa não fizer parte da mudança.
 
-Use `.local/WRITING.md` para texto técnico. Use ASD-STE100 Issue 9 em inglês.
-Use a adaptação controlada do repositório em português. Prefira frases curtas,
-termos estáveis e exemplos verificáveis.
+Use ASD-STE100 Issue 9 em textos técnicos em inglês quando a regra não reduzir
+a precisão. Em português, use frases curtas, voz ativa e um termo estável para
+cada conceito. Exemplos devem mostrar um valor, efeito ou diagnóstico
+observável. Preserve o idioma da seção quando a mudança não incluir sua
+tradução completa.
 
 ## Código e formatação
 
