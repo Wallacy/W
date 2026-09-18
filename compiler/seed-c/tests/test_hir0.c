@@ -13797,6 +13797,107 @@ static bool test_u64_overflowing_products(void) {
   return true;
 }
 
+static bool test_u64_overflowing_power(void) {
+  static const char SOURCE[] =
+      "entry { "
+      "let ordinary = u64.overflowingPower(2_u64, 3_u64) "
+      "let overflow = u64.overflowingPower(2_u64, 64_u64) "
+      "let zero = u64.overflowingPower(0_u64, 0_u64) "
+      "let ordinaryValue = ordinary.0 let ordinaryOverflow = ordinary.1 "
+      "let overflowValue = overflow.0 let overflowFlag = overflow.1 "
+      "let zeroValue = zero.0 let zeroFlag = zero.1 }\n";
+  CHECK(lower(SOURCE));
+
+  uint32_t u64_type = W_SEED_HIR0_NONE;
+  uint32_t bool_type = W_SEED_HIR0_NONE;
+  uint32_t tuple_type = W_SEED_HIR0_NONE;
+  for (size_t index = 0u; index < fixture.hir_program.type_count; index += 1u) {
+    switch (fixture.hir_program.types[index].kind) {
+      case W_SEED_HIR0_TYPE_U64:
+        u64_type = (uint32_t)index;
+        break;
+      case W_SEED_HIR0_TYPE_BOOL:
+        bool_type = (uint32_t)index;
+        break;
+      case W_SEED_HIR0_TYPE_U64_BOOL_TUPLE:
+        tuple_type = (uint32_t)index;
+        break;
+      default:
+        break;
+    }
+  }
+  CHECK(u64_type != W_SEED_HIR0_NONE && bool_type != W_SEED_HIR0_NONE &&
+        tuple_type != W_SEED_HIR0_NONE);
+
+  size_t power_count = 0u;
+  size_t projection_count = 0u;
+  size_t power_index = SIZE_MAX;
+  size_t projection_index = SIZE_MAX;
+  for (size_t index = 0u; index < fixture.hir_program.value_count;
+       index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_program.values[index];
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
+        value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_POWER) {
+      CHECK(value->type_index == tuple_type &&
+            value->left_value != W_SEED_HIR0_NONE &&
+            value->right_value != W_SEED_HIR0_NONE &&
+            fixture.hir_program.values[value->left_value].type_index ==
+                u64_type &&
+            fixture.hir_program.values[value->right_value].type_index ==
+                u64_type);
+      power_count += 1u;
+      power_index = index;
+    } else if (value->kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT) {
+      CHECK(value->unsigned_integer_value < 2u &&
+            value->left_value != W_SEED_HIR0_NONE &&
+            fixture.hir_program.values[value->left_value].kind ==
+                W_SEED_HIR0_VALUE_BINDING_READ &&
+            fixture.hir_program.values[value->left_value].type_index ==
+                tuple_type &&
+            value->type_index ==
+                (value->unsigned_integer_value == 0u ? u64_type : bool_type));
+      projection_count += 1u;
+      if (projection_index == SIZE_MAX) projection_index = index;
+    }
+  }
+  CHECK(power_count == 3u && power_index != SIZE_MAX &&
+        projection_count == 6u && projection_index != SIZE_MAX &&
+        fixture.hir_program.call_count == 0u);
+
+  const w_seed_hir0_value saved_power = fixture.hir_values[power_index];
+  fixture.hir_values[power_index].type_index = u64_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[power_index] = saved_power;
+  fixture.hir_values[power_index].binary_operator =
+      W_SEED_HIR0_BINARY_WRAPPING_POWER;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[power_index] = saved_power;
+
+  const w_seed_hir0_value saved_projection =
+      fixture.hir_values[projection_index];
+  fixture.hir_values[projection_index].unsigned_integer_value = 2u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[projection_index] = saved_projection;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  static const char *const REJECTED[] = {
+      "entry { let pair = u64.overflowingPower(1_u64) }\n",
+      "entry { let pair = u64.overflowingPower(1_u64, true) }\n",
+  };
+  for (size_t index = 0u;
+       index < sizeof(REJECTED) / sizeof(REJECTED[0]); index += 1u) {
+    CHECK(fixture_parse(REJECTED[index]));
+    configure_host();
+    CHECK(w_seed_frontend_run(&fixture.input, &fixture.output,
+                              &fixture.result) != W_SEED_FRONTEND_OK);
+  }
+  return true;
+}
+
 static bool test_u64_saturating_subtract(void) {
   static const char SOURCE[] =
       "fn clamp(left: u64, right: u64): u64 { return "
@@ -15192,6 +15293,7 @@ int main(int argc, char **argv) {
   if (!test_u64_wrapping_add()) return 1;
   if (!test_u64_saturating_add()) return 1;
   if (!test_u64_overflowing_products()) return 1;
+  if (!test_u64_overflowing_power()) return 1;
   if (!test_u64_saturating_subtract()) return 1;
   if (!test_u64_saturating_multiply()) return 1;
   if (!test_u64_wrapping_subtract()) return 1;

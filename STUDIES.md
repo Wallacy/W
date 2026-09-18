@@ -12,11 +12,11 @@
 | Status | Estudos |
 |---|---:|
 | `complete-design-study` | 11 |
-| `design-oracle-input` | 60 |
+| `design-oracle-input` | 61 |
 | `design-oracle-input-cap0` | 1 |
 | `design-oracle-input-syn1` | 1 |
 | `protocol-ready` | 1 |
-| **Total** | **74** |
+| **Total** | **75** |
 
 O registry de máquina também registra metadados, fixtures, referências, digests, dependências e entrypoints de scripts.
 Use `bun run study:registry` para regenerar as duas projeções e `bun tooling/command-runner.mjs --command check:study-registry` para validá-las.
@@ -37,7 +37,7 @@ Use `bun run study:registry` para regenerar as duas projeções e `bun tooling/c
 | `TGM0` | Pipeline task map and collect evidence — `complete-design-study` | [`tooling/studies/tgm0-task-group-map-collect`](./tooling/studies/tgm0-task-group-map-collect/) | `—` | `bun tooling/command-runner.mjs --command check:tgm0` |
 | `W-1503` | Historical allocation and placement evidence for W-1503; W-1517 design contract — `complete-design-study` | [`tooling/studies/w1503-allocation-placement`](./tooling/studies/w1503-allocation-placement/) | `—` | `bun tooling/command-runner.mjs --command check:study-bundles` |
 
-## Status: `design-oracle-input` (60)
+## Status: `design-oracle-input` (61)
 
 | ID | Função / estado | Caminho | Gate principal | Entrypoint principal |
 |---|---|---|---|---|
@@ -100,6 +100,7 @@ Use `bun run study:registry` para regenerar as duas projeções e `bun tooling/c
 | `R1C0` | Comparative ergonomics closure with bounded WLO1 fallback — `design-oracle-input` | [`tooling/studies/r1c0-closure`](./tooling/studies/r1c0-closure/) | `—` | `bun tooling/command-runner.mjs --command check:r1c0` |
 | `SEC0` | Broad security model for safe W across physical targets — `design-oracle-input` | [`tooling/studies/sec0-security-model`](./tooling/studies/sec0-security-model/) | `SEC0-R1` | `bun tooling/command-runner.mjs --command check:sec0` |
 | `SYN2-DYN2` | Typed generated module sets and bounded versioned behavior closure — `design-oracle-input` | [`tooling/studies/syn2-dyn2-closure`](./tooling/studies/syn2-dyn2-closure/) | `DYN0-G1` | `bun tooling/command-runner.mjs --command check:syn2-dyn2` |
+| `WCCP0` | Computable contracts for proof, validation, tests, interoperability, and optimization — `design-oracle-input` | [`tooling/studies/wccp0-computable-contracts`](./tooling/studies/wccp0-computable-contracts/) | `—` | `bun tooling/command-runner.mjs --command check:study-bundles` |
 | `WVUI0` | First-party web UI providers for embedded, browser, and terminal targets — `design-oracle-input` | [`tooling/studies/wvui0-web-ui-providers`](./tooling/studies/wvui0-web-ui-providers/) | `—` | `bun tooling/command-runner.mjs --command check:study-bundles` |
 
 ## Status: `design-oracle-input-cap0` (1)

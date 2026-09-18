@@ -178,7 +178,7 @@ Cada aplicação tem owner type, head, envelope, argumentos ordenados e status d
 binding; cada argumento preserva ordinal, span, label, parâmetro, kind, o índice
 de type ou `ConstValue` e o índice sentinel/relacionado de `TypedConstExpr`. O
 root liga à aplicação por `generic_application_index`.
-`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-29`. Earlier D2/D3 fields
+`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-60`. Earlier D2/D3 fields
 anteriores permanecem append-only; a versão 6 acrescenta records, ranges,
 counts/capacities e relações de module const; a versão 7 acrescenta
 `effective_type` e preserva `declared_type` como annotation source-only para
@@ -2817,10 +2817,10 @@ for ranking or live best metrics.
 
 ### Source-backed checked `UInt`/`u64` operators
 
-HIR0 schema `w-seed-hir0-71` represents ordinary unsigned arithmetic,
+HIR0 schema `w-seed-hir0-75` represents ordinary unsigned arithmetic,
 comparisons, and binary bitwise operations with `BINARY_U64`, and bitwise complement with the distinct
 `UNARY_U64` value kind. Native0 and MLIR0 schemas are `w-seed-native0-9` and
-`w-seed-mlir0-46` (Windows label `w-seed-mlir0-windows-31`). Native constant
+`w-seed-mlir0-50` (Windows label `w-seed-mlir0-windows-35`). Native constant
 trees are evaluated as `uint64_t` with checked add/subtract/multiply,
 zero-guarded divide/remainder, and width-preserving complement; overflow or
 division by zero fails closed. MLIR0 keeps the physical carrier as `i64`, uses
@@ -2864,6 +2864,13 @@ proves modulo exponentiation, including the `exponent == 0` identity. Its
 distinct HIR identity lowers to a reachable-only exponentiation-by-squaring
 helper whose plain `llvm.mul` operations retain the low 64 bits; it never uses
 the checked-power helper or unsigned-overflow intrinsic.
+[`fixtures/restaurant-uint-overflowing-power.w`](fixtures/restaurant-uint-overflowing-power.w)
+proves the corresponding low-bits-plus-overflow product. Its reachable-only
+helper uses exponentiation by squaring and `llvm.intr.umul.with.overflow`, ORs
+the necessary multiplication flags, and returns a virtual `(u64, Bool)` with
+no allocation, CRT dependency, floating-point conversion, precomputed result,
+or fixed exponent ceiling. The native fixture covers `2^63`, `2^64`,
+`u64.max^2`, and `0^0`.
 [`fixtures/restaurant-uint-wrapping-shift-left.w`](fixtures/restaurant-uint-wrapping-shift-left.w)
 proves full-width modulo left shift for a valid dynamic count. Its distinct HIR
 identity lowers to a reachable-only helper that rejects `count >= 64` before

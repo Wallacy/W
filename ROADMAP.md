@@ -92,6 +92,34 @@ These are SDK/provider and implementation gaps unless an executable slice
 proves that a missing general language rule is required. They must not displace
 the scalar, control-flow, aggregate and explicit-ownership prerequisites above.
 
+## Computable contract and proof readiness
+
+WCCP0 studies a common `ContractIR` for mathematical propositions, function
+preconditions and postconditions, state machines, module surfaces, and imported
+data or wire schemas. The study selects `T<(predicate)>` for intrinsic value
+invariants and structured documentation `contract:` fields for declaration
+relations. It rejects a public `Proof<C>` from the initial source surface.
+Parser, lowering, proof checking, runtime validation, and optimizer integration
+remain open. This work can proceed beside the active implementation queue and
+does not displace rank 1.
+
+Implementation remains ordered by dependency:
+
+1. stabilize const evaluation, types, protocols, modules, and canonical
+   identities;
+2. parse, resolve, and lower selected local and imported carriers into normalized
+   `ContractIR`;
+3. derive one runtime validator and preserve its contract digest in evidence;
+4. validate one bounded proof certificate with a small W-owned checker;
+5. erase proof state and compare proof and ordinary runtime semantics;
+6. enable one optimizer decision from the checked fact and measure its cost.
+
+Inline documentation examples feed concrete witnesses into this system. They
+do not become universal proofs without a checked coverage certificate. JSON
+Schema, XML Schema, WSDL, SOAP policy, and similar formats enter through
+versioned adapters rather than new literal syntax. Proof-mode applications stay
+at rank 14 until these lower boundaries execute.
+
 ## Current checkpoint
 
 W-1600 closes the bounded physical process/parallel reference: the unchanged
@@ -161,6 +189,14 @@ The existing Windows CUDA adapter exercises this boundary and preserves the
 plumbing sentinel `42`; external MLIR → NVVM → PTX remains tooling-owned.
 This is compiler-lifecycle correctness evidence only, with no public GPU
 runtime/ABI or other provider/target claim.
+
+W-1631 closes the next basic-operator slice before higher-level lifecycle work:
+`u64.overflowingPower` now preserves its virtual `(u64, Bool)` product from
+source through verified HIR and reachable-only MLIR lowering. The emitted
+exponentiation-by-squaring helper has logarithmic iteration count, no fixed
+exponent ceiling, no allocation or CRT dependency, and executes exact ordinary,
+overflow, wrapped, and `0^0` witnesses natively. Other widths, const evaluation,
+stable ABI, timing, and performance remain open.
 
 The first rank-1 increments are now executable. Signed-`i64` `&`, `|`, `^`,
 and unary `~` cross exact W source, canonical precedence, verified HIR0, direct

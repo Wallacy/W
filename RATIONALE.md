@@ -208,6 +208,7 @@ O corpus compara, no mínimo:
 - bounded Bool short-circuit lowering against eager RHS evaluation, duplicated calls, and general CFG.
 - bounded scalar `if` value against eager arm evaluation, fake logical encoding, and general scalar CFG.
 - checked signed-i64 arithmetic against wrapped overflow, unreachable helpers, and runtime division/remainder.
+- bounded u64 overflowing exponentiation against repeated multiplication, exponent ceilings, precomputed answers, and unreachable helper retention.
 - short default entry against a magic main function, source-addressable synthetic identity, and duplicate default descriptors.
 - external process nominal identity against alias-spelling identity, first-match duplicate imports, and forged ExitCode success metadata.
 - caller-owned external identity, handler compatibility, alias-independent semantics, and downstream fail-closed behavior.
@@ -7974,6 +7975,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1628 | bounded private panic lifecycle decision | PANICLIFE1 schema `w-seed-parallel-panic-lifecycle1-1` is a separate target-neutral private bridge above a verified PARPANIC1 view. It publishes one caller-owned panic decision and exactly three ordered semantic events, with no normal outcome, and keeps source/provider/receipt facts only in provenance. | `source-backed-current` only for the bounded PANICLIFE1 decision, copied message and event publication, deterministic PARPANIC1 primary consumption, semantic identity across upstream capacities one and two, provenance separation, rederived no-panic classification, all-or-nothing output and result preservation, complete representable writable-range barriers, upstream forgery rejection, and teardown-readable output. PANICLIFE1 has no provider call or own workspace. PANICBOUNDARY1, resource-registry evaluation, `PanicEvent`, Task ABI/runtime, native HIR execution, cleanup, portability, public product, benchmark, and performance remain gaps. Upstream runtime evidence is Windows x64, while this bridge is target-neutral. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1629 | private Windows x64 host resource release witness | PANICHOSTREG1 schema `w-seed-parallel-panic-host-registry1-1` is a private Windows x64 host bridge above a verified PANICLIFE1 view. Its caller-owned authority creates exactly one anonymous, non-inheritable Win32 event, owns it from successful `CreateEventW`, and publishes one semantic `EVENT` record with ordered registration and close-commit events after one successful `CloseHandle`. Pre-close failure preserves `REGISTERED` for destroy, while a false or uncertain post-attempt result is terminal `UNCERTAIN` without retry or double-close. The raw handle stays out of published outputs and digests, while physical facts remain in provenance. | `source-backed-current` only for the private Windows x64 event creation and one-close release witness, PANICLIFE1 correlation, semantic equality across upstream capacities one and two, provenance separation, caller-owned transactional records, pre-effect validation, uncertainty and destroy states, complete representable alias barriers, and focused C23 evidence. Capacity one is an evidence ceiling, not a language or runtime limit. PANICBOUNDARY1, a general registry, arbitrary external handles, user defer/deinit, OS-object destruction, runtime/public PanicEvent or Task ABI, native HIR execution, other targets, benchmark, and performance claims remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1630 | bounded private provider-neutral GPU launch/join/result boundary | ACCPROV0 schema `w-seed-accelerated-provider0-1` consumes one verified ACCREQ0 and caller-owned native artifact/receipt whose link binds the request device-artifact digest, target, provider ABI class, and native-artifact digest; its caller-owned state enforces the exact staged, submitted, device-running, body-settled, provider-drained, cleanup, outcome-committed, and joined lifecycle with every writable output bound before provider effect. The semantic outcome contains only the successful signed-i32 result shape/value and lifecycle order, while provider/target/device/queue/generation/status/timing facts remain in pointer-free physical provenance. Failure, device loss, stale generation, protocol mismatch, wrong result, false or malformed callback, or cleanup uncertainty publishes no semantic outcome and cannot be retried or double-cleaned. The existing Windows CUDA route exercises this boundary and preserves plumbing result 42; MLIR/NVVM/PTX materialization remains tooling-owned. | `source-backed-current` only for the private target/provider-neutral ACCPROV0 core, reproducible native-artifact receipt, pre-effect validation and output binding, exact lifecycle, semantic/provenance separation, conservative callback and cleanup uncertainty, terminal retry barriers, producer teardown, adversarial fake-provider evidence, and the existing Windows x64 CUDA adapter path. The provider ABI class remains a provider-neutral compatibility requirement rather than concrete provider identity. Public GPU build/run, stable runtime/provider ABI, general scheduling/residency/cancellation, matrix/operator lowering, binary authentication, other providers/targets, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
+| W-1631 | bounded `u64.overflowingPower` executable lowering | Frontend60 and HIR75 preserve `u64.overflowingPower(base, exponent) -> (u64, Bool)` as one append-only builtin and virtual tuple product. MLIR0 emits one reachable-only exponentiation-by-squaring helper using unsigned overflow intrinsics, returns low bits modulo `2^64` plus a sticky exact-overflow flag, and defines `0^0` as `(1, false)` without heap, CRT, floating point, precomputation, or an exponent ceiling. | `source-backed-current` only for the bounded `u64` source-to-frontend-to-verified-HIR-to-MLIR/Native0 route, adversarial C23 tests, helper reachability, MLIR/LLVM 23.1.1 verification, and exact native execution of ordinary, overflow, wrapped, and zero-exponent cases. Other widths, const evaluation, stable ABI, benchmark results, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -8384,6 +8386,97 @@ logic/termination boundaries, bounded incremental checking, explicit trust,
 preserved ABI and observable semantics, total proof-state erasure, measured
 optimization changes from verified facts, and no proof-machinery runtime cost.
 The candidate CLI spelling is not yet language or toolchain surface.
+
+WCCP0 extends that direction from theorem-shaped proof input to computable
+contracts. The term `contract` is broader than `law`: one identity can describe
+a mathematical proposition, a precondition or postcondition, a state machine,
+an effect budget, a module surface, or an external data and wire schema. The
+common boundary is canonical `ContractIR`, not a promise that every carrier has
+the same expressive power or can produce the same evidence.
+
+W protocols remain the nominal conformance mechanism. Reusing `protocol` for
+all contracts would fail to represent value predicates, concrete request and
+response schemas, module-wide invariants, and imported versioned descriptions.
+The opposite extreme, a new top-level `contract` declaration for every case,
+would duplicate existing refined types and const relations. WCCP0 therefore
+selects `T<(predicate)>` for intrinsic value invariants and the structured
+documentation field `contract:` for declaration relations. A const-safe
+`const fn` supplies reusable predicates and relations. Protocol requirements
+can use both carriers without becoming the universal contract representation.
+
+The relational carrier belongs outside the return type. `SortedResult<i64>`
+can establish that one array is sorted. It cannot establish that the array has
+the same multiset as an earlier input without also naming that input and its
+entry state. `contract: sameElements(before: before values, after: result)`
+keeps that provenance at the transformation boundary. Multiple fields form an
+unordered conjunction and keep independent contract identities.
+
+WCCP0 rejects a public generic `Proof<C>` for the initial surface. The
+proposition already has a stable contract identity. A checked certificate is
+the portable evidence artifact. `ProofFacts` are the compiler representation.
+Refined values carry existential witnesses, proved const calls compose facts,
+and runtime validation returns a refined value or typed error. `Proof<C>` would
+add user-visible proof transport, overload participation, ownership rules, and
+generic specialization without a current case that needs those costs. The
+decision can reopen only when a concrete theorem requires first-class evidence
+that cannot travel as a certificate, a refined value, or a proved const call.
+
+The documentation examples are useful contract witnesses, but finite examples
+are not universal proofs. A failed example refutes a claimed universal rule. A
+passing example establishes only that input. Exhaustive proof is valid only
+when a checked certificate also establishes that the enumerated domain is
+complete. This rule prevents inline documentation, fuzzing, and simulation from
+silently acquiring proof authority.
+
+JSON Schema, XML Schema, WSDL, SOAP policy, OpenAPI, and similar inputs should
+enter through const-safe, versioned adapters. Native JSON or XML literal syntax
+would not solve reference resolution, profile selection, semantic loss, remote
+behavior, or trust. An adapter can derive shape validation and interoperability
+metadata while rejecting or disclosing unsupported semantics. It cannot prove
+business behavior or a remote peer from a message schema.
+
+The runtime and proof paths must share the normalized contract identity. This
+allows a generated validator to check dynamic input and lets a checked proof
+erase a redundant validation when all inputs are fixed. It also prevents a
+runtime validator and a compile-time proposition from drifting under the same
+name. `proved`, `validated`, `tested`, `assumed`, and `inconclusive` remain
+separate evidence lanes.
+
+[Lean propositions](https://lean-lang.org/doc/reference/latest/The-Type-System/Propositions/)
+provide the precedent for proof irrelevance and erasure from compiled code.
+[Lean dependent types](https://lean-lang.org/functional_programming_in_lean/Programming-with-Dependent-Types/)
+show how programs in types can enforce strong invariants, and also document the
+added complexity. W adopts neither universal dependent typing nor unchecked
+solver authority from that precedent. The bounded W checker, explicit erasure,
+trust receipts, and ordinary non-proof mode remain mandatory.
+
+[Lean theorem proving](https://lean-lang.org/theorem_proving_in_lean4/Propositions-and-Proofs/)
+represents a proposition as a type and a proof as a term of that type. This
+gives Lean stronger higher-order theorem composition, tactics, and a mature
+mathematical library. W instead keeps ordinary values, contracts, and evidence
+artifacts separate. W gains a smaller everyday source surface and direct links
+to runtime validation, schemas, tests, effects, and optimizer facts. W loses
+Lean's general first-class proof programming until an executable W case proves
+that the smaller model is insufficient.
+
+[Bend 2](https://github.com/bendlang/bend) combines an affine dependent type
+theory with explicit `law` declarations and proof definitions. Its current
+documentation presents proofs, CPU/GPU parallel execution, and one small
+language as a unified model. It also reports no tactics or proof search,
+restricted numeric types, affine values, limited effects, and young tooling.
+W keeps conventional systems programming, explicit ownership, effectful
+services, provider-neutral targets, and incremental adoption. Bend has the
+clearer uniform proof calculus today. W's selected direction is broader at the
+integration boundary because one `ContractIR` can connect type refinements,
+declaration relations, runtime validators, external schemas, tests,
+certificates, and optimization facts.
+
+Alternatives rejected for now are treating tests as proofs, trusting an
+external solver, making JSON/XML/SOAP native syntax, using protocol conformance
+as the universal carrier, adding a top-level `contract` declaration, adding
+`contract fn`, exposing `Proof<C>`, and reserving runtime `verify` or `check`
+syntax. The study must also demonstrate one optimizer fact that improves code
+without changing the accepted program's observable semantics.
 
 As quatro pastas de estudo têm dados estruturados, casos positivos e adversariais,
 oracles independentes e checkers no package root. DRC0 acrescenta um caso de
@@ -13746,3 +13839,24 @@ cancellation, matrix/operator lowering, another provider/target, or binary
 authentication. The target-neutral core is evidence that this boundary can be
 implemented without provider identity entering semantic output; the only
 physical implementation evidence in this cut is Windows x64 CUDA.
+
+W-1631 closes the first executable `u64.overflowingPower` slice without adding
+a new source surface. The operator matrix already requires the low fixed-width
+result plus an exact overflow flag. Reusing the existing virtual `(u64, Bool)`
+product avoids heap allocation, runtime identity, and a special return ABI in
+verified HIR. The MLIR helper uses exponentiation by squaring because a linear
+loop would make work proportional to the exponent rather than its bit width.
+
+Every multiplication that contributes to the power or to a still-needed
+squared base uses `llvm.intr.umul.with.overflow`; the flags are accumulated
+with OR while the low lane continues modulo `2^64`. Once one necessary
+multiplication overflows for a nonnegative integer power, the exact result is
+outside `u64`, so the sticky flag remains valid. The algorithm exits before an
+unused final square, which keeps `2^63` non-overflowing and makes exponent zero
+return `(1, false)`, including `0^0` under the existing power identity rule.
+
+The helper is emitted only when reachable. The focused native fixture executes
+`2^63`, `2^64`, `u64.max^2`, and `0^0` after MLIR verification, LLVM
+translation, native link, and process execution. That evidence validates the
+current bounded `u64` route; it does not promote every integer width, const
+evaluation, a stable tuple ABI, benchmark timing, or performance.

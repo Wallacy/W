@@ -47,6 +47,8 @@ const restaurantUIntWrappingNegateFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-negate.w")
 const restaurantUIntWrappingPowerFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-power.w")
+const restaurantUIntOverflowingPowerFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-overflowing-power.w")
 const restaurantUIntWrappingShiftLeftFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-shift-left.w")
 const restaurantUIntMaskedShiftLeftFixture = resolve(seedDirectory,
@@ -722,6 +724,11 @@ try {
     { name: "restaurant-uint-wrapping-power",
       source: restaurantUIntWrappingPowerFixture,
       expected: Buffer.from("Wrapped 12157665459056928801\n", "utf8") },
+    { name: "restaurant-uint-overflowing-power",
+      source: restaurantUIntOverflowingPowerFixture,
+      expected: Buffer.from(
+        "Overflowing power 9223372036854775808/false; 0/true; 1/true; " +
+        "1/false\n", "utf8") },
     { name: "restaurant-uint-wrapping-shift-left",
       source: restaurantUIntWrappingShiftLeftFixture,
       expected: Buffer.from("Wrapped 18446744073709551614\n", "utf8") },
@@ -1070,6 +1077,19 @@ try {
     !uintWrappingPowerArtifact.includes("@w_seed_checked_power_u64") &&
     !uintWrappingPowerArtifact.includes("llvm.intr.umul.with.overflow"),
   "u64.wrappingPower did not retain runtime modulo exponentiation lowering")
+  const uintOverflowingPowerArtifact =
+    artifacts.get("restaurant-uint-overflowing-power").toString("utf8")
+  assert((uintOverflowingPowerArtifact.match(
+    /llvm\.func internal @w_seed_overflowing_power_u64/g) ?? []).length === 1 &&
+    uintOverflowingPowerArtifact.includes(
+      "llvm.call @w_seed_overflowing_power_u64") &&
+    uintOverflowingPowerArtifact.includes("llvm.intr.umul.with.overflow") &&
+    uintOverflowingPowerArtifact.includes("llvm.or") &&
+    uintOverflowingPowerArtifact.includes("llvm.lshr") &&
+    uintOverflowingPowerArtifact.includes("llvm.call @w_seed_append_u64") &&
+    uintOverflowingPowerArtifact.includes("llvm.call @w_seed_append_bool") &&
+    !uintOverflowingPowerArtifact.includes("@w_seed_checked_power_u64"),
+  "u64.overflowingPower lost sticky-overflow exponentiation lowering")
   const uintWrappingShiftLeftArtifact =
     artifacts.get("restaurant-uint-wrapping-shift-left").toString("utf8")
   assert((uintWrappingShiftLeftArtifact.match(
@@ -1234,6 +1254,7 @@ try {
     "UInt compound mutation gained an unrelated checked helper")
   const wmoArtifact = artifacts.get("restaurant-wmo")
   assert(!artifacts.get("hello").includes("@w_seed_checked_") &&
+    !artifacts.get("hello").includes("@w_seed_overflowing_power_u64") &&
     wmoArtifact.includes("@w_fn_0(") &&
     !wmoArtifact.includes("@w_fn_1(") &&
     !wmoArtifact.includes("@w_fn_2(") &&

@@ -2569,6 +2569,65 @@ static bool test_u64_wrapping_power_artifact(void) {
   return true;
 }
 
+static bool test_u64_overflowing_power_artifact(void) {
+  static const uint8_t source[] =
+      "entry { "
+      "let ordinary = u64.overflowingPower(2_u64, 3_u64) "
+      "let overflow = u64.overflowingPower(2_u64, 64_u64) "
+      "let zero = u64.overflowingPower(0_u64, 0_u64) "
+      "let ordinaryValue = ordinary.0 let ordinaryOverflow = ordinary.1 "
+      "let overflowValue = overflow.0 let overflowFlag = overflow.1 "
+      "let zeroValue = zero.0 let zeroFlag = zero.1 "
+      "print(\"\x24{ordinaryValue}/\x24{ordinaryOverflow}/\x24{overflowValue}/"
+      "\x24{overflowFlag}/\x24{zeroValue}/\x24{zeroFlag}\") }\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  size_t overflowing_power_count = 0u;
+  for (size_t index = 0u; index < fixture.hir_program.value_count;
+       index += 1u)
+    if (fixture.hir_program.values[index].kind ==
+            W_SEED_HIR0_VALUE_BINARY_U64 &&
+        fixture.hir_program.values[index].binary_operator ==
+            W_SEED_HIR0_BINARY_OVERFLOWING_POWER)
+      overflowing_power_count += 1u;
+  CHECK(overflowing_power_count == 3u);
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        memcmp(measured.mlir_sha256, emitted.mlir_sha256,
+               sizeof(measured.mlir_sha256)) == 0 &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.func internal @w_seed_overflowing_power_u64") == 1u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.call @w_seed_overflowing_power_u64") == 3u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "\"llvm.intr.umul.with.overflow\"") == 2u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.extractvalue") >= 10u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "!llvm.struct<(i64, i1)>") >= 10u &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.or %overflowed, %acc_overflow : i1") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.lshr %remaining, %one : i64") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.insertvalue %overflowed_result") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.call @w_seed_append_u64") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.call @w_seed_append_bool") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "@w_seed_checked_power_u64"));
+  return true;
+}
+
 static bool test_u64_wrapping_shift_left_artifact(void) {
   static const uint8_t source[] =
       "fn shift(value: UInt, count: UInt): UInt { "
@@ -5676,6 +5735,7 @@ int main(int argc, char **argv) {
   if (!test_u64_wrapping_multiply_artifact()) return 1;
   if (!test_u64_wrapping_negate_artifact()) return 1;
   if (!test_u64_wrapping_power_artifact()) return 1;
+  if (!test_u64_overflowing_power_artifact()) return 1;
   if (!test_u64_wrapping_shift_left_artifact()) return 1;
   if (!test_u64_masked_shift_left_artifact()) return 1;
   if (!test_u64_masked_shift_right_artifact()) return 1;

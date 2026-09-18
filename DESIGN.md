@@ -3994,6 +3994,14 @@ export fn clamp(...)
 Comentários não são annotations. Debug symbols e documentação compilada são
 artefatos separados e removíveis.
 
+Reserved structured documentation fields are compiler inputs. Ordinary prose
+and comments remain non-semantic. The compiler extracts each reserved field
+before documentation stripping and retains its normalized source map. `call:`,
+`result:`, and `error:` have the executable-example meaning below. The
+`contract:` field selected by research direction WCCP0 has the relational
+meaning in §18.1.2.1, but remains an implementation gap until its parser,
+resolver, ContractIR lowering, and diagnostics exist.
+
 Uma linha `call:` inicia um exemplo executável dentro do comentário de
 documentação. Ela não precisa de annotation nem de um marcador `@example`:
 
@@ -25649,6 +25657,177 @@ ordinary compile: verified facts -> optimizer -> artifact
 proof compile:    checked certificate -> verified facts -> optimizer -> artifact
 ```
 
+##### 18.1.2.1 Computable contracts (Research)
+
+A computable contract is a versioned compile-time description that can produce
+proof obligations, runtime validation, test inputs, interoperability metadata,
+or optimizer facts. It can describe a mathematical proposition, function
+preconditions and postconditions, an effect or resource bound, a type or module
+surface, a state machine, or a data and wire schema. These uses share one
+canonical `ContractIR`; they do not imply one source carrier or one proof
+strength.
+
+W protocols remain conformance contracts for named operations and associated
+members. They are not the universal contract carrier. A computable contract may
+refer to a protocol, a const-safe predicate, a type, a handler, or another
+contract. Imported JSON Schema, XML Schema, WSDL, SOAP policy, OpenAPI, and
+similar formats require explicit versioned adapters into `ContractIR`. An
+adapter records unsupported and lossy semantics. W does not require native
+JSON, XML, or SOAP literal syntax to support these formats.
+
+Contracts may attach to a declaration, type, protocol, module, service, entry,
+package, or workspace. An exported contract has a stable logical name, a
+version, a normalized `ContractIR` digest, source and adapter identities, and a
+declared trust boundary. An importer can check the contract without receiving
+private implementation source. A binary package may therefore publish its
+public contracts, certificates, and runtime validators as separate signed
+artifacts.
+
+The proof path is explicit:
+
+```text
+source carrier -> ContractIR -> proof obligations -> proof producer
+                                      |                    |
+                                      +-> runtime validator+-> certificate
+                                                               |
+                                                   small W checker
+                                                               |
+                                                       verified facts
+```
+
+A solver, model, external prover, schema generator, or remote service is a proof
+producer, not an authority. The W checker validates the bounded certificate.
+`unknown`, timeout, unsupported semantics, and resource exhaustion remain
+distinct from `false`. Proof terms and ghost state erase under §18.1.2. A
+verified fact may remove a redundant check or permit specialization only when
+the optimizer records the contract and certificate identities used by that
+decision.
+
+Documentation examples remain concrete witnesses. A `call:` plus `result:` or
+`error:` can check one contract instance, generate a regression test, or refute
+a universal claim. It does not prove the claim for unobserved inputs. A finite
+domain may become a proof only when the checker also validates exhaustive
+coverage.
+
+WCCP0 selects two complementary source carriers without adding a general
+`contract` declaration:
+
+1. `T<(predicate)>` remains the intrinsic invariant of one value. It can define
+   a refined alias such as `SortedResult<Element>`.
+2. A reserved structured documentation field, `contract:`, attaches a relation
+   to the documented declaration. The relation can connect parameters,
+   pre-state, post-state, and the successful result without changing the call
+   shape or the value layout.
+
+The selected design form is:
+
+```w
+type SortedResult<Element: Comparable> = Array<Element><(isSorted(value))>
+
+/// Sorts the values in ascending order.
+/// contract: sameElements(before: before values, after: result)
+/// call: sort(values: [3, 1, 2])
+/// result: [1, 2, 3]
+fn sort(values: take Array<i64>): SortedResult<i64> {
+  // implementation
+}
+```
+
+The type contract proves a property of the returned value. The documentation
+contract describes the relation between that value and this invocation. A
+relation that needs `before values` must not be embedded in
+`SortedResult<i64>` because the result alone does not contain its origin.
+
+`contract: <(expression)>` carries one inline relation. `contract: relation(...)`
+calls a reusable relation. Repeated `contract:` fields are an unordered logical
+conjunction. Their source order is preserved for diagnostics only. The
+formatter keeps a field on one line when it fits the preferred 120-column
+limit.
+
+The field is recognized only at the start of a top-level documentation line,
+after the `///` or block-comment prefix and outside Markdown fences, lists,
+quotes, links, and inline code. Its payload is one W const expression resolved
+in the documented declaration scope. Markdown text that contains `contract:`
+elsewhere has no semantic effect. The parser retains the directive span and the
+expression span for diagnostics.
+
+ContractIR canonicalizes each relation independently and orders the conjunction
+by normalized identity. Repeating the same identity is semantically idempotent
+and can produce a lint. Mutually unsatisfiable relations remain distinct and
+fail proof or validation. This logical conjunction does not reuse the nominal
+protocol-conjunction rules of `P & Q`.
+
+The initial contextual binders are closed:
+
+- `result` is the successful result of the documented callable;
+- `before name` is the logical entry-state version of a parameter or receiver;
+- `after name` is the logical exit-state version of a mutable parameter or
+  receiver.
+
+`value` remains the subject of a type refinement and does not alias `result`.
+Each `before` or `after` binder lowers to a ghost SSA identity. It does not copy,
+retain, pin, or materialize storage. A runtime validator that needs old bytes
+must request an explicit bounded snapshot or another explicit witness.
+`before name` is valid for a consumed parameter because it names the logical
+entry value before transfer. `after name` is valid only for `mut ref`, `inout`,
+or a mutable receiver. A relation that uses `result` is a successful-return
+postcondition. Error, cancellation, and panic relations remain outside this
+initial binder set.
+
+These contextual binders initially apply only to callable declarations. A type,
+protocol, module, service, entry, package, or workspace can attach a named or
+inline contract to its declared static surface. It does not gain implicit
+runtime `before`, `after`, or `result` state. Stateful cross-operation laws must
+name their state-machine values explicitly until that model closes.
+
+Reusable relations first use an existing `const fn`. Use as a contract adds a
+stricter check for purity, totality, termination, symbolic normalization, and
+hermetic dependencies. Compile-time evaluation alone does not establish these
+properties. Const closures remain unavailable under the current ConstIR rules.
+W does not add `contract fn` unless an executable case later proves that this
+stricter role cannot be expressed or diagnosed through `const fn`.
+
+W does not expose a generic `Proof<C>` source value in this direction. A proved
+contract enters the compile-time proof context as a `ProofFact`, and exported
+evidence travels as a checked certificate bound to the normalized contract
+identity. A refined return value carries an existential witness. A call to a
+proved const relation composes theorem facts. Runtime validation returns the
+refined value or a typed validation error. These paths cover the current use
+cases without making proof identity or proof transport part of runtime value
+flow. First-class proof values remain rejected until a concrete theorem or
+module case cannot compose through these paths.
+
+Runtime validation must derive from the same normalized `ContractIR`. A future
+`verify` or `check` surface may validate dynamic input against a contract and
+return typed evidence or a typed validation error. The source spelling and the
+evidence carrier remain open. Compile-time proof can erase a runtime validation
+only when every dynamic input and effect needed by the obligation is already
+fixed or covered by an independently verified boundary receipt.
+
+Each normalized contract starts in the `declared` lifecycle state. That state
+grants no optimizer fact. Evidence then remains separated into these lanes:
+
+- `proved`: a checked certificate closes the stated obligation;
+- `validated`: a runtime value passed the generated validator;
+- `tested`: bounded examples, properties, fuzzing, or simulation passed;
+- `assumed`: an explicit axiom or external trust boundary remains;
+- `inconclusive`: checking stopped without accepting or rejecting the claim.
+
+No aggregate badge may collapse these lanes. A JSON Schema shape validation is
+not a proof of business logic. A WSDL or SOAP binding is not a proof of the
+remote service. A module proof does not prove a provider, operating system,
+foreign library, network peer, or compiler pass outside its recorded trust
+boundary.
+
+`WCCP0-computable-contracts` is the bounded research package. It records the
+selected intrinsic and relational carriers above. It must still close canonical
+identity, composition, versioning, proof obligations, runtime evidence,
+erasure, diagnostics, quotas, trust boundaries, module/package export, and at
+least one optimization enabled by a checked fact. Until that stop condition,
+`ContractIR` and `contract:` are selected design direction, not implemented
+behavior. Runtime `verify` and `check` spellings remain open and are not
+reserved.
+
 ### 18.2 Fatos de prova
 
 A HIR mantém `ProofFacts` separados do tipo lógico e do layout. O conjunto
@@ -31378,6 +31557,12 @@ filesystem, environment ou outro effect precisa declarar uma fixture explícita;
 sem ela o runner produz diagnostic. O runner baixa o exemplo para um teste
 hermético, mantém source mapping e remove o exemplo do release payload.
 
+Um exemplo pode referenciar um computable contract conforme §18.1.2.1. O
+example continua sendo um witness concreto. O runner não generaliza um par
+`call:`/`result:` para entradas não observadas e não publica um proof receipt
+sem certificado ou cobertura exaustiva verificada. A attachment syntax para o
+contract permanece em pesquisa WCCP0.
+
 **W-1474 — efeitos simulados e direção de teste (Direção vigente):** o estudo
 finito [`SEA0`](tooling/studies/sea0-simulated-effects-approval/) seleciona uma
 máquina bounded compartilhada por `production simulation` e test double. Ela
@@ -33277,6 +33462,14 @@ wWire sem mudar `RestaurantApi`.
 JSON não transporta capabilities sem um session adapter. WLO não define calls.
 wStruct não serializa pointers, padding ou handles crus. Um mismatch de ABI ou
 representation força wWire ou outro codec portátil.
+
+JSON Schema, XML Schema, WSDL, SOAP policy, OpenAPI e formatos semelhantes são
+inputs de adapters versionados para o `ContractIR` de §18.1.2.1. O adapter
+declara o subset reconhecido, normalização, referências externas, limits e
+perdas de semântica. O schema pode gerar validação, tests e metadata de wire.
+Ele não recebe autoridade sobre lógica de negócio, effects ou comportamento de
+um peer remoto. Essa integração não exige uma nova literal syntax para JSON ou
+XML.
 
 Um generator de adapter informa perda de semântica. Por exemplo, ele não apaga
 unit, refinement, ownership ou enum subset sem gerar validation e metadata. Uma
@@ -40494,6 +40687,11 @@ produto GPU público, outros targets e performance permanecem gaps explícitos.
 O source usado por este bridge é testemunho frontend-only: ele não alega que a
 forma curta de `entry` já execute suspensão no produto público.
 
+**Example:** The accepted fixture yields one verified `.inference` launch, its
+lexical `await`, and a signed-`i32` result shape after the source, CST, frontend,
+and gpu-module owners are cleared. This is a compiler relation, not provider
+execution.
+
 #### 26.4.1.84 W-1604 — independent bounded accelerated root binding
 
 ACCBIND0 consumes an independently verified ACCINV0 program/result and one
@@ -40530,6 +40728,10 @@ residency, cancellation/drain, signed product closure, public GPU build/run,
 other targets and performance remain explicit gaps. One binding is the seed
 evidence bound, not a W language, scheduler or ABI limit. No W syntax is added.
 
+**Example:** The closed test profile publishes `requiredMaximum = 4` and
+`effectiveMaximum = 3`; independent verification still succeeds after the
+profile and ACCINV0 owners are cleared.
+
 #### 26.4.1.85 W-1605 — independent bounded accelerated provider request
 
 ACCREQ0 joins two independently verified meanings without retaining either
@@ -40565,6 +40767,10 @@ the adapter is still a private process boundary rather than a supported runtime
 or ABI. Supported launch/join/result, public GPU products, other accelerators,
 product benchmarking and performance remain explicit gaps. No W syntax is added.
 
+**Example:** ACCREQ0 publishes one provider-neutral `w_gpu0_kernel` request
+whose expected signed-`i32` value is `42`, then verifies after the ACCBIND0 and
+GPU0 owners are cleared. No provider submission occurs.
+
 #### 26.4.1.86 W-1606 — measured parallel task-relation storage
 
 HIR38 removes the four-task array from `.main` and `.domain` sibling-scope
@@ -40597,6 +40803,10 @@ compiler-lifecycle evidence only: it adds no scheduler, allocation policy,
 provider execution, Task ABI, public command, benchmark result, or performance
 claim.
 
+**Example:** The five-task `.domain` fixture measures `tasks = 5` and publishes
+five dense PARSEL1 records. The legacy PARSEL0 boundary rejects that same input
+without modifying its outputs.
+
 #### 26.4.1.87 W-1607 — measured parallel invocation storage
 
 PARINV1 schema `w-seed-parallel-invocation1-2` consumes verified HIR38 and
@@ -40624,6 +40834,10 @@ ceilings. PARINV0, PARPROV0, and PARMLIR0 retain their explicit bounded evidence
 until migrated. PARINV1 is compiler-lifecycle evidence. It defines no scheduler,
 runtime Task representation, provider capacity, public command, benchmark
 result, or performance claim.
+
+**Example:** The `wide` fixture measures one task and 17 arguments, and its
+verified scalar evaluation returns `16`; the fixed-width PARINV0 compatibility
+path rejects the same invocation.
 
 #### 26.4.1.88 W-1608 — measured Windows parallel provider
 
@@ -40656,6 +40870,10 @@ seventeen-argument task also crosses the provider. This evidence does not define
 a Task ABI, scheduler, worker pool, cancellation, Linux provider, public
 executable, benchmark result, or performance claim.
 
+**Example:** On Windows x64, five tasks produce `[21, 23, 25, 27, 29]` with
+provider capacities one and two. Semantic outputs are equal, while the physical
+receipt for capacity two records two simultaneously active workers.
+
 #### 26.4.1.89 W-1609 — measured parallel task-entry emission
 
 PARMLIR1 consumes verified HIR38, PARSEL1, and PARINV1. It preserves the
@@ -40684,6 +40902,10 @@ proof rejection. The focused MLIR/LLVM 23.1.1 gate lowers the five-task artifact
 to Windows x64 COFF and Linux x86-64 PIC ELF objects. Public process products,
 cancellation/outcomes, a provider-neutral scheduler, stable ABI, benchmarks,
 and performance remain outside this compiler-lifecycle evidence.
+
+**Example:** PARMLIR1 emits and independently verifies five
+runtime-parameterized task entries. For the compatible two-task fixture, its
+artifact remains byte-identical to the preceding bounded emitter.
 
 #### 26.4.1.90 W-1610 — measured task-lifecycle transaction and reducer
 
@@ -40715,6 +40937,11 @@ request remains distinct from a committed canceled outcome; physical
 integration must preserve settled-before-cancel and complete cleanup/drain
 before publication.
 
+**Example:** The measured five-task fail-fast fixture contains 46 events. Task
+0's body error cancels tasks 1 through 4, and the scope publishes the error only
+after cleanup, lexical joins, and drain. A separate 137-event fixture returns
+success `9`.
+
 #### 26.4.1.91 W-1611 — verified provider-outcome lifecycle binding
 
 PARLIFE1 schema `w-seed-parallel-lifecycle1-1` binds successful verified
@@ -40738,6 +40965,10 @@ trace, and result for the five-task witness. This proves only the successful
 Windows compiler/component path. PARLIFE1 does not yet express provider typed
 failure, cancellation request or physical interruption, panic, a scheduler,
 public Task ABI, executable behavior, benchmark result, or performance.
+
+**Example:** PARLIFE1 folds `[21, 23, 25, 27, 29]` into scope success `125`.
+Provider capacities one and two produce byte-identical lifecycle task records,
+trace, and result.
 
 #### 26.4.1.92 W-1612 — typed physical completion primitive
 
@@ -40765,6 +40996,10 @@ against nominal HIR41, but does not authenticate provider origin or feed
 TASKLIFE. This remains private Windows component evidence, not general
 source-level throw, physical preemption, panic boundary, scheduler, Task ABI,
 public product, benchmark, or performance evidence.
+
+**Example:** The private five-task fixture returns `success(10)`, `error(2)`,
+and three fail-fast canceled completions. Capacities one and two preserve the
+same indexed completion sequence.
 
 #### 26.4.1.93 W-1613 — bounded typed throw in verified HIR
 
@@ -41016,6 +41251,10 @@ origin. This increment therefore makes no attestation, trusted-provider,
 native-HIR-execution, Task ABI, TASKLIFE, public product, benchmark, or
 performance claim. Those are separate boundaries.
 
+**Example:** The two-child HIR41 witness publishes success `42` and nominal
+`Failure.denied`. The physical provider code is not the W error case, and
+provider capacities one and two preserve the semantic records.
+
 #### 26.4.1.100 W-1620 — caller-owned typed TASKLIFE bridge
 
 The typed TASKLIFE bridge is a separate target-neutral transaction above a
@@ -41144,6 +41383,10 @@ cleanup, catch hardware faults, expose a public runtime ABI, or prove other
 providers and targets. The next product boundary must consume this private
 signal and physically terminate the nearest fault boundary.
 
+**Example:** In the private five-task wave, explicit panic at task 1 dominates
+task 0's typed error, records panic source `1`, and cancels tasks 2 through 4
+with the panic-boundary reason. No semantic value is published.
+
 #### 26.4.1.103 W-1623 — bounded private Windows x64 panic-boundary root-child containment
 
 PANICBOUNDARY1 is a private compiler-lifecycle witness for one Windows x64
@@ -41207,6 +41450,11 @@ This is not panic execution. It does not materialize `PanicEvent`, select the
 nearest fault boundary, run cleanup, terminate or restart a process/Wasm/
 compartment, define a public Task/runtime ABI, or lower PANIC0 to MLIR/native
 code. Those remain later lifecycle and product boundaries.
+
+**Example:** Lowering `panic("bounded literal")` produces one explicit `PANIC`
+terminator, a copied 15-byte `String`, and `Never`, with zero calls and
+instructions. Unsupported message shapes reject before HIR publication. This
+is lowering evidence, not execution.
 
 #### 26.4.1.105 W-1625 — bounded explicit panic through executable MLIR0
 
@@ -41406,6 +41654,11 @@ It does not compose PANICBOUNDARY1, evaluate a resource registry, materialize
 `PanicEvent`, define Task ABI/runtime behavior, claim native-HIR execution,
 cleanup, portability, a public product, a benchmark, or performance.
 
+**Example:** The mixed panic fixture produces
+`BOUNDARY_TERMINATION_REQUIRED`, no normal outcome, and exactly three ordered
+events. Provider capacities one and two preserve decision, event, and message
+bytes, while a no-panic source leaves outputs unchanged.
+
 #### 26.4.1.109 W-1629 — private Windows x64 host resource release witness
 
 PANICHOSTREG1 schema `w-seed-parallel-panic-host-registry1-1` is a private
@@ -41458,6 +41711,10 @@ handle, claim user `defer`/`deinit`, destroy an OS object, define runtime or
 public `PanicEvent`/Task ABI behavior, execute native HIR, support another
 target, or provide performance evidence. Its `benchmarkDisposition` is
 `compiler-lifecycle`.
+
+**Example:** The two-panic host fixture publishes `REGISTERED -> RELEASED` with
+two ordered resource events after one successful close. A second release
+returns a state diagnostic without another close attempt.
 
 #### 26.4.1.110 W-1630 — bounded private provider-neutral GPU launch/join/result boundary
 
@@ -41527,6 +41784,37 @@ general scheduling/residency/cancellation, another provider or target,
 matrix/operator lowering, binary authentication, or a benchmark result. The
 permanent `42` value remains a plumbing sentinel only. Its
 `benchmarkDisposition` is `compiler-lifecycle`.
+
+#### 26.4.1.111 W-1631 — bounded `u64.overflowingPower` executable lowering
+
+The existing `u64.overflowingPower(base, exponent) -> (u64, Bool)` contract now
+crosses the bounded seed frontend, verified HIR0, NativeSubset0, and MLIR0
+routes. Frontend60 preserves the closed builtin identity and tuple result.
+HIR75 uses one append-only binary operation whose two operands are `u64` and
+whose result is the existing virtual `(u64, Bool)` product; tuple projections
+remain ordinary SSA values and require no allocation or runtime object.
+
+MLIR0 emits one reachable-only helper that implements exponentiation by
+squaring with `llvm.intr.umul.with.overflow`. The first tuple lane is the low
+64 bits, equivalent to arithmetic modulo `2^64`. The second lane is the OR of
+every necessary multiplication overflow, so it is true exactly when the
+mathematical nonnegative power exceeds `u64.max`. The helper has no exponent
+ceiling, heap, CRT, floating-point conversion, or precomputed result. The
+closed identity case is `0^0 == (1, false)`. Programs without a reachable
+`overflowingPower` value do not emit the helper.
+
+Measure and emission remain transactional and schema-bound. Focused frontend,
+HIR0, MLIR0, and Native0 tests reject wrong receiver, arity, operand type,
+result type, forged operation, tuple projection, capacity, and alias data. The
+Restaurant fixture is lowered through MLIR/LLVM 23.1.1, linked, and executed;
+it proves exact ordinary, overflow, wrapped, and zero-exponent results. This is
+bounded compiler-lifecycle correctness evidence for `u64`, not evidence for
+every integer width, const evaluation, a public stable ABI, benchmark timing,
+or performance. Its `benchmarkDisposition` is `compiler-lifecycle`.
+
+**Example:** `2_u64^63` produces `(9223372036854775808, false)`, `2_u64^64`
+produces `(0, true)`, `u64.max^2` produces `(1, true)`, and `0_u64^0` produces
+`(1, false)` through the emitted native executable.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

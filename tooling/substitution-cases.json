@@ -10462,6 +10462,72 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-u64-overflowing-power-native",
+      "reviewItem": "bounded u64 overflowing exponentiation against repeated multiplication, exponent ceilings, precomputed answers, and unreachable helper retention",
+      "decisions": [
+        "W-1631"
+      ],
+      "task": "Prove one bounded source-to-native u64.overflowingPower route with exact wrapped value and sticky unsigned-overflow semantics.",
+      "selected": {
+        "language": "w-internal",
+        "source": [
+          "frontend and verified HIR preserve u64.overflowingPower(base, exponent) as one append-only operation returning the virtual product (u64, Bool)",
+          "MLIR0 emits a reachable-only exponentiation-by-squaring helper using llvm.intr.umul.with.overflow and no exponent ceiling",
+          "the helper returns low bits modulo 2^64 plus a sticky exact-overflow flag and defines 0^0 as (1, false)",
+          "the native fixture executes ordinary, overflow, wrapped, and zero-exponent cases and checks exact stdout",
+          "the bounded route uses no heap, CRT helper, floating point, precomputed result table, or public ABI claim"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "linear-repeated-multiplication",
+          "language": "w-internal-rejected",
+          "source": [
+            "multiply base exponent times or reject large exponents"
+          ],
+          "expectedDifference": "Exponentiation by squaring gives logarithmic multiplication count without an artificial exponent ceiling."
+        },
+        {
+          "name": "precomputed-fixture-answers",
+          "language": "w-internal-rejected",
+          "source": [
+            "replace the operation with constants matching the current fixture"
+          ],
+          "expectedDifference": "The emitted helper consumes runtime SSA values and the fixture exercises the real source-to-native route."
+        },
+        {
+          "name": "last-multiply-overflow-only",
+          "language": "w-internal-rejected",
+          "source": [
+            "return only the overflow bit from the final multiplication"
+          ],
+          "expectedDifference": "Every selected accumulator multiplication and required squaring contributes to the sticky exact-overflow result."
+        },
+        {
+          "name": "always-emit-helper",
+          "language": "w-internal-rejected",
+          "source": [
+            "retain the helper in products that do not reach overflowingPower"
+          ],
+          "expectedDifference": "The helper is emitted only when the operation is reachable; the Hello product remains free of it."
+        },
+        {
+          "name": "general-numeric-claim",
+          "language": "w-internal-rejected",
+          "source": [
+            "claim all widths, const evaluation, stable ABI, ranking, or performance"
+          ],
+          "expectedDifference": "W-1631 closes only bounded u64 compiler-lifecycle correctness; broader numeric and performance claims remain gaps."
+        }
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

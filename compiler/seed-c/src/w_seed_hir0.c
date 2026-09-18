@@ -182,6 +182,7 @@ static bool hir0_builtin_u64_operation_is_supported(
          operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_POWER ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE;
 }
 
@@ -190,6 +191,7 @@ static bool hir0_builtin_u64_operation_returns_tuple(
   return operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_POWER ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE;
 }
 
@@ -254,6 +256,8 @@ static bool hir0_builtin_u64_operation_member_matches(
           text_is(member_name, "overflowingSubtract")) ||
          (operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY &&
           text_is(member_name, "overflowingMultiply")) ||
+         (operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_POWER &&
+          text_is(member_name, "overflowingPower")) ||
          (operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE &&
           text_is(member_name, "overflowingNegate"));
 }
@@ -11544,6 +11548,9 @@ static uint32_t hir0_emit_value_m2(
     else if (source->builtin_operation ==
              W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY)
       binary_operator = W_SEED_HIR0_BINARY_OVERFLOWING_MULTIPLY;
+    else if (source->builtin_operation ==
+             W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_POWER)
+      binary_operator = W_SEED_HIR0_BINARY_OVERFLOWING_POWER;
     context->output->values[*context->value_index] = (w_seed_hir0_value){
         .kind = W_SEED_HIR0_VALUE_BINARY_U64,
         .owner_kind = owner_kind,
@@ -14721,7 +14728,8 @@ static bool verify_value_tree(
     const bool overflowing =
         value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_ADD ||
         value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_SUBTRACT ||
-        value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_MULTIPLY;
+        value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_MULTIPLY ||
+        value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_POWER;
     const bool bitwise =
         value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
         value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR;

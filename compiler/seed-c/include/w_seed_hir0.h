@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-74"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-75"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -67,8 +67,10 @@ typedef enum {
   W_SEED_HIR0_TYPE_U64,
   /* Canonical IEEE-754 binary64 scalar. */
   W_SEED_HIR0_TYPE_F64,
-  /* Initial fixed tuple projection used by u64.overflowingAdd.  This is a
-   * virtual SSA product with value-copy lifecycle, not an allocated object. */
+  /* Closed fixed tuple product used by the u64.overflowingAdd,
+   * u64.overflowingSubtract, u64.overflowingMultiply, and
+   * u64.overflowingPower family. This is a virtual SSA product with
+   * value-copy lifecycle, not an allocated object. */
   W_SEED_HIR0_TYPE_U64_BOOL_TUPLE,
 } w_seed_hir0_type_kind;
 
@@ -260,6 +262,8 @@ typedef enum {
   W_SEED_HIR0_BINARY_OVERFLOWING_SUBTRACT,
   /* Canonical u64.overflowingMultiply. The result type is `(u64, Bool)`. */
   W_SEED_HIR0_BINARY_OVERFLOWING_MULTIPLY,
+  /* Canonical u64.overflowingPower. The result type is `(u64, Bool)`. */
+  W_SEED_HIR0_BINARY_OVERFLOWING_POWER,
 } w_seed_hir0_binary_operator;
 
 typedef enum {

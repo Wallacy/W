@@ -207,7 +207,7 @@ static bool make_nested_tree_source(char *buffer, size_t capacity,
 
 static bool test_products(void) {
   CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-9") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-46") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-50") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -3019,6 +3019,79 @@ static bool test_u64_wrapping_power_slice(void) {
   return true;
 }
 
+static bool test_u64_overflowing_power_slice(void) {
+  static const uint8_t source[] =
+      "entry { "
+      "let ordinary = u64.overflowingPower(2_u64, 3_u64) "
+      "let overflow = u64.overflowingPower(2_u64, 64_u64) "
+      "let zero = u64.overflowingPower(0_u64, 0_u64) "
+      "let ordinaryValue = ordinary.0 let ordinaryOverflow = ordinary.1 "
+      "let overflowValue = overflow.0 let overflowFlag = overflow.1 "
+      "let zeroValue = zero.0 let zeroFlag = zero.1 "
+      "print(\"\x24{ordinaryValue}/\x24{ordinaryOverflow}/\x24{overflowValue}/"
+      "\x24{overflowFlag}/\x24{zeroValue}/\x24{zeroFlag}\") }\n";
+  uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source(source, sizeof(source) - 1u, "uint-overflowing-power",
+                   sizeof("uint-overflowing-power") - 1u, output,
+                   sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  size_t overflowing_power_count = 0u;
+  for (size_t index = 0u; index < storage.hir_program.value_count;
+       index += 1u)
+    if (storage.hir_program.values[index].kind ==
+            W_SEED_HIR0_VALUE_BINARY_U64 &&
+        storage.hir_program.values[index].binary_operator ==
+            W_SEED_HIR0_BINARY_OVERFLOWING_POWER)
+      overflowing_power_count += 1u;
+  CHECK(overflowing_power_count == 3u &&
+        storage.hir_program.call_count == 1u);
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(!selection.has_local_calls && !selection.has_cfg &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.func internal @w_seed_overflowing_power_u64") ==
+            1u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.call @w_seed_overflowing_power_u64") == 3u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "\"llvm.intr.umul.with.overflow\"") == 2u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.extractvalue") >= 10u &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.or %overflowed, %acc_overflow : i1") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.insertvalue %overflowed_result") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.call @w_seed_append_u64") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.call @w_seed_append_bool") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "@w_seed_checked_power_u64"));
+
+  static const char *const rejected[] = {
+      "entry { let pair = u64.overflowingPower(1_u64) }\n",
+      "entry { let pair = u64.overflowingPower(1_u64, true) }\n",
+      "entry { let pair = UInt.overflowingPower(1_u64, 2_u64) }\n",
+      "entry { let value: UInt = u64.overflowingPower(1_u64, 2_u64) }\n",
+  };
+  for (size_t index = 0u; index < sizeof(rejected) / sizeof(rejected[0]);
+       index += 1u) {
+    (void)memset(output, 0x99u, sizeof(output));
+    (void)memset(&result, 0x9au, sizeof(result));
+    const w_seed_native0_result snapshot = result;
+    CHECK(run_source((const uint8_t *)rejected[index], strlen(rejected[index]),
+                     "uint-overflowing-power-bad",
+                     sizeof("uint-overflowing-power-bad") - 1u, output,
+                     sizeof(output), &result) != W_SEED_NATIVE0_OK);
+    CHECK(memcmp(&result, &snapshot, sizeof(result)) == 0);
+    for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+      CHECK(output[byte] == 0x99u);
+  }
+  return true;
+}
+
 static bool test_u64_wrapping_shift_left_slice(void) {
   static const uint8_t source[] =
       "fn shift(value: UInt, count: UInt): UInt { "
@@ -4170,6 +4243,7 @@ int main(void) {
                         test_u64_wrapping_subtract_slice() &&
                         test_u64_wrapping_multiply_slice() &&
                         test_u64_wrapping_power_slice() &&
+                        test_u64_overflowing_power_slice() &&
                         test_u64_wrapping_shift_left_slice() &&
                         test_u64_masked_shift_left_slice() &&
                         test_u64_masked_shift_right_slice() &&

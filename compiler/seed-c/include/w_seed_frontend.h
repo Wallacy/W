@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-59"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-60"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -135,9 +135,9 @@ typedef enum {
   W_SEED_FRONTEND_TYPE_TASK,
   /* Bottom type for expressions that do not complete normally. */
   W_SEED_FRONTEND_TYPE_NEVER,
-  /* Append-only fixed tuple value.  The initial seed projection is the
-   * compiler-owned `(u64, Bool)` result of `u64.overflowingAdd`; it has no
-   * identity or allocation of its own. */
+  /* Append-only fixed tuple value. The closed seed product family is the
+   * compiler-owned `(u64, Bool)` result of the overflowing u64 arithmetic
+   * builtins; it has no identity or allocation of its own. */
   W_SEED_FRONTEND_TYPE_TUPLE,
 } w_seed_frontend_type_kind;
 
@@ -385,6 +385,8 @@ typedef enum {
   W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY,
   /* Canonical u64.overflowingNegate. Its result is `(u64, Bool)`. */
   W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE,
+  /* Canonical u64.overflowingPower. Its result is `(u64, Bool)`. */
+  W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_POWER,
 } w_seed_frontend_builtin_operation;
 
 typedef enum {

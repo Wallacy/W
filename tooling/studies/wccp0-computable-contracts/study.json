@@ -1,0 +1,125 @@
+{
+  "$schema": "w-wccp0-computable-contracts-study-1",
+  "id": "WCCP0",
+  "status": "design-oracle-input",
+  "title": "Computable contracts for proof, validation, tests, interoperability, and optimization",
+  "question": "Can one canonical contract representation support mathematical propositions, executable validation, imported schemas, module conformance, and optimizer facts without universal dependent typing or a mandatory runtime?",
+  "decision": "source-model-selected-implementation-open",
+  "scope": [
+    "canonical ContractIR and stable identity",
+    "function, type, protocol, module, service, package, and workspace scopes",
+    "inline documentation witnesses and contract attachments",
+    "proof obligations, certificates, and bounded W-owned checking",
+    "runtime validators and typed evidence",
+    "contract import, export, composition, and versioning",
+    "JSON Schema, XML Schema, WSDL, SOAP policy, and OpenAPI adapters",
+    "proof erasure and optimization facts",
+    "trust boundaries, quotas, diagnostics, and inconclusive outcomes"
+  ],
+  "selectedCarriers": [
+    "T<(predicate)> or a refined alias for an intrinsic value invariant",
+    "structured documentation contract: field for a declaration relation",
+    "contract-safe const fn for a reusable predicate or relation",
+    "protocol signatures plus attached relations for nominal interface requirements",
+    "versioned external-schema adapter into ContractIR"
+  ],
+  "rejectedInitialSurface": [
+    "public Proof<C> value",
+    "dedicated top-level contract declaration",
+    "contract fn declaration kind",
+    "runtime verify spelling",
+    "runtime check spelling"
+  ],
+  "contractKinds": [
+    "mathematical proposition",
+    "function precondition and postcondition",
+    "effect and resource bound",
+    "type or module surface",
+    "state machine",
+    "data schema",
+    "wire and service schema"
+  ],
+  "contractLifecycleStates": [
+    "declared"
+  ],
+  "evidenceLanes": [
+    "proved",
+    "validated",
+    "tested",
+    "assumed",
+    "inconclusive"
+  ],
+  "derivedOutputs": [
+    "proof obligation",
+    "checked certificate",
+    "runtime validator",
+    "test and fuzz input generator",
+    "interoperability metadata",
+    "optimizer fact"
+  ],
+  "benchmarkDisposition": "not-applicable",
+  "benchmarkReason": "WCCP0 registers a design study and makes no executable, size, latency, memory, or performance claim.",
+  "evidenceBoundary": {
+    "current": [
+      "canonical design direction",
+      "machine-readable study scope",
+      "Lean proof-erasure precedent",
+      "existing W const, protocol, documentation-test, schema, and certificate crosspoints"
+    ],
+    "missing": [
+      "ContractIR schema",
+      "structured documentation contract parser and resolver",
+      "intrinsic and relational ContractIR lowering",
+      "semantic checker",
+      "proof kernel",
+      "certificate format",
+      "runtime validator",
+      "schema adapters",
+      "module and package artifacts",
+      "erasure evidence",
+      "optimization witness",
+      "compile and check latency",
+      "human study",
+      "model study"
+    ],
+    "researchClosed": false,
+    "languageSurfaceAdded": false,
+    "syntaxPromotion": false,
+    "proofModeImplemented": false,
+    "runtimeValidationImplemented": false,
+    "optimizationClaimed": false
+  },
+  "sources": [
+    {
+      "url": "https://lean-lang.org/doc/reference/latest/The-Type-System/Propositions/",
+      "accessed": "2026-09-17",
+      "scope": "propositions, proof irrelevance, and erasure from compiled code"
+    },
+    {
+      "url": "https://lean-lang.org/functional_programming_in_lean/Programming-with-Dependent-Types/",
+      "accessed": "2026-09-17",
+      "scope": "compile-time computation in types, strong invariants, and complexity costs"
+    },
+    {
+      "url": "https://lean-lang.org/theorem_proving_in_lean4/Propositions-and-Proofs/",
+      "accessed": "2026-09-18",
+      "scope": "propositions as types, proofs as terms, and theorem composition"
+    },
+    {
+      "url": "https://github.com/bendlang/bend",
+      "accessed": "2026-09-18",
+      "scope": "Bend 2 laws, proof definitions, affine dependent typing, parallel execution, and reported limitations"
+    },
+    {
+      "url": "https://github.com/bendlang/bend/blob/main/guide/GUIDE.md",
+      "accessed": "2026-09-18",
+      "scope": "Bend 2 law, proof, rewrite, erasure, ownership, termination, and parallel-execution semantics"
+    },
+    {
+      "url": "https://lean-lang.org/doc/reference/latest/ValidatingProofs/",
+      "accessed": "2026-09-18",
+      "scope": "Lean proof artifacts, replay, trust, and independent validation"
+    }
+  ],
+  "stopCondition": "Stop when parser and lowering evidence exists for each selected carrier; ContractIR identity, composition, versioning, import/export, proof obligations, certificate checking, runtime evidence, erasure, diagnostics, quotas, trust boundaries, and external-schema loss are closed; and one checked fact enables a measured optimization without changing observable semantics."
+}
