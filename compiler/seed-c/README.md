@@ -3988,6 +3988,17 @@ generic tuple, stable tuple ABI, outros widths e performance continuam gaps.
 O `benchmarkDisposition` é `compiler-lifecycle`; nenhum benchmark público novo
 é adicionado.
 
+W-1635 carries the same fixed virtual `(u64, Bool)` value through direct
+`const fn` returns and explicitly typed module constants. The frontend
+canonicalizes that exact annotation, while module constants continue to use the
+existing synthetic zero-argument ConstIR function, dependency graph, memo,
+cycle defense, quotas, capacity barriers, and all-or-nothing publication.
+`.0` and `.1` remain the only admitted projections. This is not generic tuple
+support: tuple parameters, literals, destructuring, unannotated tuple-constant
+inference, arbitrary shapes, stable layout/ABI/FFI/runtime/backend support,
+other widths, and performance remain gaps. Its `benchmarkDisposition` is
+`compiler-lifecycle`; no public benchmark is added.
+
 ## Validação seed C de predicates genéricos
 
 `include/w_seed_generic_validation.h` e

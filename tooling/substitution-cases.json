@@ -10685,7 +10685,7 @@
           "source": [
             "generalize the evaluator to generic tuples or publish a direct tuple-valued const return"
           ],
-          "expectedDifference": "W-1634 closes only the fixed virtual (u64, Bool) product; generic tuples and direct tuple const return remain outside the bounded surface."
+          "expectedDifference": "W-1634 closes only evaluation of the fixed virtual product. W-1635 separately admits its direct const return without admitting generic tuples."
         },
         {
           "name": "module-const-tuple-normalization",
@@ -10693,7 +10693,7 @@
           "source": [
             "normalize a tuple-valued module const initializer through the frontend and ConstIR"
           ],
-          "expectedDifference": "The current evidence evaluates explicit ConstIR functions; frontend module-const tuple normalization remains a gap."
+          "expectedDifference": "W-1634 evaluates explicit ConstIR functions. W-1635 separately admits only an explicitly typed module constant of the fixed product."
         },
         {
           "name": "other-integer-widths",
@@ -10718,6 +10718,72 @@
             "publish a stable tuple ABI or rank backend/runtime performance against other languages"
           ],
           "expectedDifference": "ABI stability, backend/runtime ranking, and performance remain gaps; benchmarkDisposition is compiler-lifecycle only."
+        }
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
+    },
+    {
+      "id": "R0-u64-constir7-closed-product-returns",
+      "reviewItem": "bounded closed overflow product across const boundaries",
+      "decisions": [
+        "W-1635"
+      ],
+      "task": "Prove that the existing compiler-owned (u64, Bool) overflow product crosses a direct const-function return and an explicitly typed module constant without becoming a generic tuple ABI or runtime object.",
+      "selected": {
+        "language": "w-internal",
+        "source": [
+          "the frontend canonicalizes exactly (u64, Bool) independent of ordinary source trivia and does not infer arbitrary tuple shapes",
+          "a const function can return the existing virtual overflow product directly and an explicitly typed module constant can preserve it through the synthetic zero-argument ConstIR dependency graph",
+          "the fixed product remains allocation-free and exposes only checked .0 and .1 projections with u64 and Bool results",
+          "the existing evaluator retains exact builtin identity, result-byte accounting, quotas, cycle defense, capacity barriers, memoization, and all-or-nothing publication",
+          "focused C23 tests and check-seed-constir.mjs prove exact values, projections, deterministic receipts, malformed shapes, and unsupported neighboring tuple surfaces"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "generic-tuple-abi",
+          "language": "w-internal-rejected",
+          "source": [
+            "generalize the closed overflow product into arbitrary tuple values or a stable public layout"
+          ],
+          "expectedDifference": "W-1635 preserves one compiler-owned value only; generic shapes, stable ABI, FFI, serialization, and runtime identity require independent evidence."
+        },
+        {
+          "name": "tuple-parameters-literals-or-destructuring",
+          "language": "w-internal-rejected",
+          "source": [
+            "admit tuple parameters, source tuple constructors, destructuring, mutation, or storage embedding"
+          ],
+          "expectedDifference": "The bounded surface is return/constant transport plus .0/.1 projection, not general aggregate semantics."
+        },
+        {
+          "name": "unannotated-tuple-constant-inference",
+          "language": "w-internal-rejected",
+          "source": [
+            "infer the type of a module constant initialized by an overflowing operation"
+          ],
+          "expectedDifference": "The module-constant boundary is explicitly typed so it does not silently define general tuple inference."
+        },
+        {
+          "name": "heap-product-or-runtime-helper",
+          "language": "w-internal-rejected",
+          "source": [
+            "allocate a tuple object or defer transport to a CRT or runtime helper"
+          ],
+          "expectedDifference": "The value stays virtual and caller-owned inside the compiler with no heap, CRT, or runtime identity."
+        },
+        {
+          "name": "performance-ranking-now",
+          "language": "w-internal-rejected",
+          "source": [
+            "treat this compiler-lifecycle boundary as a public executable performance result"
+          ],
+          "expectedDifference": "No new public artifact or equivalent runtime workload exists; benchmarkDisposition remains compiler-lifecycle."
         }
       ],
       "measures": [

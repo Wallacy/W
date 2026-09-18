@@ -4189,6 +4189,13 @@ static bool builtin_u64_operation_is_unary(
          operation == W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BYTES;
 }
 
+static bool simple_type_is_u64_bool_tuple(frontend_simple_type type) {
+  return type.kind == W_SEED_FRONTEND_TYPE_TUPLE &&
+         text_equal_text(
+             type.spelling,
+             (w_seed_frontend_text){"(u64, Bool)", sizeof("(u64, Bool)") - 1u});
+}
+
 static w_seed_frontend_builtin_operation builtin_u64_operation_for_member(
     w_seed_frontend_text member_name) {
   if (text_equal(member_name, "wrappingAdd"))
@@ -5184,6 +5191,22 @@ static frontend_simple_type simple_type_from_text(
   const w_seed_frontend_text spelling = text_from_span(doc, span);
   frontend_simple_type type = simple_type_unknown();
   type.spelling = spelling;
+  /* Tuple syntax is admitted only as the one compiler-owned product.  Read
+   * tokens rather than source bytes so ordinary whitespace and trivia do not
+   * change the type identity, then retain the canonical spelling below. */
+  frontend_token_cursor tuple_cursor = token_cursor_for(doc, span);
+  frontend_token tuple_token;
+  if (cursor_take_text(&tuple_cursor, "(", &tuple_token) &&
+      cursor_take_text(&tuple_cursor, "u64", &tuple_token) &&
+      cursor_take_text(&tuple_cursor, ",", NULL) &&
+      cursor_take_text(&tuple_cursor, "Bool", &tuple_token) &&
+      cursor_take_text(&tuple_cursor, ")", NULL) &&
+      !cursor_peek(&tuple_cursor, &tuple_token)) {
+    type.kind = W_SEED_FRONTEND_TYPE_TUPLE;
+    type.spelling =
+        (w_seed_frontend_text){"(u64, Bool)", sizeof("(u64, Bool)") - 1u};
+    return type;
+  }
   if (text_equal(spelling, "()")) {
     type.kind = W_SEED_FRONTEND_TYPE_UNIT;
     return type;
@@ -8661,8 +8684,12 @@ static w_seed_frontend_type type_record_from_span(
   w_seed_frontend_type value;
   (void)memset(&value, 0, sizeof(value));
   value.kind = simple.kind;
-  value.spelling = text_from_span(doc, trimmed);
-  value.nominal_name = value.spelling;
+  value.spelling = simple_type_is_u64_bool_tuple(simple)
+                       ? simple.spelling
+                       : text_from_span(doc, trimmed);
+  value.nominal_name = simple_type_is_u64_bool_tuple(simple)
+                           ? (w_seed_frontend_text){NULL, 0u}
+                           : value.spelling;
   value.span = span;
   value.is_signed = simple.is_signed;
   value.bit_width = simple.bit_width;
@@ -17161,6 +17188,37 @@ static bool module_const_expression_kind_allowed(
          kind == W_SEED_FRONTEND_EXPR_BINARY;
 }
 
+/* Module constants remain scalar by default.  The only non-scalar admission
+ * is the existing compiler-owned overflowing-u64 product, carried virtually
+ * by the expression graph.  A closed identifier may forward that product and
+ * parentheses may preserve an already-supported closed expression; neither
+ * path introduces tuple syntax, storage, or a generic call ABI. */
+static bool module_const_closed_tuple_expression_allowed(
+    frontend_context *context, const frontend_expr_value *expression,
+    frontend_simple_type actual, frontend_simple_type expected) {
+  if (context == NULL || expression == NULL || !expression->supported ||
+      !simple_type_is_u64_bool_tuple(actual) ||
+      !simple_type_is_u64_bool_tuple(expected)) {
+    return false;
+  }
+  if (expression->kind == W_SEED_FRONTEND_EXPR_CALL) {
+    return builtin_u64_operation_returns_tuple(expression->builtin_operation);
+  }
+  if (expression->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+      expression->has_name) {
+    uint32_t const_index = W_SEED_FRONTEND_NONE;
+    frontend_simple_type target_type = simple_type_unknown();
+    return module_const_for_name(context, expression->name, &const_index,
+                                 &target_type, NULL, NULL) &&
+           const_index != W_SEED_FRONTEND_NONE &&
+           simple_type_is_u64_bool_tuple(target_type);
+  }
+  /* The parser only produces a supported tuple parenthesis when its nested
+   * expression is already supported.  Keep this as a closed forwarding form
+   * rather than admitting arbitrary tuple expressions. */
+  return expression->kind == W_SEED_FRONTEND_EXPR_PARENTHESIS;
+}
+
 static uint32_t direct_kind_at(const w_seed_frontend_document *doc,
                                uint32_t parent, w_seed_cst_kind kind,
                                size_t ordinal) {
@@ -18053,6 +18111,8 @@ static bool normalize_module_const(frontend_context *context,
       expected.kind == W_SEED_FRONTEND_TYPE_BOOL ||
       (expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
        expected.bit_width != 0u);
+  const bool closed_tuple_type =
+      simple_type_is_u64_bool_tuple(expected);
   w_seed_frontend_import_target_kind imported_kind =
       W_SEED_FRONTEND_IMPORT_UNRESOLVED;
   uint32_t imported_index = W_SEED_FRONTEND_NONE;
@@ -18089,14 +18149,19 @@ static bool normalize_module_const(frontend_context *context,
                                       actual.spelling, expected.spelling);
     }
   }
-  value.lowerable = scalar_type && normalized &&
-                    expression_value.supported &&
-                    module_const_expression_kind_allowed(expression_value.kind) &&
-                    actual.kind == expected.kind &&
-                    (expected.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
-                     (actual.is_signed == expected.is_signed &&
-                      actual.bit_width == expected.bit_width));
-  if (explicit_type && !scalar_type) {
+  const bool closed_tuple_expression =
+      closed_tuple_type && normalized &&
+      module_const_closed_tuple_expression_allowed(
+          context, &expression_value, actual, expected);
+  const bool scalar_expression =
+      scalar_type && normalized && expression_value.supported &&
+      module_const_expression_kind_allowed(expression_value.kind) &&
+      actual.kind == expected.kind &&
+      (expected.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+       (actual.is_signed == expected.is_signed &&
+        actual.bit_width == expected.bit_width));
+  value.lowerable = scalar_expression || closed_tuple_expression;
+  if (explicit_type && !scalar_type && !closed_tuple_type) {
     (void)context_append_fact(context, W_SEED_FRONTEND_FACT_UNSUPPORTED_TYPE,
                               doc->nodes[type_node].raw_span,
                               text_from_span(doc, doc->nodes[type_node].raw_span));
@@ -18104,7 +18169,7 @@ static bool normalize_module_const(frontend_context *context,
     (void)context_append_fact(
         context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION, value.body_span,
         text_from_span(doc, value.body_span));
-  } else if (normalized &&
+  } else if (normalized && !closed_tuple_expression &&
              !module_const_expression_kind_allowed(expression_value.kind)) {
     (void)context_append_fact(
         context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION, value.body_span,
@@ -18659,11 +18724,23 @@ static bool resolve_frontend_links(frontend_context *context) {
     if ((size_t)expression->module_index >= context->input.document_count)
       return false;
     context->module_index = expression->module_index;
-    if (expression->owner_function == W_SEED_FRONTEND_NONE) continue;
-    if ((size_t)expression->owner_function >= context->count.functions)
+    const bool module_builtin_call =
+        expression->owner_function == W_SEED_FRONTEND_NONE &&
+        expression->kind == W_SEED_FRONTEND_EXPR_CALL &&
+        builtin_u64_operation_is_supported(expression->builtin_operation);
+    /* Module constants have no function owner.  Admit only the closed u64
+     * builtin call to the ordinary exact resolver below; every other
+     * module-scope expression keeps the pre-existing early exit. */
+    if (expression->owner_function == W_SEED_FRONTEND_NONE &&
+        !module_builtin_call)
+      continue;
+    if (expression->owner_function != W_SEED_FRONTEND_NONE &&
+        (size_t)expression->owner_function >= context->count.functions)
       return false;
     const w_seed_frontend_function *owner =
-        &context->output->functions[expression->owner_function];
+        expression->owner_function == W_SEED_FRONTEND_NONE
+            ? NULL
+            : &context->output->functions[expression->owner_function];
     if (expression->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER) {
       if (expression->resolved_pattern_capture != W_SEED_FRONTEND_NONE) {
         if ((size_t)expression->resolved_pattern_capture >=

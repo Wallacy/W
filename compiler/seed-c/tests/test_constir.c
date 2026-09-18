@@ -2185,6 +2185,121 @@ static bool constir_u64_is(const w_seed_constir_value *value, uint64_t expected)
   return true;
 }
 
+static bool constir_u64_bool_tuple_is(const w_seed_constir_value *value,
+                                      uint64_t expected, bool overflowed) {
+  if (value == NULL ||
+      value->kind != W_SEED_CONSTIR_VALUE_U64_BOOL_TUPLE ||
+      value->type_kind != W_SEED_FRONTEND_TYPE_TUPLE ||
+      value->type_is_signed || value->type_bit_width != 0u ||
+      value->bool_value != overflowed)
+    return false;
+  for (size_t index = 8u; index < W_SEED_CONSTIR_INTEGER_BYTES; index += 1u)
+    if (value->integer_value[index] != 0u) return false;
+  for (size_t index = 0u; index < 8u; index += 1u)
+    if (value->integer_value[index] != (uint8_t)(expected >> (index * 8u)))
+      return false;
+  return true;
+}
+
+static uint32_t constir_function_for_frontend(const fixture *value,
+                                              uint32_t frontend_function) {
+  if (value == NULL) return W_SEED_CONSTIR_NONE;
+  for (size_t index = 0u; index < value->constir_result.written.functions;
+       index += 1u) {
+    const w_seed_constir_function *function = &value->constir_functions[index];
+    if (function->origin == W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_FUNCTION &&
+        function->frontend_function == frontend_function)
+      return (uint32_t)index;
+  }
+  return W_SEED_CONSTIR_NONE;
+}
+
+static uint32_t constir_function_for_const(const fixture *value,
+                                           uint32_t const_declaration) {
+  if (value == NULL) return W_SEED_CONSTIR_NONE;
+  for (size_t index = 0u; index < value->constir_result.written.functions;
+       index += 1u) {
+    const w_seed_constir_function *function = &value->constir_functions[index];
+    if (function->origin ==
+            W_SEED_CONSTIR_FUNCTION_ORIGIN_FRONTEND_CONST_DECLARATION &&
+        function->frontend_const_declaration == const_declaration)
+      return (uint32_t)index;
+  }
+  return W_SEED_CONSTIR_NONE;
+}
+
+static bool constir_builtin_root_is(const fixture *value, uint32_t function_index,
+                                    w_seed_frontend_builtin_operation operation) {
+  if (value == NULL || function_index >= value->constir_result.written.functions)
+    return false;
+  const w_seed_constir_function *function = &value->constir_functions[function_index];
+  if (!function->lowerable || function->root_node == W_SEED_CONSTIR_NONE ||
+      function->root_node >= value->constir_result.written.nodes)
+    return false;
+  const w_seed_constir_node *node = &value->constir_nodes[function->root_node];
+  return node->kind == W_SEED_CONSTIR_NODE_BUILTIN_U64 &&
+         node->builtin_operation == operation &&
+         node->type_kind == W_SEED_FRONTEND_TYPE_TUPLE &&
+         !node->type_is_signed && node->type_bit_width == 0u;
+}
+
+static bool constir_projection_root_is(const fixture *value,
+                                       uint32_t function_index,
+                                       uint32_t element_index,
+                                       uint32_t target_function,
+                                       uint32_t target_const) {
+  if (value == NULL || function_index >= value->constir_result.written.functions)
+    return false;
+  const w_seed_constir_function *function = &value->constir_functions[function_index];
+  if (!function->lowerable || function->root_node == W_SEED_CONSTIR_NONE ||
+      function->root_node >= value->constir_result.written.nodes)
+    return false;
+  const w_seed_constir_node *projection =
+      &value->constir_nodes[function->root_node];
+  if (projection->kind != W_SEED_CONSTIR_NODE_TUPLE_ELEMENT ||
+      projection->tuple_element_index != element_index ||
+      projection->left == W_SEED_CONSTIR_NONE ||
+      projection->left >= value->constir_result.written.nodes)
+    return false;
+  const w_seed_constir_node *call = &value->constir_nodes[projection->left];
+  return call->kind == W_SEED_CONSTIR_NODE_CALL &&
+         call->call_target_function == target_function &&
+         call->call_target_const_declaration == target_const;
+}
+
+static bool constir_const_repeat_is(const fixture *value,
+                                    uint32_t function_index,
+                                    uint32_t target_const) {
+  if (value == NULL || function_index >= value->constir_result.written.functions)
+    return false;
+  const w_seed_constir_function *function = &value->constir_functions[function_index];
+  if (!function->lowerable || function->root_node == W_SEED_CONSTIR_NONE ||
+      function->root_node >= value->constir_result.written.nodes)
+    return false;
+  const w_seed_constir_node *binary = &value->constir_nodes[function->root_node];
+  if (binary->kind != W_SEED_CONSTIR_NODE_BINARY ||
+      binary->normalized_operator != W_SEED_CONSTIR_OPERATOR_EQUAL ||
+      binary->left == W_SEED_CONSTIR_NONE || binary->right == W_SEED_CONSTIR_NONE ||
+      binary->left >= value->constir_result.written.nodes ||
+      binary->right >= value->constir_result.written.nodes)
+    return false;
+  const w_seed_constir_node *left = &value->constir_nodes[binary->left];
+  const w_seed_constir_node *right = &value->constir_nodes[binary->right];
+  return left->kind == W_SEED_CONSTIR_NODE_TUPLE_ELEMENT &&
+         right->kind == W_SEED_CONSTIR_NODE_TUPLE_ELEMENT &&
+         left->tuple_element_index == 0u && right->tuple_element_index == 0u &&
+         left->left != W_SEED_CONSTIR_NONE &&
+         right->left != W_SEED_CONSTIR_NONE &&
+         left->left < value->constir_result.written.nodes &&
+         right->left < value->constir_result.written.nodes &&
+         value->constir_nodes[left->left].kind == W_SEED_CONSTIR_NODE_CALL &&
+         value->constir_nodes[right->left].kind == W_SEED_CONSTIR_NODE_CALL &&
+         value->constir_nodes[left->left].call_target_const_declaration ==
+             target_const &&
+         value->constir_nodes[right->left].call_target_const_declaration ==
+             target_const;
+}
+
 static bool test_u64_policy_constir(void) {
   static const char source[] =
       "const fn satAdd(): u64 { return u64.saturatingAdd(18446744073709551615_u64, 1_u64) }\n"
@@ -2564,6 +2679,287 @@ static bool test_u64_policy_constir(void) {
   return true;
 }
 
+static bool test_u64_bool_tuple_product_boundary_constir(void) {
+  static const char source[] =
+      "export const product: (u64, Bool) = "
+      "u64.overflowingAdd(18446744073709551615_u64, 1_u64)\n"
+      "const fn direct(): (u64, Bool) { return "
+      "u64.overflowingAdd(18446744073709551615_u64, 1_u64) }\n"
+      "const fn spaced(): (u64 , Bool) { return "
+      "u64.overflowingAdd(1_u64, 2_u64) }\n"
+      "const fn forwarded(): (u64, Bool) { return direct() }\n"
+      "const fn directValue(): u64 { return direct().0 }\n"
+      "const fn directFlag(): Bool { return direct().1 }\n"
+      "const fn moduleValue(): u64 { return product.0 }\n"
+      "const fn moduleFlag(): Bool { return product.1 }\n"
+      "const fn moduleRepeat(): Bool { return product.0 == product.0 }\n";
+  fixture *value = &first_fixture;
+  CHECK(fixture_lower(value, source));
+  CHECK(value->frontend_result.status == W_SEED_FRONTEND_OK &&
+        value->frontend_result.written.const_declarations == 1u &&
+        value->frontend_result.written.functions == 8u);
+  CHECK(value->const_declarations[0].exported &&
+        value->const_declarations[0].has_explicit_type &&
+        value->const_declarations[0].effective_type != W_SEED_FRONTEND_NONE &&
+        value->types[value->const_declarations[0].effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_TUPLE);
+  CHECK(value->constir_result.written.functions == 9u &&
+        fixture_constir_valid(value));
+
+  const uint32_t const_ir = constir_function_for_const(value, 0u);
+  const uint32_t direct_ir = constir_function_for_frontend(value, 0u);
+  const uint32_t spaced_ir = constir_function_for_frontend(value, 1u);
+  const uint32_t forwarded_ir = constir_function_for_frontend(value, 2u);
+  const uint32_t direct_value_ir = constir_function_for_frontend(value, 3u);
+  const uint32_t direct_flag_ir = constir_function_for_frontend(value, 4u);
+  const uint32_t module_value_ir = constir_function_for_frontend(value, 5u);
+  const uint32_t module_flag_ir = constir_function_for_frontend(value, 6u);
+  const uint32_t module_repeat_ir = constir_function_for_frontend(value, 7u);
+  CHECK(const_ir != W_SEED_CONSTIR_NONE && direct_ir != W_SEED_CONSTIR_NONE &&
+        spaced_ir != W_SEED_CONSTIR_NONE && forwarded_ir != W_SEED_CONSTIR_NONE &&
+        direct_value_ir != W_SEED_CONSTIR_NONE &&
+        direct_flag_ir != W_SEED_CONSTIR_NONE &&
+        module_value_ir != W_SEED_CONSTIR_NONE &&
+        module_flag_ir != W_SEED_CONSTIR_NONE &&
+        module_repeat_ir != W_SEED_CONSTIR_NONE);
+  CHECK(constir_builtin_root_is(
+            value, const_ir, W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD) &&
+        constir_builtin_root_is(
+            value, direct_ir, W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD) &&
+        constir_builtin_root_is(
+            value, spaced_ir, W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD) &&
+        value->constir_functions[forwarded_ir].lowerable &&
+        value->constir_functions[forwarded_ir].root_node !=
+            W_SEED_CONSTIR_NONE &&
+        value->constir_nodes[value->constir_functions[forwarded_ir].root_node]
+                .kind == W_SEED_CONSTIR_NODE_CALL &&
+        value->constir_nodes[value->constir_functions[forwarded_ir].root_node]
+                .call_target_function == 0u &&
+        value->constir_nodes[value->constir_functions[forwarded_ir].root_node]
+                .call_target_const_declaration == W_SEED_CONSTIR_NONE &&
+        constir_projection_root_is(value, direct_value_ir, 0u, 0u,
+                                   W_SEED_CONSTIR_NONE) &&
+        constir_projection_root_is(value, direct_flag_ir, 1u, 0u,
+                                   W_SEED_CONSTIR_NONE) &&
+        constir_projection_root_is(value, module_value_ir, 0u,
+                                   W_SEED_FRONTEND_NONE, 0u) &&
+        constir_projection_root_is(value, module_flag_ir, 1u,
+                                   W_SEED_FRONTEND_NONE, 0u) &&
+        constir_const_repeat_is(value, module_repeat_ir, 0u));
+
+  size_t builtin_count = 0u;
+  size_t projection_count = 0u;
+  for (size_t index = 0u; index < value->constir_result.written.nodes;
+       index += 1u) {
+    const w_seed_constir_node *node = &value->constir_nodes[index];
+    if (node->kind == W_SEED_CONSTIR_NODE_BUILTIN_U64) {
+      CHECK(node->builtin_operation ==
+                W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD &&
+            node->type_kind == W_SEED_FRONTEND_TYPE_TUPLE &&
+            !node->type_is_signed && node->type_bit_width == 0u);
+      builtin_count += 1u;
+    } else if (node->kind == W_SEED_CONSTIR_NODE_TUPLE_ELEMENT) {
+      CHECK(node->tuple_element_index <= 1u &&
+            node->left != W_SEED_CONSTIR_NONE);
+      projection_count += 1u;
+    }
+  }
+  CHECK(builtin_count == 3u && projection_count == 6u);
+
+  const w_seed_constir_program program = fixture_program(value);
+  w_seed_constir_node saved_node =
+      value->constir_nodes[value->constir_functions[direct_ir].root_node];
+  const uint32_t direct_root = value->constir_functions[direct_ir].root_node;
+  value->constir_nodes[direct_root].builtin_operation =
+      W_SEED_FRONTEND_BUILTIN_NONE;
+  CHECK(!fixture_constir_valid(value));
+  static w_seed_constir_eval_frame invalid_frames[8];
+  w_seed_constir_eval_workspace invalid_workspace = {invalid_frames, 8u};
+  w_seed_constir_value invalid_output;
+  w_seed_constir_eval_result invalid_result;
+  CHECK(w_seed_constir_evaluate(
+            &program, direct_ir, NULL, 0u,
+            (w_seed_constir_quota){SIZE_MAX, 0u, 8u, SIZE_MAX},
+            &invalid_workspace, &invalid_output, &invalid_result) ==
+            W_SEED_CONSTIR_INVALID &&
+        invalid_result.consumed_steps == 0u);
+  value->constir_nodes[direct_root] = saved_node;
+  CHECK(fixture_constir_valid(value));
+
+  const uint32_t direct_projection_root =
+      value->constir_functions[direct_value_ir].root_node;
+  saved_node = value->constir_nodes[direct_projection_root];
+  value->constir_nodes[direct_projection_root].tuple_element_index = 2u;
+  CHECK(!fixture_constir_valid(value));
+  value->constir_nodes[direct_projection_root] = saved_node;
+  CHECK(fixture_constir_valid(value));
+  saved_node = value->constir_nodes[direct_projection_root];
+  value->constir_nodes[direct_projection_root].type_kind =
+      W_SEED_FRONTEND_TYPE_BOOL;
+  value->constir_nodes[direct_projection_root].type_bit_width = 0u;
+  CHECK(!fixture_constir_valid(value));
+  value->constir_nodes[direct_projection_root] = saved_node;
+  CHECK(fixture_constir_valid(value));
+  saved_node = value->constir_nodes[direct_root];
+  value->constir_nodes[direct_root].type_kind = W_SEED_FRONTEND_TYPE_BOOL;
+  value->constir_nodes[direct_root].type_bit_width = 0u;
+  CHECK(!fixture_constir_valid(value));
+  value->constir_nodes[direct_root] = saved_node;
+  CHECK(fixture_constir_valid(value));
+
+  static w_seed_constir_eval_frame frames[16];
+  w_seed_constir_eval_workspace workspace = {frames, 16u};
+  w_seed_constir_value output;
+  w_seed_constir_eval_result result;
+  CHECK(w_seed_constir_evaluate(
+            &program, direct_ir, NULL, 0u,
+            (w_seed_constir_quota){SIZE_MAX, 0u, 16u, SIZE_MAX}, &workspace,
+            &output, &result) == W_SEED_CONSTIR_OK &&
+        result.status == W_SEED_CONSTIR_OK &&
+        constir_u64_bool_tuple_is(&output, 0u, true) &&
+        result.consumed_steps > 0u && result.consumed_result_bytes > 0u);
+  const size_t tuple_steps = result.consumed_steps;
+  const size_t tuple_result_bytes = result.consumed_result_bytes;
+  CHECK(w_seed_constir_evaluate(
+            &program, direct_ir, NULL, 0u,
+            (w_seed_constir_quota){tuple_steps - 1u, 0u, 16u, SIZE_MAX},
+            &workspace, &output, &result) == W_SEED_CONSTIR_OK &&
+        result.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0003 &&
+        output.kind == W_SEED_CONSTIR_VALUE_INVALID);
+  CHECK(w_seed_constir_evaluate(
+            &program, direct_ir, NULL, 0u,
+            (w_seed_constir_quota){SIZE_MAX, 0u, 16u,
+                                   tuple_result_bytes - 1u},
+            &workspace, &output, &result) == W_SEED_CONSTIR_OK &&
+        result.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0003 &&
+        result.consumed_result_bytes == tuple_result_bytes &&
+        output.kind == W_SEED_CONSTIR_VALUE_INVALID);
+  CHECK(w_seed_constir_evaluate(
+            &program, direct_ir, NULL, 0u,
+            (w_seed_constir_quota){SIZE_MAX, 0u, 16u, tuple_result_bytes},
+            &workspace, &output, &result) == W_SEED_CONSTIR_OK &&
+        result.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_NONE &&
+        constir_u64_bool_tuple_is(&output, 0u, true));
+  CHECK(w_seed_constir_evaluate(
+            &program, spaced_ir, NULL, 0u,
+            (w_seed_constir_quota){SIZE_MAX, 0u, 16u, SIZE_MAX}, &workspace,
+            &output, &result) == W_SEED_CONSTIR_OK &&
+        constir_u64_bool_tuple_is(&output, 3u, false));
+  CHECK(w_seed_constir_evaluate(
+            &program, forwarded_ir, NULL, 0u,
+            (w_seed_constir_quota){SIZE_MAX, 0u, 16u, SIZE_MAX}, &workspace,
+            &output, &result) == W_SEED_CONSTIR_OK &&
+        constir_u64_bool_tuple_is(&output, 0u, true));
+  CHECK(w_seed_constir_evaluate(
+            &program, direct_value_ir, NULL, 0u,
+            (w_seed_constir_quota){SIZE_MAX, 0u, 16u, SIZE_MAX}, &workspace,
+            &output, &result) == W_SEED_CONSTIR_OK &&
+        constir_u64_is(&output, 0u) && result.const_cache_hits == 0u &&
+        result.const_cache_misses == 0u);
+  CHECK(w_seed_constir_evaluate(
+            &program, direct_flag_ir, NULL, 0u,
+            (w_seed_constir_quota){SIZE_MAX, 0u, 16u, SIZE_MAX}, &workspace,
+            &output, &result) == W_SEED_CONSTIR_OK &&
+        output.kind == W_SEED_CONSTIR_VALUE_BOOL && output.bool_value);
+
+  w_seed_constir_eval_result module_first;
+  w_seed_constir_eval_result module_second;
+  CHECK(w_seed_constir_evaluate(
+            &program, module_value_ir, NULL, 0u,
+            (w_seed_constir_quota){SIZE_MAX, 0u, 16u, SIZE_MAX}, &workspace,
+            &output, &module_first) == W_SEED_CONSTIR_OK &&
+        constir_u64_is(&output, 0u) && module_first.const_cache_hits == 0u &&
+        module_first.const_cache_misses == 1u);
+  CHECK(w_seed_constir_evaluate(
+            &program, module_value_ir, NULL, 0u,
+            (w_seed_constir_quota){SIZE_MAX, 0u, 16u, SIZE_MAX}, &workspace,
+            &output, &module_second) == W_SEED_CONSTIR_OK &&
+        constir_u64_is(&output, 0u) &&
+        module_second.const_cache_hits == module_first.const_cache_hits &&
+        module_second.const_cache_misses == module_first.const_cache_misses);
+  CHECK(w_seed_constir_evaluate(
+            &program, module_flag_ir, NULL, 0u,
+            (w_seed_constir_quota){SIZE_MAX, 0u, 16u, SIZE_MAX}, &workspace,
+            &output, &result) == W_SEED_CONSTIR_OK &&
+        output.kind == W_SEED_CONSTIR_VALUE_BOOL && output.bool_value &&
+        result.const_cache_hits == 0u && result.const_cache_misses == 1u);
+  CHECK(w_seed_constir_evaluate(
+            &program, module_repeat_ir, NULL, 0u,
+            (w_seed_constir_quota){SIZE_MAX, 0u, 16u, SIZE_MAX}, &workspace,
+            &output, &result) == W_SEED_CONSTIR_OK &&
+        output.kind == W_SEED_CONSTIR_VALUE_BOOL && output.bool_value &&
+        result.const_cache_hits == 1u && result.const_cache_misses == 1u);
+
+  static const char tuple_cycle_source[] =
+      "const left: (u64, Bool) = right\n"
+      "const right: (u64, Bool) = left\n"
+      "const fn read(): u64 { return left.0 }\n";
+  CHECK(fixture_lower(&second_fixture, tuple_cycle_source));
+  CHECK(second_fixture.frontend_result.status == W_SEED_FRONTEND_OK &&
+        second_fixture.frontend_result.written.const_declarations == 2u &&
+        second_fixture.constir_result.written.functions == 3u &&
+        fixture_constir_valid(&second_fixture));
+  const uint32_t cycle_read_ir =
+      constir_function_for_frontend(&second_fixture, 0u);
+  CHECK(cycle_read_ir != W_SEED_CONSTIR_NONE &&
+        constir_projection_root_is(&second_fixture, cycle_read_ir, 0u,
+                                   W_SEED_CONSTIR_NONE, 0u));
+  const w_seed_constir_program cycle_program = fixture_program(&second_fixture);
+  static w_seed_constir_eval_frame cycle_frames[8];
+  w_seed_constir_eval_workspace cycle_workspace = {cycle_frames, 8u};
+  w_seed_constir_value cycle_output;
+  w_seed_constir_eval_result cycle_result;
+  CHECK(w_seed_constir_evaluate(
+            &cycle_program, cycle_read_ir, NULL, 0u,
+            (w_seed_constir_quota){SIZE_MAX, 0u, 8u, SIZE_MAX},
+            &cycle_workspace, &cycle_output, &cycle_result) ==
+            W_SEED_CONSTIR_OK &&
+        cycle_result.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0002 &&
+        cycle_output.kind == W_SEED_CONSTIR_VALUE_INVALID &&
+        cycle_result.const_cache_hits == 0u &&
+        cycle_result.const_cache_misses == 2u);
+
+  static const char *const rejected_sources[] = {
+      "const fn reversed(): (Bool, u64) { return "
+      "u64.overflowingAdd(1_u64, 2_u64) }\n",
+      "const fn widened(): (u64, u64) { return "
+      "u64.overflowingAdd(1_u64, 2_u64) }\n",
+      "const fn malformed(): (u64, Bool, Bool) { return "
+      "u64.overflowingAdd(1_u64, 2_u64) }\n",
+      "export const reversedProduct: (Bool, u64) = "
+      "u64.overflowingAdd(1_u64, 2_u64)\n",
+      "const fn tupleParameter(pair: (u64, Bool)): u64 { return pair.0 }\n",
+      "const inferredProduct = u64.overflowingAdd(1_u64, 2_u64)\n",
+      "const fn invalidProjection(): u64 { return "
+      "u64.overflowingAdd(1_u64, 2_u64).2 }\n",
+      "const missingOperand: (u64, Bool) = "
+      "u64.overflowingAdd(1_u64)\n",
+      "const wrongOperand: (u64, Bool) = "
+      "u64.overflowingAdd(1_u64, true)\n",
+  };
+  for (size_t index = 0u;
+       index < sizeof(rejected_sources) / sizeof(rejected_sources[0]);
+       index += 1u) {
+    CHECK(fixture_lower(&second_fixture, rejected_sources[index]));
+    for (size_t function_index = 0u;
+         function_index < second_fixture.constir_result.written.functions;
+         function_index += 1u) {
+      const w_seed_constir_function *function =
+          &second_fixture.constir_functions[function_index];
+      CHECK(!function->lowerable && function->root_node == W_SEED_CONSTIR_NONE &&
+            function->node_count == 0u);
+    }
+    CHECK(second_fixture.constir_result.written.nodes == 0u &&
+          second_fixture.constir_result.written.diagnostics == 1u &&
+          second_fixture.constir_diagnostics[0].code ==
+              W_SEED_CONSTIR_DIAGNOSTIC_W_CONST_0001 &&
+          fixture_constir_valid(&second_fixture));
+    if (index != 4u)
+      CHECK(second_fixture.frontend_result.status != W_SEED_FRONTEND_OK);
+  }
+  return true;
+}
+
 int main(void) {
   if (!test_can_move_and_digest()) return 1;
   if (!test_static_list_stage_path()) return 1;
@@ -2581,6 +2977,7 @@ int main(void) {
   if (!test_module_const_synthetic_d4()) return 1;
   if (!test_module_const_active_cycle_defense()) return 1;
   if (!test_u64_policy_constir()) return 1;
+  if (!test_u64_bool_tuple_product_boundary_constir()) return 1;
   (void)puts("constir tests passed");
   return 0;
 }

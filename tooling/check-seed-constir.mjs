@@ -66,6 +66,19 @@ function parseFunction(output, label) {
   }
 }
 
+function parseFunctions(output, label) {
+  const values = output.split(/\r?\n/u).filter((item) => item.startsWith("FUNCTION "))
+  if (values.length === 0) fail(`${label} has no FUNCTION lines`)
+  return values.map((value) => {
+    const match = /^FUNCTION origin=(\d+) frontend=(\d+) typed=(\d+) lowerable=(\d+) digest=([0-9a-f]{64}) nodes=(\d+)$/u.exec(value)
+    if (!match) fail(`${label} has an invalid FUNCTION line: ${value}`)
+    return {
+      origin: Number(match[1]), frontend: Number(match[2]), typed: Number(match[3]),
+      lowerable: match[4] === "1", digest: match[5], nodes: Number(match[6]),
+    }
+  })
+}
+
 function parseFunctionForFrontend(output, frontend, label) {
   const value = output.split(/\r?\n/u)
     .find((item) => item.startsWith("FUNCTION ") &&
@@ -152,6 +165,38 @@ function assertStagePath(output, label) {
   return { parsed, canMove, path, receiptDigest, paths: lines }
 }
 
+function assertClosedProduct(output, label) {
+  const parsed = parseConstir(output, label)
+  const functions = parseFunctions(output, label)
+  const receiptDigest = parseReceiptDigest(output, label)
+  const frontendFunctions = functions.filter((item) => item.origin === 0)
+  const moduleConstants = functions.filter((item) => item.origin === 2)
+  if (parsed.status !== "ok" || parsed.measured !== "ok" || parsed.functions !== 4 ||
+      parsed.parameters !== 0 || parsed.nodes === 0 || parsed.diagnostics !== 0 ||
+      parsed.receipt === 0 || functions.length !== 4 || frontendFunctions.length !== 3 ||
+      moduleConstants.length !== 1 || functions.some((item) => !item.lowerable || item.nodes === 0) ||
+      /^0{64}$/u.test(receiptDigest) || functions.some((item) => /^0{64}$/u.test(item.digest)))
+    fail(`${label} did not lower the closed (u64, Bool) product boundary`)
+  return { parsed, functions, receiptDigest }
+}
+
+function assertClosedProductRejected(output, label) {
+  const parsed = parseConstir(output, label)
+  const functions = output.split(/\r?\n/u)
+    .filter((item) => item.startsWith("FUNCTION "))
+    .map((value) => {
+      const match = /^FUNCTION origin=(\d+) frontend=(\d+) typed=(\d+) lowerable=(\d+) digest=([0-9a-f]{64}) nodes=(\d+)$/u.exec(value)
+      if (!match) fail(`${label} has an invalid FUNCTION line: ${value}`)
+      return { lowerable: match[4] === "1", nodes: Number(match[6]) }
+    })
+  if (parsed.status === "ok" && parsed.diagnostics === 0 &&
+      functions.some((item) => item.lowerable || item.nodes !== 0))
+    fail(`${label} accepted an unsupported tuple shape`)
+  if (functions.some((item) => item.lowerable || item.nodes !== 0))
+    fail(`${label} published nodes for an unsupported tuple shape`)
+  return { parsed, functions }
+}
+
 function fragment(bytes, startMarker, endMarker, label) {
   const startNeedle = Buffer.from(startMarker, "utf8")
   const endNeedle = Buffer.from(endMarker, "utf8")
@@ -231,6 +276,34 @@ try {
       unsupportedDiagnostics.length !== 1 || !unsupportedDiagnostics[0].startsWith("DIAG code=1 ") ||
       !unsupported.includes("CONSTIR status=ok"))
     fail("non-lowerable function did not publish one W-CONST-0001 root")
+
+  const closedProductSource =
+    "const fn overflowPair(): (u64, Bool) { return u64.overflowingSubtract(0_u64, 1_u64) }\n" +
+    "const fn overflowValue(): u64 { return overflowPair().0 }\n" +
+    "const fn overflowFlag(): Bool { return overflowPair().1 }\n" +
+    "export const publishedPair: (u64, Bool) = u64.overflowingSubtract(0_u64, 1_u64)\n"
+  const closedProductFirst = assertClosedProduct(
+    probe(executable, closedProductSource, "closed product source"),
+    "closed product source")
+  const closedProductSecond = assertClosedProduct(
+    probe(executable, closedProductSource, "closed product source repeat"),
+    "closed product source repeat")
+  if (closedProductFirst.parsed.receipt !== closedProductSecond.parsed.receipt ||
+      closedProductFirst.receiptDigest !== closedProductSecond.receiptDigest ||
+      JSON.stringify(closedProductFirst.functions) !==
+        JSON.stringify(closedProductSecond.functions))
+    fail("closed product source changed digest, receipt, or function records on repeat")
+
+  const reversedProduct =
+    "const fn reversedPair(): (Bool, u64) { return u64.overflowingSubtract(0_u64, 1_u64) }\n"
+  assertClosedProductRejected(
+    probe(executable, reversedProduct, "reversed product shape"),
+    "reversed product shape")
+  const inferredProduct =
+    "const unannotatedPair = u64.overflowingSubtract(0_u64, 1_u64)\n"
+  assertClosedProductRejected(
+    probe(executable, inferredProduct, "unannotated product constant"),
+    "unannotated product constant")
 } finally {
   await rm(build, { recursive: true, force: true })
 }

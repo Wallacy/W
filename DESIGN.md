@@ -41891,11 +41891,32 @@ ceiling in this slice.
 
 The C23 ConstIR unit proves ordinary and boundary values for all ten policies,
 both tuple lanes, result-byte quota, malformed builtin/projection records, and
-all-or-nothing lowering. This remains only `u64` evidence. Frontend
-module-const tuple initializers remain outside the slice; generic tuples, a
-stable tuple ABI, other integer widths, and performance remain gaps. Its
-`benchmarkDisposition` is `compiler-lifecycle`, and W adds no public benchmark
-for this evidence.
+all-or-nothing lowering. This remains only `u64` evidence. W-1635 closes the
+subsequent direct-return and explicitly typed module-constant boundary for this
+one compiler-owned product; generic tuples, a stable tuple ABI, other integer
+widths, and performance remain gaps. Its `benchmarkDisposition` is
+`compiler-lifecycle`, and W adds no public benchmark for this evidence.
+
+#### 26.4.1.115 W-1635 — bounded closed overflow product across const boundaries
+
+The frontend recognizes the exact compiler-owned `(u64, Bool)` product as one
+canonical type independent of ordinary source trivia. A `const fn` may return
+that type directly when its value is produced by the already verified
+overflowing-`u64` surface. An explicitly typed module constant, including an
+exported one, may preserve the same product through the existing synthetic
+zero-argument ConstIR function and dependency graph. The product remains a
+virtual allocation-free value; `.0` and `.1` remain the only admitted
+projections and yield `u64` and `Bool` respectively.
+
+This is a deliberately closed boundary, not the introduction of general tuple
+semantics. It does not admit tuple parameters, literals, destructuring,
+mutation, storage embedding, imported constants, arbitrary product shapes,
+other widths, or unannotated tuple-constant inference. It publishes no stable
+layout, ABI, FFI, serialization, runtime identity, backend/native guarantee, or
+performance claim. The exact receiver, operation, arity, operand and result
+types, fixed result-byte encoding, quotas, cycle defense, capacity checks, and
+all-or-nothing publication remain mandatory. Its `benchmarkDisposition` is
+`compiler-lifecycle`; there is no new public executable benchmark.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

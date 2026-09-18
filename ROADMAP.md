@@ -223,6 +223,16 @@ conversion, precomputed result, and artificial exponent cap. It is limited to
 ABI, other widths, and performance remain open. `benchmarkDisposition` is
 `compiler-lifecycle`; no public benchmark is added.
 
+W-1635 carries the existing virtual `(u64, Bool)` overflow product across the
+next compile-time boundaries: a direct `const fn` return and an explicitly
+typed module constant, including export. The frontend canonicalizes that exact
+closed type, and module constants reuse the synthetic ConstIR dependency graph,
+memoization, quotas, cycle defense, and transactional publication. This does
+not add generic tuples, tuple parameters/literals/destructuring, inferred tuple
+constants, a stable ABI/layout, runtime or backend materialization, other
+widths, or performance evidence. `benchmarkDisposition` remains
+`compiler-lifecycle`; no public benchmark is added.
+
 The first rank-1 increments are now executable. Signed-`i64` `&`, `|`, `^`,
 and unary `~` cross exact W source, canonical precedence, verified HIR0, direct
 LLVM-dialect operations, and the maintained native routes. Checked `<<` and

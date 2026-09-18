@@ -5425,6 +5425,136 @@ static bool test_u64_saturating_policy_frontend(void) {
   return true;
 }
 
+static bool test_u64_bool_tuple_product_boundary_frontend(void) {
+  static const char SOURCE[] =
+      "export const product: (u64, Bool) = "
+      "u64.overflowingAdd(18446744073709551615_u64, 1_u64)\n"
+      "const fn direct(): (u64, Bool) { return "
+      "u64.overflowingAdd(18446744073709551615_u64, 1_u64) }\n"
+      "const fn spaced(): (u64 , Bool) { return "
+      "u64.overflowingAdd(1_u64, 2_u64) }\n"
+      "const fn forwarded(): (u64, Bool) { return direct() }\n"
+      "const fn directValue(): u64 { return direct().0 }\n"
+      "const fn directFlag(): Bool { return direct().1 }\n"
+      "const fn moduleValue(): u64 { return product.0 }\n"
+      "const fn moduleFlag(): Bool { return product.1 }\n"
+      "const fn moduleRepeat(): Bool { return product.0 == product.0 }\n";
+  fixture *value = &fixture_literal;
+  CHECK(fixture_run(value, SOURCE));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
+        value->result.status == W_SEED_FRONTEND_OK &&
+        counts_equal(&value->result.required, &value->result.written) &&
+        value->result.written.const_declarations == 1u &&
+        value->result.written.functions == 8u);
+
+  const w_seed_frontend_const_declaration *declaration =
+      &value->const_declarations[0];
+  CHECK(declaration->exported && declaration->has_explicit_type &&
+        declaration->declared_type < value->result.written.types &&
+        declaration->effective_type == declaration->declared_type &&
+        value->types[declaration->declared_type].kind ==
+            W_SEED_FRONTEND_TYPE_TUPLE &&
+        frontend_text_is(value->types[declaration->declared_type].spelling,
+                         "(u64, Bool)"));
+
+  CHECK(value->functions[0].return_type < value->result.written.types &&
+        value->functions[1].return_type < value->result.written.types &&
+        value->functions[2].return_type < value->result.written.types &&
+        value->types[value->functions[0].return_type].kind ==
+            W_SEED_FRONTEND_TYPE_TUPLE &&
+        value->types[value->functions[1].return_type].kind ==
+            W_SEED_FRONTEND_TYPE_TUPLE &&
+        value->types[value->functions[2].return_type].kind ==
+            W_SEED_FRONTEND_TYPE_TUPLE &&
+        frontend_text_is(value->types[value->functions[0].return_type].spelling,
+                         "(u64, Bool)") &&
+        frontend_text_is(value->types[value->functions[1].return_type].spelling,
+                         "(u64, Bool)") &&
+        frontend_text_is(value->types[value->functions[2].return_type].spelling,
+                         "(u64, Bool)"));
+  for (size_t index = 3u; index < 8u; index += 1u)
+    CHECK(value->functions[index].return_type < value->result.written.types &&
+          value->types[value->functions[index].return_type].kind !=
+              W_SEED_FRONTEND_TYPE_TUPLE);
+
+  size_t builtin_count = 0u;
+  size_t local_tuple_call_count = 0u;
+  size_t module_const_read_count = 0u;
+  size_t projection_zero_count = 0u;
+  size_t projection_one_count = 0u;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_CALL &&
+        expression->builtin_operation ==
+            W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD) {
+      CHECK(expression->supported && expression->argument_count == 2u &&
+            expression->inferred_type < value->result.written.types &&
+            value->types[expression->inferred_type].kind ==
+                W_SEED_FRONTEND_TYPE_TUPLE &&
+            frontend_text_is(value->types[expression->inferred_type].spelling,
+                             "(u64, Bool)"));
+      builtin_count += 1u;
+    } else if (expression->kind == W_SEED_FRONTEND_EXPR_CALL &&
+               expression->resolved_function_index == 0u) {
+      CHECK(expression->supported && expression->argument_count == 0u &&
+            expression->inferred_type < value->result.written.types &&
+            value->types[expression->inferred_type].kind ==
+                W_SEED_FRONTEND_TYPE_TUPLE);
+      local_tuple_call_count += 1u;
+    } else if (expression->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+               expression->resolved_const_declaration == 0u) {
+      CHECK(expression->supported &&
+            expression->inferred_type < value->result.written.types &&
+            value->types[expression->inferred_type].kind ==
+                W_SEED_FRONTEND_TYPE_TUPLE);
+      module_const_read_count += 1u;
+    } else if (expression->kind == W_SEED_FRONTEND_EXPR_MEMBER &&
+               frontend_text_is(expression->member_name, "0")) {
+      CHECK(expression->supported && expression->left != W_SEED_FRONTEND_NONE &&
+            expression->inferred_type < value->result.written.types &&
+            value->types[expression->inferred_type].kind ==
+                W_SEED_FRONTEND_TYPE_INTEGER &&
+            !value->types[expression->inferred_type].is_signed &&
+            value->types[expression->inferred_type].bit_width == 64u);
+      projection_zero_count += 1u;
+    } else if (expression->kind == W_SEED_FRONTEND_EXPR_MEMBER &&
+               frontend_text_is(expression->member_name, "1")) {
+      CHECK(expression->supported && expression->left != W_SEED_FRONTEND_NONE &&
+            expression->inferred_type < value->result.written.types &&
+            value->types[expression->inferred_type].kind ==
+                W_SEED_FRONTEND_TYPE_BOOL);
+      projection_one_count += 1u;
+    }
+  }
+  CHECK(builtin_count == 3u && local_tuple_call_count == 3u &&
+        module_const_read_count == 4u && projection_zero_count == 4u &&
+        projection_one_count == 2u);
+
+  static const char *const REJECTED[] = {
+      "const fn reversed(): (Bool, u64) { return "
+      "u64.overflowingAdd(1_u64, 2_u64) }\n",
+      "const fn widened(): (u64, u64) { return "
+      "u64.overflowingAdd(1_u64, 2_u64) }\n",
+      "const fn malformed(): (u64, Bool, Bool) { return "
+      "u64.overflowingAdd(1_u64, 2_u64) }\n",
+      "const inferredProduct = u64.overflowingAdd(1_u64, 2_u64)\n",
+      "const missingOperand: (u64, Bool) = "
+      "u64.overflowingAdd(1_u64)\n",
+      "const wrongOperand: (u64, Bool) = "
+      "u64.overflowingAdd(1_u64, true)\n",
+  };
+  for (size_t index = 0u;
+       index < sizeof(REJECTED) / sizeof(REJECTED[0]); index += 1u) {
+    CHECK(fixture_run(value, REJECTED[index]));
+    CHECK(value->result.status != W_SEED_FRONTEND_OK &&
+          (has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_TYPE) ||
+           has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION) ||
+           value->result.status == W_SEED_FRONTEND_DIAGNOSTICS));
+  }
+  return true;
+}
+
 static bool test_f64_scalar_projection(void) {
   fixture *value = &fixture_literal;
   CHECK(fixture_parse(
@@ -7432,6 +7562,7 @@ int main(int argc, char **argv) {
   if (!test_u64_binary_frontend()) return 1;
   if (!test_u64_overflowing_products_frontend()) return 1;
   if (!test_u64_saturating_policy_frontend()) return 1;
+  if (!test_u64_bool_tuple_product_boundary_frontend()) return 1;
   if (!test_f64_scalar_projection()) return 1;
   if (!test_f64_locale_isolation()) return 1;
   if (!test_declarations_and_determinism()) return 1;
