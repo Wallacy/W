@@ -275,6 +275,25 @@ static bool checked_u64_multiply(uint64_t left, uint64_t right,
   return true;
 }
 
+static bool checked_u64_power(uint64_t base, uint64_t exponent,
+                              uint64_t *result) {
+  if (result == NULL) return false;
+  uint64_t accumulator = 1u;
+  size_t steps = 0u;
+  while (exponent != 0u && steps < 64u) {
+    if ((exponent & 1u) != 0u &&
+        !checked_u64_multiply(accumulator, base, &accumulator))
+      return false;
+    exponent >>= 1u;
+    if (exponent != 0u && !checked_u64_multiply(base, base, &base))
+      return false;
+    steps += 1u;
+  }
+  if (exponent != 0u) return false;
+  *result = accumulator;
+  return true;
+}
+
 /* The wrapping-power constant oracle uses the same bounded algorithm as the
  * runtime lowering. A u64 exponent has at most 64 nonzero-bit steps; keeping
  * the explicit bound makes malformed forged trees fail closed instead of
@@ -414,6 +433,9 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
           value->binary_operator != W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT &&
           value->binary_operator != W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY &&
           value->binary_operator != W_SEED_HIR0_BINARY_WRAPPING_POWER &&
+          value->binary_operator != W_SEED_HIR0_BINARY_SHIFT_LEFT &&
+          value->binary_operator != W_SEED_HIR0_BINARY_SHIFT_RIGHT &&
+          value->binary_operator != W_SEED_HIR0_BINARY_POWER &&
           value->binary_operator != W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT &&
           value->binary_operator != W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT &&
           value->binary_operator != W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT &&
@@ -459,6 +481,18 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
       return true;
     case W_SEED_HIR0_BINARY_WRAPPING_POWER:
       return wrapping_u64_power(left, right, result);
+    case W_SEED_HIR0_BINARY_POWER:
+      return checked_u64_power(left, right, result);
+    case W_SEED_HIR0_BINARY_SHIFT_LEFT:
+      if (right >= UINT64_C(64) ||
+          (right != 0u && left > (UINT64_MAX >> right)))
+        return false;
+      *result = left << right;
+      return true;
+    case W_SEED_HIR0_BINARY_SHIFT_RIGHT:
+      if (right >= UINT64_C(64)) return false;
+      *result = left >> right;
+      return true;
     case W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT:
       /* The count check must precede the shift: C shifts by 64 or more are
        * undefined, while W's wrapping policy traps for an invalid count. */
@@ -640,6 +674,9 @@ static bool program_value_is_constant_u64(
          (value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER ||
           (value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
            value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR) ||
+           value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
+           value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_RIGHT ||
+           value->binary_operator == W_SEED_HIR0_BINARY_POWER ||
            value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_ADD ||
            value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT ||
            value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY ||
@@ -1518,9 +1555,7 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
          value->binary_operator > W_SEED_HIR0_BINARY_REMAINDER &&
          (value->binary_operator < W_SEED_HIR0_BINARY_BIT_AND ||
           value->binary_operator > W_SEED_HIR0_BINARY_BIT_XOR)) ||
-        ((shift || power) ? (type != W_SEED_HIR0_TYPE_I64 &&
-                  type != W_SEED_HIR0_TYPE_U64)
-               : type != W_SEED_HIR0_TYPE_I64) ||
+        type != W_SEED_HIR0_TYPE_I64 ||
         !program_value_lowerable(program, value->left_value, owner_function,
                                  false, depth + 1u) ||
         !program_value_lowerable(program, value->right_value, owner_function,
@@ -1538,6 +1573,10 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
         value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL;
     const bool arithmetic =
         value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER;
+    const bool shift_or_power =
+        value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
+        value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_RIGHT ||
+        value->binary_operator == W_SEED_HIR0_BINARY_POWER;
     const bool wrapping =
         value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_ADD ||
         value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT ||
@@ -1562,6 +1601,7 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
         value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
         value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR;
     if ((!arithmetic && !comparison && !bitwise && !wrapping &&
+         !shift_or_power &&
          !overflowing) ||
         value->left_value >= program->value_count ||
         value->right_value >= program->value_count ||
@@ -1580,7 +1620,7 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
         !program_value_lowerable(program, value->right_value, owner_function,
                                  false, depth + 1u))
       return false;
-    if ((arithmetic || bitwise || wrapping) && !overflowing &&
+    if ((arithmetic || bitwise || wrapping || shift_or_power) && !overflowing &&
         program_value_is_constant_u64(program, value_index, 0u)) {
       uint64_t ignored = 0u;
       if (!evaluate_u64(program, value_index, 0u, &ignored)) return false;

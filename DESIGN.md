@@ -907,12 +907,13 @@ package {
 }
 ```
 
-O schema v0 do header de módulo publica os slots contextuais `domains` e
-`kernels`. `domains` declara requirements estáticos; `kernels` declara as
-raízes reutilizáveis da família de kernels do módulo. Pools, capacity, queues e
-fallbacks pertencem ao execution profile do package e não são slots de módulo.
-W não possui `parallelDefault`: `spawn` e `parallelMap` selecionam o domínio no
-call site.
+O schema v0 do header de módulo publica os slots contextuais `domains`,
+`kernels` e `contracts`. `domains` declara requirements estáticos; `kernels`
+declara as raízes reutilizáveis da família de kernels do módulo; `contracts`
+liga uma lista não vazia de relações const-safe à superfície estática do módulo.
+Pools, capacity, queues e fallbacks pertencem ao execution profile do package e
+não são slots de módulo. W não possui `parallelDefault`: `spawn` e
+`parallelMap` selecionam o domínio no call site.
 
 Esta subseção é normativa para raízes de documento, imports e declarations.
 Ela usa `type`, `expression`, `pattern`, `static_argument`, `parameter_list` e
@@ -926,7 +927,16 @@ module_source = module_header? import_declaration*
 module_header = "module" identifier module_contract? ";"? ;
 module_contract = "<" module_contract_field
                  ("," module_contract_field)* ","? ">" ;
-module_contract_field = static_argument | kernel_contract_field ;
+module_contract_field = static_argument
+                      | kernel_contract_field
+                      | module_contracts_field ;
+module_contracts_field = "contracts" ":" "[" module_contract_relation
+                         ("," module_contract_relation)* ","? "]" ;
+module_contract_relation = identifier "("
+                           (module_contract_relation_argument
+                            ("," module_contract_relation_argument)* ","?)?
+                           ")" ;
+module_contract_relation_argument = (identifier ":")? static_argument_value ;
 kernel_contract_field = "kernels" ":" kernel_contract_record ;
 kernel_contract_record = "{" kernel_contract_item
                          ("," kernel_contract_item)* ","? "}" ;
@@ -25709,15 +25719,19 @@ a universal claim. It does not prove the claim for unobserved inputs. A finite
 domain may become a proof only when the checker also validates exhaustive
 coverage.
 
-WCCP0 selects two complementary source carriers without adding a general
-`contract` declaration:
+WCCP0 selects two semantic contract categories through three source placements,
+without adding a general `contract` declaration:
 
 1. `T<(predicate)>` remains the intrinsic invariant of one value. It can define
    a refined alias such as `SortedResult<Element>`.
 2. A reserved structured documentation field, `contract:`, attaches a relation
-   to the documented declaration. The relation can connect parameters,
-   pre-state, post-state, and the successful result without changing the call
-   shape or the value layout.
+   to a non-module declaration. On a callable, the relation can connect input
+   parameters, mutable post-state, and the successful result without changing
+   the call shape or the value layout.
+3. `contracts: [relation(...), ...]` is a contextual field in the module header.
+   It attaches reusable const-safe relations to the module's static surface,
+   beside `domains`, `kernels`, and the other module configuration. A module
+   documentation comment cannot attach a semantic contract.
 
 The selected design form is:
 
@@ -25725,7 +25739,7 @@ The selected design form is:
 type SortedResult<Element: Comparable> = Array<Element><(isSorted(value))>
 
 /// Sorts the values in ascending order.
-/// contract: sameElements(before: before values, after: result)
+/// contract: sameElements(input: values, output: result)
 /// call: sort(values: [3, 1, 2])
 /// result: [1, 2, 3]
 fn sort(values: take Array<i64>): SortedResult<i64> {
@@ -25735,7 +25749,7 @@ fn sort(values: take Array<i64>): SortedResult<i64> {
 
 The type contract proves a property of the returned value. The documentation
 contract describes the relation between that value and this invocation. A
-relation that needs `before values` must not be embedded in
+relation that needs the input `values` must not be embedded in
 `SortedResult<i64>` because the result alone does not contain its origin.
 
 `contract: <(expression)>` carries one inline relation. `contract: relation(...)`
@@ -25760,25 +25774,54 @@ protocol-conjunction rules of `P & Q`.
 The initial contextual binders are closed:
 
 - `result` is the successful result of the documented callable;
-- `before name` is the logical entry-state version of a parameter or receiver;
+- a bare parameter name is its immutable logical entry-state value, including
+  a consumed parameter;
+- bare `self` is the receiver's immutable logical entry-state value;
+- `before name` is an optional explicit spelling of that same entry value for a
+  mutable parameter or receiver;
 - `after name` is the logical exit-state version of a mutable parameter or
   receiver.
 
 `value` remains the subject of a type refinement and does not alias `result`.
-Each `before` or `after` binder lowers to a ghost SSA identity. It does not copy,
-retain, pin, or materialize storage. A runtime validator that needs old bytes
-must request an explicit bounded snapshot or another explicit witness.
-`before name` is valid for a consumed parameter because it names the logical
-entry value before transfer. `after name` is valid only for `mut ref`, `inout`,
-or a mutable receiver. A relation that uses `result` is a successful-return
-postcondition. Error, cancellation, and panic relations remain outside this
-initial binder set.
+Each entry-state or `after` binder lowers to a ghost SSA identity. It does not
+copy, retain, pin, or materialize storage. A runtime validator that needs old
+bytes must request an explicit bounded snapshot or another explicit witness.
+`before name` and `after name` are valid only for `mut ref`, `inout`, or a
+mutable receiver. `before name` canonicalizes to the same ContractIR identity
+as bare `name`; it exists only to make a pre/post comparison explicit. A
+relation that uses `result` is a successful-return postcondition. Error,
+cancellation, and panic relations remain outside this initial binder set.
+`old name`, `initial name`, and compiler-created `newName` bindings are not
+aliases: they would add spellings or naming conventions without adding state.
+Bare names resolve to parameter declaration identities before ordinary module
+lookup. A contract-bearing callable cannot use `result` as an internal parameter
+binding because silent shadowing would change the proposition. `before` and
+`after` remain ordinary identifiers outside callable contract expressions.
 
 These contextual binders initially apply only to callable declarations. A type,
-protocol, module, service, entry, package, or workspace can attach a named or
-inline contract to its declared static surface. It does not gain implicit
-runtime `before`, `after`, or `result` state. Stateful cross-operation laws must
-name their state-machine values explicitly until that model closes.
+protocol, service, entry, package, or workspace can attach a named or inline
+documentation contract to its declared static surface. A module instead uses
+its `contracts:` header field. Neither form gains implicit runtime `after` or
+`result` state outside a callable. Stateful cross-operation laws must name their
+state-machine values explicitly until that model closes.
+
+The module field is a non-empty manifest-style list of reusable relation calls:
+
+```w
+module catalog<
+  contracts: [apiVersion(current: apiMajor, minimum: 1)],
+>
+
+export const apiMajor: u16 = 1
+```
+
+Module contract fields are semantically an unordered conjunction and are
+ordered by normalized contract identity for hashing, caching, interfaces, and
+binary-package evidence. Source order is retained only for diagnostics.
+Duplicate normalized identities may lint; contradictory relations fail proof
+or validation. Calls resolve in module scope and may refer to later declarations
+just like `kernels` entries. Inline `/// contract:` immediately before `module`
+is ordinary prose and cannot silently change module identity.
 
 Reusable relations first use an existing `const fn`. Use as a contract adds a
 stricter check for purity, totality, termination, symbolic normalization, and
@@ -25824,9 +25867,9 @@ selected intrinsic and relational carriers above. It must still close canonical
 identity, composition, versioning, proof obligations, runtime evidence,
 erasure, diagnostics, quotas, trust boundaries, module/package export, and at
 least one optimization enabled by a checked fact. Until that stop condition,
-`ContractIR` and `contract:` are selected design direction, not implemented
-behavior. Runtime `verify` and `check` spellings remain open and are not
-reserved.
+`ContractIR`, declaration `contract:`, and module-header `contracts:` are
+selected design direction, not implemented behavior. Runtime `verify` and
+`check` spellings remain open and are not reserved.
 
 ### 18.2 Fatos de prova
 

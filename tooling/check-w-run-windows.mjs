@@ -743,8 +743,12 @@ try {
     Buffer.from("UInt bits 18446744073709551615\n", "utf8"),
     "Restaurant UInt binary bitwise operations")
   expectExact(binary, ["run", restaurantUIntCompoundFixture], 0,
-    Buffer.from("UInt compound 95\n", "utf8"),
-    "Restaurant UInt compound bitwise mutation")
+    Buffer.from(
+      "UInt compound 4611686018427387907/4611686018427387906/" +
+      "9223372036854775812/4611686018427387906/4611686018427387906/" +
+      "4611686018427387906/9223372036854775812/4611686018427387906/" +
+      "2/87/95\n", "utf8"),
+    "Restaurant UInt compound assignment")
   expectExact(binary, ["run", restaurantMutationFixture], 0,
     Buffer.from("Open 6\n", "utf8"),
     "Restaurant straight-line local mutation")

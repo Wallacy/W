@@ -1401,7 +1401,10 @@ static bool reachable_values_have_checked_power(
   for (size_t value_index = 0u; value_index < program->value_count;
        value_index += 1u)
     if (reachable[value_index] &&
-        program->values[value_index].kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+        (program->values[value_index].kind ==
+             W_SEED_HIR0_VALUE_BINARY_I64 ||
+         program->values[value_index].kind ==
+             W_SEED_HIR0_VALUE_BINARY_U64) &&
         program->values[value_index].binary_operator ==
             W_SEED_HIR0_BINARY_POWER)
       return true;
@@ -1709,8 +1712,11 @@ static bool mlir0_value_is_constant_u64(const w_seed_hir0_program *program,
                                        depth + 1u);
   return value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
          (value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER ||
-          (value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
+         (value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
            value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR) ||
+          value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
+          value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_RIGHT ||
+          value->binary_operator == W_SEED_HIR0_BINARY_POWER ||
           value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_ADD ||
           value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT ||
           value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY ||
@@ -1940,7 +1946,8 @@ static bool reachable_values_have_checked_shift(
        value_index += 1u) {
     const w_seed_hir0_value *value = &program->values[value_index];
     if (reachable[value_index] &&
-        value->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+        (value->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
+         value->kind == W_SEED_HIR0_VALUE_BINARY_U64) &&
         (value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
          value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_RIGHT))
       return true;
@@ -2639,6 +2646,10 @@ static bool append_binary_u64_value_operation(
       value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_POWER;
   const bool wrapping_power =
       value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_POWER;
+  const bool shift =
+      value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
+      value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_RIGHT;
+  const bool power = value->binary_operator == W_SEED_HIR0_BINARY_POWER;
   const bool wrapping_shift_left =
       value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT;
   const bool masked_shift_left =
@@ -2674,6 +2685,10 @@ static bool append_binary_u64_value_operation(
     helper = rotated_left_helper(program, value);
   else if (rotated_right)
     helper = rotated_right_helper(program, value);
+  else if (shift)
+    helper = checked_shift_helper(program, value);
+  else if (power)
+    helper = checked_power_helper(program, value);
   else if (!comparison && !wrapping && !saturating_add &&
            !saturating_subtract && !saturating_multiply && !overflowing &&
            !overflowing_power && !saturating_power &&

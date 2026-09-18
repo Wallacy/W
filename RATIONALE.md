@@ -8407,17 +8407,34 @@ all contracts would fail to represent value predicates, concrete request and
 response schemas, module-wide invariants, and imported versioned descriptions.
 The opposite extreme, a new top-level `contract` declaration for every case,
 would duplicate existing refined types and const relations. WCCP0 therefore
-selects `T<(predicate)>` for intrinsic value invariants and the structured
-documentation field `contract:` for declaration relations. A const-safe
-`const fn` supplies reusable predicates and relations. Protocol requirements
-can use both carriers without becoming the universal contract representation.
+selects `T<(predicate)>` for intrinsic value invariants, the structured
+documentation field `contract:` for non-module declaration relations, and the
+contextual module-header field `contracts: [...]` for the module's static
+contract set. A const-safe `const fn` supplies reusable predicates and
+relations. Protocol requirements can use the first two carriers without
+becoming the universal contract representation.
 
 The relational carrier belongs outside the return type. `SortedResult<i64>`
 can establish that one array is sorted. It cannot establish that the array has
 the same multiset as an earlier input without also naming that input and its
-entry state. `contract: sameElements(before: before values, after: result)`
+entry state. `contract: sameElements(input: values, output: result)`
 keeps that provenance at the transformation boundary. Multiple fields form an
 unordered conjunction and keep independent contract identities.
+
+The module placement is configuration rather than documentation because it
+participates directly in module identity, interface hashing, import checking,
+binary-package evidence, and caching. `contracts: [apiVersion(...), ...]` sits
+beside `domains` and `kernels`; a leading `/// contract:` is ordinary module
+documentation and cannot silently change that identity. Module contract calls
+form the same normalized unordered conjunction as repeated declaration fields.
+
+Within a callable contract, a bare parameter name denotes its immutable logical
+entry value and `result` denotes the successful return value. Mutable state can
+spell the same entry value explicitly as `before name` when contrasted with
+`after name`; both entry spellings normalize to one ContractIR identity. This
+keeps an ordinary multi-input relation close to a call, works for `take`
+parameters without materializing a copy, and avoids compiler-created `newName`
+bindings or broader `old`/`initial` synonym sets.
 
 WCCP0 rejects a public generic `Proof<C>` for the initial surface. The
 proposition already has a stable contract identity. A checked certificate is

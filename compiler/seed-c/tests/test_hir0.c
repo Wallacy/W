@@ -7540,18 +7540,26 @@ static bool test_straight_line_mutation_ssa(void) {
   return true;
 }
 
-static bool test_u64_bitwise_mutation_ssa(void) {
+static bool test_u64_compound_mutation_ssa(void) {
   static const char SOURCE[] =
       "entry {\n"
-      "  var value = 18446744073709551615_u64\n"
-      "  value &= 240_u64\n"
-      "  value ^= 170_u64\n"
-      "  value |= 5_u64\n"
+      "  var value = 4611686018427387904_u64\n"
+      "  value += 3_u64\n"
+      "  value -= 1_u64\n"
+      "  value *= 2_u64\n"
+      "  value /= 2_u64\n"
+      "  value %= 18446744073709551615_u64\n"
+      "  value **= 1_u64\n"
+      "  value <<= 1_u64\n"
+      "  value >>= 1_u64\n"
+      "  value &= 255_u64\n"
+      "  value ^= 85_u64\n"
+      "  value |= 10_u64\n"
       "  print(message: \"UInt compound ${value}\", suffix: \"\")\n"
       "}\n";
   CHECK(lower(SOURCE));
   const w_seed_hir0_program *program = &fixture.hir_program;
-  CHECK(program->binding_count == 4u && program->instruction_count == 5u &&
+  CHECK(program->binding_count == 12u && program->instruction_count == 13u &&
         program->call_count == 1u);
   uint32_t u64_type = W_SEED_HIR0_NONE;
   for (size_t index = 0u; index < program->type_count; index += 1u)
@@ -7577,7 +7585,11 @@ static bool test_u64_bitwise_mutation_ssa(void) {
   CHECK(program->values[program->bindings[0].initializer_value].kind ==
         W_SEED_HIR0_VALUE_CONST_U64);
   const w_seed_hir0_binary_operator operators[] = {
-      W_SEED_HIR0_BINARY_BIT_AND, W_SEED_HIR0_BINARY_BIT_XOR,
+      W_SEED_HIR0_BINARY_ADD,       W_SEED_HIR0_BINARY_SUBTRACT,
+      W_SEED_HIR0_BINARY_MULTIPLY,  W_SEED_HIR0_BINARY_DIVIDE,
+      W_SEED_HIR0_BINARY_REMAINDER, W_SEED_HIR0_BINARY_POWER,
+      W_SEED_HIR0_BINARY_SHIFT_LEFT, W_SEED_HIR0_BINARY_SHIFT_RIGHT,
+      W_SEED_HIR0_BINARY_BIT_AND,   W_SEED_HIR0_BINARY_BIT_XOR,
       W_SEED_HIR0_BINARY_BIT_OR};
   for (size_t index = 0u; index < sizeof(operators) / sizeof(operators[0]);
        index += 1u) {
@@ -7602,7 +7614,7 @@ static bool test_u64_bitwise_mutation_ssa(void) {
   bool saw_latest_read = false;
   for (size_t index = 0u; index < program->value_count; index += 1u)
     if (program->values[index].kind == W_SEED_HIR0_VALUE_BINDING_READ &&
-        program->values[index].binding_index == 3u &&
+        program->values[index].binding_index == program->binding_count - 1u &&
         program->values[index].type_index == u64_type)
       saw_latest_read = true;
   CHECK(saw_latest_read);
@@ -13569,7 +13581,8 @@ static bool test_u64_wrapping_add(void) {
   CHECK(wrapping_count == 2u && wrapping_index != SIZE_MAX &&
         fixture.hir_program.call_count == 0u);
   const w_seed_hir0_value saved = fixture.hir_values[wrapping_index];
-  fixture.hir_values[wrapping_index].binary_operator = W_SEED_HIR0_BINARY_POWER;
+  fixture.hir_values[wrapping_index].binary_operator =
+      (w_seed_hir0_binary_operator)UINT32_MAX;
   reseal_hir_fixture();
   CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   fixture.hir_values[wrapping_index] = saved;
@@ -13655,7 +13668,7 @@ static bool test_u64_saturating_add(void) {
         fixture.hir_program.call_count == 0u);
   const w_seed_hir0_value saved = fixture.hir_values[saturating_index];
   fixture.hir_values[saturating_index].binary_operator =
-      W_SEED_HIR0_BINARY_POWER;
+      (w_seed_hir0_binary_operator)UINT32_MAX;
   reseal_hir_fixture();
   CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   fixture.hir_values[saturating_index] = saved;
@@ -13925,7 +13938,7 @@ static bool test_u64_saturating_subtract(void) {
         fixture.hir_program.call_count == 0u);
   const w_seed_hir0_value saved = fixture.hir_values[saturating_index];
   fixture.hir_values[saturating_index].binary_operator =
-      W_SEED_HIR0_BINARY_POWER;
+      (w_seed_hir0_binary_operator)UINT32_MAX;
   reseal_hir_fixture();
   CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   fixture.hir_values[saturating_index] = saved;
@@ -13970,7 +13983,7 @@ static bool test_u64_saturating_multiply(void) {
         fixture.hir_program.call_count == 0u);
   const w_seed_hir0_value saved = fixture.hir_values[saturating_index];
   fixture.hir_values[saturating_index].binary_operator =
-      W_SEED_HIR0_BINARY_POWER;
+      (w_seed_hir0_binary_operator)UINT32_MAX;
   reseal_hir_fixture();
   CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   fixture.hir_values[saturating_index] = saved;
@@ -14091,7 +14104,8 @@ static bool test_u64_wrapping_subtract(void) {
   CHECK(wrapping_count == 2u && wrapping_index != SIZE_MAX &&
         fixture.hir_program.call_count == 0u);
   const w_seed_hir0_value saved = fixture.hir_values[wrapping_index];
-  fixture.hir_values[wrapping_index].binary_operator = W_SEED_HIR0_BINARY_POWER;
+  fixture.hir_values[wrapping_index].binary_operator =
+      (w_seed_hir0_binary_operator)UINT32_MAX;
   reseal_hir_fixture();
   CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   fixture.hir_values[wrapping_index] = saved;
@@ -14192,7 +14206,8 @@ static bool test_u64_wrapping_multiply(void) {
   CHECK(wrapping_count == 2u && wrapping_index != SIZE_MAX &&
         fixture.hir_program.call_count == 0u);
   const w_seed_hir0_value saved = fixture.hir_values[wrapping_index];
-  fixture.hir_values[wrapping_index].binary_operator = W_SEED_HIR0_BINARY_POWER;
+  fixture.hir_values[wrapping_index].binary_operator =
+      (w_seed_hir0_binary_operator)UINT32_MAX;
   reseal_hir_fixture();
   CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   fixture.hir_values[wrapping_index] = saved;
@@ -14370,7 +14385,7 @@ static bool test_u64_wrapping_power(void) {
         fixture.hir_program.call_count == 0u);
   const w_seed_hir0_value saved = fixture.hir_values[wrapping_index];
   fixture.hir_values[wrapping_index].binary_operator =
-      W_SEED_HIR0_BINARY_POWER;
+      (w_seed_hir0_binary_operator)UINT32_MAX;
   reseal_hir_fixture();
   CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   fixture.hir_values[wrapping_index] = saved;
@@ -14408,7 +14423,7 @@ static bool test_u64_wrapping_shift_left(void) {
         fixture.hir_program.call_count == 0u);
   const w_seed_hir0_value saved = fixture.hir_values[wrapping_index];
   fixture.hir_values[wrapping_index].binary_operator =
-      W_SEED_HIR0_BINARY_SHIFT_LEFT;
+      (w_seed_hir0_binary_operator)UINT32_MAX;
   reseal_hir_fixture();
   CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   fixture.hir_values[wrapping_index] = saved;
@@ -14449,7 +14464,7 @@ static bool test_u64_masked_shift_left(void) {
         fixture.hir_program.call_count == 0u);
   const w_seed_hir0_value saved = fixture.hir_values[masked_index];
   fixture.hir_values[masked_index].binary_operator =
-      W_SEED_HIR0_BINARY_SHIFT_LEFT;
+      (w_seed_hir0_binary_operator)UINT32_MAX;
   reseal_hir_fixture();
   CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   fixture.hir_values[masked_index] = saved;
@@ -14488,7 +14503,7 @@ static bool test_u64_masked_shift_right(void) {
         fixture.hir_program.call_count == 0u);
   const w_seed_hir0_value saved = fixture.hir_values[masked_index];
   fixture.hir_values[masked_index].binary_operator =
-      W_SEED_HIR0_BINARY_SHIFT_RIGHT;
+      (w_seed_hir0_binary_operator)UINT32_MAX;
   reseal_hir_fixture();
   CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   fixture.hir_values[masked_index] = saved;
@@ -14526,7 +14541,7 @@ static bool test_u64_logical_shift_right(void) {
         fixture.hir_program.call_count == 0u);
   const w_seed_hir0_value saved = fixture.hir_values[logical_index];
   fixture.hir_values[logical_index].binary_operator =
-      W_SEED_HIR0_BINARY_SHIFT_RIGHT;
+      (w_seed_hir0_binary_operator)UINT32_MAX;
   reseal_hir_fixture();
   CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   fixture.hir_values[logical_index] = saved;
@@ -14566,7 +14581,7 @@ static bool test_u64_rotated_left(void) {
         fixture.hir_program.call_count == 0u);
   const w_seed_hir0_value saved = fixture.hir_values[rotated_index];
   fixture.hir_values[rotated_index].binary_operator =
-      W_SEED_HIR0_BINARY_SHIFT_LEFT;
+      (w_seed_hir0_binary_operator)UINT32_MAX;
   reseal_hir_fixture();
   CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   fixture.hir_values[rotated_index] = saved;
@@ -14606,7 +14621,7 @@ static bool test_u64_rotated_right(void) {
         fixture.hir_program.call_count == 0u);
   const w_seed_hir0_value saved = fixture.hir_values[rotated_index];
   fixture.hir_values[rotated_index].binary_operator =
-      W_SEED_HIR0_BINARY_SHIFT_RIGHT;
+      (w_seed_hir0_binary_operator)UINT32_MAX;
   reseal_hir_fixture();
   CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   fixture.hir_values[rotated_index] = saved;
@@ -15007,7 +15022,8 @@ static bool test_checked_shift_values(void) {
   size_t unsigned_index = SIZE_MAX;
   for (size_t index = 0u; index < fixture.hir_program.value_count; index += 1u) {
     const w_seed_hir0_value *value = &fixture.hir_values[index];
-    if (value->kind != W_SEED_HIR0_VALUE_BINARY_I64 ||
+    if ((value->kind != W_SEED_HIR0_VALUE_BINARY_I64 &&
+         value->kind != W_SEED_HIR0_VALUE_BINARY_U64) ||
         value->left_value >= fixture.hir_program.value_count ||
         value->right_value >= fixture.hir_program.value_count)
       continue;
@@ -15015,13 +15031,16 @@ static bool test_checked_shift_values(void) {
         fixture.hir_types[value->type_index].kind == W_SEED_HIR0_TYPE_I64)
       signed_index = index;
     if (value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT &&
+        value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
         fixture.hir_types[value->type_index].kind == W_SEED_HIR0_TYPE_U64)
       unsigned_index = index;
   }
   CHECK(signed_index != SIZE_MAX && unsigned_index != SIZE_MAX);
   const w_seed_hir0_value signed_value = fixture.hir_values[signed_index];
   const w_seed_hir0_value unsigned_value = fixture.hir_values[unsigned_index];
-  CHECK(fixture.hir_values[signed_value.left_value].type_index ==
+  CHECK(signed_value.kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+        unsigned_value.kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
+        fixture.hir_values[signed_value.left_value].type_index ==
             signed_value.type_index &&
         fixture.hir_types[fixture.hir_values[signed_value.right_value]
                               .type_index]
@@ -15043,6 +15062,19 @@ static bool test_checked_shift_values(void) {
       (w_seed_hir0_binary_operator)UINT32_MAX;
   CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   CHECK(lower(SOURCE));
+  fixture.hir_values[unsigned_index].kind = W_SEED_HIR0_VALUE_BINARY_I64;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  CHECK(lower(SOURCE));
+  fixture.hir_values[unsigned_index].type_index = signed_value.type_index;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  CHECK(lower(SOURCE));
+  fixture.hir_values[unsigned_index].binary_operator =
+      (w_seed_hir0_binary_operator)UINT32_MAX;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  CHECK(lower(SOURCE));
   return true;
 }
 
@@ -15058,19 +15090,23 @@ static bool test_checked_power_values(void) {
   size_t unsigned_index = SIZE_MAX;
   for (size_t index = 0u; index < fixture.hir_program.value_count; index += 1u) {
     const w_seed_hir0_value *value = &fixture.hir_values[index];
-    if (value->kind != W_SEED_HIR0_VALUE_BINARY_I64 ||
+    if ((value->kind != W_SEED_HIR0_VALUE_BINARY_I64 &&
+         value->kind != W_SEED_HIR0_VALUE_BINARY_U64) ||
         value->binary_operator != W_SEED_HIR0_BINARY_POWER ||
         value->type_index >= fixture.hir_program.type_count)
       continue;
     if (fixture.hir_types[value->type_index].kind == W_SEED_HIR0_TYPE_I64)
       signed_index = index;
-    if (fixture.hir_types[value->type_index].kind == W_SEED_HIR0_TYPE_U64)
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
+        fixture.hir_types[value->type_index].kind == W_SEED_HIR0_TYPE_U64)
       unsigned_index = index;
   }
   CHECK(signed_index != SIZE_MAX && unsigned_index != SIZE_MAX);
   const w_seed_hir0_value signed_value = fixture.hir_values[signed_index];
   const w_seed_hir0_value unsigned_value = fixture.hir_values[unsigned_index];
-  CHECK(fixture.hir_values[signed_value.left_value].type_index ==
+  CHECK(signed_value.kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+        unsigned_value.kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
+        fixture.hir_values[signed_value.left_value].type_index ==
             signed_value.type_index &&
         fixture.hir_types[fixture.hir_values[signed_value.right_value]
                               .type_index]
@@ -15087,14 +15123,28 @@ static bool test_checked_power_values(void) {
   fixture.hir_values[signed_index].type_index = unsigned_value.type_index;
   CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   CHECK(lower(SOURCE));
+  fixture.hir_values[unsigned_index].kind = W_SEED_HIR0_VALUE_BINARY_I64;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  CHECK(lower(SOURCE));
+  fixture.hir_values[unsigned_index].type_index = signed_value.type_index;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  CHECK(lower(SOURCE));
+  fixture.hir_values[unsigned_index].binary_operator =
+      (w_seed_hir0_binary_operator)UINT32_MAX;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  CHECK(lower(SOURCE));
   static const char COMPOUND_SOURCE[] =
-      "entry { var value = 8 value += 2 value -= 1 value *= 4 "
-      "value /= 3 value %= 5 value **= 3_u64 value <<= 2_u64 "
-      "value >>= 1_u64 value &= 15 value ^= 3 value |= 8 }\n";
+      "entry { var value = 8_u64 value += 2_u64 value -= 1_u64 "
+      "value *= 4_u64 value /= 3_u64 value %= 5_u64 value **= 3_u64 "
+      "value <<= 2_u64 value >>= 1_u64 value &= 15_u64 value ^= 3_u64 "
+      "value |= 8_u64 }\n";
   CHECK(lower(COMPOUND_SOURCE));
   size_t compound_operator_count = 0u;
   for (size_t index = 0u; index < fixture.hir_program.value_count; index += 1u)
-    if (fixture.hir_values[index].kind == W_SEED_HIR0_VALUE_BINARY_I64)
+    if (fixture.hir_values[index].kind == W_SEED_HIR0_VALUE_BINARY_U64)
       compound_operator_count += 1u;
   CHECK(compound_operator_count == 11u);
   CHECK(fixture_parse("entry { let value = 1 value += 2 }\n"));
@@ -15118,7 +15168,8 @@ static bool test_checked_power_values(void) {
         fixture.hir_values[value->left_value].binary_operator ==
             W_SEED_HIR0_BINARY_POWER)
       unary_owns_power = true;
-    if (value->kind != W_SEED_HIR0_VALUE_BINARY_I64 ||
+    if ((value->kind != W_SEED_HIR0_VALUE_BINARY_I64 &&
+         value->kind != W_SEED_HIR0_VALUE_BINARY_U64) ||
         value->binary_operator != W_SEED_HIR0_BINARY_POWER)
       continue;
     if (value->left_value < fixture.hir_program.value_count &&
@@ -15126,8 +15177,10 @@ static bool test_checked_power_values(void) {
             W_SEED_HIR0_VALUE_UNARY_I64)
       power_owns_unary = true;
     if (value->right_value < fixture.hir_program.value_count &&
-        fixture.hir_values[value->right_value].kind ==
-            W_SEED_HIR0_VALUE_BINARY_I64 &&
+        (fixture.hir_values[value->right_value].kind ==
+             W_SEED_HIR0_VALUE_BINARY_I64 ||
+         fixture.hir_values[value->right_value].kind ==
+             W_SEED_HIR0_VALUE_BINARY_U64) &&
         fixture.hir_values[value->right_value].binary_operator ==
             W_SEED_HIR0_BINARY_POWER)
       power_owns_power = true;
@@ -15411,7 +15464,7 @@ int main(int argc, char **argv) {
   if (!test_lowering_is_not_hello_hardcoded()) return 1;
   if (!test_local_binding_lowering()) return 1;
   if (!test_straight_line_mutation_ssa()) return 1;
-  if (!test_u64_bitwise_mutation_ssa()) return 1;
+  if (!test_u64_compound_mutation_ssa()) return 1;
   if (!test_interleaved_mutation_versions()) return 1;
   if (!test_conditional_mutation_merge()) return 1;
   if (!test_bool_mutation_ssa()) return 1;

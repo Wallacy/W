@@ -235,8 +235,8 @@
             { "include": "#comments" },
             { "include": "#strings" },
             {
-              "name": "keyword.contextual.kernel.w",
-              "match": "\\b(kernels)(?=\\s*:)"
+              "name": "keyword.contextual.module-contract.w",
+              "match": "\\b(kernels|contracts)(?=\\s*:)"
             }
           ]
         }

@@ -116,6 +116,13 @@
 | `channel-send` | `Channel<send: String>` | `stream-and-channel` |
 | `channel-receive` | `Channel<receive: String>` | `stream-and-channel` |
 | `root-module-run` | `module atlas_execution` | `module-run-root` |
+| `intrinsic-value-contract` | `Array<u8><(.count <= 64)>` | `types-and-contracts` |
+| `inline-document-contract` | `contract: <(result.count` | `callables-and-foreign` |
+| `reusable-document-contract` | `contract: sameCount(` | `callables-and-foreign` |
+| `repeated-document-contract` | `contract: <(result.count == values.count)>` | `callables-and-foreign` |
+| `module-contract-configuration` | `contracts: [apiVersion(` | `source-roots-imports` |
+| `protocol-contract-documentation` | `contract: apiVersion(` | `data-declarations` |
+| `const-contract-relation` | `const fn sameCount(` | `callables-and-foreign` |
 
 ## Full snippets
 
@@ -154,6 +161,7 @@ import { Stream, Channel, ChannelSendError } from std.stream
 module atlas_language<
   domains: [.serial],
   kernels: { forecast: forecastKernel },
+  contracts: [apiVersion(current: apiMajor, minimum: 1)],
 >
 
 import std.text
@@ -226,9 +234,12 @@ object Ward {
   }
 }
 
+/// A directory keeps one reusable static relation.
+/// contract: apiVersion(current: apiMajor, minimum: 1)
 protocol Directory<Key> {
   type Value: Hashable
   const empty: Bool
+  const apiMajor: u16
   fn lookup(_ key: Key): Value;
   fn isEmpty(): Bool
   var count: usize { get set }
@@ -243,6 +254,7 @@ extension Directory {
 service Catalog<key: String>: Directory {
   alias Value = String
   const empty: Bool = false
+  const apiMajor: u16 = 1
   fn lookup(_ key: String): String {
     return key
   }
@@ -346,6 +358,7 @@ struct Matrix<Element, rows: usize, columns: usize> {
 
 type Tile = Matrix<u8, rows: 4, columns: 4>
 type SmallText = Array<u8><(.count <= 64)>
+type SortedResult<Element: Comparable> = Array<Element><(isSorted(value))>
 type Allowed = Signal<[.quiet, .alert]>
 type Settings = Config<{mode: .strict, retries: 2}>
 type Location = (district: String, number: u16)
@@ -376,6 +389,33 @@ fn makeDigest(): Digest {
 **current** · **tree-sitter-parse-only-provider-missing**
 
 ```w
+export const apiMajor: u16 = 1
+
+const fn apiVersion(current: u16, minimum: u16): Bool {
+  return current >= minimum
+}
+
+const fn sameCount(input: Array<i64>, output: Array<i64>): Bool {
+  return input.count == output.count
+}
+
+const fn balanceTransition(input: i64, amount: i64, output: i64): Bool {
+  return output == input.saturatingAdd(amount)
+}
+
+/// Sorts values without changing their element count.
+/// contract: <(result.count == values.count)>
+/// contract: sameCount(input: values, output: result)
+fn sortValues(values: take Array<i64>): SortedResult<i64> {
+  return values
+}
+
+/// Applies one total balance transition.
+/// contract: balanceTransition(input: before balance, amount: amount, output: after balance)
+fn deposit(balance: inout i64, amount: i64) {
+  balance = balance.saturatingAdd(amount)
+}
+
 export fn describe<ID, _ limit: usize>(_ value: ID, each labels: String...): String throws Signal {
   return labels[0]
 }

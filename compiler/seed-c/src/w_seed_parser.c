@@ -547,6 +547,8 @@ static bool parse_generic_parameters(w_seed_parser *parser,
                                      size_t declaration_end);
 static bool parse_contract_envelope(w_seed_parser *parser, size_t head_end,
                                     bool expression_mode);
+static bool parse_module_contract_envelope(w_seed_parser *parser,
+                                           size_t head_end);
 static bool parse_static_value(w_seed_parser *parser);
 static bool parse_static_record(w_seed_parser *parser);
 static bool parse_static_list(w_seed_parser *parser);
@@ -1844,6 +1846,171 @@ static bool parse_contract_envelope(w_seed_parser *parser, size_t head_end,
     (void)consume_text(parser, ",", NULL);
     if (current_is_text(parser, ">") || current_is_double_gt(parser)) break;
     if (!parse_contract_argument(parser, expression_mode)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+  }
+  if (current_is_text(parser, ">")) {
+    (void)consume_text(parser, ">", NULL);
+  } else if (current_is_double_gt(parser)) {
+    w_seed_parse_token_view view;
+    (void)consume_virtual_close(parser, &view);
+  } else {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE);
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  pop_node(parser, parser->last_token_end);
+  return true;
+}
+
+/* Module-header contracts are deliberately narrower than the generic static
+ * value/list parser.  Each list item must be a named relation call, while
+ * each call argument remains a static value (and may be labeled or
+ * positional).  Resolution and const-safety are frontend responsibilities;
+ * this owner only preserves the source shape and rejects runtime call forms. */
+static bool parse_module_contract_relation_argument(w_seed_parser *parser) {
+  if (!skip_trivia(parser) || current_is_eof(parser)) return false;
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_ARGUMENT, start) == W_SEED_CST_NONE)
+    return false;
+  if (current_is_kind(parser, W_SEED_LEX_ITEM_WORD) &&
+      next_is_text(parser, ":")) {
+    (void)consume_current(parser, NULL);
+    if (!expect_text(parser, ":", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN)) {
+      pop_node(parser, parser->last_token_end);
+      return false;
+    }
+  }
+  if (!parse_static_value(parser)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  pop_node(parser, parser->last_token_end);
+  return true;
+}
+
+static bool parse_module_contract_relation(w_seed_parser *parser) {
+  if (!skip_trivia(parser) || current_is_eof(parser)) return false;
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_MODULE_CONTRACT_RELATION, start) ==
+      W_SEED_CST_NONE)
+    return false;
+  if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+    (void)record_issue(parser, W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN,
+                       current_span(parser), W_SEED_PARSE_EXPECT_WORD);
+    pop_node(parser, parser->last_token_end);
+    return false;
+  }
+  (void)consume_current(parser, NULL);
+  if (!expect_text(parser, "(", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN)) {
+    pop_node(parser, parser->last_token_end);
+    return false;
+  }
+  if (!current_is_text(parser, ")")) {
+    if (!parse_module_contract_relation_argument(parser)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+    while (current_is_text(parser, ",")) {
+      (void)consume_text(parser, ",", NULL);
+      if (current_is_text(parser, ")")) break;
+      if (!parse_module_contract_relation_argument(parser)) {
+        pop_node(parser,
+                 parser->has_last_token ? parser->last_token_end : start);
+        return false;
+      }
+    }
+  }
+  if (!current_is_text(parser, ")")) {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  (void)consume_text(parser, ")", NULL);
+  pop_node(parser, parser->last_token_end);
+  return true;
+}
+
+static bool parse_module_contracts_list(w_seed_parser *parser) {
+  if (!current_is_text(parser, "[")) {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    return false;
+  }
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_ARRAY, start) == W_SEED_CST_NONE)
+    return false;
+  (void)consume_text(parser, "[", NULL);
+  /* Unlike ordinary static lists, the module contract list is nonempty. */
+  if (current_is_text(parser, "]")) {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    pop_node(parser, parser->last_token_end);
+    return false;
+  }
+  if (!parse_module_contract_relation(parser)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  while (current_is_text(parser, ",")) {
+    (void)consume_text(parser, ",", NULL);
+    if (current_is_text(parser, "]")) break;
+    if (!parse_module_contract_relation(parser)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+  }
+  if (!expect_text(parser, "]", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  pop_node(parser, parser->last_token_end);
+  return true;
+}
+
+static bool parse_module_contract_field(w_seed_parser *parser) {
+  if (current_is_kind(parser, W_SEED_LEX_ITEM_WORD) &&
+      next_is_text(parser, ":") && current_is_text(parser, "contracts")) {
+    (void)consume_current(parser, NULL);
+    if (!expect_text(parser, ":", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN))
+      return false;
+    return parse_module_contracts_list(parser);
+  }
+  /* Keep domains, kernels, and all existing positional module fields on the
+   * generic path. */
+  return parse_contract_argument(parser, false);
+}
+
+static bool parse_module_contract_envelope(w_seed_parser *parser,
+                                           size_t head_end) {
+  if (!current_is_text(parser, "<")) return false;
+  const size_t start = current_span(parser).start_byte;
+  if (start != head_end) {
+    (void)record_issue(parser, W_SEED_PARSE_ISSUE_SPACED_HEAD,
+                       current_span(parser), W_SEED_PARSE_EXPECT_PUNCTUATION);
+    return false;
+  }
+  if (push_node(parser, W_SEED_CST_CONTRACT_ENVELOPE, start) ==
+      W_SEED_CST_NONE)
+    return false;
+  (void)consume_text(parser, "<", NULL);
+  if (current_is_text(parser, ">") || current_is_double_gt(parser)) {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    pop_node(parser, parser->last_token_end);
+    return false;
+  }
+  if (!parse_module_contract_field(parser)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  while (current_is_text(parser, ",")) {
+    (void)consume_text(parser, ",", NULL);
+    if (current_is_text(parser, ">") || current_is_double_gt(parser)) break;
+    if (!parse_module_contract_field(parser)) {
       pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
       return false;
     }
@@ -3624,7 +3791,7 @@ bool w_seed_parser_parse(w_seed_parser *parser, w_seed_parse_result *result) {
     }
     (void)consume_current(parser, NULL);
     if (current_is_text(parser, "<")) {
-      if (!parse_contract_envelope(parser, parser->last_token_end, false)) {
+      if (!parse_module_contract_envelope(parser, parser->last_token_end)) {
         pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
         unwind_frames(parser, parser->lexer.bounds.end_byte);
         goto done;

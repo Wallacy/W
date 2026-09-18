@@ -11716,10 +11716,15 @@ static uint32_t hir0_emit_value_m2(
     const bool u64_bitwise =
         binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
         binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR;
+    const bool u64_shift_or_power =
+        binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
+        binary_operator == W_SEED_HIR0_BINARY_SHIFT_RIGHT ||
+        binary_operator == W_SEED_HIR0_BINARY_POWER;
     const bool unsigned_binary =
         frontend_expression_is_u64(
             context->frontend, &context->frontend->expressions[source->left]) &&
-        (u64_arithmetic || u64_comparison || u64_bitwise);
+        (u64_arithmetic || u64_comparison || u64_bitwise ||
+         u64_shift_or_power);
     *target = (w_seed_hir0_value){
         .kind = usize_count_comparison
                     ? W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON
@@ -14693,10 +14698,8 @@ static bool verify_value_tree(
                     program, program->values[value->right_value].type_index) ||
                 program->values[value->left_value].type_index !=
                     value->type_index ||
-                (program->types[value->type_index].kind !=
-                     W_SEED_HIR0_TYPE_I64 &&
-                 program->types[value->type_index].kind !=
-                     W_SEED_HIR0_TYPE_U64) ||
+                program->types[value->type_index].kind !=
+                    W_SEED_HIR0_TYPE_I64 ||
                 program->types[program->values[value->right_value].type_index]
                         .kind != W_SEED_HIR0_TYPE_U64)
              : (program->values[value->left_value].type_index != 2u ||
@@ -14747,6 +14750,10 @@ static bool verify_value_tree(
     const bool bitwise =
         value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
         value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR;
+    const bool shift_or_power =
+        value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
+        value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_RIGHT ||
+        value->binary_operator == W_SEED_HIR0_BINARY_POWER;
     if (wrapping || overflowing) {
       if (value->left_value == W_SEED_HIR0_NONE ||
           value->left_value >= program->value_count ||
@@ -14800,7 +14807,8 @@ static bool verify_value_tree(
       *value_cursor += 1u;
       return true;
     }
-    if ((!arithmetic && !comparison && !bitwise && !wrapping) ||
+    if ((!arithmetic && !comparison && !bitwise && !wrapping &&
+         !shift_or_power) ||
         value->left_value == W_SEED_HIR0_NONE ||
         value->right_value == W_SEED_HIR0_NONE ||
         !verify_value_tree(program, value->left_value,

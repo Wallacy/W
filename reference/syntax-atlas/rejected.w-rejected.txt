@@ -21,6 +21,20 @@ This file is not W source. The checker must not parse it.
 - value as? Ticket as? OrderId               [W-TYPE-0124: resultado optional borrowed não é source válido]
 - x |> f() ?? fallback                     [W-PIPE-0001: suffixo binary não parentetizado não é call template]
 - x |> f() || fallback                     [W-PIPE-0001: suffixo lógico não parentetizado não é call template]
+- type SortedResult<Element> = Array<Element> where isSorted(value) [WCCP0: use `T<(predicate)>`; no `where` carrier]
+- type SortedResult<Element> = Array<Element><isSorted(value)>    [WCCP0: a value predicate needs the parenthesized contract envelope]
+- type SortedResult<Element> = Array<Element> <(isSorted(value))>  [WCCP0: whitespace detaches the contract from its type head]
+- contract fn sameElements(before: Array<i64>, after: Array<i64>): Bool [WCCP0: `contract fn` is not an approved declaration kind]
+- contract sorted(values: Array<i64>)                           [WCCP0: no dedicated top-level `contract` declaration]
+- let proof: Proof<SortedResult<i64>>                            [WCCP0: public `Proof<C>` values are rejected]
+- verify(values) / check(values)                                [WCCP0: runtime spellings remain open, not current syntax]
+- /// note: contract: sameElements(input: values, output: result) [WCCP0: prose does not create a structured field]
+- /// - contract: sameElements(input: values, output: result)      [WCCP0: list content is not a structured field]
+- `/// contract: surfaceReady()` immediately before `module catalog` [WCCP0: module contracts belong in `module<contracts: [...]>`]
+- module catalog<contracts: []>                                [WCCP0: the module contract list is nonempty]
+- /// contract: sameElements(input: before values, output: result) [WCCP0: `before` is only an explicit mutable-state alias]
+- /// contract: after values.count == result.count              [WCCP0: `after` requires `inout`, `mut ref`, or a mutable receiver]
+- /// contract: newBalance == balance + amount                  [WCCP0: no compiler-created `newName` binder]
 
 Contract-only ownership/property witnesses below are not checker evidence;
 they state rejected contract shapes and intentionally provide no diagnostic IDs.

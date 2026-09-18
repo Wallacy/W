@@ -6,7 +6,7 @@ Three shifts run before the observable universe closes: a quiet orbit proves the
 
 The Syntax Atlas owns the complete atomic source-form inventory. Last Light owns the connected application story. A form may be parse-only until its compiler or provider exists, but it may not be represented by an invalid placeholder statement.
 
-Current inventory: 217 public grammar rules, 91 accepted atomic variants, and 18 story-assigned Atlas blocks. Mutually exclusive roots and entry defaults live in separate modules rather than being stacked into an impossible program.
+Current inventory: 220 public grammar rules, 98 accepted atomic variants, and 18 story-assigned Atlas blocks. Mutually exclusive roots and entry defaults live in separate modules rather than being stacked into an impossible program.
 
 ## 1. open the doors
 
@@ -31,7 +31,7 @@ Atlas application families:
 | `package-root` | manifest | `root-package` |
 | `workspace-root` | manifest | `root-workspace` |
 | `module-run-root` | roots | `root-module-run` |
-| `source-roots-imports` | roots | `root-module`, `import-ordinary`, `import-module-binding`, `import-named`, `import-wildcard`, `reexport-wildcard`, `reexport-named`, `import-kernel-named`, `import-kernel-qualified`, `module-kernel-contract`, `import-domain`, `import-service` |
+| `source-roots-imports` | roots | `root-module`, `import-ordinary`, `import-module-binding`, `import-named`, `import-wildcard`, `reexport-wildcard`, `reexport-named`, `import-kernel-named`, `import-kernel-qualified`, `module-kernel-contract`, `import-domain`, `import-service`, `module-contract-configuration` |
 | `entry-short-body` | entry | `entry-default-body` |
 | `entry-declaration` | entry | `entry-named-body`, `entry-named-handler`, `entry-explicit` |
 | `module-run-entry` | entry | `entry-default-handler` |
@@ -56,8 +56,8 @@ Atlas application families:
 
 | Block | Family | Atomic variants assigned to this act |
 | --- | --- | --- |
-| `data-declarations` | declarations | `export-list`, `property-get`, `protocol-default-extension`, `property-set`, `property-let-value`, `property-let-ref`, `property-var-value`, `property-var-ref`, `property-var-mut-ref`, `property-var-inout`, `behavior-set-parameter`, `behavior-storage` |
-| `types-and-contracts` | types | `ownership-shared`, `ownership-weak`, `ownership-view`, `callable-some-fn`, `static-record`, `static-list`, `literal-unit`, `tuple-index`, `generic-application` |
+| `data-declarations` | declarations | `export-list`, `property-get`, `protocol-default-extension`, `property-set`, `property-let-value`, `property-let-ref`, `property-var-value`, `property-var-ref`, `property-var-mut-ref`, `property-var-inout`, `behavior-set-parameter`, `behavior-storage`, `protocol-contract-documentation` |
+| `types-and-contracts` | types | `ownership-shared`, `ownership-weak`, `ownership-view`, `callable-some-fn`, `static-record`, `static-list`, `literal-unit`, `tuple-index`, `generic-application`, `intrinsic-value-contract` |
 | `literals-and-collections` | values | `literal-string-double`, `literal-string-single`, `literal-raw-double`, `literal-raw-single`, `literal-multiline`, `literal-raw-multiline`, `literal-unit-suffix`, `literal-size` |
 | `patterns` | patterns | `pattern-enum`, `pattern-struct`, `pattern-inferred-struct`, `pattern-tuple`, `pattern-range`, `pattern-wildcard` |
 | `operators` | operators | `pipe-member` |
@@ -82,7 +82,7 @@ Atlas application families:
 
 | Block | Family | Atomic variants assigned to this act |
 | --- | --- | --- |
-| `callables-and-foreign` | callables | `callable-positional`, `callable-required-homonym`, `callable-required-external`, `callable-default`, `callable-rest`, `callable-any-fn`, `callable-static`, `callable-generic`, `callable-borrow-relation`, `callable-abi`, `foreign-block`, `foreign-type`, `foreign-struct`, `foreign-function` |
+| `callables-and-foreign` | callables | `callable-positional`, `callable-required-homonym`, `callable-required-external`, `callable-default`, `callable-rest`, `callable-any-fn`, `callable-static`, `callable-generic`, `callable-borrow-relation`, `callable-abi`, `foreign-block`, `foreign-type`, `foreign-struct`, `foreign-function`, `inline-document-contract`, `reusable-document-contract`, `repeated-document-contract`, `const-contract-relation` |
 | `allocator-and-bindings` | ownership | `allocator-named`, `allocator-anonymous`, `allocator-contextual-parameter`, `allocator-contextual-call`, `ownership-ref`, `ownership-inout`, `ownership-take`, `ownership-atomic` |
 | `control-flow` | control | `control-break` |
 | `restricted-expressions` | effects | `ownership-pin` |

@@ -2484,6 +2484,86 @@ static bool test_phase2_generic_contract_switch(void) {
     CHECK(check_tree_links(&malformed_static_record));
   }
 
+  static const char module_contract_text[] =
+      "module catalog<domains: [.serial], "
+      "kernels: { forecast: forecastKernel }, "
+      "contracts: [laterRelation(current: apiMajor, minimum: 1), "
+      "surfaceReady(1, mode: .ready),],>\n"
+      "const fn laterRelation(current: u16, minimum: u16): Bool { "
+      "return current >= minimum }\n";
+  fixture module_contracts;
+  CHECK(fixture_init(&module_contracts, module_contract_text,
+                     sizeof(module_contracts.nodes) /
+                         sizeof(module_contracts.nodes[0]),
+                     sizeof(module_contracts.issues) /
+                         sizeof(module_contracts.issues[0])));
+  CHECK(check_complete_shape(&module_contracts));
+  CHECK(count_kind(&module_contracts, W_SEED_CST_CONTRACT_ENVELOPE) == 1);
+  CHECK(count_kind(&module_contracts, W_SEED_CST_ARRAY) == 2);
+  CHECK(count_kind(&module_contracts, W_SEED_CST_STATIC_RECORD) == 1);
+  CHECK(count_kind(&module_contracts, W_SEED_CST_STATIC_FIELD) == 1);
+  CHECK(count_kind(&module_contracts,
+                   W_SEED_CST_MODULE_CONTRACT_RELATION) == 2);
+  const w_seed_cst_index module_envelope =
+      first_kind(&module_contracts, W_SEED_CST_CONTRACT_ENVELOPE);
+  CHECK(module_envelope != W_SEED_CST_NONE);
+  const w_seed_cst_index relation_list = direct_child_after(
+      &module_contracts, module_envelope, W_SEED_CST_ARRAY, 1);
+  CHECK(relation_list != W_SEED_CST_NONE);
+  CHECK(count_direct_kind(&module_contracts, relation_list,
+                          W_SEED_CST_MODULE_CONTRACT_RELATION) == 2);
+  const w_seed_cst_index first_relation = direct_child_after(
+      &module_contracts, relation_list,
+      W_SEED_CST_MODULE_CONTRACT_RELATION, 0);
+  const w_seed_cst_index second_relation = direct_child_after(
+      &module_contracts, relation_list,
+      W_SEED_CST_MODULE_CONTRACT_RELATION, 1);
+  CHECK(first_relation != W_SEED_CST_NONE &&
+        second_relation != W_SEED_CST_NONE);
+  CHECK(node_span_text(&module_contracts, first_relation,
+                       "laterRelation(current: apiMajor, minimum: 1)"));
+  CHECK(node_span_text(&module_contracts, second_relation,
+                       "surfaceReady(1, mode: .ready)"));
+  CHECK(count_direct_kind(&module_contracts, first_relation,
+                          W_SEED_CST_ARGUMENT) == 2);
+  CHECK(count_direct_kind(&module_contracts, second_relation,
+                          W_SEED_CST_ARGUMENT) == 2);
+  CHECK(count_kind(&module_contracts, W_SEED_CST_FUNCTION) == 1);
+  CHECK(check_leaf_partition(&module_contracts));
+  CHECK(check_tree_links(&module_contracts));
+  fixture module_contracts_repeat;
+  CHECK(fixture_init(&module_contracts_repeat, module_contract_text,
+                     sizeof(module_contracts_repeat.nodes) /
+                         sizeof(module_contracts_repeat.nodes[0]),
+                     sizeof(module_contracts_repeat.issues) /
+                         sizeof(module_contracts_repeat.issues[0])));
+  CHECK(same_parse(&module_contracts, &module_contracts_repeat));
+
+  static const char *const malformed_module_contracts[] = {
+      "module malformed<contracts: []>\n",
+      "module malformed<contracts: [notCall]>\n",
+      "module malformed<contracts: [relation(value + 1)]>\n",
+      "module malformed<contracts: [relation(runtime())]>\n",
+      "module malformed<contracts: [valid(1), notCall]>\n",
+  };
+  for (size_t index = 0u;
+       index < sizeof(malformed_module_contracts) /
+                   sizeof(malformed_module_contracts[0]);
+       index += 1u) {
+    fixture malformed_module_contract;
+    CHECK(fixture_init(&malformed_module_contract,
+                       malformed_module_contracts[index],
+                       sizeof(malformed_module_contract.nodes) /
+                           sizeof(malformed_module_contract.nodes[0]),
+                       sizeof(malformed_module_contract.issues) /
+                           sizeof(malformed_module_contract.issues[0])));
+    CHECK(malformed_module_contract.result.status !=
+          W_SEED_PARSE_COMPLETE);
+    CHECK(malformed_module_contract.result.issue_count >= 1u);
+    CHECK(check_leaf_partition(&malformed_module_contract));
+    CHECK(check_tree_links(&malformed_module_contract));
+  }
+
   static const char kernel_import_text[] =
       "import kernel;\n"
       "import kernel.foo\n"

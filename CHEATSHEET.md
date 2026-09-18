@@ -16,6 +16,7 @@
 - [Functions, labels, defaults, and rest](#functions-labels-defaults-and-rest)
 - [Enums, structs, objects, and extensions](#enums-structs-objects-and-extensions)
 - [Protocols, generics, refinements, and specialization](#protocols-generics-refinements-and-specialization)
+- [Contracts, refinements, and relations](#contracts-refinements-and-relations)
 - [Properties, behaviors, and facets](#properties-behaviors-and-facets)
 - [Option, conversion, and type queries](#option-conversion-and-type-queries)
 - [Ownership, borrows, and views](#ownership-borrows-and-views)
@@ -189,6 +190,83 @@ fn clamp(_ value: i32, minimum: i32, maximum: i32): i32 {
 
 test "clamp preserves an internal value" for clamp {
   expect clamp(2, minimum: 0, maximum: 3) == 2
+}
+```
+
+## Contracts, refinements, and relations
+
+WCCP0 selects an intrinsic value invariant `T<(predicate)>`, structured
+documentation `contract:` fields for non-module declarations, and
+`contracts: [...]` in the module header for static module relations. These are
+design/source examples until the parser, resolver, ContractIR, and evidence
+gates exist.
+
+Use `contract: <(expression)>` for one inline relation and
+`contract: relation(...)` for a reusable relation call. Repeated `contract:`
+fields form an unordered conjunction. Module contracts use a nonempty list and
+participate in module identity; a leading `/// contract:` on a module is only
+prose. A contract-safe `const fn` can be reused by either placement. In a
+callable contract, a bare parameter is its logical entry value, `result` is the
+successful return, and `after name` is mutable final state. `before name` is an
+optional explicit spelling of the same entry value for `inout`, `mut ref`, or a
+mutable receiver. The initial direction does not add a public `Proof<C>`, a
+top-level `contract` declaration, or a `contract fn` declaration.
+Runtime `verify` and `check` spellings remain open; this cheatsheet does not
+present them as language syntax.
+
+<!-- w-example role=logical-contract -->
+```w
+module contract_examples<
+  contracts: [apiVersion(current: apiMajor, minimum: 1)],
+>
+
+export const apiMajor: u16 = 1
+
+const fn apiVersion(current: u16, minimum: u16): Bool {
+  return current >= minimum
+}
+
+const fn sameCount(input: Array<i64>, output: Array<i64>): Bool {
+  return input.count == output.count
+}
+
+const fn balanceTransition(input: i64, amount: i64, output: i64): Bool {
+  return output == input.saturatingAdd(amount)
+}
+
+type SortedResult<Element: Comparable> = Array<Element><(isSorted(value))>
+
+/// Every implementation targets a supported API and provides a nonnegative rank.
+/// contract: apiVersion(current: apiMajor, minimum: 1)
+protocol Ranked<Item> {
+  const apiMajor: u16
+
+  /// The result is nonnegative.
+  /// contract: <(result >= 0)>
+  fn rank(item: Item): i32
+}
+
+/// Sorts values without changing their element count.
+/// contract: <(result.count == values.count)>
+/// contract: sameCount(input: values, output: result)
+fn sort(values: take Array<i64>): SortedResult<i64> {
+  return values
+}
+
+/// Applies one total balance transition.
+/// contract: balanceTransition(input: before balance, amount: amount, output: after balance)
+fn deposit(balance: inout i64, amount: i64) {
+  balance = balance.saturatingAdd(amount)
+}
+
+test "contract-bearing functions remain callable" for sort {
+  let values: Array<i64> = [1, 2, 3]
+  let result = sort(values: take values)
+  expect result.count == 3
+
+  var balance: i64 = 10
+  deposit(balance: inout balance, amount: 7)
+  expect balance == 17
 }
 ```
 

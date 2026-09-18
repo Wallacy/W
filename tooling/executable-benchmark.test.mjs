@@ -1193,7 +1193,10 @@ test("UInt compound catalog keeps correctness separate from ranking", () => {
   assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
   assert.equal(workload.demoEvidence, "bounded-w-demo");
   assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.equal(workload.oracle.stdout, "UInt compound 95\n");
+  assert.equal(workload.scope,
+    "Validate fixed-input full-width UInt compound assignment for all eleven operators on one mutable local, with exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.");
+  assert.equal(workload.oracle.stdout,
+    "UInt compound 4611686018427387907/4611686018427387906/9223372036854775812/4611686018427387906/4611686018427387906/4611686018427387906/9223372036854775812/4611686018427387906/2/87/95\n");
   assert.deepEqual(workload.blockedLanguages, []);
   assert.deepEqual(workload.blockers, [
     "w-uint-compound-compile-time-folded",
@@ -1212,12 +1215,26 @@ test("UInt compound catalog keeps correctness separate from ranking", () => {
     `${ROOT}/benchmarks/executable/restaurant_uint_compound.c`, "utf8");
   const rust = readFileSync(
     `${ROOT}/benchmarks/executable/restaurant_uint_compound.rs`, "utf8");
-  assert.match(c, /value &= runtime_mask/u);
-  assert.match(c, /value \^= runtime_toggle/u);
-  assert.match(c, /value \|= runtime_set/u);
-  assert.match(rust, /value &= black_box\(240_u64\)/u);
-  assert.match(rust, /value \^= black_box\(170_u64\)/u);
-  assert.match(rust, /value \|= black_box\(5_u64\)/u);
+  for (const helper of ["checked_add_u64", "checked_subtract_u64",
+    "checked_multiply_u64", "checked_divide_u64",
+    "checked_remainder_u64", "checked_power_u64",
+    "checked_shift_left_u64", "checked_shift_right_u64"]) {
+    assert.match(c, new RegExp(helper));
+  }
+  for (const operation of [".checked_add(", ".checked_sub(",
+    ".checked_mul(", ".checked_div(", ".checked_rem("]) {
+    assert.ok(rust.includes(operation));
+  }
+  assert.match(rust, /checked_power_u64/u);
+  assert.match(rust, /checked_shift_left_u64/u);
+  assert.match(rust, /checked_shift_right_u64/u);
+  assert.match(c, /value &= runtime_and/u);
+  assert.match(c, /value \^= runtime_xor/u);
+  assert.match(c, /value \|= runtime_or/u);
+  assert.match(rust, /value &= black_box\(255_u64\)/u);
+  assert.match(rust, /value \^= black_box\(85_u64\)/u);
+  assert.match(rust, /value \|= black_box\(10_u64\)/u);
+  assert.match(rust, /value >> \(64 - count\)/u);
   assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
   assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
 });

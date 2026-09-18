@@ -793,7 +793,11 @@ try {
     { name: "restaurant-uint-bitwise", source: restaurantUIntBitwiseFixture,
       expected: Buffer.from("UInt bits 18446744073709551615\n", "utf8") },
     { name: "restaurant-uint-compound", source: restaurantUIntCompoundFixture,
-      expected: Buffer.from("UInt compound 95\n", "utf8") },
+      expected: Buffer.from(
+        "UInt compound 4611686018427387907/4611686018427387906/" +
+        "9223372036854775812/4611686018427387906/4611686018427387906/" +
+        "4611686018427387906/9223372036854775812/4611686018427387906/" +
+        "2/87/95\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
   ]
   const artifacts = new Map()
@@ -1282,14 +1286,52 @@ try {
   "UInt binary bitwise lowering lost a direct operation or gained a signed helper")
   const uintCompoundArtifact =
     artifacts.get("restaurant-uint-compound").toString("utf8")
-  assert(uintCompoundArtifact.includes("llvm.and ") &&
+  for (const helper of [
+    "@w_seed_checked_add_u64",
+    "@w_seed_checked_subtract_u64",
+    "@w_seed_checked_multiply_u64",
+    "@w_seed_checked_divide_u64",
+    "@w_seed_checked_remainder_u64",
+    "@w_seed_checked_power_u64",
+    "@w_seed_checked_shift_left_u64",
+    "@w_seed_checked_shift_right_u64",
+  ]) {
+    assert(uintCompoundArtifact.includes(helper),
+      `UInt compound mutation lost unsigned helper ${helper}`)
+  }
+  assert(uintCompoundArtifact.includes("llvm.udiv ") &&
+    uintCompoundArtifact.includes("llvm.urem ") &&
+    uintCompoundArtifact.includes("llvm.shl ") &&
+    uintCompoundArtifact.includes("llvm.lshr ") &&
+    uintCompoundArtifact.includes("llvm.and ") &&
     uintCompoundArtifact.includes("llvm.xor ") &&
     uintCompoundArtifact.includes("llvm.or "),
-  "UInt compound mutation lost direct bitwise lowering")
+  "UInt compound mutation lost unsigned division, shifts, or bitwise lowering")
   assert(uintCompoundArtifact.includes("llvm.call @w_seed_append_u64"),
     "UInt compound mutation lost unsigned decimal output")
-  assert(!uintCompoundArtifact.includes("@w_seed_checked_"),
-    "UInt compound mutation gained an unrelated checked helper")
+  const uintCompoundFunctionStart = uintCompoundArtifact.indexOf(
+    "llvm.func internal @w_fn_0(")
+  const uintCompoundFunctionEnd = uintCompoundArtifact.indexOf(
+    "\n  llvm.func ", uintCompoundFunctionStart + 1)
+  assert(uintCompoundFunctionStart >= 0 && uintCompoundFunctionEnd >
+    uintCompoundFunctionStart,
+  "UInt compound mutation function boundary is missing")
+  const uintCompoundFunction = uintCompoundArtifact.slice(
+    uintCompoundFunctionStart, uintCompoundFunctionEnd)
+  assert(!uintCompoundFunction.includes("@w_seed_checked_add_i64") &&
+    !uintCompoundFunction.includes("@w_seed_checked_subtract_i64") &&
+    !uintCompoundFunction.includes("@w_seed_checked_multiply_i64") &&
+    !uintCompoundFunction.includes("@w_seed_checked_divide_i64") &&
+    !uintCompoundFunction.includes("@w_seed_checked_remainder_i64") &&
+    !uintCompoundFunction.includes("@w_seed_checked_power_i64") &&
+    !uintCompoundFunction.includes("@w_seed_checked_shift_left_i64") &&
+    !uintCompoundFunction.includes("@w_seed_checked_shift_right_i64") &&
+    !uintCompoundFunction.includes("llvm.sdiv ") &&
+    !uintCompoundFunction.includes("llvm.srem ") &&
+    !uintCompoundFunction.includes("llvm.ashr ") &&
+    !uintCompoundFunction.includes("llvm.intr.smul.with.overflow") &&
+    !uintCompoundFunction.includes("llvm.alloca"),
+  "UInt compound mutation gained a signed helper or operation")
   const wmoArtifact = artifacts.get("restaurant-wmo")
   assert(!artifacts.get("hello").includes("@w_seed_checked_") &&
     !artifacts.get("hello").includes("llvm.intr.usub.with.overflow") &&

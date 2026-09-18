@@ -164,6 +164,14 @@ Para grammar, corpus, std, tooling ou qualquer source `.w`:
 bun check
 ```
 
+When an approved language or design spelling changes, update its editorial and
+parse-oriented projections in the same change. Contract carriers must have a
+declaration-and-use example in `CHEATSHEET.md`, accepted and rejected witnesses
+in `reference/syntax-atlas/`, and the corresponding entries in
+`tooling/syntax-atlas.mjs`'s coverage inventory. Run
+`bun tooling/syntax-atlas.mjs --write`, then `bun check --target docs`; the
+syntax-atlas projection gate checks that the two public surfaces stay aligned.
+
 Para atualizar o índice depois de alterar `DESIGN.md` ou `RATIONALE.md`:
 
 ```powershell

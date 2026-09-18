@@ -4018,19 +4018,19 @@
       "demoEvidence": "bounded-w-demo",
       "benchmarkStatus": "not-performance-ready",
       "lane": "equivalent",
-      "scope": "Validate fixed-input full-width UInt compound bitwise mutation and exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.",
+      "scope": "Validate fixed-input full-width UInt compound assignment for all eleven operators on one mutable local, with exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.",
       "oracle": {
         "kind": "exact-output",
         "status": "source-backed",
         "exitCode": 0,
-        "stdout": "UInt compound 95\n",
+        "stdout": "UInt compound 4611686018427387907/4611686018427387906/9223372036854775812/4611686018427387906/4611686018427387906/4611686018427387906/9223372036854775812/4611686018427387906/2/87/95\n",
         "stderr": ""
       },
       "sources": [
         {
           "language": "w",
           "path": "compiler/seed-c/fixtures/restaurant-uint-compound.w",
-          "digest": "sha256:86f5f0123ef13f51cc61db130234ae35d426e4269dccadbceea100fd904ce2d7",
+          "digest": "sha256:5b4a7efa8e0318ea6a4f722c89134d073fed9fb297ba2bac409b8f5fc7d2045f",
           "entry": "entry",
           "status": "source-oracle-ready",
           "profile": "release",
@@ -4045,7 +4045,7 @@
         {
           "language": "w",
           "path": "compiler/seed-c/fixtures/restaurant-uint-compound.w",
-          "digest": "sha256:86f5f0123ef13f51cc61db130234ae35d426e4269dccadbceea100fd904ce2d7",
+          "digest": "sha256:5b4a7efa8e0318ea6a4f722c89134d073fed9fb297ba2bac409b8f5fc7d2045f",
           "entry": "entry",
           "status": "source-oracle-ready",
           "profile": "release",
@@ -4060,7 +4060,7 @@
         {
           "language": "c",
           "path": "benchmarks/executable/restaurant_uint_compound.c",
-          "digest": "sha256:b71392e6096982595ec080dcf0bc76afa28b25e53d1e80903bdcc1adde5ed4c9",
+          "digest": "sha256:90107f78b72e7b072a6c39bbff05f1a0df2f08e1ea355bad7ab424e9eaed6eb0",
           "entry": "main",
           "status": "source-oracle-ready",
           "profile": "release",
@@ -4075,7 +4075,7 @@
         {
           "language": "rust",
           "path": "benchmarks/executable/restaurant_uint_compound.rs",
-          "digest": "sha256:67c131bd9a90939a97fc42441d1d8d443c51f8d7c82516c1c8ce4dfe23da8f71",
+          "digest": "sha256:44018db2aec29366e71bea2d4390558bbe778836488304f5bdaec834927e7870",
           "entry": "main",
           "status": "source-oracle-ready",
           "profile": "release",

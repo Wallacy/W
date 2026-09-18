@@ -173,6 +173,94 @@ fn run() {}
     (block)))
 
 ==================
+Module static contract relations
+==================
+
+module contracted<
+  contracts: [
+    surfaceReady(),
+    apiVersion(current: apiMajor, minimum: 1),
+  ],
+>
+
+const apiMajor: u16 = 1
+const fn surfaceReady(): Bool { return true }
+const fn apiVersion(current: u16, minimum: u16): Bool { return current >= minimum }
+
+---
+
+(source_file
+  (module_header
+    (identifier)
+    (module_contract
+      (module_contracts_field
+        (module_contract_relation
+          (identifier))
+        (module_contract_relation
+          (identifier)
+          (module_contract_relation_argument
+            (identifier)
+            (static_argument_value
+              (identifier)))
+          (module_contract_relation_argument
+            (identifier)
+            (static_argument_value
+              (number_literal)))))))
+  (const_declaration
+    (identifier)
+    (type
+      (type_name
+        (type_identifier)))
+    (number_literal))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (boolean_literal))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (parameter_type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (parameter_type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (binary_expression
+          (identifier)
+          (identifier))))))
+
+==================
+Module static contract relation rejects empty and non-call items
+==================
+
+module empty_contracts<contracts: []>
+module value_contract<contracts: [surfaceReady]>
+
+---
+
+(source_file
+  (module_header
+    (identifier))
+  (ERROR
+    (ERROR
+      (identifier))
+    (identifier)))
+
+==================
 Import after declaration recovers at the next declaration
 ==================
 

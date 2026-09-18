@@ -135,8 +135,8 @@
         }
       }
 
-      // `kernels:` is contextual only inside a module header contract. This
-      // keeps ordinary labels, call arguments, and local bindings unchanged.
+      // `kernels:` and `contracts:` are contextual only inside a module header
+      // contract. Ordinary labels, call arguments, and bindings stay unchanged.
       for (const { token, position } of codeTokens) {
         if (token.value !== "module") continue;
         const moduleIndex = codePosition(position);
@@ -154,7 +154,7 @@
             depth -= 1;
             continue;
           }
-          if (depth === 1 && candidate.token.value === "kernels") {
+          if (depth === 1 && (candidate.token.value === "kernels" || candidate.token.value === "contracts")) {
             const colon = cursor + 1 < codeTokens.length ? codeTokens[cursor + 1].token : null;
             if (colon?.value === ":") candidate.token.kind = "keyword";
           }

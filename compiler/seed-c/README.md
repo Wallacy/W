@@ -2675,6 +2675,14 @@ records, reorder invariance, malformed or non-identifier contract values, and
 cross-document alias/path/edge forgeries. Qualified and external kernel imports
 remain parser/module-scan-only and fail closed in this seed.
 
+The same seed parser now preserves the distinct source shape
+`contracts: [relation(...), ...]` inside a module header. The list is nonempty;
+each item is a named call with static positional or labeled arguments, and a
+trailing comma is accepted. Empty lists, bare values, nested runtime calls, and
+runtime expressions fail closed. This is CST evidence only: relation resolution,
+const-safety, ContractIR, module-interface identity, certificates, and runtime
+validation remain WCCP0 implementation gaps.
+
 `w_seed_gpu_module` is the next target-neutral compiler boundary. It validates
 Frontend32 independently, measures caller-owned module/kernel/text/receipt
 storage, copies no frontend or source pointer, and publishes separate semantic
@@ -2817,10 +2825,17 @@ for ranking or live best metrics.
 
 ### Source-backed checked `UInt`/`u64` operators
 
-HIR0 schema `w-seed-hir0-76` represents ordinary unsigned arithmetic,
-comparisons, and binary bitwise operations with `BINARY_U64`, and bitwise complement with the distinct
-`UNARY_U64` value kind. Native0 and MLIR0 schemas are `w-seed-native0-9` and
+HIR0 schema `w-seed-hir0-77` represents ordinary unsigned arithmetic,
+comparisons, bitwise operations, power, and shifts with `BINARY_U64`, and
+bitwise complement with the distinct `UNARY_U64` value kind. Signed
+`BINARY_I64` keeps signed left/result operands for checked power and shifts;
+only the `UInt` exponent/count is unsigned. Native0 and MLIR0 schemas are
+`w-seed-native0-9` and
 `w-seed-mlir0-51` (Windows label `w-seed-mlir0-windows-36`). Native constant
+The HIR77 representation change does not advance those Native0/MLIR0 schemas:
+their accepted emitted contract, artifact layout, and unsigned helper
+semantics remain byte-compatible; the HIR schema carries the canonical-kind
+change.
 trees are evaluated as `uint64_t` with checked add/subtract/multiply,
 zero-guarded divide/remainder, and width-preserving complement; overflow or
 division by zero fails closed. MLIR0 keeps the physical carrier as `i64`, uses
@@ -2854,8 +2869,11 @@ exactly `18446744073709551615`;
 [`fixtures/restaurant-uint-bitwise.w`](fixtures/restaurant-uint-bitwise.w)
 proves the three binary operations over the same full-width domain;
 [`fixtures/restaurant-uint-compound.w`](fixtures/restaurant-uint-compound.w)
-proves `&=`, `^=`, and `|=` over one mutable local. HIR retains four typed SSA
-versions. MLIR lowers the updates to direct `and`, `xor`, and `or` operations.
+proves all eleven checked forms (`+=`, `-=`, `*=`, `/=`, `%=`, `**=`, `<<=`,
+`>>=`, `&=`, `^=`, and `|=`) over one mutable local. HIR retains the complete
+typed SSA version chain, and MLIR lowers the arithmetic through checked
+unsigned helpers while keeping `udiv`/`urem`, `lshr`, and direct bitwise
+operations unsigned.
 [`fixtures/restaurant-uint-wrapping-add.w`](fixtures/restaurant-uint-wrapping-add.w)
 proves the distinct `u64.wrappingAdd` identity at the unsigned maximum and
 prints exactly `Wrapped 0\n`. Its HIR operator cannot be confused with checked
@@ -2960,9 +2978,9 @@ trap.
 This is a finite linear/local-function-call and straight-line mutation slice.
 Other UInt arithmetic-policy families, UInt CFGs and loops,
 cooperative execution, and ProductClosure0 remain explicitly unsupported;
-ordinary typed-U64 shift/power values retain their existing `BINARY_I64`
-carrier exception, while the named wrapping forms above use distinct unsigned
-HIR identities.
+ordinary UInt shift/power values use `BINARY_U64`, while signed shift/power
+values retain `BINARY_I64` with an unsigned count/exponent. The named wrapping
+forms above use distinct unsigned HIR identities.
 
 ### Closed local payloadless enum exhaustive switch (W-1563)
 

@@ -1,11 +1,11 @@
 {
   "$schema": "w-syntax-atlas-1",
   "purpose": "Human syntax atlas for the current W Tree-sitter surface.",
-  "sourceOfTruth": "atlas-manifest.json metadata plus terse source markers and snippets in the atlas .w files. SYNTAX-COVERAGE.md is generated.",
+  "sourceOfTruth": "atlas-manifest.json metadata plus terse source markers and snippets in the atlas .w files. Editorial contract coverage is checked against CHEATSHEET.md. SYNTAX-COVERAGE.md is generated.",
   "grammar": {
     "path": "tooling/tree-sitter-w/grammar.js",
-    "digest": "sha256:a68282a97a5debf2d3307ccb2afcca4998e546c1a83d9ac273be3155b579147e",
-    "publicRuleSetDigest": "sha256:9f0797fa4c0ffeedf000fb99b216bf51c15284ceb067bb06d788c92b58e699d4"
+    "digest": "sha256:19fb18c0271eb4b701ccf6707c1362e97b626e30263f6930c1df96e3c271d8ff",
+    "publicRuleSetDigest": "sha256:1a7636f27a289a2b13c36c352f3296bea0c39d0734fd6cd5d26f88da5aba1362"
   },
   "sourceFiles": [
     "build.w",
@@ -1004,6 +1004,30 @@
       "name": "module_contract",
       "surface": "root",
       "reason": "Document root or root-owned data grammar.",
+      "markers": [
+        "source-roots-imports"
+      ]
+    },
+    {
+      "name": "module_contract_relation",
+      "surface": "composed",
+      "reason": "Composed by the source-roots-imports atlas block.",
+      "markers": [
+        "source-roots-imports"
+      ]
+    },
+    {
+      "name": "module_contract_relation_argument",
+      "surface": "composed",
+      "reason": "Composed by the source-roots-imports atlas block.",
+      "markers": [
+        "source-roots-imports"
+      ]
+    },
+    {
+      "name": "module_contracts_field",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the source-roots-imports atlas block.",
       "markers": [
         "source-roots-imports"
       ]
@@ -2579,6 +2603,117 @@
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
       "witness": "module atlas_execution"
+    },
+    {
+      "id": "intrinsic-value-contract",
+      "block": "types-and-contracts",
+      "construction": "intrinsic value contract envelope",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "Array<u8><(.count <= 64)>"
+    },
+    {
+      "id": "inline-document-contract",
+      "block": "callables-and-foreign",
+      "construction": "inline structured documentation relation",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "contract: <(result.count"
+    },
+    {
+      "id": "reusable-document-contract",
+      "block": "callables-and-foreign",
+      "construction": "reusable structured documentation relation",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "contract: sameCount("
+    },
+    {
+      "id": "repeated-document-contract",
+      "block": "callables-and-foreign",
+      "construction": "repeated documentation relation fields",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "contract: <(result.count == values.count)>"
+    },
+    {
+      "id": "module-contract-configuration",
+      "block": "source-roots-imports",
+      "construction": "module header contract configuration",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "contracts: [apiVersion("
+    },
+    {
+      "id": "protocol-contract-documentation",
+      "block": "data-declarations",
+      "construction": "protocol documentation contract relation",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "contract: apiVersion("
+    },
+    {
+      "id": "const-contract-relation",
+      "block": "callables-and-foreign",
+      "construction": "const relation reusable by contract fields",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "const fn sameCount("
+    }
+  ],
+  "editorialCoverage": [
+    {
+      "id": "contract-value-invariant",
+      "heading": "## Contracts, refinements, and relations",
+      "requiredText": [
+        "T<(predicate)>",
+        "Array<Element><(isSorted(value))>"
+      ]
+    },
+    {
+      "id": "contract-inline-relation",
+      "heading": "## Contracts, refinements, and relations",
+      "requiredText": [
+        "contract: <(expression)>",
+        "contract: <(result >= 0)>"
+      ]
+    },
+    {
+      "id": "contract-reusable-relation",
+      "heading": "## Contracts, refinements, and relations",
+      "requiredText": [
+        "contract: relation(...)",
+        "const fn sameCount(",
+        "contract: sameCount("
+      ]
+    },
+    {
+      "id": "contract-scope-reuse",
+      "heading": "## Contracts, refinements, and relations",
+      "requiredText": [
+        "`contracts: [...]` in the module header",
+        "contracts: [apiVersion(",
+        "protocol Ranked<Item>"
+      ]
+    },
+    {
+      "id": "contract-callable-binders",
+      "heading": "## Contracts, refinements, and relations",
+      "requiredText": [
+        "a bare parameter is its logical entry value",
+        "before balance",
+        "after balance",
+        "balanceTransition("
+      ]
+    },
+    {
+      "id": "contract-rejected-surface",
+      "heading": "## Contracts, refinements, and relations",
+      "requiredText": [
+        "public `Proof<C>`",
+        "`contract fn`",
+        "Runtime `verify` and `check`"
+      ]
     }
   ],
   "blocks": [
@@ -2637,6 +2772,9 @@
         "kernel_contract_record",
         "kernel_import_statement",
         "module_contract",
+        "module_contract_relation",
+        "module_contract_relation_argument",
+        "module_contracts_field",
         "module_header",
         "module_path",
         "named_imports",
@@ -2659,14 +2797,14 @@
           "digest": "sha256:d2d9bfb8518947101d1712519c4ef750ca99fe85038a5fa64de26f08d199ec0f"
         }
       ],
-      "snippetDigest": "sha256:97e93e49c05b65dc8a8613b9e8bf413cde40e6ac048904c843f18b2db6a89aee",
-      "snippetBytes": 542
+      "snippetDigest": "sha256:3dc4edb4f34336b8c5ff73228742882b6ea2f132c44d36d087c9803a50036dd0",
+      "snippetBytes": 600
     },
     {
       "id": "data-declarations",
       "file": "language.w",
       "order": 3,
-      "line": 20,
+      "line": 21,
       "title": "Data declarations, properties, and behaviors",
       "family": "declarations",
       "designStatus": "current",
@@ -2734,14 +2872,14 @@
           "digest": "sha256:13030d31b2805748975e212780b8102288962eb9c776278434638862f5b633bd"
         }
       ],
-      "snippetDigest": "sha256:107b54289b2f7ef7805c7465a34cb5ec2037dbaa61875b640858790223508897",
-      "snippetBytes": 3031
+      "snippetDigest": "sha256:134e5fedf5ad214797e54ae13ec941b36579370ca54b066bb091f0aea22bfb05",
+      "snippetBytes": 3187
     },
     {
       "id": "types-and-contracts",
       "file": "language.w",
       "order": 4,
-      "line": 227,
+      "line": 259,
       "title": "Type contracts, static values, and function types",
       "family": "types",
       "designStatus": "current",
@@ -2774,14 +2912,14 @@
           "digest": "sha256:4e8a1d38b0f002b7a3546ae103eba50e846e242039f8771ed588fae0fb87065e"
         }
       ],
-      "snippetDigest": "sha256:24623d1ecad05bb75f19437b017a5fcdd15bb10be99ddae7f7414a6277e0b915",
-      "snippetBytes": 814
+      "snippetDigest": "sha256:be402be634a4ad55aa2b08a44a0198f0149cc613362b6ceb2158beccdaf66c84",
+      "snippetBytes": 889
     },
     {
       "id": "callables-and-foreign",
       "file": "language.w",
       "order": 5,
-      "line": 176,
+      "line": 181,
       "title": "Callable modes, generics, and foreign bodies",
       "family": "callables",
       "designStatus": "current",
@@ -2821,14 +2959,14 @@
           "digest": "sha256:4e8a1d38b0f002b7a3546ae103eba50e846e242039f8771ed588fae0fb87065e"
         }
       ],
-      "snippetDigest": "sha256:9d1a976ecff0e14d8f94f5daf53de47be5d1e22553cd892790ae94c3d746d7cd",
-      "snippetBytes": 1136
+      "snippetDigest": "sha256:c52746a6c5183a4e31fd7b158c12911a401174b9cfb92058c85e915fd07993b8",
+      "snippetBytes": 1947
     },
     {
       "id": "literals-and-collections",
       "file": "language.w",
       "order": 6,
-      "line": 282,
+      "line": 315,
       "title": "Literals, tuples, and collections",
       "family": "values",
       "designStatus": "current",
@@ -2861,7 +2999,7 @@
       "id": "patterns",
       "file": "language.w",
       "order": 7,
-      "line": 256,
+      "line": 289,
       "title": "Patterns, ranges, and matches",
       "family": "patterns",
       "designStatus": "current",
@@ -3116,7 +3254,7 @@
       "id": "entry-declaration",
       "file": "language.w",
       "order": 14,
-      "line": 313,
+      "line": 346,
       "title": "Explicit entry descriptor",
       "family": "entry",
       "designStatus": "current",
@@ -3236,6 +3374,6 @@
   ],
   "generated": {
     "coverage": "SYNTAX-COVERAGE.md",
-    "coverageDigest": "sha256:14127420aa222756e8e50028c8908ad105ae18e2363be3e0ba38e306430b4655"
+    "coverageDigest": "sha256:6c38696e839c48c20fb9090341a8706db7f6cc7fc32fedcf81aa3c399596b028"
   }
 }

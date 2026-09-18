@@ -5,11 +5,12 @@ import { spawnSync } from "node:child_process";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const ATLAS = path.join(ROOT, "reference", "syntax-atlas");
+const CHEATSHEET = path.join(ROOT, "CHEATSHEET.md");
 const GRAMMAR = path.join(ROOT, "tooling", "tree-sitter-w", "grammar.js");
 const MANIFEST = path.join(ATLAS, "atlas-manifest.json");
 const SYNTAX_COVERAGE = path.join(ATLAS, "SYNTAX-COVERAGE.md");
 const DIGEST = /^sha256:[0-9a-f]{64}$/u;
-const RULE_SET_DIGEST = "sha256:9f0797fa4c0ffeedf000fb99b216bf51c15284ceb067bb06d788c92b58e699d4";
+const RULE_SET_DIGEST = "sha256:1a7636f27a289a2b13c36c352f3296bea0c39d0734fd6cd5d26f88da5aba1362";
 const SCHEMA = "w-syntax-atlas-1";
 
 const ROOT_KINDS = new Set(["module", "package", "workspace"]);
@@ -37,6 +38,44 @@ const REQUIRED_VARIANT_IDS = [
   "pattern-enum", "pattern-struct", "pattern-inferred-struct", "pattern-tuple", "pattern-range", "pattern-wildcard",
   "static-record", "static-list", "literal-string-double", "literal-string-single", "literal-raw-double", "literal-raw-single", "literal-multiline", "literal-raw-multiline", "literal-unit-suffix", "literal-size", "literal-unit", "tuple-index", "generic-application",
   "control-break", "pipe-member", "behavior-storage", "behavior-set-parameter", "channel-send", "channel-receive",
+  "intrinsic-value-contract", "inline-document-contract", "reusable-document-contract", "repeated-document-contract",
+  "module-contract-configuration", "protocol-contract-documentation", "const-contract-relation",
+];
+
+// Contract syntax has two human-facing projections: the parse-oriented atlas
+// and the editorial cheatsheet. Keep this list explicit and small so a future
+// carrier cannot be added to one projection without a focused coverage update.
+const EDITORIAL_COVERAGE_REQUIREMENTS = [
+  {
+    id: "contract-value-invariant",
+    heading: "## Contracts, refinements, and relations",
+    requiredText: ["T<(predicate)>", "Array<Element><(isSorted(value))>"],
+  },
+  {
+    id: "contract-inline-relation",
+    heading: "## Contracts, refinements, and relations",
+    requiredText: ["contract: <(expression)>", "contract: <(result >= 0)>"] ,
+  },
+  {
+    id: "contract-reusable-relation",
+    heading: "## Contracts, refinements, and relations",
+    requiredText: ["contract: relation(...)", "const fn sameCount(", "contract: sameCount("],
+  },
+  {
+    id: "contract-scope-reuse",
+    heading: "## Contracts, refinements, and relations",
+    requiredText: ["`contracts: [...]` in the module header", "contracts: [apiVersion(", "protocol Ranked<Item>"],
+  },
+  {
+    id: "contract-callable-binders",
+    heading: "## Contracts, refinements, and relations",
+    requiredText: ["a bare parameter is its logical entry value", "before balance", "after balance", "balanceTransition("],
+  },
+  {
+    id: "contract-rejected-surface",
+    heading: "## Contracts, refinements, and relations",
+    requiredText: ["public `Proof<C>`", "`contract fn`", "Runtime `verify` and `check`"],
+  },
 ];
 
 const LEXICAL_RULES = new Set([
@@ -78,7 +117,7 @@ const MANIFEST_RULES = new Set([
 const ROOT_RULES = new Set(["source_file", "module_header", "module_contract"]);
 
 const DIRECT_RULES = new Set([
-  "module_header", "domain_import_statement", "service_import_statement", "kernel_import_statement", "import_statement", "reexport_declaration", "reexport_item", "export_list_declaration",
+  "module_header", "module_contracts_field", "domain_import_statement", "service_import_statement", "kernel_import_statement", "import_statement", "reexport_declaration", "reexport_item", "export_list_declaration",
   "function_declaration", "struct_declaration", "object_declaration", "service_declaration", "protocol_declaration",
   "enum_declaration", "initializer_declaration", "field_declaration", "computed_property_declaration", "property_requirement",
   "enum_case", "type_declaration", "alias_declaration", "dimension_declaration", "unit_declaration", "extension_declaration",
@@ -161,7 +200,7 @@ function markerForRule(name) {
   if (ROOT_RULES.has(name)) return "source-roots-imports";
   if (LEXICAL_RULES.has(name)) return "literals-and-collections";
   if (name === "foreign_body" || name.startsWith("foreign_")) return "callables-and-foreign";
-  if (["domain_import_statement", "service_import_statement", "kernel_import_statement", "named_service_imports", "service_import_item", "service_key_contract", "import_statement", "reexport_declaration", "reexport_item", "wildcard_import", "named_imports", "import_item", "module_path", "kernel_contract_field", "kernel_contract_item", "kernel_contract_record"].includes(name)) return "source-roots-imports";
+  if (["domain_import_statement", "service_import_statement", "kernel_import_statement", "named_service_imports", "service_import_item", "service_key_contract", "import_statement", "reexport_declaration", "reexport_item", "wildcard_import", "named_imports", "import_item", "module_path", "kernel_contract_field", "kernel_contract_item", "kernel_contract_record", "module_contracts_field", "module_contract_relation", "module_contract_relation_argument"].includes(name)) return "source-roots-imports";
   if (["function_declaration", "function_signature", "language_tag", "abi_contract", "parameter_list", "parameter_call_ownership", "parameter_type", "generic_parameters", "generic_parameter", "function_type", "function_type_parameter", "rest_marker", "borrow_clause", "borrow_pair", "slot_ref"].includes(name)) return "callables-and-foreign";
   if (["struct_declaration", "object_declaration", "service_declaration", "protocol_declaration", "enum_declaration", "primary_associated_types", "conformance_clause", "associated_type_requirement", "associated_const_requirement", "initializer_declaration", "field_declaration", "computed_property_declaration", "property_requirement", "enum_case", "type_declaration", "alias_declaration", "dimension_declaration", "unit_declaration", "extension_declaration", "behavior_declaration", "behavior_field_declaration", "behavior_facet_property", "behavior_initializer", "behavior_accessor", "behavior_accessor_kind", "behavior_initializer_parameters", "deinit_declaration", "const_declaration", "test_declaration", "export_list_declaration", "export_item"].includes(name)) return "data-declarations";
   if (["type", "type_name", "type_arguments", "type_argument", "static_argument_value", "contract_expression_argument", "static_record_literal", "static_array_literal", "fixed_array_type", "tuple_type", "labeled_tuple_type_element", "unit_literal"].includes(name)) return "types-and-contracts";
@@ -415,6 +454,7 @@ function deriveSnapshot(manifestInput) {
     ruleEntries,
     families: [...familyMap.entries()].map(([family, blockIds]) => ({ family, blocks: blockIds })),
     variants,
+    editorialCoverage: EDITORIAL_COVERAGE_REQUIREMENTS,
     companions,
     grammarDigest: digestFile(GRAMMAR),
     ruleSetDigest: RULE_SET_DIGEST,
@@ -470,11 +510,25 @@ function renderCoverage(snapshot) {
   return `${lines.join("\n").replace(/\n+$/u, "")}\n`;
 }
 
+function checkEditorialCoverage(snapshot, cheatsheet = fs.readFileSync(CHEATSHEET, "utf8")) {
+  const errors = [];
+  if (JSON.stringify(snapshot.editorialCoverage) !== JSON.stringify(EDITORIAL_COVERAGE_REQUIREMENTS)) {
+    errors.push("editorial coverage requirements are not using the canonical contract list.");
+  }
+  for (const requirement of EDITORIAL_COVERAGE_REQUIREMENTS) {
+    if (!cheatsheet.includes(requirement.heading)) errors.push(`${requirement.id} is missing its cheatsheet heading.`);
+    for (const text of requirement.requiredText) {
+      if (!cheatsheet.includes(text)) errors.push(`${requirement.id} is missing cheatsheet witness ${JSON.stringify(text)}.`);
+    }
+  }
+  return errors;
+}
+
 function buildManifest(snapshot, coverage) {
   return {
     $schema: SCHEMA,
     purpose: "Human syntax atlas for the current W Tree-sitter surface.",
-    sourceOfTruth: "atlas-manifest.json metadata plus terse source markers and snippets in the atlas .w files. SYNTAX-COVERAGE.md is generated.",
+    sourceOfTruth: "atlas-manifest.json metadata plus terse source markers and snippets in the atlas .w files. Editorial contract coverage is checked against CHEATSHEET.md. SYNTAX-COVERAGE.md is generated.",
     grammar: { path: "tooling/tree-sitter-w/grammar.js", digest: snapshot.grammarDigest, publicRuleSetDigest: snapshot.ruleSetDigest },
     sourceFiles: snapshot.sourceFiles,
     pedagogicalOrder: snapshot.pedagogicalOrder,
@@ -486,6 +540,7 @@ function buildManifest(snapshot, coverage) {
     grammarRules: snapshot.ruleEntries,
     families: snapshot.families,
     variants: snapshot.variants,
+    editorialCoverage: snapshot.editorialCoverage,
     blocks: manifestBlocks(snapshot),
     companionFiles: ["reserved.w-reserved.txt", "rejected.w-rejected.txt"],
     companions: snapshot.companions,
@@ -521,6 +576,8 @@ function checkManifest(snapshot, expected) {
   if (JSON.stringify(expected?.families) !== JSON.stringify(snapshot.families)) errors.push("family inventory is stale.");
   if (JSON.stringify(expected?.pedagogicalOrder) !== JSON.stringify(snapshot.pedagogicalOrder)) errors.push("pedagogicalOrder is stale.");
   if (JSON.stringify(expected?.variants) !== JSON.stringify(snapshot.variants)) errors.push("accepted variant inventory is stale or incomplete.");
+  if (JSON.stringify(expected?.editorialCoverage) !== JSON.stringify(snapshot.editorialCoverage)) errors.push("editorial contract coverage inventory is stale or incomplete.");
+  errors.push(...checkEditorialCoverage(snapshot));
   const coverage = renderCoverage(snapshot);
   if (expected?.generated?.coverage !== "SYNTAX-COVERAGE.md" || expected.generated.coverageDigest !== digestBytes(Buffer.from(coverage, "utf8"))) errors.push("syntax coverage digest is stale.");
   if (!fs.existsSync(SYNTAX_COVERAGE) || fs.readFileSync(SYNTAX_COVERAGE, "utf8") !== coverage) errors.push("SYNTAX-COVERAGE.md is stale or manually edited.");
@@ -562,4 +619,4 @@ if (import.meta.main) {
   }
 }
 
-export { buildManifest, deriveSnapshot, renderCoverage, checkManifest, validateAtlasValueStatements, VISIBLE_RULES_MUST_NOT_BE_INTERNAL, REQUIRED_VARIANT_IDS, COMPANION_STATUSES };
+export { buildManifest, checkEditorialCoverage, deriveSnapshot, renderCoverage, checkManifest, validateAtlasValueStatements, VISIBLE_RULES_MUST_NOT_BE_INTERNAL, REQUIRED_VARIANT_IDS, EDITORIAL_COVERAGE_REQUIREMENTS, COMPANION_STATUSES };

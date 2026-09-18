@@ -8,6 +8,15 @@ not in this queue.
 
 ## Execution principles
 
+- Treat the general language design as the approved implementation baseline.
+  Reopen syntax or semantics only when a concrete implementation, executable
+  witness, portability requirement, or measured cost exposes a real gap; do
+  not schedule open-ended completeness reviews ahead of lower-ranked work.
+- Use C's practical systems-programming reach as the minimum expressiveness
+  floor: freestanding code, explicit ABI/layout, raw memory, atomics, MMIO and
+  target-owned assembly/platform adapters must remain expressible without
+  making their unsafe contracts implicit. Libraries and platform SDK coverage
+  are implementation/ecosystem work, not reasons to enlarge core syntax.
 - Prefer vertical source-to-native slices over isolated infrastructure.
 - Generalize only after a bounded implementation exposes the real invariants.
 - Keep logical semantics independent from storage, worker, and seed capacities.
@@ -97,8 +106,10 @@ the scalar, control-flow, aggregate and explicit-ownership prerequisites above.
 WCCP0 studies a common `ContractIR` for mathematical propositions, function
 preconditions and postconditions, state machines, module surfaces, and imported
 data or wire schemas. The study selects `T<(predicate)>` for intrinsic value
-invariants and structured documentation `contract:` fields for declaration
-relations. It rejects a public `Proof<C>` from the initial source surface.
+invariants, structured documentation `contract:` fields for non-module
+declaration relations, and module-header `contracts: [...]` configuration for a
+module's static relations. It rejects a public `Proof<C>` from the initial source
+surface.
 Parser, lowering, proof checking, runtime validation, and optimizer integration
 remain open. This work can proceed beside the active implementation queue and
 does not displace rank 1.
@@ -249,10 +260,11 @@ W-769/W-1152 boundary as well: power is right-associative, binds before a
 prefix on its left, accepts a prefixed base when parenthesized, and gives its
 exponent an independent `UInt` inference context. A negative exponent remains
 invalid. The eleven signed compound assignment forms reuse the same checked
-operation and SSA versioning. Unsigned `&=`, `^=`, and `|=` now use the
-existing direct bit operations and typed SSA versions. Immutable targets fail
-closed. W-392 remains open for other widths, named bit APIs, other unsigned
-compound forms, SIMD, and the complete integer operator matrix.
+operation and SSA versioning. The UInt/u64 witness now covers all eleven
+unsigned compound forms with checked arithmetic, shifts, and the existing
+direct bit operations over typed SSA versions. Immutable targets fail closed.
+W-392 remains open for other widths, named bit APIs, SIMD, and the complete
+integer operator matrix.
 W-1597 remains a legality certificate only; target policy must still combine it
 with observability and cost facts and compare any direct-call artifact with the
 W-1600 physical reference.

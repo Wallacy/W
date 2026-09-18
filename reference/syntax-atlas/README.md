@@ -50,6 +50,12 @@ Cada regra pública da grammar recebe uma classificação `direct`, `composed`,
 `root`, `lexical` ou `recovery`; uma regra nova sem classificação falha o
 checker.
 
+The manifest also carries a small explicit `editorialCoverage` inventory for
+the contract carriers. The projection check requires each listed carrier to
+remain represented in `CHEATSHEET.md`; update that inventory together with the
+accepted and rejected atlas witnesses when an approved contract spelling
+changes.
+
 O checker também exige que os fontes exercitem de fato toda regra pública
 observável da grammar. `behavior_identifier` e `function_signature` são as
 duas exceções explícitas: seus spellings existem, mas o CST os publica como

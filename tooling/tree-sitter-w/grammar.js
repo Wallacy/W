@@ -197,9 +197,31 @@ module.exports = grammar({
     module_contract: ($) =>
       seq(
         token.immediate("<"),
-        commaSep1(choice($.kernel_contract_field, $.manifest_argument)),
+        commaSep1(choice($.kernel_contract_field, $.module_contracts_field, $.manifest_argument)),
         optional(","),
         ">",
+      ),
+    module_contracts_field: ($) =>
+      seq(
+        "contracts",
+        ":",
+        "[",
+        commaSep1($.module_contract_relation),
+        optional(","),
+        "]",
+      ),
+    module_contract_relation: ($) =>
+      seq(
+        field("relation", $.identifier),
+        "(",
+        commaSep($.module_contract_relation_argument),
+        optional(","),
+        ")",
+      ),
+    module_contract_relation_argument: ($) =>
+      seq(
+        optional(seq(field("label", $.identifier), ":")),
+        field("value", $.static_argument_value),
       ),
     kernel_contract_field: ($) =>
       seq("kernels", ":", field("value", $.kernel_contract_record)),

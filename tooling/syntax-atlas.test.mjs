@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildManifest, checkManifest, deriveSnapshot, renderCoverage, validateAtlasValueStatements, VISIBLE_RULES_MUST_NOT_BE_INTERNAL, REQUIRED_VARIANT_IDS, COMPANION_STATUSES } from "./syntax-atlas.mjs";
+import { buildManifest, checkEditorialCoverage, checkManifest, deriveSnapshot, renderCoverage, validateAtlasValueStatements, VISIBLE_RULES_MUST_NOT_BE_INTERNAL, REQUIRED_VARIANT_IDS, EDITORIAL_COVERAGE_REQUIREMENTS, COMPANION_STATUSES } from "./syntax-atlas.mjs";
 
 const snapshot = deriveSnapshot();
 const coverage = renderCoverage(snapshot);
@@ -20,6 +20,13 @@ describe("syntax atlas coverage checker", () => {
     expect(coverage).toContain("`language.w`, `execution.w`, `operators.w`, and `build.w`");
     expect(coverage).toContain("../../CHEATSHEET.md#operators-and-pipe-forward");
     expect(coverage).toContain("../../CHEATSHEET.md#numeric-policies-and-bit-primitives");
+  });
+
+  test("contract carriers require explicit cheatsheet coverage", () => {
+    expect(checkEditorialCoverage(snapshot)).toEqual([]);
+    expect(manifest.editorialCoverage).toEqual(EDITORIAL_COVERAGE_REQUIREMENTS);
+    const missing = "## Contracts, refinements, and relations\nT<(predicate)>\n";
+    expect(checkEditorialCoverage(snapshot, missing).some((error) => error.includes("contract-reusable-relation"))).toBe(true);
   });
 
   test("rejects an unlisted marker", () => {
@@ -66,7 +73,7 @@ describe("syntax atlas coverage checker", () => {
   });
 
   test("atlas sources exercise every observable public grammar rule", () => {
-    expect(snapshot.ruleEntries).toHaveLength(217);
+    expect(snapshot.ruleEntries).toHaveLength(220);
     expect(snapshot.files.flatMap((file) => [...file.nodes])).toContain("pipe_member_call_template");
     expect(snapshot.files.flatMap((file) => [...file.nodes])).toContain("foreign_declaration");
     expect(snapshot.files.flatMap((file) => [...file.nodes])).toContain("unit_literal");
