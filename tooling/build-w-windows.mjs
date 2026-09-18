@@ -255,6 +255,15 @@ export const SMOKE_CASES = Object.freeze([
     expectedStdout: "Overflowing 0/true/11/false\n",
   }),
   Object.freeze({
+    id: "restaurant-uint-overflowing-power",
+    fixture: "compiler/seed-c/fixtures/restaurant-uint-overflowing-power.w",
+    absoluteFixture: resolve(seedDirectory, "fixtures",
+      "restaurant-uint-overflowing-power.w"),
+    expectedStdout:
+      "Overflowing power 9223372036854775808/false; 0/true; 1/true; " +
+      "1/false\n",
+  }),
+  Object.freeze({
     id: "restaurant-uint-saturating-add",
     fixture: "compiler/seed-c/fixtures/restaurant-uint-saturating-add.w",
     absoluteFixture: resolve(seedDirectory, "fixtures",

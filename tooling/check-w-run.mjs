@@ -104,6 +104,8 @@ const restaurantUIntReversedBytesFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-reversed-bytes.w")
 const restaurantUIntOverflowingAddFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-overflowing-add.w")
+const restaurantUIntOverflowingPowerFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-overflowing-power.w")
 const restaurantUIntSaturatingAddFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-saturating-add.w")
 const restaurantUIntSaturatingSubtractFixture = resolve(seedDirectory,
@@ -1044,6 +1046,11 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantUIntOverflowingAddFixture)],
     Buffer.from("Overflowing 0/true/11/false\n", "utf8"),
     "Restaurant UInt overflowingAdd returns wrapped value and overflow flag")
+  expectSuccess(binary, ["run", toWsl(restaurantUIntOverflowingPowerFixture)],
+    Buffer.from(
+      "Overflowing power 9223372036854775808/false; 0/true; 1/true; " +
+      "1/false\n", "utf8"),
+    "Restaurant UInt overflowingPower preserves sticky overflow")
   expectSuccess(binary, ["run", toWsl(restaurantUIntSaturatingAddFixture)],
     Buffer.from("Saturated 18446744073709551615/11\n", "utf8"),
     "Restaurant UInt saturatingAdd clamps overflow without trapping")

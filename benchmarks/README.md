@@ -11,8 +11,8 @@ Neither bundle produces a language or product-runtime result.
 [`executable-catalog.json`](executable-catalog.json) is the machine-readable
 catalog of executable workloads. It keeps stable IDs for `hello`,
 `process-entry`, `process-enum-payload`, `process-arguments-count`,
-`process-handler-lifecycle`, 45 source-backed Restaurant workloads, and the
-future full Restaurant composition. Hello has W, C, and Rust sources. Nineteen
+`process-handler-lifecycle`, 46 source-backed Restaurant workloads, and the
+future full Restaurant composition. Hello has W, C, and Rust sources. Twenty
 Restaurant witnesses, including branch, loop, enum, async/yield, strict-f64,
 and UInt arithmetic slices, also have independent C and Rust sources verified against exact
 oracles. The remaining Restaurant witnesses are W-only with explicit C/Rust
@@ -159,6 +159,15 @@ The `restaurant-uint-overflowing-add` witness is `not-performance-ready`. Its
 fixed inputs add `1` to `UInt` maximum and `10`, and its exact oracle is
 `Overflowing 0/true/11/false\n`. The first result shows wrapped low bits and
 an overflow flag. The second result shows the non-overflowing case. W may fold
+these calls in the final artifact. The C23 and Rust 2024 references retain
+independent runtime operands. Runtime equivalence is not proven, so this
+workload has no performance ranking.
+
+The `restaurant-uint-overflowing-power` witness is `not-performance-ready`.
+Its fixed inputs compute `2^63`, `2^64`, `UInt` maximum squared, and `0^0`
+with exponentiation by squaring, and its exact oracle is
+`Overflowing power 9223372036854775808/false; 0/true; 1/true; 1/false\n`.
+The low bits and sticky overflow flags are printed for each result. W may fold
 these calls in the final artifact. The C23 and Rust 2024 references retain
 independent runtime operands. Runtime equivalence is not proven, so this
 workload has no performance ranking.
