@@ -284,6 +284,13 @@ export const SMOKE_CASES = Object.freeze([
       "restaurant-uint-saturating-multiply.w"),
     expectedStdout: "Saturated multiply 18446744073709551615/42\n",
   }),
+  Object.freeze({
+    id: "restaurant-uint-saturating-policy",
+    fixture: "compiler/seed-c/fixtures/restaurant-uint-saturating-policy.w",
+    absoluteFixture: resolve(seedDirectory, "fixtures",
+      "restaurant-uint-saturating-policy.w"),
+    expectedStdout: "Saturating policy 0/0/8/18446744073709551615/1\n",
+  }),
 ])
 
 function fail(message) {

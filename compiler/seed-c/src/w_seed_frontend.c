@@ -66,7 +66,9 @@ _Static_assert(W_SEED_FRONTEND_BUILTIN_NONE == 0 &&
                    W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT == 23 &&
                    W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY == 24 &&
                    W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE == 25 &&
-                   W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_POWER == 26,
+                   W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_POWER == 26 &&
+                   W_SEED_FRONTEND_BUILTIN_U64_SATURATING_NEGATE == 27 &&
+                   W_SEED_FRONTEND_BUILTIN_U64_SATURATING_POWER == 28,
                "w-seed frontend builtin identities are append-only");
 #if defined(DBL_HAS_SUBNORM)
 _Static_assert(DBL_HAS_SUBNORM == 1,
@@ -4160,7 +4162,9 @@ static bool builtin_u64_operation_is_supported(
          operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_POWER;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_POWER ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_NEGATE ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_POWER;
 }
 
 static bool builtin_u64_operation_returns_tuple(
@@ -4176,6 +4180,7 @@ static bool builtin_u64_operation_is_unary(
     w_seed_frontend_builtin_operation operation) {
   return operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_NEGATE ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_NEGATE ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ZEROS ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_LEADING_ZEROS ||
@@ -4236,6 +4241,10 @@ static w_seed_frontend_builtin_operation builtin_u64_operation_for_member(
     return W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE;
   if (text_equal(member_name, "overflowingPower"))
     return W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_POWER;
+  if (text_equal(member_name, "saturatingNegate"))
+    return W_SEED_FRONTEND_BUILTIN_U64_SATURATING_NEGATE;
+  if (text_equal(member_name, "saturatingPower"))
+    return W_SEED_FRONTEND_BUILTIN_U64_SATURATING_POWER;
   return W_SEED_FRONTEND_BUILTIN_NONE;
 }
 

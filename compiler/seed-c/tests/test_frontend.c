@@ -5369,6 +5369,62 @@ static bool test_u64_overflowing_products_frontend(void) {
   return true;
 }
 
+static bool test_u64_saturating_policy_frontend(void) {
+  static const char SOURCE[] =
+      "entry { let negZero = u64.saturatingNegate(0_u64) "
+      "let negMaximum = u64.saturatingNegate(18446744073709551615_u64) "
+      "let ordinary = u64.saturatingPower(2_u64, 3_u64) "
+      "let clamped = u64.saturatingPower(2_u64, 64_u64) "
+      "let zeroPowerZero = u64.saturatingPower(0_u64, 0_u64) }\n";
+  fixture *value = &fixture_literal;
+  CHECK(fixture_run(value, SOURCE));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
+        value->result.status == W_SEED_FRONTEND_OK &&
+        counts_equal(&value->result.required, &value->result.written));
+  size_t negate_count = 0u;
+  size_t power_count = 0u;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind != W_SEED_FRONTEND_EXPR_CALL ||
+        (expression->builtin_operation !=
+             W_SEED_FRONTEND_BUILTIN_U64_SATURATING_NEGATE &&
+         expression->builtin_operation !=
+             W_SEED_FRONTEND_BUILTIN_U64_SATURATING_POWER))
+      continue;
+    const bool negate = expression->builtin_operation ==
+                        W_SEED_FRONTEND_BUILTIN_U64_SATURATING_NEGATE;
+    CHECK(expression->supported &&
+          expression->argument_count == (negate ? 1u : 2u) &&
+          expression->inferred_type < value->result.written.types &&
+          value->types[expression->inferred_type].kind ==
+              W_SEED_FRONTEND_TYPE_INTEGER &&
+          !value->types[expression->inferred_type].is_signed &&
+          value->types[expression->inferred_type].bit_width == 64u);
+    if (negate)
+      negate_count += 1u;
+    else
+      power_count += 1u;
+  }
+  CHECK(negate_count == 2u && power_count == 3u);
+
+  static const char *const REJECTED[] = {
+      "entry { let value = u64.saturatingNegate(1_u64, 2_u64) }\n",
+      "entry { let value = u64.saturatingNegate(true) }\n",
+      "entry { let value = u64.saturatingPower(1_u64) }\n",
+      "entry { let value = u64.saturatingPower(1_u64, true) }\n",
+      "entry { let value = UInt.saturatingPower(1_u64, 2_u64) }\n",
+      "entry { let value = u64.saturatingPower(left: 1_u64, 2_u64) }\n",
+  };
+  for (size_t index = 0u;
+       index < sizeof(REJECTED) / sizeof(REJECTED[0]); index += 1u) {
+    CHECK(fixture_run(value, REJECTED[index]));
+    CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+          has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+  }
+  return true;
+}
+
 static bool test_f64_scalar_projection(void) {
   fixture *value = &fixture_literal;
   CHECK(fixture_parse(
@@ -7375,6 +7431,7 @@ int main(int argc, char **argv) {
   if (!test_scalar_type_measure_emit_parity()) return 1;
   if (!test_u64_binary_frontend()) return 1;
   if (!test_u64_overflowing_products_frontend()) return 1;
+  if (!test_u64_saturating_policy_frontend()) return 1;
   if (!test_f64_scalar_projection()) return 1;
   if (!test_f64_locale_isolation()) return 1;
   if (!test_declarations_and_determinism()) return 1;

@@ -315,8 +315,18 @@ static bool parse_source(const uint8_t *source_bytes, size_t source_length) {
     if (process_input_frontend_mode) configure_process_input_external();
     if (!resolve_process_import()) return false;
   }
-  return w_seed_frontend_run(&fixture.input, &fixture.output,
-                             &fixture.frontend_result) == W_SEED_FRONTEND_OK;
+  const w_seed_frontend_status status =
+      w_seed_frontend_run(&fixture.input, &fixture.output,
+                          &fixture.frontend_result);
+  if (status != W_SEED_FRONTEND_OK)
+    (void)fprintf(stderr,
+                  "mlir0 frontend status=%d parse=%d issues=%lu required expressions=%lu written=%lu diagnostics=%lu\n",
+                  (int)status, (int)fixture.parse.status,
+                  (unsigned long)fixture.parse.issue_count,
+                  (unsigned long)fixture.frontend_result.required.expressions,
+                  (unsigned long)fixture.frontend_result.written.expressions,
+                  (unsigned long)fixture.frontend_result.written.diagnostics);
+  return status == W_SEED_FRONTEND_OK;
 }
 
 static void configure_process_external(void) {
@@ -2398,6 +2408,70 @@ static bool test_u64_saturating_multiply_artifact(void) {
   CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
         !contains_bytes(artifact, emitted.written.mlir_bytes,
                         "llvm.intr.umul.with.overflow"));
+  return true;
+}
+
+static bool test_u64_saturating_policy_artifact(void) {
+  static const uint8_t source[] =
+      "fn saturatingNegate(value: UInt): UInt { return "
+      "u64.saturatingNegate(value) }\n"
+      "fn saturatingPower(base: UInt, exponent: UInt): UInt { return "
+      "u64.saturatingPower(base, exponent) }\n"
+      "entry { let negZero = saturatingNegate(value: 0_u64) "
+      "let negMaximum = saturatingNegate(value: 18446744073709551615_u64) "
+      "let ordinary = saturatingPower(base: 2_u64, exponent: 3_u64) "
+      "let clamped = saturatingPower(base: 2_u64, exponent: 64_u64) "
+      "let zeroPowerZero = saturatingPower(base: 0_u64, exponent: 0_u64) "
+      "print(\"\x24{negZero}/\x24{negMaximum}/\x24{ordinary}/\x24{clamped}/\x24{zeroPowerZero}\") }\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  size_t negate_count = 0u;
+  size_t power_count = 0u;
+  for (size_t index = 0u; index < fixture.hir_program.value_count;
+       index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_program.values[index];
+    if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64 &&
+        value->unary_operator == W_SEED_HIR0_UNARY_SATURATING_NEGATE)
+      negate_count += 1u;
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
+        value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_POWER)
+      power_count += 1u;
+  }
+  CHECK(negate_count == 1u && power_count == 1u);
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        memcmp(measured.mlir_sha256, emitted.mlir_sha256,
+               sizeof(measured.mlir_sha256)) == 0 &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.intr.usub.sat") == 1u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.func internal @w_seed_saturating_power_u64") ==
+            1u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.call @w_seed_saturating_power_u64") == 1u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.intr.umul.with.overflow") == 2u &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.cond_br %last, ^saturating_power_done") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.select %acc_overflow, %max") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "@w_seed_checked_power_u64"));
+
+  static const uint8_t unreachable_source[] =
+      "entry { print(\"Hello\") }\n";
+  CHECK(lower_hir(unreachable_source, sizeof(unreachable_source) - 1u));
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "@w_seed_saturating_power_u64") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "llvm.intr.usub.sat"));
   return true;
 }
 
@@ -5731,6 +5805,7 @@ int main(int argc, char **argv) {
   if (!test_u64_overflowing_products_artifact()) return 1;
   if (!test_u64_saturating_subtract_artifact()) return 1;
   if (!test_u64_saturating_multiply_artifact()) return 1;
+  if (!test_u64_saturating_policy_artifact()) return 1;
   if (!test_u64_wrapping_subtract_artifact()) return 1;
   if (!test_u64_wrapping_multiply_artifact()) return 1;
   if (!test_u64_wrapping_negate_artifact()) return 1;

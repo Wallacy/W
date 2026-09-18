@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-75"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-76"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -264,6 +264,8 @@ typedef enum {
   W_SEED_HIR0_BINARY_OVERFLOWING_MULTIPLY,
   /* Canonical u64.overflowingPower. The result type is `(u64, Bool)`. */
   W_SEED_HIR0_BINARY_OVERFLOWING_POWER,
+  /* Canonical u64.saturatingPower. Keep this identity append-only. */
+  W_SEED_HIR0_BINARY_SATURATING_POWER,
 } w_seed_hir0_binary_operator;
 
 typedef enum {
@@ -285,6 +287,8 @@ typedef enum {
   W_SEED_HIR0_UNARY_REVERSED_BYTES,
   /* Canonical u64.overflowingNegate. The result type is `(u64, Bool)`. */
   W_SEED_HIR0_UNARY_OVERFLOWING_NEGATE,
+  /* Canonical u64.saturatingNegate. Keep this identity append-only. */
+  W_SEED_HIR0_UNARY_SATURATING_NEGATE,
 } w_seed_hir0_unary_operator;
 
 typedef enum {

@@ -198,6 +198,13 @@ exponent ceiling, no allocation or CRT dependency, and executes exact ordinary,
 overflow, wrapped, and `0^0` witnesses natively. Other widths, const evaluation,
 stable ABI, timing, and performance remain open.
 
+W-1632 closes bounded `u64.saturatingNegate` and `u64.saturatingPower` next.
+Negate lowers to unsigned saturation from zero. Power uses a reachable-only
+logarithmic helper, clamps exact multiplication overflow to `u64.max`, and
+preserves `0^0 == 1`. The fixture executes all boundary cases through the
+native route. Other widths, const evaluation, stable ABI, ranking, and
+performance remain open.
+
 The first rank-1 increments are now executable. Signed-`i64` `&`, `|`, `^`,
 and unary `~` cross exact W source, canonical precedence, verified HIR0, direct
 LLVM-dialect operations, and the maintained native routes. Checked `<<` and

@@ -295,6 +295,28 @@ static bool wrapping_u64_power(uint64_t base, uint64_t exponent,
   return true;
 }
 
+/* Saturating power uses exponentiation by squaring without a policy-imposed
+ * iteration ceiling. The exponent is shifted until it is zero; every exact
+ * unsigned multiplication is checked before its result is retained. */
+static bool saturating_u64_power(uint64_t base, uint64_t exponent,
+                                 uint64_t *result) {
+  if (result == NULL) return false;
+  uint64_t accumulator = 1u;
+  while (exponent != 0u) {
+    if ((exponent & 1u) != 0u) {
+      accumulator = accumulator != 0u && base > UINT64_MAX / accumulator
+                        ? UINT64_MAX
+                        : accumulator * base;
+    }
+    exponent >>= 1u;
+    if (exponent != 0u)
+      base = base != 0u && base > UINT64_MAX / base ? UINT64_MAX
+                                                   : base * base;
+  }
+  *result = accumulator;
+  return true;
+}
+
 static bool evaluate_u64(const w_seed_hir0_program *program,
                          uint32_t value_index, size_t depth,
                          uint64_t *result) {
@@ -313,6 +335,7 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
     uint64_t operand = 0u;
     if ((value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT &&
          value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
+         value->unary_operator != W_SEED_HIR0_UNARY_SATURATING_NEGATE &&
          value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES &&
          value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS &&
          value->unary_operator !=
@@ -324,7 +347,9 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
         value->left_value == W_SEED_HIR0_NONE ||
         !evaluate_u64(program, value->left_value, depth + 1u, &operand))
       return false;
-    if (value->unary_operator == W_SEED_HIR0_UNARY_WRAPPING_NEGATE) {
+    if (value->unary_operator == W_SEED_HIR0_UNARY_SATURATING_NEGATE) {
+      *result = 0u;
+    } else if (value->unary_operator == W_SEED_HIR0_UNARY_WRAPPING_NEGATE) {
       *result = 0u - operand;
     } else if (value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT) {
       *result = ~operand;
@@ -397,7 +422,8 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
           value->binary_operator != W_SEED_HIR0_BINARY_ROTATED_RIGHT &&
           value->binary_operator != W_SEED_HIR0_BINARY_SATURATING_ADD &&
           value->binary_operator != W_SEED_HIR0_BINARY_SATURATING_SUBTRACT &&
-          value->binary_operator != W_SEED_HIR0_BINARY_SATURATING_MULTIPLY))))
+          value->binary_operator != W_SEED_HIR0_BINARY_SATURATING_MULTIPLY &&
+          value->binary_operator != W_SEED_HIR0_BINARY_SATURATING_POWER))))
     return false;
   uint64_t left = 0u;
   uint64_t right = 0u;
@@ -423,6 +449,8 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
                     ? UINT64_MAX
                     : left * right;
       return true;
+    case W_SEED_HIR0_BINARY_SATURATING_POWER:
+      return saturating_u64_power(left, right, result);
     case W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT:
       *result = left - right;
       return true;
@@ -596,6 +624,7 @@ static bool program_value_is_constant_u64(
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64)
     return (value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT ||
             value->unary_operator == W_SEED_HIR0_UNARY_WRAPPING_NEGATE ||
+            value->unary_operator == W_SEED_HIR0_UNARY_SATURATING_NEGATE ||
             value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ONES ||
             value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ZEROS ||
             value->unary_operator ==
@@ -623,7 +652,8 @@ static bool program_value_is_constant_u64(
            value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_RIGHT ||
            value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_ADD ||
            value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_SUBTRACT ||
-           value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_MULTIPLY) &&
+           value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_MULTIPLY ||
+           value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_POWER) &&
          program_value_is_constant_u64(program, value->left_value,
                                        depth + 1u) &&
          program_value_is_constant_u64(program, value->right_value,
@@ -1359,6 +1389,7 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
                              : W_SEED_HIR0_TYPE_U64) ||
         (value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT &&
          value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
+         value->unary_operator != W_SEED_HIR0_UNARY_SATURATING_NEGATE &&
          !overflowing &&
          value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES &&
          value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS &&
@@ -1520,7 +1551,8 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
         value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_RIGHT ||
         value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_ADD ||
         value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_SUBTRACT ||
-        value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_MULTIPLY;
+        value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_MULTIPLY ||
+        value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_POWER;
     const bool overflowing =
         value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_ADD ||
         value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_SUBTRACT ||

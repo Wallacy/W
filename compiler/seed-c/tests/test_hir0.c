@@ -13987,6 +13987,84 @@ static bool test_u64_saturating_multiply(void) {
   return true;
 }
 
+static bool test_u64_saturating_policy(void) {
+  static const char SOURCE[] =
+      "entry { let negZero = u64.saturatingNegate(0_u64) "
+      "let negMaximum = u64.saturatingNegate(18446744073709551615_u64) "
+      "let ordinary = u64.saturatingPower(2_u64, 3_u64) "
+      "let clamped = u64.saturatingPower(2_u64, 64_u64) "
+      "let zeroPowerZero = u64.saturatingPower(0_u64, 0_u64) }\n";
+  CHECK(lower(SOURCE));
+  size_t negate_count = 0u;
+  size_t power_count = 0u;
+  size_t negate_index = SIZE_MAX;
+  size_t power_index = SIZE_MAX;
+  uint32_t u64_type = W_SEED_HIR0_NONE;
+  for (size_t index = 0u; index < fixture.hir_program.type_count; index += 1u)
+    if (fixture.hir_program.types[index].kind == W_SEED_HIR0_TYPE_U64)
+      u64_type = (uint32_t)index;
+  CHECK(u64_type != W_SEED_HIR0_NONE);
+  for (size_t index = 0u; index < fixture.hir_program.value_count;
+       index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_program.values[index];
+    if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64 &&
+        value->unary_operator == W_SEED_HIR0_UNARY_SATURATING_NEGATE) {
+      CHECK(value->type_index == u64_type &&
+            value->left_value != W_SEED_HIR0_NONE &&
+            value->right_value == W_SEED_HIR0_NONE &&
+            fixture.hir_program.values[value->left_value].type_index ==
+                u64_type);
+      negate_count += 1u;
+      negate_index = index;
+    } else if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
+               value->binary_operator ==
+                   W_SEED_HIR0_BINARY_SATURATING_POWER) {
+      CHECK(value->type_index == u64_type &&
+            value->left_value != W_SEED_HIR0_NONE &&
+            value->right_value != W_SEED_HIR0_NONE &&
+            fixture.hir_program.values[value->left_value].type_index ==
+                u64_type &&
+            fixture.hir_program.values[value->right_value].type_index ==
+                u64_type);
+      power_count += 1u;
+      power_index = index;
+    }
+  }
+  CHECK(negate_count == 2u && power_count == 3u &&
+        negate_index != SIZE_MAX && power_index != SIZE_MAX &&
+        fixture.hir_program.call_count == 0u);
+  const w_seed_hir0_value saved_negate = fixture.hir_values[negate_index];
+  fixture.hir_values[negate_index].unary_operator =
+      W_SEED_HIR0_UNARY_OVERFLOWING_NEGATE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[negate_index] = saved_negate;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  const w_seed_hir0_value saved_power = fixture.hir_values[power_index];
+  fixture.hir_values[power_index].binary_operator =
+      W_SEED_HIR0_BINARY_OVERFLOWING_POWER;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[power_index] = saved_power;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  static const char *const REJECTED[] = {
+      "entry { let value = u64.saturatingNegate(1_u64, 2_u64) }\n",
+      "entry { let value = u64.saturatingPower(1_u64) }\n",
+      "entry { let value = UInt.saturatingPower(1_u64, 2_u64) }\n",
+  };
+  for (size_t index = 0u;
+       index < sizeof(REJECTED) / sizeof(REJECTED[0]); index += 1u) {
+    CHECK(fixture_parse(REJECTED[index]));
+    configure_host();
+    CHECK(w_seed_frontend_run(&fixture.input, &fixture.output,
+                              &fixture.result) != W_SEED_FRONTEND_OK);
+  }
+  return true;
+}
+
 static bool test_u64_wrapping_subtract(void) {
   static const char SOURCE[] =
       "fn wrap(value: u64): u64 { return u64.wrappingSubtract(value, 1_u64) }\n"
@@ -15296,6 +15374,7 @@ int main(int argc, char **argv) {
   if (!test_u64_overflowing_power()) return 1;
   if (!test_u64_saturating_subtract()) return 1;
   if (!test_u64_saturating_multiply()) return 1;
+  if (!test_u64_saturating_policy()) return 1;
   if (!test_u64_wrapping_subtract()) return 1;
   if (!test_u64_wrapping_multiply()) return 1;
   if (!test_u64_wrapping_negate()) return 1;

@@ -10528,6 +10528,72 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-u64-saturating-policy-native",
+      "reviewItem": "bounded unsigned saturating negate and power against wrapping, linear exponentiation, precomputed answers, and unreachable helper retention",
+      "decisions": [
+        "W-1632"
+      ],
+      "task": "Prove bounded source-to-native u64.saturatingNegate and u64.saturatingPower routes with exact clamp semantics.",
+      "selected": {
+        "language": "w-internal",
+        "source": [
+          "frontend and verified HIR preserve saturatingNegate and saturatingPower as append-only u64 operations",
+          "unsigned saturating negate lowers to unsigned saturating subtraction from zero",
+          "saturating power uses one reachable-only exponentiation-by-squaring helper and exact unsigned multiplication overflow",
+          "overflow clamps to u64.max, 0^0 is 1, and no exponent ceiling is imposed",
+          "the native fixture executes boundary cases through reusable functions and a direct entry block"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "wrapping-negate-or-power",
+          "language": "w-internal-rejected",
+          "source": [
+            "retain low modulo bits instead of clamping to the unsigned range"
+          ],
+          "expectedDifference": "Saturating operations clamp mathematical results; they do not reuse wrapping semantics."
+        },
+        {
+          "name": "linear-repeated-multiplication",
+          "language": "w-internal-rejected",
+          "source": [
+            "multiply the base exponent times or reject large exponents"
+          ],
+          "expectedDifference": "Exponentiation by squaring gives logarithmic multiplication count without an artificial exponent ceiling."
+        },
+        {
+          "name": "precomputed-fixture-answers",
+          "language": "w-internal-rejected",
+          "source": [
+            "replace the operations with constants matching the current fixture"
+          ],
+          "expectedDifference": "The emitted operations consume SSA values and the fixture crosses the real source-to-native route."
+        },
+        {
+          "name": "always-emit-power-helper",
+          "language": "w-internal-rejected",
+          "source": [
+            "retain the helper in products that do not reach saturatingPower"
+          ],
+          "expectedDifference": "The helper is emitted only when reachable; the Hello product remains free of it."
+        },
+        {
+          "name": "general-numeric-claim",
+          "language": "w-internal-rejected",
+          "source": [
+            "claim all widths, const evaluation, stable ABI, ranking, or performance"
+          ],
+          "expectedDifference": "W-1632 closes only bounded u64 compiler-lifecycle correctness."
+        }
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

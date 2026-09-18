@@ -11,8 +11,8 @@ Neither bundle produces a language or product-runtime result.
 [`executable-catalog.json`](executable-catalog.json) is the machine-readable
 catalog of executable workloads. It keeps stable IDs for `hello`,
 `process-entry`, `process-enum-payload`, `process-arguments-count`,
-`process-handler-lifecycle`, 46 source-backed Restaurant workloads, and the
-future full Restaurant composition. Hello has W, C, and Rust sources. Twenty
+`process-handler-lifecycle`, 47 source-backed Restaurant workloads, and the
+future full Restaurant composition. Hello has W, C, and Rust sources. Twenty-one
 Restaurant witnesses, including branch, loop, enum, async/yield, strict-f64,
 and UInt arithmetic slices, also have independent C and Rust sources verified against exact
 oracles. The remaining Restaurant witnesses are W-only with explicit C/Rust
@@ -192,6 +192,14 @@ oracle is `Saturated multiply 18446744073709551615/42\n`. W may fold these
 calls in the final artifact. The C23 and Rust 2024 references retain independent
 runtime operands. Runtime equivalence is not proven, so this workload has no
 performance ranking.
+
+The `restaurant-uint-saturating-policy` witness is `not-performance-ready`.
+Its fixed inputs apply saturating negation to `0` and `UInt` maximum, and
+saturating exponentiation by squaring to `2^3`, `2^64`, and `0^0`; its exact
+oracle is `Saturating policy 0/0/8/18446744073709551615/1\n`. W may fold these
+calls in the final artifact. The C23 and Rust 2024 references retain
+independent runtime operands. Runtime equivalence is not proven, so this
+workload has no performance ranking.
 
 The catalog declares compile latency, median and P95 target-run wall time,
 user/system/total CPU time, peak working set, artifact size, exit code, and

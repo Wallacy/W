@@ -207,7 +207,7 @@ static bool make_nested_tree_source(char *buffer, size_t capacity,
 
 static bool test_products(void) {
   CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-9") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-50") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-51") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -2787,6 +2787,84 @@ static bool test_u64_saturating_multiply_slice(void) {
   return true;
 }
 
+static bool test_u64_saturating_policy_slice(void) {
+  static const uint8_t source[] =
+      "fn saturatingNegate(value: UInt): UInt { return "
+      "u64.saturatingNegate(value) }\n"
+      "fn saturatingPower(base: UInt, exponent: UInt): UInt { return "
+      "u64.saturatingPower(base, exponent) }\n"
+      "entry { let negZero = saturatingNegate(value: 0_u64) "
+      "let negMaximum = saturatingNegate(value: 18446744073709551615_u64) "
+      "let ordinary = saturatingPower(base: 2_u64, exponent: 3_u64) "
+      "let clamped = saturatingPower(base: 2_u64, exponent: 64_u64) "
+      "let zeroPowerZero = saturatingPower(base: 0_u64, exponent: 0_u64) "
+      "print(\"${negZero}/${negMaximum}/${ordinary}/${clamped}/${zeroPowerZero}\") }\n";
+  uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source(source, sizeof(source) - 1u, "uint-saturating-policy",
+                   sizeof("uint-saturating-policy") - 1u, output,
+                   sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  size_t negate_count = 0u;
+  size_t power_count = 0u;
+  for (size_t index = 0u; index < storage.hir_program.value_count;
+       index += 1u) {
+    const w_seed_hir0_value *value = &storage.hir_program.values[index];
+    if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64 &&
+        value->unary_operator == W_SEED_HIR0_UNARY_SATURATING_NEGATE)
+      negate_count += 1u;
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
+        value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_POWER)
+      power_count += 1u;
+  }
+  CHECK(negate_count == 1u && power_count == 1u &&
+        storage.hir_program.call_count == 6u);
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.has_local_calls && !selection.has_cfg &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.intr.usub.sat") == 1u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.func internal @w_seed_saturating_power_u64") ==
+            1u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.call @w_seed_saturating_power_u64") == 1u &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.select %acc_overflow, %max") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.cond_br %last, ^saturating_power_done") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "@w_seed_checked_power_u64"));
+
+  static const char *const rejected[] = {
+      "fn bad(value: UInt): UInt { return UInt.saturatingNegate(value) }\n"
+      "entry(bad)\n",
+      "fn bad(value: UInt): UInt { return u64.saturatingNegate(value, 1_u64) }\n"
+      "entry(bad)\n",
+      "fn bad(base: UInt, exponent: UInt): UInt { return "
+      "u64.saturatingPower(base, 1_i64) }\nentry(bad)\n",
+      "fn bad(base: UInt, exponent: UInt): UInt { return "
+      "u64.saturatingPower(left: base, exponent) }\nentry(bad)\n",
+      "fn bad(base: UInt, exponent: UInt): Int { return "
+      "u64.saturatingPower(base, exponent) }\nentry(bad)\n",
+  };
+  for (size_t index = 0u; index < sizeof(rejected) / sizeof(rejected[0]);
+       index += 1u) {
+    (void)memset(output, 0x9bu, sizeof(output));
+    (void)memset(&result, 0x9cu, sizeof(result));
+    const w_seed_native0_result snapshot = result;
+    CHECK(run_source((const uint8_t *)rejected[index], strlen(rejected[index]),
+                     "uint-saturating-policy-bad",
+                     sizeof("uint-saturating-policy-bad") - 1u, output,
+                     sizeof(output), &result) != W_SEED_NATIVE0_OK);
+    CHECK(memcmp(&result, &snapshot, sizeof(result)) == 0);
+    for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+      CHECK(output[byte] == 0x9bu);
+  }
+  return true;
+}
+
 static bool test_u64_wrapping_subtract_slice(void) {
   static const uint8_t source[] =
       "fn wrap(value: UInt): UInt { return u64.wrappingSubtract(value, 1_u64) }\n"
@@ -4240,6 +4318,7 @@ int main(void) {
                         test_u64_saturating_add_slice() &&
                         test_u64_saturating_subtract_slice() &&
                         test_u64_saturating_multiply_slice() &&
+                        test_u64_saturating_policy_slice() &&
                         test_u64_wrapping_subtract_slice() &&
                         test_u64_wrapping_multiply_slice() &&
                         test_u64_wrapping_power_slice() &&

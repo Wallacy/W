@@ -41816,6 +41816,31 @@ or performance. Its `benchmarkDisposition` is `compiler-lifecycle`.
 produces `(0, true)`, `u64.max^2` produces `(1, true)`, and `0_u64^0` produces
 `(1, false)` through the emitted native executable.
 
+#### 26.4.1.112 W-1632 — bounded unsigned saturating negate and power lowering
+
+The existing `u64.saturatingNegate(value) -> u64` and
+`u64.saturatingPower(base, exponent) -> u64` contracts now cross the bounded
+seed frontend, verified HIR0, NativeSubset0, and MLIR0 routes. Frontend61 and
+HIR76 preserve append-only unary and binary identities. Both operations remain
+plain `u64` SSA values and require no tuple, allocation, or runtime object.
+
+Unsigned saturating negate computes `max(0 - value, 0)`. MLIR0 lowers it to
+unsigned saturating subtraction from zero. Saturating power uses one
+reachable-only exponentiation-by-squaring helper. Each required multiplication
+uses exact unsigned overflow detection and selects `u64.max` after overflow.
+The helper skips an unused final square, has no exponent ceiling, and defines
+`0^0 == 1`.
+
+Focused frontend, HIR0, MLIR0, and Native0 tests reject wrong receiver, arity,
+operand type, result type, forged operation, capacity, and alias data. The
+Restaurant fixture executes zero and maximum negation, ordinary power,
+clamped power, and `0^0` through MLIR/LLVM 23.1.1. This evidence is bounded to
+the current `u64` compiler-lifecycle route. Other widths, const evaluation,
+stable ABI, benchmark ranking, and performance remain gaps.
+
+**Example:** `u64.saturatingNegate(u64.max)` produces `0`, `2_u64^64` clamps
+to `u64.max`, and `0_u64^0` produces `1` through the emitted native executable.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

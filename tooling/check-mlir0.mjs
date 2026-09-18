@@ -79,6 +79,8 @@ const restaurantUIntSaturatingSubtractFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-saturating-subtract.w")
 const restaurantUIntSaturatingMultiplyFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-saturating-multiply.w")
+const restaurantUIntSaturatingPolicyFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-uint-saturating-policy.w")
 const restaurantUIntBitNotFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-bit-not.w")
 const restaurantUIntBitwiseFixture = resolve(seedDirectory,
@@ -774,6 +776,10 @@ try {
     { name: "restaurant-uint-saturating-multiply",
       source: restaurantUIntSaturatingMultiplyFixture,
       expected: Buffer.from("Saturated multiply 18446744073709551615/42\n", "utf8") },
+    { name: "restaurant-uint-saturating-policy",
+      source: restaurantUIntSaturatingPolicyFixture,
+      expected: Buffer.from(
+        "Saturating policy 0/0/8/18446744073709551615/1\n", "utf8") },
     { name: "restaurant-uint-bit-not", source: restaurantUIntBitNotFixture,
       expected: Buffer.from("UInt not 18446744073709551615\n", "utf8") },
     { name: "restaurant-uint-bitwise", source: restaurantUIntBitwiseFixture,
@@ -1228,6 +1234,17 @@ try {
     !uintSaturatingMultiplyArtifact.includes("llvm.intr.umul.sat") &&
     !uintSaturatingMultiplyArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
   "u64.saturatingMultiply lost inline saturation or total-operation semantics")
+  const uintSaturatingPolicyArtifact =
+    artifacts.get("restaurant-uint-saturating-policy").toString("utf8")
+  assert((uintSaturatingPolicyArtifact.match(/llvm\.intr\.usub\.sat/g) ?? []).length === 1 &&
+    (uintSaturatingPolicyArtifact.match(/llvm\.func internal @w_seed_saturating_power_u64/g) ?? []).length === 1 &&
+    (uintSaturatingPolicyArtifact.match(/llvm\.call @w_seed_saturating_power_u64/g) ?? []).length === 1 &&
+    (uintSaturatingPolicyArtifact.match(/llvm\.intr\.umul\.with\.overflow/g) ?? []).length === 2 &&
+    uintSaturatingPolicyArtifact.includes("llvm.select %acc_overflow, %max") &&
+    uintSaturatingPolicyArtifact.includes("llvm.cond_br %last, ^saturating_power_done") &&
+    uintSaturatingPolicyArtifact.includes("llvm.call @w_seed_append_u64") &&
+    !uintSaturatingPolicyArtifact.includes("@w_seed_checked_power_u64"),
+  "u64 saturating policy lost exact power saturation, negate, or final-square reachability evidence")
   const uintBitNotArtifact =
     artifacts.get("restaurant-uint-bit-not").toString("utf8")
   assert(uintBitNotArtifact.includes("llvm.xor") &&
@@ -1255,6 +1272,7 @@ try {
   const wmoArtifact = artifacts.get("restaurant-wmo")
   assert(!artifacts.get("hello").includes("@w_seed_checked_") &&
     !artifacts.get("hello").includes("@w_seed_overflowing_power_u64") &&
+    !artifacts.get("hello").includes("@w_seed_saturating_power_u64") &&
     wmoArtifact.includes("@w_fn_0(") &&
     !wmoArtifact.includes("@w_fn_1(") &&
     !wmoArtifact.includes("@w_fn_2(") &&

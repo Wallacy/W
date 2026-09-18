@@ -178,7 +178,7 @@ Cada aplicação tem owner type, head, envelope, argumentos ordenados e status d
 binding; cada argumento preserva ordinal, span, label, parâmetro, kind, o índice
 de type ou `ConstValue` e o índice sentinel/relacionado de `TypedConstExpr`. O
 root liga à aplicação por `generic_application_index`.
-`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-60`. Earlier D2/D3 fields
+`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-61`. Earlier D2/D3 fields
 anteriores permanecem append-only; a versão 6 acrescenta records, ranges,
 counts/capacities e relações de module const; a versão 7 acrescenta
 `effective_type` e preserva `declared_type` como annotation source-only para
@@ -2817,10 +2817,10 @@ for ranking or live best metrics.
 
 ### Source-backed checked `UInt`/`u64` operators
 
-HIR0 schema `w-seed-hir0-75` represents ordinary unsigned arithmetic,
+HIR0 schema `w-seed-hir0-76` represents ordinary unsigned arithmetic,
 comparisons, and binary bitwise operations with `BINARY_U64`, and bitwise complement with the distinct
 `UNARY_U64` value kind. Native0 and MLIR0 schemas are `w-seed-native0-9` and
-`w-seed-mlir0-50` (Windows label `w-seed-mlir0-windows-35`). Native constant
+`w-seed-mlir0-51` (Windows label `w-seed-mlir0-windows-36`). Native constant
 trees are evaluated as `uint64_t` with checked add/subtract/multiply,
 zero-guarded divide/remainder, and width-preserving complement; overflow or
 division by zero fails closed. MLIR0 keeps the physical carrier as `i64`, uses
@@ -2831,6 +2831,14 @@ to XOR with an all-ones mask. It never routes complement
 through signed negation. Only reachable unsigned helpers are emitted, so a
 pure-UInt artifact does not pull in signed arithmetic or signed-decimal
 helpers.
+
+[`fixtures/restaurant-uint-saturating-policy.w`](fixtures/restaurant-uint-saturating-policy.w)
+proves bounded `u64.saturatingNegate` and `u64.saturatingPower`. Unsigned
+negate lowers to saturating subtraction from zero. Power uses one
+reachable-only exponentiation-by-squaring helper, clamps exact multiplication
+overflow to `u64.max`, and preserves `0^0 == 1`. The fixture executes zero and
+maximum negation, ordinary and clamped power, and zero exponent through
+reusable functions and a direct `entry` block.
 
 [`fixtures/restaurant-uint-bit-not.w`](fixtures/restaurant-uint-bit-not.w)
 proves the public Linux/WSL and Windows `w run` routes with `~0_u64` producing

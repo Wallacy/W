@@ -66,6 +66,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-uint-saturating-add",
   "restaurant-uint-saturating-subtract",
   "restaurant-uint-saturating-multiply",
+  "restaurant-uint-saturating-policy",
   "restaurant-uint-bitwise",
   "restaurant-uint-compound",
   "restaurant-unsigned",
@@ -210,6 +211,7 @@ export const RESTAURANT_UINT_OVERFLOWING_POWER_WORKLOAD_ID = "restaurant-uint-ov
 export const RESTAURANT_UINT_SATURATING_ADD_WORKLOAD_ID = "restaurant-uint-saturating-add";
 export const RESTAURANT_UINT_SATURATING_SUBTRACT_WORKLOAD_ID = "restaurant-uint-saturating-subtract";
 export const RESTAURANT_UINT_SATURATING_MULTIPLY_WORKLOAD_ID = "restaurant-uint-saturating-multiply";
+export const RESTAURANT_UINT_SATURATING_POLICY_WORKLOAD_ID = "restaurant-uint-saturating-policy";
 export const RESTAURANT_UINT_WRAPPING_SUBTRACT_WORKLOAD_ID = "restaurant-uint-wrapping-subtract";
 export const RESTAURANT_UINT_WRAPPING_MULTIPLY_WORKLOAD_ID = "restaurant-uint-wrapping-multiply";
 export const RESTAURANT_UINT_WRAPPING_NEGATE_WORKLOAD_ID = "restaurant-uint-wrapping-negate";
@@ -1093,6 +1095,7 @@ function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PL
       workload?.id === RESTAURANT_UINT_SATURATING_ADD_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_SATURATING_SUBTRACT_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_SATURATING_MULTIPLY_WORKLOAD_ID ||
+      workload?.id === RESTAURANT_UINT_SATURATING_POLICY_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_WRAPPING_SUBTRACT_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_WRAPPING_MULTIPLY_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_WRAPPING_NEGATE_WORKLOAD_ID ||

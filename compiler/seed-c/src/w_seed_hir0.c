@@ -183,7 +183,9 @@ static bool hir0_builtin_u64_operation_is_supported(
          operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_POWER ||
-         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE;
+         operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_NEGATE ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_POWER;
 }
 
 static bool hir0_builtin_u64_operation_returns_tuple(
@@ -199,6 +201,7 @@ static bool hir0_builtin_u64_operation_is_unary(
     w_seed_frontend_builtin_operation operation) {
   return operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_NEGATE ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_NEGATE ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ZEROS ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_LEADING_ZEROS ||
@@ -259,7 +262,11 @@ static bool hir0_builtin_u64_operation_member_matches(
          (operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_POWER &&
           text_is(member_name, "overflowingPower")) ||
          (operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE &&
-          text_is(member_name, "overflowingNegate"));
+          text_is(member_name, "overflowingNegate")) ||
+         (operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_NEGATE &&
+          text_is(member_name, "saturatingNegate")) ||
+         (operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_POWER &&
+          text_is(member_name, "saturatingPower"));
 }
 
 static bool frontend_assignment_operator(w_seed_frontend_text text) {
@@ -11425,6 +11432,9 @@ static uint32_t hir0_emit_value_m2(
           W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE)
         unary_operator = W_SEED_HIR0_UNARY_OVERFLOWING_NEGATE;
       else if (source->builtin_operation ==
+               W_SEED_FRONTEND_BUILTIN_U64_SATURATING_NEGATE)
+        unary_operator = W_SEED_HIR0_UNARY_SATURATING_NEGATE;
+      else if (source->builtin_operation ==
                W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES)
         unary_operator = W_SEED_HIR0_UNARY_COUNT_ONES;
       else if (source->builtin_operation ==
@@ -11551,6 +11561,9 @@ static uint32_t hir0_emit_value_m2(
     else if (source->builtin_operation ==
              W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_POWER)
       binary_operator = W_SEED_HIR0_BINARY_OVERFLOWING_POWER;
+    else if (source->builtin_operation ==
+             W_SEED_FRONTEND_BUILTIN_U64_SATURATING_POWER)
+      binary_operator = W_SEED_HIR0_BINARY_SATURATING_POWER;
     context->output->values[*context->value_index] = (w_seed_hir0_value){
         .kind = W_SEED_HIR0_VALUE_BINARY_U64,
         .owner_kind = owner_kind,
@@ -14724,7 +14737,8 @@ static bool verify_value_tree(
         value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_RIGHT ||
         value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_ADD ||
         value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_SUBTRACT ||
-        value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_MULTIPLY;
+        value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_MULTIPLY ||
+        value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_POWER;
     const bool overflowing =
         value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_ADD ||
         value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_SUBTRACT ||
@@ -14880,9 +14894,12 @@ static bool verify_value_tree(
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64) {
     const bool overflowing =
         value->unary_operator == W_SEED_HIR0_UNARY_OVERFLOWING_NEGATE;
+    const bool saturating =
+        value->unary_operator == W_SEED_HIR0_UNARY_SATURATING_NEGATE;
     if ((value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT &&
          value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
          !overflowing &&
+         !saturating &&
          value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES &&
          value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS &&
          value->unary_operator != W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS &&
