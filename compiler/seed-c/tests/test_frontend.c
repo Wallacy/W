@@ -5475,6 +5475,225 @@ static bool test_scalar_type_measure_emit_parity(void) {
   return true;
 }
 
+static bool test_checked_shift_frontend_matrix(void) {
+  typedef struct {
+    const char *name;
+    bool is_signed;
+    uint16_t bit_width;
+  } integer_case;
+  static const integer_case INTEGERS[] = {
+      {"i8", true, 8u},     {"u8", false, 8u},
+      {"i16", true, 16u},   {"u16", false, 16u},
+      {"i32", true, 32u},   {"u32", false, 32u},
+      {"i64", true, 64u},   {"u64", false, 64u},
+      {"Int", true, 64u},   {"UInt", false, 64u},
+  };
+  fixture *value = &fixture_literal;
+  char source[768];
+  for (size_t integer_index = 0u;
+       integer_index < sizeof(INTEGERS) / sizeof(INTEGERS[0]);
+       integer_index += 1u) {
+    const integer_case *integer = &INTEGERS[integer_index];
+    const int written = snprintf(
+        source, sizeof(source),
+        "fn left(value: %s, count: UInt): %s { return value << count }\n"
+        "fn right(value: %s, count: u64): %s { return value >> count }\n"
+        "entry { }\n",
+        integer->name, integer->name, integer->name, integer->name);
+    CHECK(written > 0 && (size_t)written < sizeof(source) &&
+          fixture_run(value, source));
+    CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
+          value->result.status == W_SEED_FRONTEND_OK &&
+          counts_equal(&value->result.required, &value->result.written));
+
+    size_t shift_count = 0u;
+    bool saw_left = false;
+    bool saw_right = false;
+    for (size_t expression_index = 0u;
+         expression_index < value->result.written.expressions;
+         expression_index += 1u) {
+      const w_seed_frontend_expression *expression =
+          &value->expressions[expression_index];
+      if (expression->kind != W_SEED_FRONTEND_EXPR_BINARY ||
+          (!frontend_text_is(expression->operator_text, "<<") &&
+           !frontend_text_is(expression->operator_text, ">>")))
+        continue;
+      shift_count += 1u;
+      CHECK(expression->supported && expression->left <
+                                            value->result.written.expressions &&
+            expression->right < value->result.written.expressions &&
+            expression->inferred_type < value->result.written.types);
+      const w_seed_frontend_expression *left =
+          &value->expressions[expression->left];
+      const w_seed_frontend_expression *right =
+          &value->expressions[expression->right];
+      CHECK(left->inferred_type < value->result.written.types &&
+            right->inferred_type < value->result.written.types &&
+            expression->inferred_type == left->inferred_type);
+      const w_seed_frontend_type *left_type =
+          &value->types[left->inferred_type];
+      const w_seed_frontend_type *right_type =
+          &value->types[right->inferred_type];
+      const w_seed_frontend_type *result_type =
+          &value->types[expression->inferred_type];
+      CHECK(left_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+            left_type->is_signed == integer->is_signed &&
+            left_type->bit_width == integer->bit_width &&
+            result_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+            result_type->is_signed == integer->is_signed &&
+            result_type->bit_width == integer->bit_width &&
+            right_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+            !right_type->is_signed && right_type->bit_width == 64u &&
+            !frontend_text_is(right_type->spelling, "usize"));
+      if (frontend_text_is(expression->operator_text, "<<")) {
+        CHECK(!saw_left);
+        saw_left = true;
+      } else {
+        CHECK(!saw_right);
+        saw_right = true;
+      }
+    }
+    CHECK(shift_count == 2u && saw_left && saw_right);
+  }
+
+  /* Out-of-width counts remain represented for checked evaluation, which is
+   * responsible for rejecting count >= the result's logical width. */
+  CHECK(fixture_run(value,
+                    "fn shift(value: i8): i8 { return value << 8_u64 }\n"
+                    "entry { }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK);
+  bool saw_out_of_width_count = false;
+  for (size_t expression_index = 0u;
+       expression_index < value->result.written.expressions;
+       expression_index += 1u) {
+    const w_seed_frontend_expression *expression =
+        &value->expressions[expression_index];
+    if (expression->kind != W_SEED_FRONTEND_EXPR_BINARY ||
+        !frontend_text_is(expression->operator_text, "<<"))
+      continue;
+    CHECK(expression->right < value->result.written.expressions);
+    const w_seed_frontend_expression *count =
+        &value->expressions[expression->right];
+    CHECK(count->kind == W_SEED_FRONTEND_EXPR_INTEGER &&
+          count->inferred_type < value->result.written.types);
+    const w_seed_frontend_type *count_type =
+        &value->types[count->inferred_type];
+    CHECK(count_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+          !count_type->is_signed && count_type->bit_width == 64u);
+    saw_out_of_width_count = true;
+  }
+  CHECK(saw_out_of_width_count);
+
+  static const char *const REJECTED[] = {
+      "fn bad(value: i8, count: u32): i8 { return value << count }\nentry {}\n",
+      "fn bad(value: u8, count: Int): u8 { return value >> count }\nentry {}\n",
+      "fn bad(value: i16, count: usize): i16 { return value << count }\nentry {}\n",
+      "fn bad(value: usize, count: UInt): usize { return value >> count }\nentry {}\n",
+  };
+  for (size_t index = 0u; index < sizeof(REJECTED) / sizeof(REJECTED[0]);
+       index += 1u) {
+    CHECK(fixture_run(value, REJECTED[index]));
+    CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+          has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+  }
+  return true;
+}
+
+static bool test_checked_shift_binding_interpolation_frontend(void) {
+  typedef struct {
+    const char *name;
+    bool is_signed;
+    uint16_t bit_width;
+  } integer_case;
+  static const integer_case INTEGERS[] = {
+      {"i8", true, 8u},     {"u8", false, 8u},
+      {"i16", true, 16u},   {"u16", false, 16u},
+      {"i32", true, 32u},   {"u32", false, 32u},
+      {"i64", true, 64u},   {"u64", false, 64u},
+      {"Int", true, 64u},   {"UInt", false, 64u},
+  };
+  char source[4096];
+  size_t source_length = 0u;
+  for (size_t integer_index = 0u;
+       integer_index < sizeof(INTEGERS) / sizeof(INTEGERS[0]);
+       integer_index += 1u) {
+    const integer_case *integer = &INTEGERS[integer_index];
+    const int written = snprintf(
+        source + source_length, sizeof(source) - source_length,
+        "fn shift%u(value: %s) {\n"
+        "  let right = value >> 2_u64\n"
+        "  let left = value << 1_u64\n"
+        "  print(\"%s ${right}/${left}\")\n"
+        "}\n",
+        (unsigned int)integer_index, integer->name, integer->name);
+    CHECK(written > 0 && (size_t)written < sizeof(source) - source_length);
+    source_length += (size_t)written;
+  }
+  const int entry_written = snprintf(
+      source + source_length, sizeof(source) - source_length, "entry { }\n");
+  CHECK(entry_written > 0 &&
+        (size_t)entry_written < sizeof(source) - source_length);
+  fixture *value = &fixture_literal;
+  CHECK(fixture_parse(value, source));
+  fixture_configure_print_host(value);
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_OK);
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        counts_equal(&value->result.required, &value->result.written));
+
+  size_t interpolated_count = 0u;
+  size_t binding_read_count = 0u;
+  for (size_t expression_index = 0u;
+       expression_index < value->result.written.expressions;
+       expression_index += 1u) {
+    const w_seed_frontend_expression *expression =
+        &value->expressions[expression_index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_INTERPOLATED_STRING) {
+      CHECK(expression->supported &&
+            expression->first_interpolation_segment != W_SEED_FRONTEND_NONE &&
+            expression->interpolation_segment_count == 4u);
+      interpolated_count += 1u;
+      continue;
+    }
+    if (expression->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER ||
+        (!frontend_text_is(expression->spelling, "right") &&
+         !frontend_text_is(expression->spelling, "left")))
+      continue;
+    CHECK(expression->owner_function <
+              sizeof(INTEGERS) / sizeof(INTEGERS[0]) &&
+          expression->supported &&
+          expression->resolved_binding_statement != W_SEED_FRONTEND_NONE &&
+          expression->resolved_binding_statement <
+              value->result.written.statements &&
+          expression->inferred_type < value->result.written.types);
+    const integer_case *integer = &INTEGERS[expression->owner_function];
+    const w_seed_frontend_type *type =
+        &value->types[expression->inferred_type];
+    const w_seed_frontend_statement *binding =
+        &value->statements[expression->resolved_binding_statement];
+    CHECK(type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+          type->is_signed == integer->is_signed &&
+          type->bit_width == integer->bit_width &&
+          binding->effective_type == expression->inferred_type);
+    binding_read_count += 1u;
+  }
+  CHECK(interpolated_count == sizeof(INTEGERS) / sizeof(INTEGERS[0]) &&
+        binding_read_count ==
+            2u * sizeof(INTEGERS) / sizeof(INTEGERS[0]));
+
+  static const char rejected_count[] =
+      "fn bad(value: i8, count: i32): i8 { return value << count }\n"
+      "entry { }\n";
+  CHECK(fixture_parse(value, rejected_count));
+  fixture_configure_print_host(value);
+  const w_seed_frontend_status rejected_status =
+      w_seed_frontend_run(&value->input, &value->output, &value->result);
+  CHECK(rejected_status == W_SEED_FRONTEND_UNSUPPORTED &&
+        value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+  return true;
+}
+
 static bool test_u64_binary_frontend(void) {
   static const char SOURCE[] =
       "fn unsigned(left: UInt, right: UInt): UInt { "
@@ -8113,6 +8332,8 @@ int main(int argc, char **argv) {
   if (!test_short_entry_frontend()) return 1;
   if (!test_scalar_if_frontend_subset()) return 1;
   if (!test_scalar_type_measure_emit_parity()) return 1;
+  if (!test_checked_shift_frontend_matrix()) return 1;
+  if (!test_checked_shift_binding_interpolation_frontend()) return 1;
   if (!test_u64_binary_frontend()) return 1;
   if (!test_u64_overflowing_products_frontend()) return 1;
   if (!test_u64_saturating_policy_frontend()) return 1;

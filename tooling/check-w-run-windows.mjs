@@ -485,6 +485,7 @@ try {
     "runtime-checked-u16-underflow.w")
   const runtimeCheckedI16MultiplyOverflow = join(fixtureDirectory,
     "runtime-checked-i16-multiply-overflow.w")
+  const runtimeShiftFaults = []
   const runtimeNegationMinimums = []
   const runtimeDivisionZero = join(fixtureDirectory,
     "runtime-division-zero.w")
@@ -526,6 +527,22 @@ try {
     "entry { print(\"must not commit\") " +
     "let result = multiply(left: 200_i16, right: 200_i16) " +
     "print(\"${result}\") }\n")
+  for (const [name, type, value, count, operator, label] of [
+    ["runtime-shift-count-i8", "i8", "1_i8", "8_u64", ">>", "signed i8 shift count at logical width"],
+    ["runtime-shift-count-u8", "u8", "1_u8", "8_u64", ">>", "unsigned u8 shift count at logical width"],
+    ["runtime-signed-shift-loss-i8", "i8", "64_i8", "1_u64", "<<", "signed i8 shift loses a sign bit"],
+    ["runtime-negative-shift-loss-i8", "i8", "-64_i8", "2_u64", "<<", "negative signed i8 shift loses high bits"],
+    ["runtime-unsigned-shift-loss-u8", "u8", "128_u8", "1_u64", "<<", "unsigned u8 shift loses a high bit"],
+  ]) {
+    const path = join(fixtureDirectory, `${name}.w`)
+    await writeFile(path,
+      "// Expected exit: nonzero (trap)\n// Expected stdout: <empty>\n" +
+      `fn shift(value: ${type}, count: UInt): ${type} { return value ${operator} count }\n` +
+      "entry { print(\"must not commit\") " +
+      `let result = shift(value: ${value}, count: ${count}) ` +
+      "print(\"${result}\") }\n")
+    runtimeShiftFaults.push([path, label])
+  }
   for (const [type, maximum, suffix] of [
     ["i8", "127", "_i8"],
     ["i16", "32767", "_i16"],
@@ -752,8 +769,14 @@ try {
     Buffer.from("Unsigned 18446744073709551615\n", "utf8"),
     "Restaurant full-width UInt parameter, return, and interpolation")
   expectExact(binary, ["run", restaurantShiftsFixture], 0,
-    Buffer.from("Shifts -4/15/-48/48\n", "utf8"),
-    "Restaurant checked signed and unsigned shifts")
+    Buffer.from(
+      "i8 -16/-128\nu8 32/128\ni16 -4096/-32768\nu16 8192/32768\n" +
+      "i32 -268435456/-2147483648\nu32 536870912/2147483648\n" +
+      "i64 -1152921504606846976/-9223372036854775808\n" +
+      "u64 2305843009213693952/9223372036854775808\n" +
+      "Int -1152921504606846976/-9223372036854775808\n" +
+      "UInt 2305843009213693952/9223372036854775808\n", "utf8"),
+    "Restaurant checked signed and unsigned shifts across logical widths")
   expectExact(binary, ["run", restaurantPowerFixture], 0,
     Buffer.from("Power -27/1024/1/512\n", "utf8"),
     "Restaurant checked signed and unsigned power")
@@ -808,6 +831,7 @@ try {
     [runtimeCheckedI8Overflow, "signed i8 checked addition overflow"],
     [runtimeCheckedU16Underflow, "unsigned u16 checked compound subtraction underflow"],
     [runtimeCheckedI16MultiplyOverflow, "signed i16 checked multiplication overflow"],
+    ...runtimeShiftFaults,
   ]) {
     const failure = spawn(binary, ["run", path])
     assert(failure.exitCode !== 0 && failure.stdout.length === 0 &&

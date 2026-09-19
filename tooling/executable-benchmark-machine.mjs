@@ -220,6 +220,7 @@ export const RESTAURANT_INTEGER_WIDENING_WORKLOAD_ID = "restaurant-integer-widen
 export const RESTAURANT_INTEGER_TRUNCATING_BITS_WORKLOAD_ID = "restaurant-integer-truncating-bits";
 export const RESTAURANT_INTEGER_COMPARISON_WORKLOAD_ID = "restaurant-integer-comparison";
 export const RESTAURANT_INTEGER_BITWISE_WORKLOAD_ID = "restaurant-integer-bitwise";
+export const RESTAURANT_CHECKED_SHIFTS_WORKLOAD_ID = "restaurant-shifts";
 export const RESTAURANT_UINT_OVERFLOWING_FAMILY_WORKLOAD_ID = "restaurant-uint-overflowing-family";
 export const RESTAURANT_UINT_SATURATING_POLICY_WORKLOAD_ID = "restaurant-uint-saturating-policy";
 export const RESTAURANT_UINT_BITWISE_WORKLOAD_ID = "restaurant-uint-bitwise";
@@ -1202,6 +1203,7 @@ function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PL
       workload?.id === RESTAURANT_INTEGER_TRUNCATING_BITS_WORKLOAD_ID ||
       workload?.id === RESTAURANT_INTEGER_COMPARISON_WORKLOAD_ID ||
       workload?.id === RESTAURANT_INTEGER_BITWISE_WORKLOAD_ID ||
+      workload?.id === RESTAURANT_CHECKED_SHIFTS_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_BITWISE_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_COMPOUND_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_OVERFLOWING_FAMILY_WORKLOAD_ID ||

@@ -499,10 +499,18 @@ try {
   }
   const runtimeShiftCountPath = resolve(artifactDirectory,
     "runtime-shift-count.w")
+  const runtimeUnsignedShiftCountPath = resolve(artifactDirectory,
+    "runtime-unsigned-shift-count.w")
   const runtimeUnsignedShiftOverflowPath = resolve(artifactDirectory,
     "runtime-unsigned-shift-overflow.w")
   const runtimeSignedShiftOverflowPath = resolve(artifactDirectory,
     "runtime-signed-shift-overflow.w")
+  const runtimeNarrowUnsignedShiftOverflowPath = resolve(artifactDirectory,
+    "runtime-narrow-unsigned-shift-overflow.w")
+  const runtimeNarrowSignedShiftOverflowPath = resolve(artifactDirectory,
+    "runtime-narrow-signed-shift-overflow.w")
+  const runtimeNarrowNegativeShiftOverflowPath = resolve(artifactDirectory,
+    "runtime-narrow-negative-shift-overflow.w")
   const runtimeSignedPowerOverflowPath = resolve(artifactDirectory,
     "runtime-signed-power-overflow.w")
   const runtimeUnsignedPowerOverflowPath = resolve(artifactDirectory,
@@ -594,8 +602,14 @@ try {
     'value: 0 - 9223372036854775807 - 1) ' +
     'print("success ${result}") }\nentry(main)\n')
   await writeFile(runtimeShiftCountPath,
-    'fn shift(value: UInt, count: UInt): UInt { return value >> count }\n' +
-    'entry { let result = shift(value: 1_u64, count: 64_u64) ' +
+    '// Expected exit: nonzero (trap)\n// Expected stdout: <empty>\n' +
+    'fn shift(value: i8, count: UInt): i8 { return value >> count }\n' +
+    'entry { print("must not commit") let result = shift(value: 1_i8, count: 8_u64) ' +
+    'print("success ${result}") }\n')
+  await writeFile(runtimeUnsignedShiftCountPath,
+    '// Expected exit: nonzero (trap)\n// Expected stdout: <empty>\n' +
+    'fn shift(value: u8, count: UInt): u8 { return value >> count }\n' +
+    'entry { print("must not commit") let result = shift(value: 1_u8, count: 8_u64) ' +
     'print("success ${result}") }\n')
   await writeFile(runtimeUnsignedShiftOverflowPath,
     'fn shift(value: UInt, count: UInt): UInt { return value << count }\n' +
@@ -606,6 +620,21 @@ try {
     'fn shift(value: Int, count: UInt): Int { return value << count }\n' +
     'entry { let result = shift(' +
     'value: 9223372036854775807, count: 1_u64) ' +
+    'print("success ${result}") }\n')
+  await writeFile(runtimeNarrowUnsignedShiftOverflowPath,
+    '// Expected exit: nonzero (trap)\n// Expected stdout: <empty>\n' +
+    'fn shift(value: u8, count: UInt): u8 { return value << count }\n' +
+    'entry { print("must not commit") let result = shift(value: 128_u8, count: 1_u64) ' +
+    'print("success ${result}") }\n')
+  await writeFile(runtimeNarrowSignedShiftOverflowPath,
+    '// Expected exit: nonzero (trap)\n// Expected stdout: <empty>\n' +
+    'fn shift(value: i8, count: UInt): i8 { return value << count }\n' +
+    'entry { print("must not commit") let result = shift(value: 64_i8, count: 1_u64) ' +
+    'print("success ${result}") }\n')
+  await writeFile(runtimeNarrowNegativeShiftOverflowPath,
+    '// Expected exit: nonzero (trap)\n// Expected stdout: <empty>\n' +
+    'fn shift(value: i8, count: UInt): i8 { return value << count }\n' +
+    'entry { print("must not commit") let result = shift(value: -64_i8, count: 2_u64) ' +
     'print("success ${result}") }\n')
   await writeFile(runtimeSignedPowerOverflowPath,
     'fn power(base: Int, exponent: UInt): Int { return base ** exponent }\n' +
@@ -735,7 +764,13 @@ try {
     { name: "restaurant-unsigned", source: restaurantUnsignedFixture,
       expected: Buffer.from("Unsigned 18446744073709551615\n", "utf8") },
     { name: "restaurant-shifts", source: restaurantShiftsFixture,
-      expected: Buffer.from("Shifts -4/15/-48/48\n", "utf8") },
+      expected: Buffer.from(
+        "i8 -16/-128\nu8 32/128\ni16 -4096/-32768\nu16 8192/32768\n" +
+        "i32 -268435456/-2147483648\nu32 536870912/2147483648\n" +
+        "i64 -1152921504606846976/-9223372036854775808\n" +
+        "u64 2305843009213693952/9223372036854775808\n" +
+        "Int -1152921504606846976/-9223372036854775808\n" +
+        "UInt 2305843009213693952/9223372036854775808\n", "utf8") },
     { name: "restaurant-power", source: restaurantPowerFixture,
       expected: Buffer.from("Power -27/1024/1/512\n", "utf8") },
     { name: "restaurant-power-prefix", source: restaurantPowerPrefixFixture,
@@ -943,10 +978,18 @@ try {
     { name: "runtime-negation-overflow", source: runtimeNegationOverflowPath },
     ...runtimeIntegerNegationMinimumPaths,
     { name: "runtime-shift-count", source: runtimeShiftCountPath },
+    { name: "runtime-unsigned-shift-count",
+      source: runtimeUnsignedShiftCountPath },
     { name: "runtime-unsigned-shift-overflow",
       source: runtimeUnsignedShiftOverflowPath },
     { name: "runtime-signed-shift-overflow",
       source: runtimeSignedShiftOverflowPath },
+    { name: "runtime-narrow-unsigned-shift-overflow",
+      source: runtimeNarrowUnsignedShiftOverflowPath },
+    { name: "runtime-narrow-signed-shift-overflow",
+      source: runtimeNarrowSignedShiftOverflowPath },
+    { name: "runtime-narrow-negative-shift-overflow",
+      source: runtimeNarrowNegativeShiftOverflowPath },
     { name: "runtime-signed-power-overflow",
       source: runtimeSignedPowerOverflowPath },
     { name: "runtime-unsigned-power-overflow",
@@ -1083,27 +1126,32 @@ try {
     !unsignedArtifact.includes("llvm.call @w_seed_append_i64"),
   "UInt did not retain its unsigned full-width lowering and formatter")
   const shiftsArtifact = artifacts.get("restaurant-shifts")
+  const shiftsArtifactText = shiftsArtifact.toString("utf8")
+  const shiftEvidence = {
+    width8: (shiftsArtifactText.match(/_checked_width = llvm\.mlir\.constant\(8 : i64\)/gu) ?? []).length,
+    width16: (shiftsArtifactText.match(/_checked_width = llvm\.mlir\.constant\(16 : i64\)/gu) ?? []).length,
+    width32: (shiftsArtifactText.match(/_checked_width = llvm\.mlir\.constant\(32 : i64\)/gu) ?? []).length,
+    width64: (shiftsArtifactText.match(/_checked_width = llvm\.mlir\.constant\(64 : i64\)/gu) ?? []).length,
+    signed: (shiftsArtifactText.match(/_checked_signed = llvm\.mlir\.constant\(true\)/gu) ?? []).length,
+    unsigned: (shiftsArtifactText.match(/_checked_signed = llvm\.mlir\.constant\(false\)/gu) ?? []).length,
+    left: (shiftsArtifactText.match(/llvm\.call @w_seed_checked_shift_left\(/gu) ?? []).length,
+    right: (shiftsArtifactText.match(/llvm\.call @w_seed_checked_shift_right\(/gu) ?? []).length,
+  }
   assert(shiftsArtifact.includes(
-    "llvm.func internal @w_seed_checked_shift_left_i64") &&
+    "llvm.func internal @w_seed_checked_shift_left(%left: i64, %count: i64, %width: i64, %is_signed: i1)") &&
     shiftsArtifact.includes(
-      "llvm.func internal @w_seed_checked_shift_left_u64") &&
-    shiftsArtifact.includes(
-      "llvm.func internal @w_seed_checked_shift_right_i64") &&
-    shiftsArtifact.includes(
-      "llvm.func internal @w_seed_checked_shift_right_u64") &&
+      "llvm.func internal @w_seed_checked_shift_right(%left: i64, %count: i64, %width: i64, %is_signed: i1)") &&
     shiftsArtifact.includes('llvm.icmp "uge" %count, %width : i64') &&
     shiftsArtifact.includes("llvm.shl %left, %count : i64") &&
     shiftsArtifact.includes("llvm.ashr %left, %count : i64") &&
     shiftsArtifact.includes("llvm.lshr %left, %count : i64") &&
-    shiftsArtifact.includes(
-      "llvm.call @w_seed_checked_shift_right_i64") &&
-    shiftsArtifact.includes(
-      "llvm.call @w_seed_checked_shift_right_u64") &&
-    shiftsArtifact.includes(
-      "llvm.call @w_seed_checked_shift_left_i64") &&
-    shiftsArtifact.includes(
-      "llvm.call @w_seed_checked_shift_left_u64"),
-  "checked shifts lost width guards, signedness, or runtime lowering")
+    /* Four shifts per narrow width plus two checked negative-literal
+       materializations; full-width negation lowers directly and adds none. */
+    shiftEvidence.width8 === 6 && shiftEvidence.width16 === 6 &&
+    shiftEvidence.width32 === 6 && shiftEvidence.width64 === 8 &&
+    shiftEvidence.signed === 10 && shiftEvidence.unsigned === 10 &&
+    shiftEvidence.left === 10 && shiftEvidence.right === 10,
+  "checked shifts lost verified logical widths, signedness, or runtime lowering")
   const powerArtifact = artifacts.get("restaurant-power")
   assert(powerArtifact.includes(
     "llvm.func internal @w_seed_checked_power_i64") &&
@@ -1233,7 +1281,7 @@ try {
     uintWrappingShiftLeftArtifact.includes('"llvm.intr.trap"()') &&
     uintWrappingShiftLeftArtifact.includes("llvm.unreachable") &&
     uintWrappingShiftLeftArtifact.includes("llvm.call @w_seed_append_u64") &&
-    !uintWrappingShiftLeftArtifact.includes("@w_seed_checked_shift_left_u64") &&
+    !uintWrappingShiftLeftArtifact.includes("@w_seed_checked_shift_left") &&
     !uintWrappingShiftLeftArtifact.includes("llvm.intr.ushl.with.overflow"),
   "u64.wrappingShiftLeft lost its count guard or gained checked-shift semantics")
   const uintMaskedShiftLeftArtifact =
@@ -1245,7 +1293,7 @@ try {
     uintMaskedShiftLeftArtifact.includes("llvm.and %count, %mask : i64") &&
     uintMaskedShiftLeftArtifact.includes("llvm.shl %left, %masked_count : i64") &&
     uintMaskedShiftLeftArtifact.includes("llvm.call @w_seed_append_u64") &&
-    !uintMaskedShiftLeftArtifact.includes("@w_seed_checked_shift_left_u64") &&
+    !uintMaskedShiftLeftArtifact.includes("@w_seed_checked_shift_left") &&
     !uintMaskedShiftLeftArtifact.includes("llvm.intr.ushl.with.overflow"),
   "u64.maskedShiftLeft lost count masking or gained checked-shift semantics")
   const uintMaskedShiftRightArtifact =
@@ -1257,7 +1305,7 @@ try {
     uintMaskedShiftRightArtifact.includes("llvm.and %count, %mask : i64") &&
     uintMaskedShiftRightArtifact.includes("llvm.lshr %left, %masked_count : i64") &&
     uintMaskedShiftRightArtifact.includes("llvm.call @w_seed_append_u64") &&
-    !uintMaskedShiftRightArtifact.includes("@w_seed_checked_shift_right_u64"),
+    !uintMaskedShiftRightArtifact.includes("@w_seed_checked_shift_right"),
   "u64.maskedShiftRight lost count masking or unsigned logical shift semantics")
   const uintLogicalShiftRightArtifact =
     artifacts.get("restaurant-uint-logical-shift-right").toString("utf8")
@@ -1272,7 +1320,7 @@ try {
     uintLogicalShiftRightArtifact.includes("llvm.unreachable") &&
     uintLogicalShiftRightArtifact.includes("llvm.call @w_seed_append_u64") &&
     !uintLogicalShiftRightArtifact.includes("llvm.and %count, %mask : i64") &&
-    !uintLogicalShiftRightArtifact.includes("@w_seed_checked_shift_right_u64"),
+    !uintLogicalShiftRightArtifact.includes("@w_seed_checked_shift_right"),
   "u64.logicalShiftRight lost zero fill or invalid-count trap semantics")
   const uintRotatedLeftArtifact =
     artifacts.get("restaurant-uint-rotated-left").toString("utf8")
@@ -1398,8 +1446,8 @@ try {
     "@w_seed_checked_divide_u64",
     "@w_seed_checked_remainder_u64",
     "@w_seed_checked_power_u64",
-    "@w_seed_checked_shift_left_u64",
-    "@w_seed_checked_shift_right_u64",
+    "@w_seed_checked_shift_left",
+    "@w_seed_checked_shift_right",
   ]) {
     assert(uintCompoundArtifact.includes(helper),
       `UInt compound mutation lost unsigned helper ${helper}`)
@@ -1429,8 +1477,10 @@ try {
     !uintCompoundFunction.includes("@w_seed_checked_divide_i64") &&
     !uintCompoundFunction.includes("@w_seed_checked_remainder_i64") &&
     !uintCompoundFunction.includes("@w_seed_checked_power_i64") &&
-    !uintCompoundFunction.includes("@w_seed_checked_shift_left_i64") &&
-    !uintCompoundFunction.includes("@w_seed_checked_shift_right_i64") &&
+    uintCompoundFunction.includes(
+      "_checked_signed = llvm.mlir.constant(false) : i1") &&
+    !uintCompoundFunction.includes(
+      "_checked_signed = llvm.mlir.constant(true) : i1") &&
     !uintCompoundFunction.includes("llvm.sdiv ") &&
     !uintCompoundFunction.includes("llvm.srem ") &&
     !uintCompoundFunction.includes("llvm.ashr ") &&

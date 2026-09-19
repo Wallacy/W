@@ -42219,7 +42219,9 @@ uses constants, so `benchmarkDisposition` is
 `correctness-reference-no-ranking`; no performance ranking is claimed.
 `exactly:`, `rounding:`, `saturating:`, floating conversions,
 `usize`/`isize`, 128-bit types, target-general aliases, stable ABI/FFI,
-other targets, and equivalent runtime work remain outside W-1641.
+other targets, and equivalent runtime work remain outside W-1641. Fallible
+`D(exactly:)` remains deferred until typed conversion-error lowering is
+end-to-end; it is not implemented by this slice.
 
 #### 26.4.1.122 W-1642 — ordinary binary integer bitwise family through native execution
 
@@ -42250,9 +42252,43 @@ its source-local comments declare exit 0 and the exact per-type stdout, plus
 `i8 | i32 -> i32` and `u8 | i16 -> i16` exact-widening results. C23 and Rust
 2024 are correctness references only, so
 `benchmarkDisposition` is `correctness-reference-no-ranking`; no performance
-ranking is claimed. W-392 remains open for width-generic shifts and power,
-rotations and named policies, remaining bit primitives, SIMD, and the full
-integer operator matrix.
+ranking is claimed. W-1643 separately closes checked ordinary `<<` and `>>`
+for the same fixed-width family; W-392 remains open for power, named shift
+policies, rotations, remaining bit primitives, SIMD, and the full integer
+operator matrix.
+
+#### 26.4.1.123 W-1643 — checked ordinary integer shifts through native execution
+
+W-1643 implements the existing ordinary `<<` and `>>` operators selected by
+W-392; it adds no syntax or policy API. The supported source-backed types are
+`i8`/`u8`, `i16`/`u16`, `i32`/`u32`, `i64`/`u64`, and the current x86-64
+`Int`/`UInt` aliases. For either operator, the left operand and result have
+exactly the same canonical integer type; no promotion or mixed-type common
+type is applied. The count is exactly `UInt` (currently `u64` on x86-64). A
+count greater than or equal to the logical width fails checked evaluation.
+Left shift also fails if its mathematical result does not fit that type.
+Signed `>>` is arithmetic; unsigned `>>` is logical.
+
+One generic lowering uses verified signedness and logical-width type facts,
+not a per-width operation enum. The frontend, verified HIR, Native0, and
+MLIR0 retain the same operand/result/count contract. Verified HIR advances to
+schema 86, Native0 remains schema 10, MLIR0 advances to schema 57, and the
+Windows adapter advances to schema 42. MLIR0 emits direct LLVM
+`shl`, `ashr`, and `lshr` operations with checked guards; the family needs no
+heap allocation, runtime helper, or CRT helper.
+
+[`restaurant-shifts.w`](compiler/seed-c/fixtures/restaurant-shifts.w) owns the
+exact expected exit and stdout beside its source. The same source-backed path
+crosses frontend → verified HIR → Native0/MLIR0 → CRT-free native execution on
+Windows and Linux/WSL. C23 and Rust 2024 are correctness references only, with
+no performance ranking; `benchmarkDisposition` is `deferred` until W retains
+equivalent runtime operands and the family can be measured fairly.
+
+This closes only the ordinary checked shift operators for the stated types.
+W-392 remains open for named numeric and shift policies, power, rotations,
+remaining bit primitives, SIMD, `usize`/`isize`, 128-bit integers, non-x86-64
+alias widths, stable ABI/FFI, other targets, and equivalent-runtime
+performance.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

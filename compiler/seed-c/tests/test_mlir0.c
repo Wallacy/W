@@ -3049,7 +3049,7 @@ static bool test_u64_wrapping_shift_left_artifact(void) {
         contains_bytes(artifact, emitted.written.mlir_bytes,
                        "llvm.unreachable") &&
         !contains_bytes(artifact, emitted.written.mlir_bytes,
-                        "@w_seed_checked_shift_left_u64") &&
+                        "@w_seed_checked_shift_left") &&
         !contains_bytes(artifact, emitted.written.mlir_bytes,
                         "llvm.intr.ushl.with.overflow"));
 
@@ -3100,7 +3100,7 @@ static bool test_u64_masked_shift_left_artifact(void) {
         contains_bytes(artifact, emitted.written.mlir_bytes,
                        "llvm.shl %left, %masked_count : i64") &&
         !contains_bytes(artifact, emitted.written.mlir_bytes,
-                        "@w_seed_checked_shift_left_u64") &&
+                        "@w_seed_checked_shift_left") &&
         !contains_bytes(artifact, emitted.written.mlir_bytes,
                         "llvm.intr.ushl.with.overflow"));
 
@@ -3151,7 +3151,7 @@ static bool test_u64_masked_shift_right_artifact(void) {
         contains_bytes(artifact, emitted.written.mlir_bytes,
                        "llvm.lshr %left, %masked_count : i64") &&
         !contains_bytes(artifact, emitted.written.mlir_bytes,
-                        "@w_seed_checked_shift_right_u64"));
+                        "@w_seed_checked_shift_right"));
 
   static const uint8_t unreachable_source[] =
       "entry { print(\"No masked shift right\") }\n";
@@ -3206,7 +3206,7 @@ static bool test_u64_logical_shift_right_artifact(void) {
         !contains_bytes(artifact, emitted.written.mlir_bytes,
                         "llvm.and %count, %mask : i64") &&
         !contains_bytes(artifact, emitted.written.mlir_bytes,
-                        "@w_seed_checked_shift_right_u64"));
+                        "@w_seed_checked_shift_right"));
 
   static const uint8_t unreachable_source[] =
       "entry { print(\"No logical shift right\") }\n";
@@ -4740,15 +4740,27 @@ static bool test_signed_bit_not_artifact(void) {
 
 static bool test_checked_shift_artifact(void) {
   static const uint8_t source[] =
-      "fn signedRight(value: Int, count: UInt): Int { return value >> count }\n"
-      "fn unsignedRight(value: UInt, count: UInt): UInt { return value >> count }\n"
-      "fn signedLeft(value: Int, count: UInt): Int { return value << count }\n"
-      "fn unsignedLeft(value: UInt, count: UInt): UInt { return value << count }\n"
-      "entry { let a = signedRight(value: -16, count: 2_u64) "
-      "let b = unsignedRight(value: 18446744073709551615_u64, count: 60_u64) "
-      "let c = signedLeft(value: -3, count: 4_u64) "
-      "let d = unsignedLeft(value: 3_u64, count: 4_u64) "
-      "print(\"${a}/${b}/${c}/${d}\") }\n";
+      "fn shift_i8(value: i8, count: UInt): i8 { return value >> count }\n"
+      "fn shift_u8(value: u8, count: UInt): u8 { return value << count }\n"
+      "fn shift_i16(value: i16, count: UInt): i16 { return value << count }\n"
+      "fn shift_u16(value: u16, count: UInt): u16 { return value >> count }\n"
+      "fn shift_i32(value: i32, count: UInt): i32 { return value >> count }\n"
+      "fn shift_u32(value: u32, count: UInt): u32 { return value << count }\n"
+      "fn shift_i64(value: i64, count: UInt): i64 { return value << count }\n"
+      "fn shift_u64(value: u64, count: UInt): u64 { return value >> count }\n"
+      "fn shift_int(value: Int, count: UInt): Int { return value >> count }\n"
+      "fn shift_uint(value: UInt, count: UInt): UInt { return value << count }\n"
+      "entry { let a = shift_i8(value: -64_i8, count: 2_u64) "
+      "let b = shift_u8(value: 64_u8, count: 1_u64) "
+      "let c = shift_i16(value: -16384_i16, count: 1_u64) "
+      "let d = shift_u16(value: 32768_u16, count: 2_u64) "
+      "let e = shift_i32(value: -1073741824_i32, count: 2_u64) "
+      "let f = shift_u32(value: 1073741824_u32, count: 1_u64) "
+      "let g = shift_i64(value: -4611686018427387904_i64, count: 1_u64) "
+      "let h = shift_u64(value: 9223372036854775808_u64, count: 2_u64) "
+      "let i = shift_int(value: -4611686018427387904_i64, count: 2_u64) "
+      "let j = shift_uint(value: 4611686018427387904_u64, count: 1_u64) "
+      "print(\"${a}/${b}/${c}/${d}/${e}/${f}/${g}/${h}/${i}/${j}\") }\n";
   uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   w_seed_mlir0_counts counts;
   w_seed_mlir0_result measured;
@@ -4758,21 +4770,50 @@ static bool test_checked_shift_artifact(void) {
   CHECK(emit_current(artifact, sizeof(artifact), &emitted));
   CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
         count_bytes(artifact, emitted.written.mlir_bytes,
-                    "llvm.func internal @w_seed_checked_shift_left_i64") == 1u &&
+                    "llvm.func internal @w_seed_checked_shift_left(") == 1u &&
         count_bytes(artifact, emitted.written.mlir_bytes,
-                    "llvm.func internal @w_seed_checked_shift_left_u64") == 1u &&
+                    "llvm.func internal @w_seed_checked_shift_right(") == 1u &&
         count_bytes(artifact, emitted.written.mlir_bytes,
-                    "llvm.func internal @w_seed_checked_shift_right_i64") == 1u &&
+                    "llvm.call @w_seed_checked_shift_left(") == 5u &&
         count_bytes(artifact, emitted.written.mlir_bytes,
-                    "llvm.func internal @w_seed_checked_shift_right_u64") == 1u &&
+                    "llvm.call @w_seed_checked_shift_right(") == 5u &&
         count_bytes(artifact, emitted.written.mlir_bytes,
-                    "llvm.icmp \"uge\" %count, %width : i64") == 4u &&
+                    "llvm.icmp \"uge\" %count, %width : i64") == 2u &&
         contains_bytes(artifact, emitted.written.mlir_bytes,
                        "llvm.ashr %left, %count : i64") &&
         contains_bytes(artifact, emitted.written.mlir_bytes,
                        "llvm.lshr %left, %count : i64") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.shl %left, %count : i64") &&
+        /* Each narrow width appears twice in shift calls and once in the
+           checked negation used to materialize its signed negative witness. */
         count_bytes(artifact, emitted.written.mlir_bytes,
-                    "llvm.shl %left, %count : i64") == 2u);
+                    "_checked_width = llvm.mlir.constant(8 : i64)") == 3u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "_checked_width = llvm.mlir.constant(16 : i64)") == 3u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "_checked_width = llvm.mlir.constant(32 : i64)") == 3u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "_checked_width = llvm.mlir.constant(64 : i64)") == 4u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "_checked_signed = llvm.mlir.constant(true)") == 5u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "_checked_signed = llvm.mlir.constant(false)") == 5u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "_checked_left = llvm.sext") == 3u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "_checked_left = llvm.zext") == 3u);
+
+  static const uint8_t no_shift_source[] =
+      "entry { print(\"No checked shift\") }\n";
+  CHECK(lower_hir(no_shift_source, sizeof(no_shift_source) - 1u));
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "@w_seed_checked_shift_left") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "@w_seed_checked_shift_right"));
   return true;
 }
 

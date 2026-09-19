@@ -1,5 +1,6 @@
 #include "w_seed_native0.h"
 #include "w_seed_parallel_selection0.h"
+#include "w_seed_scalar_evaluator0.h"
 #include "../src/w_seed_native_subset0.h"
 
 #include <stdbool.h>
@@ -222,7 +223,7 @@ static bool make_nested_tree_source(char *buffer, size_t capacity,
 
 static bool test_products(void) {
   CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-10") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-56") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-57") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -3914,7 +3915,7 @@ static bool test_u64_wrapping_shift_left_slice(void) {
         contains_bytes(output, result.mlir.written.mlir_bytes,
                        "llvm.unreachable") &&
         !contains_bytes(output, result.mlir.written.mlir_bytes,
-                        "@w_seed_checked_shift_left_u64") &&
+                        "@w_seed_checked_shift_left") &&
         !contains_bytes(output, result.mlir.written.mlir_bytes,
                         "llvm.intr.ushl.with.overflow"));
 
@@ -3996,7 +3997,7 @@ static bool test_u64_masked_shift_left_slice(void) {
         contains_bytes(output, result.mlir.written.mlir_bytes,
                        "llvm.shl %left, %masked_count : i64") &&
         !contains_bytes(output, result.mlir.written.mlir_bytes,
-                        "@w_seed_checked_shift_left_u64") &&
+                        "@w_seed_checked_shift_left") &&
         !contains_bytes(output, result.mlir.written.mlir_bytes,
                         "llvm.intr.ushl.with.overflow"));
 
@@ -4077,7 +4078,7 @@ static bool test_u64_masked_shift_right_slice(void) {
         contains_bytes(output, result.mlir.written.mlir_bytes,
                        "llvm.lshr %left, %masked_count : i64") &&
         !contains_bytes(output, result.mlir.written.mlir_bytes,
-                        "@w_seed_checked_shift_right_u64"));
+                        "@w_seed_checked_shift_right"));
 
   static const char *const rejected[] = {
       "fn bad(value: UInt, count: UInt): UInt { return "
@@ -4159,7 +4160,7 @@ static bool test_u64_logical_shift_right_slice(void) {
         !contains_bytes(output, result.mlir.written.mlir_bytes,
                         "llvm.and %count, %mask : i64") &&
         !contains_bytes(output, result.mlir.written.mlir_bytes,
-                        "@w_seed_checked_shift_right_u64"));
+                        "@w_seed_checked_shift_right"));
 
   static const char *const rejected[] = {
       "fn bad(value: UInt, count: UInt): UInt { return "
@@ -5282,51 +5283,472 @@ static bool test_checked_integer_arithmetic_native_admission(void) {
   return true;
 }
 
+static bool test_checked_integer_shifts_native_admission(void) {
+  typedef struct {
+    const char *name;
+    const char *type;
+    const char *suffix;
+    bool is_signed;
+    size_t width_index;
+  } integer_case;
+  typedef struct {
+    uint16_t bit_width;
+    const char *count;
+    const char *last_count;
+    const char *signed_half;
+    const char *unsigned_half;
+    const char *unsigned_sign_bit;
+    const char *unsigned_maximum;
+  } width_case;
+  static const width_case WIDTHS[] = {
+      {8u, "8", "7", "-64", "127", "128", "255"},
+      {16u, "16", "15", "-16384", "32767", "32768", "65535"},
+      {32u, "32", "31", "-1073741824", "2147483647", "2147483648",
+       "4294967295"},
+      {64u, "64", "63", "-4611686018427387904",
+       "9223372036854775807", "9223372036854775808",
+       "18446744073709551615"},
+  };
+  static const integer_case INTEGERS[] = {
+      {"i8", "i8", "i8", true, 0u},
+      {"u8", "u8", "u8", false, 0u},
+      {"i16", "i16", "i16", true, 1u},
+      {"u16", "u16", "u16", false, 1u},
+      {"i32", "i32", "i32", true, 2u},
+      {"u32", "u32", "u32", false, 2u},
+      {"i64", "i64", "i64", true, 3u},
+      {"u64", "u64", "u64", false, 3u},
+      {"int_alias", "Int", "i64", true, 3u},
+      {"uint_alias", "UInt", "u64", false, 3u}};
+  uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  w_seed_native_subset0_program selection;
+  size_t operation_counts[2][4][2] = {{{0u}}};
+  uint32_t narrow_signed_type = W_SEED_HIR0_NONE;
+  uint32_t narrow_unsigned_type = W_SEED_HIR0_NONE;
+  uint32_t narrow_shift = W_SEED_HIR0_NONE;
+  for (size_t group_start = 0u;
+       group_start < sizeof(INTEGERS) / sizeof(INTEGERS[0]);
+       group_start += 4u) {
+    const size_t group_end =
+        group_start + 4u < sizeof(INTEGERS) / sizeof(INTEGERS[0])
+            ? group_start + 4u
+            : sizeof(INTEGERS) / sizeof(INTEGERS[0]);
+    char source[W_SEED_NATIVE0_MAX_SOURCE_BYTES + 1u];
+    size_t source_length = 0u;
+    uint64_t expected_results[32];
+    bool expected_success[32] = {false};
+    size_t expected_count = 0u;
+    (void)memset(source, 0, sizeof(source));
+    for (size_t integer_index = group_start; integer_index < group_end;
+         integer_index += 1u) {
+      const integer_case *integer = &INTEGERS[integer_index];
+      CHECK(append_test_source(source, sizeof(source), &source_length,
+                               "fn l_%s(v:%s,c:UInt):%s{return v<<c}\n"
+                               "fn r_%s(v:%s,c:UInt):%s{return v>>c}\n",
+                               integer->name, integer->type, integer->type,
+                               integer->name, integer->type, integer->type));
+    }
+    CHECK(
+        append_test_source(source, sizeof(source), &source_length, "entry { "));
+    for (size_t integer_index = group_start; integer_index < group_end;
+         integer_index += 1u) {
+      const integer_case *integer = &INTEGERS[integer_index];
+      const width_case *width = &WIDTHS[integer->width_index];
+      if (integer->is_signed) {
+        CHECK(append_test_source(source, sizeof(source), &source_length,
+                                 "let left_%s=l_%s(v:%s_%s,c:1_u64) ",
+                                 integer->name, integer->name,
+                                 width->signed_half, integer->suffix));
+        const int64_t signed_minimum =
+            width->bit_width == 64u
+                ? INT64_MIN
+                : -(int64_t)(UINT64_C(1) << (width->bit_width - 1u));
+        expected_results[expected_count] = (uint64_t)signed_minimum;
+        expected_success[expected_count++] = true;
+        CHECK(append_test_source(source, sizeof(source), &source_length,
+                                 "let right_%s=r_%s(v:%s_%s,c:%s_u64) ",
+                                 integer->name, integer->name,
+                                 width->signed_half, integer->suffix,
+                                 width->last_count));
+        expected_results[expected_count] = UINT64_MAX;
+        expected_success[expected_count++] = true;
+        CHECK(append_test_source(source, sizeof(source), &source_length,
+                                 "let zero_%s=l_%s(v:%s_%s,c:0_u64) ",
+                                 integer->name, integer->name,
+                                 width->signed_half, integer->suffix));
+        const int64_t signed_half =
+            -(int64_t)(UINT64_C(1) << (width->bit_width - 2u));
+        expected_results[expected_count] = (uint64_t)signed_half;
+        expected_success[expected_count++] = true;
+      } else {
+        CHECK(append_test_source(source, sizeof(source), &source_length,
+                                 "let left_%s=l_%s(v:%s_%s,c:1_u64) ",
+                                 integer->name, integer->name,
+                                 width->unsigned_half, integer->suffix));
+        const uint64_t unsigned_half =
+            (UINT64_C(1) << (width->bit_width - 1u)) - UINT64_C(1);
+        expected_results[expected_count] = unsigned_half * UINT64_C(2);
+        expected_success[expected_count++] = true;
+        CHECK(append_test_source(source, sizeof(source), &source_length,
+                                 "let right_%s=r_%s(v:%s_%s,c:%s_u64) ",
+                                 integer->name, integer->name,
+                                 width->unsigned_sign_bit, integer->suffix,
+                                 width->last_count));
+        expected_results[expected_count] = UINT64_C(1);
+        expected_success[expected_count++] = true;
+        CHECK(append_test_source(source, sizeof(source), &source_length,
+                                 "let zero_%s=l_%s(v:%s_%s,c:0_u64) ",
+                                 integer->name, integer->name,
+                                 width->unsigned_half, integer->suffix));
+        expected_results[expected_count] = unsigned_half;
+        expected_success[expected_count++] = true;
+      }
+
+      CHECK(append_test_source(
+          source, sizeof(source), &source_length,
+          "let bad_left_count_%s=l_%s(v:1_%s,c:%s_u64) "
+          "let bad_right_count_%s=r_%s(v:1_%s,c:%s_u64) ",
+          integer->name, integer->name, integer->suffix, width->count,
+          integer->name, integer->name, integer->suffix, width->count));
+      expected_success[expected_count++] = false;
+      expected_success[expected_count++] = false;
+      if (integer->is_signed) {
+        CHECK(append_test_source(
+            source, sizeof(source), &source_length,
+            "let bad_positive_%s=l_%s(v:%s_%s,c:1_u64) "
+            "let bad_negative_%s=l_%s(v:%s_%s,c:2_u64) ",
+            integer->name, integer->name, width->unsigned_half,
+            integer->suffix, integer->name, integer->name,
+            width->signed_half, integer->suffix));
+        expected_success[expected_count++] = false;
+        expected_success[expected_count++] = false;
+      } else {
+        CHECK(append_test_source(
+            source, sizeof(source), &source_length,
+            "let bad_unsigned_%s=l_%s(v:%s_%s,c:1_u64) ", integer->name,
+            integer->name, width->unsigned_maximum, integer->suffix));
+        expected_success[expected_count++] = false;
+      }
+    }
+    CHECK(expected_count != 0u && expected_count <= 32u &&
+          append_test_source(source, sizeof(source), &source_length,
+                             "print(\"checked shifts\") }\n"));
+
+    const w_seed_native0_status status = run_source(
+        (const uint8_t *)source, source_length, "checked-integer-shifts-native",
+        sizeof("checked-integer-shifts-native") - 1u, output, sizeof(output),
+        &result);
+    CHECK(status == W_SEED_NATIVE0_OK);
+    CHECK(result.status == W_SEED_NATIVE0_OK);
+    CHECK(result.mlir.status == W_SEED_MLIR0_OK);
+    CHECK(result.mlir.written.mlir_bytes != 0u);
+    CHECK(w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
+
+    CHECK(w_seed_native_subset0_select_program(
+              &storage.hir_program, &storage.hir_result, &selection) ==
+          W_SEED_NATIVE_SUBSET0_OK);
+    size_t evaluated_calls = 0u;
+    for (size_t call_index = 0u; call_index < storage.hir_program.call_count;
+         call_index += 1u) {
+      const w_seed_hir0_call *call = &storage.hir_program.calls[call_index];
+      CHECK(call->callee_identity < storage.hir_program.identity_count);
+      if (storage.hir_program.identities[call->callee_identity].kind !=
+          W_SEED_HIR0_IDENTITY_FUNCTION)
+        continue;
+      CHECK(evaluated_calls < expected_count);
+      size_t budget = 256u;
+      int64_t evaluated = 0;
+      const bool evaluated_success =
+          w_seed_scalar_evaluator0_evaluate_call(
+              &storage.hir_program, (uint32_t)call_index, &budget, &evaluated);
+      CHECK(evaluated_success == expected_success[evaluated_calls]);
+      if (evaluated_success)
+        CHECK((uint64_t)evaluated == expected_results[evaluated_calls]);
+      evaluated_calls += 1u;
+    }
+    CHECK(evaluated_calls == expected_count);
+
+    for (size_t value_index = 0u; value_index < storage.hir_program.value_count;
+         value_index += 1u) {
+      const w_seed_hir0_value *value = &storage.hir_program.values[value_index];
+      if ((value->kind != W_SEED_HIR0_VALUE_BINARY_I64 &&
+           value->kind != W_SEED_HIR0_VALUE_BINARY_U64) ||
+          (value->binary_operator != W_SEED_HIR0_BINARY_SHIFT_LEFT &&
+           value->binary_operator != W_SEED_HIR0_BINARY_SHIFT_RIGHT))
+        continue;
+      CHECK(value->type_index < storage.hir_program.type_count &&
+            value->left_value < storage.hir_program.value_count &&
+            value->right_value < storage.hir_program.value_count);
+      const w_seed_hir0_type *type =
+          &storage.hir_program.types[value->type_index];
+      const w_seed_hir0_type *left_type =
+          &storage.hir_program
+               .types[storage.hir_program.values[value->left_value].type_index];
+      const w_seed_hir0_type *count_type =
+          &storage.hir_program.types
+               [storage.hir_program.values[value->right_value].type_index];
+      const bool is_signed = value->kind == W_SEED_HIR0_VALUE_BINARY_I64;
+      CHECK(type->integer_is_signed == is_signed &&
+            left_type->integer_is_signed == is_signed &&
+            left_type->integer_bit_width == type->integer_bit_width &&
+            !count_type->integer_is_signed &&
+            count_type->integer_bit_width == 64u &&
+            storage.hir_program.values[value->left_value].type_index ==
+                value->type_index);
+      const size_t sign_index = is_signed ? 0u : 1u;
+      const size_t width_index =
+          type->integer_bit_width == 8u
+              ? 0u
+              : (type->integer_bit_width == 16u
+                     ? 1u
+                     : (type->integer_bit_width == 32u ? 2u : 3u));
+      const size_t operator_index =
+          value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT ? 0u : 1u;
+      CHECK(width_index < 4u);
+      operation_counts[sign_index][width_index][operator_index] += 1u;
+      if (is_signed && type->integer_bit_width == 8u &&
+          narrow_shift == W_SEED_HIR0_NONE)
+        narrow_shift = (uint32_t)value_index;
+      if (type->integer_bit_width == 8u) {
+        if (is_signed && narrow_signed_type == W_SEED_HIR0_NONE)
+          narrow_signed_type = value->type_index;
+        if (!is_signed && narrow_unsigned_type == W_SEED_HIR0_NONE)
+          narrow_unsigned_type = value->type_index;
+      }
+    }
+    if (group_start == 0u) {
+      CHECK(narrow_shift != W_SEED_HIR0_NONE &&
+            narrow_signed_type != W_SEED_HIR0_NONE &&
+            narrow_unsigned_type != W_SEED_HIR0_NONE);
+      const w_seed_hir0_value saved_shift = storage.hir_values[narrow_shift];
+      const w_seed_hir0_type saved_type = storage.hir_types[narrow_signed_type];
+      const uint32_t saved_count_type =
+          storage.hir_values[saved_shift.right_value].type_index;
+      w_seed_native_subset0_program selection_before = selection;
+      storage.hir_values[narrow_shift].type_index = narrow_unsigned_type;
+      CHECK(w_seed_native_subset0_select_program(
+                &storage.hir_program, &storage.hir_result, &selection) ==
+                W_SEED_NATIVE_SUBSET0_INVALID &&
+            memcmp(&selection, &selection_before, sizeof(selection)) == 0);
+      storage.hir_values[narrow_shift] = saved_shift;
+      storage.hir_values[saved_shift.right_value].type_index =
+          narrow_signed_type;
+      CHECK(w_seed_native_subset0_select_program(
+                &storage.hir_program, &storage.hir_result, &selection) ==
+                W_SEED_NATIVE_SUBSET0_INVALID &&
+            memcmp(&selection, &selection_before, sizeof(selection)) == 0);
+      storage.hir_values[saved_shift.right_value].type_index = saved_count_type;
+      storage.hir_types[narrow_signed_type].integer_bit_width = 24u;
+      CHECK(w_seed_native_subset0_select_program(
+                &storage.hir_program, &storage.hir_result, &selection) ==
+                W_SEED_NATIVE_SUBSET0_INVALID &&
+            memcmp(&selection, &selection_before, sizeof(selection)) == 0);
+      storage.hir_types[narrow_signed_type] = saved_type;
+      CHECK(w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
+    }
+  }
+
+  for (size_t sign_index = 0u; sign_index < 2u; sign_index += 1u)
+    for (size_t width_index = 0u; width_index < 4u; width_index += 1u)
+      for (size_t operator_index = 0u; operator_index < 2u;
+           operator_index += 1u)
+        CHECK(operation_counts[sign_index][width_index][operator_index] ==
+              (width_index == 3u ? 2u : 1u));
+
+  CHECK(narrow_shift != W_SEED_HIR0_NONE &&
+        narrow_signed_type != W_SEED_HIR0_NONE &&
+        narrow_unsigned_type != W_SEED_HIR0_NONE);
+
+  char constant_source[W_SEED_NATIVE0_MAX_SOURCE_BYTES + 1u];
+  size_t constant_source_length = 0u;
+  (void)memset(constant_source, 0, sizeof(constant_source));
+  CHECK(append_test_source(constant_source, sizeof(constant_source),
+                           &constant_source_length, "entry { "));
+  for (size_t integer_index = 0u;
+       integer_index < sizeof(INTEGERS) / sizeof(INTEGERS[0]);
+       integer_index += 1u) {
+    const integer_case *integer = &INTEGERS[integer_index];
+    const width_case *width = &WIDTHS[integer->width_index];
+    if (integer->is_signed) {
+      CHECK(append_test_source(
+          constant_source, sizeof(constant_source), &constant_source_length,
+          "let cl_%s=%s_%s << 1_u64 let cr_%s=%s_%s >> %s_u64 ", integer->name,
+          width->signed_half, integer->suffix, integer->name,
+          width->signed_half, integer->suffix, width->last_count));
+    } else {
+      CHECK(append_test_source(
+          constant_source, sizeof(constant_source), &constant_source_length,
+          "let cl_%s=%s_%s << 1_u64 let cr_%s=%s_%s >> %s_u64 ", integer->name,
+          width->unsigned_half, integer->suffix, integer->name,
+          width->unsigned_sign_bit, integer->suffix, width->last_count));
+    }
+  }
+  CHECK(append_test_source(constant_source, sizeof(constant_source),
+                           &constant_source_length,
+                           "print(\"constant shifts\") }\n"));
+  const w_seed_native0_status constant_status =
+      run_source((const uint8_t *)constant_source, constant_source_length,
+                 "checked-integer-shifts-constant",
+                 sizeof("checked-integer-shifts-constant") - 1u, output,
+                 sizeof(output), &result);
+  CHECK(constant_status == W_SEED_NATIVE0_OK &&
+        result.status == W_SEED_NATIVE0_OK &&
+        result.mlir.status == W_SEED_MLIR0_OK &&
+        result.mlir.written.mlir_bytes != 0u &&
+        w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
+  CHECK(w_seed_native_subset0_select_program(&storage.hir_program,
+                                             &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+
+  /* Every logical width rejects count == width for both operators and both
+   * signednesses. Maximum-positive and minimum-negative left shifts separately
+   * prove checked signed representability at both ends. */
+  const char *const OPERATOR[] = {"<<", ">>"};
+  for (size_t integer_index = 0u;
+       integer_index < sizeof(INTEGERS) / sizeof(INTEGERS[0]);
+       integer_index += 1u) {
+    const integer_case *integer = &INTEGERS[integer_index];
+    const width_case *width = &WIDTHS[integer->width_index];
+    for (size_t operation_index = 0u; operation_index < 2u;
+         operation_index += 1u) {
+      char bad_source[384];
+      const int written =
+          snprintf(bad_source, sizeof(bad_source),
+                   "entry { let bad = 1_%s %s %s_u64 print(\"after\") }\n",
+                   integer->suffix, OPERATOR[operation_index], width->count);
+      CHECK(written > 0 && (size_t)written < sizeof(bad_source));
+      (void)memset(output, 0xa9u, sizeof(output));
+      (void)memset(&result, 0xb0u, sizeof(result));
+      const w_seed_native0_result snapshot = result;
+      const w_seed_native0_status rejected = run_source(
+          (const uint8_t *)bad_source, (size_t)written,
+          "checked-shift-width-trap", sizeof("checked-shift-width-trap") - 1u,
+          output, sizeof(output), &result);
+      CHECK(rejected != W_SEED_NATIVE0_OK &&
+            storage.frontend_result.status == W_SEED_FRONTEND_OK &&
+            storage.hir_result.status == W_SEED_HIR0_OK &&
+            w_seed_hir0_verify(&storage.hir_program, &storage.hir_result) &&
+            w_seed_native_subset0_select_program(
+                &storage.hir_program, &storage.hir_result, &selection) ==
+                W_SEED_NATIVE_SUBSET0_UNSUPPORTED &&
+            memcmp(&result, &snapshot, sizeof(result)) == 0);
+      for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+        CHECK(output[byte] == 0xa9u);
+    }
+
+    const char *const overflow_value =
+        integer->is_signed ? width->unsigned_half : width->unsigned_maximum;
+    char overflow_source[384];
+    const int written =
+        snprintf(overflow_source, sizeof(overflow_source),
+                 "entry { let bad = %s_%s << 1_u64 print(\"after\") }\n",
+                 overflow_value, integer->suffix);
+    CHECK(written > 0 && (size_t)written < sizeof(overflow_source));
+    (void)memset(output, 0xa9u, sizeof(output));
+    (void)memset(&result, 0xb0u, sizeof(result));
+    const w_seed_native0_result snapshot = result;
+    const w_seed_native0_status rejected = run_source(
+        (const uint8_t *)overflow_source, (size_t)written,
+        "checked-shift-overflow", sizeof("checked-shift-overflow") - 1u, output,
+        sizeof(output), &result);
+    CHECK(rejected != W_SEED_NATIVE0_OK &&
+          storage.frontend_result.status == W_SEED_FRONTEND_OK &&
+          storage.hir_result.status == W_SEED_HIR0_OK &&
+          w_seed_hir0_verify(&storage.hir_program, &storage.hir_result) &&
+          w_seed_native_subset0_select_program(
+              &storage.hir_program, &storage.hir_result, &selection) ==
+              W_SEED_NATIVE_SUBSET0_UNSUPPORTED &&
+          memcmp(&result, &snapshot, sizeof(result)) == 0);
+    for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+      CHECK(output[byte] == 0xa9u);
+
+    if (integer->is_signed) {
+      char negative_overflow_source[384];
+      const int negative_written =
+          snprintf(negative_overflow_source, sizeof(negative_overflow_source),
+                   "entry { let bad = %s_%s << 2_u64 print(\"after\") }\n",
+                   width->signed_half, integer->suffix);
+      CHECK(negative_written > 0 &&
+            (size_t)negative_written < sizeof(negative_overflow_source));
+      (void)memset(output, 0xa9u, sizeof(output));
+      (void)memset(&result, 0xb0u, sizeof(result));
+      const w_seed_native0_result negative_snapshot = result;
+      const w_seed_native0_status negative_rejected = run_source(
+          (const uint8_t *)negative_overflow_source, (size_t)negative_written,
+          "checked-shift-negative-overflow",
+          sizeof("checked-shift-negative-overflow") - 1u, output,
+          sizeof(output), &result);
+      CHECK(negative_rejected != W_SEED_NATIVE0_OK &&
+            storage.frontend_result.status == W_SEED_FRONTEND_OK &&
+            storage.hir_result.status == W_SEED_HIR0_OK &&
+            w_seed_hir0_verify(&storage.hir_program, &storage.hir_result) &&
+            w_seed_native_subset0_select_program(
+                &storage.hir_program, &storage.hir_result, &selection) ==
+                W_SEED_NATIVE_SUBSET0_UNSUPPORTED &&
+            memcmp(&result, &negative_snapshot, sizeof(result)) == 0);
+      for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+        CHECK(output[byte] == 0xa9u);
+    }
+  }
+  static const uint8_t huge_count[] =
+      "entry { let bad = 1_i8 << 18446744073709551615_u64 }\n";
+  (void)memset(output, 0xa9u, sizeof(output));
+  (void)memset(&result, 0xb0u, sizeof(result));
+  const w_seed_native0_result snapshot = result;
+  const w_seed_native0_status huge_rejected = run_source(
+      huge_count, sizeof(huge_count) - 1u, "checked-shift-huge-count",
+      sizeof("checked-shift-huge-count") - 1u, output, sizeof(output), &result);
+  CHECK(huge_rejected != W_SEED_NATIVE0_OK &&
+        storage.frontend_result.status == W_SEED_FRONTEND_OK &&
+        storage.hir_result.status == W_SEED_HIR0_OK &&
+        w_seed_hir0_verify(&storage.hir_program, &storage.hir_result) &&
+        w_seed_native_subset0_select_program(&storage.hir_program,
+                                             &storage.hir_result, &selection) ==
+            W_SEED_NATIVE_SUBSET0_UNSUPPORTED &&
+        memcmp(&result, &snapshot, sizeof(result)) == 0);
+  for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+    CHECK(output[byte] == 0xa9u);
+  return true;
+}
+
 int main(void) {
-  const bool products = test_virtual_structured_task_product() &&
-                        test_virtual_static_yield_helper_product() &&
-                        test_async_direct_entry_product() &&
-                        test_signed_comparison_products() && test_products() &&
-                        test_unsigned_binary_u64_slice() &&
-                        test_u64_wrapping_add_slice() &&
-                        test_u64_saturating_add_slice() &&
-                        test_u64_saturating_subtract_slice() &&
-                        test_u64_saturating_multiply_slice() &&
-                        test_u64_saturating_policy_slice() &&
-                        test_u64_wrapping_subtract_slice() &&
-                        test_u64_wrapping_multiply_slice() &&
-                        test_u64_wrapping_power_slice() &&
-                        test_u64_overflowing_power_slice() &&
-                        test_u64_overflowing_family_slice() &&
-                        test_u64_wrapping_shift_left_slice() &&
-                        test_u64_masked_shift_left_slice() &&
-                        test_u64_masked_shift_right_slice() &&
-                        test_u64_logical_shift_right_slice() &&
-                        test_u64_rotated_left_slice() &&
-                        test_u64_rotated_right_slice() &&
-                        test_u64_count_ones_slice() &&
-                        test_u64_count_zeros_slice() &&
-                        test_u64_count_leading_zeros_slice() &&
-                        test_u64_count_trailing_zeros_slice() &&
-                        test_u64_reversed_bits_slice() &&
-                        test_u64_reversed_bytes_slice() &&
-                        test_u64_wrapping_negate_slice() &&
-                        test_unsigned_unary_u64_slice() &&
-                        test_enum_frontend_storage() &&
-                        test_enum_payload_native_lowering() &&
-                        test_bool_payload_native_lowering() &&
-                        test_enum_switch_native_lowering() &&
-                        test_enum_subset_switch_native_lowering() &&
-                        test_process_handler_catalog_and_artifact() &&
-                        test_process_input0_public_artifact() &&
-                        test_panic_native_routes() &&
-                        test_process_arguments_count_public_artifact() &&
-                        test_process_arguments_count_ordered_native() &&
-                        test_process_stdout_bounds() &&
-                        test_process_enum_payload_public_artifact() &&
-                        test_process_parallel_native_admission() &&
-                        test_fixed_integer_wrapping_native_admission() &&
-                        test_checked_integer_arithmetic_native_admission();
+  const bool products =
+      test_virtual_structured_task_product() &&
+      test_virtual_static_yield_helper_product() &&
+      test_async_direct_entry_product() && test_signed_comparison_products() &&
+      test_products() && test_unsigned_binary_u64_slice() &&
+      test_u64_wrapping_add_slice() && test_u64_saturating_add_slice() &&
+      test_u64_saturating_subtract_slice() &&
+      test_u64_saturating_multiply_slice() &&
+      test_u64_saturating_policy_slice() &&
+      test_u64_wrapping_subtract_slice() &&
+      test_u64_wrapping_multiply_slice() && test_u64_wrapping_power_slice() &&
+      test_u64_overflowing_power_slice() &&
+      test_u64_overflowing_family_slice() &&
+      test_u64_wrapping_shift_left_slice() &&
+      test_u64_masked_shift_left_slice() &&
+      test_u64_masked_shift_right_slice() &&
+      test_u64_logical_shift_right_slice() && test_u64_rotated_left_slice() &&
+      test_u64_rotated_right_slice() && test_u64_count_ones_slice() &&
+      test_u64_count_zeros_slice() && test_u64_count_leading_zeros_slice() &&
+      test_u64_count_trailing_zeros_slice() && test_u64_reversed_bits_slice() &&
+      test_u64_reversed_bytes_slice() && test_u64_wrapping_negate_slice() &&
+      test_unsigned_unary_u64_slice() && test_enum_frontend_storage() &&
+      test_enum_payload_native_lowering() &&
+      test_bool_payload_native_lowering() &&
+      test_enum_switch_native_lowering() &&
+      test_enum_subset_switch_native_lowering() &&
+      test_process_handler_catalog_and_artifact() &&
+      test_process_input0_public_artifact() && test_panic_native_routes() &&
+      test_process_arguments_count_public_artifact() &&
+      test_process_arguments_count_ordered_native() &&
+      test_process_stdout_bounds() &&
+      test_process_enum_payload_public_artifact() &&
+      test_process_parallel_native_admission() &&
+      test_fixed_integer_wrapping_native_admission() &&
+      test_checked_integer_arithmetic_native_admission() &&
+      test_checked_integer_shifts_native_admission();
   const bool logical = products && test_logical_native_selector() &&
                        test_multi_carrier_native_subset_selector() &&
                        test_post_loop_continuation_native_subset() &&

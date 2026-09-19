@@ -880,6 +880,11 @@ if(MSVC)
   # enough virtual stack for current enum/product graphs until those walkers
   # become iterative. Windows commits stack pages on demand.
   target_link_options(w PRIVATE /STACK:8388608)
+  # Frontend type resolution and verified-HIR layout walkers remain recursive.
+  # Keep the two compiler unit suites at the same bounded Windows reserve;
+  # this changes committed pages on demand, not a language nesting limit.
+  target_link_options(w_seed_frontend_tests PRIVATE /STACK:8388608)
+  target_link_options(w_seed_hir0_tests PRIVATE /STACK:8388608)
   target_compile_options(w_seed_run_cli_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_build_cli_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_frontend_tests PRIVATE /W4 /WX)
@@ -896,6 +901,7 @@ if(MSVC)
   target_compile_options(w_seed_gpu0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_gpu0_cuda_windows PRIVATE /W4 /WX)
   target_compile_options(w_seed_native0_tests PRIVATE /W4 /WX)
+  target_link_options(w_seed_native0_tests PRIVATE /STACK:8388608)
   target_compile_options(w_seed_cooperative0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_wrt0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_hir0_tests PRIVATE /W4 /WX)
@@ -1513,12 +1519,25 @@ else()
   )
 endif()
 
-if(WIN32 AND NOT MSVC)
+if(WIN32 AND NOT MSVC AND NOT CMAKE_C_SIMULATE_ID STREQUAL "MSVC")
   # Match the Windows seed/test virtual-stack reserve when the bootstrap is
   # built with MinGW. Pages are committed on demand; this is not a W limit.
   target_link_options(w PRIVATE -Wl,--stack,8388608)
   target_link_options(w_seed_generic_validation_tests PRIVATE
     -Wl,--stack,8388608)
+  target_link_options(w_seed_frontend_tests PRIVATE -Wl,--stack,8388608)
+  target_link_options(w_seed_hir0_tests PRIVATE -Wl,--stack,8388608)
+  target_link_options(w_seed_mlir0_tests PRIVATE -Wl,--stack,8388608)
+  target_link_options(w_seed_native0_tests PRIVATE -Wl,--stack,8388608)
+endif()
+
+if(WIN32 AND NOT MSVC AND CMAKE_C_SIMULATE_ID STREQUAL "MSVC")
+  # Clang's GNU-style driver can target the MSVC ABI; pass the linker option
+  # explicitly because the MinGW `--stack` spelling is not accepted by lld-link.
+  target_link_options(w_seed_frontend_tests PRIVATE -Xlinker /STACK:8388608)
+  target_link_options(w_seed_hir0_tests PRIVATE -Xlinker /STACK:8388608)
+  target_link_options(w_seed_mlir0_tests PRIVATE -Xlinker /STACK:8388608)
+  target_link_options(w_seed_native0_tests PRIVATE -Xlinker /STACK:8388608)
 endif()
 
 enable_testing()

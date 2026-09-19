@@ -27,7 +27,7 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-enum-bool-payload | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-enum-bool-payload.w), [c](./executable/restaurant_enum_bool_payload.c), [rust](./executable/restaurant_enum_bool_payload.rs) | source-backed | exploratory-ready |
 | restaurant-comparison-composition | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-comparison-composition.w) | source-backed | partial-exploratory-ready |
 | restaurant-integer-bitwise | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-integer-bitwise.w), [c](./executable/restaurant_integer_bitwise.c), [rust](./executable/restaurant_integer_bitwise.rs) | source-backed | not-performance-ready |
-| restaurant-shifts | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-shifts.w) | source-backed | partial-exploratory-ready |
+| restaurant-shifts | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-shifts.w), [c](./executable/restaurant_shifts.c), [rust](./executable/restaurant_shifts.rs) | source-backed | not-performance-ready |
 | restaurant-power | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-power.w) | source-backed | partial-exploratory-ready |
 | restaurant-power-prefix | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-power-prefix.w) | source-backed | partial-exploratory-ready |
 | restaurant-compound | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-compound.w) | source-backed | partial-exploratory-ready |
@@ -120,7 +120,6 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-repeat | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79704 | 28348 | 1.0822302 s | 17.9944 ms | 18.3194 ms | 4874240 B (4.65 MiB) | 12.066 ms |
 | restaurant-repeat | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 694 | 268 | 177.678 ms | 16.009 ms | 17.0043 ms | 3756032 B (3.58 MiB) | 11.602 ms |
 | restaurant-scalar-if | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 630 | 224 | 179.4772 ms | 16.8189 ms | 17.1398 ms | 3756032 B (3.58 MiB) | 10.674 ms |
-| restaurant-shifts | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 1110 | 380 | 182.0784 ms | 14.6547 ms | 16.261 ms | 3153920 B (3.01 MiB) | 10.829 ms |
 | restaurant-unsigned | w | Windows x64 / MSVC | CRT-free | 2560 B (2.5 KiB) | 662 | 292 | 177.6862 ms | 15.1126 ms | 17.9711 ms | 3153920 B (3.01 MiB) | 9.282 ms |
 | restaurant-while-post | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3510 | 2616 | 129.3226 ms | 18.0307 ms | 19.0116 ms | 4833280 B (4.61 MiB) | 12.221 ms |
 | restaurant-while-post | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79688 | 28348 | 1.0785606 s | 18.0301 ms | 19.0014 ms | 4870144 B (4.64 MiB) | 13.149 ms |
@@ -146,7 +145,6 @@ No native Linux x64 measurements are published.
 | restaurant-main-dispatch | w | Linux x64 / WSL2 | CRT-free | 2768 B (2.7 KiB) | — | — | 208.7803 ms | 155.999 µs | 376.322 µs | 679936 B (664.0 KiB) | 50 µs |
 | restaurant-power | w | Linux x64 / WSL2 | CRT-free | 3088 B (3.0 KiB) | — | — | 201.5651 ms | 137.216 µs | 467.819 µs | 671744 B (656.0 KiB) | 61 µs |
 | restaurant-power-prefix | w | Linux x64 / WSL2 | CRT-free | 2928 B (2.9 KiB) | — | — | 184.4055 ms | 129.301 µs | 302.149 µs | 671744 B (656.0 KiB) | 81 µs |
-| restaurant-shifts | w | Linux x64 / WSL2 | CRT-free | 3232 B (3.2 KiB) | — | — | 296.9381 ms | 172.112 µs | 886.504 µs | 671744 B (656.0 KiB) | 84 µs |
 | restaurant-unsigned | w | Linux x64 / WSL2 | CRT-free | 2640 B (2.6 KiB) | — | — | 203.3243 ms | 149.993 µs | 565.18 µs | 671744 B (656.0 KiB) | 76 µs |
 
 Artifact size counts only the emitted executable file. On Windows it excludes imported runtime DLLs. Windows public W is CRT-free; public C and Rust import the MSVC runtime. The private process-handler composite remains a Windows GCC/MinGW contextual lane. Native Linux records, when published, are kept in their own Linux x64 / GNU lane; W's current Linux product route is also CRT-free.

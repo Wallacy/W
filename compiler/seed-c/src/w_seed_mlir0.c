@@ -427,16 +427,23 @@ static const char MLIR0_CHECKED_U64_REMAINDER_HELPER[] =
  * can never become poison. Checked left shifts also prove that reversing the
  * result recovers the source value, which rejects every lost high bit. */
 static const char MLIR0_CHECKED_SHIFT_HELPERS[] =
-    "  llvm.func internal @w_seed_checked_shift_left_i64(%left: i64, %count: i64) -> i64 {\n"
-    "    %width = llvm.mlir.constant(64 : i64) : i64\n"
+    "  llvm.func internal @w_seed_checked_shift_left(%left: i64, %count: i64, %width: i64, %is_signed: i1) -> i64 {\n"
     "    %invalid = llvm.icmp \"uge\" %count, %width : i64\n"
     "    llvm.cond_br %invalid, ^shift_fault, ^shift_apply\n"
     "  ^shift_fault:\n"
     "    \"llvm.intr.trap\"() : () -> ()\n"
     "    llvm.unreachable\n"
     "  ^shift_apply:\n"
-    "    %value = llvm.shl %left, %count : i64\n"
-    "    %restored = llvm.ashr %value, %count : i64\n"
+    "    %raw_value = llvm.shl %left, %count : i64\n"
+    "    %sixty_four = llvm.mlir.constant(64 : i64) : i64\n"
+    "    %offset = llvm.sub %sixty_four, %width : i64\n"
+    "    %logical_bits = llvm.shl %raw_value, %offset : i64\n"
+    "    %signed_value = llvm.ashr %logical_bits, %offset : i64\n"
+    "    %unsigned_value = llvm.lshr %logical_bits, %offset : i64\n"
+    "    %value = llvm.select %is_signed, %signed_value, %unsigned_value : i1, i64\n"
+    "    %signed_restored = llvm.ashr %value, %count : i64\n"
+    "    %unsigned_restored = llvm.lshr %value, %count : i64\n"
+    "    %restored = llvm.select %is_signed, %signed_restored, %unsigned_restored : i1, i64\n"
     "    %overflow = llvm.icmp \"ne\" %restored, %left : i64\n"
     "    llvm.cond_br %overflow, ^shift_overflow, ^shift_ok\n"
     "  ^shift_overflow:\n"
@@ -445,44 +452,16 @@ static const char MLIR0_CHECKED_SHIFT_HELPERS[] =
     "  ^shift_ok:\n"
     "    llvm.return %value : i64\n"
     "  }\n"
-    "  llvm.func internal @w_seed_checked_shift_left_u64(%left: i64, %count: i64) -> i64 {\n"
-    "    %width = llvm.mlir.constant(64 : i64) : i64\n"
-    "    %invalid = llvm.icmp \"uge\" %count, %width : i64\n"
-    "    llvm.cond_br %invalid, ^shift_fault, ^shift_apply\n"
-    "  ^shift_fault:\n"
-    "    \"llvm.intr.trap\"() : () -> ()\n"
-    "    llvm.unreachable\n"
-    "  ^shift_apply:\n"
-    "    %value = llvm.shl %left, %count : i64\n"
-    "    %restored = llvm.lshr %value, %count : i64\n"
-    "    %overflow = llvm.icmp \"ne\" %restored, %left : i64\n"
-    "    llvm.cond_br %overflow, ^shift_overflow, ^shift_ok\n"
-    "  ^shift_overflow:\n"
-    "    \"llvm.intr.trap\"() : () -> ()\n"
-    "    llvm.unreachable\n"
-    "  ^shift_ok:\n"
-    "    llvm.return %value : i64\n"
-    "  }\n"
-    "  llvm.func internal @w_seed_checked_shift_right_i64(%left: i64, %count: i64) -> i64 {\n"
-    "    %width = llvm.mlir.constant(64 : i64) : i64\n"
+    "  llvm.func internal @w_seed_checked_shift_right(%left: i64, %count: i64, %width: i64, %is_signed: i1) -> i64 {\n"
     "    %invalid = llvm.icmp \"uge\" %count, %width : i64\n"
     "    llvm.cond_br %invalid, ^shift_fault, ^shift_ok\n"
     "  ^shift_fault:\n"
     "    \"llvm.intr.trap\"() : () -> ()\n"
     "    llvm.unreachable\n"
     "  ^shift_ok:\n"
-    "    %value = llvm.ashr %left, %count : i64\n"
-    "    llvm.return %value : i64\n"
-    "  }\n"
-    "  llvm.func internal @w_seed_checked_shift_right_u64(%left: i64, %count: i64) -> i64 {\n"
-    "    %width = llvm.mlir.constant(64 : i64) : i64\n"
-    "    %invalid = llvm.icmp \"uge\" %count, %width : i64\n"
-    "    llvm.cond_br %invalid, ^shift_fault, ^shift_ok\n"
-    "  ^shift_fault:\n"
-    "    \"llvm.intr.trap\"() : () -> ()\n"
-    "    llvm.unreachable\n"
-    "  ^shift_ok:\n"
-    "    %value = llvm.lshr %left, %count : i64\n"
+    "    %signed_value = llvm.ashr %left, %count : i64\n"
+    "    %unsigned_value = llvm.lshr %left, %count : i64\n"
+    "    %value = llvm.select %is_signed, %signed_value, %unsigned_value : i1, i64\n"
     "    llvm.return %value : i64\n"
     "  }\n";
 
@@ -2216,23 +2195,39 @@ static const char *u64_binary_operation(
   }
 }
 
+static bool checked_shift_type_facts(const w_seed_hir0_program *program,
+                                     const w_seed_hir0_value *value,
+                                     bool *is_signed, uint16_t *bit_width) {
+  if (program == NULL || value == NULL || is_signed == NULL ||
+      bit_width == NULL ||
+      (value->binary_operator != W_SEED_HIR0_BINARY_SHIFT_LEFT &&
+       value->binary_operator != W_SEED_HIR0_BINARY_SHIFT_RIGHT) ||
+      value->left_value >= program->value_count ||
+      value->right_value >= program->value_count ||
+      !mlir0_integer_type_facts(program, value->type_index, is_signed,
+                                bit_width) ||
+      value->kind != (*is_signed ? W_SEED_HIR0_VALUE_BINARY_I64
+                                 : W_SEED_HIR0_VALUE_BINARY_U64) ||
+      program->values[value->left_value].type_index != value->type_index ||
+      !mlir0_integer_value_matches_type(program, value->left_value,
+                                        *is_signed, *bit_width) ||
+      !mlir0_integer_count_type(
+          program, program->values[value->right_value].type_index))
+    return false;
+  return true;
+}
+
 static const char *checked_shift_helper(
     const w_seed_hir0_program *program, const w_seed_hir0_value *value) {
-  if (program == NULL || value == NULL ||
-      value->type_index >= program->type_count)
+  bool is_signed = false;
+  uint16_t bit_width = 0u;
+  if (!checked_shift_type_facts(program, value, &is_signed, &bit_width))
     return NULL;
-  const bool is_signed =
-      program->types[value->type_index].kind == W_SEED_HIR0_TYPE_I64;
-  const bool is_unsigned =
-      program->types[value->type_index].kind == W_SEED_HIR0_TYPE_U64;
-  if (!is_signed && !is_unsigned) return NULL;
+  (void)is_signed;
+  (void)bit_width;
   if (value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT)
-    return is_signed ? "@w_seed_checked_shift_left_i64"
-                     : "@w_seed_checked_shift_left_u64";
-  if (value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_RIGHT)
-    return is_signed ? "@w_seed_checked_shift_right_i64"
-                     : "@w_seed_checked_shift_right_u64";
-  return NULL;
+    return "@w_seed_checked_shift_left";
+  return "@w_seed_checked_shift_right";
 }
 
 static bool reachable_values_have_checked_shift(
@@ -3067,6 +3062,78 @@ static bool append_checked_integer_width_operand(
          append_literal(artifact, capacity, offset, "_checked_width");
 }
 
+static bool append_checked_shift_operation_in_loop(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop, const char *helper,
+    uint8_t *artifact, size_t capacity, size_t *offset) {
+  if (program == NULL || artifact == NULL || offset == NULL || helper == NULL ||
+      value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  bool is_signed = false;
+  uint16_t bit_width = 0u;
+  if (!checked_shift_type_facts(program, value, &is_signed, &bit_width) ||
+      !append_checked_integer_width_argument(program, value_index, is_signed,
+                                             artifact, capacity, offset) ||
+      !append_literal(artifact, capacity, offset, "    %v") ||
+      !append_size(artifact, capacity, offset, value_index) ||
+      !append_literal(artifact, capacity, offset,
+                      is_signed
+                          ? "_checked_signed = llvm.mlir.constant(true) : i1\n"
+                          : "_checked_signed = llvm.mlir.constant(false) : i1\n"))
+    return false;
+
+  if (bit_width < 64u) {
+    if (!append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset, "_checked_left_bits = llvm.trunc ") ||
+        !append_program_value_operand_in_loop(
+            program, value->left_value, function_index, process, loop,
+            artifact, capacity, offset) ||
+        !append_literal(artifact, capacity, offset, " : i64 to i") ||
+        !append_u64(artifact, capacity, offset, bit_width) ||
+        !append_literal(artifact, capacity, offset, "\n    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset, "_checked_left = llvm.") ||
+        !append_literal(artifact, capacity, offset,
+                       is_signed ? "sext %v" : "zext %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset, "_checked_left_bits : i") ||
+        !append_u64(artifact, capacity, offset, bit_width) ||
+        !append_literal(artifact, capacity, offset, " to i64\n"))
+      return false;
+  }
+
+  if (!append_literal(artifact, capacity, offset, "    %v") ||
+      !append_size(artifact, capacity, offset, value_index) ||
+      !append_literal(artifact, capacity, offset, " = llvm.call ") ||
+      !append_literal(artifact, capacity, offset, helper) ||
+      !append_literal(artifact, capacity, offset, "("))
+    return false;
+  if (bit_width < 64u) {
+    if (!append_literal(artifact, capacity, offset, "%v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset, "_checked_left"))
+      return false;
+  } else if (!append_program_value_operand_in_loop(
+                 program, value->left_value, function_index, process, loop,
+                 artifact, capacity, offset)) {
+    return false;
+  }
+  return append_literal(artifact, capacity, offset, ", ") &&
+         append_program_value_operand_in_loop(
+             program, value->right_value, function_index, process, loop,
+             artifact, capacity, offset) &&
+         append_literal(artifact, capacity, offset, ", ") &&
+         append_checked_integer_width_operand(value_index, artifact, capacity,
+                                              offset) &&
+         append_literal(artifact, capacity, offset, ", %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset,
+                        "_checked_signed) : (i64, i64, i64, i1) -> i64\n");
+}
+
 static bool append_integer_bitwise_binary_operation_in_loop(
     const w_seed_hir0_program *program, uint32_t value_index,
     uint32_t function_index, const mlir0_process_emit_context *process,
@@ -3199,6 +3266,10 @@ static bool append_binary_value_operation_in_loop(
   const bool checked_division =
       value->binary_operator == W_SEED_HIR0_BINARY_DIVIDE ||
       value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER;
+  if (helper != NULL && shift)
+    return append_checked_shift_operation_in_loop(
+        program, value_index, function_index, process, loop, helper, artifact,
+        capacity, offset);
   if (helper != NULL && (checked_arithmetic || checked_division) &&
       !append_checked_integer_width_argument(
           program, value_index, true, artifact, capacity, offset))
@@ -3353,6 +3424,10 @@ static bool append_binary_u64_value_operation(
   const bool checked_division =
       value->binary_operator == W_SEED_HIR0_BINARY_DIVIDE ||
       value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER;
+  if (helper != NULL && shift)
+    return append_checked_shift_operation_in_loop(
+        program, value_index, function_index, process, NULL, helper, artifact,
+        capacity, offset);
   if (helper != NULL && (checked_arithmetic || checked_division) &&
       !append_checked_integer_width_argument(
           program, value_index, false, artifact, capacity, offset))

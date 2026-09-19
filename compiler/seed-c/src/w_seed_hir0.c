@@ -4372,6 +4372,11 @@ static bool frontend_value_tree_ok_impl(
         (result_u64 && left_u64 && right_u64);
     const bool same_integer_left_result_domain =
         (result_i64 && left_i64) || (result_u64 && left_u64);
+    const bool same_integer_shift_left_result_domain =
+        shift && frontend_expression_is_integer(output, value) &&
+        frontend_expression_is_integer(
+            output, &output->expressions[value->left]) &&
+        value->inferred_type == output->expressions[value->left].inferred_type;
     if (!frontend_value_tree_binary_children_ok(
             input, module_index, function_index, document_index,
             use_statement, value, depth, expression_cursor, segment_cursor,
@@ -4393,7 +4398,10 @@ static bool frontend_value_tree_ok_impl(
                        !frontend_expression_is_f64(
                            output, &output->expressions[value->right]))
                     : (shift || power
-                           ? (!same_integer_left_result_domain || !right_u64)
+                           ? (!(shift
+                                    ? same_integer_shift_left_result_domain
+                                    : same_integer_left_result_domain) ||
+                              !right_u64)
                            : (bitwise_integer
                                   ? !same_bitwise_integer_result_domain
                                   : (checked_arithmetic
@@ -14885,6 +14893,28 @@ static bool hir_integer_types_equal(const w_seed_hir0_program *program,
          left_signed == right_signed && left_width == right_width;
 }
 
+static bool hir_checked_shift_types_valid(
+    const w_seed_hir0_program *program, uint32_t result_type,
+    uint32_t left_value, uint32_t right_value, bool expected_signed) {
+  if (program == NULL || left_value >= program->value_count ||
+      right_value >= program->value_count)
+    return false;
+  bool result_signed = false;
+  uint16_t result_width = 0u;
+  bool count_signed = false;
+  uint16_t count_width = 0u;
+  const uint32_t count_type = program->values[right_value].type_index;
+  return hir_integer_type_facts(program, result_type, &result_signed,
+                                &result_width) &&
+         result_signed == expected_signed && result_width != 0u &&
+         program->values[left_value].type_index == result_type &&
+         count_type < program->type_count &&
+         program->types[count_type].kind == W_SEED_HIR0_TYPE_U64 &&
+         hir_integer_type_facts(program, count_type, &count_signed,
+                                &count_width) &&
+         !count_signed && count_width == 64u;
+}
+
 static bool verify_block_argument_records(const w_seed_hir0_program *program) {
   if (program == NULL) return false;
   size_t cursor = 0u;
@@ -15723,6 +15753,10 @@ static bool verify_value_tree(
         hir_integer_types_equal(
             program, value->type_index,
             program->values[value->right_value].type_index);
+    const bool generic_shift_types_ok =
+        shift && hir_checked_shift_types_valid(
+                     program, value->type_index, value->left_value,
+                     value->right_value, true);
     bool bitwise_result_signed = false;
     uint16_t bitwise_result_width = 0u;
     const bool generic_bitwise_types_ok =
@@ -15766,26 +15800,38 @@ static bool verify_value_tree(
              ? !generic_checked_types_ok
              : (bitwise
                     ? !generic_bitwise_types_ok
-                    : ((shift || power)
-             ? (!hir_type_index_valid(program, value->type_index) ||
-                !hir_type_index_valid(
-                    program, program->values[value->left_value].type_index) ||
-                !hir_type_index_valid(
-                    program, program->values[value->right_value].type_index) ||
-                program->values[value->left_value].type_index !=
-                    value->type_index ||
-                program->types[value->type_index].kind !=
-                    W_SEED_HIR0_TYPE_I64 ||
-                program->types[program->values[value->right_value].type_index]
-                        .kind != W_SEED_HIR0_TYPE_U64)
-             : (program->values[value->left_value].type_index != 2u ||
-                program->values[value->right_value].type_index != 2u ||
-                value->type_index !=
-                    (value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
-                             value->binary_operator <=
-                                 W_SEED_HIR0_BINARY_GREATER_EQUAL
-                         ? 3u
-                    : 2u)))))) ||
+                    : (shift
+                           ? !generic_shift_types_ok
+                           : (power
+                                  ? (!hir_type_index_valid(
+                                         program, value->type_index) ||
+                                     !hir_type_index_valid(
+                                         program,
+                                         program->values[value->left_value]
+                                             .type_index) ||
+                                     !hir_type_index_valid(
+                                         program,
+                                         program->values[value->right_value]
+                                             .type_index) ||
+                                     program->values[value->left_value]
+                                             .type_index != value->type_index ||
+                                     program->types[value->type_index].kind !=
+                                         W_SEED_HIR0_TYPE_I64 ||
+                                     program->types[program->values[
+                                                        value->right_value]
+                                                        .type_index]
+                                             .kind != W_SEED_HIR0_TYPE_U64)
+                                  : (program->values[value->left_value]
+                                             .type_index != 2u ||
+                                     program->values[value->right_value]
+                                             .type_index != 2u ||
+                                     value->type_index !=
+                                         (value->binary_operator >=
+                                                      W_SEED_HIR0_BINARY_EQUAL &&
+                                                  value->binary_operator <=
+                                                      W_SEED_HIR0_BINARY_GREATER_EQUAL
+                                              ? 3u
+                                              : 2u))))))) ||
         value->binding_index != W_SEED_HIR0_NONE ||
         value->parameter_index != W_SEED_HIR0_NONE ||
         value->first_interpolation_segment != W_SEED_HIR0_NONE ||
@@ -15809,7 +15855,8 @@ static bool verify_value_tree(
         value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
         value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL;
     const bool arithmetic =
-        value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER;
+        (uint32_t)value->binary_operator <=
+        (uint32_t)W_SEED_HIR0_BINARY_REMAINDER;
     const bool wrapping =
         value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_ADD ||
         value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT ||
@@ -15833,9 +15880,11 @@ static bool verify_value_tree(
     const bool bitwise =
         value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
         value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR;
-    const bool shift_or_power =
+    const bool shift =
         value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
-        value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_RIGHT ||
+        value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_RIGHT;
+    const bool shift_or_power =
+        shift ||
         value->binary_operator == W_SEED_HIR0_BINARY_POWER;
     const bool integer_wrapping =
         value->binary_operator >= W_SEED_HIR0_BINARY_WRAPPING_ADD &&
@@ -15857,6 +15906,10 @@ static bool verify_value_tree(
         hir_integer_types_equal(
             program, value->type_index,
             program->values[value->right_value].type_index);
+    const bool generic_shift_types_ok =
+        shift && hir_checked_shift_types_valid(
+                     program, value->type_index, value->left_value,
+                     value->right_value, false);
     bool bitwise_result_signed = true;
     uint16_t bitwise_result_width = 0u;
     const bool generic_bitwise_types_ok =
@@ -15975,7 +16028,7 @@ static bool verify_value_tree(
                               program->values[value->left_value].type_index) ||
         !hir_type_index_valid(
             program, program->values[value->right_value].type_index) ||
-        (!checked_arithmetic && !bitwise &&
+        (!checked_arithmetic && !bitwise && !shift &&
          (program->types[program->values[value->left_value].type_index].kind !=
               W_SEED_HIR0_TYPE_U64 ||
           program->types[program->values[value->right_value].type_index].kind !=
@@ -15988,8 +16041,10 @@ static bool verify_value_tree(
                     ? !generic_checked_types_ok
                     : (bitwise
                            ? !generic_bitwise_types_ok
-                           : program->types[value->type_index].kind !=
-                                 W_SEED_HIR0_TYPE_U64))) ||
+                           : (shift
+                                  ? !generic_shift_types_ok
+                                  : program->types[value->type_index].kind !=
+                                        W_SEED_HIR0_TYPE_U64)))) ||
         value->unary_operator != W_SEED_HIR0_UNARY_NOT ||
         value->block_argument_index != W_SEED_HIR0_NONE ||
         value->binding_index != W_SEED_HIR0_NONE ||

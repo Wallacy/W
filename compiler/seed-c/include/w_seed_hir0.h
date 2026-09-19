@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-85"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-86"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -165,7 +165,8 @@ typedef enum {
   W_SEED_HIR0_VALUE_CONST_BOOL,
   /* Signed fixed-width integer binary value carried physically in i64.
    * Comparisons return Bool. Unsigned fixed-width values, including ordinary
-   * power and shifts, use BINARY_U64 below. */
+   * power and shifts, use BINARY_U64 below; logical width and signedness stay
+   * on the shared type records. */
   W_SEED_HIR0_VALUE_BINARY_I64,
   W_SEED_HIR0_VALUE_INTERPOLATED_STRING,
   /* Result of one prior local CALL instruction in the same block. */
@@ -259,6 +260,9 @@ typedef enum {
   W_SEED_HIR0_BINARY_BIT_AND,
   W_SEED_HIR0_BINARY_BIT_OR,
   W_SEED_HIR0_BINARY_BIT_XOR,
+  /* Checked shifts require one exact fixed-integer type for left/result and
+   * UInt for count. Shift count >= logical width and left-shift information
+   * loss are evaluation failures; signed right shift is arithmetic. */
   W_SEED_HIR0_BINARY_SHIFT_LEFT,
   W_SEED_HIR0_BINARY_SHIFT_RIGHT,
   W_SEED_HIR0_BINARY_POWER,

@@ -2871,27 +2871,41 @@ Mixed 255
 
 C23 and Rust 2024 are correctness references only; the family has
 `benchmarkDisposition: correctness-reference-no-ranking`, with no performance
-ranking. W-392 remains open for width-generic shifts and power, rotations and
-named policies, remaining bit primitives, SIMD, and the complete integer
-operator matrix.
+ranking. W-1643 separately closes checked ordinary shifts across the supported
+fixed-width family; W-392 remains open for power, named numeric/shift policies,
+rotations, remaining bit primitives, SIMD, and the complete integer operator
+matrix.
 
-### Source-backed checked 64-bit shifts (partial W-392)
+### Source-backed checked ordinary integer shifts (W-1643)
 
-The seed frontend, verified HIR0, NativeSubset0 program selector, and MLIR0
-preserve `<<` and `>>` over signed `Int` and unsigned `UInt`. The right operand
-is always `UInt`; the result keeps the left operand's logical type. MLIR0 emits
-demand-driven checked helpers: every operation rejects counts at least 64,
-signed right shift uses `llvm.ashr`, unsigned right shift uses `llvm.lshr`, and
-left shift reverses the result to reject discarded bits before publishing it.
+The seed frontend, verified HIR, Native0, and MLIR0 preserve the existing
+ordinary `<<` and `>>` operators for `i8`/`u8`, `i16`/`u16`, `i32`/`u32`,
+`i64`/`u64`, and the current x86-64 `Int`/`UInt` aliases. The left operand and
+result have exactly the same canonical integer type; the count must be exactly
+`UInt` (`u64` on current x86-64). Counts at or above the logical width fail
+checked evaluation. Left shift also rejects a mathematical result that does
+not fit; signed right shift is arithmetic and unsigned right shift is logical.
 
-[`fixtures/restaurant-shifts.w`](fixtures/restaurant-shifts.w) crosses four
-function boundaries and prints exactly `Shifts -4/15/-48/48\n`. Focused HIR
-tests reject forged right-operand/result/operator records. Focused MLIR and
-tooling checks require all four helpers, their width guards, the signedness-
-correct LLVM operations, exact native output, and traps for an out-of-range
-count plus signed and unsigned left-shift overflow. Masked shifts, rotates,
-other widths, compound assignment, SIMD, and matrix operations remain outside
-this bounded slice.
+Verified type facts carry signedness and logical width through the generic
+route, without a per-width operation enum. Verified HIR is schema 86; Native0
+remains schema 10, MLIR0 is `w-seed-mlir0-57`, and its Windows adapter is
+`w-seed-mlir0-windows-42`. MLIR0 emits direct LLVM shifts (`shl`, `ashr`, and
+`lshr`) with checked guards; it requires no heap, runtime helper, or CRT helper.
+
+[`fixtures/restaurant-shifts.w`](fixtures/restaurant-shifts.w) records the
+exact expected exit and literal stdout beside the source. It crosses source →
+frontend → verified HIR → Native0/MLIR0 → CRT-free native execution on Windows
+and Linux/WSL. C23 and Rust 2024 are correctness references only; there is no
+performance ranking and `benchmarkDisposition` is `deferred` until W retains
+equivalent runtime operands.
+
+Compound-shift assignment remains outside W-1643's widened family; the
+existing bounded `UInt`/`u64` compound path is separate. The wider W-392 work
+still includes named policies, rotations, remaining bit primitives, SIMD,
+`usize`/`isize`, 128-bit integers, non-x86-64 aliases, stable ABI/FFI, other
+targets, and equivalent-runtime performance. The focused Windows compiler
+test executables use an 8 MiB stack reserve for recursive seed test/compiler
+walkers; this is test infrastructure, not a language limit.
 
 ### Strict `f64` scalar slice
 

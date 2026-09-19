@@ -11337,6 +11337,93 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-checked-ordinary-integer-shifts",
+      "reviewItem": "checked ordinary integer shifts against per-width lowering branches, implicit promotions, masked counts, host shift rules, and unchecked left-shift loss.",
+      "decisions": [
+        "W-1643"
+      ],
+      "task": "Cover checked ordinary `<<` and `>>` across all ten supported spellings (`i8`/`u8`, `i16`/`u16`, `i32`/`u32`, `i64`/`u64`, `Int`/`UInt). Every shift has exactly matching canonical left and result types and a `UInt` count; a count at or above logical width and an unrepresentable left shift trap. Signed right shift is arithmetic and unsigned right shift is logical. One verified-type-fact route emits generic checked LLVM shifts rather than width-specific operations. Final-source gates passed: `bun tooling/check-mlir0.mjs` checks the fixture route, width guard, signedness, and generic direct LLVM shifts; `bun tooling/check-w-run-windows.mjs` and `bun tooling/check-w-run.mjs` execute the same fixture with exact exit/stdout on CRT-free Windows and Linux/WSL. C23 and Rust 2024 are correctness-only; defer performance ranking until W retains equivalent runtime operands.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn left_i8(value: i8, count: UInt): i8 { return value << count }",
+          "fn right_i8(value: i8, count: UInt): i8 { return value >> count }",
+          "fn left_u8(value: u8, count: UInt): u8 { return value << count }",
+          "fn right_u8(value: u8, count: UInt): u8 { return value >> count }",
+          "fn left_i16(value: i16, count: UInt): i16 { return value << count }",
+          "fn right_i16(value: i16, count: UInt): i16 { return value >> count }",
+          "fn left_u16(value: u16, count: UInt): u16 { return value << count }",
+          "fn right_u16(value: u16, count: UInt): u16 { return value >> count }",
+          "fn left_i32(value: i32, count: UInt): i32 { return value << count }",
+          "fn right_i32(value: i32, count: UInt): i32 { return value >> count }",
+          "fn left_u32(value: u32, count: UInt): u32 { return value << count }",
+          "fn right_u32(value: u32, count: UInt): u32 { return value >> count }",
+          "fn left_i64(value: i64, count: UInt): i64 { return value << count }",
+          "fn right_i64(value: i64, count: UInt): i64 { return value >> count }",
+          "fn left_u64(value: u64, count: UInt): u64 { return value << count }",
+          "fn right_u64(value: u64, count: UInt): u64 { return value >> count }",
+          "fn left_Int(value: Int, count: UInt): Int { return value << count }",
+          "fn right_Int(value: Int, count: UInt): Int { return value >> count }",
+          "fn left_UInt(value: UInt, count: UInt): UInt { return value << count }",
+          "fn right_UInt(value: UInt, count: UInt): UInt { return value >> count }"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "per-width-operations",
+          "language": "w-internal-rejected",
+          "source": [
+            "create a distinct checked shift operation and lowering branch for every width and signedness"
+          ],
+          "expectedDifference": "Canonical signedness and logical-width facts let one checked operation route handle all ten spellings without schema duplication."
+        },
+        {
+          "name": "mask-out-of-range-counts",
+          "language": "w-internal-rejected",
+          "source": [
+            "reduce every ordinary shift count modulo the integer width"
+          ],
+          "expectedDifference": "A count equal to or greater than logical width must fail before a host or LLVM shift; it is not a modulo-count operation."
+        },
+        {
+          "name": "discarded-left-bits",
+          "language": "w-internal-rejected",
+          "source": [
+            "compute left shift modulo the width and silently keep only low bits"
+          ],
+          "expectedDifference": "Checked left shift traps when the mathematical result is not representable, for either signedness."
+        },
+        {
+          "name": "one-right-shift-predicate",
+          "language": "w-internal-rejected",
+          "source": [
+            "use the same signed or unsigned right-shift lowering regardless of canonical type facts"
+          ],
+          "expectedDifference": "Signed `>>` preserves the sign arithmetically while unsigned `>>` shifts in zero bits logically."
+        },
+        {
+          "name": "rank-unequal-runtime-work",
+          "language": "benchmark-rejected",
+          "source": [
+            "rank W constant fixture operations against C23 and Rust runtime operands"
+          ],
+          "expectedDifference": "The sources are correctness references only; benchmark disposition is deferred until W retains equivalent runtime operands."
+        }
+      ],
+      "checks": [
+        "Passed: `bun tooling/check-mlir0.mjs` validates the final-source fixture route, width guard, signedness, and generic direct LLVM `shl`/`ashr`/`lshr` patterns.",
+        "Passed: `bun tooling/check-w-run-windows.mjs` executes the final-source fixture with exact exit/stdout on the CRT-free Windows route.",
+        "Passed: `bun tooling/check-w-run.mjs` executes the final-source fixture with exact exit/stdout on the CRT-free Linux/WSL route.",
+        "C23 and Rust 2024 remain correctness-only references; do not rank these workloads until W uses equivalent runtime operands."
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

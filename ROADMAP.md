@@ -336,7 +336,9 @@ W-1641 closes only the existing fixed-width integer `truncatingBits:` path
 under W-389. Its public Windows and Linux/WSL witnesses are correctness-only;
 C23 and Rust 2024 are correctness references, not performance rankings.
 `exactly:`, `rounding:`, `saturating:`, and floating conversions remain
-outside W-1641. W-389 and rank 1 remain open.
+outside W-1641. Fallible `D(exactly:)` remains deferred until typed
+conversion-error lowering is end-to-end; it is not implemented. W-389 and
+rank 1 remain open.
 
 The first rank-1 increments are now executable. Signed-`i64` `&`, `|`, `^`,
 and the original unary-`~` crosspoint cover exact W source, canonical
@@ -345,14 +347,22 @@ native routes; W-1640 is the width-family complement increment. W-1642 extends
 ordinary binary `&`, `|`, and `^` across signed and unsigned 8-, 16-, 32-, and
 64-bit integers plus the current x86-64 `Int`/`UInt` aliases, retaining one
 canonical operand/result type after existing exact integer widening. Checked
-`<<` and `>>` additionally
-preserve signed/unsigned logical type, require a `UInt` count, trap at counts
-greater than or equal to 64, use arithmetic versus logical right shift, and
-reject information-losing left shift. Exact
+`<<` and `>>` are now closed by W-1643 for the same fixed-width types: the left
+operand and result have exactly the same canonical integer type, and the count
+is `UInt` (`u64` on current x86-64). Counts at or above the logical width
+fail; left shift also fails on mathematical overflow. Signed right shift is
+arithmetic and unsigned right shift is logical. One generic lowering uses
+verified signedness/logical-width facts and direct LLVM operations rather than
+a per-width operation enum. The exact
 `restaurant-integer-bitwise`, `restaurant-shifts`, `restaurant-power`,
 `restaurant-power-prefix`, `restaurant-compound`, and
-`restaurant-uint-compound`
-sources/oracles own these bounded crosspoints. Checked integer `**` uses a
+`restaurant-uint-compound` sources/oracles own these bounded crosspoints.
+`restaurant-shifts.w` executes through frontend, verified HIR, Native0/MLIR0,
+and the CRT-free native routes on Windows and Linux/WSL. C23 and Rust 2024 are
+correctness references only; there is no performance ranking. Its
+`benchmarkDisposition` is `deferred` until W retains equivalent runtime
+operands. Checked integer
+`**` uses a
 `UInt` exponent, keeps the base's signedness, defines `0 ** 0` as one, and
 lowers with logarithmic exponentiation by squaring. The parser now proves the
 W-769/W-1152 boundary as well: power is right-associative, binds before a
@@ -362,10 +372,11 @@ invalid. The eleven signed compound assignment forms reuse the same checked
 operation and SSA versioning. The UInt/u64 witness now covers all eleven
 unsigned compound forms with checked arithmetic, shifts, and the existing
 direct bit operations over typed SSA versions. Immutable targets fail closed.
-W-392 remains open for width-generic shifts and power, rotations, named
-policies and remaining bit primitives, saturating and overflowing families,
-SIMD, and the complete integer operator matrix. Unary `~` is separately
-covered by W-1640. Checked
+W-392 remains open for named numeric/shift policies, power, rotations,
+remaining bit primitives, SIMD, `usize`/`isize`, 128-bit integers, non-x86-64
+alias widths, stable ABI/FFI, other targets, equivalent-runtime performance,
+and the complete integer operator matrix. Unary `~` is separately covered by
+W-1640. Checked
 arithmetic, wrapping arithmetic, comparisons, and exact widening already span
 the current fixed-width integer set and must not be described as 64-bit-only
 gaps.

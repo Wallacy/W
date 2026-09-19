@@ -15575,9 +15575,18 @@ static bool expression_append_binary(frontend_expression_parser *parser,
          !expression_value_set_type(parser, right, uint_type)))
       return false;
     result_type = left->type;
-    if (left->type.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
-        left->type.bit_width != 64u ||
-        !frontend_type_equal(parser->context, right->type, uint_type))
+    const bool fixed_integer_left =
+        left->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+        (shift ? integer_width_supported(left->type.bit_width)
+               : left->type.bit_width == 64u) &&
+        !text_equal(left->type.spelling, "usize");
+    const bool uint_count =
+        shift
+            ? (right->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+               !right->type.is_signed && right->type.bit_width == 64u &&
+               !text_equal(right->type.spelling, "usize"))
+            : frontend_type_equal(parser->context, right->type, uint_type);
+    if (!fixed_integer_left || !uint_count)
       supported = false;
   } else if (text_equal(operator_text, "&&") ||
              text_equal(operator_text, "||")) {
@@ -16087,6 +16096,67 @@ static bool cst_if_node_for_span(const w_seed_frontend_document *doc,
   return true;
 }
 
+static frontend_simple_type infer_shift_operand_span(
+    frontend_context *context, const w_seed_frontend_document *doc,
+    const frontend_token *token) {
+  if (context == NULL || doc == NULL || token == NULL)
+    return simple_type_unknown();
+  if (token->kind == W_SEED_CST_WORD) {
+    const w_seed_frontend_text name = text_from_span(doc, token->span);
+    return binding_type_for_name(context, name, token->span);
+  }
+  if (token->kind == W_SEED_CST_NUMBER ||
+      token->kind == W_SEED_CST_LITERAL_EVENT)
+    return literal_simple_type(doc, token->span, token->kind);
+  return simple_type_unknown();
+}
+
+/* Reproduce the exact type rule for one simple checked shift in the dry-pass
+ * local-binding inference path. The normal expression parser remains the
+ * authority for support, value range, and full expression shape. */
+static frontend_simple_type infer_checked_shift_span(
+    frontend_context *context, const w_seed_frontend_document *doc,
+    w_seed_span span) {
+  if (context == NULL || doc == NULL) return simple_type_unknown();
+  frontend_token_cursor cursor = token_cursor_for(doc, span);
+  frontend_token left_token;
+  frontend_token operator_token;
+  frontend_token right_token;
+  frontend_token trailing;
+  if (!cursor_take(&cursor, &left_token) ||
+      !cursor_take(&cursor, &operator_token) ||
+      (!token_text(doc, &operator_token, "<<") &&
+       !token_text(doc, &operator_token, ">>")) ||
+      !cursor_take(&cursor, &right_token) || cursor_peek(&cursor, &trailing))
+    return simple_type_unknown();
+
+  frontend_simple_type left_type =
+      infer_shift_operand_span(context, doc, &left_token);
+  frontend_simple_type right_type =
+      infer_shift_operand_span(context, doc, &right_token);
+  if (left_type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+      left_type.is_signed && left_type.bit_width == 0u)
+    left_type = const_default_integer_type();
+  if (right_type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+      right_type.bit_width == 0u) {
+    const frontend_simple_type uint_type =
+        simple_type_from_view((w_seed_frontend_text){"UInt", 4u});
+    if (!unsuffixed_integer_fits(text_from_span(doc, right_token.span),
+                                 uint_type))
+      return simple_type_unknown();
+    right_type = uint_type;
+  }
+  const bool left_fixed_integer =
+      left_type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+      integer_width_supported(left_type.bit_width) &&
+      !text_equal(left_type.spelling, "usize");
+  const bool uint_count =
+      right_type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+      !right_type.is_signed && right_type.bit_width == 64u &&
+      !text_equal(right_type.spelling, "usize");
+  return left_fixed_integer && uint_count ? left_type : simple_type_unknown();
+}
+
 static frontend_simple_type infer_expression_span_inner(
     frontend_context *context, w_seed_span span, size_t depth) {
   const w_seed_frontend_document *doc = context_document(context);
@@ -16193,6 +16263,10 @@ static frontend_simple_type infer_expression_span_inner(
       return simple_type_from_view(host->return_type);
     }
   }
+  const frontend_simple_type checked_shift_type =
+      infer_checked_shift_span(context, doc, span);
+  if (checked_shift_type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN)
+    return checked_shift_type;
   /* A local binding may be inferred from a receiver-aware external member
    * initializer before its normalized statement record exists.  Keep this
    * dry-pass inference as narrow as the expression parser's member path:

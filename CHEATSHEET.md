@@ -508,6 +508,9 @@ test "operators and pipe-forward produce values" for operatorSummary {
   expect complementUnsigned(0_u8) == 0xff
   expect assigned == 7
   expect (0b1000 >> 2) == 2
+  expect (-8_i8 >> 1_u64) == -4_i8
+  expect (0x80_u8 >> 1_u64) == 0x40_u8
+  expect (0x20_u8 << 1_u64) == 0x40_u8
   expect (~0_u8) == 0xff
   expect 2 <= 2 && 3 >= 2
   expect 1 != 2 || false
@@ -523,8 +526,17 @@ covers `i8`/`u8`, `i16`/`u16`, `i32`/`u32`, `i64`/`u64`, and the current
 x86-64 `Int`/`UInt` aliases. The exact family witness is
 [`restaurant-integer-bitwise.w`](compiler/seed-c/fixtures/restaurant-integer-bitwise.w);
 its source-local comment declares the expected exit and literal stdout.
-Width-generic shifts, power, rotations, remaining named bit primitives, and
-SIMD remain open under W-392.
+Ordinary `<<` and `>>` now have source-backed checked coverage for those same
+types. The value and result use exactly the same canonical integer type, and
+the count is `UInt` (`u64` on the current x86-64 target). A count at or above
+the logical width fails; left shift also fails if the mathematical result does
+not fit. Signed right shift is arithmetic and unsigned right shift is logical:
+
+The exact family witness is
+[`restaurant-shifts.w`](compiler/seed-c/fixtures/restaurant-shifts.w). Named
+numeric/shift policies, power, rotations, remaining bit primitives, SIMD,
+`usize`/`isize`, 128-bit integers, non-x86-64 alias widths, stable ABI/FFI,
+other targets, and equivalent-runtime performance remain open under W-392.
 
 ## Numeric policies and bit primitives
 
