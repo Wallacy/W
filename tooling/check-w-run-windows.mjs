@@ -75,6 +75,8 @@ const restaurantIntegerPrefixFixture = resolve(seedDirectory,
   "fixtures", "restaurant-integer-prefix.w")
 const restaurantIntegerWideningFixture = resolve(seedDirectory,
   "fixtures", "restaurant-integer-widening.w")
+const restaurantIntegerTruncatingBitsFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-integer-truncating-bits.w")
 const restaurantUIntWrappingAddFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-add.w")
 const restaurantUIntWrappingSubtractFixture = resolve(seedDirectory,
@@ -475,6 +477,8 @@ try {
     "native build copied the external MLIR toolchain")
 
   const invalidSource = join(fixtureDirectory, "invalid.w")
+  const invalidTruncatingBits = join(fixtureDirectory,
+    "invalid-truncating-bits.w")
   const runtimeCheckedI8Overflow = join(fixtureDirectory,
     "runtime-checked-i8-overflow.w")
   const runtimeCheckedU16Underflow = join(fixtureDirectory,
@@ -505,6 +509,9 @@ try {
     ["comparison used as i64", "(1 < 2) + 3"],
   ]
   await writeFile(invalidSource, Buffer.from([0xc3]))
+  await writeFile(invalidTruncatingBits,
+    "fn main() { print(\"must not commit\") " +
+    "let result = i8(exactly: 258_i16) }\nentry(main)\n", "utf8")
   await writeFile(runtimeCheckedI8Overflow,
     "fn add(left: i8, right: i8): i8 { return left + right }\n" +
     "entry { print(\"must not commit\") " +
@@ -817,6 +824,11 @@ try {
   expectExact(binary, ["run", restaurantIntegerWideningFixture], 0,
     Buffer.from("Widen -7/200/202/203\n", "utf8"),
     "Restaurant implicit integer widening policy")
+  expectExact(binary, ["run", restaurantIntegerTruncatingBitsFixture], 0,
+    Buffer.from("Trunc 2/-7/-6/18446744073709551609/-1\n", "utf8"),
+    "Restaurant explicit fixed-width truncatingBits family")
+  expectSourceFailure(binary, invalidTruncatingBits,
+    "wrong truncatingBits label fails before output commit")
   expectExact(binary, ["run", restaurantUIntWrappingAddFixture], 0,
     Buffer.from("Wrapped 0\n", "utf8"),
     "Restaurant UInt wrappingAdd at the unsigned maximum")

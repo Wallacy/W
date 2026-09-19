@@ -222,7 +222,7 @@ static bool make_nested_tree_source(char *buffer, size_t capacity,
 
 static bool test_products(void) {
   CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-10") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-54") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-55") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -2127,6 +2127,206 @@ static bool test_implicit_integer_widening_native(void) {
                     "llvm.sext") >= 1u &&
         count_bytes(output, result.mlir.written.mlir_bytes,
                     "llvm.zext") >= 2u);
+  return true;
+}
+
+static bool test_explicit_integer_truncating_bits_native(void) {
+  typedef struct {
+    bool source_signed;
+    uint16_t source_width;
+    bool destination_signed;
+    uint16_t destination_width;
+  } integer_route;
+  static const integer_route ROUTES[] = {
+      {true, 16u, true, 8u}, {true, 8u, true, 16u},
+      {false, 8u, true, 8u}, {true, 64u, false, 64u},
+      {false, 64u, true, 64u}};
+  static const uint8_t source[] =
+      "fn narrow(value: i16): i8 { return i8(truncatingBits: value) }\n"
+      "fn widen(value: i8): i16 { return i16(truncatingBits: value) }\n"
+      "fn reinterpret(value: u8): i8 { return i8(truncatingBits: value) }\n"
+      "fn intToUInt(value: Int): UInt { return UInt(truncatingBits: value) }\n"
+      "fn uintToInt(value: UInt): Int { return Int(truncatingBits: value) }\n"
+      "fn main() { let narrowResult = narrow(value: 258_i16) "
+      "let widenResult = widen(value: -7_i8) "
+      "let reinterpretResult = reinterpret(value: 250_u8) "
+      "let intToUIntResult = intToUInt(value: -7) "
+      "let uintToIntResult = uintToInt(value: 18446744073709551615_u64) "
+      "print(\"Trunc ${narrowResult}/${widenResult}/${reinterpretResult}/"
+      "${intToUIntResult}/${uintToIntResult}\") }\n"
+      "entry(main)\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source(source, sizeof(source) - 1u, "integer-truncating-bits",
+                   sizeof("integer-truncating-bits") - 1u, output,
+                   sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  CHECK(result.mlir.written.mlir_bytes == result.mlir.required.mlir_bytes &&
+        result.mlir.written.mlir_bytes != 0u);
+
+  const w_seed_hir0_program *program = &storage.hir_program;
+  bool route_seen[sizeof(ROUTES) / sizeof(ROUTES[0])] = {false};
+  size_t wrapper_count = 0u;
+  uint32_t forged_wrapper = W_SEED_HIR0_NONE;
+  for (size_t value_index = 0u; value_index < program->value_count;
+       value_index += 1u) {
+    const w_seed_hir0_value *value = &program->values[value_index];
+    if (value->kind != W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS) continue;
+    CHECK(value->source_type < program->type_count &&
+          value->type_index < program->type_count &&
+          value->left_value < program->value_count &&
+          value->right_value == W_SEED_HIR0_NONE);
+    const w_seed_hir0_type *source_type = &program->types[value->source_type];
+    const w_seed_hir0_type *destination_type =
+        &program->types[value->type_index];
+    const w_seed_hir0_value *child = &program->values[value->left_value];
+    CHECK(source_type->kind == W_SEED_HIR0_TYPE_INTEGER ||
+          source_type->kind == W_SEED_HIR0_TYPE_I64 ||
+          source_type->kind == W_SEED_HIR0_TYPE_U64);
+    CHECK(destination_type->kind == W_SEED_HIR0_TYPE_INTEGER ||
+          destination_type->kind == W_SEED_HIR0_TYPE_I64 ||
+          destination_type->kind == W_SEED_HIR0_TYPE_U64);
+    CHECK(child->kind == W_SEED_HIR0_VALUE_PARAMETER_READ &&
+          child->type_index == value->source_type &&
+          child->parameter_index < program->parameter_count &&
+          child->owner_kind ==
+              W_SEED_HIR0_VALUE_OWNER_INTEGER_TRUNCATING_BITS &&
+          child->owner_index == value_index && child->owner_ordinal == 0u);
+    const w_seed_hir0_parameter *parameter =
+        &program->parameters[child->parameter_index];
+    CHECK(parameter->type_index == value->source_type &&
+          parameter->ordinal == 0u);
+    size_t route_index = 0u;
+    while (route_index < sizeof(ROUTES) / sizeof(ROUTES[0]) &&
+           (ROUTES[route_index].source_signed !=
+                source_type->integer_is_signed ||
+            ROUTES[route_index].source_width !=
+                source_type->integer_bit_width ||
+            ROUTES[route_index].destination_signed !=
+                destination_type->integer_is_signed ||
+            ROUTES[route_index].destination_width !=
+                destination_type->integer_bit_width))
+      route_index += 1u;
+    CHECK(route_index < sizeof(ROUTES) / sizeof(ROUTES[0]) &&
+          !route_seen[route_index]);
+    route_seen[route_index] = true;
+    wrapper_count += 1u;
+    if (forged_wrapper == W_SEED_HIR0_NONE &&
+        value->source_type != value->type_index)
+      forged_wrapper = (uint32_t)value_index;
+
+    char expected[192];
+    int written = 0;
+    if (source_type->integer_bit_width < 64u) {
+      written = snprintf(
+          expected, sizeof(expected),
+          "%%v%u_truncating_source_bits = llvm.trunc %%p%u : i64 to i%u\n",
+          (unsigned)value_index, (unsigned)parameter->ordinal,
+          (unsigned)source_type->integer_bit_width);
+      CHECK(written > 0 && (size_t)written < sizeof(expected) &&
+            contains_bytes(output, result.mlir.written.mlir_bytes, expected));
+      written = snprintf(
+          expected, sizeof(expected),
+          "%%v%u_truncating_source = llvm.%s %%v%u_truncating_source_bits : "
+          "i%u to i64\n",
+          (unsigned)value_index,
+          source_type->integer_is_signed ? "sext" : "zext",
+          (unsigned)value_index, (unsigned)source_type->integer_bit_width);
+      CHECK(written > 0 && (size_t)written < sizeof(expected) &&
+            contains_bytes(output, result.mlir.written.mlir_bytes, expected));
+    }
+    if (destination_type->integer_bit_width < 64u) {
+      if (source_type->integer_bit_width < 64u) {
+        written = snprintf(
+            expected, sizeof(expected),
+            "%%v%u_truncating_destination_bits = llvm.trunc %%v%u_"
+            "truncating_source : i64 to i%u\n",
+            (unsigned)value_index, (unsigned)value_index,
+            (unsigned)destination_type->integer_bit_width);
+      } else {
+        written = snprintf(
+            expected, sizeof(expected),
+            "%%v%u_truncating_destination_bits = llvm.trunc %%p%u : i64 to "
+            "i%u\n",
+            (unsigned)value_index, (unsigned)parameter->ordinal,
+            (unsigned)destination_type->integer_bit_width);
+      }
+      CHECK(written > 0 && (size_t)written < sizeof(expected) &&
+            contains_bytes(output, result.mlir.written.mlir_bytes, expected));
+      written = snprintf(
+          expected, sizeof(expected),
+          "%%v%u = llvm.%s %%v%u_truncating_destination_bits : i%u to i64\n",
+          (unsigned)value_index,
+          destination_type->integer_is_signed ? "sext" : "zext",
+          (unsigned)value_index,
+          (unsigned)destination_type->integer_bit_width);
+    } else {
+      if (source_type->integer_bit_width < 64u) {
+        written = snprintf(expected, sizeof(expected),
+                           "%%v%u_truncating_zero = llvm.mlir.constant(0 : "
+                           "i64) : i64\n    %%v%u = llvm.or %%v%u_"
+                           "truncating_source, %%v%u_truncating_zero : i64\n",
+                           (unsigned)value_index,
+                           (unsigned)value_index, (unsigned)value_index,
+                           (unsigned)value_index);
+      } else {
+        written = snprintf(expected, sizeof(expected),
+                           "%%v%u_truncating_zero = llvm.mlir.constant(0 : "
+                           "i64) : i64\n    %%v%u = llvm.or %%p%u, %%v%u_"
+                           "truncating_zero : i64\n",
+                           (unsigned)value_index, (unsigned)value_index,
+                           (unsigned)parameter->ordinal,
+                           (unsigned)value_index);
+      }
+    }
+    CHECK(written > 0 && (size_t)written < sizeof(expected) &&
+          contains_bytes(output, result.mlir.written.mlir_bytes, expected));
+  }
+  CHECK(wrapper_count == sizeof(ROUTES) / sizeof(ROUTES[0]) &&
+        route_seen[0] && route_seen[1] && route_seen[2] && route_seen[3] &&
+        route_seen[4] && forged_wrapper != W_SEED_HIR0_NONE &&
+        program->call_count == sizeof(ROUTES) / sizeof(ROUTES[0]) + 1u);
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(program, &storage.hir_result,
+                                             &selection) ==
+            W_SEED_NATIVE_SUBSET0_OK &&
+        selection.has_local_calls);
+
+  const w_seed_mlir0_input mlir_input = {
+      .program = program,
+      .hir_result = &storage.hir_result,
+      .artifact_kind = W_SEED_MLIR0_ARTIFACT_EXECUTABLE};
+  const w_seed_hir0_value saved_wrapper = storage.hir_values[forged_wrapper];
+  w_seed_mlir0_counts forged_counts;
+  w_seed_mlir0_result forged_result;
+  (void)memset(&forged_counts, 0x31, sizeof(forged_counts));
+  (void)memset(&forged_result, 0x42, sizeof(forged_result));
+  const w_seed_mlir0_counts counts_snapshot = forged_counts;
+  const w_seed_mlir0_result result_snapshot = forged_result;
+  storage.hir_values[forged_wrapper].source_type =
+      saved_wrapper.type_index;
+  CHECK(w_seed_mlir0_measure(&mlir_input, &TARGET, &forged_counts,
+                             &forged_result) == W_SEED_MLIR0_INVALID_HIR &&
+        memcmp(&forged_counts, &counts_snapshot, sizeof(forged_counts)) == 0 &&
+        memcmp(&forged_result, &result_snapshot, sizeof(forged_result)) == 0);
+  uint8_t rejected_output[64];
+  (void)memset(rejected_output, 0xa5, sizeof(rejected_output));
+  uint8_t output_snapshot[sizeof(rejected_output)];
+  (void)memcpy(output_snapshot, rejected_output, sizeof(output_snapshot));
+  const w_seed_mlir0_output forged_output = {
+      rejected_output, sizeof(rejected_output)};
+  CHECK(w_seed_mlir0_emit(&mlir_input, &TARGET, &forged_output,
+                          &forged_result) == W_SEED_MLIR0_INVALID_HIR &&
+        memcmp(rejected_output, output_snapshot, sizeof(rejected_output)) == 0 &&
+        memcmp(&forged_result, &result_snapshot, sizeof(forged_result)) == 0);
+  storage.hir_values[forged_wrapper] = saved_wrapper;
+  CHECK(w_seed_hir0_verify(program, &storage.hir_result));
+
+  storage.hir_values[forged_wrapper].type_index =
+      saved_wrapper.source_type;
+  CHECK(w_seed_mlir0_measure(&mlir_input, &TARGET, &forged_counts,
+                             &forged_result) == W_SEED_MLIR0_INVALID_HIR);
+  storage.hir_values[forged_wrapper] = saved_wrapper;
+  CHECK(w_seed_hir0_verify(program, &storage.hir_result));
   return true;
 }
 
@@ -5133,6 +5333,7 @@ int main(void) {
                        test_unary_i64_native_selector() &&
                        test_integer_prefix_native_matrix() &&
                        test_implicit_integer_widening_native() &&
+                       test_explicit_integer_truncating_bits_native() &&
                        test_scalar_if_value_native() &&
                        test_nested_scalar_if_value_native() &&
                        test_scalar_if_remains_unsupported() &&

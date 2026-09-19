@@ -772,6 +772,15 @@ static bool frontend_integer_widening_route(
           (!from->is_signed && to->is_signed));
 }
 
+/* The explicit truncatingBits family accepts every fixed-width signedness and
+ * width pair; its conversion semantics are supplied by the dedicated HIR kind
+ * and are not inferred from widening direction. */
+static bool frontend_integer_truncating_bits_route(
+    const w_seed_frontend_type *from, const w_seed_frontend_type *to) {
+  return from != NULL && to != NULL && frontend_type_is_fixed_integer(from) &&
+         frontend_type_is_fixed_integer(to);
+}
+
 /* Assignment is directional for the one nominal widening admitted by the
  * bounded enum-subset slice.  A value carrying a subset is safe to pass to
  * its payloadless base enum, but a base value may never be treated as a
@@ -3763,6 +3772,35 @@ static bool frontend_scalar_if_tree_ok(
         input, module_index, function_index, document_index, value->left,
         false, true, depth + 1u);
   }
+  if (value->kind ==
+      W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS) {
+    if (value->left == W_SEED_FRONTEND_NONE ||
+        (size_t)value->left >= input->frontend_result->written.expressions ||
+        value->right != W_SEED_FRONTEND_NONE ||
+        value->first_argument != W_SEED_FRONTEND_NONE ||
+        value->argument_count != 0u ||
+        value->conversion_source_type == W_SEED_FRONTEND_NONE ||
+        value->conversion_destination_type == W_SEED_FRONTEND_NONE ||
+        (size_t)value->conversion_source_type >=
+            input->frontend_result->written.types ||
+        (size_t)value->conversion_destination_type >=
+            input->frontend_result->written.types ||
+        value->inferred_type != value->conversion_destination_type ||
+        value->conversion_source_type !=
+            output->expressions[value->left].inferred_type ||
+        !frontend_integer_truncating_bits_route(
+            &output->types[value->conversion_source_type],
+            &output->types[value->conversion_destination_type]) ||
+        !frontend_expression_is_integer(output, value) ||
+        !frontend_value_has_no_resolution(value) ||
+        value->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
+        value->has_bool_value || value->has_integer_value ||
+        value->has_float_value)
+      return false;
+    return frontend_scalar_if_tree_ok(
+        input, module_index, function_index, document_index, value->left,
+        false, true, depth + 1u);
+  }
   if (value->kind == W_SEED_FRONTEND_EXPR_PARENTHESIS)
     return !value->has_bool_value && !value->has_integer_value &&
            !value->has_float_value &&
@@ -3930,6 +3968,7 @@ static bool frontend_value_tree_ok(
     return false;
 
   if (value->kind != W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN &&
+      value->kind != W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS &&
       (value->conversion_source_type != W_SEED_FRONTEND_NONE ||
        value->conversion_destination_type != W_SEED_FRONTEND_NONE))
     return false;
@@ -3954,6 +3993,43 @@ static bool frontend_value_tree_ok(
         !frontend_integer_widening_route(
             &output->types[value->conversion_source_type],
             &output->types[value->conversion_destination_type]) ||
+        !frontend_value_has_no_resolution(value) ||
+        value->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
+        value->const_byte_offset != W_SEED_FRONTEND_NONE ||
+        value->const_byte_count != 0u || value->has_bool_value ||
+        value->has_integer_value || value->has_float_value)
+      return false;
+    if (!frontend_value_tree_ok(input, module_index, function_index,
+                                document_index, use_statement, value->left,
+                                depth + 1u, expression_cursor, segment_cursor,
+                                const_byte_cursor, value_total, segment_total,
+                                value_bytes, call_total, argument_total,
+                                logical_total))
+      return false;
+    if ((size_t)root_index != *expression_cursor) return false;
+    if (!add_size(*value_total, 1u, value_total)) return false;
+    if (!add_size(*expression_cursor, 1u, expression_cursor)) return false;
+    return true;
+  }
+
+  if (value->kind ==
+      W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS) {
+    if (value->left == W_SEED_FRONTEND_NONE ||
+        value->right != W_SEED_FRONTEND_NONE ||
+        value->first_argument != W_SEED_FRONTEND_NONE ||
+        value->argument_count != 0u ||
+        (size_t)value->left >= result->written.expressions ||
+        value->conversion_source_type == W_SEED_FRONTEND_NONE ||
+        value->conversion_destination_type == W_SEED_FRONTEND_NONE ||
+        (size_t)value->conversion_source_type >= result->written.types ||
+        (size_t)value->conversion_destination_type >= result->written.types ||
+        value->inferred_type != value->conversion_destination_type ||
+        value->conversion_source_type !=
+            output->expressions[value->left].inferred_type ||
+        !frontend_integer_truncating_bits_route(
+            &output->types[value->conversion_source_type],
+            &output->types[value->conversion_destination_type]) ||
+        !frontend_expression_is_integer(output, value) ||
         !frontend_value_has_no_resolution(value) ||
         value->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
         value->const_byte_offset != W_SEED_FRONTEND_NONE ||
@@ -9444,7 +9520,8 @@ static size_t hir0_emit_expression_values_m2(hir0_emit_context *context,
     return current_block;
   const w_seed_frontend_expression *source =
       &context->frontend->expressions[expression];
-  if (source->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN)
+  if (source->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN ||
+      source->kind == W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS)
     return hir0_emit_expression_values_m2(
         context, source->left, current_block, statement_index, depth + 1u);
   if (frontend_task_launch_kind(source->kind))
@@ -9788,7 +9865,8 @@ static size_t hir0_emit_expression_terms_m2(hir0_emit_context *context,
     return current_block;
   const w_seed_frontend_expression *source =
       &context->frontend->expressions[expression];
-  if (source->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN)
+  if (source->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN ||
+      source->kind == W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS)
     return hir0_emit_expression_terms_m2(
         context, source->left, current_block, statement_index, depth + 1u);
   if (source->kind == W_SEED_FRONTEND_EXPR_IF) {
@@ -10604,7 +10682,8 @@ static size_t hir0_expression_layout_end_m2(const hir0_emit_context *context,
   }
   if (source->kind == W_SEED_FRONTEND_EXPR_PARENTHESIS ||
       source->kind == W_SEED_FRONTEND_EXPR_UNARY ||
-      source->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN)
+      source->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN ||
+      source->kind == W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS)
     return hir0_expression_layout_end_m2(context, source->left, current_block,
                                          depth + 1u);
   if (source->kind == W_SEED_FRONTEND_EXPR_CALL) {
@@ -11260,7 +11339,8 @@ static size_t hir0_emit_expression_layout_m2(hir0_emit_context *context,
     return current_block;
   const w_seed_frontend_expression *source =
       &context->frontend->expressions[expression];
-  if (source->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN)
+  if (source->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN ||
+      source->kind == W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS)
     return hir0_emit_expression_layout_m2(
         context, source->left, current_block, statement_index, depth + 1u);
   if (source->kind == W_SEED_FRONTEND_EXPR_EXECUTION_YIELD) {
@@ -11517,23 +11597,57 @@ static uint32_t hir0_emit_value_m2(
     return W_SEED_HIR0_NONE;
   const w_seed_frontend_expression *source =
       &context->frontend->expressions[expression];
-  if (source->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN) {
-    const uint32_t child = hir0_emit_value_m2(
-        context, source->left, W_SEED_HIR0_VALUE_OWNER_INTEGER_WIDEN,
-        W_SEED_HIR0_NONE, 0u, current_block, depth + 1u);
-    if (child == W_SEED_HIR0_NONE ||
+  if (source->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN ||
+      source->kind == W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS) {
+    const bool truncating_bits =
+        source->kind == W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS;
+    const w_seed_hir0_value_owner_kind conversion_owner =
+        truncating_bits
+            ? W_SEED_HIR0_VALUE_OWNER_INTEGER_TRUNCATING_BITS
+            : W_SEED_HIR0_VALUE_OWNER_INTEGER_WIDEN;
+    if (source->left == W_SEED_FRONTEND_NONE ||
+        (size_t)source->left >= context->frontend_result->written.expressions ||
         source->conversion_source_type == W_SEED_FRONTEND_NONE ||
-        source->conversion_destination_type == W_SEED_FRONTEND_NONE)
+        source->conversion_destination_type == W_SEED_FRONTEND_NONE ||
+        source->conversion_source_type >=
+            context->frontend_result->written.types ||
+        source->conversion_destination_type >=
+            context->frontend_result->written.types ||
+        source->conversion_destination_type != source->inferred_type ||
+        source->conversion_source_type !=
+            context->frontend->expressions[source->left].inferred_type ||
+        !(truncating_bits
+              ? frontend_integer_truncating_bits_route(
+                    &context->frontend->types[source->conversion_source_type],
+                    &context->frontend->types[
+                        source->conversion_destination_type])
+              : frontend_integer_widening_route(
+                    &context->frontend->types[source->conversion_source_type],
+                    &context->frontend->types[
+                        source->conversion_destination_type])))
+      return W_SEED_HIR0_NONE;
+    const uint32_t child = hir0_emit_value_m2(
+        context, source->left, conversion_owner, W_SEED_HIR0_NONE, 0u,
+        current_block, depth + 1u);
+    const uint32_t hir_source_type = hir_type_from_frontend(
+        context->frontend, context->frontend_result,
+        source->conversion_source_type);
+    const uint32_t hir_destination_type = hir_type_from_frontend(
+        context->frontend, context->frontend_result,
+        source->conversion_destination_type);
+    if (child == W_SEED_HIR0_NONE ||
+        hir_source_type == W_SEED_HIR0_NONE ||
+        hir_destination_type == W_SEED_HIR0_NONE)
       return W_SEED_HIR0_NONE;
     const uint32_t result = (uint32_t)*context->value_index;
     context->output->values[*context->value_index] = (w_seed_hir0_value){
-        .kind = W_SEED_HIR0_VALUE_INTEGER_WIDEN,
+        .kind = truncating_bits
+                    ? W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS
+                    : W_SEED_HIR0_VALUE_INTEGER_WIDEN,
         .owner_kind = owner_kind,
         .owner_index = owner_index,
         .owner_ordinal = owner_ordinal,
-        .type_index = hir_type_from_frontend(
-            context->frontend, context->frontend_result,
-            source->conversion_destination_type),
+        .type_index = hir_destination_type,
         .binding_index = W_SEED_HIR0_NONE,
         .parameter_index = W_SEED_HIR0_NONE,
         .call_index = W_SEED_HIR0_NONE,
@@ -11559,12 +11673,9 @@ static uint32_t hir0_emit_value_m2(
         .member_name = {0u, 0u},
         .enum_index = W_SEED_HIR0_NONE,
         .enum_case_index = W_SEED_HIR0_NONE,
-        .source_type = hir_type_from_frontend(
-            context->frontend, context->frontend_result,
-            source->conversion_source_type)};
+        .source_type = hir_source_type};
     context->output->values[child].owner_index = result;
-    context->output->values[child].owner_kind =
-        W_SEED_HIR0_VALUE_OWNER_INTEGER_WIDEN;
+    context->output->values[child].owner_kind = conversion_owner;
     *context->value_index += 1u;
     return result;
   }
@@ -12566,7 +12677,9 @@ static void emit_records(const w_seed_hir0_input *input,
     output->values[value].member_name = (w_seed_hir0_text){0u, 0u};
     output->values[value].enum_index = W_SEED_HIR0_NONE;
     output->values[value].enum_case_index = W_SEED_HIR0_NONE;
-    if (output->values[value].kind != W_SEED_HIR0_VALUE_INTEGER_WIDEN)
+    if (output->values[value].kind != W_SEED_HIR0_VALUE_INTEGER_WIDEN &&
+        output->values[value].kind !=
+            W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS)
       output->values[value].source_type = W_SEED_HIR0_NONE;
   }
   output->types[0] = (w_seed_hir0_type){
@@ -13251,7 +13364,9 @@ static void emit_records(const w_seed_hir0_input *input,
     if (output->values[value].kind !=
         W_SEED_HIR0_VALUE_PATTERN_CAPTURE_READ)
       output->values[value].pattern_capture_index = W_SEED_HIR0_NONE;
-    if (output->values[value].kind != W_SEED_HIR0_VALUE_INTEGER_WIDEN)
+    if (output->values[value].kind != W_SEED_HIR0_VALUE_INTEGER_WIDEN &&
+        output->values[value].kind !=
+            W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS)
       output->values[value].source_type = W_SEED_HIR0_NONE;
     if (output->values[value].kind == W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE ||
         output->values[value].kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER ||
@@ -14964,12 +15079,20 @@ static bool verify_value_tree(
        value->unsigned_integer_value != 0u) ||
       (value->kind != W_SEED_HIR0_VALUE_CONST_FLOAT &&
        value->float_bits != 0u) ||
-      (value->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN
+      (value->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN ||
+       value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS
            ? value->source_type == W_SEED_HIR0_NONE
            : value->source_type != W_SEED_HIR0_NONE))
     return false;
 
-  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN) {
+  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN ||
+      value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS) {
+    const bool truncating_bits =
+        value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS;
+    const w_seed_hir0_value_owner_kind conversion_owner =
+        truncating_bits
+            ? W_SEED_HIR0_VALUE_OWNER_INTEGER_TRUNCATING_BITS
+            : W_SEED_HIR0_VALUE_OWNER_INTEGER_WIDEN;
     bool source_signed = false;
     bool destination_signed = false;
     uint16_t source_width = 0u;
@@ -14997,13 +15120,14 @@ static bool verify_value_tree(
                                 &source_width) ||
         !hir_integer_type_facts(program, value->type_index,
                                 &destination_signed, &destination_width) ||
-        source_width >= destination_width ||
-        (source_signed != destination_signed &&
-         (source_signed || !destination_signed)) ||
+        (!truncating_bits &&
+         (source_width >= destination_width ||
+          (source_signed != destination_signed &&
+           (source_signed || !destination_signed)))) ||
         program->values[value->left_value].type_index != value->source_type ||
         !verify_value_tree(
             program, value->left_value,
-            W_SEED_HIR0_VALUE_OWNER_INTEGER_WIDEN, root_index, 0u,
+            conversion_owner, root_index, 0u,
             current_block, current_instruction, source_length, depth + 1u,
             value_cursor, segment_cursor, byte_cursor) ||
         root_index != *value_cursor)
@@ -18029,6 +18153,7 @@ static bool hir0_value_kind_is_closed(w_seed_hir0_value_kind kind) {
     case W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON:
     case W_SEED_HIR0_VALUE_TUPLE_ELEMENT:
     case W_SEED_HIR0_VALUE_INTEGER_WIDEN:
+    case W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS:
     case W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON:
       return true;
     default:
@@ -18250,7 +18375,9 @@ static uint32_t hir0_value_owner_function(const w_seed_hir0_program *program,
         value->owner_kind == W_SEED_HIR0_VALUE_OWNER_UNARY ||
         value->owner_kind == W_SEED_HIR0_VALUE_OWNER_EXTERNAL_MEMBER ||
         value->owner_kind == W_SEED_HIR0_VALUE_OWNER_EXTERNAL_ENUM_CASE ||
-        value->owner_kind == W_SEED_HIR0_VALUE_OWNER_INTEGER_WIDEN) {
+        value->owner_kind == W_SEED_HIR0_VALUE_OWNER_INTEGER_WIDEN ||
+        value->owner_kind ==
+            W_SEED_HIR0_VALUE_OWNER_INTEGER_TRUNCATING_BITS) {
       if (value->owner_index == W_SEED_HIR0_NONE ||
           (size_t)value->owner_index >= program->value_count)
         return W_SEED_HIR0_NONE;

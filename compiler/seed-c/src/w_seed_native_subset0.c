@@ -128,6 +128,17 @@ static bool native_integer_widening_route(
          (!source_facts->is_signed && destination_facts->is_signed);
 }
 
+static bool native_integer_truncating_bits_route(
+    const w_seed_hir0_program *program, uint32_t source_type,
+    uint32_t destination_type, native_integer_facts *source_facts,
+    native_integer_facts *destination_facts) {
+  return program != NULL && source_facts != NULL &&
+         destination_facts != NULL &&
+         native_integer_type_facts(program, source_type, source_facts) &&
+         native_integer_type_facts(program, destination_type,
+                                   destination_facts);
+}
+
 static uint64_t native_integer_width_mask(native_integer_facts facts) {
   return facts.bit_width == 64u
              ? UINT64_MAX
@@ -483,6 +494,32 @@ static bool evaluate_integer_bits(const w_seed_hir0_program *program,
     return true;
   }
 
+  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS) {
+    native_integer_facts source_facts;
+    native_integer_facts destination_facts;
+    if (value->source_type >= program->type_count ||
+        value->left_value == W_SEED_HIR0_NONE ||
+        value->left_value >= program->value_count ||
+        value->right_value != W_SEED_HIR0_NONE ||
+        !native_integer_truncating_bits_route(
+            program, value->source_type, value->type_index, &source_facts,
+            &destination_facts) ||
+        !native_integer_facts_equal(destination_facts, expected) ||
+        program->values[value->left_value].type_index != value->source_type ||
+        program->values[value->left_value].owner_kind !=
+            W_SEED_HIR0_VALUE_OWNER_INTEGER_TRUNCATING_BITS ||
+        program->values[value->left_value].owner_index != value_index ||
+        program->values[value->left_value].owner_ordinal != 0u)
+      return false;
+    uint64_t source_bits = 0u;
+    if (!evaluate_integer_bits(program, value->left_value, depth + 1u,
+                               source_facts, &source_bits))
+      return false;
+    *result = native_integer_mask_bits(
+        native_integer_carrier_bits(source_bits, source_facts), expected);
+    return true;
+  }
+
   if (value->kind == (signed_carrier ? W_SEED_HIR0_VALUE_UNARY_I64
                                      : W_SEED_HIR0_VALUE_UNARY_U64)) {
     if (value->left_value == W_SEED_HIR0_NONE) return false;
@@ -624,6 +661,12 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
   if (value->kind == W_SEED_HIR0_VALUE_CONST_U64) {
     *result = value->unsigned_integer_value;
     return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS) {
+    native_integer_facts facts;
+    return native_integer_type_facts(program, value->type_index, &facts) &&
+           !facts.is_signed && facts.bit_width == 64u &&
+           evaluate_integer_bits(program, value_index, depth, facts, result);
   }
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64) {
     uint64_t operand = 0u;
@@ -842,6 +885,16 @@ static bool evaluate_i64(const w_seed_hir0_program *program,
     *result = value->integer_value;
     return true;
   }
+  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS) {
+    native_integer_facts facts;
+    uint64_t bits = 0u;
+    if (!native_integer_type_facts(program, value->type_index, &facts) ||
+        !facts.is_signed || facts.bit_width != 64u ||
+        !evaluate_integer_bits(program, value_index, depth, facts, &bits))
+      return false;
+    (void)memcpy(result, &bits, sizeof(*result));
+    return true;
+  }
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64) {
     int64_t operand = 0;
     if ((value->unary_operator != W_SEED_HIR0_UNARY_NEGATE &&
@@ -895,6 +948,9 @@ static bool evaluate_i64(const w_seed_hir0_program *program,
  * cannot turn a constant overflow into a runtime program. Binding reads are
  * intentionally not considered constant by this syntactic predicate; their
  * initializers are checked independently when the binding is selected. */
+static bool program_value_is_constant_integer(
+    const w_seed_hir0_program *program, uint32_t value_index, size_t depth);
+
 static bool program_value_is_constant_i64(
     const w_seed_hir0_program *program, uint32_t value_index, size_t depth) {
   if (program == NULL || depth > 256u || value_index >= program->value_count)
@@ -904,6 +960,9 @@ static bool program_value_is_constant_i64(
       program->types[value->type_index].kind != W_SEED_HIR0_TYPE_I64)
     return false;
   if (value->kind == W_SEED_HIR0_VALUE_CONST_I64) return true;
+  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS)
+    return program_value_is_constant_integer(program, value_index,
+                                             depth + 1u);
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64)
     return (value->unary_operator == W_SEED_HIR0_UNARY_NEGATE ||
             value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT) &&
@@ -930,6 +989,9 @@ static bool program_value_is_constant_u64(
       program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64)
     return false;
   if (value->kind == W_SEED_HIR0_VALUE_CONST_U64) return true;
+  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS)
+    return program_value_is_constant_integer(program, value_index,
+                                             depth + 1u);
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64)
     return (value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT ||
             value->unary_operator == W_SEED_HIR0_UNARY_WRAPPING_NEGATE ||
@@ -990,6 +1052,26 @@ static bool program_value_is_constant_integer(
       facts.is_signed ? W_SEED_HIR0_VALUE_BINARY_I64
                       : W_SEED_HIR0_VALUE_BINARY_U64;
   if (value->kind == constant_kind) return true;
+  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS) {
+    native_integer_facts source_facts;
+    native_integer_facts destination_facts;
+    return value->source_type < program->type_count &&
+           value->left_value != W_SEED_HIR0_NONE &&
+           value->left_value < program->value_count &&
+           value->right_value == W_SEED_HIR0_NONE &&
+           native_integer_truncating_bits_route(
+               program, value->source_type, value->type_index, &source_facts,
+               &destination_facts) &&
+           native_integer_facts_equal(facts, destination_facts) &&
+           program->values[value->left_value].type_index ==
+               value->source_type &&
+           program->values[value->left_value].owner_kind ==
+               W_SEED_HIR0_VALUE_OWNER_INTEGER_TRUNCATING_BITS &&
+           program->values[value->left_value].owner_index == value_index &&
+           program->values[value->left_value].owner_ordinal == 0u &&
+           program_value_is_constant_integer(program, value->left_value,
+                                             depth + 1u);
+  }
   if (value->kind == unary_kind) {
     const bool ordinary =
         value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT ||
@@ -1335,6 +1417,8 @@ static bool interpolation_maximum_bytes(
               W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON ||
           effective->kind == W_SEED_HIR0_VALUE_UNARY_U64 ||
           effective->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN ||
+          effective->kind ==
+              W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS ||
           effective->kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT ||
           effective->kind ==
               W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON ||
@@ -1772,6 +1856,27 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
             program, value->source_type, value->type_index, &source_facts,
             &destination_facts) ||
         program->values[value->left_value].type_index != value->source_type)
+      return false;
+    (void)source_facts;
+    (void)destination_facts;
+    return program_value_lowerable(program, value->left_value, owner_function,
+                                   false, depth + 1u);
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS) {
+    native_integer_facts source_facts;
+    native_integer_facts destination_facts;
+    if (value->source_type >= program->type_count ||
+        value->left_value == W_SEED_HIR0_NONE ||
+        value->left_value >= program->value_count ||
+        value->right_value != W_SEED_HIR0_NONE ||
+        !native_integer_truncating_bits_route(
+            program, value->source_type, value->type_index, &source_facts,
+            &destination_facts) ||
+        program->values[value->left_value].type_index != value->source_type ||
+        program->values[value->left_value].owner_kind !=
+            W_SEED_HIR0_VALUE_OWNER_INTEGER_TRUNCATING_BITS ||
+        program->values[value->left_value].owner_index != value_index ||
+        program->values[value->left_value].owner_ordinal != 0u)
       return false;
     (void)source_facts;
     (void)destination_facts;
@@ -2333,6 +2438,28 @@ static bool process_value_lowerable(
             program, value->source_type, value->type_index, &source_facts,
             &destination_facts) ||
         program->values[value->left_value].type_index != value->source_type)
+      return false;
+    (void)source_facts;
+    (void)destination_facts;
+    return process_value_lowerable(program, value->left_value, owner_function,
+                                   process, false, depth + 1u);
+  }
+
+  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS) {
+    native_integer_facts source_facts;
+    native_integer_facts destination_facts;
+    if (value->source_type >= program->type_count ||
+        value->left_value == W_SEED_HIR0_NONE ||
+        value->left_value >= program->value_count ||
+        value->right_value != W_SEED_HIR0_NONE ||
+        !native_integer_truncating_bits_route(
+            program, value->source_type, value->type_index, &source_facts,
+            &destination_facts) ||
+        program->values[value->left_value].type_index != value->source_type ||
+        program->values[value->left_value].owner_kind !=
+            W_SEED_HIR0_VALUE_OWNER_INTEGER_TRUNCATING_BITS ||
+        program->values[value->left_value].owner_index != value_index ||
+        program->values[value->left_value].owner_ordinal != 0u)
       return false;
     (void)source_facts;
     (void)destination_facts;

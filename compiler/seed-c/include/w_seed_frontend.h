@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-64"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-65"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -212,6 +212,10 @@ typedef enum {
    * expression; conversion_source_type and conversion_destination_type are
    * the canonical scalar identities retained for downstream lowering. */
   W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN,
+  /* Append-only explicit `D(truncatingBits: source)` conversion.  It is a
+   * distinct total bit-pattern conversion, not an implicit widening or call.
+   * The shared conversion_* facts retain its source and destination types. */
+  W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS,
 } w_seed_frontend_expr_kind;
 
 typedef enum {
@@ -997,8 +1001,8 @@ typedef struct {
   uint32_t argument_count;
   uint32_t inferred_type;
   bool supported;
-  /* Populated only for W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN.  Ordinary
-   * records retain the W_SEED_FRONTEND_NONE absence sentinel. */
+  /* Populated only for the fixed-integer conversion wrapper kinds.
+   * Ordinary records retain the W_SEED_FRONTEND_NONE absence sentinel. */
   uint32_t conversion_source_type;
   uint32_t conversion_destination_type;
   /* Append-only enum/switch identity fields. */

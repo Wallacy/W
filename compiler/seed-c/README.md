@@ -1549,6 +1549,41 @@ Other targets, `usize`/`isize`, 128-bit integers, target-general aliases,
 stable ABI/FFI, general panic payload/cleanup, named
 numeric APIs, and equivalent-runtime performance remain gaps.
 
+### Fixed-width integer truncating-bit conversion (W-1641)
+
+W-1641 implements only the existing `D(truncatingBits: source)` integer
+conversion from design §15.1.2. It adds no syntax or new conversion policy.
+The family spans signed and unsigned 8-, 16-, 32-, and 64-bit integers plus
+the current x86-64 `Int`/`UInt` aliases.
+
+Frontend schema `w-seed-frontend-65` assigns a distinct expression kind
+while reusing conversion source/destination fields. Verified HIR schema
+`w-seed-hir0-84` gives it a distinct value/owner kind, reuses `source_type`
+and `type_index`, and owns exactly one child. Native0 remains schema 10;
+MLIR0 is `w-seed-mlir0-55`; the Windows adapter is
+`w-seed-mlir0-windows-40`. Scalar evaluation, NativeSubset0, and MLIR0
+independently verify conversion facts. The native carrier remains `i64`:
+lowering normalizes the source to its logical width, retains the destination
+low bits, then sign- or zero-extends according to the destination type. It
+emits no runtime call, heap object, or CRT helper.
+
+Focused frontend tests cover all 100 source/destination type pairs across
+four contexts and 11 rejected forms. HIR tests cover all 100 pairs, five
+representative values, and forged facts; NativeSubset0 tests cover five
+representative routes; MLIR tests pin the exact operand/pattern and reject
+forged facts. The fixture
+[`fixtures/restaurant-integer-truncating-bits.w`](fixtures/restaurant-integer-truncating-bits.w)
+declares exit 0 and stdout `Trunc 2/-7/-6/18446744073709551609/-1\n`;
+a malformed label fails before output. All final-source public gates pass:
+`bun check --target mlir0`, `w-run-windows`, and `w-run`.
+
+C23 and Rust 2024 are correctness references with runtime operands, while W
+uses constants, so this is `correctness-reference-no-ranking`, not a
+performance result. W-1641 closes only the fixed-width `truncatingBits:`
+subset of W-389. `exactly:`, `rounding:`, `saturating:`, float conversion,
+`usize`/`isize`, 128-bit integers, target-general aliases, stable ABI/FFI,
+other targets, and equivalent runtime work remain gaps.
+
 ### Straight-line local mutation as SSA (W-1554)
 
 Frontend17 accepts a local signed-`i64` `var` and simple `=` in one linear

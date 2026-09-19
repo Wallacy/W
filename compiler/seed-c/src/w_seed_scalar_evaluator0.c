@@ -313,8 +313,8 @@ static bool scalar_evaluate_value(const w_seed_hir0_program *program,
       value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON &&
       value->type_index < program->type_count &&
       program->types[value->type_index].kind == W_SEED_HIR0_TYPE_BOOL;
-  scalar_integer_facts value_facts;
-  if (!scalar_i64_type(program, value->type_index) && !bool_comparison &&
+  scalar_integer_facts value_facts = {0};
+  if (!bool_comparison &&
       !scalar_integer_type_facts(program, value->type_index, &value_facts))
     return false;
   switch (value->kind) {
@@ -355,6 +355,51 @@ static bool scalar_evaluate_value(const w_seed_hir0_program *program,
       return scalar_evaluate_call(program, value->call_index, parameters,
                                   parameter_count, false, depth + 1u, budget,
                                   result);
+    case W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS: {
+      scalar_integer_facts source_facts;
+      scalar_integer_facts destination_facts;
+      scalar_integer_facts child_facts;
+      int64_t source_value = 0;
+      if (value->source_type >= program->type_count ||
+          value->left_value == W_SEED_HIR0_NONE ||
+          value->left_value >= program->value_count ||
+          value->right_value != W_SEED_HIR0_NONE ||
+          !scalar_integer_type_facts(program, value->source_type,
+                                     &source_facts) ||
+          !scalar_integer_type_facts(program, value->type_index,
+                                     &destination_facts) ||
+          !scalar_integer_type_facts(program, value->type_index,
+                                     &value_facts) ||
+          destination_facts.is_signed != value_facts.is_signed ||
+          destination_facts.bit_width != value_facts.bit_width ||
+          !scalar_integer_type_facts(
+              program, program->values[value->left_value].type_index,
+              &child_facts) ||
+          child_facts.is_signed != source_facts.is_signed ||
+          child_facts.bit_width != source_facts.bit_width ||
+          program->values[value->left_value].type_index != value->source_type ||
+          program->values[value->left_value].owner_kind !=
+              W_SEED_HIR0_VALUE_OWNER_INTEGER_TRUNCATING_BITS ||
+          program->values[value->left_value].owner_index != value_index ||
+          program->values[value->left_value].owner_ordinal != 0u ||
+          !scalar_evaluate_value(program, value->left_value, parameters,
+                                 parameter_count, depth + 1u, budget,
+                                 &source_value))
+        return false;
+      const uint64_t destination_mask =
+          destination_facts.bit_width == 64u
+              ? UINT64_MAX
+              : (UINT64_C(1) << destination_facts.bit_width) - UINT64_C(1);
+      const uint64_t destination_bits =
+          (uint64_t)source_value & destination_mask;
+      if (destination_facts.is_signed) {
+        *result = scalar_signed_integer_bits(destination_bits,
+                                             destination_facts.bit_width);
+      } else {
+        (void)memcpy(result, &destination_bits, sizeof(*result));
+      }
+      return true;
+    }
     case W_SEED_HIR0_VALUE_UNARY_I64: {
       int64_t operand = 0;
       scalar_integer_facts operand_facts;

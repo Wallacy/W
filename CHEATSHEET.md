@@ -516,6 +516,14 @@ fn numericPolicies(): (u8, u8, Bool, UInt) {
   let signed: i16 = small
   expect wider == 200 && signed == 200
 
+  let negative: i16 = -7
+  let lowByte: u8 = u8(truncatingBits: negative)
+  let widenedNegative: i64 = i64(truncatingBits: negative)
+  let signedPattern: i8 = i8(truncatingBits: 255_u8)
+  expect lowByte == 249
+  expect widenedNegative == -7
+  expect signedPattern == -1
+
   expect (try? u8.checkedAdd(250, 10)) == .none
   expect (try? u8.checkedSubtract(2, 3)) == .none
   expect (try? u8.checkedMultiply(20, 20)) == .none
@@ -581,6 +589,13 @@ test "numeric policies name overflow and representation" for numericPolicies {
   expect numericPolicies() == (4, 255, true, 7)
 }
 ```
+
+`D(truncatingBits: source)` is the existing total fixed-width integer
+conversion. Current seed evidence is correctness-only and covers signed and
+unsigned 8/16/32/64-bit integers plus the current x86-64 `Int`/`UInt` aliases.
+`usize`/`isize`, 128-bit integers, target-general alias widths, stable ABI/FFI,
+other targets, and performance remain outside this slice. `exactly:`,
+`rounding:`, `saturating:`, and floating conversions are separate gaps.
 
 ## Functions, labels, defaults, and rest
 

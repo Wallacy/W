@@ -41,6 +41,8 @@ const restaurantIntegerPrefixFixture = resolve(seedDirectory,
   "fixtures", "restaurant-integer-prefix.w")
 const restaurantIntegerWideningFixture = resolve(seedDirectory,
   "fixtures", "restaurant-integer-widening.w")
+const restaurantIntegerTruncatingBitsFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-integer-truncating-bits.w")
 const restaurantUIntWrappingAddFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-add.w")
 const restaurantUIntWrappingSubtractFixture = resolve(seedDirectory,
@@ -753,6 +755,10 @@ try {
         "literal -7\n", "utf8") },
     { name: "restaurant-integer-widening", source: restaurantIntegerWideningFixture,
       expected: Buffer.from("Widen -7/200/202/203\n", "utf8") },
+    { name: "restaurant-integer-truncating-bits",
+      source: restaurantIntegerTruncatingBitsFixture,
+      expected: Buffer.from(
+        "Trunc 2/-7/-6/18446744073709551609/-1\n", "utf8") },
     { name: "restaurant-uint-wrapping-add",
       source: restaurantUIntWrappingAddFixture,
       expected: Buffer.from("Wrapped 0\n", "utf8") },
@@ -1436,6 +1442,21 @@ try {
     integerPrefixArtifact.includes("llvm.call @w_fn_0") &&
     !integerPrefixArtifact.includes("w_seed_checked_bit"),
   "integer prefix family lost runtime-shaped checked negation or logical-width bitwise lowering")
+  const integerTruncatingBitsArtifact = artifacts.get(
+    "restaurant-integer-truncating-bits").toString("utf8")
+  assert((integerTruncatingBitsArtifact.match(
+    /_truncating_source_bits = llvm\.trunc %p0 : i64 to i(?:8|16|32)\n/gu) ?? []).length === 3 &&
+    (integerTruncatingBitsArtifact.match(
+      /_truncating_source = llvm\.(?:sext|zext) %v\d+_truncating_source_bits : i(?:8|16|32) to i64\n/gu) ?? []).length === 3 &&
+    (integerTruncatingBitsArtifact.match(
+      /_truncating_destination_bits = llvm\.trunc %v\d+_truncating_source : i64 to i(?:8|16)\n/gu) ?? []).length === 3 &&
+    (integerTruncatingBitsArtifact.match(
+      / = llvm\.(?:sext|zext) %v\d+_truncating_destination_bits : i(?:8|16) to i64\n/gu) ?? []).length === 3 &&
+    (integerTruncatingBitsArtifact.match(
+      /_truncating_zero = llvm\.mlir\.constant\(0 : i64\) : i64\n/gu) ?? []).length === 2 &&
+    (integerTruncatingBitsArtifact.match(
+      / = llvm\.or %p0, %v\d+_truncating_zero : i64\n/gu) ?? []).length === 2,
+  "truncatingBits must canonicalize each narrow source, truncate destination bits, and extend by destination signedness")
   assert(artifacts.get("direct-call").includes("llvm.call @w_fn_0") &&
     artifacts.get("direct-call").includes(
       "llvm.call @w_seed_checked_multiply_i64(%v4, %v5, %v6_checked_width) : " +

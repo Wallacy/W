@@ -74,6 +74,8 @@ const restaurantIntegerPrefixFixture = resolve(seedDirectory,
   "fixtures", "restaurant-integer-prefix.w")
 const restaurantIntegerWideningFixture = resolve(seedDirectory,
   "fixtures", "restaurant-integer-widening.w")
+const restaurantIntegerTruncatingBitsFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-integer-truncating-bits.w")
 const restaurantUIntWrappingAddFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-add.w")
 const restaurantUIntWrappingSubtractFixture = resolve(seedDirectory,
@@ -747,6 +749,8 @@ try {
     "restaurant_direct_call.w")
   const restaurantScalarReturn = join(fixtureDirectory,
     "restaurant_scalar_return.w")
+  const invalidTruncatingBits = join(fixtureDirectory,
+    "invalid_truncating_bits.w")
   const runtimeDivisionZero = join(fixtureDirectory,
     "runtime_division_zero.w")
   const runtimeDivisionOverflow = join(fixtureDirectory,
@@ -814,6 +818,9 @@ try {
     "fn tableNumber(): i64 { return 6 * 7 }\n" +
     "fn main() { let table = tableNumber() " +
     "print(\"Table ${table}\") }\nentry(main)\n")
+  await writeFile(invalidTruncatingBits,
+    "fn main() { print(\"must not commit\") " +
+    "let result = i8(exactly: 258_i16) }\nentry(main)\n")
   await writeFile(runtimeDivisionZero,
     "fn divide(value: i64, by divisor: i64): i64 { return value / divisor }\n" +
     "entry { print(\"must not commit\") " +
@@ -1100,6 +1107,9 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantIntegerWideningFixture)],
     Buffer.from("Widen -7/200/202/203\n", "utf8"),
     "Restaurant implicit integer widening policy")
+  expectSuccess(binary, ["run", toWsl(restaurantIntegerTruncatingBitsFixture)],
+    Buffer.from("Trunc 2/-7/-6/18446744073709551609/-1\n", "utf8"),
+    "Restaurant explicit fixed-width truncatingBits family")
   expectSuccess(binary, ["run", toWsl(restaurantUIntWrappingAddFixture)],
     Buffer.from("Wrapped 0\n", "utf8"),
     "Restaurant UInt wrappingAdd at the unsigned maximum")
@@ -1235,6 +1245,8 @@ try {
       fault.stderr.length === 0,
     `${label} did not fail silently before output commit: ${resultSummary(fault)}`)
   }
+  expectSourceFailure(binary, toWsl(invalidTruncatingBits),
+    "wrong truncatingBits label fails before output commit")
   for (const [path, label] of [
     [runtimeCheckedI8Overflow, "signed i8 checked addition overflow"],
     [runtimeCheckedU16Underflow, "unsigned u16 checked compound subtraction underflow"],

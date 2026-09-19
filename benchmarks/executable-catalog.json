@@ -1906,6 +1906,90 @@
       ]
     },
     {
+      "id": "restaurant-integer-truncating-bits",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Validate explicit integer truncating-bits conversions across signed and unsigned 8/16/64-bit values, including narrowing, widening, signedness changes, and x86-64 Int/UInt aliases, with exact decimal output. Performance ranking is deferred until W preserves equivalent runtime work.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Trunc 2/-7/-6/18446744073709551609/-1\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-integer-truncating-bits.w",
+          "digest": "sha256:98b24770cb2f0c430c9673f2aef1547963d437162f45a87eaf1f749051188185",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-integer-truncating-bits-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        },
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-integer-truncating-bits.w",
+          "digest": "sha256:98b24770cb2f0c430c9673f2aef1547963d437162f45a87eaf1f749051188185",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-integer-truncating-bits-release",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only"
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/restaurant_integer_truncating_bits.c",
+          "digest": "sha256:40b750f580134f94784151382708de37ac01283345b68264fd17e2216fb6fc31",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "clang-c23-msvc",
+          "recipeClass": "restaurant-integer-truncating-bits-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/restaurant_integer_truncating_bits.rs",
+          "digest": "sha256:33c78708253e028b981453cce16aba7bf4bdb611ddaca63637159310e964eb0f",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "restaurant-integer-truncating-bits-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        }
+      ],
+      "blockedLanguages": [],
+      "blockers": [
+        "w-integer-truncating-bits-compile-time-folded",
+        "runtime-integer-truncating-bits-equivalence"
+      ]
+    },
+    {
       "id": "restaurant-integer-comparison",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",

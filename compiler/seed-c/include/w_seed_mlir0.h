@@ -18,8 +18,8 @@ extern "C" {
  * program, selects the fixed native print subset, and emits textual builtin
  * plus LLVM dialect MLIR for one fixed target. The artifact is recipe-private
  * and does not allocate or execute. */
-#define W_SEED_MLIR0_SCHEMA_VERSION "w-seed-mlir0-54"
-#define W_SEED_MLIR0_WINDOWS_SCHEMA_VERSION "w-seed-mlir0-windows-39"
+#define W_SEED_MLIR0_SCHEMA_VERSION "w-seed-mlir0-55"
+#define W_SEED_MLIR0_WINDOWS_SCHEMA_VERSION "w-seed-mlir0-windows-40"
 #define W_SEED_MLIR0_TARGET_TRIPLE_LINUX "x86_64-unknown-linux-gnu"
 #define W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS "x86_64-pc-windows-msvc"
 #define W_SEED_MLIR0_PROCESS_SCHEMA_VERSION \

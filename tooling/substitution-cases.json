@@ -11032,6 +11032,173 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-fixed-width-integer-truncating-bits-family",
+      "reviewItem": "fixed-width `truncatingBits:` conversion against per-pair lowering branches, host casts/promotions, and source-signedness leakage",
+      "decisions": [
+        "W-1641"
+      ],
+      "task": "Carry the bounded fixed-width integer truncatingBits conversion across all supported source/destination pairs as one verified operation, then exercise its exact result through final-source Windows and Linux/WSL gates without ranking unequal workloads.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "// Expected exit: 0",
+          "// Expected stdout:",
+          "// Trunc 2/-7/-6/18446744073709551609/-1",
+          "fn narrow(value: i16): i8 {",
+          "  return i8(truncatingBits: value)",
+          "}",
+          "fn widen(value: i8): i16 {",
+          "  return i16(truncatingBits: value)",
+          "}",
+          "fn reinterpret(value: u8): i8 {",
+          "  return i8(truncatingBits: value)",
+          "}",
+          "fn intToUInt(value: Int): UInt {",
+          "  return UInt(truncatingBits: value)",
+          "}",
+          "fn uintToInt(value: UInt): Int {",
+          "  return Int(truncatingBits: value)",
+          "}",
+          "entry {",
+          "  let narrowResult = narrow(value: 258_i16)",
+          "  let widenResult = widen(value: -7_i8)",
+          "  let reinterpretResult = reinterpret(value: 250_u8)",
+          "  let intToUIntResult = intToUInt(value: -7)",
+          "  let uintToIntResult = uintToInt(value: 18446744073709551615_u64)",
+          "  print(\"Trunc ${narrowResult}/${widenResult}/${reinterpretResult}/${intToUIntResult}/${uintToIntResult}\")",
+          "}"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "per-pair-lowering-branches",
+          "language": "w-internal-rejected",
+          "source": [
+            "create a separately named frontend, HIR, and lowering operation for each source/destination integer pair"
+          ],
+          "expectedDifference": "The selected distinct conversion value derives both widths and signedness from canonical source/destination type facts, so all 100 supported pairs use one verified family operation."
+        },
+        {
+          "name": "host-casts-and-promotions",
+          "language": "c-internal-rejected",
+          "source": [
+            "convert through a host integer type or cast and inherit its promotions and truncation behavior"
+          ],
+          "expectedDifference": "The selected lowering normalizes the source width, selects the destination low bits, and extends by destination signedness without depending on host promotions or overflow behavior."
+        },
+        {
+          "name": "source-signedness-leakage",
+          "language": "w-internal-rejected",
+          "source": [
+            "interpret the selected destination bits according to the source signedness"
+          ],
+          "expectedDifference": "The destination signedness interprets only the final destination-width pattern; unsigned 250 becomes i8 -6, while signed -7 to UInt becomes 18446744073709551609."
+        },
+        {
+          "name": "rank-unequal-workloads",
+          "language": "benchmark-rejected",
+          "source": [
+            "rank constant W operands against runtime C23 and Rust operands"
+          ],
+          "expectedDifference": "W, C23, and Rust are correctness references with unequal runtime work; no timing or performance ranking is claimed."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_frontend.h",
+          "symbol": "W_SEED_FRONTEND_SCHEMA_VERSION",
+          "claim": "Frontend65 assigns a distinct frontend expression identity to the fixed-width integer truncatingBits conversion."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_frontend.c",
+          "symbol": "expression_append_integer_truncating_bits",
+          "claim": "The frontend constructs the typed conversion expression and rejects unsupported contexts or type pairs."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_frontend.c",
+          "symbol": "test_explicit_integer_truncating_bits_frontend",
+          "claim": "Frontend65 tests cover four expression contexts, all supported source/destination pairs and 11 rejected forms."
+        },
+        {
+          "path": "compiler/seed-c/include/w_seed_hir0.h",
+          "symbol": "W_SEED_HIR0_SCHEMA_VERSION / W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS",
+          "claim": "HIR84 preserves a distinct conversion value/owner with source_type, destination type_index and exactly one child."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_value_tree",
+          "claim": "HIR verification checks conversion type facts, child identity and single-child ownership against forged facts."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_explicit_integer_truncating_bits_hir",
+          "claim": "HIR84 tests cover all 100 legal type pairs, representative scalar results and forged-fact barriers."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_scalar_evaluator0.c",
+          "symbol": "scalar_evaluate_value",
+          "claim": "The scalar evaluator independently validates source/destination facts and computes destination low bits."
+        },
+        {
+          "path": "compiler/seed-c/include/w_seed_native0.h",
+          "symbol": "W_SEED_NATIVE0_SCHEMA_VERSION",
+          "claim": "Native0 remains schema 10 for this fixed-width conversion family."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "native_integer_truncating_bits_route",
+          "claim": "NativeSubset0 chooses the route using verified source and destination integer facts."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_native0.c",
+          "symbol": "test_explicit_integer_truncating_bits_native",
+          "claim": "Native0 schema 10 covers five representative routes, exact MLIR patterns and forged-fact rejection."
+        },
+        {
+          "path": "compiler/seed-c/include/w_seed_mlir0.h",
+          "symbol": "W_SEED_MLIR0_SCHEMA_VERSION / W_SEED_MLIR0_WINDOWS_SCHEMA_VERSION",
+          "claim": "MLIR55 and Windows40 are the final lowering schemas for this family."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "append_integer_truncating_bits_operation",
+          "claim": "MLIR55 normalizes source width, selects destination low bits and extends by destination signedness without runtime, heap or CRT helpers."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-integer-truncating-bits.w",
+          "symbol": "entry",
+          "claim": "The family fixture declares and calls narrowing, widening, signedness-change and Int/UInt conversions with exact expected stdout."
+        },
+        {
+          "path": "tooling/check-mlir0.mjs",
+          "symbol": "restaurant-integer-truncating-bits",
+          "claim": "The final-source MLIR0/Linux-WSL gate verifies lowering patterns and exact family output."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "Restaurant explicit fixed-width truncatingBits family",
+          "claim": "The final-source Windows40 public gate executes exact fixture output and rejects malformed labels before output."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "Restaurant explicit fixed-width truncatingBits family",
+          "claim": "The final-source Linux/WSL public gate executes exact fixture output and rejects malformed labels before output."
+        }
+      ],
+      "checks": [
+        "Frontend65 and HIR84 focused suites cover all 100 supported signed/unsigned 8/16/32/64-bit and current x86-64 Int/UInt source/destination pairs; frontend rejects 11 unsupported forms and HIR rejects forged facts.",
+        "Native0 schema 10 verifies five representative routes; MLIR55 checks exact operands and patterns, forged-fact barriers, and destination-signedness extension.",
+        "Final-source bun check --target mlir0, bun check --target w-run-windows, and bun check --target w-run pass with Windows40, Linux/WSL exact stdout, and malformed-label failure before output.",
+        "C23 and Rust 2024 use runtime operands while the W fixture uses constants; this family is correctness-only with no timing or ranking."
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

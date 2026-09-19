@@ -227,6 +227,7 @@ O corpus compara, no mínimo:
 - reachability-closed WRT startup against ambient CRT/libc and dynamic-loader inheritance.
 - checked fixed-width arithmetic against per-width compiler branches, target undefined behavior, eager faulting operations, and fragmented executable evidence.
 - fixed-width integer prefix operators against per-width compiler branches, binary desugaring, host integer promotion, unchecked target subtraction, and an always-linked numeric runtime.
+- fixed-width `truncatingBits:` conversion against per-pair lowering branches, host casts/promotions, and source-signedness leakage.
 - direct prefix-negative interpolation against late root-only retyping, a synthetic binding workaround, and textual constant folding.
 - verified SSA versioning against hidden stack storage and assignment rewriting.
 - conditional mutable local through one verified SSA join.
@@ -7992,6 +7993,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1638 | fixed-width integer comparison family through native execution | Frontend64 and HIR80 preserve all six comparison predicates as one Bool-producing operation family whose signedness and logical width come from canonical type facts. MLIR reconstructs the logical width from the `i64` carrier and chooses signed or unsigned ordering predicates explicitly. | `source-backed-current` for equal-width signed and unsigned 8/16/32/64-bit builtins, current x86-64 `Int`/`UInt` aliases, one exact widening-before-comparison call, focused adversarial tests, MLIR/LLVM 23.1.x verification, and exact CRT-free Windows plus Linux/WSL execution. Mixed signedness, narrowing, target-general aliases, 128-bit integers, stable ABI/FFI, other targets, and performance remain gaps. One family fixture owns expected output; C23 and Rust 2024 are correctness references without ranking. `benchmarkDisposition: correctness-reference-no-ranking`. |
 | W-1639 | checked fixed-width integer arithmetic family through native execution | Frontend64 and HIR82 preserve checked `+`, `-`, `*`, `/`, `%` and their compound assignments as one width-generic family. Scalar, NativeSubset0, and MLIR53 use verified signedness and logical width; division and remainder guard zero and signed minimum/negative-one before target operations, while narrow add/subtract/multiply validate representability before commit. | `source-backed-current` for signed and unsigned 8/16/32/64-bit builtins, current x86-64 `Int`/`UInt` aliases, successful ordinary and compound operations, runtime fault-before-output behavior, the defined signed minimum remainder result, focused C23 adversarial tests, MLIR/LLVM 23.1.x verification, and exact CRT-free Windows plus Linux/WSL execution. W-1639 supersedes W-1551. Named APIs, other checked operator families, `usize`/`isize`, 128-bit integers, target-general aliases, stable ABI/FFI, general panic payload/cleanup, other targets, and performance remain gaps. The single family fixture owns expected output; C23 and Rust 2024 are correctness references without ranking. `benchmarkDisposition: correctness-reference-no-ranking`. |
 | W-1640 | fixed-width integer prefix family | W-1640 changes implementation coverage of existing prefix operators, not syntax. One generic operation/type-fact route covers checked unary `-` on signed `i8`/`i16`/`i32`/`i64`/`Int` and total width-preserving `~` on signed and unsigned 8/16/32/64-bit builtins plus the current x86-64 `Int`/`UInt` aliases. Unsigned ordinary unary minus remains invalid; logical minimum negation must fail before observable output. Bool `!`, `f64` negation, and named wrapping/saturating/overflowing negation remain distinct. The physical seed carrier remains `i64`. | `source-backed-current` only for the family fixture, focused HIR/scalar-evaluator and NativeSubset0/MLIR coverage, and the exact-success/minimum-failure cases on the public CRT-free Windows and Linux/WSL routes. Reviewed type-equality preflights, per-width lowering assertions, focused compiler units, and public MLIR/Windows/Linux gates pass on the same final source. W-1640 supersedes W-1552's signed-`i64`-only implementation authority; W-1553 remains current for direct interpolation composition, while the family witness absorbs its standalone executable benchmark row. C23 and Rust 2024 are correctness references only; other targets, `usize`/`isize`, 128-bit integers, target-general aliases, stable ABI/FFI, general panic payload/cleanup, named numeric APIs, and equivalent runtime work remain gaps. `benchmarkDisposition: correctness-reference-no-ranking`, not-performance-ready until equivalent runtime work exists. |
+| W-1641 | fixed-width integer `truncatingBits:` conversion through native execution | Frontend65 and HIR84 preserve a distinct, single-child conversion value while reusing source/destination type facts; Native0 remains schema 10, MLIR0 is `w-seed-mlir0-55`, and the Windows adapter is `w-seed-mlir0-windows-40`. The scalar evaluator, NativeSubset0, and MLIR0 independently validate the facts; lowering uses the physical `i64` carrier, normalizes source width, selects destination low bits, and extends by destination signedness without a runtime call, heap, or CRT helper. | `source-backed-current` only for all 100 signed/unsigned 8/16/32/64-bit and current x86-64 `Int`/`UInt` source/destination pairs: frontend four contexts and 11 rejects; HIR five values and forged-fact barriers; NativeSubset0 five representative routes; MLIR exact operand/pattern and forged-fact checks. Final-source `bun check --target mlir0`, `w-run-windows`, and `w-run` pass; the fixture exits 0 with stdout `Trunc 2/-7/-6/18446744073709551609/-1\n`, and the malformed label fails before output. C23 and Rust 2024 use runtime operands and are correctness references only. W-1641 closes only the existing `truncatingBits:` subset of W-389; other conversion policies, float conversion, `usize`/`isize`, 128-bit integers, target-general aliases, stable ABI/FFI, other targets, and equivalent-work performance remain gaps. `benchmarkDisposition: correctness-reference-no-ranking`. |
+
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -14125,3 +14128,33 @@ correctness-reference-no-ranking`; the family is not performance-ready until
 equivalent runtime work exists. Other targets, `usize`/`isize`, 128-bit
 integers, target-general aliases, stable ABI/FFI, general panic payload/cleanup,
 named numeric APIs, and equivalent runtime performance remain gaps.
+
+#### W-1641 — fixed-width integer truncating-bit conversion
+
+W-1641 implements only the existing fixed-width integer
+`truncatingBits:` conversion in W-389; it adds no syntax and leaves that
+broader decision open. Distinct frontend expression and HIR value/owner
+identities keep the operation independently verifiable while reusing the
+conversion source/destination facts. Frontend65 covers four contexts; HIR84
+uses `source_type` and `type_index` with exactly one child. Native0 stays at
+schema 10, while MLIR0 and the Windows adapter advance to schemas 55 and 40.
+
+The closed type set contains signed and unsigned 8-, 16-, 32-, and 64-bit
+integers plus current x86-64 `Int`/`UInt` aliases. Frontend and HIR tests
+cover all 100 source/destination pairs; frontend also covers 11 rejected
+forms. The scalar evaluator, NativeSubset0, and MLIR independently verify
+type facts. NativeSubset0 has five representative route tests, while MLIR
+tests pin the exact operand/pattern and reject forged facts. Lowering uses
+one physical `i64` carrier, source-width normalization, destination low-bit
+selection, and destination-signedness extension without a runtime helper,
+heap allocation, or CRT call.
+
+The fixture declares exit 0 and exact stdout
+`Trunc 2/-7/-6/18446744073709551609/-1\n`; a malformed label fails before
+output. `bun check --target mlir0`, `w-run-windows`, and `w-run` pass on the
+final source. C23 and Rust 2024 use runtime operands and remain correctness
+references only, so `benchmarkDisposition` is
+`correctness-reference-no-ranking` with no timing or ranking.
+`exactly:`, `rounding:`, `saturating:`, float conversions, `usize`/`isize`,
+128-bit integers, target-general aliases, stable ABI/FFI, other targets, and
+equivalent runtime work remain open.

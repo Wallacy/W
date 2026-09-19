@@ -62,7 +62,9 @@ Close the scalar surface in dependency order rather than resuming the later
 physical scheduler experiments:
 
 1. canonical signed, unsigned, Boolean and floating scalar identities,
-   literals and conversions;
+   literals and conversions; W-1641 closes only fixed-width integer
+   `truncatingBits:`, so the remaining conversion paths continue to block
+   this rank-1 prerequisite;
 2. prefix, arithmetic, comparison, bitwise, shift, overflow and compound
    operators, each with its specified checked or explicit wrapping policy;
 3. Boolean short-circuiting, scalar `if`, exhaustive scalar selection and
@@ -329,6 +331,13 @@ runtime work exists. Other targets,
 `usize`/`isize`, 128-bit integers, target-general aliases, stable ABI/FFI,
 general panic payload/cleanup, named numeric APIs, and equivalent runtime work
 remain gaps.
+
+W-1641 closes only the existing fixed-width integer `truncatingBits:` path
+under W-389. Its public Windows and Linux/WSL witnesses are correctness-only:
+C23 and Rust 2024 use runtime operands while the W fixture uses constants, so
+there is no performance ranking. W-389 and rank 1 remain open; the next
+dependency is another bounded scalar-conversion slice. `exactly:`,
+`rounding:`, `saturating:`, and floating conversions remain outside W-1641.
 
 The first rank-1 increments are now executable. Signed-`i64` `&`, `|`, `^`,
 and the original unary-`~` crosspoint cover exact W source, canonical

@@ -1374,6 +1374,18 @@ static bool mlir0_integer_widening_route(
          (!*source_signed && *destination_signed);
 }
 
+static bool mlir0_integer_truncating_bits_route(
+    const w_seed_hir0_program *program, uint32_t source_type,
+    uint32_t destination_type, bool *source_signed, uint16_t *source_width,
+    bool *destination_signed, uint16_t *destination_width) {
+  return program != NULL && source_signed != NULL && source_width != NULL &&
+         destination_signed != NULL && destination_width != NULL &&
+         mlir0_integer_type_facts(program, source_type, source_signed,
+                                  source_width) &&
+         mlir0_integer_type_facts(program, destination_type,
+                                  destination_signed, destination_width);
+}
+
 static uint64_t mlir0_integer_width_mask(uint16_t bit_width) {
   if (bit_width >= 64u) return UINT64_MAX;
   return (UINT64_C(1) << bit_width) - UINT64_C(1);
@@ -2294,7 +2306,8 @@ static bool mark_reachable_value_tree(
                reachable, has_add, has_subtract, has_multiply, has_divide,
                has_remainder, depth + 1u);
   }
-  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN)
+  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN ||
+      value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS)
     return value->source_type < program->type_count &&
            value->left_value != W_SEED_HIR0_NONE &&
            value->left_value < program->value_count &&
@@ -2570,6 +2583,12 @@ static bool append_program_value_tree_in_loop(
     size_t capacity, size_t *offset, size_t depth);
 
 static bool append_integer_widen_operation(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop,
+    uint8_t *artifact, size_t capacity, size_t *offset);
+
+static bool append_integer_truncating_bits_operation(
     const w_seed_hir0_program *program, uint32_t value_index,
     uint32_t function_index, const mlir0_process_emit_context *process,
     const mlir0_natural_loop_result_context *loop,
@@ -4138,6 +4157,12 @@ static bool append_value_operations(const w_seed_hir0_program *program,
       if (!append_integer_widen_operation(program, (uint32_t)index, 0u, NULL,
                                           NULL, artifact, capacity, offset))
         return false;
+    } else if (value->kind ==
+               W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS) {
+      if (!append_integer_truncating_bits_operation(
+              program, (uint32_t)index, 0u, NULL, NULL, artifact, capacity,
+              offset))
+        return false;
     }
   }
   return true;
@@ -5190,7 +5215,8 @@ static bool append_program_value_operand_in_loop(
           value->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER ||
           value->kind == W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE ||
           value->kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT ||
-          value->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN) &&
+          value->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN ||
+          value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS) &&
          append_literal(artifact, capacity, offset, "%v") &&
          append_size(artifact, capacity, offset, value_index);
 }
@@ -5249,6 +5275,117 @@ static bool append_integer_widen_operation(
          append_literal(artifact, capacity, offset, " to i64\n");
 }
 
+static bool append_integer_truncating_bits_operation(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop,
+    uint8_t *artifact, size_t capacity, size_t *offset) {
+  if (program == NULL || artifact == NULL || offset == NULL ||
+      value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->kind != W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS ||
+      value->left_value == W_SEED_HIR0_NONE ||
+      value->left_value >= program->value_count ||
+      value->right_value != W_SEED_HIR0_NONE ||
+      value->source_type >= program->type_count ||
+      program->values[value->left_value].type_index != value->source_type ||
+      program->values[value->left_value].owner_kind !=
+          W_SEED_HIR0_VALUE_OWNER_INTEGER_TRUNCATING_BITS ||
+      program->values[value->left_value].owner_index != value_index ||
+      program->values[value->left_value].owner_ordinal != 0u)
+    return false;
+  bool source_signed = false;
+  bool destination_signed = false;
+  uint16_t source_width = 0u;
+  uint16_t destination_width = 0u;
+  if (!mlir0_integer_truncating_bits_route(
+          program, value->source_type, value->type_index, &source_signed,
+          &source_width, &destination_signed, &destination_width))
+    return false;
+  const char *source_extension = source_signed ? "sext" : "zext";
+  const char *destination_extension = destination_signed ? "sext" : "zext";
+  if (source_width < 64u) {
+    if (!append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_truncating_source_bits = llvm.trunc ") ||
+        !append_program_value_operand_in_loop(
+            program, value->left_value, function_index, process, loop,
+            artifact, capacity, offset) ||
+        !append_literal(artifact, capacity, offset, " : i64 to i") ||
+        !append_size(artifact, capacity, offset, source_width) ||
+        !append_literal(artifact, capacity, offset, "\n    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_truncating_source = llvm.") ||
+        !append_literal(artifact, capacity, offset, source_extension) ||
+        !append_literal(artifact, capacity, offset, " %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_truncating_source_bits : i") ||
+        !append_size(artifact, capacity, offset, source_width) ||
+        !append_literal(artifact, capacity, offset, " to i64\n"))
+      return false;
+  }
+  if (destination_width < 64u) {
+    if (!append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_truncating_destination_bits = llvm.trunc "))
+      return false;
+    if (source_width < 64u) {
+      if (!append_literal(artifact, capacity, offset, "%v") ||
+          !append_size(artifact, capacity, offset, value_index) ||
+          !append_literal(artifact, capacity, offset, "_truncating_source"))
+        return false;
+    } else if (!append_program_value_operand_in_loop(
+                   program, value->left_value, function_index, process, loop,
+                   artifact, capacity, offset)) {
+      return false;
+    }
+    if (!append_literal(artifact, capacity, offset, " : i64 to i") ||
+        !append_size(artifact, capacity, offset, destination_width) ||
+        !append_literal(artifact, capacity, offset, "\n    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset, " = llvm.") ||
+        !append_literal(artifact, capacity, offset,
+                        destination_extension) ||
+        !append_literal(artifact, capacity, offset, " %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_truncating_destination_bits : i") ||
+        !append_size(artifact, capacity, offset, destination_width) ||
+        !append_literal(artifact, capacity, offset, " to i64\n"))
+      return false;
+  } else {
+    if (!append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_truncating_zero = llvm.mlir.constant(0 : i64) : "
+                        "i64\n    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset, " = llvm.or "))
+      return false;
+    if (source_width < 64u) {
+      if (!append_literal(artifact, capacity, offset, "%v") ||
+          !append_size(artifact, capacity, offset, value_index) ||
+          !append_literal(artifact, capacity, offset, "_truncating_source"))
+        return false;
+    } else if (!append_program_value_operand_in_loop(
+                   program, value->left_value, function_index, process, loop,
+                   artifact, capacity, offset)) {
+      return false;
+    }
+    if (!append_literal(artifact, capacity, offset, ", %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_truncating_zero : i64\n"))
+      return false;
+  }
+  return true;
+}
+
 static bool append_program_value_tree(
     const w_seed_hir0_program *program, uint32_t value_index,
     uint32_t function_index, const mlir0_process_emit_context *process,
@@ -5274,6 +5411,17 @@ static bool append_program_value_tree(
         !append_integer_widen_operation(program, value_index, function_index,
                                         process, NULL, artifact, capacity,
                                         offset))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS) {
+    if (!append_program_value_tree(
+            program, value->left_value, function_index, process, emitted,
+            artifact, capacity, offset, depth + 1u) ||
+        !append_integer_truncating_bits_operation(
+            program, value_index, function_index, process, NULL, artifact,
+            capacity, offset))
       return false;
     emitted[value_index] = true;
     return true;
@@ -6043,6 +6191,17 @@ static bool append_program_value_tree_in_loop(
         !append_integer_widen_operation(program, value_index, function_index,
                                         process, loop, artifact, capacity,
                                         offset))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS) {
+    if (!append_program_value_tree_in_loop(
+            program, value->left_value, function_index, process, loop, emitted,
+            artifact, capacity, offset, depth + 1u) ||
+        !append_integer_truncating_bits_operation(
+            program, value_index, function_index, process, loop, artifact,
+            capacity, offset))
       return false;
     emitted[value_index] = true;
     return true;

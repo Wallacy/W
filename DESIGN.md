@@ -22702,8 +22702,14 @@ let bits = short.toBits()
 `rounding:` exige uma `RoundingMode`. Um destination integer rejeita NaN,
 infinity e out-of-range. Um destination float preserva infinity, rejeita NaN e
 rejeita overflow finito na forma `try`. `saturating:` exige uma policy para NaN.
-`truncatingBits:` existe somente entre integers. `toBits` e `fromBits` preservam
-a representação, não convertem valor.
+`truncatingBits:` existe somente entre integers e é total. Para um destino `D`
+com largura `N`, `D(truncatingBits: source)` produz o único valor de `D` cuja
+representação de `N` bits é congruente ao valor matemático de `source` módulo
+`2^N`. A mesma regra cobre narrowing, widening e mudança de signedness: uma
+origem signed negativa é estendida pelo seu valor matemático quando o destino é
+mais largo, e a signedness do destino interpreta apenas o padrão final. O
+compilador não delega essa operação a promotions, casts ou overflow do host.
+`toBits` e `fromBits` preservam a representação, não convertem valor.
 `T(value)` também pode tornar explícita uma conversão que já é total e exata.
 Ele nunca esconde uma operação fallible.
 
@@ -42132,6 +42138,19 @@ type facts for signedness and logical width. The supported fixed-width domain
 is `i8`/`u8`, `i16`/`u16`, `i32`/`u32`, and `i64`/`u64`, plus the current
 x86-64 `Int`/`UInt` aliases.
 
+**Example:** the same generic prefix family preserves each operand's logical
+width rather than promoting narrow integers through a host type:
+
+```w
+fn negate(value: i8): i8 { return -value }
+fn complement(value: u8): u8 { return ~value }
+
+entry {
+  expect negate(value: 7_i8) == -7_i8
+  expect complement(value: 85_u8) == 170_u8
+}
+```
+
 Checked unary `-` accepts signed `i8`, `i16`, `i32`, `i64`, and `Int`; unary
 minus on unsigned integers remains invalid. A signed logical minimum cannot be
 negated: a constant form fails before artifact publication, while a runtime
@@ -42162,6 +42181,45 @@ competitors while W may fold literals. The family benchmark disposition is
 equivalent runtime work exists. Other targets, `usize`/`isize`, 128-bit
 integers, target-general aliases, stable ABI/FFI, general panic payload/cleanup,
 named numeric APIs, and equivalent-runtime performance remain gaps.
+
+#### 26.4.1.121 W-1641 — fixed-width integer truncating-bit conversion
+
+W-1641 implements only the existing `truncatingBits:` integer conversion
+from §15.1.2. It adds no public syntax or conversion policy and does not
+close W-389. The admitted domain is the 100 source/destination pairs among
+`i8`/`u8`, `i16`/`u16`, `i32`/`u32`, `i64`/`u64`, and current x86-64
+`Int`/`UInt` aliases. `usize`/`isize`, `i128`/`u128`, floating types, and
+target-general alias widths remain outside this slice.
+
+Frontend schema `w-seed-frontend-65` gives this conversion a distinct
+expression kind while reusing the ordinary conversion source/destination
+fields. Verified HIR schema `w-seed-hir0-84` records a distinct value/owner
+kind with `source_type` and `type_index` and exactly one child. Native0
+remains schema 10; MLIR0 uses `w-seed-mlir0-55`, and the Windows adapter
+uses `w-seed-mlir0-windows-40`. The scalar evaluator, NativeSubset0, and
+MLIR0 independently validate source and destination facts.
+
+The physical `i64` carrier is normalized to the source logical width;
+lowering then selects destination low bits and extends them according to
+destination signedness. No runtime call, heap allocation, or CRT helper is
+emitted.
+
+Focused frontend tests cover 100 pairs across four contexts and 11 rejected
+forms. HIR tests cover all 100 pairs, five values, and forged facts;
+NativeSubset0 tests cover five representative routes; MLIR tests pin the
+exact operand/pattern and reject forged facts.
+**Example:** the source witness is
+[`restaurant-integer-truncating-bits.w`](compiler/seed-c/fixtures/restaurant-integer-truncating-bits.w).
+It declares exit 0 and stdout `Trunc 2/-7/-6/18446744073709551609/-1\n`; the malformed
+label fails before output. Final-source `bun check --target mlir0`,
+`w-run-windows`, and `w-run` gates pass.
+
+C23 and Rust 2024 are correctness references with runtime operands while W
+uses constants, so `benchmarkDisposition` is
+`correctness-reference-no-ranking`; no performance ranking is claimed.
+`exactly:`, `rounding:`, `saturating:`, floating conversions,
+`usize`/`isize`, 128-bit types, target-general aliases, stable ABI/FFI,
+other targets, and equivalent runtime work remain outside W-1641.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 
