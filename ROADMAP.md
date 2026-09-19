@@ -265,6 +265,19 @@ Linux/WSL execution. The combined fixture declares its expected exit/stdout in
 source; C23 and Rust 2024 are correctness references with runtime inputs, so
 performance ranking remains blocked until W performs equivalent runtime work.
 
+W-1637 closes exact implicit integer widening as the next family-sized rank-1
+increment. Frontend64 and HIR79 preserve one widening wrapper across signed and
+unsigned 8/16/32/64-bit builtins and the current x86-64 `Int`/`UInt` aliases;
+bindings, returns, calls, assignments, and mixed operands share the same
+frontend legality table. The public native witness closes return, argument,
+binding, and alias contexts while general narrow binary lowering remains a
+separate operator-family gap. NativeSubset0 and MLIR0 retain source-width
+signedness through `llvm.trunc` plus `llvm.sext`/`llvm.zext`. The public fixture owns exact output
+for Windows and Linux/WSL, while C23 and Rust remain correctness references.
+Target-general aliases, `usize`/`isize`, 128-bit integers, narrowing, explicit
+conversions, stable ABI/FFI, and equivalent-work performance ranking remain
+open.
+
 The first rank-1 increments are now executable. Signed-`i64` `&`, `|`, `^`,
 and unary `~` cross exact W source, canonical precedence, verified HIR0, direct
 LLVM-dialect operations, and the maintained native routes. Checked `<<` and

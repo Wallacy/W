@@ -83,6 +83,25 @@ static bool native_integer_facts_equal(native_integer_facts left,
          left.bit_width == right.bit_width;
 }
 
+/* A widening value is admitted only when its explicit source identity and
+ * destination identity describe the one frontend route.  NativeSubset0 does
+ * not infer this from the carrier kind: the HIR wrapper remains the source
+ * of truth so a forged retag cannot cross this boundary. */
+static bool native_integer_widening_route(
+    const w_seed_hir0_program *program, uint32_t source_type,
+    uint32_t destination_type, native_integer_facts *source_facts,
+    native_integer_facts *destination_facts) {
+  if (program == NULL || source_facts == NULL || destination_facts == NULL ||
+      source_type == destination_type ||
+      !native_integer_type_facts(program, source_type, source_facts) ||
+      !native_integer_type_facts(program, destination_type,
+                                 destination_facts) ||
+      destination_facts->bit_width <= source_facts->bit_width)
+    return false;
+  return source_facts->is_signed == destination_facts->is_signed ||
+         (!source_facts->is_signed && destination_facts->is_signed);
+}
+
 static uint64_t native_integer_width_mask(native_integer_facts facts) {
   return facts.bit_width == 64u
              ? UINT64_MAX
@@ -1248,6 +1267,7 @@ static bool interpolation_maximum_bytes(
           effective->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
           effective->kind == W_SEED_HIR0_VALUE_BINARY_U64 ||
           effective->kind == W_SEED_HIR0_VALUE_UNARY_U64 ||
+          effective->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN ||
           effective->kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT ||
           effective->kind ==
               W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON ||
@@ -1674,6 +1694,23 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
   const w_seed_hir0_value *value = &program->values[value_index];
   if (value->type_index >= program->type_count) return false;
   const w_seed_hir0_type_kind type = program->types[value->type_index].kind;
+  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN) {
+    native_integer_facts source_facts;
+    native_integer_facts destination_facts;
+    if (value->source_type >= program->type_count ||
+        value->left_value == W_SEED_HIR0_NONE ||
+        value->left_value >= program->value_count ||
+        value->right_value != W_SEED_HIR0_NONE ||
+        !native_integer_widening_route(
+            program, value->source_type, value->type_index, &source_facts,
+            &destination_facts) ||
+        program->values[value->left_value].type_index != value->source_type)
+      return false;
+    (void)source_facts;
+    (void)destination_facts;
+    return program_value_lowerable(program, value->left_value, owner_function,
+                                   false, depth + 1u);
+  }
   if (value->kind == W_SEED_HIR0_VALUE_CONST_I64 ||
       value->kind == W_SEED_HIR0_VALUE_CONST_U64) {
     native_integer_facts facts;
@@ -2155,6 +2192,24 @@ static bool process_value_lowerable(
     return false;
   const w_seed_hir0_value *value = &program->values[value_index];
   if (value->type_index >= program->type_count) return false;
+
+  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN) {
+    native_integer_facts source_facts;
+    native_integer_facts destination_facts;
+    if (value->source_type >= program->type_count ||
+        value->left_value == W_SEED_HIR0_NONE ||
+        value->left_value >= program->value_count ||
+        value->right_value != W_SEED_HIR0_NONE ||
+        !native_integer_widening_route(
+            program, value->source_type, value->type_index, &source_facts,
+            &destination_facts) ||
+        program->values[value->left_value].type_index != value->source_type)
+      return false;
+    (void)source_facts;
+    (void)destination_facts;
+    return process_value_lowerable(program, value->left_value, owner_function,
+                                   process, false, depth + 1u);
+  }
 
   if (value->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER) {
     const bool is_empty =

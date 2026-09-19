@@ -3445,6 +3445,196 @@ static bool test_resolved_import_edge_validation(void) {
   return true;
 }
 
+static bool test_implicit_integer_widening_frontend(void) {
+  static const char source[] =
+      "fn ret(value: u8): i16 { return value }\n"
+      "fn widen(value: i16): i16 { return value }\n"
+      "fn add(left: u8, right: i16): i16 { return left + right }\n"
+      "fn caller(): i16 { let local: i16 = 1_u8 return widen(value: 2_u8) }\n"
+      "fn runtime(value: u8): i16 { let local: i16 = value "
+      "return widen(value: value) }\n"
+      "fn assign(value: u8): i16 { var result: i16 = 0 result = value "
+      "return result }\n"
+      "entry(caller)\n";
+  fixture *value = &fixture_a;
+  CHECK(fixture_run(value, source));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE);
+  CHECK(value->result.status == W_SEED_FRONTEND_OK);
+
+  size_t widening_count = 0u;
+  bool saw_return = false;
+  bool saw_binary = false;
+  bool saw_binding = false;
+  bool saw_argument = false;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind !=
+        W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN)
+      continue;
+    widening_count += 1u;
+    CHECK(expression->supported && expression->left != W_SEED_FRONTEND_NONE &&
+          expression->right == W_SEED_FRONTEND_NONE &&
+          expression->conversion_source_type != W_SEED_FRONTEND_NONE &&
+          expression->conversion_destination_type != W_SEED_FRONTEND_NONE &&
+          expression->conversion_source_type < value->result.written.types &&
+          expression->conversion_destination_type < value->result.written.types &&
+          expression->inferred_type == expression->conversion_destination_type);
+    const w_seed_frontend_expression *source_expression =
+        &value->expressions[expression->left];
+    CHECK(source_expression->inferred_type ==
+              expression->conversion_source_type &&
+          value->types[expression->conversion_source_type].kind ==
+              W_SEED_FRONTEND_TYPE_INTEGER &&
+          value->types[expression->conversion_destination_type].kind ==
+              W_SEED_FRONTEND_TYPE_INTEGER &&
+          value->types[expression->conversion_source_type].bit_width <
+              value->types[expression->conversion_destination_type].bit_width &&
+          (!value->types[expression->conversion_source_type].is_signed ||
+           value->types[expression->conversion_destination_type].is_signed));
+    if (source_expression->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER)
+      saw_return = true;
+    if (source_expression->kind == W_SEED_FRONTEND_EXPR_INTEGER)
+      saw_binding = true;
+    for (size_t parent_index = 0u;
+         parent_index < value->result.written.expressions; parent_index += 1u) {
+      const w_seed_frontend_expression *parent =
+          &value->expressions[parent_index];
+      if ((parent->left == (uint32_t)index ||
+           parent->right == (uint32_t)index) &&
+          parent->kind == W_SEED_FRONTEND_EXPR_BINARY)
+        saw_binary = true;
+    }
+    for (size_t argument_index = 0u;
+         argument_index < value->result.written.arguments; argument_index += 1u) {
+      const w_seed_frontend_argument *argument =
+          &value->arguments[argument_index];
+      if (argument->expression_index == (uint32_t)index &&
+          argument->owner_expression < value->result.written.expressions) {
+        for (size_t call_index = 0u;
+             call_index < value->result.written.expressions; call_index += 1u) {
+          const w_seed_frontend_expression *call =
+              &value->expressions[call_index];
+          if (call->kind == W_SEED_FRONTEND_EXPR_CALL &&
+              call->first_argument != W_SEED_FRONTEND_NONE &&
+              argument_index >= call->first_argument &&
+              argument_index <
+                  (size_t)call->first_argument + call->argument_count)
+            saw_argument = true;
+        }
+      }
+    }
+  }
+  CHECK(widening_count == 7u && saw_return && saw_binary && saw_binding &&
+        saw_argument);
+
+  static const struct {
+    const char *from;
+    const char *to;
+  } positive_matrix[] = {
+      {"i8", "i16"}, {"i8", "i32"}, {"i8", "i64"},
+      {"i16", "i32"}, {"i16", "i64"}, {"i32", "i64"},
+      {"u8", "u16"}, {"u8", "u32"}, {"u8", "u64"},
+      {"u16", "u32"}, {"u16", "u64"}, {"u32", "u64"},
+      {"u8", "i16"}, {"u8", "i32"}, {"u8", "i64"},
+      {"u16", "i32"}, {"u16", "i64"}, {"u32", "i64"},
+      {"u8", "Int"}, {"u8", "UInt"}, {"i8", "Int"},
+  };
+  char matrix_source[256];
+  for (size_t case_index = 0u;
+       case_index < sizeof(positive_matrix) / sizeof(positive_matrix[0]);
+       case_index += 1u) {
+    const int written = snprintf(
+        matrix_source, sizeof(matrix_source),
+        "fn f(value: %s): %s { return value } entry(f)\n",
+        positive_matrix[case_index].from, positive_matrix[case_index].to);
+    CHECK(written > 0 && (size_t)written < sizeof(matrix_source));
+    CHECK(fixture_run(value, matrix_source));
+    CHECK(value->result.status == W_SEED_FRONTEND_OK);
+    const w_seed_frontend_expression *wrapper = NULL;
+    size_t wrappers = 0u;
+    for (size_t expression_index = 0u;
+         expression_index < value->result.written.expressions;
+         expression_index += 1u) {
+      const w_seed_frontend_expression *candidate =
+          &value->expressions[expression_index];
+      if (candidate->kind ==
+          W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN) {
+        wrapper = candidate;
+        wrappers += 1u;
+      }
+    }
+    CHECK(wrappers == 1u && wrapper != NULL &&
+          wrapper->conversion_source_type < value->result.written.types &&
+          wrapper->conversion_destination_type < value->result.written.types);
+    const w_seed_frontend_type *source_type =
+        &value->types[wrapper->conversion_source_type];
+    const w_seed_frontend_type *destination_type =
+        &value->types[wrapper->conversion_destination_type];
+    CHECK(source_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+          destination_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+          source_type->bit_width < destination_type->bit_width &&
+          (!source_type->is_signed || destination_type->is_signed));
+  }
+
+  CHECK(fixture_run(value, "fn ok(): u8 { return 255 } entry(ok)\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK);
+  for (size_t expression_index = 0u;
+       expression_index < value->result.written.expressions;
+       expression_index += 1u)
+    CHECK(value->expressions[expression_index].kind !=
+          W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN);
+
+  fixture *invalid = &fixture_b;
+  CHECK(fixture_run(invalid,
+                    "fn tooLarge(): u8 { return 256 } entry(tooLarge)\n"));
+  CHECK(invalid->result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
+        has_diagnostic(invalid, "W-TYPE-0122"));
+  CHECK(fixture_run(invalid,
+                    "fn negative(): u8 { return -1 } entry(negative)\n"));
+  CHECK(invalid->result.status != W_SEED_FRONTEND_OK);
+  CHECK(fixture_run(
+      invalid, "fn f(value: u16): u8 { return value }\nentry(f)\n"));
+  CHECK(invalid->result.status == W_SEED_FRONTEND_DIAGNOSTICS ||
+        invalid->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  CHECK(has_diagnostic(invalid, "W-TYPE-0122"));
+  for (size_t index = 0u; index < invalid->result.written.expressions;
+       index += 1u)
+    CHECK(invalid->expressions[index].kind !=
+          W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN);
+
+  CHECK(fixture_run(
+      invalid, "fn f(value: i16): u16 { return value }\nentry(f)\n"));
+  CHECK(invalid->result.status == W_SEED_FRONTEND_DIAGNOSTICS ||
+        invalid->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+
+  static const char *const rejected_matrix[] = {
+      "fn f(value: i16): u32 { return value } entry(f)\n",
+      "fn f(value: u16): i16 { return value } entry(f)\n",
+      "fn f(left: i8, right: u8): i16 { return left + right } entry(f)\n",
+      "fn f(value: i16): i8 { return value } entry(f)\n",
+      "fn f(value: i8): u16 { return value } entry(f)\n",
+      "fn f(value: Int): UInt { return value } entry(f)\n",
+      "fn f(value: UInt): Int { return value } entry(f)\n",
+      "fn f(value: u8): i8 { return value } entry(f)\n",
+      "fn f(value: u32): i32 { return value } entry(f)\n",
+      "fn f(value: u8): usize { return value } entry(f)\n",
+  };
+  for (size_t case_index = 0u;
+       case_index < sizeof(rejected_matrix) / sizeof(rejected_matrix[0]);
+       case_index += 1u) {
+    CHECK(fixture_run(invalid, rejected_matrix[case_index]));
+    CHECK(invalid->result.status != W_SEED_FRONTEND_OK);
+    CHECK(has_diagnostic(invalid, "W-TYPE-0122"));
+    for (size_t expression_index = 0u;
+         expression_index < invalid->result.written.expressions;
+         expression_index += 1u)
+      CHECK(invalid->expressions[expression_index].kind !=
+            W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN);
+  }
+  return true;
+}
+
 static bool test_graph_facts_and_external_stub(void) {
   fixture *duplicate = &fixture_duplicate;
   CHECK(fixture_run(duplicate,
@@ -5250,7 +5440,8 @@ static bool test_u64_binary_frontend(void) {
   CHECK(fixture_run(value,
                     "fn mixed(left: Int, right: UInt): Int { "
                     "return left + right }\nentry { }\n"));
-  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+  CHECK(value->result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
+        has_diagnostic(value, "W-TYPE-0122") &&
         has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
   return true;
 }
@@ -7735,8 +7926,9 @@ static bool test_integer_wrapping_frontend_matrix(void) {
   for (size_t index = 0u; index < sizeof(REJECTED) / sizeof(REJECTED[0]);
        index += 1u) {
     CHECK(fixture_run(value, REJECTED[index]));
-    CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+    CHECK(value->result.status != W_SEED_FRONTEND_OK &&
           has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+    if (index == 2u) CHECK(has_diagnostic(value, "W-TYPE-0122"));
   }
   return true;
 }
@@ -7769,6 +7961,7 @@ int main(int argc, char **argv) {
   if (!test_resolved_import_edges_and_identity()) return 1;
   if (!test_resolved_import_edge_validation()) return 1;
   if (!test_semantic_diagnostics()) return 1;
+  if (!test_implicit_integer_widening_frontend()) return 1;
   if (!test_graph_facts_and_external_stub()) return 1;
   if (!test_receipt_encoding_and_long_fields()) return 1;
   if (!test_generic_schema()) return 1;

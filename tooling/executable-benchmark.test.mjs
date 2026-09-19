@@ -44,6 +44,7 @@ import {
   PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID,
   RESTAURANT_F64_STRICT_WORKLOAD_ID,
   RESTAURANT_INTEGER_WRAPPING_WORKLOAD_ID,
+  RESTAURANT_INTEGER_WIDENING_WORKLOAD_ID,
   RESTAURANT_UINT_ARITHMETIC_WORKLOAD_ID,
   RESTAURANT_UINT_BIT_NOT_WORKLOAD_ID,
   RESTAURANT_UINT_COUNT_ONES_WORKLOAD_ID,
@@ -207,6 +208,9 @@ test("source-local expected-output comments are opt-in and exact", () => {
     "benchmarks/executable/restaurant_integer_wrapping.c",
     "benchmarks/executable/restaurant_integer_wrapping.rs",
     "compiler/seed-c/fixtures/restaurant-integer-wrapping.w",
+    "benchmarks/executable/restaurant_integer_widening.c",
+    "benchmarks/executable/restaurant_integer_widening.rs",
+    "compiler/seed-c/fixtures/restaurant-integer-widening.w",
   ];
   for (const sourcePath of requiredOptInPaths) {
     assert.ok(optInPaths.has(sourcePath), `${sourcePath} must retain its local oracle`);
@@ -1385,6 +1389,81 @@ test("fixed-width integer wrapping policy catalog keeps one matrix separate from
   assert.match(rust, /\.wrapping_neg\(\)/u);
   assert.match(rust, /\.wrapping_pow\(/u);
   assert.match(rust, /\.wrapping_shl\(/u);
+  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
+  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
+});
+
+test("implicit integer widening catalog is one correctness-only family witness", () => {
+  const workload = documents.catalog.workloads.find((item) =>
+    item.id === RESTAURANT_INTEGER_WIDENING_WORKLOAD_ID);
+  assert.ok(workload);
+  assert.equal(workload.structureClass, "public-end-to-end");
+  assert.equal(workload.status, "source-oracle-ready");
+  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
+  assert.equal(workload.demoEvidence, "bounded-w-demo");
+  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.equal(workload.scope,
+    "Validate representative fixed-width and x86-64 Int implicit integer widenings across return, call argument, local binding, and unsigned-to-signed cases with exact output. Performance ranking is deferred until W preserves equivalent runtime work.");
+  assert.deepEqual(workload.oracle, {
+    kind: "exact-output",
+    status: "source-backed",
+    exitCode: 0,
+    stdout: "Widen -7/200/202/203\n",
+    stderr: "",
+  });
+  assert.deepEqual(workload.blockedLanguages, []);
+  assert.deepEqual(workload.blockers, [
+    "w-integer-widening-compile-time-folded",
+    "runtime-integer-widening-equivalence",
+  ]);
+  assert.deepEqual(workload.sources.map((source) =>
+    [source.language, source.platformTarget]), [
+    ["w", EXECUTABLE_PLATFORM_TARGET],
+    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
+    ["c", EXECUTABLE_PLATFORM_TARGET],
+    ["rust", EXECUTABLE_PLATFORM_TARGET],
+  ]);
+  assert.ok(workload.sources.every((source) =>
+    source.recipeClass === "restaurant-integer-widening-release" &&
+    source.quality === "correctness-gate"));
+  assert.deepEqual(workload.sources
+    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
+    .map((source) => [source.comparability, source.eligibility]), [
+      ["deferred-until-M3b", "deferred-to-M3b"],
+      ["deferred-until-M3b", "deferred-to-M3b"],
+      ["deferred-until-M3b", "deferred-to-M3b"],
+    ]);
+  const wsl = workload.sources.find((source) =>
+    source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
+  assert.deepEqual([wsl.comparability, wsl.eligibility], [
+    "same-physical-hardware-diagnostic-only",
+    "same-physical-hardware-diagnostic-only",
+  ]);
+  assert.ok(!documents.catalog.bestMetrics.entries.some((entry) =>
+    entry.workloadId === RESTAURANT_INTEGER_WIDENING_WORKLOAD_ID),
+  "correctness-only widening must not acquire timing or ranking data");
+
+  const c = readFileSync(
+    `${ROOT}/benchmarks/executable/restaurant_integer_widening.c`, "utf8");
+  const rust = readFileSync(
+    `${ROOT}/benchmarks/executable/restaurant_integer_widening.rs`, "utf8");
+  const w = readFileSync(
+    `${ROOT}/compiler/seed-c/fixtures/restaurant-integer-widening.w`, "utf8");
+  for (const [name, source] of [["W", w], ["C23", c], ["Rust", rust]]) {
+    assert.deepEqual(parseExecutableSourceExpectation(source), {
+      exitCode: 0,
+      stdout: workload.oracle.stdout,
+      stderr: "",
+      errors: [],
+    }, `${name} source must declare the exact local oracle`);
+    assert.deepEqual(validateExecutableSourceExpectation(source, workload.oracle, `${name} source`), []);
+  }
+  assert.match(w, /widenReturn\(value: -7_i8\)/u);
+  assert.match(w, /accept\(value: 200_u8\)/u);
+  assert.match(w, /let unsigned: u16 = 202_u8/u);
+  assert.match(w, /let alias: Int = 203_u8/u);
+  assert.match(c, /volatile (?:int8_t|uint8_t)/u);
+  assert.match(rust, /black_box\(-7_i8\)/u);
   assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
   assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
 });

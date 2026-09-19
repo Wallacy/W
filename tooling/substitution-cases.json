@@ -10850,6 +10850,64 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-exact-integer-widening-native-family",
+      "reviewItem": "exact implicit fixed-width integer widening through native execution",
+      "decisions": [
+        "W-1637"
+      ],
+      "task": "Carry exact value-preserving implicit integer widening across the fixed-width family as one semantic operation, execute one public Windows and Linux family witness, and reject coercions that can change the mathematical value.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "Frontend64 inserts one explicit wrapper for strictly wider same-signedness or unsigned-to-larger-signed conversion",
+          "HIR79 verifies source and destination type identities and owns exactly one converted child value",
+          "NativeSubset0 and MLIR0 preserve source width and signedness through an i64 carrier with trunc followed by sign or zero extension",
+          "frontend evidence covers mixed operands and assignment; one public family fixture covers returns, arguments, bindings, aliases, and exact Windows plus Linux/WSL output",
+          "C23 and Rust 2024 sources are independent correctness references; ranking remains blocked until W has equivalent runtime work"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "backend-inferred-coercion",
+          "language": "w-internal-rejected",
+          "source": [
+            "erase the source type and let LLVM or a host compiler choose extension semantics"
+          ],
+          "expectedDifference": "The selected HIR wrapper keeps conversion legality and signedness auditable before backend lowering."
+        },
+        {
+          "name": "all-integer-coercions",
+          "language": "w-rejected",
+          "source": [
+            "implicitly accept narrowing, equal-width sign changes, and signed-to-unsigned conversion"
+          ],
+          "expectedDifference": "Only conversions that preserve every source value are implicit; the others require future explicit checked semantics."
+        },
+        {
+          "name": "conversion-per-width",
+          "language": "w-internal-rejected",
+          "source": [
+            "allocate a distinct frontend and HIR operation for every source and destination pair"
+          ],
+          "expectedDifference": "Canonical integer type facts already encode signedness and logical width, so one operation closes the family with less schema surface."
+        },
+        {
+          "name": "rank-constant-against-runtime",
+          "language": "benchmark-rejected",
+          "source": [
+            "rank constant W operands against runtime C23 and Rust inputs"
+          ],
+          "expectedDifference": "The public row remains correctness-only until all candidates perform equivalent physical work."
+        }
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

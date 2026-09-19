@@ -4034,6 +4034,24 @@ correctness-only until W has equivalent runtime work. This evidence does not
 close other policies, 128-bit integers, other target alias widths, const
 evaluation, stable ABI/FFI, or performance.
 
+W-1637 adds one exact implicit integer-widening family. Frontend64 inserts a
+first-class conversion wrapper for strictly wider same-signedness routes and
+unsigned-to-larger-signed routes. HIR79 verifies the source and destination
+types. Frontend64 covers binding, return, argument, assignment, and mixed
+binary contexts; the verified-HIR/native public witness closes binding, return,
+and argument contexts while general narrow binary lowering remains open.
+NativeSubset0 and MLIR0 keep the physical `i64` carrier, reconstruct the
+logical source width with `llvm.trunc`, and apply `llvm.sext` or `llvm.zext`
+from verified signedness.
+
+[`fixtures/restaurant-integer-widening.w`](fixtures/restaurant-integer-widening.w)
+declares exact output and is the single family-level public witness. C23 and
+Rust 2024 versions use runtime inputs as independent correctness references;
+the catalog records no timing or ranking. The bounded route covers fixed-width
+8/16/32/64-bit integers and current x86-64 `Int`/`UInt`. `usize`/`isize`,
+128-bit integers, narrowing, equal-width sign changes, signed-to-unsigned and
+explicit conversions, stable ABI/FFI, and performance remain open.
+
 ## Validação seed C de predicates genéricos
 
 `include/w_seed_generic_validation.h` e

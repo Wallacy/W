@@ -1818,6 +1818,67 @@ static bool test_unary_i64_native_selector(void) {
   return true;
 }
 
+static bool test_implicit_integer_widening_native(void) {
+  static const uint8_t source[] =
+      "fn signed(value: i8): i32 { return value }\n"
+      "fn unsigned(value: u8): u32 { return value }\n"
+      "fn cross(value: i16): i16 { return value }\n"
+      "fn main() { let binding: i32 = 3_i8 "
+      "let mixed: i32 = 4_i32 "
+      "let signedValue = signed(value: 1_i8) "
+      "let unsignedValue = unsigned(value: 2_u8) "
+      "let crossValue = cross(value: 3_u8) "
+      "print(\"${binding}/${mixed}/${signedValue}/${unsignedValue}/${crossValue}\") }\n"
+      "entry(main)\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  const w_seed_native0_status status = run_source(
+      source, sizeof(source) - 1u, "integer-widening-native", 22u, output,
+      sizeof(output), &result);
+  CHECK(status == W_SEED_NATIVE0_OK);
+  const w_seed_hir0_program *program = &storage.hir_program;
+  size_t widening_count = 0u;
+  bool saw_i8_i32 = false;
+  bool saw_u8_u32 = false;
+  bool saw_u8_i16 = false;
+  for (size_t index = 0u; index < program->value_count; index += 1u) {
+    const w_seed_hir0_value *value = &program->values[index];
+    if (value->kind != W_SEED_HIR0_VALUE_INTEGER_WIDEN) continue;
+    CHECK(value->source_type < program->type_count &&
+          value->type_index < program->type_count);
+    const w_seed_hir0_type *source_type = &program->types[value->source_type];
+    const w_seed_hir0_type *destination_type = &program->types[value->type_index];
+    CHECK(source_type->integer_bit_width != 0u &&
+          destination_type->integer_bit_width != 0u &&
+          destination_type->integer_bit_width > source_type->integer_bit_width);
+    widening_count += 1u;
+    saw_i8_i32 |= source_type->integer_is_signed &&
+                  source_type->integer_bit_width == 8u &&
+                  destination_type->integer_is_signed &&
+                  destination_type->integer_bit_width == 32u;
+    saw_u8_u32 |= !source_type->integer_is_signed &&
+                  source_type->integer_bit_width == 8u &&
+                  !destination_type->integer_is_signed &&
+                  destination_type->integer_bit_width == 32u;
+    saw_u8_i16 |= !source_type->integer_is_signed &&
+                  source_type->integer_bit_width == 8u &&
+                  destination_type->integer_is_signed &&
+                  destination_type->integer_bit_width == 16u;
+  }
+  CHECK(widening_count >= 4u && saw_i8_i32 && saw_u8_u32 && saw_u8_i16);
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.trunc") >= widening_count &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.sext") >= 1u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.zext") >= 2u);
+  return true;
+}
+
 static bool test_scalar_if_value_native(void) {
   static const uint8_t source[] =
       "fn serve(isOpen: Bool, openCount: i64, closedCount: i64): i64 { "
@@ -4557,6 +4618,7 @@ int main(void) {
                        test_multi_carrier_native_subset_selector() &&
                        test_post_loop_continuation_native_subset() &&
                        test_unary_i64_native_selector() &&
+                       test_implicit_integer_widening_native() &&
                        test_scalar_if_value_native() &&
                        test_nested_scalar_if_value_native() &&
                        test_scalar_if_remains_unsupported() &&

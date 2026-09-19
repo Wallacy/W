@@ -39,6 +39,8 @@ const restaurantUIntArithmeticFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-arithmetic.w")
 const restaurantIntegerWrappingFixture = resolve(seedDirectory,
   "fixtures", "restaurant-integer-wrapping.w")
+const restaurantIntegerWideningFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-integer-widening.w")
 const restaurantUIntWrappingAddFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-add.w")
 const restaurantUIntWrappingSubtractFixture = resolve(seedDirectory,
@@ -720,6 +722,8 @@ try {
         "i8/u8 -128/0\ni16/u16 32767/2\ni32/u32 -2/4294967295\n" +
         "i64/u64 -9223372036854775808/0\n" +
         "Int/UInt -9223372036854775808/18446744073709551615\n", "utf8") },
+    { name: "restaurant-integer-widening", source: restaurantIntegerWideningFixture,
+      expected: Buffer.from("Widen -7/200/202/203\n", "utf8") },
     { name: "restaurant-uint-wrapping-add",
       source: restaurantUIntWrappingAddFixture,
       expected: Buffer.from("Wrapped 0\n", "utf8") },

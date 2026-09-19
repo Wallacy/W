@@ -486,6 +486,11 @@ test "operators and pipe-forward produce values" for operatorSummary {
 <!-- w-example role=logical-contract -->
 ```w
 fn numericPolicies(): (u8, u8, Bool, UInt) {
+  let small: u8 = 200
+  let wider: u16 = small
+  let signed: i16 = small
+  expect wider == 200 && signed == 200
+
   expect (try? u8.checkedAdd(250, 10)) == .none
   expect (try? u8.checkedSubtract(2, 3)) == .none
   expect (try? u8.checkedMultiply(20, 20)) == .none

@@ -125,6 +125,7 @@ static bool product_value_kind_supported(w_seed_hir0_value_kind kind) {
     case W_SEED_HIR0_VALUE_UNARY_BOOL:
     case W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ:
     case W_SEED_HIR0_VALUE_UNARY_I64:
+    case W_SEED_HIR0_VALUE_INTEGER_WIDEN:
       return true;
     case W_SEED_HIR0_VALUE_CONST_USIZE:
     case W_SEED_HIR0_VALUE_CONST_U64:

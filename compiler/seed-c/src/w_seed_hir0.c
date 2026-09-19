@@ -760,6 +760,18 @@ static bool frontend_supported_types_equal_for_input(
   return frontend_supported_types_equal(left, right);
 }
 
+/* This exact route is represented by an explicit frontend/HIR wrapper.  Keep
+ * it separate from ordinary input assignability: once a wrapper exists, its
+ * inferred destination type must match its consumer exactly, and a forged
+ * unwrapped child must not become valid merely because this route is legal. */
+static bool frontend_integer_widening_route(
+    const w_seed_frontend_type *from, const w_seed_frontend_type *to) {
+  return from != NULL && to != NULL && frontend_type_is_fixed_integer(from) &&
+         frontend_type_is_fixed_integer(to) && from->bit_width < to->bit_width &&
+         (from->is_signed == to->is_signed ||
+          (!from->is_signed && to->is_signed));
+}
+
 /* Assignment is directional for the one nominal widening admitted by the
  * bounded enum-subset slice.  A value carrying a subset is safe to pass to
  * its payloadless base enum, but a base value may never be treated as a
@@ -3832,6 +3844,50 @@ static bool frontend_value_tree_ok(
   if (!frontend_value_common_ok(input, value, module_index, function_index,
                                 document_index))
     return false;
+
+  if (value->kind != W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN &&
+      (value->conversion_source_type != W_SEED_FRONTEND_NONE ||
+       value->conversion_destination_type != W_SEED_FRONTEND_NONE))
+    return false;
+
+  if (value->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN) {
+    if (value->left == W_SEED_FRONTEND_NONE ||
+        value->right != W_SEED_FRONTEND_NONE ||
+        value->first_argument != W_SEED_FRONTEND_NONE ||
+        value->argument_count != 0u ||
+        (size_t)value->left >= result->written.expressions ||
+        value->conversion_source_type == W_SEED_FRONTEND_NONE ||
+        value->conversion_destination_type == W_SEED_FRONTEND_NONE ||
+        (size_t)value->conversion_source_type >= result->written.types ||
+        (size_t)value->conversion_destination_type >= result->written.types ||
+        value->inferred_type != value->conversion_destination_type ||
+        value->conversion_source_type !=
+            output->expressions[value->left].inferred_type ||
+        !frontend_type_is_fixed_integer(
+            &output->types[value->conversion_source_type]) ||
+        !frontend_type_is_fixed_integer(
+            &output->types[value->conversion_destination_type]) ||
+        !frontend_integer_widening_route(
+            &output->types[value->conversion_source_type],
+            &output->types[value->conversion_destination_type]) ||
+        !frontend_value_has_no_resolution(value) ||
+        value->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
+        value->const_byte_offset != W_SEED_FRONTEND_NONE ||
+        value->const_byte_count != 0u || value->has_bool_value ||
+        value->has_integer_value || value->has_float_value)
+      return false;
+    if (!frontend_value_tree_ok(input, module_index, function_index,
+                                document_index, use_statement, value->left,
+                                depth + 1u, expression_cursor, segment_cursor,
+                                const_byte_cursor, value_total, segment_total,
+                                value_bytes, call_total, argument_total,
+                                logical_total))
+      return false;
+    if ((size_t)root_index != *expression_cursor) return false;
+    if (!add_size(*value_total, 1u, value_total)) return false;
+    if (!add_size(*expression_cursor, 1u, expression_cursor)) return false;
+    return true;
+  }
 
   if (value->kind == W_SEED_FRONTEND_EXPR_IF) {
     if (value->left == W_SEED_FRONTEND_NONE ||
@@ -9267,6 +9323,9 @@ static size_t hir0_emit_expression_values_m2(hir0_emit_context *context,
     return current_block;
   const w_seed_frontend_expression *source =
       &context->frontend->expressions[expression];
+  if (source->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN)
+    return hir0_emit_expression_values_m2(
+        context, source->left, current_block, statement_index, depth + 1u);
   if (frontend_task_launch_kind(source->kind))
     return hir0_emit_expression_values_m2(
         context, source->task_call_expression, current_block, statement_index,
@@ -9608,6 +9667,9 @@ static size_t hir0_emit_expression_terms_m2(hir0_emit_context *context,
     return current_block;
   const w_seed_frontend_expression *source =
       &context->frontend->expressions[expression];
+  if (source->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN)
+    return hir0_emit_expression_terms_m2(
+        context, source->left, current_block, statement_index, depth + 1u);
   if (source->kind == W_SEED_FRONTEND_EXPR_IF) {
     const size_t condition_end = hir0_emit_expression_terms_m2(
         context, source->left, current_block, statement_index, depth + 1u);
@@ -10420,7 +10482,8 @@ static size_t hir0_expression_layout_end_m2(const hir0_emit_context *context,
     return branch + 1u + then_count + else_count;
   }
   if (source->kind == W_SEED_FRONTEND_EXPR_PARENTHESIS ||
-      source->kind == W_SEED_FRONTEND_EXPR_UNARY)
+      source->kind == W_SEED_FRONTEND_EXPR_UNARY ||
+      source->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN)
     return hir0_expression_layout_end_m2(context, source->left, current_block,
                                          depth + 1u);
   if (source->kind == W_SEED_FRONTEND_EXPR_CALL) {
@@ -11076,6 +11139,9 @@ static size_t hir0_emit_expression_layout_m2(hir0_emit_context *context,
     return current_block;
   const w_seed_frontend_expression *source =
       &context->frontend->expressions[expression];
+  if (source->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN)
+    return hir0_emit_expression_layout_m2(
+        context, source->left, current_block, statement_index, depth + 1u);
   if (source->kind == W_SEED_FRONTEND_EXPR_EXECUTION_YIELD) {
     hir0_begin_block_m2(context, current_block);
     w_seed_hir0_block *block = &context->output->blocks[current_block];
@@ -11330,6 +11396,57 @@ static uint32_t hir0_emit_value_m2(
     return W_SEED_HIR0_NONE;
   const w_seed_frontend_expression *source =
       &context->frontend->expressions[expression];
+  if (source->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN) {
+    const uint32_t child = hir0_emit_value_m2(
+        context, source->left, W_SEED_HIR0_VALUE_OWNER_INTEGER_WIDEN,
+        W_SEED_HIR0_NONE, 0u, current_block, depth + 1u);
+    if (child == W_SEED_HIR0_NONE ||
+        source->conversion_source_type == W_SEED_FRONTEND_NONE ||
+        source->conversion_destination_type == W_SEED_FRONTEND_NONE)
+      return W_SEED_HIR0_NONE;
+    const uint32_t result = (uint32_t)*context->value_index;
+    context->output->values[*context->value_index] = (w_seed_hir0_value){
+        .kind = W_SEED_HIR0_VALUE_INTEGER_WIDEN,
+        .owner_kind = owner_kind,
+        .owner_index = owner_index,
+        .owner_ordinal = owner_ordinal,
+        .type_index = hir_type_from_frontend(
+            context->frontend, context->frontend_result,
+            source->conversion_destination_type),
+        .binding_index = W_SEED_HIR0_NONE,
+        .parameter_index = W_SEED_HIR0_NONE,
+        .call_index = W_SEED_HIR0_NONE,
+        .left_value = child,
+        .right_value = W_SEED_HIR0_NONE,
+        .first_interpolation_segment = W_SEED_HIR0_NONE,
+        .interpolation_segment_count = 0u,
+        .first_enum_payload = 0u,
+        .enum_payload_count = 0u,
+        .pattern_capture_index = W_SEED_HIR0_NONE,
+        .binary_operator = W_SEED_HIR0_BINARY_ADD,
+        .unary_operator = W_SEED_HIR0_UNARY_NOT,
+        .block_argument_index = W_SEED_HIR0_NONE,
+        .integer_value = 0,
+        .unsigned_integer_value = 0u,
+        .float_bits = 0u,
+        .bool_value = false,
+        .byte_offset = 0u,
+        .byte_count = 0u,
+        .source_span = source->span,
+        .external_module_index = W_SEED_HIR0_NONE,
+        .external_symbol_index = W_SEED_HIR0_NONE,
+        .member_name = {0u, 0u},
+        .enum_index = W_SEED_HIR0_NONE,
+        .enum_case_index = W_SEED_HIR0_NONE,
+        .source_type = hir_type_from_frontend(
+            context->frontend, context->frontend_result,
+            source->conversion_source_type)};
+    context->output->values[child].owner_index = result;
+    context->output->values[child].owner_kind =
+        W_SEED_HIR0_VALUE_OWNER_INTEGER_WIDEN;
+    *context->value_index += 1u;
+    return result;
+  }
   if (frontend_task_launch_kind(source->kind))
     return hir0_emit_value_m2(context, source->task_call_expression, owner_kind,
                               owner_index, owner_ordinal, current_block,
@@ -12316,6 +12433,8 @@ static void emit_records(const w_seed_hir0_input *input,
     output->values[value].member_name = (w_seed_hir0_text){0u, 0u};
     output->values[value].enum_index = W_SEED_HIR0_NONE;
     output->values[value].enum_case_index = W_SEED_HIR0_NONE;
+    if (output->values[value].kind != W_SEED_HIR0_VALUE_INTEGER_WIDEN)
+      output->values[value].source_type = W_SEED_HIR0_NONE;
   }
   output->types[0] = (w_seed_hir0_type){
       .kind = W_SEED_HIR0_TYPE_UNIT,
@@ -12999,6 +13118,8 @@ static void emit_records(const w_seed_hir0_input *input,
     if (output->values[value].kind !=
         W_SEED_HIR0_VALUE_PATTERN_CAPTURE_READ)
       output->values[value].pattern_capture_index = W_SEED_HIR0_NONE;
+    if (output->values[value].kind != W_SEED_HIR0_VALUE_INTEGER_WIDEN)
+      output->values[value].source_type = W_SEED_HIR0_NONE;
     if (output->values[value].kind == W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE ||
         output->values[value].kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER ||
         output->values[value].kind == W_SEED_HIR0_VALUE_ENUM_CASE)
@@ -13387,6 +13508,7 @@ static void digest_program(const w_seed_hir0_program *program,
     digest_text(&state, program, value->member_name);
     digest_u32(&state, value->enum_index);
     digest_u32(&state, value->enum_case_index);
+    digest_u32(&state, value->source_type);
   }
   for (size_t index = 0u; index < counts->interpolation_segments;
        index += 1u) {
@@ -14708,8 +14830,54 @@ static bool verify_value_tree(
        value->kind != W_SEED_HIR0_VALUE_TUPLE_ELEMENT &&
        value->unsigned_integer_value != 0u) ||
       (value->kind != W_SEED_HIR0_VALUE_CONST_FLOAT &&
-       value->float_bits != 0u))
+       value->float_bits != 0u) ||
+      (value->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN
+           ? value->source_type == W_SEED_HIR0_NONE
+           : value->source_type != W_SEED_HIR0_NONE))
     return false;
+
+  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN) {
+    bool source_signed = false;
+    bool destination_signed = false;
+    uint16_t source_width = 0u;
+    uint16_t destination_width = 0u;
+    if (value->left_value >= program->value_count ||
+        value->right_value != W_SEED_HIR0_NONE ||
+        value->binding_index != W_SEED_HIR0_NONE ||
+        value->parameter_index != W_SEED_HIR0_NONE ||
+        value->call_index != W_SEED_HIR0_NONE ||
+        value->first_interpolation_segment != W_SEED_HIR0_NONE ||
+        value->interpolation_segment_count != 0u ||
+        value->first_enum_payload != 0u || value->enum_payload_count != 0u ||
+        value->pattern_capture_index != W_SEED_HIR0_NONE ||
+        value->binary_operator != W_SEED_HIR0_BINARY_ADD ||
+        value->unary_operator != W_SEED_HIR0_UNARY_NOT ||
+        value->block_argument_index != W_SEED_HIR0_NONE ||
+        value->integer_value != 0 || value->unsigned_integer_value != 0u ||
+        value->float_bits != 0u || value->bool_value ||
+        value->byte_offset != 0u || value->byte_count != 0u ||
+        value->external_module_index != W_SEED_HIR0_NONE ||
+        value->external_symbol_index != W_SEED_HIR0_NONE ||
+        value->member_name.count != 0u || value->enum_index != W_SEED_HIR0_NONE ||
+        value->enum_case_index != W_SEED_HIR0_NONE ||
+        !hir_integer_type_facts(program, value->source_type, &source_signed,
+                                &source_width) ||
+        !hir_integer_type_facts(program, value->type_index,
+                                &destination_signed, &destination_width) ||
+        source_width >= destination_width ||
+        (source_signed != destination_signed &&
+         (source_signed || !destination_signed)) ||
+        program->values[value->left_value].type_index != value->source_type ||
+        !verify_value_tree(
+            program, value->left_value,
+            W_SEED_HIR0_VALUE_OWNER_INTEGER_WIDEN, root_index, 0u,
+            current_block, current_instruction, source_length, depth + 1u,
+            value_cursor, segment_cursor, byte_cursor) ||
+        root_index != *value_cursor)
+      return false;
+    *value_cursor += 1u;
+    return true;
+  }
 
   if (value->kind == W_SEED_HIR0_VALUE_PATTERN_CAPTURE_READ) {
     if (value->pattern_capture_index >= program->switch_capture_count ||
@@ -17620,6 +17788,7 @@ static bool hir0_value_kind_is_closed(w_seed_hir0_value_kind kind) {
     case W_SEED_HIR0_VALUE_PATTERN_CAPTURE_READ:
     case W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON:
     case W_SEED_HIR0_VALUE_TUPLE_ELEMENT:
+    case W_SEED_HIR0_VALUE_INTEGER_WIDEN:
       return true;
     default:
       /* A future value kind needs an explicit suspension/effect review before
@@ -17839,7 +18008,8 @@ static uint32_t hir0_value_owner_function(const w_seed_hir0_program *program,
     if (value->owner_kind == W_SEED_HIR0_VALUE_OWNER_BINARY ||
         value->owner_kind == W_SEED_HIR0_VALUE_OWNER_UNARY ||
         value->owner_kind == W_SEED_HIR0_VALUE_OWNER_EXTERNAL_MEMBER ||
-        value->owner_kind == W_SEED_HIR0_VALUE_OWNER_EXTERNAL_ENUM_CASE) {
+        value->owner_kind == W_SEED_HIR0_VALUE_OWNER_EXTERNAL_ENUM_CASE ||
+        value->owner_kind == W_SEED_HIR0_VALUE_OWNER_INTEGER_WIDEN) {
       if (value->owner_index == W_SEED_HIR0_NONE ||
           (size_t)value->owner_index >= program->value_count)
         return W_SEED_HIR0_NONE;

@@ -5425,8 +5425,12 @@ static bool widening_allowed(frontend_simple_type actual,
   }
   if (actual.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
       expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
-      actual.is_signed == expected.is_signed && actual.bit_width != 0 &&
-      expected.bit_width != 0 && actual.bit_width < expected.bit_width) {
+      actual.bit_width != 0 && expected.bit_width != 0 &&
+      !text_equal(actual.spelling, "usize") &&
+      !text_equal(expected.spelling, "usize") &&
+      actual.bit_width < expected.bit_width &&
+      (actual.is_signed == expected.is_signed ||
+       (!actual.is_signed && expected.is_signed))) {
     return true;
   }
   if (actual.kind == W_SEED_FRONTEND_TYPE_FLOAT &&
@@ -12583,6 +12587,8 @@ static bool expression_append(frontend_expression_parser *parser,
   record.first_argument = first_argument;
   record.argument_count = (uint32_t)argument_count;
   record.inferred_type = W_SEED_FRONTEND_NONE;
+  record.conversion_source_type = W_SEED_FRONTEND_NONE;
+  record.conversion_destination_type = W_SEED_FRONTEND_NONE;
   record.enum_index = value->is_enum_case
                           ? value->enum_index
                           : (frontend_type_is_enum(type) ? type.enum_index
@@ -12818,6 +12824,57 @@ static bool expression_append(frontend_expression_parser *parser,
   return true;
 }
 
+/* Keep an exact integer widening as a first-class expression node.  The
+ * source expression remains untouched; the wrapper owns the source and
+ * destination type identities so later stages cannot mistake a retag for a
+ * conversion. */
+static bool expression_append_integer_widen(
+    frontend_expression_parser *parser, frontend_expr_value *value,
+    frontend_simple_type destination) {
+  if (parser == NULL || value == NULL ||
+      value->type.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+      destination.kind != W_SEED_FRONTEND_TYPE_INTEGER) {
+    return false;
+  }
+  if (type_equal(value->type, destination)) return true;
+  if (value->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN ||
+      !widening_allowed(value->type, destination) ||
+      value->index >= (size_t)UINT32_MAX) {
+    return false;
+  }
+  uint32_t source_type = W_SEED_FRONTEND_NONE;
+  uint32_t destination_type = W_SEED_FRONTEND_NONE;
+  if (!output_type_index_for_simple(parser->context, value->type,
+                                    &source_type) ||
+      !output_type_index_for_simple(parser->context, destination,
+                                    &destination_type)) {
+    return false;
+  }
+  const frontend_expr_value source = *value;
+  frontend_expr_value wrapped = {0};
+  if (!expression_append(
+          parser, W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN, value->span,
+          text_from_span(parser->document, value->span),
+          (w_seed_frontend_text){NULL, 0}, destination, value->supported,
+          value->index, (size_t)W_SEED_FRONTEND_NONE,
+          W_SEED_FRONTEND_NONE, 0u, &wrapped)) {
+    return false;
+  }
+  if (parser->context->emit && parser->context->output != NULL &&
+      wrapped.index < parser->context->output->expression_capacity) {
+    w_seed_frontend_expression *record =
+        &parser->context->output->expressions[wrapped.index];
+    record->conversion_source_type = source_type;
+    record->conversion_destination_type = destination_type;
+  }
+  wrapped.is_integer_literal = false;
+  wrapped.kind = W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN;
+  wrapped.type = destination;
+  wrapped.supported = source.supported;
+  *value = wrapped;
+  return true;
+}
+
 /* Apply contextual integer typing without reparsing source.  Unsuffixed
  * integer literals remain signed/width-zero until an enclosing range supplies
  * the usize context.  The frontend record must receive the same canonical
@@ -12826,6 +12883,12 @@ static bool expression_value_set_type(frontend_expression_parser *parser,
                                       frontend_expr_value *value,
                                       frontend_simple_type type) {
   if (parser == NULL || parser->context == NULL || value == NULL) return false;
+  if (!type_equal(value->type, type) &&
+      value->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+      type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+      value->type.bit_width != 0u) {
+    return expression_append_integer_widen(parser, value, type);
+  }
   value->type = type;
   uint32_t type_index = W_SEED_FRONTEND_NONE;
   if (!output_type_index_for_simple(parser->context, type, &type_index))
@@ -12844,6 +12907,25 @@ static bool expression_value_is_unsuffixed_integer(
   return value != NULL && value->is_integer_literal &&
          value->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
          value->type.bit_width == 0u;
+}
+
+static bool expression_apply_expected_type(frontend_expression_parser *parser,
+                                           frontend_expr_value *value,
+                                           frontend_simple_type expected) {
+  if (parser == NULL || value == NULL ||
+      expected.kind == W_SEED_FRONTEND_TYPE_UNKNOWN ||
+      type_equal(value->type, expected)) {
+    return true;
+  }
+  if (value->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+      expected.kind == W_SEED_FRONTEND_TYPE_INTEGER) {
+    if (expression_value_is_unsuffixed_integer(value) &&
+        unsuffixed_integer_fits(value->type.spelling, expected)) {
+      return expression_value_set_type(parser, value, expected);
+    }
+    return expression_append_integer_widen(parser, value, expected);
+  }
+  return true;
 }
 
 static bool expression_parse_bp(frontend_expression_parser *parser,
@@ -14156,6 +14238,11 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       parser->expected_type = saved_expected;
       parser->has_expected_type = saved_has_expected;
       parser->suppress_short_diagnostic = saved_suppress_short;
+      if (expected_found && expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+          argument_value.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+          !expression_apply_expected_type(parser, &argument_value, expected)) {
+        argument_value.supported = false;
+      }
       if (builtin_u64_call || enum_case_constructor || local_signature ||
           external_signature_found || host_signature_found) {
         if (!expected_found) {
@@ -14219,12 +14306,18 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
                   argument_value.type.bit_width != 0 &&
                   expected.bit_width != 0 &&
                   argument_value.type.bit_width > expected.bit_width;
-              if (narrowing) {
+              if (argument_value.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+                  expected.kind == W_SEED_FRONTEND_TYPE_INTEGER) {
                 (void)append_type0122_diagnostic(
                     parser->context, argument_value.span, argument_value.type,
-                    expected, (w_seed_frontend_text){
-                                  "integer narrowing is not implicit",
-                                  sizeof("integer narrowing is not implicit") - 1u});
+                    expected,
+                    narrowing
+                        ? (w_seed_frontend_text){
+                              "integer narrowing is not implicit",
+                              sizeof("integer narrowing is not implicit") - 1u}
+                        : (w_seed_frontend_text){
+                              "integer conversion is not implicit",
+                              sizeof("integer conversion is not implicit") - 1u});
               } else {
                 (void)append_sem0001_diagnostic(
                     parser->context, argument_value.span,
@@ -14232,6 +14325,24 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
               }
               enum_constructor_diagnostic_emitted = true;
             }
+          } else if (argument_value.type.kind ==
+                         W_SEED_FRONTEND_TYPE_INTEGER &&
+                     expected.kind == W_SEED_FRONTEND_TYPE_INTEGER) {
+            const bool narrowing =
+                argument_value.type.is_signed == expected.is_signed &&
+                argument_value.type.bit_width != 0u &&
+                expected.bit_width != 0u &&
+                argument_value.type.bit_width > expected.bit_width;
+            (void)append_type0122_diagnostic(
+                parser->context, argument_value.span, argument_value.type,
+                expected,
+                narrowing
+                    ? (w_seed_frontend_text){
+                          "integer narrowing is not implicit",
+                          sizeof("integer narrowing is not implicit") - 1u}
+                    : (w_seed_frontend_text){
+                          "integer conversion is not implicit",
+                          sizeof("integer conversion is not implicit") - 1u});
           } else {
             (void)context_append_fact(
                 parser->context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
@@ -15177,6 +15288,7 @@ static bool expression_append_binary(frontend_expression_parser *parser,
   const w_seed_span span = {left->span.start_byte, right->span.end_byte};
   frontend_simple_type result_type = left->type;
   bool supported = left->supported && right->supported;
+  bool integer_conversion_failed = false;
   const bool arithmetic_or_comparison =
       text_equal(operator_text, "+") || text_equal(operator_text, "-") ||
       text_equal(operator_text, "*") || text_equal(operator_text, "/") ||
@@ -15222,6 +15334,22 @@ static bool expression_append_binary(frontend_expression_parser *parser,
                left->type.bit_width != 0u &&
                unsuffixed_integer_fits(right->type.spelling, left->type)) {
       if (!expression_value_set_type(parser, right, left->type)) return false;
+    }
+    if (!frontend_type_equal(parser->context, left->type, right->type)) {
+      const bool left_to_right = frontend_widening_allowed(
+          parser->context, left->type, right->type);
+      const bool right_to_left = frontend_widening_allowed(
+          parser->context, right->type, left->type);
+      if (left_to_right == right_to_left) {
+        supported = false;
+        integer_conversion_failed = true;
+      } else if (left_to_right) {
+        supported = expression_append_integer_widen(parser, left, right->type) &&
+                    supported;
+      } else {
+        supported = expression_append_integer_widen(parser, right, left->type) &&
+                    supported;
+      }
     }
     result_type = left->type;
   }
@@ -15321,6 +15449,11 @@ static bool expression_append_binary(frontend_expression_parser *parser,
   } else {
     supported = false;
   }
+  if (integer_conversion_failed)
+    (void)append_type0122_diagnostic(
+        parser->context, span, right->type, left->type,
+        (w_seed_frontend_text){"integer conversion is not implicit",
+                               sizeof("integer conversion is not implicit") - 1u});
   if (!supported)
     (void)context_append_fact(parser->context,
                               W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
@@ -15403,10 +15536,26 @@ static bool expression_parse_bp_inner(frontend_expression_parser *parser,
           unsuffixed_integer_fits(right.type.spelling, left.type)) {
         supported = expression_value_set_type(parser, &right, left.type);
       }
+      bool integer_conversion_failed = false;
+      if (supported &&
+          left.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+          right.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+          !frontend_type_equal(parser->context, left.type, right.type)) {
+        if (!expression_apply_expected_type(parser, &right, left.type)) {
+          supported = false;
+          integer_conversion_failed = true;
+        }
+      }
       if (supported && !frontend_type_equal(parser->context, left.type,
                                             right.type))
         supported = false;
       const w_seed_span span = {left.span.start_byte, right.span.end_byte};
+      if (integer_conversion_failed)
+        (void)append_type0122_diagnostic(
+            parser->context, right.span, right.type, left.type,
+            (w_seed_frontend_text){"integer conversion is not implicit",
+                                   sizeof("integer conversion is not implicit") -
+                                       1u});
       if (!supported)
         (void)context_append_fact(
             parser->context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
@@ -15517,7 +15666,7 @@ static bool normalize_expression_node(frontend_context *context,
         doc->nodes[pipeline_node].raw_span,
         text_from_span(doc, doc->nodes[pipeline_node].raw_span));
   }
-  frontend_expression_parser parser;
+  frontend_expression_parser parser = {0};
   parser.context = context;
   parser.document = doc;
   parser.cursor = token_cursor_for(doc, doc->nodes[expression_node].raw_span);
@@ -15540,6 +15689,8 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.left = W_SEED_FRONTEND_NONE;
     fallback.right = W_SEED_FRONTEND_NONE;
     fallback.first_argument = W_SEED_FRONTEND_NONE;
+    fallback.conversion_source_type = W_SEED_FRONTEND_NONE;
+    fallback.conversion_destination_type = W_SEED_FRONTEND_NONE;
     fallback.enum_index = W_SEED_FRONTEND_NONE;
     fallback.enum_case_index = W_SEED_FRONTEND_NONE;
     fallback.first_switch_arm = W_SEED_FRONTEND_NONE;
@@ -15597,6 +15748,8 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.left = W_SEED_FRONTEND_NONE;
     fallback.right = W_SEED_FRONTEND_NONE;
     fallback.first_argument = W_SEED_FRONTEND_NONE;
+    fallback.conversion_source_type = W_SEED_FRONTEND_NONE;
+    fallback.conversion_destination_type = W_SEED_FRONTEND_NONE;
     fallback.enum_index = W_SEED_FRONTEND_NONE;
     fallback.enum_case_index = W_SEED_FRONTEND_NONE;
     fallback.first_switch_arm = W_SEED_FRONTEND_NONE;
@@ -15638,6 +15791,11 @@ static bool normalize_expression_node(frontend_context *context,
     }
     return appended;
   }
+  if (expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+      value.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+      !expression_apply_expected_type(&parser, &value, expected)) {
+    value.supported = false;
+  }
   if (value.index >= (size_t)UINT32_MAX) return false;
   *expression_index = (uint32_t)value.index;
   if (actual_out != NULL) *actual_out = value.type;
@@ -15658,7 +15816,7 @@ static bool normalize_expression_span(frontend_context *context,
   if (actual_out != NULL) *actual_out = simple_type_unknown();
   if (root_out != NULL) (void)memset(root_out, 0, sizeof(*root_out));
   if (doc == NULL || expression_index == NULL) return false;
-  frontend_expression_parser parser;
+  frontend_expression_parser parser = {0};
   parser.context = context;
   parser.document = doc;
   parser.cursor = token_cursor_for(doc, trim_span(doc, span));
@@ -15670,6 +15828,11 @@ static bool normalize_expression_span(frontend_context *context,
   if (!expression_parse_bp(&parser, 0, &value)) return false;
   frontend_token trailing;
   if (cursor_peek(&parser.cursor, &trailing)) return false;
+  if (expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+      value.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+      !expression_apply_expected_type(&parser, &value, expected)) {
+    value.supported = false;
+  }
   if (value.index >= (size_t)UINT32_MAX) return false;
   *expression_index = (uint32_t)value.index;
   if (actual_out != NULL) *actual_out = value.type;
@@ -16445,6 +16608,8 @@ static bool normalize_switch_expression(
   switch_record.first_argument = W_SEED_FRONTEND_NONE;
   switch_record.argument_count = 0;
   switch_record.inferred_type = W_SEED_FRONTEND_NONE;
+  switch_record.conversion_source_type = W_SEED_FRONTEND_NONE;
+  switch_record.conversion_destination_type = W_SEED_FRONTEND_NONE;
   switch_record.enum_index = subject_is_enum ? subject_enum
                                              : W_SEED_FRONTEND_NONE;
   switch_record.enum_case_index = W_SEED_FRONTEND_NONE;
@@ -17019,11 +17184,17 @@ static bool normalize_statement_depth(frontend_context *context,
                              expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
                              actual.is_signed == expected.is_signed &&
                              actual.bit_width > expected.bit_width;
-      if (narrowing) {
+      if (actual.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+          expected.kind == W_SEED_FRONTEND_TYPE_INTEGER) {
         (void)append_type0122_diagnostic(
             context, doc->nodes[expression_node].raw_span, actual, expected,
-            (w_seed_frontend_text){"integer narrowing is not implicit",
-                                   sizeof("integer narrowing is not implicit") - 1u});
+            narrowing
+                ? (w_seed_frontend_text){
+                      "integer narrowing is not implicit",
+                      sizeof("integer narrowing is not implicit") - 1u}
+                : (w_seed_frontend_text){
+                      "integer conversion is not implicit",
+                      sizeof("integer conversion is not implicit") - 1u});
       } else {
         (void)append_sem0001_diagnostic(
             context, doc->nodes[expression_node].raw_span, actual.spelling,
@@ -17083,11 +17254,17 @@ static bool normalize_statement_depth(frontend_context *context,
                              expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
                              actual.is_signed == expected.is_signed &&
                              actual.bit_width > expected.bit_width;
-      if (narrowing) {
+      if (actual.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+          expected.kind == W_SEED_FRONTEND_TYPE_INTEGER) {
         (void)append_type0122_diagnostic(
             context, doc->nodes[expression_node].raw_span, actual, expected,
-            (w_seed_frontend_text){"integer narrowing is not implicit",
-                                   sizeof("integer narrowing is not implicit") - 1u});
+            narrowing
+                ? (w_seed_frontend_text){
+                      "integer narrowing is not implicit",
+                      sizeof("integer narrowing is not implicit") - 1u}
+                : (w_seed_frontend_text){
+                      "integer conversion is not implicit",
+                      sizeof("integer conversion is not implicit") - 1u});
       } else {
         (void)append_sem0001_diagnostic(
             context, doc->nodes[expression_node].raw_span, actual.spelling,
@@ -18267,11 +18444,17 @@ static bool normalize_module_const(frontend_context *context,
         expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
         actual.is_signed == expected.is_signed &&
         actual.bit_width > expected.bit_width;
-    if (narrowing) {
+    if (actual.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+        expected.kind == W_SEED_FRONTEND_TYPE_INTEGER) {
       (void)append_type0122_diagnostic(
           context, value.body_span, actual, expected,
-          (w_seed_frontend_text){"integer narrowing is not implicit",
-                                 sizeof("integer narrowing is not implicit") - 1u});
+          narrowing
+              ? (w_seed_frontend_text){
+                    "integer narrowing is not implicit",
+                    sizeof("integer narrowing is not implicit") - 1u}
+              : (w_seed_frontend_text){
+                    "integer conversion is not implicit",
+                    sizeof("integer conversion is not implicit") - 1u});
     } else {
       (void)append_sem0001_diagnostic(context, value.body_span,
                                       actual.spelling, expected.spelling);

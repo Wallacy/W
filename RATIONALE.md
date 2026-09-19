@@ -214,6 +214,7 @@ O corpus compara, no mínimo:
 - bounded source-backed `u64` ConstIR7 policy evaluation.
 - bounded closed overflow product across const boundaries.
 - fixed-width wrapping integer family through native execution.
+- exact implicit fixed-width integer widening through native execution.
 - short default entry against a magic main function, source-addressable synthetic identity, and duplicate default descriptors.
 - external process nominal identity against alias-spelling identity, first-match duplicate imports, and forged ExitCode success metadata.
 - caller-owned external identity, handler compatibility, alias-independent semantics, and downstream fail-closed behavior.
@@ -7986,6 +7987,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1634 | bounded source-backed `u64` ConstIR7 policy evaluation | ConstIR schema `w-seed-constir-7` accepts the ten existing closed `u64` policies—`saturatingAdd`, `saturatingSubtract`, `saturatingMultiply`, `saturatingNegate`, `saturatingPower`, `overflowingAdd`, `overflowingSubtract`, `overflowingMultiply`, `overflowingNegate`, and `overflowingPower`—and evaluates them with exact type/arity/receiver identity. Overflowing results are one allocation-free virtual `(u64, Bool)` value with checked `.0`/`.1` projections; power uses exponentiation by squaring and step quota. | `source-backed-current` only for the bounded C23 source-backed evaluator, exact ten-policy values and boundaries, tuple projections, zero heap/CRT/float/artificial exponent cap, quota diagnostics, result-byte accounting, and all-or-nothing invalid/capacity behavior. Frontend module-const tuple initializers, generic tuples, a stable tuple ABI, other widths, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`; no new public benchmark. |
 | W-1635 | bounded closed overflow product across const boundaries | The frontend canonicalizes the exact `(u64, Bool)` product and permits it as a direct `const fn` result and as the explicit type of a module constant routed through the existing synthetic ConstIR dependency graph. The product stays virtual and allocation-free, with only checked `.0`/`.1` projections. | `source-backed-current` only after focused C23/source/checker evidence proves direct returns, explicitly typed module constants, exact values and projections, malformed shapes, quotas, cycle/capacity defense, and all-or-nothing publication. Generic tuples, tuple parameters/literals/destructuring, unannotated tuple-constant inference, imported constants, stable ABI/layout/FFI/runtime/backend support, other widths, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`; no public benchmark. |
 | W-1636 | fixed-width wrapping integer family through native execution | Frontend63 and HIR78 preserve six wrapping operations for signed and unsigned 8-, 16-, 32-, and 64-bit integers plus the current x86-64 `Int`/`UInt` aliases. A shared operation identity combines with canonical signedness and logical-width type facts. MLIR0 lowers narrow values through one unsigned `i64` bit domain, explicit masks, observation-time sign extension, logarithmic power, and checked shift counts. | `source-backed-current` only for the bounded source-to-frontend-to-verified-HIR-to-MLIR/Native0 route, focused C23 tests, MLIR/LLVM 23.1.x verification, and exact CRT-free Windows plus Linux/WSL execution. The combined executable fixture owns inline expected exit/stdout; independent C23 and Rust 2024 sources are output oracles but are not performance-ranked until equivalent runtime work exists. Other policies, `i128`/`u128`, non-x86-64 alias widths, const evaluation, stable ABI/FFI, and performance remain gaps. `benchmarkDisposition: correctness-reference-no-ranking`. |
+| W-1637 | exact implicit fixed-width integer widening through native execution | Frontend64 inserts one explicit widening wrapper for exact integer conversions whose destination is strictly wider: same-signedness widening or unsigned-to-larger-signed widening. HIR79 preserves source and destination type identities, while NativeSubset0 and MLIR0 keep an `i64` carrier and reconstruct source-width signedness with `llvm.trunc` plus `llvm.sext` or `llvm.zext`. | `source-backed-current` for signed and unsigned 8/16/32/64-bit builtins, current x86-64 `Int`/`UInt` aliases, frontend binding/return/argument/assignment/mixed-operand evidence, verified-HIR/native return/argument/binding evidence, focused C23 adversarial tests, MLIR/LLVM 23.1.x verification, and exact CRT-free Windows plus Linux/WSL execution. General narrow binary lowering, `usize`/`isize`, 128-bit integers, narrowing, equal-width sign changes, signed-to-unsigned conversion, explicit conversion syntax, stable ABI/FFI, and performance remain gaps. The family fixture owns inline expected exit/stdout; C23 and Rust 2024 are correctness references without ranking until equivalent runtime work exists. `benchmarkDisposition: correctness-reference-no-ranking`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -13994,3 +13996,34 @@ intentional evidence disclosure: the row is correctness-only and cannot rank
 performance until W also receives equivalent runtime inputs. The package makes
 no claim about the remaining integer policies, 128-bit integers, other target
 alias widths, const evaluation, stable ABI/FFI, or performance.
+
+#### W-1637 — exact implicit fixed-width integer widening through native execution
+
+The compiler represents implicit widening as a semantic operation rather than
+letting a backend or host compiler guess. Frontend64 uses one wrapper across
+the fixed-width family. Its legality table admits only a strictly wider
+destination with equal signedness, or an unsigned source with a strictly wider
+signed destination. This makes every conversion value-preserving. Narrowing,
+equal-width sign changes, and signed-to-unsigned coercion fail with
+`W-TYPE-0122` instead of inheriting target-dependent behavior.
+
+HIR79 records the source type on the wrapper and the destination type on its
+result, owns exactly one child value, and verifies that ordinary records do not
+carry conversion sentinels. The frontend accepts the same wrapper in bindings,
+returns, call arguments, assignments, and mixed integer binary expressions.
+The verified-HIR/native public witness closes return, argument, and binding
+contexts; general narrow binary lowering remains a separate operator-family
+gap. NativeSubset0 retains the route facts. MLIR0 deliberately preserves
+the current `i64` carrier, truncates to the verified source width, then sign- or
+zero-extends to `i64`. Whole-module optimization may erase a redundant
+conversion, but the pre-optimization artifact still exposes the semantic
+distinction.
+
+The package covers `i8`/`u8` through `i64`/`u64` and the current x86-64
+`Int`/`UInt` aliases. Target-width `usize`/`isize` are excluded until the HIR
+publishes target-general width facts; `i128`/`u128` and explicit conversions
+also remain separate work. One public family fixture records exact output and
+crosses the CRT-free Windows and Linux/WSL routes. Independent C23 and Rust
+2024 references use runtime inputs, so the workload remains correctness-only
+until W performs equivalent physical work. This decision publishes no stable
+ABI/FFI or performance claim.

@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-78"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-79"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -200,6 +200,9 @@ typedef enum {
   W_SEED_HIR0_VALUE_UNARY_U64,
   /* Positional projection from one virtual fixed tuple value. */
   W_SEED_HIR0_VALUE_TUPLE_ELEMENT,
+  /* Exact implicit integer widening.  left_value is the source child and
+   * source_type plus type_index retain both scalar identities. */
+  W_SEED_HIR0_VALUE_INTEGER_WIDEN,
   /* Generic names for the stable signed/unsigned carrier kinds. These are
    * aliases, not new per-width value identities. */
   W_SEED_HIR0_VALUE_CONST_INTEGER_SIGNED = W_SEED_HIR0_VALUE_CONST_I64,
@@ -224,6 +227,8 @@ typedef enum {
   W_SEED_HIR0_VALUE_OWNER_ENUM_PAYLOAD,
   /* The tuple value consumed by one positional projection. */
   W_SEED_HIR0_VALUE_OWNER_TUPLE_ELEMENT,
+  /* The source child consumed by one integer widening wrapper. */
+  W_SEED_HIR0_VALUE_OWNER_INTEGER_WIDEN,
 } w_seed_hir0_value_owner_kind;
 
 typedef enum {
@@ -783,6 +788,8 @@ typedef struct {
   /* Present only for VALUE_ENUM_CASE. */
   uint32_t enum_index;
   uint32_t enum_case_index;
+  /* Present only for VALUE_INTEGER_WIDEN. */
+  uint32_t source_type;
 } w_seed_hir0_value;
 
 typedef struct {

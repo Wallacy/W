@@ -41988,6 +41988,38 @@ work is not equivalent. Other integer policies, `i128`/`u128`, target widths
 other than the exercised x86-64 aliases, const evaluation, stable ABI/FFI, and
 performance remain open.
 
+#### 26.4.1.117 W-1637 — exact implicit fixed-width integer widening
+
+Frontend schema `w-seed-frontend-64` inserts an explicit
+`IMPLICIT_INTEGER_WIDEN` expression whenever an integer value must move to a
+strictly wider exact integer type. The admitted relation is closed: equal
+signedness may widen to a greater logical width, and an unsigned source may
+widen to a greater-width signed destination. Narrowing, equal-width sign
+changes, signed-to-unsigned conversion, `Bool`, floating point, `i128`/`u128`,
+and target-width `usize`/`isize` conversion remain outside this package.
+`Int` and `UInt` participate only as the current x86-64 aliases.
+
+The wrapper is first-class in verified HIR schema `w-seed-hir0-79`; it records
+both source and destination type identities and owns exactly one operand.
+Bindings, returns, call arguments, assignments, and mixed integer binary
+operands use the same relation. Invalid implicit conversions report
+`W-TYPE-0122` instead of falling through to an unrelated unsupported path.
+NativeSubset0 preserves the logical type facts. MLIR0 keeps the existing `i64`
+physical carrier, reconstructs the source-width value with `llvm.trunc`, and
+uses `llvm.sext` or `llvm.zext` according to the verified source signedness.
+This is an optimizer-visible conversion, not host-language coercion or a heap
+object.
+
+One family fixture declares its expected exit and exact stdout inline and
+covers return, argument, binding, and alias contexts. Frontend evidence also
+covers assignment and mixed operands; general narrow binary lowering remains a
+separate operator-family gap. The C23 and Rust 2024 forms are independent
+output references with runtime inputs.
+The row is correctness-only: W still uses constant source operands, so it must
+not receive timing or ranking until equivalent runtime work exists. Explicit
+conversion syntax, target-general `Int`/`UInt` and `usize`/`isize` facts,
+128-bit integers, stable ABI/FFI, and performance remain open.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

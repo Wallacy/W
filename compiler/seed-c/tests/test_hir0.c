@@ -1888,6 +1888,67 @@ typedef enum {
 
 static void reseal_hir_fixture(void);
 
+static bool test_implicit_integer_widen_hir(void) {
+  static const char SOURCE[] =
+      "fn widen(value: i16): i16 { return value }\n"
+      "fn main(): i16 { return widen(value: 2_u8) }\n"
+      "entry(main)\n";
+  CHECK(lower(SOURCE));
+
+  uint32_t wrapper_index = W_SEED_HIR0_NONE;
+  size_t wrapper_count = 0u;
+  for (size_t value = 0u; value < fixture.hir_program.value_count;
+       value += 1u) {
+    if (fixture.hir_program.values[value].kind ==
+        W_SEED_HIR0_VALUE_INTEGER_WIDEN) {
+      wrapper_index = (uint32_t)value;
+      wrapper_count += 1u;
+    }
+  }
+  CHECK(wrapper_count == 1u && wrapper_index != W_SEED_HIR0_NONE);
+  const w_seed_hir0_value *wrapper =
+      &fixture.hir_program.values[wrapper_index];
+  CHECK(wrapper->source_type != W_SEED_HIR0_NONE &&
+        wrapper->type_index != W_SEED_HIR0_NONE &&
+        wrapper->source_type != wrapper->type_index &&
+        wrapper->left_value != W_SEED_HIR0_NONE &&
+        wrapper->left_value < fixture.hir_program.value_count &&
+        fixture.hir_program.values[wrapper->left_value].type_index ==
+            wrapper->source_type &&
+        wrapper->owner_kind == W_SEED_HIR0_VALUE_OWNER_ARGUMENT &&
+        wrapper->owner_index < fixture.hir_program.argument_count &&
+        fixture.hir_program.arguments[wrapper->owner_index].value_index ==
+            wrapper_index &&
+        fixture.hir_program.arguments[wrapper->owner_index].type_index ==
+            wrapper->type_index);
+  const w_seed_hir0_type *source_type =
+      &fixture.hir_program.types[wrapper->source_type];
+  const w_seed_hir0_type *destination_type =
+      &fixture.hir_program.types[wrapper->type_index];
+  CHECK(source_type->kind == W_SEED_HIR0_TYPE_INTEGER &&
+        !source_type->integer_is_signed &&
+        source_type->integer_bit_width == 8u &&
+        destination_type->kind == W_SEED_HIR0_TYPE_INTEGER &&
+        destination_type->integer_is_signed &&
+        destination_type->integer_bit_width == 16u);
+
+  uint8_t saved_semantic_digest[sizeof(fixture.hir_result.semantic_digest)];
+  (void)memcpy(saved_semantic_digest, fixture.hir_result.semantic_digest,
+               sizeof(saved_semantic_digest));
+  const uint32_t saved_source_type =
+      fixture.hir_values[wrapper_index].source_type;
+  fixture.hir_values[wrapper_index].source_type =
+      fixture.hir_values[wrapper_index].type_index;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  CHECK(memcmp(saved_semantic_digest, fixture.hir_result.semantic_digest,
+               sizeof(saved_semantic_digest)) != 0);
+  fixture.hir_values[wrapper_index].source_type = saved_source_type;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
 static bool expect_process_input0_rejected(const char *source,
                                            process_input0_bad_case bad) {
   CHECK(fixture_parse(source));
@@ -15687,6 +15748,7 @@ int main(int argc, char **argv) {
   }
   if (argc != 1) return 2;
   if (!test_scalar_evaluator_edges()) return 1;
+  if (!test_implicit_integer_widen_hir()) return 1;
   if (!test_frontend_inferred_call_interpolation()) return 1;
   if (!test_explicit_panic_hir()) return 1;
   if (!test_explicit_panic_rejections()) return 1;
