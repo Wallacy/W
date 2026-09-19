@@ -40,6 +40,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-compound",
   "restaurant-f64-strict",
   "restaurant-checked-integer-arithmetic",
+  "restaurant-integer-prefix",
   "restaurant-integer-wrapping",
   "restaurant-integer-widening",
   "restaurant-integer-comparison",
@@ -49,8 +50,6 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-uint-compound",
   "restaurant-unsigned",
   "restaurant-linear",
-  "restaurant-unary-negate",
-  "restaurant-unary-interpolation",
   "restaurant-mutation",
   "restaurant-conditional-mutation",
   "restaurant-bool-mutation",
@@ -113,6 +112,8 @@ const PUBLIC_WINDOWS_RUN_VARIANTS = Object.freeze({
   "compiler/seed-c/fixtures/restaurant-uint-saturating-add.w": "restaurant-uint-saturating-policy",
   "compiler/seed-c/fixtures/restaurant-uint-saturating-subtract.w": "restaurant-uint-saturating-policy",
   "compiler/seed-c/fixtures/restaurant-uint-saturating-multiply.w": "restaurant-uint-saturating-policy",
+  "compiler/seed-c/fixtures/restaurant-unary-negate.w": "restaurant-integer-prefix",
+  "compiler/seed-c/fixtures/restaurant-unary-interpolation.w": "restaurant-integer-prefix",
   "compiler/seed-c/fixtures/restaurant-while.w": "restaurant-while-post",
   "compiler/seed-c/fixtures/restaurant-while-multi.w": "restaurant-while-post",
   "compiler/seed-c/fixtures/restaurant-comparisons.w": "restaurant-comparison-composition",
@@ -210,6 +211,7 @@ export const PROCESS_ARGUMENT_WORKLOAD_IDS = Object.freeze([
 ]);
 export const RESTAURANT_F64_STRICT_WORKLOAD_ID = "restaurant-f64-strict";
 export const RESTAURANT_CHECKED_INTEGER_ARITHMETIC_WORKLOAD_ID = "restaurant-checked-integer-arithmetic";
+export const RESTAURANT_INTEGER_PREFIX_WORKLOAD_ID = "restaurant-integer-prefix";
 export const RESTAURANT_INTEGER_WRAPPING_WORKLOAD_ID = "restaurant-integer-wrapping";
 export const RESTAURANT_INTEGER_WIDENING_WORKLOAD_ID = "restaurant-integer-widening";
 export const RESTAURANT_INTEGER_COMPARISON_WORKLOAD_ID = "restaurant-integer-comparison";
@@ -1189,6 +1191,7 @@ function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PL
   if (platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) return SOURCE_ELIGIBILITY.wslDiagnostic;
   if (workload?.id === RESTAURANT_F64_STRICT_WORKLOAD_ID ||
       workload?.id === RESTAURANT_CHECKED_INTEGER_ARITHMETIC_WORKLOAD_ID ||
+      workload?.id === RESTAURANT_INTEGER_PREFIX_WORKLOAD_ID ||
       workload?.id === RESTAURANT_INTEGER_WRAPPING_WORKLOAD_ID ||
       workload?.id === RESTAURANT_INTEGER_WIDENING_WORKLOAD_ID ||
       workload?.id === RESTAURANT_INTEGER_COMPARISON_WORKLOAD_ID ||

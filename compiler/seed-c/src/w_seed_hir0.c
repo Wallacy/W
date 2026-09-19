@@ -3778,23 +3778,37 @@ static bool frontend_scalar_if_tree_ok(
     const bool numeric_negate = text_is(value->operator_text, "-");
     const bool bit_not = text_is(value->operator_text, "~");
     return ((logical_not && frontend_expression_is_bool(output, value)) ||
-            (numeric_negate && (frontend_expression_is_i64(output, value) ||
-                                frontend_expression_is_f64(output, value))) ||
-            (bit_not && frontend_expression_is_i64(output, value))) &&
+            (numeric_negate &&
+             (frontend_expression_is_signed_integer(output, value) ||
+              frontend_expression_is_f64(output, value))) ||
+            (bit_not && frontend_expression_is_integer(output, value))) &&
            !value->has_bool_value && !value->has_integer_value &&
            !value->has_float_value &&
            value->right == W_SEED_FRONTEND_NONE &&
            value->left != W_SEED_FRONTEND_NONE &&
            (size_t)value->left < input->frontend_result->written.expressions &&
+           output->expressions[value->left].inferred_type !=
+               W_SEED_FRONTEND_NONE &&
+           (size_t)output->expressions[value->left].inferred_type <
+               input->frontend_result->written.types &&
            ((logical_not && frontend_expression_is_bool(
                                 output, &output->expressions[value->left])) ||
             (numeric_negate &&
-             (frontend_expression_is_i64(
+             (frontend_expression_is_signed_integer(
                   output, &output->expressions[value->left]) ||
               frontend_expression_is_f64(
-                  output, &output->expressions[value->left]))) ||
-            (bit_not && frontend_expression_is_i64(
-                            output, &output->expressions[value->left]))) &&
+                  output, &output->expressions[value->left])) &&
+             frontend_supported_types_equal_for_input(
+                 input, &output->types[value->inferred_type],
+                 &output->types[output->expressions[value->left]
+                                    .inferred_type])) ||
+            (bit_not &&
+             frontend_expression_is_integer(
+                 output, &output->expressions[value->left]) &&
+             frontend_supported_types_equal_for_input(
+                 input, &output->types[value->inferred_type],
+                 &output->types[output->expressions[value->left]
+                                    .inferred_type]))) &&
            frontend_scalar_if_tree_ok(input, module_index, function_index,
                                       document_index, value->left,
                                       allow_logical, false, depth + 1u);
@@ -4043,31 +4057,38 @@ static bool frontend_value_tree_ok(
         value->right != W_SEED_FRONTEND_NONE ||
         value->inferred_type == W_SEED_FRONTEND_NONE ||
         (size_t)value->inferred_type >= result->written.types ||
-        (logical_not
-             ? !frontend_expression_is_bool(output, value)
-             : (bit_not
-                    ? !(frontend_expression_is_i64(output, value) ||
-                        frontend_expression_is_u64(output, value))
-             : !(frontend_expression_is_signed_integer(output, value) ||
-                 frontend_expression_is_f64(output, value)))) ||
         output->expressions[value->left].inferred_type ==
             W_SEED_FRONTEND_NONE ||
         (size_t)output->expressions[value->left].inferred_type >=
             result->written.types ||
         (logical_not
+             ? !frontend_expression_is_bool(output, value)
+             : (bit_not
+                    ? !frontend_expression_is_integer(output, value)
+             : (!(frontend_expression_is_signed_integer(output, value) ||
+                  frontend_expression_is_f64(output, value)) ||
+                !frontend_supported_types_equal_for_input(
+                    input, &output->types[value->inferred_type],
+                    &output->types[output->expressions[value->left]
+                                       .inferred_type])))) ||
+        (logical_not
              ? !frontend_expression_is_bool(
                    output, &output->expressions[value->left])
              : (bit_not
-                    ? !((frontend_expression_is_i64(output, value) &&
-                         frontend_expression_is_i64(
+                    ? (!frontend_expression_is_integer(
+                           output, &output->expressions[value->left]) ||
+                       !frontend_supported_types_equal_for_input(
+                           input, &output->types[value->inferred_type],
+                           &output->types[output->expressions[value->left]
+                                              .inferred_type]))
+                    : (!(frontend_expression_is_signed_integer(
+                             output, &output->expressions[value->left]) ||
+                         frontend_expression_is_f64(
                              output, &output->expressions[value->left])) ||
-                        (frontend_expression_is_u64(output, value) &&
-                         frontend_expression_is_u64(
-                             output, &output->expressions[value->left])))
-                    : !(frontend_expression_is_signed_integer(
-                            output, &output->expressions[value->left]) ||
-                        frontend_expression_is_f64(
-                            output, &output->expressions[value->left])))) ||
+                       !frontend_supported_types_equal_for_input(
+                           input, &output->types[value->inferred_type],
+                           &output->types[output->expressions[value->left]
+                                              .inferred_type])))) ||
         !frontend_unary_has_no_resolution(value) ||
         value->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
         value->const_byte_offset != W_SEED_FRONTEND_NONE ||
@@ -12083,7 +12104,8 @@ static uint32_t hir0_emit_value_m2(
     const bool floating = frontend_expression_is_f64(context->frontend,
                                                      source);
     const bool unsigned_bit_not =
-        bit_not && frontend_expression_is_u64(context->frontend, source);
+        bit_not && frontend_expression_is_unsigned_integer(
+                       context->frontend, source);
     *target = (w_seed_hir0_value){
         .kind = floating ? W_SEED_HIR0_VALUE_UNARY_FLOAT
                          : (unsigned_bit_not
@@ -12094,7 +12116,7 @@ static uint32_t hir0_emit_value_m2(
         .owner_kind = owner_kind,
         .owner_index = owner_index,
         .owner_ordinal = owner_ordinal,
-        .type_index = floating || unsigned_bit_not || numeric_negate
+        .type_index = floating || unsigned_bit_not || numeric_negate || bit_not
                           ? hir_type_from_frontend(
                                 context->frontend, context->frontend_result,
                                 source->inferred_type)
@@ -15751,6 +15773,15 @@ static bool verify_value_tree(
         value->unary_operator == W_SEED_HIR0_UNARY_OVERFLOWING_NEGATE;
     const bool saturating =
         value->unary_operator == W_SEED_HIR0_UNARY_SATURATING_NEGATE;
+    bool bit_not_signed = true;
+    uint16_t bit_not_width = 0u;
+    const bool generic_unsigned_bit_not =
+        value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT &&
+        hir_integer_type_facts(program, value->type_index,
+                               &bit_not_signed, &bit_not_width) &&
+        !bit_not_signed && value->left_value < program->value_count &&
+        hir_integer_types_equal(program, value->type_index,
+                                program->values[value->left_value].type_index);
     bool result_signed = false;
     uint16_t result_width = 0u;
     const bool generic_wrapping =
@@ -15770,7 +15801,7 @@ static bool verify_value_tree(
          value->unary_operator != W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS &&
          value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BITS &&
          value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BYTES) ||
-        (!generic_wrapping &&
+        (!generic_wrapping && !generic_unsigned_bit_not &&
          (!hir_type_index_valid(program, value->type_index) ||
           program->types[value->type_index].kind !=
               (overflowing ? W_SEED_HIR0_TYPE_U64_BOOL_TUPLE
@@ -15791,7 +15822,7 @@ static bool verify_value_tree(
             root_index, 0u, current_block, current_instruction, source_length,
             depth + 1u, value_cursor, segment_cursor, byte_cursor) ||
         (size_t)root_index != *value_cursor ||
-        (!generic_wrapping &&
+        (!generic_wrapping && !generic_unsigned_bit_not &&
          (!hir_type_index_valid(
               program, program->values[value->left_value].type_index) ||
           program->types[program->values[value->left_value].type_index].kind !=

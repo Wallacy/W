@@ -70,6 +70,8 @@ const restaurantCheckedIntegerArithmeticFixture = resolve(seedDirectory,
   "fixtures", "restaurant-checked-integer-arithmetic.w")
 const restaurantIntegerWrappingFixture = resolve(seedDirectory,
   "fixtures", "restaurant-integer-wrapping.w")
+const restaurantIntegerPrefixFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-integer-prefix.w")
 const restaurantIntegerWideningFixture = resolve(seedDirectory,
   "fixtures", "restaurant-integer-widening.w")
 const restaurantUIntWrappingAddFixture = resolve(seedDirectory,
@@ -763,6 +765,7 @@ try {
     "runtime_checked_u16_underflow.w")
   const runtimeCheckedI16MultiplyOverflow = join(fixtureDirectory,
     "runtime_checked_i16_multiply_overflow.w")
+  const runtimeNegationMinimums = []
   const empty = join(fixtureDirectory, "empty.w")
   const zero = join(fixtureDirectory, "zero.w")
   const oversize = join(fixtureDirectory, "oversize.w")
@@ -851,6 +854,22 @@ try {
     "entry { print(\"must not commit\") " +
     "let result = multiply(left: 200_i16, right: 200_i16) " +
     "print(\"${result}\") }\n")
+  for (const [type, maximum, suffix] of [
+    ["i8", "127", "_i8"],
+    ["i16", "32767", "_i16"],
+    ["i32", "2147483647", "_i32"],
+    ["i64", "9223372036854775807", "_i64"],
+    ["Int", "9223372036854775807", "_i64"],
+  ]) {
+    const path = join(fixtureDirectory,
+      `runtime_${type.toLowerCase()}_negation_minimum.w`)
+    await writeFile(path,
+      "fn negate(value: " + type + "): " + type + " { return -value }\n" +
+      "entry { print(\"must not commit\") " +
+      "let result = negate(value: ~" + maximum + suffix + ") " +
+      "print(\"${result}\") }\n")
+    runtimeNegationMinimums.push([path, `${type} unary negation of logical minimum`])
+  }
   await writeFile(empty, "fn main() { print(\"\") }\nentry(main)\n")
   await writeFile(zero, Buffer.alloc(0))
   await writeFile(oversize, Buffer.alloc(4097, 0x70))
@@ -1065,6 +1084,13 @@ try {
       "Int -4000000000/-6000000000/-5000000000000000000; divrem -5/0; compound -2\n" +
       "UInt 9000000000/3000000000/18000000000000000000; divrem 2/0; compound 2999999998\n", "utf8"),
     "Restaurant checked signed/unsigned integer arithmetic family")
+  expectSuccess(binary, ["run", toWsl(restaurantIntegerPrefixFixture)],
+    Buffer.from(
+      "i8 -7/-43\ni16 -7/-43\ni32 -7/-43\ni64 -7/-43\n" +
+      "Int -7/-43\nu8 170\nu16 65450\nu32 4294967210\n" +
+      "u64 18446744073709551530\nUInt 18446744073709551530\n" +
+      "literal -7\n", "utf8"),
+    "Restaurant integer prefix width and signedness family")
   expectSuccess(binary, ["run", toWsl(restaurantIntegerWrappingFixture)],
     Buffer.from(
       "i8/u8 -128/0\ni16/u16 32767/2\ni32/u32 -2/4294967295\n" +
@@ -1214,6 +1240,12 @@ try {
     [runtimeCheckedU16Underflow, "unsigned u16 checked compound subtraction underflow"],
     [runtimeCheckedI16MultiplyOverflow, "signed i16 checked multiplication overflow"],
   ]) {
+    const fault = invoke(binary, ["run", toWsl(path)])
+    assert(fault.exitCode !== 0 && fault.stdout.length === 0 &&
+      fault.stderr.length === 0,
+    `${label} did not trap before committing output: ${resultSummary(fault)}`)
+  }
+  for (const [path, label] of runtimeNegationMinimums) {
     const fault = invoke(binary, ["run", toWsl(path)])
     assert(fault.exitCode !== 0 && fault.stdout.length === 0 &&
       fault.stderr.length === 0,

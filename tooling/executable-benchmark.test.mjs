@@ -43,6 +43,7 @@ import {
   PROCESS_HANDLER_LIFECYCLE_STRUCTURE_CLASS,
   PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID,
   RESTAURANT_F64_STRICT_WORKLOAD_ID,
+  RESTAURANT_INTEGER_PREFIX_WORKLOAD_ID,
   RESTAURANT_INTEGER_WRAPPING_WORKLOAD_ID,
   RESTAURANT_INTEGER_WIDENING_WORKLOAD_ID,
   RESTAURANT_INTEGER_COMPARISON_WORKLOAD_ID,
@@ -193,6 +194,9 @@ test("source-local expected-output comments are opt-in and exact", () => {
     "benchmarks/executable/restaurant_integer_wrapping.c",
     "benchmarks/executable/restaurant_integer_wrapping.rs",
     "compiler/seed-c/fixtures/restaurant-integer-wrapping.w",
+    "benchmarks/executable/restaurant_integer_prefix.c",
+    "benchmarks/executable/restaurant_integer_prefix.rs",
+    "compiler/seed-c/fixtures/restaurant-integer-prefix.w",
     "benchmarks/executable/restaurant_integer_widening.c",
     "benchmarks/executable/restaurant_integer_widening.rs",
     "compiler/seed-c/fixtures/restaurant-integer-widening.w",
@@ -774,6 +778,101 @@ test("UInt compound catalog keeps correctness separate from ranking", () => {
   assert.match(rust, /value >> \(64 - count\)/u);
   assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
   assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
+});
+
+test("fixed-width integer prefix family is one correctness-only witness", () => {
+  const workload = documents.catalog.workloads.find((item) =>
+    item.id === RESTAURANT_INTEGER_PREFIX_WORKLOAD_ID);
+  assert.ok(workload);
+  assert.equal(workload.structureClass, "public-end-to-end");
+  assert.equal(workload.status, "source-oracle-ready");
+  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
+  assert.equal(workload.demoEvidence, "bounded-w-demo");
+  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.equal(workload.scope,
+    "Validate fixed-input signed unary negation and bitwise complement over i8/i16/i32/i64 and Int plus unsigned complement over u8/u16/u32/u64 and UInt, alongside literal prefix negation. W may fold literal call arguments while C23 and Rust preserve runtime operands, so performance ranking is deferred until runtime-equivalent W work exists.");
+  assert.deepEqual(workload.oracle, {
+    kind: "exact-output",
+    status: "source-backed",
+    exitCode: 0,
+    stdout:
+      "i8 -7/-43\ni16 -7/-43\ni32 -7/-43\ni64 -7/-43\nInt -7/-43\n" +
+      "u8 170\nu16 65450\nu32 4294967210\nu64 18446744073709551530\n" +
+      "UInt 18446744073709551530\nliteral -7\n",
+    stderr: "",
+  });
+  assert.deepEqual(workload.blockedLanguages, []);
+  assert.deepEqual(workload.blockers, [
+    "w-integer-prefix-compile-time-folded",
+    "runtime-integer-prefix-equivalence",
+  ]);
+  assert.deepEqual(workload.sources.map((source) =>
+    [source.language, source.platformTarget]), [
+    ["w", EXECUTABLE_PLATFORM_TARGET],
+    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
+    ["c", EXECUTABLE_PLATFORM_TARGET],
+    ["rust", EXECUTABLE_PLATFORM_TARGET],
+  ]);
+  assert.ok(workload.sources.every((source) =>
+    source.recipeClass === "restaurant-integer-prefix-release" &&
+    source.quality === "correctness-gate"));
+  assert.deepEqual(workload.sources
+    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
+    .map((source) => [source.comparability, source.eligibility]), [
+      ["deferred-until-M3b", "deferred-to-M3b"],
+      ["deferred-until-M3b", "deferred-to-M3b"],
+      ["deferred-until-M3b", "deferred-to-M3b"],
+    ]);
+  const wsl = workload.sources.find((source) =>
+    source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
+  assert.deepEqual([wsl.comparability, wsl.eligibility], [
+    "same-physical-hardware-diagnostic-only",
+    "same-physical-hardware-diagnostic-only",
+  ]);
+  assert.ok(!documents.catalog.bestMetrics.entries.some((entry) =>
+    entry.workloadId === RESTAURANT_INTEGER_PREFIX_WORKLOAD_ID),
+  "correctness-only integer prefixes must not acquire timing or ranking data");
+
+  const c = readFileSync(
+    `${ROOT}/benchmarks/executable/restaurant_integer_prefix.c`, "utf8");
+  const rust = readFileSync(
+    `${ROOT}/benchmarks/executable/restaurant_integer_prefix.rs`, "utf8");
+  const w = readFileSync(
+    `${ROOT}/compiler/seed-c/fixtures/restaurant-integer-prefix.w`, "utf8");
+  for (const [name, source] of [["W", w], ["C23", c], ["Rust", rust]]) {
+    assert.deepEqual(parseExecutableSourceExpectation(source), {
+      exitCode: workload.oracle.exitCode,
+      stdout: workload.oracle.stdout,
+      stderr: workload.oracle.stderr,
+      errors: [],
+    }, `${name} source must declare the exact local oracle`);
+    assert.deepEqual(validateExecutableSourceExpectation(source, workload.oracle, `${name} source`), []);
+  }
+  assert.match(w, /fn negate_i8\(value: i8\): i8 \{ return -value \}/u);
+  assert.match(w, /fn complement_u64\(value: u64\): u64 \{ return ~value \}/u);
+  assert.match(w, /negate_i8\(value: 7_i8\)/u);
+  assert.match(w, /complement_u64\(value: 85_u64\)/u);
+  assert.match(c, /volatile int8_t signed8/u);
+  assert.match(c, /volatile uint64_t uint_value/u);
+  assert.match(c, /\(int8_t\)~bits8/u);
+  assert.match(c, /\(uint64_t\)~uint_value/u);
+  assert.match(rust, /black_box\(7_i8\)/u);
+  assert.match(rust, /black_box\(0x55_u64\)/u);
+  assert.match(rust, /!bits8/u);
+  assert.match(rust, /!uint_value/u);
+  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
+  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
+
+  for (const id of ["restaurant-unary-negate", "restaurant-unary-interpolation"]) {
+    assert.ok(!documents.catalog.workloads.some((item) => item.id === id),
+      `${id} must no longer be an independent benchmark row`);
+    assert.ok(!documents.catalog.bestMetrics.entries.some((entry) => entry.workloadId === id),
+      `${id} must not retain live best-metric cells`);
+  }
+  readFileSync(`${ROOT}/compiler/seed-c/fixtures/restaurant-unary-negate.w`, "utf8");
+  readFileSync(`${ROOT}/compiler/seed-c/fixtures/restaurant-unary-interpolation.w`, "utf8");
+  assert.ok(documents.catalog.workloads.some((item) => item.id === "restaurant-bitwise"));
+  assert.ok(documents.catalog.workloads.some((item) => item.id === RESTAURANT_UINT_BITWISE_WORKLOAD_ID));
 });
 
 test("fixed-width integer wrapping policy catalog keeps one matrix separate from ranking", () => {

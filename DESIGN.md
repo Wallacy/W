@@ -37796,9 +37796,11 @@ function or helper. Hello and the dead-function witness therefore contain no
 checked helper. Constant overflow is rejected before MLIR emission. A safe
 fully constant `/` or `%` tree remains admitted and emits `llvm.sdiv` or
 `llvm.srem`. W-1551 supersedes only this cut's former rejection of dynamic or
-runtime `/` and `%`; faulting constant forms still fail closed. W-1552
-separately supersedes the unary-negation exclusion. Power, other integer
-widths, named numeric APIs, and general panic runtime remain outside the cut.
+runtime `/` and `%`; faulting constant forms still fail closed. W-1552 first
+superseded the unary-negation exclusion for signed `i64`; W-1640 later
+supersedes that single-width implementation boundary. Power, other integer
+widths at this historical cut, named numeric APIs, and general panic runtime
+remain outside the cut.
 
 The source-backed fixture
 `compiler/seed-c/fixtures/restaurant-checked-arithmetic.w` uses `entry {}` and
@@ -38370,7 +38372,7 @@ to the family fixture and their zero/overflow behavior remains in focused
 Windows and Linux/WSL gates. W-1551 is provenance, not a current separate
 surface or benchmark contract.
 
-#### 26.4.1.33 W-1552 — checked signed-`i64` unary negation (Current form)
+#### 26.4.1.33 W-1552 — checked signed-`i64` unary negation (historical first implementation; superseded by W-1640)
 
 W-1552 lowers the existing prefix `-` operator for the bounded signed-`i64`
 value graph. Frontend evaluation remains once-only and source ordered. HIR0
@@ -38399,10 +38401,12 @@ artifact schemas.
 The Restaurant fixture `compiler/seed-c/fixtures/restaurant-unary-negate.w`
 executes exact stdout `Balance -7\n` through Linux WRT0 and native Windows.
 The Linux gate also proves the `i64.min` runtime fault with empty stdout. This
-cut does not admit unsigned negation, other widths, named numeric APIs,
-`PanicEvent`, payload or cleanup, other targets, timing, ranking, or
-performance evidence. W-1553 separately closes the direct interpolation-root
-composition gap.
+was the first bounded implementation and evidence point, not a width-specific
+language rule. W-1640 supersedes its signed-`i64`-only implementation boundary
+with type-fact-driven fixed-width negation and complement. W-1553 separately
+remains the semantic owner of direct interpolation-root composition. General
+panic events, payload or cleanup, other targets, timing, ranking, and
+performance evidence remain outside this original cut.
 
 #### 26.4.1.34 W-1553 — direct unary interpolation composition (Current form)
 
@@ -38432,6 +38436,9 @@ composition proof does not broaden interpolation display protocols, numeric
 defaulting outside this seed cut, the direct minimum-value literal spelling,
 unsigned negation, other widths or targets, timing, ranking, or performance
 evidence. Frontend, HIR0, MLIR0 and Native0 public record schemas are unchanged.
+W-1640 keeps this direct composition rule and folds its executable case into
+`compiler/seed-c/fixtures/restaurant-integer-prefix.w`; the family witness owns
+the current benchmark row rather than a standalone W-1553 row.
 
 #### 26.4.1.35 W-1554 — straight-line local mutation as verified SSA (Current form)
 
@@ -42110,10 +42117,51 @@ termination with empty stdout and stderr for runtime faults, and prove the
 defined signed minimum remainder result. Independent C23 and Rust 2024 sources
 are correctness references only because their operands are runtime-backed
 while W may fold literals. W-1639 supersedes W-1551 as the current `/` and `%`
-contract. Named numeric APIs, checked negation/power/shifts outside their own
-decisions, `usize`/`isize`, 128-bit integers, target-general aliases, stable
-ABI/FFI, general panic payload/cleanup, other targets, and performance remain
-open.
+contract. Named numeric APIs, named negation policies beyond W-1640's prefix
+form, power and shifts outside their own decisions, `usize`/`isize`, 128-bit
+integers, target-general aliases, stable ABI/FFI, general panic payload/cleanup,
+other targets, and performance remain open. W-1640 supplies the current
+prefix-negation and bit-complement boundary.
+
+#### 26.4.1.120 W-1640 — fixed-width integer prefix family
+
+W-1640 updates implementation coverage of existing integer prefix operators;
+it adds no syntax, precedence tier, per-width public operator identity, or
+numeric API. One generic operation identity combines with canonical integer
+type facts for signedness and logical width. The supported fixed-width domain
+is `i8`/`u8`, `i16`/`u16`, `i32`/`u32`, and `i64`/`u64`, plus the current
+x86-64 `Int`/`UInt` aliases.
+
+Checked unary `-` accepts signed `i8`, `i16`, `i32`, `i64`, and `Int`; unary
+minus on unsigned integers remains invalid. A signed logical minimum cannot be
+negated: a constant form fails before artifact publication, while a runtime
+failure must reach the trap edge before target subtraction or later observable
+output. Unary `~` is a total, width-preserving integer bit complement for both
+signed and unsigned types in the supported domain. Narrow complements retain
+their logical width even though the current seed backend carries values in
+physical `i64`.
+
+The operator meanings remain distinct: Bool `!` is logical not, `-` on `f64`
+is floating negation, and named `wrappingNegate`/saturating/overflowing
+negation APIs keep their own contracts. The direct interpolation composition
+rule for a leading prefix-negative expression remains W-1553's contract and
+does not change interpolation display behavior.
+
+The family crosspoint is
+`compiler/seed-c/fixtures/restaurant-integer-prefix.w`, whose source declares
+the expected exit and exact output. Focused test sources are present.
+HIR/scalar-evaluator cases cover the width/type-fact matrix and minimum
+failure; NativeSubset0/MLIR cases cover type-fact selection and lowering. The
+current compiler evidence covers the maintained CRT-free Windows and Linux/WSL
+routes, including the minimum-failure boundary before observable output. The
+reviewed type-equality preflights, per-width lowering assertions, focused
+compiler units, and public MLIR/Windows/Linux gates pass on the same final
+source. C23 and Rust 2024 are correctness references, not performance
+competitors while W may fold literals. The family benchmark disposition is
+`correctness-reference-no-ranking`, and it remains not-performance-ready until
+equivalent runtime work exists. Other targets, `usize`/`isize`, 128-bit
+integers, target-general aliases, stable ABI/FFI, general panic payload/cleanup,
+named numeric APIs, and equivalent-runtime performance remain gaps.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

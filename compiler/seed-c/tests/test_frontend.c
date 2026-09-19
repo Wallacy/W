@@ -5405,11 +5405,22 @@ static bool test_u64_binary_frontend(void) {
         comparison_count[5] == 1u && bitwise_count[0] == 1u &&
         bitwise_count[1] == 1u && bitwise_count[2] == 1u);
 
-  CHECK(fixture_run(value,
-                    "fn bad(value: UInt): UInt { return -value }\n"
-                    "entry { }\n"));
-  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
-        has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+  static const char *UNSIGNED_PREFIX_TYPES[] = {"u8", "u16", "u32", "u64",
+                                                 "UInt"};
+  char unsigned_prefix_source[128];
+  for (size_t index = 0u;
+       index < sizeof(UNSIGNED_PREFIX_TYPES) /
+                   sizeof(UNSIGNED_PREFIX_TYPES[0]);
+       index += 1u) {
+    const int written = snprintf(
+        unsigned_prefix_source, sizeof(unsigned_prefix_source),
+        "fn bad(value: %s): %s { return -value }\nentry { }\n",
+        UNSIGNED_PREFIX_TYPES[index], UNSIGNED_PREFIX_TYPES[index]);
+    CHECK(written > 0 && (size_t)written < sizeof(unsigned_prefix_source));
+    CHECK(fixture_run(value, unsigned_prefix_source));
+    CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+          has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+  }
   CHECK(fixture_run(value,
                     "fn invert(value: UInt): UInt { return ~value }\n"
                     "entry { }\n"));

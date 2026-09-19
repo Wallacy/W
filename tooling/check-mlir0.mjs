@@ -37,6 +37,8 @@ const restaurantCheckedIntegerArithmeticFixture = resolve(seedDirectory,
   "fixtures", "restaurant-checked-integer-arithmetic.w")
 const restaurantIntegerWrappingFixture = resolve(seedDirectory,
   "fixtures", "restaurant-integer-wrapping.w")
+const restaurantIntegerPrefixFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-integer-prefix.w")
 const restaurantIntegerWideningFixture = resolve(seedDirectory,
   "fixtures", "restaurant-integer-widening.w")
 const restaurantUIntWrappingAddFixture = resolve(seedDirectory,
@@ -476,6 +478,23 @@ try {
     "runtime-remainder-zero.w")
   const runtimeNegationOverflowPath = resolve(artifactDirectory,
     "runtime-negation-overflow.w")
+  const runtimeIntegerNegationMinimumPaths = []
+  for (const [type, maximum, suffix] of [
+    ["i8", "127", "_i8"],
+    ["i16", "32767", "_i16"],
+    ["i32", "2147483647", "_i32"],
+    ["i64", "9223372036854775807", "_i64"],
+    ["Int", "9223372036854775807", "_i64"],
+  ]) {
+    const name = `runtime-negation-minimum-${type.toLowerCase()}`
+    const source = resolve(artifactDirectory, `${name}.w`)
+    await writeFile(source,
+      `fn negate(value: ${type}): ${type} { return -value }\n` +
+      `entry { print("must not commit") ` +
+      `let result = negate(value: ~${maximum}${suffix}) ` +
+      `print("\${result}") }\n`)
+    runtimeIntegerNegationMinimumPaths.push({ name, source })
+  }
   const runtimeShiftCountPath = resolve(artifactDirectory,
     "runtime-shift-count.w")
   const runtimeUnsignedShiftOverflowPath = resolve(artifactDirectory,
@@ -726,6 +745,12 @@ try {
         "i8/u8 -128/0\ni16/u16 32767/2\ni32/u32 -2/4294967295\n" +
         "i64/u64 -9223372036854775808/0\n" +
         "Int/UInt -9223372036854775808/18446744073709551615\n", "utf8") },
+    { name: "restaurant-integer-prefix", source: restaurantIntegerPrefixFixture,
+      expected: Buffer.from(
+        "i8 -7/-43\ni16 -7/-43\ni32 -7/-43\ni64 -7/-43\n" +
+        "Int -7/-43\nu8 170\nu16 65450\nu32 4294967210\n" +
+        "u64 18446744073709551530\nUInt 18446744073709551530\n" +
+        "literal -7\n", "utf8") },
     { name: "restaurant-integer-widening", source: restaurantIntegerWideningFixture,
       expected: Buffer.from("Widen -7/200/202/203\n", "utf8") },
     { name: "restaurant-uint-wrapping-add",
@@ -896,6 +921,7 @@ try {
     { name: "runtime-division-overflow", source: runtimeDivisionOverflowPath },
     { name: "runtime-remainder-zero", source: runtimeRemainderZeroPath },
     { name: "runtime-negation-overflow", source: runtimeNegationOverflowPath },
+    ...runtimeIntegerNegationMinimumPaths,
     { name: "runtime-shift-count", source: runtimeShiftCountPath },
     { name: "runtime-unsigned-shift-overflow",
       source: runtimeUnsignedShiftOverflowPath },
@@ -1399,6 +1425,17 @@ try {
       "@w_seed_checked_subtract_i64") &&
     artifacts.get("direct-unary-interpolation").includes(" = llvm.sub "),
   "checked runtime or direct constant unary negation was not retained")
+  const integerPrefixArtifact = artifacts.get("restaurant-integer-prefix")
+    .toString("utf8")
+  assert((integerPrefixArtifact.match(
+    /llvm\.call @w_seed_checked_subtract_i64\(/gu) ?? []).length === 5 &&
+    (integerPrefixArtifact.match(/llvm\.xor /gu) ?? []).length >= 10 &&
+    integerPrefixArtifact.includes("llvm.trunc") &&
+    integerPrefixArtifact.includes("llvm.sext") &&
+    integerPrefixArtifact.includes("llvm.zext") &&
+    integerPrefixArtifact.includes("llvm.call @w_fn_0") &&
+    !integerPrefixArtifact.includes("w_seed_checked_bit"),
+  "integer prefix family lost runtime-shaped checked negation or logical-width bitwise lowering")
   assert(artifacts.get("direct-call").includes("llvm.call @w_fn_0") &&
     artifacts.get("direct-call").includes(
       "llvm.call @w_seed_checked_multiply_i64(%v4, %v5, %v6_checked_width) : " +

@@ -16,6 +16,7 @@
 #include "w_seed_product_closure0.h"
 #include "w_seed_scalar_evaluator0.h"
 
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -13027,6 +13028,227 @@ static bool test_u64_unary_bit_not_positive(void) {
   return true;
 }
 
+static bool test_frontend_unary_type_fact_preflight(void) {
+  static const char SOURCE[] =
+      "fn wide(): i16 { return -7_i16 }\n"
+      "fn floating(): f64 { return -1.5 }\n"
+      "entry { let narrow = 1_i8 }\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_input input = hir_input();
+  uint32_t narrow_type = W_SEED_FRONTEND_NONE;
+  uint32_t integer_negate = W_SEED_FRONTEND_NONE;
+  uint32_t float_negate = W_SEED_FRONTEND_NONE;
+  for (size_t type_index = 0u; type_index < fixture.result.written.types;
+       type_index += 1u) {
+    const w_seed_frontend_type *type = &fixture.types[type_index];
+    if (type->kind == W_SEED_FRONTEND_TYPE_INTEGER && type->is_signed &&
+        type->bit_width == 8u)
+      narrow_type = (uint32_t)type_index;
+  }
+  for (size_t expression_index = 0u;
+       expression_index < fixture.result.written.expressions;
+       expression_index += 1u) {
+    const w_seed_frontend_expression *expression =
+        &fixture.expressions[expression_index];
+    if (expression->kind != W_SEED_FRONTEND_EXPR_UNARY ||
+        !text_is(expression->operator_text, "-"))
+      continue;
+    CHECK(expression->inferred_type < fixture.result.written.types);
+    const w_seed_frontend_type *type =
+        &fixture.types[expression->inferred_type];
+    if (type->kind == W_SEED_FRONTEND_TYPE_INTEGER && type->is_signed &&
+        type->bit_width == 16u)
+      integer_negate = (uint32_t)expression_index;
+    if (type->kind == W_SEED_FRONTEND_TYPE_FLOAT && type->bit_width == 64u)
+      float_negate = (uint32_t)expression_index;
+  }
+  CHECK(narrow_type != W_SEED_FRONTEND_NONE &&
+        integer_negate != W_SEED_FRONTEND_NONE &&
+        float_negate != W_SEED_FRONTEND_NONE);
+
+  const uint32_t mismatched_unaries[] = {integer_negate, float_negate};
+  for (size_t index = 0u;
+       index < sizeof(mismatched_unaries) / sizeof(mismatched_unaries[0]);
+       index += 1u) {
+    const uint32_t unary_index = mismatched_unaries[index];
+    const w_seed_frontend_expression saved_unary =
+        fixture.expressions[unary_index];
+    CHECK(saved_unary.left != W_SEED_FRONTEND_NONE &&
+          saved_unary.left < fixture.result.written.expressions &&
+          saved_unary.owner_function < fixture.result.written.functions);
+    fixture.expressions[unary_index].inferred_type = narrow_type;
+    const w_seed_frontend_expression *unary =
+        &fixture.expressions[unary_index];
+    CHECK(unary->module_index < fixture.result.written.modules);
+    const size_t document_index =
+        fixture.modules[unary->module_index].document_index;
+    CHECK(!frontend_scalar_if_tree_ok(
+        &input, unary->module_index, unary->owner_function, document_index,
+        unary_index, false, true, 0u));
+
+    size_t expression_cursor = unary->left;
+    size_t segment_cursor = 0u;
+    size_t const_byte_cursor = 0u;
+    size_t value_total = 0u;
+    size_t segment_total = 0u;
+    size_t value_bytes = 0u;
+    size_t call_total = 0u;
+    size_t argument_total = 0u;
+    size_t logical_total = 0u;
+    CHECK(!frontend_value_tree_ok(
+        &input, unary->module_index, unary->owner_function, document_index,
+        W_SEED_FRONTEND_NONE, unary_index, 0u, &expression_cursor,
+        &segment_cursor, &const_byte_cursor, &value_total, &segment_total,
+        &value_bytes, &call_total, &argument_total, &logical_total));
+    fixture.expressions[unary_index] = saved_unary;
+  }
+  return true;
+}
+
+static bool test_integer_prefix_width_matrix(void) {
+  typedef struct {
+    const char *type_name;
+    const char *literal_suffix;
+    bool is_signed;
+    uint16_t bit_width;
+  } integer_case;
+  static const integer_case CASES[] = {
+      {"i8", "i8", true, 8u},     {"i16", "i16", true, 16u},
+      {"i32", "i32", true, 32u},  {"i64", "i64", true, 64u},
+      {"Int", "i64", true, 64u},  {"u8", "u8", false, 8u},
+      {"u16", "u16", false, 16u}, {"u32", "u32", false, 32u},
+      {"u64", "u64", false, 64u}, {"UInt", "u64", false, 64u},
+  };
+  char source[768];
+
+  for (size_t case_index = 0u;
+       case_index < sizeof(CASES) / sizeof(CASES[0]); case_index += 1u) {
+    const integer_case *integer = &CASES[case_index];
+    const size_t operation_count = integer->is_signed ? 2u : 1u;
+    for (size_t operation_index = 0u; operation_index < operation_count;
+         operation_index += 1u) {
+      const bool negate = integer->is_signed && operation_index == 0u;
+      const char *operator_text = negate ? "-" : "~";
+      const uint64_t input_bits = negate ? 7u : (integer->is_signed ? 42u : 85u);
+      const uint64_t mask = integer->bit_width == 64u
+                                ? UINT64_MAX
+                                : (UINT64_C(1) << integer->bit_width) - 1u;
+      const int64_t expected_signed = negate ? -7 : -43;
+      const uint64_t expected_unsigned = (~input_bits) & mask;
+      const bool add_forgery_types = case_index == 0u && operation_index == 0u;
+      const int written = snprintf(
+          source, sizeof(source),
+          add_forgery_types
+              ? "fn apply(value: %s): %s { return %svalue }\n"
+                "fn wrongWidth(value: i16): i16 { return value }\n"
+                "fn wrongSign(value: u8): u8 { return value }\n"
+                "entry { let result = apply(value: %" PRIu64 "_%s) }\n"
+              : "fn apply(value: %s): %s { return %svalue }\n"
+                "entry { let result = apply(value: %" PRIu64 "_%s) }\n",
+          integer->type_name, integer->type_name, operator_text, input_bits,
+          integer->literal_suffix);
+      CHECK(written > 0 && (size_t)written < sizeof(source));
+      CHECK(lower(source));
+
+      const w_seed_hir0_program *program = &fixture.hir_program;
+      uint32_t unary_index = W_SEED_HIR0_NONE;
+      for (size_t value_index = 0u; value_index < program->value_count;
+           value_index += 1u) {
+        const w_seed_hir0_value *value = &program->values[value_index];
+        if (value->kind != (integer->is_signed
+                                ? W_SEED_HIR0_VALUE_UNARY_I64
+                                : W_SEED_HIR0_VALUE_UNARY_U64))
+          continue;
+        CHECK(unary_index == W_SEED_HIR0_NONE);
+        unary_index = (uint32_t)value_index;
+      }
+      CHECK(unary_index != W_SEED_HIR0_NONE && program->call_count == 1u &&
+            program->types[program->values[unary_index].type_index]
+                    .integer_is_signed == integer->is_signed &&
+            program->types[program->values[unary_index].type_index]
+                    .integer_bit_width == integer->bit_width &&
+            program->values[unary_index].unary_operator ==
+                (negate ? W_SEED_HIR0_UNARY_NEGATE
+                        : W_SEED_HIR0_UNARY_BIT_NOT) &&
+            program->values[unary_index].left_value < program->value_count &&
+            program->values[program->values[unary_index].left_value]
+                    .type_index ==
+                program->values[unary_index].type_index &&
+            w_seed_hir0_verify(program, &fixture.hir_result));
+
+      size_t budget = 128u;
+      int64_t result = INT64_C(0x51515151);
+      CHECK(w_seed_scalar_evaluator0_evaluate_call(
+          program, 0u, &budget, &result));
+      if (integer->is_signed) {
+        CHECK(result == expected_signed);
+      } else {
+        CHECK((uint64_t)result == expected_unsigned);
+      }
+
+      if (case_index == 0u && operation_index == 0u) {
+        const w_seed_hir0_value saved = fixture.hir_values[unary_index];
+        uint32_t signed_width_mismatch_type = W_SEED_HIR0_NONE;
+        uint32_t unsigned_type_mismatch = W_SEED_HIR0_NONE;
+        for (size_t type_index = 0u; type_index < program->type_count;
+             type_index += 1u) {
+          const w_seed_hir0_type *type = &program->types[type_index];
+          if (type->kind == W_SEED_HIR0_TYPE_INTEGER &&
+              type->integer_is_signed && type->integer_bit_width == 16u)
+            signed_width_mismatch_type = (uint32_t)type_index;
+          if (type->kind == W_SEED_HIR0_TYPE_INTEGER &&
+              !type->integer_is_signed && type->integer_bit_width == 8u)
+            unsigned_type_mismatch = (uint32_t)type_index;
+        }
+        CHECK(signed_width_mismatch_type != W_SEED_HIR0_NONE &&
+              unsigned_type_mismatch != W_SEED_HIR0_NONE);
+        fixture.hir_values[unary_index].type_index =
+            signed_width_mismatch_type;
+        reseal_hir_fixture();
+        CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+        fixture.hir_values[unary_index] = saved;
+        reseal_hir_fixture();
+        CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+        fixture.hir_values[unary_index].type_index = unsigned_type_mismatch;
+        reseal_hir_fixture();
+        CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+        fixture.hir_values[unary_index] = saved;
+        reseal_hir_fixture();
+        CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+        fixture.hir_values[unary_index].kind =
+            W_SEED_HIR0_VALUE_UNARY_U64;
+        reseal_hir_fixture();
+        CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+        fixture.hir_values[unary_index] = saved;
+        reseal_hir_fixture();
+        CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+      }
+    }
+
+    if (!integer->is_signed) continue;
+    const uint64_t largest_positive =
+        integer->bit_width == 64u
+            ? (uint64_t)INT64_MAX
+            : (UINT64_C(1) << (integer->bit_width - 1u)) - 1u;
+    const int written = snprintf(
+        source, sizeof(source),
+        "fn apply(value: %s): %s { return -value }\n"
+        "entry { let result = apply(value: ~%" PRIu64 "_%s) }\n",
+        integer->type_name, integer->type_name, largest_positive,
+        integer->literal_suffix);
+    CHECK(written > 0 && (size_t)written < sizeof(source));
+    CHECK(lower(source));
+    size_t budget = 128u;
+    int64_t result = INT64_C(0x51515151);
+    CHECK(!w_seed_scalar_evaluator0_evaluate_call(
+        &fixture.hir_program, 0u, &budget, &result));
+    CHECK(result == INT64_C(0x51515151));
+  }
+  return true;
+}
+
 static bool test_direct_i64_unary_interpolation(void) {
   static const char SOURCE[] =
       "entry { print(message: \"Balance ${-7}\", suffix: \"\") }\n";
@@ -14268,7 +14490,7 @@ static bool test_integer_wrapping_hir_matrix(void) {
 }
 
 static bool test_checked_integer_arithmetic_hir_matrix(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-82") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-83") == 0);
   typedef struct {
     const char *name;
     const char *suffix;
@@ -16270,6 +16492,8 @@ int main(int argc, char **argv) {
   if (!test_checked_power_values()) return 1;
   if (!test_i64_unary_bit_not_positive()) return 1;
   if (!test_u64_unary_bit_not_positive()) return 1;
+  if (!test_frontend_unary_type_fact_preflight()) return 1;
+  if (!test_integer_prefix_width_matrix()) return 1;
   if (!test_canonical_and_copy_boundary()) return 1;
   if (!test_semantic_and_provenance_digests()) return 1;
   if (!test_function_parameter_records()) return 1;

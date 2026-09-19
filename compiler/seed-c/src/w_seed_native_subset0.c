@@ -1872,28 +1872,14 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
         program, value_index, owner_function, depth);
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64) {
     native_integer_facts ordinary_facts;
-    if (native_integer_type_facts(program, value->type_index,
-                                  &ordinary_facts) &&
-        ordinary_facts.is_signed && type != W_SEED_HIR0_TYPE_I64) {
-      if ((value->unary_operator != W_SEED_HIR0_UNARY_NEGATE &&
-           value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT) ||
-          value->left_value == W_SEED_HIR0_NONE ||
-          value->right_value != W_SEED_HIR0_NONE ||
-          !program_value_lowerable(program, value->left_value, owner_function,
-                                   false, depth + 1u))
-        return false;
-      if (program_value_is_constant_integer(program, value_index, 0u)) {
-        uint64_t ignored = 0u;
-        if (!evaluate_integer_bits(program, value_index, 0u, ordinary_facts,
-                                   &ignored))
-          return false;
-      }
-      return true;
-    }
-    if (type != W_SEED_HIR0_TYPE_I64 ||
+    native_integer_facts operand_facts;
+    if (!native_integer_type_facts(program, value->type_index,
+                                  &ordinary_facts) ||
+        !ordinary_facts.is_signed ||
         (value->unary_operator != W_SEED_HIR0_UNARY_NEGATE &&
          value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT) ||
         value->left_value == W_SEED_HIR0_NONE ||
+        value->left_value >= program->value_count ||
         value->right_value != W_SEED_HIR0_NONE ||
         value->binding_index != W_SEED_HIR0_NONE ||
         value->parameter_index != W_SEED_HIR0_NONE ||
@@ -1902,22 +1888,57 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
         value->interpolation_segment_count != 0u ||
         value->binary_operator != W_SEED_HIR0_BINARY_ADD ||
         value->block_argument_index != W_SEED_HIR0_NONE ||
+        !native_integer_type_facts(
+            program, program->values[value->left_value].type_index,
+            &operand_facts) ||
+        !native_integer_facts_equal(ordinary_facts, operand_facts) ||
         !program_value_lowerable(program, value->left_value, owner_function,
                                  false, depth + 1u))
       return false;
-    if (program_value_is_constant_i64(program, value_index, 0u)) {
-      int64_t ignored = 0;
-      if (!evaluate_i64(program, value_index, 0u, &ignored)) return false;
+    if (program_value_is_constant_integer(program, value_index, 0u)) {
+      uint64_t ignored = 0u;
+      if (!evaluate_integer_bits(program, value_index, 0u, ordinary_facts,
+                                 &ignored))
+        return false;
     }
     return true;
   }
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64) {
+    native_integer_facts ordinary_facts;
+    native_integer_facts operand_facts;
+    if (value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT &&
+        native_integer_type_facts(program, value->type_index,
+                                  &ordinary_facts) &&
+        !ordinary_facts.is_signed &&
+        value->left_value != W_SEED_HIR0_NONE &&
+        value->left_value < program->value_count &&
+        value->right_value == W_SEED_HIR0_NONE &&
+        value->binding_index == W_SEED_HIR0_NONE &&
+        value->parameter_index == W_SEED_HIR0_NONE &&
+        value->call_index == W_SEED_HIR0_NONE &&
+        value->first_interpolation_segment == W_SEED_HIR0_NONE &&
+        value->interpolation_segment_count == 0u &&
+        value->binary_operator == W_SEED_HIR0_BINARY_ADD &&
+        value->block_argument_index == W_SEED_HIR0_NONE &&
+        native_integer_type_facts(
+            program, program->values[value->left_value].type_index,
+            &operand_facts) &&
+        native_integer_facts_equal(ordinary_facts, operand_facts) &&
+        program_value_lowerable(program, value->left_value, owner_function,
+                                false, depth + 1u)) {
+      if (program_value_is_constant_integer(program, value_index, 0u)) {
+        uint64_t ignored = 0u;
+        if (!evaluate_integer_bits(program, value_index, 0u, ordinary_facts,
+                                   &ignored))
+          return false;
+      }
+      return true;
+    }
     const bool overflowing =
         value->unary_operator == W_SEED_HIR0_UNARY_OVERFLOWING_NEGATE;
     if (type != (overflowing ? W_SEED_HIR0_TYPE_U64_BOOL_TUPLE
                              : W_SEED_HIR0_TYPE_U64) ||
-        (value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT &&
-         value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
+        (value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
          value->unary_operator != W_SEED_HIR0_UNARY_SATURATING_NEGATE &&
          !overflowing &&
          value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES &&
@@ -2570,30 +2591,14 @@ static bool process_value_lowerable(
     }
     if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64) {
       native_integer_facts ordinary_facts;
-      if (native_integer_type_facts(program, value->type_index,
-                                    &ordinary_facts) &&
-          ordinary_facts.is_signed &&
-          program->types[value->type_index].kind != W_SEED_HIR0_TYPE_I64) {
-        if ((value->unary_operator != W_SEED_HIR0_UNARY_NEGATE &&
-             value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT) ||
-            value->left_value == W_SEED_HIR0_NONE ||
-            value->right_value != W_SEED_HIR0_NONE ||
-            !process_value_lowerable(program, value->left_value,
-                                     owner_function, process, false,
-                                     depth + 1u))
-          return false;
-        if (program_value_is_constant_integer(program, value_index, 0u)) {
-          uint64_t ignored = 0u;
-          if (!evaluate_integer_bits(program, value_index, 0u, ordinary_facts,
-                                     &ignored))
-            return false;
-        }
-        return true;
-      }
-      if (program->types[value->type_index].kind != W_SEED_HIR0_TYPE_I64 ||
+      native_integer_facts operand_facts;
+      if (!native_integer_type_facts(program, value->type_index,
+                                     &ordinary_facts) ||
+          !ordinary_facts.is_signed ||
           (value->unary_operator != W_SEED_HIR0_UNARY_NEGATE &&
            value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT) ||
           value->left_value == W_SEED_HIR0_NONE ||
+          value->left_value >= program->value_count ||
           value->right_value != W_SEED_HIR0_NONE ||
           value->binding_index != W_SEED_HIR0_NONE ||
           value->parameter_index != W_SEED_HIR0_NONE ||
@@ -2602,19 +2607,55 @@ static bool process_value_lowerable(
           value->interpolation_segment_count != 0u ||
           value->binary_operator != W_SEED_HIR0_BINARY_ADD ||
           value->block_argument_index != W_SEED_HIR0_NONE ||
+          !native_integer_type_facts(
+              program, program->values[value->left_value].type_index,
+              &operand_facts) ||
+          !native_integer_facts_equal(ordinary_facts, operand_facts) ||
           !process_value_lowerable(program, value->left_value, owner_function,
                                    process, false, depth + 1u))
         return false;
-      if (program_value_is_constant_i64(program, value_index, 0u)) {
-        int64_t ignored = 0;
-        if (!evaluate_i64(program, value_index, 0u, &ignored)) return false;
+      if (program_value_is_constant_integer(program, value_index, 0u)) {
+        uint64_t ignored = 0u;
+        if (!evaluate_integer_bits(program, value_index, 0u, ordinary_facts,
+                                   &ignored))
+          return false;
       }
       return true;
     }
     if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64) {
+      native_integer_facts ordinary_facts;
+      native_integer_facts operand_facts;
+      if (value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT &&
+          native_integer_type_facts(program, value->type_index,
+                                    &ordinary_facts) &&
+          !ordinary_facts.is_signed &&
+          value->left_value != W_SEED_HIR0_NONE &&
+          value->left_value < program->value_count &&
+          value->right_value == W_SEED_HIR0_NONE &&
+          value->binding_index == W_SEED_HIR0_NONE &&
+          value->parameter_index == W_SEED_HIR0_NONE &&
+          value->call_index == W_SEED_HIR0_NONE &&
+          value->first_interpolation_segment == W_SEED_HIR0_NONE &&
+          value->interpolation_segment_count == 0u &&
+          value->binary_operator == W_SEED_HIR0_BINARY_ADD &&
+          value->block_argument_index == W_SEED_HIR0_NONE &&
+          native_integer_type_facts(
+              program, program->values[value->left_value].type_index,
+              &operand_facts) &&
+          native_integer_facts_equal(ordinary_facts, operand_facts) &&
+          process_value_lowerable(program, value->left_value,
+                                  owner_function, process, false,
+                                  depth + 1u)) {
+        if (program_value_is_constant_integer(program, value_index, 0u)) {
+          uint64_t ignored = 0u;
+          if (!evaluate_integer_bits(program, value_index, 0u,
+                                     ordinary_facts, &ignored))
+            return false;
+        }
+        return true;
+      }
       if (program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64 ||
-          (value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT &&
-           value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
+          (value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
            value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES &&
            value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS &&
            value->unary_operator !=

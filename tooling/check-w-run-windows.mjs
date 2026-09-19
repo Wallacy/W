@@ -71,6 +71,8 @@ const restaurantCheckedIntegerArithmeticFixture = resolve(seedDirectory,
   "fixtures", "restaurant-checked-integer-arithmetic.w")
 const restaurantIntegerWrappingFixture = resolve(seedDirectory,
   "fixtures", "restaurant-integer-wrapping.w")
+const restaurantIntegerPrefixFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-integer-prefix.w")
 const restaurantIntegerWideningFixture = resolve(seedDirectory,
   "fixtures", "restaurant-integer-widening.w")
 const restaurantUIntWrappingAddFixture = resolve(seedDirectory,
@@ -479,6 +481,7 @@ try {
     "runtime-checked-u16-underflow.w")
   const runtimeCheckedI16MultiplyOverflow = join(fixtureDirectory,
     "runtime-checked-i16-multiply-overflow.w")
+  const runtimeNegationMinimums = []
   const runtimeDivisionZero = join(fixtureDirectory,
     "runtime-division-zero.w")
   const runtimeDivisionOverflow = join(fixtureDirectory,
@@ -516,6 +519,22 @@ try {
     "entry { print(\"must not commit\") " +
     "let result = multiply(left: 200_i16, right: 200_i16) " +
     "print(\"${result}\") }\n")
+  for (const [type, maximum, suffix] of [
+    ["i8", "127", "_i8"],
+    ["i16", "32767", "_i16"],
+    ["i32", "2147483647", "_i32"],
+    ["i64", "9223372036854775807", "_i64"],
+    ["Int", "9223372036854775807", "_i64"],
+  ]) {
+    const path = join(fixtureDirectory,
+      `runtime-${type.toLowerCase()}-negation-minimum.w`)
+    await writeFile(path,
+      "fn negate(value: " + type + "): " + type + " { return -value }\n" +
+      "entry { print(\"must not commit\") " +
+      "let result = negate(value: ~" + maximum + suffix + ") " +
+      "print(\"${result}\") }\n")
+    runtimeNegationMinimums.push([path, `${type} unary negation of logical minimum`])
+  }
   await writeFile(runtimeDivisionZero,
     "fn divide(value: i64, by divisor: i64): i64 { return value / divisor }\n" +
     "entry { print(\"must not commit\") " +
@@ -739,6 +758,13 @@ try {
       "Int -4000000000/-6000000000/-5000000000000000000; divrem -5/0; compound -2\n" +
       "UInt 9000000000/3000000000/18000000000000000000; divrem 2/0; compound 2999999998\n", "utf8"),
     "Restaurant checked signed/unsigned integer arithmetic family")
+  expectExact(binary, ["run", restaurantIntegerPrefixFixture], 0,
+    Buffer.from(
+      "i8 -7/-43\ni16 -7/-43\ni32 -7/-43\ni64 -7/-43\n" +
+      "Int -7/-43\nu8 170\nu16 65450\nu32 4294967210\n" +
+      "u64 18446744073709551530\nUInt 18446744073709551530\n" +
+      "literal -7\n", "utf8"),
+    "Restaurant integer prefix width and signedness family")
   expectExact(binary, ["run", runtimeMinimumRemainder], 0,
     Buffer.from("0\n", "utf8"),
     "runtime signed minimum remainder by negative one")
@@ -767,6 +793,16 @@ try {
     assert(failure.exitCode !== 0 && failure.stdout.length === 0 &&
       failure.stderr.length === 0,
       `${label} must trap silently without committing buffered output: ${JSON.stringify({
+        exitCode: failure.exitCode,
+        stdout: failure.stdout.toString(),
+        stderr: failure.stderr.toString(),
+      })}`)
+  }
+  for (const [path, label] of runtimeNegationMinimums) {
+    const failure = spawn(binary, ["run", path])
+    assert(failure.exitCode !== 0 && failure.stdout.length === 0 &&
+      failure.stderr.length === 0,
+      `${label} must trap silently without committing output: ${JSON.stringify({
         exitCode: failure.exitCode,
         stdout: failure.stdout.toString(),
         stderr: failure.stderr.toString(),

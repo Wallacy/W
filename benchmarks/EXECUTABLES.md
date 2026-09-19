@@ -33,6 +33,7 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-compound | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-compound.w) | source-backed | partial-exploratory-ready |
 | restaurant-f64-strict | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-f64-strict.w), [c](./executable/restaurant_f64_strict.c), [rust](./executable/restaurant_f64_strict.rs) | source-backed | not-performance-ready |
 | restaurant-checked-integer-arithmetic | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-checked-integer-arithmetic.w), [c](./executable/restaurant_checked_integer_arithmetic.c), [rust](./executable/restaurant_checked_integer_arithmetic.rs) | source-backed | not-performance-ready |
+| restaurant-integer-prefix | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-integer-prefix.w), [c](./executable/restaurant_integer_prefix.c), [rust](./executable/restaurant_integer_prefix.rs) | source-backed | not-performance-ready |
 | restaurant-integer-wrapping | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-integer-wrapping.w), [c](./executable/restaurant_integer_wrapping.c), [rust](./executable/restaurant_integer_wrapping.rs) | source-backed | not-performance-ready |
 | restaurant-integer-widening | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-integer-widening.w), [c](./executable/restaurant_integer_widening.c), [rust](./executable/restaurant_integer_widening.rs) | source-backed | not-performance-ready |
 | restaurant-integer-comparison | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-integer-comparison.w), [c](./executable/restaurant_integer_comparison.c), [rust](./executable/restaurant_integer_comparison.rs) | source-backed | not-performance-ready |
@@ -42,8 +43,6 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-uint-compound | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-uint-compound.w), [c](./executable/restaurant_uint_compound.c), [rust](./executable/restaurant_uint_compound.rs) | source-backed | not-performance-ready |
 | restaurant-unsigned | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-unsigned.w) | source-backed | partial-exploratory-ready |
 | restaurant-linear | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-linear.w) | source-backed | partial-exploratory-ready |
-| restaurant-unary-negate | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-unary-negate.w) | source-backed | partial-exploratory-ready |
-| restaurant-unary-interpolation | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-unary-interpolation.w) | source-backed | partial-exploratory-ready |
 | restaurant-mutation | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-mutation.w) | source-backed | partial-exploratory-ready |
 | restaurant-conditional-mutation | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-conditional-mutation.w) | source-backed | partial-exploratory-ready |
 | restaurant-bool-mutation | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-bool-mutation.w) | source-backed | partial-exploratory-ready |
@@ -122,8 +121,6 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-repeat | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 694 | 268 | 177.678 ms | 16.009 ms | 17.0043 ms | 3756032 B (3.58 MiB) | 11.602 ms |
 | restaurant-scalar-if | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 630 | 224 | 179.4772 ms | 16.8189 ms | 17.1398 ms | 3756032 B (3.58 MiB) | 10.674 ms |
 | restaurant-shifts | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 1110 | 380 | 182.0784 ms | 14.6547 ms | 16.261 ms | 3153920 B (3.01 MiB) | 10.829 ms |
-| restaurant-unary-interpolation | w | Windows x64 / MSVC | CRT-free | 2560 B (2.5 KiB) | 454 | 208 | 173.7539 ms | 16.9549 ms | 17.1994 ms | 3756032 B (3.58 MiB) | 11.912 ms |
-| restaurant-unary-negate | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 582 | 228 | 176.128 ms | 16.1193 ms | 17.1021 ms | 3756032 B (3.58 MiB) | 11.448 ms |
 | restaurant-unsigned | w | Windows x64 / MSVC | CRT-free | 2560 B (2.5 KiB) | 662 | 292 | 177.6862 ms | 15.1126 ms | 17.9711 ms | 3153920 B (3.01 MiB) | 9.282 ms |
 | restaurant-while-post | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3510 | 2616 | 129.3226 ms | 18.0307 ms | 19.0116 ms | 4833280 B (4.61 MiB) | 12.221 ms |
 | restaurant-while-post | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79688 | 28348 | 1.0785606 s | 18.0301 ms | 19.0014 ms | 4870144 B (4.64 MiB) | 13.149 ms |

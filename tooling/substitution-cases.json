@@ -4845,25 +4845,52 @@
       ]
     },
     {
-      "id": "R0-checked-i64-unary-negate",
-      "reviewItem": "checked signed-i64 unary negation against binary desugaring, unchecked target subtraction, and an always-linked numeric runtime",
+      "id": "R0-fixed-width-integer-prefix-family",
+      "reviewItem": "fixed-width integer prefix operators against per-width compiler branches, binary desugaring, host integer promotion, unchecked target subtraction, and an always-linked numeric runtime",
       "decisions": [
-        "W-1552"
+        "W-1640"
       ],
-      "task": "Retain prefix signed-i64 negation through verified HIR and fault before output for the minimum value.",
+      "task": "Retain checked signed fixed-width unary minus and width-preserving signed/unsigned bit complement through verified HIR, with logical-minimum negation faulting before output.",
       "selected": {
         "language": "w",
         "source": [
-          "fn reverse(value: i64): i64 { return -value }",
+          "fn negate_i8(value: i8): i8 { return -value }",
+          "fn negate_i16(value: i16): i16 { return -value }",
+          "fn negate_i32(value: i32): i32 { return -value }",
+          "fn negate_i64(value: i64): i64 { return -value }",
+          "fn negate_int(value: Int): Int { return -value }",
+          "fn complement_i8(value: i8): i8 { return ~value }",
+          "fn complement_i16(value: i16): i16 { return ~value }",
+          "fn complement_i32(value: i32): i32 { return ~value }",
+          "fn complement_i64(value: i64): i64 { return ~value }",
+          "fn complement_int(value: Int): Int { return ~value }",
+          "fn complement_u8(value: u8): u8 { return ~value }",
+          "fn complement_u16(value: u16): u16 { return ~value }",
+          "fn complement_u32(value: u32): u32 { return ~value }",
+          "fn complement_u64(value: u64): u64 { return ~value }",
+          "fn complement_uint(value: UInt): UInt { return ~value }",
+          "// Expected exit: 0",
+          "// Expected stdout:",
+          "// -7/-43/170",
           "entry {",
-          "  let balance = reverse(value: 7)",
-          "  print(\"Balance ${balance}\")",
+          "  let signed = negate_i8(value: 7_i8)",
+          "  let signed_bits = complement_i8(value: 42_i8)",
+          "  let unsigned_bits = complement_u8(value: 85_u8)",
+          "  print(\"${signed}/${signed_bits}/${unsigned_bits}\")",
           "}"
         ]
       },
       "alternatives": [
         {
-          "name": "hir-binary-desugaring",
+          "name": "per-width-compiler-branches",
+          "language": "text",
+          "source": [
+            "give each integer width its own unary operation identity and lowering branch"
+          ],
+          "expectedDifference": "One operation family derives signedness and logical width from verified type facts instead of duplicating width-specific semantics."
+        },
+        {
+          "name": "binary-desugaring",
           "language": "text",
           "source": [
             "replace -value with a synthetic 0 - value record"
@@ -4871,64 +4898,86 @@
           "expectedDifference": "The selected HIR retains unary source identity and its own typed verification boundary."
         },
         {
+          "name": "host-integer-promotion",
+          "language": "text",
+          "source": [
+            "promote narrow operands to the host int width before applying ~"
+          ],
+          "expectedDifference": "The selected operation preserves the W operand's logical width and signedness rather than inheriting host integer promotion."
+        },
+        {
           "name": "unchecked-target-subtraction",
           "language": "text",
           "source": [
             "emit llvm.sub 0, value for every runtime operand"
           ],
-          "expectedDifference": "Runtime i64.min must fault at the W checked boundary before target subtraction or user output."
+          "expectedDifference": "A signed logical minimum must fault at the W checked boundary before target subtraction or user output."
         },
         {
           "name": "always-linked-numeric-runtime",
           "language": "text",
           "source": [
-            "link the checked subtraction helper into constant-only and dead products"
+            "link the checked negation helper into products that only use constants or bit complement"
           ],
-          "expectedDifference": "The helper enters only products with a reachable nonconstant negation or subtraction."
+          "expectedDifference": "Checked runtime support remains limited to products with reachable nonconstant signed negation."
         }
       ],
       "sourceRefs": [
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_VALUE_UNARY_I64",
-          "claim": "HIR0 has an append-only explicit signed-i64 unary value and negate operator."
+          "claim": "Signed and unsigned unary records retain explicit operator identity alongside verified logical-width facts."
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_value_tree",
-          "claim": "HIR verification proves the unary operator, signed-i64 type, operand and ownership relation."
+          "claim": "HIR verification proves unary operator/type compatibility, operand facts and ownership."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_scalar_evaluator0.c",
+          "symbol": "scalar_evaluate_value",
+          "claim": "The scalar evaluator enforces checked logical-width negation and width-preserving complement."
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
           "symbol": "program_value_lowerable",
-          "claim": "The selector rejects constant overflow and admits bounded runtime negation."
+          "claim": "NativeSubset0 selects the fixed-width prefix family from verified signedness and logical width."
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "symbol": "append_unary_i64_operation",
-          "claim": "Constant and runtime negation select direct and checked lowering respectively."
+          "symbol": "append_unary_i64_operation / append_unary_u64_operation",
+          "claim": "MLIR lowers checked negation and signed/unsigned bit complement using logical-width type facts."
         },
         {
-          "path": "compiler/seed-c/fixtures/restaurant-unary-negate.w",
-          "symbol": "reverse",
-          "claim": "The Restaurant witness exercises parameter-driven negation through a short default entry."
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_integer_prefix_width_matrix",
+          "claim": "Focused HIR tests cover the supported width/type matrix and forged boundaries."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_native0.c",
+          "symbol": "test_integer_prefix_native_matrix",
+          "claim": "Focused NativeSubset0 tests cover checked signed negation and width-preserving complement selection."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-integer-prefix.w",
+          "symbol": "Expected stdout",
+          "claim": "The combined family fixture declares exact output across supported integer widths, aliases and prefix operators."
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "symbol": "restaurantUnaryNegateFixture",
-          "claim": "The Linux gate proves exact output, constant lowering and runtime overflow fault-before-output."
+          "symbol": "restaurant-integer-prefix",
+          "claim": "The Linux/WSL route exercises exact family output and logical-minimum fault-before-output."
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "symbol": "restaurantUnaryNegateFixture",
-          "claim": "The native Windows public runner executes the same source witness."
+          "symbol": "restaurantIntegerPrefixFixture",
+          "claim": "The public Windows route exercises exact family output and logical-minimum fault-before-output."
         }
       ],
       "checks": [
-        "HIR0 units accept typed unary negation and reject forged operator/type records",
-        "Native0 and MLIR0 checks distinguish direct constant lowering from checked runtime lowering",
-        "Linux and native Windows public runners print exact Balance -7",
-        "Linux execution of runtime -i64.min terminates nonzero with empty stdout"
+        "HIR and scalar-evaluator checks cover legal operator/type pairs across current widths and aliases, including logical-minimum negation",
+        "NativeSubset0 and MLIR checks cover type-fact selection and width-aware lowering for signed negation and signed/unsigned complement",
+        "Public CRT-free Linux/WSL and Windows routes exercise exact family output and logical-minimum fault-before-output"
       ],
       "measures": [
         "semantic-correctness",
@@ -4998,25 +5047,25 @@
           "claim": "Verified HIR retains the explicit literal, unary operation and interpolation value segment."
         },
         {
-          "path": "compiler/seed-c/fixtures/restaurant-unary-interpolation.w",
+          "path": "compiler/seed-c/fixtures/restaurant-integer-prefix.w",
           "symbol": "entry",
-          "claim": "The Restaurant witness uses direct unary interpolation without a binding."
+          "claim": "The combined family witness retains direct interpolation of an unsuffixed prefix-negative literal."
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "symbol": "restaurantUnaryInterpolationFixture",
-          "claim": "The native MLIR route proves exact output and direct constant lowering without the checked helper."
+          "symbol": "restaurant-integer-prefix",
+          "claim": "The Linux/WSL native route executes the family fixture with direct literal interpolation."
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "symbol": "restaurantUnaryInterpolationFixture",
-          "claim": "The native Windows public runner executes the same direct source witness."
+          "symbol": "restaurantIntegerPrefixFixture",
+          "claim": "The Windows public route executes the same family fixture with direct literal interpolation."
         }
       ],
       "checks": [
         "seed frontend and HIR0 gates prove the complete typed value tree",
         "MLIR0 emits direct llvm.sub and omits the checked helper for the constant product",
-        "Linux WRT0 and native Windows public runners print exact Balance -7"
+        "Linux/WSL and native Windows public routes execute the combined family fixture with exact literal -7 output"
       ],
       "measures": [
         "semantic-correctness",

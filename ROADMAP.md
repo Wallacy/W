@@ -291,23 +291,49 @@ performance ranking. Mixed-width/signedness comparisons beyond the explicit
 argument widening, `usize`/`isize`, 128-bit integers, other targets, stable
 ABI/FFI, and equivalent runtime-work performance remain open.
 
-W-1639 closes checked ordinary integer add/subtract/multiply as one family.
+W-1639 closes checked ordinary integer add/subtract/multiply/divide/remainder
+as one family.
 The source/HIR type facts preserve signedness and logical width for i8/u8,
 i16/u16, i32/u32, i64/u64, and the current x86-64 `Int`/`UInt` aliases while
 the backend keeps the i64 physical carrier. Generic checked lowering detects
 both carrier overflow and logical-width overflow after the carrier operation;
-compound `+=`, `-=`, and `*=` remain transactional on failure. Exact Windows
-and Linux/WSL witnesses cover all ten source types, with representative runtime
-overflow failures required to trap without committing buffered output. C23 and
-Rust 2024 are success-domain correctness oracles with runtime/black-box
-operands, so this is one correctness-only catalog row without ranking.
-Division/remainder, named `checkedAdd`-style APIs, negation, power, shifts,
-target-generic aliases, and equivalent-runtime performance remain outside this
-family.
+compound `+=`, `-=`, `*=`, `/=`, and `%=` remain transactional on failure.
+Division and remainder reject zero, and signed minimum divided by negative one,
+before the target operation; signed minimum remainder negative one yields zero.
+Exact Windows and Linux/WSL witnesses cover all ten source types, with
+representative runtime overflow and invalid-divisor failures required to trap
+without committing buffered output. C23 and Rust 2024 are success-domain
+correctness oracles with runtime/black-box operands, so this is one
+correctness-only catalog row without ranking. Named `checkedAdd`-style APIs,
+named negation policies, power, shifts, target-generic aliases, and
+equivalent-runtime performance remain outside this family.
+
+W-1640 extends implementation coverage for the existing integer prefix
+operators, without adding syntax or per-width public identities. One generic
+operation/type-fact route covers checked unary `-` for signed
+`i8`/`i16`/`i32`/`i64`/`Int`, and total width-preserving unary `~` for signed and
+unsigned 8/16/32/64-bit integers plus the current x86-64 `Int`/`UInt` aliases.
+Unsigned ordinary unary minus stays invalid; logical minimum negation must fail
+before observable output. Bool `!`, `f64` negation, and named
+wrapping/saturating/overflowing negation remain distinct. The physical seed
+carrier remains `i64`. The family fixture
+`compiler/seed-c/fixtures/restaurant-integer-prefix.w` and focused
+HIR/scalar-evaluator and NativeSubset0/MLIR test sources are present. Exact
+family output and minimum-failure evidence cover the public `w run` routes on
+CRT-free Windows and Linux/WSL. The reviewed preflight/type-equality and
+per-width MLIR assertions, focused compiler units, and all three public gates
+pass on the final source. C23 and Rust 2024 are correctness references without
+ranking; `benchmarkDisposition:
+correctness-reference-no-ranking`, not-performance-ready until equivalent
+runtime work exists. Other targets,
+`usize`/`isize`, 128-bit integers, target-general aliases, stable ABI/FFI,
+general panic payload/cleanup, named numeric APIs, and equivalent runtime work
+remain gaps.
 
 The first rank-1 increments are now executable. Signed-`i64` `&`, `|`, `^`,
-and unary `~` cross exact W source, canonical precedence, verified HIR0, direct
-LLVM-dialect operations, and the maintained native routes. Checked `<<` and
+and the original unary-`~` crosspoint cover exact W source, canonical
+precedence, verified HIR0, direct LLVM-dialect operations, and the maintained
+native routes; W-1640 is the width-family complement increment. Checked `<<` and
 `>>` additionally preserve signed/unsigned logical type, require a `UInt`
 count, trap at counts greater than or equal to 64, use arithmetic versus
 logical right shift, and reject information-losing left shift. Exact
@@ -324,8 +350,12 @@ invalid. The eleven signed compound assignment forms reuse the same checked
 operation and SSA versioning. The UInt/u64 witness now covers all eleven
 unsigned compound forms with checked arithmetic, shifts, and the existing
 direct bit operations over typed SSA versions. Immutable targets fail closed.
-W-392 remains open for other widths, named bit APIs, SIMD, and the complete
-integer operator matrix.
+W-392 remains open for width-generic binary bitwise, shift, power, saturating,
+and overflowing families, named bit APIs, SIMD, and the complete integer
+operator matrix. Unary `~` is separately covered by W-1640. Checked
+arithmetic, wrapping arithmetic, comparisons, and exact widening already span
+the current fixed-width integer set and must not be described as 64-bit-only
+gaps.
 W-1597 remains a legality certificate only; target policy must still combine it
 with observability and cost facts and compare any direct-call artifact with the
 W-1600 physical reference.

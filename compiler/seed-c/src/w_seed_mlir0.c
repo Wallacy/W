@@ -3697,28 +3697,29 @@ static bool append_integer_comparison_operation(
       offset);
 }
 
-static bool append_unary_i64_operation_in_loop(
+static bool append_integer_bit_not_operation_in_loop(
     const w_seed_hir0_program *program, uint32_t value_index,
     uint32_t function_index, const mlir0_process_emit_context *process,
-    const mlir0_natural_loop_result_context *loop, uint8_t *artifact,
-    size_t capacity, size_t *offset) {
-  if (program != NULL && value_index < program->value_count &&
-      program->values[value_index].kind == W_SEED_HIR0_VALUE_UNARY_I64 &&
-      mlir0_unary_uses_generic_wrapping_lowering(
-          program, &program->values[value_index]))
-    return append_integer_wrapping_unary_operation_in_loop(
-        program, value_index, function_index, process, loop, artifact,
-        capacity, offset);
+    const mlir0_natural_loop_result_context *loop, bool expected_signed,
+    uint8_t *artifact, size_t capacity, size_t *offset) {
   if (program == NULL || artifact == NULL || offset == NULL ||
       value_index >= program->value_count)
     return false;
   const w_seed_hir0_value *value = &program->values[value_index];
-  if (value->kind != W_SEED_HIR0_VALUE_UNARY_I64 ||
-      (value->unary_operator != W_SEED_HIR0_UNARY_NEGATE &&
-       value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT) ||
-      value->left_value == W_SEED_HIR0_NONE)
+  bool is_signed = false;
+  uint16_t bit_width = 0u;
+  if (value->kind != (expected_signed ? W_SEED_HIR0_VALUE_UNARY_I64
+                                     : W_SEED_HIR0_VALUE_UNARY_U64) ||
+      value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT ||
+      value->left_value >= program->value_count ||
+      value->right_value != W_SEED_HIR0_NONE ||
+      !mlir0_integer_type_facts(program, value->type_index, &is_signed,
+                                &bit_width) ||
+      is_signed != expected_signed ||
+      !mlir0_integer_value_matches_type(program, value->left_value,
+                                        expected_signed, bit_width))
     return false;
-  if (value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT) {
+  if (bit_width == 64u) {
     return append_literal(artifact, capacity, offset, "    %v") &&
            append_size(artifact, capacity, offset, value_index) &&
            append_literal(artifact, capacity, offset,
@@ -3734,6 +3735,72 @@ static bool append_unary_i64_operation_in_loop(
            append_literal(artifact, capacity, offset,
                           "_bit_not_mask : i64\n");
   }
+  return append_literal(artifact, capacity, offset, "    %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset,
+                        "_bit_not_narrow = llvm.trunc ") &&
+         append_program_value_operand_in_loop(
+             program, value->left_value, function_index, process, loop,
+             artifact, capacity, offset) &&
+         append_literal(artifact, capacity, offset, " : i64 to i") &&
+         append_u64(artifact, capacity, offset, bit_width) &&
+         append_literal(artifact, capacity, offset, "\n    %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset,
+                        "_bit_not_mask = llvm.mlir.constant(-1 : i") &&
+         append_u64(artifact, capacity, offset, bit_width) &&
+         append_literal(artifact, capacity, offset, ") : i") &&
+         append_u64(artifact, capacity, offset, bit_width) &&
+         append_literal(artifact, capacity, offset, "\n    %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset,
+                        "_bit_not_raw = llvm.xor %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, "_bit_not_narrow, %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset,
+                        "_bit_not_mask : i") &&
+         append_u64(artifact, capacity, offset, bit_width) &&
+         append_literal(artifact, capacity, offset, "\n    %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, " = llvm.") &&
+         append_literal(artifact, capacity, offset,
+                        expected_signed ? "sext %v" : "zext %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset,
+                        "_bit_not_raw : i") &&
+         append_u64(artifact, capacity, offset, bit_width) &&
+         append_literal(artifact, capacity, offset, " to i64\n");
+}
+
+static bool append_unary_i64_operation_in_loop(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop, uint8_t *artifact,
+    size_t capacity, size_t *offset) {
+  if (program != NULL && value_index < program->value_count &&
+      program->values[value_index].kind == W_SEED_HIR0_VALUE_UNARY_I64 &&
+      mlir0_unary_uses_generic_wrapping_lowering(
+          program, &program->values[value_index]))
+    return append_integer_wrapping_unary_operation_in_loop(
+        program, value_index, function_index, process, loop, artifact,
+        capacity, offset);
+  if (program != NULL && value_index < program->value_count &&
+      program->values[value_index].kind == W_SEED_HIR0_VALUE_UNARY_I64 &&
+      program->values[value_index].unary_operator ==
+          W_SEED_HIR0_UNARY_BIT_NOT)
+    return append_integer_bit_not_operation_in_loop(
+        program, value_index, function_index, process, loop, true, artifact,
+        capacity, offset);
+  if (program == NULL || artifact == NULL || offset == NULL ||
+      value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->kind != W_SEED_HIR0_VALUE_UNARY_I64 ||
+      (value->unary_operator != W_SEED_HIR0_UNARY_NEGATE &&
+       value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT) ||
+      value->left_value == W_SEED_HIR0_NONE)
+    return false;
   const bool constant =
       mlir0_value_is_constant_i64(program, value_index, 0u);
   if (!constant &&
@@ -3801,6 +3868,13 @@ static bool append_unary_u64_operation(
     return append_integer_wrapping_unary_operation_in_loop(
         program, value_index, function_index, process, NULL, artifact,
         capacity, offset);
+  if (program != NULL && value_index < program->value_count &&
+      program->values[value_index].kind == W_SEED_HIR0_VALUE_UNARY_U64 &&
+      program->values[value_index].unary_operator ==
+          W_SEED_HIR0_UNARY_BIT_NOT)
+    return append_integer_bit_not_operation_in_loop(
+        program, value_index, function_index, process, NULL, false, artifact,
+        capacity, offset);
   if (program == NULL || artifact == NULL || offset == NULL ||
       value_index >= program->value_count)
     return false;
@@ -3814,8 +3888,7 @@ static bool append_unary_u64_operation(
       program->types[value->type_index].kind !=
           (overflowing ? W_SEED_HIR0_TYPE_U64_BOOL_TUPLE
                        : W_SEED_HIR0_TYPE_U64) ||
-      (value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT &&
-       value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
+      (value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
        !saturating &&
        !overflowing &&
        value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES &&

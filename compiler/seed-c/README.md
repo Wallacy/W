@@ -1451,9 +1451,10 @@ Checked helpers are emitted only for reachable arithmetic trees. Hello and the
 dead-function witness emit no checked helper or dead text. Constant overflow
 and faulting constant `/` or `%` are rejected. A safe fully constant `/` or
 `%` emits `llvm.sdiv` or `llvm.srem`. W-1551 supersedes only the former
-dynamic/runtime `/` and `%` exclusion. W-1552 separately supersedes the
-unary-negation exclusion. Power, other widths, named numeric APIs, and general
-numeric surfaces remain unsupported.
+dynamic/runtime `/` and `%` exclusion. W-1552 first superseded the
+unary-negation exclusion for signed `i64`; W-1640 supersedes that
+single-width implementation boundary. Power, other widths at this historical
+cut, named numeric APIs, and general numeric surfaces remain unsupported.
 
 That is the W-1540/1552 boundary only. W-1639 below provides the current
 fixed-width checked `+`, `-`, `*`, `/`, and `%` family for signed and unsigned
@@ -1485,7 +1486,7 @@ termination with empty stdout and stderr. The checks do not claim
 `PanicEvent`, payload/cleanup semantics, other targets, timing, ranking, or
 performance.
 
-### Checked signed-`i64` unary negation (W-1552)
+### Checked signed-`i64` unary negation (W-1552, first implementation)
 
 HIR0 `w-seed-hir0-17` appends `VALUE_UNARY_I64` with `UNARY_NEGATE`. The
 verifier requires a canonical signed-`i64` operand/result and rejects forged
@@ -1497,7 +1498,10 @@ schemas remain unchanged.
 `fixtures/restaurant-unary-negate.w` prints exact `Balance -7\n` through the
 Linux WRT0 and native Windows public runners. W-1553 separately closes the
 direct interpolation-root composition gap; other widths/targets, general panic
-payload/cleanup and performance remain outside this bounded cut.
+payload/cleanup and performance remained outside the original bounded cut.
+W-1640 supersedes this signed-`i64`-only implementation boundary; W-1552 is
+retained as the first source-backed proof, not as a width-specific language
+rule.
 
 ### Direct unary interpolation composition (W-1553)
 
@@ -1512,7 +1516,38 @@ segment.
 `print("Balance ${-7}")`. Frontend and HIR units verify its literal, unary and
 segment relations. The MLIR gate emits direct `llvm.sub` without the checked
 runtime helper, and Linux WRT0 plus native Windows produce exact
-`Balance -7\n`. No public frontend, HIR0, MLIR0 or Native0 record schema changes.
+`Balance -7\n`. At the W-1553 boundary, no public frontend, HIR0, MLIR0 or
+Native0 record schema changed. W-1640 keeps W-1553's interpolation rule and
+uses the combined family fixture as the current benchmark witness, without a
+separate W-1553 executable benchmark row.
+
+### Fixed-width integer prefix family (W-1640)
+
+W-1640 expands implementation coverage for existing prefix operators without
+adding syntax or per-width public identities. One generic operation route uses
+verified signedness and logical-width facts. Checked unary `-` accepts signed
+`i8`, `i16`, `i32`, `i64`, and the current x86-64 `Int` alias; ordinary unary
+minus on unsigned types remains invalid. A logical minimum cannot be negated,
+and failure must occur before observable output. Unary `~` is total and
+preserves logical width for signed and unsigned `i8`/`u8`, `i16`/`u16`,
+`i32`/`u32`, `i64`/`u64`, and current x86-64 `Int`/`UInt`. The physical seed
+carrier remains `i64`. Bool `!`, `f64` negation, and named wrapping, saturating,
+or overflowing negation policies remain distinct.
+
+The family fixture
+[`fixtures/restaurant-integer-prefix.w`](fixtures/restaurant-integer-prefix.w)
+is present and declares its expected exit and exact stdout. HIR/scalar-evaluator
+and NativeSubset0/MLIR test sources cover the width/type-fact matrix,
+minimum-value failure, and lowering selection. This is bounded source-backed
+evidence for the exact family output and minimum-failure boundary through the
+public `w run` routes on CRT-free Windows and Linux/WSL. The reviewed
+type-equality preflights, per-width lowering assertions, focused compiler units,
+and public MLIR/Windows/Linux gates pass on the same final source. C23 and Rust 2024 are correctness
+references only. `benchmarkDisposition: correctness-reference-no-ranking`;
+the family is not-performance-ready until equivalent runtime work exists.
+Other targets, `usize`/`isize`, 128-bit integers, target-general aliases,
+stable ABI/FFI, general panic payload/cleanup, named
+numeric APIs, and equivalent-runtime performance remain gaps.
 
 ### Straight-line local mutation as SSA (W-1554)
 
@@ -2755,7 +2790,7 @@ ABI, general residency/scheduling/cancellation, matrix/operator lowering, or
 support for another provider or target. `benchmarkDisposition` remains
 `compiler-lifecycle`; no new benchmark result is published.
 
-### Source-backed signed-i64 bitwise slice (partial W-392)
+### Source-backed signed-`i64` binary bitwise slice (partial W-392)
 
 The seed frontend, verified HIR0, NativeSubset0, scalar/cooperative evaluators,
 and MLIR0 now preserve `&`, `|`, `^`, and unary `~` for signed `i64`. The
@@ -2774,9 +2809,11 @@ and executes the exact source on the maintained Linux/WSL lane. The source and
 exact `Flags 14\n` oracle are registered as `restaurant-bitwise` in the public
 Windows executable benchmark catalog.
 
-This does not close W-392. Power, compound assignments, widths other than
-`i64`/`u64`, named bit primitives, SIMD, or matrix operations remain separate
-increments. The language benchmark
+This does not close W-392. W-1640 expands only unary `~` across the fixed-width
+family; the `&`, `|`, and `^` binary evidence in this slice remains signed
+`i64` (with the separate unsigned `u64` slice below). Width-generic binary
+bitwise operations, power, compound assignments, named bit primitives, SIMD,
+and matrix operations remain separate increments. The language benchmark
 disposition is `required`; the broader `integer-bit-mix` learner/idiomatic/
 frontier unit remains open even though this public product crosspoint is now
 source-backed.

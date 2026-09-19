@@ -357,21 +357,62 @@ static bool scalar_evaluate_value(const w_seed_hir0_program *program,
                                   result);
     case W_SEED_HIR0_VALUE_UNARY_I64: {
       int64_t operand = 0;
-      if ((value->unary_operator != W_SEED_HIR0_UNARY_NEGATE &&
+      scalar_integer_facts operand_facts;
+      if (!scalar_integer_type_facts(program, value->type_index,
+                                     &value_facts) ||
+          !value_facts.is_signed ||
+          (value->unary_operator != W_SEED_HIR0_UNARY_NEGATE &&
            value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT) ||
+          value->left_value >= program->value_count ||
+          !scalar_integer_type_facts(
+              program, program->values[value->left_value].type_index,
+              &operand_facts) ||
+          operand_facts.is_signed != value_facts.is_signed ||
+          operand_facts.bit_width != value_facts.bit_width ||
           !scalar_evaluate_value(program, value->left_value, parameters,
                                  parameter_count, depth + 1u, budget, &operand))
         return false;
+      const uint64_t mask = value_facts.bit_width == 64u
+                                ? UINT64_MAX
+                                : (UINT64_C(1) << value_facts.bit_width) - 1u;
+      const uint64_t operand_bits = (uint64_t)operand & mask;
+      uint64_t result_bits = 0u;
       if (value->unary_operator == W_SEED_HIR0_UNARY_NEGATE) {
-        if (operand == INT64_MIN) return false;
-        *result = -operand;
+        const uint64_t minimum =
+            UINT64_C(1) << (value_facts.bit_width - 1u);
+        if (operand_bits == minimum) return false;
+        result_bits = (UINT64_C(0) - operand_bits) & mask;
       } else {
-        *result = ~operand;
+        result_bits = (~operand_bits) & mask;
       }
+      *result = scalar_signed_integer_bits(result_bits,
+                                           value_facts.bit_width);
       return true;
     }
-    case W_SEED_HIR0_VALUE_UNARY_U64:
-      return false;
+    case W_SEED_HIR0_VALUE_UNARY_U64: {
+      int64_t operand = 0;
+      scalar_integer_facts operand_facts;
+      if (!scalar_integer_type_facts(program, value->type_index,
+                                     &value_facts) ||
+          value_facts.is_signed ||
+          value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT ||
+          value->left_value >= program->value_count ||
+          !scalar_integer_type_facts(
+              program, program->values[value->left_value].type_index,
+              &operand_facts) ||
+          operand_facts.is_signed ||
+          operand_facts.bit_width != value_facts.bit_width ||
+          !scalar_evaluate_value(program, value->left_value, parameters,
+                                 parameter_count, depth + 1u, budget,
+                                 &operand))
+        return false;
+      const uint64_t mask = value_facts.bit_width == 64u
+                                ? UINT64_MAX
+                                : (UINT64_C(1) << value_facts.bit_width) - 1u;
+      const uint64_t result_bits = (~(uint64_t)operand) & mask;
+      (void)memcpy(result, &result_bits, sizeof(*result));
+      return true;
+    }
     case W_SEED_HIR0_VALUE_BINARY_I64: {
       int64_t left = 0;
       int64_t right = 0;

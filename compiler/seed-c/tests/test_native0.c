@@ -221,8 +221,8 @@ static bool make_nested_tree_source(char *buffer, size_t capacity,
 }
 
 static bool test_products(void) {
-  CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-9") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-53") == 0);
+  CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-10") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-54") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -1830,6 +1830,242 @@ static bool test_unary_i64_native_selector(void) {
                        " = llvm.sub ") &&
         !contains_bytes(output, result.mlir.written.mlir_bytes,
                         "@w_seed_checked_subtract_i64"));
+  return true;
+}
+
+static bool test_integer_prefix_native_matrix(void) {
+  typedef struct {
+    const char *type_name;
+    const char *literal_suffix;
+    bool is_signed;
+    uint16_t bit_width;
+  } integer_case;
+  static const integer_case CASES[] = {
+      {"i8", "i8", true, 8u},     {"i16", "i16", true, 16u},
+      {"i32", "i32", true, 32u},  {"i64", "i64", true, 64u},
+      {"Int", "i64", true, 64u},  {"u8", "u8", false, 8u},
+      {"u16", "u16", false, 16u}, {"u32", "u32", false, 32u},
+      {"u64", "u64", false, 64u}, {"UInt", "u64", false, 64u},
+  };
+  char source[W_SEED_NATIVE0_MAX_SOURCE_BYTES + 1u];
+  size_t source_length = 0u;
+  source[0] = '\0';
+  for (size_t index = 0u; index < sizeof(CASES) / sizeof(CASES[0]);
+       index += 1u) {
+    const integer_case *integer = &CASES[index];
+    if (integer->is_signed)
+      CHECK(append_test_source(
+          source, sizeof(source), &source_length,
+          "fn negate_%s(value: %s): %s { return -value }\n",
+          integer->type_name, integer->type_name, integer->type_name));
+    CHECK(append_test_source(
+        source, sizeof(source), &source_length,
+        "fn invert_%s(value: %s): %s { return ~value }\n",
+        integer->type_name, integer->type_name, integer->type_name));
+  }
+  CHECK(append_test_source(source, sizeof(source), &source_length,
+                           "fn main() { "));
+  for (size_t index = 0u; index < sizeof(CASES) / sizeof(CASES[0]);
+       index += 1u) {
+    const integer_case *integer = &CASES[index];
+    if (integer->is_signed)
+      CHECK(append_test_source(
+          source, sizeof(source), &source_length,
+          "let neg_%s = negate_%s(value: 7_%s) ", integer->type_name,
+          integer->type_name, integer->literal_suffix));
+    CHECK(append_test_source(
+        source, sizeof(source), &source_length,
+        "let inv_%s = invert_%s(value: %s_%s) ", integer->type_name,
+        integer->type_name, integer->is_signed ? "42" : "85",
+        integer->literal_suffix));
+  }
+  CHECK(append_test_source(source, sizeof(source), &source_length,
+                           "print(\""));
+  bool first = true;
+  for (size_t index = 0u; index < sizeof(CASES) / sizeof(CASES[0]);
+       index += 1u) {
+    const integer_case *integer = &CASES[index];
+    if (integer->is_signed) {
+      CHECK(append_test_source(
+          source, sizeof(source), &source_length,
+          "%s%s ${neg_%s}/${inv_%s}", first ? "" : "; ",
+          integer->type_name, integer->type_name, integer->type_name));
+      first = false;
+    } else {
+      CHECK(append_test_source(
+          source, sizeof(source), &source_length, "%s%s ${inv_%s}",
+          first ? "" : "; ", integer->type_name, integer->type_name));
+      first = false;
+    }
+  }
+  CHECK(append_test_source(source, sizeof(source), &source_length,
+                           "\") }\nentry(main)\n"));
+
+  static uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  const w_seed_native0_status status = run_source(
+      (const uint8_t *)source, source_length, "integer-prefix-family",
+      sizeof("integer-prefix-family") - 1u, artifact, sizeof(artifact),
+      &result);
+  CHECK(status == W_SEED_NATIVE0_OK &&
+        result.status == W_SEED_NATIVE0_OK &&
+        result.mlir.written.mlir_bytes == result.mlir.required.mlir_bytes);
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.has_local_calls && storage.hir_program.function_count == 16u);
+
+  size_t negate_count = 0u;
+  size_t signed_bit_not_count = 0u;
+  size_t unsigned_bit_not_count = 0u;
+  size_t negate_by_width[4] = {0u, 0u, 0u, 0u};
+  size_t signed_bit_not_by_width[4] = {0u, 0u, 0u, 0u};
+  size_t unsigned_bit_not_by_width[4] = {0u, 0u, 0u, 0u};
+  for (size_t value_index = 0u;
+       value_index < storage.hir_program.value_count; value_index += 1u) {
+    const w_seed_hir0_value *value = &storage.hir_program.values[value_index];
+    if (value->kind != W_SEED_HIR0_VALUE_UNARY_I64 &&
+        value->kind != W_SEED_HIR0_VALUE_UNARY_U64)
+      continue;
+    CHECK(value->type_index < storage.hir_program.type_count);
+    const w_seed_hir0_type *type = &storage.hir_program.types[value->type_index];
+    CHECK(type->integer_bit_width == 8u || type->integer_bit_width == 16u ||
+          type->integer_bit_width == 32u || type->integer_bit_width == 64u);
+    const size_t width_slot = type->integer_bit_width == 8u
+                                  ? 0u
+                                  : (type->integer_bit_width == 16u
+                                         ? 1u
+                                         : (type->integer_bit_width == 32u
+                                                ? 2u
+                                                : 3u));
+    CHECK(value->left_value < storage.hir_program.value_count);
+    const w_seed_hir0_value *operand =
+        &storage.hir_program.values[value->left_value];
+    CHECK(operand->kind == W_SEED_HIR0_VALUE_PARAMETER_READ &&
+          operand->parameter_index < storage.hir_program.parameter_count);
+    const w_seed_hir0_parameter *parameter =
+        &storage.hir_program.parameters[operand->parameter_index];
+    char expected_mlir[256];
+    int expected_length = 0;
+    if (value->unary_operator == W_SEED_HIR0_UNARY_NEGATE) {
+      CHECK(value->kind == W_SEED_HIR0_VALUE_UNARY_I64 &&
+            type->integer_is_signed);
+      negate_count += 1u;
+      negate_by_width[width_slot] += 1u;
+      expected_length = snprintf(
+          expected_mlir, sizeof(expected_mlir),
+          "%%v%u_checked_width = llvm.mlir.constant(%u : i64) : i64\n",
+          (unsigned int)value_index,
+          (unsigned int)type->integer_bit_width);
+      CHECK(expected_length > 0 && (size_t)expected_length <
+                                      sizeof(expected_mlir) &&
+            contains_bytes(artifact, result.mlir.written.mlir_bytes,
+                           expected_mlir));
+      expected_length = snprintf(
+          expected_mlir, sizeof(expected_mlir),
+          "%%v%u = llvm.call @w_seed_checked_subtract_i64(%%v%u_neg_zero, "
+          "%%p%u, %%v%u_checked_width) : (i64, i64, i64) -> i64\n",
+          (unsigned int)value_index, (unsigned int)value_index,
+          (unsigned int)parameter->ordinal, (unsigned int)value_index);
+      CHECK(expected_length > 0 && (size_t)expected_length <
+                                      sizeof(expected_mlir) &&
+            contains_bytes(artifact, result.mlir.written.mlir_bytes,
+                           expected_mlir));
+    } else {
+      CHECK(value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT);
+      if (type->integer_is_signed) {
+        CHECK(value->kind == W_SEED_HIR0_VALUE_UNARY_I64);
+        signed_bit_not_count += 1u;
+        signed_bit_not_by_width[width_slot] += 1u;
+      } else {
+        CHECK(value->kind == W_SEED_HIR0_VALUE_UNARY_U64);
+        unsigned_bit_not_count += 1u;
+        unsigned_bit_not_by_width[width_slot] += 1u;
+      }
+      if (type->integer_bit_width == 64u) {
+        expected_length = snprintf(
+            expected_mlir, sizeof(expected_mlir),
+            "%%v%u_bit_not_mask = llvm.mlir.constant(-1 : i64) : i64\n",
+            (unsigned int)value_index);
+        CHECK(expected_length > 0 && (size_t)expected_length <
+                                        sizeof(expected_mlir) &&
+              contains_bytes(artifact, result.mlir.written.mlir_bytes,
+                             expected_mlir));
+        expected_length = snprintf(
+            expected_mlir, sizeof(expected_mlir),
+            "%%v%u = llvm.xor %%p%u, %%v%u_bit_not_mask : i64\n",
+            (unsigned int)value_index, (unsigned int)parameter->ordinal,
+            (unsigned int)value_index);
+        CHECK(expected_length > 0 && (size_t)expected_length <
+                                        sizeof(expected_mlir) &&
+              contains_bytes(artifact, result.mlir.written.mlir_bytes,
+                             expected_mlir));
+      } else {
+        expected_length = snprintf(
+            expected_mlir, sizeof(expected_mlir),
+            "%%v%u_bit_not_narrow = llvm.trunc %%p%u : i64 to i%u\n",
+            (unsigned int)value_index, (unsigned int)parameter->ordinal,
+            (unsigned int)type->integer_bit_width);
+        CHECK(expected_length > 0 && (size_t)expected_length <
+                                        sizeof(expected_mlir) &&
+              contains_bytes(artifact, result.mlir.written.mlir_bytes,
+                             expected_mlir));
+        expected_length = snprintf(
+            expected_mlir, sizeof(expected_mlir),
+            "%%v%u_bit_not_mask = llvm.mlir.constant(-1 : i%u) : i%u\n",
+            (unsigned int)value_index,
+            (unsigned int)type->integer_bit_width,
+            (unsigned int)type->integer_bit_width);
+        CHECK(expected_length > 0 && (size_t)expected_length <
+                                        sizeof(expected_mlir) &&
+              contains_bytes(artifact, result.mlir.written.mlir_bytes,
+                             expected_mlir));
+        expected_length = snprintf(
+            expected_mlir, sizeof(expected_mlir),
+            "%%v%u_bit_not_raw = llvm.xor %%v%u_bit_not_narrow, "
+            "%%v%u_bit_not_mask : i%u\n",
+            (unsigned int)value_index, (unsigned int)value_index,
+            (unsigned int)value_index,
+            (unsigned int)type->integer_bit_width);
+        CHECK(expected_length > 0 && (size_t)expected_length <
+                                        sizeof(expected_mlir) &&
+              contains_bytes(artifact, result.mlir.written.mlir_bytes,
+                             expected_mlir));
+        expected_length = snprintf(
+            expected_mlir, sizeof(expected_mlir),
+            "%%v%u = llvm.%s %%v%u_bit_not_raw : i%u to i64\n",
+            (unsigned int)value_index,
+            type->integer_is_signed ? "sext" : "zext",
+            (unsigned int)value_index,
+            (unsigned int)type->integer_bit_width);
+        CHECK(expected_length > 0 && (size_t)expected_length <
+                                        sizeof(expected_mlir) &&
+              contains_bytes(artifact, result.mlir.written.mlir_bytes,
+                             expected_mlir));
+      }
+    }
+  }
+  const size_t mlir_bytes = result.mlir.written.mlir_bytes;
+  CHECK(negate_count == 5u && signed_bit_not_count == 5u &&
+        unsigned_bit_not_count == 5u &&
+        negate_by_width[0] == 1u && negate_by_width[1] == 1u &&
+        negate_by_width[2] == 1u && negate_by_width[3] == 2u &&
+        signed_bit_not_by_width[0] == 1u &&
+        signed_bit_not_by_width[1] == 1u &&
+        signed_bit_not_by_width[2] == 1u &&
+        signed_bit_not_by_width[3] == 2u &&
+        unsigned_bit_not_by_width[0] == 1u &&
+        unsigned_bit_not_by_width[1] == 1u &&
+        unsigned_bit_not_by_width[2] == 1u &&
+        unsigned_bit_not_by_width[3] == 2u &&
+        count_bytes(artifact, mlir_bytes, "llvm.call @w_seed_checked_subtract_i64(") ==
+            5u &&
+        count_bytes(artifact, mlir_bytes, "llvm.xor ") == 10u &&
+        count_bytes(artifact, mlir_bytes, "llvm.trunc ") >= 6u &&
+        count_bytes(artifact, mlir_bytes, "llvm.sext ") >= 3u &&
+        count_bytes(artifact, mlir_bytes, "llvm.zext ") >= 3u &&
+        contains_bytes(artifact, mlir_bytes, "llvm.intr.trap"));
   return true;
 }
 
@@ -4895,6 +5131,7 @@ int main(void) {
                        test_multi_carrier_native_subset_selector() &&
                        test_post_loop_continuation_native_subset() &&
                        test_unary_i64_native_selector() &&
+                       test_integer_prefix_native_matrix() &&
                        test_implicit_integer_widening_native() &&
                        test_scalar_if_value_native() &&
                        test_nested_scalar_if_value_native() &&
