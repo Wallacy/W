@@ -22701,7 +22701,13 @@ let bits = short.toBits()
 `exactly:` rejeita out-of-range, fraction, non-finite e perda de precisão.
 `rounding:` exige uma `RoundingMode`. Um destination integer rejeita NaN,
 infinity e out-of-range. Um destination float preserva infinity, rejeita NaN e
-rejeita overflow finito na forma `try`. `saturating:` exige uma policy para NaN.
+rejeita overflow finito na forma `try`. A `nan:` label is required only for a
+`saturating:` conversion whose source domain can contain NaN; forms over a
+domain that cannot contain NaN reject `nan:`. Integer-to-integer
+`D(saturating: source)` is total and accepts exactly the `saturating:` label:
+it clamps the mathematical source value to the destination minimum or maximum
+when out of range and otherwise preserves that value. It rejects `try` and
+`nan:`; W-1644 defines its bounded implementation slice in §26.4.1.124.
 `truncatingBits:` existe somente entre integers e é total. Para um destino `D`
 com largura `N`, `D(truncatingBits: source)` produz o único valor de `D` cuja
 representação de `N` bits é congruente ao valor matemático de `source` módulo
@@ -42289,6 +42295,41 @@ W-392 remains open for named numeric and shift policies, power, rotations,
 remaining bit primitives, SIMD, `usize`/`isize`, 128-bit integers, non-x86-64
 alias widths, stable ABI/FFI, other targets, and equivalent-runtime
 performance.
+
+#### 26.4.1.124 W-1644 — fixed-width integer saturating conversion
+
+W-1644 selects the existing integer-to-integer `D(saturating: source)` form
+from §15.1.2; it adds no syntax. Its bounded domain is all 100 source and
+destination pairs among `i8`/`u8`, `i16`/`u16`, `i32`/`u32`,
+`i64`/`u64`, and the current x86-64 `Int`/`UInt` aliases. W-382 keeps
+the public `Int` and `UInt` design widths fixed at 64 bits. `Bool`,
+floating-point types, `usize`/`isize`, and `i128`/`u128` are outside
+this bounded implementation.
+
+The conversion is total. It compares the source's mathematical value against
+the destination range, clamps below-minimum values to the destination minimum
+and above-maximum values to its maximum, and preserves values in range. The
+integer form accepts exactly the `saturating:` argument label; `try` and
+`nan:` are rejected.
+
+Frontend66 and HIR87 carry one generic source/destination path with explicit
+signedness and logical-width facts. NativeSubset0 schema 10 and MLIR58 validate
+those facts independently. Lowering reconstructs the mathematical source in
+the physical `i64` carrier, compares and selects the destination bounds before
+destination interpretation, and uses no heap allocation, runtime helper, or
+CRT helper. The same route covers all 100 type pairs; focused scalar tests also
+exercise low, in-range, and high values through the 8/16/32/64-bit boundaries.
+
+[`restaurant-integer-saturating-conversion.w`](compiler/seed-c/fixtures/restaurant-integer-saturating-conversion.w)
+is the compact public witness. It exercises all four signedness quadrants and
+the current x86-64 `UInt`-to-`Int` alias boundary. The exact source crosses
+frontend -> verified HIR -> Native0/MLIR0 -> CRT-free native execution on
+Windows and Linux/WSL. Malformed labels fail before observable output.
+ProductClosure0 remains intentionally narrower and rejects this value kind.
+
+C23 and Rust 2024 are correctness references only, with no performance
+ranking. `benchmarkDisposition: deferred` until equivalent runtime work
+permits a fair comparison.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

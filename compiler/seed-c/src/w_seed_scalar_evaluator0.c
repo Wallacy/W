@@ -242,6 +242,69 @@ static int64_t scalar_signed_integer_bits(uint64_t bits,
   return -(int64_t)magnitude;
 }
 
+static bool scalar_saturating_integer_conversion(
+    int64_t source_carrier, scalar_integer_facts source_facts,
+    scalar_integer_facts destination_facts, int64_t *result) {
+  if (result == NULL ||
+      (source_facts.bit_width != 8u && source_facts.bit_width != 16u &&
+       source_facts.bit_width != 32u && source_facts.bit_width != 64u) ||
+      (destination_facts.bit_width != 8u &&
+       destination_facts.bit_width != 16u &&
+       destination_facts.bit_width != 32u &&
+       destination_facts.bit_width != 64u))
+    return false;
+  const uint64_t source_mask =
+      source_facts.bit_width == 64u
+          ? UINT64_MAX
+          : (UINT64_C(1) << source_facts.bit_width) - UINT64_C(1);
+  const uint64_t source_bits = (uint64_t)source_carrier & source_mask;
+  uint64_t destination_bits = 0u;
+  if (destination_facts.is_signed) {
+    int64_t value = 0;
+    if (source_facts.is_signed) {
+      value = scalar_signed_integer_bits(source_bits, source_facts.bit_width);
+    } else {
+      const uint64_t maximum =
+          destination_facts.bit_width == 64u
+              ? (uint64_t)INT64_MAX
+              : (UINT64_C(1) << (destination_facts.bit_width - 1u)) -
+                    UINT64_C(1);
+      destination_bits = source_bits > maximum ? maximum : source_bits;
+      *result = scalar_signed_integer_bits(destination_bits,
+                                           destination_facts.bit_width);
+      return true;
+    }
+    if (destination_facts.bit_width < 64u) {
+      const int64_t maximum =
+          (int64_t)((UINT64_C(1) << (destination_facts.bit_width - 1u)) -
+                    UINT64_C(1));
+      const int64_t minimum = -maximum - INT64_C(1);
+      if (value < minimum) value = minimum;
+      if (value > maximum) value = maximum;
+    }
+    destination_bits = (uint64_t)value;
+    *result = scalar_signed_integer_bits(destination_bits,
+                                         destination_facts.bit_width);
+    return true;
+  }
+
+  const uint64_t destination_mask =
+      destination_facts.bit_width == 64u
+          ? UINT64_MAX
+          : (UINT64_C(1) << destination_facts.bit_width) - UINT64_C(1);
+  if (source_facts.is_signed) {
+    const int64_t value = scalar_signed_integer_bits(source_bits,
+                                                     source_facts.bit_width);
+    destination_bits = value < 0 ? 0u : (uint64_t)value;
+  } else {
+    destination_bits = source_bits;
+  }
+  if (destination_bits > destination_mask)
+    destination_bits = destination_mask;
+  (void)memcpy(result, &destination_bits, sizeof(*result));
+  return true;
+}
+
 static bool scalar_integer_bitwise(w_seed_hir0_binary_operator operation,
                                   uint16_t bit_width, uint64_t left_bits,
                                   uint64_t right_bits,
@@ -480,6 +543,41 @@ static bool scalar_evaluate_value(const w_seed_hir0_program *program,
       } else {
         (void)memcpy(result, &destination_bits, sizeof(*result));
       }
+      return true;
+    }
+    case W_SEED_HIR0_VALUE_INTEGER_SATURATING: {
+      scalar_integer_facts source_facts;
+      scalar_integer_facts destination_facts;
+      scalar_integer_facts child_facts;
+      int64_t source_value = 0;
+      if (value->source_type >= program->type_count ||
+          value->left_value == W_SEED_HIR0_NONE ||
+          value->left_value >= program->value_count ||
+          value->right_value != W_SEED_HIR0_NONE ||
+          !scalar_integer_type_facts(program, value->source_type,
+                                     &source_facts) ||
+          !scalar_integer_type_facts(program, value->type_index,
+                                     &destination_facts) ||
+          !scalar_integer_type_facts(program, value->type_index,
+                                     &value_facts) ||
+          destination_facts.is_signed != value_facts.is_signed ||
+          destination_facts.bit_width != value_facts.bit_width ||
+          !scalar_integer_type_facts(
+              program, program->values[value->left_value].type_index,
+              &child_facts) ||
+          child_facts.is_signed != source_facts.is_signed ||
+          child_facts.bit_width != source_facts.bit_width ||
+          program->values[value->left_value].type_index != value->source_type ||
+          program->values[value->left_value].owner_kind !=
+              W_SEED_HIR0_VALUE_OWNER_INTEGER_SATURATING ||
+          program->values[value->left_value].owner_index != value_index ||
+          program->values[value->left_value].owner_ordinal != 0u ||
+          !scalar_evaluate_value(program, value->left_value, parameters,
+                                 parameter_count, depth + 1u, budget,
+                                 &source_value) ||
+          !scalar_saturating_integer_conversion(
+              source_value, source_facts, destination_facts, result))
+        return false;
       return true;
     }
     case W_SEED_HIR0_VALUE_UNARY_I64: {

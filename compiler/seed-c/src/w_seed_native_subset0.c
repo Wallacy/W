@@ -165,7 +165,7 @@ static bool native_integer_widening_route(
          (!source_facts->is_signed && destination_facts->is_signed);
 }
 
-static bool native_integer_truncating_bits_route(
+static bool native_integer_conversion_route(
     const w_seed_hir0_program *program, uint32_t source_type,
     uint32_t destination_type, native_integer_facts *source_facts,
     native_integer_facts *destination_facts) {
@@ -195,6 +195,48 @@ static uint64_t native_integer_carrier_bits(uint64_t bits,
       (bits & (UINT64_C(1) << (facts.bit_width - 1u))) != 0u)
     bits |= ~mask;
   return bits;
+}
+
+static uint64_t native_integer_saturating_conversion_bits(
+    uint64_t source_bits, native_integer_facts source_facts,
+    native_integer_facts destination_facts) {
+  const uint64_t source_carrier =
+      native_integer_carrier_bits(source_bits, source_facts);
+  const uint64_t destination_mask =
+      native_integer_width_mask(destination_facts);
+  uint64_t result = 0u;
+  if (destination_facts.is_signed) {
+    uint64_t maximum =
+        destination_facts.bit_width == 64u
+            ? (uint64_t)INT64_MAX
+            : (UINT64_C(1) << (destination_facts.bit_width - 1u)) -
+                  UINT64_C(1);
+    if (source_facts.is_signed) {
+      int64_t value = 0;
+      (void)memcpy(&value, &source_carrier, sizeof(value));
+      if (destination_facts.bit_width < 64u) {
+        const int64_t maximum_signed = (int64_t)maximum;
+        const int64_t minimum_signed = -maximum_signed - INT64_C(1);
+        if (value < minimum_signed) value = minimum_signed;
+        if (value > maximum_signed) value = maximum_signed;
+      }
+      result = (uint64_t)value;
+    } else {
+      if (source_carrier > maximum) result = maximum;
+      else result = source_carrier;
+    }
+    return native_integer_mask_bits(result, destination_facts);
+  }
+
+  uint64_t value = source_carrier;
+  if (source_facts.is_signed) {
+    int64_t signed_value = 0;
+    (void)memcpy(&signed_value, &source_carrier, sizeof(signed_value));
+    if (signed_value < 0) return 0u;
+    value = (uint64_t)signed_value;
+  }
+  if (value > destination_mask) value = destination_mask;
+  return value;
 }
 
 static bool native_integer_is_checked_shift(
@@ -616,20 +658,26 @@ static bool evaluate_integer_bits(const w_seed_hir0_program *program,
     return true;
   }
 
-  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS) {
+  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS ||
+      value->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING) {
+    const bool saturating =
+        value->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING;
+    const w_seed_hir0_value_owner_kind owner_kind =
+        saturating ? W_SEED_HIR0_VALUE_OWNER_INTEGER_SATURATING
+                   : W_SEED_HIR0_VALUE_OWNER_INTEGER_TRUNCATING_BITS;
     native_integer_facts source_facts;
     native_integer_facts destination_facts;
     if (value->source_type >= program->type_count ||
         value->left_value == W_SEED_HIR0_NONE ||
         value->left_value >= program->value_count ||
         value->right_value != W_SEED_HIR0_NONE ||
-        !native_integer_truncating_bits_route(
+        !native_integer_conversion_route(
             program, value->source_type, value->type_index, &source_facts,
             &destination_facts) ||
         !native_integer_facts_equal(destination_facts, expected) ||
         program->values[value->left_value].type_index != value->source_type ||
         program->values[value->left_value].owner_kind !=
-            W_SEED_HIR0_VALUE_OWNER_INTEGER_TRUNCATING_BITS ||
+            owner_kind ||
         program->values[value->left_value].owner_index != value_index ||
         program->values[value->left_value].owner_ordinal != 0u)
       return false;
@@ -637,8 +685,13 @@ static bool evaluate_integer_bits(const w_seed_hir0_program *program,
     if (!evaluate_integer_bits(program, value->left_value, depth + 1u,
                                source_facts, &source_bits))
       return false;
-    *result = native_integer_mask_bits(
-        native_integer_carrier_bits(source_bits, source_facts), expected);
+    *result = saturating
+                  ? native_integer_saturating_conversion_bits(
+                        source_bits, source_facts, destination_facts)
+                  : native_integer_mask_bits(
+                        native_integer_carrier_bits(source_bits,
+                                                    source_facts),
+                        expected);
     return true;
   }
 
@@ -808,7 +861,8 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
     *result = value->unsigned_integer_value;
     return true;
   }
-  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS) {
+  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS ||
+      value->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING) {
     native_integer_facts facts;
     return native_integer_type_facts(program, value->type_index, &facts) &&
            !facts.is_signed && facts.bit_width == 64u &&
@@ -1031,7 +1085,8 @@ static bool evaluate_i64(const w_seed_hir0_program *program,
     *result = value->integer_value;
     return true;
   }
-  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS) {
+  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS ||
+      value->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING) {
     native_integer_facts facts;
     uint64_t bits = 0u;
     if (!native_integer_type_facts(program, value->type_index, &facts) ||
@@ -1106,7 +1161,8 @@ static bool program_value_is_constant_i64(
       program->types[value->type_index].kind != W_SEED_HIR0_TYPE_I64)
     return false;
   if (value->kind == W_SEED_HIR0_VALUE_CONST_I64) return true;
-  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS)
+  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS ||
+      value->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING)
     return program_value_is_constant_integer(program, value_index,
                                              depth + 1u);
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64)
@@ -1135,7 +1191,8 @@ static bool program_value_is_constant_u64(
       program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64)
     return false;
   if (value->kind == W_SEED_HIR0_VALUE_CONST_U64) return true;
-  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS)
+  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS ||
+      value->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING)
     return program_value_is_constant_integer(program, value_index,
                                              depth + 1u);
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64)
@@ -1198,21 +1255,27 @@ static bool program_value_is_constant_integer(
       facts.is_signed ? W_SEED_HIR0_VALUE_BINARY_I64
                       : W_SEED_HIR0_VALUE_BINARY_U64;
   if (value->kind == constant_kind) return true;
-  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS) {
+  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS ||
+      value->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING) {
+    const bool saturating =
+        value->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING;
+    const w_seed_hir0_value_owner_kind owner_kind =
+        saturating ? W_SEED_HIR0_VALUE_OWNER_INTEGER_SATURATING
+                   : W_SEED_HIR0_VALUE_OWNER_INTEGER_TRUNCATING_BITS;
     native_integer_facts source_facts;
     native_integer_facts destination_facts;
     return value->source_type < program->type_count &&
            value->left_value != W_SEED_HIR0_NONE &&
            value->left_value < program->value_count &&
            value->right_value == W_SEED_HIR0_NONE &&
-           native_integer_truncating_bits_route(
+           native_integer_conversion_route(
                program, value->source_type, value->type_index, &source_facts,
                &destination_facts) &&
            native_integer_facts_equal(facts, destination_facts) &&
            program->values[value->left_value].type_index ==
                value->source_type &&
            program->values[value->left_value].owner_kind ==
-               W_SEED_HIR0_VALUE_OWNER_INTEGER_TRUNCATING_BITS &&
+               owner_kind &&
            program->values[value->left_value].owner_index == value_index &&
            program->values[value->left_value].owner_ordinal == 0u &&
            program_value_is_constant_integer(program, value->left_value,
@@ -1577,6 +1640,7 @@ static bool interpolation_maximum_bytes(
           effective->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN ||
           effective->kind ==
               W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS ||
+          effective->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING ||
           effective->kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT ||
           effective->kind ==
               W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON ||
@@ -2020,19 +2084,24 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
     return program_value_lowerable(program, value->left_value, owner_function,
                                    false, depth + 1u);
   }
-  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS) {
+  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS ||
+      value->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING) {
+    const w_seed_hir0_value_owner_kind owner_kind =
+        value->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING
+            ? W_SEED_HIR0_VALUE_OWNER_INTEGER_SATURATING
+            : W_SEED_HIR0_VALUE_OWNER_INTEGER_TRUNCATING_BITS;
     native_integer_facts source_facts;
     native_integer_facts destination_facts;
     if (value->source_type >= program->type_count ||
         value->left_value == W_SEED_HIR0_NONE ||
         value->left_value >= program->value_count ||
         value->right_value != W_SEED_HIR0_NONE ||
-        !native_integer_truncating_bits_route(
+        !native_integer_conversion_route(
             program, value->source_type, value->type_index, &source_facts,
             &destination_facts) ||
         program->values[value->left_value].type_index != value->source_type ||
         program->values[value->left_value].owner_kind !=
-            W_SEED_HIR0_VALUE_OWNER_INTEGER_TRUNCATING_BITS ||
+            owner_kind ||
         program->values[value->left_value].owner_index != value_index ||
         program->values[value->left_value].owner_ordinal != 0u)
       return false;
@@ -2648,19 +2717,24 @@ static bool process_value_lowerable(
                                    process, false, depth + 1u);
   }
 
-  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS) {
+  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS ||
+      value->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING) {
+    const w_seed_hir0_value_owner_kind owner_kind =
+        value->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING
+            ? W_SEED_HIR0_VALUE_OWNER_INTEGER_SATURATING
+            : W_SEED_HIR0_VALUE_OWNER_INTEGER_TRUNCATING_BITS;
     native_integer_facts source_facts;
     native_integer_facts destination_facts;
     if (value->source_type >= program->type_count ||
         value->left_value == W_SEED_HIR0_NONE ||
         value->left_value >= program->value_count ||
         value->right_value != W_SEED_HIR0_NONE ||
-        !native_integer_truncating_bits_route(
+        !native_integer_conversion_route(
             program, value->source_type, value->type_index, &source_facts,
             &destination_facts) ||
         program->values[value->left_value].type_index != value->source_type ||
         program->values[value->left_value].owner_kind !=
-            W_SEED_HIR0_VALUE_OWNER_INTEGER_TRUNCATING_BITS ||
+            owner_kind ||
         program->values[value->left_value].owner_index != value_index ||
         program->values[value->left_value].owner_ordinal != 0u)
       return false;

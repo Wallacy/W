@@ -43,6 +43,8 @@ const restaurantIntegerWideningFixture = resolve(seedDirectory,
   "fixtures", "restaurant-integer-widening.w")
 const restaurantIntegerTruncatingBitsFixture = resolve(seedDirectory,
   "fixtures", "restaurant-integer-truncating-bits.w")
+const restaurantIntegerSaturatingConversionFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-integer-saturating-conversion.w")
 const restaurantUIntWrappingAddFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-add.w")
 const restaurantUIntWrappingSubtractFixture = resolve(seedDirectory,
@@ -808,6 +810,11 @@ try {
       source: restaurantIntegerTruncatingBitsFixture,
       expected: Buffer.from(
         "Trunc 2/-7/-6/18446744073709551609/-1\n", "utf8") },
+    { name: "restaurant-integer-saturating-conversion",
+      source: restaurantIntegerSaturatingConversionFixture,
+      expected: Buffer.from(
+        "ss -128/7/127; us 7/127/127; su 0/200/255; " +
+        "uu 7/255/255; UInt->Int 9223372036854775807\n", "utf8") },
     { name: "restaurant-uint-wrapping-add",
       source: restaurantUIntWrappingAddFixture,
       expected: Buffer.from("Wrapped 0\n", "utf8") },
@@ -1555,6 +1562,24 @@ try {
     (integerTruncatingBitsArtifact.match(
       / = llvm\.or %p0, %v\d+_truncating_zero : i64\n/gu) ?? []).length === 2,
   "truncatingBits must canonicalize each narrow source, truncate destination bits, and extend by destination signedness")
+  const integerSaturatingConversionArtifact = artifacts.get(
+    "restaurant-integer-saturating-conversion").toString("utf8")
+  const saturatingCompareCount = (integerSaturatingConversionArtifact.match(
+    /llvm\.icmp "(?:slt|sgt|ugt)" %v\d+_saturating_/gu) ?? []).length
+  const saturatingSelectCount = (integerSaturatingConversionArtifact.match(
+    /llvm\.select %v\d+_saturating_/gu) ?? []).length
+  assert(saturatingCompareCount > 0 &&
+    saturatingSelectCount === saturatingCompareCount &&
+    integerSaturatingConversionArtifact.includes(
+      'llvm.icmp "slt" %v') &&
+    integerSaturatingConversionArtifact.includes(
+      'llvm.icmp "sgt" %v') &&
+    integerSaturatingConversionArtifact.includes(
+      'llvm.icmp "ugt" %v') &&
+    integerSaturatingConversionArtifact.includes("_saturating_source_bits = llvm.trunc") &&
+    integerSaturatingConversionArtifact.includes("_saturating_source = llvm.sext") &&
+    integerSaturatingConversionArtifact.includes("_saturating_source = llvm.zext"),
+  "saturating conversions must normalize their source and clamp with compare/select")
   assert(artifacts.get("direct-call").includes("llvm.call @w_fn_0") &&
     artifacts.get("direct-call").includes(
       "llvm.call @w_seed_checked_multiply_i64(%v4, %v5, %v6_checked_width) : " +
@@ -1760,6 +1785,9 @@ try {
     ["nested-return-call.w",
       `fn value(): i64 { return 42 }\nfn relay(): i64 { return value() }\n` +
       `fn main() { let result = relay() print("\${result}") }\nentry(main)\n`],
+    ["integer-saturating-wrong-label.w",
+      `entry { print("must not commit") ` +
+      `let value = i8(saturating: 128_i16, other: 0_i16) }\n`],
     ["nested-if-too-deep.w", nestedIfTooDeep],
     ["constant-arithmetic-overflow.w",
       `fn main() { let value = 9223372036854775807 + 1 ` +

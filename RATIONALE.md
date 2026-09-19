@@ -228,6 +228,7 @@ O corpus compara, no mínimo:
 - checked fixed-width arithmetic against per-width compiler branches, target undefined behavior, eager faulting operations, and fragmented executable evidence.
 - fixed-width integer prefix operators against per-width compiler branches, binary desugaring, host integer promotion, unchecked target subtraction, and an always-linked numeric runtime.
 - fixed-width `truncatingBits:` conversion against per-pair lowering branches, host casts/promotions, and source-signedness leakage.
+- fixed-width integer saturation against host promotions, post-conversion clamps, per-pair lowering branches, and unequal benchmark work.
 - ordinary binary integer bitwise operators against per-width lowering branches, host promotion rules, source-signedness leakage, and fragmented executable witnesses.
 - checked ordinary integer shifts against per-width lowering branches, implicit promotions, masked counts, host shift rules, and unchecked left-shift loss.
 - direct prefix-negative interpolation against late root-only retyping, a synthetic binding workaround, and textual constant folding.
@@ -7998,6 +7999,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1641 | fixed-width integer `truncatingBits:` conversion through native execution | Frontend65 and HIR84 preserve a distinct, single-child conversion value while reusing source/destination type facts; Native0 remains schema 10, MLIR0 is `w-seed-mlir0-55`, and the Windows adapter is `w-seed-mlir0-windows-40`. The scalar evaluator, NativeSubset0, and MLIR0 independently validate the facts; lowering uses the physical `i64` carrier, normalizes source width, selects destination low bits, and extends by destination signedness without a runtime call, heap, or CRT helper. | `source-backed-current` only for all 100 signed/unsigned 8/16/32/64-bit and current x86-64 `Int`/`UInt` source/destination pairs: frontend four contexts and 11 rejects; HIR five values and forged-fact barriers; NativeSubset0 five representative routes; MLIR exact operand/pattern and forged-fact checks. Final-source `bun check --target mlir0`, `w-run-windows`, and `w-run` pass; the fixture exits 0 with stdout `Trunc 2/-7/-6/18446744073709551609/-1\n`, and the malformed label fails before output. C23 and Rust 2024 use runtime operands and are correctness references only. W-1641 closes only the existing `truncatingBits:` subset of W-389; other conversion policies, float conversion, `usize`/`isize`, 128-bit integers, target-general aliases, stable ABI/FFI, other targets, and equivalent-work performance remain gaps. Fallible `D(exactly:)` remains deferred until typed conversion-error lowering is end-to-end and is not implemented. `benchmarkDisposition: correctness-reference-no-ranking`. |
 | W-1642 | ordinary binary integer bitwise family through native execution | The existing bitwise AND, OR, and XOR operators cover `i8`/`u8`, `i16`/`u16`, `i32`/`u32`, `i64`/`u64`, and current x86-64 `Int`/`UInt` aliases. Existing exact integer widening may select a common type, including range-safe `u8 -> i16`; both verified-HIR operands and the result then have that exact canonical type. Lossy or ambiguous mixing remains invalid. Verified HIR is schema 85; Native0 remains schema 10, MLIR0 is `w-seed-mlir0-56`, and its Windows adapter is `w-seed-mlir0-windows-41`. A physical `i64` carrier holds a logical-width-masked `uint64` bit domain; results are sign- or zero-extended according to signedness, and MLIR emits direct `llvm.and`, `llvm.or`, and `llvm.xor` without runtime, heap, or CRT helpers. | `source-backed-current` only for this bounded ordinary binary family and its source witness. [`restaurant-integer-bitwise.w`](compiler/seed-c/fixtures/restaurant-integer-bitwise.w) declares exit 0 and exact output for all ten supported type spellings plus i8-to-i32 and u8-to-i16 exact widening. C23 and Rust 2024 are correctness references only; no performance ranking is claimed. W-1643 separately closes checked ordinary shifts for this bounded type family; W-392 remains open for power, named shift policies, rotations, remaining bit primitives, SIMD, and the complete integer operator matrix. `benchmarkDisposition: correctness-reference-no-ranking`. |
 | W-1643 | checked ordinary integer shifts through native execution | The existing `<<` and `>>` operators preserve identical canonical left/result integer types across signed/unsigned 8-, 16-, 32-, and 64-bit builtins plus current x86-64 `Int`/`UInt` aliases; the count is exactly `UInt` (`u64` on current x86-64). Counts at or above logical width fail checked evaluation, left shift rejects mathematical overflow, signed right shift is arithmetic, and unsigned right shift is logical. Verified HIR is schema 86; Native0 remains schema 10, MLIR0 is `w-seed-mlir0-57`, and its Windows adapter is `w-seed-mlir0-windows-42`. One generic route carries canonical signedness/logical-width facts into direct LLVM shifts, with no per-width operation enum, heap, runtime helper, or CRT helper. | `source-backed-current` only for the frontend → verified-HIR → Native0/MLIR0 route and exact CRT-free Windows plus Linux/WSL execution of [`restaurant-shifts.w`](compiler/seed-c/fixtures/restaurant-shifts.w), which owns expected exit/stdout. C23 and Rust 2024 are correctness references only; no performance ranking is claimed. W-392 remains open for named policies, power, rotations, remaining bit primitives, SIMD, `usize`/`isize`, 128-bit integers, non-x86-64 aliases, stable ABI/FFI, other targets, and equivalent-runtime performance. `benchmarkDisposition: deferred` until W retains equivalent runtime operands. |
+| W-1644 | fixed-width integer `saturating:` conversion | The existing integer-to-integer `D(saturating: source)` form is total and clamps the mathematical value to the destination minimum or maximum. The bounded domain is all 100 source/destination pairs among `i8`/`u8`, `i16`/`u16`, `i32`/`u32`, `i64`/`u64`, and current x86-64 `Int`/`UInt` aliases; `Bool`, floats, `usize`/`isize`, and `i128`/`u128` remain outside the package. Exactly the `saturating:` label is accepted; integer conversions reject `try` and `nan:`. Frontend66, HIR87, Native0 schema 10, MLIR58, and Windows43 carry one generic source/destination route with verified signedness and logical width. Lowering compares/selects before destination interpretation without heap, runtime, or CRT helpers. | `source-backed-current` only for the bounded 100-pair family, focused scalar boundaries, compact four-quadrant plus x86-64 alias witness, malformed-label failure before output, and exact CRT-free Windows plus Linux/WSL execution. ProductClosure0 deliberately remains narrower. C23 and Rust 2024 are correctness references only; other conversion families, target-general aliases, stable ABI/FFI, other targets, and equivalent-runtime performance remain gaps. `benchmarkDisposition: deferred`. |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -14220,3 +14222,37 @@ equivalent runtime operands. W-392 remains open for power, named
 numeric/shift policies, rotations, remaining bit primitives, SIMD,
 `usize`/`isize`, 128-bit integers, non-x86-64 alias widths, stable ABI/FFI,
 other targets, and equivalent-runtime performance.
+
+#### W-1644 — fixed-width integer saturating conversion
+
+W-1644 is a bounded implementation increment under W-389 for the existing
+integer-to-integer `D(saturating: source)` form; it adds no syntax. It covers
+all 100 source/destination pairs among `i8`/`u8`, `i16`/`u16`,
+`i32`/`u32`, `i64`/`u64`, and current x86-64 `Int`/`UInt` aliases.
+The public design width of `Int` and `UInt` remains 64 bits under W-382.
+`Bool`, floating-point types, `usize`/`isize`, and `i128`/`u128` are
+outside this bounded package.
+
+The integer conversion is total: it compares the mathematical source value
+with the destination's minimum and maximum, returns the minimum below range
+and the maximum above range, and preserves the value when it fits. The integer
+form accepts exactly `saturating:`; it does not accept `try` or `nan:`.
+
+Frontend66 and HIR87 preserve one generic source/destination route carrying
+signedness and logical width. NativeSubset0 schema 10 and MLIR58 validate the
+same facts independently. Lowering normalizes the mathematical source in the
+physical `i64` carrier, clamps with direct LLVM comparisons and selects before
+destination interpretation, and needs no heap allocation, runtime helper, or
+CRT helper. Focused matrices cover all 100 type pairs; scalar cases exercise
+the four signedness quadrants and 8/16/32/64-bit boundaries. Capacity, alias,
+ownership, and forged-fact paths fail closed.
+
+The compact Restaurant witness covers low/in-range/high values in all four
+signedness quadrants plus `UInt::max` to `Int`. Its exact final source passes
+the MLIR pipeline and CRT-free Windows and Linux/WSL public run routes. A
+malformed call fails before buffered output is committed. ProductClosure0
+remains deliberately narrower and rejects the new value kind.
+
+C23 and Rust 2024 remain correctness references only, with no performance
+ranking. `benchmarkDisposition: deferred` until equivalent runtime work
+supports fair measurement.

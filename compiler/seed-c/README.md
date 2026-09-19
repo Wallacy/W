@@ -2907,6 +2907,38 @@ targets, and equivalent-runtime performance. The focused Windows compiler
 test executables use an 8 MiB stack reserve for recursive seed test/compiler
 walkers; this is test infrastructure, not a language limit.
 
+### Integer-to-integer saturating conversion (W-1644)
+
+W-1644 is the current bounded package for the existing
+`D(saturating: source)` form; it adds no syntax. Its selected domain is all
+100 source/destination pairs among `i8`/`u8`, `i16`/`u16`, `i32`/`u32`,
+`i64`/`u64`, and the current x86-64 `Int`/`UInt` aliases. W-382 keeps
+the public `Int` and `UInt` widths fixed at 64 bits. `Bool`, floating-point
+types, `usize`/`isize`, and `i128`/`u128` are outside this package.
+
+The integer conversion is total: it clamps the mathematical source value to
+the destination range. It accepts exactly the `saturating:` label; `try`
+and `nan:` are invalid for this form.
+
+Frontend66 and HIR87 use one generic route over source and destination
+signedness and logical width. NativeSubset0 schema 10 and MLIR58 independently
+verify those facts. MLIR normalizes the source in the physical `i64` carrier,
+uses direct comparisons and selects before destination interpretation, and
+needs no heap, runtime, or CRT helper. Focused matrices cover all 100 pairs;
+the scalar evaluator covers representative 8/16/32/64-bit boundaries,
+capacity, alias, ownership, and forged facts.
+
+[`fixtures/restaurant-integer-saturating-conversion.w`](fixtures/restaurant-integer-saturating-conversion.w)
+owns a compact exact-output witness for all four signedness quadrants and the
+current x86-64 `UInt`-to-`Int` boundary. The final source passes the MLIR gate
+and CRT-free Windows and Linux/WSL public run routes. Malformed calls fail
+before output. ProductClosure0 deliberately rejects this value kind.
+
+C23 and Rust 2024 are correctness references only, with no ranking.
+`benchmarkDisposition: deferred` until equivalent runtime work permits fair
+measurement. Other conversion policies, target-general aliases, stable
+ABI/FFI, other targets, and performance remain gaps.
+
 ### Strict `f64` scalar slice
 
 The seed frontend, verified HIR0, NativeSubset0 selector, and MLIR0 preserve a

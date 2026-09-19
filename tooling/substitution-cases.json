@@ -11424,6 +11424,117 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-fixed-width-integer-saturating-conversion",
+      "reviewItem": "fixed-width integer saturation against host promotions, post-conversion clamps, per-pair lowering branches, and unequal benchmark work.",
+      "decisions": [
+        "W-1644"
+      ],
+      "task": "Carry total integer-to-integer `D(saturating: source)` across all 100 pairs of the ten current fixed integer spellings. Preserve verified source and destination signedness/width, compare the mathematical source before destination conversion, clamp to the destination range, and emit direct LLVM compare/select operations without heap, runtime, or CRT helpers. The family fixture and C23/Rust 2024 references are correctness-only; defer performance ranking until W retains equivalent runtime operands.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn signedToUnsigned(value: i16): u8 { return u8(saturating: value) }",
+          "fn unsignedToSigned(value: u16): i8 { return i8(saturating: value) }",
+          "fn aliasToAlias(value: UInt): Int { return Int(saturating: value) }"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "per-pair-conversion-identities",
+          "language": "w-internal-rejected",
+          "source": [
+            "create a distinct conversion kind and lowering branch for every source/destination width and signedness pair"
+          ],
+          "expectedDifference": "One conversion identity derives behavior from verified signedness and logical-width facts instead of multiplying compiler paths."
+        },
+        {
+          "name": "convert-before-clamp",
+          "language": "w-internal-rejected",
+          "source": [
+            "narrow or reinterpret the source to the destination type before comparing it with destination bounds"
+          ],
+          "expectedDifference": "The selected route compares the mathematical source first, so information needed to detect underflow or overflow is never discarded."
+        },
+        {
+          "name": "host-integer-saturation",
+          "language": "c-internal-rejected",
+          "source": [
+            "apply host integer promotions and signedness rules as the language conversion policy"
+          ],
+          "expectedDifference": "W signedness and logical width are explicit verified facts and do not depend on the bootstrap host's integer model."
+        },
+        {
+          "name": "runtime-saturating-helper",
+          "language": "w-internal-rejected",
+          "source": [
+            "call a generic runtime helper for every fixed-width integer saturating conversion"
+          ],
+          "expectedDifference": "Direct compare/select lowering keeps the bounded family CRT-free, allocation-free, and available to whole-program optimization."
+        },
+        {
+          "name": "rank-unequal-runtime-work",
+          "language": "benchmark-rejected",
+          "source": [
+            "rank W constant fixture conversions against C23 and Rust references that retain runtime operands"
+          ],
+          "expectedDifference": "The three sources remain correctness references only until equivalent runtime work makes performance comparison honest."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-integer-saturating-conversion.w",
+          "symbol": "entry",
+          "claim": "The compact family fixture owns exact exit/stdout for all four signedness quadrants at representative 16-to-8-bit boundaries plus the current x86-64 UInt-to-Int extreme."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_frontend.c",
+          "symbol": "test_explicit_integer_saturating_frontend",
+          "claim": "Frontend66 covers all 100 type pairs, supported contexts, malformed labels, excluded types, and fallible-form rejection."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_explicit_integer_saturating_hir",
+          "claim": "HIR87 covers the 100-pair structural matrix, 8/16/32/64-bit mixed-width scalar boundaries, ownership, capacity, alias, and forged-fact barriers."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_scalar_evaluator0.c",
+          "symbol": "scalar_saturating_integer_conversion",
+          "claim": "The scalar evaluator clamps all four signedness quadrants using independently verified type facts."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "append_integer_saturating_operation",
+          "claim": "MLIR58 emits direct compare/select clamps before destination interpretation without a saturating helper."
+        },
+        {
+          "path": "tooling/check-mlir0.mjs",
+          "symbol": "restaurant-integer-saturating-conversion",
+          "claim": "The Linux/WSL MLIR gate validates the direct family route and exact output."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "Restaurant fixed-width integer saturating conversion family",
+          "claim": "The public Windows gate executes exact family output and rejects malformed forms before output."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "Restaurant fixed-width integer saturating conversion family",
+          "claim": "The public Linux/WSL gate executes exact family output and rejects malformed forms before output."
+        }
+      ],
+      "checks": [
+        "Focused frontend, verified-HIR, MLIR, NativeSubset0, multidocument, and ProductClosure units pass; ProductClosure deliberately rejects the new value kind.",
+        "Final-source MLIR0, Windows, and Linux/WSL gates pass exact output and malformed-form failure before W-1644 is classified source-backed-current.",
+        "C23 and Rust 2024 references emit the same compact one-line output and remain correctness-only, with no timing or ranking."
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

@@ -549,6 +549,12 @@ fn numericPolicies(): (u8, u8, Bool, UInt) {
   expect wider == 200 && signed == 200
 
   let negative: i16 = -7
+  let unsignedSource: u16 = 300
+  let saturatedUnsigned: u8 = u8(saturating: negative)
+  let saturatedSigned: i8 = i8(saturating: unsignedSource)
+  expect saturatedUnsigned == 0
+  expect saturatedSigned == 127
+
   let lowByte: u8 = u8(truncatingBits: negative)
   let widenedNegative: i64 = i64(truncatingBits: negative)
   let signedPattern: i8 = i8(truncatingBits: 255_u8)
@@ -627,7 +633,16 @@ conversion. Current seed evidence is correctness-only and covers signed and
 unsigned 8/16/32/64-bit integers plus the current x86-64 `Int`/`UInt` aliases.
 `usize`/`isize`, 128-bit integers, target-general alias widths, stable ABI/FFI,
 other targets, and performance remain outside this slice. `exactly:`,
-`rounding:`, `saturating:`, and floating conversions are separate gaps.
+`rounding:`, other `saturating:` conversion families, and floating
+conversions are separate gaps.
+
+Integer `D(saturating: source)` clamps the mathematical value to the
+destination minimum or maximum and is total. Its integer form accepts no
+`try` or `nan:` label. The example above documents the W-1644 values. The
+current bounded implementation covers every source/destination pair among the
+signed and unsigned 8/16/32/64-bit integers and x86-64 `Int`/`UInt`; the
+compact public witness executes all four signedness quadrants on Windows and
+Linux/WSL. Other conversion families and target-general aliases remain gaps.
 
 ## Functions, labels, defaults, and rest
 

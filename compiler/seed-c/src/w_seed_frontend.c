@@ -10543,6 +10543,41 @@ static bool integer_type_constructor_for_spelling(
   return true;
 }
 
+/* Conversion operands are expressions, not type constructors.  A typed
+ * literal or computed value retains its source spelling in the expression
+ * record, so validate its resolved integer facts and recover the canonical
+ * builtin spelling instead of requiring the expression text to equal a type
+ * name.  Preserve Int/UInt when the resolved source already carries that
+ * alias identity. */
+static bool integer_conversion_source_type(frontend_simple_type source,
+                                           frontend_simple_type *type) {
+  if (type != NULL) *type = simple_type_unknown();
+  if (type == NULL || source.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+      source.bit_width == 0u)
+    return false;
+  frontend_simple_type named = simple_type_unknown();
+  if (integer_type_constructor_for_spelling(source.spelling, &named) &&
+      named.is_signed == source.is_signed &&
+      named.bit_width == source.bit_width) {
+    *type = named;
+    return true;
+  }
+  /* A resolved integer type spelling that is not in the selected fixed-width
+   * family (for example usize/isize or a future i128/u128) is not a literal
+   * provenance spelling and must remain outside this bounded conversion. */
+  if (looks_like_integer_type(source.spelling) ||
+      text_equal(source.spelling, "usize") ||
+      text_equal(source.spelling, "isize"))
+    return false;
+  const w_seed_frontend_text spelling =
+      const_integer_type_spelling(source.is_signed, source.bit_width);
+  if (spelling.length == 0u ||
+      !integer_type_constructor_for_spelling(spelling, &named))
+    return false;
+  *type = named;
+  return true;
+}
+
 static frontend_simple_type u64_bool_tuple_type(void) {
   frontend_simple_type type = simple_type_unknown();
   type.kind = W_SEED_FRONTEND_TYPE_TUPLE;
@@ -12906,20 +12941,21 @@ static bool expression_append_integer_widen(
   return true;
 }
 
-/* Keep explicit modulo conversion distinct from the directional implicit
- * widening node.  The wrapper owns one typed child and the exact source and
- * destination scalar type identities; consumers must apply the target-width
- * bit rule rather than C promotions or widening policy. */
-static bool expression_append_integer_truncating_bits(
+/* Explicit integer conversions own one typed child and the exact source and
+ * destination scalar type identities.  Their policies remain distinct from
+ * directional implicit widening and are interpreted from verified facts. */
+static bool expression_append_integer_conversion(
     frontend_expression_parser *parser, frontend_expr_value *value,
-    frontend_simple_type destination, w_seed_span call_span) {
+    frontend_simple_type destination, w_seed_span call_span,
+    w_seed_frontend_expr_kind kind, w_seed_frontend_text label) {
   frontend_simple_type canonical_source = simple_type_unknown();
   frontend_simple_type canonical_destination = simple_type_unknown();
   if (parser == NULL || value == NULL ||
+      (kind != W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS &&
+       kind != W_SEED_FRONTEND_EXPR_INTEGER_SATURATING) ||
       !integer_type_constructor_for_spelling(destination.spelling,
                                               &canonical_destination) ||
-      !integer_type_constructor_for_spelling(value->type.spelling,
-                                              &canonical_source) ||
+      !integer_conversion_source_type(value->type, &canonical_source) ||
       value->index == W_SEED_FRONTEND_NONE ||
       value->index >= (size_t)UINT32_MAX)
     return false;
@@ -12941,17 +12977,13 @@ static bool expression_append_integer_truncating_bits(
   const frontend_expr_value source = *value;
   frontend_expr_value wrapped = {0};
   if (!expression_append(
-      parser, W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS,
-          call_span, text_from_span(parser->document, call_span),
-          (w_seed_frontend_text){"truncatingBits", 14u},
-          canonical_destination,
-          source.supported, source.index, (size_t)W_SEED_FRONTEND_NONE,
-          W_SEED_FRONTEND_NONE, 0u, &wrapped))
+          parser, kind, call_span, text_from_span(parser->document, call_span),
+          label, canonical_destination, source.supported, source.index,
+          (size_t)W_SEED_FRONTEND_NONE, W_SEED_FRONTEND_NONE, 0u, &wrapped))
     return false;
   if (!parser->context->emit &&
       !receipt_size_integer_conversion(
-          parser->context, wrapped.index,
-          W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS, source_type,
+          parser->context, wrapped.index, kind, source_type,
           destination_type))
     return false;
   if (parser->context->emit && parser->context->output != NULL &&
@@ -12962,11 +12994,29 @@ static bool expression_append_integer_truncating_bits(
     record->conversion_destination_type = destination_type;
   }
   wrapped.is_integer_literal = false;
-  wrapped.kind = W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS;
+  wrapped.kind = kind;
   wrapped.type = canonical_destination;
   wrapped.supported = source.supported;
   *value = wrapped;
   return true;
+}
+
+static bool expression_append_integer_truncating_bits(
+    frontend_expression_parser *parser, frontend_expr_value *value,
+    frontend_simple_type destination, w_seed_span call_span) {
+  return expression_append_integer_conversion(
+      parser, value, destination, call_span,
+      W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS,
+      (w_seed_frontend_text){"truncatingBits", 14u});
+}
+
+static bool expression_append_integer_saturating(
+    frontend_expression_parser *parser, frontend_expr_value *value,
+    frontend_simple_type destination, w_seed_span call_span) {
+  return expression_append_integer_conversion(
+      parser, value, destination, call_span,
+      W_SEED_FRONTEND_EXPR_INTEGER_SATURATING,
+      (w_seed_frontend_text){"saturating", 10u});
 }
 
 /* Apply contextual integer typing without reparsing source.  Unsuffixed
@@ -14000,7 +14050,7 @@ static bool call_label_known_for_signature(
   return false;
 }
 
-static bool expression_parse_integer_truncating_bits_call(
+static bool expression_parse_integer_conversion_call(
     frontend_expression_parser *parser, frontend_expr_value *constructor,
     frontend_token open) {
   if (parser == NULL || constructor == NULL ||
@@ -14011,6 +14061,7 @@ static bool expression_parse_integer_truncating_bits_call(
   source.index = W_SEED_FRONTEND_NONE;
   source.type = simple_type_unknown();
   w_seed_frontend_text source_label = {NULL, 0u};
+  w_seed_frontend_text recognized_label = {NULL, 0u};
   size_t argument_count = 0u;
   bool shape_valid = true;
   while (!cursor_peek_text(&parser->cursor, ")")) {
@@ -14030,8 +14081,11 @@ static bool expression_parse_integer_truncating_bits_call(
     const frontend_simple_type saved_expected = parser->expected_type;
     const bool saved_has_expected = parser->has_expected_type;
     const bool saved_suppress_short = parser->suppress_short_diagnostic;
-    parser->expected_type = simple_type_unknown();
-    parser->has_expected_type = false;
+    /* An unsuffixed integer operand keeps W's ordinary i64 default.  The
+     * destination type is deliberately not the contextual source type: an
+     * explicit conversion must retain the mathematical source domain. */
+    parser->expected_type = const_default_integer_type();
+    parser->has_expected_type = true;
     parser->suppress_short_diagnostic = true;
     frontend_expr_value argument;
     const bool parsed = expression_parse_bp(parser, 0, &argument);
@@ -14039,13 +14093,19 @@ static bool expression_parse_integer_truncating_bits_call(
     parser->has_expected_type = saved_has_expected;
     parser->suppress_short_diagnostic = saved_suppress_short;
     if (!parsed) return false;
+    if (recognized_label.length == 0u &&
+        (text_equal(label, "truncatingBits") ||
+         text_equal(label, "saturating")))
+      recognized_label = label;
     if (argument_count == 0u) {
       source = argument;
       source_label = label;
     } else {
       shape_valid = false;
     }
-    if (label.length == 0u || !text_equal(label, "truncatingBits"))
+    if (label.length == 0u ||
+        (!text_equal(label, "truncatingBits") &&
+         !text_equal(label, "saturating")))
       shape_valid = false;
     argument_count += 1u;
     if (!cursor_peek_text(&parser->cursor, ",")) break;
@@ -14057,18 +14117,24 @@ static bool expression_parse_integer_truncating_bits_call(
                                  close.span.end_byte};
   frontend_simple_type checked_destination = simple_type_unknown();
   frontend_simple_type checked_source = simple_type_unknown();
+  const bool truncating_bits = text_equal(source_label, "truncatingBits");
+  const bool saturating = text_equal(source_label, "saturating");
   const bool valid_conversion =
-      shape_valid && argument_count == 1u && source_label.length != 0u &&
-      text_equal(source_label, "truncatingBits") && source.supported &&
+      shape_valid && argument_count == 1u &&
+      (truncating_bits || saturating) && source.supported &&
       integer_type_constructor_for_spelling(constructor->type.spelling,
                                             &checked_destination) &&
-      integer_type_constructor_for_spelling(source.type.spelling,
-                                            &checked_source) &&
+      integer_conversion_source_type(source.type, &checked_source) &&
       checked_source.is_signed == source.type.is_signed &&
       checked_source.bit_width == source.type.bit_width;
   if (valid_conversion) {
-    if (!expression_append_integer_truncating_bits(
-            parser, &source, checked_destination, call_span))
+    const bool appended =
+        truncating_bits
+            ? expression_append_integer_truncating_bits(
+                  parser, &source, checked_destination, call_span)
+            : expression_append_integer_saturating(
+                  parser, &source, checked_destination, call_span);
+    if (!appended)
       return false;
     *constructor = source;
     return true;
@@ -14078,10 +14144,16 @@ static bool expression_parse_integer_truncating_bits_call(
                            call_span,
                            text_from_span(parser->document, call_span)))
     return false;
+  const w_seed_frontend_text unsupported_label =
+      recognized_label.length != 0u
+          ? recognized_label
+          : (source_label.length != 0u
+                 ? source_label
+                 : (w_seed_frontend_text){"truncatingBits", 14u});
   return expression_append(
       parser, W_SEED_FRONTEND_EXPR_UNSUPPORTED, call_span,
-      text_from_span(parser->document, call_span),
-      (w_seed_frontend_text){"truncatingBits", 14u}, constructor->type, false,
+      text_from_span(parser->document, call_span), unsupported_label,
+      constructor->type, false,
       argument_count == 1u ? source.index : (size_t)W_SEED_FRONTEND_NONE,
       (size_t)W_SEED_FRONTEND_NONE, W_SEED_FRONTEND_NONE, 0u, constructor);
 }
@@ -14095,7 +14167,7 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     if (value->is_integer_type_constructor) {
       frontend_token open;
       if (!cursor_take_text(&parser->cursor, "(", &open) ||
-          !expression_parse_integer_truncating_bits_call(parser, value, open))
+          !expression_parse_integer_conversion_call(parser, value, open))
         return false;
       continue;
     }
@@ -21369,7 +21441,8 @@ static void receipt_write_records(frontend_receipt_writer *writer,
         receipt_write_literal(writer, "\n");
       }
       if (expression->kind ==
-          W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS) {
+              W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS ||
+          expression->kind == W_SEED_FRONTEND_EXPR_INTEGER_SATURATING) {
         receipt_write_literal(writer, "integer-conversion=");
         receipt_write_size(writer, index);
         receipt_write_literal(writer, "|kind=");

@@ -3798,6 +3798,211 @@ static bool test_explicit_integer_truncating_bits_frontend(void) {
   return true;
 }
 
+static bool test_explicit_integer_saturating_frontend(void) {
+  typedef struct {
+    const char *name;
+    bool is_signed;
+    uint16_t bit_width;
+  } integer_type_case;
+  static const integer_type_case INTEGER_TYPES[] = {
+      {"i8", true, 8u},     {"u8", false, 8u},
+      {"i16", true, 16u},  {"u16", false, 16u},
+      {"i32", true, 32u},  {"u32", false, 32u},
+      {"i64", true, 64u},  {"u64", false, 64u},
+      {"Int", true, 64u},  {"UInt", false, 64u},
+  };
+  char source[256];
+  fixture *matrix = &fixture_b;
+  for (size_t source_index = 0u;
+       source_index < sizeof(INTEGER_TYPES) / sizeof(INTEGER_TYPES[0]);
+       source_index += 1u) {
+    for (size_t destination_index = 0u;
+         destination_index <
+         sizeof(INTEGER_TYPES) / sizeof(INTEGER_TYPES[0]);
+         destination_index += 1u) {
+      const int written = snprintf(
+          source, sizeof(source),
+          "fn f(value: %s): %s { return %s(saturating: value) } "
+          "entry(f)\n",
+          INTEGER_TYPES[source_index].name,
+          INTEGER_TYPES[destination_index].name,
+          INTEGER_TYPES[destination_index].name);
+      CHECK(written > 0 && (size_t)written < sizeof(source));
+      CHECK(fixture_run(matrix, source));
+      CHECK(matrix->parse.status == W_SEED_PARSE_COMPLETE &&
+            matrix->result.status == W_SEED_FRONTEND_OK &&
+            counts_equal(&matrix->result.required,
+                         &matrix->result.written));
+      const w_seed_frontend_expression *wrapper = NULL;
+      size_t wrappers = 0u;
+      for (size_t expression = 0u;
+           expression < matrix->result.written.expressions;
+           expression += 1u) {
+        const w_seed_frontend_expression *candidate =
+            &matrix->expressions[expression];
+        if (candidate->kind == W_SEED_FRONTEND_EXPR_INTEGER_SATURATING) {
+          wrapper = candidate;
+          wrappers += 1u;
+        }
+      }
+      CHECK(wrappers == 1u && wrapper != NULL && wrapper->supported &&
+            wrapper->left < matrix->result.written.expressions &&
+            wrapper->right == W_SEED_FRONTEND_NONE &&
+            wrapper->first_argument == W_SEED_FRONTEND_NONE &&
+            wrapper->argument_count == 0u &&
+            wrapper->conversion_source_type < matrix->result.written.types &&
+            wrapper->conversion_destination_type <
+                matrix->result.written.types &&
+            wrapper->inferred_type == wrapper->conversion_destination_type);
+      const w_seed_frontend_type *source_type =
+          &matrix->types[wrapper->conversion_source_type];
+      const w_seed_frontend_type *destination_type =
+          &matrix->types[wrapper->conversion_destination_type];
+      CHECK(source_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+            source_type->is_signed == INTEGER_TYPES[source_index].is_signed &&
+            source_type->bit_width == INTEGER_TYPES[source_index].bit_width &&
+            destination_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+            destination_type->is_signed ==
+                INTEGER_TYPES[destination_index].is_signed &&
+            destination_type->bit_width ==
+                INTEGER_TYPES[destination_index].bit_width &&
+            matrix->expressions[wrapper->left].inferred_type ==
+                wrapper->conversion_source_type);
+    }
+  }
+
+  /* Conversion sources are independently verified expressions.  In
+   * particular, an unsuffixed literal still defaults to i64 rather than
+   * inheriting the narrower i8 destination context. */
+  static const struct {
+    const char *source;
+    w_seed_frontend_expr_kind source_kind;
+    bool is_signed;
+    uint16_t bit_width;
+  } VERIFIED_SOURCES[] = {
+      {"fn f(): i8 { return i8(saturating: 250_u16) } entry(f)\n",
+       W_SEED_FRONTEND_EXPR_INTEGER, false, 16u},
+      {"fn f(): i8 { return i8(saturating: 120_i16 + 8_i16) } entry(f)\n",
+       W_SEED_FRONTEND_EXPR_BINARY, true, 16u},
+      {"fn f(): i8 { return i8(saturating: 127) } entry(f)\n",
+       W_SEED_FRONTEND_EXPR_INTEGER, true, 64u},
+      {"fn f(): i8 { return i8(saturating: 64 + 63) } entry(f)\n",
+       W_SEED_FRONTEND_EXPR_BINARY, true, 64u},
+  };
+  for (size_t index = 0u;
+       index < sizeof(VERIFIED_SOURCES) / sizeof(VERIFIED_SOURCES[0]);
+       index += 1u) {
+    CHECK(fixture_run(matrix, VERIFIED_SOURCES[index].source));
+    CHECK(matrix->parse.status == W_SEED_PARSE_COMPLETE &&
+          matrix->result.status == W_SEED_FRONTEND_OK &&
+          counts_equal(&matrix->result.required,
+                       &matrix->result.written));
+    const w_seed_frontend_expression *wrapper = NULL;
+    size_t wrappers = 0u;
+    for (size_t expression = 0u;
+         expression < matrix->result.written.expressions;
+         expression += 1u) {
+      const w_seed_frontend_expression *candidate =
+          &matrix->expressions[expression];
+      if (candidate->kind == W_SEED_FRONTEND_EXPR_INTEGER_SATURATING) {
+        wrapper = candidate;
+        wrappers += 1u;
+      }
+    }
+    CHECK(wrappers == 1u && wrapper != NULL && wrapper->supported &&
+          wrapper->left < matrix->result.written.expressions &&
+          wrapper->right == W_SEED_FRONTEND_NONE &&
+          wrapper->conversion_source_type < matrix->result.written.types &&
+          wrapper->conversion_destination_type <
+              matrix->result.written.types &&
+          wrapper->inferred_type == wrapper->conversion_destination_type);
+    const w_seed_frontend_expression *source_expression =
+        &matrix->expressions[wrapper->left];
+    const w_seed_frontend_type *source_type =
+        &matrix->types[wrapper->conversion_source_type];
+    const w_seed_frontend_type *destination_type =
+        &matrix->types[wrapper->conversion_destination_type];
+    CHECK(source_expression->kind == VERIFIED_SOURCES[index].source_kind &&
+          source_expression->inferred_type == wrapper->conversion_source_type &&
+          source_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+          source_type->is_signed == VERIFIED_SOURCES[index].is_signed &&
+          source_type->bit_width == VERIFIED_SOURCES[index].bit_width &&
+          destination_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+          destination_type->is_signed && destination_type->bit_width == 8u);
+    if (source_expression->kind == W_SEED_FRONTEND_EXPR_BINARY) {
+      CHECK(source_expression->left < matrix->result.written.expressions &&
+            source_expression->right < matrix->result.written.expressions &&
+            matrix->expressions[source_expression->left].inferred_type ==
+                wrapper->conversion_source_type &&
+            matrix->expressions[source_expression->right].inferred_type ==
+                wrapper->conversion_source_type);
+    }
+  }
+
+  static const char *const REJECTED[] = {
+      "fn f(value: i16): i8 { return i8(saturating: value, nan: .zero) } "
+      "entry(f)\n",
+      "fn f(value: i16): i8 { return i8(saturating: value, "
+      "saturating: value) } entry(f)\n",
+      "fn f(value: i16): i8 { return i8(saturating: value, other: value) } "
+      "entry(f)\n",
+      "fn f(value: i16): i8 { return i8(saturating: 1_i16, value: value) } "
+      "entry(f)\n",
+      "fn f(value: i16): i8 { return i8(saturating:) } entry(f)\n",
+      "fn f(value: Bool): i8 { return i8(saturating: value) } entry(f)\n",
+      "fn f(value: f64): i8 { return i8(saturating: value) } entry(f)\n",
+      "fn f(value: i16): f64 { return f64(saturating: value) } entry(f)\n",
+      "fn f(value: usize): i8 { return i8(saturating: value) } entry(f)\n",
+      "fn f(value: i16): usize { return usize(saturating: value) } entry(f)\n",
+      "fn f(value: isize): i8 { return i8(saturating: value) } entry(f)\n",
+      "fn f(value: i16): isize { return isize(saturating: value) } entry(f)\n",
+      "fn f(value: i128): i8 { return i8(saturating: value) } entry(f)\n",
+      "fn f(value: i16): u128 { return u128(saturating: value) } entry(f)\n",
+      "fn f(value: i16): UnknownInteger { return "
+      "UnknownInteger(saturating: value) } entry(f)\n",
+      "fn f(value: i16): i8 { return i8(checked: value) } entry(f)\n",
+      "fn f(value: i16): i8 { return i8() } entry(f)\n",
+  };
+  for (size_t index = 0u; index < sizeof(REJECTED) / sizeof(REJECTED[0]);
+       index += 1u) {
+    CHECK(fixture_run(matrix, REJECTED[index]));
+    CHECK(matrix->result.status != W_SEED_FRONTEND_OK);
+    bool retained_saturating_label = false;
+    for (size_t expression = 0u;
+         expression < matrix->result.written.expressions;
+         expression += 1u) {
+      CHECK(matrix->expressions[expression].kind !=
+            W_SEED_FRONTEND_EXPR_INTEGER_SATURATING);
+      if (matrix->expressions[expression].kind ==
+              W_SEED_FRONTEND_EXPR_UNSUPPORTED &&
+          frontend_text_is(matrix->expressions[expression].operator_text,
+                           "saturating"))
+        retained_saturating_label = true;
+    }
+    if (index == 0u) CHECK(retained_saturating_label);
+  }
+  static const char TRY_SATURATING[] =
+      "fn f(value: i16): i8 { return try i8(saturating: value) } "
+      "entry(f)\n";
+  CHECK(fixture_run(matrix, TRY_SATURATING));
+  CHECK(matrix->result.status != W_SEED_FRONTEND_OK);
+  bool saw_unsupported_try = false;
+  for (size_t index = 0u; index < matrix->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression =
+        &matrix->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_TRY) {
+      CHECK(!expression->supported &&
+            expression->left < matrix->result.written.expressions &&
+            matrix->expressions[expression->left].kind ==
+                W_SEED_FRONTEND_EXPR_INTEGER_SATURATING);
+      saw_unsupported_try = true;
+    }
+  }
+  CHECK(saw_unsupported_try);
+  return true;
+}
+
 static bool test_graph_facts_and_external_stub(void) {
   fixture *duplicate = &fixture_duplicate;
   CHECK(fixture_run(duplicate,
@@ -8358,6 +8563,7 @@ int main(int argc, char **argv) {
   if (!test_semantic_diagnostics()) return 1;
   if (!test_implicit_integer_widening_frontend()) return 1;
   if (!test_explicit_integer_truncating_bits_frontend()) return 1;
+  if (!test_explicit_integer_saturating_frontend()) return 1;
   if (!test_graph_facts_and_external_stub()) return 1;
   if (!test_receipt_encoding_and_long_fields()) return 1;
   if (!test_generic_schema()) return 1;

@@ -14971,8 +14971,248 @@ static bool test_integer_wrapping_hir_matrix(void) {
   return true;
 }
 
+static bool test_explicit_integer_saturating_hir(void) {
+  typedef struct {
+    const char *name;
+    bool is_signed;
+    uint16_t bit_width;
+  } integer_type_case;
+  static const integer_type_case INTEGERS[] = {
+      {"i8", true, 8u},     {"u8", false, 8u},
+      {"i16", true, 16u},  {"u16", false, 16u},
+      {"i32", true, 32u},  {"u32", false, 32u},
+      {"i64", true, 64u},  {"u64", false, 64u},
+      {"Int", true, 64u},  {"UInt", false, 64u},
+  };
+  char source[256];
+  for (size_t source_index = 0u;
+       source_index < sizeof(INTEGERS) / sizeof(INTEGERS[0]);
+       source_index += 1u) {
+    for (size_t destination_index = 0u;
+         destination_index < sizeof(INTEGERS) / sizeof(INTEGERS[0]);
+         destination_index += 1u) {
+      const int written = snprintf(
+          source, sizeof(source),
+          "fn f(value: %s): %s { return %s(saturating: value) } "
+          "entry(f)\n",
+          INTEGERS[source_index].name, INTEGERS[destination_index].name,
+          INTEGERS[destination_index].name);
+      CHECK(written > 0 && (size_t)written < sizeof(source));
+      CHECK(lower(source));
+      const w_seed_hir0_program *program = &fixture.hir_program;
+      uint32_t wrapper_index = W_SEED_HIR0_NONE;
+      size_t wrapper_count = 0u;
+      for (size_t value_index = 0u; value_index < program->value_count;
+           value_index += 1u) {
+        const w_seed_hir0_value *candidate = &program->values[value_index];
+        if (candidate->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING) {
+          wrapper_index = (uint32_t)value_index;
+          wrapper_count += 1u;
+        }
+      }
+      CHECK(wrapper_count == 1u && wrapper_index != W_SEED_HIR0_NONE &&
+            program->call_count == 0u);
+      const w_seed_hir0_value *wrapper = &program->values[wrapper_index];
+      CHECK(wrapper->source_type < program->type_count &&
+            wrapper->type_index < program->type_count &&
+            wrapper->left_value < program->value_count &&
+            wrapper->right_value == W_SEED_HIR0_NONE &&
+            wrapper->owner_kind == W_SEED_HIR0_VALUE_OWNER_TERMINATOR &&
+            wrapper->owner_index < program->terminator_count &&
+            wrapper->owner_ordinal == 0u &&
+            program->terminators[wrapper->owner_index].kind ==
+                W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+            program->terminators[wrapper->owner_index].value_index ==
+                wrapper_index);
+      const w_seed_hir0_value *child =
+          &program->values[wrapper->left_value];
+      CHECK(child->owner_kind == W_SEED_HIR0_VALUE_OWNER_INTEGER_SATURATING &&
+            child->owner_index == wrapper_index && child->owner_ordinal == 0u &&
+            child->type_index == wrapper->source_type &&
+            child->kind == W_SEED_HIR0_VALUE_PARAMETER_READ);
+      const w_seed_hir0_type *source_type =
+          &program->types[wrapper->source_type];
+      const w_seed_hir0_type *destination_type =
+          &program->types[wrapper->type_index];
+      CHECK(source_type->integer_is_signed == INTEGERS[source_index].is_signed &&
+            source_type->integer_bit_width == INTEGERS[source_index].bit_width &&
+            destination_type->integer_is_signed ==
+                INTEGERS[destination_index].is_signed &&
+            destination_type->integer_bit_width ==
+                INTEGERS[destination_index].bit_width);
+    }
+  }
+
+  static const struct {
+    const char *source;
+    int64_t signed_result;
+    uint64_t unsigned_result;
+    bool is_unsigned;
+  } SCALAR_BOUNDARIES[] = {
+      {"fn f(value: i8): i16 { return i16(saturating: value) } "
+       "entry { let result = f(value: -127_i8 - 1_i8) }\n",
+       INT64_C(-128), UINT64_C(0), false},
+      {"fn f(value: i8): u8 { return u8(saturating: value) } "
+       "entry { let result = f(value: 127_i8) }\n",
+       INT64_C(127), UINT64_C(0), false},
+      {"fn f(value: u8): i8 { return i8(saturating: value) } "
+       "entry { let result = f(value: 255_u8) }\n",
+       INT64_C(127), UINT64_C(0), false},
+      {"fn f(value: u8): u16 { return u16(saturating: value) } "
+       "entry { let result = f(value: 255_u8) }\n",
+       INT64_C(0), UINT64_C(255), true},
+      {"fn f(value: i16): i8 { return i8(saturating: value) } "
+       "entry { let result = f(value: -32767_i16 - 1_i16) }\n",
+       INT64_C(-128), UINT64_C(0), false},
+      {"fn f(value: i16): u8 { return u8(saturating: value) } "
+       "entry { let result = f(value: 32767_i16) }\n",
+       INT64_C(0), UINT64_C(255), true},
+      {"fn f(value: i16): u8 { return u8(saturating: value) } "
+       "entry { let result = f(value: 42_i16) }\n",
+       INT64_C(0), UINT64_C(42), true},
+      {"fn f(value: u16): i16 { return i16(saturating: value) } "
+       "entry { let result = f(value: 65535_u16) }\n",
+       INT64_C(32767), UINT64_C(0), false},
+      {"fn f(value: u16): i8 { return i8(saturating: value) } "
+       "entry { let result = f(value: 42_u16) }\n",
+       INT64_C(42), UINT64_C(0), false},
+      {"fn f(value: u16): u8 { return u8(saturating: value) } "
+       "entry { let result = f(value: 65535_u16) }\n",
+       INT64_C(0), UINT64_C(255), true},
+      {"fn f(value: i32): i16 { return i16(saturating: value) } "
+       "entry { let result = f(value: -2147483647_i32 - 1_i32) }\n",
+       INT64_C(-32768), UINT64_C(0), false},
+      {"fn f(value: i32): u16 { return u16(saturating: value) } "
+       "entry { let result = f(value: 2147483647_i32) }\n",
+       INT64_C(0), UINT64_C(65535), true},
+      {"fn f(value: i32): u32 { return u32(saturating: value) } "
+       "entry { let result = f(value: -2147483647_i32 - 1_i32) }\n",
+       INT64_C(0), UINT64_C(0), true},
+      {"fn f(value: i32): i64 { return i64(saturating: value) } "
+       "entry { let result = f(value: 2147483647_i32) }\n",
+       INT64_C(2147483647), UINT64_C(0), false},
+      {"fn f(value: u32): i32 { return i32(saturating: value) } "
+       "entry { let result = f(value: 4294967295_u32) }\n",
+       INT32_MAX, UINT64_C(0), false},
+      {"fn f(value: u32): u64 { return u64(saturating: value) } "
+       "entry { let result = f(value: 4294967295_u32) }\n",
+       INT64_C(0), UINT64_C(4294967295), true},
+      {"fn f(value: i64): i32 { return i32(saturating: value) } "
+       "entry { let result = f(value: -9223372036854775807_i64 - 1_i64) }\n",
+       INT32_MIN, UINT64_C(0), false},
+      {"fn f(value: i64): u32 { return u32(saturating: value) } "
+       "entry { let result = f(value: 9223372036854775807_i64) }\n",
+       INT64_C(0), UINT32_MAX, true},
+      {"fn f(value: u64): i32 { return i32(saturating: value) } "
+       "entry { let result = f(value: 18446744073709551615_u64) }\n",
+       INT32_MAX, UINT64_C(0), false},
+      {"fn f(value: i64): i64 { return i64(saturating: value) } "
+       "entry { let result = f(value: -9223372036854775807_i64 - 1_i64) }\n",
+       INT64_MIN, UINT64_C(0), false},
+      {"fn f(value: u64): u64 { return u64(saturating: value) } "
+       "entry { let result = f(value: 18446744073709551615_u64) }\n",
+       INT64_C(0), UINT64_MAX, true},
+      {"fn f(value: UInt): Int { return Int(saturating: value) } "
+       "entry { let result = f(value: 18446744073709551615_u64) }\n",
+       INT64_MAX, UINT64_C(0), false},
+      {"fn f(value: Int): UInt { return UInt(saturating: value) } "
+       "entry { let result = f(value: -9223372036854775807_i64 - 1_i64) }\n",
+       INT64_C(0), UINT64_C(0), true},
+  };
+  for (size_t index = 0u;
+       index < sizeof(SCALAR_BOUNDARIES) / sizeof(SCALAR_BOUNDARIES[0]);
+       index += 1u) {
+    CHECK(lower(SCALAR_BOUNDARIES[index].source));
+    CHECK(fixture.hir_program.call_count == 1u);
+    size_t budget = 128u;
+    int64_t result = INT64_C(0x51515151);
+    CHECK(w_seed_scalar_evaluator0_evaluate_call(
+        &fixture.hir_program, 0u, &budget, &result));
+    if (SCALAR_BOUNDARIES[index].is_unsigned)
+      CHECK((uint64_t)result == SCALAR_BOUNDARIES[index].unsigned_result);
+    else
+      CHECK(result == SCALAR_BOUNDARIES[index].signed_result);
+  }
+
+  static const char FORGED_SOURCE[] =
+      "fn f(value: i16): i8 { return i8(saturating: value) } entry(f)\n";
+  CHECK(lower(FORGED_SOURCE));
+  uint32_t frontend_wrapper = W_SEED_FRONTEND_NONE;
+  uint32_t hir_wrapper = W_SEED_HIR0_NONE;
+  for (size_t index = 0u; index < fixture.result.written.expressions;
+       index += 1u) {
+    if (fixture.expressions[index].kind ==
+        W_SEED_FRONTEND_EXPR_INTEGER_SATURATING)
+      frontend_wrapper = (uint32_t)index;
+  }
+  for (size_t index = 0u; index < fixture.hir_program.value_count; index += 1u) {
+    if (fixture.hir_program.values[index].kind ==
+        W_SEED_HIR0_VALUE_INTEGER_SATURATING)
+      hir_wrapper = (uint32_t)index;
+  }
+  CHECK(frontend_wrapper != W_SEED_FRONTEND_NONE &&
+        hir_wrapper != W_SEED_HIR0_NONE);
+  const w_seed_hir0_input input = hir_input();
+  w_seed_hir0_counts measured;
+  w_seed_hir0_result measure_result;
+  const uint32_t saved_frontend_source =
+      fixture.expressions[frontend_wrapper].conversion_source_type;
+  const uint32_t saved_frontend_destination =
+      fixture.expressions[frontend_wrapper].conversion_destination_type;
+  fixture.expressions[frontend_wrapper].conversion_source_type =
+      saved_frontend_destination;
+  CHECK(w_seed_hir0_measure(&input, &measured, &measure_result) !=
+        W_SEED_HIR0_OK);
+  fixture.expressions[frontend_wrapper].conversion_source_type =
+      saved_frontend_source;
+  fixture.expressions[frontend_wrapper].conversion_destination_type =
+      saved_frontend_source;
+  CHECK(w_seed_hir0_measure(&input, &measured, &measure_result) !=
+        W_SEED_HIR0_OK);
+  fixture.expressions[frontend_wrapper].conversion_destination_type =
+      saved_frontend_destination;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  const w_seed_hir0_value saved_wrapper = fixture.hir_values[hir_wrapper];
+  fixture.hir_values[hir_wrapper].source_type = saved_wrapper.type_index;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[hir_wrapper] = saved_wrapper;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[hir_wrapper].type_index = saved_wrapper.source_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[hir_wrapper] = saved_wrapper;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+  w_seed_hir0_output short_output = fixture.hir_output;
+  CHECK(fixture.hir_counts.values > 0u);
+  short_output.value_capacity = fixture.hir_counts.values - 1u;
+  const w_seed_hir0_result result_before = fixture.hir_result;
+  CHECK(w_seed_hir0_run(&input, &short_output, &fixture.hir_result) ==
+        W_SEED_HIR0_CAPACITY);
+  CHECK(hir_output_is_byte(0xa5u) &&
+        memcmp(&fixture.hir_result, &result_before, sizeof(result_before)) ==
+            0);
+
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+  w_seed_hir0_output alias = fixture.hir_output;
+  alias.values = (w_seed_hir0_value *)(void *)alias.types;
+  CHECK(w_seed_hir0_run(&input, &alias, &fixture.hir_result) ==
+        W_SEED_HIR0_INVALID);
+  CHECK(hir_output_is_byte(0xa5u) &&
+        memcmp(&fixture.hir_result, &result_before, sizeof(result_before)) ==
+            0);
+  return true;
+}
+
 static bool test_checked_integer_arithmetic_hir_matrix(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-86") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-87") == 0);
   typedef struct {
     const char *name;
     const char *suffix;
@@ -17192,6 +17432,7 @@ int main(int argc, char **argv) {
   if (!test_scalar_evaluator_edges()) return 1;
   if (!test_implicit_integer_widen_hir()) return 1;
   if (!test_explicit_integer_truncating_bits_hir()) return 1;
+  if (!test_explicit_integer_saturating_hir()) return 1;
   if (!test_frontend_inferred_call_interpolation()) return 1;
   if (!test_explicit_panic_hir()) return 1;
   if (!test_explicit_panic_rejections()) return 1;

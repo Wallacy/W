@@ -2061,6 +2061,90 @@
       ]
     },
     {
+      "id": "restaurant-integer-saturating-conversion",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "The public witness exercises all four signedness quadrants with representative i16/u16-to-i8/u8 conversions plus the x86-64 UInt-to-Int alias path, covering low, in-range, and high values where source domains permit and clamping UInt::MAX. The focused compiler matrix remains the proof for all 100 source/destination pairs across the ten integer spellings and scalar 8/16/32/64-bit boundaries. These compact C23 and Rust 2024 correctness references do not establish comparable production runtime work, so ranking remains deferred.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "ss -128/7/127; us 7/127/127; su 0/200/255; uu 7/255/255; UInt->Int 9223372036854775807\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-integer-saturating-conversion.w",
+          "digest": "sha256:165bccf06df362230b2665696c2bc8d9957d83a1071eaaa8f8b4291e1830feed",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-integer-saturating-conversion-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        },
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-integer-saturating-conversion.w",
+          "digest": "sha256:165bccf06df362230b2665696c2bc8d9957d83a1071eaaa8f8b4291e1830feed",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-integer-saturating-conversion-release",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only"
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/restaurant_integer_saturating_conversion.c",
+          "digest": "sha256:c00a78681a03ed763dccefb7ed0c0a7e5fddd2e5156db6a092a504629709dcdb",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "clang-c23-msvc",
+          "recipeClass": "restaurant-integer-saturating-conversion-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/restaurant_integer_saturating_conversion.rs",
+          "digest": "sha256:92e571fe58f64de7ef6f2e6d0b90ee246ac6728532a7bbe3824e560a7966e9dc",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "restaurant-integer-saturating-conversion-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        }
+      ],
+      "blockedLanguages": [],
+      "blockers": [
+        "w-integer-saturating-conversion-product-closure-unsupported",
+        "runtime-integer-saturating-conversion-equivalence"
+      ]
+    },
+    {
       "id": "restaurant-integer-comparison",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",

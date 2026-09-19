@@ -47,6 +47,7 @@ import {
   RESTAURANT_INTEGER_WRAPPING_WORKLOAD_ID,
   RESTAURANT_INTEGER_WIDENING_WORKLOAD_ID,
   RESTAURANT_INTEGER_TRUNCATING_BITS_WORKLOAD_ID,
+  RESTAURANT_INTEGER_SATURATING_CONVERSION_WORKLOAD_ID,
   RESTAURANT_INTEGER_COMPARISON_WORKLOAD_ID,
   RESTAURANT_INTEGER_BITWISE_WORKLOAD_ID,
   RESTAURANT_CHECKED_SHIFTS_WORKLOAD_ID,
@@ -1126,6 +1127,100 @@ test("explicit integer truncating-bits catalog is one correctness-only family wi
   assert.match(rust, /black_box\(250_u8\) as i8/u);
   assert.match(rust, /black_box\(-7_i64\) as u64/u);
   assert.match(rust, /black_box\(u64::MAX\) as i64/u);
+  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
+  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
+});
+
+test("integer saturating-conversion catalog is a compact correctness-only four-quadrant witness", () => {
+  const workload = documents.catalog.workloads.find((item) =>
+    item.id === RESTAURANT_INTEGER_SATURATING_CONVERSION_WORKLOAD_ID);
+  assert.ok(workload);
+  assert.equal(workload.structureClass, "public-end-to-end");
+  assert.equal(workload.status, "source-oracle-ready");
+  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
+  assert.equal(workload.demoEvidence, "bounded-w-demo");
+  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.match(workload.scope, /all four signedness quadrants/u);
+  assert.match(workload.scope, /representative i16\/u16-to-i8\/u8 conversions/u);
+  assert.match(workload.scope, /UInt-to-Int alias path/u);
+  assert.match(workload.scope, /all 100 source\/destination pairs/u);
+  assert.match(workload.scope, /scalar 8\/16\/32\/64-bit boundaries/u);
+  assert.deepEqual(workload.oracle, {
+    kind: "exact-output",
+    status: "source-backed",
+    exitCode: 0,
+    stdout: "ss -128/7/127; us 7/127/127; su 0/200/255; uu 7/255/255; UInt->Int 9223372036854775807\n",
+    stderr: "",
+  });
+  assert.deepEqual(workload.blockedLanguages, []);
+  assert.deepEqual(workload.blockers, [
+    "w-integer-saturating-conversion-product-closure-unsupported",
+    "runtime-integer-saturating-conversion-equivalence",
+  ]);
+  assert.deepEqual(workload.sources.map((source) =>
+    [source.language, source.platformTarget]), [
+    ["w", EXECUTABLE_PLATFORM_TARGET],
+    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
+    ["c", EXECUTABLE_PLATFORM_TARGET],
+    ["rust", EXECUTABLE_PLATFORM_TARGET],
+  ]);
+  assert.ok(workload.sources.every((source) =>
+    source.recipeClass === "restaurant-integer-saturating-conversion-release" &&
+    source.quality === "correctness-gate"));
+  assert.deepEqual(workload.sources
+    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
+    .map((source) => [source.comparability, source.eligibility]), [
+      ["deferred-until-M3b", "deferred-to-M3b"],
+      ["deferred-until-M3b", "deferred-to-M3b"],
+      ["deferred-until-M3b", "deferred-to-M3b"],
+    ]);
+  const wsl = workload.sources.find((source) =>
+    source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
+  assert.deepEqual([wsl.comparability, wsl.eligibility], [
+    "same-physical-hardware-diagnostic-only",
+    "same-physical-hardware-diagnostic-only",
+  ]);
+  assert.ok(!documents.catalog.bestMetrics.entries.some((entry) =>
+    entry.workloadId === RESTAURANT_INTEGER_SATURATING_CONVERSION_WORKLOAD_ID),
+  "saturating-conversion correctness references must not acquire timing or ranking data");
+
+  const c = readFileSync(
+    `${ROOT}/benchmarks/executable/restaurant_integer_saturating_conversion.c`, "utf8");
+  const rust = readFileSync(
+    `${ROOT}/benchmarks/executable/restaurant_integer_saturating_conversion.rs`, "utf8");
+  const w = readFileSync(
+    `${ROOT}/compiler/seed-c/fixtures/restaurant-integer-saturating-conversion.w`, "utf8");
+  for (const [name, source] of [["W", w], ["C23", c], ["Rust", rust]]) {
+    assert.deepEqual(parseExecutableSourceExpectation(source), {
+      exitCode: workload.oracle.exitCode,
+      stdout: workload.oracle.stdout,
+      stderr: workload.oracle.stderr,
+      errors: [],
+    }, `${name} source must declare the exact local oracle`);
+    assert.deepEqual(validateExecutableSourceExpectation(source, workload.oracle,
+      `${name} source`), []);
+  }
+  assert.match(w, /fn signedToSigned\(value: i16\): i8/u);
+  assert.match(w, /fn unsignedToSigned\(value: u16\): i8/u);
+  assert.match(w, /fn signedToUnsigned\(value: i16\): u8/u);
+  assert.match(w, /fn unsignedToUnsigned\(value: u16\): u8/u);
+  assert.match(w, /fn aliasToAlias\(value: UInt\): Int/u);
+  assert.match(w, /signedToSigned\(value: -129_i16\)/u);
+  assert.match(w, /unsignedToSigned\(value: 128_u16\)/u);
+  assert.match(w, /signedToUnsigned\(value: -1_i16\)/u);
+  assert.match(w, /unsignedToUnsigned\(value: 256_u16\)/u);
+  assert.match(w, /aliasToAlias\(value: 18446744073709551615_u64\)/u);
+  assert.match(c, /volatile int16_t signed16/u);
+  assert.match(c, /volatile uint16_t unsigned16/u);
+  assert.match(c, /volatile uint64_t unsigned64_maximum/u);
+  assert.match(c, /saturate_signed_to_signed_i8/u);
+  assert.match(c, /saturate_signed_to_unsigned_u8/u);
+  assert.match(c, /saturate_unsigned_to_signed_i8/u);
+  assert.match(c, /saturate_unsigned_to_unsigned_u8/u);
+  assert.match(c, /saturate_uint_to_int/u);
+  assert.match(rust, /black_box\(u64::MAX\)/u);
+  assert.match(rust, /value\.clamp\(i8::MIN as i16, i8::MAX as i16\)/u);
+  assert.match(rust, /value\.min\(i64::MAX as u64\)/u);
   assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
   assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
 });

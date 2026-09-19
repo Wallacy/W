@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-65"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-66"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -216,6 +216,9 @@ typedef enum {
    * distinct total bit-pattern conversion, not an implicit widening or call.
    * The shared conversion_* facts retain its source and destination types. */
   W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS,
+  /* Append-only explicit `D(saturating: source)` conversion.  It clamps the
+   * source mathematical value to the destination integer range. */
+  W_SEED_FRONTEND_EXPR_INTEGER_SATURATING,
 } w_seed_frontend_expr_kind;
 
 typedef enum {

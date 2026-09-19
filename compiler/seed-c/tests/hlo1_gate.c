@@ -341,7 +341,29 @@ int main(int argc, char **argv) {
   const w_seed_native0_status status =
       w_seed_native0_run(&input, &storage, &output, &result);
   if (status != W_SEED_NATIVE0_OK) {
-    (void)fprintf(stderr, "MLIR0 gate: Native0 status %d\n", (int)status);
+    (void)fprintf(stderr,
+                  "MLIR0 gate: Native0 status %d (frontend %d at %llu..%llu, "
+                  "HIR %d)\n",
+                  (int)status, (int)storage.frontend_result.status,
+                  (unsigned long long)
+                      storage.frontend_result.barrier_span.start_byte,
+                  (unsigned long long)
+                      storage.frontend_result.barrier_span.end_byte,
+                  (int)storage.hir_result.status);
+    for (size_t index = 0u;
+         index < storage.frontend_result.written.expressions; index += 1u) {
+      const w_seed_frontend_expression *expression =
+          &storage.expressions[index];
+      if (expression->supported) continue;
+      (void)fprintf(stderr, "MLIR0 gate: unsupported expression %llu kind %d",
+                    (unsigned long long)index, (int)expression->kind);
+      if (expression->operator_text.data != NULL &&
+          expression->operator_text.length != 0u)
+        (void)fprintf(stderr, " operator %.*s",
+                      (int)expression->operator_text.length,
+                      expression->operator_text.data);
+      (void)fputc('\n', stderr);
+    }
     return 1;
   }
   if (result.mlir.written.mlir_bytes != result.mlir.required.mlir_bytes ||

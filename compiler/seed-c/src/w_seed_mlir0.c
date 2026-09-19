@@ -1353,7 +1353,7 @@ static bool mlir0_integer_widening_route(
          (!*source_signed && *destination_signed);
 }
 
-static bool mlir0_integer_truncating_bits_route(
+static bool mlir0_integer_conversion_route(
     const w_seed_hir0_program *program, uint32_t source_type,
     uint32_t destination_type, bool *source_signed, uint16_t *source_width,
     bool *destination_signed, uint16_t *destination_width) {
@@ -2302,7 +2302,8 @@ static bool mark_reachable_value_tree(
                has_remainder, depth + 1u);
   }
   if (value->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN ||
-      value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS)
+      value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS ||
+      value->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING)
     return value->source_type < program->type_count &&
            value->left_value != W_SEED_HIR0_NONE &&
            value->left_value < program->value_count &&
@@ -2584,6 +2585,12 @@ static bool append_integer_widen_operation(
     uint8_t *artifact, size_t capacity, size_t *offset);
 
 static bool append_integer_truncating_bits_operation(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop,
+    uint8_t *artifact, size_t capacity, size_t *offset);
+
+static bool append_integer_saturating_operation(
     const w_seed_hir0_program *program, uint32_t value_index,
     uint32_t function_index, const mlir0_process_emit_context *process,
     const mlir0_natural_loop_result_context *loop,
@@ -4342,6 +4349,11 @@ static bool append_value_operations(const w_seed_hir0_program *program,
               program, (uint32_t)index, 0u, NULL, NULL, artifact, capacity,
               offset))
         return false;
+    } else if (value->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING) {
+      if (!append_integer_saturating_operation(
+              program, (uint32_t)index, 0u, NULL, NULL, artifact, capacity,
+              offset))
+        return false;
     }
   }
   return true;
@@ -5395,7 +5407,8 @@ static bool append_program_value_operand_in_loop(
           value->kind == W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE ||
           value->kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT ||
           value->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN ||
-          value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS) &&
+          value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS ||
+          value->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING) &&
          append_literal(artifact, capacity, offset, "%v") &&
          append_size(artifact, capacity, offset, value_index);
 }
@@ -5478,7 +5491,7 @@ static bool append_integer_truncating_bits_operation(
   bool destination_signed = false;
   uint16_t source_width = 0u;
   uint16_t destination_width = 0u;
-  if (!mlir0_integer_truncating_bits_route(
+  if (!mlir0_integer_conversion_route(
           program, value->source_type, value->type_index, &source_signed,
           &source_width, &destination_signed, &destination_width))
     return false;
@@ -5565,6 +5578,168 @@ static bool append_integer_truncating_bits_operation(
   return true;
 }
 
+static bool append_integer_saturating_compare_select(
+    uint32_t value_index, const char *test_suffix, const char *predicate,
+    const char *input_suffix, const char *bound_suffix,
+    const char *clamp_suffix, uint8_t *artifact, size_t capacity,
+    size_t *offset) {
+  return test_suffix != NULL && predicate != NULL && input_suffix != NULL &&
+         bound_suffix != NULL && clamp_suffix != NULL &&
+         append_literal(artifact, capacity, offset, "    %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, test_suffix) &&
+         append_literal(artifact, capacity, offset, " = llvm.icmp \"") &&
+         append_literal(artifact, capacity, offset, predicate) &&
+         append_literal(artifact, capacity, offset, "\" %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, input_suffix) &&
+         append_literal(artifact, capacity, offset, ", %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, bound_suffix) &&
+         append_literal(artifact, capacity, offset, " : i64\n    %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, clamp_suffix) &&
+         append_literal(artifact, capacity, offset, " = llvm.select %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, test_suffix) &&
+         append_literal(artifact, capacity, offset, ", %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, bound_suffix) &&
+         append_literal(artifact, capacity, offset, ", %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, input_suffix) &&
+         append_literal(artifact, capacity, offset, " : i1, i64\n");
+}
+
+static bool append_integer_saturating_operation(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop,
+    uint8_t *artifact, size_t capacity, size_t *offset) {
+  if (program == NULL || artifact == NULL || offset == NULL ||
+      value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->kind != W_SEED_HIR0_VALUE_INTEGER_SATURATING ||
+      value->left_value == W_SEED_HIR0_NONE ||
+      value->left_value >= program->value_count ||
+      value->right_value != W_SEED_HIR0_NONE ||
+      value->source_type >= program->type_count ||
+      program->values[value->left_value].type_index != value->source_type ||
+      program->values[value->left_value].owner_kind !=
+          W_SEED_HIR0_VALUE_OWNER_INTEGER_SATURATING ||
+      program->values[value->left_value].owner_index != value_index ||
+      program->values[value->left_value].owner_ordinal != 0u)
+    return false;
+  bool source_signed = false;
+  bool destination_signed = false;
+  uint16_t source_width = 0u;
+  uint16_t destination_width = 0u;
+  if (!mlir0_integer_conversion_route(
+          program, value->source_type, value->type_index, &source_signed,
+          &source_width, &destination_signed, &destination_width))
+    return false;
+
+  if (!append_literal(artifact, capacity, offset, "    %v") ||
+      !append_size(artifact, capacity, offset, value_index) ||
+      !append_literal(artifact, capacity, offset,
+                      "_saturating_zero = llvm.mlir.constant(0 : i64) : "
+                      "i64\n"))
+    return false;
+  if (source_width < 64u) {
+    if (!append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_saturating_source_bits = llvm.trunc ") ||
+        !append_program_value_operand_in_loop(
+            program, value->left_value, function_index, process, loop,
+            artifact, capacity, offset) ||
+        !append_literal(artifact, capacity, offset, " : i64 to i") ||
+        !append_size(artifact, capacity, offset, source_width) ||
+        !append_literal(artifact, capacity, offset, "\n    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_saturating_source = llvm.") ||
+        !append_literal(artifact, capacity, offset,
+                        source_signed ? "sext " : "zext ") ||
+        !append_literal(artifact, capacity, offset, "%v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_saturating_source_bits : i") ||
+        !append_size(artifact, capacity, offset, source_width) ||
+        !append_literal(artifact, capacity, offset, " to i64\n"))
+      return false;
+  } else if (!append_literal(artifact, capacity, offset, "    %v") ||
+             !append_size(artifact, capacity, offset, value_index) ||
+             !append_literal(artifact, capacity, offset,
+                             "_saturating_source = llvm.or ") ||
+             !append_program_value_operand_in_loop(
+                 program, value->left_value, function_index, process, loop,
+                 artifact, capacity, offset) ||
+             !append_literal(artifact, capacity, offset, ", %v") ||
+             !append_size(artifact, capacity, offset, value_index) ||
+             !append_literal(artifact, capacity, offset,
+                             "_saturating_zero : i64\n")) {
+    return false;
+  }
+
+  const char *current_suffix = "_saturating_source";
+  if (source_signed) {
+    const int64_t minimum =
+        destination_signed
+            ? (destination_width == 64u
+                   ? INT64_MIN
+                   : -(int64_t)(UINT64_C(1) << (destination_width - 1u)))
+            : INT64_C(0);
+    if (!append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_saturating_min = llvm.mlir.constant(") ||
+        !append_i64(artifact, capacity, offset, minimum) ||
+        !append_literal(artifact, capacity, offset, " : i64) : i64\n") ||
+        !append_integer_saturating_compare_select(
+            value_index, "_saturating_low_test", "slt",
+            "_saturating_source", "_saturating_min",
+            "_saturating_low_clamp", artifact, capacity, offset))
+      return false;
+    current_suffix = "_saturating_low_clamp";
+  }
+
+  const bool compare_high = destination_signed || destination_width < 64u;
+  if (compare_high) {
+    const uint64_t maximum =
+        destination_signed
+            ? (destination_width == 64u
+                   ? (uint64_t)INT64_MAX
+                   : (UINT64_C(1) << (destination_width - 1u)) -
+                         UINT64_C(1))
+            : mlir0_integer_width_mask(destination_width);
+    if (!append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_saturating_max = llvm.mlir.constant(") ||
+        !append_i64_carrier_bits(artifact, capacity, offset, maximum) ||
+        !append_literal(artifact, capacity, offset, " : i64) : i64\n") ||
+        !append_integer_saturating_compare_select(
+            value_index, "_saturating_high_test",
+            destination_signed && source_signed ? "sgt" : "ugt",
+            current_suffix, "_saturating_max",
+            "_saturating_high_clamp", artifact, capacity, offset))
+      return false;
+    current_suffix = "_saturating_high_clamp";
+  }
+
+  return append_literal(artifact, capacity, offset, "    %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, " = llvm.or %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, current_suffix) &&
+         append_literal(artifact, capacity, offset, ", %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset,
+                       "_saturating_zero : i64\n");
+}
+
 static bool append_program_value_tree(
     const w_seed_hir0_program *program, uint32_t value_index,
     uint32_t function_index, const mlir0_process_emit_context *process,
@@ -5599,6 +5774,17 @@ static bool append_program_value_tree(
             program, value->left_value, function_index, process, emitted,
             artifact, capacity, offset, depth + 1u) ||
         !append_integer_truncating_bits_operation(
+            program, value_index, function_index, process, NULL, artifact,
+            capacity, offset))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING) {
+    if (!append_program_value_tree(
+            program, value->left_value, function_index, process, emitted,
+            artifact, capacity, offset, depth + 1u) ||
+        !append_integer_saturating_operation(
             program, value_index, function_index, process, NULL, artifact,
             capacity, offset))
       return false;
@@ -6379,6 +6565,17 @@ static bool append_program_value_tree_in_loop(
             program, value->left_value, function_index, process, loop, emitted,
             artifact, capacity, offset, depth + 1u) ||
         !append_integer_truncating_bits_operation(
+            program, value_index, function_index, process, loop, artifact,
+            capacity, offset))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING) {
+    if (!append_program_value_tree_in_loop(
+            program, value->left_value, function_index, process, loop, emitted,
+            artifact, capacity, offset, depth + 1u) ||
+        !append_integer_saturating_operation(
             program, value_index, function_index, process, loop, artifact,
             capacity, offset))
       return false;

@@ -77,6 +77,11 @@ const restaurantIntegerWideningFixture = resolve(seedDirectory,
   "fixtures", "restaurant-integer-widening.w")
 const restaurantIntegerTruncatingBitsFixture = resolve(seedDirectory,
   "fixtures", "restaurant-integer-truncating-bits.w")
+const restaurantIntegerSaturatingConversionFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-integer-saturating-conversion.w")
+const restaurantIntegerSaturatingConversionOutput = Buffer.from(
+  "ss -128/7/127; us 7/127/127; su 0/200/255; " +
+  "uu 7/255/255; UInt->Int 9223372036854775807\n", "utf8")
 const restaurantUIntWrappingAddFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-add.w")
 const restaurantUIntWrappingSubtractFixture = resolve(seedDirectory,
@@ -479,6 +484,8 @@ try {
   const invalidSource = join(fixtureDirectory, "invalid.w")
   const invalidTruncatingBits = join(fixtureDirectory,
     "invalid-truncating-bits.w")
+  const invalidSaturatingLabel = join(fixtureDirectory,
+    "invalid-saturating-label.w")
   const runtimeCheckedI8Overflow = join(fixtureDirectory,
     "runtime-checked-i8-overflow.w")
   const runtimeCheckedU16Underflow = join(fixtureDirectory,
@@ -513,6 +520,9 @@ try {
   await writeFile(invalidTruncatingBits,
     "fn main() { print(\"must not commit\") " +
     "let result = i8(exactly: 258_i16) }\nentry(main)\n", "utf8")
+  await writeFile(invalidSaturatingLabel,
+    "entry { print(\"must not commit\") " +
+    "let value = i8(saturating: 128_i16, other: 0_i16) }\n", "utf8")
   await writeFile(runtimeCheckedI8Overflow,
     "fn add(left: i8, right: i8): i8 { return left + right }\n" +
     "entry { print(\"must not commit\") " +
@@ -864,8 +874,13 @@ try {
   expectExact(binary, ["run", restaurantIntegerTruncatingBitsFixture], 0,
     Buffer.from("Trunc 2/-7/-6/18446744073709551609/-1\n", "utf8"),
     "Restaurant explicit fixed-width truncatingBits family")
+  expectExact(binary, ["run", restaurantIntegerSaturatingConversionFixture], 0,
+    restaurantIntegerSaturatingConversionOutput,
+    "Restaurant four-quadrant saturating conversions and UInt-to-Int alias")
   expectSourceFailure(binary, invalidTruncatingBits,
     "wrong truncatingBits label fails before output commit")
+  expectSourceFailure(binary, invalidSaturatingLabel,
+    "wrong saturating label fails before output commit")
   expectExact(binary, ["run", restaurantUIntWrappingAddFixture], 0,
     Buffer.from("Wrapped 0\n", "utf8"),
     "Restaurant UInt wrappingAdd at the unsigned maximum")

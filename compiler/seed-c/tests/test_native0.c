@@ -223,7 +223,7 @@ static bool make_nested_tree_source(char *buffer, size_t capacity,
 
 static bool test_products(void) {
   CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-10") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-57") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-58") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -2324,6 +2324,111 @@ static bool test_explicit_integer_truncating_bits_native(void) {
 
   storage.hir_values[forged_wrapper].type_index =
       saved_wrapper.source_type;
+  CHECK(w_seed_mlir0_measure(&mlir_input, &TARGET, &forged_counts,
+                             &forged_result) == W_SEED_MLIR0_INVALID_HIR);
+  storage.hir_values[forged_wrapper] = saved_wrapper;
+  CHECK(w_seed_hir0_verify(program, &storage.hir_result));
+  return true;
+}
+
+static bool test_explicit_integer_saturating_native(void) {
+  static const uint8_t source[] =
+      "fn signedToSigned(value: i16): i8 { "
+      "return i8(saturating: value) }\n"
+      "fn unsignedToSigned(value: u16): i8 { "
+      "return i8(saturating: value) }\n"
+      "fn signedToUnsigned(value: i16): u8 { "
+      "return u8(saturating: value) }\n"
+      "fn unsignedToUnsigned(value: u16): u8 { "
+      "return u8(saturating: value) }\n"
+      "fn aliasToAlias(value: UInt): Int { "
+      "return Int(saturating: value) }\n"
+      "fn main() { let a = signedToSigned(value: -200_i16) "
+      "let b = unsignedToSigned(value: 300_u16) "
+      "let c = signedToUnsigned(value: -1_i16) "
+      "let d = unsignedToUnsigned(value: 300_u16) "
+      "let e = aliasToAlias(value: 18446744073709551615_u64) "
+      "print(\"${a}/${b}/${c}/${d}/${e}\") }\n"
+      "entry(main)\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  const w_seed_native0_status status = run_source(
+      source, sizeof(source) - 1u, "integer-saturating",
+      sizeof("integer-saturating") - 1u, output, sizeof(output), &result);
+  if (status != W_SEED_NATIVE0_OK)
+    (void)fprintf(stderr,
+                   "saturating native status=%d frontend=%d hir=%d mlir=%d\n",
+                   (int)status, (int)storage.frontend_result.status,
+                   (int)storage.hir_result.status, (int)result.mlir.status);
+  CHECK(status == W_SEED_NATIVE0_OK);
+  CHECK(result.mlir.written.mlir_bytes == result.mlir.required.mlir_bytes &&
+        result.mlir.written.mlir_bytes != 0u);
+
+  const w_seed_hir0_program *program = &storage.hir_program;
+  size_t wrapper_count = 0u;
+  for (size_t value_index = 0u; value_index < program->value_count;
+       value_index += 1u) {
+    const w_seed_hir0_value *value = &program->values[value_index];
+    if (value->kind != W_SEED_HIR0_VALUE_INTEGER_SATURATING) continue;
+    CHECK(value->source_type < program->type_count &&
+          value->type_index < program->type_count &&
+          value->left_value < program->value_count &&
+          value->right_value == W_SEED_HIR0_NONE);
+    const w_seed_hir0_type *source_type = &program->types[value->source_type];
+    const w_seed_hir0_type *destination_type =
+        &program->types[value->type_index];
+    const w_seed_hir0_value *child = &program->values[value->left_value];
+    CHECK(child->type_index == value->source_type &&
+          child->owner_kind == W_SEED_HIR0_VALUE_OWNER_INTEGER_SATURATING &&
+          child->owner_index == value_index && child->owner_ordinal == 0u);
+    CHECK((source_type->integer_bit_width == 16u ||
+           source_type->integer_bit_width == 64u) &&
+          (destination_type->integer_bit_width == 8u ||
+           destination_type->integer_bit_width == 64u));
+    wrapper_count += 1u;
+  }
+  CHECK(wrapper_count == 5u);
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(program, &storage.hir_result,
+                                             &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.has_local_calls);
+  CHECK(count_bytes(output, result.mlir.written.mlir_bytes,
+                    "_saturating_low_test = llvm.icmp \"slt\"") == 2u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "_saturating_high_test = llvm.icmp \"sgt\"") == 1u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "_saturating_high_test = llvm.icmp \"ugt\"") == 4u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "_saturating_low_clamp = llvm.select") == 2u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "_saturating_high_clamp = llvm.select") == 5u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "_saturating_source_bits = llvm.trunc") == 4u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "_saturating_min = llvm.mlir.constant") == 2u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "_saturating_max = llvm.mlir.constant") == 5u &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "w_seed_saturating"));
+
+  const w_seed_mlir0_input mlir_input = {
+      .program = program,
+      .hir_result = &storage.hir_result,
+      .artifact_kind = W_SEED_MLIR0_ARTIFACT_EXECUTABLE};
+  uint32_t forged_wrapper = W_SEED_HIR0_NONE;
+  for (size_t value_index = 0u; value_index < program->value_count;
+       value_index += 1u)
+    if (program->values[value_index].kind ==
+        W_SEED_HIR0_VALUE_INTEGER_SATURATING) {
+      forged_wrapper = (uint32_t)value_index;
+      break;
+    }
+  CHECK(forged_wrapper != W_SEED_HIR0_NONE);
+  const w_seed_hir0_value saved_wrapper = storage.hir_values[forged_wrapper];
+  w_seed_mlir0_counts forged_counts;
+  w_seed_mlir0_result forged_result;
+  storage.hir_values[forged_wrapper].source_type = saved_wrapper.type_index;
   CHECK(w_seed_mlir0_measure(&mlir_input, &TARGET, &forged_counts,
                              &forged_result) == W_SEED_MLIR0_INVALID_HIR);
   storage.hir_values[forged_wrapper] = saved_wrapper;
@@ -5756,6 +5861,7 @@ int main(void) {
                        test_integer_prefix_native_matrix() &&
                        test_implicit_integer_widening_native() &&
                        test_explicit_integer_truncating_bits_native() &&
+                       test_explicit_integer_saturating_native() &&
                        test_scalar_if_value_native() &&
                        test_nested_scalar_if_value_native() &&
                        test_scalar_if_remains_unsupported() &&

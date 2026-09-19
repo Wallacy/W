@@ -63,8 +63,9 @@ physical scheduler experiments:
 
 1. canonical signed, unsigned, Boolean and floating scalar identities,
    literals and conversions; W-1641 closes only fixed-width integer
-   `truncatingBits:`, so the remaining conversion paths continue to block
-   this rank-1 prerequisite;
+   `truncatingBits:`, and W-1644 is the current integer-to-integer
+   `saturating:` increment. Other conversion paths continue to block this
+   rank-1 prerequisite;
 2. prefix, arithmetic, comparison, bitwise, shift, overflow and compound
    operators, each with its specified checked or explicit wrapping policy;
 3. Boolean short-circuiting, scalar `if`, exhaustive scalar selection and
@@ -335,10 +336,19 @@ remain gaps.
 W-1641 closes only the existing fixed-width integer `truncatingBits:` path
 under W-389. Its public Windows and Linux/WSL witnesses are correctness-only;
 C23 and Rust 2024 are correctness references, not performance rankings.
-`exactly:`, `rounding:`, `saturating:`, and floating conversions remain
-outside W-1641. Fallible `D(exactly:)` remains deferred until typed
-conversion-error lowering is end-to-end; it is not implemented. W-389 and
-rank 1 remain open.
+`exactly:`, `rounding:`, and floating conversions remain outside W-1641.
+W-1644 is the current bounded increment for integer-to-integer
+`D(saturating: source)`: all 100 pairs among the signed/unsigned 8-, 16-,
+32-, and 64-bit types plus current x86-64 `Int`/`UInt` aliases clamp the
+mathematical source value to the destination range; the integer form accepts
+no `try` or `nan:` label. Frontend66, HIR87, Native0 schema 10, MLIR58, and
+Windows43 now carry the generic family. Focused matrices cover every pair and
+the compact four-quadrant witness executes exactly on CRT-free Windows and
+Linux/WSL; malformed forms fail before output. ProductClosure0 remains
+intentionally narrower. C23 and Rust 2024 are correctness references only,
+and `benchmarkDisposition: deferred` until equivalent runtime work. Fallible
+`D(exactly:)` remains deferred until typed conversion-error lowering is
+end-to-end; it is not implemented. W-389 and rank 1 remain open.
 
 The first rank-1 increments are now executable. Signed-`i64` `&`, `|`, `^`,
 and the original unary-`~` crosspoint cover exact W source, canonical
