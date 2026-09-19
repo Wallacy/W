@@ -62,137 +62,26 @@ W may fold these calls in the final artifact. The C23 and Rust 2024 references
 retain independent runtime operands. Runtime equivalence is not proven, so
 this workload has no performance ranking.
 
-The `restaurant-uint-masked-shift-left` witness is `not-performance-ready`.
-Its fixed inputs shift `UInt` value `1` by count `65`, and its exact oracle is
-`Masked 2\n`. The C23 reference masks the runtime count with `63` before the
-unsigned shift to avoid undefined behavior. The Rust 2024 reference uses
-`wrapping_shl`, which masks the runtime count. W may fold this operation in the
-final artifact. Runtime equivalence is not proven, so this workload has no
-performance ranking.
+The UInt scalar policy catalog intentionally keeps one benchmark per family. Focused
+W fixtures still gate individual operations, but they do not create separate C/Rust
+comparison rows. This avoids retaining timing surfaces whose only difference is one
+operator.
 
-The `restaurant-uint-masked-shift-right` witness is `not-performance-ready`.
-Its fixed inputs shift `UInt` value `128` by count `65`, and its exact oracle
-is `Masked 64\n`. The C23 reference masks the runtime count with `63` before
-the unsigned logical shift. The Rust 2024 reference uses `wrapping_shr`, which
-masks the runtime count. W may fold this operation in the final artifact.
-Runtime equivalence is not proven, so this workload has no performance ranking.
+The `restaurant-uint-bitwise` witness is the representative family executable:
+it covers complement, binary bitwise operations, population counts, and
+leading/trailing zero counts including zero. Focused W fixtures retain
+bit/byte reversal, shift, and rotation correctness without separate benchmark
+rows.
 
-The `restaurant-uint-logical-shift-right` witness is `not-performance-ready`.
-Its fixed inputs apply `logicalShiftRight` to `UInt` value `128` with count
-`1`, and its exact oracle is `Logical 64\n`. W may fold this operation in the
-final artifact. The C23 reference validates `count < 64` before the unsigned
-logical shift. The Rust 2024 reference validates the count before it applies
-`>>`. Runtime equivalence is not proven, so this workload has no performance
-ranking.
+The `restaurant-uint-overflowing-family` witness covers add, subtract,
+multiply, negate, and power while printing both wrapped low bits and overflow
+flags. The `restaurant-uint-saturating-policy` witness covers the same five
+operations with zero and `UInt.max` boundaries.
 
-The `restaurant-uint-rotated-left` witness is `not-performance-ready`. Its
-fixed inputs rotate `UInt` value `0x8000000000000001` left by count `1`, and its
-exact oracle is `Rotated 3\n`. W may fold this operation in the final artifact.
-The C23 reference masks the runtime count and returns the input at count zero
-before it performs the second shift. The Rust 2024 reference uses
-`rotate_left` with runtime operands. Runtime equivalence is not proven, so this
-workload has no performance ranking.
-
-The `restaurant-uint-rotated-right` witness is `not-performance-ready`. Its
-fixed inputs rotate `UInt` value `3` right by count `1`, and its exact oracle is
-`Rotated 9223372036854775809\n`. W may fold this operation in the final artifact.
-The C23 reference masks the runtime count and returns the input at count zero
-before it performs the second shift. The Rust 2024 reference uses
-`rotate_right` with runtime operands. Runtime equivalence is not proven, so
-this workload has no performance ranking.
-
-The `restaurant-uint-count-ones` witness is `not-performance-ready`. Its fixed
-input counts the one bits in `0xf0f0f0f00f0f0f0f_u64`, and its exact oracle is
-`Ones 32\n`. W may fold this operation in the final artifact. The C23 and Rust
-2024 references retain independent runtime operands. Runtime equivalence is not
-proven, so this workload has no performance ranking.
-
-The `restaurant-uint-count-zeros` witness is `not-performance-ready`. Its fixed
-input counts the zero bits in `0xf0f0f0f00f0f0f0f_u64`, and its exact oracle is
-`Zeros 32\n`. W may fold this operation in the final artifact. The C23 and Rust
-2024 references retain independent runtime operands. Runtime equivalence is not
-proven, so this workload has no performance ranking.
-
-The `restaurant-uint-leading-zeros` witness is `not-performance-ready`. Its
-fixed inputs count the leading zero bits in `0x00000000000000f0_u64` and zero,
-and its exact oracle is `Leading 56/64\n`. W may fold these operations in the
-final artifact. The C23 and Rust 2024 references retain independent runtime
-operands. Runtime equivalence is not proven, so this workload has no
-performance ranking.
-
-The `restaurant-uint-trailing-zeros` witness is `not-performance-ready`. Its
-fixed inputs count the trailing zero bits in `0x000000000000f000_u64` and zero,
-and its exact oracle is `Trailing 12/64\n`. W may fold these operations in the
-final artifact. The C23 and Rust 2024 references retain independent runtime
-operands. Runtime equivalence is not proven, so this workload has no
-performance ranking.
-
-The `restaurant-uint-reversed-bits` witness is `not-performance-ready`. Its
-fixed input reverses the bits in `0x0123456789abcdef_u64`, and its exact oracle
-is `Bits 17848844570815808640\n`. W may fold this operation in the final
-artifact. The C23 and Rust 2024 references retain independent runtime operands.
-Runtime equivalence is not proven, so this workload has no performance ranking.
-
-The `restaurant-uint-reversed-bytes` witness is `not-performance-ready`. Its
-fixed input reverses the bytes in `0x0123456789abcdef_u64`, and its exact oracle
-is `Bytes 17279655951921914625\n`. W may fold this operation in the final
-artifact. The C23 and Rust 2024 references retain independent runtime operands.
-Runtime equivalence is not proven, so this workload has no performance ranking.
-
-The `restaurant-uint-overflowing-add` witness is `not-performance-ready`. Its
-fixed inputs add `1` to `UInt` maximum and `10`, and its exact oracle is
-`Overflowing 0/true/11/false\n`. The first result shows wrapped low bits and
-an overflow flag. The second result shows the non-overflowing case. W may fold
-these calls in the final artifact. The C23 and Rust 2024 references retain
-independent runtime operands. Runtime equivalence is not proven, so this
-workload has no performance ranking.
-
-The `restaurant-uint-overflowing-power` witness is `not-performance-ready`.
-Its fixed inputs compute `2^63`, `2^64`, `UInt` maximum squared, and `0^0`
-with exponentiation by squaring, and its exact oracle is
-`Overflowing power 9223372036854775808/false; 0/true; 1/true; 1/false\n`.
-The low bits and sticky overflow flags are printed for each result. W may fold
-these calls in the final artifact. The C23 and Rust 2024 references retain
-independent runtime operands. Runtime equivalence is not proven, so this
-workload has no performance ranking.
-
-The `restaurant-uint-overflowing-family` witness is `not-performance-ready`.
-Its fixed inputs exercise overflowing subtraction (`42 - 1` and `0 - 1`),
-multiplication (`6 * 7` and `UInt` maximum times `2`), and negation (`0` and
-`1`). Its exact oracle is
-`Overflowing family 41/false/18446744073709551615/true/42/false/18446744073709551614/true/0/false/18446744073709551615/true\n`.
-W may fold these calls in the final artifact. The C23 and Rust 2024 references
-retain independent runtime operands. Runtime equivalence is not proven, so
-this workload has no performance ranking.
-
-The `restaurant-uint-saturating-add` witness is `not-performance-ready`. Its
-fixed inputs apply saturating addition of `1` to `UInt` maximum and `10`, and
-its exact oracle is `Saturated 18446744073709551615/11\n`. W may fold these
-calls in the final artifact. The C23 and Rust 2024 references retain
-independent runtime operands. Runtime equivalence is not proven, so this
-workload has no performance ranking.
-
-The `restaurant-uint-saturating-subtract` witness is `not-performance-ready`.
-Its fixed inputs apply saturating subtraction of `1` from `UInt` zero and `11`,
-and its exact oracle is `Saturated subtract 0/10\n`. W may fold these calls in
-the final artifact. The C23 and Rust 2024 references retain independent runtime
-operands. Runtime equivalence is not proven, so this workload has no performance
-ranking.
-
-The `restaurant-uint-saturating-multiply` witness is `not-performance-ready`.
-Its fixed inputs multiply `UInt`'s maximum by `2` and `6` by `7`, and its exact
-oracle is `Saturated multiply 18446744073709551615/42\n`. W may fold these
-calls in the final artifact. The C23 and Rust 2024 references retain independent
-runtime operands. Runtime equivalence is not proven, so this workload has no
-performance ranking.
-
-The `restaurant-uint-saturating-policy` witness is `not-performance-ready`.
-Its fixed inputs apply saturating negation to `0` and `UInt` maximum, and
-saturating exponentiation by squaring to `2^3`, `2^64`, and `0^0`; its exact
-oracle is `Saturating policy 0/0/8/18446744073709551615/1\n`. W may fold these
-calls in the final artifact. The C23 and Rust 2024 references retain
-independent runtime operands. Runtime equivalence is not proven, so this
-workload has no performance ranking.
+All three family rows are `not-performance-ready`: W may fold their fixed
+inputs while the C23 and Rust references preserve runtime operands. Their exact
+exit/stdout contracts live beside each W/C/Rust source and are checked against
+the catalog. Runtime-equivalent ranking remains deferred.
 
 The catalog declares compile latency, median and P95 target-run wall time,
 user/system/total CPU time, peak working set, artifact size, exit code, and

@@ -42,24 +42,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-uint-arithmetic",
   "restaurant-integer-wrapping",
   "restaurant-integer-widening",
-  "restaurant-uint-masked-shift-left",
-  "restaurant-uint-masked-shift-right",
-  "restaurant-uint-logical-shift-right",
-  "restaurant-uint-rotated-left",
-  "restaurant-uint-rotated-right",
-  "restaurant-uint-bit-not",
-  "restaurant-uint-count-ones",
-  "restaurant-uint-count-zeros",
-  "restaurant-uint-leading-zeros",
-  "restaurant-uint-trailing-zeros",
-  "restaurant-uint-reversed-bits",
-  "restaurant-uint-reversed-bytes",
-  "restaurant-uint-overflowing-add",
-  "restaurant-uint-overflowing-power",
   "restaurant-uint-overflowing-family",
-  "restaurant-uint-saturating-add",
-  "restaurant-uint-saturating-subtract",
-  "restaurant-uint-saturating-multiply",
   "restaurant-uint-saturating-policy",
   "restaurant-uint-bitwise",
   "restaurant-uint-compound",
@@ -112,6 +95,23 @@ const PUBLIC_WINDOWS_RUN_VARIANTS = Object.freeze({
   "compiler/seed-c/fixtures/restaurant-uint-wrapping-power.w": "restaurant-integer-wrapping",
   "compiler/seed-c/fixtures/restaurant-uint-wrapping-shift-left.w": "restaurant-integer-wrapping",
   "compiler/seed-c/fixtures/restaurant-integer-widening.w": "restaurant-integer-widening",
+  "compiler/seed-c/fixtures/restaurant-uint-masked-shift-left.w": "restaurant-uint-bitwise",
+  "compiler/seed-c/fixtures/restaurant-uint-masked-shift-right.w": "restaurant-uint-bitwise",
+  "compiler/seed-c/fixtures/restaurant-uint-logical-shift-right.w": "restaurant-uint-bitwise",
+  "compiler/seed-c/fixtures/restaurant-uint-rotated-left.w": "restaurant-uint-bitwise",
+  "compiler/seed-c/fixtures/restaurant-uint-rotated-right.w": "restaurant-uint-bitwise",
+  "compiler/seed-c/fixtures/restaurant-uint-bit-not.w": "restaurant-uint-bitwise",
+  "compiler/seed-c/fixtures/restaurant-uint-count-ones.w": "restaurant-uint-bitwise",
+  "compiler/seed-c/fixtures/restaurant-uint-count-zeros.w": "restaurant-uint-bitwise",
+  "compiler/seed-c/fixtures/restaurant-uint-leading-zeros.w": "restaurant-uint-bitwise",
+  "compiler/seed-c/fixtures/restaurant-uint-trailing-zeros.w": "restaurant-uint-bitwise",
+  "compiler/seed-c/fixtures/restaurant-uint-reversed-bits.w": "restaurant-uint-bitwise",
+  "compiler/seed-c/fixtures/restaurant-uint-reversed-bytes.w": "restaurant-uint-bitwise",
+  "compiler/seed-c/fixtures/restaurant-uint-overflowing-add.w": "restaurant-uint-overflowing-family",
+  "compiler/seed-c/fixtures/restaurant-uint-overflowing-power.w": "restaurant-uint-overflowing-family",
+  "compiler/seed-c/fixtures/restaurant-uint-saturating-add.w": "restaurant-uint-saturating-policy",
+  "compiler/seed-c/fixtures/restaurant-uint-saturating-subtract.w": "restaurant-uint-saturating-policy",
+  "compiler/seed-c/fixtures/restaurant-uint-saturating-multiply.w": "restaurant-uint-saturating-policy",
   "compiler/seed-c/fixtures/restaurant-while.w": "restaurant-while-post",
   "compiler/seed-c/fixtures/restaurant-while-multi.w": "restaurant-while-post",
   "compiler/seed-c/fixtures/restaurant-comparisons.w": "restaurant-comparison-composition",
@@ -211,25 +211,8 @@ export const RESTAURANT_F64_STRICT_WORKLOAD_ID = "restaurant-f64-strict";
 export const RESTAURANT_UINT_ARITHMETIC_WORKLOAD_ID = "restaurant-uint-arithmetic";
 export const RESTAURANT_INTEGER_WRAPPING_WORKLOAD_ID = "restaurant-integer-wrapping";
 export const RESTAURANT_INTEGER_WIDENING_WORKLOAD_ID = "restaurant-integer-widening";
-export const RESTAURANT_UINT_OVERFLOWING_ADD_WORKLOAD_ID = "restaurant-uint-overflowing-add";
-export const RESTAURANT_UINT_OVERFLOWING_POWER_WORKLOAD_ID = "restaurant-uint-overflowing-power";
 export const RESTAURANT_UINT_OVERFLOWING_FAMILY_WORKLOAD_ID = "restaurant-uint-overflowing-family";
-export const RESTAURANT_UINT_SATURATING_ADD_WORKLOAD_ID = "restaurant-uint-saturating-add";
-export const RESTAURANT_UINT_SATURATING_SUBTRACT_WORKLOAD_ID = "restaurant-uint-saturating-subtract";
-export const RESTAURANT_UINT_SATURATING_MULTIPLY_WORKLOAD_ID = "restaurant-uint-saturating-multiply";
 export const RESTAURANT_UINT_SATURATING_POLICY_WORKLOAD_ID = "restaurant-uint-saturating-policy";
-export const RESTAURANT_UINT_MASKED_SHIFT_LEFT_WORKLOAD_ID = "restaurant-uint-masked-shift-left";
-export const RESTAURANT_UINT_MASKED_SHIFT_RIGHT_WORKLOAD_ID = "restaurant-uint-masked-shift-right";
-export const RESTAURANT_UINT_LOGICAL_SHIFT_RIGHT_WORKLOAD_ID = "restaurant-uint-logical-shift-right";
-export const RESTAURANT_UINT_ROTATED_LEFT_WORKLOAD_ID = "restaurant-uint-rotated-left";
-export const RESTAURANT_UINT_ROTATED_RIGHT_WORKLOAD_ID = "restaurant-uint-rotated-right";
-export const RESTAURANT_UINT_BIT_NOT_WORKLOAD_ID = "restaurant-uint-bit-not";
-export const RESTAURANT_UINT_COUNT_ONES_WORKLOAD_ID = "restaurant-uint-count-ones";
-export const RESTAURANT_UINT_COUNT_ZEROS_WORKLOAD_ID = "restaurant-uint-count-zeros";
-export const RESTAURANT_UINT_LEADING_ZEROS_WORKLOAD_ID = "restaurant-uint-leading-zeros";
-export const RESTAURANT_UINT_TRAILING_ZEROS_WORKLOAD_ID = "restaurant-uint-trailing-zeros";
-export const RESTAURANT_UINT_REVERSED_BITS_WORKLOAD_ID = "restaurant-uint-reversed-bits";
-export const RESTAURANT_UINT_REVERSED_BYTES_WORKLOAD_ID = "restaurant-uint-reversed-bytes";
 export const RESTAURANT_UINT_BITWISE_WORKLOAD_ID = "restaurant-uint-bitwise";
 export const RESTAURANT_UINT_COMPOUND_WORKLOAD_ID = "restaurant-uint-compound";
 export function isProcessArgumentWorkload(workloadId) {
@@ -1206,27 +1189,10 @@ function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PL
       workload?.id === RESTAURANT_UINT_ARITHMETIC_WORKLOAD_ID ||
       workload?.id === RESTAURANT_INTEGER_WRAPPING_WORKLOAD_ID ||
       workload?.id === RESTAURANT_INTEGER_WIDENING_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_BIT_NOT_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_BITWISE_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_COMPOUND_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_OVERFLOWING_ADD_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_OVERFLOWING_POWER_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_OVERFLOWING_FAMILY_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_SATURATING_ADD_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_SATURATING_SUBTRACT_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_SATURATING_MULTIPLY_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_SATURATING_POLICY_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_MASKED_SHIFT_LEFT_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_MASKED_SHIFT_RIGHT_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_LOGICAL_SHIFT_RIGHT_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_ROTATED_LEFT_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_ROTATED_RIGHT_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_COUNT_ONES_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_COUNT_ZEROS_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_LEADING_ZEROS_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_TRAILING_ZEROS_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_REVERSED_BITS_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_REVERSED_BYTES_WORKLOAD_ID) return SOURCE_ELIGIBILITY.strictF64;
+      workload?.id === RESTAURANT_UINT_SATURATING_POLICY_WORKLOAD_ID) return SOURCE_ELIGIBILITY.strictF64;
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) return SOURCE_ELIGIBILITY.processHandler;
   if (language === "c") return SOURCE_ELIGIBILITY.cPublic;
   if (language === "rust") return SOURCE_ELIGIBILITY.rust;

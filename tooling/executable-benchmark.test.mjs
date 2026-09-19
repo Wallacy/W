@@ -46,26 +46,10 @@ import {
   RESTAURANT_INTEGER_WRAPPING_WORKLOAD_ID,
   RESTAURANT_INTEGER_WIDENING_WORKLOAD_ID,
   RESTAURANT_UINT_ARITHMETIC_WORKLOAD_ID,
-  RESTAURANT_UINT_BIT_NOT_WORKLOAD_ID,
-  RESTAURANT_UINT_COUNT_ONES_WORKLOAD_ID,
-  RESTAURANT_UINT_COUNT_ZEROS_WORKLOAD_ID,
-  RESTAURANT_UINT_LEADING_ZEROS_WORKLOAD_ID,
-  RESTAURANT_UINT_TRAILING_ZEROS_WORKLOAD_ID,
-  RESTAURANT_UINT_REVERSED_BITS_WORKLOAD_ID,
-  RESTAURANT_UINT_REVERSED_BYTES_WORKLOAD_ID,
-  RESTAURANT_UINT_OVERFLOWING_ADD_WORKLOAD_ID,
-  RESTAURANT_UINT_OVERFLOWING_POWER_WORKLOAD_ID,
+  RESTAURANT_UINT_BITWISE_WORKLOAD_ID,
   RESTAURANT_UINT_OVERFLOWING_FAMILY_WORKLOAD_ID,
-  RESTAURANT_UINT_SATURATING_ADD_WORKLOAD_ID,
-  RESTAURANT_UINT_SATURATING_SUBTRACT_WORKLOAD_ID,
-  RESTAURANT_UINT_SATURATING_MULTIPLY_WORKLOAD_ID,
   RESTAURANT_UINT_SATURATING_POLICY_WORKLOAD_ID,
   RESTAURANT_UINT_COMPOUND_WORKLOAD_ID,
-  RESTAURANT_UINT_MASKED_SHIFT_LEFT_WORKLOAD_ID,
-  RESTAURANT_UINT_MASKED_SHIFT_RIGHT_WORKLOAD_ID,
-  RESTAURANT_UINT_LOGICAL_SHIFT_RIGHT_WORKLOAD_ID,
-  RESTAURANT_UINT_ROTATED_LEFT_WORKLOAD_ID,
-  RESTAURANT_UINT_ROTATED_RIGHT_WORKLOAD_ID,
   ROOT,
   deriveExecutableBestMetrics,
   executableEquivalenceKey,
@@ -211,6 +195,15 @@ test("source-local expected-output comments are opt-in and exact", () => {
     "benchmarks/executable/restaurant_integer_widening.c",
     "benchmarks/executable/restaurant_integer_widening.rs",
     "compiler/seed-c/fixtures/restaurant-integer-widening.w",
+    "benchmarks/executable/restaurant_uint_bitwise.c",
+    "benchmarks/executable/restaurant_uint_bitwise.rs",
+    "compiler/seed-c/fixtures/restaurant-uint-bitwise.w",
+    "benchmarks/executable/restaurant_uint_overflowing_family.c",
+    "benchmarks/executable/restaurant_uint_overflowing_family.rs",
+    "compiler/seed-c/fixtures/restaurant-uint-overflowing-family.w",
+    "benchmarks/executable/restaurant_uint_saturating_policy.c",
+    "benchmarks/executable/restaurant_uint_saturating_policy.rs",
+    "compiler/seed-c/fixtures/restaurant-uint-saturating-policy.w",
   ];
   for (const sourcePath of requiredOptInPaths) {
     assert.ok(optInPaths.has(sourcePath), `${sourcePath} must retain its local oracle`);
@@ -502,22 +495,28 @@ test("checked UInt arithmetic catalog pins fixed-input references and deferred e
   assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
 });
 
-test("UInt bitwise complement catalog keeps correctness separate from ranking", () => {
+test("UInt bit-primitives family catalog keeps correctness separate from ranking", () => {
   const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_BIT_NOT_WORKLOAD_ID);
+    item.id === RESTAURANT_UINT_BITWISE_WORKLOAD_ID);
   assert.ok(workload);
   assert.equal(workload.structureClass, "public-end-to-end");
   assert.equal(workload.status, "source-oracle-ready");
   assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
   assert.equal(workload.demoEvidence, "bounded-w-demo");
   assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.equal(workload.oracle.stdout,
-    "UInt not 18446744073709551615\n");
+  assert.match(workload.scope, /representative fixed-input UInt bit-primitives family/u);
+  assert.match(workload.scope, /without separate benchmark rows/u);
+  assert.deepEqual(workload.oracle, {
+    kind: "exact-output",
+    status: "source-backed",
+    exitCode: 0,
+    stdout:
+      "Not 18446744073709551615\nAnd 0\nOr 18446744073709551615\n" +
+      "Xor 18446744073709551615\nOnes 32\nZeros 32\nLeading 56\n" +
+      "Leading zero 64\nTrailing 12\nTrailing zero 64\n",
+    stderr: "",
+  });
   assert.deepEqual(workload.blockedLanguages, []);
-  assert.deepEqual(workload.blockers, [
-    "w-uint-bit-not-compile-time-folded",
-    "runtime-uint-bit-not-equivalence",
-  ]);
   assert.deepEqual(workload.sources.map((source) =>
     [source.language, source.platformTarget]), [
     ["w", EXECUTABLE_PLATFORM_TARGET],
@@ -526,409 +525,27 @@ test("UInt bitwise complement catalog keeps correctness separate from ranking", 
     ["rust", EXECUTABLE_PLATFORM_TARGET],
   ]);
   assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-bit-not-release"));
+    source.recipeClass === "restaurant-uint-bitwise-release"));
+  const w = readFileSync(
+    `${ROOT}/compiler/seed-c/fixtures/restaurant-uint-bitwise.w`, "utf8");
   const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_bit_not.c`, "utf8");
+    `${ROOT}/benchmarks/executable/restaurant_uint_bitwise.c`, "utf8");
   const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_bit_not.rs`, "utf8");
-  assert.match(c, /volatile uint64_t/u);
-  assert.match(c, /~runtime_zero/u);
+    `${ROOT}/benchmarks/executable/restaurant_uint_bitwise.rs`, "utf8");
+  for (const [name, source] of [["W", w], ["C23", c], ["Rust", rust]]) {
+    assert.deepEqual(validateExecutableSourceExpectation(source, workload.oracle,
+      `${name} source`), []);
+  }
+  for (const helper of ["count_ones_u64", "count_leading_zeros_u64",
+    "count_trailing_zeros_u64"]) {
+    assert.match(c, new RegExp(helper));
+  }
+  for (const operation of [".count_ones()", ".count_zeros()",
+    ".leading_zeros()", ".trailing_zeros()"]) {
+    assert.ok(rust.includes(operation));
+  }
+  assert.match(c, /volatile uint64_t runtime_inputs/u);
   assert.match(rust, /black_box/u);
-  assert.match(rust, /!black_box/u);
-});
-
-test("UInt count-ones catalog keeps correctness separate from ranking", () => {
-  const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_COUNT_ONES_WORKLOAD_ID);
-  assert.ok(workload);
-  assert.equal(workload.structureClass, "public-end-to-end");
-  assert.equal(workload.status, "source-oracle-ready");
-  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(workload.demoEvidence, "bounded-w-demo");
-  assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.equal(workload.scope,
-    "Validate fixed-input full-width UInt count of one bits in 0xf0f0f0f00f0f0f0f and exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.");
-  assert.deepEqual(workload.oracle, {
-    kind: "exact-output",
-    status: "source-backed",
-    exitCode: 0,
-    stdout: "Ones 32\n",
-    stderr: "",
-  });
-  assert.deepEqual(workload.blockedLanguages, []);
-  assert.deepEqual(workload.blockers, [
-    "w-uint-count-ones-compile-time-folded",
-    "runtime-uint-count-ones-equivalence",
-  ]);
-  assert.deepEqual(workload.sources.map((source) =>
-    [source.language, source.platformTarget]), [
-    ["w", EXECUTABLE_PLATFORM_TARGET],
-    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
-    ["c", EXECUTABLE_PLATFORM_TARGET],
-    ["rust", EXECUTABLE_PLATFORM_TARGET],
-  ]);
-  assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-count-ones-release"));
-  const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_count_ones.c`, "utf8");
-  const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_count_ones.rs`, "utf8");
-  assert.match(c, /volatile uint64_t runtime_value/u);
-  assert.match(c, /count_ones_u64/u);
-  assert.match(c, /value & UINT64_C\(1\)/u);
-  assert.match(rust, /black_box\(0xf0f0f0f00f0f0f0f_u64\)/u);
-  assert.match(rust, /\.count_ones\(\)/u);
-  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
-  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
-});
-
-test("UInt count-zeros catalog keeps correctness separate from ranking", () => {
-  const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_COUNT_ZEROS_WORKLOAD_ID);
-  assert.ok(workload);
-  assert.equal(workload.structureClass, "public-end-to-end");
-  assert.equal(workload.status, "source-oracle-ready");
-  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(workload.demoEvidence, "bounded-w-demo");
-  assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.equal(workload.scope,
-    "Validate fixed-input full-width UInt count of zero bits in 0xf0f0f0f00f0f0f0f and exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.");
-  assert.deepEqual(workload.oracle, {
-    kind: "exact-output",
-    status: "source-backed",
-    exitCode: 0,
-    stdout: "Zeros 32\n",
-    stderr: "",
-  });
-  assert.deepEqual(workload.blockedLanguages, []);
-  assert.deepEqual(workload.blockers, [
-    "w-uint-count-zeros-compile-time-folded",
-    "runtime-uint-count-zeros-equivalence",
-  ]);
-  assert.deepEqual(workload.sources.map((source) =>
-    [source.language, source.platformTarget]), [
-    ["w", EXECUTABLE_PLATFORM_TARGET],
-    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
-    ["c", EXECUTABLE_PLATFORM_TARGET],
-    ["rust", EXECUTABLE_PLATFORM_TARGET],
-  ]);
-  assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-count-zeros-release"));
-  const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_count_zeros.c`, "utf8");
-  const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_count_zeros.rs`, "utf8");
-  assert.match(c, /volatile uint64_t runtime_value/u);
-  assert.match(c, /count_zeros_u64/u);
-  assert.match(c, /value & UINT64_C\(1\)/u);
-  assert.match(rust, /black_box\(0xf0f0f0f00f0f0f0f_u64\)/u);
-  assert.match(rust, /\.count_zeros\(\)/u);
-  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
-  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
-});
-
-test("UInt leading-zeros catalog keeps correctness separate from ranking", () => {
-  const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_LEADING_ZEROS_WORKLOAD_ID);
-  assert.ok(workload);
-  assert.equal(workload.structureClass, "public-end-to-end");
-  assert.equal(workload.status, "source-oracle-ready");
-  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(workload.demoEvidence, "bounded-w-demo");
-  assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.equal(workload.scope,
-    "Validate fixed-input full-width UInt count of leading zero bits in 0x00000000000000f0 and zero, including the zero-to-bit-width boundary, with exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.");
-  assert.deepEqual(workload.oracle, {
-    kind: "exact-output",
-    status: "source-backed",
-    exitCode: 0,
-    stdout: "Leading 56/64\n",
-    stderr: "",
-  });
-  assert.deepEqual(workload.blockedLanguages, []);
-  assert.deepEqual(workload.blockers, [
-    "w-uint-leading-zeros-compile-time-folded",
-    "runtime-uint-leading-zeros-equivalence",
-  ]);
-  assert.deepEqual(workload.sources.map((source) =>
-    [source.language, source.platformTarget]), [
-    ["w", EXECUTABLE_PLATFORM_TARGET],
-    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
-    ["c", EXECUTABLE_PLATFORM_TARGET],
-    ["rust", EXECUTABLE_PLATFORM_TARGET],
-  ]);
-  assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-leading-zeros-release"));
-  const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_leading_zeros.c`, "utf8");
-  const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_leading_zeros.rs`, "utf8");
-  assert.match(c, /volatile uint64_t runtime_value/u);
-  assert.match(c, /count_leading_zeros_u64/u);
-  assert.match(c, /value & mask/u);
-  assert.match(rust, /black_box\(0x00000000000000f0_u64\)/u);
-  assert.match(rust, /\.leading_zeros\(\)/u);
-  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
-  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
-});
-
-test("UInt trailing-zeros catalog keeps correctness separate from ranking", () => {
-  const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_TRAILING_ZEROS_WORKLOAD_ID);
-  assert.ok(workload);
-  assert.equal(workload.structureClass, "public-end-to-end");
-  assert.equal(workload.status, "source-oracle-ready");
-  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(workload.demoEvidence, "bounded-w-demo");
-  assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.equal(workload.scope,
-    "Validate fixed-input full-width UInt count of trailing zero bits in 0x000000000000f000 and zero, including the zero-to-bit-width boundary, with exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.");
-  assert.deepEqual(workload.oracle, {
-    kind: "exact-output",
-    status: "source-backed",
-    exitCode: 0,
-    stdout: "Trailing 12/64\n",
-    stderr: "",
-  });
-  assert.deepEqual(workload.blockedLanguages, []);
-  assert.deepEqual(workload.blockers, [
-    "w-uint-trailing-zeros-compile-time-folded",
-    "runtime-uint-trailing-zeros-equivalence",
-  ]);
-  assert.deepEqual(workload.sources.map((source) =>
-    [source.language, source.platformTarget]), [
-    ["w", EXECUTABLE_PLATFORM_TARGET],
-    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
-    ["c", EXECUTABLE_PLATFORM_TARGET],
-    ["rust", EXECUTABLE_PLATFORM_TARGET],
-  ]);
-  assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-trailing-zeros-release"));
-  const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_trailing_zeros.c`, "utf8");
-  const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_trailing_zeros.rs`, "utf8");
-  assert.match(c, /volatile uint64_t runtime_value/u);
-  assert.match(c, /count_trailing_zeros_u64/u);
-  assert.match(c, /value & mask/u);
-  assert.match(rust, /black_box\(0x000000000000f000_u64\)/u);
-  assert.match(rust, /\.trailing_zeros\(\)/u);
-  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
-  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
-});
-
-test("UInt reversed-bits catalog keeps correctness separate from ranking", () => {
-  const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_REVERSED_BITS_WORKLOAD_ID);
-  assert.ok(workload);
-  assert.equal(workload.structureClass, "public-end-to-end");
-  assert.equal(workload.status, "source-oracle-ready");
-  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(workload.demoEvidence, "bounded-w-demo");
-  assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.equal(workload.scope,
-    "Validate fixed-input full-width UInt bit reversal of 0x0123456789abcdef and exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.");
-  assert.deepEqual(workload.oracle, {
-    kind: "exact-output",
-    status: "source-backed",
-    exitCode: 0,
-    stdout: "Bits 17848844570815808640\n",
-    stderr: "",
-  });
-  assert.deepEqual(workload.blockedLanguages, []);
-  assert.deepEqual(workload.blockers, [
-    "w-uint-reversed-bits-compile-time-folded",
-    "runtime-uint-reversed-bits-equivalence",
-  ]);
-  assert.deepEqual(workload.sources.map((source) =>
-    [source.language, source.platformTarget]), [
-    ["w", EXECUTABLE_PLATFORM_TARGET],
-    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
-    ["c", EXECUTABLE_PLATFORM_TARGET],
-    ["rust", EXECUTABLE_PLATFORM_TARGET],
-  ]);
-  assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-reversed-bits-release"));
-  const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_reversed_bits.c`, "utf8");
-  const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_reversed_bits.rs`, "utf8");
-  assert.match(c, /volatile uint64_t runtime_value/u);
-  assert.match(c, /reverse_bits_u64/u);
-  assert.match(c, /value & UINT64_C\(1\)/u);
-  assert.match(rust, /black_box\(0x0123_4567_89ab_cdef_u64\)/u);
-  assert.match(rust, /\.reverse_bits\(\)/u);
-  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
-  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
-});
-
-test("UInt reversed-bytes catalog keeps correctness separate from ranking", () => {
-  const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_REVERSED_BYTES_WORKLOAD_ID);
-  assert.ok(workload);
-  assert.equal(workload.structureClass, "public-end-to-end");
-  assert.equal(workload.status, "source-oracle-ready");
-  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(workload.demoEvidence, "bounded-w-demo");
-  assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.equal(workload.scope,
-    "Validate fixed-input full-width UInt byte reversal of 0x0123456789abcdef and exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.");
-  assert.deepEqual(workload.oracle, {
-    kind: "exact-output",
-    status: "source-backed",
-    exitCode: 0,
-    stdout: "Bytes 17279655951921914625\n",
-    stderr: "",
-  });
-  assert.deepEqual(workload.blockedLanguages, []);
-  assert.deepEqual(workload.blockers, [
-    "w-uint-reversed-bytes-compile-time-folded",
-    "runtime-uint-reversed-bytes-equivalence",
-  ]);
-  assert.deepEqual(workload.sources.map((source) =>
-    [source.language, source.platformTarget]), [
-    ["w", EXECUTABLE_PLATFORM_TARGET],
-    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
-    ["c", EXECUTABLE_PLATFORM_TARGET],
-    ["rust", EXECUTABLE_PLATFORM_TARGET],
-  ]);
-  assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-reversed-bytes-release"));
-  const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_reversed_bytes.c`, "utf8");
-  const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_reversed_bytes.rs`, "utf8");
-  assert.match(c, /volatile uint64_t runtime_value/u);
-  assert.match(c, /reverse_bytes_u64/u);
-  assert.match(c, /value & UINT64_C\(0xff\)/u);
-  assert.match(rust, /black_box\(0x0123_4567_89ab_cdef_u64\)/u);
-  assert.match(rust, /\.swap_bytes\(\)/u);
-  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
-  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
-});
-
-test("UInt overflowing-add catalog keeps correctness separate from ranking", () => {
-  const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_OVERFLOWING_ADD_WORKLOAD_ID);
-  assert.ok(workload);
-  assert.equal(workload.structureClass, "public-end-to-end");
-  assert.equal(workload.status, "source-oracle-ready");
-  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(workload.demoEvidence, "bounded-w-demo");
-  assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.equal(workload.scope,
-    "Validate fixed-input full-width UInt overflowing addition at UINT64_MAX and 10, including wrapped values and overflow flags, with exact unsigned decimal and Boolean output. Performance ranking is deferred until W preserves equivalent runtime work.");
-  assert.deepEqual(workload.oracle, {
-    kind: "exact-output",
-    status: "source-backed",
-    exitCode: 0,
-    stdout: "Overflowing 0/true/11/false\n",
-    stderr: "",
-  });
-  assert.deepEqual(workload.blockedLanguages, []);
-  assert.deepEqual(workload.blockers, [
-    "w-uint-overflowing-add-compile-time-folded",
-    "runtime-uint-overflowing-add-equivalence",
-  ]);
-  assert.deepEqual(workload.sources.map((source) =>
-    [source.language, source.platformTarget]), [
-    ["w", EXECUTABLE_PLATFORM_TARGET],
-    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
-    ["c", EXECUTABLE_PLATFORM_TARGET],
-    ["rust", EXECUTABLE_PLATFORM_TARGET],
-  ]);
-  assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-overflowing-add-release"));
-  assert.deepEqual(workload.sources
-    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
-    .map((source) => [source.comparability, source.eligibility]), [
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-    ]);
-  const wsl = workload.sources.find((source) =>
-    source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
-  assert.deepEqual([wsl.comparability, wsl.eligibility], [
-    "same-physical-hardware-diagnostic-only",
-    "same-physical-hardware-diagnostic-only",
-  ]);
-  const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_overflowing_add.c`, "utf8");
-  const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_overflowing_add.rs`, "utf8");
-  assert.match(c, /volatile uint64_t runtime_maximum/u);
-  assert.match(c, /volatile uint64_t runtime_ordinary/u);
-  assert.match(c, /overflowing_add_u64/u);
-  assert.match(c, /wrapped < left/u);
-  assert.match(c, /bool overflow/u);
-  assert.match(rust, /black_box\(u64::MAX\)/u);
-  assert.match(rust, /black_box\(10_u64\)/u);
-  assert.match(rust, /\.overflowing_add\(/u);
-  assert.match(rust, /bool\)/u);
-  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
-  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
-});
-
-test("UInt overflowing-power catalog keeps correctness separate from ranking", () => {
-  const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_OVERFLOWING_POWER_WORKLOAD_ID);
-  assert.ok(workload);
-  assert.equal(workload.structureClass, "public-end-to-end");
-  assert.equal(workload.status, "source-oracle-ready");
-  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(workload.demoEvidence, "bounded-w-demo");
-  assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.equal(workload.scope,
-    "Validate fixed-input full-width UInt overflowing exponentiation by squaring at 2^63, 2^64, UINT64_MAX^2, and 0^0, including low bits and sticky overflow flags, with exact unsigned decimal and Boolean output. Performance ranking is deferred until W preserves equivalent runtime work.");
-  assert.deepEqual(workload.oracle, {
-    kind: "exact-output",
-    status: "source-backed",
-    exitCode: 0,
-    stdout: "Overflowing power 9223372036854775808/false; 0/true; 1/true; 1/false\n",
-    stderr: "",
-  });
-  assert.deepEqual(workload.blockedLanguages, []);
-  assert.deepEqual(workload.blockers, [
-    "w-uint-overflowing-power-compile-time-folded",
-    "runtime-uint-overflowing-power-equivalence",
-  ]);
-  assert.deepEqual(workload.sources.map((source) =>
-    [source.language, source.platformTarget]), [
-    ["w", EXECUTABLE_PLATFORM_TARGET],
-    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
-    ["c", EXECUTABLE_PLATFORM_TARGET],
-    ["rust", EXECUTABLE_PLATFORM_TARGET],
-  ]);
-  assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-overflowing-power-release"));
-  assert.deepEqual(workload.sources
-    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
-    .map((source) => [source.comparability, source.eligibility]), [
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-    ]);
-  const wsl = workload.sources.find((source) =>
-    source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
-  assert.deepEqual([wsl.comparability, wsl.eligibility], [
-    "same-physical-hardware-diagnostic-only",
-    "same-physical-hardware-diagnostic-only",
-  ]);
-  const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_overflowing_power.c`, "utf8");
-  const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_overflowing_power.rs`, "utf8");
-  assert.match(c, /volatile uint64_t runtime_ordinary_base/u);
-  assert.match(c, /overflowing_multiply_u64/u);
-  assert.match(c, /overflowing_power_u64/u);
-  assert.match(c, /UINT64_MAX \/ left/u);
-  assert.match(c, /exponent >>= 1/u);
-  assert.match(c, /result\.overflow = result\.overflow \|\|/u);
-  assert.match(rust, /black_box\(2_u64\)/u);
-  assert.match(rust, /black_box\(u64::MAX\)/u);
-  assert.match(rust, /\.overflowing_mul\(/u);
-  assert.match(rust, /overflow \|= did_overflow/u);
-  assert.match(rust, /exponent >>= 1/u);
   assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
   assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
 });
@@ -942,13 +559,12 @@ test("UInt overflowing-family catalog keeps correctness separate from ranking", 
   assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
   assert.equal(workload.demoEvidence, "bounded-w-demo");
   assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.equal(workload.scope,
-    "Validate fixed-input full-width UInt overflowing subtraction, multiplication, and negation with exact unsigned decimal and Boolean output. Performance ranking is deferred until W preserves equivalent runtime work.");
+  assert.match(workload.scope, /covering addition, subtraction, multiplication, negation, and exponentiation/u);
   assert.deepEqual(workload.oracle, {
     kind: "exact-output",
     status: "source-backed",
     exitCode: 0,
-    stdout: "Overflowing family 41/false/18446744073709551615/true/42/false/18446744073709551614/true/0/false/18446744073709551615/true\n",
+    stdout: "Overflowing family add 0/true,11/false; subtract 41/false,18446744073709551615/true; multiply 42/false,18446744073709551614/true; negate 0/false,18446744073709551615/true; power 9223372036854775808/false,0/true,1/true,1/false\n",
     stderr: "",
   });
   assert.deepEqual(workload.blockedLanguages, []);
@@ -982,11 +598,19 @@ test("UInt overflowing-family catalog keeps correctness separate from ranking", 
     `${ROOT}/benchmarks/executable/restaurant_uint_overflowing_family.c`, "utf8");
   const rust = readFileSync(
     `${ROOT}/benchmarks/executable/restaurant_uint_overflowing_family.rs`, "utf8");
+  const w = readFileSync(
+    `${ROOT}/compiler/seed-c/fixtures/restaurant-uint-overflowing-family.w`, "utf8");
+  for (const [name, source] of [["W", w], ["C23", c], ["Rust", rust]]) {
+    assert.deepEqual(validateExecutableSourceExpectation(source, workload.oracle,
+      `${name} source`), []);
+  }
+  assert.match(c, /overflowing_add_u64/u);
   assert.match(c, /volatile uint64_t runtime_subtract_left/u);
   assert.match(c, /volatile uint64_t runtime_multiply_left/u);
   assert.match(c, /overflowing_subtract_u64/u);
   assert.match(c, /overflowing_multiply_u64/u);
   assert.match(c, /overflowing_negate_u64/u);
+  assert.match(c, /overflowing_power_u64/u);
   assert.match(c, /left < right/u);
   assert.match(c, /UINT64_MAX \/ left/u);
   assert.match(c, /value != UINT64_C\(0\)/u);
@@ -995,190 +619,8 @@ test("UInt overflowing-family catalog keeps correctness separate from ranking", 
   assert.match(rust, /\.overflowing_sub\(/u);
   assert.match(rust, /\.overflowing_mul\(/u);
   assert.match(rust, /\.overflowing_neg\(\)/u);
-  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
-  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
-});
-
-test("UInt saturating-add catalog keeps correctness separate from ranking", () => {
-  const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_SATURATING_ADD_WORKLOAD_ID);
-  assert.ok(workload);
-  assert.equal(workload.structureClass, "public-end-to-end");
-  assert.equal(workload.status, "source-oracle-ready");
-  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(workload.demoEvidence, "bounded-w-demo");
-  assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.equal(workload.scope,
-    "Validate fixed-input full-width UInt saturating addition at UINT64_MAX and 10 and exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.");
-  assert.deepEqual(workload.oracle, {
-    kind: "exact-output",
-    status: "source-backed",
-    exitCode: 0,
-    stdout: "Saturated 18446744073709551615/11\n",
-    stderr: "",
-  });
-  assert.deepEqual(workload.blockedLanguages, []);
-  assert.deepEqual(workload.blockers, [
-    "w-uint-saturating-add-compile-time-folded",
-    "runtime-uint-saturating-add-equivalence",
-  ]);
-  assert.deepEqual(workload.sources.map((source) =>
-    [source.language, source.platformTarget]), [
-    ["w", EXECUTABLE_PLATFORM_TARGET],
-    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
-    ["c", EXECUTABLE_PLATFORM_TARGET],
-    ["rust", EXECUTABLE_PLATFORM_TARGET],
-  ]);
-  assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-saturating-add-release"));
-  assert.deepEqual(workload.sources
-    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
-    .map((source) => [source.comparability, source.eligibility]), [
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-    ]);
-  const wsl = workload.sources.find((source) =>
-    source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
-  assert.deepEqual([wsl.comparability, wsl.eligibility], [
-    "same-physical-hardware-diagnostic-only",
-    "same-physical-hardware-diagnostic-only",
-  ]);
-  const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_saturating_add.c`, "utf8");
-  const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_saturating_add.rs`, "utf8");
-  assert.match(c, /volatile uint64_t runtime_maximum/u);
-  assert.match(c, /volatile uint64_t runtime_ordinary/u);
-  assert.match(c, /saturating_add_u64/u);
-  assert.match(c, /left > UINT64_MAX - right/u);
-  assert.match(rust, /black_box\(u64::MAX\)/u);
-  assert.match(rust, /black_box\(10_u64\)/u);
-  assert.match(rust, /\.saturating_add\(/u);
-  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
-  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
-});
-
-test("UInt saturating-subtract catalog keeps correctness separate from ranking", () => {
-  const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_SATURATING_SUBTRACT_WORKLOAD_ID);
-  assert.ok(workload);
-  assert.equal(workload.structureClass, "public-end-to-end");
-  assert.equal(workload.status, "source-oracle-ready");
-  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(workload.demoEvidence, "bounded-w-demo");
-  assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.equal(workload.scope,
-    "Validate fixed-input full-width UInt saturating subtraction of 1 from zero and 11 and exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.");
-  assert.deepEqual(workload.oracle, {
-    kind: "exact-output",
-    status: "source-backed",
-    exitCode: 0,
-    stdout: "Saturated subtract 0/10\n",
-    stderr: "",
-  });
-  assert.deepEqual(workload.blockedLanguages, []);
-  assert.deepEqual(workload.blockers, [
-    "w-uint-saturating-subtract-compile-time-folded",
-    "runtime-uint-saturating-subtract-equivalence",
-  ]);
-  assert.deepEqual(workload.sources.map((source) =>
-    [source.language, source.platformTarget]), [
-    ["w", EXECUTABLE_PLATFORM_TARGET],
-    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
-    ["c", EXECUTABLE_PLATFORM_TARGET],
-    ["rust", EXECUTABLE_PLATFORM_TARGET],
-  ]);
-  assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-saturating-subtract-release"));
-  assert.deepEqual(workload.sources
-    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
-    .map((source) => [source.comparability, source.eligibility]), [
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-    ]);
-  const wsl = workload.sources.find((source) =>
-    source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
-  assert.deepEqual([wsl.comparability, wsl.eligibility], [
-    "same-physical-hardware-diagnostic-only",
-    "same-physical-hardware-diagnostic-only",
-  ]);
-  const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_saturating_subtract.c`, "utf8");
-  const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_saturating_subtract.rs`, "utf8");
-  assert.match(c, /volatile uint64_t runtime_zero/u);
-  assert.match(c, /volatile uint64_t runtime_ordinary/u);
-  assert.match(c, /saturating_subtract_u64/u);
-  assert.match(c, /value < amount/u);
-  assert.match(rust, /black_box\(0_u64\)/u);
-  assert.match(rust, /black_box\(11_u64\)/u);
-  assert.match(rust, /\.saturating_sub\(/u);
-  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
-  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
-});
-
-test("UInt saturating-multiply catalog keeps correctness separate from ranking", () => {
-  const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_SATURATING_MULTIPLY_WORKLOAD_ID);
-  assert.ok(workload);
-  assert.equal(workload.structureClass, "public-end-to-end");
-  assert.equal(workload.status, "source-oracle-ready");
-  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(workload.demoEvidence, "bounded-w-demo");
-  assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.equal(workload.scope,
-    "Validate fixed-input full-width UInt saturating multiplication of UINT64_MAX by 2 and 6 by 7 and exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.");
-  assert.deepEqual(workload.oracle, {
-    kind: "exact-output",
-    status: "source-backed",
-    exitCode: 0,
-    stdout: "Saturated multiply 18446744073709551615/42\n",
-    stderr: "",
-  });
-  assert.deepEqual(workload.blockedLanguages, []);
-  assert.deepEqual(workload.blockers, [
-    "w-uint-saturating-multiply-compile-time-folded",
-    "runtime-uint-saturating-multiply-equivalence",
-  ]);
-  assert.deepEqual(workload.sources.map((source) =>
-    [source.language, source.platformTarget]), [
-    ["w", EXECUTABLE_PLATFORM_TARGET],
-    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
-    ["c", EXECUTABLE_PLATFORM_TARGET],
-    ["rust", EXECUTABLE_PLATFORM_TARGET],
-  ]);
-  assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-saturating-multiply-release"));
-  assert.deepEqual(workload.sources
-    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
-    .map((source) => [source.comparability, source.eligibility]), [
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-    ]);
-  const wsl = workload.sources.find((source) =>
-    source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
-  assert.deepEqual([wsl.comparability, wsl.eligibility], [
-    "same-physical-hardware-diagnostic-only",
-    "same-physical-hardware-diagnostic-only",
-  ]);
-  const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_saturating_multiply.c`, "utf8");
-  const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_saturating_multiply.rs`, "utf8");
-  assert.match(c, /volatile uint64_t runtime_maximum/u);
-  assert.match(c, /volatile uint64_t runtime_overflow_factor/u);
-  assert.match(c, /volatile uint64_t runtime_ordinary/u);
-  assert.match(c, /volatile uint64_t runtime_ordinary_factor/u);
-  assert.match(c, /saturating_multiply_u64/u);
-  assert.match(c, /left != 0 && right > UINT64_MAX \/ left/u);
-  assert.match(rust, /black_box\(u64::MAX\)/u);
-  assert.match(rust, /black_box\(2_u64\)/u);
-  assert.match(rust, /black_box\(6_u64\)/u);
-  assert.match(rust, /black_box\(7_u64\)/u);
-  assert.match(rust, /\.saturating_mul\(/u);
+  assert.match(rust, /\.overflowing_add\(/u);
+  assert.match(rust, /overflowing_power/u);
   assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
   assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
 });
@@ -1192,13 +634,12 @@ test("UInt saturating-policy catalog keeps correctness separate from ranking", (
   assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
   assert.equal(workload.demoEvidence, "bounded-w-demo");
   assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.equal(workload.scope,
-    "Validate fixed-input full-width UInt saturating negation at zero and UINT64_MAX plus exponentiation by squaring at 2^3, 2^64, and 0^0, with exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.");
+  assert.match(workload.scope, /covering addition, subtraction, multiplication, negation, and exponentiation/u);
   assert.deepEqual(workload.oracle, {
     kind: "exact-output",
     status: "source-backed",
     exitCode: 0,
-    stdout: "Saturating policy 0/0/8/18446744073709551615/1\n",
+    stdout: "Saturating policy add 18446744073709551615/11; subtract 0/10; multiply 18446744073709551615/42; negate 0/0; power 8/18446744073709551615/1\n",
     stderr: "",
   });
   assert.deepEqual(workload.blockedLanguages, []);
@@ -1232,6 +673,14 @@ test("UInt saturating-policy catalog keeps correctness separate from ranking", (
     `${ROOT}/benchmarks/executable/restaurant_uint_saturating_policy.c`, "utf8");
   const rust = readFileSync(
     `${ROOT}/benchmarks/executable/restaurant_uint_saturating_policy.rs`, "utf8");
+  const w = readFileSync(
+    `${ROOT}/compiler/seed-c/fixtures/restaurant-uint-saturating-policy.w`, "utf8");
+  for (const [name, source] of [["W", w], ["C23", c], ["Rust", rust]]) {
+    assert.deepEqual(validateExecutableSourceExpectation(source, workload.oracle,
+      `${name} source`), []);
+  }
+  assert.match(c, /saturating_add_u64/u);
+  assert.match(c, /saturating_subtract_u64/u);
   assert.match(c, /volatile uint64_t runtime_negate_zero/u);
   assert.match(c, /volatile uint64_t runtime_negate_maximum/u);
   assert.match(c, /saturating_negate_u64/u);
@@ -1242,6 +691,7 @@ test("UInt saturating-policy catalog keeps correctness separate from ranking", (
   assert.match(rust, /black_box\(0_u64\)/u);
   assert.match(rust, /black_box\(u64::MAX\)/u);
   assert.match(rust, /\.saturating_sub\(/u);
+  assert.match(rust, /\.saturating_add\(/u);
   assert.match(rust, /\.saturating_mul\(/u);
   assert.match(rust, /exponent >>= 1/u);
   assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
@@ -1464,315 +914,6 @@ test("implicit integer widening catalog is one correctness-only family witness",
   assert.match(w, /let alias: Int = 203_u8/u);
   assert.match(c, /volatile (?:int8_t|uint8_t)/u);
   assert.match(rust, /black_box\(-7_i8\)/u);
-  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
-  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
-});
-
-test("UInt masked-shift-left catalog keeps count masking separate from ranking", () => {
-  const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_MASKED_SHIFT_LEFT_WORKLOAD_ID);
-  assert.ok(workload);
-  assert.equal(workload.structureClass, "public-end-to-end");
-  assert.equal(workload.status, "source-oracle-ready");
-  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(workload.demoEvidence, "bounded-w-demo");
-  assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.equal(workload.scope,
-    "Validate fixed-input full-width UInt masked left shift of 1 by count 65 and exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.");
-  assert.deepEqual(workload.oracle, {
-    kind: "exact-output",
-    status: "source-backed",
-    exitCode: 0,
-    stdout: "Masked 2\n",
-    stderr: "",
-  });
-  assert.deepEqual(workload.blockedLanguages, []);
-  assert.deepEqual(workload.blockers, [
-    "w-uint-masked-shift-left-compile-time-folded",
-    "runtime-uint-masked-shift-left-equivalence",
-  ]);
-  assert.deepEqual(workload.sources.map((source) =>
-    [source.language, source.platformTarget]), [
-    ["w", EXECUTABLE_PLATFORM_TARGET],
-    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
-    ["c", EXECUTABLE_PLATFORM_TARGET],
-    ["rust", EXECUTABLE_PLATFORM_TARGET],
-  ]);
-  assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-masked-shift-left-release"));
-  assert.deepEqual(workload.sources
-    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
-    .map((source) => [source.comparability, source.eligibility]), [
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-    ]);
-  const wsl = workload.sources.find((source) =>
-    source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
-  assert.deepEqual([wsl.comparability, wsl.eligibility], [
-    "same-physical-hardware-diagnostic-only",
-    "same-physical-hardware-diagnostic-only",
-  ]);
-  const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_masked_shift_left.c`, "utf8");
-  const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_masked_shift_left.rs`, "utf8");
-  assert.match(c, /volatile uint64_t runtime_value/u);
-  assert.match(c, /volatile uint64_t runtime_count/u);
-  assert.match(c, /count & UINT64_C\(63\)/u);
-  assert.match(c, /value << masked_count/u);
-  assert.match(rust, /black_box\(1_u64\)/u);
-  assert.match(rust, /black_box\(65_u64\)/u);
-  assert.match(rust, /\.wrapping_shl\(count as u32\)/u);
-  assert.doesNotMatch(rust, /try_from|count >= u64::BITS/u);
-  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
-  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
-});
-
-test("UInt masked-shift-right catalog keeps count masking separate from ranking", () => {
-  const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_MASKED_SHIFT_RIGHT_WORKLOAD_ID);
-  assert.ok(workload);
-  assert.equal(workload.structureClass, "public-end-to-end");
-  assert.equal(workload.status, "source-oracle-ready");
-  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(workload.demoEvidence, "bounded-w-demo");
-  assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.equal(workload.scope,
-    "Validate fixed-input full-width UInt masked right shift of 128 by count 65 and exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.");
-  assert.deepEqual(workload.oracle, {
-    kind: "exact-output",
-    status: "source-backed",
-    exitCode: 0,
-    stdout: "Masked 64\n",
-    stderr: "",
-  });
-  assert.deepEqual(workload.blockedLanguages, []);
-  assert.deepEqual(workload.blockers, [
-    "w-uint-masked-shift-right-compile-time-folded",
-    "runtime-uint-masked-shift-right-equivalence",
-  ]);
-  assert.deepEqual(workload.sources.map((source) =>
-    [source.language, source.platformTarget]), [
-    ["w", EXECUTABLE_PLATFORM_TARGET],
-    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
-    ["c", EXECUTABLE_PLATFORM_TARGET],
-    ["rust", EXECUTABLE_PLATFORM_TARGET],
-  ]);
-  assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-masked-shift-right-release"));
-  assert.deepEqual(workload.sources
-    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
-    .map((source) => [source.comparability, source.eligibility]), [
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-    ]);
-  const wsl = workload.sources.find((source) =>
-    source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
-  assert.deepEqual([wsl.comparability, wsl.eligibility], [
-    "same-physical-hardware-diagnostic-only",
-    "same-physical-hardware-diagnostic-only",
-  ]);
-  const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_masked_shift_right.c`, "utf8");
-  const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_masked_shift_right.rs`, "utf8");
-  assert.match(c, /volatile uint64_t runtime_value/u);
-  assert.match(c, /volatile uint64_t runtime_count/u);
-  assert.match(c, /count & UINT64_C\(63\)/u);
-  assert.match(c, /value >> masked_count/u);
-  assert.match(rust, /black_box\(128_u64\)/u);
-  assert.match(rust, /black_box\(65_u64\)/u);
-  assert.match(rust, /\.wrapping_shr\(count as u32\)/u);
-  assert.doesNotMatch(rust, /try_from|count >= u64::BITS/u);
-  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
-  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
-});
-
-test("UInt logical-shift-right catalog keeps zero fill separate from ranking", () => {
-  const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_LOGICAL_SHIFT_RIGHT_WORKLOAD_ID);
-  assert.ok(workload);
-  assert.equal(workload.structureClass, "public-end-to-end");
-  assert.equal(workload.status, "source-oracle-ready");
-  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(workload.demoEvidence, "bounded-w-demo");
-  assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.equal(workload.scope,
-    "Validate fixed-input full-width UInt logical right shift of 128 by count 1 and exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.");
-  assert.deepEqual(workload.oracle, {
-    kind: "exact-output",
-    status: "source-backed",
-    exitCode: 0,
-    stdout: "Logical 64\n",
-    stderr: "",
-  });
-  assert.deepEqual(workload.blockedLanguages, []);
-  assert.deepEqual(workload.blockers, [
-    "w-uint-logical-shift-right-compile-time-folded",
-    "runtime-uint-logical-shift-right-equivalence",
-  ]);
-  assert.deepEqual(workload.sources.map((source) =>
-    [source.language, source.platformTarget]), [
-    ["w", EXECUTABLE_PLATFORM_TARGET],
-    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
-    ["c", EXECUTABLE_PLATFORM_TARGET],
-    ["rust", EXECUTABLE_PLATFORM_TARGET],
-  ]);
-  assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-logical-shift-right-release"));
-  assert.deepEqual(workload.sources
-    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
-    .map((source) => [source.comparability, source.eligibility]), [
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-    ]);
-  const wsl = workload.sources.find((source) =>
-    source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
-  assert.deepEqual([wsl.comparability, wsl.eligibility], [
-    "same-physical-hardware-diagnostic-only",
-    "same-physical-hardware-diagnostic-only",
-  ]);
-  const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_logical_shift_right.c`, "utf8");
-  const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_logical_shift_right.rs`, "utf8");
-  assert.match(c, /volatile uint64_t runtime_value/u);
-  assert.match(c, /volatile uint64_t runtime_count/u);
-  assert.match(c, /logical_shift_right_u64/u);
-  assert.match(c, /count < UINT64_C\(64\)/u);
-  assert.match(c, /value >> count/u);
-  assert.match(rust, /black_box\(128_u64\)/u);
-  assert.match(rust, /black_box\(1_u64\)/u);
-  assert.match(rust, /u32::try_from\(count\)/u);
-  assert.match(rust, /count >= u64::BITS/u);
-  assert.match(rust, /value >> count/u);
-  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
-  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
-});
-
-test("UInt rotated-left catalog keeps runtime operands separate from ranking", () => {
-  const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_ROTATED_LEFT_WORKLOAD_ID);
-  assert.ok(workload);
-  assert.equal(workload.structureClass, "public-end-to-end");
-  assert.equal(workload.status, "source-oracle-ready");
-  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(workload.demoEvidence, "bounded-w-demo");
-  assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.equal(workload.scope,
-    "Validate fixed-input full-width UInt rotated left of 0x8000000000000001 by 1 and exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.");
-  assert.deepEqual(workload.oracle, {
-    kind: "exact-output",
-    status: "source-backed",
-    exitCode: 0,
-    stdout: "Rotated 3\n",
-    stderr: "",
-  });
-  assert.deepEqual(workload.blockedLanguages, []);
-  assert.deepEqual(workload.blockers, [
-    "w-uint-rotated-left-compile-time-folded",
-    "runtime-uint-rotated-left-equivalence",
-  ]);
-  assert.deepEqual(workload.sources.map((source) =>
-    [source.language, source.platformTarget]), [
-    ["w", EXECUTABLE_PLATFORM_TARGET],
-    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
-    ["c", EXECUTABLE_PLATFORM_TARGET],
-    ["rust", EXECUTABLE_PLATFORM_TARGET],
-  ]);
-  assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-rotated-left-release"));
-  assert.deepEqual(workload.sources
-    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
-    .map((source) => [source.comparability, source.eligibility]), [
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-    ]);
-  const wsl = workload.sources.find((source) =>
-    source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
-  assert.deepEqual([wsl.comparability, wsl.eligibility], [
-    "same-physical-hardware-diagnostic-only",
-    "same-physical-hardware-diagnostic-only",
-  ]);
-  const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_rotated_left.c`, "utf8");
-  const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_rotated_left.rs`, "utf8");
-  assert.match(c, /volatile uint64_t runtime_value/u);
-  assert.match(c, /volatile uint64_t runtime_count/u);
-  assert.match(c, /rotated_left_u64/u);
-  assert.match(c, /shift == 0/u);
-  assert.match(c, /value << shift/u);
-  assert.match(c, /value >> \(UINT64_C\(64\) - shift\)/u);
-  assert.match(rust, /black_box\(0x8000000000000001_u64\)/u);
-  assert.match(rust, /black_box\(1_u64\)/u);
-  assert.match(rust, /\.rotate_left\(/u);
-  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
-  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
-});
-
-test("UInt rotated-right catalog keeps runtime operands separate from ranking", () => {
-  const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_ROTATED_RIGHT_WORKLOAD_ID);
-  assert.ok(workload);
-  assert.equal(workload.structureClass, "public-end-to-end");
-  assert.equal(workload.status, "source-oracle-ready");
-  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(workload.demoEvidence, "bounded-w-demo");
-  assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.equal(workload.scope,
-    "Validate fixed-input full-width UInt rotated right of 3 by 1 and exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.");
-  assert.deepEqual(workload.oracle, {
-    kind: "exact-output",
-    status: "source-backed",
-    exitCode: 0,
-    stdout: "Rotated 9223372036854775809\n",
-    stderr: "",
-  });
-  assert.deepEqual(workload.blockedLanguages, []);
-  assert.deepEqual(workload.blockers, [
-    "w-uint-rotated-right-compile-time-folded",
-    "runtime-uint-rotated-right-equivalence",
-  ]);
-  assert.deepEqual(workload.sources.map((source) =>
-    [source.language, source.platformTarget]), [
-    ["w", EXECUTABLE_PLATFORM_TARGET],
-    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
-    ["c", EXECUTABLE_PLATFORM_TARGET],
-    ["rust", EXECUTABLE_PLATFORM_TARGET],
-  ]);
-  assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-rotated-right-release"));
-  assert.deepEqual(workload.sources
-    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
-    .map((source) => [source.comparability, source.eligibility]), [
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-    ]);
-  const wsl = workload.sources.find((source) =>
-    source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
-  assert.deepEqual([wsl.comparability, wsl.eligibility], [
-    "same-physical-hardware-diagnostic-only",
-    "same-physical-hardware-diagnostic-only",
-  ]);
-  const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_rotated_right.c`, "utf8");
-  const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_rotated_right.rs`, "utf8");
-  assert.match(c, /volatile uint64_t runtime_value/u);
-  assert.match(c, /volatile uint64_t runtime_count/u);
-  assert.match(c, /rotated_right_u64/u);
-  assert.match(c, /shift == 0/u);
-  assert.match(c, /value >> shift/u);
-  assert.match(c, /value << \(UINT64_C\(64\) - shift\)/u);
-  assert.match(rust, /black_box\(3_u64\)/u);
-  assert.match(rust, /black_box\(1_u64\)/u);
-  assert.match(rust, /\.rotate_right\(/u);
   assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
   assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
 });

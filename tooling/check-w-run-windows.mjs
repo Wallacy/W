@@ -733,8 +733,11 @@ try {
     "Restaurant UInt overflowingPower preserves sticky overflow")
   expectExact(binary, ["run", restaurantUIntOverflowingFamilyFixture], 0,
     Buffer.from(
-      "Overflowing family 41/false/18446744073709551615/true/42/false/" +
-      "18446744073709551614/true/0/false/18446744073709551615/true\n",
+      "Overflowing family add 0/true,11/false; subtract 41/false," +
+      "18446744073709551615/true; multiply 42/false," +
+      "18446744073709551614/true; negate 0/false," +
+      "18446744073709551615/true; power 9223372036854775808/false," +
+      "0/true,1/true,1/false\n",
       "utf8"),
     "Restaurant UInt overflowing family preserves all operation flags")
   expectExact(binary, ["run", restaurantUIntSaturatingAddFixture], 0,
@@ -747,14 +750,20 @@ try {
     Buffer.from("Saturated multiply 18446744073709551615/42\n", "utf8"),
     "Restaurant UInt saturatingMultiply clamps overflow without trapping")
   expectExact(binary, ["run", restaurantUIntSaturatingPolicyFixture], 0,
-    Buffer.from("Saturating policy 0/0/8/18446744073709551615/1\n", "utf8"),
-    "Restaurant UInt saturating policy clamps negate and power")
+    Buffer.from(
+      "Saturating policy add 18446744073709551615/11; subtract 0/10; " +
+      "multiply 18446744073709551615/42; negate 0/0; power " +
+      "8/18446744073709551615/1\n", "utf8"),
+    "Restaurant UInt saturating policy covers the complete family")
   expectExact(binary, ["run", restaurantUIntBitNotFixture], 0,
     Buffer.from("UInt not 18446744073709551615\n", "utf8"),
     "Restaurant UInt bitwise complement")
   expectExact(binary, ["run", restaurantUIntBitwiseFixture], 0,
-    Buffer.from("UInt bits 18446744073709551615\n", "utf8"),
-    "Restaurant UInt binary bitwise operations")
+    Buffer.from(
+      "Not 18446744073709551615\nAnd 0\nOr 18446744073709551615\n" +
+      "Xor 18446744073709551615\nOnes 32\nZeros 32\nLeading 56\n" +
+      "Leading zero 64\nTrailing 12\nTrailing zero 64\n", "utf8"),
+    "Restaurant UInt bit-primitives family")
   expectExact(binary, ["run", restaurantUIntCompoundFixture], 0,
     Buffer.from(
       "UInt compound 4611686018427387907/4611686018427387906/" +

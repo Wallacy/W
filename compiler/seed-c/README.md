@@ -2848,26 +2848,26 @@ pure-UInt artifact does not pull in signed arithmetic or signed-decimal
 helpers.
 
 [`fixtures/restaurant-uint-saturating-policy.w`](fixtures/restaurant-uint-saturating-policy.w)
-proves bounded `u64.saturatingNegate` and `u64.saturatingPower`. Unsigned
-negate lowers to saturating subtraction from zero. Power uses one
-reachable-only exponentiation-by-squaring helper, clamps exact multiplication
-overflow to `u64.max`, and preserves `0^0 == 1`. The fixture executes zero and
-maximum negation, ordinary and clamped power, and zero exponent through
-reusable functions and a direct `entry` block.
+is the family-level executable witness for saturating add, subtract, multiply,
+negate, and power. It covers ordinary and clamped boundaries, including zero,
+`u64.max`, and `0^0 == 1`. Focused fixtures still isolate each lowering rule;
+only this combined witness owns the C23/Rust benchmark comparison row.
 
 [`fixtures/restaurant-uint-overflowing-family.w`](fixtures/restaurant-uint-overflowing-family.w)
-closes the exact public/native witness for `u64.overflowingSubtract`,
-`u64.overflowingMultiply`, and `u64.overflowingNegate`. Their virtual
-`(u64, Bool)` products lower to unsigned overflow intrinsics plus tuple
-projections without allocation or checked helpers. Ordinary and overflow
-boundaries execute on Windows and Linux/WSL; the benchmark catalog records
-correctness only until W, C23, and Rust preserve equivalent runtime work.
+is the family-level executable witness for overflowing add, subtract,
+multiply, negate, and power. Their virtual `(u64, Bool)` products lower to
+unsigned overflow intrinsics plus tuple projections without allocation.
+Focused fixtures still isolate each lowering rule; only this combined witness
+owns the C23/Rust benchmark comparison row.
 
 [`fixtures/restaurant-uint-bit-not.w`](fixtures/restaurant-uint-bit-not.w)
 proves the public Linux/WSL and Windows `w run` routes with `~0_u64` producing
 exactly `18446744073709551615`;
 [`fixtures/restaurant-uint-bitwise.w`](fixtures/restaurant-uint-bitwise.w)
-proves the three binary operations over the same full-width domain;
+is the family-level executable witness for complement, binary bitwise
+operations, bit counts, and zero counts. The focused fixtures below retain
+bit/byte reversal, masked/logical shift, and rotation lowering gates, while
+this representative witness alone owns the C23/Rust benchmark comparison row;
 [`fixtures/restaurant-uint-compound.w`](fixtures/restaurant-uint-compound.w)
 proves all eleven checked forms (`+=`, `-=`, `*=`, `/=`, `%=`, `**=`, `<<=`,
 `>>=`, `&=`, `^=`, and `|=`) over one mutable local. HIR retains the complete

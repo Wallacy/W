@@ -747,9 +747,11 @@ try {
     { name: "restaurant-uint-overflowing-family",
       source: restaurantUIntOverflowingFamilyFixture,
       expected: Buffer.from(
-        "Overflowing family 41/false/18446744073709551615/true/" +
-        "42/false/18446744073709551614/true/0/false/" +
-        "18446744073709551615/true\n", "utf8") },
+        "Overflowing family add 0/true,11/false; subtract 41/false," +
+        "18446744073709551615/true; multiply 42/false," +
+        "18446744073709551614/true; negate 0/false," +
+        "18446744073709551615/true; power 9223372036854775808/false," +
+        "0/true,1/true,1/false\n", "utf8") },
     { name: "restaurant-uint-wrapping-shift-left",
       source: restaurantUIntWrappingShiftLeftFixture,
       expected: Buffer.from("Wrapped 18446744073709551614\n", "utf8") },
@@ -798,11 +800,16 @@ try {
     { name: "restaurant-uint-saturating-policy",
       source: restaurantUIntSaturatingPolicyFixture,
       expected: Buffer.from(
-        "Saturating policy 0/0/8/18446744073709551615/1\n", "utf8") },
+        "Saturating policy add 18446744073709551615/11; subtract 0/10; " +
+        "multiply 18446744073709551615/42; negate 0/0; power " +
+        "8/18446744073709551615/1\n", "utf8") },
     { name: "restaurant-uint-bit-not", source: restaurantUIntBitNotFixture,
       expected: Buffer.from("UInt not 18446744073709551615\n", "utf8") },
     { name: "restaurant-uint-bitwise", source: restaurantUIntBitwiseFixture,
-      expected: Buffer.from("UInt bits 18446744073709551615\n", "utf8") },
+      expected: Buffer.from(
+        "Not 18446744073709551615\nAnd 0\nOr 18446744073709551615\n" +
+        "Xor 18446744073709551615\nOnes 32\nZeros 32\nLeading 56\n" +
+        "Leading zero 64\nTrailing 12\nTrailing zero 64\n", "utf8") },
     { name: "restaurant-uint-compound", source: restaurantUIntCompoundFixture,
       expected: Buffer.from(
         "UInt compound 4611686018427387907/4611686018427387906/" +
@@ -1122,16 +1129,22 @@ try {
   const uintOverflowingFamilyArtifact =
     artifacts.get("restaurant-uint-overflowing-family").toString("utf8")
   assert((uintOverflowingFamilyArtifact.match(
+    /llvm\.intr\.uadd\.with\.overflow/g) ?? []).length === 2 &&
+    (uintOverflowingFamilyArtifact.match(
     /llvm\.intr\.usub\.with\.overflow/g) ?? []).length === 4 &&
     (uintOverflowingFamilyArtifact.match(
-      /llvm\.intr\.umul\.with\.overflow/g) ?? []).length === 2 &&
-    (uintOverflowingFamilyArtifact.match(/llvm\.extractvalue/g) ?? []).length === 12 &&
+      /llvm\.intr\.umul\.with\.overflow/g) ?? []).length === 4 &&
+    (uintOverflowingFamilyArtifact.match(/llvm\.extractvalue/g) ?? []).length >= 16 &&
+    (uintOverflowingFamilyArtifact.match(
+      /llvm\.func internal @w_seed_overflowing_power_u64/g) ?? []).length === 1 &&
+    (uintOverflowingFamilyArtifact.match(
+      /llvm\.call @w_seed_overflowing_power_u64/g) ?? []).length === 4 &&
     uintOverflowingFamilyArtifact.includes("llvm.call @w_seed_append_u64") &&
     uintOverflowingFamilyArtifact.includes("llvm.call @w_seed_append_bool") &&
     !uintOverflowingFamilyArtifact.includes("@w_seed_checked_subtract_u64") &&
     !uintOverflowingFamilyArtifact.includes("@w_seed_checked_multiply_u64") &&
     !uintOverflowingFamilyArtifact.includes("@w_seed_checked_negate_u64"),
-  "u64 overflowing subtract/multiply/negate lost direct tuple lowering")
+  "u64 overflowing arithmetic family lost direct tuple or power lowering")
   const uintWrappingShiftLeftArtifact =
     artifacts.get("restaurant-uint-wrapping-shift-left").toString("utf8")
   assert((uintWrappingShiftLeftArtifact.match(
@@ -1272,10 +1285,11 @@ try {
   "u64.saturatingMultiply lost inline saturation or total-operation semantics")
   const uintSaturatingPolicyArtifact =
     artifacts.get("restaurant-uint-saturating-policy").toString("utf8")
-  assert((uintSaturatingPolicyArtifact.match(/llvm\.intr\.usub\.sat/g) ?? []).length === 1 &&
+  assert((uintSaturatingPolicyArtifact.match(/llvm\.intr\.uadd\.sat/g) ?? []).length === 1 &&
+    (uintSaturatingPolicyArtifact.match(/llvm\.intr\.usub\.sat/g) ?? []).length === 2 &&
     (uintSaturatingPolicyArtifact.match(/llvm\.func internal @w_seed_saturating_power_u64/g) ?? []).length === 1 &&
     (uintSaturatingPolicyArtifact.match(/llvm\.call @w_seed_saturating_power_u64/g) ?? []).length === 1 &&
-    (uintSaturatingPolicyArtifact.match(/llvm\.intr\.umul\.with\.overflow/g) ?? []).length === 2 &&
+    (uintSaturatingPolicyArtifact.match(/llvm\.intr\.umul\.with\.overflow/g) ?? []).length === 3 &&
     uintSaturatingPolicyArtifact.includes("llvm.select %acc_overflow, %max") &&
     uintSaturatingPolicyArtifact.includes("llvm.cond_br %last, ^saturating_power_done") &&
     uintSaturatingPolicyArtifact.includes("llvm.call @w_seed_append_u64") &&
@@ -1292,6 +1306,9 @@ try {
   assert(uintBitwiseArtifact.includes("llvm.and ") &&
     uintBitwiseArtifact.includes("llvm.or ") &&
     uintBitwiseArtifact.includes("llvm.xor ") &&
+    uintBitwiseArtifact.includes("llvm.intr.ctpop") &&
+    uintBitwiseArtifact.includes("llvm.intr.ctlz") &&
+    uintBitwiseArtifact.includes("llvm.intr.cttz") &&
     uintBitwiseArtifact.includes("llvm.call @w_fn_0") &&
     !uintBitwiseArtifact.includes("@w_seed_checked_"),
   "UInt binary bitwise lowering lost a direct operation or gained a signed helper")
