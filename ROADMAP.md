@@ -291,6 +291,20 @@ performance ranking. Mixed-width/signedness comparisons beyond the explicit
 argument widening, `usize`/`isize`, 128-bit integers, other targets, stable
 ABI/FFI, and equivalent runtime-work performance remain open.
 
+W-1639 closes checked ordinary integer add/subtract/multiply as one family.
+The source/HIR type facts preserve signedness and logical width for i8/u8,
+i16/u16, i32/u32, i64/u64, and the current x86-64 `Int`/`UInt` aliases while
+the backend keeps the i64 physical carrier. Generic checked lowering detects
+both carrier overflow and logical-width overflow after the carrier operation;
+compound `+=`, `-=`, and `*=` remain transactional on failure. Exact Windows
+and Linux/WSL witnesses cover all ten source types, with representative runtime
+overflow failures required to trap without committing buffered output. C23 and
+Rust 2024 are success-domain correctness oracles with runtime/black-box
+operands, so this is one correctness-only catalog row without ranking.
+Division/remainder, named `checkedAdd`-style APIs, negation, power, shifts,
+target-generic aliases, and equivalent-runtime performance remain outside this
+family.
+
 The first rank-1 increments are now executable. Signed-`i64` `&`, `|`, `^`,
 and unary `~` cross exact W source, canonical precedence, verified HIR0, direct
 LLVM-dialect operations, and the maintained native routes. Checked `<<` and

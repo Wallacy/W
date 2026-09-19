@@ -60,6 +60,76 @@ bool w_seed_scalar_evaluator0_checked_binary(
   }
 }
 
+static uint64_t scalar_width_mask(uint16_t bit_width) {
+  return bit_width == 64u
+             ? UINT64_MAX
+             : (UINT64_C(1) << bit_width) - UINT64_C(1);
+}
+
+static uint64_t scalar_sign_extend_bits(uint64_t bits, uint16_t bit_width) {
+  if (bit_width == 64u) return bits;
+  const uint64_t mask = scalar_width_mask(bit_width);
+  const uint64_t normalized = bits & mask;
+  const uint64_t sign_bit = UINT64_C(1) << (bit_width - 1u);
+  return (normalized & sign_bit) != 0u ? normalized | ~mask : normalized;
+}
+
+bool w_seed_scalar_evaluator0_checked_integer_arithmetic(
+    w_seed_hir0_binary_operator operation, bool is_signed,
+    uint16_t bit_width, uint64_t left_bits, uint64_t right_bits,
+    uint64_t *result_bits) {
+  if (result_bits == NULL ||
+      (bit_width != 8u && bit_width != 16u && bit_width != 32u &&
+       bit_width != 64u) ||
+      (operation != W_SEED_HIR0_BINARY_ADD &&
+       operation != W_SEED_HIR0_BINARY_SUBTRACT &&
+       operation != W_SEED_HIR0_BINARY_MULTIPLY))
+    return false;
+
+  const uint64_t mask = scalar_width_mask(bit_width);
+  if (is_signed) {
+    if (left_bits != scalar_sign_extend_bits(left_bits, bit_width) ||
+        right_bits != scalar_sign_extend_bits(right_bits, bit_width))
+      return false;
+    int64_t left = 0;
+    int64_t right = 0;
+    int64_t candidate = 0;
+    (void)memcpy(&left, &left_bits, sizeof(left));
+    (void)memcpy(&right, &right_bits, sizeof(right));
+    if (!w_seed_scalar_evaluator0_checked_binary(
+            operation, left, right, &candidate))
+      return false;
+    if (bit_width < 64u) {
+      const int64_t magnitude = INT64_C(1) << (bit_width - 1u);
+      if (candidate < -magnitude || candidate >= magnitude) return false;
+    }
+    const uint64_t result = (uint64_t)candidate;
+    *result_bits = result;
+    return true;
+  }
+
+  if (left_bits > mask || right_bits > mask) return false;
+  uint64_t candidate = 0u;
+  switch (operation) {
+    case W_SEED_HIR0_BINARY_ADD:
+      if (right_bits > mask - left_bits) return false;
+      candidate = left_bits + right_bits;
+      break;
+    case W_SEED_HIR0_BINARY_SUBTRACT:
+      if (left_bits < right_bits) return false;
+      candidate = left_bits - right_bits;
+      break;
+    case W_SEED_HIR0_BINARY_MULTIPLY:
+      if (left_bits != 0u && right_bits > mask / left_bits) return false;
+      candidate = left_bits * right_bits;
+      break;
+    default:
+      return false;
+  }
+  *result_bits = candidate;
+  return true;
+}
+
 static bool scalar_i64_type(const w_seed_hir0_program *program,
                             uint32_t type_index) {
   return program != NULL && type_index < program->type_count &&
@@ -293,18 +363,83 @@ static bool scalar_evaluate_value(const w_seed_hir0_program *program,
     case W_SEED_HIR0_VALUE_BINARY_I64: {
       int64_t left = 0;
       int64_t right = 0;
-      if (!scalar_i64_type(program, value->type_index)) return false;
-      return scalar_evaluate_value(program, value->left_value, parameters,
-                                   parameter_count, depth + 1u, budget,
-                                   &left) &&
-             scalar_evaluate_value(program, value->right_value, parameters,
-                                   parameter_count, depth + 1u, budget,
-                                   &right) &&
+      const bool checked_arithmetic =
+          value->binary_operator == W_SEED_HIR0_BINARY_ADD ||
+          value->binary_operator == W_SEED_HIR0_BINARY_SUBTRACT ||
+          value->binary_operator == W_SEED_HIR0_BINARY_MULTIPLY;
+      scalar_integer_facts value_type;
+      scalar_integer_facts left_type;
+      scalar_integer_facts right_type;
+      if (!scalar_integer_type_facts(program, value->type_index,
+                                     &value_type) ||
+          !value_type.is_signed || value->left_value >= program->value_count ||
+          value->right_value >= program->value_count ||
+          !scalar_integer_type_facts(
+              program, program->values[value->left_value].type_index,
+              &left_type) ||
+          !scalar_integer_type_facts(
+              program, program->values[value->right_value].type_index,
+              &right_type) ||
+          left_type.is_signed != value_type.is_signed ||
+          right_type.is_signed != value_type.is_signed ||
+          left_type.bit_width != value_type.bit_width ||
+          right_type.bit_width != value_type.bit_width)
+        return false;
+      if (!scalar_evaluate_value(program, value->left_value, parameters,
+                                 parameter_count, depth + 1u, budget, &left) ||
+          !scalar_evaluate_value(program, value->right_value, parameters,
+                                 parameter_count, depth + 1u, budget, &right))
+        return false;
+      if (checked_arithmetic) {
+        uint64_t result_bits = 0u;
+        const uint64_t left_bits = (uint64_t)left;
+        const uint64_t right_bits = (uint64_t)right;
+        if (!w_seed_scalar_evaluator0_checked_integer_arithmetic(
+                value->binary_operator, value_type.is_signed,
+                value_type.bit_width, left_bits, right_bits, &result_bits))
+          return false;
+        (void)memcpy(result, &result_bits, sizeof(*result));
+        return true;
+      }
+      return scalar_i64_type(program, value->type_index) &&
              w_seed_scalar_evaluator0_checked_binary(
                  value->binary_operator, left, right, result);
     }
-    case W_SEED_HIR0_VALUE_BINARY_U64:
-      return false;
+    case W_SEED_HIR0_VALUE_BINARY_U64: {
+      scalar_integer_facts value_type;
+      scalar_integer_facts left_type;
+      scalar_integer_facts right_type;
+      if ((value->binary_operator != W_SEED_HIR0_BINARY_ADD &&
+           value->binary_operator != W_SEED_HIR0_BINARY_SUBTRACT &&
+           value->binary_operator != W_SEED_HIR0_BINARY_MULTIPLY) ||
+          !scalar_integer_type_facts(program, value->type_index,
+                                     &value_type) ||
+          value_type.is_signed || value->left_value >= program->value_count ||
+          value->right_value >= program->value_count ||
+          !scalar_integer_type_facts(
+              program, program->values[value->left_value].type_index,
+              &left_type) ||
+          !scalar_integer_type_facts(
+              program, program->values[value->right_value].type_index,
+              &right_type) ||
+          left_type.is_signed || right_type.is_signed ||
+          left_type.bit_width != value_type.bit_width ||
+          right_type.bit_width != value_type.bit_width)
+        return false;
+      int64_t left = 0;
+      int64_t right = 0;
+      uint64_t result_bits = 0u;
+      if (!scalar_evaluate_value(program, value->left_value, parameters,
+                                 parameter_count, depth + 1u, budget, &left) ||
+          !scalar_evaluate_value(program, value->right_value, parameters,
+                                 parameter_count, depth + 1u, budget, &right) ||
+          !w_seed_scalar_evaluator0_checked_integer_arithmetic(
+              value->binary_operator, false, value_type.bit_width,
+              (uint64_t)left, (uint64_t)right, &result_bits))
+        return false;
+      (void)memcpy(result, &result_bits, sizeof(*result));
+      return true;
+    }
     case W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON: {
       scalar_integer_facts left_facts;
       scalar_integer_facts right_facts;

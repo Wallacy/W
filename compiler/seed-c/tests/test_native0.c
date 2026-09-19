@@ -4,6 +4,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -42,6 +43,20 @@ static bool write_source(const uint8_t *bytes, size_t length) {
       length == 0u ? 0u : fwrite(bytes, sizeof(uint8_t), length, file);
   const int close_result = fclose(file);
   return written == length && close_result == 0;
+}
+
+static bool append_test_source(char *source, size_t capacity, size_t *length,
+                               const char *format, ...) {
+  if (source == NULL || length == NULL || format == NULL || *length > capacity)
+    return false;
+  va_list arguments;
+  va_start(arguments, format);
+  const int written = vsnprintf(source + *length, capacity - *length, format,
+                                arguments);
+  va_end(arguments);
+  if (written < 0 || (size_t)written >= capacity - *length) return false;
+  *length += (size_t)written;
+  return true;
 }
 
 static w_seed_native0_status run_source(
@@ -207,7 +222,7 @@ static bool make_nested_tree_source(char *buffer, size_t capacity,
 
 static bool test_products(void) {
   CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-9") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-51") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-52") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -1726,7 +1741,7 @@ static bool test_post_loop_continuation_native_subset(void) {
         contains_bytes(output + function_start, function_bytes,
                        "%loop0_0, %loop0_1 = scf.while (") &&
         contains_bytes(output + function_start, function_bytes,
-                       "@w_seed_checked_add_i64(%loop0_1, %loop0_0)") &&
+                       "@w_seed_checked_add_i64(%loop0_1, %loop0_0, %v") &&
         contains_bytes(output + function_start, function_bytes,
                        "llvm.return %v") &&
         !contains_bytes(output + function_start, function_bytes,
@@ -2193,8 +2208,8 @@ static bool test_failures_and_capacity(void) {
   CHECK(storage.hir_program.value_count == 4u &&
         storage.hir_program.interpolation_segment_count == 2u);
   CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
-                       "llvm.call @w_seed_checked_multiply_i64(%v0, %v1) : "
-                       "(i64, i64) -> i64"));
+                       "llvm.call @w_seed_checked_multiply_i64(%v0, %v1, "
+                       "%v2_checked_width) : (i64, i64, i64) -> i64"));
   CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
                        "llvm.call @w_seed_append_i64"));
   CHECK(!contains_bytes(output, result.mlir.written.mlir_bytes,
@@ -4665,6 +4680,172 @@ static bool test_fixed_integer_wrapping_native_admission(void) {
   return true;
 }
 
+static bool test_checked_integer_arithmetic_native_admission(void) {
+  typedef struct {
+    const char *name;
+    const char *type;
+    const char *suffix;
+    bool is_signed;
+    uint16_t bit_width;
+  } integer_case;
+  static const integer_case INTEGERS[] = {
+      {"i8", "i8", "i8", true, 8u},
+      {"u8", "u8", "u8", false, 8u},
+      {"i16", "i16", "i16", true, 16u},
+      {"u16", "u16", "u16", false, 16u},
+      {"i32", "i32", "i32", true, 32u},
+      {"u32", "u32", "u32", false, 32u},
+      {"i64", "i64", "i64", true, 64u},
+      {"u64", "u64", "u64", false, 64u},
+      {"int_alias", "Int", "i64", true, 64u},
+      {"uint_alias", "UInt", "u64", false, 64u},
+  };
+  static const char *const SIGNED_MAX[] = {
+      "127", "32767", "2147483647", "9223372036854775807"};
+  static const char *const UNSIGNED_MAX[] = {
+      "255", "65535", "4294967295", "18446744073709551615"};
+  static const char *const OPERATORS[] = {"+", "-", "*"};
+  char source[8192];
+  size_t source_length = 0u;
+  (void)memset(source, 0, sizeof(source));
+  for (size_t integer_index = 0u;
+       integer_index < sizeof(INTEGERS) / sizeof(INTEGERS[0]);
+       integer_index += 1u) {
+    const integer_case *integer = &INTEGERS[integer_index];
+    CHECK(append_test_source(
+        source, sizeof(source), &source_length,
+        "fn checked_%s(left: %s, right: %s): %s { let sum = left + right "
+        "let difference = left - right let product = left * right return sum }\n",
+        integer->name, integer->type, integer->type, integer->type));
+  }
+  CHECK(append_test_source(source, sizeof(source), &source_length, "entry { "));
+  for (size_t integer_index = 0u;
+       integer_index < sizeof(INTEGERS) / sizeof(INTEGERS[0]);
+       integer_index += 1u) {
+    const integer_case *integer = &INTEGERS[integer_index];
+    CHECK(append_test_source(
+        source, sizeof(source), &source_length,
+        "let use_%s = checked_%s(left: 6_%s, right: 3_%s) ",
+        integer->name, integer->name, integer->suffix, integer->suffix));
+  }
+  CHECK(append_test_source(source, sizeof(source), &source_length,
+                           "print(\"checked arithmetic\") }\n"));
+
+  uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  const w_seed_native0_status status = run_source(
+      (const uint8_t *)source, source_length, "checked-arithmetic-native",
+      sizeof("checked-arithmetic-native") - 1u, output, sizeof(output),
+      &result);
+  CHECK(status == W_SEED_NATIVE0_OK && result.status == W_SEED_NATIVE0_OK &&
+        result.mlir.status == W_SEED_MLIR0_OK &&
+        result.mlir.written.mlir_bytes != 0u &&
+        w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+
+  size_t operations[2][4][3] = {{{0u}}};
+  size_t operation_count = 0u;
+  for (size_t value_index = 0u;
+       value_index < storage.hir_program.value_count; value_index += 1u) {
+    const w_seed_hir0_value *value = &storage.hir_program.values[value_index];
+    if ((value->binary_operator != W_SEED_HIR0_BINARY_ADD &&
+         value->binary_operator != W_SEED_HIR0_BINARY_SUBTRACT &&
+         value->binary_operator != W_SEED_HIR0_BINARY_MULTIPLY) ||
+        (value->kind != W_SEED_HIR0_VALUE_BINARY_I64 &&
+         value->kind != W_SEED_HIR0_VALUE_BINARY_U64))
+      continue;
+    CHECK(value->type_index < storage.hir_program.type_count &&
+          value->left_value < storage.hir_program.value_count &&
+          value->right_value < storage.hir_program.value_count);
+    const w_seed_hir0_type *type =
+        &storage.hir_program.types[value->type_index];
+    const bool is_signed = value->kind == W_SEED_HIR0_VALUE_BINARY_I64;
+    CHECK(type->integer_is_signed == is_signed &&
+          type->integer_bit_width >= 8u && type->integer_bit_width <= 64u &&
+          type->integer_bit_width % 8u == 0u);
+    const w_seed_hir0_type *left_type = &storage.hir_program.types[
+        storage.hir_program.values[value->left_value].type_index];
+    const w_seed_hir0_type *right_type = &storage.hir_program.types[
+        storage.hir_program.values[value->right_value].type_index];
+    CHECK(left_type->integer_is_signed == is_signed &&
+          right_type->integer_is_signed == is_signed &&
+          left_type->integer_bit_width == type->integer_bit_width &&
+          right_type->integer_bit_width == type->integer_bit_width);
+    const size_t sign_index = is_signed ? 0u : 1u;
+    const size_t width_index =
+        type->integer_bit_width == 8u
+            ? 0u
+            : (type->integer_bit_width == 16u
+                   ? 1u
+                   : (type->integer_bit_width == 32u ? 2u : 3u));
+    const size_t operator_index =
+        (size_t)value->binary_operator - (size_t)W_SEED_HIR0_BINARY_ADD;
+    CHECK(width_index < 4u && operator_index < 3u);
+    operations[sign_index][width_index][operator_index] += 1u;
+    operation_count += 1u;
+  }
+  CHECK(operation_count == 30u);
+  for (size_t sign_index = 0u; sign_index < 2u; sign_index += 1u)
+    for (size_t width_index = 0u; width_index < 4u; width_index += 1u)
+      for (size_t operation_index = 0u; operation_index < 3u;
+           operation_index += 1u)
+        CHECK(operations[sign_index][width_index][operation_index] ==
+              (width_index == 3u ? 2u : 1u));
+
+  /* Compile-time invalid operations are rejected before artifact publication
+   * for every signedness, logical width, and ordinary arithmetic operator. */
+  for (size_t width_index = 0u; width_index < 4u; width_index += 1u) {
+    for (size_t sign_index = 0u; sign_index < 2u; sign_index += 1u) {
+      for (size_t operation_index = 0u; operation_index < 3u;
+           operation_index += 1u) {
+        const bool is_signed = sign_index == 0u;
+        const char *const width_name[] = {"8", "16", "32", "64"};
+        const char *const left = is_signed
+                                     ? SIGNED_MAX[width_index]
+                                     : (operation_index == 1u
+                                            ? "0"
+                                            : UNSIGNED_MAX[width_index]);
+        const char *const left_sign =
+            is_signed && operation_index == 1u ? "-" : "";
+        const char *const right = is_signed
+                                      ? (operation_index == 1u
+                                             ? "2"
+                                             : (operation_index == 0u ? "1"
+                                                                      : "2"))
+                                      : (operation_index == 1u ? "1"
+                                                               : (operation_index == 0u
+                                                                      ? "1"
+                                                                      : "2"));
+        const char *const sign_prefix = is_signed ? "i" : "u";
+        const char *const op = OPERATORS[operation_index];
+        char failure_source[512];
+        const int written = snprintf(
+            failure_source, sizeof(failure_source),
+            "entry { print(\"before\") let bad = %s%s_%s%s %s %s_%s%s "
+            "print(\"after\") }\n",
+            left_sign, left, sign_prefix, width_name[width_index], op, right,
+            sign_prefix, width_name[width_index]);
+        CHECK(written > 0 && (size_t)written < sizeof(failure_source));
+        (void)memset(output, 0xa9u, sizeof(output));
+        (void)memset(&result, 0xb0u, sizeof(result));
+        const w_seed_native0_result result_before = result;
+        const w_seed_native0_status rejected = run_source(
+            (const uint8_t *)failure_source, (size_t)written,
+            "checked-arithmetic-overflow", sizeof("checked-arithmetic-overflow") - 1u,
+            output, sizeof(output), &result);
+        CHECK(rejected != W_SEED_NATIVE0_OK &&
+              memcmp(&result, &result_before, sizeof(result)) == 0);
+        for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+          CHECK(output[byte] == 0xa9u);
+      }
+    }
+  }
+  return true;
+}
+
 int main(void) {
   const bool products = test_virtual_structured_task_product() &&
                         test_virtual_static_yield_helper_product() &&
@@ -4707,8 +4888,9 @@ int main(void) {
                         test_process_arguments_count_ordered_native() &&
                         test_process_stdout_bounds() &&
                         test_process_enum_payload_public_artifact() &&
-                         test_process_parallel_native_admission() &&
-                         test_fixed_integer_wrapping_native_admission();
+                        test_process_parallel_native_admission() &&
+                        test_fixed_integer_wrapping_native_admission() &&
+                        test_checked_integer_arithmetic_native_admission();
   const bool logical = products && test_logical_native_selector() &&
                        test_multi_carrier_native_subset_selector() &&
                        test_post_loop_continuation_native_subset() &&

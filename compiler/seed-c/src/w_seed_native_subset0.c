@@ -1,4 +1,5 @@
 #include "w_seed_native_subset0.h"
+#include "w_seed_scalar_evaluator0.h"
 
 #include <limits.h>
 #include <string.h>
@@ -136,6 +137,23 @@ static uint64_t native_integer_width_mask(native_integer_facts facts) {
 static uint64_t native_integer_mask_bits(uint64_t bits,
                                          native_integer_facts facts) {
   return bits & native_integer_width_mask(facts);
+}
+
+static uint64_t native_integer_carrier_bits(uint64_t bits,
+                                             native_integer_facts facts) {
+  const uint64_t mask = native_integer_width_mask(facts);
+  bits &= mask;
+  if (facts.is_signed && facts.bit_width < 64u &&
+      (bits & (UINT64_C(1) << (facts.bit_width - 1u))) != 0u)
+    bits |= ~mask;
+  return bits;
+}
+
+static bool native_integer_is_checked_binary(
+    w_seed_hir0_binary_operator operation) {
+  return operation == W_SEED_HIR0_BINARY_ADD ||
+         operation == W_SEED_HIR0_BINARY_SUBTRACT ||
+         operation == W_SEED_HIR0_BINARY_MULTIPLY;
 }
 
 static bool native_integer_is_wrapping_binary(w_seed_hir0_binary_operator op) {
@@ -490,9 +508,12 @@ static bool evaluate_integer_bits(const w_seed_hir0_program *program,
     return true;
   }
 
+  const bool checked_arithmetic =
+      native_integer_is_checked_binary(value->binary_operator);
   if (value->kind != (signed_carrier ? W_SEED_HIR0_VALUE_BINARY_I64
                                      : W_SEED_HIR0_VALUE_BINARY_U64) ||
-      !native_integer_is_wrapping_binary(value->binary_operator) ||
+      (!native_integer_is_wrapping_binary(value->binary_operator) &&
+       !checked_arithmetic) ||
       value->left_value == W_SEED_HIR0_NONE ||
       value->right_value == W_SEED_HIR0_NONE)
     return false;
@@ -514,6 +535,20 @@ static bool evaluate_integer_bits(const w_seed_hir0_program *program,
   }
 
   switch (value->binary_operator) {
+    case W_SEED_HIR0_BINARY_ADD:
+    case W_SEED_HIR0_BINARY_SUBTRACT:
+    case W_SEED_HIR0_BINARY_MULTIPLY: {
+      uint64_t carrier_result = 0u;
+      if (!w_seed_scalar_evaluator0_checked_integer_arithmetic(
+              value->binary_operator, expected.is_signed,
+              expected.bit_width,
+              native_integer_carrier_bits(left, expected),
+              native_integer_carrier_bits(right, expected),
+              &carrier_result))
+        return false;
+      *result = native_integer_mask_bits(carrier_result, expected);
+      return true;
+    }
     case W_SEED_HIR0_BINARY_WRAPPING_ADD:
       *result = (left + right) & mask;
       return true;
@@ -962,7 +997,8 @@ static bool program_value_is_constant_integer(
                                               depth + 1u);
   }
   if (value->kind != binary_kind ||
-      !native_integer_is_wrapping_binary(value->binary_operator) ||
+      (!native_integer_is_wrapping_binary(value->binary_operator) &&
+       !native_integer_is_checked_binary(value->binary_operator)) ||
       value->left_value == W_SEED_HIR0_NONE ||
       value->right_value == W_SEED_HIR0_NONE)
     return false;
@@ -1979,6 +2015,40 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
            program_value_lowerable(program, value->left_value, owner_function,
                                    false, depth + 1u);
   }
+  if ((value->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
+       value->kind == W_SEED_HIR0_VALUE_BINARY_U64) &&
+      native_integer_is_checked_binary(value->binary_operator)) {
+    native_integer_facts result_facts;
+    native_integer_facts left_facts;
+    native_integer_facts right_facts;
+    const bool expected_signed =
+        value->kind == W_SEED_HIR0_VALUE_BINARY_I64;
+    if (value->left_value >= program->value_count ||
+        value->right_value >= program->value_count ||
+        !native_integer_type_facts(program, value->type_index,
+                                   &result_facts) ||
+        result_facts.is_signed != expected_signed ||
+        !native_integer_type_facts(
+            program, program->values[value->left_value].type_index,
+            &left_facts) ||
+        !native_integer_type_facts(
+            program, program->values[value->right_value].type_index,
+            &right_facts) ||
+        !native_integer_facts_equal(result_facts, left_facts) ||
+        !native_integer_facts_equal(result_facts, right_facts) ||
+        !program_value_lowerable(program, value->left_value, owner_function,
+                                 false, depth + 1u) ||
+        !program_value_lowerable(program, value->right_value, owner_function,
+                                 false, depth + 1u))
+      return false;
+    if (program_value_is_constant_integer(program, value_index, 0u)) {
+      uint64_t ignored = 0u;
+      if (!evaluate_integer_bits(program, value_index, 0u, result_facts,
+                                 &ignored))
+        return false;
+    }
+    return true;
+  }
   if (value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON) {
     return native_integer_comparison_shape_valid(program, value) &&
            program_value_lowerable(program, value->left_value,
@@ -2434,6 +2504,41 @@ static bool process_value_lowerable(
     if (program_value_is_constant_integer(program, value_index, 0u)) {
       uint64_t ignored = 0u;
       if (!evaluate_integer_bits(program, value_index, 0u, facts, &ignored))
+        return false;
+    }
+    return true;
+  }
+
+  if ((value->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
+       value->kind == W_SEED_HIR0_VALUE_BINARY_U64) &&
+      native_integer_is_checked_binary(value->binary_operator)) {
+    native_integer_facts result_facts;
+    native_integer_facts left_facts;
+    native_integer_facts right_facts;
+    const bool expected_signed =
+        value->kind == W_SEED_HIR0_VALUE_BINARY_I64;
+    if (value->left_value >= program->value_count ||
+        value->right_value >= program->value_count ||
+        !native_integer_type_facts(program, value->type_index,
+                                   &result_facts) ||
+        result_facts.is_signed != expected_signed ||
+        !native_integer_type_facts(
+            program, program->values[value->left_value].type_index,
+            &left_facts) ||
+        !native_integer_type_facts(
+            program, program->values[value->right_value].type_index,
+            &right_facts) ||
+        !native_integer_facts_equal(result_facts, left_facts) ||
+        !native_integer_facts_equal(result_facts, right_facts) ||
+        !process_value_lowerable(program, value->left_value, owner_function,
+                                 process, false, depth + 1u) ||
+        !process_value_lowerable(program, value->right_value, owner_function,
+                                 process, false, depth + 1u))
+      return false;
+    if (program_value_is_constant_integer(program, value_index, 0u)) {
+      uint64_t ignored = 0u;
+      if (!evaluate_integer_bits(program, value_index, 0u, result_facts,
+                                 &ignored))
         return false;
     }
     return true;

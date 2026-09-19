@@ -4,6 +4,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -39,14 +40,14 @@ enum {
   TEST_PARAMETERS = 32,
   TEST_ENTRIES = 4,
   TEST_STATEMENTS = 64,
-  TEST_EXPRESSIONS = 128,
+  TEST_EXPRESSIONS = 256,
   TEST_ARGUMENTS = 64,
-  TEST_SYMBOLS = 64,
+  TEST_SYMBOLS = 128,
   TEST_FACTS = 16,
   TEST_DIAGNOSTICS = 8,
   TEST_RECEIPT = 65536,
   TEST_HIR_IDENTITIES = 32,
-  TEST_HIR_RECORDS = 128,
+  TEST_HIR_RECORDS = 256,
   TEST_HIR_TEXT = 4096,
   TEST_HIR_VALUES = 4096,
   TEST_HIR_RECEIPT = W_SEED_HIR0_MAX_RECEIPT_BYTES,
@@ -1429,6 +1430,20 @@ static bool contains_bytes(const uint8_t *bytes, size_t length,
   return false;
 }
 
+static bool append_mlir_test_source(char *source, size_t capacity,
+                                    size_t *length, const char *format, ...) {
+  if (source == NULL || length == NULL || format == NULL || *length > capacity)
+    return false;
+  va_list arguments;
+  va_start(arguments, format);
+  const int written = vsnprintf(source + *length, capacity - *length, format,
+                                arguments);
+  va_end(arguments);
+  if (written < 0 || (size_t)written >= capacity - *length) return false;
+  *length += (size_t)written;
+  return true;
+}
+
 static size_t count_bytes(const uint8_t *bytes, size_t length,
                           const char *needle) {
   if (bytes == NULL || needle == NULL) return 0u;
@@ -1695,8 +1710,8 @@ static bool test_typed_interpolation_artifact(void) {
         memcmp(emitted.mlir_sha256, measured.mlir_sha256,
                sizeof(emitted.mlir_sha256)) == 0);
   CHECK(contains_bytes(output, counts.mlir_bytes,
-                       "llvm.call @w_seed_checked_multiply_i64(%v0, %v1) : "
-                       "(i64, i64) -> i64"));
+                       "llvm.call @w_seed_checked_multiply_i64(%v0, %v1, "
+                       "%v2_checked_width) : (i64, i64, i64) -> i64"));
   CHECK(!contains_bytes(output, counts.mlir_bytes, "llvm.add %v") &&
         !contains_bytes(output, counts.mlir_bytes, "llvm.sub %v") &&
         !contains_bytes(output, counts.mlir_bytes, "llvm.mul %v"));
@@ -1764,8 +1779,8 @@ static bool test_typed_interpolation_artifact(void) {
   CHECK(measure_current(&counts, &measured));
   CHECK(emit_current(output, sizeof(output), &emitted));
   CHECK(contains_bytes(output, emitted.written.mlir_bytes,
-                       "llvm.call @w_seed_checked_multiply_i64(%v0, %v1) : "
-                       "(i64, i64) -> i64"));
+                       "llvm.call @w_seed_checked_multiply_i64(%v0, %v1, "
+                       "%v2_checked_width) : (i64, i64, i64) -> i64"));
   CHECK(!contains_bytes(output, emitted.written.mlir_bytes, "llvm.add %v") &&
         !contains_bytes(output, emitted.written.mlir_bytes, "llvm.sub %v") &&
         !contains_bytes(output, emitted.written.mlir_bytes, "llvm.mul %v"));
@@ -1952,8 +1967,8 @@ static bool test_direct_unit_call(void) {
   CHECK(contains_bytes(artifact, emitted.written.mlir_bytes,
                        "llvm.call @w_fn_0(%buffer, %cursor_address, %v6, %v3)"));
   CHECK(contains_bytes(artifact, emitted.written.mlir_bytes,
-                       "llvm.call @w_seed_checked_multiply_i64(%v4, %v5) : "
-                       "(i64, i64) -> i64"));
+                       "llvm.call @w_seed_checked_multiply_i64(%v4, %v5, "
+                       "%v6_checked_width) : (i64, i64, i64) -> i64"));
   CHECK(!contains_bytes(artifact, emitted.written.mlir_bytes, "llvm.add %v") &&
         !contains_bytes(artifact, emitted.written.mlir_bytes, "llvm.sub %v") &&
         !contains_bytes(artifact, emitted.written.mlir_bytes, "llvm.mul %v"));
@@ -2007,7 +2022,7 @@ static bool test_checked_runtime_arithmetic(void) {
           contains_bytes(artifact, counts.mlir_bytes,
                          "llvm.intr.smul.with.overflow"));
     CHECK(count_bytes(artifact, counts.mlir_bytes,
-                      "llvm.cond_br %overflow, ^checked_overflow, ^checked_ok") ==
+                      "llvm.cond_br %invalid, ^checked_overflow, ^checked_ok") ==
               3u &&
           count_bytes(artifact, counts.mlir_bytes,
                       "\"llvm.intr.trap\"() : () -> ()") == 3u);
@@ -2016,6 +2031,103 @@ static bool test_checked_runtime_arithmetic(void) {
           !contains_bytes(artifact, counts.mlir_bytes, "llvm.mul %v") &&
           !contains_bytes(artifact, counts.mlir_bytes, "llvm.sdiv %v") &&
           !contains_bytes(artifact, counts.mlir_bytes, "llvm.srem %v"));
+  }
+  return true;
+}
+
+static bool test_checked_integer_width_matrix(void) {
+  typedef struct {
+    const char *name;
+    const char *type;
+    const char *suffix;
+  } integer_case;
+  static const integer_case INTEGERS[] = {
+      {"i8", "i8", "i8"},       {"u8", "u8", "u8"},
+      {"i16", "i16", "i16"},    {"u16", "u16", "u16"},
+      {"i32", "i32", "i32"},    {"u32", "u32", "u32"},
+      {"i64", "i64", "i64"},    {"u64", "u64", "u64"},
+      {"int_alias", "Int", "i64"},
+      {"uint_alias", "UInt", "u64"},
+  };
+  char source[TEST_SOURCE];
+  size_t source_length = 0u;
+  (void)memset(source, 0, sizeof(source));
+  for (size_t index = 0u; index < sizeof(INTEGERS) / sizeof(INTEGERS[0]);
+       index += 1u) {
+    const integer_case *integer = &INTEGERS[index];
+    CHECK(append_mlir_test_source(
+        source, sizeof(source), &source_length,
+        "fn checked_%s(left: %s, right: %s): %s { let sum = left + right "
+        "let difference = left - right let product = left * right return sum }\n",
+        integer->name, integer->type, integer->type, integer->type));
+  }
+  CHECK(append_mlir_test_source(source, sizeof(source), &source_length,
+                                "entry { "));
+  for (size_t index = 0u; index < sizeof(INTEGERS) / sizeof(INTEGERS[0]);
+       index += 1u) {
+    const integer_case *integer = &INTEGERS[index];
+    CHECK(append_mlir_test_source(
+        source, sizeof(source), &source_length,
+        "let use_%s = checked_%s(left: 6_%s, right: 3_%s) ",
+        integer->name, integer->name, integer->suffix, integer->suffix));
+  }
+  CHECK(append_mlir_test_source(source, sizeof(source), &source_length,
+                                "print(\"checked\") }\n"));
+  CHECK(lower_hir((const uint8_t *)source, source_length));
+
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  const w_seed_mlir0_target *targets[] = {&TARGET, &WINDOWS_TARGET};
+  for (size_t target_index = 0u;
+       target_index < sizeof(targets) / sizeof(targets[0]);
+       target_index += 1u) {
+    const w_seed_mlir0_input input = mlir_input();
+    w_seed_mlir0_counts counts;
+    w_seed_mlir0_result measured;
+    CHECK(w_seed_mlir0_measure(&input, targets[target_index], &counts,
+                               &measured) == W_SEED_MLIR0_OK);
+    w_seed_mlir0_result emitted;
+    CHECK(w_seed_mlir0_emit(
+              &input, targets[target_index],
+              &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &emitted) ==
+          W_SEED_MLIR0_OK);
+    CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+          memcmp(emitted.mlir_sha256, measured.mlir_sha256,
+                 sizeof(emitted.mlir_sha256)) == 0);
+    CHECK(count_bytes(artifact, counts.mlir_bytes,
+                      "llvm.call @w_seed_checked_add_i64(") == 5u &&
+          count_bytes(artifact, counts.mlir_bytes,
+                      "llvm.call @w_seed_checked_subtract_i64(") == 5u &&
+          count_bytes(artifact, counts.mlir_bytes,
+                      "llvm.call @w_seed_checked_multiply_i64(") == 5u &&
+          count_bytes(artifact, counts.mlir_bytes,
+                      "llvm.call @w_seed_checked_add_u64(") == 5u &&
+          count_bytes(artifact, counts.mlir_bytes,
+                      "llvm.call @w_seed_checked_subtract_u64(") == 5u &&
+          count_bytes(artifact, counts.mlir_bytes,
+                      "llvm.call @w_seed_checked_multiply_u64(") == 5u &&
+          count_bytes(artifact, counts.mlir_bytes,
+                      ") : (i64, i64, i64) -> i64\n") == 30u);
+    CHECK(count_bytes(artifact, counts.mlir_bytes,
+                      "_checked_width = llvm.mlir.constant(8 : i64)") == 6u &&
+          count_bytes(artifact, counts.mlir_bytes,
+                      "_checked_width = llvm.mlir.constant(16 : i64)") ==
+              6u &&
+          count_bytes(artifact, counts.mlir_bytes,
+                      "_checked_width = llvm.mlir.constant(32 : i64)") ==
+              6u &&
+          count_bytes(artifact, counts.mlir_bytes,
+                      "_checked_width = llvm.mlir.constant(64 : i64)") ==
+              12u);
+    CHECK(contains_bytes(artifact, counts.mlir_bytes,
+                         "%width: i64) -> i64") &&
+          contains_bytes(artifact, counts.mlir_bytes,
+                         "%shift = llvm.sub %width64, %width : i64") &&
+          contains_bytes(artifact, counts.mlir_bytes,
+                         "%narrow_overflow = llvm.icmp \"ne\" %value, "
+                         "%roundtrip : i64") &&
+          contains_bytes(artifact, counts.mlir_bytes,
+                         "%mask = llvm.lshr %minus_one, %shift : i64") &&
+          !contains_bytes(artifact, counts.mlir_bytes, " =     %v"));
   }
   return true;
 }
@@ -5438,7 +5550,8 @@ static bool test_straight_line_mutation_is_ssa(void) {
                  function_start);
   CHECK(function_start != SIZE_MAX && main_start != SIZE_MAX &&
         contains_bytes(artifact, result.written.mlir_bytes,
-                       "%v3 = llvm.call @w_seed_checked_add_i64(%v0, %v2)") &&
+                       "%v3 = llvm.call @w_seed_checked_add_i64(%v0, %v2, "
+                       "%v3_checked_width)") &&
         count_bytes(artifact + function_start, main_start - function_start,
                     "llvm.alloca") == 0u &&
         count_bytes(artifact, result.written.mlir_bytes, "llvm.alloca") == 2u);
@@ -5701,7 +5814,7 @@ static bool test_natural_loop_multi_carrier_projection_mlir(void) {
   CHECK(contains_bytes(artifact + function_start, function_bytes,
                        "scf.yield "));
   CHECK(contains_bytes(artifact + function_start, function_bytes,
-                       "@w_seed_checked_add_i64(%loop0_0, %loop0_1)"));
+                       "@w_seed_checked_add_i64(%loop0_0, %loop0_1, %v"));
   CHECK(contains_bytes(artifact + function_start, function_bytes,
                        "llvm.return %v"));
   CHECK(!contains_bytes(artifact + function_start, function_bytes,
@@ -5755,7 +5868,7 @@ static bool test_natural_loop_post_loop_continuation_mlir(void) {
       find_bytes(function_artifact, function_bytes, " = scf.while (", 0u);
   const size_t continuation = find_bytes(
       function_artifact, function_bytes,
-      " = llvm.call @w_seed_checked_add_i64(%loop0_1, %loop0_0)", loop);
+      " = llvm.call @w_seed_checked_add_i64(%loop0_1, %loop0_0, %v", loop);
   const size_t returned =
       find_bytes(function_artifact, function_bytes, "llvm.return %v", continuation);
   CHECK(loop != SIZE_MAX && continuation > loop && returned > continuation &&
@@ -5859,6 +5972,7 @@ int main(int argc, char **argv) {
   if (!test_fixed_integer_family_artifact()) return 1;
   if (!test_direct_unit_call()) return 1;
   if (!test_checked_runtime_arithmetic()) return 1;
+  if (!test_checked_integer_width_matrix()) return 1;
   if (!test_checked_helper_reachability()) return 1;
   if (!test_scalar_return_call_result()) return 1;
   if (!test_unsigned_scalar_return_call_result()) return 1;

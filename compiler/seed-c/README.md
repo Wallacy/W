@@ -1455,6 +1455,10 @@ dynamic/runtime `/` and `%` exclusion. W-1552 separately supersedes the
 unary-negation exclusion. Power, other widths, named numeric APIs, and general
 numeric surfaces remain unsupported.
 
+That is the W-1540/1552 boundary only. W-1639 below adds ordinary checked
+add/subtract/multiply for fixed-width signed and unsigned integers; it does not
+extend division/remainder, power, or named numeric APIs to those widths.
+
 `fixtures/restaurant-checked-arithmetic.w` uses `entry {}` and
 produces exact `Open 6; closed 1\n` on the Linux/WSL 23.1.1 route. No native
 Windows evidence is claimed. The bundle keeps caller-owned all-or-nothing,
@@ -2831,7 +2835,7 @@ bitwise complement with the distinct `UNARY_U64` value kind. Signed
 `BINARY_I64` keeps signed left/result operands for checked power and shifts;
 only the `UInt` exponent/count is unsigned. Native0 and MLIR0 schemas are
 `w-seed-native0-9` and
-`w-seed-mlir0-51` (Windows label `w-seed-mlir0-windows-36`). Native constant
+`w-seed-mlir0-52` (Windows label `w-seed-mlir0-windows-37`). Native constant
 The HIR77 representation change does not advance those Native0/MLIR0 schemas:
 their accepted emitted contract, artifact layout, and unsigned helper
 semantics remain byte-compatible; the HIR schema carries the canonical-kind
@@ -4070,6 +4074,20 @@ catalog row is correctness-only and carries no performance claim. Mixed-width
 or mixed-signedness comparisons beyond the explicit widening call,
 `usize`/`isize`, 128-bit integers, other targets, stable ABI/FFI, and
 equivalent-work ranking remain open.
+
+W-1639 adds checked ordinary `+`, `-`, and `*`, plus `+=`, `-=`, and `*=`, as
+one fixed-width integer family. Frontend and verified HIR facts retain
+signedness and logical width for i8/u8 through i64/u64 and the current x86-64
+`Int`/`UInt` aliases while values use the existing i64 physical carrier.
+NativeSubset0 and MLIR0 share generic checked lowering: each carrier operation
+checks carrier overflow, then checks whether the result round-trips through the
+logical width before allowing use or commit. The same source family fixture
+declares exact output and runs on Windows and Linux/WSL; representative runtime
+overflow tests check silent failure without output commit. C23 and Rust 2024
+sources use runtime/black-box operands as independent correctness oracles, not
+performance claims. Checked division/remainder at other widths, named checked
+APIs, negation, power, shifts, `usize`/`isize`, 128-bit integers, and stable
+ABI/FFI remain outside this slice.
 
 ## Validação seed C de predicates genéricos
 

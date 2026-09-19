@@ -35,8 +35,8 @@ const restaurantCompoundFixture = resolve(seedDirectory,
   "fixtures", "restaurant-compound.w")
 const restaurantF64StrictFixture = resolve(seedDirectory,
   "fixtures", "restaurant-f64-strict.w")
-const restaurantUIntArithmeticFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-arithmetic.w")
+const restaurantCheckedIntegerArithmeticFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-checked-integer-arithmetic.w")
 const restaurantIntegerWrappingFixture = resolve(seedDirectory,
   "fixtures", "restaurant-integer-wrapping.w")
 const restaurantIntegerWideningFixture = resolve(seedDirectory,
@@ -713,10 +713,20 @@ try {
       expected: Buffer.from("Compound 11\n", "utf8") },
     { name: "restaurant-f64-strict", source: restaurantF64StrictFixture,
       expected: Buffer.from("Float strict ok\n", "utf8") },
-    { name: "restaurant-uint-arithmetic", source: restaurantUIntArithmeticFixture,
+    { name: "restaurant-checked-integer-arithmetic",
+      source: restaurantCheckedIntegerArithmeticFixture,
       expected: Buffer.from(
-        "UInt 9223372036854775810/9223372036854775809/21; div 7; rem 2; " +
-        "cmp true/true/true/true/false/true/true\n", "utf8") },
+        "i8 -9/-15/-36; compound -22\nu8 43/37/120; compound 82\n" +
+        "i16 -970/-1030/-30000; compound -1944\n" +
+        "u16 1030/970/30000; compound 2056\n" +
+        "i32 -117000/-123000/-360000000; compound -234004\n" +
+        "u32 100300/99700/30000000; compound 200596\n" +
+        "i64 -600000/-1200000/-270000000000; compound -1200004\n" +
+        "u64 6000000000/4000000000/5000000000000000000; compound 11999999996\n" +
+        "Int -4000000000/-6000000000/-5000000000000000000; " +
+        "compound -8000000004\n" +
+        "UInt 9000000000/3000000000/18000000000000000000; " +
+        "compound 17999999996\n", "utf8") },
     { name: "restaurant-integer-wrapping", source: restaurantIntegerWrappingFixture,
       expected: Buffer.from(
         "i8/u8 -128/0\ni16/u16 32767/2\ni32/u32 -2/4294967295\n" +
@@ -1046,32 +1056,25 @@ try {
     f64Artifact.includes("0x3ff8000000000000 : f64") &&
     !f64Artifact.includes("fastmath"),
   "strict f64 lowering lost an operator, predicate, bit pattern, or strict mode")
-  const uintArithmeticArtifact =
-    artifacts.get("restaurant-uint-arithmetic").toString("utf8")
-  assert(uintArithmeticArtifact.includes("@w_seed_checked_add_u64") &&
-    uintArithmeticArtifact.includes("@w_seed_checked_subtract_u64") &&
-    uintArithmeticArtifact.includes("@w_seed_checked_multiply_u64") &&
-    uintArithmeticArtifact.includes("@w_seed_checked_divide_u64") &&
-    uintArithmeticArtifact.includes("@w_seed_checked_remainder_u64") &&
-    uintArithmeticArtifact.includes("llvm.intr.uadd.with.overflow") &&
-    uintArithmeticArtifact.includes("llvm.intr.usub.with.overflow") &&
-    uintArithmeticArtifact.includes("llvm.intr.umul.with.overflow") &&
-    uintArithmeticArtifact.includes("llvm.udiv") &&
-    uintArithmeticArtifact.includes("llvm.urem") &&
-    uintArithmeticArtifact.includes('llvm.icmp "eq"') &&
-    uintArithmeticArtifact.includes('llvm.icmp "ne"') &&
-    uintArithmeticArtifact.includes('llvm.icmp "ult"') &&
-    uintArithmeticArtifact.includes('llvm.icmp "ule"') &&
-    uintArithmeticArtifact.includes('llvm.icmp "ugt"') &&
-    uintArithmeticArtifact.includes('llvm.icmp "uge"') &&
-    !uintArithmeticArtifact.includes("@w_seed_checked_add_i64") &&
-    !uintArithmeticArtifact.includes("@w_seed_checked_subtract_i64") &&
-    !uintArithmeticArtifact.includes("@w_seed_checked_multiply_i64") &&
-    !uintArithmeticArtifact.includes('llvm.icmp "slt"') &&
-    !uintArithmeticArtifact.includes('llvm.icmp "sle"') &&
-    !uintArithmeticArtifact.includes('llvm.icmp "sgt"') &&
-    !uintArithmeticArtifact.includes('llvm.icmp "sge"'),
-  "UInt lowering lost checked helpers, unsigned operations, or predicates")
+  const checkedIntegerArithmeticArtifact =
+    artifacts.get("restaurant-checked-integer-arithmetic").toString("utf8")
+  assert(checkedIntegerArithmeticArtifact.includes("@w_seed_checked_add_i64") &&
+    checkedIntegerArithmeticArtifact.includes("@w_seed_checked_subtract_i64") &&
+    checkedIntegerArithmeticArtifact.includes("@w_seed_checked_multiply_i64") &&
+    checkedIntegerArithmeticArtifact.includes("@w_seed_checked_add_u64") &&
+    checkedIntegerArithmeticArtifact.includes("@w_seed_checked_subtract_u64") &&
+    checkedIntegerArithmeticArtifact.includes("@w_seed_checked_multiply_u64") &&
+    checkedIntegerArithmeticArtifact.includes("llvm.intr.sadd.with.overflow") &&
+    checkedIntegerArithmeticArtifact.includes("llvm.intr.usub.with.overflow") &&
+    checkedIntegerArithmeticArtifact.includes("llvm.intr.smul.with.overflow") &&
+    checkedIntegerArithmeticArtifact.includes("llvm.intr.uadd.with.overflow") &&
+    checkedIntegerArithmeticArtifact.includes("llvm.intr.umul.with.overflow") &&
+    checkedIntegerArithmeticArtifact.includes("%narrow_overflow = llvm.icmp \"ne\"") &&
+    checkedIntegerArithmeticArtifact.includes("llvm.cond_br %invalid, ^checked_overflow, ^checked_ok") &&
+    checkedIntegerArithmeticArtifact.includes("llvm.mlir.constant(8 : i64)") &&
+    checkedIntegerArithmeticArtifact.includes("llvm.mlir.constant(16 : i64)") &&
+    checkedIntegerArithmeticArtifact.includes("llvm.mlir.constant(32 : i64)"),
+  "checked integer arithmetic lost signedness, overflow, logical width, or trapping")
   const uintWrappingAddArtifact =
     artifacts.get("restaurant-uint-wrapping-add").toString("utf8")
   assert(uintWrappingAddArtifact.includes("llvm.add %p0,") &&
@@ -1380,7 +1383,8 @@ try {
     !/task|yield|async|wrt/i.test(asyncYieldArtifact),
   "static-yield product retained Task/frame/runtime surface or lost scalar work")
   assert(artifacts.get("typed-bindings").includes(
-    "llvm.call @w_seed_checked_multiply_i64(%v0, %v1) : (i64, i64) -> i64"),
+    "llvm.call @w_seed_checked_multiply_i64(%v0, %v1, %v2_checked_width) : " +
+    "(i64, i64, i64) -> i64"),
   "typed binding arithmetic was precomputed before MLIR")
   const runtimeDivremArtifact = artifacts.get("restaurant-runtime-divrem")
   assert(runtimeDivremArtifact.includes(
@@ -1402,8 +1406,8 @@ try {
   "checked runtime or direct constant unary negation was not retained")
   assert(artifacts.get("direct-call").includes("llvm.call @w_fn_0") &&
     artifacts.get("direct-call").includes(
-      "llvm.call @w_seed_checked_multiply_i64(%v4, %v5) : " +
-      "(i64, i64) -> i64") &&
+      "llvm.call @w_seed_checked_multiply_i64(%v4, %v5, %v6_checked_width) : " +
+      "(i64, i64, i64) -> i64") &&
     artifacts.get("direct-call").includes("%p0") &&
     artifacts.get("direct-call").includes("%p1"),
   "direct W call was flattened, reordered during evaluation, or precomputed")

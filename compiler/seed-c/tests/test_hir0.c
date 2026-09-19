@@ -49,6 +49,80 @@ static bool test_scalar_evaluator_edges(void) {
   CHECK(!w_seed_scalar_evaluator0_checked_binary(
             W_SEED_HIR0_BINARY_DIVIDE, INT64_MIN, -1, &value) &&
         value == 0x5151);
+
+  static const uint16_t WIDTHS[] = {8u, 16u, 32u, 64u};
+  for (size_t width_index = 0u;
+       width_index < sizeof(WIDTHS) / sizeof(WIDTHS[0]);
+       width_index += 1u) {
+    const uint16_t width = WIDTHS[width_index];
+    const uint64_t mask = width == 64u
+                              ? UINT64_MAX
+                              : (UINT64_C(1) << width) - UINT64_C(1);
+    const int64_t signed_magnitude =
+        width == 64u ? 0 : INT64_C(1) << (width - 1u);
+    const int64_t signed_min = width == 64u ? INT64_MIN : -signed_magnitude;
+    const int64_t signed_max = width == 64u ? INT64_MAX
+                                             : signed_magnitude - 1;
+    uint64_t result_bits = UINT64_C(0x5151515151515151);
+
+    CHECK(w_seed_scalar_evaluator0_checked_integer_arithmetic(
+              W_SEED_HIR0_BINARY_ADD, true, width, (uint64_t)signed_max, 0u,
+              &result_bits) &&
+          result_bits == (uint64_t)signed_max);
+    result_bits = UINT64_C(0x5151515151515151);
+    CHECK(!w_seed_scalar_evaluator0_checked_integer_arithmetic(
+              W_SEED_HIR0_BINARY_ADD, true, width, (uint64_t)signed_max, 1u,
+              &result_bits) &&
+          result_bits == UINT64_C(0x5151515151515151));
+    result_bits = UINT64_C(0x5151515151515151);
+    CHECK(w_seed_scalar_evaluator0_checked_integer_arithmetic(
+              W_SEED_HIR0_BINARY_SUBTRACT, true, width,
+              (uint64_t)signed_min, 0u, &result_bits) &&
+          result_bits == (uint64_t)signed_min);
+    result_bits = UINT64_C(0x5151515151515151);
+    CHECK(!w_seed_scalar_evaluator0_checked_integer_arithmetic(
+              W_SEED_HIR0_BINARY_SUBTRACT, true, width,
+              (uint64_t)signed_min, 1u, &result_bits) &&
+          result_bits == UINT64_C(0x5151515151515151));
+    CHECK(w_seed_scalar_evaluator0_checked_integer_arithmetic(
+        W_SEED_HIR0_BINARY_MULTIPLY, true, width, (uint64_t)signed_max, 1u,
+        &result_bits));
+    result_bits = UINT64_C(0x5151515151515151);
+    CHECK(!w_seed_scalar_evaluator0_checked_integer_arithmetic(
+              W_SEED_HIR0_BINARY_MULTIPLY, true, width,
+              (uint64_t)signed_min, UINT64_MAX, &result_bits) &&
+          result_bits == UINT64_C(0x5151515151515151));
+
+    result_bits = UINT64_C(0x5151515151515151);
+    CHECK(w_seed_scalar_evaluator0_checked_integer_arithmetic(
+              W_SEED_HIR0_BINARY_ADD, false, width, mask, 0u, &result_bits) &&
+          result_bits == mask);
+    result_bits = UINT64_C(0x5151515151515151);
+    CHECK(!w_seed_scalar_evaluator0_checked_integer_arithmetic(
+              W_SEED_HIR0_BINARY_ADD, false, width, mask, 1u, &result_bits) &&
+          result_bits == UINT64_C(0x5151515151515151));
+    result_bits = UINT64_C(0x5151515151515151);
+    CHECK(!w_seed_scalar_evaluator0_checked_integer_arithmetic(
+              W_SEED_HIR0_BINARY_SUBTRACT, false, width, 0u, 1u,
+              &result_bits) &&
+          result_bits == UINT64_C(0x5151515151515151));
+    CHECK(w_seed_scalar_evaluator0_checked_integer_arithmetic(
+        W_SEED_HIR0_BINARY_MULTIPLY, false, width, mask, 1u, &result_bits));
+    result_bits = UINT64_C(0x5151515151515151);
+    CHECK(!w_seed_scalar_evaluator0_checked_integer_arithmetic(
+              W_SEED_HIR0_BINARY_MULTIPLY, false, width, mask, 2u,
+              &result_bits) &&
+          result_bits == UINT64_C(0x5151515151515151));
+  }
+  uint64_t unchanged = UINT64_C(0x7171717171717171);
+  CHECK(!w_seed_scalar_evaluator0_checked_integer_arithmetic(
+            W_SEED_HIR0_BINARY_ADD, true, 8u, UINT64_C(0x80), 0u,
+            &unchanged) &&
+        unchanged == UINT64_C(0x7171717171717171));
+  CHECK(!w_seed_scalar_evaluator0_checked_integer_arithmetic(
+            W_SEED_HIR0_BINARY_ADD, false, 8u, UINT64_C(0x100), 0u,
+            &unchanged) &&
+        unchanged == UINT64_C(0x7171717171717171));
   return true;
 }
 
@@ -14150,6 +14224,142 @@ static bool test_integer_wrapping_hir_matrix(void) {
   return true;
 }
 
+static bool test_checked_integer_arithmetic_hir_matrix(void) {
+  typedef struct {
+    const char *name;
+    const char *suffix;
+    bool is_signed;
+    uint16_t bit_width;
+    bool alias;
+  } integer_case;
+  static const integer_case INTEGERS[] = {
+      {"i8", "i8", true, 8u, false},
+      {"u8", "u8", false, 8u, false},
+      {"i16", "i16", true, 16u, false},
+      {"u16", "u16", false, 16u, false},
+      {"i32", "i32", true, 32u, false},
+      {"u32", "u32", false, 32u, false},
+      {"i64", "i64", true, 64u, false},
+      {"u64", "u64", false, 64u, false},
+      {"Int", "i64", true, 64u, true},
+      {"UInt", "u64", false, 64u, true},
+  };
+  static const struct {
+    const char *symbol;
+    w_seed_hir0_binary_operator operation;
+  } OPERATIONS[] = {
+      {"+", W_SEED_HIR0_BINARY_ADD},
+      {"-", W_SEED_HIR0_BINARY_SUBTRACT},
+      {"*", W_SEED_HIR0_BINARY_MULTIPLY},
+  };
+  char source[512];
+  for (size_t integer_index = 0u;
+       integer_index < sizeof(INTEGERS) / sizeof(INTEGERS[0]);
+       integer_index += 1u) {
+    const integer_case *integer = &INTEGERS[integer_index];
+    for (size_t operation_index = 0u;
+         operation_index < sizeof(OPERATIONS) / sizeof(OPERATIONS[0]);
+         operation_index += 1u) {
+      int written;
+      if (integer->alias) {
+        written = snprintf(
+            source, sizeof(source),
+            "fn arithmetic(left: %s, right: %s): %s { return left %s right }\n"
+            "entry { let result = arithmetic(left: 1_%s, right: 2_%s) }\n",
+            integer->name, integer->name, integer->name,
+            OPERATIONS[operation_index].symbol, integer->suffix,
+            integer->suffix);
+      } else {
+        written = snprintf(
+            source, sizeof(source),
+            "entry { let result = 1_%s %s 2_%s }\n", integer->suffix,
+            OPERATIONS[operation_index].symbol, integer->suffix);
+      }
+      CHECK(written > 0 && (size_t)written < sizeof(source));
+      CHECK(lower(source));
+
+      uint32_t expected_type = W_SEED_HIR0_NONE;
+      for (size_t type_index = 0u;
+           type_index < fixture.hir_program.type_count; type_index += 1u) {
+        const w_seed_hir0_type *type = &fixture.hir_program.types[type_index];
+        if (type->integer_is_signed == integer->is_signed &&
+            type->integer_bit_width == integer->bit_width &&
+            ((integer->bit_width == 64u &&
+              type->kind == (integer->is_signed ? W_SEED_HIR0_TYPE_I64
+                                                : W_SEED_HIR0_TYPE_U64)) ||
+             (integer->bit_width != 64u &&
+              type->kind == W_SEED_HIR0_TYPE_INTEGER)))
+          expected_type = (uint32_t)type_index;
+      }
+      CHECK(expected_type != W_SEED_HIR0_NONE);
+
+      size_t operation_count = 0u;
+      for (size_t value_index = 0u;
+           value_index < fixture.hir_program.value_count; value_index += 1u) {
+        const w_seed_hir0_value *value =
+            &fixture.hir_program.values[value_index];
+        const w_seed_hir0_value_kind expected_kind =
+            integer->is_signed ? W_SEED_HIR0_VALUE_BINARY_I64
+                               : W_SEED_HIR0_VALUE_BINARY_U64;
+        if (value->kind != expected_kind ||
+            value->binary_operator !=
+                OPERATIONS[operation_index].operation)
+          continue;
+        operation_count += 1u;
+        CHECK(value->type_index == expected_type &&
+              value->left_value < fixture.hir_program.value_count &&
+              value->right_value < fixture.hir_program.value_count &&
+              fixture.hir_program.values[value->left_value].type_index ==
+                  expected_type &&
+              fixture.hir_program.values[value->right_value].type_index ==
+                  expected_type);
+      }
+      CHECK(operation_count == 1u);
+    }
+  }
+
+  /* The verifier must reject result/operand signedness and width divergence
+   * even after the semantic and provenance seals are recomputed. */
+  static const char FORGED_SOURCE[] =
+      "entry { let result = 1_u8 + 2_u8 let wide = 1_u64 }\n";
+  CHECK(lower(FORGED_SOURCE));
+  uint32_t u8_type = W_SEED_HIR0_NONE;
+  uint32_t i64_type = W_SEED_HIR0_NONE;
+  uint32_t u64_type = W_SEED_HIR0_NONE;
+  size_t add_index = SIZE_MAX;
+  for (size_t type_index = 0u;
+       type_index < fixture.hir_program.type_count; type_index += 1u) {
+    const w_seed_hir0_type *type = &fixture.hir_program.types[type_index];
+    if (type->kind == W_SEED_HIR0_TYPE_INTEGER &&
+        !type->integer_is_signed && type->integer_bit_width == 8u)
+      u8_type = (uint32_t)type_index;
+    if (type->kind == W_SEED_HIR0_TYPE_I64) i64_type = (uint32_t)type_index;
+    if (type->kind == W_SEED_HIR0_TYPE_U64) u64_type = (uint32_t)type_index;
+  }
+  for (size_t value_index = 0u;
+       value_index < fixture.hir_program.value_count; value_index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_program.values[value_index];
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
+        value->binary_operator == W_SEED_HIR0_BINARY_ADD)
+      add_index = value_index;
+  }
+  CHECK(u8_type != W_SEED_HIR0_NONE && i64_type != W_SEED_HIR0_NONE &&
+        u64_type != W_SEED_HIR0_NONE && add_index != SIZE_MAX);
+  const w_seed_hir0_value saved_add = fixture.hir_values[add_index];
+  fixture.hir_values[add_index].type_index = i64_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[add_index] = saved_add;
+  fixture.hir_values[add_index].type_index = u64_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[add_index] = saved_add;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  return true;
+}
+
 static bool test_u64_saturating_add(void) {
   static const char SOURCE[] =
       "fn clamp(left: u64, right: u64): u64 { return "
@@ -15921,6 +16131,7 @@ int main(int argc, char **argv) {
   if (!test_u64_binary_values()) return 1;
   if (!test_u64_wrapping_add()) return 1;
   if (!test_integer_wrapping_hir_matrix()) return 1;
+  if (!test_checked_integer_arithmetic_hir_matrix()) return 1;
   if (!test_u64_saturating_add()) return 1;
   if (!test_u64_overflowing_products()) return 1;
   if (!test_u64_overflowing_power()) return 1;

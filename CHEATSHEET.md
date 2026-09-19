@@ -405,6 +405,15 @@ fn clamp(_ value: i32, minimum lower: i32, maximum upper: i32): i32 {
 fn multiply(_ value: i32, by factor: i32): i32 { return value * factor }
 fn divide(_ value: i32, by divisor: i32): i32 { return value / divisor }
 fn remainder(_ value: i32, by divisor: i32): i32 { return value % divisor }
+fn checkedI8Sum(left: i8, right: i8): i8 { return left + right }
+fn checkedU16Product(left: u16, right: u16): u16 { return left * right }
+fn checkedU16Compound(left: u16, right: u16): u16 {
+  var result = left
+  result += right
+  result -= 2_u16
+  result *= 2_u16
+  return result
+}
 
 object Reading {
   let value: i32
@@ -473,6 +482,9 @@ test "operators and pipe-forward produce values" for operatorSummary {
   assigned |= 0b0100
 
   expect operatorSummary() == ("42", 10, true, 9, 32, 5, 1, true, 7)
+  expect checkedI8Sum(-12_i8, 3_i8) == -9_i8
+  expect checkedU16Product(1000_u16, 30_u16) == 30000_u16
+  expect checkedU16Compound(1000_u16, 30_u16) == 2056_u16
   expect assigned == 7
   expect (0b1000 >> 2) == 2
   expect (~0_u8) == 0xff

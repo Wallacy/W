@@ -68,8 +68,8 @@ const restaurantCompoundFixture = resolve(seedDirectory,
   "fixtures", "restaurant-compound.w")
 const restaurantF64StrictFixture = resolve(seedDirectory,
   "fixtures", "restaurant-f64-strict.w")
-const restaurantUIntArithmeticFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-arithmetic.w")
+const restaurantCheckedIntegerArithmeticFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-checked-integer-arithmetic.w")
 const restaurantIntegerWrappingFixture = resolve(seedDirectory,
   "fixtures", "restaurant-integer-wrapping.w")
 const restaurantIntegerWideningFixture = resolve(seedDirectory,
@@ -749,6 +749,12 @@ try {
     "restaurant_scalar_return.w")
   const runtimeDivisionZero = join(fixtureDirectory,
     "runtime_division_zero.w")
+  const runtimeCheckedI8Overflow = join(fixtureDirectory,
+    "runtime_checked_i8_overflow.w")
+  const runtimeCheckedU16Underflow = join(fixtureDirectory,
+    "runtime_checked_u16_underflow.w")
+  const runtimeCheckedI16MultiplyOverflow = join(fixtureDirectory,
+    "runtime_checked_i16_multiply_overflow.w")
   const empty = join(fixtureDirectory, "empty.w")
   const zero = join(fixtureDirectory, "zero.w")
   const oversize = join(fixtureDirectory, "oversize.w")
@@ -801,6 +807,20 @@ try {
     "fn divide(value: i64, by divisor: i64): i64 { return value / divisor }\n" +
     "fn main() { let result = divide(value: 8, by: 0) " +
     "print(\"success ${result}\") }\nentry(main)\n")
+  await writeFile(runtimeCheckedI8Overflow,
+    "fn add(left: i8, right: i8): i8 { return left + right }\n" +
+    "entry { print(\"must not commit\") " +
+    "let result = add(left: 127_i8, right: 1_i8) print(\"${result}\") }\n")
+  await writeFile(runtimeCheckedU16Underflow,
+    "fn subtract(left: u16, right: u16): u16 { var result = left " +
+    "result -= right return result }\n" +
+    "entry { print(\"must not commit\") " +
+    "let result = subtract(left: 0_u16, right: 1_u16) print(\"${result}\") }\n")
+  await writeFile(runtimeCheckedI16MultiplyOverflow,
+    "fn multiply(left: i16, right: i16): i16 { return left * right }\n" +
+    "entry { print(\"must not commit\") " +
+    "let result = multiply(left: 200_i16, right: 200_i16) " +
+    "print(\"${result}\") }\n")
   await writeFile(empty, "fn main() { print(\"\") }\nentry(main)\n")
   await writeFile(zero, Buffer.alloc(0))
   await writeFile(oversize, Buffer.alloc(4097, 0x70))
@@ -1005,11 +1025,20 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantF64StrictFixture)],
     Buffer.from("Float strict ok\n", "utf8"),
     "Restaurant strict f64 arithmetic and IEEE comparisons")
-  expectSuccess(binary, ["run", toWsl(restaurantUIntArithmeticFixture)],
+  expectSuccess(binary, ["run", toWsl(restaurantCheckedIntegerArithmeticFixture)],
     Buffer.from(
-      "UInt 9223372036854775810/9223372036854775809/21; div 7; rem 2; " +
-      "cmp true/true/true/true/false/true/true\n", "utf8"),
-    "Restaurant checked UInt arithmetic and comparisons")
+      "i8 -9/-15/-36; compound -22\nu8 43/37/120; compound 82\n" +
+      "i16 -970/-1030/-30000; compound -1944\n" +
+      "u16 1030/970/30000; compound 2056\n" +
+      "i32 -117000/-123000/-360000000; compound -234004\n" +
+      "u32 100300/99700/30000000; compound 200596\n" +
+      "i64 -600000/-1200000/-270000000000; compound -1200004\n" +
+      "u64 6000000000/4000000000/5000000000000000000; compound 11999999996\n" +
+      "Int -4000000000/-6000000000/-5000000000000000000; " +
+      "compound -8000000004\n" +
+      "UInt 9000000000/3000000000/18000000000000000000; " +
+      "compound 17999999996\n", "utf8"),
+    "Restaurant checked signed/unsigned integer arithmetic family")
   expectSuccess(binary, ["run", toWsl(restaurantIntegerWrappingFixture)],
     Buffer.from(
       "i8/u8 -128/0\ni16/u16 32767/2\ni32/u32 -2/4294967295\n" +
@@ -1143,6 +1172,16 @@ try {
   assert(divisionFault.exitCode !== 0 && divisionFault.stdout.length === 0 &&
     divisionFault.stderr.length === 0,
   `runtime division by zero did not fail before output: ${resultSummary(divisionFault)}`)
+  for (const [path, label] of [
+    [runtimeCheckedI8Overflow, "signed i8 checked addition overflow"],
+    [runtimeCheckedU16Underflow, "unsigned u16 checked compound subtraction underflow"],
+    [runtimeCheckedI16MultiplyOverflow, "signed i16 checked multiplication overflow"],
+  ]) {
+    const fault = invoke(binary, ["run", toWsl(path)])
+    assert(fault.exitCode !== 0 && fault.stdout.length === 0 &&
+      fault.stderr.length === 0,
+    `${label} did not trap before committing output: ${resultSummary(fault)}`)
+  }
   const panicFault = invoke(binary, ["run", toWsl(explicitPanicFixture)])
   assert(panicFault.exitCode !== 0 && panicFault.stdout.length === 0 &&
     panicFault.stderr.length === 0,

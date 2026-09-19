@@ -230,11 +230,17 @@ static const char MLIR0_RUNTIME_COPY_HELPER[] =
  * an overflow flag; the flagged edge terminates at the bounded fault
  * boundary, so no wrapped result can reach user output or a later value. */
 static const char MLIR0_CHECKED_I64_ADD_HELPER[] =
-    "  llvm.func internal @w_seed_checked_add_i64(%left: i64, %right: i64) -> i64 {\n"
+    "  llvm.func internal @w_seed_checked_add_i64(%left: i64, %right: i64, %width: i64) -> i64 {\n"
     "    %pair = \"llvm.intr.sadd.with.overflow\"(%left, %right) : (i64, i64) -> !llvm.struct<(i64, i1)>\n"
     "    %value = llvm.extractvalue %pair[0] : !llvm.struct<(i64, i1)>\n"
     "    %overflow = llvm.extractvalue %pair[1] : !llvm.struct<(i64, i1)>\n"
-    "    llvm.cond_br %overflow, ^checked_overflow, ^checked_ok\n"
+    "    %width64 = llvm.mlir.constant(64 : i64) : i64\n"
+    "    %shift = llvm.sub %width64, %width : i64\n"
+    "    %shifted = llvm.shl %value, %shift : i64\n"
+    "    %roundtrip = llvm.ashr %shifted, %shift : i64\n"
+    "    %narrow_overflow = llvm.icmp \"ne\" %value, %roundtrip : i64\n"
+    "    %invalid = llvm.or %overflow, %narrow_overflow : i1\n"
+    "    llvm.cond_br %invalid, ^checked_overflow, ^checked_ok\n"
     "  ^checked_overflow:\n"
     "    \"llvm.intr.trap\"() : () -> ()\n"
     "    llvm.unreachable\n"
@@ -243,11 +249,17 @@ static const char MLIR0_CHECKED_I64_ADD_HELPER[] =
     "  }\n";
 
 static const char MLIR0_CHECKED_I64_SUBTRACT_HELPER[] =
-    "  llvm.func internal @w_seed_checked_subtract_i64(%left: i64, %right: i64) -> i64 {\n"
+    "  llvm.func internal @w_seed_checked_subtract_i64(%left: i64, %right: i64, %width: i64) -> i64 {\n"
     "    %pair = \"llvm.intr.ssub.with.overflow\"(%left, %right) : (i64, i64) -> !llvm.struct<(i64, i1)>\n"
     "    %value = llvm.extractvalue %pair[0] : !llvm.struct<(i64, i1)>\n"
     "    %overflow = llvm.extractvalue %pair[1] : !llvm.struct<(i64, i1)>\n"
-    "    llvm.cond_br %overflow, ^checked_overflow, ^checked_ok\n"
+    "    %width64 = llvm.mlir.constant(64 : i64) : i64\n"
+    "    %shift = llvm.sub %width64, %width : i64\n"
+    "    %shifted = llvm.shl %value, %shift : i64\n"
+    "    %roundtrip = llvm.ashr %shifted, %shift : i64\n"
+    "    %narrow_overflow = llvm.icmp \"ne\" %value, %roundtrip : i64\n"
+    "    %invalid = llvm.or %overflow, %narrow_overflow : i1\n"
+    "    llvm.cond_br %invalid, ^checked_overflow, ^checked_ok\n"
     "  ^checked_overflow:\n"
     "    \"llvm.intr.trap\"() : () -> ()\n"
     "    llvm.unreachable\n"
@@ -256,11 +268,17 @@ static const char MLIR0_CHECKED_I64_SUBTRACT_HELPER[] =
     "  }\n";
 
 static const char MLIR0_CHECKED_I64_MULTIPLY_HELPER[] =
-    "  llvm.func internal @w_seed_checked_multiply_i64(%left: i64, %right: i64) -> i64 {\n"
+    "  llvm.func internal @w_seed_checked_multiply_i64(%left: i64, %right: i64, %width: i64) -> i64 {\n"
     "    %pair = \"llvm.intr.smul.with.overflow\"(%left, %right) : (i64, i64) -> !llvm.struct<(i64, i1)>\n"
     "    %value = llvm.extractvalue %pair[0] : !llvm.struct<(i64, i1)>\n"
     "    %overflow = llvm.extractvalue %pair[1] : !llvm.struct<(i64, i1)>\n"
-    "    llvm.cond_br %overflow, ^checked_overflow, ^checked_ok\n"
+    "    %width64 = llvm.mlir.constant(64 : i64) : i64\n"
+    "    %shift = llvm.sub %width64, %width : i64\n"
+    "    %shifted = llvm.shl %value, %shift : i64\n"
+    "    %roundtrip = llvm.ashr %shifted, %shift : i64\n"
+    "    %narrow_overflow = llvm.icmp \"ne\" %value, %roundtrip : i64\n"
+    "    %invalid = llvm.or %overflow, %narrow_overflow : i1\n"
+    "    llvm.cond_br %invalid, ^checked_overflow, ^checked_ok\n"
     "  ^checked_overflow:\n"
     "    \"llvm.intr.trap\"() : () -> ()\n"
     "    llvm.unreachable\n"
@@ -314,11 +332,18 @@ static const char MLIR0_CHECKED_I64_REMAINDER_HELPER[] =
  * helpers consume the LLVM unsigned overflow intrinsics; division and
  * remainder guard zero before issuing the unsigned operation. */
 static const char MLIR0_CHECKED_U64_ADD_HELPER[] =
-    "  llvm.func internal @w_seed_checked_add_u64(%left: i64, %right: i64) -> i64 {\n"
+    "  llvm.func internal @w_seed_checked_add_u64(%left: i64, %right: i64, %width: i64) -> i64 {\n"
     "    %pair = \"llvm.intr.uadd.with.overflow\"(%left, %right) : (i64, i64) -> !llvm.struct<(i64, i1)>\n"
     "    %value = llvm.extractvalue %pair[0] : !llvm.struct<(i64, i1)>\n"
     "    %overflow = llvm.extractvalue %pair[1] : !llvm.struct<(i64, i1)>\n"
-    "    llvm.cond_br %overflow, ^u64_checked_overflow, ^u64_checked_ok\n"
+    "    %minus_one = llvm.mlir.constant(-1 : i64) : i64\n"
+    "    %width64 = llvm.mlir.constant(64 : i64) : i64\n"
+    "    %shift = llvm.sub %width64, %width : i64\n"
+    "    %mask = llvm.lshr %minus_one, %shift : i64\n"
+    "    %masked = llvm.and %value, %mask : i64\n"
+    "    %narrow_overflow = llvm.icmp \"ne\" %value, %masked : i64\n"
+    "    %invalid = llvm.or %overflow, %narrow_overflow : i1\n"
+    "    llvm.cond_br %invalid, ^u64_checked_overflow, ^u64_checked_ok\n"
     "  ^u64_checked_overflow:\n"
     "    \"llvm.intr.trap\"() : () -> ()\n"
     "    llvm.unreachable\n"
@@ -327,11 +352,18 @@ static const char MLIR0_CHECKED_U64_ADD_HELPER[] =
     "  }\n";
 
 static const char MLIR0_CHECKED_U64_SUBTRACT_HELPER[] =
-    "  llvm.func internal @w_seed_checked_subtract_u64(%left: i64, %right: i64) -> i64 {\n"
+    "  llvm.func internal @w_seed_checked_subtract_u64(%left: i64, %right: i64, %width: i64) -> i64 {\n"
     "    %pair = \"llvm.intr.usub.with.overflow\"(%left, %right) : (i64, i64) -> !llvm.struct<(i64, i1)>\n"
     "    %value = llvm.extractvalue %pair[0] : !llvm.struct<(i64, i1)>\n"
     "    %overflow = llvm.extractvalue %pair[1] : !llvm.struct<(i64, i1)>\n"
-    "    llvm.cond_br %overflow, ^u64_checked_overflow, ^u64_checked_ok\n"
+    "    %minus_one = llvm.mlir.constant(-1 : i64) : i64\n"
+    "    %width64 = llvm.mlir.constant(64 : i64) : i64\n"
+    "    %shift = llvm.sub %width64, %width : i64\n"
+    "    %mask = llvm.lshr %minus_one, %shift : i64\n"
+    "    %masked = llvm.and %value, %mask : i64\n"
+    "    %narrow_overflow = llvm.icmp \"ne\" %value, %masked : i64\n"
+    "    %invalid = llvm.or %overflow, %narrow_overflow : i1\n"
+    "    llvm.cond_br %invalid, ^u64_checked_overflow, ^u64_checked_ok\n"
     "  ^u64_checked_overflow:\n"
     "    \"llvm.intr.trap\"() : () -> ()\n"
     "    llvm.unreachable\n"
@@ -340,11 +372,18 @@ static const char MLIR0_CHECKED_U64_SUBTRACT_HELPER[] =
     "  }\n";
 
 static const char MLIR0_CHECKED_U64_MULTIPLY_HELPER[] =
-    "  llvm.func internal @w_seed_checked_multiply_u64(%left: i64, %right: i64) -> i64 {\n"
+    "  llvm.func internal @w_seed_checked_multiply_u64(%left: i64, %right: i64, %width: i64) -> i64 {\n"
     "    %pair = \"llvm.intr.umul.with.overflow\"(%left, %right) : (i64, i64) -> !llvm.struct<(i64, i1)>\n"
     "    %value = llvm.extractvalue %pair[0] : !llvm.struct<(i64, i1)>\n"
     "    %overflow = llvm.extractvalue %pair[1] : !llvm.struct<(i64, i1)>\n"
-    "    llvm.cond_br %overflow, ^u64_checked_overflow, ^u64_checked_ok\n"
+    "    %minus_one = llvm.mlir.constant(-1 : i64) : i64\n"
+    "    %width64 = llvm.mlir.constant(64 : i64) : i64\n"
+    "    %shift = llvm.sub %width64, %width : i64\n"
+    "    %mask = llvm.lshr %minus_one, %shift : i64\n"
+    "    %masked = llvm.and %value, %mask : i64\n"
+    "    %narrow_overflow = llvm.icmp \"ne\" %value, %masked : i64\n"
+    "    %invalid = llvm.or %overflow, %narrow_overflow : i1\n"
+    "    llvm.cond_br %invalid, ^u64_checked_overflow, ^u64_checked_ok\n"
     "  ^u64_checked_overflow:\n"
     "    \"llvm.intr.trap\"() : () -> ()\n"
     "    llvm.unreachable\n"
@@ -3021,6 +3060,39 @@ static bool append_integer_wrapping_unary_operation_in_loop(
          append_literal(artifact, capacity, offset, "_mask : i64\n");
 }
 
+static bool append_checked_integer_width_argument(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    bool expected_signed, uint8_t *artifact, size_t capacity,
+    size_t *offset) {
+  if (program == NULL || artifact == NULL || offset == NULL ||
+      value_index >= program->value_count)
+    return false;
+  bool is_signed = false;
+  uint16_t bit_width = 0u;
+  if (!mlir0_integer_type_facts(program,
+                                program->values[value_index].type_index,
+                                &is_signed, &bit_width) ||
+      is_signed != expected_signed ||
+      (bit_width != 8u && bit_width != 16u && bit_width != 32u &&
+       bit_width != 64u))
+    return false;
+  return append_literal(artifact, capacity, offset, "    %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset,
+                        "_checked_width = llvm.mlir.constant(") &&
+         append_u64(artifact, capacity, offset, bit_width) &&
+         append_literal(artifact, capacity, offset,
+                        " : i64) : i64\n");
+}
+
+static bool append_checked_integer_width_operand(
+    uint32_t value_index, uint8_t *artifact, size_t capacity,
+    size_t *offset) {
+  return append_literal(artifact, capacity, offset, "%v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, "_checked_width");
+}
+
 static bool append_binary_value_operation_in_loop(
     const w_seed_hir0_program *program, uint32_t value_index,
     uint32_t function_index, const mlir0_process_emit_context *process,
@@ -3053,23 +3125,39 @@ static bool append_binary_value_operation_in_loop(
                      : (constant_division
                             ? NULL
                             : checked_binary_helper(value->binary_operator)));
+  const bool checked_arithmetic =
+      value->binary_operator == W_SEED_HIR0_BINARY_ADD ||
+      value->binary_operator == W_SEED_HIR0_BINARY_SUBTRACT ||
+      value->binary_operator == W_SEED_HIR0_BINARY_MULTIPLY;
+  if (helper != NULL && checked_arithmetic &&
+      !append_checked_integer_width_argument(
+          program, value_index, true, artifact, capacity, offset))
+    return false;
   if (!append_literal(artifact, capacity, offset, "    %v") ||
       !append_size(artifact, capacity, offset, value_index) ||
       !append_literal(artifact, capacity, offset, " = "))
     return false;
-  if (helper != NULL)
-    return append_literal(artifact, capacity, offset, "llvm.call ") &&
-           append_literal(artifact, capacity, offset, helper) &&
-           append_literal(artifact, capacity, offset, "(") &&
-            append_program_value_operand_in_loop(
-                program, value->left_value, function_index, process, loop,
-                artifact, capacity, offset) &&
-           append_literal(artifact, capacity, offset, ", ") &&
-            append_program_value_operand_in_loop(
-                program, value->right_value, function_index, process, loop,
-                artifact, capacity, offset) &&
-           append_literal(artifact, capacity, offset,
+  if (helper != NULL) {
+    if (!append_literal(artifact, capacity, offset, "llvm.call ") ||
+        !append_literal(artifact, capacity, offset, helper) ||
+        !append_literal(artifact, capacity, offset, "(") ||
+        !append_program_value_operand_in_loop(
+            program, value->left_value, function_index, process, loop,
+            artifact, capacity, offset) ||
+        !append_literal(artifact, capacity, offset, ", ") ||
+        !append_program_value_operand_in_loop(
+            program, value->right_value, function_index, process, loop,
+            artifact, capacity, offset))
+      return false;
+    if (checked_arithmetic)
+      return append_literal(artifact, capacity, offset, ", ") &&
+             append_checked_integer_width_operand(
+                 value_index, artifact, capacity, offset) &&
+             append_literal(artifact, capacity, offset,
+                            ") : (i64, i64, i64) -> i64\n");
+    return append_literal(artifact, capacity, offset,
                           ") : (i64, i64) -> i64\n");
+  }
   const char *operation = binary_operation(value->binary_operator);
   return operation != NULL &&
          append_literal(artifact, capacity, offset, operation) &&
@@ -3180,6 +3268,15 @@ static bool append_binary_u64_value_operation(
            !overflowing_power && !saturating_power &&
            !constant_division)
     helper = checked_u64_binary_helper(value->binary_operator);
+
+  const bool checked_arithmetic =
+      value->binary_operator == W_SEED_HIR0_BINARY_ADD ||
+      value->binary_operator == W_SEED_HIR0_BINARY_SUBTRACT ||
+      value->binary_operator == W_SEED_HIR0_BINARY_MULTIPLY;
+  if (helper != NULL && checked_arithmetic &&
+      !append_checked_integer_width_argument(
+          program, value_index, false, artifact, capacity, offset))
+    return false;
 
   if (overflowing_power) {
     return helper != NULL &&
@@ -3293,19 +3390,27 @@ static bool append_binary_u64_value_operation(
       !append_size(artifact, capacity, offset, value_index) ||
       !append_literal(artifact, capacity, offset, " = "))
     return false;
-  if (helper != NULL)
-    return append_literal(artifact, capacity, offset, "llvm.call ") &&
-           append_literal(artifact, capacity, offset, helper) &&
-           append_literal(artifact, capacity, offset, "(") &&
-           append_program_value_operand(program, value->left_value,
-                                        function_index, process, artifact,
-                                        capacity, offset) &&
-           append_literal(artifact, capacity, offset, ", ") &&
-           append_program_value_operand(program, value->right_value,
-                                        function_index, process, artifact,
-                                        capacity, offset) &&
-           append_literal(artifact, capacity, offset,
+  if (helper != NULL) {
+    if (!append_literal(artifact, capacity, offset, "llvm.call ") ||
+        !append_literal(artifact, capacity, offset, helper) ||
+        !append_literal(artifact, capacity, offset, "(") ||
+        !append_program_value_operand(program, value->left_value,
+                                      function_index, process, artifact,
+                                      capacity, offset) ||
+        !append_literal(artifact, capacity, offset, ", ") ||
+        !append_program_value_operand(program, value->right_value,
+                                      function_index, process, artifact,
+                                      capacity, offset))
+      return false;
+    if (checked_arithmetic)
+      return append_literal(artifact, capacity, offset, ", ") &&
+             append_checked_integer_width_operand(
+                 value_index, artifact, capacity, offset) &&
+             append_literal(artifact, capacity, offset,
+                            ") : (i64, i64, i64) -> i64\n");
+    return append_literal(artifact, capacity, offset,
                           ") : (i64, i64) -> i64\n");
+  }
   if (saturating_add)
     return append_literal(artifact, capacity, offset,
                           "\"llvm.intr.uadd.sat\"(") &&
@@ -3674,6 +3779,10 @@ static bool append_unary_i64_operation_in_loop(
   }
   const bool constant =
       mlir0_value_is_constant_i64(program, value_index, 0u);
+  if (!constant &&
+      !append_checked_integer_width_argument(
+          program, value_index, true, artifact, capacity, offset))
+    return false;
   if (!append_literal(artifact, capacity, offset, "    %v") ||
       !append_size(artifact, capacity, offset, value_index) ||
       !append_literal(artifact, capacity, offset,
@@ -3701,8 +3810,13 @@ static bool append_unary_i64_operation_in_loop(
   return append_program_value_operand_in_loop(
              program, value->left_value, function_index, process, loop, artifact,
              capacity, offset) &&
-         append_literal(artifact, capacity, offset,
-                        constant ? " : i64\n" : ") : (i64, i64) -> i64\n");
+         (constant
+              ? append_literal(artifact, capacity, offset, " : i64\n")
+              : (append_literal(artifact, capacity, offset, ", ") &&
+                 append_checked_integer_width_operand(
+                     value_index, artifact, capacity, offset) &&
+                 append_literal(artifact, capacity, offset,
+                                ") : (i64, i64, i64) -> i64\n")));
 }
 
 static bool append_unary_i64_operation(

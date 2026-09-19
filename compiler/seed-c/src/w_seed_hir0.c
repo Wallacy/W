@@ -4208,6 +4208,8 @@ static bool frontend_value_tree_ok(
         &output->types[output->expressions[value->left].inferred_type];
     const w_seed_frontend_type *right_operand_type =
         &output->types[output->expressions[value->right].inferred_type];
+    const w_seed_frontend_type *result_operand_type =
+        &output->types[value->inferred_type];
     const bool same_fixed_integer_domain =
         frontend_expression_is_integer(
             output, &output->expressions[value->left]) &&
@@ -4215,6 +4217,20 @@ static bool frontend_value_tree_ok(
             output, &output->expressions[value->right]) &&
         left_operand_type->is_signed == right_operand_type->is_signed &&
         left_operand_type->bit_width == right_operand_type->bit_width;
+    const bool checked_arithmetic =
+        operation == W_SEED_HIR0_BINARY_ADD ||
+        operation == W_SEED_HIR0_BINARY_SUBTRACT ||
+        operation == W_SEED_HIR0_BINARY_MULTIPLY;
+    const bool same_checked_integer_result_domain =
+        checked_arithmetic && frontend_expression_is_integer(output, value) &&
+        frontend_expression_is_integer(
+            output, &output->expressions[value->left]) &&
+        frontend_expression_is_integer(
+            output, &output->expressions[value->right]) &&
+        result_operand_type->is_signed == left_operand_type->is_signed &&
+        result_operand_type->is_signed == right_operand_type->is_signed &&
+        result_operand_type->bit_width == left_operand_type->bit_width &&
+        result_operand_type->bit_width == right_operand_type->bit_width;
     const bool same_integer_result_domain =
         (result_i64 && left_i64 && right_i64) ||
         (result_u64 && left_u64 && right_u64);
@@ -4254,11 +4270,14 @@ static bool frontend_value_tree_ok(
                            output, &output->expressions[value->right]))
                     : (shift || power
                            ? (!same_integer_left_result_domain || !right_u64)
-                           : (result_u64
-                                  ? ((!ordinary_integer && !bitwise_integer) ||
-                                     !same_integer_result_domain)
-                                  : (!result_i64 ||
-                                     !same_integer_result_domain))))) ||
+                           : (checked_arithmetic
+                                  ? !same_checked_integer_result_domain
+                                  : (result_u64
+                                         ? ((!ordinary_integer &&
+                                             !bitwise_integer) ||
+                                            !same_integer_result_domain)
+                                         : (!result_i64 ||
+                                            !same_integer_result_domain)))))) ||
         !frontend_value_has_no_resolution(value) ||
         value->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
         value->const_byte_offset != W_SEED_FRONTEND_NONE ||
@@ -12139,7 +12158,7 @@ static uint32_t hir0_emit_value_m2(
         binary_operator == W_SEED_HIR0_BINARY_SHIFT_RIGHT ||
         binary_operator == W_SEED_HIR0_BINARY_POWER;
     const bool unsigned_binary =
-        frontend_expression_is_u64(
+        frontend_expression_is_unsigned_integer(
             context->frontend, &context->frontend->expressions[source->left]) &&
         (u64_arithmetic || comparison || u64_bitwise ||
          u64_shift_or_power);
@@ -15362,6 +15381,10 @@ static bool verify_value_tree(
   }
 
   if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
+    const bool checked_arithmetic =
+        value->binary_operator == W_SEED_HIR0_BINARY_ADD ||
+        value->binary_operator == W_SEED_HIR0_BINARY_SUBTRACT ||
+        value->binary_operator == W_SEED_HIR0_BINARY_MULTIPLY;
     const bool shift =
         value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
         value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_RIGHT;
@@ -15396,6 +15419,23 @@ static bool verify_value_tree(
              : hir_integer_types_equal(
                    program, value->type_index,
                    program->values[value->right_value].type_index));
+    bool checked_result_signed = false;
+    uint16_t checked_result_width = 0u;
+    const bool generic_checked_types_ok =
+        checked_arithmetic &&
+        value->type_index < program->type_count &&
+        value->left_value < program->value_count &&
+        value->right_value < program->value_count &&
+        hir_integer_type_facts(program, value->type_index,
+                               &checked_result_signed,
+                               &checked_result_width) &&
+        checked_result_signed && checked_result_width != 0u &&
+        hir_integer_types_equal(
+            program, value->type_index,
+            program->values[value->left_value].type_index) &&
+        hir_integer_types_equal(
+            program, value->type_index,
+            program->values[value->right_value].type_index);
     if (((uint32_t)value->binary_operator >
              (uint32_t)W_SEED_HIR0_BINARY_POWER &&
          !wrapping) ||
@@ -15414,6 +15454,8 @@ static bool verify_value_tree(
         (size_t)root_index != *value_cursor ||
         (wrapping
              ? !generic_wrapping_types_ok
+             : (checked_arithmetic
+             ? !generic_checked_types_ok
              : ((shift || power)
              ? (!hir_type_index_valid(program, value->type_index) ||
                 !hir_type_index_valid(
@@ -15433,7 +15475,7 @@ static bool verify_value_tree(
                              value->binary_operator <=
                                  W_SEED_HIR0_BINARY_GREATER_EQUAL
                          ? 3u
-                         : 2u)))) ||
+                    : 2u))))) ||
         value->binding_index != W_SEED_HIR0_NONE ||
         value->parameter_index != W_SEED_HIR0_NONE ||
         value->first_interpolation_segment != W_SEED_HIR0_NONE ||
@@ -15447,6 +15489,10 @@ static bool verify_value_tree(
   }
 
   if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64) {
+    const bool checked_arithmetic =
+        value->binary_operator == W_SEED_HIR0_BINARY_ADD ||
+        value->binary_operator == W_SEED_HIR0_BINARY_SUBTRACT ||
+        value->binary_operator == W_SEED_HIR0_BINARY_MULTIPLY;
     const bool comparison =
         value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
         value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL;
@@ -15482,6 +15528,23 @@ static bool verify_value_tree(
     const bool integer_wrapping =
         value->binary_operator >= W_SEED_HIR0_BINARY_WRAPPING_ADD &&
         value->binary_operator <= W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT;
+    bool checked_result_signed = true;
+    uint16_t checked_result_width = 0u;
+    const bool generic_checked_types_ok =
+        checked_arithmetic &&
+        value->type_index < program->type_count &&
+        value->left_value < program->value_count &&
+        value->right_value < program->value_count &&
+        hir_integer_type_facts(program, value->type_index,
+                               &checked_result_signed,
+                               &checked_result_width) &&
+        !checked_result_signed && checked_result_width != 0u &&
+        hir_integer_types_equal(
+            program, value->type_index,
+            program->values[value->left_value].type_index) &&
+        hir_integer_types_equal(
+            program, value->type_index,
+            program->values[value->right_value].type_index);
     if (wrapping || overflowing) {
       if (value->left_value == W_SEED_HIR0_NONE ||
           value->left_value >= program->value_count ||
@@ -15579,16 +15642,19 @@ static bool verify_value_tree(
                               program->values[value->left_value].type_index) ||
         !hir_type_index_valid(
             program, program->values[value->right_value].type_index) ||
-        program->types[program->values[value->left_value].type_index].kind !=
-            W_SEED_HIR0_TYPE_U64 ||
-        program->types[program->values[value->right_value].type_index].kind !=
-            W_SEED_HIR0_TYPE_U64 ||
+        (!checked_arithmetic &&
+         (program->types[program->values[value->left_value].type_index].kind !=
+              W_SEED_HIR0_TYPE_U64 ||
+          program->types[program->values[value->right_value].type_index].kind !=
+              W_SEED_HIR0_TYPE_U64)) ||
         (comparison
              ? (value->type_index != 3u ||
                 program->types[value->type_index].kind !=
                     W_SEED_HIR0_TYPE_BOOL)
-             : program->types[value->type_index].kind !=
-                   W_SEED_HIR0_TYPE_U64) ||
+             : (checked_arithmetic
+                    ? !generic_checked_types_ok
+                    : program->types[value->type_index].kind !=
+                          W_SEED_HIR0_TYPE_U64)) ||
         value->unary_operator != W_SEED_HIR0_UNARY_NOT ||
         value->block_argument_index != W_SEED_HIR0_NONE ||
         value->binding_index != W_SEED_HIR0_NONE ||

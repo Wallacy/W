@@ -39,7 +39,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-power-prefix",
   "restaurant-compound",
   "restaurant-f64-strict",
-  "restaurant-uint-arithmetic",
+  "restaurant-checked-integer-arithmetic",
   "restaurant-integer-wrapping",
   "restaurant-integer-widening",
   "restaurant-integer-comparison",
@@ -210,7 +210,7 @@ export const PROCESS_ARGUMENT_WORKLOAD_IDS = Object.freeze([
   PROCESS_ARGUMENTS_ORDERING_WORKLOAD_ID,
 ]);
 export const RESTAURANT_F64_STRICT_WORKLOAD_ID = "restaurant-f64-strict";
-export const RESTAURANT_UINT_ARITHMETIC_WORKLOAD_ID = "restaurant-uint-arithmetic";
+export const RESTAURANT_CHECKED_INTEGER_ARITHMETIC_WORKLOAD_ID = "restaurant-checked-integer-arithmetic";
 export const RESTAURANT_INTEGER_WRAPPING_WORKLOAD_ID = "restaurant-integer-wrapping";
 export const RESTAURANT_INTEGER_WIDENING_WORKLOAD_ID = "restaurant-integer-widening";
 export const RESTAURANT_INTEGER_COMPARISON_WORKLOAD_ID = "restaurant-integer-comparison";
@@ -1189,7 +1189,7 @@ function executableHostSlugSupportsPlatform(host, platformTarget) {
 function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PLATFORM_TARGET_WINDOWS) {
   if (platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) return SOURCE_ELIGIBILITY.wslDiagnostic;
   if (workload?.id === RESTAURANT_F64_STRICT_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_ARITHMETIC_WORKLOAD_ID ||
+      workload?.id === RESTAURANT_CHECKED_INTEGER_ARITHMETIC_WORKLOAD_ID ||
       workload?.id === RESTAURANT_INTEGER_WRAPPING_WORKLOAD_ID ||
       workload?.id === RESTAURANT_INTEGER_WIDENING_WORKLOAD_ID ||
       workload?.id === RESTAURANT_INTEGER_COMPARISON_WORKLOAD_ID ||

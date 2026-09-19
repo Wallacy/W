@@ -47,10 +47,13 @@ operations as independent correctness references. The catalog excludes this
 workload from live best-metric derivation and equivalent-runtime ranking until
 runtime-equivalent W evidence exists.
 
-The `restaurant-uint-arithmetic` witness is `not-performance-ready`. Its scope
-covers only successful fixed-input output. W may fold constants in the optimized
-final artifact, and physical equivalence with C23 and Rust is not proven. Fault
-behavior is outside scope because W traps while the references exit `1`.
+The `restaurant-checked-integer-arithmetic` witness is
+`not-performance-ready`. It covers successful fixed-input checked ordinary and
+compound `+`, `-`, and `*` over signed and unsigned 8/16/32/64-bit integers and
+the current x86-64 `Int`/`UInt` aliases. W may fold its literal call arguments;
+C23 volatile operands and Rust `black_box` inputs are correctness references,
+not evidence of equivalent runtime work. Fault behavior is checked only on the W
+Windows and Linux/WSL run gates, so this family has no performance ranking.
 
 The `restaurant-integer-wrapping` witness is `not-performance-ready`. Its
 single fixed-input policy matrix covers signed and unsigned `i8`/`u8`,

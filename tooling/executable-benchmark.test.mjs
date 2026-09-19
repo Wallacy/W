@@ -46,7 +46,7 @@ import {
   RESTAURANT_INTEGER_WRAPPING_WORKLOAD_ID,
   RESTAURANT_INTEGER_WIDENING_WORKLOAD_ID,
   RESTAURANT_INTEGER_COMPARISON_WORKLOAD_ID,
-  RESTAURANT_UINT_ARITHMETIC_WORKLOAD_ID,
+  RESTAURANT_CHECKED_INTEGER_ARITHMETIC_WORKLOAD_ID,
   RESTAURANT_UINT_BITWISE_WORKLOAD_ID,
   RESTAURANT_UINT_OVERFLOWING_FAMILY_WORKLOAD_ID,
   RESTAURANT_UINT_SATURATING_POLICY_WORKLOAD_ID,
@@ -438,9 +438,9 @@ test("strict f64 references retain independent runtime operations", () => {
   assert.doesNotMatch(rust, /fast-math/iu);
 });
 
-test("checked UInt arithmetic catalog pins fixed-input references and deferred equivalence", () => {
+test("checked integer add/subtract/multiply is one correctness-only family", () => {
   const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_ARITHMETIC_WORKLOAD_ID);
+    item.id === RESTAURANT_CHECKED_INTEGER_ARITHMETIC_WORKLOAD_ID);
   assert.ok(workload);
   assert.equal(workload.structureClass, "public-end-to-end");
   assert.equal(workload.status, "source-oracle-ready");
@@ -448,18 +448,18 @@ test("checked UInt arithmetic catalog pins fixed-input references and deferred e
   assert.equal(workload.demoEvidence, "bounded-w-demo");
   assert.equal(workload.benchmarkStatus, "not-performance-ready");
   assert.equal(workload.scope,
-    "Validate successful fixed-input checked UInt arithmetic and comparisons with exact output. Fault behavior is outside scope because W traps while the C23 and Rust references exit 1.");
+    "Validate successful fixed-input checked +, -, *, +=, -=, and *= across signed and unsigned i8/i16/i32/i64 and the current x86-64 Int/UInt aliases with exact output. Fault behavior is covered by the W run gates only; C23 and Rust are correctness references for the successful domain.");
   assert.deepEqual(workload.oracle, {
     kind: "exact-output",
     status: "source-backed",
     exitCode: 0,
-    stdout: "UInt 9223372036854775810/9223372036854775809/21; div 7; rem 2; cmp true/true/true/true/false/true/true\n",
+    stdout: "i8 -9/-15/-36; compound -22\nu8 43/37/120; compound 82\ni16 -970/-1030/-30000; compound -1944\nu16 1030/970/30000; compound 2056\ni32 -117000/-123000/-360000000; compound -234004\nu32 100300/99700/30000000; compound 200596\ni64 -600000/-1200000/-270000000000; compound -1200004\nu64 6000000000/4000000000/5000000000000000000; compound 11999999996\nInt -4000000000/-6000000000/-5000000000000000000; compound -8000000004\nUInt 9000000000/3000000000/18000000000000000000; compound 17999999996\n",
     stderr: "",
   });
   assert.deepEqual(workload.blockedLanguages, []);
   assert.deepEqual(workload.blockers, [
-    "w-uint-compile-time-folded",
-    "runtime-uint-equivalence",
+    "w-fixed-input-checked-integer-arithmetic",
+    "runtime-checked-integer-arithmetic-equivalence",
   ]);
   assert.deepEqual(workload.sources.map((source) => [source.language, source.platformTarget]), [
     ["w", EXECUTABLE_PLATFORM_TARGET],
@@ -467,7 +467,7 @@ test("checked UInt arithmetic catalog pins fixed-input references and deferred e
     ["c", EXECUTABLE_PLATFORM_TARGET],
     ["rust", EXECUTABLE_PLATFORM_TARGET],
   ]);
-  assert.ok(workload.sources.every((source) => source.recipeClass === "restaurant-uint-arithmetic-release"));
+  assert.ok(workload.sources.every((source) => source.recipeClass === "restaurant-checked-integer-arithmetic-release"));
   assert.deepEqual(workload.sources
     .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
     .map((source) => [source.comparability, source.eligibility]), [
@@ -481,19 +481,33 @@ test("checked UInt arithmetic catalog pins fixed-input references and deferred e
     "same-physical-hardware-diagnostic-only",
   ]);
   const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_arithmetic.c`, "utf8");
+    `${ROOT}/benchmarks/executable/restaurant_checked_integer_arithmetic.c`, "utf8");
   const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_arithmetic.rs`, "utf8");
-  assert.match(c, /volatile uint64_t/u);
-  assert.match(c, /checked_add_u64/u);
-  assert.match(c, /checked_divide_u64/u);
-  assert.match(c, /checked_remainder_u64/u);
+    `${ROOT}/benchmarks/executable/restaurant_checked_integer_arithmetic.rs`, "utf8");
+  const w = readFileSync(
+    `${ROOT}/compiler/seed-c/fixtures/restaurant-checked-integer-arithmetic.w`, "utf8");
+  for (const source of [w, c, rust])
+    assert.deepEqual(parseExecutableSourceExpectation(source), {
+      exitCode: workload.oracle.exitCode,
+      stdout: workload.oracle.stdout,
+      stderr: workload.oracle.stderr,
+      errors: [],
+    });
+  assert.match(c, /volatile TYPE runtime_left/u);
+  assert.match(c, /runtime_left \+ runtime_right/u);
+  assert.match(c, /runtime_left - runtime_right/u);
+  assert.match(c, /runtime_left \* runtime_right/u);
+  assert.match(c, /compound \+= runtime_right/u);
+  assert.match(c, /compound -= \(TYPE\)2/u);
+  assert.match(c, /compound \*= \(TYPE\)2/u);
   assert.match(rust, /black_box/u);
-  assert.match(rust, /checked_add_u64/u);
-  assert.match(rust, /checked_divide_u64/u);
-  assert.match(rust, /checked_remainder_u64/u);
+  assert.match(rust, /type Int = i64/u);
+  assert.match(rust, /type UInt = u64/u);
+  assert.match(rust, /left \+= right/u);
+  assert.match(rust, /left -= 2 as \$type/u);
+  assert.match(rust, /left \*= 2 as \$type/u);
   assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
-  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
+  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi|checked_(?:add|div|rem))/iu);
 });
 
 test("UInt bit-primitives family catalog keeps correctness separate from ranking", () => {

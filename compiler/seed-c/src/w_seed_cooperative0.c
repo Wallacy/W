@@ -1,5 +1,6 @@
 #include "w_seed_cooperative0.h"
 
+#include "w_seed_scalar_evaluator0.h"
 #include "w_seed_sha256.h"
 
 #include <limits.h>
@@ -171,49 +172,6 @@ static bool function_instruction_span(const w_seed_hir0_program *program,
     return false;
   *first = block->first_instruction;
   *count = block->instruction_count;
-  return true;
-}
-
-static bool checked_add_i64(int64_t left, int64_t right, int64_t *out) {
-  if (out == NULL || (right > 0 && left > INT64_MAX - right) ||
-      (right < 0 && left < INT64_MIN - right))
-    return false;
-  *out = left + right;
-  return true;
-}
-
-static bool checked_sub_i64(int64_t left, int64_t right, int64_t *out) {
-  if (out == NULL || (right < 0 && left > INT64_MAX + right) ||
-      (right > 0 && left < INT64_MIN + right))
-    return false;
-  *out = left - right;
-  return true;
-}
-
-static bool checked_mul_i64(int64_t left, int64_t right, int64_t *out) {
-  if (out == NULL) return false;
-  if (left == 0 || right == 0) {
-    *out = 0;
-    return true;
-  }
-  if (left == -1) {
-    if (right == INT64_MIN) return false;
-    *out = -right;
-    return true;
-  }
-  if (right == -1) {
-    if (left == INT64_MIN) return false;
-    *out = -left;
-    return true;
-  }
-  if (left > 0) {
-    if (right > 0 && left > INT64_MAX / right) return false;
-    if (right < 0 && right < INT64_MIN / left) return false;
-  } else {
-    if (right > 0 && left < INT64_MIN / right) return false;
-    if (right < 0 && left < INT64_MAX / right) return false;
-  }
-  *out = left * right;
   return true;
 }
 
@@ -579,6 +537,27 @@ static bool evaluate_value(const w_seed_hir0_program *program, uint32_t value_in
       return value_from_bool(!child.boolean, out);
     }
     case W_SEED_HIR0_VALUE_BINARY_I64: {
+      cooperative_integer_facts value_facts;
+      cooperative_integer_facts left_facts;
+      cooperative_integer_facts right_facts;
+      const bool checked_arithmetic =
+          value->binary_operator == W_SEED_HIR0_BINARY_ADD ||
+          value->binary_operator == W_SEED_HIR0_BINARY_SUBTRACT ||
+          value->binary_operator == W_SEED_HIR0_BINARY_MULTIPLY;
+      if (!cooperative_integer_type_facts(program, value->type_index,
+                                          &value_facts) ||
+          !value_facts.is_signed || value->left_value >= program->value_count ||
+          value->right_value >= program->value_count ||
+          !cooperative_integer_type_facts(
+              program, program->values[value->left_value].type_index,
+              &left_facts) ||
+          !cooperative_integer_type_facts(
+              program, program->values[value->right_value].type_index,
+              &right_facts) ||
+          !left_facts.is_signed || !right_facts.is_signed ||
+          left_facts.bit_width != value_facts.bit_width ||
+          right_facts.bit_width != value_facts.bit_width)
+        return false;
       w_seed_cooperative0_value left;
       w_seed_cooperative0_value right;
       if (!evaluate_value(program, value->left_value, frame, &left,
@@ -588,28 +567,25 @@ static bool evaluate_value(const w_seed_hir0_program *program, uint32_t value_in
           left.kind != W_SEED_COOPERATIVE0_VALUE_I64 ||
           right.kind != W_SEED_COOPERATIVE0_VALUE_I64)
         return false;
+      if (checked_arithmetic) {
+        uint64_t result_bits = 0u;
+        if (!w_seed_scalar_evaluator0_checked_integer_arithmetic(
+                value->binary_operator, true, value_facts.bit_width,
+                (uint64_t)left.integer, (uint64_t)right.integer,
+                &result_bits))
+          return false;
+        return value_from_u64_bits(result_bits, out);
+      }
+      if (value_facts.bit_width != 64u) return false;
       int64_t result = 0;
       bool boolean = false;
       switch (value->binary_operator) {
-        case W_SEED_HIR0_BINARY_ADD:
-          return checked_add_i64(left.integer, right.integer, &result) &&
-                 value_from_i64(result, out);
-        case W_SEED_HIR0_BINARY_SUBTRACT:
-          return checked_sub_i64(left.integer, right.integer, &result) &&
-                 value_from_i64(result, out);
-        case W_SEED_HIR0_BINARY_MULTIPLY:
-          return checked_mul_i64(left.integer, right.integer, &result) &&
-                 value_from_i64(result, out);
         case W_SEED_HIR0_BINARY_DIVIDE:
-          if (right.integer == 0 ||
-              (left.integer == INT64_MIN && right.integer == -1))
-            return false;
-          return value_from_i64(left.integer / right.integer, out);
         case W_SEED_HIR0_BINARY_REMAINDER:
-          if (right.integer == 0 ||
-              (left.integer == INT64_MIN && right.integer == -1))
-            return false;
-          return value_from_i64(left.integer % right.integer, out);
+          return w_seed_scalar_evaluator0_checked_binary(
+                     value->binary_operator, left.integer, right.integer,
+                     &result) &&
+                 value_from_i64(result, out);
         case W_SEED_HIR0_BINARY_BIT_AND:
           return value_from_i64(left.integer & right.integer, out);
         case W_SEED_HIR0_BINARY_BIT_OR:
@@ -708,8 +684,43 @@ static bool evaluate_value(const w_seed_hir0_program *program, uint32_t value_in
       }
       return value_from_bool(boolean, out);
     }
-    case W_SEED_HIR0_VALUE_BINARY_U64:
-      return false;
+    case W_SEED_HIR0_VALUE_BINARY_U64: {
+      cooperative_integer_facts value_facts;
+      cooperative_integer_facts left_facts;
+      cooperative_integer_facts right_facts;
+      if ((value->binary_operator != W_SEED_HIR0_BINARY_ADD &&
+           value->binary_operator != W_SEED_HIR0_BINARY_SUBTRACT &&
+           value->binary_operator != W_SEED_HIR0_BINARY_MULTIPLY) ||
+          !cooperative_integer_type_facts(program, value->type_index,
+                                          &value_facts) ||
+          value_facts.is_signed || value->left_value >= program->value_count ||
+          value->right_value >= program->value_count ||
+          !cooperative_integer_type_facts(
+              program, program->values[value->left_value].type_index,
+              &left_facts) ||
+          !cooperative_integer_type_facts(
+              program, program->values[value->right_value].type_index,
+              &right_facts) ||
+          left_facts.is_signed || right_facts.is_signed ||
+          left_facts.bit_width != value_facts.bit_width ||
+          right_facts.bit_width != value_facts.bit_width)
+        return false;
+      w_seed_cooperative0_value left;
+      w_seed_cooperative0_value right;
+      uint64_t result_bits = 0u;
+      if (!evaluate_value(program, value->left_value, frame, &left,
+                          depth + 1u) ||
+          !evaluate_value(program, value->right_value, frame, &right,
+                          depth + 1u) ||
+          left.kind != W_SEED_COOPERATIVE0_VALUE_I64 ||
+          right.kind != W_SEED_COOPERATIVE0_VALUE_I64 ||
+          !w_seed_scalar_evaluator0_checked_integer_arithmetic(
+              value->binary_operator, false, value_facts.bit_width,
+              (uint64_t)left.integer, (uint64_t)right.integer,
+              &result_bits))
+        return false;
+      return value_from_u64_bits(result_bits, out);
+    }
     default:
       return false;
   }
