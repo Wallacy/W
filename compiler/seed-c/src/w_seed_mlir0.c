@@ -3067,11 +3067,106 @@ static bool append_checked_integer_width_operand(
          append_literal(artifact, capacity, offset, "_checked_width");
 }
 
+static bool append_integer_bitwise_binary_operation_in_loop(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop, bool expected_signed,
+    uint8_t *artifact, size_t capacity, size_t *offset) {
+  if (program == NULL || artifact == NULL || offset == NULL ||
+      value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  bool is_signed = false;
+  uint16_t bit_width = 0u;
+  if (value->kind != (expected_signed ? W_SEED_HIR0_VALUE_BINARY_I64
+                                     : W_SEED_HIR0_VALUE_BINARY_U64) ||
+      value->binary_operator < W_SEED_HIR0_BINARY_BIT_AND ||
+      value->binary_operator > W_SEED_HIR0_BINARY_BIT_XOR ||
+      value->left_value >= program->value_count ||
+      value->right_value >= program->value_count ||
+      !mlir0_integer_type_facts(program, value->type_index, &is_signed,
+                                &bit_width) ||
+      is_signed != expected_signed ||
+      (bit_width != 8u && bit_width != 16u && bit_width != 32u &&
+       bit_width != 64u) ||
+      program->values[value->left_value].type_index != value->type_index ||
+      program->values[value->right_value].type_index != value->type_index ||
+      !mlir0_integer_value_matches_type(program, value->left_value,
+                                        expected_signed, bit_width) ||
+      !mlir0_integer_value_matches_type(program, value->right_value,
+                                        expected_signed, bit_width))
+    return false;
+  const char *operation = binary_operation(value->binary_operator);
+  if (operation == NULL) return false;
+  if (bit_width == 64u)
+    return append_literal(artifact, capacity, offset, "    %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset, " = ") &&
+           append_literal(artifact, capacity, offset, operation) &&
+           append_literal(artifact, capacity, offset, " ") &&
+           append_program_value_operand_in_loop(
+               program, value->left_value, function_index, process, loop,
+               artifact, capacity, offset) &&
+           append_literal(artifact, capacity, offset, ", ") &&
+           append_program_value_operand_in_loop(
+               program, value->right_value, function_index, process, loop,
+               artifact, capacity, offset) &&
+           append_literal(artifact, capacity, offset, " : i64\n");
+
+  return append_literal(artifact, capacity, offset, "    %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, "_bitwise_left = llvm.trunc ") &&
+         append_program_value_operand_in_loop(
+             program, value->left_value, function_index, process, loop,
+             artifact, capacity, offset) &&
+         append_literal(artifact, capacity, offset, " : i64 to i") &&
+         append_u64(artifact, capacity, offset, bit_width) &&
+         append_literal(artifact, capacity, offset, "\n    %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, "_bitwise_right = llvm.trunc ") &&
+         append_program_value_operand_in_loop(
+             program, value->right_value, function_index, process, loop,
+             artifact, capacity, offset) &&
+         append_literal(artifact, capacity, offset, " : i64 to i") &&
+         append_u64(artifact, capacity, offset, bit_width) &&
+         append_literal(artifact, capacity, offset, "\n    %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, "_bitwise_raw = ") &&
+         append_literal(artifact, capacity, offset, operation) &&
+         append_literal(artifact, capacity, offset, " %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, "_bitwise_left, %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, "_bitwise_right : i") &&
+         append_u64(artifact, capacity, offset, bit_width) &&
+         append_literal(artifact, capacity, offset, "\n    %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, " = llvm.") &&
+         append_literal(artifact, capacity, offset,
+                        expected_signed ? "sext %v" : "zext %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset,
+                        "_bitwise_raw : i") &&
+         append_u64(artifact, capacity, offset, bit_width) &&
+         append_literal(artifact, capacity, offset, " to i64\n");
+}
+
 static bool append_binary_value_operation_in_loop(
     const w_seed_hir0_program *program, uint32_t value_index,
     uint32_t function_index, const mlir0_process_emit_context *process,
     const mlir0_natural_loop_result_context *loop, uint8_t *artifact,
     size_t capacity, size_t *offset) {
+  if (program != NULL && value_index < program->value_count &&
+      (program->values[value_index].kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
+       program->values[value_index].kind == W_SEED_HIR0_VALUE_BINARY_U64) &&
+      program->values[value_index].kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+      program->values[value_index].binary_operator >=
+          W_SEED_HIR0_BINARY_BIT_AND &&
+      program->values[value_index].binary_operator <=
+          W_SEED_HIR0_BINARY_BIT_XOR)
+    return append_integer_bitwise_binary_operation_in_loop(
+        program, value_index, function_index, process, loop, true, artifact,
+        capacity, offset);
   if (program != NULL && value_index < program->value_count &&
       (program->values[value_index].kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
        program->values[value_index].kind == W_SEED_HIR0_VALUE_BINARY_U64) &&
@@ -3160,6 +3255,15 @@ static bool append_binary_u64_value_operation(
     const w_seed_hir0_program *program, uint32_t value_index,
     uint32_t function_index, const mlir0_process_emit_context *process,
     uint8_t *artifact, size_t capacity, size_t *offset) {
+  if (program != NULL && value_index < program->value_count &&
+      program->values[value_index].kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
+      program->values[value_index].binary_operator >=
+          W_SEED_HIR0_BINARY_BIT_AND &&
+      program->values[value_index].binary_operator <=
+          W_SEED_HIR0_BINARY_BIT_XOR)
+    return append_integer_bitwise_binary_operation_in_loop(
+        program, value_index, function_index, process, NULL, false, artifact,
+        capacity, offset);
   if (program != NULL && value_index < program->value_count &&
       program->values[value_index].kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
       mlir0_value_uses_generic_wrapping_lowering(program,

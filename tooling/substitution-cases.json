@@ -11199,6 +11199,144 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-fixed-width-integer-bitwise-family",
+      "reviewItem": "ordinary binary integer bitwise operators against per-width lowering branches, host promotion rules, source-signedness leakage, and fragmented executable witnesses.",
+      "decisions": [
+        "W-1642"
+      ],
+      "task": "Carry ordinary binary `&`, `|`, and `^` over signed and unsigned 8/16/32/64-bit integers and current x86-64 `Int`/`UInt` aliases through verified HIR and direct LLVM lowering. Permit existing exact widening to select a common source type, including range-safe cross-signedness widening such as `u8 -> i16`, then enforce one exact canonical HIR type for both operands and the result; reject only lossy or ambiguous combinations. Treat the ten-spelling plus exact-widening family fixture as correctness evidence only: focused frontend/HIR/native/MLIR coverage and final-source public Windows and Linux/WSL execution gates passed; do not rank unequal benchmark workloads.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn signed_bits(left: i16, right: i16): i16 { return (left & right) | (left ^ right) }",
+          "fn widened_bits(left: i8, right: i32): i32 { return left | right }",
+          "fn widened_mixed_bits(left: u8, right: i16): i16 { return left | right }",
+          "fn unsigned_alias_bits(left: UInt, right: UInt): UInt { return left ^ right }"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "per-width-lowering-branches",
+          "language": "w-internal-rejected",
+          "source": [
+            "define separate frontend identities, HIR records, and lowering branches for each integer width and signedness"
+          ],
+          "expectedDifference": "One ordinary binary operation family derives logical width and signedness from canonical type facts without multiplying width-specific compiler paths."
+        },
+        {
+          "name": "host-integer-promotions",
+          "language": "c-internal-rejected",
+          "source": [
+            "promote narrow operands to the host int width before applying bitwise operators"
+          ],
+          "expectedDifference": "The selected implementation preserves W logical width explicitly and sign-extends or zero-extends the result by canonical result signedness."
+        },
+        {
+          "name": "same-source-spelling-only",
+          "language": "w-rejected",
+          "source": [
+            "reject every bitwise expression whose source operands have different width spellings, including exact `i8` to `i32` widening"
+          ],
+          "expectedDifference": "Existing exact integer widening may select a common source type; the verified-HIR operands and result then share that one canonical type."
+        },
+        {
+          "name": "lossy-signedness-common-type",
+          "language": "w-rejected",
+          "source": [
+            "choose a common type or reinterpret one operand for lossy or ambiguous `i16 | u32`"
+          ],
+          "expectedDifference": "Range-safe exact widening may cross signedness (for example `u8 -> i16`), but lossy or ambiguous combinations require explicit conversion rather than a hidden signedness policy."
+        },
+        {
+          "name": "rank-unequal-workloads",
+          "language": "benchmark-rejected",
+          "source": [
+            "rank constant W fixture operands against runtime C23 and Rust operands"
+          ],
+          "expectedDifference": "The fixture, C23, and Rust are correctness references with unequal runtime work; no timing or performance ranking is claimed."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-integer-bitwise.w",
+          "symbol": "entry",
+          "claim": "The source-local oracle declares exit 0 and 12 exact output lines: all ten fixed-width signed/unsigned and Int/UInt spellings, `Widened -13` from `i8 | i32 -> i32`, and `Mixed 255` from range-safe `u8 | i16 -> i16`."
+        },
+        {
+          "path": "compiler/seed-c/include/w_seed_hir0.h",
+          "symbol": "W_SEED_HIR0_SCHEMA_VERSION / W_SEED_HIR0_BINARY_BIT_AND / W_SEED_HIR0_BINARY_BIT_OR / W_SEED_HIR0_BINARY_BIT_XOR",
+          "claim": "Verified HIR85 carries the existing ordinary integer bitwise operation identities."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_value_tree / hir_integer_types_equal",
+          "claim": "The verified-HIR operator boundary checks one exact canonical integer type across both operands and result while source widening is represented before that boundary."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_integer_bitwise_hir_matrix",
+          "claim": "Focused HIR/scalar tests cover all ten supported type spellings and three operations, exact i8-to-i32 and range-safe u8-to-i16 widening, lossy/ambiguous signedness and non-integer rejection, and forged type/operator/operand barriers."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_scalar_evaluator0.c",
+          "symbol": "scalar_integer_bitwise",
+          "claim": "The scalar evaluator computes the logical-width bit result from independently checked canonical type facts."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "native_integer_bitwise_shape_valid",
+          "claim": "NativeSubset0 admits the bitwise route only when verified signedness, logical width, and operand/result type facts agree."
+        },
+        {
+          "path": "compiler/seed-c/include/w_seed_native0.h",
+          "symbol": "W_SEED_NATIVE0_SCHEMA_VERSION",
+          "claim": "Native0 remains schema 10 for the ordinary integer bitwise family."
+        },
+        {
+          "path": "compiler/seed-c/include/w_seed_mlir0.h",
+          "symbol": "W_SEED_MLIR0_SCHEMA_VERSION / W_SEED_MLIR0_WINDOWS_SCHEMA_VERSION",
+          "claim": "MLIR0 schema 56 and Windows adapter schema 41 carry the family lowering boundary."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "append_integer_bitwise_binary_operation",
+          "claim": "MLIR emits direct and/or/xor operations after logical-width normalization and extends results by signedness without a checked-bit helper."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_mlir0.c",
+          "symbol": "test_integer_bitwise_width_artifact",
+          "claim": "Focused MLIR assertions cover all ten spellings, both exact-widening witnesses, direct llvm.and/or/xor, logical-width truncation and extension, signed/unsigned extension assertions, and absence of a runtime bit helper."
+        },
+        {
+          "path": "tooling/check-mlir0.mjs",
+          "symbol": "restaurant-integer-bitwise",
+          "claim": "The MLIR gate contains the exact family fixture oracle and checks direct lowering patterns; `bun check --target mlir0` passed on the final family fixture."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "Fixed-width signed/unsigned integer bitwise family",
+          "claim": "The public Windows gate contains the family fixture and exact-output assertion; `bun check --target w-run-windows` passed on the final family fixture."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "Restaurant fixed-width signed/unsigned bitwise family",
+          "claim": "The public Linux/WSL gate contains the family fixture and exact-output assertion; `bun check --target w-run` passed on the final family fixture."
+        }
+      ],
+      "checks": [
+        "Focused frontend, HIR/scalar, NativeSubset0, and MLIR tests passed 4/4. test_integer_bitwise_hir_matrix covers all ten supported type spellings and each operation, validates scalar results, confirms exact i8-to-i32 and range-safe u8-to-i16 widening before the canonical HIR type boundary, and rejects lossy/ambiguous signedness, non-integer operands, and forged operator/type facts.",
+        "After the fixture added `i8 | i32 -> i32` (`Widened -13`) and range-safe `u8 | i16 -> i16` (`Mixed 255`), focused HIR/MLIR tests reran and passed; test_integer_bitwise_width_artifact checks direct LLVM-dialect and/or/xor, logical-width truncation, signed/unsigned extension, and no checked-bit runtime helper.",
+        "The final-source public MLIR0, Windows, and Linux/WSL gates passed exact output for the 12-line family fixture: `bun check --target mlir0`, `bun check --target w-run-windows`, and `bun check --target w-run`.",
+        "C23 and Rust 2024 references compile and run with the same 12 lines as correctness oracles only; workloads are not performance-equivalent and no ranking is claimed."
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

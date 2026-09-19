@@ -333,20 +333,23 @@ general panic payload/cleanup, named numeric APIs, and equivalent runtime work
 remain gaps.
 
 W-1641 closes only the existing fixed-width integer `truncatingBits:` path
-under W-389. Its public Windows and Linux/WSL witnesses are correctness-only:
-C23 and Rust 2024 use runtime operands while the W fixture uses constants, so
-there is no performance ranking. W-389 and rank 1 remain open; the next
-dependency is another bounded scalar-conversion slice. `exactly:`,
-`rounding:`, `saturating:`, and floating conversions remain outside W-1641.
+under W-389. Its public Windows and Linux/WSL witnesses are correctness-only;
+C23 and Rust 2024 are correctness references, not performance rankings.
+`exactly:`, `rounding:`, `saturating:`, and floating conversions remain
+outside W-1641. W-389 and rank 1 remain open.
 
 The first rank-1 increments are now executable. Signed-`i64` `&`, `|`, `^`,
 and the original unary-`~` crosspoint cover exact W source, canonical
 precedence, verified HIR0, direct LLVM-dialect operations, and the maintained
-native routes; W-1640 is the width-family complement increment. Checked `<<` and
-`>>` additionally preserve signed/unsigned logical type, require a `UInt`
-count, trap at counts greater than or equal to 64, use arithmetic versus
-logical right shift, and reject information-losing left shift. Exact
-`restaurant-bitwise`, `restaurant-shifts`, `restaurant-power`,
+native routes; W-1640 is the width-family complement increment. W-1642 extends
+ordinary binary `&`, `|`, and `^` across signed and unsigned 8-, 16-, 32-, and
+64-bit integers plus the current x86-64 `Int`/`UInt` aliases, retaining one
+canonical operand/result type after existing exact integer widening. Checked
+`<<` and `>>` additionally
+preserve signed/unsigned logical type, require a `UInt` count, trap at counts
+greater than or equal to 64, use arithmetic versus logical right shift, and
+reject information-losing left shift. Exact
+`restaurant-integer-bitwise`, `restaurant-shifts`, `restaurant-power`,
 `restaurant-power-prefix`, `restaurant-compound`, and
 `restaurant-uint-compound`
 sources/oracles own these bounded crosspoints. Checked integer `**` uses a
@@ -359,9 +362,10 @@ invalid. The eleven signed compound assignment forms reuse the same checked
 operation and SSA versioning. The UInt/u64 witness now covers all eleven
 unsigned compound forms with checked arithmetic, shifts, and the existing
 direct bit operations over typed SSA versions. Immutable targets fail closed.
-W-392 remains open for width-generic binary bitwise, shift, power, saturating,
-and overflowing families, named bit APIs, SIMD, and the complete integer
-operator matrix. Unary `~` is separately covered by W-1640. Checked
+W-392 remains open for width-generic shifts and power, rotations, named
+policies and remaining bit primitives, saturating and overflowing families,
+SIMD, and the complete integer operator matrix. Unary `~` is separately
+covered by W-1640. Checked
 arithmetic, wrapping arithmetic, comparisons, and exact widening already span
 the current fixed-width integer set and must not be described as 64-bit-only
 gaps.

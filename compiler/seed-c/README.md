@@ -2825,33 +2825,55 @@ ABI, general residency/scheduling/cancellation, matrix/operator lowering, or
 support for another provider or target. `benchmarkDisposition` remains
 `compiler-lifecycle`; no new benchmark result is published.
 
-### Source-backed signed-`i64` binary bitwise slice (partial W-392)
+### Superseded signed-`i64` binary bitwise crosspoint (W-392)
 
-The seed frontend, verified HIR0, NativeSubset0, scalar/cooperative evaluators,
-and MLIR0 now preserve `&`, `|`, `^`, and unary `~` for signed `i64`. The
-frontend uses the canonical precedence `|` below `^` below `&`, with `~` in
-the prefix tier; HIR operator values are append-only; MLIR0 emits direct
-`llvm.and`, `llvm.or`, and `llvm.xor` without a runtime helper. Integer
-complement is an `llvm.xor` against the all-ones `i64` value. The exact
-Restaurant witness is
-[`fixtures/restaurant-bitwise.w`](fixtures/restaurant-bitwise.w): its operands
-cross a function boundary, so the lowering cannot be justified by replacing
-the expression with constant `14`.
+The narrow signed-`i64` binary crosspoint is superseded by W-1642, which owns
+the current family behavior and executable witness. W-1640 separately covers
+width-family unary `~`. Git retains the earlier implementation history.
 
-Focused HIR and MLIR units cover the source tree, precedence, complement,
-forged operator rejection, and direct operation selection. `bun check --target mlir0` compiles
-and executes the exact source on the maintained Linux/WSL lane. The source and
-exact `Flags 14\n` oracle are registered as `restaurant-bitwise` in the public
-Windows executable benchmark catalog.
+### Source-backed ordinary binary integer bitwise family (W-1642)
 
-This does not close W-392. W-1640 expands only unary `~` across the fixed-width
-family; the `&`, `|`, and `^` binary evidence in this slice remains signed
-`i64` (with the separate unsigned `u64` slice below). Width-generic binary
-bitwise operations, power, compound assignments, named bit primitives, SIMD,
-and matrix operations remain separate increments. The language benchmark
-disposition is `required`; the broader `integer-bit-mix` learner/idiomatic/
-frontier unit remains open even though this public product crosspoint is now
-source-backed.
+The seed frontend, verified HIR0, NativeSubset0, scalar evaluator, and MLIR0
+preserve ordinary binary `&`, `|`, and `^` for `i8`/`u8`, `i16`/`u16`,
+`i32`/`u32`, `i64`/`u64`, and the current x86-64 `Int`/`UInt` aliases. Existing
+exact integer widening may first select a common type; each verified-HIR
+operand pair and its result then use exactly that canonical type. Source
+signedness may differ through range-safe exact widening such as `u8 -> i16`;
+lossy or ambiguous mixing remains invalid. The existing precedence is `|`
+below `^` below `&`.
+
+Verified HIR uses `w-seed-hir0-85`; Native0 remains `w-seed-native0-10`;
+MLIR0 uses `w-seed-mlir0-56`, and its Windows adapter uses
+`w-seed-mlir0-windows-41`. The seed keeps an `i64` physical carrier while
+computing in a logical-width-masked `uint64_t` bit domain, then sign-extends
+signed results or zero-extends unsigned results. MLIR0 emits direct
+`llvm.and`, `llvm.or`, and `llvm.xor` operations without a runtime helper,
+heap allocation, or CRT helper.
+
+[`fixtures/restaurant-integer-bitwise.w`](fixtures/restaurant-integer-bitwise.w)
+is the family-level source witness. Its source-local oracle declares exit 0
+and exact stdout:
+
+```text
+i8 10/-81/-91
+u8 10/175/165
+i16 2570/-20561/-23131
+u16 2570/44975/42405
+i32 168430090/-1347440721/-1515870811
+u32 168430090/2947526575/2779096485
+i64 723401728380766730/-5787213827046133841/-6510615555426900571
+u64 723401728380766730/12659530246663417775/11936128518282651045
+Int 723401728380766730/-5787213827046133841/-6510615555426900571
+UInt 723401728380766730/12659530246663417775/11936128518282651045
+Widened -13
+Mixed 255
+```
+
+C23 and Rust 2024 are correctness references only; the family has
+`benchmarkDisposition: correctness-reference-no-ranking`, with no performance
+ranking. W-392 remains open for width-generic shifts and power, rotations and
+named policies, remaining bit primitives, SIMD, and the complete integer
+operator matrix.
 
 ### Source-backed checked 64-bit shifts (partial W-392)
 

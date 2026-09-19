@@ -19,8 +19,8 @@ const restaurantUnaryNegateFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unary-negate.w")
 const restaurantUnaryInterpolationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unary-interpolation.w")
-const restaurantBitwiseFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-bitwise.w")
+const restaurantIntegerBitwiseFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-integer-bitwise.w")
 const restaurantUnsignedFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unsigned.w")
 const restaurantShiftsFixture = resolve(seedDirectory,
@@ -716,8 +716,22 @@ try {
       expected: Buffer.from("Prepared 42\n", "utf8") },
     { name: "restaurant-async-yield", source: restaurantAsyncYieldFixture,
       expected: Buffer.from("Prepared 88\n", "utf8") },
-    { name: "restaurant-bitwise", source: restaurantBitwiseFixture,
-      expected: Buffer.from("Flags 14/-15\n", "utf8") },
+    { name: "restaurant-integer-bitwise",
+      source: restaurantIntegerBitwiseFixture,
+      expected: Buffer.from(
+        "i8 10/-81/-91\n" +
+        "u8 10/175/165\n" +
+        "i16 2570/-20561/-23131\n" +
+        "u16 2570/44975/42405\n" +
+        "i32 168430090/-1347440721/-1515870811\n" +
+        "u32 168430090/2947526575/2779096485\n" +
+        "i64 723401728380766730/-5787213827046133841/-6510615555426900571\n" +
+        "u64 723401728380766730/12659530246663417775/11936128518282651045\n" +
+        "Int 723401728380766730/-5787213827046133841/-6510615555426900571\n" +
+        "UInt 723401728380766730/12659530246663417775/11936128518282651045\n" +
+        "Widened -13\n" +
+        "Mixed 255\n",
+        "utf8") },
     { name: "restaurant-unsigned", source: restaurantUnsignedFixture,
       expected: Buffer.from("Unsigned 18446744073709551615\n", "utf8") },
     { name: "restaurant-shifts", source: restaurantShiftsFixture,
@@ -1016,15 +1030,49 @@ try {
   assert(typedArithmeticArtifact.includes("llvm.sdiv %v") &&
     typedArithmeticArtifact.includes("llvm.srem %v"),
   "constant division and remainder did not retain LLVM arithmetic lowering")
-  const signedBitwiseArtifact = artifacts.get("restaurant-bitwise")
-  assert(signedBitwiseArtifact.includes("llvm.and ") &&
-    signedBitwiseArtifact.includes("llvm.xor ") &&
-    signedBitwiseArtifact.includes("llvm.or ") &&
-    signedBitwiseArtifact.includes(
-      "_bit_not_mask = llvm.mlir.constant(-1 : i64)") &&
-    signedBitwiseArtifact.includes("llvm.call @w_fn_0") &&
-    !signedBitwiseArtifact.includes("w_seed_checked_bit"),
-  "signed bitwise operations were folded, reordered, or helper-lowered")
+  const integerBitwiseArtifact = artifacts.get("restaurant-integer-bitwise")
+  assert(integerBitwiseArtifact.includes("llvm.and ") &&
+    integerBitwiseArtifact.includes("llvm.xor ") &&
+    integerBitwiseArtifact.includes("llvm.or ") &&
+    integerBitwiseArtifact.includes("_bitwise_left = llvm.trunc") &&
+    integerBitwiseArtifact.includes("_bitwise_right = llvm.trunc") &&
+    integerBitwiseArtifact.includes("_bitwise_raw = llvm.or") &&
+    integerBitwiseArtifact.includes("llvm.sext %v") &&
+    integerBitwiseArtifact.includes("llvm.zext %v") &&
+    integerBitwiseArtifact.includes("llvm.call @w_fn_0") &&
+    !integerBitwiseArtifact.includes("w_seed_checked_bit"),
+  "fixed-width integer bitwise lowering did not normalize logical widths")
+  const widenedFunctionStart = integerBitwiseArtifact.indexOf(
+    "  llvm.func internal @w_fn_10(")
+  const widenedFunctionEnd = integerBitwiseArtifact.indexOf(
+    "  llvm.func internal @w_fn_", widenedFunctionStart + 1)
+  const widenedFunctionArtifact = widenedFunctionStart < 0 ? "" :
+    integerBitwiseArtifact.slice(widenedFunctionStart,
+      widenedFunctionEnd < 0 ? undefined : widenedFunctionEnd)
+  assert(widenedFunctionArtifact.includes("_widen_trunc = llvm.trunc") &&
+    widenedFunctionArtifact.includes("_bitwise_left = llvm.trunc") &&
+    widenedFunctionArtifact.includes("_bitwise_right = llvm.trunc") &&
+    widenedFunctionArtifact.includes("_bitwise_raw = llvm.or") &&
+    widenedFunctionArtifact.includes("_bitwise_raw : i32 to i64") &&
+    !widenedFunctionArtifact.includes("llvm.call @w_seed_"),
+  "i8-to-i32 bitwise widening did not lower directly at logical width")
+  const mixedFunctionStart = integerBitwiseArtifact.indexOf(
+    "  llvm.func internal @w_fn_11(")
+  const mixedFunctionEnd = integerBitwiseArtifact.indexOf(
+    "  llvm.func internal @w_fn_", mixedFunctionStart + 1)
+  const mixedFunctionArtifact = mixedFunctionStart < 0 ? "" :
+    integerBitwiseArtifact.slice(mixedFunctionStart,
+      mixedFunctionEnd < 0 ? undefined : mixedFunctionEnd)
+  const mixedSourceWidening = mixedFunctionArtifact.indexOf("llvm.zext %v")
+  const mixedDirectOr = mixedFunctionArtifact.indexOf(
+    "_bitwise_raw = llvm.or")
+  assert(mixedFunctionArtifact.includes("_widen_trunc = llvm.trunc") &&
+    mixedSourceWidening >= 0 && mixedDirectOr > mixedSourceWidening &&
+    mixedFunctionArtifact.includes("_bitwise_left = llvm.trunc") &&
+    mixedFunctionArtifact.includes("_bitwise_right = llvm.trunc") &&
+    mixedFunctionArtifact.includes("_bitwise_raw : i16 to i64") &&
+    !mixedFunctionArtifact.includes("llvm.call @w_seed_"),
+  "u8-to-i16 bitwise widening did not zext before direct logical-width OR")
   const unsignedArtifact = artifacts.get("restaurant-unsigned")
   assert(unsignedArtifact.includes("llvm.mlir.constant(-1 : i64) : i64") &&
     unsignedArtifact.includes("llvm.func internal @w_seed_append_u64") &&

@@ -26,7 +26,7 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-enum-payload | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-enum-payload.w), [c](./executable/restaurant_enum_payload.c), [rust](./executable/restaurant_enum_payload.rs) | source-backed | exploratory-ready |
 | restaurant-enum-bool-payload | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-enum-bool-payload.w), [c](./executable/restaurant_enum_bool_payload.c), [rust](./executable/restaurant_enum_bool_payload.rs) | source-backed | exploratory-ready |
 | restaurant-comparison-composition | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-comparison-composition.w) | source-backed | partial-exploratory-ready |
-| restaurant-bitwise | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-bitwise.w) | source-backed | partial-exploratory-ready |
+| restaurant-integer-bitwise | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-integer-bitwise.w), [c](./executable/restaurant_integer_bitwise.c), [rust](./executable/restaurant_integer_bitwise.rs) | source-backed | not-performance-ready |
 | restaurant-shifts | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-shifts.w) | source-backed | partial-exploratory-ready |
 | restaurant-power | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-power.w) | source-backed | partial-exploratory-ready |
 | restaurant-power-prefix | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-power-prefix.w) | source-backed | partial-exploratory-ready |
@@ -87,7 +87,6 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-async-yield | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3510 | 2624 | 129.7002 ms | 17.976 ms | 18.9295 ms | 4833280 B (4.61 MiB) | 12.376 ms |
 | restaurant-async-yield | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79688 | 28348 | 1.080247 s | 17.9897 ms | 18.3019 ms | 4870144 B (4.64 MiB) | 12.84 ms |
 | restaurant-async-yield | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 662 | 260 | 182.7856 ms | 16.8709 ms | 17.196 ms | 3756032 B (3.58 MiB) | 10.365 ms |
-| restaurant-bitwise | w | Windows x64 / MSVC | CRT-free | 2560 B (2.5 KiB) | 598 | 296 | 173.0563 ms | 14.9254 ms | 16.7192 ms | 3153920 B (3.01 MiB) | 10.674 ms |
 | restaurant-bool-mutation | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 646 | 224 | 177.3414 ms | 16.6843 ms | 17.1188 ms | 3756032 B (3.58 MiB) | 11.757 ms |
 | restaurant-branch | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3558 | 2632 | 127.7022 ms | 18.018 ms | 19.0303 ms | 4808704 B (4.59 MiB) | 12.376 ms |
 | restaurant-branch | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 114176 B (111.5 KiB) | 80200 | 28332 | 1.0822891 s | 17.97 ms | 18.2438 ms | 4857856 B (4.63 MiB) | 12.53 ms |

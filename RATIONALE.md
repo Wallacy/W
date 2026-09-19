@@ -228,6 +228,7 @@ O corpus compara, no mínimo:
 - checked fixed-width arithmetic against per-width compiler branches, target undefined behavior, eager faulting operations, and fragmented executable evidence.
 - fixed-width integer prefix operators against per-width compiler branches, binary desugaring, host integer promotion, unchecked target subtraction, and an always-linked numeric runtime.
 - fixed-width `truncatingBits:` conversion against per-pair lowering branches, host casts/promotions, and source-signedness leakage.
+- ordinary binary integer bitwise operators against per-width lowering branches, host promotion rules, source-signedness leakage, and fragmented executable witnesses.
 - direct prefix-negative interpolation against late root-only retyping, a synthetic binding workaround, and textual constant folding.
 - verified SSA versioning against hidden stack storage and assignment rewriting.
 - conditional mutable local through one verified SSA join.
@@ -7994,6 +7995,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1639 | checked fixed-width integer arithmetic family through native execution | Frontend64 and HIR82 preserve checked `+`, `-`, `*`, `/`, `%` and their compound assignments as one width-generic family. Scalar, NativeSubset0, and MLIR53 use verified signedness and logical width; division and remainder guard zero and signed minimum/negative-one before target operations, while narrow add/subtract/multiply validate representability before commit. | `source-backed-current` for signed and unsigned 8/16/32/64-bit builtins, current x86-64 `Int`/`UInt` aliases, successful ordinary and compound operations, runtime fault-before-output behavior, the defined signed minimum remainder result, focused C23 adversarial tests, MLIR/LLVM 23.1.x verification, and exact CRT-free Windows plus Linux/WSL execution. W-1639 supersedes W-1551. Named APIs, other checked operator families, `usize`/`isize`, 128-bit integers, target-general aliases, stable ABI/FFI, general panic payload/cleanup, other targets, and performance remain gaps. The single family fixture owns expected output; C23 and Rust 2024 are correctness references without ranking. `benchmarkDisposition: correctness-reference-no-ranking`. |
 | W-1640 | fixed-width integer prefix family | W-1640 changes implementation coverage of existing prefix operators, not syntax. One generic operation/type-fact route covers checked unary `-` on signed `i8`/`i16`/`i32`/`i64`/`Int` and total width-preserving `~` on signed and unsigned 8/16/32/64-bit builtins plus the current x86-64 `Int`/`UInt` aliases. Unsigned ordinary unary minus remains invalid; logical minimum negation must fail before observable output. Bool `!`, `f64` negation, and named wrapping/saturating/overflowing negation remain distinct. The physical seed carrier remains `i64`. | `source-backed-current` only for the family fixture, focused HIR/scalar-evaluator and NativeSubset0/MLIR coverage, and the exact-success/minimum-failure cases on the public CRT-free Windows and Linux/WSL routes. Reviewed type-equality preflights, per-width lowering assertions, focused compiler units, and public MLIR/Windows/Linux gates pass on the same final source. W-1640 supersedes W-1552's signed-`i64`-only implementation authority; W-1553 remains current for direct interpolation composition, while the family witness absorbs its standalone executable benchmark row. C23 and Rust 2024 are correctness references only; other targets, `usize`/`isize`, 128-bit integers, target-general aliases, stable ABI/FFI, general panic payload/cleanup, named numeric APIs, and equivalent runtime work remain gaps. `benchmarkDisposition: correctness-reference-no-ranking`, not-performance-ready until equivalent runtime work exists. |
 | W-1641 | fixed-width integer `truncatingBits:` conversion through native execution | Frontend65 and HIR84 preserve a distinct, single-child conversion value while reusing source/destination type facts; Native0 remains schema 10, MLIR0 is `w-seed-mlir0-55`, and the Windows adapter is `w-seed-mlir0-windows-40`. The scalar evaluator, NativeSubset0, and MLIR0 independently validate the facts; lowering uses the physical `i64` carrier, normalizes source width, selects destination low bits, and extends by destination signedness without a runtime call, heap, or CRT helper. | `source-backed-current` only for all 100 signed/unsigned 8/16/32/64-bit and current x86-64 `Int`/`UInt` source/destination pairs: frontend four contexts and 11 rejects; HIR five values and forged-fact barriers; NativeSubset0 five representative routes; MLIR exact operand/pattern and forged-fact checks. Final-source `bun check --target mlir0`, `w-run-windows`, and `w-run` pass; the fixture exits 0 with stdout `Trunc 2/-7/-6/18446744073709551609/-1\n`, and the malformed label fails before output. C23 and Rust 2024 use runtime operands and are correctness references only. W-1641 closes only the existing `truncatingBits:` subset of W-389; other conversion policies, float conversion, `usize`/`isize`, 128-bit integers, target-general aliases, stable ABI/FFI, other targets, and equivalent-work performance remain gaps. `benchmarkDisposition: correctness-reference-no-ranking`. |
+| W-1642 | ordinary binary integer bitwise family through native execution | The existing bitwise AND, OR, and XOR operators cover `i8`/`u8`, `i16`/`u16`, `i32`/`u32`, `i64`/`u64`, and current x86-64 `Int`/`UInt` aliases. Existing exact integer widening may select a common type, including range-safe `u8 -> i16`; both verified-HIR operands and the result then have that exact canonical type. Lossy or ambiguous mixing remains invalid. Verified HIR is schema 85; Native0 remains schema 10, MLIR0 is `w-seed-mlir0-56`, and its Windows adapter is `w-seed-mlir0-windows-41`. A physical `i64` carrier holds a logical-width-masked `uint64` bit domain; results are sign- or zero-extended according to signedness, and MLIR emits direct `llvm.and`, `llvm.or`, and `llvm.xor` without runtime, heap, or CRT helpers. | `source-backed-current` only for this bounded ordinary binary family and its source witness. [`restaurant-integer-bitwise.w`](compiler/seed-c/fixtures/restaurant-integer-bitwise.w) declares exit 0 and exact output for all ten supported type spellings plus i8-to-i32 and u8-to-i16 exact widening. C23 and Rust 2024 are correctness references only; no performance ranking is claimed. W-392 remains open for shift, power, rotation and named-policy work, remaining bit primitives, SIMD, and the complete integer operator matrix. `benchmarkDisposition: correctness-reference-no-ranking`. |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -14158,3 +14160,30 @@ references only, so `benchmarkDisposition` is
 `exactly:`, `rounding:`, `saturating:`, float conversions, `usize`/`isize`,
 128-bit integers, target-general aliases, stable ABI/FFI, other targets, and
 equivalent runtime work remain open.
+
+#### W-1642 — ordinary binary integer bitwise family
+
+W-1642 implements the already selected ordinary binary `&`, `|`, and `^`
+operators under W-392; it adds no token or policy. The admitted types are
+`i8`/`u8`, `i16`/`u16`, `i32`/`u32`, `i64`/`u64`, and the current x86-64
+`Int`/`UInt` aliases. Existing exact integer widening may first produce a
+common type; each verified-HIR operand pair and its result then use exactly
+that canonical integer type. Source signedness may differ only through a
+range-safe exact widening such as `u8 -> i16`; lossy or ambiguous mixing stays
+invalid. Existing precedence remains `|` below `^` below `&`.
+
+Frontend and verified HIR schema 85 preserve the operator and integer type
+facts. Native0 stays schema 10, MLIR0 is schema 56, and the Windows adapter is
+schema 41. NativeSubset0, the scalar evaluator, and MLIR0 validate the
+same-type invariant. The physical carrier is `i64`; evaluation masks to the
+logical width in the `uint64_t` bit domain and then sign-extends or zero-extends
+according to result signedness. MLIR emits direct LLVM `and`, `or`, and `xor`
+operations, without a runtime helper, heap allocation, or CRT helper.
+
+[`restaurant-integer-bitwise.w`](compiler/seed-c/fixtures/restaurant-integer-bitwise.w)
+is the family source witness. Its source-local comment declares exit 0 and the
+literal result line for each supported type plus the exact widening cases
+`i8 | i32 -> i32` and `u8 | i16 -> i16`. C23 and Rust 2024 are correctness
+references only; there is no performance ranking. The broader W-392 decision
+remains open for shifts, power, rotations and named policies, remaining bit
+primitives, SIMD, and the complete integer operator matrix.

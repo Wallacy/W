@@ -48,6 +48,7 @@ import {
   RESTAURANT_INTEGER_WIDENING_WORKLOAD_ID,
   RESTAURANT_INTEGER_TRUNCATING_BITS_WORKLOAD_ID,
   RESTAURANT_INTEGER_COMPARISON_WORKLOAD_ID,
+  RESTAURANT_INTEGER_BITWISE_WORKLOAD_ID,
   RESTAURANT_CHECKED_INTEGER_ARITHMETIC_WORKLOAD_ID,
   RESTAURANT_UINT_BITWISE_WORKLOAD_ID,
   RESTAURANT_UINT_OVERFLOWING_FAMILY_WORKLOAD_ID,
@@ -204,6 +205,9 @@ test("source-local expected-output comments are opt-in and exact", () => {
     "benchmarks/executable/restaurant_integer_truncating_bits.c",
     "benchmarks/executable/restaurant_integer_truncating_bits.rs",
     "compiler/seed-c/fixtures/restaurant-integer-truncating-bits.w",
+    "benchmarks/executable/restaurant_integer_bitwise.c",
+    "benchmarks/executable/restaurant_integer_bitwise.rs",
+    "compiler/seed-c/fixtures/restaurant-integer-bitwise.w",
     "benchmarks/executable/restaurant_uint_bitwise.c",
     "benchmarks/executable/restaurant_uint_bitwise.rs",
     "compiler/seed-c/fixtures/restaurant-uint-bitwise.w",
@@ -875,7 +879,11 @@ test("fixed-width integer prefix family is one correctness-only witness", () => 
   }
   readFileSync(`${ROOT}/compiler/seed-c/fixtures/restaurant-unary-negate.w`, "utf8");
   readFileSync(`${ROOT}/compiler/seed-c/fixtures/restaurant-unary-interpolation.w`, "utf8");
-  assert.ok(documents.catalog.workloads.some((item) => item.id === "restaurant-bitwise"));
+  assert.ok(!documents.catalog.workloads.some((item) => item.id === "restaurant-bitwise"),
+    "signed-i64 binary bitwise no longer has an atom-level workload row");
+  assert.ok(!documents.catalog.bestMetrics.entries.some((entry) => entry.workloadId === "restaurant-bitwise"),
+    "old signed-i64 fixture metrics must not be transferred to the wider family");
+  assert.ok(documents.catalog.workloads.some((item) => item.id === RESTAURANT_INTEGER_BITWISE_WORKLOAD_ID));
   assert.ok(documents.catalog.workloads.some((item) => item.id === RESTAURANT_UINT_BITWISE_WORKLOAD_ID));
 });
 
@@ -1117,6 +1125,108 @@ test("explicit integer truncating-bits catalog is one correctness-only family wi
   assert.match(rust, /black_box\(250_u8\) as i8/u);
   assert.match(rust, /black_box\(-7_i64\) as u64/u);
   assert.match(rust, /black_box\(u64::MAX\) as i64/u);
+  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
+  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
+});
+
+test("integer binary bitwise catalog is one correctness-only signed/unsigned family witness", () => {
+  const workload = documents.catalog.workloads.find((item) =>
+    item.id === RESTAURANT_INTEGER_BITWISE_WORKLOAD_ID);
+  assert.ok(workload);
+  assert.equal(workload.structureClass, "public-end-to-end");
+  assert.equal(workload.status, "source-oracle-ready");
+  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
+  assert.equal(workload.demoEvidence, "bounded-w-demo");
+  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.match(workload.scope, /binary bitwise AND, OR, and XOR/u);
+  assert.match(workload.scope, /i8\/u8\/i16\/u16\/i32\/u32\/i64\/u64/u);
+  assert.match(workload.scope, /Int\/UInt aliases/u);
+  assert.deepEqual(workload.oracle, {
+    kind: "exact-output",
+    status: "source-backed",
+    exitCode: 0,
+    stdout:
+      "i8 10/-81/-91\nu8 10/175/165\ni16 2570/-20561/-23131\n" +
+      "u16 2570/44975/42405\ni32 168430090/-1347440721/-1515870811\n" +
+      "u32 168430090/2947526575/2779096485\ni64 723401728380766730/" +
+      "-5787213827046133841/-6510615555426900571\n" +
+      "u64 723401728380766730/12659530246663417775/11936128518282651045\n" +
+      "Int 723401728380766730/-5787213827046133841/-6510615555426900571\n" +
+      "UInt 723401728380766730/12659530246663417775/11936128518282651045\n" +
+      "Widened -13\nMixed 255\n",
+    stderr: "",
+  });
+  assert.deepEqual(workload.blockedLanguages, []);
+  assert.deepEqual(workload.blockers, [
+    "w-integer-bitwise-compile-time-folded",
+    "runtime-integer-bitwise-equivalence",
+  ]);
+  assert.deepEqual(workload.sources.map((source) =>
+    [source.language, source.platformTarget]), [
+    ["w", EXECUTABLE_PLATFORM_TARGET],
+    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
+    ["c", EXECUTABLE_PLATFORM_TARGET],
+    ["rust", EXECUTABLE_PLATFORM_TARGET],
+  ]);
+  assert.ok(workload.sources.every((source) =>
+    source.recipeClass === "restaurant-integer-bitwise-release" &&
+    source.quality === "correctness-gate"));
+  assert.deepEqual(workload.sources
+    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
+    .map((source) => [source.comparability, source.eligibility]), [
+      ["deferred-until-M3b", "deferred-to-M3b"],
+      ["deferred-until-M3b", "deferred-to-M3b"],
+      ["deferred-until-M3b", "deferred-to-M3b"],
+    ]);
+  const wsl = workload.sources.find((source) =>
+    source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
+  assert.deepEqual([wsl.comparability, wsl.eligibility], [
+    "same-physical-hardware-diagnostic-only",
+    "same-physical-hardware-diagnostic-only",
+  ]);
+  assert.ok(!documents.catalog.bestMetrics.entries.some((entry) =>
+    entry.workloadId === RESTAURANT_INTEGER_BITWISE_WORKLOAD_ID),
+  "correctness-only bitwise evidence must not acquire timing or ranking data");
+
+  const c = readFileSync(
+    `${ROOT}/benchmarks/executable/restaurant_integer_bitwise.c`, "utf8");
+  const rust = readFileSync(
+    `${ROOT}/benchmarks/executable/restaurant_integer_bitwise.rs`, "utf8");
+  const w = readFileSync(
+    `${ROOT}/compiler/seed-c/fixtures/restaurant-integer-bitwise.w`, "utf8");
+  for (const [name, source] of [["W", w], ["C23", c], ["Rust", rust]]) {
+    assert.deepEqual(parseExecutableSourceExpectation(source), {
+      exitCode: 0,
+      stdout: workload.oracle.stdout,
+      stderr: "",
+      errors: [],
+    }, `${name} source must declare the exact local oracle`);
+    assert.deepEqual(validateExecutableSourceExpectation(source, workload.oracle,
+      `${name} source`), []);
+  }
+  for (const type of ["int8_t", "uint8_t", "int16_t", "uint16_t",
+    "int32_t", "uint32_t", "int64_t", "uint64_t", "intptr_t", "uintptr_t"]) {
+    assert.match(c, new RegExp(`static volatile ${type} \\w+_inputs`, "u"),
+      `${type} must use volatile runtime operands in C23`);
+  }
+  assert.match(c, /static volatile int8_t widened_left/u);
+  assert.match(c, /\(int32_t\)widened_left \| widened_right/u);
+  assert.match(c, /\(int16_t\)mixed_left \| mixed_right/u);
+  assert.match(rust, /i32::from\(widened_left\) \| widened_right/u);
+  assert.match(rust, /i16::from\(mixed_left\) \| mixed_right/u);
+  assert.match(w,
+    /fn bitwise_widened\(left: i8, right: i32\): i32/u);
+  assert.match(w,
+    /fn bitwise_mixed\(left: u8, right: i16\): i16/u);
+  for (const operation of ["a & b", "a | b", "a ^ b"]) {
+    assert.ok(c.includes(operation), `C23 must perform ${operation}`);
+  }
+  assert.equal((rust.match(/black_box\(/gu) ?? []).length, 24,
+    "Rust must black-box both operands for all ten types and exact widening");
+  assert.match(rust, /i64_a \^ i64_b/u);
+  assert.match(rust, /u64_a \| u64_b/u);
+  assert.match(rust, /int_a & int_b/u);
+  assert.match(rust, /uint_a \^ uint_b/u);
   assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
   assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
 });

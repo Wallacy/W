@@ -14120,6 +14120,307 @@ static bool test_signed_bitwise_values(void) {
   return true;
 }
 
+static int64_t test_signed_bits_to_i64(uint64_t bits, uint16_t bit_width) {
+  if (bit_width == 64u) {
+    int64_t value = 0;
+    (void)memcpy(&value, &bits, sizeof(value));
+    return value;
+  }
+  const uint64_t mask = (UINT64_C(1) << bit_width) - UINT64_C(1);
+  bits &= mask;
+  if ((bits & (UINT64_C(1) << (bit_width - 1u))) == 0u)
+    return (int64_t)bits;
+  return (int64_t)bits - (INT64_C(1) << bit_width);
+}
+
+static bool test_integer_bitwise_hir_matrix(void) {
+  typedef struct {
+    const char *name;
+    const char *suffix;
+    const char *left_literal;
+    const char *right_literal;
+    bool is_signed;
+    uint16_t bit_width;
+  } integer_case;
+  static const integer_case INTEGERS[] = {
+      {"i8", "i8", "-86_i8", "15_i8", true, 8u},
+      {"u8", "u8", "170_u8", "15_u8", false, 8u},
+      {"i16", "i16", "-21846_i16", "3855_i16", true, 16u},
+      {"u16", "u16", "43690_u16", "3855_u16", false, 16u},
+      {"i32", "i32", "-1431655766_i32", "252645135_i32", true, 32u},
+      {"u32", "u32", "2863311530_u32", "252645135_u32", false, 32u},
+      {"i64", "i64", "-6148914691236517206_i64",
+       "1085102592571150095_i64", true, 64u},
+      {"u64", "u64", "12297829382473034410_u64",
+       "1085102592571150095_u64", false, 64u},
+      {"Int", "i64", "-6148914691236517206_i64",
+       "1085102592571150095_i64", true, 64u},
+      {"UInt", "u64", "12297829382473034410_u64",
+       "1085102592571150095_u64", false, 64u},
+  };
+  static const struct {
+    const char *symbol;
+    w_seed_hir0_binary_operator operation;
+  } OPERATIONS[] = {
+      {"&", W_SEED_HIR0_BINARY_BIT_AND},
+      {"|", W_SEED_HIR0_BINARY_BIT_OR},
+      {"^", W_SEED_HIR0_BINARY_BIT_XOR},
+  };
+
+  for (size_t integer_index = 0u;
+       integer_index < sizeof(INTEGERS) / sizeof(INTEGERS[0]);
+       integer_index += 1u) {
+    const integer_case *integer = &INTEGERS[integer_index];
+    const uint64_t mask = integer->bit_width == 64u
+                              ? UINT64_MAX
+                              : (UINT64_C(1) << integer->bit_width) - 1u;
+    const uint64_t left_bits = UINT64_C(0xaaaaaaaaaaaaaaaa) & mask;
+    const uint64_t right_bits = UINT64_C(0x0f0f0f0f0f0f0f0f) & mask;
+    for (size_t operation_index = 0u;
+         operation_index < sizeof(OPERATIONS) / sizeof(OPERATIONS[0]);
+         operation_index += 1u) {
+      char source[512];
+      const int written = snprintf(
+          source, sizeof(source),
+          "fn bitwise(left: %s, right: %s): %s { "
+          "return left %s right }\n"
+          "entry { let result = bitwise(left: %s, right: %s) "
+          "print(message: \"${result}\", suffix: \"\") }\n",
+          integer->name, integer->name, integer->name,
+          OPERATIONS[operation_index].symbol, integer->left_literal,
+          integer->right_literal);
+      CHECK(written > 0 && (size_t)written < sizeof(source) && lower(source));
+
+      uint32_t expected_type = W_SEED_HIR0_NONE;
+      for (size_t type_index = 0u;
+           type_index < fixture.hir_program.type_count; type_index += 1u) {
+        bool is_signed = false;
+        uint16_t bit_width = 0u;
+        if (hir_integer_type_facts(&fixture.hir_program,
+                                   (uint32_t)type_index, &is_signed,
+                                   &bit_width) &&
+            is_signed == integer->is_signed &&
+            bit_width == integer->bit_width)
+          expected_type = (uint32_t)type_index;
+      }
+      CHECK(expected_type != W_SEED_HIR0_NONE);
+
+      size_t operation_count = 0u;
+      for (size_t value_index = 0u;
+           value_index < fixture.hir_program.value_count; value_index += 1u) {
+        const w_seed_hir0_value *value =
+            &fixture.hir_program.values[value_index];
+        const w_seed_hir0_value_kind expected_kind =
+            integer->is_signed ? W_SEED_HIR0_VALUE_BINARY_I64
+                               : W_SEED_HIR0_VALUE_BINARY_U64;
+        if (value->kind != expected_kind ||
+            value->binary_operator !=
+                OPERATIONS[operation_index].operation)
+          continue;
+        operation_count += 1u;
+        CHECK(value->type_index == expected_type &&
+              value->left_value < fixture.hir_program.value_count &&
+              value->right_value < fixture.hir_program.value_count &&
+              fixture.hir_program.values[value->left_value].type_index ==
+                  expected_type &&
+              fixture.hir_program.values[value->right_value].type_index ==
+                  expected_type);
+      }
+      CHECK(operation_count == 1u && fixture.hir_program.call_count == 2u);
+
+      uint64_t expected_bits = 0u;
+      if (OPERATIONS[operation_index].operation == W_SEED_HIR0_BINARY_BIT_AND)
+        expected_bits = left_bits & right_bits;
+      else if (OPERATIONS[operation_index].operation ==
+               W_SEED_HIR0_BINARY_BIT_OR)
+        expected_bits = left_bits | right_bits;
+      else
+        expected_bits = left_bits ^ right_bits;
+      expected_bits &= mask;
+
+      size_t budget = 128u;
+      int64_t evaluated_result = INT64_C(0x5151);
+      CHECK(w_seed_scalar_evaluator0_evaluate_call(
+          &fixture.hir_program, 0u, &budget, &evaluated_result));
+      if (integer->is_signed) {
+        CHECK(evaluated_result ==
+              test_signed_bits_to_i64(expected_bits, integer->bit_width));
+      } else {
+        uint64_t actual_bits = 0u;
+        (void)memcpy(&actual_bits, &evaluated_result, sizeof(actual_bits));
+        CHECK(actual_bits == expected_bits);
+      }
+    }
+  }
+
+  static const char WIDENED[] =
+      "fn bits(left: i8, right: i32): i32 { return left | right }\n"
+      "entry { let result = bits(left: -1_i8, right: 16_i32) "
+      "print(message: \"${result}\", suffix: \"\") }\n";
+  CHECK(lower(WIDENED));
+  size_t widened_bitwise = SIZE_MAX;
+  size_t widening_count = 0u;
+  for (size_t value_index = 0u;
+       value_index < fixture.hir_program.value_count; value_index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_program.values[value_index];
+    if (value->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN) widening_count += 1u;
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+        value->binary_operator == W_SEED_HIR0_BINARY_BIT_OR)
+      widened_bitwise = value_index;
+  }
+  CHECK(widening_count == 1u && widened_bitwise != SIZE_MAX &&
+        fixture.hir_values[widened_bitwise].type_index ==
+            fixture.hir_values[fixture.hir_values[widened_bitwise].left_value]
+                .type_index &&
+        fixture.hir_values[widened_bitwise].type_index ==
+            fixture.hir_values[fixture.hir_values[widened_bitwise].right_value]
+                .type_index);
+
+  static const char MIXED_WIDENED[] =
+      "fn bits(left: u8, right: i16): i16 { return left | right }\n"
+      "entry { let result = bits(left: 240_u8, right: 15_i16) "
+      "print(message: \"${result}\", suffix: \"\") }\n";
+  CHECK(lower(MIXED_WIDENED));
+  size_t mixed_bitwise = SIZE_MAX;
+  size_t mixed_widening_count = 0u;
+  for (size_t value_index = 0u;
+       value_index < fixture.hir_program.value_count; value_index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_values[value_index];
+    if (value->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN)
+      mixed_widening_count += 1u;
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+        value->binary_operator == W_SEED_HIR0_BINARY_BIT_OR)
+      mixed_bitwise = value_index;
+  }
+  CHECK(mixed_widening_count == 1u && mixed_bitwise != SIZE_MAX &&
+        fixture.hir_values[mixed_bitwise].left_value <
+            fixture.hir_program.value_count &&
+        fixture.hir_values[mixed_bitwise].right_value <
+            fixture.hir_program.value_count);
+  const w_seed_hir0_value *mixed_operation =
+      &fixture.hir_values[mixed_bitwise];
+  const w_seed_hir0_value *mixed_left =
+      &fixture.hir_values[mixed_operation->left_value];
+  const w_seed_hir0_value *mixed_right =
+      &fixture.hir_values[mixed_operation->right_value];
+  bool mixed_source_signed = true;
+  bool mixed_result_signed = false;
+  uint16_t mixed_source_width = 0u;
+  uint16_t mixed_result_width = 0u;
+  CHECK(mixed_left->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN &&
+        mixed_operation->type_index == mixed_left->type_index &&
+        mixed_operation->type_index == mixed_right->type_index &&
+        hir_integer_type_facts(&fixture.hir_program, mixed_left->source_type,
+                               &mixed_source_signed, &mixed_source_width) &&
+        !mixed_source_signed && mixed_source_width == 8u &&
+        hir_integer_type_facts(&fixture.hir_program, mixed_left->type_index,
+                               &mixed_result_signed, &mixed_result_width) &&
+        mixed_result_signed && mixed_result_width == 16u);
+
+  static const char WIDENED_ARITHMETIC[] =
+      "fn add(left: i8, right: i32): i32 { return left + right }\n"
+      "entry { }\n";
+  CHECK(fixture_frontend(WIDENED_ARITHMETIC));
+  setup_hir_output();
+  const w_seed_hir0_input widened_arithmetic_input = {
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
+  w_seed_hir0_counts widened_arithmetic_counts;
+  w_seed_hir0_result widened_arithmetic_result;
+  CHECK(w_seed_hir0_measure(&widened_arithmetic_input,
+                            &widened_arithmetic_counts,
+                            &widened_arithmetic_result) ==
+        W_SEED_HIR0_UNSUPPORTED);
+
+  static const char RIGHT_WIDENED_ARITHMETIC[] =
+      "fn add(left: i32, right: i8): i32 { return left + right }\n"
+      "entry { }\n";
+  CHECK(lower(RIGHT_WIDENED_ARITHMETIC));
+  size_t right_widening_count = 0u;
+  size_t widened_add = SIZE_MAX;
+  for (size_t value_index = 0u;
+       value_index < fixture.hir_program.value_count; value_index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_program.values[value_index];
+    if (value->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN)
+      right_widening_count += 1u;
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+        value->binary_operator == W_SEED_HIR0_BINARY_ADD)
+      widened_add = value_index;
+  }
+  CHECK(right_widening_count == 1u && widened_add != SIZE_MAX &&
+        fixture.hir_values[widened_add].type_index ==
+            fixture.hir_values[
+                fixture.hir_values[widened_add].left_value].type_index &&
+        fixture.hir_values[widened_add].type_index ==
+            fixture.hir_values[
+                fixture.hir_values[widened_add].right_value].type_index);
+
+  static const char MISMATCHED[] =
+      "fn bits(left: i16, right: u32): i16 { return left & right }\n"
+      "entry { }\n";
+  static const char FLOAT_BITWISE[] =
+      "fn bits(left: f64, right: f64): f64 { return left & right }\n"
+      "entry { }\n";
+  static const char BOOLEAN_BITWISE[] =
+      "fn bits(left: Bool, right: Bool): Bool { return left ^ right }\n"
+      "entry { }\n";
+  CHECK(!lower(MISMATCHED));
+  CHECK(!lower(FLOAT_BITWISE));
+  CHECK(!lower(BOOLEAN_BITWISE));
+
+  static const char FORGED[] =
+      "fn bits(left: i8, right: i8): i8 { return left | right }\n"
+      "fn widths(left: i16, right: u8): i16 { return left }\n"
+      "entry { let result = bits(left: -1_i8, right: 1_i8) "
+      "print(message: \"${result}\", suffix: \"\") }\n";
+  CHECK(lower(FORGED));
+  size_t bitwise_index = SIZE_MAX;
+  uint32_t i16_type = W_SEED_HIR0_NONE;
+  uint32_t u8_type = W_SEED_HIR0_NONE;
+  for (size_t type_index = 0u;
+       type_index < fixture.hir_program.type_count; type_index += 1u) {
+    bool is_signed = false;
+    uint16_t bit_width = 0u;
+    if (!hir_integer_type_facts(&fixture.hir_program, (uint32_t)type_index,
+                                &is_signed, &bit_width))
+      continue;
+    if (is_signed && bit_width == 16u) i16_type = (uint32_t)type_index;
+    if (!is_signed && bit_width == 8u) u8_type = (uint32_t)type_index;
+  }
+  for (size_t value_index = 0u;
+       value_index < fixture.hir_program.value_count; value_index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_program.values[value_index];
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+        value->binary_operator == W_SEED_HIR0_BINARY_BIT_OR)
+      bitwise_index = value_index;
+  }
+  CHECK(i16_type != W_SEED_HIR0_NONE && u8_type != W_SEED_HIR0_NONE &&
+        bitwise_index != SIZE_MAX);
+  const w_seed_hir0_value saved_bitwise = fixture.hir_values[bitwise_index];
+  fixture.hir_values[bitwise_index].type_index = u8_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[bitwise_index] = saved_bitwise;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[bitwise_index].binary_operator =
+      W_SEED_HIR0_BINARY_SHIFT_LEFT;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[bitwise_index] = saved_bitwise;
+  const w_seed_hir0_value saved_right =
+      fixture.hir_values[saved_bitwise.right_value];
+  fixture.hir_values[saved_bitwise.right_value].type_index = i16_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[saved_bitwise.right_value] = saved_right;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_canonical_u64_scalar(void) {
   static const char SOURCE[] =
       "fn identity(value: UInt): UInt { return value }\n"
@@ -14671,7 +14972,7 @@ static bool test_integer_wrapping_hir_matrix(void) {
 }
 
 static bool test_checked_integer_arithmetic_hir_matrix(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-84") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-85") == 0);
   typedef struct {
     const char *name;
     const char *suffix;
@@ -16640,6 +16941,7 @@ int main(int argc, char **argv) {
   if (!test_signed_comparison_values()) return 1;
   if (!test_fixed_integer_comparison_matrix()) return 1;
   if (!test_signed_bitwise_values()) return 1;
+  if (!test_integer_bitwise_hir_matrix()) return 1;
   if (!test_canonical_u64_scalar()) return 1;
   if (!test_u64_binary_values()) return 1;
   if (!test_u64_wrapping_add()) return 1;

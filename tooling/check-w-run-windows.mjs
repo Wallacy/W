@@ -53,8 +53,8 @@ const restaurantUnaryNegateFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unary-negate.w")
 const restaurantUnaryInterpolationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unary-interpolation.w")
-const restaurantBitwiseFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-bitwise.w")
+const restaurantIntegerBitwiseFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-integer-bitwise.w")
 const restaurantUnsignedFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unsigned.w")
 const restaurantShiftsFixture = resolve(seedDirectory,
@@ -712,9 +712,22 @@ try {
       "false/true/true/true/false/false\n" +
       "false/true/false/false/true/true\nAllowed true\nAllowed false\n", "utf8"),
     "Restaurant comparison operators, signed endpoints, and Bool composition")
-  expectExact(binary, ["run", restaurantBitwiseFixture], 0,
-    Buffer.from("Flags 14/-15\n", "utf8"),
-    "Signed-i64 bitwise precedence, complement, and runtime lowering")
+  expectExact(binary, ["run", restaurantIntegerBitwiseFixture], 0,
+    Buffer.from(
+      "i8 10/-81/-91\n" +
+      "u8 10/175/165\n" +
+      "i16 2570/-20561/-23131\n" +
+      "u16 2570/44975/42405\n" +
+      "i32 168430090/-1347440721/-1515870811\n" +
+      "u32 168430090/2947526575/2779096485\n" +
+      "i64 723401728380766730/-5787213827046133841/-6510615555426900571\n" +
+      "u64 723401728380766730/12659530246663417775/11936128518282651045\n" +
+      "Int 723401728380766730/-5787213827046133841/-6510615555426900571\n" +
+      "UInt 723401728380766730/12659530246663417775/11936128518282651045\n" +
+      "Widened -13\n" +
+      "Mixed 255\n",
+      "utf8"),
+    "Fixed-width signed/unsigned integer bitwise family")
   expectExact(binary, ["run", restaurantBoolShortCircuitFixture], 0,
     Buffer.from(
       "Override checked\nClosed allowed true\nCapacity checked\n" +

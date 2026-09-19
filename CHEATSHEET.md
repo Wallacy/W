@@ -394,7 +394,7 @@ test "collections expose labels, bounds, and counts" for collectionSummary {
 
 ## Operators and pipe-forward
 
-<!-- w-example role=executable use=addOne,double,renderNumber,clamp,multiply,divide,remainder,checkedI8Sum,checkedU16Product,checkedI16Divrem,checkedU16Compound,negateSmall,complementSigned,complementUnsigned,Reading,operatorSummary observable=value -->
+<!-- w-example role=executable use=addOne,double,renderNumber,clamp,multiply,divide,remainder,checkedI8Sum,checkedU16Product,combineFlags,widenedFlags,mixedFlags,checkedI16Divrem,checkedU16Compound,negateSmall,complementSigned,complementUnsigned,Reading,operatorSummary observable=value -->
 ```w
 fn addOne(_ value: i32): i32 { return value + 1 }
 fn double(_ value: i32): i32 { return value * 2 }
@@ -407,6 +407,11 @@ fn divide(_ value: i32, by divisor: i32): i32 { return value / divisor }
 fn remainder(_ value: i32, by divisor: i32): i32 { return value % divisor }
 fn checkedI8Sum(left: i8, right: i8): i8 { return left + right }
 fn checkedU16Product(left: u16, right: u16): u16 { return left * right }
+fn combineFlags(left: u8, right: u8): u8 {
+  return (left & right) | (left ^ right)
+}
+fn widenedFlags(left: i8, right: i32): i32 { return left | right }
+fn mixedFlags(left: u8, right: i16): i16 { return left | right }
 fn checkedI16Divrem(left: i16, right: i16): (i16, i16) {
   return (left / right, left % right)
 }
@@ -493,6 +498,9 @@ test "operators and pipe-forward produce values" for operatorSummary {
   expect operatorSummary() == ("42", 10, true, 9, 32, 5, 1, true, 7)
   expect checkedI8Sum(-12_i8, 3_i8) == -9_i8
   expect checkedU16Product(1000_u16, 30_u16) == 30000_u16
+  expect combineFlags(170_u8, 15_u8) == 175_u8
+  expect widenedFlags(-16_i8, 3_i32) == -13_i32
+  expect mixedFlags(240_u8, 15_i16) == 255_i16
   expect checkedI16Divrem(-1000_i16, 30_i16) == (-33_i16, -10_i16)
   expect checkedU16Compound(1000_u16, 30_u16) == 8_u16
   expect negateSmall(7_i16) == -7_i16
@@ -505,6 +513,18 @@ test "operators and pipe-forward produce values" for operatorSummary {
   expect 1 != 2 || false
 }
 ```
+
+Ordinary integer `&`, `|`, and `^` apply existing exact integer widening first,
+then require both operands to have the same canonical integer type and preserve
+that type as the result. Source signedness may differ only through range-safe
+exact widening such as `u8 -> i16`; lossy or ambiguous mixing remains invalid.
+The seed compiler
+covers `i8`/`u8`, `i16`/`u16`, `i32`/`u32`, `i64`/`u64`, and the current
+x86-64 `Int`/`UInt` aliases. The exact family witness is
+[`restaurant-integer-bitwise.w`](compiler/seed-c/fixtures/restaurant-integer-bitwise.w);
+its source-local comment declares the expected exit and literal stdout.
+Width-generic shifts, power, rotations, remaining named bit primitives, and
+SIMD remain open under W-392.
 
 ## Numeric policies and bit primitives
 

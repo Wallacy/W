@@ -54,6 +54,8 @@ const restaurantUnaryNegateFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unary-negate.w")
 const restaurantUnaryInterpolationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unary-interpolation.w")
+const restaurantIntegerBitwiseFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-integer-bitwise.w")
 const restaurantUnsignedFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unsigned.w")
 const restaurantShiftsFixture = resolve(seedDirectory,
@@ -1063,6 +1065,22 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantUnsignedFixture)],
     Buffer.from("Unsigned 18446744073709551615\n", "utf8"),
     "Restaurant full-width UInt parameter, return, and interpolation")
+  expectSuccess(binary, ["run", toWsl(restaurantIntegerBitwiseFixture)],
+    Buffer.from(
+      "i8 10/-81/-91\n" +
+      "u8 10/175/165\n" +
+      "i16 2570/-20561/-23131\n" +
+      "u16 2570/44975/42405\n" +
+      "i32 168430090/-1347440721/-1515870811\n" +
+      "u32 168430090/2947526575/2779096485\n" +
+      "i64 723401728380766730/-5787213827046133841/-6510615555426900571\n" +
+      "u64 723401728380766730/12659530246663417775/11936128518282651045\n" +
+      "Int 723401728380766730/-5787213827046133841/-6510615555426900571\n" +
+      "UInt 723401728380766730/12659530246663417775/11936128518282651045\n" +
+      "Widened -13\n" +
+      "Mixed 255\n",
+      "utf8"),
+    "Restaurant fixed-width signed/unsigned bitwise family")
   expectSuccess(binary, ["run", toWsl(restaurantShiftsFixture)],
     Buffer.from("Shifts -4/15/-48/48\n", "utf8"),
     "Restaurant checked signed and unsigned shifts")

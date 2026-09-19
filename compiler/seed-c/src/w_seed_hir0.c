@@ -3947,11 +3947,27 @@ static bool frontend_usize_literal_leaf_ok(
 static bool frontend_value_tree_ok(
     const w_seed_hir0_input *input, size_t module_index, size_t function_index,
     size_t document_index, size_t use_statement, uint32_t root_index,
+    size_t depth, size_t *expression_cursor, size_t *segment_cursor,
+    size_t *const_byte_cursor, size_t *value_total, size_t *segment_total,
+    size_t *value_bytes, size_t *call_total, size_t *argument_total,
+    size_t *logical_total);
+static bool frontend_value_tree_binary_children_ok(
+    const w_seed_hir0_input *input, size_t module_index,
+    size_t function_index, size_t document_index, size_t use_statement,
+    const w_seed_frontend_expression *binary, size_t depth,
+    size_t *expression_cursor, size_t *segment_cursor,
+    size_t *const_byte_cursor, size_t *value_total, size_t *segment_total,
+    size_t *value_bytes, size_t *call_total, size_t *argument_total,
+    size_t *logical_total);
+
+static bool frontend_value_tree_ok_impl(
+    const w_seed_hir0_input *input, size_t module_index, size_t function_index,
+    size_t document_index, size_t use_statement, uint32_t root_index,
     size_t depth,
     size_t *expression_cursor, size_t *segment_cursor,
     size_t *const_byte_cursor, size_t *value_total, size_t *segment_total,
     size_t *value_bytes, size_t *call_total, size_t *argument_total,
-    size_t *logical_total) {
+    size_t *logical_total, bool defer_integer_widen_child) {
   const w_seed_frontend_output *output = input->frontend_output;
   const w_seed_frontend_result *result = input->frontend_result;
   if (depth > W_SEED_HIR0_MAX_NESTING || expression_cursor == NULL ||
@@ -3997,9 +4013,11 @@ static bool frontend_value_tree_ok(
         value->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
         value->const_byte_offset != W_SEED_FRONTEND_NONE ||
         value->const_byte_count != 0u || value->has_bool_value ||
-        value->has_integer_value || value->has_float_value)
+        value->has_integer_value || value->has_float_value ||
+        (defer_integer_widen_child && value->left >= root_index))
       return false;
-    if (!frontend_value_tree_ok(input, module_index, function_index,
+    if (!defer_integer_widen_child &&
+        !frontend_value_tree_ok(input, module_index, function_index,
                                 document_index, use_statement, value->left,
                                 depth + 1u, expression_cursor, segment_cursor,
                                 const_byte_cursor, value_total, segment_total,
@@ -4314,6 +4332,25 @@ static bool frontend_value_tree_ok(
             output, &output->expressions[value->right]) &&
         left_operand_type->is_signed == right_operand_type->is_signed &&
         left_operand_type->bit_width == right_operand_type->bit_width;
+    const bool ordinary_integer =
+        operation <= W_SEED_HIR0_BINARY_REMAINDER;
+    const bool bitwise_integer =
+        operation >= W_SEED_HIR0_BINARY_BIT_AND &&
+        operation <= W_SEED_HIR0_BINARY_BIT_XOR;
+    const bool same_bitwise_integer_result_domain =
+        bitwise_integer && frontend_expression_is_integer(output, value) &&
+        frontend_expression_is_integer(
+            output, &output->expressions[value->left]) &&
+        frontend_expression_is_integer(
+            output, &output->expressions[value->right]) &&
+        value->inferred_type ==
+            output->expressions[value->left].inferred_type &&
+        value->inferred_type ==
+            output->expressions[value->right].inferred_type &&
+        result_operand_type->is_signed == left_operand_type->is_signed &&
+        result_operand_type->is_signed == right_operand_type->is_signed &&
+        result_operand_type->bit_width == left_operand_type->bit_width &&
+        result_operand_type->bit_width == right_operand_type->bit_width;
     const bool checked_arithmetic =
         operation == W_SEED_HIR0_BINARY_ADD ||
         operation == W_SEED_HIR0_BINARY_SUBTRACT ||
@@ -4335,23 +4372,11 @@ static bool frontend_value_tree_ok(
         (result_u64 && left_u64 && right_u64);
     const bool same_integer_left_result_domain =
         (result_i64 && left_i64) || (result_u64 && left_u64);
-    const bool ordinary_integer =
-        operation <= W_SEED_HIR0_BINARY_REMAINDER;
-    const bool bitwise_integer =
-        operation >= W_SEED_HIR0_BINARY_BIT_AND &&
-        operation <= W_SEED_HIR0_BINARY_BIT_XOR;
-    if (!frontend_value_tree_ok(input, module_index, function_index,
-                                document_index, use_statement, value->left,
-                                depth + 1u, expression_cursor, segment_cursor,
-                                const_byte_cursor, value_total, segment_total,
-                                value_bytes, call_total, argument_total,
-                                logical_total) ||
-        !frontend_value_tree_ok(input, module_index, function_index,
-                                document_index, use_statement, value->right,
-                                depth + 1u, expression_cursor, segment_cursor,
-                                const_byte_cursor, value_total, segment_total,
-                                value_bytes, call_total, argument_total,
-                                logical_total) ||
+    if (!frontend_value_tree_binary_children_ok(
+            input, module_index, function_index, document_index,
+            use_statement, value, depth, expression_cursor, segment_cursor,
+            const_byte_cursor, value_total, segment_total, value_bytes,
+            call_total, argument_total, logical_total) ||
         (size_t)root_index != *expression_cursor ||
         operation > W_SEED_HIR0_BINARY_POWER ||
         (comparison
@@ -4369,14 +4394,16 @@ static bool frontend_value_tree_ok(
                            output, &output->expressions[value->right]))
                     : (shift || power
                            ? (!same_integer_left_result_domain || !right_u64)
-                           : (checked_arithmetic
-                                  ? !same_checked_integer_result_domain
-                                  : (result_u64
-                                         ? ((!ordinary_integer &&
-                                             !bitwise_integer) ||
-                                            !same_integer_result_domain)
-                                         : (!result_i64 ||
-                                            !same_integer_result_domain)))))) ||
+                           : (bitwise_integer
+                                  ? !same_bitwise_integer_result_domain
+                                  : (checked_arithmetic
+                                         ? !same_checked_integer_result_domain
+                                         : (result_u64
+                                                ? ((!ordinary_integer &&
+                                                    !bitwise_integer) ||
+                                                   !same_integer_result_domain)
+                                                : (!result_i64 ||
+                                                   !same_integer_result_domain))))))) ||
         !frontend_value_has_no_resolution(value) ||
         value->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
         value->const_byte_offset != W_SEED_FRONTEND_NONE ||
@@ -4631,6 +4658,113 @@ static bool frontend_value_tree_ok(
   }
   return add_size(*value_total, 1u, value_total) &&
          add_size(*expression_cursor, 1u, expression_cursor);
+}
+
+static bool frontend_value_tree_ok(
+    const w_seed_hir0_input *input, size_t module_index, size_t function_index,
+    size_t document_index, size_t use_statement, uint32_t root_index,
+    size_t depth, size_t *expression_cursor, size_t *segment_cursor,
+    size_t *const_byte_cursor, size_t *value_total, size_t *segment_total,
+    size_t *value_bytes, size_t *call_total, size_t *argument_total,
+    size_t *logical_total) {
+  return frontend_value_tree_ok_impl(
+      input, module_index, function_index, document_index, use_statement,
+      root_index, depth, expression_cursor, segment_cursor, const_byte_cursor,
+      value_total, segment_total, value_bytes, call_total, argument_total,
+      logical_total, false);
+}
+
+static bool frontend_value_tree_binary_children_ok(
+    const w_seed_hir0_input *input, size_t module_index,
+    size_t function_index, size_t document_index, size_t use_statement,
+    const w_seed_frontend_expression *binary, size_t depth,
+    size_t *expression_cursor, size_t *segment_cursor,
+    size_t *const_byte_cursor, size_t *value_total, size_t *segment_total,
+    size_t *value_bytes, size_t *call_total, size_t *argument_total,
+    size_t *logical_total) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || binary == NULL ||
+      expression_cursor == NULL || segment_cursor == NULL ||
+      const_byte_cursor == NULL || value_total == NULL ||
+      segment_total == NULL || value_bytes == NULL || call_total == NULL ||
+      argument_total == NULL || logical_total == NULL ||
+      binary->left == W_SEED_FRONTEND_NONE ||
+      binary->right == W_SEED_FRONTEND_NONE ||
+      (size_t)binary->left >= input->frontend_result->written.expressions ||
+      (size_t)binary->right >= input->frontend_result->written.expressions)
+    return false;
+
+  const w_seed_frontend_expression *left =
+      &input->frontend_output->expressions[binary->left];
+  const w_seed_frontend_expression *right =
+      &input->frontend_output->expressions[binary->right];
+  const bool left_widen =
+      left->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN;
+  const bool right_widen =
+      right->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN;
+  const w_seed_hir0_binary_operator operation =
+      hir_binary_operator(binary->operator_text);
+  const bool bitwise = operation >= W_SEED_HIR0_BINARY_BIT_AND &&
+                       operation <= W_SEED_HIR0_BINARY_BIT_XOR;
+  /* Keep the old traversal order for every existing non-bitwise path.  The
+   * parser appends binary widening wrappers after both operands, so bitwise
+   * values need the source-operand/deferred-wrapper order below. */
+  if (!bitwise)
+    return frontend_value_tree_ok(
+               input, module_index, function_index, document_index,
+               use_statement, binary->left, depth + 1u, expression_cursor,
+               segment_cursor, const_byte_cursor, value_total, segment_total,
+               value_bytes, call_total, argument_total, logical_total) &&
+           frontend_value_tree_ok(
+               input, module_index, function_index, document_index,
+               use_statement, binary->right, depth + 1u, expression_cursor,
+               segment_cursor, const_byte_cursor, value_total, segment_total,
+               value_bytes, call_total, argument_total, logical_total);
+  const uint32_t left_source = left_widen ? left->left : binary->left;
+  const uint32_t right_source = right_widen ? right->left : binary->right;
+  const size_t left_depth = depth + (left_widen ? 2u : 1u);
+  const size_t right_depth = depth + (right_widen ? 2u : 1u);
+  if (!frontend_value_tree_ok(
+          input, module_index, function_index, document_index, use_statement,
+          left_source, left_depth, expression_cursor, segment_cursor,
+          const_byte_cursor, value_total, segment_total, value_bytes,
+          call_total, argument_total, logical_total) ||
+      !frontend_value_tree_ok(
+          input, module_index, function_index, document_index, use_statement,
+          right_source, right_depth, expression_cursor, segment_cursor,
+          const_byte_cursor, value_total, segment_total, value_bytes,
+          call_total, argument_total, logical_total))
+    return false;
+
+  if (left_widen && right_widen && binary->left > binary->right) {
+    if (!frontend_value_tree_ok_impl(
+            input, module_index, function_index, document_index,
+            use_statement, binary->right, depth + 1u, expression_cursor,
+            segment_cursor, const_byte_cursor, value_total, segment_total,
+            value_bytes, call_total, argument_total, logical_total, true) ||
+        !frontend_value_tree_ok_impl(
+            input, module_index, function_index, document_index,
+            use_statement, binary->left, depth + 1u, expression_cursor,
+            segment_cursor, const_byte_cursor, value_total, segment_total,
+            value_bytes, call_total, argument_total, logical_total, true))
+      return false;
+  } else {
+    if (left_widen &&
+        !frontend_value_tree_ok_impl(
+            input, module_index, function_index, document_index,
+            use_statement, binary->left, depth + 1u, expression_cursor,
+            segment_cursor, const_byte_cursor, value_total, segment_total,
+            value_bytes, call_total, argument_total, logical_total, true))
+      return false;
+    if (right_widen &&
+        !frontend_value_tree_ok_impl(
+            input, module_index, function_index, document_index,
+            use_statement, binary->right, depth + 1u, expression_cursor,
+            segment_cursor, const_byte_cursor, value_total, segment_total,
+            value_bytes, call_total, argument_total, logical_total, true))
+      return false;
+  }
+  return true;
 }
 
 static bool frontend_string_value_root(
@@ -15539,6 +15673,9 @@ static bool verify_value_tree(
         value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
         value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_RIGHT;
     const bool power = value->binary_operator == W_SEED_HIR0_BINARY_POWER;
+    const bool bitwise =
+        value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
+        value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR;
     const bool wrapping =
         value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_ADD ||
         value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT ||
@@ -15586,6 +15723,27 @@ static bool verify_value_tree(
         hir_integer_types_equal(
             program, value->type_index,
             program->values[value->right_value].type_index);
+    bool bitwise_result_signed = false;
+    uint16_t bitwise_result_width = 0u;
+    const bool generic_bitwise_types_ok =
+        bitwise && value->left_value < program->value_count &&
+        value->right_value < program->value_count &&
+        hir_integer_type_facts(program, value->type_index,
+                               &bitwise_result_signed,
+                               &bitwise_result_width) &&
+        bitwise_result_signed &&
+        (bitwise_result_width == 8u || bitwise_result_width == 16u ||
+         bitwise_result_width == 32u || bitwise_result_width == 64u) &&
+        hir_integer_types_equal(
+            program, value->type_index,
+            program->values[value->left_value].type_index) &&
+        hir_integer_types_equal(
+            program, value->type_index,
+            program->values[value->right_value].type_index) &&
+        value->type_index ==
+            program->values[value->left_value].type_index &&
+        value->type_index ==
+            program->values[value->right_value].type_index;
     if (((uint32_t)value->binary_operator >
              (uint32_t)W_SEED_HIR0_BINARY_POWER &&
          !wrapping) ||
@@ -15606,7 +15764,9 @@ static bool verify_value_tree(
              ? !generic_wrapping_types_ok
              : (checked_arithmetic
              ? !generic_checked_types_ok
-             : ((shift || power)
+             : (bitwise
+                    ? !generic_bitwise_types_ok
+                    : ((shift || power)
              ? (!hir_type_index_valid(program, value->type_index) ||
                 !hir_type_index_valid(
                     program, program->values[value->left_value].type_index) ||
@@ -15625,7 +15785,7 @@ static bool verify_value_tree(
                              value->binary_operator <=
                                  W_SEED_HIR0_BINARY_GREATER_EQUAL
                          ? 3u
-                    : 2u))))) ||
+                    : 2u)))))) ||
         value->binding_index != W_SEED_HIR0_NONE ||
         value->parameter_index != W_SEED_HIR0_NONE ||
         value->first_interpolation_segment != W_SEED_HIR0_NONE ||
@@ -15697,6 +15857,27 @@ static bool verify_value_tree(
         hir_integer_types_equal(
             program, value->type_index,
             program->values[value->right_value].type_index);
+    bool bitwise_result_signed = true;
+    uint16_t bitwise_result_width = 0u;
+    const bool generic_bitwise_types_ok =
+        bitwise && value->left_value < program->value_count &&
+        value->right_value < program->value_count &&
+        hir_integer_type_facts(program, value->type_index,
+                               &bitwise_result_signed,
+                               &bitwise_result_width) &&
+        !bitwise_result_signed &&
+        (bitwise_result_width == 8u || bitwise_result_width == 16u ||
+         bitwise_result_width == 32u || bitwise_result_width == 64u) &&
+        hir_integer_types_equal(
+            program, value->type_index,
+            program->values[value->left_value].type_index) &&
+        hir_integer_types_equal(
+            program, value->type_index,
+            program->values[value->right_value].type_index) &&
+        value->type_index ==
+            program->values[value->left_value].type_index &&
+        value->type_index ==
+            program->values[value->right_value].type_index;
     if (wrapping || overflowing) {
       if (value->left_value == W_SEED_HIR0_NONE ||
           value->left_value >= program->value_count ||
@@ -15794,7 +15975,7 @@ static bool verify_value_tree(
                               program->values[value->left_value].type_index) ||
         !hir_type_index_valid(
             program, program->values[value->right_value].type_index) ||
-        (!checked_arithmetic &&
+        (!checked_arithmetic && !bitwise &&
          (program->types[program->values[value->left_value].type_index].kind !=
               W_SEED_HIR0_TYPE_U64 ||
           program->types[program->values[value->right_value].type_index].kind !=
@@ -15805,8 +15986,10 @@ static bool verify_value_tree(
                     W_SEED_HIR0_TYPE_BOOL)
              : (checked_arithmetic
                     ? !generic_checked_types_ok
-                    : program->types[value->type_index].kind !=
-                          W_SEED_HIR0_TYPE_U64)) ||
+                    : (bitwise
+                           ? !generic_bitwise_types_ok
+                           : program->types[value->type_index].kind !=
+                                 W_SEED_HIR0_TYPE_U64))) ||
         value->unary_operator != W_SEED_HIR0_UNARY_NOT ||
         value->block_argument_index != W_SEED_HIR0_NONE ||
         value->binding_index != W_SEED_HIR0_NONE ||

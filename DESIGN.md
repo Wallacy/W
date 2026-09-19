@@ -42221,6 +42221,39 @@ uses constants, so `benchmarkDisposition` is
 `usize`/`isize`, 128-bit types, target-general aliases, stable ABI/FFI,
 other targets, and equivalent runtime work remain outside W-1641.
 
+#### 26.4.1.122 W-1642 — ordinary binary integer bitwise family through native execution
+
+W-1642 implements the existing ordinary binary `&`, `|`, and `^` operators
+from W-392 for `i8`/`u8`, `i16`/`u16`, `i32`/`u32`, `i64`/`u64`, and the
+current x86-64 `Int`/`UInt` aliases. It changes no syntax and does not extend
+unary `~`. Existing exact integer widening may first select a common result
+type; the verified HIR operator then requires both operands and the result to
+have that same canonical type. Source signedness may differ only when existing
+exact widening proves one common type, such as `u8 -> i16`; lossy or ambiguous
+mixing is not admitted. The existing precedence remains `|` below `^` below
+`&`.
+
+Verified HIR schema `w-seed-hir0-85` carries the canonical operator and type
+facts. Native0 remains schema 10; MLIR0 uses `w-seed-mlir0-56`, and the
+Windows adapter uses `w-seed-mlir0-windows-41`. NativeSubset0, the scalar
+evaluator, and MLIR0 validate the operand/result type identity.
+
+The seed uses an `i64` physical carrier but computes in the logical-width
+masked `uint64_t` bit domain. It then sign-extends signed results and
+zero-extends unsigned results. MLIR0 emits direct `llvm.and`, `llvm.or`, and
+`llvm.xor` operations; no runtime helper, heap allocation, or CRT helper is
+needed.
+
+The family witness is
+[`restaurant-integer-bitwise.w`](compiler/seed-c/fixtures/restaurant-integer-bitwise.w);
+its source-local comments declare exit 0 and the exact per-type stdout, plus
+`i8 | i32 -> i32` and `u8 | i16 -> i16` exact-widening results. C23 and Rust
+2024 are correctness references only, so
+`benchmarkDisposition` is `correctness-reference-no-ranking`; no performance
+ranking is claimed. W-392 remains open for width-generic shifts and power,
+rotations and named policies, remaining bit primitives, SIMD, and the full
+integer operator matrix.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

@@ -504,7 +504,9 @@ static bool lower_hir(const uint8_t *source_bytes, size_t source_length) {
       .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   w_seed_hir0_counts counts;
   w_seed_hir0_result result;
-  CHECK(w_seed_hir0_measure(&input, &counts, &result) == W_SEED_HIR0_OK);
+  const w_seed_hir0_status measured_status =
+      w_seed_hir0_measure(&input, &counts, &result);
+  CHECK(measured_status == W_SEED_HIR0_OK);
   const w_seed_hir0_status hir_status =
       w_seed_hir0_run(&input, &fixture.hir_output, &fixture.hir_result);
   CHECK(hir_status == W_SEED_HIR0_OK);
@@ -4630,6 +4632,89 @@ static bool test_signed_bitwise_artifact(void) {
   return true;
 }
 
+static bool test_integer_bitwise_width_artifact(void) {
+  static const struct {
+    const char *type;
+    const char *zero;
+    bool is_signed;
+    uint16_t bit_width;
+  } INTEGERS[] = {
+      {"i8", "0_i8", true, 8u},
+      {"u8", "0_u8", false, 8u},
+      {"i16", "0_i16", true, 16u},
+      {"u16", "0_u16", false, 16u},
+      {"i32", "0_i32", true, 32u},
+      {"u32", "0_u32", false, 32u},
+      {"i64", "0_i64", true, 64u},
+      {"u64", "0_u64", false, 64u},
+      {"Int", "0_i64", true, 64u},
+      {"UInt", "0_u64", false, 64u},
+  };
+  for (size_t index = 0u; index < sizeof(INTEGERS) / sizeof(INTEGERS[0]);
+       index += 1u) {
+    char source[TEST_SOURCE];
+    size_t source_length = 0u;
+    char function_source[512];
+    const int function_length = snprintf(
+        function_source, sizeof(function_source),
+        "fn bitwise(left: %s, right: %s): %s { "
+        "return left & right | left ^ right }\n",
+        INTEGERS[index].type, INTEGERS[index].type,
+        INTEGERS[index].type);
+    CHECK(function_length > 0 &&
+          (size_t)function_length < sizeof(function_source) &&
+          append_text(source, sizeof(source), &source_length,
+                      function_source));
+    char entry_source[160];
+    const int entry_length = snprintf(
+        entry_source, sizeof(entry_source),
+        "entry { let result = bitwise(left: %s, right: %s) "
+        "print(\"ok\") }\n",
+        INTEGERS[index].zero, INTEGERS[index].zero);
+    CHECK(entry_length > 0 && (size_t)entry_length < sizeof(entry_source) &&
+          append_text(source, sizeof(source), &source_length, entry_source));
+
+    uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+    w_seed_mlir0_counts counts;
+    w_seed_mlir0_result measured;
+    w_seed_mlir0_result emitted;
+    CHECK(lower_hir((const uint8_t *)source, source_length));
+    CHECK(measure_current(&counts, &measured));
+    CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+    CHECK(counts.mlir_bytes == emitted.written.mlir_bytes);
+    CHECK(count_bytes(artifact, emitted.written.mlir_bytes, "llvm.and ") ==
+              1u &&
+          count_bytes(artifact, emitted.written.mlir_bytes, "llvm.or ") ==
+              1u &&
+          count_bytes(artifact, emitted.written.mlir_bytes, "llvm.xor ") ==
+              1u);
+    CHECK(!contains_bytes(artifact, emitted.written.mlir_bytes,
+                         "w_seed_checked_bit"));
+    if (INTEGERS[index].bit_width == 64u) {
+      CHECK(!contains_bytes(artifact, emitted.written.mlir_bytes,
+                           "_bitwise_"));
+    } else {
+      CHECK(count_bytes(artifact, emitted.written.mlir_bytes,
+                        "_bitwise_left = llvm.trunc ") == 3u &&
+            count_bytes(artifact, emitted.written.mlir_bytes,
+                        "_bitwise_right = llvm.trunc ") == 3u);
+      CHECK(count_bytes(artifact, emitted.written.mlir_bytes,
+                        "_bitwise_raw = llvm.and ") == 1u &&
+            count_bytes(artifact, emitted.written.mlir_bytes,
+                        "_bitwise_raw = llvm.or ") == 1u &&
+            count_bytes(artifact, emitted.written.mlir_bytes,
+                        "_bitwise_raw = llvm.xor ") == 1u);
+      CHECK(count_bytes(artifact, emitted.written.mlir_bytes,
+                        INTEGERS[index].is_signed ? "llvm.sext "
+                                                  : "llvm.zext ") == 3u &&
+            count_bytes(artifact, emitted.written.mlir_bytes,
+                        INTEGERS[index].is_signed ? "llvm.zext "
+                                                  : "llvm.sext ") == 0u);
+    }
+  }
+  return true;
+}
+
 static bool test_signed_bit_not_artifact(void) {
   static const uint8_t source[] =
       "fn invert(value: i64): i64 { return ~value }\n"
@@ -6143,6 +6228,7 @@ int main(int argc, char **argv) {
   if (!test_logical_mlir_adversarial()) return 1;
   if (!test_checked_arithmetic_adversarial()) return 1;
   if (!test_signed_bitwise_artifact()) return 1;
+  if (!test_integer_bitwise_width_artifact()) return 1;
   if (!test_signed_bit_not_artifact()) return 1;
   if (!test_checked_shift_artifact()) return 1;
   if (!test_checked_power_artifact()) return 1;
