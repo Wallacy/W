@@ -49,8 +49,6 @@ const restaurantScalarIfFixture = resolve(seedDirectory, "fixtures", "restaurant
 const restaurantInterpolationFixture = resolve(
   seedDirectory, "fixtures", "restaurant-interpolation.w")
 const restaurantLinearFixture = resolve(seedDirectory, "fixtures", "restaurant-linear.w")
-const restaurantRuntimeDivremFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-runtime-divrem.w")
 const restaurantUnaryNegateFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unary-negate.w")
 const restaurantUnaryInterpolationFixture = resolve(seedDirectory,
@@ -481,6 +479,18 @@ try {
     "runtime-checked-u16-underflow.w")
   const runtimeCheckedI16MultiplyOverflow = join(fixtureDirectory,
     "runtime-checked-i16-multiply-overflow.w")
+  const runtimeDivisionZero = join(fixtureDirectory,
+    "runtime-division-zero.w")
+  const runtimeDivisionOverflow = join(fixtureDirectory,
+    "runtime-division-overflow.w")
+  const runtimeRemainderZero = join(fixtureDirectory,
+    "runtime-remainder-zero.w")
+  const runtimeUnsignedDivisionZero = join(fixtureDirectory,
+    "runtime-unsigned-division-zero.w")
+  const runtimeUnsignedRemainderZero = join(fixtureDirectory,
+    "runtime-unsigned-remainder-zero.w")
+  const runtimeMinimumRemainder = join(fixtureDirectory,
+    "runtime-minimum-remainder.w")
   const unsupportedSource = join(fixtureDirectory, "unsupported.w")
   const privateGraphDirectory = join(fixtureDirectory, "private-graph")
   const privateGraphRoot = join(privateGraphDirectory, "app.w")
@@ -505,6 +515,32 @@ try {
     "fn multiply(left: i16, right: i16): i16 { return left * right }\n" +
     "entry { print(\"must not commit\") " +
     "let result = multiply(left: 200_i16, right: 200_i16) " +
+    "print(\"${result}\") }\n")
+  await writeFile(runtimeDivisionZero,
+    "fn divide(value: i64, by divisor: i64): i64 { return value / divisor }\n" +
+    "entry { print(\"must not commit\") " +
+    "let result = divide(value: 8, by: 0) print(\"${result}\") }\n")
+  await writeFile(runtimeDivisionOverflow,
+    "fn divide(value: i64, by divisor: i64): i64 { return value / divisor }\n" +
+    "entry { print(\"must not commit\") let result = divide(" +
+    "value: 0 - 9223372036854775807 - 1, by: 0 - 1) " +
+    "print(\"${result}\") }\n")
+  await writeFile(runtimeRemainderZero,
+    "fn remainder(value: i64, by divisor: i64): i64 { return value % divisor }\n" +
+    "entry { print(\"must not commit\") " +
+    "let result = remainder(value: 8, by: 0) print(\"${result}\") }\n")
+  await writeFile(runtimeUnsignedDivisionZero,
+    "fn divide(value: u64, by divisor: u64): u64 { return value / divisor }\n" +
+    "entry { print(\"must not commit\") " +
+    "let result = divide(value: 8_u64, by: 0_u64) print(\"${result}\") }\n")
+  await writeFile(runtimeUnsignedRemainderZero,
+    "fn remainder(value: u64, by divisor: u64): u64 { return value % divisor }\n" +
+    "entry { print(\"must not commit\") " +
+    "let result = remainder(value: 8_u64, by: 0_u64) print(\"${result}\") }\n")
+  await writeFile(runtimeMinimumRemainder,
+    "fn remainder(value: i64, by divisor: i64): i64 { return value % divisor }\n" +
+    "entry { let result = remainder(" +
+    "value: 0 - 9223372036854775807 - 1, by: 0 - 1) " +
     "print(\"${result}\") }\n")
   await writeFile(unsupportedSource, "fn main() { noop(\"Other\") }\nentry(main)\n")
   await mkdir(privateGraphDirectory)
@@ -667,9 +703,6 @@ try {
   expectExact(binary, ["run", restaurantLinearFixture], 0,
     Buffer.from("Table 42 remains open\nKitchen is ready\n", "utf8"),
     "Restaurant linear fixture")
-  expectExact(binary, ["run", restaurantRuntimeDivremFixture], 0,
-    Buffer.from("Each 7; left 2\n", "utf8"),
-    "Restaurant checked runtime division/remainder")
   expectExact(binary, ["run", restaurantUnaryNegateFixture], 0,
     Buffer.from("Balance -7\n", "utf8"),
     "Restaurant checked runtime unary negation")
@@ -696,18 +729,35 @@ try {
     "Restaurant strict f64 arithmetic and IEEE comparisons")
   expectExact(binary, ["run", restaurantCheckedIntegerArithmeticFixture], 0,
     Buffer.from(
-      "i8 -9/-15/-36; compound -22\nu8 43/37/120; compound 82\n" +
-      "i16 -970/-1030/-30000; compound -1944\n" +
-      "u16 1030/970/30000; compound 2056\n" +
-      "i32 -117000/-123000/-360000000; compound -234004\n" +
-      "u32 100300/99700/30000000; compound 200596\n" +
-      "i64 -600000/-1200000/-270000000000; compound -1200004\n" +
-      "u64 6000000000/4000000000/5000000000000000000; compound 11999999996\n" +
-      "Int -4000000000/-6000000000/-5000000000000000000; " +
-      "compound -8000000004\n" +
-      "UInt 9000000000/3000000000/18000000000000000000; " +
-      "compound 17999999996\n", "utf8"),
+      "i8 -9/-15/-36; divrem -4/0; compound -2\nu8 43/37/120; divrem 13/1; compound 2\n" +
+      "i16 -970/-1030/-30000; divrem -33/-10; compound -12\n" +
+      "u16 1030/970/30000; divrem 33/10; compound 8\n" +
+      "i32 -117000/-123000/-360000000; divrem -40/0; compound -2\n" +
+      "u32 100300/99700/30000000; divrem 333/100; compound 98\n" +
+      "i64 -600000/-1200000/-270000000000; divrem -3/0; compound -2\n" +
+      "u64 6000000000/4000000000/5000000000000000000; divrem 5/0; compound 999999998\n" +
+      "Int -4000000000/-6000000000/-5000000000000000000; divrem -5/0; compound -2\n" +
+      "UInt 9000000000/3000000000/18000000000000000000; divrem 2/0; compound 2999999998\n", "utf8"),
     "Restaurant checked signed/unsigned integer arithmetic family")
+  expectExact(binary, ["run", runtimeMinimumRemainder], 0,
+    Buffer.from("0\n", "utf8"),
+    "runtime signed minimum remainder by negative one")
+  for (const [pathValue, label] of [
+    [runtimeDivisionZero, "runtime signed division by zero"],
+    [runtimeDivisionOverflow, "runtime signed division overflow"],
+    [runtimeRemainderZero, "runtime signed remainder by zero"],
+    [runtimeUnsignedDivisionZero, "runtime unsigned division by zero"],
+    [runtimeUnsignedRemainderZero, "runtime unsigned remainder by zero"],
+  ]) {
+    const failure = spawn(binary, ["run", pathValue])
+    assert(failure.exitCode !== 0 && failure.stdout.length === 0 &&
+      failure.stderr.length === 0,
+      `${label} must trap silently without committing buffered output: ${JSON.stringify({
+        exitCode: failure.exitCode,
+        stdout: failure.stdout.toString(),
+        stderr: failure.stderr.toString(),
+      })}`)
+  }
   for (const [path, label] of [
     [runtimeCheckedI8Overflow, "signed i8 checked addition overflow"],
     [runtimeCheckedU16Underflow, "unsigned u16 checked compound subtraction underflow"],

@@ -17,11 +17,11 @@ bool w_seed_scalar_evaluator0_checked_binary(
     w_seed_hir0_binary_operator operation, int64_t left, int64_t right,
     int64_t *result);
 
-/* Checked ordinary integer add/subtract/multiply over the logical integer
- * domain. Operands and result use the canonical i64 carrier: signed values
- * are sign-extended and unsigned values are zero-extended. Signedness and
- * width remain data rather than per-width operations. On failure, result is
- * unchanged. */
+/* Checked ordinary integer add/subtract/multiply/divide/remainder over the
+ * logical integer domain. Operands and result use the canonical i64 carrier:
+ * signed values are sign-extended and unsigned values are zero-extended.
+ * Signedness and width remain data rather than per-width operations. On
+ * failure, result is unchanged. */
 bool w_seed_scalar_evaluator0_checked_integer_arithmetic(
     w_seed_hir0_binary_operator operation, bool is_signed,
     uint16_t bit_width, uint64_t left_bits, uint64_t right_bits,

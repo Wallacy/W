@@ -79,7 +79,7 @@
       "id": "corpus",
       "role": "design-input",
       "path": "tooling/avf0-availability-feature-cases.json",
-      "digest": "sha256:95d7117c8abeeaaf2a07785e15a57bf2d2f69e0d6b9350af2d53af5f8e403013"
+      "digest": "sha256:dae393fe8bbf3b045638f8a45e667136bdbf87a6e368a1880ca43a285272a19a"
     },
     {
       "id": "machine",
@@ -109,7 +109,7 @@
       "id": "snapshot",
       "role": "derived-output",
       "path": "tooling/avf0-availability-feature-results.snapshot.jsonl",
-      "digest": "sha256:876f946ef264ddef36a909a49c7385bf7c011dd5d9b14823f992281862dfa176"
+      "digest": "sha256:e67895c75605c04263e39296c893416e9d13086251008964eb2f473070edfd56"
     }
   ],
   "sourceRefs": [

@@ -18,14 +18,14 @@ extern "C" {
  * program, selects the fixed native print subset, and emits textual builtin
  * plus LLVM dialect MLIR for one fixed target. The artifact is recipe-private
  * and does not allocate or execute. */
-#define W_SEED_MLIR0_SCHEMA_VERSION "w-seed-mlir0-52"
-#define W_SEED_MLIR0_WINDOWS_SCHEMA_VERSION "w-seed-mlir0-windows-37"
+#define W_SEED_MLIR0_SCHEMA_VERSION "w-seed-mlir0-53"
+#define W_SEED_MLIR0_WINDOWS_SCHEMA_VERSION "w-seed-mlir0-windows-38"
 #define W_SEED_MLIR0_TARGET_TRIPLE_LINUX "x86_64-unknown-linux-gnu"
 #define W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS "x86_64-pc-windows-msvc"
 #define W_SEED_MLIR0_PROCESS_SCHEMA_VERSION \
   "w-seed-mlir0-process-handler-1"
 #define W_SEED_MLIR0_PROCESS_EXECUTABLE_SCHEMA_VERSION \
-  "w-seed-mlir0-process-executable-1"
+  "w-seed-mlir0-process-executable-2"
 /* Target-neutral M2 cooperative product emission is a scalar MLIR core.  It
  * has no target triple, data-layout, runtime, or process-entry contract. */
 #define W_SEED_MLIR0_COOPERATIVE_SCHEMA_VERSION \
@@ -43,7 +43,7 @@ extern "C" {
  * entries.  It is linkable MLIR: the process adapter and provider own the
  * unresolved launch/join symbols, while the HIR task remains target-private. */
 #define W_SEED_MLIR0_PROCESS_PARALLEL_SCHEMA_VERSION \
-  "w-seed-mlir0-process-parallel-1"
+  "w-seed-mlir0-process-parallel-2"
 /* Private compiler-lifecycle probes for one HIR40 synchronous typed invoke
  * and its HIR41 one-cleanup extension. The carrier is an optimizer-visible
  * two-field LLVM aggregate, not a W ABI: field 0 is an i1 outcome (0 =

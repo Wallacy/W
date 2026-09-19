@@ -92,6 +92,32 @@ static bool test_scalar_evaluator_edges(void) {
               W_SEED_HIR0_BINARY_MULTIPLY, true, width,
               (uint64_t)signed_min, UINT64_MAX, &result_bits) &&
           result_bits == UINT64_C(0x5151515151515151));
+    CHECK(w_seed_scalar_evaluator0_checked_integer_arithmetic(
+              W_SEED_HIR0_BINARY_DIVIDE, true, width,
+              (uint64_t)INT64_C(-7), (uint64_t)INT64_C(3), &result_bits) &&
+          result_bits == (uint64_t)INT64_C(-2));
+    CHECK(w_seed_scalar_evaluator0_checked_integer_arithmetic(
+              W_SEED_HIR0_BINARY_REMAINDER, true, width,
+              (uint64_t)INT64_C(-7), (uint64_t)INT64_C(3), &result_bits) &&
+          result_bits == (uint64_t)INT64_C(-1));
+    result_bits = UINT64_C(0x5151515151515151);
+    CHECK(!w_seed_scalar_evaluator0_checked_integer_arithmetic(
+              W_SEED_HIR0_BINARY_DIVIDE, true, width,
+              (uint64_t)signed_min, UINT64_MAX, &result_bits) &&
+          result_bits == UINT64_C(0x5151515151515151));
+    CHECK(w_seed_scalar_evaluator0_checked_integer_arithmetic(
+              W_SEED_HIR0_BINARY_REMAINDER, true, width,
+              (uint64_t)signed_min, UINT64_MAX, &result_bits) &&
+          result_bits == 0u);
+    result_bits = UINT64_C(0x5151515151515151);
+    CHECK(!w_seed_scalar_evaluator0_checked_integer_arithmetic(
+              W_SEED_HIR0_BINARY_DIVIDE, true, width,
+              (uint64_t)signed_min, 0u, &result_bits) &&
+          result_bits == UINT64_C(0x5151515151515151));
+    CHECK(!w_seed_scalar_evaluator0_checked_integer_arithmetic(
+              W_SEED_HIR0_BINARY_REMAINDER, true, width,
+              (uint64_t)signed_min, 0u, &result_bits) &&
+          result_bits == UINT64_C(0x5151515151515151));
 
     result_bits = UINT64_C(0x5151515151515151);
     CHECK(w_seed_scalar_evaluator0_checked_integer_arithmetic(
@@ -111,6 +137,23 @@ static bool test_scalar_evaluator_edges(void) {
     result_bits = UINT64_C(0x5151515151515151);
     CHECK(!w_seed_scalar_evaluator0_checked_integer_arithmetic(
               W_SEED_HIR0_BINARY_MULTIPLY, false, width, mask, 2u,
+              &result_bits) &&
+          result_bits == UINT64_C(0x5151515151515151));
+    CHECK(w_seed_scalar_evaluator0_checked_integer_arithmetic(
+              W_SEED_HIR0_BINARY_DIVIDE, false, width, 7u, 3u,
+              &result_bits) &&
+          result_bits == 2u);
+    CHECK(w_seed_scalar_evaluator0_checked_integer_arithmetic(
+              W_SEED_HIR0_BINARY_REMAINDER, false, width, 7u, 3u,
+              &result_bits) &&
+          result_bits == 1u);
+    result_bits = UINT64_C(0x5151515151515151);
+    CHECK(!w_seed_scalar_evaluator0_checked_integer_arithmetic(
+              W_SEED_HIR0_BINARY_DIVIDE, false, width, mask, 0u,
+              &result_bits) &&
+          result_bits == UINT64_C(0x5151515151515151));
+    CHECK(!w_seed_scalar_evaluator0_checked_integer_arithmetic(
+              W_SEED_HIR0_BINARY_REMAINDER, false, width, mask, 0u,
               &result_bits) &&
           result_bits == UINT64_C(0x5151515151515151));
   }
@@ -14225,6 +14268,7 @@ static bool test_integer_wrapping_hir_matrix(void) {
 }
 
 static bool test_checked_integer_arithmetic_hir_matrix(void) {
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-82") == 0);
   typedef struct {
     const char *name;
     const char *suffix;
@@ -14247,10 +14291,13 @@ static bool test_checked_integer_arithmetic_hir_matrix(void) {
   static const struct {
     const char *symbol;
     w_seed_hir0_binary_operator operation;
+    int64_t expected_result;
   } OPERATIONS[] = {
-      {"+", W_SEED_HIR0_BINARY_ADD},
-      {"-", W_SEED_HIR0_BINARY_SUBTRACT},
-      {"*", W_SEED_HIR0_BINARY_MULTIPLY},
+      {"+", W_SEED_HIR0_BINARY_ADD, 11},
+      {"-", W_SEED_HIR0_BINARY_SUBTRACT, 7},
+      {"*", W_SEED_HIR0_BINARY_MULTIPLY, 18},
+      {"/", W_SEED_HIR0_BINARY_DIVIDE, 4},
+      {"%", W_SEED_HIR0_BINARY_REMAINDER, 1},
   };
   char source[512];
   for (size_t integer_index = 0u;
@@ -14261,20 +14308,15 @@ static bool test_checked_integer_arithmetic_hir_matrix(void) {
          operation_index < sizeof(OPERATIONS) / sizeof(OPERATIONS[0]);
          operation_index += 1u) {
       int written;
-      if (integer->alias) {
-        written = snprintf(
-            source, sizeof(source),
-            "fn arithmetic(left: %s, right: %s): %s { return left %s right }\n"
-            "entry { let result = arithmetic(left: 1_%s, right: 2_%s) }\n",
-            integer->name, integer->name, integer->name,
-            OPERATIONS[operation_index].symbol, integer->suffix,
-            integer->suffix);
-      } else {
-        written = snprintf(
-            source, sizeof(source),
-            "entry { let result = 1_%s %s 2_%s }\n", integer->suffix,
-            OPERATIONS[operation_index].symbol, integer->suffix);
-      }
+      written = snprintf(
+          source, sizeof(source),
+          "fn arithmetic(left: %s, right: %s): %s { "
+          "let result = left %s right return result }\n"
+          "entry { let result = arithmetic(left: 9_%s, right: 2_%s) "
+          "print(message: \"checked\", suffix: \"\") }\n",
+          integer->name, integer->name, integer->name,
+          OPERATIONS[operation_index].symbol, integer->suffix,
+          integer->suffix);
       CHECK(written > 0 && (size_t)written < sizeof(source));
       CHECK(lower(source));
 
@@ -14315,6 +14357,12 @@ static bool test_checked_integer_arithmetic_hir_matrix(void) {
                   expected_type);
       }
       CHECK(operation_count == 1u);
+      CHECK(fixture.hir_program.call_count == 2u);
+      size_t budget = 128u;
+      int64_t evaluated_result = INT64_C(0x5151);
+      CHECK(w_seed_scalar_evaluator0_evaluate_call(
+                &fixture.hir_program, 0u, &budget, &evaluated_result) &&
+            evaluated_result == OPERATIONS[operation_index].expected_result);
     }
   }
 
@@ -14357,6 +14405,67 @@ static bool test_checked_integer_arithmetic_hir_matrix(void) {
   reseal_hir_fixture();
   CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
 
+  return true;
+}
+
+static bool test_checked_integer_divrem_compound_hir_matrix(void) {
+  static const struct {
+    const char *name;
+    const char *suffix;
+  } INTEGERS[] = {
+      {"i8", "i8"},     {"u8", "u8"},     {"i16", "i16"},
+      {"u16", "u16"},   {"i32", "i32"},   {"u32", "u32"},
+      {"i64", "i64"},   {"u64", "u64"},   {"Int", "i64"},
+      {"UInt", "u64"},
+  };
+  char source[384];
+  for (size_t integer_index = 0u;
+       integer_index < sizeof(INTEGERS) / sizeof(INTEGERS[0]);
+       integer_index += 1u) {
+    const int written = snprintf(
+        source, sizeof(source),
+        "fn arithmetic(left: %s, right: %s): %s { var value = left "
+        "value /= right value %%= right return value }\n"
+        "entry { let result = arithmetic(left: 17_%s, right: 5_%s) "
+        "print(message: \"checked\", suffix: \"\") }\n",
+        INTEGERS[integer_index].name, INTEGERS[integer_index].name,
+        INTEGERS[integer_index].name, INTEGERS[integer_index].suffix,
+        INTEGERS[integer_index].suffix);
+    CHECK(written > 0 && (size_t)written < sizeof(source));
+    CHECK(lower(source));
+
+    size_t divide_count = 0u;
+    size_t remainder_count = 0u;
+    for (size_t value_index = 0u;
+         value_index < fixture.hir_program.value_count; value_index += 1u) {
+      const w_seed_hir0_value *value =
+          &fixture.hir_program.values[value_index];
+      if (value->binary_operator != W_SEED_HIR0_BINARY_DIVIDE &&
+          value->binary_operator != W_SEED_HIR0_BINARY_REMAINDER)
+        continue;
+      CHECK((value->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
+             value->kind == W_SEED_HIR0_VALUE_BINARY_U64) &&
+            value->type_index < fixture.hir_program.type_count &&
+            value->left_value < fixture.hir_program.value_count &&
+            value->right_value < fixture.hir_program.value_count &&
+            fixture.hir_program.values[value->left_value].type_index ==
+                value->type_index &&
+            fixture.hir_program.values[value->right_value].type_index ==
+                value->type_index);
+      if (value->binary_operator == W_SEED_HIR0_BINARY_DIVIDE)
+        divide_count += 1u;
+      else
+        remainder_count += 1u;
+    }
+    CHECK(divide_count == 1u && remainder_count == 1u &&
+          fixture.hir_program.call_count == 2u);
+    size_t budget = 128u;
+    int64_t evaluated_result = INT64_C(0x5151);
+    CHECK(w_seed_scalar_evaluator0_evaluate_call(
+              &fixture.hir_program, 0u, &budget, &evaluated_result) &&
+          evaluated_result == 3);
+
+  }
   return true;
 }
 
@@ -16132,6 +16241,7 @@ int main(int argc, char **argv) {
   if (!test_u64_wrapping_add()) return 1;
   if (!test_integer_wrapping_hir_matrix()) return 1;
   if (!test_checked_integer_arithmetic_hir_matrix()) return 1;
+  if (!test_checked_integer_divrem_compound_hir_matrix()) return 1;
   if (!test_u64_saturating_add()) return 1;
   if (!test_u64_overflowing_products()) return 1;
   if (!test_u64_overflowing_power()) return 1;

@@ -50,8 +50,6 @@ const processEnumPayloadFixture = resolve(seedDirectory,
   "fixtures", "process-enum-payload.w")
 const localGraphFixture = resolve(seedDirectory, "fixtures", "local-graph",
   "app.w")
-const restaurantRuntimeDivremFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-runtime-divrem.w")
 const restaurantUnaryNegateFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unary-negate.w")
 const restaurantUnaryInterpolationFixture = resolve(seedDirectory,
@@ -749,6 +747,16 @@ try {
     "restaurant_scalar_return.w")
   const runtimeDivisionZero = join(fixtureDirectory,
     "runtime_division_zero.w")
+  const runtimeDivisionOverflow = join(fixtureDirectory,
+    "runtime_division_overflow.w")
+  const runtimeRemainderZero = join(fixtureDirectory,
+    "runtime_remainder_zero.w")
+  const runtimeUnsignedDivisionZero = join(fixtureDirectory,
+    "runtime_unsigned_division_zero.w")
+  const runtimeUnsignedRemainderZero = join(fixtureDirectory,
+    "runtime_unsigned_remainder_zero.w")
+  const runtimeMinimumRemainder = join(fixtureDirectory,
+    "runtime_minimum_remainder.w")
   const runtimeCheckedI8Overflow = join(fixtureDirectory,
     "runtime_checked_i8_overflow.w")
   const runtimeCheckedU16Underflow = join(fixtureDirectory,
@@ -805,8 +813,30 @@ try {
     "print(\"Table ${table}\") }\nentry(main)\n")
   await writeFile(runtimeDivisionZero,
     "fn divide(value: i64, by divisor: i64): i64 { return value / divisor }\n" +
-    "fn main() { let result = divide(value: 8, by: 0) " +
-    "print(\"success ${result}\") }\nentry(main)\n")
+    "entry { print(\"must not commit\") " +
+    "let result = divide(value: 8, by: 0) print(\"${result}\") }\n")
+  await writeFile(runtimeDivisionOverflow,
+    "fn divide(value: i64, by divisor: i64): i64 { return value / divisor }\n" +
+    "entry { print(\"must not commit\") let result = divide(" +
+    "value: 0 - 9223372036854775807 - 1, by: 0 - 1) " +
+    "print(\"${result}\") }\n")
+  await writeFile(runtimeRemainderZero,
+    "fn remainder(value: i64, by divisor: i64): i64 { return value % divisor }\n" +
+    "entry { print(\"must not commit\") " +
+    "let result = remainder(value: 8, by: 0) print(\"${result}\") }\n")
+  await writeFile(runtimeUnsignedDivisionZero,
+    "fn divide(value: u64, by divisor: u64): u64 { return value / divisor }\n" +
+    "entry { print(\"must not commit\") " +
+    "let result = divide(value: 8_u64, by: 0_u64) print(\"${result}\") }\n")
+  await writeFile(runtimeUnsignedRemainderZero,
+    "fn remainder(value: u64, by divisor: u64): u64 { return value % divisor }\n" +
+    "entry { print(\"must not commit\") " +
+    "let result = remainder(value: 8_u64, by: 0_u64) print(\"${result}\") }\n")
+  await writeFile(runtimeMinimumRemainder,
+    "fn remainder(value: i64, by divisor: i64): i64 { return value % divisor }\n" +
+    "entry { let result = remainder(" +
+    "value: 0 - 9223372036854775807 - 1, by: 0 - 1) " +
+    "print(\"${result}\") }\n")
   await writeFile(runtimeCheckedI8Overflow,
     "fn add(left: i8, right: i8): i8 { return left + right }\n" +
     "entry { print(\"must not commit\") " +
@@ -998,9 +1028,6 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantScalarReturn)],
     Buffer.from("Table 42\n", "utf8"),
     "Restaurant scalar return")
-  expectSuccess(binary, ["run", toWsl(restaurantRuntimeDivremFixture)],
-    Buffer.from("Each 7; left 2\n", "utf8"),
-    "Restaurant checked runtime division/remainder")
   expectSuccess(binary, ["run", toWsl(restaurantUnaryNegateFixture)],
     Buffer.from("Balance -7\n", "utf8"),
     "Restaurant checked runtime unary negation")
@@ -1027,17 +1054,16 @@ try {
     "Restaurant strict f64 arithmetic and IEEE comparisons")
   expectSuccess(binary, ["run", toWsl(restaurantCheckedIntegerArithmeticFixture)],
     Buffer.from(
-      "i8 -9/-15/-36; compound -22\nu8 43/37/120; compound 82\n" +
-      "i16 -970/-1030/-30000; compound -1944\n" +
-      "u16 1030/970/30000; compound 2056\n" +
-      "i32 -117000/-123000/-360000000; compound -234004\n" +
-      "u32 100300/99700/30000000; compound 200596\n" +
-      "i64 -600000/-1200000/-270000000000; compound -1200004\n" +
-      "u64 6000000000/4000000000/5000000000000000000; compound 11999999996\n" +
-      "Int -4000000000/-6000000000/-5000000000000000000; " +
-      "compound -8000000004\n" +
-      "UInt 9000000000/3000000000/18000000000000000000; " +
-      "compound 17999999996\n", "utf8"),
+      "i8 -9/-15/-36; divrem -4/0; compound -2\n" +
+      "u8 43/37/120; divrem 13/1; compound 2\n" +
+      "i16 -970/-1030/-30000; divrem -33/-10; compound -12\n" +
+      "u16 1030/970/30000; divrem 33/10; compound 8\n" +
+      "i32 -117000/-123000/-360000000; divrem -40/0; compound -2\n" +
+      "u32 100300/99700/30000000; divrem 333/100; compound 98\n" +
+      "i64 -600000/-1200000/-270000000000; divrem -3/0; compound -2\n" +
+      "u64 6000000000/4000000000/5000000000000000000; divrem 5/0; compound 999999998\n" +
+      "Int -4000000000/-6000000000/-5000000000000000000; divrem -5/0; compound -2\n" +
+      "UInt 9000000000/3000000000/18000000000000000000; divrem 2/0; compound 2999999998\n", "utf8"),
     "Restaurant checked signed/unsigned integer arithmetic family")
   expectSuccess(binary, ["run", toWsl(restaurantIntegerWrappingFixture)],
     Buffer.from(
@@ -1168,10 +1194,21 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantMultiBranchMutationFixture)],
     Buffer.from("Open 18; closed -4\n", "utf8"),
     "Restaurant multi-branch mutation merge")
-  const divisionFault = invoke(binary, ["run", toWsl(runtimeDivisionZero)])
-  assert(divisionFault.exitCode !== 0 && divisionFault.stdout.length === 0 &&
-    divisionFault.stderr.length === 0,
-  `runtime division by zero did not fail before output: ${resultSummary(divisionFault)}`)
+  expectSuccess(binary, ["run", toWsl(runtimeMinimumRemainder)],
+    Buffer.from("0\n", "utf8"),
+    "runtime signed minimum remainder by negative one")
+  for (const [path, label] of [
+    [runtimeDivisionZero, "runtime signed division by zero"],
+    [runtimeDivisionOverflow, "runtime signed division overflow"],
+    [runtimeRemainderZero, "runtime signed remainder by zero"],
+    [runtimeUnsignedDivisionZero, "runtime unsigned division by zero"],
+    [runtimeUnsignedRemainderZero, "runtime unsigned remainder by zero"],
+  ]) {
+    const fault = invoke(binary, ["run", toWsl(path)])
+    assert(fault.exitCode !== 0 && fault.stdout.length === 0 &&
+      fault.stderr.length === 0,
+    `${label} did not fail silently before output commit: ${resultSummary(fault)}`)
+  }
   for (const [path, label] of [
     [runtimeCheckedI8Overflow, "signed i8 checked addition overflow"],
     [runtimeCheckedU16Underflow, "unsigned u16 checked compound subtraction underflow"],

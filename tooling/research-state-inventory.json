@@ -78,7 +78,7 @@
         "tooling/studies/avf0-availability-feature/study.json",
         "tooling/studies/avf0-availability-feature/typed-runtime-feature.w"
       ],
-      "artifactsDigest": "sha256:54df4def58735bf7fe186cdfe6215c64d9bee90ffe76775e999dff7527860785"
+      "artifactsDigest": "sha256:528758e725706341662838732bcb1174c47c312a2061be1701192e1c06326803"
     },
     {
       "id": "sec0",
@@ -250,7 +250,7 @@
         "tooling/studies/hrd0-hot-reload-dev/split-runner.w",
         "tooling/studies/hrd0-hot-reload-dev/study.json"
       ],
-      "artifactsDigest": "sha256:c6d488832c8dc2988e9f2b6c2ea466e9b4b6bac6a4efbb4406687d0fbd85f3c3"
+      "artifactsDigest": "sha256:1a46d0015b06d8b66e5a316a299bfc3d796cac813e6f9bbca00c8203a1ceb6d0"
     },
     {
       "id": "dyn1",
@@ -278,7 +278,7 @@
         "tooling/studies/dyn1-versioned-behavior/persistent-generation-reference.txt",
         "tooling/studies/dyn1-versioned-behavior/study.json"
       ],
-      "artifactsDigest": "sha256:e2d70d9c16a2bb258baef06c5366472d3f0fad37653f40646a014e55e73e8a05"
+      "artifactsDigest": "sha256:ff923f53645f28a1a917f3488c8b0f1474c0d290361fdb64a2be91626309e36a"
     },
     {
       "id": "atom1",

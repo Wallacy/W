@@ -83,7 +83,9 @@ bool w_seed_scalar_evaluator0_checked_integer_arithmetic(
        bit_width != 64u) ||
       (operation != W_SEED_HIR0_BINARY_ADD &&
        operation != W_SEED_HIR0_BINARY_SUBTRACT &&
-       operation != W_SEED_HIR0_BINARY_MULTIPLY))
+       operation != W_SEED_HIR0_BINARY_MULTIPLY &&
+       operation != W_SEED_HIR0_BINARY_DIVIDE &&
+       operation != W_SEED_HIR0_BINARY_REMAINDER))
     return false;
 
   const uint64_t mask = scalar_width_mask(bit_width);
@@ -122,6 +124,14 @@ bool w_seed_scalar_evaluator0_checked_integer_arithmetic(
     case W_SEED_HIR0_BINARY_MULTIPLY:
       if (left_bits != 0u && right_bits > mask / left_bits) return false;
       candidate = left_bits * right_bits;
+      break;
+    case W_SEED_HIR0_BINARY_DIVIDE:
+      if (right_bits == 0u) return false;
+      candidate = left_bits / right_bits;
+      break;
+    case W_SEED_HIR0_BINARY_REMAINDER:
+      if (right_bits == 0u) return false;
+      candidate = left_bits % right_bits;
       break;
     default:
       return false;
@@ -260,8 +270,10 @@ static bool scalar_evaluate_call(const w_seed_hir0_program *program,
     return false;
   const w_seed_hir0_function *function =
       &program->functions[identity->target_index];
+  scalar_integer_facts return_facts;
   if (function->parameter_count != call->argument_count ||
-      !scalar_i64_type(program, function->return_type))
+      !scalar_integer_type_facts(program, function->return_type,
+                                 &return_facts))
     return false;
   for (size_t index = 0u; index < call->argument_count; index += 1u) {
     const w_seed_hir0_argument *argument =
@@ -366,7 +378,9 @@ static bool scalar_evaluate_value(const w_seed_hir0_program *program,
       const bool checked_arithmetic =
           value->binary_operator == W_SEED_HIR0_BINARY_ADD ||
           value->binary_operator == W_SEED_HIR0_BINARY_SUBTRACT ||
-          value->binary_operator == W_SEED_HIR0_BINARY_MULTIPLY;
+          value->binary_operator == W_SEED_HIR0_BINARY_MULTIPLY ||
+          value->binary_operator == W_SEED_HIR0_BINARY_DIVIDE ||
+          value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER;
       scalar_integer_facts value_type;
       scalar_integer_facts left_type;
       scalar_integer_facts right_type;
@@ -411,7 +425,9 @@ static bool scalar_evaluate_value(const w_seed_hir0_program *program,
       scalar_integer_facts right_type;
       if ((value->binary_operator != W_SEED_HIR0_BINARY_ADD &&
            value->binary_operator != W_SEED_HIR0_BINARY_SUBTRACT &&
-           value->binary_operator != W_SEED_HIR0_BINARY_MULTIPLY) ||
+           value->binary_operator != W_SEED_HIR0_BINARY_MULTIPLY &&
+           value->binary_operator != W_SEED_HIR0_BINARY_DIVIDE &&
+           value->binary_operator != W_SEED_HIR0_BINARY_REMAINDER) ||
           !scalar_integer_type_facts(program, value->type_index,
                                      &value_type) ||
           value_type.is_signed || value->left_value >= program->value_count ||
@@ -522,10 +538,12 @@ static bool scalar_evaluate_function(const w_seed_hir0_program *program,
     return false;
   *budget -= 1u;
   const w_seed_hir0_function *function = &program->functions[function_index];
+  scalar_integer_facts return_facts;
   if (function->parameter_count != parameter_count ||
       function->block_count != 1u ||
       function->first_block >= program->block_count ||
-      !scalar_i64_type(program, function->return_type))
+      !scalar_integer_type_facts(program, function->return_type,
+                                 &return_facts))
     return false;
   const w_seed_hir0_block *block = &program->blocks[function->first_block];
   if (!scalar_range(block->first_instruction, block->instruction_count,

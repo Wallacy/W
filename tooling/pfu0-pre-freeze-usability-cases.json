@@ -58,7 +58,7 @@
       "source": {
         "path": "reference/last-light/build.w",
         "symbol": "package {",
-        "digest": "sha256:53943d95e353121b18807492c3d7282df2bfb77b1a89cbf3859d8d4637ef44fc",
+        "digest": "sha256:3f2c504a2d139ac24a44dd58892436f7d1ff608b5f3edf11913c445006548c75",
         "claim": "Current package root is a data-only manifest."
       },
       "observations": {
@@ -168,7 +168,7 @@
       "source": {
         "path": "reference/last-light/build.w",
         "symbol": "workspace {",
-        "digest": "sha256:53943d95e353121b18807492c3d7282df2bfb77b1a89cbf3859d8d4637ef44fc",
+        "digest": "sha256:3f2c504a2d139ac24a44dd58892436f7d1ff608b5f3edf11913c445006548c75",
         "claim": "Current workspace member ownership is a candidate's control."
       },
       "observations": {
@@ -278,7 +278,7 @@
       "source": {
         "path": "reference/last-light/build.w",
         "symbol": "workspace {",
-        "digest": "sha256:53943d95e353121b18807492c3d7282df2bfb77b1a89cbf3859d8d4637ef44fc",
+        "digest": "sha256:3f2c504a2d139ac24a44dd58892436f7d1ff608b5f3edf11913c445006548c75",
         "claim": "Workspace root is the source-backed ownership boundary."
       },
       "observations": {

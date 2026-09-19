@@ -394,7 +394,7 @@ test "collections expose labels, bounds, and counts" for collectionSummary {
 
 ## Operators and pipe-forward
 
-<!-- w-example role=executable use=addOne,double,renderNumber,clamp,multiply,divide,remainder,Reading,operatorSummary observable=value -->
+<!-- w-example role=executable use=addOne,double,renderNumber,clamp,multiply,divide,remainder,checkedI8Sum,checkedU16Product,checkedI16Divrem,checkedU16Compound,Reading,operatorSummary observable=value -->
 ```w
 fn addOne(_ value: i32): i32 { return value + 1 }
 fn double(_ value: i32): i32 { return value * 2 }
@@ -407,11 +407,16 @@ fn divide(_ value: i32, by divisor: i32): i32 { return value / divisor }
 fn remainder(_ value: i32, by divisor: i32): i32 { return value % divisor }
 fn checkedI8Sum(left: i8, right: i8): i8 { return left + right }
 fn checkedU16Product(left: u16, right: u16): u16 { return left * right }
+fn checkedI16Divrem(left: i16, right: i16): (i16, i16) {
+  return (left / right, left % right)
+}
 fn checkedU16Compound(left: u16, right: u16): u16 {
   var result = left
   result += right
   result -= 2_u16
   result *= 2_u16
+  result /= 2_u16
+  result %= right
   return result
 }
 
@@ -484,7 +489,8 @@ test "operators and pipe-forward produce values" for operatorSummary {
   expect operatorSummary() == ("42", 10, true, 9, 32, 5, 1, true, 7)
   expect checkedI8Sum(-12_i8, 3_i8) == -9_i8
   expect checkedU16Product(1000_u16, 30_u16) == 30000_u16
-  expect checkedU16Compound(1000_u16, 30_u16) == 2056_u16
+  expect checkedI16Divrem(-1000_i16, 30_i16) == (-33_i16, -10_i16)
+  expect checkedU16Compound(1000_u16, 30_u16) == 8_u16
   expect assigned == 7
   expect (0b1000 >> 2) == 2
   expect (~0_u8) == 0xff

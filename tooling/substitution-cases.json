@@ -4680,21 +4680,88 @@
       ]
     },
     {
-      "id": "R0-runtime-i64-divrem",
-      "reviewItem": "checked runtime signed-i64 division and remainder against target undefined behavior, eager faulting operations, and ambient unchecked arithmetic",
+      "id": "R0-fixed-width-integer-comparison-family",
+      "reviewItem": "fixed-width integer comparisons against host signedness, width-erasing predicates, and per-operator executable rows",
       "decisions": [
-        "W-1551"
+        "W-1638"
       ],
-      "task": "Execute parameter-driven division and remainder through the bounded native product while proving fault-before-output behavior.",
+      "task": "Execute all six integer comparison operators across the supported signed and unsigned logical widths while preserving a Bool result and target-independent ordering semantics.",
       "selected": {
         "language": "w",
         "source": [
-          "fn portion(total: i64, among guests: i64): i64 { return total / guests }",
-          "fn leftovers(total: i64, among guests: i64): i64 { return total % guests }",
-          "entry {",
-          "  let each = portion(total: 23, among: 3)",
-          "  let remaining = leftovers(total: 23, among: 3)",
-          "  print(\"Each ${each}; left ${remaining}\")",
+          "fn ordered(left: i16, right: i16): Bool {",
+          "  return left < right && left != right",
+          "}"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "physical-carrier-comparison",
+          "language": "text",
+          "source": [
+            "compare every integer as an unsigned i64 carrier"
+          ],
+          "expectedDifference": "Ordering must follow the verified logical signedness and width rather than the temporary physical carrier."
+        },
+        {
+          "name": "per-operator-benchmark-rows",
+          "language": "text",
+          "source": [
+            "retain six executables that differ only by the comparison predicate"
+          ],
+          "expectedDifference": "One family witness keeps all predicates observable while focused tests retain adversarial operator coverage."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-integer-comparison.w",
+          "symbol": "Expected stdout",
+          "claim": "One public family witness declares exact output for all six predicates and supported integer spellings."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "append_integer_compare_operation",
+          "claim": "MLIR lowering selects signed or unsigned predicates from verified logical type facts."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_fixed_integer_comparison_matrix",
+          "claim": "Focused HIR evidence covers the signedness and width matrix without creating benchmark rows per case."
+        },
+        {
+          "path": "tooling/check-mlir0.mjs",
+          "symbol": "restaurant-integer-comparison",
+          "claim": "The MLIR gate verifies, links, executes, and compares exact family output."
+        }
+      ],
+      "checks": [
+        "bun check --target mlir0 passes exact comparison-family output",
+        "bun check --target w-run and w-run-windows pass the same family on maintained CRT-free routes",
+        "Focused HIR0 and MLIR0 units preserve Bool results and signed/unsigned predicates"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
+    },
+    {
+      "id": "R0-fixed-width-checked-arithmetic-family",
+      "reviewItem": "checked fixed-width arithmetic against per-width compiler branches, target undefined behavior, eager faulting operations, and fragmented executable evidence",
+      "decisions": [
+        "W-1551",
+        "W-1639"
+      ],
+      "task": "Execute the checked +, -, *, /, and % family plus compound assignment across signed and unsigned logical widths while proving exact output and fault-before-output behavior.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn exercise(left: i16, right: i16): i16 {",
+          "  var value = left",
+          "  value /= right",
+          "  value %= right",
+          "  return value + (left - right) + (left * right)",
           "}"
         ]
       },
@@ -4722,13 +4789,21 @@
             "link checked divide and remainder helpers into every executable"
           ],
           "expectedDifference": "Only helpers required by reachable runtime operations belong to the product closure; constant and unrelated programs remain smaller."
+        },
+        {
+          "name": "per-width-operator-implementations",
+          "language": "text",
+          "source": [
+            "implement each width and signedness as a separate semantic operation"
+          ],
+          "expectedDifference": "One operation identity plus verified signedness and logical-width facts avoids divergent behavior across ten public type spellings."
         }
       ],
       "sourceRefs": [
         {
-          "path": "compiler/seed-c/fixtures/restaurant-runtime-divrem.w",
-          "symbol": "portion",
-          "claim": "The Restaurant witness combines parameter-driven quotient and remainder with a short default entry."
+          "path": "compiler/seed-c/fixtures/restaurant-checked-integer-arithmetic.w",
+          "symbol": "Expected stdout",
+          "claim": "One public Restaurant family witness declares exact output for all signed and unsigned 8/16/32/64-bit forms and the current Int/UInt aliases."
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
@@ -4747,20 +4822,20 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "symbol": "restaurantRuntimeDivremFixture",
-          "claim": "The Linux MLIR gate proves exact successful output plus three runtime fault paths with empty stdout."
+          "symbol": "restaurant-checked-integer-arithmetic",
+          "claim": "The MLIR gate proves exact family output, width-aware helper lowering, and runtime fault paths with empty stdout and stderr."
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "symbol": "restaurantRuntimeDivremFixture",
-          "claim": "The native Windows public runner executes the same checked Restaurant witness."
+          "symbol": "restaurantCheckedIntegerArithmeticFixture",
+          "claim": "The native Windows public runner executes the same checked family and fault witnesses."
         }
       ],
       "checks": [
-        "bun check --target mlir0 passes exact quotient/remainder output and zero/overflow fault-before-output cases",
-        "bun check --target w-run passes the Restaurant witness through the CRT-free Linux WRT0 product route",
-        "bun check --target w-run-windows passes the same Restaurant witness through the native Windows product route",
-        "Focused MLIR0 units preserve direct safe constant operations and demand-driven runtime helpers"
+        "bun check --target mlir0 passes exact family output and zero/overflow fault-before-output cases",
+        "bun check --target w-run passes the family through the CRT-free Linux WRT0 product route",
+        "bun check --target w-run-windows passes the same family through the native Windows product route",
+        "Focused HIR0 and MLIR0 units preserve logical-width semantics, direct safe constants, and demand-driven runtime helpers"
       ],
       "measures": [
         "semantic-correctness",

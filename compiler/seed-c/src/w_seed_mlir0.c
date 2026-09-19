@@ -287,10 +287,13 @@ static const char MLIR0_CHECKED_I64_MULTIPLY_HELPER[] =
     "  }\n";
 
 static const char MLIR0_CHECKED_I64_DIVIDE_HELPER[] =
-    "  llvm.func internal @w_seed_checked_divide_i64(%left: i64, %right: i64) -> i64 {\n"
+    "  llvm.func internal @w_seed_checked_divide_i64(%left: i64, %right: i64, %width: i64) -> i64 {\n"
     "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
     "    %negative_one = llvm.mlir.constant(-1 : i64) : i64\n"
-    "    %minimum = llvm.mlir.constant(-9223372036854775808 : i64) : i64\n"
+    "    %minimum_i64 = llvm.mlir.constant(-9223372036854775808 : i64) : i64\n"
+    "    %width64 = llvm.mlir.constant(64 : i64) : i64\n"
+    "    %minimum_shift = llvm.sub %width64, %width : i64\n"
+    "    %minimum = llvm.ashr %minimum_i64, %minimum_shift : i64\n"
     "    %zero_divisor = llvm.icmp \"eq\" %right, %zero : i64\n"
     "    %minimum_left = llvm.icmp \"eq\" %left, %minimum : i64\n"
     "    %negative_one_right = llvm.icmp \"eq\" %right, %negative_one : i64\n"
@@ -306,10 +309,13 @@ static const char MLIR0_CHECKED_I64_DIVIDE_HELPER[] =
     "  }\n";
 
 static const char MLIR0_CHECKED_I64_REMAINDER_HELPER[] =
-    "  llvm.func internal @w_seed_checked_remainder_i64(%left: i64, %right: i64) -> i64 {\n"
+    "  llvm.func internal @w_seed_checked_remainder_i64(%left: i64, %right: i64, %width: i64) -> i64 {\n"
     "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
     "    %negative_one = llvm.mlir.constant(-1 : i64) : i64\n"
-    "    %minimum = llvm.mlir.constant(-9223372036854775808 : i64) : i64\n"
+    "    %minimum_i64 = llvm.mlir.constant(-9223372036854775808 : i64) : i64\n"
+    "    %width64 = llvm.mlir.constant(64 : i64) : i64\n"
+    "    %minimum_shift = llvm.sub %width64, %width : i64\n"
+    "    %minimum = llvm.ashr %minimum_i64, %minimum_shift : i64\n"
     "    %zero_divisor = llvm.icmp \"eq\" %right, %zero : i64\n"
     "    llvm.cond_br %zero_divisor, ^checked_fault, ^checked_nonzero\n"
     "  ^checked_fault:\n"
@@ -392,7 +398,7 @@ static const char MLIR0_CHECKED_U64_MULTIPLY_HELPER[] =
     "  }\n";
 
 static const char MLIR0_CHECKED_U64_DIVIDE_HELPER[] =
-    "  llvm.func internal @w_seed_checked_divide_u64(%left: i64, %right: i64) -> i64 {\n"
+    "  llvm.func internal @w_seed_checked_divide_u64(%left: i64, %right: i64, %width: i64) -> i64 {\n"
     "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
     "    %zero_divisor = llvm.icmp \"eq\" %right, %zero : i64\n"
     "    llvm.cond_br %zero_divisor, ^u64_checked_fault, ^u64_checked_ok\n"
@@ -405,7 +411,7 @@ static const char MLIR0_CHECKED_U64_DIVIDE_HELPER[] =
     "  }\n";
 
 static const char MLIR0_CHECKED_U64_REMAINDER_HELPER[] =
-    "  llvm.func internal @w_seed_checked_remainder_u64(%left: i64, %right: i64) -> i64 {\n"
+    "  llvm.func internal @w_seed_checked_remainder_u64(%left: i64, %right: i64, %width: i64) -> i64 {\n"
     "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
     "    %zero_divisor = llvm.icmp \"eq\" %right, %zero : i64\n"
     "    llvm.cond_br %zero_divisor, ^u64_checked_fault, ^u64_checked_ok\n"
@@ -1994,75 +2000,28 @@ static bool mlir0_value_is_constant_i64(const w_seed_hir0_program *program,
          mlir0_value_is_constant_i64(program, value->right_value, depth + 1u);
 }
 
-static bool mlir0_value_is_constant_u64(const w_seed_hir0_program *program,
-                                        uint32_t value_index, size_t depth) {
-  if (program == NULL || depth > 256u || value_index >= program->value_count)
-    return false;
-  const w_seed_hir0_value *value = &program->values[value_index];
-  if (value->type_index >= program->type_count ||
-      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64)
-    return false;
-  if (value->kind == W_SEED_HIR0_VALUE_CONST_U64) return true;
-  if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64)
-    return (value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT ||
-            value->unary_operator == W_SEED_HIR0_UNARY_WRAPPING_NEGATE ||
-            value->unary_operator == W_SEED_HIR0_UNARY_SATURATING_NEGATE ||
-            value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ONES ||
-            value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ZEROS ||
-            value->unary_operator ==
-                W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS ||
-            value->unary_operator ==
-                W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS ||
-            value->unary_operator == W_SEED_HIR0_UNARY_REVERSED_BITS ||
-            value->unary_operator == W_SEED_HIR0_UNARY_REVERSED_BYTES) &&
-           value->left_value != W_SEED_HIR0_NONE &&
-           mlir0_value_is_constant_u64(program, value->left_value,
-                                       depth + 1u);
-  return value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
-         (value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER ||
-         (value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
-           value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR) ||
-          value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
-          value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_RIGHT ||
-          value->binary_operator == W_SEED_HIR0_BINARY_POWER ||
-          value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_ADD ||
-          value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT ||
-          value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY ||
-          value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_POWER ||
-          value->binary_operator ==
-              W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT ||
-          value->binary_operator ==
-              W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT ||
-          value->binary_operator ==
-              W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT ||
-          value->binary_operator ==
-              W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT ||
-          value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_LEFT ||
-          value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_RIGHT ||
-          value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_ADD ||
-          value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_SUBTRACT ||
-          value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_MULTIPLY ||
-          value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_POWER) &&
-         mlir0_value_is_constant_u64(program, value->left_value,
-                                      depth + 1u) &&
-         mlir0_value_is_constant_u64(program, value->right_value,
-                                      depth + 1u);
-}
-
 static bool mlir0_value_has_safe_constant_divisor(
     const w_seed_hir0_program *program, const w_seed_hir0_value *value) {
   if (program == NULL || value == NULL ||
-      value->binary_operator != W_SEED_HIR0_BINARY_DIVIDE ||
+      (value->binary_operator != W_SEED_HIR0_BINARY_DIVIDE &&
+       value->binary_operator != W_SEED_HIR0_BINARY_REMAINDER) ||
       value->right_value >= program->value_count)
     return false;
+  bool is_signed = false;
+  uint16_t bit_width = 0u;
+  bool divisor_is_signed = false;
+  uint16_t divisor_bit_width = 0u;
+  if (!mlir0_integer_type_facts(program, value->type_index, &is_signed,
+                                &bit_width) ||
+      !mlir0_integer_value_facts(program, value->right_value,
+                                 &divisor_is_signed, &divisor_bit_width) ||
+      is_signed != divisor_is_signed || bit_width != divisor_bit_width)
+    return false;
   const w_seed_hir0_value *divisor = &program->values[value->right_value];
-  if (divisor->kind == W_SEED_HIR0_VALUE_CONST_I64)
-    return divisor->type_index < program->type_count &&
-           program->types[divisor->type_index].kind == W_SEED_HIR0_TYPE_I64 &&
+  if (is_signed)
+    return divisor->kind == W_SEED_HIR0_VALUE_CONST_I64 &&
            divisor->integer_value != 0 && divisor->integer_value != -1;
   return divisor->kind == W_SEED_HIR0_VALUE_CONST_U64 &&
-         divisor->type_index < program->type_count &&
-         program->types[divisor->type_index].kind == W_SEED_HIR0_TYPE_U64 &&
          divisor->unsigned_integer_value != 0u;
 }
 
@@ -2381,9 +2340,7 @@ static bool mark_reachable_value_tree(
     return true;
   }
   if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
-    if (!(mlir0_value_has_safe_constant_divisor(program, value) ||
-          (value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER &&
-           mlir0_value_is_constant_i64(program, value_index, 0u))))
+    if (!mlir0_value_has_safe_constant_divisor(program, value))
       note_checked_binary_operator(value->binary_operator, has_add,
                                    has_subtract, has_multiply, has_divide,
                                    has_remainder);
@@ -2427,7 +2384,7 @@ static bool mark_reachable_value_tree(
 
 static void note_checked_u64_binary_operator(
     w_seed_hir0_binary_operator operation, bool safe_constant_divisor,
-    bool constant_remainder, bool *has_add, bool *has_subtract,
+    bool *has_add, bool *has_subtract,
     bool *has_multiply, bool *has_divide, bool *has_remainder) {
   if (has_add == NULL || has_subtract == NULL || has_multiply == NULL ||
       has_divide == NULL || has_remainder == NULL)
@@ -2442,7 +2399,7 @@ static void note_checked_u64_binary_operator(
            !safe_constant_divisor)
     *has_divide = true;
   else if (operation == W_SEED_HIR0_BINARY_REMAINDER &&
-           !constant_remainder)
+           !safe_constant_divisor)
     *has_remainder = true;
 }
 
@@ -2465,8 +2422,6 @@ static void derive_reachable_u64_helpers(
     note_checked_u64_binary_operator(
         value->binary_operator,
         mlir0_value_has_safe_constant_divisor(program, value),
-        value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER &&
-            mlir0_value_is_constant_u64(program, (uint32_t)value_index, 0u),
         has_add, has_subtract, has_multiply, has_divide, has_remainder);
   }
 }
@@ -3111,10 +3066,8 @@ static bool append_binary_value_operation_in_loop(
       program->values[value_index].kind != W_SEED_HIR0_VALUE_BINARY_I64)
     return false;
   const w_seed_hir0_value *value = &program->values[value_index];
-  const bool constant_division =
-      mlir0_value_has_safe_constant_divisor(program, value) ||
-      (value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER &&
-       mlir0_value_is_constant_i64(program, value_index, 0u));
+  const bool safe_constant_divisor =
+      mlir0_value_has_safe_constant_divisor(program, value);
   const bool shift =
       value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
       value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_RIGHT;
@@ -3122,14 +3075,17 @@ static bool append_binary_value_operation_in_loop(
   const char *helper =
       shift ? checked_shift_helper(program, value)
             : (power ? checked_power_helper(program, value)
-                     : (constant_division
+                     : (safe_constant_divisor
                             ? NULL
                             : checked_binary_helper(value->binary_operator)));
   const bool checked_arithmetic =
       value->binary_operator == W_SEED_HIR0_BINARY_ADD ||
       value->binary_operator == W_SEED_HIR0_BINARY_SUBTRACT ||
       value->binary_operator == W_SEED_HIR0_BINARY_MULTIPLY;
-  if (helper != NULL && checked_arithmetic &&
+  const bool checked_division =
+      value->binary_operator == W_SEED_HIR0_BINARY_DIVIDE ||
+      value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER;
+  if (helper != NULL && (checked_arithmetic || checked_division) &&
       !append_checked_integer_width_argument(
           program, value_index, true, artifact, capacity, offset))
     return false;
@@ -3149,7 +3105,7 @@ static bool append_binary_value_operation_in_loop(
             program, value->right_value, function_index, process, loop,
             artifact, capacity, offset))
       return false;
-    if (checked_arithmetic)
+    if (checked_arithmetic || checked_division)
       return append_literal(artifact, capacity, offset, ", ") &&
              append_checked_integer_width_operand(
                  value_index, artifact, capacity, offset) &&
@@ -3236,10 +3192,8 @@ static bool append_binary_u64_value_operation(
       value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_LEFT;
   const bool rotated_right =
       value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_RIGHT;
-  const bool constant_division =
-      mlir0_value_has_safe_constant_divisor(program, value) ||
-      (value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER &&
-       mlir0_value_is_constant_u64(program, value_index, 0u));
+  const bool safe_constant_divisor =
+      mlir0_value_has_safe_constant_divisor(program, value);
   const char *helper = NULL;
   if (overflowing_power)
     helper = overflowing_power_helper(program, value);
@@ -3266,14 +3220,17 @@ static bool append_binary_u64_value_operation(
   else if (!comparison && !wrapping && !saturating_add &&
            !saturating_subtract && !saturating_multiply && !overflowing &&
            !overflowing_power && !saturating_power &&
-           !constant_division)
+           !safe_constant_divisor)
     helper = checked_u64_binary_helper(value->binary_operator);
 
   const bool checked_arithmetic =
       value->binary_operator == W_SEED_HIR0_BINARY_ADD ||
       value->binary_operator == W_SEED_HIR0_BINARY_SUBTRACT ||
       value->binary_operator == W_SEED_HIR0_BINARY_MULTIPLY;
-  if (helper != NULL && checked_arithmetic &&
+  const bool checked_division =
+      value->binary_operator == W_SEED_HIR0_BINARY_DIVIDE ||
+      value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER;
+  if (helper != NULL && (checked_arithmetic || checked_division) &&
       !append_checked_integer_width_argument(
           program, value_index, false, artifact, capacity, offset))
     return false;
@@ -3402,7 +3359,7 @@ static bool append_binary_u64_value_operation(
                                       function_index, process, artifact,
                                       capacity, offset))
       return false;
-    if (checked_arithmetic)
+    if (checked_arithmetic || checked_division)
       return append_literal(artifact, capacity, offset, ", ") &&
              append_checked_integer_width_operand(
                  value_index, artifact, capacity, offset) &&

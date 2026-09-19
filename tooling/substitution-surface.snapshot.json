@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:43190239282a47dd450ccc86f87c5dc7af47179ff90ac05a0e13a65776b99c9e",
+  "corpusDigest": "sha256:c4d142ecbdf93195f49dfce166bd3fbb9bdefa62935f8f937df6ddd403fd41ec",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -5717,24 +5717,72 @@
       ]
     },
     {
-      "id": "R0-runtime-i64-divrem",
+      "id": "R0-fixed-width-integer-comparison-family",
       "task": {
-        "utf8Bytes": 126,
-        "codePoints": 126,
-        "nonWhitespaceCodePoints": 113,
+        "utf8Bytes": 174,
+        "codePoints": 174,
+        "nonWhitespaceCodePoints": 152,
         "lines": 1,
-        "surfaceLexemes": 21
+        "surfaceLexemes": 26
       },
       "selected": {
         "name": "selected",
         "language": "w",
-        "sourceDigest": "sha256:2a9096f325c0eabede2e7ac44e2e04da23bd76178061c9e98fa32df120327763",
+        "sourceDigest": "sha256:361629c20c07ebc84d34b412dfe8169979b212c277af88b01028d9963b8bcf69",
         "metrics": {
-          "utf8Bytes": 291,
-          "codePoints": 291,
-          "nonWhitespaceCodePoints": 239,
-          "lines": 7,
-          "surfaceLexemes": 73
+          "utf8Bytes": 82,
+          "codePoints": 82,
+          "nonWhitespaceCodePoints": 65,
+          "lines": 3,
+          "surfaceLexemes": 25
+        }
+      },
+      "alternatives": [
+        {
+          "name": "physical-carrier-comparison",
+          "language": "text",
+          "sourceDigest": "sha256:829c5458ea1028dc5afe1980e9f7c31783f24a2157b484af2180844e303d26f6",
+          "metrics": {
+            "utf8Bytes": 48,
+            "codePoints": 48,
+            "nonWhitespaceCodePoints": 41,
+            "lines": 1,
+            "surfaceLexemes": 8
+          }
+        },
+        {
+          "name": "per-operator-benchmark-rows",
+          "language": "text",
+          "sourceDigest": "sha256:82e8f27efe1c2f861570b3e9bcb64f00d907f7059c8b5890bcb7947ba4805c68",
+          "metrics": {
+            "utf8Bytes": 67,
+            "codePoints": 67,
+            "nonWhitespaceCodePoints": 58,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-fixed-width-checked-arithmetic-family",
+      "task": {
+        "utf8Bytes": 172,
+        "codePoints": 172,
+        "nonWhitespaceCodePoints": 147,
+        "lines": 1,
+        "surfaceLexemes": 35
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:6e7b9e9b4ce116ad7442a175b379ee100c9da8642cefde91ca951285e54b9663",
+        "metrics": {
+          "utf8Bytes": 145,
+          "codePoints": 145,
+          "nonWhitespaceCodePoints": 110,
+          "lines": 6,
+          "surfaceLexemes": 41
         }
       },
       "alternatives": [
@@ -5772,6 +5820,18 @@
             "nonWhitespaceCodePoints": 55,
             "lines": 1,
             "surfaceLexemes": 9
+          }
+        },
+        {
+          "name": "per-width-operator-implementations",
+          "language": "text",
+          "sourceDigest": "sha256:052adbb9b2c828379baa6f17c2755f1382ceb8d296a445c2683f41a65dca206c",
+          "metrics": {
+            "utf8Bytes": 68,
+            "codePoints": 68,
+            "nonWhitespaceCodePoints": 59,
+            "lines": 1,
+            "surfaceLexemes": 10
           }
         }
       ]

@@ -1,124 +1,114 @@
 // Expected exit: 0
 // Expected stdout:
-// i8 -9/-15/-36; compound -22
-// u8 43/37/120; compound 82
-// i16 -970/-1030/-30000; compound -1944
-// u16 1030/970/30000; compound 2056
-// i32 -117000/-123000/-360000000; compound -234004
-// u32 100300/99700/30000000; compound 200596
-// i64 -600000/-1200000/-270000000000; compound -1200004
-// u64 6000000000/4000000000/5000000000000000000; compound 11999999996
-// Int -4000000000/-6000000000/-5000000000000000000; compound -8000000004
-// UInt 9000000000/3000000000/18000000000000000000; compound 17999999996
+// i8 -9/-15/-36; divrem -4/0; compound -2
+// u8 43/37/120; divrem 13/1; compound 2
+// i16 -970/-1030/-30000; divrem -33/-10; compound -12
+// u16 1030/970/30000; divrem 33/10; compound 8
+// i32 -117000/-123000/-360000000; divrem -40/0; compound -2
+// u32 100300/99700/30000000; divrem 333/100; compound 98
+// i64 -600000/-1200000/-270000000000; divrem -3/0; compound -2
+// u64 6000000000/4000000000/5000000000000000000; divrem 5/0; compound 999999998
+// Int -4000000000/-6000000000/-5000000000000000000; divrem -5/0; compound -2
+// UInt 9000000000/3000000000/18000000000000000000; divrem 2/0; compound 2999999998
 
 fn exerciseI8(left: i8, right: i8) {
-  let sum = left + right
-  let difference = left - right
-  let product = left * right
   var compound = left
   compound += right
   compound -= 2_i8
   compound *= 2_i8
-  print("i8 ${sum}/${difference}/${product}; compound ${compound}")
+  compound /= 2_i8
+  compound %= right
+  print("i8 ${left + right}/${left - right}/${left * right}; divrem ${left / right}/${left % right}; compound ${compound}")
 }
 
 fn exerciseU8(left: u8, right: u8) {
-  let sum = left + right
-  let difference = left - right
-  let product = left * right
   var compound = left
   compound += right
   compound -= 2_u8
   compound *= 2_u8
-  print("u8 ${sum}/${difference}/${product}; compound ${compound}")
+  compound /= 2_u8
+  compound %= right
+  print("u8 ${left + right}/${left - right}/${left * right}; divrem ${left / right}/${left % right}; compound ${compound}")
 }
 
 fn exerciseI16(left: i16, right: i16) {
-  let sum = left + right
-  let difference = left - right
-  let product = left * right
   var compound = left
   compound += right
   compound -= 2_i16
   compound *= 2_i16
-  print("i16 ${sum}/${difference}/${product}; compound ${compound}")
+  compound /= 2_i16
+  compound %= right
+  print("i16 ${left + right}/${left - right}/${left * right}; divrem ${left / right}/${left % right}; compound ${compound}")
 }
 
 fn exerciseU16(left: u16, right: u16) {
-  let sum = left + right
-  let difference = left - right
-  let product = left * right
   var compound = left
   compound += right
   compound -= 2_u16
   compound *= 2_u16
-  print("u16 ${sum}/${difference}/${product}; compound ${compound}")
+  compound /= 2_u16
+  compound %= right
+  print("u16 ${left + right}/${left - right}/${left * right}; divrem ${left / right}/${left % right}; compound ${compound}")
 }
 
 fn exerciseI32(left: i32, right: i32) {
-  let sum = left + right
-  let difference = left - right
-  let product = left * right
   var compound = left
   compound += right
   compound -= 2_i32
   compound *= 2_i32
-  print("i32 ${sum}/${difference}/${product}; compound ${compound}")
+  compound /= 2_i32
+  compound %= right
+  print("i32 ${left + right}/${left - right}/${left * right}; divrem ${left / right}/${left % right}; compound ${compound}")
 }
 
 fn exerciseU32(left: u32, right: u32) {
-  let sum = left + right
-  let difference = left - right
-  let product = left * right
   var compound = left
   compound += right
   compound -= 2_u32
   compound *= 2_u32
-  print("u32 ${sum}/${difference}/${product}; compound ${compound}")
+  compound /= 2_u32
+  compound %= right
+  print("u32 ${left + right}/${left - right}/${left * right}; divrem ${left / right}/${left % right}; compound ${compound}")
 }
 
 fn exerciseI64(left: i64, right: i64) {
-  let sum = left + right
-  let difference = left - right
-  let product = left * right
   var compound = left
   compound += right
   compound -= 2_i64
   compound *= 2_i64
-  print("i64 ${sum}/${difference}/${product}; compound ${compound}")
+  compound /= 2_i64
+  compound %= right
+  print("i64 ${left + right}/${left - right}/${left * right}; divrem ${left / right}/${left % right}; compound ${compound}")
 }
 
 fn exerciseU64(left: u64, right: u64) {
-  let sum = left + right
-  let difference = left - right
-  let product = left * right
   var compound = left
   compound += right
   compound -= 2_u64
   compound *= 2_u64
-  print("u64 ${sum}/${difference}/${product}; compound ${compound}")
+  compound /= 2_u64
+  compound %= right
+  print("u64 ${left + right}/${left - right}/${left * right}; divrem ${left / right}/${left % right}; compound ${compound}")
 }
 
 fn exerciseInt(left: Int, right: Int) {
-  let sum = left + right
-  let difference = left - right
-  let product = left * right
   var compound = left
   compound += right
   compound -= 2_i64
   compound *= 2_i64
-  print("Int ${sum}/${difference}/${product}; compound ${compound}")
+  compound /= 2_i64
+  compound %= right
+  print("Int ${left + right}/${left - right}/${left * right}; divrem ${left / right}/${left % right}; compound ${compound}")
 }
 
 fn exerciseUInt(left: UInt, right: UInt) {
-  let sum = left + right
-  let difference = left - right
-  let product = left * right
   var compound = left
   compound += right
   compound -= 2_u64
   compound *= 2_u64
-  print("UInt ${sum}/${difference}/${product}; compound ${compound}")
+  compound /= 2_u64
+  compound %= right
+  print("UInt ${left + right}/${left - right}/${left * right}; divrem ${left / right}/${left % right}; compound ${compound}")
 }
 
 entry {

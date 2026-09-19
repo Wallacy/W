@@ -38336,7 +38336,7 @@ bounded CLI and source contract, while W-1550 supersedes its former CRT/libc
 link implementation. `benchmarkDisposition` is `compiler-lifecycle`,
 correctness-only, with no timing, ranking, or performance result.
 
-#### 26.4.1.32 W-1551 — checked runtime signed-`i64` division and remainder (Current form)
+#### 26.4.1.32 W-1551 — checked runtime signed-`i64` division and remainder (Historical form; superseded by W-1639)
 
 W-1551 closes runtime `/` and `%` for the existing bounded signed-`i64` value
 graph without changing the frontend, HIR0, MLIR0, or Native0 record schemas.
@@ -38363,13 +38363,12 @@ use `llvm.srem`. Safe fully constant trees keep their direct `llvm.sdiv` or
 unsupported. Divide and remainder helpers enter the artifact only when their
 runtime operations are reachable.
 
-The Restaurant fixture
-`compiler/seed-c/fixtures/restaurant-runtime-divrem.w` executes exact stdout
-`Each 7; left 2\n` through the Linux WRT0 route and the native Windows route.
-The Linux gate also proves zero-divisor and signed-overflow termination with
-empty stdout. This is bounded compiler-lifecycle correctness evidence. It does
-not establish `PanicEvent`, panic payloads or cleanup, other integer widths,
-named numeric APIs, other targets, timing, ranking, or performance.
+W-1639 generalizes these rules to the complete supported signed and unsigned
+fixed-width family. The former standalone Restaurant executable and benchmark
+row are therefore removed from the live tree; their success cases now belong
+to the family fixture and their zero/overflow behavior remains in focused
+Windows and Linux/WSL gates. W-1551 is provenance, not a current separate
+surface or benchmark contract.
 
 #### 26.4.1.33 W-1552 — checked signed-`i64` unary negation (Current form)
 
@@ -41923,6 +41922,12 @@ closed `u64` policies: `saturatingAdd`, `saturatingSubtract`,
 argument arity, operand types, result types, and policy identity are required;
 the evaluator does not accept a look-alike member or a generic policy call.
 
+```w
+const fn overflowedAtBuild(): Bool {
+  return u64.overflowingPower(2_u64, 64_u64).1
+}
+```
+
 Overflowing policies produce the virtual allocation-free `(u64, Bool)` value.
 ConstIR records the product as one compiler-owned value and records `.0` and
 `.1` as checked positional projection nodes, yielding `u64` and `Bool`
@@ -41951,6 +41956,13 @@ zero-argument ConstIR function and dependency graph. The product remains a
 virtual allocation-free value; `.0` and `.1` remain the only admitted
 projections and yield `u64` and `Bool` respectively.
 
+```w
+export const overflowProduct: (u64, Bool) =
+  u64.overflowingAdd(18446744073709551615_u64, 1_u64)
+
+const fn forwardedProduct(): (u64, Bool) { return overflowProduct }
+```
+
 This is a deliberately closed boundary, not the introduction of general tuple
 semantics. It does not admit tuple parameters, literals, destructuring,
 mutation, storage embedding, imported constants, arbitrary product shapes,
@@ -41970,6 +41982,10 @@ Frontend schema `w-seed-frontend-63` and HIR schema `w-seed-hir0-78` carry
 the target-width aliases used by the current x86-64 native evidence. One
 operation identity is shared by the family; signedness and logical width live
 in the canonical type record rather than being duplicated in operation names.
+
+```w
+fn nextByte(value: u8): u8 { return u8.wrappingAdd(value, 1_u8) }
+```
 
 MLIR0 uses an `i64` physical carrier for this bounded route, masks every narrow
 result to its logical width, and sign-extends only at a signed observation
@@ -41999,6 +42015,10 @@ changes, signed-to-unsigned conversion, `Bool`, floating point, `i128`/`u128`,
 and target-width `usize`/`isize` conversion remain outside this package.
 `Int` and `UInt` participate only as the current x86-64 aliases.
 
+```w
+fn widenForDistance(value: u8): i16 { return value }
+```
+
 The wrapper is first-class in verified HIR schema `w-seed-hir0-79`; it records
 both source and destination type identities and owns exactly one operand.
 Bindings, returns, call arguments, assignments, and mixed integer binary
@@ -42012,13 +42032,88 @@ object.
 
 One family fixture declares its expected exit and exact stdout inline and
 covers return, argument, binding, and alias contexts. Frontend evidence also
-covers assignment and mixed operands; general narrow binary lowering remains a
-separate operator-family gap. The C23 and Rust 2024 forms are independent
-output references with runtime inputs.
+covers assignment and mixed operands. Later family decisions close checked
+arithmetic and comparison for equal-width operands; widening followed by every
+other operator family remains explicit work. The C23 and Rust 2024 forms are
+independent output references with runtime inputs.
 The row is correctness-only: W still uses constant source operands, so it must
 not receive timing or ranking until equivalent runtime work exists. Explicit
 conversion syntax, target-general `Int`/`UInt` and `usize`/`isize` facts,
 128-bit integers, stable ABI/FFI, and performance remain open.
+
+#### 26.4.1.118 W-1638 — fixed-width integer comparison family
+
+The frontend and HIR schema `w-seed-hir0-80` preserve `==`, `!=`, `<`, `<=`,
+`>`, and `>=` as one Bool-producing integer-comparison family. Operands must
+have the same verified logical width and signedness after any separately legal
+exact widening. The operation identity does not encode a public type spelling;
+signedness and width remain canonical type facts, so the implementation does
+not grow a branch matrix for `i8` through `UInt`.
+
+```w
+fn isEarlier(left: i16, right: i16): Bool { return left < right }
+```
+
+MLIR0 keeps the bounded physical `i64` carrier but truncates operands to their
+logical width before comparison. Equality is width-independent after that
+reconstruction; ordered predicates select signed or unsigned `llvm.icmp` from
+the verified type facts. The result is always canonical Bool. This prevents an
+unsigned carrier, host C promotion, or a wider temporary from silently changing
+W ordering semantics.
+
+One family fixture declares exact exit and stdout inline and covers all six
+predicates for signed and unsigned 8-, 16-, 32-, and 64-bit builtins plus the
+current x86-64 `Int`/`UInt` aliases. It executes through the maintained CRT-free
+Windows and Linux/WSL routes. C23 and Rust 2024 sources use runtime operands as
+independent correctness references; the current W witness may fold literals,
+so no performance ranking is published. Mixed signedness, implicit narrowing,
+target-general aliases, 128-bit integers, stable ABI/FFI, other targets, and
+equivalent-work performance remain open.
+
+#### 26.4.1.119 W-1639 — checked fixed-width integer arithmetic family
+
+Frontend64 and verified HIR schema `w-seed-hir0-82` preserve ordinary `+`, `-`,
+`*`, `/`, and `%`, plus `+=`, `-=`, `*=`, `/=`, and `%=`, as one checked
+integer family. The supported logical types are signed and unsigned 8-, 16-,
+32-, and 64-bit builtins plus the current x86-64 `Int`/`UInt` aliases. One
+operation identity combines with canonical signedness and logical-width facts;
+the compiler does not define independent semantics per spelling or width.
+
+```w
+fn checkedPortion(total: i16, among guests: i16): (i16, i16) {
+  return (total / guests, total % guests)
+}
+```
+
+The scalar authority rejects add, subtract, and multiply results that do not
+fit the logical type. Signed division rejects zero and the logical minimum
+divided by negative one. Signed remainder rejects zero and defines minimum
+remainder negative one as zero. Unsigned division and remainder reject only
+zero. Quotients truncate toward zero and signed remainders follow the dividend.
+Compound assignment evaluates the target and right operand once, commits only
+after the checked operation succeeds, and otherwise leaves no successful
+observable output.
+
+NativeSubset0 and MLIR0 schema `w-seed-mlir0-53` use the same verified type
+facts. Reachable-only helpers validate every fault edge before issuing target
+division or remainder; in particular, the signed minimum/remainder case takes
+the zero path before `llvm.srem`. Narrow add, subtract, and multiply validate
+the physical carrier and logical-width round trip before their result becomes
+observable. Safe constant trees may remain direct operations, while invalid
+constant trees fail before artifact publication.
+
+The single `restaurant-checked-integer-arithmetic` witness owns the successful
+family oracle and source comments for expected exit and stdout. Focused tests
+retain every width, boundary, forged fact, and fault path without creating
+separate benchmark rows. Windows and Linux/WSL public gates require nonzero
+termination with empty stdout and stderr for runtime faults, and prove the
+defined signed minimum remainder result. Independent C23 and Rust 2024 sources
+are correctness references only because their operands are runtime-backed
+while W may fold literals. W-1639 supersedes W-1551 as the current `/` and `%`
+contract. Named numeric APIs, checked negation/power/shifts outside their own
+decisions, `usize`/`isize`, 128-bit integers, target-general aliases, stable
+ABI/FFI, general panic payload/cleanup, other targets, and performance remain
+open.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

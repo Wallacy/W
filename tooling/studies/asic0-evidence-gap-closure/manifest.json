@@ -111,13 +111,13 @@
       "id": "avf-study",
       "role": "avf-study",
       "path": "tooling/studies/avf0-availability-feature/study.json",
-      "digest": "sha256:e2619b27d4822f61f5ff88719ca2a6cc2e3b3e92126dac9c0d39253247c26332"
+      "digest": "sha256:eb65302c998df848eb6e79142d23f280a2adf9f8033b8815fe5a7311207d94d7"
     },
     {
       "id": "avf-corpus",
       "role": "avf-corpus",
       "path": "tooling/avf0-availability-feature-cases.json",
-      "digest": "sha256:95d7117c8abeeaaf2a07785e15a57bf2d2f69e0d6b9350af2d53af5f8e403013"
+      "digest": "sha256:dae393fe8bbf3b045638f8a45e667136bdbf87a6e368a1880ca43a285272a19a"
     },
     {
       "id": "avf-machine",
@@ -129,7 +129,7 @@
       "id": "avf-snapshot",
       "role": "avf-snapshot",
       "path": "tooling/avf0-availability-feature-results.snapshot.jsonl",
-      "digest": "sha256:876f946ef264ddef36a909a49c7385bf7c011dd5d9b14823f992281862dfa176"
+      "digest": "sha256:e67895c75605c04263e39296c893416e9d13086251008964eb2f473070edfd56"
     },
     {
       "id": "sec-study",

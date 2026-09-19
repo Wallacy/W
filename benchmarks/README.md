@@ -49,11 +49,15 @@ runtime-equivalent W evidence exists.
 
 The `restaurant-checked-integer-arithmetic` witness is
 `not-performance-ready`. It covers successful fixed-input checked ordinary and
-compound `+`, `-`, and `*` over signed and unsigned 8/16/32/64-bit integers and
-the current x86-64 `Int`/`UInt` aliases. W may fold its literal call arguments;
-C23 volatile operands and Rust `black_box` inputs are correctness references,
-not evidence of equivalent runtime work. Fault behavior is checked only on the W
-Windows and Linux/WSL run gates, so this family has no performance ranking.
+compound `+`, `-`, `*`, `/`, and `%` over signed and unsigned 8/16/32/64-bit
+integers and the current x86-64 `Int`/`UInt` aliases. Its single exact-output
+row includes the matching `+=`, `-=`, `*=`, `/=`, and `%=` cases; fixed-width
+operators do not create separate benchmark rows. The C23 and Rust 2024
+references use volatile and `black_box` runtime operands, while W may fold its
+literal call arguments, so they are correctness references, not evidence of
+equivalent runtime work. Fault behavior is checked only on the W Windows and
+Linux/WSL run gates; the C and Rust success references avoid zero divisors and
+signed minimum divided by negative one. This family has no performance ranking.
 
 The `restaurant-integer-wrapping` witness is `not-performance-ready`. Its
 single fixed-input policy matrix covers signed and unsigned `i8`/`u8`,

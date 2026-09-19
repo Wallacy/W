@@ -1455,9 +1455,9 @@ dynamic/runtime `/` and `%` exclusion. W-1552 separately supersedes the
 unary-negation exclusion. Power, other widths, named numeric APIs, and general
 numeric surfaces remain unsupported.
 
-That is the W-1540/1552 boundary only. W-1639 below adds ordinary checked
-add/subtract/multiply for fixed-width signed and unsigned integers; it does not
-extend division/remainder, power, or named numeric APIs to those widths.
+That is the W-1540/1552 boundary only. W-1639 below provides the current
+fixed-width checked `+`, `-`, `*`, `/`, and `%` family for signed and unsigned
+integers. Power and named numeric APIs remain separate surfaces.
 
 `fixtures/restaurant-checked-arithmetic.w` uses `entry {}` and
 produces exact `Open 6; closed 1\n` on the Linux/WSL 23.1.1 route. No native
@@ -1465,7 +1465,7 @@ Windows evidence is claimed. The bundle keeps caller-owned all-or-nothing,
 capacity, alias, receipt, and digest invariants. Its `benchmarkDisposition` is
 `compiler-lifecycle`, correctness-only, with no timing or benchmark result.
 
-### Checked runtime signed-`i64` division and remainder (W-1551)
+### Checked runtime signed-`i64` division and remainder (historical W-1551)
 
 The existing HIR binary value now crosses the native selector with runtime
 operands for `/` and `%`. No public record schema changes. Reachable division
@@ -1476,12 +1476,14 @@ divisor or `i64.min / -1`. Reachable remainder uses
 retain direct `llvm.sdiv`/`llvm.srem`; invalid constant trees still fail before
 emission. Both helpers are omitted when unreachable.
 
-`fixtures/restaurant-runtime-divrem.w` uses two parameterized W functions and
-the short entry form. It produces exact `Each 7; left 2\n` through Linux WRT0
-and native Windows. The Linux MLIR gate additionally executes zero-divisor and
-signed-overflow processes and requires nonzero termination with empty stdout.
-The checks do not claim `PanicEvent`, payload/cleanup semantics, other widths
-or targets, timing, ranking, or performance.
+`fixtures/restaurant-checked-integer-arithmetic.w` carries successful fixed-
+input `/`, `%`, `/=`, and `%=` cases into the existing signed/unsigned width
+family. The Windows and Linux/WSL public run gates also exercise runtime signed
+division by zero and overflow, signed and unsigned division/remainder by zero,
+and the defined `i64.min % -1 == 0` result. Fault cases require nonzero
+termination with empty stdout and stderr. The checks do not claim
+`PanicEvent`, payload/cleanup semantics, other targets, timing, ranking, or
+performance.
 
 ### Checked signed-`i64` unary negation (W-1552)
 
@@ -4075,8 +4077,8 @@ or mixed-signedness comparisons beyond the explicit widening call,
 `usize`/`isize`, 128-bit integers, other targets, stable ABI/FFI, and
 equivalent-work ranking remain open.
 
-W-1639 adds checked ordinary `+`, `-`, and `*`, plus `+=`, `-=`, and `*=`, as
-one fixed-width integer family. Frontend and verified HIR facts retain
+W-1639 adds checked ordinary `+`, `-`, `*`, `/`, and `%`, plus their compound
+assignments, as one fixed-width integer family. Frontend and verified HIR facts retain
 signedness and logical width for i8/u8 through i64/u64 and the current x86-64
 `Int`/`UInt` aliases while values use the existing i64 physical carrier.
 NativeSubset0 and MLIR0 share generic checked lowering: each carrier operation
@@ -4085,9 +4087,10 @@ logical width before allowing use or commit. The same source family fixture
 declares exact output and runs on Windows and Linux/WSL; representative runtime
 overflow tests check silent failure without output commit. C23 and Rust 2024
 sources use runtime/black-box operands as independent correctness oracles, not
-performance claims. Checked division/remainder at other widths, named checked
-APIs, negation, power, shifts, `usize`/`isize`, 128-bit integers, and stable
-ABI/FFI remain outside this slice.
+performance claims. The fixed-width checked arithmetic family now also covers
+ordinary `/` and `%` and compound `/=` and `%=` across those supported widths.
+Named checked APIs, negation, power, shifts, `usize`/`isize`, 128-bit integers,
+and stable ABI/FFI remain outside this slice.
 
 ## Validação seed C de predicates genéricos
 

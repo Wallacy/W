@@ -438,7 +438,7 @@ test("strict f64 references retain independent runtime operations", () => {
   assert.doesNotMatch(rust, /fast-math/iu);
 });
 
-test("checked integer add/subtract/multiply is one correctness-only family", () => {
+test("checked fixed-width integer arithmetic is one correctness-only family", () => {
   const workload = documents.catalog.workloads.find((item) =>
     item.id === RESTAURANT_CHECKED_INTEGER_ARITHMETIC_WORKLOAD_ID);
   assert.ok(workload);
@@ -448,12 +448,12 @@ test("checked integer add/subtract/multiply is one correctness-only family", () 
   assert.equal(workload.demoEvidence, "bounded-w-demo");
   assert.equal(workload.benchmarkStatus, "not-performance-ready");
   assert.equal(workload.scope,
-    "Validate successful fixed-input checked +, -, *, +=, -=, and *= across signed and unsigned i8/i16/i32/i64 and the current x86-64 Int/UInt aliases with exact output. Fault behavior is covered by the W run gates only; C23 and Rust are correctness references for the successful domain.");
+    "Validate successful fixed-input checked +, -, *, /, %, +=, -=, *=, /=, and %= across signed and unsigned i8/i16/i32/i64 and the current x86-64 Int/UInt aliases with exact output. Fault behavior is covered by the W run gates only; C23 and Rust are correctness references for the successful domain.");
   assert.deepEqual(workload.oracle, {
     kind: "exact-output",
     status: "source-backed",
     exitCode: 0,
-    stdout: "i8 -9/-15/-36; compound -22\nu8 43/37/120; compound 82\ni16 -970/-1030/-30000; compound -1944\nu16 1030/970/30000; compound 2056\ni32 -117000/-123000/-360000000; compound -234004\nu32 100300/99700/30000000; compound 200596\ni64 -600000/-1200000/-270000000000; compound -1200004\nu64 6000000000/4000000000/5000000000000000000; compound 11999999996\nInt -4000000000/-6000000000/-5000000000000000000; compound -8000000004\nUInt 9000000000/3000000000/18000000000000000000; compound 17999999996\n",
+    stdout: "i8 -9/-15/-36; divrem -4/0; compound -2\nu8 43/37/120; divrem 13/1; compound 2\ni16 -970/-1030/-30000; divrem -33/-10; compound -12\nu16 1030/970/30000; divrem 33/10; compound 8\ni32 -117000/-123000/-360000000; divrem -40/0; compound -2\nu32 100300/99700/30000000; divrem 333/100; compound 98\ni64 -600000/-1200000/-270000000000; divrem -3/0; compound -2\nu64 6000000000/4000000000/5000000000000000000; divrem 5/0; compound 999999998\nInt -4000000000/-6000000000/-5000000000000000000; divrem -5/0; compound -2\nUInt 9000000000/3000000000/18000000000000000000; divrem 2/0; compound 2999999998\n",
     stderr: "",
   });
   assert.deepEqual(workload.blockedLanguages, []);
@@ -497,15 +497,23 @@ test("checked integer add/subtract/multiply is one correctness-only family", () 
   assert.match(c, /runtime_left \+ runtime_right/u);
   assert.match(c, /runtime_left - runtime_right/u);
   assert.match(c, /runtime_left \* runtime_right/u);
+  assert.match(c, /runtime_left \/ runtime_right/u);
+  assert.match(c, /runtime_left % runtime_right/u);
   assert.match(c, /compound \+= runtime_right/u);
   assert.match(c, /compound -= \(TYPE\)2/u);
   assert.match(c, /compound \*= \(TYPE\)2/u);
+  assert.match(c, /compound \/= \(TYPE\)2/u);
+  assert.match(c, /compound %= runtime_right/u);
   assert.match(rust, /black_box/u);
   assert.match(rust, /type Int = i64/u);
   assert.match(rust, /type UInt = u64/u);
   assert.match(rust, /left \+= right/u);
   assert.match(rust, /left -= 2 as \$type/u);
   assert.match(rust, /left \*= 2 as \$type/u);
+  assert.match(rust, /left \/ right/u);
+  assert.match(rust, /left % right/u);
+  assert.match(rust, /left \/= 2 as \$type/u);
+  assert.match(rust, /left %= right/u);
   assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
   assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi|checked_(?:add|div|rem))/iu);
 });

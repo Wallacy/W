@@ -23,14 +23,14 @@
       "id": "DYN1",
       "role": "evidence-input",
       "path": "../dyn1-versioned-behavior/study.json",
-      "digest": "sha256:3fa48abe121b9ee6463e869137e4ee7022cddfacf4697b360e0c2041b4111654",
+      "digest": "sha256:923a8a3c8d18b7cf542afcdf181416563314a0dc9eee86c3dca4321def328793",
       "claim": "versioned behavior, receipts, cleanup, and rejected dynamic mechanisms"
     },
     {
       "id": "HRD0",
       "role": "evidence-input",
       "path": "../hrd0-hot-reload-dev/study.json",
-      "digest": "sha256:e8a91c2994abd76a746efb5f9e4e06bfd7a73d126e847ef6bceeb59811340779",
+      "digest": "sha256:02a4da94b060c18af0b06863f729a201db07be3217dfc47b2f36d32c414ab592",
       "claim": "development-only runner, local/split cleanup, and mutation boundary"
     }
   ],
@@ -53,7 +53,7 @@
     },
     "snapshot": {
       "path": "../../syn2-dyn2-closure-results.snapshot.jsonl",
-      "digest": "sha256:33bab78bc5fd21ed61c95a5862b462499fdd238fb6daeef163390ec5f0906f79"
+      "digest": "sha256:88e576ac47dbcbef24f3c52ba4034ec92511f458ea84a59ad831d4fe757dccf1"
     },
     "studyOracle": {
       "path": "oracle.test.mjs",

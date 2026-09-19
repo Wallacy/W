@@ -1,16 +1,16 @@
 // C23 reference for checked fixed-width integer arithmetic.
 // Expected exit: 0
 // Expected stdout:
-// i8 -9/-15/-36; compound -22
-// u8 43/37/120; compound 82
-// i16 -970/-1030/-30000; compound -1944
-// u16 1030/970/30000; compound 2056
-// i32 -117000/-123000/-360000000; compound -234004
-// u32 100300/99700/30000000; compound 200596
-// i64 -600000/-1200000/-270000000000; compound -1200004
-// u64 6000000000/4000000000/5000000000000000000; compound 11999999996
-// Int -4000000000/-6000000000/-5000000000000000000; compound -8000000004
-// UInt 9000000000/3000000000/18000000000000000000; compound 17999999996
+// i8 -9/-15/-36; divrem -4/0; compound -2
+// u8 43/37/120; divrem 13/1; compound 2
+// i16 -970/-1030/-30000; divrem -33/-10; compound -12
+// u16 1030/970/30000; divrem 33/10; compound 8
+// i32 -117000/-123000/-360000000; divrem -40/0; compound -2
+// u32 100300/99700/30000000; divrem 333/100; compound 98
+// i64 -600000/-1200000/-270000000000; divrem -3/0; compound -2
+// u64 6000000000/4000000000/5000000000000000000; divrem 5/0; compound 999999998
+// Int -4000000000/-6000000000/-5000000000000000000; divrem -5/0; compound -2
+// UInt 9000000000/3000000000/18000000000000000000; divrem 2/0; compound 2999999998
 
 #include <stdint.h>
 #include <stdio.h>
@@ -27,12 +27,17 @@
         const TYPE sum = (TYPE)(runtime_left + runtime_right);                 \
         const TYPE difference = (TYPE)(runtime_left - runtime_right);          \
         const TYPE product = (TYPE)(runtime_left * runtime_right);             \
+        const TYPE quotient = (TYPE)(runtime_left / runtime_right);             \
+        const TYPE remainder = (TYPE)(runtime_left % runtime_right);            \
         TYPE compound = runtime_left;                                          \
         compound += runtime_right;                                             \
         compound -= (TYPE)2;                                                   \
         compound *= (TYPE)2;                                                   \
-        if (printf(LABEL " %lld/%lld/%lld; compound %lld\n",                \
+        compound /= (TYPE)2;                                                   \
+        compound %= runtime_right;                                            \
+        if (printf(LABEL " %lld/%lld/%lld; divrem %lld/%lld; compound %lld\n", \
                    (long long)sum, (long long)difference, (long long)product, \
+                   (long long)quotient, (long long)remainder,                \
                    (long long)compound) < 0)                                  \
             return 1;                                                         \
     } while (0)
@@ -44,14 +49,20 @@
         const TYPE sum = (TYPE)(runtime_left + runtime_right);                   \
         const TYPE difference = (TYPE)(runtime_left - runtime_right);            \
         const TYPE product = (TYPE)(runtime_left * runtime_right);               \
+        const TYPE quotient = (TYPE)(runtime_left / runtime_right);               \
+        const TYPE remainder = (TYPE)(runtime_left % runtime_right);              \
         TYPE compound = runtime_left;                                            \
         compound += runtime_right;                                               \
         compound -= (TYPE)2;                                                     \
         compound *= (TYPE)2;                                                     \
-        if (printf(LABEL " %llu/%llu/%llu; compound %llu\n",                  \
+        compound /= (TYPE)2;                                                     \
+        compound %= runtime_right;                                              \
+        if (printf(LABEL " %llu/%llu/%llu; divrem %llu/%llu; compound %llu\n", \
                    (unsigned long long)sum,                                     \
                    (unsigned long long)difference,                               \
                    (unsigned long long)product,                                  \
+                   (unsigned long long)quotient,                                 \
+                   (unsigned long long)remainder,                                \
                    (unsigned long long)compound) < 0)                            \
             return 1;                                                           \
     } while (0)

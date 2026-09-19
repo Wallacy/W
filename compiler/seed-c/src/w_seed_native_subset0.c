@@ -153,7 +153,9 @@ static bool native_integer_is_checked_binary(
     w_seed_hir0_binary_operator operation) {
   return operation == W_SEED_HIR0_BINARY_ADD ||
          operation == W_SEED_HIR0_BINARY_SUBTRACT ||
-         operation == W_SEED_HIR0_BINARY_MULTIPLY;
+         operation == W_SEED_HIR0_BINARY_MULTIPLY ||
+         operation == W_SEED_HIR0_BINARY_DIVIDE ||
+         operation == W_SEED_HIR0_BINARY_REMAINDER;
 }
 
 static bool native_integer_is_wrapping_binary(w_seed_hir0_binary_operator op) {
@@ -537,7 +539,9 @@ static bool evaluate_integer_bits(const w_seed_hir0_program *program,
   switch (value->binary_operator) {
     case W_SEED_HIR0_BINARY_ADD:
     case W_SEED_HIR0_BINARY_SUBTRACT:
-    case W_SEED_HIR0_BINARY_MULTIPLY: {
+    case W_SEED_HIR0_BINARY_MULTIPLY:
+    case W_SEED_HIR0_BINARY_DIVIDE:
+    case W_SEED_HIR0_BINARY_REMAINDER: {
       uint64_t carrier_result = 0u;
       if (!w_seed_scalar_evaluator0_checked_integer_arithmetic(
               value->binary_operator, expected.is_signed,

@@ -1932,11 +1932,143 @@ static bool test_interpolation_semantic_barriers(void) {
                      &runtime_remainder_result));
   CHECK(contains_bytes(runtime_remainder_artifact,
                         runtime_remainder_result.written.mlir_bytes,
-                        "llvm.func internal @w_seed_checked_remainder_i64") &&
-        contains_bytes(runtime_remainder_artifact,
+                        "llvm.srem %p0, %v") &&
+        !contains_bytes(runtime_remainder_artifact,
                         runtime_remainder_result.written.mlir_bytes,
-                        "llvm.call @w_seed_checked_remainder_i64"));
+                        "@w_seed_checked_remainder_i64"));
 
+  return true;
+}
+
+static bool test_checked_division_remainder_lowering(void) {
+  static const uint8_t source[] =
+      "fn signed_divide(left: i64, right: i64): i64 { return left / right }\n"
+      "fn signed_remainder(left: i64, right: i64): i64 { return left % right }\n"
+      "fn unsigned_divide(left: u64, right: u64): u64 { return left / right }\n"
+      "fn unsigned_remainder(left: u64, right: u64): u64 { return left % right }\n"
+      "fn minimum_remainder(): i64 { return (0 - 9223372036854775807 - 1) % "
+      "(0 - 1) }\n"
+      "fn main() { let signed_q = signed_divide(left: 5, right: 2) "
+      "let signed_r = signed_remainder(left: 5, right: 2) "
+      "let unsigned_q = unsigned_divide(left: 5_u64, right: 2_u64) "
+      "let unsigned_r = unsigned_remainder(left: 5_u64, right: 2_u64) "
+      "let minimum_r = minimum_remainder() "
+      "print(\"${signed_q} ${signed_r} ${unsigned_q} ${unsigned_r} "
+      "${minimum_r}\") }\n"
+      "entry(main)\n";
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_result result;
+  CHECK(emit_current(artifact, sizeof(artifact), &result));
+  const size_t length = result.written.mlir_bytes;
+  CHECK(contains_bytes(artifact, length,
+                      "llvm.func internal @w_seed_checked_divide_i64("
+                      "%left: i64, %right: i64, %width: i64) -> i64") &&
+        contains_bytes(artifact, length,
+                      "llvm.func internal @w_seed_checked_remainder_i64("
+                      "%left: i64, %right: i64, %width: i64) -> i64") &&
+        contains_bytes(artifact, length,
+                      "llvm.func internal @w_seed_checked_divide_u64("
+                      "%left: i64, %right: i64, %width: i64) -> i64") &&
+        contains_bytes(artifact, length,
+                      "llvm.func internal @w_seed_checked_remainder_u64("
+                      "%left: i64, %right: i64, %width: i64) -> i64") &&
+        contains_bytes(artifact, length,
+                      "llvm.call @w_seed_checked_divide_i64(") &&
+        contains_bytes(artifact, length,
+                      "llvm.call @w_seed_checked_remainder_i64(") &&
+        contains_bytes(artifact, length,
+                      "llvm.call @w_seed_checked_divide_u64(") &&
+        contains_bytes(artifact, length,
+                      "llvm.call @w_seed_checked_remainder_u64(") &&
+        contains_bytes(artifact, length,
+                      ") : (i64, i64, i64) -> i64"));
+
+  const size_t signed_divide = find_bytes(
+      artifact, length,
+      "llvm.func internal @w_seed_checked_divide_i64(", 0u);
+  const size_t signed_divide_guard = find_bytes(
+      artifact, length,
+      "llvm.cond_br %invalid, ^checked_fault, ^checked_ok", signed_divide);
+  const size_t signed_divide_fault = find_bytes(
+      artifact, length,
+      "^checked_fault:\n    \"llvm.intr.trap\"() : () -> ()",
+      signed_divide);
+  const size_t signed_divide_operation = find_bytes(
+      artifact, length, "llvm.sdiv %left, %right : i64", signed_divide);
+  CHECK(signed_divide != SIZE_MAX && signed_divide_guard > signed_divide &&
+        signed_divide_fault > signed_divide_guard &&
+        signed_divide_operation > signed_divide_fault &&
+        contains_bytes(artifact, length,
+                      "llvm.icmp \"eq\" %left, %minimum : i64") &&
+        contains_bytes(artifact, length,
+                      "llvm.icmp \"eq\" %right, %negative_one : i64") &&
+        contains_bytes(artifact, length,
+                      "%minimum = llvm.ashr %minimum_i64, %minimum_shift : i64"));
+
+  const size_t signed_remainder = find_bytes(
+      artifact, length,
+      "llvm.func internal @w_seed_checked_remainder_i64(", 0u);
+  const size_t signed_remainder_zero_guard = find_bytes(
+      artifact, length,
+      "llvm.cond_br %zero_divisor, ^checked_fault, ^checked_nonzero",
+      signed_remainder);
+  const size_t signed_remainder_fault = find_bytes(
+      artifact, length,
+      "^checked_fault:\n    \"llvm.intr.trap\"() : () -> ()",
+      signed_remainder);
+  const size_t signed_remainder_minimum_branch = find_bytes(
+      artifact, length,
+      "llvm.cond_br %overflow_pair, ^checked_minimum, ^checked_ok",
+      signed_remainder);
+  const size_t signed_remainder_minimum_result = find_bytes(
+      artifact, length,
+      "^checked_minimum:\n    llvm.return %zero : i64", signed_remainder);
+  const size_t signed_remainder_operation = find_bytes(
+      artifact, length, "llvm.srem %left, %right : i64", signed_remainder);
+  CHECK(signed_remainder != SIZE_MAX &&
+        signed_remainder_zero_guard > signed_remainder &&
+        signed_remainder_fault > signed_remainder_zero_guard &&
+        signed_remainder_minimum_branch > signed_remainder_fault &&
+        signed_remainder_minimum_result > signed_remainder_minimum_branch &&
+        signed_remainder_operation > signed_remainder_minimum_result &&
+        !contains_bytes(artifact, length, "llvm.srem %v"));
+
+  const size_t unsigned_divide = find_bytes(
+      artifact, length,
+      "llvm.func internal @w_seed_checked_divide_u64(", 0u);
+  const size_t unsigned_divide_guard = find_bytes(
+      artifact, length,
+      "llvm.cond_br %zero_divisor, ^u64_checked_fault, ^u64_checked_ok",
+      unsigned_divide);
+  const size_t unsigned_divide_fault = find_bytes(
+      artifact, length,
+      "^u64_checked_fault:\n    \"llvm.intr.trap\"() : () -> ()",
+      unsigned_divide);
+  const size_t unsigned_divide_operation = find_bytes(
+      artifact, length, "llvm.udiv %left, %right : i64", unsigned_divide);
+  CHECK(unsigned_divide != SIZE_MAX &&
+        unsigned_divide_guard > unsigned_divide &&
+        unsigned_divide_fault > unsigned_divide_guard &&
+        unsigned_divide_operation > unsigned_divide_fault);
+
+  const size_t unsigned_remainder = find_bytes(
+      artifact, length,
+      "llvm.func internal @w_seed_checked_remainder_u64(", 0u);
+  const size_t unsigned_remainder_guard = find_bytes(
+      artifact, length,
+      "llvm.cond_br %zero_divisor, ^u64_checked_fault, ^u64_checked_ok",
+      unsigned_remainder);
+  const size_t unsigned_remainder_fault = find_bytes(
+      artifact, length,
+      "^u64_checked_fault:\n    \"llvm.intr.trap\"() : () -> ()",
+      unsigned_remainder);
+  const size_t unsigned_remainder_operation = find_bytes(
+      artifact, length, "llvm.urem %left, %right : i64", unsigned_remainder);
+  CHECK(unsigned_remainder != SIZE_MAX &&
+        unsigned_remainder_guard > unsigned_remainder &&
+        unsigned_remainder_fault > unsigned_remainder_guard &&
+        unsigned_remainder_operation > unsigned_remainder_fault);
   return true;
 }
 
@@ -6015,6 +6147,7 @@ int main(int argc, char **argv) {
   if (!test_checked_shift_artifact()) return 1;
   if (!test_checked_power_artifact()) return 1;
   if (!test_interpolation_semantic_barriers()) return 1;
+  if (!test_checked_division_remainder_lowering()) return 1;
   if (!test_linear_sequence()) return 1;
   if (!test_capacity_and_all_or_nothing()) return 1;
   if (!test_aliases()) return 1;

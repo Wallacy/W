@@ -215,6 +215,7 @@ O corpus compara, no mínimo:
 - bounded closed overflow product across const boundaries.
 - fixed-width wrapping integer family through native execution.
 - exact implicit fixed-width integer widening through native execution.
+- fixed-width integer comparisons against host signedness, width-erasing predicates, and per-operator executable rows.
 - short default entry against a magic main function, source-addressable synthetic identity, and duplicate default descriptors.
 - external process nominal identity against alias-spelling identity, first-match duplicate imports, and forged ExitCode success metadata.
 - caller-owned external identity, handler compatibility, alias-independent semantics, and downstream fail-closed behavior.
@@ -224,7 +225,7 @@ O corpus compara, no mínimo:
 - bounded public Windows process input, exit status, and root-owner cleanup through verified HIR16 and a direct MLIR executable adapter;
 - unparenthesized trailing nested scalar `if` values against parentheses-only parsing, flattened CFG, and premature general CFG.
 - reachability-closed WRT startup against ambient CRT/libc and dynamic-loader inheritance.
-- checked runtime signed-i64 division and remainder against target undefined behavior, eager faulting operations, and ambient unchecked arithmetic.
+- checked fixed-width arithmetic against per-width compiler branches, target undefined behavior, eager faulting operations, and fragmented executable evidence.
 - checked signed-i64 unary negation against binary desugaring, unchecked target subtraction, and an always-linked numeric runtime.
 - direct prefix-negative interpolation against late root-only retyping, a synthetic binding workaround, and textual constant folding.
 - verified SSA versioning against hidden stack storage and assignment rewriting.
@@ -7900,7 +7901,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1548 | external subjects shared by `w test` and `w bench` | The same `test` declaration lowers to `TestDescriptor`/`TestPlan`; `w test` runs its correctness oracle, while `w bench` must run the same oracle before warmup or sampling. Future tagged subjects include native `executable` and interpreted `script`. Executables resolve by explicit path or one frozen PATH snapshot and must validate as native target images; scripts resolve only by path and use explicit `using executable` or a closed extension map. OS associations, PATHEXT, implicit shell fallback, installation, mutable identity, and direct cross-target fallback are rejected. | `implementation-evidence-gap`. Current grammar accepts only an identifier after `for`; no external subject, `process.Command`, native `w test`/`w bench`, provider receipt, or process-tree cleanup is implemented. Script adapters, especially `.bat`/`.cmd`, remain versioned shell-capable boundaries. Test and benchmark evidence lanes stay distinct and non-ranking across different subject classes. `benchmarkDisposition: deferred`; no timing or result. |
 | W-1549 | bounded nested scalar `if` tail values through verified HIR0 and MLIR0 | W-1549 extends SCALAR-IF0 only to an unparenthesized trailing nested `if` in a value block, normalized as the block's final value. Recursion is bounded; conditions are Bool; every arm is pure, effect-free, and same-typed signed `i64` or Bool. Verified HIR0 retains two nested typed scalar diamonds with one join argument and typed incoming edge per arm; Native0 recursively traverses only effect-free scalar arm blocks; MLIR0 emits two `llvm.cond_br` diamonds and typed `llvm.br` incoming values, never `llvm.select`. Calls/effects, aggregate/String/enum values, `var`, mutation, loops, general CFG, terminal branch returns, imports, async process entry, other targets, and performance remain outside. Public HIR0, MLIR0, and Native0 record schemas are unchanged. The Restaurant fixture produces exact `1,2,3\n`, exit zero, and empty stderr on the checked source-backed route. | `source-backed-current` only for this bounded source → frontend → verified HIR0 → MLIR0 → LLVM dialect → native route and fixture. Focused frontend/HIR0/MLIR0/Native0 checks and `bun check --target mlir0` pass the exact output with empty stderr; no public Windows, C/Rust, general CFG, terminal branch return, mutation/loop, import, async process, other-target, timing, ranking, or performance evidence is claimed. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing, ranking, or performance result. |
 | W-1550 | CRT-free Linux WRT0 seed closure | The bounded Linux x86_64 product emits separate position-independent program and WRT0 LLVM objects. WRT0 owns `_start`, stdout `write`, and terminal exit through the Linux syscall ABI. The direct native linker recipe produces a static PIE with no `PT_INTERP` or `DT_NEEDED`; release also strips symbols. The public gate parses the retained ELF before execution and the runner removes every private WRT/intermediate artifact. Ordinary W source never inherits libc/CRT from the bootstrap host. | `source-backed-current` only for W-1521's bounded Linux x86_64 CLI/product route. Allocator, TLS, unwind, panic, scheduler, async I/O, signals, dynamic loading, stable ABI, other architectures/OSes, cross-compilation, timings, ranking, and performance remain gaps. Explicit C interop may add a versioned libc/CRT runtime requirement. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
-| W-1551 | checked runtime signed-`i64` division and remainder | Existing HIR binary records admit runtime `/` and `%` without a schema change. Reachable private helpers validate zero and the signed minimum/negative-one edge before target division. Divide traps on both invalid cases; remainder traps on zero and returns zero for `i64.min % -1`. Safe constant trees remain direct and invalid constants fail before emission. | `source-backed-current` only for the bounded native subset on Linux WRT0 and Windows x86_64. Exact Restaurant output and Linux fault-before-output behavior are exercised. General panic events/payload/cleanup, other widths/targets, named numeric APIs, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
+| W-1551 | checked runtime signed-`i64` division and remainder | Existing HIR binary records admitted runtime `/` and `%` without a schema change. Reachable private helpers validated zero and the signed minimum/negative-one edge before target division. Divide trapped on both invalid cases; remainder trapped on zero and returned zero for `i64.min % -1`. Safe constant trees remained direct and invalid constants failed before emission. | Historical bounded `i64` precursor, superseded by the width-generic signed and unsigned family in W-1639. Its separate executable and benchmark row were removed after the family witness absorbed the same success and fault contracts. |
 | W-1552 | checked signed-`i64` unary negation | HIR0 `w-seed-hir0-17` appends an explicit typed unary-negate value rather than rewriting source identity to binary subtraction. Safe constants lower to direct `llvm.sub`; runtime values reuse the reachability-selected checked-subtract helper and reject `i64.min` before the target operation. | `source-backed-current` only for the bounded return/binding/interpolation-through-read native subset on Linux WRT0 and Windows x86_64. Exact Restaurant output, HIR adversarial verification, direct constant lowering, helper reachability and Linux fault-before-output are exercised. Direct unary interpolation roots, other widths/targets, general panic events/payload/cleanup, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
 | W-1553 | direct unary interpolation composition | Interpolation expressions do not inherit the enclosing `String` expectation. A representable leading unsuffixed prefix-negative expression receives the canonical signed-`i64` default before frontend records are published, keeping its literal child, unary root and interpolation segment type-consistent without a hidden binding or textual fold. | `source-backed-current` only for the bounded `${-7}` frontend → HIR17 → MLIR/native route on Linux WRT0 and Windows x86_64. The Restaurant fixture emits exact `Balance -7\n`; focused frontend/HIR checks retain the explicit tree and constant products omit the checked helper. General interpolation display protocols, the direct minimum-value literal spelling, other numeric defaults/widths/targets, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
 | W-1554 | straight-line local mutation as verified SSA | A local signed-`i64` `var` and later simple `=` in the same linear block lower to ordered HIR binding versions. Each version retains one source root and predecessor; reads select the latest preceding version. MLIR emits SSA values and never materializes a source-variable cell. | `source-backed-current` only for the bounded frontend17 → HIR18 → MLIR/native route. Focused frontend/HIR/MLIR tests and the Restaurant fixture prove declaration, reassignment, later read, immutable-target rejection, forged-version rejection, exact `Open 6\n`, and no `alloca` inside the W function. Compound/branch/loop/nested/aggregate/aliasing mutation, mutable borrows, other widths/targets, general diagnostics, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
@@ -7988,6 +7989,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1635 | bounded closed overflow product across const boundaries | The frontend canonicalizes the exact `(u64, Bool)` product and permits it as a direct `const fn` result and as the explicit type of a module constant routed through the existing synthetic ConstIR dependency graph. The product stays virtual and allocation-free, with only checked `.0`/`.1` projections. | `source-backed-current` only after focused C23/source/checker evidence proves direct returns, explicitly typed module constants, exact values and projections, malformed shapes, quotas, cycle/capacity defense, and all-or-nothing publication. Generic tuples, tuple parameters/literals/destructuring, unannotated tuple-constant inference, imported constants, stable ABI/layout/FFI/runtime/backend support, other widths, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`; no public benchmark. |
 | W-1636 | fixed-width wrapping integer family through native execution | Frontend63 and HIR78 preserve six wrapping operations for signed and unsigned 8-, 16-, 32-, and 64-bit integers plus the current x86-64 `Int`/`UInt` aliases. A shared operation identity combines with canonical signedness and logical-width type facts. MLIR0 lowers narrow values through one unsigned `i64` bit domain, explicit masks, observation-time sign extension, logarithmic power, and checked shift counts. | `source-backed-current` only for the bounded source-to-frontend-to-verified-HIR-to-MLIR/Native0 route, focused C23 tests, MLIR/LLVM 23.1.x verification, and exact CRT-free Windows plus Linux/WSL execution. The combined executable fixture owns inline expected exit/stdout; independent C23 and Rust 2024 sources are output oracles but are not performance-ranked until equivalent runtime work exists. Other policies, `i128`/`u128`, non-x86-64 alias widths, const evaluation, stable ABI/FFI, and performance remain gaps. `benchmarkDisposition: correctness-reference-no-ranking`. |
 | W-1637 | exact implicit fixed-width integer widening through native execution | Frontend64 inserts one explicit widening wrapper for exact integer conversions whose destination is strictly wider: same-signedness widening or unsigned-to-larger-signed widening. HIR79 preserves source and destination type identities, while NativeSubset0 and MLIR0 keep an `i64` carrier and reconstruct source-width signedness with `llvm.trunc` plus `llvm.sext` or `llvm.zext`. | `source-backed-current` for signed and unsigned 8/16/32/64-bit builtins, current x86-64 `Int`/`UInt` aliases, frontend binding/return/argument/assignment/mixed-operand evidence, verified-HIR/native return/argument/binding evidence, focused C23 adversarial tests, MLIR/LLVM 23.1.x verification, and exact CRT-free Windows plus Linux/WSL execution. General narrow binary lowering, `usize`/`isize`, 128-bit integers, narrowing, equal-width sign changes, signed-to-unsigned conversion, explicit conversion syntax, stable ABI/FFI, and performance remain gaps. The family fixture owns inline expected exit/stdout; C23 and Rust 2024 are correctness references without ranking until equivalent runtime work exists. `benchmarkDisposition: correctness-reference-no-ranking`. |
+| W-1638 | fixed-width integer comparison family through native execution | Frontend64 and HIR80 preserve all six comparison predicates as one Bool-producing operation family whose signedness and logical width come from canonical type facts. MLIR reconstructs the logical width from the `i64` carrier and chooses signed or unsigned ordering predicates explicitly. | `source-backed-current` for equal-width signed and unsigned 8/16/32/64-bit builtins, current x86-64 `Int`/`UInt` aliases, one exact widening-before-comparison call, focused adversarial tests, MLIR/LLVM 23.1.x verification, and exact CRT-free Windows plus Linux/WSL execution. Mixed signedness, narrowing, target-general aliases, 128-bit integers, stable ABI/FFI, other targets, and performance remain gaps. One family fixture owns expected output; C23 and Rust 2024 are correctness references without ranking. `benchmarkDisposition: correctness-reference-no-ranking`. |
+| W-1639 | checked fixed-width integer arithmetic family through native execution | Frontend64 and HIR82 preserve checked `+`, `-`, `*`, `/`, `%` and their compound assignments as one width-generic family. Scalar, NativeSubset0, and MLIR53 use verified signedness and logical width; division and remainder guard zero and signed minimum/negative-one before target operations, while narrow add/subtract/multiply validate representability before commit. | `source-backed-current` for signed and unsigned 8/16/32/64-bit builtins, current x86-64 `Int`/`UInt` aliases, successful ordinary and compound operations, runtime fault-before-output behavior, the defined signed minimum remainder result, focused C23 adversarial tests, MLIR/LLVM 23.1.x verification, and exact CRT-free Windows plus Linux/WSL execution. W-1639 supersedes W-1551. Named APIs, other checked operator families, `usize`/`isize`, 128-bit integers, target-general aliases, stable ABI/FFI, general panic payload/cleanup, other targets, and performance remain gaps. The single family fixture owns expected output; C23 and Rust 2024 are correctness references without ranking. `benchmarkDisposition: correctness-reference-no-ranking`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -11415,13 +11418,12 @@ divide and remainder helpers are collected from reachable value trees, just
 like the existing checked add/subtract/multiply helpers. Dead functions cannot
 pull them into the product closure.
 
-The source-backed Restaurant witness is
-`compiler/seed-c/fixtures/restaurant-runtime-divrem.w`. Its two ordinary W
-functions execute exact `Each 7; left 2\n` through Linux WRT0 and the native
-Windows runner. The Linux MLIR gate also executes divide-by-zero,
-`i64.min / -1`, and remainder-by-zero witnesses and observes nonzero
-termination with empty stdout. This is a bounded compiler-lifecycle proof, not
-a general panic-runtime or performance claim.
+W-1639 later generalized the same rules to every supported fixed width and
+both signedness classes. The separate `restaurant-runtime-divrem` executable
+and benchmark row therefore no longer belong in the live tree: the combined
+checked-arithmetic family owns their success contract, while focused Windows
+and Linux/WSL gates retain zero, signed minimum/negative-one, and
+fault-before-output evidence. W-1551 remains only as historical provenance.
 
 #### W-1552 — checked signed-`i64` unary negation
 
@@ -14027,3 +14029,55 @@ crosses the CRT-free Windows and Linux/WSL routes. Independent C23 and Rust
 2024 references use runtime inputs, so the workload remains correctness-only
 until W performs equivalent physical work. This decision publishes no stable
 ABI/FFI or performance claim.
+
+#### W-1638 — fixed-width integer comparison family through native execution
+
+Comparison lowering follows the same family-first rule as widening. Frontend64
+and HIR80 carry one comparison identity plus the predicate, while canonical
+type records supply signedness and logical width. Equal-width operands are
+required after any separately legal widening. Every result is Bool, so the
+physical integer carrier never leaks into the public result type.
+
+MLIR truncates both operands to the verified logical width before selecting an
+`llvm.icmp` predicate. Equality uses the reconstructed bit pattern; ordering
+uses the signed or unsigned predicate required by the logical type. This avoids
+host promotion rules and prevents an unsigned `i64` carrier from corrupting a
+signed narrow comparison.
+
+One Restaurant fixture covers all six predicates for every supported fixed
+width and the current x86-64 aliases, plus one exact widening before a signed
+comparison. It declares exact output beside the source and crosses the native
+Windows and Linux/WSL routes. C23 and Rust 2024 keep runtime operands as
+independent correctness references. W still may fold literals, so the row does
+not rank performance. Focused tests, rather than six per-operator executables,
+own adversarial matrices and malformed-fact rejection.
+
+#### W-1639 — checked fixed-width integer arithmetic through native execution
+
+The checked family deliberately shares operation identities across
+`i8`/`u8` through `i64`/`u64` and the current x86-64 `Int`/`UInt` aliases.
+Frontend64 and HIR82 preserve logical type facts for ordinary and compound
+`+`, `-`, `*`, `/`, and `%`. Compound assignment performs one checked
+operation and commits only after success; it is not a separately specified
+numeric family.
+
+Add, subtract, and multiply validate both the `i64` carrier operation and the
+round trip through the logical width. Division and remainder use width-aware,
+reachable-only helpers. Signed division rejects zero and logical
+minimum/negative-one; signed remainder rejects zero but chooses the specified
+zero result for logical minimum remainder negative one before issuing
+`llvm.srem`. Unsigned division and remainder reject only zero. This preserves
+toward-zero quotient and dividend-signed remainder semantics without relying
+on target undefined behavior or a faulting instruction as control flow.
+
+The combined Restaurant fixture declares exact successful output for ordinary
+and compound forms across the complete supported family. Public Windows and
+Linux/WSL gates separately prove zero and overflow termination before stdout
+or stderr publication and prove the defined signed remainder edge. C23 and
+Rust 2024 sources remain independent correctness references, not performance
+competitors, until W receives equivalent runtime-backed operands. Individual
+operations and widths stay in focused correctness tests rather than becoming
+durable benchmark rows. This family supersedes W-1551 and intentionally leaves
+named numeric APIs, other operator policies, target-general aliases, 128-bit
+integers, stable ABI/FFI, general panic payload/cleanup, other targets, and
+performance open.

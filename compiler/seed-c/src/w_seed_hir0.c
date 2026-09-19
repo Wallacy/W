@@ -4220,7 +4220,9 @@ static bool frontend_value_tree_ok(
     const bool checked_arithmetic =
         operation == W_SEED_HIR0_BINARY_ADD ||
         operation == W_SEED_HIR0_BINARY_SUBTRACT ||
-        operation == W_SEED_HIR0_BINARY_MULTIPLY;
+        operation == W_SEED_HIR0_BINARY_MULTIPLY ||
+        operation == W_SEED_HIR0_BINARY_DIVIDE ||
+        operation == W_SEED_HIR0_BINARY_REMAINDER;
     const bool same_checked_integer_result_domain =
         checked_arithmetic && frontend_expression_is_integer(output, value) &&
         frontend_expression_is_integer(
@@ -15384,7 +15386,9 @@ static bool verify_value_tree(
     const bool checked_arithmetic =
         value->binary_operator == W_SEED_HIR0_BINARY_ADD ||
         value->binary_operator == W_SEED_HIR0_BINARY_SUBTRACT ||
-        value->binary_operator == W_SEED_HIR0_BINARY_MULTIPLY;
+        value->binary_operator == W_SEED_HIR0_BINARY_MULTIPLY ||
+        value->binary_operator == W_SEED_HIR0_BINARY_DIVIDE ||
+        value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER;
     const bool shift =
         value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
         value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_RIGHT;
@@ -15492,7 +15496,9 @@ static bool verify_value_tree(
     const bool checked_arithmetic =
         value->binary_operator == W_SEED_HIR0_BINARY_ADD ||
         value->binary_operator == W_SEED_HIR0_BINARY_SUBTRACT ||
-        value->binary_operator == W_SEED_HIR0_BINARY_MULTIPLY;
+        value->binary_operator == W_SEED_HIR0_BINARY_MULTIPLY ||
+        value->binary_operator == W_SEED_HIR0_BINARY_DIVIDE ||
+        value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER;
     const bool comparison =
         value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
         value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL;
