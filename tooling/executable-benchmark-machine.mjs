@@ -21,8 +21,6 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-interpolation",
   "restaurant-scalar-if",
   "restaurant-nested-scalar-if",
-  "restaurant-while",
-  "restaurant-while-multi",
   "restaurant-while-post",
   "restaurant-repeat",
   "restaurant-wmo",
@@ -34,7 +32,6 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-enum-subset",
   "restaurant-enum-payload",
   "restaurant-enum-bool-payload",
-  "restaurant-comparisons",
   "restaurant-comparison-composition",
   "restaurant-bitwise",
   "restaurant-shifts",
@@ -43,12 +40,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-compound",
   "restaurant-f64-strict",
   "restaurant-uint-arithmetic",
-  "restaurant-uint-wrapping-add",
-  "restaurant-uint-wrapping-subtract",
-  "restaurant-uint-wrapping-multiply",
-  "restaurant-uint-wrapping-negate",
-  "restaurant-uint-wrapping-power",
-  "restaurant-uint-wrapping-shift-left",
+  "restaurant-integer-wrapping",
   "restaurant-uint-masked-shift-left",
   "restaurant-uint-masked-shift-right",
   "restaurant-uint-logical-shift-right",
@@ -78,7 +70,6 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-mutation",
   "restaurant-conditional-mutation",
   "restaurant-bool-mutation",
-  "restaurant-branch-mutation",
   "restaurant-branch-mutation-multi",
   "restaurant-composition",
   "process-entry",
@@ -113,6 +104,16 @@ const PUBLIC_WINDOWS_RUN_VARIANTS = Object.freeze({
   "compiler/seed-c/fixtures/process-arguments-ordering.w": "process-arguments-ordering",
   "compiler/seed-c/fixtures/restaurant-repeat.w": "restaurant-repeat",
   "compiler/seed-c/fixtures/local-graph/app.w": "local-module-graph",
+  "compiler/seed-c/fixtures/restaurant-uint-wrapping-add.w": "restaurant-integer-wrapping",
+  "compiler/seed-c/fixtures/restaurant-uint-wrapping-subtract.w": "restaurant-integer-wrapping",
+  "compiler/seed-c/fixtures/restaurant-uint-wrapping-multiply.w": "restaurant-integer-wrapping",
+  "compiler/seed-c/fixtures/restaurant-uint-wrapping-negate.w": "restaurant-integer-wrapping",
+  "compiler/seed-c/fixtures/restaurant-uint-wrapping-power.w": "restaurant-integer-wrapping",
+  "compiler/seed-c/fixtures/restaurant-uint-wrapping-shift-left.w": "restaurant-integer-wrapping",
+  "compiler/seed-c/fixtures/restaurant-while.w": "restaurant-while-post",
+  "compiler/seed-c/fixtures/restaurant-while-multi.w": "restaurant-while-post",
+  "compiler/seed-c/fixtures/restaurant-comparisons.w": "restaurant-comparison-composition",
+  "compiler/seed-c/fixtures/restaurant-branch-mutation.w": "restaurant-branch-mutation-multi",
 });
 export const PROCESS_ENTRY_WORKLOAD_ID = "process-entry";
 export const PROCESS_ENTRY_ORACLE_KIND = "argument-dependent-output";
@@ -206,7 +207,7 @@ export const PROCESS_ARGUMENT_WORKLOAD_IDS = Object.freeze([
 ]);
 export const RESTAURANT_F64_STRICT_WORKLOAD_ID = "restaurant-f64-strict";
 export const RESTAURANT_UINT_ARITHMETIC_WORKLOAD_ID = "restaurant-uint-arithmetic";
-export const RESTAURANT_UINT_WRAPPING_ADD_WORKLOAD_ID = "restaurant-uint-wrapping-add";
+export const RESTAURANT_INTEGER_WRAPPING_WORKLOAD_ID = "restaurant-integer-wrapping";
 export const RESTAURANT_UINT_OVERFLOWING_ADD_WORKLOAD_ID = "restaurant-uint-overflowing-add";
 export const RESTAURANT_UINT_OVERFLOWING_POWER_WORKLOAD_ID = "restaurant-uint-overflowing-power";
 export const RESTAURANT_UINT_OVERFLOWING_FAMILY_WORKLOAD_ID = "restaurant-uint-overflowing-family";
@@ -214,11 +215,6 @@ export const RESTAURANT_UINT_SATURATING_ADD_WORKLOAD_ID = "restaurant-uint-satur
 export const RESTAURANT_UINT_SATURATING_SUBTRACT_WORKLOAD_ID = "restaurant-uint-saturating-subtract";
 export const RESTAURANT_UINT_SATURATING_MULTIPLY_WORKLOAD_ID = "restaurant-uint-saturating-multiply";
 export const RESTAURANT_UINT_SATURATING_POLICY_WORKLOAD_ID = "restaurant-uint-saturating-policy";
-export const RESTAURANT_UINT_WRAPPING_SUBTRACT_WORKLOAD_ID = "restaurant-uint-wrapping-subtract";
-export const RESTAURANT_UINT_WRAPPING_MULTIPLY_WORKLOAD_ID = "restaurant-uint-wrapping-multiply";
-export const RESTAURANT_UINT_WRAPPING_NEGATE_WORKLOAD_ID = "restaurant-uint-wrapping-negate";
-export const RESTAURANT_UINT_WRAPPING_POWER_WORKLOAD_ID = "restaurant-uint-wrapping-power";
-export const RESTAURANT_UINT_WRAPPING_SHIFT_LEFT_WORKLOAD_ID = "restaurant-uint-wrapping-shift-left";
 export const RESTAURANT_UINT_MASKED_SHIFT_LEFT_WORKLOAD_ID = "restaurant-uint-masked-shift-left";
 export const RESTAURANT_UINT_MASKED_SHIFT_RIGHT_WORKLOAD_ID = "restaurant-uint-masked-shift-right";
 export const RESTAURANT_UINT_LOGICAL_SHIFT_RIGHT_WORKLOAD_ID = "restaurant-uint-logical-shift-right";
@@ -556,6 +552,116 @@ function digest(value, name, errors) {
   return true;
 }
 
+const SOURCE_EXPECTED_EXIT_PATTERN = /^\s*\/\/ Expected exit: ([0-9]+)$/u;
+const SOURCE_EXPECTED_STREAM_PATTERN = /^\s*\/\/ Expected (stdout|stderr):$/u;
+const SOURCE_EXPECTED_MARKER_PATTERN = /^\s*\/\/ Expected (?:exit|stdout|stderr)\b/u;
+const SOURCE_COMMENT_PATTERN = /^\s*\/\/(?: ?(.*))?$/u;
+
+function sourceExpectedStreamText(lines) {
+  return lines.length === 0 ? "" : lines.join("\n") + "\n";
+}
+
+/**
+ * Parse the optional source-local executable oracle comments.
+ *
+ * A source opts in by containing one of the reserved `// Expected ...`
+ * markers. Each output comment line contributes one literal output line and
+ * therefore a trailing newline. Sources without a marker return undefined so
+ * the pre-existing benchmark backlog is not forced to migrate at once.
+ */
+export function parseExecutableSourceExpectation(sourceText) {
+  if (typeof sourceText !== "string") throw new TypeError("sourceText must be a string");
+  const lines = sourceText.split(/\r?\n/u);
+  const outputLines = { stdout: [], stderr: [] };
+  const declaredStreams = new Set();
+  const errors = [];
+  let exitCode;
+  let stream;
+  let marked = false;
+
+  for (const line of lines) {
+    const exitMatch = line.match(SOURCE_EXPECTED_EXIT_PATTERN);
+    if (exitMatch) {
+      marked = true;
+      if (exitCode !== undefined) {
+        errors.push("Expected exit must be declared at most once.");
+      } else {
+        const parsed = Number(exitMatch[1]);
+        if (!Number.isSafeInteger(parsed)) {
+          errors.push("Expected exit must be a non-negative safe integer.");
+        } else {
+          exitCode = parsed;
+        }
+      }
+      stream = undefined;
+      continue;
+    }
+
+    const streamMatch = line.match(SOURCE_EXPECTED_STREAM_PATTERN);
+    if (streamMatch) {
+      marked = true;
+      const nextStream = streamMatch[1];
+      if (declaredStreams.has(nextStream)) {
+        errors.push(`Expected ${nextStream} must be declared at most once.`);
+      }
+      declaredStreams.add(nextStream);
+      outputLines[nextStream] = [];
+      stream = nextStream;
+      continue;
+    }
+
+    if (SOURCE_EXPECTED_MARKER_PATTERN.test(line)) {
+      marked = true;
+      errors.push("Expected-output markers must use `// Expected exit: N`, `// Expected stdout:`, or `// Expected stderr:`.");
+      stream = undefined;
+      continue;
+    }
+
+    if (stream !== undefined) {
+      const commentMatch = line.match(SOURCE_COMMENT_PATTERN);
+      if (commentMatch) {
+        outputLines[stream].push(commentMatch[1] ?? "");
+        continue;
+      }
+      stream = undefined;
+    }
+  }
+
+  if (!marked) return undefined;
+  if (exitCode === undefined) errors.push("Expected exit marker is required when source-local output comments are present.");
+  return {
+    exitCode,
+    stdout: sourceExpectedStreamText(outputLines.stdout),
+    stderr: sourceExpectedStreamText(outputLines.stderr),
+    errors,
+  };
+}
+
+/**
+ * Validate one opt-in source-local oracle against a source-backed catalog
+ * oracle. Returns no errors for legacy sources without an opt-in marker.
+ */
+export function validateExecutableSourceExpectation(sourceText, oracle, location = "executable source") {
+  const expectation = parseExecutableSourceExpectation(sourceText);
+  if (expectation === undefined) return [];
+  const errors = expectation.errors.map((error) => `${location}: ${error}`);
+  if (expectation.errors.length > 0) return errors;
+  if (oracle?.kind !== "exact-output" || oracle?.status !== "source-backed") {
+    errors.push(`${location}: source-local expected-output comments require a source-backed exact-output catalog oracle.`);
+    return errors;
+  }
+  if (expectation.exitCode !== oracle.exitCode) {
+    errors.push(`${location}: Expected exit must match the catalog oracle exactly.`);
+  }
+  if (expectation.stdout !== oracle.stdout) {
+    errors.push(`${location}: Expected stdout must match the catalog oracle exactly.`);
+  }
+  if (expectation.stderr !== oracle.stderr) {
+    errors.push(`${location}: Expected stderr must match the catalog oracle exactly.`);
+  }
+  return errors;
+}
+
 function decimal(value, name, errors) {
   if (typeof value !== "string" || !DECIMAL_PATTERN.test(value)) {
     push(errors, name + " must be a canonical decimal string.");
@@ -728,7 +834,14 @@ function checkSource(source, location, workload, root, errors) {
   const expectedExtension = { w: ".w", c: ".c", rust: ".rs" }[source.language];
   const physical = containedFile(root, source.path, location, errors);
   if (physical && path.extname(physical).toLowerCase() !== expectedExtension) push(errors, location + ".path extension does not match language.");
-  if (physical && digest(source.digest, location + ".digest", errors) && source.digest !== fileDigest(physical)) push(errors, location + ".digest is stale.");
+  if (physical) {
+    if (digest(source.digest, location + ".digest", errors) && source.digest !== fileDigest(physical)) push(errors, location + ".digest is stale.");
+    errors.push(...validateExecutableSourceExpectation(
+      fs.readFileSync(physical, "utf8"),
+      workload?.oracle,
+      location,
+    ));
+  }
   if (source.supportSources !== undefined) {
     if (!Array.isArray(source.supportSources) || source.supportSources.length === 0) {
       push(errors, location + ".supportSources must be a non-empty array.");
@@ -1088,10 +1201,10 @@ function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PL
   if (platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) return SOURCE_ELIGIBILITY.wslDiagnostic;
   if (workload?.id === RESTAURANT_F64_STRICT_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_ARITHMETIC_WORKLOAD_ID ||
+      workload?.id === RESTAURANT_INTEGER_WRAPPING_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_BIT_NOT_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_BITWISE_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_COMPOUND_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_WRAPPING_ADD_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_OVERFLOWING_ADD_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_OVERFLOWING_POWER_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_OVERFLOWING_FAMILY_WORKLOAD_ID ||
@@ -1099,11 +1212,6 @@ function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PL
       workload?.id === RESTAURANT_UINT_SATURATING_SUBTRACT_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_SATURATING_MULTIPLY_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_SATURATING_POLICY_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_WRAPPING_SUBTRACT_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_WRAPPING_MULTIPLY_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_WRAPPING_NEGATE_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_WRAPPING_POWER_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_WRAPPING_SHIFT_LEFT_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_MASKED_SHIFT_LEFT_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_MASKED_SHIFT_RIGHT_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_LOGICAL_SHIFT_RIGHT_WORKLOAD_ID ||

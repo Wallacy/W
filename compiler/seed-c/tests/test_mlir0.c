@@ -1789,6 +1789,62 @@ static bool test_typed_interpolation_artifact(void) {
   return true;
 }
 
+static bool test_fixed_integer_family_artifact(void) {
+  static const uint8_t source[] =
+      "entry { "
+      "let signed8: i8 = i8.wrappingAdd(127_i8, 1_i8) "
+      "let unsigned8: u8 = u8.wrappingSubtract(0_u8, 1_u8) "
+      "let signed16: i16 = i16.wrappingMultiply(32767_i16, 2_i16) "
+      "let unsigned16: u16 = u16.wrappingShiftLeft(1_u16, 15_u64) "
+      "let signed32: i32 = i32.wrappingNegate(1_i32) "
+      "let unsigned32: u32 = u32.wrappingPower(2_u32, 31_u64) "
+      "print(\"${signed8}/${unsigned8}/${signed16}/${unsigned16}/"
+      "${signed32}/${unsigned32}\") }\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        memcmp(measured.mlir_sha256, emitted.mlir_sha256,
+               sizeof(measured.mlir_sha256)) == 0);
+  CHECK(count_bytes(artifact, emitted.written.mlir_bytes,
+                    "integer_materialized_mask_") >= 6u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "integer_materialized_sign_fill_") >= 3u &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.select %integer_materialized_negative_") == 3u &&
+        contains_bytes(artifact, emitted.written.mlir_bytes, "llvm.add ") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes, "llvm.sub ") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes, "llvm.mul ") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.call @w_seed_wrapping_shift_left_integer") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.call @w_seed_wrapping_power_integer"));
+
+  static const uint8_t non_entry_source[] =
+      "fn keep(value: i8): i8 { return value }\n"
+      "fn display(value: i8) { print(\"${value}\") }\n"
+      "entry { let retained: i8 = keep(value: -1_i8) "
+      "display(value: retained) }\n";
+  CHECK(lower_hir(non_entry_source, sizeof(non_entry_source) - 1u));
+  CHECK(fixture.hir_program.function_count == 3u);
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  const size_t display_start =
+      find_bytes(artifact, emitted.written.mlir_bytes,
+                 "llvm.func internal @w_fn_1", 0u);
+  const size_t entry_start =
+      find_bytes(artifact, emitted.written.mlir_bytes,
+                 "llvm.func internal @w_fn_2", display_start);
+  CHECK(display_start != SIZE_MAX && entry_start != SIZE_MAX &&
+        contains_bytes(artifact + display_start, entry_start - display_start,
+                       "llvm.and %p0, %integer_materialized_mask_"));
+  return true;
+}
+
 static bool test_interpolation_semantic_barriers(void) {
   static const uint8_t division_by_zero[] =
       "fn main() { print(\"${8 / 0}\") }\nentry(main)\n";
@@ -5794,6 +5850,7 @@ int main(int argc, char **argv) {
   if (!test_windows_target_runtime_surface()) return 1;
   if (!test_restaurant_and_nul()) return 1;
   if (!test_typed_interpolation_artifact()) return 1;
+  if (!test_fixed_integer_family_artifact()) return 1;
   if (!test_direct_unit_call()) return 1;
   if (!test_checked_runtime_arithmetic()) return 1;
   if (!test_checked_helper_reachability()) return 1;

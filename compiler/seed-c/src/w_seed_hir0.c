@@ -27,7 +27,13 @@ enum {
 static const char HIR0_UNIT_NAME[] = "()";
 static const char HIR0_STRING_NAME[] = "String";
 static const char HIR0_NEVER_NAME[] = "Never";
+static const char HIR0_I8_NAME[] = "i8";
+static const char HIR0_I16_NAME[] = "i16";
+static const char HIR0_I32_NAME[] = "i32";
 static const char HIR0_I64_NAME[] = "i64";
+static const char HIR0_U8_NAME[] = "u8";
+static const char HIR0_U16_NAME[] = "u16";
+static const char HIR0_U32_NAME[] = "u32";
 static const char HIR0_U64_NAME[] = "u64";
 static const char HIR0_F64_NAME[] = "f64";
 static const char HIR0_U64_BOOL_TUPLE_NAME[] = "(u64, Bool)";
@@ -157,6 +163,97 @@ static bool text_is(w_seed_frontend_text text, const char *literal) {
           (text.data != NULL && memcmp(text.data, literal, length) == 0));
 }
 
+/* Fixed-width integer records deliberately use canonical spellings in HIR.
+ * Int/i64 and UInt/u64 remain the two historical canonical 64-bit records;
+ * all other widths use the one appended TYPE_INTEGER kind plus these facts. */
+static const char *hir0_fixed_integer_name(bool is_signed,
+                                           uint16_t bit_width) {
+  if (is_signed) {
+    if (bit_width == 8u) return HIR0_I8_NAME;
+    if (bit_width == 16u) return HIR0_I16_NAME;
+    if (bit_width == 32u) return HIR0_I32_NAME;
+    if (bit_width == 64u) return HIR0_I64_NAME;
+  } else {
+    if (bit_width == 8u) return HIR0_U8_NAME;
+    if (bit_width == 16u) return HIR0_U16_NAME;
+    if (bit_width == 32u) return HIR0_U32_NAME;
+    if (bit_width == 64u) return HIR0_U64_NAME;
+  }
+  return NULL;
+}
+
+static bool frontend_integer_spelling_matches(
+    const w_seed_frontend_type *type) {
+  if (type == NULL || type->kind != W_SEED_FRONTEND_TYPE_INTEGER)
+    return false;
+  if (type->bit_width == 64u) {
+    return type->is_signed
+               ? (text_is(type->spelling, HIR0_I64_NAME) ||
+                  text_is(type->spelling, "Int"))
+               : (text_is(type->spelling, HIR0_U64_NAME) ||
+                  text_is(type->spelling, "UInt"));
+  }
+  const char *canonical =
+      hir0_fixed_integer_name(type->is_signed, type->bit_width);
+  return canonical != NULL && text_is(type->spelling, canonical);
+}
+
+static bool frontend_type_is_fixed_integer(
+    const w_seed_frontend_type *type) {
+  return type != NULL && type->task_result_type == W_SEED_FRONTEND_NONE &&
+         type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+         (type->bit_width == 8u || type->bit_width == 16u ||
+          type->bit_width == 32u || type->bit_width == 64u) &&
+         frontend_integer_spelling_matches(type);
+}
+
+static bool frontend_type_is_noncanonical_integer(
+    const w_seed_frontend_type *type) {
+  return frontend_type_is_fixed_integer(type) && type->bit_width != 64u;
+}
+
+static size_t frontend_fixed_integer_type_count(
+    const w_seed_hir0_input *input) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || input->frontend_output->types == NULL)
+    return 0u;
+  size_t count = 0u;
+  const uint16_t widths[] = {8u, 16u, 32u};
+  for (size_t sign = 0u; sign < 2u; sign += 1u)
+    for (size_t width = 0u; width < sizeof(widths) / sizeof(widths[0]);
+         width += 1u) {
+      bool present = false;
+      for (size_t index = 0u;
+           index < input->frontend_result->written.types; index += 1u) {
+        const w_seed_frontend_type *type =
+            &input->frontend_output->types[index];
+        if (frontend_type_is_noncanonical_integer(type) &&
+            type->is_signed == (sign != 0u) &&
+            type->bit_width == widths[width]) {
+          present = true;
+          break;
+        }
+      }
+      if (present) count += 1u;
+    }
+  return count;
+}
+
+static bool frontend_fixed_integer_present(
+    const w_seed_hir0_input *input, bool is_signed, uint16_t bit_width) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || input->frontend_output->types == NULL)
+    return false;
+  for (size_t index = 0u; index < input->frontend_result->written.types;
+       index += 1u) {
+    const w_seed_frontend_type *type = &input->frontend_output->types[index];
+    if (frontend_type_is_noncanonical_integer(type) &&
+        type->is_signed == is_signed && type->bit_width == bit_width)
+      return true;
+  }
+  return false;
+}
+
 static bool hir0_builtin_u64_operation_is_supported(
     w_seed_frontend_builtin_operation operation) {
   return operation == W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD ||
@@ -186,6 +283,21 @@ static bool hir0_builtin_u64_operation_is_supported(
          operation == W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_NEGATE ||
          operation == W_SEED_FRONTEND_BUILTIN_U64_SATURATING_POWER;
+}
+
+static bool hir0_builtin_integer_wrapping_operation_is_supported(
+    w_seed_frontend_builtin_operation operation) {
+  return operation == W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_ADD ||
+         operation == W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_SUBTRACT ||
+         operation == W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_MULTIPLY ||
+         operation == W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_NEGATE ||
+         operation == W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_POWER ||
+         operation == W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_SHIFT_LEFT;
+}
+
+static bool hir0_builtin_integer_wrapping_operation_is_unary(
+    w_seed_frontend_builtin_operation operation) {
+  return operation == W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_NEGATE;
 }
 
 static bool hir0_builtin_u64_operation_returns_tuple(
@@ -364,13 +476,7 @@ static bool frontend_type_supported(const w_seed_frontend_type *type) {
   if (type->kind == W_SEED_FRONTEND_TYPE_FLOAT)
     return type->bit_width == 64u && text_is(type->spelling, HIR0_F64_NAME);
   if (type->kind == W_SEED_FRONTEND_TYPE_INTEGER) {
-    if (type->is_signed)
-      return type->bit_width == 64u &&
-             (text_is(type->spelling, HIR0_I64_NAME) ||
-              text_is(type->spelling, "Int"));
-    return type->bit_width == 64u &&
-           (text_is(type->spelling, HIR0_U64_NAME) ||
-            text_is(type->spelling, "UInt"));
+    return frontend_type_is_fixed_integer(type);
   }
   return false;
 }
@@ -602,7 +708,7 @@ static bool frontend_hir_type_supported(
     return frontend_type_supported(result) &&
            (result->kind == W_SEED_FRONTEND_TYPE_BOOL ||
             (result->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
-             result->is_signed && result->bit_width == 64u));
+             frontend_type_is_fixed_integer(result)));
   }
   if (type->task_result_type != W_SEED_FRONTEND_NONE) return false;
   if (frontend_type_supported(type)) return true;
@@ -1793,8 +1899,7 @@ static bool frontend_task_result_is_unsupported(
     const w_seed_frontend_type *task_result =
         &output->types[type->task_result_type];
     if (task_result->kind == W_SEED_FRONTEND_TYPE_BOOL ||
-        (task_result->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
-         task_result->is_signed && task_result->bit_width == 64u))
+        frontend_type_is_fixed_integer(task_result))
       continue;
     return true;
   }
@@ -1821,8 +1926,7 @@ static bool frontend_elision_scalar_type_ok(
       &input->frontend_output->types[type_index];
   return type->kind == W_SEED_FRONTEND_TYPE_UNIT ||
          type->kind == W_SEED_FRONTEND_TYPE_BOOL ||
-         (type->kind == W_SEED_FRONTEND_TYPE_INTEGER && type->is_signed &&
-          type->bit_width == 64u);
+         frontend_type_is_fixed_integer(type);
 }
 
 static bool frontend_elision_task_value_type_ok(
@@ -1834,8 +1938,7 @@ static bool frontend_elision_task_value_type_ok(
   const w_seed_frontend_type *type =
       &input->frontend_output->types[type_index];
   return type->kind == W_SEED_FRONTEND_TYPE_BOOL ||
-         (type->kind == W_SEED_FRONTEND_TYPE_INTEGER && type->is_signed &&
-         type->bit_width == 64u);
+         frontend_type_is_fixed_integer(type);
 }
 
 /* A resolved local call keeps its source callee name as an identifier
@@ -3234,6 +3337,29 @@ static bool frontend_expression_is_u64(
   return frontend_type_is_u64(&output->types[expression->inferred_type]);
 }
 
+static bool frontend_expression_is_integer(
+    const w_seed_frontend_output *output,
+    const w_seed_frontend_expression *expression) {
+  return output != NULL && expression != NULL &&
+         expression->inferred_type != W_SEED_FRONTEND_NONE &&
+         frontend_type_is_fixed_integer(
+             &output->types[expression->inferred_type]);
+}
+
+static bool frontend_expression_is_signed_integer(
+    const w_seed_frontend_output *output,
+    const w_seed_frontend_expression *expression) {
+  return frontend_expression_is_integer(output, expression) &&
+         output->types[expression->inferred_type].is_signed;
+}
+
+static bool frontend_expression_is_unsigned_integer(
+    const w_seed_frontend_output *output,
+    const w_seed_frontend_expression *expression) {
+  return frontend_expression_is_integer(output, expression) &&
+         !output->types[expression->inferred_type].is_signed;
+}
+
 static bool frontend_expression_is_u64_bool_tuple(
     const w_seed_frontend_output *output,
     const w_seed_frontend_expression *expression) {
@@ -3338,9 +3464,7 @@ static bool frontend_pattern_capture_read_ok(
 static bool frontend_type_is_scalar(const w_seed_frontend_type *type) {
   return type != NULL &&
          (type->kind == W_SEED_FRONTEND_TYPE_BOOL ||
-          (type->kind == W_SEED_FRONTEND_TYPE_INTEGER && type->is_signed &&
-           type->bit_width == 64u) ||
-          frontend_type_is_u64(type) ||
+          frontend_type_is_fixed_integer(type) ||
           (type->kind == W_SEED_FRONTEND_TYPE_FLOAT &&
            type->bit_width == 64u) ||
           frontend_type_is_usize(type));
@@ -3798,8 +3922,8 @@ static bool frontend_value_tree_ok(
              : (bit_not
                     ? !(frontend_expression_is_i64(output, value) ||
                         frontend_expression_is_u64(output, value))
-                    : !(frontend_expression_is_i64(output, value) ||
-                        frontend_expression_is_f64(output, value)))) ||
+             : !(frontend_expression_is_signed_integer(output, value) ||
+                 frontend_expression_is_f64(output, value)))) ||
         output->expressions[value->left].inferred_type ==
             W_SEED_FRONTEND_NONE ||
         (size_t)output->expressions[value->left].inferred_type >=
@@ -3814,7 +3938,7 @@ static bool frontend_value_tree_ok(
                         (frontend_expression_is_u64(output, value) &&
                          frontend_expression_is_u64(
                              output, &output->expressions[value->left])))
-                    : !(frontend_expression_is_i64(
+                    : !(frontend_expression_is_signed_integer(
                             output, &output->expressions[value->left]) ||
                         frontend_expression_is_f64(
                             output, &output->expressions[value->left])))) ||
@@ -4162,9 +4286,9 @@ static bool frontend_value_tree_ok(
     uint64_t unsigned_value = 0u;
     if (value->inferred_type == W_SEED_FRONTEND_NONE ||
         (size_t)value->inferred_type >= result->written.types ||
-        ((!frontend_expression_is_i64(output, value) ||
+        ((!frontend_expression_is_signed_integer(output, value) ||
           !frontend_integer_i64(value, &signed_value)) &&
-         (!frontend_expression_is_u64(output, value) ||
+         (!frontend_expression_is_unsigned_integer(output, value) ||
           !frontend_integer_u64(value, &unsigned_value))) ||
         !frontend_value_has_no_resolution(value) ||
         value->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
@@ -4365,9 +4489,14 @@ static bool frontend_call_expression_ok(
     return false;
   const w_seed_frontend_expression *callee = &output->expressions[call->left];
   if (hir0_builtin_u64_operation_is_supported(call->builtin_operation)) {
-    const bool unary =
-        hir0_builtin_u64_operation_is_unary(
+    const bool integer_wrapping =
+        hir0_builtin_integer_wrapping_operation_is_supported(
             call->builtin_operation);
+    const bool unary = integer_wrapping
+                           ? hir0_builtin_integer_wrapping_operation_is_unary(
+                                 call->builtin_operation)
+                           : hir0_builtin_u64_operation_is_unary(
+                                 call->builtin_operation);
     const bool overflowing = hir0_builtin_u64_operation_returns_tuple(
         call->builtin_operation);
     const size_t expected_argument_count = unary ? 1u : 2u;
@@ -4381,15 +4510,19 @@ static bool frontend_call_expression_ok(
         call->argument_count == expected_argument_count &&
         call->inferred_type != W_SEED_FRONTEND_NONE &&
         (size_t)call->inferred_type < result->written.types &&
-        (overflowing
-             ? frontend_expression_is_u64_bool_tuple(output, call)
-             : frontend_expression_is_u64(output, call)) &&
+        (integer_wrapping
+             ? frontend_expression_is_integer(output, call)
+             : (overflowing
+                    ? frontend_expression_is_u64_bool_tuple(output, call)
+                    : frontend_expression_is_u64(output, call))) &&
         callee->kind == W_SEED_FRONTEND_EXPR_MEMBER && callee->supported &&
         callee->inferred_type != W_SEED_FRONTEND_NONE &&
         (size_t)callee->inferred_type < result->written.types &&
-        (overflowing
-             ? frontend_expression_is_u64_bool_tuple(output, callee)
-             : frontend_expression_is_u64(output, callee)) &&
+        (integer_wrapping
+             ? frontend_expression_is_integer(output, callee)
+             : (overflowing
+                    ? frontend_expression_is_u64_bool_tuple(output, callee)
+                    : frontend_expression_is_u64(output, callee))) &&
         callee->builtin_operation == call->builtin_operation &&
         callee->resolved_callee_kind == W_SEED_FRONTEND_CALLEE_NONE &&
         callee->resolved_external_module_index == W_SEED_FRONTEND_NONE &&
@@ -4403,12 +4536,17 @@ static bool frontend_call_expression_ok(
     const w_seed_frontend_expression *receiver =
         &output->expressions[callee->left];
     if (receiver->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER ||
-        receiver->builtin_operation !=
-            W_SEED_FRONTEND_BUILTIN_U64_RECEIVER ||
-        !receiver->supported || !text_is(receiver->spelling, "u64") ||
+        receiver->builtin_operation != W_SEED_FRONTEND_BUILTIN_INTEGER_RECEIVER ||
+        !receiver->supported ||
         receiver->inferred_type == W_SEED_FRONTEND_NONE ||
         (size_t)receiver->inferred_type >= result->written.types ||
-        !frontend_expression_is_u64(output, receiver) ||
+        (integer_wrapping
+             ? (!frontend_expression_is_integer(output, receiver) ||
+                !frontend_supported_types_equal_for_input(
+                    input, &output->types[receiver->inferred_type],
+                    &output->types[call->inferred_type]))
+             : (!text_is(receiver->spelling, "u64") ||
+                !frontend_expression_is_u64(output, receiver))) ||
         receiver->resolved_parameter_ordinal != W_SEED_FRONTEND_NONE ||
         receiver->resolved_binding_statement != W_SEED_FRONTEND_NONE)
       return false;
@@ -4426,6 +4564,28 @@ static bool frontend_call_expression_ok(
       if (argument_index >= result->written.arguments) return false;
       const w_seed_frontend_argument *argument =
           &output->arguments[argument_index];
+      const w_seed_frontend_expression *argument_value =
+          argument->expression_index == W_SEED_FRONTEND_NONE
+              ? NULL
+              : &output->expressions[argument->expression_index];
+      const w_seed_frontend_type *argument_type =
+          argument_value == NULL ||
+                  argument_value->inferred_type == W_SEED_FRONTEND_NONE ||
+                  (size_t)argument_value->inferred_type >=
+                      result->written.types
+              ? NULL
+              : &output->types[argument_value->inferred_type];
+      const bool expected_integer_type =
+          integer_wrapping &&
+          ((unary || ordinal == 0u ||
+            (call->builtin_operation !=
+                 W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_POWER &&
+             call->builtin_operation !=
+                 W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_SHIFT_LEFT))
+               ? frontend_supported_types_equal_for_input(
+                     input, &output->types[call->inferred_type],
+                     argument_type)
+               : frontend_type_is_u64(argument_type));
       if (argument->module_index != module_index ||
           argument->owner_expression != call->left ||
           argument->label.length != 0u ||
@@ -4436,8 +4596,9 @@ static bool frontend_call_expression_ok(
               W_SEED_FRONTEND_NONE ||
           (size_t)output->expressions[argument->expression_index]
                   .inferred_type >= result->written.types ||
-          !frontend_expression_is_u64(
-              output, &output->expressions[argument->expression_index]) ||
+          (integer_wrapping
+               ? !expected_integer_type
+               : !frontend_expression_is_u64(output, argument_value)) ||
           !frontend_value_tree_ok(
               input, module_index, function_index, document_index,
               statement_index, argument->expression_index, 0u,
@@ -4632,8 +4793,7 @@ static bool frontend_call_expression_ok(
          !frontend_local_enum_type_supported(input,
                                              &output->types[return_type])) ||
         (return_kind == W_SEED_FRONTEND_TYPE_INTEGER &&
-         !frontend_type_is_i64(&output->types[return_type]) &&
-         !frontend_type_is_u64(&output->types[return_type])))
+         !frontend_type_is_fixed_integer(&output->types[return_type])))
       return false;
     parameter_count = target_function->parameter_count;
   }
@@ -7107,6 +7267,20 @@ static bool text_size_for_input(const w_seed_hir0_input *input, size_t *total) {
     return false;
   if (frontend_has_public_process(input) && !add_size(value, 5u, &value))
     return false;
+  /* Non-canonical fixed integers are appended after the historical optional
+   * tail in canonical unsigned-then-signed width order. */
+  const uint16_t fixed_widths[] = {8u, 16u, 32u};
+  for (size_t sign = 0u; sign < 2u; sign += 1u)
+    for (size_t width = 0u;
+         width < sizeof(fixed_widths) / sizeof(fixed_widths[0]);
+         width += 1u) {
+      if (!frontend_fixed_integer_present(input, sign != 0u,
+                                          fixed_widths[width]))
+        continue;
+      const char *name =
+          hir0_fixed_integer_name(sign != 0u, fixed_widths[width]);
+      if (name == NULL || !add_size(value, strlen(name), &value)) return false;
+    }
   for (size_t index = 0u; index < result->written.modules; index += 1u) {
     const w_seed_frontend_module *module = &output->modules[index];
     if (!add_text_size(module->source_id, &value) ||
@@ -7450,6 +7624,8 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
     return HIR0_PREPARE_UNSUPPORTED;
   size_t enum_subset_type_count = 0u;
   size_t enum_subset_member_count = 0u;
+  const size_t fixed_integer_type_count =
+      frontend_fixed_integer_type_count(input);
   if (!frontend_enum_subset_unique_count(input->frontend_output,
                                          frontend_result,
                                          &enum_subset_type_count))
@@ -7484,6 +7660,7 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
                 &counts->types) ||
       !add_size(counts->types, counts->external_symbols == 7u ? 1u : 0u,
                 &counts->types) ||
+      !add_size(counts->types, fixed_integer_type_count, &counts->types) ||
       !count_u32(counts->types))
     return HIR0_PREPARE_UNSUPPORTED;
   counts->enums = frontend_result->written.enums;
@@ -8203,6 +8380,35 @@ static uint32_t hir_type_from_frontend(const w_seed_frontend_output *output,
   const size_t optional_type_base = local_enum_type_base +
                                     result->written.enums +
                                     enum_subset_type_count;
+  const size_t optional_type_count =
+      (has_u64_type ? 1u : 0u) + (has_f64_type ? 1u : 0u) +
+      (has_never_type ? 1u : 0u) +
+      (has_u64_bool_tuple_type ? 1u : 0u) +
+      (external_types == 3u ? 1u : 0u);
+  const size_t integer_type_base = optional_type_base + optional_type_count;
+  if (frontend_type_is_noncanonical_integer(type)) {
+    /* Only present sign/width pairs receive a record. */
+    size_t compact_ordinal = 0u;
+    const uint16_t widths[] = {8u, 16u, 32u};
+    for (size_t sign = 0u; sign < 2u; sign += 1u)
+      for (size_t width = 0u; width < 3u; width += 1u) {
+        bool present = false;
+        for (size_t index = 0u; index < result->written.types; index += 1u)
+          if (frontend_type_is_noncanonical_integer(&output->types[index]) &&
+              output->types[index].is_signed == (sign != 0u) &&
+              output->types[index].bit_width == widths[width]) {
+            present = true;
+            break;
+          }
+        if (present) {
+          if (sign == (type->is_signed ? 1u : 0u) &&
+              widths[width] == type->bit_width)
+            return (uint32_t)(integer_type_base + compact_ordinal);
+          compact_ordinal += 1u;
+        }
+      }
+    return W_SEED_HIR0_NONE;
+  }
   if (frontend_type_is_u64(type) && has_u64_type)
     return (uint32_t)optional_type_base;
   if (type->kind == W_SEED_FRONTEND_TYPE_FLOAT && type->bit_width == 64u &&
@@ -11411,6 +11617,12 @@ static uint32_t hir0_emit_value_m2(
 
   if (source->kind == W_SEED_FRONTEND_EXPR_CALL &&
       hir0_builtin_u64_operation_is_supported(source->builtin_operation)) {
+    const bool integer_wrapping =
+        hir0_builtin_integer_wrapping_operation_is_supported(
+            source->builtin_operation);
+    const bool signed_result =
+        integer_wrapping &&
+        frontend_expression_is_signed_integer(context->frontend, source);
     if (hir0_builtin_u64_operation_is_unary(
             source->builtin_operation)) {
       if (source->argument_count != 1u ||
@@ -11453,7 +11665,8 @@ static uint32_t hir0_emit_value_m2(
                W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BYTES)
         unary_operator = W_SEED_HIR0_UNARY_REVERSED_BYTES;
       context->output->values[*context->value_index] = (w_seed_hir0_value){
-          .kind = W_SEED_HIR0_VALUE_UNARY_U64,
+          .kind = signed_result ? W_SEED_HIR0_VALUE_UNARY_I64
+                                : W_SEED_HIR0_VALUE_UNARY_U64,
           .owner_kind = owner_kind,
           .owner_index = owner_index,
           .owner_ordinal = owner_ordinal,
@@ -11565,7 +11778,8 @@ static uint32_t hir0_emit_value_m2(
              W_SEED_FRONTEND_BUILTIN_U64_SATURATING_POWER)
       binary_operator = W_SEED_HIR0_BINARY_SATURATING_POWER;
     context->output->values[*context->value_index] = (w_seed_hir0_value){
-        .kind = W_SEED_HIR0_VALUE_BINARY_U64,
+        .kind = signed_result ? W_SEED_HIR0_VALUE_BINARY_I64
+                              : W_SEED_HIR0_VALUE_BINARY_U64,
         .owner_kind = owner_kind,
         .owner_index = owner_index,
         .owner_ordinal = owner_ordinal,
@@ -11663,7 +11877,7 @@ static uint32_t hir0_emit_value_m2(
         .owner_kind = owner_kind,
         .owner_index = owner_index,
         .owner_ordinal = owner_ordinal,
-        .type_index = floating || unsigned_bit_not
+        .type_index = floating || unsigned_bit_not || numeric_negate
                           ? hir_type_from_frontend(
                                 context->frontend, context->frontend_result,
                                 source->inferred_type)
@@ -12006,14 +12220,16 @@ static uint32_t hir0_emit_value_m2(
       target->type_index = hir_type_from_frontend(
           context->frontend, context->frontend_result, source->inferred_type);
       (void)frontend_integer_u64(source, &target->unsigned_integer_value);
-    } else if (frontend_expression_is_u64(context->frontend, source)) {
+    } else if (frontend_expression_is_unsigned_integer(context->frontend,
+                                                       source)) {
       target->kind = W_SEED_HIR0_VALUE_CONST_U64;
       target->type_index = hir_type_from_frontend(
           context->frontend, context->frontend_result, source->inferred_type);
       (void)frontend_integer_u64(source, &target->unsigned_integer_value);
     } else {
       target->kind = W_SEED_HIR0_VALUE_CONST_I64;
-      target->type_index = 2u;
+      target->type_index = hir_type_from_frontend(
+          context->frontend, context->frontend_result, source->inferred_type);
       (void)frontend_integer_i64(source, &target->integer_value);
     }
   } else if (source->kind == W_SEED_FRONTEND_EXPR_FLOAT) {
@@ -12123,6 +12339,8 @@ static void emit_records(const w_seed_hir0_input *input,
       .kind = W_SEED_HIR0_TYPE_I64,
       .owner_module = W_SEED_HIR0_NONE,
       .name = {8u, 3u},
+      .integer_is_signed = true,
+      .integer_bit_width = 64u,
       .external_module_index = W_SEED_HIR0_NONE,
       .external_symbol_index = W_SEED_HIR0_NONE,
       .enum_index = W_SEED_HIR0_NONE,
@@ -12165,6 +12383,8 @@ static void emit_records(const w_seed_hir0_input *input,
         .kind = W_SEED_HIR0_TYPE_U64,
         .owner_module = W_SEED_HIR0_NONE,
         .name = {(uint32_t)text_offset, 3u},
+        .integer_is_signed = false,
+        .integer_bit_width = 64u,
         .external_module_index = W_SEED_HIR0_NONE,
         .external_symbol_index = W_SEED_HIR0_NONE,
         .enum_index = W_SEED_HIR0_NONE,
@@ -12240,8 +12460,37 @@ static void emit_records(const w_seed_hir0_input *input,
         .subset_member_count = 0u,
         .lifecycle = W_SEED_HIR0_LIFECYCLE_UNKNOWN,
         .release_contract = W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN};
+    optional_type_index += 1u;
     text_offset += 5u;
   }
+  /* Append one generic fixed-integer record per present non-canonical
+   * sign/width pair. Legacy optional type indices therefore remain stable. */
+  const uint16_t fixed_widths[] = {8u, 16u, 32u};
+  for (size_t sign = 0u; sign < 2u; sign += 1u)
+    for (size_t width = 0u; width < 3u; width += 1u) {
+      const bool is_signed = sign != 0u;
+      const uint16_t bit_width = fixed_widths[width];
+      if (!frontend_fixed_integer_present(input, is_signed, bit_width))
+        continue;
+      const char *name = hir0_fixed_integer_name(is_signed, bit_width);
+      const size_t name_length = strlen(name);
+      (void)memcpy(output->text_bytes + text_offset, name, name_length);
+      output->types[optional_type_index] = (w_seed_hir0_type){
+          .kind = W_SEED_HIR0_TYPE_INTEGER,
+          .owner_module = W_SEED_HIR0_NONE,
+          .name = {(uint32_t)text_offset, (uint32_t)name_length},
+          .integer_is_signed = is_signed,
+          .integer_bit_width = bit_width,
+          .external_module_index = W_SEED_HIR0_NONE,
+          .external_symbol_index = W_SEED_HIR0_NONE,
+          .enum_index = W_SEED_HIR0_NONE,
+          .first_subset_member = W_SEED_HIR0_NONE,
+          .subset_member_count = 0u,
+          .lifecycle = W_SEED_HIR0_LIFECYCLE_UNKNOWN,
+          .release_contract = W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN};
+      optional_type_index += 1u;
+      text_offset += name_length;
+    }
   for (size_t module = 0u; module < counts->external_modules; module += 1u) {
     const w_seed_frontend_external_module *source =
         &frontend_input->external_modules[module];
@@ -12903,6 +13152,8 @@ static void digest_program(const w_seed_hir0_program *program,
     digest_u32(&state, (uint32_t)value->kind);
     digest_u32(&state, value->owner_module);
     digest_text(&state, program, value->name);
+    digest_bool(&state, value->integer_is_signed);
+    digest_u32(&state, value->integer_bit_width);
     digest_u32(&state, value->external_module_index);
     digest_u32(&state, value->external_symbol_index);
     digest_u32(&state, value->enum_index);
@@ -13620,6 +13871,60 @@ static bool verify_external_records(const w_seed_hir0_program *program) {
   return true;
 }
 
+/* TYPE_INTEGER records are a compact optional tail, emitted in the single
+ * order unsigned 8/16/32 followed by signed 8/16/32.  Keep this structural
+ * rule in one validator so type lookup and full verification cannot silently
+ * accept a reordered or duplicated sign/width pair. */
+static bool hir_integer_tail_layout(const w_seed_hir0_program *program,
+                                    size_t subset_base,
+                                    size_t *integer_type_base) {
+  if (program == NULL || integer_type_base == NULL ||
+      subset_base > program->type_count)
+    return false;
+  size_t tail = program->type_count;
+  while (tail > subset_base &&
+         program->types[tail - 1u].kind == W_SEED_HIR0_TYPE_INTEGER)
+    tail -= 1u;
+  for (size_t index = subset_base; index < tail; index += 1u)
+    if (program->types[index].kind == W_SEED_HIR0_TYPE_INTEGER)
+      return false;
+
+  bool seen[2][3] = {{false, false, false}, {false, false, false}};
+  size_t previous_rank = 0u;
+  bool have_previous = false;
+  for (size_t index = tail; index < program->type_count; index += 1u) {
+    const w_seed_hir0_type *type = &program->types[index];
+    size_t width_index = 0u;
+    if (type->kind != W_SEED_HIR0_TYPE_INTEGER ||
+        (type->integer_bit_width != 8u &&
+         type->integer_bit_width != 16u &&
+         type->integer_bit_width != 32u) ||
+        type->owner_module != W_SEED_HIR0_NONE ||
+        type->external_module_index != W_SEED_HIR0_NONE ||
+        type->external_symbol_index != W_SEED_HIR0_NONE ||
+        type->enum_index != W_SEED_HIR0_NONE ||
+        type->first_subset_member != W_SEED_HIR0_NONE ||
+        type->subset_member_count != 0u ||
+        !hir_text_is(program, type->name,
+                     hir0_fixed_integer_name(type->integer_is_signed,
+                                             type->integer_bit_width)))
+      return false;
+    if (type->integer_bit_width == 16u)
+      width_index = 1u;
+    else if (type->integer_bit_width == 32u)
+      width_index = 2u;
+    const size_t rank = (type->integer_is_signed ? 3u : 0u) + width_index;
+    if ((have_previous && rank <= previous_rank) ||
+        seen[type->integer_is_signed ? 1u : 0u][width_index])
+      return false;
+    seen[type->integer_is_signed ? 1u : 0u][width_index] = true;
+    previous_rank = rank;
+    have_previous = true;
+  }
+  *integer_type_base = tail;
+  return true;
+}
+
 static bool hir_enum_subset_layout(const w_seed_hir0_program *program,
                                    size_t *subset_base,
                                    size_t *subset_count,
@@ -13653,9 +13958,13 @@ static bool hir_enum_subset_layout(const w_seed_hir0_program *program,
   *never_type_index = W_SEED_HIR0_NONE;
   *u64_bool_tuple_type_index = W_SEED_HIR0_NONE;
   size_t tail = program->type_count;
+  /* Generic fixed-integer records are appended after the historical
+   * optional tail. Remove them before recovering the legacy optional indices
+   * and enum-subset range. */
+  if (!hir_integer_tail_layout(program, *subset_base, &tail)) return false;
   if (program->external_symbol_count == 7u) {
-    if (program->type_count == *subset_base) return false;
-    *usize_type_index = (uint32_t)(program->type_count - 1u);
+    if (tail == *subset_base) return false;
+    *usize_type_index = (uint32_t)(tail - 1u);
     tail = *usize_type_index;
   }
   if (tail > *subset_base &&
@@ -13872,6 +14181,16 @@ static bool hir_type_index_valid(const w_seed_hir0_program *program,
                                  uint32_t type_index) {
   if (program == NULL || type_index >= program->type_count) return false;
   const w_seed_hir0_type *type = &program->types[type_index];
+  if (type->kind != W_SEED_HIR0_TYPE_I64 &&
+      type->kind != W_SEED_HIR0_TYPE_U64 &&
+      type->kind != W_SEED_HIR0_TYPE_INTEGER &&
+      (type->integer_is_signed || type->integer_bit_width != 0u))
+    return false;
+  if ((type->kind == W_SEED_HIR0_TYPE_I64 &&
+       (!type->integer_is_signed || type->integer_bit_width != 64u)) ||
+      (type->kind == W_SEED_HIR0_TYPE_U64 &&
+       (type->integer_is_signed || type->integer_bit_width != 64u)))
+    return false;
   if (type_index < 4u) {
     const w_seed_hir0_type_kind expected[] = {
         W_SEED_HIR0_TYPE_UNIT, W_SEED_HIR0_TYPE_STRING,
@@ -13882,7 +14201,11 @@ static bool hir_type_index_valid(const w_seed_hir0_program *program,
            type->external_symbol_index == W_SEED_HIR0_NONE &&
            type->enum_index == W_SEED_HIR0_NONE &&
            type->first_subset_member == W_SEED_HIR0_NONE &&
-           type->subset_member_count == 0u;
+           type->subset_member_count == 0u &&
+           ((type_index == 2u && type->integer_is_signed &&
+             type->integer_bit_width == 64u) ||
+            (type_index != 2u && !type->integer_is_signed &&
+             type->integer_bit_width == 0u));
   }
   const size_t external_base =
       4u + (program->external_module_count == 0u ? 0u : 3u);
@@ -13941,6 +14264,7 @@ static bool hir_type_index_valid(const w_seed_hir0_program *program,
            type->enum_index == W_SEED_HIR0_NONE &&
            type->first_subset_member == W_SEED_HIR0_NONE &&
            type->subset_member_count == 0u &&
+           !type->integer_is_signed && type->integer_bit_width == 64u &&
            hir_text_is(program, type->name, HIR0_U64_NAME);
   if (f64_type_index != W_SEED_HIR0_NONE && type_index == f64_type_index)
     return type->kind == W_SEED_HIR0_TYPE_F64 &&
@@ -13975,6 +14299,24 @@ static bool hir_type_index_valid(const w_seed_hir0_program *program,
            type->lifecycle == W_SEED_HIR0_LIFECYCLE_VALUE_COPY &&
            type->release_contract == W_SEED_HIR0_RELEASE_CONTRACT_NONE &&
            hir_text_is(program, type->name, HIR0_U64_BOOL_TUPLE_NAME);
+  size_t integer_type_base = program->type_count;
+  if (!hir_integer_tail_layout(program, subset_base, &integer_type_base))
+    return false;
+  if (type_index >= integer_type_base && type_index < program->type_count) {
+    const bool valid_width =
+        type->integer_bit_width == 8u || type->integer_bit_width == 16u ||
+        type->integer_bit_width == 32u;
+    return type->kind == W_SEED_HIR0_TYPE_INTEGER && valid_width &&
+           type->owner_module == W_SEED_HIR0_NONE &&
+           type->external_module_index == W_SEED_HIR0_NONE &&
+           type->external_symbol_index == W_SEED_HIR0_NONE &&
+           type->enum_index == W_SEED_HIR0_NONE &&
+           type->first_subset_member == W_SEED_HIR0_NONE &&
+           type->subset_member_count == 0u &&
+           hir_text_is(program, type->name,
+                       hir0_fixed_integer_name(type->integer_is_signed,
+                                              type->integer_bit_width));
+  }
   return usize_type_index != W_SEED_HIR0_NONE &&
          type_index == usize_type_index &&
          type->kind == W_SEED_HIR0_TYPE_USIZE &&
@@ -13984,6 +14326,7 @@ static bool hir_type_index_valid(const w_seed_hir0_program *program,
          type->enum_index == W_SEED_HIR0_NONE &&
          type->first_subset_member == W_SEED_HIR0_NONE &&
          type->subset_member_count == 0u &&
+         !type->integer_is_signed && type->integer_bit_width == 0u &&
           hir_text_is(program, type->name, HIR0_USIZE_NAME);
 }
 
@@ -14002,6 +14345,40 @@ static bool hir_type_assignable(const w_seed_hir0_program *program,
   return from->kind == W_SEED_HIR0_TYPE_ENUM_SUBSET &&
          to->kind == W_SEED_HIR0_TYPE_ENUM &&
          from->enum_index == to->enum_index;
+}
+
+static bool hir_integer_type_facts(const w_seed_hir0_program *program,
+                                   uint32_t type_index, bool *is_signed,
+                                   uint16_t *bit_width) {
+  if (program == NULL || is_signed == NULL || bit_width == NULL ||
+      !hir_type_index_valid(program, type_index))
+    return false;
+  const w_seed_hir0_type *type = &program->types[type_index];
+  if (type->kind != W_SEED_HIR0_TYPE_I64 &&
+      type->kind != W_SEED_HIR0_TYPE_U64 &&
+      type->kind != W_SEED_HIR0_TYPE_INTEGER)
+    return false;
+  if (type->kind == W_SEED_HIR0_TYPE_I64 &&
+      (!type->integer_is_signed || type->integer_bit_width != 64u))
+    return false;
+  if (type->kind == W_SEED_HIR0_TYPE_U64 &&
+      (type->integer_is_signed || type->integer_bit_width != 64u))
+    return false;
+  *is_signed = type->integer_is_signed;
+  *bit_width = type->integer_bit_width;
+  return *bit_width == 8u || *bit_width == 16u || *bit_width == 32u ||
+         *bit_width == 64u;
+}
+
+static bool hir_integer_types_equal(const w_seed_hir0_program *program,
+                                   uint32_t left, uint32_t right) {
+  bool left_signed = false;
+  bool right_signed = false;
+  uint16_t left_width = 0u;
+  uint16_t right_width = 0u;
+  return hir_integer_type_facts(program, left, &left_signed, &left_width) &&
+         hir_integer_type_facts(program, right, &right_signed, &right_width) &&
+         left_signed == right_signed && left_width == right_width;
 }
 
 static bool verify_block_argument_records(const w_seed_hir0_program *program) {
@@ -14222,15 +14599,26 @@ static uint32_t hir0_external_type_index(const w_seed_hir0_program *program,
   return W_SEED_HIR0_NONE;
 }
 
+/* usize is an optional legacy record, so generic fixed-integer records may
+ * follow it. Never infer its index from type_count's final slot. */
+static uint32_t hir0_usize_type_index(const w_seed_hir0_program *program) {
+  if (program == NULL || program->type_count > UINT32_MAX)
+    return W_SEED_HIR0_NONE;
+  for (size_t index = 4u; index < program->type_count; index += 1u)
+    if (program->types[index].kind == W_SEED_HIR0_TYPE_USIZE)
+      return (uint32_t)index;
+  return W_SEED_HIR0_NONE;
+}
+
 static bool hir0_usize_count_comparison_operands(
     const w_seed_hir0_program *program, const w_seed_hir0_value *value) {
   if (program == NULL || value == NULL ||
       value->left_value >= program->value_count ||
       value->right_value >= program->value_count ||
-      program->external_symbol_count != 7u ||
-      program->type_count == 0u || program->type_count - 1u > UINT32_MAX)
+      program->external_symbol_count != 7u)
     return false;
-  const uint32_t usize_type = (uint32_t)(program->type_count - 1u);
+  const uint32_t usize_type = hir0_usize_type_index(program);
+  if (usize_type == W_SEED_HIR0_NONE) return false;
   const w_seed_hir0_value *left = &program->values[value->left_value];
   const w_seed_hir0_value *right = &program->values[value->right_value];
   const bool left_count =
@@ -14359,9 +14747,7 @@ static bool verify_value_tree(
     const bool is_count = value->external_symbol_index == 6u &&
                           hir_text_is(program, value->member_name,
                                       HIR0_PROCESS_COUNT);
-    const uint32_t usize_type = program->type_count == 0u
-                                    ? W_SEED_HIR0_NONE
-                                    : (uint32_t)(program->type_count - 1u);
+    const uint32_t usize_type = hir0_usize_type_index(program);
     if ((is_empty && value->type_index != 3u) ||
         (is_count && (usize_type >= program->type_count ||
                       value->type_index != usize_type ||
@@ -14675,8 +15061,39 @@ static bool verify_value_tree(
         value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
         value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_RIGHT;
     const bool power = value->binary_operator == W_SEED_HIR0_BINARY_POWER;
-    if ((uint32_t)value->binary_operator >
-            (uint32_t)W_SEED_HIR0_BINARY_POWER ||
+    const bool wrapping =
+        value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_ADD ||
+        value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT ||
+        value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY ||
+        value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_POWER ||
+        value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT;
+    bool generic_result_signed = false;
+    uint16_t generic_result_width = 0u;
+    const bool generic_wrapping_types_ok =
+        value->type_index < program->type_count &&
+        value->left_value < program->value_count &&
+        value->right_value < program->value_count &&
+        hir_integer_types_equal(program, value->type_index,
+                                program->values[value->left_value].type_index) &&
+        hir_integer_type_facts(program, value->type_index,
+                               &generic_result_signed, &generic_result_width) &&
+        generic_result_signed && generic_result_width != 0u &&
+        ((value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_POWER ||
+          value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT)
+             ? (program->values[value->right_value].type_index <
+                    program->type_count &&
+                program->types[program->values[value->right_value].type_index]
+                        .kind == W_SEED_HIR0_TYPE_U64 &&
+                !program->types[program->values[value->right_value].type_index]
+                     .integer_is_signed &&
+                program->types[program->values[value->right_value].type_index]
+                        .integer_bit_width == 64u)
+             : hir_integer_types_equal(
+                   program, value->type_index,
+                   program->values[value->right_value].type_index));
+    if (((uint32_t)value->binary_operator >
+             (uint32_t)W_SEED_HIR0_BINARY_POWER &&
+         !wrapping) ||
         value->left_value == W_SEED_HIR0_NONE ||
         value->right_value == W_SEED_HIR0_NONE ||
         !verify_value_tree(program, value->left_value,
@@ -14690,7 +15107,9 @@ static bool verify_value_tree(
                            depth + 1u, value_cursor, segment_cursor,
                            byte_cursor) ||
         (size_t)root_index != *value_cursor ||
-        ((shift || power)
+        (wrapping
+             ? !generic_wrapping_types_ok
+             : ((shift || power)
              ? (!hir_type_index_valid(program, value->type_index) ||
                 !hir_type_index_valid(
                     program, program->values[value->left_value].type_index) ||
@@ -14709,12 +15128,13 @@ static bool verify_value_tree(
                              value->binary_operator <=
                                  W_SEED_HIR0_BINARY_GREATER_EQUAL
                          ? 3u
-                         : 2u))) ||
+                         : 2u)))) ||
         value->binding_index != W_SEED_HIR0_NONE ||
         value->parameter_index != W_SEED_HIR0_NONE ||
         value->first_interpolation_segment != W_SEED_HIR0_NONE ||
         value->interpolation_segment_count != 0u ||
-        value->integer_value != 0 || value->bool_value ||
+        value->integer_value != 0 || value->unsigned_integer_value != 0u ||
+        value->bool_value ||
         value->byte_offset != 0u || value->byte_count != 0u)
       return false;
     *value_cursor += 1u;
@@ -14754,6 +15174,9 @@ static bool verify_value_tree(
         value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
         value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_RIGHT ||
         value->binary_operator == W_SEED_HIR0_BINARY_POWER;
+    const bool integer_wrapping =
+        value->binary_operator >= W_SEED_HIR0_BINARY_WRAPPING_ADD &&
+        value->binary_operator <= W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT;
     if (wrapping || overflowing) {
       if (value->left_value == W_SEED_HIR0_NONE ||
           value->left_value >= program->value_count ||
@@ -14771,19 +15194,43 @@ static bool verify_value_tree(
                              depth + 1u, value_cursor, segment_cursor,
                              byte_cursor))
         return false;
+      bool result_signed = false;
+      uint16_t result_width = 0u;
+      const bool generic_integer_types_ok =
+          integer_wrapping &&
+          hir_integer_type_facts(program, value->type_index, &result_signed,
+                                 &result_width) &&
+          !result_signed &&
+          hir_integer_types_equal(
+              program, value->type_index,
+              program->values[value->left_value].type_index) &&
+          ((value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_POWER ||
+            value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT)
+               ? (program->values[value->right_value].type_index <
+                      program->type_count &&
+                  program->types[program->values[value->right_value].type_index]
+                          .kind == W_SEED_HIR0_TYPE_U64 &&
+                  !program->types[program->values[value->right_value].type_index]
+                       .integer_is_signed &&
+                  program->types[program->values[value->right_value].type_index]
+                          .integer_bit_width == 64u)
+               : hir_integer_types_equal(
+                     program, value->type_index,
+                     program->values[value->right_value].type_index));
       if ((size_t)root_index != *value_cursor ||
-          !hir_type_index_valid(program, value->type_index) ||
-          !hir_type_index_valid(
-              program, program->values[value->left_value].type_index) ||
-          !hir_type_index_valid(
-              program, program->values[value->right_value].type_index) ||
-          program->types[program->values[value->left_value].type_index].kind !=
-              W_SEED_HIR0_TYPE_U64 ||
-          program->types[program->values[value->right_value].type_index].kind !=
-              W_SEED_HIR0_TYPE_U64 ||
-          program->types[value->type_index].kind !=
-              (overflowing ? W_SEED_HIR0_TYPE_U64_BOOL_TUPLE
-                           : W_SEED_HIR0_TYPE_U64) ||
+          (!generic_integer_types_ok &&
+           (!hir_type_index_valid(program, value->type_index) ||
+            !hir_type_index_valid(
+                program, program->values[value->left_value].type_index) ||
+            !hir_type_index_valid(
+                program, program->values[value->right_value].type_index) ||
+            program->types[program->values[value->left_value].type_index].kind !=
+                W_SEED_HIR0_TYPE_U64 ||
+            program->types[program->values[value->right_value].type_index].kind !=
+                W_SEED_HIR0_TYPE_U64 ||
+            program->types[value->type_index].kind !=
+                (overflowing ? W_SEED_HIR0_TYPE_U64_BOOL_TUPLE
+                             : W_SEED_HIR0_TYPE_U64))) ||
           value->unary_operator != W_SEED_HIR0_UNARY_NOT ||
           value->block_argument_index != W_SEED_HIR0_NONE ||
           value->binding_index != W_SEED_HIR0_NONE ||
@@ -14875,49 +15322,26 @@ static bool verify_value_tree(
   }
 
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64) {
+    bool result_signed = false;
+    uint16_t result_width = 0u;
+    const bool wrapping =
+        value->unary_operator == W_SEED_HIR0_UNARY_WRAPPING_NEGATE;
+    const bool generic_wrapping =
+        wrapping &&
+        hir_integer_type_facts(program, value->type_index, &result_signed,
+                               &result_width) &&
+        result_signed && value->left_value < program->value_count &&
+        hir_integer_types_equal(program, value->type_index,
+                                program->values[value->left_value].type_index);
+    const bool ordinary_signed_integer =
+        !wrapping &&
+        hir_integer_type_facts(program, value->type_index, &result_signed,
+                               &result_width) &&
+        result_signed;
     if ((value->unary_operator != W_SEED_HIR0_UNARY_NEGATE &&
-         value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT) ||
-        value->type_index != 2u || value->binding_index != W_SEED_HIR0_NONE ||
-        value->parameter_index != W_SEED_HIR0_NONE ||
-        value->call_index != W_SEED_HIR0_NONE ||
-        value->left_value == W_SEED_HIR0_NONE ||
-        value->right_value != W_SEED_HIR0_NONE ||
-        value->first_interpolation_segment != W_SEED_HIR0_NONE ||
-        value->interpolation_segment_count != 0u ||
-        value->binary_operator != W_SEED_HIR0_BINARY_ADD ||
-        value->block_argument_index != W_SEED_HIR0_NONE ||
-        value->integer_value != 0 || value->bool_value ||
-        value->byte_offset != 0u || value->byte_count != 0u ||
-        !verify_value_tree(
-            program, value->left_value, W_SEED_HIR0_VALUE_OWNER_UNARY,
-            root_index, 0u, current_block, current_instruction, source_length,
-            depth + 1u, value_cursor, segment_cursor, byte_cursor) ||
-        (size_t)root_index != *value_cursor ||
-        program->values[value->left_value].type_index != 2u)
-      return false;
-    *value_cursor += 1u;
-    return true;
-  }
-
-  if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64) {
-    const bool overflowing =
-        value->unary_operator == W_SEED_HIR0_UNARY_OVERFLOWING_NEGATE;
-    const bool saturating =
-        value->unary_operator == W_SEED_HIR0_UNARY_SATURATING_NEGATE;
-    if ((value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT &&
-         value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
-         !overflowing &&
-         !saturating &&
-         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES &&
-         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS &&
-         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS &&
-         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS &&
-         value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BITS &&
-         value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BYTES) ||
-        !hir_type_index_valid(program, value->type_index) ||
-        program->types[value->type_index].kind !=
-            (overflowing ? W_SEED_HIR0_TYPE_U64_BOOL_TUPLE
-                         : W_SEED_HIR0_TYPE_U64) ||
+         value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT && !wrapping) ||
+        (!generic_wrapping && !ordinary_signed_integer &&
+         value->type_index != 2u) ||
         value->binding_index != W_SEED_HIR0_NONE ||
         value->parameter_index != W_SEED_HIR0_NONE ||
         value->call_index != W_SEED_HIR0_NONE ||
@@ -14934,10 +15358,67 @@ static bool verify_value_tree(
             root_index, 0u, current_block, current_instruction, source_length,
             depth + 1u, value_cursor, segment_cursor, byte_cursor) ||
         (size_t)root_index != *value_cursor ||
-        !hir_type_index_valid(program,
-                              program->values[value->left_value].type_index) ||
-        program->types[program->values[value->left_value].type_index].kind !=
-            W_SEED_HIR0_TYPE_U64)
+        (!generic_wrapping && ordinary_signed_integer &&
+         !hir_integer_types_equal(
+             program, value->type_index,
+             program->values[value->left_value].type_index)) ||
+        (!generic_wrapping && !ordinary_signed_integer &&
+         program->values[value->left_value].type_index != 2u))
+      return false;
+    *value_cursor += 1u;
+    return true;
+  }
+
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64) {
+    const bool overflowing =
+        value->unary_operator == W_SEED_HIR0_UNARY_OVERFLOWING_NEGATE;
+    const bool saturating =
+        value->unary_operator == W_SEED_HIR0_UNARY_SATURATING_NEGATE;
+    bool result_signed = false;
+    uint16_t result_width = 0u;
+    const bool generic_wrapping =
+        value->unary_operator == W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
+        hir_integer_type_facts(program, value->type_index, &result_signed,
+                               &result_width) &&
+        !result_signed && value->left_value < program->value_count &&
+        hir_integer_types_equal(program, value->type_index,
+                                program->values[value->left_value].type_index);
+    if ((value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT &&
+         value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
+         !overflowing &&
+         !saturating &&
+         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES &&
+         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS &&
+         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS &&
+         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS &&
+         value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BITS &&
+         value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BYTES) ||
+        (!generic_wrapping &&
+         (!hir_type_index_valid(program, value->type_index) ||
+          program->types[value->type_index].kind !=
+              (overflowing ? W_SEED_HIR0_TYPE_U64_BOOL_TUPLE
+                           : W_SEED_HIR0_TYPE_U64))) ||
+        value->binding_index != W_SEED_HIR0_NONE ||
+        value->parameter_index != W_SEED_HIR0_NONE ||
+        value->call_index != W_SEED_HIR0_NONE ||
+        value->left_value == W_SEED_HIR0_NONE ||
+        value->right_value != W_SEED_HIR0_NONE ||
+        value->first_interpolation_segment != W_SEED_HIR0_NONE ||
+        value->interpolation_segment_count != 0u ||
+        value->binary_operator != W_SEED_HIR0_BINARY_ADD ||
+        value->block_argument_index != W_SEED_HIR0_NONE ||
+        value->integer_value != 0 || value->bool_value ||
+        value->byte_offset != 0u || value->byte_count != 0u ||
+        !verify_value_tree(
+            program, value->left_value, W_SEED_HIR0_VALUE_OWNER_UNARY,
+            root_index, 0u, current_block, current_instruction, source_length,
+            depth + 1u, value_cursor, segment_cursor, byte_cursor) ||
+        (size_t)root_index != *value_cursor ||
+        (!generic_wrapping &&
+         (!hir_type_index_valid(
+              program, program->values[value->left_value].type_index) ||
+          program->types[program->values[value->left_value].type_index].kind !=
+              W_SEED_HIR0_TYPE_U64)))
       return false;
     *value_cursor += 1u;
     return true;
@@ -15140,14 +15621,33 @@ static bool verify_value_tree(
           parameter->ordinal != 0u)))
       return false;
   } else if (value->kind == W_SEED_HIR0_VALUE_CONST_I64) {
-    if (value->type_index != 2u ||
+    bool is_signed = false;
+    uint16_t bit_width = 0u;
+    const bool valid_integer = hir_integer_type_facts(
+        program, value->type_index, &is_signed, &bit_width);
+    int64_t minimum = INT64_MIN;
+    int64_t maximum = INT64_MAX;
+    if (bit_width != 64u && bit_width != 0u) {
+      const int64_t bound = INT64_C(1) << (bit_width - 1u);
+      minimum = -bound;
+      maximum = bound - 1;
+    }
+    if (!valid_integer || !is_signed || value->integer_value < minimum ||
+        value->integer_value > maximum ||
         value->binding_index != W_SEED_HIR0_NONE ||
         value->parameter_index != W_SEED_HIR0_NONE || value->bool_value ||
         value->byte_offset != 0u || value->byte_count != 0u)
       return false;
   } else if (value->kind == W_SEED_HIR0_VALUE_CONST_U64) {
-    if (!hir_type_index_valid(program, value->type_index) ||
-        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64 ||
+    bool is_signed = true;
+    uint16_t bit_width = 0u;
+    const bool valid_integer = hir_integer_type_facts(
+        program, value->type_index, &is_signed, &bit_width);
+    const uint64_t maximum =
+        bit_width == 64u
+            ? UINT64_MAX
+            : (bit_width == 0u ? 0u : (UINT64_C(1) << bit_width) - 1u);
+    if (!valid_integer || is_signed || value->unsigned_integer_value > maximum ||
         value->binding_index != W_SEED_HIR0_NONE ||
         value->parameter_index != W_SEED_HIR0_NONE ||
         value->integer_value != 0 || value->bool_value ||
@@ -16879,6 +17379,7 @@ static bool hir0_expected_type_lifecycle(
     case W_SEED_HIR0_TYPE_ENUM_SUBSET:
     case W_SEED_HIR0_TYPE_NEVER:
     case W_SEED_HIR0_TYPE_U64:
+    case W_SEED_HIR0_TYPE_INTEGER:
     case W_SEED_HIR0_TYPE_F64:
     case W_SEED_HIR0_TYPE_U64_BOOL_TUPLE:
       *lifecycle = W_SEED_HIR0_LIFECYCLE_VALUE_COPY;
@@ -17222,6 +17723,7 @@ static bool hir0_type_is_blocked(const w_seed_hir0_program *program,
     case W_SEED_HIR0_TYPE_ENUM_SUBSET:
     case W_SEED_HIR0_TYPE_NEVER:
     case W_SEED_HIR0_TYPE_U64:
+    case W_SEED_HIR0_TYPE_INTEGER:
     case W_SEED_HIR0_TYPE_F64:
     case W_SEED_HIR0_TYPE_U64_BOOL_TUPLE:
       return false;
@@ -17527,6 +18029,7 @@ static bool hir0_interpolated_string_is_direct_print_argument(
       if (child->type_index >= program->type_count ||
           (program->types[child->type_index].kind != W_SEED_HIR0_TYPE_I64 &&
            program->types[child->type_index].kind != W_SEED_HIR0_TYPE_U64 &&
+           program->types[child->type_index].kind != W_SEED_HIR0_TYPE_INTEGER &&
            program->types[child->type_index].kind != W_SEED_HIR0_TYPE_BOOL &&
            program->types[child->type_index].kind != W_SEED_HIR0_TYPE_USIZE))
         return false;
@@ -17779,7 +18282,7 @@ static bool hir0_static_yield_scalar_type(
   if (program == NULL || type_index >= program->type_count) return false;
   const w_seed_hir0_type_kind kind = program->types[type_index].kind;
   return kind == W_SEED_HIR0_TYPE_UNIT || kind == W_SEED_HIR0_TYPE_I64 ||
-         kind == W_SEED_HIR0_TYPE_BOOL;
+         kind == W_SEED_HIR0_TYPE_INTEGER || kind == W_SEED_HIR0_TYPE_BOOL;
 }
 
 /* Exact non-returning child admitted only by the parallel physical lane.  The
@@ -18327,6 +18830,14 @@ static bool verify_records(const w_seed_hir0_program *program) {
       program->types[2].external_symbol_index != W_SEED_HIR0_NONE ||
       program->types[3].external_module_index != W_SEED_HIR0_NONE ||
       program->types[3].external_symbol_index != W_SEED_HIR0_NONE ||
+      program->types[0].integer_is_signed ||
+      program->types[0].integer_bit_width != 0u ||
+      program->types[1].integer_is_signed ||
+      program->types[1].integer_bit_width != 0u ||
+      !program->types[2].integer_is_signed ||
+      program->types[2].integer_bit_width != 64u ||
+      program->types[3].integer_is_signed ||
+      program->types[3].integer_bit_width != 0u ||
       !verify_external_records(program) || !verify_enum_records(program) ||
       !verify_enum_subset_records(program) ||
       !verify_identity_records(program) ||
@@ -18335,10 +18846,12 @@ static bool verify_records(const w_seed_hir0_program *program) {
   if (has_external_process) {
     for (size_t type = 4u; type < 7u; type += 1u)
       if (!hir_type_index_valid(program, (uint32_t)type)) return false;
-    if (program->external_symbol_count == 7u &&
-        !hir_type_index_valid(program,
-                              (uint32_t)(program->type_count - 1u)))
-      return false;
+    if (program->external_symbol_count == 7u) {
+      const uint32_t usize_type = hir0_usize_type_index(program);
+      if (usize_type == W_SEED_HIR0_NONE ||
+          !hir_type_index_valid(program, usize_type))
+        return false;
+    }
   }
   size_t module_function_cursor = 0u;
   size_t module_entry_cursor = 0u;

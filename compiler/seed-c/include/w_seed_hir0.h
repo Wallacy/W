@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-77"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-78"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -72,6 +72,14 @@ typedef enum {
    * u64.overflowingPower family. This is a virtual SSA product with
    * value-copy lifecycle, not an allocated object. */
   W_SEED_HIR0_TYPE_U64_BOOL_TUPLE,
+  /* One shared fixed-width integer record for non-canonical widths. The
+   * signedness and width facts below carry the complete integer identity;
+   * i64/u64 retain their historical canonical records and numeric identity. */
+  W_SEED_HIR0_TYPE_INTEGER,
+  /* Generic compatibility names for the two historical 64-bit records.
+   * These aliases intentionally do not allocate per-width type identities. */
+  W_SEED_HIR0_TYPE_INTEGER_SIGNED = W_SEED_HIR0_TYPE_I64,
+  W_SEED_HIR0_TYPE_INTEGER_UNSIGNED = W_SEED_HIR0_TYPE_U64,
 } w_seed_hir0_type_kind;
 
 typedef enum {
@@ -192,6 +200,14 @@ typedef enum {
   W_SEED_HIR0_VALUE_UNARY_U64,
   /* Positional projection from one virtual fixed tuple value. */
   W_SEED_HIR0_VALUE_TUPLE_ELEMENT,
+  /* Generic names for the stable signed/unsigned carrier kinds. These are
+   * aliases, not new per-width value identities. */
+  W_SEED_HIR0_VALUE_CONST_INTEGER_SIGNED = W_SEED_HIR0_VALUE_CONST_I64,
+  W_SEED_HIR0_VALUE_CONST_INTEGER_UNSIGNED = W_SEED_HIR0_VALUE_CONST_U64,
+  W_SEED_HIR0_VALUE_BINARY_INTEGER_SIGNED = W_SEED_HIR0_VALUE_BINARY_I64,
+  W_SEED_HIR0_VALUE_BINARY_INTEGER_UNSIGNED = W_SEED_HIR0_VALUE_BINARY_U64,
+  W_SEED_HIR0_VALUE_UNARY_INTEGER_SIGNED = W_SEED_HIR0_VALUE_UNARY_I64,
+  W_SEED_HIR0_VALUE_UNARY_INTEGER_UNSIGNED = W_SEED_HIR0_VALUE_UNARY_U64,
 } w_seed_hir0_value_kind;
 
 typedef enum {
@@ -265,6 +281,17 @@ typedef enum {
   W_SEED_HIR0_BINARY_OVERFLOWING_POWER,
   /* Canonical u64.saturatingPower. Keep this identity append-only. */
   W_SEED_HIR0_BINARY_SATURATING_POWER,
+  /* Generic fixed-width integer aliases; width and signedness live on the
+   * result/operand type records rather than in the operator identity. */
+  W_SEED_HIR0_BINARY_INTEGER_WRAPPING_ADD = W_SEED_HIR0_BINARY_WRAPPING_ADD,
+  W_SEED_HIR0_BINARY_INTEGER_WRAPPING_SUBTRACT =
+      W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT,
+  W_SEED_HIR0_BINARY_INTEGER_WRAPPING_MULTIPLY =
+      W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY,
+  W_SEED_HIR0_BINARY_INTEGER_WRAPPING_POWER =
+      W_SEED_HIR0_BINARY_WRAPPING_POWER,
+  W_SEED_HIR0_BINARY_INTEGER_WRAPPING_SHIFT_LEFT =
+      W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT,
 } w_seed_hir0_binary_operator;
 
 typedef enum {
@@ -288,6 +315,8 @@ typedef enum {
   W_SEED_HIR0_UNARY_OVERFLOWING_NEGATE,
   /* Canonical u64.saturatingNegate. Keep this identity append-only. */
   W_SEED_HIR0_UNARY_SATURATING_NEGATE,
+  W_SEED_HIR0_UNARY_INTEGER_WRAPPING_NEGATE =
+      W_SEED_HIR0_UNARY_WRAPPING_NEGATE,
 } w_seed_hir0_unary_operator;
 
 typedef enum {
@@ -416,6 +445,12 @@ typedef struct {
   w_seed_hir0_type_kind kind;
   uint32_t owner_module;
   w_seed_hir0_text name;
+  /* Canonical fixed-integer facts. TYPE_I64/TYPE_U64 are compatibility
+   * records with these facts re-derived as (signed,64)/(unsigned,64);
+   * TYPE_INTEGER carries the same facts for i8/i16/i32/u8/u16/u32. All
+   * non-integer kinds keep both fields zero. */
+  bool integer_is_signed;
+  uint16_t integer_bit_width;
   /* Present only for TYPE_NOMINAL. The pair indexes caller-copied external
    * records and is independent of source-local aliases. */
   uint32_t external_module_index;

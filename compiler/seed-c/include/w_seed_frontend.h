@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-62"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-63"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -341,9 +341,11 @@ typedef enum {
  * not module symbols or source rewrites. */
 typedef enum {
   W_SEED_FRONTEND_BUILTIN_NONE = 0,
+  /* Fixed-width integer wrapping policy. The historical U64 names remain
+   * source-compatible aliases for these append-only numeric identities. */
   W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD,
   W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SUBTRACT,
-  /* Type-namespace receiver marker; not an executable operation. */
+  /* Fixed-width integer type-namespace receiver marker; not executable. */
   W_SEED_FRONTEND_BUILTIN_U64_RECEIVER,
   W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_MULTIPLY,
   W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_NEGATE,
@@ -391,6 +393,24 @@ typedef enum {
   W_SEED_FRONTEND_BUILTIN_U64_SATURATING_NEGATE,
   /* Canonical u64.saturatingPower. Keep this identity append-only. */
   W_SEED_FRONTEND_BUILTIN_U64_SATURATING_POWER,
+  /* Generic fixed-width integer wrapping policy.  These aliases deliberately
+   * retain the original numeric identities: the receiver's signedness and
+   * width are carried by the associated expression type, not by a
+   * width-specific operation enum. */
+  W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_ADD =
+      W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_ADD,
+  W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_SUBTRACT =
+      W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SUBTRACT,
+  W_SEED_FRONTEND_BUILTIN_INTEGER_RECEIVER =
+      W_SEED_FRONTEND_BUILTIN_U64_RECEIVER,
+  W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_MULTIPLY =
+      W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_MULTIPLY,
+  W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_NEGATE =
+      W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_NEGATE,
+  W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_POWER =
+      W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_POWER,
+  W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_SHIFT_LEFT =
+      W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SHIFT_LEFT,
 } w_seed_frontend_builtin_operation;
 
 typedef enum {

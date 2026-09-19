@@ -4403,6 +4403,112 @@ static bool test_process_parallel_native_admission(void) {
   return true;
 }
 
+/* One combined NativeSubset matrix keeps the logical integer package visible
+ * to the selector without teaching this stage a new value kind per width. The
+ * same source now crosses the generic narrow-integer MLIR0 route. */
+static bool test_fixed_integer_wrapping_native_admission(void) {
+  static const uint8_t source[] =
+      "entry { "
+      "let signed8 = i8.wrappingAdd(127_i8, 1_i8) "
+      "let signed16 = i16.wrappingSubtract(-32767_i16, 2_i16) "
+      "let signed32 = i32.wrappingMultiply(2147483647_i32, 2_i32) "
+      "let signed64Min = i64.wrappingAdd(9223372036854775807_i64, 1_i64) "
+      "let signed64NegatedMax = i64.wrappingNegate(-9223372036854775807_i64) "
+      "let unsigned8 = u8.wrappingPower(2_u8, 8_u64) "
+      "let unsigned16 = u16.wrappingShiftLeft(32769_u16, 1_u64) "
+      "let unsigned32 = u32.wrappingNegate(1_u32) "
+      "let unsigned64 = u64.wrappingAdd(18446744073709551615_u64, 1_u64) "
+      "let signedAlias = Int.wrappingPower(-2, 63_u64) "
+      "let signedAliasZero = Int.wrappingPower(-2, 64_u64) "
+      "let zeroPowerZero = UInt.wrappingPower(0, 0_u64) "
+      "let nested = i8.wrappingAdd(i8.wrappingAdd(127_i8, 1_i8), 1_i8) "
+      "let unsignedAlias = UInt.wrappingSubtract(0, 1) print(\"ok\") }\n";
+  uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  const w_seed_native0_status status =
+      run_source(source, sizeof(source) - 1u, "integer-wrapping-native", 23u,
+                 output, sizeof(output), &result);
+  CHECK(status == W_SEED_NATIVE0_OK && result.status == W_SEED_NATIVE0_OK &&
+        result.mlir.status == W_SEED_MLIR0_OK &&
+        result.mlir.written.mlir_bytes != 0u);
+  CHECK(storage.hir_result.status == W_SEED_HIR0_OK &&
+        w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  size_t operation_counts[5] = {0u};
+  size_t unary_negate_count = 0u;
+  size_t generic_signed = 0u;
+  size_t generic_unsigned = 0u;
+  for (size_t index = 0u; index < storage.hir_program.value_count; index += 1u) {
+    const w_seed_hir0_value *value = &storage.hir_program.values[index];
+    size_t operation = SIZE_MAX;
+    if ((value->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
+         value->kind == W_SEED_HIR0_VALUE_BINARY_U64) &&
+        value->binary_operator >= W_SEED_HIR0_BINARY_WRAPPING_ADD &&
+        value->binary_operator <= W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT)
+      operation = (size_t)value->binary_operator -
+                  (size_t)W_SEED_HIR0_BINARY_WRAPPING_ADD;
+    else if ((value->kind == W_SEED_HIR0_VALUE_UNARY_I64 ||
+              value->kind == W_SEED_HIR0_VALUE_UNARY_U64) &&
+             value->unary_operator == W_SEED_HIR0_UNARY_WRAPPING_NEGATE)
+      unary_negate_count += 1u;
+    if (operation < sizeof(operation_counts) / sizeof(operation_counts[0]))
+      operation_counts[operation] += 1u;
+    if (value->type_index < storage.hir_program.type_count &&
+        storage.hir_program.types[value->type_index].kind ==
+            W_SEED_HIR0_TYPE_INTEGER) {
+      if (storage.hir_program.types[value->type_index].integer_is_signed)
+        generic_signed += 1u;
+      else
+        generic_unsigned += 1u;
+    }
+  }
+  CHECK(operation_counts[0] == 5u && operation_counts[1] == 2u &&
+        operation_counts[2] == 1u && operation_counts[3] == 4u &&
+        operation_counts[4] == 1u && unary_negate_count == 2u &&
+        generic_signed != 0u &&
+        generic_unsigned != 0u && !selection.has_interpolation);
+
+  static const uint8_t dynamic_negate[] =
+      "fn negate(value: i8): i8 { return -value }\n"
+      "entry { let result = "
+      "i8.wrappingAdd(negate(value: 1_i8), 2_i8) print(\"ok\") }\n";
+  const w_seed_native0_status dynamic_status =
+      run_source(dynamic_negate, sizeof(dynamic_negate) - 1u,
+                 "integer-narrow-dynamic-negate", 29u, output,
+                 sizeof(output), &result);
+  CHECK(dynamic_status == W_SEED_NATIVE0_OK &&
+        result.mlir.status == W_SEED_MLIR0_OK &&
+        result.mlir.written.mlir_bytes != 0u);
+  CHECK(storage.hir_result.status == W_SEED_HIR0_OK &&
+        w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
+  CHECK(w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+
+  static const char *const rejected[] = {
+      "entry { let bad = i8.wrappingAdd(1_i8, 1_i16) }\n",
+      "entry { let bad = i8.wrappingPower(1_i8, 1_i64) }\n",
+      "entry { let bad = i8.wrappingShiftLeft(1_i8, 8_u64) }\n",
+      "entry { let bad = i8.wrappingShiftLeft(1_i8, 9_u64) }\n",
+      "entry { let i8 = 1_i8 let bad = i8.wrappingAdd(1_i8, 1_i8) }\n"};
+  for (size_t index = 0u; index < sizeof(rejected) / sizeof(rejected[0]);
+       index += 1u) {
+    (void)memset(output, 0xa9u, sizeof(output));
+    (void)memset(&result, 0xb0u, sizeof(result));
+    const w_seed_native0_result snapshot = result;
+    CHECK(run_source((const uint8_t *)rejected[index], strlen(rejected[index]),
+                     "integer-wrapping-native-bad", 27u, output,
+                     sizeof(output), &result) != W_SEED_NATIVE0_OK);
+    CHECK(memcmp(&result, &snapshot, sizeof(result)) == 0);
+    for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+      CHECK(output[byte] == 0xa9u);
+  }
+  return true;
+}
+
 int main(void) {
   const bool products = test_virtual_structured_task_product() &&
                         test_virtual_static_yield_helper_product() &&
@@ -4445,7 +4551,8 @@ int main(void) {
                         test_process_arguments_count_ordered_native() &&
                         test_process_stdout_bounds() &&
                         test_process_enum_payload_public_artifact() &&
-                        test_process_parallel_native_admission();
+                         test_process_parallel_native_admission() &&
+                         test_fixed_integer_wrapping_native_admission();
   const bool logical = products && test_logical_native_selector() &&
                        test_multi_carrier_native_subset_selector() &&
                        test_post_loop_continuation_native_subset() &&

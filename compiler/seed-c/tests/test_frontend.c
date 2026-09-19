@@ -7553,6 +7553,194 @@ static bool test_gpu_module_bridge(const char *path) {
   return true;
 }
 
+static bool test_integer_wrapping_frontend_matrix(void) {
+  typedef struct {
+    const char *receiver;
+    const char *literal_suffix;
+    bool is_signed;
+    uint16_t bit_width;
+  } receiver_case;
+  static const receiver_case RECEIVERS[] = {
+      {"i8", "i8", true, 8u},   {"i16", "i16", true, 16u},
+      {"i32", "i32", true, 32u}, {"i64", "i64", true, 64u},
+      {"u8", "u8", false, 8u},   {"u16", "u16", false, 16u},
+      {"u32", "u32", false, 32u}, {"u64", "u64", false, 64u},
+      {"Int", "i64", true, 64u},  {"UInt", "u64", false, 64u},
+  };
+  typedef struct {
+    const char *member;
+    w_seed_frontend_builtin_operation operation;
+    size_t argument_count;
+  } operation_case;
+  static const operation_case OPERATIONS[] = {
+      {"wrappingAdd", W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_ADD, 2u},
+      {"wrappingSubtract",
+       W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_SUBTRACT, 2u},
+      {"wrappingMultiply",
+       W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_MULTIPLY, 2u},
+      {"wrappingNegate", W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_NEGATE, 1u},
+      {"wrappingPower", W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_POWER, 2u},
+      {"wrappingShiftLeft",
+       W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_SHIFT_LEFT, 2u},
+  };
+  fixture *value = &fixture_literal;
+  char source[512];
+  for (size_t receiver_index = 0u;
+       receiver_index < sizeof(RECEIVERS) / sizeof(RECEIVERS[0]);
+       receiver_index += 1u) {
+    const receiver_case *receiver = &RECEIVERS[receiver_index];
+    for (size_t operation_index = 0u;
+         operation_index < sizeof(OPERATIONS) / sizeof(OPERATIONS[0]);
+         operation_index += 1u) {
+      const operation_case *operation = &OPERATIONS[operation_index];
+      int written = 0;
+      if (operation->argument_count == 1u) {
+        written = snprintf(
+            source, sizeof(source),
+            "entry { let result = %s.%s(2_%s) }\n", receiver->receiver,
+            operation->member, receiver->literal_suffix);
+      } else if (operation->operation ==
+                     W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_POWER ||
+                 operation->operation ==
+                     W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_SHIFT_LEFT) {
+        written = snprintf(
+            source, sizeof(source),
+            "entry { let result = %s.%s(2_%s, 3_u64) }\n",
+            receiver->receiver, operation->member, receiver->literal_suffix);
+      } else {
+        written = snprintf(
+            source, sizeof(source),
+            "entry { let result = %s.%s(2_%s, 3_%s) }\n",
+            receiver->receiver, operation->member, receiver->literal_suffix,
+            receiver->literal_suffix);
+      }
+      CHECK(written > 0 && (size_t)written < sizeof(source));
+      CHECK(fixture_run(value, source));
+      CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
+            value->result.status == W_SEED_FRONTEND_OK &&
+            counts_equal(&value->result.required, &value->result.written));
+      size_t matching_calls = 0u;
+      for (size_t expression_index = 0u;
+           expression_index < value->result.written.expressions;
+           expression_index += 1u) {
+        const w_seed_frontend_expression *expression =
+            &value->expressions[expression_index];
+        if (expression->kind != W_SEED_FRONTEND_EXPR_CALL ||
+            expression->builtin_operation != operation->operation)
+          continue;
+        matching_calls += 1u;
+        CHECK(expression->supported &&
+              expression->argument_count == operation->argument_count &&
+              expression->inferred_type < value->result.written.types);
+        const w_seed_frontend_type *type =
+            &value->types[expression->inferred_type];
+        CHECK(type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+              type->is_signed == receiver->is_signed &&
+              type->bit_width == receiver->bit_width);
+      }
+      CHECK(matching_calls == 1u);
+    }
+  }
+
+  static const char NESTED[] =
+      "entry { let result = "
+      "i8.wrappingAdd(i8.wrappingNegate(1_i8), 2_i8) }\n";
+  CHECK(fixture_run(value, NESTED));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
+        value->result.status == W_SEED_FRONTEND_OK &&
+        counts_equal(&value->result.required, &value->result.written));
+  uint32_t inner_call = W_SEED_FRONTEND_NONE;
+  uint32_t outer_call = W_SEED_FRONTEND_NONE;
+  for (size_t expression_index = 0u;
+       expression_index < value->result.written.expressions;
+       expression_index += 1u) {
+    const w_seed_frontend_expression *expression =
+        &value->expressions[expression_index];
+    if (expression->kind != W_SEED_FRONTEND_EXPR_CALL ||
+        !expression->supported)
+      continue;
+    if (expression->builtin_operation ==
+        W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_NEGATE)
+      inner_call = (uint32_t)expression_index;
+    if (expression->builtin_operation ==
+        W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_ADD)
+      outer_call = (uint32_t)expression_index;
+  }
+  CHECK(inner_call != W_SEED_FRONTEND_NONE &&
+        outer_call != W_SEED_FRONTEND_NONE);
+  const w_seed_frontend_expression *inner = &value->expressions[inner_call];
+  const w_seed_frontend_expression *outer = &value->expressions[outer_call];
+  CHECK(inner->argument_count == 1u && outer->argument_count == 2u &&
+        inner->first_argument < outer->first_argument &&
+        (size_t)outer->first_argument + outer->argument_count <=
+            value->result.written.arguments &&
+        value->arguments[outer->first_argument].expression_index ==
+            inner_call);
+
+  static const char NESTED_REORDERED_LOCAL[] =
+      "fn add(left: i8, right: i8): i8 { "
+      "return i8.wrappingAdd(left, right) }\n"
+      "entry { let result = "
+      "add(right: i8.wrappingNegate(1_i8), left: 2_i8) }\n";
+  CHECK(fixture_run(value, NESTED_REORDERED_LOCAL));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
+        value->result.status == W_SEED_FRONTEND_OK &&
+        counts_equal(&value->result.required, &value->result.written));
+  inner_call = W_SEED_FRONTEND_NONE;
+  outer_call = W_SEED_FRONTEND_NONE;
+  for (size_t expression_index = 0u;
+       expression_index < value->result.written.expressions;
+       expression_index += 1u) {
+    const w_seed_frontend_expression *expression =
+        &value->expressions[expression_index];
+    if (expression->kind != W_SEED_FRONTEND_EXPR_CALL ||
+        !expression->supported)
+      continue;
+    if (expression->builtin_operation ==
+        W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_NEGATE)
+      inner_call = (uint32_t)expression_index;
+    else if (expression->argument_count == 2u)
+      outer_call = (uint32_t)expression_index;
+  }
+  CHECK(inner_call != W_SEED_FRONTEND_NONE &&
+        outer_call != W_SEED_FRONTEND_NONE);
+  inner = &value->expressions[inner_call];
+  outer = &value->expressions[outer_call];
+  CHECK(inner->argument_count == 1u && outer->argument_count == 2u &&
+        inner->first_argument < outer->first_argument &&
+        (size_t)outer->first_argument + outer->argument_count <=
+            value->result.written.arguments &&
+        value->arguments[outer->first_argument].expression_index ==
+            inner_call &&
+        value->arguments[outer->first_argument].label.length == 5u &&
+        memcmp(value->arguments[outer->first_argument].label.data, "right",
+               5u) == 0 &&
+        value->arguments[outer->first_argument + 1u].label.length == 4u &&
+        memcmp(value->arguments[outer->first_argument + 1u].label.data,
+               "left", 4u) == 0);
+
+  static const char *const REJECTED[] = {
+      "entry { let result = usize.wrappingAdd(1_u64, 2_u64) }\n",
+      "entry { let result = f64.wrappingAdd(1_u64, 2_u64) }\n",
+      "entry { let result = i8.wrappingAdd(1_i8, 2_i16) }\n",
+      "entry { let result = i8.wrappingSubtract(1_i8, true) }\n",
+      "entry { let result = i8.wrappingMultiply(1_i8) }\n",
+      "entry { let result = i8.wrappingNegate(1_i8, 2_i8) }\n",
+      "entry { let result = i8.wrappingPower(1_i8, 2_i64) }\n",
+      "entry { let result = i8.wrappingShiftLeft(1_i8, true) }\n",
+      "entry { let result = i8.wrappingAdd(left: 1_i8, right: 2_i8) }\n",
+      "entry { let result = i8?.wrappingAdd(1_i8, 2_i8) }\n",
+      "entry { let i8 = 1_i8 let result = i8.wrappingAdd(1_i8, 2_i8) }\n",
+  };
+  for (size_t index = 0u; index < sizeof(REJECTED) / sizeof(REJECTED[0]);
+       index += 1u) {
+    CHECK(fixture_run(value, REJECTED[index]));
+    CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+          has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+  }
+  return true;
+}
+
 int main(int argc, char **argv) {
   if (argc == 2) return test_gpu_module_bridge(argv[1]) ? 0 : 1;
   if (argc != 1) return 2;
@@ -7597,5 +7785,6 @@ int main(int argc, char **argv) {
   if (!test_multidocument_kernel_import_frontend()) return 1;
   if (!test_multidocument_kernel_import_rejections()) return 1;
   if (!test_kernel_module_frontend()) return 1;
+  if (!test_integer_wrapping_frontend_matrix()) return 1;
   return 0;
 }

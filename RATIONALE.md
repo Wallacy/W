@@ -213,6 +213,7 @@ O corpus compara, no mínimo:
 - bounded unsigned overflowing subtract, multiply, and negate against checked helpers, heap products, precomputed output, and a single shared flag rule.
 - bounded source-backed `u64` ConstIR7 policy evaluation.
 - bounded closed overflow product across const boundaries.
+- fixed-width wrapping integer family through native execution.
 - short default entry against a magic main function, source-addressable synthetic identity, and duplicate default descriptors.
 - external process nominal identity against alias-spelling identity, first-match duplicate imports, and forged ExitCode success metadata.
 - caller-owned external identity, handler compatibility, alias-independent semantics, and downstream fail-closed behavior.
@@ -7984,6 +7985,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1633 | bounded unsigned overflowing subtract, multiply, and negate execution | Frontend61 and HIR76 preserve `u64.overflowingSubtract`, `u64.overflowingMultiply`, and `u64.overflowingNegate` as append-only operations returning virtual `(u64, Bool)` products. MLIR0 emits unsigned overflow intrinsics and ordinary tuple projections; exact native execution covers ordinary and overflow boundaries without heap, runtime identity, checked helpers, or precomputed results. | `source-backed-current` only for the bounded `u64` source-to-frontend-to-verified-HIR-to-MLIR/Native0 route, adversarial C23 tests, exact intrinsic/projection shape, and exact Windows plus Linux/WSL execution. Other widths, const evaluation, stable ABI, benchmark ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1634 | bounded source-backed `u64` ConstIR7 policy evaluation | ConstIR schema `w-seed-constir-7` accepts the ten existing closed `u64` policies—`saturatingAdd`, `saturatingSubtract`, `saturatingMultiply`, `saturatingNegate`, `saturatingPower`, `overflowingAdd`, `overflowingSubtract`, `overflowingMultiply`, `overflowingNegate`, and `overflowingPower`—and evaluates them with exact type/arity/receiver identity. Overflowing results are one allocation-free virtual `(u64, Bool)` value with checked `.0`/`.1` projections; power uses exponentiation by squaring and step quota. | `source-backed-current` only for the bounded C23 source-backed evaluator, exact ten-policy values and boundaries, tuple projections, zero heap/CRT/float/artificial exponent cap, quota diagnostics, result-byte accounting, and all-or-nothing invalid/capacity behavior. Frontend module-const tuple initializers, generic tuples, a stable tuple ABI, other widths, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`; no new public benchmark. |
 | W-1635 | bounded closed overflow product across const boundaries | The frontend canonicalizes the exact `(u64, Bool)` product and permits it as a direct `const fn` result and as the explicit type of a module constant routed through the existing synthetic ConstIR dependency graph. The product stays virtual and allocation-free, with only checked `.0`/`.1` projections. | `source-backed-current` only after focused C23/source/checker evidence proves direct returns, explicitly typed module constants, exact values and projections, malformed shapes, quotas, cycle/capacity defense, and all-or-nothing publication. Generic tuples, tuple parameters/literals/destructuring, unannotated tuple-constant inference, imported constants, stable ABI/layout/FFI/runtime/backend support, other widths, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`; no public benchmark. |
+| W-1636 | fixed-width wrapping integer family through native execution | Frontend63 and HIR78 preserve six wrapping operations for signed and unsigned 8-, 16-, 32-, and 64-bit integers plus the current x86-64 `Int`/`UInt` aliases. A shared operation identity combines with canonical signedness and logical-width type facts. MLIR0 lowers narrow values through one unsigned `i64` bit domain, explicit masks, observation-time sign extension, logarithmic power, and checked shift counts. | `source-backed-current` only for the bounded source-to-frontend-to-verified-HIR-to-MLIR/Native0 route, focused C23 tests, MLIR/LLVM 23.1.x verification, and exact CRT-free Windows plus Linux/WSL execution. The combined executable fixture owns inline expected exit/stdout; independent C23 and Rust 2024 sources are output oracles but are not performance-ranked until equivalent runtime work exists. Other policies, `i128`/`u128`, non-x86-64 alias widths, const evaluation, stable ABI/FFI, and performance remain gaps. `benchmarkDisposition: correctness-reference-no-ranking`. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -13966,3 +13968,29 @@ tuple parameters, literals, destructuring, mutation, storage embedding,
 imported constants, arbitrary shapes, stable layout/ABI/FFI/serialization,
 runtime identity, backend/native materialization, other widths, or performance.
 Those require independent design and executable evidence.
+
+#### W-1636 — fixed-width wrapping integer family through native execution
+
+The implementation closes a family rather than repeating one compiler path per
+width and operation. Frontend63 recognizes the six existing wrapping policies
+for every signed and unsigned 8-, 16-, 32-, and 64-bit builtin. HIR78 records a
+single operation identity and keeps signedness plus logical width in the type
+record. That arrangement makes a forged operation/type pairing rejectable while
+avoiding a width-by-width operation matrix in the compiler.
+
+The native evaluator and MLIR0 operate in an unsigned 64-bit bit domain. Narrow
+results are masked to their declared width; signed values are sign-extended
+only when observed. This avoids host signed-overflow undefined behavior and
+lets the optimizer eliminate redundant masks after whole-module analysis.
+Power is logarithmic exponentiation by squaring. `wrappingShiftLeft` still
+rejects a count outside the logical width, matching the language contract that
+wrapping concerns discarded value bits rather than the shift count.
+
+One W fixture exercises the complete family and records exact expected output
+next to the source. It runs byte-identically on the maintained CRT-free Windows
+and Linux/WSL routes after MLIR/LLVM verification. C23 and Rust 2024 variants
+use runtime inputs and independently prove the same values. That difference is
+intentional evidence disclosure: the row is correctness-only and cannot rank
+performance until W also receives equivalent runtime inputs. The package makes
+no claim about the remaining integer policies, 128-bit integers, other target
+alias widths, const evaluation, stable ABI/FFI, or performance.

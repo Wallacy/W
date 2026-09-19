@@ -4017,6 +4017,23 @@ inference, arbitrary shapes, stable layout/ABI/FFI/runtime/backend support,
 other widths, and performance remain gaps. Its `benchmarkDisposition` is
 `compiler-lifecycle`; no public benchmark is added.
 
+W-1636 closes one bounded fixed-width wrapping package. Frontend63 and HIR78
+carry add, subtract, multiply, negate, power, and shift-left for signed and
+unsigned 8/16/32/64-bit builtins and the current x86-64 `Int`/`UInt` aliases.
+The compiler uses one operation identity plus canonical signedness/width type
+facts. NativeSubset0 and MLIR0 evaluate in a `u64` bit domain, mask narrow
+results, sign-extend only for signed observation, use exponentiation by
+squaring, and reject shift counts at or above the logical width.
+
+[`fixtures/restaurant-integer-wrapping.w`](fixtures/restaurant-integer-wrapping.w)
+contains the expected exit and exact stdout as source comments. The root MLIR
+and run checks verify and execute that same source on CRT-free Windows and
+Linux/WSL. The C23 and Rust 2024 benchmark sources are independent output
+oracles with runtime inputs; the catalog therefore marks the workload
+correctness-only until W has equivalent runtime work. This evidence does not
+close other policies, 128-bit integers, other target alias widths, const
+evaluation, stable ABI/FFI, or performance.
+
 ## Validação seed C de predicates genéricos
 
 `include/w_seed_generic_validation.h` e

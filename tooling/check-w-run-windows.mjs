@@ -69,6 +69,8 @@ const restaurantF64StrictFixture = resolve(seedDirectory,
   "fixtures", "restaurant-f64-strict.w")
 const restaurantUIntArithmeticFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-arithmetic.w")
+const restaurantIntegerWrappingFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-integer-wrapping.w")
 const restaurantUIntWrappingAddFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-add.w")
 const restaurantUIntWrappingSubtractFixture = resolve(seedDirectory,
@@ -659,6 +661,12 @@ try {
       "UInt 9223372036854775810/9223372036854775809/21; div 7; rem 2; " +
       "cmp true/true/true/true/false/true/true\n", "utf8"),
     "Restaurant checked UInt arithmetic and comparisons")
+  expectExact(binary, ["run", restaurantIntegerWrappingFixture], 0,
+    Buffer.from(
+      "i8/u8 -128/0\ni16/u16 32767/2\ni32/u32 -2/4294967295\n" +
+      "i64/u64 -9223372036854775808/0\n" +
+      "Int/UInt -9223372036854775808/18446744073709551615\n", "utf8"),
+    "Restaurant fixed-width integer wrapping policy")
   expectExact(binary, ["run", restaurantUIntWrappingAddFixture], 0,
     Buffer.from("Wrapped 0\n", "utf8"),
     "Restaurant UInt wrappingAdd at the unsigned maximum")

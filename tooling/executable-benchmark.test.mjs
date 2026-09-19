@@ -43,6 +43,7 @@ import {
   PROCESS_HANDLER_LIFECYCLE_STRUCTURE_CLASS,
   PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID,
   RESTAURANT_F64_STRICT_WORKLOAD_ID,
+  RESTAURANT_INTEGER_WRAPPING_WORKLOAD_ID,
   RESTAURANT_UINT_ARITHMETIC_WORKLOAD_ID,
   RESTAURANT_UINT_BIT_NOT_WORKLOAD_ID,
   RESTAURANT_UINT_COUNT_ONES_WORKLOAD_ID,
@@ -59,17 +60,11 @@ import {
   RESTAURANT_UINT_SATURATING_MULTIPLY_WORKLOAD_ID,
   RESTAURANT_UINT_SATURATING_POLICY_WORKLOAD_ID,
   RESTAURANT_UINT_COMPOUND_WORKLOAD_ID,
-  RESTAURANT_UINT_WRAPPING_ADD_WORKLOAD_ID,
-  RESTAURANT_UINT_WRAPPING_MULTIPLY_WORKLOAD_ID,
-  RESTAURANT_UINT_WRAPPING_NEGATE_WORKLOAD_ID,
-  RESTAURANT_UINT_WRAPPING_POWER_WORKLOAD_ID,
-  RESTAURANT_UINT_WRAPPING_SHIFT_LEFT_WORKLOAD_ID,
   RESTAURANT_UINT_MASKED_SHIFT_LEFT_WORKLOAD_ID,
   RESTAURANT_UINT_MASKED_SHIFT_RIGHT_WORKLOAD_ID,
   RESTAURANT_UINT_LOGICAL_SHIFT_RIGHT_WORKLOAD_ID,
   RESTAURANT_UINT_ROTATED_LEFT_WORKLOAD_ID,
   RESTAURANT_UINT_ROTATED_RIGHT_WORKLOAD_ID,
-  RESTAURANT_UINT_WRAPPING_SUBTRACT_WORKLOAD_ID,
   ROOT,
   deriveExecutableBestMetrics,
   executableEquivalenceKey,
@@ -79,11 +74,13 @@ import {
   executableSourceDigest,
   exactOutputDigest,
   loadExecutableDocuments,
+  parseExecutableSourceExpectation,
   pruneExecutableBestMetrics,
   updateExecutableBestMetrics,
   validateExecutableBestMetric,
   validateExecutableBestMetrics,
   validateExecutableCatalog,
+  validateExecutableSourceExpectation,
   validateExecutableResult,
 } from "./executable-benchmark-machine.mjs";
 
@@ -159,7 +156,7 @@ test("catalog stores compact live best cells and no immutable history", () => {
     assert.ok(metricsByCell[requiredCell], `${requiredCell} must retain live evidence`);
   }
   for (const workloadId of ["hello", "process-entry", "restaurant-branch",
-    "restaurant-enum-switch", "restaurant-while", "restaurant-wmo"]) {
+    "restaurant-enum-switch", "restaurant-while-post", "restaurant-wmo"]) {
     const workload = documents.catalog.workloads.find((item) => item.id === workloadId);
     assert.equal(workload.benchmarkStatus, "exploratory-ready");
     assert.deepEqual(workload.blockers, []);
@@ -188,6 +185,69 @@ test("catalog stores compact live best cells and no immutable history", () => {
   assert.ok(documents.catalog.bestMetrics.entries.every((entry) => entry.value !== "0"));
   assert.ok(new Set(documents.catalog.bestMetrics.entries.map((entry) => entry.language)).size === 3);
   assert.ok(documents.catalog.bestMetrics.entries.some((entry) => entry.language === "rust" && entry.eligibility === "promotable-after-equivalence"));
+});
+
+test("source-local expected-output comments are opt-in and exact", () => {
+  const optInPaths = new Set();
+  for (const workload of documents.catalog.workloads) {
+    for (const source of workload.sources) {
+      const sourceText = readFileSync(`${ROOT}/${source.path}`, "utf8");
+      const expectation = parseExecutableSourceExpectation(sourceText);
+      if (expectation === undefined) continue;
+      optInPaths.add(source.path);
+      assert.deepEqual(expectation.errors, [], `${source.path} must use the compact expected-output form`);
+      assert.deepEqual(
+        validateExecutableSourceExpectation(sourceText, workload.oracle, `${workload.id}/${source.language}`),
+        [],
+        `${source.path} must match its catalog oracle`,
+      );
+    }
+  }
+  const requiredOptInPaths = [
+    "benchmarks/executable/restaurant_integer_wrapping.c",
+    "benchmarks/executable/restaurant_integer_wrapping.rs",
+    "compiler/seed-c/fixtures/restaurant-integer-wrapping.w",
+  ];
+  for (const sourcePath of requiredOptInPaths) {
+    assert.ok(optInPaths.has(sourcePath), `${sourcePath} must retain its local oracle`);
+  }
+  assert.ok(optInPaths.size >= requiredOptInPaths.length);
+
+  const legacySource = "// Existing benchmark source without a local oracle.\nentry {}\n";
+  assert.equal(parseExecutableSourceExpectation(legacySource), undefined);
+  assert.deepEqual(validateExecutableSourceExpectation(legacySource, {
+    kind: "exact-output",
+    status: "source-backed",
+    exitCode: 1,
+    stdout: "different\n",
+    stderr: "",
+  }), []);
+
+  const compact = [
+    "// Expected exit: 7",
+    "// Expected stdout:",
+    "// first",
+    "//",
+    "// Expected stderr:",
+    "// warning",
+    "",
+    "entry {}",
+  ].join("\n");
+  assert.deepEqual(parseExecutableSourceExpectation(compact), {
+    exitCode: 7,
+    stdout: "first\n\n",
+    stderr: "warning\n",
+    errors: [],
+  });
+  assert.match(validateExecutableSourceExpectation(
+    "// Expected stdout:\n// output\nentry {}\n",
+    { kind: "exact-output", status: "source-backed", exitCode: 0, stdout: "output\n", stderr: "" },
+  ).join("\n"), /Expected exit marker is required/u);
+  assert.deepEqual(validateExecutableSourceExpectation(
+    "// Expected exit: 0\n// Expected stdout:\n// output\nentry {}\n",
+    { kind: "exact-output", status: "source-backed", exitCode: 0, stdout: "different\n", stderr: "" },
+    "drifted source",
+  ), ["drifted source: Expected stdout must match the catalog oracle exactly."]);
 });
 
 test("every public Windows runnable fixture has an executable benchmark owner", () => {
@@ -1239,9 +1299,9 @@ test("UInt compound catalog keeps correctness separate from ranking", () => {
   assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
 });
 
-test("UInt wrapping-add catalog keeps correctness separate from ranking", () => {
+test("fixed-width integer wrapping policy catalog keeps one matrix separate from ranking", () => {
   const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_WRAPPING_ADD_WORKLOAD_ID);
+    item.id === RESTAURANT_INTEGER_WRAPPING_WORKLOAD_ID);
   assert.ok(workload);
   assert.equal(workload.structureClass, "public-end-to-end");
   assert.equal(workload.status, "source-oracle-ready");
@@ -1249,18 +1309,21 @@ test("UInt wrapping-add catalog keeps correctness separate from ranking", () => 
   assert.equal(workload.demoEvidence, "bounded-w-demo");
   assert.equal(workload.benchmarkStatus, "not-performance-ready");
   assert.equal(workload.scope,
-    "Validate fixed-input full-width UInt wrapping addition at UINT64_MAX and exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.");
+    "Validate fixed-input signed and unsigned i8/i16/i32/i64 plus Int/UInt wrapping-policy representatives for add, subtract, multiply, negate, power, and left shift with exact five-line decimal output. Performance ranking is deferred until W preserves equivalent runtime work.");
   assert.deepEqual(workload.oracle, {
     kind: "exact-output",
     status: "source-backed",
     exitCode: 0,
-    stdout: "Wrapped 0\n",
+    stdout:
+      "i8/u8 -128/0\ni16/u16 32767/2\ni32/u32 -2/4294967295\n" +
+      "i64/u64 -9223372036854775808/0\n" +
+      "Int/UInt -9223372036854775808/18446744073709551615\n",
     stderr: "",
   });
   assert.deepEqual(workload.blockedLanguages, []);
   assert.deepEqual(workload.blockers, [
-    "w-uint-wrapping-add-compile-time-folded",
-    "runtime-uint-wrapping-add-equivalence",
+    "w-integer-wrapping-compile-time-folded",
+    "runtime-integer-wrapping-equivalence",
   ]);
   assert.deepEqual(workload.sources.map((source) =>
     [source.language, source.platformTarget]), [
@@ -1270,7 +1333,7 @@ test("UInt wrapping-add catalog keeps correctness separate from ranking", () => 
     ["rust", EXECUTABLE_PLATFORM_TARGET],
   ]);
   assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-wrapping-add-release"));
+    source.recipeClass === "restaurant-integer-wrapping-release"));
   assert.deepEqual(workload.sources
     .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
     .map((source) => [source.comparability, source.eligibility]), [
@@ -1285,319 +1348,43 @@ test("UInt wrapping-add catalog keeps correctness separate from ranking", () => 
     "same-physical-hardware-diagnostic-only",
   ]);
   const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_wrapping_add.c`, "utf8");
+    `${ROOT}/benchmarks/executable/restaurant_integer_wrapping.c`, "utf8");
   const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_wrapping_add.rs`, "utf8");
-  assert.match(c, /volatile uint64_t runtime_value/u);
-  assert.match(c, /volatile uint64_t runtime_increment/u);
-  assert.match(c, /wrapping_add_u64/u);
-  assert.match(c, /left \+ right/u);
-  assert.match(rust, /black_box\(u64::MAX\)/u);
-  assert.match(rust, /black_box\(1_u64\)/u);
+    `${ROOT}/benchmarks/executable/restaurant_integer_wrapping.rs`, "utf8");
+  const w = readFileSync(
+    `${ROOT}/compiler/seed-c/fixtures/restaurant-integer-wrapping.w`, "utf8");
+  for (const [name, source] of [["W", w], ["C23", c], ["Rust", rust]]) {
+    assert.deepEqual(parseExecutableSourceExpectation(source), {
+      exitCode: workload.oracle.exitCode,
+      stdout: workload.oracle.stdout,
+      stderr: workload.oracle.stderr,
+      errors: [],
+    }, `${name} source must declare the compact local oracle`);
+    assert.deepEqual(validateExecutableSourceExpectation(source, workload.oracle, `${name} source`), []);
+  }
+  assert.match(w, /i16\.wrappingSubtract\(-32767_i16, 2_i16\)/u);
+  assert.match(w, /let signed64Min: i64 = i64\.wrappingAdd\(9223372036854775807_i64, 1_i64\)/u);
+  assert.match(w, /let signed64: i64 = i64\.wrappingNegate\(signed64Min\)/u);
+  assert.doesNotMatch(w, /-32768_i16|9223372036854775808_i64/u);
+  assert.match(c, /volatile uint64_t runtime_inputs/u);
+  assert.match(c, /width_mask\(8\)/u);
+  assert.match(c, /wrapping_power/u);
+  assert.match(c, /PRINT_PAIR\("i8\/u8"/u);
+  assert.match(c, /PRINT_PAIR\("Int\/UInt"/u);
+  assert.match(rust, /black_box\(i8::MAX\)/u);
+  assert.match(rust, /black_box\(-32767_i16\)/u);
+  assert.match(rust, /black_box\(2_i16\)/u);
+  assert.match(rust, /black_box\(i32::MAX\)/u);
+  assert.match(rust, /let signed64_min = black_box\(i64::MAX\)\.wrapping_add\(black_box\(1_i64\)\)/u);
+  assert.match(rust, /let signed64 = black_box\(signed64_min\)\.wrapping_neg\(\)/u);
+  assert.match(c, /runtime_inputs\[6\] \+ runtime_inputs\[7\]/u);
+  assert.match(c, /const uint64_t signed64 = UINT64_C\(0\) - signed64_min/u);
   assert.match(rust, /\.wrapping_add\(/u);
-  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
-  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
-});
-
-test("UInt wrapping-subtract catalog keeps correctness separate from ranking", () => {
-  const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_WRAPPING_SUBTRACT_WORKLOAD_ID);
-  assert.ok(workload);
-  assert.equal(workload.structureClass, "public-end-to-end");
-  assert.equal(workload.status, "source-oracle-ready");
-  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(workload.demoEvidence, "bounded-w-demo");
-  assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.equal(workload.scope,
-    "Validate fixed-input full-width UInt wrapping subtraction of 1 from zero and exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.");
-  assert.deepEqual(workload.oracle, {
-    kind: "exact-output",
-    status: "source-backed",
-    exitCode: 0,
-    stdout: "Wrapped 18446744073709551615\n",
-    stderr: "",
-  });
-  assert.deepEqual(workload.blockedLanguages, []);
-  assert.deepEqual(workload.blockers, [
-    "w-uint-wrapping-subtract-compile-time-folded",
-    "runtime-uint-wrapping-subtract-equivalence",
-  ]);
-  assert.deepEqual(workload.sources.map((source) =>
-    [source.language, source.platformTarget]), [
-    ["w", EXECUTABLE_PLATFORM_TARGET],
-    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
-    ["c", EXECUTABLE_PLATFORM_TARGET],
-    ["rust", EXECUTABLE_PLATFORM_TARGET],
-  ]);
-  assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-wrapping-subtract-release"));
-  assert.deepEqual(workload.sources
-    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
-    .map((source) => [source.comparability, source.eligibility]), [
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-    ]);
-  const wsl = workload.sources.find((source) =>
-    source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
-  assert.deepEqual([wsl.comparability, wsl.eligibility], [
-    "same-physical-hardware-diagnostic-only",
-    "same-physical-hardware-diagnostic-only",
-  ]);
-  const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_wrapping_subtract.c`, "utf8");
-  const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_wrapping_subtract.rs`, "utf8");
-  assert.match(c, /volatile uint64_t runtime_value/u);
-  assert.match(c, /volatile uint64_t runtime_decrement/u);
-  assert.match(c, /wrapping_subtract_u64/u);
-  assert.match(c, /left - right/u);
-  assert.match(rust, /black_box\(0_u64\)/u);
-  assert.match(rust, /black_box\(1_u64\)/u);
   assert.match(rust, /\.wrapping_sub\(/u);
-  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
-  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
-});
-
-test("UInt wrapping-multiply catalog keeps correctness separate from ranking", () => {
-  const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_WRAPPING_MULTIPLY_WORKLOAD_ID);
-  assert.ok(workload);
-  assert.equal(workload.structureClass, "public-end-to-end");
-  assert.equal(workload.status, "source-oracle-ready");
-  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(workload.demoEvidence, "bounded-w-demo");
-  assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.equal(workload.scope,
-    "Validate fixed-input full-width UInt wrapping multiplication at UINT64_MAX and 2 and exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.");
-  assert.deepEqual(workload.oracle, {
-    kind: "exact-output",
-    status: "source-backed",
-    exitCode: 0,
-    stdout: "Wrapped 18446744073709551614\n",
-    stderr: "",
-  });
-  assert.deepEqual(workload.blockedLanguages, []);
-  assert.deepEqual(workload.blockers, [
-    "w-uint-wrapping-multiply-compile-time-folded",
-    "runtime-uint-wrapping-multiply-equivalence",
-  ]);
-  assert.deepEqual(workload.sources.map((source) =>
-    [source.language, source.platformTarget]), [
-    ["w", EXECUTABLE_PLATFORM_TARGET],
-    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
-    ["c", EXECUTABLE_PLATFORM_TARGET],
-    ["rust", EXECUTABLE_PLATFORM_TARGET],
-  ]);
-  assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-wrapping-multiply-release"));
-  assert.deepEqual(workload.sources
-    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
-    .map((source) => [source.comparability, source.eligibility]), [
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-    ]);
-  const wsl = workload.sources.find((source) =>
-    source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
-  assert.deepEqual([wsl.comparability, wsl.eligibility], [
-    "same-physical-hardware-diagnostic-only",
-    "same-physical-hardware-diagnostic-only",
-  ]);
-  const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_wrapping_multiply.c`, "utf8");
-  const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_wrapping_multiply.rs`, "utf8");
-  assert.match(c, /volatile uint64_t runtime_value/u);
-  assert.match(c, /volatile uint64_t runtime_factor/u);
-  assert.match(c, /wrapping_multiply_u64/u);
-  assert.match(c, /left \* right/u);
-  assert.match(rust, /black_box\(u64::MAX\)/u);
-  assert.match(rust, /black_box\(2_u64\)/u);
   assert.match(rust, /\.wrapping_mul\(/u);
-  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
-  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
-});
-
-test("UInt wrapping-negate catalog keeps correctness separate from ranking", () => {
-  const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_WRAPPING_NEGATE_WORKLOAD_ID);
-  assert.ok(workload);
-  assert.equal(workload.structureClass, "public-end-to-end");
-  assert.equal(workload.status, "source-oracle-ready");
-  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(workload.demoEvidence, "bounded-w-demo");
-  assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.equal(workload.scope,
-    "Validate fixed-input full-width UInt wrapping negation of 1 and exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.");
-  assert.deepEqual(workload.oracle, {
-    kind: "exact-output",
-    status: "source-backed",
-    exitCode: 0,
-    stdout: "Wrapped 18446744073709551615\n",
-    stderr: "",
-  });
-  assert.deepEqual(workload.blockedLanguages, []);
-  assert.deepEqual(workload.blockers, [
-    "w-uint-wrapping-negate-compile-time-folded",
-    "runtime-uint-wrapping-negate-equivalence",
-  ]);
-  assert.deepEqual(workload.sources.map((source) =>
-    [source.language, source.platformTarget]), [
-    ["w", EXECUTABLE_PLATFORM_TARGET],
-    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
-    ["c", EXECUTABLE_PLATFORM_TARGET],
-    ["rust", EXECUTABLE_PLATFORM_TARGET],
-  ]);
-  assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-wrapping-negate-release"));
-  assert.deepEqual(workload.sources
-    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
-    .map((source) => [source.comparability, source.eligibility]), [
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-    ]);
-  const wsl = workload.sources.find((source) =>
-    source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
-  assert.deepEqual([wsl.comparability, wsl.eligibility], [
-    "same-physical-hardware-diagnostic-only",
-    "same-physical-hardware-diagnostic-only",
-  ]);
-  const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_wrapping_negate.c`, "utf8");
-  const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_wrapping_negate.rs`, "utf8");
-  assert.match(c, /volatile uint64_t runtime_value/u);
-  assert.match(c, /UINT64_C\(1\)/u);
-  assert.match(c, /wrapping_negate_u64/u);
-  assert.match(c, /UINT64_C\(0\) - value/u);
-  assert.match(rust, /black_box\(1_u64\)/u);
   assert.match(rust, /\.wrapping_neg\(\)/u);
-  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
-  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
-});
-
-test("UInt wrapping-power catalog keeps correctness separate from ranking", () => {
-  const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_WRAPPING_POWER_WORKLOAD_ID);
-  assert.ok(workload);
-  assert.equal(workload.structureClass, "public-end-to-end");
-  assert.equal(workload.status, "source-oracle-ready");
-  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(workload.demoEvidence, "bounded-w-demo");
-  assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.equal(workload.scope,
-    "Validate fixed-input full-width UInt wrapping power of 3 to 40 and exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.");
-  assert.deepEqual(workload.oracle, {
-    kind: "exact-output",
-    status: "source-backed",
-    exitCode: 0,
-    stdout: "Wrapped 12157665459056928801\n",
-    stderr: "",
-  });
-  assert.deepEqual(workload.blockedLanguages, []);
-  assert.deepEqual(workload.blockers, [
-    "w-uint-wrapping-power-compile-time-folded",
-    "runtime-uint-wrapping-power-equivalence",
-  ]);
-  assert.deepEqual(workload.sources.map((source) =>
-    [source.language, source.platformTarget]), [
-    ["w", EXECUTABLE_PLATFORM_TARGET],
-    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
-    ["c", EXECUTABLE_PLATFORM_TARGET],
-    ["rust", EXECUTABLE_PLATFORM_TARGET],
-  ]);
-  assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-wrapping-power-release"));
-  assert.deepEqual(workload.sources
-    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
-    .map((source) => [source.comparability, source.eligibility]), [
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-    ]);
-  const wsl = workload.sources.find((source) =>
-    source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
-  assert.deepEqual([wsl.comparability, wsl.eligibility], [
-    "same-physical-hardware-diagnostic-only",
-    "same-physical-hardware-diagnostic-only",
-  ]);
-  const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_wrapping_power.c`, "utf8");
-  const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_wrapping_power.rs`, "utf8");
-  assert.match(c, /volatile uint64_t runtime_base/u);
-  assert.match(c, /volatile uint64_t runtime_exponent/u);
-  assert.match(c, /wrapping_power_u64/u);
-  assert.match(c, /base \*= base/u);
-  assert.match(c, /exponent >>= 1/u);
-  assert.match(rust, /black_box\(3_u64\)/u);
-  assert.match(rust, /black_box\(40_u64\)/u);
-  assert.match(rust, /\.wrapping_mul\(/u);
-  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
-  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
-});
-
-test("UInt wrapping-shift-left catalog keeps valid-count correctness separate from ranking", () => {
-  const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_WRAPPING_SHIFT_LEFT_WORKLOAD_ID);
-  assert.ok(workload);
-  assert.equal(workload.structureClass, "public-end-to-end");
-  assert.equal(workload.status, "source-oracle-ready");
-  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(workload.demoEvidence, "bounded-w-demo");
-  assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.equal(workload.scope,
-    "Validate fixed-input full-width UInt wrapping left shift of UINT64_MAX by 1 and exact unsigned decimal output. Performance ranking is deferred until W preserves equivalent runtime work.");
-  assert.deepEqual(workload.oracle, {
-    kind: "exact-output",
-    status: "source-backed",
-    exitCode: 0,
-    stdout: "Wrapped 18446744073709551614\n",
-    stderr: "",
-  });
-  assert.deepEqual(workload.blockedLanguages, []);
-  assert.deepEqual(workload.blockers, [
-    "w-uint-wrapping-shift-left-compile-time-folded",
-    "runtime-uint-wrapping-shift-left-equivalence",
-  ]);
-  assert.deepEqual(workload.sources.map((source) =>
-    [source.language, source.platformTarget]), [
-    ["w", EXECUTABLE_PLATFORM_TARGET],
-    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
-    ["c", EXECUTABLE_PLATFORM_TARGET],
-    ["rust", EXECUTABLE_PLATFORM_TARGET],
-  ]);
-  assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-wrapping-shift-left-release"));
-  assert.deepEqual(workload.sources
-    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
-    .map((source) => [source.comparability, source.eligibility]), [
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-      ["deferred-until-M3b", "deferred-to-M3b"],
-    ]);
-  const wsl = workload.sources.find((source) =>
-    source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
-  assert.deepEqual([wsl.comparability, wsl.eligibility], [
-    "same-physical-hardware-diagnostic-only",
-    "same-physical-hardware-diagnostic-only",
-  ]);
-  const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_wrapping_shift_left.c`, "utf8");
-  const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_wrapping_shift_left.rs`, "utf8");
-  assert.match(c, /volatile uint64_t runtime_value/u);
-  assert.match(c, /volatile uint64_t runtime_count/u);
-  assert.match(c, /wrapping_shift_left_u64/u);
-  assert.match(c, /count < UINT64_C\(64\)/u);
-  assert.match(c, /value << count/u);
-  assert.match(rust, /black_box\(u64::MAX\)/u);
-  assert.match(rust, /black_box\(1_u64\)/u);
-  assert.match(rust, /u32::try_from\(count\)/u);
-  assert.match(rust, /count >= u64::BITS/u);
-  assert.match(rust, /\.wrapping_shl\(count\)/u);
+  assert.match(rust, /\.wrapping_pow\(/u);
+  assert.match(rust, /\.wrapping_shl\(/u);
   assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
   assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
 });

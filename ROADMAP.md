@@ -76,6 +76,19 @@ An item is closed only by exact source-to-native execution and adversarial
 failure evidence. Parser acceptance, design oracles, hand-built HIR, and a
 backend-only artifact are supporting evidence, not completion.
 
+Scalar implementation advances by semantic package, not by repeating one
+operation for one width. A package owns one policy family across its applicable
+signed/unsigned widths and aliases, preserves `(signedness, bitWidth)` as data,
+and shares resolver, HIR, evaluator, lowering, oracle, and adversarial matrices.
+Focused single-operation fixtures may diagnose a failure, but they do not define
+the implementation architecture or require separate benchmark catalog entries.
+The first migration of a family must remove any seed-only width specialization
+that would otherwise be copied into later families.
+
+Every new or materially changed executable example records its expected exit,
+stdout, and non-empty stderr beside the source. The executable catalog remains
+the machine contract and its checks must reject drift from that local summary.
+
 ## Native application completeness
 
 The language-level ownership, effects, ABI, callback, domain and kernel models
@@ -243,6 +256,14 @@ not add generic tuples, tuple parameters/literals/destructuring, inferred tuple
 constants, a stable ABI/layout, runtime or backend materialization, other
 widths, or performance evidence. `benchmarkDisposition` remains
 `compiler-lifecycle`; no public benchmark is added.
+
+W-1636 closes the wrapping family as one compiler package instead of one task
+per width or operation. Signed and unsigned 8/16/32/64-bit builtins plus the
+current x86-64 `Int`/`UInt` aliases now cross frontend63, verified HIR78,
+generic MLIR lowering, LLVM verification, and exact CRT-free Windows and
+Linux/WSL execution. The combined fixture declares its expected exit/stdout in
+source; C23 and Rust 2024 are correctness references with runtime inputs, so
+performance ranking remains blocked until W performs equivalent runtime work.
 
 The first rank-1 increments are now executable. Signed-`i64` `&`, `|`, `^`,
 and unary `~` cross exact W source, canonical precedence, verified HIR0, direct

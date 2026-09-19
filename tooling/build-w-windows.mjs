@@ -129,46 +129,14 @@ export const SMOKE_CASES = Object.freeze([
     expectedStdout: "Open 6\n",
   }),
   Object.freeze({
-    id: "restaurant-uint-wrapping-add",
-    fixture: "compiler/seed-c/fixtures/restaurant-uint-wrapping-add.w",
+    id: "restaurant-integer-wrapping",
+    fixture: "compiler/seed-c/fixtures/restaurant-integer-wrapping.w",
     absoluteFixture: resolve(seedDirectory, "fixtures",
-      "restaurant-uint-wrapping-add.w"),
-    expectedStdout: "Wrapped 0\n",
-  }),
-  Object.freeze({
-    id: "restaurant-uint-wrapping-subtract",
-    fixture: "compiler/seed-c/fixtures/restaurant-uint-wrapping-subtract.w",
-    absoluteFixture: resolve(seedDirectory, "fixtures",
-      "restaurant-uint-wrapping-subtract.w"),
-    expectedStdout: "Wrapped 18446744073709551615\n",
-  }),
-  Object.freeze({
-    id: "restaurant-uint-wrapping-multiply",
-    fixture: "compiler/seed-c/fixtures/restaurant-uint-wrapping-multiply.w",
-    absoluteFixture: resolve(seedDirectory, "fixtures",
-      "restaurant-uint-wrapping-multiply.w"),
-    expectedStdout: "Wrapped 18446744073709551614\n",
-  }),
-  Object.freeze({
-    id: "restaurant-uint-wrapping-negate",
-    fixture: "compiler/seed-c/fixtures/restaurant-uint-wrapping-negate.w",
-    absoluteFixture: resolve(seedDirectory, "fixtures",
-      "restaurant-uint-wrapping-negate.w"),
-    expectedStdout: "Wrapped 18446744073709551615\n",
-  }),
-  Object.freeze({
-    id: "restaurant-uint-wrapping-power",
-    fixture: "compiler/seed-c/fixtures/restaurant-uint-wrapping-power.w",
-    absoluteFixture: resolve(seedDirectory, "fixtures",
-      "restaurant-uint-wrapping-power.w"),
-    expectedStdout: "Wrapped 12157665459056928801\n",
-  }),
-  Object.freeze({
-    id: "restaurant-uint-wrapping-shift-left",
-    fixture: "compiler/seed-c/fixtures/restaurant-uint-wrapping-shift-left.w",
-    absoluteFixture: resolve(seedDirectory, "fixtures",
-      "restaurant-uint-wrapping-shift-left.w"),
-    expectedStdout: "Wrapped 18446744073709551614\n",
+      "restaurant-integer-wrapping.w"),
+    expectedStdout:
+      "i8/u8 -128/0\ni16/u16 32767/2\ni32/u32 -2/4294967295\n" +
+      "i64/u64 -9223372036854775808/0\n" +
+      "Int/UInt -9223372036854775808/18446744073709551615\n",
   }),
   Object.freeze({
     id: "restaurant-uint-masked-shift-left",

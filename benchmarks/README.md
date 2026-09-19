@@ -11,18 +11,34 @@ Neither bundle produces a language or product-runtime result.
 [`executable-catalog.json`](executable-catalog.json) is the machine-readable
 catalog of executable workloads. It keeps stable IDs for `hello`,
 `process-entry`, `process-enum-payload`, `process-arguments-count`,
-`process-handler-lifecycle`, 48 source-backed Restaurant workloads, and the
-future full Restaurant composition. Hello has W, C, and Rust sources. Twenty-two
-Restaurant witnesses, including branch, loop, enum, async/yield, strict-f64,
-and UInt arithmetic slices, also have independent C and Rust sources verified against exact
-oracles. The remaining Restaurant witnesses are W-only with explicit C/Rust
-blockers. Public C
+`process-handler-lifecycle`, the source-backed Restaurant families, and the
+future full Restaurant composition. [`EXECUTABLES.md`](EXECUTABLES.md) is the
+generated compact inventory of the current rows and lanes; do not duplicate
+its changing counts in prose. Hello has W, C, and Rust sources. Restaurant
+witnesses with independent C and Rust sources are verified against exact
+oracles; W-only witnesses retain explicit C/Rust blockers. Public C
 uses final C23 through Clang and the MSVC ABI; the private handler composite
 retains its explicitly contextual GCC/MinGW lane. Equivalent Hello sources live in
 [`executable/`](executable/) and share the exact `Hello, world!\n` / exit `0`
 oracle. The shared public artifact target is `x86_64-pc-windows-msvc` for W,
 Clang C, and Rust. Public C has no silent GCC or c2x fallback. The current Rust
 baseline uses edition 2024.
+
+Every new or materially changed executable example or benchmark reference must
+declare its expected exit code and literal stdout in a compact source comment.
+It must also declare expected stderr when stderr is non-empty. The catalog is
+the mechanical source of truth, and benchmark tests reject drift between these
+source comments, catalog oracles, and generated projections. Existing examples
+are migrated by family when touched; the backlog is not migrated in bulk.
+
+```text
+// Expected exit: 0
+// Expected stdout:
+// Hello, world!
+```
+
+Each commented output line represents that literal line plus `\n`; an empty
+line ends the block. Omit `Expected stderr` when stderr is empty.
 
 The `restaurant-f64-strict` witness is `not-performance-ready`. W's current
 Windows and WSL artifacts are compile-time-folded semantic/output witnesses,
@@ -36,47 +52,15 @@ covers only successful fixed-input output. W may fold constants in the optimized
 final artifact, and physical equivalence with C23 and Rust is not proven. Fault
 behavior is outside scope because W traps while the references exit `1`.
 
-The `restaurant-uint-wrapping-add` witness is `not-performance-ready`. Its
-fixed input adds `1` to `UInt`'s maximum and its exact oracle is `Wrapped 0\n`.
-W may fold this operation in the final artifact. The C23 and Rust 2024
-references retain independent runtime operands. Runtime equivalence is not
-proven, so this workload has no performance ranking.
-
-The `restaurant-uint-wrapping-subtract` witness is `not-performance-ready`.
-Its fixed input subtracts `1` from `UInt` zero and its exact oracle is
-`Wrapped 18446744073709551615\n`. W may fold this operation in the final
-artifact. The C23 and Rust 2024 references retain independent runtime
-operands. Runtime equivalence is not proven, so this workload has no
-performance ranking.
-
-The `restaurant-uint-wrapping-multiply` witness is `not-performance-ready`.
-Its fixed input multiplies `UInt`'s maximum by `2` and its exact oracle is
-`Wrapped 18446744073709551614\n`. W may fold this operation in the final
-artifact. The C23 and Rust 2024 references retain independent runtime
-operands. Runtime equivalence is not proven, so this workload has no
-performance ranking.
-
-The `restaurant-uint-wrapping-negate` witness is `not-performance-ready`. Its
-fixed input applies wrapping negation to `1` and its exact oracle is
-`Wrapped 18446744073709551615\n`. W may fold this operation in the final
-artifact. The C23 and Rust 2024 references retain independent runtime
-operands. Runtime equivalence is not proven, so this workload has no
-performance ranking.
-
-The `restaurant-uint-wrapping-power` witness is `not-performance-ready`. Its
-fixed inputs raise `UInt` `3` to `40` with wrapping arithmetic and its exact
-oracle is `Wrapped 12157665459056928801\n`. W may fold this operation in the
-final artifact. The C23 and Rust 2024 references retain independent runtime
-operands. Runtime equivalence is not proven, so this workload has no
-performance ranking.
-
-The `restaurant-uint-wrapping-shift-left` witness is `not-performance-ready`.
-Its fixed inputs apply `wrappingShiftLeft` to `UInt` maximum with count `1`,
-and its exact oracle is `Wrapped 18446744073709551614\n`. W may fold this
-operation in the final artifact. The C23 reference validates `count < 64`
-before the unsigned shift. The Rust 2024 reference validates the count before
-it calls `wrapping_shl`. Runtime equivalence is not proven, so this workload
-has no performance ranking.
+The `restaurant-integer-wrapping` witness is `not-performance-ready`. Its
+single fixed-input policy matrix covers signed and unsigned `i8`/`u8`,
+`i16`/`u16`, `i32`/`u32`, `i64`/`u64`, and the `Int`/`UInt` aliases with
+representative wrapping add, subtract, multiply, negate, power, and left-shift
+cases. Its exact oracle is
+`i8/u8 -128/0\ni16/u16 32767/2\ni32/u32 -2/4294967295\ni64/u64 -9223372036854775808/0\nInt/UInt -9223372036854775808/18446744073709551615\n`.
+W may fold these calls in the final artifact. The C23 and Rust 2024 references
+retain independent runtime operands. Runtime equivalence is not proven, so
+this workload has no performance ranking.
 
 The `restaurant-uint-masked-shift-left` witness is `not-performance-ready`.
 Its fixed inputs shift `UInt` value `1` by count `65`, and its exact oracle is

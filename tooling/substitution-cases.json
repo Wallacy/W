@@ -10792,6 +10792,64 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-fixed-width-wrapping-native-family",
+      "reviewItem": "fixed-width wrapping integer family through native execution",
+      "decisions": [
+        "W-1636"
+      ],
+      "task": "Carry the six wrapping policies across signed and unsigned 8/16/32/64-bit builtins as one family, execute exact CRT-free Windows and Linux products, and avoid width-specific compiler duplication or invalid performance ranking.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "frontend63 and HIR78 use one wrapping operation identity combined with canonical signedness and logical-width type facts",
+          "NativeSubset0 and MLIR0 evaluate in one unsigned 64-bit bit domain, mask narrow results, and sign-extend only when a signed value is observed",
+          "power uses exponentiation by squaring and shift-left rejects a count at or above the logical width",
+          "restaurant-integer-wrapping.w declares its expected exit/stdout and executes byte-identically through CRT-free Windows and Linux/WSL routes",
+          "C23 and Rust 2024 sources independently prove exact output with runtime inputs; ranking stays blocked until W performs equivalent runtime work"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "operation-per-width",
+          "language": "w-internal-rejected",
+          "source": [
+            "allocate a distinct frontend, HIR, and lowering operation for each width and signedness"
+          ],
+          "expectedDifference": "Type facts already carry signedness and width, so duplicating operation identities increases schema and verifier surface without changing semantics."
+        },
+        {
+          "name": "host-signed-arithmetic",
+          "language": "c-internal-rejected",
+          "source": [
+            "evaluate signed wrapping operations directly in the host signed type"
+          ],
+          "expectedDifference": "The selected unsigned bit domain avoids host signed-overflow undefined behavior and makes masking explicit."
+        },
+        {
+          "name": "mask-invalid-shift-count",
+          "language": "w-internal-rejected",
+          "source": [
+            "reduce every shift count modulo the logical width"
+          ],
+          "expectedDifference": "W wrappingShiftLeft wraps discarded value bits but still rejects a count outside the logical-width domain."
+        },
+        {
+          "name": "rank-unequal-work",
+          "language": "benchmark-rejected",
+          "source": [
+            "rank constant-foldable W operands against C23 and Rust runtime inputs"
+          ],
+          "expectedDifference": "The family remains a correctness reference until all candidates perform equivalent physical work."
+        }
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

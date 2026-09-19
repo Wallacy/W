@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:8c9cc362176abb4feccf838ea0565cb5e6db7e34c836589b73295734e18e2019",
+  "corpusDigest": "sha256:3531069783cc3f46746ccf7e171cb868d7c2afc7ad5f3b57d9f5aba5cf4ceef2",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -11016,6 +11016,162 @@
             "nonWhitespaceCodePoints": 75,
             "lines": 1,
             "surfaceLexemes": 14
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-u64-constir7-closed-product-returns",
+      "task": {
+        "utf8Bytes": 202,
+        "codePoints": 202,
+        "nonWhitespaceCodePoints": 174,
+        "lines": 1,
+        "surfaceLexemes": 37
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w-internal",
+        "sourceDigest": "sha256:4ada4096f43cc4b66914f6603139e658d63635b7777d1a1f81fb045b34ec04b7",
+        "metrics": {
+          "utf8Bytes": 761,
+          "codePoints": 761,
+          "nonWhitespaceCodePoints": 663,
+          "lines": 5,
+          "surfaceLexemes": 130
+        }
+      },
+      "alternatives": [
+        {
+          "name": "generic-tuple-abi",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:a3fb66b59ad6e15f1985f29d42afecbed7e30d84edd40f1ec8bbc59b61a2b0db",
+          "metrics": {
+            "utf8Bytes": 92,
+            "codePoints": 92,
+            "nonWhitespaceCodePoints": 79,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        },
+        {
+          "name": "tuple-parameters-literals-or-destructuring",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:ecff066db5ce5d5a4e6e8ff46cc8475b6fb5545dcb477418c0b2367c1ef12ef2",
+          "metrics": {
+            "utf8Bytes": 96,
+            "codePoints": 96,
+            "nonWhitespaceCodePoints": 86,
+            "lines": 1,
+            "surfaceLexemes": 15
+          }
+        },
+        {
+          "name": "unannotated-tuple-constant-inference",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:ee09cb420c6cb307ad091e18047de58eb4da736a225698346f0d41b09769df37",
+          "metrics": {
+            "utf8Bytes": 75,
+            "codePoints": 75,
+            "nonWhitespaceCodePoints": 64,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        },
+        {
+          "name": "heap-product-or-runtime-helper",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:2510f1ddbd94f8c0b05aaedc5b936041e42b518d76d3969ddf3a2bd54564fc5c",
+          "metrics": {
+            "utf8Bytes": 69,
+            "codePoints": 69,
+            "nonWhitespaceCodePoints": 57,
+            "lines": 1,
+            "surfaceLexemes": 13
+          }
+        },
+        {
+          "name": "performance-ranking-now",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:81e6188bef223ec9d274bd62e52c4d4d0c7c9474a1f066ac6d833595af820641",
+          "metrics": {
+            "utf8Bytes": 80,
+            "codePoints": 80,
+            "nonWhitespaceCodePoints": 71,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-fixed-width-wrapping-native-family",
+      "task": {
+        "utf8Bytes": 226,
+        "codePoints": 226,
+        "nonWhitespaceCodePoints": 197,
+        "lines": 1,
+        "surfaceLexemes": 45
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:9165ff8c3bddebf192d3d92b736f35f8cc8aedd0549794b456f8e82f1b354039",
+        "metrics": {
+          "utf8Bytes": 644,
+          "codePoints": 644,
+          "nonWhitespaceCodePoints": 556,
+          "lines": 5,
+          "surfaceLexemes": 114
+        }
+      },
+      "alternatives": [
+        {
+          "name": "operation-per-width",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:3da60a12a95925e4f903e68a06e65d21b378d085483286fcf22d0301ed3e3bd9",
+          "metrics": {
+            "utf8Bytes": 87,
+            "codePoints": 87,
+            "nonWhitespaceCodePoints": 75,
+            "lines": 1,
+            "surfaceLexemes": 15
+          }
+        },
+        {
+          "name": "host-signed-arithmetic",
+          "language": "c-internal-rejected",
+          "sourceDigest": "sha256:24cb37c107470fae47aac59b692d09ab152db349b23077b9b792ff48ecc8de3c",
+          "metrics": {
+            "utf8Bytes": 68,
+            "codePoints": 68,
+            "nonWhitespaceCodePoints": 59,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "mask-invalid-shift-count",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:9bb267ac0552af0ae56d72b9cd480401245f16f036039ed76eca18b73c1bc7a7",
+          "metrics": {
+            "utf8Bytes": 49,
+            "codePoints": 49,
+            "nonWhitespaceCodePoints": 42,
+            "lines": 1,
+            "surfaceLexemes": 8
+          }
+        },
+        {
+          "name": "rank-unequal-work",
+          "language": "benchmark-rejected",
+          "sourceDigest": "sha256:a8412118f3c71e8db326ff2ef161e24dea5022bd3636389ecc3c50fc8eff6a6a",
+          "metrics": {
+            "utf8Bytes": 69,
+            "codePoints": 69,
+            "nonWhitespaceCodePoints": 60,
+            "lines": 1,
+            "surfaceLexemes": 12
           }
         }
       ]

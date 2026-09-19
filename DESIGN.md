@@ -41961,6 +41961,33 @@ types, fixed result-byte encoding, quotas, cycle defense, capacity checks, and
 all-or-nothing publication remain mandatory. Its `benchmarkDisposition` is
 `compiler-lifecycle`; there is no new public executable benchmark.
 
+#### 26.4.1.116 W-1636 — fixed-width wrapping integer family through native execution
+
+Frontend schema `w-seed-frontend-63` and HIR schema `w-seed-hir0-78` carry
+`wrappingAdd`, `wrappingSubtract`, `wrappingMultiply`, `wrappingNegate`,
+`wrappingPower`, and `wrappingShiftLeft` for the signed and unsigned
+`8`-, `16`-, `32`-, and `64`-bit integer families. `Int` and `UInt` remain
+the target-width aliases used by the current x86-64 native evidence. One
+operation identity is shared by the family; signedness and logical width live
+in the canonical type record rather than being duplicated in operation names.
+
+MLIR0 uses an `i64` physical carrier for this bounded route, masks every narrow
+result to its logical width, and sign-extends only at a signed observation
+boundary. Power uses exponentiation by squaring. Shift-left rejects a count
+greater than or equal to the logical width before lowering; wrapping describes
+discarded value bits, not a masked shift count. No operation uses host signed
+overflow, heap allocation, CRT services, floating point, a precomputed answer,
+or width-specific compiler branches beyond validated type facts.
+
+The source fixture records its expected exit and exact stdout inline. Windows
+and Linux/WSL execute that same source through verified HIR, MLIR/LLVM 23.1.x,
+and the CRT-free native route. C23 and Rust 2024 implementations are independent
+output oracles with runtime inputs. They are not ranked against the current W
+fixture because W's operands are still compile-time constants, so the physical
+work is not equivalent. Other integer policies, `i128`/`u128`, target widths
+other than the exercised x86-64 aliases, const evaluation, stable ABI/FFI, and
+performance remain open.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

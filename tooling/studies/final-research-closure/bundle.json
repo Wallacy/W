@@ -20,7 +20,7 @@
     {
       "path": "../../../tooling/research-state-inventory.json",
       "symbol": "w-research-state-inventory-1",
-      "digest": "sha256:999b463977670cecb2f745fc006437250a744fea0f6545221c9c1bad75624f49"
+      "digest": "sha256:c65b9f553f8f5298d4d7f14bae8570b6e0ed407f262e12b742e4de40ac1ca9c9"
     },
     {
       "path": "../../../tooling/frontend-freeze-cases.json",
@@ -35,17 +35,17 @@
     {
       "path": "../../../tooling/design-freeze-classification.json",
       "symbol": "w-design-freeze-classification-1",
-      "digest": "sha256:eaab6ee12bccf2ab18ecb9c7a2c0fad83c16c927d035c653be8b492eca24d8b0"
+      "digest": "sha256:e30c6a431c1516952d9b11f64df5398bb6342333cd8ee3eccfb71bff3e697b0c"
     },
     {
       "path": "../../../RATIONALE.md",
       "symbol": "| W-707 | gate de design freeze",
-      "digest": "sha256:70872fcb135480f28cbd66cf8858e29517617cb44fe8d82c1e3540b9089b7722"
+      "digest": "sha256:cfeb1eff76949616ebda39bb50bb3c8ea15ca40942dd0249d0082fd898266c2b"
     },
     {
       "path": "../../../DESIGN.md",
       "symbol": "#### 24.4.2 FRC0 — snapshot histórico das gates de pesquisa",
-      "digest": "sha256:ad11c30ff0d2e58ec0fa648136bad84bdb38fbc1a40318cd9f828b6c4ce9386f"
+      "digest": "sha256:4380ac72f5295a3e802a00285b7e2efd4399fee0766bb935d7f9b7e771cabc75"
     }
   ],
   "variants": [
