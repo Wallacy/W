@@ -2399,8 +2399,10 @@ static bool test_signed_comparison_products(void) {
       "admit(guests: 5, seats: 4) }\nentry(main)\n";
   uint8_t output[W_SEED_MLIR0_MAX_BYTES];
   w_seed_native0_result result;
-  CHECK(run_source(source, sizeof(source) - 1u, "comparison", 10u,
-                   output, sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  const w_seed_native0_status comparison_status = run_source(
+      source, sizeof(source) - 1u, "comparison", 10u,
+      output, sizeof(output), &result);
+  CHECK(comparison_status == W_SEED_NATIVE0_OK);
   CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
                         "llvm.icmp \"sle\" %p0, %p1 : i64"));
   CHECK(contains_bytes(output, result.mlir.written.mlir_bytes, "llvm.cond_br %v"));
@@ -2424,6 +2426,94 @@ static bool test_signed_comparison_products(void) {
     for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
       CHECK(output[byte] == 0x51u);
   }
+  return true;
+}
+
+static bool test_integer_comparison_family_capacity(void) {
+  FILE *file = fopen(W_SEED_INTEGER_COMPARISON_FIXTURE_PATH, "rb");
+  CHECK(file != NULL);
+  uint8_t source[W_SEED_NATIVE0_MAX_SOURCE_BYTES + 1u] = {0u};
+  const size_t source_length =
+      fread(source, sizeof(uint8_t), sizeof(source), file);
+  const bool read_ok = !ferror(file) && fclose(file) == 0 &&
+                       source_length > 0u &&
+                       source_length <= W_SEED_NATIVE0_MAX_SOURCE_BYTES;
+  CHECK(read_ok);
+
+  static uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result native_result = {0};
+  CHECK(run_source(source, source_length, "integer-comparison-capacity", 27u,
+                   artifact, sizeof(artifact), &native_result) ==
+        W_SEED_NATIVE0_OK);
+  CHECK(native_result.source_bytes == source_length &&
+        native_result.mlir.required.mlir_bytes != 0u &&
+        native_result.mlir.written.mlir_bytes ==
+            native_result.mlir.required.mlir_bytes);
+  CHECK(storage.frontend_result.written.expressions > 256u &&
+        storage.frontend_result.written.expressions <
+            W_SEED_NATIVE0_EXPRESSIONS &&
+        storage.frontend_result.written.symbols > 64u &&
+        storage.frontend_result.written.symbols < W_SEED_NATIVE0_SYMBOLS &&
+        storage.hir_program.value_count > 256u &&
+        storage.hir_program.value_count <= W_SEED_NATIVE0_HIR_VALUE_RECORDS &&
+        storage.hir_program.binding_count > 32u &&
+        storage.hir_program.instruction_count <=
+            W_SEED_NATIVE_SUBSET0_MAX_INSTRUCTIONS &&
+        storage.hir_program.interpolation_segment_count <=
+            W_SEED_NATIVE_SUBSET0_MAX_INTERPOLATION_SEGMENTS);
+
+  w_seed_frontend_counts frontend_counts = {0};
+  w_seed_frontend_result frontend_measure = {0};
+  CHECK(w_seed_frontend_measure(&storage.input, &frontend_counts,
+                                &frontend_measure) == W_SEED_FRONTEND_OK);
+  CHECK(frontend_counts.expressions ==
+            storage.frontend_result.written.expressions &&
+        frontend_counts.symbols == storage.frontend_result.written.symbols);
+  const size_t full_expression_capacity = storage.output.expression_capacity;
+  const size_t full_symbol_capacity = storage.output.symbol_capacity;
+
+  storage.output.expression_capacity = frontend_counts.expressions;
+  storage.output.symbol_capacity = frontend_counts.symbols;
+  CHECK(w_seed_frontend_run(&storage.input, &storage.output,
+                            &storage.frontend_result) == W_SEED_FRONTEND_OK);
+  storage.output.expression_capacity = frontend_counts.expressions - 1u;
+  CHECK(w_seed_frontend_run(&storage.input, &storage.output,
+                            &storage.frontend_result) ==
+        W_SEED_FRONTEND_CAPACITY);
+  CHECK(storage.frontend_result.required.expressions ==
+        frontend_counts.expressions);
+  storage.output.expression_capacity = frontend_counts.expressions;
+  storage.output.symbol_capacity = frontend_counts.symbols - 1u;
+  CHECK(w_seed_frontend_run(&storage.input, &storage.output,
+                            &storage.frontend_result) ==
+        W_SEED_FRONTEND_CAPACITY);
+  CHECK(storage.frontend_result.required.symbols == frontend_counts.symbols);
+  storage.output.expression_capacity = full_expression_capacity;
+  storage.output.symbol_capacity = full_symbol_capacity;
+  CHECK(w_seed_frontend_run(&storage.input, &storage.output,
+                            &storage.frontend_result) == W_SEED_FRONTEND_OK);
+
+  const w_seed_hir0_input hir_input = {
+      .frontend_input = &storage.input,
+      .frontend_output = &storage.output,
+      .frontend_result = &storage.frontend_result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
+  w_seed_hir0_counts hir_counts = {0};
+  w_seed_hir0_result hir_measure = {0};
+  CHECK(w_seed_hir0_measure(&hir_input, &hir_counts, &hir_measure) ==
+        W_SEED_HIR0_OK);
+  CHECK(hir_counts.values == storage.hir_program.value_count &&
+        hir_counts.values > 256u && hir_counts.values <
+            W_SEED_NATIVE0_HIR_VALUE_RECORDS);
+  const size_t full_value_capacity = storage.hir_output.value_capacity;
+  storage.hir_output.value_capacity = hir_counts.values;
+  CHECK(w_seed_hir0_run(&hir_input, &storage.hir_output,
+                        &storage.hir_result) == W_SEED_HIR0_OK);
+  storage.hir_output.value_capacity = hir_counts.values - 1u;
+  CHECK(w_seed_hir0_run(&hir_input, &storage.hir_output,
+                        &storage.hir_result) == W_SEED_HIR0_CAPACITY);
+  CHECK(storage.hir_result.required.values == hir_counts.values);
+  storage.hir_output.value_capacity = full_value_capacity;
   return true;
 }
 
@@ -2461,12 +2551,17 @@ static bool test_unsigned_binary_u64_slice(void) {
   CHECK(run_source(source, sizeof(source) - 1u, "uint-binary", 11u, output,
                    sizeof(output), &result) == W_SEED_NATIVE0_OK);
   size_t binary_u64_count = 0u;
+  size_t integer_comparison_count = 0u;
   for (size_t index = 0u; index < storage.hir_program.value_count;
-       index += 1u)
+       index += 1u) {
     if (storage.hir_program.values[index].kind ==
         W_SEED_HIR0_VALUE_BINARY_U64)
       binary_u64_count += 1u;
-  CHECK(binary_u64_count == 11u);
+    if (storage.hir_program.values[index].kind ==
+        W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON)
+      integer_comparison_count += 1u;
+  }
+  CHECK(binary_u64_count == 5u && integer_comparison_count == 6u);
   CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
                        "llvm.mlir.constant(-9223372036854775808 : i64) : i64") &&
         contains_bytes(output, result.mlir.written.mlir_bytes,
@@ -4625,7 +4720,8 @@ int main(void) {
                        test_direct_scalar_call_return_remains_unsupported();
   const bool nested = logical && test_nested_depth_and_linear_analysis();
   const bool failures = nested && test_failures_and_capacity();
-  const bool aliases = failures && test_aliases();
+  const bool aliases = failures && test_aliases() &&
+                       test_integer_comparison_family_capacity();
   (void)remove(TEST_PATH);
   if (!aliases) return 1;
   (void)puts("seed Native0: bounded source to verified HIR0 to MLIR0 passed");

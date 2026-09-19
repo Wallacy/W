@@ -62,6 +62,15 @@ W may fold these calls in the final artifact. The C23 and Rust 2024 references
 retain independent runtime operands. Runtime equivalence is not proven, so
 this workload has no performance ranking.
 
+The `restaurant-integer-comparison` witness is `not-performance-ready`. Its
+single fixed-input family covers `==`, `!=`, `<`, `<=`, `>`, and `>=` across
+signed and unsigned 8/16/32/64-bit integers and the current x86-64 `Int`/`UInt`
+aliases, plus one `u8`-to-`i16` widening call before a signed comparison. The
+C23 source uses volatile operands and Rust 2024 uses `black_box`; W supplies
+literal call-site values, so equivalent runtime comparison work is not
+established. The catalog keeps this as one correctness-only family row with no
+performance ranking.
+
 The UInt scalar policy catalog intentionally keeps one benchmark per family. Focused
 W fixtures still gate individual operations, but they do not create separate C/Rust
 comparison rows. This avoids retaining timing surfaces whose only difference is one

@@ -141,6 +141,8 @@ static bool product_value_kind_supported(w_seed_hir0_value_kind kind) {
     case W_SEED_HIR0_VALUE_UNARY_U64:
     case W_SEED_HIR0_VALUE_TUPLE_ELEMENT:
       return false;
+    case W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON:
+      return true;
   }
   return false;
 }
@@ -218,8 +220,25 @@ static bool product_shape_supported(const w_seed_hir0_program *program) {
     if (!product_terminator_kind_supported(
             program->terminators[terminator].kind))
       return false;
-  for (size_t value = 0u; value < program->value_count; value += 1u)
-    if (!product_value_kind_supported(program->values[value].kind)) return false;
+  for (size_t value = 0u; value < program->value_count; value += 1u) {
+    const w_seed_hir0_value *item = &program->values[value];
+    if (!product_value_kind_supported(item->kind)) return false;
+    if (item->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON) {
+      if (item->binary_operator < W_SEED_HIR0_BINARY_EQUAL ||
+          item->binary_operator > W_SEED_HIR0_BINARY_GREATER_EQUAL ||
+          item->type_index >= program->type_count ||
+          program->types[item->type_index].kind != W_SEED_HIR0_TYPE_BOOL ||
+          item->left_value >= program->value_count ||
+          item->right_value >= program->value_count ||
+          program->values[item->left_value].type_index >= program->type_count ||
+          program->values[item->right_value].type_index >= program->type_count ||
+          program->types[program->values[item->left_value].type_index].kind !=
+              W_SEED_HIR0_TYPE_I64 ||
+          program->types[program->values[item->right_value].type_index].kind !=
+              W_SEED_HIR0_TYPE_I64)
+        return false;
+    }
+  }
   for (size_t call = 0u; call < program->call_count; call += 1u) {
     const w_seed_hir0_call *item = &program->calls[call];
     if (item->callee_identity >= program->identity_count) return false;
@@ -469,7 +488,8 @@ static bool mark_value(closure0_plan *plan,
   } else if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
              value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL ||
              value->kind == W_SEED_HIR0_VALUE_UNARY_I64 ||
-             value->kind == W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON) {
+             value->kind == W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON ||
+             value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON) {
     if (value->left_value != W_SEED_HIR0_NONE &&
         !mark_value(plan, program, value->left_value, depth + 1u))
       return false;
@@ -1039,6 +1059,15 @@ static void digest_value(w_seed_sha256_state *state,
         digest_u32(state, W_SEED_PRODUCT_CLOSURE0_NONE);
       break;
     case W_SEED_HIR0_VALUE_BINARY_I64:
+      digest_u32(state, (uint32_t)value->binary_operator);
+      digest_u32(state, value->left_value < program->value_count
+                             ? plan->value_remap[value->left_value]
+                             : W_SEED_PRODUCT_CLOSURE0_NONE);
+      digest_u32(state, value->right_value < program->value_count
+                             ? plan->value_remap[value->right_value]
+                             : W_SEED_PRODUCT_CLOSURE0_NONE);
+      break;
+    case W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON:
       digest_u32(state, (uint32_t)value->binary_operator);
       digest_u32(state, value->left_value < program->value_count
                              ? plan->value_remap[value->left_value]

@@ -13359,6 +13359,8 @@ static bool test_signed_comparison_values(void) {
     char source[1024];
     const int written = snprintf(source, sizeof(source),
         "fn fits(left: i64, right: i64): Bool { return left %s right }\n"
+        "fn widthProbe(left: i32, right: i32): Bool { return left == right }\n"
+        "fn signProbe(left: u64, right: u64): Bool { return left == right }\n"
         "fn main() { let fits = fits(left: 0 - 9223372036854775807 - 1, "
         "right: 9223372036854775807) "
         "print(message: \"${fits}\", suffix: \"\") }\nentry(main)\n",
@@ -13366,10 +13368,22 @@ static bool test_signed_comparison_values(void) {
     CHECK(written > 0 && (size_t)written < sizeof(source));
     CHECK(lower(source));
     size_t comparison = SIZE_MAX;
-    for (size_t index = 0u; index < fixture.hir_program.value_count; index += 1u)
-      if (fixture.hir_values[index].kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
-          fixture.hir_values[index].binary_operator == opcodes[operation])
+    for (size_t index = 0u; index < fixture.hir_program.value_count;
+         index += 1u) {
+      const w_seed_hir0_value *candidate = &fixture.hir_values[index];
+      bool is_signed = false;
+      uint16_t bit_width = 0u;
+      if (candidate->kind ==
+              W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON &&
+          candidate->binary_operator == opcodes[operation] &&
+          candidate->left_value < fixture.hir_program.value_count &&
+          hir_integer_type_facts(
+              &fixture.hir_program,
+              fixture.hir_values[candidate->left_value].type_index,
+              &is_signed, &bit_width) &&
+          is_signed && bit_width == 64u)
         comparison = index;
+    }
     CHECK(comparison != SIZE_MAX);
     const w_seed_hir0_value saved = fixture.hir_values[comparison];
     CHECK(saved.type_index == 3u &&
@@ -13381,26 +13395,70 @@ static bool test_signed_comparison_values(void) {
           fixture.hir_values[saved.right_value].kind ==
               W_SEED_HIR0_VALUE_PARAMETER_READ);
     /* Original digests remain unchanged: these exercise the combined verifier. */
-    for (size_t mutation = 0u; mutation < 7u; mutation += 1u) {
+    for (size_t mutation = 0u; mutation < 10u; mutation += 1u) {
       const w_seed_hir0_value saved_left = fixture.hir_values[saved.left_value];
+      const w_seed_hir0_value saved_right = fixture.hir_values[saved.right_value];
       switch (mutation) {
         case 0u: fixture.hir_values[comparison].type_index = 2u; break;
         case 1u: fixture.hir_values[saved.left_value].type_index = 3u; break;
-        case 2u:
+        case 2u: {
+          uint32_t i32_type = W_SEED_HIR0_NONE;
+          for (size_t type = 0u; type < fixture.hir_program.type_count;
+               type += 1u) {
+            bool is_signed = false;
+            uint16_t bit_width = 0u;
+            if (hir_integer_type_facts(&fixture.hir_program, (uint32_t)type,
+                                       &is_signed, &bit_width) &&
+                is_signed && bit_width == 32u)
+              i32_type = (uint32_t)type;
+          }
+          CHECK(i32_type != W_SEED_HIR0_NONE);
+          fixture.hir_values[saved.left_value].type_index = i32_type;
+          break;
+        }
+        case 3u: {
+          uint32_t u64_type = W_SEED_HIR0_NONE;
+          for (size_t type = 0u; type < fixture.hir_program.type_count;
+               type += 1u) {
+            bool is_signed = false;
+            uint16_t bit_width = 0u;
+            if (hir_integer_type_facts(&fixture.hir_program, (uint32_t)type,
+                                       &is_signed, &bit_width) &&
+                !is_signed && bit_width == 64u)
+              u64_type = (uint32_t)type;
+          }
+          CHECK(u64_type != W_SEED_HIR0_NONE);
+          fixture.hir_values[saved.left_value].type_index = u64_type;
+          break;
+        }
+        case 4u:
+          fixture.hir_values[saved.left_value].kind =
+              W_SEED_HIR0_VALUE_CONST_I64;
+          break;
+        case 5u:
           fixture.hir_values[comparison].binary_operator =
               (w_seed_hir0_binary_operator)UINT32_MAX;
           break;
-        case 3u:
+        case 6u:
           fixture.hir_values[comparison].binary_operator =
-              (w_seed_hir0_binary_operator)(W_SEED_HIR0_BINARY_GREATER_EQUAL + 1);
+              W_SEED_HIR0_BINARY_BIT_AND;
           break;
-        case 4u: fixture.hir_values[comparison].left_value = (uint32_t)comparison; break;
-        case 5u: fixture.hir_values[saved.left_value].owner_index = 0u; break;
-        default: fixture.hir_values[comparison].right_value = saved.left_value; break;
+        case 7u:
+          fixture.hir_values[saved.left_value].owner_index = W_SEED_HIR0_NONE;
+          break;
+        case 8u:
+          fixture.hir_values[comparison].left_value = (uint32_t)comparison;
+          break;
+        default:
+          fixture.hir_values[comparison].right_value = saved.left_value;
+          break;
       }
+      reseal_hir_fixture();
       CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
       fixture.hir_values[comparison] = saved;
       fixture.hir_values[saved.left_value] = saved_left;
+      fixture.hir_values[saved.right_value] = saved_right;
+      reseal_hir_fixture();
       CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
     }
   }
@@ -13416,6 +13474,95 @@ static bool test_signed_comparison_values(void) {
         W_SEED_HIR0_CAPACITY);
   CHECK(hir_output_is_byte(0xa5u));
   CHECK(memcmp(&rejected, &snapshot, sizeof(rejected)) == 0);
+  return true;
+}
+
+static bool test_fixed_integer_comparison_matrix(void) {
+  static const char *const types[] = {
+      "i8", "u8", "i16", "u16", "i32", "u32", "i64", "u64",
+      "Int", "UInt"};
+  static const bool signed_domain[] = {
+      true, false, true, false, true, false, true, false, true, false};
+  static const uint16_t bit_width[] = {8u, 8u, 16u, 16u, 32u,
+                                       32u, 64u, 64u, 64u, 64u};
+  static const char *const operators[] = {"==", "!=", "<", "<=", ">", ">="};
+  static const w_seed_hir0_binary_operator opcodes[] = {
+      W_SEED_HIR0_BINARY_EQUAL, W_SEED_HIR0_BINARY_NOT_EQUAL,
+      W_SEED_HIR0_BINARY_LESS, W_SEED_HIR0_BINARY_LESS_EQUAL,
+      W_SEED_HIR0_BINARY_GREATER, W_SEED_HIR0_BINARY_GREATER_EQUAL};
+  for (size_t domain = 0u; domain < sizeof(types) / sizeof(types[0]);
+       domain += 1u) {
+    char source[4096];
+    size_t source_length = 0u;
+    for (size_t operation = 0u; operation < 6u; operation += 1u) {
+      const int written = snprintf(
+          source + source_length, sizeof(source) - source_length,
+          "fn cmp_%u(left: %s, right: %s): Bool { return left %s right }\n",
+          (unsigned)operation, types[domain], types[domain],
+          operators[operation]);
+      CHECK(written > 0 && (size_t)written < sizeof(source) - source_length);
+      source_length += (size_t)written;
+    }
+    static const char ENTRY[] = "entry { }\n";
+    CHECK(sizeof(ENTRY) - 1u < sizeof(source) - source_length);
+    (void)memcpy(source + source_length, ENTRY, sizeof(ENTRY));
+    CHECK(lower(source));
+
+    bool found[6] = {false, false, false, false, false, false};
+    for (size_t index = 0u; index < fixture.hir_program.value_count;
+         index += 1u) {
+      const w_seed_hir0_value *value = &fixture.hir_values[index];
+      if (value->kind != W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON)
+        continue;
+      CHECK(value->owner_kind == W_SEED_HIR0_VALUE_OWNER_TERMINATOR &&
+            value->owner_index < fixture.hir_program.terminator_count &&
+            value->left_value < fixture.hir_program.value_count &&
+            value->right_value < fixture.hir_program.value_count &&
+            value->type_index < fixture.hir_program.type_count &&
+            fixture.hir_types[value->type_index].kind == W_SEED_HIR0_TYPE_BOOL);
+      const w_seed_hir0_terminator *terminator =
+          &fixture.hir_terminators[value->owner_index];
+      CHECK(terminator->owner_block < fixture.hir_program.block_count);
+      const uint32_t function_index =
+          fixture.hir_blocks[terminator->owner_block].owner_function;
+      CHECK(function_index < fixture.hir_program.function_count);
+
+      size_t operation = SIZE_MAX;
+      for (size_t candidate_operation = 0u; candidate_operation < 6u;
+           candidate_operation += 1u) {
+        char expected_name[16];
+        const int name_length = snprintf(expected_name, sizeof(expected_name),
+                                         "cmp_%u", (unsigned)candidate_operation);
+        CHECK(name_length > 0 &&
+              (size_t)name_length < sizeof(expected_name));
+        if (hir_text_is(&fixture.hir_program,
+                        fixture.hir_functions[function_index].name,
+                        expected_name))
+          operation = candidate_operation;
+      }
+      CHECK(operation != SIZE_MAX && !found[operation] &&
+            value->binary_operator == opcodes[operation]);
+      bool left_signed = false;
+      bool right_signed = false;
+      uint16_t left_width = 0u;
+      uint16_t right_width = 0u;
+      CHECK(hir_integer_type_facts(
+                &fixture.hir_program,
+                fixture.hir_values[value->left_value].type_index,
+                &left_signed, &left_width) &&
+            hir_integer_type_facts(
+                &fixture.hir_program,
+                fixture.hir_values[value->right_value].type_index,
+                &right_signed, &right_width) &&
+            left_signed == signed_domain[domain] &&
+            right_signed == signed_domain[domain] &&
+            left_width == bit_width[domain] &&
+            right_width == bit_width[domain]);
+      found[operation] = true;
+    }
+    for (size_t operation = 0u; operation < 6u; operation += 1u)
+      CHECK(found[operation]);
+  }
   return true;
 }
 
@@ -13553,6 +13700,18 @@ static bool test_u64_binary_values(void) {
         maximum_literal_count += 1u;
       continue;
     }
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON) {
+      CHECK(value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
+            value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL &&
+            value->type_index == bool_type &&
+            value->left_value < fixture.hir_program.value_count &&
+            value->right_value < fixture.hir_program.value_count &&
+            fixture.hir_values[value->left_value].type_index == u64_type &&
+            fixture.hir_values[value->right_value].type_index == u64_type);
+      comparison_count[value->binary_operator - W_SEED_HIR0_BINARY_EQUAL] +=
+          1u;
+      continue;
+    }
     if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
       CHECK(value->binary_operator > W_SEED_HIR0_BINARY_GREATER_EQUAL);
       continue;
@@ -13573,13 +13732,6 @@ static bool test_u64_binary_values(void) {
     if (value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER) {
       arithmetic_count[value->binary_operator] += 1u;
       CHECK(value->type_index == u64_type);
-    } else if (value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
-               value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL) {
-      CHECK(value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
-            value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL &&
-            value->type_index == bool_type);
-      comparison_count[value->binary_operator - W_SEED_HIR0_BINARY_EQUAL] +=
-          1u;
     } else {
       CHECK(value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
             value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR &&
@@ -15763,6 +15915,7 @@ int main(int argc, char **argv) {
   if (!test_direct_entry_effect_barrier()) return 1;
   if (!test_short_entry_hir()) return 1;
   if (!test_signed_comparison_values()) return 1;
+  if (!test_fixed_integer_comparison_matrix()) return 1;
   if (!test_signed_bitwise_values()) return 1;
   if (!test_canonical_u64_scalar()) return 1;
   if (!test_u64_binary_values()) return 1;

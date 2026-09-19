@@ -278,6 +278,19 @@ Target-general aliases, `usize`/`isize`, 128-bit integers, narrowing, explicit
 conversions, stable ABI/FFI, and equivalent-work performance ranking remain
 open.
 
+W-1638 closes one fixed-width integer-comparison family. The public witness
+covers all six comparison operators across signed and unsigned 8/16/32/64-bit
+integers and the current x86-64 `Int`/`UInt` aliases; its final case widens a
+`u8` call argument to `i16` before comparing. HIR80 records one Bool-producing
+integer-comparison identity for equal signedness/width operands, and MLIR
+selects signed or unsigned `llvm.icmp` ordering predicates from verified type
+facts. The exact-output witness runs through the maintained native Windows
+and Linux/WSL routes. C23 and Rust 2024 preserve runtime operands while W's
+calls use fixed literals, so the catalog records correctness only and no
+performance ranking. Mixed-width/signedness comparisons beyond the explicit
+argument widening, `usize`/`isize`, 128-bit integers, other targets, stable
+ABI/FFI, and equivalent runtime-work performance remain open.
+
 The first rank-1 increments are now executable. Signed-`i64` `&`, `|`, `^`,
 and unary `~` cross exact W source, canonical precedence, verified HIR0, direct
 LLVM-dialect operations, and the maintained native routes. Checked `<<` and

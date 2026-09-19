@@ -2148,12 +2148,17 @@ static bool test_unsigned_binary_u64_slice(void) {
   w_seed_mlir0_result emitted;
   CHECK(lower_hir(source, sizeof(source) - 1u));
   size_t binary_u64_count = 0u;
+  size_t integer_comparison_count = 0u;
   for (size_t index = 0u; index < fixture.hir_program.value_count;
-       index += 1u)
+       index += 1u) {
     if (fixture.hir_program.values[index].kind ==
         W_SEED_HIR0_VALUE_BINARY_U64)
       binary_u64_count += 1u;
-  CHECK(binary_u64_count == 11u);
+    if (fixture.hir_program.values[index].kind ==
+        W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON)
+      integer_comparison_count += 1u;
+  }
+  CHECK(binary_u64_count == 5u && integer_comparison_count == 6u);
   CHECK(measure_current(&counts, &measured));
   CHECK(emit_current(artifact, sizeof(artifact), &emitted));
   CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
@@ -2229,13 +2234,13 @@ static bool test_unsigned_binary_u64_slice(void) {
   CHECK(lower_hir(reachability_source, sizeof(reachability_source) - 1u));
   CHECK(measure_current(&counts, &measured));
   CHECK(emit_current(artifact, sizeof(artifact), &emitted));
-  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
-        contains_bytes(artifact, emitted.written.mlir_bytes,
-                       "llvm.icmp \"eq\"") &&
-        !contains_bytes(artifact, emitted.written.mlir_bytes,
-                        "@w_seed_checked_add_u64") &&
-        !contains_bytes(artifact, emitted.written.mlir_bytes, "@w_fn_0(") &&
-        !contains_bytes(artifact, emitted.written.mlir_bytes,
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes);
+  CHECK(contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.icmp \"eq\""));
+  CHECK(!contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "@w_seed_checked_add_u64"));
+  CHECK(!contains_bytes(artifact, emitted.written.mlir_bytes, "@w_fn_0("));
+  CHECK(!contains_bytes(artifact, emitted.written.mlir_bytes,
                         "@w_seed_append_i64"));
   return true;
 }
@@ -5376,9 +5381,10 @@ static bool test_signed_comparison_artifacts(void) {
     const w_seed_mlir0_input input = mlir_input();
     for (size_t host = 0u; host < 2u; host += 1u) {
       w_seed_mlir0_result result;
-      CHECK(w_seed_mlir0_emit(&input, host == 0u ? &TARGET : &WINDOWS_TARGET,
-                &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result) ==
-            W_SEED_MLIR0_OK);
+      const w_seed_mlir0_status comparison_status = w_seed_mlir0_emit(
+          &input, host == 0u ? &TARGET : &WINDOWS_TARGET,
+          &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result);
+      CHECK(comparison_status == W_SEED_MLIR0_OK);
       CHECK(contains_bytes(artifact, result.written.mlir_bytes, expected));
       CHECK(contains_bytes(artifact, result.written.mlir_bytes, "llvm.return %v"));
       CHECK(contains_bytes(artifact, result.written.mlir_bytes, " : i1"));

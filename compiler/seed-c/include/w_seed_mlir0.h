@@ -56,9 +56,10 @@ extern "C" {
 #define W_SEED_MLIR0_TYPED_PROPAGATION_CARRIER_FIELDS 2u
 /* The unsuffixed aliases retain the byte-for-byte Linux seed contract. */
 #define W_SEED_MLIR0_TARGET_TRIPLE W_SEED_MLIR0_TARGET_TRIPLE_LINUX
-/* The dynamic seed artifact is bounded by 64 HIR values, 64 interpolation
- * segments, 4096 output bytes, and the fixed LLVM-dialect skeleton. */
-#define W_SEED_MLIR0_MAX_BYTES 196608u
+/* The dynamic seed artifact covers the bounded NativeSubset0 value and
+ * interpolation tables, 4096 output bytes, and the fixed LLVM-dialect
+ * skeleton. This is compiler workspace, not generated executable payload. */
+#define W_SEED_MLIR0_MAX_BYTES 262144u
 
 /* These are bounded seed evidence leaves, not the W target universe.  The
  * platform catalog owns the open target matrix; adding local evidence must not

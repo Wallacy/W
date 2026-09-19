@@ -4052,6 +4052,25 @@ the catalog records no timing or ranking. The bounded route covers fixed-width
 128-bit integers, narrowing, equal-width sign changes, signed-to-unsigned and
 explicit conversions, stable ABI/FFI, and performance remain open.
 
+W-1638 adds one fixed-width integer-comparison family. The frontend preserves
+the six existing comparison operators for equal signedness/width operands
+across signed and unsigned 8/16/32/64-bit integers and the current x86-64
+`Int`/`UInt` aliases. HIR80 represents the result as Bool with a dedicated
+comparison identity. MLIR reconstructs the logical operand width from the
+physical `i64` carrier and selects signed or unsigned `llvm.icmp` ordering
+predicates from verified type facts. The family fixture also exercises the
+existing `u8`-to-`i16` call-argument widening before an `i16` comparison.
+
+[`fixtures/restaurant-integer-comparison.w`](fixtures/restaurant-integer-comparison.w)
+declares exact exit/stdout and is the single family-level public witness; the
+native W route is exercised on Windows and Linux/WSL. C23 uses volatile input
+storage and Rust 2024 uses `black_box`, while W supplies fixed call-site
+literals. Since equivalent runtime comparison work is not established, the
+catalog row is correctness-only and carries no performance claim. Mixed-width
+or mixed-signedness comparisons beyond the explicit widening call,
+`usize`/`isize`, 128-bit integers, other targets, stable ABI/FFI, and
+equivalent-work ranking remain open.
+
 ## Validação seed C de predicates genéricos
 
 `include/w_seed_generic_validation.h` e

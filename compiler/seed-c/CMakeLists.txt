@@ -686,6 +686,9 @@ add_executable(w_seed_native0_tests
   tests/test_native0.c
 )
 target_link_libraries(w_seed_native0_tests PRIVATE w_seed_source)
+target_compile_definitions(w_seed_native0_tests PRIVATE
+  W_SEED_INTEGER_COMPARISON_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/restaurant-integer-comparison.w"
+)
 
 add_executable(w_seed_cooperative0_tests
   tests/test_cooperative0.c

@@ -74,6 +74,60 @@ static bool type_is_scalar(const w_seed_hir0_program *program,
          program->types[type_index].kind == W_SEED_HIR0_TYPE_BOOL;
 }
 
+typedef struct {
+  bool is_signed;
+  uint16_t bit_width;
+} cooperative_integer_facts;
+
+static bool cooperative_integer_type_facts(
+    const w_seed_hir0_program *program, uint32_t type_index,
+    cooperative_integer_facts *facts) {
+  if (program == NULL || facts == NULL || type_index >= program->type_count)
+    return false;
+  const w_seed_hir0_type *type = &program->types[type_index];
+  if (type->kind == W_SEED_HIR0_TYPE_I64) {
+    if (!type->integer_is_signed || type->integer_bit_width != 64u)
+      return false;
+  } else if (type->kind == W_SEED_HIR0_TYPE_U64) {
+    if (type->integer_is_signed || type->integer_bit_width != 64u)
+      return false;
+  } else if (type->kind == W_SEED_HIR0_TYPE_INTEGER) {
+    if (type->integer_bit_width != 8u && type->integer_bit_width != 16u &&
+        type->integer_bit_width != 32u)
+      return false;
+  } else {
+    return false;
+  }
+  facts->is_signed = type->integer_is_signed;
+  facts->bit_width = type->integer_bit_width;
+  return true;
+}
+
+static bool value_from_u64_bits(uint64_t value,
+                                w_seed_cooperative0_value *out) {
+  if (out == NULL) return false;
+  int64_t integer = 0;
+  (void)memcpy(&integer, &value, sizeof(integer));
+  *out = (w_seed_cooperative0_value){
+      .kind = W_SEED_COOPERATIVE0_VALUE_I64, .integer = integer};
+  return true;
+}
+
+static int64_t cooperative_signed_integer_bits(uint64_t bits,
+                                               uint16_t bit_width) {
+  if (bit_width == 64u) {
+    int64_t value = 0;
+    (void)memcpy(&value, &bits, sizeof(value));
+    return value;
+  }
+  const uint64_t mask = (UINT64_C(1) << bit_width) - UINT64_C(1);
+  bits &= mask;
+  const uint64_t sign_bit = UINT64_C(1) << (bit_width - 1u);
+  if ((bits & sign_bit) == 0u) return (int64_t)bits;
+  const uint64_t magnitude = ((~bits) & mask) + UINT64_C(1);
+  return -(int64_t)magnitude;
+}
+
 static bool type_is_unit(const w_seed_hir0_program *program,
                          uint32_t type_index) {
   return program != NULL && type_index < program->type_count &&
@@ -476,6 +530,8 @@ static bool evaluate_value(const w_seed_hir0_program *program, uint32_t value_in
   switch (value->kind) {
     case W_SEED_HIR0_VALUE_CONST_I64:
       return value_from_i64(value->integer_value, out);
+    case W_SEED_HIR0_VALUE_CONST_U64:
+      return value_from_u64_bits(value->unsigned_integer_value, out);
     case W_SEED_HIR0_VALUE_CONST_BOOL:
       return value_from_bool(value->bool_value, out);
     case W_SEED_HIR0_VALUE_CONST_STRING:
@@ -577,6 +633,75 @@ static bool evaluate_value(const w_seed_hir0_program *program, uint32_t value_in
           break;
         case W_SEED_HIR0_BINARY_GREATER_EQUAL:
           boolean = left.integer >= right.integer;
+          break;
+        default:
+          return false;
+      }
+      return value_from_bool(boolean, out);
+    }
+    case W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON: {
+      cooperative_integer_facts left_facts;
+      cooperative_integer_facts right_facts;
+      if (value->binary_operator < W_SEED_HIR0_BINARY_EQUAL ||
+          value->binary_operator > W_SEED_HIR0_BINARY_GREATER_EQUAL ||
+          value->type_index >= program->type_count ||
+          program->types[value->type_index].kind != W_SEED_HIR0_TYPE_BOOL ||
+          value->left_value >= program->value_count ||
+          value->right_value >= program->value_count ||
+          !cooperative_integer_type_facts(
+              program, program->values[value->left_value].type_index,
+              &left_facts) ||
+          !cooperative_integer_type_facts(
+              program, program->values[value->right_value].type_index,
+              &right_facts) ||
+          left_facts.is_signed != right_facts.is_signed ||
+          left_facts.bit_width != right_facts.bit_width)
+        return false;
+      w_seed_cooperative0_value left;
+      w_seed_cooperative0_value right;
+      if (!evaluate_value(program, value->left_value, frame, &left,
+                          depth + 1u) ||
+          !evaluate_value(program, value->right_value, frame, &right,
+                          depth + 1u) ||
+          left.kind != W_SEED_COOPERATIVE0_VALUE_I64 ||
+          right.kind != W_SEED_COOPERATIVE0_VALUE_I64)
+        return false;
+
+      uint64_t left_bits = (uint64_t)left.integer;
+      uint64_t right_bits = (uint64_t)right.integer;
+      if (left_facts.bit_width != 64u) {
+        const uint64_t mask =
+            (UINT64_C(1) << left_facts.bit_width) - UINT64_C(1);
+        left_bits &= mask;
+        right_bits &= mask;
+      }
+      const int64_t left_signed = cooperative_signed_integer_bits(
+          left_bits, left_facts.bit_width);
+      const int64_t right_signed = cooperative_signed_integer_bits(
+          right_bits, right_facts.bit_width);
+      bool boolean = false;
+      switch (value->binary_operator) {
+        case W_SEED_HIR0_BINARY_EQUAL:
+          boolean = left_bits == right_bits;
+          break;
+        case W_SEED_HIR0_BINARY_NOT_EQUAL:
+          boolean = left_bits != right_bits;
+          break;
+        case W_SEED_HIR0_BINARY_LESS:
+          boolean = left_facts.is_signed ? left_signed < right_signed
+                                         : left_bits < right_bits;
+          break;
+        case W_SEED_HIR0_BINARY_LESS_EQUAL:
+          boolean = left_facts.is_signed ? left_signed <= right_signed
+                                         : left_bits <= right_bits;
+          break;
+        case W_SEED_HIR0_BINARY_GREATER:
+          boolean = left_facts.is_signed ? left_signed > right_signed
+                                         : left_bits > right_bits;
+          break;
+        case W_SEED_HIR0_BINARY_GREATER_EQUAL:
+          boolean = left_facts.is_signed ? left_signed >= right_signed
+                                         : left_bits >= right_bits;
           break;
         default:
           return false;

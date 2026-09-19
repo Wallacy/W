@@ -49,10 +49,10 @@ enum {
   W_SEED_NATIVE0_ENTRIES = 8,
   /* 64 nested IF records plus a leaf and post-join statement fit here. */
   W_SEED_NATIVE0_STATEMENTS = 128,
-  W_SEED_NATIVE0_EXPRESSIONS = 256,
+  W_SEED_NATIVE0_EXPRESSIONS = 512,
   W_SEED_NATIVE0_ARGUMENTS = 128,
   W_SEED_NATIVE0_INTERPOLATION_SEGMENTS = 128,
-  W_SEED_NATIVE0_SYMBOLS = 64,
+  W_SEED_NATIVE0_SYMBOLS = 128,
   W_SEED_NATIVE0_FACTS = 64,
   W_SEED_NATIVE0_DIAGNOSTICS = 32,
   W_SEED_NATIVE0_HIR_MODULES = W_SEED_NATIVE0_MODULES,
@@ -84,7 +84,7 @@ enum {
   W_SEED_NATIVE0_HIR_HOST_PARAMETERS = 16,
   W_SEED_NATIVE0_HIR_ARGUMENTS = 256,
   W_SEED_NATIVE0_HIR_REQUIREMENTS = 16,
-  W_SEED_NATIVE0_HIR_VALUE_RECORDS = 256,
+  W_SEED_NATIVE0_HIR_VALUE_RECORDS = 512,
   W_SEED_NATIVE0_HIR_INTERPOLATION_SEGMENTS = 128,
   W_SEED_NATIVE0_HIR_ENTRIES = W_SEED_NATIVE0_ENTRIES,
   W_SEED_NATIVE0_HIR_EXTERNAL_MODULES = 2,
@@ -319,7 +319,7 @@ typedef struct {
   w_seed_hir0_program hir_program;
 } w_seed_native0_storage;
 
-_Static_assert(sizeof(w_seed_native0_storage) <= 768u * 1024u,
+_Static_assert(sizeof(w_seed_native0_storage) <= 896u * 1024u,
                "Native0 storage remains within the fixed local ceiling");
 
 /* Run source acquisition, parsing, frontend normalization, verified HIR0

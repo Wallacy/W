@@ -1822,6 +1822,90 @@
       ]
     },
     {
+      "id": "restaurant-integer-comparison",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Validate fixed-input signed and unsigned comparisons (==, !=, <, <=, >, >=) across i8/u8/i16/u16/i32/u32/i64/u64 and the current x86-64 Int/UInt aliases, plus a u8-to-i16 comparison after argument widening, with exact output. Performance ranking is deferred until W preserves equivalent runtime work.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "i8 false/true/true/true/false/false\nu8 false/true/false/false/true/true\ni16 true/false/false/true/false/true\nu16 false/true/true/true/false/false\ni32 false/true/true/true/false/false\nu32 false/true/false/false/true/true\ni64 false/true/true/true/false/false\nu64 false/true/false/false/true/true\nInt false/true/true/true/false/false\nUInt true/false/false/true/false/true\nwiden u8->i16 true\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-integer-comparison.w",
+          "digest": "sha256:719faf17c726d0661c7c39979a01d33de9ee1206366ad1944cd63605f7a2c4d3",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-integer-comparison-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        },
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-integer-comparison.w",
+          "digest": "sha256:719faf17c726d0661c7c39979a01d33de9ee1206366ad1944cd63605f7a2c4d3",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-integer-comparison-release",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only"
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/restaurant_integer_comparison.c",
+          "digest": "sha256:7ec49ae6069034ca4067fc2cc2ad31d7526ba5fd6f553d91c131270114dca705",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "clang-c23-msvc",
+          "recipeClass": "restaurant-integer-comparison-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/restaurant_integer_comparison.rs",
+          "digest": "sha256:278a09b190202df25a5f5257be63405620335ab7c69d43790aefe7c82877dbe9",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "restaurant-integer-comparison-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        }
+      ],
+      "blockedLanguages": [],
+      "blockers": [
+        "w-integer-comparison-fixed-input",
+        "runtime-integer-comparison-equivalence"
+      ]
+    },
+    {
       "id": "restaurant-uint-overflowing-family",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",

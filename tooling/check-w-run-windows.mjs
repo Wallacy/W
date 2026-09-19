@@ -42,6 +42,8 @@ const restaurantMainCardinalityFixture = resolve(seedDirectory,
   "fixtures", "restaurant-main-cardinality0.w")
 const restaurantComparisonsFixture = resolve(seedDirectory, "fixtures", "restaurant-comparisons.w")
 const restaurantComparisonCompositionFixture = resolve(seedDirectory, "fixtures", "restaurant-comparison-composition.w")
+const restaurantIntegerComparisonFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-integer-comparison.w")
 const restaurantBoolShortCircuitFixture = resolve(seedDirectory, "fixtures", "restaurant-bool-short-circuit.w")
 const restaurantScalarIfFixture = resolve(seedDirectory, "fixtures", "restaurant-scalar-if.w")
 const restaurantInterpolationFixture = resolve(
@@ -606,6 +608,20 @@ try {
   expectExact(binary, ["run", restaurantComparisonsFixture], 0,
     Buffer.from("Seat party\nSeat party\nWaitlist\n", "utf8"),
     "Restaurant signed-i64 admission comparison")
+  expectExact(binary, ["run", restaurantIntegerComparisonFixture], 0,
+    Buffer.from(
+      "i8 false/true/true/true/false/false\n" +
+      "u8 false/true/false/false/true/true\n" +
+      "i16 true/false/false/true/false/true\n" +
+      "u16 false/true/true/true/false/false\n" +
+      "i32 false/true/true/true/false/false\n" +
+      "u32 false/true/false/false/true/true\n" +
+      "i64 false/true/true/true/false/false\n" +
+      "u64 false/true/false/false/true/true\n" +
+      "Int false/true/true/true/false/false\n" +
+      "UInt true/false/false/true/false/true\n" +
+      "widen u8->i16 true\n", "utf8"),
+    "Restaurant fixed-width integer comparison family")
   expectExact(binary, ["run", restaurantComparisonCompositionFixture], 0,
     Buffer.from(
       "false/true/true/true/false/false\n" +

@@ -1857,6 +1857,8 @@ static bool build_dynamic_plan(
           if ((effective->kind != W_SEED_HIR0_VALUE_CONST_BOOL &&
                effective->kind != W_SEED_HIR0_VALUE_BINARY_I64 &&
                effective->kind != W_SEED_HIR0_VALUE_BINARY_U64 &&
+               effective->kind !=
+                   W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON &&
                effective->kind != W_SEED_HIR0_VALUE_CALL_RESULT &&
                effective->kind !=
                    W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON) ||
@@ -2099,6 +2101,26 @@ static const char *usize_comparison_operation(
       return "llvm.icmp \"ugt\"";
     case W_SEED_HIR0_BINARY_GREATER_EQUAL:
       return "llvm.icmp \"uge\"";
+    default:
+      return NULL;
+  }
+}
+
+static const char *integer_comparison_operation(
+    w_seed_hir0_binary_operator operation, bool is_signed) {
+  switch (operation) {
+    case W_SEED_HIR0_BINARY_EQUAL:
+      return "llvm.icmp \"eq\"";
+    case W_SEED_HIR0_BINARY_NOT_EQUAL:
+      return "llvm.icmp \"ne\"";
+    case W_SEED_HIR0_BINARY_LESS:
+      return is_signed ? "llvm.icmp \"slt\"" : "llvm.icmp \"ult\"";
+    case W_SEED_HIR0_BINARY_LESS_EQUAL:
+      return is_signed ? "llvm.icmp \"sle\"" : "llvm.icmp \"ule\"";
+    case W_SEED_HIR0_BINARY_GREATER:
+      return is_signed ? "llvm.icmp \"sgt\"" : "llvm.icmp \"ugt\"";
+    case W_SEED_HIR0_BINARY_GREATER_EQUAL:
+      return is_signed ? "llvm.icmp \"sge\"" : "llvm.icmp \"uge\"";
     default:
       return NULL;
   }
@@ -2348,6 +2370,13 @@ static bool mark_reachable_value_tree(
                                      has_add, has_subtract, has_multiply,
                                      has_divide, has_remainder, depth + 1u);
   if (value->kind == W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON)
+    return mark_reachable_value_tree(program, value->left_value, reachable,
+                                     has_add, has_subtract, has_multiply,
+                                     has_divide, has_remainder, depth + 1u) &&
+           mark_reachable_value_tree(program, value->right_value, reachable,
+                                     has_add, has_subtract, has_multiply,
+                                     has_divide, has_remainder, depth + 1u);
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON)
     return mark_reachable_value_tree(program, value->left_value, reachable,
                                      has_add, has_subtract, has_multiply,
                                      has_divide, has_remainder, depth + 1u) &&
@@ -3512,6 +3541,100 @@ static bool append_usize_count_comparison_operation(
       offset);
 }
 
+static bool append_integer_comparison_operation_in_loop(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop, uint8_t *artifact,
+    size_t capacity, size_t *offset) {
+  if (program == NULL || artifact == NULL || offset == NULL ||
+      value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->kind != W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON ||
+      value->binary_operator < W_SEED_HIR0_BINARY_EQUAL ||
+      value->binary_operator > W_SEED_HIR0_BINARY_GREATER_EQUAL ||
+      value->type_index >= program->type_count ||
+      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_BOOL ||
+      value->left_value >= program->value_count ||
+      value->right_value >= program->value_count)
+    return false;
+  bool is_signed = false;
+  bool right_signed = false;
+  uint16_t bit_width = 0u;
+  uint16_t right_width = 0u;
+  if (!mlir0_integer_type_facts(
+          program, program->values[value->left_value].type_index,
+          &is_signed, &bit_width) ||
+      !mlir0_integer_type_facts(
+          program, program->values[value->right_value].type_index,
+          &right_signed, &right_width) ||
+      is_signed != right_signed || bit_width != right_width ||
+      (bit_width != 8u && bit_width != 16u && bit_width != 32u &&
+       bit_width != 64u))
+    return false;
+  const char *operation =
+      integer_comparison_operation(value->binary_operator, is_signed);
+  if (operation == NULL) return false;
+
+  if (bit_width != 64u) {
+    if (!append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_comparison_left = llvm.trunc ") ||
+        !append_program_value_operand_in_loop(
+            program, value->left_value, function_index, process, loop,
+            artifact, capacity, offset) ||
+        !append_literal(artifact, capacity, offset, " : i64 to i") ||
+        !append_size(artifact, capacity, offset, bit_width) ||
+        !append_literal(artifact, capacity, offset, "\n    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_comparison_right = llvm.trunc ") ||
+        !append_program_value_operand_in_loop(
+            program, value->right_value, function_index, process, loop,
+            artifact, capacity, offset) ||
+        !append_literal(artifact, capacity, offset, " : i64 to i") ||
+        !append_size(artifact, capacity, offset, bit_width) ||
+        !append_literal(artifact, capacity, offset, "\n    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset, " = ") ||
+        !append_literal(artifact, capacity, offset, operation) ||
+        !append_literal(artifact, capacity, offset, " %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset, "_comparison_left, %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_comparison_right : i") ||
+        !append_size(artifact, capacity, offset, bit_width) ||
+        !append_literal(artifact, capacity, offset, "\n"))
+      return false;
+    return true;
+  }
+
+  return append_literal(artifact, capacity, offset, "    %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, " = ") &&
+         append_literal(artifact, capacity, offset, operation) &&
+         append_literal(artifact, capacity, offset, " ") &&
+         append_program_value_operand_in_loop(
+             program, value->left_value, function_index, process, loop,
+             artifact, capacity, offset) &&
+         append_literal(artifact, capacity, offset, ", ") &&
+         append_program_value_operand_in_loop(
+             program, value->right_value, function_index, process, loop,
+             artifact, capacity, offset) &&
+         append_literal(artifact, capacity, offset, " : i64\n");
+}
+
+static bool append_integer_comparison_operation(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    uint8_t *artifact, size_t capacity, size_t *offset) {
+  return append_integer_comparison_operation_in_loop(
+      program, value_index, function_index, process, NULL, artifact, capacity,
+      offset);
+}
+
 static bool append_unary_i64_operation_in_loop(
     const w_seed_hir0_program *program, uint32_t value_index,
     uint32_t function_index, const mlir0_process_emit_context *process,
@@ -3853,6 +3976,11 @@ static bool append_value_operations(const w_seed_hir0_program *program,
       if (!append_binary_u64_value_operation(program, (uint32_t)index, 0u,
                                              NULL, artifact, capacity,
                                              offset))
+        return false;
+    } else if (value->kind ==
+               W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON) {
+      if (!append_integer_comparison_operation(
+              program, (uint32_t)index, 0u, NULL, artifact, capacity, offset))
         return false;
     } else if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64) {
       if (!append_unary_i64_operation(program, (uint32_t)index, 0u, NULL,
@@ -4545,6 +4673,21 @@ static bool mlir_product_closure_shape_candidate(
       case W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ:
       case W_SEED_HIR0_VALUE_UNARY_I64:
         break;
+      case W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON:
+        if (program->values[value].left_value >= program->value_count ||
+            program->values[value].right_value >= program->value_count ||
+            program->values[program->values[value].left_value].type_index >=
+                program->type_count ||
+            program->types[program->values[program->values[value].left_value]
+                              .type_index]
+                    .kind != W_SEED_HIR0_TYPE_I64 ||
+            program->values[program->values[value].right_value].type_index >=
+                program->type_count ||
+            program->types[program->values[program->values[value].right_value]
+                              .type_index]
+                    .kind != W_SEED_HIR0_TYPE_I64)
+          return false;
+        break;
       case W_SEED_HIR0_VALUE_CONST_U64:
       case W_SEED_HIR0_VALUE_BINARY_U64:
       case W_SEED_HIR0_VALUE_UNARY_U64:
@@ -4894,6 +5037,8 @@ static bool append_program_value_operand_in_loop(
           value->kind == W_SEED_HIR0_VALUE_CONST_BOOL ||
           value->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
           value->kind == W_SEED_HIR0_VALUE_BINARY_U64 ||
+          value->kind ==
+              W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON ||
           value->kind == W_SEED_HIR0_VALUE_BINARY_FLOAT ||
           value->kind == W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON ||
           value->kind == W_SEED_HIR0_VALUE_PATTERN_CAPTURE_READ ||
@@ -5180,6 +5325,22 @@ static bool append_program_value_tree(
     return true;
   }
   if (value->kind == W_SEED_HIR0_VALUE_CONST_STRING) {
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON) {
+    if (value->left_value >= program->value_count ||
+        value->right_value >= program->value_count ||
+        !append_program_value_tree(program, value->left_value, function_index,
+                                   process, emitted, artifact, capacity,
+                                   offset, depth + 1u) ||
+        !append_program_value_tree(program, value->right_value, function_index,
+                                   process, emitted, artifact, capacity,
+                                   offset, depth + 1u) ||
+        !append_integer_comparison_operation(
+            program, value_index, function_index, process, artifact,
+            capacity, offset))
+      return false;
     emitted[value_index] = true;
     return true;
   }
@@ -5825,6 +5986,22 @@ static bool append_program_value_tree_in_loop(
             program, value->left_value, function_index, process, loop, emitted,
             artifact, capacity, offset, depth + 1u) ||
         !append_unary_float_operation_in_loop(
+            program, value_index, function_index, process, loop, artifact,
+            capacity, offset))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON) {
+    if (value->left_value >= program->value_count ||
+        value->right_value >= program->value_count ||
+        !append_program_value_tree_in_loop(
+            program, value->left_value, function_index, process, loop, emitted,
+            artifact, capacity, offset, depth + 1u) ||
+        !append_program_value_tree_in_loop(
+            program, value->right_value, function_index, process, loop, emitted,
+            artifact, capacity, offset, depth + 1u) ||
+        !append_integer_comparison_operation_in_loop(
             program, value_index, function_index, process, loop, artifact,
             capacity, offset))
       return false;
@@ -8793,6 +8970,26 @@ static const char *cooperative_type_name(const w_seed_hir0_program *program,
   return NULL;
 }
 
+static const char *cooperative_integer_comparison_predicate(
+    w_seed_hir0_binary_operator operation, bool is_signed) {
+  switch (operation) {
+    case W_SEED_HIR0_BINARY_EQUAL:
+      return "eq";
+    case W_SEED_HIR0_BINARY_NOT_EQUAL:
+      return "ne";
+    case W_SEED_HIR0_BINARY_LESS:
+      return is_signed ? "slt" : "ult";
+    case W_SEED_HIR0_BINARY_LESS_EQUAL:
+      return is_signed ? "sle" : "ule";
+    case W_SEED_HIR0_BINARY_GREATER:
+      return is_signed ? "sgt" : "ugt";
+    case W_SEED_HIR0_BINARY_GREATER_EQUAL:
+      return is_signed ? "sge" : "uge";
+    default:
+      return NULL;
+  }
+}
+
 static bool append_cooperative_value_operand(
     const w_seed_hir0_program *program, uint32_t value_index,
     uint8_t *artifact, size_t capacity, size_t *offset, size_t depth);
@@ -8812,6 +9009,87 @@ static bool append_cooperative_value_tree(
       value->kind == W_SEED_HIR0_VALUE_CALL_RESULT)
     return true;
   if (emitted[value_index]) return true;
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON) {
+    if (value->left_value >= program->value_count ||
+        value->right_value >= program->value_count)
+      return false;
+    bool is_signed = false;
+    bool right_signed = false;
+    uint16_t bit_width = 0u;
+    uint16_t right_width = 0u;
+    if (value->binary_operator < W_SEED_HIR0_BINARY_EQUAL ||
+        value->binary_operator > W_SEED_HIR0_BINARY_GREATER_EQUAL ||
+        value->type_index >= program->type_count ||
+        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_BOOL ||
+        !mlir0_integer_type_facts(
+            program, program->values[value->left_value].type_index,
+            &is_signed, &bit_width) ||
+        !mlir0_integer_type_facts(
+            program, program->values[value->right_value].type_index,
+            &right_signed, &right_width) ||
+        is_signed != right_signed || bit_width != right_width)
+      return false;
+    const char *predicate =
+        cooperative_integer_comparison_predicate(value->binary_operator,
+                                                  is_signed);
+    if (predicate == NULL ||
+        !append_cooperative_value_tree(program, value->left_value, emitted,
+                                       artifact, capacity, offset, depth + 1u) ||
+        !append_cooperative_value_tree(program, value->right_value, emitted,
+                                       artifact, capacity, offset, depth + 1u))
+      return false;
+    if (bit_width != 64u) {
+      if (!append_literal(artifact, capacity, offset, "    %cv") ||
+          !append_size(artifact, capacity, offset, value_index) ||
+          !append_literal(artifact, capacity, offset,
+                          "_comparison_left = arith.trunci ") ||
+          !append_cooperative_value_operand(program, value->left_value,
+                                            artifact, capacity, offset,
+                                            depth + 1u) ||
+          !append_literal(artifact, capacity, offset, " : i64 to i") ||
+          !append_size(artifact, capacity, offset, bit_width) ||
+          !append_literal(artifact, capacity, offset, "\n    %cv") ||
+          !append_size(artifact, capacity, offset, value_index) ||
+          !append_literal(artifact, capacity, offset,
+                          "_comparison_right = arith.trunci ") ||
+          !append_cooperative_value_operand(program, value->right_value,
+                                            artifact, capacity, offset,
+                                            depth + 1u) ||
+          !append_literal(artifact, capacity, offset, " : i64 to i") ||
+          !append_size(artifact, capacity, offset, bit_width) ||
+          !append_literal(artifact, capacity, offset, "\n    %cv") ||
+          !append_size(artifact, capacity, offset, value_index) ||
+          !append_literal(artifact, capacity, offset, " = arith.cmpi ") ||
+          !append_literal(artifact, capacity, offset, predicate) ||
+          !append_literal(artifact, capacity, offset, ", %cv") ||
+          !append_size(artifact, capacity, offset, value_index) ||
+          !append_literal(artifact, capacity, offset,
+                          "_comparison_left, %cv") ||
+          !append_size(artifact, capacity, offset, value_index) ||
+          !append_literal(artifact, capacity, offset,
+                          "_comparison_right : i") ||
+          !append_size(artifact, capacity, offset, bit_width) ||
+          !append_literal(artifact, capacity, offset, "\n"))
+        return false;
+    } else if (!append_literal(artifact, capacity, offset, "    %cv") ||
+               !append_size(artifact, capacity, offset, value_index) ||
+               !append_literal(artifact, capacity, offset,
+                               " = arith.cmpi ") ||
+               !append_literal(artifact, capacity, offset, predicate) ||
+               !append_literal(artifact, capacity, offset, ", ") ||
+               !append_cooperative_value_operand(
+                   program, value->left_value, artifact, capacity, offset,
+                   depth + 1u) ||
+               !append_literal(artifact, capacity, offset, ", ") ||
+               !append_cooperative_value_operand(
+                   program, value->right_value, artifact, capacity, offset,
+                   depth + 1u) ||
+               !append_literal(artifact, capacity, offset, " : i64\n")) {
+      return false;
+    }
+    emitted[value_index] = true;
+    return true;
+  }
   if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
     if (!append_cooperative_value_tree(program, value->left_value, emitted,
                                        artifact, capacity, offset, depth + 1u) ||
@@ -8819,6 +9097,7 @@ static bool append_cooperative_value_tree(
                                        artifact, capacity, offset, depth + 1u))
       return false;
   } else if (value->kind != W_SEED_HIR0_VALUE_CONST_I64 &&
+             value->kind != W_SEED_HIR0_VALUE_CONST_U64 &&
              value->kind != W_SEED_HIR0_VALUE_CONST_BOOL) {
     return false;
   }
@@ -8829,6 +9108,12 @@ static bool append_cooperative_value_tree(
   if (value->kind == W_SEED_HIR0_VALUE_CONST_I64) {
     if (!append_literal(artifact, capacity, offset, "arith.constant ") ||
         !append_i64(artifact, capacity, offset, value->integer_value) ||
+        !append_literal(artifact, capacity, offset, " : i64\n"))
+      return false;
+  } else if (value->kind == W_SEED_HIR0_VALUE_CONST_U64) {
+    if (!append_literal(artifact, capacity, offset, "arith.constant ") ||
+        !append_i64_carrier_bits(artifact, capacity, offset,
+                                 value->unsigned_integer_value) ||
         !append_literal(artifact, capacity, offset, " : i64\n"))
       return false;
   } else if (value->kind == W_SEED_HIR0_VALUE_CONST_BOOL) {
@@ -8948,8 +9233,10 @@ static bool append_cooperative_value_operand(
            append_size(artifact, capacity, offset, value->call_index);
   }
   if (value->kind != W_SEED_HIR0_VALUE_CONST_I64 &&
+      value->kind != W_SEED_HIR0_VALUE_CONST_U64 &&
       value->kind != W_SEED_HIR0_VALUE_CONST_BOOL &&
-      value->kind != W_SEED_HIR0_VALUE_BINARY_I64)
+      value->kind != W_SEED_HIR0_VALUE_BINARY_I64 &&
+      value->kind != W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON)
     return false;
   return append_literal(artifact, capacity, offset, "%cv") &&
          append_size(artifact, capacity, offset, value_index);

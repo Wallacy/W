@@ -83,6 +83,31 @@ static bool native_integer_facts_equal(native_integer_facts left,
          left.bit_width == right.bit_width;
 }
 
+static bool native_integer_comparison_shape_valid(
+    const w_seed_hir0_program *program, const w_seed_hir0_value *value) {
+  if (program == NULL || value == NULL ||
+      value->kind != W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON ||
+      value->binary_operator < W_SEED_HIR0_BINARY_EQUAL ||
+      value->binary_operator > W_SEED_HIR0_BINARY_GREATER_EQUAL ||
+      value->type_index >= program->type_count ||
+      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_BOOL ||
+      value->left_value >= program->value_count ||
+      value->right_value >= program->value_count)
+    return false;
+  native_integer_facts left_facts;
+  native_integer_facts right_facts;
+  if (!native_integer_type_facts(
+          program, program->values[value->left_value].type_index,
+          &left_facts) ||
+      !native_integer_type_facts(
+          program, program->values[value->right_value].type_index,
+          &right_facts) ||
+      !native_integer_facts_equal(left_facts, right_facts))
+    return false;
+  return left_facts.bit_width == 8u || left_facts.bit_width == 16u ||
+         left_facts.bit_width == 32u || left_facts.bit_width == 64u;
+}
+
 /* A widening value is admitted only when its explicit source identity and
  * destination identity describe the one frontend route.  NativeSubset0 does
  * not infer this from the carrier kind: the HIR wrapper remains the source
@@ -1266,6 +1291,8 @@ static bool interpolation_maximum_bytes(
           effective->kind == W_SEED_HIR0_VALUE_UNARY_I64 ||
           effective->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
           effective->kind == W_SEED_HIR0_VALUE_BINARY_U64 ||
+          effective->kind ==
+              W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON ||
           effective->kind == W_SEED_HIR0_VALUE_UNARY_U64 ||
           effective->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN ||
           effective->kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT ||
@@ -1952,6 +1979,13 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
            program_value_lowerable(program, value->left_value, owner_function,
                                    false, depth + 1u);
   }
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON) {
+    return native_integer_comparison_shape_valid(program, value) &&
+           program_value_lowerable(program, value->left_value,
+                                   owner_function, false, depth + 1u) &&
+           program_value_lowerable(program, value->right_value,
+                                   owner_function, false, depth + 1u);
+  }
   if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
     const bool shift =
         value->binary_operator == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
@@ -2284,6 +2318,16 @@ static bool process_value_lowerable(
                                  process, false, depth + 1u))
       return false;
     return true;
+  }
+
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON) {
+    return native_integer_comparison_shape_valid(program, value) &&
+           process_value_lowerable(program, value->left_value,
+                                  owner_function, process, false,
+                                  depth + 1u) &&
+           process_value_lowerable(program, value->right_value,
+                                  owner_function, process, false,
+                                  depth + 1u);
   }
 
   if (value->kind == W_SEED_HIR0_VALUE_CONST_USIZE)

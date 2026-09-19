@@ -72,6 +72,18 @@ static bool contains_bytes(const uint8_t *bytes, size_t length,
   return false;
 }
 
+static bool hir_text_is(const w_seed_hir0_program *program,
+                        w_seed_hir0_text text, const char *literal) {
+  if (program == NULL || literal == NULL || text.offset > program->text_byte_count ||
+      text.count > program->text_byte_count - text.offset ||
+      (text.count != 0u && program->text_bytes == NULL))
+    return false;
+  const size_t length = strlen(literal);
+  return text.count == length &&
+         (length == 0u ||
+          memcmp(program->text_bytes + text.offset, literal, length) == 0);
+}
+
 static void digest_bytes(const uint8_t *bytes, size_t length,
                          uint8_t digest[32]) {
   w_seed_sha256_state state;
@@ -1007,10 +1019,10 @@ static bool test_cooperative_product_selection(void) {
                                         &storage.hir_result, &selection) ==
         W_SEED_MLIR0_OK);
   static const uint8_t EXPECTED_DIGEST[32] = {
-      0x6fu, 0xc3u, 0xf9u, 0x7cu, 0x5fu, 0x86u, 0x75u, 0xd9u,
-      0x8fu, 0x9au, 0x8eu, 0x90u, 0xa3u, 0x25u, 0x41u, 0xc9u,
-      0xf8u, 0x1bu, 0x60u, 0x94u, 0x83u, 0x9au, 0xaau, 0x72u,
-      0xdfu, 0x5du, 0x0eu, 0x2fu, 0xa6u, 0xb6u, 0xdfu, 0x74u};
+      0xacu, 0x01u, 0x90u, 0x03u, 0xd4u, 0xa3u, 0x18u, 0x11u,
+      0x00u, 0x3fu, 0xa2u, 0x08u, 0xcau, 0x02u, 0x83u, 0x4bu,
+      0xb2u, 0xc4u, 0x1cu, 0x4eu, 0x66u, 0x04u, 0xcau, 0xc9u,
+      0xebu, 0x21u, 0x7eu, 0x48u, 0x36u, 0xd0u, 0x7eu, 0x2bu};
   static const uint32_t EXPECTED_CALLS[2] = {1u, 2u};
   static const uint32_t EXPECTED_FUNCTIONS[2] = {1u, 1u};
   static const uint32_t EXPECTED_LAUNCHES[2] = {2u, 3u};
@@ -1375,12 +1387,146 @@ static bool test_cooperative_product_selection(void) {
   return true;
 }
 
+static bool test_cooperative_integer_comparisons(void) {
+  static const char SOURCE[] =
+      "async fn compareIntegers(): i64 {\n"
+      "  let signed64 = 9000000000_i64 < 9000000001_i64\n"
+      "  let signed8 = 1_i8 < 2_i8\n"
+      "  let unsigned8 = 250_u8 > 10_u8\n"
+      "  let unsigned8Reverse = 250_u8 < 10_u8\n"
+      "  await execution#yield()\n"
+      "  return 10\n"
+      "}\n"
+      "async fn baseline(): i64 {\n"
+      "  await execution#yield()\n"
+      "  return 20\n"
+      "}\n"
+      "entry {\n"
+      "  let compared = async compareIntegers()\n"
+      "  let steady = async baseline()\n"
+      "  let first = await compared\n"
+      "  let second = await steady\n"
+      "  print(\"Comparisons ${first + second}\")\n"
+      "}\n";
+  CHECK(write_source(SOURCE));
+  const w_seed_cooperative0_input input = input_for_path(NEGATIVE_PATH);
+  const w_seed_cooperative0_output output = full_output();
+  w_seed_cooperative0_result result;
+  CHECK(w_seed_native0_run_cooperative_oracle(&input, &storage, &output,
+                                              &result) ==
+        W_SEED_COOPERATIVE0_OK);
+  static const char EXPECTED_STDOUT[] = "Comparisons 30\n";
+  CHECK(result.required.stdout_bytes == sizeof(EXPECTED_STDOUT) - 1u &&
+        memcmp(stdout_bytes, EXPECTED_STDOUT, sizeof(EXPECTED_STDOUT) - 1u) ==
+            0 &&
+        w_seed_cooperative0_verify_output(&storage.hir_program,
+                                          &storage.hir_result, &output,
+                                          &result));
+
+  static const char *const EXPECTED_BINDINGS[] = {
+      "signed64", "signed8", "unsigned8", "unsigned8Reverse"};
+  static const bool EXPECTED_VALUES[] = {true, true, true, false};
+  bool found[sizeof(EXPECTED_BINDINGS) / sizeof(EXPECTED_BINDINGS[0])] = {
+      false};
+  size_t comparison_bindings = 0u;
+  for (size_t binding_index = 0u;
+       binding_index < storage.hir_program.binding_count;
+       binding_index += 1u) {
+    const w_seed_hir0_binding *binding =
+        &storage.hir_program.bindings[binding_index];
+    if (binding->initializer_value >= storage.hir_program.value_count ||
+        storage.hir_program.values[binding->initializer_value].kind !=
+            W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON)
+      continue;
+    comparison_bindings += 1u;
+    size_t expected_index = sizeof(EXPECTED_BINDINGS) /
+                            sizeof(EXPECTED_BINDINGS[0]);
+    for (size_t index = 0u;
+         index < sizeof(EXPECTED_BINDINGS) / sizeof(EXPECTED_BINDINGS[0]);
+         index += 1u)
+      if (hir_text_is(&storage.hir_program, binding->name,
+                      EXPECTED_BINDINGS[index]))
+        expected_index = index;
+    CHECK(expected_index < sizeof(EXPECTED_BINDINGS) /
+                                sizeof(EXPECTED_BINDINGS[0]) &&
+          !found[expected_index] &&
+          binding->owner_block < storage.hir_program.block_count);
+    const uint32_t owner_function =
+        storage.hir_program.blocks[binding->owner_block].owner_function;
+    size_t task_index = result.plan.task_count;
+    for (size_t task = 0u; task < result.plan.task_count; task += 1u)
+      if (result.plan.tasks[task].function_index == owner_function)
+        task_index = task;
+    CHECK(task_index < result.plan.task_count &&
+          result.final_state.frames[task_index]
+              .binding_initialized[binding_index] &&
+          result.final_state.frames[task_index].bindings[binding_index].kind ==
+              W_SEED_COOPERATIVE0_VALUE_BOOL &&
+          result.final_state.frames[task_index]
+                  .bindings[binding_index]
+                  .boolean == EXPECTED_VALUES[expected_index]);
+    found[expected_index] = true;
+  }
+  CHECK(comparison_bindings == sizeof(EXPECTED_BINDINGS) /
+                                  sizeof(EXPECTED_BINDINGS[0]));
+  for (size_t index = 0u;
+       index < sizeof(EXPECTED_BINDINGS) / sizeof(EXPECTED_BINDINGS[0]);
+       index += 1u)
+    CHECK(found[index]);
+
+  w_seed_cooperative_selection0 selection;
+  CHECK(w_seed_mlir0_select_cooperative(&storage.hir_program,
+                                        &storage.hir_result, &selection) ==
+        W_SEED_MLIR0_OK &&
+        selection.task_count == W_SEED_HIR0_COOPERATIVE_ORACLE_MAX_TASKS &&
+        w_seed_mlir0_verify_cooperative_selection(
+            &storage.hir_program, &storage.hir_result, &selection));
+  w_seed_mlir0_cooperative_result emitted;
+  const w_seed_mlir0_status emission_status = w_seed_mlir0_emit_cooperative(
+      &storage.hir_program, &storage.hir_result, &selection,
+      &(w_seed_mlir0_cooperative_output){cooperative_mlir,
+                                         sizeof(cooperative_mlir)},
+      &emitted);
+  CHECK(emission_status == W_SEED_MLIR0_OK);
+  const size_t mlir_bytes = emitted.written.mlir_bytes;
+  cooperative_mlir_length = mlir_bytes;
+  const bool emission_verified = w_seed_mlir0_verify_cooperative_emission(
+      &storage.hir_program, &storage.hir_result, &selection, cooperative_mlir,
+      mlir_bytes, &emitted);
+  const bool has_trunc = contains_bytes(cooperative_mlir, mlir_bytes,
+                                        "_comparison_left = arith.trunci");
+  const bool has_signed =
+      contains_bytes(cooperative_mlir, mlir_bytes, " = arith.cmpi slt,");
+  const bool has_unsigned_greater =
+      contains_bytes(cooperative_mlir, mlir_bytes, " = arith.cmpi ugt,");
+  const bool has_unsigned_less =
+      contains_bytes(cooperative_mlir, mlir_bytes, " = arith.cmpi ult,");
+  CHECK(mlir_bytes > 0u && emission_verified && has_trunc && has_signed &&
+        has_unsigned_greater && has_unsigned_less);
+
+  CHECK(expect_negative_source(
+      "async fn left(): i64 { let invalid = -1_i8 < 1_u8 "
+      "await execution#yield() return 1 } "
+      "async fn right(): i64 { await execution#yield() return 2 } "
+      "entry { let first = async left() let second = async right() "
+      "let a = await first let b = await second print(\"${a + b}\") }"));
+  CHECK(expect_negative_source(
+      "async fn left(): i64 { let invalid = true < false "
+      "await execution#yield() return 1 } "
+      "async fn right(): i64 { await execution#yield() return 2 } "
+      "entry { let first = async left() let second = async right() "
+      "let a = await first let b = await second print(\"${a + b}\") }"));
+  (void)remove(NEGATIVE_PATH);
+  return true;
+}
+
 int main(int argc, char **argv) {
   const bool ok = test_cooperative_fixture() &&
                   test_source_selected_main_dispatch() &&
                   test_main_cardinalities() &&
                   test_negative_shapes() &&
                    test_transactional_boundaries() &&
+                   test_cooperative_integer_comparisons() &&
                    test_cooperative_product_selection();
   (void)remove(NEGATIVE_PATH);
   if (ok && argc == 2 && argv != NULL &&

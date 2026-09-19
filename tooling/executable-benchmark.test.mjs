@@ -45,6 +45,7 @@ import {
   RESTAURANT_F64_STRICT_WORKLOAD_ID,
   RESTAURANT_INTEGER_WRAPPING_WORKLOAD_ID,
   RESTAURANT_INTEGER_WIDENING_WORKLOAD_ID,
+  RESTAURANT_INTEGER_COMPARISON_WORKLOAD_ID,
   RESTAURANT_UINT_ARITHMETIC_WORKLOAD_ID,
   RESTAURANT_UINT_BITWISE_WORKLOAD_ID,
   RESTAURANT_UINT_OVERFLOWING_FAMILY_WORKLOAD_ID,
@@ -914,6 +915,89 @@ test("implicit integer widening catalog is one correctness-only family witness",
   assert.match(w, /let alias: Int = 203_u8/u);
   assert.match(c, /volatile (?:int8_t|uint8_t)/u);
   assert.match(rust, /black_box\(-7_i8\)/u);
+  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
+  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
+});
+
+test("integer comparison catalog is one correctness-only signed/unsigned family witness", () => {
+  const workload = documents.catalog.workloads.find((item) =>
+    item.id === RESTAURANT_INTEGER_COMPARISON_WORKLOAD_ID);
+  assert.ok(workload);
+  assert.equal(workload.structureClass, "public-end-to-end");
+  assert.equal(workload.status, "source-oracle-ready");
+  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
+  assert.equal(workload.demoEvidence, "bounded-w-demo");
+  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.equal(workload.scope,
+    "Validate fixed-input signed and unsigned comparisons (==, !=, <, <=, >, >=) across i8/u8/i16/u16/i32/u32/i64/u64 and the current x86-64 Int/UInt aliases, plus a u8-to-i16 comparison after argument widening, with exact output. Performance ranking is deferred until W preserves equivalent runtime work.");
+  assert.deepEqual(workload.oracle, {
+    kind: "exact-output",
+    status: "source-backed",
+    exitCode: 0,
+    stdout:
+      "i8 false/true/true/true/false/false\nu8 false/true/false/false/true/true\n" +
+      "i16 true/false/false/true/false/true\nu16 false/true/true/true/false/false\n" +
+      "i32 false/true/true/true/false/false\nu32 false/true/false/false/true/true\n" +
+      "i64 false/true/true/true/false/false\nu64 false/true/false/false/true/true\n" +
+      "Int false/true/true/true/false/false\nUInt true/false/false/true/false/true\n" +
+      "widen u8->i16 true\n",
+    stderr: "",
+  });
+  assert.deepEqual(workload.blockedLanguages, []);
+  assert.deepEqual(workload.blockers, [
+    "w-integer-comparison-fixed-input",
+    "runtime-integer-comparison-equivalence",
+  ]);
+  assert.deepEqual(workload.sources.map((source) =>
+    [source.language, source.platformTarget]), [
+    ["w", EXECUTABLE_PLATFORM_TARGET],
+    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
+    ["c", EXECUTABLE_PLATFORM_TARGET],
+    ["rust", EXECUTABLE_PLATFORM_TARGET],
+  ]);
+  assert.ok(workload.sources.every((source) =>
+    source.recipeClass === "restaurant-integer-comparison-release" &&
+    source.quality === "correctness-gate"));
+  assert.deepEqual(workload.sources
+    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
+    .map((source) => [source.comparability, source.eligibility]), [
+      ["deferred-until-M3b", "deferred-to-M3b"],
+      ["deferred-until-M3b", "deferred-to-M3b"],
+      ["deferred-until-M3b", "deferred-to-M3b"],
+    ]);
+  const wsl = workload.sources.find((source) =>
+    source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
+  assert.deepEqual([wsl.comparability, wsl.eligibility], [
+    "same-physical-hardware-diagnostic-only",
+    "same-physical-hardware-diagnostic-only",
+  ]);
+  assert.ok(!documents.catalog.bestMetrics.entries.some((entry) =>
+    entry.workloadId === RESTAURANT_INTEGER_COMPARISON_WORKLOAD_ID),
+  "correctness-only comparisons must not acquire timing or ranking data");
+
+  const c = readFileSync(
+    `${ROOT}/benchmarks/executable/restaurant_integer_comparison.c`, "utf8");
+  const rust = readFileSync(
+    `${ROOT}/benchmarks/executable/restaurant_integer_comparison.rs`, "utf8");
+  const w = readFileSync(
+    `${ROOT}/compiler/seed-c/fixtures/restaurant-integer-comparison.w`, "utf8");
+  for (const [name, source] of [["W", w], ["C23", c], ["Rust", rust]]) {
+    assert.deepEqual(parseExecutableSourceExpectation(source), {
+      exitCode: 0,
+      stdout: workload.oracle.stdout,
+      stderr: "",
+      errors: [],
+    }, `${name} source must declare the exact local oracle`);
+    assert.deepEqual(validateExecutableSourceExpectation(source, workload.oracle, `${name} source`), []);
+  }
+  assert.match(w, /compareI8\(left: -1_i8, right: 1_i8\)/u);
+  assert.match(w, /compareU32\(left: 3000000000_u32, right: 1_u32\)/u);
+  assert.match(w, /compareInt\(left: -7, right: 12\)/u);
+  assert.match(w, /compareWidened\(value: 200_u8\)/u);
+  assert.match(c, /static volatile int8_t i8_input/u);
+  assert.match(c, /report_i8\(i8_input\[0\], i8_input\[1\]\)/u);
+  assert.match(rust, /black_box\(-1_i8\)/u);
+  assert.match(rust, /report_widened\(black_box\(200_u8\)\.into\(\)\)/u);
   assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
   assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
 });

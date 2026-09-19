@@ -3641,7 +3641,7 @@ static bool frontend_loop_scalar_tree_ok(
 static bool frontend_scalar_if_tree_ok(
     const w_seed_hir0_input *input, size_t module_index,
     size_t function_index, size_t document_index, uint32_t root_index,
-    bool allow_logical, size_t depth) {
+    bool allow_logical, bool allow_fixed_integer_operand, size_t depth) {
   if (input == NULL || input->frontend_output == NULL ||
       input->frontend_result == NULL || depth > W_SEED_HIR0_MAX_NESTING ||
       root_index == W_SEED_FRONTEND_NONE ||
@@ -3705,6 +3705,9 @@ static bool frontend_scalar_if_tree_ok(
         (size_t)else_value->inferred_type >=
             input->frontend_result->written.types ||
         !frontend_expression_is_bool(output, condition) ||
+        !(frontend_expression_is_i64(output, value) ||
+          frontend_expression_is_bool(output, value) ||
+          frontend_expression_is_f64(output, value)) ||
         !frontend_type_is_scalar(&output->types[value->inferred_type]) ||
         !frontend_type_is_scalar(&output->types[then_value->inferred_type]) ||
         !frontend_type_is_scalar(&output->types[else_value->inferred_type]) ||
@@ -3718,15 +3721,47 @@ static bool frontend_scalar_if_tree_ok(
             &output->types[else_value->inferred_type]) ||
         !frontend_scalar_if_tree_ok(input, module_index, function_index,
                                     document_index, value->left, true,
-                                    depth + 1u) ||
+                                    false, depth + 1u) ||
         !frontend_scalar_if_tree_ok(input, module_index, function_index,
                                     document_index, value->right, false,
-                                    depth + 1u) ||
+                                    false, depth + 1u) ||
         !frontend_scalar_if_tree_ok(input, module_index, function_index,
                                     document_index, value->else_expression,
-                                    false, depth + 1u))
+                                    false, false, depth + 1u))
       return false;
     return true;
+  }
+  if (value->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN) {
+    if (!allow_fixed_integer_operand ||
+        value->left == W_SEED_FRONTEND_NONE ||
+        (size_t)value->left >= input->frontend_result->written.expressions ||
+        value->right != W_SEED_FRONTEND_NONE ||
+        value->first_argument != W_SEED_FRONTEND_NONE ||
+        value->argument_count != 0u ||
+        value->conversion_source_type == W_SEED_FRONTEND_NONE ||
+        value->conversion_destination_type == W_SEED_FRONTEND_NONE ||
+        (size_t)value->conversion_source_type >=
+            input->frontend_result->written.types ||
+        (size_t)value->conversion_destination_type >=
+            input->frontend_result->written.types ||
+        value->inferred_type != value->conversion_destination_type ||
+        value->conversion_source_type !=
+            output->expressions[value->left].inferred_type ||
+        !frontend_type_is_fixed_integer(
+            &output->types[value->conversion_source_type]) ||
+        !frontend_type_is_fixed_integer(
+            &output->types[value->conversion_destination_type]) ||
+        !frontend_integer_widening_route(
+            &output->types[value->conversion_source_type],
+            &output->types[value->conversion_destination_type]) ||
+        !frontend_value_has_no_resolution(value) ||
+        value->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
+        value->has_bool_value || value->has_integer_value ||
+        value->has_float_value)
+      return false;
+    return frontend_scalar_if_tree_ok(
+        input, module_index, function_index, document_index, value->left,
+        false, true, depth + 1u);
   }
   if (value->kind == W_SEED_FRONTEND_EXPR_PARENTHESIS)
     return !value->has_bool_value && !value->has_integer_value &&
@@ -3735,7 +3770,9 @@ static bool frontend_scalar_if_tree_ok(
            W_SEED_FRONTEND_NONE &&
            frontend_scalar_if_tree_ok(input, module_index, function_index,
                                       document_index, value->left,
-                                      allow_logical, depth + 1u);
+                                      allow_logical,
+                                      allow_fixed_integer_operand,
+                                      depth + 1u);
   if (value->kind == W_SEED_FRONTEND_EXPR_UNARY) {
     const bool logical_not = text_is(value->operator_text, "!");
     const bool numeric_negate = text_is(value->operator_text, "-");
@@ -3760,7 +3797,7 @@ static bool frontend_scalar_if_tree_ok(
                             output, &output->expressions[value->left]))) &&
            frontend_scalar_if_tree_ok(input, module_index, function_index,
                                       document_index, value->left,
-                                      allow_logical, depth + 1u);
+                                      allow_logical, false, depth + 1u);
   }
   if (value->kind == W_SEED_FRONTEND_EXPR_BINARY) {
     if (frontend_usize_count_comparison_ok(
@@ -3772,17 +3809,48 @@ static bool frontend_scalar_if_tree_ok(
     if (value->has_bool_value || value->has_integer_value ||
         value->has_float_value)
       return false;
+    const w_seed_hir0_binary_operator operation =
+        hir_binary_operator(value->operator_text);
+    const bool comparison =
+        operation >= W_SEED_HIR0_BINARY_EQUAL &&
+        operation <= W_SEED_HIR0_BINARY_GREATER_EQUAL;
+    if (comparison && frontend_expression_is_bool(output, value) &&
+        value->left != W_SEED_FRONTEND_NONE &&
+        value->right != W_SEED_FRONTEND_NONE &&
+        (size_t)value->left < input->frontend_result->written.expressions &&
+        (size_t)value->right < input->frontend_result->written.expressions &&
+        frontend_expression_is_integer(
+            output, &output->expressions[value->left]) &&
+        frontend_expression_is_integer(
+            output, &output->expressions[value->right]))
+      return frontend_scalar_if_tree_ok(
+                 input, module_index, function_index, document_index,
+                 value->left, false, true, depth + 1u) &&
+             frontend_scalar_if_tree_ok(
+                 input, module_index, function_index, document_index,
+                 value->right, false, true, depth + 1u);
+    /* A comparison can inspect narrow integer leaves; arithmetic nested
+     * inside those operands retains the pre-existing wide-scalar grammar. */
+    const bool child_integer_operand =
+        allow_fixed_integer_operand &&
+        (logical != W_SEED_HIR0_LOGICAL_NONE || comparison);
     return value->left != W_SEED_FRONTEND_NONE &&
            value->right != W_SEED_FRONTEND_NONE &&
            frontend_scalar_if_tree_ok(input, module_index, function_index,
                                       document_index, value->left,
-                                      allow_logical, depth + 1u) &&
+                                      allow_logical,
+                                      child_integer_operand,
+                                      depth + 1u) &&
            frontend_scalar_if_tree_ok(input, module_index, function_index,
                                       document_index, value->right,
-                                      allow_logical, depth + 1u);
+                                      allow_logical,
+                                      child_integer_operand,
+                                      depth + 1u);
   }
   if (value->kind == W_SEED_FRONTEND_EXPR_INTEGER)
-    return frontend_expression_is_i64(output, value) &&
+    return (frontend_expression_is_i64(output, value) ||
+            (allow_fixed_integer_operand &&
+             frontend_expression_is_integer(output, value))) &&
            value->has_integer_value && !value->has_bool_value;
   if (value->kind == W_SEED_FRONTEND_EXPR_BOOL)
     return frontend_expression_is_bool(output, value) &&
@@ -3796,6 +3864,8 @@ static bool frontend_scalar_if_tree_ok(
            !value->has_bool_value && !value->has_integer_value &&
            !value->has_float_value &&
            (frontend_expression_is_i64(output, value) ||
+            (allow_fixed_integer_operand &&
+             frontend_expression_is_integer(output, value)) ||
             frontend_expression_is_bool(output, value) ||
             frontend_expression_is_f64(output, value));
   return false;
@@ -3900,13 +3970,13 @@ static bool frontend_value_tree_ok(
         (size_t)value->inferred_type >= result->written.types ||
         !frontend_scalar_if_tree_ok(input, module_index, function_index,
                                     document_index, value->left, true,
-                                    depth + 1u) ||
+                                    false, depth + 1u) ||
         !frontend_scalar_if_tree_ok(input, module_index, function_index,
                                     document_index, value->right, false,
-                                    depth + 1u) ||
+                                    false, depth + 1u) ||
         !frontend_scalar_if_tree_ok(input, module_index, function_index,
                                     document_index, value->else_expression,
-                                    false, depth + 1u) ||
+                                    false, false, depth + 1u) ||
         !frontend_expression_is_bool(output, &output->expressions[value->left]) ||
         output->expressions[value->right].inferred_type ==
             W_SEED_FRONTEND_NONE ||
@@ -4134,8 +4204,17 @@ static bool frontend_value_tree_ok(
         output, &output->expressions[value->right]);
     const bool right_u64 = frontend_expression_is_u64(
         output, &output->expressions[value->right]);
-    const bool same_integer_domain =
-        (left_i64 && right_i64) || (left_u64 && right_u64);
+    const w_seed_frontend_type *left_operand_type =
+        &output->types[output->expressions[value->left].inferred_type];
+    const w_seed_frontend_type *right_operand_type =
+        &output->types[output->expressions[value->right].inferred_type];
+    const bool same_fixed_integer_domain =
+        frontend_expression_is_integer(
+            output, &output->expressions[value->left]) &&
+        frontend_expression_is_integer(
+            output, &output->expressions[value->right]) &&
+        left_operand_type->is_signed == right_operand_type->is_signed &&
+        left_operand_type->bit_width == right_operand_type->bit_width;
     const bool same_integer_result_domain =
         (result_i64 && left_i64 && right_i64) ||
         (result_u64 && left_u64 && right_u64);
@@ -4163,7 +4242,7 @@ static bool frontend_value_tree_ok(
         (comparison
              ? (output->types[value->inferred_type].kind !=
                     W_SEED_FRONTEND_TYPE_BOOL ||
-                (!floating && !same_integer_domain) ||
+                (!floating && !same_fixed_integer_domain) ||
                 (floating &&
                  !frontend_expression_is_f64(
                      output, &output->expressions[value->right])))
@@ -12039,9 +12118,17 @@ static uint32_t hir0_emit_value_m2(
         context->frontend, &context->frontend->expressions[source->left]);
     const w_seed_hir0_binary_operator binary_operator =
         hir_binary_operator(source->operator_text);
-    const bool u64_comparison =
+    const bool comparison =
         binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
         binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL;
+    const bool integer_comparison =
+        comparison &&
+        frontend_expression_is_integer(
+            context->frontend,
+            &context->frontend->expressions[source->left]) &&
+        frontend_expression_is_integer(
+            context->frontend,
+            &context->frontend->expressions[source->right]);
     const bool u64_arithmetic =
         binary_operator <= W_SEED_HIR0_BINARY_REMAINDER;
     const bool u64_bitwise =
@@ -12054,15 +12141,18 @@ static uint32_t hir0_emit_value_m2(
     const bool unsigned_binary =
         frontend_expression_is_u64(
             context->frontend, &context->frontend->expressions[source->left]) &&
-        (u64_arithmetic || u64_comparison || u64_bitwise ||
+        (u64_arithmetic || comparison || u64_bitwise ||
          u64_shift_or_power);
     *target = (w_seed_hir0_value){
         .kind = usize_count_comparison
                     ? W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON
                     : (floating
                            ? W_SEED_HIR0_VALUE_BINARY_FLOAT
-                           : (unsigned_binary ? W_SEED_HIR0_VALUE_BINARY_U64
-                                               : W_SEED_HIR0_VALUE_BINARY_I64)),
+                           : (integer_comparison
+                                  ? W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON
+                                  : (unsigned_binary
+                                         ? W_SEED_HIR0_VALUE_BINARY_U64
+                                         : W_SEED_HIR0_VALUE_BINARY_I64))),
         .owner_kind = owner_kind,
         .owner_index = owner_index,
         .owner_ordinal = owner_ordinal,
@@ -15151,6 +15241,53 @@ static bool verify_value_tree(
     return true;
   }
 
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON) {
+    bool operand_signed = false;
+    uint16_t operand_width = 0u;
+    const bool comparison =
+        value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
+        value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL;
+    if (!comparison || value->left_value == W_SEED_HIR0_NONE ||
+        value->right_value == W_SEED_HIR0_NONE ||
+        !verify_value_tree(program, value->left_value,
+                           W_SEED_HIR0_VALUE_OWNER_BINARY, root_index, 0u,
+                           current_block, current_instruction, source_length,
+                           depth + 1u, value_cursor, segment_cursor,
+                           byte_cursor) ||
+        !verify_value_tree(program, value->right_value,
+                           W_SEED_HIR0_VALUE_OWNER_BINARY, root_index, 1u,
+                           current_block, current_instruction, source_length,
+                           depth + 1u, value_cursor, segment_cursor,
+                           byte_cursor) ||
+        (size_t)root_index != *value_cursor ||
+        value->type_index >= program->type_count ||
+        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_BOOL ||
+        value->left_value >= program->value_count ||
+        value->right_value >= program->value_count ||
+        !hir_integer_type_facts(
+            program, program->values[value->left_value].type_index,
+            &operand_signed, &operand_width) ||
+        (operand_width != 8u && operand_width != 16u &&
+         operand_width != 32u && operand_width != 64u) ||
+        !hir_integer_types_equal(
+            program, program->values[value->left_value].type_index,
+            program->values[value->right_value].type_index) ||
+        value->binding_index != W_SEED_HIR0_NONE ||
+        value->parameter_index != W_SEED_HIR0_NONE ||
+        value->call_index != W_SEED_HIR0_NONE ||
+        value->first_interpolation_segment != W_SEED_HIR0_NONE ||
+        value->interpolation_segment_count != 0u ||
+        value->unary_operator != W_SEED_HIR0_UNARY_NOT ||
+        value->block_argument_index != W_SEED_HIR0_NONE ||
+        value->integer_value != 0 || value->unsigned_integer_value != 0u ||
+        value->float_bits != 0u || value->bool_value ||
+        value->byte_offset != 0u || value->byte_count != 0u)
+      return false;
+    (void)operand_signed;
+    *value_cursor += 1u;
+    return true;
+  }
+
   if (value->kind == W_SEED_HIR0_VALUE_BINARY_FLOAT) {
     const bool comparison =
         value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
@@ -17789,6 +17926,7 @@ static bool hir0_value_kind_is_closed(w_seed_hir0_value_kind kind) {
     case W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON:
     case W_SEED_HIR0_VALUE_TUPLE_ELEMENT:
     case W_SEED_HIR0_VALUE_INTEGER_WIDEN:
+    case W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON:
       return true;
     default:
       /* A future value kind needs an explicit suspension/effect review before
