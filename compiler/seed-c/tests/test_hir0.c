@@ -15212,7 +15212,7 @@ static bool test_explicit_integer_saturating_hir(void) {
 }
 
 static bool test_checked_integer_arithmetic_hir_matrix(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-87") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-88") == 0);
   typedef struct {
     const char *name;
     const char *suffix;
@@ -16686,6 +16686,227 @@ static bool test_canonical_f64_scalar(void) {
   return true;
 }
 
+static bool test_canonical_f32_scalar(void) {
+  static const char SOURCE[] =
+      "fn identity(value: f32): f32 { return value }\n"
+      "entry { let f64Witness = 1.5_f64 let one = 1_f32 "
+      "let sum = 1.5_f32 + 2.25_f32 "
+      "let difference = 9.5_f32 - 5.5_f32 "
+      "let product = 1.5_f32 * 2.0_f32 "
+      "let quotient = 7.5e0_f32 / 2.5_f32 "
+      "let smallest = "
+      "1.401298464324817070923729583289916131280e-45_f32 "
+      "let underflowPositive = 1e-50_f32 "
+      "let negativeZero = -0.0_f32 "
+      "let underflowNegative = -1e-50_f32 "
+      "let nan = 0.0_f32 / 0.0_f32 let nanUnequal = nan != nan "
+      "let comparisons = sum == 3.75_f32 && sum != 4.0_f32 || "
+      "sum < 4.0_f32 && sum <= 3.75_f32 && "
+      "sum > 3.0_f32 && sum >= 3.75_f32 && nanUnequal }\n";
+  CHECK(lower(SOURCE));
+  CHECK(fixture.hir_program.type_count == 6u &&
+        fixture.hir_program.types[4].kind == W_SEED_HIR0_TYPE_F64 &&
+        fixture.hir_program.types[5].kind == W_SEED_HIR0_TYPE_F32 &&
+        hir_text_is(&fixture.hir_program, fixture.hir_program.types[4].name,
+                    HIR0_F64_NAME) &&
+        hir_text_is(&fixture.hir_program, fixture.hir_program.types[5].name,
+                    HIR0_F32_NAME));
+
+  size_t f32_one_point_five = SIZE_MAX;
+  size_t f32_add = SIZE_MAX;
+  size_t f32_subtract = SIZE_MAX;
+  size_t f32_multiply = SIZE_MAX;
+  size_t f32_divide = SIZE_MAX;
+  size_t f32_negate_zero = SIZE_MAX;
+  size_t f32_negate_underflow = SIZE_MAX;
+  size_t f32_nan_divide = SIZE_MAX;
+  size_t f32_nan_not_equal = SIZE_MAX;
+  size_t f32_comparison_count = 0u;
+  bool saw_all_comparisons[6] = {false, false, false, false, false, false};
+  size_t f32_const_count = 0u;
+  bool saw_f32_smallest_subnormal = false;
+  bool saw_f32_underflow_positive_zero = false;
+  for (size_t index = 0u; index < fixture.hir_program.value_count; index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_values[index];
+    if (value->kind == W_SEED_HIR0_VALUE_CONST_FLOAT &&
+        value->type_index == 5u) {
+      CHECK((value->float_bits >> 32u) == 0u);
+      f32_const_count += 1u;
+      if (value->float_bits == UINT64_C(0x3fc00000))
+        f32_one_point_five = index;
+      if (value->float_bits == UINT64_C(0x00000001))
+        saw_f32_smallest_subnormal = true;
+      if (value->float_bits == 0u &&
+          value->source_span.end_byte - value->source_span.start_byte ==
+              sizeof("1e-50_f32") - 1u)
+        saw_f32_underflow_positive_zero = true;
+    }
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_FLOAT) {
+      if (value->type_index == 5u &&
+          value->binary_operator == W_SEED_HIR0_BINARY_ADD)
+        f32_add = index;
+      else if (value->type_index == 5u &&
+               value->binary_operator == W_SEED_HIR0_BINARY_SUBTRACT)
+        f32_subtract = index;
+      else if (value->type_index == 5u &&
+               value->binary_operator == W_SEED_HIR0_BINARY_MULTIPLY)
+        f32_multiply = index;
+      else if (value->type_index == 5u &&
+               value->binary_operator == W_SEED_HIR0_BINARY_DIVIDE) {
+        f32_divide = index;
+        const w_seed_hir0_value *left =
+            &fixture.hir_values[value->left_value];
+        const w_seed_hir0_value *right =
+            &fixture.hir_values[value->right_value];
+        if (left->kind == W_SEED_HIR0_VALUE_CONST_FLOAT &&
+            right->kind == W_SEED_HIR0_VALUE_CONST_FLOAT &&
+            left->float_bits == 0u && right->float_bits == 0u)
+          f32_nan_divide = index;
+      }
+      if (value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
+          value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL) {
+        const size_t comparison_index =
+            (size_t)(value->binary_operator - W_SEED_HIR0_BINARY_EQUAL);
+        CHECK(comparison_index < 6u && value->type_index == 3u &&
+              fixture.hir_values[value->left_value].type_index == 5u &&
+              fixture.hir_values[value->right_value].type_index == 5u);
+        saw_all_comparisons[comparison_index] = true;
+        f32_comparison_count += 1u;
+        if (value->binary_operator == W_SEED_HIR0_BINARY_NOT_EQUAL &&
+            fixture.hir_values[value->left_value].kind ==
+                W_SEED_HIR0_VALUE_BINDING_READ &&
+            fixture.hir_values[value->right_value].kind ==
+                W_SEED_HIR0_VALUE_BINDING_READ)
+          f32_nan_not_equal = index;
+      }
+    }
+    if (value->kind == W_SEED_HIR0_VALUE_UNARY_FLOAT &&
+        value->type_index == 5u) {
+      const w_seed_hir0_value *operand =
+          &fixture.hir_values[value->left_value];
+      if (value->unary_operator == W_SEED_HIR0_UNARY_NEGATE &&
+          operand->kind == W_SEED_HIR0_VALUE_CONST_FLOAT &&
+          operand->float_bits == 0u) {
+        const w_seed_span span = value->source_span;
+        if (span.end_byte - span.start_byte == sizeof("-0.0_f32") - 1u)
+          f32_negate_zero = index;
+        if (span.end_byte - span.start_byte == sizeof("-1e-50_f32") - 1u)
+          f32_negate_underflow = index;
+      }
+    }
+  }
+  CHECK(f32_const_count >= 20u && f32_one_point_five != SIZE_MAX &&
+        saw_f32_smallest_subnormal && saw_f32_underflow_positive_zero &&
+        f32_add != SIZE_MAX && f32_subtract != SIZE_MAX &&
+        f32_multiply != SIZE_MAX && f32_divide != SIZE_MAX &&
+        f32_negate_zero != SIZE_MAX && f32_negate_underflow != SIZE_MAX &&
+        f32_nan_divide != SIZE_MAX &&
+        f32_nan_not_equal != SIZE_MAX && f32_comparison_count == 7u &&
+        saw_all_comparisons[0] && saw_all_comparisons[1] &&
+        saw_all_comparisons[2] && saw_all_comparisons[3] &&
+        saw_all_comparisons[4] && saw_all_comparisons[5]);
+  CHECK(fixture.hir_values[f32_add].type_index == 5u &&
+        fixture.hir_values[f32_subtract].type_index == 5u &&
+        fixture.hir_values[f32_multiply].type_index == 5u &&
+        fixture.hir_values[f32_divide].type_index == 5u &&
+        fixture.hir_values[f32_negate_zero].type_index == 5u &&
+        fixture.hir_values[f32_negate_underflow].type_index == 5u &&
+        fixture.hir_values[f32_nan_not_equal].type_index == 3u);
+  bool saw_f32_parameter = false;
+  bool saw_f32_return = false;
+  for (size_t index = 0u; index < fixture.hir_program.parameter_count;
+       index += 1u)
+    if (fixture.hir_parameters[index].type_index == 5u)
+      saw_f32_parameter = true;
+  for (size_t index = 0u; index < fixture.hir_program.function_count;
+       index += 1u)
+    if (fixture.hir_functions[index].return_type == 5u)
+      saw_f32_return = true;
+  CHECK(saw_f32_parameter && saw_f32_return);
+  const w_seed_hir0_terminator *terminators = fixture.hir_terminators;
+  bool saw_logical_and = false;
+  bool saw_logical_or = false;
+  for (size_t index = 0u; index < fixture.hir_program.terminator_count;
+       index += 1u) {
+    if (terminators[index].logical_operator == W_SEED_HIR0_LOGICAL_AND)
+      saw_logical_and = true;
+    if (terminators[index].logical_operator == W_SEED_HIR0_LOGICAL_OR)
+      saw_logical_or = true;
+  }
+  CHECK(saw_logical_and && saw_logical_or);
+
+  /* Runtime 0.0f / 0.0f remains an IEEE operation in HIR; unordered NaN !=
+   * NaN remains a generic float comparison returning canonical Bool. */
+  const w_seed_hir0_value *nan_divide = &fixture.hir_values[f32_nan_divide];
+  CHECK(nan_divide->kind == W_SEED_HIR0_VALUE_BINARY_FLOAT &&
+        nan_divide->binary_operator == W_SEED_HIR0_BINARY_DIVIDE &&
+        nan_divide->type_index == 5u &&
+        fixture.hir_values[nan_divide->left_value].float_bits == 0u &&
+        fixture.hir_values[nan_divide->right_value].float_bits == 0u);
+  const w_seed_hir0_value *nan_not_equal =
+      &fixture.hir_values[f32_nan_not_equal];
+  CHECK(nan_not_equal->kind == W_SEED_HIR0_VALUE_BINARY_FLOAT &&
+        nan_not_equal->binary_operator == W_SEED_HIR0_BINARY_NOT_EQUAL &&
+        nan_not_equal->type_index == 3u &&
+        fixture.hir_values[nan_not_equal->left_value].type_index == 5u &&
+        fixture.hir_values[nan_not_equal->right_value].type_index == 5u);
+
+  const w_seed_hir0_value saved_literal =
+      fixture.hir_values[f32_one_point_five];
+  fixture.hir_values[f32_one_point_five].float_bits |=
+      UINT64_C(0x100000000);
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[f32_one_point_five] = saved_literal;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  /* The sign bit is part of canonical binary32, so negative zero is valid
+   * when produced by unary negation even though source negation stays an op. */
+  fixture.hir_values[f32_one_point_five].float_bits =
+      UINT64_C(0x80000000);
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[f32_one_point_five] = saved_literal;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  static const uint32_t NONFINITE_F32[] = {UINT32_C(0x7f800000),
+                                            UINT32_C(0x7fc00000)};
+  for (size_t index = 0u;
+       index < sizeof(NONFINITE_F32) / sizeof(NONFINITE_F32[0]); index += 1u) {
+    fixture.hir_values[f32_one_point_five].float_bits =
+        (uint64_t)NONFINITE_F32[index];
+    reseal_hir_fixture();
+    CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+    fixture.hir_values[f32_one_point_five] = saved_literal;
+    reseal_hir_fixture();
+    CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  }
+
+  const uint32_t mismatched_operand =
+      fixture.hir_values[f32_add].right_value;
+  const w_seed_hir0_value saved_operand =
+      fixture.hir_values[mismatched_operand];
+  fixture.hir_values[mismatched_operand].type_index = 4u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[mismatched_operand] = saved_operand;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  uint8_t f32_digest[sizeof(fixture.hir_result.semantic_digest)];
+  static const char F32_IDENTITY[] = "entry { let value = 1.5_f32 }\n";
+  static const char F64_IDENTITY[] = "entry { let value = 1.5_f64 }\n";
+  CHECK(lower(F32_IDENTITY));
+  (void)memcpy(f32_digest, fixture.hir_result.semantic_digest,
+               sizeof(f32_digest));
+  CHECK(lower(F64_IDENTITY));
+  CHECK(memcmp(f32_digest, fixture.hir_result.semantic_digest,
+               sizeof(f32_digest)) != 0);
+  return true;
+}
+
 static bool test_frontend_tree_bounds_forgery(void) {
   static const char SOURCE[] =
       "entry { let arithmetic = 1.5 + 2.25 let logical = true && false }\n";
@@ -17479,6 +17700,7 @@ int main(int argc, char **argv) {
   if (!test_u64_reversed_bits()) return 1;
   if (!test_u64_reversed_bytes()) return 1;
   if (!test_canonical_f64_scalar()) return 1;
+  if (!test_canonical_f32_scalar()) return 1;
   if (!test_frontend_tree_bounds_forgery()) return 1;
   if (!test_checked_shift_values()) return 1;
   if (!test_checked_shift_binding_interpolation_hir()) return 1;

@@ -31,8 +31,8 @@ const restaurantPowerPrefixFixture = resolve(seedDirectory,
   "fixtures", "restaurant-power-prefix.w")
 const restaurantCompoundFixture = resolve(seedDirectory,
   "fixtures", "restaurant-compound.w")
-const restaurantF64StrictFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-f64-strict.w")
+const restaurantFloatStrictFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-float-strict.w")
 const restaurantCheckedIntegerArithmeticFixture = resolve(seedDirectory,
   "fixtures", "restaurant-checked-integer-arithmetic.w")
 const restaurantIntegerWrappingFixture = resolve(seedDirectory,
@@ -779,7 +779,7 @@ try {
       expected: Buffer.from("Power prefix -4/4/512/-9/-27\n", "utf8") },
     { name: "restaurant-compound", source: restaurantCompoundFixture,
       expected: Buffer.from("Compound 11\n", "utf8") },
-    { name: "restaurant-f64-strict", source: restaurantF64StrictFixture,
+    { name: "restaurant-float-strict", source: restaurantFloatStrictFixture,
       expected: Buffer.from("Float strict ok\n", "utf8") },
     { name: "restaurant-checked-integer-arithmetic",
       source: restaurantCheckedIntegerArithmeticFixture,
@@ -1170,21 +1170,22 @@ try {
     powerArtifact.includes("llvm.call @w_seed_checked_power_i64") &&
     powerArtifact.includes("llvm.call @w_seed_checked_power_u64"),
   "checked power lost exponentiation-by-squaring or signedness")
-  const f64Artifact = artifacts.get("restaurant-f64-strict").toString("utf8")
-  assert(f64Artifact.includes("llvm.fadd") &&
-    f64Artifact.includes("llvm.fsub") &&
-    f64Artifact.includes("llvm.fmul") &&
-    f64Artifact.includes("llvm.fdiv") &&
-    f64Artifact.includes("llvm.fneg") &&
-    f64Artifact.includes('llvm.fcmp "oeq"') &&
-    f64Artifact.includes('llvm.fcmp "une"') &&
-    f64Artifact.includes('llvm.fcmp "olt"') &&
-    f64Artifact.includes('llvm.fcmp "ole"') &&
-    f64Artifact.includes('llvm.fcmp "ogt"') &&
-    f64Artifact.includes('llvm.fcmp "oge"') &&
-    f64Artifact.includes("0x3ff8000000000000 : f64") &&
-    !f64Artifact.includes("fastmath"),
-  "strict f64 lowering lost an operator, predicate, bit pattern, or strict mode")
+  const floatArtifact = artifacts.get("restaurant-float-strict").toString("utf8")
+  assert(floatArtifact.includes("llvm.fadd") &&
+    floatArtifact.includes("llvm.fsub") &&
+    floatArtifact.includes("llvm.fmul") &&
+    floatArtifact.includes("llvm.fdiv") &&
+    floatArtifact.includes("llvm.fneg") &&
+    floatArtifact.includes('llvm.fcmp "oeq"') &&
+    floatArtifact.includes('llvm.fcmp "une"') &&
+    floatArtifact.includes('llvm.fcmp "olt"') &&
+    floatArtifact.includes('llvm.fcmp "ole"') &&
+    floatArtifact.includes('llvm.fcmp "ogt"') &&
+    floatArtifact.includes('llvm.fcmp "oge"') &&
+    floatArtifact.includes("0x3fc00000 : f32") &&
+    floatArtifact.includes("0x3ff8000000000000 : f64") &&
+    !floatArtifact.includes("fastmath"),
+  "strict float lowering lost a width, operator, predicate, bit pattern, or strict mode")
   const checkedIntegerArithmeticArtifact =
     artifacts.get("restaurant-checked-integer-arithmetic").toString("utf8")
   assert(checkedIntegerArithmeticArtifact.includes("@w_seed_checked_add_i64") &&

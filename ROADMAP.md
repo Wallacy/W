@@ -63,9 +63,10 @@ physical scheduler experiments:
 
 1. canonical signed, unsigned, Boolean and floating scalar identities,
    literals and conversions; W-1641 closes only fixed-width integer
-   `truncatingBits:`, and W-1644 is the current integer-to-integer
-   `saturating:` increment. Other conversion paths continue to block this
-   rank-1 prerequisite;
+   `truncatingBits:`, W-1644 closes the integer-to-integer `saturating:`
+   increment, and W-1645 closes the bounded strict binary32/binary64 identity,
+   literal, operator, and native execution family. Remaining conversion paths
+   continue to block this rank-1 prerequisite;
 2. prefix, arithmetic, comparison, bitwise, shift, overflow and compound
    operators, each with its specified checked or explicit wrapping policy;
 3. Boolean short-circuiting, scalar `if`, exhaustive scalar selection and
@@ -349,6 +350,15 @@ intentionally narrower. C23 and Rust 2024 are correctness references only,
 and `benchmarkDisposition: deferred` until equivalent runtime work. Fallible
 `D(exactly:)` remains deferred until typed conversion-error lowering is
 end-to-end; it is not implemented. W-389 and rank 1 remain open.
+
+W-1645 generalizes the prior strict-f64 seed path into one strict floating
+family for `f32` and `f64`. Frontend67 materializes exact binary32/binary64
+bits; HIR88 preserves distinct identities; MLIR59 and Windows44 emit direct
+width-correct LLVM dialect arithmetic, comparisons, and unary negation without
+fast-math. The compact width-neutral Restaurant witness owns both widths and
+the C23/Rust 2024 correctness references. Floating conversions, remainder,
+power, total-order helpers, stable ABI/FFI, other targets, and equivalent
+runtime-work performance remain open.
 
 The first rank-1 increments are now executable. Signed-`i64` `&`, `|`, `^`,
 and the original unary-`~` crosspoint cover exact W source, canonical

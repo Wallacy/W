@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <fenv.h>
 #include <locale.h>
 #include <stdio.h>
 #include <string.h>
@@ -6451,6 +6452,180 @@ static bool test_f64_scalar_projection(void) {
   return true;
 }
 
+static bool test_f32_scalar_projection(void) {
+  fixture *value = &fixture_literal;
+  static const char SOURCE[] =
+      "entry { let sum = 1.5_f32 + 2.25_f32 "
+      "let difference = 9.5_f32 - 5.5_f32 "
+      "let product = 1.5_f32 * 2.0_f32 "
+      "let quotient = 7.5e0_f32 / 2.5_f32 "
+      "let negativeZero = -0.0_f32 "
+      "let underflowNegative = -1e-50_f32 "
+      "let nan = 0.0_f32 / 0.0_f32 "
+      "let valid = sum == 3.75_f32 && difference != 5.0_f32 && "
+      "product < 4.0_f32 && quotient <= 3.0_f32 && "
+      "sum > 3.0_f32 && sum >= 3.75_f32 && nan != nan }\n";
+  CHECK(fixture_parse(value, SOURCE));
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+            W_SEED_FRONTEND_OK &&
+        counts_equal(&value->result.required, &value->result.written));
+  size_t literal_count = 0u;
+  size_t arithmetic_and_unary_count = 0u;
+  size_t comparison_count = 0u;
+  bool saw_one_point_five = false;
+  bool saw_negative_zero_operation = false;
+  bool saw_negative_underflow_operation = false;
+  bool saw_nan_runtime_divide = false;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_FLOAT) {
+      CHECK(expression->supported && expression->has_float_value &&
+            expression->inferred_type < value->result.written.types &&
+            value->types[expression->inferred_type].kind ==
+                W_SEED_FRONTEND_TYPE_FLOAT &&
+            value->types[expression->inferred_type].bit_width == 32u &&
+            (expression->float_bits >> 32u) == 0u);
+      literal_count += 1u;
+      if (expression->float_bits == UINT64_C(0x3fc00000))
+        saw_one_point_five = true;
+    } else if ((expression->kind == W_SEED_FRONTEND_EXPR_BINARY ||
+                expression->kind == W_SEED_FRONTEND_EXPR_UNARY) &&
+               expression->inferred_type < value->result.written.types &&
+               value->types[expression->inferred_type].kind ==
+                   W_SEED_FRONTEND_TYPE_FLOAT) {
+      CHECK(value->types[expression->inferred_type].bit_width == 32u);
+      arithmetic_and_unary_count += 1u;
+      if (expression->kind == W_SEED_FRONTEND_EXPR_UNARY &&
+          frontend_text_is(expression->operator_text, "-") &&
+          expression->left < value->result.written.expressions &&
+          value->expressions[expression->left].kind ==
+              W_SEED_FRONTEND_EXPR_FLOAT &&
+          value->expressions[expression->left].float_bits == 0u) {
+        if (fixture_span_text_is(value, 0u, expression->span,
+                                 "-0.0_f32"))
+          saw_negative_zero_operation = true;
+        if (fixture_span_text_is(value, 0u, expression->span,
+                                 "-1e-50_f32"))
+          saw_negative_underflow_operation = true;
+      }
+      if (expression->kind == W_SEED_FRONTEND_EXPR_BINARY &&
+          frontend_text_is(expression->operator_text, "/"))
+        saw_nan_runtime_divide = true;
+    } else if (expression->kind == W_SEED_FRONTEND_EXPR_BINARY &&
+               (frontend_text_is(expression->operator_text, "==") ||
+                frontend_text_is(expression->operator_text, "!=") ||
+                frontend_text_is(expression->operator_text, "<") ||
+                frontend_text_is(expression->operator_text, "<=") ||
+                frontend_text_is(expression->operator_text, ">") ||
+                frontend_text_is(expression->operator_text, ">="))) {
+      CHECK(expression->inferred_type < value->result.written.types &&
+            value->types[expression->inferred_type].kind ==
+                W_SEED_FRONTEND_TYPE_BOOL);
+      comparison_count += 1u;
+    }
+  }
+  CHECK(literal_count >= 18u && arithmetic_and_unary_count >= 7u &&
+        comparison_count == 7u && saw_one_point_five &&
+        saw_negative_zero_operation && saw_negative_underflow_operation &&
+        saw_nan_runtime_divide);
+
+  CHECK(fixture_parse(
+      value,
+      "entry { let integral = 1_f32 let smallest = "
+      "1.401298464324817070923729583289916131280e-45_f32 "
+      "let underflow = 1e-50_f32 let midpointDown = "
+      "1.000000059604644775390625_f32 let midpointUp = "
+      "1.000000178813934326171875_f32 }\n"));
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+            W_SEED_FRONTEND_OK &&
+        counts_equal(&value->result.required, &value->result.written));
+  size_t exact_literal_count = 0u;
+  bool saw_integral_bits = false;
+  bool saw_smallest_subnormal_bits = false;
+  bool saw_underflow_positive_zero = false;
+  bool saw_first_midpoint_even_lower = false;
+  bool saw_second_midpoint_even_upper = false;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind != W_SEED_FRONTEND_EXPR_FLOAT) continue;
+    CHECK(expression->supported && expression->has_float_value &&
+          expression->inferred_type < value->result.written.types &&
+          value->types[expression->inferred_type].kind ==
+              W_SEED_FRONTEND_TYPE_FLOAT &&
+          value->types[expression->inferred_type].bit_width == 32u &&
+          (expression->float_bits >> 32u) == 0u);
+    exact_literal_count += 1u;
+    if (expression->float_bits == UINT64_C(0x3f800000) &&
+        fixture_span_text_is(value, 0u, expression->span, "1_f32"))
+      saw_integral_bits = true;
+    if (expression->float_bits == UINT64_C(0x00000001))
+      saw_smallest_subnormal_bits = true;
+    if (expression->float_bits == 0u &&
+        fixture_span_text_is(value, 0u, expression->span, "1e-50_f32"))
+      saw_underflow_positive_zero = true;
+    if (expression->float_bits == UINT64_C(0x3f800000))
+      saw_first_midpoint_even_lower = true;
+    if (expression->float_bits == UINT64_C(0x3f800002))
+      saw_second_midpoint_even_upper = true;
+  }
+  CHECK(exact_literal_count == 5u && saw_integral_bits &&
+        saw_smallest_subnormal_bits && saw_underflow_positive_zero &&
+        saw_first_midpoint_even_lower && saw_second_midpoint_even_upper);
+
+  /* C numeric parsing and IEEE conversion ignore the caller's locale and
+   * rounding mode. Verify the ties-to-even cases while FE_DOWNWARD is active
+   * when that mode is available, then verify the frontend restores it. */
+  const int saved_rounding = fegetround();
+  if (saved_rounding != -1 && fesetround(FE_DOWNWARD) == 0) {
+    const bool parsed = fixture_parse(
+        value,
+        "entry { let lower = 1.000000059604644775390625_f32 "
+        "let upper = 1.000000178813934326171875_f32 }\n");
+    const w_seed_frontend_status status =
+        parsed ? w_seed_frontend_run(&value->input, &value->output,
+                                     &value->result)
+               : W_SEED_FRONTEND_INVALID;
+    bool saw_lower = false;
+    bool saw_upper = false;
+    for (size_t index = 0u; index < value->result.written.expressions;
+         index += 1u) {
+      const w_seed_frontend_expression *expression = &value->expressions[index];
+      if (expression->kind != W_SEED_FRONTEND_EXPR_FLOAT) continue;
+      if (expression->float_bits == UINT64_C(0x3f800000)) saw_lower = true;
+      if (expression->float_bits == UINT64_C(0x3f800002)) saw_upper = true;
+    }
+    const int frontend_rounding = fegetround();
+    const bool restored = fesetround(saved_rounding) == 0;
+    CHECK(restored && frontend_rounding == FE_DOWNWARD && parsed &&
+          status == W_SEED_FRONTEND_OK && saw_lower && saw_upper);
+  }
+
+  static const char *const REJECTED[] = {
+      "entry { let overflow = 1e999_f32 }\n",
+      "entry { let hex = 0x1.0p0_f32 }\n",
+      "entry { let mixed = 1_i32 + 2.0_f32 }\n",
+      "entry { let mixed = 1.0_f32 == 2_i32 }\n",
+      "entry { let mixed = 1.0_f32 + 2.0_f64 }\n",
+      "entry { let mixed = 1.0_f32 == 2.0_f64 }\n",
+      "entry { let remainder = 1.0_f32 % 2.0_f32 }\n",
+      "entry { let powered = 1.0_f32 ** 2.0_f32 }\n",
+      "entry { let bitwise = 1.0_f32 & 2.0_f32 }\n",
+      "entry { let cast = f64(1.0_f32) }\n",
+      "entry { let rendered = \"${1.0_f32}\" }\n",
+  };
+  for (size_t index = 0u; index < sizeof(REJECTED) / sizeof(REJECTED[0]);
+       index += 1u) {
+    CHECK(fixture_run(value, REJECTED[index]));
+    CHECK(value->result.status != W_SEED_FRONTEND_OK &&
+          (has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION) ||
+           has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_TYPE) ||
+           value->result.status == W_SEED_FRONTEND_DIAGNOSTICS));
+  }
+  return true;
+}
+
 static bool test_f64_locale_isolation(void) {
   enum { TEST_LOCALE_NAME_BYTES = 128 };
   const char *current_locale = setlocale(LC_NUMERIC, NULL);
@@ -6489,9 +6664,11 @@ static bool test_f64_locale_isolation(void) {
 
   fixture *value = &fixture_literal;
   const bool parsed = fixture_parse(
-      value, "entry { let locale_value = 1.5_f64 }\n");
+      value, "entry { let locale_value = 1.5_f64 "
+             "let locale_value_f32 = 1.5_f32 }\n");
   w_seed_frontend_status status = W_SEED_FRONTEND_INVALID;
   bool saw_expected_value = false;
+  bool saw_expected_f32_value = false;
   if (parsed) {
     status = w_seed_frontend_run(&value->input, &value->output,
                                  &value->result);
@@ -6503,7 +6680,11 @@ static bool test_f64_locale_isolation(void) {
           expression->supported && expression->has_float_value &&
           expression->float_bits == UINT64_C(0x3ff8000000000000)) {
         saw_expected_value = true;
-        break;
+      }
+      if (expression->kind == W_SEED_FRONTEND_EXPR_FLOAT &&
+          expression->supported && expression->has_float_value &&
+          expression->float_bits == UINT64_C(0x3fc00000)) {
+        saw_expected_f32_value = true;
       }
     }
   }
@@ -6513,7 +6694,7 @@ static bool test_f64_locale_isolation(void) {
   const bool restored = setlocale(LC_NUMERIC, saved_locale) != NULL;
   CHECK(restored);
   CHECK(parsed && status == W_SEED_FRONTEND_OK && saw_expected_value &&
-        locale_unchanged);
+        saw_expected_f32_value && locale_unchanged);
   return true;
 }
 
@@ -8544,6 +8725,7 @@ int main(int argc, char **argv) {
   if (!test_u64_saturating_policy_frontend()) return 1;
   if (!test_u64_bool_tuple_product_boundary_frontend()) return 1;
   if (!test_f64_scalar_projection()) return 1;
+  if (!test_f32_scalar_projection()) return 1;
   if (!test_f64_locale_isolation()) return 1;
   if (!test_declarations_and_determinism()) return 1;
   if (!test_enums_and_payloads()) return 1;

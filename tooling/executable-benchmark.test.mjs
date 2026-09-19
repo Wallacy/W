@@ -42,7 +42,7 @@ import {
   PROCESS_HANDLER_LIFECYCLE_EXECUTION_STRUCTURE_CLASS,
   PROCESS_HANDLER_LIFECYCLE_STRUCTURE_CLASS,
   PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID,
-  RESTAURANT_F64_STRICT_WORKLOAD_ID,
+  RESTAURANT_FLOAT_STRICT_WORKLOAD_ID,
   RESTAURANT_INTEGER_PREFIX_WORKLOAD_ID,
   RESTAURANT_INTEGER_WRAPPING_WORKLOAD_ID,
   RESTAURANT_INTEGER_WIDENING_WORKLOAD_ID,
@@ -412,15 +412,15 @@ test("process-enum-payload C and Rust variants retain independent runtime enum p
   assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
 });
 
-test("strict f64 references retain independent runtime operations", () => {
+test("strict f32/f64 references retain independent runtime operations", () => {
   const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_F64_STRICT_WORKLOAD_ID);
+    item.id === RESTAURANT_FLOAT_STRICT_WORKLOAD_ID);
   assert.ok(workload);
   assert.equal(workload.benchmarkStatus, "not-performance-ready");
   assert.deepEqual(workload.blockedLanguages, []);
   assert.deepEqual(workload.blockers, [
-    "w-f64-compile-time-folded",
-    "runtime-f64-equivalence",
+    "w-float-compile-time-folded",
+    "runtime-float-equivalence",
   ]);
   assert.deepEqual(new Set(workload.sources.map((source) => source.language)),
     new Set(EXECUTABLE_LANGUAGES));
@@ -437,17 +437,21 @@ test("strict f64 references retain independent runtime operations", () => {
     "same-physical-hardware-diagnostic-only",
   ]);
   const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_f64_strict.c`, "utf8");
+    `${ROOT}/benchmarks/executable/restaurant_float_strict.c`, "utf8");
   const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_f64_strict.rs`, "utf8");
+    `${ROOT}/benchmarks/executable/restaurant_float_strict.rs`, "utf8");
+  assert.match(c, /volatile float/u);
   assert.match(c, /volatile double/u);
-  assert.match(c, /sum_left \+ sum_right/u);
-  assert.match(c, /difference_left - difference_right/u);
-  assert.match(c, /product_left \* product_right/u);
-  assert.match(c, /quotient_left \/ quotient_right/u);
+  assert.match(c, /f32_sum_left \+ f32_sum_right/u);
+  assert.match(c, /f64_sum_left \+ f64_sum_right/u);
+  assert.match(c, /difference_left - f(?:32|64)_difference_right/u);
+  assert.match(c, /product_left \* f(?:32|64)_product_right/u);
+  assert.match(c, /quotient_left \/ f(?:32|64)_quotient_right/u);
   assert.match(c, /nan != nan/u);
   assert.doesNotMatch(c, /fast-math/iu);
   assert.match(rust, /black_box/u);
+  assert.match(rust, /1\.5_f32/u);
+  assert.match(rust, /1\.5_f64/u);
   assert.match(rust, /nan != nan/u);
   assert.doesNotMatch(rust, /fast-math/iu);
 });
@@ -1504,24 +1508,24 @@ test("integer comparison catalog is one correctness-only signed/unsigned family 
   assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
 });
 
-test("not-performance-ready strict f64 evidence cannot become live best metrics", () => {
+test("not-performance-ready strict float evidence cannot become live best metrics", () => {
   const result = validResult();
-  const workload = documents.catalog.workloads.find((item) => item.id === RESTAURANT_F64_STRICT_WORKLOAD_ID);
+  const workload = documents.catalog.workloads.find((item) => item.id === RESTAURANT_FLOAT_STRICT_WORKLOAD_ID);
   const source = workload.sources.find((item) => item.language === "rust" && item.platformTarget === EXECUTABLE_PLATFORM_TARGET);
-  result.id = `${RESTAURANT_F64_STRICT_WORKLOAD_ID}-rust-example`;
-  result.workloadId = RESTAURANT_F64_STRICT_WORKLOAD_ID;
+  result.id = `${RESTAURANT_FLOAT_STRICT_WORKLOAD_ID}-rust-example`;
+  result.workloadId = RESTAURANT_FLOAT_STRICT_WORKLOAD_ID;
   result.identity.sourceDigest = source.digest;
   result.identity.recipe = source.recipe;
   result.identity.recipeClass = source.recipeClass;
   result.identity.eligibility = source.eligibility;
   result.equivalenceKey = executableEquivalenceKey(
     documents.catalog,
-    RESTAURANT_F64_STRICT_WORKLOAD_ID,
+    RESTAURANT_FLOAT_STRICT_WORKLOAD_ID,
     EXECUTABLE_PLATFORM_TARGET,
     "release",
     source.recipeClass,
   );
-  result.correctness.oracleId = `${RESTAURANT_F64_STRICT_WORKLOAD_ID}:exact-output`;
+  result.correctness.oracleId = `${RESTAURANT_FLOAT_STRICT_WORKLOAD_ID}:exact-output`;
   result.correctness.stdoutDigest = exactOutputDigest(workload.oracle.stdout);
   result.provenance.sourceDigest = source.digest;
   assert.deepEqual(validateExecutableResult(result, documents.catalog), []);
@@ -1530,7 +1534,7 @@ test("not-performance-ready strict f64 evidence cannot become live best metrics"
   assert.equal(derived.entries.length, 0);
 
   const forbidden = clone(documents.catalog.bestMetrics.entries[0]);
-  forbidden.workloadId = RESTAURANT_F64_STRICT_WORKLOAD_ID;
+  forbidden.workloadId = RESTAURANT_FLOAT_STRICT_WORKLOAD_ID;
   forbidden.provenance.sourceDigest = source.digest;
   assert.match(
     validateExecutableBestMetric(forbidden, documents.catalog).join("\n"),

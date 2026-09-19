@@ -40,10 +40,11 @@ are migrated by family when touched; the backlog is not migrated in bulk.
 Each commented output line represents that literal line plus `\n`; an empty
 line ends the block. Omit `Expected stderr` when stderr is empty.
 
-The `restaurant-f64-strict` witness is `not-performance-ready`. W's current
+The `restaurant-float-strict` witness is `not-performance-ready`. W's current
 Windows and WSL artifacts are compile-time-folded semantic/output witnesses,
-not algorithmically comparable runtime-f64 work. C and Rust retain runtime
-operations as independent correctness references. The catalog excludes this
+not algorithmically comparable runtime-float work. C and Rust retain binary32
+and binary64 runtime operations as independent correctness references. The
+catalog excludes this
 workload from live best-metric derivation and equivalent-runtime ranking until
 runtime-equivalent W evidence exists.
 

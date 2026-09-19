@@ -11535,6 +11535,117 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-strict-binary32-binary64-scalar-family",
+      "reviewItem": "strict f32/f64 identity against host reparsing, implicit widening, per-width compiler paths, default fast-math, and unequal benchmark work.",
+      "decisions": [
+        "W-1645"
+      ],
+      "task": "Carry the existing strict floating contract through one width-generic f32/f64 source-to-native route. Materialize canonical bits once, preserve exact type identity through verified HIR, emit width-correct direct LLVM dialect operations without fast-math, and keep the width-neutral executable correctness-only until W and the references perform equivalent runtime work.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "let single = 1.5_f32 + 2.25_f32",
+          "let double = 1.5_f64 + 2.25_f64",
+          "let nanIsUnordered = (0.0_f32 / 0.0_f32) != (0.0_f32 / 0.0_f32)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "widen-binary32-to-binary64-internally",
+          "language": "w-internal-rejected",
+          "source": [
+            "represent every floating value and operation as f64, then truncate an f32 result"
+          ],
+          "expectedDifference": "The selected route preserves f32 rounding after every operation and retains source type identity for later vector and tensor lowering."
+        },
+        {
+          "name": "reparse-source-in-each-backend",
+          "language": "w-internal-rejected",
+          "source": [
+            "keep decimal spelling in HIR and let each backend or host library convert it again"
+          ],
+          "expectedDifference": "The frontend materializes canonical bits once, so later phases are independent of locale, host rounding state, and decimal conversion differences."
+        },
+        {
+          "name": "separate-per-width-operation-enums",
+          "language": "w-internal-rejected",
+          "source": [
+            "create distinct add, subtract, multiply, divide, negate, and comparison identities for f32 and f64"
+          ],
+          "expectedDifference": "One operation family derives physical width from a verified type fact and avoids multiplying compiler paths."
+        },
+        {
+          "name": "release-fast-math-default",
+          "language": "w-internal-rejected",
+          "source": [
+            "enable reassociation, contraction, no-NaN, or flush-to-zero flags for release builds"
+          ],
+          "expectedDifference": "Strict mode preserves IEEE NaN, signed-zero, subnormal, and operation-order semantics; faster modes remain explicit."
+        },
+        {
+          "name": "rank-unequal-runtime-work",
+          "language": "benchmark-rejected",
+          "source": [
+            "rank the compile-time-folded W witness against C23 and Rust references with runtime operands"
+          ],
+          "expectedDifference": "The catalog records one correctness family and defers performance ranking until the physical work is equivalent."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-float-strict.w",
+          "symbol": "entry",
+          "claim": "The width-neutral fixture owns exact output for strict binary32 and binary64 arithmetic, comparisons, signed zero, and runtime NaN."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_frontend.c",
+          "symbol": "test_f32_scalar_projection",
+          "claim": "Frontend67 covers canonical binary32 bits, midpoint rounding, environment isolation, boundaries, and unsupported forms."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_canonical_f32_scalar",
+          "claim": "HIR88 covers distinct f32 identity, exact bits, generic strict operators, digest separation, and forged facts."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_native0.c",
+          "symbol": "test_strict_float_native_admission",
+          "claim": "NativeSubset0 admits matching-width f32/f64 trees and preserves direct strict operations."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_mlir0.c",
+          "symbol": "test_strict_float_mlir",
+          "claim": "MLIR59/Windows44 tests cover width-correct constants, arithmetic, negation, comparisons, and fail-closed mismatches."
+        },
+        {
+          "path": "tooling/check-mlir0.mjs",
+          "symbol": "restaurant-float-strict",
+          "claim": "The Linux/WSL MLIR gate validates both widths, every strict operation/predicate, and exact output."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "Restaurant strict f32/f64 arithmetic and IEEE comparisons",
+          "claim": "The public Windows gate executes the exact width-neutral fixture."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "Restaurant strict f32/f64 arithmetic and IEEE comparisons",
+          "claim": "The public Linux/WSL gate executes the exact width-neutral fixture."
+        }
+      ],
+      "checks": [
+        "Focused parser, frontend, verified-HIR, NativeSubset0, and MLIR units pass with warnings as errors.",
+        "Final-source MLIR0, Windows, and Linux/WSL gates pass exact output before W-1645 is classified source-backed-current.",
+        "C23 and Rust 2024 references emit the same output and remain correctness-only, with no timing or ranking."
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

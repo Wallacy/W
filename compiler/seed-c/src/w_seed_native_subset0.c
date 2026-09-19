@@ -2118,8 +2118,16 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
     return (facts.is_signed && value->kind == W_SEED_HIR0_VALUE_CONST_I64) ||
            (!facts.is_signed && value->kind == W_SEED_HIR0_VALUE_CONST_U64);
   }
-  if (value->kind == W_SEED_HIR0_VALUE_CONST_FLOAT)
-    return type == W_SEED_HIR0_TYPE_F64;
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_FLOAT) {
+    if (type == W_SEED_HIR0_TYPE_F32)
+      return (value->float_bits >> 32u) == 0u &&
+             ((value->float_bits >> 23u) & UINT64_C(0xff)) !=
+                 UINT64_C(0xff);
+    if (type == W_SEED_HIR0_TYPE_F64)
+      return ((value->float_bits >> 52u) & UINT64_C(0x7ff)) !=
+             UINT64_C(0x7ff);
+    return false;
+  }
   if (value->kind == W_SEED_HIR0_VALUE_CONST_BOOL)
     return type == W_SEED_HIR0_TYPE_BOOL;
   if (value->kind == W_SEED_HIR0_VALUE_CONST_STRING)
@@ -2301,10 +2309,13 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
     return true;
   }
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_FLOAT)
-    return type == W_SEED_HIR0_TYPE_F64 &&
+    return (type == W_SEED_HIR0_TYPE_F32 ||
+            type == W_SEED_HIR0_TYPE_F64) &&
            value->unary_operator == W_SEED_HIR0_UNARY_NEGATE &&
-           value->left_value != W_SEED_HIR0_NONE &&
+           value->left_value < program->value_count &&
            value->right_value == W_SEED_HIR0_NONE &&
+           program->values[value->left_value].type_index ==
+               value->type_index &&
            program_value_lowerable(program, value->left_value,
                                    owner_function, false, depth + 1u);
   if (value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ) {
@@ -2578,17 +2589,23 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
     const bool comparison =
         value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
         value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL;
+    const bool arithmetic =
+        value->binary_operator >= W_SEED_HIR0_BINARY_ADD &&
+        value->binary_operator <= W_SEED_HIR0_BINARY_DIVIDE;
     if (value->left_value >= program->value_count ||
         value->right_value >= program->value_count ||
         program->values[value->left_value].type_index >= program->type_count ||
         program->values[value->right_value].type_index >= program->type_count ||
-        program->types[program->values[value->left_value].type_index].kind !=
-            W_SEED_HIR0_TYPE_F64 ||
-        program->types[program->values[value->right_value].type_index].kind !=
-            W_SEED_HIR0_TYPE_F64 ||
+        program->values[value->left_value].type_index !=
+            program->values[value->right_value].type_index ||
+        (program->types[program->values[value->left_value].type_index].kind !=
+             W_SEED_HIR0_TYPE_F32 &&
+         program->types[program->values[value->left_value].type_index].kind !=
+             W_SEED_HIR0_TYPE_F64) ||
         (comparison ? type != W_SEED_HIR0_TYPE_BOOL
-                    : type != W_SEED_HIR0_TYPE_F64) ||
-        (!comparison && value->binary_operator > W_SEED_HIR0_BINARY_DIVIDE))
+                    : (!arithmetic ||
+                       value->type_index !=
+                           program->values[value->left_value].type_index)))
       return false;
     return program_value_lowerable(program, value->left_value,
                                    owner_function, false, depth + 1u) &&
@@ -4666,6 +4683,7 @@ static bool program_function_maximum(
           program->types[function->return_type].kind == W_SEED_HIR0_TYPE_U64 ||
           program->types[function->return_type].kind ==
               W_SEED_HIR0_TYPE_INTEGER ||
+          program->types[function->return_type].kind == W_SEED_HIR0_TYPE_F32 ||
           program->types[function->return_type].kind == W_SEED_HIR0_TYPE_F64 ||
          program->types[function->return_type].kind == W_SEED_HIR0_TYPE_BOOL ||
          program_enum_type_supported(program, function->return_type, NULL,
@@ -4707,6 +4725,7 @@ static bool program_function_maximum(
         program->types[type_index].kind == W_SEED_HIR0_TYPE_I64 ||
         program->types[type_index].kind == W_SEED_HIR0_TYPE_U64 ||
         program->types[type_index].kind == W_SEED_HIR0_TYPE_INTEGER ||
+        program->types[type_index].kind == W_SEED_HIR0_TYPE_F32 ||
         program->types[type_index].kind == W_SEED_HIR0_TYPE_F64 ||
         program->types[type_index].kind == W_SEED_HIR0_TYPE_BOOL ||
         program_enum_type_supported(program, type_index, NULL, NULL);

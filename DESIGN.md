@@ -42252,7 +42252,7 @@ zero-extends unsigned results. MLIR0 emits direct `llvm.and`, `llvm.or`, and
 `llvm.xor` operations; no runtime helper, heap allocation, or CRT helper is
 needed.
 
-The family witness is
+**Example:** the family witness is
 [`restaurant-integer-bitwise.w`](compiler/seed-c/fixtures/restaurant-integer-bitwise.w);
 its source-local comments declare exit 0 and the exact per-type stdout, plus
 `i8 | i32 -> i32` and `u8 | i16 -> i16` exact-widening results. C23 and Rust
@@ -42283,6 +42283,7 @@ Windows adapter advances to schema 42. MLIR0 emits direct LLVM
 `shl`, `ashr`, and `lshr` operations with checked guards; the family needs no
 heap allocation, runtime helper, or CRT helper.
 
+**Example:**
 [`restaurant-shifts.w`](compiler/seed-c/fixtures/restaurant-shifts.w) owns the
 exact expected exit and stdout beside its source. The same source-backed path
 crosses frontend → verified HIR → Native0/MLIR0 → CRT-free native execution on
@@ -42320,6 +42321,7 @@ destination interpretation, and uses no heap allocation, runtime helper, or
 CRT helper. The same route covers all 100 type pairs; focused scalar tests also
 exercise low, in-range, and high values through the 8/16/32/64-bit boundaries.
 
+**Example:**
 [`restaurant-integer-saturating-conversion.w`](compiler/seed-c/fixtures/restaurant-integer-saturating-conversion.w)
 is the compact public witness. It exercises all four signedness quadrants and
 the current x86-64 `UInt`-to-`Int` alias boundary. The exact source crosses
@@ -42330,6 +42332,44 @@ ProductClosure0 remains intentionally narrower and rejects this value kind.
 C23 and Rust 2024 are correctness references only, with no performance
 ranking. `benchmarkDisposition: deferred` until equivalent runtime work
 permits a fair comparison.
+
+#### 26.4.1.125 W-1645 — strict binary32/binary64 scalar family
+
+W-1645 changes implementation coverage of the existing W-393 floating-point
+contract; it adds no syntax. The bounded family contains `f32` and `f64`
+decimal literals, strict `+`, `-`, `*`, `/`, unary `-`, and all six IEEE
+comparisons. Each operator requires one exact floating identity at the verified
+HIR boundary. Mixed f32/f64 and integer/float operator trees remain outside
+this package until conversion nodes lower end to end.
+
+Frontend67 materializes a literal exactly once under the C numeric locale and
+round-to-nearest, ties-to-even, preserving the caller's locale and floating
+environment. Binary32 bits occupy the low 32 bits of the existing carrier and
+must have zero high bits; binary64 uses all 64 bits. Finite subnormals and IEEE
+underflow to signed zero are valid. Non-finite source values, overflow, and
+hexadecimal-float source syntax fail closed.
+
+HIR88 appends a distinct f32 type identity without renumbering prior kinds and
+reuses the generic float value/operator records. NativeSubset0 validates exact
+operand/result identities. MLIR59 and its Windows44 adapter emit width-correct
+`f32`/`f64` constants plus direct `llvm.fadd`, `llvm.fsub`, `llvm.fmul`,
+`llvm.fdiv`, `llvm.fneg`, and `llvm.fcmp`. Equality and order use the strict
+predicates from W-393; `!=` uses unordered-or-not-equal `une`. No fast-math
+flag, heap allocation, runtime helper, or CRT helper is introduced.
+
+**Example:**
+[`restaurant-float-strict.w`](compiler/seed-c/fixtures/restaurant-float-strict.w)
+is the compact public witness for both widths, signed zero, and NaN comparison
+behavior. It
+owns exact exit 0 and stdout `Float strict ok\n` through the maintained Windows
+and Linux/WSL source-to-native routes. C23 and Rust 2024 remain independent
+correctness references. The W expression tree is currently compile-time
+folded while those references retain runtime operands, so the executable is
+`not-performance-ready` and has no ranking.
+
+Floating conversions, remainder, power, total-order helpers, SIMD/tensor
+lowering, stable ABI/FFI, other targets, and equivalent runtime work remain
+gaps under their existing decisions.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

@@ -1002,6 +1002,16 @@ static bool append_u64_hex_bits(uint8_t *buffer, size_t capacity,
   return append_bytes(buffer, capacity, offset, digits, sizeof(digits));
 }
 
+static bool append_u32_hex_bits(uint8_t *buffer, size_t capacity,
+                                size_t *offset, uint32_t value) {
+  uint8_t digits[10] = {'0', 'x'};
+  for (size_t index = 0u; index < 8u; index += 1u) {
+    const unsigned shift = (unsigned)((7u - index) * 4u);
+    digits[index + 2u] = (uint8_t)MLIR0_HEX[(value >> shift) & 0x0fu];
+  }
+  return append_bytes(buffer, capacity, offset, digits, sizeof(digits));
+}
+
 /* cf.switch parses case literals as signed APInt values in MLIR 23.1.1.
  * Render the canonical unsigned HIR tag as its sign-equivalent spelling when
  * the carrier's sign bit is set; the iN bit pattern remains unchanged. */
@@ -3691,6 +3701,24 @@ static const char *float_binary_operation(
   return NULL;
 }
 
+static const char *mlir0_float_type_name(
+    const w_seed_hir0_program *program, uint32_t type_index) {
+  if (program == NULL || type_index >= program->type_count) return NULL;
+  if (program->types[type_index].kind == W_SEED_HIR0_TYPE_F32) return "f32";
+  if (program->types[type_index].kind == W_SEED_HIR0_TYPE_F64) return "f64";
+  return NULL;
+}
+
+static bool mlir0_float_bits_valid(const w_seed_hir0_program *program,
+                                    uint32_t type_index, uint64_t bits) {
+  const char *type_name = mlir0_float_type_name(program, type_index);
+  if (type_name == NULL) return false;
+  if (program->types[type_index].kind == W_SEED_HIR0_TYPE_F32)
+    return (bits >> 32u) == 0u && ((bits >> 23u) & UINT64_C(0xff)) !=
+                                      UINT64_C(0xff);
+  return ((bits >> 52u) & UINT64_C(0x7ff)) != UINT64_C(0x7ff);
+}
+
 static bool append_binary_float_operation_in_loop(
     const w_seed_hir0_program *program, uint32_t value_index,
     uint32_t function_index, const mlir0_process_emit_context *process,
@@ -3701,8 +3729,26 @@ static bool append_binary_float_operation_in_loop(
     return false;
   const w_seed_hir0_value *value = &program->values[value_index];
   const char *operation = float_binary_operation(value->binary_operator);
-  return value->kind == W_SEED_HIR0_VALUE_BINARY_FLOAT &&
-         operation != NULL &&
+  if (value->kind != W_SEED_HIR0_VALUE_BINARY_FLOAT || operation == NULL ||
+      value->left_value >= program->value_count ||
+      value->right_value >= program->value_count)
+    return false;
+  const uint32_t left_type_index =
+      program->values[value->left_value].type_index;
+  const uint32_t right_type_index =
+      program->values[value->right_value].type_index;
+  const char *float_type = mlir0_float_type_name(program, left_type_index);
+  const bool comparison =
+      value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
+      value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL;
+  if (float_type == NULL || left_type_index != right_type_index ||
+      (comparison
+           ? value->type_index >= program->type_count ||
+                 program->types[value->type_index].kind !=
+                     W_SEED_HIR0_TYPE_BOOL
+           : value->type_index != left_type_index))
+    return false;
+  return
          append_literal(artifact, capacity, offset, "    %v") &&
          append_size(artifact, capacity, offset, value_index) &&
          append_literal(artifact, capacity, offset, " = ") &&
@@ -3715,7 +3761,9 @@ static bool append_binary_float_operation_in_loop(
          append_program_value_operand_in_loop(
              program, value->right_value, function_index, process, loop,
              artifact, capacity, offset) &&
-         append_literal(artifact, capacity, offset, " : f64\n");
+         append_literal(artifact, capacity, offset, " : ") &&
+         append_literal(artifact, capacity, offset, float_type) &&
+         append_literal(artifact, capacity, offset, "\n");
 }
 
 static bool append_unary_float_operation_in_loop(
@@ -3727,15 +3775,23 @@ static bool append_unary_float_operation_in_loop(
       value_index >= program->value_count)
     return false;
   const w_seed_hir0_value *value = &program->values[value_index];
-  return value->kind == W_SEED_HIR0_VALUE_UNARY_FLOAT &&
-         value->unary_operator == W_SEED_HIR0_UNARY_NEGATE &&
+  if (value->kind != W_SEED_HIR0_VALUE_UNARY_FLOAT ||
+      value->unary_operator != W_SEED_HIR0_UNARY_NEGATE ||
+      value->left_value >= program->value_count ||
+      value->type_index >= program->type_count ||
+      program->values[value->left_value].type_index != value->type_index)
+    return false;
+  const char *float_type = mlir0_float_type_name(program, value->type_index);
+  return float_type != NULL &&
          append_literal(artifact, capacity, offset, "    %v") &&
          append_size(artifact, capacity, offset, value_index) &&
          append_literal(artifact, capacity, offset, " = llvm.fneg ") &&
          append_program_value_operand_in_loop(
              program, value->left_value, function_index, process, loop,
              artifact, capacity, offset) &&
-         append_literal(artifact, capacity, offset, " : f64\n");
+         append_literal(artifact, capacity, offset, " : ") &&
+         append_literal(artifact, capacity, offset, float_type) &&
+         append_literal(artifact, capacity, offset, "\n");
 }
 
 static bool append_usize_count_comparison_operation_in_loop(
@@ -5338,7 +5394,10 @@ static bool append_program_value_operand_in_loop(
             (value->kind == W_SEED_HIR0_VALUE_UNARY_I64 &&
              mlir0_integer_type_is_signed(program, value->type_index)) ||
             (value->kind == W_SEED_HIR0_VALUE_UNARY_FLOAT &&
-             program->types[value->type_index].kind == W_SEED_HIR0_TYPE_F64) ||
+             (program->types[value->type_index].kind ==
+                  W_SEED_HIR0_TYPE_F32 ||
+              program->types[value->type_index].kind ==
+                  W_SEED_HIR0_TYPE_F64)) ||
             (value->kind == W_SEED_HIR0_VALUE_UNARY_U64 &&
              (mlir0_integer_type_is_unsigned(program, value->type_index) ||
               (value->unary_operator ==
@@ -6090,14 +6149,24 @@ static bool append_program_value_tree(
     return true;
   }
   if (value->kind == W_SEED_HIR0_VALUE_CONST_FLOAT) {
-    if (value->type_index >= program->type_count ||
-        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_F64 ||
+    const char *float_type =
+        mlir0_float_type_name(program, value->type_index);
+    if (float_type == NULL ||
+        !mlir0_float_bits_valid(program, value->type_index, value->float_bits) ||
         !append_literal(artifact, capacity, offset, "    %v") ||
         !append_size(artifact, capacity, offset, value_index) ||
         !append_literal(artifact, capacity, offset,
                         " = llvm.mlir.constant(") ||
-        !append_u64_hex_bits(artifact, capacity, offset, value->float_bits) ||
-        !append_literal(artifact, capacity, offset, " : f64) : f64\n"))
+        !(program->types[value->type_index].kind == W_SEED_HIR0_TYPE_F32
+              ? append_u32_hex_bits(artifact, capacity, offset,
+                                    (uint32_t)value->float_bits)
+              : append_u64_hex_bits(artifact, capacity, offset,
+                                    value->float_bits)) ||
+        !append_literal(artifact, capacity, offset, " : ") ||
+        !append_literal(artifact, capacity, offset, float_type) ||
+        !append_literal(artifact, capacity, offset, ") : ") ||
+        !append_literal(artifact, capacity, offset, float_type) ||
+        !append_literal(artifact, capacity, offset, "\n"))
       return false;
     emitted[value_index] = true;
     return true;
@@ -6890,6 +6959,7 @@ static const char *program_type_name(const w_seed_hir0_program *program,
                ? "i64"
                : NULL;
   }
+  if (program->types[type_index].kind == W_SEED_HIR0_TYPE_F32) return "f32";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_F64) return "f64";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_USIZE) return "i64";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_BOOL) return "i1";

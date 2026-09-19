@@ -1467,6 +1467,24 @@ static size_t find_bytes(const uint8_t *bytes, size_t length,
   return SIZE_MAX;
 }
 
+static size_t count_mlir_lines_with_fragment_and_type(
+    const uint8_t *bytes, size_t length, const char *fragment,
+    const char *type_suffix) {
+  if (bytes == NULL || fragment == NULL || type_suffix == NULL) return 0u;
+  size_t count = 0u;
+  size_t cursor = 0u;
+  while (cursor < length) {
+    size_t line_end = find_bytes(bytes, length, "\n", cursor);
+    if (line_end == SIZE_MAX) line_end = length;
+    const size_t line_length = line_end - cursor;
+    if (contains_bytes(bytes + cursor, line_length, fragment) &&
+        contains_bytes(bytes + cursor, line_length, type_suffix))
+      count += 1u;
+    cursor = line_end == length ? length : line_end + 1u;
+  }
+  return count;
+}
+
 static bool append_text(char *buffer, size_t capacity, size_t *offset,
                         const char *text) {
   if (buffer == NULL || offset == NULL || text == NULL || *offset > capacity)
@@ -1565,6 +1583,143 @@ static bool test_direct_products(void) {
   CHECK(!contains_bytes(output, counts.mlir_bytes, "@w_seed_checked_"));
   CHECK(contains_bytes(output, counts.mlir_bytes, "!llvm.array<1 x i8>"));
   CHECK(output[counts.mlir_bytes] == 0x5au);
+  return true;
+}
+
+static bool test_strict_float_mlir(void) {
+  static const uint8_t SOURCE[] =
+      "fn main() {\n"
+      "  if 1.5_f32 == 1.5_f32 && 1.5_f32 != 2.0_f32 && "
+      "1.5_f32 < 2.0_f32 && 1.5_f32 <= 1.5_f32 && "
+      "2.0_f32 > 1.5_f32 && 2.0_f32 >= 2.0_f32 && "
+      "(-1.5_f32) < 0.0_f32 && (1.5_f32 + 2.25_f32) > 0.0_f32 && "
+      "(9.5_f32 - 5.5_f32) > 0.0_f32 && "
+      "(1.5_f32 * 2.0_f32) > 0.0_f32 && "
+      "(7.5_f32 / 2.5_f32) > 0.0_f32 && "
+      "(0.0_f32 / 0.0_f32) != (0.0_f32 / 0.0_f32) && "
+      "1.5_f64 == 1.5_f64 && 1.5_f64 != 2.0_f64 && "
+      "1.5_f64 < 2.0_f64 && 1.5_f64 <= 1.5_f64 && "
+      "2.0_f64 > 1.5_f64 && 2.0_f64 >= 2.0_f64 && "
+      "(-1.5_f64) < 0.0_f64 && (1.5_f64 + 2.25_f64) > 0.0_f64 && "
+      "(9.5_f64 - 5.5_f64) > 0.0_f64 && "
+      "(1.5_f64 * 2.0_f64) > 0.0_f64 && "
+      "(7.5_f64 / 2.5_f64) > 0.0_f64 && "
+      "(0.0_f64 / 0.0_f64) != (0.0_f64 / 0.0_f64) { "
+      "print(\"strict floats\") } else { print(\"strict floats\") }\n"
+      "}\nentry(main)\n";
+  CHECK(lower_hir(SOURCE, sizeof(SOURCE) - 1u));
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  CHECK(measure_current(&counts, &measured));
+  static uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_result result;
+  CHECK(emit_current(artifact, sizeof(artifact), &result));
+  CHECK(result.written.mlir_bytes == counts.mlir_bytes &&
+        memcmp(result.mlir_sha256, measured.mlir_sha256,
+               sizeof(result.mlir_sha256)) == 0);
+  CHECK(contains_bytes(artifact, counts.mlir_bytes,
+                       "llvm.mlir.constant(0x3fc00000 : f32) : f32"));
+  CHECK(contains_bytes(artifact, counts.mlir_bytes,
+                       "llvm.mlir.constant(0x3ff8000000000000 : f64) : f64"));
+  CHECK(count_mlir_lines_with_fragment_and_type(
+            artifact, counts.mlir_bytes, " = llvm.fadd ", ": f32") == 1u);
+  CHECK(count_mlir_lines_with_fragment_and_type(
+            artifact, counts.mlir_bytes, " = llvm.fadd ", ": f64") == 1u);
+  CHECK(count_mlir_lines_with_fragment_and_type(
+            artifact, counts.mlir_bytes, " = llvm.fsub ", ": f32") == 1u);
+  CHECK(count_mlir_lines_with_fragment_and_type(
+            artifact, counts.mlir_bytes, " = llvm.fsub ", ": f64") == 1u);
+  CHECK(count_mlir_lines_with_fragment_and_type(
+            artifact, counts.mlir_bytes, " = llvm.fmul ", ": f32") == 1u);
+  CHECK(count_mlir_lines_with_fragment_and_type(
+            artifact, counts.mlir_bytes, " = llvm.fmul ", ": f64") == 1u);
+  CHECK(count_mlir_lines_with_fragment_and_type(
+            artifact, counts.mlir_bytes, " = llvm.fdiv ", ": f32") == 3u);
+  CHECK(count_mlir_lines_with_fragment_and_type(
+            artifact, counts.mlir_bytes, " = llvm.fdiv ", ": f64") == 3u);
+  CHECK(count_mlir_lines_with_fragment_and_type(
+            artifact, counts.mlir_bytes, " = llvm.fneg ", ": f32") == 1u);
+  CHECK(count_mlir_lines_with_fragment_and_type(
+            artifact, counts.mlir_bytes, " = llvm.fneg ", ": f64") == 1u);
+  CHECK(count_mlir_lines_with_fragment_and_type(
+            artifact, counts.mlir_bytes, " = llvm.fcmp ", ": f32") == 12u);
+  CHECK(count_mlir_lines_with_fragment_and_type(
+            artifact, counts.mlir_bytes, " = llvm.fcmp ", ": f64") == 12u);
+  CHECK(count_bytes(artifact, counts.mlir_bytes, "llvm.fcmp \"oeq\"") ==
+        2u);
+  CHECK(count_bytes(artifact, counts.mlir_bytes, "llvm.fcmp \"une\"") ==
+        4u);
+  CHECK(count_bytes(artifact, counts.mlir_bytes, "llvm.fcmp \"olt\"") ==
+        4u);
+  CHECK(count_bytes(artifact, counts.mlir_bytes, "llvm.fcmp \"ole\"") ==
+        2u);
+  CHECK(count_bytes(artifact, counts.mlir_bytes, "llvm.fcmp \"ogt\"") ==
+        10u);
+  CHECK(count_bytes(artifact, counts.mlir_bytes, "llvm.fcmp \"oge\"") ==
+        2u);
+  CHECK(contains_bytes(artifact, counts.mlir_bytes, "llvm.cond_br "));
+  CHECK(!contains_bytes(artifact, counts.mlir_bytes, "fastmath"));
+
+  size_t comparison_count = 0u;
+  for (size_t index = 0u; index < fixture.hir_program.value_count;
+       index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_values[index];
+    if (value->kind != W_SEED_HIR0_VALUE_BINARY_FLOAT ||
+        value->binary_operator < W_SEED_HIR0_BINARY_EQUAL ||
+        value->binary_operator > W_SEED_HIR0_BINARY_GREATER_EQUAL)
+      continue;
+    CHECK(value->type_index < fixture.hir_program.type_count &&
+          fixture.hir_program.types[value->type_index].kind ==
+              W_SEED_HIR0_TYPE_BOOL);
+    comparison_count += 1u;
+  }
+  CHECK(comparison_count == 24u);
+
+  static const uint8_t ADVERSARIAL_SOURCE[] =
+      "fn main() { if (1.0_f32 + 2.0_f32) > 0.0_f32 && "
+      "(1.0_f64 + 2.0_f64) > 0.0_f64 { print(\"x\") } "
+      "else { print(\"x\") } }\nentry(main)\n";
+  CHECK(lower_hir(ADVERSARIAL_SOURCE, sizeof(ADVERSARIAL_SOURCE) - 1u));
+  uint32_t f32_add = W_SEED_HIR0_NONE;
+  uint32_t f64_constant = W_SEED_HIR0_NONE;
+  for (size_t index = 0u; index < fixture.hir_program.value_count;
+       index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_values[index];
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_FLOAT &&
+        value->binary_operator == W_SEED_HIR0_BINARY_ADD &&
+        fixture.hir_program.types[value->type_index].kind ==
+            W_SEED_HIR0_TYPE_F32)
+      f32_add = (uint32_t)index;
+    if (value->kind == W_SEED_HIR0_VALUE_CONST_FLOAT &&
+        fixture.hir_program.types[value->type_index].kind ==
+            W_SEED_HIR0_TYPE_F64)
+      f64_constant = (uint32_t)index;
+  }
+  CHECK(f32_add != W_SEED_HIR0_NONE &&
+        f64_constant != W_SEED_HIR0_NONE);
+  const w_seed_hir0_value original = fixture.hir_values[f32_add];
+  fixture.hir_values[f32_add].right_value = f64_constant;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  w_seed_mlir0_input input = mlir_input();
+  CHECK(w_seed_mlir0_measure(&input, &TARGET, &counts, &measured) ==
+        W_SEED_MLIR0_INVALID_HIR);
+  CHECK(w_seed_native_subset0_select_program(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_INVALID);
+  fixture.hir_values[f32_add] = original;
+
+  fixture.hir_values[f32_add].binary_operator =
+      W_SEED_HIR0_BINARY_POWER;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  CHECK(w_seed_mlir0_measure(&input, &TARGET, &counts, &measured) ==
+        W_SEED_MLIR0_INVALID_HIR);
+  CHECK(w_seed_native_subset0_select_program(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_INVALID);
   return true;
 }
 
@@ -6224,6 +6379,7 @@ int main(int argc, char **argv) {
   if (!test_natural_loop_post_loop_continuation_mlir()) return 1;
   if (!test_post_test_repeat_structured_mlir()) return 1;
   if (!test_direct_products()) return 1;
+  if (!test_strict_float_mlir()) return 1;
   if (!test_windows_target_runtime_surface()) return 1;
   if (!test_restaurant_and_nul()) return 1;
   if (!test_typed_interpolation_artifact()) return 1;

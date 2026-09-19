@@ -66,8 +66,8 @@ const restaurantPowerPrefixFixture = resolve(seedDirectory,
   "fixtures", "restaurant-power-prefix.w")
 const restaurantCompoundFixture = resolve(seedDirectory,
   "fixtures", "restaurant-compound.w")
-const restaurantF64StrictFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-f64-strict.w")
+const restaurantFloatStrictFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-float-strict.w")
 const restaurantCheckedIntegerArithmeticFixture = resolve(seedDirectory,
   "fixtures", "restaurant-checked-integer-arithmetic.w")
 const restaurantIntegerWrappingFixture = resolve(seedDirectory,
@@ -1126,9 +1126,9 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantCompoundFixture)],
     Buffer.from("Compound 11\n", "utf8"),
     "Restaurant checked compound assignment")
-  expectSuccess(binary, ["run", toWsl(restaurantF64StrictFixture)],
+  expectSuccess(binary, ["run", toWsl(restaurantFloatStrictFixture)],
     Buffer.from("Float strict ok\n", "utf8"),
-    "Restaurant strict f64 arithmetic and IEEE comparisons")
+    "Restaurant strict f32/f64 arithmetic and IEEE comparisons")
   expectSuccess(binary, ["run", toWsl(restaurantCheckedIntegerArithmeticFixture)],
     Buffer.from(
       "i8 -9/-15/-36; divrem -4/0; compound -2\n" +

@@ -220,6 +220,11 @@ target_link_libraries(w_seed_ephemeral_provider_windows_tests PRIVATE w_seed_sou
 
 if(WIN32)
   target_link_libraries(w_seed_source PUBLIC ntdll kernel32)
+elseif(UNIX)
+  # Linux exposes the C floating-environment functions through libm. Keep the
+  # dependency on the bootstrap compiler only; generated W artifacts remain
+  # CRT/libc-free and do not inherit this host-side frontend dependency.
+  target_link_libraries(w_seed_source PUBLIC m)
 endif()
 
 add_executable(w_seed_ephemeral_driver_tests

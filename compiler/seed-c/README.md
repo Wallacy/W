@@ -2939,29 +2939,35 @@ C23 and Rust 2024 are correctness references only, with no ranking.
 measurement. Other conversion policies, target-general aliases, stable
 ABI/FFI, other targets, and performance remain gaps.
 
-### Strict `f64` scalar slice
+### Strict `f32`/`f64` scalar slice (W-1645)
 
 The seed frontend, verified HIR0, NativeSubset0 selector, and MLIR0 preserve a
-bounded strict `f64` path. Decimal literals retain exact IEEE 754 binary64
-bits. The frontend accepts the `_f64` suffix, including integer-looking
-decimal spellings, preserves finite subnormals and IEEE underflow to signed
-zero, and rejects overflow, non-finite values, and hexadecimal-float syntax.
-HIR semantic digests include the exact bits. Mixed integer/`f64` expressions
-remain fail-closed until their conversion lowering is implemented.
+bounded strict `f32`/`f64` path. Frontend67 materializes decimal literals once
+as exact IEEE 754 binary32 or binary64 bits under a private C numeric locale
+and round-to-nearest, ties-to-even environment, then restores the caller's
+environment. It accepts `_f32` and `_f64`, including integer-looking decimal
+spellings, preserves finite subnormals and IEEE underflow to signed zero, and
+rejects overflow, non-finite source values, and hexadecimal-float syntax.
+HIR88 carries distinct append-only f32/f64 identities and includes the exact
+bits in semantic digests. Mixed-width and integer/float operator trees remain
+fail-closed until their explicit conversion nodes lower end to end.
 
 MLIR0 emits direct `llvm.fadd`, `llvm.fsub`, `llvm.fmul`, `llvm.fdiv`, and
 `llvm.fneg` operations. Comparisons use ordered predicates except `!=`, which
 uses `une`. No fast-math flag is present. Runtime arithmetic may produce
 infinity or NaN even though a source literal cannot spell either value.
 
-[`fixtures/restaurant-f64-strict.w`](fixtures/restaurant-f64-strict.w)
-exercises all implemented arithmetic and comparison operators, signed zero,
-and runtime NaN behavior. It prints exactly `Float strict ok\n`. Focused HIR
-tests cover exact bits, digest identity, invalid operators, and forged
-non-finite constants. The MLIR gate checks every opcode and predicate before
-native execution.
+[`fixtures/restaurant-float-strict.w`](fixtures/restaurant-float-strict.w)
+exercises both widths across all implemented arithmetic and comparison
+operators, signed zero, and runtime NaN behavior. It prints exactly
+`Float strict ok\n`. Focused frontend/HIR tests cover exact bits, binary32
+midpoint rounding, locale and floating-environment isolation, digest identity,
+invalid operators, and forged non-finite constants. NativeSubset0 and MLIR0
+validate matching operand widths independently; the MLIR gate checks both
+type spellings, representative bit patterns, every opcode and every predicate
+before native execution.
 
-This slice does not implement casts, other widths, floating remainder, power,
+This slice does not implement conversion lowering, other widths, floating remainder, power,
 interpolation, formatting, fast-math profiles, SIMD, or matrix operations.
 Its executable is registered in the live catalog, but it is intentionally
 `not-performance-ready`: the release artifact folds the complete expression

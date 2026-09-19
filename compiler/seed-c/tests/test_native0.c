@@ -223,7 +223,7 @@ static bool make_nested_tree_source(char *buffer, size_t capacity,
 
 static bool test_products(void) {
   CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-10") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-58") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-59") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -321,6 +321,37 @@ static bool test_products(void) {
                        "\\4b\\69\\74\\63\\68\\65\\6e\\20\\63\\6c\\6f\\73\\65\\64\\0a") &&
         count_bytes(cfg_bytes, cfg_result.mlir.written.mlir_bytes,
                     "\\41\\66\\74\\65\\72\\20\\73\\65\\72\\76\\69\\63\\65\\0a") == 1u);
+  return true;
+}
+
+static bool test_strict_float_native_admission(void) {
+  static const uint8_t SOURCE[] =
+      "fn f32Value(): f32 { return -1.5_f32 }\n"
+      "fn f64Value(): f64 { return -1.5_f64 }\n"
+      "fn main() { if (-1.5_f32) < 0.0_f32 && (-1.5_f64) < 0.0_f64 && "
+      "(1.5_f32 + 2.25_f32) > 0.0_f32 && "
+      "(1.5_f64 + 2.25_f64) > 0.0_f64 { print(\"float\") } "
+      "else { print(\"float\") } }\n"
+      "entry(main)\n";
+  static uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source(SOURCE, sizeof(SOURCE) - 1u, "strict-float-native",
+                   sizeof("strict-float-native") - 1u, artifact,
+                   sizeof(artifact), &result) == W_SEED_NATIVE0_OK);
+  CHECK(w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(contains_bytes(artifact, result.mlir.written.mlir_bytes,
+                       "llvm.mlir.constant(0x3fc00000 : f32) : f32"));
+  CHECK(contains_bytes(artifact, result.mlir.written.mlir_bytes,
+                       "llvm.mlir.constant(0x3ff8000000000000 : f64) : f64"));
+  CHECK(contains_bytes(artifact, result.mlir.written.mlir_bytes,
+                       "llvm.fadd "));
+  CHECK(contains_bytes(artifact, result.mlir.written.mlir_bytes,
+                       "llvm.fneg "));
+  CHECK(!contains_bytes(artifact, result.mlir.written.mlir_bytes, "fastmath"));
   return true;
 }
 
@@ -5822,7 +5853,8 @@ int main(void) {
       test_virtual_structured_task_product() &&
       test_virtual_static_yield_helper_product() &&
       test_async_direct_entry_product() && test_signed_comparison_products() &&
-      test_products() && test_unsigned_binary_u64_slice() &&
+      test_products() && test_strict_float_native_admission() &&
+      test_unsigned_binary_u64_slice() &&
       test_u64_wrapping_add_slice() && test_u64_saturating_add_slice() &&
       test_u64_saturating_subtract_slice() &&
       test_u64_saturating_multiply_slice() &&

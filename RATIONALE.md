@@ -229,6 +229,7 @@ O corpus compara, no mínimo:
 - fixed-width integer prefix operators against per-width compiler branches, binary desugaring, host integer promotion, unchecked target subtraction, and an always-linked numeric runtime.
 - fixed-width `truncatingBits:` conversion against per-pair lowering branches, host casts/promotions, and source-signedness leakage.
 - fixed-width integer saturation against host promotions, post-conversion clamps, per-pair lowering branches, and unequal benchmark work.
+- strict f32/f64 identity against host reparsing, implicit widening, per-width compiler paths, default fast-math, and unequal benchmark work.
 - ordinary binary integer bitwise operators against per-width lowering branches, host promotion rules, source-signedness leakage, and fragmented executable witnesses.
 - checked ordinary integer shifts against per-width lowering branches, implicit promotions, masked counts, host shift rules, and unchecked left-shift loss.
 - direct prefix-negative interpolation against late root-only retyping, a synthetic binding workaround, and textual constant folding.
@@ -8000,6 +8001,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1642 | ordinary binary integer bitwise family through native execution | The existing bitwise AND, OR, and XOR operators cover `i8`/`u8`, `i16`/`u16`, `i32`/`u32`, `i64`/`u64`, and current x86-64 `Int`/`UInt` aliases. Existing exact integer widening may select a common type, including range-safe `u8 -> i16`; both verified-HIR operands and the result then have that exact canonical type. Lossy or ambiguous mixing remains invalid. Verified HIR is schema 85; Native0 remains schema 10, MLIR0 is `w-seed-mlir0-56`, and its Windows adapter is `w-seed-mlir0-windows-41`. A physical `i64` carrier holds a logical-width-masked `uint64` bit domain; results are sign- or zero-extended according to signedness, and MLIR emits direct `llvm.and`, `llvm.or`, and `llvm.xor` without runtime, heap, or CRT helpers. | `source-backed-current` only for this bounded ordinary binary family and its source witness. [`restaurant-integer-bitwise.w`](compiler/seed-c/fixtures/restaurant-integer-bitwise.w) declares exit 0 and exact output for all ten supported type spellings plus i8-to-i32 and u8-to-i16 exact widening. C23 and Rust 2024 are correctness references only; no performance ranking is claimed. W-1643 separately closes checked ordinary shifts for this bounded type family; W-392 remains open for power, named shift policies, rotations, remaining bit primitives, SIMD, and the complete integer operator matrix. `benchmarkDisposition: correctness-reference-no-ranking`. |
 | W-1643 | checked ordinary integer shifts through native execution | The existing `<<` and `>>` operators preserve identical canonical left/result integer types across signed/unsigned 8-, 16-, 32-, and 64-bit builtins plus current x86-64 `Int`/`UInt` aliases; the count is exactly `UInt` (`u64` on current x86-64). Counts at or above logical width fail checked evaluation, left shift rejects mathematical overflow, signed right shift is arithmetic, and unsigned right shift is logical. Verified HIR is schema 86; Native0 remains schema 10, MLIR0 is `w-seed-mlir0-57`, and its Windows adapter is `w-seed-mlir0-windows-42`. One generic route carries canonical signedness/logical-width facts into direct LLVM shifts, with no per-width operation enum, heap, runtime helper, or CRT helper. | `source-backed-current` only for the frontend → verified-HIR → Native0/MLIR0 route and exact CRT-free Windows plus Linux/WSL execution of [`restaurant-shifts.w`](compiler/seed-c/fixtures/restaurant-shifts.w), which owns expected exit/stdout. C23 and Rust 2024 are correctness references only; no performance ranking is claimed. W-392 remains open for named policies, power, rotations, remaining bit primitives, SIMD, `usize`/`isize`, 128-bit integers, non-x86-64 aliases, stable ABI/FFI, other targets, and equivalent-runtime performance. `benchmarkDisposition: deferred` until W retains equivalent runtime operands. |
 | W-1644 | fixed-width integer `saturating:` conversion | The existing integer-to-integer `D(saturating: source)` form is total and clamps the mathematical value to the destination minimum or maximum. The bounded domain is all 100 source/destination pairs among `i8`/`u8`, `i16`/`u16`, `i32`/`u32`, `i64`/`u64`, and current x86-64 `Int`/`UInt` aliases; `Bool`, floats, `usize`/`isize`, and `i128`/`u128` remain outside the package. Exactly the `saturating:` label is accepted; integer conversions reject `try` and `nan:`. Frontend66, HIR87, Native0 schema 10, MLIR58, and Windows43 carry one generic source/destination route with verified signedness and logical width. Lowering compares/selects before destination interpretation without heap, runtime, or CRT helpers. | `source-backed-current` only for the bounded 100-pair family, focused scalar boundaries, compact four-quadrant plus x86-64 alias witness, malformed-label failure before output, and exact CRT-free Windows plus Linux/WSL execution. ProductClosure0 deliberately remains narrower. C23 and Rust 2024 are correctness references only; other conversion families, target-general aliases, stable ABI/FFI, other targets, and equivalent-runtime performance remain gaps. `benchmarkDisposition: deferred`. |
+| W-1645 | strict binary32/binary64 scalar family | The existing W-393 strict-float contract now uses one width-generic seed route for `f32` and `f64` literals, `+`, `-`, `*`, `/`, unary `-`, and six IEEE comparisons. Frontend67 materializes exact bits under a private C locale and nearest-even environment; HIR88 appends f32 identity; NativeSubset0 and MLIR59/Windows44 validate and emit width-correct direct LLVM dialect operations with no fast-math, heap, runtime helper, or CRT helper. | `source-backed-current` only for exact literal boundaries, same-width verified operators, focused adversarial tests, the width-neutral Restaurant witness, and exact CRT-free Windows plus Linux/WSL execution. Mixed-width and integer/float operator conversion lowering, remainder, power, total-order helpers, stable ABI/FFI, other targets, and equivalent runtime work remain gaps. C23 and Rust 2024 are correctness references only; the W witness is compile-time folded, therefore `benchmarkDisposition: deferred` and not performance-ready. |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -14256,3 +14258,32 @@ remains deliberately narrower and rejects the new value kind.
 C23 and Rust 2024 remain correctness references only, with no performance
 ranking. `benchmarkDisposition: deferred` until equivalent runtime work
 supports fair measurement.
+
+#### W-1645 — strict binary32/binary64 scalar family
+
+W-1645 closes one family-sized implementation gap in W-393 rather than
+creating per-width operations. `f32` and `f64` share the literal, arithmetic,
+comparison, verifier, selector, and emitter paths; width remains an explicit
+type fact. A distinct append-only f32 HIR identity prevents an implementation
+from treating equal-size carriers or host conversions as semantic identity.
+
+Literal conversion is deliberately at the frontend boundary. The source
+decimal is read under a private C locale while the frontend temporarily uses
+round-to-nearest, ties-to-even, then restores the complete caller environment.
+The HIR stores only canonical bits, so later phases neither reparse source nor
+depend on host locale. Focused midpoint, subnormal, underflow, overflow,
+non-finite, forged-high-bit, and digest cases make that boundary observable.
+
+MLIR uses the same operation names for both widths and selects only the scalar
+type and constant bit spelling from verified HIR. Keeping `une` for `!=` and
+omitting fast-math preserves runtime NaN and signed-zero behavior. A separate
+operation enum, host float recomputation, or widening everything to f64 would
+make the IR simpler locally but would erase the source contract and block
+future vector/tensor lowering.
+
+The executable catalog keeps one `restaurant-float-strict` semantic-family
+row. Its W artifact currently folds constants, whereas the C23 and Rust 2024
+references force runtime operations; they are therefore correctness oracles,
+not a fair performance ranking. Conversion nodes, remainder, power, total
+order, stable ABI/FFI, other targets, and equivalent runtime operands remain
+separate work.

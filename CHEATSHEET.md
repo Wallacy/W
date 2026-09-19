@@ -644,6 +644,33 @@ signed and unsigned 8/16/32/64-bit integers and x86-64 `Int`/`UInt`; the
 compact public witness executes all four signedness quadrants on Windows and
 Linux/WSL. Other conversion families and target-general aliases remain gaps.
 
+<!-- w-example role=executable use=strictFloatSummary observable=value -->
+```w
+fn strictFloatSummary(
+  singleLeft: f32,
+  singleRight: f32,
+  doubleLeft: f64,
+  doubleRight: f64,
+): (f32, f64, Bool) {
+  let single = singleLeft + singleRight
+  let double = doubleLeft + doubleRight
+  let nan = 0.0_f32 / 0.0_f32
+  return (single, double, nan != nan)
+}
+
+test "strict floats preserve width and IEEE unordered comparisons" for strictFloatSummary {
+  let summary = strictFloatSummary(
+    doubleRight: 2.25_f64,
+    singleLeft: 1.5_f32,
+    doubleLeft: 1.5_f64,
+    singleRight: 2.25_f32,
+  )
+  expect summary.0 == 3.75_f32
+  expect summary.1 == 3.75_f64
+  expect summary.2
+}
+```
+
 ## Functions, labels, defaults, and rest
 
 <!-- w-example role=executable use=labelled,join,route,announce observable=value -->
