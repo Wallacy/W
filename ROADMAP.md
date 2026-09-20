@@ -65,8 +65,10 @@ physical scheduler experiments:
    literals and conversions; W-1641 closes only fixed-width integer
    `truncatingBits:`, W-1644 closes the integer-to-integer `saturating:`
    increment, and W-1645 closes the bounded strict binary32/binary64 identity,
-   literal, operator, and native execution family. Remaining conversion paths
-   continue to block this rank-1 prerequisite;
+   literal, operator, and native execution family. W-1646 closes the exact
+   total integer-to-float and f32-to-f64 widening subset across all expression
+   contexts. Remaining conversion policies continue to block this rank-1
+   prerequisite;
 2. prefix, arithmetic, comparison, bitwise, shift, overflow and compound
    operators, each with its specified checked or explicit wrapping policy;
 3. Boolean short-circuiting, scalar `if`, exhaustive scalar selection and
@@ -359,6 +361,18 @@ fast-math. The compact width-neutral Restaurant witness owns both widths and
 the C23/Rust 2024 correctness references. Floating conversions, remainder,
 power, total-order helpers, stable ABI/FFI, other targets, and equivalent
 runtime-work performance remain open.
+
+W-1646 implements the exact total widening relation already selected by
+W-388/W-389: `f32 -> f64`, 8/16-bit integers to `f32`, and 8/16/32-bit
+integers to `f64`. Frontend68 and HIR89 insert and preserve one explicit
+conversion value across bindings, returns, calls, mixed operators, and
+unlabeled `D(value)`. MLIR60 uses `fpext`, or narrows the physical `i64`
+carrier to the verified integer width before `sitofp`/`uitofp`, without
+fast-math, heap, runtime, or CRT helpers. The compact family witness executes
+on Windows and Linux/WSL; C23 and
+Rust 2024 remain correctness references only because the current W graph may
+fold while their inputs remain runtime values. Lossy/fallible numeric
+conversion policies remain open.
 
 The first rank-1 increments are now executable. Signed-`i64` `&`, `|`, `^`,
 and the original unary-`~` crosspoint cover exact W source, canonical

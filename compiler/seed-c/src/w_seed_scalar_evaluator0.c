@@ -206,7 +206,8 @@ typedef struct {
 static bool scalar_integer_type_facts(const w_seed_hir0_program *program,
                                       uint32_t type_index,
                                       scalar_integer_facts *facts) {
-  if (program == NULL || facts == NULL || type_index >= program->type_count)
+  if (program == NULL || program->types == NULL || facts == NULL ||
+      type_index >= program->type_count)
     return false;
   const w_seed_hir0_type *type = &program->types[type_index];
   if (type->kind == W_SEED_HIR0_TYPE_I64) {
@@ -224,6 +225,269 @@ static bool scalar_integer_type_facts(const w_seed_hir0_program *program,
   }
   facts->is_signed = type->integer_is_signed;
   facts->bit_width = type->integer_bit_width;
+  return true;
+}
+
+static int64_t scalar_signed_integer_bits(uint64_t bits,
+                                          uint16_t bit_width);
+
+static bool scalar_hir_text_equals(const w_seed_hir0_program *program,
+                                   w_seed_hir0_text text,
+                                   const char *expected) {
+  if (program == NULL || program->text_bytes == NULL || expected == NULL)
+    return false;
+  const size_t expected_count = strlen(expected);
+  const size_t offset = (size_t)text.offset;
+  if ((size_t)text.count != expected_count ||
+      offset > program->text_byte_count ||
+      expected_count > program->text_byte_count - offset)
+    return false;
+  return memcmp(program->text_bytes + offset, expected, expected_count) == 0;
+}
+
+static bool scalar_hir_text_slices_equal(const w_seed_hir0_program *program,
+                                         w_seed_hir0_text left,
+                                         w_seed_hir0_text right) {
+  if (program == NULL || program->text_bytes == NULL ||
+      left.count != right.count)
+    return false;
+  const size_t left_offset = (size_t)left.offset;
+  const size_t right_offset = (size_t)right.offset;
+  const size_t count = (size_t)left.count;
+  if (left_offset > program->text_byte_count ||
+      count > program->text_byte_count - left_offset ||
+      right_offset > program->text_byte_count ||
+      count > program->text_byte_count - right_offset)
+    return false;
+  return memcmp(program->text_bytes + left_offset,
+                program->text_bytes + right_offset, count) == 0;
+}
+
+/* Numeric-widen evaluation treats the HIR's closed fixed-width identities as
+ * facts, not merely as carrier sizes. Recheck the canonical type metadata so
+ * a forged width, owner, or nominal type cannot authorize a conversion. */
+static bool scalar_numeric_integer_type_facts(
+    const w_seed_hir0_program *program, uint32_t type_index,
+    scalar_integer_facts *facts) {
+  if (!scalar_integer_type_facts(program, type_index, facts)) return false;
+  const w_seed_hir0_type *type = &program->types[type_index];
+  if (type->kind != W_SEED_HIR0_TYPE_INTEGER ||
+      (facts->bit_width != 8u && facts->bit_width != 16u &&
+       facts->bit_width != 32u) ||
+      type->owner_module != W_SEED_HIR0_NONE ||
+      type->external_module_index != W_SEED_HIR0_NONE ||
+      type->external_symbol_index != W_SEED_HIR0_NONE ||
+      type->enum_index != W_SEED_HIR0_NONE ||
+      type->first_subset_member != W_SEED_HIR0_NONE ||
+      type->subset_member_count != 0u ||
+      type->lifecycle != W_SEED_HIR0_LIFECYCLE_UNKNOWN ||
+      type->release_contract != W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN)
+    return false;
+
+  const char *expected_name = NULL;
+  if (facts->is_signed) {
+    switch (facts->bit_width) {
+      case 8u:
+        expected_name = "i8";
+        break;
+      case 16u:
+        expected_name = "i16";
+        break;
+      case 32u:
+        expected_name = "i32";
+        break;
+      default:
+        return false;
+    }
+  } else {
+    switch (facts->bit_width) {
+      case 8u:
+        expected_name = "u8";
+        break;
+      case 16u:
+        expected_name = "u16";
+        break;
+      case 32u:
+        expected_name = "u32";
+        break;
+      default:
+        return false;
+    }
+  }
+  return scalar_hir_text_equals(program, type->name, expected_name);
+}
+
+static bool scalar_float_type_facts(const w_seed_hir0_program *program,
+                                    uint32_t type_index,
+                                    w_seed_hir0_type_kind *kind) {
+  if (program == NULL || program->types == NULL ||
+      type_index >= program->type_count)
+    return false;
+  const w_seed_hir0_type *type = &program->types[type_index];
+  const char *expected_name = NULL;
+  if (type->kind == W_SEED_HIR0_TYPE_F32) {
+    expected_name = "f32";
+  } else if (type->kind == W_SEED_HIR0_TYPE_F64) {
+    expected_name = "f64";
+  } else {
+    return false;
+  }
+  if (type->owner_module != W_SEED_HIR0_NONE || type->integer_is_signed ||
+      type->integer_bit_width != 0u ||
+      type->external_module_index != W_SEED_HIR0_NONE ||
+      type->external_symbol_index != W_SEED_HIR0_NONE ||
+      type->enum_index != W_SEED_HIR0_NONE ||
+      type->first_subset_member != W_SEED_HIR0_NONE ||
+      type->subset_member_count != 0u ||
+      type->lifecycle != W_SEED_HIR0_LIFECYCLE_VALUE_COPY ||
+      type->release_contract != W_SEED_HIR0_RELEASE_CONTRACT_NONE ||
+      !scalar_hir_text_equals(program, type->name, expected_name))
+    return false;
+  if (kind != NULL) *kind = type->kind;
+  return true;
+}
+
+/* Fields not used by a leaf constant or a numeric-widen wrapper must stay at
+ * their canonical empty values. This is deliberately local to the new
+ * evaluator path; it does not turn the scalar evaluator into a HIR verifier. */
+static bool scalar_value_has_empty_auxiliary_fields(
+    const w_seed_hir0_value *value) {
+  return value != NULL && value->binding_index == W_SEED_HIR0_NONE &&
+         value->parameter_index == W_SEED_HIR0_NONE &&
+         value->call_index == W_SEED_HIR0_NONE &&
+         value->first_interpolation_segment == W_SEED_HIR0_NONE &&
+         value->interpolation_segment_count == 0u &&
+         value->first_enum_payload == 0u &&
+         value->enum_payload_count == 0u &&
+         value->pattern_capture_index == W_SEED_HIR0_NONE &&
+         value->block_argument_index == W_SEED_HIR0_NONE &&
+         value->integer_value == 0 && value->unsigned_integer_value == 0u &&
+         !value->bool_value && value->byte_offset == 0u &&
+         value->byte_count == 0u &&
+         value->external_module_index == W_SEED_HIR0_NONE &&
+         value->external_symbol_index == W_SEED_HIR0_NONE &&
+         value->member_name.offset == 0u && value->member_name.count == 0u &&
+         value->enum_index == W_SEED_HIR0_NONE &&
+         value->enum_case_index == W_SEED_HIR0_NONE;
+}
+
+static bool scalar_float_constant_shape_valid(
+    const w_seed_hir0_value *value) {
+  return value != NULL && value->kind == W_SEED_HIR0_VALUE_CONST_FLOAT &&
+         value->left_value == W_SEED_HIR0_NONE &&
+         value->right_value == W_SEED_HIR0_NONE &&
+         value->source_type == W_SEED_HIR0_NONE &&
+         value->binary_operator == W_SEED_HIR0_BINARY_ADD &&
+         value->unary_operator == W_SEED_HIR0_UNARY_NOT &&
+         scalar_value_has_empty_auxiliary_fields(value);
+}
+
+static bool scalar_float_unary_shape_valid(
+    const w_seed_hir0_value *value) {
+  return value != NULL && value->kind == W_SEED_HIR0_VALUE_UNARY_FLOAT &&
+         value->left_value != W_SEED_HIR0_NONE &&
+         value->right_value == W_SEED_HIR0_NONE &&
+         value->source_type == W_SEED_HIR0_NONE && value->float_bits == 0u &&
+         value->binary_operator == W_SEED_HIR0_BINARY_ADD &&
+         value->unary_operator == W_SEED_HIR0_UNARY_NEGATE &&
+         scalar_value_has_empty_auxiliary_fields(value);
+}
+
+static bool scalar_numeric_widen_shape_valid(
+    const w_seed_hir0_value *value) {
+  return value != NULL && value->kind == W_SEED_HIR0_VALUE_NUMERIC_WIDEN &&
+         value->left_value != W_SEED_HIR0_NONE &&
+         value->right_value == W_SEED_HIR0_NONE &&
+         value->source_type != W_SEED_HIR0_NONE && value->float_bits == 0u &&
+         value->binary_operator == W_SEED_HIR0_BINARY_ADD &&
+         value->unary_operator == W_SEED_HIR0_UNARY_NOT &&
+         scalar_value_has_empty_auxiliary_fields(value);
+}
+
+/* This is an integer-only implementation of binary32 -> binary64 extension.
+ * Normal values and subnormals are represented exactly; zero's sign and
+ * infinities are copied. For NaNs, copy the source payload into the high
+ * payload bits and quiet signaling NaNs, which is a permitted LLVM fpext NaN
+ * propagation result. No C floating-point operation or fenv state is touched. */
+static uint64_t scalar_extend_f32_bits_to_f64(uint32_t source_bits) {
+  const uint64_t sign = (uint64_t)(source_bits >> 31u) << 63u;
+  const uint32_t exponent = (source_bits >> 23u) & UINT32_C(0xff);
+  const uint32_t fraction = source_bits & UINT32_C(0x7fffff);
+  if (exponent == UINT32_C(0xff)) {
+    const uint64_t exponent64 = UINT64_C(0x7ff) << 52u;
+    if (fraction == 0u) return sign | exponent64;
+    const uint64_t quiet_bit = UINT64_C(1) << 51u;
+    const uint64_t payload = (uint64_t)fraction << 29u;
+    return sign | exponent64 | quiet_bit | payload;
+  }
+  if (exponent != 0u) {
+    const uint64_t exponent64 = (uint64_t)(exponent + 896u) << 52u;
+    const uint64_t fraction64 = (uint64_t)fraction << 29u;
+    return sign | exponent64 | fraction64;
+  }
+  if (fraction == 0u) return sign;
+
+  uint32_t highest_bit = 0u;
+  for (uint32_t remaining = fraction; remaining > 1u;
+       remaining >>= 1u)
+    highest_bit += 1u;
+  const uint32_t leading_bit = UINT32_C(1) << highest_bit;
+  const uint64_t exponent64 = (uint64_t)(highest_bit + 874u) << 52u;
+  const uint64_t fraction64 =
+      (uint64_t)(fraction - leading_bit) << (52u - highest_bit);
+  return sign | exponent64 | fraction64;
+}
+
+/* All admitted integer-to-float routes fit within the destination significand
+ * and exponent. Build their exact IEEE representation with integer operations
+ * rather than a host cast, making the result independent of fenv and compiler
+ * host floating-point behavior. */
+static bool scalar_integer_to_float_bits(
+    scalar_integer_facts source_facts, int64_t source_carrier,
+    w_seed_hir0_type_kind destination_kind, uint64_t *result_bits) {
+  if (result_bits == NULL ||
+      (source_facts.bit_width != 8u && source_facts.bit_width != 16u &&
+       source_facts.bit_width != 32u) ||
+      (destination_kind != W_SEED_HIR0_TYPE_F32 &&
+       destination_kind != W_SEED_HIR0_TYPE_F64))
+    return false;
+  const uint64_t source_mask = scalar_width_mask(source_facts.bit_width);
+  const uint64_t carrier_bits = (uint64_t)source_carrier;
+  uint64_t magnitude = 0u;
+  bool negative = false;
+  if (source_facts.is_signed) {
+    const int64_t normalized =
+        scalar_signed_integer_bits(carrier_bits & source_mask,
+                                   source_facts.bit_width);
+    if (source_carrier != normalized) return false;
+    negative = normalized < 0;
+    magnitude = negative ? UINT64_C(0) - (uint64_t)normalized
+                         : (uint64_t)normalized;
+  } else {
+    if (carrier_bits > source_mask) return false;
+    magnitude = carrier_bits;
+  }
+  if (magnitude == 0u) {
+    *result_bits = 0u;
+    return true;
+  }
+
+  const bool is_f32 = destination_kind == W_SEED_HIR0_TYPE_F32;
+  const uint32_t significand_width = is_f32 ? 23u : 52u;
+  const uint32_t sign_position = is_f32 ? 31u : 63u;
+  const uint32_t exponent_bias = is_f32 ? 127u : 1023u;
+  uint32_t highest_bit = 0u;
+  for (uint64_t remaining = magnitude; remaining > 1u;
+       remaining >>= 1u)
+    highest_bit += 1u;
+  if (highest_bit > significand_width) return false;
+  const uint64_t leading_bit = UINT64_C(1) << highest_bit;
+  const uint64_t fraction =
+      (magnitude - leading_bit) << (significand_width - highest_bit);
+  const uint64_t sign = negative ? UINT64_C(1) << sign_position : 0u;
+  const uint64_t exponent =
+      (uint64_t)(exponent_bias + highest_bit) << significand_width;
+  *result_bits = sign | exponent | fraction;
   return true;
 }
 
@@ -345,6 +609,7 @@ static bool scalar_range(uint32_t first, uint32_t count, size_t total) {
 typedef struct scalar_parameter_frame {
   const struct scalar_parameter_frame *caller;
   uint32_t call_index;
+  uint32_t function_index;
   size_t parameter_count;
 } scalar_parameter_frame;
 
@@ -358,19 +623,29 @@ static bool scalar_evaluate_value(const w_seed_hir0_program *program,
                                   uint32_t value_index,
                                   const scalar_parameter_frame *parameters,
                                   size_t parameter_count, size_t depth,
-                                  size_t *budget, int64_t *result);
+                                  size_t *budget, bool allow_float_values,
+                                  int64_t *result);
 
 static const w_seed_hir0_argument *scalar_argument_for_ordinal(
     const w_seed_hir0_program *program,
     const scalar_parameter_frame *parameters, size_t ordinal) {
   if (program == NULL || parameters == NULL ||
       parameters->call_index >= program->call_count ||
-      ordinal >= parameters->parameter_count)
+      ordinal >= parameters->parameter_count || program->calls == NULL ||
+      program->identities == NULL ||
+      program->calls[parameters->call_index].callee_identity >=
+          program->identity_count)
     return NULL;
   const w_seed_hir0_call *call = &program->calls[parameters->call_index];
   if (call->argument_count != parameters->parameter_count ||
+      call->callee_identity >= program->identity_count ||
+      program->identities[call->callee_identity].kind !=
+          W_SEED_HIR0_IDENTITY_FUNCTION ||
+      program->identities[call->callee_identity].target_index !=
+          parameters->function_index ||
       !scalar_range(call->first_argument, call->argument_count,
-                    program->argument_count))
+                    program->argument_count) ||
+      (call->argument_count != 0u && program->arguments == NULL))
     return NULL;
   const w_seed_hir0_argument *match = NULL;
   for (size_t index = 0u; index < call->argument_count; index += 1u) {
@@ -392,7 +667,9 @@ static bool scalar_evaluate_call(const w_seed_hir0_program *program,
                                  bool root_dispatch, size_t depth,
                                  size_t *budget, int64_t *result) {
   if (program == NULL || result == NULL || budget == NULL || *budget == 0u ||
-      depth > W_SEED_HIR0_MAX_NESTING || call_index >= program->call_count)
+      depth > W_SEED_HIR0_MAX_NESTING || call_index >= program->call_count ||
+      program->calls == NULL || program->identities == NULL ||
+      program->functions == NULL)
     return false;
   *budget -= 1u;
   const w_seed_hir0_call *call = &program->calls[call_index];
@@ -406,7 +683,8 @@ static bool scalar_evaluate_call(const w_seed_hir0_program *program,
             W_SEED_HIR0_CALL_STRUCTURED_ASYNC_PARALLEL_DOMAIN_DISPATCH));
   if (!dispatch || call->callee_identity >= program->identity_count ||
       !scalar_range(call->first_argument, call->argument_count,
-                    program->argument_count))
+                    program->argument_count) ||
+      (call->argument_count != 0u && program->arguments == NULL))
     return false;
   const w_seed_hir0_identity *identity =
       &program->identities[call->callee_identity];
@@ -415,30 +693,65 @@ static bool scalar_evaluate_call(const w_seed_hir0_program *program,
     return false;
   const w_seed_hir0_function *function =
       &program->functions[identity->target_index];
-  scalar_integer_facts return_facts;
+  scalar_integer_facts return_facts = {0};
+  const bool integer_return =
+      scalar_integer_type_facts(program, function->return_type,
+                                &return_facts);
+  const bool float_return =
+      scalar_float_type_facts(program, function->return_type, NULL);
   if (function->parameter_count != call->argument_count ||
-      !scalar_integer_type_facts(program, function->return_type,
-                                 &return_facts))
+      function->identity_index != call->callee_identity ||
+      identity->owner_module != function->module_index ||
+      !scalar_hir_text_slices_equal(program, identity->name, function->name) ||
+      identity->first_parameter != function->first_parameter ||
+      identity->parameter_count != function->parameter_count ||
+      identity->first_requirement != W_SEED_HIR0_NONE ||
+      identity->requirement_count != 0u || identity->profile.offset != 0u ||
+      identity->profile.count != 0u ||
+      identity->return_type != function->return_type ||
+      identity->is_const != function->is_const ||
+      call->result_type != function->return_type ||
+      integer_return == float_return ||
+      !scalar_range(function->first_parameter, function->parameter_count,
+                    program->parameter_count) ||
+      (function->parameter_count != 0u && program->parameters == NULL))
     return false;
   for (size_t index = 0u; index < call->argument_count; index += 1u) {
     const w_seed_hir0_argument *argument =
         &program->arguments[(size_t)call->first_argument + index];
     if (argument->owner_call != call_index ||
-        argument->parameter_ordinal >= call->argument_count)
+        argument->parameter_ordinal >= call->argument_count ||
+        argument->value_index >= program->value_count ||
+        program->values == NULL)
       return false;
     for (size_t previous = 0u; previous < index; previous += 1u) {
       const w_seed_hir0_argument *prior =
           &program->arguments[(size_t)call->first_argument + previous];
       if (prior->parameter_ordinal == argument->parameter_ordinal) return false;
     }
+    const size_t parameter_index =
+        (size_t)function->first_parameter + argument->parameter_ordinal;
+    const w_seed_hir0_parameter *parameter =
+        &program->parameters[parameter_index];
+    if (parameter->owner_function != identity->target_index ||
+        parameter->ordinal != argument->parameter_ordinal ||
+        parameter->type_index != argument->type_index ||
+        program->values[argument->value_index].type_index !=
+            argument->type_index)
+      return false;
     int64_t ignored = 0;
+    const bool float_argument =
+        scalar_float_type_facts(program, parameter->type_index, NULL);
     if (!scalar_evaluate_value(program, argument->value_index,
                                caller_parameters, caller_parameter_count,
-                               depth + 1u, budget, &ignored))
+                               depth + 1u, budget, float_argument, &ignored))
       return false;
   }
   const scalar_parameter_frame parameters = {
-      caller_parameters, call_index, call->argument_count};
+      .caller = caller_parameters,
+      .call_index = call_index,
+      .function_index = identity->target_index,
+      .parameter_count = call->argument_count};
   return scalar_evaluate_function(program, identity->target_index, &parameters,
                                   call->argument_count, depth + 1u, budget,
                                   result);
@@ -448,8 +761,10 @@ static bool scalar_evaluate_value(const w_seed_hir0_program *program,
                                   uint32_t value_index,
                                   const scalar_parameter_frame *parameters,
                                   size_t parameter_count, size_t depth,
-                                  size_t *budget, int64_t *result) {
-  if (program == NULL || result == NULL || budget == NULL || *budget == 0u ||
+                                  size_t *budget, bool allow_float_values,
+                                  int64_t *result) {
+  if (program == NULL || program->values == NULL || program->types == NULL ||
+      result == NULL || budget == NULL || *budget == 0u ||
       depth > W_SEED_HIR0_MAX_NESTING || value_index >= program->value_count)
     return false;
   *budget -= 1u;
@@ -458,8 +773,13 @@ static bool scalar_evaluate_value(const w_seed_hir0_program *program,
       value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON &&
       value->type_index < program->type_count &&
       program->types[value->type_index].kind == W_SEED_HIR0_TYPE_BOOL;
+  const bool float_value =
+      scalar_float_type_facts(program, value->type_index, NULL);
+  const bool numeric_widen =
+      value->kind == W_SEED_HIR0_VALUE_NUMERIC_WIDEN;
   scalar_integer_facts value_facts = {0};
   if (!bool_comparison &&
+      !(float_value && (allow_float_values || numeric_widen)) &&
       !scalar_integer_type_facts(program, value->type_index, &value_facts))
     return false;
   switch (value->kind) {
@@ -477,26 +797,142 @@ static bool scalar_evaluate_value(const w_seed_hir0_program *program,
         return false;
       (void)memcpy(result, &value->unsigned_integer_value, sizeof(*result));
       return true;
+    case W_SEED_HIR0_VALUE_CONST_FLOAT: {
+      w_seed_hir0_type_kind type_kind;
+      if (!allow_float_values ||
+          !scalar_float_type_facts(program, value->type_index, &type_kind) ||
+          !scalar_float_constant_shape_valid(value) ||
+          (type_kind == W_SEED_HIR0_TYPE_F32 &&
+           (value->float_bits >> 32u) != 0u))
+        return false;
+      (void)memcpy(result, &value->float_bits, sizeof(*result));
+      return true;
+    }
+    case W_SEED_HIR0_VALUE_UNARY_FLOAT: {
+      w_seed_hir0_type_kind type_kind;
+      int64_t source_value = 0;
+      if (!allow_float_values ||
+          !scalar_float_type_facts(program, value->type_index, &type_kind) ||
+          !scalar_float_unary_shape_valid(value) ||
+          value->left_value >= program->value_count)
+        return false;
+      const w_seed_hir0_value *child =
+          &program->values[value->left_value];
+      if (child->type_index != value->type_index ||
+          child->owner_kind != W_SEED_HIR0_VALUE_OWNER_UNARY ||
+          child->owner_index != value_index || child->owner_ordinal != 0u ||
+          !scalar_evaluate_value(program, value->left_value, parameters,
+                                 parameter_count, depth + 1u, budget, true,
+                                 &source_value))
+        return false;
+      uint64_t source_bits = 0u;
+      (void)memcpy(&source_bits, &source_value, sizeof(source_bits));
+      if (type_kind == W_SEED_HIR0_TYPE_F32 &&
+          (source_bits >> 32u) != 0u)
+        return false;
+      const uint64_t sign_mask =
+          type_kind == W_SEED_HIR0_TYPE_F32
+              ? UINT64_C(0x80000000)
+              : UINT64_C(0x8000000000000000);
+      const uint64_t negated_bits = source_bits ^ sign_mask;
+      (void)memcpy(result, &negated_bits, sizeof(*result));
+      return true;
+    }
+    case W_SEED_HIR0_VALUE_NUMERIC_WIDEN: {
+      w_seed_hir0_type_kind source_float_kind = W_SEED_HIR0_TYPE_UNIT;
+      w_seed_hir0_type_kind destination_float_kind = W_SEED_HIR0_TYPE_UNIT;
+      scalar_integer_facts source_integer_facts;
+      int64_t source_value = 0;
+      uint64_t widened_bits = 0u;
+      if (!scalar_numeric_widen_shape_valid(value) ||
+          value->source_type >= program->type_count ||
+          value->left_value >= program->value_count)
+        return false;
+      const w_seed_hir0_value *child =
+          &program->values[value->left_value];
+      if (child->type_index != value->source_type ||
+          child->owner_kind != W_SEED_HIR0_VALUE_OWNER_NUMERIC_WIDEN ||
+          child->owner_index != value_index || child->owner_ordinal != 0u ||
+          !scalar_float_type_facts(program, value->type_index,
+                                   &destination_float_kind))
+        return false;
+
+      if (scalar_float_type_facts(program, value->source_type,
+                                  &source_float_kind)) {
+        if (source_float_kind != W_SEED_HIR0_TYPE_F32 ||
+            destination_float_kind != W_SEED_HIR0_TYPE_F64 ||
+            !scalar_evaluate_value(program, value->left_value, parameters,
+                                   parameter_count, depth + 1u, budget,
+                                   true, &source_value))
+          return false;
+        uint64_t source_bits = 0u;
+        (void)memcpy(&source_bits, &source_value, sizeof(source_bits));
+        if ((source_bits >> 32u) != 0u) return false;
+        widened_bits = scalar_extend_f32_bits_to_f64((uint32_t)source_bits);
+      } else {
+        if (!scalar_numeric_integer_type_facts(
+                program, value->source_type, &source_integer_facts) ||
+            (destination_float_kind == W_SEED_HIR0_TYPE_F32
+                 ? (source_integer_facts.bit_width != 8u &&
+                    source_integer_facts.bit_width != 16u)
+                 : (source_integer_facts.bit_width != 8u &&
+                    source_integer_facts.bit_width != 16u &&
+                    source_integer_facts.bit_width != 32u)) ||
+            !scalar_evaluate_value(program, value->left_value, parameters,
+                                   parameter_count, depth + 1u, budget,
+                                   false, &source_value) ||
+            !scalar_integer_to_float_bits(source_integer_facts, source_value,
+                                           destination_float_kind,
+                                           &widened_bits))
+          return false;
+      }
+      (void)memcpy(result, &widened_bits, sizeof(*result));
+      return true;
+    }
     case W_SEED_HIR0_VALUE_PARAMETER_READ: {
-      if (value->parameter_index >= program->parameter_count) return false;
-      const size_t ordinal = program->parameters[value->parameter_index].ordinal;
+      if (value->parameter_index >= program->parameter_count ||
+          program->parameters == NULL || parameters == NULL ||
+          parameters->function_index >= program->function_count)
+        return false;
+      const w_seed_hir0_parameter *parameter =
+          &program->parameters[value->parameter_index];
+      const size_t ordinal = parameter->ordinal;
       const w_seed_hir0_argument *argument =
           scalar_argument_for_ordinal(program, parameters, ordinal);
-      return argument != NULL && parameter_count == parameters->parameter_count &&
+      return parameter->owner_function == parameters->function_index &&
+             parameter->type_index == value->type_index &&
+             argument != NULL && argument->type_index == value->type_index &&
+             argument->value_index < program->value_count &&
+             program->values[argument->value_index].type_index ==
+                 value->type_index &&
+             parameter_count == parameters->parameter_count &&
              scalar_evaluate_value(program, argument->value_index,
                                    parameters->caller,
                                    parameters->caller == NULL
                                        ? 0u
                                        : parameters->caller->parameter_count,
-                                   depth + 1u, budget, result);
+                                   depth + 1u, budget, allow_float_values,
+                                   result);
     }
-    case W_SEED_HIR0_VALUE_BINDING_READ:
-      return value->binding_index < program->binding_count &&
+    case W_SEED_HIR0_VALUE_BINDING_READ: {
+      if (value->binding_index >= program->binding_count ||
+          program->bindings == NULL)
+        return false;
+      const w_seed_hir0_binding *binding =
+          &program->bindings[value->binding_index];
+      return binding->type_index == value->type_index &&
+             binding->initializer_value < program->value_count &&
+             program->values[binding->initializer_value].type_index ==
+                 value->type_index &&
              scalar_evaluate_value(
-                 program,
-                 program->bindings[value->binding_index].initializer_value,
-                 parameters, parameter_count, depth + 1u, budget, result);
+                 program, binding->initializer_value, parameters,
+                 parameter_count, depth + 1u, budget, allow_float_values,
+                 result);
+    }
     case W_SEED_HIR0_VALUE_CALL_RESULT:
+      if (program->calls == NULL || value->call_index >= program->call_count ||
+          program->calls[value->call_index].result_type != value->type_index)
+        return false;
       return scalar_evaluate_call(program, value->call_index, parameters,
                                   parameter_count, false, depth + 1u, budget,
                                   result);
@@ -529,7 +965,7 @@ static bool scalar_evaluate_value(const w_seed_hir0_program *program,
           program->values[value->left_value].owner_ordinal != 0u ||
           !scalar_evaluate_value(program, value->left_value, parameters,
                                  parameter_count, depth + 1u, budget,
-                                 &source_value))
+                                 false, &source_value))
         return false;
       const uint64_t destination_mask =
           destination_facts.bit_width == 64u
@@ -574,7 +1010,7 @@ static bool scalar_evaluate_value(const w_seed_hir0_program *program,
           program->values[value->left_value].owner_ordinal != 0u ||
           !scalar_evaluate_value(program, value->left_value, parameters,
                                  parameter_count, depth + 1u, budget,
-                                 &source_value) ||
+                                 false, &source_value) ||
           !scalar_saturating_integer_conversion(
               source_value, source_facts, destination_facts, result))
         return false;
@@ -595,7 +1031,8 @@ static bool scalar_evaluate_value(const w_seed_hir0_program *program,
           operand_facts.is_signed != value_facts.is_signed ||
           operand_facts.bit_width != value_facts.bit_width ||
           !scalar_evaluate_value(program, value->left_value, parameters,
-                                 parameter_count, depth + 1u, budget, &operand))
+                                 parameter_count, depth + 1u, budget, false,
+                                 &operand))
         return false;
       const uint64_t mask = value_facts.bit_width == 64u
                                 ? UINT64_MAX
@@ -629,7 +1066,7 @@ static bool scalar_evaluate_value(const w_seed_hir0_program *program,
           operand_facts.bit_width != value_facts.bit_width ||
           !scalar_evaluate_value(program, value->left_value, parameters,
                                  parameter_count, depth + 1u, budget,
-                                 &operand))
+                                 false, &operand))
         return false;
       const uint64_t mask = value_facts.bit_width == 64u
                                 ? UINT64_MAX
@@ -681,9 +1118,11 @@ static bool scalar_evaluate_value(const w_seed_hir0_program *program,
                 value->type_index)))
         return false;
       if (!scalar_evaluate_value(program, value->left_value, parameters,
-                                 parameter_count, depth + 1u, budget, &left) ||
+                                 parameter_count, depth + 1u, budget, false,
+                                 &left) ||
           !scalar_evaluate_value(program, value->right_value, parameters,
-                                 parameter_count, depth + 1u, budget, &right))
+                                 parameter_count, depth + 1u, budget, false,
+                                 &right))
         return false;
       if (bitwise) {
         uint64_t result_bits = 0u;
@@ -763,9 +1202,11 @@ static bool scalar_evaluate_value(const w_seed_hir0_program *program,
       int64_t right = 0;
       uint64_t result_bits = 0u;
       if (!scalar_evaluate_value(program, value->left_value, parameters,
-                                 parameter_count, depth + 1u, budget, &left) ||
+                                 parameter_count, depth + 1u, budget, false,
+                                 &left) ||
           !scalar_evaluate_value(program, value->right_value, parameters,
-                                 parameter_count, depth + 1u, budget, &right))
+                                 parameter_count, depth + 1u, budget, false,
+                                 &right))
         return false;
       if (bitwise) {
         if (!scalar_integer_bitwise(value->binary_operator,
@@ -810,9 +1251,11 @@ static bool scalar_evaluate_value(const w_seed_hir0_program *program,
       int64_t left = 0;
       int64_t right = 0;
       if (!scalar_evaluate_value(program, value->left_value, parameters,
-                                 parameter_count, depth + 1u, budget, &left) ||
+                                 parameter_count, depth + 1u, budget, false,
+                                 &left) ||
           !scalar_evaluate_value(program, value->right_value, parameters,
-                                 parameter_count, depth + 1u, budget, &right))
+                                 parameter_count, depth + 1u, budget, false,
+                                 &right))
         return false;
       uint64_t left_bits = (uint64_t)left;
       uint64_t right_bits = (uint64_t)right;
@@ -866,22 +1309,34 @@ static bool scalar_evaluate_function(const w_seed_hir0_program *program,
                                      const scalar_parameter_frame *parameters,
                                      size_t parameter_count, size_t depth,
                                      size_t *budget, int64_t *result) {
-  if (program == NULL || result == NULL || budget == NULL || *budget == 0u ||
+  if (program == NULL || program->functions == NULL || result == NULL ||
+      budget == NULL || *budget == 0u ||
       depth > W_SEED_HIR0_MAX_NESTING ||
       function_index >= program->function_count)
     return false;
   *budget -= 1u;
   const w_seed_hir0_function *function = &program->functions[function_index];
-  scalar_integer_facts return_facts;
+  scalar_integer_facts return_facts = {0};
+  const bool integer_return =
+      scalar_integer_type_facts(program, function->return_type,
+                                &return_facts);
+  const bool float_return =
+      scalar_float_type_facts(program, function->return_type, NULL);
   if (function->parameter_count != parameter_count ||
+      parameters == NULL || parameters->function_index != function_index ||
+      parameters->parameter_count != parameter_count ||
       function->block_count != 1u ||
       function->first_block >= program->block_count ||
-      !scalar_integer_type_facts(program, function->return_type,
-                                 &return_facts))
+      program->blocks == NULL || program->terminators == NULL ||
+      integer_return == float_return ||
+      !scalar_range(function->first_parameter, function->parameter_count,
+                    program->parameter_count) ||
+      (function->parameter_count != 0u && program->parameters == NULL))
     return false;
   const w_seed_hir0_block *block = &program->blocks[function->first_block];
   if (!scalar_range(block->first_instruction, block->instruction_count,
                     program->instruction_count) ||
+      (block->instruction_count != 0u && program->instructions == NULL) ||
       block->terminator_index >= program->terminator_count)
     return false;
   for (size_t ordinal = 0u; ordinal < block->instruction_count; ordinal += 1u) {
@@ -892,13 +1347,26 @@ static bool scalar_evaluate_function(const w_seed_hir0_program *program,
       continue;
     if (instruction->kind == W_SEED_HIR0_INSTRUCTION_BINDING) {
       if (instruction->binding_index >= program->binding_count ||
+          program->bindings == NULL)
+        return false;
+      const w_seed_hir0_binding *binding =
+          &program->bindings[instruction->binding_index];
+      if (binding->initializer_value >= program->value_count ||
+          program->values == NULL ||
+          program->values[binding->initializer_value].type_index !=
+              binding->type_index ||
           !scalar_evaluate_value(
-              program,
-              program->bindings[instruction->binding_index].initializer_value,
-              parameters, parameter_count, depth + 1u, budget, &ignored))
+              program, binding->initializer_value, parameters,
+              parameter_count, depth + 1u, budget,
+              scalar_float_type_facts(program, binding->type_index, NULL),
+              &ignored))
         return false;
     } else if (instruction->kind == W_SEED_HIR0_INSTRUCTION_CALL) {
-      if (!scalar_evaluate_call(program, instruction->call_index, parameters,
+      if (instruction->call_index >= program->call_count ||
+          program->calls == NULL ||
+          program->calls[instruction->call_index].result_type !=
+              instruction->result_type ||
+          !scalar_evaluate_call(program, instruction->call_index, parameters,
                                 parameter_count, false, depth + 1u, budget,
                                 &ignored))
         return false;
@@ -909,8 +1377,13 @@ static bool scalar_evaluate_function(const w_seed_hir0_program *program,
   const w_seed_hir0_terminator *terminator =
       &program->terminators[block->terminator_index];
   return terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
-         scalar_evaluate_value(program, terminator->value_index, parameters,
-                               parameter_count, depth + 1u, budget, result);
+         terminator->value_index < program->value_count &&
+         program->values != NULL &&
+         program->values[terminator->value_index].type_index ==
+             function->return_type &&
+         scalar_evaluate_value(
+             program, terminator->value_index, parameters, parameter_count,
+             depth + 1u, budget, float_return, result);
 }
 
 bool w_seed_scalar_evaluator0_evaluate_call(

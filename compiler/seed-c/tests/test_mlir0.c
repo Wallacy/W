@@ -1723,6 +1723,339 @@ static bool test_strict_float_mlir(void) {
   return true;
 }
 
+static bool numeric_widen_expected_operand(
+    const w_seed_hir0_program *program, uint32_t value_index, char *buffer,
+    size_t capacity, size_t depth) {
+  if (program == NULL || buffer == NULL || capacity == 0u ||
+      value_index >= program->value_count || depth > 256u)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->kind == W_SEED_HIR0_VALUE_BINDING_READ) {
+    return value->binding_index < program->binding_count &&
+           numeric_widen_expected_operand(
+               program,
+               program->bindings[value->binding_index].initializer_value,
+               buffer, capacity, depth + 1u);
+  }
+  int written = -1;
+  if (value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ) {
+    if (value->parameter_index >= program->parameter_count) return false;
+    written = snprintf(
+        buffer, capacity, "%%p%u",
+        (unsigned int)program->parameters[value->parameter_index].ordinal);
+  } else if (value->kind == W_SEED_HIR0_VALUE_CALL_RESULT) {
+    if (value->call_index >= program->call_count) return false;
+    written = snprintf(buffer, capacity, "%%call%u",
+                       (unsigned int)value->call_index);
+  } else if (value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ) {
+    if (value->block_argument_index >= program->block_argument_count)
+      return false;
+    written = snprintf(buffer, capacity, "%%arg%u",
+                       (unsigned int)value->block_argument_index);
+  } else {
+    written = snprintf(buffer, capacity, "%%v%u",
+                       (unsigned int)value_index);
+  }
+  return written >= 0 && (size_t)written < capacity;
+}
+
+static bool test_numeric_widen_mlir(void) {
+  static const uint8_t SEQUENCE_SOURCE[] =
+      "entry { let value: f64 = 1.5_f32 print(\"Sequence widen ok\") }\n";
+  static const uint8_t COMPOSITION_SOURCE[] =
+      "fn explicitAndImplicit(a: f32, b: f32): f64 { "
+      "return f64(a) + b }\n"
+      "fn explicitBoth(a: f32, c: f32): f64 { "
+      "return f64(a) + f64(c) }\n"
+      "fn main() {\n"
+      "  let oneCast = explicitAndImplicit(a: 1.5_f32, b: 2.25_f32)\n"
+      "  let bothCast = explicitBoth(a: 1.5_f32, c: 2.25_f32)\n"
+      "  if oneCast == 3.75_f64 && bothCast == 3.75_f64 { "
+      "print(\"Numeric composition ok\") } else { "
+      "print(\"Numeric composition bad\") }\n"
+      "}\nentry(main)\n";
+  static const uint8_t SOURCE[] =
+      "fn widenParameter(value: f32): f64 { return value }\n"
+      "fn produceF32(): f32 { return 1.5_f32 }\n"
+      "fn main() {\n"
+      "  let i8F32Min: f32 = -127_i8 - 1_i8\n"
+      "  let i8F32Max: f32 = 127_i8\n"
+      "  let u8F32Max: f32 = 255_u8\n"
+      "  let i16F32Min: f32 = -32767_i16 - 1_i16\n"
+      "  let i16F32Max: f32 = 32767_i16\n"
+      "  let u16F32Max: f32 = 65535_u16\n"
+      "  let i8F64Min: f64 = -127_i8 - 1_i8\n"
+      "  let i8F64Max: f64 = 127_i8\n"
+      "  let u8F64Max: f64 = 255_u8\n"
+      "  let i16F64Min: f64 = -32767_i16 - 1_i16\n"
+      "  let i16F64Max: f64 = 32767_i16\n"
+      "  let u16F64Max: f64 = 65535_u16\n"
+      "  let i32F64Min: f64 = -2147483647_i32 - 1_i32\n"
+      "  let i32F64Max: f64 = 2147483647_i32\n"
+      "  let u32F64Max: f64 = 4294967295_u32\n"
+      "  let f32F64: f64 = 1.5_f32\n"
+      "  let parameterF64: f64 = widenParameter(value: 2.25_f32)\n"
+      "  let callF64: f64 = produceF32()\n"
+      "  let valid = i8F32Min == -128.0_f32 && "
+      "i8F32Max == 127.0_f32 && u8F32Max == 255.0_f32 && "
+      "i16F32Min == -32768.0_f32 && i16F32Max == 32767.0_f32 && "
+      "u16F32Max == 65535.0_f32 && i8F64Min == -128.0_f64 && "
+      "i8F64Max == 127.0_f64 && u8F64Max == 255.0_f64 && "
+      "i16F64Min == -32768.0_f64 && i16F64Max == 32767.0_f64 && "
+      "u16F64Max == 65535.0_f64 && i32F64Min == -2147483648.0_f64 && "
+      "i32F64Max == 2147483647.0_f64 && "
+      "u32F64Max == 4294967295.0_f64 && f32F64 == 1.5_f64 && "
+      "parameterF64 == 2.25_f64 && callF64 == 1.5_f64\n"
+      "  if valid { print(\"Numeric widen ok\") } else { "
+      "print(\"Numeric widen bad\") }\n"
+      "}\nentry(main)\n";
+  static uint8_t sequence_artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts sequence_counts;
+  w_seed_mlir0_result sequence_measured;
+  w_seed_mlir0_result sequence_emitted;
+  CHECK(lower_hir(SEQUENCE_SOURCE, sizeof(SEQUENCE_SOURCE) - 1u));
+  CHECK(measure_current(&sequence_counts, &sequence_measured));
+  CHECK(emit_current(sequence_artifact, sizeof(sequence_artifact),
+                     &sequence_emitted));
+  CHECK(sequence_counts.mlir_bytes == sequence_emitted.written.mlir_bytes &&
+        count_bytes(sequence_artifact, sequence_counts.mlir_bytes,
+                    "llvm.fpext %v") == 1u &&
+        !contains_bytes(sequence_artifact, sequence_counts.mlir_bytes,
+                        "fastmath"));
+  CHECK(lower_hir(COMPOSITION_SOURCE, sizeof(COMPOSITION_SOURCE) - 1u));
+  w_seed_mlir0_counts composition_counts;
+  w_seed_mlir0_result composition_measured;
+  w_seed_mlir0_result composition_emitted;
+  static uint8_t composition_artifact[W_SEED_MLIR0_MAX_BYTES];
+  CHECK(measure_current(&composition_counts, &composition_measured));
+  CHECK(emit_current(composition_artifact, sizeof(composition_artifact),
+                     &composition_emitted));
+  CHECK(composition_counts.mlir_bytes ==
+            composition_emitted.written.mlir_bytes &&
+        count_bytes(composition_artifact, composition_counts.mlir_bytes,
+                    "llvm.fpext ") == 4u &&
+        count_bytes(composition_artifact, composition_counts.mlir_bytes,
+                    "llvm.fadd ") == 2u &&
+        !contains_bytes(composition_artifact, composition_counts.mlir_bytes,
+                        "fastmath"));
+  const w_seed_hir0_program *composition_program = &fixture.hir_program;
+  size_t composition_wrappers = 0u;
+  size_t composition_additions = 0u;
+  for (size_t index = 0u; index < composition_program->value_count;
+       index += 1u) {
+    const w_seed_hir0_value *value = &composition_program->values[index];
+    char expected[192];
+    int expected_length = -1;
+    if (value->kind == W_SEED_HIR0_VALUE_NUMERIC_WIDEN) {
+      CHECK(value->source_type < composition_program->type_count &&
+            value->type_index < composition_program->type_count &&
+            composition_program->types[value->source_type].kind ==
+                W_SEED_HIR0_TYPE_F32 &&
+            composition_program->types[value->type_index].kind ==
+                W_SEED_HIR0_TYPE_F64);
+      char operand[32];
+      CHECK(numeric_widen_expected_operand(
+          composition_program, value->left_value, operand, sizeof(operand),
+          0u));
+      expected_length = snprintf(
+          expected, sizeof(expected),
+          "    %%v%u = llvm.fpext %s : f32 to f64\n",
+          (unsigned int)index, operand);
+      composition_wrappers += 1u;
+    } else if (value->kind == W_SEED_HIR0_VALUE_BINARY_FLOAT &&
+               value->binary_operator == W_SEED_HIR0_BINARY_ADD) {
+      char left_operand[32];
+      char right_operand[32];
+      CHECK(numeric_widen_expected_operand(
+                composition_program, value->left_value, left_operand,
+                sizeof(left_operand), 0u) &&
+            numeric_widen_expected_operand(
+                composition_program, value->right_value, right_operand,
+                sizeof(right_operand), 0u));
+      expected_length = snprintf(
+          expected, sizeof(expected),
+          "    %%v%u = llvm.fadd %s, %s : f64\n",
+          (unsigned int)index, left_operand, right_operand);
+      composition_additions += 1u;
+    } else {
+      continue;
+    }
+    CHECK(expected_length > 0 && (size_t)expected_length < sizeof(expected) &&
+          contains_bytes(composition_artifact, composition_counts.mlir_bytes,
+                         expected));
+  }
+  CHECK(composition_wrappers == 4u && composition_additions == 2u);
+  CHECK(lower_hir(SOURCE, sizeof(SOURCE) - 1u));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+
+  static uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        memcmp(measured.mlir_sha256, emitted.mlir_sha256,
+               sizeof(measured.mlir_sha256)) == 0);
+  CHECK(contains_bytes(artifact, counts.mlir_bytes,
+                       "// " W_SEED_MLIR0_SCHEMA_VERSION "\nmodule ") &&
+        count_bytes(artifact, counts.mlir_bytes, "llvm.sitofp ") == 10u &&
+        count_bytes(artifact, counts.mlir_bytes, "llvm.uitofp ") == 5u &&
+        count_bytes(artifact, counts.mlir_bytes, "llvm.fpext ") == 3u &&
+        count_bytes(artifact, counts.mlir_bytes,
+                    "_numeric_widen_bits = llvm.trunc") >= 15u &&
+        !contains_bytes(artifact, counts.mlir_bytes, "fastmath") &&
+        !contains_bytes(artifact, counts.mlir_bytes, "@_fltused") &&
+        !contains_bytes(artifact, counts.mlir_bytes,
+                        "w_seed_numeric_widen"));
+
+  bool routes[11] = {false};
+  size_t wrapper_count = 0u;
+  uint32_t forged_wrapper = W_SEED_HIR0_NONE;
+  for (size_t index = 0u; index < program->value_count; index += 1u) {
+    const w_seed_hir0_value *value = &program->values[index];
+    if (value->kind != W_SEED_HIR0_VALUE_NUMERIC_WIDEN) continue;
+    CHECK(value->source_type < program->type_count &&
+          value->type_index < program->type_count &&
+          value->left_value < program->value_count &&
+          value->right_value == W_SEED_HIR0_NONE);
+    const w_seed_hir0_type *source_type =
+        &program->types[value->source_type];
+    const w_seed_hir0_type *destination_type =
+        &program->types[value->type_index];
+    const w_seed_hir0_value *child = &program->values[value->left_value];
+    CHECK(child->type_index == value->source_type &&
+          child->owner_kind == W_SEED_HIR0_VALUE_OWNER_NUMERIC_WIDEN &&
+          child->owner_index == index && child->owner_ordinal == 0u);
+
+    char operand[32];
+    CHECK(numeric_widen_expected_operand(program, value->left_value, operand,
+                                         sizeof(operand), 0u));
+    char expected[192];
+    int expected_length = -1;
+    size_t route = SIZE_MAX;
+    const char *destination_name =
+        destination_type->kind == W_SEED_HIR0_TYPE_F32 ? "f32" :
+        destination_type->kind == W_SEED_HIR0_TYPE_F64 ? "f64" : NULL;
+    if (source_type->kind == W_SEED_HIR0_TYPE_F32) {
+      CHECK(destination_type->kind == W_SEED_HIR0_TYPE_F64);
+      route = 10u;
+      expected_length = snprintf(
+          expected, sizeof(expected),
+          "    %%v%u = llvm.fpext %s : f32 to f64\n",
+          (unsigned int)index, operand);
+    } else {
+      CHECK(source_type->kind == W_SEED_HIR0_TYPE_INTEGER &&
+            destination_name != NULL);
+      const bool is_signed = source_type->integer_is_signed;
+      const uint16_t width = source_type->integer_bit_width;
+      if (destination_type->kind == W_SEED_HIR0_TYPE_F32) {
+        route = width == 8u ? (is_signed ? 0u : 1u)
+                : width == 16u ? (is_signed ? 2u : 3u)
+                               : SIZE_MAX;
+      } else if (destination_type->kind == W_SEED_HIR0_TYPE_F64) {
+        route = width == 8u ? (is_signed ? 4u : 5u)
+                : width == 16u ? (is_signed ? 6u : 7u)
+                : width == 32u ? (is_signed ? 8u : 9u)
+                               : SIZE_MAX;
+      }
+      CHECK(route != SIZE_MAX && width != 0u && width < 64u);
+      expected_length = snprintf(
+          expected, sizeof(expected),
+          "    %%v%u_numeric_widen_bits = llvm.trunc %s : i64 to i%u\n"
+          "    %%v%u = llvm.%s %%v%u_numeric_widen_bits : i%u to %s\n",
+          (unsigned int)index, operand, (unsigned int)width,
+          (unsigned int)index,
+          is_signed ? "sitofp" : "uitofp", (unsigned int)index,
+          (unsigned int)width, destination_name);
+    }
+    CHECK(route < sizeof(routes) / sizeof(routes[0]) && expected_length > 0 &&
+          (size_t)expected_length < sizeof(expected) &&
+          contains_bytes(artifact, counts.mlir_bytes, expected));
+    routes[route] = true;
+    if (forged_wrapper == W_SEED_HIR0_NONE)
+      forged_wrapper = (uint32_t)index;
+    wrapper_count += 1u;
+  }
+  CHECK(wrapper_count == 18u);
+  for (size_t route = 0u; route < sizeof(routes) / sizeof(routes[0]);
+       route += 1u)
+    CHECK(routes[route]);
+  CHECK(forged_wrapper != W_SEED_HIR0_NONE);
+
+  const w_seed_hir0_value saved_wrapper = fixture.hir_values[forged_wrapper];
+  const w_seed_hir0_value saved_child =
+      fixture.hir_values[saved_wrapper.left_value];
+  const w_seed_mlir0_input input = mlir_input();
+  static uint8_t windows_artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts windows_counts;
+  w_seed_mlir0_result windows_measured;
+  w_seed_mlir0_result windows_emitted;
+  CHECK(w_seed_mlir0_measure(&input, &WINDOWS_TARGET, &windows_counts,
+                             &windows_measured) == W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_emit(
+            &input, &WINDOWS_TARGET,
+            &(w_seed_mlir0_output){windows_artifact,
+                                   sizeof(windows_artifact)},
+            &windows_emitted) == W_SEED_MLIR0_OK);
+  CHECK(windows_counts.mlir_bytes == windows_emitted.written.mlir_bytes &&
+        memcmp(windows_measured.mlir_sha256, windows_emitted.mlir_sha256,
+               sizeof(windows_measured.mlir_sha256)) == 0 &&
+        count_bytes(windows_artifact, windows_counts.mlir_bytes,
+                    "llvm.mlir.global @_fltused(0 : i32) : i32") == 1u &&
+        count_bytes(windows_artifact, windows_counts.mlir_bytes,
+                    "@_fltused") == 1u);
+
+  w_seed_mlir0_counts rejected_counts = {0x17u};
+  w_seed_mlir0_result rejected_result;
+  (void)memset(&rejected_result, 0x2au, sizeof(rejected_result));
+  const w_seed_mlir0_result rejected_result_snapshot = rejected_result;
+
+  fixture.hir_values[forged_wrapper].source_type = saved_wrapper.type_index;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result) &&
+        w_seed_mlir0_measure(&input, &TARGET, &rejected_counts,
+                             &rejected_result) == W_SEED_MLIR0_INVALID_HIR &&
+        rejected_counts.mlir_bytes == 0x17u &&
+        memcmp(&rejected_result, &rejected_result_snapshot,
+               sizeof(rejected_result)) == 0 &&
+        w_seed_native_subset0_select_program(
+            program, &fixture.hir_result, &selection) ==
+            W_SEED_NATIVE_SUBSET0_INVALID);
+  fixture.hir_values[forged_wrapper] = saved_wrapper;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_values[forged_wrapper].type_index = saved_child.type_index;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result) &&
+        w_seed_mlir0_measure(&input, &TARGET, &rejected_counts,
+                             &rejected_result) == W_SEED_MLIR0_INVALID_HIR &&
+        w_seed_native_subset0_select_program(
+            program, &fixture.hir_result, &selection) ==
+            W_SEED_NATIVE_SUBSET0_INVALID);
+  fixture.hir_values[forged_wrapper] = saved_wrapper;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_values[saved_wrapper.left_value].type_index =
+      saved_wrapper.type_index;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result) &&
+        w_seed_mlir0_measure(&input, &TARGET, &rejected_counts,
+                             &rejected_result) == W_SEED_MLIR0_INVALID_HIR);
+  fixture.hir_values[saved_wrapper.left_value] = saved_child;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_values[saved_wrapper.left_value].owner_index =
+      W_SEED_HIR0_NONE;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result) &&
+        w_seed_mlir0_measure(&input, &TARGET, &rejected_counts,
+                             &rejected_result) == W_SEED_MLIR0_INVALID_HIR);
+  fixture.hir_values[saved_wrapper.left_value] = saved_child;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_windows_target_runtime_surface(void) {
   static const uint8_t source[] =
       "fn main() { print(\"Hello, Windows!\") }\nentry(main)\n";
@@ -1757,6 +2090,7 @@ static bool test_windows_target_runtime_surface(void) {
   CHECK(contains_bytes(first, counts.mlir_bytes, "@ExitProcess"));
   CHECK(contains_bytes(first, counts.mlir_bytes, "@mainCRTStartup"));
   CHECK(contains_bytes(first, counts.mlir_bytes, "@w_seed_mlir0_buffer"));
+  CHECK(!contains_bytes(first, counts.mlir_bytes, "@_fltused"));
   CHECK(contains_bytes(first, counts.mlir_bytes, "llvm.mlir.zero"));
   CHECK(contains_bytes(first, counts.mlir_bytes,
                        "llvm.load %written : !llvm.ptr -> i32"));
@@ -6380,6 +6714,7 @@ int main(int argc, char **argv) {
   if (!test_post_test_repeat_structured_mlir()) return 1;
   if (!test_direct_products()) return 1;
   if (!test_strict_float_mlir()) return 1;
+  if (!test_numeric_widen_mlir()) return 1;
   if (!test_windows_target_runtime_surface()) return 1;
   if (!test_restaurant_and_nul()) return 1;
   if (!test_typed_interpolation_artifact()) return 1;

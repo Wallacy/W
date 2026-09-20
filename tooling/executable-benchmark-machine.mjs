@@ -43,6 +43,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-integer-prefix",
   "restaurant-integer-wrapping",
   "restaurant-integer-widening",
+  "restaurant-numeric-widening",
   "restaurant-integer-truncating-bits",
   "restaurant-integer-saturating-conversion",
   "restaurant-integer-comparison",
@@ -96,6 +97,7 @@ const PUBLIC_WINDOWS_RUN_VARIANTS = Object.freeze({
   "compiler/seed-c/fixtures/restaurant-uint-wrapping-power.w": "restaurant-integer-wrapping",
   "compiler/seed-c/fixtures/restaurant-uint-wrapping-shift-left.w": "restaurant-integer-wrapping",
   "compiler/seed-c/fixtures/restaurant-integer-widening.w": "restaurant-integer-widening",
+  "compiler/seed-c/fixtures/restaurant-numeric-widening.w": "restaurant-numeric-widening",
   "compiler/seed-c/fixtures/restaurant-integer-truncating-bits.w": "restaurant-integer-truncating-bits",
   "compiler/seed-c/fixtures/restaurant-integer-saturating-conversion.w": "restaurant-integer-saturating-conversion",
   "compiler/seed-c/fixtures/restaurant-integer-comparison.w": "restaurant-integer-comparison",
@@ -219,6 +221,7 @@ export const RESTAURANT_CHECKED_INTEGER_ARITHMETIC_WORKLOAD_ID = "restaurant-che
 export const RESTAURANT_INTEGER_PREFIX_WORKLOAD_ID = "restaurant-integer-prefix";
 export const RESTAURANT_INTEGER_WRAPPING_WORKLOAD_ID = "restaurant-integer-wrapping";
 export const RESTAURANT_INTEGER_WIDENING_WORKLOAD_ID = "restaurant-integer-widening";
+export const RESTAURANT_NUMERIC_WIDENING_WORKLOAD_ID = "restaurant-numeric-widening";
 export const RESTAURANT_INTEGER_TRUNCATING_BITS_WORKLOAD_ID = "restaurant-integer-truncating-bits";
 export const RESTAURANT_INTEGER_SATURATING_CONVERSION_WORKLOAD_ID = "restaurant-integer-saturating-conversion";
 export const RESTAURANT_INTEGER_COMPARISON_WORKLOAD_ID = "restaurant-integer-comparison";
@@ -1203,6 +1206,7 @@ function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PL
       workload?.id === RESTAURANT_INTEGER_PREFIX_WORKLOAD_ID ||
       workload?.id === RESTAURANT_INTEGER_WRAPPING_WORKLOAD_ID ||
       workload?.id === RESTAURANT_INTEGER_WIDENING_WORKLOAD_ID ||
+      workload?.id === RESTAURANT_NUMERIC_WIDENING_WORKLOAD_ID ||
       workload?.id === RESTAURANT_INTEGER_TRUNCATING_BITS_WORKLOAD_ID ||
       workload?.id === RESTAURANT_INTEGER_SATURATING_CONVERSION_WORKLOAD_ID ||
       workload?.id === RESTAURANT_INTEGER_COMPARISON_WORKLOAD_ID ||

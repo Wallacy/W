@@ -2975,6 +2975,36 @@ tree at compile time while the C and Rust references retain runtime floating
 operations. It is therefore a semantic/output witness, not equivalent work
 for ranking or live best metrics.
 
+### Exact total numeric widening (W-1646)
+
+Frontend68, verified HIR89, NativeSubset0, and MLIR60 carry one explicit
+numeric-widen value for the exact total routes `f32 -> f64`,
+`i8`/`u8`/`i16`/`u16 -> f32`, and
+`i8`/`u8`/`i16`/`u16`/`i32`/`u32 -> f64`. The same wrapper is used for local
+bindings, returns, call arguments, mixed arithmetic, mixed comparisons, and
+the unlabeled total constructor `D(value)`.
+
+The verifier keeps source and destination type identity explicit. NativeSubset0
+admits only the listed relation. MLIR emits `llvm.fpext`, or first narrows the
+physical `i64` carrier to the verified integer width with `llvm.trunc` and then
+uses `llvm.sitofp` or `llvm.uitofp`. No fast-math flag, heap allocation,
+runtime helper, or CRT helper is introduced. `i32 -> f32`, 64-bit integer-to-float,
+`f64 -> f32`, float-to-integer, and other lossy or fallible pairs fail closed;
+the value of one constant never changes that type-level rule.
+
+[`fixtures/restaurant-numeric-widening.w`](fixtures/restaurant-numeric-widening.w)
+owns the compact family witness and prints exactly `Numeric widen ok\n`.
+Focused tests cover each accepted source/destination family, every supported
+context, invalid pairs, forged records, ownership, capacity, aliasing, and
+operation selection. The public Windows and Linux/WSL gates also require an
+invalid `i32 -> f32` source to fail before output.
+
+C23 and Rust 2024 are correctness references only. The current W witness may
+fold its complete expression graph while those references retain runtime
+operands, so this row is `not-performance-ready` and publishes no ranking.
+`exactly:`, `rounding:`, floating `saturating:`, stable ABI/FFI, other targets,
+and equivalent runtime work remain gaps.
+
 ### Source-backed checked `UInt`/`u64` operators
 
 HIR0 schema `w-seed-hir0-77` represents ordinary unsigned arithmetic,

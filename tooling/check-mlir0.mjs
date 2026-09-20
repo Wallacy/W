@@ -33,6 +33,8 @@ const restaurantCompoundFixture = resolve(seedDirectory,
   "fixtures", "restaurant-compound.w")
 const restaurantFloatStrictFixture = resolve(seedDirectory,
   "fixtures", "restaurant-float-strict.w")
+const restaurantNumericWideningFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-numeric-widening.w")
 const restaurantCheckedIntegerArithmeticFixture = resolve(seedDirectory,
   "fixtures", "restaurant-checked-integer-arithmetic.w")
 const restaurantIntegerWrappingFixture = resolve(seedDirectory,
@@ -781,6 +783,9 @@ try {
       expected: Buffer.from("Compound 11\n", "utf8") },
     { name: "restaurant-float-strict", source: restaurantFloatStrictFixture,
       expected: Buffer.from("Float strict ok\n", "utf8") },
+    { name: "restaurant-numeric-widening",
+      source: restaurantNumericWideningFixture,
+      expected: Buffer.from("Numeric widen ok\n", "utf8") },
     { name: "restaurant-checked-integer-arithmetic",
       source: restaurantCheckedIntegerArithmeticFixture,
       expected: Buffer.from(

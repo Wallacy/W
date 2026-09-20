@@ -223,7 +223,9 @@ static bool make_nested_tree_source(char *buffer, size_t capacity,
 
 static bool test_products(void) {
   CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-10") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-59") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-60") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_WINDOWS_SCHEMA_VERSION,
+               "w-seed-mlir0-windows-46") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -2159,6 +2161,120 @@ static bool test_implicit_integer_widening_native(void) {
                     "llvm.sext") >= 1u &&
         count_bytes(output, result.mlir.written.mlir_bytes,
                     "llvm.zext") >= 2u);
+  return true;
+}
+
+static bool test_numeric_widen_native(void) {
+  static const uint8_t source[] =
+      "fn signedF32(value: i16): f32 { return value }\n"
+      "fn unsignedF64(value: u32): f64 { return value }\n"
+      "fn widenF32(value: f32): f64 { return value }\n"
+      "entry { let negative = signedF32(value: -32767_i16 - 1_i16) "
+      "let positive = unsignedF64(value: 4294967295_u32) "
+      "let directNegative: f32 = -32767_i16 - 1_i16 "
+      "let directPositive: f64 = 4294967295_u32 "
+      "let directUnsignedF32: f32 = 65535_u16 "
+      "let directSignedF64: f64 = -32767_i16 - 1_i16 "
+      "let directFloat: f64 = 1.5_f32 "
+      "let parameterFloat = widenF32(value: 2.25_f32) "
+      "if negative == -32768.0_f32 && positive == 4294967295.0_f64 && "
+      "directNegative == -32768.0_f32 && "
+      "directPositive == 4294967295.0_f64 && "
+      "directUnsignedF32 == 65535.0_f32 && "
+      "directSignedF64 == -32768.0_f64 && "
+      "directFloat == 1.5_f64 && parameterFloat == 2.25_f64 { "
+      "print(\"Numeric widen ok\") } else { "
+      "print(\"Numeric widen bad\") } }\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  static const uint8_t sequence_source[] =
+      "entry { let value: f64 = 1.5_f32 print(\"Sequence widen ok\") }\n";
+  CHECK(run_source(sequence_source, sizeof(sequence_source) - 1u,
+                   "numeric-widen-sequence",
+                   sizeof("numeric-widen-sequence") - 1u, output,
+                   sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  CHECK(result.mlir.written.mlir_bytes != 0u &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.fpext %v") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes, "fastmath"));
+  const w_seed_native0_status status =
+      run_source(source, sizeof(source) - 1u, "numeric-widen-native",
+                 sizeof("numeric-widen-native") - 1u, output, sizeof(output),
+                 &result);
+  CHECK(status == W_SEED_NATIVE0_OK);
+  CHECK(result.mlir.written.mlir_bytes == result.mlir.required.mlir_bytes &&
+        result.mlir.written.mlir_bytes != 0u);
+  CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.sitofp") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.uitofp") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.fpext") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "_numeric_widen_bits = llvm.trunc") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes, "fastmath") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "w_seed_numeric_widen"));
+
+  const w_seed_hir0_program *program = &storage.hir_program;
+  uint32_t wrapper_index = W_SEED_HIR0_NONE;
+  size_t wrapper_count = 0u;
+  for (size_t index = 0u; index < program->value_count; index += 1u) {
+    const w_seed_hir0_value *value = &program->values[index];
+    if (value->kind != W_SEED_HIR0_VALUE_NUMERIC_WIDEN) continue;
+    CHECK(value->source_type < program->type_count &&
+          value->type_index < program->type_count &&
+          value->left_value < program->value_count &&
+          value->right_value == W_SEED_HIR0_NONE);
+    const w_seed_hir0_value *child = &program->values[value->left_value];
+    CHECK(child->type_index == value->source_type &&
+          child->owner_kind == W_SEED_HIR0_VALUE_OWNER_NUMERIC_WIDEN &&
+          child->owner_index == index && child->owner_ordinal == 0u);
+    if (wrapper_index == W_SEED_HIR0_NONE) wrapper_index = (uint32_t)index;
+    wrapper_count += 1u;
+  }
+  CHECK(wrapper_count >= 8u && wrapper_index != W_SEED_HIR0_NONE);
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+
+  const w_seed_hir0_value saved_wrapper = storage.hir_values[wrapper_index];
+  const w_seed_hir0_value saved_child =
+      storage.hir_values[saved_wrapper.left_value];
+  storage.hir_values[wrapper_index].source_type = saved_wrapper.type_index;
+  CHECK(!w_seed_hir0_verify(program, &storage.hir_result) &&
+        w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+            W_SEED_NATIVE_SUBSET0_INVALID);
+  storage.hir_values[wrapper_index] = saved_wrapper;
+  CHECK(w_seed_hir0_verify(program, &storage.hir_result));
+
+  storage.hir_values[wrapper_index].type_index = saved_child.type_index;
+  CHECK(!w_seed_hir0_verify(program, &storage.hir_result) &&
+        w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+            W_SEED_NATIVE_SUBSET0_INVALID);
+  storage.hir_values[wrapper_index] = saved_wrapper;
+  CHECK(w_seed_hir0_verify(program, &storage.hir_result));
+
+  storage.hir_values[saved_wrapper.left_value].type_index =
+      saved_wrapper.type_index;
+  CHECK(!w_seed_hir0_verify(program, &storage.hir_result) &&
+        w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+            W_SEED_NATIVE_SUBSET0_INVALID);
+  storage.hir_values[saved_wrapper.left_value] = saved_child;
+  CHECK(w_seed_hir0_verify(program, &storage.hir_result));
+
+  storage.hir_values[saved_wrapper.left_value].owner_kind =
+      W_SEED_HIR0_VALUE_OWNER_ARGUMENT;
+  CHECK(!w_seed_hir0_verify(program, &storage.hir_result) &&
+        w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+            W_SEED_NATIVE_SUBSET0_INVALID);
+  storage.hir_values[saved_wrapper.left_value] = saved_child;
+  CHECK(w_seed_hir0_verify(program, &storage.hir_result));
   return true;
 }
 
@@ -5892,6 +6008,7 @@ int main(void) {
                        test_unary_i64_native_selector() &&
                        test_integer_prefix_native_matrix() &&
                        test_implicit_integer_widening_native() &&
+                       test_numeric_widen_native() &&
                        test_explicit_integer_truncating_bits_native() &&
                        test_explicit_integer_saturating_native() &&
                        test_scalar_if_value_native() &&

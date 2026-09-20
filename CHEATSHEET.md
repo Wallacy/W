@@ -633,8 +633,8 @@ conversion. Current seed evidence is correctness-only and covers signed and
 unsigned 8/16/32/64-bit integers plus the current x86-64 `Int`/`UInt` aliases.
 `usize`/`isize`, 128-bit integers, target-general alias widths, stable ABI/FFI,
 other targets, and performance remain outside this slice. `exactly:`,
-`rounding:`, other `saturating:` conversion families, and floating
-conversions are separate gaps.
+`rounding:`, other `saturating:` families, and remaining floating conversions
+remain separate gaps.
 
 Integer `D(saturating: source)` clamps the mathematical value to the
 destination minimum or maximum and is total. Its integer form accepts no
@@ -668,6 +668,30 @@ test "strict floats preserve width and IEEE unordered comparisons" for strictFlo
   expect summary.0 == 3.75_f32
   expect summary.1 == 3.75_f64
   expect summary.2
+}
+```
+
+Exact total widening is implicit for `f32 -> f64`, 8/16-bit integers to
+`f32`, and 8/16/32-bit integers to `f64`. `D(value)` uses the same route.
+Other numeric pairs require a separately selected conversion policy; the
+value of one constant does not make a lossy type relation implicit.
+
+<!-- w-example role=executable use=widenForScore,widenForTotal,numericWideningSummary observable=value -->
+```w
+fn widenForScore(value: i16): f32 { return value }
+fn widenForTotal(value: u32): f64 { return value }
+
+fn numericWideningSummary(score: i16, total: u32, single: f32): (f32, f64, f64) {
+  let returned = widenForScore(value: score)
+  let called = widenForTotal(value: total)
+  let explicit = f64(single)
+  let mixed = 2_i32 + explicit
+  return (returned, called, mixed)
+}
+
+test "exact numeric widening is implicit or explicitly total" for numericWideningSummary {
+  let summary = numericWideningSummary(score: -123, total: 4_294_967_295, single: 0.5_f32)
+  expect summary == (-123.0_f32, 4_294_967_295.0_f64, 2.5_f64)
 }
 ```
 

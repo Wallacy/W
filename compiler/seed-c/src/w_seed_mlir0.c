@@ -1342,6 +1342,94 @@ static bool mlir0_integer_type_facts(const w_seed_hir0_program *program,
   return true;
 }
 
+typedef struct {
+  bool source_is_float;
+  bool source_is_signed;
+  uint16_t source_width;
+  uint16_t destination_width;
+} mlir0_numeric_widening_facts;
+
+static bool mlir0_float_type_width(const w_seed_hir0_program *program,
+                                   uint32_t type_index,
+                                   uint16_t *bit_width) {
+  if (program == NULL || bit_width == NULL || type_index >= program->type_count)
+    return false;
+  const w_seed_hir0_type *type = &program->types[type_index];
+  if (type->integer_is_signed || type->integer_bit_width != 0u) return false;
+  if (type->kind == W_SEED_HIR0_TYPE_F32) {
+    *bit_width = 32u;
+    return true;
+  }
+  if (type->kind == W_SEED_HIR0_TYPE_F64) {
+    *bit_width = 64u;
+    return true;
+  }
+  return false;
+}
+
+/* Re-derive the closed W-1646 route at the textual LLVM boundary. The
+ * physical integer carrier is always i64, so the source logical width and
+ * signedness select the conversion opcode and the iN operand explicitly. */
+static bool mlir0_numeric_widening_route(
+    const w_seed_hir0_program *program, uint32_t source_type,
+    uint32_t destination_type, mlir0_numeric_widening_facts *facts) {
+  if (program == NULL || facts == NULL || source_type >= program->type_count ||
+      destination_type >= program->type_count)
+    return false;
+  uint16_t destination_width = 0u;
+  if (!mlir0_float_type_width(program, destination_type,
+                              &destination_width))
+    return false;
+
+  const w_seed_hir0_type *source = &program->types[source_type];
+  if (!source->integer_is_signed && source->integer_bit_width == 0u &&
+      source->kind == W_SEED_HIR0_TYPE_F32 && destination_width == 64u) {
+    *facts = (mlir0_numeric_widening_facts){
+        .source_is_float = true,
+        .source_is_signed = false,
+        .source_width = 32u,
+        .destination_width = destination_width};
+    return true;
+  }
+
+  bool source_signed = false;
+  uint16_t source_width = 0u;
+  if (source->kind != W_SEED_HIR0_TYPE_INTEGER ||
+      !mlir0_integer_type_facts(program, source_type, &source_signed,
+                                &source_width) ||
+      (destination_width == 32u && source_width > 16u) ||
+      (destination_width == 64u && source_width > 32u))
+    return false;
+  *facts = (mlir0_numeric_widening_facts){
+      .source_is_float = false,
+      .source_is_signed = source_signed,
+      .source_width = source_width,
+      .destination_width = destination_width};
+  return true;
+}
+
+static bool mlir0_numeric_widening_shape_valid(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    mlir0_numeric_widening_facts *facts) {
+  if (program == NULL || facts == NULL || value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->kind != W_SEED_HIR0_VALUE_NUMERIC_WIDEN ||
+      value->left_value == W_SEED_HIR0_NONE ||
+      value->left_value >= program->value_count ||
+      value->right_value != W_SEED_HIR0_NONE ||
+      value->source_type >= program->type_count ||
+      program->values[value->left_value].type_index != value->source_type ||
+      program->values[value->left_value].owner_kind !=
+          W_SEED_HIR0_VALUE_OWNER_NUMERIC_WIDEN ||
+      program->values[value->left_value].owner_index != value_index ||
+      program->values[value->left_value].owner_ordinal != 0u ||
+      !mlir0_numeric_widening_route(program, value->source_type,
+                                    value->type_index, facts))
+    return false;
+  return true;
+}
+
 /* Keep the conversion route explicit at the MLIR boundary as well as in HIR
  * verification.  The physical carrier remains i64; these logical facts pick
  * the source-width truncation and signed/zero extension without introducing
@@ -1535,6 +1623,15 @@ static bool program_has_narrow_integer_types(
   if (program == NULL) return false;
   for (size_t index = 0u; index < program->type_count; index += 1u)
     if (program->types[index].kind == W_SEED_HIR0_TYPE_INTEGER) return true;
+  return false;
+}
+
+static bool program_has_numeric_widen_values(
+    const w_seed_hir0_program *program) {
+  if (program == NULL) return false;
+  for (size_t index = 0u; index < program->value_count; index += 1u)
+    if (program->values[index].kind == W_SEED_HIR0_VALUE_NUMERIC_WIDEN)
+      return true;
   return false;
 }
 
@@ -2310,6 +2407,13 @@ static bool mark_reachable_value_tree(
                program, program->bindings[value->binding_index].initializer_value,
                reachable, has_add, has_subtract, has_multiply, has_divide,
                has_remainder, depth + 1u);
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_NUMERIC_WIDEN) {
+    mlir0_numeric_widening_facts facts;
+    return mlir0_numeric_widening_shape_valid(program, value_index, &facts) &&
+           mark_reachable_value_tree(
+               program, value->left_value, reachable, has_add, has_subtract,
+               has_multiply, has_divide, has_remainder, depth + 1u);
   }
   if (value->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN ||
       value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS ||
@@ -4837,6 +4941,45 @@ typedef struct {
   bool reachable_values[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
 } mlir0_program_plan;
 
+static bool program_plan_has_float_abi_type(
+    const w_seed_hir0_program *program,
+    const mlir0_program_plan *plan) {
+  if (program == NULL || plan == NULL ||
+      program->value_count > W_SEED_NATIVE_SUBSET0_MAX_VALUES ||
+      program->function_count > W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS)
+    return false;
+  uint16_t float_width = 0u;
+  for (size_t value_index = 0u; value_index < program->value_count;
+       value_index += 1u) {
+    const w_seed_hir0_value *value = &program->values[value_index];
+    if (plan->reachable_values[value_index] &&
+        mlir0_float_type_width(program, value->type_index, &float_width))
+      return true;
+  }
+  for (size_t function_index = 0u;
+       function_index < program->function_count; function_index += 1u) {
+    if (!plan->reachable_functions[function_index]) continue;
+    const w_seed_hir0_function *function =
+        &program->functions[function_index];
+    if (mlir0_float_type_width(program, function->return_type, &float_width))
+      return true;
+    if ((size_t)function->first_parameter > program->parameter_count ||
+        function->parameter_count >
+            program->parameter_count - function->first_parameter)
+      return false;
+    for (size_t parameter_ordinal = 0u;
+         parameter_ordinal < function->parameter_count; parameter_ordinal += 1u) {
+      const w_seed_hir0_parameter *parameter =
+          &program->parameters[(size_t)function->first_parameter +
+                               parameter_ordinal];
+      if (mlir0_float_type_width(program, parameter->type_index,
+                                 &float_width))
+        return true;
+    }
+  }
+  return false;
+}
+
 /* The program selector verifies every function so malformed dead code cannot
  * cross the adapter boundary.  Emission, however, starts at the named entry
  * and follows only local function calls from reached bodies.  This keeps
@@ -5466,6 +5609,7 @@ static bool append_program_value_operand_in_loop(
           value->kind == W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE ||
           value->kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT ||
           value->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN ||
+          value->kind == W_SEED_HIR0_VALUE_NUMERIC_WIDEN ||
           value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS ||
           value->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING) &&
          append_literal(artifact, capacity, offset, "%v") &&
@@ -5524,6 +5668,67 @@ static bool append_integer_widen_operation(
          append_literal(artifact, capacity, offset, "_widen_trunc : i") &&
          append_size(artifact, capacity, offset, source_width) &&
          append_literal(artifact, capacity, offset, " to i64\n");
+}
+
+static bool append_numeric_widen_operation(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop, uint8_t *artifact,
+    size_t capacity, size_t *offset) {
+  if (program == NULL || artifact == NULL || offset == NULL ||
+      value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  mlir0_numeric_widening_facts facts;
+  if (!mlir0_numeric_widening_shape_valid(program, value_index, &facts))
+    return false;
+  const char *destination_type =
+      mlir0_float_type_name(program, value->type_index);
+  if (destination_type == NULL ||
+      (facts.destination_width != 32u && facts.destination_width != 64u))
+    return false;
+
+  if (facts.source_is_float) {
+    const char *source_type =
+        mlir0_float_type_name(program, value->source_type);
+    return source_type != NULL && facts.source_width == 32u &&
+           facts.destination_width == 64u &&
+           append_literal(artifact, capacity, offset, "    %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset, " = llvm.fpext ") &&
+           append_program_value_operand_in_loop(
+               program, value->left_value, function_index, process, loop,
+               artifact, capacity, offset) &&
+           append_literal(artifact, capacity, offset, " : ") &&
+           append_literal(artifact, capacity, offset, source_type) &&
+           append_literal(artifact, capacity, offset, " to ") &&
+           append_literal(artifact, capacity, offset, destination_type) &&
+           append_literal(artifact, capacity, offset, "\n");
+  }
+
+  const char *conversion = facts.source_is_signed ? "sitofp " : "uitofp ";
+  return facts.source_width != 0u && facts.source_width < 64u &&
+         append_literal(artifact, capacity, offset, "    %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset,
+                        "_numeric_widen_bits = llvm.trunc ") &&
+         append_program_value_operand_in_loop(
+             program, value->left_value, function_index, process, loop,
+             artifact, capacity, offset) &&
+         append_literal(artifact, capacity, offset, " : i64 to i") &&
+         append_size(artifact, capacity, offset, facts.source_width) &&
+         append_literal(artifact, capacity, offset, "\n    %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, " = llvm.") &&
+         append_literal(artifact, capacity, offset, conversion) &&
+         append_literal(artifact, capacity, offset, "%v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset,
+                        "_numeric_widen_bits : i") &&
+         append_size(artifact, capacity, offset, facts.source_width) &&
+         append_literal(artifact, capacity, offset, " to ") &&
+         append_literal(artifact, capacity, offset, destination_type) &&
+         append_literal(artifact, capacity, offset, "\n");
 }
 
 static bool append_integer_truncating_bits_operation(
@@ -5822,6 +6027,17 @@ static bool append_program_value_tree(
             program, value->left_value, function_index, process, emitted,
             artifact, capacity, offset, depth + 1u) ||
         !append_integer_widen_operation(program, value_index, function_index,
+                                        process, NULL, artifact, capacity,
+                                        offset))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_NUMERIC_WIDEN) {
+    if (!append_program_value_tree(
+            program, value->left_value, function_index, process, emitted,
+            artifact, capacity, offset, depth + 1u) ||
+        !append_numeric_widen_operation(program, value_index, function_index,
                                         process, NULL, artifact, capacity,
                                         offset))
       return false;
@@ -6623,6 +6839,17 @@ static bool append_program_value_tree_in_loop(
             program, value->left_value, function_index, process, loop, emitted,
             artifact, capacity, offset, depth + 1u) ||
         !append_integer_widen_operation(program, value_index, function_index,
+                                        process, loop, artifact, capacity,
+                                        offset))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_NUMERIC_WIDEN) {
+    if (!append_program_value_tree_in_loop(
+            program, value->left_value, function_index, process, loop, emitted,
+            artifact, capacity, offset, depth + 1u) ||
+        !append_numeric_widen_operation(program, value_index, function_index,
                                         process, loop, artifact, capacity,
                                         offset))
       return false;
@@ -8451,9 +8678,10 @@ static bool build_program_artifact(
       (!selection->has_local_calls && !selection->has_cfg &&
       !selection->has_enum_switch &&
       !selection->has_mutable_bindings &&
-       !selection->has_reachable_panic &&
+      !selection->has_reachable_panic &&
        !program_has_tuple_product_values(program) &&
        !program_has_narrow_integer_types(program) &&
+       !program_has_numeric_widen_values(program) &&
        selection->function_count <= 1u) ||
       !target_is_supported(target) || artifact == NULL || written == NULL ||
       digest == NULL || selection->maximum_stdout_bytes > MLIR0_MAX_STDOUT_BYTES)
@@ -8462,6 +8690,10 @@ static bool build_program_artifact(
   if (!build_program_plan(program, hir_result, &plan, false, true) ||
       plan.has_reachable_panic != selection->has_reachable_panic)
     return false;
+  /* The CRT-free Windows object needs `_fltused` for emitted floating types;
+   * omit the global when the reachable program has no floating ABI surface. */
+  const bool has_float_abi_type =
+      program_plan_has_float_abi_type(program, &plan);
   for (size_t function = 0u; function < program->function_count;
        function += 1u)
     if (program_has_unary_u64(program) &&
@@ -8491,6 +8723,9 @@ static bool build_program_artifact(
       (windows &&
        !append_literal(artifact, capacity, &offset,
                        MLIR0_WINDOWS_BUFFER_GLOBAL)) ||
+      (windows && has_float_abi_type &&
+       !append_literal(artifact, capacity, &offset,
+                       "  llvm.mlir.global @_fltused(0 : i32) : i32\n")) ||
       !append_literal(artifact, capacity, &offset,
                       (!plan.has_i64 &&
                        reachable_values_have_u64(program,
@@ -9564,6 +9799,7 @@ w_seed_mlir0_status w_seed_mlir0_measure(
              program_selection.has_reachable_panic ||
              program_has_tuple_product_values(input->program) ||
              program_has_narrow_integer_types(input->program) ||
+             program_has_numeric_widen_values(input->program) ||
              program_selection.function_count > 1u) {
     if (!build_program_artifact(input->program, input->hir_result,
                                 &program_selection, target, artifact,
@@ -9657,6 +9893,7 @@ w_seed_mlir0_status w_seed_mlir0_emit(
              program_selection.has_reachable_panic ||
              program_has_tuple_product_values(input->program) ||
              program_has_narrow_integer_types(input->program) ||
+             program_has_numeric_widen_values(input->program) ||
              program_selection.function_count > 1u) {
     if (!build_program_artifact(input->program, input->hir_result,
                                 &program_selection, target, artifact,

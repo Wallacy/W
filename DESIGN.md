@@ -42371,6 +42371,46 @@ Floating conversions, remainder, power, total-order helpers, SIMD/tensor
 lowering, stable ABI/FFI, other targets, and equivalent runtime work remain
 gaps under their existing decisions.
 
+#### 26.4.1.126 W-1646 — exact total numeric widening
+
+W-1646 changes implementation coverage of the existing W-388/W-389 numeric
+conversion contract; it adds no syntax. Implicit conversion is total only when
+every value of the source type has an exact representation in the destination:
+`f32 -> f64`, `i8`/`u8`/`i16`/`u16 -> f32`, and
+`i8`/`u8`/`i16`/`u16`/`i32`/`u32 -> f64`. The same rule applies to
+bindings, returns, call arguments, mixed arithmetic, mixed comparisons, and
+the unlabeled total constructor `D(value)`.
+
+For an already-typed value, Frontend68 inserts one explicit numeric-widen
+value rather than silently retyping the operand. An unsuffixed integer literal
+keeps the existing contextual rule: it may materialize directly in the
+floating destination only when its complete mathematical value is exact.
+HIR89 preserves the source and destination identities, one child value,
+ownership, ordering, and digest facts. NativeSubset0 and MLIR60 independently
+verify those facts. MLIR emits
+`llvm.fpext` for `f32 -> f64`; an integer source is first narrowed from the
+physical `i64` carrier to its verified logical width with `llvm.trunc`, then
+converted by `llvm.sitofp` or `llvm.uitofp`. The route introduces no fast-math
+flag, heap allocation, runtime helper, or CRT helper.
+
+The route rejects `i32 -> f32`, all `i64`/`u64`/`Int`/`UInt -> float`,
+`f64 -> f32`, float-to-integer conversion, and every other pair not listed
+above. Exactness of one particular constant does not make an inexact type
+conversion implicit. `exactly:`, `rounding:`, floating `saturating:`,
+target-general aliases, stable ABI/FFI, other targets, and conversion policies
+that can fail or lose information remain separate gaps.
+
+**Example:**
+[`restaurant-numeric-widening.w`](compiler/seed-c/fixtures/restaurant-numeric-widening.w)
+is the compact family witness. It covers return, call argument, binding,
+mixed arithmetic, mixed comparison, and explicit total-constructor contexts.
+Its oracle is exit 0 with stdout `Numeric widen ok\n`; the maintained public
+gates also require an invalid `i32 -> f32` binding to fail before observable
+output. C23 and Rust 2024 are independent correctness references only. The W
+expression graph may be compile-time folded while those references retain
+runtime operands, so `benchmarkDisposition: deferred` and no performance
+ranking is published.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

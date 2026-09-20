@@ -49,6 +49,13 @@ typedef struct {
   uint16_t bit_width;
 } native_integer_facts;
 
+typedef struct {
+  bool source_is_float;
+  bool source_is_signed;
+  uint16_t source_width;
+  uint16_t destination_width;
+} native_numeric_widening_facts;
+
 static bool native_integer_type_facts(const w_seed_hir0_program *program,
                                       uint32_t type_index,
                                       native_integer_facts *facts) {
@@ -174,6 +181,87 @@ static bool native_integer_conversion_route(
          native_integer_type_facts(program, source_type, source_facts) &&
          native_integer_type_facts(program, destination_type,
                                    destination_facts);
+}
+
+static bool native_float_type_width(const w_seed_hir0_program *program,
+                                    uint32_t type_index,
+                                    uint16_t *bit_width) {
+  if (program == NULL || bit_width == NULL || type_index >= program->type_count)
+    return false;
+  const w_seed_hir0_type *type = &program->types[type_index];
+  if (type->integer_is_signed || type->integer_bit_width != 0u) return false;
+  if (type->kind == W_SEED_HIR0_TYPE_F32) {
+    *bit_width = 32u;
+    return true;
+  }
+  if (type->kind == W_SEED_HIR0_TYPE_F64) {
+    *bit_width = 64u;
+    return true;
+  }
+  return false;
+}
+
+/* W-1646 is deliberately narrower than an all-numeric conversion lattice.
+ * The seed admits only exact-binary32-to-binary64 extension, narrow signed or
+ * unsigned integers through 16 bits to f32, and integers through 32 bits to
+ * f64.  In particular, TYPE_I64/TYPE_U64 (including Int/UInt) are never
+ * integer sources for this route. */
+static bool native_numeric_widening_route(
+    const w_seed_hir0_program *program, uint32_t source_type,
+    uint32_t destination_type, native_numeric_widening_facts *facts) {
+  if (program == NULL || facts == NULL || source_type >= program->type_count ||
+      destination_type >= program->type_count)
+    return false;
+  uint16_t destination_width = 0u;
+  if (!native_float_type_width(program, destination_type,
+                               &destination_width))
+    return false;
+
+  const w_seed_hir0_type *source = &program->types[source_type];
+  if (!source->integer_is_signed && source->integer_bit_width == 0u &&
+      source->kind == W_SEED_HIR0_TYPE_F32 && destination_width == 64u) {
+    *facts = (native_numeric_widening_facts){
+        .source_is_float = true,
+        .source_is_signed = false,
+        .source_width = 32u,
+        .destination_width = destination_width};
+    return true;
+  }
+
+  native_integer_facts source_facts;
+  if (source->kind != W_SEED_HIR0_TYPE_INTEGER ||
+      !native_integer_type_facts(program, source_type, &source_facts) ||
+      (destination_width == 32u && source_facts.bit_width > 16u) ||
+      (destination_width == 64u && source_facts.bit_width > 32u))
+    return false;
+  *facts = (native_numeric_widening_facts){
+      .source_is_float = false,
+      .source_is_signed = source_facts.is_signed,
+      .source_width = source_facts.bit_width,
+      .destination_width = destination_width};
+  return true;
+}
+
+static bool native_numeric_widening_shape_valid(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    native_numeric_widening_facts *facts) {
+  if (program == NULL || facts == NULL || value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->kind != W_SEED_HIR0_VALUE_NUMERIC_WIDEN ||
+      value->left_value == W_SEED_HIR0_NONE ||
+      value->left_value >= program->value_count ||
+      value->right_value != W_SEED_HIR0_NONE ||
+      value->source_type >= program->type_count ||
+      program->values[value->left_value].type_index != value->source_type ||
+      program->values[value->left_value].owner_kind !=
+          W_SEED_HIR0_VALUE_OWNER_NUMERIC_WIDEN ||
+      program->values[value->left_value].owner_index != value_index ||
+      program->values[value->left_value].owner_ordinal != 0u ||
+      !native_numeric_widening_route(program, value->source_type,
+                                     value->type_index, facts))
+    return false;
+  return true;
 }
 
 static uint64_t native_integer_width_mask(native_integer_facts facts) {
@@ -2084,6 +2172,12 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
     return program_value_lowerable(program, value->left_value, owner_function,
                                    false, depth + 1u);
   }
+  if (value->kind == W_SEED_HIR0_VALUE_NUMERIC_WIDEN) {
+    native_numeric_widening_facts facts;
+    return native_numeric_widening_shape_valid(program, value_index, &facts) &&
+           program_value_lowerable(program, value->left_value,
+                                   owner_function, false, depth + 1u);
+  }
   if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS ||
       value->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING) {
     const w_seed_hir0_value_owner_kind owner_kind =
@@ -2175,6 +2269,8 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
     const bool scalar = type == W_SEED_HIR0_TYPE_I64 ||
                         type == W_SEED_HIR0_TYPE_U64 ||
                         type == W_SEED_HIR0_TYPE_INTEGER ||
+                        type == W_SEED_HIR0_TYPE_F32 ||
+                        type == W_SEED_HIR0_TYPE_F64 ||
                         type == W_SEED_HIR0_TYPE_BOOL;
     const bool enumeration =
         (type == W_SEED_HIR0_TYPE_ENUM ||
@@ -2343,6 +2439,8 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
   if (value->kind == W_SEED_HIR0_VALUE_CALL_RESULT) {
     if ((type != W_SEED_HIR0_TYPE_I64 && type != W_SEED_HIR0_TYPE_U64 &&
          type != W_SEED_HIR0_TYPE_INTEGER &&
+         type != W_SEED_HIR0_TYPE_F32 &&
+         type != W_SEED_HIR0_TYPE_F64 &&
          type != W_SEED_HIR0_TYPE_BOOL &&
          !program_enum_type_supported(program, value->type_index, NULL, NULL)) ||
         value->call_index >= program->call_count)
@@ -2731,6 +2829,13 @@ static bool process_value_lowerable(
     (void)source_facts;
     (void)destination_facts;
     return process_value_lowerable(program, value->left_value, owner_function,
+                                   process, false, depth + 1u);
+  }
+
+  if (value->kind == W_SEED_HIR0_VALUE_NUMERIC_WIDEN) {
+    native_numeric_widening_facts facts;
+    return native_numeric_widening_shape_valid(program, value_index, &facts) &&
+           process_value_lowerable(program, value->left_value, owner_function,
                                    process, false, depth + 1u);
   }
 

@@ -200,6 +200,7 @@ typedef struct {
   bool is_builtin_u64_receiver;
   bool is_builtin_u64_member;
   bool is_integer_type_constructor;
+  bool is_float_type_constructor;
   w_seed_frontend_builtin_operation builtin_operation;
   uint32_t local_call_function;
   bool local_call_is_async;
@@ -3842,6 +3843,20 @@ static bool receipt_size_integer_conversion(
          receipt_size_literal(context, "\n");
 }
 
+static bool receipt_size_numeric_widen(
+    frontend_context *context, size_t expression_index, uint32_t source_type,
+    uint32_t destination_type, bool explicit_surface) {
+  return receipt_size_literal(context, "numeric-widen=") &&
+         receipt_size_size(context, expression_index) &&
+         receipt_size_literal(context, "|source=") &&
+         receipt_size_size(context, source_type) &&
+         receipt_size_literal(context, "|destination=") &&
+         receipt_size_size(context, destination_type) &&
+         receipt_size_literal(context, "|surface=") &&
+         receipt_size_literal(context,
+                              explicit_surface ? "explicit\n" : "implicit\n");
+}
+
 static bool receipt_size_external_enum_case_identity(
     frontend_context *context, size_t expression_index,
     uint32_t external_module_index, uint32_t external_symbol_index,
@@ -5492,6 +5507,57 @@ static bool type_is_float(frontend_simple_type type) {
          (type.bit_width == 32u || type.bit_width == 64u);
 }
 
+/* Contextually materialize only unsuffixed integer literals whose full value
+ * is exactly representable in the requested IEEE binary format.  Construct
+ * the bits with integer operations so this path does not depend on the host
+ * floating environment or an implementation's integer-to-float cast. */
+static bool integer_literal_float_bits(w_seed_frontend_text spelling,
+                                       uint16_t float_width,
+                                       uint64_t *bits_out) {
+  if (bits_out == NULL || (float_width != 32u && float_width != 64u))
+    return false;
+  size_t body_end = spelling.length;
+  bool has_suffix = false;
+  bool is_signed = true;
+  uint16_t integer_width = 0u;
+  uint64_t magnitude = 0u;
+  if (!integer_literal_parts(spelling, &body_end, &has_suffix, &is_signed,
+                             &integer_width) ||
+      has_suffix || body_end != spelling.length ||
+      !integer_literal_value(spelling, body_end, &magnitude))
+    return false;
+  const uint64_t exact_limit = float_width == 32u
+                                   ? (UINT64_C(1) << 24u)
+                                   : (UINT64_C(1) << 53u);
+  if (magnitude > exact_limit) return false;
+
+  const unsigned fraction_bits = float_width == 32u ? 23u : 52u;
+  const unsigned exponent_bias = float_width == 32u ? 127u : 1023u;
+  unsigned top_bit = 0u;
+  for (uint64_t remaining = magnitude; remaining > 1u; remaining >>= 1u)
+    top_bit += 1u;
+  uint64_t significand = 0u;
+  if (magnitude != 0u) {
+    if (top_bit <= fraction_bits) {
+      const uint64_t leading = UINT64_C(1) << top_bit;
+      significand = (magnitude ^ leading) << (fraction_bits - top_bit);
+    } else {
+      const unsigned discarded = top_bit - fraction_bits;
+      const uint64_t discarded_mask = (UINT64_C(1) << discarded) - 1u;
+      if ((magnitude & discarded_mask) != 0u) return false;
+      const uint64_t normalized = magnitude >> discarded;
+      const uint64_t fraction_mask =
+          (UINT64_C(1) << fraction_bits) - 1u;
+      significand = normalized & fraction_mask;
+    }
+  }
+  const uint64_t exponent = magnitude == 0u ? 0u : exponent_bias + top_bit;
+  *bits_out = (exponent << fraction_bits) | significand;
+  (void)is_signed;
+  (void)integer_width;
+  return true;
+}
+
 static bool unsuffixed_integer_fits(w_seed_frontend_text spelling,
                                     frontend_simple_type expected) {
   if (expected.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
@@ -5569,10 +5635,29 @@ static bool widening_allowed(frontend_simple_type actual,
                                        : (UINT64_C(1) << 53u);
       return value <= exact_limit;
     }
+    if (text_equal(actual.spelling, "usize")) return false;
     if (expected.bit_width == 32u) return actual.bit_width <= 16u;
     if (expected.bit_width == 64u) return actual.bit_width <= 32u;
   }
   return false;
+}
+
+/* Numeric wrapper routes are deliberately smaller than contextual literal
+ * materialization: they apply only to typed fixed-width values. */
+static bool numeric_widening_route(frontend_simple_type actual,
+                                   frontend_simple_type expected) {
+  if (actual.kind == W_SEED_FRONTEND_TYPE_FLOAT &&
+      expected.kind == W_SEED_FRONTEND_TYPE_FLOAT)
+    return actual.bit_width == 32u && expected.bit_width == 64u;
+  if (actual.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+      expected.kind != W_SEED_FRONTEND_TYPE_FLOAT ||
+      (expected.bit_width != 32u && expected.bit_width != 64u) ||
+      text_equal(actual.spelling, "usize"))
+    return false;
+  return expected.bit_width == 32u
+             ? (actual.bit_width == 8u || actual.bit_width == 16u)
+             : (actual.bit_width == 8u || actual.bit_width == 16u ||
+                actual.bit_width == 32u);
 }
 
 static bool frontend_type_is_enum(frontend_simple_type type) {
@@ -10635,6 +10720,18 @@ static bool integer_type_constructor_for_spelling(
   return true;
 }
 
+static bool float_type_constructor_for_spelling(
+    w_seed_frontend_text spelling, frontend_simple_type *type) {
+  if (type != NULL) *type = simple_type_unknown();
+  if (type == NULL ||
+      (!text_equal(spelling, "f32") && !text_equal(spelling, "f64")))
+    return false;
+  const frontend_simple_type candidate = simple_type_from_view(spelling);
+  if (!type_is_float(candidate)) return false;
+  *type = candidate;
+  return true;
+}
+
 /* Conversion operands are expressions, not type constructors.  A typed
  * literal or computed value retains its source spelling in the expression
  * record, so validate its resolved integer facts and recover the canonical
@@ -12860,70 +12957,78 @@ static bool expression_append(frontend_expression_parser *parser,
   } else if (kind == W_SEED_FRONTEND_EXPR_FLOAT &&
              type.kind == W_SEED_FRONTEND_TYPE_FLOAT &&
              (type.bit_width == 32u || type.bit_width == 64u)) {
-    char normalized[FRONTEND_FLOAT_LITERAL_BYTES];
-    size_t body_end = spelling.length;
-    const bool has_float_suffix =
-        float_literal_body_end(spelling, &body_end) &&
-        body_end != spelling.length;
-    const bool hexadecimal =
-        body_end >= 2u && spelling.data[0] == '0' &&
-        (spelling.data[1] == 'x' || spelling.data[1] == 'X');
-    if (hexadecimal || (has_float_suffix &&
-                        !decimal_float_body(spelling, body_end))) {
-      supported = false;
-    }
-    size_t length = 0u;
-    for (size_t index = 0u; supported && index < body_end; index += 1u) {
-      if (spelling.data[index] == '_') continue;
-      if (length + 1u >= sizeof(normalized)) {
+    uint64_t exact_integer_bits = 0u;
+    if (integer_literal_float_bits(spelling, type.bit_width,
+                                   &exact_integer_bits)) {
+      record.has_float_value = true;
+      record.float_bits = exact_integer_bits;
+    } else {
+      char normalized[FRONTEND_FLOAT_LITERAL_BYTES];
+      size_t body_end = spelling.length;
+      const bool has_float_suffix =
+          float_literal_body_end(spelling, &body_end) &&
+          body_end != spelling.length;
+      const bool hexadecimal =
+          body_end >= 2u && spelling.data[0] == '0' &&
+          (spelling.data[1] == 'x' || spelling.data[1] == 'X');
+      if (hexadecimal || (has_float_suffix &&
+                          !decimal_float_body(spelling, body_end))) {
         supported = false;
-        break;
       }
-      normalized[length++] = spelling.data[index];
-    }
-    if (supported && length != 0u) {
-      normalized[length] = '\0';
-      char *tail = NULL;
-      errno = 0;
-      if (type.bit_width == 32u) {
-        float parsed = 0.0f;
-        const bool converted =
-            frontend_strtof_c_locale(normalized, &tail, &parsed);
-        const bool finite = parsed == parsed && parsed <= FLT_MAX &&
-                            parsed >= -FLT_MAX;
-        const bool range_error_is_underflow =
-            errno == ERANGE &&
-            (parsed == 0.0f || (parsed > -FLT_MIN && parsed < FLT_MIN));
-        if (!converted || tail == normalized || tail == NULL ||
-            *tail != '\0' || !finite ||
-            (errno == ERANGE && !range_error_is_underflow)) {
+      size_t length = 0u;
+      for (size_t index = 0u; supported && index < body_end; index += 1u) {
+        if (spelling.data[index] == '_') continue;
+        if (length + 1u >= sizeof(normalized)) {
           supported = false;
+          break;
+        }
+        normalized[length++] = spelling.data[index];
+      }
+      if (supported && length != 0u) {
+        normalized[length] = '\0';
+        char *tail = NULL;
+        errno = 0;
+        if (type.bit_width == 32u) {
+          float parsed = 0.0f;
+          const bool converted =
+              frontend_strtof_c_locale(normalized, &tail, &parsed);
+          const bool finite = parsed == parsed && parsed <= FLT_MAX &&
+                              parsed >= -FLT_MAX;
+          const bool range_error_is_underflow =
+              errno == ERANGE &&
+              (parsed == 0.0f || (parsed > -FLT_MIN && parsed < FLT_MIN));
+          if (!converted || tail == normalized || tail == NULL ||
+              *tail != '\0' || !finite ||
+              (errno == ERANGE && !range_error_is_underflow)) {
+            supported = false;
+          } else {
+            uint32_t bits = 0u;
+            record.has_float_value = true;
+            (void)memcpy(&bits, &parsed, sizeof(bits));
+            record.float_bits = (uint64_t)bits;
+          }
         } else {
-          uint32_t bits = 0u;
-          record.has_float_value = true;
-          (void)memcpy(&bits, &parsed, sizeof(bits));
-          record.float_bits = (uint64_t)bits;
+          double parsed = 0.0;
+          const bool converted =
+              frontend_strtod_c_locale(normalized, &tail, &parsed);
+          const bool finite = parsed == parsed && parsed <= DBL_MAX &&
+                              parsed >= -DBL_MAX;
+          const bool range_error_is_underflow =
+              errno == ERANGE &&
+              (parsed == 0.0 || (parsed > -DBL_MIN && parsed < DBL_MIN));
+          if (!converted || tail == normalized || tail == NULL ||
+              *tail != '\0' || !finite ||
+              (errno == ERANGE && !range_error_is_underflow)) {
+            supported = false;
+          } else {
+            record.has_float_value = true;
+            (void)memcpy(&record.float_bits, &parsed,
+                         sizeof(record.float_bits));
+          }
         }
       } else {
-        double parsed = 0.0;
-        const bool converted =
-            frontend_strtod_c_locale(normalized, &tail, &parsed);
-        const bool finite = parsed == parsed && parsed <= DBL_MAX &&
-                            parsed >= -DBL_MAX;
-        const bool range_error_is_underflow =
-            errno == ERANGE &&
-            (parsed == 0.0 || (parsed > -DBL_MIN && parsed < DBL_MIN));
-        if (!converted || tail == normalized || tail == NULL ||
-            *tail != '\0' || !finite ||
-            (errno == ERANGE && !range_error_is_underflow)) {
-          supported = false;
-        } else {
-          record.has_float_value = true;
-          (void)memcpy(&record.float_bits, &parsed, sizeof(record.float_bits));
-        }
+        supported = false;
       }
-    } else {
-      supported = false;
     }
     if (!supported) {
       (void)context_append_fact(
@@ -13011,6 +13116,7 @@ static bool expression_append(frontend_expression_parser *parser,
   value->is_builtin_u64_receiver = false;
   value->is_builtin_u64_member = false;
   value->is_integer_type_constructor = false;
+  value->is_float_type_constructor = false;
   value->builtin_operation = record.builtin_operation;
   value->is_kernel_binding = false;
   value->kernel_module_index = W_SEED_FRONTEND_NONE;
@@ -13078,6 +13184,105 @@ static bool expression_append_integer_widen(
   wrapped.type = destination;
   wrapped.supported = source.supported;
   *value = wrapped;
+  return true;
+}
+
+static bool expression_value_is_unsuffixed_integer(
+    const frontend_expr_value *value);
+
+/* One semantic node represents the closed total-exact numeric widening
+ * family.  An explicit D(value) call differs only in its source span and the
+ * append-only receipt surface fact; the HIR operation and route are shared. */
+static bool expression_append_numeric_widen(
+    frontend_expression_parser *parser, frontend_expr_value *value,
+    frontend_simple_type destination, w_seed_span wrapper_span,
+    w_seed_frontend_text wrapper_spelling, bool explicit_surface) {
+  if (parser == NULL || value == NULL ||
+      !numeric_widening_route(value->type, destination) ||
+      value->index == W_SEED_FRONTEND_NONE ||
+      value->index >= (size_t)UINT32_MAX)
+    return false;
+  uint32_t source_type = W_SEED_FRONTEND_NONE;
+  uint32_t destination_type = W_SEED_FRONTEND_NONE;
+  if (!output_type_index_for_simple(parser->context, value->type,
+                                    &source_type) ||
+      !output_type_index_for_simple(parser->context, destination,
+                                    &destination_type) ||
+      source_type == W_SEED_FRONTEND_NONE ||
+      destination_type == W_SEED_FRONTEND_NONE)
+    return false;
+
+  const frontend_expr_value source = *value;
+  frontend_expr_value wrapped = {0};
+  if (!expression_append(
+          parser, W_SEED_FRONTEND_EXPR_NUMERIC_WIDEN, wrapper_span,
+          wrapper_spelling, (w_seed_frontend_text){NULL, 0}, destination,
+          source.supported, source.index,
+          (size_t)W_SEED_FRONTEND_NONE, W_SEED_FRONTEND_NONE, 0u, &wrapped))
+    return false;
+  if (!parser->context->emit &&
+      !receipt_size_numeric_widen(parser->context, wrapped.index, source_type,
+                                  destination_type, explicit_surface))
+    return false;
+  if (parser->context->emit && parser->context->output != NULL &&
+      wrapped.index < parser->context->output->expression_capacity) {
+    w_seed_frontend_expression *record =
+        &parser->context->output->expressions[wrapped.index];
+    record->conversion_source_type = source_type;
+    record->conversion_destination_type = destination_type;
+    record->numeric_widen_is_explicit = explicit_surface;
+  }
+  wrapped.is_integer_literal = false;
+  wrapped.kind = W_SEED_FRONTEND_EXPR_NUMERIC_WIDEN;
+  wrapped.type = destination;
+  wrapped.supported = source.supported;
+  *value = wrapped;
+  return true;
+}
+
+/* Unsuffixed integer literals may be represented directly in a contextual
+ * floating type only when the spelling's entire mathematical value is exact
+ * in that format.  This is literal materialization, not a typed conversion
+ * node; all already-typed values use expression_append_numeric_widen. */
+static bool expression_materialize_unsuffixed_float(
+    frontend_expression_parser *parser, frontend_expr_value *value,
+    frontend_simple_type destination) {
+  if (parser == NULL || value == NULL ||
+      !expression_value_is_unsuffixed_integer(value) ||
+      !type_is_float(destination))
+    return false;
+  uint64_t bits = 0u;
+  if (!integer_literal_float_bits(value->type.spelling, destination.bit_width,
+                                  &bits))
+    return false;
+  uint32_t destination_type = W_SEED_FRONTEND_NONE;
+  if (!output_type_index_for_simple(parser->context, destination,
+                                    &destination_type) ||
+      destination_type == W_SEED_FRONTEND_NONE)
+    return false;
+  if (value->index == W_SEED_FRONTEND_NONE ||
+      value->index >= (size_t)UINT32_MAX)
+    return false;
+  if (parser->context->emit && parser->context->output != NULL) {
+    if (value->index >= parser->context->output->expression_capacity)
+      return false;
+    w_seed_frontend_expression *record =
+        &parser->context->output->expressions[value->index];
+    if (record->kind != W_SEED_FRONTEND_EXPR_INTEGER ||
+        record->inferred_type == W_SEED_FRONTEND_NONE ||
+        record->conversion_source_type != W_SEED_FRONTEND_NONE ||
+        record->conversion_destination_type != W_SEED_FRONTEND_NONE)
+      return false;
+    record->kind = W_SEED_FRONTEND_EXPR_FLOAT;
+    record->inferred_type = destination_type;
+    record->has_integer_value = false;
+    (void)memset(record->integer_value, 0, sizeof(record->integer_value));
+    record->has_float_value = true;
+    record->float_bits = bits;
+  }
+  value->kind = W_SEED_FRONTEND_EXPR_FLOAT;
+  value->type = destination;
+  value->is_integer_literal = false;
   return true;
 }
 
@@ -13168,6 +13373,17 @@ static bool expression_value_set_type(frontend_expression_parser *parser,
                                       frontend_simple_type type) {
   if (parser == NULL || parser->context == NULL || value == NULL) return false;
   if (!type_equal(value->type, type) &&
+      type.kind == W_SEED_FRONTEND_TYPE_FLOAT &&
+      expression_value_is_unsuffixed_integer(value)) {
+    return expression_materialize_unsuffixed_float(parser, value, type);
+  }
+  if (!type_equal(value->type, type) &&
+      numeric_widening_route(value->type, type)) {
+    return expression_append_numeric_widen(
+        parser, value, type, value->span,
+        text_from_span(parser->document, value->span), false);
+  }
+  if (!type_equal(value->type, type) &&
       value->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
       type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
       value->type.bit_width != 0u) {
@@ -13208,6 +13424,23 @@ static bool expression_apply_expected_type(frontend_expression_parser *parser,
       return expression_value_set_type(parser, value, expected);
     }
     return expression_append_integer_widen(parser, value, expected);
+  }
+  if (value->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+      expected.kind == W_SEED_FRONTEND_TYPE_FLOAT) {
+    if (expression_value_is_unsuffixed_integer(value)) {
+      if (expression_materialize_unsuffixed_float(parser, value, expected))
+        return true;
+      return false;
+    }
+    return expression_append_numeric_widen(
+        parser, value, expected, value->span,
+        text_from_span(parser->document, value->span), false);
+  }
+  if (value->type.kind == W_SEED_FRONTEND_TYPE_FLOAT &&
+      expected.kind == W_SEED_FRONTEND_TYPE_FLOAT) {
+    return expression_append_numeric_widen(
+        parser, value, expected, value->span,
+        text_from_span(parser->document, value->span), false);
   }
   return true;
 }
@@ -13750,6 +13983,23 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
           value->is_integer_type_constructor = true;
           return true;
         }
+        if (cursor_peek(&parser->cursor, &next) &&
+            token_text(parser->document, &next, "(") &&
+            float_type_constructor_for_spelling(spelling,
+                                                &constructor_type)) {
+          value->index = W_SEED_FRONTEND_NONE;
+          value->left = W_SEED_FRONTEND_NONE;
+          value->right = W_SEED_FRONTEND_NONE;
+          value->kind = W_SEED_FRONTEND_EXPR_IDENTIFIER;
+          value->type = constructor_type;
+          value->supported = true;
+          value->is_integer_literal = false;
+          value->has_name = true;
+          value->name = spelling;
+          value->span = token.span;
+          value->is_float_type_constructor = true;
+          return true;
+        }
       }
       if (!resolved) {
         (void)context_append_fact(
@@ -13827,6 +14077,15 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
         unsuffixed_integer_fits(text_from_span(parser->document, token.span),
                                 parser->expected_type)) {
       type = parser->expected_type;
+    } else if (parser->has_expected_type &&
+               parser->expected_type.kind == W_SEED_FRONTEND_TYPE_FLOAT &&
+               type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+               type.bit_width == 0u) {
+      uint64_t exact_bits = 0u;
+      if (integer_literal_float_bits(
+              text_from_span(parser->document, token.span),
+              parser->expected_type.bit_width, &exact_bits))
+        type = parser->expected_type;
     }
     const bool literal_supported = type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN;
     if (!literal_supported) {
@@ -14194,9 +14453,11 @@ static bool expression_parse_integer_conversion_call(
     frontend_expression_parser *parser, frontend_expr_value *constructor,
     frontend_token open) {
   if (parser == NULL || constructor == NULL ||
-      !constructor->is_integer_type_constructor ||
+      (!constructor->is_integer_type_constructor &&
+       !constructor->is_float_type_constructor) ||
       !token_text(parser->document, &open, "("))
     return false;
+  const bool numeric_constructor = constructor->is_float_type_constructor;
   frontend_expr_value source = {0};
   source.index = W_SEED_FRONTEND_NONE;
   source.type = simple_type_unknown();
@@ -14233,7 +14494,7 @@ static bool expression_parse_integer_conversion_call(
     parser->has_expected_type = saved_has_expected;
     parser->suppress_short_diagnostic = saved_suppress_short;
     if (!parsed) return false;
-    if (recognized_label.length == 0u &&
+    if (!numeric_constructor && recognized_label.length == 0u &&
         (text_equal(label, "truncatingBits") ||
          text_equal(label, "saturating")))
       recognized_label = label;
@@ -14243,9 +14504,11 @@ static bool expression_parse_integer_conversion_call(
     } else {
       shape_valid = false;
     }
-    if (label.length == 0u ||
-        (!text_equal(label, "truncatingBits") &&
-         !text_equal(label, "saturating")))
+    if ((!numeric_constructor &&
+         (label.length == 0u ||
+          (!text_equal(label, "truncatingBits") &&
+           !text_equal(label, "saturating")))) ||
+        (numeric_constructor && label.length != 0u))
       shape_valid = false;
     argument_count += 1u;
     if (!cursor_peek_text(&parser->cursor, ",")) break;
@@ -14260,13 +14523,26 @@ static bool expression_parse_integer_conversion_call(
   const bool truncating_bits = text_equal(source_label, "truncatingBits");
   const bool saturating = text_equal(source_label, "saturating");
   const bool valid_conversion =
-      shape_valid && argument_count == 1u &&
+      !numeric_constructor && shape_valid && argument_count == 1u &&
       (truncating_bits || saturating) && source.supported &&
       integer_type_constructor_for_spelling(constructor->type.spelling,
                                             &checked_destination) &&
       integer_conversion_source_type(source.type, &checked_source) &&
       checked_source.is_signed == source.type.is_signed &&
       checked_source.bit_width == source.type.bit_width;
+  const bool valid_numeric_widen =
+      numeric_constructor && shape_valid && argument_count == 1u &&
+      source_label.length == 0u && source.supported &&
+      type_is_float(constructor->type) &&
+      numeric_widening_route(source.type, constructor->type);
+  if (valid_numeric_widen) {
+    if (!expression_append_numeric_widen(
+            parser, &source, constructor->type, call_span,
+            text_from_span(parser->document, call_span), true))
+      return false;
+    *constructor = source;
+    return true;
+  }
   if (valid_conversion) {
     const bool appended =
         truncating_bits
@@ -14289,7 +14565,9 @@ static bool expression_parse_integer_conversion_call(
           ? recognized_label
           : (source_label.length != 0u
                  ? source_label
-                 : (w_seed_frontend_text){"truncatingBits", 14u});
+                 : (numeric_constructor
+                        ? constructor->type.spelling
+                        : (w_seed_frontend_text){"truncatingBits", 14u}));
   return expression_append(
       parser, W_SEED_FRONTEND_EXPR_UNSUPPORTED, call_span,
       text_from_span(parser->document, call_span), unsupported_label,
@@ -14304,7 +14582,8 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
   while (true) {
     frontend_token token;
     if (!cursor_peek(&parser->cursor, &token)) break;
-    if (value->is_integer_type_constructor) {
+    if (value->is_integer_type_constructor ||
+        value->is_float_type_constructor) {
       frontend_token open;
       if (!cursor_take_text(&parser->cursor, "(", &open) ||
           !expression_parse_integer_conversion_call(parser, value, open))
@@ -14661,8 +14940,12 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       parser->expected_type = saved_expected;
       parser->has_expected_type = saved_has_expected;
       parser->suppress_short_diagnostic = saved_suppress_short;
-      if (expected_found && expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
-          argument_value.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+      if (expected_found && !type_equal(argument_value.type, expected) &&
+          ((expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+            argument_value.type.kind == W_SEED_FRONTEND_TYPE_INTEGER) ||
+           (expected.kind == W_SEED_FRONTEND_TYPE_FLOAT &&
+            (argument_value.type.kind == W_SEED_FRONTEND_TYPE_INTEGER ||
+             argument_value.type.kind == W_SEED_FRONTEND_TYPE_FLOAT))) &&
           !expression_apply_expected_type(parser, &argument_value, expected)) {
         argument_value.supported = false;
       }
@@ -15731,19 +16014,32 @@ static bool expression_append_binary(frontend_expression_parser *parser,
       text_equal(operator_text, "==") || text_equal(operator_text, "!=") ||
       text_equal(operator_text, "<") || text_equal(operator_text, "<=") ||
       text_equal(operator_text, ">") || text_equal(operator_text, ">=");
-  const bool mixed_integer_float =
-      (left->type.kind == W_SEED_FRONTEND_TYPE_INTEGER && right_float) ||
-      (left_float && right->type.kind == W_SEED_FRONTEND_TYPE_INTEGER);
-  const bool mixed_float_width =
-      left_float && right_float && left->type.bit_width != right->type.bit_width;
-  if (arithmetic_or_comparison &&
-      (mixed_integer_float || mixed_float_width ||
-       ((left_float || right_float) &&
-        (!float_operator || !left_float || !right_float)))) {
-    /* This seed admits one exact float identity at a time. Integer/float and
-     * f32/f64 mixed operations need conversion nodes that this slice does not
-     * provide; remainder and bitwise float operators are not IEEE arithmetic. */
+  if ((left_float || right_float) &&
+      (!arithmetic_or_comparison || !float_operator ||
+       !type_is_numeric(left->type) || !type_is_numeric(right->type))) {
+    /* Remainder and bitwise operators are not IEEE arithmetic. */
     supported = false;
+  } else if ((left_float || right_float) && float_operator &&
+             !frontend_type_equal(parser->context, left->type, right->type)) {
+    bool converted = false;
+    if (expression_value_is_unsuffixed_integer(left) && right_float) {
+      converted = expression_materialize_unsuffixed_float(
+          parser, left, right->type);
+    } else if (expression_value_is_unsuffixed_integer(right) && left_float) {
+      converted = expression_materialize_unsuffixed_float(
+          parser, right, left->type);
+    } else if (numeric_widening_route(left->type, right->type)) {
+      converted = expression_append_numeric_widen(
+          parser, left, right->type, left->span,
+          text_from_span(parser->document, left->span), false);
+    } else if (numeric_widening_route(right->type, left->type)) {
+      converted = expression_append_numeric_widen(
+          parser, right, left->type, right->span,
+          text_from_span(parser->document, right->span), false);
+    }
+    supported = converted &&
+                frontend_type_equal(parser->context, left->type, right->type);
+    if (supported) result_type = left->type;
   }
   if (arithmetic_or_comparison &&
       left->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
@@ -16232,8 +16528,12 @@ static bool normalize_expression_node(frontend_context *context,
     }
     return appended;
   }
-  if (expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
-      value.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+  if (!type_equal(value.type, expected) &&
+      ((expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+        value.type.kind == W_SEED_FRONTEND_TYPE_INTEGER) ||
+       (expected.kind == W_SEED_FRONTEND_TYPE_FLOAT &&
+        (value.type.kind == W_SEED_FRONTEND_TYPE_INTEGER ||
+         value.type.kind == W_SEED_FRONTEND_TYPE_FLOAT))) &&
       !expression_apply_expected_type(&parser, &value, expected)) {
     value.supported = false;
   }
@@ -16269,8 +16569,12 @@ static bool normalize_expression_span(frontend_context *context,
   if (!expression_parse_bp(&parser, 0, &value)) return false;
   frontend_token trailing;
   if (cursor_peek(&parser.cursor, &trailing)) return false;
-  if (expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
-      value.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+  if (!type_equal(value.type, expected) &&
+      ((expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+        value.type.kind == W_SEED_FRONTEND_TYPE_INTEGER) ||
+       (expected.kind == W_SEED_FRONTEND_TYPE_FLOAT &&
+        (value.type.kind == W_SEED_FRONTEND_TYPE_INTEGER ||
+         value.type.kind == W_SEED_FRONTEND_TYPE_FLOAT))) &&
       !expression_apply_expected_type(&parser, &value, expected)) {
     value.supported = false;
   }
@@ -16379,6 +16683,166 @@ static frontend_simple_type infer_checked_shift_span(
 }
 
 static frontend_simple_type infer_expression_span_inner(
+    frontend_context *context, w_seed_span span, size_t depth);
+
+/* The dry pass needs the effective type of an earlier unannotated binding
+ * before statement records exist. Keep this scanner deliberately narrower
+ * than the Pratt parser: it only finds a top-level binary root and computes
+ * the type relation that the real parser will validate and materialize. */
+static frontend_simple_type infer_binary_expression_span(
+    frontend_context *context, const w_seed_frontend_document *doc,
+    w_seed_span span, size_t depth, bool *matched) {
+  if (matched != NULL) *matched = false;
+  if (context == NULL || doc == NULL || matched == NULL ||
+      depth >= W_SEED_FRONTEND_MAX_NESTING)
+    return simple_type_unknown();
+
+  frontend_token_cursor cursor = token_cursor_for(doc, span);
+  frontend_token token;
+  frontend_token selected = {0};
+  int selected_precedence = INT_MAX;
+  size_t parentheses = 0u;
+  size_t brackets = 0u;
+  size_t braces = 0u;
+  bool expect_operand = true;
+  while (cursor_take(&cursor, &token)) {
+    const w_seed_frontend_text text = text_from_span(doc, token.span);
+    if (text_equal(text, "(")) {
+      if (parentheses == SIZE_MAX) return simple_type_unknown();
+      parentheses += 1u;
+      continue;
+    }
+    if (text_equal(text, "[")) {
+      if (brackets == SIZE_MAX) return simple_type_unknown();
+      brackets += 1u;
+      continue;
+    }
+    if (text_equal(text, "{")) {
+      if (braces == SIZE_MAX) return simple_type_unknown();
+      braces += 1u;
+      continue;
+    }
+    if (text_equal(text, ")")) {
+      if (parentheses == 0u) return simple_type_unknown();
+      parentheses -= 1u;
+      if (parentheses == 0u && brackets == 0u && braces == 0u)
+        expect_operand = false;
+      continue;
+    }
+    if (text_equal(text, "]")) {
+      if (brackets == 0u) return simple_type_unknown();
+      brackets -= 1u;
+      if (parentheses == 0u && brackets == 0u && braces == 0u)
+        expect_operand = false;
+      continue;
+    }
+    if (text_equal(text, "}")) {
+      if (braces == 0u) return simple_type_unknown();
+      braces -= 1u;
+      if (parentheses == 0u && brackets == 0u && braces == 0u)
+        expect_operand = false;
+      continue;
+    }
+    if (parentheses != 0u || brackets != 0u || braces != 0u) continue;
+
+    const int precedence = operator_precedence(text);
+    const bool inference_operator =
+        text_equal(text, "+") || text_equal(text, "-") ||
+        text_equal(text, "*") || text_equal(text, "/") ||
+        text_equal(text, "%") || text_equal(text, "&") ||
+        text_equal(text, "|") || text_equal(text, "^") ||
+        text_equal(text, "==") || text_equal(text, "!=") ||
+        text_equal(text, "<") || text_equal(text, "<=") ||
+        text_equal(text, ">") || text_equal(text, ">=") ||
+        text_equal(text, "&&") || text_equal(text, "||");
+    if (!expect_operand && inference_operator && precedence >= 0) {
+      if (precedence <= selected_precedence) {
+        selected = token;
+        selected_precedence = precedence;
+      }
+      expect_operand = true;
+      continue;
+    }
+    expect_operand = false;
+  }
+  if (parentheses != 0u || brackets != 0u || braces != 0u ||
+      selected_precedence == INT_MAX)
+    return simple_type_unknown();
+
+  *matched = true;
+  const w_seed_span left_span =
+      trim_span(doc, (w_seed_span){span.start_byte, selected.span.start_byte});
+  const w_seed_span right_span =
+      trim_span(doc, (w_seed_span){selected.span.end_byte, span.end_byte});
+  if (left_span.start_byte >= left_span.end_byte ||
+      right_span.start_byte >= right_span.end_byte)
+    return simple_type_unknown();
+  frontend_simple_type left =
+      infer_expression_span_inner(context, left_span, depth + 1u);
+  frontend_simple_type right =
+      infer_expression_span_inner(context, right_span, depth + 1u);
+  const w_seed_frontend_text operation = text_from_span(doc, selected.span);
+  if (text_equal(operation, "==") || text_equal(operation, "!=") ||
+      text_equal(operation, "<") || text_equal(operation, "<=") ||
+      text_equal(operation, ">") || text_equal(operation, ">=") ||
+      text_equal(operation, "&&") || text_equal(operation, "||"))
+    return simple_type_from_view((w_seed_frontend_text){"Bool", 4u});
+  if (!type_is_numeric(left) || !type_is_numeric(right))
+    return simple_type_unknown();
+  if (frontend_type_equal(context, left, right)) {
+    if (left.kind == W_SEED_FRONTEND_TYPE_INTEGER && left.is_signed &&
+        left.bit_width == 0u)
+      return const_default_integer_type();
+    return left;
+  }
+  if (numeric_widening_route(left, right) ||
+      frontend_widening_allowed(context, left, right))
+    return right;
+  if (numeric_widening_route(right, left) ||
+      frontend_widening_allowed(context, right, left))
+    return left;
+  return simple_type_unknown();
+}
+
+/* Peel one pair of parentheses only when it encloses the complete span.
+ * Grouping must not erase the dry-pass type of an unannotated binding, while
+ * calls, tuples, and a parenthesized left operand followed by an operator must
+ * continue through their existing paths. */
+static bool grouped_expression_inner_span(
+    const w_seed_frontend_document *doc, w_seed_span span,
+    w_seed_span *inner_span) {
+  if (inner_span != NULL) *inner_span = (w_seed_span){0u, 0u};
+  if (doc == NULL || inner_span == NULL) return false;
+  frontend_token_cursor cursor = token_cursor_for(doc, span);
+  frontend_token token;
+  if (!cursor_take(&cursor, &token) ||
+      !text_equal(text_from_span(doc, token.span), "("))
+    return false;
+  const size_t inner_start = token.span.end_byte;
+  size_t depth = 1u;
+  while (cursor_take(&cursor, &token)) {
+    const w_seed_frontend_text text = text_from_span(doc, token.span);
+    if (text_equal(text, "(")) {
+      if (depth == SIZE_MAX) return false;
+      depth += 1u;
+      continue;
+    }
+    if (!text_equal(text, ")")) continue;
+    if (depth == 0u) return false;
+    depth -= 1u;
+    if (depth != 0u) continue;
+    frontend_token trailing;
+    if (cursor_peek(&cursor, &trailing)) return false;
+    const w_seed_span candidate =
+        trim_span(doc, (w_seed_span){inner_start, token.span.start_byte});
+    if (candidate.start_byte >= candidate.end_byte) return false;
+    *inner_span = candidate;
+    return true;
+  }
+  return false;
+}
+
+static frontend_simple_type infer_expression_span_inner(
     frontend_context *context, w_seed_span span, size_t depth) {
   const w_seed_frontend_document *doc = context_document(context);
   if (doc == NULL || depth > W_SEED_FRONTEND_MAX_NESTING)
@@ -16387,6 +16851,9 @@ static frontend_simple_type infer_expression_span_inner(
   frontend_token first;
   if (!cursor_peek(&cursor, &first)) return simple_type_unknown();
   const w_seed_frontend_text first_text = text_from_span(doc, first.span);
+  w_seed_span grouped_span;
+  if (grouped_expression_inner_span(doc, span, &grouped_span))
+    return infer_expression_span_inner(context, grouped_span, depth + 1u);
   if (text_equal(first_text, "if")) {
     uint32_t if_node = W_SEED_CST_NONE;
     if (!cst_if_node_for_span(doc, span, &if_node))
@@ -16428,6 +16895,10 @@ static frontend_simple_type infer_expression_span_inner(
       return simple_type_unknown();
     return then_type;
   }
+  bool matched_binary = false;
+  const frontend_simple_type binary_type = infer_binary_expression_span(
+      context, doc, span, depth, &matched_binary);
+  if (matched_binary) return binary_type;
   if (text_equal(first_text, "true") || text_equal(first_text, "false")) {
     return simple_type_from_view((w_seed_frontend_text){"Bool", 4});
   }
@@ -16482,6 +16953,18 @@ static frontend_simple_type infer_expression_span_inner(
     const w_seed_frontend_host_prelude_symbol *host = NULL;
     if (host_symbol_for_name(context, first_text, &host, NULL)) {
       return simple_type_from_view(host->return_type);
+    }
+    frontend_simple_type numeric_destination = simple_type_unknown();
+    if (float_type_constructor_for_spelling(first_text,
+                                            &numeric_destination) &&
+        binding_type_for_name(context, first_text, first.span).kind ==
+            W_SEED_FRONTEND_TYPE_UNKNOWN) {
+      /* Keep dry-pass binding inference aligned with the expression parser:
+       * it recognizes f32/f64 constructor calls before ordinary call
+       * resolution and assigns the destination type even when the conversion
+       * itself is unsupported.  The parser remains responsible for validating
+       * the one-argument shape and the exact numeric-widen route. */
+      return numeric_destination;
     }
   }
   const frontend_simple_type checked_shift_type =
@@ -21601,6 +22084,18 @@ static void receipt_write_records(frontend_receipt_writer *writer,
         receipt_write_literal(writer, "|destination=");
         receipt_write_size(writer, expression->conversion_destination_type);
         receipt_write_literal(writer, "\n");
+      }
+      if (expression->kind == W_SEED_FRONTEND_EXPR_NUMERIC_WIDEN) {
+        receipt_write_literal(writer, "numeric-widen=");
+        receipt_write_size(writer, index);
+        receipt_write_literal(writer, "|source=");
+        receipt_write_size(writer, expression->conversion_source_type);
+        receipt_write_literal(writer, "|destination=");
+        receipt_write_size(writer, expression->conversion_destination_type);
+        receipt_write_literal(writer, "|surface=");
+        receipt_write_literal(
+            writer, expression->numeric_widen_is_explicit ? "explicit\n"
+                                                          : "implicit\n");
       }
       if (expression->kind != W_SEED_FRONTEND_EXPR_CALL) continue;
       uint32_t callee_index = W_SEED_FRONTEND_NONE;

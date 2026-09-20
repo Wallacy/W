@@ -6441,8 +6441,32 @@ static bool test_f64_scalar_projection(void) {
   for (size_t index = 0u;
        index < sizeof(mixed_sources) / sizeof(mixed_sources[0]); index += 1u) {
     CHECK(fixture_run(value, mixed_sources[index]));
-    CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
-          has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+    CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+          counts_equal(&value->result.required, &value->result.written));
+    size_t numeric_widen_count = 0u;
+    for (size_t expression_index = 0u;
+         expression_index < value->result.written.expressions;
+         expression_index += 1u) {
+      const w_seed_frontend_expression *expression =
+          &value->expressions[expression_index];
+      if (expression->kind != W_SEED_FRONTEND_EXPR_NUMERIC_WIDEN) continue;
+      CHECK(!expression->numeric_widen_is_explicit &&
+            expression->conversion_source_type <
+                value->result.written.types &&
+            expression->conversion_destination_type <
+                value->result.written.types &&
+            value->types[expression->conversion_source_type].kind ==
+                W_SEED_FRONTEND_TYPE_INTEGER &&
+            value->types[expression->conversion_source_type].is_signed &&
+            value->types[expression->conversion_source_type].bit_width ==
+                32u &&
+            value->types[expression->conversion_destination_type].kind ==
+                W_SEED_FRONTEND_TYPE_FLOAT &&
+            value->types[expression->conversion_destination_type].bit_width ==
+                64u);
+      numeric_widen_count += 1u;
+    }
+    CHECK(numeric_widen_count == 1u);
   }
 
   CHECK(fixture_parse(value, "entry { let invalid = 1e999 }\n"));
@@ -6574,6 +6598,31 @@ static bool test_f32_scalar_projection(void) {
         saw_smallest_subnormal_bits && saw_underflow_positive_zero &&
         saw_first_midpoint_even_lower && saw_second_midpoint_even_upper);
 
+  CHECK(fixture_run(value,
+                    "entry { let sum = 1.0_f32 + 2.0_f64 "
+                    "let equal = 1.0_f32 == 1.0_f64 }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        counts_equal(&value->result.required, &value->result.written));
+  size_t mixed_float_widens = 0u;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind != W_SEED_FRONTEND_EXPR_NUMERIC_WIDEN) continue;
+    CHECK(!expression->numeric_widen_is_explicit &&
+          expression->conversion_source_type < value->result.written.types &&
+          expression->conversion_destination_type <
+              value->result.written.types &&
+          value->types[expression->conversion_source_type].kind ==
+              W_SEED_FRONTEND_TYPE_FLOAT &&
+          value->types[expression->conversion_source_type].bit_width == 32u &&
+          value->types[expression->conversion_destination_type].kind ==
+              W_SEED_FRONTEND_TYPE_FLOAT &&
+          value->types[expression->conversion_destination_type].bit_width ==
+              64u);
+    mixed_float_widens += 1u;
+  }
+  CHECK(mixed_float_widens == 2u);
+
   /* C numeric parsing and IEEE conversion ignore the caller's locale and
    * rounding mode. Verify the ties-to-even cases while FE_DOWNWARD is active
    * when that mode is available, then verify the frontend restores it. */
@@ -6607,12 +6656,11 @@ static bool test_f32_scalar_projection(void) {
       "entry { let hex = 0x1.0p0_f32 }\n",
       "entry { let mixed = 1_i32 + 2.0_f32 }\n",
       "entry { let mixed = 1.0_f32 == 2_i32 }\n",
-      "entry { let mixed = 1.0_f32 + 2.0_f64 }\n",
-      "entry { let mixed = 1.0_f32 == 2.0_f64 }\n",
       "entry { let remainder = 1.0_f32 % 2.0_f32 }\n",
       "entry { let powered = 1.0_f32 ** 2.0_f32 }\n",
       "entry { let bitwise = 1.0_f32 & 2.0_f32 }\n",
-      "entry { let cast = f64(1.0_f32) }\n",
+      "entry { let cast = f32(1.0_f64) }\n",
+      "entry { let cast = i32(1.0_f32) }\n",
       "entry { let rendered = \"${1.0_f32}\" }\n",
   };
   for (size_t index = 0u; index < sizeof(REJECTED) / sizeof(REJECTED[0]);
@@ -6622,6 +6670,311 @@ static bool test_f32_scalar_projection(void) {
           (has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION) ||
            has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_TYPE) ||
            value->result.status == W_SEED_FRONTEND_DIAGNOSTICS));
+  }
+  return true;
+}
+
+static bool test_numeric_widening_frontend(void) {
+  CHECK(strcmp(W_SEED_FRONTEND_SCHEMA_VERSION, "w-seed-frontend-68") == 0);
+  typedef struct {
+    const char *source_name;
+    bool source_is_float;
+    bool source_is_signed;
+    uint16_t source_width;
+    const char *destination_name;
+    uint16_t destination_width;
+  } numeric_route_case;
+  static const numeric_route_case ROUTES[] = {
+      {"i8", false, true, 8u, "f32", 32u},
+      {"u8", false, false, 8u, "f32", 32u},
+      {"i16", false, true, 16u, "f32", 32u},
+      {"u16", false, false, 16u, "f32", 32u},
+      {"f32", true, false, 32u, "f64", 64u},
+      {"i8", false, true, 8u, "f64", 64u},
+      {"u8", false, false, 8u, "f64", 64u},
+      {"i16", false, true, 16u, "f64", 64u},
+      {"u16", false, false, 16u, "f64", 64u},
+      {"i32", false, true, 32u, "f64", 64u},
+      {"u32", false, false, 32u, "f64", 64u},
+  };
+  fixture *value = &fixture_literal;
+  char source[256];
+  char receipt_line[128];
+  for (size_t route_index = 0u;
+       route_index < sizeof(ROUTES) / sizeof(ROUTES[0]); route_index += 1u) {
+    for (size_t explicit_index = 0u; explicit_index < 2u;
+         explicit_index += 1u) {
+      const bool explicit_surface = explicit_index != 0u;
+      const int written = explicit_surface
+          ? snprintf(source, sizeof(source),
+                     "fn f(value: %s): %s { return %s(value) } entry(f)\n",
+                     ROUTES[route_index].source_name,
+                     ROUTES[route_index].destination_name,
+                     ROUTES[route_index].destination_name)
+          : snprintf(source, sizeof(source),
+                     "fn f(value: %s): %s { return value } entry(f)\n",
+                     ROUTES[route_index].source_name,
+                     ROUTES[route_index].destination_name);
+      CHECK(written > 0 && (size_t)written < sizeof(source));
+      CHECK(fixture_run(value, source));
+      CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+            counts_equal(&value->result.required, &value->result.written));
+      const w_seed_frontend_expression *wrapper = NULL;
+      size_t wrapper_index = 0u;
+      size_t wrapper_count = 0u;
+      for (size_t expression_index = 0u;
+           expression_index < value->result.written.expressions;
+           expression_index += 1u) {
+        const w_seed_frontend_expression *candidate =
+            &value->expressions[expression_index];
+        if (candidate->kind != W_SEED_FRONTEND_EXPR_NUMERIC_WIDEN) continue;
+        wrapper = candidate;
+        wrapper_index = expression_index;
+        wrapper_count += 1u;
+      }
+      CHECK(wrapper_count == 1u && wrapper != NULL &&
+            wrapper->supported &&
+            wrapper->left < value->result.written.expressions &&
+            wrapper->right == W_SEED_FRONTEND_NONE &&
+            wrapper->conversion_source_type < value->result.written.types &&
+            wrapper->conversion_destination_type <
+                value->result.written.types &&
+            wrapper->inferred_type ==
+                wrapper->conversion_destination_type &&
+            wrapper->numeric_widen_is_explicit == explicit_surface);
+      const w_seed_frontend_expression *child =
+          &value->expressions[wrapper->left];
+      const w_seed_frontend_type *source_type =
+          &value->types[wrapper->conversion_source_type];
+      const w_seed_frontend_type *destination_type =
+          &value->types[wrapper->conversion_destination_type];
+      CHECK(child->inferred_type == wrapper->conversion_source_type &&
+            destination_type->kind == W_SEED_FRONTEND_TYPE_FLOAT &&
+            destination_type->bit_width ==
+                ROUTES[route_index].destination_width);
+      if (ROUTES[route_index].source_is_float) {
+        CHECK(source_type->kind == W_SEED_FRONTEND_TYPE_FLOAT &&
+              source_type->bit_width == ROUTES[route_index].source_width);
+      } else {
+        CHECK(source_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+              source_type->is_signed ==
+                  ROUTES[route_index].source_is_signed &&
+              source_type->bit_width == ROUTES[route_index].source_width);
+      }
+      const int receipt_length = snprintf(
+          receipt_line, sizeof(receipt_line),
+          "numeric-widen=%llu|source=%u|destination=%u|surface=%s\n",
+          (unsigned long long)wrapper_index,
+          wrapper->conversion_source_type,
+          wrapper->conversion_destination_type,
+          explicit_surface ? "explicit" : "implicit");
+      CHECK(receipt_length > 0 &&
+            (size_t)receipt_length < sizeof(receipt_line) &&
+            receipt_contains(value, receipt_line, (size_t)receipt_length));
+    }
+  }
+
+  CHECK(fixture_run(
+      value,
+      "fn returnValue(value: i8): f32 { return value }\n"
+      "fn bindingValue(value: u16): f32 { let result: f32 = value "
+      "return result }\n"
+      "fn sink(value: f64): f64 { return value }\n"
+      "fn argumentValue(value: i32): f64 { return sink(value: value) }\n"
+      "fn mixedSum(value: u32, offset: f64): f64 { return value + offset }\n"
+      "fn mixedComparison(value: u16, limit: f32): Bool { "
+      "return value < limit }\n"
+      "entry {}\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        counts_equal(&value->result.required, &value->result.written));
+  size_t contextual_widens = 0u;
+  bool saw_return = false;
+  bool saw_binding = false;
+  bool saw_argument = false;
+  bool saw_mixed_arithmetic = false;
+  bool saw_mixed_comparison = false;
+  for (size_t expression_index = 0u;
+       expression_index < value->result.written.expressions;
+       expression_index += 1u) {
+    const w_seed_frontend_expression *wrapper =
+        &value->expressions[expression_index];
+    if (wrapper->kind != W_SEED_FRONTEND_EXPR_NUMERIC_WIDEN) continue;
+    CHECK(!wrapper->numeric_widen_is_explicit &&
+          wrapper->conversion_source_type < value->result.written.types &&
+          wrapper->conversion_destination_type < value->result.written.types);
+    contextual_widens += 1u;
+    for (size_t statement_index = 0u;
+         statement_index < value->result.written.statements;
+         statement_index += 1u) {
+      const w_seed_frontend_statement *statement =
+          &value->statements[statement_index];
+      if (statement->expression_index != expression_index) continue;
+      if (statement->kind == W_SEED_FRONTEND_STMT_RETURN) saw_return = true;
+      if (statement->kind == W_SEED_FRONTEND_STMT_LET) saw_binding = true;
+    }
+    for (size_t argument_index = 0u;
+         argument_index < value->result.written.arguments;
+         argument_index += 1u) {
+      if (value->arguments[argument_index].expression_index == expression_index)
+        saw_argument = true;
+    }
+    for (size_t parent_index = 0u;
+         parent_index < value->result.written.expressions; parent_index += 1u) {
+      const w_seed_frontend_expression *parent =
+          &value->expressions[parent_index];
+      if (parent->kind != W_SEED_FRONTEND_EXPR_BINARY ||
+          (parent->left != expression_index &&
+           parent->right != expression_index))
+        continue;
+      if (frontend_text_is(parent->operator_text, "+"))
+        saw_mixed_arithmetic = true;
+      if (frontend_text_is(parent->operator_text, "<"))
+        saw_mixed_comparison = true;
+    }
+  }
+  CHECK(contextual_widens == 5u && saw_return && saw_binding && saw_argument &&
+        saw_mixed_arithmetic && saw_mixed_comparison);
+
+  static const struct {
+    const char *source;
+    bool explicit_widen;
+  } BINDING_READS[] = {
+      {"entry { let widened: f64 = 1.5_f32 "
+       "let valid = widened == 1.5_f64 }\n", false},
+      {"entry { let widened = f64(1.5_f32) "
+       "let valid = widened == 1.5_f64 }\n", true},
+      {"entry { let widened = (2_i32 + 0.5_f64) "
+       "let valid = widened == 2.5_f64 }\n", false},
+  };
+  for (size_t case_index = 0u;
+       case_index < sizeof(BINDING_READS) / sizeof(BINDING_READS[0]);
+       case_index += 1u) {
+    CHECK(fixture_run(value, BINDING_READS[case_index].source));
+    CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+          counts_equal(&value->result.required, &value->result.written));
+    size_t widen_count = 0u;
+    bool saw_read_comparison = false;
+    for (size_t expression_index = 0u;
+         expression_index < value->result.written.expressions;
+         expression_index += 1u) {
+      const w_seed_frontend_expression *expression =
+          &value->expressions[expression_index];
+      if (expression->kind == W_SEED_FRONTEND_EXPR_NUMERIC_WIDEN) {
+        CHECK(expression->numeric_widen_is_explicit ==
+              BINDING_READS[case_index].explicit_widen);
+        widen_count += 1u;
+      }
+      if (expression->kind == W_SEED_FRONTEND_EXPR_BINARY &&
+          frontend_text_is(expression->operator_text, "==") &&
+          expression->left < value->result.written.expressions &&
+          value->expressions[expression->left].kind ==
+              W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+          frontend_text_is(value->expressions[expression->left].spelling,
+                           "widened"))
+        saw_read_comparison = true;
+    }
+    CHECK(widen_count == 1u && saw_read_comparison);
+  }
+  CHECK(fixture_parse(
+      value,
+      "entry { let widened: f64 = 1.5_f32 "
+      "let valid = widened == 1.5_f64 "
+      "if valid { print(\"ok\") } else { print(\"bad\") } }\n"));
+  fixture_configure_print_host(value);
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_OK);
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        counts_equal(&value->result.required, &value->result.written));
+  CHECK(fixture_parse(
+      value,
+      "entry { let widenedFloat: f64 = 1.5_f32 "
+      "let explicitFloat = f64(1.25_f32) "
+      "let valid = widenedFloat == 1.5_f64 && "
+      "explicitFloat == 1.25_f64 "
+      "if valid { print(\"ok\") } else { print(\"bad\") } }\n"));
+  fixture_configure_print_host(value);
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_OK);
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        counts_equal(&value->result.required, &value->result.written));
+
+  CHECK(fixture_run(
+      value,
+      "entry { let mixedInteger = 2_i32 + 0.5_f64 "
+      "let mixedFloat = 1.5_f32 + 2.25_f64 "
+      "let mixedComparison = 65535_u16 == 65535.0_f32 "
+      "let valid = mixedInteger == 2.5_f64 && "
+      "mixedFloat == 3.75_f64 && mixedComparison }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        counts_equal(&value->result.required, &value->result.written));
+  size_t inferred_f64_bindings = 0u;
+  bool saw_inferred_bool_binding = false;
+  for (size_t statement_index = 0u;
+       statement_index < value->result.written.statements;
+       statement_index += 1u) {
+    const w_seed_frontend_statement *statement =
+        &value->statements[statement_index];
+    if (statement->kind != W_SEED_FRONTEND_STMT_LET ||
+        statement->effective_type >= value->result.written.types)
+      continue;
+    const w_seed_frontend_type *type = &value->types[statement->effective_type];
+    if ((frontend_text_is(statement->binding_name, "mixedInteger") ||
+         frontend_text_is(statement->binding_name, "mixedFloat")) &&
+        type->kind == W_SEED_FRONTEND_TYPE_FLOAT && type->bit_width == 64u)
+      inferred_f64_bindings += 1u;
+    if (frontend_text_is(statement->binding_name, "mixedComparison") &&
+        type->kind == W_SEED_FRONTEND_TYPE_BOOL)
+      saw_inferred_bool_binding = true;
+  }
+  CHECK(inferred_f64_bindings == 2u && saw_inferred_bool_binding);
+
+  CHECK(fixture_run(
+      value,
+      "entry { let exact32: f32 = 16777216 "
+      "let exact64: f64 = 9007199254740992 }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        counts_equal(&value->result.required, &value->result.written));
+  bool saw_exact_f32_integer = false;
+  bool saw_exact_f64_integer = false;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind != W_SEED_FRONTEND_EXPR_FLOAT) continue;
+    if (expression->float_bits == UINT64_C(0x4b800000))
+      saw_exact_f32_integer = true;
+    if (expression->float_bits == UINT64_C(0x4340000000000000))
+      saw_exact_f64_integer = true;
+  }
+  CHECK(saw_exact_f32_integer && saw_exact_f64_integer);
+
+  static const char *const REJECTED[] = {
+      "fn f(value: i32): f32 { return value } entry(f)\n",
+      "fn f(value: u32): f32 { return value } entry(f)\n",
+      "fn f(value: i64): f64 { return value } entry(f)\n",
+      "fn f(value: u64): f64 { return value } entry(f)\n",
+      "fn f(value: Int): f64 { return value } entry(f)\n",
+      "fn f(value: UInt): f64 { return value } entry(f)\n",
+      "fn f(value: f64): f32 { return value } entry(f)\n",
+      "fn f(value: f32): i32 { return value } entry(f)\n",
+      "entry { let rejected = f32(1.0_f64) "
+      "let read = rejected == 1.0_f32 }\n",
+      "fn f(value: i32): f32 { return f32(value) } entry(f)\n",
+      "fn f(value: i64): f64 { return f64(value) } entry(f)\n",
+      "fn f(value: f64): f32 { return f32(value) } entry(f)\n",
+      "entry { let notExact32: f32 = 16777217 }\n",
+      "entry { let notExact64: f64 = 9007199254740993 }\n",
+      "entry { let notExact32 = f32(16777217) }\n",
+      "entry { let notExact64 = f64(9007199254740993) }\n",
+  };
+  for (size_t index = 0u; index < sizeof(REJECTED) / sizeof(REJECTED[0]);
+       index += 1u) {
+    CHECK(fixture_run(value, REJECTED[index]));
+    CHECK(value->result.status != W_SEED_FRONTEND_OK);
+    for (size_t expression_index = 0u;
+         expression_index < value->result.written.expressions;
+         expression_index += 1u)
+      CHECK(value->expressions[expression_index].kind !=
+            W_SEED_FRONTEND_EXPR_NUMERIC_WIDEN);
   }
   return true;
 }
@@ -8726,6 +9079,7 @@ int main(int argc, char **argv) {
   if (!test_u64_bool_tuple_product_boundary_frontend()) return 1;
   if (!test_f64_scalar_projection()) return 1;
   if (!test_f32_scalar_projection()) return 1;
+  if (!test_numeric_widening_frontend()) return 1;
   if (!test_f64_locale_isolation()) return 1;
   if (!test_declarations_and_determinism()) return 1;
   if (!test_enums_and_payloads()) return 1;

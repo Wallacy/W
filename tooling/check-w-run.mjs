@@ -68,6 +68,8 @@ const restaurantCompoundFixture = resolve(seedDirectory,
   "fixtures", "restaurant-compound.w")
 const restaurantFloatStrictFixture = resolve(seedDirectory,
   "fixtures", "restaurant-float-strict.w")
+const restaurantNumericWideningFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-numeric-widening.w")
 const restaurantCheckedIntegerArithmeticFixture = resolve(seedDirectory,
   "fixtures", "restaurant-checked-integer-arithmetic.w")
 const restaurantIntegerWrappingFixture = resolve(seedDirectory,
@@ -760,6 +762,8 @@ try {
     "invalid_truncating_bits.w")
   const invalidSaturatingLabel = join(fixtureDirectory,
     "invalid_saturating_label.w")
+  const invalidNumericWidening = join(fixtureDirectory,
+    "invalid_numeric_widening.w")
   const runtimeDivisionZero = join(fixtureDirectory,
     "runtime_division_zero.w")
   const runtimeDivisionOverflow = join(fixtureDirectory,
@@ -834,6 +838,8 @@ try {
   await writeFile(invalidSaturatingLabel,
     "entry { print(\"must not commit\") " +
     "let value = i8(saturating: 128_i16, other: 0_i16) }\n")
+  await writeFile(invalidNumericWidening,
+    "entry { print(\"must not commit\") let value: f32 = 1_i32 }\n")
   await writeFile(runtimeDivisionZero,
     "fn divide(value: i64, by divisor: i64): i64 { return value / divisor }\n" +
     "entry { print(\"must not commit\") " +
@@ -1129,6 +1135,9 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantFloatStrictFixture)],
     Buffer.from("Float strict ok\n", "utf8"),
     "Restaurant strict f32/f64 arithmetic and IEEE comparisons")
+  expectSuccess(binary, ["run", toWsl(restaurantNumericWideningFixture)],
+    Buffer.from("Numeric widen ok\n", "utf8"),
+    "Restaurant exact implicit integer/float widening")
   expectSuccess(binary, ["run", toWsl(restaurantCheckedIntegerArithmeticFixture)],
     Buffer.from(
       "i8 -9/-15/-36; divrem -4/0; compound -2\n" +
@@ -1304,6 +1313,8 @@ try {
     "wrong truncatingBits label fails before output commit")
   expectSourceFailure(binary, toWsl(invalidSaturatingLabel),
     "wrong saturating label fails before output commit")
+  expectSourceFailure(binary, toWsl(invalidNumericWidening),
+    "inexact implicit i32-to-f32 conversion fails before output commit")
   for (const [path, label] of [
     [runtimeCheckedI8Overflow, "signed i8 checked addition overflow"],
     [runtimeCheckedU16Underflow, "unsigned u16 checked compound subtraction underflow"],

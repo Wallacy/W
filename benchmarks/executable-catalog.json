@@ -1977,6 +1977,90 @@
       ]
     },
     {
+      "id": "restaurant-numeric-widening",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Validate exact implicit integer-to-float and f32-to-f64 widening across return, call argument, local binding, mixed arithmetic, and mixed comparison contexts with exact output. W currently folds the witness while C and Rust retain runtime inputs, so no performance ranking is claimed.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Numeric widen ok\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-numeric-widening.w",
+          "digest": "sha256:a6113c23872f2794d5d5680c6f4d658b2eda59c2c532812518a6bbf1e60786e1",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-numeric-widening-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        },
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-numeric-widening.w",
+          "digest": "sha256:a6113c23872f2794d5d5680c6f4d658b2eda59c2c532812518a6bbf1e60786e1",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-numeric-widening-release",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only"
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/restaurant_numeric_widening.c",
+          "digest": "sha256:dd2b57276ebe3fff96f819abc90db8745fcdbbed292c6606403334e4789cac35",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "clang-c23-msvc",
+          "recipeClass": "restaurant-numeric-widening-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/restaurant_numeric_widening.rs",
+          "digest": "sha256:1af4f539742de42ca3405212a9ddd0cd559e596a1aabcc8bdf79623ef8f0c80f",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "restaurant-numeric-widening-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        }
+      ],
+      "blockedLanguages": [],
+      "blockers": [
+        "w-numeric-widening-compile-time-folded",
+        "runtime-numeric-widening-equivalence"
+      ]
+    },
+    {
       "id": "restaurant-integer-truncating-bits",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",

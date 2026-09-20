@@ -11646,6 +11646,118 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-exact-total-numeric-widening",
+      "reviewItem": "exact total numeric widening against value-specific implicit casts, opaque conversion nodes, runtime helpers, host conversion, and unequal benchmark work.",
+      "decisions": [
+        "W-1646"
+      ],
+      "task": "Carry the existing total-exact numeric relation through one explicit verified value from source to native output. Apply the same wrapper in bindings, returns, call arguments, mixed operators, and D(value), reject every unlisted type pair, and keep the family correctness-only until W and the references perform equivalent runtime work.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "let single: f32 = 65535_u16",
+          "let double: f64 = 4294967295_u32",
+          "let extended = f64(1.25_f32)",
+          "let mixed = 2_i32 + 0.5_f64"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "constant-specific-implicit-conversion",
+          "language": "w-rejected",
+          "source": [
+            "let value: f32 = 1_i32"
+          ],
+          "expectedDifference": "Implicit conversion is selected from the complete source type range, so overload resolution and generic code do not change with one constant's value."
+        },
+        {
+          "name": "opaque-cast-node",
+          "language": "w-internal-rejected",
+          "source": [
+            "erase source and destination identities behind one untyped cast operation"
+          ],
+          "expectedDifference": "The selected HIR value preserves both identities and lets every consumer independently reject lossy or forged routes."
+        },
+        {
+          "name": "runtime-conversion-helper",
+          "language": "w-internal-rejected",
+          "source": [
+            "call a runtime helper for each integer-to-float or f32-to-f64 conversion"
+          ],
+          "expectedDifference": "Direct fpext or verified-width truncation followed by sitofp/uitofp remains allocation-free, CRT-free, and available to whole-graph optimization."
+        },
+        {
+          "name": "host-floating-conversion",
+          "language": "w-internal-rejected",
+          "source": [
+            "evaluate the conversion through the compiler host's floating environment"
+          ],
+          "expectedDifference": "The evaluator derives exact IEEE bits and MLIR emits target operations from verified type facts."
+        },
+        {
+          "name": "rank-unequal-runtime-work",
+          "language": "benchmark-rejected",
+          "source": [
+            "rank the foldable W witness against C23 and Rust references that retain runtime operands"
+          ],
+          "expectedDifference": "The catalog records one correctness family and defers performance ranking until the physical work is equivalent."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-numeric-widening.w",
+          "symbol": "entry",
+          "claim": "The compact fixture owns exact output across return, call argument, binding, mixed arithmetic, mixed comparison, and explicit total-constructor contexts."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_frontend.c",
+          "symbol": "numeric_widening_route",
+          "claim": "Frontend68 derives the closed exact relation once and inserts a shared typed wrapper in every supported context."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "frontend_numeric_widening_route",
+          "claim": "HIR89 rechecks the route while preserving source/destination identity, ownership, order, and digest facts."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_scalar_evaluator0.c",
+          "symbol": "scalar_numeric_widen_shape_valid",
+          "claim": "The scalar evaluator derives exact IEEE results without a runtime or host floating conversion helper."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "native_numeric_widening_route",
+          "claim": "NativeSubset0 independently admits only the closed total-exact relation."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "append_numeric_widen_operation",
+          "claim": "MLIR60 emits direct sitofp, uitofp, or fpext from verified facts without fast-math or a helper call."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "Restaurant exact implicit integer/float widening",
+          "claim": "The public Windows gate requires exact family output and invalid i32-to-f32 failure before output."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "Restaurant exact implicit integer/float widening",
+          "claim": "The public Linux/WSL gate requires exact family output and invalid i32-to-f32 failure before output."
+        }
+      ],
+      "checks": [
+        "Focused frontend, verified-HIR, scalar-evaluator, NativeSubset0, and MLIR tests pass with warnings as errors.",
+        "Final-source MLIR0, Windows, and Linux/WSL gates pass exact output and invalid-pair failure before W-1646 is classified source-backed-current.",
+        "C23 and Rust 2024 references emit the same output and remain correctness-only, with no timing or ranking."
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

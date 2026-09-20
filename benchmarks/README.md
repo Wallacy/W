@@ -48,6 +48,14 @@ catalog excludes this
 workload from live best-metric derivation and equivalent-runtime ranking until
 runtime-equivalent W evidence exists.
 
+The `restaurant-numeric-widening` witness is likewise
+`not-performance-ready`. It keeps the exact implicit integer-to-float and
+binary32-to-binary64 conversion family in one row across return, argument,
+binding, mixed arithmetic, mixed comparison, and explicit total-conversion
+contexts. C23 and Rust 2024 retain runtime operands while the current W witness
+may fold the closed expression graph, so the row is correctness evidence only
+and publishes no cross-language ranking.
+
 The `restaurant-checked-integer-arithmetic` witness is
 `not-performance-ready`. It covers successful fixed-input checked ordinary and
 compound `+`, `-`, `*`, `/`, and `%` over signed and unsigned 8/16/32/64-bit

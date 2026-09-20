@@ -67,6 +67,8 @@ const restaurantCompoundFixture = resolve(seedDirectory,
   "fixtures", "restaurant-compound.w")
 const restaurantFloatStrictFixture = resolve(seedDirectory,
   "fixtures", "restaurant-float-strict.w")
+const restaurantNumericWideningFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-numeric-widening.w")
 const restaurantCheckedIntegerArithmeticFixture = resolve(seedDirectory,
   "fixtures", "restaurant-checked-integer-arithmetic.w")
 const restaurantIntegerWrappingFixture = resolve(seedDirectory,
@@ -486,6 +488,8 @@ try {
     "invalid-truncating-bits.w")
   const invalidSaturatingLabel = join(fixtureDirectory,
     "invalid-saturating-label.w")
+  const invalidNumericWidening = join(fixtureDirectory,
+    "invalid-numeric-widening.w")
   const runtimeCheckedI8Overflow = join(fixtureDirectory,
     "runtime-checked-i8-overflow.w")
   const runtimeCheckedU16Underflow = join(fixtureDirectory,
@@ -523,6 +527,8 @@ try {
   await writeFile(invalidSaturatingLabel,
     "entry { print(\"must not commit\") " +
     "let value = i8(saturating: 128_i16, other: 0_i16) }\n", "utf8")
+  await writeFile(invalidNumericWidening,
+    "entry { print(\"must not commit\") let value: f32 = 1_i32 }\n", "utf8")
   await writeFile(runtimeCheckedI8Overflow,
     "fn add(left: i8, right: i8): i8 { return left + right }\n" +
     "entry { print(\"must not commit\") " +
@@ -799,6 +805,9 @@ try {
   expectExact(binary, ["run", restaurantFloatStrictFixture], 0,
     Buffer.from("Float strict ok\n", "utf8"),
     "Restaurant strict f32/f64 arithmetic and IEEE comparisons")
+  expectExact(binary, ["run", restaurantNumericWideningFixture], 0,
+    Buffer.from("Numeric widen ok\n", "utf8"),
+    "Restaurant exact implicit integer/float widening")
   expectExact(binary, ["run", restaurantCheckedIntegerArithmeticFixture], 0,
     Buffer.from(
       "i8 -9/-15/-36; divrem -4/0; compound -2\nu8 43/37/120; divrem 13/1; compound 2\n" +
@@ -881,6 +890,8 @@ try {
     "wrong truncatingBits label fails before output commit")
   expectSourceFailure(binary, invalidSaturatingLabel,
     "wrong saturating label fails before output commit")
+  expectSourceFailure(binary, invalidNumericWidening,
+    "inexact implicit i32-to-f32 conversion fails before output commit")
   expectExact(binary, ["run", restaurantUIntWrappingAddFixture], 0,
     Buffer.from("Wrapped 0\n", "utf8"),
     "Restaurant UInt wrappingAdd at the unsigned maximum")

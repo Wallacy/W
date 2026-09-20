@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-67"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-68"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -219,6 +219,10 @@ typedef enum {
   /* Append-only explicit `D(saturating: source)` conversion.  It clamps the
    * source mathematical value to the destination integer range. */
   W_SEED_FRONTEND_EXPR_INTEGER_SATURATING,
+  /* Append-only exact numeric widening.  It keeps one typed child and the
+   * canonical source/destination identities, whether selected contextually
+   * or written with an exact `D(value)` conversion. */
+  W_SEED_FRONTEND_EXPR_NUMERIC_WIDEN,
 } w_seed_frontend_expr_kind;
 
 typedef enum {
@@ -1084,6 +1088,9 @@ typedef struct {
   w_seed_frontend_domain_mode domain_mode;
   uint32_t domain_capabilities;
   uint32_t domain_maximum;
+  /* Present only for NUMERIC_WIDEN. The receipt retains whether the shared
+   * exact wrapper came from explicit D(value) syntax or context. */
+  bool numeric_widen_is_explicit;
 } w_seed_frontend_expression;
 
 typedef enum {
