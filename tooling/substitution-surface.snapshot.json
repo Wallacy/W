@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:6f5d346140957acf4edd96f05cce9e1c22bf6614ecf97e5ffbe55906721e435a",
+  "corpusDigest": "sha256:0e5340245f09aa11f15d367dff00f66ea20bfeb8d3f13ffbb825510574595e64",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -11820,6 +11820,78 @@
             "nonWhitespaceCodePoints": 75,
             "lines": 1,
             "surfaceLexemes": 14
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-float-bit-representation-bridge",
+      "task": {
+        "utf8Bytes": 165,
+        "codePoints": 165,
+        "nonWhitespaceCodePoints": 145,
+        "lines": 1,
+        "surfaceLexemes": 28
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:04467b209e996c0eeab0775a50646c3825b059d6caa0d7c024a6f7817a666e7f",
+        "metrics": {
+          "utf8Bytes": 463,
+          "codePoints": 463,
+          "nonWhitespaceCodePoints": 409,
+          "lines": 11,
+          "surfaceLexemes": 106
+        }
+      },
+      "alternatives": [
+        {
+          "name": "numeric-value-cast",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:c961abae095b37553be7d92152aef5cf99a1574521b2a49b7fc0756885d4f034",
+          "metrics": {
+            "utf8Bytes": 47,
+            "codePoints": 47,
+            "nonWhitespaceCodePoints": 39,
+            "lines": 1,
+            "surfaceLexemes": 9
+          }
+        },
+        {
+          "name": "endian-byte-codec",
+          "language": "w-separate-api",
+          "sourceDigest": "sha256:7dfaae086d3c58e64f6219f9d3fc4f6f1afafd86e3e5ef938853ae3bfe902616",
+          "metrics": {
+            "utf8Bytes": 56,
+            "codePoints": 56,
+            "nonWhitespaceCodePoints": 49,
+            "lines": 1,
+            "surfaceLexemes": 13
+          }
+        },
+        {
+          "name": "payload-stable-arithmetic",
+          "language": "w-rejected-contract",
+          "sourceDigest": "sha256:9b691fed662fc94f283a347859b1c2cc36039c4aa5c0e727ea5bbd0521112312",
+          "metrics": {
+            "utf8Bytes": 71,
+            "codePoints": 71,
+            "nonWhitespaceCodePoints": 62,
+            "lines": 2,
+            "surfaceLexemes": 20
+          }
+        },
+        {
+          "name": "mismatched-width-bitcast",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:2ff1d4d99353a9465a399068b2478f310ed3f2359b445f3b2966f46395849cf8",
+          "metrics": {
+            "utf8Bytes": 38,
+            "codePoints": 38,
+            "nonWhitespaceCodePoints": 34,
+            "lines": 1,
+            "surfaceLexemes": 12
           }
         }
       ]

@@ -67,8 +67,9 @@ physical scheduler experiments:
    increment, and W-1645 closes the bounded strict binary32/binary64 identity,
    literal, operator, and native execution family. W-1646 closes the exact
    total integer-to-float and f32-to-f64 widening subset across all expression
-   contexts. Remaining conversion policies continue to block this rank-1
-   prerequisite;
+   contexts, and W-1647 closes only the existing f32/u32 and f64/u64
+   representation-bit round trips. Remaining conversion policies continue to
+   block this rank-1 prerequisite;
 2. prefix, arithmetic, comparison, bitwise, shift, overflow and compound
    operators, each with its specified checked or explicit wrapping policy;
 3. Boolean short-circuiting, scalar `if`, exhaustive scalar selection and
@@ -373,6 +374,16 @@ on Windows and Linux/WSL; C23 and
 Rust 2024 remain correctness references only because the current W graph may
 fold while their inputs remain runtime values. Lossy/fallible numeric
 conversion policies remain open.
+
+W-1647 implements the selected f32/u32 and f64/u64 bit reinterpretation route:
+`fromBits` accepts only the same-width unsigned representation, and matching
+`.toBits()` preserves it through storage, copy, and round-trip. Frontend69,
+HIR90, NativeSubset0, and MLIR61 carry direct width-correct bitcasts through
+the seed. Exact source-to-native witnesses pass on Windows x64 and Linux/WSL
+x64; other targets, stable ABI/FFI, numeric conversions, byte order, and NaN
+payload after arithmetic remain outside this increment. C23 and Rust 2024 are
+correctness-only references, so `benchmarkDisposition: deferred` until runtime
+work is equivalent.
 
 The first rank-1 increments are now executable. Signed-`i64` `&`, `|`, `^`,
 and the original unary-`~` crosspoint cover exact W source, canonical

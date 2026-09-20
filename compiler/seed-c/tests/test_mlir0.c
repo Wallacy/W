@@ -2056,6 +2056,314 @@ static bool test_numeric_widen_mlir(void) {
   return true;
 }
 
+static bool mlir_test_unsigned_integer_width(
+    const w_seed_hir0_program *program, uint32_t type_index,
+    uint16_t bit_width) {
+  if (program == NULL || type_index >= program->type_count) return false;
+  const w_seed_hir0_type *type = &program->types[type_index];
+  return (type->kind == W_SEED_HIR0_TYPE_I64 ||
+          type->kind == W_SEED_HIR0_TYPE_U64 ||
+          type->kind == W_SEED_HIR0_TYPE_INTEGER) &&
+         !type->integer_is_signed && type->integer_bit_width == bit_width;
+}
+
+static bool test_float_bits_mlir(void) {
+  static const uint8_t SOURCE[] =
+      "fn main() {\n"
+      "  let f32PositiveZero: f32 = f32.fromBits(0x00000000_u32)\n"
+      "  let f32NegativeZero: f32 = f32.fromBits(0x80000000_u32)\n"
+      "  let f32Subnormal: f32 = f32.fromBits(0x00000001_u32)\n"
+      "  let f32Infinity: f32 = f32.fromBits(0x7f800000_u32)\n"
+      "  let f32NanPayload: f32 = f32.fromBits(0x7fc01234_u32)\n"
+      "  let f32PositiveZeroBits: u32 = f32PositiveZero.toBits()\n"
+      "  let f32NegativeZeroBits: u32 = f32NegativeZero.toBits()\n"
+      "  let f32SubnormalBits: u32 = f32Subnormal.toBits()\n"
+      "  let f32InfinityBits: u32 = f32Infinity.toBits()\n"
+      "  let f32NanPayloadBits: u32 = f32NanPayload.toBits()\n"
+      "  let f64PositiveZero: f64 = f64.fromBits(0x0000000000000000_u64)\n"
+      "  let f64NegativeZero: f64 = f64.fromBits(0x8000000000000000_u64)\n"
+      "  let f64Subnormal: f64 = f64.fromBits(0x0000000000000001_u64)\n"
+      "  let f64Infinity: f64 = f64.fromBits(0x7ff0000000000000_u64)\n"
+      "  let f64NanPayload: f64 = f64.fromBits(0x7ff8123456789abc_u64)\n"
+      "  let f64PositiveZeroBits: u64 = f64PositiveZero.toBits()\n"
+      "  let f64NegativeZeroBits: u64 = f64NegativeZero.toBits()\n"
+      "  let f64SubnormalBits: u64 = f64Subnormal.toBits()\n"
+      "  let f64InfinityBits: u64 = f64Infinity.toBits()\n"
+      "  let f64NanPayloadBits: u64 = f64NanPayload.toBits()\n"
+      "  print(\"float bits\")\n"
+      "}\nentry(main)\n";
+  static const uint64_t F32_PATTERNS[] = {
+      UINT64_C(0x00000000), UINT64_C(0x80000000), UINT64_C(0x00000001),
+      UINT64_C(0x7f800000), UINT64_C(0x7fc01234)};
+  static const uint64_t F64_PATTERNS[] = {
+      UINT64_C(0x0000000000000000), UINT64_C(0x8000000000000000),
+      UINT64_C(0x0000000000000001), UINT64_C(0x7ff0000000000000),
+      UINT64_C(0x7ff8123456789abc)};
+
+  CHECK(lower_hir(SOURCE, sizeof(SOURCE) - 1u));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+
+  static uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        memcmp(measured.mlir_sha256, emitted.mlir_sha256,
+               sizeof(measured.mlir_sha256)) == 0 &&
+        !contains_bytes(artifact, counts.mlir_bytes, "@_fltused"));
+
+  bool f32_patterns[sizeof(F32_PATTERNS) / sizeof(F32_PATTERNS[0])] = {false};
+  bool f64_patterns[sizeof(F64_PATTERNS) / sizeof(F64_PATTERNS[0])] = {false};
+  size_t route_counts[4] = {0u, 0u, 0u, 0u};
+  uint32_t from32 = W_SEED_HIR0_NONE;
+  uint32_t to32 = W_SEED_HIR0_NONE;
+  uint32_t from64 = W_SEED_HIR0_NONE;
+  uint32_t to64 = W_SEED_HIR0_NONE;
+  for (size_t index = 0u; index < program->value_count; index += 1u) {
+    const w_seed_hir0_value *value = &program->values[index];
+    if (value->kind != W_SEED_HIR0_VALUE_FLOAT_FROM_BITS &&
+        value->kind != W_SEED_HIR0_VALUE_FLOAT_TO_BITS)
+      continue;
+    CHECK(value->left_value < program->value_count &&
+          value->right_value == W_SEED_HIR0_NONE &&
+          value->source_type < program->type_count &&
+          value->type_index < program->type_count);
+    const w_seed_hir0_value *child = &program->values[value->left_value];
+    CHECK(child->type_index == value->source_type &&
+          child->owner_kind ==
+              W_SEED_HIR0_VALUE_OWNER_FLOAT_BITS_CONVERSION &&
+          child->owner_index == index && child->owner_ordinal == 0u);
+
+    const w_seed_hir0_type *source_type =
+        &program->types[value->source_type];
+    const w_seed_hir0_type *destination_type =
+        &program->types[value->type_index];
+    uint32_t route = W_SEED_HIR0_NONE;
+    uint16_t bit_width = 0u;
+    if (value->kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS) {
+      CHECK(child->kind == W_SEED_HIR0_VALUE_CONST_U64);
+      if (mlir_test_unsigned_integer_width(program, value->source_type,
+                                           32u) &&
+          destination_type->kind == W_SEED_HIR0_TYPE_F32) {
+        route = 0u;
+        bit_width = 32u;
+        for (size_t pattern = 0u;
+             pattern < sizeof(F32_PATTERNS) / sizeof(F32_PATTERNS[0]);
+             pattern += 1u)
+          if (child->unsigned_integer_value == F32_PATTERNS[pattern])
+            f32_patterns[pattern] = true;
+        if (from32 == W_SEED_HIR0_NONE) from32 = (uint32_t)index;
+      } else if (mlir_test_unsigned_integer_width(
+                     program, value->source_type, 64u) &&
+                 destination_type->kind == W_SEED_HIR0_TYPE_F64) {
+        route = 1u;
+        bit_width = 64u;
+        for (size_t pattern = 0u;
+             pattern < sizeof(F64_PATTERNS) / sizeof(F64_PATTERNS[0]);
+             pattern += 1u)
+          if (child->unsigned_integer_value == F64_PATTERNS[pattern])
+            f64_patterns[pattern] = true;
+        if (from64 == W_SEED_HIR0_NONE) from64 = (uint32_t)index;
+      }
+    } else if (source_type->kind == W_SEED_HIR0_TYPE_F32 &&
+               mlir_test_unsigned_integer_width(
+                   program, value->type_index, 32u)) {
+      route = 2u;
+      bit_width = 32u;
+      if (to32 == W_SEED_HIR0_NONE) to32 = (uint32_t)index;
+    } else if (source_type->kind == W_SEED_HIR0_TYPE_F64 &&
+               mlir_test_unsigned_integer_width(
+                   program, value->type_index, 64u)) {
+      route = 3u;
+      bit_width = 64u;
+      if (to64 == W_SEED_HIR0_NONE) to64 = (uint32_t)index;
+    }
+    CHECK(route != W_SEED_HIR0_NONE);
+
+    char operand[32];
+    CHECK(numeric_widen_expected_operand(
+        program, value->left_value, operand, sizeof(operand), 0u));
+    char expected[256];
+    int expected_length = -1;
+    if (value->kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS &&
+        bit_width == 32u) {
+      expected_length = snprintf(
+          expected, sizeof(expected),
+          "    %%v%u_float_bits_narrow = llvm.trunc %s : i64 to i32\n"
+          "    %%v%u = llvm.bitcast %%v%u_float_bits_narrow : i32 to f32\n",
+          (unsigned int)index, operand, (unsigned int)index,
+          (unsigned int)index);
+    } else if (value->kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS) {
+      expected_length = snprintf(
+          expected, sizeof(expected),
+          "    %%v%u = llvm.bitcast %s : i64 to f64\n",
+          (unsigned int)index, operand);
+    } else if (bit_width == 32u) {
+      expected_length = snprintf(
+          expected, sizeof(expected),
+          "    %%v%u_float_bits_i32 = llvm.bitcast %s : f32 to i32\n"
+          "    %%v%u = llvm.zext %%v%u_float_bits_i32 : i32 to i64\n",
+          (unsigned int)index, operand, (unsigned int)index,
+          (unsigned int)index);
+    } else {
+      expected_length = snprintf(
+          expected, sizeof(expected),
+          "    %%v%u = llvm.bitcast %s : f64 to i64\n",
+          (unsigned int)index, operand);
+    }
+    CHECK(expected_length > 0 &&
+          (size_t)expected_length < sizeof(expected) &&
+          contains_bytes(artifact, counts.mlir_bytes, expected));
+    route_counts[route] += 1u;
+  }
+  CHECK(route_counts[0] == 5u && route_counts[1] == 5u &&
+        route_counts[2] == 5u && route_counts[3] == 5u &&
+        from32 != W_SEED_HIR0_NONE && to32 != W_SEED_HIR0_NONE &&
+        from64 != W_SEED_HIR0_NONE && to64 != W_SEED_HIR0_NONE);
+  for (size_t pattern = 0u;
+       pattern < sizeof(F32_PATTERNS) / sizeof(F32_PATTERNS[0]);
+       pattern += 1u)
+    CHECK(f32_patterns[pattern]);
+  for (size_t pattern = 0u;
+       pattern < sizeof(F64_PATTERNS) / sizeof(F64_PATTERNS[0]);
+       pattern += 1u)
+    CHECK(f64_patterns[pattern]);
+  CHECK(count_bytes(artifact, counts.mlir_bytes,
+                    "_float_bits_narrow = llvm.trunc") == 5u &&
+        count_bytes(artifact, counts.mlir_bytes,
+                    "_float_bits_i32 = llvm.bitcast") == 5u &&
+        count_bytes(artifact, counts.mlir_bytes, "llvm.bitcast ") == 20u &&
+        count_bytes(artifact, counts.mlir_bytes, "llvm.zext ") == 5u &&
+        !contains_bytes(artifact, counts.mlir_bytes, "llvm.sitofp") &&
+        !contains_bytes(artifact, counts.mlir_bytes, "llvm.uitofp") &&
+        !contains_bytes(artifact, counts.mlir_bytes, "llvm.fpext") &&
+        !contains_bytes(artifact, counts.mlir_bytes, "llvm.fptrunc") &&
+        !contains_bytes(artifact, counts.mlir_bytes, "llvm.fptosi") &&
+        !contains_bytes(artifact, counts.mlir_bytes, "llvm.fptoui") &&
+        !contains_bytes(artifact, counts.mlir_bytes, "llvm.fadd") &&
+        !contains_bytes(artifact, counts.mlir_bytes, "llvm.fsub") &&
+        !contains_bytes(artifact, counts.mlir_bytes, "llvm.fmul") &&
+        !contains_bytes(artifact, counts.mlir_bytes, "llvm.fdiv") &&
+        !contains_bytes(artifact, counts.mlir_bytes, "llvm.fneg") &&
+        !contains_bytes(artifact, counts.mlir_bytes, "fastmath") &&
+        !contains_bytes(artifact, counts.mlir_bytes, "@malloc") &&
+        !contains_bytes(artifact, counts.mlir_bytes, "@free") &&
+        !contains_bytes(artifact, counts.mlir_bytes, "@memcpy") &&
+        !contains_bytes(artifact, counts.mlir_bytes, "@w_seed_float_bits"));
+
+  static uint8_t windows_artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts windows_counts;
+  w_seed_mlir0_result windows_measured;
+  w_seed_mlir0_result windows_emitted;
+  const w_seed_mlir0_input input = mlir_input();
+  CHECK(w_seed_mlir0_measure(&input, &WINDOWS_TARGET, &windows_counts,
+                             &windows_measured) == W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_emit(
+            &input, &WINDOWS_TARGET,
+            &(w_seed_mlir0_output){windows_artifact,
+                                   sizeof(windows_artifact)},
+            &windows_emitted) == W_SEED_MLIR0_OK);
+  CHECK(windows_counts.mlir_bytes == windows_emitted.written.mlir_bytes &&
+        memcmp(windows_measured.mlir_sha256, windows_emitted.mlir_sha256,
+               sizeof(windows_measured.mlir_sha256)) == 0 &&
+        count_bytes(windows_artifact, windows_counts.mlir_bytes,
+                    "llvm.mlir.global @_fltused(0 : i32) : i32") == 1u &&
+        count_bytes(windows_artifact, windows_counts.mlir_bytes,
+                    "@_fltused") == 1u);
+
+  const w_seed_hir0_value saved_from32 = fixture.hir_values[from32];
+  const w_seed_hir0_value saved_to64 = fixture.hir_values[to64];
+  const w_seed_hir0_value saved_to64_child =
+      fixture.hir_values[saved_to64.left_value];
+  const w_seed_hir0_type saved_u32 =
+      fixture.hir_types[saved_from32.source_type];
+  w_seed_mlir0_counts rejected_counts;
+  (void)memset(&rejected_counts, 0xa5u, sizeof(rejected_counts));
+  const w_seed_mlir0_counts rejected_counts_snapshot = rejected_counts;
+  w_seed_mlir0_result rejected_result;
+  (void)memset(&rejected_result, 0x2au, sizeof(rejected_result));
+  const w_seed_mlir0_result rejected_result_snapshot = rejected_result;
+
+  fixture.hir_values[from32].source_type = saved_to64.source_type;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result) &&
+        w_seed_native_subset0_select_program(
+            program, &fixture.hir_result, &selection) ==
+            W_SEED_NATIVE_SUBSET0_INVALID &&
+        w_seed_mlir0_measure(&input, &TARGET, &rejected_counts,
+                             &rejected_result) == W_SEED_MLIR0_INVALID_HIR &&
+        memcmp(&rejected_counts, &rejected_counts_snapshot,
+               sizeof(rejected_counts)) == 0 &&
+        memcmp(&rejected_result, &rejected_result_snapshot,
+               sizeof(rejected_result)) == 0);
+  fixture.hir_values[from32] = saved_from32;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_values[from32].type_index = saved_to64.type_index;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result) &&
+        w_seed_native_subset0_select_program(
+            program, &fixture.hir_result, &selection) ==
+            W_SEED_NATIVE_SUBSET0_INVALID &&
+        w_seed_mlir0_measure(&input, &TARGET, &rejected_counts,
+                             &rejected_result) == W_SEED_MLIR0_INVALID_HIR);
+  fixture.hir_values[from32] = saved_from32;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_values[to64].type_index = saved_from32.source_type;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result) &&
+        w_seed_native_subset0_select_program(
+            program, &fixture.hir_result, &selection) ==
+            W_SEED_NATIVE_SUBSET0_INVALID &&
+        w_seed_mlir0_measure(&input, &TARGET, &rejected_counts,
+                             &rejected_result) == W_SEED_MLIR0_INVALID_HIR);
+  fixture.hir_values[to64] = saved_to64;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_types[saved_from32.source_type].integer_bit_width = 64u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result) &&
+        w_seed_native_subset0_select_program(
+            program, &fixture.hir_result, &selection) ==
+            W_SEED_NATIVE_SUBSET0_INVALID &&
+        w_seed_mlir0_measure(&input, &TARGET, &rejected_counts,
+                             &rejected_result) == W_SEED_MLIR0_INVALID_HIR);
+  fixture.hir_types[saved_from32.source_type] = saved_u32;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_values[saved_to64.left_value].owner_kind =
+      W_SEED_HIR0_VALUE_OWNER_ARGUMENT;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result) &&
+        w_seed_native_subset0_select_program(
+            program, &fixture.hir_result, &selection) ==
+            W_SEED_NATIVE_SUBSET0_INVALID &&
+        w_seed_mlir0_measure(&input, &TARGET, &rejected_counts,
+                             &rejected_result) == W_SEED_MLIR0_INVALID_HIR);
+  fixture.hir_values[saved_to64.left_value] = saved_to64_child;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_values[saved_to64.left_value].owner_index = W_SEED_HIR0_NONE;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result) &&
+        w_seed_native_subset0_select_program(
+            program, &fixture.hir_result, &selection) ==
+            W_SEED_NATIVE_SUBSET0_INVALID &&
+        w_seed_mlir0_measure(&input, &TARGET, &rejected_counts,
+                             &rejected_result) == W_SEED_MLIR0_INVALID_HIR);
+  fixture.hir_values[saved_to64.left_value] = saved_to64_child;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_values[saved_to64.left_value].owner_ordinal = 1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result) &&
+        w_seed_mlir0_measure(&input, &TARGET, &rejected_counts,
+                             &rejected_result) == W_SEED_MLIR0_INVALID_HIR);
+  fixture.hir_values[saved_to64.left_value] = saved_to64_child;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_windows_target_runtime_surface(void) {
   static const uint8_t source[] =
       "fn main() { print(\"Hello, Windows!\") }\nentry(main)\n";
@@ -6715,6 +7023,7 @@ int main(int argc, char **argv) {
   if (!test_direct_products()) return 1;
   if (!test_strict_float_mlir()) return 1;
   if (!test_numeric_widen_mlir()) return 1;
+  if (!test_float_bits_mlir()) return 1;
   if (!test_windows_target_runtime_surface()) return 1;
   if (!test_restaurant_and_nul()) return 1;
   if (!test_typed_interpolation_artifact()) return 1;

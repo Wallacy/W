@@ -42,6 +42,7 @@ import {
   PROCESS_HANDLER_LIFECYCLE_EXECUTION_STRUCTURE_CLASS,
   PROCESS_HANDLER_LIFECYCLE_STRUCTURE_CLASS,
   PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID,
+  RESTAURANT_FLOAT_BIT_REPRESENTATION_WORKLOAD_ID,
   RESTAURANT_FLOAT_STRICT_WORKLOAD_ID,
   RESTAURANT_INTEGER_PREFIX_WORKLOAD_ID,
   RESTAURANT_INTEGER_WRAPPING_WORKLOAD_ID,
@@ -223,6 +224,9 @@ test("source-local expected-output comments are opt-in and exact", () => {
     "benchmarks/executable/restaurant_uint_saturating_policy.c",
     "benchmarks/executable/restaurant_uint_saturating_policy.rs",
     "compiler/seed-c/fixtures/restaurant-uint-saturating-policy.w",
+    "benchmarks/executable/restaurant_float_bit_representation.c",
+    "benchmarks/executable/restaurant_float_bit_representation.rs",
+    "compiler/seed-c/fixtures/restaurant-float-bit-representation.w",
   ];
   for (const sourcePath of requiredOptInPaths) {
     assert.ok(optInPaths.has(sourcePath), `${sourcePath} must retain its local oracle`);
@@ -458,6 +462,93 @@ test("strict f32/f64 references retain independent runtime operations", () => {
   assert.match(rust, /1\.5_f64/u);
   assert.match(rust, /nan != nan/u);
   assert.doesNotMatch(rust, /fast-math/iu);
+});
+
+test("f32/f64 bit-representation family is correctness-only and deferred", () => {
+  const workload = documents.catalog.workloads.find((item) =>
+    item.id === RESTAURANT_FLOAT_BIT_REPRESENTATION_WORKLOAD_ID);
+  assert.ok(workload);
+  assert.equal(workload.structureClass, "public-end-to-end");
+  assert.equal(workload.status, "source-oracle-ready");
+  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
+  assert.equal(workload.demoEvidence, "not-run");
+  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.equal(workload.scope,
+    "Validate f32.fromBits(u32)/toBits() and f64.fromBits(u64)/toBits() round trips for negative zero, positive infinity, and one quiet-NaN payload per width, printing exact unsigned decimal bit patterns. W's literal inputs and C23/Rust runtime inputs are correctness-only until equivalent runtime work is established.");
+  assert.deepEqual(workload.oracle, {
+    kind: "exact-output",
+    status: "source-backed",
+    exitCode: 0,
+    stdout: "Float bits f32 2147483648/2139095040/2143363909 f64 9223372036854775808/9218868437227405312/9221140253039434428\n",
+    stderr: "",
+  });
+  assert.deepEqual(workload.blockedLanguages, []);
+  assert.deepEqual(workload.blockers, [
+    "w-float-bit-representation-literal-folding",
+    "runtime-float-bit-representation-equivalence",
+  ]);
+  assert.deepEqual(workload.sources.map((source) =>
+    [source.language, source.platformTarget]), [
+    ["w", EXECUTABLE_PLATFORM_TARGET],
+    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
+    ["c", EXECUTABLE_PLATFORM_TARGET],
+    ["rust", EXECUTABLE_PLATFORM_TARGET],
+  ]);
+  assert.ok(workload.sources.every((source) =>
+    source.recipeClass === "restaurant-float-bit-representation-release" &&
+    source.quality === "correctness-gate"));
+  assert.deepEqual(workload.sources
+    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
+    .map((source) => [source.comparability, source.eligibility]), [
+      ["deferred-until-M3b", "deferred-to-M3b"],
+      ["deferred-until-M3b", "deferred-to-M3b"],
+      ["deferred-until-M3b", "deferred-to-M3b"],
+    ]);
+  const wsl = workload.sources.find((source) =>
+    source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
+  assert.deepEqual([wsl.comparability, wsl.eligibility], [
+    "same-physical-hardware-diagnostic-only",
+    "same-physical-hardware-diagnostic-only",
+  ]);
+  assert.ok(!documents.catalog.bestMetrics.entries.some((entry) =>
+    entry.workloadId === RESTAURANT_FLOAT_BIT_REPRESENTATION_WORKLOAD_ID),
+  "float bit-representation correctness references must not acquire timing or ranking data");
+
+  const c = readFileSync(
+    `${ROOT}/benchmarks/executable/restaurant_float_bit_representation.c`, "utf8");
+  const rust = readFileSync(
+    `${ROOT}/benchmarks/executable/restaurant_float_bit_representation.rs`, "utf8");
+  const w = readFileSync(
+    `${ROOT}/compiler/seed-c/fixtures/restaurant-float-bit-representation.w`, "utf8");
+  for (const [name, source] of [["W", w], ["C23", c], ["Rust", rust]]) {
+    assert.deepEqual(parseExecutableSourceExpectation(source), {
+      exitCode: workload.oracle.exitCode,
+      stdout: workload.oracle.stdout,
+      stderr: "",
+      errors: [],
+    }, `${name} source must declare the exact local oracle`);
+    assert.deepEqual(validateExecutableSourceExpectation(source, workload.oracle, `${name} source`), []);
+  }
+  for (const bits of [
+    "0x80000000", "0x7f800000", "0x7fc12345",
+    "0x8000000000000000", "0x7ff0000000000000", "0x7ff8123456789abc",
+  ]) {
+    assert.ok(w.includes(bits), `W fixture must retain ${bits}`);
+    assert.ok(c.includes(bits), `C23 reference must retain ${bits}`);
+    assert.ok(rust.includes(bits), `Rust reference must retain ${bits}`);
+  }
+  assert.match(w, /f32\.fromBits\([^\n]+\)/u);
+  assert.match(w, /f64\.fromBits\([^\n]+\)/u);
+  assert.match(w, /\.toBits\(\)/u);
+  assert.match(c, /memcpy\(&value, &bits/u);
+  assert.match(c, /memcpy\(&result, &value/u);
+  assert.match(c, /volatile uint32_t/u);
+  assert.match(c, /volatile uint64_t/u);
+  assert.match(rust, /f32::from_bits\(black_box/u);
+  assert.match(rust, /f64::from_bits\(black_box/u);
+  assert.match(rust, /\.to_bits\(\)/u);
+  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
+  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
 });
 
 test("checked fixed-width integer arithmetic is one correctness-only family", () => {

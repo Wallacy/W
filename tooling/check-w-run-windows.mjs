@@ -67,6 +67,8 @@ const restaurantCompoundFixture = resolve(seedDirectory,
   "fixtures", "restaurant-compound.w")
 const restaurantFloatStrictFixture = resolve(seedDirectory,
   "fixtures", "restaurant-float-strict.w")
+const restaurantFloatBitRepresentationFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-float-bit-representation.w")
 const restaurantNumericWideningFixture = resolve(seedDirectory,
   "fixtures", "restaurant-numeric-widening.w")
 const restaurantCheckedIntegerArithmeticFixture = resolve(seedDirectory,
@@ -805,6 +807,12 @@ try {
   expectExact(binary, ["run", restaurantFloatStrictFixture], 0,
     Buffer.from("Float strict ok\n", "utf8"),
     "Restaurant strict f32/f64 arithmetic and IEEE comparisons")
+  expectExact(binary, ["run", restaurantFloatBitRepresentationFixture], 0,
+    Buffer.from(
+      "Float bits f32 2147483648/2139095040/2143363909 " +
+      "f64 9223372036854775808/9218868437227405312/9221140253039434428\n",
+      "utf8"),
+    "Restaurant exact f32/f64 bit representation round trips")
   expectExact(binary, ["run", restaurantNumericWideningFixture], 0,
     Buffer.from("Numeric widen ok\n", "utf8"),
     "Restaurant exact implicit integer/float widening")

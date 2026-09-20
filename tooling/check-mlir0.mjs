@@ -33,6 +33,8 @@ const restaurantCompoundFixture = resolve(seedDirectory,
   "fixtures", "restaurant-compound.w")
 const restaurantFloatStrictFixture = resolve(seedDirectory,
   "fixtures", "restaurant-float-strict.w")
+const restaurantFloatBitRepresentationFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-float-bit-representation.w")
 const restaurantNumericWideningFixture = resolve(seedDirectory,
   "fixtures", "restaurant-numeric-widening.w")
 const restaurantCheckedIntegerArithmeticFixture = resolve(seedDirectory,
@@ -783,6 +785,12 @@ try {
       expected: Buffer.from("Compound 11\n", "utf8") },
     { name: "restaurant-float-strict", source: restaurantFloatStrictFixture,
       expected: Buffer.from("Float strict ok\n", "utf8") },
+    { name: "restaurant-float-bit-representation",
+      source: restaurantFloatBitRepresentationFixture,
+      expected: Buffer.from(
+        "Float bits f32 2147483648/2139095040/2143363909 " +
+        "f64 9223372036854775808/9218868437227405312/9221140253039434428\n",
+        "utf8") },
     { name: "restaurant-numeric-widening",
       source: restaurantNumericWideningFixture,
       expected: Buffer.from("Numeric widen ok\n", "utf8") },
@@ -954,6 +962,41 @@ try {
     assert(Buffer.from(execution.stdout).equals(product.expected),
       `${product.name} stdout is not exact payload plus LF`)
   }
+  const floatBitRepresentationArtifact = artifacts.get(
+    "restaurant-float-bit-representation").toString("utf8")
+  const floatBitRepresentationEvidence = {
+    i32ToF32: (floatBitRepresentationArtifact.match(
+      /llvm\.bitcast [^\n]* : i32 to f32\n/gu) ?? []).length,
+    i64ToF64: (floatBitRepresentationArtifact.match(
+      /llvm\.bitcast [^\n]* : i64 to f64\n/gu) ?? []).length,
+    f32ToI32: (floatBitRepresentationArtifact.match(
+      /llvm\.bitcast [^\n]* : f32 to i32\n/gu) ?? []).length,
+    f64ToI64: (floatBitRepresentationArtifact.match(
+      /llvm\.bitcast [^\n]* : f64 to i64\n/gu) ?? []).length,
+    f32Narrow: (floatBitRepresentationArtifact.match(
+      /_float_bits_narrow = llvm\.trunc [^\n]* : i64 to i32\n/gu) ?? []).length,
+    f32Bitcast: (floatBitRepresentationArtifact.match(
+      /_float_bits_i32 = llvm\.bitcast [^\n]* : f32 to i32\n/gu) ?? []).length,
+    f32Extend: (floatBitRepresentationArtifact.match(
+      /llvm\.zext [^\n]* : i32 to i64\n/gu) ?? []).length,
+    floatBitsHelper: floatBitRepresentationArtifact.includes(
+      "@w_seed_float_bits"),
+    numericConversions: ["llvm.fptosi", "llvm.fptoui", "llvm.sitofp",
+      "llvm.uitofp", "llvm.fpext", "llvm.fptrunc"].some((operation) =>
+      floatBitRepresentationArtifact.includes(operation)),
+    fastMath: floatBitRepresentationArtifact.includes("fastmath"),
+  }
+  assert(floatBitRepresentationEvidence.i32ToF32 === 3 &&
+    floatBitRepresentationEvidence.i64ToF64 === 3 &&
+    floatBitRepresentationEvidence.f32ToI32 === 3 &&
+    floatBitRepresentationEvidence.f64ToI64 === 3 &&
+    floatBitRepresentationEvidence.f32Narrow === 3 &&
+    floatBitRepresentationEvidence.f32Bitcast === 3 &&
+    floatBitRepresentationEvidence.f32Extend === 3 &&
+    !floatBitRepresentationEvidence.floatBitsHelper &&
+    !floatBitRepresentationEvidence.numericConversions &&
+    !floatBitRepresentationEvidence.fastMath,
+  `float bit representation must lower through direct width-correct bitcasts without numeric FP conversions, float-bit helpers, or fast-math: ${JSON.stringify(floatBitRepresentationEvidence)}`)
   const overflowGenerated = run(seedGate, [checkedOverflowPath])
   assert(overflowGenerated.exitCode === 0 && overflowGenerated.stderr.length === 0 &&
     overflowGenerated.stdout.length > 0,

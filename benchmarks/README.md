@@ -56,6 +56,13 @@ contexts. C23 and Rust 2024 retain runtime operands while the current W witness
 may fold the closed expression graph, so the row is correctness evidence only
 and publishes no cross-language ranking.
 
+The `restaurant-float-bit-representation` witness is also
+`not-performance-ready`. It checks exact f32/u32 and f64/u64 bit round trips
+for signed zero, infinity, and a quiet-NaN payload; focused compiler tests also
+cover subnormals and storage/copy preservation. W supplies foldable literal
+inputs while C23 and Rust 2024 retain runtime inputs. The benchmark is deferred
+until runtime work is equivalent and makes no timing or ranking claim.
+
 The `restaurant-checked-integer-arithmetic` witness is
 `not-performance-ready`. It covers successful fixed-input checked ordinary and
 compound `+`, `-`, `*`, `/`, and `%` over signed and unsigned 8/16/32/64-bit

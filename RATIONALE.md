@@ -230,6 +230,7 @@ O corpus compara, no mínimo:
 - fixed-width `truncatingBits:` conversion against per-pair lowering branches, host casts/promotions, and source-signedness leakage.
 - fixed-width integer saturation against host promotions, post-conversion clamps, per-pair lowering branches, and unequal benchmark work.
 - strict f32/f64 identity against host reparsing, implicit widening, per-width compiler paths, default fast-math, and unequal benchmark work.
+- f32/u32 and f64/u64 bit reinterpretation against numeric conversion, implicit byte order, and arithmetic NaN payload stability.
 - exact total numeric widening against value-specific implicit casts, opaque conversion nodes, runtime helpers, host conversion, and unequal benchmark work.
 - ordinary binary integer bitwise operators against per-width lowering branches, host promotion rules, source-signedness leakage, and fragmented executable witnesses.
 - checked ordinary integer shifts against per-width lowering branches, implicit promotions, masked counts, host shift rules, and unchecked left-shift loss.
@@ -8004,6 +8005,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1644 | fixed-width integer `saturating:` conversion | The existing integer-to-integer `D(saturating: source)` form is total and clamps the mathematical value to the destination minimum or maximum. The bounded domain is all 100 source/destination pairs among `i8`/`u8`, `i16`/`u16`, `i32`/`u32`, `i64`/`u64`, and current x86-64 `Int`/`UInt` aliases; `Bool`, floats, `usize`/`isize`, and `i128`/`u128` remain outside the package. Exactly the `saturating:` label is accepted; integer conversions reject `try` and `nan:`. Frontend66, HIR87, Native0 schema 10, MLIR58, and Windows43 carry one generic source/destination route with verified signedness and logical width. Lowering compares/selects before destination interpretation without heap, runtime, or CRT helpers. | `source-backed-current` only for the bounded 100-pair family, focused scalar boundaries, compact four-quadrant plus x86-64 alias witness, malformed-label failure before output, and exact CRT-free Windows plus Linux/WSL execution. ProductClosure0 deliberately remains narrower. C23 and Rust 2024 are correctness references only; other conversion families, target-general aliases, stable ABI/FFI, other targets, and equivalent-runtime performance remain gaps. `benchmarkDisposition: deferred`. |
 | W-1645 | strict binary32/binary64 scalar family | The existing W-393 strict-float contract now uses one width-generic seed route for `f32` and `f64` literals, `+`, `-`, `*`, `/`, unary `-`, and six IEEE comparisons. Frontend67 materializes exact bits under a private C locale and nearest-even environment; HIR88 appends f32 identity; NativeSubset0 and MLIR59/Windows44 validate and emit width-correct direct LLVM dialect operations with no fast-math, heap, runtime helper, or CRT helper. | `source-backed-current` only for exact literal boundaries, same-width verified operators, focused adversarial tests, the width-neutral Restaurant witness, and exact CRT-free Windows plus Linux/WSL execution. Mixed-width and integer/float operator conversion lowering, remainder, power, total-order helpers, stable ABI/FFI, other targets, and equivalent runtime work remain gaps. C23 and Rust 2024 are correctness references only; the W witness is compile-time folded, therefore `benchmarkDisposition: deferred` and not performance-ready. |
 | W-1646 | exact total numeric widening | The existing W-388/W-389 contract now inserts one explicit numeric-widen value for the total exact routes `f32 -> f64`, `i8`/`u8`/`i16`/`u16 -> f32`, and `i8`/`u8`/`i16`/`u16`/`i32`/`u32 -> f64`. The same wrapper owns bindings, returns, call arguments, mixed arithmetic, mixed comparisons, and unlabeled `D(value)`. Frontend68, HIR89, NativeSubset0, and MLIR60 preserve and independently verify source/destination identity; lowering uses `llvm.fpext`, or `llvm.trunc` from the physical `i64` carrier to the verified integer width followed by `llvm.sitofp`/`llvm.uitofp`, without fast-math, heap, runtime, or CRT helpers. | `source-backed-current` only for these exact total pairs, focused context and forgery barriers, the compact Restaurant witness, invalid `i32 -> f32` failure before output, and exact CRT-free Windows plus Linux/WSL execution. Constant-specific exactness does not widen the implicit relation. Lossy/fallible routes, target-general aliases, stable ABI/FFI, other targets, and equivalent-runtime performance remain gaps. C23 and Rust 2024 are correctness references only; the W witness may fold completely, therefore `benchmarkDisposition: deferred` and not performance-ready. |
+| W-1647 | floating bit representation bridge | `f32.fromBits(u32)`/`f64.fromBits(u64)` and matching `.toBits()` reinterpret exact bits; storage, copy, and round-trip preserve the encoding | numeric conversion, implicit byte order, or portable NaN payload after arithmetic |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -14322,3 +14324,27 @@ references retain runtime operands, so all three are correctness evidence and
 no performance ranking is published. Fallible `exactly:`, explicit rounding,
 floating saturation, lossy conversions, stable ABI/FFI, other targets, and
 equivalent runtime work remain separate packages.
+
+#### W-1647 — floating bit representation bridge
+
+W-1647 implements the exact representation bridge already selected by
+W-389/W-393. The only admitted constructor routes are
+`f32.fromBits(u32) -> f32` and `f64.fromBits(u64) -> f64`; the matching
+receiver `.toBits()` returns `u32` or `u64`. Each constructor accepts one
+positional same-width unsigned value, and extraction accepts no arguments.
+Mismatched widths, signed input, wrong receivers, named calls, and other
+arities remain invalid. These are bit reinterpretations, not numeric
+conversions; byte serialization still requires a separate explicit order.
+
+Frontend69 and HIR90 preserve and verify source/result identity across storage,
+copy, and the round trip. NativeSubset0 independently admits only the closed
+pairs; MLIR61 normalizes the seed carrier and emits direct LLVM bitcasts without
+a runtime, heap, or CRT helper. Focused tests cover both zeros, subnormals,
+infinities, and quiet-NaN payloads at both widths. The exact public fixture
+exits 0 and prints
+`Float bits f32 2147483648/2139095040/2143363909 f64 9223372036854775808/9218868437227405312/9221140253039434428\n`.
+Its source-backed classification is limited to the seed Windows x64 and
+Linux/WSL x64 routes. Arithmetic may produce NaN but does not promise to retain
+an operand's sign or payload. C23 and Rust 2024 are correctness references;
+their runtime inputs differ from W's foldable literals, so
+`benchmarkDisposition: deferred` and no performance ranking is published.

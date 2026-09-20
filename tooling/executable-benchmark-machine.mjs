@@ -39,6 +39,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-power-prefix",
   "restaurant-compound",
   "restaurant-float-strict",
+  "restaurant-float-bit-representation",
   "restaurant-checked-integer-arithmetic",
   "restaurant-integer-prefix",
   "restaurant-integer-wrapping",
@@ -238,6 +239,7 @@ export function processArgumentOracleFor(workloadId) {
   return PROCESS_ARGUMENT_ORACLE_CONTRACTS[workloadId];
 }
 export const PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID = "process-handler-lifecycle";
+export const RESTAURANT_FLOAT_BIT_REPRESENTATION_WORKLOAD_ID = "restaurant-float-bit-representation";
 export const PROCESS_HANDLER_LIFECYCLE_STRUCTURE_CLASS = "integration-linkage";
 export const PROCESS_HANDLER_LIFECYCLE_EXECUTION_STRUCTURE_CLASS = "transient-internal";
 export const PROCESS_ENTRY0_EXECUTION_KIND = "private-process-handler";
@@ -1202,6 +1204,7 @@ function executableHostSlugSupportsPlatform(host, platformTarget) {
 function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PLATFORM_TARGET_WINDOWS) {
   if (platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) return SOURCE_ELIGIBILITY.wslDiagnostic;
   if (workload?.id === RESTAURANT_FLOAT_STRICT_WORKLOAD_ID ||
+      workload?.id === RESTAURANT_FLOAT_BIT_REPRESENTATION_WORKLOAD_ID ||
       workload?.id === RESTAURANT_CHECKED_INTEGER_ARITHMETIC_WORKLOAD_ID ||
       workload?.id === RESTAURANT_INTEGER_PREFIX_WORKLOAD_ID ||
       workload?.id === RESTAURANT_INTEGER_WRAPPING_WORKLOAD_ID ||

@@ -1430,6 +1430,67 @@ static bool mlir0_numeric_widening_shape_valid(
   return true;
 }
 
+typedef struct {
+  uint16_t bit_width;
+} mlir0_float_bits_facts;
+
+/* Re-derive the exact bit-preserving pairs at the textual LLVM boundary.
+ * Integer values use the physical i64 carrier; only binary32 needs a logical
+ * i32 bridge, while binary64 bitcasts directly to and from i64. */
+static bool mlir0_float_bits_route(
+    const w_seed_hir0_program *program, w_seed_hir0_value_kind kind,
+    uint32_t source_type, uint32_t destination_type,
+    mlir0_float_bits_facts *facts) {
+  if (program == NULL || facts == NULL) return false;
+
+  bool integer_signed = false;
+  uint16_t integer_width = 0u;
+  uint16_t float_width = 0u;
+  if (kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS) {
+    if (!mlir0_integer_type_facts(program, source_type, &integer_signed,
+                                  &integer_width) ||
+        integer_signed ||
+        !mlir0_float_type_width(program, destination_type, &float_width) ||
+        integer_width != float_width)
+      return false;
+    facts->bit_width = float_width;
+    return true;
+  }
+  if (kind == W_SEED_HIR0_VALUE_FLOAT_TO_BITS) {
+    if (!mlir0_float_type_width(program, source_type, &float_width) ||
+        !mlir0_integer_type_facts(program, destination_type, &integer_signed,
+                                  &integer_width) ||
+        integer_signed || integer_width != float_width)
+      return false;
+    facts->bit_width = float_width;
+    return true;
+  }
+  return false;
+}
+
+static bool mlir0_float_bits_shape_valid(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    mlir0_float_bits_facts *facts) {
+  if (program == NULL || facts == NULL || value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if ((value->kind != W_SEED_HIR0_VALUE_FLOAT_FROM_BITS &&
+       value->kind != W_SEED_HIR0_VALUE_FLOAT_TO_BITS) ||
+      value->left_value == W_SEED_HIR0_NONE ||
+      value->left_value >= program->value_count ||
+      value->right_value != W_SEED_HIR0_NONE ||
+      value->source_type >= program->type_count ||
+      program->values[value->left_value].type_index != value->source_type ||
+      program->values[value->left_value].owner_kind !=
+          W_SEED_HIR0_VALUE_OWNER_FLOAT_BITS_CONVERSION ||
+      program->values[value->left_value].owner_index != value_index ||
+      program->values[value->left_value].owner_ordinal != 0u ||
+      !mlir0_float_bits_route(program, value->kind, value->source_type,
+                              value->type_index, facts))
+    return false;
+  return true;
+}
+
 /* Keep the conversion route explicit at the MLIR boundary as well as in HIR
  * verification.  The physical carrier remains i64; these logical facts pick
  * the source-width truncation and signed/zero extension without introducing
@@ -1631,6 +1692,16 @@ static bool program_has_numeric_widen_values(
   if (program == NULL) return false;
   for (size_t index = 0u; index < program->value_count; index += 1u)
     if (program->values[index].kind == W_SEED_HIR0_VALUE_NUMERIC_WIDEN)
+      return true;
+  return false;
+}
+
+static bool program_has_float_bits_conversions(
+    const w_seed_hir0_program *program) {
+  if (program == NULL) return false;
+  for (size_t index = 0u; index < program->value_count; index += 1u)
+    if (program->values[index].kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS ||
+        program->values[index].kind == W_SEED_HIR0_VALUE_FLOAT_TO_BITS)
       return true;
   return false;
 }
@@ -2415,6 +2486,14 @@ static bool mark_reachable_value_tree(
                program, value->left_value, reachable, has_add, has_subtract,
                has_multiply, has_divide, has_remainder, depth + 1u);
   }
+  if (value->kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS ||
+      value->kind == W_SEED_HIR0_VALUE_FLOAT_TO_BITS) {
+    mlir0_float_bits_facts facts;
+    return mlir0_float_bits_shape_valid(program, value_index, &facts) &&
+           mark_reachable_value_tree(
+               program, value->left_value, reachable, has_add, has_subtract,
+               has_multiply, has_divide, has_remainder, depth + 1u);
+  }
   if (value->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN ||
       value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS ||
       value->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING)
@@ -2697,6 +2776,12 @@ static bool append_integer_widen_operation(
     uint32_t function_index, const mlir0_process_emit_context *process,
     const mlir0_natural_loop_result_context *loop,
     uint8_t *artifact, size_t capacity, size_t *offset);
+
+static bool append_float_bits_operation(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop, uint8_t *artifact,
+    size_t capacity, size_t *offset);
 
 static bool append_integer_truncating_bits_operation(
     const w_seed_hir0_program *program, uint32_t value_index,
@@ -3811,6 +3896,86 @@ static const char *mlir0_float_type_name(
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_F32) return "f32";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_F64) return "f64";
   return NULL;
+}
+
+static bool append_float_bits_operation(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop, uint8_t *artifact,
+    size_t capacity, size_t *offset) {
+  if (program == NULL || artifact == NULL || offset == NULL ||
+      value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  mlir0_float_bits_facts facts;
+  if (!mlir0_float_bits_shape_valid(program, value_index, &facts))
+    return false;
+
+  const bool from_bits = value->kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS;
+  if (facts.bit_width == 32u) {
+    if (from_bits) {
+      const char *destination_type =
+          mlir0_float_type_name(program, value->type_index);
+      return destination_type != NULL &&
+             append_literal(artifact, capacity, offset, "    %v") &&
+             append_size(artifact, capacity, offset, value_index) &&
+             append_literal(artifact, capacity, offset,
+                            "_float_bits_narrow = llvm.trunc ") &&
+             append_program_value_operand_in_loop(
+                 program, value->left_value, function_index, process, loop,
+                 artifact, capacity, offset) &&
+             append_literal(artifact, capacity, offset,
+                            " : i64 to i32\n    %v") &&
+             append_size(artifact, capacity, offset, value_index) &&
+             append_literal(artifact, capacity, offset,
+                            " = llvm.bitcast %v") &&
+             append_size(artifact, capacity, offset, value_index) &&
+             append_literal(artifact, capacity, offset,
+                            "_float_bits_narrow : i32 to ") &&
+             append_literal(artifact, capacity, offset, destination_type) &&
+             append_literal(artifact, capacity, offset, "\n");
+    }
+
+    const char *source_type =
+        mlir0_float_type_name(program, value->source_type);
+    return source_type != NULL &&
+           append_literal(artifact, capacity, offset, "    %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset,
+                          "_float_bits_i32 = llvm.bitcast ") &&
+           append_program_value_operand_in_loop(
+               program, value->left_value, function_index, process, loop,
+               artifact, capacity, offset) &&
+           append_literal(artifact, capacity, offset, " : ") &&
+           append_literal(artifact, capacity, offset, source_type) &&
+           append_literal(artifact, capacity, offset,
+                          " to i32\n    %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset, " = llvm.zext %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset,
+                          "_float_bits_i32 : i32 to i64\n");
+  }
+
+  if (facts.bit_width == 64u) {
+    const char *source_type =
+        from_bits ? "i64" : mlir0_float_type_name(program, value->source_type);
+    const char *destination_type =
+        from_bits ? mlir0_float_type_name(program, value->type_index) : "i64";
+    return source_type != NULL && destination_type != NULL &&
+           append_literal(artifact, capacity, offset, "    %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset, " = llvm.bitcast ") &&
+           append_program_value_operand_in_loop(
+               program, value->left_value, function_index, process, loop,
+               artifact, capacity, offset) &&
+           append_literal(artifact, capacity, offset, " : ") &&
+           append_literal(artifact, capacity, offset, source_type) &&
+           append_literal(artifact, capacity, offset, " to ") &&
+           append_literal(artifact, capacity, offset, destination_type) &&
+           append_literal(artifact, capacity, offset, "\n");
+  }
+  return false;
 }
 
 static bool mlir0_float_bits_valid(const w_seed_hir0_program *program,
@@ -5610,6 +5775,8 @@ static bool append_program_value_operand_in_loop(
           value->kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT ||
           value->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN ||
           value->kind == W_SEED_HIR0_VALUE_NUMERIC_WIDEN ||
+          value->kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS ||
+          value->kind == W_SEED_HIR0_VALUE_FLOAT_TO_BITS ||
           value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS ||
           value->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING) &&
          append_literal(artifact, capacity, offset, "%v") &&
@@ -6040,6 +6207,18 @@ static bool append_program_value_tree(
         !append_numeric_widen_operation(program, value_index, function_index,
                                         process, NULL, artifact, capacity,
                                         offset))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS ||
+      value->kind == W_SEED_HIR0_VALUE_FLOAT_TO_BITS) {
+    if (!append_program_value_tree(
+            program, value->left_value, function_index, process, emitted,
+            artifact, capacity, offset, depth + 1u) ||
+        !append_float_bits_operation(program, value_index, function_index,
+                                     process, NULL, artifact, capacity,
+                                     offset))
       return false;
     emitted[value_index] = true;
     return true;
@@ -6852,6 +7031,18 @@ static bool append_program_value_tree_in_loop(
         !append_numeric_widen_operation(program, value_index, function_index,
                                         process, loop, artifact, capacity,
                                         offset))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS ||
+      value->kind == W_SEED_HIR0_VALUE_FLOAT_TO_BITS) {
+    if (!append_program_value_tree_in_loop(
+            program, value->left_value, function_index, process, loop,
+            emitted, artifact, capacity, offset, depth + 1u) ||
+        !append_float_bits_operation(program, value_index, function_index,
+                                     process, loop, artifact, capacity,
+                                     offset))
       return false;
     emitted[value_index] = true;
     return true;
@@ -8676,12 +8867,13 @@ static bool build_program_artifact(
     size_t *written, uint8_t digest[MLIR0_DIGEST_BYTES]) {
   if (program == NULL || selection == NULL ||
       (!selection->has_local_calls && !selection->has_cfg &&
-      !selection->has_enum_switch &&
-      !selection->has_mutable_bindings &&
-      !selection->has_reachable_panic &&
+       !selection->has_enum_switch &&
+       !selection->has_mutable_bindings &&
+       !selection->has_reachable_panic &&
        !program_has_tuple_product_values(program) &&
        !program_has_narrow_integer_types(program) &&
        !program_has_numeric_widen_values(program) &&
+       !program_has_float_bits_conversions(program) &&
        selection->function_count <= 1u) ||
       !target_is_supported(target) || artifact == NULL || written == NULL ||
       digest == NULL || selection->maximum_stdout_bytes > MLIR0_MAX_STDOUT_BYTES)
@@ -9800,6 +9992,7 @@ w_seed_mlir0_status w_seed_mlir0_measure(
              program_has_tuple_product_values(input->program) ||
              program_has_narrow_integer_types(input->program) ||
              program_has_numeric_widen_values(input->program) ||
+             program_has_float_bits_conversions(input->program) ||
              program_selection.function_count > 1u) {
     if (!build_program_artifact(input->program, input->hir_result,
                                 &program_selection, target, artifact,
@@ -9894,6 +10087,7 @@ w_seed_mlir0_status w_seed_mlir0_emit(
              program_has_tuple_product_values(input->program) ||
              program_has_narrow_integer_types(input->program) ||
              program_has_numeric_widen_values(input->program) ||
+             program_has_float_bits_conversions(input->program) ||
              program_selection.function_count > 1u) {
     if (!build_program_artifact(input->program, input->hir_result,
                                 &program_selection, target, artifact,

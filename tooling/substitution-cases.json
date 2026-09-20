@@ -11758,6 +11758,109 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-float-bit-representation-bridge",
+      "reviewItem": "f32/u32 and f64/u64 bit reinterpretation against numeric conversion, implicit byte order, and arithmetic NaN payload stability",
+      "decisions": ["W-1647"],
+      "task": "Preserve selected same-width IEEE encodings through storage, copy, and bit round-trip without treating numeric conversion or endian byte serialization as equivalent.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "let negativeZero: f32 = f32.fromBits(0x80000000_u32)",
+          "let zeroCopy: f32 = negativeZero",
+          "let zeroBits: u32 = zeroCopy.toBits()",
+          "let subnormal: f64 = f64.fromBits(0x0000000000000001_u64)",
+          "let tinyCopy: f64 = subnormal",
+          "let tinyBits: u64 = tinyCopy.toBits()",
+          "let infinity: f32 = f32.fromBits(0x7f800000_u32)",
+          "let infinityBits: u32 = infinity.toBits()",
+          "let payload: f64 = f64.fromBits(0x7ff8123456789abc_u64)",
+          "let nanCopy: f64 = payload",
+          "let payloadBits: u64 = nanCopy.toBits()"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "numeric-value-cast",
+          "language": "w-rejected",
+          "source": ["convert the integer numeric value to f32 or f64"],
+          "expectedDifference": "A numeric conversion may round, reject, or lose payload bits; fromBits and toBits reinterpret one exact same-width encoding."
+        },
+        {
+          "name": "endian-byte-codec",
+          "language": "w-separate-api",
+          "source": ["serialize bytes without naming .little, .big, or .native"],
+          "expectedDifference": "Byte order belongs to an explicit serialization API and is not selected by fromBits or toBits."
+        },
+        {
+          "name": "payload-stable-arithmetic",
+          "language": "w-rejected-contract",
+          "source": [
+            "let after = payload + 0.0_f64",
+            "expect after.toBits() == payload.toBits()"
+          ],
+          "expectedDifference": "Arithmetic NaN sign and payload are not portable, even though storage, copy, and bit round-trips preserve them."
+        },
+        {
+          "name": "mismatched-width-bitcast",
+          "language": "w-rejected",
+          "source": ["let invalid: f32 = f32.fromBits(1_u64)"],
+          "expectedDifference": "The selected surface admits only f32/u32 and f64/u64 pairs, with one positional argument and no width-changing fallback."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-float-bit-representation.w",
+          "symbol": "entry",
+          "claim": "The width-neutral witness owns exact output for f32/f64 negative zero, positive infinity, and quiet-NaN payload round trips."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_frontend.c",
+          "symbol": "test_float_bits_frontend",
+          "claim": "Frontend69 accepts the closed signatures and rejects wrong widths, signed inputs, named calls, and wrong arities."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_float_bits_hir",
+          "claim": "HIR90 verifies conversion ownership and preserves exact values through storage, copy, and round-trip including subnormals."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_native0.c",
+          "symbol": "test_float_bits_native_admission",
+          "claim": "NativeSubset0 independently admits only same-width unsigned representation pairs."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "append_float_bits_operation",
+          "claim": "MLIR61 normalizes the physical carrier and emits direct width-correct LLVM bitcasts without a runtime helper."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_mlir0.c",
+          "symbol": "test_float_bits_mlir",
+          "claim": "MLIR tests cover both widths, zero signs, subnormals, infinities, NaN payloads, and absence of a conversion helper."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "Restaurant exact f32/f64 bit representation round trips",
+          "claim": "The public Windows x64 gate checks exact output from the W source-to-native run."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "Restaurant exact f32/f64 bit representation round trips",
+          "claim": "The public Linux/WSL x64 gate checks exact output from the W source-to-native run."
+        }
+      ],
+      "checks": [
+        "Focused frontend, verified-HIR, NativeSubset0, and MLIR tests pass; the exact public Windows and Linux/WSL runs pass before source-backed classification.",
+        "The W, C23, and Rust 2024 outputs are correctness evidence only; no timing or performance ranking is claimed."
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

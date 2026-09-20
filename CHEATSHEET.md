@@ -610,6 +610,12 @@ fn numericPolicies(): (u8, u8, Bool, UInt) {
 
   let bits = 0x16_u8.toBits()
   expect u8.fromBits(bits) == 0x16
+  let negativeZero32: f32 = f32.fromBits(0x80000000_u32)
+  let copiedNegativeZero32 = negativeZero32
+  expect copiedNegativeZero32.toBits() == 0x80000000_u32
+  let nan64: f64 = f64.fromBits(0x7ff8123456789abc_u64)
+  let copiedNan64 = nan64
+  expect copiedNan64.toBits() == 0x7ff8123456789abc_u64
   let bytes = 0x1234_u16.toBytes(order: .big)
   expect u16.fromBytes(bytes, order: .big) == 0x1234
   expect u8.bitWidth == 8
@@ -643,6 +649,12 @@ current bounded implementation covers every source/destination pair among the
 signed and unsigned 8/16/32/64-bit integers and x86-64 `Int`/`UInt`; the
 compact public witness executes all four signedness quadrants on Windows and
 Linux/WSL. Other conversion families and target-general aliases remain gaps.
+
+Float `fromBits`/`toBits` admits only the matching `f32`/`u32` or `f64`/`u64`
+pair and reinterprets bits rather than converting a numeric value. Storage,
+copy, and round-trip preserve the encoding; arithmetic NaN payloads are not
+portable. Byte serialization remains separate and requires an explicit order.
+The current seed witness is limited to Windows x64 and Linux/WSL x64.
 
 <!-- w-example role=executable use=strictFloatSummary observable=value -->
 ```w

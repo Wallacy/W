@@ -3799,6 +3799,131 @@ static bool test_explicit_integer_truncating_bits_frontend(void) {
   return true;
 }
 
+static bool test_float_bits_frontend(void) {
+  static const char SOURCE[] =
+      "fn fromF32(bits: u32): f32 { return f32.fromBits(bits) }\n"
+      "fn toF32(value: f32): u32 { return value.toBits() }\n"
+      "fn fromF64(bits: u64): f64 { return f64.fromBits(bits) }\n"
+      "fn toF64(value: f64): u64 { return value.toBits() }\n"
+      "entry(fromF32)\n";
+  fixture *value = &fixture_a;
+  CHECK(fixture_run(value, SOURCE));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
+        value->result.status == W_SEED_FRONTEND_OK &&
+        counts_equal(&value->result.required, &value->result.written));
+  w_seed_frontend_counts measured_counts;
+  w_seed_frontend_result measured_result;
+  CHECK(w_seed_frontend_measure(&value->input, &measured_counts,
+                                &measured_result) == W_SEED_FRONTEND_OK);
+  CHECK(counts_equal(&measured_counts, &value->result.required) &&
+        measured_result.required.receipt_bytes ==
+            value->result.receipt_bytes &&
+        receipt_contains(value, "float-bits-conversion=",
+                        strlen("float-bits-conversion=")));
+
+  size_t from_bits_count = 0u;
+  size_t to_bits_count = 0u;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    const bool from_bits =
+        expression->kind == W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS;
+    const bool to_bits = expression->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_BITS;
+    if (!from_bits && !to_bits) continue;
+    from_bits_count += from_bits ? 1u : 0u;
+    to_bits_count += to_bits ? 1u : 0u;
+    CHECK(expression->supported &&
+          expression->left != W_SEED_FRONTEND_NONE &&
+          expression->left < value->result.written.expressions &&
+          expression->right == W_SEED_FRONTEND_NONE &&
+          expression->first_argument == W_SEED_FRONTEND_NONE &&
+          expression->argument_count == 0u &&
+          expression->conversion_source_type < value->result.written.types &&
+          expression->conversion_destination_type <
+              value->result.written.types &&
+          expression->inferred_type ==
+              expression->conversion_destination_type &&
+          !expression->has_float_value && !expression->has_integer_value);
+    const w_seed_frontend_expression *source =
+        &value->expressions[expression->left];
+    const w_seed_frontend_type *source_type =
+        &value->types[expression->conversion_source_type];
+    const w_seed_frontend_type *destination_type =
+        &value->types[expression->conversion_destination_type];
+    CHECK(source->inferred_type == expression->conversion_source_type &&
+          !source->has_float_value && !source->has_integer_value);
+    if (from_bits) {
+      CHECK(source_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+            !source_type->is_signed &&
+            (source_type->bit_width == 32u ||
+             source_type->bit_width == 64u) &&
+            destination_type->kind == W_SEED_FRONTEND_TYPE_FLOAT &&
+            destination_type->bit_width == source_type->bit_width);
+    } else {
+      CHECK(source_type->kind == W_SEED_FRONTEND_TYPE_FLOAT &&
+            (source_type->bit_width == 32u ||
+             source_type->bit_width == 64u) &&
+            destination_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+            !destination_type->is_signed &&
+            destination_type->bit_width == source_type->bit_width);
+    }
+  }
+  CHECK(from_bits_count == 2u && to_bits_count == 2u);
+
+  const size_t canonical_receipt_bytes = value->result.receipt_bytes;
+  uint8_t canonical_receipt[TEST_RECEIPT];
+  CHECK(canonical_receipt_bytes <= sizeof(canonical_receipt));
+  (void)memcpy(canonical_receipt, value->receipt, canonical_receipt_bytes);
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_OK);
+  CHECK(value->result.receipt_bytes == canonical_receipt_bytes &&
+        memcmp(value->receipt, canonical_receipt, canonical_receipt_bytes) ==
+            0);
+
+  /* The exact bridge expressions participate in the frontend preflight:
+   * a short output buffer must not expose partial expression records. */
+  const size_t expression_capacity = value->output.expression_capacity;
+  CHECK(value->result.written.expressions < expression_capacity);
+  fixture_fill_output(value, 0xa5u);
+  value->output.expression_capacity = value->result.written.expressions - 1u;
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_CAPACITY);
+  CHECK(fixture_output_is(value, 0xa5u, true));
+  value->output.expression_capacity = expression_capacity;
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_OK);
+
+  static const char *const REJECTED[] = {
+      "fn f(bits: u64): f32 { return f32.fromBits(bits) } entry(f)\n",
+      "fn f(bits: u32): f64 { return f64.fromBits(bits) } entry(f)\n",
+      "fn f(bits: i32): f32 { return f32.fromBits(bits) } entry(f)\n",
+      "fn f(bits: u32): f32 { return f32.fromBits(bits: bits) } entry(f)\n",
+      "fn f(): f32 { return f32.fromBits() } entry(f)\n",
+      "fn f(bits: u32, extra: u32): f32 { return "
+      "f32.fromBits(bits, extra) } entry(f)\n",
+      "fn f(value: f32): f32 { return value.toBits(0_u32) } entry(f)\n",
+      "fn f(value: i32): u32 { return value.toBits() } entry(f)\n",
+      "fn f(value: f32): f32 { return value.fromBits(0_u32) } entry(f)\n",
+      "fn f(bits: u32): u32 { return f32.toBits() } entry(f)\n",
+      "fn f(f32: u32, bits: u32): f32 { return f32.fromBits(bits) } "
+      "entry(f)\n",
+  };
+  fixture *invalid = &fixture_b;
+  for (size_t index = 0u; index < sizeof(REJECTED) / sizeof(REJECTED[0]);
+       index += 1u) {
+    CHECK(fixture_run(invalid, REJECTED[index]));
+    CHECK(invalid->result.status != W_SEED_FRONTEND_OK &&
+          has_fact(invalid, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+    for (size_t expression = 0u;
+         expression < invalid->result.written.expressions; expression += 1u)
+      CHECK(invalid->expressions[expression].kind !=
+                W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS &&
+            invalid->expressions[expression].kind !=
+                W_SEED_FRONTEND_EXPR_FLOAT_TO_BITS);
+  }
+  return true;
+}
+
 static bool test_explicit_integer_saturating_frontend(void) {
   typedef struct {
     const char *name;
@@ -6675,7 +6800,7 @@ static bool test_f32_scalar_projection(void) {
 }
 
 static bool test_numeric_widening_frontend(void) {
-  CHECK(strcmp(W_SEED_FRONTEND_SCHEMA_VERSION, "w-seed-frontend-68") == 0);
+  CHECK(strcmp(W_SEED_FRONTEND_SCHEMA_VERSION, "w-seed-frontend-69") == 0);
   typedef struct {
     const char *source_name;
     bool source_is_float;
@@ -9099,6 +9224,7 @@ int main(int argc, char **argv) {
   if (!test_semantic_diagnostics()) return 1;
   if (!test_implicit_integer_widening_frontend()) return 1;
   if (!test_explicit_integer_truncating_bits_frontend()) return 1;
+  if (!test_float_bits_frontend()) return 1;
   if (!test_explicit_integer_saturating_frontend()) return 1;
   if (!test_graph_facts_and_external_stub()) return 1;
   if (!test_receipt_encoding_and_long_fields()) return 1;

@@ -33,7 +33,10 @@ import {
   W_LLD_LINK_FLAGS,
   W_MLIR_OPT_FLAGS,
 } from "./executable-release-recipes.mjs";
-import { exactOutputDigest } from "./executable-benchmark-machine.mjs";
+import {
+  exactOutputDigest,
+  RESTAURANT_FLOAT_BIT_REPRESENTATION_WORKLOAD_ID,
+} from "./executable-benchmark-machine.mjs";
 
 test("benchmark arguments separate compile cost from high-resolution run sampling", () => {
   assert.deepEqual(parseBenchmarkArguments([]), {
@@ -64,6 +67,9 @@ test("benchmark arguments separate compile cost from high-resolution run samplin
   });
   assert.deepEqual(parseBenchmarkArguments(["--target", "process-enum-payload", "--language", "rust"]), {
     target: "process-enum-payload", language: "rust", platform: "windows-x64", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
+  });
+  assert.deepEqual(parseBenchmarkArguments(["--target", RESTAURANT_FLOAT_BIT_REPRESENTATION_WORKLOAD_ID, "--language", "rust"]), {
+    target: RESTAURANT_FLOAT_BIT_REPRESENTATION_WORKLOAD_ID, language: "rust", platform: "windows-x64", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
   });
   assert.throws(() => parseBenchmarkArguments(["--target", "process-entry0", "--language", "c"]), /unsupported benchmark target/);
   assert.throws(() => parseBenchmarkArguments(["--target", "restaurant-composition"]), /unsupported/);

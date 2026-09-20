@@ -223,9 +223,9 @@ static bool make_nested_tree_source(char *buffer, size_t capacity,
 
 static bool test_products(void) {
   CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-10") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-60") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-61") == 0);
   CHECK(strcmp(W_SEED_MLIR0_WINDOWS_SCHEMA_VERSION,
-               "w-seed-mlir0-windows-46") == 0);
+               "w-seed-mlir0-windows-47") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -354,6 +354,108 @@ static bool test_strict_float_native_admission(void) {
   CHECK(contains_bytes(artifact, result.mlir.written.mlir_bytes,
                        "llvm.fneg "));
   CHECK(!contains_bytes(artifact, result.mlir.written.mlir_bytes, "fastmath"));
+  return true;
+}
+
+static bool test_float_bits_native_admission(void) {
+  static const uint8_t SOURCE[] =
+      "fn main() { let f32Value: f32 = f32.fromBits(0x80000000_u32) "
+      "let f64Value: f64 = f64.fromBits(0x7ff8123456789abc_u64) "
+      "let f32Bits: u32 = f32Value.toBits() "
+      "let f64Bits: u64 = f64Value.toBits() print(\"bit bridge\") }\n"
+      "entry(main)\n";
+  static uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  const w_seed_native0_status status =
+      run_source(SOURCE, sizeof(SOURCE) - 1u, "float-bits-native",
+                 sizeof("float-bits-native") - 1u, artifact, sizeof(artifact),
+                 &result);
+  CHECK(status == W_SEED_NATIVE0_OK);
+  CHECK(w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
+
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(contains_bytes(artifact, result.mlir.written.mlir_bytes,
+                       "llvm.trunc %v") &&
+        count_bytes(artifact, result.mlir.written.mlir_bytes,
+                    "llvm.bitcast ") == 4u &&
+        contains_bytes(artifact, result.mlir.written.mlir_bytes,
+                       "llvm.zext ") &&
+        !contains_bytes(artifact, result.mlir.written.mlir_bytes,
+                        "uitofp") &&
+        !contains_bytes(artifact, result.mlir.written.mlir_bytes,
+                        "sitofp") &&
+        !contains_bytes(artifact, result.mlir.written.mlir_bytes,
+                        "fastmath"));
+
+  uint32_t u32_type = W_SEED_HIR0_NONE;
+  uint32_t f64_type = W_SEED_HIR0_NONE;
+  uint32_t from32 = W_SEED_HIR0_NONE;
+  uint32_t to32 = W_SEED_HIR0_NONE;
+  uint32_t from64 = W_SEED_HIR0_NONE;
+  uint32_t to64 = W_SEED_HIR0_NONE;
+  for (size_t index = 0u; index < storage.hir_program.type_count; index += 1u) {
+    const w_seed_hir0_type *type = &storage.hir_types[index];
+    if (type->kind == W_SEED_HIR0_TYPE_INTEGER &&
+        !type->integer_is_signed && type->integer_bit_width == 32u)
+      u32_type = (uint32_t)index;
+    if (type->kind == W_SEED_HIR0_TYPE_F64) f64_type = (uint32_t)index;
+  }
+  size_t from_count = 0u;
+  size_t to_count = 0u;
+  for (size_t index = 0u; index < storage.hir_program.value_count; index += 1u) {
+    const w_seed_hir0_value *value = &storage.hir_values[index];
+    if (value->kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS) {
+      CHECK(value->left_value < storage.hir_program.value_count &&
+            storage.hir_values[value->left_value].owner_kind ==
+                W_SEED_HIR0_VALUE_OWNER_FLOAT_BITS_CONVERSION &&
+            storage.hir_values[value->left_value].owner_index == index &&
+            storage.hir_values[value->left_value].owner_ordinal == 0u);
+      from_count += 1u;
+      if (value->source_type == u32_type) from32 = (uint32_t)index;
+      else from64 = (uint32_t)index;
+    } else if (value->kind == W_SEED_HIR0_VALUE_FLOAT_TO_BITS) {
+      CHECK(value->left_value < storage.hir_program.value_count &&
+            storage.hir_values[value->left_value].owner_kind ==
+                W_SEED_HIR0_VALUE_OWNER_FLOAT_BITS_CONVERSION &&
+            storage.hir_values[value->left_value].owner_index == index &&
+            storage.hir_values[value->left_value].owner_ordinal == 0u);
+      to_count += 1u;
+      if (value->type_index == u32_type) to32 = (uint32_t)index;
+      else to64 = (uint32_t)index;
+    }
+  }
+  CHECK(u32_type != W_SEED_HIR0_NONE && f64_type != W_SEED_HIR0_NONE &&
+        from_count == 2u && to_count == 2u && from32 != W_SEED_HIR0_NONE &&
+        to32 != W_SEED_HIR0_NONE && from64 != W_SEED_HIR0_NONE &&
+        to64 != W_SEED_HIR0_NONE);
+
+  const w_seed_hir0_value saved_from32 = storage.hir_values[from32];
+  const w_seed_hir0_value saved_from32_child =
+      storage.hir_values[saved_from32.left_value];
+  const w_seed_hir0_type saved_u32 = storage.hir_types[u32_type];
+  storage.hir_values[from32].source_type = f64_type;
+  CHECK(w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_INVALID);
+  storage.hir_values[from32] = saved_from32;
+  CHECK(w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
+
+  storage.hir_types[u32_type].integer_bit_width = 64u;
+  CHECK(w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_INVALID);
+  storage.hir_types[u32_type] = saved_u32;
+  CHECK(w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
+
+  storage.hir_values[saved_from32.left_value].owner_ordinal = 1u;
+  CHECK(w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_INVALID);
+  storage.hir_values[saved_from32.left_value] = saved_from32_child;
+  CHECK(w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
   return true;
 }
 
@@ -5970,6 +6072,7 @@ int main(void) {
       test_virtual_static_yield_helper_product() &&
       test_async_direct_entry_product() && test_signed_comparison_products() &&
       test_products() && test_strict_float_native_admission() &&
+      test_float_bits_native_admission() &&
       test_unsigned_binary_u64_slice() &&
       test_u64_wrapping_add_slice() && test_u64_saturating_add_slice() &&
       test_u64_saturating_subtract_slice() &&

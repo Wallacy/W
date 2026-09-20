@@ -3005,6 +3005,26 @@ operands, so this row is `not-performance-ready` and publishes no ranking.
 `exactly:`, `rounding:`, floating `saturating:`, stable ABI/FFI, other targets,
 and equivalent runtime work remain gaps.
 
+### Floating bit representation bridge (W-1647)
+
+Frontend69 and verified HIR90 preserve the exact `f32.fromBits(u32)` and
+`f64.fromBits(u64)` routes plus their matching zero-argument `.toBits()`
+extractors through storage, copy, and round-trip. NativeSubset0 checks the
+closed width pairs; MLIR61 uses carrier normalization and direct LLVM
+bitcasts, without a runtime, heap, or CRT helper. Focused frontend/HIR/
+NativeSubset0/MLIR tests cover signed zero, subnormals, infinities, quiet-NaN
+payloads, and rejected widths, receivers, labels, and arities.
+
+[`fixtures/restaurant-float-bit-representation.w`](fixtures/restaurant-float-bit-representation.w)
+declares exit 0 and exact stdout
+`Float bits f32 2147483648/2139095040/2143363909 f64 9223372036854775808/9218868437227405312/9221140253039434428\n`.
+The public Windows x64 and Linux/WSL x64 run gates require and pass that exact
+source-to-native output. This is `source-backed-current` only for that bounded
+seed subset. C23 and Rust 2024 are correctness references, not equivalent
+runtime work: `benchmarkDisposition: deferred`, with no timing or ranking.
+Other targets, stable ABI/FFI, endian byte serialization, arithmetic NaN
+payload, and remaining W-389 conversion policies stay open.
+
 ### Source-backed checked `UInt`/`u64` operators
 
 HIR0 schema `w-seed-hir0-77` represents ordinary unsigned arithmetic,

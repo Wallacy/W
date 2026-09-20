@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-89"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-90"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -233,6 +233,10 @@ typedef enum {
    * source_type records the operand identity and type_index the result. */
   W_SEED_HIR0_VALUE_NUMERIC_WIDEN =
       W_SEED_HIR0_VALUE_INTEGER_SATURATING + 1,
+  /* Exact IEEE representation transfers. source_type and type_index carry
+   * the bit carrier and floating scalar identities, respectively. */
+  W_SEED_HIR0_VALUE_FLOAT_FROM_BITS = W_SEED_HIR0_VALUE_NUMERIC_WIDEN + 1,
+  W_SEED_HIR0_VALUE_FLOAT_TO_BITS,
 } w_seed_hir0_value_kind;
 
 typedef enum {
@@ -257,6 +261,8 @@ typedef enum {
   W_SEED_HIR0_VALUE_OWNER_INTEGER_SATURATING,
   /* The source child consumed by one exact numeric widening. */
   W_SEED_HIR0_VALUE_OWNER_NUMERIC_WIDEN,
+  /* The source child consumed by one exact floating representation bridge. */
+  W_SEED_HIR0_VALUE_OWNER_FLOAT_BITS_CONVERSION,
 } w_seed_hir0_value_owner_kind;
 
 typedef enum {
@@ -819,8 +825,8 @@ typedef struct {
   /* Present only for VALUE_ENUM_CASE. */
   uint32_t enum_index;
   uint32_t enum_case_index;
-  /* Present only for VALUE_INTEGER_WIDEN, VALUE_NUMERIC_WIDEN, or an
-   * explicit integer conversion; destination is always type_index. */
+  /* Present only for a widening/conversion value operation; destination is
+   * always type_index. */
   uint32_t source_type;
 } w_seed_hir0_value;
 

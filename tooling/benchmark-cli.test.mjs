@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { benchmarkUsage, consumeLocalResult, main, parseBenchmarkCliArguments, validateUpdateBoundary } from "./benchmark-cli.mjs";
+import { RESTAURANT_FLOAT_BIT_REPRESENTATION_WORKLOAD_ID } from "./executable-benchmark-machine.mjs";
 
 test("benchmark facade exposes update and preserves bounded run arguments", () => {
   assert.deepEqual(parseBenchmarkCliArguments(["list"]), { command: "list" });
@@ -33,6 +34,9 @@ test("benchmark facade exposes update and preserves bounded run arguments", () =
   });
   assert.deepEqual(parseBenchmarkCliArguments(["run", "--target", "process-arguments-ordering", "--language", "rust"]), {
     command: "run", target: "process-arguments-ordering", language: "rust", platform: "windows-x64", output: "benchmarks/results/process-arguments-ordering-rust.local.json", warmup: 1, compileSamples: 9, runSamples: 101,
+  });
+  assert.deepEqual(parseBenchmarkCliArguments(["run", "--target", RESTAURANT_FLOAT_BIT_REPRESENTATION_WORKLOAD_ID, "--language", "rust"]), {
+    command: "run", target: RESTAURANT_FLOAT_BIT_REPRESENTATION_WORKLOAD_ID, language: "rust", platform: "windows-x64", output: `benchmarks/results/${RESTAURANT_FLOAT_BIT_REPRESENTATION_WORKLOAD_ID}-rust.local.json`, warmup: 1, compileSamples: 9, runSamples: 101,
   });
   assert.throws(() => parseBenchmarkCliArguments(["run", "--target", "process-entry0", "--language", "w"]), /unsupported target/);
   assert.throws(() => parseBenchmarkCliArguments(["run", "--run-samples", "1003"]), /outside its allowed range/);

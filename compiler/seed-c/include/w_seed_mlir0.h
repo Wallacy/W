@@ -15,11 +15,12 @@ extern "C" {
 #endif
 
 /* Internal seed-only MLIR0 terminal adapter. It consumes a verified HIR0
- * program, selects the fixed native print subset, and emits textual builtin
- * plus LLVM dialect MLIR for one fixed target. The artifact is recipe-private
- * and does not allocate or execute. */
-#define W_SEED_MLIR0_SCHEMA_VERSION "w-seed-mlir0-60"
-#define W_SEED_MLIR0_WINDOWS_SCHEMA_VERSION "w-seed-mlir0-windows-46"
+ * program, selects the fixed native subset (including exact float
+ * representation transfers), and emits textual builtin plus LLVM dialect
+ * MLIR for one fixed target. The artifact is recipe-private and does not
+ * allocate or execute. */
+#define W_SEED_MLIR0_SCHEMA_VERSION "w-seed-mlir0-61"
+#define W_SEED_MLIR0_WINDOWS_SCHEMA_VERSION "w-seed-mlir0-windows-47"
 #define W_SEED_MLIR0_TARGET_TRIPLE_LINUX "x86_64-unknown-linux-gnu"
 #define W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS "x86_64-pc-windows-msvc"
 #define W_SEED_MLIR0_PROCESS_SCHEMA_VERSION \

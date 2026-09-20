@@ -22633,8 +22633,11 @@ O lexer aceita:
 
 `2.` é erro; use `2.0`. Um sinal é um operador, não parte do literal numérico.
 O checker trata `-128_i8` como o limite representável, mas rejeita `128_i8` e
-`-(129_i8)`. Hexadecimal float não entra no design vigente. Controle de bits usa
-`f32.fromBits` ou `f64.fromBits`.
+`-(129_i8)`. Hexadecimal float não entra no design vigente. O controle de bits
+usa `f32.fromBits(u32) -> f32` e `f64.fromBits(u64) -> f64`; cada método recebe
+um único unsigned value de largura correspondente. O extractor de instância
+`.toBits()` devolve `u32` para `f32` e `u64` para `f64`. São bit
+reinterpretations, não conversões numéricas.
 
 Antes do expected type, um literal integer guarda magnitude arbitrária. Um
 literal decimal guarda um rational decimal exato. A materialização ocorre uma
@@ -22715,7 +22718,12 @@ representação de `N` bits é congruente ao valor matemático de `source` módu
 origem signed negativa é estendida pelo seu valor matemático quando o destino é
 mais largo, e a signedness do destino interpreta apenas o padrão final. O
 compilador não delega essa operação a promotions, casts ou overflow do host.
-`toBits` e `fromBits` preservam a representação, não convertem valor.
+Para floats, somente `f32.fromBits(u32)`/`f64.fromBits(u64)` e o `.toBits()`
+correspondente são admitidos: cada `fromBits` recebe exatamente um argumento
+posicional da largura correspondente, e cada `.toBits()` recebe zero argumentos.
+Argumento ausente ou extra, forma nomeada, tipo signed ou largura incompatível
+é rejeitado. Essas APIs não convertem valor nem selecionam uma policy de
+rounding. `toBits` e `fromBits` preservam representação, não valor.
 `T(value)` também pode tornar explícita uma conversão que já é total e exata.
 Ele nunca esconde uma operação fallible.
 
@@ -22925,10 +22933,13 @@ let ordered = f64.totalOrder(-0.0, 0.0)     // .less
 let key = TotalFloat(0.0)
 ```
 
-Store, copy, serialization por bits e `toBits` preservam signed zero e payload
-de NaN. O resultado NaN de uma operação continua NaN, mas seu sign e payload não
-são portáveis. `==`, `<`, `<=`, `>` e `>=` seguem comparação IEEE: NaN não é
-igual a si e `-0.0 == 0.0`.
+Storage, copy e uma ida-e-volta `fromBits`/`toBits` preservam a representação
+exata, incluindo ambos os zeros, subnormals, infinities e o sign/payload NaN.
+Serializar bytes continua separado e exige uma ordem explícita como `.little`,
+`.big` ou `.native`; `fromBits` e `toBits` não escolhem byte order. Um resultado
+NaN aritmético continua NaN, mas seu sign e payload não são portáveis nem
+prometidos iguais aos operandos. `==`, `<`, `<=`, `>` e `>=` seguem comparação
+IEEE: NaN não é igual a si e `-0.0 == 0.0`.
 
 Por isso, floats não conformam a `Equatable`, `Hashable` ou uma ordem total.
 `partialCompare` retorna `Ordering?`. `f32.totalOrder` e `f64.totalOrder`
@@ -42410,6 +42421,35 @@ output. C23 and Rust 2024 are independent correctness references only. The W
 expression graph may be compile-time folded while those references retain
 runtime operands, so `benchmarkDisposition: deferred` and no performance
 ranking is published.
+
+#### 26.4.1.127 W-1647 — floating bit representation bridge
+
+W-1647 implements the existing W-389/W-393 representation route; it adds no
+numeric-conversion policy or grammar. Its closed signatures are
+`f32.fromBits(u32) -> f32` and `f64.fromBits(u64) -> f64`, with receiver
+`.toBits() -> u32` and `.toBits() -> u64`. Each constructor takes exactly one
+positional argument of the matching unsigned width; extraction takes no
+arguments. Signed operands, mismatched widths, other receivers, named calls,
+and wrong arities fail closed.
+
+Frontend69 and HIR90 preserve source/result identities and conversion
+ownership. NativeSubset0 and MLIR61 independently validate that route. MLIR
+normalizes the physical carrier and uses direct width-correct LLVM bitcasts;
+no runtime, heap, or CRT helper is needed. Storage, copy, and bit round-trips
+preserve signed zero, subnormals, infinities, and a NaN's sign/payload. Arithmetic
+does not promise to preserve input NaN sign or payload. Byte serialization
+remains a separate explicit-endian operation.
+
+**Example:**
+[`restaurant-float-bit-representation.w`](compiler/seed-c/fixtures/restaurant-float-bit-representation.w)
+declares exit 0 and stdout
+`Float bits f32 2147483648/2139095040/2143363909 f64 9223372036854775808/9218868437227405312/9221140253039434428\n`.
+Focused tests also cover subnormal preservation and rejected signatures. The
+source-backed evidence is bounded to the seed Windows x64 and Linux/WSL x64
+source-to-native routes; it does not establish other targets, stable ABI/FFI,
+or all of W-389. C23 and Rust 2024 are correctness references only. Their
+runtime inputs are not equivalent to W's foldable literal inputs, so
+`benchmarkDisposition: deferred` and no performance ranking is published.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

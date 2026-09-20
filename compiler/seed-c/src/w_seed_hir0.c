@@ -827,6 +827,26 @@ static bool frontend_integer_conversion_route(
          frontend_type_is_fixed_integer(to);
 }
 
+/* Bit bridges are exact-width representation transfers, not arithmetic
+ * conversions.  The unsigned side is deliberately limited to u32/u64. */
+static bool frontend_float_bits_conversion_route(
+    const w_seed_frontend_type *from, const w_seed_frontend_type *to,
+    w_seed_frontend_expr_kind kind) {
+  if (from == NULL || to == NULL ||
+      (kind != W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS &&
+       kind != W_SEED_FRONTEND_EXPR_FLOAT_TO_BITS))
+    return false;
+  if (kind == W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS)
+    return frontend_type_is_fixed_integer(from) && !from->is_signed &&
+           (from->bit_width == 32u || from->bit_width == 64u) &&
+           frontend_type_is_fixed_float(to) &&
+           from->bit_width == to->bit_width;
+  return frontend_type_is_fixed_float(from) &&
+         frontend_type_is_fixed_integer(to) && !to->is_signed &&
+         (to->bit_width == 32u || to->bit_width == 64u) &&
+         from->bit_width == to->bit_width;
+}
+
 /* Assignment is directional for the one nominal widening admitted by the
  * bounded enum-subset slice.  A value carrying a subset is safe to pass to
  * its payloadless base enum, but a base value may never be treated as a
@@ -3912,6 +3932,34 @@ static bool frontend_scalar_if_tree_ok(
         input, module_index, function_index, document_index, value->left,
         false, true, depth + 1u);
   }
+  if (value->kind == W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS ||
+      value->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_BITS) {
+    if (value->left == W_SEED_FRONTEND_NONE ||
+        (size_t)value->left >= input->frontend_result->written.expressions ||
+        value->right != W_SEED_FRONTEND_NONE ||
+        value->first_argument != W_SEED_FRONTEND_NONE ||
+        value->argument_count != 0u ||
+        value->conversion_source_type == W_SEED_FRONTEND_NONE ||
+        value->conversion_destination_type == W_SEED_FRONTEND_NONE ||
+        (size_t)value->conversion_source_type >=
+            input->frontend_result->written.types ||
+        (size_t)value->conversion_destination_type >=
+            input->frontend_result->written.types ||
+        value->inferred_type != value->conversion_destination_type ||
+        value->conversion_source_type !=
+            output->expressions[value->left].inferred_type ||
+        !frontend_float_bits_conversion_route(
+            &output->types[value->conversion_source_type],
+            &output->types[value->conversion_destination_type], value->kind) ||
+        !frontend_value_has_no_resolution(value) ||
+        value->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
+        value->has_bool_value || value->has_integer_value ||
+        value->has_float_value)
+      return false;
+    return frontend_scalar_if_tree_ok(
+        input, module_index, function_index, document_index, value->left,
+        false, true, depth + 1u);
+  }
   if (value->kind == W_SEED_FRONTEND_EXPR_PARENTHESIS)
     return !value->has_bool_value && !value->has_integer_value &&
            !value->has_float_value &&
@@ -4101,6 +4149,8 @@ static bool frontend_value_tree_ok_impl(
       value->kind != W_SEED_FRONTEND_EXPR_NUMERIC_WIDEN &&
       value->kind != W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS &&
       value->kind != W_SEED_FRONTEND_EXPR_INTEGER_SATURATING &&
+      value->kind != W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS &&
+      value->kind != W_SEED_FRONTEND_EXPR_FLOAT_TO_BITS &&
       (value->conversion_source_type != W_SEED_FRONTEND_NONE ||
        value->conversion_destination_type != W_SEED_FRONTEND_NONE))
     return false;
@@ -4208,6 +4258,44 @@ static bool frontend_value_tree_ok_impl(
         value->has_integer_value || value->has_float_value)
       return false;
     if (!frontend_value_tree_ok(input, module_index, function_index,
+                                document_index, use_statement, value->left,
+                                depth + 1u, expression_cursor, segment_cursor,
+                                const_byte_cursor, value_total, segment_total,
+                                value_bytes, call_total, argument_total,
+                                logical_total))
+      return false;
+    if ((size_t)root_index != *expression_cursor) return false;
+    if (!add_size(*value_total, 1u, value_total)) return false;
+    if (!add_size(*expression_cursor, 1u, expression_cursor)) return false;
+    return true;
+  }
+
+  if (value->kind == W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS ||
+      value->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_BITS) {
+    if (value->left == W_SEED_FRONTEND_NONE ||
+        value->right != W_SEED_FRONTEND_NONE ||
+        value->first_argument != W_SEED_FRONTEND_NONE ||
+        value->argument_count != 0u ||
+        (size_t)value->left >= result->written.expressions ||
+        value->conversion_source_type == W_SEED_FRONTEND_NONE ||
+        value->conversion_destination_type == W_SEED_FRONTEND_NONE ||
+        (size_t)value->conversion_source_type >= result->written.types ||
+        (size_t)value->conversion_destination_type >= result->written.types ||
+        value->inferred_type != value->conversion_destination_type ||
+        value->conversion_source_type !=
+            output->expressions[value->left].inferred_type ||
+        !frontend_float_bits_conversion_route(
+            &output->types[value->conversion_source_type],
+            &output->types[value->conversion_destination_type], value->kind) ||
+        !frontend_value_has_no_resolution(value) ||
+        value->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
+        value->const_byte_offset != W_SEED_FRONTEND_NONE ||
+        value->const_byte_count != 0u || value->has_bool_value ||
+        value->has_integer_value || value->has_float_value ||
+        (defer_integer_widen_child && value->left >= root_index))
+      return false;
+    if (!defer_integer_widen_child &&
+        !frontend_value_tree_ok(input, module_index, function_index,
                                 document_index, use_statement, value->left,
                                 depth + 1u, expression_cursor, segment_cursor,
                                 const_byte_cursor, value_total, segment_total,
@@ -9925,7 +10013,9 @@ static size_t hir0_emit_expression_values_m2(hir0_emit_context *context,
   if (source->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN ||
       source->kind == W_SEED_FRONTEND_EXPR_NUMERIC_WIDEN ||
       source->kind == W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS ||
-      source->kind == W_SEED_FRONTEND_EXPR_INTEGER_SATURATING)
+      source->kind == W_SEED_FRONTEND_EXPR_INTEGER_SATURATING ||
+      source->kind == W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS ||
+      source->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_BITS)
     return hir0_emit_expression_values_m2(
         context, source->left, current_block, statement_index, depth + 1u);
   if (frontend_task_launch_kind(source->kind))
@@ -10272,7 +10362,9 @@ static size_t hir0_emit_expression_terms_m2(hir0_emit_context *context,
   if (source->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN ||
       source->kind == W_SEED_FRONTEND_EXPR_NUMERIC_WIDEN ||
       source->kind == W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS ||
-      source->kind == W_SEED_FRONTEND_EXPR_INTEGER_SATURATING)
+      source->kind == W_SEED_FRONTEND_EXPR_INTEGER_SATURATING ||
+      source->kind == W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS ||
+      source->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_BITS)
     return hir0_emit_expression_terms_m2(
         context, source->left, current_block, statement_index, depth + 1u);
   if (source->kind == W_SEED_FRONTEND_EXPR_IF) {
@@ -11091,7 +11183,9 @@ static size_t hir0_expression_layout_end_m2(const hir0_emit_context *context,
       source->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN ||
       source->kind == W_SEED_FRONTEND_EXPR_NUMERIC_WIDEN ||
       source->kind == W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS ||
-      source->kind == W_SEED_FRONTEND_EXPR_INTEGER_SATURATING)
+      source->kind == W_SEED_FRONTEND_EXPR_INTEGER_SATURATING ||
+      source->kind == W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS ||
+      source->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_BITS)
     return hir0_expression_layout_end_m2(context, source->left, current_block,
                                          depth + 1u);
   if (source->kind == W_SEED_FRONTEND_EXPR_CALL) {
@@ -11750,7 +11844,9 @@ static size_t hir0_emit_expression_layout_m2(hir0_emit_context *context,
   if (source->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN ||
       source->kind == W_SEED_FRONTEND_EXPR_NUMERIC_WIDEN ||
       source->kind == W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS ||
-      source->kind == W_SEED_FRONTEND_EXPR_INTEGER_SATURATING)
+      source->kind == W_SEED_FRONTEND_EXPR_INTEGER_SATURATING ||
+      source->kind == W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS ||
+      source->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_BITS)
     return hir0_emit_expression_layout_m2(
         context, source->left, current_block, statement_index, depth + 1u);
   if (source->kind == W_SEED_FRONTEND_EXPR_EXECUTION_YIELD) {
@@ -12007,6 +12103,81 @@ static uint32_t hir0_emit_value_m2(
     return W_SEED_HIR0_NONE;
   const w_seed_frontend_expression *source =
       &context->frontend->expressions[expression];
+  if (source->kind == W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS ||
+      source->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_BITS) {
+    if (source->left == W_SEED_FRONTEND_NONE ||
+        (size_t)source->left >= context->frontend_result->written.expressions ||
+        source->right != W_SEED_FRONTEND_NONE ||
+        source->first_argument != W_SEED_FRONTEND_NONE ||
+        source->argument_count != 0u ||
+        source->conversion_source_type == W_SEED_FRONTEND_NONE ||
+        source->conversion_destination_type == W_SEED_FRONTEND_NONE ||
+        source->conversion_source_type >=
+            context->frontend_result->written.types ||
+        source->conversion_destination_type >=
+            context->frontend_result->written.types ||
+        source->conversion_destination_type != source->inferred_type ||
+        source->conversion_source_type !=
+            context->frontend->expressions[source->left].inferred_type ||
+        !frontend_float_bits_conversion_route(
+            &context->frontend->types[source->conversion_source_type],
+            &context->frontend->types[source->conversion_destination_type],
+            source->kind))
+      return W_SEED_HIR0_NONE;
+    const w_seed_hir0_value_owner_kind conversion_owner =
+        W_SEED_HIR0_VALUE_OWNER_FLOAT_BITS_CONVERSION;
+    const uint32_t child = hir0_emit_value_m2(
+        context, source->left, conversion_owner, W_SEED_HIR0_NONE, 0u,
+        current_block, depth + 1u);
+    const uint32_t hir_source_type = hir_type_from_frontend(
+        context->frontend, context->frontend_result,
+        source->conversion_source_type);
+    const uint32_t hir_destination_type = hir_type_from_frontend(
+        context->frontend, context->frontend_result,
+        source->conversion_destination_type);
+    if (child == W_SEED_HIR0_NONE || hir_source_type == W_SEED_HIR0_NONE ||
+        hir_destination_type == W_SEED_HIR0_NONE)
+      return W_SEED_HIR0_NONE;
+    const uint32_t result = (uint32_t)*context->value_index;
+    context->output->values[*context->value_index] = (w_seed_hir0_value){
+        .kind = source->kind == W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS
+                    ? W_SEED_HIR0_VALUE_FLOAT_FROM_BITS
+                    : W_SEED_HIR0_VALUE_FLOAT_TO_BITS,
+        .owner_kind = owner_kind,
+        .owner_index = owner_index,
+        .owner_ordinal = owner_ordinal,
+        .type_index = hir_destination_type,
+        .binding_index = W_SEED_HIR0_NONE,
+        .parameter_index = W_SEED_HIR0_NONE,
+        .call_index = W_SEED_HIR0_NONE,
+        .left_value = child,
+        .right_value = W_SEED_HIR0_NONE,
+        .first_interpolation_segment = W_SEED_HIR0_NONE,
+        .interpolation_segment_count = 0u,
+        .first_enum_payload = 0u,
+        .enum_payload_count = 0u,
+        .pattern_capture_index = W_SEED_HIR0_NONE,
+        .binary_operator = W_SEED_HIR0_BINARY_ADD,
+        .unary_operator = W_SEED_HIR0_UNARY_NOT,
+        .block_argument_index = W_SEED_HIR0_NONE,
+        .integer_value = 0,
+        .unsigned_integer_value = 0u,
+        .float_bits = 0u,
+        .bool_value = false,
+        .byte_offset = 0u,
+        .byte_count = 0u,
+        .source_span = source->span,
+        .external_module_index = W_SEED_HIR0_NONE,
+        .external_symbol_index = W_SEED_HIR0_NONE,
+        .member_name = {0u, 0u},
+        .enum_index = W_SEED_HIR0_NONE,
+        .enum_case_index = W_SEED_HIR0_NONE,
+        .source_type = hir_source_type};
+    context->output->values[child].owner_index = result;
+    context->output->values[child].owner_kind = conversion_owner;
+    *context->value_index += 1u;
+    return result;
+  }
   if (source->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN ||
       source->kind == W_SEED_FRONTEND_EXPR_NUMERIC_WIDEN ||
       source->kind == W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS ||
@@ -13105,6 +13276,8 @@ static void emit_records(const w_seed_hir0_input *input,
     output->values[value].enum_case_index = W_SEED_HIR0_NONE;
     if (output->values[value].kind != W_SEED_HIR0_VALUE_INTEGER_WIDEN &&
         output->values[value].kind != W_SEED_HIR0_VALUE_NUMERIC_WIDEN &&
+        output->values[value].kind != W_SEED_HIR0_VALUE_FLOAT_FROM_BITS &&
+        output->values[value].kind != W_SEED_HIR0_VALUE_FLOAT_TO_BITS &&
         output->values[value].kind !=
             W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS &&
         output->values[value].kind !=
@@ -13812,6 +13985,8 @@ static void emit_records(const w_seed_hir0_input *input,
       output->values[value].pattern_capture_index = W_SEED_HIR0_NONE;
     if (output->values[value].kind != W_SEED_HIR0_VALUE_INTEGER_WIDEN &&
         output->values[value].kind != W_SEED_HIR0_VALUE_NUMERIC_WIDEN &&
+        output->values[value].kind != W_SEED_HIR0_VALUE_FLOAT_FROM_BITS &&
+        output->values[value].kind != W_SEED_HIR0_VALUE_FLOAT_TO_BITS &&
         output->values[value].kind !=
             W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS &&
         output->values[value].kind !=
@@ -15229,6 +15404,37 @@ static bool hir_integer_type_facts(const w_seed_hir0_program *program,
          *bit_width == 64u;
 }
 
+static uint16_t hir_float_type_width(const w_seed_hir0_program *program,
+                                     uint32_t type_index) {
+  if (!hir_float_type_index_valid(program, type_index)) return 0u;
+  return program->types[type_index].kind == W_SEED_HIR0_TYPE_F32 ? 32u : 64u;
+}
+
+static bool hir_float_bits_conversion_route(
+    const w_seed_hir0_program *program, uint32_t source_type,
+    uint32_t destination_type, w_seed_hir0_value_kind kind) {
+  if (kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS) {
+    bool is_signed = false;
+    uint16_t width = 0u;
+    return hir_integer_type_facts(program, source_type, &is_signed, &width) &&
+           !is_signed && (width == 32u || width == 64u) &&
+           hir_float_type_width(program, destination_type) == width;
+  }
+  if (kind == W_SEED_HIR0_VALUE_FLOAT_TO_BITS) {
+    bool is_signed = false;
+    uint16_t destination_width = 0u;
+    const uint16_t source_width =
+        hir_float_type_width(program, source_type);
+    return source_width != 0u &&
+           hir_integer_type_facts(program, destination_type, &is_signed,
+                                  &destination_width) &&
+           !is_signed && (destination_width == 32u ||
+                          destination_width == 64u) &&
+           source_width == destination_width;
+  }
+  return false;
+}
+
 static bool hir_numeric_widening_route(const w_seed_hir0_program *program,
                                        uint32_t source_type,
                                        uint32_t destination_type) {
@@ -15731,6 +15937,8 @@ static bool verify_value_tree(
        value->float_bits != 0u) ||
       (value->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN ||
        value->kind == W_SEED_HIR0_VALUE_NUMERIC_WIDEN ||
+       value->kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS ||
+       value->kind == W_SEED_HIR0_VALUE_FLOAT_TO_BITS ||
        value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS ||
        value->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING
            ? value->source_type == W_SEED_HIR0_NONE
@@ -15776,6 +15984,42 @@ static bool verify_value_tree(
     if (!verify_value_tree(
             program, value->left_value,
             W_SEED_HIR0_VALUE_OWNER_NUMERIC_WIDEN, root_index, 0u,
+            current_block, current_instruction, source_length, depth + 1u,
+            value_cursor, segment_cursor, byte_cursor) ||
+        root_index != *value_cursor)
+      return false;
+    *value_cursor += 1u;
+    return true;
+  }
+
+  if (value->kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS ||
+      value->kind == W_SEED_HIR0_VALUE_FLOAT_TO_BITS) {
+    if (value->left_value >= program->value_count ||
+        value->right_value != W_SEED_HIR0_NONE ||
+        value->binding_index != W_SEED_HIR0_NONE ||
+        value->parameter_index != W_SEED_HIR0_NONE ||
+        value->call_index != W_SEED_HIR0_NONE ||
+        value->first_interpolation_segment != W_SEED_HIR0_NONE ||
+        value->interpolation_segment_count != 0u ||
+        value->first_enum_payload != 0u || value->enum_payload_count != 0u ||
+        value->pattern_capture_index != W_SEED_HIR0_NONE ||
+        value->binary_operator != W_SEED_HIR0_BINARY_ADD ||
+        value->unary_operator != W_SEED_HIR0_UNARY_NOT ||
+        value->block_argument_index != W_SEED_HIR0_NONE ||
+        value->integer_value != 0 || value->unsigned_integer_value != 0u ||
+        value->float_bits != 0u || value->bool_value ||
+        value->byte_offset != 0u || value->byte_count != 0u ||
+        value->external_module_index != W_SEED_HIR0_NONE ||
+        value->external_symbol_index != W_SEED_HIR0_NONE ||
+        value->member_name.count != 0u ||
+        value->enum_index != W_SEED_HIR0_NONE ||
+        value->enum_case_index != W_SEED_HIR0_NONE ||
+        !hir_float_bits_conversion_route(program, value->source_type,
+                                         value->type_index, value->kind) ||
+        program->values[value->left_value].type_index != value->source_type ||
+        !verify_value_tree(
+            program, value->left_value,
+            W_SEED_HIR0_VALUE_OWNER_FLOAT_BITS_CONVERSION, root_index, 0u,
             current_block, current_instruction, source_length, depth + 1u,
             value_cursor, segment_cursor, byte_cursor) ||
         root_index != *value_cursor)
@@ -18928,6 +19172,8 @@ static bool hir0_value_kind_is_closed(w_seed_hir0_value_kind kind) {
     case W_SEED_HIR0_VALUE_TUPLE_ELEMENT:
     case W_SEED_HIR0_VALUE_INTEGER_WIDEN:
     case W_SEED_HIR0_VALUE_NUMERIC_WIDEN:
+    case W_SEED_HIR0_VALUE_FLOAT_FROM_BITS:
+    case W_SEED_HIR0_VALUE_FLOAT_TO_BITS:
     case W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS:
     case W_SEED_HIR0_VALUE_INTEGER_SATURATING:
     case W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON:
@@ -19154,6 +19400,8 @@ static uint32_t hir0_value_owner_function(const w_seed_hir0_program *program,
         value->owner_kind == W_SEED_HIR0_VALUE_OWNER_EXTERNAL_ENUM_CASE ||
         value->owner_kind == W_SEED_HIR0_VALUE_OWNER_INTEGER_WIDEN ||
         value->owner_kind == W_SEED_HIR0_VALUE_OWNER_NUMERIC_WIDEN ||
+        value->owner_kind ==
+            W_SEED_HIR0_VALUE_OWNER_FLOAT_BITS_CONVERSION ||
         value->owner_kind ==
             W_SEED_HIR0_VALUE_OWNER_INTEGER_TRUNCATING_BITS ||
         value->owner_kind == W_SEED_HIR0_VALUE_OWNER_INTEGER_SATURATING) {

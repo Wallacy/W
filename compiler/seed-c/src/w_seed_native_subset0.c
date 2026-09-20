@@ -56,6 +56,10 @@ typedef struct {
   uint16_t destination_width;
 } native_numeric_widening_facts;
 
+typedef struct {
+  uint16_t bit_width;
+} native_float_bits_facts;
+
 static bool native_integer_type_facts(const w_seed_hir0_program *program,
                                       uint32_t type_index,
                                       native_integer_facts *facts) {
@@ -260,6 +264,62 @@ static bool native_numeric_widening_shape_valid(
       program->values[value->left_value].owner_ordinal != 0u ||
       !native_numeric_widening_route(program, value->source_type,
                                      value->type_index, facts))
+    return false;
+  return true;
+}
+
+/* The representation bridge is intentionally exact-width and unsigned on
+ * its integer side: u32 <-> f32 and u64 <-> f64 only. The physical carrier
+ * remains i64, but the logical type pair is re-derived from verified HIR
+ * rather than inferred from that shared carrier. */
+static bool native_float_bits_route(
+    const w_seed_hir0_program *program, w_seed_hir0_value_kind kind,
+    uint32_t source_type, uint32_t destination_type,
+    native_float_bits_facts *facts) {
+  if (program == NULL || facts == NULL) return false;
+
+  native_integer_facts integer_facts;
+  uint16_t float_width = 0u;
+  if (kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS) {
+    if (!native_integer_type_facts(program, source_type, &integer_facts) ||
+        integer_facts.is_signed ||
+        !native_float_type_width(program, destination_type, &float_width) ||
+        integer_facts.bit_width != float_width)
+      return false;
+    facts->bit_width = float_width;
+    return true;
+  }
+  if (kind == W_SEED_HIR0_VALUE_FLOAT_TO_BITS) {
+    if (!native_float_type_width(program, source_type, &float_width) ||
+        !native_integer_type_facts(program, destination_type,
+                                   &integer_facts) ||
+        integer_facts.is_signed || integer_facts.bit_width != float_width)
+      return false;
+    facts->bit_width = float_width;
+    return true;
+  }
+  return false;
+}
+
+static bool native_float_bits_shape_valid(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    native_float_bits_facts *facts) {
+  if (program == NULL || facts == NULL || value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if ((value->kind != W_SEED_HIR0_VALUE_FLOAT_FROM_BITS &&
+       value->kind != W_SEED_HIR0_VALUE_FLOAT_TO_BITS) ||
+      value->left_value == W_SEED_HIR0_NONE ||
+      value->left_value >= program->value_count ||
+      value->right_value != W_SEED_HIR0_NONE ||
+      value->source_type >= program->type_count ||
+      program->values[value->left_value].type_index != value->source_type ||
+      program->values[value->left_value].owner_kind !=
+          W_SEED_HIR0_VALUE_OWNER_FLOAT_BITS_CONVERSION ||
+      program->values[value->left_value].owner_index != value_index ||
+      program->values[value->left_value].owner_ordinal != 0u ||
+      !native_float_bits_route(program, value->kind, value->source_type,
+                               value->type_index, facts))
     return false;
   return true;
 }
@@ -2178,6 +2238,13 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
            program_value_lowerable(program, value->left_value,
                                    owner_function, false, depth + 1u);
   }
+  if (value->kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS ||
+      value->kind == W_SEED_HIR0_VALUE_FLOAT_TO_BITS) {
+    native_float_bits_facts facts;
+    return native_float_bits_shape_valid(program, value_index, &facts) &&
+           program_value_lowerable(program, value->left_value,
+                                   owner_function, false, depth + 1u);
+  }
   if (value->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS ||
       value->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING) {
     const w_seed_hir0_value_owner_kind owner_kind =
@@ -2835,6 +2902,14 @@ static bool process_value_lowerable(
   if (value->kind == W_SEED_HIR0_VALUE_NUMERIC_WIDEN) {
     native_numeric_widening_facts facts;
     return native_numeric_widening_shape_valid(program, value_index, &facts) &&
+           process_value_lowerable(program, value->left_value, owner_function,
+                                   process, false, depth + 1u);
+  }
+
+  if (value->kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS ||
+      value->kind == W_SEED_HIR0_VALUE_FLOAT_TO_BITS) {
+    native_float_bits_facts facts;
+    return native_float_bits_shape_valid(program, value_index, &facts) &&
            process_value_lowerable(program, value->left_value, owner_function,
                                    process, false, depth + 1u);
   }

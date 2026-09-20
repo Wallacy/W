@@ -199,6 +199,9 @@ typedef struct {
   bool is_local_call;
   bool is_builtin_u64_receiver;
   bool is_builtin_u64_member;
+  bool is_builtin_float_receiver;
+  bool is_builtin_float_member;
+  frontend_simple_type builtin_float_source_type;
   bool is_integer_type_constructor;
   bool is_float_type_constructor;
   w_seed_frontend_builtin_operation builtin_operation;
@@ -3843,6 +3846,21 @@ static bool receipt_size_integer_conversion(
          receipt_size_literal(context, "\n");
 }
 
+static bool receipt_size_float_bits_conversion(
+    frontend_context *context, size_t expression_index,
+    w_seed_frontend_expr_kind kind, uint32_t source_type,
+    uint32_t destination_type) {
+  return receipt_size_literal(context, "float-bits-conversion=") &&
+         receipt_size_size(context, expression_index) &&
+         receipt_size_literal(context, "|kind=") &&
+         receipt_size_size(context, (size_t)kind) &&
+         receipt_size_literal(context, "|source=") &&
+         receipt_size_size(context, source_type) &&
+         receipt_size_literal(context, "|destination=") &&
+         receipt_size_size(context, destination_type) &&
+         receipt_size_literal(context, "\n");
+}
+
 static bool receipt_size_numeric_widen(
     frontend_context *context, size_t expression_index, uint32_t source_type,
     uint32_t destination_type, bool explicit_surface) {
@@ -4346,6 +4364,32 @@ static bool builtin_integer_operation_is_supported_for_receiver(
   /* The pre-existing u64-only surface remains intentionally u64-only. */
   return text_equal(spelling, "u64") &&
          builtin_u64_operation_is_supported(operation);
+}
+
+static bool builtin_float_receiver_spelling(w_seed_frontend_text spelling) {
+  return text_equal(spelling, "f32") || text_equal(spelling, "f64");
+}
+
+static bool builtin_float_receiver_type(frontend_simple_type type,
+                                        w_seed_frontend_text spelling) {
+  return builtin_float_receiver_spelling(spelling) &&
+         type.kind == W_SEED_FRONTEND_TYPE_FLOAT &&
+         type.bit_width == (text_equal(spelling, "f32") ? 32u : 64u);
+}
+
+static w_seed_frontend_builtin_operation builtin_float_operation_for_member(
+    w_seed_frontend_text member_name) {
+  if (text_equal(member_name, "fromBits"))
+    return W_SEED_FRONTEND_BUILTIN_FLOAT_FROM_BITS;
+  if (text_equal(member_name, "toBits"))
+    return W_SEED_FRONTEND_BUILTIN_FLOAT_TO_BITS;
+  return W_SEED_FRONTEND_BUILTIN_NONE;
+}
+
+static bool builtin_float_operation_is_supported(
+    w_seed_frontend_builtin_operation operation) {
+  return operation == W_SEED_FRONTEND_BUILTIN_FLOAT_FROM_BITS ||
+         operation == W_SEED_FRONTEND_BUILTIN_FLOAT_TO_BITS;
 }
 
 static bool is_ascii_space(uint8_t value) {
@@ -13115,6 +13159,9 @@ static bool expression_append(frontend_expression_parser *parser,
   value->is_local_call = false;
   value->is_builtin_u64_receiver = false;
   value->is_builtin_u64_member = false;
+  value->is_builtin_float_receiver = false;
+  value->is_builtin_float_member = false;
+  value->builtin_float_source_type = simple_type_unknown();
   value->is_integer_type_constructor = false;
   value->is_float_type_constructor = false;
   value->builtin_operation = record.builtin_operation;
@@ -13362,6 +13409,83 @@ static bool expression_append_integer_saturating(
       parser, value, destination, call_span,
       W_SEED_FRONTEND_EXPR_INTEGER_SATURATING,
       (w_seed_frontend_text){"saturating", 10u});
+}
+
+/* The float bit bridge is an exact representation transfer. Its two directions
+ * have disjoint type routes; neither direction admits an implicit conversion
+ * or host-float operation. */
+static bool float_bits_conversion_route(
+    frontend_simple_type source, frontend_simple_type destination,
+    w_seed_frontend_expr_kind kind) {
+  if (kind == W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS) {
+    return source.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+           !source.is_signed &&
+           (source.bit_width == 32u || source.bit_width == 64u) &&
+           type_is_float(destination) &&
+           source.bit_width == destination.bit_width;
+  }
+  if (kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_BITS) {
+    return type_is_float(source) &&
+           destination.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+           !destination.is_signed &&
+           (destination.bit_width == 32u ||
+            destination.bit_width == 64u) &&
+           source.bit_width == destination.bit_width;
+  }
+  return false;
+}
+
+static bool expression_append_float_bits_conversion(
+    frontend_expression_parser *parser, frontend_expr_value *value,
+    frontend_simple_type destination, w_seed_span call_span,
+    w_seed_frontend_expr_kind kind) {
+  if (parser == NULL || value == NULL ||
+      (kind != W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS &&
+       kind != W_SEED_FRONTEND_EXPR_FLOAT_TO_BITS) ||
+      value->index == W_SEED_FRONTEND_NONE ||
+      value->index >= (size_t)UINT32_MAX ||
+      !float_bits_conversion_route(value->type, destination, kind))
+    return false;
+
+  uint32_t source_type = W_SEED_FRONTEND_NONE;
+  uint32_t destination_type = W_SEED_FRONTEND_NONE;
+  if (!output_type_index_for_simple(parser->context, value->type,
+                                    &source_type) ||
+      !output_type_index_for_simple(parser->context, destination,
+                                    &destination_type) ||
+      source_type == W_SEED_FRONTEND_NONE ||
+      destination_type == W_SEED_FRONTEND_NONE)
+    return false;
+
+  const frontend_expr_value source = *value;
+  frontend_expr_value wrapped = {0};
+  const w_seed_frontend_text operation =
+      kind == W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS
+          ? (w_seed_frontend_text){"fromBits", 8u}
+          : (w_seed_frontend_text){"toBits", 6u};
+  if (!expression_append(
+          parser, kind, call_span, text_from_span(parser->document, call_span),
+          operation, destination, source.supported, source.index,
+          (size_t)W_SEED_FRONTEND_NONE, W_SEED_FRONTEND_NONE, 0u, &wrapped))
+    return false;
+  if (!parser->context->emit &&
+      !receipt_size_float_bits_conversion(
+          parser->context, wrapped.index, kind, source_type,
+          destination_type))
+    return false;
+  if (parser->context->emit && parser->context->output != NULL &&
+      wrapped.index < parser->context->output->expression_capacity) {
+    w_seed_frontend_expression *record =
+        &parser->context->output->expressions[wrapped.index];
+    record->conversion_source_type = source_type;
+    record->conversion_destination_type = destination_type;
+  }
+  wrapped.kind = kind;
+  wrapped.type = destination;
+  wrapped.is_integer_literal = false;
+  wrapped.supported = source.supported;
+  *value = wrapped;
+  return true;
 }
 
 /* Apply contextual integer typing without reparsing source.  Unsuffixed
@@ -13856,6 +13980,7 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
         parser->context, spelling, token.span);
     bool resolved = type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN;
     bool builtin_integer_receiver = false;
+    bool builtin_float_receiver = false;
     uint32_t resolved_module_const = W_SEED_FRONTEND_NONE;
     uint32_t resolved_kernel_module = W_SEED_FRONTEND_NONE;
     uint32_t resolved_kernel_binding = W_SEED_FRONTEND_NONE;
@@ -13960,6 +14085,18 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
           builtin_integer_receiver = resolved;
         }
       }
+      if (!resolved && builtin_float_receiver_spelling(spelling)) {
+        /* Float representation operations use an associated namespace
+         * receiver, just like the fixed-integer operations.  It is parser
+         * scratch only: the namespace itself is not a runtime value node. */
+        frontend_token next;
+        if (cursor_peek(&parser->cursor, &next) &&
+            token_text(parser->document, &next, ".")) {
+          type = simple_type_from_view(spelling);
+          resolved = builtin_float_receiver_type(type, spelling);
+          builtin_float_receiver = resolved;
+        }
+      }
       if (!resolved) {
         frontend_token next;
         frontend_simple_type constructor_type = simple_type_unknown();
@@ -14006,6 +14143,21 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
             parser->context, W_SEED_FRONTEND_FACT_UNRESOLVED_LOCAL_SYMBOL,
             token.span, spelling);
       }
+    }
+    if (builtin_float_receiver) {
+      value->index = W_SEED_FRONTEND_NONE;
+      value->left = W_SEED_FRONTEND_NONE;
+      value->right = W_SEED_FRONTEND_NONE;
+      value->kind = W_SEED_FRONTEND_EXPR_IDENTIFIER;
+      value->type = type;
+      value->supported = true;
+      value->is_integer_literal = false;
+      value->has_name = true;
+      value->name = spelling;
+      value->span = token.span;
+      value->builtin_operation = W_SEED_FRONTEND_BUILTIN_FLOAT_RECEIVER;
+      value->is_builtin_float_receiver = true;
+      return true;
     }
     const bool identifier_supported = resolved;
     value->builtin_operation =
@@ -14576,6 +14728,100 @@ static bool expression_parse_integer_conversion_call(
       (size_t)W_SEED_FRONTEND_NONE, W_SEED_FRONTEND_NONE, 0u, constructor);
 }
 
+static bool expression_parse_float_bits_call(
+    frontend_expression_parser *parser, frontend_expr_value *member,
+    frontend_token open) {
+  if (parser == NULL || member == NULL || !member->is_builtin_float_member ||
+      !token_text(parser->document, &open, "("))
+    return false;
+  const w_seed_frontend_builtin_operation operation =
+      member->builtin_operation;
+  if (!builtin_float_operation_is_supported(operation)) return false;
+  const bool from_bits =
+      operation == W_SEED_FRONTEND_BUILTIN_FLOAT_FROM_BITS;
+  const w_seed_frontend_expr_kind conversion_kind =
+      from_bits ? W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS
+                : W_SEED_FRONTEND_EXPR_FLOAT_TO_BITS;
+  frontend_expr_value source = {0};
+  source.index = W_SEED_FRONTEND_NONE;
+  source.type = simple_type_unknown();
+  source.supported = false;
+  size_t argument_count = 0u;
+  bool shape_valid = true;
+  while (!cursor_peek_text(&parser->cursor, ")")) {
+    if (argument_count >= W_SEED_FRONTEND_MAX_NESTING) return false;
+    w_seed_frontend_text label = {NULL, 0u};
+    frontend_token possible_label;
+    if (cursor_peek(&parser->cursor, &possible_label) &&
+        possible_label.kind == W_SEED_CST_WORD) {
+      frontend_token_cursor look = parser->cursor;
+      (void)cursor_take(&look, &possible_label);
+      if (cursor_peek_text(&look, ":")) {
+        (void)cursor_take(&parser->cursor, &possible_label);
+        (void)cursor_take_text(&parser->cursor, ":", NULL);
+        label = text_from_span(parser->document, possible_label.span);
+      }
+    }
+    const frontend_simple_type saved_expected = parser->expected_type;
+    const bool saved_has_expected = parser->has_expected_type;
+    const bool saved_suppress_short = parser->suppress_short_diagnostic;
+    /* The bit source must already have the exact unsigned width.  In
+     * particular, do not contextually widen a smaller integer or
+     * materialize an untyped literal as a float. */
+    parser->expected_type = simple_type_unknown();
+    parser->has_expected_type = false;
+    parser->suppress_short_diagnostic = true;
+    frontend_expr_value argument;
+    const bool parsed = expression_parse_bp(parser, 0, &argument);
+    parser->expected_type = saved_expected;
+    parser->has_expected_type = saved_has_expected;
+    parser->suppress_short_diagnostic = saved_suppress_short;
+    if (!parsed) return false;
+    if (label.length != 0u) shape_valid = false;
+    if (argument_count == 0u) source = argument;
+    else shape_valid = false;
+    argument_count += 1u;
+    if (!cursor_peek_text(&parser->cursor, ",")) break;
+    (void)cursor_take_text(&parser->cursor, ",", NULL);
+  }
+  frontend_token close;
+  if (!cursor_take_text(&parser->cursor, ")", &close)) return false;
+  const w_seed_span call_span = {member->span.start_byte,
+                                 close.span.end_byte};
+  const frontend_simple_type destination = member->type;
+  if (!from_bits) {
+    source.index = member->index;
+    source.type = member->builtin_float_source_type;
+    source.supported = member->supported;
+  }
+  const bool valid = shape_valid &&
+                     (from_bits ? argument_count == 1u
+                                : argument_count == 0u) &&
+                     source.supported &&
+                     float_bits_conversion_route(source.type, destination,
+                                                 conversion_kind);
+  if (valid) {
+    if (!expression_append_float_bits_conversion(
+            parser, &source, destination, call_span, conversion_kind))
+      return false;
+    *member = source;
+    return true;
+  }
+  if (!context_append_fact(parser->context,
+                           W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
+                           call_span,
+                           text_from_span(parser->document, call_span)))
+    return false;
+  return expression_append(
+      parser, W_SEED_FRONTEND_EXPR_UNSUPPORTED, call_span,
+      text_from_span(parser->document, call_span),
+      from_bits ? (w_seed_frontend_text){"fromBits", 8u}
+                : (w_seed_frontend_text){"toBits", 6u},
+      destination, false,
+      argument_count == 1u ? source.index : (size_t)W_SEED_FRONTEND_NONE,
+      (size_t)W_SEED_FRONTEND_NONE, W_SEED_FRONTEND_NONE, 0u, member);
+}
+
 static bool expression_parse_postfix(frontend_expression_parser *parser,
                                      frontend_expr_value *value) {
   bool enum_case_constructor_called = false;
@@ -14594,6 +14840,8 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
         token_text(parser->document, &token, "?.")) {
       const bool optional_member = token_text(parser->document, &token, "?.");
       const bool builtin_integer_receiver = value->is_builtin_u64_receiver;
+      const bool builtin_float_receiver = value->is_builtin_float_receiver;
+      const frontend_simple_type float_receiver_type = value->type;
       (void)cursor_take(&parser->cursor, &token);
       frontend_token member;
       if (!cursor_take(&parser->cursor, &member) ||
@@ -14612,6 +14860,59 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       const bool followed_by_call =
           cursor_peek(&parser->cursor, &following) &&
           token_text(parser->document, &following, "(");
+      const w_seed_frontend_builtin_operation float_member_operation =
+          !optional_member && followed_by_call
+              ? builtin_float_operation_for_member(member_name)
+              : W_SEED_FRONTEND_BUILTIN_NONE;
+      const bool float_receiver_width_supported =
+          type_is_float(float_receiver_type) &&
+          (float_receiver_type.bit_width == 32u ||
+           float_receiver_type.bit_width == 64u);
+      const bool builtin_float_member =
+          (float_member_operation == W_SEED_FRONTEND_BUILTIN_FLOAT_FROM_BITS &&
+           builtin_float_receiver &&
+           builtin_float_receiver_type(float_receiver_type, value->name)) ||
+          (float_member_operation == W_SEED_FRONTEND_BUILTIN_FLOAT_TO_BITS &&
+           !builtin_float_receiver && float_receiver_width_supported);
+      const bool reserved_float_bits_member =
+          builtin_float_receiver || float_receiver_width_supported;
+      if (builtin_float_member) {
+        result_type = float_member_operation ==
+                              W_SEED_FRONTEND_BUILTIN_FLOAT_FROM_BITS
+                          ? float_receiver_type
+                          : simple_type_from_view(
+                                float_receiver_type.bit_width == 32u
+                                    ? (w_seed_frontend_text){"u32", 3u}
+                                    : (w_seed_frontend_text){"u64", 3u});
+        value->kind = W_SEED_FRONTEND_EXPR_MEMBER;
+        value->type = result_type;
+        value->supported = true;
+        value->span = span;
+        value->builtin_operation = float_member_operation;
+        value->is_builtin_float_receiver = false;
+        value->is_builtin_float_member = true;
+        value->builtin_float_source_type = float_receiver_type;
+        value->is_builtin_u64_receiver = false;
+        value->is_builtin_u64_member = false;
+        continue;
+      }
+      if (reserved_float_bits_member &&
+          (builtin_float_operation_is_supported(
+               builtin_float_operation_for_member(member_name)) ||
+           builtin_float_receiver)) {
+        if (!context_append_fact(
+                parser->context,
+                W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION, span,
+                text_from_span(parser->document, span)) ||
+            !expression_append(
+                parser, W_SEED_FRONTEND_EXPR_UNSUPPORTED, span,
+                text_from_span(parser->document, span), member_name,
+                simple_type_unknown(), false, value->index,
+                (size_t)W_SEED_FRONTEND_NONE, W_SEED_FRONTEND_NONE, 0u,
+                value))
+          return false;
+        continue;
+      }
       const w_seed_frontend_builtin_operation builtin_integer_member_operation =
           !optional_member && builtin_integer_receiver && followed_by_call
               ? builtin_u64_operation_for_member(member_name)
@@ -14744,6 +15045,13 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       continue;
     }
     if (!token_text(parser->document, &token, "(")) break;
+    if (value->is_builtin_float_member) {
+      frontend_token open;
+      if (!cursor_take_text(&parser->cursor, "(", &open) ||
+          !expression_parse_float_bits_call(parser, value, open))
+        return false;
+      continue;
+    }
     (void)cursor_take(&parser->cursor, &token);
     const w_seed_frontend_builtin_operation builtin_u64_operation =
         value->is_builtin_u64_member ? value->builtin_operation
@@ -22076,6 +22384,18 @@ static void receipt_write_records(frontend_receipt_writer *writer,
               W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS ||
           expression->kind == W_SEED_FRONTEND_EXPR_INTEGER_SATURATING) {
         receipt_write_literal(writer, "integer-conversion=");
+        receipt_write_size(writer, index);
+        receipt_write_literal(writer, "|kind=");
+        receipt_write_size(writer, (size_t)expression->kind);
+        receipt_write_literal(writer, "|source=");
+        receipt_write_size(writer, expression->conversion_source_type);
+        receipt_write_literal(writer, "|destination=");
+        receipt_write_size(writer, expression->conversion_destination_type);
+        receipt_write_literal(writer, "\n");
+      }
+      if (expression->kind == W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS ||
+          expression->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_BITS) {
+        receipt_write_literal(writer, "float-bits-conversion=");
         receipt_write_size(writer, index);
         receipt_write_literal(writer, "|kind=");
         receipt_write_size(writer, (size_t)expression->kind);

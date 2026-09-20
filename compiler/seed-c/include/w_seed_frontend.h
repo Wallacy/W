@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-68"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-69"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -223,6 +223,12 @@ typedef enum {
    * canonical source/destination identities, whether selected contextually
    * or written with an exact `D(value)` conversion. */
   W_SEED_FRONTEND_EXPR_NUMERIC_WIDEN,
+  /* Exact floating representation bridges. The source and result identities
+   * are carried by conversion_source_type and conversion_destination_type;
+   * neither operation performs floating-point arithmetic. */
+  W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS =
+      W_SEED_FRONTEND_EXPR_NUMERIC_WIDEN + 1,
+  W_SEED_FRONTEND_EXPR_FLOAT_TO_BITS,
 } w_seed_frontend_expr_kind;
 
 typedef enum {
@@ -426,6 +432,13 @@ typedef enum {
       W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_POWER,
   W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_SHIFT_LEFT =
       W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SHIFT_LEFT,
+  /* Float namespace/member semantic identities.  Receiver width comes from
+   * the exact associated expression type; the receiver marker is not itself
+   * executable. These are appended after the existing operation range. */
+  W_SEED_FRONTEND_BUILTIN_FLOAT_RECEIVER =
+      W_SEED_FRONTEND_BUILTIN_U64_SATURATING_POWER + 1,
+  W_SEED_FRONTEND_BUILTIN_FLOAT_FROM_BITS,
+  W_SEED_FRONTEND_BUILTIN_FLOAT_TO_BITS,
 } w_seed_frontend_builtin_operation;
 
 typedef enum {
@@ -1008,7 +1021,7 @@ typedef struct {
   uint32_t argument_count;
   uint32_t inferred_type;
   bool supported;
-  /* Populated only for the fixed-integer conversion wrapper kinds.
+  /* Populated only for the append-only scalar conversion wrapper kinds.
    * Ordinary records retain the W_SEED_FRONTEND_NONE absence sentinel. */
   uint32_t conversion_source_type;
   uint32_t conversion_destination_type;
