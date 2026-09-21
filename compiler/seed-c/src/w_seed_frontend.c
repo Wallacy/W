@@ -350,6 +350,7 @@ typedef struct {
   uint32_t default_integer_type_index;
   uint32_t builtin_i32_type_index;
   uint32_t builtin_u64_type_index;
+  uint32_t numeric_conversion_error_type_index;
   /* [signedness][width slot 8/16/32/64] keeps generic fixed-width scalar
    * records canonical in both dry and emit passes. */
   uint32_t builtin_integer_type_indices[2][4];
@@ -771,6 +772,10 @@ static bool struct_declaration_for_name(
     const frontend_context *context, w_seed_frontend_text name,
     uint32_t *struct_index, const w_seed_frontend_document **owner_doc,
     uint32_t *struct_node);
+static size_t enum_declaration_name_count(const frontend_context *context,
+                                          w_seed_frontend_text name);
+static size_t alias_declaration_name_count(const frontend_context *context,
+                                           w_seed_frontend_text name);
 static bool function_signature_for_name(
     const frontend_context *context, w_seed_frontend_text name,
     const w_seed_frontend_document **owner_doc, uint32_t *function_node);
@@ -3806,13 +3811,16 @@ static bool receipt_size_task_expression(
 static bool receipt_size_try_expression(frontend_context *context,
                                         size_t expression_index,
                                         uint32_t call_expression,
-                                        uint32_t error_enum) {
+                                        uint32_t error_enum,
+                                        uint32_t error_type) {
   return receipt_size_literal(context, "try-expression=") &&
          receipt_size_size(context, expression_index) &&
          receipt_size_literal(context, "|call=") &&
          receipt_size_size(context, call_expression) &&
          receipt_size_literal(context, "|error-enum=") &&
          receipt_size_size(context, error_enum) &&
+         receipt_size_literal(context, "|error-type=") &&
+         receipt_size_size(context, error_type) &&
          receipt_size_literal(context, "\n");
 }
 
@@ -5297,6 +5305,7 @@ static frontend_simple_type task_result_simple_type(
 static void task_context_initialize(frontend_context *context) {
   if (context == NULL) return;
   context->task_binding_count = 0u;
+  context->numeric_conversion_error_type_index = W_SEED_FRONTEND_NONE;
   (void)memset(context->task_result_type_indices, 0xff,
                sizeof(context->task_result_type_indices));
   (void)memset(context->task_type_indices, 0xff,
@@ -5603,6 +5612,23 @@ static bool type_equal(frontend_simple_type left, frontend_simple_type right) {
     }
   }
   return text_equal_text(left.spelling, right.spelling);
+}
+
+/* NumericConversionError is a core nominal identity. A same-spelled local
+ * enum, struct, alias, or resolver-owned external type is not that identity. */
+static bool simple_type_is_numeric_conversion_error(
+    const frontend_context *context, frontend_simple_type type) {
+  uint32_t local_struct_index = W_SEED_FRONTEND_NONE;
+  if (context == NULL || type.kind != W_SEED_FRONTEND_TYPE_NOMINAL ||
+      !text_equal(type.spelling, "NumericConversionError") ||
+      type.external_module_index != W_SEED_FRONTEND_NONE ||
+      type.external_symbol_index != W_SEED_FRONTEND_NONE ||
+      type.enum_index != W_SEED_FRONTEND_NONE ||
+      enum_declaration_name_count(context, type.spelling) != 0u ||
+      alias_declaration_name_count(context, type.spelling) != 0u)
+    return false;
+  return !struct_declaration_for_name(context, type.spelling,
+                                      &local_struct_index, NULL, NULL);
 }
 
 static bool type_is_bool(frontend_simple_type type) {
@@ -6274,7 +6300,9 @@ static bool measure_input(const w_seed_frontend_input *input,
       }
       return false;
     }
-    if (!measure_document(&input->documents[index], measure)) return false;
+    if (!measure_document(&input->documents[index], measure)) {
+      return false;
+    }
     const size_t document_consts = count_root_children(
         &input->documents[index], W_SEED_CST_CONST_DECLARATION);
     if (!add_size(total_const_declarations, document_consts,
@@ -6441,8 +6469,11 @@ w_seed_frontend_status w_seed_frontend_measure(
   }
   for (size_t index = 0; index < input->document_count; index += 1) {
     dry.module_index = index;
-    if (!normalize_document(&dry) || !detect_duplicate_declarations(&dry) ||
-        !resolve_imports(&dry)) {
+    const bool normalized = normalize_document(&dry);
+    const bool duplicate_checked = normalized &&
+                                   detect_duplicate_declarations(&dry);
+    const bool imports_resolved = duplicate_checked && resolve_imports(&dry);
+    if (!normalized || !duplicate_checked || !imports_resolved) {
       result->status = W_SEED_FRONTEND_INVALID;
       return result->status;
     }
@@ -9152,6 +9183,16 @@ static bool normalize_type_tree_depth(frontend_context *context,
   } else {
     if (!context_append_type(context, value, root_index)) return false;
   }
+  if (value.kind == W_SEED_FRONTEND_TYPE_NOMINAL) {
+    frontend_simple_type identity = simple_type_unknown();
+    identity.kind = value.kind;
+    identity.spelling = value.spelling;
+    identity.enum_index = value.enum_base_index;
+    identity.external_module_index = value.external_module_index;
+    identity.external_symbol_index = value.external_symbol_index;
+    if (simple_type_is_numeric_conversion_error(context, identity))
+      context->numeric_conversion_error_type_index = *root_index;
+  }
   if (application_candidate &&
       !register_pending_generic_application(context, type_node, *root_index)) {
     return false;
@@ -10765,6 +10806,9 @@ typedef struct {
    * statically bound accelerated spawn. This parser-local permission avoids
    * manufacturing an ordinary host-call interpretation for the same text. */
   bool allow_accelerator_call;
+  /* Set only while the operand immediately governed by plain `try` is
+   * parsed. Semantic ownership is rechecked after normalization. */
+  bool allow_integer_exactly;
 } frontend_expression_parser;
 
 static frontend_simple_type simple_type_from_view(w_seed_frontend_text spelling) {
@@ -12783,6 +12827,12 @@ static bool output_type_index_for_simple(frontend_context *context,
     *index = context->builtin_never_type_index;
     return true;
   }
+  if (simple_type_is_numeric_conversion_error(context, type) &&
+      context->numeric_conversion_error_type_index !=
+          W_SEED_FRONTEND_NONE) {
+    *index = context->numeric_conversion_error_type_index;
+    return true;
+  }
   if (!context->emit || context->output == NULL) return true;
   if (type.kind == W_SEED_FRONTEND_TYPE_ENUM &&
       type.enum_index != W_SEED_FRONTEND_NONE &&
@@ -13024,6 +13074,7 @@ static bool expression_append(frontend_expression_parser *parser,
   record.task_call_expression = W_SEED_FRONTEND_NONE;
   record.task_binding_statement = W_SEED_FRONTEND_NONE;
   record.propagated_error_enum = W_SEED_FRONTEND_NONE;
+  record.propagated_error_type = W_SEED_FRONTEND_NONE;
   record.panic_code = W_SEED_FRONTEND_PANIC_CODE_INVALID;
   record.domain_index = W_SEED_FRONTEND_NONE;
   record.domain_kind = W_SEED_FRONTEND_DOMAIN_HOST;
@@ -13478,6 +13529,64 @@ static bool expression_append_integer_saturating(
       parser, value, destination, call_span,
       W_SEED_FRONTEND_EXPR_INTEGER_SATURATING,
       (w_seed_frontend_text){"saturating", 10u});
+}
+
+/* `exactly:` remains partial: this node is legal only under its owning plain
+ * TRY, which emits the typed success/error control split. It never creates a
+ * total value that could silently truncate or trap. */
+static bool expression_append_integer_exactly(
+    frontend_expression_parser *parser, frontend_expr_value *value,
+    frontend_simple_type destination, w_seed_span call_span) {
+  frontend_simple_type canonical_source = simple_type_unknown();
+  frontend_simple_type canonical_destination = simple_type_unknown();
+  if (parser == NULL || value == NULL || !parser->allow_integer_exactly ||
+      !integer_type_constructor_for_spelling(destination.spelling,
+                                              &canonical_destination) ||
+      !integer_conversion_source_type(value->type, &canonical_source) ||
+      canonical_source.is_signed != value->type.is_signed ||
+      canonical_source.bit_width != value->type.bit_width ||
+      canonical_destination.is_signed != destination.is_signed ||
+      canonical_destination.bit_width != destination.bit_width ||
+      value->index == W_SEED_FRONTEND_NONE ||
+      value->index >= (size_t)UINT32_MAX)
+    return false;
+  uint32_t source_type = W_SEED_FRONTEND_NONE;
+  uint32_t destination_type = W_SEED_FRONTEND_NONE;
+  if (!output_type_index_for_simple(parser->context, canonical_source,
+                                    &source_type) ||
+      !output_type_index_for_simple(parser->context, canonical_destination,
+                                    &destination_type) ||
+      source_type == W_SEED_FRONTEND_NONE ||
+      destination_type == W_SEED_FRONTEND_NONE)
+    return false;
+  const frontend_expr_value source = *value;
+  frontend_expr_value wrapped = {0};
+  const w_seed_frontend_text label = {"exactly", 7u};
+  if (!expression_append(
+          parser, W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY, call_span,
+          text_from_span(parser->document, call_span), label,
+          canonical_destination, source.supported, source.index,
+          (size_t)W_SEED_FRONTEND_NONE, W_SEED_FRONTEND_NONE, 0u, &wrapped))
+    return false;
+  if (!parser->context->emit &&
+      !receipt_size_integer_conversion(
+          parser->context, wrapped.index,
+          W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY, source_type,
+          destination_type))
+    return false;
+  if (parser->context->emit && parser->context->output != NULL &&
+      wrapped.index < parser->context->output->expression_capacity) {
+    w_seed_frontend_expression *record =
+        &parser->context->output->expressions[wrapped.index];
+    record->conversion_source_type = source_type;
+    record->conversion_destination_type = destination_type;
+  }
+  wrapped.is_integer_literal = false;
+  wrapped.kind = W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY;
+  wrapped.type = canonical_destination;
+  wrapped.supported = source.supported;
+  *value = wrapped;
+  return true;
 }
 
 /* The float bit bridge is an exact representation transfer. Its two directions
@@ -14717,7 +14826,7 @@ static bool expression_parse_integer_conversion_call(
     if (!parsed) return false;
     if (!numeric_constructor && recognized_label.length == 0u &&
         (text_equal(label, "truncatingBits") ||
-         text_equal(label, "saturating")))
+         text_equal(label, "saturating") || text_equal(label, "exactly")))
       recognized_label = label;
     if (argument_count == 0u) {
       source = argument;
@@ -14728,7 +14837,8 @@ static bool expression_parse_integer_conversion_call(
     if ((!numeric_constructor &&
          (label.length == 0u ||
           (!text_equal(label, "truncatingBits") &&
-           !text_equal(label, "saturating")))) ||
+           !text_equal(label, "saturating") &&
+           !text_equal(label, "exactly")))) ||
         (numeric_constructor && label.length != 0u))
       shape_valid = false;
     argument_count += 1u;
@@ -14743,9 +14853,18 @@ static bool expression_parse_integer_conversion_call(
   frontend_simple_type checked_source = simple_type_unknown();
   const bool truncating_bits = text_equal(source_label, "truncatingBits");
   const bool saturating = text_equal(source_label, "saturating");
+  const bool exactly = text_equal(source_label, "exactly");
   const bool valid_conversion =
       !numeric_constructor && shape_valid && argument_count == 1u &&
       (truncating_bits || saturating) && source.supported &&
+      integer_type_constructor_for_spelling(constructor->type.spelling,
+                                            &checked_destination) &&
+      integer_conversion_source_type(source.type, &checked_source) &&
+      checked_source.is_signed == source.type.is_signed &&
+      checked_source.bit_width == source.type.bit_width;
+  const bool valid_exactly =
+      !numeric_constructor && exactly && parser->allow_integer_exactly &&
+      shape_valid && argument_count == 1u && source.supported &&
       integer_type_constructor_for_spelling(constructor->type.spelling,
                                             &checked_destination) &&
       integer_conversion_source_type(source.type, &checked_source) &&
@@ -14772,6 +14891,13 @@ static bool expression_parse_integer_conversion_call(
             : expression_append_integer_saturating(
                   parser, &source, checked_destination, call_span);
     if (!appended)
+      return false;
+    *constructor = source;
+    return true;
+  }
+  if (valid_exactly) {
+    if (!expression_append_integer_exactly(
+            parser, &source, checked_destination, call_span))
       return false;
     *constructor = source;
     return true;
@@ -15839,8 +15965,13 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
       parser->cursor = look;
       optional = true;
     }
+    const bool saved_allow_integer_exactly =
+        parser->allow_integer_exactly;
+    parser->allow_integer_exactly = !optional;
     frontend_expr_value nested;
-    if (!expression_parse_prefix(parser, &nested)) return false;
+    const bool parsed_nested = expression_parse_prefix(parser, &nested);
+    parser->allow_integer_exactly = saved_allow_integer_exactly;
+    if (!parsed_nested) return false;
     const w_seed_span span = {try_token.span.start_byte, nested.span.end_byte};
     const bool owner_throws =
         parser->context->function_node != NULL &&
@@ -15853,19 +15984,32 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
                   (uint32_t)(parser->context->function_node -
                              parser->document->nodes))
             : simple_type_unknown();
-    const bool supported =
+    const bool supported_call =
         !optional && nested.supported &&
         nested.kind == W_SEED_FRONTEND_EXPR_CALL && nested.is_local_call &&
         !nested.local_call_is_async && nested.local_call_is_throws &&
         owner_throws && !parser->context->current_function_is_const &&
         type_equal(nested.local_call_error_type, owner_error);
+    uint32_t numeric_error_type = W_SEED_FRONTEND_NONE;
+    const bool supported_exactly =
+        !optional && nested.supported &&
+        nested.kind == W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY &&
+        owner_throws && !parser->context->current_function_is_const &&
+        simple_type_is_numeric_conversion_error(parser->context,
+                                               owner_error) &&
+        output_type_index_for_simple(parser->context, owner_error,
+                                     &numeric_error_type) &&
+        numeric_error_type != W_SEED_FRONTEND_NONE;
+    const bool supported = supported_call || supported_exactly;
     if (!supported) {
       (void)context_append_fact(
           parser->context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION, span,
           text_from_span(parser->document, span));
     }
     const uint32_t error_enum =
-        supported ? owner_error.enum_index : W_SEED_FRONTEND_NONE;
+        supported_call ? owner_error.enum_index : W_SEED_FRONTEND_NONE;
+    const uint32_t error_type =
+        supported_exactly ? numeric_error_type : W_SEED_FRONTEND_NONE;
     const uint32_t call_expression =
         nested.index >= (size_t)UINT32_MAX ? W_SEED_FRONTEND_NONE
                                            : (uint32_t)nested.index;
@@ -15885,9 +16029,12 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
         value->index < parser->context->output->expression_capacity) {
       parser->context->output->expressions[value->index]
           .propagated_error_enum = error_enum;
+      parser->context->output->expressions[value->index]
+          .propagated_error_type = error_type;
     } else if (!parser->context->emit &&
                !receipt_size_try_expression(parser->context, value->index,
-                                            call_expression, error_enum)) {
+                                            call_expression, error_enum,
+                                            error_type)) {
       return false;
     }
     return true;
@@ -16881,6 +17028,7 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.task_call_expression = W_SEED_FRONTEND_NONE;
     fallback.task_binding_statement = W_SEED_FRONTEND_NONE;
     fallback.propagated_error_enum = W_SEED_FRONTEND_NONE;
+    fallback.propagated_error_type = W_SEED_FRONTEND_NONE;
     fallback.panic_code = W_SEED_FRONTEND_PANIC_CODE_INVALID;
     fallback.domain_index = W_SEED_FRONTEND_NONE;
     fallback.domain_mode = W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
@@ -16940,6 +17088,7 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.task_call_expression = W_SEED_FRONTEND_NONE;
     fallback.task_binding_statement = W_SEED_FRONTEND_NONE;
     fallback.propagated_error_enum = W_SEED_FRONTEND_NONE;
+    fallback.propagated_error_type = W_SEED_FRONTEND_NONE;
     fallback.panic_code = W_SEED_FRONTEND_PANIC_CODE_INVALID;
     fallback.domain_index = W_SEED_FRONTEND_NONE;
     fallback.domain_mode = W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
@@ -18157,6 +18306,7 @@ static bool normalize_switch_expression(
   switch_record.task_call_expression = W_SEED_FRONTEND_NONE;
   switch_record.task_binding_statement = W_SEED_FRONTEND_NONE;
   switch_record.propagated_error_enum = W_SEED_FRONTEND_NONE;
+  switch_record.propagated_error_type = W_SEED_FRONTEND_NONE;
   switch_record.panic_code = W_SEED_FRONTEND_PANIC_CODE_INVALID;
   switch_record.domain_index = W_SEED_FRONTEND_NONE;
   switch_record.domain_mode = W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
@@ -21414,36 +21564,78 @@ static bool resolve_frontend_links(frontend_context *context) {
       const w_seed_frontend_function *owner =
           valid ? &context->output->functions[expression->owner_function]
                 : NULL;
-      const w_seed_frontend_function *target = NULL;
-      if (valid &&
-          (call->kind != W_SEED_FRONTEND_EXPR_CALL || !call->supported ||
-           call->module_index != expression->module_index ||
-           call->owner_function != expression->owner_function ||
-           call->resolved_callee_kind !=
-               W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION ||
-           call->resolved_function_index == W_SEED_FRONTEND_NONE ||
-           (size_t)call->resolved_function_index >= context->count.functions)) {
-        valid = false;
+      if (valid && call->kind ==
+                       W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY) {
+        const bool canonical_error =
+            owner->is_throws && owner->error_type != W_SEED_FRONTEND_NONE &&
+            (size_t)owner->error_type < context->count.types &&
+            context->output->types[owner->error_type].kind ==
+                W_SEED_FRONTEND_TYPE_NOMINAL &&
+            text_equal(context->output->types[owner->error_type].spelling,
+                       "NumericConversionError") &&
+            context->output->types[owner->error_type].external_module_index ==
+                W_SEED_FRONTEND_NONE &&
+            context->output->types[owner->error_type].external_symbol_index ==
+                W_SEED_FRONTEND_NONE &&
+            context->output->types[owner->error_type].enum_base_index ==
+                W_SEED_FRONTEND_NONE;
+        if (!call->supported || call->module_index != expression->module_index ||
+            call->owner_function != expression->owner_function ||
+            call->inferred_type == W_SEED_FRONTEND_NONE ||
+            call->conversion_source_type == W_SEED_FRONTEND_NONE ||
+            call->conversion_destination_type != call->inferred_type ||
+            expression->inferred_type != call->inferred_type ||
+            expression->propagated_error_enum != W_SEED_FRONTEND_NONE ||
+            expression->propagated_error_type != owner->error_type ||
+            !canonical_error)
+          expression->supported = false;
+      } else {
+        const w_seed_frontend_function *target = NULL;
+        if (valid &&
+            (call->kind != W_SEED_FRONTEND_EXPR_CALL || !call->supported ||
+             call->module_index != expression->module_index ||
+             call->owner_function != expression->owner_function ||
+             call->resolved_callee_kind !=
+                 W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION ||
+             call->resolved_function_index == W_SEED_FRONTEND_NONE ||
+             (size_t)call->resolved_function_index >=
+                 context->count.functions)) {
+          valid = false;
+        }
+        if (valid) target =
+            &context->output->functions[call->resolved_function_index];
+        if (!valid || !owner->is_throws || !target->is_throws ||
+            owner->error_type == W_SEED_FRONTEND_NONE ||
+            target->error_type == W_SEED_FRONTEND_NONE ||
+            (size_t)owner->error_type >= context->count.types ||
+            (size_t)target->error_type >= context->count.types ||
+            context->output->types[owner->error_type].kind !=
+                W_SEED_FRONTEND_TYPE_ENUM ||
+            context->output->types[target->error_type].kind !=
+                W_SEED_FRONTEND_TYPE_ENUM ||
+            context->output->types[owner->error_type].enum_base_index !=
+                context->output->types[target->error_type].enum_base_index ||
+            expression->propagated_error_enum !=
+                context->output->types[owner->error_type].enum_base_index ||
+            expression->propagated_error_type != W_SEED_FRONTEND_NONE ||
+            expression->inferred_type != call->inferred_type ||
+            target->is_async) {
+          expression->supported = false;
+        }
       }
-      if (valid) target =
-          &context->output->functions[call->resolved_function_index];
-      if (!valid || !owner->is_throws || !target->is_throws ||
-          owner->error_type == W_SEED_FRONTEND_NONE ||
-          target->error_type == W_SEED_FRONTEND_NONE ||
-          (size_t)owner->error_type >= context->count.types ||
-          (size_t)target->error_type >= context->count.types ||
-          context->output->types[owner->error_type].kind !=
-              W_SEED_FRONTEND_TYPE_ENUM ||
-          context->output->types[target->error_type].kind !=
-              W_SEED_FRONTEND_TYPE_ENUM ||
-          context->output->types[owner->error_type].enum_base_index !=
-              context->output->types[target->error_type].enum_base_index ||
-          expression->propagated_error_enum !=
-              context->output->types[owner->error_type].enum_base_index ||
-          expression->inferred_type != call->inferred_type ||
-          target->is_async) {
-        expression->supported = false;
+      continue;
+    }
+    if (expression->kind == W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY) {
+      size_t owners = 0u;
+      for (size_t candidate_index = 0u;
+           candidate_index < context->count.expressions; candidate_index += 1u) {
+        const w_seed_frontend_expression *candidate =
+            &context->output->expressions[candidate_index];
+        if (candidate->kind == W_SEED_FRONTEND_EXPR_TRY &&
+            candidate->left == expression_index && candidate->supported)
+          owners += 1u;
       }
+      if (owners != 1u) expression->supported = false;
       continue;
     }
     if (expression->kind != W_SEED_FRONTEND_EXPR_CALL ||
@@ -21462,7 +21654,7 @@ static bool resolve_frontend_links(frontend_context *context) {
       const w_seed_frontend_expression *candidate =
           &context->output->expressions[candidate_index];
       const bool owns_throwing_call =
-          candidate->kind == W_SEED_FRONTEND_EXPR_TRY ||
+      candidate->kind == W_SEED_FRONTEND_EXPR_TRY ||
           candidate->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH ||
           candidate->kind == W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH ||
           candidate->kind ==
@@ -22684,6 +22876,8 @@ static void receipt_write_records(frontend_receipt_writer *writer,
         receipt_write_size(writer, expression->left);
         receipt_write_literal(writer, "|error-enum=");
         receipt_write_size(writer, expression->propagated_error_enum);
+        receipt_write_literal(writer, "|error-type=");
+        receipt_write_size(writer, expression->propagated_error_type);
         receipt_write_literal(writer, "\n");
       }
       if (expression->kind == W_SEED_FRONTEND_EXPR_PANIC) {
@@ -22699,6 +22893,7 @@ static void receipt_write_records(frontend_receipt_writer *writer,
       }
       if (expression->kind ==
               W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS ||
+          expression->kind == W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY ||
           expression->kind == W_SEED_FRONTEND_EXPR_INTEGER_SATURATING) {
         receipt_write_literal(writer, "integer-conversion=");
         receipt_write_size(writer, index);
@@ -23025,8 +23220,11 @@ w_seed_frontend_status w_seed_frontend_run(
   }
   for (size_t index = 0; index < input->document_count; index += 1) {
     dry.module_index = index;
-    if (!normalize_document(&dry) || !detect_duplicate_declarations(&dry) ||
-        !resolve_imports(&dry)) {
+    const bool normalized = normalize_document(&dry);
+    const bool duplicate_checked = normalized &&
+                                   detect_duplicate_declarations(&dry);
+    const bool imports_resolved = duplicate_checked && resolve_imports(&dry);
+    if (!normalized || !duplicate_checked || !imports_resolved) {
       result->status = W_SEED_FRONTEND_INVALID;
       return result->status;
     }
@@ -23093,8 +23291,11 @@ w_seed_frontend_status w_seed_frontend_run(
                sizeof(emit.generic_domain_type_indices));
   for (size_t index = 0; index < input->document_count; index += 1) {
     emit.module_index = index;
-    if (!normalize_document(&emit) || !detect_duplicate_declarations(&emit) ||
-        !resolve_imports(&emit)) {
+    const bool normalized = normalize_document(&emit);
+    const bool duplicate_checked = normalized &&
+                                   detect_duplicate_declarations(&emit);
+    const bool imports_resolved = duplicate_checked && resolve_imports(&emit);
+    if (!normalized || !duplicate_checked || !imports_resolved) {
       result->status = W_SEED_FRONTEND_INVALID;
       return result->status;
     }

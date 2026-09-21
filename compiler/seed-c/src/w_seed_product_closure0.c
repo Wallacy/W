@@ -163,6 +163,7 @@ static bool product_terminator_kind_supported(w_seed_hir0_terminator_kind kind) 
     case W_SEED_HIR0_TERMINATOR_THROW:
     case W_SEED_HIR0_TERMINATOR_INVOKE:
     case W_SEED_HIR0_TERMINATOR_PANIC:
+    case W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY:
       return false;
   }
   return false;

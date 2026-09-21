@@ -6792,6 +6792,317 @@ static bool test_typed_propagation_mlir(void) {
   return true;
 }
 
+static int64_t integer_exactly_signed_min(uint16_t width) {
+  return width == 64u ? INT64_MIN : -(INT64_C(1) << (width - 1u));
+}
+
+static int64_t integer_exactly_signed_max(uint16_t width) {
+  return width == 64u ? INT64_MAX :
+                        (INT64_C(1) << (width - 1u)) - 1;
+}
+
+static uint64_t integer_exactly_unsigned_max(uint16_t width) {
+  return width == 64u ? UINT64_MAX : (UINT64_C(1) << width) - 1u;
+}
+
+static bool integer_exactly_oracle_fits(bool source_signed,
+                                        int64_t signed_source,
+                                        uint64_t unsigned_source,
+                                        bool destination_signed,
+                                        uint16_t destination_width) {
+  if (destination_signed) {
+    const int64_t minimum =
+        integer_exactly_signed_min(destination_width);
+    const int64_t maximum =
+        integer_exactly_signed_max(destination_width);
+    if (source_signed)
+      return signed_source >= minimum && signed_source <= maximum;
+    return unsigned_source <= (uint64_t)maximum;
+  }
+  if (source_signed) {
+    if (signed_source < 0) return false;
+    return destination_width == 64u ||
+           (uint64_t)signed_source <=
+               integer_exactly_unsigned_max(destination_width);
+  }
+  return destination_width == 64u ||
+         unsigned_source <= integer_exactly_unsigned_max(destination_width);
+}
+
+static uint32_t integer_exactly_expected_predicates(bool source_signed,
+                                                    uint16_t source_width,
+                                                    bool destination_signed,
+                                                    uint16_t destination_width) {
+  if (source_signed && destination_signed)
+    return source_width > destination_width ? 2u : 0u;
+  if (source_signed) {
+    return 1u + (source_width > (uint16_t)(destination_width + 1u) ? 1u : 0u);
+  }
+  if (destination_signed)
+    return source_width >= destination_width ? 1u : 0u;
+  return source_width > destination_width ? 1u : 0u;
+}
+
+static bool test_integer_exactly_mlir(void) {
+  static const char *const integer_types[] = {
+      "i8", "u8", "i16", "u16", "i32", "u32", "i64", "u64", "Int",
+      "UInt"};
+  static const bool integer_signed[] = {
+      true, false, true, false, true, false, true, false, true, false};
+  static const uint16_t integer_widths[] = {
+      8u, 8u, 16u, 16u, 32u, 32u, 64u, 64u, 64u, 64u};
+  static uint8_t linux_artifact[W_SEED_MLIR0_MAX_BYTES];
+  static uint8_t windows_artifact[W_SEED_MLIR0_MAX_BYTES];
+
+  CHECK(integer_exactly_oracle_fits(true, 127, 0u, true, 8u) &&
+        !integer_exactly_oracle_fits(true, 128, 0u, true, 8u) &&
+        integer_exactly_oracle_fits(true, -128, 0u, true, 8u) &&
+        !integer_exactly_oracle_fits(true, -129, 0u, true, 8u) &&
+        integer_exactly_oracle_fits(false, 0, 127u, true, 8u) &&
+        !integer_exactly_oracle_fits(false, 0, 128u, true, 8u) &&
+        integer_exactly_oracle_fits(true, 255, 0u, false, 8u) &&
+        !integer_exactly_oracle_fits(true, -1, 0u, false, 8u) &&
+        !integer_exactly_oracle_fits(true, 256, 0u, false, 8u) &&
+        integer_exactly_oracle_fits(false, 0, (UINT64_C(1) << 63) - 1u,
+                                    true, 64u) &&
+        !integer_exactly_oracle_fits(false, 0, UINT64_C(1) << 63, true,
+                                     64u) &&
+        !integer_exactly_oracle_fits(true, -1, 0u, false, 64u));
+
+  for (size_t source = 0u;
+       source < sizeof(integer_types) / sizeof(integer_types[0]);
+       source += 1u) {
+    for (size_t destination = 0u;
+         destination < sizeof(integer_types) / sizeof(integer_types[0]);
+         destination += 1u) {
+      char source_text[320];
+      const int source_length = snprintf(
+          source_text, sizeof(source_text),
+          "fn convert(value: %s): %s throws NumericConversionError { "
+          "return try %s(exactly: value) }\nentry { }\n",
+          integer_types[source], integer_types[destination],
+          integer_types[destination]);
+      CHECK(source_length > 0 && (size_t)source_length < sizeof(source_text));
+      CHECK(lower_hir((const uint8_t *)source_text, (size_t)source_length));
+
+      w_seed_native_subset0_integer_exactly selection;
+      CHECK(w_seed_native_subset0_select_integer_exactly(
+                &fixture.hir_program, &fixture.hir_result, &selection) ==
+            W_SEED_NATIVE_SUBSET0_OK);
+      CHECK(w_seed_native_subset0_verify_integer_exactly(
+                &fixture.hir_program, &fixture.hir_result, &selection) &&
+            selection.source_is_signed == integer_signed[source] &&
+            selection.source_bit_width == integer_widths[source] &&
+            selection.destination_is_signed == integer_signed[destination] &&
+            selection.destination_bit_width == integer_widths[destination] &&
+            fixture.hir_program.call_count == 0u &&
+            selection.conversion->kind ==
+                W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY &&
+            selection.error_throw->kind == W_SEED_HIR0_TERMINATOR_THROW);
+      if (source == 0u && destination == 0u) {
+        w_seed_native_subset0_program ordinary_selection;
+        w_seed_mlir0_counts ordinary_counts = {0u};
+        w_seed_mlir0_result ordinary_result;
+        (void)memset(&ordinary_result, 0x6du, sizeof(ordinary_result));
+        const w_seed_mlir0_result ordinary_snapshot = ordinary_result;
+        const w_seed_mlir0_input ordinary = mlir_input();
+        CHECK(w_seed_native_subset0_select_program(
+                  &fixture.hir_program, &fixture.hir_result,
+                  &ordinary_selection) == W_SEED_NATIVE_SUBSET0_UNSUPPORTED &&
+              w_seed_mlir0_measure(&ordinary, &TARGET, &ordinary_counts,
+                                   &ordinary_result) ==
+                  W_SEED_MLIR0_UNSUPPORTED &&
+              memcmp(&ordinary_result, &ordinary_snapshot,
+                     sizeof(ordinary_result)) == 0);
+      }
+
+      const uint32_t expected_predicate_count = integer_exactly_expected_predicates(
+          integer_signed[source], integer_widths[source],
+          integer_signed[destination], integer_widths[destination]);
+      w_seed_mlir0_integer_exactly_counts measured_counts;
+      w_seed_mlir0_integer_exactly_result measured_result;
+      CHECK(w_seed_mlir0_measure_integer_exactly(
+                &fixture.hir_program, &fixture.hir_result, &TARGET,
+                &measured_counts, &measured_result) == W_SEED_MLIR0_OK);
+      CHECK(measured_counts.mlir_bytes > 0u &&
+            measured_counts.mlir_bytes < W_SEED_MLIR0_MAX_BYTES &&
+            measured_counts.source_bit_width == integer_widths[source] &&
+            measured_counts.destination_bit_width ==
+                integer_widths[destination] &&
+            measured_counts.source_is_signed == integer_signed[source] &&
+            measured_counts.destination_is_signed ==
+                integer_signed[destination] &&
+            measured_counts.representability_predicate_count ==
+                expected_predicate_count &&
+            measured_counts.typed_branch_count == 1u &&
+            measured_counts.carrier_field_count ==
+                W_SEED_MLIR0_INTEGER_EXACTLY_CARRIER_FIELDS &&
+            measured_result.required.mlir_bytes == measured_counts.mlir_bytes &&
+            measured_result.written.mlir_bytes == 0u);
+
+      w_seed_mlir0_integer_exactly_result emitted_result;
+      CHECK(w_seed_mlir0_emit_integer_exactly(
+                &fixture.hir_program, &fixture.hir_result, &TARGET,
+                &(w_seed_mlir0_integer_exactly_output){linux_artifact,
+                                                        sizeof(linux_artifact)},
+                &emitted_result) == W_SEED_MLIR0_OK);
+      CHECK(emitted_result.required.mlir_bytes == measured_counts.mlir_bytes &&
+            emitted_result.written.mlir_bytes == measured_counts.mlir_bytes &&
+            w_seed_mlir0_verify_integer_exactly(
+                &fixture.hir_program, &fixture.hir_result, &TARGET,
+                linux_artifact, emitted_result.written.mlir_bytes,
+                &emitted_result));
+      CHECK(contains_bytes(linux_artifact, emitted_result.written.mlir_bytes,
+                           "// " W_SEED_MLIR0_INTEGER_EXACTLY_SCHEMA_VERSION
+                           "\n") &&
+            contains_bytes(linux_artifact, emitted_result.written.mlir_bytes,
+                           W_SEED_MLIR0_TARGET_TRIPLE_LINUX) &&
+            contains_bytes(linux_artifact, emitted_result.written.mlir_bytes,
+                           "NumericConversionError.outOfRange") &&
+            contains_bytes(linux_artifact, emitted_result.written.mlir_bytes,
+                           "llvm.cond_br %exact_fits, ^exact_success, "
+                           "^exact_out_of_range") &&
+            contains_bytes(linux_artifact, emitted_result.written.mlir_bytes,
+                           "llvm.insertvalue %exact_success_status") &&
+            contains_bytes(linux_artifact, emitted_result.written.mlir_bytes,
+                           "llvm.insertvalue %exact_error_status") &&
+            count_bytes(linux_artifact, emitted_result.written.mlir_bytes,
+                        "llvm.icmp") == expected_predicate_count &&
+            count_bytes(linux_artifact, emitted_result.written.mlir_bytes,
+                        "llvm.return") == 2u &&
+            !contains_bytes(linux_artifact, emitted_result.written.mlir_bytes,
+                            "@main") &&
+            !contains_bytes(linux_artifact, emitted_result.written.mlir_bytes,
+                            "llvm.alloca") &&
+            !contains_bytes(linux_artifact, emitted_result.written.mlir_bytes,
+                            "llvm.invoke") &&
+            !contains_bytes(linux_artifact, emitted_result.written.mlir_bytes,
+                            "ExitProcess"));
+
+      const size_t branch_position = find_bytes(
+          linux_artifact, emitted_result.written.mlir_bytes,
+          "llvm.cond_br %exact_fits", 0u);
+      const size_t trunc_position = find_bytes(
+          linux_artifact, emitted_result.written.mlir_bytes, "llvm.trunc", 0u);
+      const size_t sext_position = find_bytes(
+          linux_artifact, emitted_result.written.mlir_bytes, "llvm.sext", 0u);
+      const size_t zext_position = find_bytes(
+          linux_artifact, emitted_result.written.mlir_bytes, "llvm.zext", 0u);
+      CHECK(branch_position != SIZE_MAX &&
+            (trunc_position == SIZE_MAX || trunc_position > branch_position) &&
+            (sext_position == SIZE_MAX || sext_position > branch_position) &&
+            (zext_position == SIZE_MAX || zext_position > branch_position));
+
+      if (source == 2u && destination == 0u) {
+        CHECK(contains_bytes(linux_artifact, emitted_result.written.mlir_bytes,
+                             "llvm.mlir.constant(-128 : i16) : i16") &&
+              contains_bytes(linux_artifact, emitted_result.written.mlir_bytes,
+                             "llvm.mlir.constant(127 : i16) : i16") &&
+              integer_exactly_oracle_fits(true, 127, 0u, true, 8u) &&
+              !integer_exactly_oracle_fits(true, 128, 0u, true, 8u));
+      } else if (source == 3u && destination == 0u) {
+        CHECK(contains_bytes(linux_artifact, emitted_result.written.mlir_bytes,
+                             "llvm.mlir.constant(127 : i16) : i16") &&
+              contains_bytes(linux_artifact, emitted_result.written.mlir_bytes,
+                             "llvm.icmp \"ule\" %source, %exact_bound_0 : i16") &&
+              integer_exactly_oracle_fits(false, 0, 127u, true, 8u) &&
+              !integer_exactly_oracle_fits(false, 0, 128u, true, 8u));
+      } else if (source == 2u && destination == 1u) {
+        CHECK(contains_bytes(linux_artifact, emitted_result.written.mlir_bytes,
+                             "llvm.mlir.constant(0 : i16) : i16") &&
+              contains_bytes(linux_artifact, emitted_result.written.mlir_bytes,
+                             "llvm.mlir.constant(255 : i16) : i16") &&
+              integer_exactly_oracle_fits(true, 255, 0u, false, 8u) &&
+              !integer_exactly_oracle_fits(true, -1, 0u, false, 8u) &&
+              !integer_exactly_oracle_fits(true, 256, 0u, false, 8u));
+      } else if (source == 7u && destination == 6u) {
+        CHECK(contains_bytes(linux_artifact, emitted_result.written.mlir_bytes,
+                             "llvm.mlir.constant(9223372036854775807 : i64) : i64") &&
+              integer_exactly_oracle_fits(false, 0,
+                                          (UINT64_C(1) << 63) - 1u, true,
+                                          64u) &&
+              !integer_exactly_oracle_fits(false, 0, UINT64_C(1) << 63, true,
+                                           64u));
+      }
+
+      w_seed_mlir0_integer_exactly_result windows_result;
+      CHECK(w_seed_mlir0_emit_integer_exactly(
+                &fixture.hir_program, &fixture.hir_result, &WINDOWS_TARGET,
+                &(w_seed_mlir0_integer_exactly_output){
+                    windows_artifact, sizeof(windows_artifact)},
+                &windows_result) == W_SEED_MLIR0_OK);
+      CHECK(w_seed_mlir0_verify_integer_exactly(
+                &fixture.hir_program, &fixture.hir_result, &WINDOWS_TARGET,
+                windows_artifact, windows_result.written.mlir_bytes,
+                &windows_result) &&
+            contains_bytes(windows_artifact, windows_result.written.mlir_bytes,
+                           W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS) &&
+            windows_result.written.source_bit_width ==
+                emitted_result.written.source_bit_width &&
+            windows_result.written.destination_bit_width ==
+                emitted_result.written.destination_bit_width &&
+            windows_result.written.representability_predicate_count ==
+                emitted_result.written.representability_predicate_count);
+      w_seed_native_subset0_integer_exactly forged_selection = selection;
+      forged_selection.source_is_signed = !forged_selection.source_is_signed;
+      CHECK(!w_seed_native_subset0_verify_integer_exactly(
+          &fixture.hir_program, &fixture.hir_result, &forged_selection));
+    }
+  }
+
+  CHECK(lower_hir(
+      (const uint8_t *)"fn convert(value: i16): i8 throws NumericConversionError { "
+                       "return try i8(exactly: value) }\nentry { }\n",
+      sizeof("fn convert(value: i16): i8 throws NumericConversionError { "
+             "return try i8(exactly: value) }\nentry { }\n") -
+          1u));
+  uint8_t short_artifact[8];
+  (void)memset(short_artifact, 0x6bu, sizeof(short_artifact));
+  w_seed_mlir0_integer_exactly_result rejected_result;
+  (void)memset(&rejected_result, 0x6cu, sizeof(rejected_result));
+  const w_seed_mlir0_integer_exactly_result rejected_snapshot = rejected_result;
+  CHECK(w_seed_mlir0_emit_integer_exactly(
+            &fixture.hir_program, &fixture.hir_result, &TARGET,
+            &(w_seed_mlir0_integer_exactly_output){short_artifact,
+                                                   sizeof(short_artifact)},
+            &rejected_result) == W_SEED_MLIR0_CAPACITY &&
+        memcmp(&rejected_result, &rejected_snapshot,
+               sizeof(rejected_result)) == 0);
+  for (size_t index = 0u; index < sizeof(short_artifact); index += 1u)
+    CHECK(short_artifact[index] == 0x6bu);
+  const w_seed_hir0_program program_snapshot = fixture.hir_program;
+  uint8_t hir_text_snapshot[sizeof(fixture.hir_text)];
+  (void)memcpy(hir_text_snapshot, fixture.hir_text,
+               sizeof(hir_text_snapshot));
+  CHECK(w_seed_mlir0_emit_integer_exactly(
+            &fixture.hir_program, &fixture.hir_result, &TARGET,
+            &(w_seed_mlir0_integer_exactly_output){fixture.hir_text,
+                                                   sizeof(fixture.hir_text)},
+            &rejected_result) == W_SEED_MLIR0_ALIAS &&
+        memcmp(&fixture.hir_program, &program_snapshot,
+               sizeof(fixture.hir_program)) == 0 &&
+        memcmp(fixture.hir_text, hir_text_snapshot,
+               sizeof(fixture.hir_text)) == 0 &&
+        memcmp(&rejected_result, &rejected_snapshot,
+               sizeof(rejected_result)) == 0);
+  w_seed_mlir0_integer_exactly_result forged_result;
+  CHECK(w_seed_mlir0_emit_integer_exactly(
+            &fixture.hir_program, &fixture.hir_result, &TARGET,
+            &(w_seed_mlir0_integer_exactly_output){linux_artifact,
+                                                    sizeof(linux_artifact)},
+            &forged_result) == W_SEED_MLIR0_OK);
+  forged_result.required.representability_predicate_count ^= 1u;
+  CHECK(!w_seed_mlir0_verify_integer_exactly(
+      &fixture.hir_program, &fixture.hir_result, &TARGET, linux_artifact,
+      forged_result.written.mlir_bytes, &forged_result));
+  w_seed_mlir0_target unsupported = {W_SEED_MLIR0_TARGET_UNSUPPORTED};
+  CHECK(w_seed_mlir0_measure_integer_exactly(
+            &fixture.hir_program, &fixture.hir_result, &unsupported,
+            &(w_seed_mlir0_integer_exactly_counts){0}, &forged_result) ==
+        W_SEED_MLIR0_UNSUPPORTED);
+  return true;
+}
+
 static bool test_typed_cleanup_mlir(void) {
   static const uint8_t source[] =
       "enum Failure: Error { denied }\n"
@@ -6975,6 +7286,27 @@ static bool emit_typed_cleanup_probe(void) {
                                                      sizeof(artifact)},
             &result) == W_SEED_MLIR0_OK);
   CHECK(w_seed_mlir0_verify_typed_propagation(
+      &fixture.hir_program, &fixture.hir_result, &TARGET, artifact,
+      result.written.mlir_bytes, &result));
+  return fwrite(artifact, 1u, result.written.mlir_bytes, stdout) ==
+             result.written.mlir_bytes &&
+         fflush(stdout) == 0;
+}
+
+static bool emit_integer_exactly_probe(void) {
+  static const uint8_t source[] =
+      "fn convert(value: u64): i64 throws NumericConversionError { "
+      "return try i64(exactly: value) }\n"
+      "entry { }\n";
+  static uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  w_seed_mlir0_integer_exactly_result result;
+  CHECK(w_seed_mlir0_emit_integer_exactly(
+            &fixture.hir_program, &fixture.hir_result, &TARGET,
+            &(w_seed_mlir0_integer_exactly_output){artifact,
+                                                   sizeof(artifact)},
+            &result) == W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_verify_integer_exactly(
       &fixture.hir_program, &fixture.hir_result, &TARGET, artifact,
       result.written.mlir_bytes, &result));
   return fwrite(artifact, 1u, result.written.mlir_bytes, stdout) ==
@@ -7456,6 +7788,13 @@ int main(int argc, char **argv) {
 #endif
     return emit_typed_cleanup_probe() ? 0 : 1;
   }
+  if (argc == 2 && argv[1] != NULL &&
+      strcmp(argv[1], "--emit-integer-exactly") == 0) {
+#if defined(_WIN32)
+    if (_setmode(_fileno(stdout), _O_BINARY) == -1) return 3;
+#endif
+    return emit_integer_exactly_probe() ? 0 : 1;
+  }
   if (argc != 1) return 2;
   if (!test_reachable_panic_mlir()) return 1;
   if (!test_process_panic_mlir()) return 1;
@@ -7535,6 +7874,7 @@ int main(int argc, char **argv) {
   if (!test_capacity_and_all_or_nothing()) return 1;
   if (!test_aliases()) return 1;
   if (!test_invalid_hir_and_target()) return 1;
+  if (!test_integer_exactly_mlir()) return 1;
   if (!test_typed_propagation_mlir()) return 1;
   if (!test_typed_cleanup_mlir()) return 1;
   if (!test_valid_hir_outside_subset()) return 1;

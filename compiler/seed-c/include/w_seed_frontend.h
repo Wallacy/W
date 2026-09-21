@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-70"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-71"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -229,6 +229,9 @@ typedef enum {
   W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS =
       W_SEED_FRONTEND_EXPR_NUMERIC_WIDEN + 1,
   W_SEED_FRONTEND_EXPR_FLOAT_TO_BITS,
+  /* Append-only partial integer conversion. Its value is owned by a plain
+   * `try` expression that records the canonical NumericConversionError type. */
+  W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY,
 } w_seed_frontend_expr_kind;
 
 typedef enum {
@@ -1090,9 +1093,12 @@ typedef struct {
   uint32_t task_result_type;
   uint32_t task_call_expression;
   uint32_t task_binding_statement;
-  /* Present only for TRY. It identifies the exact local error enum shared by
-   * the called function and the lexical owner function. */
+  /* Present only for a CALL-based TRY. It identifies the exact local error
+   * enum shared by the called function and lexical owner function. */
   uint32_t propagated_error_enum;
+  /* Present only for an integer-exactly TRY. It identifies the canonical
+   * bare NumericConversionError nominal type, not a local/external type. */
+  uint32_t propagated_error_type;
   /* Present only for EXPR_PANIC. The message reuses the normalized String
    * literal's const_byte_offset/count; the panic is a terminator, never a
    * call. */

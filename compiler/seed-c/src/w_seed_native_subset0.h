@@ -165,6 +165,35 @@ typedef struct {
   uint32_t error_case_index;
 } w_seed_native_subset0_typed_propagation;
 
+/* Private NativeSubset0 admission for the bounded `try D(exactly: source)`
+ * integer conversion CFG.  This record keeps the source's logical width and
+ * signedness separate from the destination until MLIR has emitted the range
+ * predicates.  It is not a call selection and does not define a root ABI. */
+typedef struct {
+  const w_seed_hir0_entry *entry;
+  const w_seed_hir0_function *function;
+  const w_seed_hir0_parameter *source_parameter;
+  const w_seed_hir0_value *source_value;
+  const w_seed_hir0_terminator *conversion;
+  const w_seed_hir0_block_argument *normal_argument;
+  const w_seed_hir0_block_argument *error_argument;
+  const w_seed_hir0_terminator *normal_return;
+  const w_seed_hir0_terminator *error_throw;
+  uint32_t entry_index;
+  uint32_t function_index;
+  uint32_t entry_function_index;
+  uint32_t split_block_index;
+  uint32_t normal_block_index;
+  uint32_t error_block_index;
+  uint32_t source_type_index;
+  uint32_t destination_type_index;
+  uint32_t error_type_index;
+  uint16_t source_bit_width;
+  uint16_t destination_bit_width;
+  bool source_is_signed;
+  bool destination_is_signed;
+} w_seed_native_subset0_integer_exactly;
+
 w_seed_native_subset0_status w_seed_native_subset0_select(
     const w_seed_hir0_program *program,
     const w_seed_hir0_result *hir_result,
@@ -223,6 +252,20 @@ bool w_seed_native_subset0_verify_typed_propagation(
     const w_seed_hir0_program *program,
     const w_seed_hir0_result *hir_result,
     const w_seed_native_subset0_typed_propagation *selection);
+
+/* Select one closed conversion-only HIR function and its neutral empty entry.
+ * The selected CFG still branches to typed success and error blocks. */
+w_seed_native_subset0_status
+w_seed_native_subset0_select_integer_exactly(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    w_seed_native_subset0_integer_exactly *selection);
+
+/* Independently rederive the exact-conversion admission from verified HIR. */
+bool w_seed_native_subset0_verify_integer_exactly(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    const w_seed_native_subset0_integer_exactly *selection);
 
 /* Select the target-neutral closed cooperative product shape. This is only
  * an admission record for a future emitter; it does not emit or execute. */

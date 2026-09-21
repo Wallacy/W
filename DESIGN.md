@@ -42249,9 +42249,11 @@ uses constants, so `benchmarkDisposition` is
 `correctness-reference-no-ranking`; no performance ranking is claimed.
 `exactly:`, `rounding:`, `saturating:`, floating conversions,
 `usize`/`isize`, 128-bit types, target-general aliases, stable ABI/FFI,
-other targets, and equivalent runtime work remain outside W-1641. Fallible
-`D(exactly:)` remains deferred until typed conversion-error lowering is
-end-to-end; it is not implemented by this slice.
+other targets, and equivalent runtime work remain outside W-1641. W-1650
+subsequently adds bounded typed-lowering evidence for fixed-width integer
+`try D(exactly: source)`, but the ordinary executable route remains unsupported
+until the unhandled `NumericConversionError` has a canonical process-root
+mapping.
 
 #### 26.4.1.122 W-1642 — ordinary binary integer bitwise family through native execution
 
@@ -42544,6 +42546,35 @@ the `0`, `width - 1`, `width`, and `width + 1` boundaries and confirm that
 CRT-free Windows x64 and Linux/WSL x64. C23 and Rust 2024 are correctness
 references only. W can fold the literal witness, so
 `benchmarkDisposition: deferred`; no timing or performance ranking is claimed.
+
+#### 26.4.1.130 W-1650 — fixed-width integer exactly-conversion typed lowering
+
+W-1650 advances only the existing plain `try D(exactly: source)` form; it adds
+no syntax or conversion policy. Its bounded integer domain is all 100
+source/destination pairs among `i8`/`u8`, `i16`/`u16`, `i32`/`u32`,
+`i64`/`u64`, and the current x86-64 `Int`/`UInt` aliases. `try?`, floating
+conversions, `usize`/`isize`, and 128-bit integers are outside this slice.
+
+Frontend71 preserves a distinct integer-exactly expression with canonical
+source and destination facts. Verified HIR92 represents it as a typed
+three-block success/error split. The error path carries the canonical core
+`NumericConversionError.outOfRange` case; the selector does not infer a local
+same-spelled error type. NativeSubset0 independently rederives the supported
+source/destination relation from verified HIR.
+
+The private MLIR artifact schema is
+`w-seed-mlir0-integer-exactly-1`. The focused `--emit-integer-exactly` probe
+feeds that artifact through `mlir-opt --verify-each` and `mlir-translate`, then
+checks the translated LLVM IR for the typed success/error branch and
+representability predicates. This is compiler-lifecycle evidence, not an
+executable product.
+
+ProductClosure0 deliberately rejects the integer-exactly terminator. The
+ordinary executable route remains unsupported because there is no canonical
+mapping from an unhandled `NumericConversionError` to the process root. There
+is no public native execution, benchmark, timing, floating-point or 128-bit
+conversion, `isize`/`usize`, non-x86-64 alias, catch, cleanup, or ABI claim.
+`benchmarkDisposition: compiler-lifecycle`.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

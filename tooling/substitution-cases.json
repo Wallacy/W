@@ -11974,6 +11974,125 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-fixed-width-integer-exactly-typed-lowering",
+      "reviewItem": "fixed-width integer exactly conversion through typed HIR and private MLIR against lossless coercion, untyped failure, per-pair schemas, and premature product or performance claims",
+      "decisions": [
+        "W-1650"
+      ],
+      "task": "Carry plain `try D(exactly: source)` across all 100 source/destination pairs among signed and unsigned 8/16/32/64-bit integers and current x86-64 Int/UInt aliases through Frontend71, a verified HIR92 three-block typed split, NativeSubset0, and a private MLIR/LLVM artifact. Preserve the canonical `NumericConversionError.outOfRange` edge. Verify the artifact with mlir-opt and mlir-translate, but keep ProductClosure0 and ordinary executable emission unsupported until an unhandled error has a canonical process-root mapping. No public native execution or benchmark is part of this increment.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn narrow(value: i16): i8 throws NumericConversionError {",
+          "  return try i8(exactly: value)",
+          "}"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "implicit-or-total-conversion",
+          "language": "w-internal-rejected",
+          "source": [
+            "convert a possibly out-of-range integer without an explicit `try`"
+          ],
+          "expectedDifference": "The existing exactly policy is fallible and retains the explicit plain `try` plus a typed error edge."
+        },
+        {
+          "name": "per-pair-operations",
+          "language": "w-internal-rejected",
+          "source": [
+            "allocate a separate conversion identity for each source/destination integer pair"
+          ],
+          "expectedDifference": "Canonical signedness and logical-width facts let one operation describe all 100 supported pairs."
+        },
+        {
+          "name": "trap-only-failure",
+          "language": "w-internal-rejected",
+          "source": [
+            "lower out-of-range conversion directly to a trap with no typed error successor"
+          ],
+          "expectedDifference": "The bounded HIR split preserves canonical `NumericConversionError.outOfRange` as an explicit typed error edge."
+        },
+        {
+          "name": "premature-product-route",
+          "language": "w-internal-rejected",
+          "source": [
+            "claim ordinary native execution before an unhandled NumericConversionError has a process-root mapping"
+          ],
+          "expectedDifference": "ProductClosure0 remains fail-closed; private MLIR/LLVM verification does not establish public execution."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_frontend.h",
+          "symbol": "W_SEED_FRONTEND_SCHEMA_VERSION / W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY",
+          "claim": "Frontend71 gives the bounded integer exactly conversion a distinct expression identity."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_frontend.c",
+          "symbol": "test_explicit_integer_exactly_frontend",
+          "claim": "Frontend tests cover the supported integer type-pair matrix and reject unsupported exactly forms."
+        },
+        {
+          "path": "compiler/seed-c/include/w_seed_hir0.h",
+          "symbol": "W_SEED_HIR0_SCHEMA_VERSION / W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY",
+          "claim": "HIR92 records a dedicated typed integer-exactly split and canonical NumericConversionError identity."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_cfg_integer_exactly",
+          "claim": "HIR verification checks the three-block success/error split and its typed error edge."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_integer_exactly_hir",
+          "claim": "HIR tests exercise typed exactly conversion across the supported integer domain."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "w_seed_native_subset0_select_integer_exactly",
+          "claim": "NativeSubset0 rederives the bounded integer exactly selection from verified HIR."
+        },
+        {
+          "path": "compiler/seed-c/include/w_seed_mlir0.h",
+          "symbol": "W_SEED_MLIR0_INTEGER_EXACTLY_SCHEMA_VERSION",
+          "claim": "The integer exactly lowering has a distinct private MLIR artifact schema."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "append_integer_exactly_artifact",
+          "claim": "The private MLIR artifact emits the bounded checked conversion branch and typed result carrier."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_mlir0.c",
+          "symbol": "test_integer_exactly_mlir",
+          "claim": "MLIR tests cover the fixed-width type pairs, representability boundaries, and artifact verification barriers."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_product_closure0.c",
+          "symbol": "W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY",
+          "claim": "ProductClosure0 deliberately rejects the integer-exactly terminator."
+        },
+        {
+          "path": "tooling/check-mlir0.mjs",
+          "symbol": "--emit-integer-exactly",
+          "claim": "The focused MLIR gate verifies the private artifact with mlir-opt and mlir-translate without claiming native execution."
+        }
+      ],
+      "checks": [
+        "Frontend71 and HIR92 preserve the bounded 100-pair source/destination relation for the eight fixed-width integer types plus current x86-64 Int/UInt aliases.",
+        "The verified HIR carries a three-block typed success/error split whose error case is canonical NumericConversionError.outOfRange.",
+        "NativeSubset0 and the private MLIR artifact independently rederive the verified type facts; mlir-opt and mlir-translate validate the emitted artifact.",
+        "ProductClosure0 and ordinary executable emission remain unsupported pending a canonical process-root mapping for unhandled NumericConversionError; no public native run, benchmark, or timing claim is made."
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

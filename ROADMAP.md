@@ -75,8 +75,12 @@ physical scheduler experiments:
    literal, operator, and native execution family. W-1646 closes the exact
    total integer-to-float and f32-to-f64 widening subset across all expression
    contexts, and W-1647 closes only the existing f32/u32 and f64/u64
-   representation-bit round trips. Remaining conversion policies continue to
-   block this rank-1 prerequisite;
+   representation-bit round trips. W-1650 adds fixed-width integer
+   `try D(exactly: source)` through a typed HIR success/error split and private
+   MLIR/LLVM artifact, but the ordinary executable route remains unsupported
+   until unhandled `NumericConversionError` has a canonical process-root
+   mapping. Remaining conversion policies continue to block this rank-1
+   prerequisite;
 2. prefix, arithmetic, comparison, bitwise, shift, overflow and compound
    operators, each with its specified checked or explicit wrapping policy;
 3. Boolean short-circuiting, scalar `if`, exhaustive scalar selection and
@@ -378,9 +382,21 @@ Windows43 now carry the generic family. Focused matrices cover every pair and
 the compact four-quadrant witness executes exactly on CRT-free Windows and
 Linux/WSL; malformed forms fail before output. ProductClosure0 remains
 intentionally narrower. C23 and Rust 2024 are correctness references only,
-and `benchmarkDisposition: deferred` until equivalent runtime work. Fallible
-`D(exactly:)` remains deferred until typed conversion-error lowering is
-end-to-end; it is not implemented. W-389 and rank 1 remain open.
+and `benchmarkDisposition: deferred` until equivalent runtime work.
+
+W-1650 now carries the plain integer `try D(exactly: source)` form for all 100
+source/destination pairs among signed and unsigned 8/16/32/64-bit integers and
+current x86-64 `Int`/`UInt` aliases through Frontend71, verified HIR92,
+NativeSubset0, and the private `w-seed-mlir0-integer-exactly-1` artifact. HIR
+preserves a three-block typed success/error split whose error edge is canonical
+`NumericConversionError.outOfRange`; `tooling/check-mlir0.mjs` verifies the
+artifact with `mlir-opt` and `mlir-translate`. This is compiler-lifecycle
+evidence only. ProductClosure0 and ordinary executable emission remain
+unsupported because no canonical unhandled `NumericConversionError` to
+process-root mapping exists. There is no public native execution, benchmark,
+or timing claim; other conversion families, floats, 128-bit integers,
+`isize`/`usize`, other target aliases, catch, cleanup, and ABI remain gaps.
+W-389 and rank 1 remain open.
 
 W-1645 generalizes the prior strict-f64 seed path into one strict floating
 family for `f32` and `f64`. Frontend67 materializes exact binary32/binary64

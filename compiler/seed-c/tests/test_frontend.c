@@ -3799,6 +3799,136 @@ static bool test_explicit_integer_truncating_bits_frontend(void) {
   return true;
 }
 
+static bool test_explicit_integer_exactly_frontend(void) {
+  typedef struct {
+    const char *name;
+    bool is_signed;
+    uint16_t bit_width;
+  } integer_type_case;
+  static const integer_type_case INTEGER_TYPES[] = {
+      {"i8", true, 8u},     {"u8", false, 8u},
+      {"i16", true, 16u},   {"u16", false, 16u},
+      {"i32", true, 32u},   {"u32", false, 32u},
+      {"i64", true, 64u},   {"u64", false, 64u},
+      {"Int", true, 64u},   {"UInt", false, 64u},
+  };
+  char matrix_source[320];
+  fixture *matrix = &fixture_b;
+  for (size_t source_index = 0u;
+       source_index < sizeof(INTEGER_TYPES) / sizeof(INTEGER_TYPES[0]);
+       source_index += 1u) {
+    for (size_t destination_index = 0u;
+         destination_index <
+         sizeof(INTEGER_TYPES) / sizeof(INTEGER_TYPES[0]);
+         destination_index += 1u) {
+      const int written = snprintf(
+          matrix_source, sizeof(matrix_source),
+          "fn convert(value: %s): %s throws NumericConversionError { "
+          "return try %s(exactly: value) } entry { }\n",
+          INTEGER_TYPES[source_index].name,
+          INTEGER_TYPES[destination_index].name,
+          INTEGER_TYPES[destination_index].name);
+      CHECK(written > 0 && (size_t)written < sizeof(matrix_source));
+      CHECK(fixture_run(matrix, matrix_source));
+      CHECK(matrix->parse.status == W_SEED_PARSE_COMPLETE &&
+            matrix->result.status == W_SEED_FRONTEND_OK &&
+            counts_equal(&matrix->result.required,
+                         &matrix->result.written));
+      const w_seed_frontend_expression *conversion = NULL;
+      const w_seed_frontend_expression *try_expression = NULL;
+      size_t conversions = 0u;
+      size_t tries = 0u;
+      for (size_t expression = 0u;
+           expression < matrix->result.written.expressions;
+           expression += 1u) {
+        const w_seed_frontend_expression *candidate =
+            &matrix->expressions[expression];
+        if (candidate->kind == W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY) {
+          conversion = candidate;
+          conversions += 1u;
+        } else if (candidate->kind == W_SEED_FRONTEND_EXPR_TRY) {
+          try_expression = candidate;
+          tries += 1u;
+        }
+      }
+      CHECK(conversions == 1u && tries == 1u && conversion != NULL &&
+            try_expression != NULL && conversion->supported &&
+            try_expression->supported && try_expression->left !=
+                W_SEED_FRONTEND_NONE &&
+            &matrix->expressions[try_expression->left] == conversion &&
+            try_expression->propagated_error_enum == W_SEED_FRONTEND_NONE &&
+            try_expression->propagated_error_type <
+                matrix->result.written.types &&
+            conversion->conversion_source_type <
+                matrix->result.written.types &&
+            conversion->conversion_destination_type <
+                matrix->result.written.types &&
+            conversion->inferred_type ==
+                conversion->conversion_destination_type &&
+            try_expression->inferred_type == conversion->inferred_type &&
+            frontend_text_is(try_expression->operator_text, "try"));
+      const w_seed_frontend_type *source_type =
+          &matrix->types[conversion->conversion_source_type];
+      const w_seed_frontend_type *destination_type =
+          &matrix->types[conversion->conversion_destination_type];
+      const w_seed_frontend_type *error_type =
+          &matrix->types[try_expression->propagated_error_type];
+      CHECK(source_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+            source_type->is_signed == INTEGER_TYPES[source_index].is_signed &&
+            source_type->bit_width == INTEGER_TYPES[source_index].bit_width &&
+            destination_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+            destination_type->is_signed ==
+                INTEGER_TYPES[destination_index].is_signed &&
+            destination_type->bit_width ==
+                INTEGER_TYPES[destination_index].bit_width &&
+            error_type->kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
+            frontend_text_is(error_type->spelling,
+                             "NumericConversionError") &&
+            error_type->external_module_index == W_SEED_FRONTEND_NONE &&
+            error_type->external_symbol_index == W_SEED_FRONTEND_NONE);
+    }
+  }
+
+  fixture *rejected = &fixture_a;
+  static const char *const REJECTED[] = {
+      "fn f(value: i16): i8 { return i8(exactly: value) } entry { }\n",
+      "fn f(value: i16): i8 { return try i8(exactly: value) } entry { }\n",
+      "fn f(value: i16): i8 throws NumericConversionError { return "
+      "try? i8(exactly: value) } entry { }\n",
+      "fn f(value: i16): i8 throws NumericConversionError { return "
+      "try i8(exact: value) } entry { }\n",
+      "fn f(value: i16): i8 throws NumericConversionError { return "
+      "try i8(exactly: value, exactly: value) } entry { }\n",
+      "fn f(value: i16): i8 throws NumericConversionError { return "
+      "try i8(exactly: value, other: 0_i16) } entry { }\n",
+      "enum Failure: Error { denied } fn f(value: i16): i8 throws Failure { "
+      "return try i8(exactly: value) } entry { }\n",
+      "enum NumericConversionError: Error { outOfRange } fn f(value: i16): "
+      "i8 throws NumericConversionError { return try i8(exactly: value) } "
+      "entry { }\n",
+      "struct NumericConversionError {} fn f(value: i16): i8 throws "
+      "NumericConversionError { return try i8(exactly: value) } entry { }\n",
+      "fn f(value: i16): f64 throws NumericConversionError { return try "
+      "f64(exactly: value) } entry { }\n",
+      "fn f(value: i16): i128 throws NumericConversionError { return try "
+      "i128(exactly: value) } entry { }\n",
+      "fn f(value: usize): i8 throws NumericConversionError { return try "
+      "i8(exactly: value) } entry { }\n",
+  };
+  for (size_t index = 0u;
+       index < sizeof(REJECTED) / sizeof(REJECTED[0]); index += 1u) {
+    CHECK(fixture_run(rejected, REJECTED[index]));
+    CHECK(rejected->result.status != W_SEED_FRONTEND_OK);
+    for (size_t expression = 0u;
+         expression < rejected->result.written.expressions;
+         expression += 1u)
+      CHECK(rejected->expressions[expression].kind !=
+            W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY ||
+            !rejected->expressions[expression].supported);
+  }
+  return true;
+}
+
 static bool test_float_bits_frontend(void) {
   static const char SOURCE[] =
       "fn fromF32(bits: u32): f32 { return f32.fromBits(bits) }\n"
@@ -6800,7 +6930,7 @@ static bool test_f32_scalar_projection(void) {
 }
 
 static bool test_numeric_widening_frontend(void) {
-  CHECK(strcmp(W_SEED_FRONTEND_SCHEMA_VERSION, "w-seed-frontend-70") == 0);
+  CHECK(strcmp(W_SEED_FRONTEND_SCHEMA_VERSION, "w-seed-frontend-71") == 0);
   typedef struct {
     const char *source_name;
     bool source_is_float;
@@ -9551,6 +9681,7 @@ int main(int argc, char **argv) {
   if (!test_semantic_diagnostics()) return 1;
   if (!test_implicit_integer_widening_frontend()) return 1;
   if (!test_explicit_integer_truncating_bits_frontend()) return 1;
+  if (!test_explicit_integer_exactly_frontend()) return 1;
   if (!test_float_bits_frontend()) return 1;
   if (!test_explicit_integer_saturating_frontend()) return 1;
   if (!test_graph_facts_and_external_stub()) return 1;

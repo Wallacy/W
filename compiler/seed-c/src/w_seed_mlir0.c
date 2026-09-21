@@ -13700,3 +13700,498 @@ bool w_seed_mlir0_verify_typed_propagation(
                 sizeof(result->hir_semantic_digest)) == 0 &&
          memcmp(result->mlir_sha256, digest, sizeof(digest)) == 0;
 }
+
+typedef struct {
+  const char *predicate;
+  int64_t bound;
+} mlir0_integer_exactly_predicate;
+
+static size_t mlir0_integer_exactly_predicates(
+    const w_seed_native_subset0_integer_exactly *selection,
+    mlir0_integer_exactly_predicate predicates[2]) {
+  if (selection == NULL || predicates == NULL) return 0u;
+  const uint16_t source_width = selection->source_bit_width;
+  const uint16_t destination_width = selection->destination_bit_width;
+  if (selection->source_is_signed && selection->destination_is_signed) {
+    if (source_width <= destination_width) return 0u;
+    const int64_t edge = INT64_C(1) << (destination_width - 1u);
+    predicates[0] = (mlir0_integer_exactly_predicate){"sge", -edge};
+    predicates[1] = (mlir0_integer_exactly_predicate){"sle", edge - 1};
+    return 2u;
+  }
+  if (selection->source_is_signed) {
+    predicates[0] = (mlir0_integer_exactly_predicate){"sge", 0};
+    if ((uint32_t)source_width > (uint32_t)destination_width + 1u) {
+      const int64_t max = (INT64_C(1) << destination_width) - 1;
+      predicates[1] = (mlir0_integer_exactly_predicate){"sle", max};
+      return 2u;
+    }
+    return 1u;
+  }
+  if (selection->destination_is_signed) {
+    if (source_width < destination_width) return 0u;
+    const int64_t max = destination_width == 64u
+                            ? INT64_MAX
+                            : (INT64_C(1) << (destination_width - 1u)) - 1;
+    predicates[0] = (mlir0_integer_exactly_predicate){"ule", max};
+    return 1u;
+  }
+  if (source_width <= destination_width) return 0u;
+  const int64_t max = (INT64_C(1) << destination_width) - 1;
+  predicates[0] = (mlir0_integer_exactly_predicate){"ule", max};
+  return 1u;
+}
+
+static bool append_integer_exactly_artifact(
+    const w_seed_native_subset0_integer_exactly *selection,
+    const w_seed_mlir0_target *target, uint8_t *artifact, size_t capacity,
+    size_t *written, uint8_t digest[MLIR0_DIGEST_BYTES]) {
+  if (selection == NULL || target == NULL || artifact == NULL ||
+      written == NULL || digest == NULL || !target_is_supported(target) ||
+      (selection->source_bit_width != 8u &&
+       selection->source_bit_width != 16u &&
+       selection->source_bit_width != 32u &&
+       selection->source_bit_width != 64u) ||
+      (selection->destination_bit_width != 8u &&
+       selection->destination_bit_width != 16u &&
+       selection->destination_bit_width != 32u &&
+       selection->destination_bit_width != 64u))
+    return false;
+
+  mlir0_integer_exactly_predicate predicates[2] = {{NULL, 0}, {NULL, 0}};
+  const size_t predicate_count =
+      mlir0_integer_exactly_predicates(selection, predicates);
+  if (predicate_count > 2u) return false;
+  const char *triple = target_is_windows(target)
+                           ? W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS
+                           : W_SEED_MLIR0_TARGET_TRIPLE;
+  const char *source_sign =
+      selection->source_is_signed ? "signed" : "unsigned";
+  const char *destination_sign =
+      selection->destination_is_signed ? "signed" : "unsigned";
+  size_t offset = 0u;
+  if (!append_literal(artifact, capacity, &offset,
+                      "// " W_SEED_MLIR0_INTEGER_EXACTLY_SCHEMA_VERSION
+                      "\n// HIR source logical type: ") ||
+      !append_literal(artifact, capacity, &offset, source_sign) ||
+      !append_literal(artifact, capacity, &offset, " i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->source_bit_width) ||
+      !append_literal(artifact, capacity, &offset,
+                      "; destination logical type: ") ||
+      !append_literal(artifact, capacity, &offset, destination_sign) ||
+      !append_literal(artifact, capacity, &offset, " i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          ".\n// Range predicates use the unmodified source width/sign before any cast.\n"
+          "// Typed error arm: NumericConversionError.outOfRange; private status 1, zero destination payload.\n"
+          "// Private carrier is not a W ABI: !llvm.struct<(i1, i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(artifact, capacity, &offset,
+                      ")>; status 0 is success.\nmodule attributes {llvm.target_triple = \"") ||
+      !append_literal(artifact, capacity, &offset, triple) ||
+      !append_literal(artifact, capacity, &offset,
+                      "\"} {\n  llvm.func internal @w_seed_exact_integer_convert(%source: i") ||
+      !append_size(artifact, capacity, &offset, selection->source_bit_width) ||
+      !append_literal(artifact, capacity, &offset,
+                      ") -> !llvm.struct<(i1, i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(artifact, capacity, &offset, ")> {\n"))
+    return false;
+
+  if (predicate_count == 0u) {
+    if (!append_literal(artifact, capacity, &offset,
+                        "    %exact_true = llvm.mlir.constant(1 : i1) : i1\n"
+                        "    %exact_fits = llvm.and %exact_true, %exact_true : i1\n"))
+      return false;
+  } else {
+    if (!append_literal(artifact, capacity, &offset,
+                        "    %exact_true = llvm.mlir.constant(1 : i1) : i1\n"))
+      return false;
+    for (size_t index = 0u; index < predicate_count; index += 1u) {
+      if (!append_literal(artifact, capacity, &offset,
+                          "    %exact_bound_") ||
+          !append_size(artifact, capacity, &offset, index) ||
+          !append_literal(artifact, capacity, &offset,
+                          " = llvm.mlir.constant(") ||
+          !append_i64(artifact, capacity, &offset,
+                      predicates[index].bound) ||
+          !append_literal(artifact, capacity, &offset, " : i") ||
+          !append_size(artifact, capacity, &offset,
+                       selection->source_bit_width) ||
+          !append_literal(artifact, capacity, &offset, ") : i") ||
+          !append_size(artifact, capacity, &offset,
+                       selection->source_bit_width) ||
+          !append_literal(artifact, capacity, &offset,
+                          "\n    %exact_range_") ||
+          !append_size(artifact, capacity, &offset, index) ||
+          !append_literal(artifact, capacity, &offset,
+                          " = llvm.icmp \"") ||
+          !append_literal(artifact, capacity, &offset,
+                          predicates[index].predicate) ||
+          !append_literal(artifact, capacity, &offset,
+                          "\" %source, %exact_bound_") ||
+          !append_size(artifact, capacity, &offset, index) ||
+          !append_literal(artifact, capacity, &offset, " : i") ||
+          !append_size(artifact, capacity, &offset,
+                       selection->source_bit_width) ||
+          !append_literal(artifact, capacity, &offset, "\n"))
+        return false;
+    }
+    if (predicate_count == 1u) {
+      if (!append_literal(artifact, capacity, &offset,
+                          "    %exact_fits = llvm.and %exact_range_0, %exact_true : i1\n"))
+        return false;
+    } else if (!append_literal(
+                   artifact, capacity, &offset,
+                   "    %exact_fits = llvm.and %exact_range_0, %exact_range_1 : i1\n")) {
+      return false;
+    }
+  }
+
+  if (!append_literal(artifact, capacity, &offset,
+                      "    llvm.cond_br %exact_fits, ^exact_success, ^exact_out_of_range\n"
+                      "  ^exact_success:\n"))
+    return false;
+  const bool has_conversion =
+      selection->source_bit_width != selection->destination_bit_width;
+  if (has_conversion) {
+    const char *conversion =
+        selection->destination_bit_width < selection->source_bit_width
+            ? "trunc"
+            : (selection->source_is_signed ? "sext" : "zext");
+    if (!append_literal(artifact, capacity, &offset,
+                        "    %exact_converted = llvm.") ||
+        !append_literal(artifact, capacity, &offset, conversion) ||
+        !append_literal(artifact, capacity, &offset, " %source : i") ||
+        !append_size(artifact, capacity, &offset,
+                     selection->source_bit_width) ||
+        !append_literal(artifact, capacity, &offset, " to i") ||
+        !append_size(artifact, capacity, &offset,
+                     selection->destination_bit_width) ||
+        !append_literal(artifact, capacity, &offset, "\n"))
+      return false;
+  }
+  if (!append_literal(artifact, capacity, &offset,
+                      "    %exact_success_status = llvm.mlir.constant(0 : i1) : i1\n"
+                      "    %exact_success_zero = llvm.mlir.zero : !llvm.struct<(i1, i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(artifact, capacity, &offset, ")>\n"
+                      "    %exact_success_with_status = llvm.insertvalue %exact_success_status, %exact_success_zero[0] : !llvm.struct<(i1, i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(artifact, capacity, &offset, ")>\n"
+                      "    %exact_success_result = llvm.insertvalue "))
+    return false;
+  if (!append_literal(artifact, capacity, &offset,
+                      has_conversion ? "%exact_converted" : "%source") ||
+      !append_literal(artifact, capacity, &offset,
+                      ", %exact_success_with_status[1] : !llvm.struct<(i1, i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(artifact, capacity, &offset,
+                      ")>\n    llvm.return %exact_success_result : !llvm.struct<(i1, i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(artifact, capacity, &offset,
+                      ")>\n  ^exact_out_of_range:\n"
+                      "    %exact_error_status = llvm.mlir.constant(1 : i1) : i1\n"
+                      "    %exact_error_payload = llvm.mlir.constant(0 : i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(artifact, capacity, &offset,
+                      ") : i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(artifact, capacity, &offset,
+                      "\n    %exact_error_zero = llvm.mlir.zero : !llvm.struct<(i1, i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(artifact, capacity, &offset,
+                      ")>\n    %exact_error_with_status = llvm.insertvalue %exact_error_status, %exact_error_zero[0] : !llvm.struct<(i1, i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(artifact, capacity, &offset,
+                      ")>\n    %exact_error_result = llvm.insertvalue %exact_error_payload, %exact_error_with_status[1] : !llvm.struct<(i1, i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(artifact, capacity, &offset,
+                      ")>\n    llvm.return %exact_error_result : !llvm.struct<(i1, i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(artifact, capacity, &offset, ")>\n  }\n}\n"))
+    return false;
+
+  *written = offset;
+  w_seed_sha256_state state;
+  w_seed_sha256_init(&state);
+  w_seed_sha256_update(&state, artifact, offset);
+  w_seed_sha256_final(&state, digest);
+  return true;
+}
+
+static bool integer_exactly_ranges_alias(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    const w_seed_mlir0_target *target,
+    const w_seed_mlir0_integer_exactly_counts *counts,
+    const w_seed_mlir0_integer_exactly_output *output,
+    const w_seed_mlir0_integer_exactly_result *result, size_t written) {
+  if (program == NULL || hir_result == NULL || target == NULL) return true;
+  mlir0_range ranges[64];
+  size_t range_count = 0u;
+#define ADD_EXACT_RANGE(address, count, element_size)                         \
+  do {                                                                        \
+    if (!range_add(ranges, sizeof(ranges) / sizeof(ranges[0]), &range_count, \
+                   (address), (count), (element_size)))                      \
+      return true;                                                            \
+  } while (0)
+  ADD_EXACT_RANGE(program, 1u, sizeof(*program));
+  ADD_EXACT_RANGE(hir_result, 1u, sizeof(*hir_result));
+  ADD_EXACT_RANGE(target, 1u, sizeof(*target));
+  ADD_EXACT_RANGE(counts, counts == NULL ? 0u : 1u, sizeof(*counts));
+  ADD_EXACT_RANGE(output, output == NULL ? 0u : 1u, sizeof(*output));
+  ADD_EXACT_RANGE(result, result == NULL ? 0u : 1u, sizeof(*result));
+  ADD_EXACT_RANGE(program->modules, program->module_capacity,
+                  sizeof(*program->modules));
+  ADD_EXACT_RANGE(program->identities, program->identity_capacity,
+                  sizeof(*program->identities));
+  ADD_EXACT_RANGE(program->types, program->type_capacity,
+                  sizeof(*program->types));
+  ADD_EXACT_RANGE(program->enums, program->enum_capacity,
+                  sizeof(*program->enums));
+  ADD_EXACT_RANGE(program->enum_cases, program->enum_case_capacity,
+                  sizeof(*program->enum_cases));
+  ADD_EXACT_RANGE(program->enum_case_parameters,
+                  program->enum_case_parameter_capacity,
+                  sizeof(*program->enum_case_parameters));
+  ADD_EXACT_RANGE(program->enum_subset_members,
+                  program->enum_subset_member_capacity,
+                  sizeof(*program->enum_subset_members));
+  ADD_EXACT_RANGE(program->enum_payloads, program->enum_payload_capacity,
+                  sizeof(*program->enum_payloads));
+  ADD_EXACT_RANGE(program->switch_captures, program->switch_capture_capacity,
+                  sizeof(*program->switch_captures));
+  ADD_EXACT_RANGE(program->functions, program->function_capacity,
+                  sizeof(*program->functions));
+  ADD_EXACT_RANGE(program->parameters, program->parameter_capacity,
+                  sizeof(*program->parameters));
+  ADD_EXACT_RANGE(program->blocks, program->block_capacity,
+                  sizeof(*program->blocks));
+  ADD_EXACT_RANGE(program->block_arguments, program->block_argument_capacity,
+                  sizeof(*program->block_arguments));
+  ADD_EXACT_RANGE(program->edge_arguments, program->edge_argument_capacity,
+                  sizeof(*program->edge_arguments));
+  ADD_EXACT_RANGE(program->switch_edges, program->switch_edge_capacity,
+                  sizeof(*program->switch_edges));
+  ADD_EXACT_RANGE(program->instructions, program->instruction_capacity,
+                  sizeof(*program->instructions));
+  ADD_EXACT_RANGE(program->bindings, program->binding_capacity,
+                  sizeof(*program->bindings));
+  ADD_EXACT_RANGE(program->calls, program->call_capacity,
+                  sizeof(*program->calls));
+  ADD_EXACT_RANGE(program->host_parameters, program->host_parameter_capacity,
+                  sizeof(*program->host_parameters));
+  ADD_EXACT_RANGE(program->arguments, program->argument_capacity,
+                  sizeof(*program->arguments));
+  ADD_EXACT_RANGE(program->requirements, program->requirement_capacity,
+                  sizeof(*program->requirements));
+  ADD_EXACT_RANGE(program->values, program->value_capacity,
+                  sizeof(*program->values));
+  ADD_EXACT_RANGE(program->interpolation_segments,
+                  program->interpolation_segment_capacity,
+                  sizeof(*program->interpolation_segments));
+  ADD_EXACT_RANGE(program->terminators, program->terminator_capacity,
+                  sizeof(*program->terminators));
+  ADD_EXACT_RANGE(program->entries, program->entry_capacity,
+                  sizeof(*program->entries));
+  ADD_EXACT_RANGE(program->external_modules,
+                  program->external_module_capacity,
+                  sizeof(*program->external_modules));
+  ADD_EXACT_RANGE(program->external_symbols,
+                  program->external_symbol_capacity,
+                  sizeof(*program->external_symbols));
+  ADD_EXACT_RANGE(program->cleanups, program->cleanup_capacity,
+                  sizeof(*program->cleanups));
+  ADD_EXACT_RANGE(program->text_bytes, program->text_byte_capacity,
+                  sizeof(uint8_t));
+  ADD_EXACT_RANGE(program->value_bytes, program->value_byte_capacity,
+                  sizeof(uint8_t));
+  ADD_EXACT_RANGE(program->receipt, program->receipt_capacity,
+                  sizeof(uint8_t));
+  for (size_t first = 0u; first < range_count; first += 1u)
+    for (size_t second = first + 1u; second < range_count; second += 1u)
+      if (range_pair_overlaps(&ranges[first], &ranges[second])) return true;
+  if (output != NULL)
+    ADD_EXACT_RANGE(output->bytes, written, sizeof(uint8_t));
+#undef ADD_EXACT_RANGE
+  for (size_t first = 0u; first < range_count; first += 1u)
+    for (size_t second = first + 1u; second < range_count; second += 1u)
+      if (range_pair_overlaps(&ranges[first], &ranges[second])) return true;
+  return false;
+}
+
+static w_seed_mlir0_status integer_exactly_select(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    w_seed_native_subset0_integer_exactly *selection) {
+  const w_seed_native_subset0_status selected =
+      w_seed_native_subset0_select_integer_exactly(program, hir_result,
+                                                    selection);
+  if (selected == W_SEED_NATIVE_SUBSET0_OK) return W_SEED_MLIR0_OK;
+  if (selected == W_SEED_NATIVE_SUBSET0_UNSUPPORTED)
+    return W_SEED_MLIR0_UNSUPPORTED;
+  return W_SEED_MLIR0_INVALID_HIR;
+}
+
+static w_seed_mlir0_integer_exactly_counts integer_exactly_counts(
+    size_t written,
+    const w_seed_native_subset0_integer_exactly *selection) {
+  mlir0_integer_exactly_predicate predicates[2] = {{NULL, 0}, {NULL, 0}};
+  const size_t predicate_count =
+      mlir0_integer_exactly_predicates(selection, predicates);
+  return (w_seed_mlir0_integer_exactly_counts){
+      .mlir_bytes = written,
+      .source_bit_width = selection->source_bit_width,
+      .destination_bit_width = selection->destination_bit_width,
+      .representability_predicate_count = (uint32_t)predicate_count,
+      .typed_branch_count = 1u,
+      .carrier_field_count =
+          W_SEED_MLIR0_INTEGER_EXACTLY_CARRIER_FIELDS,
+      .source_is_signed = selection->source_is_signed,
+      .destination_is_signed = selection->destination_is_signed};
+}
+
+static w_seed_mlir0_integer_exactly_result integer_exactly_result(
+    const w_seed_hir0_result *hir_result,
+    const w_seed_mlir0_integer_exactly_counts *counts,
+    const uint8_t digest[MLIR0_DIGEST_BYTES], bool written) {
+  w_seed_mlir0_integer_exactly_result result;
+  (void)memset(&result, 0, sizeof(result));
+  result.status = W_SEED_MLIR0_OK;
+  result.required = *counts;
+  if (written) result.written = *counts;
+  (void)memcpy(result.hir_semantic_digest, hir_result->semantic_digest,
+               sizeof(result.hir_semantic_digest));
+  (void)memcpy(result.mlir_sha256, digest, sizeof(result.mlir_sha256));
+  return result;
+}
+
+w_seed_mlir0_status w_seed_mlir0_measure_integer_exactly(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_mlir0_target *target,
+    w_seed_mlir0_integer_exactly_counts *counts,
+    w_seed_mlir0_integer_exactly_result *result) {
+  if (program == NULL || hir_result == NULL || target == NULL ||
+      counts == NULL || result == NULL)
+    return W_SEED_MLIR0_INVALID_HIR;
+  w_seed_native_subset0_integer_exactly selection;
+  const w_seed_mlir0_status selected =
+      integer_exactly_select(program, hir_result, &selection);
+  if (selected != W_SEED_MLIR0_OK) return selected;
+  if (!target_is_supported(target)) return W_SEED_MLIR0_UNSUPPORTED;
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  uint8_t digest[MLIR0_DIGEST_BYTES];
+  size_t written = 0u;
+  if (!append_integer_exactly_artifact(&selection, target, artifact,
+                                       sizeof(artifact), &written, digest))
+    return W_SEED_MLIR0_INVALID_HIR;
+  if (integer_exactly_ranges_alias(program, hir_result, target, counts, NULL,
+                                   result, written))
+    return W_SEED_MLIR0_ALIAS;
+  const w_seed_mlir0_integer_exactly_counts candidate_counts =
+      integer_exactly_counts(written, &selection);
+  const w_seed_mlir0_integer_exactly_result candidate_result =
+      integer_exactly_result(hir_result, &candidate_counts, digest, false);
+  *counts = candidate_counts;
+  *result = candidate_result;
+  return W_SEED_MLIR0_OK;
+}
+
+w_seed_mlir0_status w_seed_mlir0_emit_integer_exactly(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_mlir0_target *target,
+    const w_seed_mlir0_integer_exactly_output *output,
+    w_seed_mlir0_integer_exactly_result *result) {
+  if (program == NULL || hir_result == NULL || target == NULL ||
+      output == NULL || result == NULL)
+    return W_SEED_MLIR0_INVALID_HIR;
+  w_seed_native_subset0_integer_exactly selection;
+  const w_seed_mlir0_status selected =
+      integer_exactly_select(program, hir_result, &selection);
+  if (selected != W_SEED_MLIR0_OK) return selected;
+  if (!target_is_supported(target)) return W_SEED_MLIR0_UNSUPPORTED;
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  uint8_t digest[MLIR0_DIGEST_BYTES];
+  size_t written = 0u;
+  if (!append_integer_exactly_artifact(&selection, target, artifact,
+                                       sizeof(artifact), &written, digest))
+    return W_SEED_MLIR0_INVALID_HIR;
+  if (output->bytes == NULL || output->capacity < written)
+    return W_SEED_MLIR0_CAPACITY;
+  if (integer_exactly_ranges_alias(program, hir_result, target, NULL, output,
+                                   result, written))
+    return W_SEED_MLIR0_ALIAS;
+  const w_seed_mlir0_integer_exactly_counts candidate_counts =
+      integer_exactly_counts(written, &selection);
+  const w_seed_mlir0_integer_exactly_result candidate_result =
+      integer_exactly_result(hir_result, &candidate_counts, digest, true);
+  (void)memcpy(output->bytes, artifact, written);
+  *result = candidate_result;
+  return W_SEED_MLIR0_OK;
+}
+
+bool w_seed_mlir0_verify_integer_exactly(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_mlir0_target *target, const uint8_t *artifact,
+    size_t artifact_bytes,
+    const w_seed_mlir0_integer_exactly_result *result) {
+  if (program == NULL || hir_result == NULL || target == NULL ||
+      artifact == NULL || result == NULL || result->status != W_SEED_MLIR0_OK)
+    return false;
+  w_seed_native_subset0_integer_exactly selection;
+  if (integer_exactly_select(program, hir_result, &selection) !=
+      W_SEED_MLIR0_OK ||
+      !target_is_supported(target))
+    return false;
+  uint8_t expected_artifact[W_SEED_MLIR0_MAX_BYTES];
+  uint8_t digest[MLIR0_DIGEST_BYTES];
+  size_t written = 0u;
+  if (!append_integer_exactly_artifact(
+          &selection, target, expected_artifact, sizeof(expected_artifact),
+          &written, digest))
+    return false;
+  const w_seed_mlir0_integer_exactly_counts counts =
+      integer_exactly_counts(written, &selection);
+  return artifact_bytes == written &&
+         memcmp(artifact, expected_artifact, written) == 0 &&
+         result->required.mlir_bytes == counts.mlir_bytes &&
+         result->required.source_bit_width == counts.source_bit_width &&
+         result->required.destination_bit_width ==
+             counts.destination_bit_width &&
+         result->required.representability_predicate_count ==
+             counts.representability_predicate_count &&
+         result->required.typed_branch_count == counts.typed_branch_count &&
+         result->required.carrier_field_count == counts.carrier_field_count &&
+         result->required.source_is_signed == counts.source_is_signed &&
+         result->required.destination_is_signed ==
+             counts.destination_is_signed &&
+         result->written.mlir_bytes == counts.mlir_bytes &&
+         result->written.source_bit_width == counts.source_bit_width &&
+         result->written.destination_bit_width ==
+             counts.destination_bit_width &&
+         result->written.representability_predicate_count ==
+             counts.representability_predicate_count &&
+         result->written.typed_branch_count == counts.typed_branch_count &&
+         result->written.carrier_field_count == counts.carrier_field_count &&
+         result->written.source_is_signed == counts.source_is_signed &&
+         result->written.destination_is_signed ==
+             counts.destination_is_signed &&
+         memcmp(result->hir_semantic_digest, hir_result->semantic_digest,
+                sizeof(result->hir_semantic_digest)) == 0 &&
+         memcmp(result->mlir_sha256, digest, sizeof(result->mlir_sha256)) == 0;
+}

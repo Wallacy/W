@@ -178,7 +178,10 @@ Cada aplicação tem owner type, head, envelope, argumentos ordenados e status d
 binding; cada argumento preserva ordinal, span, label, parâmetro, kind, o índice
 de type ou `ConstValue` e o índice sentinel/relacionado de `TypedConstExpr`. O
 root liga à aplicação por `generic_application_index`.
-`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-61`. Earlier D2/D3 fields
+`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-71`. Version 71 appends
+a distinct expression for the bounded fixed-width integer
+`try D(exactly: source)` conversion; it does not provide ordinary executable
+error mapping. Earlier D2/D3 fields
 anteriores permanecem append-only; a versão 6 acrescenta records, ranges,
 counts/capacities e relações de module const; a versão 7 acrescenta
 `effective_type` e preserva `declared_type` como annotation source-only para
@@ -1580,9 +1583,11 @@ a malformed label fails before output. All final-source public gates pass:
 C23 and Rust 2024 are correctness references with runtime operands, while W
 uses constants, so this is `correctness-reference-no-ranking`, not a
 performance result. W-1641 closes only the fixed-width `truncatingBits:`
-subset of W-389. `exactly:`, `rounding:`, `saturating:`, float conversion,
-`usize`/`isize`, 128-bit integers, target-general aliases, stable ABI/FFI,
-other targets, and equivalent runtime work remain gaps.
+subset of W-389. W-1650 separately adds bounded typed lowering for fixed-width
+integer `try D(exactly: source)`; it does not provide ordinary executable
+emission. Rounding, floating conversion policies, `usize`/`isize`, 128-bit
+integers, target-general aliases, stable ABI/FFI, other targets, and equivalent
+runtime work remain gaps.
 
 ### Straight-line local mutation as SSA (W-1554)
 
@@ -2936,8 +2941,32 @@ before output. ProductClosure0 deliberately rejects this value kind.
 
 C23 and Rust 2024 are correctness references only, with no ranking.
 `benchmarkDisposition: deferred` until equivalent runtime work permits fair
-measurement. Other conversion policies, target-general aliases, stable
-ABI/FFI, other targets, and performance remain gaps.
+measurement. W-1650 separately adds only compiler-lifecycle typed-lowering
+evidence for fixed-width integer `exactly:`; it does not widen this saturating
+slice or enable ordinary executable emission. Other conversion policies,
+target-general aliases, stable ABI/FFI, other targets, and performance remain
+gaps.
+
+### Fixed-width integer exactly-conversion typed lowering (W-1650)
+
+W-1650 implements the existing plain `try D(exactly: source)` form for all 100
+source/destination pairs across signed and unsigned 8/16/32/64-bit integers
+plus the current x86-64 `Int`/`UInt` aliases. It adds no syntax. `try?`, float
+conversion, `usize`/`isize`, and 128-bit integers remain outside this slice.
+
+Frontend71 preserves the conversion as a distinct expression. Verified HIR92
+owns a typed three-block success/error split with canonical core
+`NumericConversionError.outOfRange`; NativeSubset0 independently rederives the
+supported integer type facts. The private MLIR artifact is
+`w-seed-mlir0-integer-exactly-1`. The `--emit-integer-exactly` probe is checked
+by `tooling/check-mlir0.mjs` through `mlir-opt --verify-each` and
+`mlir-translate`, including the translated LLVM range predicates and branch.
+
+ProductClosure0 still rejects this terminator, and ordinary executable
+emission remains unsupported until an unhandled `NumericConversionError` has
+a canonical process-root mapping. This is compiler-lifecycle correctness
+evidence only: no public native execution, benchmark, timing, catch, cleanup,
+or ABI claim is made. `benchmarkDisposition: compiler-lifecycle`.
 
 ### Strict `f32`/`f64` scalar slice (W-1645)
 
@@ -3002,8 +3031,10 @@ invalid `i32 -> f32` source to fail before output.
 C23 and Rust 2024 are correctness references only. The current W witness may
 fold its complete expression graph while those references retain runtime
 operands, so this row is `not-performance-ready` and publishes no ranking.
-`exactly:`, `rounding:`, floating `saturating:`, stable ABI/FFI, other targets,
-and equivalent runtime work remain gaps.
+Fallible `exactly:` conversion remains outside W-1646 except for W-1650's
+bounded fixed-width integer typed-lowering slice; ordinary executable error
+mapping remains unsupported. `rounding:`, floating `saturating:`, stable
+ABI/FFI, other targets, and equivalent runtime work remain gaps.
 
 ### Floating bit representation bridge (W-1647)
 

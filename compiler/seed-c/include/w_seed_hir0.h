@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-91"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-92"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -83,6 +83,9 @@ typedef enum {
   /* Canonical IEEE-754 binary32 identity appended without renumbering the
    * historical f64 and integer type kinds. */
   W_SEED_HIR0_TYPE_F32 = W_SEED_HIR0_TYPE_INTEGER + 1,
+  /* Canonical core NumericConversionError identity used only by the exact
+   * integer-conversion success/error terminator. */
+  W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR = W_SEED_HIR0_TYPE_F32 + 1,
 } w_seed_hir0_type_kind;
 
 typedef enum {
@@ -392,7 +395,16 @@ typedef enum {
   W_SEED_HIR0_TERMINATOR_INVOKE,
   /* Explicit panic with a copied bounded message. */
   W_SEED_HIR0_TERMINATOR_PANIC,
+  /* Partial integer conversion with a typed representability-failure edge.
+   * value_index is the source integer, result_type the destination, and the
+   * normal/error successors receive those respective typed values. */
+  W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY,
 } w_seed_hir0_terminator_kind;
+
+typedef enum {
+  W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_NONE = 0,
+  W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_OUT_OF_RANGE,
+} w_seed_hir0_numeric_conversion_error_case;
 
 typedef enum {
   W_SEED_HIR0_PANIC_CODE_INVALID = 0,
@@ -868,6 +880,8 @@ typedef struct {
   /* Present only for TERMINATOR_PANIC. value_index points at the copied
    * String payload in value_bytes. */
   w_seed_hir0_panic_code panic_code;
+  /* Present only for TERMINATOR_INTEGER_EXACTLY. */
+  w_seed_hir0_numeric_conversion_error_case numeric_conversion_error_case;
 } w_seed_hir0_terminator;
 
 /* One statically-proven lexical cleanup registration.  The registration is

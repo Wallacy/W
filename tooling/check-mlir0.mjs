@@ -472,6 +472,36 @@ try {
     !cleanupLlvmText.includes("invoke "),
   "typed cleanup LLVM translation lost either successor cleanup or compact carrier")
 
+  const integerExactly = run(unitPath, ["--emit-integer-exactly"])
+  assert(integerExactly.exitCode === 0,
+    `integer exactly probe failed: ${integerExactly.stderrText}`)
+  assert(integerExactly.stderr.length === 0 && integerExactly.stdout.length > 0,
+    "integer exactly probe did not emit one silent MLIR artifact")
+  const integerExactlyInput = resolve(artifactDirectory, "integer-exactly.mlir")
+  const integerExactlyVerified = resolve(artifactDirectory,
+    "integer-exactly.verified.mlir")
+  const integerExactlyLlvm = resolve(artifactDirectory, "integer-exactly.ll")
+  await writeFile(integerExactlyInput, integerExactly.stdout)
+  const integerExactlyInputForTool = isWindows
+    ? wslPath(integerExactlyInput) : integerExactlyInput
+  const integerExactlyVerifiedForTool = isWindows
+    ? wslPath(integerExactlyVerified) : integerExactlyVerified
+  const integerExactlyLlvmForTool = isWindows
+    ? wslPath(integerExactlyLlvm) : integerExactlyLlvm
+  invokeTool(tool("mlirOpt"), [integerExactlyInputForTool, "-o",
+    integerExactlyVerifiedForTool, "--verify-each"], "integer exactly mlir-opt")
+  invokeTool(tool("mlirTranslate"), ["--mlir-to-llvmir",
+    integerExactlyVerifiedForTool, "-o", integerExactlyLlvmForTool],
+  "integer exactly mlir-translate")
+  const integerExactlyLlvmText = await readFile(integerExactlyLlvm, "utf8")
+  assert(integerExactlyLlvmText.includes(
+    "define internal { i1, i64 } @w_seed_exact_integer_convert") &&
+    integerExactlyLlvmText.includes("icmp ule i64") &&
+    integerExactlyLlvmText.includes("9223372036854775807") &&
+    integerExactlyLlvmText.includes("br i1") &&
+    !integerExactlyLlvmText.includes("invoke "),
+  "integer exactly LLVM translation lost the checked typed branch")
+
   const seedGate = resolve(buildDirectory, `w_seed_mlir0_gate${suffix}`)
   const restaurantPath = resolve(artifactDirectory, "restaurant.w")
   const restaurantLiteralPath = resolve(artifactDirectory, "restaurant-literal.w")

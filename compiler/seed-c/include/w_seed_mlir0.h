@@ -55,6 +55,12 @@ extern "C" {
 #define W_SEED_MLIR0_TYPED_CLEANUP_SCHEMA_VERSION \
   "w-seed-mlir0-typed-cleanup-1"
 #define W_SEED_MLIR0_TYPED_PROPAGATION_CARRIER_FIELDS 2u
+/* Private compiler-lifecycle artifact for the bounded integer exactly
+ * conversion CFG. The outcome bit identifies NumericConversionError.outOfRange
+ * and the destination payload is zero on that error arm; this is not a W ABI. */
+#define W_SEED_MLIR0_INTEGER_EXACTLY_SCHEMA_VERSION \
+  "w-seed-mlir0-integer-exactly-1"
+#define W_SEED_MLIR0_INTEGER_EXACTLY_CARRIER_FIELDS 2u
 /* The unsuffixed aliases retain the byte-for-byte Linux seed contract. */
 #define W_SEED_MLIR0_TARGET_TRIPLE W_SEED_MLIR0_TARGET_TRIPLE_LINUX
 /* The dynamic seed artifact covers the bounded NativeSubset0 value and
@@ -224,6 +230,30 @@ typedef struct {
   size_t capacity;
 } w_seed_mlir0_typed_propagation_output;
 
+typedef struct {
+  size_t mlir_bytes;
+  uint16_t source_bit_width;
+  uint16_t destination_bit_width;
+  uint32_t representability_predicate_count;
+  uint32_t typed_branch_count;
+  uint32_t carrier_field_count;
+  bool source_is_signed;
+  bool destination_is_signed;
+} w_seed_mlir0_integer_exactly_counts;
+
+typedef struct {
+  w_seed_mlir0_status status;
+  w_seed_mlir0_integer_exactly_counts required;
+  w_seed_mlir0_integer_exactly_counts written;
+  uint8_t hir_semantic_digest[32];
+  uint8_t mlir_sha256[32];
+} w_seed_mlir0_integer_exactly_result;
+
+typedef struct {
+  uint8_t *bytes;
+  size_t capacity;
+} w_seed_mlir0_integer_exactly_output;
+
 /* Return true only for the explicit Linux or Windows target schemas. */
 bool w_seed_mlir0_target_is_supported(const w_seed_mlir0_target *target);
 
@@ -371,6 +401,28 @@ bool w_seed_mlir0_verify_typed_propagation(
     const w_seed_mlir0_target *target, const uint8_t *artifact,
     size_t artifact_bytes,
     const w_seed_mlir0_typed_propagation_result *result);
+
+/* Emit one private LLVM-dialect conversion function from the closed HIR
+ * exactly-conversion CFG. Range predicates use the logical source type before
+ * truncation/extension, and both typed outcomes remain explicit control-flow
+ * successors. No process root, public error ABI, heap, or CRT is implied. */
+w_seed_mlir0_status w_seed_mlir0_measure_integer_exactly(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_mlir0_target *target,
+    w_seed_mlir0_integer_exactly_counts *counts,
+    w_seed_mlir0_integer_exactly_result *result);
+
+w_seed_mlir0_status w_seed_mlir0_emit_integer_exactly(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_mlir0_target *target,
+    const w_seed_mlir0_integer_exactly_output *output,
+    w_seed_mlir0_integer_exactly_result *result);
+
+bool w_seed_mlir0_verify_integer_exactly(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_mlir0_target *target, const uint8_t *artifact,
+    size_t artifact_bytes,
+    const w_seed_mlir0_integer_exactly_result *result);
 
 #ifdef __cplusplus
 }

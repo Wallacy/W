@@ -2068,7 +2068,7 @@ static bool test_implicit_integer_widen_hir(void) {
 }
 
 static bool test_float_bits_hir(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-91") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-92") == 0);
   static const char SOURCE[] =
       "fn from32(bits: u32): f32 { let stored: f32 = f32.fromBits(bits) "
       "return stored }\n"
@@ -2303,7 +2303,7 @@ static bool test_float_bits_hir(void) {
 }
 
 static bool test_numeric_widen_hir(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-91") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-92") == 0);
   typedef struct {
     const char *source_name;
     bool source_is_float;
@@ -10201,6 +10201,170 @@ static bool test_typed_invoke_hir(void) {
   return true;
 }
 
+static bool test_integer_exactly_hir(void) {
+  static const char *const INTEGER_TYPES[] = {
+      "i8", "u8", "i16", "u16", "i32", "u32", "i64", "u64", "Int",
+      "UInt"};
+  static const bool INTEGER_SIGNED[] = {
+      true, false, true, false, true, false, true, false, true, false};
+  static const uint16_t INTEGER_WIDTHS[] = {
+      8u, 8u, 16u, 16u, 32u, 32u, 64u, 64u, 64u, 64u};
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-92") == 0);
+  for (size_t source = 0u;
+       source < sizeof(INTEGER_TYPES) / sizeof(INTEGER_TYPES[0]);
+       source += 1u) {
+    for (size_t destination = 0u;
+         destination < sizeof(INTEGER_TYPES) / sizeof(INTEGER_TYPES[0]);
+         destination += 1u) {
+      char source_text[512];
+      const int written = snprintf(
+          source_text, sizeof(source_text),
+          "fn convert(value: %s): %s throws NumericConversionError { "
+          "return try %s(exactly: value) }\nentry { }\n",
+          INTEGER_TYPES[source], INTEGER_TYPES[destination],
+          INTEGER_TYPES[destination]);
+      CHECK(written > 0 && (size_t)written < sizeof(source_text));
+      CHECK(lower(source_text));
+      const w_seed_hir0_program *program = &fixture.hir_program;
+      CHECK(program->function_count == 2u && program->block_count == 4u &&
+            program->call_count == 0u && program->cleanup_count == 0u &&
+            program->block_argument_count == 2u &&
+            program->terminator_count == 4u && program->value_count == 3u);
+      const w_seed_hir0_function *convert = &program->functions[0];
+      const uint32_t split_block = convert->first_block;
+      const uint32_t normal_block = split_block + 1u;
+      const uint32_t error_block = split_block + 2u;
+      const w_seed_hir0_terminator *split =
+          &program->terminators[split_block];
+      CHECK(convert->is_throws &&
+            convert->suspension == W_SEED_HIR0_SUSPENSION_NEVER &&
+            convert->direct_entry == W_SEED_HIR0_DIRECT_ENTRY_ABSENT &&
+            convert->error_type < program->type_count &&
+            program->types[convert->error_type].kind ==
+                W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR &&
+            program->types[convert->error_type].lifecycle ==
+                W_SEED_HIR0_LIFECYCLE_VALUE_COPY &&
+            program->types[convert->error_type].release_contract ==
+                W_SEED_HIR0_RELEASE_CONTRACT_NONE &&
+            hir_text_is(program, program->types[convert->error_type].name,
+                        "NumericConversionError") &&
+            split->kind == W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY &&
+            split->call_index == W_SEED_HIR0_NONE &&
+            split->error_type == convert->error_type &&
+            split->target_block == normal_block &&
+            split->else_block == error_block &&
+            split->numeric_conversion_error_case ==
+                W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_OUT_OF_RANGE);
+      bool source_signed = false;
+      uint16_t source_width = 0u;
+      bool destination_signed = false;
+      uint16_t destination_width = 0u;
+      CHECK(hir_integer_type_facts(
+                program, program->values[split->value_index].type_index,
+                &source_signed, &source_width) &&
+            source_signed == INTEGER_SIGNED[source] &&
+            source_width == INTEGER_WIDTHS[source] &&
+            hir_integer_type_facts(program, split->result_type,
+                                   &destination_signed,
+                                   &destination_width) &&
+            destination_signed == INTEGER_SIGNED[destination] &&
+            destination_width == INTEGER_WIDTHS[destination]);
+      const w_seed_hir0_block_argument *normal_argument =
+          &program->block_arguments[
+              program->blocks[normal_block].first_block_argument];
+      const w_seed_hir0_block_argument *error_argument =
+          &program->block_arguments[
+              program->blocks[error_block].first_block_argument];
+      CHECK(normal_argument->type_index == split->result_type &&
+            error_argument->type_index == convert->error_type &&
+            program->terminators[normal_block].kind ==
+                W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+            program->terminators[error_block].kind ==
+                W_SEED_HIR0_TERMINATOR_THROW &&
+            program->values[program->terminators[normal_block].value_index]
+                    .kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+            program->values[program->terminators[error_block].value_index]
+                    .kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+            w_seed_hir0_verify(program, &fixture.hir_result));
+    }
+  }
+
+  static const char MUTATION_SOURCE[] =
+      "fn convert(value: i16): i8 throws NumericConversionError { "
+      "return try i8(exactly: value) }\nentry { }\n";
+  CHECK(lower(MUTATION_SOURCE));
+  w_seed_hir0_program *program = &fixture.hir_program;
+  const w_seed_hir0_function *convert = &program->functions[0];
+  const uint32_t split_block = convert->first_block;
+  const uint32_t normal_block = split_block + 1u;
+  const uint32_t error_block = split_block + 2u;
+  const w_seed_hir0_terminator saved_split = fixture.hir_terminators[split_block];
+  const w_seed_hir0_function saved_convert = fixture.hir_functions[0];
+  const w_seed_hir0_block_argument saved_normal_argument =
+      fixture.hir_block_arguments[
+          program->blocks[normal_block].first_block_argument];
+  const w_seed_hir0_block_argument saved_error_argument =
+      fixture.hir_block_arguments[
+          program->blocks[error_block].first_block_argument];
+
+  fixture.hir_terminators[split_block].numeric_conversion_error_case =
+      W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_NONE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[split_block] = saved_split;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_terminators[split_block].target_block = error_block;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[split_block] = saved_split;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_terminators[split_block].call_index = 0u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[split_block] = saved_split;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_terminators[split_block].error_type = split_block;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[split_block] = saved_split;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_block_arguments[program->blocks[normal_block]
+                                  .first_block_argument]
+      .type_index = convert->error_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_block_arguments[program->blocks[normal_block]
+                                  .first_block_argument] = saved_normal_argument;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_block_arguments[program->blocks[error_block]
+                                  .first_block_argument]
+      .type_index = saved_split.result_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_block_arguments[program->blocks[error_block]
+                                  .first_block_argument] = saved_error_argument;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_functions[0].error_type = saved_split.result_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_functions[0] = saved_convert;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_typed_invoke_cleanup_hir(void) {
   static const char SOURCE[] =
       "enum Failure: Error { denied }\n"
@@ -15908,7 +16072,7 @@ static bool test_explicit_integer_saturating_hir(void) {
 }
 
 static bool test_checked_integer_arithmetic_hir_matrix(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-91") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-92") == 0);
   typedef struct {
     const char *name;
     const char *suffix;
@@ -18864,6 +19028,7 @@ int main(int argc, char **argv) {
   if (!test_local_enum_hir()) return 1;
   if (!test_typed_throw_hir()) return 1;
   if (!test_typed_invoke_hir()) return 1;
+  if (!test_integer_exactly_hir()) return 1;
   if (!test_local_enum_payload_declarations_hir()) return 1;
   if (!test_local_enum_payload_constructor_hir()) return 1;
   if (!test_enum_switch_hir()) return 1;
