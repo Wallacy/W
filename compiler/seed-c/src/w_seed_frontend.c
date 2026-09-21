@@ -13030,11 +13030,17 @@ static bool expression_append(frontend_expression_parser *parser,
   record.inferred_type = W_SEED_FRONTEND_NONE;
   record.conversion_source_type = W_SEED_FRONTEND_NONE;
   record.conversion_destination_type = W_SEED_FRONTEND_NONE;
-  record.enum_index = value->is_enum_case
+  /* Only a case node itself or its immediately following constructor call
+   * carries parser-local case identity. Other expression kinds may append into
+   * a fresh output value, whose carry-over flags are intentionally unread. */
+  const bool carries_enum_case =
+      kind == W_SEED_FRONTEND_EXPR_ENUM_CASE ||
+      (kind == W_SEED_FRONTEND_EXPR_CALL && value->is_enum_case);
+  record.enum_index = carries_enum_case
                           ? value->enum_index
                           : (frontend_type_is_enum(type) ? type.enum_index
                                                          : W_SEED_FRONTEND_NONE);
-  record.enum_case_index = value->is_enum_case
+  record.enum_case_index = carries_enum_case
                                ? value->enum_case_index
                                : W_SEED_FRONTEND_NONE;
   record.first_switch_arm = W_SEED_FRONTEND_NONE;
@@ -16309,6 +16315,14 @@ static bool expression_parse_prefix(frontend_expression_parser *parser,
       parser->depth >= W_SEED_FRONTEND_MAX_NESTING) {
     return false;
   }
+  /* Prefix forms such as try/await/unary operators append into the caller's
+   * destination without first passing through expression_parse_primary().
+   * Give that destination a valid C representation before expression_append
+   * consults carry-over flags used by postfix enum constructors. */
+  (void)memset(value, 0, sizeof(*value));
+  value->index = W_SEED_FRONTEND_NONE;
+  value->enum_index = W_SEED_FRONTEND_NONE;
+  value->enum_case_index = W_SEED_FRONTEND_NONE;
   parser->depth += 1u;
   const bool result = expression_parse_prefix_inner(parser, value);
   parser->depth -= 1u;
