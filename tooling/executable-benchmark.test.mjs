@@ -272,6 +272,31 @@ test("source-local expected-output comments are opt-in and exact", () => {
   ), ["drifted source: Expected stdout must match the catalog oracle exactly."]);
 });
 
+test("platform-minimal Hello stays a separate correctness-only comparison across supported x64 targets", () => {
+  const workload = documents.catalog.workloads.find((item) => item.id === "hello-platform-minimal");
+  assert.ok(workload);
+  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.equal(workload.lane, "equivalent");
+  assert.match(workload.scope, /platform-minimal Hello correctness comparison/u);
+  assert.match(workload.scope, /not an idiomatic C\/Rust baseline or language ranking/u);
+  assert.deepEqual(workload.blockedLanguages, []);
+  assert.deepEqual(workload.oracle, {
+    kind: "exact-output", status: "source-backed", exitCode: 0,
+    stdout: "Hello, world!\n", stderr: "",
+  });
+  assert.deepEqual(workload.sources.map((source) => `${source.language}/${source.platformTarget}`).sort(), [
+    "c/linux-wsl-x64", "c/windows-x64", "rust/linux-wsl-x64", "rust/windows-x64",
+    "w/linux-wsl-x64", "w/windows-x64",
+  ]);
+  assert.ok(workload.sources.every((source) => source.recipeClass === "hello-platform-minimal"));
+  assert.ok(workload.sources.filter((source) => source.language === "w").every((source) =>
+    source.recipe === "public-w-build-release"));
+  assert.ok(workload.sources.filter((source) => source.language === "c").every((source) =>
+    source.recipe === "clang-c23-freestanding"));
+  assert.ok(workload.sources.filter((source) => source.language === "rust").every((source) =>
+    source.recipe === "rustc-edition-2024-no-std"));
+});
+
 test("every public Windows runnable fixture has an executable benchmark owner", () => {
   const missing = clone(documents.catalog);
   const workload = missing.workloads.find((item) => item.id === "restaurant-enum-switch");

@@ -26,6 +26,10 @@ test("benchmark facade exposes update and preserves bounded run arguments", () =
   assert.deepEqual(parseBenchmarkCliArguments(["run", "--target", "hello", "--platform", "linux-wsl-x64"]), {
     command: "run", target: "hello", language: "w", platform: "linux-wsl-x64", output: "benchmarks/results/hello-w-linux-wsl-x64.local.json", warmup: 1, compileSamples: 9, runSamples: 101,
   });
+  assert.deepEqual(parseBenchmarkCliArguments(["run", "--target", "hello-platform-minimal", "--language", "rust", "--platform", "linux-wsl-x64"]), {
+    command: "run", target: "hello-platform-minimal", language: "rust", platform: "linux-wsl-x64", output: "benchmarks/results/hello-platform-minimal-rust-linux-wsl-x64.local.json", warmup: 1, compileSamples: 9, runSamples: 101,
+  });
+  assert.throws(() => parseBenchmarkCliArguments(["run", "--target", "hello", "--language", "c", "--platform", "linux-wsl-x64"]), /hello-platform-minimal/u);
   assert.deepEqual(parseBenchmarkCliArguments(["run", "--target", "process-handler-lifecycle", "--language", "w"]), {
     command: "run", target: "process-handler-lifecycle", language: "w", platform: "windows-x64", output: "benchmarks/results/process-handler-lifecycle-w.local.json", warmup: 1, compileSamples: 9, runSamples: 101,
   });

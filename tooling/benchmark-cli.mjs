@@ -7,6 +7,7 @@ import {
   EXECUTABLE_RUN_TARGETS,
   EXECUTABLE_PLATFORM_TARGET_WINDOWS,
   EXECUTABLE_PLATFORM_TARGET_LINUX_WSL,
+  HELLO_PLATFORM_MINIMAL_WORKLOAD_ID,
   executableWorkloadHasRunner,
   pruneExecutableBestMetrics,
   updateExecutableBestMetrics,
@@ -105,8 +106,9 @@ export function parseBenchmarkCliArguments(argv) {
   if (![EXECUTABLE_PLATFORM_TARGET_WINDOWS, EXECUTABLE_PLATFORM_TARGET_LINUX_WSL].includes(result.platform)) {
     fail(`unsupported platform: ${result.platform}`);
   }
-  if (result.platform === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL && result.language !== "w") {
-    fail("linux-wsl-x64 currently supports only public W sources");
+  if (result.platform === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL && result.language !== "w" &&
+      result.target !== HELLO_PLATFORM_MINIMAL_WORKLOAD_ID) {
+    fail("linux-wsl-x64 supports C and Rust only for hello-platform-minimal");
   }
   result.output ??= `benchmarks/results/${result.target}-${result.language}${result.platform === EXECUTABLE_PLATFORM_TARGET_WINDOWS ? "" : `-${result.platform}`}.local.json`;
   return result;
@@ -124,7 +126,7 @@ export function benchmarkUsage() {
     "  check",
     "  gpu0 [run|check] [--warmups N] [--samples odd-N]",
     "",
-    "Run measures one selected source with its catalog oracle. The default is native Windows x64. --platform linux-wsl-x64 selects the catalog's Linux source and cross-builds its ELF on this Windows host; production runtime samples execute in one native-helper batch from WSL-native /tmp and use Linux CLOCK_MONOTONIC plus wait4, excluding wsl.exe startup and DrvFS target access from each sample. Each sample still launches a fresh target process, so Run p50/p95 are product-invocation costs rather than in-process body-throughput measurements; a persistent body lane will use a distinct protocol. The WSL lane is same-physical-hardware diagnostic-only, never native-Linux or cross-host ranking evidence. Public C requires Clang with final C23, the MSVC ABI, and the DLL runtime; only process-handler-lifecycle retains its private GCC/MinGW composite. Rust uses rustc edition 2024 for the MSVC ABI. W uses the public w build Release source-to-PE candidate for Windows and the pinned Linux/WSL public build route for the explicit WSL lane; public process argument workloads, including process-entry, use their argument-dependent oracle; process-handler-lifecycle remains contextual/non-ranking; public-w-run targets require retained-artifact and separate compile-run support.",
+    "Run measures one selected source with its catalog oracle. The default is native Windows x64. --platform linux-wsl-x64 selects the catalog's Linux source and cross-builds its ELF on this Windows host; production runtime samples execute in one native-helper batch from WSL-native /tmp and use Linux CLOCK_MONOTONIC plus wait4, excluding wsl.exe startup and DrvFS target access from each sample. Each sample still launches a fresh target process, so Run p50/p95 are product-invocation costs rather than in-process body-throughput measurements; a persistent body lane will use a distinct protocol. The WSL lane is same-physical-hardware diagnostic-only, never native-Linux or cross-host ranking evidence. Public C uses Clang with final C23, the MSVC ABI, and the DLL runtime; Rust uses rustc edition 2024 for the MSVC ABI. The separate hello-platform-minimal workload permits freestanding C23 and Rust 2024 no_std sources on Windows and cross-target WSL; it uses direct OS entry/write/exit, links without CRT/libc where supported, and is correctness/contextual evidence rather than a language ranking or idiomatic baseline. Only process-handler-lifecycle retains its private GCC/MinGW composite. W uses the public w build Release source-to-PE candidate for Windows and the pinned Linux/WSL public build route for the explicit WSL lane; public process argument workloads, including process-entry, use their argument-dependent oracle; process-handler-lifecycle remains contextual/non-ranking; public-w-run targets require retained-artifact and separate compile-run support.",
   ].join("\n");
 }
 

@@ -57,6 +57,151 @@ export const RUST_RELEASE_FLAGS = Object.freeze([
   "-C", "link-arg=/DEBUG:NONE",
 ]);
 
+export const PLATFORM_MINIMAL_C_RECIPE = "clang-c23-freestanding";
+export const PLATFORM_MINIMAL_RUST_RECIPE = "rustc-edition-2024-no-std";
+
+const PLATFORM_MINIMAL_C_WINDOWS_FLAGS = Object.freeze([
+  "--target=x86_64-pc-windows-msvc",
+  "-O3",
+  "-flto=full",
+  "-ffunction-sections",
+  "-fdata-sections",
+  "-ffreestanding",
+  "-fno-builtin",
+  "-fno-stack-protector",
+  "-fno-unwind-tables",
+  "-fno-asynchronous-unwind-tables",
+  "-fno-ident",
+  "-fuse-ld=lld",
+  "-nostdlib",
+  "-Wl,/Brepro",
+  "-Wl,/ENTRY:w_entry",
+  "-Wl,/SUBSYSTEM:CONSOLE",
+  "-Wl,/MACHINE:X64",
+  "-Wl,/OPT:REF",
+  "-Wl,/OPT:ICF",
+  "-Wl,/INCREMENTAL:NO",
+  "-Wl,/DEBUG:NONE",
+  "-lkernel32",
+]);
+
+const PLATFORM_MINIMAL_C_LINUX_FLAGS = Object.freeze([
+  "--target=x86_64-unknown-linux-gnu",
+  "-O3",
+  "-flto=full",
+  "-ffunction-sections",
+  "-fdata-sections",
+  "-ffreestanding",
+  "-fno-builtin",
+  "-fno-stack-protector",
+  "-fno-unwind-tables",
+  "-fno-asynchronous-unwind-tables",
+  "-fno-ident",
+  "-fuse-ld=lld",
+  "-nostdlib",
+  "-static",
+  "-Wl,-e,_start",
+  "-Wl,--gc-sections",
+  "-Wl,--strip-all",
+  "-Wl,--build-id=none",
+]);
+
+const PLATFORM_MINIMAL_RUST_COMMON_FLAGS = Object.freeze([
+  "--edition=2024",
+  "-C", "opt-level=3",
+  "-C", "lto=fat",
+  "-C", "codegen-units=1",
+  "-C", "panic=abort",
+  "-C", "debuginfo=0",
+  "-C", "strip=symbols",
+  "-C", "link-dead-code=no",
+]);
+
+const PLATFORM_MINIMAL_RUST_WINDOWS_FLAGS = Object.freeze([
+  "-C", "default-linker-libraries=no",
+  "-C", "link-arg=/ENTRY:w_entry",
+  "-C", "link-arg=/SUBSYSTEM:CONSOLE",
+  "-C", "link-arg=/MACHINE:X64",
+  "-C", "link-arg=/OPT:REF",
+  "-C", "link-arg=/OPT:ICF",
+  "-C", "link-arg=/INCREMENTAL:NO",
+  "-C", "link-arg=/DEBUG:NONE",
+  "-C", "link-arg=/DEFAULTLIB:kernel32.lib",
+]);
+
+function platformMinimalLinuxRustFlags(linker) {
+  if (typeof linker !== "string" || linker.length === 0) {
+    throw new TypeError("platform-minimal Linux Rust recipe requires an LLD linker");
+  }
+  return [
+    "-C", "force-unwind-tables=no",
+    "-C", "linker-flavor=ld.lld",
+    "-C", `linker=${linker}`,
+    "-C", "default-linker-libraries=no",
+    "-C", "link-arg=-static",
+    "-C", "link-arg=--no-pie",
+    "-C", "link-arg=-e",
+    "-C", "link-arg=_start",
+    "-C", "link-arg=--gc-sections",
+    "-C", "link-arg=--strip-all",
+    "-C", "link-arg=--build-id=none",
+  ];
+}
+
+export function platformMinimalCFlags(platformTarget, dialectFlag = "-std=c23") {
+  if (!["windows-x64", "linux-wsl-x64"].includes(platformTarget)) {
+    throw new TypeError(`unsupported platform-minimal C target: ${platformTarget}`);
+  }
+  if (dialectFlag !== "-std=c23") {
+    throw new TypeError(`platform-minimal C requires final C23 mode, got ${dialectFlag}`);
+  }
+  return [
+    ...(platformTarget === "windows-x64" ? PLATFORM_MINIMAL_C_WINDOWS_FLAGS : PLATFORM_MINIMAL_C_LINUX_FLAGS),
+    dialectFlag,
+  ];
+}
+
+export function platformMinimalRustFlags(platformTarget, linker = undefined) {
+  if (!["windows-x64", "linux-wsl-x64"].includes(platformTarget)) {
+    throw new TypeError(`unsupported platform-minimal Rust target: ${platformTarget}`);
+  }
+  const target = platformTarget === "windows-x64"
+    ? "x86_64-pc-windows-msvc"
+    : "x86_64-unknown-linux-gnu";
+  return [
+    ...PLATFORM_MINIMAL_RUST_COMMON_FLAGS,
+    `--target=${target}`,
+    ...(platformTarget === "windows-x64"
+      ? PLATFORM_MINIMAL_RUST_WINDOWS_FLAGS
+      : platformMinimalLinuxRustFlags(linker)),
+  ];
+}
+
+export function platformMinimalRecipeExamples(linker = "<host-ld.lld>") {
+  return [
+    {
+      language: "C23",
+      platform: "Windows x64 / MSVC",
+      command: `clang ${platformMinimalCFlags("windows-x64").join(" ")} <source> -o <artifact>`,
+    },
+    {
+      language: "Rust 2024",
+      platform: "Windows x64 / MSVC",
+      command: `rustc <source> ${platformMinimalRustFlags("windows-x64").join(" ")} -o <artifact>`,
+    },
+    {
+      language: "C23",
+      platform: "Linux x64 / WSL2",
+      command: `clang ${platformMinimalCFlags("linux-wsl-x64").join(" ")} <source> -o <artifact>`,
+    },
+    {
+      language: "Rust 2024",
+      platform: "Linux x64 / WSL2",
+      command: `rustc <source> ${platformMinimalRustFlags("linux-wsl-x64", linker).join(" ")} -o <artifact>`,
+    },
+  ];
+}
+
 export const W_MLIR_OPT_FLAGS = Object.freeze([
   "--verify-each",
   "--canonicalize",

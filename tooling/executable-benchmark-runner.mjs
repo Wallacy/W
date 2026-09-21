@@ -35,6 +35,8 @@ import {
   PROCESS_ENTRY0_SUPPORT_ROLES,
   PROCESS_ENTRY0_TIMED_INPUT,
   PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID,
+  HELLO_PLATFORM_MINIMAL_RECIPE_CLASS,
+  HELLO_PLATFORM_MINIMAL_WORKLOAD_ID,
   PUBLIC_C_RECIPE,
   ROOT,
   executableEquivalenceKey,
@@ -58,6 +60,10 @@ import {
   C_WHOLE_PROGRAM_FLAG,
   CLANG_C_TARGET,
   RUST_RELEASE_FLAGS,
+  PLATFORM_MINIMAL_C_RECIPE,
+  PLATFORM_MINIMAL_RUST_RECIPE,
+  platformMinimalCFlags,
+  platformMinimalRustFlags,
   cReleaseFlags,
   clangReleaseFlags,
   W_LLC_FLAGS,
@@ -323,8 +329,9 @@ export function parseBenchmarkArguments(argv) {
   if (![EXECUTABLE_PLATFORM_TARGET_WINDOWS, EXECUTABLE_PLATFORM_TARGET_LINUX_WSL].includes(result.platform)) {
     fail(`unsupported platform: ${result.platform}`);
   }
-  if (result.platform === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL && result.language !== "w") {
-    fail("linux-wsl-x64 currently supports only public W sources");
+  if (result.platform === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL && result.language !== "w" &&
+      result.target !== HELLO_PLATFORM_MINIMAL_WORKLOAD_ID) {
+    fail("linux-wsl-x64 supports C and Rust only for hello-platform-minimal");
   }
   if (result.compileSamples % 2 === 0 || result.runSamples % 2 === 0) fail("sample counts must be odd");
   return result;
@@ -336,7 +343,7 @@ export function benchmarkUsage() {
     "",
     "Options: --target <runnable-catalog-id> (default hello), --language w|c|rust (default w), --platform windows-x64|linux-wsl-x64 (default windows-x64), --warmup <n> (default 1), --compile-samples <odd n> (default 9), --run-samples <odd n> (default 101). --samples sets both counts.",
     "The output must be a new JSON file under benchmarks/results.",
-    "The default is Windows x86_64 exploratory executable evidence. --platform linux-wsl-x64 selects the catalog's Linux public W source and cross-builds its ELF on this Windows host; production run samples execute as a single native-helper batch from WSL-native /tmp under Linux CLOCK_MONOTONIC/wait4, excluding wsl.exe startup and DrvFS target access from each sample. Each timed sample still launches a fresh target process, so Run p50/p95 are product-invocation costs, not in-process body throughput. That lane is same-physical-hardware diagnostic-only and same-host-only. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses the public w build Release source-to-PE candidate on Windows and the pinned Linux/WSL public build route on WSL2; process-argument workloads validate all declared argument cases before timing and pin the declared timed vector; process-handler-lifecycle uses the private GCC/MinGW handler composite and remains contextual/non-ranking. Public C requires Clang with final C23, the MSVC ABI, and the DLL runtime; Rust uses rustc edition 2024.",
+    "The default is Windows x86_64 exploratory executable evidence. --platform linux-wsl-x64 selects the catalog's Linux source and cross-builds its ELF on this Windows host; production run samples execute as a single native-helper batch from WSL-native /tmp under Linux CLOCK_MONOTONIC/wait4, excluding wsl.exe startup and DrvFS target access from each sample. Each timed sample still launches a fresh target process, so Run p50/p95 are product-invocation costs, not in-process body throughput. That lane is same-physical-hardware diagnostic-only and same-host-only. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses the public w build Release source-to-PE candidate on Windows and the pinned Linux/WSL public build route on WSL2; process-argument workloads validate all declared argument cases before timing and pin the declared timed vector; process-handler-lifecycle uses the private GCC/MinGW handler composite and remains contextual/non-ranking. Public C requires Clang with final C23, the MSVC ABI, and the DLL runtime; Rust uses rustc edition 2024. The isolated hello-platform-minimal correctness comparison enables freestanding C23 and Rust 2024 no_std on Windows and cross-target WSL, without CRT/libc where supported; its hand-selected entry/write/exit paths are not idiomatic language baselines or a language ranking.",
     `Timeout guard: ${EXECUTABLE_TIMEOUT_STATUS}.`,
   ].join("\n");
 }
@@ -1143,8 +1150,12 @@ function normalizeCompilerCommandOverride(override, language) {
   return { command: override.command };
 }
 
-async function resolveCCompiler(executor, dependencies = {}, target = DEFAULT_TARGET) {
+async function resolveCCompiler(executor, dependencies = {}, target = DEFAULT_TARGET,
+                                platformTarget = EXECUTABLE_PLATFORM_TARGET_WINDOWS,
+                                source = undefined) {
   const privateComposite = target === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID;
+  const platformMinimal = source?.recipe === PLATFORM_MINIMAL_C_RECIPE;
+  const linuxCross = platformMinimal && platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL;
   const override = dependencies.testOnlyToolchains?.c;
   let candidates;
   if (override !== undefined) {
@@ -1157,7 +1168,10 @@ async function resolveCCompiler(executor, dependencies = {}, target = DEFAULT_TA
       : undefined;
     candidates = [Bun.which("clang"), installed].filter(Boolean);
   }
-  const expectedTarget = privateComposite ? EXECUTABLE_ARTIFACT_TARGET_MINGW : CLANG_C_TARGET;
+  const expectedTarget = privateComposite ? EXECUTABLE_ARTIFACT_TARGET_MINGW
+    : linuxCross ? EXECUTABLE_ARTIFACT_TARGET_LINUX
+      : CLANG_C_TARGET;
+  const targetArgs = linuxCross ? [`--target=${expectedTarget}`] : [];
   const seen = new Set();
   for (const candidate of candidates) {
     const info = typeof candidate === "string" ? { command: candidate } : candidate;
@@ -1171,10 +1185,11 @@ async function resolveCCompiler(executor, dependencies = {}, target = DEFAULT_TA
         continue;
       }
     }
-    const targetProbe = await executeChild(executor, info.command, ["-dumpmachine"], { cwd: ROOT, stdout: "pipe", stderr: "pipe", windowsHide: true }, `${target} C target probe`);
+    const targetProbe = await executeChild(executor, info.command, [...targetArgs, "-dumpmachine"], { cwd: ROOT, stdout: "pipe", stderr: "pipe", windowsHide: true }, `${target} C target probe`);
     const targetTriple = targetProbe.exitCode === 0 ? outputText(targetProbe.stdout).trim() : "";
     if (targetTriple !== expectedTarget) continue;
     const dialectProbe = await probeCDialect(info.command, {
+      args: targetArgs,
       executor: (command, args, options) => executeChild(executor, command, args, options, `${target} C dialect probe`),
     });
     const dialect = dialectProbe ? normalizeCDialect(dialectProbe) : undefined;
@@ -1188,9 +1203,9 @@ async function resolveCCompiler(executor, dependencies = {}, target = DEFAULT_TA
     const version = parseGccVersion(outputText(Buffer.concat([versionProbe.stdout, versionProbe.stderr])));
     const compilerName = path.basename(info.command).replace(/\.exe$/iu, "").toLowerCase();
     if (!privateComposite && !compilerName.includes("clang")) continue;
-    const family = privateComposite ? "gcc-mingw" : "clang-msvc";
+    const family = privateComposite ? "gcc-mingw" : linuxCross ? "clang-linux-cross" : "clang-msvc";
     let environment;
-    if (!privateComposite) {
+    if (!privateComposite && !linuxCross) {
       if (dependencies.testOnly === true) {
         environment = dependencies.testOnlyCEnvironment;
         if (!isObject(environment)) fail("test-only public C requires an explicit Visual Studio environment fixture");
@@ -1198,7 +1213,7 @@ async function resolveCCompiler(executor, dependencies = {}, target = DEFAULT_TA
         environment = captureVisualStudioEnvironment(findVisualStudio().devCommand);
       }
     }
-    const recipeKind = privateComposite && wholeProgram ? "whole-program" : "portable";
+    const recipeKind = platformMinimal ? "platform-minimal" : privateComposite && wholeProgram ? "whole-program" : "portable";
     const identity = `${identityToken(compilerName, "C compiler")}-${identityToken(version, "C compiler version")}-${identityToken(dialect.name, "C dialect")}-${identityToken(recipeKind, "C release recipe")}-${identityToken(expectedTarget, "C ABI")}`;
     console.error(`executable benchmark: C compiler=${identity}; standard=${dialectDisclosure(dialect)}; ABI=${expectedTarget}`);
     return {
@@ -1214,32 +1229,56 @@ async function resolveCCompiler(executor, dependencies = {}, target = DEFAULT_TA
     };
   }
   if (privateComposite) fail(`C ${target} requires GCC/MinGW targeting ${EXECUTABLE_ARTIFACT_TARGET_MINGW} with -std=c23 or -std=c2x`);
-  fail(`C ${target} requires Clang targeting ${CLANG_C_TARGET} with final -std=c23 support`);
+  fail(`C ${target} requires Clang targeting ${expectedTarget} with final -std=c23 support`);
 }
 
-async function resolveRustCompiler(executor, dependencies = {}, target = DEFAULT_TARGET) {
+async function resolveRustCompiler(executor, dependencies = {}, target = DEFAULT_TARGET,
+                                  source = undefined) {
   const override = dependencies.testOnlyToolchains?.rust;
   const command = override ?? Bun.which("rustc");
   if (command === undefined) fail(`Rust ${target} requires rustc`);
   const info = normalizeCompilerCommandOverride(command, "Rust");
-  const targetProbe = await executeChild(executor, info.command, ["--print", "target-libdir", `--target=${RUST_TARGET}`], { cwd: ROOT, stdout: "pipe", stderr: "pipe", windowsHide: true }, `${target} Rust target probe`);
+  const artifactTarget = source?.artifactTarget ?? RUST_TARGET;
+  const platformMinimal = source?.recipe === PLATFORM_MINIMAL_RUST_RECIPE;
+  const targetProbe = await executeChild(executor, info.command, ["--print", "target-libdir", `--target=${artifactTarget}`], { cwd: ROOT, stdout: "pipe", stderr: "pipe", windowsHide: true }, `${target} Rust target probe`);
   requireSuccess(targetProbe, `${target} Rust target probe`);
+  const targetLibdir = outputText(targetProbe.stdout).trim();
+  let targetLibraries = [];
+  try {
+    targetLibraries = await readdir(targetLibdir);
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+  if (platformMinimal && artifactTarget === EXECUTABLE_ARTIFACT_TARGET_LINUX &&
+      !targetLibraries.some((name) => /^libcore-[a-z0-9]+\.rlib$/u.test(name))) {
+    fail(`Rust Linux target libraries are not installed; run rustup target add ${artifactTarget} before benchmarking ${target}`);
+  }
   const versionProbe = await executeChild(executor, info.command, ["--version", "--verbose"], { cwd: ROOT, stdout: "pipe", stderr: "pipe", windowsHide: true }, `${target} Rust compiler probe`);
   requireSuccess(versionProbe, `${target} Rust compiler probe`);
   const version = parseRustVersion(outputText(Buffer.concat([versionProbe.stdout, versionProbe.stderr])));
   if (version.host !== RUST_TARGET) {
     fail(`Rust compiler host must disclose ${RUST_TARGET}, got ${version.host}`);
   }
-  const identity = `rustc-${identityToken(version.release, "Rust compiler version")}-edition-2024-${identityToken(RUST_TARGET, "Rust ABI")}`;
-  console.error(`executable benchmark: Rust compiler=${identity}; edition=2024; ABI=${RUST_TARGET}`);
+  const linker = platformMinimal && artifactTarget === EXECUTABLE_ARTIFACT_TARGET_LINUX ? Bun.which("ld.lld") : undefined;
+  let linkerVersion;
+  if (platformMinimal && artifactTarget === EXECUTABLE_ARTIFACT_TARGET_LINUX) {
+    if (linker === undefined) fail(`Rust ${target} requires host ld.lld for the Linux x64 static link`);
+    const linkerProbe = await executeChild(executor, linker, ["--version"], { cwd: ROOT, stdout: "pipe", stderr: "pipe", windowsHide: true }, `${target} Rust LLD probe`);
+    requireSuccess(linkerProbe, `${target} Rust LLD probe`);
+    linkerVersion = outputText(Buffer.concat([linkerProbe.stdout, linkerProbe.stderr])).trim().match(/^LLD\s+([^\s(]+)/u)?.[1];
+    if (!linkerVersion) fail(`Rust ${target} LLD probe did not disclose its version`);
+  }
+  const identity = `rustc-${identityToken(version.release, "Rust compiler version")}-edition-2024-${identityToken(artifactTarget, "Rust ABI")}${linkerVersion ? `-lld-${identityToken(linkerVersion, "LLD version")}` : ""}`;
+  console.error(`executable benchmark: Rust compiler=${identity}; edition=2024; ABI=${artifactTarget}${linkerVersion ? `; LLD=${linkerVersion}` : ""}`);
   return {
     language: "rust",
     command: info.command,
-    target: RUST_TARGET,
+    target: artifactTarget,
     version: version.release,
     host: version.host,
     edition: "2024",
     identity,
+    ...(linker === undefined ? {} : { linker, linkerVersion }),
   };
 }
 
@@ -1604,20 +1643,25 @@ async function compileW(context, retain) {
 
 async function compileC(context, retain) {
   const sampleDirectory = await mkdtemp(path.join(context.tempRoot, SAMPLE_DIRECTORY_PREFIX));
-  const artifact = path.join(sampleDirectory, `${context.source.workload.id}-${context.language}.exe`);
+  const artifact = path.join(sampleDirectory, `${context.source.workload.id}-${context.language}${isWslPlatform(context.platformTarget) ? ".elf" : ".exe"}`);
   try {
     const start = process.hrtime.bigint();
-    const step = await timedStep(context.executor, context.languageToolchain.command, [
-      ...dialectArgs(context.languageToolchain.dialect),
-      ...(context.languageToolchain.family === "clang-msvc"
-        ? clangReleaseFlags()
-        : cReleaseFlags(context.languageToolchain)),
-      context.source.filePath,
-      "-o", artifact,
-    ], sampleDirectory, "C compiler", { env: context.languageToolchain.environment });
+    const args = context.source.source.recipe === PLATFORM_MINIMAL_C_RECIPE
+      ? [...platformMinimalCFlags(context.platformTarget, context.languageToolchain.dialect.flag), context.source.filePath, "-o", artifact]
+      : [
+        ...dialectArgs(context.languageToolchain.dialect),
+        ...(context.languageToolchain.family === "clang-msvc"
+          ? clangReleaseFlags()
+          : cReleaseFlags(context.languageToolchain)),
+        context.source.filePath,
+        "-o", artifact,
+      ];
+    const step = await timedStep(context.executor, context.languageToolchain.command,
+      args, sampleDirectory, "C compiler", { env: context.languageToolchain.environment });
     requireSuccess(step, "C compiler");
-    const stats = await regularFile(artifact, "C PE artifact");
-    if (stats.size <= 0) fail("C PE artifact is empty");
+    const artifactKind = isWslPlatform(context.platformTarget) ? "ELF" : "PE";
+    const stats = await regularFile(artifact, `C ${artifactKind} artifact`);
+    if (stats.size <= 0) fail(`C ${artifactKind} artifact is empty`);
     await assertSidecarFree(sampleDirectory, artifact, "C compiler");
     const end = process.hrtime.bigint();
     const sample = chainSample([step], start, end, "C compile");
@@ -1632,19 +1676,24 @@ async function compileC(context, retain) {
 
 async function compileRust(context, retain) {
   const sampleDirectory = await mkdtemp(path.join(context.tempRoot, SAMPLE_DIRECTORY_PREFIX));
-  const artifact = path.join(sampleDirectory, `${context.source.workload.id}-${context.language}.exe`);
+  const artifact = path.join(sampleDirectory, `${context.source.workload.id}-${context.language}${isWslPlatform(context.platformTarget) ? ".elf" : ".exe"}`);
   try {
     const start = process.hrtime.bigint();
-    const step = await timedStep(context.executor, context.languageToolchain.command, [
-      context.source.filePath,
-      "--edition=2024",
-      ...RUST_RELEASE_FLAGS,
-      `--target=${RUST_TARGET}`,
-      "-o", artifact,
-    ], sampleDirectory, "Rust compiler");
+    const args = context.source.source.recipe === PLATFORM_MINIMAL_RUST_RECIPE
+      ? [context.source.filePath, ...platformMinimalRustFlags(context.platformTarget, context.languageToolchain.linker), "-o", artifact]
+      : [
+        context.source.filePath,
+        "--edition=2024",
+        ...RUST_RELEASE_FLAGS,
+        `--target=${RUST_TARGET}`,
+        "-o", artifact,
+      ];
+    const step = await timedStep(context.executor, context.languageToolchain.command,
+      args, sampleDirectory, "Rust compiler");
     requireSuccess(step, "Rust compiler");
-    const stats = await regularFile(artifact, "Rust PE artifact");
-    if (stats.size <= 0) fail("Rust PE artifact is empty");
+    const artifactKind = isWslPlatform(context.platformTarget) ? "ELF" : "PE";
+    const stats = await regularFile(artifact, `Rust ${artifactKind} artifact`);
+    if (stats.size <= 0) fail(`Rust ${artifactKind} artifact is empty`);
     await assertSidecarFree(sampleDirectory, artifact, "Rust compiler");
     const end = process.hrtime.bigint();
     const sample = chainSample([step], start, end, "Rust compile");
@@ -2208,8 +2257,10 @@ async function correctnessBuild(context) {
 
 function protocol(context, workload = undefined) {
   const { language } = context;
-  const compileScope = isWslPlatform(context.platformTarget)
+  const compileScope = isWslPlatform(context.platformTarget) && language === "w"
     ? "W compile wall-clock spans the complete Windows-host public w.exe cross-build interval for the Linux ELF target; direct-process CPU/RSS counters cover w.exe only, and compiler descendants are unavailable."
+    : isWslPlatform(context.platformTarget)
+    ? `${language} compile wall-clock spans the Windows-host cross-target compiler invocation for the Linux ELF target; direct-process CPU/RSS counters cover the selected compiler only, and linker descendants are unavailable.`
     : language === "w"
     ? "W compile wall-clock spans the complete direct w.exe build interval, including its compiler descendants; direct-process CPU/RSS counters cover w.exe only, are non-comparable to C/Rust until process-tree accounting exists, and child process-tree counters are unavailable."
     : `${language} compile measures the direct compiler process only; compiler descendants are not aggregated.`;
@@ -2359,26 +2410,42 @@ function recipeFor(context) {
     };
   }
   if (context.language === "c") {
-    const flags = context.languageToolchain.family === "clang-msvc"
-      ? clangReleaseFlags()
-      : cReleaseFlags(context.languageToolchain);
+    const platformMinimal = context.source.source.recipe === PLATFORM_MINIMAL_C_RECIPE;
+    const flags = platformMinimal
+      ? platformMinimalCFlags(context.platformTarget, context.languageToolchain.dialect.flag)
+      : context.languageToolchain.family === "clang-msvc"
+        ? clangReleaseFlags()
+        : cReleaseFlags(context.languageToolchain);
     return {
       command: path.basename(context.languageToolchain.command).replace(/\.exe$/iu, ""),
       target: context.languageToolchain.target,
-      args: [context.languageToolchain.dialect.flag, ...flags, "<source>", "-o", "<artifact>"],
-      flags: [context.languageToolchain.dialect.flag, ...flags],
+      args: platformMinimal
+        ? [...flags, "<source>", "-o", "<artifact>"]
+        : [context.languageToolchain.dialect.flag, ...flags, "<source>", "-o", "<artifact>"],
+      flags: platformMinimal ? [...flags] : [context.languageToolchain.dialect.flag, ...flags],
       cStandard: dialectDisclosure(context.languageToolchain.dialect),
       artifactAbi: context.languageToolchain.target,
     };
   }
   if (context.language === "rust") {
+    const platformMinimal = context.source.source.recipe === PLATFORM_MINIMAL_RUST_RECIPE;
+    const flags = platformMinimal
+      ? platformMinimalRustFlags(context.platformTarget,
+        context.languageToolchain.linker === undefined
+          ? undefined
+          : path.basename(context.languageToolchain.linker).replace(/\.exe$/iu, ""))
+      : ["--edition=2024", ...RUST_RELEASE_FLAGS, `--target=${RUST_TARGET}`];
     return {
       command: "rustc",
-      target: RUST_TARGET,
-      args: ["<source>", "--edition=2024", ...RUST_RELEASE_FLAGS, `--target=${RUST_TARGET}`, "-o", "<artifact>"],
-      flags: ["--edition=2024", ...RUST_RELEASE_FLAGS, `--target=${RUST_TARGET}`],
+      target: context.languageToolchain.target,
+      args: ["<source>", ...flags, "-o", "<artifact>"],
+      flags,
       edition: "2024",
-      artifactAbi: RUST_TARGET,
+      artifactAbi: context.languageToolchain.target,
+      ...(context.languageToolchain.linkerVersion === undefined ? {} : {
+        linker: path.basename(context.languageToolchain.linker).replace(/\.exe$/iu, ""),
+        linkerVersion: context.languageToolchain.linkerVersion,
+      }),
     };
   }
   fail(`unsupported language: ${context.language}`);
@@ -2487,6 +2554,10 @@ function toolchainProvenance(context) {
     } : undefined,
     edition: context.language === "rust" ? context.languageToolchain.edition : undefined,
     host: context.language === "rust" ? context.languageToolchain.host : undefined,
+    ...(context.language === "rust" && context.languageToolchain.linkerVersion !== undefined ? {
+      linker: path.basename(context.languageToolchain.linker).replace(/\.exe$/iu, ""),
+      linkerVersion: context.languageToolchain.linkerVersion,
+    } : {}),
     target: context.languageToolchain.target,
     artifactAbi: context.source.source.artifactTarget,
   };
@@ -2685,8 +2756,8 @@ async function runBenchmarkUnlocked(options = {}, dependencies = {}) {
   if (![EXECUTABLE_PLATFORM_TARGET_WINDOWS, EXECUTABLE_PLATFORM_TARGET_LINUX_WSL].includes(platformTarget)) {
     fail(`unsupported platform: ${platformTarget}`);
   }
-  if (isWslPlatform(platformTarget) && language !== "w") {
-    fail("linux-wsl-x64 currently supports only public W sources");
+  if (isWslPlatform(platformTarget) && language !== "w" && target !== HELLO_PLATFORM_MINIMAL_WORKLOAD_ID) {
+    fail("linux-wsl-x64 supports C and Rust only for hello-platform-minimal");
   }
   if (!Number.isSafeInteger(warmup) || warmup < 1 || warmup > EXECUTABLE_MAX_SAMPLES) fail(`warmup must be between 1 and ${EXECUTABLE_MAX_SAMPLES}`);
   if (!Number.isSafeInteger(compileSamples) || compileSamples < 9 || compileSamples > EXECUTABLE_MAX_SAMPLES || compileSamples % 2 === 0) fail(`compileSamples must be odd and between 9 and ${EXECUTABLE_MAX_SAMPLES}`);
@@ -2714,6 +2785,9 @@ async function runBenchmarkUnlocked(options = {}, dependencies = {}) {
     { allowStaleSourceDigest: true });
   if (catalogErrors.length > 0) fail(`catalog validation failed: ${catalogErrors.join("; ")}`);
   const source = await sourcePath(catalog, target, language, platformTarget);
+  if (target === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID && source.source.recipeClass !== HELLO_PLATFORM_MINIMAL_RECIPE_CLASS) {
+    fail("hello-platform-minimal source must select its isolated platform-minimal correctness recipe class");
+  }
   const processExecutionDescriptor = processTarget ? processExecution(source.workload) : undefined;
   const processSupportSources = processTarget ? await resolveProcessSupportSources(source.workload) : undefined;
   if (processTarget && source.source.recipeClass !== PROCESS_ENTRY0_RECIPE_CLASS) {
@@ -2738,7 +2812,7 @@ async function runBenchmarkUnlocked(options = {}, dependencies = {}) {
   const windowsToolchain = language === "w"
     ? dependencies.windowsToolchain ?? await resolveWindowsToolchain()
     : undefined;
-  const linuxWslProfile = isWslPlatform(platformTarget)
+  const linuxWslProfile = isWslPlatform(platformTarget) && language === "w"
     ? await resolveLinuxWslCrossProfile(windowsToolchain, dependencies, publish)
     : undefined;
   const publicW = language === "w"
@@ -2747,9 +2821,9 @@ async function runBenchmarkUnlocked(options = {}, dependencies = {}) {
       : await buildPublicW(executor)))
     : undefined;
   const languageToolchain = language === "c"
-    ? await resolveCCompiler(executor, dependencies, target)
+    ? await resolveCCompiler(executor, dependencies, target, platformTarget, source.source)
     : language === "rust"
-      ? await resolveRustCompiler(executor, dependencies, target)
+      ? await resolveRustCompiler(executor, dependencies, target, source.source)
       : undefined;
   const processLinker = processTarget
     ? language === "c"

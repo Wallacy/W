@@ -27,8 +27,12 @@ import {
   CLANG_C_TARGET,
   CLANG_RELEASE_FLAGS,
   NATIVE_RECIPE_PROFILE,
+  PLATFORM_MINIMAL_C_RECIPE,
+  PLATFORM_MINIMAL_RUST_RECIPE,
   RUST_RELEASE_FLAGS,
   cReleaseFlags,
+  platformMinimalCFlags,
+  platformMinimalRustFlags,
   W_LLC_FLAGS,
   W_LLD_LINK_FLAGS,
   W_MLIR_OPT_FLAGS,
@@ -51,6 +55,10 @@ test("benchmark arguments separate compile cost from high-resolution run samplin
   assert.deepEqual(parseBenchmarkArguments(["--platform", "linux-wsl-x64"]), {
     target: "hello", language: "w", platform: "linux-wsl-x64", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
   });
+  assert.deepEqual(parseBenchmarkArguments(["--target", "hello-platform-minimal", "--language", "c", "--platform", "linux-wsl-x64"]), {
+    target: "hello-platform-minimal", language: "c", platform: "linux-wsl-x64", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
+  });
+  assert.throws(() => parseBenchmarkArguments(["--target", "hello", "--language", "rust", "--platform", "linux-wsl-x64"]), /hello-platform-minimal/u);
   assert.throws(() => parseBenchmarkArguments(["--language", "swift"]), /unsupported/);
   assert.throws(() => parseBenchmarkArguments(["--samples", "10"]), /odd/);
   assert.throws(() => parseBenchmarkArguments(["--run-samples", "100"]), /odd/);
@@ -130,6 +138,44 @@ test("release recipes prioritize runtime and strip distributable symbols", () =>
   assert.ok(W_LLD_LINK_FLAGS.includes("/merge:.pdata=.rdata"));
   const all = [...C_RELEASE_FLAGS, ...CLANG_RELEASE_FLAGS, ...RUST_RELEASE_FLAGS, ...W_LLC_FLAGS, ...W_LLD_LINK_FLAGS];
   assert.equal(all.some((flag) => /(?:^|=)(?:s|z)$|native/iu.test(flag)), false);
+});
+
+test("platform-minimal Hello recipes keep OS-boundary comparison separate from portable baselines", () => {
+  assert.equal(PLATFORM_MINIMAL_C_RECIPE, "clang-c23-freestanding");
+  assert.equal(PLATFORM_MINIMAL_RUST_RECIPE, "rustc-edition-2024-no-std");
+  const cWindows = platformMinimalCFlags("windows-x64");
+  assert.ok(cWindows.includes("-std=c23"));
+  assert.ok(cWindows.includes("-ffreestanding"));
+  assert.ok(cWindows.includes("-fno-builtin"));
+  assert.ok(cWindows.includes("-fno-ident"));
+  assert.ok(cWindows.includes("-nostdlib"));
+  assert.ok(cWindows.includes("-Wl,/ENTRY:w_entry"));
+  assert.ok(cWindows.includes("-lkernel32"));
+  assert.ok(cWindows.includes("-Wl,/OPT:REF"));
+  assert.ok(cWindows.includes("-Wl,/OPT:ICF"));
+  const cLinux = platformMinimalCFlags("linux-wsl-x64");
+  assert.ok(cLinux.includes("-static"));
+  assert.ok(cLinux.includes("-fno-ident"));
+  assert.ok(cLinux.includes("-Wl,-e,_start"));
+  assert.ok(cLinux.includes("-Wl,--gc-sections"));
+  assert.ok(cLinux.includes("-Wl,--strip-all"));
+  const rustWindows = platformMinimalRustFlags("windows-x64");
+  assert.ok(rustWindows.includes("--edition=2024"));
+  assert.ok(rustWindows.includes("--target=x86_64-pc-windows-msvc"));
+  assert.ok(rustWindows.includes("-C"));
+  assert.ok(rustWindows.includes("default-linker-libraries=no"));
+  assert.ok(rustWindows.includes("link-arg=/ENTRY:w_entry"));
+  assert.ok(rustWindows.includes("link-arg=/DEFAULTLIB:kernel32.lib"));
+  const rustLinux = platformMinimalRustFlags("linux-wsl-x64", "ld.lld");
+  assert.ok(rustLinux.includes("force-unwind-tables=no"));
+  assert.ok(rustLinux.includes("--target=x86_64-unknown-linux-gnu"));
+  assert.ok(rustLinux.includes("linker-flavor=ld.lld"));
+  assert.ok(rustLinux.includes("linker=ld.lld"));
+  assert.ok(rustLinux.includes("link-arg=-static"));
+  assert.ok(rustLinux.includes("link-arg=--no-pie"));
+  assert.ok(rustLinux.includes("link-arg=_start"));
+  assert.throws(() => platformMinimalCFlags("linux-wsl-x64", "-std=c2x"), /final C23/u);
+  assert.throws(() => platformMinimalRustFlags("linux-wsl-x64"), /requires an LLD linker/u);
 });
 
 test("native receipts map Job CPU and root working set without relabeling commit as RSS", () => {

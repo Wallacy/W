@@ -6,11 +6,14 @@ import {
   EXECUTABLE_PLATFORM_TARGET_LINUX,
   EXECUTABLE_PLATFORM_TARGET_LINUX_WSL,
   EXECUTABLE_PLATFORM_TARGET_WINDOWS,
+  HELLO_PLATFORM_MINIMAL_RECIPE_CLASS,
+  HELLO_PLATFORM_MINIMAL_WORKLOAD_ID,
   ROOT,
   loadExecutableDocuments,
   validateExecutableCatalog,
   validateExecutableBestMetrics,
 } from "./executable-benchmark-machine.mjs";
+import { platformMinimalRecipeExamples } from "./executable-release-recipes.mjs";
 
 export const PROJECTION_PATH = path.resolve(ROOT, "benchmarks", "EXECUTABLES.md");
 
@@ -223,6 +226,11 @@ function targetLabel(entry) {
 }
 
 function runtimeLabel(entry) {
+  if (entry.recipeClass === HELLO_PLATFORM_MINIMAL_RECIPE_CLASS) {
+    return entry.platformTarget === EXECUTABLE_PLATFORM_TARGET_WINDOWS
+      ? "no CRT (Kernel32 import)"
+      : "static (no libc)";
+  }
   if ([EXECUTABLE_PLATFORM_TARGET_LINUX, EXECUTABLE_PLATFORM_TARGET_LINUX_WSL].includes(entry.platformTarget)) {
     if (entry.language === "rust") return "Rust std + glibc";
     if (entry.language === "c") return "glibc";
@@ -252,6 +260,26 @@ export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
   ];
   for (const workload of catalog.workloads.filter(projectionWorkload)) {
     lines.push(`| ${workload.id} | ${workload.structureClass} | ${sourceLinks(workload)} | ${workload.oracle.status} | ${workload.benchmarkStatus} |`);
+  }
+  const platformMinimalHello = catalog.workloads.find((workload) => workload.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID);
+  if (platformMinimalHello) {
+    lines.push(
+      "",
+      "## Platform-minimal Hello correctness comparison",
+      "",
+      "This lane preserves the exact `Hello, world!\\n` / exit `0` oracle while C23 and Rust 2024 enter without a CRT or standard library, write through the OS boundary, and exit directly. Windows artifacts import Kernel32 and omit the CRT; Linux ELF artifacts are static and are rejected if they contain `PT_INTERP` or `DT_NEEDED`. The W row reuses the public W Hello build. This is platform-minimal correctness/context evidence, not an idiomatic C/Rust baseline or a language ranking.",
+      "",
+      "Reproducible release commands (the runner resolves the installed compiler paths; `<source>` and `<artifact>` are per-sample temporary paths):",
+      "",
+    );
+    for (const example of platformMinimalRecipeExamples()) {
+      lines.push(`- ${example.language}, ${example.platform}: \`${example.command}\``);
+    }
+    lines.push(
+      "",
+      "The commands use C23 `-O3`/full LTO, freestanding/no-builtin/no-stack-protector/no-unwind-table code generation, dead-section elimination and stripping; Rust uses edition 2024 `no_std`/`no_main`, `-C opt-level=3`, fat LTO, one codegen unit, aborting panics and stripped symbols (disabling unwind tables on Linux, where supported by the target ABI). Windows imports only the OS Kernel32 boundary and omits the CRT; Linux selects `_start`, static linking, section GC, and no build ID. WSL rows remain same-physical-hardware diagnostics only.",
+      "",
+    );
   }
   lines.push("", "## Best values");
   for (const [platformTarget, label] of [

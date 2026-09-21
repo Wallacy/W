@@ -1,6 +1,10 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import {
+  PLATFORM_MINIMAL_C_RECIPE,
+  PLATFORM_MINIMAL_RUST_RECIPE,
+} from "./executable-release-recipes.mjs";
 
 export const ROOT = path.resolve(import.meta.dir, "..");
 export const EXECUTABLE_SCHEMA = "w-executable-benchmark/6";
@@ -15,6 +19,7 @@ export const EXECUTABLE_STRUCTURE_CLASSES = Object.freeze([
 ]);
 export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "hello",
+  "hello-platform-minimal",
   "restaurant-branch",
   "restaurant-nested-branch",
   "bool-short-circuit",
@@ -174,6 +179,8 @@ export const PROCESS_ARGUMENTS_COUNT_ORACLE_CASES = Object.freeze([
 export const PROCESS_ARGUMENTS_ORDERING_WORKLOAD_ID = "process-arguments-ordering";
 export const PROCESS_ARGUMENTS_ORDERING_ORACLE_KIND = PROCESS_ENTRY_ORACLE_KIND;
 export const PROCESS_ARGUMENTS_ORDERING_RECIPE_CLASS = "process-arguments-ordering-release";
+export const HELLO_PLATFORM_MINIMAL_WORKLOAD_ID = "hello-platform-minimal";
+export const HELLO_PLATFORM_MINIMAL_RECIPE_CLASS = "hello-platform-minimal";
 export const PROCESS_ARGUMENTS_ORDERING_TIMED_INPUT = Object.freeze(["alpha", "beta"]);
 export const PROCESS_ARGUMENTS_ORDERING_CORRECTNESS_INPUTS = Object.freeze([
   Object.freeze([]),
@@ -453,6 +460,10 @@ const SOURCE_ELIGIBILITY = Object.freeze({
     comparability: "deferred-until-M3b",
     eligibility: "deferred-to-M3b",
   }),
+  platformMinimal: Object.freeze({
+    comparability: "deferred-until-M3b",
+    eligibility: "deferred-to-M3b",
+  }),
   cPublic: Object.freeze({
     comparability: "promotable-after-equivalence",
     eligibility: "promotable-after-equivalence",
@@ -473,8 +484,8 @@ const SOURCE_ELIGIBILITY = Object.freeze({
 
 const SOURCE_RECIPES = Object.freeze({
   w: Object.freeze(["public-w-build-release", "public-w-run", PROCESS_ENTRY0_RECIPE]),
-  c: Object.freeze([PUBLIC_C_RECIPE, PRIVATE_C_RECIPE]),
-  rust: Object.freeze(["rustc-edition-2024"]),
+  c: Object.freeze([PUBLIC_C_RECIPE, PRIVATE_C_RECIPE, PLATFORM_MINIMAL_C_RECIPE]),
+  rust: Object.freeze(["rustc-edition-2024", PLATFORM_MINIMAL_RUST_RECIPE]),
 });
 
 const LEGACY_W_RESULT_RECIPE = "private-native0-mlir0-source-to-pe-candidate";
@@ -817,9 +828,14 @@ function checkSource(source, location, workload, root, errors) {
   if (source.recipe === PROCESS_ENTRY0_RECIPE && workload?.id !== PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) push(errors, location + ".recipe is private to process-handler-lifecycle.");
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.language === "w" && source.recipe !== PROCESS_ENTRY0_RECIPE) push(errors, location + ".recipe must use the private process handler route.");
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.language === "c" && source.recipe !== PRIVATE_C_RECIPE) push(errors, location + ".recipe must use the private GCC/MinGW process handler route.");
-  if (workload?.id !== PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.language === "c" && source.recipe !== PUBLIC_C_RECIPE) push(errors, location + ".recipe must use the public Clang/MSVC process route.");
+  if (workload?.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID && source.language === "c" && source.recipe !== PLATFORM_MINIMAL_C_RECIPE) push(errors, location + ".recipe must use the platform-minimal Clang/C23 route.");
+  if (workload?.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID && source.language === "rust" && source.recipe !== PLATFORM_MINIMAL_RUST_RECIPE) push(errors, location + ".recipe must use the platform-minimal Rust 2024 no_std route.");
+  if (workload?.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID && source.language === "w" && source.recipe !== "public-w-build-release") push(errors, location + ".recipe must use the public W Release route.");
+  if (workload?.id !== PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && workload?.id !== HELLO_PLATFORM_MINIMAL_WORKLOAD_ID && source.language === "c" && source.recipe !== PUBLIC_C_RECIPE) push(errors, location + ".recipe must use the public Clang/MSVC process route.");
+  if (workload?.id !== HELLO_PLATFORM_MINIMAL_WORKLOAD_ID && source.language === "rust" && source.recipe !== "rustc-edition-2024") push(errors, location + ".recipe must use the Rust 2024 standard-library route.");
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.platformTarget !== EXECUTABLE_PLATFORM_TARGET_WINDOWS) push(errors, location + ".platformTarget must remain Windows x64 for the private composite process handler route.");
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.recipeClass !== PROCESS_ENTRY0_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the private process handler class.");
+  if (workload?.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID && source.recipeClass !== HELLO_PLATFORM_MINIMAL_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the platform-minimal Hello correctness comparison.");
   if (workload?.id === PROCESS_ENTRY_WORKLOAD_ID && source.recipeClass !== PROCESS_ENTRY_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-entry release class.");
   if (workload?.id === PROCESS_ENUM_PAYLOAD_WORKLOAD_ID && source.recipeClass !== PROCESS_ENUM_PAYLOAD_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-enum-payload release class.");
   if (workload?.id === PROCESS_ARGUMENTS_COUNT_WORKLOAD_ID && source.recipeClass !== PROCESS_ARGUMENTS_COUNT_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-arguments-count release class.");
@@ -1205,6 +1221,7 @@ function executableHostSlugSupportsPlatform(host, platformTarget) {
 
 function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PLATFORM_TARGET_WINDOWS) {
   if (platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) return SOURCE_ELIGIBILITY.wslDiagnostic;
+  if (workload?.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID) return SOURCE_ELIGIBILITY.platformMinimal;
   if (workload?.id === RESTAURANT_FLOAT_STRICT_WORKLOAD_ID ||
       workload?.id === RESTAURANT_FLOAT_BIT_REPRESENTATION_WORKLOAD_ID ||
       workload?.id === RESTAURANT_CHECKED_INTEGER_ARITHMETIC_WORKLOAD_ID ||

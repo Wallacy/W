@@ -8,6 +8,7 @@ Current portable-release values. Lower is better; `—` means no published measu
 | Workload | Class | Sources | Oracle | Benchmark |
 | --- | --- | --- | --- | --- |
 | hello | public-end-to-end | [w](./executable/hello.w), [c](./executable/hello.c), [rust](./executable/hello.rs) | source-backed | exploratory-ready |
+| hello-platform-minimal | public-end-to-end | [w](./executable/hello.w), [c](./executable/hello_platform_minimal.c), [rust](./executable/hello_platform_minimal.rs) | source-backed | not-performance-ready |
 | restaurant-branch | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-if.w), [c](./executable/restaurant_branch.c), [rust](./executable/restaurant_branch.rs) | source-backed | exploratory-ready |
 | restaurant-nested-branch | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-nested-if.w) | source-backed | partial-exploratory-ready |
 | bool-short-circuit | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-bool-short-circuit.w) | source-backed | partial-exploratory-ready |
@@ -59,6 +60,20 @@ Current portable-release values. Lower is better; `—` means no published measu
 | process-arguments-ordering | public-end-to-end | [w](../compiler/seed-c/fixtures/process-arguments-ordering.w), [c](./executable/process_arguments_ordering.c), [rust](./executable/process_arguments_ordering.rs) | source-backed | exploratory-ready |
 | local-module-graph | public-end-to-end | [w](../compiler/seed-c/fixtures/local-graph/app.w) | source-backed | partial-exploratory-ready |
 | process-handler-lifecycle | integration-linkage | [w](../compiler/seed-c/fixtures/process-entry0.w), [c](./executable/process_entry0.c), [rust](./executable/process_entry0.rs) | source-backed | exploratory-ready |
+
+## Platform-minimal Hello correctness comparison
+
+This lane preserves the exact `Hello, world!\n` / exit `0` oracle while C23 and Rust 2024 enter without a CRT or standard library, write through the OS boundary, and exit directly. Windows artifacts import Kernel32 and omit the CRT; Linux ELF artifacts are static and are rejected if they contain `PT_INTERP` or `DT_NEEDED`. The W row reuses the public W Hello build. This is platform-minimal correctness/context evidence, not an idiomatic C/Rust baseline or a language ranking.
+
+Reproducible release commands (the runner resolves the installed compiler paths; `<source>` and `<artifact>` are per-sample temporary paths):
+
+- C23, Windows x64 / MSVC: `clang --target=x86_64-pc-windows-msvc -O3 -flto=full -ffunction-sections -fdata-sections -ffreestanding -fno-builtin -fno-stack-protector -fno-unwind-tables -fno-asynchronous-unwind-tables -fno-ident -fuse-ld=lld -nostdlib -Wl,/Brepro -Wl,/ENTRY:w_entry -Wl,/SUBSYSTEM:CONSOLE -Wl,/MACHINE:X64 -Wl,/OPT:REF -Wl,/OPT:ICF -Wl,/INCREMENTAL:NO -Wl,/DEBUG:NONE -lkernel32 -std=c23 <source> -o <artifact>`
+- Rust 2024, Windows x64 / MSVC: `rustc <source> --edition=2024 -C opt-level=3 -C lto=fat -C codegen-units=1 -C panic=abort -C debuginfo=0 -C strip=symbols -C link-dead-code=no --target=x86_64-pc-windows-msvc -C default-linker-libraries=no -C link-arg=/ENTRY:w_entry -C link-arg=/SUBSYSTEM:CONSOLE -C link-arg=/MACHINE:X64 -C link-arg=/OPT:REF -C link-arg=/OPT:ICF -C link-arg=/INCREMENTAL:NO -C link-arg=/DEBUG:NONE -C link-arg=/DEFAULTLIB:kernel32.lib -o <artifact>`
+- C23, Linux x64 / WSL2: `clang --target=x86_64-unknown-linux-gnu -O3 -flto=full -ffunction-sections -fdata-sections -ffreestanding -fno-builtin -fno-stack-protector -fno-unwind-tables -fno-asynchronous-unwind-tables -fno-ident -fuse-ld=lld -nostdlib -static -Wl,-e,_start -Wl,--gc-sections -Wl,--strip-all -Wl,--build-id=none -std=c23 <source> -o <artifact>`
+- Rust 2024, Linux x64 / WSL2: `rustc <source> --edition=2024 -C opt-level=3 -C lto=fat -C codegen-units=1 -C panic=abort -C debuginfo=0 -C strip=symbols -C link-dead-code=no --target=x86_64-unknown-linux-gnu -C force-unwind-tables=no -C linker-flavor=ld.lld -C linker=<host-ld.lld> -C default-linker-libraries=no -C link-arg=-static -C link-arg=--no-pie -C link-arg=-e -C link-arg=_start -C link-arg=--gc-sections -C link-arg=--strip-all -C link-arg=--build-id=none -o <artifact>`
+
+The commands use C23 `-O3`/full LTO, freestanding/no-builtin/no-stack-protector/no-unwind-table code generation, dead-section elimination and stripping; Rust uses edition 2024 `no_std`/`no_main`, `-C opt-level=3`, fat LTO, one codegen unit, aborting panics and stripped symbols (disabling unwind tables on Linux, where supported by the target ABI). Windows imports only the OS Kernel32 boundary and omits the CRT; Linux selects `_start`, static linking, section GC, and no build ID. WSL rows remain same-physical-hardware diagnostics only.
+
 
 ## Best values
 

@@ -12,7 +12,7 @@ test("generated projection is current, compact, and sourced only from the live c
   const measuredPlatformCells = new Set(documents.catalog.bestMetrics.entries.map(
     (entry) => `${entry.workloadId}\0${entry.language}\0${entry.platformTarget}`,
   )).size;
-  const maximumCompactLines = documents.catalog.workloads.length + measuredPlatformCells + 36;
+  const maximumCompactLines = documents.catalog.workloads.length + measuredPlatformCells + 50;
   assert.ok(rendered.split(/\r?\n/u).length <= maximumCompactLines);
   assert.match(rendered, /Best values/u);
   assert.match(rendered, /### Windows x64/u);
@@ -28,6 +28,10 @@ test("generated projection is current, compact, and sourced only from the live c
   assert.match(rendered, /### Linux x64 via WSL2[\s\S]*\| Workload \| Language \| Target \| Runtime \| Artifact \| ELF \.text B \| ELF \.rodata B \|/u);
   assert.match(rendered, /\| hello \| c \| Windows x64 \/ MSVC \| MSVC CRT DLL \| [0-9]+ B/u);
   assert.match(rendered, /\| hello \| w \| Windows x64 \/ MSVC \| CRT-free \| [0-9]+ B/u);
+  assert.match(rendered, /## Platform-minimal Hello correctness comparison/u);
+  assert.match(rendered, /not an idiomatic C\/Rust baseline or a language ranking/u);
+  assert.match(rendered, /clang --target=x86_64-unknown-linux-gnu[\s\S]*-nostdlib[\s\S]*--strip-all/u);
+  assert.match(rendered, /rustc <source> --edition=2024[\s\S]*--target=x86_64-unknown-linux-gnu/u);
   const partialWOnly = documents.catalog.workloads.filter((workload) =>
     workload.benchmarkStatus === "partial-exploratory-ready" &&
     new Set(workload.sources.map((source) => source.language)).size === 1 &&
