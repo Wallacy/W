@@ -39,7 +39,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-enum-bool-payload",
   "restaurant-comparison-composition",
   "restaurant-integer-bitwise",
-  "restaurant-shifts",
+  "integer-shift-semantics",
   "restaurant-power",
   "restaurant-power-prefix",
   "restaurant-compound",
@@ -56,7 +56,6 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-uint-overflowing-family",
   "restaurant-uint-saturating-policy",
   "fixed-integer-bit-primitives",
-  "fixed-integer-shift-policies",
   "restaurant-uint-bitwise",
   "restaurant-uint-compound",
   "restaurant-unsigned",
@@ -110,6 +109,8 @@ const PUBLIC_WINDOWS_RUN_VARIANTS = Object.freeze({
   "compiler/seed-c/fixtures/restaurant-integer-saturating-conversion.w": "restaurant-integer-saturating-conversion",
   "compiler/seed-c/fixtures/restaurant-integer-comparison.w": "restaurant-integer-comparison",
   "compiler/seed-c/fixtures/restaurant-integer-bitwise.w": "restaurant-integer-bitwise",
+  "compiler/seed-c/fixtures/restaurant-shifts.w": "integer-shift-semantics",
+  "compiler/seed-c/fixtures/fixed-integer-shift-policies.w": "integer-shift-semantics",
   "compiler/seed-c/fixtures/fixed-integer-bit-primitives.w": "fixed-integer-bit-primitives",
   "compiler/seed-c/fixtures/restaurant-uint-rotated-left.w": "restaurant-uint-bitwise",
   "compiler/seed-c/fixtures/restaurant-uint-rotated-right.w": "restaurant-uint-bitwise",
@@ -234,12 +235,11 @@ export const RESTAURANT_INTEGER_TRUNCATING_BITS_WORKLOAD_ID = "restaurant-intege
 export const RESTAURANT_INTEGER_SATURATING_CONVERSION_WORKLOAD_ID = "restaurant-integer-saturating-conversion";
 export const RESTAURANT_INTEGER_COMPARISON_WORKLOAD_ID = "restaurant-integer-comparison";
 export const RESTAURANT_INTEGER_BITWISE_WORKLOAD_ID = "restaurant-integer-bitwise";
-export const RESTAURANT_CHECKED_SHIFTS_WORKLOAD_ID = "restaurant-shifts";
+export const INTEGER_SHIFT_SEMANTICS_WORKLOAD_ID = "integer-shift-semantics";
 export const RESTAURANT_UINT_OVERFLOWING_FAMILY_WORKLOAD_ID = "restaurant-uint-overflowing-family";
 export const RESTAURANT_UINT_SATURATING_POLICY_WORKLOAD_ID = "restaurant-uint-saturating-policy";
 export const RESTAURANT_UINT_BITWISE_WORKLOAD_ID = "restaurant-uint-bitwise";
 export const FIXED_INTEGER_BIT_PRIMITIVES_WORKLOAD_ID = "fixed-integer-bit-primitives";
-export const FIXED_INTEGER_SHIFT_POLICIES_WORKLOAD_ID = "fixed-integer-shift-policies";
 export const RESTAURANT_UINT_COMPOUND_WORKLOAD_ID = "restaurant-uint-compound";
 export function isProcessArgumentWorkload(workloadId) {
   return PROCESS_ARGUMENT_WORKLOAD_IDS.includes(workloadId);
@@ -1233,10 +1233,9 @@ function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PL
       workload?.id === RESTAURANT_INTEGER_SATURATING_CONVERSION_WORKLOAD_ID ||
       workload?.id === RESTAURANT_INTEGER_COMPARISON_WORKLOAD_ID ||
       workload?.id === RESTAURANT_INTEGER_BITWISE_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_CHECKED_SHIFTS_WORKLOAD_ID ||
+      workload?.id === INTEGER_SHIFT_SEMANTICS_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_BITWISE_WORKLOAD_ID ||
       workload?.id === FIXED_INTEGER_BIT_PRIMITIVES_WORKLOAD_ID ||
-      workload?.id === FIXED_INTEGER_SHIFT_POLICIES_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_COMPOUND_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_OVERFLOWING_FAMILY_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_SATURATING_POLICY_WORKLOAD_ID) return SOURCE_ELIGIBILITY.strictF64;

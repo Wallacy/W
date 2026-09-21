@@ -112,6 +112,13 @@ the implementation architecture or require separate benchmark catalog entries.
 The first migration of a family must remove any seed-only width specialization
 that would otherwise be copied into later families.
 
+Keep benchmark layers distinct: atomic unit tests diagnose one rule; executable
+fixtures prove one source-to-native capability; public performance rows combine
+related capabilities into dense semantic families. Consolidation never permits
+different algorithms, inputs, policies, or observable work across W, C, and
+Rust. A family that still folds W work while references retain runtime inputs
+remains correctness-only and carries no ranking cells.
+
 Every new or materially changed executable example records its expected exit,
 stdout, and non-empty stderr beside the source. The executable catalog remains
 the machine contract and its checks must reject drift from that local summary.

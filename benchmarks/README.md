@@ -123,20 +123,25 @@ literal call-site values, so equivalent runtime comparison work is not
 established. The catalog keeps this as one correctness-only family row with no
 performance ranking.
 
-The UInt scalar policy catalog intentionally keeps one benchmark per family. Focused
-W fixtures still gate individual operations, but they do not create separate C/Rust
-comparison rows. This avoids retaining timing surfaces whose only difference is one
-operator.
+The public catalog keeps one dense benchmark per semantic family. Focused W
+fixtures still gate individual operations, widths, and failure paths, but they
+do not create separate C/Rust comparison rows. A family row must exercise
+enough related work to expose implementation differences while preserving the
+same algorithm, inputs, output, and observable policy in every language.
 
 The `restaurant-uint-bitwise` witness is the representative family executable:
 it covers complement, binary bitwise operations, population counts, and
 leading/trailing zero counts including zero. Focused W fixtures retain
 bit/byte reversal and rotation correctness without separate benchmark rows.
-The neutral `fixed-integer-shift-policies` witness is one correctness-only
-family row for masked left/right shifts and logical right shift across signed
-and unsigned 8/16/32/64-bit integers. Its C23 and Rust 2024 references are
-correctness oracles only; W's literal calls may fold, so runtime-equivalent
-ranking remains deferred.
+The neutral `integer-shift-semantics` witness combines checked ordinary shifts
+with masked left/right and logical-right policies across signed and unsigned
+8/16/32/64-bit integers, plus the current x86-64 `Int`/`UInt` aliases for the
+ordinary operations. The older `restaurant-shifts.w` and
+`fixed-integer-shift-policies.w` sources remain focused compiler fixtures, not
+public benchmark rows. The C23 and Rust 2024 references are correctness oracles
+only. The bounded native route does not yet execute the combined W source, and
+the separately proven W operations may fold literal inputs, so
+runtime-equivalent ranking remains deferred.
 
 The `restaurant-uint-overflowing-family` witness covers add, subtract,
 multiply, negate, and power while printing both wrapped low bits and overflow

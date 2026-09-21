@@ -1418,32 +1418,32 @@
       ]
     },
     {
-      "id": "restaurant-shifts",
+      "id": "integer-shift-semantics",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",
       "sourceReadiness": "source-and-oracle-ready",
-      "demoEvidence": "bounded-w-demo",
+      "demoEvidence": "not-run",
       "benchmarkStatus": "not-performance-ready",
       "lane": "equivalent",
-      "scope": "Validate checked ordinary shifts (arithmetic signed right and non-overflowing left) across signed and unsigned i8/i16/i32/i64 and the current x86-64 Int/UInt aliases with exact ten-line decimal output. C23 and Rust preserve runtime operands; performance ranking is deferred until W preserves equivalent runtime work.",
+      "scope": "Validate checked ordinary arithmetic-right and non-overflowing left shifts across signed and unsigned i8/i16/i32/i64 and the current x86-64 Int/UInt aliases, plus masked left/right and logical right policies across signed and unsigned i8/u8 through i64/u64. Cover masked counts at width and width+1, logical counts at zero and width-1, and the u64 small-value edges. The bounded native route does not yet execute this combined W witness. C23 and Rust retain runtime inputs while individual W operations may fold literals; performance ranking is deferred until the W route executes equivalent runtime work.",
       "oracle": {
         "kind": "exact-output",
         "status": "source-backed",
         "exitCode": 0,
-        "stdout": "i8 -16/-128\nu8 32/128\ni16 -4096/-32768\nu16 8192/32768\ni32 -268435456/-2147483648\nu32 536870912/2147483648\ni64 -1152921504606846976/-9223372036854775808\nu64 2305843009213693952/9223372036854775808\nInt -1152921504606846976/-9223372036854775808\nUInt 2305843009213693952/9223372036854775808\n",
+        "stdout": "i8 -16/-128\nu8 32/128\ni16 -4096/-32768\nu16 8192/32768\ni32 -268435456/-2147483648\nu32 536870912/2147483648\ni64 -1152921504606846976/-9223372036854775808\nu64 2305843009213693952/9223372036854775808\nInt -1152921504606846976/-9223372036854775808\nUInt 2305843009213693952/9223372036854775808\ni8 -128/0/-64/64\nu8 128/0/64/64\ni16 -32768/0/-16384/16384\nu16 32768/0/16384/16384\ni32 -2147483648/0/-1073741824/1073741824\nu32 2147483648/0/1073741824/1073741824\ni64 -9223372036854775808/0/-4611686018427387904/4611686018427387904\nu64 9223372036854775808/0/4611686018427387904/4611686018427387904\nu64 small-value 2/64/64\n",
         "stderr": ""
       },
       "sources": [
         {
           "language": "w",
-          "path": "compiler/seed-c/fixtures/restaurant-shifts.w",
-          "digest": "sha256:42dd4a67a0cf10349f1888c050ba21d6054e663d5c5e96b799e05b15947768f8",
+          "path": "benchmarks/executable/integer_shift_semantics.w",
+          "digest": "sha256:9c2386f499004b56b3edfffdf217b551b40dfc400095432a0883211abdc53e16",
           "entry": "entry",
           "status": "source-oracle-ready",
           "profile": "release",
           "quality": "correctness-gate",
           "recipe": "public-w-build-release",
-          "recipeClass": "restaurant-shifts-release",
+          "recipeClass": "integer-shift-semantics-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
           "comparability": "deferred-until-M3b",
@@ -1451,14 +1451,14 @@
         },
         {
           "language": "w",
-          "path": "compiler/seed-c/fixtures/restaurant-shifts.w",
-          "digest": "sha256:42dd4a67a0cf10349f1888c050ba21d6054e663d5c5e96b799e05b15947768f8",
+          "path": "benchmarks/executable/integer_shift_semantics.w",
+          "digest": "sha256:9c2386f499004b56b3edfffdf217b551b40dfc400095432a0883211abdc53e16",
           "entry": "entry",
           "status": "source-oracle-ready",
           "profile": "release",
           "quality": "correctness-gate",
           "recipe": "public-w-build-release",
-          "recipeClass": "restaurant-shifts-release",
+          "recipeClass": "integer-shift-semantics-release",
           "platformTarget": "linux-wsl-x64",
           "artifactTarget": "x86_64-unknown-linux-gnu",
           "comparability": "same-physical-hardware-diagnostic-only",
@@ -1466,14 +1466,14 @@
         },
         {
           "language": "c",
-          "path": "benchmarks/executable/restaurant_shifts.c",
-          "digest": "sha256:12652d3c64a72e70fa45eabf8d091ce47408dc1463c14ce763b7b121a2a16ebb",
+          "path": "benchmarks/executable/integer_shift_semantics.c",
+          "digest": "sha256:74dfd59359c098ca3d7a638875adc1b83dbb547a424894ecd853c94ec0e21b55",
           "entry": "main",
           "status": "source-oracle-ready",
           "profile": "release",
           "quality": "correctness-gate",
           "recipe": "clang-c23-msvc",
-          "recipeClass": "restaurant-shifts-release",
+          "recipeClass": "integer-shift-semantics-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
           "comparability": "deferred-until-M3b",
@@ -1481,14 +1481,14 @@
         },
         {
           "language": "rust",
-          "path": "benchmarks/executable/restaurant_shifts.rs",
-          "digest": "sha256:df5a1adcfcc134d588dcbdb3e4b8d03259c717007688910f5a015775b7b868f0",
+          "path": "benchmarks/executable/integer_shift_semantics.rs",
+          "digest": "sha256:7958778cb977b359505a889c6fc733575a9e4dd1c6675f542b8804f4ec6fee9d",
           "entry": "main",
           "status": "source-oracle-ready",
           "profile": "release",
           "quality": "correctness-gate",
           "recipe": "rustc-edition-2024",
-          "recipeClass": "restaurant-shifts-release",
+          "recipeClass": "integer-shift-semantics-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
           "comparability": "deferred-until-M3b",
@@ -1497,8 +1497,9 @@
       ],
       "blockedLanguages": [],
       "blockers": [
-        "w-checked-shifts-compile-time-folded",
-        "runtime-checked-shifts-equivalence"
+        "w-integer-shift-semantics-combined-native-route",
+        "w-integer-shift-semantics-compile-time-folded",
+        "runtime-integer-shift-semantics-equivalence"
       ]
     },
     {
@@ -2759,90 +2760,6 @@
       "blockers": [
         "w-fixed-integer-bit-primitives-compile-time-folded",
         "runtime-fixed-integer-bit-primitives-equivalence"
-      ]
-    },
-    {
-      "id": "fixed-integer-shift-policies",
-      "structureClass": "public-end-to-end",
-      "status": "source-oracle-ready",
-      "sourceReadiness": "source-and-oracle-ready",
-      "demoEvidence": "bounded-w-demo",
-      "benchmarkStatus": "not-performance-ready",
-      "lane": "equivalent",
-      "scope": "Validate maskedShiftLeft, maskedShiftRight, and logicalShiftRight for signed and unsigned i8/u8 through i64/u64. The W witness covers masked counts at width and width+1, signed arithmetic versus logical zero-fill at count 1, and the original u64 low-bit cases; C23/Rust independently verify zero and maximum-valid logical counts. Correctness references only: W may fold fixed calls, so equivalent runtime work and ranking are deferred.",
-      "oracle": {
-        "kind": "exact-output",
-        "status": "source-backed",
-        "exitCode": 0,
-        "stdout": "i8 -128/0/-64/64\nu8 128/0/64/64\ni16 -32768/0/-16384/16384\nu16 32768/0/16384/16384\ni32 -2147483648/0/-1073741824/1073741824\nu32 2147483648/0/1073741824/1073741824\ni64 -9223372036854775808/0/-4611686018427387904/4611686018427387904\nu64 9223372036854775808/0/4611686018427387904/4611686018427387904\nu64 small-value 2/64/64\n",
-        "stderr": ""
-      },
-      "sources": [
-        {
-          "language": "w",
-          "path": "compiler/seed-c/fixtures/fixed-integer-shift-policies.w",
-          "digest": "sha256:d2c69cb8f845c83dba05761df35169397bf659e990b6635b6decf404160731d3",
-          "entry": "entry",
-          "status": "source-oracle-ready",
-          "profile": "release",
-          "quality": "correctness-gate",
-          "recipe": "public-w-build-release",
-          "recipeClass": "fixed-integer-shift-policies-release",
-          "platformTarget": "windows-x64",
-          "artifactTarget": "x86_64-pc-windows-msvc",
-          "comparability": "deferred-until-M3b",
-          "eligibility": "deferred-to-M3b"
-        },
-        {
-          "language": "w",
-          "path": "compiler/seed-c/fixtures/fixed-integer-shift-policies.w",
-          "digest": "sha256:d2c69cb8f845c83dba05761df35169397bf659e990b6635b6decf404160731d3",
-          "entry": "entry",
-          "status": "source-oracle-ready",
-          "profile": "release",
-          "quality": "correctness-gate",
-          "recipe": "public-w-build-release",
-          "recipeClass": "fixed-integer-shift-policies-release",
-          "platformTarget": "linux-wsl-x64",
-          "artifactTarget": "x86_64-unknown-linux-gnu",
-          "comparability": "same-physical-hardware-diagnostic-only",
-          "eligibility": "same-physical-hardware-diagnostic-only"
-        },
-        {
-          "language": "c",
-          "path": "benchmarks/executable/fixed_integer_shift_policies.c",
-          "digest": "sha256:b3a45daf277d92b9ea72231e73e5b1552f9ae3b92bffdf70b4b9b84e2b69c513",
-          "entry": "main",
-          "status": "source-oracle-ready",
-          "profile": "release",
-          "quality": "correctness-gate",
-          "recipe": "clang-c23-msvc",
-          "recipeClass": "fixed-integer-shift-policies-release",
-          "platformTarget": "windows-x64",
-          "artifactTarget": "x86_64-pc-windows-msvc",
-          "comparability": "deferred-until-M3b",
-          "eligibility": "deferred-to-M3b"
-        },
-        {
-          "language": "rust",
-          "path": "benchmarks/executable/fixed_integer_shift_policies.rs",
-          "digest": "sha256:ff1f8c547647b6d53df4b285f3ee6e344f0cb9dc44c474194af8c99bdcc8f703",
-          "entry": "main",
-          "status": "source-oracle-ready",
-          "profile": "release",
-          "quality": "correctness-gate",
-          "recipe": "rustc-edition-2024",
-          "recipeClass": "fixed-integer-shift-policies-release",
-          "platformTarget": "windows-x64",
-          "artifactTarget": "x86_64-pc-windows-msvc",
-          "comparability": "deferred-until-M3b",
-          "eligibility": "deferred-to-M3b"
-        }
-      ],
-      "blockedLanguages": [],
-      "blockers": [
-        "w-fixed-integer-shift-policies-compile-time-folded",
-        "runtime-fixed-integer-shift-policies-equivalence"
       ]
     },
     {
