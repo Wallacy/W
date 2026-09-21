@@ -44,6 +44,32 @@ not in this queue.
 - Treat performance, memory, binary size, and compile latency as persistent
   optimization signals, never as permission to change semantics.
 
+### C-reach closure rule
+
+C parity means that a W product can perform the same systems work with explicit
+cost and authority; it does not mean source compatibility or preservation of
+C's weakest surfaces. Close these substitutions with executable witnesses:
+
+- replace textual preprocessing with typed constants and `const fn`, generics
+  and refinements, availability/target selection, hermetic build transforms,
+  and verified foreign-header import. Reopen syntax only if a real workload
+  cannot express configuration, conditional selection, or generation through
+  those mechanisms;
+- replace general `goto` with labelled loops/blocks and an explicit enum state
+  machine when control is irreducible. Verified HIR may still contain the
+  arbitrary CFG required for efficient lowering;
+- permit implicit numeric conversion only when it is total and exact for every
+  source value. Narrowing, signedness changes, lossy floating conversion, and
+  overflow behavior remain explicit named policies;
+- represent runtime-sized local data with bounded storage plus views rather
+  than a VLA type, and keep W homogeneous rest parameters distinct from C ABI
+  varargs. A foreign variadic call uses a typed wrapper or `c.vaList`;
+- prove natural C aggregate ABI directly. Packed records, bitfields, flexible
+  array members, and unions first cross as opaque imported storage with typed
+  accessors/copy operations. Reconsider a first-class W layout only when a real
+  target cannot be served by that boundary or the adapter has a measured cost
+  that the compiler cannot erase.
+
 ## Ranked queue
 
 | Rank | Increment | Completion boundary | What it enables |
@@ -51,7 +77,7 @@ not in this queue.
 | 1 | Scalar literals and operators | Every designed scalar literal and operator family reaches verified HIR, direct MLIR/LLVM lowering, CRT-free Windows and Linux execution, checked failure or explicit wrapping policy, and an independent C23 oracle; syntax-only coverage does not count | Gives W C-level fine-grained arithmetic, comparison, logical and bit-manipulation capability before higher abstractions depend on it |
 | 2 | Bindings, assignment, functions and calls | Mutable and immutable bindings, compound assignment, labelled and positional anchors, ordinary calls, returns and overload resolution execute from exact W source without seed-only rewrites | Establishes reusable computation and a stable value-flow substrate |
 | 3 | Structured control flow | `if`/`else`, exhaustive selection, guards, loops, `break`, `continue` and multi-block returns lower to general verified CFG and execute adversarial branch and loop witnesses | Removes straight-line restrictions and provides the control substrate for errors, cleanup and scheduling |
-| 4 | Value aggregates and central enums | Tuples, structs, payload enums, exhaustive pattern matching and fixed arrays have verified layout-independent semantics plus efficient target layouts and native witnesses | Matches ordinary C data modelling while preserving W's enum-first design |
+| 4 | Value aggregates and central enums | Tuples, structs, payload enums, exhaustive pattern matching and fixed arrays have verified layout-independent semantics plus efficient target layouts and native witnesses; one C-ABI witness proves natural aggregates and the opaque-wrapper route for packed/bitfield/union/flexible-array storage | Matches ordinary C data modelling while preserving W's enum-first design and an explicit foreign-layout boundary |
 | 5 | Modules, imports, generics and specialization | Multi-module calls, labelled imports, generic specialization and closed reachable graphs produce deterministic artifacts; unused private graph nodes disappear | Enables real programs and makes whole-module/product optimization the normal case |
 | 6 | Explicit views, borrows, storage and ownership | `ref`, `mut ref`, `inout`, moves, views, explicit storage/allocator choices and deterministic cleanup execute for value and resource-bearing aggregates | Establishes memory safety and cost without requiring automatic lifecycle machinery |
 | 7 | Errors and effect composition | Typed `throw`/`try`/`catch`, panic boundaries, cleanup and effect propagation compose over general CFG and resource-bearing values | Makes failure semantics complete before asynchronous propagation is generalized |
@@ -87,9 +113,16 @@ physical scheduler experiments:
    Remaining conversion policies continue to block this rank-1
    prerequisite. W-1651 closes the design identity of i128/u128, the fixed
    arithmetic float family through f128, configured f4/f6/f8 AI elements, and
-   fixed/dynamic BigFloat, but adds no implementation evidence; these wider
-   carriers follow the scalar route only after its current 64-bit/f32/f64
-   packages are complete;
+   fixed/dynamic BigFloat, but adds no implementation evidence. After the
+   current 64-bit/f32/f64 packages, rank 1 takes only fixed scalar work:
+   i128/u128 and strict f16/bf16/f128 semantics, including target rejection or
+   an explicitly permitted W-owned fallback. Configured f4/f6/f8 remain
+   storage/conversion elements and join Tensor/Quantized lowering in rank 8;
+   TensorFloat32 remains a compute policy, never a scalar type. BigInt/BigUInt
+   and dynamic BigFloat wait for rank-6 ownership, allocator, and OOM semantics;
+   fixed-precision BigFloat also waits for generic value parameters and closed
+   aggregate layout. This ordering preserves the selected design without
+   pretending that every numeric family has the same implementation dependency;
 2. prefix, arithmetic, comparison, bitwise, shift, overflow and compound
    operators, each with its specified checked or explicit wrapping policy;
 3. Boolean short-circuiting, scalar `if`, exhaustive scalar selection and
