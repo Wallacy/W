@@ -55,6 +55,7 @@ import {
   RESTAURANT_CHECKED_SHIFTS_WORKLOAD_ID,
   RESTAURANT_CHECKED_INTEGER_ARITHMETIC_WORKLOAD_ID,
   RESTAURANT_UINT_BITWISE_WORKLOAD_ID,
+  FIXED_INTEGER_BIT_PRIMITIVES_WORKLOAD_ID,
   RESTAURANT_UINT_OVERFLOWING_FAMILY_WORKLOAD_ID,
   RESTAURANT_UINT_SATURATING_POLICY_WORKLOAD_ID,
   RESTAURANT_UINT_COMPOUND_WORKLOAD_ID,
@@ -684,6 +685,108 @@ test("UInt bit-primitives family catalog keeps correctness separate from ranking
   assert.match(rust, /black_box/u);
   assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
   assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
+});
+
+test("fixed-integer bit-primitives family covers the portable signed/unsigned matrix", () => {
+  const workload = documents.catalog.workloads.find((item) =>
+    item.id === FIXED_INTEGER_BIT_PRIMITIVES_WORKLOAD_ID);
+  assert.ok(workload);
+  assert.equal(workload.structureClass, "public-end-to-end");
+  assert.equal(workload.status, "source-oracle-ready");
+  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
+  assert.equal(workload.demoEvidence, "bounded-w-demo");
+  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.match(workload.scope, /all eight portable bit primitives/u);
+  assert.match(workload.scope, /signed and unsigned i8\/i16\/i32\/i64/u);
+  assert.match(workload.scope, /one public W witness per signed and unsigned i8\/i16\/i32\/i64 type and operation/u);
+  assert.match(workload.scope, /C23\/Rust references and focused unit coverage/u);
+  assert.match(workload.scope, /zero-input width counts/u);
+  assert.match(workload.scope, /rotations reduced modulo width at 0\/width\/width\+1/u);
+  assert.match(workload.scope, /two's-complement reversal of negative signed values/u);
+  assert.deepEqual(workload.oracle, {
+    kind: "exact-output",
+    status: "source-backed",
+    exitCode: 0,
+    stdout:
+      "i8 3/5/1/1 74/127 82 -92/41\n" +
+      "u8 4/4/0/1 105 150 45/75\n" +
+      "i16 5/11/3/2 11336/32767 13330 9320/2330\n" +
+      "u16 8/8/0/0 54673 43913 4951/50389\n" +
+      "i32 13/19/3/3 510274632/2147483647 2018915346 610839792/152709948\n" +
+      "u32 20/12/0/0 4155757969 4023233417 324508639/3302352631\n" +
+      "i64 30/34/7/1 8553414939923104896/9223372036854775807 7984226321029210881 163971058432973532/40992764608243383\n" +
+      "u64 32/32/0/4 597899502893742975 1167088121787636990 18282773015276577825/9182379272246532360\n",
+    stderr: "",
+  });
+  assert.deepEqual(workload.blockedLanguages, []);
+  assert.deepEqual(workload.blockers, [
+    "w-fixed-integer-bit-primitives-compile-time-folded",
+    "runtime-fixed-integer-bit-primitives-equivalence",
+  ]);
+  assert.deepEqual(workload.sources.map((source) =>
+    [source.language, source.platformTarget]), [
+    ["w", EXECUTABLE_PLATFORM_TARGET],
+    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
+    ["c", EXECUTABLE_PLATFORM_TARGET],
+    ["rust", EXECUTABLE_PLATFORM_TARGET],
+  ]);
+  assert.ok(workload.sources.every((source) =>
+    source.recipeClass === "fixed-integer-bit-primitives-release" &&
+    source.quality === "correctness-gate"));
+  assert.ok(!documents.catalog.bestMetrics.entries.some((entry) =>
+    entry.workloadId === FIXED_INTEGER_BIT_PRIMITIVES_WORKLOAD_ID),
+  "the correctness-only family must not have timings or ranking cells");
+
+  const sources = Object.fromEntries(workload.sources
+    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
+    .map((source) => [source.language,
+      readFileSync(`${ROOT}/${source.path}`, "utf8")]));
+  const w = readFileSync(
+    `${ROOT}/compiler/seed-c/fixtures/fixed-integer-bit-primitives.w`, "utf8");
+  assert.ok(Buffer.byteLength(w, "utf8") <= 4096,
+    "the public fixture must fit the Native0 source-byte limit");
+  for (const [name, source] of Object.entries(sources))
+    assert.deepEqual(validateExecutableSourceExpectation(source, workload.oracle,
+      `${name} source`), []);
+  assert.deepEqual(validateExecutableSourceExpectation(w, workload.oracle,
+    "W public-run source"), []);
+  for (const type of ["i8", "u8", "i16", "u16", "i32", "u32", "i64", "u64"]) {
+    for (const operation of ["countOnes", "countZeros", "countLeadingZeros",
+      "countTrailingZeros", "reversedBits", "reversedBytes", "rotatedLeft",
+      "rotatedRight"])
+      assert.match(w, new RegExp(`\\b${type}\\.${operation}\\(`));
+  }
+  for (const pattern of [
+    /reversedBits\(~1_i8\)/u,
+    /reversedBits\(~1_i16\)/u,
+    /reversedBits\(~1_i32\)/u,
+    /reversedBits\(~1_i64\)/u,
+    /rotatedLeft\(0x52_i8, 9_u64\)/u,
+    /rotatedRight\(0xfedcba9876543210_u64, 65_u64\)/u,
+  ]) assert.match(w, pattern);
+  assert.match(sources.c, /static volatile int64_t runtime_i64/u);
+  assert.match(sources.c, /static volatile uint64_t rotations64/u);
+  assert.match(sources.c, /signed_bits_value/u);
+  assert.match(sources.c, /zero_leading != width/u);
+  assert.match(sources.c, /left_width != input/u);
+  assert.match(sources.rust, /use std::hint::black_box/u);
+  assert.match(sources.rust, /signed_row_values!\(i64/u);
+  assert.match(sources.rust, /unsigned_row_values!\(u64/u);
+  assert.match(sources.rust, /assert_signed_edges!/u);
+  assert.match(sources.rust, /assert_unsigned_edges!/u);
+  for (const gatePath of [
+    "tooling/check-w-run-windows.mjs",
+    "tooling/check-w-run.mjs",
+    "tooling/check-mlir0.mjs",
+  ]) {
+    const gate = readFileSync(`${ROOT}/${gatePath}`, "utf8");
+    assert.match(gate, /fixed-integer-bit-primitives\.w/u,
+      `${gatePath} must register the family witness`);
+    assert.match(gate, /fixedIntegerBitPrimitivesOutput/u,
+      `${gatePath} must check the exact family oracle`);
+  }
+  assert.doesNotMatch(sources.c, /\b(?:extern|ffi)\b/iu);
+  assert.doesNotMatch(sources.rust, /\b(?:extern|unsafe|ffi)\b/iu);
 });
 
 test("UInt overflowing-family catalog keeps correctness separate from ranking", () => {

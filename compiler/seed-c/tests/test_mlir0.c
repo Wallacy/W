@@ -4042,14 +4042,14 @@ static bool test_u64_rotated_left_artifact(void) {
   CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
         memcmp(measured.mlir_sha256, emitted.mlir_sha256,
                sizeof(measured.mlir_sha256)) == 0 &&
-        count_bytes(artifact, emitted.written.mlir_bytes,
-                    "llvm.func internal @w_seed_rotated_left_u64") == 1u &&
-        count_bytes(artifact, emitted.written.mlir_bytes,
-                    "llvm.call @w_seed_rotated_left_u64") == 1u &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "@w_seed_rotated_left_u64") &&
         count_bytes(artifact, emitted.written.mlir_bytes,
                     "llvm.intr.fshl") == 1u &&
-        !contains_bytes(artifact, emitted.written.mlir_bytes,
-                        "llvm.and %count, %mask : i64") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "_rotate_mask = llvm.mlir.constant(63 : i64)") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "_rotate_mod = llvm.and ") &&
         !contains_bytes(artifact, emitted.written.mlir_bytes,
                         "\"llvm.intr.trap\"() : () -> ()"));
 
@@ -4092,14 +4092,14 @@ static bool test_u64_rotated_right_artifact(void) {
   CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
         memcmp(measured.mlir_sha256, emitted.mlir_sha256,
                sizeof(measured.mlir_sha256)) == 0 &&
-        count_bytes(artifact, emitted.written.mlir_bytes,
-                    "llvm.func internal @w_seed_rotated_right_u64") == 1u &&
-        count_bytes(artifact, emitted.written.mlir_bytes,
-                    "llvm.call @w_seed_rotated_right_u64") == 1u &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "@w_seed_rotated_right_u64") &&
         count_bytes(artifact, emitted.written.mlir_bytes,
                     "llvm.intr.fshr") == 1u &&
-        !contains_bytes(artifact, emitted.written.mlir_bytes,
-                        "llvm.and %count, %mask : i64") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "_rotate_mask = llvm.mlir.constant(63 : i64)") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "_rotate_mod = llvm.and ") &&
         !contains_bytes(artifact, emitted.written.mlir_bytes,
                         "\"llvm.intr.trap\"() : () -> ()"));
 
@@ -4185,9 +4185,9 @@ static bool test_u64_count_zeros_artifact(void) {
         count_bytes(artifact, emitted.written.mlir_bytes,
                     "llvm.intr.ctpop") == 1u &&
         count_bytes(artifact, emitted.written.mlir_bytes,
-                    "_count_width = llvm.mlir.constant(64 : i64)") == 1u &&
+                    "_bit_width = llvm.mlir.constant(64 : i64)") == 1u &&
         count_bytes(artifact, emitted.written.mlir_bytes,
-                    "_count_ones : i64") == 1u &&
+                    "_bit_ones : i64") == 1u &&
         !contains_bytes(artifact, emitted.written.mlir_bytes,
                         "\"llvm.intr.trap\"() : () -> ()"));
 
@@ -4200,7 +4200,7 @@ static bool test_u64_count_zeros_artifact(void) {
         !contains_bytes(artifact, emitted.written.mlir_bytes,
                         "llvm.intr.ctpop") &&
         !contains_bytes(artifact, emitted.written.mlir_bytes,
-                        "_count_width"));
+                        "_bit_width"));
   return true;
 }
 
@@ -4373,6 +4373,202 @@ static bool test_u64_reversed_bytes_artifact(void) {
   CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
         !contains_bytes(artifact, emitted.written.mlir_bytes,
                         "llvm.intr.bswap"));
+  return true;
+}
+
+static bool test_fixed_integer_bit_primitive_width_artifact(void) {
+  static const struct {
+    const char *type;
+    const char *pattern;
+    const char *zero;
+    const char *negative;
+    const char *rotate_count;
+    uint16_t bit_width;
+    bool is_signed;
+  } INTEGERS[] = {
+      {"i8", "0x52_i8", "0_i8", "~1_i8", "9_u64", 8u, true},
+      {"u8", "0x96_u8", "0_u8", "0x96_u8", "9_u64", 8u, false},
+      {"i16", "0x1234_i16", "0_i16", "~1_i16", "17_u64", 16u, true},
+      {"u16", "0x89ab_u16", "0_u16", "0x89ab_u16", "17_u64", 16u,
+       false},
+      {"i32", "0x12345678_i32", "0_i32", "~1_i32", "33_u64", 32u,
+       true},
+      {"u32", "0x89abcdef_u32", "0_u32", "0x89abcdef_u32", "33_u64",
+       32u, false},
+      {"i64", "0x0123456789abcd6e_i64", "0_i64", "~1_i64", "65_u64",
+       64u, true},
+      {"u64", "0xfedcba9876543210_u64", "0_u64",
+       "0xfedcba9876543210_u64", "65_u64", 64u, false},
+  };
+  static const char *const OPERATIONS[] = {
+      "countOnes",      "countZeros",      "countLeadingZeros",
+      "countTrailingZeros", "reversedBits", "reversedBytes",
+      "rotatedLeft",    "rotatedRight",
+  };
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  for (size_t integer = 0u;
+       integer < sizeof(INTEGERS) / sizeof(INTEGERS[0]); integer += 1u) {
+    char source[TEST_SOURCE];
+    size_t source_length = 0u;
+    CHECK(append_mlir_test_source(source, sizeof(source), &source_length,
+                                 "fn bitMatrix() { "));
+    size_t binding = 0u;
+    for (size_t operation = 0u;
+         operation < sizeof(OPERATIONS) / sizeof(OPERATIONS[0]);
+         operation += 1u) {
+      const char *argument = INTEGERS[integer].pattern;
+      if (operation == 2u || operation == 3u)
+        argument = INTEGERS[integer].zero;
+      else if ((operation == 4u || operation == 5u) &&
+               INTEGERS[integer].is_signed)
+        argument = INTEGERS[integer].negative;
+      const bool rotation = operation == 6u || operation == 7u;
+      if (rotation) {
+        CHECK(append_mlir_test_source(
+            source, sizeof(source), &source_length,
+            "let bit%u = %s.%s(%s, %s) ", (unsigned)binding,
+            INTEGERS[integer].type, OPERATIONS[operation], argument,
+            INTEGERS[integer].rotate_count));
+      } else {
+        CHECK(append_mlir_test_source(
+            source, sizeof(source), &source_length, "let bit%u = %s.%s(%s) ",
+            (unsigned)binding, INTEGERS[integer].type,
+            OPERATIONS[operation], argument));
+      }
+      binding += 1u;
+    }
+    CHECK(binding == 8u &&
+        append_mlir_test_source(source, sizeof(source), &source_length,
+                                "print(\""));
+    for (size_t index = 0u; index < binding; index += 1u)
+      CHECK(append_mlir_test_source(source, sizeof(source), &source_length,
+                                   "${bit%u}%s", (unsigned)index,
+                                   index + 1u == binding ? "" : "/"));
+    CHECK(append_mlir_test_source(source, sizeof(source), &source_length,
+                                 "\") }\nentry(bitMatrix)\n"));
+
+    w_seed_mlir0_counts counts;
+    w_seed_mlir0_result measured;
+    w_seed_mlir0_result emitted;
+    CHECK(lower_hir((const uint8_t *)source, source_length));
+    size_t unary_count = 0u;
+    size_t rotated_left_count = 0u;
+    size_t rotated_right_count = 0u;
+    for (size_t index = 0u; index < fixture.hir_program.value_count;
+         index += 1u) {
+      const w_seed_hir0_value *value = &fixture.hir_program.values[index];
+      if ((value->kind == W_SEED_HIR0_VALUE_UNARY_I64 ||
+           value->kind == W_SEED_HIR0_VALUE_UNARY_U64) &&
+          value->unary_operator >= W_SEED_HIR0_UNARY_COUNT_ONES &&
+          value->unary_operator <= W_SEED_HIR0_UNARY_REVERSED_BYTES)
+        unary_count += 1u;
+      if ((value->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
+           value->kind == W_SEED_HIR0_VALUE_BINARY_U64) &&
+          value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_LEFT)
+        rotated_left_count += 1u;
+      if ((value->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
+           value->kind == W_SEED_HIR0_VALUE_BINARY_U64) &&
+          value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_RIGHT)
+        rotated_right_count += 1u;
+    }
+    CHECK(unary_count == 6u && rotated_left_count == 1u &&
+          rotated_right_count == 1u);
+    CHECK(measure_current(&counts, &measured));
+    CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+    const size_t mlir_bytes = emitted.written.mlir_bytes;
+    CHECK(counts.mlir_bytes == mlir_bytes &&
+          memcmp(measured.mlir_sha256, emitted.mlir_sha256,
+                 sizeof(measured.mlir_sha256)) == 0 &&
+          !contains_bytes(artifact, mlir_bytes,
+                          "@w_seed_rotated_left_u64") &&
+          !contains_bytes(artifact, mlir_bytes,
+                          "@w_seed_rotated_right_u64") &&
+          count_bytes(artifact, mlir_bytes, "llvm.intr.fshl") == 1u &&
+          count_bytes(artifact, mlir_bytes, "llvm.intr.fshr") == 1u &&
+          count_bytes(artifact, mlir_bytes, "llvm.intr.ctpop") == 2u &&
+          count_bytes(artifact, mlir_bytes, "llvm.intr.ctlz") == 1u &&
+          count_bytes(artifact, mlir_bytes, "llvm.intr.cttz") == 1u &&
+          count_bytes(artifact, mlir_bytes, "llvm.intr.bitreverse") == 1u &&
+          count_bytes(artifact, mlir_bytes, "llvm.intr.bswap") ==
+              (INTEGERS[integer].bit_width == 8u ? 0u : 1u) &&
+          count_bytes(artifact, mlir_bytes, "is_zero_poison = false") == 2u &&
+          !contains_bytes(artifact, mlir_bytes,
+                          "\"llvm.intr.trap\"() : () -> ()"));
+
+    char type_suffix[40];
+    char zero_poison_suffix[96];
+    char width_constant[80];
+    char rotate_mask[80];
+    const int type_suffix_length = snprintf(
+        type_suffix, sizeof(type_suffix), ") : (i%u) -> i%u",
+        (unsigned)INTEGERS[integer].bit_width,
+        (unsigned)INTEGERS[integer].bit_width);
+    const int zero_poison_suffix_length = snprintf(
+        zero_poison_suffix, sizeof(zero_poison_suffix),
+        ") <{is_zero_poison = false}> : (i%u) -> i%u",
+        (unsigned)INTEGERS[integer].bit_width,
+        (unsigned)INTEGERS[integer].bit_width);
+    const int width_constant_length = snprintf(
+        width_constant, sizeof(width_constant),
+        "_bit_width = llvm.mlir.constant(%u : i%u)",
+        (unsigned)INTEGERS[integer].bit_width,
+        (unsigned)INTEGERS[integer].bit_width);
+    const int rotate_mask_length = snprintf(
+        rotate_mask, sizeof(rotate_mask),
+        "_rotate_mask = llvm.mlir.constant(%u : i64)",
+        (unsigned)INTEGERS[integer].bit_width - 1u);
+    CHECK(type_suffix_length > 0 &&
+          (size_t)type_suffix_length < sizeof(type_suffix) &&
+          zero_poison_suffix_length > 0 &&
+          (size_t)zero_poison_suffix_length < sizeof(zero_poison_suffix) &&
+          width_constant_length > 0 &&
+          (size_t)width_constant_length < sizeof(width_constant) &&
+          rotate_mask_length > 0 &&
+          (size_t)rotate_mask_length < sizeof(rotate_mask));
+    const size_t width = INTEGERS[integer].bit_width;
+    CHECK(count_mlir_lines_with_fragment_and_type(
+              artifact, emitted.written.mlir_bytes, "llvm.intr.ctpop",
+              type_suffix) == 2u &&
+          count_mlir_lines_with_fragment_and_type(
+              artifact, emitted.written.mlir_bytes, "llvm.intr.ctlz",
+              zero_poison_suffix) == 1u &&
+          count_mlir_lines_with_fragment_and_type(
+              artifact, emitted.written.mlir_bytes, "llvm.intr.cttz",
+              zero_poison_suffix) == 1u &&
+          count_mlir_lines_with_fragment_and_type(
+              artifact, emitted.written.mlir_bytes, "llvm.intr.bitreverse",
+              type_suffix) == 1u &&
+          count_mlir_lines_with_fragment_and_type(
+              artifact, emitted.written.mlir_bytes, "llvm.intr.bswap",
+              type_suffix) == (width == 8u ? 0u : 1u));
+    char rotation_suffix[64];
+    const int rotation_suffix_length = snprintf(
+        rotation_suffix, sizeof(rotation_suffix),
+        ") : (i%u, i%u, i%u) -> i%u", (unsigned)width,
+        (unsigned)width, (unsigned)width, (unsigned)width);
+    CHECK(rotation_suffix_length > 0 &&
+          (size_t)rotation_suffix_length < sizeof(rotation_suffix) &&
+          count_mlir_lines_with_fragment_and_type(
+              artifact, emitted.written.mlir_bytes, "llvm.intr.fshl",
+              rotation_suffix) == 1u &&
+          count_mlir_lines_with_fragment_and_type(
+              artifact, emitted.written.mlir_bytes, "llvm.intr.fshr",
+              rotation_suffix) == 1u &&
+          count_bytes(artifact, emitted.written.mlir_bytes, width_constant) ==
+              1u &&
+          count_bytes(artifact, emitted.written.mlir_bytes, rotate_mask) ==
+              2u);
+    CHECK(count_bytes(artifact, mlir_bytes, "_bit_input = llvm.trunc ") ==
+              (width < 64u ? 6u : 0u) &&
+          count_bytes(artifact, mlir_bytes, "_rotate_input = llvm.trunc ") ==
+              (width < 64u ? 2u : 0u) &&
+          count_bytes(artifact, mlir_bytes, "llvm.zext %v") ==
+              (width == 64u ? 0u : (INTEGERS[integer].is_signed ? 4u : 8u)) &&
+          count_bytes(artifact, mlir_bytes, "llvm.sext %v") ==
+              (width < 64u && INTEGERS[integer].is_signed ? 6u : 0u) &&
+          count_bytes(artifact, mlir_bytes, "_bit_raw = llvm.or ") ==
+              (width == 8u ? 1u : 0u));
+  }
   return true;
 }
 
@@ -7058,6 +7254,7 @@ int main(int argc, char **argv) {
   if (!test_u64_count_trailing_zeros_artifact()) return 1;
   if (!test_u64_reversed_bits_artifact()) return 1;
   if (!test_u64_reversed_bytes_artifact()) return 1;
+  if (!test_fixed_integer_bit_primitive_width_artifact()) return 1;
   if (!test_unsigned_unary_bit_not_artifact()) return 1;
   if (!test_scalar_if_value_diamond()) return 1;
   if (!test_nested_scalar_if_value_diamond()) return 1;

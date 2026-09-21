@@ -231,6 +231,7 @@ O corpus compara, no mínimo:
 - fixed-width integer saturation against host promotions, post-conversion clamps, per-pair lowering branches, and unequal benchmark work.
 - strict f32/f64 identity against host reparsing, implicit widening, per-width compiler paths, default fast-math, and unequal benchmark work.
 - f32/u32 and f64/u64 bit reinterpretation against numeric conversion, implicit byte order, and arithmetic NaN payload stability.
+- fixed-width integer rotations, population/zero counts, and bit/byte reversals against physical-carrier-width semantics, per-width compiler paths, and premature runtime-performance claims.
 - exact total numeric widening against value-specific implicit casts, opaque conversion nodes, runtime helpers, host conversion, and unequal benchmark work.
 - ordinary binary integer bitwise operators against per-width lowering branches, host promotion rules, source-signedness leakage, and fragmented executable witnesses.
 - checked ordinary integer shifts against per-width lowering branches, implicit promotions, masked counts, host shift rules, and unchecked left-shift loss.
@@ -8006,6 +8007,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1645 | strict binary32/binary64 scalar family | The existing W-393 strict-float contract now uses one width-generic seed route for `f32` and `f64` literals, `+`, `-`, `*`, `/`, unary `-`, and six IEEE comparisons. Frontend67 materializes exact bits under a private C locale and nearest-even environment; HIR88 appends f32 identity; NativeSubset0 and MLIR59/Windows44 validate and emit width-correct direct LLVM dialect operations with no fast-math, heap, runtime helper, or CRT helper. | `source-backed-current` only for exact literal boundaries, same-width verified operators, focused adversarial tests, the width-neutral Restaurant witness, and exact CRT-free Windows plus Linux/WSL execution. Mixed-width and integer/float operator conversion lowering, remainder, power, total-order helpers, stable ABI/FFI, other targets, and equivalent runtime work remain gaps. C23 and Rust 2024 are correctness references only; the W witness is compile-time folded, therefore `benchmarkDisposition: deferred` and not performance-ready. |
 | W-1646 | exact total numeric widening | The existing W-388/W-389 contract now inserts one explicit numeric-widen value for the total exact routes `f32 -> f64`, `i8`/`u8`/`i16`/`u16 -> f32`, and `i8`/`u8`/`i16`/`u16`/`i32`/`u32 -> f64`. The same wrapper owns bindings, returns, call arguments, mixed arithmetic, mixed comparisons, and unlabeled `D(value)`. Frontend68, HIR89, NativeSubset0, and MLIR60 preserve and independently verify source/destination identity; lowering uses `llvm.fpext`, or `llvm.trunc` from the physical `i64` carrier to the verified integer width followed by `llvm.sitofp`/`llvm.uitofp`, without fast-math, heap, runtime, or CRT helpers. | `source-backed-current` only for these exact total pairs, focused context and forgery barriers, the compact Restaurant witness, invalid `i32 -> f32` failure before output, and exact CRT-free Windows plus Linux/WSL execution. Constant-specific exactness does not widen the implicit relation. Lossy/fallible routes, target-general aliases, stable ABI/FFI, other targets, and equivalent-runtime performance remain gaps. C23 and Rust 2024 are correctness references only; the W witness may fold completely, therefore `benchmarkDisposition: deferred` and not performance-ready. |
 | W-1647 | floating bit representation bridge | `f32.fromBits(u32)`/`f64.fromBits(u64)` and matching `.toBits()` reinterpret exact bits; storage, copy, and round-trip preserve the encoding | numeric conversion, implicit byte order, or portable NaN payload after arithmetic |
+| W-1648 | fixed-width integer bit primitives through native execution | The existing W-392 associated functions `rotatedLeft(_ value: Self, _ count: UInt) -> Self`, `rotatedRight(_ value: Self, _ count: UInt) -> Self`, `countOnes(_ value: Self) -> UInt`, `countZeros(_ value: Self) -> UInt`, `countLeadingZeros(_ value: Self) -> UInt`, `countTrailingZeros(_ value: Self) -> UInt`, `reversedBits(_ value: Self) -> Self`, and `reversedBytes(_ value: Self) -> Self` are source-backed for built-in `i8`/`u8`, `i16`/`u16`, `i32`/`u32`, and `i64`/`u64`. Rotations reduce counts modulo logical width; counts return `UInt`, zero leading/trailing-zero counts equal width, leading/trailing scans start at the most/least-significant bit, signed values use the full two's-complement representation, and reversals operate on logical width independent of host endianness. Frontend70, HIR91, NativeSubset0, and MLIR61 validate and lower this fixed-width family through direct LLVM-dialect intrinsics; exact-output Windows x64 and Linux/WSL x64 source-to-native gates pass. The 3,943-byte neutral W fixture covers every operation and type; focused tests plus C23/Rust references add zero-count and rotation `0`/`width`/`width + 1` edges. No syntax changes. `Int`/`UInt` target width, `isize`/`usize`, 128-bit integers, other targets, general optimizer behavior, stable ABI/FFI, and performance remain outside this increment. | physical-carrier-width semantics; duplicate syntax or target intrinsics in the language core; portable-width claims for aliases or other targets without evidence; performance rankings without equivalent runtime operands |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -14348,3 +14350,42 @@ Linux/WSL x64 routes. Arithmetic may produce NaN but does not promise to retain
 an operand's sign or payload. C23 and Rust 2024 are correctness references;
 their runtime inputs differ from W's foldable literals, so
 `benchmarkDisposition: deferred` and no performance ranking is published.
+
+#### W-1648 — fixed-width integer bit primitives through native execution
+
+W-1648 is the bounded source-backed increment for the existing W-392
+associated functions; it does not add a token, operator, or policy API. Its
+source-backed type boundary is exactly `i8`/`u8`, `i16`/`u16`, `i32`/`u32`,
+and `i64`/`u64`. The signatures are
+`rotatedLeft(_ value: Self, _ count: UInt) -> Self`,
+`rotatedRight(_ value: Self, _ count: UInt) -> Self`,
+`countOnes(_ value: Self) -> UInt`, `countZeros(_ value: Self) -> UInt`,
+`countLeadingZeros(_ value: Self) -> UInt`,
+`countTrailingZeros(_ value: Self) -> UInt`,
+`reversedBits(_ value: Self) -> Self`, and
+`reversedBytes(_ value: Self) -> Self`.
+
+Rotations interpret the count modulo `Self.bitWidth`; an over-width count is
+valid. Counts and reversal are defined on the logical width, not the physical
+seed carrier. Counts use the full two's-complement pattern for signed types;
+`countZeros` equals width minus the population count. Leading-zero counting
+starts at the most-significant bit and trailing-zero counting at the
+least-significant bit; for zero, both return the logical width. Bit and byte
+reversal return the same type; byte order is independent of host endianness.
+
+Frontend70, HIR91, NativeSubset0, and MLIR61 carry and independently verify
+the fixed-width signedness and logical-width facts. MLIR uses direct
+`llvm.intr.fshl`/`fshr`, `ctpop`, `ctlz`, `cttz`, `bitreverse`, and `bswap`
+operations. The neutral witness
+[`fixed-integer-bit-primitives.w`](compiler/seed-c/fixtures/fixed-integer-bit-primitives.w)
+is 3,943 bytes and declares exact output for every operation across all eight
+fixed-width types. Focused unit tests and C23/Rust 2024 references also cover
+zero-input width counts and rotations reduced from `0`, `width`, and
+`width + 1`; the W witness checks `width + 1` rotations and bit reversal of
+negative signed values. Final exact-output source-to-native gates pass on
+CRT-free Windows x64 and Linux/WSL x64. This establishes correctness only.
+There is no source-backed claim for `Int`/`UInt` target width, `isize`/`usize`,
+128-bit integers, other targets, or general optimizer behavior. C23 and Rust
+2024 remain correctness references, not equivalent runtime workloads;
+`benchmarkDisposition: deferred`, not-performance-ready, with no timing or
+performance ranking claimed.

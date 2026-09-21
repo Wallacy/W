@@ -1116,10 +1116,10 @@ enum {
   TEST_PARAMETERS = 48,
   TEST_ENTRIES = 4,
   TEST_STATEMENTS = 256,
-  TEST_EXPRESSIONS = 256,
-  TEST_ARGUMENTS = 32,
+  TEST_EXPRESSIONS = 512,
+  TEST_ARGUMENTS = 96,
   TEST_INTERPOLATION_SEGMENTS = 16,
-  TEST_SYMBOLS = 80,
+  TEST_SYMBOLS = 96,
   TEST_FACTS = 16,
   TEST_DIAGNOSTICS = 8,
   TEST_RECEIPT = 65536,
@@ -2068,7 +2068,7 @@ static bool test_implicit_integer_widen_hir(void) {
 }
 
 static bool test_float_bits_hir(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-90") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-91") == 0);
   static const char SOURCE[] =
       "fn from32(bits: u32): f32 { let stored: f32 = f32.fromBits(bits) "
       "return stored }\n"
@@ -2303,7 +2303,7 @@ static bool test_float_bits_hir(void) {
 }
 
 static bool test_numeric_widen_hir(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-90") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-91") == 0);
   typedef struct {
     const char *source_name;
     bool source_is_float;
@@ -15898,7 +15898,7 @@ static bool test_explicit_integer_saturating_hir(void) {
 }
 
 static bool test_checked_integer_arithmetic_hir_matrix(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-90") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-91") == 0);
   typedef struct {
     const char *name;
     const char *suffix;
@@ -17293,6 +17293,234 @@ static bool test_u64_reversed_bytes(void) {
   return true;
 }
 
+static bool test_fixed_integer_bit_primitives_hir_matrix(void) {
+  typedef struct {
+    const char *spelling;
+    bool is_signed;
+    uint16_t bit_width;
+  } integer_case;
+  static const integer_case INTEGERS[] = {
+      {"i8", true, 8u},   {"i16", true, 16u}, {"i32", true, 32u},
+      {"i64", true, 64u}, {"u8", false, 8u},  {"u16", false, 16u},
+      {"u32", false, 32u}, {"u64", false, 64u},
+  };
+  typedef struct {
+    const char *member;
+    w_seed_hir0_binary_operator binary_operator;
+    w_seed_hir0_unary_operator unary_operator;
+    bool binary;
+    bool returns_count;
+  } bit_operation_case;
+  static const bit_operation_case OPERATIONS[] = {
+      {"rotatedLeft", W_SEED_HIR0_BINARY_ROTATED_LEFT,
+       W_SEED_HIR0_UNARY_NOT, true, false},
+      {"rotatedRight", W_SEED_HIR0_BINARY_ROTATED_RIGHT,
+       W_SEED_HIR0_UNARY_NOT, true, false},
+      {"countOnes", W_SEED_HIR0_BINARY_ADD, W_SEED_HIR0_UNARY_COUNT_ONES,
+       false, true},
+      {"countZeros", W_SEED_HIR0_BINARY_ADD, W_SEED_HIR0_UNARY_COUNT_ZEROS,
+       false, true},
+      {"countLeadingZeros", W_SEED_HIR0_BINARY_ADD,
+       W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS, false, true},
+      {"countTrailingZeros", W_SEED_HIR0_BINARY_ADD,
+       W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS, false, true},
+      {"reversedBits", W_SEED_HIR0_BINARY_ADD,
+       W_SEED_HIR0_UNARY_REVERSED_BITS, false, false},
+      {"reversedBytes", W_SEED_HIR0_BINARY_ADD,
+       W_SEED_HIR0_UNARY_REVERSED_BYTES, false, false},
+  };
+  static char source[16384];
+  size_t source_bytes = 0u;
+  for (size_t integer_index = 0u;
+       integer_index < sizeof(INTEGERS) / sizeof(INTEGERS[0]);
+       integer_index += 1u) {
+    const integer_case *integer = &INTEGERS[integer_index];
+    int written = snprintf(source + source_bytes,
+                           sizeof(source) - source_bytes,
+                           "fn bit_%u(value: %s, count: UInt) {\n",
+                           (unsigned)integer_index, integer->spelling);
+    CHECK(written > 0 && (size_t)written < sizeof(source) - source_bytes);
+    source_bytes += (size_t)written;
+    for (size_t operation_index = 0u;
+         operation_index < sizeof(OPERATIONS) / sizeof(OPERATIONS[0]);
+         operation_index += 1u) {
+      const bit_operation_case *operation = &OPERATIONS[operation_index];
+      written =
+          operation->binary
+              ? snprintf(source + source_bytes,
+                         sizeof(source) - source_bytes,
+                         "let bit_%u = %s.%s(value, count)\n",
+                         (unsigned)operation_index, integer->spelling,
+                         operation->member)
+              : snprintf(source + source_bytes,
+                         sizeof(source) - source_bytes,
+                         "let bit_%u = %s.%s(value)\n",
+                         (unsigned)operation_index, integer->spelling,
+                         operation->member);
+      CHECK(written > 0 && (size_t)written < sizeof(source) - source_bytes);
+      source_bytes += (size_t)written;
+    }
+    written = snprintf(source + source_bytes, sizeof(source) - source_bytes,
+                       "}\n");
+    CHECK(written > 0 && (size_t)written < sizeof(source) - source_bytes);
+    source_bytes += (size_t)written;
+  }
+  static const char ENTRY[] = "entry { }\n";
+  CHECK(sizeof(ENTRY) - 1u < sizeof(source) - source_bytes);
+  (void)memcpy(source + source_bytes, ENTRY, sizeof(ENTRY));
+  CHECK(lower(source));
+  CHECK(fixture.hir_program.call_count == 0u);
+
+  size_t operation_counts[sizeof(OPERATIONS) / sizeof(OPERATIONS[0])] = {0u};
+  size_t operation_type_counts[sizeof(OPERATIONS) / sizeof(OPERATIONS[0])][8] = {
+      {0u}};
+  size_t signed_reverse_index = SIZE_MAX;
+  size_t rotate_index = SIZE_MAX;
+  size_t count_index = SIZE_MAX;
+  uint32_t signed_i16_type = W_SEED_HIR0_NONE;
+  for (size_t index = 0u; index < fixture.hir_program.type_count; index += 1u) {
+    const w_seed_hir0_type *type = &fixture.hir_program.types[index];
+    if (type->kind == W_SEED_HIR0_TYPE_INTEGER && type->integer_is_signed &&
+        type->integer_bit_width == 16u)
+      signed_i16_type = (uint32_t)index;
+  }
+  CHECK(signed_i16_type != W_SEED_HIR0_NONE);
+
+  for (size_t value_index = 0u;
+       value_index < fixture.hir_program.value_count; value_index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_program.values[value_index];
+    for (size_t operation_index = 0u;
+         operation_index < sizeof(OPERATIONS) / sizeof(OPERATIONS[0]);
+         operation_index += 1u) {
+      const bit_operation_case *operation = &OPERATIONS[operation_index];
+      const w_seed_hir0_type *logical_type = NULL;
+      if (operation->binary) {
+        if ((value->kind != W_SEED_HIR0_VALUE_BINARY_I64 &&
+             value->kind != W_SEED_HIR0_VALUE_BINARY_U64) ||
+            value->binary_operator != operation->binary_operator)
+          continue;
+        CHECK(value->left_value < fixture.hir_program.value_count &&
+              value->right_value < fixture.hir_program.value_count &&
+              value->type_index < fixture.hir_program.type_count &&
+              fixture.hir_program.values[value->left_value].type_index ==
+                  value->type_index &&
+              fixture.hir_program.values[value->right_value].type_index <
+                  fixture.hir_program.type_count &&
+              fixture.hir_program.types[
+                  fixture.hir_program.values[value->right_value].type_index]
+                      .kind == W_SEED_HIR0_TYPE_U64);
+        const w_seed_hir0_type *type =
+            &fixture.hir_program.types[value->type_index];
+        const w_seed_hir0_type_kind expected_type_kind =
+            type->integer_bit_width == 64u
+                ? (type->integer_is_signed ? W_SEED_HIR0_TYPE_I64
+                                           : W_SEED_HIR0_TYPE_U64)
+                : W_SEED_HIR0_TYPE_INTEGER;
+        CHECK(type->kind == expected_type_kind &&
+              type->integer_bit_width != 0u &&
+              type->integer_is_signed ==
+                  (value->kind == W_SEED_HIR0_VALUE_BINARY_I64));
+        logical_type = type;
+        if (rotate_index == SIZE_MAX) rotate_index = value_index;
+      } else {
+        if ((value->kind != W_SEED_HIR0_VALUE_UNARY_I64 &&
+             value->kind != W_SEED_HIR0_VALUE_UNARY_U64) ||
+            value->unary_operator != operation->unary_operator)
+          continue;
+        CHECK(value->left_value < fixture.hir_program.value_count &&
+              value->right_value == W_SEED_HIR0_NONE &&
+              value->type_index < fixture.hir_program.type_count);
+        const w_seed_hir0_value *operand =
+            &fixture.hir_program.values[value->left_value];
+        const w_seed_hir0_type *type =
+            &fixture.hir_program.types[value->type_index];
+        if (operation->returns_count) {
+          CHECK(value->kind == W_SEED_HIR0_VALUE_UNARY_U64 &&
+                type->kind == W_SEED_HIR0_TYPE_U64 &&
+                type->integer_bit_width == 64u && !type->integer_is_signed &&
+                operand->type_index < fixture.hir_program.type_count &&
+                (fixture.hir_program.types[operand->type_index]
+                         .integer_bit_width == 8u ||
+                 fixture.hir_program.types[operand->type_index]
+                         .integer_bit_width == 16u ||
+                 fixture.hir_program.types[operand->type_index]
+                         .integer_bit_width == 32u ||
+                 fixture.hir_program.types[operand->type_index]
+                         .integer_bit_width == 64u));
+          logical_type = &fixture.hir_program.types[operand->type_index];
+          if (count_index == SIZE_MAX) count_index = value_index;
+        } else {
+          CHECK(value->type_index == operand->type_index &&
+                type->integer_bit_width != 0u &&
+                type->integer_is_signed ==
+                    (value->kind == W_SEED_HIR0_VALUE_UNARY_I64));
+          logical_type = type;
+          if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64 &&
+              signed_reverse_index == SIZE_MAX)
+            signed_reverse_index = value_index;
+        }
+      }
+      CHECK(logical_type != NULL &&
+            (logical_type->integer_bit_width == 8u ||
+             logical_type->integer_bit_width == 16u ||
+             logical_type->integer_bit_width == 32u ||
+             logical_type->integer_bit_width == 64u));
+      const size_t width_slot =
+          logical_type->integer_bit_width == 8u
+              ? 0u
+              : logical_type->integer_bit_width == 16u
+                    ? 1u
+                    : logical_type->integer_bit_width == 32u ? 2u : 3u;
+      const size_t integer_slot =
+          (logical_type->integer_is_signed ? 0u : 4u) + width_slot;
+      operation_type_counts[operation_index][integer_slot] += 1u;
+      operation_counts[operation_index] += 1u;
+    }
+  }
+  for (size_t operation_index = 0u;
+       operation_index < sizeof(operation_counts) / sizeof(operation_counts[0]);
+       operation_index += 1u)
+    CHECK(operation_counts[operation_index] ==
+          sizeof(INTEGERS) / sizeof(INTEGERS[0]));
+  for (size_t operation_index = 0u;
+       operation_index < sizeof(OPERATIONS) / sizeof(OPERATIONS[0]);
+       operation_index += 1u)
+    for (size_t integer_index = 0u;
+         integer_index < sizeof(INTEGERS) / sizeof(INTEGERS[0]);
+         integer_index += 1u)
+      CHECK(operation_type_counts[operation_index][integer_index] == 1u);
+  CHECK(signed_reverse_index != SIZE_MAX && rotate_index != SIZE_MAX &&
+        count_index != SIZE_MAX &&
+        w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  const w_seed_hir0_value saved_reverse =
+      fixture.hir_values[signed_reverse_index];
+  fixture.hir_values[signed_reverse_index].type_index = signed_i16_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[signed_reverse_index] = saved_reverse;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  const w_seed_hir0_value saved_rotate = fixture.hir_values[rotate_index];
+  fixture.hir_values[rotate_index].right_value =
+      fixture.hir_values[rotate_index].left_value;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[rotate_index] = saved_rotate;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  const w_seed_hir0_value saved_count = fixture.hir_values[count_index];
+  fixture.hir_values[count_index].type_index = signed_i16_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[count_index] = saved_count;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_canonical_f64_scalar(void) {
   static const char SOURCE[] =
       "entry { let sum = 1.5 + 2.25_f64 let difference = 9.5 - 5.5 "
@@ -18387,6 +18615,7 @@ int main(int argc, char **argv) {
   if (!test_u64_count_trailing_zeros()) return 1;
   if (!test_u64_reversed_bits()) return 1;
   if (!test_u64_reversed_bytes()) return 1;
+  if (!test_fixed_integer_bit_primitives_hir_matrix()) return 1;
   if (!test_canonical_f64_scalar()) return 1;
   if (!test_canonical_f32_scalar()) return 1;
   if (!test_frontend_tree_bounds_forgery()) return 1;

@@ -11861,6 +11861,65 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-fixed-width-integer-bit-primitives",
+      "reviewItem": "fixed-width integer rotations, population/zero counts, and bit/byte reversals against physical-carrier-width semantics, per-width compiler paths, and premature runtime-performance claims",
+      "decisions": [
+        "W-1648"
+      ],
+      "task": "Carry the existing W-392 rotations, count functions, and bit/byte reversals through one verified logical-width route for i8/u8/i16/u16/i32/u32/i64/u64. Preserve modulo rotation counts, zero-count boundaries, full signed two's-complement patterns, and host-endian independence. The 3,943-byte neutral W witness covers every operation and type; final exact-output source-to-native gates pass on CRT-free Windows x64 and Linux/WSL x64. Focused unit and C23/Rust references retain zero-count and rotation 0/width/width+1 edges. References are correctness-only; defer performance ranking until runtime operands are equivalent.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "let ones = i8.countOnes(0x52_i8)",
+          "let zeros = i8.countZeros(0x52_i8)",
+          "let leading = i8.countLeadingZeros(0x52_i8)",
+          "let trailing = i8.countTrailingZeros(0x52_i8)",
+          "let reversedBits = i8.reversedBits(~1_i8)",
+          "let reversedBytes = i8.reversedBytes(0x52_i8)",
+          "let rotatedLeft = i8.rotatedLeft(0x52_i8, 9_u64)",
+          "let rotatedRight = i8.rotatedRight(0x52_i8, 9_u64)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "physical-carrier-width",
+          "language": "w-internal-rejected",
+          "source": [
+            "compute counts and reversal over the physical i64 carrier width"
+          ],
+          "expectedDifference": "Every operation uses Self's logical width; signed values retain their complete two's-complement pattern without exposing carrier padding."
+        },
+        {
+          "name": "per-width-lowering-branches",
+          "language": "w-internal-rejected",
+          "source": [
+            "give each primitive and integer width a separate compiler operation and target-specific lowering path"
+          ],
+          "expectedDifference": "The verified signedness and logical-width facts drive one generic operation family and direct LLVM-dialect intrinsics."
+        },
+        {
+          "name": "rank-folded-witness",
+          "language": "benchmark-rejected",
+          "source": [
+            "rank the W literal-folded witness against C23/Rust runtime operands"
+          ],
+          "expectedDifference": "Correctness parity and shared benchmark tooling do not establish equivalent runtime work; performance disposition stays deferred."
+        }
+      ],
+      "checks": [
+        "Focused frontend70, verified-HIR91, NativeSubset0, and MLIR61 tests pass across all eight fixed-width types and all eight operations.",
+        "Final-source MLIR0, CRT-free Windows x64, and Linux/WSL x64 gates pass exact output for the compact linked W witness.",
+        "Focused unit tests and C23/Rust references additionally check zero-input width counts and rotation counts 0, width, and width + 1; the W witness checks width + 1 and negative signed bit reversal.",
+        "C23 and Rust 2024 are correctness references only; no timing or performance ranking is claimed."
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

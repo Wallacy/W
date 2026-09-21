@@ -101,6 +101,112 @@ static bool native_integer_is_bitwise_binary(
          operation <= W_SEED_HIR0_BINARY_BIT_XOR;
 }
 
+static bool native_integer_is_bit_primitive_unary(
+    w_seed_hir0_unary_operator operation) {
+  return operation == W_SEED_HIR0_UNARY_COUNT_ONES ||
+         operation == W_SEED_HIR0_UNARY_COUNT_ZEROS ||
+         operation == W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS ||
+         operation == W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS ||
+         operation == W_SEED_HIR0_UNARY_REVERSED_BITS ||
+         operation == W_SEED_HIR0_UNARY_REVERSED_BYTES;
+}
+
+static bool native_integer_is_bit_count_unary(
+    w_seed_hir0_unary_operator operation) {
+  return operation == W_SEED_HIR0_UNARY_COUNT_ONES ||
+         operation == W_SEED_HIR0_UNARY_COUNT_ZEROS ||
+         operation == W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS ||
+         operation == W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS;
+}
+
+static bool native_integer_is_rotation_binary(
+    w_seed_hir0_binary_operator operation) {
+  return operation == W_SEED_HIR0_BINARY_ROTATED_LEFT ||
+         operation == W_SEED_HIR0_BINARY_ROTATED_RIGHT;
+}
+
+/* The old primitive identities now describe operations over the logical
+ * width carried by HIR, rather than u64-only operations. Count results are
+ * UInt; reversed results keep the operand's exact integer type. */
+static bool native_integer_bit_primitive_shape_valid(
+    const w_seed_hir0_program *program, const w_seed_hir0_value *value,
+    native_integer_facts *operand_facts,
+    native_integer_facts *result_facts) {
+  if (program == NULL || value == NULL ||
+      (value->kind != W_SEED_HIR0_VALUE_UNARY_I64 &&
+       value->kind != W_SEED_HIR0_VALUE_UNARY_U64) ||
+      !native_integer_is_bit_primitive_unary(value->unary_operator) ||
+      value->left_value == W_SEED_HIR0_NONE ||
+      value->left_value >= program->value_count ||
+      value->right_value != W_SEED_HIR0_NONE ||
+      value->binding_index != W_SEED_HIR0_NONE ||
+      value->parameter_index != W_SEED_HIR0_NONE ||
+      value->call_index != W_SEED_HIR0_NONE ||
+      value->first_interpolation_segment != W_SEED_HIR0_NONE ||
+      value->interpolation_segment_count != 0u ||
+      value->binary_operator != W_SEED_HIR0_BINARY_ADD ||
+      value->block_argument_index != W_SEED_HIR0_NONE)
+    return false;
+
+  native_integer_facts input;
+  native_integer_facts output;
+  if (!native_integer_type_facts(program, value->type_index, &output) ||
+      !native_integer_type_facts(
+          program, program->values[value->left_value].type_index, &input))
+    return false;
+
+  if (native_integer_is_bit_count_unary(value->unary_operator)) {
+    if (value->kind != W_SEED_HIR0_VALUE_UNARY_U64 ||
+        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64 ||
+        output.is_signed || output.bit_width != 64u)
+      return false;
+  } else if (value->type_index !=
+                 program->values[value->left_value].type_index ||
+             !native_integer_facts_equal(output, input) ||
+             value->kind != (input.is_signed ? W_SEED_HIR0_VALUE_UNARY_I64
+                                              : W_SEED_HIR0_VALUE_UNARY_U64)) {
+    return false;
+  }
+
+  if (operand_facts != NULL) *operand_facts = input;
+  if (result_facts != NULL) *result_facts = output;
+  return true;
+}
+
+static bool native_integer_rotation_shape_valid(
+    const w_seed_hir0_program *program, const w_seed_hir0_value *value,
+    native_integer_facts *result_facts) {
+  if (program == NULL || value == NULL ||
+      (value->kind != W_SEED_HIR0_VALUE_BINARY_I64 &&
+       value->kind != W_SEED_HIR0_VALUE_BINARY_U64) ||
+      !native_integer_is_rotation_binary(value->binary_operator) ||
+      value->left_value == W_SEED_HIR0_NONE ||
+      value->right_value == W_SEED_HIR0_NONE ||
+      value->left_value >= program->value_count ||
+      value->right_value >= program->value_count)
+    return false;
+
+  native_integer_facts result;
+  native_integer_facts operand;
+  native_integer_facts count;
+  const bool expected_signed = value->kind == W_SEED_HIR0_VALUE_BINARY_I64;
+  if (!native_integer_type_facts(program, value->type_index, &result) ||
+      result.is_signed != expected_signed ||
+      !native_integer_type_facts(
+          program, program->values[value->left_value].type_index, &operand) ||
+      !native_integer_type_facts(
+          program, program->values[value->right_value].type_index, &count) ||
+      !native_integer_facts_equal(result, operand) ||
+      program->values[value->left_value].type_index != value->type_index ||
+      program->types[program->values[value->right_value].type_index].kind !=
+          W_SEED_HIR0_TYPE_U64 ||
+      count.is_signed || count.bit_width != 64u)
+    return false;
+
+  if (result_facts != NULL) *result_facts = result;
+  return true;
+}
+
 static bool native_integer_bitwise_shape_valid(
     const w_seed_hir0_program *program, const w_seed_hir0_value *value,
     bool expected_signed) {
@@ -843,6 +949,65 @@ static bool evaluate_integer_bits(const w_seed_hir0_program *program,
     return true;
   }
 
+  if ((value->kind == W_SEED_HIR0_VALUE_UNARY_I64 ||
+       value->kind == W_SEED_HIR0_VALUE_UNARY_U64) &&
+      native_integer_is_bit_primitive_unary(value->unary_operator)) {
+    native_integer_facts operand_facts;
+    native_integer_facts result_facts;
+    uint64_t operand = 0u;
+    if (!native_integer_bit_primitive_shape_valid(
+            program, value, &operand_facts, &result_facts) ||
+        !native_integer_facts_equal(result_facts, expected) ||
+        !evaluate_integer_bits(program, value->left_value, depth + 1u,
+                               operand_facts, &operand))
+      return false;
+
+    const uint16_t width = operand_facts.bit_width;
+    const uint64_t operand_mask = native_integer_width_mask(operand_facts);
+    operand &= operand_mask;
+    uint64_t transformed = 0u;
+    if (value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ONES ||
+        value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ZEROS) {
+      uint64_t ones = 0u;
+      for (uint16_t bit = 0u; bit < width; bit += 1u)
+        ones += (operand >> bit) & UINT64_C(1);
+      transformed = value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ONES
+                        ? ones
+                        : (uint64_t)width - ones;
+    } else if (value->unary_operator ==
+               W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS) {
+      uint16_t zeros = 0u;
+      for (uint16_t bit = width; bit != 0u;
+           bit = (uint16_t)(bit - 1u)) {
+        if (((operand >> (bit - 1u)) & UINT64_C(1)) != 0u) break;
+        zeros += 1u;
+      }
+      transformed = zeros;
+    } else if (value->unary_operator ==
+               W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS) {
+      uint16_t zeros = 0u;
+      while (zeros < width &&
+             ((operand >> zeros) & UINT64_C(1)) == 0u)
+        zeros += 1u;
+      transformed = zeros;
+    } else if (value->unary_operator == W_SEED_HIR0_UNARY_REVERSED_BITS) {
+      for (uint16_t bit = 0u; bit < width; bit += 1u) {
+        transformed = (transformed << 1u) | (operand & UINT64_C(1));
+        operand >>= 1u;
+      }
+    } else if (value->unary_operator == W_SEED_HIR0_UNARY_REVERSED_BYTES) {
+      const uint16_t byte_count = (uint16_t)(width / 8u);
+      for (uint16_t byte = 0u; byte < byte_count; byte += 1u) {
+        transformed = (transformed << 8u) | (operand & UINT64_C(0xff));
+        operand >>= 8u;
+      }
+    } else {
+      return false;
+    }
+    *result = native_integer_mask_bits(transformed, expected);
+    return true;
+  }
+
   if (value->kind == (signed_carrier ? W_SEED_HIR0_VALUE_UNARY_I64
                                      : W_SEED_HIR0_VALUE_UNARY_U64)) {
     if (value->left_value == W_SEED_HIR0_NONE) return false;
@@ -867,6 +1032,37 @@ static bool evaluate_integer_bits(const w_seed_hir0_program *program,
     if (!native_integer_is_wrapping_unary(value->unary_operator)) return false;
     /* 0 - operand is uint64_t subtraction, never signed negation. */
     *result = (UINT64_C(0) - operand) & mask;
+    return true;
+  }
+
+  if ((value->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
+       value->kind == W_SEED_HIR0_VALUE_BINARY_U64) &&
+      native_integer_is_rotation_binary(value->binary_operator)) {
+    native_integer_facts result_facts;
+    const native_integer_facts count_facts = {false, 64u};
+    uint64_t left = 0u;
+    uint64_t count_value = 0u;
+    if (!native_integer_rotation_shape_valid(program, value, &result_facts) ||
+        !native_integer_facts_equal(result_facts, expected) ||
+        !evaluate_integer_bits(program, value->left_value, depth + 1u,
+                               expected, &left) ||
+        !evaluate_integer_bits(program, value->right_value, depth + 1u,
+                               count_facts, &count_value))
+      return false;
+
+    const uint64_t normalized_count = count_value % expected.bit_width;
+    left &= mask;
+    if (normalized_count == 0u) {
+      *result = left;
+    } else if (value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_LEFT) {
+      *result = ((left << normalized_count) |
+                 (left >> (expected.bit_width - normalized_count))) &
+                mask;
+    } else {
+      *result = ((left >> normalized_count) |
+                 (left << (expected.bit_width - normalized_count))) &
+                mask;
+    }
     return true;
   }
 
@@ -1016,19 +1212,26 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
            !facts.is_signed && facts.bit_width == 64u &&
            evaluate_integer_bits(program, value_index, depth, facts, result);
   }
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64 &&
+      native_integer_is_bit_primitive_unary(value->unary_operator)) {
+    native_integer_facts facts;
+    return native_integer_type_facts(program, value->type_index, &facts) &&
+           native_integer_bit_primitive_shape_valid(program, value, NULL,
+                                                    NULL) &&
+           evaluate_integer_bits(program, value_index, depth, facts, result);
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
+      native_integer_is_rotation_binary(value->binary_operator)) {
+    native_integer_facts facts;
+    return native_integer_type_facts(program, value->type_index, &facts) &&
+           native_integer_rotation_shape_valid(program, value, NULL) &&
+           evaluate_integer_bits(program, value_index, depth, facts, result);
+  }
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64) {
     uint64_t operand = 0u;
     if ((value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT &&
          value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
-         value->unary_operator != W_SEED_HIR0_UNARY_SATURATING_NEGATE &&
-         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES &&
-         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS &&
-         value->unary_operator !=
-             W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS &&
-         value->unary_operator !=
-             W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS &&
-         value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BITS &&
-         value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BYTES) ||
+         value->unary_operator != W_SEED_HIR0_UNARY_SATURATING_NEGATE) ||
         value->left_value == W_SEED_HIR0_NONE ||
         !evaluate_u64(program, value->left_value, depth + 1u, &operand))
       return false;
@@ -1038,54 +1241,6 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
       *result = 0u - operand;
     } else if (value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT) {
       *result = ~operand;
-    } else if (value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ONES ||
-               value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ZEROS) {
-      uint64_t count = 0u;
-      while (operand != 0u) {
-        operand &= operand - 1u;
-        count += 1u;
-      }
-      *result = value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ONES
-                    ? count
-                    : UINT64_C(64) - count;
-    } else if (value->unary_operator ==
-               W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS) {
-      uint64_t count = 0u;
-      if (operand == 0u) {
-        count = UINT64_C(64);
-      } else {
-        while ((operand & (UINT64_C(1) << 63u)) == 0u) {
-          operand <<= 1u;
-          count += 1u;
-        }
-      }
-      *result = count;
-    } else if (value->unary_operator ==
-               W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS) {
-      uint64_t count = 0u;
-      if (operand == 0u) {
-        count = UINT64_C(64);
-      } else {
-        while ((operand & UINT64_C(1)) == 0u) {
-          operand >>= 1u;
-          count += 1u;
-        }
-      }
-      *result = count;
-    } else if (value->unary_operator == W_SEED_HIR0_UNARY_REVERSED_BITS) {
-      uint64_t reversed = 0u;
-      for (uint32_t bit = 0u; bit < 64u; bit += 1u) {
-        reversed = (reversed << 1u) | (operand & UINT64_C(1));
-        operand >>= 1u;
-      }
-      *result = reversed;
-    } else if (value->unary_operator == W_SEED_HIR0_UNARY_REVERSED_BYTES) {
-      uint64_t reversed = 0u;
-      for (uint32_t byte = 0u; byte < 8u; byte += 1u) {
-        reversed = (reversed << 8u) | (operand & UINT64_C(0xff));
-        operand >>= 8u;
-      }
-      *result = reversed;
     } else {
       return false;
     }
@@ -1106,8 +1261,6 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
           value->binary_operator != W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT &&
           value->binary_operator != W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT &&
           value->binary_operator != W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT &&
-          value->binary_operator != W_SEED_HIR0_BINARY_ROTATED_LEFT &&
-          value->binary_operator != W_SEED_HIR0_BINARY_ROTATED_RIGHT &&
           value->binary_operator != W_SEED_HIR0_BINARY_SATURATING_ADD &&
           value->binary_operator != W_SEED_HIR0_BINARY_SATURATING_SUBTRACT &&
           value->binary_operator != W_SEED_HIR0_BINARY_SATURATING_MULTIPLY &&
@@ -1175,24 +1328,6 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
       if (right >= UINT64_C(64)) return false;
       *result = left >> right;
       return true;
-    case W_SEED_HIR0_BINARY_ROTATED_LEFT: {
-      const uint64_t count = right & UINT64_C(63);
-      /* Keep both shifts defined when count is zero.  The second operand of
-       * the rotate is the same value, so fshl's count-zero identity is exact. */
-      *result = count == 0u
-                    ? left
-                    : (left << count) | (left >> (UINT64_C(64) - count));
-      return true;
-    }
-    case W_SEED_HIR0_BINARY_ROTATED_RIGHT: {
-      const uint64_t count = right & UINT64_C(63);
-      /* Keep both shifts defined when count is zero.  The second operand of
-       * the rotate is the same value, so fshr's count-zero identity is exact. */
-      *result = count == 0u
-                    ? left
-                    : (left >> count) | (left << (UINT64_C(64) - count));
-      return true;
-    }
     case W_SEED_HIR0_BINARY_SUBTRACT:
       return checked_u64_subtract(left, right, result);
     case W_SEED_HIR0_BINARY_MULTIPLY:
@@ -1343,21 +1478,21 @@ static bool program_value_is_constant_u64(
       value->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING)
     return program_value_is_constant_integer(program, value_index,
                                              depth + 1u);
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64 &&
+      native_integer_is_bit_primitive_unary(value->unary_operator))
+    return program_value_is_constant_integer(program, value_index,
+                                             depth + 1u);
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64)
     return (value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT ||
             value->unary_operator == W_SEED_HIR0_UNARY_WRAPPING_NEGATE ||
-            value->unary_operator == W_SEED_HIR0_UNARY_SATURATING_NEGATE ||
-            value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ONES ||
-            value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ZEROS ||
-            value->unary_operator ==
-                W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS ||
-            value->unary_operator ==
-                W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS ||
-            value->unary_operator == W_SEED_HIR0_UNARY_REVERSED_BITS ||
-            value->unary_operator == W_SEED_HIR0_UNARY_REVERSED_BYTES) &&
+            value->unary_operator == W_SEED_HIR0_UNARY_SATURATING_NEGATE) &&
            value->left_value != W_SEED_HIR0_NONE &&
            program_value_is_constant_u64(program, value->left_value,
                                          depth + 1u);
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
+      native_integer_is_rotation_binary(value->binary_operator))
+    return program_value_is_constant_integer(program, value_index,
+                                             depth + 1u);
   return value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
          (value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER ||
           (value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
@@ -1373,8 +1508,6 @@ static bool program_value_is_constant_u64(
            value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT ||
            value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT ||
            value->binary_operator == W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT ||
-           value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_LEFT ||
-           value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_RIGHT ||
            value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_ADD ||
            value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_SUBTRACT ||
            value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_MULTIPLY ||
@@ -1430,6 +1563,11 @@ static bool program_value_is_constant_integer(
                                              depth + 1u);
   }
   if (value->kind == unary_kind) {
+    if (native_integer_is_bit_primitive_unary(value->unary_operator))
+      return native_integer_bit_primitive_shape_valid(
+                 program, value, NULL, NULL) &&
+             program_value_is_constant_integer(program, value->left_value,
+                                               depth + 1u);
     const bool ordinary =
         value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT ||
         (facts.is_signed && value->unary_operator == W_SEED_HIR0_UNARY_NEGATE);
@@ -1441,18 +1579,21 @@ static bool program_value_is_constant_integer(
   }
   const bool bitwise =
       native_integer_is_bitwise_binary(value->binary_operator);
+  const bool rotation =
+      native_integer_is_rotation_binary(value->binary_operator);
   const bool checked_shift =
       native_integer_is_checked_shift(value->binary_operator);
   const bool shape_valid =
-      bitwise ? native_integer_bitwise_shape_valid(program, value,
-                                                  facts.is_signed)
-              : (checked_shift
-                     ? native_integer_checked_shift_shape_valid(program,
-                                                                value, NULL)
-                     : (native_integer_is_wrapping_binary(
-                            value->binary_operator) ||
-                        native_integer_is_checked_binary(
-                            value->binary_operator)));
+      rotation ? native_integer_rotation_shape_valid(program, value, NULL)
+               : (bitwise ? native_integer_bitwise_shape_valid(
+                                program, value, facts.is_signed)
+                          : (checked_shift
+                                 ? native_integer_checked_shift_shape_valid(
+                                       program, value, NULL)
+                                 : (native_integer_is_wrapping_binary(
+                                        value->binary_operator) ||
+                                    native_integer_is_checked_binary(
+                                        value->binary_operator))));
   if (value->kind != binary_kind ||
       value->left_value == W_SEED_HIR0_NONE ||
       value->right_value == W_SEED_HIR0_NONE || !shape_valid)
@@ -2363,6 +2504,41 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
             program_value_lowerable(program, value->left_value,
                                     owner_function, false, depth + 1u);
   }
+  if ((value->kind == W_SEED_HIR0_VALUE_UNARY_I64 ||
+       value->kind == W_SEED_HIR0_VALUE_UNARY_U64) &&
+      native_integer_is_bit_primitive_unary(value->unary_operator)) {
+    native_integer_facts result_facts;
+    if (!native_integer_bit_primitive_shape_valid(program, value, NULL,
+                                                 &result_facts) ||
+        !program_value_lowerable(program, value->left_value, owner_function,
+                                 false, depth + 1u))
+      return false;
+    if (program_value_is_constant_integer(program, value_index, 0u)) {
+      uint64_t ignored = 0u;
+      if (!evaluate_integer_bits(program, value_index, 0u, result_facts,
+                                 &ignored))
+        return false;
+    }
+    return true;
+  }
+  if ((value->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
+       value->kind == W_SEED_HIR0_VALUE_BINARY_U64) &&
+      native_integer_is_rotation_binary(value->binary_operator)) {
+    native_integer_facts result_facts;
+    if (!native_integer_rotation_shape_valid(program, value, &result_facts) ||
+        !program_value_lowerable(program, value->left_value, owner_function,
+                                 false, depth + 1u) ||
+        !program_value_lowerable(program, value->right_value, owner_function,
+                                 false, depth + 1u))
+      return false;
+    if (program_value_is_constant_integer(program, value_index, 0u)) {
+      uint64_t ignored = 0u;
+      if (!evaluate_integer_bits(program, value_index, 0u, result_facts,
+                                 &ignored))
+        return false;
+    }
+    return true;
+  }
   if ((value->kind == W_SEED_HIR0_VALUE_UNARY_I64 &&
        value->unary_operator == W_SEED_HIR0_UNARY_WRAPPING_NEGATE) ||
       (value->kind == W_SEED_HIR0_VALUE_UNARY_U64 &&
@@ -2443,15 +2619,7 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
                              : W_SEED_HIR0_TYPE_U64) ||
         (value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
          value->unary_operator != W_SEED_HIR0_UNARY_SATURATING_NEGATE &&
-         !overflowing &&
-         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES &&
-         value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS &&
-         value->unary_operator !=
-             W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS &&
-         value->unary_operator !=
-             W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS &&
-         value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BITS &&
-         value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BYTES) ||
+         !overflowing) ||
         value->left_value == W_SEED_HIR0_NONE ||
         value->right_value != W_SEED_HIR0_NONE ||
         value->binding_index != W_SEED_HIR0_NONE ||
@@ -2695,8 +2863,6 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
         value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT ||
         value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT ||
         value->binary_operator == W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT ||
-        value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_LEFT ||
-        value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_RIGHT ||
         value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_ADD ||
         value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_SUBTRACT ||
         value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_MULTIPLY ||
@@ -3066,6 +3232,43 @@ static bool process_value_lowerable(
     return true;
   }
 
+  if ((value->kind == W_SEED_HIR0_VALUE_UNARY_I64 ||
+       value->kind == W_SEED_HIR0_VALUE_UNARY_U64) &&
+      native_integer_is_bit_primitive_unary(value->unary_operator)) {
+    native_integer_facts result_facts;
+    if (!native_integer_bit_primitive_shape_valid(program, value, NULL,
+                                                 &result_facts) ||
+        !process_value_lowerable(program, value->left_value, owner_function,
+                                 process, false, depth + 1u))
+      return false;
+    if (program_value_is_constant_integer(program, value_index, 0u)) {
+      uint64_t ignored = 0u;
+      if (!evaluate_integer_bits(program, value_index, 0u, result_facts,
+                                 &ignored))
+        return false;
+    }
+    return true;
+  }
+
+  if ((value->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
+       value->kind == W_SEED_HIR0_VALUE_BINARY_U64) &&
+      native_integer_is_rotation_binary(value->binary_operator)) {
+    native_integer_facts result_facts;
+    if (!native_integer_rotation_shape_valid(program, value, &result_facts) ||
+        !process_value_lowerable(program, value->left_value, owner_function,
+                                 process, false, depth + 1u) ||
+        !process_value_lowerable(program, value->right_value, owner_function,
+                                 process, false, depth + 1u))
+      return false;
+    if (program_value_is_constant_integer(program, value_index, 0u)) {
+      uint64_t ignored = 0u;
+      if (!evaluate_integer_bits(program, value_index, 0u, result_facts,
+                                 &ignored))
+        return false;
+    }
+    return true;
+  }
+
   if ((value->kind == W_SEED_HIR0_VALUE_UNARY_I64 &&
        value->unary_operator == W_SEED_HIR0_UNARY_WRAPPING_NEGATE) ||
       (value->kind == W_SEED_HIR0_VALUE_UNARY_U64 &&
@@ -3300,15 +3503,7 @@ static bool process_value_lowerable(
         return true;
       }
       if (program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64 ||
-          (value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
-           value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES &&
-           value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS &&
-           value->unary_operator !=
-               W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS &&
-           value->unary_operator !=
-               W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS &&
-           value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BITS &&
-           value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BYTES) ||
+          value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE ||
           value->left_value == W_SEED_HIR0_NONE ||
           value->right_value != W_SEED_HIR0_NONE ||
           value->binding_index != W_SEED_HIR0_NONE ||

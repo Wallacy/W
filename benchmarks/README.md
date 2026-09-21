@@ -6,15 +6,66 @@ source-backed ready point of the compiler lifecycle as a single series. BMD2
 adds a source-backed comparison between two local commits of the same seed.
 Neither bundle produces a language or product-runtime result.
 
+### Planned Hyperfine wall-time layer (not integrated)
+
+Hyperfine 1.20.x is planned as the recognizable, cross-platform wall-time
+tool for future public executable comparisons. This is a method proposal, not
+a change to the current runner or benchmark readiness. Pin the exact Hyperfine
+patch version and binary identity in each future receipt. Until integration
+lands, the current native runner remains the active measurement route; do not
+label its samples as Hyperfine data or merge the two sample populations.
+
+For direct executable cases expected to take less than 5 ms, use
+`--shell=none` and an executable plus explicit arguments. Hyperfine's
+documented shell-startup correction can itself add noise at that scale;
+without a shell, shell syntax such as globbing and tilde expansion is
+unavailable. Preserve each `--export-json` document and its raw
+`results[].times` values; do not retain only a formatted summary. Exact
+exit/stdout/stderr oracles remain a separate precondition and validation
+route—the Hyperfine JSON timing record is not the correctness oracle.
+
+Hyperfine groups timing runs by command, so the future outer orchestrator must
+not pass language A and language B together and treat that as an interleaved
+comparison. It should invoke Hyperfine for one executable at a time, schedule
+single-sample invocations in balanced `A, B, B, A` blocks (and their reverse
+as needed), and preserve that order with the raw JSON records. Require at
+least 30 raw samples per compared variant before publishing p95; derive
+percentiles from the preserved samples using the catalog's nearest-rank rule.
+Keep target, profile, and platform lanes separate.
+
+Cold-first and steady-state observations are distinct scenarios. Define the
+state being called cold for each workload and record its reset method; define
+steady-state warmups and cache/thermal conditions separately. Hyperfine still
+launches a fresh command for each sample, so a warmed steady-state process
+launch is not an in-process body-throughput measurement.
+
+For a Windows lab comparison, record at minimum the hardware and Windows
+build, firmware where known, exact compiler/toolchain and release profile,
+artifact digest, AC or battery state, Windows power mode, and active power
+plan. Also record relevant thermal/background conditions and any non-default
+priority or affinity. Use the same declared conditions across variants. For
+p95, retain at least 30 samples for each variant; the detailed procedure and
+the reasons for separating AC state, power mode, power plan, run order, and
+cold versus warmed runs are linked under [external methodology](#metodologia-externa).
+
+Hyperfine contributes wall time only. The native runner remains authoritative
+for exact-output/exit validation, process-tree CPU accounting, peak working
+set versus Job commit, executable section and artifact inspection, and
+artifact provenance. CPU-cycle counts must come from a native counter if a
+future native kernel supports them; they are not inferred from Hyperfine wall
+time. Tool-level comparability alone does not prove that two implementations
+perform equivalent work or justify a language ranking.
+
 ### Executable benchmark catalog (M3a)
 
 [`executable-catalog.json`](executable-catalog.json) is the machine-readable
 catalog of executable workloads. It keeps stable IDs for `hello`,
 `process-entry`, `process-enum-payload`, `process-arguments-count`,
-`process-handler-lifecycle`, the source-backed Restaurant families, and the
-future full Restaurant composition. [`EXECUTABLES.md`](EXECUTABLES.md) is the
+`process-handler-lifecycle`, current family witnesses (including older
+`restaurant-*` identifiers), and the future full Last Light language-tour
+composition. [`EXECUTABLES.md`](EXECUTABLES.md) is the
 generated compact inventory of the current rows and lanes; do not duplicate
-its changing counts in prose. Hello has W, C, and Rust sources. Restaurant
+its changing counts in prose. Hello has W, C, and Rust sources. Family
 witnesses with independent C and Rust sources are verified against exact
 oracles; W-only witnesses retain explicit C/Rust blockers. Public C
 uses final C23 through Clang and the MSVC ABI; the private handler composite
@@ -23,6 +74,15 @@ retains its explicitly contextual GCC/MinGW lane. Equivalent Hello sources live 
 oracle. The shared public artifact target is `x86_64-pc-windows-msvc` for W,
 Clang C, and Rust. Public C has no silent GCC or c2x fallback. The current Rust
 baseline uses edition 2024.
+
+Reserve `restaurant-*` identifiers and fixture names for executable examples
+that actually participate in Last Light lore or its eventual single-module
+language tour. New isolated compiler and benchmark witnesses use neutral
+capability names.
+Existing misnamed `restaurant-*` sources stay in place until their family is
+touched; migrate or consolidate them opportunistically, not in a mass rename.
+An older prefix alone is not evidence that a workload participates in Last
+Light lore.
 
 Every new or materially changed executable example or benchmark reference must
 declare its expected exit code and literal stdout in a compact source comment.
@@ -656,6 +716,9 @@ autoridade semântica para W:
 - [Google Benchmark — User Guide](https://github.com/google/benchmark/blob/main/docs/user_guide.md)
 - [Google Benchmark — Random Interleaving](https://github.com/google/benchmark/blob/main/docs/random_interleaving.md)
 - [rustc-perf — tests/perf](https://rustc-dev-guide.rust-lang.org/tests/perf.html)
+- [Hyperfine v1.20.0 README and CLI documentation](https://github.com/sharkdp/hyperfine/blob/v1.20.0/README.md)
+- [Hyperfine v1.20.0 manual](https://github.com/sharkdp/hyperfine/blob/v1.20.0/doc/hyperfine.1)
+- [How to Correctly Compare Program Versions on Windows](https://comcomponent.com/en/blog/2026/03/16/002-windows-benchmark-comparing-program-versions/)
 
 Execute os checks focais com:
 

@@ -743,24 +743,6 @@ static const char MLIR0_LOGICAL_SHIFT_RIGHT_HELPER[] =
     "    llvm.return %value : i64\n"
     "  }\n";
 
-/* Canonical u64.rotatedLeft uses LLVM's funnel-shift-left intrinsic with the
- * value supplied twice. LLVM reduces the count modulo the lane width, and the
- * intrinsic defines count zero directly, so no shift-by-64 edge can poison. */
-static const char MLIR0_ROTATED_LEFT_HELPER[] =
-    "  llvm.func internal @w_seed_rotated_left_u64(%value: i64, %count: i64) -> i64 {\n"
-    "    %result = \"llvm.intr.fshl\"(%value, %value, %count) : (i64, i64, i64) -> i64\n"
-    "    llvm.return %result : i64\n"
-    "  }\n";
-
-/* Canonical u64.rotatedRight uses LLVM's funnel-shift-right intrinsic with the
- * value supplied twice. LLVM reduces the count modulo the lane width, and the
- * intrinsic defines count zero directly, so no shift-by-64 edge can poison. */
-static const char MLIR0_ROTATED_RIGHT_HELPER[] =
-    "  llvm.func internal @w_seed_rotated_right_u64(%value: i64, %count: i64) -> i64 {\n"
-    "    %result = \"llvm.intr.fshr\"(%value, %value, %count) : (i64, i64, i64) -> i64\n"
-    "    llvm.return %result : i64\n"
-    "  }\n";
-
 static const char MLIR0_BOOL_HELPER[] =
     "  llvm.func internal @w_seed_append_bool(%buffer: !llvm.ptr, %offset: i64, %value: i1) -> i64 {\n"
     "    %bool_one = llvm.mlir.constant(1 : i64) : i64\n"
@@ -1175,8 +1157,6 @@ typedef struct {
   bool has_masked_shift_left;
   bool has_masked_shift_right;
   bool has_logical_shift_right;
-  bool has_rotated_left;
-  bool has_rotated_right;
   bool reachable_values[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
 } mlir0_dynamic_plan;
 
@@ -1220,13 +1200,6 @@ static bool reachable_values_have_masked_shift_right(
 static bool reachable_values_have_logical_shift_right(
     const w_seed_hir0_program *program,
     const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES]);
-static bool reachable_values_have_rotated_left(
-    const w_seed_hir0_program *program,
-    const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES]);
-static bool reachable_values_have_rotated_right(
-    const w_seed_hir0_program *program,
-    const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES]);
-
 static bool mlir0_value_has_safe_constant_divisor(
     const w_seed_hir0_program *program, const w_seed_hir0_value *value);
 
@@ -1339,6 +1312,125 @@ static bool mlir0_integer_type_facts(const w_seed_hir0_program *program,
   }
   *is_signed = type->integer_is_signed;
   *bit_width = type->integer_bit_width;
+  return true;
+}
+
+static bool mlir0_is_bit_primitive_unary(
+    w_seed_hir0_unary_operator operation) {
+  return operation == W_SEED_HIR0_UNARY_COUNT_ONES ||
+         operation == W_SEED_HIR0_UNARY_COUNT_ZEROS ||
+         operation == W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS ||
+         operation == W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS ||
+         operation == W_SEED_HIR0_UNARY_REVERSED_BITS ||
+         operation == W_SEED_HIR0_UNARY_REVERSED_BYTES;
+}
+
+static bool mlir0_is_bit_count_unary(
+    w_seed_hir0_unary_operator operation) {
+  return operation == W_SEED_HIR0_UNARY_COUNT_ONES ||
+         operation == W_SEED_HIR0_UNARY_COUNT_ZEROS ||
+         operation == W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS ||
+         operation == W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS;
+}
+
+static bool mlir0_is_rotation_binary(
+    w_seed_hir0_binary_operator operation) {
+  return operation == W_SEED_HIR0_BINARY_ROTATED_LEFT ||
+         operation == W_SEED_HIR0_BINARY_ROTATED_RIGHT;
+}
+
+/* Recheck the fixed-width primitive signature at the MLIR boundary. The
+ * existing HIR identities cover every signedness/width pair; counts return
+ * UInt and reversal returns the same exact logical integer type. */
+static bool mlir0_bit_primitive_unary_shape_valid(
+    const w_seed_hir0_program *program, const w_seed_hir0_value *value,
+    bool *operand_signed, uint16_t *operand_width,
+    bool *result_signed, uint16_t *result_width) {
+  if (program == NULL || value == NULL ||
+      (value->kind != W_SEED_HIR0_VALUE_UNARY_I64 &&
+       value->kind != W_SEED_HIR0_VALUE_UNARY_U64) ||
+      !mlir0_is_bit_primitive_unary(value->unary_operator) ||
+      value->left_value == W_SEED_HIR0_NONE ||
+      value->left_value >= program->value_count ||
+      value->right_value != W_SEED_HIR0_NONE ||
+      value->binding_index != W_SEED_HIR0_NONE ||
+      value->parameter_index != W_SEED_HIR0_NONE ||
+      value->call_index != W_SEED_HIR0_NONE ||
+      value->first_interpolation_segment != W_SEED_HIR0_NONE ||
+      value->interpolation_segment_count != 0u ||
+      value->binary_operator != W_SEED_HIR0_BINARY_ADD ||
+      value->block_argument_index != W_SEED_HIR0_NONE)
+    return false;
+
+  bool input_signed = false;
+  uint16_t input_width = 0u;
+  bool output_signed = false;
+  uint16_t output_width = 0u;
+  if (!mlir0_integer_type_facts(
+          program, program->values[value->left_value].type_index,
+          &input_signed, &input_width) ||
+      !mlir0_integer_type_facts(program, value->type_index, &output_signed,
+                                &output_width))
+    return false;
+
+  if (mlir0_is_bit_count_unary(value->unary_operator)) {
+    if (value->kind != W_SEED_HIR0_VALUE_UNARY_U64 ||
+        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64 ||
+        output_signed || output_width != 64u)
+      return false;
+  } else if (value->type_index !=
+                 program->values[value->left_value].type_index ||
+             input_signed != output_signed || input_width != output_width ||
+             value->kind != (input_signed ? W_SEED_HIR0_VALUE_UNARY_I64
+                                          : W_SEED_HIR0_VALUE_UNARY_U64)) {
+    return false;
+  }
+
+  if (operand_signed != NULL) *operand_signed = input_signed;
+  if (operand_width != NULL) *operand_width = input_width;
+  if (result_signed != NULL) *result_signed = output_signed;
+  if (result_width != NULL) *result_width = output_width;
+  return true;
+}
+
+static bool mlir0_rotation_binary_shape_valid(
+    const w_seed_hir0_program *program, const w_seed_hir0_value *value,
+    bool *result_signed, uint16_t *result_width) {
+  if (program == NULL || value == NULL ||
+      (value->kind != W_SEED_HIR0_VALUE_BINARY_I64 &&
+       value->kind != W_SEED_HIR0_VALUE_BINARY_U64) ||
+      !mlir0_is_rotation_binary(value->binary_operator) ||
+      value->left_value == W_SEED_HIR0_NONE ||
+      value->right_value == W_SEED_HIR0_NONE ||
+      value->left_value >= program->value_count ||
+      value->right_value >= program->value_count)
+    return false;
+
+  bool output_signed = false;
+  uint16_t output_width = 0u;
+  bool operand_signed = false;
+  uint16_t operand_width = 0u;
+  bool count_signed = false;
+  uint16_t count_width = 0u;
+  const bool expected_signed = value->kind == W_SEED_HIR0_VALUE_BINARY_I64;
+  if (!mlir0_integer_type_facts(program, value->type_index, &output_signed,
+                                &output_width) ||
+      output_signed != expected_signed ||
+      !mlir0_integer_type_facts(
+          program, program->values[value->left_value].type_index,
+          &operand_signed, &operand_width) ||
+      !mlir0_integer_type_facts(
+          program, program->values[value->right_value].type_index,
+          &count_signed, &count_width) ||
+      value->type_index != program->values[value->left_value].type_index ||
+      output_signed != operand_signed || output_width != operand_width ||
+      program->types[program->values[value->right_value].type_index].kind !=
+          W_SEED_HIR0_TYPE_U64 ||
+      count_signed || count_width != 64u)
+    return false;
+
+  if (result_signed != NULL) *result_signed = output_signed;
+  if (result_width != NULL) *result_width = output_width;
   return true;
 }
 
@@ -1812,40 +1904,6 @@ static bool reachable_values_have_logical_shift_right(
   return false;
 }
 
-static bool reachable_values_have_rotated_left(
-    const w_seed_hir0_program *program,
-    const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES]) {
-  if (program == NULL || reachable == NULL ||
-      program->value_count > W_SEED_NATIVE_SUBSET0_MAX_VALUES)
-    return false;
-  for (size_t value_index = 0u; value_index < program->value_count;
-       value_index += 1u) {
-    const w_seed_hir0_value *value = &program->values[value_index];
-    if (reachable[value_index] &&
-        value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
-        value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_LEFT)
-      return true;
-  }
-  return false;
-}
-
-static bool reachable_values_have_rotated_right(
-    const w_seed_hir0_program *program,
-    const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES]) {
-  if (program == NULL || reachable == NULL ||
-      program->value_count > W_SEED_NATIVE_SUBSET0_MAX_VALUES)
-    return false;
-  for (size_t value_index = 0u; value_index < program->value_count;
-       value_index += 1u) {
-    const w_seed_hir0_value *value = &program->values[value_index];
-    if (reachable[value_index] &&
-        value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
-        value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_RIGHT)
-      return true;
-  }
-  return false;
-}
-
 static bool reachable_values_have_checked_power(
     const w_seed_hir0_program *program,
     const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES]) {
@@ -1954,28 +2012,6 @@ static const char *logical_shift_right_helper(
       program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64)
     return NULL;
   return "@w_seed_logical_shift_right_u64";
-}
-
-static const char *rotated_left_helper(
-    const w_seed_hir0_program *program, const w_seed_hir0_value *value) {
-  if (program == NULL || value == NULL ||
-      value->type_index >= program->type_count ||
-      value->kind != W_SEED_HIR0_VALUE_BINARY_U64 ||
-      value->binary_operator != W_SEED_HIR0_BINARY_ROTATED_LEFT ||
-      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64)
-    return NULL;
-  return "@w_seed_rotated_left_u64";
-}
-
-static const char *rotated_right_helper(
-    const w_seed_hir0_program *program, const w_seed_hir0_value *value) {
-  if (program == NULL || value == NULL ||
-      value->type_index >= program->type_count ||
-      value->kind != W_SEED_HIR0_VALUE_BINARY_U64 ||
-      value->binary_operator != W_SEED_HIR0_BINARY_ROTATED_RIGHT ||
-      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64)
-    return NULL;
-  return "@w_seed_rotated_right_u64";
 }
 
 static bool build_dynamic_plan(
@@ -2133,10 +2169,6 @@ static bool build_dynamic_plan(
   candidate.has_logical_shift_right =
       reachable_values_have_logical_shift_right(program,
                                                  candidate.reachable_values);
-  candidate.has_rotated_left =
-      reachable_values_have_rotated_left(program, candidate.reachable_values);
-  candidate.has_rotated_right =
-      reachable_values_have_rotated_right(program, candidate.reachable_values);
   derive_reachable_u64_helpers(
       program, candidate.reachable_values, &candidate.has_checked_u64_add,
       &candidate.has_checked_u64_subtract, &candidate.has_checked_u64_multiply,
@@ -3424,11 +3456,140 @@ static bool append_integer_bitwise_binary_operation_in_loop(
          append_literal(artifact, capacity, offset, " to i64\n");
 }
 
+static bool append_integer_rotation_binary_operation_in_loop(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop, uint8_t *artifact,
+    size_t capacity, size_t *offset) {
+  if (program == NULL || artifact == NULL || offset == NULL ||
+      value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  bool is_signed = false;
+  uint16_t bit_width = 0u;
+  if (!mlir0_rotation_binary_shape_valid(program, value, &is_signed,
+                                         &bit_width) ||
+      (bit_width != 8u && bit_width != 16u && bit_width != 32u &&
+       bit_width != 64u) ||
+      !mlir0_integer_value_matches_type(program, value->left_value, is_signed,
+                                        bit_width) ||
+      !mlir0_integer_count_type(
+          program, program->values[value->right_value].type_index))
+    return false;
+
+  const bool narrow = bit_width < 64u;
+  if (narrow &&
+      (!append_literal(artifact, capacity, offset, "    %v") ||
+       !append_size(artifact, capacity, offset, value_index) ||
+       !append_literal(artifact, capacity, offset,
+                       "_rotate_input = llvm.trunc ") ||
+       !append_program_value_operand_in_loop(
+           program, value->left_value, function_index, process, loop, artifact,
+           capacity, offset) ||
+       !append_literal(artifact, capacity, offset, " : i64 to i") ||
+       !append_u64(artifact, capacity, offset, bit_width) ||
+       !append_literal(artifact, capacity, offset, "\n")))
+    return false;
+
+  if (!append_literal(artifact, capacity, offset, "    %v") ||
+      !append_size(artifact, capacity, offset, value_index) ||
+      !append_literal(artifact, capacity, offset,
+                      "_rotate_mask = llvm.mlir.constant(") ||
+      !append_u64(artifact, capacity, offset, (uint64_t)bit_width - 1u) ||
+      !append_literal(artifact, capacity, offset, " : i64) : i64\n"
+                      "    %v") ||
+      !append_size(artifact, capacity, offset, value_index) ||
+      !append_literal(artifact, capacity, offset,
+                      "_rotate_mod = llvm.and ") ||
+      !append_program_value_operand_in_loop(
+          program, value->right_value, function_index, process, loop, artifact,
+          capacity, offset) ||
+      !append_literal(artifact, capacity, offset, ", %v") ||
+      !append_size(artifact, capacity, offset, value_index) ||
+      !append_literal(artifact, capacity, offset, "_rotate_mask : i64\n"))
+    return false;
+
+  if (narrow &&
+      (!append_literal(artifact, capacity, offset, "    %v") ||
+       !append_size(artifact, capacity, offset, value_index) ||
+       !append_literal(artifact, capacity, offset,
+                       "_rotate_count = llvm.trunc %v") ||
+       !append_size(artifact, capacity, offset, value_index) ||
+       !append_literal(artifact, capacity, offset,
+                       "_rotate_mod : i64 to i") ||
+       !append_u64(artifact, capacity, offset, bit_width) ||
+       !append_literal(artifact, capacity, offset, "\n")))
+    return false;
+
+  const char *intrinsic =
+      value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_LEFT ? "fshl"
+                                                                  : "fshr";
+  const char *raw_suffix = narrow ? "_rotate_raw" : "";
+  if (!append_literal(artifact, capacity, offset, "    %v") ||
+      !append_size(artifact, capacity, offset, value_index) ||
+      !append_literal(artifact, capacity, offset, raw_suffix) ||
+      !append_literal(artifact, capacity, offset,
+                      " = \"llvm.intr.") ||
+      !append_literal(artifact, capacity, offset, intrinsic) ||
+      !append_literal(artifact, capacity, offset, "\"("))
+    return false;
+  if (narrow) {
+    if (!append_literal(artifact, capacity, offset, "%v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset, "_rotate_input, %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset, "_rotate_input, %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset, "_rotate_count"))
+      return false;
+  } else {
+    if (!append_program_value_operand_in_loop(
+            program, value->left_value, function_index, process, loop, artifact,
+            capacity, offset) ||
+        !append_literal(artifact, capacity, offset, ", ") ||
+        !append_program_value_operand_in_loop(
+            program, value->left_value, function_index, process, loop, artifact,
+            capacity, offset) ||
+        !append_literal(artifact, capacity, offset, ", %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset, "_rotate_mod"))
+      return false;
+  }
+  if (!append_literal(artifact, capacity, offset, ") : (i") ||
+      !append_u64(artifact, capacity, offset, bit_width) ||
+      !append_literal(artifact, capacity, offset, ", i") ||
+      !append_u64(artifact, capacity, offset, bit_width) ||
+      !append_literal(artifact, capacity, offset, ", i") ||
+      !append_u64(artifact, capacity, offset, bit_width) ||
+      !append_literal(artifact, capacity, offset, ") -> i") ||
+      !append_u64(artifact, capacity, offset, bit_width) ||
+      !append_literal(artifact, capacity, offset, "\n"))
+    return false;
+  if (!narrow) return true;
+  return append_literal(artifact, capacity, offset, "    %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, " = llvm.") &&
+         append_literal(artifact, capacity, offset,
+                        is_signed ? "sext %v" : "zext %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, "_rotate_raw : i") &&
+         append_u64(artifact, capacity, offset, bit_width) &&
+         append_literal(artifact, capacity, offset, " to i64\n");
+}
+
 static bool append_binary_value_operation_in_loop(
     const w_seed_hir0_program *program, uint32_t value_index,
     uint32_t function_index, const mlir0_process_emit_context *process,
     const mlir0_natural_loop_result_context *loop, uint8_t *artifact,
     size_t capacity, size_t *offset) {
+  if (program != NULL && value_index < program->value_count &&
+      (program->values[value_index].kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
+       program->values[value_index].kind == W_SEED_HIR0_VALUE_BINARY_U64) &&
+      mlir0_is_rotation_binary(
+          program->values[value_index].binary_operator))
+    return append_integer_rotation_binary_operation_in_loop(
+        program, value_index, function_index, process, loop, artifact,
+        capacity, offset);
   if (program != NULL && value_index < program->value_count &&
       (program->values[value_index].kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
        program->values[value_index].kind == W_SEED_HIR0_VALUE_BINARY_U64) &&
@@ -3534,6 +3695,13 @@ static bool append_binary_u64_value_operation(
     uint8_t *artifact, size_t capacity, size_t *offset) {
   if (program != NULL && value_index < program->value_count &&
       program->values[value_index].kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
+      mlir0_is_rotation_binary(
+          program->values[value_index].binary_operator))
+    return append_integer_rotation_binary_operation_in_loop(
+        program, value_index, function_index, process, NULL, artifact,
+        capacity, offset);
+  if (program != NULL && value_index < program->value_count &&
+      program->values[value_index].kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
       program->values[value_index].binary_operator >=
           W_SEED_HIR0_BINARY_BIT_AND &&
       program->values[value_index].binary_operator <=
@@ -3588,10 +3756,6 @@ static bool append_binary_u64_value_operation(
       value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT;
   const bool logical_shift_right =
       value->binary_operator == W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT;
-  const bool rotated_left =
-      value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_LEFT;
-  const bool rotated_right =
-      value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_RIGHT;
   const bool safe_constant_divisor =
       mlir0_value_has_safe_constant_divisor(program, value);
   const char *helper = NULL;
@@ -3609,10 +3773,6 @@ static bool append_binary_u64_value_operation(
     helper = masked_shift_right_helper(program, value);
   else if (logical_shift_right)
     helper = logical_shift_right_helper(program, value);
-  else if (rotated_left)
-    helper = rotated_left_helper(program, value);
-  else if (rotated_right)
-    helper = rotated_right_helper(program, value);
   else if (shift)
     helper = checked_shift_helper(program, value);
   else if (power)
@@ -4303,11 +4463,196 @@ static bool append_integer_bit_not_operation_in_loop(
          append_literal(artifact, capacity, offset, " to i64\n");
 }
 
+static bool append_integer_bit_lane_operand(
+    const w_seed_hir0_program *program, const w_seed_hir0_value *value,
+    uint32_t value_index, uint32_t function_index,
+    const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop, uint16_t bit_width,
+    uint8_t *artifact, size_t capacity, size_t *offset) {
+  if (bit_width == 64u)
+    return append_program_value_operand_in_loop(
+        program, value->left_value, function_index, process, loop, artifact,
+        capacity, offset);
+  return append_literal(artifact, capacity, offset, "%v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, "_bit_input");
+}
+
+/* Bit primitives use the logical HIR width even though function slots and
+ * values have an i64 carrier. Keep each intrinsic in the lane width, then
+ * restore the declared carrier extension (sign for signed reversals, zero
+ * for unsigned reversals and all counts). */
+static bool append_integer_bit_primitive_unary_operation_in_loop(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop, uint8_t *artifact,
+    size_t capacity, size_t *offset) {
+  if (program == NULL || artifact == NULL || offset == NULL ||
+      value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  bool operand_signed = false;
+  uint16_t operand_width = 0u;
+  bool result_signed = false;
+  uint16_t result_width = 0u;
+  const bool is_count = mlir0_is_bit_count_unary(value->unary_operator);
+  if (!mlir0_bit_primitive_unary_shape_valid(
+          program, value, &operand_signed, &operand_width, &result_signed,
+          &result_width) ||
+      (operand_width != 8u && operand_width != 16u && operand_width != 32u &&
+       operand_width != 64u) ||
+      result_width != (is_count ? 64u : operand_width) ||
+      !mlir0_integer_value_matches_type(program, value->left_value,
+                                        operand_signed, operand_width))
+    return false;
+
+  const bool narrow = operand_width < 64u;
+  if (narrow &&
+      (!append_literal(artifact, capacity, offset, "    %v") ||
+       !append_size(artifact, capacity, offset, value_index) ||
+       !append_literal(artifact, capacity, offset, "_bit_input = llvm.trunc ") ||
+       !append_program_value_operand_in_loop(
+           program, value->left_value, function_index, process, loop, artifact,
+           capacity, offset) ||
+       !append_literal(artifact, capacity, offset, " : i64 to i") ||
+       !append_u64(artifact, capacity, offset, operand_width) ||
+       !append_literal(artifact, capacity, offset, "\n")))
+    return false;
+
+  const char *result_suffix = narrow ? "_bit_raw" : "";
+  const bool count_ones =
+      value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ONES;
+  const bool count_zeros =
+      value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ZEROS;
+  const bool count_leading =
+      value->unary_operator == W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS;
+  const bool count_trailing =
+      value->unary_operator == W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS;
+  const bool reverse_bits =
+      value->unary_operator == W_SEED_HIR0_UNARY_REVERSED_BITS;
+  const bool reverse_bytes =
+      value->unary_operator == W_SEED_HIR0_UNARY_REVERSED_BYTES;
+
+  if (count_ones || count_zeros) {
+    if (!append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        count_zeros ? "_bit_ones = \"llvm.intr.ctpop\"("
+                                    : (narrow
+                                           ? "_bit_raw = \"llvm.intr.ctpop\"("
+                                           : " = \"llvm.intr.ctpop\"(")) ||
+        !append_integer_bit_lane_operand(
+            program, value, value_index, function_index, process, loop,
+            operand_width, artifact, capacity, offset) ||
+        !append_literal(artifact, capacity, offset, ") : (i") ||
+        !append_u64(artifact, capacity, offset, operand_width) ||
+        !append_literal(artifact, capacity, offset, ") -> i") ||
+        !append_u64(artifact, capacity, offset, operand_width) ||
+        !append_literal(artifact, capacity, offset, "\n"))
+      return false;
+    if (count_zeros &&
+        (!append_literal(artifact, capacity, offset, "    %v") ||
+         !append_size(artifact, capacity, offset, value_index) ||
+         !append_literal(artifact, capacity, offset,
+                         "_bit_width = llvm.mlir.constant(") ||
+         !append_u64(artifact, capacity, offset, operand_width) ||
+         !append_literal(artifact, capacity, offset, " : i") ||
+         !append_u64(artifact, capacity, offset, operand_width) ||
+         !append_literal(artifact, capacity, offset, ") : i") ||
+         !append_u64(artifact, capacity, offset, operand_width) ||
+         !append_literal(artifact, capacity, offset, "\n    %v") ||
+         !append_size(artifact, capacity, offset, value_index) ||
+         !append_literal(artifact, capacity, offset, result_suffix) ||
+         !append_literal(artifact, capacity, offset,
+                         " = llvm.sub %v") ||
+         !append_size(artifact, capacity, offset, value_index) ||
+         !append_literal(artifact, capacity, offset,
+                         "_bit_width, %v") ||
+         !append_size(artifact, capacity, offset, value_index) ||
+         !append_literal(artifact, capacity, offset,
+                         "_bit_ones : i") ||
+         !append_u64(artifact, capacity, offset, operand_width) ||
+         !append_literal(artifact, capacity, offset, "\n")))
+      return false;
+  } else {
+    const char *intrinsic = count_leading    ? "ctlz"
+                            : count_trailing ? "cttz"
+                            : reverse_bits   ? "bitreverse"
+                                             : "bswap";
+    if (reverse_bytes && operand_width == 8u) {
+      if (!append_literal(artifact, capacity, offset,
+                          "    %v") ||
+          !append_size(artifact, capacity, offset, value_index) ||
+          !append_literal(artifact, capacity, offset,
+                          "_bit_zero = llvm.mlir.constant(0 : i8) : i8\n"
+                          "    %v") ||
+          !append_size(artifact, capacity, offset, value_index) ||
+          !append_literal(artifact, capacity, offset,
+                          "_bit_raw = llvm.or ") ||
+          !append_integer_bit_lane_operand(
+              program, value, value_index, function_index, process, loop,
+              operand_width, artifact, capacity, offset) ||
+          !append_literal(artifact, capacity, offset, ", %v") ||
+          !append_size(artifact, capacity, offset, value_index) ||
+          !append_literal(artifact, capacity, offset, "_bit_zero : i8\n"))
+        return false;
+      goto append_bit_result_extension;
+    }
+    if (!append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset, result_suffix) ||
+        !append_literal(artifact, capacity, offset,
+                        " = \"llvm.intr.") ||
+        !append_literal(artifact, capacity, offset, intrinsic) ||
+        !append_literal(artifact, capacity, offset, "\"(") ||
+        !append_integer_bit_lane_operand(
+            program, value, value_index, function_index, process, loop,
+            operand_width, artifact, capacity, offset))
+      return false;
+    if (count_leading || count_trailing) {
+      if (!append_literal(artifact, capacity, offset,
+                          ") <{is_zero_poison = false}> : (i") ||
+          !append_u64(artifact, capacity, offset, operand_width) ||
+          !append_literal(artifact, capacity, offset, ") -> i") ||
+          !append_u64(artifact, capacity, offset, operand_width) ||
+          !append_literal(artifact, capacity, offset, "\n"))
+        return false;
+    } else if (!append_literal(artifact, capacity, offset, ") : (i") ||
+               !append_u64(artifact, capacity, offset, operand_width) ||
+               !append_literal(artifact, capacity, offset, ") -> i") ||
+               !append_u64(artifact, capacity, offset, operand_width) ||
+               !append_literal(artifact, capacity, offset, "\n")) {
+      return false;
+    }
+  }
+
+append_bit_result_extension:
+  if (!narrow) return true;
+  if (!append_literal(artifact, capacity, offset, "    %v") ||
+      !append_size(artifact, capacity, offset, value_index) ||
+      !append_literal(artifact, capacity, offset, " = llvm.") ||
+      !append_literal(artifact, capacity, offset,
+                      is_count || !result_signed ? "zext %v" : "sext %v") ||
+      !append_size(artifact, capacity, offset, value_index) ||
+      !append_literal(artifact, capacity, offset, "_bit_raw : i") ||
+      !append_u64(artifact, capacity, offset, operand_width) ||
+      !append_literal(artifact, capacity, offset, " to i64\n"))
+    return false;
+  return true;
+}
+
 static bool append_unary_i64_operation_in_loop(
     const w_seed_hir0_program *program, uint32_t value_index,
     uint32_t function_index, const mlir0_process_emit_context *process,
     const mlir0_natural_loop_result_context *loop, uint8_t *artifact,
     size_t capacity, size_t *offset) {
+  if (program != NULL && value_index < program->value_count &&
+      program->values[value_index].kind == W_SEED_HIR0_VALUE_UNARY_I64 &&
+      mlir0_is_bit_primitive_unary(
+          program->values[value_index].unary_operator))
+    return append_integer_bit_primitive_unary_operation_in_loop(
+        program, value_index, function_index, process, loop, artifact,
+        capacity, offset);
   if (program != NULL && value_index < program->value_count &&
       program->values[value_index].kind == W_SEED_HIR0_VALUE_UNARY_I64 &&
       mlir0_unary_uses_generic_wrapping_lowering(
@@ -4382,15 +4727,20 @@ static bool append_unary_i64_operation(
       offset);
 }
 
-/* UInt has a fixed-width i64 carrier in this seed. Its bitwise complement,
- * wrapping negate, and bit counts are pure operations, so they must not route
- * through signed checked arithmetic or a negate helper. This emitter is
- * intentionally outside the natural-loop path; the finite UInt bundle is
- * linear/local-call only. */
+/* UInt's remaining unary arithmetic is a fixed-width i64 carrier operation.
+ * Bit primitives above take the generic logical-width path instead; these
+ * legacy negate variants keep their existing checked/overflow behavior. */
 static bool append_unary_u64_operation(
     const w_seed_hir0_program *program, uint32_t value_index,
     uint32_t function_index, const mlir0_process_emit_context *process,
     uint8_t *artifact, size_t capacity, size_t *offset) {
+  if (program != NULL && value_index < program->value_count &&
+      program->values[value_index].kind == W_SEED_HIR0_VALUE_UNARY_U64 &&
+      mlir0_is_bit_primitive_unary(
+          program->values[value_index].unary_operator))
+    return append_integer_bit_primitive_unary_operation_in_loop(
+        program, value_index, function_index, process, NULL, artifact,
+        capacity, offset);
   if (program != NULL && value_index < program->value_count &&
       program->values[value_index].kind == W_SEED_HIR0_VALUE_UNARY_U64 &&
       mlir0_unary_uses_generic_wrapping_lowering(
@@ -4420,13 +4770,7 @@ static bool append_unary_u64_operation(
                        : W_SEED_HIR0_TYPE_U64) ||
       (value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
        !saturating &&
-       !overflowing &&
-       value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ONES &&
-       value->unary_operator != W_SEED_HIR0_UNARY_COUNT_ZEROS &&
-       value->unary_operator != W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS &&
-       value->unary_operator != W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS &&
-       value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BITS &&
-       value->unary_operator != W_SEED_HIR0_UNARY_REVERSED_BYTES) ||
+       !overflowing) ||
       value->left_value == W_SEED_HIR0_NONE ||
       value->right_value != W_SEED_HIR0_NONE ||
       value->binding_index != W_SEED_HIR0_NONE ||
@@ -4487,83 +4831,6 @@ static bool append_unary_u64_operation(
                                         function_index, process, artifact,
                                         capacity, offset) &&
            append_literal(artifact, capacity, offset, " : i64\n");
-  }
-  if (value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ONES) {
-    return append_literal(artifact, capacity, offset, "    %v") &&
-           append_size(artifact, capacity, offset, value_index) &&
-           append_literal(artifact, capacity, offset,
-                          " = \"llvm.intr.ctpop\"(") &&
-           append_program_value_operand(program, value->left_value,
-                                        function_index, process, artifact,
-                                        capacity, offset) &&
-           append_literal(artifact, capacity, offset, ") : (i64) -> i64\n");
-  }
-  if (value->unary_operator == W_SEED_HIR0_UNARY_COUNT_ZEROS) {
-    return append_literal(artifact, capacity, offset, "    %v") &&
-           append_size(artifact, capacity, offset, value_index) &&
-           append_literal(artifact, capacity, offset,
-                          "_count_ones = \"llvm.intr.ctpop\"(") &&
-           append_program_value_operand(program, value->left_value,
-                                        function_index, process, artifact,
-                                        capacity, offset) &&
-           append_literal(artifact, capacity, offset, ") : (i64) -> i64\n") &&
-           append_literal(artifact, capacity, offset, "    %v") &&
-           append_size(artifact, capacity, offset, value_index) &&
-           append_literal(
-               artifact, capacity, offset,
-               "_count_width = llvm.mlir.constant(64 : i64) : i64\n") &&
-           append_literal(artifact, capacity, offset, "    %v") &&
-           append_size(artifact, capacity, offset, value_index) &&
-           append_literal(artifact, capacity, offset, " = llvm.sub %v") &&
-           append_size(artifact, capacity, offset, value_index) &&
-           append_literal(artifact, capacity, offset, "_count_width, %v") &&
-           append_size(artifact, capacity, offset, value_index) &&
-           append_literal(artifact, capacity, offset,
-                          "_count_ones : i64\n");
-  }
-  if (value->unary_operator == W_SEED_HIR0_UNARY_COUNT_LEADING_ZEROS) {
-    return append_literal(artifact, capacity, offset, "    %v") &&
-           append_size(artifact, capacity, offset, value_index) &&
-           append_literal(artifact, capacity, offset,
-                          " = \"llvm.intr.ctlz\"(") &&
-           append_program_value_operand(program, value->left_value,
-                                        function_index, process, artifact,
-                                        capacity, offset) &&
-           append_literal(
-               artifact, capacity, offset,
-               ") <{is_zero_poison = false}> : (i64) -> i64\n");
-  }
-  if (value->unary_operator == W_SEED_HIR0_UNARY_COUNT_TRAILING_ZEROS) {
-    return append_literal(artifact, capacity, offset, "    %v") &&
-           append_size(artifact, capacity, offset, value_index) &&
-           append_literal(artifact, capacity, offset,
-                          " = \"llvm.intr.cttz\"(") &&
-           append_program_value_operand(program, value->left_value,
-                                        function_index, process, artifact,
-                                        capacity, offset) &&
-           append_literal(
-               artifact, capacity, offset,
-               ") <{is_zero_poison = false}> : (i64) -> i64\n");
-  }
-  if (value->unary_operator == W_SEED_HIR0_UNARY_REVERSED_BITS) {
-    return append_literal(artifact, capacity, offset, "    %v") &&
-           append_size(artifact, capacity, offset, value_index) &&
-           append_literal(artifact, capacity, offset,
-                          " = \"llvm.intr.bitreverse\"(") &&
-           append_program_value_operand(program, value->left_value,
-                                        function_index, process, artifact,
-                                        capacity, offset) &&
-           append_literal(artifact, capacity, offset, ") : (i64) -> i64\n");
-  }
-  if (value->unary_operator == W_SEED_HIR0_UNARY_REVERSED_BYTES) {
-    return append_literal(artifact, capacity, offset, "    %v") &&
-           append_size(artifact, capacity, offset, value_index) &&
-           append_literal(artifact, capacity, offset,
-                          " = \"llvm.intr.bswap\"(") &&
-           append_program_value_operand(program, value->left_value,
-                                        function_index, process, artifact,
-                                        capacity, offset) &&
-           append_literal(artifact, capacity, offset, ") : (i64) -> i64\n");
   }
   return append_literal(artifact, capacity, offset, "    %v") &&
          append_size(artifact, capacity, offset, value_index) &&
@@ -4973,12 +5240,6 @@ static bool build_dynamic_artifact(
       (plan.has_logical_shift_right &&
        !append_literal(artifact, capacity, &offset,
                        MLIR0_LOGICAL_SHIFT_RIGHT_HELPER)) ||
-      (plan.has_rotated_left &&
-       !append_literal(artifact, capacity, &offset,
-                       MLIR0_ROTATED_LEFT_HELPER)) ||
-      (plan.has_rotated_right &&
-       !append_literal(artifact, capacity, &offset,
-                       MLIR0_ROTATED_RIGHT_HELPER)) ||
       (plan.has_u64 &&
        !append_literal(artifact, capacity, &offset, MLIR0_U64_HELPER)) ||
       (plan.has_bool &&
@@ -5100,8 +5361,6 @@ typedef struct {
   bool has_masked_shift_left;
   bool has_masked_shift_right;
   bool has_logical_shift_right;
-  bool has_rotated_left;
-  bool has_rotated_right;
   bool has_reachable_panic;
   bool reachable_values[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
 } mlir0_program_plan;
@@ -5620,10 +5879,6 @@ static bool build_program_plan(const w_seed_hir0_program *program,
   candidate.has_logical_shift_right =
       reachable_values_have_logical_shift_right(program,
                                                  candidate.reachable_values);
-  candidate.has_rotated_left =
-      reachable_values_have_rotated_left(program, candidate.reachable_values);
-  candidate.has_rotated_right =
-      reachable_values_have_rotated_right(program, candidate.reachable_values);
   derive_reachable_u64_helpers(
       program, candidate.reachable_values, &candidate.has_checked_u64_add,
       &candidate.has_checked_u64_subtract, &candidate.has_checked_u64_multiply,
@@ -6352,10 +6607,15 @@ static bool append_program_value_tree(
     return true;
   }
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64) {
+    const bool bit_primitive =
+        mlir0_is_bit_primitive_unary(value->unary_operator);
     if (!mlir0_integer_type_is_signed(program, value->type_index) ||
-        (value->unary_operator != W_SEED_HIR0_UNARY_NEGATE &&
-         value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
-         value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT) ||
+        (bit_primitive
+             ? !mlir0_bit_primitive_unary_shape_valid(program, value, NULL,
+                                                       NULL, NULL, NULL)
+             : (value->unary_operator != W_SEED_HIR0_UNARY_NEGATE &&
+                value->unary_operator != W_SEED_HIR0_UNARY_WRAPPING_NEGATE &&
+                value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT)) ||
         value->left_value == W_SEED_HIR0_NONE ||
         value->right_value != W_SEED_HIR0_NONE ||
         value->binding_index != W_SEED_HIR0_NONE ||
@@ -8967,12 +9227,6 @@ static bool build_program_artifact(
       (plan.has_logical_shift_right &&
        !append_literal(artifact, capacity, &offset,
                        MLIR0_LOGICAL_SHIFT_RIGHT_HELPER)) ||
-      (plan.has_rotated_left &&
-       !append_literal(artifact, capacity, &offset,
-                       MLIR0_ROTATED_LEFT_HELPER)) ||
-      (plan.has_rotated_right &&
-       !append_literal(artifact, capacity, &offset,
-                       MLIR0_ROTATED_RIGHT_HELPER)) ||
       (plan.has_u64 &&
        !append_literal(artifact, capacity, &offset, MLIR0_U64_HELPER)) ||
       (plan.has_bool &&
@@ -9491,12 +9745,6 @@ static bool build_process_executable_artifact(
       (plan.has_logical_shift_right &&
        !append_literal(artifact, capacity, &offset,
                        MLIR0_LOGICAL_SHIFT_RIGHT_HELPER)) ||
-      (plan.has_rotated_left &&
-       !append_literal(artifact, capacity, &offset,
-                       MLIR0_ROTATED_LEFT_HELPER)) ||
-      (plan.has_rotated_right &&
-       !append_literal(artifact, capacity, &offset,
-                       MLIR0_ROTATED_RIGHT_HELPER)) ||
       (plan.has_u64 &&
        !append_literal(artifact, capacity, &offset, MLIR0_U64_HELPER)) ||
        (plan.has_bool &&

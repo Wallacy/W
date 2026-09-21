@@ -87,6 +87,18 @@ const restaurantUIntReversedBitsFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-reversed-bits.w")
 const restaurantUIntReversedBytesFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-reversed-bytes.w")
+const fixedIntegerBitPrimitivesFixture = resolve(seedDirectory,
+  "fixtures", "fixed-integer-bit-primitives.w")
+const fixedIntegerBitPrimitivesOutput = Buffer.from(
+  "i8 3/5/1/1 74/127 82 -92/41\n" +
+  "u8 4/4/0/1 105 150 45/75\n" +
+  "i16 5/11/3/2 11336/32767 13330 9320/2330\n" +
+  "u16 8/8/0/0 54673 43913 4951/50389\n" +
+  "i32 13/19/3/3 510274632/2147483647 2018915346 610839792/152709948\n" +
+  "u32 20/12/0/0 4155757969 4023233417 324508639/3302352631\n" +
+  "i64 30/34/7/1 8553414939923104896/9223372036854775807 7984226321029210881 163971058432973532/40992764608243383\n" +
+  "u64 32/32/0/4 597899502893742975 1167088121787636990 18282773015276577825/9182379272246532360\n",
+  "utf8")
 const restaurantUIntSaturatingAddFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-saturating-add.w")
 const restaurantUIntSaturatingSubtractFixture = resolve(seedDirectory,
@@ -892,6 +904,9 @@ try {
     { name: "restaurant-uint-reversed-bytes",
       source: restaurantUIntReversedBytesFixture,
       expected: Buffer.from("Bytes 17279655951921914625\n", "utf8") },
+    { name: "fixed-integer-bit-primitives",
+      source: fixedIntegerBitPrimitivesFixture,
+      expected: fixedIntegerBitPrimitivesOutput },
     { name: "restaurant-uint-saturating-add",
       source: restaurantUIntSaturatingAddFixture,
       expected: Buffer.from("Saturated 18446744073709551615/11\n", "utf8") },
@@ -1380,22 +1395,22 @@ try {
   "u64.logicalShiftRight lost zero fill or invalid-count trap semantics")
   const uintRotatedLeftArtifact =
     artifacts.get("restaurant-uint-rotated-left").toString("utf8")
-  assert((uintRotatedLeftArtifact.match(
-    /llvm\.func internal @w_seed_rotated_left_u64/g) ?? []).length === 1 &&
-    uintRotatedLeftArtifact.includes("llvm.call @w_seed_rotated_left_u64") &&
+  assert(!uintRotatedLeftArtifact.includes("@w_seed_rotated_left_u64") &&
     (uintRotatedLeftArtifact.match(/llvm\.intr\.fshl/g) ?? []).length === 1 &&
+    uintRotatedLeftArtifact.includes(
+      "_rotate_mask = llvm.mlir.constant(63 : i64)") &&
+    uintRotatedLeftArtifact.includes("_rotate_mod = llvm.and ") &&
     uintRotatedLeftArtifact.includes("llvm.call @w_seed_append_u64") &&
-    !uintRotatedLeftArtifact.includes("llvm.and %count, %mask : i64") &&
     !uintRotatedLeftArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
   "u64.rotatedLeft lost funnel-shift or modulo-width semantics")
   const uintRotatedRightArtifact =
     artifacts.get("restaurant-uint-rotated-right").toString("utf8")
-  assert((uintRotatedRightArtifact.match(
-    /llvm\.func internal @w_seed_rotated_right_u64/g) ?? []).length === 1 &&
-    uintRotatedRightArtifact.includes("llvm.call @w_seed_rotated_right_u64") &&
+  assert(!uintRotatedRightArtifact.includes("@w_seed_rotated_right_u64") &&
     (uintRotatedRightArtifact.match(/llvm\.intr\.fshr/g) ?? []).length === 1 &&
+    uintRotatedRightArtifact.includes(
+      "_rotate_mask = llvm.mlir.constant(63 : i64)") &&
+    uintRotatedRightArtifact.includes("_rotate_mod = llvm.and ") &&
     uintRotatedRightArtifact.includes("llvm.call @w_seed_append_u64") &&
-    !uintRotatedRightArtifact.includes("llvm.and %count, %mask : i64") &&
     !uintRotatedRightArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
   "u64.rotatedRight lost funnel-shift or modulo-width semantics")
   const uintCountOnesArtifact =
@@ -1408,8 +1423,8 @@ try {
     artifacts.get("restaurant-uint-count-zeros").toString("utf8")
   assert((uintCountZerosArtifact.match(/llvm\.intr\.ctpop/g) ?? []).length === 1 &&
     uintCountZerosArtifact.includes(
-      "_count_width = llvm.mlir.constant(64 : i64)") &&
-    uintCountZerosArtifact.includes("_count_ones : i64") &&
+      "_bit_width = llvm.mlir.constant(64 : i64)") &&
+    uintCountZerosArtifact.includes("_bit_ones : i64") &&
     uintCountZerosArtifact.includes("llvm.call @w_seed_append_u64") &&
     !uintCountZerosArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
   "u64.countZeros lost width-minus-popcount or total-operation semantics")

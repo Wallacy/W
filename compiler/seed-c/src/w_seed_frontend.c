@@ -202,6 +202,7 @@ typedef struct {
   bool is_builtin_float_receiver;
   bool is_builtin_float_member;
   frontend_simple_type builtin_float_source_type;
+  frontend_simple_type builtin_integer_source_type;
   bool is_integer_type_constructor;
   bool is_float_type_constructor;
   w_seed_frontend_builtin_operation builtin_operation;
@@ -4348,6 +4349,14 @@ static bool builtin_integer_receiver_spelling(w_seed_frontend_text spelling) {
          text_equal(spelling, "Int") || text_equal(spelling, "UInt");
 }
 
+static bool builtin_fixed_integer_receiver_spelling(
+    w_seed_frontend_text spelling) {
+  return text_equal(spelling, "i8") || text_equal(spelling, "i16") ||
+         text_equal(spelling, "i32") || text_equal(spelling, "i64") ||
+         text_equal(spelling, "u8") || text_equal(spelling, "u16") ||
+         text_equal(spelling, "u32") || text_equal(spelling, "u64");
+}
+
 static bool builtin_integer_receiver_type(frontend_simple_type type,
                                           w_seed_frontend_text spelling) {
   return builtin_integer_receiver_spelling(spelling) &&
@@ -4356,11 +4365,61 @@ static bool builtin_integer_receiver_type(frontend_simple_type type,
           type.bit_width == 32u || type.bit_width == 64u);
 }
 
+static bool builtin_fixed_integer_receiver_type(
+    frontend_simple_type type, w_seed_frontend_text spelling) {
+  if (type.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+      !builtin_fixed_integer_receiver_spelling(spelling))
+    return false;
+  const bool signed_spelling = text_equal(spelling, "i8") ||
+                               text_equal(spelling, "i16") ||
+                               text_equal(spelling, "i32") ||
+                               text_equal(spelling, "i64");
+  const uint16_t spelling_width =
+      text_equal(spelling, "i8") || text_equal(spelling, "u8")
+          ? 8u
+          : (text_equal(spelling, "i16") || text_equal(spelling, "u16")
+                 ? 16u
+                 : (text_equal(spelling, "i32") || text_equal(spelling, "u32")
+                        ? 32u
+                        : 64u));
+  return type.is_signed == signed_spelling && type.bit_width == spelling_width;
+}
+
+static bool builtin_integer_bit_operation_is_supported(
+    w_seed_frontend_builtin_operation operation) {
+  return operation == W_SEED_FRONTEND_BUILTIN_U64_ROTATED_LEFT ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_ROTATED_RIGHT ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ZEROS ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_LEADING_ZEROS ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_TRAILING_ZEROS ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BITS ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BYTES;
+}
+
+static bool builtin_integer_bit_operation_returns_count(
+    w_seed_frontend_builtin_operation operation) {
+  return operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ZEROS ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_LEADING_ZEROS ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_TRAILING_ZEROS;
+}
+
+static frontend_simple_type builtin_integer_bit_operation_result_type(
+    w_seed_frontend_builtin_operation operation,
+    frontend_simple_type receiver_type) {
+  return builtin_integer_bit_operation_returns_count(operation)
+             ? simple_type_from_view((w_seed_frontend_text){"UInt", 4u})
+             : receiver_type;
+}
+
 static bool builtin_integer_operation_is_supported_for_receiver(
     w_seed_frontend_builtin_operation operation, frontend_simple_type type,
     w_seed_frontend_text spelling) {
   if (!builtin_integer_receiver_type(type, spelling)) return false;
   if (builtin_integer_wrapping_operation_is_supported(operation)) return true;
+  if (builtin_integer_bit_operation_is_supported(operation))
+    return builtin_fixed_integer_receiver_type(type, spelling);
   /* The pre-existing u64-only surface remains intentionally u64-only. */
   return text_equal(spelling, "u64") &&
          builtin_u64_operation_is_supported(operation);
@@ -13162,6 +13221,7 @@ static bool expression_append(frontend_expression_parser *parser,
   value->is_builtin_float_receiver = false;
   value->is_builtin_float_member = false;
   value->builtin_float_source_type = simple_type_unknown();
+  value->builtin_integer_source_type = simple_type_unknown();
   value->is_integer_type_constructor = false;
   value->is_float_type_constructor = false;
   value->builtin_operation = record.builtin_operation;
@@ -14840,6 +14900,7 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
         token_text(parser->document, &token, "?.")) {
       const bool optional_member = token_text(parser->document, &token, "?.");
       const bool builtin_integer_receiver = value->is_builtin_u64_receiver;
+      const frontend_simple_type integer_receiver_type = value->type;
       const bool builtin_float_receiver = value->is_builtin_float_receiver;
       const frontend_simple_type float_receiver_type = value->type;
       (void)cursor_take(&parser->cursor, &token);
@@ -14924,11 +14985,16 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
         result_type = builtin_u64_operation_returns_tuple(
                               builtin_integer_member_operation)
                           ? u64_bool_tuple_type()
-                          : builtin_integer_wrapping_operation_is_supported(
+                          : builtin_integer_bit_operation_is_supported(
                                 builtin_integer_member_operation)
-                                ? value->type
-                                : simple_type_from_view(
-                                      (w_seed_frontend_text){"u64", 3u});
+                                ? builtin_integer_bit_operation_result_type(
+                                      builtin_integer_member_operation,
+                                      value->type)
+                                : builtin_integer_wrapping_operation_is_supported(
+                                      builtin_integer_member_operation)
+                                      ? value->type
+                                      : simple_type_from_view(
+                                            (w_seed_frontend_text){"u64", 3u});
         supported = true;
       }
       if (!supported && !optional_member && !followed_by_call &&
@@ -15012,6 +15078,9 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       value->is_integer_literal = false;
       value->is_builtin_u64_receiver = false;
       value->is_builtin_u64_member = builtin_integer_member && supported;
+      value->builtin_integer_source_type =
+          builtin_integer_member && supported ? integer_receiver_type
+                                              : simple_type_unknown();
       continue;
     }
     if (token_text(parser->document, &token, "[")) {
@@ -15056,6 +15125,8 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     const w_seed_frontend_builtin_operation builtin_u64_operation =
         value->is_builtin_u64_member ? value->builtin_operation
                                      : W_SEED_FRONTEND_BUILTIN_NONE;
+    const frontend_simple_type builtin_integer_source_type =
+        value->builtin_integer_source_type;
     const bool builtin_u64_call =
         builtin_u64_operation_is_supported(builtin_u64_operation);
     const bool builtin_integer_wrapping_call =
@@ -15187,10 +15258,11 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       bool enum_label_previous = false;
       uint32_t enum_parameter_ordinal = W_SEED_FRONTEND_NONE;
       if (builtin_u64_call) {
-        /* Wrapping operations retain the receiver scalar type.  Power and
+        /* Wrapping operations retain the receiver scalar type. Power and
          * shift-left deliberately keep UInt as their independent count
-         * domain; all other operands match the receiver exactly in the
-         * semantic pass below. */
+         * domain. Bit primitives use the receiver type for value operands
+         * and UInt for a rotation count; u64 remains compatible because it
+         * has the same unsigned 64-bit representation as UInt. */
         if (builtin_integer_wrapping_call && argument_count != 0u &&
             (builtin_u64_operation ==
                  W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_POWER ||
@@ -15199,6 +15271,17 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
           expected = simple_type_from_view((w_seed_frontend_text){"UInt", 4u});
         } else if (builtin_integer_wrapping_call) {
           expected = value->type;
+        } else if (builtin_integer_bit_operation_is_supported(
+                       builtin_u64_operation)) {
+          const bool rotation =
+              builtin_u64_operation ==
+                  W_SEED_FRONTEND_BUILTIN_U64_ROTATED_LEFT ||
+              builtin_u64_operation ==
+                  W_SEED_FRONTEND_BUILTIN_U64_ROTATED_RIGHT;
+          expected = rotation && argument_count == 1u
+                         ? simple_type_from_view(
+                               (w_seed_frontend_text){"UInt", 4u})
+                         : builtin_integer_source_type;
         } else {
           expected = simple_type_from_view((w_seed_frontend_text){"u64", 3u});
         }
@@ -15254,7 +15337,25 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
            (expected.kind == W_SEED_FRONTEND_TYPE_FLOAT &&
             (argument_value.type.kind == W_SEED_FRONTEND_TYPE_INTEGER ||
              argument_value.type.kind == W_SEED_FRONTEND_TYPE_FLOAT))) &&
-          !expression_apply_expected_type(parser, &argument_value, expected)) {
+          builtin_integer_bit_operation_is_supported(
+              builtin_u64_operation) &&
+          !expression_value_is_unsuffixed_integer(&argument_value)) {
+        /* A typed fixed-width operand must match the bit operation's T or
+         * UInt parameter exactly. Do not turn a narrower typed value into a
+         * match by inserting an implicit widening wrapper. Unsuffixed integer
+         * literals remain contextually materialized at the required width. */
+        argument_value.supported = false;
+        labels_valid = false;
+      } else if (expected_found && !type_equal(argument_value.type, expected) &&
+                 ((expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+                   argument_value.type.kind == W_SEED_FRONTEND_TYPE_INTEGER) ||
+                  (expected.kind == W_SEED_FRONTEND_TYPE_FLOAT &&
+                   (argument_value.type.kind ==
+                        W_SEED_FRONTEND_TYPE_INTEGER ||
+                    argument_value.type.kind ==
+                        W_SEED_FRONTEND_TYPE_FLOAT))) &&
+                 !expression_apply_expected_type(parser, &argument_value,
+                                                 expected)) {
         argument_value.supported = false;
       }
       if (builtin_u64_call || enum_case_constructor || local_signature ||
@@ -15473,7 +15574,9 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       return_type = builtin_u64_operation_returns_tuple(
                             builtin_u64_operation)
                         ? u64_bool_tuple_type()
-                        : builtin_integer_wrapping_call
+                        : (builtin_integer_wrapping_call ||
+                           builtin_integer_bit_operation_is_supported(
+                               builtin_u64_operation))
                               ? value->type
                               : simple_type_from_view(
                                     (w_seed_frontend_text){"u64", 3u});
@@ -16990,6 +17093,107 @@ static frontend_simple_type infer_checked_shift_span(
   return left_fixed_integer && uint_count ? left_type : simple_type_unknown();
 }
 
+/* Mirror the value-name precedence of expression_parse_atom before treating
+ * a spelling as a primitive integer namespace. In particular, dry binding
+ * inference must not turn a preceding local/module/import binding named `i8`
+ * (or another primitive spelling) into the builtin receiver. */
+static bool infer_primitive_integer_receiver_type(
+    frontend_context *context, const frontend_token *receiver,
+    frontend_simple_type *type_out) {
+  if (type_out != NULL) *type_out = simple_type_unknown();
+  if (context == NULL || receiver == NULL || type_out == NULL ||
+      receiver->kind != W_SEED_CST_WORD)
+    return false;
+  const w_seed_frontend_document *doc = context_document(context);
+  if (doc == NULL) return false;
+  const w_seed_frontend_text spelling =
+      text_from_span(doc, receiver->span);
+  if (!builtin_integer_receiver_spelling(spelling) ||
+      binding_type_for_name(context, spelling, receiver->span).kind !=
+          W_SEED_FRONTEND_TYPE_UNKNOWN)
+    return false;
+
+  uint32_t external_module = W_SEED_FRONTEND_NONE;
+  uint32_t external_symbol = W_SEED_FRONTEND_NONE;
+  if (external_type_identity_for_name(context, spelling, &external_module,
+                                      &external_symbol, NULL))
+    return false;
+  const w_seed_frontend_document *owner_doc = NULL;
+  uint32_t function_node = W_SEED_CST_NONE;
+  if (function_signature_for_name(context, spelling, &owner_doc,
+                                   &function_node))
+    return false;
+  const w_seed_frontend_external_symbol *external = NULL;
+  if (external_symbol_for_name(context, spelling, &external)) return false;
+  const w_seed_frontend_host_prelude_symbol *host = NULL;
+  if (host_symbol_for_name(context, spelling, &host, NULL)) return false;
+  uint32_t const_index = W_SEED_FRONTEND_NONE;
+  frontend_simple_type const_type = simple_type_unknown();
+  if (module_const_for_name(context, spelling, &const_index, &const_type,
+                            NULL, NULL))
+    return false;
+
+  const frontend_simple_type type = simple_type_from_view(spelling);
+  if (!builtin_integer_receiver_type(type, spelling)) return false;
+  *type_out = type;
+  return true;
+}
+
+/* Infer the result domain of one exact primitive associated integer call.
+ * This is only used to resolve later source-order locals during the dry pass;
+ * expression parsing still validates argument count, labels, and types. */
+static frontend_simple_type infer_integer_associated_call_span(
+    frontend_context *context, const w_seed_frontend_document *doc,
+    w_seed_span span) {
+  if (context == NULL || doc == NULL) return simple_type_unknown();
+  frontend_token_cursor cursor = token_cursor_for(doc, span);
+  frontend_token receiver;
+  frontend_token dot;
+  frontend_token member;
+  frontend_token open;
+  if (!cursor_take(&cursor, &receiver) ||
+      receiver.kind != W_SEED_CST_WORD || !cursor_take(&cursor, &dot) ||
+      !token_text(doc, &dot, ".") ||
+      !cursor_take(&cursor, &member) || member.kind != W_SEED_CST_WORD ||
+      !cursor_take(&cursor, &open) || !token_text(doc, &open, "("))
+    return simple_type_unknown();
+  const w_seed_frontend_builtin_operation operation =
+      builtin_u64_operation_for_member(text_from_span(doc, member.span));
+  frontend_simple_type receiver_type = simple_type_unknown();
+  if (operation == W_SEED_FRONTEND_BUILTIN_NONE ||
+      !infer_primitive_integer_receiver_type(context, &receiver,
+                                            &receiver_type) ||
+      !builtin_integer_operation_is_supported_for_receiver(
+          operation, receiver_type, text_from_span(doc, receiver.span)))
+    return simple_type_unknown();
+
+  size_t parentheses = 1u;
+  frontend_token token;
+  while (cursor_take(&cursor, &token)) {
+    if (token_text(doc, &token, "(")) {
+      if (parentheses == SIZE_MAX) return simple_type_unknown();
+      parentheses += 1u;
+      continue;
+    }
+    if (!token_text(doc, &token, ")")) continue;
+    if (parentheses == 0u) return simple_type_unknown();
+    parentheses -= 1u;
+    if (parentheses == 0u) {
+      frontend_token trailing;
+      if (cursor_peek(&cursor, &trailing)) return simple_type_unknown();
+      if (builtin_u64_operation_returns_tuple(operation))
+        return u64_bool_tuple_type();
+      if (builtin_integer_bit_operation_is_supported(operation))
+        return builtin_integer_bit_operation_result_type(operation,
+                                                        receiver_type);
+      if (builtin_integer_wrapping_operation_is_supported(operation))
+        return receiver_type;
+      return simple_type_from_view((w_seed_frontend_text){"u64", 3u});
+    }
+  }
+  return simple_type_unknown();
+}
+
 static frontend_simple_type infer_expression_span_inner(
     frontend_context *context, w_seed_span span, size_t depth);
 
@@ -17243,6 +17447,10 @@ static frontend_simple_type infer_expression_span_inner(
           doc, span, W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_POWER)) {
     return u64_bool_tuple_type();
   }
+  const frontend_simple_type integer_associated_type =
+      infer_integer_associated_call_span(context, doc, span);
+  if (integer_associated_type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN)
+    return integer_associated_type;
   /* A direct call's arguments may contain member syntax (for example an enum
    * case literal). Resolve the callee before the generic operator scan, but
    * only for an exact call span; a bare function name is not its result. The
@@ -20336,9 +20544,9 @@ static bool resolve_frontend_links(frontend_context *context) {
         expression->owner_function == W_SEED_FRONTEND_NONE &&
         expression->kind == W_SEED_FRONTEND_EXPR_CALL &&
         builtin_u64_operation_is_supported(expression->builtin_operation);
-    /* Module constants have no function owner.  Admit only the closed u64
-     * builtin call to the ordinary exact resolver below; every other
-     * module-scope expression keeps the pre-existing early exit. */
+    /* Module constants have no function owner. Admit only closed integer
+     * builtins to the ordinary exact resolver below; every other module-scope
+     * expression keeps the pre-existing early exit. */
     if (expression->owner_function == W_SEED_FRONTEND_NONE &&
         !module_builtin_call)
       continue;
@@ -20514,6 +20722,9 @@ static bool resolve_frontend_links(frontend_context *context) {
     }
     if (callee->kind == W_SEED_FRONTEND_EXPR_MEMBER) {
       if (builtin_u64_operation_is_supported(expression->builtin_operation)) {
+        const bool bit_operation =
+            builtin_integer_bit_operation_is_supported(
+                expression->builtin_operation);
         const bool unary =
             builtin_u64_operation_is_unary(expression->builtin_operation);
         const size_t expected_argument_count = unary ? 1u : 2u;
@@ -20551,6 +20762,8 @@ static bool resolve_frontend_links(frontend_context *context) {
                                                         ? &context->output
                                                                ->types[receiver->inferred_type]
                                                         : NULL;
+        const frontend_simple_type fixed_receiver_type =
+            simple_type_from_view(receiver->spelling);
         const bool receiver_type_valid =
             receiver->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
             receiver->builtin_operation ==
@@ -20564,8 +20777,53 @@ static bool resolve_frontend_links(frontend_context *context) {
             (receiver_type->bit_width == 8u ||
              receiver_type->bit_width == 16u ||
              receiver_type->bit_width == 32u ||
-             receiver_type->bit_width == 64u);
+             receiver_type->bit_width == 64u) &&
+            (!bit_operation ||
+             (builtin_fixed_integer_receiver_type(fixed_receiver_type,
+                                                  receiver->spelling) &&
+              receiver_type->is_signed == fixed_receiver_type.is_signed &&
+              receiver_type->bit_width == fixed_receiver_type.bit_width));
         if (!receiver_type_valid) {
+          expression->supported = false;
+          continue;
+        }
+        const bool count_operation =
+            builtin_integer_bit_operation_returns_count(
+                expression->builtin_operation);
+        const bool rotation_operation =
+            expression->builtin_operation ==
+                W_SEED_FRONTEND_BUILTIN_U64_ROTATED_LEFT ||
+            expression->builtin_operation ==
+                W_SEED_FRONTEND_BUILTIN_U64_ROTATED_RIGHT;
+        const bool result_type_index_valid =
+            expression->inferred_type != W_SEED_FRONTEND_NONE &&
+            (size_t)expression->inferred_type < context->count.types;
+        const w_seed_frontend_type *result_type =
+            result_type_index_valid
+                ? &context->output->types[expression->inferred_type]
+                : NULL;
+        const bool callee_type_index_valid =
+            callee->inferred_type != W_SEED_FRONTEND_NONE &&
+            (size_t)callee->inferred_type < context->count.types;
+        const w_seed_frontend_type *callee_result_type =
+            callee_type_index_valid
+                ? &context->output->types[callee->inferred_type]
+                : NULL;
+        const bool bit_result_type_valid =
+            !bit_operation ||
+            (result_type != NULL && callee_result_type != NULL &&
+             callee_result_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+             callee_result_type->is_signed == result_type->is_signed &&
+             callee_result_type->bit_width == result_type->bit_width &&
+             (count_operation
+                  ? result_type != NULL &&
+                        result_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+                        !result_type->is_signed &&
+                        result_type->bit_width == 64u
+                  : result_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+                        result_type->is_signed == receiver_type->is_signed &&
+                        result_type->bit_width == receiver_type->bit_width));
+        if (!bit_result_type_valid) {
           expression->supported = false;
           continue;
         }
@@ -20598,18 +20856,31 @@ static bool resolve_frontend_links(frontend_context *context) {
           const bool count_domain =
               (expression->builtin_operation ==
                    W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_POWER ||
-               expression->builtin_operation ==
+              expression->builtin_operation ==
                    W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_SHIFT_LEFT) &&
               offset == 1u;
-          const bool operand_type_valid =
+          const bool bit_operand_type_valid =
               operand_type != NULL && operand_type->kind ==
                                          W_SEED_FRONTEND_TYPE_INTEGER &&
-              (count_domain
-                   ? !operand_type->is_signed && operand_type->bit_width == 64u
-                   : operand_type->is_signed == receiver_type->is_signed &&
-                         operand_type->bit_width == receiver_type->bit_width);
+              (offset == 0u
+                   ? operand_type->is_signed == receiver_type->is_signed &&
+                         operand_type->bit_width == receiver_type->bit_width
+                   : rotation_operation && !operand_type->is_signed &&
+                         operand_type->bit_width == 64u);
+          const bool operand_type_valid =
+              bit_operation
+                  ? bit_operand_type_valid
+                  : (operand_type != NULL && operand_type->kind ==
+                                                W_SEED_FRONTEND_TYPE_INTEGER &&
+                     (count_domain
+                          ? !operand_type->is_signed &&
+                                operand_type->bit_width == 64u
+                          : operand_type->is_signed ==
+                                    receiver_type->is_signed &&
+                                operand_type->bit_width ==
+                                    receiver_type->bit_width));
           if (!operand->supported || !operand_type_valid ||
-              (!generic_wrapping &&
+              (!generic_wrapping && !bit_operation &&
                (operand_type->is_signed || operand_type->bit_width != 64u))) {
             expression->supported = false;
           }

@@ -3025,6 +3025,32 @@ runtime work: `benchmarkDisposition: deferred`, with no timing or ranking.
 Other targets, stable ABI/FFI, endian byte serialization, arithmetic NaN
 payload, and remaining W-389 conversion policies stay open.
 
+### Fixed-width integer bit primitives (W-1648)
+
+W-1648 is the bounded source-backed W-392 increment for the existing
+associated functions `rotatedLeft`, `rotatedRight`, `countOnes`, `countZeros`,
+`countLeadingZeros`, `countTrailingZeros`, `reversedBits`, and `reversedBytes`.
+Its source-backed type family is exactly `i8`/`u8`, `i16`/`u16`, `i32`/`u32`,
+and `i64`/`u64`; this does not expand coverage to `Int`/`UInt`, `isize`/`usize`,
+or 128-bit types.
+Rotations take a `UInt` count modulo logical width. Counts return `UInt`;
+leading/trailing zero counts of zero equal the logical width. Signed inputs use
+their full two's-complement pattern, and bit/byte reversal preserves the same
+type and logical width independently of host endianness. No language syntax is
+added.
+
+Frontend70 and HIR91 retain and verify fixed-width type facts; NativeSubset0
+checks them independently, and MLIR61 emits direct LLVM-dialect funnel-shift,
+population/count-leading/count-trailing, bit-reverse, and byte-swap operations.
+The 3,943-byte neutral fixture
+[`fixtures/fixed-integer-bit-primitives.w`](fixtures/fixed-integer-bit-primitives.w)
+covers all eight operations across all eight types. Focused unit tests and
+C23/Rust references additionally exercise zero-input width counts and rotation
+counts `0`, `width`, and `width + 1`; final exact-output source-to-native gates
+pass on CRT-free Windows x64 and Linux/WSL x64. This is correctness-only
+evidence, not a performance result. `Int`/`UInt` target width, other targets,
+general optimizer behavior, and performance remain outside this increment.
+
 ### Source-backed checked `UInt`/`u64` operators
 
 HIR0 schema `w-seed-hir0-77` represents ordinary unsigned arithmetic,

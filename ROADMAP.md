@@ -34,6 +34,12 @@ not in this queue.
 - Elide a declared execution relation only with an independently verifiable
   equivalence fact; compare the optimized path against the physical reference.
 - Measure public executable behavior only after an exact correctness oracle.
+- Plan Hyperfine 1.20.x as the future cross-platform public wall-time layer:
+  preserve per-run JSON samples, use `--shell=none` for sub-5 ms commands, and
+  schedule single-command invocations in balanced ABBA order. This plan is not
+  integrated; exact oracles and native CPU, memory, section, and artifact
+  evidence remain with W's native runner. Cycle counts, if exposed, must come
+  from a native counter rather than being inferred from wall time.
 - Treat performance, memory, binary size, and compile latency as persistent
   optimization signals, never as permission to change semantics.
 
@@ -95,6 +101,19 @@ that would otherwise be copied into later families.
 Every new or materially changed executable example records its expected exit,
 stdout, and non-empty stderr beside the source. The executable catalog remains
 the machine contract and its checks must reject drift from that local summary.
+
+Reserve `restaurant-*` names for examples that actually participate in
+Last Light lore or its eventual single-module language tour. New isolated
+compiler and benchmark witnesses use neutral capability names. Migrate or
+consolidate older misnamed fixtures opportunistically when their semantic
+family is next touched; do not mass-rename them.
+
+The W-1648 increment targets the existing W-392 rotations and count/reversal
+functions only for built-in `i8`/`u8`, `i16`/`u16`, `i32`/`u32`, and
+`i64`/`u64`. This bounded source-to-native slice is now source-backed-current
+on CRT-free Windows x64 and Linux/WSL x64. It does not extend the width claim
+to `Int`/`UInt`, `isize`/`usize`, or 128-bit types, and remains
+not-performance-ready.
 
 ## Native application completeness
 
@@ -417,11 +436,14 @@ invalid. The eleven signed compound assignment forms reuse the same checked
 operation and SSA versioning. The UInt/u64 witness now covers all eleven
 unsigned compound forms with checked arithmetic, shifts, and the existing
 direct bit operations over typed SSA versions. Immutable targets fail closed.
-W-392 remains open for named numeric/shift policies, power, rotations,
-remaining bit primitives, SIMD, `usize`/`isize`, 128-bit integers, non-x86-64
-alias widths, stable ABI/FFI, other targets, equivalent-runtime performance,
-and the complete integer operator matrix. Unary `~` is separately covered by
-W-1640. Checked
+W-1648 now source-backs rotations and the selected count/reversal functions
+for `i8`/`u8` through `i64`/`u64` on the exact Windows x64 and Linux/WSL x64
+routes. It makes no `Int`/`UInt` target-width or performance claim. W-392
+remains open for named numeric/shift policies, power, other bit primitives
+such as `bitWidth`, carry/borrow, and full multiply, SIMD,
+`usize`/`isize`, 128-bit integers, non-x86-64 alias widths, stable ABI/FFI,
+other targets, equivalent-runtime performance, and the complete integer
+operator matrix. Unary `~` is separately covered by W-1640. Checked
 arithmetic, wrapping arithmetic, comparisons, and exact widening already span
 the current fixed-width integer set and must not be described as 64-bit-only
 gaps.

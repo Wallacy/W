@@ -6800,7 +6800,7 @@ static bool test_f32_scalar_projection(void) {
 }
 
 static bool test_numeric_widening_frontend(void) {
-  CHECK(strcmp(W_SEED_FRONTEND_SCHEMA_VERSION, "w-seed-frontend-69") == 0);
+  CHECK(strcmp(W_SEED_FRONTEND_SCHEMA_VERSION, "w-seed-frontend-70") == 0);
   typedef struct {
     const char *source_name;
     bool source_is_float;
@@ -9190,6 +9190,206 @@ static bool test_integer_wrapping_frontend_matrix(void) {
   return true;
 }
 
+static bool test_fixed_integer_bit_primitives_frontend_matrix(void) {
+  typedef struct {
+    const char *spelling;
+    bool is_signed;
+    uint16_t bit_width;
+  } integer_case;
+  static const integer_case INTEGERS[] = {
+      {"i8", true, 8u},   {"i16", true, 16u}, {"i32", true, 32u},
+      {"i64", true, 64u}, {"u8", false, 8u},  {"u16", false, 16u},
+      {"u32", false, 32u}, {"u64", false, 64u},
+  };
+  typedef struct {
+    const char *member;
+    w_seed_frontend_builtin_operation operation;
+    size_t argument_count;
+    bool returns_count;
+  } bit_operation_case;
+  static const bit_operation_case OPERATIONS[] = {
+      {"rotatedLeft", W_SEED_FRONTEND_BUILTIN_U64_ROTATED_LEFT, 2u, false},
+      {"rotatedRight", W_SEED_FRONTEND_BUILTIN_U64_ROTATED_RIGHT, 2u,
+       false},
+      {"countOnes", W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES, 1u, true},
+      {"countZeros", W_SEED_FRONTEND_BUILTIN_U64_COUNT_ZEROS, 1u, true},
+      {"countLeadingZeros",
+       W_SEED_FRONTEND_BUILTIN_U64_COUNT_LEADING_ZEROS, 1u, true},
+      {"countTrailingZeros",
+       W_SEED_FRONTEND_BUILTIN_U64_COUNT_TRAILING_ZEROS, 1u, true},
+      {"reversedBits", W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BITS, 1u, false},
+      {"reversedBytes", W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BYTES, 1u,
+       false},
+  };
+  fixture *value = &fixture_literal;
+  char source[512];
+  for (size_t integer_index = 0u;
+       integer_index < sizeof(INTEGERS) / sizeof(INTEGERS[0]);
+       integer_index += 1u) {
+    const integer_case *integer = &INTEGERS[integer_index];
+    for (size_t operation_index = 0u;
+         operation_index < sizeof(OPERATIONS) / sizeof(OPERATIONS[0]);
+         operation_index += 1u) {
+      const bit_operation_case *operation = &OPERATIONS[operation_index];
+      const char *result_type = operation->returns_count ? "UInt"
+                                                         : integer->spelling;
+      int written = 0;
+      if (operation->argument_count == 2u) {
+        written = snprintf(
+            source, sizeof(source),
+            "fn apply(value: %s, count: UInt): %s { return %s.%s(value, count) }\n"
+            "entry { }\n",
+            integer->spelling, result_type, integer->spelling,
+            operation->member);
+      } else {
+        written = snprintf(
+            source, sizeof(source),
+            "fn apply(value: %s): %s { return %s.%s(value) }\n"
+            "entry { }\n",
+            integer->spelling, result_type, integer->spelling,
+            operation->member);
+      }
+      CHECK(written > 0 && (size_t)written < sizeof(source));
+      CHECK(fixture_run(value, source));
+      CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
+            value->result.status == W_SEED_FRONTEND_OK &&
+            counts_equal(&value->result.required, &value->result.written));
+      size_t matching_calls = 0u;
+      for (size_t expression_index = 0u;
+           expression_index < value->result.written.expressions;
+           expression_index += 1u) {
+        const w_seed_frontend_expression *call =
+            &value->expressions[expression_index];
+        if (call->kind != W_SEED_FRONTEND_EXPR_CALL ||
+            call->builtin_operation != operation->operation)
+          continue;
+        matching_calls += 1u;
+        CHECK(call->supported && call->argument_count ==
+                                      operation->argument_count &&
+              call->left < value->result.written.expressions &&
+              call->inferred_type < value->result.written.types);
+        const w_seed_frontend_expression *callee =
+            &value->expressions[call->left];
+        CHECK(callee->kind == W_SEED_FRONTEND_EXPR_MEMBER &&
+              callee->supported &&
+              callee->builtin_operation == operation->operation &&
+              callee->inferred_type < value->result.written.types &&
+              callee->left < value->result.written.expressions);
+        const w_seed_frontend_expression *receiver =
+            &value->expressions[callee->left];
+        CHECK(receiver->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+              receiver->builtin_operation ==
+                  W_SEED_FRONTEND_BUILTIN_INTEGER_RECEIVER &&
+              receiver->supported && receiver->spelling.length ==
+                                         strlen(integer->spelling) &&
+              memcmp(receiver->spelling.data, integer->spelling,
+                     receiver->spelling.length) == 0);
+        const w_seed_frontend_type *type =
+            &value->types[call->inferred_type];
+        const w_seed_frontend_type *member_type =
+            &value->types[callee->inferred_type];
+        CHECK(type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+              type->is_signed ==
+                  (operation->returns_count ? false : integer->is_signed) &&
+              type->bit_width ==
+                  (operation->returns_count ? 64u : integer->bit_width));
+        CHECK(member_type->kind == type->kind &&
+              member_type->is_signed == type->is_signed &&
+              member_type->bit_width == type->bit_width);
+        if (operation->returns_count) {
+          CHECK(type->spelling.length == 4u &&
+                memcmp(type->spelling.data, "UInt", 4u) == 0);
+        }
+        for (size_t ordinal = 0u; ordinal < operation->argument_count;
+             ordinal += 1u) {
+          const size_t argument_index =
+              (size_t)call->first_argument + ordinal;
+          CHECK(argument_index < value->result.written.arguments &&
+                value->arguments[argument_index].label.length == 0u &&
+                value->arguments[argument_index].resolved_parameter_ordinal ==
+                    ordinal);
+        }
+      }
+      CHECK(matching_calls == 1u);
+    }
+  }
+
+  static const char U64_COMPATIBILITY[] =
+      "fn count(value: i8): u64 { return i8.countOnes(value) }\n"
+      "entry { }\n";
+  CHECK(fixture_run(value, U64_COMPATIBILITY));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        counts_equal(&value->result.required, &value->result.written));
+
+  static const char *const REJECTED[] = {
+      "entry { let result = Int.countOnes(1_i64) }\n",
+      "entry { let result = UInt.reversedBits(1_u64) }\n",
+      "entry { let result = usize.rotatedLeft(1_u64, 1_u64) }\n",
+      "entry { let result = i8.countOnes(1_u16) }\n",
+      "entry { let result = u16.reversedBits(1_i16) }\n",
+      "entry { let result = i32.reversedBits(1_i8) }\n",
+      "entry { let result = i32.rotatedLeft(1_i32, 1_u8) }\n",
+      "entry { let result = u64.rotatedRight(1_u64, -1_i64) }\n",
+      "entry { let result = i16.reversedBits(1_i16, 2_u64) }\n",
+      "entry { let result = i16.rotatedLeft(value: 1_i16, count: 1_u64) }\n",
+      "entry { let result = i16?.countZeros(1_i16) }\n",
+      "entry { let i8 = 1_i8 let result = i8.reversedBytes(1_i8) }\n",
+  };
+  for (size_t index = 0u; index < sizeof(REJECTED) / sizeof(REJECTED[0]);
+       index += 1u) {
+    CHECK(fixture_run(value, REJECTED[index]));
+    CHECK(value->result.status != W_SEED_FRONTEND_OK);
+  }
+  return true;
+}
+
+static bool fixture_run_with_print_host(fixture *value,
+                                        const char *source) {
+  CHECK(fixture_parse(value, source));
+  value->host_requirements[0] = (w_seed_frontend_host_requirement){
+      .name = (w_seed_frontend_text){"Console", 7u}};
+  value->host_parameters[0] = (w_seed_frontend_external_parameter){
+      .name = (w_seed_frontend_text){"message", 7u},
+      .type = (w_seed_frontend_text){"String", 6u},
+      .label_kind = W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY};
+  value->host_symbols[0] = (w_seed_frontend_host_prelude_symbol){
+      .name = (w_seed_frontend_text){"print", 5u},
+      .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+      .parameters = value->host_parameters,
+      .parameter_count = 1u,
+      .return_type = (w_seed_frontend_text){"()", 2u},
+      .requirements = value->host_requirements,
+      .requirement_count = 1u};
+  value->host_scope = (w_seed_frontend_host_prelude){
+      .profile = (w_seed_frontend_text){"native-process@1", 16u},
+      .symbols = value->host_symbols,
+      .symbol_count = 1u};
+  value->input.host_scope = &value->host_scope;
+  (void)w_seed_frontend_run(&value->input, &value->output, &value->result);
+  return true;
+}
+
+static bool test_dry_local_integer_result_interpolation(void) {
+  static const char SOURCE[] =
+      "fn bitMatrix() { let bit0 = i8.countOnes(0x52_i8) "
+      "print(\"${bit0}\") }\nentry(bitMatrix)\n";
+  static const char UNRESOLVED[] =
+      "fn bitMatrix() { print(\"${missing}\") }\nentry(bitMatrix)\n";
+  fixture *value = &fixture_host;
+  CHECK(fixture_run_with_print_host(value, SOURCE));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        counts_equal(&value->result.required, &value->result.written) &&
+        value->result.required.facts == 0u &&
+        value->result.written.facts == 0u &&
+        value->result.written.interpolation_segments != 0u);
+
+  CHECK(fixture_run_with_print_host(value, UNRESOLVED));
+  CHECK(value->result.status != W_SEED_FRONTEND_OK &&
+        counts_equal(&value->result.required, &value->result.written) &&
+        has_fact(value, W_SEED_FRONTEND_FACT_UNRESOLVED_LOCAL_SYMBOL));
+  return true;
+}
+
 int main(int argc, char **argv) {
   if (argc == 2) return test_gpu_module_bridge(argv[1]) ? 0 : 1;
   if (argc != 1) return 2;
@@ -9243,5 +9443,7 @@ int main(int argc, char **argv) {
   if (!test_multidocument_kernel_import_rejections()) return 1;
   if (!test_kernel_module_frontend()) return 1;
   if (!test_integer_wrapping_frontend_matrix()) return 1;
+  if (!test_fixed_integer_bit_primitives_frontend_matrix()) return 1;
+  if (!test_dry_local_integer_result_interpolation()) return 1;
   return 0;
 }

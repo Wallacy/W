@@ -634,6 +634,35 @@ test "numeric policies name overflow and representation" for numericPolicies {
 }
 ```
 
+The selected bit-primitive signatures are:
+
+| API | Signature |
+| --- | --- |
+| `rotatedLeft` | `static fn rotatedLeft(_ value: Self, _ count: UInt) -> Self` |
+| `rotatedRight` | `static fn rotatedRight(_ value: Self, _ count: UInt) -> Self` |
+| `countOnes` | `static fn countOnes(_ value: Self) -> UInt` |
+| `countZeros` | `static fn countZeros(_ value: Self) -> UInt` |
+| `countLeadingZeros` | `static fn countLeadingZeros(_ value: Self) -> UInt` |
+| `countTrailingZeros` | `static fn countTrailingZeros(_ value: Self) -> UInt` |
+| `reversedBits` | `static fn reversedBits(_ value: Self) -> Self` |
+| `reversedBytes` | `static fn reversedBytes(_ value: Self) -> Self` |
+
+Every operation uses the logical width of `Self`. Rotations reduce their
+`UInt` count modulo that width; counts return `UInt`, and leading/trailing
+zero counts of zero equal the width. Leading counts scan from the
+most-significant bit, and trailing counts from the least-significant bit.
+Signed values use the full two's-complement bit pattern, including the sign
+bit. Reversals preserve `Self`; byte reversal is independent of host endianness.
+
+W-1648 is scoped to the existing W-392 functions on built-in `i8`/`u8`,
+`i16`/`u16`, `i32`/`u32`, and `i64`/`u64`. It adds no syntax and makes no
+source-backed claim for `Int`/`UInt`, `isize`/`usize`, 128-bit integers, or
+other targets. The compact neutral witness is
+[`fixed-integer-bit-primitives.w`](compiler/seed-c/fixtures/fixed-integer-bit-primitives.w);
+it covers all eight operations across the eight fixed-width types. Its exact
+source-to-native output passes the CRT-free Windows x64 and Linux/WSL x64
+gates. This is correctness-only evidence; the slice is not performance-ready.
+
 `D(truncatingBits: source)` is the existing total fixed-width integer
 conversion. Current seed evidence is correctness-only and covers signed and
 unsigned 8/16/32/64-bit integers plus the current x86-64 `Int`/`UInt` aliases.

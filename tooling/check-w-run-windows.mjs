@@ -120,6 +120,18 @@ const restaurantUIntReversedBitsFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-reversed-bits.w")
 const restaurantUIntReversedBytesFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-reversed-bytes.w")
+const fixedIntegerBitPrimitivesFixture = resolve(seedDirectory,
+  "fixtures", "fixed-integer-bit-primitives.w")
+const fixedIntegerBitPrimitivesOutput = Buffer.from(
+  "i8 3/5/1/1 74/127 82 -92/41\n" +
+  "u8 4/4/0/1 105 150 45/75\n" +
+  "i16 5/11/3/2 11336/32767 13330 9320/2330\n" +
+  "u16 8/8/0/0 54673 43913 4951/50389\n" +
+  "i32 13/19/3/3 510274632/2147483647 2018915346 610839792/152709948\n" +
+  "u32 20/12/0/0 4155757969 4023233417 324508639/3302352631\n" +
+  "i64 30/34/7/1 8553414939923104896/9223372036854775807 7984226321029210881 163971058432973532/40992764608243383\n" +
+  "u64 32/32/0/4 597899502893742975 1167088121787636990 18282773015276577825/9182379272246532360\n",
+  "utf8")
 const restaurantUIntOverflowingAddFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-overflowing-add.w")
 const restaurantUIntOverflowingPowerFixture = resolve(seedDirectory,
@@ -951,6 +963,9 @@ try {
   expectExact(binary, ["run", restaurantUIntReversedBytesFixture], 0,
     Buffer.from("Bytes 17279655951921914625\n", "utf8"),
     "Restaurant UInt reversedBytes is independent of host endianness")
+  expectExact(binary, ["run", fixedIntegerBitPrimitivesFixture], 0,
+    fixedIntegerBitPrimitivesOutput,
+    "Fixed-width signed and unsigned bit-primitives family")
   expectExact(binary, ["run", restaurantUIntOverflowingAddFixture], 0,
     Buffer.from("Overflowing 0/true/11/false\n", "utf8"),
     "Restaurant UInt overflowingAdd returns wrapped value and overflow flag")

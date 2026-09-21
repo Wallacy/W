@@ -22809,6 +22809,19 @@ preenchimento zero explícito para qualquer integer representado como bits.
 `rotatedLeft` e `rotatedRight` aceitam `UInt` e reduzem o count módulo da
 largura. O operando exponent de `**` é `UInt`.
 
+The fixed-width associated-function signatures are:
+
+| API | Signature |
+| --- | --- |
+| `rotatedLeft` | `static fn rotatedLeft(_ value: Self, _ count: UInt) -> Self` |
+| `rotatedRight` | `static fn rotatedRight(_ value: Self, _ count: UInt) -> Self` |
+| `countOnes` | `static fn countOnes(_ value: Self) -> UInt` |
+| `countZeros` | `static fn countZeros(_ value: Self) -> UInt` |
+| `countLeadingZeros` | `static fn countLeadingZeros(_ value: Self) -> UInt` |
+| `countTrailingZeros` | `static fn countTrailingZeros(_ value: Self) -> UInt` |
+| `reversedBits` | `static fn reversedBits(_ value: Self) -> Self` |
+| `reversedBytes` | `static fn reversedBytes(_ value: Self) -> Self` |
+
 `saturatingNegate` aplica clamp ao resultado matemático. Em unsigned, `x > 0`
 produz zero. `carryingAdd`, `borrowingSubtract` e `fullMultiply` servem
 multiprecision e crypto sem depender de flags da CPU. As assinaturas e a ordem
@@ -42450,6 +42463,44 @@ source-to-native routes; it does not establish other targets, stable ABI/FFI,
 or all of W-389. C23 and Rust 2024 are correctness references only. Their
 runtime inputs are not equivalent to W's foldable literal inputs, so
 `benchmarkDisposition: deferred` and no performance ranking is published.
+
+#### 26.4.1.128 W-1648 — fixed-width integer bit primitives
+
+W-1648 is a bounded source-backed increment under the existing W-392
+contract; it adds no syntax, operator, or new policy API. Its source-backed
+type boundary is exactly the built-in fixed-width family `i8`/`u8`,
+`i16`/`u16`, `i32`/`u32`, and `i64`/`u64`. It does not establish coverage or a
+portable-width claim for `Int`/`UInt`, `isize`/`usize`, or 128-bit integers.
+
+The exact associated signatures are the W-392 signatures above:
+`rotatedLeft` and `rotatedRight` take a `Self` value and a `UInt` count and
+return `Self`; the four count functions take `Self` and return `UInt`;
+`reversedBits` and `reversedBytes` take and return `Self`. Rotations reduce the
+count modulo the logical bit width, so a count equal to or larger than that
+width is valid and rotates by its remainder. All count and reversal operations
+use the logical width of `Self`, never the seed's physical carrier width.
+`countOnes` counts set bits and `countZeros` is `bitWidth - countOnes`.
+Leading-zero counting starts at the most-significant bit; trailing-zero
+counting starts at the least-significant bit. For zero, both counts equal
+`bitWidth`. Signed values use their full two's-complement representation,
+including the sign bit. Bit and byte reversal preserve the same type while
+reversing only its logical width; byte reversal is independent of host
+endianness.
+
+Frontend70 and verified HIR91 preserve the fixed-width type facts; NativeSubset0
+validates them independently, and MLIR61 emits direct LLVM-dialect
+`llvm.intr.fshl`/`fshr`, `ctpop`, `ctlz`, `cttz`, `bitreverse`, and `bswap`
+operations (with `countZeros` derived from the logical width and population
+count). The compact neutral fixture
+[`fixed-integer-bit-primitives.w`](compiler/seed-c/fixtures/fixed-integer-bit-primitives.w)
+is 3,943 bytes and checks all eight operations across all eight types. Focused
+unit coverage and the C23/Rust references additionally exercise zero-input
+width counts and rotation counts `0`, `width`, and `width + 1`; the W fixture
+checks `width + 1` rotations and signed negative-value bit reversal. Final
+source-to-native exact-output gates pass on CRT-free Windows x64 and Linux/WSL
+x64. These references and gates establish correctness only, not performance.
+There is no source-backed `Int`/`UInt` target-width claim, other-target claim,
+general optimizer claim, or performance ranking in this increment.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

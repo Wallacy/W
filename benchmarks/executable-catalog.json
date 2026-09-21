@@ -2565,6 +2565,90 @@
       ]
     },
     {
+      "id": "fixed-integer-bit-primitives",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Validate all eight portable bit primitives with one public W witness per signed and unsigned i8/i16/i32/i64 type and operation. C23/Rust references and focused unit coverage retain zero-input width counts and rotations reduced modulo width at 0/width/width+1; the W witness also checks two's-complement reversal of negative signed values. Performance ranking remains deferred until W preserves equivalent runtime operands.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "i8 3/5/1/1 74/127 82 -92/41\nu8 4/4/0/1 105 150 45/75\ni16 5/11/3/2 11336/32767 13330 9320/2330\nu16 8/8/0/0 54673 43913 4951/50389\ni32 13/19/3/3 510274632/2147483647 2018915346 610839792/152709948\nu32 20/12/0/0 4155757969 4023233417 324508639/3302352631\ni64 30/34/7/1 8553414939923104896/9223372036854775807 7984226321029210881 163971058432973532/40992764608243383\nu64 32/32/0/4 597899502893742975 1167088121787636990 18282773015276577825/9182379272246532360\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/fixed-integer-bit-primitives.w",
+          "digest": "sha256:6f516a79ff165c91bbb3d945bd2a2663f3299b53511e500c1638618506ffee22",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "fixed-integer-bit-primitives-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        },
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/fixed-integer-bit-primitives.w",
+          "digest": "sha256:6f516a79ff165c91bbb3d945bd2a2663f3299b53511e500c1638618506ffee22",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "fixed-integer-bit-primitives-release",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only"
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/fixed_integer_bit_primitives.c",
+          "digest": "sha256:f2d4842e9d983a4db5335390acdc25bdc6be9fe4288b4772b9b25e995a5fd3d1",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "clang-c23-msvc",
+          "recipeClass": "fixed-integer-bit-primitives-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/fixed_integer_bit_primitives.rs",
+          "digest": "sha256:4e0c5010493bb1d93b9ff82248d83f2e2d7391c4d5bf6a5f258f8b402ad8e26e",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "fixed-integer-bit-primitives-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        }
+      ],
+      "blockedLanguages": [],
+      "blockers": [
+        "w-fixed-integer-bit-primitives-compile-time-folded",
+        "runtime-fixed-integer-bit-primitives-equivalence"
+      ]
+    },
+    {
       "id": "restaurant-uint-bitwise",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",
