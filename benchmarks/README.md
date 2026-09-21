@@ -6,55 +6,24 @@ source-backed ready point of the compiler lifecycle as a single series. BMD2
 adds a source-backed comparison between two local commits of the same seed.
 Neither bundle produces a language or product-runtime result.
 
-### Accepted Hyperfine wall-time layer (integration pending)
+### Native measurement kernel
 
-Hyperfine 1.20.0 is the selected recognizable, cross-platform wall-time tool
-for future public executable comparisons. The selection does not yet change
-the current runner or benchmark readiness. Pin the exact Hyperfine version and
-binary identity in each future receipt. Until integration lands, the current
-native runner remains the active measurement route; do not label its samples
-as Hyperfine data or merge the two sample populations.
+WBench uses its native runner as the sole measurement authority. External
+timing wrappers may be useful for informal reproduction, but their samples do
+not enter catalog results and are not a publication dependency.
 
-For direct executable cases expected to take less than 5 ms, use
-`--shell=none` and an executable plus explicit arguments. Hyperfine's
-documented shell-startup correction can itself add noise at that scale;
-without a shell, shell syntax such as globbing and tilde expansion is
-unavailable. Preserve each `--export-json` document and its raw
-`results[].times` values; do not retain only a formatted summary. Exact
-exit/stdout/stderr oracles remain a separate precondition and validation
-route—the Hyperfine JSON timing record is not the correctness oracle.
+Each scenario names the boundary it measures: cold process start, warmed
+process launch, or in-process body throughput. The Windows kernel must use a
+monotonic high-resolution clock and native process accounting, avoid charging
+shell or WSL startup to the executable, retain raw samples, schedule compared
+variants in balanced order, and derive p50/p95 only after enough repetitions.
+Target, profile, platform, and scenario lanes remain separate.
 
-Hyperfine groups timing runs by command, so the future outer orchestrator must
-not pass language A and language B together and treat that as an interleaved
-comparison. It should invoke Hyperfine for one executable at a time, schedule
-single-sample invocations in balanced `A, B, B, A` blocks (and their reverse
-as needed), and preserve that order with the raw JSON records. Require at
-least 30 raw samples per compared variant before publishing p95; derive
-percentiles from the preserved samples using the catalog's nearest-rank rule.
-Keep target, profile, and platform lanes separate.
-
-Cold-first and steady-state observations are distinct scenarios. Define the
-state being called cold for each workload and record its reset method; define
-steady-state warmups and cache/thermal conditions separately. Hyperfine still
-launches a fresh command for each sample, so a warmed steady-state process
-launch is not an in-process body-throughput measurement.
-
-For a Windows lab comparison, record at minimum the hardware and Windows
-build, firmware where known, exact compiler/toolchain and release profile,
-artifact digest, AC or battery state, Windows power mode, and active power
-plan. Also record relevant thermal/background conditions and any non-default
-priority or affinity. Use the same declared conditions across variants. For
-p95, retain at least 30 samples for each variant; the detailed procedure and
-the reasons for separating AC state, power mode, power plan, run order, and
-cold versus warmed runs are linked under [external methodology](#metodologia-externa).
-
-Hyperfine contributes wall time only. The native runner remains authoritative
-for exact-output/exit validation, process-tree CPU accounting, peak working
-set versus Job commit, executable section and artifact inspection, and
-artifact provenance. CPU-cycle counts must come from a native counter if a
-future native kernel supports them; they are not inferred from Hyperfine wall
-time. Tool-level comparability alone does not prove that two implementations
-perform equivalent work or justify a language ranking.
+The receipt owns exact exit/stdout/stderr validation, process-tree CPU, peak
+working set and commit, executable sections, artifact size and provenance,
+and declared environment controls. Cycle counts require a supported native
+counter. A timing result is publishable only after equivalent work and exact
+correctness have been established independently.
 
 ### Executable benchmark catalog (M3a)
 
@@ -720,8 +689,6 @@ autoridade semântica para W:
 - [Google Benchmark — User Guide](https://github.com/google/benchmark/blob/main/docs/user_guide.md)
 - [Google Benchmark — Random Interleaving](https://github.com/google/benchmark/blob/main/docs/random_interleaving.md)
 - [rustc-perf — tests/perf](https://rustc-dev-guide.rust-lang.org/tests/perf.html)
-- [Hyperfine v1.20.0 README and CLI documentation](https://github.com/sharkdp/hyperfine/blob/v1.20.0/README.md)
-- [Hyperfine v1.20.0 manual](https://github.com/sharkdp/hyperfine/blob/v1.20.0/doc/hyperfine.1)
 - [How to Correctly Compare Program Versions on Windows](https://comcomponent.com/en/blog/2026/03/16/002-windows-benchmark-comparing-program-versions/)
 
 Execute os checks focais com:

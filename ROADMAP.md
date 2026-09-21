@@ -34,13 +34,13 @@ not in this queue.
 - Elide a declared execution relation only with an independently verifiable
   equivalence fact; compare the optimized path against the physical reference.
 - Measure public executable behavior only after an exact correctness oracle.
-- Adopt pinned Hyperfine 1.20.0 as the future cross-platform public wall-time
-  layer: preserve per-run JSON samples, use `--shell=none` for sub-5 ms
-  commands, and schedule one-command invocations in balanced ABBA order. Its
-  integration remains pending and must use a receipt separate from native
-  samples; exact oracles and native CPU, memory, section, cycle, and artifact
-  evidence remain with W's native runner. Do not infer those metrics from
-  Hyperfine or merge the two sample populations.
+- Keep W's native benchmark kernel authoritative on every host. On Windows,
+  measure the declared boundary with a monotonic high-resolution clock and
+  native process accounting; separate process cold start, warmed process
+  launch, and in-process body throughput instead of hiding them in one number.
+  Preserve raw samples, use balanced run order, and derive p50/p95 only after
+  enough repetitions. Exact output, CPU, memory, sections, cycles, artifact
+  provenance, and environment controls stay in the same auditable receipt.
 - Treat performance, memory, binary size, and compile latency as persistent
   optimization signals, never as permission to change semantics.
 
