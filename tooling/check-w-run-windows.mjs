@@ -175,6 +175,10 @@ const processArgumentsCountSelectiveImportFixture = resolve(seedDirectory,
   "tests", "fixtures", "process-arguments-count-selective-import.w")
 const processEnumPayloadFixture = resolve(seedDirectory, "fixtures",
   "process-enum-payload.w")
+const processIntegerExactSuccessFixture = resolve(seedDirectory, "fixtures",
+  "process-integer-exact-success.w")
+const processIntegerExactErrorFixture = resolve(seedDirectory, "fixtures",
+  "process-integer-exact-error.w")
 const localGraphFixture = resolve(seedDirectory, "fixtures", "local-graph",
   "app.w")
 const targetTriple = "x86_64-pc-windows-msvc"
@@ -1050,6 +1054,10 @@ try {
     Buffer.from("received\n", "utf8"), "public process input with one argument")
   expectExact(binary, ["run", processInputFixture, "--", ""], 0,
     Buffer.from("received\n", "utf8"), "public process input with empty argument")
+  expectExact(binary, ["run", processIntegerExactSuccessFixture], 0,
+    Buffer.alloc(0), "public exact integer conversion success")
+  expectExact(binary, ["run", processIntegerExactErrorFixture], 1,
+    Buffer.alloc(0), "public exact integer conversion typed error")
   expectExact(binary, ["run", processEnumPayloadFixture], 7,
     Buffer.from("enum-missing true\n", "utf8"),
     "public enum payload process input without arguments")
@@ -1081,6 +1089,10 @@ try {
   const buildRestaurantMainCardinality = join(fixtureDirectory,
     "restaurant-main-cardinality-build.exe")
   const buildProcessInput = join(fixtureDirectory, "process-input-build.exe")
+  const buildProcessIntegerExactSuccess = join(fixtureDirectory,
+    "process-integer-exact-success-build.exe")
+  const buildProcessIntegerExactError = join(fixtureDirectory,
+    "process-integer-exact-error-build.exe")
   const buildProcessArgumentsCount = join(fixtureDirectory,
     "process-arguments-count-build.exe")
   const buildProcessArgumentsOrdering = join(fixtureDirectory,
@@ -1167,6 +1179,20 @@ try {
   expectExact(buildProcessInput,
     Array.from({ length: 257 }, () => "x"), 3, Buffer.alloc(0),
     "reject process-input descriptor overflow without partial output")
+  expectExact(binary, ["build", processIntegerExactSuccessFixture, "--target",
+    targetTriple, "--output", buildProcessIntegerExactSuccess], 0,
+  Buffer.alloc(0), "build exact integer conversion success fixture")
+  assertPeX64(await readFile(buildProcessIntegerExactSuccess),
+    "built exact integer conversion success artifact")
+  expectExact(buildProcessIntegerExactSuccess, [], 0, Buffer.alloc(0),
+    "execute built exact integer conversion success artifact")
+  expectExact(binary, ["build", processIntegerExactErrorFixture, "--target",
+    targetTriple, "--output", buildProcessIntegerExactError], 0,
+  Buffer.alloc(0), "build exact integer conversion typed-error fixture")
+  assertPeX64(await readFile(buildProcessIntegerExactError),
+    "built exact integer conversion typed-error artifact")
+  expectExact(buildProcessIntegerExactError, [], 1, Buffer.alloc(0),
+    "execute built exact integer conversion typed-error artifact")
   expectExact(binary, ["build", processArgumentsCountFixture, "--target",
     targetTriple, "--output", buildProcessArgumentsCount], 0,
     Buffer.alloc(0), "build public process-arguments-count fixture")

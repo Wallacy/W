@@ -680,7 +680,7 @@ conversion. Current seed evidence is correctness-only and covers signed and
 unsigned 8/16/32/64-bit integers plus the current x86-64 `Int`/`UInt` aliases.
 `usize`/`isize`, 128-bit integers, target-general alias widths, stable ABI/FFI,
 other targets, and performance remain outside this slice. Integer `exactly:`
-has a separate bounded compiler-lifecycle path; `rounding:`, other
+has a separate bounded typed path; `rounding:`, other
 `saturating:` families, and remaining floating conversions remain gaps.
 
 <!-- w-example role=logical-contract -->
@@ -699,9 +699,11 @@ The current bounded integer implementation covers all source/destination pairs
 among signed and unsigned 8/16/32/64-bit integers and current x86-64
 `Int`/`UInt`. Verified HIR preserves distinct normal and
 `NumericConversionError.outOfRange` successors. ProductClosure0 now projects
-both outcomes for the restricted `native-process@1` root, but cleanup calls,
-status adaptation, public native execution, and performance evidence remain
-open.
+both outcomes for the restricted `native-process@1` root. That exact root now
+executes on CRT-free Windows x64 and Linux/WSL x64: cleanup remains LIFO on
+both arms, success exits 0, and unhandled out-of-range exits 1 without implicit
+output. User-defined direct throws, general typed process bodies, and
+performance evidence remain open.
 
 Integer `D(saturating: source)` clamps the mathematical value to the
 destination minimum or maximum and is total. Its integer form accepts no

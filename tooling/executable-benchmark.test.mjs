@@ -13,6 +13,7 @@ import {
   EXECUTABLE_PLATFORM_TARGET,
   EXECUTABLE_PLATFORM_TARGET_LINUX,
   EXECUTABLE_PLATFORM_TARGET_LINUX_WSL,
+  EXECUTABLE_RUN_TARGETS,
   EXECUTABLE_STRUCTURE_CLASSES,
   PROCESS_ENTRY_CORRECTNESS_INPUTS,
   PROCESS_ENTRY_ORACLE_CASES,
@@ -303,6 +304,22 @@ test("every public Windows runnable fixture has an executable benchmark owner", 
   workload.blockedLanguages.push("w");
   assert.match(validateExecutableCatalog(missing, { ...documents, catalog: missing }).join("\n"),
     /restaurant-enum\.w has no executable benchmark owner/u);
+});
+
+test("typed process error adaptation is correctness-only until equivalent runtime work exists", () => {
+  const workload = documents.catalog.workloads.find((item) => item.id === "process-typed-error-adaptation");
+  assert.ok(workload);
+  assert.equal(workload.structureClass, "public-end-to-end");
+  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.deepEqual(workload.oracle, {
+    kind: "exact-output", status: "source-backed", exitCode: 1, stdout: "", stderr: "",
+  });
+  assert.deepEqual(workload.sources.map((source) => source.language), ["w"]);
+  assert.deepEqual(workload.blockedLanguages, ["c", "rust"]);
+  assert.ok(workload.blockers.includes("runtime-driven-family-workload"));
+  assert.ok(EXECUTABLE_RUN_TARGETS.includes(workload.id));
+  assert.equal(documents.catalog.bestMetrics.entries.some(
+    (entry) => entry.workloadId === workload.id), false);
 });
 
 test("local module graph identity covers the complete source set", () => {

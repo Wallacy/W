@@ -168,9 +168,12 @@ physical scheduler experiments:
    payloadless-error direct throw and composes one exact-conversion binding into
    a three-block process root. ProductClosure0 v3 projects either the direct
    typed outcome or the conversion's distinct normal and typed-error
-   successors. It authenticates conditional cleanup order but emits no cleanup
-   calls. No process adapter maps the outcome to status 1 with no implicit
-   output, and native execution remains unimplemented.
+   successors. It authenticates reverse-initialization cleanup on both
+   structured exits. Process-executable v3 now materializes that cleanup and
+   post-cleanup status adaptation for the exact-conversion root; public
+   CRT-free Windows x64 and Linux/WSL x64 gates prove success 0 and
+   out-of-range status 1 with empty output. The direct-throw and general typed
+   process routes remain unimplemented.
    Remaining conversion policies continue to block this rank-1
    prerequisite. W-1651 closes the design identity of i128/u128, the fixed
    arithmetic float family through f128, configured f4/f6/f8 AI elements, and
@@ -503,12 +506,15 @@ preserves a three-block typed success/error split whose error edge is canonical
 artifact with `mlir-opt` and `mlir-translate`. HIR94 now admits a bounded
 binding continuation and process root for that split; ProductClosure0 v3
 projects its normal and typed-error successors while retaining the restricted
-direct-throw outcome. This remains compiler-lifecycle evidence only. HIR
-records cleanup order without materializing calls. No adapter maps the outcome
-to status 1 with no implicit output, and no native execution exists.
-No benchmark or timing claim is made. Other conversion families, floats,
+direct-throw outcome. Process-executable v3 materializes
+reverse-initialization cleanup for the bounded exact-conversion root, retains
+the typed carrier through root finalization, and only then adapts the error to
+status 1. Public CRT-free Windows x64 and Linux/WSL x64 gates execute both
+success and out-of-range fixtures with empty output. No benchmark or timing
+claim is made. The direct-throw route, other conversion families, floats,
 128-bit integers,
-`isize`/`usize`, other target aliases, catch, cleanup, and ABI remain gaps.
+`isize`/`usize`, other target aliases, catch, general typed cleanup, and ABI
+remain gaps.
 W-389 and rank 1 remain open.
 
 W-1645 generalizes the prior strict-f64 seed path into one strict floating

@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:730a0d2cd8fb7d5cc69878003c57d4b555adec00f376e4f21819f4372db5af58",
+  "corpusDigest": "sha256:39376614a4981c2913f591369a2589b17d22bcd43d193477d483388911c9e493",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -12010,6 +12010,78 @@
             "utf8Bytes": 67,
             "codePoints": 67,
             "nonWhitespaceCodePoints": 59,
+            "lines": 1,
+            "surfaceLexemes": 13
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-fixed-width-integer-exactly-typed-lowering",
+      "task": {
+        "utf8Bytes": 621,
+        "codePoints": 621,
+        "nonWhitespaceCodePoints": 546,
+        "lines": 1,
+        "surfaceLexemes": 115
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:10756fc1dfec3e1d614349636ae97b87c462fdd2ea8ea0ab9886b88fe8d77cd3",
+        "metrics": {
+          "utf8Bytes": 91,
+          "codePoints": 91,
+          "nonWhitespaceCodePoints": 78,
+          "lines": 3,
+          "surfaceLexemes": 21
+        }
+      },
+      "alternatives": [
+        {
+          "name": "implicit-or-total-conversion",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:e348830d87c7b2041ceece7d6a833d8c83c5cb34daa2eb46f518f3aa7804718e",
+          "metrics": {
+            "utf8Bytes": 65,
+            "codePoints": 65,
+            "nonWhitespaceCodePoints": 57,
+            "lines": 1,
+            "surfaceLexemes": 15
+          }
+        },
+        {
+          "name": "per-pair-operations",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:28653005e1bffa87ae4988945eb7c6058d80c5041c21c6ff41e52a400f48ac97",
+          "metrics": {
+            "utf8Bytes": 80,
+            "codePoints": 80,
+            "nonWhitespaceCodePoints": 71,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        },
+        {
+          "name": "trap-only-failure",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:b1aee224cfdfa00ccb0cf19841ceee02361f722fb05a12cd3e1aa22a45cd93e4",
+          "metrics": {
+            "utf8Bytes": 78,
+            "codePoints": 78,
+            "nonWhitespaceCodePoints": 67,
+            "lines": 1,
+            "surfaceLexemes": 16
+          }
+        },
+        {
+          "name": "premature-general-product-route",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:727fd634edfc72cc9d10f4d1f6ab431c15f0f566c7ab850e2d734fbec81c6d65",
+          "metrics": {
+            "utf8Bytes": 91,
+            "codePoints": 91,
+            "nonWhitespaceCodePoints": 81,
             "lines": 1,
             "surfaceLexemes": 13
           }

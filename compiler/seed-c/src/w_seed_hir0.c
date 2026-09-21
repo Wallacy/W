@@ -20329,7 +20329,7 @@ static w_seed_hir0_entry_cleanup_kind hir0_process_cleanup_kind(
       program->terminators[function->first_block].kind ==
           W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY;
   return conditional_integer_exactly
-             ? W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_ON_SUCCESS_REVERSE_ON_TYPED_ERROR
+             ? W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_ALL_OUTCOMES
              : W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_TYPED_ERROR;
 }
 

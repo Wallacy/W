@@ -42434,8 +42434,9 @@ subsequently adds bounded typed-lowering evidence for fixed-width integer
 `try D(exactly: source)`. HIR94 composes that conversion into one restricted
 `native-process@1` root, and ProductClosure0 v3 projects its explicit normal
 and `NumericConversionError.outOfRange` successors. It also retains the
-restricted local payloadless-error direct-throw projection. Cleanup calls,
-status-1/no-output adaptation, and public native execution remain unsupported.
+restricted local payloadless-error direct-throw projection. Process-executable
+v3 now materializes cleanup and status-1/no-output adaptation only for the
+exact-conversion root; the direct-throw executable route remains unsupported.
 
 #### 26.4.1.122 W-1642 — ordinary binary integer bitwise family through native execution
 
@@ -42758,14 +42759,16 @@ HIR94 admits a bounded continuation form in which one immutable binding is
 initialized by the exact conversion and the normal successor continues through
 ordinary typed values. For the restricted `native-process@1` root,
 ProductClosure0 v3 authenticates and publishes the source split plus separate
-normal-return and `NumericConversionError.outOfRange` successor facts. The
-entry records declaration-order owner release on normal success and reverse
-`Context`-then-`Arguments` release on the typed-error path. It emits no cleanup
-calls. The adapter that maps the typed outcome to status 1 with no implicit
-output is not implemented.
-There is no public native execution, benchmark, timing, floating-point or
-128-bit conversion, `isize`/`usize`, non-x86-64 alias, catch, cleanup, or ABI
-claim.
+normal-return and `NumericConversionError.outOfRange` successor facts. Both
+structured exits preserve §11.6 destruction order: `Context`, then `Arguments`,
+the reverse of initialization. The bounded process-executable v3 adapter keeps
+the typed outcome distinct while running both owner releases and root
+finalization, then maps only the unhandled error arm to status 1 without
+implicit output. The success and out-of-range fixtures execute through public
+`w run` on CRT-free Windows x64 and Linux/WSL x64. Direct user-defined throws,
+general typed roots, benchmark timing, floating-point or 128-bit conversion,
+`isize`/`usize`, non-x86-64 aliases, catch, and public ABI remain outside this
+slice.
 `benchmarkDisposition: compiler-lifecycle`.
 
 #### 26.4.1.131 W-1651 — explicit wide and low-precision numeric families
@@ -42839,23 +42842,28 @@ outcome and records the cleanup obligation in reverse parameter order:
 The second admitted shape is one integer `try D(exactly:)` binding with the
 canonical core `NumericConversionError`, followed by a normal
 `ProcessExitCode` return. Verified HIR preserves the three-block split.
-ProductClosure0 v3 publishes both successor relations and authenticates the
-conditional cleanup policy: declaration order on success and reverse order on
-the typed-error path. The older direct-throw root remains projected as one
-typed outcome.
+ProductClosure0 v3 publishes both successor relations and authenticates one
+cleanup policy for both structured exits: reverse initialization order,
+`Context` then `Arguments`. NativeSubset0 and process-executable v3 materialize
+that exact-conversion shape as a private tagged carrier, retain it across both
+owner releases and root finalization, and adapt the typed-error arm only after
+cleanup. Public `w run` proves exit 0 for the representable fixture and exit 1
+with empty stdout/stderr for the out-of-range fixture on CRT-free Windows x64
+and Linux/WSL x64. The older direct-throw root remains projected as one typed
+outcome but is not yet admitted by the executable adapter.
 
 This evidence does not complete the decision. ProductClosure0 still returns
-`UNSUPPORTED` for every other typed root shape. The cleanup obligation does not
-materialize release calls, and no process adapter runs. HIR94 does not prove
-mapping to status 1 with no implicit output, native execution, or a benchmark
-result.
+`UNSUPPORTED` for every other typed root shape, and the executable adapter
+still rejects the restricted user-defined direct-throw root. Panic and normal
+`ExitCode` keep their existing routes; no timing or performance claim follows
+from the correctness witness.
 `benchmarkDisposition: compiler-lifecycle`.
 
-Completion requires product reachability for the typed error, materialized
-structured cleanup before adaptation, and the `native-process@1` status and
-no-output adapter. Source-to-native evidence must prove these outcomes on each
-claimed target and keep panic and explicit `ExitCode.failure(1)` distinct
-before the OS boundary.
+Completion requires extending the same typed-outcome-before-cleanup invariant
+to the remaining admitted concrete errors and general process bodies, with
+source-to-native evidence on each claimed target and explicit internal
+separation from panic and ordinary `ExitCode.failure(1)` before the OS
+boundary.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

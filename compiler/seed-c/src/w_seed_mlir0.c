@@ -1,7 +1,6 @@
 #include "w_seed_mlir0.h"
 
 #include <limits.h>
-#include <stdio.h>
 #include <string.h>
 
 #include "w_seed_native_subset0.h"
@@ -2725,12 +2724,40 @@ typedef struct {
   uint32_t count_symbol_index;
   uint32_t success_symbol_index;
   uint32_t failure_symbol_index;
+  bool has_integer_exactly;
+  uint16_t exact_source_bit_width;
+  uint16_t exact_destination_bit_width;
+  bool exact_source_is_signed;
+  bool exact_destination_is_signed;
+  uint32_t exact_split_block_index;
+  uint32_t exact_normal_block_index;
+  uint32_t exact_error_block_index;
+  uint32_t exact_error_type_index;
+  const w_seed_hir0_terminator *exact_normal_return;
+  const w_seed_hir0_terminator *exact_error_throw;
   /* Most functions use the canonical ABI names.  The process-parallel entry
    * uses private allocation names so its provider call cannot accidentally
    * refer to an undeclared function argument. */
   const char *buffer_name;
   const char *cursor_name;
 } mlir0_process_emit_context;
+
+typedef struct {
+  const char *predicate;
+  int64_t bound;
+} mlir0_integer_exactly_predicate;
+
+static size_t mlir0_integer_exactly_predicates_for_facts(
+    bool source_is_signed, uint16_t source_width, bool destination_is_signed,
+    uint16_t destination_width,
+    mlir0_integer_exactly_predicate predicates[2]);
+
+static bool append_process_integer_exactly_terminator(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_terminator *terminator, uint32_t function_index,
+    const mlir0_process_emit_context *process,
+    bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES], uint8_t *artifact,
+    size_t capacity, size_t *offset);
 
 /* An SCF natural loop exposes its carried HIR block arguments as the result
  * tuple after the operation.  Keep this projection local to the adapter so
@@ -4966,7 +4993,7 @@ static bool append_unary_u64_operation(
 static bool append_program_block_argument_name(
     const w_seed_hir0_program *program, uint32_t block_argument_index,
     uint32_t function_index, uint8_t *artifact, size_t capacity,
-    size_t *offset) {
+    size_t *offset, const mlir0_process_emit_context *process) {
   if (program == NULL || artifact == NULL || offset == NULL ||
       block_argument_index >= program->block_argument_count ||
       function_index >= program->function_count)
@@ -4974,9 +5001,23 @@ static bool append_program_block_argument_name(
   const w_seed_hir0_block_argument *argument =
       &program->block_arguments[block_argument_index];
   if (argument->owner_block >= program->block_count ||
-      argument->type_index >= program->type_count ||
-      (program->types[argument->type_index].kind != W_SEED_HIR0_TYPE_I64 &&
-       program->types[argument->type_index].kind != W_SEED_HIR0_TYPE_BOOL))
+      argument->type_index >= program->type_count)
+    return false;
+  const w_seed_hir0_type_kind argument_kind =
+      program->types[argument->type_index].kind;
+  bool integer_ok = false;
+  if (argument_kind == W_SEED_HIR0_TYPE_INTEGER) {
+    bool is_signed = false;
+    uint16_t bit_width = 0u;
+    integer_ok = mlir0_integer_type_facts(program, argument->type_index,
+                                          &is_signed, &bit_width);
+  }
+  const bool exact_error_ok =
+      process != NULL && process->has_integer_exactly &&
+      argument->type_index == process->exact_error_type_index;
+  if (argument_kind != W_SEED_HIR0_TYPE_I64 &&
+      argument_kind != W_SEED_HIR0_TYPE_BOOL && !integer_ok &&
+      !exact_error_ok)
     return false;
   const w_seed_hir0_block *block = &program->blocks[argument->owner_block];
   if (block->owner_function != function_index ||
@@ -5718,8 +5759,23 @@ static bool mark_program_reachable_values(
                      has_subtract, has_multiply, has_divide, has_remainder,
                      0u)) {
         return false;
+      } else if (terminator->kind ==
+                     W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY &&
+                 !mark_reachable_value_tree(
+                     program, terminator->value_index, reachable, has_add,
+                     has_subtract, has_multiply, has_divide, has_remainder,
+                     0u)) {
+        return false;
+      } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_THROW &&
+                 !mark_reachable_value_tree(
+                     program, terminator->value_index, reachable, has_add,
+                     has_subtract, has_multiply, has_divide, has_remainder,
+                     0u)) {
+        return false;
       } else if (terminator->kind != W_SEED_HIR0_TERMINATOR_RETURN_UNIT &&
-                 terminator->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE) {
+                 terminator->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+                 terminator->kind != W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY &&
+                 terminator->kind != W_SEED_HIR0_TERMINATOR_THROW) {
         return false;
       }
     }
@@ -6110,7 +6166,7 @@ static bool append_program_value_operand_in_loop(
     }
     return append_program_block_argument_name(
         program, value->block_argument_index, function_index, artifact,
-        capacity, offset);
+        capacity, offset, process);
   }
   return (value->kind == W_SEED_HIR0_VALUE_CONST_I64 ||
           value->kind == W_SEED_HIR0_VALUE_CONST_USIZE ||
@@ -7727,6 +7783,13 @@ static const char *program_type_name(const w_seed_hir0_program *program,
       return "i32";
     return NULL;
   }
+  /* NumericConversionError is a verified typed value in HIR, but this
+   * private process adapter never exposes its payload.  Keep the error arm
+   * as an i64 carrier solely so the CFG successor remains well-typed; the
+   * handler returns a tagged i64 outcome only after selecting that arm. */
+  if (process != NULL && process->has_integer_exactly &&
+      type_index == process->exact_error_type_index)
+    return "i64";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_I64) return "i64";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_U64) return "i64";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_INTEGER) {
@@ -8034,7 +8097,7 @@ static bool append_program_block_definition(
           (ordinal != 0u && !append_literal(artifact, capacity, offset, ", ")) ||
           !append_program_block_argument_name(
               program, argument_index, function_index, artifact, capacity,
-              offset) ||
+              offset, process) ||
           !append_literal(artifact, capacity, offset, ": ") ||
           !append_literal(artifact, capacity, offset, type))
         return false;
@@ -8042,6 +8105,162 @@ static bool append_program_block_definition(
     if (!append_literal(artifact, capacity, offset, ")")) return false;
   }
   return append_literal(artifact, capacity, offset, ":");
+}
+
+static bool append_process_integer_exactly_terminator(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_terminator *terminator, uint32_t function_index,
+    const mlir0_process_emit_context *process,
+    bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES], uint8_t *artifact,
+    size_t capacity, size_t *offset) {
+  if (program == NULL || terminator == NULL || process == NULL ||
+      emitted == NULL || artifact == NULL || offset == NULL ||
+      !process->has_integer_exactly ||
+      function_index != process->function_index ||
+      terminator->kind != W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY ||
+      terminator->value_index >= program->value_count ||
+      terminator->target_block != process->exact_normal_block_index ||
+      terminator->else_block != process->exact_error_block_index ||
+      terminator->owner_block != process->exact_split_block_index ||
+      process->exact_source_bit_width == 0u ||
+      process->exact_destination_bit_width == 0u)
+    return false;
+  if (!append_program_value_tree(
+          program, terminator->value_index, function_index, process, emitted,
+          artifact, capacity, offset, 0u))
+    return false;
+
+  mlir0_integer_exactly_predicate predicates[2] = {{NULL, 0}, {NULL, 0}};
+  const size_t predicate_count = mlir0_integer_exactly_predicates_for_facts(
+      process->exact_source_is_signed, process->exact_source_bit_width,
+      process->exact_destination_is_signed,
+      process->exact_destination_bit_width, predicates);
+  if (predicate_count > 2u ||
+      !append_literal(artifact, capacity, offset,
+                      "    %process_exact_true = llvm.mlir.constant(1 : i1) : i1\n"))
+    return false;
+  if (predicate_count == 0u) {
+    if (!append_literal(
+            artifact, capacity, offset,
+            "    %process_exact_fits = llvm.and %process_exact_true, %process_exact_true : i1\n"))
+      return false;
+  } else {
+    for (size_t index = 0u; index < predicate_count; index += 1u) {
+      if (!append_literal(artifact, capacity, offset,
+                          "    %process_exact_bound_") ||
+          !append_size(artifact, capacity, offset, index) ||
+          !append_literal(artifact, capacity, offset,
+                          " = llvm.mlir.constant(") ||
+          !append_i64(artifact, capacity, offset, predicates[index].bound) ||
+          !append_literal(artifact, capacity, offset,
+                          " : i64) : i64\n    %process_exact_range_") ||
+          !append_size(artifact, capacity, offset, index) ||
+          !append_literal(artifact, capacity, offset,
+                          " = llvm.icmp \"") ||
+          !append_literal(artifact, capacity, offset,
+                          predicates[index].predicate) ||
+          !append_literal(artifact, capacity, offset,
+                          "\" %v") ||
+          !append_size(artifact, capacity, offset, terminator->value_index) ||
+          !append_literal(artifact, capacity, offset,
+                          ", %process_exact_bound_") ||
+          !append_size(artifact, capacity, offset, index) ||
+          !append_literal(artifact, capacity, offset, " : i64\n"))
+        return false;
+    }
+    if (predicate_count == 1u) {
+      if (!append_literal(
+              artifact, capacity, offset,
+              "    %process_exact_fits = llvm.and %process_exact_range_0, %process_exact_true : i1\n"))
+        return false;
+    } else if (!append_literal(
+                   artifact, capacity, offset,
+                   "    %process_exact_fits = llvm.and %process_exact_range_0, %process_exact_range_1 : i1\n")) {
+      return false;
+    }
+  }
+  /* Materialize the exact-width conversion before the terminator.  Integer
+   * values use an i64 physical carrier in this adapter, so a narrower logical
+   * destination is extended back to i64 for the verified normal block
+   * argument.  The error payload is an inert i64 carrier; the typed outcome is
+   * preserved by selecting the error successor, not by manufacturing a
+   * process status in this block. */
+  const uint16_t source_width = process->exact_source_bit_width;
+  const uint16_t destination_width = process->exact_destination_bit_width;
+  const char *source_operand = NULL;
+  if (source_width < 64u &&
+      (!append_literal(artifact, capacity, offset,
+                       "    %process_exact_source_narrow = llvm.trunc %v") ||
+       !append_size(artifact, capacity, offset, terminator->value_index) ||
+       !append_literal(artifact, capacity, offset, " : i64 to i") ||
+       !append_u64(artifact, capacity, offset, source_width) ||
+       !append_literal(artifact, capacity, offset, "\n")))
+    return false;
+  source_operand = source_width < 64u ? "%process_exact_source_narrow" : NULL;
+  if (destination_width != source_width) {
+    if (!append_literal(artifact, capacity, offset,
+                        "    %process_exact_destination_narrow = llvm."))
+      return false;
+    if (destination_width < source_width) {
+      if (!append_literal(artifact, capacity, offset, "trunc ")) return false;
+    } else if (!append_literal(artifact, capacity, offset,
+                               process->exact_source_is_signed ? "sext "
+                                                               : "zext ")) {
+      return false;
+    }
+    if (source_width < 64u) {
+      if (!append_literal(artifact, capacity, offset,
+                          "%process_exact_source_narrow : i") ||
+          !append_u64(artifact, capacity, offset, source_width))
+        return false;
+    } else if (!append_literal(artifact, capacity, offset, "%v") ||
+               !append_size(artifact, capacity, offset,
+                            terminator->value_index) ||
+               !append_literal(artifact, capacity, offset, " : i64")) {
+        return false;
+    }
+    if (!append_literal(artifact, capacity, offset, " to i") ||
+        !append_u64(artifact, capacity, offset, destination_width) ||
+        !append_literal(artifact, capacity, offset, "\n"))
+      return false;
+  }
+  const bool destination_is_source_value =
+      destination_width == source_width && source_width == 64u;
+  const char *destination_operand =
+      destination_width == source_width ? source_operand
+                                        : "%process_exact_destination_narrow";
+  if (destination_width < 64u) {
+    if (!append_literal(artifact, capacity, offset,
+                        "    %process_exact_destination = llvm."))
+      return false;
+    if (!append_literal(artifact, capacity, offset,
+                        process->exact_destination_is_signed ? "sext "
+                                                             : "zext ") ||
+        !append_literal(artifact, capacity, offset, destination_operand) ||
+        !append_literal(artifact, capacity, offset, " : i") ||
+        !append_u64(artifact, capacity, offset, destination_width) ||
+        !append_literal(artifact, capacity, offset, " to i64\n"))
+      return false;
+    destination_operand = "%process_exact_destination";
+  }
+  if (!append_literal(
+          artifact, capacity, offset,
+          "    %process_exact_error_payload = llvm.mlir.constant(0 : i64) : i64\n"
+          "    llvm.cond_br %process_exact_fits, ") ||
+      !append_program_block_label(artifact, capacity, offset, function_index,
+                                  process->exact_normal_block_index, false) ||
+      !append_literal(artifact, capacity, offset, "(") ||
+      (destination_is_source_value
+           ? (!append_literal(artifact, capacity, offset, "%v") ||
+              !append_size(artifact, capacity, offset, terminator->value_index))
+           : !append_literal(artifact, capacity, offset, destination_operand)) ||
+      !append_literal(artifact, capacity, offset, " : i64), ") ||
+      !append_program_block_label(artifact, capacity, offset, function_index,
+                                  process->exact_error_block_index, false) ||
+      !append_literal(artifact, capacity, offset,
+                      "(%process_exact_error_payload : i64)\n"))
+    return false;
+  return true;
 }
 
 /* Preserve W-1560 as structured control until the MLIR pass pipeline chooses
@@ -8936,8 +9155,13 @@ static bool append_program_function(
   if (!append_literal(artifact, capacity, offset, ")")) return false;
   if (function->return_type != 0u) {
     char return_type_buffer[96];
-    const char *return_type = program_type_name(program, function->return_type,
-                                                return_type_buffer, process);
+    const bool exact_root =
+        process != NULL && process->has_integer_exactly &&
+        function_index == process->function_index;
+    const char *return_type =
+        exact_root ? "i64"
+                   : program_type_name(program, function->return_type,
+                                       return_type_buffer, process);
     if (return_type == NULL || !append_literal(artifact, capacity, offset,
                                                 " -> ") ||
         !append_literal(artifact, capacity, offset, return_type))
@@ -9032,6 +9256,11 @@ static bool append_program_function(
                           "    \"llvm.intr.trap\"() : () -> ()\n"
                           "    llvm.unreachable\n"))
         return false;
+    } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY) {
+      if (!append_process_integer_exactly_terminator(
+              program, terminator, (uint32_t)function_index, process, emitted,
+              artifact, capacity, offset))
+        return false;
     } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
       if (terminator->value_index >= program->value_count ||
           !append_program_value_tree(
@@ -9110,6 +9339,16 @@ static bool append_program_function(
       if (!append_literal(artifact, capacity, offset, "    llvm.return\n"))
         return false;
     } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE) {
+      if (process != NULL && process->has_integer_exactly &&
+          (uint32_t)function_index == process->function_index &&
+          terminator == process->exact_normal_return) {
+        if (!append_literal(
+                artifact, capacity, offset,
+                "    %process_exact_success_carrier = llvm.mlir.constant(0 : i64) : i64\n"
+                "    llvm.return %process_exact_success_carrier : i64\n"))
+          return false;
+        continue;
+      }
       char return_type_buffer[96];
       const char *return_type =
           program_type_name(program, function->return_type, return_type_buffer,
@@ -9127,6 +9366,19 @@ static bool append_program_function(
           !append_literal(artifact, capacity, offset, " : ") ||
           !append_literal(artifact, capacity, offset, return_type) ||
           !append_literal(artifact, capacity, offset, "\n"))
+        return false;
+    } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_THROW) {
+      if (process == NULL || !process->has_integer_exactly ||
+          (uint32_t)function_index != process->function_index ||
+          terminator->owner_block != process->exact_error_block_index ||
+          terminator != process->exact_error_throw ||
+          terminator->value_index >= program->value_count ||
+          program->values[terminator->value_index].kind !=
+              W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
+          !append_literal(
+              artifact, capacity, offset,
+              "    %process_exact_error_carrier = llvm.mlir.constant(4294967297 : i64) : i64\n"
+              "    llvm.return %process_exact_error_carrier : i64\n"))
         return false;
     } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_SWITCH_ENUM) {
       uint32_t enum_index = W_SEED_HIR0_NONE;
@@ -9776,6 +10028,18 @@ static bool build_process_executable_artifact(
       .count_symbol_index = selection->count_symbol_index,
       .success_symbol_index = selection->success_symbol_index,
       .failure_symbol_index = selection->failure_symbol_index};
+  process.has_integer_exactly = selection->has_integer_exactly;
+  process.exact_source_bit_width = selection->exact_source_bit_width;
+  process.exact_destination_bit_width =
+      selection->exact_destination_bit_width;
+  process.exact_source_is_signed = selection->exact_source_is_signed;
+  process.exact_destination_is_signed = selection->exact_destination_is_signed;
+  process.exact_split_block_index = selection->exact_split_block_index;
+  process.exact_normal_block_index = selection->exact_normal_block_index;
+  process.exact_error_block_index = selection->exact_error_block_index;
+  process.exact_error_type_index = selection->exact_error_type_index;
+  process.exact_normal_return = selection->exact_normal_return;
+  process.exact_error_throw = selection->exact_error_throw;
   size_t offset = 0u;
   const bool windows = target_is_windows(target);
   const char *triple = windows ? W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS
@@ -10002,13 +10266,66 @@ static bool build_process_executable_artifact(
   }
   if (!append_literal(
           artifact, capacity, &offset,
-          ") : (!llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> i32\n"
-          "    %process_length = llvm.load %process_cursor_address : !llvm.ptr -> i64\n"
-          "    %process_has_output = llvm.icmp \"ne\" %process_length, %process_zero : i64\n"
-          "    llvm.cond_br %process_has_output, ^process_flush, ^process_release_context(%process_status : i32)\n"
-          "  ^process_flush:\n"))
+          ") : (!llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> ") ||
+      !append_literal(artifact, capacity, &offset,
+                      process.has_integer_exactly ? "i64\n" : "i32\n"))
     return false;
-  if (windows) {
+  if (process.has_integer_exactly) {
+    if (!append_literal(
+            artifact, capacity, &offset,
+            "    llvm.br ^process_release_context(%process_status : i64)\n"
+            "  ^process_release_context(%process_exact_status: i64):\n"
+            "    %process_context_released = llvm.call @w_seed_process_context_drop(%process_context) : (!llvm.ptr) -> i1\n"
+            "    llvm.cond_br %process_context_released, ^process_release_arguments(%process_exact_status : i64), ^process_release_fault\n"
+            "  ^process_release_arguments(%process_exact_arguments_status: i64):\n"
+            "    %process_arguments_released = llvm.call @w_seed_process_arguments_drop(%process_arguments) : (!llvm.ptr) -> i1\n"
+            "    llvm.cond_br %process_arguments_released, ^process_finalize_root(%process_exact_arguments_status : i64), ^process_release_fault\n"
+            "  ^process_finalize_root(%process_exact_finalize_status: i64):\n"
+            "    %process_root_finalized = llvm.call @w_seed_process_root_finalize(%process_root) : (!llvm.ptr) -> i1\n"
+            "    llvm.cond_br %process_root_finalized, ^process_map_outcome(%process_exact_finalize_status : i64), ^process_release_fault\n"
+            "  ^process_map_outcome(%process_exact_outcome: i64):\n"
+            "    %process_typed_error_tag = llvm.mlir.constant(4294967296 : i64) : i64\n"
+            "    %process_has_typed_error = llvm.icmp \"uge\" %process_exact_outcome, %process_typed_error_tag : i64\n"
+            "    %process_portable_status = llvm.trunc %process_exact_outcome : i64 to i32\n"
+            "    llvm.cond_br %process_has_typed_error, ^process_typed_error, ^process_exit(%process_portable_status : i32)\n"
+            "  ^process_typed_error:\n"
+            "    %process_typed_status = llvm.mlir.constant(1 : i32) : i32\n"
+            "    llvm.br ^process_exit(%process_typed_status : i32)\n"))
+      return false;
+    if (windows) {
+      if (!append_literal(
+              artifact, capacity, &offset,
+              "  ^process_exit(%process_code: i32):\n"
+              "    llvm.call @ExitProcess(%process_code) : (i32) -> ()\n"
+              "    llvm.return\n"
+              "  ^process_early_fault:\n"
+              "    llvm.call @ExitProcess(%process_failure) : (i32) -> ()\n"
+              "    llvm.return\n"
+              "  ^process_release_fault:\n"
+              "    llvm.call @ExitProcess(%process_failure) : (i32) -> ()\n"
+              "    llvm.return\n"
+              "  }\n"
+              "}\n"))
+        return false;
+    } else if (!append_literal(
+                   artifact, capacity, &offset,
+                   "  ^process_exit(%process_code: i32):\n"
+                   "    llvm.return %process_code : i32\n"
+                   "  ^process_early_fault:\n"
+                   "    llvm.return %process_failure : i32\n"
+                   "  ^process_release_fault:\n"
+                   "    llvm.return %process_failure : i32\n"
+                   "  }\n"
+                   "}\n"))
+      return false;
+  } else if (!append_literal(
+                 artifact, capacity, &offset,
+                 "    %process_length = llvm.load %process_cursor_address : !llvm.ptr -> i64\n"
+                 "    %process_has_output = llvm.icmp \"ne\" %process_length, %process_zero : i64\n"
+                 "    llvm.cond_br %process_has_output, ^process_flush, ^process_release_context(%process_status : i32)\n"
+                 "  ^process_flush:\n"))
+    return false;
+  if (!process.has_integer_exactly && windows) {
     if (!append_literal(
             artifact, capacity, &offset,
             "    %process_written = llvm.call @w_seed_write(%process_buffer, %process_length) : (!llvm.ptr, i64) -> i64\n"
@@ -10037,7 +10354,7 @@ static bool build_process_executable_artifact(
             "  }\n"
             "}\n"))
       return false;
-  } else if (!append_literal(
+  } else if (!process.has_integer_exactly && !append_literal(
                  artifact, capacity, &offset,
                  "    %process_fd = llvm.mlir.constant(1 : i32) : i32\n"
                  "    %process_written = llvm.call @write(%process_fd, %process_buffer, %process_length) : (i32, !llvm.ptr, i64) -> i64\n"
@@ -13701,25 +14018,19 @@ bool w_seed_mlir0_verify_typed_propagation(
          memcmp(result->mlir_sha256, digest, sizeof(digest)) == 0;
 }
 
-typedef struct {
-  const char *predicate;
-  int64_t bound;
-} mlir0_integer_exactly_predicate;
-
-static size_t mlir0_integer_exactly_predicates(
-    const w_seed_native_subset0_integer_exactly *selection,
+static size_t mlir0_integer_exactly_predicates_for_facts(
+    bool source_is_signed, uint16_t source_width, bool destination_is_signed,
+    uint16_t destination_width,
     mlir0_integer_exactly_predicate predicates[2]) {
-  if (selection == NULL || predicates == NULL) return 0u;
-  const uint16_t source_width = selection->source_bit_width;
-  const uint16_t destination_width = selection->destination_bit_width;
-  if (selection->source_is_signed && selection->destination_is_signed) {
+  if (predicates == NULL) return 0u;
+  if (source_is_signed && destination_is_signed) {
     if (source_width <= destination_width) return 0u;
     const int64_t edge = INT64_C(1) << (destination_width - 1u);
     predicates[0] = (mlir0_integer_exactly_predicate){"sge", -edge};
     predicates[1] = (mlir0_integer_exactly_predicate){"sle", edge - 1};
     return 2u;
   }
-  if (selection->source_is_signed) {
+  if (source_is_signed) {
     predicates[0] = (mlir0_integer_exactly_predicate){"sge", 0};
     if ((uint32_t)source_width > (uint32_t)destination_width + 1u) {
       const int64_t max = (INT64_C(1) << destination_width) - 1;
@@ -13728,7 +14039,7 @@ static size_t mlir0_integer_exactly_predicates(
     }
     return 1u;
   }
-  if (selection->destination_is_signed) {
+  if (destination_is_signed) {
     if (source_width < destination_width) return 0u;
     const int64_t max = destination_width == 64u
                             ? INT64_MAX
@@ -13740,6 +14051,16 @@ static size_t mlir0_integer_exactly_predicates(
   const int64_t max = (INT64_C(1) << destination_width) - 1;
   predicates[0] = (mlir0_integer_exactly_predicate){"ule", max};
   return 1u;
+}
+
+static size_t mlir0_integer_exactly_predicates(
+    const w_seed_native_subset0_integer_exactly *selection,
+    mlir0_integer_exactly_predicate predicates[2]) {
+  if (selection == NULL) return 0u;
+  return mlir0_integer_exactly_predicates_for_facts(
+      selection->source_is_signed, selection->source_bit_width,
+      selection->destination_is_signed, selection->destination_bit_width,
+      predicates);
 }
 
 static bool append_integer_exactly_artifact(

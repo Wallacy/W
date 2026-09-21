@@ -1214,6 +1214,156 @@ static bool test_process_input0_public_artifact(void) {
   return true;
 }
 
+static bool test_process_integer_exactly_adapter(void) {
+  static const uint8_t success_source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let narrowed = try i8(exactly: 1) return .success }\n"
+      "entry(run)\n";
+  static const uint8_t error_source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let narrowed = try i8(exactly: 128) return .success }\n"
+      "entry(run)\n";
+  static const uint8_t direct_throw_source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "enum Failure: Error { denied }\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws Failure { throw .denied }\n"
+      "entry(run)\n";
+  static uint8_t success_output[W_SEED_MLIR0_MAX_BYTES];
+  static uint8_t error_output[W_SEED_MLIR0_MAX_BYTES];
+  static uint8_t rejected_output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result success_result;
+  w_seed_native0_result error_result;
+  w_seed_native0_result rejected_result;
+  const w_seed_native0_status success_status = run_source_mode(
+      success_source, sizeof(success_source) - 1u, "process-exact-success",
+      21u, &WINDOWS_TARGET, W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE,
+      success_output, sizeof(success_output), &success_result);
+  CHECK(success_status == W_SEED_NATIVE0_OK);
+  CHECK(storage.hir_program.call_count == 0u &&
+        storage.hir_program.binding_count == 1u &&
+        storage.hir_program.functions[0].is_throws &&
+        storage.hir_program.entries[0].cleanup_obligation ==
+            W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_ALL_OUTCOMES);
+  w_seed_native_subset0_process selection;
+  CHECK(w_seed_native_subset0_select_process_executable(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+            W_SEED_NATIVE_SUBSET0_OK &&
+        selection.has_integer_exactly && selection.maximum_stdout_bytes == 0u &&
+        selection.exact_source_bit_width == 64u &&
+        selection.exact_destination_bit_width == 8u &&
+        selection.exact_source_is_signed && selection.exact_destination_is_signed);
+  const w_seed_hir0_entry_cleanup_kind exact_cleanup =
+      storage.hir_program.entries[0].cleanup_obligation;
+  w_seed_hir0_program mutated_program = storage.hir_program;
+  w_seed_hir0_entry mutated_entry = storage.hir_program.entries[0];
+  mutated_program.entries = &mutated_entry;
+  mutated_entry.cleanup_obligation =
+      W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_TYPED_ERROR;
+  CHECK(w_seed_native_subset0_select_process_executable(
+            &mutated_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_INVALID);
+  mutated_entry.cleanup_obligation = exact_cleanup;
+  w_seed_hir0_terminator mutated_terminators[3];
+  CHECK(storage.hir_program.terminator_count ==
+        sizeof(mutated_terminators) / sizeof(mutated_terminators[0]));
+  (void)memcpy(mutated_terminators, storage.hir_program.terminators,
+               sizeof(mutated_terminators));
+  mutated_program.terminators = mutated_terminators;
+  mutated_terminators[0].target_block = mutated_terminators[0].else_block;
+  CHECK(w_seed_native_subset0_select_process_executable(
+            &mutated_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_INVALID);
+  const size_t success_bytes = success_result.mlir.written.mlir_bytes;
+  CHECK(success_bytes != 0u &&
+        contains_bytes(success_output, success_bytes,
+                       "llvm.func @mainCRTStartup") &&
+        contains_bytes(success_output, success_bytes,
+                       "llvm.cond_br %process_exact_fits") &&
+        contains_bytes(success_output, success_bytes,
+                       "llvm.icmp \"sle\" %v") &&
+        contains_bytes(success_output, success_bytes,
+                       "llvm.mlir.constant(4294967297 : i64) : i64") &&
+        contains_bytes(success_output, success_bytes,
+                       "llvm.return %process_exact_error_carrier : i64") &&
+        contains_bytes(success_output, success_bytes,
+                       "llvm.mlir.constant(4294967296 : i64) : i64") &&
+        contains_bytes(success_output, success_bytes,
+                       "llvm.cond_br %process_has_typed_error") &&
+        contains_bytes(success_output, success_bytes,
+                       "^w_fn_0_b_1(%process_exact_destination : i64), ^w_fn_0_b_2(%process_exact_error_payload : i64)") &&
+        !contains_bytes(success_output, success_bytes,
+                        "llvm.call @w_seed_process_arguments_is_empty") &&
+        !contains_bytes(success_output, success_bytes,
+                        "llvm.call @w_seed_process_arguments_count") &&
+        !contains_bytes(success_output, success_bytes,
+                        "llvm.call @w_seed_write"));
+  const size_t exact_cast = find_bytes(
+      success_output, success_bytes, "%process_exact_destination =", 0u);
+  const size_t exact_branch = find_bytes(
+      success_output, success_bytes, "llvm.cond_br %process_exact_fits", 0u);
+  CHECK(exact_cast != SIZE_MAX && exact_branch != SIZE_MAX &&
+        exact_cast < exact_branch);
+  const size_t context_call = find_bytes(
+      success_output, success_bytes,
+      "llvm.call @w_seed_process_context_drop", 0u);
+  const size_t arguments_call = find_bytes(
+      success_output, success_bytes,
+      "llvm.call @w_seed_process_arguments_drop", 0u);
+  const size_t root_finalize_call = find_bytes(
+      success_output, success_bytes,
+      "llvm.call @w_seed_process_root_finalize", 0u);
+  const size_t outcome_map = find_bytes(
+      success_output, success_bytes, "^process_map_outcome", 0u);
+  CHECK(context_call != SIZE_MAX && arguments_call != SIZE_MAX &&
+        root_finalize_call != SIZE_MAX && outcome_map != SIZE_MAX &&
+        count_bytes(success_output, success_bytes,
+                    "llvm.call @w_seed_process_context_drop") == 1u &&
+        count_bytes(success_output, success_bytes,
+                    "llvm.call @w_seed_process_arguments_drop") == 1u &&
+        count_bytes(success_output, success_bytes,
+                    "llvm.call @w_seed_process_root_finalize") == 1u &&
+        context_call < arguments_call && arguments_call < root_finalize_call &&
+        root_finalize_call < outcome_map);
+
+  CHECK(run_source_mode(
+            error_source, sizeof(error_source) - 1u, "process-exact-error",
+            19u, &WINDOWS_TARGET,
+            W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE, error_output,
+            sizeof(error_output), &error_result) == W_SEED_NATIVE0_OK);
+  const size_t error_bytes = error_result.mlir.written.mlir_bytes;
+  CHECK(error_bytes != 0u &&
+        contains_bytes(error_output, error_bytes,
+                       "%v1 = llvm.mlir.constant(128 : i64) : i64") &&
+        contains_bytes(success_output, success_bytes,
+                       "%v1 = llvm.mlir.constant(1 : i64) : i64") &&
+        (error_bytes != success_bytes ||
+         memcmp(error_output, success_output, error_bytes) != 0) &&
+        memcmp(error_result.mlir.mlir_sha256, success_result.mlir.mlir_sha256,
+               sizeof(error_result.mlir.mlir_sha256)) != 0);
+
+  (void)memset(rejected_output, 0xd4u, sizeof(rejected_output));
+  (void)memset(&rejected_result, 0x4du, sizeof(rejected_result));
+  const w_seed_native0_result rejected_snapshot = rejected_result;
+  CHECK(run_source_mode(
+            direct_throw_source, sizeof(direct_throw_source) - 1u,
+            "process-direct-throw", 20u, &WINDOWS_TARGET,
+            W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE, rejected_output,
+            sizeof(rejected_output), &rejected_result) != W_SEED_NATIVE0_OK);
+  for (size_t index = 0u; index < sizeof(rejected_output); index += 1u)
+    CHECK(rejected_output[index] == 0xd4u);
+  CHECK(memcmp(&rejected_result, &rejected_snapshot,
+               sizeof(rejected_snapshot)) == 0);
+  return true;
+}
+
 static bool test_panic_native_routes(void) {
   static const uint8_t ordinary[] =
       "entry { panic(\"native ordinary panic\") }\n";
@@ -6520,6 +6670,7 @@ int main(void) {
       test_enum_subset_switch_native_lowering() &&
       test_process_handler_catalog_and_artifact() &&
       test_process_input0_public_artifact() && test_panic_native_routes() &&
+      test_process_integer_exactly_adapter() &&
       test_process_arguments_count_public_artifact() &&
       test_process_arguments_count_ordered_native() &&
       test_process_stdout_bounds() &&

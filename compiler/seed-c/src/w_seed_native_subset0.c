@@ -6425,6 +6425,158 @@ static bool process_local_call_supported(
           program_enum_type_supported(program, call->result_type, NULL, NULL));
 }
 
+/* The native-process adapter owns one deliberately narrow typed-error route:
+ * a three-block integer-exactly split whose normal arm returns ExitCode.success
+ * and whose error arm throws the verified NumericConversionError value.  The
+ * error payload is an internal HIR fact only; the process ABI receives status
+ * 1 after the same Context-then-Arguments owner release used by every
+ * structured outcome. */
+static bool process_integer_exact_root_supported(
+    const w_seed_hir0_program *program,
+    w_seed_native_subset0_process *process) {
+  if (program == NULL || process == NULL || process->function == NULL ||
+      process->function_index >= program->function_count)
+    return false;
+  const w_seed_hir0_function *function = process->function;
+  if (!function->is_throws || function->error_type >= program->type_count ||
+      program->types[function->error_type].kind !=
+          W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR ||
+      function->first_block >= program->block_count ||
+      function->block_count != 3u ||
+      function->block_count > program->block_count - function->first_block ||
+      program->call_count != 0u || program->binding_count != 1u)
+    return false;
+
+  const uint32_t split_index = function->first_block;
+  const w_seed_hir0_block *split = &program->blocks[split_index];
+  if (split->owner_function != process->function_index ||
+      split->terminator_index >= program->terminator_count ||
+      split->instruction_count != 0u || split->block_argument_count != 0u)
+    return false;
+  const w_seed_hir0_terminator *conversion =
+      &program->terminators[split->terminator_index];
+  if (conversion->owner_block != split_index ||
+      conversion->kind != W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY ||
+      conversion->target_block < function->first_block ||
+      conversion->target_block >= function->first_block + function->block_count ||
+      conversion->else_block < function->first_block ||
+      conversion->else_block >= function->first_block + function->block_count ||
+      conversion->target_block == conversion->else_block ||
+      conversion->value_index >= program->value_count ||
+      conversion->result_type >= program->type_count ||
+      conversion->error_type != function->error_type ||
+      conversion->numeric_conversion_error_case !=
+          W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_OUT_OF_RANGE)
+    return false;
+
+  native_integer_facts source_facts;
+  native_integer_facts destination_facts;
+  const w_seed_hir0_value *source = &program->values[conversion->value_index];
+  if (!native_integer_type_facts(program, source->type_index, &source_facts) ||
+      !native_integer_type_facts(program, conversion->result_type,
+                                 &destination_facts) ||
+      !process_value_lowerable(program, conversion->value_index,
+                               process->function_index, process, false, 0u))
+    return false;
+
+  const uint32_t normal_index = conversion->target_block;
+  const uint32_t error_index = conversion->else_block;
+  const w_seed_hir0_block *normal = &program->blocks[normal_index];
+  const w_seed_hir0_block *error = &program->blocks[error_index];
+  if (normal->owner_function != process->function_index ||
+      error->owner_function != process->function_index ||
+      normal->block_argument_count != 1u ||
+      error->block_argument_count != 1u ||
+      normal->first_block_argument >= program->block_argument_count ||
+      error->first_block_argument >= program->block_argument_count ||
+      normal->instruction_count != 1u ||
+      normal->first_instruction >= program->instruction_count ||
+      error->instruction_count != 0u ||
+      normal->terminator_index >= program->terminator_count ||
+      error->terminator_index >= program->terminator_count)
+    return false;
+  const w_seed_hir0_block_argument *normal_argument =
+      &program->block_arguments[normal->first_block_argument];
+  const w_seed_hir0_block_argument *error_argument =
+      &program->block_arguments[error->first_block_argument];
+  if (normal_argument->owner_block != normal_index ||
+      normal_argument->ordinal != 0u ||
+      normal_argument->type_index != conversion->result_type ||
+      error_argument->owner_block != error_index ||
+      error_argument->ordinal != 0u ||
+      error_argument->type_index != function->error_type)
+    return false;
+  const w_seed_hir0_instruction *instruction =
+      &program->instructions[normal->first_instruction];
+  if (instruction->owner_block != normal_index || instruction->ordinal != 0u ||
+      instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
+      instruction->binding_index >= program->binding_count)
+    return false;
+  const w_seed_hir0_binding *binding =
+      &program->bindings[instruction->binding_index];
+  if (binding->owner_block != normal_index || binding->is_mutable ||
+      binding->type_index != conversion->result_type ||
+      binding->initializer_value >= program->value_count)
+    return false;
+  const w_seed_hir0_value *initializer =
+      &program->values[binding->initializer_value];
+  if (initializer->kind != W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
+      initializer->owner_kind != W_SEED_HIR0_VALUE_OWNER_BINDING ||
+      initializer->owner_index != instruction->binding_index ||
+      initializer->owner_ordinal != 0u ||
+      initializer->type_index != conversion->result_type ||
+      initializer->block_argument_index != normal->first_block_argument)
+    return false;
+
+  const w_seed_hir0_terminator *normal_return =
+      &program->terminators[normal->terminator_index];
+  const w_seed_hir0_terminator *error_throw =
+      &program->terminators[error->terminator_index];
+  if (normal_return->owner_block != normal_index ||
+      normal_return->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
+      normal_return->result_type != function->return_type ||
+      normal_return->value_index >= program->value_count ||
+      error_throw->owner_block != error_index ||
+      error_throw->kind != W_SEED_HIR0_TERMINATOR_THROW ||
+      error_throw->result_type != function->error_type ||
+      error_throw->value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *success =
+      &program->values[normal_return->value_index];
+  const w_seed_hir0_value *error_value =
+      &program->values[error_throw->value_index];
+  if (success->kind != W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE ||
+      success->type_index != function->return_type ||
+      success->external_module_index != 0u ||
+      success->external_symbol_index != process->success_symbol_index ||
+      success->left_value != W_SEED_HIR0_NONE ||
+      !text_is(program, success->member_name, (const uint8_t *)"success", 7u) ||
+      error_value->kind != W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
+      error_value->owner_kind != W_SEED_HIR0_VALUE_OWNER_TERMINATOR ||
+      error_value->owner_index != error->terminator_index ||
+      error_value->owner_ordinal != 0u ||
+      error_value->type_index != function->error_type ||
+      error_value->block_argument_index != error->first_block_argument)
+    return false;
+
+  process->exact_source_value = source;
+  process->exact_conversion = conversion;
+  process->exact_normal_return = normal_return;
+  process->exact_error_throw = error_throw;
+  process->exact_split_block_index = split_index;
+  process->exact_normal_block_index = normal_index;
+  process->exact_error_block_index = error_index;
+  process->exact_source_type_index = source->type_index;
+  process->exact_destination_type_index = conversion->result_type;
+  process->exact_error_type_index = function->error_type;
+  process->exact_source_bit_width = source_facts.bit_width;
+  process->exact_destination_bit_width = destination_facts.bit_width;
+  process->exact_source_is_signed = source_facts.is_signed;
+  process->exact_destination_is_signed = destination_facts.is_signed;
+  process->has_integer_exactly = true;
+  return true;
+}
+
 static bool process_function_body_supported(
     const w_seed_hir0_program *program,
     const w_seed_native_subset0_process *process,
@@ -6709,8 +6861,10 @@ select_process_executable_mode(
   const w_seed_hir0_entry *entry = &program->entries[0];
   if (entry->target_function >= program->function_count ||
       entry->adapter_kind != W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS ||
-      entry->cleanup_obligation !=
-          W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS ||
+      (entry->cleanup_obligation !=
+           W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS &&
+       entry->cleanup_obligation !=
+           W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_ALL_OUTCOMES) ||
       entry->cleanup_owner_parameter_count != 2u)
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
 
@@ -6731,11 +6885,13 @@ select_process_executable_mode(
       function->parameter_count != 2u ||
       function->first_parameter >
           program->parameter_count - function->parameter_count ||
-      !function->is_async || function->is_const || function->is_throws ||
+      !function->is_async || function->is_const ||
       function->is_unsafe || function->has_borrow_clause ||
       function->is_anonymous_entry ||
       function->suspension != W_SEED_HIR0_SUSPENSION_MAY ||
-      function->direct_entry != W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE ||
+      (function->is_throws
+           ? function->direct_entry != W_SEED_HIR0_DIRECT_ENTRY_ABSENT
+           : function->direct_entry != W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE) ||
       !process_nominal_type_is(program, function->return_type, 0u,
                                (uint32_t)exit_code_symbol) ||
       program->types[function->return_type].lifecycle !=
@@ -6771,6 +6927,16 @@ select_process_executable_mode(
           W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE)
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
 
+  if (function->is_throws) {
+    if (entry->cleanup_obligation !=
+            W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_ALL_OUTCOMES ||
+        !process_integer_exact_root_supported(program, &candidate))
+      return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+  } else if (entry->cleanup_obligation !=
+             W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS) {
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+  }
+
   /* All non-entry functions remain on the ordinary, nominal-free lowering
    * path.  A local call back into the async process entry is rejected there;
    * the process body itself is checked with its explicit nominal context. */
@@ -6786,15 +6952,21 @@ select_process_executable_mode(
   if (parallel_selection != NULL &&
       parallel_selection->root_function_index != candidate.function_index)
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
-  if (!process_function_body_supported(program, &candidate,
-                                       parallel_selection))
+  if ((!candidate.has_integer_exactly &&
+       !process_function_body_supported(program, &candidate,
+                                        parallel_selection)))
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
-  if (!program_function_maximum(
-          program, candidate.function_index, &candidate, bindings,
-          binding_reads, state, cached, &has_interpolation, &has_local_calls,
-          parallel_selection != NULL))
-    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
-  candidate.maximum_stdout_bytes = cached[candidate.function_index];
+  if (candidate.has_integer_exactly) {
+    /* The restricted exact root has no calls and therefore cannot write. */
+    candidate.maximum_stdout_bytes = 0u;
+  } else {
+    if (!program_function_maximum(
+            program, candidate.function_index, &candidate, bindings,
+            binding_reads, state, cached, &has_interpolation, &has_local_calls,
+            parallel_selection != NULL))
+      return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+    candidate.maximum_stdout_bytes = cached[candidate.function_index];
+  }
   if (!native_program_reachable_panic(program, candidate.function_index,
                                       &candidate.has_reachable_panic))
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;

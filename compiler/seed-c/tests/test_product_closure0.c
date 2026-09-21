@@ -854,7 +854,7 @@ static bool test_native_process_numeric_split(void) {
         result.outcome.error_enum_index == W_SEED_PRODUCT_CLOSURE0_NONE &&
         result.outcome.error_case_index == W_SEED_PRODUCT_CLOSURE0_NONE);
   CHECK(result.root.cleanup_obligation ==
-            W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_ON_SUCCESS_REVERSE_ON_TYPED_ERROR &&
+            W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_ALL_OUTCOMES &&
         result.root.cleanup_release_parameter_count == 2u &&
         result.root.cleanup_release_parameters[0] == handler->first_parameter + 1u &&
         result.root.cleanup_release_parameters[1] == handler->first_parameter &&

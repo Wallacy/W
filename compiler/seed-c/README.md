@@ -2965,12 +2965,15 @@ by `tooling/check-mlir0.mjs` through `mlir-opt --verify-each` and
 HIR94 admits one bounded binding continuation and composes that split into a
 restricted process root. ProductClosure0 v3 publishes the source split plus
 separate normal and `NumericConversionError.outOfRange` successor facts. It
-authenticates declaration-order owner release on success and reverse
-`Context`-then-`Arguments` release on error, but no cleanup call is emitted.
-Process adaptation to status 1 with no implicit output and native execution
-remain unsupported. This is compiler-lifecycle correctness evidence only: no
-public native execution, benchmark, timing, catch, cleanup, or ABI claim is
-made. `benchmarkDisposition: compiler-lifecycle`.
+authenticates reverse-initialization `Context`-then-`Arguments` release on both
+normal success and typed error. Process-executable v3 retains a private typed
+carrier while materializing both releases and root finalization, then maps only
+the error arm to status 1. The public `process-integer-exact-success.w` and
+`process-integer-exact-error.w` fixtures execute through `w run` on CRT-free
+Windows x64 and Linux/WSL x64 with exact empty stdout/stderr and exits 0/1.
+This remains compiler-lifecycle correctness evidence: no benchmark timing,
+general typed root, catch, public ABI, or performance claim is made.
+`benchmarkDisposition: compiler-lifecycle`.
 
 ### Native-process unhandled typed-error root HIR (W-1652)
 
@@ -2984,14 +2987,16 @@ The verified HIR retains the enum case as the typed error outcome. It also
 records that process-owned arguments and context release in reverse parameter
 order: `Context`, then `Arguments`. The conversion form contains one integer
 `try D(exactly:)` binding and a normal `ProcessExitCode` return. ProductClosure0
-v3 publishes its normal and typed-error successors and the conditional cleanup
-policy. Other typed root shapes remain unsupported. No cleanup obligation
-materializes release calls.
+v3 publishes its normal and typed-error successors and the uniform
+reverse-initialization cleanup policy. Other typed root shapes remain
+unsupported. Process-executable v3 materializes the exact-conversion cleanup
+obligation and defers adaptation until after root finalization.
 
-This is compiler-lifecycle product-projection evidence. No `native-process@1` adapter
-runs, no mapping to status 1 with no implicit output is proved, and no native
-executable or benchmark is produced. Product lowering, cleanup execution,
-target adaptation, and CRT-free Windows/Linux execution remain unsupported.
+This is compiler-lifecycle evidence. The exact-conversion form executes through
+the public `native-process@1` adapter on CRT-free Windows x64 and Linux/WSL x64,
+proving success 0 and typed-error status 1 with no implicit output. The
+user-defined direct-throw form and every broader typed process body remain
+unsupported by executable selection; no benchmark timing is produced.
 `benchmarkDisposition: compiler-lifecycle`.
 
 ### Strict `f32`/`f64` scalar slice (W-1645)

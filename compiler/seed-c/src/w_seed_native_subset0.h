@@ -129,6 +129,25 @@ typedef struct {
   uint32_t arguments_parameter_ordinal;
   uint32_t context_parameter_ordinal;
   size_t maximum_stdout_bytes;
+  /* The restricted native-process typed-error adapter admits one verified
+   * integer-exactly split.  These are borrowed HIR facts; the adapter maps
+   * the NumericConversionError arm to private status 1 and never exposes the
+   * error payload as a process ABI. */
+  const w_seed_hir0_value *exact_source_value;
+  const w_seed_hir0_terminator *exact_conversion;
+  const w_seed_hir0_terminator *exact_normal_return;
+  const w_seed_hir0_terminator *exact_error_throw;
+  uint32_t exact_split_block_index;
+  uint32_t exact_normal_block_index;
+  uint32_t exact_error_block_index;
+  uint32_t exact_source_type_index;
+  uint32_t exact_destination_type_index;
+  uint32_t exact_error_type_index;
+  uint16_t exact_source_bit_width;
+  uint16_t exact_destination_bit_width;
+  bool exact_source_is_signed;
+  bool exact_destination_is_signed;
+  bool has_integer_exactly;
   /* True only when the selected process entry call graph contains a verified
    * panic terminator.  The message is validated but never emitted. */
   bool has_reachable_panic;

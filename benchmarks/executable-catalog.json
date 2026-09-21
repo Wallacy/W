@@ -3310,6 +3310,49 @@
       "blockers": []
     },
     {
+      "id": "process-typed-error-adaptation",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Prove the public process boundary adapts an unhandled NumericConversionError to exit 1 only after reverse-order structured cleanup; the paired success fixture remains a correctness variant, not a performance sample.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 1,
+        "stdout": "",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/process-integer-exact-error.w",
+          "digest": "sha256:0b579d975b8ae45f453bce59edd63c4214a426255c074472e6cff568433532bc",
+          "entry": "run",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "process-typed-error-adaptation-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        }
+      ],
+      "blockedLanguages": [
+        "c",
+        "rust"
+      ],
+      "blockers": [
+        "runtime-driven-family-workload",
+        "equivalent-c23-reference",
+        "equivalent-rust-reference"
+      ]
+    },
+    {
       "id": "process-enum-payload",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",

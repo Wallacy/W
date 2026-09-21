@@ -279,7 +279,7 @@ static bool typed_process_numeric_exact_root_supported(
       function->parameter_count >
           program->parameter_count - function->first_parameter ||
       entry->cleanup_obligation !=
-          W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_ON_SUCCESS_REVERSE_ON_TYPED_ERROR ||
+          W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_ALL_OUTCOMES ||
       entry->first_cleanup_owner_parameter != function->first_parameter ||
       entry->cleanup_owner_parameter_count != 2u)
     return false;

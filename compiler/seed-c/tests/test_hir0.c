@@ -10868,7 +10868,7 @@ static bool test_integer_exactly_continuation_hir(void) {
         program->values[program->terminators[process_error_block].value_index]
                 .kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
         program->entries[0].cleanup_obligation ==
-            W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_ON_SUCCESS_REVERSE_ON_TYPED_ERROR &&
+            W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_ALL_OUTCOMES &&
         program->entries[0].first_cleanup_owner_parameter ==
             run->first_parameter &&
         program->entries[0].cleanup_owner_parameter_count == 2u &&
