@@ -77,9 +77,10 @@ physical scheduler experiments:
    contexts, and W-1647 closes only the existing f32/u32 and f64/u64
    representation-bit round trips. W-1650 adds fixed-width integer
    `try D(exactly: source)` through a typed HIR success/error split and private
-   MLIR/LLVM artifact, but the ordinary executable route remains unsupported
-   until unhandled `NumericConversionError` has a canonical process-root
-   mapping. Remaining conversion policies continue to block this rank-1
+   MLIR/LLVM artifact. W-1652 now defines the canonical `native-process@1`
+   mapping for an unhandled typed error, but product closure, composed process
+   HIR, target adapters, and public execution still need to implement it.
+   Remaining conversion policies continue to block this rank-1
    prerequisite. W-1651 closes the design identity of i128/u128, the fixed
    arithmetic float family through f128, configured f4/f6/f8 AI elements, and
    fixed/dynamic BigFloat, but adds no implementation evidence; these wider
@@ -395,9 +396,9 @@ NativeSubset0, and the private `w-seed-mlir0-integer-exactly-1` artifact. HIR
 preserves a three-block typed success/error split whose error edge is canonical
 `NumericConversionError.outOfRange`; `tooling/check-mlir0.mjs` verifies the
 artifact with `mlir-opt` and `mlir-translate`. This is compiler-lifecycle
-evidence only. ProductClosure0 and ordinary executable emission remain
-unsupported because no canonical unhandled `NumericConversionError` to
-process-root mapping exists. There is no public native execution, benchmark,
+evidence only. W-1652 defines the process-root mapping, but ProductClosure0,
+composed process HIR, target adapters, and ordinary executable emission do not
+implement it yet. There is no public native execution, benchmark,
 or timing claim; other conversion families, floats, 128-bit integers,
 `isize`/`usize`, other target aliases, catch, cleanup, and ABI remain gaps.
 W-389 and rank 1 remain open.

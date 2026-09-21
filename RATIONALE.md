@@ -8012,8 +8012,9 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1648 | fixed-width integer bit primitives through native execution | The existing W-392 associated functions `rotatedLeft(_ value: Self, _ count: UInt) -> Self`, `rotatedRight(_ value: Self, _ count: UInt) -> Self`, `countOnes(_ value: Self) -> UInt`, `countZeros(_ value: Self) -> UInt`, `countLeadingZeros(_ value: Self) -> UInt`, `countTrailingZeros(_ value: Self) -> UInt`, `reversedBits(_ value: Self) -> Self`, and `reversedBytes(_ value: Self) -> Self` are source-backed for built-in `i8`/`u8`, `i16`/`u16`, `i32`/`u32`, and `i64`/`u64`. Rotations reduce counts modulo logical width; counts return `UInt`, zero leading/trailing-zero counts equal width, leading/trailing scans start at the most/least-significant bit, signed values use the full two's-complement representation, and reversals operate on logical width independent of host endianness. Frontend70, HIR91, NativeSubset0, and MLIR61 validate and lower this fixed-width family through direct LLVM-dialect intrinsics; exact-output Windows x64 and Linux/WSL x64 source-to-native gates pass. The 3,943-byte neutral W fixture covers every operation and type; focused tests plus C23/Rust references add zero-count and rotation `0`/`width`/`width + 1` edges. No syntax changes. `Int`/`UInt` target width, `isize`/`usize`, 128-bit integers, other targets, general optimizer behavior, stable ABI/FFI, and performance remain outside this increment. | physical-carrier-width semantics; duplicate syntax or target intrinsics in the language core; portable-width claims for aliases or other targets without evidence; performance rankings without equivalent runtime operands |
 
 | W-1649 | fixed-width named integer shift policies through native execution | The existing W-392 associated functions `maskedShiftLeft(_ value: Self, _ count: UInt) -> Self`, `maskedShiftRight(_ value: Self, _ count: UInt) -> Self`, and `logicalShiftRight(_ value: Self, _ count: UInt) -> Self` are source-backed exactly for built-in `i8`/`u8`, `i16`/`u16`, `i32`/`u32`, and `i64`/`u64`. Both masked policies reduce count modulo logical width; signed `maskedShiftRight` is arithmetic, unsigned is logical, and `logicalShiftRight` zero-fills for either signedness while rejecting `count >= bitWidth` before the LLVM shift. Frontend70 and verified HIR91 retain the existing append-only operation identities; HIR enforces an exact `UInt` count even against a forged same-type wrapping tree. NativeSubset0 and MLIR61 use a width-aware route. The neutral W fixture passes exact-output CRT-free Windows x64 and Linux/WSL x64 gates; C23 and Rust 2024 match as correctness references only. `Int`/`UInt`, `isize`/`usize`, 128-bit integers, other targets, stable ABI/FFI, and equivalent-runtime performance remain outside this increment. W may fold the witness, so no timing or performance ranking is claimed and `benchmarkDisposition: deferred`. | physical-carrier-width shift semantics; collapse of arithmetic and explicit logical right shift; per-width operation IDs or target-specific intrinsics in the language core; accepting a forged non-`UInt` count; ranking unequal runtime work |
-| W-1650 | fixed-width integer exactly-conversion typed lowering | Plain `try D(exactly: source)` is implemented for all 100 source/destination pairs among signed and unsigned 8/16/32/64-bit integers plus current x86-64 `Int`/`UInt` aliases. Frontend71 and verified HIR92 preserve canonical integer type facts and a typed three-block success/error split carrying core `NumericConversionError.outOfRange`; NativeSubset0 rederives the bounded relation and a private `w-seed-mlir0-integer-exactly-1` artifact lowers it through a checked branch. `--emit-integer-exactly` is verified by `mlir-opt --verify-each` and `mlir-translate`. ProductClosure0 and ordinary executable emission remain unsupported because there is no canonical unhandled `NumericConversionError` to process-root mapping. There is no public native execution, benchmark, timing, float, 128-bit, `isize`/`usize`, other target-alias, catch, cleanup, or ABI claim. `benchmarkDisposition: compiler-lifecycle`. | implicit or total conversion that hides failure; per-source/destination operation IDs; trap-only out-of-range lowering; public process mapping without a canonical unhandled-error contract |
+| W-1650 | fixed-width integer exactly-conversion typed lowering | Plain `try D(exactly: source)` is implemented for all 100 source/destination pairs among signed and unsigned 8/16/32/64-bit integers plus current x86-64 `Int`/`UInt` aliases. Frontend71 and verified HIR92 preserve canonical integer type facts and a typed three-block success/error split carrying core `NumericConversionError.outOfRange`; NativeSubset0 rederives the bounded relation and a private `w-seed-mlir0-integer-exactly-1` artifact lowers it through a checked branch. `--emit-integer-exactly` is verified by `mlir-opt --verify-each` and `mlir-translate`. W-1652 now defines the missing process-root semantic mapping, but ProductClosure0 and ordinary executable composition still do not implement it. There is no public native execution, benchmark, timing, float, 128-bit, `isize`/`usize`, other target-alias, catch, cleanup, or ABI claim. `benchmarkDisposition: compiler-lifecycle`. | implicit or total conversion that hides failure; per-source/destination operation IDs; trap-only out-of-range lowering; claiming public execution before W-1652 is implemented through the product route |
 | W-1651 | explicit wide and low-precision numeric families | `f16`/`bf16`/`f32`/`f64`/`f128` are fixed arithmetic scalars; one `BigFloat<precision:>` family covers fixed and `.dynamic`; f4/f6/f8 use mandatory standardized format cases; TensorFloat32 is compute policy and e8m0fnu is block-scale metadata | bare f4/f6/f8 defaults; host `long double`; implicit packing, rounding, accumulator, fallback, or target-dependent meaning; claiming implementation from design |
+| W-1652 | native-process unhandled typed-error adaptation | A concrete `Error` remains a distinct outcome through structured cleanup; `native-process@1` then terminates with portable status 1 and no implicit output. The status is adapter policy, not `ExitCode`, enum tag, or payload ABI. | requiring every entry to catch; silently treating error as a normal ExitCode; tag-derived status; implicit stderr; applying process policy to other hosts |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -14458,9 +14459,10 @@ checks the translated range predicates and branch. These are compiler-
 lifecycle correctness checks only.
 
 ProductClosure0 rejects the integer-exactly terminator, and ordinary
-executable emission remains unsupported until an unhandled
-`NumericConversionError` has a canonical process-root mapping. This evidence
-does not establish public native execution, catch, cleanup, a public ABI,
+executable emission remains unsupported. W-1652 now defines the canonical
+process-root policy, but the product closure, composed process HIR, target
+adapter, and public gates do not implement it yet. This evidence does not
+establish public native execution, catch, cleanup, a public ABI,
 float or wider-integer coverage, another target alias, or performance.
 `benchmarkDisposition: compiler-lifecycle`; no benchmark or timing result is
 claimed.
@@ -14499,3 +14501,25 @@ fallback, native target routes, executable witnesses, and performance suites
 for these new families remain implementation gaps. W-1645 continues to own
 the bounded current f32/f64 source-backed claim. No timing or performance
 ranking is introduced by W-1651.
+
+#### W-1652 — native-process unhandled typed-error adaptation
+
+Requiring every process handler to catch every typed error would make
+`throws E` on a public entry misleading and duplicate boilerplate at the one
+boundary that already owns host adaptation. Conversely, treating an error as
+an ordinary `ExitCode` would erase W's separation between recoverable failure
+and normal termination and would tempt adapters to expose unstable enum tags.
+
+W-1652 therefore assigns the final mapping to the versioned host profile.
+`native-process@1` preserves the typed error until structured cleanup is
+complete, then terminates with portable status `1` and no implicit output. The
+status is deliberately constant: source refactors, enum case order, payload
+layout, and future error metadata cannot change the process ABI. Explicit
+`do`/`catch` remains available when an application wants another status,
+logging, or recovery.
+
+The decision is currently an implementation-evidence gap. Completion requires
+a verified-HIR process root with a concrete `Error`, product reachability,
+cleanup-before-adaptation evidence, CRT-free Windows and Linux execution for
+success and unhandled-error paths, empty implicit stdout/stderr, and
+adversarial separation from panic and normal `ExitCode.failure(1)`.

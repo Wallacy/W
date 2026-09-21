@@ -12229,6 +12229,13 @@ conversão, build ID e source ID. Ele não é observável pelo programa:
 W-ERROR-TRACE parse.w:42 -> command.w:18 -> app.w:37
 ```
 
+A recoverable error that reaches an entry remains a typed outcome through the
+host adapter. The language does not convert an `Error` ordinal, tag, or payload
+into an environment status. Every host profile that accepts `throws E`
+handlers must declare a total policy for that outcome; without one, the linker
+rejects the descriptor. `do`/`catch` in the handler remains the way to select a
+message or a host-specific normal result.
+
 O lowering não exige exception unwind do host. MLIR representa success e error
 com valores tagged e control-flow edges. Cada edge executa os drops e defers
 aplicáveis.
@@ -22563,6 +22570,21 @@ transforma timeout em rollback e não encerra o processo por conta própria.
 Depois do grace period, a fault policy do host decide o boundary. Retornar
 `ExitCode` seleciona somente o status normal; typed error, panic, signal fatal e
 forced boundary continuam outcomes distintos.
+
+**W-1652 — unhandled typed errors at `native-process@1`:** the adapter accepts
+a `throws E` handler only when `E: Error` is concrete. If the error crosses the
+handler, every structured root drop, defer, and release runs before adaptation;
+the adapter then terminates the process with portable status `1`. This does not
+construct `ExitCode.failure(1)`, turn the error into a normal return, or derive
+status from a tag or payload. The adapter writes nothing implicitly to stdout
+or stderr. An error-trace sidecar enabled by the profile may record the route,
+but remains unobservable by the program.
+
+`panic`, cancellation, fatal signal, and forced boundary do not use this
+policy. A handler can catch the error and return any valid `ExitCode`, write a
+message explicitly, or convert it to another error. Other host profiles must
+publish their own adaptation; W-1652 does not create a universal process rule
+for services, Wasm, kernels, or device execution.
 
 **W-1546 — process-owner release:** the compiler-trusted `std.process@1`
 contract covers only adoption, passing, and release of the existing
@@ -42393,8 +42415,8 @@ uses constants, so `benchmarkDisposition` is
 other targets, and equivalent runtime work remain outside W-1641. W-1650
 subsequently adds bounded typed-lowering evidence for fixed-width integer
 `try D(exactly: source)`, but the ordinary executable route remains unsupported
-until the unhandled `NumericConversionError` has a canonical process-root
-mapping.
+until product closure, composed process HIR, target adapters, and public gates
+implement the W-1652 process-root mapping.
 
 #### 26.4.1.122 W-1642 — ordinary binary integer bitwise family through native execution
 
@@ -42714,10 +42736,11 @@ representability predicates. This is compiler-lifecycle evidence, not an
 executable product.
 
 ProductClosure0 deliberately rejects the integer-exactly terminator. The
-ordinary executable route remains unsupported because there is no canonical
-mapping from an unhandled `NumericConversionError` to the process root. There
-is no public native execution, benchmark, timing, floating-point or 128-bit
-conversion, `isize`/`usize`, non-x86-64 alias, catch, cleanup, or ABI claim.
+ordinary executable route remains unsupported. W-1652 now defines the
+canonical process-root policy, but product closure, composed process HIR,
+target adapters, and public gates do not implement it yet. There is no public
+native execution, benchmark, timing, floating-point or 128-bit conversion,
+`isize`/`usize`, non-x86-64 alias, catch, cleanup, or ABI claim.
 `benchmarkDisposition: compiler-lifecycle`.
 
 #### 26.4.1.131 W-1651 — explicit wide and low-precision numeric families
@@ -42751,6 +42774,28 @@ its exclusion of float8 from the core type surface. It does not claim frontend,
 HIR, const evaluation, ABI/FFI, SIMD, DLPack adapter, native instruction,
 software fallback, executable, benchmark, or performance evidence for the new
 families. Those remain explicit implementation gaps.
+
+#### 26.4.1.132 W-1652 — native-process unhandled typed-error adaptation
+
+W-1652 closes the semantic mapping required when a concrete recoverable
+`Error` crosses a `native-process@1` entry handler. The typed error remains
+distinct from normal `ExitCode`, panic, cancellation, fatal signal, and forced
+boundary outcomes while W executes structured drops, defers, and root-owner
+release. Only at the host adapter boundary does `native-process@1` select the
+portable process status `1`.
+
+The adapter does not construct `ExitCode.failure(1)`, inspect an enum tag or
+payload to derive a status, or synthesize stdout/stderr. An enabled diagnostic
+sidecar may retain the non-program-observable propagation trace. A handler
+that needs a different status or message uses `do`/`catch` and returns a normal
+`ExitCode` explicitly. Other host profiles must define their own total mapping
+before admitting `throws E` entries.
+
+This decision is design-complete but adds no compiler evidence by itself. A
+source-backed implementation must retain the typed error edge through verified
+HIR and product reachability, run all structured cleanup before the adapter,
+emit the same status/no-output behavior on every claimed target, and keep panic
+and explicit `ExitCode.failure(1)` distinguishable before the OS boundary.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

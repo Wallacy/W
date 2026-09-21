@@ -23,10 +23,10 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:9bd285bed4fed988bf9b4ad9da66369f58b7ae78ae15b03532f3091b48518c05",
-    "count": 1651,
+    "sha256": "sha256:f6061a93c1bb243e3bb3255fcfa3a7f9ab98ccd954eff6fedd62d44a70a816ac",
+    "count": 1652,
     "first": "W-001",
-    "last": "W-1651"
+    "last": "W-1652"
   },
   "epochs": [
     {
@@ -67,12 +67,12 @@
     "overlap": 57
   },
   "archiveGapDistribution": {
-    "count": 965,
+    "count": 966,
     "byCategory": {
       "source-backed-current": 1,
       "oracle-backed-current": 90,
       "research-gated": 0,
-      "implementation-evidence-gap": 812,
+      "implementation-evidence-gap": 813,
       "superseded": 55,
       "rejected": 7
     },
@@ -1032,7 +1032,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-028 (OOM, sha256:4e9ba55c60e4221c4e0258802155adfb6b859e0f4f6982e99fef96977a4c8bcb) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -1226,7 +1226,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-034 (error widening, sha256:802d3795d00954c818ea8d331d2b900d6309fa489f0998d6d8d4ffd48eb649f6) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -1259,7 +1259,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-035 (panic, sha256:0f3d336a1ce977a78d95a1cb150fa42e0b7d4c0df11734bafafe71d2e8451d83) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -2012,7 +2012,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-057 (integer safety, sha256:5f83afbd2c5fd8763764ba31e3b71caef996d7225b2caa04b63fedb2c5aa0412) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -2045,7 +2045,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-058 (float, sha256:325937eab25b5e46d773a6027c2e0755fbab8299bd33d78932cdc25833279f35) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -5198,7 +5198,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-155 (definite initialization, sha256:318343b1e9c71399c9cfb6b9f25051d8ef0fb918a853d0f290c884198ea37e41) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -5679,7 +5679,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-170 (evolução de struct, sha256:d239d41e30845f22fdca055ae01e9e33951131983561b578a679f5b753c0b830) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -5976,7 +5976,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-179 (`deinit` e copy, sha256:843c5acd5ab8664f0e4667786e85423c2bcfce397a3ee09a9d7f2439a5ec1ca9) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -6232,7 +6232,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-187 (falha de initializer, sha256:ec4486c3cf4f921e1060a322b816a74dec801ba5431239935c8b482cf5e523d7) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -7899,7 +7899,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-237 (ordenação, sha256:cb79466be7dc206562ef37befaff4d8c13abc19a760ffb799b0eacabc07b6a0b) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -7965,7 +7965,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-239 (cleanup de collections, sha256:c03427a90bd70a36f5952f968db6069934296d643885ad72af4dc296c470e524) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -8192,7 +8192,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-246 (Result, sha256:cf3f0811a8ff1a199bc5fed92bb5130646c31e7bcaf997718da7f994ca28dbb3) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -8421,7 +8421,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-253 (fault boundary, sha256:47009055819a8dd0b530d7c8f5e81e37b0b070ed9ab1241e8e782034f7409cbe) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -8454,7 +8454,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-254 (panic, sha256:73fbf017b847cf34b12c64e97d5e0534e1f9347dff5cb18f721f9b132626657a) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -8518,7 +8518,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-256 (cleanup, sha256:185be64739bfc27710b9ffdae45e4ddc094d39af182c874253d999290ebb1425) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -10808,7 +10808,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-326 (álgebra de case-set, sha256:835f4e5482635399406541797e1fbf7b60634a787222e789bfe65acf2fce9f1a) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -10938,7 +10938,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-330 (falha consuming, sha256:d436b91c2c42a090310b32290d68f9b2fd08d16cee4d9d95fe3a76faa5a73892) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -12325,7 +12325,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-372 (resultado refinado, sha256:7eda98012c72e4ef2f59149ac14d69c9eb30fbd237cbf661c284a93201072975) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -12424,7 +12424,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-375 (integer `@`, sha256:ea91d7058a90725f21e0914e9714ba41ad7a53a1f5db5326296cae4997bca255) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -12457,7 +12457,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-376 (float `@`, sha256:79d6de92ae306fb55a38500256539e1ed2bd1418a1ab5d1a0d152daf023006e2) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -12954,7 +12954,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-391 (divisão integer, sha256:31ce48fda59001133e972b866f62aea269aa5c2ca8052ab987a06e6639311bd9) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -13086,7 +13086,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-395 (modes float, sha256:8514f6db65e5ef178390fd30adc172191e28e20f6a7bd8cea6b70a7485809244) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -13671,7 +13671,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-413 (allocation failure, sha256:d3118e72dbe3251b5dd5a215ff263cc91d6a82fda97ef4b22093263ab656f75f) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -15043,7 +15043,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-455 (término de stream, sha256:4646831b088990ba98be4743b595dd52e19f6ea52db3884769b5379e1cc9a50b) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -15566,7 +15566,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-468 (buffering de stream, sha256:b88a07c9d3937e4a1a75ad270c4d51c28e9fa891f0fe765b8aa5ec180c301663) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -15803,7 +15803,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-475 (resultado de read, sha256:ca89268879d16c2bdc70fa529a5ec927ec82b2362052082c9d5ad9f388fcf959) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -16745,7 +16745,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-504 (after-response, sha256:0c34187ce5f95864a7c4e2ce2e9370b955109cce2d49c3be929a3de0000f0981) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -16930,7 +16930,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-509 (entry nomeado, sha256:b6a34f4606f1e10a64d59b95c384f1ee57f4c3f3d6a6ab207897ffee2f8684a6) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -18244,7 +18244,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-549 (gather write, sha256:676f3b84be030d43cdb9b63ee15316ae4b6bc42197c50c8dd28097c5a5e88ec4) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -18475,7 +18475,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-556 (retry de step, sha256:d5e5d227588689d8e2396fc8a2aaad3e6edc211e0549f41cfeb196b92177cc0d) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -18904,7 +18904,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-569 (feature, sha256:5175940015737991349c2e76944d80c40253bc49882627f8e9ece3f731b608da) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -19795,7 +19795,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-596 (ambiente de build, sha256:c5fdd6b256bb349990a321a2f3caa338839bab74b0daa85f4cb65e5755006212) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -20125,7 +20125,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-606 (ownership da toolchain policy, sha256:5f1f5ef463aa86501ecc7d88952369c7bb0ab76527a8622e1d0fb6c8a5e7721e) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -20360,7 +20360,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-613 (ABI física de call, sha256:80d5d3385932c90b489af3ffa6f7cc3c657aa1f4edca4a5a4f84cf265b7d333c) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -20806,7 +20806,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-627 (diagnóstico de compatibilidade, sha256:7879f97614da1714a6e17206b85deee132f3ac1cca734ebc7438937ba801c001) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -21365,7 +21365,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-644 (address space, sha256:a047aa455cdd213c15d062782238e43a204379ce19ad404bb8d82858366bb1ac) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -21398,7 +21398,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-645 (lifetime de task, sha256:1b44a6299301ad33030547d490b250c7ee979fe5ecec7a278b2ef9f9dc8c0711) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -21656,7 +21656,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-653 (blocking drain, sha256:7e480c92fb2abad54a5151735cdda9e386c508c2675fdac846be2a7271938201) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -21871,7 +21871,7 @@
         "path": "DESIGN.md",
         "section": "26",
         "heading": "## 26. Plano de implementação",
-        "sectionDigest": "sha256:d62155ce06b3b8cc160463f457e0b64f370494a12643dbaf9bdb53972928f5cf"
+        "sectionDigest": "sha256:57307beddf01bc0a703c344a62d34d91f48a8b7b7d789c598d9c2b8ceb505f30"
       },
       "evidence": [],
       "reason": "W-659 (body de entry, sha256:f66ab57406ddb51303f9190376daf72d8f538bd7bd8adfbf9992ae3d7223e74e) has no executable witness for component implementation-plan. The checked current contract is DESIGN.md §26 / 26. Plano de implementação.",
@@ -23818,7 +23818,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-718 (fault injection determinístico, sha256:141a236a1c79133e738cd2533b01631d7df67a6ef138e0bb910412ccdbe18c0a) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -24431,7 +24431,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-736 (ciência e data parallel, sha256:d503afbf5f6f2bd83ca3d0938410ee97f90754b4b596ba773dfc9e902f02bf8e) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -24957,7 +24957,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-752 (recovery sintático G0, sha256:4aaffa6c8f63469cdbef89358cec652e50f7b45e5cda4cc9c2405830ce404b17) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -27533,7 +27533,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-832 (case inalcançável, sha256:7692fd5bac35549999633e1a28991f02e42fa972bd558bcccb337b72ff8a9702) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -27958,7 +27958,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-845 (quota const, sha256:93fd6e688ca86f5b14d77e1aea4fffb5ccd20b17f70ba71e550ba4460b56a13f) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -30316,7 +30316,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-916 (cleanup e diagnostics M1, sha256:955af9e289a9c96974cfe21e019ac1e35a03f43bba9431b8ffe547818e0b90c1) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -31537,7 +31537,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-953 (embedding e strip WMeta1, sha256:ef37bb72ef8f4b5a371b3c2ada4ac92f95ae1a33854f238b8c8ff5561a0d3ba6) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -38095,7 +38095,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-1158 (script bootstrap e latency, sha256:9ce0dc0cb36babdf52b61589258f28ec11138d1f5976e69a6717b212432a3250) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -38689,7 +38689,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-1176 (claim de memória, sha256:fdac1190503f50dba2ba34e83133e01a75e59631b2882533bc0b1881e5fd70c5) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -41427,7 +41427,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-1253 (radix explícito, sha256:8063fc327dc9054cae3bf3ba4a55436d530dbfd5184a31c0afda5ba37f81476f) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -46629,7 +46629,7 @@
         "path": "DESIGN.md",
         "section": "11",
         "heading": "## 11. Erros, panic, OOM e cleanup",
-        "sectionDigest": "sha256:4c3f883b559c4fc1b5a184de72d44bb4ab5aba9cea609a7818d33a066e6a6049"
+        "sectionDigest": "sha256:b0f16315f22d2c06feaacd377860ae38fcb9309f147e23a68372c4a9e50fe3a6"
       },
       "evidence": [],
       "reason": "W-1407 (métricas sem resultados fictícios, sha256:0977ea8584e61ff3dfd013ed5a68913b8a3817b18e249c0c4e8a81aa456600d5) has no executable witness for component errors-and-cleanup. The checked current contract is DESIGN.md §11 / 11. Erros, panic, OOM e cleanup.",
@@ -59860,8 +59860,8 @@
     {
       "decisionId": "W-1650",
       "summary": "fixed-width integer exactly-conversion typed lowering",
-      "canonicalClaim": "Plain `try D(exactly: source)` is implemented for all 100 source/destination pairs among signed and unsigned 8/16/32/64-bit integers plus current x86-64 `Int`/`UInt` aliases. Frontend71 and verified HIR92 preserve canonical integer type facts and a typed three-block success/error split carrying core `NumericConversionError.outOfRange`; NativeSubset0 rederives the bounded relation and a private `w-seed-mlir0-integer-exactly-1` artifact lowers it through a checked branch. `--emit-integer-exactly` is verified by `mlir-opt --verify-each` and `mlir-translate`. ProductClosure0 and ordinary executable emission remain unsupported because there is no canonical unhandled `NumericConversionError` to process-root mapping. There is no public native execution, benchmark, timing, float, 128-bit, `isize`/`usize`, other target-alias, catch, cleanup, or ABI claim. `benchmarkDisposition: compiler-lifecycle`.",
-      "claimDigest": "sha256:5f84aeebadaeb0cdbd49ea2f17ea1011ef4f5852f3803d024bdc499150c639b2",
+      "canonicalClaim": "Plain `try D(exactly: source)` is implemented for all 100 source/destination pairs among signed and unsigned 8/16/32/64-bit integers plus current x86-64 `Int`/`UInt` aliases. Frontend71 and verified HIR92 preserve canonical integer type facts and a typed three-block success/error split carrying core `NumericConversionError.outOfRange`; NativeSubset0 rederives the bounded relation and a private `w-seed-mlir0-integer-exactly-1` artifact lowers it through a checked branch. `--emit-integer-exactly` is verified by `mlir-opt --verify-each` and `mlir-translate`. W-1652 now defines the missing process-root semantic mapping, but ProductClosure0 and ordinary executable composition still do not implement it. There is no public native execution, benchmark, timing, float, 128-bit, `isize`/`usize`, other target-alias, catch, cleanup, or ABI claim. `benchmarkDisposition: compiler-lifecycle`.",
+      "claimDigest": "sha256:e96125013d034f26838aa62c585c240e35006ad4e6f42b7075b4d51d7c7cf3b6",
       "category": "source-backed-current",
       "basis": "linked-source-comparison-case",
       "authorityRef": {
@@ -59878,14 +59878,14 @@
           "caseDigest": "sha256:e3ff7dc6e9092a4b19e7fd64ebc35f56870d9839fc309d454bc6d45afb108b9a"
         }
       ],
-      "reason": "W-1650 (fixed-width integer exactly-conversion typed lowering, sha256:5f84aeebadaeb0cdbd49ea2f17ea1011ef4f5852f3803d024bdc499150c639b2) is source-backed-current only for the bounded fixed-width integer relation through Frontend71, verified HIR92, NativeSubset0, and private MLIR/LLVM translation. The typed error is canonical `NumericConversionError.outOfRange`; ProductClosure0 and ordinary executable emission remain unsupported without a process-root mapping. This is compiler-lifecycle evidence only, with no public native execution, benchmark, or timing claim.",
+      "reason": "W-1650 (fixed-width integer exactly-conversion typed lowering, sha256:e96125013d034f26838aa62c585c240e35006ad4e6f42b7075b4d51d7c7cf3b6) is source-backed-current only for the bounded fixed-width integer relation through Frontend71, verified HIR92, NativeSubset0, and private MLIR/LLVM translation. The typed error is canonical `NumericConversionError.outOfRange`; ProductClosure0 and ordinary executable emission remain unsupported without a process-root mapping. This is compiler-lifecycle evidence only, with no public native execution, benchmark, or timing claim.",
       "selection": "explicit-ledger-id",
       "basisRef": {
         "kind": "ledger-row",
         "path": "RATIONALE.md",
         "section": "3. Ledger",
         "decisionId": "W-1650",
-        "claimDigest": "sha256:5f84aeebadaeb0cdbd49ea2f17ea1011ef4f5852f3803d024bdc499150c639b2"
+        "claimDigest": "sha256:e96125013d034f26838aa62c585c240e35006ad4e6f42b7075b4d51d7c7cf3b6"
       },
       "sourceRefs": [
         {
@@ -59988,6 +59988,39 @@
         "gate": "DESIGN.md §15 / 15. Números, ranges e unidades",
         "missingEvidence": [
           "wide and configured low-precision numeric executable witnesses"
+        ]
+      }
+    },
+    {
+      "decisionId": "W-1652",
+      "summary": "native-process unhandled typed-error adaptation",
+      "canonicalClaim": "A concrete `Error` remains a distinct outcome through structured cleanup; `native-process@1` then terminates with portable status 1 and no implicit output. The status is adapter policy, not `ExitCode`, enum tag, or payload ABI.",
+      "claimDigest": "sha256:39bf146f19fbc82f1f6596ef5d63ed0631bc6ed90b75580889eb807db5e77776",
+      "category": "implementation-evidence-gap",
+      "basis": "current-ledger-claim-without-executable-witness",
+      "authorityRef": {
+        "kind": "design-contract",
+        "path": "DESIGN.md",
+        "section": "13.2",
+        "heading": "### 13.2 Entry",
+        "sectionDigest": "sha256:0a01063163d132d06f1330c77d634ad6794b4cdcf33934472942a9a182f99929"
+      },
+      "evidence": [],
+      "reason": "W-1652 (native-process unhandled typed-error adaptation, sha256:39bf146f19fbc82f1f6596ef5d63ed0631bc6ed90b75580889eb807db5e77776) remains an implementation-evidence gap for component execution-and-errors at DESIGN.md §13.2 / 13.2 Entry because typed process-root error adaptation through verified HIR, product closure, cleanup, and target execution is missing.",
+      "stopCondition": "Do not claim W-1652 as implemented. Close component execution-and-errors at DESIGN.md §13.2 / 13.2 Entry with typed process-root error adaptation through verified HIR, product closure, cleanup, and target execution; prove cleanup before adaptation, CRT-free Windows and Linux status 1 with no implicit output, and distinct panic and normal ExitCode paths.",
+      "selection": "explicit-ledger-id",
+      "basisRef": {
+        "kind": "ledger-row",
+        "path": "RATIONALE.md",
+        "section": "3. Ledger",
+        "decisionId": "W-1652",
+        "claimDigest": "sha256:39bf146f19fbc82f1f6596ef5d63ed0631bc6ed90b75580889eb807db5e77776"
+      },
+      "gap": {
+        "component": "execution-and-errors",
+        "gate": "DESIGN.md §13.2 / 13.2 Entry",
+        "missingEvidence": [
+          "typed process-root error adaptation through verified HIR, product closure, cleanup, and target execution"
         ]
       }
     }
