@@ -6,14 +6,14 @@ source-backed ready point of the compiler lifecycle as a single series. BMD2
 adds a source-backed comparison between two local commits of the same seed.
 Neither bundle produces a language or product-runtime result.
 
-### Planned Hyperfine wall-time layer (not integrated)
+### Accepted Hyperfine wall-time layer (integration pending)
 
-Hyperfine 1.20.x is planned as the recognizable, cross-platform wall-time
-tool for future public executable comparisons. This is a method proposal, not
-a change to the current runner or benchmark readiness. Pin the exact Hyperfine
-patch version and binary identity in each future receipt. Until integration
-lands, the current native runner remains the active measurement route; do not
-label its samples as Hyperfine data or merge the two sample populations.
+Hyperfine 1.20.0 is the selected recognizable, cross-platform wall-time tool
+for future public executable comparisons. The selection does not yet change
+the current runner or benchmark readiness. Pin the exact Hyperfine version and
+binary identity in each future receipt. Until integration lands, the current
+native runner remains the active measurement route; do not label its samples
+as Hyperfine data or merge the two sample populations.
 
 For direct executable cases expected to take less than 5 ms, use
 `--shell=none` and an executable plus explicit arguments. Hyperfine's
@@ -162,8 +162,12 @@ operator.
 The `restaurant-uint-bitwise` witness is the representative family executable:
 it covers complement, binary bitwise operations, population counts, and
 leading/trailing zero counts including zero. Focused W fixtures retain
-bit/byte reversal, shift, and rotation correctness without separate benchmark
-rows.
+bit/byte reversal and rotation correctness without separate benchmark rows.
+The neutral `fixed-integer-shift-policies` witness is one correctness-only
+family row for masked left/right shifts and logical right shift across signed
+and unsigned 8/16/32/64-bit integers. Its C23 and Rust 2024 references are
+correctness oracles only; W's literal calls may fold, so runtime-equivalent
+ranking remains deferred.
 
 The `restaurant-uint-overflowing-family` witness covers add, subtract,
 multiply, negate, and power while printing both wrapped low bits and overflow

@@ -98,12 +98,6 @@ const restaurantUIntWrappingPowerFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-power.w")
 const restaurantUIntWrappingShiftLeftFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-shift-left.w")
-const restaurantUIntMaskedShiftLeftFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-masked-shift-left.w")
-const restaurantUIntMaskedShiftRightFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-masked-shift-right.w")
-const restaurantUIntLogicalShiftRightFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-logical-shift-right.w")
 const restaurantUIntRotatedLeftFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-rotated-left.w")
 const restaurantUIntRotatedRightFixture = resolve(seedDirectory,
@@ -122,6 +116,8 @@ const restaurantUIntReversedBytesFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-reversed-bytes.w")
 const fixedIntegerBitPrimitivesFixture = resolve(seedDirectory,
   "fixtures", "fixed-integer-bit-primitives.w")
+const fixedIntegerShiftPoliciesFixture = resolve(seedDirectory,
+  "fixtures", "fixed-integer-shift-policies.w")
 const fixedIntegerBitPrimitivesOutput = Buffer.from(
   "i8 3/5/1/1 74/127 82 -92/41\n" +
   "u8 4/4/0/1 105 150 45/75\n" +
@@ -132,6 +128,14 @@ const fixedIntegerBitPrimitivesOutput = Buffer.from(
   "i64 30/34/7/1 8553414939923104896/9223372036854775807 7984226321029210881 163971058432973532/40992764608243383\n" +
   "u64 32/32/0/4 597899502893742975 1167088121787636990 18282773015276577825/9182379272246532360\n",
   "utf8")
+const fixedIntegerShiftPoliciesOutput = Buffer.from(
+  "i8 -128/0/-64/64\nu8 128/0/64/64\n" +
+  "i16 -32768/0/-16384/16384\nu16 32768/0/16384/16384\n" +
+  "i32 -2147483648/0/-1073741824/1073741824\n" +
+  "u32 2147483648/0/1073741824/1073741824\n" +
+  "i64 -9223372036854775808/0/-4611686018427387904/4611686018427387904\n" +
+  "u64 9223372036854775808/0/4611686018427387904/4611686018427387904\n" +
+  "u64 small-value 2/64/64\n", "utf8")
 const restaurantUIntOverflowingAddFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-overflowing-add.w")
 const restaurantUIntOverflowingPowerFixture = resolve(seedDirectory,
@@ -573,6 +577,21 @@ try {
       "print(\"${result}\") }\n")
     runtimeShiftFaults.push([path, label])
   }
+  for (const [name, type, value, count] of [
+    ["runtime-logical-shift-count-i8", "i8", "1_i8", "8_u64"],
+    ["runtime-logical-shift-count-u64", "u64", "1_u64", "64_u64"],
+  ]) {
+    const path = join(fixtureDirectory, `${name}.w`)
+    await writeFile(path,
+      "// Expected exit: nonzero (trap)\n// Expected stdout: <empty>\n" +
+      `fn shift(value: ${type}, count: UInt): ${type} { ` +
+      `return ${type}.logicalShiftRight(value, count) }\n` +
+      "entry { print(\"must not commit\") " +
+      `let result = shift(value: ${value}, count: ${count}) ` +
+      "print(\"${result}\") }\n")
+    runtimeShiftFaults.push([path,
+      `${type}.logicalShiftRight rejects a count at logical width`])
+  }
   for (const [type, maximum, suffix] of [
     ["i8", "127", "_i8"],
     ["i16", "32767", "_i16"],
@@ -930,15 +949,9 @@ try {
   expectExact(binary, ["run", restaurantUIntWrappingShiftLeftFixture], 0,
     Buffer.from("Wrapped 18446744073709551614\n", "utf8"),
     "Restaurant UInt wrappingShiftLeft with a valid count")
-  expectExact(binary, ["run", restaurantUIntMaskedShiftLeftFixture], 0,
-    Buffer.from("Masked 2\n", "utf8"),
-    "Restaurant UInt maskedShiftLeft reduces count modulo bit width")
-  expectExact(binary, ["run", restaurantUIntMaskedShiftRightFixture], 0,
-    Buffer.from("Masked 64\n", "utf8"),
-    "Restaurant UInt maskedShiftRight reduces count modulo bit width")
-  expectExact(binary, ["run", restaurantUIntLogicalShiftRightFixture], 0,
-    Buffer.from("Logical 64\n", "utf8"),
-    "Restaurant UInt logicalShiftRight uses zero fill")
+  expectExact(binary, ["run", fixedIntegerShiftPoliciesFixture], 0,
+    fixedIntegerShiftPoliciesOutput,
+    "Fixed-width named shift policies and signed/unsigned edge cases")
   expectExact(binary, ["run", restaurantUIntRotatedLeftFixture], 0,
     Buffer.from("Rotated 3\n", "utf8"),
     "Restaurant UInt rotatedLeft reduces count modulo bit width")

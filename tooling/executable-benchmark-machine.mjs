@@ -51,6 +51,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-uint-overflowing-family",
   "restaurant-uint-saturating-policy",
   "fixed-integer-bit-primitives",
+  "fixed-integer-shift-policies",
   "restaurant-uint-bitwise",
   "restaurant-uint-compound",
   "restaurant-unsigned",
@@ -105,9 +106,6 @@ const PUBLIC_WINDOWS_RUN_VARIANTS = Object.freeze({
   "compiler/seed-c/fixtures/restaurant-integer-comparison.w": "restaurant-integer-comparison",
   "compiler/seed-c/fixtures/restaurant-integer-bitwise.w": "restaurant-integer-bitwise",
   "compiler/seed-c/fixtures/fixed-integer-bit-primitives.w": "fixed-integer-bit-primitives",
-  "compiler/seed-c/fixtures/restaurant-uint-masked-shift-left.w": "restaurant-uint-bitwise",
-  "compiler/seed-c/fixtures/restaurant-uint-masked-shift-right.w": "restaurant-uint-bitwise",
-  "compiler/seed-c/fixtures/restaurant-uint-logical-shift-right.w": "restaurant-uint-bitwise",
   "compiler/seed-c/fixtures/restaurant-uint-rotated-left.w": "restaurant-uint-bitwise",
   "compiler/seed-c/fixtures/restaurant-uint-rotated-right.w": "restaurant-uint-bitwise",
   "compiler/seed-c/fixtures/restaurant-uint-bit-not.w": "restaurant-uint-bitwise",
@@ -234,6 +232,7 @@ export const RESTAURANT_UINT_OVERFLOWING_FAMILY_WORKLOAD_ID = "restaurant-uint-o
 export const RESTAURANT_UINT_SATURATING_POLICY_WORKLOAD_ID = "restaurant-uint-saturating-policy";
 export const RESTAURANT_UINT_BITWISE_WORKLOAD_ID = "restaurant-uint-bitwise";
 export const FIXED_INTEGER_BIT_PRIMITIVES_WORKLOAD_ID = "fixed-integer-bit-primitives";
+export const FIXED_INTEGER_SHIFT_POLICIES_WORKLOAD_ID = "fixed-integer-shift-policies";
 export const RESTAURANT_UINT_COMPOUND_WORKLOAD_ID = "restaurant-uint-compound";
 export function isProcessArgumentWorkload(workloadId) {
   return PROCESS_ARGUMENT_WORKLOAD_IDS.includes(workloadId);
@@ -1220,6 +1219,7 @@ function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PL
       workload?.id === RESTAURANT_CHECKED_SHIFTS_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_BITWISE_WORKLOAD_ID ||
       workload?.id === FIXED_INTEGER_BIT_PRIMITIVES_WORKLOAD_ID ||
+      workload?.id === FIXED_INTEGER_SHIFT_POLICIES_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_COMPOUND_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_OVERFLOWING_FAMILY_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_SATURATING_POLICY_WORKLOAD_ID) return SOURCE_ELIGIBILITY.strictF64;

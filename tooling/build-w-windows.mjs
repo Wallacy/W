@@ -139,25 +139,18 @@ export const SMOKE_CASES = Object.freeze([
       "Int/UInt -9223372036854775808/18446744073709551615\n",
   }),
   Object.freeze({
-    id: "restaurant-uint-masked-shift-left",
-    fixture: "compiler/seed-c/fixtures/restaurant-uint-masked-shift-left.w",
+    id: "fixed-integer-shift-policies",
+    fixture: "compiler/seed-c/fixtures/fixed-integer-shift-policies.w",
     absoluteFixture: resolve(seedDirectory, "fixtures",
-      "restaurant-uint-masked-shift-left.w"),
-    expectedStdout: "Masked 2\n",
-  }),
-  Object.freeze({
-    id: "restaurant-uint-masked-shift-right",
-    fixture: "compiler/seed-c/fixtures/restaurant-uint-masked-shift-right.w",
-    absoluteFixture: resolve(seedDirectory, "fixtures",
-      "restaurant-uint-masked-shift-right.w"),
-    expectedStdout: "Masked 64\n",
-  }),
-  Object.freeze({
-    id: "restaurant-uint-logical-shift-right",
-    fixture: "compiler/seed-c/fixtures/restaurant-uint-logical-shift-right.w",
-    absoluteFixture: resolve(seedDirectory, "fixtures",
-      "restaurant-uint-logical-shift-right.w"),
-    expectedStdout: "Logical 64\n",
+      "fixed-integer-shift-policies.w"),
+    expectedStdout:
+      "i8 -128/0/-64/64\nu8 128/0/64/64\n" +
+      "i16 -32768/0/-16384/16384\nu16 32768/0/16384/16384\n" +
+      "i32 -2147483648/0/-1073741824/1073741824\n" +
+      "u32 2147483648/0/1073741824/1073741824\n" +
+      "i64 -9223372036854775808/0/-4611686018427387904/4611686018427387904\n" +
+      "u64 9223372036854775808/0/4611686018427387904/4611686018427387904\n" +
+      "u64 small-value 2/64/64\n",
   }),
   Object.freeze({
     id: "restaurant-uint-rotated-left",

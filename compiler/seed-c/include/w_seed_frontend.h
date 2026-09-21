@@ -372,11 +372,14 @@ typedef enum {
   W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_NEGATE,
   W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_POWER,
   W_SEED_FRONTEND_BUILTIN_U64_WRAPPING_SHIFT_LEFT,
-  /* Canonical u64.maskedShiftLeft. Keep this identity append-only. */
+  /* Historical u64 identity for fixed-width integer maskedShiftLeft;
+   * keep the numeric identity append-only. */
   W_SEED_FRONTEND_BUILTIN_U64_MASKED_SHIFT_LEFT,
-  /* Canonical u64.maskedShiftRight. Keep this identity append-only. */
+  /* Historical u64 identity for fixed-width integer maskedShiftRight;
+   * keep the numeric identity append-only. */
   W_SEED_FRONTEND_BUILTIN_U64_MASKED_SHIFT_RIGHT,
-  /* Canonical u64.logicalShiftRight. Keep this identity append-only. */
+  /* Historical u64 identity for fixed-width integer logicalShiftRight;
+   * keep the numeric identity append-only. */
   W_SEED_FRONTEND_BUILTIN_U64_LOGICAL_SHIFT_RIGHT,
   /* Canonical u64.rotatedLeft. Keep this identity append-only. */
   W_SEED_FRONTEND_BUILTIN_U64_ROTATED_LEFT,

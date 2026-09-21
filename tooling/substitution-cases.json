@@ -11920,6 +11920,60 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-fixed-width-integer-shift-policies",
+      "reviewItem": "fixed-width named shift policies across logical widths against physical-carrier semantics, right-shift conflation, and premature runtime-performance claims",
+      "decisions": [
+        "W-1649"
+      ],
+      "task": "Carry the existing W-392 maskedShiftLeft, maskedShiftRight, and logicalShiftRight functions through one verified logical-width route for i8/u8/i16/u16/i32/u32/i64/u64. Preserve modulo masked counts, signed arithmetic versus unsigned logical masked right shift, explicit zero-fill, and rejection of logicalShiftRight counts at or beyond width. The 3,581-byte neutral W witness passes exact-output CRT-free Windows x64 and Linux/WSL x64 gates. C23 and Rust references are correctness-only; defer ranking until runtime work is equivalent.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "let maskedLeft = i8.maskedShiftLeft(1_i8, 9_u64)",
+          "let signedMaskedRight = i8.maskedShiftRight(~63_i8, 1_u64)",
+          "let logicalRight = i8.logicalShiftRight(~63_i8, 1_u64)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "physical-carrier-width",
+          "language": "w-internal-rejected",
+          "source": [
+            "mask and validate counts against the physical i64 carrier"
+          ],
+          "expectedDifference": "Every policy uses Self's verified logical width, so narrow integer semantics do not leak carrier padding."
+        },
+        {
+          "name": "conflated-right-shift",
+          "language": "w-internal-rejected",
+          "source": [
+            "lower maskedShiftRight and logicalShiftRight through one signedness-blind operation"
+          ],
+          "expectedDifference": "Signed masked right shift is arithmetic, unsigned masked right shift is logical, and logicalShiftRight is explicitly zero-filling for either signedness."
+        },
+        {
+          "name": "rank-folded-witness",
+          "language": "benchmark-rejected",
+          "source": [
+            "rank the W literal-folded witness against C23/Rust runtime operands"
+          ],
+          "expectedDifference": "Exact output establishes correctness, not equivalent runtime work; the benchmark disposition remains deferred."
+        }
+      ],
+      "checks": [
+        "Focused frontend70, verified-HIR91, NativeSubset0, and MLIR61 tests pass across all eight fixed-width types and all three policies.",
+        "Final-source MLIR0, CRT-free Windows x64, and Linux/WSL x64 gates pass exact output for the linked neutral W witness.",
+        "Focused tests cover counts 0, width - 1, width, and width + 1 and reject a forged non-UInt HIR count.",
+        "C23 and Rust 2024 are correctness references only; no timing or performance ranking is claimed."
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

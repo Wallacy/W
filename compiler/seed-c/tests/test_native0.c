@@ -4360,14 +4360,15 @@ static bool test_u64_masked_shift_left_slice(void) {
         W_SEED_NATIVE_SUBSET0_OK);
   CHECK(selection.has_local_calls && !selection.has_cfg &&
         count_bytes(output, result.mlir.written.mlir_bytes,
-                    "llvm.func internal @w_seed_masked_shift_left_u64") ==
-            1u &&
+                    "@w_seed_masked_shift_left_u64") == 0u &&
         count_bytes(output, result.mlir.written.mlir_bytes,
-                    "llvm.call @w_seed_masked_shift_left_u64") == 1u &&
+                    "llvm.call @w_seed_masked_shift_left_u64") == 0u &&
         contains_bytes(output, result.mlir.written.mlir_bytes,
-                       "llvm.and %count, %mask : i64") &&
+                       "_shift_mask = llvm.mlir.constant(63 : i64)") &&
         contains_bytes(output, result.mlir.written.mlir_bytes,
-                       "llvm.shl %left, %masked_count : i64") &&
+                       "_shift_count_mod = llvm.and ") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.shl ") &&
         !contains_bytes(output, result.mlir.written.mlir_bytes,
                         "@w_seed_checked_shift_left") &&
         !contains_bytes(output, result.mlir.written.mlir_bytes,
@@ -4441,14 +4442,15 @@ static bool test_u64_masked_shift_right_slice(void) {
         W_SEED_NATIVE_SUBSET0_OK);
   CHECK(selection.has_local_calls && !selection.has_cfg &&
         count_bytes(output, result.mlir.written.mlir_bytes,
-                    "llvm.func internal @w_seed_masked_shift_right_u64") ==
-            1u &&
+                    "@w_seed_masked_shift_right_u64") == 0u &&
         count_bytes(output, result.mlir.written.mlir_bytes,
-                    "llvm.call @w_seed_masked_shift_right_u64") == 1u &&
+                    "llvm.call @w_seed_masked_shift_right_u64") == 0u &&
         contains_bytes(output, result.mlir.written.mlir_bytes,
-                       "llvm.and %count, %mask : i64") &&
+                       "_shift_mask = llvm.mlir.constant(63 : i64)") &&
         contains_bytes(output, result.mlir.written.mlir_bytes,
-                       "llvm.lshr %left, %masked_count : i64") &&
+                       "_shift_count_mod = llvm.and ") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.lshr ") &&
         !contains_bytes(output, result.mlir.written.mlir_bytes,
                         "@w_seed_checked_shift_right"));
 
@@ -4519,18 +4521,18 @@ static bool test_u64_logical_shift_right_slice(void) {
         W_SEED_NATIVE_SUBSET0_OK);
   CHECK(selection.has_local_calls && !selection.has_cfg &&
         count_bytes(output, result.mlir.written.mlir_bytes,
-                    "llvm.func internal @w_seed_logical_shift_right_u64") ==
+                    "llvm.func internal @w_seed_logical_shift_right_integer") ==
             1u &&
         count_bytes(output, result.mlir.written.mlir_bytes,
-                    "llvm.call @w_seed_logical_shift_right_u64") == 1u &&
+                    "llvm.call @w_seed_logical_shift_right_integer") == 1u &&
         contains_bytes(output, result.mlir.written.mlir_bytes,
                        "llvm.icmp \"uge\" %count, %width : i64") &&
         contains_bytes(output, result.mlir.written.mlir_bytes,
-                       "llvm.lshr %left, %count : i64") &&
+                       "llvm.lshr %normalized, %count : i64") &&
         contains_bytes(output, result.mlir.written.mlir_bytes,
                        "\"llvm.intr.trap\"() : () -> ()") &&
         !contains_bytes(output, result.mlir.written.mlir_bytes,
-                        "llvm.and %count, %mask : i64") &&
+                        "_shift_count_mod = llvm.and ") &&
         !contains_bytes(output, result.mlir.written.mlir_bytes,
                         "@w_seed_checked_shift_right"));
 
@@ -4569,6 +4571,207 @@ static bool test_u64_logical_shift_right_slice(void) {
     CHECK(memcmp(&result, &snapshot, sizeof(result)) == 0);
     for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
       CHECK(output[byte] == 0xa1u);
+  }
+  return true;
+}
+
+static bool test_fixed_integer_shift_policy_native_matrix(void) {
+  typedef struct {
+    const char *spelling;
+    const char *high_bit_literal;
+    bool is_signed;
+    uint16_t bit_width;
+  } integer_case;
+  static const integer_case INTEGERS[] = {
+      {"i8", "-64_i8", true, 8u},
+      {"u8", "128_u8", false, 8u},
+      {"i16", "-16384_i16", true, 16u},
+      {"u16", "32768_u16", false, 16u},
+      {"i32", "-1073741824_i32", true, 32u},
+      {"u32", "2147483648_u32", false, 32u},
+      {"i64", "-4611686018427387904_i64", true, 64u},
+      {"u64", "9223372036854775808_u64", false, 64u},
+  };
+  typedef struct {
+    const char *name;
+    const char *member;
+    w_seed_hir0_binary_operator operation;
+  } shift_case;
+  static const shift_case SHIFTS[] = {
+      {"masked_left", "maskedShiftLeft",
+       W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT},
+      {"masked_right", "maskedShiftRight",
+       W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT},
+      {"logical_right", "logicalShiftRight",
+       W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT},
+  };
+  static char source[W_SEED_NATIVE0_MAX_SOURCE_BYTES];
+  static char invalid_source[512];
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+
+  for (size_t integer_index = 0u;
+       integer_index < sizeof(INTEGERS) / sizeof(INTEGERS[0]);
+       integer_index += 1u) {
+    const integer_case *integer = &INTEGERS[integer_index];
+    size_t source_length = 0u;
+    for (size_t shift_index = 0u;
+         shift_index < sizeof(SHIFTS) / sizeof(SHIFTS[0]); shift_index += 1u)
+      CHECK(append_test_source(
+          source, sizeof(source), &source_length,
+          "fn %s(value: %s, count: UInt): %s { return %s.%s(value, count) }\n",
+          SHIFTS[shift_index].name, integer->spelling, integer->spelling,
+          integer->spelling, SHIFTS[shift_index].member));
+    CHECK(append_test_source(source, sizeof(source), &source_length,
+                             "fn main() {\n"));
+    for (size_t shift_index = 0u;
+         shift_index < sizeof(SHIFTS) / sizeof(SHIFTS[0]); shift_index += 1u)
+      for (uint16_t boundary = 0u; boundary < 4u; boundary += 1u) {
+        const uint16_t count =
+            boundary == 0u
+                ? 0u
+                : (boundary == 1u
+                       ? (uint16_t)(integer->bit_width - 1u)
+                       : (boundary == 2u ? integer->bit_width
+                                         : (uint16_t)(integer->bit_width + 1u)));
+        CHECK(append_test_source(
+            source, sizeof(source), &source_length,
+            "let %s_%u = %s(value: %s, count: %u_u64)\n",
+            SHIFTS[shift_index].name, (unsigned)boundary,
+            SHIFTS[shift_index].name, integer->high_bit_literal,
+            (unsigned)count));
+      }
+    CHECK(append_test_source(source, sizeof(source), &source_length,
+                             "print(\""));
+    bool first_interpolation = true;
+    for (size_t shift_index = 0u;
+         shift_index < sizeof(SHIFTS) / sizeof(SHIFTS[0]); shift_index += 1u)
+      for (uint16_t boundary = 0u; boundary < 4u; boundary += 1u) {
+        const char *format =
+            first_interpolation ? "${%s_%u}" : "/${%s_%u}";
+        CHECK(append_test_source(source, sizeof(source), &source_length,
+                                 format, SHIFTS[shift_index].name,
+                                 (unsigned)boundary));
+        first_interpolation = false;
+      }
+    CHECK(append_test_source(source, sizeof(source), &source_length,
+                             "\")\n}\nentry(main)\n"));
+
+    CHECK(run_source((const uint8_t *)source, source_length,
+                     "fixed-integer-shift-policy-matrix",
+                     sizeof("fixed-integer-shift-policy-matrix") - 1u,
+                     output, sizeof(output), &result) == W_SEED_NATIVE0_OK);
+    CHECK(storage.hir_program.function_count == 4u &&
+          storage.hir_program.call_count == 13u);
+    w_seed_native_subset0_program selection;
+    CHECK(w_seed_native_subset0_select_program(
+              &storage.hir_program, &storage.hir_result, &selection) ==
+          W_SEED_NATIVE_SUBSET0_OK);
+    CHECK(selection.has_local_calls && !selection.has_cfg &&
+          selection.has_interpolation);
+
+    size_t operation_counts[sizeof(SHIFTS) / sizeof(SHIFTS[0])] = {0u};
+    uint32_t forged_shift = W_SEED_HIR0_NONE;
+    uint32_t u64_type = W_SEED_HIR0_NONE;
+    for (size_t type_index = 0u;
+         type_index < storage.hir_program.type_count; type_index += 1u) {
+      const w_seed_hir0_type *type = &storage.hir_program.types[type_index];
+      if (type->kind == W_SEED_HIR0_TYPE_U64 &&
+          !type->integer_is_signed && type->integer_bit_width == 64u)
+        u64_type = (uint32_t)type_index;
+    }
+    for (size_t value_index = 0u;
+         value_index < storage.hir_program.value_count; value_index += 1u) {
+      const w_seed_hir0_value *value = &storage.hir_program.values[value_index];
+      size_t shift_index = SIZE_MAX;
+      for (size_t candidate = 0u;
+           candidate < sizeof(SHIFTS) / sizeof(SHIFTS[0]); candidate += 1u)
+        if (value->binary_operator == SHIFTS[candidate].operation) {
+          shift_index = candidate;
+          break;
+        }
+      if (shift_index == SIZE_MAX) continue;
+      CHECK(value->type_index < storage.hir_program.type_count &&
+            storage.hir_program.types[value->type_index].integer_is_signed ==
+                integer->is_signed &&
+            storage.hir_program.types[value->type_index].integer_bit_width ==
+                integer->bit_width);
+      operation_counts[shift_index] += 1u;
+      if (shift_index == 0u && integer_index == 0u)
+        forged_shift = (uint32_t)value_index;
+    }
+    CHECK(operation_counts[0] == 1u && operation_counts[1] == 1u &&
+          operation_counts[2] == 1u &&
+          contains_bytes(output, result.mlir.written.mlir_bytes,
+                         "llvm.shl ") &&
+          contains_bytes(output, result.mlir.written.mlir_bytes,
+                         integer->is_signed ? "llvm.ashr " : "llvm.lshr ") &&
+          count_bytes(output, result.mlir.written.mlir_bytes,
+                      "llvm.func internal @w_seed_logical_shift_right_integer") ==
+              1u &&
+          count_bytes(output, result.mlir.written.mlir_bytes,
+                      "llvm.call @w_seed_logical_shift_right_integer") == 1u &&
+          contains_bytes(output, result.mlir.written.mlir_bytes,
+                         "llvm.icmp \"uge\" %count, %width : i64") &&
+          contains_bytes(output, result.mlir.written.mlir_bytes,
+                         "llvm.lshr %normalized, %count : i64"));
+    if (integer->bit_width < 64u)
+      CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
+                           "_shift_count = llvm.trunc") &&
+            contains_bytes(output, result.mlir.written.mlir_bytes,
+                           integer->bit_width == 8u
+                               ? "to i8"
+                               : (integer->bit_width == 16u ? "to i16"
+                                                            : "to i32")));
+    uint8_t mask_needle[64];
+    const int mask_length = snprintf(
+        (char *)mask_needle, sizeof(mask_needle),
+        "_shift_mask = llvm.mlir.constant(%u : i64)",
+        (unsigned)integer->bit_width - 1u);
+    CHECK(mask_length > 0 && (size_t)mask_length < sizeof(mask_needle) &&
+          contains_bytes(output, result.mlir.written.mlir_bytes,
+                         (const char *)mask_needle));
+
+    if (integer_index == 0u) {
+      CHECK(forged_shift != W_SEED_HIR0_NONE && u64_type != W_SEED_HIR0_NONE);
+      const uint32_t saved_type = storage.hir_values[forged_shift].type_index;
+      storage.hir_values[forged_shift].type_index = u64_type;
+      w_seed_native_subset0_program forged_selection;
+      (void)memset(&forged_selection, 0x5au, sizeof(forged_selection));
+      const w_seed_native_subset0_program forged_snapshot = forged_selection;
+      CHECK(w_seed_native_subset0_select_program(
+                &storage.hir_program, &storage.hir_result,
+                &forged_selection) == W_SEED_NATIVE_SUBSET0_INVALID);
+      CHECK(memcmp(&forged_selection, &forged_snapshot,
+                   sizeof(forged_selection)) == 0);
+      storage.hir_values[forged_shift].type_index = saved_type;
+      CHECK(w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
+    }
+  }
+
+  for (size_t integer_index = 0u;
+       integer_index < sizeof(INTEGERS) / sizeof(INTEGERS[0]);
+       integer_index += 1u) {
+    const integer_case *integer = &INTEGERS[integer_index];
+    for (uint16_t invalid = 0u; invalid < 2u; invalid += 1u) {
+      const unsigned count = (unsigned)integer->bit_width + invalid;
+      size_t invalid_length = 0u;
+      CHECK(append_test_source(
+          invalid_source, sizeof(invalid_source), &invalid_length,
+          "entry { let invalid = %s.logicalShiftRight(%s, %u_u64) "
+          "print(\"${invalid}\") }\n",
+          integer->spelling, integer->high_bit_literal, count));
+      (void)memset(output, 0xc7u, sizeof(output));
+      (void)memset(&result, 0xd8u, sizeof(result));
+      const w_seed_native0_result result_snapshot = result;
+      CHECK(run_source((const uint8_t *)invalid_source, invalid_length,
+                       "logical-shift-out-of-width",
+                       sizeof("logical-shift-out-of-width") - 1u,
+                       output, sizeof(output), &result) != W_SEED_NATIVE0_OK);
+      CHECK(memcmp(&result, &result_snapshot, sizeof(result)) == 0);
+      for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+        CHECK(output[byte] == 0xc7u);
+    }
   }
   return true;
 }
@@ -6300,6 +6503,7 @@ int main(void) {
       test_u64_overflowing_power_slice() &&
       test_u64_overflowing_family_slice() &&
       test_u64_wrapping_shift_left_slice() &&
+      test_fixed_integer_shift_policy_native_matrix() &&
       test_u64_masked_shift_left_slice() &&
       test_u64_masked_shift_right_slice() &&
       test_u64_logical_shift_right_slice() && test_u64_rotated_left_slice() &&

@@ -15582,6 +15582,16 @@ static bool test_integer_wrapping_hir_matrix(void) {
   reseal_hir_fixture();
   CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
 
+  /* A named shift must keep its UInt count even when a same-type forged
+   * wrapping tree would otherwise satisfy the generic binary invariants. */
+  fixture.hir_values[add_index].binary_operator =
+      W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[add_index] = saved_add;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
   const w_seed_hir0_value saved_power = fixture.hir_values[power_index];
   const uint32_t saved_power_right = saved_power.right_value;
   fixture.hir_values[saved_power_right].type_index = i8_type;
@@ -17521,6 +17531,197 @@ static bool test_fixed_integer_bit_primitives_hir_matrix(void) {
   return true;
 }
 
+static bool test_fixed_integer_shift_policies_hir_matrix(void) {
+  typedef struct {
+    const char *spelling;
+    bool is_signed;
+    uint16_t bit_width;
+  } integer_case;
+  static const integer_case INTEGERS[] = {
+      {"i8", true, 8u},   {"i16", true, 16u}, {"i32", true, 32u},
+      {"i64", true, 64u}, {"u8", false, 8u},  {"u16", false, 16u},
+      {"u32", false, 32u}, {"u64", false, 64u},
+  };
+  typedef struct {
+    const char *member;
+    w_seed_hir0_binary_operator binary_operator;
+  } shift_operation_case;
+  static const shift_operation_case OPERATIONS[] = {
+      {"maskedShiftLeft", W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT},
+      {"maskedShiftRight", W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT},
+      {"logicalShiftRight", W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT},
+  };
+  static char source[16384];
+  size_t source_bytes = 0u;
+  for (size_t integer_index = 0u;
+       integer_index < sizeof(INTEGERS) / sizeof(INTEGERS[0]);
+       integer_index += 1u) {
+    const integer_case *integer = &INTEGERS[integer_index];
+    int written = snprintf(source + source_bytes,
+                           sizeof(source) - source_bytes,
+                           "fn shifts_%u(value: %s, count: UInt) {\n",
+                           (unsigned)integer_index, integer->spelling);
+    CHECK(written > 0 && (size_t)written < sizeof(source) - source_bytes);
+    source_bytes += (size_t)written;
+    for (size_t operation_index = 0u;
+         operation_index < sizeof(OPERATIONS) / sizeof(OPERATIONS[0]);
+         operation_index += 1u) {
+      const shift_operation_case *operation = &OPERATIONS[operation_index];
+      written = snprintf(source + source_bytes,
+                         sizeof(source) - source_bytes,
+                         "let shift_%u = %s.%s(value, count)\n",
+                         (unsigned)operation_index, integer->spelling,
+                         operation->member);
+      CHECK(written > 0 && (size_t)written < sizeof(source) - source_bytes);
+      source_bytes += (size_t)written;
+    }
+    written = snprintf(source + source_bytes, sizeof(source) - source_bytes,
+                       "}\n");
+    CHECK(written > 0 && (size_t)written < sizeof(source) - source_bytes);
+    source_bytes += (size_t)written;
+  }
+  static const char ENTRY[] = "entry { }\n";
+  CHECK(sizeof(ENTRY) - 1u < sizeof(source) - source_bytes);
+  (void)memcpy(source + source_bytes, ENTRY, sizeof(ENTRY));
+  CHECK(lower(source));
+  CHECK(fixture.hir_program.call_count == 0u);
+
+  size_t operation_type_counts[sizeof(OPERATIONS) / sizeof(OPERATIONS[0])][8] = {
+      {0u}};
+  size_t operation_counts[sizeof(OPERATIONS) / sizeof(OPERATIONS[0])] = {0u};
+  size_t forged_shift_index = SIZE_MAX;
+  uint32_t signed_i8_type = W_SEED_HIR0_NONE;
+  uint32_t signed_i16_type = W_SEED_HIR0_NONE;
+  uint32_t unsigned_i8_type = W_SEED_HIR0_NONE;
+  for (size_t type_index = 0u;
+       type_index < fixture.hir_program.type_count; type_index += 1u) {
+    const w_seed_hir0_type *type = &fixture.hir_program.types[type_index];
+    if (type->integer_bit_width == 8u && type->integer_is_signed)
+      signed_i8_type = (uint32_t)type_index;
+    if (type->integer_bit_width == 16u && type->integer_is_signed)
+      signed_i16_type = (uint32_t)type_index;
+    if (type->integer_bit_width == 8u && !type->integer_is_signed)
+      unsigned_i8_type = (uint32_t)type_index;
+  }
+  CHECK(signed_i8_type != W_SEED_HIR0_NONE &&
+        signed_i16_type != W_SEED_HIR0_NONE &&
+        unsigned_i8_type != W_SEED_HIR0_NONE);
+
+  for (size_t value_index = 0u;
+       value_index < fixture.hir_program.value_count; value_index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_program.values[value_index];
+    if (value->kind != W_SEED_HIR0_VALUE_BINARY_I64 &&
+        value->kind != W_SEED_HIR0_VALUE_BINARY_U64)
+      continue;
+    size_t operation_index = SIZE_MAX;
+    for (size_t candidate = 0u;
+         candidate < sizeof(OPERATIONS) / sizeof(OPERATIONS[0]);
+         candidate += 1u)
+      if (value->binary_operator == OPERATIONS[candidate].binary_operator) {
+        operation_index = candidate;
+        break;
+      }
+    if (operation_index == SIZE_MAX) continue;
+    CHECK(value->type_index < fixture.hir_program.type_count &&
+          value->left_value < fixture.hir_program.value_count &&
+          value->right_value < fixture.hir_program.value_count &&
+          fixture.hir_program.values[value->left_value].type_index ==
+              value->type_index);
+    const w_seed_hir0_type *type =
+        &fixture.hir_program.types[value->type_index];
+    CHECK((type->integer_bit_width == 8u ||
+           type->integer_bit_width == 16u ||
+           type->integer_bit_width == 32u ||
+           type->integer_bit_width == 64u) &&
+          type->integer_is_signed ==
+              (value->kind == W_SEED_HIR0_VALUE_BINARY_I64));
+    const w_seed_hir0_type_kind expected_kind =
+        type->integer_bit_width == 64u
+            ? (type->integer_is_signed ? W_SEED_HIR0_TYPE_I64
+                                       : W_SEED_HIR0_TYPE_U64)
+            : W_SEED_HIR0_TYPE_INTEGER;
+    CHECK(type->kind == expected_kind);
+    const w_seed_hir0_value *count_value =
+        &fixture.hir_program.values[value->right_value];
+    CHECK(count_value->type_index < fixture.hir_program.type_count &&
+          fixture.hir_program.types[count_value->type_index].kind ==
+              W_SEED_HIR0_TYPE_U64 &&
+          !fixture.hir_program.types[count_value->type_index]
+               .integer_is_signed &&
+          fixture.hir_program.types[count_value->type_index]
+                  .integer_bit_width == 64u);
+    const size_t width_slot =
+        type->integer_bit_width == 8u
+            ? 0u
+            : type->integer_bit_width == 16u
+                  ? 1u
+                  : type->integer_bit_width == 32u ? 2u : 3u;
+    const size_t integer_slot =
+        (type->integer_is_signed ? 0u : 4u) + width_slot;
+    operation_type_counts[operation_index][integer_slot] += 1u;
+    operation_counts[operation_index] += 1u;
+    if (operation_index == 0u && value->type_index == signed_i8_type)
+      forged_shift_index = value_index;
+  }
+  for (size_t operation_index = 0u;
+       operation_index < sizeof(OPERATIONS) / sizeof(OPERATIONS[0]);
+       operation_index += 1u) {
+    CHECK(operation_counts[operation_index] ==
+          sizeof(INTEGERS) / sizeof(INTEGERS[0]));
+    for (size_t integer_index = 0u;
+         integer_index < sizeof(INTEGERS) / sizeof(INTEGERS[0]);
+         integer_index += 1u)
+      CHECK(operation_type_counts[operation_index][integer_index] == 1u);
+  }
+  CHECK(forged_shift_index != SIZE_MAX &&
+        w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  const w_seed_hir0_value saved_shift =
+      fixture.hir_values[forged_shift_index];
+  fixture.hir_values[forged_shift_index].type_index = signed_i16_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[forged_shift_index] = saved_shift;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  const uint32_t left_value = saved_shift.left_value;
+  const w_seed_hir0_value saved_left = fixture.hir_values[left_value];
+  fixture.hir_values[left_value].type_index = unsigned_i8_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[left_value] = saved_left;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  fixture.hir_values[forged_shift_index].type_index = unsigned_i8_type;
+  fixture.hir_values[left_value].type_index = unsigned_i8_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[forged_shift_index] = saved_shift;
+  fixture.hir_values[left_value] = saved_left;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  const uint32_t count_value = saved_shift.right_value;
+  const w_seed_hir0_value saved_count = fixture.hir_values[count_value];
+  fixture.hir_values[count_value].type_index = signed_i8_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[count_value] = saved_count;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  fixture.hir_values[forged_shift_index].binary_operator =
+      W_SEED_HIR0_BINARY_ADD;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[forged_shift_index] = saved_shift;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_canonical_f64_scalar(void) {
   static const char SOURCE[] =
       "entry { let sum = 1.5 + 2.25_f64 let difference = 9.5 - 5.5 "
@@ -18616,6 +18817,7 @@ int main(int argc, char **argv) {
   if (!test_u64_reversed_bits()) return 1;
   if (!test_u64_reversed_bytes()) return 1;
   if (!test_fixed_integer_bit_primitives_hir_matrix()) return 1;
+  if (!test_fixed_integer_shift_policies_hir_matrix()) return 1;
   if (!test_canonical_f64_scalar()) return 1;
   if (!test_canonical_f32_scalar()) return 1;
   if (!test_frontend_tree_bounds_forgery()) return 1;

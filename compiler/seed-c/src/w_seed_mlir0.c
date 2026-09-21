@@ -705,41 +705,24 @@ static const char MLIR0_GENERIC_WRAPPING_SHIFT_LEFT_HELPER[] =
     "    llvm.return %value : i64\n"
     "  }\n";
 
-/* Canonical u64.maskedShiftLeft reduces the dynamic count modulo the fixed
- * 64-bit width before the LLVM shift. The helper has no fault edge, so every
- * raw count is masked before it can reach llvm.shl. */
-static const char MLIR0_MASKED_SHIFT_LEFT_HELPER[] =
-    "  llvm.func internal @w_seed_masked_shift_left_u64(%left: i64, %count: i64) -> i64 {\n"
-    "    %mask = llvm.mlir.constant(63 : i64) : i64\n"
-    "    %masked_count = llvm.and %count, %mask : i64\n"
-    "    %value = llvm.shl %left, %masked_count : i64\n"
-    "    llvm.return %value : i64\n"
-    "  }\n";
-
-/* Canonical u64.maskedShiftRight reduces the dynamic count modulo the fixed
- * 64-bit width before the LLVM logical shift. The helper has no fault edge, so
- * every raw count is masked before it can reach llvm.lshr. */
-static const char MLIR0_MASKED_SHIFT_RIGHT_HELPER[] =
-    "  llvm.func internal @w_seed_masked_shift_right_u64(%left: i64, %count: i64) -> i64 {\n"
-    "    %mask = llvm.mlir.constant(63 : i64) : i64\n"
-    "    %masked_count = llvm.and %count, %mask : i64\n"
-    "    %value = llvm.lshr %left, %masked_count : i64\n"
-    "    llvm.return %value : i64\n"
-    "  }\n";
-
-/* Canonical u64.logicalShiftRight makes zero fill explicit and preserves the
- * ordinary W shift count contract. Guard the dynamic count before llvm.lshr
- * so count >= 64 traps instead of producing LLVM poison. */
-static const char MLIR0_LOGICAL_SHIFT_RIGHT_HELPER[] =
-    "  llvm.func internal @w_seed_logical_shift_right_u64(%left: i64, %count: i64) -> i64 {\n"
-    "    %width = llvm.mlir.constant(64 : i64) : i64\n"
+/* logicalShiftRight rejects invalid counts before llvm.lshr. Its width and
+ * mask are explicit because the physical HIR carrier stays i64; signed
+ * results are re-normalized to their logical width after zero-fill. */
+static const char MLIR0_LOGICAL_SHIFT_RIGHT_INTEGER_HELPER[] =
+    "  llvm.func internal @w_seed_logical_shift_right_integer(%left: i64, %count: i64, %width: i64, %mask: i64, %is_signed: i1) -> i64 {\n"
     "    %invalid = llvm.icmp \"uge\" %count, %width : i64\n"
     "    llvm.cond_br %invalid, ^logical_shift_right_fault, ^logical_shift_right_apply\n"
     "  ^logical_shift_right_fault:\n"
     "    \"llvm.intr.trap\"() : () -> ()\n"
     "    llvm.unreachable\n"
     "  ^logical_shift_right_apply:\n"
-    "    %value = llvm.lshr %left, %count : i64\n"
+    "    %normalized = llvm.and %left, %mask : i64\n"
+    "    %logical_value = llvm.lshr %normalized, %count : i64\n"
+    "    %sixty_four = llvm.mlir.constant(64 : i64) : i64\n"
+    "    %offset = llvm.sub %sixty_four, %width : i64\n"
+    "    %signed_bits = llvm.shl %logical_value, %offset : i64\n"
+    "    %signed_value = llvm.ashr %signed_bits, %offset : i64\n"
+    "    %value = llvm.select %is_signed, %signed_value, %logical_value : i1, i64\n"
     "    llvm.return %value : i64\n"
     "  }\n";
 
@@ -1154,8 +1137,6 @@ typedef struct {
   bool has_wrapping_shift_left;
   bool has_generic_wrapping_power;
   bool has_generic_wrapping_shift_left;
-  bool has_masked_shift_left;
-  bool has_masked_shift_right;
   bool has_logical_shift_right;
   bool reachable_values[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
 } mlir0_dynamic_plan;
@@ -1189,12 +1170,6 @@ static bool reachable_values_have_generic_wrapping_power(
     const w_seed_hir0_program *program,
     const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES]);
 static bool reachable_values_have_generic_wrapping_shift_left(
-    const w_seed_hir0_program *program,
-    const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES]);
-static bool reachable_values_have_masked_shift_left(
-    const w_seed_hir0_program *program,
-    const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES]);
-static bool reachable_values_have_masked_shift_right(
     const w_seed_hir0_program *program,
     const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES]);
 static bool reachable_values_have_logical_shift_right(
@@ -1339,6 +1314,13 @@ static bool mlir0_is_rotation_binary(
          operation == W_SEED_HIR0_BINARY_ROTATED_RIGHT;
 }
 
+static bool mlir0_is_masked_shift_binary(
+    w_seed_hir0_binary_operator operation) {
+  return operation == W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT ||
+         operation == W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT ||
+         operation == W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT;
+}
+
 /* Recheck the fixed-width primitive signature at the MLIR boundary. The
  * existing HIR identities cover every signedness/width pair; counts return
  * UInt and reversal returns the same exact logical integer type. */
@@ -1413,6 +1395,47 @@ static bool mlir0_rotation_binary_shape_valid(
   bool count_signed = false;
   uint16_t count_width = 0u;
   const bool expected_signed = value->kind == W_SEED_HIR0_VALUE_BINARY_I64;
+  if (!mlir0_integer_type_facts(program, value->type_index, &output_signed,
+                                &output_width) ||
+      output_signed != expected_signed ||
+      !mlir0_integer_type_facts(
+          program, program->values[value->left_value].type_index,
+          &operand_signed, &operand_width) ||
+      !mlir0_integer_type_facts(
+          program, program->values[value->right_value].type_index,
+          &count_signed, &count_width) ||
+      value->type_index != program->values[value->left_value].type_index ||
+      output_signed != operand_signed || output_width != operand_width ||
+      program->types[program->values[value->right_value].type_index].kind !=
+          W_SEED_HIR0_TYPE_U64 ||
+      count_signed || count_width != 64u)
+    return false;
+
+  if (result_signed != NULL) *result_signed = output_signed;
+  if (result_width != NULL) *result_width = output_width;
+  return true;
+}
+
+static bool mlir0_masked_shift_binary_shape_valid(
+    const w_seed_hir0_program *program, const w_seed_hir0_value *value,
+    bool *result_signed, uint16_t *result_width) {
+  if (program == NULL || value == NULL ||
+      !mlir0_is_masked_shift_binary(value->binary_operator) ||
+      (value->kind != W_SEED_HIR0_VALUE_BINARY_I64 &&
+       value->kind != W_SEED_HIR0_VALUE_BINARY_U64) ||
+      value->left_value == W_SEED_HIR0_NONE ||
+      value->right_value == W_SEED_HIR0_NONE ||
+      value->left_value >= program->value_count ||
+      value->right_value >= program->value_count)
+    return false;
+
+  const bool expected_signed = value->kind == W_SEED_HIR0_VALUE_BINARY_I64;
+  bool output_signed = false;
+  uint16_t output_width = 0u;
+  bool operand_signed = false;
+  uint16_t operand_width = 0u;
+  bool count_signed = false;
+  uint16_t count_width = 0u;
   if (!mlir0_integer_type_facts(program, value->type_index, &output_signed,
                                 &output_width) ||
       output_signed != expected_signed ||
@@ -1853,40 +1876,6 @@ static bool reachable_values_have_generic_wrapping_shift_left(
   return false;
 }
 
-static bool reachable_values_have_masked_shift_left(
-    const w_seed_hir0_program *program,
-    const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES]) {
-  if (program == NULL || reachable == NULL ||
-      program->value_count > W_SEED_NATIVE_SUBSET0_MAX_VALUES)
-    return false;
-  for (size_t value_index = 0u; value_index < program->value_count;
-       value_index += 1u) {
-    const w_seed_hir0_value *value = &program->values[value_index];
-    if (reachable[value_index] &&
-        value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
-        value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT)
-      return true;
-  }
-  return false;
-}
-
-static bool reachable_values_have_masked_shift_right(
-    const w_seed_hir0_program *program,
-    const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES]) {
-  if (program == NULL || reachable == NULL ||
-      program->value_count > W_SEED_NATIVE_SUBSET0_MAX_VALUES)
-    return false;
-  for (size_t value_index = 0u; value_index < program->value_count;
-       value_index += 1u) {
-    const w_seed_hir0_value *value = &program->values[value_index];
-    if (reachable[value_index] &&
-        value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
-        value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT)
-      return true;
-  }
-  return false;
-}
-
 static bool reachable_values_have_logical_shift_right(
     const w_seed_hir0_program *program,
     const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES]) {
@@ -1897,8 +1886,8 @@ static bool reachable_values_have_logical_shift_right(
        value_index += 1u) {
     const w_seed_hir0_value *value = &program->values[value_index];
     if (reachable[value_index] &&
-        value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
-        value->binary_operator == W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT)
+        value->binary_operator == W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT &&
+        mlir0_masked_shift_binary_shape_valid(program, value, NULL, NULL))
       return true;
   }
   return false;
@@ -1981,37 +1970,12 @@ static const char *wrapping_shift_left_helper(
   return "@w_seed_wrapping_shift_left_u64";
 }
 
-static const char *masked_shift_left_helper(
-    const w_seed_hir0_program *program, const w_seed_hir0_value *value) {
-  if (program == NULL || value == NULL ||
-      value->type_index >= program->type_count ||
-      value->kind != W_SEED_HIR0_VALUE_BINARY_U64 ||
-      value->binary_operator != W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT ||
-      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64)
-    return NULL;
-  return "@w_seed_masked_shift_left_u64";
-}
-
-static const char *masked_shift_right_helper(
-    const w_seed_hir0_program *program, const w_seed_hir0_value *value) {
-  if (program == NULL || value == NULL ||
-      value->type_index >= program->type_count ||
-      value->kind != W_SEED_HIR0_VALUE_BINARY_U64 ||
-      value->binary_operator != W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT ||
-      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64)
-    return NULL;
-  return "@w_seed_masked_shift_right_u64";
-}
-
 static const char *logical_shift_right_helper(
     const w_seed_hir0_program *program, const w_seed_hir0_value *value) {
-  if (program == NULL || value == NULL ||
-      value->type_index >= program->type_count ||
-      value->kind != W_SEED_HIR0_VALUE_BINARY_U64 ||
-      value->binary_operator != W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT ||
-      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_U64)
+  if (!mlir0_masked_shift_binary_shape_valid(program, value, NULL, NULL) ||
+      value->binary_operator != W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT)
     return NULL;
-  return "@w_seed_logical_shift_right_u64";
+  return "@w_seed_logical_shift_right_integer";
 }
 
 static bool build_dynamic_plan(
@@ -2160,12 +2124,6 @@ static bool build_dynamic_plan(
   candidate.has_generic_wrapping_shift_left =
       reachable_values_have_generic_wrapping_shift_left(
           program, candidate.reachable_values);
-  candidate.has_masked_shift_left =
-      reachable_values_have_masked_shift_left(program,
-                                               candidate.reachable_values);
-  candidate.has_masked_shift_right =
-      reachable_values_have_masked_shift_right(program,
-                                                candidate.reachable_values);
   candidate.has_logical_shift_right =
       reachable_values_have_logical_shift_right(program,
                                                  candidate.reachable_values);
@@ -3577,11 +3535,172 @@ static bool append_integer_rotation_binary_operation_in_loop(
          append_literal(artifact, capacity, offset, " to i64\n");
 }
 
+/* The HIR carrier remains i64, but masked shifts operate on the selected
+ * fixed-width integer. Truncate both operands to iN, normalize the count
+ * modulo the logical width, and extend the result back to the carrier. The
+ * non-masked logical right-shift has a separate guard helper because its
+ * count contract rejects values at or beyond the logical width. */
+static bool append_integer_masked_shift_operation_in_loop(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop, uint8_t *artifact,
+    size_t capacity, size_t *offset) {
+  if (program == NULL || artifact == NULL || offset == NULL ||
+      value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  bool is_signed = false;
+  uint16_t bit_width = 0u;
+  if (!mlir0_masked_shift_binary_shape_valid(program, value, &is_signed,
+                                              &bit_width))
+    return false;
+
+  if (value->binary_operator == W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT) {
+    const char *helper = logical_shift_right_helper(program, value);
+    if (helper == NULL ||
+        !append_literal(artifact, capacity, offset, "    %v" ) ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_logical_width = llvm.mlir.constant(") ||
+        !append_u64(artifact, capacity, offset, bit_width) ||
+        !append_literal(artifact, capacity, offset,
+                        " : i64) : i64\n    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_logical_mask = llvm.mlir.constant(") ||
+        !append_i64_carrier_bits(artifact, capacity, offset,
+                                 mlir0_integer_width_mask(bit_width)) ||
+        !append_literal(artifact, capacity, offset,
+                        " : i64) : i64\n    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        is_signed
+                            ? "_logical_signed = llvm.mlir.constant(true) : i1\n"
+                            : "_logical_signed = llvm.mlir.constant(false) : i1\n") ||
+        !append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset, " = llvm.call ") ||
+        !append_literal(artifact, capacity, offset, helper) ||
+        !append_literal(artifact, capacity, offset, "(") ||
+        !append_program_value_operand_in_loop(
+            program, value->left_value, function_index, process, loop,
+            artifact, capacity, offset) ||
+        !append_literal(artifact, capacity, offset, ", ") ||
+        !append_program_value_operand_in_loop(
+            program, value->right_value, function_index, process, loop,
+            artifact, capacity, offset) ||
+        !append_literal(artifact, capacity, offset, ", %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset, "_logical_width, %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_logical_mask, %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_logical_signed) : (i64, i64, i64, i64, i1) -> i64\n"))
+      return false;
+    return true;
+  }
+
+  const char *operation = NULL;
+  if (value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT)
+    operation = "shl";
+  else if (value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT)
+    operation = is_signed ? "ashr" : "lshr";
+  if (operation == NULL ||
+      !append_literal(artifact, capacity, offset, "    %v") ||
+      !append_size(artifact, capacity, offset, value_index) ||
+      !append_literal(artifact, capacity, offset,
+                      "_shift_mask = llvm.mlir.constant(") ||
+      !append_u64(artifact, capacity, offset, (uint64_t)bit_width - 1u) ||
+      !append_literal(artifact, capacity, offset, " : i64) : i64\n") ||
+      !append_literal(artifact, capacity, offset, "    %v") ||
+      !append_size(artifact, capacity, offset, value_index) ||
+      !append_literal(artifact, capacity, offset, "_shift_count_mod = llvm.and ") ||
+      !append_program_value_operand_in_loop(
+          program, value->right_value, function_index, process, loop, artifact,
+          capacity, offset) ||
+      !append_literal(artifact, capacity, offset, ", %v") ||
+      !append_size(artifact, capacity, offset, value_index) ||
+      !append_literal(artifact, capacity, offset, "_shift_mask : i64\n"))
+    return false;
+
+  const bool narrow = bit_width < 64u;
+  if (narrow &&
+      (!append_literal(artifact, capacity, offset, "    %v") ||
+       !append_size(artifact, capacity, offset, value_index) ||
+       !append_literal(artifact, capacity, offset,
+                       "_shift_input = llvm.trunc ") ||
+       !append_program_value_operand_in_loop(
+           program, value->left_value, function_index, process, loop, artifact,
+           capacity, offset) ||
+       !append_literal(artifact, capacity, offset, " : i64 to i") ||
+       !append_u64(artifact, capacity, offset, bit_width) ||
+       !append_literal(artifact, capacity, offset, "\n    %v") ||
+       !append_size(artifact, capacity, offset, value_index) ||
+       !append_literal(artifact, capacity, offset,
+                       "_shift_count = llvm.trunc %v") ||
+       !append_size(artifact, capacity, offset, value_index) ||
+       !append_literal(artifact, capacity, offset,
+                       "_shift_count_mod : i64 to i") ||
+       !append_u64(artifact, capacity, offset, bit_width) ||
+       !append_literal(artifact, capacity, offset, "\n")))
+    return false;
+
+  const char *input = narrow ? "_shift_input" : "";
+  const char *count = narrow ? "_shift_count" : "_shift_count_mod";
+  const char *raw = narrow ? "_shift_raw" : "";
+  if (!append_literal(artifact, capacity, offset, "    %v") ||
+      !append_size(artifact, capacity, offset, value_index) ||
+      !append_literal(artifact, capacity, offset, raw) ||
+      !append_literal(artifact, capacity, offset, " = llvm.") ||
+      !append_literal(artifact, capacity, offset, operation) ||
+      !append_literal(artifact, capacity, offset, " "))
+    return false;
+  if (narrow) {
+    if (!append_literal(artifact, capacity, offset, "%v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset, input))
+      return false;
+  } else if (!append_program_value_operand_in_loop(
+                 program, value->left_value, function_index, process, loop,
+                 artifact, capacity, offset)) {
+    return false;
+  }
+  if (!append_literal(artifact, capacity, offset, ", %v") ||
+      !append_size(artifact, capacity, offset, value_index) ||
+      !append_literal(artifact, capacity, offset, count) ||
+      !append_literal(artifact, capacity, offset, " : i") ||
+      !append_u64(artifact, capacity, offset, bit_width) ||
+      !append_literal(artifact, capacity, offset, "\n"))
+    return false;
+  if (!narrow)
+    return true;
+  return append_literal(artifact, capacity, offset, "    %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, " = llvm.") &&
+         append_literal(artifact, capacity, offset,
+                        is_signed ? "sext %v" : "zext %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset,
+                        "_shift_raw : i") &&
+         append_u64(artifact, capacity, offset, bit_width) &&
+         append_literal(artifact, capacity, offset, " to i64\n");
+}
+
 static bool append_binary_value_operation_in_loop(
     const w_seed_hir0_program *program, uint32_t value_index,
     uint32_t function_index, const mlir0_process_emit_context *process,
     const mlir0_natural_loop_result_context *loop, uint8_t *artifact,
     size_t capacity, size_t *offset) {
+  if (program != NULL && value_index < program->value_count &&
+      (program->values[value_index].kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
+       program->values[value_index].kind == W_SEED_HIR0_VALUE_BINARY_U64) &&
+      mlir0_is_masked_shift_binary(
+          program->values[value_index].binary_operator))
+    return append_integer_masked_shift_operation_in_loop(
+        program, value_index, function_index, process, loop, artifact,
+        capacity, offset);
   if (program != NULL && value_index < program->value_count &&
       (program->values[value_index].kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
        program->values[value_index].kind == W_SEED_HIR0_VALUE_BINARY_U64) &&
@@ -3695,6 +3814,13 @@ static bool append_binary_u64_value_operation(
     uint8_t *artifact, size_t capacity, size_t *offset) {
   if (program != NULL && value_index < program->value_count &&
       program->values[value_index].kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
+      mlir0_is_masked_shift_binary(
+          program->values[value_index].binary_operator))
+    return append_integer_masked_shift_operation_in_loop(
+        program, value_index, function_index, process, NULL, artifact,
+        capacity, offset);
+  if (program != NULL && value_index < program->value_count &&
+      program->values[value_index].kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
       mlir0_is_rotation_binary(
           program->values[value_index].binary_operator))
     return append_integer_rotation_binary_operation_in_loop(
@@ -3750,12 +3876,6 @@ static bool append_binary_u64_value_operation(
   const bool power = value->binary_operator == W_SEED_HIR0_BINARY_POWER;
   const bool wrapping_shift_left =
       value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT;
-  const bool masked_shift_left =
-      value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT;
-  const bool masked_shift_right =
-      value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT;
-  const bool logical_shift_right =
-      value->binary_operator == W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT;
   const bool safe_constant_divisor =
       mlir0_value_has_safe_constant_divisor(program, value);
   const char *helper = NULL;
@@ -3767,12 +3887,6 @@ static bool append_binary_u64_value_operation(
     helper = wrapping_power_helper(program, value);
   else if (wrapping_shift_left)
     helper = wrapping_shift_left_helper(program, value);
-  else if (masked_shift_left)
-    helper = masked_shift_left_helper(program, value);
-  else if (masked_shift_right)
-    helper = masked_shift_right_helper(program, value);
-  else if (logical_shift_right)
-    helper = logical_shift_right_helper(program, value);
   else if (shift)
     helper = checked_shift_helper(program, value);
   else if (power)
@@ -5231,15 +5345,9 @@ static bool build_dynamic_artifact(
       (plan.has_generic_wrapping_shift_left &&
        !append_literal(artifact, capacity, &offset,
                        MLIR0_GENERIC_WRAPPING_SHIFT_LEFT_HELPER)) ||
-      (plan.has_masked_shift_left &&
-       !append_literal(artifact, capacity, &offset,
-                       MLIR0_MASKED_SHIFT_LEFT_HELPER)) ||
-      (plan.has_masked_shift_right &&
-       !append_literal(artifact, capacity, &offset,
-                       MLIR0_MASKED_SHIFT_RIGHT_HELPER)) ||
       (plan.has_logical_shift_right &&
        !append_literal(artifact, capacity, &offset,
-                       MLIR0_LOGICAL_SHIFT_RIGHT_HELPER)) ||
+                       MLIR0_LOGICAL_SHIFT_RIGHT_INTEGER_HELPER)) ||
       (plan.has_u64 &&
        !append_literal(artifact, capacity, &offset, MLIR0_U64_HELPER)) ||
       (plan.has_bool &&
@@ -5358,8 +5466,6 @@ typedef struct {
   bool has_wrapping_shift_left;
   bool has_generic_wrapping_power;
   bool has_generic_wrapping_shift_left;
-  bool has_masked_shift_left;
-  bool has_masked_shift_right;
   bool has_logical_shift_right;
   bool has_reachable_panic;
   bool reachable_values[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
@@ -5870,12 +5976,6 @@ static bool build_program_plan(const w_seed_hir0_program *program,
   candidate.has_generic_wrapping_shift_left =
       reachable_values_have_generic_wrapping_shift_left(
           program, candidate.reachable_values);
-  candidate.has_masked_shift_left =
-      reachable_values_have_masked_shift_left(program,
-                                               candidate.reachable_values);
-  candidate.has_masked_shift_right =
-      reachable_values_have_masked_shift_right(program,
-                                                candidate.reachable_values);
   candidate.has_logical_shift_right =
       reachable_values_have_logical_shift_right(program,
                                                  candidate.reachable_values);
@@ -9218,15 +9318,9 @@ static bool build_program_artifact(
       (plan.has_generic_wrapping_shift_left &&
        !append_literal(artifact, capacity, &offset,
                        MLIR0_GENERIC_WRAPPING_SHIFT_LEFT_HELPER)) ||
-      (plan.has_masked_shift_left &&
-       !append_literal(artifact, capacity, &offset,
-                       MLIR0_MASKED_SHIFT_LEFT_HELPER)) ||
-      (plan.has_masked_shift_right &&
-       !append_literal(artifact, capacity, &offset,
-                       MLIR0_MASKED_SHIFT_RIGHT_HELPER)) ||
       (plan.has_logical_shift_right &&
        !append_literal(artifact, capacity, &offset,
-                       MLIR0_LOGICAL_SHIFT_RIGHT_HELPER)) ||
+                       MLIR0_LOGICAL_SHIFT_RIGHT_INTEGER_HELPER)) ||
       (plan.has_u64 &&
        !append_literal(artifact, capacity, &offset, MLIR0_U64_HELPER)) ||
       (plan.has_bool &&
@@ -9736,15 +9830,9 @@ static bool build_process_executable_artifact(
       (plan.has_wrapping_shift_left &&
        !append_literal(artifact, capacity, &offset,
                        MLIR0_WRAPPING_SHIFT_LEFT_HELPER)) ||
-      (plan.has_masked_shift_left &&
-       !append_literal(artifact, capacity, &offset,
-                       MLIR0_MASKED_SHIFT_LEFT_HELPER)) ||
-      (plan.has_masked_shift_right &&
-       !append_literal(artifact, capacity, &offset,
-                       MLIR0_MASKED_SHIFT_RIGHT_HELPER)) ||
       (plan.has_logical_shift_right &&
        !append_literal(artifact, capacity, &offset,
-                       MLIR0_LOGICAL_SHIFT_RIGHT_HELPER)) ||
+                       MLIR0_LOGICAL_SHIFT_RIGHT_INTEGER_HELPER)) ||
       (plan.has_u64 &&
        !append_literal(artifact, capacity, &offset, MLIR0_U64_HELPER)) ||
        (plan.has_bool &&

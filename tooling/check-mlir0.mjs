@@ -65,12 +65,6 @@ const restaurantUIntOverflowingFamilyFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-overflowing-family.w")
 const restaurantUIntWrappingShiftLeftFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-wrapping-shift-left.w")
-const restaurantUIntMaskedShiftLeftFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-masked-shift-left.w")
-const restaurantUIntMaskedShiftRightFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-masked-shift-right.w")
-const restaurantUIntLogicalShiftRightFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-logical-shift-right.w")
 const restaurantUIntRotatedLeftFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-rotated-left.w")
 const restaurantUIntRotatedRightFixture = resolve(seedDirectory,
@@ -89,6 +83,8 @@ const restaurantUIntReversedBytesFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-reversed-bytes.w")
 const fixedIntegerBitPrimitivesFixture = resolve(seedDirectory,
   "fixtures", "fixed-integer-bit-primitives.w")
+const fixedIntegerShiftPoliciesFixture = resolve(seedDirectory,
+  "fixtures", "fixed-integer-shift-policies.w")
 const fixedIntegerBitPrimitivesOutput = Buffer.from(
   "i8 3/5/1/1 74/127 82 -92/41\n" +
   "u8 4/4/0/1 105 150 45/75\n" +
@@ -99,6 +95,16 @@ const fixedIntegerBitPrimitivesOutput = Buffer.from(
   "i64 30/34/7/1 8553414939923104896/9223372036854775807 7984226321029210881 163971058432973532/40992764608243383\n" +
   "u64 32/32/0/4 597899502893742975 1167088121787636990 18282773015276577825/9182379272246532360\n",
   "utf8")
+const fixedIntegerShiftPoliciesOutput = Buffer.from(
+  "i8 -128/0/-64/64\n" +
+  "u8 128/0/64/64\n" +
+  "i16 -32768/0/-16384/16384\n" +
+  "u16 32768/0/16384/16384\n" +
+  "i32 -2147483648/0/-1073741824/1073741824\n" +
+  "u32 2147483648/0/1073741824/1073741824\n" +
+  "i64 -9223372036854775808/0/-4611686018427387904/4611686018427387904\n" +
+  "u64 9223372036854775808/0/4611686018427387904/4611686018427387904\n" +
+  "u64 small-value 2/64/64\n", "utf8")
 const restaurantUIntSaturatingAddFixture = resolve(seedDirectory,
   "fixtures", "restaurant-uint-saturating-add.w")
 const restaurantUIntSaturatingSubtractFixture = resolve(seedDirectory,
@@ -871,15 +877,6 @@ try {
     { name: "restaurant-uint-wrapping-shift-left",
       source: restaurantUIntWrappingShiftLeftFixture,
       expected: Buffer.from("Wrapped 18446744073709551614\n", "utf8") },
-    { name: "restaurant-uint-masked-shift-left",
-      source: restaurantUIntMaskedShiftLeftFixture,
-      expected: Buffer.from("Masked 2\n", "utf8") },
-    { name: "restaurant-uint-masked-shift-right",
-      source: restaurantUIntMaskedShiftRightFixture,
-      expected: Buffer.from("Masked 64\n", "utf8") },
-    { name: "restaurant-uint-logical-shift-right",
-      source: restaurantUIntLogicalShiftRightFixture,
-      expected: Buffer.from("Logical 64\n", "utf8") },
     { name: "restaurant-uint-rotated-left",
       source: restaurantUIntRotatedLeftFixture,
       expected: Buffer.from("Rotated 3\n", "utf8") },
@@ -907,6 +904,9 @@ try {
     { name: "fixed-integer-bit-primitives",
       source: fixedIntegerBitPrimitivesFixture,
       expected: fixedIntegerBitPrimitivesOutput },
+    { name: "fixed-integer-shift-policies",
+      source: fixedIntegerShiftPoliciesFixture,
+      expected: fixedIntegerShiftPoliciesOutput },
     { name: "restaurant-uint-saturating-add",
       source: restaurantUIntSaturatingAddFixture,
       expected: Buffer.from("Saturated 18446744073709551615/11\n", "utf8") },
@@ -1355,44 +1355,34 @@ try {
     !uintWrappingShiftLeftArtifact.includes("@w_seed_checked_shift_left") &&
     !uintWrappingShiftLeftArtifact.includes("llvm.intr.ushl.with.overflow"),
   "u64.wrappingShiftLeft lost its count guard or gained checked-shift semantics")
-  const uintMaskedShiftLeftArtifact =
-    artifacts.get("restaurant-uint-masked-shift-left").toString("utf8")
-  assert((uintMaskedShiftLeftArtifact.match(
-    /llvm\.func internal @w_seed_masked_shift_left_u64/g) ?? []).length === 1 &&
-    uintMaskedShiftLeftArtifact.includes(
-      "llvm.call @w_seed_masked_shift_left_u64") &&
-    uintMaskedShiftLeftArtifact.includes("llvm.and %count, %mask : i64") &&
-    uintMaskedShiftLeftArtifact.includes("llvm.shl %left, %masked_count : i64") &&
-    uintMaskedShiftLeftArtifact.includes("llvm.call @w_seed_append_u64") &&
-    !uintMaskedShiftLeftArtifact.includes("@w_seed_checked_shift_left") &&
-    !uintMaskedShiftLeftArtifact.includes("llvm.intr.ushl.with.overflow"),
-  "u64.maskedShiftLeft lost count masking or gained checked-shift semantics")
-  const uintMaskedShiftRightArtifact =
-    artifacts.get("restaurant-uint-masked-shift-right").toString("utf8")
-  assert((uintMaskedShiftRightArtifact.match(
-    /llvm\.func internal @w_seed_masked_shift_right_u64/g) ?? []).length === 1 &&
-    uintMaskedShiftRightArtifact.includes(
-      "llvm.call @w_seed_masked_shift_right_u64") &&
-    uintMaskedShiftRightArtifact.includes("llvm.and %count, %mask : i64") &&
-    uintMaskedShiftRightArtifact.includes("llvm.lshr %left, %masked_count : i64") &&
-    uintMaskedShiftRightArtifact.includes("llvm.call @w_seed_append_u64") &&
-    !uintMaskedShiftRightArtifact.includes("@w_seed_checked_shift_right"),
-  "u64.maskedShiftRight lost count masking or unsigned logical shift semantics")
-  const uintLogicalShiftRightArtifact =
-    artifacts.get("restaurant-uint-logical-shift-right").toString("utf8")
-  assert((uintLogicalShiftRightArtifact.match(
-    /llvm\.func internal @w_seed_logical_shift_right_u64/g) ?? []).length === 1 &&
-    uintLogicalShiftRightArtifact.includes(
-      "llvm.call @w_seed_logical_shift_right_u64") &&
-    uintLogicalShiftRightArtifact.includes(
+  const fixedIntegerShiftPoliciesArtifact =
+    artifacts.get("fixed-integer-shift-policies").toString("utf8")
+  assert(!fixedIntegerShiftPoliciesArtifact.includes(
+      "@w_seed_masked_shift_left_u64") &&
+    !fixedIntegerShiftPoliciesArtifact.includes(
+      "@w_seed_masked_shift_right_u64") &&
+    (fixedIntegerShiftPoliciesArtifact.match(
+      /_shift_count_mod = llvm\.and /g) ?? []).length >= 25 &&
+    fixedIntegerShiftPoliciesArtifact.includes("llvm.shl ") &&
+    fixedIntegerShiftPoliciesArtifact.includes("llvm.ashr ") &&
+    fixedIntegerShiftPoliciesArtifact.includes("llvm.lshr ") &&
+    [7, 15, 31, 63].every((mask) => fixedIntegerShiftPoliciesArtifact.includes(
+      `_shift_mask = llvm.mlir.constant(${mask} : i64)`)) &&
+    !fixedIntegerShiftPoliciesArtifact.includes("@w_seed_checked_shift_left") &&
+    !fixedIntegerShiftPoliciesArtifact.includes("@w_seed_checked_shift_right") &&
+    !fixedIntegerShiftPoliciesArtifact.includes("llvm.intr.ushl.with.overflow") &&
+    fixedIntegerShiftPoliciesArtifact.includes(
+      "llvm.func internal @w_seed_logical_shift_right_integer") &&
+    fixedIntegerShiftPoliciesArtifact.includes(
+      "llvm.call @w_seed_logical_shift_right_integer") &&
+    fixedIntegerShiftPoliciesArtifact.includes(
       "llvm.icmp \"uge\" %count, %width : i64") &&
-    uintLogicalShiftRightArtifact.includes("llvm.lshr %left, %count : i64") &&
-    uintLogicalShiftRightArtifact.includes("\"llvm.intr.trap\"() : () -> ()") &&
-    uintLogicalShiftRightArtifact.includes("llvm.unreachable") &&
-    uintLogicalShiftRightArtifact.includes("llvm.call @w_seed_append_u64") &&
-    !uintLogicalShiftRightArtifact.includes("llvm.and %count, %mask : i64") &&
-    !uintLogicalShiftRightArtifact.includes("@w_seed_checked_shift_right"),
-  "u64.logicalShiftRight lost zero fill or invalid-count trap semantics")
+    fixedIntegerShiftPoliciesArtifact.includes(
+      "llvm.lshr %normalized, %count : i64") &&
+    fixedIntegerShiftPoliciesArtifact.includes("\"llvm.intr.trap\"() : () -> ()") &&
+    fixedIntegerShiftPoliciesArtifact.includes("llvm.unreachable") &&
+    fixedIntegerShiftPoliciesArtifact.includes("llvm.call @w_seed_append_u64"),
+  "fixed-width named shifts lost count masking, signedness, logical zero-fill, or invalid-count trap semantics")
   const uintRotatedLeftArtifact =
     artifacts.get("restaurant-uint-rotated-left").toString("utf8")
   assert(!uintRotatedLeftArtifact.includes("@w_seed_rotated_left_u64") &&

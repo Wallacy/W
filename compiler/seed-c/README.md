@@ -3138,21 +3138,15 @@ proves full-width modulo left shift for a valid dynamic count. Its distinct HIR
 identity lowers to a reachable-only helper that rejects `count >= 64` before
 the unflagged `llvm.shl`, so it discards high bits without inheriting ordinary
 `checkedShiftLeft` lost-bit rejection or LLVM poison for an invalid count.
-[`fixtures/restaurant-uint-masked-shift-left.w`](fixtures/restaurant-uint-masked-shift-left.w)
-proves modulo-width count reduction with count `65`. Its distinct HIR identity
-lowers to a reachable-only helper that masks the count with `63` before the
-unflagged `llvm.shl`; counts `0`, `63`, `64`, and `65` remain valid and never
-take the checked or trapping shift path.
-[`fixtures/restaurant-uint-masked-shift-right.w`](fixtures/restaurant-uint-masked-shift-right.w)
-proves the unsigned logical counterpart. Its distinct HIR identity lowers to
-a reachable-only helper that masks the count with `63` before `llvm.lshr`;
-counts `0`, `63`, `64`, and `65` remain valid, no sign bit is propagated, and
-the checked or trapping shift path is unreachable.
-[`fixtures/restaurant-uint-logical-shift-right.w`](fixtures/restaurant-uint-logical-shift-right.w)
-proves explicit zero-fill without count masking. Its distinct HIR identity
-lowers to a reachable-only helper that rejects `count >= 64` before
-`llvm.lshr`; the helper therefore preserves W's ordinary shift-count trap and
-cannot be confused with `maskedShiftRight`.
+[`fixtures/fixed-integer-shift-policies.w`](fixtures/fixed-integer-shift-policies.w)
+is the neutral family witness for `maskedShiftLeft`, `maskedShiftRight`, and
+`logicalShiftRight` on signed and unsigned `i8`/`u8` through `i64`/`u64`.
+Masked counts cover the logical width and width plus one; signed arithmetic
+right shifts remain distinct from explicit logical zero-fill. Focused unit
+tests retain zero, width-minus-one, width, and width-plus-one boundaries, and
+the runtime gate confirms that `logicalShiftRight` still traps at its logical
+width. The combined witness also retains the prior `u64` results `2`, `64`,
+and `64`; these policies now share one neutral executable benchmark family.
 [`fixtures/restaurant-uint-rotated-left.w`](fixtures/restaurant-uint-rotated-left.w)
 proves modulo-width left rotation, including count identities `0` and `64` in
 focused tests. Its distinct HIR identity lowers to a reachable-only

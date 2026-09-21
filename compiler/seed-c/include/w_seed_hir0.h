@@ -297,11 +297,14 @@ typedef enum {
   /* Canonical u64.wrappingShiftLeft; checked SHIFT_LEFT remains the value
    * above and still rejects lost bits. */
   W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT,
-  /* Canonical u64.maskedShiftLeft. Keep this identity append-only. */
+  /* Historical u64 identity for fixed-width integer maskedShiftLeft;
+   * keep the numeric identity append-only. */
   W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT,
-  /* Canonical u64.maskedShiftRight. Keep this identity append-only. */
+  /* Historical u64 identity for fixed-width integer maskedShiftRight;
+   * keep the numeric identity append-only. */
   W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT,
-  /* Canonical u64.logicalShiftRight. Keep this identity append-only. */
+  /* Historical u64 identity for fixed-width integer logicalShiftRight;
+   * keep the numeric identity append-only. */
   W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT,
   /* Canonical u64.rotatedLeft. Keep this identity append-only. */
   W_SEED_HIR0_BINARY_ROTATED_LEFT,

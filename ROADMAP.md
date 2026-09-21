@@ -34,12 +34,13 @@ not in this queue.
 - Elide a declared execution relation only with an independently verifiable
   equivalence fact; compare the optimized path against the physical reference.
 - Measure public executable behavior only after an exact correctness oracle.
-- Plan Hyperfine 1.20.x as the future cross-platform public wall-time layer:
-  preserve per-run JSON samples, use `--shell=none` for sub-5 ms commands, and
-  schedule single-command invocations in balanced ABBA order. This plan is not
-  integrated; exact oracles and native CPU, memory, section, and artifact
-  evidence remain with W's native runner. Cycle counts, if exposed, must come
-  from a native counter rather than being inferred from wall time.
+- Adopt pinned Hyperfine 1.20.0 as the future cross-platform public wall-time
+  layer: preserve per-run JSON samples, use `--shell=none` for sub-5 ms
+  commands, and schedule one-command invocations in balanced ABBA order. Its
+  integration remains pending and must use a receipt separate from native
+  samples; exact oracles and native CPU, memory, section, cycle, and artifact
+  evidence remain with W's native runner. Do not infer those metrics from
+  Hyperfine or merge the two sample populations.
 - Treat performance, memory, binary size, and compile latency as persistent
   optimization signals, never as permission to change semantics.
 
@@ -114,6 +115,14 @@ functions only for built-in `i8`/`u8`, `i16`/`u16`, `i32`/`u32`, and
 on CRT-free Windows x64 and Linux/WSL x64. It does not extend the width claim
 to `Int`/`UInt`, `isize`/`usize`, or 128-bit types, and remains
 not-performance-ready.
+
+W-1649 now source-backs the existing W-392 `maskedShiftLeft`,
+`maskedShiftRight`, and `logicalShiftRight` functions exactly for the same
+built-in fixed-width family on CRT-free Windows x64 and Linux/WSL x64. Masked
+counts use the logical width; signed arithmetic right shift remains distinct
+from explicit logical zero-fill. Aliases, 128-bit integers, other targets, and
+equivalent-runtime performance remain open. Its neutral witness is the first
+opportunistic migration away from an unrelated `restaurant-*` fixture name.
 
 ## Native application completeness
 

@@ -316,6 +316,13 @@ static bool hir0_builtin_integer_bit_operation_is_supported(
          operation == W_SEED_FRONTEND_BUILTIN_U64_REVERSED_BYTES;
 }
 
+static bool hir0_builtin_integer_shift_operation_is_supported(
+    w_seed_frontend_builtin_operation operation) {
+  return operation == W_SEED_FRONTEND_BUILTIN_U64_MASKED_SHIFT_LEFT ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_MASKED_SHIFT_RIGHT ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_LOGICAL_SHIFT_RIGHT;
+}
+
 static bool hir0_builtin_integer_bit_operation_returns_count(
     w_seed_frontend_builtin_operation operation) {
   return operation == W_SEED_FRONTEND_BUILTIN_U64_COUNT_ONES ||
@@ -5242,6 +5249,9 @@ static bool frontend_call_expression_ok(
     const bool bit_operation =
         hir0_builtin_integer_bit_operation_is_supported(
             call->builtin_operation);
+    const bool shift_operation =
+        hir0_builtin_integer_shift_operation_is_supported(
+            call->builtin_operation);
     const bool count_operation =
         hir0_builtin_integer_bit_operation_returns_count(
             call->builtin_operation);
@@ -5272,9 +5282,11 @@ static bool frontend_call_expression_ok(
              ? (count_operation
                            ? frontend_expression_is_u64(output, call)
                            : frontend_expression_is_integer(output, call))
-                    : (overflowing
+                    : (shift_operation
+                           ? frontend_expression_is_integer(output, call)
+                           : (overflowing
                            ? frontend_expression_is_u64_bool_tuple(output, call)
-                           : frontend_expression_is_u64(output, call)))) &&
+                           : frontend_expression_is_u64(output, call))))) &&
         callee->kind == W_SEED_FRONTEND_EXPR_MEMBER && callee->supported &&
         callee->inferred_type != W_SEED_FRONTEND_NONE &&
         (size_t)callee->inferred_type < result->written.types &&
@@ -5284,9 +5296,11 @@ static bool frontend_call_expression_ok(
                     ? (count_operation
                            ? frontend_expression_is_u64(output, callee)
                            : frontend_expression_is_integer(output, callee))
-                    : (overflowing
+                    : (shift_operation
+                           ? frontend_expression_is_integer(output, callee)
+                           : (overflowing
                            ? frontend_expression_is_u64_bool_tuple(output, callee)
-                           : frontend_expression_is_u64(output, callee)))) &&
+                           : frontend_expression_is_u64(output, callee))))) &&
         callee->builtin_operation == call->builtin_operation &&
         callee->resolved_callee_kind == W_SEED_FRONTEND_CALLEE_NONE &&
         callee->resolved_external_module_index == W_SEED_FRONTEND_NONE &&
@@ -5309,7 +5323,7 @@ static bool frontend_call_expression_ok(
                 !frontend_supported_types_equal_for_input(
                     input, &output->types[receiver->inferred_type],
                     &output->types[call->inferred_type]))
-             : (bit_operation
+             : ((bit_operation || shift_operation)
              ? (!frontend_expression_is_integer(output, receiver) ||
                 !frontend_type_is_fixed_integer(
                     &output->types[receiver->inferred_type]))
@@ -5318,7 +5332,7 @@ static bool frontend_call_expression_ok(
         receiver->resolved_parameter_ordinal != W_SEED_FRONTEND_NONE ||
         receiver->resolved_binding_statement != W_SEED_FRONTEND_NONE)
       return false;
-    if (bit_operation &&
+    if ((bit_operation || shift_operation) &&
         !text_is(receiver->spelling,
                  hir0_fixed_integer_name(
                      output->types[receiver->inferred_type].is_signed,
@@ -5330,9 +5344,17 @@ static bool frontend_call_expression_ok(
              &output->types[call->inferred_type]) ||
          (count_operation
               ? !frontend_expression_is_u64(output, call)
-              : !frontend_supported_types_equal_for_input(
+             : !frontend_supported_types_equal_for_input(
                     input, &output->types[receiver->inferred_type],
                     &output->types[call->inferred_type]))))
+      return false;
+    if (shift_operation &&
+        (!frontend_supported_types_equal_for_input(
+             input, &output->types[receiver->inferred_type],
+             &output->types[callee->inferred_type]) ||
+         !frontend_supported_types_equal_for_input(
+             input, &output->types[receiver->inferred_type],
+             &output->types[call->inferred_type])))
       return false;
     if ((size_t)callee->left == *expression_cursor &&
         (size_t)call->left == *expression_cursor + 1u) {
@@ -5377,6 +5399,13 @@ static bool frontend_call_expression_ok(
                      input, &output->types[receiver->inferred_type],
                      argument_type)
                : rotation_operation && frontend_type_is_u64(argument_type));
+      const bool expected_shift_type =
+          shift_operation && argument_type != NULL &&
+          (ordinal == 0u
+               ? frontend_supported_types_equal_for_input(
+                     input, &output->types[receiver->inferred_type],
+                     argument_type)
+               : frontend_type_is_u64(argument_type));
       if (argument->module_index != module_index ||
           argument->owner_expression != call->left ||
           argument->label.length != 0u ||
@@ -5391,8 +5420,10 @@ static bool frontend_call_expression_ok(
                ? !expected_integer_type
                : (bit_operation
                       ? !expected_bit_type
-                      : !frontend_expression_is_u64(output,
-                                                    argument_value))) ||
+                      : (shift_operation
+                             ? !expected_shift_type
+                             : !frontend_expression_is_u64(
+                                   output, argument_value)))) ||
           !frontend_value_tree_ok(
               input, module_index, function_index, document_index,
               statement_index, argument->expression_index, 0u,
@@ -12637,7 +12668,9 @@ static uint32_t hir0_emit_value_m2(
         hir0_builtin_integer_bit_operation_is_supported(
             source->builtin_operation);
     const bool signed_result =
-        (integer_wrapping || bit_operation) &&
+        (integer_wrapping || bit_operation ||
+         hir0_builtin_integer_shift_operation_is_supported(
+             source->builtin_operation)) &&
         frontend_expression_is_signed_integer(context->frontend, source);
     if (hir0_builtin_u64_operation_is_unary(
             source->builtin_operation)) {
@@ -15677,6 +15710,30 @@ static bool hir_checked_shift_types_valid(
          !count_signed && count_width == 64u;
 }
 
+static bool hir_fixed_integer_policy_shift_types_valid(
+    const w_seed_hir0_program *program, uint32_t result_type,
+    uint32_t left_value, uint32_t count_value, bool expected_signed) {
+  if (program == NULL || left_value >= program->value_count ||
+      count_value >= program->value_count)
+    return false;
+  bool result_signed = false;
+  uint16_t result_width = 0u;
+  bool count_signed = false;
+  uint16_t count_width = 0u;
+  const uint32_t count_type = program->values[count_value].type_index;
+  return hir_integer_type_facts(program, result_type, &result_signed,
+                                &result_width) &&
+         result_signed == expected_signed &&
+         (result_width == 8u || result_width == 16u ||
+          result_width == 32u || result_width == 64u) &&
+         program->values[left_value].type_index == result_type &&
+         count_type < program->type_count &&
+         program->types[count_type].kind == W_SEED_HIR0_TYPE_U64 &&
+         hir_integer_type_facts(program, count_type, &count_signed,
+                                &count_width) &&
+         !count_signed && count_width == 64u;
+}
+
 static bool verify_block_argument_records(const w_seed_hir0_program *program) {
   if (program == NULL) return false;
   size_t cursor = 0u;
@@ -16556,6 +16613,10 @@ static bool verify_value_tree(
     const bool rotated =
         value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_LEFT ||
         value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_RIGHT;
+    const bool policy_shift =
+        value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT ||
+        value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT ||
+        value->binary_operator == W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT;
     const bool bitwise =
         value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
         value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR;
@@ -16564,7 +16625,8 @@ static bool verify_value_tree(
         value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SUBTRACT ||
         value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY ||
         value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_POWER ||
-        value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT;
+        value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT ||
+        policy_shift;
     bool generic_result_signed = false;
     uint16_t generic_result_width = 0u;
     const bool generic_wrapping_types_ok =
@@ -16614,6 +16676,10 @@ static bool verify_value_tree(
         rotated && hir_checked_shift_types_valid(
                        program, value->type_index, value->left_value,
                        value->right_value, true);
+    const bool generic_policy_shift_types_ok =
+        policy_shift && hir_fixed_integer_policy_shift_types_valid(
+                            program, value->type_index, value->left_value,
+                            value->right_value, true);
     bool bitwise_result_signed = false;
     uint16_t bitwise_result_width = 0u;
     const bool generic_bitwise_types_ok =
@@ -16651,7 +16717,8 @@ static bool verify_value_tree(
                            depth + 1u, value_cursor, segment_cursor,
                            byte_cursor) ||
         (size_t)root_index != *value_cursor ||
-        (wrapping && !generic_wrapping_types_ok) ||
+        (policy_shift && !generic_policy_shift_types_ok) ||
+        (wrapping && !policy_shift && !generic_wrapping_types_ok) ||
         (rotated && !generic_rotation_types_ok) ||
         (!wrapping && !rotated &&
          (checked_arithmetic
@@ -16733,6 +16800,10 @@ static bool verify_value_tree(
     const bool rotated =
         value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_LEFT ||
         value->binary_operator == W_SEED_HIR0_BINARY_ROTATED_RIGHT;
+    const bool policy_shift =
+        value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT ||
+        value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT ||
+        value->binary_operator == W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT;
     const bool overflowing =
         value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_ADD ||
         value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_SUBTRACT ||
@@ -16836,8 +16907,13 @@ static bool verify_value_tree(
           rotated && hir_checked_shift_types_valid(
                          program, value->type_index, value->left_value,
                          value->right_value, false);
+      const bool generic_policy_shift_types_ok =
+          policy_shift && hir_fixed_integer_policy_shift_types_valid(
+                              program, value->type_index, value->left_value,
+                              value->right_value, false);
       if ((size_t)root_index != *value_cursor ||
           (!generic_integer_types_ok && !generic_rotation_types_ok &&
+           !generic_policy_shift_types_ok &&
            (!hir_type_index_valid(program, value->type_index) ||
             !hir_type_index_valid(
                 program, program->values[value->left_value].type_index) ||

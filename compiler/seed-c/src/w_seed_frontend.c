@@ -4413,11 +4413,20 @@ static frontend_simple_type builtin_integer_bit_operation_result_type(
              : receiver_type;
 }
 
+static bool builtin_integer_shift_operation_is_supported(
+    w_seed_frontend_builtin_operation operation) {
+  return operation == W_SEED_FRONTEND_BUILTIN_U64_MASKED_SHIFT_LEFT ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_MASKED_SHIFT_RIGHT ||
+         operation == W_SEED_FRONTEND_BUILTIN_U64_LOGICAL_SHIFT_RIGHT;
+}
+
 static bool builtin_integer_operation_is_supported_for_receiver(
     w_seed_frontend_builtin_operation operation, frontend_simple_type type,
     w_seed_frontend_text spelling) {
   if (!builtin_integer_receiver_type(type, spelling)) return false;
   if (builtin_integer_wrapping_operation_is_supported(operation)) return true;
+  if (builtin_integer_shift_operation_is_supported(operation))
+    return builtin_fixed_integer_receiver_type(type, spelling);
   if (builtin_integer_bit_operation_is_supported(operation))
     return builtin_fixed_integer_receiver_type(type, spelling);
   /* The pre-existing u64-only surface remains intentionally u64-only. */
@@ -14990,8 +14999,10 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
                                 ? builtin_integer_bit_operation_result_type(
                                       builtin_integer_member_operation,
                                       value->type)
-                                : builtin_integer_wrapping_operation_is_supported(
-                                      builtin_integer_member_operation)
+                                : (builtin_integer_shift_operation_is_supported(
+                                       builtin_integer_member_operation) ||
+                                   builtin_integer_wrapping_operation_is_supported(
+                                       builtin_integer_member_operation))
                                       ? value->type
                                       : simple_type_from_view(
                                             (w_seed_frontend_text){"u64", 3u});
@@ -15271,6 +15282,12 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
           expected = simple_type_from_view((w_seed_frontend_text){"UInt", 4u});
         } else if (builtin_integer_wrapping_call) {
           expected = value->type;
+        } else if (builtin_integer_shift_operation_is_supported(
+                       builtin_u64_operation)) {
+          expected = argument_count == 0u
+                         ? builtin_integer_source_type
+                         : simple_type_from_view(
+                               (w_seed_frontend_text){"UInt", 4u});
         } else if (builtin_integer_bit_operation_is_supported(
                        builtin_u64_operation)) {
           const bool rotation =
@@ -15337,8 +15354,10 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
            (expected.kind == W_SEED_FRONTEND_TYPE_FLOAT &&
             (argument_value.type.kind == W_SEED_FRONTEND_TYPE_INTEGER ||
              argument_value.type.kind == W_SEED_FRONTEND_TYPE_FLOAT))) &&
-          builtin_integer_bit_operation_is_supported(
-              builtin_u64_operation) &&
+          (builtin_integer_bit_operation_is_supported(
+               builtin_u64_operation) ||
+           builtin_integer_shift_operation_is_supported(
+               builtin_u64_operation)) &&
           !expression_value_is_unsuffixed_integer(&argument_value)) {
         /* A typed fixed-width operand must match the bit operation's T or
          * UInt parameter exactly. Do not turn a narrower typed value into a
@@ -15575,6 +15594,8 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
                             builtin_u64_operation)
                         ? u64_bool_tuple_type()
                         : (builtin_integer_wrapping_call ||
+                           builtin_integer_shift_operation_is_supported(
+                               builtin_u64_operation) ||
                            builtin_integer_bit_operation_is_supported(
                                builtin_u64_operation))
                               ? value->type
@@ -17186,7 +17207,8 @@ static frontend_simple_type infer_integer_associated_call_span(
       if (builtin_integer_bit_operation_is_supported(operation))
         return builtin_integer_bit_operation_result_type(operation,
                                                         receiver_type);
-      if (builtin_integer_wrapping_operation_is_supported(operation))
+      if (builtin_integer_wrapping_operation_is_supported(operation) ||
+          builtin_integer_shift_operation_is_supported(operation))
         return receiver_type;
       return simple_type_from_view((w_seed_frontend_text){"u64", 3u});
     }
@@ -20725,6 +20747,11 @@ static bool resolve_frontend_links(frontend_context *context) {
         const bool bit_operation =
             builtin_integer_bit_operation_is_supported(
                 expression->builtin_operation);
+        const bool shift_operation =
+            builtin_integer_shift_operation_is_supported(
+                expression->builtin_operation);
+        const bool fixed_integer_operation =
+            bit_operation || shift_operation;
         const bool unary =
             builtin_u64_operation_is_unary(expression->builtin_operation);
         const size_t expected_argument_count = unary ? 1u : 2u;
@@ -20778,7 +20805,7 @@ static bool resolve_frontend_links(frontend_context *context) {
              receiver_type->bit_width == 16u ||
              receiver_type->bit_width == 32u ||
              receiver_type->bit_width == 64u) &&
-            (!bit_operation ||
+            (!fixed_integer_operation ||
              (builtin_fixed_integer_receiver_type(fixed_receiver_type,
                                                   receiver->spelling) &&
               receiver_type->is_signed == fixed_receiver_type.is_signed &&
@@ -20823,7 +20850,16 @@ static bool resolve_frontend_links(frontend_context *context) {
                   : result_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
                         result_type->is_signed == receiver_type->is_signed &&
                         result_type->bit_width == receiver_type->bit_width));
-        if (!bit_result_type_valid) {
+        const bool shift_result_type_valid =
+            !shift_operation ||
+            (result_type != NULL && callee_result_type != NULL &&
+             result_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+             callee_result_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+             result_type->is_signed == receiver_type->is_signed &&
+             result_type->bit_width == receiver_type->bit_width &&
+             callee_result_type->is_signed == result_type->is_signed &&
+             callee_result_type->bit_width == result_type->bit_width);
+        if (!bit_result_type_valid || !shift_result_type_valid) {
           expression->supported = false;
           continue;
         }
@@ -20867,10 +20903,20 @@ static bool resolve_frontend_links(frontend_context *context) {
                          operand_type->bit_width == receiver_type->bit_width
                    : rotation_operation && !operand_type->is_signed &&
                          operand_type->bit_width == 64u);
+          const bool shift_operand_type_valid =
+              operand_type != NULL && operand_type->kind ==
+                                          W_SEED_FRONTEND_TYPE_INTEGER &&
+              (offset == 0u
+                   ? operand_type->is_signed == receiver_type->is_signed &&
+                         operand_type->bit_width == receiver_type->bit_width
+                   : !operand_type->is_signed &&
+                         operand_type->bit_width == 64u);
           const bool operand_type_valid =
               bit_operation
                   ? bit_operand_type_valid
-                  : (operand_type != NULL && operand_type->kind ==
+                  : (shift_operation
+                         ? shift_operand_type_valid
+                         : (operand_type != NULL && operand_type->kind ==
                                                 W_SEED_FRONTEND_TYPE_INTEGER &&
                      (count_domain
                           ? !operand_type->is_signed &&
@@ -20878,9 +20924,9 @@ static bool resolve_frontend_links(frontend_context *context) {
                           : operand_type->is_signed ==
                                     receiver_type->is_signed &&
                                 operand_type->bit_width ==
-                                    receiver_type->bit_width));
+                                    receiver_type->bit_width)));
           if (!operand->supported || !operand_type_valid ||
-              (!generic_wrapping && !bit_operation &&
+              (!generic_wrapping && !bit_operation && !shift_operation &&
                (operand_type->is_signed || operand_type->bit_width != 64u))) {
             expression->supported = false;
           }

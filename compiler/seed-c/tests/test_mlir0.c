@@ -3888,14 +3888,14 @@ static bool test_u64_masked_shift_left_artifact(void) {
         memcmp(measured.mlir_sha256, emitted.mlir_sha256,
                sizeof(measured.mlir_sha256)) == 0 &&
         count_bytes(artifact, emitted.written.mlir_bytes,
-                    "llvm.func internal @w_seed_masked_shift_left_u64") ==
-            1u &&
+                    "@w_seed_masked_shift_left_u64") == 0u &&
         count_bytes(artifact, emitted.written.mlir_bytes,
-                    "llvm.call @w_seed_masked_shift_left_u64") == 1u &&
+                    "llvm.call @w_seed_masked_shift_left_u64") == 0u &&
         contains_bytes(artifact, emitted.written.mlir_bytes,
-                       "llvm.and %count, %mask : i64") &&
+                       "_shift_mask = llvm.mlir.constant(63 : i64)") &&
         contains_bytes(artifact, emitted.written.mlir_bytes,
-                       "llvm.shl %left, %masked_count : i64") &&
+                       "_shift_count_mod = llvm.and ") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes, "llvm.shl ") &&
         !contains_bytes(artifact, emitted.written.mlir_bytes,
                         "@w_seed_checked_shift_left") &&
         !contains_bytes(artifact, emitted.written.mlir_bytes,
@@ -3908,7 +3908,9 @@ static bool test_u64_masked_shift_left_artifact(void) {
   CHECK(emit_current(artifact, sizeof(artifact), &emitted));
   CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
         !contains_bytes(artifact, emitted.written.mlir_bytes,
-                        "@w_seed_masked_shift_left_u64"));
+                        "@w_seed_masked_shift_left_u64") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "@w_seed_logical_shift_right_integer"));
   return true;
 }
 
@@ -3939,14 +3941,14 @@ static bool test_u64_masked_shift_right_artifact(void) {
         memcmp(measured.mlir_sha256, emitted.mlir_sha256,
                sizeof(measured.mlir_sha256)) == 0 &&
         count_bytes(artifact, emitted.written.mlir_bytes,
-                    "llvm.func internal @w_seed_masked_shift_right_u64") ==
-            1u &&
+                    "@w_seed_masked_shift_right_u64") == 0u &&
         count_bytes(artifact, emitted.written.mlir_bytes,
-                    "llvm.call @w_seed_masked_shift_right_u64") == 1u &&
+                    "llvm.call @w_seed_masked_shift_right_u64") == 0u &&
         contains_bytes(artifact, emitted.written.mlir_bytes,
-                       "llvm.and %count, %mask : i64") &&
+                       "_shift_mask = llvm.mlir.constant(63 : i64)") &&
         contains_bytes(artifact, emitted.written.mlir_bytes,
-                       "llvm.lshr %left, %masked_count : i64") &&
+                       "_shift_count_mod = llvm.and ") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes, "llvm.lshr ") &&
         !contains_bytes(artifact, emitted.written.mlir_bytes,
                         "@w_seed_checked_shift_right"));
 
@@ -3957,7 +3959,9 @@ static bool test_u64_masked_shift_right_artifact(void) {
   CHECK(emit_current(artifact, sizeof(artifact), &emitted));
   CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
         !contains_bytes(artifact, emitted.written.mlir_bytes,
-                        "@w_seed_masked_shift_right_u64"));
+                        "@w_seed_masked_shift_right_u64") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "@w_seed_logical_shift_right_integer"));
   return true;
 }
 
@@ -3988,20 +3992,20 @@ static bool test_u64_logical_shift_right_artifact(void) {
         memcmp(measured.mlir_sha256, emitted.mlir_sha256,
                sizeof(measured.mlir_sha256)) == 0 &&
         count_bytes(artifact, emitted.written.mlir_bytes,
-                    "llvm.func internal @w_seed_logical_shift_right_u64") ==
+                    "llvm.func internal @w_seed_logical_shift_right_integer") ==
             1u &&
         count_bytes(artifact, emitted.written.mlir_bytes,
-                    "llvm.call @w_seed_logical_shift_right_u64") == 1u &&
+                    "llvm.call @w_seed_logical_shift_right_integer") == 1u &&
         contains_bytes(artifact, emitted.written.mlir_bytes,
                        "llvm.icmp \"uge\" %count, %width : i64") &&
         contains_bytes(artifact, emitted.written.mlir_bytes,
-                       "llvm.lshr %left, %count : i64") &&
+                       "llvm.lshr %normalized, %count : i64") &&
         contains_bytes(artifact, emitted.written.mlir_bytes,
                        "\"llvm.intr.trap\"() : () -> ()") &&
         contains_bytes(artifact, emitted.written.mlir_bytes,
                        "llvm.unreachable") &&
         !contains_bytes(artifact, emitted.written.mlir_bytes,
-                        "llvm.and %count, %mask : i64") &&
+                        "_shift_count_mod = llvm.and ") &&
         !contains_bytes(artifact, emitted.written.mlir_bytes,
                         "@w_seed_checked_shift_right"));
 
@@ -4012,7 +4016,261 @@ static bool test_u64_logical_shift_right_artifact(void) {
   CHECK(emit_current(artifact, sizeof(artifact), &emitted));
   CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
         !contains_bytes(artifact, emitted.written.mlir_bytes,
-                        "@w_seed_logical_shift_right_u64"));
+                        "@w_seed_logical_shift_right_integer"));
+  return true;
+}
+
+static bool test_fixed_integer_shift_policy_mlir_matrix(void) {
+  typedef struct {
+    const char *spelling;
+    const char *high_bit_literal;
+    bool is_signed;
+    uint16_t bit_width;
+  } integer_case;
+  static const integer_case INTEGERS[] = {
+      {"i8", "-64_i8", true, 8u},
+      {"u8", "128_u8", false, 8u},
+      {"i16", "-16384_i16", true, 16u},
+      {"u16", "32768_u16", false, 16u},
+      {"i32", "-1073741824_i32", true, 32u},
+      {"u32", "2147483648_u32", false, 32u},
+      {"i64", "-4611686018427387904_i64", true, 64u},
+      {"u64", "9223372036854775808_u64", false, 64u},
+  };
+  typedef struct {
+    const char *name;
+    const char *member;
+    w_seed_hir0_binary_operator operation;
+  } shift_case;
+  static const shift_case SHIFTS[] = {
+      {"masked_left", "maskedShiftLeft",
+       W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT},
+      {"masked_right", "maskedShiftRight",
+       W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT},
+      {"logical_right", "logicalShiftRight",
+       W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT},
+  };
+  static char source[TEST_SOURCE];
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+
+  for (size_t integer_index = 0u;
+       integer_index < sizeof(INTEGERS) / sizeof(INTEGERS[0]);
+       integer_index += 1u) {
+    const integer_case *integer = &INTEGERS[integer_index];
+    size_t source_length = 0u;
+    for (size_t shift_index = 0u;
+         shift_index < sizeof(SHIFTS) / sizeof(SHIFTS[0]); shift_index += 1u)
+      CHECK(append_mlir_test_source(
+          source, sizeof(source), &source_length,
+          "fn %s(value: %s, count: UInt): %s { return %s.%s(value, count) }\n",
+          SHIFTS[shift_index].name, integer->spelling, integer->spelling,
+          integer->spelling, SHIFTS[shift_index].member));
+    CHECK(append_mlir_test_source(source, sizeof(source), &source_length,
+                                  "fn main() {\n"));
+    for (size_t shift_index = 0u;
+         shift_index < sizeof(SHIFTS) / sizeof(SHIFTS[0]); shift_index += 1u)
+      for (uint16_t boundary = 0u; boundary < 4u; boundary += 1u) {
+        const uint16_t count =
+            boundary == 0u
+                ? 0u
+                : (boundary == 1u
+                       ? (uint16_t)(integer->bit_width - 1u)
+                       : (boundary == 2u ? integer->bit_width
+                                         : (uint16_t)(integer->bit_width + 1u)));
+        CHECK(append_mlir_test_source(
+            source, sizeof(source), &source_length,
+            "let %s_%u = %s(value: %s, count: %u_u64)\n",
+            SHIFTS[shift_index].name, (unsigned)boundary,
+            SHIFTS[shift_index].name, integer->high_bit_literal,
+            (unsigned)count));
+      }
+    CHECK(append_mlir_test_source(source, sizeof(source), &source_length,
+                                  "print(\""));
+    bool first_interpolation = true;
+    for (size_t shift_index = 0u;
+         shift_index < sizeof(SHIFTS) / sizeof(SHIFTS[0]); shift_index += 1u)
+      for (uint16_t boundary = 0u; boundary < 4u; boundary += 1u) {
+        const char *format =
+            first_interpolation ? "${%s_%u}" : "/${%s_%u}";
+        CHECK(append_mlir_test_source(source, sizeof(source), &source_length,
+                                      format, SHIFTS[shift_index].name,
+                                      (unsigned)boundary));
+        first_interpolation = false;
+      }
+    CHECK(append_mlir_test_source(source, sizeof(source), &source_length,
+                                  "\")\n}\nentry(main)\n"));
+    CHECK(lower_hir((const uint8_t *)source, source_length));
+
+    size_t operation_counts[sizeof(SHIFTS) / sizeof(SHIFTS[0])] = {0u};
+    uint32_t shift_value_indices[sizeof(SHIFTS) / sizeof(SHIFTS[0])] = {
+        W_SEED_HIR0_NONE, W_SEED_HIR0_NONE, W_SEED_HIR0_NONE};
+    uint32_t forged_shift = W_SEED_HIR0_NONE;
+    uint32_t u64_type = W_SEED_HIR0_NONE;
+    for (size_t type_index = 0u;
+         type_index < fixture.hir_program.type_count; type_index += 1u) {
+      const w_seed_hir0_type *type = &fixture.hir_program.types[type_index];
+      if (type->kind == W_SEED_HIR0_TYPE_U64 &&
+          !type->integer_is_signed && type->integer_bit_width == 64u)
+        u64_type = (uint32_t)type_index;
+    }
+    for (size_t value_index = 0u;
+         value_index < fixture.hir_program.value_count; value_index += 1u) {
+      const w_seed_hir0_value *value = &fixture.hir_program.values[value_index];
+      size_t shift_index = SIZE_MAX;
+      for (size_t candidate = 0u;
+           candidate < sizeof(SHIFTS) / sizeof(SHIFTS[0]); candidate += 1u)
+        if (value->binary_operator == SHIFTS[candidate].operation) {
+          shift_index = candidate;
+          break;
+        }
+      if (shift_index == SIZE_MAX) continue;
+      CHECK(value->type_index < fixture.hir_program.type_count &&
+            fixture.hir_program.types[value->type_index].integer_is_signed ==
+                integer->is_signed &&
+            fixture.hir_program.types[value->type_index].integer_bit_width ==
+                integer->bit_width);
+      operation_counts[shift_index] += 1u;
+      shift_value_indices[shift_index] = (uint32_t)value_index;
+      if (shift_index == 0u && integer_index == 0u)
+        forged_shift = (uint32_t)value_index;
+    }
+    CHECK(operation_counts[0] == 1u && operation_counts[1] == 1u &&
+          operation_counts[2] == 1u);
+    CHECK(measure_current(&counts, &measured));
+    CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+    const size_t artifact_bytes = emitted.written.mlir_bytes;
+    CHECK(counts.mlir_bytes == artifact_bytes &&
+          memcmp(measured.mlir_sha256, emitted.mlir_sha256,
+                 sizeof(measured.mlir_sha256)) == 0 &&
+          count_bytes(artifact, artifact_bytes,
+                      "llvm.func internal @w_seed_logical_shift_right_integer") ==
+              1u &&
+          count_bytes(artifact, artifact_bytes,
+                      "llvm.call @w_seed_logical_shift_right_integer") == 1u &&
+          !contains_bytes(artifact, artifact_bytes,
+                          "@w_seed_masked_shift_left_u64") &&
+          !contains_bytes(artifact, artifact_bytes,
+                          "@w_seed_masked_shift_right_u64") &&
+          contains_bytes(artifact, artifact_bytes,
+                         integer->is_signed
+                             ? "_logical_signed = llvm.mlir.constant(true) : i1"
+                             : "_logical_signed = llvm.mlir.constant(false) : i1") &&
+          contains_bytes(artifact, artifact_bytes, "llvm.icmp \"uge\"") &&
+          contains_bytes(artifact, artifact_bytes,
+                         "llvm.lshr %normalized, %count : i64") &&
+          contains_bytes(artifact, artifact_bytes,
+                         "\"llvm.intr.trap\"() : () -> ()") &&
+          contains_bytes(artifact, artifact_bytes, "llvm.unreachable"));
+
+    char carrier_type[12];
+    const int type_length = snprintf(carrier_type, sizeof(carrier_type),
+                                     ": i%u", (unsigned)integer->bit_width);
+    CHECK(type_length > 0 && (size_t)type_length < sizeof(carrier_type));
+    char left_shift_line[80];
+    char right_shift_line[80];
+    const char *shift_result_suffix =
+        integer->bit_width < 64u ? "_shift_raw" : "";
+    const int left_shift_length = snprintf(
+        left_shift_line, sizeof(left_shift_line), "%cv%u%s = llvm.shl",
+        '%', shift_value_indices[0], shift_result_suffix);
+    const int right_shift_length = snprintf(
+        right_shift_line, sizeof(right_shift_line),
+        "%cv%u%s = llvm.%s", '%', shift_value_indices[1],
+        shift_result_suffix, integer->is_signed ? "ashr" : "lshr");
+    CHECK(left_shift_length > 0 &&
+          (size_t)left_shift_length < sizeof(left_shift_line) &&
+          right_shift_length > 0 &&
+          (size_t)right_shift_length < sizeof(right_shift_line));
+    CHECK(count_mlir_lines_with_fragment_and_type(
+              artifact, artifact_bytes, left_shift_line, carrier_type) == 1u &&
+          count_mlir_lines_with_fragment_and_type(
+              artifact, artifact_bytes, right_shift_line, carrier_type) == 1u);
+    if (integer->bit_width < 64u)
+      CHECK(contains_bytes(artifact, artifact_bytes,
+                           "_shift_count = llvm.trunc") &&
+            contains_bytes(artifact, artifact_bytes,
+                           integer->bit_width == 8u
+                               ? "to i8"
+                               : (integer->bit_width == 16u ? "to i16"
+                                                            : "to i32")));
+    char mask_needle[64];
+    const int mask_length = snprintf(
+        mask_needle, sizeof(mask_needle),
+        "_shift_mask = llvm.mlir.constant(%u : i64)",
+        (unsigned)integer->bit_width - 1u);
+    CHECK(mask_length > 0 && (size_t)mask_length < sizeof(mask_needle) &&
+          contains_bytes(artifact, artifact_bytes, mask_needle));
+    for (uint16_t boundary = 0u; boundary < 4u; boundary += 1u) {
+      const unsigned count =
+          boundary == 0u
+              ? 0u
+              : (boundary == 1u
+                     ? (unsigned)integer->bit_width - 1u
+                     : (boundary == 2u ? (unsigned)integer->bit_width
+                                       : (unsigned)integer->bit_width + 1u));
+      char count_needle[64];
+      const int count_length = snprintf(count_needle, sizeof(count_needle),
+                                        "llvm.mlir.constant(%u : i64)",
+                                        count);
+      CHECK(count_length > 0 && (size_t)count_length < sizeof(count_needle) &&
+            contains_bytes(artifact, artifact_bytes, count_needle));
+    }
+
+    const size_t guard =
+        find_bytes(artifact, artifact_bytes,
+                   "llvm.icmp \"uge\" %count, %width : i64", 0u);
+    const size_t fault =
+        guard == SIZE_MAX
+            ? SIZE_MAX
+            : find_bytes(artifact, artifact_bytes,
+                         "^logical_shift_right_fault:", guard);
+    const size_t trap =
+        fault == SIZE_MAX
+            ? SIZE_MAX
+            : find_bytes(artifact, artifact_bytes,
+                         "\"llvm.intr.trap\"() : () -> ()", fault);
+    const size_t unreachable =
+        trap == SIZE_MAX
+            ? SIZE_MAX
+            : find_bytes(artifact, artifact_bytes, "llvm.unreachable", trap);
+    const size_t apply =
+        guard == SIZE_MAX
+            ? SIZE_MAX
+            : find_bytes(artifact, artifact_bytes,
+                         "^logical_shift_right_apply:", guard);
+    const size_t logical_shift =
+        apply == SIZE_MAX
+            ? SIZE_MAX
+            : find_bytes(artifact, artifact_bytes,
+                         "llvm.lshr %normalized, %count : i64", apply);
+    CHECK(guard < fault && fault < trap && trap < unreachable &&
+          unreachable < apply && apply < logical_shift);
+
+    if (integer_index == 0u) {
+      CHECK(forged_shift != W_SEED_HIR0_NONE && u64_type != W_SEED_HIR0_NONE);
+      const w_seed_mlir0_input input = mlir_input();
+      uint8_t forged_output[W_SEED_MLIR0_MAX_BYTES];
+      (void)memset(forged_output, 0xa5u, sizeof(forged_output));
+      w_seed_mlir0_result forged_result;
+      (void)memset(&forged_result, 0x5au, sizeof(forged_result));
+      const w_seed_mlir0_result forged_snapshot = forged_result;
+      const uint32_t saved_type = fixture.hir_values[forged_shift].type_index;
+      fixture.hir_values[forged_shift].type_index = u64_type;
+      CHECK(w_seed_mlir0_emit(
+                &input, &TARGET,
+                &(w_seed_mlir0_output){forged_output, sizeof(forged_output)},
+                &forged_result) == W_SEED_MLIR0_INVALID_HIR);
+      for (size_t byte = 0u; byte < sizeof(forged_output); byte += 1u)
+        CHECK(forged_output[byte] == 0xa5u);
+      CHECK(memcmp(&forged_result, &forged_snapshot,
+                   sizeof(forged_result)) == 0);
+      fixture.hir_values[forged_shift].type_index = saved_type;
+      CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+    }
+  }
   return true;
 }
 
@@ -7246,6 +7504,7 @@ int main(int argc, char **argv) {
   if (!test_u64_masked_shift_left_artifact()) return 1;
   if (!test_u64_masked_shift_right_artifact()) return 1;
   if (!test_u64_logical_shift_right_artifact()) return 1;
+  if (!test_fixed_integer_shift_policy_mlir_matrix()) return 1;
   if (!test_u64_rotated_left_artifact()) return 1;
   if (!test_u64_rotated_right_artifact()) return 1;
   if (!test_u64_count_ones_artifact()) return 1;

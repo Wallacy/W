@@ -235,6 +235,7 @@ O corpus compara, no mínimo:
 - exact total numeric widening against value-specific implicit casts, opaque conversion nodes, runtime helpers, host conversion, and unequal benchmark work.
 - ordinary binary integer bitwise operators against per-width lowering branches, host promotion rules, source-signedness leakage, and fragmented executable witnesses.
 - checked ordinary integer shifts against per-width lowering branches, implicit promotions, masked counts, host shift rules, and unchecked left-shift loss.
+- fixed-width named shift policies across logical widths against physical-carrier semantics, right-shift conflation, and premature runtime-performance claims.
 - direct prefix-negative interpolation against late root-only retyping, a synthetic binding workaround, and textual constant folding.
 - verified SSA versioning against hidden stack storage and assignment rewriting.
 - conditional mutable local through one verified SSA join.
@@ -8009,6 +8010,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1647 | floating bit representation bridge | `f32.fromBits(u32)`/`f64.fromBits(u64)` and matching `.toBits()` reinterpret exact bits; storage, copy, and round-trip preserve the encoding | numeric conversion, implicit byte order, or portable NaN payload after arithmetic |
 | W-1648 | fixed-width integer bit primitives through native execution | The existing W-392 associated functions `rotatedLeft(_ value: Self, _ count: UInt) -> Self`, `rotatedRight(_ value: Self, _ count: UInt) -> Self`, `countOnes(_ value: Self) -> UInt`, `countZeros(_ value: Self) -> UInt`, `countLeadingZeros(_ value: Self) -> UInt`, `countTrailingZeros(_ value: Self) -> UInt`, `reversedBits(_ value: Self) -> Self`, and `reversedBytes(_ value: Self) -> Self` are source-backed for built-in `i8`/`u8`, `i16`/`u16`, `i32`/`u32`, and `i64`/`u64`. Rotations reduce counts modulo logical width; counts return `UInt`, zero leading/trailing-zero counts equal width, leading/trailing scans start at the most/least-significant bit, signed values use the full two's-complement representation, and reversals operate on logical width independent of host endianness. Frontend70, HIR91, NativeSubset0, and MLIR61 validate and lower this fixed-width family through direct LLVM-dialect intrinsics; exact-output Windows x64 and Linux/WSL x64 source-to-native gates pass. The 3,943-byte neutral W fixture covers every operation and type; focused tests plus C23/Rust references add zero-count and rotation `0`/`width`/`width + 1` edges. No syntax changes. `Int`/`UInt` target width, `isize`/`usize`, 128-bit integers, other targets, general optimizer behavior, stable ABI/FFI, and performance remain outside this increment. | physical-carrier-width semantics; duplicate syntax or target intrinsics in the language core; portable-width claims for aliases or other targets without evidence; performance rankings without equivalent runtime operands |
 
+| W-1649 | fixed-width named integer shift policies through native execution | The existing W-392 associated functions `maskedShiftLeft(_ value: Self, _ count: UInt) -> Self`, `maskedShiftRight(_ value: Self, _ count: UInt) -> Self`, and `logicalShiftRight(_ value: Self, _ count: UInt) -> Self` are source-backed exactly for built-in `i8`/`u8`, `i16`/`u16`, `i32`/`u32`, and `i64`/`u64`. Both masked policies reduce count modulo logical width; signed `maskedShiftRight` is arithmetic, unsigned is logical, and `logicalShiftRight` zero-fills for either signedness while rejecting `count >= bitWidth` before the LLVM shift. Frontend70 and verified HIR91 retain the existing append-only operation identities; HIR enforces an exact `UInt` count even against a forged same-type wrapping tree. NativeSubset0 and MLIR61 use a width-aware route. The neutral W fixture passes exact-output CRT-free Windows x64 and Linux/WSL x64 gates; C23 and Rust 2024 match as correctness references only. `Int`/`UInt`, `isize`/`usize`, 128-bit integers, other targets, stable ABI/FFI, and equivalent-runtime performance remain outside this increment. W may fold the witness, so no timing or performance ranking is claimed and `benchmarkDisposition: deferred`. | physical-carrier-width shift semantics; collapse of arithmetic and explicit logical right shift; per-width operation IDs or target-specific intrinsics in the language core; accepting a forged non-`UInt` count; ranking unequal runtime work |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -14198,10 +14200,12 @@ operations, without a runtime helper, heap allocation, or CRT helper.
 is the family source witness. Its source-local comment declares exit 0 and the
 literal result line for each supported type plus the exact widening cases
 `i8 | i32 -> i32` and `u8 | i16 -> i16`. C23 and Rust 2024 are correctness
-references only; there is no performance ranking. The broader W-392 decision
-remains open for power, named shift policies, rotations, remaining bit
-primitives, SIMD, and the complete integer operator matrix; W-1643 separately
-closes checked ordinary shifts for the same bounded type family.
+references only; there is no performance ranking. W-1648 closes the selected
+rotations and count/reversal functions, while W-1649 closes three named shift
+policies for the same fixed-width builtin family. W-392 remains open for power,
+other named numeric/shift policies, remaining bit primitives, SIMD, and the
+complete integer operator matrix; W-1643 separately closes checked ordinary
+shifts for its broader bounded family.
 
 #### W-1643 — checked ordinary integer shifts through native execution
 
@@ -14226,10 +14230,12 @@ the exact expected exit and stdout beside its source. It executes through
 frontend → verified HIR → Native0/MLIR0 → CRT-free native output on Windows
 and Linux/WSL. C23 and Rust 2024 are correctness references only, with no
 performance ranking. The benchmark disposition is `deferred` until W retains
-equivalent runtime operands. W-392 remains open for power, named
-numeric/shift policies, rotations, remaining bit primitives, SIMD,
-`usize`/`isize`, 128-bit integers, non-x86-64 alias widths, stable ABI/FFI,
-other targets, and equivalent-runtime performance.
+equivalent runtime operands. W-1648 and W-1649 separately source-back the
+selected rotation/count/reversal functions and three named shift policies for
+the fixed-width builtin family. W-392 remains open for power, other named
+numeric/shift policies, remaining bit primitives, SIMD, `usize`/`isize`,
+128-bit integers, non-x86-64 alias widths, stable ABI/FFI, other targets, and
+equivalent-runtime performance.
 
 #### W-1644 — fixed-width integer saturating conversion
 
@@ -14389,3 +14395,37 @@ There is no source-backed claim for `Int`/`UInt` target width, `isize`/`usize`,
 2024 remain correctness references, not equivalent runtime workloads;
 `benchmarkDisposition: deferred`, not-performance-ready, with no timing or
 performance ranking claimed.
+
+#### W-1649 — fixed-width named shift policies through native execution
+
+W-1649 is a bounded source-backed increment under W-392 for the existing
+`maskedShiftLeft`, `maskedShiftRight`, and `logicalShiftRight` functions; it
+adds no syntax. The source-backed type boundary is exactly built-in
+`i8`/`u8`, `i16`/`u16`, `i32`/`u32`, and `i64`/`u64`, with a `Self` value and
+`UInt` count returning `Self`. The masked policies reduce the count modulo the
+logical width. `maskedShiftRight` remains arithmetic for signed types and
+logical for unsigned types. `logicalShiftRight` zero-fills regardless of
+signedness and rejects a count greater than or equal to the logical width
+before emitting an LLVM shift.
+
+Frontend70 and verified HIR91 retain the existing append-only operation
+identities. HIR checks that the count's canonical type is exactly `UInt`; a
+forged same-type wrapping tree cannot substitute a `Self` count. NativeSubset0
+and MLIR61 independently use the verified signedness and logical width in one
+generic route.
+
+[`fixed-integer-shift-policies.w`](compiler/seed-c/fixtures/fixed-integer-shift-policies.w)
+declares exit 0 and exact stdout for all three policies across the eight
+supported types, including width and width-plus-one masked counts. The final
+exact-output source-to-native gates pass on CRT-free Windows x64 and Linux/WSL
+x64; the runtime boundary confirms that `logicalShiftRight` rejects a count at
+logical width before the LLVM shift. C23 and Rust 2024 match the successful
+outputs as correctness references only. W can fold the witness and these
+references do not retain equivalent runtime work, so
+`benchmarkDisposition: deferred`; no timing or performance ranking is claimed.
+
+W-1649 does not extend coverage to `Int`/`UInt`, `isize`/`usize`, 128-bit
+integers, target-general aliases, other targets, stable ABI/FFI, or equivalent
+runtime performance. W-392 remains open for power and other named numeric or
+shift policies, remaining bit primitives such as `bitWidth`, carry/borrow,
+and full multiply, SIMD, and the complete integer operator matrix.

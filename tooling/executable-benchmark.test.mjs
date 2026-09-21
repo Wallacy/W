@@ -56,6 +56,7 @@ import {
   RESTAURANT_CHECKED_INTEGER_ARITHMETIC_WORKLOAD_ID,
   RESTAURANT_UINT_BITWISE_WORKLOAD_ID,
   FIXED_INTEGER_BIT_PRIMITIVES_WORKLOAD_ID,
+  FIXED_INTEGER_SHIFT_POLICIES_WORKLOAD_ID,
   RESTAURANT_UINT_OVERFLOWING_FAMILY_WORKLOAD_ID,
   RESTAURANT_UINT_SATURATING_POLICY_WORKLOAD_ID,
   RESTAURANT_UINT_COMPOUND_WORKLOAD_ID,
@@ -784,6 +785,114 @@ test("fixed-integer bit-primitives family covers the portable signed/unsigned ma
       `${gatePath} must register the family witness`);
     assert.match(gate, /fixedIntegerBitPrimitivesOutput/u,
       `${gatePath} must check the exact family oracle`);
+  }
+  assert.doesNotMatch(sources.c, /\b(?:extern|ffi)\b/iu);
+  assert.doesNotMatch(sources.rust, /\b(?:extern|unsafe|ffi)\b/iu);
+});
+
+test("fixed-integer shift-policy family is one correctness-only row", () => {
+  const workload = documents.catalog.workloads.find((item) =>
+    item.id === FIXED_INTEGER_SHIFT_POLICIES_WORKLOAD_ID);
+  assert.ok(workload);
+  assert.equal(workload.structureClass, "public-end-to-end");
+  assert.equal(workload.status, "source-oracle-ready");
+  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
+  assert.equal(workload.demoEvidence, "bounded-w-demo");
+  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.match(workload.scope, /maskedShiftLeft, maskedShiftRight, and logicalShiftRight/u);
+  assert.match(workload.scope, /signed and unsigned i8\/u8 through i64\/u64/u);
+  assert.match(workload.scope, /width and width\+1/u);
+  assert.match(workload.scope, /C23\/Rust independently verify zero and maximum-valid logical counts/u);
+  assert.match(workload.scope, /equivalent runtime work and ranking are deferred/u);
+  assert.deepEqual(workload.oracle, {
+    kind: "exact-output",
+    status: "source-backed",
+    exitCode: 0,
+    stdout:
+      "i8 -128/0/-64/64\n" +
+      "u8 128/0/64/64\n" +
+      "i16 -32768/0/-16384/16384\n" +
+      "u16 32768/0/16384/16384\n" +
+      "i32 -2147483648/0/-1073741824/1073741824\n" +
+      "u32 2147483648/0/1073741824/1073741824\n" +
+      "i64 -9223372036854775808/0/-4611686018427387904/4611686018427387904\n" +
+      "u64 9223372036854775808/0/4611686018427387904/4611686018427387904\n" +
+      "u64 small-value 2/64/64\n",
+    stderr: "",
+  });
+  assert.deepEqual(workload.blockedLanguages, []);
+  assert.deepEqual(workload.blockers, [
+    "w-fixed-integer-shift-policies-compile-time-folded",
+    "runtime-fixed-integer-shift-policies-equivalence",
+  ]);
+  assert.deepEqual(workload.sources.map((source) =>
+    [source.language, source.platformTarget]), [
+    ["w", EXECUTABLE_PLATFORM_TARGET],
+    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
+    ["c", EXECUTABLE_PLATFORM_TARGET],
+    ["rust", EXECUTABLE_PLATFORM_TARGET],
+  ]);
+  assert.ok(workload.sources.every((source) =>
+    source.recipeClass === "fixed-integer-shift-policies-release" &&
+    source.quality === "correctness-gate"));
+  assert.ok(!documents.catalog.bestMetrics.entries.some((entry) =>
+    entry.workloadId === FIXED_INTEGER_SHIFT_POLICIES_WORKLOAD_ID),
+  "the family must have no timings or ranking cells");
+
+  const sources = Object.fromEntries(workload.sources
+    .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
+    .map((source) => [source.language,
+      readFileSync(`${ROOT}/${source.path}`, "utf8")]));
+  const w = readFileSync(
+    `${ROOT}/compiler/seed-c/fixtures/fixed-integer-shift-policies.w`, "utf8");
+  assert.ok(Buffer.byteLength(w, "utf8") <= 4096,
+    "the public fixture must fit the Native0 source-byte limit");
+  for (const [name, source] of Object.entries(sources))
+    assert.deepEqual(validateExecutableSourceExpectation(source, workload.oracle,
+      `${name} source`), []);
+  assert.deepEqual(validateExecutableSourceExpectation(w, workload.oracle,
+    "W public-run source"), []);
+  for (const type of ["i8", "u8", "i16", "u16", "i32", "u32", "i64", "u64"]) {
+    for (const operation of ["maskedShiftLeft", "maskedShiftRight",
+      "logicalShiftRight"])
+      assert.match(w, new RegExp(`\\b${type}\\.${operation}\\(`));
+  }
+  for (const pattern of [
+    /i8\.maskedShiftLeft\(i8_value, 8_u64\)/u,
+    /i64\.maskedShiftLeft\(~9223372036854775807_i64, 65_u64\)/u,
+    /i64\.maskedShiftRight\(~9223372036854775807_i64, 65_u64\)/u,
+    /i64\.logicalShiftRight\(~9223372036854775807_i64, 1_u64\)/u,
+    /u64\.maskedShiftLeft\(1_u64, 65_u64\)/u,
+    /u64\.maskedShiftRight\(128_u64, 65_u64\)/u,
+    /u64\.logicalShiftRight\(128_u64, 1_u64\)/u,
+  ]) assert.match(w, pattern);
+  assert.match(sources.c, /static volatile uint64_t inputs/u);
+  assert.match(sources.c, /count & \(uint64_t\)\(width - 1U\)/u);
+  assert.match(sources.c, /logical_max != UINT64_C\(1\)/u);
+  assert.match(sources.c, /is_signed && shift != 0U/u);
+  assert.match(sources.rust, /use std::hint::black_box/u);
+  assert.match(sources.rust, /wrapping_shl\(black_box\(width \+ 1\)\)/u);
+  assert.match(sources.rust, /wrapping_shr\(black_box\(width \+ 1\)\)/u);
+  assert.match(sources.rust, /logical_max, 1 as \$signed/u);
+  assert.match(sources.rust, /\(value as \$unsigned\) >> black_box\(1\)/u);
+  for (const gatePath of [
+    "tooling/build-w-windows.mjs",
+    "tooling/check-w-run-windows.mjs",
+    "tooling/check-w-run.mjs",
+    "tooling/check-mlir0.mjs",
+  ]) {
+    const gate = readFileSync(`${ROOT}/${gatePath}`, "utf8");
+    assert.match(gate, /fixed-integer-shift-policies\.w/u,
+      `${gatePath} must register the family witness`);
+    if (gatePath === "tooling/build-w-windows.mjs") {
+      assert.match(gate, /id: "fixed-integer-shift-policies"/u,
+        `${gatePath} must register the family smoke`);
+      assert.match(gate, /expectedStdout:\s*"i8 -128\/0\/-64\/64/u,
+        `${gatePath} must check the exact family oracle`);
+    } else {
+      assert.match(gate, /fixedIntegerShiftPoliciesOutput/u,
+        `${gatePath} must check the exact family oracle`);
+    }
   }
   assert.doesNotMatch(sources.c, /\b(?:extern|ffi)\b/iu);
   assert.doesNotMatch(sources.rust, /\b(?:extern|unsafe|ffi)\b/iu);

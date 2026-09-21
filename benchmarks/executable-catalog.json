@@ -2649,6 +2649,90 @@
       ]
     },
     {
+      "id": "fixed-integer-shift-policies",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Validate maskedShiftLeft, maskedShiftRight, and logicalShiftRight for signed and unsigned i8/u8 through i64/u64. The W witness covers masked counts at width and width+1, signed arithmetic versus logical zero-fill at count 1, and the original u64 low-bit cases; C23/Rust independently verify zero and maximum-valid logical counts. Correctness references only: W may fold fixed calls, so equivalent runtime work and ranking are deferred.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "i8 -128/0/-64/64\nu8 128/0/64/64\ni16 -32768/0/-16384/16384\nu16 32768/0/16384/16384\ni32 -2147483648/0/-1073741824/1073741824\nu32 2147483648/0/1073741824/1073741824\ni64 -9223372036854775808/0/-4611686018427387904/4611686018427387904\nu64 9223372036854775808/0/4611686018427387904/4611686018427387904\nu64 small-value 2/64/64\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/fixed-integer-shift-policies.w",
+          "digest": "sha256:d2c69cb8f845c83dba05761df35169397bf659e990b6635b6decf404160731d3",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "fixed-integer-shift-policies-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        },
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/fixed-integer-shift-policies.w",
+          "digest": "sha256:d2c69cb8f845c83dba05761df35169397bf659e990b6635b6decf404160731d3",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "fixed-integer-shift-policies-release",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only"
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/fixed_integer_shift_policies.c",
+          "digest": "sha256:b3a45daf277d92b9ea72231e73e5b1552f9ae3b92bffdf70b4b9b84e2b69c513",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "clang-c23-msvc",
+          "recipeClass": "fixed-integer-shift-policies-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/fixed_integer_shift_policies.rs",
+          "digest": "sha256:ff1f8c547647b6d53df4b285f3ee6e344f0cb9dc44c474194af8c99bdcc8f703",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "fixed-integer-shift-policies-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        }
+      ],
+      "blockedLanguages": [],
+      "blockers": [
+        "w-fixed-integer-shift-policies-compile-time-folded",
+        "runtime-fixed-integer-shift-policies-equivalence"
+      ]
+    },
+    {
       "id": "restaurant-uint-bitwise",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",

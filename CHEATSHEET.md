@@ -663,6 +663,18 @@ it covers all eight operations across the eight fixed-width types. Its exact
 source-to-native output passes the CRT-free Windows x64 and Linux/WSL x64
 gates. This is correctness-only evidence; the slice is not performance-ready.
 
+`maskedShiftLeft`, `maskedShiftRight`, and `logicalShiftRight` use the same
+`static fn operation(_ value: Self, _ count: UInt) -> Self` shape shown in the
+example. The masked policies reduce the count modulo `Self.bitWidth`;
+`maskedShiftRight` is arithmetic for signed values and logical for unsigned
+values. `logicalShiftRight` always zero-fills and rejects a count at or beyond
+the logical width. W-1649 source-backs these three existing APIs exactly for
+the built-in `i8`/`u8` through `i64`/`u64` family on the CRT-free Windows x64
+and Linux/WSL x64 routes. The neutral witness is
+[`fixed-integer-shift-policies.w`](compiler/seed-c/fixtures/fixed-integer-shift-policies.w).
+It is correctness-only evidence; aliases, wider integers, other targets, and
+performance remain open.
+
 `D(truncatingBits: source)` is the existing total fixed-width integer
 conversion. Current seed evidence is correctness-only and covers signed and
 unsigned 8/16/32/64-bit integers plus the current x86-64 `Int`/`UInt` aliases.

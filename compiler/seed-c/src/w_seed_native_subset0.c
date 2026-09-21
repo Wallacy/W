@@ -529,6 +529,63 @@ static bool native_integer_checked_shift_shape_valid(
   return true;
 }
 
+static bool native_integer_is_masked_shift(
+    w_seed_hir0_binary_operator operation) {
+  return operation == W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT ||
+         operation == W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT ||
+         operation == W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT;
+}
+
+static bool native_integer_masked_shift_shape_valid(
+    const w_seed_hir0_program *program, const w_seed_hir0_value *value,
+    native_integer_facts *result_facts) {
+  if (program == NULL || value == NULL ||
+      !native_integer_is_masked_shift(value->binary_operator) ||
+      (value->kind != W_SEED_HIR0_VALUE_BINARY_I64 &&
+       value->kind != W_SEED_HIR0_VALUE_BINARY_U64) ||
+      value->left_value == W_SEED_HIR0_NONE ||
+      value->right_value == W_SEED_HIR0_NONE ||
+      value->left_value >= program->value_count ||
+      value->right_value >= program->value_count)
+    return false;
+
+  const bool expected_signed = value->kind == W_SEED_HIR0_VALUE_BINARY_I64;
+  native_integer_facts result;
+  native_integer_facts left;
+  native_integer_facts count;
+  if (!native_integer_type_facts(program, value->type_index, &result) ||
+      result.is_signed != expected_signed ||
+      !native_integer_type_facts(
+          program, program->values[value->left_value].type_index, &left) ||
+      !native_integer_type_facts(
+          program, program->values[value->right_value].type_index, &count) ||
+      !native_integer_facts_equal(result, left) ||
+      value->type_index != program->values[value->left_value].type_index ||
+      count.is_signed || count.bit_width != 64u)
+    return false;
+
+  if (result_facts != NULL) *result_facts = result;
+  return true;
+}
+
+static bool native_integer_is_shift_policy(
+    w_seed_hir0_binary_operator operation) {
+  return native_integer_is_checked_shift(operation) ||
+         native_integer_is_masked_shift(operation);
+}
+
+static bool native_integer_shift_policy_shape_valid(
+    const w_seed_hir0_program *program, const w_seed_hir0_value *value,
+    native_integer_facts *result_facts) {
+  return native_integer_is_checked_shift(value != NULL
+                                             ? value->binary_operator
+                                             : W_SEED_HIR0_BINARY_ADD)
+             ? native_integer_checked_shift_shape_valid(program, value,
+                                                        result_facts)
+             : native_integer_masked_shift_shape_valid(program, value,
+                                                       result_facts);
+}
+
 static uint64_t native_integer_arithmetic_shift_right_bits(
     uint64_t bits, native_integer_facts facts, uint64_t count) {
   const uint64_t mask = native_integer_width_mask(facts);
@@ -575,6 +632,35 @@ static bool native_integer_checked_shift_bits(
   }
 
   *result_bits = candidate;
+  return true;
+}
+
+static bool native_integer_masked_shift_bits(
+    w_seed_hir0_binary_operator operation, native_integer_facts facts,
+    uint64_t left_bits, uint64_t count, uint64_t *result_bits) {
+  if (result_bits == NULL || !native_integer_is_masked_shift(operation) ||
+      (facts.bit_width != 8u && facts.bit_width != 16u &&
+       facts.bit_width != 32u && facts.bit_width != 64u))
+    return false;
+
+  const uint64_t mask = native_integer_width_mask(facts);
+  const uint64_t left = left_bits & mask;
+  if (operation == W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT) {
+    if (count >= facts.bit_width) return false;
+    *result_bits = (left >> count) & mask;
+    return true;
+  }
+
+  const uint64_t normalized_count = count & ((uint64_t)facts.bit_width - 1u);
+  if (operation == W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT) {
+    *result_bits = (left << normalized_count) & mask;
+    return true;
+  }
+
+  *result_bits = facts.is_signed
+                     ? native_integer_arithmetic_shift_right_bits(
+                           left, facts, normalized_count)
+                     : (left >> normalized_count) & mask;
   return true;
 }
 
@@ -1070,13 +1156,17 @@ static bool evaluate_integer_bits(const w_seed_hir0_program *program,
       native_integer_is_checked_binary(value->binary_operator);
   const bool checked_shift =
       native_integer_is_checked_shift(value->binary_operator);
+  const bool masked_shift =
+      native_integer_is_masked_shift(value->binary_operator);
   const bool bitwise = native_integer_is_bitwise_binary(value->binary_operator);
   if (value->kind != (signed_carrier ? W_SEED_HIR0_VALUE_BINARY_I64
                                      : W_SEED_HIR0_VALUE_BINARY_U64) ||
       (!native_integer_is_wrapping_binary(value->binary_operator) &&
-       !checked_arithmetic && !checked_shift && !bitwise) ||
+       !checked_arithmetic && !checked_shift && !masked_shift && !bitwise) ||
       (checked_shift &&
        !native_integer_checked_shift_shape_valid(program, value, NULL)) ||
+      (masked_shift &&
+       !native_integer_masked_shift_shape_valid(program, value, NULL)) ||
       (bitwise &&
        !native_integer_bitwise_shape_valid(program, value, signed_carrier)) ||
       value->left_value == W_SEED_HIR0_NONE ||
@@ -1088,7 +1178,7 @@ static bool evaluate_integer_bits(const w_seed_hir0_program *program,
   if (!evaluate_integer_bits(program, value->left_value, depth + 1u, expected,
                              &left))
     return false;
-  if (checked_shift ||
+  if (checked_shift || masked_shift ||
       value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_POWER ||
       value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT) {
     const native_integer_facts count_facts = {false, 64u};
@@ -1164,6 +1254,11 @@ static bool evaluate_integer_bits(const w_seed_hir0_program *program,
                                                native_integer_carrier_bits(
                                                    left, expected),
                                                right, result);
+    case W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT:
+    case W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT:
+    case W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT:
+      return native_integer_masked_shift_bits(value->binary_operator,
+                                              expected, left, right, result);
     default:
       return false;
   }
@@ -1258,9 +1353,6 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
           value->binary_operator != W_SEED_HIR0_BINARY_SHIFT_RIGHT &&
           value->binary_operator != W_SEED_HIR0_BINARY_POWER &&
           value->binary_operator != W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT &&
-          value->binary_operator != W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT &&
-          value->binary_operator != W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT &&
-          value->binary_operator != W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT &&
           value->binary_operator != W_SEED_HIR0_BINARY_SATURATING_ADD &&
           value->binary_operator != W_SEED_HIR0_BINARY_SATURATING_SUBTRACT &&
           value->binary_operator != W_SEED_HIR0_BINARY_SATURATING_MULTIPLY &&
@@ -1317,16 +1409,6 @@ static bool evaluate_u64(const w_seed_hir0_program *program,
        * undefined, while W's wrapping policy traps for an invalid count. */
       if (right >= UINT64_C(64)) return false;
       *result = left << right;
-      return true;
-    case W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT:
-      *result = left << (right & UINT64_C(63));
-      return true;
-    case W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT:
-      *result = left >> (right & UINT64_C(63));
-      return true;
-    case W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT:
-      if (right >= UINT64_C(64)) return false;
-      *result = left >> right;
       return true;
     case W_SEED_HIR0_BINARY_SUBTRACT:
       return checked_u64_subtract(left, right, result);
@@ -1505,9 +1587,6 @@ static bool program_value_is_constant_u64(
            value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY ||
            value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_POWER ||
            value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT ||
-           value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT ||
-           value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT ||
-           value->binary_operator == W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT ||
            value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_ADD ||
            value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_SUBTRACT ||
            value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_MULTIPLY ||
@@ -1581,14 +1660,13 @@ static bool program_value_is_constant_integer(
       native_integer_is_bitwise_binary(value->binary_operator);
   const bool rotation =
       native_integer_is_rotation_binary(value->binary_operator);
-  const bool checked_shift =
-      native_integer_is_checked_shift(value->binary_operator);
   const bool shape_valid =
       rotation ? native_integer_rotation_shape_valid(program, value, NULL)
                : (bitwise ? native_integer_bitwise_shape_valid(
                                 program, value, facts.is_signed)
-                          : (checked_shift
-                                 ? native_integer_checked_shift_shape_valid(
+                          : (native_integer_is_shift_policy(
+                                 value->binary_operator)
+                                 ? native_integer_shift_policy_shape_valid(
                                        program, value, NULL)
                                  : (native_integer_is_wrapping_binary(
                                         value->binary_operator) ||
@@ -2718,10 +2796,10 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
   }
   if ((value->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
        value->kind == W_SEED_HIR0_VALUE_BINARY_U64) &&
-      native_integer_is_checked_shift(value->binary_operator)) {
+      native_integer_is_shift_policy(value->binary_operator)) {
     native_integer_facts result_facts;
-    if (!native_integer_checked_shift_shape_valid(program, value,
-                                                  &result_facts) ||
+    if (!native_integer_shift_policy_shape_valid(program, value,
+                                                 &result_facts) ||
         !program_value_lowerable(program, value->left_value, owner_function,
                                  false, depth + 1u) ||
         !program_value_lowerable(program, value->right_value, owner_function,
@@ -2860,9 +2938,6 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
         value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_MULTIPLY ||
         value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_POWER ||
         value->binary_operator == W_SEED_HIR0_BINARY_WRAPPING_SHIFT_LEFT ||
-        value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_LEFT ||
-        value->binary_operator == W_SEED_HIR0_BINARY_MASKED_SHIFT_RIGHT ||
-        value->binary_operator == W_SEED_HIR0_BINARY_LOGICAL_SHIFT_RIGHT ||
         value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_ADD ||
         value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_SUBTRACT ||
         value->binary_operator == W_SEED_HIR0_BINARY_SATURATING_MULTIPLY ||
@@ -3340,10 +3415,10 @@ static bool process_value_lowerable(
 
   if ((value->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
        value->kind == W_SEED_HIR0_VALUE_BINARY_U64) &&
-      native_integer_is_checked_shift(value->binary_operator)) {
+      native_integer_is_shift_policy(value->binary_operator)) {
     native_integer_facts result_facts;
-    if (!native_integer_checked_shift_shape_valid(program, value,
-                                                  &result_facts) ||
+    if (!native_integer_shift_policy_shape_valid(program, value,
+                                                 &result_facts) ||
         !process_value_lowerable(program, value->left_value, owner_function,
                                  process, false, depth + 1u) ||
         !process_value_lowerable(program, value->right_value, owner_function,

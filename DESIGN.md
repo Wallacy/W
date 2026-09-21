@@ -42502,6 +42502,49 @@ x64. These references and gates establish correctness only, not performance.
 There is no source-backed `Int`/`UInt` target-width claim, other-target claim,
 general optimizer claim, or performance ranking in this increment.
 
+```w
+fn rotateByte(_ value: u8): u8 {
+  return u8.rotatedLeft(value, 1)
+}
+```
+
+#### 26.4.1.129 W-1649 — fixed-width named integer shift policies
+
+W-1649 is a bounded source-backed increment under the existing W-392
+contract; it adds no syntax or policy API. The source-backed type boundary is
+exactly the built-in fixed-width family `i8`/`u8`, `i16`/`u16`, `i32`/`u32`,
+and `i64`/`u64`. It does not establish coverage for `Int`/`UInt`,
+`isize`/`usize`, 128-bit integers, or target-general aliases.
+
+The existing associated functions have these signatures:
+
+```w
+static fn maskedShiftLeft(_ value: Self, _ count: UInt) -> Self
+static fn maskedShiftRight(_ value: Self, _ count: UInt) -> Self
+static fn logicalShiftRight(_ value: Self, _ count: UInt) -> Self
+```
+
+Both masked policies reduce `count` modulo the logical width of `Self`.
+`maskedShiftRight` is arithmetic for signed integers and logical for unsigned
+integers. `logicalShiftRight` always zero-fills and rejects `count >= bitWidth`
+before any LLVM shift operation. The value and result have exactly the same
+canonical fixed-width type; the count is exactly `UInt`.
+
+Frontend70 preserves the existing append-only operation identities, and
+verified HIR91 rejects forged same-type counts that could otherwise resemble
+a wrapping operation. NativeSubset0 and MLIR61 independently use the verified
+signedness and logical width rather than the physical `i64` carrier. The
+3,581-byte neutral witness
+[`fixed-integer-shift-policies.w`](compiler/seed-c/fixtures/fixed-integer-shift-policies.w)
+checks all three policies over all eight supported types, including masked
+counts at width and width plus one and the distinction between signed
+arithmetic right shift and explicit logical zero-fill. Focused tests retain
+the `0`, `width - 1`, `width`, and `width + 1` boundaries and confirm that
+`logicalShiftRight` traps at width. Exact-output source-to-native gates pass on
+CRT-free Windows x64 and Linux/WSL x64. C23 and Rust 2024 are correctness
+references only. W can fold the literal witness, so
+`benchmarkDisposition: deferred`; no timing or performance ranking is claimed.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:
