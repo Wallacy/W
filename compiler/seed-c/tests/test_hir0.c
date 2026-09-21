@@ -3323,19 +3323,45 @@ static bool test_process_unhandled_typed_error_hir(void) {
 
   w_seed_product_closure0_counts closure_counts;
   w_seed_product_closure0_result closure_result;
-  (void)memset(&closure_counts, 0xa5, sizeof(closure_counts));
-  (void)memset(&closure_result, 0x5a, sizeof(closure_result));
-  const w_seed_product_closure0_counts closure_counts_before = closure_counts;
-  const w_seed_product_closure0_result closure_result_before = closure_result;
+  (void)memset(&closure_counts, 0, sizeof(closure_counts));
+  (void)memset(&closure_result, 0, sizeof(closure_result));
   const w_seed_product_closure0_input closure_input = {
       .program = program, .hir_result = &fixture.hir_result};
-  CHECK(w_seed_product_closure0_measure(
-            &closure_input, &closure_counts, &closure_result) ==
-        W_SEED_PRODUCT_CLOSURE0_UNSUPPORTED);
-  CHECK(memcmp(&closure_counts, &closure_counts_before,
-               sizeof(closure_counts)) == 0 &&
-        memcmp(&closure_result, &closure_result_before,
-               sizeof(closure_result)) == 0);
+  CHECK(w_seed_product_closure0_measure(&closure_input, &closure_counts,
+                                        &closure_result) ==
+        W_SEED_PRODUCT_CLOSURE0_OK);
+  CHECK(closure_result.status == W_SEED_PRODUCT_CLOSURE0_OK &&
+        closure_result.root.entry_index == 0u &&
+        closure_result.root.module_index == 0u &&
+        closure_result.root.function_index == target &&
+        closure_result.root.identity_index == entry->identity_index &&
+        closure_result.root.target_identity_index == handler->identity_index &&
+        closure_result.root.adapter_kind ==
+            W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS &&
+        closure_result.root.cleanup_obligation ==
+            W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_TYPED_ERROR &&
+        closure_result.root.first_cleanup_owner_parameter ==
+            handler->first_parameter &&
+        closure_result.root.cleanup_owner_parameter_count == 2u &&
+        closure_result.root.cleanup_release_parameter_count == 2u &&
+        closure_result.root.cleanup_release_parameters[0] ==
+            handler->first_parameter + 1u &&
+        closure_result.root.cleanup_release_parameters[1] ==
+            handler->first_parameter);
+  CHECK(closure_result.outcome.kind ==
+            W_SEED_PRODUCT_CLOSURE0_OUTCOME_TYPED_THROW &&
+        closure_result.outcome.terminator_index == root_block->terminator_index &&
+        closure_result.outcome.value_index == throw_term->value_index &&
+        closure_result.outcome.error_type_index == handler->error_type &&
+        closure_result.outcome.error_enum_index == thrown->enum_index &&
+        closure_result.outcome.error_case_index == thrown->enum_case_index);
+  CHECK(closure_counts.reachable_modules == 1u &&
+        closure_counts.reachable_functions == 1u &&
+        closure_counts.omitted_functions == 1u &&
+        closure_counts.reachable_types == 4u &&
+        closure_counts.reachable_values == 1u &&
+        closure_counts.reachable_external_modules == 1u &&
+        closure_counts.reachable_external_symbols == 3u);
 
   const w_seed_hir0_entry saved_entry = fixture.hir_entries[0];
   fixture.hir_entries[0].cleanup_obligation =

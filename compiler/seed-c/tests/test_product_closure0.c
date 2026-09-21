@@ -124,6 +124,8 @@ static bool configure_print_host(multidoc_fixture *fixture) {
       .requirements = fixture->host_requirements,
       .requirement_count = 1u};
   fixture->host_scope.profile = (w_seed_frontend_text){"native-process@1", 16u};
+  fixture->host_scope.symbols = fixture->host_symbols;
+  fixture->host_scope.symbol_count = 1u;
   return true;
 }
 
@@ -136,6 +138,151 @@ static bool prepare_print_fixture(multidoc_fixture *fixture,
   setup_frontend_output(fixture);
   return w_seed_frontend_run(&fixture->frontend_input, &fixture->frontend_output,
                              &fixture->frontend_result) == W_SEED_FRONTEND_OK;
+}
+
+static bool prepare_process_fixture(multidoc_fixture *fixture,
+                                    const char *root_source) {
+  if (fixture == NULL || root_source == NULL) return false;
+  (void)memset(fixture, 0, sizeof(*fixture));
+  if (!parse_document(&fixture->parsed[0], root_source)) return false;
+  fixture->documents[0] = (w_seed_frontend_document){
+      .logical_source_id = (w_seed_frontend_text){"app-source", 10u},
+      .module_id = (w_seed_frontend_text){"app", 3u},
+      .local_module_name = (w_seed_frontend_text){"app", 3u},
+      .source = &fixture->parsed[0].source,
+      .nodes = fixture->parsed[0].nodes,
+      .node_count = fixture->parsed[0].parse.node_count,
+      .parse = fixture->parsed[0].parse};
+  w_seed_module_origin origins[TEST_IMPORTS];
+  w_seed_module_scan_result scan_result;
+  if (w_seed_module_scan(
+          fixture->documents[0].source, fixture->documents[0].nodes,
+          fixture->documents[0].parse.node_count, &fixture->documents[0].parse,
+          origins, TEST_IMPORTS, &scan_result) != W_SEED_MODULE_SCAN_OK ||
+      scan_result.written != 1u)
+    return false;
+  static const w_seed_frontend_text empty = {NULL, 0u};
+  fixture->frontend_external_symbols[0] =
+      (w_seed_frontend_external_symbol){
+          .name = (w_seed_frontend_text){"Arguments", 9u},
+          .kind = W_SEED_FRONTEND_EXTERNAL_TYPE,
+          .exported = true,
+          .return_type = (w_seed_frontend_text){"Arguments", 9u},
+          .receiver_type = empty};
+  fixture->frontend_external_symbols[1] =
+      (w_seed_frontend_external_symbol){
+          .name = (w_seed_frontend_text){"Context", 7u},
+          .kind = W_SEED_FRONTEND_EXTERNAL_TYPE,
+          .exported = true,
+          .return_type = (w_seed_frontend_text){"Context", 7u},
+          .receiver_type = empty};
+  fixture->frontend_external_symbols[2] =
+      (w_seed_frontend_external_symbol){
+          .name = (w_seed_frontend_text){"ExitCode", 8u},
+          .kind = W_SEED_FRONTEND_EXTERNAL_TYPE,
+          .exported = true,
+          .return_type = (w_seed_frontend_text){"ExitCode", 8u},
+          .receiver_type = empty};
+  fixture->frontend_external_symbols[3] =
+      (w_seed_frontend_external_symbol){
+          .name = (w_seed_frontend_text){"success", 7u},
+          .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+          .exported = true,
+          .return_type = (w_seed_frontend_text){"ExitCode", 8u},
+          .is_const = true,
+          .receiver_type = (w_seed_frontend_text){"ExitCode", 8u}};
+  fixture->frontend_external_symbols[4] =
+      (w_seed_frontend_external_symbol){
+          .name = (w_seed_frontend_text){"isEmpty", 7u},
+          .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+          .exported = true,
+          .return_type = (w_seed_frontend_text){"Bool", 4u},
+          .is_const = true,
+          .receiver_type = (w_seed_frontend_text){"Arguments", 9u}};
+  fixture->frontend_external_parameters[0] =
+      (w_seed_frontend_external_parameter){
+          .name = (w_seed_frontend_text){"code", 4u},
+          .type = (w_seed_frontend_text){"i64", 3u},
+          .label_kind = W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY};
+  fixture->frontend_external_symbols[5] =
+      (w_seed_frontend_external_symbol){
+          .name = (w_seed_frontend_text){"failure", 7u},
+          .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+          .exported = true,
+          .parameters = fixture->frontend_external_parameters,
+          .parameter_count = 1u,
+          .return_type = (w_seed_frontend_text){"ExitCode", 8u},
+          .is_const = true,
+          .receiver_type = (w_seed_frontend_text){"ExitCode", 8u}};
+  fixture->frontend_external_symbols[6] =
+      (w_seed_frontend_external_symbol){
+          .name = (w_seed_frontend_text){"count", 5u},
+          .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+          .exported = true,
+          .return_type = (w_seed_frontend_text){"usize", 5u},
+          .is_const = true,
+          .receiver_type = (w_seed_frontend_text){"Arguments", 9u}};
+  fixture->frontend_external_modules[0] =
+      (w_seed_frontend_external_module){
+          .module_id = (w_seed_frontend_text){"std.process", 11u},
+          .symbols = fixture->frontend_external_symbols,
+          .symbol_count = 7u};
+  fixture->resolved_imports[0] = (w_seed_frontend_resolved_import){
+      .source_document_index = 0u,
+      .direct_import_ordinal = origins[0].direct_import_ordinal,
+      .import_declaration_span = origins[0].declaration_span,
+      .target_kind = W_SEED_FRONTEND_RESOLVED_IMPORT_EXTERNAL_MODULE,
+      .target_index = 0u};
+  (void)configure_print_host(fixture);
+  fixture->frontend_input = (w_seed_frontend_input){
+      .documents = fixture->documents,
+      .document_count = 1u,
+      .external_modules = fixture->frontend_external_modules,
+      .external_module_count = 1u,
+      .host_scope = &fixture->host_scope,
+      .import_resolution_complete = true,
+      .resolved_imports = fixture->resolved_imports,
+      .resolved_import_count = 1u};
+  setup_frontend_output(fixture);
+  const w_seed_frontend_status frontend_status =
+      w_seed_frontend_run(&fixture->frontend_input,
+                          &fixture->frontend_output,
+                          &fixture->frontend_result);
+  if (frontend_status != W_SEED_FRONTEND_OK) return false;
+  const w_seed_hir0_input hir_input = {
+      .frontend_input = &fixture->frontend_input,
+      .frontend_output = &fixture->frontend_output,
+      .frontend_result = &fixture->frontend_result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
+  const w_seed_hir0_status hir_measure_status =
+      w_seed_hir0_measure(&hir_input, &fixture->hir_counts,
+                          &fixture->hir_result);
+  if (hir_measure_status != W_SEED_HIR0_OK) return false;
+  setup_hir_output(fixture);
+  const w_seed_hir0_status hir_run_status =
+      w_seed_hir0_run(&hir_input, &fixture->hir_output,
+                      &fixture->hir_result);
+  if (hir_run_status != W_SEED_HIR0_OK) return false;
+  if (!w_seed_hir0_program_from_output(&fixture->hir_output,
+                                       &fixture->hir_result,
+                                       &fixture->hir_program))
+    return false;
+  return w_seed_hir0_verify(&fixture->hir_program, &fixture->hir_result);
+}
+
+static void reseal_process_hir(multidoc_fixture *fixture) {
+  if (fixture == NULL) return;
+  uint8_t semantic_digest[W_SEED_PRODUCT_CLOSURE0_DIGEST_BYTES];
+  uint8_t provenance_digest[W_SEED_PRODUCT_CLOSURE0_DIGEST_BYTES];
+  const w_seed_hir0_counts counts = fixture->hir_result.written;
+  digest_program(&fixture->hir_program, &counts, semantic_digest);
+  digest_provenance(&fixture->hir_program, &counts, provenance_digest);
+  (void)memcpy(fixture->hir_result.semantic_digest, semantic_digest,
+               sizeof(semantic_digest));
+  (void)memcpy(fixture->hir_result.provenance_digest, provenance_digest,
+               sizeof(provenance_digest));
+  write_receipt_unchecked(fixture->hir_receipt, &counts, semantic_digest,
+                          provenance_digest);
 }
 
 static bool add_dead_module(multidoc_fixture *fixture) {
@@ -269,6 +416,239 @@ static bool test_reachable_and_omitted(void) {
   CHECK(w_seed_product_closure0_cross_check_functions(
       &fixture.hir_program, &fixture.hir_result,
       (const bool[]){true, true, false, false}, PRODUCT_FUNCTIONS));
+  return true;
+}
+
+static bool test_native_process_typed_throw(void) {
+  static const char SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "enum ProcessFailure: Error { denied unavailable }\n"
+      "enum OtherFailure: Error { unrelated }\n"
+      "enum PlainFailure { plain }\n"
+      "fn helper(value: i64): i64 { return value }\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws ProcessFailure { throw .denied }\n"
+      "entry(run)\n";
+  static multidoc_fixture fixture;
+  static product_storage storage;
+  static product_storage saved_storage;
+  CHECK(prepare_process_fixture(&fixture, SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  const uint32_t target = program->entries[0].target_function;
+  const w_seed_hir0_function *handler = &program->functions[target];
+  const w_seed_hir0_block *block = &program->blocks[handler->first_block];
+  const w_seed_hir0_terminator *term =
+      &program->terminators[block->terminator_index];
+  const w_seed_hir0_value *thrown = &program->values[term->value_index];
+  const w_seed_product_closure0_input input =
+      {program, &fixture.hir_result};
+  (void)memset(&storage, 0xa5, sizeof(storage));
+  const w_seed_product_closure0_output output = product_output(&storage);
+  w_seed_product_closure0_result result = {0};
+  CHECK(w_seed_product_closure0_run(&input, &output, &result) ==
+        W_SEED_PRODUCT_CLOSURE0_OK);
+  CHECK(result.root.entry_index == 0u && result.root.module_index == 0u &&
+        result.root.function_index == target &&
+        result.root.identity_index == program->entries[0].identity_index &&
+        result.root.target_identity_index == handler->identity_index &&
+        result.root.identity_index != result.root.target_identity_index &&
+        result.root.adapter_kind == W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS);
+  CHECK(result.outcome.kind == W_SEED_PRODUCT_CLOSURE0_OUTCOME_TYPED_THROW &&
+        result.outcome.terminator_index == block->terminator_index &&
+        result.outcome.value_index == term->value_index &&
+        result.outcome.error_type_index == handler->error_type &&
+        result.outcome.error_enum_index == thrown->enum_index &&
+        result.outcome.error_case_index == thrown->enum_case_index);
+  CHECK(result.root.cleanup_obligation ==
+            W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_TYPED_ERROR &&
+        result.root.first_cleanup_owner_parameter == handler->first_parameter &&
+        result.root.cleanup_owner_parameter_count == 2u &&
+        result.root.cleanup_release_parameter_count == 2u &&
+        result.root.cleanup_release_parameters[0] ==
+            handler->first_parameter + 1u &&
+        result.root.cleanup_release_parameters[1] == handler->first_parameter);
+  CHECK(program->types[handler->return_type].kind ==
+            W_SEED_HIR0_TYPE_NOMINAL &&
+        program->types[handler->return_type].external_symbol_index == 2u);
+  CHECK(result.written.reachable_modules == 1u &&
+        result.written.reachable_functions == 1u &&
+        result.written.omitted_functions == 1u &&
+        result.written.reachable_values == 1u &&
+        result.written.reachable_types == 4u &&
+        result.written.reachable_external_modules == 1u &&
+        result.written.reachable_external_symbols == 3u &&
+        storage.reachable_functions[0] == target &&
+        storage.omitted_functions[0] == 0u &&
+        storage.reachable_external_symbols[0] == 0u &&
+        storage.reachable_external_symbols[1] == 1u &&
+        storage.reachable_external_symbols[2] == 2u);
+  CHECK(w_seed_product_closure0_verify(&input, &output, &result));
+
+  w_seed_product_closure0_counts counts = {0};
+  w_seed_product_closure0_result measured = {0};
+  CHECK(w_seed_product_closure0_measure(&input, &counts, &measured) ==
+        W_SEED_PRODUCT_CLOSURE0_OK);
+  CHECK(memcmp(&counts, &result.required, sizeof(counts)) == 0 &&
+        memcmp(&measured, &result, sizeof(measured)) == 0);
+
+  /* Capacity and alias failures must leave both caller-owned publication
+   * buffers and the result unchanged for this new typed root too. */
+  saved_storage = storage;
+  const w_seed_product_closure0_result saved_result = result;
+  w_seed_product_closure0_output limited_output = product_output(&storage);
+  limited_output.reachable_external_symbol_capacity = 2u;
+  CHECK(w_seed_product_closure0_run(&input, &limited_output, &result) ==
+        W_SEED_PRODUCT_CLOSURE0_CAPACITY);
+  CHECK(memcmp(&storage, &saved_storage, sizeof(storage)) == 0 &&
+        memcmp(&result, &saved_result, sizeof(result)) == 0);
+
+  w_seed_product_closure0_output aliased_output = product_output(&storage);
+  aliased_output.reachable_types = (uint32_t *)(void *)fixture.hir_cleanups;
+  aliased_output.reachable_type_capacity = PRODUCT_TYPES;
+  CHECK(w_seed_product_closure0_run(&input, &aliased_output, &result) ==
+        W_SEED_PRODUCT_CLOSURE0_INVALID);
+  CHECK(memcmp(&storage, &saved_storage, sizeof(storage)) == 0 &&
+        memcmp(&result, &saved_result, sizeof(result)) == 0);
+  const w_seed_product_closure0_counts saved_counts = counts;
+  w_seed_product_closure0_result measure_result = measured;
+  CHECK(w_seed_product_closure0_measure(
+            &input,
+            (w_seed_product_closure0_counts *)(void *)fixture.hir_cleanups,
+            &measure_result) == W_SEED_PRODUCT_CLOSURE0_INVALID);
+  CHECK(memcmp(&counts, &saved_counts, sizeof(counts)) == 0 &&
+        memcmp(&measure_result, &measured, sizeof(measure_result)) == 0);
+
+  /* The result is a caller-owned fact product: neither its root identity,
+   * outcome channel, cleanup order, nor digest can be forged in isolation. */
+  result.root.target_identity_index = result.root.identity_index;
+  CHECK(!w_seed_product_closure0_verify(&input, &output, &result));
+  result = saved_result;
+  result.root.first_cleanup_owner_parameter = handler->first_parameter + 1u;
+  CHECK(!w_seed_product_closure0_verify(&input, &output, &result));
+  result = saved_result;
+  result.outcome.error_case_index = W_SEED_PRODUCT_CLOSURE0_NONE;
+  CHECK(!w_seed_product_closure0_verify(&input, &output, &result));
+  result = saved_result;
+  result.root.cleanup_release_parameters[0] = handler->first_parameter;
+  CHECK(!w_seed_product_closure0_verify(&input, &output, &result));
+  result = saved_result;
+  result.reachable_semantic_digest[0] ^= 1u;
+  CHECK(!w_seed_product_closure0_verify(&input, &output, &result));
+  result = saved_result;
+
+  const uint32_t case_name_offset =
+      program->enum_cases[thrown->enum_case_index].name.offset;
+  const uint8_t saved_case_name = fixture.hir_text[case_name_offset];
+  fixture.hir_text[case_name_offset] ^= 1u;
+  reseal_process_hir(&fixture);
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  CHECK(!w_seed_product_closure0_verify(&input, &output, &result));
+  fixture.hir_text[case_name_offset] = saved_case_name;
+  reseal_process_hir(&fixture);
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result) &&
+        w_seed_product_closure0_verify(&input, &output, &result));
+
+  /* The ProductClosure boundary still insists that HIR itself authenticate a
+   * root THROW's shape; a resealed malformed HIR term cannot bypass it. */
+  w_seed_hir0_terminator *mutable_term =
+      &fixture.hir_terminators[block->terminator_index];
+  const w_seed_hir0_terminator saved_term = *mutable_term;
+  mutable_term->error_type = handler->error_type;
+  reseal_process_hir(&fixture);
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  w_seed_product_closure0_counts forged_counts;
+  w_seed_product_closure0_result forged_result;
+  (void)memset(&forged_counts, 0x46, sizeof(forged_counts));
+  (void)memset(&forged_result, 0x57, sizeof(forged_result));
+  const w_seed_product_closure0_counts forged_counts_before = forged_counts;
+  const w_seed_product_closure0_result forged_result_before = forged_result;
+  CHECK(w_seed_product_closure0_measure(&input, &forged_counts,
+                                        &forged_result) ==
+        W_SEED_PRODUCT_CLOSURE0_INVALID);
+  CHECK(memcmp(&forged_counts, &forged_counts_before, sizeof(forged_counts)) ==
+            0 &&
+        memcmp(&forged_result, &forged_result_before, sizeof(forged_result)) ==
+            0);
+  *mutable_term = saved_term;
+  reseal_process_hir(&fixture);
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
+static bool expect_process_product_status(
+    const char *source, w_seed_product_closure0_status expected_status) {
+  static multidoc_fixture fixture;
+  CHECK(prepare_process_fixture(&fixture, source));
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  const w_seed_product_closure0_input input =
+      {&fixture.hir_program, &fixture.hir_result};
+  w_seed_product_closure0_counts counts;
+  w_seed_product_closure0_result result;
+  (void)memset(&counts, 0xa1, sizeof(counts));
+  (void)memset(&result, 0xb2, sizeof(result));
+  const w_seed_product_closure0_counts counts_before = counts;
+  const w_seed_product_closure0_result result_before = result;
+  const w_seed_product_closure0_status status =
+      w_seed_product_closure0_measure(&input, &counts, &result);
+  CHECK(status == expected_status);
+  if (status != W_SEED_PRODUCT_CLOSURE0_OK)
+    CHECK(memcmp(&counts, &counts_before, sizeof(counts)) == 0 &&
+          memcmp(&result, &result_before, sizeof(result)) == 0);
+  return true;
+}
+
+static bool expect_unit_product_status(
+    const char *root_source, const char *library_source,
+    w_seed_product_closure0_status expected_status) {
+  static multidoc_fixture fixture;
+  CHECK(prepare_fixture(&fixture, root_source, library_source));
+  CHECK(lower_fixture(&fixture));
+  const w_seed_product_closure0_input input =
+      {&fixture.hir_program, &fixture.hir_result};
+  w_seed_product_closure0_counts counts;
+  w_seed_product_closure0_result result;
+  (void)memset(&counts, 0xa1, sizeof(counts));
+  (void)memset(&result, 0xb2, sizeof(result));
+  const w_seed_product_closure0_counts counts_before = counts;
+  const w_seed_product_closure0_result result_before = result;
+  const w_seed_product_closure0_status status =
+      w_seed_product_closure0_measure(&input, &counts, &result);
+  CHECK(status == expected_status);
+  if (status != W_SEED_PRODUCT_CLOSURE0_OK)
+    CHECK(memcmp(&counts, &counts_before, sizeof(counts)) == 0 &&
+          memcmp(&result, &result_before, sizeof(result)) == 0);
+  return true;
+}
+
+static bool test_typed_process_fail_closed_shapes(void) {
+  static const char BRANCHED_ROOT[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { if args.isEmpty { return .success } "
+      "else { return .success } }\n"
+      "entry(run)\n";
+  static const char PAYLOAD_ENUM[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "enum ProcessFailure: Error { denied unavailable }\n"
+      "enum PayloadFailure: Error { unavailable(code: i64) }\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws ProcessFailure { throw .denied }\n"
+      "entry(run)\n";
+  static const char INTEGER_EXACTLY_UNIT_HELPER[] =
+      "import { helper as h } from lib\n"
+      "fn convert(value: i16): i8 throws NumericConversionError { "
+      "return try i8(exactly: value) }\n"
+      "fn run() { let ignored = h() }\n"
+      "entry(run)\n";
+  CHECK(expect_process_product_status(
+      BRANCHED_ROOT, W_SEED_PRODUCT_CLOSURE0_UNSUPPORTED));
+  CHECK(expect_process_product_status(
+      PAYLOAD_ENUM, W_SEED_PRODUCT_CLOSURE0_UNSUPPORTED));
+  CHECK(expect_unit_product_status(INTEGER_EXACTLY_UNIT_HELPER, LIB_SOURCE,
+                                   W_SEED_PRODUCT_CLOSURE0_UNSUPPORTED));
   return true;
 }
 
@@ -418,6 +798,14 @@ static bool test_dead_module_and_mlir(void) {
         W_SEED_PRODUCT_CLOSURE0_OK);
   CHECK(w_seed_product_closure0_run(&dead_input, &dead_output, &dead_result) ==
         W_SEED_PRODUCT_CLOSURE0_OK);
+  CHECK(base_result.root.adapter_kind ==
+            W_SEED_HIR0_ENTRY_ADAPTER_DEFAULT_UNIT &&
+        base_result.outcome.kind == W_SEED_PRODUCT_CLOSURE0_OUTCOME_NONE &&
+        base_result.outcome.terminator_index == W_SEED_PRODUCT_CLOSURE0_NONE &&
+        base_result.outcome.value_index == W_SEED_PRODUCT_CLOSURE0_NONE &&
+        base_result.outcome.error_type_index == W_SEED_PRODUCT_CLOSURE0_NONE &&
+        base_result.root.cleanup_obligation ==
+            W_SEED_HIR0_ENTRY_CLEANUP_NONE);
   CHECK(dead_result.written.reachable_modules == 2u &&
         dead_result.written.omitted_modules == 1u &&
         dead_storage.reachable_modules[0] == 0u &&
@@ -461,7 +849,10 @@ static bool test_dead_module_and_mlir(void) {
 
 int main(void) {
   return test_reachable_and_omitted() && test_digest_and_measure() &&
-                 test_transaction_barriers() && test_dead_module_and_mlir()
+                 test_transaction_barriers() &&
+                 test_native_process_typed_throw() &&
+                 test_typed_process_fail_closed_shapes() &&
+                 test_dead_module_and_mlir()
              ? 0
              : 1;
 }

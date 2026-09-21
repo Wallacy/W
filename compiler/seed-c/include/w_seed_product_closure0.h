@@ -15,13 +15,15 @@ extern "C" {
  * program.  It does not copy HIR records and never owns input storage.  The
  * caller owns every output array and receives source-index to dense-closure
  * remaps (W_SEED_PRODUCT_CLOSURE0_NONE for omitted records). */
-#define W_SEED_PRODUCT_CLOSURE0_SCHEMA_VERSION "w-seed-product-closure0-1"
+#define W_SEED_PRODUCT_CLOSURE0_SCHEMA_VERSION "w-seed-product-closure0-2"
 #define W_SEED_PRODUCT_CLOSURE0_NONE UINT32_MAX
 #define W_SEED_PRODUCT_CLOSURE0_DIGEST_BYTES 32u
 #define W_SEED_PRODUCT_CLOSURE0_MAX_MODULES 32u
 #define W_SEED_PRODUCT_CLOSURE0_MAX_FUNCTIONS 128u
 #define W_SEED_PRODUCT_CLOSURE0_MAX_IDENTITIES 256u
-#define W_SEED_PRODUCT_CLOSURE0_MAX_TYPES 4u
+#define W_SEED_PRODUCT_CLOSURE0_MAX_TYPES 128u
+#define W_SEED_PRODUCT_CLOSURE0_MAX_ENUMS 32u
+#define W_SEED_PRODUCT_CLOSURE0_MAX_ENUM_CASES 512u
 #define W_SEED_PRODUCT_CLOSURE0_MAX_VALUES 4096u
 #define W_SEED_PRODUCT_CLOSURE0_MAX_REQUIREMENTS 512u
 #define W_SEED_PRODUCT_CLOSURE0_MAX_EXTERNAL_MODULES 32u
@@ -63,15 +65,39 @@ typedef struct {
   const w_seed_hir0_result *hir_result;
 } w_seed_product_closure0_input;
 
-/* The root is intentionally explicit.  ProductClosure0 currently admits
- * only the one verifier-published .default entry at source entry index zero.
- * All fields are source HIR indices, not dense closure ordinals. */
+typedef enum {
+  W_SEED_PRODUCT_CLOSURE0_OUTCOME_NONE = 0,
+  W_SEED_PRODUCT_CLOSURE0_OUTCOME_TYPED_THROW,
+} w_seed_product_closure0_outcome_kind;
+
+/* Root identity and root outcome are separate facts. All indexes are source
+ * HIR indexes, not dense closure ordinals. */
 typedef struct {
   uint32_t entry_index;
   uint32_t module_index;
   uint32_t function_index;
   uint32_t identity_index;
+  uint32_t target_identity_index;
+  w_seed_hir0_entry_adapter_kind adapter_kind;
+  w_seed_hir0_entry_cleanup_kind cleanup_obligation;
+  uint32_t first_cleanup_owner_parameter;
+  uint32_t cleanup_owner_parameter_count;
+  /* Explicit verified release order. For the typed-error root this is
+   * Context then Arguments, reverse of the HIR owner-parameter range. */
+  uint32_t cleanup_release_parameter_count;
+  uint32_t cleanup_release_parameters[2];
 } w_seed_product_closure0_root;
+
+/* A typed throw is an outcome fact, never a replacement for the entry's
+ * normal return type or an alias for panic/status. */
+typedef struct {
+  w_seed_product_closure0_outcome_kind kind;
+  uint32_t terminator_index;
+  uint32_t value_index;
+  uint32_t error_type_index;
+  uint32_t error_enum_index;
+  uint32_t error_case_index;
+} w_seed_product_closure0_outcome;
 
 typedef struct {
   size_t modules;
@@ -185,6 +211,7 @@ typedef struct {
   w_seed_product_closure0_counts written;
   w_seed_product_closure0_failure failure;
   w_seed_product_closure0_root root;
+  w_seed_product_closure0_outcome outcome;
   uint8_t reachable_semantic_digest[W_SEED_PRODUCT_CLOSURE0_DIGEST_BYTES];
 } w_seed_product_closure0_result;
 

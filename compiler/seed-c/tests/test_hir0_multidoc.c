@@ -108,6 +108,9 @@ typedef struct {
   w_seed_frontend_host_requirement host_requirements[1];
   w_seed_frontend_host_prelude_symbol host_symbols[1];
   w_seed_frontend_host_prelude host_scope;
+  w_seed_frontend_external_parameter frontend_external_parameters[1];
+  w_seed_frontend_external_symbol frontend_external_symbols[7];
+  w_seed_frontend_external_module frontend_external_modules[1];
   uint8_t frontend_receipt[TEST_RECEIPT];
   w_seed_frontend_output frontend_output;
   w_seed_frontend_result frontend_result;
@@ -138,7 +141,7 @@ typedef struct {
   w_seed_hir0_terminator hir_terminators[TEST_HIR_RECORDS];
   w_seed_hir0_entry hir_entries[TEST_HIR_RECORDS];
   w_seed_hir0_external_module hir_external_modules[1];
-  w_seed_hir0_external_symbol hir_external_symbols[1];
+  w_seed_hir0_external_symbol hir_external_symbols[7];
   w_seed_hir0_cleanup hir_cleanups[TEST_HIR_RECORDS];
   uint8_t hir_text[TEST_HIR_TEXT];
   uint8_t hir_value_bytes[TEST_HIR_VALUES];
@@ -336,7 +339,9 @@ static void setup_hir_output(multidoc_fixture *fixture) {
       .external_modules = fixture->hir_external_modules,
       .external_module_capacity = 1u,
       .external_symbols = fixture->hir_external_symbols,
-      .external_symbol_capacity = 1u,
+      .external_symbol_capacity =
+          sizeof(fixture->hir_external_symbols) /
+          sizeof(fixture->hir_external_symbols[0]),
       .cleanups = fixture->hir_cleanups,
       .cleanup_capacity = TEST_HIR_RECORDS};
 }
