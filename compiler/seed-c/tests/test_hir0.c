@@ -2068,7 +2068,7 @@ static bool test_implicit_integer_widen_hir(void) {
 }
 
 static bool test_float_bits_hir(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-92") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-93") == 0);
   static const char SOURCE[] =
       "fn from32(bits: u32): f32 { let stored: f32 = f32.fromBits(bits) "
       "return stored }\n"
@@ -2303,7 +2303,7 @@ static bool test_float_bits_hir(void) {
 }
 
 static bool test_numeric_widen_hir(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-92") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-93") == 0);
   typedef struct {
     const char *source_name;
     bool source_is_float;
@@ -3204,6 +3204,277 @@ static void reseal_hir_fixture(void) {
                sizeof(provenance_digest));
   write_receipt_unchecked(fixture.hir_receipt, &fixture.hir_counts,
                           semantic_digest, provenance_digest);
+}
+
+static bool test_process_unhandled_typed_error_hir(void) {
+  static const char SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "enum ProcessFailure: Error { denied unavailable }\n"
+      "enum OtherFailure: Error { unrelated }\n"
+      "enum PlainFailure { plain }\n"
+      "fn helper(value: i64): i64 { return value }\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws ProcessFailure { throw .denied }\n"
+      "entry(run)\n";
+  static const char BRANCHED_THROW_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "enum ProcessFailure: Error { denied unavailable }\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws ProcessFailure { if args.isEmpty { "
+      "throw .denied } else { throw .unavailable } }\n"
+      "entry(run)\n";
+
+  CHECK(lower_process_input0_generic(SOURCE));
+  w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 2u && program->entry_count == 1u &&
+        program->enum_count == 3u && program->block_count == 2u &&
+        program->instruction_count == 0u && program->call_count == 0u &&
+        program->entries[0].target_function == 1u);
+  const uint32_t target = program->entries[0].target_function;
+  const w_seed_hir0_function *handler = &program->functions[target];
+  const w_seed_hir0_enum *error_enum = &program->enums[0];
+  const uint32_t arguments_type = hir0_external_type_index(program, 0u);
+  const uint32_t context_type = hir0_external_type_index(program, 1u);
+  const uint32_t exit_code_type = hir0_external_type_index(program, 2u);
+  CHECK(handler->is_async && handler->is_throws && !handler->is_const &&
+        !handler->is_unsafe && !handler->has_borrow_clause &&
+        !handler->is_anonymous_entry && handler->return_type == exit_code_type &&
+        handler->error_type == error_enum->type_index &&
+        handler->parameter_count == 2u && error_enum->error_conformance &&
+        error_enum->case_count == 2u &&
+        program->types[arguments_type].lifecycle ==
+            W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER &&
+        program->types[context_type].lifecycle ==
+            W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER &&
+        program->types[arguments_type].release_contract ==
+            W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE &&
+        program->types[context_type].release_contract ==
+            W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE &&
+        handler->direct_entry == W_SEED_HIR0_DIRECT_ENTRY_ABSENT);
+  CHECK(program->parameters[handler->first_parameter].type_index ==
+            arguments_type &&
+        program->parameters[handler->first_parameter + 1u].type_index ==
+            context_type);
+  const w_seed_hir0_entry *entry = &program->entries[0];
+  CHECK(entry->adapter_kind == W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS &&
+        entry->cleanup_obligation ==
+            W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_TYPED_ERROR &&
+        entry->first_cleanup_owner_parameter == handler->first_parameter &&
+        entry->cleanup_owner_parameter_count == 2u);
+  for (size_t ordinal = 0u; ordinal < error_enum->case_count; ordinal += 1u)
+    CHECK(program->enum_cases[(size_t)error_enum->first_case + ordinal]
+                  .payload_count == 0u);
+  const w_seed_hir0_block *root_block =
+      &program->blocks[handler->first_block];
+  CHECK(handler->block_count == 1u && root_block->instruction_count == 0u &&
+        root_block->block_argument_count == 0u &&
+        root_block->terminator_index < program->terminator_count);
+  const w_seed_hir0_terminator *throw_term =
+      &program->terminators[root_block->terminator_index];
+  CHECK(throw_term->kind == W_SEED_HIR0_TERMINATOR_THROW &&
+        throw_term->result_type == handler->error_type &&
+        throw_term->value_index < program->value_count);
+  const w_seed_hir0_value *thrown =
+      &program->values[throw_term->value_index];
+  CHECK(thrown->kind == W_SEED_HIR0_VALUE_ENUM_CASE &&
+        thrown->type_index == handler->error_type &&
+        thrown->enum_index ==
+            program->types[handler->error_type].enum_index &&
+        thrown->enum_case_index == error_enum->first_case &&
+        thrown->enum_payload_count == 0u &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const uint32_t frontend_target = fixture.output.entries[0].target_function;
+  const w_seed_frontend_function *frontend_handler =
+      &fixture.output.functions[frontend_target];
+  const w_seed_frontend_statement *frontend_throw =
+      &fixture.output.statements[frontend_handler->first_statement];
+  const uint32_t frontend_thrown_type =
+      fixture.output.expressions[frontend_throw->expression_index]
+          .inferred_type;
+  const uint32_t saved_generic_application =
+      fixture.types[frontend_thrown_type].generic_application_index;
+  fixture.types[frontend_thrown_type].generic_application_index = 0u;
+  const w_seed_hir0_input forged_generic_input = {
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
+  w_seed_hir0_counts forged_generic_counts;
+  w_seed_hir0_result forged_generic_result;
+  (void)memset(&forged_generic_counts, 0x91,
+               sizeof(forged_generic_counts));
+  (void)memset(&forged_generic_result, 0x37,
+               sizeof(forged_generic_result));
+  const w_seed_hir0_counts forged_generic_counts_before =
+      forged_generic_counts;
+  const w_seed_hir0_result forged_generic_result_before =
+      forged_generic_result;
+  CHECK(w_seed_hir0_measure(&forged_generic_input, &forged_generic_counts,
+                            &forged_generic_result) == W_SEED_HIR0_INVALID);
+  CHECK(memcmp(&forged_generic_counts, &forged_generic_counts_before,
+               sizeof(forged_generic_counts)) == 0 &&
+        memcmp(&forged_generic_result, &forged_generic_result_before,
+               sizeof(forged_generic_result)) == 0);
+  fixture.types[frontend_thrown_type].generic_application_index =
+      saved_generic_application;
+
+  w_seed_product_closure0_counts closure_counts;
+  w_seed_product_closure0_result closure_result;
+  (void)memset(&closure_counts, 0xa5, sizeof(closure_counts));
+  (void)memset(&closure_result, 0x5a, sizeof(closure_result));
+  const w_seed_product_closure0_counts closure_counts_before = closure_counts;
+  const w_seed_product_closure0_result closure_result_before = closure_result;
+  const w_seed_product_closure0_input closure_input = {
+      .program = program, .hir_result = &fixture.hir_result};
+  CHECK(w_seed_product_closure0_measure(
+            &closure_input, &closure_counts, &closure_result) ==
+        W_SEED_PRODUCT_CLOSURE0_UNSUPPORTED);
+  CHECK(memcmp(&closure_counts, &closure_counts_before,
+               sizeof(closure_counts)) == 0 &&
+        memcmp(&closure_result, &closure_result_before,
+               sizeof(closure_result)) == 0);
+
+  const w_seed_hir0_entry saved_entry = fixture.hir_entries[0];
+  fixture.hir_entries[0].cleanup_obligation =
+      W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_entries[0] = saved_entry;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_entries[0].cleanup_owner_parameter_count = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_entries[0] = saved_entry;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_entries[0].cleanup_owner_parameter_count = 3u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_entries[0] = saved_entry;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_entries[0].first_cleanup_owner_parameter += 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_entries[0] = saved_entry;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_entries[0].first_cleanup_owner_parameter -= 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_entries[0] = saved_entry;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_entries[0].target_function = 0u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_entries[0] = saved_entry;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_parameter saved_arguments_parameter =
+      fixture.hir_parameters[handler->first_parameter];
+  const w_seed_hir0_parameter saved_context_parameter =
+      fixture.hir_parameters[handler->first_parameter + 1u];
+  fixture.hir_parameters[handler->first_parameter].type_index = context_type;
+  fixture.hir_parameters[handler->first_parameter + 1u].type_index =
+      arguments_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_parameters[handler->first_parameter] =
+      saved_arguments_parameter;
+  fixture.hir_parameters[handler->first_parameter + 1u] =
+      saved_context_parameter;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_function saved_handler = fixture.hir_functions[target];
+  fixture.hir_functions[target].error_type = program->enums[1].type_index;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_functions[target] = saved_handler;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_functions[target].error_type = program->enums[2].type_index;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_functions[target] = saved_handler;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_enum saved_error_enum = fixture.hir_enums[0];
+  fixture.hir_enums[0].error_conformance = false;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enums[0] = saved_error_enum;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_value saved_thrown = fixture.hir_values[throw_term->value_index];
+  fixture.hir_values[throw_term->value_index].enum_case_index =
+      program->enums[1].first_case;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[throw_term->value_index] = saved_thrown;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_values[throw_term->value_index].enum_case_index =
+      W_SEED_HIR0_NONE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[throw_term->value_index] = saved_thrown;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_values[throw_term->value_index].enum_payload_count = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[throw_term->value_index] = saved_thrown;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  CHECK(fixture_process_input0_frontend(BRANCHED_THROW_SOURCE));
+  setup_hir_output();
+  const w_seed_hir0_input branched_input = {
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
+  fill_hir_output(0xa5u);
+  w_seed_hir0_counts measure_counts;
+  w_seed_hir0_result measure_result;
+  (void)memset(&measure_counts, 0x31, sizeof(measure_counts));
+  (void)memset(&measure_result, 0x52, sizeof(measure_result));
+  const w_seed_hir0_counts measure_counts_before = measure_counts;
+  const w_seed_hir0_result measure_result_before = measure_result;
+  CHECK(w_seed_hir0_measure(&branched_input, &measure_counts,
+                            &measure_result) == W_SEED_HIR0_UNSUPPORTED);
+  CHECK(memcmp(&measure_counts, &measure_counts_before,
+               sizeof(measure_counts)) == 0 &&
+        memcmp(&measure_result, &measure_result_before,
+               sizeof(measure_result)) == 0 &&
+        hir_output_is_byte(0xa5u));
+
+  fill_hir_output(0x6cu);
+  w_seed_hir0_result run_result;
+  (void)memset(&run_result, 0x73, sizeof(run_result));
+  const w_seed_hir0_result run_result_before = run_result;
+  CHECK(w_seed_hir0_run(&branched_input, &fixture.hir_output, &run_result) ==
+        W_SEED_HIR0_UNSUPPORTED);
+  CHECK(memcmp(&run_result, &run_result_before, sizeof(run_result)) == 0 &&
+        hir_output_is_byte(0x6cu));
+  return true;
 }
 
 static bool test_process_arguments_count_hir(void) {
@@ -10209,7 +10480,7 @@ static bool test_integer_exactly_hir(void) {
       true, false, true, false, true, false, true, false, true, false};
   static const uint16_t INTEGER_WIDTHS[] = {
       8u, 8u, 16u, 16u, 32u, 32u, 64u, 64u, 64u, 64u};
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-92") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-93") == 0);
   for (size_t source = 0u;
        source < sizeof(INTEGER_TYPES) / sizeof(INTEGER_TYPES[0]);
        source += 1u) {
@@ -16072,7 +16343,7 @@ static bool test_explicit_integer_saturating_hir(void) {
 }
 
 static bool test_checked_integer_arithmetic_hir_matrix(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-92") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-93") == 0);
   typedef struct {
     const char *name;
     const char *suffix;
@@ -18940,6 +19211,7 @@ int main(int argc, char **argv) {
   if (!test_explicit_panic_rejections()) return 1;
   if (!test_process_hir()) return 1;
   if (!test_process_input0_hir()) return 1;
+  if (!test_process_unhandled_typed_error_hir()) return 1;
   if (!test_explicit_panic_process_layout()) return 1;
   if (!test_process_arguments_count_hir()) return 1;
   if (!test_process_hir_adversarial()) return 1;

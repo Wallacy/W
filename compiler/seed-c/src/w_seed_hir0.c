@@ -683,6 +683,7 @@ static bool frontend_local_enum_type_supported(
       input->frontend_result == NULL || type == NULL ||
       type->kind != W_SEED_FRONTEND_TYPE_ENUM ||
       type->enum_base_index == W_SEED_FRONTEND_NONE ||
+      type->generic_application_index != W_SEED_FRONTEND_NONE ||
       type->external_module_index != W_SEED_FRONTEND_NONE ||
       type->external_symbol_index != W_SEED_FRONTEND_NONE ||
       type->first_subset_member != W_SEED_FRONTEND_NONE ||
@@ -8167,6 +8168,100 @@ static bool frontend_function_has_terminal_if(const w_seed_hir0_input *input,
 /* The process adapter is selected from the resolved entry ABI, not from a
  * source spelling or a particular function ordinal. Helpers may precede the
  * entry target and its parameter labels/names are intentionally opaque. */
+static bool frontend_process_typed_error_type_ok(
+    const w_seed_hir0_input *input, uint32_t function_index,
+    const w_seed_frontend_function *function) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || function == NULL ||
+      !function->is_throws)
+    return false;
+  const w_seed_frontend_output *output = input->frontend_output;
+  const w_seed_frontend_result *result = input->frontend_result;
+  if (function->error_type == W_SEED_FRONTEND_NONE ||
+      (size_t)function->error_type >= result->written.types)
+    return false;
+  const w_seed_frontend_type *error_type =
+      &output->types[function->error_type];
+  if (error_type->kind != W_SEED_FRONTEND_TYPE_ENUM ||
+      error_type->enum_base_index == W_SEED_FRONTEND_NONE ||
+      error_type->generic_application_index != W_SEED_FRONTEND_NONE ||
+      error_type->external_module_index != W_SEED_FRONTEND_NONE ||
+      error_type->external_symbol_index != W_SEED_FRONTEND_NONE ||
+      (size_t)error_type->enum_base_index >= result->written.enums)
+    return false;
+  const w_seed_frontend_enum *error_enum =
+      &output->enums[error_type->enum_base_index];
+  if (function->module_index != 0u || error_enum->module_index != 0u ||
+      error_enum->type_index == W_SEED_FRONTEND_NONE ||
+      (size_t)error_enum->type_index >= result->written.types ||
+      error_enum->has_generic_parameters || error_enum->case_count == 0u ||
+      !range_valid(error_enum->first_case, error_enum->case_count,
+                   result->written.enum_cases) ||
+      error_enum->conformance_type == W_SEED_FRONTEND_NONE ||
+      (size_t)error_enum->conformance_type >= result->written.types ||
+      !frontend_type_is_core_error(
+          &output->types[error_enum->conformance_type]))
+    return false;
+  const w_seed_frontend_type *declared_error_type =
+      &output->types[error_enum->type_index];
+  if (declared_error_type->kind != W_SEED_FRONTEND_TYPE_ENUM ||
+      declared_error_type->enum_base_index != error_type->enum_base_index ||
+      !text_equal(error_type->spelling, error_enum->name) ||
+      !text_equal(declared_error_type->spelling, error_enum->name))
+    return false;
+  for (size_t ordinal = 0u; ordinal < error_enum->case_count; ordinal += 1u) {
+    const w_seed_frontend_enum_case *error_case =
+        &output->enum_cases[(size_t)error_enum->first_case + ordinal];
+    if (error_case->module_index != 0u ||
+        error_case->owner_enum != error_type->enum_base_index ||
+        error_case->payload_count != 0u)
+      return false;
+  }
+  (void)function_index;
+  return true;
+}
+
+/* Typed process errors are admitted only as one direct payloadless local case
+ * throw. The HIR CFG verifier repeats the corresponding closed-record proof. */
+static bool frontend_process_typed_error_body_ok(
+    const w_seed_hir0_input *input, uint32_t function_index,
+    const w_seed_frontend_function *function) {
+  if (!frontend_process_typed_error_type_ok(input, function_index, function) ||
+      function->statement_count != 1u ||
+      function->first_statement == W_SEED_FRONTEND_NONE ||
+      (size_t)function->first_statement >=
+          input->frontend_result->written.statements)
+    return false;
+  const w_seed_frontend_statement *statement =
+      &input->frontend_output->statements[function->first_statement];
+  if (statement->module_index != 0u ||
+      statement->owner_function != function_index ||
+      statement->kind != W_SEED_FRONTEND_STMT_THROW ||
+      statement->next_sibling != W_SEED_FRONTEND_NONE ||
+      statement->first_child != W_SEED_FRONTEND_NONE ||
+      statement->child_count != 0u ||
+      statement->expression_index == W_SEED_FRONTEND_NONE ||
+      (size_t)statement->expression_index >=
+          input->frontend_result->written.expressions)
+    return false;
+  const w_seed_frontend_expression *thrown =
+      &input->frontend_output->expressions[statement->expression_index];
+  const w_seed_frontend_type *error_type =
+      &input->frontend_output->types[function->error_type];
+  if (thrown->inferred_type == W_SEED_FRONTEND_NONE ||
+      (size_t)thrown->inferred_type >=
+          input->frontend_result->written.types ||
+      input->frontend_output->types[thrown->inferred_type].kind !=
+          W_SEED_FRONTEND_TYPE_ENUM ||
+      input->frontend_output->types[thrown->inferred_type].enum_base_index !=
+          error_type->enum_base_index)
+    return false;
+  return thrown->module_index == 0u &&
+         thrown->owner_function == function_index &&
+         thrown->kind == W_SEED_FRONTEND_EXPR_ENUM_CASE &&
+         frontend_local_enum_case_value_ok(input, thrown);
+}
+
 static bool frontend_process_entry_abi_ok(const w_seed_hir0_input *input) {
   if (input == NULL || input->frontend_output == NULL ||
       input->frontend_result == NULL ||
@@ -8187,7 +8282,7 @@ static bool frontend_process_entry_abi_ok(const w_seed_hir0_input *input) {
   const w_seed_frontend_function *function =
       &input->frontend_output->functions[function_index];
   if (function->module_index != 0u || !function->is_async || function->is_const ||
-      function->is_throws || function->is_unsafe ||
+      function->is_unsafe ||
       function->has_borrow_clause || function->is_anonymous_entry ||
       function->parameter_count != 2u ||
       !frontend_external_type_is(input, function->return_type, 0u, 2u) ||
@@ -8207,7 +8302,10 @@ static bool frontend_process_entry_abi_ok(const w_seed_hir0_input *input) {
                                    (uint32_t)ordinal))
       return false;
   }
-  return true;
+  return function->is_throws
+             ? frontend_process_typed_error_body_ok(
+                   input, (uint32_t)function_index, function)
+             : function->error_type == W_SEED_FRONTEND_NONE;
 }
 
 /* This is the complete HIR16 process-handler contract. It is a bounded
@@ -18893,6 +18991,39 @@ static uint32_t hir0_process_entry_function_index(
   return target;
 }
 
+/* HIR retains local enum/error conformance and payload shape but intentionally
+ * has no generic-application records. The frontend process-entry check has
+ * already proved that this root error declaration is concrete and nongeneric. */
+static bool verify_process_typed_error_type(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_function *function) {
+  if (program == NULL || function == NULL || !function->is_throws ||
+      !hir_type_index_valid(program, function->error_type))
+    return false;
+  const w_seed_hir0_type *error_type = &program->types[function->error_type];
+  if (error_type->kind != W_SEED_HIR0_TYPE_ENUM ||
+      error_type->owner_module != function->module_index ||
+      error_type->enum_index == W_SEED_HIR0_NONE ||
+      error_type->enum_index >= program->enum_count)
+    return false;
+  const w_seed_hir0_enum *error_enum =
+      &program->enums[error_type->enum_index];
+  if (error_enum->module_index != function->module_index ||
+      error_enum->type_index != function->error_type ||
+      !error_enum->error_conformance || error_enum->case_count == 0u ||
+      !range_valid(error_enum->first_case, error_enum->case_count,
+                   program->enum_case_count))
+    return false;
+  for (size_t ordinal = 0u; ordinal < error_enum->case_count; ordinal += 1u) {
+    const w_seed_hir0_enum_case *error_case =
+        &program->enum_cases[(size_t)error_enum->first_case + ordinal];
+    if (error_case->owner_enum != error_type->enum_index ||
+        error_case->payload_count != 0u)
+      return false;
+  }
+  return true;
+}
+
 /* The public process adapter is a normal function body contract.  This
  * checks only the resolved ABI and entry descriptor; body reachability is
  * checked by verify_cfg_process_terminal_branch after all records are closed.
@@ -18920,8 +19051,11 @@ static bool verify_process_input0(const w_seed_hir0_program *program) {
       !hir_type_index_valid(program, context_type) ||
       !hir_type_index_valid(program, exit_code_type) ||
       function->module_index != 0u || !function->is_async ||
-      function->is_const || function->is_throws || function->is_unsafe ||
+      function->is_const || function->is_unsafe ||
       function->has_borrow_clause || function->is_anonymous_entry ||
+      (function->is_throws &&
+       !verify_process_typed_error_type(program, function)) ||
+      (!function->is_throws && function->error_type != W_SEED_HIR0_NONE) ||
       function->return_type != exit_code_type ||
       !range_valid(function->first_parameter, 2u, program->parameter_count) ||
       function->parameter_count != 2u ||
@@ -18977,6 +19111,51 @@ static bool verify_process_exit_or_panic(
          term->result_type == exit_code_type;
 }
 
+static bool verify_cfg_process_typed_error_root(
+    const w_seed_hir0_program *program, size_t function_index) {
+  if (program == NULL || function_index >= program->function_count)
+    return false;
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  if (!function->is_throws || function->block_count != 1u ||
+      function->first_block >= program->block_count ||
+      !verify_process_typed_error_type(program, function))
+    return false;
+  const size_t block_index = function->first_block;
+  const w_seed_hir0_block *block = &program->blocks[block_index];
+  if (block->terminator_index >= program->terminator_count) return false;
+  const size_t terminator_index = block->terminator_index;
+  const w_seed_hir0_terminator *term =
+      &program->terminators[terminator_index];
+  if (block->owner_function != function_index ||
+      block->instruction_count != 0u || block->block_argument_count != 0u ||
+      term->owner_block != block_index ||
+      term->kind != W_SEED_HIR0_TERMINATOR_THROW || term->ordinal != 0u ||
+      term->call_index != W_SEED_HIR0_NONE ||
+      term->value_index == W_SEED_HIR0_NONE ||
+      (size_t)term->value_index >= program->value_count ||
+      term->result_type != function->error_type ||
+      term->error_type != W_SEED_HIR0_NONE ||
+      term->target_block != W_SEED_HIR0_NONE ||
+      term->else_block != W_SEED_HIR0_NONE ||
+      term->first_edge_argument != W_SEED_HIR0_NONE ||
+      term->edge_argument_count != 0u ||
+      term->logical_operator != W_SEED_HIR0_LOGICAL_NONE ||
+      term->switch_enum_index != W_SEED_HIR0_NONE ||
+      term->first_switch_edge != W_SEED_HIR0_NONE ||
+      term->switch_edge_count != 0u || term->switch_carrier_width != 0u)
+    return false;
+  const w_seed_hir0_value *thrown = &program->values[term->value_index];
+  const uint32_t error_enum_index =
+      program->types[function->error_type].enum_index;
+  return thrown->kind == W_SEED_HIR0_VALUE_ENUM_CASE &&
+         thrown->type_index == function->error_type &&
+         thrown->enum_index == error_enum_index &&
+         thrown->enum_case_index < program->enum_case_count &&
+         program->enum_cases[thrown->enum_case_index].owner_enum ==
+             error_enum_index &&
+         thrown->enum_payload_count == 0u;
+}
+
 /* Initial public-process CFG admission is deliberately bounded to a single
  * forward terminal diamond.  This accepts ordinary pre-branch instructions
  * in the entry block while rejecting entry loops/cycles until a path-aware
@@ -18992,6 +19171,8 @@ static bool verify_cfg_process_terminal_branch(
   if (exit_code_type == W_SEED_HIR0_NONE || function->first_block >=
                                                 program->block_count)
     return false;
+  if (function->is_throws)
+    return verify_cfg_process_typed_error_root(program, function_index);
   if (function->block_count == 1u) {
     const size_t block_index = function->first_block;
     return verify_process_exit_or_panic(program, function_index, block_index,
@@ -19719,8 +19900,9 @@ static bool hir0_expected_type_lifecycle(
 }
 
 /* Derive the one supported process cleanup obligation from the complete
- * handler shape.  This is an exact parameter range in the caller-owned HIR;
- * no cleanup list is synthesized from liveness or adapter spelling. */
+ * handler shape. This is an exact parameter range in caller-owned HIR; the
+ * typed-error policy means Context then Arguments before error adaptation.
+ * No cleanup calls are synthesized from liveness or adapter spelling. */
 static bool hir0_expected_entry_cleanup(
     const w_seed_hir0_program *program, size_t entry_index,
     w_seed_hir0_entry_cleanup_kind *cleanup_obligation,
@@ -19739,16 +19921,19 @@ static bool hir0_expected_entry_cleanup(
   if (target == W_SEED_HIR0_NONE || target >= program->function_count)
     return false;
   const w_seed_hir0_function *function = &program->functions[target];
-  *cleanup_obligation = W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS;
+  *cleanup_obligation =
+      function->is_throws
+          ? W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_TYPED_ERROR
+          : W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS;
   *first_cleanup_owner_parameter = function->first_parameter;
   *cleanup_owner_parameter_count = 2u;
   return true;
 }
 
 /* This is the complete, independently recomputed process-owner witness used
- * by direct-entry analysis.  The root is not drained or reclaimed here; the
- * obligation covers exactly one normal-return wrapper release per handler
- * owner. */
+ * by direct-entry analysis. The root is not drained or reclaimed here. The
+ * normal-return kind preserves its existing release obligation; the typed-
+ * error kind requires reverse declaration-order release before adaptation. */
 static bool hir0_process_entry_lifecycle_ready(
     const w_seed_hir0_program *program) {
   if (program == NULL || program->external_module_count != 1u ||
@@ -19789,7 +19974,10 @@ static bool hir0_process_entry_lifecycle_ready(
   if (!hir0_expected_entry_cleanup(
           program, 0u, &cleanup_obligation, &first_cleanup_owner_parameter,
           &cleanup_owner_parameter_count) ||
-      cleanup_obligation != W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS ||
+      cleanup_obligation !=
+          (function->is_throws
+               ? W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_TYPED_ERROR
+               : W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS) ||
       first_cleanup_owner_parameter != function->first_parameter ||
       cleanup_owner_parameter_count != 2u)
     return false;
@@ -19884,11 +20072,15 @@ static bool verify_process_lifecycle_facts(
   if (program->external_module_count == 0u) return true;
   if (!hir0_process_entry_lifecycle_ready(program)) return false;
   const w_seed_hir0_entry *entry = &program->entries[0];
+  const w_seed_hir0_function *function =
+      &program->functions[entry->target_function];
   if (entry->cleanup_obligation !=
-          W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS ||
+          (function->is_throws
+               ? W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_TYPED_ERROR
+               : W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS) ||
       entry->cleanup_owner_parameter_count != 2u ||
       entry->first_cleanup_owner_parameter !=
-          program->functions[entry->target_function].first_parameter)
+          function->first_parameter)
     return false;
   return true;
 }

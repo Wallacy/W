@@ -14460,10 +14460,14 @@ lifecycle correctness checks only.
 
 ProductClosure0 rejects the integer-exactly terminator, and ordinary
 executable emission remains unsupported. W-1652 now defines the canonical
-process-root policy, but the product closure, composed process HIR, target
-adapter, and public gates do not implement it yet. This evidence does not
-establish public native execution, catch, cleanup, a public ABI,
-float or wider-integer coverage, another target alias, or performance.
+process-root policy. HIR93 has HIR-only evidence for one direct throw of a
+local, concrete, nongeneric `Error` enum with payloadless cases. This narrow
+root does not compose W-1650's `NumericConversionError` split. ProductClosure0
+still rejects integer-exactly and typed-throw terminators. HIR records only a
+`Context`-then-`Arguments` cleanup obligation. It materializes no cleanup
+calls and runs no process adapter. No mapping to status 1 with no implicit
+output or native execution is established. Catch, cleanup, a public ABI, float
+or wider-integer coverage, another target alias, and performance remain gaps.
 `benchmarkDisposition: compiler-lifecycle`; no benchmark or timing result is
 claimed.
 
@@ -14518,8 +14522,17 @@ layout, and future error metadata cannot change the process ABI. Explicit
 `do`/`catch` remains available when an application wants another status,
 logging, or recovery.
 
-The decision is currently an implementation-evidence gap. Completion requires
-a verified-HIR process root with a concrete `Error`, product reachability,
-cleanup-before-adaptation evidence, CRT-free Windows and Linux execution for
-success and unhandled-error paths, empty implicit stdout/stderr, and
-adversarial separation from panic and normal `ExitCode.failure(1)`.
+HIR93 now provides HIR-only evidence for a restricted `native-process@1`
+root: an async throwing entry with a local, concrete, nongeneric `Error` enum,
+payloadless cases, and exactly one direct throw. Verified HIR preserves the
+typed enum outcome and records a `Context`-then-`Arguments` cleanup obligation.
+ProductClosure0 still returns `UNSUPPORTED` for this throw. HIR does not
+materialize cleanup calls or perform process adaptation. It does not prove
+status `1`, no implicit output, native execution, or a benchmark.
+`benchmarkDisposition: compiler-lifecycle`.
+
+W-1652 remains an implementation-evidence gap. Completion still requires
+product reachability, materialized cleanup before adaptation, and a
+`native-process@1` adapter. CRT-free Windows and Linux execution must prove
+normal success, unhandled-error status `1` with no implicit stdout/stderr, and
+separation from panic and normal `ExitCode.failure(1)`.

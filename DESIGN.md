@@ -42414,9 +42414,11 @@ uses constants, so `benchmarkDisposition` is
 `usize`/`isize`, 128-bit types, target-general aliases, stable ABI/FFI,
 other targets, and equivalent runtime work remain outside W-1641. W-1650
 subsequently adds bounded typed-lowering evidence for fixed-width integer
-`try D(exactly: source)`, but the ordinary executable route remains unsupported
-until product closure, composed process HIR, target adapters, and public gates
-implement the W-1652 process-root mapping.
+`try D(exactly: source)`. HIR93 models only one direct throw from a local,
+concrete, nongeneric `Error` enum. It does not compose W-1650's
+`NumericConversionError` split. ProductClosure0 still rejects the
+integer-exactly and typed-throw terminators. Cleanup calls, status-1/no-output
+adaptation, and public native execution remain unsupported.
 
 #### 26.4.1.122 W-1642 — ordinary binary integer bitwise family through native execution
 
@@ -42735,12 +42737,16 @@ checks the translated LLVM IR for the typed success/error branch and
 representability predicates. This is compiler-lifecycle evidence, not an
 executable product.
 
-ProductClosure0 deliberately rejects the integer-exactly terminator. The
-ordinary executable route remains unsupported. W-1652 now defines the
-canonical process-root policy, but product closure, composed process HIR,
-target adapters, and public gates do not implement it yet. There is no public
-native execution, benchmark, timing, floating-point or 128-bit conversion,
-`isize`/`usize`, non-x86-64 alias, catch, cleanup, or ABI claim.
+ProductClosure0 still rejects the integer-exactly terminator. HIR93 now admits
+only one direct throw from a local, concrete, nongeneric `Error` enum with
+payloadless cases. It does not compose W-1650's `NumericConversionError` split
+into that entry. ProductClosure0 also rejects typed `THROW`. HIR records a
+`Context`-then-`Arguments` cleanup obligation but emits no cleanup calls. The
+adapter that maps the typed outcome to status 1 with no implicit output is not
+implemented.
+There is no public native execution, benchmark, timing, floating-point or
+128-bit conversion, `isize`/`usize`, non-x86-64 alias, catch, cleanup, or ABI
+claim.
 `benchmarkDisposition: compiler-lifecycle`.
 
 #### 26.4.1.131 W-1651 — explicit wide and low-precision numeric families
@@ -42791,11 +42797,26 @@ that needs a different status or message uses `do`/`catch` and returns a normal
 `ExitCode` explicitly. Other host profiles must define their own total mapping
 before admitting `throws E` entries.
 
-This decision is design-complete but adds no compiler evidence by itself. A
-source-backed implementation must retain the typed error edge through verified
-HIR and product reachability, run all structured cleanup before the adapter,
-emit the same status/no-output behavior on every claimed target, and keep panic
-and explicit `ExitCode.failure(1)` distinguishable before the OS boundary.
+HIR93 adds HIR-only compiler-lifecycle evidence for a restricted
+`native-process@1` entry. The handler must be async and throwing. Its error
+type must be a local, concrete, nongeneric enum that conforms to `Error`, and
+every case must be payloadless. Its body must contain exactly one direct
+`throw` of one case from that enum. Verified HIR preserves the typed enum
+outcome and records the cleanup obligation in reverse parameter order:
+`Context`, then `Arguments`.
+
+This evidence does not complete the decision. ProductClosure0 still returns
+`UNSUPPORTED` for the typed root throw. The cleanup obligation does not
+materialize release calls, and no process adapter runs. HIR93 does not prove
+mapping to status 1 with no implicit output, native execution, or a benchmark
+result.
+`benchmarkDisposition: compiler-lifecycle`.
+
+Completion requires product reachability for the typed error, materialized
+structured cleanup before adaptation, and the `native-process@1` status and
+no-output adapter. Source-to-native evidence must prove these outcomes on each
+claimed target and keep panic and explicit `ExitCode.failure(1)` distinct
+before the OS boundary.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

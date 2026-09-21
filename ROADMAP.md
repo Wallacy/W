@@ -78,8 +78,12 @@ physical scheduler experiments:
    representation-bit round trips. W-1650 adds fixed-width integer
    `try D(exactly: source)` through a typed HIR success/error split and private
    MLIR/LLVM artifact. W-1652 now defines the canonical `native-process@1`
-   mapping for an unhandled typed error, but product closure, composed process
-   HIR, target adapters, and public execution still need to implement it.
+   mapping for an unhandled typed error. HIR93 admits only an async throwing
+   entry with one direct throw from a local, concrete, nongeneric `Error` enum
+   whose cases are payloadless. It records `Context`-then-`Arguments` cleanup
+   order but emits no cleanup calls. ProductClosure0 returns `UNSUPPORTED`.
+   No process adapter maps the outcome to status 1 with no implicit output, and
+   native execution remains unimplemented.
    Remaining conversion policies continue to block this rank-1
    prerequisite. W-1651 closes the design identity of i128/u128, the fixed
    arithmetic float family through f128, configured f4/f6/f8 AI elements, and
@@ -396,10 +400,13 @@ NativeSubset0, and the private `w-seed-mlir0-integer-exactly-1` artifact. HIR
 preserves a three-block typed success/error split whose error edge is canonical
 `NumericConversionError.outOfRange`; `tooling/check-mlir0.mjs` verifies the
 artifact with `mlir-opt` and `mlir-translate`. This is compiler-lifecycle
-evidence only. W-1652 defines the process-root mapping, but ProductClosure0,
-composed process HIR, target adapters, and ordinary executable emission do not
-implement it yet. There is no public native execution, benchmark,
-or timing claim; other conversion families, floats, 128-bit integers,
+evidence only. W-1652 now has HIR93 evidence for a restricted direct-throw
+process root, but it does not compose this `NumericConversionError` split.
+ProductClosure0 still rejects the integer-exactly and typed-throw terminators.
+HIR records a cleanup obligation without materializing calls. No adapter maps
+the outcome to status 1 with no implicit output, and no native execution exists.
+No benchmark or timing claim is made. Other conversion families, floats,
+128-bit integers,
 `isize`/`usize`, other target aliases, catch, cleanup, and ABI remain gaps.
 W-389 and rank 1 remain open.
 

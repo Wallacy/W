@@ -2962,11 +2962,34 @@ supported integer type facts. The private MLIR artifact is
 by `tooling/check-mlir0.mjs` through `mlir-opt --verify-each` and
 `mlir-translate`, including the translated LLVM range predicates and branch.
 
-ProductClosure0 still rejects this terminator, and ordinary executable
-emission remains unsupported until an unhandled `NumericConversionError` has
-a canonical process-root mapping. This is compiler-lifecycle correctness
-evidence only: no public native execution, benchmark, timing, catch, cleanup,
-or ABI claim is made. `benchmarkDisposition: compiler-lifecycle`.
+ProductClosure0 still rejects this terminator. HIR93 adds only a restricted
+process-root path for one direct throw from a local, concrete, nongeneric
+`Error` enum with payloadless cases. It does not compose this
+`NumericConversionError` split into that root. HIR records a
+`Context`-then-`Arguments` cleanup obligation but emits no cleanup calls.
+Product closure, process adaptation to status 1 with no implicit output, and
+native execution remain unsupported. This is compiler-lifecycle correctness evidence
+only: no public native execution, benchmark, timing, catch, cleanup, or ABI
+claim is made. `benchmarkDisposition: compiler-lifecycle`.
+
+### Native-process unhandled typed-error root HIR (W-1652)
+
+HIR93 accepts one narrow `native-process@1` entry form. The async handler must
+declare `throws E`, where `E` is a local, concrete, nongeneric enum conforming
+to `Error`. Every case in `E` must be payloadless. The body must contain exactly
+one direct `throw` of a case from `E`.
+
+The verified HIR retains the enum case as the typed error outcome. It also
+records that process-owned arguments and context release in reverse parameter
+order: `Context`, then `Arguments`. ProductClosure0 continues to return
+`UNSUPPORTED` for the typed root throw. The cleanup obligation does not
+materialize release calls.
+
+This is HIR-only compiler-lifecycle evidence. No `native-process@1` adapter
+runs, no mapping to status 1 with no implicit output is proved, and no native
+executable or benchmark is produced. Product lowering, cleanup execution,
+target adaptation, and CRT-free Windows/Linux execution remain unsupported.
+`benchmarkDisposition: compiler-lifecycle`.
 
 ### Strict `f32`/`f64` scalar slice (W-1645)
 
