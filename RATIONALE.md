@@ -2965,7 +2965,8 @@ O índice gerado usa esta tabela somente como projeção.
 | float strict e total-order wrapper | **Possível agora** | IEEE e backend fornecem as operações necessárias |
 | ranges com quatro closures | **Possível agora** | representação, membership e iteration discreta são separáveis |
 | BigInt, Rational e FixedDecimal em `std.math`/`std.decimal` | **Provável** | algoritmos conhecidos; API, OOM e limites exigem corpus |
-| `f16`, `bf16` e quantization em `std.quant` | **Provável** | MLIR preserva storage/expressed type; targets exigem fallback |
+| fixed arithmetic through `f128`, configured f4/f6/f8, and explicit quantization | **Probable** | MLIR carries the selected encodings; exact native operations, packing, and software fallback remain target-gated |
+| fixed/dynamic `BigFloat<precision:>` in `std.math` | **Probable** | known limb algorithms fit W ownership and limits; accuracy, allocation, codec, and performance need executable oracles |
 | Posit, Unum e decimal float | **Rejeitado por enquanto** | FixedDecimal, Rational e IEEE binary cobrem a baseline sem novo real universal |
 | schema fechado de contrato estático | **Possível agora** | AST/HIR simples; corpus angular já existe |
 | referências `.member` contextuais | **Possível agora** | expected type e refinement subject fecham a resolução |
@@ -6748,7 +6749,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-394 | float equality | comparação IEEE parcial; `TotalFloat` para key e ordem total | float conforma aos protocols totais; bit equality como `==` |
 | W-395 | modes float | strict default; fast e reproducible explícitos e versionados | flag global muda semântica; reproducible sem algoritmo |
 | W-396 | numeric T2 | BigInt/UInt, FixedDecimal, Rational e Complex com custo explícito | número universal; Decimal como Money |
-| W-397 | ML storage | f16/bf16 sem scalar operators e com tensor accumulator f32; Quantized separa storage/expressed | aritmética f16 implícita; float8 core |
+| W-397 | ML storage (superseded by W-1651) | historical f16/bf16 storage-only baseline; W-1651 replaces its scalar and low-precision boundary | retain the historical prohibition after W-1651; target-dependent aliases |
 | W-398 | range | intervalo; quatro closures; reversed vazio; stride para direção/step | range como collection; range descendente implícito |
 | W-399 | superfície de pinning | `try pin take value`; `pin` é fallible e separado de `take` | `Pinned.make`; `take<.pin>`; modifier no binding |
 | W-400 | saída de pinning | sem `unpin` ou `intoValue` público; drop in-place; boundary unsafe pode reconstruir sob contrato | unpin seguro irrestrito; proof token público |
@@ -8012,6 +8013,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 
 | W-1649 | fixed-width named integer shift policies through native execution | The existing W-392 associated functions `maskedShiftLeft(_ value: Self, _ count: UInt) -> Self`, `maskedShiftRight(_ value: Self, _ count: UInt) -> Self`, and `logicalShiftRight(_ value: Self, _ count: UInt) -> Self` are source-backed exactly for built-in `i8`/`u8`, `i16`/`u16`, `i32`/`u32`, and `i64`/`u64`. Both masked policies reduce count modulo logical width; signed `maskedShiftRight` is arithmetic, unsigned is logical, and `logicalShiftRight` zero-fills for either signedness while rejecting `count >= bitWidth` before the LLVM shift. Frontend70 and verified HIR91 retain the existing append-only operation identities; HIR enforces an exact `UInt` count even against a forged same-type wrapping tree. NativeSubset0 and MLIR61 use a width-aware route. The neutral W fixture passes exact-output CRT-free Windows x64 and Linux/WSL x64 gates; C23 and Rust 2024 match as correctness references only. `Int`/`UInt`, `isize`/`usize`, 128-bit integers, other targets, stable ABI/FFI, and equivalent-runtime performance remain outside this increment. W may fold the witness, so no timing or performance ranking is claimed and `benchmarkDisposition: deferred`. | physical-carrier-width shift semantics; collapse of arithmetic and explicit logical right shift; per-width operation IDs or target-specific intrinsics in the language core; accepting a forged non-`UInt` count; ranking unequal runtime work |
 | W-1650 | fixed-width integer exactly-conversion typed lowering | Plain `try D(exactly: source)` is implemented for all 100 source/destination pairs among signed and unsigned 8/16/32/64-bit integers plus current x86-64 `Int`/`UInt` aliases. Frontend71 and verified HIR92 preserve canonical integer type facts and a typed three-block success/error split carrying core `NumericConversionError.outOfRange`; NativeSubset0 rederives the bounded relation and a private `w-seed-mlir0-integer-exactly-1` artifact lowers it through a checked branch. `--emit-integer-exactly` is verified by `mlir-opt --verify-each` and `mlir-translate`. ProductClosure0 and ordinary executable emission remain unsupported because there is no canonical unhandled `NumericConversionError` to process-root mapping. There is no public native execution, benchmark, timing, float, 128-bit, `isize`/`usize`, other target-alias, catch, cleanup, or ABI claim. `benchmarkDisposition: compiler-lifecycle`. | implicit or total conversion that hides failure; per-source/destination operation IDs; trap-only out-of-range lowering; public process mapping without a canonical unhandled-error contract |
+| W-1651 | explicit wide and low-precision numeric families | `f16`/`bf16`/`f32`/`f64`/`f128` are fixed arithmetic scalars; one `BigFloat<precision:>` family covers fixed and `.dynamic`; f4/f6/f8 use mandatory standardized format cases; TensorFloat32 is compute policy and e8m0fnu is block-scale metadata | bare f4/f6/f8 defaults; host `long double`; implicit packing, rounding, accumulator, fallback, or target-dependent meaning; claiming implementation from design |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -14462,3 +14464,38 @@ does not establish public native execution, catch, cleanup, a public ABI,
 float or wider-integer coverage, another target alias, or performance.
 `benchmarkDisposition: compiler-lifecycle`; no benchmark or timing result is
 claimed.
+
+#### W-1651 — explicit wide and low-precision numeric families
+
+W-1651 replaces the storage-only boundary of W-397. It keeps type identity
+portable while separating representation, packed storage, compute policy,
+accumulator, and target capability. `f128` is IEEE binary128 rather than a
+spelling for platform `long double`; `BigFloat<precision: N>` and
+`BigFloat<precision: .dynamic>` are one library family rather than two
+unrelated numeric abstractions. This preserves W's total-and-exact implicit
+conversion rule for fixed-precision widening while keeping lossy narrowing,
+runtime precision, allocation, limits, and rounding visible.
+
+The low-precision cases follow encodings already carried by the
+[StableHLO type system](https://openxla.org/stablehlo/spec) and the
+[OCP FP8](https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1)
+and [OCP MX](https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf)
+specifications. The format is mandatory because E4M3, E5M2, finite-only,
+unsigned-zero, alternate-bias, and block-scaled encodings are not aliases.
+There is no defensible universal default: E4M3-like encodings trade dynamic
+range for precision, while E5M2-like encodings make the opposite trade.
+
+Ordinary `f4` and `f6` values use an addressable byte carrier. Silent packed
+arrays would hide read-modify-write, alignment, bit order, and tail-padding
+costs, so dense sub-byte storage requires an explicit container contract.
+Likewise, TensorFloat32 is a compute policy over f32 inputs, not a storage
+scalar, and e8m0fnu remains scale metadata. A target can accelerate an exact
+contract or reject it; a software implementation is admitted only by explicit
+build policy and reachability closure.
+
+This decision is intentionally broader than current compiler evidence. The
+frontend, HIR, const evaluator, ABI/FFI, SIMD, DLPack adapter, software
+fallback, native target routes, executable witnesses, and performance suites
+for these new families remain implementation gaps. W-1645 continues to own
+the bounded current f32/f64 source-backed claim. No timing or performance
+ranking is introduced by W-1651.

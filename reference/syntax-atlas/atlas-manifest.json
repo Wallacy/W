@@ -2912,8 +2912,8 @@
           "digest": "sha256:4e8a1d38b0f002b7a3546ae103eba50e846e242039f8771ed588fae0fb87065e"
         }
       ],
-      "snippetDigest": "sha256:be402be634a4ad55aa2b08a44a0198f0149cc613362b6ceb2158beccdaf66c84",
-      "snippetBytes": 889
+      "snippetDigest": "sha256:09b202a88e4d94e83d6f6d0878865f31c21c435ad844c6ce998ca5684074bd12",
+      "snippetBytes": 1173
     },
     {
       "id": "callables-and-foreign",
@@ -2966,7 +2966,7 @@
       "id": "literals-and-collections",
       "file": "language.w",
       "order": 6,
-      "line": 315,
+      "line": 324,
       "title": "Literals, tuples, and collections",
       "family": "values",
       "designStatus": "current",
@@ -2989,7 +2989,7 @@
         {
           "path": "reference/last-light/numerics.w",
           "symbol": "SeatNumber",
-          "digest": "sha256:4af3f95f8895ed5a69b231ffd01ae4d58c89ce5e37bd9e49654a6849c9d7af3e"
+          "digest": "sha256:c76b06693767e76b6989994ef7a9f8893e3b143a31764451bff35632af2cabcc"
         }
       ],
       "snippetDigest": "sha256:ca8738be3c49aed92df1370978207efad27e677c2be09e70e6bae10eb550a7b6",
@@ -2999,7 +2999,7 @@
       "id": "patterns",
       "file": "language.w",
       "order": 7,
-      "line": 289,
+      "line": 298,
       "title": "Patterns, ranges, and matches",
       "family": "patterns",
       "designStatus": "current",
@@ -3254,7 +3254,7 @@
       "id": "entry-declaration",
       "file": "language.w",
       "order": 14,
-      "line": 346,
+      "line": 355,
       "title": "Explicit entry descriptor",
       "family": "entry",
       "designStatus": "current",
@@ -3374,6 +3374,6 @@
   ],
   "generated": {
     "coverage": "SYNTAX-COVERAGE.md",
-    "coverageDigest": "sha256:6c38696e839c48c20fb9090341a8706db7f6cc7fc32fedcf81aa3c399596b028"
+    "coverageDigest": "sha256:1a8a10ca2c14b7736ae3615a8463eac18a8a5479aa22859a6a2efc94ca9ae826"
   }
 }

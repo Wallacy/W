@@ -23,10 +23,10 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:a25391f4ba893116810eab7a9ddcfc55a03e35de574f14d4741010c14b20fafb",
-    "count": 1650,
+    "sha256": "sha256:9bd285bed4fed988bf9b4ad9da66369f58b7ae78ae15b03532f3091b48518c05",
+    "count": 1651,
     "first": "W-001",
-    "last": "W-1650"
+    "last": "W-1651"
   },
   "epochs": [
     {
@@ -67,13 +67,13 @@
     "overlap": 57
   },
   "archiveGapDistribution": {
-    "count": 964,
+    "count": 965,
     "byCategory": {
       "source-backed-current": 1,
       "oracle-backed-current": 90,
       "research-gated": 0,
       "implementation-evidence-gap": 812,
-      "superseded": 54,
+      "superseded": 55,
       "rejected": 7
     },
     "byEpoch": {
@@ -81,8 +81,8 @@
         "source-backed-current": 0,
         "oracle-backed-current": 5,
         "research-gated": 0,
-        "implementation-evidence-gap": 538,
-        "superseded": 13,
+        "implementation-evidence-gap": 537,
+        "superseded": 14,
         "rejected": 4
       },
       "freeze-oracles": {
@@ -474,7 +474,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-011 (runtime top-level, sha256:459d1b18d72094026854c9f2895458f4287d6bc2025be8a105157724c8815856) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -833,7 +833,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-022 (borrow, sha256:2957389fb3379c3980e854c45916b903de8b35a6ce72e47da3ccb3b7a7970bc1) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -1783,7 +1783,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-050 (callbacks de host, sha256:2c1fa8c03597a30b3b9682c241d432f1cc1fd3fbcc5c006d504c5a3a5785f327) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -1847,7 +1847,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-052 (custom unit, sha256:e9f6f15f5300138cbad4590204273447e9f1620a2202b111f110689aab1052c5) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -1880,7 +1880,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-053 (affine/log units, sha256:3bff1fa3a332790e112357920d923b6ff481087646e2b751d1d79c983a8dca9f) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -2210,7 +2210,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-063 (arrays/maps, sha256:74dc020dafad5e184b16eaae2662fdcdf6c1e9a427a7423b2ae9c652d54f1c03) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -2274,7 +2274,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-065 (matrix multiply, sha256:33f1b60d01ac48bee319701663fc1c7f5e3ef27030f9501ae1ceade821d4b25e) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -2307,7 +2307,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-066 (broadcast, sha256:5c1196eaf35aa52b11fcc84f3c5296851e36593182a90f5522e539ee182ecd8e) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -2732,7 +2732,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-079 (resolver, sha256:ff81737566099d81a516397098df84f986418c8db02ac86848a27bca0af27651) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -3062,7 +3062,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-089 (SQLite, sha256:5a267e0ac2fbf29758769f5010cefc0d9d552076e4078d9b31373089cd2a4b9e) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -3372,7 +3372,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-099 (collection dinâmica, sha256:b74d347551ed8e3dc4c267dce44142808a7f652583638a62e6096102461429f7) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -3772,7 +3772,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-111 (subset self-host, sha256:1c3a8de5d8ac988d4b634b5e7b58e474a77b5e70e5d9032515494100be4d7ef5) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -3805,7 +3805,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-112 (seed output, sha256:d1cd39fa48faaa98ff98f03b5f9bf0b6e56a25102e153c78b6d4e6a6a7cfcb87) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -4911,7 +4911,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-146 (unit e bottom, sha256:94dde612942790aeb3ed16301cefcf622969a6d9c78c7e750dca0f94b0e4a0e2) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -6694,7 +6694,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-201 (operador `@`, sha256:2ae8689b03630a139e8defe207c7077c7b1d8e29c9af26978936440de0cc014a) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -7701,7 +7701,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-231 (iteração, sha256:0acd074ce8a3ac0e6621964b16b956b5e542663ba5c412ec98a651746e8008b1) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -7767,7 +7767,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-233 (`Map`, sha256:b4677a130f323f4a27ba541196ee5c3a4c4aa847c7a09a47aa5d7d97c8843c13) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -7800,7 +7800,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-234 (`Set`, sha256:952439396069c814ebcf17aac4ad39c7f6fcd4d8b5d8b7a4ea8093e792137487) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -7833,7 +7833,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-235 (hashing, sha256:7935ab287c53f1f9c412f07b18731e3e4d618538219e1ab273b03ba1796f0416) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -7932,7 +7932,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-238 (maps ordenados, sha256:52d8f34c8e8b07c9596a477bd9a37ea1672f703ad3421f8ccdc712c2f7b7191d) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -8357,7 +8357,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-251 (uso de valores, sha256:1675b0b227b5aec77de64f5f9cafed0dc7198690124bdc63198c22430ee5fcdc) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -8683,7 +8683,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-261 (const callable, sha256:846371df78498e1b9b9ea34cd33ba378b8d234cd845692e236bb9ceaa45c33b4) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -8780,7 +8780,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-264 (fase, sha256:78d47b5ced6cfd0d14f99b30a374108e0c4381aeafe2b8e4f7463c8b2a052aaf) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -10117,7 +10117,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-305 (subset evolution, sha256:d45d463d39d05691cf02339bff360955f249c47af66353d3f638e0e38ebadf8b) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -10150,7 +10150,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-306 (subset de error, sha256:1dd742d027499407fad03ac5aacb25c26c83a608c94cad32a90a4581293a9288) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -10183,7 +10183,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-307 (planos de introspecção, sha256:d45440ac1b7add2f8d3e911a15b6782037ed589c9f5be51aa473ea27499badaa) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -10775,7 +10775,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-325 (enum e flags, sha256:3284ce46fe58e30d01f0fb5c30ad564de3d836c32d1ddbfb9ff18c8bf398ff4a) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -12688,7 +12688,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-383 (representação integer, sha256:1720b85fa6fb311e79599b98ed92d7c4d654b3e008238d97f8634c5a32a67f73) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -12987,7 +12987,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-392 (shift e primitives portáveis de bits, sha256:189b9783c7efe54508bea1c1baefc3b9c147b614d5acc6ba50f0a8d74b14c160) has bounded executable witnesses for selected arithmetic, bitwise, shift, rotation, count, and reversal families through source, verified HIR, MLIR, and native execution. W-1642 covers ordinary binary bitwise operators and W-1643 covers checked ordinary shifts for their stated fixed-width family. W-1648 covers rotations, population/zero counts, and bit/byte reversal for the eight built-in fixed-width types. W-1649 covers masked left/right and explicit logical right shift for the same eight built-in fixed-width types, including logical-width count boundaries and signedness distinctions. Their linked fixtures and exact-output Windows x64 and Linux/WSL x64 gates pass. These bounded increments retire only their exact family gaps; numeric-frontend-and-lowering at DESIGN.md §15 / 15. Números, ranges e unidades still has the broader numeric-policy, bit primitive, SIMD, width, alias, target, ABI/FFI, and performance matrix open.",
@@ -13020,7 +13020,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-393 (float baseline, sha256:8d9742df27c32a160906a7a5ad24b59994231b241455182c5029b9c28c984038) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -13053,7 +13053,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-394 (float equality, sha256:011d65ce4af2f57e8bbab8daff6d2cdab80f87322bff159905e1c29fa5e7be7e) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -13119,7 +13119,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-396 (numeric T2, sha256:98c2fa96ca0c1f1fdc57de6838605361810836dcfc9df30030016b5b694faa3c) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -13142,35 +13142,33 @@
     },
     {
       "decisionId": "W-397",
-      "summary": "ML storage",
-      "canonicalClaim": "f16/bf16 sem scalar operators e com tensor accumulator f32; Quantized separa storage/expressed",
-      "claimDigest": "sha256:c867533917998842712593dc81ea3286c1f69765ea298238a2fef7ff35bc3404",
-      "category": "implementation-evidence-gap",
-      "basis": "current-ledger-claim-without-executable-witness",
+      "summary": "ML storage (superseded by W-1651)",
+      "canonicalClaim": "historical f16/bf16 storage-only baseline; W-1651 replaces its scalar and low-precision boundary",
+      "claimDigest": "sha256:9d8f669be249d4081868c95983d4a241c822cc9d47acf903d6d547d640f0ea21",
+      "category": "superseded",
+      "basis": "explicit-ledger-supersession",
       "authorityRef": {
-        "kind": "design-contract",
-        "path": "DESIGN.md",
-        "section": "5",
-        "heading": "## 5. Source, nomes e edição",
-        "sectionDigest": "sha256:219bbbd2cb75074927ef9f8f1764e0af30302fc53e9db0534adf52527e4c678a"
+        "kind": "superseding-decision",
+        "path": "RATIONALE.md",
+        "section": "3. Ledger",
+        "decisionId": "W-1651",
+        "claimDigest": "sha256:51a24f249dba6d607a37439d99a69225a20682848020e435baef6ce61e8d419c"
       },
       "evidence": [],
-      "reason": "W-397 (ML storage, sha256:c867533917998842712593dc81ea3286c1f69765ea298238a2fef7ff35bc3404) has no executable witness for component syntax-and-types. The checked current contract is DESIGN.md §5 / 5. Source, nomes e edição.",
-      "stopCondition": "Do not claim W-397 as implemented. Close the syntax-and-types gap at DESIGN.md §5 / 5. Source, nomes e edição with ML storage executable witness evidence and fresh digests.",
+      "reason": "W-397 (ML storage (superseded by W-1651), sha256:9d8f669be249d4081868c95983d4a241c822cc9d47acf903d6d547d640f0ea21) is historical provenance. W-1651 replaces its storage-only f16/bf16 rule and float8 exclusion with the explicit fixed, arbitrary-precision, and configured low-precision numeric families.",
       "selection": "explicit-ledger-id",
       "basisRef": {
         "kind": "ledger-row",
         "path": "RATIONALE.md",
         "section": "3. Ledger",
         "decisionId": "W-397",
-        "claimDigest": "sha256:c867533917998842712593dc81ea3286c1f69765ea298238a2fef7ff35bc3404"
+        "claimDigest": "sha256:9d8f669be249d4081868c95983d4a241c822cc9d47acf903d6d547d640f0ea21"
       },
-      "gap": {
-        "component": "syntax-and-types",
-        "gate": "DESIGN.md §5 / 5. Source, nomes e edição",
-        "missingEvidence": [
-          "ML storage executable witness"
-        ]
+      "supersessionClaim": {
+        "decisionId": "W-1651",
+        "canonicalClaim": "`f16`/`bf16`/`f32`/`f64`/`f128` are fixed arithmetic scalars; one `BigFloat<precision:>` family covers fixed and `.dynamic`; f4/f6/f8 use mandatory standardized format cases; TensorFloat32 is compute policy and e8m0fnu is block-scale metadata",
+        "claimDigest": "sha256:51a24f249dba6d607a37439d99a69225a20682848020e435baef6ce61e8d419c",
+        "relation": "W-397 → W-1651: W-1651 replaces the storage-only f16/bf16 boundary and float8 exclusion with explicit portable numeric families."
       }
     },
     {
@@ -13185,7 +13183,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-398 (range, sha256:f5519d233096cae7c486e77e8a0bdf4c6eec903d8a672f46881d599045ad3c6a) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -13317,7 +13315,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-402 (reals alternativos, sha256:ba1e879ba02ec09e7c034982d2ccc2d9c6224653fa31b783be32ec4c54588347) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -13902,7 +13900,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-420 (escopo de view, sha256:b779da3796581d00142eb4cf1b0140a1064d61981246be13664ff2f8dc72e076) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -14501,7 +14499,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-438 (ponteiro textual, sha256:32c407cd18c5cd8f419049173d9215ddab62051cca2e9a2557146a018eb43582) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -15931,7 +15929,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-479 (blocking I/O, sha256:fa9a7ea04c333a401212bde4ebfedc3d6b4e796bc8daa9aabefec4068c75dd84) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -16581,7 +16579,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-499 (workflow durável, sha256:65a8a942f2fb37bc204cba33c321fdd9b7387b53dd514434972114b6df7dcb2a) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -16902,7 +16900,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "normalize_entry",
           "claim": "Frontend15 synthesizes one private Unit function and records the direct entry target relation.",
-          "sha256": "sha256:ebbdef5173c008122023daebdbefa38401f6ed07942673a9fd08fd9d71845250"
+          "sha256": "sha256:b1081734d1237474a43c6f98be4e3cefa3e6e39d5dd6113ae0afcc3dad41b012"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -17592,7 +17590,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-529 (interface privada de unit, sha256:4aad8cc6e15eb94eb2f423b30b19d1d1417a90d23e05ee9a7e41becc9981ec8c) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -17951,7 +17949,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-540 (row database, sha256:38984a38f0c0e805b208ce53a329c4a083b82c4051c28b6186b2c557d638ae31) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -18017,7 +18015,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-542 (transaction, sha256:c39b64527630781b8f21d885ca5cbe9c5dbcb9dc26759b49250eb7d5ea0196ad) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -18149,7 +18147,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-546 (limits de product, sha256:2ea23e11243c970f7d4eff6bcab76e68fc67d01172450a4454447ffa4d8d6a6f) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -18708,7 +18706,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-563 (adapter de workflow, sha256:a514c45bcc90b6a7bc7f2543693de674ef96146cdcfde9bf74a355858aabafd9) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -18939,7 +18937,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-570 (união de feature, sha256:74c361e98ee65b48437c603b1e19061b492c671e26d6e2a389f0c29dd1efaad9) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -19269,7 +19267,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-580 (ativação de module set, sha256:567614575abb61ae4dbdb8636364c3aa2e2d2f316007654031bdcbf2febd3f6c) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -19896,7 +19894,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-599 (assinatura de plataforma, sha256:54046d608e41d57064b06ad98867feef8e734458e99cb9abec64ed38df8aee74) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -20265,7 +20263,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-610 (chave ABI W, sha256:4404df741723727005dee92e4f066e58687a03db43af0ec88ee9369dab42d1f9) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -20841,7 +20839,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-628 (runtime de façade C, sha256:8a65fd3222c086c07627960744730e7312d1f99f9e7dd228f33bd0ea3301c0e2) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -20874,7 +20872,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-629 (unload de library nativa, sha256:5995bcb214a4651fdff02c3a953db475e45d9437342499e103a1c199fb5dda9a) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -21724,7 +21722,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-655 (deadline remoto, sha256:1d61f9afc8a840d6f38f5d8c0798c61d8df7eb3a26c0aca93f26a2bff18b2288) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -21873,7 +21871,7 @@
         "path": "DESIGN.md",
         "section": "26",
         "heading": "## 26. Plano de implementação",
-        "sectionDigest": "sha256:6848f87a8f8fe512f27b5d4acafa5d76c2805abd70b2f0eb85bed3c37b612621"
+        "sectionDigest": "sha256:d62155ce06b3b8cc160463f457e0b64f370494a12643dbaf9bdb53972928f5cf"
       },
       "evidence": [],
       "reason": "W-659 (body de entry, sha256:f66ab57406ddb51303f9190376daf72d8f538bd7bd8adfbf9992ae3d7223e74e) has no executable witness for component implementation-plan. The checked current contract is DESIGN.md §26 / 26. Plano de implementação.",
@@ -22005,7 +22003,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-663 (signals de processo, sha256:0947cbcb24ff585383a098de82b50f8c1536fd1453b079d95882281adcd340b7) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -22599,7 +22597,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-681 (domínio de wire, sha256:bea1bee0046437005ec029dd9e162b7587c1705989c5dd8cc10c56f4a0bb9024) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -24334,7 +24332,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-733 (assignment composta, sha256:14b22c35a051e6238a718339d2b3d163b750dfb630f6cdc99dc91ac1351ed0f5) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -28422,7 +28420,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-859 (fechamento do catálogo citado, sha256:d3ba2baa1aeedb8a5fc093fa97993a5f3e2ee0eb9a76f4fa172a54111fd815f9) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -29113,7 +29111,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-880 (resolução P0, sha256:3614bd37ddcf1beb5df9fb7310b7bb0125ee6ad80dac252c9f4628d776a43484) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -29212,7 +29210,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-883 (limite de P0, sha256:41a08e4c5316120c3fd894235caaae47c79d280163ec3ea13f12d40a1b9d93d9) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -31634,7 +31632,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-956 (domínios de metadata, sha256:dcfbeeb6df4c24a18e1ced07f0e6bc8647b680df144f04a3b5f699180e980b98) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -32260,7 +32258,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-976 (interop científico, sha256:7a52e6e283d6525c8acd90e6e717035b9ac5eea4a27f33a6ad82b6a55428622e) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -32293,7 +32291,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-977 (dados exploratórios e tabulares, sha256:ca3d6b61aa48432bb1be658cd3334712f74cd5a028ff2a37fd66c72b66157c9e) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -32357,7 +32355,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-979 (gates de latency, sha256:7bb2dd5be399554e6b0c77403c82887dec35f3911a6e1f8e10edfe9e55189f71) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -38658,7 +38656,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-1175 (lane serial dinâmica, sha256:bff3c7f9695c03bfa901ce2a0a0cf15ac3dcdf2cb0a7b6c3ba79a770011f8a39) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -43855,7 +43853,7 @@
         "path": "DESIGN.md",
         "section": "17",
         "heading": "## 17. Matrizes, tensors e ML",
-        "sectionDigest": "sha256:ea7cbe709440d0db84b489d5d77e3ccaff21e33b7b4114e169cfd832868e2e3b"
+        "sectionDigest": "sha256:43b6d3b4d106281a0c8bf9cfcdd5dc2a8caf415e8289e8671adb3bd7a1bad0c7"
       },
       "evidence": [],
       "reason": "W-1324 (phases, sha256:2e5188495d7e7f734cd1057c1e57bccf9a84131f6a9a7333a0030dd0aa396b99) has no executable witness for component standard-library. The checked current contract is DESIGN.md §17 / 17. Matrizes, tensors e ML.",
@@ -47456,7 +47454,7 @@
         "path": "DESIGN.md",
         "section": "15",
         "heading": "## 15. Números, ranges e unidades",
-        "sectionDigest": "sha256:4d0a7945f78dae1f4c8a163d3b3fef4fbf7ca5cc7f7cb75de6ce88d5081b77dd"
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
       "reason": "W-1432 (identity física e interface, sha256:b2a6042d86d8bf20193f80750dad586baa9b69c3c1cfaaadd8a819e48fdee486) has no executable witness for component standard-library. The checked current contract is DESIGN.md §15 / 15. Números, ranges e unidades.",
@@ -50780,7 +50778,7 @@
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
-          "sha256": "sha256:ebbdef5173c008122023daebdbefa38401f6ed07942673a9fd08fd9d71845250",
+          "sha256": "sha256:b1081734d1237474a43c6f98be4e3cefa3e6e39d5dd6113ae0afcc3dad41b012",
           "symbol": "resolved_binding_statement",
           "claim": "Frontend publishes the lexical binding relation."
         },
@@ -51137,7 +51135,7 @@
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
-          "sha256": "sha256:ebbdef5173c008122023daebdbefa38401f6ed07942673a9fd08fd9d71845250",
+          "sha256": "sha256:b1081734d1237474a43c6f98be4e3cefa3e6e39d5dd6113ae0afcc3dad41b012",
           "symbol": "expression_parse_interpolated_string",
           "claim": "The frontend normalizes interpolation segments and canonical built-in types."
         },
@@ -51367,7 +51365,7 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
-          "sha256": "sha256:ebbdef5173c008122023daebdbefa38401f6ed07942673a9fd08fd9d71845250",
+          "sha256": "sha256:b1081734d1237474a43c6f98be4e3cefa3e6e39d5dd6113ae0afcc3dad41b012",
           "symbol": "expression_tree_contains",
           "claim": "Frontend supplies canonical Bool identity and resolves a binding nested inside the bounded argument tree."
         },
@@ -52003,7 +52001,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "statement_for_expression",
           "claim": "Existing bounded expression-tree walks locate prior-binding operands without downstream name resolution.",
-          "sha256": "sha256:ebbdef5173c008122023daebdbefa38401f6ed07942673a9fd08fd9d71845250"
+          "sha256": "sha256:b1081734d1237474a43c6f98be4e3cefa3e6e39d5dd6113ae0afcc3dad41b012"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -52347,7 +52345,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "normalize_entry",
           "claim": "Frontend15 synthesizes one private Unit function and records the direct entry target relation.",
-          "sha256": "sha256:ebbdef5173c008122023daebdbefa38401f6ed07942673a9fd08fd9d71845250"
+          "sha256": "sha256:b1081734d1237474a43c6f98be4e3cefa3e6e39d5dd6113ae0afcc3dad41b012"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -52448,7 +52446,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "external_identity_pair_valid",
           "claim": "Frontend16 validates external nominal identity pairs and the bounded ExitCode success projection.",
-          "sha256": "sha256:ebbdef5173c008122023daebdbefa38401f6ed07942673a9fd08fd9d71845250"
+          "sha256": "sha256:b1081734d1237474a43c6f98be4e3cefa3e6e39d5dd6113ae0afcc3dad41b012"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
@@ -52590,7 +52588,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "normalize_function",
           "claim": "The frontend assigns is_async from the explicit CST async modifier before HIR publication.",
-          "sha256": "sha256:ebbdef5173c008122023daebdbefa38401f6ed07942673a9fd08fd9d71845250"
+          "sha256": "sha256:b1081734d1237474a43c6f98be4e3cefa3e6e39d5dd6113ae0afcc3dad41b012"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -52907,7 +52905,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "normalize_expression",
           "claim": "Frontend preserves resolver-owned Arguments.isEmpty and ExitCode.failure(i64) identities for the public process forms.",
-          "sha256": "sha256:ebbdef5173c008122023daebdbefa38401f6ed07942673a9fd08fd9d71845250"
+          "sha256": "sha256:b1081734d1237474a43c6f98be4e3cefa3e6e39d5dd6113ae0afcc3dad41b012"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -53024,7 +53022,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "normalize_expression_node",
           "claim": "Frontend normalizes an unparenthesized trailing nested scalar if as a value-block tail.",
-          "sha256": "sha256:ebbdef5173c008122023daebdbefa38401f6ed07942673a9fd08fd9d71845250"
+          "sha256": "sha256:b1081734d1237474a43c6f98be4e3cefa3e6e39d5dd6113ae0afcc3dad41b012"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -53096,13 +53094,13 @@
           "path": "tooling/executable-benchmark-machine.mjs",
           "symbol": "EXECUTABLE_WORKLOAD_IDS",
           "claim": "The live executable workload catalog includes restaurant-nested-scalar-if beside restaurant-scalar-if.",
-          "sha256": "sha256:45c7d92a58f36885960815e9fedd2023d373596c2eb324d0db7ec482e738f95d"
+          "sha256": "sha256:eb51f1475ea208d5e68970b3083899c2421f56d81799c18eda8730900b8fc9ac"
         },
         {
           "path": "benchmarks/executable-catalog.json",
           "symbol": "restaurant-nested-scalar-if",
           "claim": "The executable catalog records the W source and exact oracle as public-end-to-end and source/oracle-ready with timing deferred.",
-          "sha256": "sha256:3c43e4e1109e8b8be67052fa66e3c5cd95df0c76aef49ed36dd3591b09fb5314"
+          "sha256": "sha256:371d2df640c7cee4a8699e1cee5c5256aeef655985b71fc7ad11c469b52637e1"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
@@ -53297,7 +53295,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "expression_parse_interpolated_string",
           "claim": "The frontend applies canonical i64 context before publishing a leading prefix-negative interpolation tree.",
-          "sha256": "sha256:ebbdef5173c008122023daebdbefa38401f6ed07942673a9fd08fd9d71845250"
+          "sha256": "sha256:b1081734d1237474a43c6f98be4e3cefa3e6e39d5dd6113ae0afcc3dad41b012"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
@@ -53374,7 +53372,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "mutable_binding_for_name",
           "claim": "The frontend admits only a preceding mutable binding target.",
-          "sha256": "sha256:ebbdef5173c008122023daebdbefa38401f6ed07942673a9fd08fd9d71845250"
+          "sha256": "sha256:b1081734d1237474a43c6f98be4e3cefa3e6e39d5dd6113ae0afcc3dad41b012"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -54981,7 +54979,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "expression_parse_prefix_inner",
           "claim": "The frontend preserves exact execution yield as a Unit semantic expression inside async functions.",
-          "sha256": "sha256:ebbdef5173c008122023daebdbefa38401f6ed07942673a9fd08fd9d71845250"
+          "sha256": "sha256:b1081734d1237474a43c6f98be4e3cefa3e6e39d5dd6113ae0afcc3dad41b012"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -55052,7 +55050,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "expression_parse_prefix_inner",
           "claim": "Frontend24 preserves every execution yield while interning their canonical Unit type identity.",
-          "sha256": "sha256:ebbdef5173c008122023daebdbefa38401f6ed07942673a9fd08fd9d71845250"
+          "sha256": "sha256:b1081734d1237474a43c6f98be4e3cefa3e6e39d5dd6113ae0afcc3dad41b012"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -55517,7 +55515,7 @@
           "path": "benchmarks/executable-catalog.json",
           "symbol": "restaurant-main-dispatch",
           "claim": "The executable catalog owns the source, oracle, blockers, and live measurement lane.",
-          "sha256": "sha256:3c43e4e1109e8b8be67052fa66e3c5cd95df0c76aef49ed36dd3591b09fb5314"
+          "sha256": "sha256:371d2df640c7cee4a8699e1cee5c5256aeef655985b71fc7ad11c469b52637e1"
         },
         {
           "path": "tooling/platform-support.json",
@@ -55667,7 +55665,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "domain_input_ready",
           "claim": "Frontend validates bounded caller-owned domain records before parsing explicit placement.",
-          "sha256": "sha256:ebbdef5173c008122023daebdbefa38401f6ed07942673a9fd08fd9d71845250"
+          "sha256": "sha256:b1081734d1237474a43c6f98be4e3cefa3e6e39d5dd6113ae0afcc3dad41b012"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
@@ -57233,13 +57231,13 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "expression_parse_prefix_inner",
           "claim": "Frontend parsing admits only the exact synchronous local typed-try shape and records its nested call and enum identity.",
-          "sha256": "sha256:ebbdef5173c008122023daebdbefa38401f6ed07942673a9fd08fd9d71845250"
+          "sha256": "sha256:b1081734d1237474a43c6f98be4e3cefa3e6e39d5dd6113ae0afcc3dad41b012"
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "resolve_frontend_links",
           "claim": "Frontend link resolution rechecks lexical ownership, local callee identity, matching error enums, result type, and async barriers.",
-          "sha256": "sha256:ebbdef5173c008122023daebdbefa38401f6ed07942673a9fd08fd9d71845250"
+          "sha256": "sha256:b1081734d1237474a43c6f98be4e3cefa3e6e39d5dd6113ae0afcc3dad41b012"
         },
         {
           "path": "compiler/seed-c/tests/test_parser.c",
@@ -57842,7 +57840,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "expression_parse_panic",
           "claim": "The frontend accepts one unlabelled plain String literal, records Never and a closed explicit code, and fails closed on other shapes.",
-          "sha256": "sha256:ebbdef5173c008122023daebdbefa38401f6ed07942673a9fd08fd9d71845250"
+          "sha256": "sha256:b1081734d1237474a43c6f98be4e3cefa3e6e39d5dd6113ae0afcc3dad41b012"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -58527,7 +58525,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "simple_type_is_u64_bool_tuple",
           "claim": "The frontend recognizes only the exact closed product, normalizes source trivia to one identity, and resolves builtin module-constant argument ordinals without admitting generic module calls.",
-          "sha256": "sha256:ebbdef5173c008122023daebdbefa38401f6ed07942673a9fd08fd9d71845250"
+          "sha256": "sha256:b1081734d1237474a43c6f98be4e3cefa3e6e39d5dd6113ae0afcc3dad41b012"
         },
         {
           "path": "compiler/seed-c/tests/test_constir.c",
@@ -58965,7 +58963,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "expression_append_integer_truncating_bits",
           "claim": "Frontend parsing constructs the fixed-width conversion and validates supported types and contexts.",
-          "sha256": "sha256:ebbdef5173c008122023daebdbefa38401f6ed07942673a9fd08fd9d71845250"
+          "sha256": "sha256:b1081734d1237474a43c6f98be4e3cefa3e6e39d5dd6113ae0afcc3dad41b012"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
@@ -59436,7 +59434,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "numeric_widening_route",
           "claim": "The frontend derives the closed relation once and inserts the shared wrapper across supported contexts.",
-          "sha256": "sha256:ebbdef5173c008122023daebdbefa38401f6ed07942673a9fd08fd9d71845250"
+          "sha256": "sha256:b1081734d1237474a43c6f98be4e3cefa3e6e39d5dd6113ae0afcc3dad41b012"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
@@ -59549,7 +59547,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "float_bits_conversion_route",
           "claim": "Frontend69 admits only exact same-width unsigned fromBits and matching receiver toBits routes.",
-          "sha256": "sha256:ebbdef5173c008122023daebdbefa38401f6ed07942673a9fd08fd9d71845250"
+          "sha256": "sha256:b1081734d1237474a43c6f98be4e3cefa3e6e39d5dd6113ae0afcc3dad41b012"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
@@ -59959,6 +59957,39 @@
       ],
       "benchmarkDisposition": "compiler-lifecycle",
       "benchmarkEvidence": "The bounded conversion is verified only as a private compiler-lifecycle artifact. ProductClosure0 and ordinary executable emission remain unsupported; no public native execution, benchmark, or timing result is claimed."
+    },
+    {
+      "decisionId": "W-1651",
+      "summary": "explicit wide and low-precision numeric families",
+      "canonicalClaim": "`f16`/`bf16`/`f32`/`f64`/`f128` are fixed arithmetic scalars; one `BigFloat<precision:>` family covers fixed and `.dynamic`; f4/f6/f8 use mandatory standardized format cases; TensorFloat32 is compute policy and e8m0fnu is block-scale metadata",
+      "claimDigest": "sha256:51a24f249dba6d607a37439d99a69225a20682848020e435baef6ce61e8d419c",
+      "category": "implementation-evidence-gap",
+      "basis": "current-ledger-claim-without-executable-witness",
+      "authorityRef": {
+        "kind": "design-contract",
+        "path": "DESIGN.md",
+        "section": "15",
+        "heading": "## 15. Números, ranges e unidades",
+        "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
+      },
+      "evidence": [],
+      "reason": "W-1651 (explicit wide and low-precision numeric families, sha256:51a24f249dba6d607a37439d99a69225a20682848020e435baef6ce61e8d419c) remains an implementation-evidence gap for component syntax-and-types at DESIGN.md §15 / 15. Números, ranges e unidades because wide and configured low-precision numeric executable witnesses are missing.",
+      "stopCondition": "Do not claim W-1651 as implemented. Close the syntax-and-types gap at DESIGN.md §15 / 15. Números, ranges e unidades with wide and configured low-precision numeric executable witnesses, exact encoding and conversion oracles, portability evidence, and target capability/fallback disclosure.",
+      "selection": "explicit-ledger-id",
+      "basisRef": {
+        "kind": "ledger-row",
+        "path": "RATIONALE.md",
+        "section": "3. Ledger",
+        "decisionId": "W-1651",
+        "claimDigest": "sha256:51a24f249dba6d607a37439d99a69225a20682848020e435baef6ce61e8d419c"
+      },
+      "gap": {
+        "component": "syntax-and-types",
+        "gate": "DESIGN.md §15 / 15. Números, ranges e unidades",
+        "missingEvidence": [
+          "wide and configured low-precision numeric executable witnesses"
+        ]
+      }
     }
   ],
   "auditSamples": {

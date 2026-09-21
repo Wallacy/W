@@ -28,6 +28,11 @@ semanticamente por `W-PIPE-0001` porque o RHS deve ser um call template único.
 For usage examples, read [`Operators and pipe-forward`](../../CHEATSHEET.md#operators-and-pipe-forward).
 For explicit overflow and bit APIs, read [`Numeric policies and bit primitives`](../../CHEATSHEET.md#numeric-policies-and-bit-primitives).
 
+The type-and-contract block also demonstrates the configured low-precision
+heads `f8<.e4m3fn>`, `f8<.e5m2>`, and `f4<.e2m1fn>`, plus fixed and dynamic
+`BigFloat<precision: ...>`. These reuse ordinary type arguments; the atlas
+rejects bare `f4`/`f6`/`f8` because W-1651 defines no default encoding.
+
 `>..` e `>..<` continuam formas current do contrato e das tabelas seed
 lexer/parser. O witness direto Tree-sitter dessas formas está em um gap
 conhecido do parser.

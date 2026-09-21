@@ -6,6 +6,11 @@ import { Quantized, StaticRatio } from std.quant
 
 export type SeatNumber = UInt<(1...128)>
 export type TaxRate = FixedDecimal<i128, scale: 4>
+export type AuditPrecision = math.BigFloat<precision: 256>
+export type RuntimePrecision = math.BigFloat<precision: .dynamic>
+export type AromaActivation = f8<.e4m3fn>
+export type AromaGradient = f8<.e5m2>
+export type PackedFlavorWeight = f4<.e2m1fn>
 export type FlavorQ =
   Quantized<
     i8,
@@ -32,6 +37,14 @@ export fn truncateReading(source: f64): i32 throws NumericConversionError {
 
 export fn compareReadings(left: f64, right: f64): Ordering? {
   return left.partialCompare(right)
+}
+
+export fn encodeAroma(source: f32): AromaActivation throws NumericConversionError {
+  return try AromaActivation(rounding: source, mode: .nearestEven)
+}
+
+export fn combineAudit(left: AuditPrecision, right: AuditPrecision): AuditPrecision {
+  return left + right
 }
 
 export fn acceptsSeat(number: UInt): Bool {
@@ -145,6 +158,11 @@ test "float order is explicit when IEEE equality is partial" for compareReadings
   expect -0.0 == 0.0
   expect compareReadings(left: f64.nan, right: 1.0) == none
   expect f64.totalOrder(-0.0, 0.0) == .less
+}
+
+test "configured low precision keeps encoding separate from value" for encodeAroma {
+  let encoded = try encodeAroma(source: 1.25_f32)
+  expect f32(encoded) == 1.25_f32
 }
 
 test "ranges are intervals and descending work uses stride" for acceptsSeat {

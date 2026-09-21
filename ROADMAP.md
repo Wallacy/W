@@ -80,7 +80,11 @@ physical scheduler experiments:
    MLIR/LLVM artifact, but the ordinary executable route remains unsupported
    until unhandled `NumericConversionError` has a canonical process-root
    mapping. Remaining conversion policies continue to block this rank-1
-   prerequisite;
+   prerequisite. W-1651 closes the design identity of i128/u128, the fixed
+   arithmetic float family through f128, configured f4/f6/f8 AI elements, and
+   fixed/dynamic BigFloat, but adds no implementation evidence; these wider
+   carriers follow the scalar route only after its current 64-bit/f32/f64
+   packages are complete;
 2. prefix, arithmetic, comparison, bitwise, shift, overflow and compound
    operators, each with its specified checked or explicit wrapping policy;
 3. Boolean short-circuiting, scalar `if`, exhaustive scalar selection and

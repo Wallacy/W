@@ -207,7 +207,7 @@ alvo de execução independente.
 | `rest_arguments.w` | rest homogêneo, expansão `each`, ownership e call shape |
 | `units.w` | SI, dimensão e units customizadas |
 | `quantity_oracle.w` | Quantity/SI canonical value, affine points, IEC bits e schemas JSON |
-| `numerics.w` | literais, conversões, overflow, primitives de bits portáveis, float, ranges, post-test loop e quantization |
+| `numerics.w` | literals, conversions, overflow, portable bit primitives, fixed/wide/configured floats, BigFloat, ranges, post-test loop, and quantization |
 | `kitchen.w` | resources move-only, protocols térmicos, ranges e controle PID |
 | `oracle.w` | matriz/tensor, `@`, shape e cálculo de lotes |
 | `performance.w` | fatos de prova, baseline portátil `std.simd`, largura interna e custos de texto |
@@ -2289,8 +2289,11 @@ Aceite:
 - NaN mantém equality parcial e não entra diretamente como key de `Map`;
 - `TotalFloat` fornece uma ordem e um hash compatíveis;
 - decimal esperado não passa por binary float;
-- `f16`, `bf16` e quantized storage não escondem scalar arithmetic e declaram
-  accumulator e conversion;
+- `f16`, `bf16`, `f32`, `f64`, and `f128` are fixed arithmetic scalars;
+- configured f4/f6/f8 elements have no bare default and keep packing, compute
+  policy, accumulator, conversion, and target capability explicit;
+- fixed and `.dynamic` BigFloat share one family without ambient rounding or
+  allocator policy;
 - um range invertido é vazio;
 - uma progressão descendente usa `stride`, não inverte o significado do range.
 

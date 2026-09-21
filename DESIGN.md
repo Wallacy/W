@@ -22618,26 +22618,31 @@ let byteOffset: usize = 42 // largura do target
 let mask = 0b1111_0000_u8
 let mode = 0o755_u16
 let color = 0xff_40_00_u32
+let wideLedger: i128 = 42
+let wideUnsigned: u128 = 42
+let quadPrecision: f128 = 1.0
 ```
 
 `Int` fixo mantém overflow, serialização e refinements iguais em targets de 32
 e 64 bits. O optimizer pode estreitar uma operação interna e reestender o valor
 na boundary. Um target de 32 bits ainda implementa a semântica de 64 bits.
+`i128` e `u128` são identities do core, não uma promessa de implementação
+source-to-native completa; os gaps atuais estão em §26.
 O lexer aceita:
 
 - decimal, `0b` binary, `0o` octal e `0x` hexadecimal;
 - `_` somente entre digits;
 - fraction decimal com digits nos dois lados de `.`;
 - exponent decimal `e` ou `E`, com sinal opcional;
-- suffix separado por `_`, como `_i16`, `_u8`, `_f32` ou `_f64`.
+- suffix separado por `_`, como `_i16`, `_u8`, `_f16`, `_bf16`, `_f32`, `_f64`
+  ou `_f128`.
 
 `2.` é erro; use `2.0`. Um sinal é um operador, não parte do literal numérico.
 O checker trata `-128_i8` como o limite representável, mas rejeita `128_i8` e
 `-(129_i8)`. Hexadecimal float não entra no design vigente. O controle de bits
-usa `f32.fromBits(u32) -> f32` e `f64.fromBits(u64) -> f64`; cada método recebe
-um único unsigned value de largura correspondente. O extractor de instância
-`.toBits()` devolve `u32` para `f32` e `u64` para `f64`. São bit
-reinterpretations, não conversões numéricas.
+usa `T.fromBits(U)`/`.toBits()` somente com o carrier unsigned correspondente:
+`f16`/`bf16` com `u16`, `f32` com `u32`, `f64` com `u64` e `f128` com `u128`.
+São bit reinterpretations, não conversões numéricas.
 
 Antes do expected type, um literal integer guarda magnitude arbitrária. Um
 literal decimal guarda um rational decimal exato. A materialização ocorre uma
@@ -22658,7 +22663,8 @@ rounding. Um real literal com suffix integer é um diagnostic.
 
 Overflow ou infinity durante a materialização é diagnostic. Underflow para zero
 ou subnormal é aceito com o mesmo rounding de runtime e pode produzir warning
-configurável. `f32` e `f64` fornecem os valores associados `infinity` e `nan`;
+configurável. `f16`, `bf16`, `f32`, `f64` e `f128` fornecem os valores
+associados `infinity` e `nan`;
 `inf` e `nan` não são tokens literais. `fromBits` cria um payload NaN específico.
 
 #### 15.1.2 Tipagem e conversões
@@ -22718,12 +22724,13 @@ representação de `N` bits é congruente ao valor matemático de `source` módu
 origem signed negativa é estendida pelo seu valor matemático quando o destino é
 mais largo, e a signedness do destino interpreta apenas o padrão final. O
 compilador não delega essa operação a promotions, casts ou overflow do host.
-Para floats, somente `f32.fromBits(u32)`/`f64.fromBits(u64)` e o `.toBits()`
-correspondente são admitidos: cada `fromBits` recebe exatamente um argumento
-posicional da largura correspondente, e cada `.toBits()` recebe zero argumentos.
-Argumento ausente ou extra, forma nomeada, tipo signed ou largura incompatível
-é rejeitado. Essas APIs não convertem valor nem selecionam uma policy de
-rounding. `toBits` e `fromBits` preservam representação, não valor.
+Para fixed arithmetic floats, somente `T.fromBits(U)`/`.toBits()` com carrier
+correspondente são admitidos: `f16`/`bf16` usam `u16`, `f32` usa `u32`, `f64`
+usa `u64`, e `f128` usa `u128`. Cada `fromBits` recebe exatamente um argumento
+posicional e cada `.toBits()` recebe zero argumentos. Argumento ausente ou
+extra, forma nomeada, tipo signed ou largura incompatível é rejeitado. Essas
+APIs não convertem valor nem selecionam uma policy de rounding. `toBits` e
+`fromBits` preservam representação, não valor.
 `T(value)` também pode tornar explícita uma conversão que já é total e exata.
 Ele nunca esconde uma operação fallible.
 
@@ -22935,10 +22942,21 @@ e as mesmas operações integer.
 **Exemplo:** `0.0_f64 / 0.0_f64` produz NaN. Ele não causa panic nem ativa
 fast-math.
 
-`f32` e `f64` seguem IEEE binary32 e binary64. Operações básicas usam
-round-to-nearest, ties-to-even, preservam subnormals e não reassociam. Divisão
-por zero, overflow e operação inválida produzem os valores IEEE. `a * b + c`
-não vira FMA no mode strict; use `math.fma(a, b, c)`.
+The fixed arithmetic scalar family is `f16`, `bf16`, `f32`, `f64`, and
+`f128`. `f16`, `f32`, and `f64` use IEEE 754 binary16, binary32, and binary64.
+`bf16` has the W-defined binary layout of one sign bit, eight exponent bits,
+seven fraction bits, and bias 127; its zero, subnormal, infinity, and NaN
+classes follow the corresponding binary32 exponent conventions. `f128` is
+exactly IEEE 754 binary128 (one sign bit, 15 exponent bits, 112 fraction bits,
+113 bits of significand precision). It is never an alias for host `long double`,
+80-bit extended precision, or a host-dependent format.
+
+For all five types, `+`, `-`, `*`, `/`, unary `-`, and IEEE comparisons are
+same-type operations. Each basic operation rounds to that type using
+round-to-nearest, ties-to-even, preserves signed zero and gradual subnormals,
+and does not reassociate. Division by zero, overflow, and invalid operations
+produce the W-defined IEEE-style values. `a * b + c` is not contracted to FMA
+in `.strict`; use `math.fma(a, b, c)` when contraction is intended.
 
 ```w
 let unordered = f64.nan.partialCompare(1.0) // none
@@ -22946,35 +22964,41 @@ let ordered = f64.totalOrder(-0.0, 0.0)     // .less
 let key = TotalFloat(0.0)
 ```
 
-Storage, copy e uma ida-e-volta `fromBits`/`toBits` preservam a representação
-exata, incluindo ambos os zeros, subnormals, infinities e o sign/payload NaN.
-Serializar bytes continua separado e exige uma ordem explícita como `.little`,
-`.big` ou `.native`; `fromBits` e `toBits` não escolhem byte order. Um resultado
-NaN aritmético continua NaN, mas seu sign e payload não são portáveis nem
-prometidos iguais aos operandos. `==`, `<`, `<=`, `>` e `>=` seguem comparação
-IEEE: NaN não é igual a si e `-0.0 == 0.0`.
+Storage, copy, and a `fromBits`/`toBits` round trip preserve the exact fixed
+encoding, including both zeros, subnormals, infinities, and NaN sign/payload.
+Byte serialization remains separate and requires an explicit order such as
+`.little`, `.big`, or `.native`; `fromBits`/`toBits` do not choose byte order.
+An arithmetic NaN remains NaN, but its sign and payload are not portable and
+are not promised to match the operands. `==`, `<`, `<=`, `>`, and `>=` use
+IEEE partial comparison: NaN is unequal to itself and `-0.0 == 0.0`.
 
-Por isso, floats não conformam a `Equatable`, `Hashable` ou uma ordem total.
-`partialCompare` retorna `Ordering?`. `f32.totalOrder` e `f64.totalOrder`
-implementam a ordem total IEEE. `TotalFloat<T>` fornece equality, hash e ordem
-compatíveis para keys. `minimum` propaga NaN; `minimumNumber` seleciona o
-número quando somente um operando é NaN.
+Therefore these floats do not conform to `Equatable`, `Hashable`, or an
+ordinary total order. `partialCompare` returns `Ordering?`; `T.totalOrder`
+implements IEEE total ordering for each fixed arithmetic float. `TotalFloat<T>`
+provides equality, hash, and order suitable for keys. `minimum` propagates NaN;
+`minimumNumber` selects the numeric operand when only one operand is NaN.
 
 Safe W não expõe um floating-point environment global. Source comum não muda
 rounding mode, flush-to-zero ou exception flags. Uma foreign call que altera
 esse estado precisa declará-lo e restaurá-lo na boundary. APIs checked retornam
 estado como valor quando o programa precisa observá-lo.
 
-`mode: .fast` permite flags fast-math declaradas pela API.
-`mode: .reproducible` usa algoritmo, ordem de reduction e accuracy profile
-versionados. Uma flag de release não ativa nenhum desses modes. Transcendentals
-ficam em `std.math` e publicam domínio, tratamento de casos especiais e erro
-máximo em ULP.
+`mode: .fast` permits only fast-math behavior declared by the API.
+`mode: .reproducible` uses a versioned algorithm, reduction order, and accuracy
+profile. A release flag never activates either mode. Transcendentals live in
+`std.math` and publish domain, special-case behavior, and maximum ULP error.
+Native instructions are permitted only when they match W's semantics. A
+target that lacks an exact operation uses a W-owned software or split-width
+implementation only when the build policy explicitly permits that fallback;
+otherwise the target is rejected. In particular, f128 lowering cannot acquire
+host `long double`, libgcc, CRT, or host math behavior accidentally. The current
+source-to-native float witness remains limited to f32/f64; f16, bf16, and f128
+are selected design with implementation gaps.
 
 #### 15.1.5 Tipos numéricos explícitos
 
-**Exemplo:** `FixedDecimal<i128, scale: 2>` representa dinheiro decimal sem
-passar por `f64`.
+**Example:** `FixedDecimal<i128, scale: 2>` represents decimal money without
+passing through `f64`.
 
 Os módulos numéricos adicionam tipos com custo e domínio explícitos:
 
@@ -22982,6 +23006,10 @@ Os módulos numéricos adicionam tipos com custo e domínio explícitos:
 let tax: FixedDecimal<i128, scale: 2> = 12.30
 let exact = try Rational<BigInt>(22, denominator: 7)
 let phase = Complex<f64>(real: 0.0, imaginary: 1.0)
+type AuditPrecision = BigFloat<precision: 256>
+type RuntimePrecision = BigFloat<precision: .dynamic>
+type E4M3Storage = f8<.e4m3fn>
+type E2M1Storage = f4<.e2m1fn>
 
 type FlavorQ =
   Quantized<
@@ -22992,9 +23020,10 @@ type FlavorQ =
   >
 ```
 
-`std.math` fornece `BigInt`, `BigUInt`, `Rational` e `Complex`. `std.decimal`
-fornece `FixedDecimal`. `std.quant` fornece quantization. Esses módulos têm
-custos e contracts explícitos e não entram na prelude.
+`std.math` provides `BigInt`, `BigUInt`, `Rational`, `Complex`, and the
+`BigFloat` family. `std.decimal` provides `FixedDecimal`; `std.quant` provides
+quantization. These modules have explicit costs and contracts and are not in
+the prelude.
 
 `BigInt` e `BigUInt` possuem precisão arbitrária, são owned e seguem a policy de
 OOM da seção 11.5. `FixedDecimal<Storage, scale:>` usa uma escala integer não
@@ -23004,32 +23033,112 @@ Divide exige result scale e rounding nomeados. Uma conversão de escala também
 declara rounding. `Money` continua a adicionar currency e não vira alias
 universal de decimal.
 
-`Rational<BigInt>` normaliza sign e greatest common divisor. `Complex<T>` usa
-constructors nomeados; W não reserva pontuação para literal complexo.
+`Rational<BigInt>` normalizes its sign and greatest common divisor. `Complex<T>`
+uses named constructors; W reserves no punctuation for a complex literal.
 
-`f16` e `bf16` são formatos de storage e operand. Seus valores convertem
-exatamente para um expected `f32`. Eles não definem scalar arithmetic. Source
-escalar usa `.toF32()`; tensor e ML APIs declaram accumulator. Formatos float
-de 8 bits não entram no core.
-`Quantized<Storage, expressed:, scale:, zeroPoint:>` representa:
+`BigFloat<precision: N>` is a compile-time fixed-precision binary real with
+`N >= 2` significand bits. `N` is part of the type identity; arithmetic keeps
+the same `N`, uses nearest-even by default, and exposes any alternative rounding
+as a named per-operation policy. Fixed precision uses statically sized storage
+and does not request a runtime allocator. A fixed value converts implicitly to
+`BigFloat<precision: M>` only when `M >= N` and the exponent domain is
+identical; this widening is total and exact. Narrowing is explicit.
+`BigFloat<precision: .dynamic>` is the same family with an owned runtime-sized
+significand. It never converts implicitly to or from a fixed-precision value
+and does not provide `+`, `-`, `*`, or `/` operators: construction and each
+named operation supply `precisionBits`, `rounding`, an explicit `allocator`,
+and `BigFloatLimits`. They are fallible with `try`; allocation or precision
+limit failure leaves inputs unchanged and publishes no partial result.
 
+Both forms use a W-defined signed 64-bit binary exponent domain, IEEE-style
+signed zero, infinities, NaN, and gradual underflow. Precision limits bound
+significand size, not result semantics. Overflow and underflow follow the
+explicit rounding mode at the fixed exponent boundary. Fixed-precision
+`+`, `-`, `*`, and `/` are total and produce the corresponding rounded
+finite/special result without allocation. Compile-time precision that exceeds
+the configured compiler type-size limit is diagnosed. W does not
+promise an unbounded exponent, host-dependent `long double`, or a global
+rounding context. BigFloat has no implicit ABI, FFI, or wire layout.
+Serialization uses a versioned codec that records format/version, precision,
+class, sign, exponent, and significand; decoding requires explicit limits and
+allocator and never copies raw object memory.
+
+`BigFloatLimits` contains `maxPrecisionBits: UInt` and
+`maxSerializedBytes: UInt`. `BigFloatError` has the closed cases
+`.invalidPrecision`, `.precisionLimit`, `.serializedSizeLimit`,
+`.allocation(AllocationError)`, and `.invalidEncoding`. Dynamic constructors
+and named arithmetic return through this error type; they do not collapse
+resource failure into NaN. Fixed arithmetic itself remains allocation-free and
+uses IEEE-style special results for numeric overflow or invalid operations.
+
+The AI element encodings below are configured type identities. No bare `f8`,
+`f6`, or `f4` has a default format; a missing, unknown, or unsupported format
+case is an error. These types are storage/conversion elements, not ordinary
+arithmetic scalars:
+
+| Type | W-defined encoding | Special values and range |
+|---|---|---|
+| `f8<.e3m4>` | 1 sign, 3 exponent, 4 fraction bits; bias 3 | IEEE-like signed zero, subnormals, infinity, and NaN; max finite ±15.5 |
+| `f8<.e4m3>` | 1 sign, 4 exponent, 3 fraction bits; bias 7 | IEEE-like signed zero, subnormals, infinity, and NaN; max finite ±240 |
+| `f8<.e5m2>` | 1 sign, 5 exponent, 2 fraction bits; bias 15 | IEEE-like signed zero, subnormals, infinity, and NaN; max finite ±57,344 |
+| `f8<.e4m3fn>` | 1 sign, 4 exponent, 3 fraction bits; bias 7 | finite plus NaN, no infinity; max finite ±448 |
+| `f8<.e4m3fnuz>` | 1 sign, 4 exponent, 3 fraction bits; bias 8 | finite plus one NaN, unsigned zero, no infinity; max finite ±240 |
+| `f8<.e5m2fnuz>` | 1 sign, 5 exponent, 2 fraction bits; bias 16 | finite plus one NaN, unsigned zero, no infinity; max finite ±57,344 |
+| `f8<.e4m3b11fnuz>` | 1 sign, 4 exponent, 3 fraction bits; bias 11 | finite plus one NaN, unsigned zero, no infinity; max finite ±30 |
+| `f6<.e2m3fn>` | 1 sign, 2 exponent, 3 fraction bits; bias 1 | finite-only with signed zeros and subnormals; no infinity or NaN; max ±7.5 |
+| `f6<.e3m2fn>` | 1 sign, 3 exponent, 2 fraction bits; bias 3 | finite-only with signed zeros and subnormals; no infinity or NaN; max ±28 |
+| `f4<.e2m1fn>` | 1 sign, 2 exponent, 1 fraction bit; bias 1 | finite-only with signed zeros and subnormals; no infinity or NaN; max ±6 |
+
+`f8` values use one addressable byte. In ordinary bindings, fields, parameters,
+and `Array`, logical `f4` and `f6` values also occupy one addressable byte with
+unused high carrier bits zero; this does not expose a 4- or 6-bit addressable
+object and does not silently pack an `Array`. Dense bit packing is available
+only through an explicit Tensor/Quantized/Packed/block storage contract that
+declares element count, bit order, byte extent, alignment, and tail padding.
+The canonical W packed order is little-bit-endian: f4 stores the even element
+in the low nibble and the odd element in the high nibble; f6 stores element
+`i` in bit range `[6*i, 6*i+5]` of the little-bit-endian bit stream. A mismatch
+requires explicit materialization or rejection.
+
+Conversions to/from these formats are explicit. W owns each encoding; equal
+field widths do not create aliases or implicit conversions. Widening a finite
+value to `f32` is exact; NaN widening preserves only the NaN class, not a
+portable sign or payload. Narrowing names its rounding mode and overflow policy;
+formats without a NaN encoding also require an explicit `nan:` policy. None of
+these low-precision types defines ordinary scalar arithmetic or comparisons.
+Tensor dot/matmul uses a separately declared compute and accumulator policy;
+the element format never silently chooses its accumulator. Scalar SIMD lanes
+remain limited to types with scalar operations, so f4/f6/f8 are not `Simd`
+elements.
+
+`e8m0fnu` is not an `f8` element type. It is a positive power-of-two scale
+encoding with eight exponent bits, bias 127, and no sign, zero, infinity, or
+fraction bits: codes `0x00...0xfe` represent `2 ** (code - 127)`, and `0xff` is
+NaN. It may appear only as explicit block-scale metadata in `Quantized`/Tensor
+MX-style storage. It does not provide scalar arithmetic or implicit conversion
+to a W float. `Quantized<Storage, expressed:, scale:, zeroPoint:>` represents:
 ```text
 expressed = (stored - zeroPoint) * scale
 ```
 
-`StaticRatio<Numerator, Denominator>` exige denominator positivo e normaliza
-sign e greatest common divisor. Assim, a escala exata entra na identidade do
-tipo. Scale e zero point são contratos estáticos. Per-axis e
-per-block quantization adicionam um eixo e uma lista de parâmetros versionada.
-A conversão, o accumulator e a saturation policy ficam explícitos na API.
+Reachability closure is exact: only W-owned helpers reached by the selected
+source graph enter a native artifact. Fixed-width integer/floating operations,
+BigFloat limbs, and low-format conversion helpers cannot pull in an ambient CRT,
+libgcc, host `long double`, or unrelated math runtime as an accidental
+dependency. An explicitly permitted fallback remains a declared build input.
 
-Posit, Unum, IEEE decimal float e arbitrary-precision real ficam **Rejeitado por
-enquanto**. `FixedDecimal` cobre decimal exato. `Rational` e BigInt cobrem
-precisão arbitrária. Um package pode experimentar outro real com rounding,
-serialization, FFI e differential oracle. Nenhum substitui `f32` ou `f64`.
-Tipos `fast8` ou `fast16` dependentes do target
-ficam **Rejeitado por enquanto**; ProofFacts e o optimizer escolhem a largura
-física sem mudar o tipo source.
+`StaticRatio<Numerator, Denominator>` requires a positive denominator and
+normalizes sign and greatest common divisor, so exact scale participates in
+type identity. Scale and zero point are static contracts. Per-axis and
+per-block quantization add an axis/block layout and a versioned parameter
+sequence. Conversion, accumulator, and saturation policy stay explicit.
+
+Posit, Unum, and IEEE decimal floating point remain rejected for now.
+`FixedDecimal`, `Rational`, and the selected `BigFloat` family cover their
+respective fixed-decimal, exact-rational, and arbitrary-significand use cases;
+none replaces the fixed arithmetic float family. Target-dependent `fast8` and
+`fast16` names remain rejected; ProofFacts and the optimizer may select
+physical widths without changing source type identity.
 
 #### 15.1.6 Texto decimal de integers
 
@@ -25301,6 +25410,7 @@ O element type define o resultado de `@`:
 | `f16` ou `bf16` | `f32` | `f32` |
 | `f32` | `f32` | `f32` |
 | `f64` | `f64` | `f64` |
+| `f128` | `f128` | `f128` |
 | `Quantized` | sem operator `@` | API quantized explícita |
 
 Para integer, `@` é uma operação de domínio com widening fixo; ele não cria uma
@@ -25327,6 +25437,30 @@ Inputs com element types diferentes não promovem silenciosamente. A API nomeia
 dequantization, cast, result ou accumulator. Requantization declara destination
 scale, rounding e saturation. Calibration e seleção de scale são tooling; elas
 não ocorrem durante uma call normal.
+
+Low-precision AI types are element/storage formats, not the accumulator policy.
+They have no implicit `@` route. A named `tensor.matmul<R>` must declare the
+compute format and accumulator independently, for example:
+
+```w
+let output = tensor.matmul<f32>(
+  activations,
+  weights: weights,
+  compute: .tensorFloat32,
+  accumulator: f32,
+  mode: .strict,
+)
+```
+
+`compute: .tensorFloat32` is a provider-neutral compute policy, never a storage scalar
+or a type alias. It rounds each `f32` input to 10 fraction bits (11 bits of
+significand including the implicit leading bit) using nearest-even, retains
+the binary32 exponent range, and produces `f32` products/accumulation under the
+separately named `accumulator` and reduction `mode`. The selected mode still
+defines accumulation order and contraction. A provider must implement these
+semantics exactly or reject the request; native acceleration is
+target-dependent, and a software fallback is allowed only by explicit build
+policy.
 
 StableHLO e ONNX são adapters. Eles não definem a semântica completa de W. O
 Python Array API standard, DLPack e Arrow C Data estão na
@@ -25411,14 +25545,21 @@ sem layout proof do provider é rejeitado; read-only com proof
 explícito é a única exceção.
 
 Somente flags conhecidas são aceitas: read-only, producer-copied e
-subbyte-padded. Flags desconhecidas falham. O typed bind aceita mapping W exato,
-native endian, lane 1 e element type byte-aligned comprovado. A matriz inclui
-i8/i16/i32/i64, u8/u16/u32/u64, f16/bf16/f32/f64 e Complex somente quando o
-mapping do provider prova storage W. Bool exige mapping de storage de 8 bits
-provado pelo provider; um booleano fornecido pelo caller não é prova. Subbyte,
-opaque, endian não nativo e dtype unsupported ficam dynamic ou rejected, nunca
-reinterpretados. Signed zero e NaN permanecem inalterados. Não há conversão
-silenciosa.
+subbyte-padded. Flags desconhecidas falham. The typed bind accepts an exact W
+mapping, native endian, lane 1, and a provider-proven W storage layout.
+Byte-aligned mappings include i8/i16/i32/i64, u8/u16/u32/u64,
+f16/bf16/f32/f64, and Complex only when provider metadata proves the W
+representation. DLPack 1.3 also names the configured f8/f6/f4 formats; f8 has
+the W byte carrier, while f4/f6 require an explicit W packed Tensor/Quantized
+descriptor whose element count, little-bit-endian order, byte extent,
+alignment, and tail padding match the provider. They never bind as an ordinary
+packed `Array`. `e8m0fnu` can map only as explicit Quantized block-scale
+metadata, not as a float element. `i128`, `u128`, `f128`, and BigFloat have no
+baseline DLPack mapping in this contract. Bool requires provider proof of an
+8-bit storage mapping; a caller-provided boolean is not proof. Opaque,
+non-native-endian, unsupported, or mismatched dtypes remain dynamic or are
+rejected, never reinterpreted. Signed zero and NaN remain unchanged. There is
+no silent conversion.
 
 #### 17.1.3 API vigente
 
@@ -42549,6 +42690,9 @@ references only. W can fold the literal witness, so
 
 #### 26.4.1.130 W-1650 — fixed-width integer exactly-conversion typed lowering
 
+**Example:** `try u8(exactly: signedValue)` lowers to distinct success and
+`NumericConversionError.outOfRange` paths in the bounded typed artifact.
+
 W-1650 advances only the existing plain `try D(exactly: source)` form; it adds
 no syntax or conversion policy. Its bounded integer domain is all 100
 source/destination pairs among `i8`/`u8`, `i16`/`u16`, `i32`/`u32`,
@@ -42575,6 +42719,38 @@ mapping from an unhandled `NumericConversionError` to the process root. There
 is no public native execution, benchmark, timing, floating-point or 128-bit
 conversion, `isize`/`usize`, non-x86-64 alias, catch, cleanup, or ABI claim.
 `benchmarkDisposition: compiler-lifecycle`.
+
+#### 26.4.1.131 W-1651 — explicit wide and low-precision numeric families
+
+**Example:** `type Activation = f8<.e4m3fn>` fixes the encoding in type
+identity, while `compute: .tensorFloat32` remains a separate matmul policy.
+
+W-1651 refines W-397 without adding target-dependent scalar names. The fixed
+arithmetic family is `f16`, `bf16`, `f32`, `f64`, and IEEE binary128 `f128`.
+`i128` and `u128` remain core integer identities. The current source-to-native
+evidence still covers only the narrower subsets recorded by W-1645 through
+W-1650; this decision is design, not an implementation claim.
+
+Arbitrary precision uses one `std.math` family:
+`BigFloat<precision: N>` or `BigFloat<precision: .dynamic>`. There is no
+separate dynamic type, ambient rounding context, host `long double`, implicit
+wire layout, or accidental CRT/libgcc dependency. Fixed precision can widen
+implicitly only when the conversion is total and exact; narrowing and dynamic
+operations name precision, rounding, limits, and allocation explicitly.
+
+Low-precision AI element types use configured identities with no bare default:
+`f8<format>`, `f6<format>`, and `f4<format>`. The selected cases are the
+standardized encodings listed in §15.1.5. Ordinary addressable `f4`/`f6`
+values use an eight-bit carrier; dense packing belongs only to an explicit
+Tensor/Quantized/Packed block contract. `e8m0fnu` is block-scale metadata, and
+TensorFloat32 is a compute policy. Element format, packed layout, compute mode,
+accumulator, and target capability remain separate facts.
+
+W-1651 supersedes W-397's prohibition on scalar `f16`/`bf16` arithmetic and
+its exclusion of float8 from the core type surface. It does not claim frontend,
+HIR, const evaluation, ABI/FFI, SIMD, DLPack adapter, native instruction,
+software fallback, executable, benchmark, or performance evidence for the new
+families. Those remain explicit implementation gaps.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 
@@ -43048,7 +43224,8 @@ baixa para CPU e mantém shape `Matrix<rows: 2, Scalar, columns: 4>`.
 - BigInt, FixedDecimal, Rational, Complex e math accuracy profiles;
 - tensor CPU, `@`, accumulators e modes numéricos;
 - descriptor de kernel, `std.accelerator`, scope `Launch` e providers CPU/device;
-- `f16`, `bf16`, quantization e requantization explícitas;
+- `i128`/`u128`, fixed arithmetic through `f128`, configured f4/f6/f8,
+  fixed/dynamic BigFloat, and explicit quantization/requantization;
 - SIMD explícito e por range, storage estreito experimental e `w explain performance`;
 - rebuild em estágios;
 - suíte de conformidade;

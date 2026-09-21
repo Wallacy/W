@@ -272,6 +272,15 @@ type Callback = some fn(String): String
 type SharedPlace = shared Place<String>
 type WeakPlace = weak Place<String>
 type ViewPlace = view Place<String>
+type TrainingActivation = f8<.e4m3fn>
+type TrainingGradient = f8<.e5m2>
+type PackedWeight = f4<.e2m1fn>
+type AuditFloat = BigFloat<precision: 256>
+type RuntimeFloat = BigFloat<precision: .dynamic>
+
+fn retainActivation(value: TrainingActivation): TrainingActivation {
+  return value
+}
 
 fn makeDigest(): Digest {
   let location: Location = (district: "north", number: 4)

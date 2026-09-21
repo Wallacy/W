@@ -691,11 +691,13 @@ signed and unsigned 8/16/32/64-bit integers and x86-64 `Int`/`UInt`; the
 compact public witness executes all four signedness quadrants on Windows and
 Linux/WSL. Other conversion families and target-general aliases remain gaps.
 
-Float `fromBits`/`toBits` admits only the matching `f32`/`u32` or `f64`/`u64`
-pair and reinterprets bits rather than converting a numeric value. Storage,
+Fixed-float `fromBits`/`toBits` admits only its matching unsigned carrier:
+`f16`/`bf16` use `u16`, `f32` uses `u32`, `f64` uses `u64`, and `f128` uses
+`u128`. It reinterprets bits rather than converting a numeric value. Storage,
 copy, and round-trip preserve the encoding; arithmetic NaN payloads are not
 portable. Byte serialization remains separate and requires an explicit order.
-The current seed witness is limited to Windows x64 and Linux/WSL x64.
+The current seed witness remains limited to f32/f64 on Windows x64 and
+Linux/WSL x64.
 
 <!-- w-example role=executable use=strictFloatSummary observable=value -->
 ```w
@@ -723,6 +725,61 @@ test "strict floats preserve width and IEEE unordered comparisons" for strictFlo
   expect summary.2
 }
 ```
+
+`f16`, `bf16`, `f32`, `f64`, and IEEE binary128 `f128` are fixed arithmetic
+scalars. Low-precision AI elements always name their encoding; bare `f4`,
+`f6`, and `f8` are errors.
+
+<!-- w-example role=logical-contract -->
+```w
+import { BigFloat, BigFloatError, BigFloatLimits } from std.math
+import { Tensor } from std.tensor
+
+type Activation = f8<.e4m3fn>
+type Gradient = f8<.e5m2>
+type Weight = f4<.e2m1fn>
+type AuditFloat = BigFloat<precision: 256>
+type RuntimeFloat = BigFloat<precision: .dynamic>
+
+fn numericFormats(
+  activations: ref Tensor<Activation, shape: [32, 64]>,
+  weights: ref Tensor<Weight, shape: [64, 16]>,
+): f32 throws NumericConversionError {
+  let activation = try Activation(rounding: 1.25_f32, mode: .nearestEven)
+  let gradient = try Gradient(rounding: 32.0_f32, mode: .nearestEven)
+  let restored = f32(activation) + f32(gradient)
+
+  let product = tensor.matmul<f32>(
+    activations,
+    weights: weights,
+    compute: .tensorFloat32,
+    accumulator: f32,
+    mode: .strict,
+  )
+  return restored + product[0, 0]
+}
+
+fn runtimePrecisionSummary(
+  allocator: ref Allocator,
+  limits: ref BigFloatLimits,
+): UInt throws BigFloatError {
+  let audit: AuditFloat = 3.141592653589793238462643383279502884
+  let runtime = try RuntimeFloat(
+    exactly: audit,
+    precisionBits: 512,
+    rounding: .nearestEven,
+    allocator: allocator,
+    limits: limits,
+  )
+  return runtime.precisionBits
+}
+```
+
+`f8` uses one addressable byte. Ordinary scalar/field/`Array` values of `f4`
+and `f6` also use an eight-bit carrier; only an explicit packed Tensor,
+Quantized, or block-storage contract may use dense sub-byte representation.
+`e8m0fnu` is MX block-scale metadata, not a scalar float. Element encoding,
+packing, compute policy, accumulator, and target acceleration are independent.
 
 Exact total widening is implicit for `f32 -> f64`, 8/16-bit integers to
 `f32`, and 8/16/32-bit integers to `f64`. `D(value)` uses the same route.
