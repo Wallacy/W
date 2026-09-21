@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-93"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-94"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -469,14 +469,17 @@ typedef enum {
 } w_seed_hir0_release_contract_kind;
 
 /* Handler-owner cleanup obligations are separate from root drain/reclamation
- * performed by the native adapter outside the handler. The existing kind
- * applies only to a normal return. The typed-error kind applies only to a
- * verified root THROW and requires reverse parameter-order release
- * (Context, then Arguments) before typed-error adaptation. */
+ * performed by the native adapter outside the handler. The plain kind applies
+ * only to a normal return. Both typed-error kinds require reverse
+ * parameter-order release (Context, then Arguments) before typed-error
+ * adaptation; the conditional kind additionally records that a verified
+ * NumericConversionError split releases the owner range in declaration order
+ * on the normal-success path and in reverse order on the typed-error path. */
 typedef enum {
   W_SEED_HIR0_ENTRY_CLEANUP_NONE = 0,
   W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS,
   W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_TYPED_ERROR,
+  W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_ON_SUCCESS_REVERSE_ON_TYPED_ERROR,
 } w_seed_hir0_entry_cleanup_kind;
 
 typedef struct {
@@ -919,9 +922,10 @@ typedef struct {
    * function names or signature spelling. */
   w_seed_hir0_entry_adapter_kind adapter_kind;
   /* The cleanup obligation determines outcome and order. Its parameter range
-   * lists Arguments then Context; the typed-error obligation releases in
-   * reverse order (Context then Arguments) before typed-error adaptation.
-   * Root drain and memory reclamation remain outside HIR. */
+   * lists Arguments then Context. The typed-error path releases in reverse
+   * order (Context then Arguments); the conditional exact-split kind pairs
+   * that with declaration-order release on normal success. Root drain and
+   * memory reclamation remain outside HIR. */
   w_seed_hir0_entry_cleanup_kind cleanup_obligation;
   uint32_t first_cleanup_owner_parameter;
   uint32_t cleanup_owner_parameter_count;

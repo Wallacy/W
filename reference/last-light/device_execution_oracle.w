@@ -50,7 +50,7 @@ export fn nextDeviceInvocationPhase(
     case .providerDrained: return .cleanup
     case .cleanup: return .outcomeCommitted
     case .outcomeCommitted: return .joined
-    case .joined: return null
+    case .joined: return .none
   }
 }
 
@@ -160,7 +160,7 @@ export fn compareStrictForecast(
 test "device invocation lifecycle closes in order" for nextDeviceInvocationPhase {
   expect nextDeviceInvocationPhase(phase: .staged) == .submitted
   expect nextDeviceInvocationPhase(phase: .providerDrained) == .cleanup
-  expect nextDeviceInvocationPhase(phase: .joined) == null
+  expect nextDeviceInvocationPhase(phase: .joined) == .none
 }
 
 test "strict comparison requires equal values" for compareStrictForecast {

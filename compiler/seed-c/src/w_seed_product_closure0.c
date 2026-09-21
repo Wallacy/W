@@ -33,6 +33,7 @@ typedef struct {
   uint32_t external_symbol_remap[W_SEED_PRODUCT_CLOSURE0_MAX_EXTERNAL_SYMBOLS];
   w_seed_product_closure0_counts counts;
   w_seed_product_closure0_root root;
+  w_seed_product_closure0_outcome normal_outcome;
   w_seed_product_closure0_outcome outcome;
   uint8_t digest[W_SEED_PRODUCT_CLOSURE0_DIGEST_BYTES];
 } closure0_plan;
@@ -234,12 +235,188 @@ static bool local_payloadless_error_enum_valid(
   return true;
 }
 
-/* ProductClosure0 admits exactly the verified HIR93 process handler whose
- * sole root block directly throws one payloadless case of its local Error
- * enum. HIR verification authenticates the copied semantic facts; this
- * narrower check decides which subset ProductClosure publishes. */
+/* ProductClosure0 admits exactly the verified process-handler shapes for which
+ * it publishes every outcome relation.  The historical local-error throw is
+ * retained, and the NumericConversionError exact split additionally exposes
+ * the normal successor and its typed-error successor. */
+static bool typed_process_numeric_exact_root_supported(
+    const w_seed_hir0_program *program, const w_seed_hir0_entry *entry) {
+  if (program == NULL || entry == NULL || program->module_count != 1u ||
+      program->external_module_count != 1u ||
+      program->external_symbol_count != 7u || program->entry_count != 1u ||
+      entry != &program->entries[0] || entry->module_index != 0u ||
+      entry->adapter_kind != W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS ||
+      entry->is_body || entry->target_function >= program->function_count ||
+      entry->identity_index != program->module_count + program->function_count ||
+      entry->identity_index >= program->identity_count ||
+      entry->target_identity >= program->identity_count)
+    return false;
+  const w_seed_hir0_function *function =
+      &program->functions[entry->target_function];
+  if (function->module_index != entry->module_index ||
+      entry->target_identity != function->identity_index ||
+      function->identity_index != program->module_count + entry->target_function ||
+      function->is_const || !function->is_async || !function->is_throws ||
+      function->is_unsafe || function->has_borrow_clause ||
+      function->is_anonymous_entry ||
+      function->suspension != W_SEED_HIR0_SUSPENSION_MAY ||
+      function->direct_entry != W_SEED_HIR0_DIRECT_ENTRY_ABSENT ||
+      function->parameter_count != 2u ||
+      function->error_type >= program->type_count ||
+      program->types[function->error_type].kind !=
+          W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR)
+    return false;
+  const uint32_t arguments_type = process_nominal_type(program, 0u);
+  const uint32_t context_type = process_nominal_type(program, 1u);
+  const uint32_t exit_code_type = process_nominal_type(program, 2u);
+  if (arguments_type == W_SEED_HIR0_NONE || context_type == W_SEED_HIR0_NONE ||
+      exit_code_type == W_SEED_HIR0_NONE ||
+      !process_external_type_valid(program, arguments_type, 0u, "Arguments") ||
+      !process_external_type_valid(program, context_type, 1u, "Context") ||
+      !process_external_type_valid(program, exit_code_type, 2u, "ExitCode") ||
+      function->return_type != exit_code_type ||
+      function->first_parameter > program->parameter_count ||
+      function->parameter_count >
+          program->parameter_count - function->first_parameter ||
+      entry->cleanup_obligation !=
+          W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_ON_SUCCESS_REVERSE_ON_TYPED_ERROR ||
+      entry->first_cleanup_owner_parameter != function->first_parameter ||
+      entry->cleanup_owner_parameter_count != 2u)
+    return false;
+  const w_seed_hir0_parameter *arguments =
+      &program->parameters[function->first_parameter];
+  const w_seed_hir0_parameter *context =
+      &program->parameters[(size_t)function->first_parameter + 1u];
+  if (arguments->owner_function != entry->target_function ||
+      arguments->ordinal != 0u || arguments->type_index != arguments_type ||
+      context->owner_function != entry->target_function ||
+      context->ordinal != 1u || context->type_index != context_type ||
+      program->types[arguments_type].lifecycle !=
+          W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER ||
+      program->types[arguments_type].release_contract !=
+          W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE ||
+      program->types[context_type].lifecycle !=
+          W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER ||
+      program->types[context_type].release_contract !=
+          W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE)
+    return false;
+  if (function->first_block >= program->block_count ||
+      function->block_count != 3u ||
+      function->block_count > program->block_count - function->first_block)
+    return false;
+  const uint32_t split_block = function->first_block;
+  const w_seed_hir0_block *split = &program->blocks[split_block];
+  if (split->owner_function != entry->target_function ||
+      split->terminator_index >= program->terminator_count)
+    return false;
+  const w_seed_hir0_terminator *split_term =
+      &program->terminators[split->terminator_index];
+  const uint32_t normal_block = split_term->target_block;
+  const uint32_t error_block = split_term->else_block;
+  if (split_term->owner_block != split_block ||
+      split_term->kind != W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY ||
+      split_term->error_type != function->error_type ||
+      split_term->numeric_conversion_error_case !=
+          W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_OUT_OF_RANGE ||
+      split_term->value_index >= program->value_count ||
+      split_term->target_block < function->first_block ||
+      split_term->target_block >= function->first_block + function->block_count ||
+      split_term->else_block < function->first_block ||
+      split_term->else_block >= function->first_block + function->block_count ||
+      normal_block == error_block || normal_block == split_block ||
+      error_block == split_block)
+    return false;
+  const w_seed_hir0_block *normal = &program->blocks[normal_block];
+  const w_seed_hir0_block *error = &program->blocks[error_block];
+  if (normal->owner_function != entry->target_function ||
+      error->owner_function != entry->target_function ||
+      split->instruction_count != 0u || split->block_argument_count != 0u ||
+      normal->block_argument_count != 1u ||
+      error->block_argument_count != 1u ||
+      normal->first_block_argument >= program->block_argument_count ||
+      error->first_block_argument >= program->block_argument_count)
+    return false;
+  const w_seed_hir0_block_argument *normal_argument =
+      &program->block_arguments[normal->first_block_argument];
+  const w_seed_hir0_block_argument *error_argument =
+      &program->block_arguments[error->first_block_argument];
+  if (normal_argument->owner_block != normal_block ||
+      normal_argument->ordinal != 0u ||
+      normal_argument->type_index != split_term->result_type ||
+      error_argument->owner_block != error_block ||
+      error_argument->ordinal != 0u ||
+      error_argument->type_index != function->error_type)
+    return false;
+  if (split_term->value_index >= program->value_count ||
+      program->values[split_term->value_index].type_index >= program->type_count ||
+      (program->types[program->values[split_term->value_index].type_index].kind !=
+               W_SEED_HIR0_TYPE_INTEGER &&
+       program->types[program->values[split_term->value_index].type_index].kind !=
+           W_SEED_HIR0_TYPE_I64) ||
+      split_term->result_type >= program->type_count ||
+      program->types[split_term->result_type].kind !=
+          W_SEED_HIR0_TYPE_INTEGER)
+    return false;
+  if (normal->instruction_count != 1u || error->instruction_count != 0u ||
+      normal->first_instruction >= program->instruction_count)
+    return false;
+  const w_seed_hir0_instruction *instruction =
+      &program->instructions[normal->first_instruction];
+  if (instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
+      instruction->owner_block != normal_block ||
+      instruction->binding_index >= program->binding_count)
+    return false;
+  const w_seed_hir0_binding *binding =
+      &program->bindings[instruction->binding_index];
+  if (binding->owner_block != normal_block || binding->is_mutable ||
+      binding->type_index != split_term->result_type ||
+      binding->initializer_value >= program->value_count)
+    return false;
+  const w_seed_hir0_value *initializer =
+      &program->values[binding->initializer_value];
+  if (initializer->kind != W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
+      initializer->owner_kind != W_SEED_HIR0_VALUE_OWNER_BINDING ||
+      initializer->owner_index != instruction->binding_index ||
+      initializer->owner_ordinal != 0u ||
+      initializer->type_index != split_term->result_type ||
+      initializer->block_argument_index != normal->first_block_argument)
+    return false;
+  if (normal->terminator_index >= program->terminator_count ||
+      error->terminator_index >= program->terminator_count)
+    return false;
+  const w_seed_hir0_terminator *normal_term =
+      &program->terminators[normal->terminator_index];
+  const w_seed_hir0_terminator *error_term =
+      &program->terminators[error->terminator_index];
+  if (normal_term->owner_block != normal_block ||
+      normal_term->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
+      normal_term->result_type != exit_code_type ||
+      normal_term->value_index >= program->value_count ||
+      error_term->owner_block != error_block ||
+      error_term->kind != W_SEED_HIR0_TERMINATOR_THROW ||
+      error_term->result_type != function->error_type ||
+      error_term->value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *success = &program->values[normal_term->value_index];
+  const w_seed_hir0_value *error_value = &program->values[error_term->value_index];
+  if (success->kind != W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE ||
+      success->type_index != exit_code_type ||
+      success->external_module_index != 0u ||
+      success->external_symbol_index != 3u ||
+      !text_is(program, success->member_name, "success") ||
+      error_value->kind != W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
+      error_value->owner_kind != W_SEED_HIR0_VALUE_OWNER_TERMINATOR ||
+      error_value->owner_index != error->terminator_index ||
+      error_value->owner_ordinal != 0u ||
+      error_value->type_index != function->error_type ||
+      error_value->block_argument_index != error->first_block_argument)
+    return false;
+  return true;
+}
+
 static bool typed_process_throw_root_supported(
     const w_seed_hir0_program *program, const w_seed_hir0_entry *entry) {
+  if (typed_process_numeric_exact_root_supported(program, entry)) return true;
   if (program == NULL || entry == NULL || program->module_count != 1u ||
       program->external_module_count != 1u || program->entry_count != 1u ||
       entry != &program->entries[0] || entry->module_index != 0u ||
@@ -455,6 +632,12 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
       if (program->types[type].kind != expected[type] ||
           program->types[type].owner_module != W_SEED_HIR0_NONE)
         return false;
+    const uint32_t typed_root_function = entry->target_function;
+    const bool typed_numeric_root =
+        typed_root_function < program->function_count &&
+        program->functions[typed_root_function].error_type < program->type_count &&
+        program->types[program->functions[typed_root_function].error_type].kind ==
+            W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR;
     for (size_t type_index = 4u; type_index < program->type_count;
          type_index += 1u) {
       const w_seed_hir0_type *type = &program->types[type_index];
@@ -478,6 +661,12 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
       } else if (type->kind == W_SEED_HIR0_TYPE_USIZE) {
         if (!process_count_type_valid(program, (uint32_t)type_index))
           return false;
+      } else if (typed_numeric_root &&
+                 (type->kind == W_SEED_HIR0_TYPE_INTEGER ||
+                  type->kind == W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR)) {
+        if (type->kind == W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR &&
+            type_index != program->functions[typed_root_function].error_type)
+          return false;
       } else {
         return false;
       }
@@ -495,8 +684,11 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
                 .terminator_index
           : W_SEED_HIR0_NONE;
   const uint32_t root_value =
-      typed_throw_root ? program->terminators[root_terminator].value_index
-                       : W_SEED_HIR0_NONE;
+      typed_throw_root && root_terminator < program->terminator_count &&
+              program->terminators[root_terminator].kind ==
+                  W_SEED_HIR0_TERMINATOR_THROW
+          ? program->terminators[root_terminator].value_index
+          : W_SEED_HIR0_NONE;
   for (size_t function = 0u; function < program->function_count; function += 1u) {
     const w_seed_hir0_function *item = &program->functions[function];
     const bool is_typed_root = typed_throw_root && function == root_function;
@@ -517,9 +709,42 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
           return false;
     }
   }
+  const bool typed_numeric_root =
+      typed_throw_root && root_function < program->function_count &&
+      program->functions[root_function].error_type < program->type_count &&
+      program->types[program->functions[root_function].error_type].kind ==
+          W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR;
+  const uint32_t typed_error_terminator =
+      typed_numeric_root && root_terminator < program->terminator_count &&
+              program->terminators[root_terminator].else_block <
+                  program->block_count
+          ? program->blocks[program->terminators[root_terminator].else_block]
+                .terminator_index
+          : root_terminator;
+  const uint32_t numeric_normal_terminator =
+      typed_numeric_root && root_terminator < program->terminator_count &&
+              program->terminators[root_terminator].target_block <
+                  program->block_count
+          ? program->blocks[program->terminators[root_terminator].target_block]
+                .terminator_index
+          : W_SEED_HIR0_NONE;
+  const uint32_t numeric_normal_value =
+      numeric_normal_terminator < program->terminator_count &&
+              program->terminators[numeric_normal_terminator].kind ==
+                  W_SEED_HIR0_TERMINATOR_RETURN_VALUE
+          ? program->terminators[numeric_normal_terminator].value_index
+          : W_SEED_HIR0_NONE;
   for (size_t block_argument = 0u;
        block_argument < program->block_argument_count; block_argument += 1u)
-    if (program->block_arguments[block_argument].type_index >= 4u) return false;
+    if (program->block_arguments[block_argument].type_index >= 4u &&
+        (!typed_numeric_root ||
+         (program->block_arguments[block_argument].type_index >=
+              program->type_count ||
+          (program->types[program->block_arguments[block_argument].type_index]
+                   .kind != W_SEED_HIR0_TYPE_INTEGER &&
+           program->types[program->block_arguments[block_argument].type_index]
+                   .kind != W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR))))
+      return false;
   for (size_t instruction = 0u; instruction < program->instruction_count;
        instruction += 1u) {
     const w_seed_hir0_instruction *item = &program->instructions[instruction];
@@ -532,10 +757,15 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
        terminator += 1u) {
     const w_seed_hir0_terminator *item = &program->terminators[terminator];
     if (item->kind == W_SEED_HIR0_TERMINATOR_THROW) {
-      if (!typed_throw_root || terminator != root_terminator ||
+      if (!typed_throw_root ||
+          terminator != typed_error_terminator ||
           item->error_type != W_SEED_HIR0_NONE)
         return false;
       direct_throw_count += 1u;
+    } else if (typed_numeric_root && terminator == root_terminator &&
+               item->kind == W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY) {
+      /* The independent root checker above proves its explicit normal/error
+       * successors and their block arguments. */
     } else if (!product_terminator_kind_supported(item->kind)) {
       return false;
     }
@@ -545,10 +775,20 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
     const w_seed_hir0_value *item = &program->values[value];
     if (item->kind == W_SEED_HIR0_VALUE_ENUM_CASE) {
       if (!typed_throw_root || value != root_value) return false;
+    } else if (typed_numeric_root && value == numeric_normal_value &&
+               item->kind == W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE) {
+      /* The normal process outcome is the external ExitCode.success value;
+       * only the value reached by that authenticated normal successor is
+       * admitted here; other external enum cases remain unsupported. */
     } else if (!product_value_kind_supported(item->kind)) {
       return false;
     }
-    if (item->kind != W_SEED_HIR0_VALUE_ENUM_CASE && item->type_index >= 4u)
+    if (item->kind != W_SEED_HIR0_VALUE_ENUM_CASE && item->type_index >= 4u &&
+        (!typed_numeric_root || item->type_index >= program->type_count ||
+         (program->types[item->type_index].kind != W_SEED_HIR0_TYPE_INTEGER &&
+          program->types[item->type_index].kind !=
+              W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR &&
+          program->types[item->type_index].kind != W_SEED_HIR0_TYPE_NOMINAL)))
       return false;
     if (item->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON) {
       if (item->binary_operator < W_SEED_HIR0_BINARY_EQUAL ||
@@ -603,7 +843,11 @@ static void root_init(w_seed_product_closure0_root *root) {
 static void outcome_init(w_seed_product_closure0_outcome *outcome) {
   if (outcome == NULL) return;
   (void)memset(outcome, 0, sizeof(*outcome));
+  outcome->source_terminator_index = W_SEED_PRODUCT_CLOSURE0_NONE;
   outcome->terminator_index = W_SEED_PRODUCT_CLOSURE0_NONE;
+  outcome->successor_block_index = W_SEED_PRODUCT_CLOSURE0_NONE;
+  outcome->successor_argument_index = W_SEED_PRODUCT_CLOSURE0_NONE;
+  outcome->result_type_index = W_SEED_PRODUCT_CLOSURE0_NONE;
   outcome->value_index = W_SEED_PRODUCT_CLOSURE0_NONE;
   outcome->error_type_index = W_SEED_PRODUCT_CLOSURE0_NONE;
   outcome->error_enum_index = W_SEED_PRODUCT_CLOSURE0_NONE;
@@ -616,6 +860,7 @@ static void result_init(w_seed_product_closure0_result *result) {
   result->status = W_SEED_PRODUCT_CLOSURE0_INVALID;
   result->failure = W_SEED_PRODUCT_CLOSURE0_FAILURE_NONE;
   root_init(&result->root);
+  outcome_init(&result->normal_outcome);
   outcome_init(&result->outcome);
 }
 
@@ -834,6 +1079,17 @@ static bool mark_type(closure0_plan *plan,
     if (!local_payloadless_error_enum_valid(program, type_index,
                                             type->owner_module, &enum_index))
       return false;
+  } else if (plan->normal_outcome.kind ==
+                 W_SEED_PRODUCT_CLOSURE0_OUTCOME_NORMAL &&
+             (type->kind == W_SEED_HIR0_TYPE_UNIT ||
+              type->kind == W_SEED_HIR0_TYPE_STRING ||
+              type->kind == W_SEED_HIR0_TYPE_I64 ||
+              type->kind == W_SEED_HIR0_TYPE_BOOL ||
+              type->kind == W_SEED_HIR0_TYPE_USIZE ||
+              type->kind == W_SEED_HIR0_TYPE_INTEGER ||
+              type->kind == W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR)) {
+    /* Numeric exact process roots carry their source/destination scalar and
+     * typed error records in the same borrowed closure. */
   } else if (plan->outcome.kind ==
              W_SEED_PRODUCT_CLOSURE0_OUTCOME_TYPED_THROW) {
     /* The native-process typed-error closure has no scalar or aggregate
@@ -941,10 +1197,13 @@ static bool mark_terminator(closure0_plan *plan,
       terminator_index >= program->terminator_count ||
       depth > W_SEED_PRODUCT_CLOSURE0_MAX_DEPTH)
     return false;
-  if (plan->outcome.kind == W_SEED_PRODUCT_CLOSURE0_OUTCOME_TYPED_THROW) {
-    if (terminator_index != plan->outcome.terminator_index ||
-        terminator->kind != W_SEED_HIR0_TERMINATOR_THROW)
-      return false;
+  if (plan->outcome.kind == W_SEED_PRODUCT_CLOSURE0_OUTCOME_TYPED_THROW &&
+      terminator_index == plan->outcome.terminator_index) {
+    if (terminator->kind != W_SEED_HIR0_TERMINATOR_THROW) return false;
+  } else if (plan->normal_outcome.kind ==
+                 W_SEED_PRODUCT_CLOSURE0_OUTCOME_NORMAL &&
+             terminator_index == plan->normal_outcome.source_terminator_index) {
+    if (terminator->kind != W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY) return false;
   } else if (!product_terminator_kind_supported(terminator->kind)) {
     return false;
   }
@@ -1077,6 +1336,7 @@ static bool build_plan(const w_seed_product_closure0_input *input,
   if (plan == NULL) return false;
   (void)memset(plan, 0, sizeof(*plan));
   root_init(&plan->root);
+  outcome_init(&plan->normal_outcome);
   outcome_init(&plan->outcome);
   if (!input_valid(input, failure_result)) return false;
   const w_seed_hir0_program *program = input->program;
@@ -1127,14 +1387,56 @@ static bool build_plan(const w_seed_product_closure0_input *input,
     plan->root.cleanup_release_parameters[0] =
         function->first_parameter + 1u;
     plan->root.cleanup_release_parameters[1] = function->first_parameter;
-    plan->outcome = (w_seed_product_closure0_outcome){
-        .kind = W_SEED_PRODUCT_CLOSURE0_OUTCOME_TYPED_THROW,
-        .terminator_index = block->terminator_index,
-        .value_index = terminator->value_index,
-        .error_type_index = function->error_type,
-        .error_enum_index = value->enum_index,
-        .error_case_index = value->enum_case_index,
-    };
+    if (program->types[function->error_type].kind ==
+        W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR) {
+      const uint32_t normal_block = terminator->target_block;
+      const uint32_t error_block = terminator->else_block;
+      const w_seed_hir0_terminator *normal_term =
+          &program->terminators[program->blocks[normal_block].terminator_index];
+      const w_seed_hir0_terminator *error_term =
+          &program->terminators[program->blocks[error_block].terminator_index];
+      plan->normal_outcome = (w_seed_product_closure0_outcome){
+          .kind = W_SEED_PRODUCT_CLOSURE0_OUTCOME_NORMAL,
+          .source_terminator_index = block->terminator_index,
+          .terminator_index = program->blocks[normal_block].terminator_index,
+          .successor_block_index = normal_block,
+          .successor_argument_index =
+              program->blocks[normal_block].first_block_argument,
+          .successor_argument_count =
+              program->blocks[normal_block].block_argument_count,
+          .value_index = normal_term->value_index,
+          .result_type_index = normal_term->result_type,
+          .error_type_index = W_SEED_PRODUCT_CLOSURE0_NONE,
+          .error_enum_index = W_SEED_PRODUCT_CLOSURE0_NONE,
+          .error_case_index = W_SEED_PRODUCT_CLOSURE0_NONE};
+      plan->outcome = (w_seed_product_closure0_outcome){
+          .kind = W_SEED_PRODUCT_CLOSURE0_OUTCOME_TYPED_THROW,
+          .source_terminator_index = block->terminator_index,
+          .terminator_index = program->blocks[error_block].terminator_index,
+          .successor_block_index = error_block,
+          .successor_argument_index =
+              program->blocks[error_block].first_block_argument,
+          .successor_argument_count =
+              program->blocks[error_block].block_argument_count,
+          .value_index = error_term->value_index,
+          .result_type_index = error_term->result_type,
+          .error_type_index = function->error_type,
+          .error_enum_index = W_SEED_PRODUCT_CLOSURE0_NONE,
+          .error_case_index = W_SEED_PRODUCT_CLOSURE0_NONE};
+    } else {
+      plan->outcome = (w_seed_product_closure0_outcome){
+          .kind = W_SEED_PRODUCT_CLOSURE0_OUTCOME_TYPED_THROW,
+          .source_terminator_index = W_SEED_PRODUCT_CLOSURE0_NONE,
+          .terminator_index = block->terminator_index,
+          .successor_block_index = W_SEED_PRODUCT_CLOSURE0_NONE,
+          .successor_argument_index = W_SEED_PRODUCT_CLOSURE0_NONE,
+          .successor_argument_count = 0u,
+          .value_index = terminator->value_index,
+          .result_type_index = terminator->result_type,
+          .error_type_index = function->error_type,
+          .error_enum_index = value->enum_index,
+          .error_case_index = value->enum_case_index};
+    }
   }
   plan->modules[entry->module_index] = true;
   if (!mark_identity(plan, program, entry->module_index) ||
@@ -1531,6 +1833,162 @@ static void digest_reachable_external_records(
   }
 }
 
+/* Outcome records expose source indices to callers, but those indices are
+ * storage coordinates rather than semantic identity.  Keep them out of the
+ * reachable digest: dead HIR records may be inserted before a live record
+ * without changing its owner, ordinal, kind, or type. */
+static void digest_function_owner(w_seed_sha256_state *state,
+                                  const w_seed_hir0_program *program,
+                                  uint32_t function_index) {
+  if (state == NULL) return;
+  if (program == NULL || function_index >= program->function_count) {
+    digest_u32(state, W_SEED_PRODUCT_CLOSURE0_NONE);
+    return;
+  }
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  if (function->module_index >= program->module_count) {
+    digest_u32(state, W_SEED_PRODUCT_CLOSURE0_NONE);
+    return;
+  }
+  digest_text(state, program,
+              program->modules[function->module_index].module_id);
+  digest_text(state, program, function->name);
+}
+
+static void digest_block_reference(w_seed_sha256_state *state,
+                                   const w_seed_hir0_program *program,
+                                   uint32_t block_index) {
+  if (state == NULL) return;
+  if (program == NULL || block_index >= program->block_count) {
+    digest_u32(state, W_SEED_PRODUCT_CLOSURE0_NONE);
+    return;
+  }
+  const uint32_t function_index = program->blocks[block_index].owner_function;
+  if (function_index >= program->function_count) {
+    digest_u32(state, W_SEED_PRODUCT_CLOSURE0_NONE);
+    return;
+  }
+  digest_function_owner(state, program, function_index);
+  digest_u32(state, function_block_ordinal(program, block_index));
+}
+
+static void digest_terminator_reference(w_seed_sha256_state *state,
+                                        const w_seed_hir0_program *program,
+                                        uint32_t terminator_index) {
+  if (state == NULL) return;
+  if (program == NULL || terminator_index >= program->terminator_count) {
+    digest_u32(state, W_SEED_PRODUCT_CLOSURE0_NONE);
+    return;
+  }
+  const w_seed_hir0_terminator *terminator =
+      &program->terminators[terminator_index];
+  if (terminator->owner_block >= program->block_count ||
+      program->blocks[terminator->owner_block].terminator_index !=
+          terminator_index) {
+    digest_u32(state, W_SEED_PRODUCT_CLOSURE0_NONE);
+    return;
+  }
+  digest_u32(state, (uint32_t)terminator->kind);
+  digest_block_reference(state, program, terminator->owner_block);
+  /* HIR0 assigns the terminator ordinal from the number of preceding
+   * instructions in its owner block.  It remains stable when records are
+   * inserted elsewhere in the backing arrays. */
+  digest_u32(state, terminator->ordinal);
+}
+
+static void digest_successor_reference(
+    w_seed_sha256_state *state, const w_seed_hir0_program *program,
+    const closure0_plan *plan, uint32_t block_index, uint32_t first_argument,
+    uint32_t argument_count) {
+  if (state == NULL || program == NULL || plan == NULL) return;
+  if (block_index == W_SEED_PRODUCT_CLOSURE0_NONE) {
+    digest_u32(state, W_SEED_PRODUCT_CLOSURE0_NONE);
+    digest_u32(state, argument_count);
+    return;
+  }
+  if (block_index >= program->block_count) {
+    digest_u32(state, W_SEED_PRODUCT_CLOSURE0_NONE);
+    return;
+  }
+  const w_seed_hir0_block *block = &program->blocks[block_index];
+  if (block->block_argument_count != argument_count ||
+      (argument_count != 0u && block->first_block_argument != first_argument) ||
+      (argument_count == 0u
+           ? first_argument != W_SEED_PRODUCT_CLOSURE0_NONE
+           : first_argument >= program->block_argument_count ||
+                 argument_count >
+                     program->block_argument_count - first_argument)) {
+    digest_u32(state, W_SEED_PRODUCT_CLOSURE0_NONE);
+    return;
+  }
+  digest_block_reference(state, program, block_index);
+  digest_u32(state, argument_count);
+  for (size_t ordinal = 0u; ordinal < argument_count; ordinal += 1u) {
+    const w_seed_hir0_block_argument *argument =
+        &program->block_arguments[(size_t)first_argument + ordinal];
+    if (argument->owner_block != block_index || argument->ordinal != ordinal) {
+      digest_u32(state, W_SEED_PRODUCT_CLOSURE0_NONE);
+      continue;
+    }
+    digest_u32(state, argument->ordinal);
+    digest_type(state, program, argument->type_index, plan);
+  }
+}
+
+static void digest_enum_case_reference(
+    w_seed_sha256_state *state, const w_seed_hir0_program *program,
+    const closure0_plan *plan, uint32_t enum_index, uint32_t case_index) {
+  if (state == NULL) return;
+  if (program == NULL || plan == NULL ||
+      enum_index == W_SEED_PRODUCT_CLOSURE0_NONE ||
+      case_index == W_SEED_PRODUCT_CLOSURE0_NONE ||
+      enum_index >= program->enum_count ||
+      case_index >= program->enum_case_count) {
+    digest_u32(state, W_SEED_PRODUCT_CLOSURE0_NONE);
+    return;
+  }
+  const w_seed_hir0_enum *error_enum = &program->enums[enum_index];
+  const w_seed_hir0_enum_case *error_case = &program->enum_cases[case_index];
+  if (error_case->owner_enum != enum_index ||
+      error_enum->module_index >= program->module_count ||
+      error_enum->type_index >= program->type_count) {
+    digest_u32(state, W_SEED_PRODUCT_CLOSURE0_NONE);
+    return;
+  }
+  digest_text(state, program,
+              program->modules[error_enum->module_index].module_id);
+  digest_text(state, program, error_enum->name);
+  digest_type(state, program, error_enum->type_index, plan);
+  digest_u32(state, error_case->ordinal);
+  digest_u32(state, error_case->tag);
+  digest_text(state, program, error_case->name);
+  digest_u32(state, error_case->payload_count);
+}
+
+static void digest_outcome(w_seed_sha256_state *state,
+                           const w_seed_hir0_program *program,
+                           const closure0_plan *plan,
+                           const w_seed_product_closure0_outcome *outcome) {
+  if (state == NULL || program == NULL || plan == NULL || outcome == NULL)
+    return;
+  digest_u32(state, (uint32_t)outcome->kind);
+  if (outcome->kind == W_SEED_PRODUCT_CLOSURE0_OUTCOME_NONE) return;
+  digest_terminator_reference(state, program,
+                              outcome->source_terminator_index);
+  digest_terminator_reference(state, program, outcome->terminator_index);
+  digest_successor_reference(state, program, plan,
+                             outcome->successor_block_index,
+                             outcome->successor_argument_index,
+                             outcome->successor_argument_count);
+  digest_u32(state, outcome->value_index < program->value_count
+                         ? plan->value_remap[outcome->value_index]
+                         : W_SEED_PRODUCT_CLOSURE0_NONE);
+  digest_type(state, program, outcome->result_type_index, plan);
+  digest_type(state, program, outcome->error_type_index, plan);
+  digest_enum_case_reference(state, program, plan, outcome->error_enum_index,
+                             outcome->error_case_index);
+}
+
 static void digest_identity(w_seed_sha256_state *state,
                             const w_seed_hir0_program *program,
                             uint32_t identity_index) {
@@ -1677,7 +2135,7 @@ static void compute_digest(const w_seed_hir0_program *program,
                            uint8_t digest[W_SEED_PRODUCT_CLOSURE0_DIGEST_BYTES]) {
   w_seed_sha256_state state;
   w_seed_sha256_init(&state);
-  static const uint8_t tag[] = "w-seed-product-closure0-semantic-v2\0";
+  static const uint8_t tag[] = "w-seed-product-closure0-semantic-v3\0";
   w_seed_sha256_update(&state, tag, sizeof(tag) - 1u);
   const w_seed_hir0_entry *root_entry = &program->entries[plan->root.entry_index];
   digest_text(&state, program,
@@ -1713,22 +2171,8 @@ static void compute_digest(const w_seed_hir0_program *program,
       digest_u32(&state, W_SEED_PRODUCT_CLOSURE0_NONE);
     }
   }
-  digest_u32(&state, (uint32_t)plan->outcome.kind);
-  if (plan->outcome.kind == W_SEED_PRODUCT_CLOSURE0_OUTCOME_TYPED_THROW) {
-    const w_seed_hir0_terminator *terminator =
-        &program->terminators[plan->outcome.terminator_index];
-    const w_seed_hir0_enum_case *error_case =
-        &program->enum_cases[plan->outcome.error_case_index];
-    digest_u32(&state, (uint32_t)terminator->kind);
-    digest_u32(&state, function_block_ordinal(
-                           program, terminator->owner_block));
-    digest_u32(&state, terminator->ordinal);
-    digest_type(&state, program, plan->outcome.error_type_index, plan);
-    digest_u32(&state, plan->value_remap[plan->outcome.value_index]);
-    digest_u32(&state, error_case->ordinal);
-    digest_u32(&state, error_case->tag);
-    digest_text(&state, program, error_case->name);
-  }
+  digest_outcome(&state, program, plan, &plan->normal_outcome);
+  digest_outcome(&state, program, plan, &plan->outcome);
   digest_u32(&state, (uint32_t)plan->counts.reachable_modules);
   for (size_t module = 0u; module < program->module_count; module += 1u)
     if (plan->modules[module]) {
@@ -1851,6 +2295,7 @@ static void finish_plan_result(const closure0_plan *plan,
   result->written = plan->counts;
   result->failure = W_SEED_PRODUCT_CLOSURE0_FAILURE_NONE;
   result->root = plan->root;
+  result->normal_outcome = plan->normal_outcome;
   result->outcome = plan->outcome;
   (void)memcpy(result->reachable_semantic_digest, plan->digest,
                sizeof(result->reachable_semantic_digest));
@@ -2194,6 +2639,8 @@ static bool output_matches_plan(const w_seed_hir0_program *program,
       memcmp(&result->required, &plan->counts, sizeof(plan->counts)) != 0 ||
       memcmp(&result->written, &plan->counts, sizeof(plan->counts)) != 0 ||
       memcmp(&result->root, &plan->root, sizeof(plan->root)) != 0 ||
+      memcmp(&result->normal_outcome, &plan->normal_outcome,
+             sizeof(plan->normal_outcome)) != 0 ||
       memcmp(&result->outcome, &plan->outcome, sizeof(plan->outcome)) != 0 ||
       memcmp(result->reachable_semantic_digest, plan->digest,
              sizeof(plan->digest)) != 0 || !output_capacity_valid(output, &plan->counts))

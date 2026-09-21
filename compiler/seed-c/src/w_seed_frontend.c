@@ -17382,6 +17382,78 @@ static frontend_simple_type infer_integer_associated_call_span(
 static frontend_simple_type infer_expression_span_inner(
     frontend_context *context, w_seed_span span, size_t depth);
 
+/* A later dry-pass local read needs the result type of this exact expression
+ * before normalized statement records exist. Recognize only the checked
+ * integer form; the Pratt parser remains responsible for full diagnostics,
+ * owner/error validation, and publishing the normalized conversion record. */
+static frontend_simple_type infer_integer_exactly_try_span(
+    frontend_context *context, const w_seed_frontend_document *doc,
+    w_seed_span span, size_t depth) {
+  if (context == NULL || doc == NULL ||
+      depth >= W_SEED_FRONTEND_MAX_NESTING)
+    return simple_type_unknown();
+  frontend_token_cursor cursor = token_cursor_for(doc, span);
+  frontend_token token;
+  frontend_simple_type destination = simple_type_unknown();
+  if (!cursor_take_text(&cursor, "try", &token) ||
+      !cursor_take(&cursor, &token) || token.kind != W_SEED_CST_WORD ||
+      !integer_type_constructor_for_spelling(text_from_span(doc, token.span),
+                                             &destination) ||
+      !cursor_take_text(&cursor, "(", NULL) ||
+      !cursor_take_text(&cursor, "exactly", NULL) ||
+      !cursor_take_text(&cursor, ":", NULL) ||
+      !cursor_take(&cursor, &token))
+    return simple_type_unknown();
+
+  w_seed_span source_span = token.span;
+  size_t parentheses = 0u;
+  size_t brackets = 0u;
+  size_t braces = 0u;
+  bool closed = false;
+  for (;;) {
+    const w_seed_frontend_text text = text_from_span(doc, token.span);
+    if (text_equal(text, ")")) {
+      if (parentheses == 0u && brackets == 0u && braces == 0u) {
+        closed = true;
+        break;
+      }
+      if (parentheses == 0u) return simple_type_unknown();
+      parentheses -= 1u;
+    } else if (text_equal(text, "]")) {
+      if (brackets == 0u) return simple_type_unknown();
+      brackets -= 1u;
+    } else if (text_equal(text, "}")) {
+      if (braces == 0u) return simple_type_unknown();
+      braces -= 1u;
+    } else if (text_equal(text, ",") && parentheses == 0u &&
+               brackets == 0u && braces == 0u) {
+      return simple_type_unknown();
+    } else if (text_equal(text, "(")) {
+      if (parentheses == SIZE_MAX) return simple_type_unknown();
+      parentheses += 1u;
+    } else if (text_equal(text, "[")) {
+      if (brackets == SIZE_MAX) return simple_type_unknown();
+      brackets += 1u;
+    } else if (text_equal(text, "{")) {
+      if (braces == SIZE_MAX) return simple_type_unknown();
+      braces += 1u;
+    }
+    source_span.end_byte = token.span.end_byte;
+    if (!cursor_take(&cursor, &token)) break;
+  }
+  frontend_token trailing;
+  if (!closed || source_span.start_byte >= source_span.end_byte ||
+      cursor_peek(&cursor, &trailing))
+    return simple_type_unknown();
+
+  frontend_simple_type canonical_source = simple_type_unknown();
+  if (!integer_conversion_source_type(
+          infer_expression_span_inner(context, source_span, depth + 1u),
+          &canonical_source))
+    return simple_type_unknown();
+  return destination;
+}
+
 /* The dry pass needs the effective type of an earlier unannotated binding
  * before statement records exist. Keep this scanner deliberately narrower
  * than the Pratt parser: it only finds a top-level binary root and computes
@@ -17548,6 +17620,11 @@ static frontend_simple_type infer_expression_span_inner(
   frontend_token first;
   if (!cursor_peek(&cursor, &first)) return simple_type_unknown();
   const w_seed_frontend_text first_text = text_from_span(doc, first.span);
+  if (text_equal(first_text, "try")) {
+    const frontend_simple_type checked_try = infer_integer_exactly_try_span(
+        context, doc, span, depth);
+    if (checked_try.kind != W_SEED_FRONTEND_TYPE_UNKNOWN) return checked_try;
+  }
   w_seed_span grouped_span;
   if (grouped_expression_inner_span(doc, span, &grouped_span))
     return infer_expression_span_inner(context, grouped_span, depth + 1u);

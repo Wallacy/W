@@ -1413,9 +1413,17 @@ static void configure_host(void) {
 static bool fixture_frontend(const char *source) {
   CHECK(fixture_parse(source));
   configure_host();
-  CHECK(w_seed_frontend_run(&fixture.input, &fixture.output,
-                            &fixture.result) == W_SEED_FRONTEND_OK);
+  const w_seed_frontend_status status =
+      w_seed_frontend_run(&fixture.input, &fixture.output, &fixture.result);
+  CHECK(status == W_SEED_FRONTEND_OK);
   return true;
+}
+
+static bool frontend_rejects_quietly(const char *source) {
+  if (!fixture_parse(source)) return false;
+  configure_host();
+  return w_seed_frontend_run(&fixture.input, &fixture.output,
+                             &fixture.result) != W_SEED_FRONTEND_OK;
 }
 
 static void configure_parallel_domain(w_seed_frontend_domain_mode mode,
@@ -1721,7 +1729,9 @@ static bool lower(const char *source) {
   CHECK(w_seed_hir0_program_from_output(&fixture.hir_output,
                                         &fixture.hir_result,
                                         &fixture.hir_program));
-  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  const bool verified =
+      w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result);
+  CHECK(verified);
   fixture.hir_counts = measured;
   return true;
 }
@@ -1920,8 +1930,9 @@ static bool lower_process_input0_generic(const char *source) {
       .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   w_seed_hir0_counts measured;
   w_seed_hir0_result measure_result;
-  CHECK(w_seed_hir0_measure(&input, &measured, &measure_result) ==
-        W_SEED_HIR0_OK);
+  const w_seed_hir0_status measure_status =
+      w_seed_hir0_measure(&input, &measured, &measure_result);
+  CHECK(measure_status == W_SEED_HIR0_OK);
   CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &fixture.hir_result) ==
         W_SEED_HIR0_OK);
   CHECK(w_seed_hir0_program_from_output(&fixture.hir_output,
@@ -2068,7 +2079,7 @@ static bool test_implicit_integer_widen_hir(void) {
 }
 
 static bool test_float_bits_hir(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-93") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-94") == 0);
   static const char SOURCE[] =
       "fn from32(bits: u32): f32 { let stored: f32 = f32.fromBits(bits) "
       "return stored }\n"
@@ -2303,7 +2314,7 @@ static bool test_float_bits_hir(void) {
 }
 
 static bool test_numeric_widen_hir(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-93") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-94") == 0);
   typedef struct {
     const char *source_name;
     bool source_is_float;
@@ -10506,7 +10517,7 @@ static bool test_integer_exactly_hir(void) {
       true, false, true, false, true, false, true, false, true, false};
   static const uint16_t INTEGER_WIDTHS[] = {
       8u, 8u, 16u, 16u, 32u, 32u, 64u, 64u, 64u, 64u};
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-93") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-94") == 0);
   for (size_t source = 0u;
        source < sizeof(INTEGER_TYPES) / sizeof(INTEGER_TYPES[0]);
        source += 1u) {
@@ -10657,6 +10668,216 @@ static bool test_integer_exactly_hir(void) {
   reseal_hir_fixture();
   CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
   fixture.hir_functions[0] = saved_convert;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
+static bool test_integer_exactly_continuation_hir(void) {
+  static const char FUNCTION_SOURCE[] =
+      "fn check(value: i16): Bool throws NumericConversionError { "
+      "let narrowed = try i8(exactly: value)\n"
+      "return narrowed == 1_i8 }\n"
+      "entry { }\n";
+  CHECK(lower(FUNCTION_SOURCE));
+  w_seed_hir0_program *program = &fixture.hir_program;
+  const w_seed_hir0_function *check = &program->functions[0];
+  CHECK(check->block_count == 3u && check->return_type == W_SEED_HIR0_TYPE_BOOL &&
+        program->block_count == 4u && program->call_count == 0u &&
+        program->cleanup_count == 0u && program->instruction_count == 1u &&
+        program->binding_count == 1u && program->block_argument_count == 2u &&
+        program->terminator_count == 4u);
+  const uint32_t split_block = check->first_block;
+  const uint32_t normal_block = split_block + 1u;
+  const uint32_t error_block = split_block + 2u;
+  const w_seed_hir0_terminator *split =
+      &program->terminators[split_block];
+  const uint32_t destination_type = split->result_type;
+  const uint32_t error_type = check->error_type;
+  const w_seed_hir0_block_argument *normal_argument =
+      &program->block_arguments[
+          program->blocks[normal_block].first_block_argument];
+  const w_seed_hir0_block_argument *error_argument =
+      &program->block_arguments[
+          program->blocks[error_block].first_block_argument];
+  const w_seed_hir0_block *normal = &program->blocks[normal_block];
+  const w_seed_hir0_binding *narrowed = &program->bindings[0];
+  const w_seed_hir0_value *initializer =
+      &program->values[narrowed->initializer_value];
+  const w_seed_hir0_terminator *normal_term =
+      &program->terminators[normal_block];
+  const w_seed_hir0_terminator *error_term =
+      &program->terminators[error_block];
+  const w_seed_hir0_value *returned =
+      &program->values[normal_term->value_index];
+  const w_seed_hir0_value *propagated =
+      &program->values[error_term->value_index];
+  CHECK(split->kind == W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY &&
+        split->target_block == normal_block &&
+        split->else_block == error_block &&
+        split->numeric_conversion_error_case ==
+            W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_OUT_OF_RANGE &&
+        destination_type != check->return_type &&
+        normal_argument->type_index == destination_type &&
+        error_argument->type_index == error_type &&
+        normal->instruction_count == 1u &&
+        program->instructions[normal->first_instruction].kind ==
+            W_SEED_HIR0_INSTRUCTION_BINDING &&
+        program->instructions[normal->first_instruction].owner_block ==
+            normal_block &&
+        program->instructions[normal->first_instruction].binding_index == 0u &&
+        narrowed->owner_block == normal_block && !narrowed->is_mutable &&
+        narrowed->owner_instruction == normal->first_instruction &&
+        initializer->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        initializer->owner_kind == W_SEED_HIR0_VALUE_OWNER_BINDING &&
+        initializer->owner_index == 0u &&
+        initializer->type_index == destination_type &&
+        initializer->block_argument_index ==
+            program->blocks[normal_block].first_block_argument &&
+        normal_term->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        normal_term->result_type == check->return_type &&
+        returned->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON &&
+        returned->binary_operator == W_SEED_HIR0_BINARY_EQUAL &&
+        returned->type_index == W_SEED_HIR0_TYPE_BOOL &&
+        returned->left_value < program->value_count &&
+        program->values[returned->left_value].kind ==
+            W_SEED_HIR0_VALUE_BINDING_READ &&
+        program->values[returned->left_value].binding_index == 0u &&
+        program->values[returned->left_value].type_index == destination_type &&
+        error_term->kind == W_SEED_HIR0_TERMINATOR_THROW &&
+        propagated->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        propagated->type_index == error_type &&
+        propagated->block_argument_index ==
+            program->blocks[error_block].first_block_argument &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_terminator saved_split =
+      fixture.hir_terminators[split_block];
+  const w_seed_hir0_block_argument saved_normal_argument =
+      fixture.hir_block_arguments[
+          program->blocks[normal_block].first_block_argument];
+  const w_seed_hir0_block_argument saved_error_argument =
+      fixture.hir_block_arguments[
+          program->blocks[error_block].first_block_argument];
+  const w_seed_hir0_value saved_initializer =
+      fixture.hir_values[narrowed->initializer_value];
+  const w_seed_hir0_value saved_propagated =
+      fixture.hir_values[error_term->value_index];
+  const w_seed_hir0_binding saved_binding = fixture.hir_bindings[0];
+  const w_seed_hir0_function saved_function = fixture.hir_functions[0];
+
+  fixture.hir_bindings[0].owner_block = error_block;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_bindings[0] = saved_binding;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_terminators[split_block].target_block = error_block;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[split_block] = saved_split;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_terminators[split_block].else_block = normal_block;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[split_block] = saved_split;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_block_arguments[
+      program->blocks[normal_block].first_block_argument]
+      .type_index = error_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_block_arguments[
+      program->blocks[normal_block].first_block_argument] =
+      saved_normal_argument;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_block_arguments[
+      program->blocks[error_block].first_block_argument]
+      .type_index = destination_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_block_arguments[
+      program->blocks[error_block].first_block_argument] =
+      saved_error_argument;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_values[narrowed->initializer_value].block_argument_index =
+      program->blocks[error_block].first_block_argument;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[narrowed->initializer_value] = saved_initializer;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_values[error_term->value_index].block_argument_index =
+      program->blocks[normal_block].first_block_argument;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[error_term->value_index] = saved_propagated;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_functions[0].return_type = destination_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_functions[0] = saved_function;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  static const char PROCESS_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let narrowed = try i8(exactly: 1)\n"
+      "return .success }\n"
+      "entry(run)\n";
+  CHECK(lower_process_input0_generic(PROCESS_SOURCE));
+  program = &fixture.hir_program;
+  const w_seed_hir0_function *run = &program->functions[0];
+  const uint32_t process_split_block = run->first_block;
+  const uint32_t process_normal_block = process_split_block + 1u;
+  const uint32_t process_error_block = process_split_block + 2u;
+  const w_seed_hir0_entry saved_entry = fixture.hir_entries[0];
+  CHECK(program->block_count == 3u && program->call_count == 0u &&
+        program->instruction_count == 1u && program->binding_count == 1u &&
+        program->terminator_count == 3u && run->is_async && run->is_throws &&
+        program->terminators[process_split_block].kind ==
+            W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY &&
+        program->terminators[process_normal_block].kind ==
+            W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        program->terminators[process_error_block].kind ==
+            W_SEED_HIR0_TERMINATOR_THROW &&
+        program->values[program->terminators[process_normal_block].value_index]
+                .kind == W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE &&
+        program->values[program->terminators[process_normal_block].value_index]
+                .external_symbol_index == 3u &&
+        hir_text_is(program,
+                    program->values[program->terminators[process_normal_block]
+                                        .value_index]
+                        .member_name,
+                    "success") &&
+        program->values[program->terminators[process_error_block].value_index]
+                .kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        program->entries[0].cleanup_obligation ==
+            W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_ON_SUCCESS_REVERSE_ON_TYPED_ERROR &&
+        program->entries[0].first_cleanup_owner_parameter ==
+            run->first_parameter &&
+        program->entries[0].cleanup_owner_parameter_count == 2u &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_entries[0].cleanup_obligation =
+      W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_TYPED_ERROR;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_entries[0] = saved_entry;
   reseal_hir_fixture();
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
   return true;
@@ -15513,9 +15734,9 @@ static bool test_integer_bitwise_hir_matrix(void) {
   static const char BOOLEAN_BITWISE[] =
       "fn bits(left: Bool, right: Bool): Bool { return left ^ right }\n"
       "entry { }\n";
-  CHECK(!lower(MISMATCHED));
-  CHECK(!lower(FLOAT_BITWISE));
-  CHECK(!lower(BOOLEAN_BITWISE));
+  CHECK(frontend_rejects_quietly(MISMATCHED));
+  CHECK(frontend_rejects_quietly(FLOAT_BITWISE));
+  CHECK(frontend_rejects_quietly(BOOLEAN_BITWISE));
 
   static const char FORGED[] =
       "fn bits(left: i8, right: i8): i8 { return left | right }\n"
@@ -16369,7 +16590,7 @@ static bool test_explicit_integer_saturating_hir(void) {
 }
 
 static bool test_checked_integer_arithmetic_hir_matrix(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-93") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-94") == 0);
   typedef struct {
     const char *name;
     const char *suffix;
@@ -19327,6 +19548,7 @@ int main(int argc, char **argv) {
   if (!test_typed_throw_hir()) return 1;
   if (!test_typed_invoke_hir()) return 1;
   if (!test_integer_exactly_hir()) return 1;
+  if (!test_integer_exactly_continuation_hir()) return 1;
   if (!test_local_enum_payload_declarations_hir()) return 1;
   if (!test_local_enum_payload_constructor_hir()) return 1;
   if (!test_enum_switch_hir()) return 1;

@@ -44,6 +44,66 @@ not in this queue.
 - Treat performance, memory, binary size, and compile latency as persistent
   optimization signals, never as permission to change semantics.
 
+### Evidence promotion and safety closure
+
+A vertical witness proves only the exact boundary that it executes. Every
+capability report must keep these stages distinct: selected design, parser and
+frontend, verified HIR, lowering, native product, runtime/provider, and target
+evidence. A host oracle, hand-built HIR, private adapter, WSL lane, or passing
+backend probe cannot satisfy a later stage. W must not be described as
+generally memory-safe, race-free, cleanup-safe, or FFI-safe while the relevant
+enforcement remains a design oracle or bounded seed subset.
+
+Deterministic positive and adversarial examples remain the fast development
+gate, but safety-critical families require the smallest applicable independent
+method before promotion:
+
+- property and differential tests for numeric policies, layouts, codecs, and
+  source-to-HIR equivalence;
+- grammar-guided source fuzzing plus serialized-record mutation for parser,
+  frontend, HIR, metadata, and artifact readers;
+- ASan/UBSan and leak checks for the C23 seed where supported, with target-
+  appropriate Windows diagnostics and MSan/TSan lanes when their prerequisites
+  exist;
+- deterministic fault injection at allocation, publication, cleanup,
+  cancellation, provider, and artifact-I/O boundaries, proving rollback,
+  exactly-once cleanup, and failure atomicity;
+- bounded schedule exploration for concurrency, followed by stress/replay and
+  race instrumentation on the same W programs;
+- native ABI/layout assertions and cross-target execution whenever a claim
+  depends on calling convention, endian, alignment, atomic width, or platform
+  lifecycle.
+
+These methods are tiered rather than run indiscriminately: focused checks stay
+fast; package gates exercise the affected family; sanitizer, fuzz, schedule,
+cross-target, and long-running performance lanes run in CI or release
+qualification according to risk. More tests are not evidence unless they
+observe a distinct failure class or product boundary.
+
+### Numeric closure discipline
+
+Numeric implementation proceeds by semantic family, with one canonical set of
+type and policy facts shared by frontend, verified HIR, evaluators, product
+closure, and MLIR lowering. A family is not complete merely because a private
+artifact or an alternate native route supports it while the maintained product
+closure rejects it.
+
+Before adding wider representations, close runtime-parametrized public-product
+execution for the already implemented fixed integers and strict `f32`/`f64`:
+typed failure, cleanup, process adaptation, exact output, and equivalent-work
+C23/Rust correctness references on Windows and Linux/WSL. Then add `i128` and
+`u128` as one complete package spanning literals, arithmetic, bit operations,
+shifts, conversions, ABI/layout, serialization, and explicit target fallback or
+rejection. Follow with strict `f16`, `bf16`, and `f128`, including encoding,
+rounding, NaN, signed zero, subnormal, and W-owned fallback rules. Configured
+`f4`/`f6`/`f8` remain rank-8 storage/compute elements; BigInt and BigFloat wait
+for the rank-6 ownership, allocator, OOM, and generic-value foundations.
+
+Public performance rows use runtime inputs and family-sized workloads. Cold
+process launch and in-process numeric throughput remain separate lanes; a
+constant-folded W graph is correctness evidence, not a ranking against a
+runtime C or Rust workload.
+
 ### C-reach closure rule
 
 C parity means that a W product can perform the same systems work with explicit
@@ -104,12 +164,13 @@ physical scheduler experiments:
    representation-bit round trips. W-1650 adds fixed-width integer
    `try D(exactly: source)` through a typed HIR success/error split and private
    MLIR/LLVM artifact. W-1652 now defines the canonical `native-process@1`
-   mapping for an unhandled typed error. HIR93 admits only an async throwing
-   entry with one direct throw from a local, concrete, nongeneric `Error` enum
-   whose cases are payloadless. It records `Context`-then-`Arguments` cleanup
-   order but emits no cleanup calls. ProductClosure0 returns `UNSUPPORTED`.
-   No process adapter maps the outcome to status 1 with no implicit output, and
-   native execution remains unimplemented.
+   mapping for an unhandled typed error. HIR94 retains the restricted local
+   payloadless-error direct throw and composes one exact-conversion binding into
+   a three-block process root. ProductClosure0 v3 projects either the direct
+   typed outcome or the conversion's distinct normal and typed-error
+   successors. It authenticates conditional cleanup order but emits no cleanup
+   calls. No process adapter maps the outcome to status 1 with no implicit
+   output, and native execution remains unimplemented.
    Remaining conversion policies continue to block this rank-1
    prerequisite. W-1651 closes the design identity of i128/u128, the fixed
    arithmetic float family through f128, configured f4/f6/f8 AI elements, and
@@ -439,12 +500,12 @@ current x86-64 `Int`/`UInt` aliases through Frontend71, verified HIR92,
 NativeSubset0, and the private `w-seed-mlir0-integer-exactly-1` artifact. HIR
 preserves a three-block typed success/error split whose error edge is canonical
 `NumericConversionError.outOfRange`; `tooling/check-mlir0.mjs` verifies the
-artifact with `mlir-opt` and `mlir-translate`. This is compiler-lifecycle
-evidence only. W-1652 now has HIR93 evidence for a restricted direct-throw
-process root, but it does not compose this `NumericConversionError` split.
-ProductClosure0 still rejects the integer-exactly and typed-throw terminators.
-HIR records a cleanup obligation without materializing calls. No adapter maps
-the outcome to status 1 with no implicit output, and no native execution exists.
+artifact with `mlir-opt` and `mlir-translate`. HIR94 now admits a bounded
+binding continuation and process root for that split; ProductClosure0 v3
+projects its normal and typed-error successors while retaining the restricted
+direct-throw outcome. This remains compiler-lifecycle evidence only. HIR
+records cleanup order without materializing calls. No adapter maps the outcome
+to status 1 with no implicit output, and no native execution exists.
 No benchmark or timing claim is made. Other conversion families, floats,
 128-bit integers,
 `isize`/`usize`, other target aliases, catch, cleanup, and ABI remain gaps.

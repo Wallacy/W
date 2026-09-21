@@ -11076,6 +11076,15 @@ As regras de W são:
 - converter um integer arbitrário em pointer não recria provenance;
 - null de C entra em W como `c.ptr<T>?` ou wrapper tipado.
 
+Dereferencing a raw pointer has an explicit `unsafe` precondition: the pointer
+must be non-null, retain valid provenance for a live allocation, remain within
+bounds, satisfy the pointee alignment and permit the requested access. An
+ordinary profile does not insert a hidden null or bounds check merely because
+the operation is inside `unsafe`. Violating any of these preconditions is
+outside defined W behavior. A sanitizer or hardening profile may diagnose or
+trap the violation, but that instrumentation does not change the source
+semantics.
+
 Código low-level pode alterar os bits de endereço sem perder a origem somente
 quando mantém o pointer original. O novo address precisa pertencer ao mesmo
 space:
@@ -26963,6 +26972,14 @@ do importer. Cada allocation mantém o deallocator de origem.
 O importer não declara uma interface segura só porque conseguiu ler o header.
 Uma wrapper W restabelece os contratos ausentes:
 
+Pointer nullability is an explicit fact of the versioned foreign signature or
+trusted adapter metadata. The importer never infers it from a parameter name,
+an observed address or a platform convention. Without a trusted non-null fact,
+an imported pointer remains raw and optional as `c.ptr<T>?`; it is not silently
+promoted to `c.ptr<T>`, `ref T` or an owner. Even a proven non-null raw pointer
+needs the independent owner, lifetime, bounds, alignment and noescape proofs
+before a safe wrapper may expose a reference.
+
 | Forma C | Forma segura W quando provada |
 |---|---|
 | nullable pointer | `T?`, `ref T?` ou owner opcional |
@@ -42414,11 +42431,11 @@ uses constants, so `benchmarkDisposition` is
 `usize`/`isize`, 128-bit types, target-general aliases, stable ABI/FFI,
 other targets, and equivalent runtime work remain outside W-1641. W-1650
 subsequently adds bounded typed-lowering evidence for fixed-width integer
-`try D(exactly: source)`. HIR93 models only one direct throw from a local,
-concrete, nongeneric `Error` enum. It does not compose W-1650's
-`NumericConversionError` split. ProductClosure0 still rejects the
-integer-exactly and typed-throw terminators. Cleanup calls, status-1/no-output
-adaptation, and public native execution remain unsupported.
+`try D(exactly: source)`. HIR94 composes that conversion into one restricted
+`native-process@1` root, and ProductClosure0 v3 projects its explicit normal
+and `NumericConversionError.outOfRange` successors. It also retains the
+restricted local payloadless-error direct-throw projection. Cleanup calls,
+status-1/no-output adaptation, and public native execution remain unsupported.
 
 #### 26.4.1.122 W-1642 — ordinary binary integer bitwise family through native execution
 
@@ -42737,13 +42754,15 @@ checks the translated LLVM IR for the typed success/error branch and
 representability predicates. This is compiler-lifecycle evidence, not an
 executable product.
 
-ProductClosure0 still rejects the integer-exactly terminator. HIR93 now admits
-only one direct throw from a local, concrete, nongeneric `Error` enum with
-payloadless cases. It does not compose W-1650's `NumericConversionError` split
-into that entry. ProductClosure0 also rejects typed `THROW`. HIR records a
-`Context`-then-`Arguments` cleanup obligation but emits no cleanup calls. The
-adapter that maps the typed outcome to status 1 with no implicit output is not
-implemented.
+HIR94 admits a bounded continuation form in which one immutable binding is
+initialized by the exact conversion and the normal successor continues through
+ordinary typed values. For the restricted `native-process@1` root,
+ProductClosure0 v3 authenticates and publishes the source split plus separate
+normal-return and `NumericConversionError.outOfRange` successor facts. The
+entry records declaration-order owner release on normal success and reverse
+`Context`-then-`Arguments` release on the typed-error path. It emits no cleanup
+calls. The adapter that maps the typed outcome to status 1 with no implicit
+output is not implemented.
 There is no public native execution, benchmark, timing, floating-point or
 128-bit conversion, `isize`/`usize`, non-x86-64 alias, catch, cleanup, or ABI
 claim.
@@ -42783,6 +42802,17 @@ families. Those remain explicit implementation gaps.
 
 #### 26.4.1.132 W-1652 — native-process unhandled typed-error adaptation
 
+```w
+import { Arguments, Context, ExitCode } from std.process
+
+async fn run(args: Arguments, ctx: Context): ExitCode throws NumericConversionError {
+  let narrowed = try i8(exactly: 1)
+  return .success
+}
+
+entry(run)
+```
+
 W-1652 closes the semantic mapping required when a concrete recoverable
 `Error` crosses a `native-process@1` entry handler. The typed error remains
 distinct from normal `ExitCode`, panic, cancellation, fatal signal, and forced
@@ -42797,17 +42827,26 @@ that needs a different status or message uses `do`/`catch` and returns a normal
 `ExitCode` explicitly. Other host profiles must define their own total mapping
 before admitting `throws E` entries.
 
-HIR93 adds HIR-only compiler-lifecycle evidence for a restricted
-`native-process@1` entry. The handler must be async and throwing. Its error
+HIR94 adds compiler-lifecycle evidence for two restricted
+`native-process@1` entry forms. The direct-throw handler must be async and
+throwing. Its error
 type must be a local, concrete, nongeneric enum that conforms to `Error`, and
 every case must be payloadless. Its body must contain exactly one direct
 `throw` of one case from that enum. Verified HIR preserves the typed enum
 outcome and records the cleanup obligation in reverse parameter order:
 `Context`, then `Arguments`.
 
+The second admitted shape is one integer `try D(exactly:)` binding with the
+canonical core `NumericConversionError`, followed by a normal
+`ProcessExitCode` return. Verified HIR preserves the three-block split.
+ProductClosure0 v3 publishes both successor relations and authenticates the
+conditional cleanup policy: declaration order on success and reverse order on
+the typed-error path. The older direct-throw root remains projected as one
+typed outcome.
+
 This evidence does not complete the decision. ProductClosure0 still returns
-`UNSUPPORTED` for the typed root throw. The cleanup obligation does not
-materialize release calls, and no process adapter runs. HIR93 does not prove
+`UNSUPPORTED` for every other typed root shape. The cleanup obligation does not
+materialize release calls, and no process adapter runs. HIR94 does not prove
 mapping to status 1 with no implicit output, native execution, or a benchmark
 result.
 `benchmarkDisposition: compiler-lifecycle`.

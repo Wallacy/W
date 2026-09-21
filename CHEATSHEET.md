@@ -679,9 +679,29 @@ performance remain open.
 conversion. Current seed evidence is correctness-only and covers signed and
 unsigned 8/16/32/64-bit integers plus the current x86-64 `Int`/`UInt` aliases.
 `usize`/`isize`, 128-bit integers, target-general alias widths, stable ABI/FFI,
-other targets, and performance remain outside this slice. `exactly:`,
-`rounding:`, other `saturating:` families, and remaining floating conversions
-remain separate gaps.
+other targets, and performance remain outside this slice. Integer `exactly:`
+has a separate bounded compiler-lifecycle path; `rounding:`, other
+`saturating:` families, and remaining floating conversions remain gaps.
+
+<!-- w-example role=logical-contract -->
+```w
+fn narrowExactly(_ value: i16): i8 throws NumericConversionError {
+  return try i8(exactly: value)
+}
+
+test "exact conversion preserves failure as a typed outcome" for narrowExactly {
+  expect (try narrowExactly(127)) == 127_i8
+  expect (try? narrowExactly(128)) == .none
+}
+```
+
+The current bounded integer implementation covers all source/destination pairs
+among signed and unsigned 8/16/32/64-bit integers and current x86-64
+`Int`/`UInt`. Verified HIR preserves distinct normal and
+`NumericConversionError.outOfRange` successors. ProductClosure0 now projects
+both outcomes for the restricted `native-process@1` root, but cleanup calls,
+status adaptation, public native execution, and performance evidence remain
+open.
 
 Integer `D(saturating: source)` clamps the mathematical value to the
 destination minimum or maximum and is total. Its integer form accepts no
@@ -1551,20 +1571,26 @@ the scratch scope. The returned `result` was created outside both scopes.
 
 ## Unsafe, addresses, and bit operations
 
-<!-- w-example role=executable use=clearTag observable=value -->
+<!-- w-example role=logical-contract -->
 ```w
-unsafe fn clearTag(_ pointer: Address<.virtual, .readWrite>, tagMask: usize): usize {
-  let alignedBits = pointer.bits & ~tagMask
-  let aligned = pointer.withAddress(alignedBits)
-  return aligned.bits
+unsafe fn clearTag<T>(_ pointer: c.ptr<T>, tagMask: Address.Bits): c.ptr<T> {
+  let location = pointer.address
+  let aligned = location.withBits(location.bits & ~tagMask)
+  return unsafe { pointer.withAddress(aligned) }
 }
 
-test "address arithmetic stays inside unsafe" for clearTag {
-  let address = Address<.virtual, .readWrite>.fromBits(0x1003)
-  let bits = unsafe { clearTag(address, tagMask: 0x0003) }
-  expect bits == 0x1000
+unsafe fn useAlignedByte(_ pointer: c.ptr<c.uchar>): Address.Bits {
+  let aligned = unsafe { clearTag(pointer, tagMask: 0x0003) }
+  return aligned.address.bits
 }
 ```
+
+`Address` exposes address bits but cannot be fabricated back into a pointer.
+`withAddress` retains the original pointer provenance and is valid only when
+the caller proves non-null, lifetime, bounds, alignment and access. Normal
+profiles add no hidden check; sanitizer profiles may trap a violated `unsafe`
+precondition. An unannotated nullable foreign pointer enters W as
+`c.ptr<T>?`, never as a safe `ref T`.
 
 ## Async, spawn, sync, and await
 

@@ -11977,11 +11977,11 @@
     },
     {
       "id": "R0-fixed-width-integer-exactly-typed-lowering",
-      "reviewItem": "fixed-width integer exactly conversion through typed HIR and private MLIR against lossless coercion, untyped failure, per-pair schemas, and premature product or performance claims",
+      "reviewItem": "fixed-width integer exactly conversion through typed HIR, private MLIR, and bounded product projection against lossless coercion, untyped failure, per-pair schemas, and premature native or performance claims",
       "decisions": [
         "W-1650"
       ],
-      "task": "Carry plain `try D(exactly: source)` across all 100 source/destination pairs among signed and unsigned 8/16/32/64-bit integers and current x86-64 Int/UInt aliases through Frontend71, a verified HIR92 three-block typed split, NativeSubset0, and a private MLIR/LLVM artifact. Preserve the canonical `NumericConversionError.outOfRange` edge. Verify the artifact with mlir-opt and mlir-translate, but keep ProductClosure0 and ordinary executable emission unsupported until an unhandled error has a canonical process-root mapping. No public native execution or benchmark is part of this increment.",
+      "task": "Carry plain `try D(exactly: source)` across all 100 source/destination pairs among signed and unsigned 8/16/32/64-bit integers and current x86-64 Int/UInt aliases through Frontend71, the verified HIR typed split, NativeSubset0, and a private MLIR/LLVM artifact. Preserve canonical `NumericConversionError.outOfRange`, add one bounded consumed binding continuation and restricted process root, and project its distinct normal/error successors through ProductClosure0 v3. Keep cleanup execution, process adaptation, public native execution, and benchmarks outside this increment.",
       "selected": {
         "language": "w",
         "source": [
@@ -12019,9 +12019,9 @@
           "name": "premature-product-route",
           "language": "w-internal-rejected",
           "source": [
-            "claim ordinary native execution before an unhandled NumericConversionError has a process-root mapping"
+            "claim ordinary native execution before cleanup and process adaptation execute the projected NumericConversionError outcome"
           ],
-          "expectedDifference": "ProductClosure0 remains fail-closed; private MLIR/LLVM verification does not establish public execution."
+          "expectedDifference": "The bounded ProductClosure projection remains compiler-lifecycle evidence; it does not establish cleanup execution, process adaptation, or public native execution."
         }
       ],
       "sourceRefs": [
@@ -12038,7 +12038,7 @@
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_SCHEMA_VERSION / W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY",
-          "claim": "HIR92 records a dedicated typed integer-exactly split and canonical NumericConversionError identity."
+          "claim": "HIR94 records the dedicated typed integer-exactly split, canonical NumericConversionError identity, bounded binding continuation, and restricted process-root cleanup policy."
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -12047,8 +12047,8 @@
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "symbol": "test_integer_exactly_hir",
-          "claim": "HIR tests exercise typed exactly conversion across the supported integer domain."
+          "symbol": "test_integer_exactly_hir / test_integer_exactly_continuation_hir",
+          "claim": "HIR tests exercise the supported integer domain, consumed binding continuation, process-root split, cleanup policy, and forged-relation barriers."
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
@@ -12072,8 +12072,8 @@
         },
         {
           "path": "compiler/seed-c/src/w_seed_product_closure0.c",
-          "symbol": "W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY",
-          "claim": "ProductClosure0 deliberately rejects the integer-exactly terminator."
+          "symbol": "typed_process_numeric_exact_root_supported",
+          "claim": "ProductClosure0 v3 admits only the authenticated restricted process exact split and publishes separate normal and typed-error successor facts."
         },
         {
           "path": "tooling/check-mlir0.mjs",
@@ -12082,10 +12082,10 @@
         }
       ],
       "checks": [
-        "Frontend71 and HIR92 preserve the bounded 100-pair source/destination relation for the eight fixed-width integer types plus current x86-64 Int/UInt aliases.",
-        "The verified HIR carries a three-block typed success/error split whose error case is canonical NumericConversionError.outOfRange.",
+        "Frontend71 and HIR94 preserve the bounded 100-pair source/destination relation for the eight fixed-width integer types plus current x86-64 Int/UInt aliases.",
+        "The verified HIR carries a three-block typed success/error split, one consumed binding continuation, and a restricted process root whose error case is canonical NumericConversionError.outOfRange.",
         "NativeSubset0 and the private MLIR artifact independently rederive the verified type facts; mlir-opt and mlir-translate validate the emitted artifact.",
-        "ProductClosure0 and ordinary executable emission remain unsupported pending a canonical process-root mapping for unhandled NumericConversionError; no public native run, benchmark, or timing claim is made."
+        "ProductClosure0 v3 projects the restricted process split, while cleanup calls, process adaptation and ordinary executable emission remain unsupported; no public native run, benchmark, or timing claim is made."
       ],
       "measures": [
         "semantic-correctness",

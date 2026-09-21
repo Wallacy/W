@@ -15,7 +15,7 @@ extern "C" {
  * program.  It does not copy HIR records and never owns input storage.  The
  * caller owns every output array and receives source-index to dense-closure
  * remaps (W_SEED_PRODUCT_CLOSURE0_NONE for omitted records). */
-#define W_SEED_PRODUCT_CLOSURE0_SCHEMA_VERSION "w-seed-product-closure0-2"
+#define W_SEED_PRODUCT_CLOSURE0_SCHEMA_VERSION "w-seed-product-closure0-3"
 #define W_SEED_PRODUCT_CLOSURE0_NONE UINT32_MAX
 #define W_SEED_PRODUCT_CLOSURE0_DIGEST_BYTES 32u
 #define W_SEED_PRODUCT_CLOSURE0_MAX_MODULES 32u
@@ -67,6 +67,7 @@ typedef struct {
 
 typedef enum {
   W_SEED_PRODUCT_CLOSURE0_OUTCOME_NONE = 0,
+  W_SEED_PRODUCT_CLOSURE0_OUTCOME_NORMAL,
   W_SEED_PRODUCT_CLOSURE0_OUTCOME_TYPED_THROW,
 } w_seed_product_closure0_outcome_kind;
 
@@ -92,8 +93,16 @@ typedef struct {
  * normal return type or an alias for panic/status. */
 typedef struct {
   w_seed_product_closure0_outcome_kind kind;
+  /* The split terminator and its explicit successor are both published.  A
+   * normal outcome names the target successor; a typed outcome names the
+   * error successor. */
+  uint32_t source_terminator_index;
   uint32_t terminator_index;
+  uint32_t successor_block_index;
+  uint32_t successor_argument_index;
+  uint32_t successor_argument_count;
   uint32_t value_index;
+  uint32_t result_type_index;
   uint32_t error_type_index;
   uint32_t error_enum_index;
   uint32_t error_case_index;
@@ -211,6 +220,10 @@ typedef struct {
   w_seed_product_closure0_counts written;
   w_seed_product_closure0_failure failure;
   w_seed_product_closure0_root root;
+  /* The normal and typed-error paths remain separate facts. `outcome` is
+   * retained as the typed-error compatibility channel; numeric exact splits
+   * populate both it and normal_outcome. */
+  w_seed_product_closure0_outcome normal_outcome;
   w_seed_product_closure0_outcome outcome;
   uint8_t reachable_semantic_digest[W_SEED_PRODUCT_CLOSURE0_DIGEST_BYTES];
 } w_seed_product_closure0_result;

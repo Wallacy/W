@@ -576,6 +576,343 @@ static bool test_native_process_typed_throw(void) {
   return true;
 }
 
+/* Keep a second numeric process witness with one unreachable function and its
+ * block/terminator records physically before the live handler.  The HIR
+ * indices therefore change while owner/function/block ordinals and all live
+ * values remain identical. */
+static bool prepend_dead_numeric_function(multidoc_fixture *fixture) {
+  if (fixture == NULL) return false;
+  w_seed_hir0_program *program = &fixture->hir_program;
+  if (program->module_count != 1u || program->function_count == 0u ||
+      program->block_count == 0u || program->terminator_count != program->block_count ||
+      program->identity_count <= program->module_count ||
+      program->text_byte_count > program->text_byte_capacity - 4u)
+    return false;
+  const size_t old_function_count = program->function_count;
+  const size_t old_block_count = program->block_count;
+  const size_t old_identity_count = program->identity_count;
+  const size_t function_base = program->module_count;
+  const size_t old_host_base = program->module_count + old_function_count +
+                               program->entry_count;
+  if (old_function_count + 1u > program->function_capacity ||
+      old_block_count + 1u > program->block_capacity ||
+      old_identity_count + 1u > program->identity_capacity)
+    return false;
+
+  w_seed_hir0_function *functions =
+      (w_seed_hir0_function *)(void *)program->functions;
+  w_seed_hir0_block *blocks = (w_seed_hir0_block *)(void *)program->blocks;
+  w_seed_hir0_terminator *terminators =
+      (w_seed_hir0_terminator *)(void *)program->terminators;
+  w_seed_hir0_identity *identities =
+      (w_seed_hir0_identity *)(void *)program->identities;
+  w_seed_hir0_parameter *parameters =
+      (w_seed_hir0_parameter *)(void *)program->parameters;
+  w_seed_hir0_block_argument *block_arguments =
+      (w_seed_hir0_block_argument *)(void *)program->block_arguments;
+  w_seed_hir0_instruction *instructions =
+      (w_seed_hir0_instruction *)(void *)program->instructions;
+  w_seed_hir0_binding *bindings =
+      (w_seed_hir0_binding *)(void *)program->bindings;
+  w_seed_hir0_value *values = (w_seed_hir0_value *)(void *)program->values;
+  w_seed_hir0_entry *entries = (w_seed_hir0_entry *)(void *)program->entries;
+  w_seed_hir0_cleanup *cleanups =
+      (w_seed_hir0_cleanup *)(void *)program->cleanups;
+  w_seed_hir0_call *calls = (w_seed_hir0_call *)(void *)program->calls;
+  w_seed_hir0_edge_argument *edge_arguments =
+      (w_seed_hir0_edge_argument *)(void *)program->edge_arguments;
+  w_seed_hir0_switch_edge *switch_edges =
+      (w_seed_hir0_switch_edge *)(void *)program->switch_edges;
+  w_seed_hir0_module *modules =
+      (w_seed_hir0_module *)(void *)program->modules;
+
+  const uint32_t dead_name_offset = (uint32_t)program->text_byte_count;
+  (void)memcpy((uint8_t *)(void *)program->text_bytes + dead_name_offset,
+               "dead", 4u);
+  program->text_byte_count += 4u;
+
+  (void)memmove(&identities[function_base + 1u], &identities[function_base],
+                (old_identity_count - function_base) * sizeof(*identities));
+  for (size_t index = function_base + 1u; index < old_identity_count + 1u;
+       index += 1u)
+    if (identities[index].kind == W_SEED_HIR0_IDENTITY_FUNCTION)
+      identities[index].target_index += 1u;
+  identities[function_base] = (w_seed_hir0_identity){
+      .kind = W_SEED_HIR0_IDENTITY_FUNCTION,
+      .owner_module = 0u,
+      .target_index = 0u,
+      .name = {dead_name_offset, 4u},
+      .first_parameter = 0u,
+      .parameter_count = 0u,
+      .first_requirement = W_SEED_HIR0_NONE,
+      .requirement_count = 0u,
+      .return_type = W_SEED_HIR0_TYPE_UNIT,
+      .is_const = false,
+      .profile = {0u, 0u}};
+  for (size_t index = 0u; index < old_function_count; index += 1u)
+    functions[index].identity_index += 1u;
+  for (size_t index = 0u; index < program->entry_count; index += 1u) {
+    entries[index].identity_index += 1u;
+    entries[index].target_identity += 1u;
+    entries[index].target_function += 1u;
+  }
+  for (size_t index = 0u; index < program->host_parameter_count; index += 1u)
+    if (program->host_parameters[index].owner_identity >= function_base)
+      ((w_seed_hir0_host_parameter *)(void *)program->host_parameters)[index]
+          .owner_identity += 1u;
+  for (size_t index = 0u; index < program->requirement_count; index += 1u)
+    if (program->requirements[index].owner_kind ==
+            W_SEED_HIR0_REQUIREMENT_HOST_IDENTITY &&
+        program->requirements[index].owner_index >= old_host_base)
+      ((w_seed_hir0_requirement *)(void *)program->requirements)[index]
+          .owner_index += 1u;
+  for (size_t index = 0u; index < program->call_count; index += 1u)
+    if (calls[index].callee_identity >= function_base)
+      calls[index].callee_identity += 1u;
+
+  (void)memmove(&functions[1u], &functions[0u],
+                old_function_count * sizeof(*functions));
+  functions[0] = (w_seed_hir0_function){
+      .module_index = 0u,
+      .identity_index = (uint32_t)function_base,
+      .name = {dead_name_offset, 4u},
+      .exported = false,
+      .source_span = {0u, 0u},
+      .body_span = {0u, 0u},
+      .return_type = W_SEED_HIR0_TYPE_UNIT,
+      .error_type = W_SEED_HIR0_NONE,
+      .first_parameter = 0u,
+      .parameter_count = 0u,
+      .first_block = 0u,
+      .block_count = 1u,
+      .is_const = false,
+      .is_async = false,
+      .is_throws = false,
+      .is_unsafe = false,
+      .has_borrow_clause = false,
+      .is_anonymous_entry = false,
+      .suspension = W_SEED_HIR0_SUSPENSION_NEVER,
+      .direct_entry = W_SEED_HIR0_DIRECT_ENTRY_ABSENT};
+  functions[1].first_block += 1u;
+  for (size_t index = 0u; index < program->parameter_count; index += 1u)
+    parameters[index].owner_function += 1u;
+
+  (void)memmove(&blocks[1u], &blocks[0u], old_block_count * sizeof(*blocks));
+  (void)memmove(&terminators[1u], &terminators[0u],
+                old_block_count * sizeof(*terminators));
+  blocks[0] = (w_seed_hir0_block){
+      .owner_function = 0u,
+      .ordinal = 0u,
+      .first_instruction = 0u,
+      .instruction_count = 0u,
+      .terminator_index = 0u,
+      .source_span = {0u, 0u},
+      .next_block = W_SEED_HIR0_NONE,
+      .first_block_argument = W_SEED_HIR0_NONE,
+      .block_argument_count = 0u};
+  terminators[0] = (w_seed_hir0_terminator){
+      .owner_block = 0u,
+      .kind = W_SEED_HIR0_TERMINATOR_RETURN_UNIT,
+      .ordinal = 0u,
+      .call_index = W_SEED_HIR0_NONE,
+      .value_index = W_SEED_HIR0_NONE,
+      .result_type = W_SEED_HIR0_TYPE_UNIT,
+      .error_type = W_SEED_HIR0_NONE,
+      .target_block = W_SEED_HIR0_NONE,
+      .else_block = W_SEED_HIR0_NONE,
+      .first_edge_argument = W_SEED_HIR0_NONE,
+      .edge_argument_count = 0u,
+      .logical_operator = W_SEED_HIR0_LOGICAL_NONE,
+      .switch_enum_index = W_SEED_HIR0_NONE,
+      .first_switch_edge = W_SEED_HIR0_NONE,
+      .switch_edge_count = 0u,
+      .switch_carrier_width = 0u,
+      .source_span = {0u, 0u},
+      .panic_code = W_SEED_HIR0_PANIC_CODE_INVALID,
+      .numeric_conversion_error_case =
+          W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_NONE};
+  for (size_t index = 1u; index < old_block_count + 1u; index += 1u) {
+    blocks[index].owner_function += 1u;
+    blocks[index].terminator_index += 1u;
+    terminators[index].owner_block += 1u;
+    if (terminators[index].target_block != W_SEED_HIR0_NONE)
+      terminators[index].target_block += 1u;
+    if (terminators[index].else_block != W_SEED_HIR0_NONE)
+      terminators[index].else_block += 1u;
+  }
+  for (size_t index = 0u; index < program->block_argument_count; index += 1u)
+    block_arguments[index].owner_block += 1u;
+  for (size_t index = 0u; index < program->instruction_count; index += 1u)
+    instructions[index].owner_block += 1u;
+  for (size_t index = 0u; index < program->binding_count; index += 1u)
+    bindings[index].owner_block += 1u;
+  for (size_t index = 0u; index < program->value_count; index += 1u)
+    if (values[index].owner_kind == W_SEED_HIR0_VALUE_OWNER_TERMINATOR)
+      values[index].owner_index += 1u;
+  for (size_t index = 0u; index < program->cleanup_count; index += 1u) {
+    cleanups[index].owner_function += 1u;
+    cleanups[index].invoke_terminator += 1u;
+    cleanups[index].normal_block += 1u;
+    cleanups[index].error_block += 1u;
+  }
+  for (size_t index = 0u; index < program->call_count; index += 1u) {
+    calls[index].owner_block += 1u;
+    if (calls[index].owner_terminator != W_SEED_HIR0_NONE)
+      calls[index].owner_terminator += 1u;
+  }
+  for (size_t index = 0u; index < program->edge_argument_count; index += 1u) {
+    edge_arguments[index].owner_terminator += 1u;
+    edge_arguments[index].owner_block += 1u;
+  }
+  for (size_t index = 0u; index < program->switch_edge_count; index += 1u) {
+    switch_edges[index].owner_terminator += 1u;
+    switch_edges[index].target_block += 1u;
+  }
+
+  program->function_count += 1u;
+  program->identity_count += 1u;
+  program->block_count += 1u;
+  program->terminator_count += 1u;
+  modules[0].function_count += 1u;
+  fixture->hir_result.required.functions = program->function_count;
+  fixture->hir_result.written.functions = program->function_count;
+  fixture->hir_result.required.identities = program->identity_count;
+  fixture->hir_result.written.identities = program->identity_count;
+  fixture->hir_result.required.blocks = program->block_count;
+  fixture->hir_result.written.blocks = program->block_count;
+  fixture->hir_result.required.terminators = program->terminator_count;
+  fixture->hir_result.written.terminators = program->terminator_count;
+  fixture->hir_result.required.text_bytes = program->text_byte_count;
+  fixture->hir_result.written.text_bytes = program->text_byte_count;
+  fixture->hir_counts.functions = program->function_count;
+  fixture->hir_counts.identities = program->identity_count;
+  fixture->hir_counts.blocks = program->block_count;
+  fixture->hir_counts.terminators = program->terminator_count;
+  fixture->hir_counts.text_bytes = program->text_byte_count;
+  reseal_process_hir(fixture);
+  const bool verified = w_seed_hir0_verify(program, &fixture->hir_result);
+  return verified;
+}
+
+static bool test_native_process_numeric_split(void) {
+  static const char SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let narrowed = try i8(exactly: 1) "
+      "return .success }\n"
+      "entry(run)\n";
+  static multidoc_fixture fixture;
+  static multidoc_fixture shifted_fixture;
+  static product_storage storage;
+  static product_storage shifted_storage;
+  CHECK(prepare_process_fixture(&fixture, SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  const uint32_t target = program->entries[0].target_function;
+  const w_seed_hir0_function *handler = &program->functions[target];
+  const uint32_t split_block = handler->first_block;
+  const w_seed_hir0_terminator *split =
+      &program->terminators[program->blocks[split_block].terminator_index];
+  const uint32_t normal_block = split->target_block;
+  const uint32_t error_block = split->else_block;
+  const w_seed_hir0_terminator *normal =
+      &program->terminators[program->blocks[normal_block].terminator_index];
+  const w_seed_hir0_terminator *error =
+      &program->terminators[program->blocks[error_block].terminator_index];
+  const w_seed_product_closure0_input input =
+      {program, &fixture.hir_result};
+  (void)memset(&storage, 0, sizeof(storage));
+  const w_seed_product_closure0_output output = product_output(&storage);
+  w_seed_product_closure0_result result = {0};
+  CHECK(w_seed_product_closure0_run(&input, &output, &result) ==
+        W_SEED_PRODUCT_CLOSURE0_OK);
+  CHECK(result.normal_outcome.kind == W_SEED_PRODUCT_CLOSURE0_OUTCOME_NORMAL &&
+        result.normal_outcome.source_terminator_index ==
+            program->blocks[split_block].terminator_index &&
+        result.normal_outcome.terminator_index ==
+            program->blocks[normal_block].terminator_index &&
+        result.normal_outcome.successor_block_index == normal_block &&
+        result.normal_outcome.successor_argument_index ==
+            program->blocks[normal_block].first_block_argument &&
+        result.normal_outcome.successor_argument_count == 1u &&
+        result.normal_outcome.value_index == normal->value_index &&
+        result.normal_outcome.result_type_index == normal->result_type &&
+        result.normal_outcome.error_type_index == W_SEED_PRODUCT_CLOSURE0_NONE);
+  CHECK(result.outcome.kind == W_SEED_PRODUCT_CLOSURE0_OUTCOME_TYPED_THROW &&
+        result.outcome.source_terminator_index ==
+            program->blocks[split_block].terminator_index &&
+        result.outcome.terminator_index ==
+            program->blocks[error_block].terminator_index &&
+        result.outcome.successor_block_index == error_block &&
+        result.outcome.successor_argument_index ==
+            program->blocks[error_block].first_block_argument &&
+        result.outcome.successor_argument_count == 1u &&
+        result.outcome.value_index == error->value_index &&
+        result.outcome.result_type_index == error->result_type &&
+        result.outcome.error_type_index == handler->error_type &&
+        result.outcome.error_enum_index == W_SEED_PRODUCT_CLOSURE0_NONE &&
+        result.outcome.error_case_index == W_SEED_PRODUCT_CLOSURE0_NONE);
+  CHECK(result.root.cleanup_obligation ==
+            W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_ON_SUCCESS_REVERSE_ON_TYPED_ERROR &&
+        result.root.cleanup_release_parameter_count == 2u &&
+        result.root.cleanup_release_parameters[0] == handler->first_parameter + 1u &&
+        result.root.cleanup_release_parameters[1] == handler->first_parameter &&
+        w_seed_product_closure0_verify(&input, &output, &result));
+
+  CHECK(prepare_process_fixture(&shifted_fixture, SOURCE));
+  CHECK(prepend_dead_numeric_function(&shifted_fixture));
+  const w_seed_product_closure0_input shifted_input =
+      {&shifted_fixture.hir_program, &shifted_fixture.hir_result};
+  const w_seed_product_closure0_output shifted_output =
+      product_output(&shifted_storage);
+  w_seed_product_closure0_result shifted_result = {0};
+  CHECK(w_seed_product_closure0_run(&shifted_input, &shifted_output,
+                                    &shifted_result) ==
+        W_SEED_PRODUCT_CLOSURE0_OK);
+  CHECK(shifted_result.normal_outcome.source_terminator_index !=
+            result.normal_outcome.source_terminator_index &&
+        shifted_result.normal_outcome.successor_block_index !=
+            result.normal_outcome.successor_block_index &&
+        shifted_result.outcome.terminator_index != result.outcome.terminator_index &&
+        memcmp(shifted_result.reachable_semantic_digest,
+               result.reachable_semantic_digest,
+               W_SEED_PRODUCT_CLOSURE0_DIGEST_BYTES) == 0 &&
+        w_seed_product_closure0_verify(&shifted_input, &shifted_output,
+                                       &shifted_result));
+
+  const w_seed_product_closure0_result saved_result = result;
+  result.normal_outcome.successor_block_index = error_block;
+  CHECK(!w_seed_product_closure0_verify(&input, &output, &result));
+  result = saved_result;
+  result.outcome.successor_argument_index =
+      program->blocks[normal_block].first_block_argument;
+  CHECK(!w_seed_product_closure0_verify(&input, &output, &result));
+  result = saved_result;
+  result.normal_outcome.result_type_index = handler->error_type;
+  CHECK(!w_seed_product_closure0_verify(&input, &output, &result));
+  result = saved_result;
+  result.outcome.value_index = result.normal_outcome.value_index;
+  CHECK(!w_seed_product_closure0_verify(&input, &output, &result));
+  result = saved_result;
+
+  w_seed_hir0_terminator *mutable_split =
+      &fixture.hir_terminators[program->blocks[split_block].terminator_index];
+  const w_seed_hir0_terminator saved_split = *mutable_split;
+  mutable_split->target_block = error_block;
+  mutable_split->else_block = normal_block;
+  reseal_process_hir(&fixture);
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  CHECK(w_seed_product_closure0_measure(&input,
+                                        &(w_seed_product_closure0_counts){0},
+                                        &(w_seed_product_closure0_result){0}) ==
+        W_SEED_PRODUCT_CLOSURE0_INVALID);
+  *mutable_split = saved_split;
+  reseal_process_hir(&fixture);
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
 static bool expect_process_product_status(
     const char *source, w_seed_product_closure0_status expected_status) {
   static multidoc_fixture fixture;
@@ -848,11 +1185,11 @@ static bool test_dead_module_and_mlir(void) {
 }
 
 int main(void) {
-  return test_reachable_and_omitted() && test_digest_and_measure() &&
-                 test_transaction_barriers() &&
-                 test_native_process_typed_throw() &&
-                 test_typed_process_fail_closed_shapes() &&
-                 test_dead_module_and_mlir()
-             ? 0
-             : 1;
+  if (!test_reachable_and_omitted()) return 1;
+  if (!test_digest_and_measure()) return 1;
+  if (!test_transaction_barriers()) return 1;
+  if (!test_native_process_typed_throw()) return 1;
+  if (!test_native_process_numeric_split()) return 1;
+  if (!test_typed_process_fail_closed_shapes()) return 1;
+  return test_dead_module_and_mlir() ? 0 : 1;
 }
