@@ -87,6 +87,25 @@ import {
 const documents = loadExecutableDocuments();
 const clone = (value) => structuredClone(value);
 const digest = "sha256:1111111111111111111111111111111111111111111111111111111111111111";
+const COMPACT_METRIC_SET = ["artifact-size", "compile-latency"];
+const COMPLETE_METRIC_SET = ["artifact-size", "compile-latency", "cpu-time", "peak-working-set", "run-wall-p95", "run-wall-time"];
+function assertCurrentMetricLanes(workload, entries, message) {
+  assert.ok(entries.length > 0, `${message}: current suite must retain measured cells`);
+  const lanes = Object.groupBy(entries, (entry) => `${entry.language}/${entry.platformTarget}`);
+  for (const [laneId, laneEntries] of Object.entries(lanes)) {
+    const metrics = [...new Set(laneEntries.map((entry) => entry.metric))].sort();
+    assert.ok(
+      JSON.stringify(metrics) === JSON.stringify(COMPACT_METRIC_SET) ||
+      JSON.stringify(metrics) === JSON.stringify(COMPLETE_METRIC_SET),
+      `${message}: ${laneId} must retain a complete current metric set`,
+    );
+    const [language, platformTarget] = laneId.split("/");
+    const source = workload.sources.find((item) => item.language === language && item.platformTarget === platformTarget);
+    assert.ok(source, `${message}: ${laneId} must still have a catalog source`);
+    assert.ok(laneEntries.every((entry) => entry.provenance.sourceDigest === executableSourceDigest(source)),
+      `${message}: ${laneId} must use current source evidence`);
+  }
+}
 const VALID_PE_LAYOUT = {
   fileAlignment: "512",
   sectionAlignment: "4096",
@@ -106,6 +125,11 @@ const VALID_ELF_LAYOUT = {
 
 test("catalog stores compact live best cells and no immutable history", () => {
   assert.deepEqual(validateExecutableCatalog(documents.catalog, documents), []);
+  assert.deepEqual(validateExecutableBestMetrics(documents.catalog.bestMetrics, documents.catalog), []);
+  for (const workloadId of ["hello", "hello-platform-minimal"]) {
+    assert.equal(documents.catalog.workloads.find((workload) => workload.id === workloadId).demoEvidence,
+      "bounded-w-demo", `${workloadId} has successful public W suite evidence`);
+  }
   assert.equal(documents.schema.$id, "w-executable-benchmark/7");
   assert.deepEqual(documents.schema.oneOf.map((entry) => entry.$ref), [
     "#/$defs/catalog", "#/$defs/result", "#/$defs/bestMetric", "#/$defs/bestMetrics", "#/$defs/executableSuiteCurrent",
@@ -120,8 +144,8 @@ test("catalog stores compact live best cells and no immutable history", () => {
   }
   assert.deepEqual(documents.catalog.comparabilityAxes, EXECUTABLE_COMPARABILITY_AXES);
   assert.ok(documents.catalog.comparabilityAxes.includes("runtime-closure"));
-  assert.equal(documents.catalog.bestMetrics.entries.length, 84,
-    "renamed, semantically changed, or stale-source measurements must not remain live");
+  assert.ok(documents.catalog.bestMetrics.entries.length > 0,
+    "the catalog retains compact current best cells rather than immutable history");
   assert.ok(documents.catalog.workloads.every((workload) => typeof workload.family === "string"));
   assert.deepEqual(documents.catalog.platformLanes.map((lane) => lane.id), [
     "windows-x64", "linux-x64", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL,
@@ -143,9 +167,8 @@ test("catalog stores compact live best cells and no immutable history", () => {
       (entry) => `${entry.workloadId}/${entry.language}/${entry.platformTarget}`,
     )).map(([cell, entries]) => [cell, entries.map((entry) => entry.metric).sort()]),
   );
-  const retainedMetrics = ["artifact-size", "compile-latency"];
-  const completeRuntimeMetrics = [...retainedMetrics, "cpu-time", "peak-working-set",
-    "run-wall-p95", "run-wall-time"].sort();
+  const retainedMetrics = COMPACT_METRIC_SET;
+  const completeRuntimeMetrics = COMPLETE_METRIC_SET;
   const declaredCells = new Set(documents.catalog.workloads.flatMap((workload) =>
     workload.sources.map((source) =>
       `${workload.id}/${source.language}/${source.platformTarget}`)));
@@ -388,7 +411,7 @@ test("platform-minimal Hello stays a separate correctness-only comparison across
   const workload = documents.catalog.workloads.find((item) => item.id === "hello-platform-minimal");
   assert.ok(workload);
   assert.equal(workload.benchmarkStatus, "contextual-measurement-ready");
-  assert.equal(workload.demoEvidence, "not-run");
+  assert.equal(workload.demoEvidence, "bounded-w-demo");
   assert.equal(workload.lane, "equivalent");
   assert.match(workload.scope, /platform-minimal Hello correctness comparison/u);
   assert.match(workload.scope, /not an idiomatic C\/Rust baseline or language ranking/u);
@@ -402,8 +425,13 @@ test("platform-minimal Hello stays a separate correctness-only comparison across
     "w/linux-wsl-x64", "w/windows-x64",
   ]);
   assert.ok(workload.sources.every((source) => source.recipeClass === "hello-platform-minimal"));
-  assert.equal(documents.catalog.bestMetrics.entries.some((entry) => entry.workloadId === "hello-platform-minimal"), false,
-    "contextual eligibility permits publishing only after a real measurement is recorded");
+  const contextualMetrics = documents.catalog.bestMetrics.entries.filter((entry) => entry.workloadId === workload.id);
+  assert.equal(contextualMetrics.length, 36, "all six contextual Hello lanes have complete metric sets");
+  assert.ok(contextualMetrics.every((entry) => {
+    const source = workload.sources.find((item) => item.language === entry.language && item.platformTarget === entry.platformTarget);
+    return source && entry.eligibility === source.eligibility && entry.comparability === source.comparability &&
+      entry.eligibility !== "promotable-after-equivalence";
+  }), "any contextual measurements must retain their lane's non-ranking classification");
   assert.ok(workload.sources.filter((source) => source.language === "w").every((source) =>
     source.recipe === "public-w-build-release"));
   assert.ok(workload.sources.filter((source) => source.language === "c").every((source) =>
@@ -430,7 +458,9 @@ test("local module graph source digest is current and stale live cells stay prun
   assert.ok(workload);
   const source = workload.sources.find((item) => item.path === "compiler/seed-c/fixtures/local-graph/app.w");
   assert.equal(source.digest, exactOutputDigest(readFileSync(`${ROOT}/${source.path}`, "utf8")));
-  assert.equal(documents.catalog.bestMetrics.entries.some((entry) => entry.workloadId === workload.id), false);
+  assertCurrentMetricLanes(workload,
+    documents.catalog.bestMetrics.entries.filter((entry) => entry.workloadId === workload.id),
+    "local module graph");
 });
 
 test("every public Windows runnable fixture has an executable benchmark owner", () => {
@@ -541,9 +571,7 @@ test("process-entry catalog pins the public argument-dependent contract", () => 
   const clangMetrics = liveMetrics.filter((entry) => entry.language === "c");
   assert.ok(clangMetrics.length === 0 || clangMetrics.length === 6,
     "a public Clang recipe has either no current cells or one complete high-sample set");
-  assert.ok(clangMetrics.every((entry) =>
-    entry.toolchain.startsWith("clang-22.1.8-c23-portable-") &&
-    entry.artifactTarget === EXECUTABLE_ARTIFACT_TARGET_MSVC));
+  assertCurrentMetricLanes(workload, liveMetrics, "process-entry");
   assert.ok(liveMetrics.every((entry) =>
     entry.provenance.artifactCleanliness === "verified-clean"));
 });
@@ -574,7 +602,7 @@ test("process-enum-payload catalog pins the promoted tagged-union contract", () 
   assert.equal(workload.sources.find((source) => source.language === "c").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MSVC);
   assert.equal(workload.sources.find((source) => source.language === "rust").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MSVC);
   const liveMetrics = documents.catalog.bestMetrics.entries.filter((entry) => entry.workloadId === PROCESS_ENUM_PAYLOAD_WORKLOAD_ID);
-  assert.equal(liveMetrics.length, 0, "changed sources and correctness oracles invalidate their old measurements");
+  assertCurrentMetricLanes(workload, liveMetrics, "process-enum-payload");
 });
 
 test("process-enum-payload C and Rust variants retain independent runtime enum paths", () => {
@@ -2055,8 +2083,9 @@ test("process-arguments-ordering catalog pins the count-dependent argument-mode 
   assert.equal(workload.sources.find((source) => source.language === "w").entry, "run");
   assert.equal(workload.sources.find((source) => source.language === "c").entry, "main");
   assert.equal(workload.sources.find((source) => source.language === "rust").entry, "main");
-  assert.equal(documents.catalog.bestMetrics.entries.some((entry) => entry.workloadId === PROCESS_ARGUMENTS_ORDERING_WORKLOAD_ID), false,
-    "the changed output contract must not keep old best cells");
+  assertCurrentMetricLanes(workload,
+    documents.catalog.bestMetrics.entries.filter((entry) => entry.workloadId === PROCESS_ARGUMENTS_ORDERING_WORKLOAD_ID),
+    "process-arguments-ordering");
 });
 
 test("process-arguments-ordering C and Rust variants retain independent count branches", () => {

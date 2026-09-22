@@ -10,21 +10,30 @@ const documents = loadExecutableDocuments();
 
 test("generated projection is current, compact, and sourced only from the live catalog", async () => {
   const rendered = `${await renderFromDisk(ROOT)}\n`;
+  const suiteReceipt = await currentSuiteReceipt(documents.catalog, ROOT);
+  assert.ok(suiteReceipt, "the projection includes the current successful suite receipt");
   assert.equal(fs.readFileSync(PROJECTION_PATH, "utf8"), rendered);
   const measuredPlatformCells = new Set(documents.catalog.bestMetrics.entries.map(
     (entry) => `${entry.workloadId}\0${entry.language}\0${entry.platformTarget}`,
   )).size;
   const maximumCompactLines = documents.catalog.workloads.length + measuredPlatformCells + 300;
   assert.ok(rendered.split(/\r?\n/u).length <= maximumCompactLines);
-  assert.match(rendered, /## Latest executable suite\n\nNo successful suite receipt matches this catalog yet\./u);
+  assert.match(rendered, /## Latest executable suite\n\n\*\*(?:Full suite|Filtered: [^*]+)\*\* · \d+\/\d+ lanes passed/u);
   assert.match(rendered, /### Integer semantics[\s\S]*\[integer-wrapping \(W\)\]\([^)]*\)[^\n]*Not measured/u,
     "one compact per-family table includes linked examples and current measurement status");
   assert.match(rendered, /\| \[integer-shift-semantics \(W\)\]\(\.\/executable\/integer_shift_semantics\.w\), \[integer-shift-semantics \(C\)\]\(\.\/executable\/integer_shift_semantics\.c\), \[integer-shift-semantics \(Rust\)\]\(\.\/executable\/integer_shift_semantics\.rs\) \| Not measured \|/u,
     "an unmeasured workload appears once with language links and em dashes");
-  assert.match(rendered, /\| \[hello-platform-minimal \(W\)\][^\n]*hello-platform-minimal \(C\)[^\n]*hello-platform-minimal \(Rust\)[^\n]*Not measured/u,
-    "contextual Hello remains unmeasured until execution cells are published");
-  assert.doesNotMatch(rendered, /\| process-arguments-ordering \| w \|/u);
-  assert.doesNotMatch(rendered, /\| process-enum-payload \| w \|/u);
+  for (const [workloadId, language] of [
+    ["hello-platform-minimal", "w"], ["hello-platform-minimal", "c"], ["hello-platform-minimal", "rust"],
+    ["process-arguments-ordering", "w"], ["process-enum-payload", "w"],
+  ]) {
+    const hasMetrics = documents.catalog.bestMetrics.entries.some((entry) =>
+      entry.workloadId === workloadId && entry.language === language);
+    const displayLanguage = language === "w" ? "W" : language === "rust" ? "Rust" : "C";
+    const row = new RegExp(`^\\| \\[${workloadId} \\(${displayLanguage}\\)\\]`, "mu");
+    assert.equal(row.test(rendered), hasMetrics,
+      `${workloadId}/${language} projection rows must track current live measurements`);
+  }
   assert.match(rendered, /\| Example \| System \/ lane \| Language \| Binary \| Compile p50 \| Execution p50 \| Execution p95 \| CPU mean \| Peak memory \|/u);
   assert.match(rendered, /\| \[hello \(C\)\].*Windows · CRT \| C \|/u);
   assert.match(rendered, /\| \[hello \(W\)\].*Windows · no CRT \| W \|/u);
@@ -94,6 +103,8 @@ test("projection publishes only a current matching suite receipt and summarizes 
     assert.deepEqual(await currentSuiteReceipt(documents.catalog, tempRoot), receipt);
     const rendered = renderExecutableProjection({ catalog: documents.catalog, root: tempRoot, suiteReceipt: receipt });
     assert.ok(rendered.includes(`**Full suite** · ${lanes.length}/${lanes.length} lanes passed · 0 failed · 0 skipped · 1m 5s.`));
+    assert.ok(renderExecutableProjection({ catalog: documents.catalog, root: tempRoot,
+      suiteReceipt: { ...receipt, durationMs: 65_600 } }).includes("1m 6s."));
     assert.doesNotMatch(rendered, /sha256:|toolchainDigest|compiler-w/u);
 
     const stale = { ...receipt, catalogDigest: `sha256:${"b".repeat(64)}` };

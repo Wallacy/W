@@ -7,7 +7,7 @@ A ready status means only that the listed witness is runnable, not that the desi
 
 ## Latest executable suite
 
-No successful suite receipt matches this catalog yet.
+**Full suite** · 69/69 lanes passed · 0 failed · 0 skipped · 27m 23s.
 
 The timer covers lane runs, result validation, catalog update, and catalog/documentation checks; it excludes writing the receipt and refreshing this projection. Filtered runs are not full-suite results.
 
@@ -17,44 +17,69 @@ The timer covers lane runs, result validation, catalog update, and catalog/docum
 
 | Example | System / lane | Language | Binary | Compile p50 | Execution p50 | Execution p95 | CPU mean | Peak memory |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| [hello (C)](./executable/hello.c) | Windows · CRT | C | 9216 B (9.0 KiB) | 126.1595 ms | 17.1805 ms | 18.1178 ms | 13.459 ms | 4808704 B (4.59 MiB) |
-| [hello (Rust)](./executable/hello.rs) | Windows · CRT | Rust | 113152 B (110.5 KiB) | 237.4533 ms | 17.8031 ms | 18.2169 ms | 11.757 ms | 4857856 B (4.63 MiB) |
+| [hello (C)](./executable/hello.c) | Windows · CRT | C | 9216 B (9.0 KiB) | 130.8129 ms | 17.826 ms | 19.9415 ms | 14.387 ms | 4820992 B (4.60 MiB) |
+| [hello (Rust)](./executable/hello.rs) | Windows · CRT | Rust | 113152 B (110.5 KiB) | 1.0991412 s | 18.0443 ms | 18.7591 ms | 14.232 ms | 4874240 B (4.65 MiB) |
 | [hello (W)](./executable/hello.w) | WSL · no CRT · diagnostic | W | 2096 B (2.0 KiB) | 174.7567 ms | 166.803 µs | 322.492 µs | 82 µs | 671744 B (656.0 KiB) |
-| [hello (W)](./executable/hello.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 153.0913 ms | 13.5187 ms | 14.0913 ms | 9.9 ms | 3141632 B (3.00 MiB) |
-| [hello-platform-minimal (W)](./executable/hello.w), [hello-platform-minimal (C)](./executable/hello_platform_minimal.c), [hello-platform-minimal (Rust)](./executable/hello_platform_minimal.rs) | Not measured | — | — | — | — | — | — | — |
+| [hello (W)](./executable/hello.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 203.5045 ms | 16.2744 ms | 17.362 ms | 12.53 ms | 3760128 B (3.59 MiB) |
+| [hello-platform-minimal (C)](./executable/hello_platform_minimal.c) | WSL · no CRT · diagnostic | C | 800 B | 130.4168 ms | 176.71 µs | 2.94452 ms | 158 µs | 675840 B (660.0 KiB) |
+| [hello-platform-minimal (C)](./executable/hello_platform_minimal.c) | Windows · no CRT · contextual | C | 2048 B (2.0 KiB) | 116.2444 ms | 16.5978 ms | 18.1784 ms | 11.448 ms | 3756032 B (3.58 MiB) |
+| [hello-platform-minimal (Rust)](./executable/hello_platform_minimal.rs) | WSL · no CRT · diagnostic | Rust | 848 B | 162.7392 ms | 130.965 µs | 271.286 µs | 74 µs | 675840 B (660.0 KiB) |
+| [hello-platform-minimal (Rust)](./executable/hello_platform_minimal.rs) | Windows · no CRT · contextual | Rust | 2560 B (2.5 KiB) | 161.3827 ms | 16.49 ms | 17.3271 ms | 11.448 ms | 3764224 B (3.59 MiB) |
+| [hello-platform-minimal (W)](./executable/hello.w) | WSL · no CRT · diagnostic | W | 2096 B (2.0 KiB) | 226.5052 ms | 153.79 µs | 264.911 µs | 84 µs | 675840 B (660.0 KiB) |
+| [hello-platform-minimal (W)](./executable/hello.w) | Windows · no CRT · contextual | W | 2048 B (2.0 KiB) | 208.9706 ms | 16.8082 ms | 17.6861 ms | 11.912 ms | 3764224 B (3.59 MiB) |
 
 ### Control flow and interpolation
 
 | Example | System / lane | Language | Binary | Compile p50 | Execution p50 | Execution p95 | CPU mean | Peak memory |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| [branch (W)](../compiler/seed-c/fixtures/if.w), [branch (C)](./executable/branch.c), [branch (Rust)](./executable/branch.rs) | Not measured | — | — | — | — | — | — | — |
-| [nested-branch (W)](../compiler/seed-c/fixtures/nested-if.w) | Not measured | — | — | — | — | — | — | — |
-| [bool-short-circuit (W)](../compiler/seed-c/fixtures/bool-short-circuit.w) | Windows · no CRT | W | 3072 B (3.0 KiB) | 182.0096 ms | 16.9107 ms | 17.9359 ms | 11.912 ms | 3756032 B (3.58 MiB) |
-| [interpolation (W)](../compiler/seed-c/fixtures/interpolation.w) | Not measured | — | — | — | — | — | — | — |
-| [scalar-if (W)](../compiler/seed-c/fixtures/scalar-if.w) | Not measured | — | — | — | — | — | — | — |
-| [nested-scalar-if (W)](../compiler/seed-c/fixtures/nested-scalar-if.w) | Not measured | — | — | — | — | — | — | — |
-| [while-post (W)](../compiler/seed-c/fixtures/while-post.w), [while-post (C)](./executable/while_post.c), [while-post (Rust)](./executable/while_post.rs) | Not measured | — | — | — | — | — | — | — |
-| [repeat (W)](../compiler/seed-c/fixtures/repeat.w), [repeat (C)](./executable/repeat.c), [repeat (Rust)](./executable/repeat.rs) | Not measured | — | — | — | — | — | — | — |
-| [wmo (W)](../compiler/seed-c/fixtures/wmo.w), [wmo (C)](./executable/wmo.c), [wmo (Rust)](./executable/wmo.rs) | Not measured | — | — | — | — | — | — | — |
+| [branch (C)](./executable/branch.c) | Windows · CRT | C | 9216 B (9.0 KiB) | 134.8435 ms | 18.2946 ms | 21.6901 ms | 15.47 ms | 4816896 B (4.59 MiB) |
+| [branch (Rust)](./executable/branch.rs) | Windows · CRT | Rust | 114176 B (111.5 KiB) | 1.1490048 s | 17.3156 ms | 17.9007 ms | 12.685 ms | 4874240 B (4.65 MiB) |
+| [branch (W)](../compiler/seed-c/fixtures/if.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 216.6213 ms | 16.7376 ms | 18.217 ms | 13.304 ms | 3764224 B (3.59 MiB) |
+| [nested-branch (W)](../compiler/seed-c/fixtures/nested-if.w) | Windows · no CRT | W | 3072 B (3.0 KiB) | 226.6911 ms | 16.6824 ms | 17.4343 ms | 11.757 ms | 3764224 B (3.59 MiB) |
+| [bool-short-circuit (W)](../compiler/seed-c/fixtures/bool-short-circuit.w) | Windows · no CRT | W | 2560 B (2.5 KiB) | 227.7758 ms | 17.3805 ms | 24.251 ms | 14.077 ms | 3764224 B (3.59 MiB) |
+| [interpolation (W)](../compiler/seed-c/fixtures/interpolation.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 213.5759 ms | 16.921 ms | 18.8396 ms | 13.149 ms | 3764224 B (3.59 MiB) |
+| [scalar-if (W)](../compiler/seed-c/fixtures/scalar-if.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 212.6666 ms | 16.2289 ms | 17.5243 ms | 11.912 ms | 3764224 B (3.59 MiB) |
+| [nested-scalar-if (W)](../compiler/seed-c/fixtures/nested-scalar-if.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 217.1495 ms | 17.2159 ms | 19.0878 ms | 12.685 ms | 3764224 B (3.59 MiB) |
+| [while-post (C)](./executable/while_post.c) | Windows · CRT | C | 9216 B (9.0 KiB) | 132.6173 ms | 17.3555 ms | 18.1912 ms | 13.304 ms | 4845568 B (4.62 MiB) |
+| [while-post (Rust)](./executable/while_post.rs) | Windows · CRT | Rust | 113664 B (111.0 KiB) | 1.1034614 s | 17.9432 ms | 18.5035 ms | 14.387 ms | 4882432 B (4.66 MiB) |
+| [while-post (W)](../compiler/seed-c/fixtures/while-post.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 217.4352 ms | 16.1149 ms | 16.6202 ms | 13.304 ms | 3764224 B (3.59 MiB) |
+| [repeat (C)](./executable/repeat.c) | Windows · CRT | C | 9216 B (9.0 KiB) | 135.1101 ms | 17.5156 ms | 18.987 ms | 13.923 ms | 4845568 B (4.62 MiB) |
+| [repeat (Rust)](./executable/repeat.rs) | Windows · CRT | Rust | 113664 B (111.0 KiB) | 1.1005247 s | 17.411 ms | 18.2234 ms | 13.613 ms | 4890624 B (4.66 MiB) |
+| [repeat (W)](../compiler/seed-c/fixtures/repeat.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 219.4432 ms | 16.2613 ms | 17.2779 ms | 12.221 ms | 3764224 B (3.59 MiB) |
+| [wmo (C)](./executable/wmo.c) | Windows · CRT | C | 9216 B (9.0 KiB) | 131.6324 ms | 17.2231 ms | 18.2518 ms | 12.995 ms | 4841472 B (4.62 MiB) |
+| [wmo (Rust)](./executable/wmo.rs) | Windows · CRT | Rust | 113664 B (111.0 KiB) | 1.1005219 s | 17.3275 ms | 17.6709 ms | 13.149 ms | 4886528 B (4.66 MiB) |
+| [wmo (W)](../compiler/seed-c/fixtures/wmo.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 218.8166 ms | 16.2445 ms | 17.0773 ms | 11.912 ms | 3764224 B (3.59 MiB) |
 
 ### Asynchronous scheduling
 
 | Example | System / lane | Language | Binary | Compile p50 | Execution p50 | Execution p95 | CPU mean | Peak memory |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| [async-join (W)](../compiler/seed-c/fixtures/async-join.w), [async-join (C)](./executable/async_join.c), [async-join (Rust)](./executable/async_join.rs) | Not measured | — | — | — | — | — | — | — |
-| [async-yield (W)](../compiler/seed-c/fixtures/async-yield.w), [async-yield (C)](./executable/async_yield.c), [async-yield (Rust)](./executable/async_yield.rs) | Not measured | — | — | — | — | — | — | — |
+| [async-join (C)](./executable/async_join.c) | Windows · CRT | C | 9216 B (9.0 KiB) | 137.2926 ms | 18.2444 ms | 30.1883 ms | 14.232 ms | 4845568 B (4.62 MiB) |
+| [async-join (Rust)](./executable/async_join.rs) | Windows · CRT | Rust | 113664 B (111.0 KiB) | 1.0968156 s | 17.7417 ms | 18.8823 ms | 14.387 ms | 4882432 B (4.66 MiB) |
+| [async-join (W)](../compiler/seed-c/fixtures/async-join.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 231.9279 ms | 16.6687 ms | 17.5459 ms | 13.149 ms | 3764224 B (3.59 MiB) |
+| [async-yield (C)](./executable/async_yield.c) | Windows · CRT | C | 9216 B (9.0 KiB) | 136.3495 ms | 17.8942 ms | 18.9122 ms | 14.387 ms | 4845568 B (4.62 MiB) |
+| [async-yield (Rust)](./executable/async_yield.rs) | Windows · CRT | Rust | 113664 B (111.0 KiB) | 1.1007711 s | 17.5632 ms | 18.1194 ms | 13.923 ms | 4882432 B (4.66 MiB) |
+| [async-yield (W)](../compiler/seed-c/fixtures/async-yield.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 218.8725 ms | 16.3548 ms | 17.0892 ms | 11.602 ms | 3764224 B (3.59 MiB) |
 
 ### Composition, enums, and dispatch
 
 | Example | System / lane | Language | Binary | Compile p50 | Execution p50 | Execution p95 | CPU mean | Peak memory |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| [main-dispatch (W)](../compiler/seed-c/fixtures/main-dispatch0.w) | Not measured | — | — | — | — | — | — | — |
-| [main-cardinality (W)](../compiler/seed-c/fixtures/main-cardinality0.w) | Not measured | — | — | — | — | — | — | — |
-| [enum-switch (W)](../compiler/seed-c/fixtures/enum.w), [enum-switch (C)](./executable/enum.c), [enum-switch (Rust)](./executable/enum.rs) | Not measured | — | — | — | — | — | — | — |
-| [enum-subset (W)](../compiler/seed-c/fixtures/enum-subset.w), [enum-subset (C)](./executable/enum_subset.c), [enum-subset (Rust)](./executable/enum_subset.rs) | Not measured | — | — | — | — | — | — | — |
-| [enum-payload (W)](../compiler/seed-c/fixtures/enum-payload.w), [enum-payload (C)](./executable/enum_payload.c), [enum-payload (Rust)](./executable/enum_payload.rs) | Not measured | — | — | — | — | — | — | — |
-| [enum-bool-payload (W)](../compiler/seed-c/fixtures/enum-bool-payload.w), [enum-bool-payload (C)](./executable/enum_bool_payload.c), [enum-bool-payload (Rust)](./executable/enum_bool_payload.rs) | Not measured | — | — | — | — | — | — | — |
-| [comparison-composition (W)](../compiler/seed-c/fixtures/comparison-composition.w) | Not measured | — | — | — | — | — | — | — |
+| [main-dispatch (W)](../compiler/seed-c/fixtures/main-dispatch0.w) | Windows · no CRT | W | 2560 B (2.5 KiB) | 229.5155 ms | 16.3287 ms | 16.8775 ms | 12.53 ms | 3764224 B (3.59 MiB) |
+| [main-cardinality (W)](../compiler/seed-c/fixtures/main-cardinality0.w) | Windows · no CRT | W | 2560 B (2.5 KiB) | 239.5294 ms | 16.6639 ms | 17.6578 ms | 12.53 ms | 3764224 B (3.59 MiB) |
+| [enum-switch (C)](./executable/enum.c) | Windows · CRT | C | 9216 B (9.0 KiB) | 134.7433 ms | 17.6985 ms | 18.5598 ms | 13.923 ms | 4845568 B (4.62 MiB) |
+| [enum-switch (Rust)](./executable/enum.rs) | Windows · CRT | Rust | 113664 B (111.0 KiB) | 1.1211695 s | 17.7516 ms | 19.0071 ms | 14.387 ms | 4886528 B (4.66 MiB) |
+| [enum-switch (W)](../compiler/seed-c/fixtures/enum.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 218.0182 ms | 16.4655 ms | 17.1769 ms | 11.757 ms | 3764224 B (3.59 MiB) |
+| [enum-subset (C)](./executable/enum_subset.c) | Windows · CRT | C | 9216 B (9.0 KiB) | 135.6598 ms | 18.5509 ms | 21.2751 ms | 13.923 ms | 4845568 B (4.62 MiB) |
+| [enum-subset (Rust)](./executable/enum_subset.rs) | Windows · CRT | Rust | 113664 B (111.0 KiB) | 1.0976251 s | 17.7766 ms | 25.1801 ms | 14.542 ms | 4890624 B (4.66 MiB) |
+| [enum-subset (W)](../compiler/seed-c/fixtures/enum-subset.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 213.318 ms | 16.6786 ms | 17.8594 ms | 12.221 ms | 3764224 B (3.59 MiB) |
+| [enum-payload (C)](./executable/enum_payload.c) | Windows · CRT | C | 9216 B (9.0 KiB) | 134.8858 ms | 17.9706 ms | 18.8954 ms | 12.376 ms | 4845568 B (4.62 MiB) |
+| [enum-payload (Rust)](./executable/enum_payload.rs) | Windows · CRT | Rust | 113664 B (111.0 KiB) | 1.1073509 s | 17.7788 ms | 18.6333 ms | 15.16 ms | 4886528 B (4.66 MiB) |
+| [enum-payload (W)](../compiler/seed-c/fixtures/enum-payload.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 219.9288 ms | 17.2128 ms | 22.882 ms | 13.923 ms | 3764224 B (3.59 MiB) |
+| [enum-bool-payload (C)](./executable/enum_bool_payload.c) | Windows · CRT | C | 9216 B (9.0 KiB) | 134.4189 ms | 18.1474 ms | 19.0715 ms | 14.232 ms | 4845568 B (4.62 MiB) |
+| [enum-bool-payload (Rust)](./executable/enum_bool_payload.rs) | Windows · CRT | Rust | 113664 B (111.0 KiB) | 1.1267895 s | 19.3007 ms | 20.3202 ms | 13.613 ms | 4890624 B (4.66 MiB) |
+| [enum-bool-payload (W)](../compiler/seed-c/fixtures/enum-bool-payload.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 226.0773 ms | 16.4651 ms | 17.7123 ms | 12.221 ms | 3764224 B (3.59 MiB) |
+| [comparison-composition (W)](../compiler/seed-c/fixtures/comparison-composition.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 245.746 ms | 16.4914 ms | 16.8945 ms | 12.221 ms | 3764224 B (3.59 MiB) |
 
 ### Integer semantics
 
@@ -62,9 +87,9 @@ The timer covers lane runs, result validation, catalog update, and catalog/docum
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | [integer-bitwise (W)](../compiler/seed-c/fixtures/integer-bitwise.w), [integer-bitwise (C)](./executable/integer_bitwise.c), [integer-bitwise (Rust)](./executable/integer_bitwise.rs) | Not measured | — | — | — | — | — | — | — |
 | [integer-shift-semantics (W)](./executable/integer_shift_semantics.w), [integer-shift-semantics (C)](./executable/integer_shift_semantics.c), [integer-shift-semantics (Rust)](./executable/integer_shift_semantics.rs) | Not measured | — | — | — | — | — | — | — |
-| [power (W)](../compiler/seed-c/fixtures/power.w) | Not measured | — | — | — | — | — | — | — |
-| [power-prefix (W)](../compiler/seed-c/fixtures/power-prefix.w) | Not measured | — | — | — | — | — | — | — |
-| [compound (W)](../compiler/seed-c/fixtures/compound.w) | Not measured | — | — | — | — | — | — | — |
+| [power (W)](../compiler/seed-c/fixtures/power.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 235.1932 ms | 16.4388 ms | 17.384 ms | 12.84 ms | 3764224 B (3.59 MiB) |
+| [power-prefix (W)](../compiler/seed-c/fixtures/power-prefix.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 224.1056 ms | 16.9101 ms | 18.0243 ms | 12.995 ms | 3764224 B (3.59 MiB) |
+| [compound (W)](../compiler/seed-c/fixtures/compound.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 217.3489 ms | 16.3145 ms | 17.9553 ms | 11.757 ms | 3764224 B (3.59 MiB) |
 | [checked-integer-arithmetic (W)](../compiler/seed-c/fixtures/checked-integer-arithmetic.w), [checked-integer-arithmetic (C)](./executable/checked_integer_arithmetic.c), [checked-integer-arithmetic (Rust)](./executable/checked_integer_arithmetic.rs) | Not measured | — | — | — | — | — | — | — |
 | [integer-prefix (W)](../compiler/seed-c/fixtures/integer-prefix.w), [integer-prefix (C)](./executable/integer_prefix.c), [integer-prefix (Rust)](./executable/integer_prefix.rs) | Not measured | — | — | — | — | — | — | — |
 | [integer-wrapping (W)](../compiler/seed-c/fixtures/integer-wrapping.w), [integer-wrapping (C)](./executable/integer_wrapping.c), [integer-wrapping (Rust)](./executable/integer_wrapping.rs) | Not measured | — | — | — | — | — | — | — |
@@ -78,7 +103,7 @@ The timer covers lane runs, result validation, catalog update, and catalog/docum
 | [fixed-integer-bit-primitives (W)](../compiler/seed-c/fixtures/fixed-integer-bit-primitives.w), [fixed-integer-bit-primitives (C)](./executable/fixed_integer_bit_primitives.c), [fixed-integer-bit-primitives (Rust)](./executable/fixed_integer_bit_primitives.rs) | Not measured | — | — | — | — | — | — | — |
 | [uint-bitwise (W)](../compiler/seed-c/fixtures/uint-bitwise.w), [uint-bitwise (C)](./executable/uint_bitwise.c), [uint-bitwise (Rust)](./executable/uint_bitwise.rs) | Not measured | — | — | — | — | — | — | — |
 | [uint-compound (W)](../compiler/seed-c/fixtures/uint-compound.w), [uint-compound (C)](./executable/uint_compound.c), [uint-compound (Rust)](./executable/uint_compound.rs) | Not measured | — | — | — | — | — | — | — |
-| [unsigned (W)](../compiler/seed-c/fixtures/unsigned.w) | Not measured | — | — | — | — | — | — | — |
+| [unsigned (W)](../compiler/seed-c/fixtures/unsigned.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 214.2922 ms | 16.2821 ms | 23.9019 ms | 12.221 ms | 3764224 B (3.59 MiB) |
 | [fixed-integer-runtime-arithmetic (W)](../compiler/seed-c/fixtures/process-fixed-integer-arithmetic.w), [fixed-integer-runtime-arithmetic (C)](./executable/process_fixed_integer_arithmetic.c), [fixed-integer-runtime-arithmetic (Rust)](./executable/process_fixed_integer_arithmetic.rs) | Not measured | — | — | — | — | — | — | — |
 
 ### Floating-point semantics
@@ -93,24 +118,28 @@ The timer covers lane runs, result validation, catalog update, and catalog/docum
 
 | Example | System / lane | Language | Binary | Compile p50 | Execution p50 | Execution p95 | CPU mean | Peak memory |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| [linear (W)](../compiler/seed-c/fixtures/linear.w) | Not measured | — | — | — | — | — | — | — |
-| [mutation (W)](../compiler/seed-c/fixtures/mutation.w) | Not measured | — | — | — | — | — | — | — |
-| [conditional-mutation (W)](../compiler/seed-c/fixtures/conditional-mutation.w) | Not measured | — | — | — | — | — | — | — |
-| [bool-mutation (W)](../compiler/seed-c/fixtures/bool-mutation.w) | Not measured | — | — | — | — | — | — | — |
-| [branch-mutation-multi (W)](../compiler/seed-c/fixtures/branch-mutation-multi.w) | Not measured | — | — | — | — | — | — | — |
+| [linear (W)](../compiler/seed-c/fixtures/linear.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 203.931 ms | 16.265 ms | 17.1649 ms | 12.221 ms | 3760128 B (3.59 MiB) |
+| [mutation (W)](../compiler/seed-c/fixtures/mutation.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 216.2918 ms | 16.2505 ms | 16.9076 ms | 11.757 ms | 3764224 B (3.59 MiB) |
+| [conditional-mutation (W)](../compiler/seed-c/fixtures/conditional-mutation.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 219.0086 ms | 16.4769 ms | 16.9813 ms | 11.912 ms | 3764224 B (3.59 MiB) |
+| [bool-mutation (W)](../compiler/seed-c/fixtures/bool-mutation.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 218.8839 ms | 16.4847 ms | 17.1638 ms | 12.376 ms | 3764224 B (3.59 MiB) |
+| [branch-mutation-multi (W)](../compiler/seed-c/fixtures/branch-mutation-multi.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 220.9414 ms | 16.4999 ms | 16.9679 ms | 11.912 ms | 3764224 B (3.59 MiB) |
 
 ### Process entry and arguments
 
 | Example | System / lane | Language | Binary | Compile p50 | Execution p50 | Execution p95 | CPU mean | Peak memory |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| [process-entry (C)](./executable/process_entry.c) | Windows · CRT | C | 9216 B (9.0 KiB) | 125.146 ms | 17.9583 ms | 18.7021 ms | 13.304 ms | 4804608 B (4.58 MiB) |
-| [process-entry (Rust)](./executable/process_entry.rs) | Windows · CRT | Rust | 115200 B (112.5 KiB) | 1.1235825 s | 17.0132 ms | 17.7982 ms | 11.912 ms | 4476928 B (4.27 MiB) |
-| [process-entry (W)](../compiler/seed-c/fixtures/process-input0.w) | Windows · no CRT | W | 3584 B (3.5 KiB) | 187.4327 ms | 15.9992 ms | 16.9816 ms | 10.519 ms | 3760128 B (3.59 MiB) |
-| [process-enum-payload (W)](../compiler/seed-c/fixtures/process-enum-payload.w), [process-enum-payload (C)](./executable/process_enum_payload.c), [process-enum-payload (Rust)](./executable/process_enum_payload.rs) | Not measured | — | — | — | — | — | — | — |
-| [process-arguments-count (C)](./executable/process_arguments_count.c) | Windows · CRT | C | 9216 B (9.0 KiB) | 130.3478 ms | 18.0029 ms | 19.0491 ms | 13.923 ms | 4808704 B (4.59 MiB) |
-| [process-arguments-count (Rust)](./executable/process_arguments_count.rs) | Windows · CRT | Rust | 116224 B (113.5 KiB) | 1.1378609 s | 18.075 ms | 19.0888 ms | 12.995 ms | 4866048 B (4.64 MiB) |
-| [process-arguments-count (W)](../compiler/seed-c/fixtures/process-arguments-count.w) | Windows · no CRT | W | 3584 B (3.5 KiB) | 189.5191 ms | 16.9215 ms | 17.2491 ms | 10.983 ms | 3764224 B (3.59 MiB) |
-| [process-arguments-ordering (W)](../compiler/seed-c/fixtures/process-arguments-ordering.w), [process-arguments-ordering (C)](./executable/process_arguments_ordering.c), [process-arguments-ordering (Rust)](./executable/process_arguments_ordering.rs) | Not measured | — | — | — | — | — | — | — |
+| [process-entry (C)](./executable/process_entry.c) | Windows · CRT | C | 9216 B (9.0 KiB) | 132.4712 ms | 17.8095 ms | 18.6239 ms | 13.613 ms | 4820992 B (4.60 MiB) |
+| [process-entry (Rust)](./executable/process_entry.rs) | Windows · CRT | Rust | 115200 B (112.5 KiB) | 1.1500312 s | 17.2692 ms | 18.1578 ms | 12.221 ms | 4493312 B (4.29 MiB) |
+| [process-entry (W)](../compiler/seed-c/fixtures/process-input0.w) | Windows · no CRT | W | 3072 B (3.0 KiB) | 236.6597 ms | 16.25 ms | 17.2349 ms | 13.459 ms | 3772416 B (3.60 MiB) |
+| [process-enum-payload (C)](./executable/process_enum_payload.c) | Windows · CRT | C | 9728 B (9.5 KiB) | 138.7584 ms | 18.3802 ms | 20.3251 ms | 13.613 ms | 4849664 B (4.63 MiB) |
+| [process-enum-payload (Rust)](./executable/process_enum_payload.rs) | Windows · CRT | Rust | 115712 B (113.0 KiB) | 1.1630431 s | 17.3219 ms | 18.4653 ms | 12.376 ms | 4497408 B (4.29 MiB) |
+| [process-enum-payload (W)](../compiler/seed-c/fixtures/process-enum-payload.w) | Windows · no CRT | W | 3072 B (3.0 KiB) | 254.5183 ms | 16.5658 ms | 18.2645 ms | 11.912 ms | 3772416 B (3.60 MiB) |
+| [process-arguments-count (C)](./executable/process_arguments_count.c) | Windows · CRT | C | 9216 B (9.0 KiB) | 138.2289 ms | 18.0142 ms | 19.327 ms | 13.459 ms | 4820992 B (4.60 MiB) |
+| [process-arguments-count (Rust)](./executable/process_arguments_count.rs) | Windows · CRT | Rust | 116224 B (113.5 KiB) | 1.1620732 s | 18.2839 ms | 19.2817 ms | 13.459 ms | 4878336 B (4.65 MiB) |
+| [process-arguments-count (W)](../compiler/seed-c/fixtures/process-arguments-count.w) | Windows · no CRT | W | 3072 B (3.0 KiB) | 241.1177 ms | 16.9309 ms | 17.7595 ms | 14.077 ms | 3772416 B (3.60 MiB) |
+| [process-arguments-ordering (C)](./executable/process_arguments_ordering.c) | Windows · CRT | C | 9216 B (9.0 KiB) | 140.64 ms | 17.9715 ms | 19.4399 ms | 14.077 ms | 4845568 B (4.62 MiB) |
+| [process-arguments-ordering (Rust)](./executable/process_arguments_ordering.rs) | Windows · CRT | Rust | 116224 B (113.5 KiB) | 1.1626488 s | 18.3843 ms | 19.6057 ms | 13.923 ms | 4890624 B (4.66 MiB) |
+| [process-arguments-ordering (W)](../compiler/seed-c/fixtures/process-arguments-ordering.w) | Windows · no CRT | W | 3072 B (3.0 KiB) | 246.3939 ms | 16.6067 ms | 17.1 ms | 11.602 ms | 3772416 B (3.60 MiB) |
 | [process-handler-lifecycle (C)](./executable/process_entry0.c) | Windows · CRT · private | C | 20480 B (20.0 KiB) | 994.2651 ms | 17.9129 ms | 18.9302 ms | 12.685 ms | 4751360 B (4.53 MiB) |
 | [process-handler-lifecycle (Rust)](./executable/process_entry0.rs) | Windows · CRT · private | Rust | 21504 B (21.0 KiB) | 1.0045717 s | 17.93 ms | 18.2697 ms | 11.757 ms | 4751360 B (4.53 MiB) |
 | [process-handler-lifecycle (W)](../compiler/seed-c/fixtures/process-entry0.w) | Windows · CRT · private | W | 20992 B (20.5 KiB) | 1.0382448 s | 17.7365 ms | 18.0686 ms | 13.613 ms | 4751360 B (4.53 MiB) |
@@ -119,7 +148,7 @@ The timer covers lane runs, result validation, catalog update, and catalog/docum
 
 | Example | System / lane | Language | Binary | Compile p50 | Execution p50 | Execution p95 | CPU mean | Peak memory |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| [local-module-graph (W)](../compiler/seed-c/fixtures/local-graph/app.w) | Not measured | — | — | — | — | — | — | — |
+| [local-module-graph (W)](../compiler/seed-c/fixtures/local-graph/app.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 228.1657 ms | 16.4417 ms | 17.3552 ms | 12.995 ms | 3764224 B (3.59 MiB) |
 
 ## Reading the measurements
 

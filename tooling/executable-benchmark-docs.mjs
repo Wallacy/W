@@ -240,7 +240,7 @@ function measurementRow(group, workload) {
 }
 
 function formatSuiteDuration(milliseconds) {
-  const wholeSeconds = Math.floor(milliseconds / 1000);
+  const wholeSeconds = Math.round(milliseconds / 1000);
   const hours = Math.floor(wholeSeconds / 3600);
   const minutes = Math.floor((wholeSeconds % 3600) / 60);
   const seconds = wholeSeconds % 60;
