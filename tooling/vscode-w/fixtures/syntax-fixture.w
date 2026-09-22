@@ -1,5 +1,5 @@
 /// Fixture lexical da superfície integrada. Não é um programa executável.
-module restaurant<
+module syntaxFixture<
   domains: [
     .concurrent(.compute, maximum: 4, capabilities: [.parallel]),
   ],

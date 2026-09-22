@@ -42,7 +42,7 @@ function text(bytes) {
   return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
 }
 
-const CORRECTNESS_WORKLOAD_IDS = Object.freeze(["hello", "restaurant-branch"]);
+const CORRECTNESS_WORKLOAD_IDS = Object.freeze(["hello", "branch"]);
 
 function workloadFor(id) {
   const workload = documents.catalog.workloads.find((item) => item.id === id);

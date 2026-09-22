@@ -189,7 +189,7 @@
       "runner": "staged-w.exe",
       "fixtures": [
         "compiler/seed-c/fixtures/hlo0-hello.w",
-        "compiler/seed-c/fixtures/restaurant-if.w"
+        "compiler/seed-c/fixtures/if.w"
       ],
       "fixtureSha256": "required-content-sha256-read-before-staged-run",
       "stdout": "exact-bytes",

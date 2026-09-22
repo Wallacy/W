@@ -794,7 +794,7 @@ const w1522SourceRefs = [
   ["compiler/seed-c/cli/run.c", "run_logical_source_id"],
   ["tooling/check-mlir0.mjs", "const products = ["],
   ["tooling/check-w-run.mjs", "const expectedHelp ="],
-  ["compiler/seed-c/fixtures/restaurant-linear.w", "serve"],
+  ["compiler/seed-c/fixtures/linear.w", "serve"],
 ];
 if (!w1522 || w1522.category !== "source-backed-current" || !w1520Case ||
     !(w1520Case.decisions ?? []).includes("W-1522")) {

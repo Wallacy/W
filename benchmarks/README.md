@@ -30,9 +30,8 @@ correctness have been established independently.
 [`executable-catalog.json`](executable-catalog.json) is the machine-readable
 catalog of executable workloads. It keeps stable IDs for `hello`,
 `process-entry`, `process-enum-payload`, `process-arguments-count`,
-`process-handler-lifecycle`, current family witnesses (including older
-`restaurant-*` identifiers), and the future full Last Light language-tour
-composition. [`EXECUTABLES.md`](EXECUTABLES.md) is the
+`process-handler-lifecycle`, current capability-family witnesses, and the
+future full Last Light language-tour composition. [`EXECUTABLES.md`](EXECUTABLES.md) is the
 generated compact inventory of the current rows and lanes; do not duplicate
 its changing counts in prose. Hello has W, C, and Rust sources. Family
 witnesses with independent C and Rust sources are verified against exact
@@ -44,21 +43,22 @@ oracle. The shared public artifact target is `x86_64-pc-windows-msvc` for W,
 Clang C, and Rust. Public C has no silent GCC or c2x fallback. The current Rust
 baseline uses edition 2024.
 
-Reserve `restaurant-*` identifiers and fixture names for executable examples
-that actually participate in Last Light lore or its eventual single-module
-language tour. New isolated compiler and benchmark witnesses use neutral
-capability names.
-Existing misnamed `restaurant-*` sources stay in place until their family is
-touched; migrate or consolidate them opportunistically, not in a mass rename.
-An older prefix alone is not evidence that a workload participates in Last
-Light lore.
+Use neutral capability names for isolated compiler and benchmark examples.
+Reserve Last Light product names for sources that participate in that narrative
+and live under `reference/last-light`; benchmark fixtures and catalog IDs use
+capability names. The former misnamed fixture and benchmark prefixes have been
+removed, with no compatibility aliases retained.
 
 Every new or materially changed executable example or benchmark reference must
 declare its expected exit code and literal stdout in a compact source comment.
 It must also declare expected stderr when stderr is non-empty. The catalog is
 the mechanical source of truth, and benchmark tests reject drift between these
-source comments, catalog oracles, and generated projections. Existing examples
-are migrated by family when touched; the backlog is not migrated in bulk.
+source comments, catalog oracles, and generated projections. Argument-dependent
+workloads declare every tested argv vector, exit code, and literal stdout in a
+compact case list; unchanged legacy sources without local comments remain
+validated against the catalog oracle. Some unchanged W fixtures still lack a
+source-local expectation marker; that comment coverage is tracked debt, not a
+reason to churn unrelated sources or relax the exact catalog-oracle gate.
 
 ```text
 // Expected exit: 0
@@ -69,7 +69,7 @@ are migrated by family when touched; the backlog is not migrated in bulk.
 Each commented output line represents that literal line plus `\n`; an empty
 line ends the block. Omit `Expected stderr` when stderr is empty.
 
-The `restaurant-float-strict` witness is `not-performance-ready`. W's current
+The `float-strict` witness is `not-performance-ready`. W's current
 Windows and WSL artifacts are compile-time-folded semantic/output witnesses,
 not algorithmically comparable runtime-float work. C and Rust retain binary32
 and binary64 runtime operations as independent correctness references. The
@@ -77,7 +77,7 @@ catalog excludes this
 workload from live best-metric derivation and equivalent-runtime ranking until
 runtime-equivalent W evidence exists.
 
-The `restaurant-numeric-widening` witness is likewise
+The `numeric-widening` witness is likewise
 `not-performance-ready`. It keeps the exact implicit integer-to-float and
 binary32-to-binary64 conversion family in one row across return, argument,
 binding, mixed arithmetic, mixed comparison, and explicit total-conversion
@@ -85,14 +85,14 @@ contexts. C23 and Rust 2024 retain runtime operands while the current W witness
 may fold the closed expression graph, so the row is correctness evidence only
 and publishes no cross-language ranking.
 
-The `restaurant-float-bit-representation` witness is also
+The `float-bit-representation` witness is also
 `not-performance-ready`. It checks exact f32/u32 and f64/u64 bit round trips
 for signed zero, infinity, and a quiet-NaN payload; focused compiler tests also
 cover subnormals and storage/copy preservation. W supplies foldable literal
 inputs while C23 and Rust 2024 retain runtime inputs. The benchmark is deferred
 until runtime work is equivalent and makes no timing or ranking claim.
 
-The `restaurant-checked-integer-arithmetic` witness is
+The `checked-integer-arithmetic` witness is
 `not-performance-ready`. It covers successful fixed-input checked ordinary and
 compound `+`, `-`, `*`, `/`, and `%` over signed and unsigned 8/16/32/64-bit
 integers and the current x86-64 `Int`/`UInt` aliases. Its single exact-output
@@ -104,7 +104,7 @@ equivalent runtime work. Fault behavior is checked only on the W Windows and
 Linux/WSL run gates; the C and Rust success references avoid zero divisors and
 signed minimum divided by negative one. This family has no performance ranking.
 
-The `restaurant-integer-wrapping` witness is `not-performance-ready`. Its
+The `integer-wrapping` witness is `not-performance-ready`. Its
 single fixed-input policy matrix covers signed and unsigned `i8`/`u8`,
 `i16`/`u16`, `i32`/`u32`, `i64`/`u64`, and the `Int`/`UInt` aliases with
 representative wrapping add, subtract, multiply, negate, power, and left-shift
@@ -114,7 +114,7 @@ W may fold these calls in the final artifact. The C23 and Rust 2024 references
 retain independent runtime operands. Runtime equivalence is not proven, so
 this workload has no performance ranking.
 
-The `restaurant-integer-comparison` witness is `not-performance-ready`. Its
+The `integer-comparison` witness is `not-performance-ready`. Its
 single fixed-input family covers `==`, `!=`, `<`, `<=`, `>`, and `>=` across
 signed and unsigned 8/16/32/64-bit integers and the current x86-64 `Int`/`UInt`
 aliases, plus one `u8`-to-`i16` widening call before a signed comparison. The
@@ -125,27 +125,40 @@ performance ranking.
 
 The public catalog keeps one dense benchmark per semantic family. Focused W
 fixtures still gate individual operations, widths, and failure paths, but they
-do not create separate C/Rust comparison rows. A family row must exercise
-enough related work to expose implementation differences while preserving the
-same algorithm, inputs, output, and observable policy in every language.
+do not create separate C/Rust comparison rows. Each family witness should cover
+the broadest coherent set of currently executable syntax and resources for its
+capability, rather than being constrained by source length. Preserve the same
+algorithm, inputs, output, and observable policy in each language. `scope`
+describes the behavior actually exercised by that witness; `blockers` and
+`blockedLanguages` describe measurement or equivalence barriers. Separate
+coverage inventories track selected design separately from native-exercised
+behavior. A source-backed witness proves only its listed cases: ready means
+that this witness is runnable, not that the design or language is complete.
 
-The `restaurant-uint-bitwise` witness is the representative family executable:
+`hello-platform-minimal` is registered and runner-supported for contextual,
+non-ranking measurement; the catalog status does not make it an idiomatic
+comparison or a language ranking. Its source/oracle registration is not
+evidence that a run has occurred. Until execution cells are published, the
+generated projection marks it `not measured`; `demoEvidence: not-run` remains
+distinct from source/oracle registration.
+
+The `uint-bitwise` witness is the representative family executable:
 it covers complement, binary bitwise operations, population counts, and
 leading/trailing zero counts including zero. Focused W fixtures retain
 bit/byte reversal and rotation correctness without separate benchmark rows.
 The neutral `integer-shift-semantics` witness combines checked ordinary shifts
 with masked left/right and logical-right policies across signed and unsigned
 8/16/32/64-bit integers, plus the current x86-64 `Int`/`UInt` aliases for the
-ordinary operations. The older `restaurant-shifts.w` and
+ordinary operations. The older `shifts.w` and
 `fixed-integer-shift-policies.w` sources remain focused compiler fixtures, not
 public benchmark rows. The C23 and Rust 2024 references are correctness oracles
 only. The bounded native route does not yet execute the combined W source, and
 the separately proven W operations may fold literal inputs, so
 runtime-equivalent ranking remains deferred.
 
-The `restaurant-uint-overflowing-family` witness covers add, subtract,
+The `uint-overflowing-family` witness covers add, subtract,
 multiply, negate, and power while printing both wrapped low bits and overflow
-flags. The `restaurant-uint-saturating-policy` witness covers the same five
+flags. The `uint-saturating-policy` witness covers the same five
 operations with zero and `UInt.max` boundaries.
 
 All three family rows are `not-performance-ready`: W may fold their fixed
@@ -209,8 +222,8 @@ and timing are currently public `w build` candidate evidence; runtime CPU now
 covers the Job tree while compile CPU/memory remains direct-process evidence.
 Recorded measurement evidence is `exploratory`,
 `measurement-only`, and `not-evaluated`; it is not a correctness gate. Hello,
-Restaurant branch, natural loop, closed enum switch, bounded same-module
-product closure, public process entry, and public process enum-payload are
+branch, natural loop, closed enum switch, bounded same-module product closure,
+public process entry, and public process enum-payload are
 `exploratory-ready`: each has
 equivalent W/C/Rust sources, an exact oracle, and the native runtime
 process-tree route. Published cells remain optional evidence rather than the
@@ -249,7 +262,7 @@ Each workload declares one machine-checked `structureClass`. `public-end-to-end`
 identifies a user-visible workload and its complete executable path.
 `integration-linkage` identifies a composite that links implementation pieces
 for integration evidence. `transient-internal` identifies an ephemeral
-execution descriptor or implementation witness. Hello, Restaurant,
+execution descriptor or implementation witness. Hello, `branch`,
 `process-entry`, `process-enum-payload`, and `process-arguments-count` workloads
 use `public-end-to-end`.
 `process-handler-lifecycle` uses `integration-linkage`,
@@ -335,11 +348,22 @@ claimed until a validated measurement runs.
 
 The `process-enum-payload` workload is the public end-to-end process composition
 witness. Invoke the same runner with `--target process-enum-payload`; correctness
-covers no arguments, one empty argument, and one payload argument before timing,
-while only `[payload]` is timed. Its exact oracle is `enum-missing true\n` with
-exit `7` for no arguments and `enum-received false\n` with exit `0` for either
-argument case, always with empty stderr. Runtime input flows through functions,
-enum payloads, branches, and interpolation; scalar replacement is permitted.
+covers no arguments, one empty argument, two ordinary arguments, and three
+ordinary arguments before timing, while `[alpha, beta, gamma]` is timed. The
+exact oracle reports `arguments-missing count=0 amount=17 over-limit=false\n`
+with exit `7` for no arguments; the other cases report `arguments-present`, the
+argument count, payload amount, and over-limit flag with exit `0`. Stderr is
+empty for all cases. Runtime input flows through functions, enum payloads,
+branches, and interpolation; scalar replacement is permitted.
+
+#### Public process-arguments-ordering executable measurements
+
+The `process-arguments-ordering` workload selects compact or extended argument
+mode. Correctness covers zero arguments, one empty argument, two ordinary
+arguments, and three ordinary arguments; `[alpha, beta, gamma]` is timed. Every
+case prints `Argument mode compact: count=N\n` for counts below two or
+`Argument mode extended: count=N\n` otherwise, exits `0`, and writes no
+stderr. W, C23, and Rust 2024 share the exact four-case oracle.
 
 #### Public process-arguments-count executable measurements
 
@@ -390,9 +414,9 @@ work. Published live cells are kept in [`EXECUTABLES.md`](EXECUTABLES.md);
 this README does not duplicate measured values. No result or number is claimed
 until a validated run exists.
 
-#### Restaurant enum-payload executable registration
+#### Enum-payload executable registration
 
-`restaurant-enum-payload` is a fixed-input, end-to-end executable witness, not
+`enum-payload` is a fixed-input, end-to-end executable witness, not
 an isolated enum-layout or dispatch microbenchmark. It constructs payloads,
 reorders named arguments and switch captures, and prints the exact
 `Bills 32/44/10/7\n` oracle. The C23 reference uses a tagged union and the Rust
@@ -402,7 +426,7 @@ recipes. Constant folding is allowed by this scope. A runtime-driven enum
 workload would be a separate future witness. Live measurements belong to
 [`EXECUTABLES.md`](EXECUTABLES.md), without an isolated dispatch ranking.
 
-`restaurant-enum-bool-payload` follows the same fixed-input end-to-end policy.
+`enum-bool-payload` follows the same fixed-input end-to-end policy.
 Its boolean and scalar payload variants, reordered named fields, and reordered
 captures are one executable contract with the exact
 `States true/false/false/true; charges 17/31; licensed true\n` oracle. The C23
@@ -410,16 +434,16 @@ tagged union and Rust 2024 enum preserve those inputs and results; this target
 does not claim a runtime-only enum-layout ranking. Live measurements belong to
 [`EXECUTABLES.md`](EXECUTABLES.md), without a timing or ranking claim here.
 
-#### Restaurant async-join executable registration
+#### Async-join executable registration
 
-`restaurant-async-join` launches two explicit `async fn` scalar calls, joins
+`async-join` launches two explicit `async fn` scalar calls, joins
 both results, and prints `Prepared 42\n`. The compiler proves an ordinary
 direct entry for each never-suspending body, so the physical Task carrier is
 erased. Its C23 and Rust 2024 references call the same scalar `prepare`
 function sequentially. The workload measures virtual structured-task elision
 overhead and does not claim overlap or concurrency.
 
-`restaurant-async-yield` advances that lifecycle lane through two finite root
+`async-yield` advances that lifecycle lane through two finite root
 `execution#yield()` points in each scalar child. Verified HIR keeps both
 suspension markers, then the closed product selects a legal immediate-resume
 schedule and erases the transient Task relation and both yields. C23 and Rust
@@ -436,7 +460,7 @@ product gate must be rerun after the source change. This remains a
 `compiler-lifecycle` workload with no concurrency, fairness, scheduler,
 overlap, or Linux claim.
 
-`restaurant-main-dispatch` is the first non-elidable physical Task witness.
+`main-dispatch` is the first non-elidable physical Task witness.
 Two `spawn<.main>` children preserve serial FIFO main-domain dispatch and print
 exact `Dispatched 88\n`. The current W cell measures the bounded public product
 only. C23 and Rust remain blocked until equivalent main-domain baselines exist,
@@ -444,7 +468,7 @@ so the row does not claim scheduler quality, parallelism, or cross-language
 performance ranking. Windows and Linux/WSL measurements are separate platform
 evidence and are never combined into one ranking.
 
-`restaurant-main-cardinality` exercises the current upper endpoint of that
+`main-cardinality` exercises the current upper endpoint of that
 seed route with four `spawn<.main>` children, lexical joins, and exact
 `Dispatched 92\n`. The implementation ceiling of four is caller-owned bounded
 storage, not a language limit or runtime ABI. The public `w run`/`w build`
@@ -496,13 +520,35 @@ consume the local result.
 
 The supported path runs the oracle, one discarded runtime warmup, nine
 fresh-process compile samples, 101 fresh-process runtime samples, artifact
-inspection, and cleanup:
+inspection, and cleanup. The reproducible full-catalog wrapper runs eligible
+Windows lanes serially, plus all six contextual `hello-platform-minimal`
+Windows/WSL W/C/Rust lanes. It keeps the runner's full default sample counts,
+validates every result, updates the catalog once, and publishes only a latest
+successful-suite receipt. A missing WSL/toolchain or failed lane aborts without
+publishing a success receipt. WSL remains host-specific diagnostic evidence and
+is never pooled with Windows. The suite receipt preserves each lane's observed
+toolchain identity, recipe, and toolchain provenance digest; compiler versions
+may differ by lane. It does not automatically change `demoEvidence`.
+
+```powershell
+bun tooling/executable-benchmark-suite.mjs
+```
+
+`--platform windows-x64` and `--platform linux-wsl-x64` are optional filtered
+runs; their receipts and generated summary are explicitly marked filtered, not
+full-suite. The timer includes lane build/run, result validation, catalog
+update, and catalog/documentation checks. It excludes the final receipt and
+projection write to avoid self-referential timing. Measure this full tier
+before proposing any distinct faster CI tier; do not reduce samples in the
+full-suite command.
+
+For an individual lane, the supported runner path is:
 
 ```powershell
 bun benchmark list
-bun benchmark run --target restaurant-enum-switch --language w --output benchmarks/results/enum-w.local.json
-bun benchmark run --target restaurant-enum-switch --language c --output benchmarks/results/enum-c.local.json
-bun benchmark run --target restaurant-enum-switch --language rust --output benchmarks/results/enum-rust.local.json
+bun benchmark run --target enum-switch --language w --output benchmarks/results/enum-w.local.json
+bun benchmark run --target enum-switch --language c --output benchmarks/results/enum-c.local.json
+bun benchmark run --target enum-switch --language rust --output benchmarks/results/enum-rust.local.json
 bun benchmark update benchmarks/results/enum-w.local.json benchmarks/results/enum-c.local.json benchmarks/results/enum-rust.local.json
 bun benchmark check
 ```
@@ -513,17 +559,17 @@ run the same source-to-PE route:
 ```powershell
 bun tooling/build-w-windows.mjs --profile release
 New-Item -ItemType Directory -Force build/manual-benchmark | Out-Null
-build/w-windows/w.exe build benchmarks/executable/restaurant-enum.w --target x86_64-pc-windows-msvc --output build/manual-benchmark/restaurant-enum-w.exe
-& build/manual-benchmark/restaurant-enum-w.exe
+build/w-windows/w.exe build benchmarks/executable/enum.w --target x86_64-pc-windows-msvc --output build/manual-benchmark/enum-w.exe
+& build/manual-benchmark/enum-w.exe
 ```
 
 The equivalent portable comparison recipes are:
 
 ```powershell
-clang -std=c23 -O3 -flto=full -ffunction-sections -fdata-sections -fuse-ld=lld -fms-runtime-lib=dll -Wl,/Brepro -Wl,/OPT:REF -Wl,/OPT:ICF -Wl,/INCREMENTAL:NO -Wl,/DEBUG:NONE benchmarks/executable/restaurant_enum.c -o build/manual-benchmark/restaurant-enum-c.exe
-& build/manual-benchmark/restaurant-enum-c.exe
-rustc benchmarks/executable/restaurant_enum.rs --edition=2024 -C opt-level=3 -C lto=fat -C codegen-units=1 -C panic=abort -C debuginfo=0 -C strip=symbols -C link-dead-code=no -C link-arg=/OPT:REF -C link-arg=/OPT:ICF -C link-arg=/INCREMENTAL:NO -C link-arg=/DEBUG:NONE --target=x86_64-pc-windows-msvc -o build/manual-benchmark/restaurant-enum-rust.exe
-& build/manual-benchmark/restaurant-enum-rust.exe
+clang -std=c23 -O3 -flto=full -ffunction-sections -fdata-sections -fuse-ld=lld -fms-runtime-lib=dll -Wl,/Brepro -Wl,/OPT:REF -Wl,/OPT:ICF -Wl,/INCREMENTAL:NO -Wl,/DEBUG:NONE benchmarks/executable/enum.c -o build/manual-benchmark/enum-c.exe
+& build/manual-benchmark/enum-c.exe
+rustc benchmarks/executable/enum.rs --edition=2024 -C opt-level=3 -C lto=fat -C codegen-units=1 -C panic=abort -C debuginfo=0 -C strip=symbols -C link-dead-code=no -C link-arg=/OPT:REF -C link-arg=/OPT:ICF -C link-arg=/INCREMENTAL:NO -C link-arg=/DEBUG:NONE --target=x86_64-pc-windows-msvc -o build/manual-benchmark/enum-rust.exe
+& build/manual-benchmark/enum-rust.exe
 Remove-Item -LiteralPath build/manual-benchmark -Recurse -Force
 ```
 
@@ -621,10 +667,10 @@ track não compara os três profiles de source.
 No compiler lifecycle, C/Clang e Rust são baselines contextuais e non-ranking.
 A regressão primária futura usa W histórico com recipe equivalente.
 
-O corpus mantém `benchmark_app.w` como matriz source-backed para futuros
-workloads de composition do Restaurant. Essa matriz é blocked por
-runtime/provider. Ela não cria três variantes artificiais do app e não é o
-workload do runner BMD1.
+The corpus keeps `benchmark_app.w` as a source-backed matrix for future full
+product-composition workloads. That matrix is blocked by runtime/provider
+support. It does not create three artificial app variants and is not the BMD1
+runner workload.
 
 ## Runner BMD1 e comparação BMD2
 

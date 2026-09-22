@@ -1808,7 +1808,7 @@
           "expectedDifference": "A template can contain the canonical bytes, but it does not establish that the W source produced the validated HLO0 plan."
         },
         {
-          "name": "restaurant-substring-witness",
+          "name": "substring-witness",
           "language": "w-adversarial",
           "source": [
             "fn main() { noop(\"Other\") } // print(\"Hello, world!\")",
@@ -2638,7 +2638,7 @@
           "claim": "The unit proves retained multiplication, no precomputed payload, capacity transactions, and semantic barriers."
         },
         {
-          "path": "compiler/seed-c/fixtures/restaurant-interpolation.w",
+          "path": "compiler/seed-c/fixtures/interpolation.w",
           "symbol": "print(\"Table ${6 * 7} remains open\")",
           "claim": "The Restaurant witness drives native arithmetic and String interpolation."
         }
@@ -3074,7 +3074,7 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "symbol": "restaurant-if",
+          "symbol": "if",
           "claim": "The focal gate verifies typed i1 condition, both branches, one join, native output, and exact Restaurant stdout."
         },
         {
@@ -3301,7 +3301,7 @@
           "}",
           "fn main() { serve(isOpen: true, isKitchen: true) serve(isOpen: true, isKitchen: false) serve(isOpen: false, isKitchen: true) serve(isOpen: false, isKitchen: false) }",
           "entry(main)",
-          "fixture: compiler/seed-c/fixtures/restaurant-nested-if.w",
+          "fixture: compiler/seed-c/fixtures/nested-if.w",
           "stdout bytes: four Boolean combinations plus one post-join line per call"
         ]
       },
@@ -3353,12 +3353,12 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "symbol": "restaurant-nested-if",
+          "symbol": "nested-if",
           "claim": "The MLIR0 gate verifies, translates, links, and executes the nested Restaurant fixture with exact four-case stdout."
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "symbol": "restaurant-nested-if",
+          "symbol": "nested-if",
           "claim": "The public runner executes the nested Restaurant fixture through the verified native route with exact stdout."
         }
       ],
@@ -3443,18 +3443,18 @@
           "claim": "Contextual comparison types and prior bindings preserve dry/emit counts and capacity failure boundaries."
         },
         {
-          "path": "compiler/seed-c/fixtures/restaurant-comparisons.w",
+          "path": "compiler/seed-c/fixtures/comparisons.w",
           "symbol": "admit",
           "claim": "The source compares party size with available seats and prints admission results."
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "symbol": "restaurant-comparison-composition",
+          "symbol": "comparison-composition",
           "claim": "The Linux gate checks signed boundaries, Bool composition, exact stdout, and rejected types."
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "symbol": "restaurant-comparison-composition",
+          "symbol": "comparison-composition",
           "claim": "The Windows gate checks the same bounded native comparison behavior."
         }
       ],
@@ -3540,18 +3540,18 @@
           "claim": "MLIR units inspect nested labels, incoming block arguments, llvm.xor, and RHS call placement."
         },
         {
-          "path": "compiler/seed-c/fixtures/restaurant-bool-short-circuit.w",
+          "path": "compiler/seed-c/fixtures/bool-short-circuit.w",
           "symbol": "allowed",
           "claim": "The Restaurant witness observes that the closed path skips capacity checking and the open path skips the override call."
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "symbol": "restaurantBoolShortCircuitFixture",
+          "symbol": "boolShortCircuitFixture",
           "claim": "The Linux gate checks exact short-circuit stdout through the public native route."
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "symbol": "restaurantBoolShortCircuitFixture",
+          "symbol": "boolShortCircuitFixture",
           "claim": "The Windows gate checks the same exact short-circuit stdout through the native Windows route."
         }
       ],
@@ -3650,13 +3650,13 @@
           "claim": "HIR tests reject forged result type, logical mode, incoming owner/ordinal/type, join target, block argument range/type and read location transactionally."
         },
         {
-          "path": "compiler/seed-c/fixtures/restaurant-scalar-if.w",
+          "path": "compiler/seed-c/fixtures/scalar-if.w",
           "symbol": "serve",
           "claim": "The Restaurant witness invokes both Bool directions and prints Open 5; closed 2 with a single selected scalar arm."
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "symbol": "restaurantScalarIfFixture",
+          "symbol": "scalarIfFixture",
           "claim": "The public Windows gate checks the exact scalar-if stdout through the native Release route."
         }
       ],
@@ -3784,13 +3784,13 @@
           "claim": "Native0 tests execute the nested Restaurant witness and reject a forged outer branch target."
         },
         {
-          "path": "compiler/seed-c/fixtures/restaurant-nested-scalar-if.w",
+          "path": "compiler/seed-c/fixtures/nested-scalar-if.w",
           "symbol": "choose",
           "claim": "The Restaurant witness executes outer-true/inner-true, outer-true/inner-false and outer-false paths and prints 1,2,3."
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "symbol": "restaurant-nested-scalar-if",
+          "symbol": "nested-scalar-if",
           "claim": "The MLIR0 gate checks exact 1,2,3\\n output, empty stderr, exit zero, dynamic calls and nested typed CFG."
         }
       ],
@@ -4020,7 +4020,7 @@
           "claim": "The canonical Hello source uses the short default entry."
         },
         {
-          "path": "compiler/seed-c/fixtures/restaurant-checked-arithmetic.w",
+          "path": "compiler/seed-c/fixtures/checked-arithmetic.w",
           "symbol": "entry",
           "claim": "The Restaurant checked-arithmetic source uses the short default entry."
         },
@@ -4714,7 +4714,7 @@
       ],
       "sourceRefs": [
         {
-          "path": "compiler/seed-c/fixtures/restaurant-integer-comparison.w",
+          "path": "compiler/seed-c/fixtures/integer-comparison.w",
           "symbol": "Expected stdout",
           "claim": "One public family witness declares exact output for all six predicates and supported integer spellings."
         },
@@ -4730,7 +4730,7 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "symbol": "restaurant-integer-comparison",
+          "symbol": "integer-comparison",
           "claim": "The MLIR gate verifies, links, executes, and compares exact family output."
         }
       ],
@@ -4801,7 +4801,7 @@
       ],
       "sourceRefs": [
         {
-          "path": "compiler/seed-c/fixtures/restaurant-checked-integer-arithmetic.w",
+          "path": "compiler/seed-c/fixtures/checked-integer-arithmetic.w",
           "symbol": "Expected stdout",
           "claim": "One public Restaurant family witness declares exact output for all signed and unsigned 8/16/32/64-bit forms and the current Int/UInt aliases."
         },
@@ -4822,12 +4822,12 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "symbol": "restaurant-checked-integer-arithmetic",
+          "symbol": "checked-integer-arithmetic",
           "claim": "The MLIR gate proves exact family output, width-aware helper lowering, and runtime fault paths with empty stdout and stderr."
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "symbol": "restaurantCheckedIntegerArithmeticFixture",
+          "symbol": "checkedIntegerArithmeticFixture",
           "claim": "The native Windows public runner executes the same checked family and fault witnesses."
         }
       ],
@@ -4959,18 +4959,18 @@
           "claim": "Focused NativeSubset0 tests cover checked signed negation and width-preserving complement selection."
         },
         {
-          "path": "compiler/seed-c/fixtures/restaurant-integer-prefix.w",
+          "path": "compiler/seed-c/fixtures/integer-prefix.w",
           "symbol": "Expected stdout",
           "claim": "The combined family fixture declares exact output across supported integer widths, aliases and prefix operators."
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "symbol": "restaurant-integer-prefix",
+          "symbol": "integer-prefix",
           "claim": "The Linux/WSL route exercises exact family output and logical-minimum fault-before-output."
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "symbol": "restaurantIntegerPrefixFixture",
+          "symbol": "integerPrefixFixture",
           "claim": "The public Windows route exercises exact family output and logical-minimum fault-before-output."
         }
       ],
@@ -5047,18 +5047,18 @@
           "claim": "Verified HIR retains the explicit literal, unary operation and interpolation value segment."
         },
         {
-          "path": "compiler/seed-c/fixtures/restaurant-integer-prefix.w",
+          "path": "compiler/seed-c/fixtures/integer-prefix.w",
           "symbol": "entry",
           "claim": "The combined family witness retains direct interpolation of an unsuffixed prefix-negative literal."
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "symbol": "restaurant-integer-prefix",
+          "symbol": "integer-prefix",
           "claim": "The Linux/WSL native route executes the family fixture with direct literal interpolation."
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "symbol": "restaurantIntegerPrefixFixture",
+          "symbol": "integerPrefixFixture",
           "claim": "The Windows public route executes the same family fixture with direct literal interpolation."
         }
       ],
@@ -5144,13 +5144,13 @@
           "claim": "MLIR tests prove checked arithmetic and absence of a source-variable alloca."
         },
         {
-          "path": "compiler/seed-c/fixtures/restaurant-mutation.w",
+          "path": "compiler/seed-c/fixtures/mutation.w",
           "symbol": "entry",
           "claim": "The public Restaurant witness mutates one local and prints its latest version."
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "symbol": "restaurantMutationFixture",
+          "symbol": "mutationFixture",
           "claim": "The native Windows public runner executes the same source witness."
         }
       ],
@@ -5218,18 +5218,18 @@
           "claim": "MLIR tests prove the typed diamond and absence of a source-variable alloca."
         },
         {
-          "path": "compiler/seed-c/fixtures/restaurant-conditional-mutation.w",
+          "path": "compiler/seed-c/fixtures/conditional-mutation.w",
           "symbol": "nextSeats",
           "claim": "The public Restaurant witness exercises both conditional outcomes."
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "symbol": "restaurantConditionalMutationFixture",
+          "symbol": "conditionalMutationFixture",
           "claim": "The Linux/WSL public runner executes the same source witness."
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "symbol": "restaurantConditionalMutationFixture",
+          "symbol": "conditionalMutationFixture",
           "claim": "The native Windows public runner executes the same source witness."
         }
       ],
@@ -5290,18 +5290,18 @@
           "claim": "MLIR tests prove direct i1 return and no source-variable alloca."
         },
         {
-          "path": "compiler/seed-c/fixtures/restaurant-bool-mutation.w",
+          "path": "compiler/seed-c/fixtures/bool-mutation.w",
           "symbol": "availability",
           "claim": "The public Restaurant witness executes true and false replacements."
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "symbol": "restaurantBoolMutationFixture",
+          "symbol": "boolMutationFixture",
           "claim": "The Linux/WSL public runner executes exact Boolean output."
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "symbol": "restaurantBoolMutationFixture",
+          "symbol": "boolMutationFixture",
           "claim": "The native Windows public runner executes the same witness."
         }
       ],
@@ -5372,18 +5372,18 @@
           "claim": "MLIR tests prove the typed diamond, direct join return, and no source-variable alloca."
         },
         {
-          "path": "compiler/seed-c/fixtures/restaurant-branch-mutation.w",
+          "path": "compiler/seed-c/fixtures/branch-mutation.w",
           "symbol": "nextSeats",
           "claim": "The public Restaurant witness executes both branch assignments."
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "symbol": "restaurantBranchMutationFixture",
+          "symbol": "branchMutationFixture",
           "claim": "The Linux/WSL public runner executes exact joined output."
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "symbol": "restaurantBranchMutationFixture",
+          "symbol": "branchMutationFixture",
           "claim": "The native Windows public runner executes the same witness."
         }
       ],
@@ -5456,23 +5456,23 @@
           "claim": "MLIR tests prove two typed join parameters, two typed branch operands, direct return, and no alloca."
         },
         {
-          "path": "compiler/seed-c/fixtures/restaurant-branch-mutation-multi.w",
+          "path": "compiler/seed-c/fixtures/branch-mutation-multi.w",
           "symbol": "nextState",
           "claim": "The Restaurant witness mutates two roots in opposite arm order and consumes both after the join."
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "symbol": "restaurantMultiBranchMutationFixture",
+          "symbol": "multiBranchMutationFixture",
           "claim": "The MLIR gate checks the two-parameter join and typed two-operand branches."
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "symbol": "restaurantMultiBranchMutationFixture",
+          "symbol": "multiBranchMutationFixture",
           "claim": "The Linux/WSL public runner executes exact joined output."
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "symbol": "restaurantMultiBranchMutationFixture",
+          "symbol": "multiBranchMutationFixture",
           "claim": "The native Windows public runner executes the same witness."
         }
       ],
@@ -5662,17 +5662,17 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "symbol": "restaurantWhileFixture",
+          "symbol": "whileFixture",
           "claim": "The MLIR gate observes structured operations before conversion, CFG afterward, exact native output, and fail-closed unsupported input."
         },
       {
         "path": "tooling/check-w-run.mjs",
-        "symbol": "restaurantWhileFixture",
+        "symbol": "whileFixture",
         "claim": "The public Linux/WSL w run route executes the Restaurant loop with exact output."
       },
       {
         "path": "tooling/check-w-run-windows.mjs",
-        "symbol": "restaurantWhileFixture",
+        "symbol": "whileFixture",
         "claim": "The pinned native Windows 23.1.1 route executes the same Restaurant loop with exact output."
       }
       ],
@@ -5752,18 +5752,18 @@
           "claim": "MLIR0 emits an ordered tuple-valued scf.while while preserving source-order body evaluation."
         },
         {
-          "path": "compiler/seed-c/fixtures/restaurant-while-multi.w",
+          "path": "compiler/seed-c/fixtures/while-multi.w",
           "symbol": "serve",
           "claim": "The public Restaurant fixture carries two roots and prints their combined result."
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "symbol": "restaurantWhileMultiFixture",
+          "symbol": "whileMultiFixture",
           "claim": "The Linux/WSL route executes the exact multi-carrier fixture and oracle."
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "symbol": "restaurantWhileMultiFixture",
+          "symbol": "whileMultiFixture",
           "claim": "The native Windows route executes the same exact fixture and oracle."
         }
       ],
@@ -5883,18 +5883,18 @@
           "claim": "Focused Native0 tests execute the fixture and reject forged continuation metadata and unsupported post-loop forms."
         },
         {
-          "path": "compiler/seed-c/fixtures/restaurant-while-post.w",
+          "path": "compiler/seed-c/fixtures/while-post.w",
           "symbol": "settle",
           "claim": "The public fixture uses one post-loop total assignment and prints Final 9."
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "symbol": "restaurantWhilePostFixture",
+          "symbol": "whilePostFixture",
           "claim": "The Linux/WSL route executes the exact post-loop fixture and Final 9 oracle."
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "symbol": "restaurantWhilePostFixture",
+          "symbol": "whilePostFixture",
           "claim": "The native Windows route executes the same post-loop fixture and Final 9 oracle."
         }
       ],
@@ -5970,7 +5970,7 @@
         "HIR verification preserves nominal type identity, dense lexical tags, VALUE_COPY/NONE lifecycle, and local case values",
         "forged enum, case, value, capacity, alias, or digest relations fail closed",
         "Native0 reaches verified HIR and stops UNSUPPORTED before MLIR",
-        "restaurant-enum.w remains a future switch target and supplies no execution evidence"
+        "enum.w remains a future switch target and supplies no execution evidence"
       ],
       "measures": [
         "semantic-correctness",
@@ -6055,8 +6055,8 @@
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "symbol": "restaurantEnumFixture",
-          "claim": "The pinned Windows 23.1.1 gate executes restaurant-enum.w with exact output, empty stderr, and zero exit."
+          "symbol": "enumFixture",
+          "claim": "The pinned Windows 23.1.1 gate executes enum.w with exact output, empty stderr, and zero exit."
         }
       ],
       "checks": [
@@ -6111,7 +6111,7 @@
           "name": "fixture-name-output-shortcut",
           "language": "text",
           "source": [
-            "recognize restaurant-wmo.w and write Bill 42 directly"
+            "recognize wmo.w and write Bill 42 directly"
           ],
           "expectedDifference": "The selected route retains the verified local bill callee and executes its lowered addition."
         },
@@ -6137,17 +6137,17 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "symbol": "restaurantWmoFixture",
+          "symbol": "wmoFixture",
           "claim": "The MLIR gate proves the used local helper is retained while unused functions, text, and checked-divide support are omitted."
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "symbol": "restaurantWmoFixture",
+          "symbol": "wmoFixture",
           "claim": "The pinned Windows native gate executes the same-module product closure with exact output."
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "symbol": "restaurantWmoFixture",
+          "symbol": "wmoFixture",
           "claim": "The Linux/WSL native gate executes the same source with exact output."
         }
       ],
@@ -6433,18 +6433,18 @@
           "claim": "Focused Native0 tests cover the subset witness and forged member or edge rejection."
         },
         {
-          "path": "compiler/seed-c/fixtures/restaurant-enum-subset.w",
+          "path": "compiler/seed-c/fixtures/enum-subset.w",
           "symbol": "label",
           "claim": "The public subset fixture uses reversed source arm order and prints Work 1/2."
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "symbol": "restaurantEnumSubsetFixture",
+          "symbol": "enumSubsetFixture",
           "claim": "The Linux/WSL route is the acceptance target for the same subset source and oracle."
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "symbol": "restaurantEnumSubsetFixture",
+          "symbol": "enumSubsetFixture",
           "claim": "The native Windows route is the acceptance target for the same subset source and oracle."
         }
       ],
@@ -6759,18 +6759,18 @@
           "claim": "MLIR17 emits structured scf.while with a true initial Bool carrier and no source-variable alloca."
         },
         {
-          "path": "compiler/seed-c/fixtures/restaurant-repeat.w",
+          "path": "compiler/seed-c/fixtures/repeat.w",
           "symbol": "receiptDigits",
           "claim": "The public witness computes zero and multidigit results through the same helper."
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "symbol": "restaurantRepeatFixture",
+          "symbol": "repeatFixture",
           "claim": "The Linux/WSL route builds a CRT-free ELF and executes the exact oracle."
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "symbol": "restaurantRepeatFixture",
+          "symbol": "repeatFixture",
           "claim": "The native Windows route builds a PE x64 artifact and executes the same oracle."
         }
       ],
@@ -7201,7 +7201,7 @@
           "claim": "Native lowering contains the ordinary scalar call and no Task-specific or WRT symbol."
         },
         {
-          "path": "compiler/seed-c/fixtures/restaurant-async-join.w",
+          "path": "compiler/seed-c/fixtures/async-join.w",
           "symbol": "async fn prepare",
           "claim": "The public Restaurant fixture exercises explicit async direct-entry Task erasure."
         }
@@ -7284,7 +7284,7 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "symbol": "restaurant-async-yield",
+          "symbol": "async-yield",
           "claim": "The product retains scalar work and the stage call while rejecting Task, async, yield, and WRT surface."
         },
         {
@@ -7377,7 +7377,7 @@
           "claim": "Focused tests verify the deterministic fixture, forged relations, and transactional capacity and alias boundaries."
         },
         {
-          "path": "compiler/seed-c/fixtures/restaurant-cooperative0.w",
+          "path": "compiler/seed-c/fixtures/cooperative0.w",
           "symbol": "async fn prepare",
           "claim": "The witness contains exactly two sibling scalar async launches with two yields each and exact Cooperative output."
         }
@@ -7632,7 +7632,7 @@
           "claim": "Focused tests prove two physical main dispatches, dual target leaves, and unchanged pure-async evidence."
         },
         {
-          "path": "compiler/seed-c/fixtures/restaurant-main-dispatch0.w",
+          "path": "compiler/seed-c/fixtures/main-dispatch0.w",
           "symbol": "entry",
           "claim": "The source-backed witness launches two main-domain children and prints their joined value."
         },
@@ -7643,7 +7643,7 @@
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "symbol": "restaurantMainDispatchFixture",
+          "symbol": "mainDispatchFixture",
           "claim": "Public Windows w run and w build execute exact Dispatched 88 output."
         },
         {
@@ -7658,7 +7658,7 @@
         },
         {
           "path": "benchmarks/executable-catalog.json",
-          "symbol": "restaurant-main-dispatch",
+          "symbol": "main-dispatch",
           "claim": "The executable catalog owns the source, oracle, blockers, and live metric lane."
         },
         {
@@ -7783,7 +7783,7 @@
           "claim": "Negative tests reject k=5, reordered or orphan/duplicate joins, mixed launch kinds, and no-route sources."
         },
         {
-          "path": "compiler/seed-c/fixtures/restaurant-main-cardinality0.w",
+          "path": "compiler/seed-c/fixtures/main-cardinality0.w",
           "symbol": "entry",
           "claim": "The source-backed k=4 witness launches and lexically joins four main-domain children."
         },
@@ -10930,7 +10930,7 @@
           "frontend63 and HIR78 use one wrapping operation identity combined with canonical signedness and logical-width type facts",
           "NativeSubset0 and MLIR0 evaluate in one unsigned 64-bit bit domain, mask narrow results, and sign-extend only when a signed value is observed",
           "power uses exponentiation by squaring and shift-left rejects a count at or above the logical width",
-          "restaurant-integer-wrapping.w declares its expected exit/stdout and executes byte-identically through CRT-free Windows and Linux/WSL routes",
+          "integer-wrapping.w declares its expected exit/stdout and executes byte-identically through CRT-free Windows and Linux/WSL routes",
           "C23 and Rust 2024 sources independently prove exact output with runtime inputs; ranking stays blocked until W performs equivalent runtime work"
         ]
       },
@@ -11167,13 +11167,13 @@
           "claim": "MLIR55 normalizes source width, selects destination low bits and extends by destination signedness without runtime, heap or CRT helpers."
         },
         {
-          "path": "compiler/seed-c/fixtures/restaurant-integer-truncating-bits.w",
+          "path": "compiler/seed-c/fixtures/integer-truncating-bits.w",
           "symbol": "entry",
           "claim": "The family fixture declares and calls narrowing, widening, signedness-change and Int/UInt conversions with exact expected stdout."
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "symbol": "restaurant-integer-truncating-bits",
+          "symbol": "integer-truncating-bits",
           "claim": "The final-source MLIR0/Linux-WSL gate verifies lowering patterns and exact family output."
         },
         {
@@ -11260,7 +11260,7 @@
       ],
       "sourceRefs": [
         {
-          "path": "compiler/seed-c/fixtures/restaurant-integer-bitwise.w",
+          "path": "compiler/seed-c/fixtures/integer-bitwise.w",
           "symbol": "entry",
           "claim": "The source-local oracle declares exit 0 and 12 exact output lines: all ten fixed-width signed/unsigned and Int/UInt spellings, `Widened -13` from `i8 | i32 -> i32`, and `Mixed 255` from range-safe `u8 | i16 -> i16`."
         },
@@ -11311,7 +11311,7 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "symbol": "restaurant-integer-bitwise",
+          "symbol": "integer-bitwise",
           "claim": "The MLIR gate contains the exact family fixture oracle and checks direct lowering patterns; `bun check --target mlir0` passed on the final family fixture."
         },
         {
@@ -11484,7 +11484,7 @@
       ],
       "sourceRefs": [
         {
-          "path": "compiler/seed-c/fixtures/restaurant-integer-saturating-conversion.w",
+          "path": "compiler/seed-c/fixtures/integer-saturating-conversion.w",
           "symbol": "entry",
           "claim": "The compact family fixture owns exact exit/stdout for all four signedness quadrants at representative 16-to-8-bit boundaries plus the current x86-64 UInt-to-Int extreme."
         },
@@ -11510,7 +11510,7 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "symbol": "restaurant-integer-saturating-conversion",
+          "symbol": "integer-saturating-conversion",
           "claim": "The Linux/WSL MLIR gate validates the direct family route and exact output."
         },
         {
@@ -11595,7 +11595,7 @@
       ],
       "sourceRefs": [
         {
-          "path": "compiler/seed-c/fixtures/restaurant-float-strict.w",
+          "path": "compiler/seed-c/fixtures/float-strict.w",
           "symbol": "entry",
           "claim": "The width-neutral fixture owns exact output for strict binary32 and binary64 arithmetic, comparisons, signed zero, and runtime NaN."
         },
@@ -11621,7 +11621,7 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "symbol": "restaurant-float-strict",
+          "symbol": "float-strict",
           "claim": "The Linux/WSL MLIR gate validates both widths, every strict operation/predicate, and exact output."
         },
         {
@@ -11707,7 +11707,7 @@
       ],
       "sourceRefs": [
         {
-          "path": "compiler/seed-c/fixtures/restaurant-numeric-widening.w",
+          "path": "compiler/seed-c/fixtures/numeric-widening.w",
           "symbol": "entry",
           "claim": "The compact fixture owns exact output across return, call argument, binding, mixed arithmetic, mixed comparison, and explicit total-constructor contexts."
         },
@@ -11811,7 +11811,7 @@
       ],
       "sourceRefs": [
         {
-          "path": "compiler/seed-c/fixtures/restaurant-float-bit-representation.w",
+          "path": "compiler/seed-c/fixtures/float-bit-representation.w",
           "symbol": "entry",
           "claim": "The width-neutral witness owns exact output for f32/f64 negative zero, positive infinity, and quiet-NaN payload round trips."
         },

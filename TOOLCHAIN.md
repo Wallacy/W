@@ -120,7 +120,7 @@ The receipt is `receipt.json` with schema
 `w-seed-windows-build-receipt-1`. It uses stable key order and a final newline.
 It records local evidence only. It is not a package, budget, or performance proof.
 The builder reads each fixture before execution, records its SHA-256, and runs
-exact-byte `compiler/seed-c/fixtures/hlo0-hello.w` and `compiler/seed-c/fixtures/restaurant-if.w`
+exact-byte `compiler/seed-c/fixtures/hlo0-hello.w` and `compiler/seed-c/fixtures/if.w`
 smokes from the staged executable.
 
 The future release builder uses this route:

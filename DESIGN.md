@@ -36979,7 +36979,7 @@ W-1519 is `source-backed-current` for the first strictly bounded binding form.
 W-1528 replaces its byte-only HIR representation with typed initializer roots.
 W-1505 retains the narrow HLO0 recovery form.
 
-**Example:** the Restaurant witness declares one prior immutable binding:
+**Example:** the compiler witness declares one prior immutable binding:
 
 ```w
 fn serve() {
@@ -37142,7 +37142,7 @@ bounded built-in Bool and compile-time-known String values. In `w run`, the expl
 an opaque logical source identity, including a hyphen and the terminal `.w`; it
 is not required to be a W identifier or module name. The `w check` helper and
 `w_seed_check_root_source_id` are unchanged. This makes the versioned
-`hlo0-hello.w`, `restaurant-linear.w`, and `restaurant-interpolation.w`
+`hlo0-hello.w`, `linear.w`, and `interpolation.w`
 examples executable directly without
 changing the public argument grammar.
 
@@ -37177,7 +37177,7 @@ default: MLIR `--canonicalize --cse`, `llc -O3`, Linux direct-link `-s`, and
 native Windows LLD `/opt:ref /opt:icf /incremental:no`. No public profile option
 is exposed. `w build` retains only the caller-owned executable. This finite
 companion compiles the already supported seed subset, including
-`restaurant-if.w`, without changing language semantics. Separate compile/run
+`if.w`, without changing language semantics. Separate compile/run
 benchmarking remains a later benchmark-runner change.
 
 #### 26.4.1.6 W-1522 — bounded linear print sequence on direct verified HIR0 (Retained static form; adapter advanced by W-1528)
@@ -37221,7 +37221,7 @@ CFG, general SSA, DCE, general locals, general types, a W dialect, a general
 runtime, HLO0 as a requirement, or a performance claim.
 
 The canonical witness is
-`compiler/seed-c/fixtures/restaurant-linear.w`:
+`compiler/seed-c/fixtures/linear.w`:
 
 ```w
 fn serve() {
@@ -37379,7 +37379,7 @@ bytes. Measure and emit remain caller-owned, no-heap, deterministic,
 digest-bearing, alias-safe, and all-or-nothing.
 
 The canonical witness is
-`compiler/seed-c/fixtures/restaurant-interpolation.w`:
+`compiler/seed-c/fixtures/interpolation.w`:
 
 ```w
 fn serve() {
@@ -37429,7 +37429,7 @@ The output remains bounded to 4096 bytes. MLIR0 measure and emit remain
 caller-owned, no-heap, deterministic, digest-bearing, alias-safe, and
 all-or-nothing. The conservative artifact capacity is 98304 bytes.
 
-The source-to-native gate executes the Restaurant witness, all five retained
+The source-to-native gate executes the compiler witness, all five retained
 integer operators, negative output, percent data, NUL-bearing interpolation,
 and multiple ordered integer fields. It requires the dynamic artifacts to
 contain `w_seed_append_i64` and to omit `snprintf` and `%ld`.
@@ -37445,7 +37445,7 @@ published.
 
 #### 26.4.1.11 W-1527 — bounded built-in Bool and String Display through native MLIR (Retained form; adapter advanced by W-1528)
 
-**Example:** the Restaurant witness keeps the value domains distinct through
+**Example:** the compiler witness keeps the value domains distinct through
 the verified pipeline and produces exact bytes:
 
 ```w
@@ -37495,8 +37495,8 @@ Focused units prove canonical Bool typing, nested binding resolution, typed
 HIR records, both Bool values, counted String data, embedded NUL, exact and
 exceeded output bounds, absence of the Bool helper from integer-only artifacts,
 and short-capacity publication barriers. The MLIR gate verifies, translates,
-links, and executes the Restaurant witness and a NUL-bearing String value. The
-public bounded `w run` gate executes the same Restaurant witness byte for byte.
+links, and executes the compiler witness and a NUL-bearing String value. The
+public bounded `w run` gate executes the same compiler witness byte for byte.
 
 This milestone does not implement protocol witness dispatch, user-defined
 `Display`, nonconstant Bool or runtime String values, mutable bindings, general
@@ -37506,7 +37506,7 @@ correctness-only; no timing or performance result is published.
 
 #### 26.4.1.12 W-1528 — typed immutable binding initializers through native MLIR (Retained form; adapter advanced by W-1529)
 
-**Example:** the Restaurant witness names three distinct built-in values and
+**Example:** the compiler witness names three distinct built-in values and
 uses them later in one interpolation:
 
 ```w
@@ -37556,7 +37556,7 @@ timing or performance result is published.
 
 #### 26.4.1.13 W-1529 — typed direct Unit calls through native MLIR (Retained form; adapter advanced by W-1530)
 
-**Example:** this Restaurant witness evaluates named arguments in source order,
+**Example:** this compiler witness evaluates named arguments in source order,
 maps them to declaration order, and executes a real W-to-W call:
 
 ```w
@@ -37931,12 +37931,12 @@ installed output is checked by real execution:
 ```text
 bun tooling/command-runner.mjs --command build:w-windows -- --profile release --c11-recovery
 build/w-windows/w.exe run compiler/seed-c/fixtures/hlo0-hello.w
-build/w-windows/w.exe run compiler/seed-c/fixtures/restaurant-if.w
+build/w-windows/w.exe run compiler/seed-c/fixtures/if.w
 ```
 
 #### 26.4.1.19 W-1535 — bounded nested structured `if` through verified HIR0 and MLIR0 (Current form)
 
-**Example:** the canonical nested Restaurant witness exercises both outer
+**Example:** the canonical nested compiler witness exercises both outer
 branches, both inner branches, and one post-join statement:
 
 ```w
@@ -38001,13 +38001,13 @@ these capacities and 570576 bytes after them on this build; it is not an ABI,
 stack, package-size, or performance claim. A static 768 KiB ceiling protects
 the caller-owned storage contract.
 
-The product evidence is `compiler/seed-c/fixtures/restaurant-nested-if.w`.
+The product evidence is `compiler/seed-c/fixtures/nested-if.w`.
 Linux/WSL and native Windows Release C11-recovery routes execute its exact
 four-case stdout through the built W artifact. The Native0 unit accepts depth
 64 and emits it as MLIR; its depth-65 case rejects with unchanged output and
 result snapshots. The HIR unit proves only acceptance of depth 64 and
 rejection of depth 65. The real LLVM/native execution in this bundle is the
-four-case Restaurant witness on Linux/WSL and Windows. `benchmarkDisposition`
+four-case compiler witness on Linux/WSL and Windows. `benchmarkDisposition`
 is `compiler-lifecycle`; this bundle makes no timing, throughput, ranking, or
 result claim. The CFG DP is bounded by verified blocks, terminators, and edges.
 Native selection also traverses instructions and calls and validates value
@@ -38021,7 +38021,7 @@ Both operands must be signed `i64`. Every comparison produces Bool.
 Ordering is signed, including negative values and the `i64` minimum and maximum.
 The cut does not add syntax, implicit conversions, or new value domains.
 
-**Example:** `compiler/seed-c/fixtures/restaurant-comparisons.w`:
+**Example:** `compiler/seed-c/fixtures/comparisons.w`:
 
 ```w
 fn admit(guests: i64, seats: i64) {
@@ -38085,7 +38085,7 @@ left-to-right short-circuit semantics. `!` accepts only Bool and produces one
 typed Bool value. `&&` evaluates its RHS only after a true lhs; `||` evaluates
 its RHS only after a false lhs. Each RHS is evaluated once.
 
-**Example:** `compiler/seed-c/fixtures/restaurant-bool-short-circuit.w`:
+**Example:** `compiler/seed-c/fixtures/bool-short-circuit.w`:
 
 ```w
 fn allowed(isOpen: Bool, guests: i64, seats: i64, blocked: Bool): Bool {
@@ -38192,8 +38192,8 @@ and receipt schema do not change. The focused frontend14, HIR11 and MLIR14
 units cover positive i64/Bool return and immutable-let forms plus the required
 negative and forged-record boundaries.
 
-The source-backed Restaurant witness is
-`compiler/seed-c/fixtures/restaurant-scalar-if.w`; its two calls exercise both
+The source-backed compiler witness is
+`compiler/seed-c/fixtures/scalar-if.w`; its two calls exercise both
 conditions and require exact stdout `Open 5; closed 2\n`, exit zero and empty
 stderr. The native Windows Release route was built with the pinned external
 cache and passed `bun check --target w-run-windows`. A local Release build
@@ -38240,7 +38240,7 @@ widths at this historical cut, named numeric APIs, and general panic runtime
 remain outside the cut.
 
 The source-backed fixture
-`compiler/seed-c/fixtures/restaurant-checked-arithmetic.w` uses `entry {}` and
+`compiler/seed-c/fixtures/checked-arithmetic.w` uses `entry {}` and
 requires exact stdout `Open 6; closed 1\n`, exit zero, and empty stderr through
 the Linux/WSL LLVM 23.1.1 route. No native Windows evidence is claimed. The
 focused route is `benchmarkDisposition: compiler-lifecycle` and
@@ -38275,9 +38275,9 @@ not declare parameters, a custom return, typed errors, async behavior, or a
 named entry. Those forms continue to use a declared function and the applicable
 entry surface.
 
-The canonical Hello fixture and the checked-arithmetic Restaurant fixture now
+The canonical Hello fixture and the checked-arithmetic compiler fixture now
 use `entry {}`. The public Linux/WSL `w run` route executes Hello with exact
-stdout `Hello, world!\n`. The MLIR0 gate executes the Restaurant fixture with
+stdout `Hello, world!\n`. The MLIR0 gate executes the compiler fixture with
 exact stdout `Open 6; closed 1\n`. Both require exit zero and empty stderr. The
 Windows MLIR artifact is structurally generated, but no new native Windows
 execution is claimed. This cut is `benchmarkDisposition: compiler-lifecycle`,
@@ -38725,7 +38725,7 @@ MLIR0 emits one real `llvm.cond_br` per source `if`, typed `llvm.br` incoming
 values, and one typed block argument at each join. It does not use
 `llvm.select`, eagerly compute an unselected arm, or replace the result with a
 precomputed constant. The source-backed fixture
-[`restaurant-nested-scalar-if.w`](compiler/seed-c/fixtures/restaurant-nested-scalar-if.w)
+[`nested-scalar-if.w`](compiler/seed-c/fixtures/nested-scalar-if.w)
 executes three calls and writes exact UTF-8 `1,2,3\n`, with empty stderr and
 exit zero, through source → frontend → verified HIR0 → MLIR0 → LLVM dialect →
 native execution in `bun check --target mlir0`.
@@ -38837,7 +38837,7 @@ the reachable checked-subtract helper with zero as its left operand;
 constant-only and unreachable products. MLIR0 and Native0 retain their public
 artifact schemas.
 
-The Restaurant fixture `compiler/seed-c/fixtures/restaurant-unary-negate.w`
+The compiler fixture `compiler/seed-c/fixtures/unary-negate.w`
 executes exact stdout `Balance -7\n` through Linux WRT0 and native Windows.
 The Linux gate also proves the `i64.min` runtime fault with empty stdout. This
 was the first bounded implementation and evidence point, not a width-specific
@@ -38868,15 +38868,15 @@ the surrounding text. HIR0 retains the explicit `CONST_I64` operand,
 `UNARY_I64` operation and value segment. Safe constant lowering stays a direct
 `llvm.sub` and does not pull the checked runtime helper into the product.
 
-The Restaurant fixture
-`compiler/seed-c/fixtures/restaurant-unary-interpolation.w` executes exact
+The compiler fixture
+`compiler/seed-c/fixtures/unary-interpolation.w` executes exact
 stdout `Balance -7\n` through MLIR, Linux WRT0 and native Windows. This bounded
 composition proof does not broaden interpolation display protocols, numeric
 defaulting outside this seed cut, the direct minimum-value literal spelling,
 unsigned negation, other widths or targets, timing, ranking, or performance
 evidence. Frontend, HIR0, MLIR0 and Native0 public record schemas are unchanged.
 W-1640 keeps this direct composition rule and folds its executable case into
-`compiler/seed-c/fixtures/restaurant-integer-prefix.w`; the family witness owns
+`compiler/seed-c/fixtures/integer-prefix.w`; the family witness owns
 the current benchmark row rather than a standalone W-1553 row.
 
 #### 26.4.1.35 W-1554 — straight-line local mutation as verified SSA (Current form)
@@ -38905,8 +38905,8 @@ initializer, root, and predecessor relations independently.
 
 The MLIR lowering emits the initializer and reassignment as SSA values. It does
 not allocate, load, or store a source-variable cell; process-output scratch
-storage remains separate WRT plumbing. The Restaurant witness
-`compiler/seed-c/fixtures/restaurant-mutation.w` produces exact `Open 6\n`
+storage remains separate WRT plumbing. The compiler witness
+`compiler/seed-c/fixtures/mutation.w` produces exact `Open 6\n`
 through the public Windows runner and the Linux/WSL MLIR route.
 
 This cut does not admit assignment to `let`, compound assignment, mutation in
@@ -38941,8 +38941,8 @@ predecessor links independently.
 
 MLIR lowers the source `if` to `llvm.cond_br`, two typed incoming edges, and
 one join argument. The update and return consume SSA operands; no source
-variable `alloca`, load, or store is introduced. The Restaurant witness
-`compiler/seed-c/fixtures/restaurant-conditional-mutation.w` executes exact
+variable `alloca`, load, or store is introduced. The compiler witness
+`compiler/seed-c/fixtures/conditional-mutation.w` executes exact
 `Open 6; closed 4\n` through the Linux/WSL and native Windows public runners.
 
 W-1557 supersedes only the exclusion for one symmetric branch-local
@@ -38969,7 +38969,7 @@ fn availability(requested: Bool): Bool {
 HIR0 retains two Boolean binding versions and the explicit parameter read.
 MLIR aliases the new SSA value directly to the `i1` parameter and returns it;
 it introduces no source-variable allocation, load, or store. The Restaurant
-witness `compiler/seed-c/fixtures/restaurant-bool-mutation.w` executes exact
+witness `compiler/seed-c/fixtures/bool-mutation.w` executes exact
 `Open true; closed false\n` through Linux/WSL and native Windows runners.
 
 This bounded widening does not admit implicit integer/Boolean conversions,
@@ -39006,7 +39006,7 @@ that joined version.
 
 MLIR emits `llvm.cond_br`, two `llvm.br` operations carrying `i64`, and one
 join block argument. It emits no source-variable `alloca`, load, or store. The
-Restaurant witness `compiler/seed-c/fixtures/restaurant-branch-mutation.w`
+compiler witness `compiler/seed-c/fixtures/branch-mutation.w`
 executes exact `Open 6; closed 4\n` through Linux/WSL and native Windows.
 
 Missing `else`, unequal targets, extra statements in either arm, nested or
@@ -39035,7 +39035,7 @@ same ordinal order; values remain independently indexed. The result is still a
 linear binding-version chain, with no arm-local versions or helper alloca.
 
 MLIR emits all join parameters and both typed operand lists directly in SSA.
-The Restaurant witness `compiler/seed-c/fixtures/restaurant-branch-mutation-multi.w`
+The compiler witness `compiler/seed-c/fixtures/branch-mutation-multi.w`
 mutates `seats` and `tables` in opposite arm orders and executes exact
 `Open 18; closed -4\n` through the Linux/WSL and native Windows public runners.
 The focused frontend, HIR0, MLIR0, and native checks cover target pairing,
@@ -39199,7 +39199,7 @@ alias, and digest-preserving rejection.
 
 Native0 proves source → frontend → verified HIR for this slice and then stops
 with `W_SEED_NATIVE0_UNSUPPORTED` at the MLIR boundary. It does not lower a
-switch or execute an enum program. `compiler/seed-c/fixtures/restaurant-enum.w`
+switch or execute an enum program. `compiler/seed-c/fixtures/enum.w`
 is retained as a future switch target and is not execution evidence.
 
 Switch and exhaustiveness semantics, the native minimum-width carrier and
@@ -39245,7 +39245,7 @@ only a parser-compatible textual spelling.
 The Windows x86_64 MSVC and CRT-free Linux/WSL x86_64 routes retain the direct
 verified-HIR path. Both apply `convert-scf-to-cf`, `convert-cf-to-llvm`,
 `mlir-translate`, `llc`, and a target-owned native link. The exact fixture
-[`restaurant-enum.w`](compiler/seed-c/fixtures/restaurant-enum.w)
+[`enum.w`](compiler/seed-c/fixtures/enum.w)
 executes on both targets with stdout `Courses 10/30/20\n`, empty stderr, and
 exit zero. The gates observe raw `cf.switch`, the `i2` carrier, and the unique synthetic
 `llvm.unreachable` default. No generated C, source-text recognition, host
@@ -39291,12 +39291,12 @@ It requires no enum-specific heap allocation. LLVM may scalarize or eliminate
 the aggregate, while materialized values follow the target data layout.
 
 The Windows and Linux/WSL routes execute
-[`restaurant-enum-payload.w`](compiler/seed-c/fixtures/restaurant-enum-payload.w)
+[`enum-payload.w`](compiler/seed-c/fixtures/enum-payload.w)
 with stdout `Bills 32/44/10/7\n`, empty stderr, and exit zero. Linux uses the
 same SSA aggregate without a target-specific enum representation. The executable
 catalog owns the oracle, C/Rust references, and Windows measurements.
 The mixed-payload witness
-[`restaurant-enum-bool-payload.w`](compiler/seed-c/fixtures/restaurant-enum-bool-payload.w)
+[`enum-bool-payload.w`](compiler/seed-c/fixtures/enum-bool-payload.w)
 executes reordered Bool fields, enum-returning calls, and Bool/i64 captures on
 both targets.
 Its exact output is `States true/false/false/true; charges 17/31; licensed true\n`.
@@ -39316,7 +39316,7 @@ For the current single-module executable recipe, the anonymous `.default`
 entry is the product root. MLIR0 follows verified local callees transitively,
 emits the selected entry closure, and omits other module functions and their
 private helper data. The exact
-[`restaurant-wmo.w`](compiler/seed-c/fixtures/restaurant-wmo.w) witness retains
+[`wmo.w`](compiler/seed-c/fixtures/wmo.w) witness retains
 the private `bill` helper but omits both an unused exported function and an
 unused private function, including the latter's `Never served` text. Its native
 artifact executes with stdout `Bill 42\n`, empty stderr, and exit zero.
@@ -39592,7 +39592,7 @@ variable stack cell or emitted `llvm.alloca` is introduced.
 NativeSubset0 rechecks the same verified tuple and exact four-block topology.
 MLIR0 emits one `scf.while` with the signed-`i64` tuple, `scf.condition`, and
 `scf.yield`; it does not flatten the loop or substitute a host-C loop. The
-fixture [`restaurant-while-multi.w`](compiler/seed-c/fixtures/restaurant-while-multi.w)
+fixture [`while-multi.w`](compiler/seed-c/fixtures/while-multi.w)
 prints exactly `Served 9\n`.
 
 ```w
@@ -39648,7 +39648,7 @@ change the HIR0 schema. MLIR0 keeps the loop as one tuple-valued `scf.while`
 and emits the continuation in the exit block without a source-variable
 `llvm.alloca`.
 
-The fixture [`restaurant-while-post.w`](compiler/seed-c/fixtures/restaurant-while-post.w)
+The fixture [`while-post.w`](compiler/seed-c/fixtures/while-post.w)
 prints exactly `Final 9\n`. The public Linux/WSL route produces a CRT-free
 x86_64 ELF. The native Windows route produces an x86_64 PE. Both routes require
 the same source, exact stdout, empty stderr, exit zero, and cleanup. The
@@ -39714,7 +39714,7 @@ Payload-bearing subsets, imported or generic aliases, general case-set algebra,
 mixed or nested CFG, public subset ABI/layout, and other targets remain gaps.
 
 The same
-[`restaurant-enum-subset.w`](compiler/seed-c/fixtures/restaurant-enum-subset.w)
+[`enum-subset.w`](compiler/seed-c/fixtures/enum-subset.w)
 source produces the exact oracle `Work 1/2\n`, with empty stderr and exit zero,
 as both a Windows x86_64 PE and a CRT-free Linux/WSL x86_64 ELF. Focused HIR,
 NativeSubset0, and MLIR0 checks independently cover canonical identity,
@@ -39817,7 +39817,7 @@ ABI. The accepted comparison still has exactly two operands:
   logical `usize`.
 
 Either operand may occur first. The accepted operators are `==`, `!=`, `<`,
-`<=`, `>`, and `>=`. The public Restaurant witness deliberately uses the
+`<=`, `>`, and `>=`. The public compiler witness deliberately uses the
 reversed form `2 > args.count` to exercise this operand-order contract.
 
 ```w
@@ -39852,7 +39852,7 @@ raw owner values, general `usize` arithmetic, helper `usize` parameters or
 returns, indexing, and iteration remain rejected. The bounded form does not
 decode argument text or expose `OsString`.
 
-The public Restaurant fixture
+The public compiler fixture
 [`process-arguments-ordering.w`](compiler/seed-c/fixtures/process-arguments-ordering.w)
 uses `2 > args.count`. The native Windows and Linux/WSL gates run the source
 and built artifact. They require these exact outputs:
@@ -39918,7 +39918,7 @@ entry {
 }
 ```
 
-The public `restaurant-repeat.w` witness produces exactly `Receipt digits
+The public `repeat.w` witness produces exactly `Receipt digits
 1/5\n`, empty stderr, and exit zero as both a native Windows x86_64 PE and a
 CRT-free Linux/WSL x86_64 ELF. WSL is Linux-target correctness evidence, not
 native Linux performance evidence. The primary benchmark disposition is
@@ -40061,7 +40061,7 @@ handle, TCB, WRT entry, or native symbol is introduced. This optimization is
 representation erasure, not a concurrency claim: the current lowering may run
 the two calls sequentially and does not prove temporal overlap.
 
-[`restaurant-async-join.w`](compiler/seed-c/fixtures/restaurant-async-join.w)
+[`async-join.w`](compiler/seed-c/fixtures/async-join.w)
 passes through public `w run` and `w build` on Windows x64 and prints exactly
 `Prepared 42\n`, with empty stderr and exit zero. The Linux/WSL gate is wired
 to the same witness, but a passing local Linux toolchain execution is required
@@ -40094,7 +40094,7 @@ SSA relations with no Task allocation, frame, handle ABI, TCB, WRT entry, or
 Task-specific native symbol. NativeSubset0 and MLIR0 accept this exact
 direct-entry path and continue to fail closed for general async suspension.
 
-**Exemplo:** the upgraded Restaurant witness keeps the same observable result:
+**Exemplo:** the upgraded compiler witness keeps the same observable result:
 
 ```w
 async fn prepare(value: i64): i64 { return value }
@@ -40300,7 +40300,7 @@ Task relation and root yield markers only after complete HIR proof. The zero
 logical admission rule remains conditional on that proof. A failed proof uses
 the ordinary physical admission contract.
 
-The updated `restaurant-async-yield.w` fixture calls `stage`. The Windows
+The updated `async-yield.w` fixture calls `stage`. The Windows
 product gate must be rerun for the changed source. This milestone makes no
 claim about concurrency, fairness, a scheduler, overlap, or Linux execution.
 Its benchmark disposition is `compiler-lifecycle`.
@@ -40336,7 +40336,7 @@ Independent plan, trace, and execution verification rechecks the semantic HIR
 relation, two-task and frame counts, launch/join bindings, program counters,
 queue transitions, yield ordinals, frame and outcome digests, lifecycle state,
 and final outcomes. Capacity and alias failures remain transactional. The
-`restaurant-cooperative0.w` witness has four yields, a deterministic
+`cooperative0.w` witness has four yields, a deterministic
 thirty-event trace, and exact stdout `Cooperative 88\n` in the compiler-host
 oracle test.
 
@@ -40566,7 +40566,7 @@ k=1, k=3, and k=4 cases, yielding `Dispatched 20\n`, `Dispatched 66\n`, and
 `Dispatched 92\n`. The lower-level external gate samples k=1 and k=4 as the
 bounded endpoints, while its C product path validates every cardinality from
 k=1 through k=4. Separately, the executable workload
-`restaurant-main-cardinality` owns the public k=4 fixture and its exact
+`main-cardinality` owns the public k=4 fixture and its exact
 `Dispatched 92\n` `w run`/`w build` evidence on Windows and on the Linux target
 through WSL2. The bounded product selection/output path rejects k=5 without
 mutating its destination, while HIR38 retains the valid source relation for a
@@ -42294,7 +42294,7 @@ closed identity case is `0^0 == (1, false)`. Programs without a reachable
 Measure and emission remain transactional and schema-bound. Focused frontend,
 HIR0, MLIR0, and Native0 tests reject wrong receiver, arity, operand type,
 result type, forged operation, tuple projection, capacity, and alias data. The
-Restaurant fixture is lowered through MLIR/LLVM 23.1.1, linked, and executed;
+compiler fixture is lowered through MLIR/LLVM 23.1.1, linked, and executed;
 it proves exact ordinary, overflow, wrapped, and zero-exponent results. This is
 bounded compiler-lifecycle correctness evidence for `u64`, not evidence for
 every integer width, const evaluation, a public stable ABI, benchmark timing,
@@ -42321,7 +42321,7 @@ The helper skips an unused final square, has no exponent ceiling, and defines
 
 Focused frontend, HIR0, MLIR0, and Native0 tests reject wrong receiver, arity,
 operand type, result type, forged operation, capacity, and alias data. The
-Restaurant fixture executes zero and maximum negation, ordinary power,
+compiler fixture executes zero and maximum negation, ordinary power,
 clamped power, and `0^0` through MLIR/LLVM 23.1.1. This evidence is bounded to
 the current `u64` compiler-lifecycle route. Other widths, const evaluation,
 stable ABI, benchmark ranking, and performance remain gaps.
@@ -42347,7 +42347,7 @@ ordinary tuple projections; it does not retain checked-arithmetic helpers.
 
 Focused Native0 tests reject wrong receiver, arity, operand or result type,
 labels, and invalid tuple projections while preserving output and result on
-failure. The Restaurant fixture executes ordinary and overflowing boundaries
+failure. The compiler fixture executes ordinary and overflowing boundaries
 for all three operations through MLIR/LLVM 23.1.1 and checks exact stdout. This
 is bounded compiler-lifecycle correctness evidence for `u64`, not evidence for
 other widths, const evaluation, a stable tuple ABI, benchmark ranking, or
@@ -42551,7 +42551,7 @@ the physical carrier and logical-width round trip before their result becomes
 observable. Safe constant trees may remain direct operations, while invalid
 constant trees fail before artifact publication.
 
-The single `restaurant-checked-integer-arithmetic` witness owns the successful
+The single `checked-integer-arithmetic` witness owns the successful
 family oracle and source comments for expected exit and stdout. Focused tests
 retain every width, boundary, forged fact, and fault path without creating
 separate benchmark rows. Windows and Linux/WSL public gates require nonzero
@@ -42603,7 +42603,7 @@ rule for a leading prefix-negative expression remains W-1553's contract and
 does not change interpolation display behavior.
 
 The family crosspoint is
-`compiler/seed-c/fixtures/restaurant-integer-prefix.w`, whose source declares
+`compiler/seed-c/fixtures/integer-prefix.w`, whose source declares
 the expected exit and exact output. Focused test sources are present.
 HIR/scalar-evaluator cases cover the width/type-fact matrix and minimum
 failure; NativeSubset0/MLIR cases cover type-fact selection and lowering. The
@@ -42645,7 +42645,7 @@ forms. HIR tests cover all 100 pairs, five values, and forged facts;
 NativeSubset0 tests cover five representative routes; MLIR tests pin the
 exact operand/pattern and reject forged facts.
 **Example:** the source witness is
-[`restaurant-integer-truncating-bits.w`](compiler/seed-c/fixtures/restaurant-integer-truncating-bits.w).
+[`integer-truncating-bits.w`](compiler/seed-c/fixtures/integer-truncating-bits.w).
 It declares exit 0 and stdout `Trunc 2/-7/-6/18446744073709551609/-1\n`; the malformed
 label fails before output. Final-source `bun check --target mlir0`,
 `w-run-windows`, and `w-run` gates pass.
@@ -42688,7 +42688,7 @@ zero-extends unsigned results. MLIR0 emits direct `llvm.and`, `llvm.or`, and
 needed.
 
 **Example:** the family witness is
-[`restaurant-integer-bitwise.w`](compiler/seed-c/fixtures/restaurant-integer-bitwise.w);
+[`integer-bitwise.w`](compiler/seed-c/fixtures/integer-bitwise.w);
 its source-local comments declare exit 0 and the exact per-type stdout, plus
 `i8 | i32 -> i32` and `u8 | i16 -> i16` exact-widening results. C23 and Rust
 2024 are correctness references only, so
@@ -42719,7 +42719,7 @@ Windows adapter advances to schema 42. MLIR0 emits direct LLVM
 heap allocation, runtime helper, or CRT helper.
 
 **Example:**
-[`restaurant-shifts.w`](compiler/seed-c/fixtures/restaurant-shifts.w) owns the
+[`shifts.w`](compiler/seed-c/fixtures/shifts.w) owns the
 exact expected exit and stdout beside its source. The same source-backed path
 crosses frontend → verified HIR → Native0/MLIR0 → CRT-free native execution on
 Windows and Linux/WSL. C23 and Rust 2024 are correctness references only, with
@@ -42757,7 +42757,7 @@ CRT helper. The same route covers all 100 type pairs; focused scalar tests also
 exercise low, in-range, and high values through the 8/16/32/64-bit boundaries.
 
 **Example:**
-[`restaurant-integer-saturating-conversion.w`](compiler/seed-c/fixtures/restaurant-integer-saturating-conversion.w)
+[`integer-saturating-conversion.w`](compiler/seed-c/fixtures/integer-saturating-conversion.w)
 is the compact public witness. It exercises all four signedness quadrants and
 the current x86-64 `UInt`-to-`Int` alias boundary. The exact source crosses
 frontend -> verified HIR -> Native0/MLIR0 -> CRT-free native execution on
@@ -42793,7 +42793,7 @@ predicates from W-393; `!=` uses unordered-or-not-equal `une`. No fast-math
 flag, heap allocation, runtime helper, or CRT helper is introduced.
 
 **Example:**
-[`restaurant-float-strict.w`](compiler/seed-c/fixtures/restaurant-float-strict.w)
+[`float-strict.w`](compiler/seed-c/fixtures/float-strict.w)
 is the compact public witness for both widths, signed zero, and NaN comparison
 behavior. It
 owns exact exit 0 and stdout `Float strict ok\n` through the maintained Windows
@@ -42836,7 +42836,7 @@ target-general aliases, stable ABI/FFI, other targets, and conversion policies
 that can fail or lose information remain separate gaps.
 
 **Example:**
-[`restaurant-numeric-widening.w`](compiler/seed-c/fixtures/restaurant-numeric-widening.w)
+[`numeric-widening.w`](compiler/seed-c/fixtures/numeric-widening.w)
 is the compact family witness. It covers return, call argument, binding,
 mixed arithmetic, mixed comparison, and explicit total-constructor contexts.
 Its oracle is exit 0 with stdout `Numeric widen ok\n`; the maintained public
@@ -42865,7 +42865,7 @@ does not promise to preserve input NaN sign or payload. Byte serialization
 remains a separate explicit-endian operation.
 
 **Example:**
-[`restaurant-float-bit-representation.w`](compiler/seed-c/fixtures/restaurant-float-bit-representation.w)
+[`float-bit-representation.w`](compiler/seed-c/fixtures/float-bit-representation.w)
 declares exit 0 and stdout
 `Float bits f32 2147483648/2139095040/2143363909 f64 9223372036854775808/9218868437227405312/9221140253039434428\n`.
 Focused tests also cover subnormal preservation and rejected signatures. The
@@ -43122,6 +43122,14 @@ separation from panic and ordinary `ExitCode.failure(1)` before the OS
 boundary.
 
 #### 26.4.1.133 W-1653 — bounded native-process checked-numeric fault adaptation
+
+**Example:** [`process-fixed-integer-arithmetic.w`](compiler/seed-c/fixtures/process-fixed-integer-arithmetic.w)
+converts a runtime argument count before evaluating the checked `i8` addition:
+
+```w
+let narrowed = try i8(exactly: args.count)
+print("Arithmetic ${narrowed}/${narrowed % 11_i8 * 2_i8 / 2_i8 + 7_i8 - 3_i8}/${narrowed + 1_i8}")
+```
 
 The exact-conversion process witness also provides the first executable
 distinction among normal return, typed error, and checked numeric fault. After

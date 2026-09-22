@@ -524,7 +524,7 @@ exact widening such as `u8 -> i16`; lossy or ambiguous mixing remains invalid.
 The seed compiler
 covers `i8`/`u8`, `i16`/`u16`, `i32`/`u32`, `i64`/`u64`, and the current
 x86-64 `Int`/`UInt` aliases. The exact family witness is
-[`restaurant-integer-bitwise.w`](compiler/seed-c/fixtures/restaurant-integer-bitwise.w);
+[`integer-bitwise.w`](compiler/seed-c/fixtures/integer-bitwise.w);
 its source-local comment declares the expected exit and literal stdout.
 Ordinary `<<` and `>>` now have source-backed checked coverage for those same
 types. The value and result use exactly the same canonical integer type, and
@@ -533,7 +533,7 @@ the logical width fails; left shift also fails if the mathematical result does
 not fit. Signed right shift is arithmetic and unsigned right shift is logical:
 
 The exact family witness is
-[`restaurant-shifts.w`](compiler/seed-c/fixtures/restaurant-shifts.w). Named
+[`shifts.w`](compiler/seed-c/fixtures/shifts.w). Named
 numeric/shift policies, power, rotations, remaining bit primitives, SIMD,
 `usize`/`isize`, 128-bit integers, non-x86-64 alias widths, stable ABI/FFI,
 other targets, and equivalent-runtime performance remain open under W-392.
@@ -2332,7 +2332,7 @@ w run last-light-native -- --tui
 The normative contract and implementation status remain in [DESIGN.md](DESIGN.md).
 The seed compiler has bounded BOOL0 evidence for the existing `!`, `&&`, and
 `||` operators: verified HIR join block arguments and incoming Bool edges lower
-to `llvm.xor`, `llvm.cond_br`, and `llvm.br ^join(%operand : i1)`. The Restaurant
+to `llvm.xor`, `llvm.cond_br`, and `llvm.br ^join(%operand : i1)`. The compiler
 short-circuit fixture passed the Linux/WSL and native Windows gates with exact
 stdout; this is compiler-lifecycle correctness evidence, not general CFG or
 performance evidence.
@@ -2340,7 +2340,7 @@ W-1539 adds the bounded scalar-if value cut: `if condition { scalar } else {
 scalar }` is valid only in scalar `return` and immutable `let` initializer
 contexts, with a Bool condition and matching `i64` or Bool arms. HIR11 carries
 one typed join argument per diamond; MLIR14/Windows5 emits real
-`llvm.cond_br`/typed `llvm.br` CFG and never `llvm.select`. The Restaurant
+`llvm.cond_br`/typed `llvm.br` CFG and never `llvm.select`. The compiler
 fixture passed both conditions with exact `Open 5; closed 2\n` on the public
 Windows route. W-390 keeps runtime `+/-` checked and outside this witness;
 missing else/non-Bool/mismatch use `W-PARSE-0021`/`W-SEM-0001`/`W-TYPE-0120`,
@@ -2361,7 +2361,7 @@ signed-overflow intrinsics and a trap boundary
 terminate overflowed processes nonzero before later success output. Helpers are
 reachability-only. Constant overflow and faulting constant `/` or `%` fail
 closed, while safe constant forms emit `llvm.sdiv`/`llvm.srem`; dynamic/runtime
-forms remain outside the cut. The short-entry Restaurant fixture produces
+forms remain outside the cut. The short-entry compiler fixture produces
 `Open 6; closed 1\n` on the Linux/WSL LLVM 23.1.1 route only. There is no native Windows,
 `PanicEvent`, runtime payload, cleanup, timing, or benchmark result claim.
 Unary negation, power, other widths, named numeric APIs, and general panic

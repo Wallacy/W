@@ -8,10 +8,10 @@
 #include <string.h>
 
 #ifndef W_SEED_COOPERATIVE0_FIXTURE_PATH
-#define W_SEED_COOPERATIVE0_FIXTURE_PATH "fixtures/restaurant-cooperative0.w"
+#define W_SEED_COOPERATIVE0_FIXTURE_PATH "fixtures/cooperative0.w"
 #endif
 #ifndef W_SEED_MAIN_DISPATCH0_FIXTURE_PATH
-#define W_SEED_MAIN_DISPATCH0_FIXTURE_PATH "fixtures/restaurant-main-dispatch0.w"
+#define W_SEED_MAIN_DISPATCH0_FIXTURE_PATH "fixtures/main-dispatch0.w"
 #endif
 
 #define CHECK(condition)                                                       \
@@ -25,7 +25,7 @@
   } while (0)
 
 static const char NEGATIVE_PATH[] = "w_seed_cooperative0_negative.w";
-static const char SOURCE_ID[] = "fixture/restaurant-cooperative0";
+static const char SOURCE_ID[] = "fixture/cooperative0";
 static const w_seed_mlir0_target TARGET = {
     W_SEED_MLIR0_TARGET_X86_64_PC_WINDOWS_MSVC};
 

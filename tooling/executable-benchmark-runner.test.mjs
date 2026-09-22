@@ -39,7 +39,7 @@ import {
 } from "./executable-release-recipes.mjs";
 import {
   exactOutputDigest,
-  RESTAURANT_FLOAT_BIT_REPRESENTATION_WORKLOAD_ID,
+  FLOAT_BIT_REPRESENTATION_WORKLOAD_ID,
 } from "./executable-benchmark-machine.mjs";
 
 test("benchmark arguments separate compile cost from high-resolution run sampling", () => {
@@ -64,8 +64,8 @@ test("benchmark arguments separate compile cost from high-resolution run samplin
   assert.throws(() => parseBenchmarkArguments(["--run-samples", "100"]), /odd/);
   assert.throws(() => parseBenchmarkArguments(["--run-samples", "1003"]), /between 9 and 1001/);
   assert.throws(() => parseBenchmarkArguments(["--warmup", "0"]), /between 1/);
-  assert.deepEqual(parseBenchmarkArguments(["--target", "restaurant-branch", "--language", "rust"]), {
-    target: "restaurant-branch", language: "rust", platform: "windows-x64", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
+  assert.deepEqual(parseBenchmarkArguments(["--target", "branch", "--language", "rust"]), {
+    target: "branch", language: "rust", platform: "windows-x64", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
   });
   assert.deepEqual(parseBenchmarkArguments(["--target", "process-handler-lifecycle", "--language", "c"]), {
     target: "process-handler-lifecycle", language: "c", platform: "windows-x64", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
@@ -76,11 +76,11 @@ test("benchmark arguments separate compile cost from high-resolution run samplin
   assert.deepEqual(parseBenchmarkArguments(["--target", "process-enum-payload", "--language", "rust"]), {
     target: "process-enum-payload", language: "rust", platform: "windows-x64", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
   });
-  assert.deepEqual(parseBenchmarkArguments(["--target", RESTAURANT_FLOAT_BIT_REPRESENTATION_WORKLOAD_ID, "--language", "rust"]), {
-    target: RESTAURANT_FLOAT_BIT_REPRESENTATION_WORKLOAD_ID, language: "rust", platform: "windows-x64", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
+  assert.deepEqual(parseBenchmarkArguments(["--target", FLOAT_BIT_REPRESENTATION_WORKLOAD_ID, "--language", "rust"]), {
+    target: FLOAT_BIT_REPRESENTATION_WORKLOAD_ID, language: "rust", platform: "windows-x64", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
   });
   assert.throws(() => parseBenchmarkArguments(["--target", "process-entry0", "--language", "c"]), /unsupported benchmark target/);
-  assert.throws(() => parseBenchmarkArguments(["--target", "restaurant-composition"]), /unsupported/);
+  assert.throws(() => parseBenchmarkArguments(["--target", "composition"]), /unsupported/);
 });
 
 test("Clang MSVC release flags select the DLL runtime and COFF linker controls", () => {
@@ -483,11 +483,13 @@ function fakeRunnerExecutor({ language, mismatch = false, target = "hello", time
     }
     if (target === "process-entry" || target === "process-enum-payload") {
       const enumPayload = target === "process-enum-payload";
+      const count = args.length;
+      const overLimit = count > 2;
       return {
-        exitCode: args.length === 0 ? enumPayload ? 7 : 2 : 0,
-        stdout: Buffer.from(args.length === 0
-          ? enumPayload ? "enum-missing true\n" : "missing\n"
-          : enumPayload ? "enum-received false\n" : "received\n", "utf8"),
+        exitCode: count === 0 ? enumPayload ? 7 : 2 : 0,
+        stdout: Buffer.from(count === 0
+          ? enumPayload ? `arguments-missing count=${count} amount=17 over-limit=${overLimit}\n` : "missing\n"
+          : enumPayload ? `arguments-present count=${count} amount=17 over-limit=${overLimit}\n` : "received\n", "utf8"),
         stderr: Buffer.alloc(0),
         resourceUsage: fakeResourceUsage(),
       };
@@ -496,7 +498,7 @@ function fakeRunnerExecutor({ language, mismatch = false, target = "hello", time
       const count = args.length;
       return {
         exitCode: 0,
-        stdout: Buffer.from(`${count < 2 ? "Kitchen" : "Banquet"} seats ${count} guests\n`, "utf8"),
+        stdout: Buffer.from(`Argument mode ${count < 2 ? "compact" : "extended"}: count=${count}\n`, "utf8"),
         stderr: Buffer.alloc(0),
         resourceUsage: fakeResourceUsage(),
       };
@@ -505,7 +507,7 @@ function fakeRunnerExecutor({ language, mismatch = false, target = "hello", time
       if (timeoutMode === "run") return timedOut();
       return {
         exitCode: 0,
-        stdout: mismatch ? "Not the oracle\n" : target === "restaurant-branch" ? "Kitchen open\nAfter service\nKitchen closed\nAfter service\n" : "Hello, world!\n",
+        stdout: mismatch ? "Not the oracle\n" : target === "branch" ? "Kitchen open\nAfter service\nKitchen closed\nAfter service\n" : "Hello, world!\n",
         stderr: Buffer.alloc(0),
         resourceUsage: fakeResourceUsage(),
       };
@@ -547,14 +549,14 @@ function fakeWRunnerExecutor(target, { symbolSidecar = false, peOptions = {} } =
       return target === "process-entry"
         ? result(2, Buffer.from("missing\n", "utf8"))
         : target === "process-enum-payload"
-        ? result(7, Buffer.from("enum-missing true\n", "utf8"))
+        ? result(7, Buffer.from("arguments-missing count=0 amount=17 over-limit=false\n", "utf8"))
         : target === "process-arguments-ordering"
-        ? result(0, Buffer.from("Kitchen seats 0 guests\n", "utf8"))
-        : result(0, Buffer.from(target === "restaurant-branch" ? "Kitchen open\nAfter service\nKitchen closed\nAfter service\n" : "Hello, world!\n", "utf8"));
+        ? result(0, Buffer.from("Argument mode compact: count=0\n", "utf8"))
+        : result(0, Buffer.from(target === "branch" ? "Kitchen open\nAfter service\nKitchen closed\nAfter service\n" : "Hello, world!\n", "utf8"));
     }
     if (command === publicW.executable && args[0] === "build") {
-      const source = target === "restaurant-branch"
-        ? "compiler/seed-c/fixtures/restaurant-if.w"
+      const source = target === "branch"
+        ? "compiler/seed-c/fixtures/if.w"
         : target === "process-entry" ? "compiler/seed-c/fixtures/process-input0.w"
         : target === "process-enum-payload" ? "compiler/seed-c/fixtures/process-enum-payload.w"
         : target === "process-arguments-ordering" ? "compiler/seed-c/fixtures/process-arguments-ordering.w"
@@ -568,14 +570,16 @@ function fakeWRunnerExecutor(target, { symbolSidecar = false, peOptions = {} } =
     }
     if (target === "process-entry" || target === "process-enum-payload") {
       const enumPayload = target === "process-enum-payload";
-      return result(args.length === 0 ? enumPayload ? 7 : 2 : 0,
-        Buffer.from(args.length === 0
-          ? enumPayload ? "enum-missing true\n" : "missing\n"
-          : enumPayload ? "enum-received false\n" : "received\n", "utf8"));
+      const count = args.length;
+      const overLimit = count > 2;
+      return result(count === 0 ? enumPayload ? 7 : 2 : 0,
+        Buffer.from(count === 0
+          ? enumPayload ? `arguments-missing count=${count} amount=17 over-limit=${overLimit}\n` : "missing\n"
+          : enumPayload ? `arguments-present count=${count} amount=17 over-limit=${overLimit}\n` : "received\n", "utf8"));
     }
     if (target === "process-arguments-ordering") {
       const count = args.length;
-      return result(0, Buffer.from(`${count < 2 ? "Kitchen" : "Banquet"} seats ${count} guests\n`, "utf8"));
+      return result(0, Buffer.from(`Argument mode ${count < 2 ? "compact" : "extended"}: count=${count}\n`, "utf8"));
     }
     throw new Error(`unexpected fake W executor invocation: ${command} ${args.join(" ")}`);
   };
@@ -889,18 +893,18 @@ test("process-entry checks every argument case before timing and pins the payloa
   assertNoFakeSampleDirectories(fake);
 });
 
-test("process-enum-payload checks every argument case before timing and pins the payload run", async () => {
+test("process-enum-payload checks every argument case before timing and pins the boundary-crossing run", async () => {
   for (const language of ["c", "rust"]) {
     const fake = fakeRunnerExecutor({ language, target: "process-enum-payload" });
     const { record } = await runBenchmark({ target: "process-enum-payload", language, warmup: 1, samples: 9, publish: false }, fakeRunnerDependencies(language, fake));
     const runtimeCalls = fake.calls.filter((call) => path.extname(call.command).toLowerCase() === ".exe" && !call.args.includes("-o") && call.command !== fake.compiler);
-    assert.deepEqual(runtimeCalls.slice(0, 3).map((call) => call.args), [[], [""], ["payload"]]);
-    assert.equal(runtimeCalls.length, 13, `${language} must run three correctness cases and ten timed payload cases`);
-    assert.ok(runtimeCalls.slice(3).every((call) => call.args.length === 1 && call.args[0] === "payload"));
+    assert.deepEqual(runtimeCalls.slice(0, 4).map((call) => call.args), [[], [""], ["alpha", "beta"], ["alpha", "beta", "gamma"]]);
+    assert.equal(runtimeCalls.length, 14, `${language} must run four correctness cases and ten timed cases`);
+    assert.ok(runtimeCalls.slice(4).every((call) => call.args.length === 3 && call.args[0] === "alpha" && call.args[1] === "beta" && call.args[2] === "gamma"));
     assert.equal(record.correctness.oracleId, "process-enum-payload:argument-dependent-output");
-    assert.deepEqual(record.correctness.cases.map((testCase) => testCase.arguments), [[], [""], ["payload"]]);
-    assert.deepEqual(record.correctness.cases.map((testCase) => testCase.exitCode), [7, 0, 0]);
-    assert.match(record.protocol.resourceScope, /no-argument, empty-argument and payload cases before timing/u);
+    assert.deepEqual(record.correctness.cases.map((testCase) => testCase.arguments), [[], [""], ["alpha", "beta"], ["alpha", "beta", "gamma"]]);
+    assert.deepEqual(record.correctness.cases.map((testCase) => testCase.exitCode), [7, 0, 0, 0]);
+    assert.match(record.protocol.resourceScope, /no-argument, empty-argument, 2-argument and 3-argument cases before timing/u);
     assertNoFakeSampleDirectories(fake);
   }
 
@@ -917,30 +921,31 @@ test("process-enum-payload checks every argument case before timing and pins the
     buildPublicW: async () => fake.publicW,
   });
   const runtimeCalls = fake.calls.filter((call) => call.command !== fake.publicW.executable && path.extname(call.command).toLowerCase() === ".exe");
-  assert.deepEqual(runtimeCalls.slice(0, 3).map((call) => call.args), [[], [""], ["payload"]]);
-  assert.equal(runtimeCalls.length, 13, "W must run three correctness cases and ten timed payload cases");
-  assert.ok(runtimeCalls.slice(3).every((call) => call.args.length === 1 && call.args[0] === "payload"));
+  assert.deepEqual(runtimeCalls.slice(0, 4).map((call) => call.args), [[], [""], ["alpha", "beta"], ["alpha", "beta", "gamma"]]);
+  assert.equal(runtimeCalls.length, 14, "W must run four correctness cases and ten timed cases");
+  assert.ok(runtimeCalls.slice(4).every((call) => call.args.length === 3 && call.args[0] === "alpha" && call.args[1] === "beta" && call.args[2] === "gamma"));
   assert.equal(record.correctness.oracleId, "process-enum-payload:argument-dependent-output");
-  assert.deepEqual(record.correctness.cases.map((testCase) => testCase.exitCode), [7, 0, 0]);
+  assert.deepEqual(record.correctness.cases.map((testCase) => testCase.exitCode), [7, 0, 0, 0]);
   assertNoFakeSampleDirectories(fake);
 });
 
-test("process-arguments-ordering checks every argument case before timing and pins the count run", async () => {
+test("process-arguments-ordering checks every argument case before timing and pins the three-argument run", async () => {
   for (const language of ["c", "rust"]) {
     const fake = fakeRunnerExecutor({ language, target: "process-arguments-ordering" });
     const { record } = await runBenchmark({ target: "process-arguments-ordering", language, warmup: 1, samples: 9, publish: false }, fakeRunnerDependencies(language, fake));
     const runtimeCalls = fake.calls.filter((call) => path.extname(call.command).toLowerCase() === ".exe" && !call.args.includes("-o") && call.command !== fake.compiler);
-    assert.deepEqual(runtimeCalls.slice(0, 3).map((call) => call.args), [[], [""], ["alpha", "beta"]]);
-    assert.equal(runtimeCalls.length, 13, `${language} must run three correctness cases and ten timed runs`);
-    assert.ok(runtimeCalls.slice(3).every((call) => call.args.length === 2 && call.args[0] === "alpha" && call.args[1] === "beta"));
+    assert.deepEqual(runtimeCalls.slice(0, 4).map((call) => call.args), [[], [""], ["alpha", "beta"], ["alpha", "beta", "gamma"]]);
+    assert.equal(runtimeCalls.length, 14, `${language} must run four correctness cases and ten timed runs`);
+    assert.ok(runtimeCalls.slice(4).every((call) => call.args.length === 3 && call.args[0] === "alpha" && call.args[1] === "beta" && call.args[2] === "gamma"));
     assert.equal(record.correctness.oracleId, "process-arguments-ordering:argument-dependent-output");
-    assert.deepEqual(record.correctness.cases.map((testCase) => testCase.arguments), [[], [""], ["alpha", "beta"]]);
+    assert.deepEqual(record.correctness.cases.map((testCase) => testCase.arguments), [[], [""], ["alpha", "beta"], ["alpha", "beta", "gamma"]]);
     assert.deepEqual(record.correctness.cases.map((testCase) => testCase.stdoutDigest), [
-      exactOutputDigest("Kitchen seats 0 guests\n"),
-      exactOutputDigest("Kitchen seats 1 guests\n"),
-      exactOutputDigest("Banquet seats 2 guests\n"),
+      exactOutputDigest("Argument mode compact: count=0\n"),
+      exactOutputDigest("Argument mode compact: count=1\n"),
+      exactOutputDigest("Argument mode extended: count=2\n"),
+      exactOutputDigest("Argument mode extended: count=3\n"),
     ]);
-    assert.match(record.protocol.resourceScope, /no-argument, empty-argument and 2-argument cases before timing/u);
+    assert.match(record.protocol.resourceScope, /no-argument, empty-argument, 2-argument and 3-argument cases before timing/u);
     assertNoFakeSampleDirectories(fake);
   }
 
@@ -957,16 +962,17 @@ test("process-arguments-ordering checks every argument case before timing and pi
     buildPublicW: async () => fake.publicW,
   });
   const runtimeCalls = fake.calls.filter((call) => call.command !== fake.publicW.executable && path.extname(call.command).toLowerCase() === ".exe");
-  assert.deepEqual(runtimeCalls.slice(0, 3).map((call) => call.args), [[], [""], ["alpha", "beta"]]);
-  assert.equal(runtimeCalls.length, 13, "W must run three correctness cases and ten timed runs");
-  assert.ok(runtimeCalls.slice(3).every((call) => call.args.length === 2 && call.args[0] === "alpha" && call.args[1] === "beta"));
+  assert.deepEqual(runtimeCalls.slice(0, 4).map((call) => call.args), [[], [""], ["alpha", "beta"], ["alpha", "beta", "gamma"]]);
+  assert.equal(runtimeCalls.length, 14, "W must run four correctness cases and ten timed runs");
+  assert.ok(runtimeCalls.slice(4).every((call) => call.args.length === 3 && call.args[0] === "alpha" && call.args[1] === "beta" && call.args[2] === "gamma"));
   assert.equal(record.correctness.oracleId, "process-arguments-ordering:argument-dependent-output");
   assert.deepEqual(record.correctness.cases.map((testCase) => testCase.stdoutDigest), [
-    exactOutputDigest("Kitchen seats 0 guests\n"),
-    exactOutputDigest("Kitchen seats 1 guests\n"),
-    exactOutputDigest("Banquet seats 2 guests\n"),
+    exactOutputDigest("Argument mode compact: count=0\n"),
+    exactOutputDigest("Argument mode compact: count=1\n"),
+    exactOutputDigest("Argument mode extended: count=2\n"),
+    exactOutputDigest("Argument mode extended: count=3\n"),
   ]);
-  assert.match(record.protocol.resourceScope, /no-argument, empty-argument and 2-argument cases before timing/u);
+  assert.match(record.protocol.resourceScope, /no-argument, empty-argument, 2-argument and 3-argument cases before timing/u);
   assertNoFakeSampleDirectories(fake);
 });
 
@@ -998,16 +1004,16 @@ test("process-handler-lifecycle keeps the pinned runtime vector and isolates fau
   assertNoFakeSampleDirectories(fake);
 });
 
-test("restaurant-branch C and Rust records use target-specific source, oracle and identity metadata", async () => {
+test("branch C and Rust records use target-specific source, oracle and identity metadata", async () => {
   for (const language of ["c", "rust"]) {
-    const fake = fakeRunnerExecutor({ language, target: "restaurant-branch" });
-    const { record } = await runBenchmark({ target: "restaurant-branch", language, warmup: 1, samples: 9, publish: false }, fakeRunnerDependencies(language, fake));
+    const fake = fakeRunnerExecutor({ language, target: "branch" });
+    const { record } = await runBenchmark({ target: "branch", language, warmup: 1, samples: 9, publish: false }, fakeRunnerDependencies(language, fake));
     const compileCalls = fake.calls.filter((call) => call.args.includes("-o"));
-    assert.equal(record.workloadId, "restaurant-branch");
-    assert.equal(record.id, `restaurant-branch-${language}-${TEST_COMMIT.slice(0, 12)}`);
-    assert.equal(record.correctness.oracleId, "restaurant-branch:exact-output");
-    assert.ok(compileCalls.every((call) => call.args.some((argument) => argument.endsWith(`restaurant-branch-${language}.exe`))));
-    assert.equal(record.identity.recipeClass, "restaurant-release");
+    assert.equal(record.workloadId, "branch");
+    assert.equal(record.id, `branch-${language}-${TEST_COMMIT.slice(0, 12)}`);
+    assert.equal(record.correctness.oracleId, "branch:exact-output");
+    assert.ok(compileCalls.every((call) => call.args.some((argument) => argument.endsWith(`branch-${language}.exe`))));
+    assert.equal(record.identity.recipeClass, "release");
     assert.match(record.identity.sourceDigest, /^sha256:[0-9a-f]{64}$/u);
     assert.equal(record.compile.raw.length, 9);
   }
@@ -1063,10 +1069,10 @@ test("PE cleanliness is checked on the retained correctness artifact before exec
   assertNoFakeSampleDirectories(fake);
 });
 
-test("restaurant-branch W uses public w build with a retained correctness artifact and separate run series", async () => {
-  const fake = fakeWRunnerExecutor("restaurant-branch");
+test("branch W uses public w build with a retained correctness artifact and separate run series", async () => {
+  const fake = fakeWRunnerExecutor("branch");
   let publicBuilds = 0;
-  const { record } = await runBenchmark({ target: "restaurant-branch", language: "w", warmup: 1, samples: 9, publish: false }, {
+  const { record } = await runBenchmark({ target: "branch", language: "w", warmup: 1, samples: 9, publish: false }, {
     executor: fake.executor,
     commit: TEST_COMMIT,
     environment: TEST_ENVIRONMENT,
@@ -1080,10 +1086,10 @@ test("restaurant-branch W uses public w build with a retained correctness artifa
       return fake.publicW;
     },
   });
-  assert.equal(record.workloadId, "restaurant-branch");
+  assert.equal(record.workloadId, "branch");
   assert.equal(record.language, "w");
   assert.equal(record.identity.recipe, "public-w-build-release");
-  assert.equal(record.correctness.oracleId, "restaurant-branch:exact-output");
+  assert.equal(record.correctness.oracleId, "branch:exact-output");
   assert.deepEqual(record.artifact.cleanliness, EXPECTED_PE_ARTIFACT_CLEANLINESS);
   assert.deepEqual(record.artifact.peLayout, EXPECTED_PE_LAYOUT);
   assert.equal(record.compile.raw.length, 9);

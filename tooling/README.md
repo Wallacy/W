@@ -265,18 +265,18 @@ W-1563 adds one closed local payloadless enum exhaustive-switch witness. HIR21
 retains nominal enum/case identity and canonical edge order; NativeSubset0
 derives the private minimum carrier (`i2` for the three-case fixture); raw MLIR
 contains `cf.switch` and a backend-only `llvm.unreachable` default. The pinned
-native Windows 23.1.1 `w run` gate executes `restaurant-enum.w` with exact
+native Windows 23.1.1 `w run` gate executes `enum.w` with exact
 `Courses 10/30/20\n`, empty stderr, and exit zero. The scope of this live
 Windows artifact is `unit-structured-cfg-enum-switch`; the i2 sign-bit tag is
 printed as `-2` for MLIR 23.1.1's signed textual parser. Payloads, subsets,
 general/mixed CFG, public ABI/layout stability, other targets, timing, ranking,
 and performance remain outside this correctness-only compiler-lifecycle cut.
-The payload successor runs `restaurant-enum-payload.w` on the same Windows
+The payload successor runs `enum-payload.w` on the same Windows
 toolchain. It checks enum-returning calls and reordered signed-`i64` captures
 through an internal SSA tag-plus-shared-payload carrier. The executable catalog
 owns the corresponding C/Rust references and live measurements.
 W-1564 advances HIR0 to HIR22 and preserves the function export bit as verified
-semantic input. The `restaurant-wmo.w` gate proves only a same-module
+semantic input. The `wmo.w` gate proves only a same-module
 executable product closure: retain the used private helper, omit unused
 exported/private functions and dead text, then execute exact `Bill 42\n`.
 Cross-module graph lowering and complete product-root planning remain gaps.
@@ -366,7 +366,7 @@ Focused k=1/k=3/k=4 cases complement k=2 with exact
 `Dispatched 20\n`/`Dispatched 66\n`/`Dispatched 92\n`; the lower-level
 external gate samples k=1 and k=4 endpoints, while the C product path covers
 k=1 through k=4. Separately, executable workload
-`restaurant-main-cardinality` owns the public k=4 `w run`/`w build` evidence on
+`main-cardinality` owns the public k=4 `w run`/`w build` evidence on
 Windows and on the Linux target through WSL2. The bounded product selector
 rejects k=5 transactionally while HIR38 retains it; reordered or orphan joins,
 mixed launch kinds, and no-route sources fail closed. The primary
@@ -522,7 +522,7 @@ artifact bytes both empty and nonempty. Exact `missing\n`/exit 2 and
 cleanup are required. The reported process PE byte count is diagnostic gate
 feedback, not benchmark history.
 
-W-1549 adds the source-backed `restaurant-nested-scalar-if` witness to the
+W-1549 adds the source-backed `nested-scalar-if` witness to the
 bounded MLIR0 route. Its unparenthesized tail
 `return if outer { if inner { open } else { middle } } else { closed }`
 normalizes as one scalar value, emits two typed LLVM diamonds and produces

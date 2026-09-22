@@ -91,9 +91,9 @@ try {
   assert(unit.stdoutText.includes("deterministic conservative C emitter"),
     "unit test witness is missing")
   const seedGate = resolve(buildDirectory, `w_seed_hlo1_gate${suffix}`)
-  const restaurantFixture = resolve(artifactDirectory, "restaurant.w")
+  const bindingFixture = resolve(artifactDirectory, "binding.w")
   const emptyFixture = resolve(artifactDirectory, "empty.w")
-  await writeFile(restaurantFixture,
+  await writeFile(bindingFixture,
     `fn serve() { let message = "Table 42 remains open" print(message) }\nentry(serve)\n`)
   await writeFile(emptyFixture, `fn main() { print("") }\nentry(main)\n`)
   const products = [
@@ -103,8 +103,8 @@ try {
       expected: Buffer.from("Hello, world!\n", "utf8"),
     },
     {
-      name: "restaurant",
-      source: restaurantFixture,
+      name: "binding",
+      source: bindingFixture,
       expected: Buffer.from("Table 42 remains open\n", "utf8"),
     },
     {
@@ -164,8 +164,8 @@ endif()
     assert(Buffer.from(execution.stdout).equals(product.expected),
       `${product.name} generated program stdout is not exact payload plus LF`)
   }
-  assert(!artifacts.get("canonical").equals(artifacts.get("restaurant")),
-    "Restaurant payload did not change the generated C artifact")
+  assert(!artifacts.get("canonical").equals(artifacts.get("binding")),
+    "binding payload did not change the generated C artifact")
   assert(!artifacts.get("canonical").equals(artifacts.get("empty")),
     "empty payload did not change the generated C artifact")
 

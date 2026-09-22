@@ -852,7 +852,7 @@ static bool test_enum_switch_native_lowering(void) {
   w_seed_native0_result restaurant_result;
   const w_seed_native0_status restaurant_status =
       run_source(restaurant_source, sizeof(restaurant_source) - 1u,
-                 "restaurant-enum", 15u, restaurant_output,
+                 "enum", 15u, restaurant_output,
                  sizeof(restaurant_output), &restaurant_result);
   CHECK(restaurant_status == W_SEED_NATIVE0_OK);
   CHECK(restaurant_result.status == W_SEED_NATIVE0_OK &&
@@ -862,7 +862,7 @@ static bool test_enum_switch_native_lowering(void) {
                        "\\43\\6f\\75\\72\\73\\65\\73\\20"));
   w_seed_native0_result restaurant_windows_result;
   const w_seed_native0_status restaurant_windows_status = run_source_mode(
-      restaurant_source, sizeof(restaurant_source) - 1u, "restaurant-enum.w",
+      restaurant_source, sizeof(restaurant_source) - 1u, "enum.w",
       17u, &WINDOWS_TARGET, W_SEED_MLIR0_ARTIFACT_EXECUTABLE,
       restaurant_output, sizeof(restaurant_output), &restaurant_windows_result);
   CHECK(restaurant_windows_status == W_SEED_NATIVE0_OK &&
@@ -2967,7 +2967,7 @@ static bool test_scalar_if_value_native(void) {
       "entry(main)\n";
   static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
   w_seed_native0_result result;
-  CHECK(run_source(source, sizeof(source) - 1u, "restaurant-scalar-if", 20u,
+  CHECK(run_source(source, sizeof(source) - 1u, "scalar-if", 20u,
                    output, sizeof(output), &result) == W_SEED_NATIVE0_OK);
   CHECK(result.status == W_SEED_NATIVE0_OK &&
         result.mlir.written.mlir_bytes == result.mlir.required.mlir_bytes &&
@@ -3023,7 +3023,7 @@ static bool test_nested_scalar_if_value_native(void) {
       "entry(main)\n";
   static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
   w_seed_native0_result result;
-  CHECK(run_source(source, sizeof(source) - 1u, "restaurant-nested-scalar-if",
+  CHECK(run_source(source, sizeof(source) - 1u, "nested-scalar-if",
                    28u, output, sizeof(output), &result) == W_SEED_NATIVE0_OK);
   CHECK(result.status == W_SEED_NATIVE0_OK &&
         result.mlir.written.mlir_bytes == result.mlir.required.mlir_bytes &&

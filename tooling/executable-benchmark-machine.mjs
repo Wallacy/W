@@ -11,6 +11,7 @@ export const EXECUTABLE_SCHEMA = "w-executable-benchmark/7";
 export const EXECUTABLE_CATALOG_ID = "w-executable-benchmark-catalog";
 export const EXECUTABLE_RESULT_SCHEMA = "w-executable-benchmark-result/7";
 export const EXECUTABLE_BEST_SCHEMA = "w-executable-benchmark-best-metrics/2";
+export const EXECUTABLE_SUITE_RECEIPT_SCHEMA = "w-executable-benchmark-suite/1";
 export const EXECUTABLE_RUNTIME_CLOSURE_CLASSES = Object.freeze([
   "freestanding",
   "hosted-crt",
@@ -26,51 +27,51 @@ export const EXECUTABLE_STRUCTURE_CLASSES = Object.freeze([
 export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "hello",
   "hello-platform-minimal",
-  "restaurant-branch",
-  "restaurant-nested-branch",
+  "branch",
+  "nested-branch",
   "bool-short-circuit",
-  "restaurant-interpolation",
-  "restaurant-scalar-if",
-  "restaurant-nested-scalar-if",
-  "restaurant-while-post",
-  "restaurant-repeat",
-  "restaurant-wmo",
-  "restaurant-async-join",
-  "restaurant-async-yield",
-  "restaurant-main-dispatch",
-  "restaurant-main-cardinality",
-  "restaurant-enum-switch",
-  "restaurant-enum-subset",
-  "restaurant-enum-payload",
-  "restaurant-enum-bool-payload",
-  "restaurant-comparison-composition",
-  "restaurant-integer-bitwise",
+  "interpolation",
+  "scalar-if",
+  "nested-scalar-if",
+  "while-post",
+  "repeat",
+  "wmo",
+  "async-join",
+  "async-yield",
+  "main-dispatch",
+  "main-cardinality",
+  "enum-switch",
+  "enum-subset",
+  "enum-payload",
+  "enum-bool-payload",
+  "comparison-composition",
+  "integer-bitwise",
   "integer-shift-semantics",
-  "restaurant-power",
-  "restaurant-power-prefix",
-  "restaurant-compound",
-  "restaurant-float-strict",
-  "restaurant-float-bit-representation",
-  "restaurant-checked-integer-arithmetic",
-  "restaurant-integer-prefix",
-  "restaurant-integer-wrapping",
-  "restaurant-integer-widening",
-  "restaurant-numeric-widening",
-  "restaurant-integer-truncating-bits",
-  "restaurant-integer-saturating-conversion",
-  "restaurant-integer-comparison",
-  "restaurant-uint-overflowing-family",
-  "restaurant-uint-saturating-policy",
+  "power",
+  "power-prefix",
+  "compound",
+  "float-strict",
+  "float-bit-representation",
+  "checked-integer-arithmetic",
+  "integer-prefix",
+  "integer-wrapping",
+  "integer-widening",
+  "numeric-widening",
+  "integer-truncating-bits",
+  "integer-saturating-conversion",
+  "integer-comparison",
+  "uint-overflowing-family",
+  "uint-saturating-policy",
   "fixed-integer-bit-primitives",
-  "restaurant-uint-bitwise",
-  "restaurant-uint-compound",
-  "restaurant-unsigned",
-  "restaurant-linear",
-  "restaurant-mutation",
-  "restaurant-conditional-mutation",
-  "restaurant-bool-mutation",
-  "restaurant-branch-mutation-multi",
-  "restaurant-composition",
+  "uint-bitwise",
+  "uint-compound",
+  "unsigned",
+  "linear",
+  "mutation",
+  "conditional-mutation",
+  "bool-mutation",
+  "branch-mutation-multi",
+  "composition",
   "process-entry",
   "fixed-integer-runtime-arithmetic",
   "float-integer-rounding",
@@ -83,32 +84,32 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
 const WORKLOAD_FAMILY_ROWS = Object.freeze({
   hello: Object.freeze(["hello", "hello-platform-minimal"]),
   "control-flow": Object.freeze([
-    "restaurant-branch", "restaurant-nested-branch", "bool-short-circuit",
-    "restaurant-interpolation", "restaurant-scalar-if", "restaurant-nested-scalar-if",
-    "restaurant-while-post", "restaurant-repeat", "restaurant-wmo",
+    "branch", "nested-branch", "bool-short-circuit",
+    "interpolation", "scalar-if", "nested-scalar-if",
+    "while-post", "repeat", "wmo",
   ]),
-  async: Object.freeze(["restaurant-async-join", "restaurant-async-yield"]),
+  async: Object.freeze(["async-join", "async-yield"]),
   composition: Object.freeze([
-    "restaurant-main-dispatch", "restaurant-main-cardinality", "restaurant-enum-switch",
-    "restaurant-enum-subset", "restaurant-enum-payload", "restaurant-enum-bool-payload",
-    "restaurant-comparison-composition", "restaurant-composition",
+    "main-dispatch", "main-cardinality", "enum-switch",
+    "enum-subset", "enum-payload", "enum-bool-payload",
+    "comparison-composition", "composition",
   ]),
   "integer-semantics": Object.freeze([
-    "restaurant-integer-bitwise", "integer-shift-semantics", "restaurant-power",
-    "restaurant-power-prefix", "restaurant-compound", "restaurant-checked-integer-arithmetic",
-    "restaurant-integer-prefix", "restaurant-integer-wrapping", "restaurant-integer-widening",
-    "restaurant-numeric-widening", "restaurant-integer-truncating-bits",
-    "restaurant-integer-saturating-conversion", "restaurant-integer-comparison",
-    "restaurant-uint-overflowing-family", "restaurant-uint-saturating-policy",
-    "fixed-integer-bit-primitives", "restaurant-uint-bitwise", "restaurant-uint-compound",
-    "restaurant-unsigned", "fixed-integer-runtime-arithmetic",
+    "integer-bitwise", "integer-shift-semantics", "power",
+    "power-prefix", "compound", "checked-integer-arithmetic",
+    "integer-prefix", "integer-wrapping", "integer-widening",
+    "numeric-widening", "integer-truncating-bits",
+    "integer-saturating-conversion", "integer-comparison",
+    "uint-overflowing-family", "uint-saturating-policy",
+    "fixed-integer-bit-primitives", "uint-bitwise", "uint-compound",
+    "unsigned", "fixed-integer-runtime-arithmetic",
   ]),
   "floating-point": Object.freeze([
-    "restaurant-float-strict", "restaurant-float-bit-representation", "float-integer-rounding",
+    "float-strict", "float-bit-representation", "float-integer-rounding",
   ]),
   mutation: Object.freeze([
-    "restaurant-linear", "restaurant-mutation", "restaurant-conditional-mutation",
-    "restaurant-bool-mutation", "restaurant-branch-mutation-multi",
+    "linear", "mutation", "conditional-mutation",
+    "bool-mutation", "branch-mutation-multi",
   ]),
   process: Object.freeze([
     "process-entry", "process-enum-payload", "process-arguments-count",
@@ -121,14 +122,25 @@ const EXECUTABLE_WORKLOAD_FAMILY = Object.freeze(Object.fromEntries(
   Object.entries(WORKLOAD_FAMILY_ROWS).flatMap(([family, ids]) => ids.map((id) => [id, family])),
 ));
 export const EXECUTABLE_RUN_TARGETS = Object.freeze(
-  EXECUTABLE_WORKLOAD_IDS.filter((id) => id !== "restaurant-composition"),
+  EXECUTABLE_WORKLOAD_IDS.filter((id) => id !== "composition"),
 );
 export const EXECUTABLE_BENCHMARK_STATUSES = Object.freeze([
   "not-performance-ready",
+  "contextual-measurement-ready",
   "deferred-to-M3b",
   "partial-exploratory-ready",
   "exploratory-ready",
   "planned",
+]);
+
+export const EXECUTABLE_SUITE_DEFAULT_PLATFORMS = Object.freeze([
+  "windows-x64",
+  "linux-wsl-x64",
+]);
+export const EXECUTABLE_SUITE_LANE_LANGUAGES = Object.freeze(["w", "c", "rust"]);
+const EXECUTABLE_SUITE_MEASUREMENT_STATUSES = new Set([
+  "exploratory-ready",
+  "partial-exploratory-ready",
 ]);
 
 export function executableWorkloadHasRunner(workload) {
@@ -136,6 +148,123 @@ export function executableWorkloadHasRunner(workload) {
   return workload.sources.some((source) => source?.language !== "w" ||
     source.recipe === "public-w-build-release" ||
     (workload.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.recipe === PROCESS_ENTRY0_RECIPE));
+}
+
+function suiteRecipeSupported(workload, source) {
+  if (source.language === "w") return source.recipe === "public-w-build-release";
+  if (source.language === "c") {
+    return source.recipe === "clang-c23-msvc" ||
+      (workload.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID && source.recipe === PLATFORM_MINIMAL_C_RECIPE);
+  }
+  if (source.language === "rust") {
+    return source.recipe === "rustc-edition-2024" ||
+      (workload.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID && source.recipe === PLATFORM_MINIMAL_RUST_RECIPE);
+  }
+  return false;
+}
+
+export function selectExecutableSuiteLanes(catalog, { platforms = EXECUTABLE_SUITE_DEFAULT_PLATFORMS } = {}) {
+  if (!Array.isArray(catalog?.workloads)) throw new TypeError("executable suite selection requires catalog workloads");
+  if (!Array.isArray(platforms) || platforms.length === 0 || new Set(platforms).size !== platforms.length ||
+      platforms.some((platform) => !EXECUTABLE_SUITE_DEFAULT_PLATFORMS.includes(platform))) {
+    throw new TypeError("suite platforms must be a non-empty, unique subset of the supported runner platforms");
+  }
+  const lanes = [];
+  for (const workload of catalog.workloads) {
+    if (workload.status !== "source-oracle-ready" ||
+        workload.sourceReadiness !== "source-and-oracle-ready" ||
+        !executableWorkloadHasRunner(workload)) continue;
+    const contextual = workload.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID &&
+      workload.benchmarkStatus === "contextual-measurement-ready";
+    if (!contextual && !EXECUTABLE_SUITE_MEASUREMENT_STATUSES.has(workload.benchmarkStatus)) continue;
+    if (workload.structureClass !== "public-end-to-end") continue;
+
+    for (const source of workload.sources) {
+      if (!platforms.includes(source.platformTarget) ||
+          source.status !== "source-oracle-ready" ||
+          !EXECUTABLE_SUITE_LANE_LANGUAGES.includes(source.language) ||
+          !suiteRecipeSupported(workload, source)) continue;
+      if (contextual) {
+        // The six platform-minimal sources are intentionally contextual even
+        // where ordinary eligibility is deferred or WSL is diagnostic-only.
+        if (!["windows-x64", "linux-wsl-x64"].includes(source.platformTarget)) continue;
+      } else if (source.platformTarget !== "windows-x64" ||
+                 source.eligibility !== "promotable-after-equivalence" ||
+                 source.comparability !== "promotable-after-equivalence") {
+        continue;
+      }
+      lanes.push({ workloadId: workload.id, language: source.language, platformTarget: source.platformTarget });
+    }
+  }
+  const platformOrder = new Map(EXECUTABLE_SUITE_DEFAULT_PLATFORMS.map((platform, index) => [platform, index]));
+  const languageOrder = new Map(EXECUTABLE_SUITE_LANE_LANGUAGES.map((language, index) => [language, index]));
+  return lanes.sort((left, right) =>
+    compareText(left.workloadId, right.workloadId) ||
+    platformOrder.get(left.platformTarget) - platformOrder.get(right.platformTarget) ||
+    languageOrder.get(left.language) - languageOrder.get(right.language));
+}
+
+export function executableSuiteReceiptErrors(receipt, catalog, { catalogDigest } = {}) {
+  const errors = [];
+  const requiredKeys = ["$schema", "schema", "kind", "status", "mode", "platforms", "catalogDigest", "observedAt", "durationMs", "laneCounts", "lanes"];
+  if (!receipt || typeof receipt !== "object" || Array.isArray(receipt)) return ["suite receipt must be an object"];
+  const actualKeys = Object.keys(receipt).sort(compareText);
+  if (JSON.stringify(actualKeys) !== JSON.stringify([...requiredKeys].sort(compareText))) errors.push("suite receipt has missing or unknown fields");
+  if (receipt.$schema !== "./executable-benchmark.schema.json") errors.push("suite receipt.$schema is invalid");
+  if (receipt.schema !== EXECUTABLE_SUITE_RECEIPT_SCHEMA || receipt.kind !== "executable-suite-current" || receipt.status !== "current") {
+    errors.push("suite receipt identity or status is invalid");
+  }
+  if (receipt.mode !== "full" && receipt.mode !== "filtered") errors.push("suite receipt.mode must be full or filtered");
+  if (!Array.isArray(receipt.platforms) || receipt.platforms.length === 0 ||
+      new Set(receipt.platforms).size !== receipt.platforms.length ||
+      receipt.platforms.some((platform) => !EXECUTABLE_SUITE_DEFAULT_PLATFORMS.includes(platform))) {
+    errors.push("suite receipt.platforms must be a non-empty unique supported platform list");
+  } else {
+    const canonicalPlatforms = EXECUTABLE_SUITE_DEFAULT_PLATFORMS.filter((platform) => receipt.platforms.includes(platform));
+    if (JSON.stringify(canonicalPlatforms) !== JSON.stringify(receipt.platforms)) errors.push("suite receipt.platforms must use canonical order");
+    const expectedMode = JSON.stringify(receipt.platforms) === JSON.stringify(EXECUTABLE_SUITE_DEFAULT_PLATFORMS) ? "full" : "filtered";
+    if (receipt.mode !== expectedMode) errors.push("suite receipt.mode does not match its platform scope");
+  }
+  if (typeof receipt.catalogDigest !== "string" || !DIGEST_PATTERN.test(receipt.catalogDigest)) errors.push("suite receipt.catalogDigest is invalid");
+  if (catalogDigest !== undefined && receipt.catalogDigest !== catalogDigest) errors.push("suite receipt is stale for the current catalog");
+  if (typeof receipt.observedAt !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u.test(receipt.observedAt) ||
+      !Number.isFinite(Date.parse(receipt.observedAt)) || new Date(receipt.observedAt).toISOString() !== receipt.observedAt) {
+    errors.push("suite receipt.observedAt must be canonical ISO-8601 UTC");
+  }
+  if (!Number.isSafeInteger(receipt.durationMs) || receipt.durationMs < 0) errors.push("suite receipt.durationMs must be a non-negative safe integer");
+  if (!receipt.laneCounts || typeof receipt.laneCounts !== "object" || Array.isArray(receipt.laneCounts) ||
+      Object.keys(receipt.laneCounts).sort(compareText).join(",") !== "failed,passed,skipped,total" ||
+      Object.values(receipt.laneCounts).some((count) => !Number.isSafeInteger(count) || count < 0)) {
+    errors.push("suite receipt.laneCounts must contain non-negative total, passed, failed, and skipped counts");
+  }
+  if (!Array.isArray(receipt.lanes)) errors.push("suite receipt.lanes must be an array");
+  if (Array.isArray(receipt.platforms) && Array.isArray(catalog?.workloads) && Array.isArray(receipt.lanes)) {
+    let expectedLanes = [];
+    try { expectedLanes = selectExecutableSuiteLanes(catalog, { platforms: receipt.platforms }); }
+    catch (error) { errors.push(String(error?.message ?? error)); }
+    const lanes = receipt.lanes.map((lane) => {
+      if (!lane || typeof lane !== "object" || Array.isArray(lane) ||
+          Object.keys(lane).sort(compareText).join(",") !== "language,platformTarget,recipe,status,toolchain,toolchainDigest,workloadId" ||
+          lane.status !== "passed") errors.push("suite receipt lanes may contain only complete passed results");
+      if (typeof lane?.toolchain !== "string" || lane.toolchain.trim() === "") errors.push("suite receipt lane.toolchain must retain the observed toolchain identity");
+      if (typeof lane?.recipe !== "string" || lane.recipe.trim() === "") errors.push("suite receipt lane.recipe must retain the selected source recipe");
+      if (typeof lane?.toolchainDigest !== "string" || !DIGEST_PATTERN.test(lane.toolchainDigest)) errors.push("suite receipt lane.toolchainDigest must retain the observed toolchain provenance digest");
+      return { workloadId: lane?.workloadId, language: lane?.language, platformTarget: lane?.platformTarget };
+    });
+    if (JSON.stringify(lanes) !== JSON.stringify(expectedLanes)) errors.push("suite receipt.lanes do not match the deterministic catalog selection");
+    if (receipt.laneCounts && typeof receipt.laneCounts === "object" && !Array.isArray(receipt.laneCounts)) {
+      if (receipt.laneCounts.total !== expectedLanes.length || receipt.laneCounts.passed !== expectedLanes.length ||
+          receipt.laneCounts.failed !== 0 || receipt.laneCounts.skipped !== 0) {
+        errors.push("suite receipt.laneCounts must report a complete successful suite");
+      }
+    }
+  }
+  return errors;
+}
+
+export function executableCatalogFileDigest(root = ROOT) {
+  const bytes = fs.readFileSync(path.resolve(root, "benchmarks", "executable-catalog.json"));
+  return "sha256:" + crypto.createHash("sha256").update(bytes).digest("hex");
 }
 const PUBLIC_WINDOWS_RUN_GATE = "tooling/check-w-run-windows.mjs";
 const PUBLIC_WINDOWS_RUN_VARIANTS = Object.freeze({
@@ -146,43 +275,43 @@ const PUBLIC_WINDOWS_RUN_VARIANTS = Object.freeze({
   "compiler/seed-c/fixtures/process-integer-exact-success.w": "fixed-integer-runtime-arithmetic",
   "compiler/seed-c/fixtures/process-integer-exact-error.w": "fixed-integer-runtime-arithmetic",
   "compiler/seed-c/fixtures/process-float-rounding-error.w": "float-integer-rounding",
-  "compiler/seed-c/fixtures/restaurant-repeat.w": "restaurant-repeat",
+  "compiler/seed-c/fixtures/repeat.w": "repeat",
   "compiler/seed-c/fixtures/local-graph/app.w": "local-module-graph",
-  "compiler/seed-c/fixtures/restaurant-uint-wrapping-add.w": "restaurant-integer-wrapping",
-  "compiler/seed-c/fixtures/restaurant-uint-wrapping-subtract.w": "restaurant-integer-wrapping",
-  "compiler/seed-c/fixtures/restaurant-uint-wrapping-multiply.w": "restaurant-integer-wrapping",
-  "compiler/seed-c/fixtures/restaurant-uint-wrapping-negate.w": "restaurant-integer-wrapping",
-  "compiler/seed-c/fixtures/restaurant-uint-wrapping-power.w": "restaurant-integer-wrapping",
-  "compiler/seed-c/fixtures/restaurant-uint-wrapping-shift-left.w": "restaurant-integer-wrapping",
-  "compiler/seed-c/fixtures/restaurant-integer-widening.w": "restaurant-integer-widening",
-  "compiler/seed-c/fixtures/restaurant-numeric-widening.w": "restaurant-numeric-widening",
-  "compiler/seed-c/fixtures/restaurant-integer-truncating-bits.w": "restaurant-integer-truncating-bits",
-  "compiler/seed-c/fixtures/restaurant-integer-saturating-conversion.w": "restaurant-integer-saturating-conversion",
-  "compiler/seed-c/fixtures/restaurant-integer-comparison.w": "restaurant-integer-comparison",
-  "compiler/seed-c/fixtures/restaurant-integer-bitwise.w": "restaurant-integer-bitwise",
-  "compiler/seed-c/fixtures/restaurant-shifts.w": "integer-shift-semantics",
+  "compiler/seed-c/fixtures/uint-wrapping-add.w": "integer-wrapping",
+  "compiler/seed-c/fixtures/uint-wrapping-subtract.w": "integer-wrapping",
+  "compiler/seed-c/fixtures/uint-wrapping-multiply.w": "integer-wrapping",
+  "compiler/seed-c/fixtures/uint-wrapping-negate.w": "integer-wrapping",
+  "compiler/seed-c/fixtures/uint-wrapping-power.w": "integer-wrapping",
+  "compiler/seed-c/fixtures/uint-wrapping-shift-left.w": "integer-wrapping",
+  "compiler/seed-c/fixtures/integer-widening.w": "integer-widening",
+  "compiler/seed-c/fixtures/numeric-widening.w": "numeric-widening",
+  "compiler/seed-c/fixtures/integer-truncating-bits.w": "integer-truncating-bits",
+  "compiler/seed-c/fixtures/integer-saturating-conversion.w": "integer-saturating-conversion",
+  "compiler/seed-c/fixtures/integer-comparison.w": "integer-comparison",
+  "compiler/seed-c/fixtures/integer-bitwise.w": "integer-bitwise",
+  "compiler/seed-c/fixtures/shifts.w": "integer-shift-semantics",
   "compiler/seed-c/fixtures/fixed-integer-shift-policies.w": "integer-shift-semantics",
   "compiler/seed-c/fixtures/fixed-integer-bit-primitives.w": "fixed-integer-bit-primitives",
-  "compiler/seed-c/fixtures/restaurant-uint-rotated-left.w": "restaurant-uint-bitwise",
-  "compiler/seed-c/fixtures/restaurant-uint-rotated-right.w": "restaurant-uint-bitwise",
-  "compiler/seed-c/fixtures/restaurant-uint-bit-not.w": "restaurant-uint-bitwise",
-  "compiler/seed-c/fixtures/restaurant-uint-count-ones.w": "restaurant-uint-bitwise",
-  "compiler/seed-c/fixtures/restaurant-uint-count-zeros.w": "restaurant-uint-bitwise",
-  "compiler/seed-c/fixtures/restaurant-uint-leading-zeros.w": "restaurant-uint-bitwise",
-  "compiler/seed-c/fixtures/restaurant-uint-trailing-zeros.w": "restaurant-uint-bitwise",
-  "compiler/seed-c/fixtures/restaurant-uint-reversed-bits.w": "restaurant-uint-bitwise",
-  "compiler/seed-c/fixtures/restaurant-uint-reversed-bytes.w": "restaurant-uint-bitwise",
-  "compiler/seed-c/fixtures/restaurant-uint-overflowing-add.w": "restaurant-uint-overflowing-family",
-  "compiler/seed-c/fixtures/restaurant-uint-overflowing-power.w": "restaurant-uint-overflowing-family",
-  "compiler/seed-c/fixtures/restaurant-uint-saturating-add.w": "restaurant-uint-saturating-policy",
-  "compiler/seed-c/fixtures/restaurant-uint-saturating-subtract.w": "restaurant-uint-saturating-policy",
-  "compiler/seed-c/fixtures/restaurant-uint-saturating-multiply.w": "restaurant-uint-saturating-policy",
-  "compiler/seed-c/fixtures/restaurant-unary-negate.w": "restaurant-integer-prefix",
-  "compiler/seed-c/fixtures/restaurant-unary-interpolation.w": "restaurant-integer-prefix",
-  "compiler/seed-c/fixtures/restaurant-while.w": "restaurant-while-post",
-  "compiler/seed-c/fixtures/restaurant-while-multi.w": "restaurant-while-post",
-  "compiler/seed-c/fixtures/restaurant-comparisons.w": "restaurant-comparison-composition",
-  "compiler/seed-c/fixtures/restaurant-branch-mutation.w": "restaurant-branch-mutation-multi",
+  "compiler/seed-c/fixtures/uint-rotated-left.w": "uint-bitwise",
+  "compiler/seed-c/fixtures/uint-rotated-right.w": "uint-bitwise",
+  "compiler/seed-c/fixtures/uint-bit-not.w": "uint-bitwise",
+  "compiler/seed-c/fixtures/uint-count-ones.w": "uint-bitwise",
+  "compiler/seed-c/fixtures/uint-count-zeros.w": "uint-bitwise",
+  "compiler/seed-c/fixtures/uint-leading-zeros.w": "uint-bitwise",
+  "compiler/seed-c/fixtures/uint-trailing-zeros.w": "uint-bitwise",
+  "compiler/seed-c/fixtures/uint-reversed-bits.w": "uint-bitwise",
+  "compiler/seed-c/fixtures/uint-reversed-bytes.w": "uint-bitwise",
+  "compiler/seed-c/fixtures/uint-overflowing-add.w": "uint-overflowing-family",
+  "compiler/seed-c/fixtures/uint-overflowing-power.w": "uint-overflowing-family",
+  "compiler/seed-c/fixtures/uint-saturating-add.w": "uint-saturating-policy",
+  "compiler/seed-c/fixtures/uint-saturating-subtract.w": "uint-saturating-policy",
+  "compiler/seed-c/fixtures/uint-saturating-multiply.w": "uint-saturating-policy",
+  "compiler/seed-c/fixtures/unary-negate.w": "integer-prefix",
+  "compiler/seed-c/fixtures/unary-interpolation.w": "integer-prefix",
+  "compiler/seed-c/fixtures/while.w": "while-post",
+  "compiler/seed-c/fixtures/while-multi.w": "while-post",
+  "compiler/seed-c/fixtures/comparisons.w": "comparison-composition",
+  "compiler/seed-c/fixtures/branch-mutation.w": "branch-mutation-multi",
 });
 export const PROCESS_ENTRY_WORKLOAD_ID = "process-entry";
 export const PROCESS_ENTRY_ORACLE_KIND = "argument-dependent-output";
@@ -203,16 +332,18 @@ export const PROCESS_ENTRY_ORACLE_CASES = Object.freeze([
 export const PROCESS_ENUM_PAYLOAD_WORKLOAD_ID = "process-enum-payload";
 export const PROCESS_ENUM_PAYLOAD_ORACLE_KIND = PROCESS_ENTRY_ORACLE_KIND;
 export const PROCESS_ENUM_PAYLOAD_RECIPE_CLASS = "process-enum-payload-release";
-export const PROCESS_ENUM_PAYLOAD_TIMED_INPUT = Object.freeze(["payload"]);
+export const PROCESS_ENUM_PAYLOAD_TIMED_INPUT = Object.freeze(["alpha", "beta", "gamma"]);
 export const PROCESS_ENUM_PAYLOAD_CORRECTNESS_INPUTS = Object.freeze([
   Object.freeze([]),
   Object.freeze([""]),
+  Object.freeze(["alpha", "beta"]),
   PROCESS_ENUM_PAYLOAD_TIMED_INPUT,
 ]);
 export const PROCESS_ENUM_PAYLOAD_ORACLE_CASES = Object.freeze([
-  Object.freeze({ arguments: PROCESS_ENUM_PAYLOAD_CORRECTNESS_INPUTS[0], exitCode: 7, stdout: "enum-missing true\n", stderr: "" }),
-  Object.freeze({ arguments: PROCESS_ENUM_PAYLOAD_CORRECTNESS_INPUTS[1], exitCode: 0, stdout: "enum-received false\n", stderr: "" }),
-  Object.freeze({ arguments: PROCESS_ENUM_PAYLOAD_CORRECTNESS_INPUTS[2], exitCode: 0, stdout: "enum-received false\n", stderr: "" }),
+  Object.freeze({ arguments: PROCESS_ENUM_PAYLOAD_CORRECTNESS_INPUTS[0], exitCode: 7, stdout: "arguments-missing count=0 amount=17 over-limit=false\n", stderr: "" }),
+  Object.freeze({ arguments: PROCESS_ENUM_PAYLOAD_CORRECTNESS_INPUTS[1], exitCode: 0, stdout: "arguments-present count=1 amount=17 over-limit=false\n", stderr: "" }),
+  Object.freeze({ arguments: PROCESS_ENUM_PAYLOAD_CORRECTNESS_INPUTS[2], exitCode: 0, stdout: "arguments-present count=2 amount=17 over-limit=false\n", stderr: "" }),
+  Object.freeze({ arguments: PROCESS_ENUM_PAYLOAD_CORRECTNESS_INPUTS[3], exitCode: 0, stdout: "arguments-present count=3 amount=17 over-limit=true\n", stderr: "" }),
 ]);
 export const PROCESS_ARGUMENTS_COUNT_WORKLOAD_ID = "process-arguments-count";
 export const PROCESS_ARGUMENTS_COUNT_ORACLE_KIND = PROCESS_ENTRY_ORACLE_KIND;
@@ -233,16 +364,18 @@ export const PROCESS_ARGUMENTS_ORDERING_ORACLE_KIND = PROCESS_ENTRY_ORACLE_KIND;
 export const PROCESS_ARGUMENTS_ORDERING_RECIPE_CLASS = "process-arguments-ordering-release";
 export const HELLO_PLATFORM_MINIMAL_WORKLOAD_ID = "hello-platform-minimal";
 export const HELLO_PLATFORM_MINIMAL_RECIPE_CLASS = "hello-platform-minimal";
-export const PROCESS_ARGUMENTS_ORDERING_TIMED_INPUT = Object.freeze(["alpha", "beta"]);
+export const PROCESS_ARGUMENTS_ORDERING_TIMED_INPUT = Object.freeze(["alpha", "beta", "gamma"]);
 export const PROCESS_ARGUMENTS_ORDERING_CORRECTNESS_INPUTS = Object.freeze([
   Object.freeze([]),
   Object.freeze([""]),
+  Object.freeze(["alpha", "beta"]),
   PROCESS_ARGUMENTS_ORDERING_TIMED_INPUT,
 ]);
 export const PROCESS_ARGUMENTS_ORDERING_ORACLE_CASES = Object.freeze([
-  Object.freeze({ arguments: PROCESS_ARGUMENTS_ORDERING_CORRECTNESS_INPUTS[0], exitCode: 0, stdout: "Kitchen seats 0 guests\n", stderr: "" }),
-  Object.freeze({ arguments: PROCESS_ARGUMENTS_ORDERING_CORRECTNESS_INPUTS[1], exitCode: 0, stdout: "Kitchen seats 1 guests\n", stderr: "" }),
-  Object.freeze({ arguments: PROCESS_ARGUMENTS_ORDERING_CORRECTNESS_INPUTS[2], exitCode: 0, stdout: "Banquet seats 2 guests\n", stderr: "" }),
+  Object.freeze({ arguments: PROCESS_ARGUMENTS_ORDERING_CORRECTNESS_INPUTS[0], exitCode: 0, stdout: "Argument mode compact: count=0\n", stderr: "" }),
+  Object.freeze({ arguments: PROCESS_ARGUMENTS_ORDERING_CORRECTNESS_INPUTS[1], exitCode: 0, stdout: "Argument mode compact: count=1\n", stderr: "" }),
+  Object.freeze({ arguments: PROCESS_ARGUMENTS_ORDERING_CORRECTNESS_INPUTS[2], exitCode: 0, stdout: "Argument mode extended: count=2\n", stderr: "" }),
+  Object.freeze({ arguments: PROCESS_ARGUMENTS_ORDERING_CORRECTNESS_INPUTS[3], exitCode: 0, stdout: "Argument mode extended: count=3\n", stderr: "" }),
 ]);
 export const FIXED_INTEGER_RUNTIME_ARITHMETIC_WORKLOAD_ID =
   "fixed-integer-runtime-arithmetic";
@@ -302,22 +435,22 @@ export const PROCESS_ARGUMENT_WORKLOAD_IDS = Object.freeze([
   PROCESS_ARGUMENTS_ORDERING_WORKLOAD_ID,
   FIXED_INTEGER_RUNTIME_ARITHMETIC_WORKLOAD_ID,
 ]);
-export const RESTAURANT_FLOAT_STRICT_WORKLOAD_ID = "restaurant-float-strict";
-export const RESTAURANT_CHECKED_INTEGER_ARITHMETIC_WORKLOAD_ID = "restaurant-checked-integer-arithmetic";
-export const RESTAURANT_INTEGER_PREFIX_WORKLOAD_ID = "restaurant-integer-prefix";
-export const RESTAURANT_INTEGER_WRAPPING_WORKLOAD_ID = "restaurant-integer-wrapping";
-export const RESTAURANT_INTEGER_WIDENING_WORKLOAD_ID = "restaurant-integer-widening";
-export const RESTAURANT_NUMERIC_WIDENING_WORKLOAD_ID = "restaurant-numeric-widening";
-export const RESTAURANT_INTEGER_TRUNCATING_BITS_WORKLOAD_ID = "restaurant-integer-truncating-bits";
-export const RESTAURANT_INTEGER_SATURATING_CONVERSION_WORKLOAD_ID = "restaurant-integer-saturating-conversion";
-export const RESTAURANT_INTEGER_COMPARISON_WORKLOAD_ID = "restaurant-integer-comparison";
-export const RESTAURANT_INTEGER_BITWISE_WORKLOAD_ID = "restaurant-integer-bitwise";
+export const FLOAT_STRICT_WORKLOAD_ID = "float-strict";
+export const CHECKED_INTEGER_ARITHMETIC_WORKLOAD_ID = "checked-integer-arithmetic";
+export const INTEGER_PREFIX_WORKLOAD_ID = "integer-prefix";
+export const INTEGER_WRAPPING_WORKLOAD_ID = "integer-wrapping";
+export const INTEGER_WIDENING_WORKLOAD_ID = "integer-widening";
+export const NUMERIC_WIDENING_WORKLOAD_ID = "numeric-widening";
+export const INTEGER_TRUNCATING_BITS_WORKLOAD_ID = "integer-truncating-bits";
+export const INTEGER_SATURATING_CONVERSION_WORKLOAD_ID = "integer-saturating-conversion";
+export const INTEGER_COMPARISON_WORKLOAD_ID = "integer-comparison";
+export const INTEGER_BITWISE_WORKLOAD_ID = "integer-bitwise";
 export const INTEGER_SHIFT_SEMANTICS_WORKLOAD_ID = "integer-shift-semantics";
-export const RESTAURANT_UINT_OVERFLOWING_FAMILY_WORKLOAD_ID = "restaurant-uint-overflowing-family";
-export const RESTAURANT_UINT_SATURATING_POLICY_WORKLOAD_ID = "restaurant-uint-saturating-policy";
-export const RESTAURANT_UINT_BITWISE_WORKLOAD_ID = "restaurant-uint-bitwise";
+export const UINT_OVERFLOWING_FAMILY_WORKLOAD_ID = "uint-overflowing-family";
+export const UINT_SATURATING_POLICY_WORKLOAD_ID = "uint-saturating-policy";
+export const UINT_BITWISE_WORKLOAD_ID = "uint-bitwise";
 export const FIXED_INTEGER_BIT_PRIMITIVES_WORKLOAD_ID = "fixed-integer-bit-primitives";
-export const RESTAURANT_UINT_COMPOUND_WORKLOAD_ID = "restaurant-uint-compound";
+export const UINT_COMPOUND_WORKLOAD_ID = "uint-compound";
 export function isProcessArgumentWorkload(workloadId) {
   return PROCESS_ARGUMENT_WORKLOAD_IDS.includes(workloadId);
 }
@@ -325,7 +458,7 @@ export function processArgumentOracleFor(workloadId) {
   return PROCESS_ARGUMENT_ORACLE_CONTRACTS[workloadId];
 }
 export const PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID = "process-handler-lifecycle";
-export const RESTAURANT_FLOAT_BIT_REPRESENTATION_WORKLOAD_ID = "restaurant-float-bit-representation";
+export const FLOAT_BIT_REPRESENTATION_WORKLOAD_ID = "float-bit-representation";
 export const PROCESS_HANDLER_LIFECYCLE_STRUCTURE_CLASS = "integration-linkage";
 export const PROCESS_HANDLER_LIFECYCLE_EXECUTION_STRUCTURE_CLASS = "transient-internal";
 export const PROCESS_ENTRY0_EXECUTION_KIND = "private-process-handler";
@@ -398,6 +531,7 @@ export const OPTIMIZABLE_METRICS = Object.freeze([
 ]);
 export const BEST_METRIC_ORDER = Object.freeze([...OPTIMIZABLE_METRICS]);
 const BEST_METRIC_BENCHMARK_STATUSES = Object.freeze([
+  "contextual-measurement-ready",
   "partial-exploratory-ready",
   "exploratory-ready",
 ]);
@@ -682,6 +816,8 @@ function digest(value, name, errors) {
 const SOURCE_EXPECTED_EXIT_PATTERN = /^\s*\/\/ Expected exit: ([0-9]+)$/u;
 const SOURCE_EXPECTED_STREAM_PATTERN = /^\s*\/\/ Expected (stdout|stderr):$/u;
 const SOURCE_EXPECTED_MARKER_PATTERN = /^\s*\/\/ Expected (?:exit|stdout|stderr)\b/u;
+const SOURCE_EXPECTED_CASES_HEADER_PATTERN = /^\s*\/\/ Expected output cases \(argv => exit; stdout\):$/u;
+const SOURCE_EXPECTED_CASE_ROW_PATTERN = /^\s*\/\/\s*(\[[^\]]*\])\s*=>\s*([0-9]+);\s*("(?:[^"\\]|\\.)*")\s*$/u;
 const SOURCE_COMMENT_PATTERN = /^\s*\/\/(?: ?(.*))?$/u;
 
 function sourceExpectedStreamText(lines) {
@@ -693,12 +829,54 @@ function sourceExpectedStreamText(lines) {
  *
  * A source opts in by containing one of the reserved `// Expected ...`
  * markers. Each output comment line contributes one literal output line and
- * therefore a trailing newline. Sources without a marker return undefined so
- * the pre-existing benchmark backlog is not forced to migrate at once.
+ * therefore a trailing newline. Sources without a marker return undefined;
+ * their oracle remains validated through the catalog without claiming
+ * source-comment coverage.
  */
 export function parseExecutableSourceExpectation(sourceText) {
   if (typeof sourceText !== "string") throw new TypeError("sourceText must be a string");
   const lines = sourceText.split(/\r?\n/u);
+  const caseHeaders = lines.flatMap((line, index) => SOURCE_EXPECTED_CASES_HEADER_PATTERN.test(line) ? [index] : []);
+  if (caseHeaders.length > 0) {
+    const errors = [];
+    if (caseHeaders.length !== 1) errors.push("Expected output cases header must appear at most once.");
+    if (lines.some((line) => SOURCE_EXPECTED_MARKER_PATTERN.test(line))) {
+      errors.push("Argument-dependent output cases cannot be mixed with single-case Expected exit/stdout/stderr markers.");
+    }
+    const cases = [];
+    for (let index = caseHeaders[0] + 1; index < lines.length; index += 1) {
+      const line = lines[index];
+      if (line.trim() === "") break;
+      if (!SOURCE_COMMENT_PATTERN.test(line)) break;
+      const match = line.match(SOURCE_EXPECTED_CASE_ROW_PATTERN);
+      if (!match) {
+        errors.push("Expected output case rows must use `// [argv] => N; \"stdout\\n\"` with JSON strings.");
+        continue;
+      }
+      try {
+        const arguments_ = JSON.parse(match[1]);
+        const exitCode = Number(match[2]);
+        const stdout = JSON.parse(match[3]);
+        if (!Array.isArray(arguments_) || arguments_.some((argument) => typeof argument !== "string")) {
+          errors.push("Expected output case argv must be a JSON array of strings.");
+          continue;
+        }
+        if (!Number.isSafeInteger(exitCode) || exitCode < 0 || exitCode > 255) {
+          errors.push("Expected output case exit must be a safe byte-sized non-negative integer.");
+          continue;
+        }
+        if (typeof stdout !== "string") {
+          errors.push("Expected output case stdout must be a JSON string.");
+          continue;
+        }
+        cases.push({ arguments: arguments_, exitCode, stdout, stderr: "" });
+      } catch {
+        errors.push("Expected output case argv and stdout must be valid JSON.");
+      }
+    }
+    if (cases.length === 0) errors.push("Expected output cases must contain at least one case row.");
+    return { cases, errors };
+  }
   const outputLines = { stdout: [], stderr: [] };
   const declaredStreams = new Set();
   const errors = [];
@@ -773,6 +951,25 @@ export function validateExecutableSourceExpectation(sourceText, oracle, location
   if (expectation === undefined) return [];
   const errors = expectation.errors.map((error) => `${location}: ${error}`);
   if (expectation.errors.length > 0) return errors;
+  if (expectation.cases !== undefined) {
+    if (oracle?.kind !== "argument-dependent-output" || oracle?.status !== "source-backed") {
+      errors.push(`${location}: source-local output cases require a source-backed argument-dependent catalog oracle.`);
+      return errors;
+    }
+    if (!Array.isArray(oracle.cases) || expectation.cases.length !== oracle.cases.length) {
+      errors.push(`${location}: Expected output case count must match the catalog oracle exactly.`);
+      return errors;
+    }
+    for (const [index, expected] of expectation.cases.entries()) {
+      const actual = oracle.cases[index];
+      for (const field of ["arguments", "exitCode", "stdout", "stderr"]) {
+        if (JSON.stringify(expected[field]) !== JSON.stringify(actual?.[field])) {
+          errors.push(`${location}: Expected output case ${index + 1} ${field} must match the catalog oracle exactly.`);
+        }
+      }
+    }
+    return errors;
+  }
   if (oracle?.kind !== "exact-output" || oracle?.status !== "source-backed") {
     errors.push(`${location}: source-local expected-output comments require a source-backed exact-output catalog oracle.`);
     return errors;
@@ -1178,6 +1375,12 @@ export function validateExecutableCatalog(catalog, documents = undefined, root =
     if (!["source-and-oracle-ready", "not-materialized"].includes(workload.sourceReadiness)) push(errors, location + ".sourceReadiness is invalid.");
     if (!["bounded-w-demo", "not-run"].includes(workload.demoEvidence)) push(errors, location + ".demoEvidence is invalid.");
     if (!EXECUTABLE_BENCHMARK_STATUSES.includes(workload.benchmarkStatus)) push(errors, location + ".benchmarkStatus is invalid.");
+    if (workload.benchmarkStatus === "contextual-measurement-ready" && workload.id !== HELLO_PLATFORM_MINIMAL_WORKLOAD_ID) {
+      push(errors, location + ".contextual-measurement-ready is reserved for the platform-minimal Hello correctness lane.");
+    }
+    if (workload.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID && workload.benchmarkStatus !== "contextual-measurement-ready") {
+      push(errors, location + ".benchmarkStatus must preserve platform-minimal Hello as contextual, non-ranking measurement evidence.");
+    }
     if (workload.status === "source-oracle-ready" && workload.sourceReadiness !== "source-and-oracle-ready") push(errors, location + ".sourceReadiness must identify a source-backed oracle.");
     if (workload.status !== "source-oracle-ready" && workload.sourceReadiness !== "not-materialized") push(errors, location + ".sourceReadiness must remain not-materialized.");
     if (workload.status === "source-oracle-ready" && workload.benchmarkStatus === "planned") push(errors, location + ".benchmarkStatus must not be planned for a source-backed witness.");
@@ -1342,23 +1545,23 @@ function executableHostSlugSupportsPlatform(host, platformTarget) {
 function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PLATFORM_TARGET_WINDOWS) {
   if (platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) return SOURCE_ELIGIBILITY.wslDiagnostic;
   if (workload?.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID) return SOURCE_ELIGIBILITY.platformMinimal;
-  if (workload?.id === RESTAURANT_FLOAT_STRICT_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_FLOAT_BIT_REPRESENTATION_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_CHECKED_INTEGER_ARITHMETIC_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_INTEGER_PREFIX_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_INTEGER_WRAPPING_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_INTEGER_WIDENING_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_NUMERIC_WIDENING_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_INTEGER_TRUNCATING_BITS_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_INTEGER_SATURATING_CONVERSION_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_INTEGER_COMPARISON_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_INTEGER_BITWISE_WORKLOAD_ID ||
+  if (workload?.id === FLOAT_STRICT_WORKLOAD_ID ||
+      workload?.id === FLOAT_BIT_REPRESENTATION_WORKLOAD_ID ||
+      workload?.id === CHECKED_INTEGER_ARITHMETIC_WORKLOAD_ID ||
+      workload?.id === INTEGER_PREFIX_WORKLOAD_ID ||
+      workload?.id === INTEGER_WRAPPING_WORKLOAD_ID ||
+      workload?.id === INTEGER_WIDENING_WORKLOAD_ID ||
+      workload?.id === NUMERIC_WIDENING_WORKLOAD_ID ||
+      workload?.id === INTEGER_TRUNCATING_BITS_WORKLOAD_ID ||
+      workload?.id === INTEGER_SATURATING_CONVERSION_WORKLOAD_ID ||
+      workload?.id === INTEGER_COMPARISON_WORKLOAD_ID ||
+      workload?.id === INTEGER_BITWISE_WORKLOAD_ID ||
       workload?.id === INTEGER_SHIFT_SEMANTICS_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_BITWISE_WORKLOAD_ID ||
+      workload?.id === UINT_BITWISE_WORKLOAD_ID ||
       workload?.id === FIXED_INTEGER_BIT_PRIMITIVES_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_COMPOUND_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_OVERFLOWING_FAMILY_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_SATURATING_POLICY_WORKLOAD_ID ||
+      workload?.id === UINT_COMPOUND_WORKLOAD_ID ||
+      workload?.id === UINT_OVERFLOWING_FAMILY_WORKLOAD_ID ||
+      workload?.id === UINT_SATURATING_POLICY_WORKLOAD_ID ||
       workload?.id === FLOAT_INTEGER_ROUNDING_WORKLOAD_ID) return SOURCE_ELIGIBILITY.strictF64;
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) return SOURCE_ELIGIBILITY.processHandler;
   if (language === "c") return SOURCE_ELIGIBILITY.cPublic;

@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
-import { ROOT, loadExecutableDocuments } from "./executable-benchmark-machine.mjs";
-import { PROJECTION_PATH, formatBytes, formatNanoseconds, projectionPath, renderExecutableProjection, renderFromDisk } from "./executable-benchmark-docs.mjs";
+import { EXECUTABLE_SUITE_DEFAULT_PLATFORMS, EXECUTABLE_SUITE_RECEIPT_SCHEMA, ROOT, executableCatalogFileDigest, loadExecutableDocuments, selectExecutableSuiteLanes } from "./executable-benchmark-machine.mjs";
+import { PROJECTION_PATH, currentSuiteReceipt, formatBytes, formatNanoseconds, projectionPath, renderExecutableProjection, renderFromDisk } from "./executable-benchmark-docs.mjs";
 
 const documents = loadExecutableDocuments();
 
@@ -12,45 +14,36 @@ test("generated projection is current, compact, and sourced only from the live c
   const measuredPlatformCells = new Set(documents.catalog.bestMetrics.entries.map(
     (entry) => `${entry.workloadId}\0${entry.language}\0${entry.platformTarget}`,
   )).size;
-  const maximumCompactLines = documents.catalog.workloads.length + measuredPlatformCells + 100;
+  const maximumCompactLines = documents.catalog.workloads.length + measuredPlatformCells + 300;
   assert.ok(rendered.split(/\r?\n/u).length <= maximumCompactLines);
-  assert.match(rendered, /Best values/u);
-  assert.match(rendered, /### Windows x64/u);
-  assert.match(rendered, /### Integer semantics[\s\S]*\| restaurant-integer-wrapping \|/u,
-    "family sections retain individual workload witnesses");
-  assert.match(rendered, /### Linux x64/u);
-  assert.match(rendered, /### Linux x64 via WSL2/u);
-  assert.match(rendered, /\| restaurant-main-dispatch \| w \| Linux x64 \/ WSL2 \| Freestanding \(unverified\) \| 2768 B/u);
-  assert.match(rendered, /\| restaurant-main-cardinality \| public-end-to-end \|/u);
-  assert.match(rendered, /\| integer-shift-semantics \| public-end-to-end \| \[w\]\(\.\/executable\/integer_shift_semantics\.w\), \[c\]\(\.\/executable\/integer_shift_semantics\.c\), \[rust\]\(\.\/executable\/integer_shift_semantics\.rs\) \| source-backed \| not-performance-ready \|/u);
-  assert.doesNotMatch(rendered, /\| integer-shift-semantics \| w \|/u,
-    "stale shift measurements must not remain in the generated best-value tables");
-  assert.match(rendered, /\| fixed-integer-runtime-arithmetic \| public-end-to-end \| \[w\]\(\.\.\/compiler\/seed-c\/fixtures\/process-fixed-integer-arithmetic\.w\), \[c\]\(\.\/executable\/process_fixed_integer_arithmetic\.c\), \[rust\]\(\.\/executable\/process_fixed_integer_arithmetic\.rs\) \| source-backed \| not-performance-ready \|/u);
-  assert.match(rendered, /WSL values are not rankable across hosts\./u);
-  assert.match(rendered, /\| Workload \| Language \| Target \| Runtime \| Artifact \| \.text B \| \.rdata B \| Compile p50 \| Run p50 \| Run p95 \| Peak RSS \| CPU mean \|/u);
-  assert.match(rendered, /### Linux x64 via WSL2[\s\S]*\| Workload \| Language \| Target \| Runtime \| Artifact \| ELF \.text B \| ELF \.rodata B \|/u);
-  assert.match(rendered, /\| hello \| c \| Windows x64 \/ MSVC \| Hosted CRT \(unverified\) \| [0-9]+ B/u);
-  assert.match(rendered, /\| hello \| w \| Windows x64 \/ MSVC \| Freestanding \(unverified\) \| [0-9]+ B/u);
-  assert.match(rendered, /## Platform-minimal Hello correctness comparison/u);
-  assert.match(rendered, /not an idiomatic C\/Rust baseline or a language ranking/u);
-  assert.match(rendered, /Runtime labels are recipe-derived classes, not artifact dependency receipts/u);
-  assert.match(rendered, /clang --target=x86_64-unknown-linux-gnu[\s\S]*-nostdlib[\s\S]*--strip-all/u);
-  assert.match(rendered, /rustc <source> --edition=2024[\s\S]*--target=x86_64-unknown-linux-gnu/u);
+  assert.match(rendered, /## Latest executable suite\n\nNo successful suite receipt matches this catalog yet\./u);
+  assert.match(rendered, /### Integer semantics[\s\S]*\[integer-wrapping \(W\)\]\([^)]*\)[^\n]*Not measured/u,
+    "one compact per-family table includes linked examples and current measurement status");
+  assert.match(rendered, /\| \[integer-shift-semantics \(W\)\]\(\.\/executable\/integer_shift_semantics\.w\), \[integer-shift-semantics \(C\)\]\(\.\/executable\/integer_shift_semantics\.c\), \[integer-shift-semantics \(Rust\)\]\(\.\/executable\/integer_shift_semantics\.rs\) \| Not measured \|/u,
+    "an unmeasured workload appears once with language links and em dashes");
+  assert.match(rendered, /\| \[hello-platform-minimal \(W\)\][^\n]*hello-platform-minimal \(C\)[^\n]*hello-platform-minimal \(Rust\)[^\n]*Not measured/u,
+    "contextual Hello remains unmeasured until execution cells are published");
+  assert.doesNotMatch(rendered, /\| process-arguments-ordering \| w \|/u);
+  assert.doesNotMatch(rendered, /\| process-enum-payload \| w \|/u);
+  assert.match(rendered, /\| Example \| System \/ lane \| Language \| Binary \| Compile p50 \| Execution p50 \| Execution p95 \| CPU mean \| Peak memory \|/u);
+  assert.match(rendered, /\| \[hello \(C\)\].*Windows · CRT \| C \|/u);
+  assert.match(rendered, /\| \[hello \(W\)\].*Windows · no CRT \| W \|/u);
+  assert.match(rendered, /Toolchain identity and recipe remain lane-specific/u);
+  assert.match(rendered, /does not imply one suite-wide compiler version/u);
   const partialWOnly = documents.catalog.workloads.filter((workload) =>
     workload.benchmarkStatus === "partial-exploratory-ready" &&
     new Set(workload.sources.map((source) => source.language)).size === 1 &&
     workload.sources.every((source) => source.language === "w"),
   );
   assert.ok(partialWOnly.length > 0);
-  assert.ok(partialWOnly.every((workload) => rendered.includes(`| ${workload.id} |`)));
-  assert.doesNotMatch(rendered, /restaurant-composition/u, "planned workloads stay out of the projection");
-  assert.match(rendered, /Artifact size counts only the emitted executable file\. On Windows it excludes imported runtime DLLs\./u);
-  assert.match(rendered, /Run p50\/p95 measure one complete target-process invocation \(launch, execution, and wait\) per sample\./u);
-  assert.match(rendered, /WSL initializes once, stages the ELF on WSL-native \/tmp, and excludes wsl\.exe startup and DrvFS access/u);
-  assert.match(rendered, /\[w\]\(\.\/executable\/hello\.w\)/u);
-  assert.match(rendered, /\[w\]\(\.\.\/compiler\/seed-c\/fixtures\/restaurant-if\.w\)/u);
-  assert.match(rendered, /\x7c process-handler-lifecycle \x7c integration-linkage \x7c/u);
-  assert.match(rendered, /public-end-to-end/u);
+  assert.ok(partialWOnly.every((workload) => rendered.includes(`${workload.id} (W)`)));
+  assert.doesNotMatch(rendered, /\[composition \(/u, "planned workloads stay out of the projection");
+  assert.match(rendered, /fresh-process invocations/u);
+  assert.match(rendered, /sampling policy, and recipe details: \[benchmark README\]/u);
+  assert.match(rendered, /\[hello \(W\)\]\(\.\/executable\/hello\.w\)/u);
+  assert.match(rendered, /\[branch \(W\)\]\(\.\.\/compiler\/seed-c\/fixtures\/if\.w\)/u);
+  assert.match(rendered, /\[process-handler-lifecycle \(W\)\]/u);
+  assert.doesNotMatch(rendered, /structureClass|source-backed|not-performance-ready|benchmarkStatus/u);
   assert.doesNotMatch(rendered, /recordId|equivalenceKey|sha256:|historical-unverified|verified-clean|Execution witness/iu);
 });
 
@@ -60,7 +53,7 @@ test("projection formatting and links remain deterministic", () => {
   assert.equal(formatBytes("3715072"), "3715072 B (3.54 MiB)");
   assert.equal(formatBytes("2560"), "2560 B (2.5 KiB)");
   assert.equal(projectionPath("benchmarks/executable/hello.w"), "./executable/hello.w");
-  assert.equal(projectionPath("compiler/seed-c/fixtures/restaurant-if.w"), "../compiler/seed-c/fixtures/restaurant-if.w");
+  assert.equal(projectionPath("compiler/seed-c/fixtures/if.w"), "../compiler/seed-c/fixtures/if.w");
   const copy = structuredClone(documents.catalog);
   assert.equal(renderExecutableProjection({ catalog: copy }), renderExecutableProjection({ catalog: documents.catalog }));
 
@@ -68,37 +61,47 @@ test("projection formatting and links remain deterministic", () => {
   const helloCArtifact = withSections.bestMetrics.entries.find((entry) =>
     entry.workloadId === "hello" && entry.language === "c" && entry.metric === "artifact-size");
   delete helloCArtifact.peLayout;
-  assert.match(renderExecutableProjection({ catalog: withSections }), /\| hello \| c \| Windows x64 \/ MSVC \| Hosted CRT \(unverified\) \| [0-9]+ B[^|]*\| — \| — \|/u);
-  helloCArtifact.peLayout = {
-    fileAlignment: "512",
-    sectionAlignment: "4096",
-    sizeOfHeaders: "512",
-    sections: [
-      { name: ".text", virtualSize: "111", rawSize: "512" },
-      { name: ".rdata", virtualSize: "222", rawSize: "512" },
-    ],
-  };
-  const sectionRendered = renderExecutableProjection({ catalog: withSections });
-  assert.match(sectionRendered, /\| hello \| c \| Windows x64 \/ MSVC \| Hosted CRT \(unverified\) \| [0-9]+ B[^|]*\| 111 \| 222 \|/u);
-  helloCArtifact.peLayout.sections.push({ name: ".text", virtualSize: "333", rawSize: "512" });
-  const ambiguousRendered = renderExecutableProjection({ catalog: withSections });
-  assert.match(ambiguousRendered, /\| hello \| c \| Windows x64 \/ MSVC \| Hosted CRT \(unverified\) \| [0-9]+ B[^|]*\| — \| 222 \|/u);
+  assert.match(renderExecutableProjection({ catalog: withSections }), /\| \[hello \(C\)\].*Windows · CRT \| C \| [^|]+ \|/u);
+});
 
-  const helloWslArtifact = withSections.bestMetrics.entries.find((entry) =>
-    entry.workloadId === "hello" && entry.language === "w" && entry.platformTarget === "linux-wsl-x64" && entry.metric === "artifact-size");
-  assert.ok(helloWslArtifact);
-  helloWslArtifact.elfLayout = {
-    class: "ELF64",
-    data: "little-endian",
-    machine: "x86-64",
-    type: "pie",
-    sections: [
-      { name: ".text", sizeBytes: "77" },
-      { name: ".rodata", sizeBytes: "88" },
-    ],
-  };
-  const linuxSectionRendered = renderExecutableProjection({ catalog: withSections });
-  assert.match(linuxSectionRendered, /\| hello \| w \| Linux x64 \/ WSL2 \| Freestanding \(unverified\) \| [0-9]+ B[^|]*\| 77 \| 88 \|/u);
+test("projection publishes only a current matching suite receipt and summarizes it without provenance noise", async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "w-suite-docs-test-"));
+  try {
+    const benchmarks = path.join(tempRoot, "benchmarks");
+    fs.mkdirSync(benchmarks, { recursive: true });
+    fs.writeFileSync(path.join(benchmarks, "executable-catalog.json"), `${JSON.stringify(documents.catalog, null, 2)}\n`);
+    const suiteReceiptPath = path.join(benchmarks, "executable-suite-current.json");
+    assert.equal(await currentSuiteReceipt(documents.catalog, tempRoot), undefined, "no file means no historical or invented run summary");
+    const lanes = selectExecutableSuiteLanes(documents.catalog).map((lane) => {
+      const workload = documents.catalog.workloads.find((item) => item.id === lane.workloadId);
+      const source = workload.sources.find((item) => item.language === lane.language && item.platformTarget === lane.platformTarget);
+      return { ...lane, status: "passed", toolchain: `compiler-${lane.language}`, recipe: source.recipe, toolchainDigest: `sha256:${"a".repeat(64)}` };
+    });
+    const receipt = {
+      $schema: "./executable-benchmark.schema.json",
+      schema: EXECUTABLE_SUITE_RECEIPT_SCHEMA,
+      kind: "executable-suite-current",
+      status: "current",
+      mode: "full",
+      platforms: [...EXECUTABLE_SUITE_DEFAULT_PLATFORMS],
+      catalogDigest: executableCatalogFileDigest(tempRoot),
+      observedAt: "2026-09-22T12:00:00.000Z",
+      durationMs: 65_000,
+      laneCounts: { total: lanes.length, passed: lanes.length, failed: 0, skipped: 0 },
+      lanes,
+    };
+    fs.writeFileSync(suiteReceiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+    assert.deepEqual(await currentSuiteReceipt(documents.catalog, tempRoot), receipt);
+    const rendered = renderExecutableProjection({ catalog: documents.catalog, root: tempRoot, suiteReceipt: receipt });
+    assert.ok(rendered.includes(`**Full suite** · ${lanes.length}/${lanes.length} lanes passed · 0 failed · 0 skipped · 1m 5s.`));
+    assert.doesNotMatch(rendered, /sha256:|toolchainDigest|compiler-w/u);
+
+    const stale = { ...receipt, catalogDigest: `sha256:${"b".repeat(64)}` };
+    fs.writeFileSync(suiteReceiptPath, `${JSON.stringify(stale, null, 2)}\n`);
+    assert.equal(await currentSuiteReceipt(documents.catalog, tempRoot), undefined, "stale receipt is hidden rather than attributed to the changed catalog");
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
 });
 
 test("projection collapses categories per platform without pooling platform lanes", () => {
@@ -125,8 +128,8 @@ test("projection collapses categories per platform without pooling platform lane
 
   const rendered = renderExecutableProjection({ catalog: compact });
   const lines = rendered.split(/\r?\n/u);
-  const windowsRows = lines.filter((line) => line.startsWith("| hello | rust | Windows x64 /"));
-  const linuxRows = lines.filter((line) => line.startsWith("| hello | rust | Linux x64 / GNU"));
+  const windowsRows = lines.filter((line) => line.includes("hello (Rust)") && line.includes("Windows · CRT"));
+  const linuxRows = lines.filter((line) => line.includes("hello (Rust)") && line.includes("Linux"));
   assert.equal(windowsRows.length, 1, "Windows categories must collapse to one human row");
   assert.match(windowsRows[0], /\| 1 ns \|/u, "the lower Windows cell must win");
   assert.equal(linuxRows.length, 1, "Linux remains an independent human row");
@@ -149,8 +152,35 @@ test("projection collapses categories per platform without pooling platform lane
   otherWsl.value = "4";
   compact.bestMetrics.entries.push(wsl, otherWsl);
   const wslRendered = renderExecutableProjection({ catalog: compact });
-  const wslRows = wslRendered.split(/\r?\n/u).filter((line) => line.startsWith("| hello | rust | Linux x64 / WSL2"));
+  const wslRows = wslRendered.split(/\r?\n/u).filter((line) => line.includes("hello (Rust)") && line.includes("WSL · CRT · diagnostic"));
   assert.equal(wslRows.length, 2, "WSL categories remain partitioned by host");
   assert.match(wslRows[0], /\| 3 ns \|/u, "WSL host rows must retain their own value");
   assert.match(wslRows[1], /\| 4 ns \|/u, "a second WSL host must not be pooled into the first");
+});
+
+test("projection never collapses runtime or comparability lanes within a platform", () => {
+  const catalog = structuredClone(documents.catalog);
+  const base = catalog.bestMetrics.entries.find((entry) =>
+    entry.workloadId === "hello" && entry.language === "rust" &&
+    entry.platformTarget === "windows-x64" && entry.metric === "run-wall-time");
+  assert.ok(base);
+  const freestanding = structuredClone(base);
+  freestanding.id = "synthetic-freestanding-runtime";
+  freestanding.categoryId = "category-" + "e".repeat(64);
+  freestanding.runtimeClosure = { class: "freestanding", status: "unverified" };
+  freestanding.value = "2";
+  const contextual = structuredClone(base);
+  contextual.id = "synthetic-contextual-eligibility";
+  contextual.categoryId = "category-" + "f".repeat(64);
+  contextual.comparability = "contextual-non-ranking-private-composite";
+  contextual.eligibility = "exploratory-private-composite";
+  contextual.value = "3";
+  catalog.bestMetrics.entries.push(freestanding, contextual);
+
+  const rows = renderExecutableProjection({ catalog }).split(/\r?\n/u)
+    .filter((line) => line.includes("hello (Rust)") && line.includes("Windows"));
+  assert.equal(rows.length, 3, "distinct runtime and comparability lanes remain separate rows");
+  assert.ok(rows.some((line) => line.includes("Windows · CRT")));
+  assert.ok(rows.some((line) => line.includes("Windows · no CRT")));
+  assert.ok(rows.some((line) => line.includes("Windows · CRT · private")));
 });

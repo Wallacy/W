@@ -7,80 +7,80 @@ import { dialectDisclosure, probeCDialect } from "./c-dialect.mjs"
 const root = resolve(import.meta.dir, "..")
 const seedDirectory = resolve(root, "compiler", "seed-c")
 const canonicalFixture = resolve(seedDirectory, "fixtures", "hlo0-hello.w")
-const restaurantLinearFixture = resolve(seedDirectory, "fixtures", "restaurant-linear.w")
-const restaurantInterpolationFixture = resolve(seedDirectory, "fixtures", "restaurant-interpolation.w")
-const restaurantIfFixture = resolve(seedDirectory, "fixtures", "restaurant-if.w")
-const restaurantNestedIfFixture = resolve(seedDirectory, "fixtures", "restaurant-nested-if.w")
-const restaurantNestedScalarIfFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-nested-scalar-if.w")
-const restaurantCheckedArithmeticFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-checked-arithmetic.w")
-const restaurantUnaryNegateFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-unary-negate.w")
-const restaurantUnaryInterpolationFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-unary-interpolation.w")
-const restaurantIntegerBitwiseFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-integer-bitwise.w")
-const restaurantUnsignedFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-unsigned.w")
-const restaurantShiftsFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-shifts.w")
-const restaurantPowerFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-power.w")
-const restaurantPowerPrefixFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-power-prefix.w")
-const restaurantCompoundFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-compound.w")
-const restaurantFloatStrictFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-float-strict.w")
-const restaurantFloatBitRepresentationFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-float-bit-representation.w")
-const restaurantNumericWideningFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-numeric-widening.w")
-const restaurantCheckedIntegerArithmeticFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-checked-integer-arithmetic.w")
-const restaurantIntegerWrappingFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-integer-wrapping.w")
-const restaurantIntegerPrefixFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-integer-prefix.w")
-const restaurantIntegerWideningFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-integer-widening.w")
-const restaurantIntegerTruncatingBitsFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-integer-truncating-bits.w")
-const restaurantIntegerSaturatingConversionFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-integer-saturating-conversion.w")
-const restaurantUIntWrappingAddFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-wrapping-add.w")
-const restaurantUIntWrappingSubtractFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-wrapping-subtract.w")
-const restaurantUIntWrappingMultiplyFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-wrapping-multiply.w")
-const restaurantUIntWrappingNegateFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-wrapping-negate.w")
-const restaurantUIntWrappingPowerFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-wrapping-power.w")
-const restaurantUIntOverflowingPowerFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-overflowing-power.w")
-const restaurantUIntOverflowingFamilyFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-overflowing-family.w")
-const restaurantUIntWrappingShiftLeftFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-wrapping-shift-left.w")
-const restaurantUIntRotatedLeftFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-rotated-left.w")
-const restaurantUIntRotatedRightFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-rotated-right.w")
-const restaurantUIntCountOnesFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-count-ones.w")
-const restaurantUIntCountZerosFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-count-zeros.w")
-const restaurantUIntLeadingZerosFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-leading-zeros.w")
-const restaurantUIntTrailingZerosFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-trailing-zeros.w")
-const restaurantUIntReversedBitsFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-reversed-bits.w")
-const restaurantUIntReversedBytesFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-reversed-bytes.w")
+const linearFixture = resolve(seedDirectory, "fixtures", "linear.w")
+const interpolationFixture = resolve(seedDirectory, "fixtures", "interpolation.w")
+const ifFixture = resolve(seedDirectory, "fixtures", "if.w")
+const nestedIfFixture = resolve(seedDirectory, "fixtures", "nested-if.w")
+const nestedScalarIfFixture = resolve(seedDirectory,
+  "fixtures", "nested-scalar-if.w")
+const checkedArithmeticFixture = resolve(seedDirectory,
+  "fixtures", "checked-arithmetic.w")
+const unaryNegateFixture = resolve(seedDirectory,
+  "fixtures", "unary-negate.w")
+const unaryInterpolationFixture = resolve(seedDirectory,
+  "fixtures", "unary-interpolation.w")
+const integerBitwiseFixture = resolve(seedDirectory,
+  "fixtures", "integer-bitwise.w")
+const unsignedFixture = resolve(seedDirectory,
+  "fixtures", "unsigned.w")
+const shiftsFixture = resolve(seedDirectory,
+  "fixtures", "shifts.w")
+const powerFixture = resolve(seedDirectory,
+  "fixtures", "power.w")
+const powerPrefixFixture = resolve(seedDirectory,
+  "fixtures", "power-prefix.w")
+const compoundFixture = resolve(seedDirectory,
+  "fixtures", "compound.w")
+const floatStrictFixture = resolve(seedDirectory,
+  "fixtures", "float-strict.w")
+const floatBitRepresentationFixture = resolve(seedDirectory,
+  "fixtures", "float-bit-representation.w")
+const numericWideningFixture = resolve(seedDirectory,
+  "fixtures", "numeric-widening.w")
+const checkedIntegerArithmeticFixture = resolve(seedDirectory,
+  "fixtures", "checked-integer-arithmetic.w")
+const integerWrappingFixture = resolve(seedDirectory,
+  "fixtures", "integer-wrapping.w")
+const integerPrefixFixture = resolve(seedDirectory,
+  "fixtures", "integer-prefix.w")
+const integerWideningFixture = resolve(seedDirectory,
+  "fixtures", "integer-widening.w")
+const integerTruncatingBitsFixture = resolve(seedDirectory,
+  "fixtures", "integer-truncating-bits.w")
+const integerSaturatingConversionFixture = resolve(seedDirectory,
+  "fixtures", "integer-saturating-conversion.w")
+const uIntWrappingAddFixture = resolve(seedDirectory,
+  "fixtures", "uint-wrapping-add.w")
+const uIntWrappingSubtractFixture = resolve(seedDirectory,
+  "fixtures", "uint-wrapping-subtract.w")
+const uIntWrappingMultiplyFixture = resolve(seedDirectory,
+  "fixtures", "uint-wrapping-multiply.w")
+const uIntWrappingNegateFixture = resolve(seedDirectory,
+  "fixtures", "uint-wrapping-negate.w")
+const uIntWrappingPowerFixture = resolve(seedDirectory,
+  "fixtures", "uint-wrapping-power.w")
+const uIntOverflowingPowerFixture = resolve(seedDirectory,
+  "fixtures", "uint-overflowing-power.w")
+const uIntOverflowingFamilyFixture = resolve(seedDirectory,
+  "fixtures", "uint-overflowing-family.w")
+const uIntWrappingShiftLeftFixture = resolve(seedDirectory,
+  "fixtures", "uint-wrapping-shift-left.w")
+const uIntRotatedLeftFixture = resolve(seedDirectory,
+  "fixtures", "uint-rotated-left.w")
+const uIntRotatedRightFixture = resolve(seedDirectory,
+  "fixtures", "uint-rotated-right.w")
+const uIntCountOnesFixture = resolve(seedDirectory,
+  "fixtures", "uint-count-ones.w")
+const uIntCountZerosFixture = resolve(seedDirectory,
+  "fixtures", "uint-count-zeros.w")
+const uIntLeadingZerosFixture = resolve(seedDirectory,
+  "fixtures", "uint-leading-zeros.w")
+const uIntTrailingZerosFixture = resolve(seedDirectory,
+  "fixtures", "uint-trailing-zeros.w")
+const uIntReversedBitsFixture = resolve(seedDirectory,
+  "fixtures", "uint-reversed-bits.w")
+const uIntReversedBytesFixture = resolve(seedDirectory,
+  "fixtures", "uint-reversed-bytes.w")
 const fixedIntegerBitPrimitivesFixture = resolve(seedDirectory,
   "fixtures", "fixed-integer-bit-primitives.w")
 const fixedIntegerShiftPoliciesFixture = resolve(seedDirectory,
@@ -105,36 +105,36 @@ const fixedIntegerShiftPoliciesOutput = Buffer.from(
   "i64 -9223372036854775808/0/-4611686018427387904/4611686018427387904\n" +
   "u64 9223372036854775808/0/4611686018427387904/4611686018427387904\n" +
   "u64 small-value 2/64/64\n", "utf8")
-const restaurantUIntSaturatingAddFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-saturating-add.w")
-const restaurantUIntSaturatingSubtractFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-saturating-subtract.w")
-const restaurantUIntSaturatingMultiplyFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-saturating-multiply.w")
-const restaurantUIntSaturatingPolicyFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-saturating-policy.w")
-const restaurantUIntBitNotFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-bit-not.w")
-const restaurantUIntBitwiseFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-bitwise.w")
-const restaurantUIntCompoundFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-compound.w")
-const restaurantMutationFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-mutation.w")
-const restaurantConditionalMutationFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-conditional-mutation.w")
-const restaurantBoolMutationFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-bool-mutation.w")
-const restaurantBranchMutationFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-branch-mutation.w")
-const restaurantMultiBranchMutationFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-branch-mutation-multi.w")
-const restaurantWhileFixture = resolve(seedDirectory, "fixtures", "restaurant-while.w")
-const restaurantWmoFixture = resolve(seedDirectory, "fixtures", "restaurant-wmo.w")
-const restaurantAsyncJoinFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-async-join.w")
-const restaurantAsyncYieldFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-async-yield.w")
+const uIntSaturatingAddFixture = resolve(seedDirectory,
+  "fixtures", "uint-saturating-add.w")
+const uIntSaturatingSubtractFixture = resolve(seedDirectory,
+  "fixtures", "uint-saturating-subtract.w")
+const uIntSaturatingMultiplyFixture = resolve(seedDirectory,
+  "fixtures", "uint-saturating-multiply.w")
+const uIntSaturatingPolicyFixture = resolve(seedDirectory,
+  "fixtures", "uint-saturating-policy.w")
+const uIntBitNotFixture = resolve(seedDirectory,
+  "fixtures", "uint-bit-not.w")
+const uIntBitwiseFixture = resolve(seedDirectory,
+  "fixtures", "uint-bitwise.w")
+const uIntCompoundFixture = resolve(seedDirectory,
+  "fixtures", "uint-compound.w")
+const mutationFixture = resolve(seedDirectory,
+  "fixtures", "mutation.w")
+const conditionalMutationFixture = resolve(seedDirectory,
+  "fixtures", "conditional-mutation.w")
+const boolMutationFixture = resolve(seedDirectory,
+  "fixtures", "bool-mutation.w")
+const branchMutationFixture = resolve(seedDirectory,
+  "fixtures", "branch-mutation.w")
+const multiBranchMutationFixture = resolve(seedDirectory,
+  "fixtures", "branch-mutation-multi.w")
+const whileFixture = resolve(seedDirectory, "fixtures", "while.w")
+const wmoFixture = resolve(seedDirectory, "fixtures", "wmo.w")
+const asyncJoinFixture = resolve(seedDirectory,
+  "fixtures", "async-join.w")
+const asyncYieldFixture = resolve(seedDirectory,
+  "fixtures", "async-yield.w")
 const explicitPanicFixture = resolve(seedDirectory,
   "fixtures", "panic-explicit.w")
 const mlirHeaderPath = resolve(seedDirectory, "include", "w_seed_mlir0.h")
@@ -576,13 +576,13 @@ try {
   }
 
   const seedGate = resolve(buildDirectory, `w_seed_mlir0_gate${suffix}`)
-  const restaurantPath = resolve(artifactDirectory, "restaurant.w")
-  const restaurantLiteralPath = resolve(artifactDirectory, "restaurant-literal.w")
-  const restaurantLinearLiteralPath = resolve(artifactDirectory, "restaurant-linear-literal.w")
-  const restaurantIfPath = resolve(artifactDirectory, "restaurant-if.w")
-  const restaurantNestedIfPath = resolve(artifactDirectory, "restaurant-nested-if.w")
-  const restaurantNestedScalarIfPath = resolve(artifactDirectory,
-    "restaurant-nested-scalar-if.w")
+  const fixturePath = resolve(artifactDirectory, "service-example.w")
+  const fixtureLiteralPath = resolve(artifactDirectory, "literal.w")
+  const fixtureLinearLiteralPath = resolve(artifactDirectory, "linear-literal.w")
+  const fixtureIfPath = resolve(artifactDirectory, "if.w")
+  const fixtureNestedIfPath = resolve(artifactDirectory, "nested-if.w")
+  const fixtureNestedScalarIfPath = resolve(artifactDirectory,
+    "nested-scalar-if.w")
   const twoCallsPath = resolve(artifactDirectory, "two-calls.w")
   const arithmeticPath = resolve(artifactDirectory, "typed-arithmetic.w")
   const percentPath = resolve(artifactDirectory, "percent-interpolation.w")
@@ -653,24 +653,24 @@ try {
   const runtimeUIntRemainderZeroPath = resolve(artifactDirectory,
     "runtime-uint-remainder-zero.w")
   const emptyPath = resolve(artifactDirectory, "empty.w")
-  await writeFile(restaurantPath,
+  await writeFile(fixturePath,
     `fn serve() { let message = "Table 42 remains open" print(message) }\nentry(serve)\n`)
-  await writeFile(restaurantLiteralPath,
+  await writeFile(fixtureLiteralPath,
     `fn serve() { print("Table 42 remains open") }\nentry(serve)\n`)
-  await writeFile(restaurantLinearLiteralPath,
+  await writeFile(fixtureLinearLiteralPath,
     `fn serve() {\nprint("Table 42 remains open")\n` +
     `print("Kitchen is ready")\n}\nentry(serve)\n`)
-  await writeFile(restaurantIfPath,
+  await writeFile(fixtureIfPath,
     `fn serve(isOpen: Bool) {\n` +
     `  if isOpen { print("Kitchen open") } else { print("Kitchen closed") }\n` +
     `  print("After service")\n` +
     `}\n` +
     `fn main() { serve(isOpen: true) serve(isOpen: false) }\n` +
     `entry(main)\n`)
-  await writeFile(restaurantNestedIfPath,
-    await readFile(restaurantNestedIfFixture))
-  await writeFile(restaurantNestedScalarIfPath,
-    await readFile(restaurantNestedScalarIfFixture))
+  await writeFile(fixtureNestedIfPath,
+    await readFile(nestedIfFixture))
+  await writeFile(fixtureNestedScalarIfPath,
+    await readFile(nestedScalarIfFixture))
   await writeFile(twoCallsPath,
     `fn main() { print("a")\nprint("b") }\nentry(main)\n`)
   await writeFile(arithmeticPath,
@@ -798,29 +798,29 @@ try {
   const products = [
     { name: "hello", source: canonicalFixture,
       expected: Buffer.from("Hello, world!\n", "utf8") },
-    { name: "restaurant-binding", source: restaurantPath,
+    { name: "binding", source: fixturePath,
       expected: Buffer.from("Table 42 remains open\n", "utf8") },
-    { name: "restaurant-literal", source: restaurantLiteralPath,
+    { name: "literal", source: fixtureLiteralPath,
       expected: Buffer.from("Table 42 remains open\n", "utf8") },
-    { name: "restaurant-linear", source: restaurantLinearFixture,
+    { name: "linear", source: linearFixture,
       expected: Buffer.from("Table 42 remains open\nKitchen is ready\n", "utf8") },
-    { name: "restaurant-interpolation", source: restaurantInterpolationFixture,
+    { name: "interpolation", source: interpolationFixture,
       expected: Buffer.from("Table 42 remains open\n", "utf8") },
-    { name: "restaurant-linear-literal", source: restaurantLinearLiteralPath,
+    { name: "linear-literal", source: fixtureLinearLiteralPath,
       expected: Buffer.from("Table 42 remains open\nKitchen is ready\n", "utf8") },
-    { name: "restaurant-if", source: restaurantIfPath,
+    { name: "if", source: fixtureIfPath,
       expected: Buffer.from(
         "Kitchen open\nAfter service\nKitchen closed\nAfter service\n", "utf8") },
-    { name: "restaurant-nested-if", source: restaurantNestedIfPath,
+    { name: "nested-if", source: fixtureNestedIfPath,
       expected: Buffer.from(
         "Restaurant open\nKitchen ready\nOpen branch joined\nPost-join service\n" +
         "Restaurant open\nKitchen closed\nOpen branch joined\nPost-join service\n" +
         "Restaurant closed\nKitchen ready\nClosed branch joined\nPost-join service\n" +
         "Restaurant closed\nKitchen closed\nClosed branch joined\nPost-join service\n",
         "utf8") },
-    { name: "restaurant-nested-scalar-if", source: restaurantNestedScalarIfPath,
+    { name: "nested-scalar-if", source: fixtureNestedScalarIfPath,
       expected: Buffer.from("1,2,3\n", "utf8") },
-    { name: "restaurant-checked-arithmetic", source: restaurantCheckedArithmeticFixture,
+    { name: "checked-arithmetic", source: checkedArithmeticFixture,
       expected: Buffer.from("Open 6; closed 1\n", "utf8") },
     { name: "two-calls", source: twoCallsPath,
       expected: Buffer.from("a\nb\n", "utf8") },
@@ -846,34 +846,34 @@ try {
       expected: Buffer.from("Open true\n", "utf8") },
     { name: "runtime-minimum-remainder", source: runtimeMinimumRemainderPath,
       expected: Buffer.from("0\n", "utf8") },
-    { name: "restaurant-unary-negate", source: restaurantUnaryNegateFixture,
+    { name: "unary-negate", source: unaryNegateFixture,
       expected: Buffer.from("Balance -7\n", "utf8") },
     { name: "direct-unary-interpolation",
-      source: restaurantUnaryInterpolationFixture,
+      source: unaryInterpolationFixture,
       expected: Buffer.from("Balance -7\n", "utf8") },
-    { name: "restaurant-mutation", source: restaurantMutationFixture,
+    { name: "mutation", source: mutationFixture,
       expected: Buffer.from("Open 6\n", "utf8") },
-    { name: "restaurant-conditional-mutation",
-      source: restaurantConditionalMutationFixture,
+    { name: "conditional-mutation",
+      source: conditionalMutationFixture,
       expected: Buffer.from("Open 6; closed 4\n", "utf8") },
-    { name: "restaurant-bool-mutation", source: restaurantBoolMutationFixture,
+    { name: "bool-mutation", source: boolMutationFixture,
       expected: Buffer.from("Open true; closed false\n", "utf8") },
-    { name: "restaurant-branch-mutation",
-      source: restaurantBranchMutationFixture,
+    { name: "branch-mutation",
+      source: branchMutationFixture,
       expected: Buffer.from("Open 6; closed 4\n", "utf8") },
-    { name: "restaurant-branch-mutation-multi",
-      source: restaurantMultiBranchMutationFixture,
+    { name: "branch-mutation-multi",
+      source: multiBranchMutationFixture,
       expected: Buffer.from("Open 18; closed -4\n", "utf8") },
-    { name: "restaurant-while", source: restaurantWhileFixture,
+    { name: "while", source: whileFixture,
       expected: Buffer.from("Served 3\n", "utf8") },
-    { name: "restaurant-wmo", source: restaurantWmoFixture,
+    { name: "wmo", source: wmoFixture,
       expected: Buffer.from("Bill 42\n", "utf8") },
-    { name: "restaurant-async-join", source: restaurantAsyncJoinFixture,
+    { name: "async-join", source: asyncJoinFixture,
       expected: Buffer.from("Prepared 42\n", "utf8") },
-    { name: "restaurant-async-yield", source: restaurantAsyncYieldFixture,
+    { name: "async-yield", source: asyncYieldFixture,
       expected: Buffer.from("Prepared 88\n", "utf8") },
-    { name: "restaurant-integer-bitwise",
-      source: restaurantIntegerBitwiseFixture,
+    { name: "integer-bitwise",
+      source: integerBitwiseFixture,
       expected: Buffer.from(
         "i8 10/-81/-91\n" +
         "u8 10/175/165\n" +
@@ -888,9 +888,9 @@ try {
         "Widened -13\n" +
         "Mixed 255\n",
         "utf8") },
-    { name: "restaurant-unsigned", source: restaurantUnsignedFixture,
+    { name: "unsigned", source: unsignedFixture,
       expected: Buffer.from("Unsigned 18446744073709551615\n", "utf8") },
-    { name: "restaurant-shifts", source: restaurantShiftsFixture,
+    { name: "shifts", source: shiftsFixture,
       expected: Buffer.from(
         "i8 -16/-128\nu8 32/128\ni16 -4096/-32768\nu16 8192/32768\n" +
         "i32 -268435456/-2147483648\nu32 536870912/2147483648\n" +
@@ -898,25 +898,25 @@ try {
         "u64 2305843009213693952/9223372036854775808\n" +
         "Int -1152921504606846976/-9223372036854775808\n" +
         "UInt 2305843009213693952/9223372036854775808\n", "utf8") },
-    { name: "restaurant-power", source: restaurantPowerFixture,
+    { name: "power", source: powerFixture,
       expected: Buffer.from("Power -27/1024/1/512\n", "utf8") },
-    { name: "restaurant-power-prefix", source: restaurantPowerPrefixFixture,
+    { name: "power-prefix", source: powerPrefixFixture,
       expected: Buffer.from("Power prefix -4/4/512/-9/-27\n", "utf8") },
-    { name: "restaurant-compound", source: restaurantCompoundFixture,
+    { name: "compound", source: compoundFixture,
       expected: Buffer.from("Compound 11\n", "utf8") },
-    { name: "restaurant-float-strict", source: restaurantFloatStrictFixture,
+    { name: "float-strict", source: floatStrictFixture,
       expected: Buffer.from("Float strict ok\n", "utf8") },
-    { name: "restaurant-float-bit-representation",
-      source: restaurantFloatBitRepresentationFixture,
+    { name: "float-bit-representation",
+      source: floatBitRepresentationFixture,
       expected: Buffer.from(
         "Float bits f32 2147483648/2139095040/2143363909 " +
         "f64 9223372036854775808/9218868437227405312/9221140253039434428\n",
         "utf8") },
-    { name: "restaurant-numeric-widening",
-      source: restaurantNumericWideningFixture,
+    { name: "numeric-widening",
+      source: numericWideningFixture,
       expected: Buffer.from("Numeric widen ok\n", "utf8") },
-    { name: "restaurant-checked-integer-arithmetic",
-      source: restaurantCheckedIntegerArithmeticFixture,
+    { name: "checked-integer-arithmetic",
+      source: checkedIntegerArithmeticFixture,
       expected: Buffer.from(
         "i8 -9/-15/-36; divrem -4/0; compound -2\nu8 43/37/120; divrem 13/1; compound 2\n" +
         "i16 -970/-1030/-30000; divrem -33/-10; compound -12\n" +
@@ -927,82 +927,82 @@ try {
         "u64 6000000000/4000000000/5000000000000000000; divrem 5/0; compound 999999998\n" +
         "Int -4000000000/-6000000000/-5000000000000000000; divrem -5/0; compound -2\n" +
         "UInt 9000000000/3000000000/18000000000000000000; divrem 2/0; compound 2999999998\n", "utf8") },
-    { name: "restaurant-integer-wrapping", source: restaurantIntegerWrappingFixture,
+    { name: "integer-wrapping", source: integerWrappingFixture,
       expected: Buffer.from(
         "i8/u8 -128/0\ni16/u16 32767/2\ni32/u32 -2/4294967295\n" +
         "i64/u64 -9223372036854775808/0\n" +
         "Int/UInt -9223372036854775808/18446744073709551615\n", "utf8") },
-    { name: "restaurant-integer-prefix", source: restaurantIntegerPrefixFixture,
+    { name: "integer-prefix", source: integerPrefixFixture,
       expected: Buffer.from(
         "i8 -7/-43\ni16 -7/-43\ni32 -7/-43\ni64 -7/-43\n" +
         "Int -7/-43\nu8 170\nu16 65450\nu32 4294967210\n" +
         "u64 18446744073709551530\nUInt 18446744073709551530\n" +
         "literal -7\n", "utf8") },
-    { name: "restaurant-integer-widening", source: restaurantIntegerWideningFixture,
+    { name: "integer-widening", source: integerWideningFixture,
       expected: Buffer.from("Widen -7/200/202/203\n", "utf8") },
-    { name: "restaurant-integer-truncating-bits",
-      source: restaurantIntegerTruncatingBitsFixture,
+    { name: "integer-truncating-bits",
+      source: integerTruncatingBitsFixture,
       expected: Buffer.from(
         "Trunc 2/-7/-6/18446744073709551609/-1\n", "utf8") },
-    { name: "restaurant-integer-saturating-conversion",
-      source: restaurantIntegerSaturatingConversionFixture,
+    { name: "integer-saturating-conversion",
+      source: integerSaturatingConversionFixture,
       expected: Buffer.from(
         "ss -128/7/127; us 7/127/127; su 0/200/255; " +
         "uu 7/255/255; UInt->Int 9223372036854775807\n", "utf8") },
-    { name: "restaurant-uint-wrapping-add",
-      source: restaurantUIntWrappingAddFixture,
+    { name: "uint-wrapping-add",
+      source: uIntWrappingAddFixture,
       expected: Buffer.from("Wrapped 0\n", "utf8") },
-    { name: "restaurant-uint-wrapping-subtract",
-      source: restaurantUIntWrappingSubtractFixture,
+    { name: "uint-wrapping-subtract",
+      source: uIntWrappingSubtractFixture,
       expected: Buffer.from("Wrapped 18446744073709551615\n", "utf8") },
-    { name: "restaurant-uint-wrapping-multiply",
-      source: restaurantUIntWrappingMultiplyFixture,
+    { name: "uint-wrapping-multiply",
+      source: uIntWrappingMultiplyFixture,
       expected: Buffer.from("Wrapped 18446744073709551614\n", "utf8") },
-    { name: "restaurant-uint-wrapping-negate",
-      source: restaurantUIntWrappingNegateFixture,
+    { name: "uint-wrapping-negate",
+      source: uIntWrappingNegateFixture,
       expected: Buffer.from("Wrapped 18446744073709551615\n", "utf8") },
-    { name: "restaurant-uint-wrapping-power",
-      source: restaurantUIntWrappingPowerFixture,
+    { name: "uint-wrapping-power",
+      source: uIntWrappingPowerFixture,
       expected: Buffer.from("Wrapped 12157665459056928801\n", "utf8") },
-    { name: "restaurant-uint-overflowing-power",
-      source: restaurantUIntOverflowingPowerFixture,
+    { name: "uint-overflowing-power",
+      source: uIntOverflowingPowerFixture,
       expected: Buffer.from(
         "Overflowing power 9223372036854775808/false; 0/true; 1/true; " +
         "1/false\n", "utf8") },
-    { name: "restaurant-uint-overflowing-family",
-      source: restaurantUIntOverflowingFamilyFixture,
+    { name: "uint-overflowing-family",
+      source: uIntOverflowingFamilyFixture,
       expected: Buffer.from(
         "Overflowing family add 0/true,11/false; subtract 41/false," +
         "18446744073709551615/true; multiply 42/false," +
         "18446744073709551614/true; negate 0/false," +
         "18446744073709551615/true; power 9223372036854775808/false," +
         "0/true,1/true,1/false\n", "utf8") },
-    { name: "restaurant-uint-wrapping-shift-left",
-      source: restaurantUIntWrappingShiftLeftFixture,
+    { name: "uint-wrapping-shift-left",
+      source: uIntWrappingShiftLeftFixture,
       expected: Buffer.from("Wrapped 18446744073709551614\n", "utf8") },
-    { name: "restaurant-uint-rotated-left",
-      source: restaurantUIntRotatedLeftFixture,
+    { name: "uint-rotated-left",
+      source: uIntRotatedLeftFixture,
       expected: Buffer.from("Rotated 3\n", "utf8") },
-    { name: "restaurant-uint-rotated-right",
-      source: restaurantUIntRotatedRightFixture,
+    { name: "uint-rotated-right",
+      source: uIntRotatedRightFixture,
       expected: Buffer.from("Rotated 9223372036854775809\n", "utf8") },
-    { name: "restaurant-uint-count-ones",
-      source: restaurantUIntCountOnesFixture,
+    { name: "uint-count-ones",
+      source: uIntCountOnesFixture,
       expected: Buffer.from("Ones 32\n", "utf8") },
-    { name: "restaurant-uint-count-zeros",
-      source: restaurantUIntCountZerosFixture,
+    { name: "uint-count-zeros",
+      source: uIntCountZerosFixture,
       expected: Buffer.from("Zeros 32\n", "utf8") },
-    { name: "restaurant-uint-leading-zeros",
-      source: restaurantUIntLeadingZerosFixture,
+    { name: "uint-leading-zeros",
+      source: uIntLeadingZerosFixture,
       expected: Buffer.from("Leading 56/64\n", "utf8") },
-    { name: "restaurant-uint-trailing-zeros",
-      source: restaurantUIntTrailingZerosFixture,
+    { name: "uint-trailing-zeros",
+      source: uIntTrailingZerosFixture,
       expected: Buffer.from("Trailing 12/64\n", "utf8") },
-    { name: "restaurant-uint-reversed-bits",
-      source: restaurantUIntReversedBitsFixture,
+    { name: "uint-reversed-bits",
+      source: uIntReversedBitsFixture,
       expected: Buffer.from("Bits 17848844570815808640\n", "utf8") },
-    { name: "restaurant-uint-reversed-bytes",
-      source: restaurantUIntReversedBytesFixture,
+    { name: "uint-reversed-bytes",
+      source: uIntReversedBytesFixture,
       expected: Buffer.from("Bytes 17279655951921914625\n", "utf8") },
     { name: "fixed-integer-bit-primitives",
       source: fixedIntegerBitPrimitivesFixture,
@@ -1010,29 +1010,29 @@ try {
     { name: "fixed-integer-shift-policies",
       source: fixedIntegerShiftPoliciesFixture,
       expected: fixedIntegerShiftPoliciesOutput },
-    { name: "restaurant-uint-saturating-add",
-      source: restaurantUIntSaturatingAddFixture,
+    { name: "uint-saturating-add",
+      source: uIntSaturatingAddFixture,
       expected: Buffer.from("Saturated 18446744073709551615/11\n", "utf8") },
-    { name: "restaurant-uint-saturating-subtract",
-      source: restaurantUIntSaturatingSubtractFixture,
+    { name: "uint-saturating-subtract",
+      source: uIntSaturatingSubtractFixture,
       expected: Buffer.from("Saturated subtract 0/10\n", "utf8") },
-    { name: "restaurant-uint-saturating-multiply",
-      source: restaurantUIntSaturatingMultiplyFixture,
+    { name: "uint-saturating-multiply",
+      source: uIntSaturatingMultiplyFixture,
       expected: Buffer.from("Saturated multiply 18446744073709551615/42\n", "utf8") },
-    { name: "restaurant-uint-saturating-policy",
-      source: restaurantUIntSaturatingPolicyFixture,
+    { name: "uint-saturating-policy",
+      source: uIntSaturatingPolicyFixture,
       expected: Buffer.from(
         "Saturating policy add 18446744073709551615/11; subtract 0/10; " +
         "multiply 18446744073709551615/42; negate 0/0; power " +
         "8/18446744073709551615/1\n", "utf8") },
-    { name: "restaurant-uint-bit-not", source: restaurantUIntBitNotFixture,
+    { name: "uint-bit-not", source: uIntBitNotFixture,
       expected: Buffer.from("UInt not 18446744073709551615\n", "utf8") },
-    { name: "restaurant-uint-bitwise", source: restaurantUIntBitwiseFixture,
+    { name: "uint-bitwise", source: uIntBitwiseFixture,
       expected: Buffer.from(
         "Not 18446744073709551615\nAnd 0\nOr 18446744073709551615\n" +
         "Xor 18446744073709551615\nOnes 32\nZeros 32\nLeading 56\n" +
         "Leading zero 64\nTrailing 12\nTrailing zero 64\n", "utf8") },
-    { name: "restaurant-uint-compound", source: restaurantUIntCompoundFixture,
+    { name: "uint-compound", source: uIntCompoundFixture,
       expected: Buffer.from(
         "UInt compound 4611686018427387907/4611686018427387906/" +
         "9223372036854775812/4611686018427387906/4611686018427387906/" +
@@ -1061,7 +1061,7 @@ try {
     invokeTool(tool("mlirOpt"), [inputForTool, "-o", verifiedForTool,
       "--convert-scf-to-cf", "--convert-cf-to-llvm", "--verify-each"],
     `${product.name} mlir-opt`)
-    if (product.name === "restaurant-while") {
+    if (product.name === "while") {
       const lowered = await readFile(verified)
       assert(!lowered.includes("scf.") && lowered.includes("llvm.cond_br") &&
         lowered.includes("llvm.br"),
@@ -1081,7 +1081,7 @@ try {
       `${product.name} stdout is not exact payload plus LF`)
   }
   const floatBitRepresentationArtifact = artifacts.get(
-    "restaurant-float-bit-representation").toString("utf8")
+    "float-bit-representation").toString("utf8")
   const floatBitRepresentationEvidence = {
     i32ToF32: (floatBitRepresentationArtifact.match(
       /llvm\.bitcast [^\n]* : i32 to f32\n/gu) ?? []).length,
@@ -1208,17 +1208,17 @@ try {
       "explicit panic did not lower to a stripped terminal trap")
     }
   }
-  assert(artifacts.get("restaurant-binding").equals(
-    artifacts.get("restaurant-literal")),
+  assert(artifacts.get("binding").equals(
+    artifacts.get("literal")),
   "Restaurant literal and binding MLIR artifacts differ")
-  assert(artifacts.get("restaurant-linear").equals(
-    artifacts.get("restaurant-linear-literal")),
+  assert(artifacts.get("linear").equals(
+    artifacts.get("linear-literal")),
   "Restaurant linear literal and binding MLIR artifacts differ")
-  assert(!artifacts.get("hello").equals(artifacts.get("restaurant-binding")),
+  assert(!artifacts.get("hello").equals(artifacts.get("binding")),
     "Restaurant payload did not change MLIR")
   assert(!artifacts.get("hello").equals(artifacts.get("empty")),
     "empty payload did not change MLIR")
-  for (const name of ["restaurant-interpolation", "restaurant-checked-arithmetic",
+  for (const name of ["interpolation", "checked-arithmetic",
     "typed-arithmetic", "percent-interpolation", "nul-interpolation",
     "minimum-i64"]) {
     const artifact = artifacts.get(name)
@@ -1233,7 +1233,7 @@ try {
       !artifact.includes("snprintf") && !artifact.includes("vararg"),
     `${name} did not retain typed Boolean lowering`)
   }
-  const checkedArithmeticArtifact = artifacts.get("restaurant-checked-arithmetic")
+  const checkedArithmeticArtifact = artifacts.get("checked-arithmetic")
     assert(checkedArithmeticArtifact.includes(
     "llvm.call @w_seed_checked_add_i64") &&
     checkedArithmeticArtifact.includes("llvm.call @w_seed_checked_subtract_i64") &&
@@ -1246,7 +1246,7 @@ try {
   assert(typedArithmeticArtifact.includes("llvm.sdiv %v") &&
     typedArithmeticArtifact.includes("llvm.srem %v"),
   "constant division and remainder did not retain LLVM arithmetic lowering")
-  const integerBitwiseArtifact = artifacts.get("restaurant-integer-bitwise")
+  const integerBitwiseArtifact = artifacts.get("integer-bitwise")
   assert(integerBitwiseArtifact.includes("llvm.and ") &&
     integerBitwiseArtifact.includes("llvm.xor ") &&
     integerBitwiseArtifact.includes("llvm.or ") &&
@@ -1289,7 +1289,7 @@ try {
     mixedFunctionArtifact.includes("_bitwise_raw : i16 to i64") &&
     !mixedFunctionArtifact.includes("llvm.call @w_seed_"),
   "u8-to-i16 bitwise widening did not zext before direct logical-width OR")
-  const unsignedArtifact = artifacts.get("restaurant-unsigned")
+  const unsignedArtifact = artifacts.get("unsigned")
   assert(unsignedArtifact.includes("llvm.mlir.constant(-1 : i64) : i64") &&
     unsignedArtifact.includes("llvm.func internal @w_seed_append_u64") &&
     unsignedArtifact.includes("llvm.call @w_seed_append_u64") &&
@@ -1298,7 +1298,7 @@ try {
     unsignedArtifact.includes("llvm.call @w_fn_0") &&
     !unsignedArtifact.includes("llvm.call @w_seed_append_i64"),
   "UInt did not retain its unsigned full-width lowering and formatter")
-  const shiftsArtifact = artifacts.get("restaurant-shifts")
+  const shiftsArtifact = artifacts.get("shifts")
   const shiftsArtifactText = shiftsArtifact.toString("utf8")
   const shiftEvidence = {
     width8: (shiftsArtifactText.match(/_checked_width = llvm\.mlir\.constant\(8 : i64\)/gu) ?? []).length,
@@ -1325,7 +1325,7 @@ try {
     shiftEvidence.signed === 10 && shiftEvidence.unsigned === 10 &&
     shiftEvidence.left === 10 && shiftEvidence.right === 10,
   "checked shifts lost verified logical widths, signedness, or runtime lowering")
-  const powerArtifact = artifacts.get("restaurant-power")
+  const powerArtifact = artifacts.get("power")
   assert(powerArtifact.includes(
     "llvm.func internal @w_seed_checked_power_i64") &&
     powerArtifact.includes(
@@ -1336,7 +1336,7 @@ try {
     powerArtifact.includes("llvm.call @w_seed_checked_power_i64") &&
     powerArtifact.includes("llvm.call @w_seed_checked_power_u64"),
   "checked power lost exponentiation-by-squaring or signedness")
-  const floatArtifact = artifacts.get("restaurant-float-strict").toString("utf8")
+  const floatArtifact = artifacts.get("float-strict").toString("utf8")
   assert(floatArtifact.includes("llvm.fadd") &&
     floatArtifact.includes("llvm.fsub") &&
     floatArtifact.includes("llvm.fmul") &&
@@ -1353,7 +1353,7 @@ try {
     !floatArtifact.includes("fastmath"),
   "strict float lowering lost a width, operator, predicate, bit pattern, or strict mode")
   const checkedIntegerArithmeticArtifact =
-    artifacts.get("restaurant-checked-integer-arithmetic").toString("utf8")
+    artifacts.get("checked-integer-arithmetic").toString("utf8")
   assert(checkedIntegerArithmeticArtifact.includes("@w_seed_checked_add_i64") &&
     checkedIntegerArithmeticArtifact.includes("@w_seed_checked_subtract_i64") &&
     checkedIntegerArithmeticArtifact.includes("@w_seed_checked_multiply_i64") &&
@@ -1372,28 +1372,28 @@ try {
     checkedIntegerArithmeticArtifact.includes("llvm.mlir.constant(32 : i64)"),
   "checked integer arithmetic lost signedness, overflow, logical width, or trapping")
   const uintWrappingAddArtifact =
-    artifacts.get("restaurant-uint-wrapping-add").toString("utf8")
+    artifacts.get("uint-wrapping-add").toString("utf8")
   assert(uintWrappingAddArtifact.includes("llvm.add %p0,") &&
     uintWrappingAddArtifact.includes("llvm.call @w_seed_append_u64") &&
     !uintWrappingAddArtifact.includes("@w_seed_checked_add_u64") &&
     !uintWrappingAddArtifact.includes("llvm.intr.uadd.with.overflow"),
   "u64.wrappingAdd did not retain direct wrapping u64 lowering")
   const uintWrappingSubtractArtifact =
-    artifacts.get("restaurant-uint-wrapping-subtract").toString("utf8")
+    artifacts.get("uint-wrapping-subtract").toString("utf8")
   assert(uintWrappingSubtractArtifact.includes("llvm.sub %p0,") &&
     uintWrappingSubtractArtifact.includes("llvm.call @w_seed_append_u64") &&
     !uintWrappingSubtractArtifact.includes("@w_seed_checked_subtract_u64") &&
     !uintWrappingSubtractArtifact.includes("llvm.intr.usub.with.overflow"),
   "u64.wrappingSubtract did not retain direct wrapping u64 lowering")
   const uintWrappingMultiplyArtifact =
-    artifacts.get("restaurant-uint-wrapping-multiply").toString("utf8")
+    artifacts.get("uint-wrapping-multiply").toString("utf8")
   assert(uintWrappingMultiplyArtifact.includes("llvm.mul %p0,") &&
     uintWrappingMultiplyArtifact.includes("llvm.call @w_seed_append_u64") &&
     !uintWrappingMultiplyArtifact.includes("@w_seed_checked_multiply_u64") &&
     !uintWrappingMultiplyArtifact.includes("llvm.intr.umul.with.overflow"),
   "u64.wrappingMultiply did not retain direct wrapping u64 lowering")
   const uintWrappingNegateArtifact =
-    artifacts.get("restaurant-uint-wrapping-negate").toString("utf8")
+    artifacts.get("uint-wrapping-negate").toString("utf8")
   assert(uintWrappingNegateArtifact.includes("llvm.mlir.constant(0 : i64)") &&
     uintWrappingNegateArtifact.includes("llvm.sub") &&
     uintWrappingNegateArtifact.includes("llvm.call @w_seed_append_u64") &&
@@ -1401,7 +1401,7 @@ try {
     !uintWrappingNegateArtifact.includes("llvm.intr.usub.with.overflow"),
   "u64.wrappingNegate did not retain direct wrapping u64 lowering")
   const uintWrappingPowerArtifact =
-    artifacts.get("restaurant-uint-wrapping-power").toString("utf8")
+    artifacts.get("uint-wrapping-power").toString("utf8")
   assert(uintWrappingPowerArtifact.includes(
     "llvm.func internal @w_seed_wrapping_power_u64") &&
     uintWrappingPowerArtifact.includes(
@@ -1413,7 +1413,7 @@ try {
     !uintWrappingPowerArtifact.includes("llvm.intr.umul.with.overflow"),
   "u64.wrappingPower did not retain runtime modulo exponentiation lowering")
   const uintOverflowingPowerArtifact =
-    artifacts.get("restaurant-uint-overflowing-power").toString("utf8")
+    artifacts.get("uint-overflowing-power").toString("utf8")
   assert((uintOverflowingPowerArtifact.match(
     /llvm\.func internal @w_seed_overflowing_power_u64/g) ?? []).length === 1 &&
     uintOverflowingPowerArtifact.includes(
@@ -1426,7 +1426,7 @@ try {
     !uintOverflowingPowerArtifact.includes("@w_seed_checked_power_u64"),
   "u64.overflowingPower lost sticky-overflow exponentiation lowering")
   const uintOverflowingFamilyArtifact =
-    artifacts.get("restaurant-uint-overflowing-family").toString("utf8")
+    artifacts.get("uint-overflowing-family").toString("utf8")
   assert((uintOverflowingFamilyArtifact.match(
     /llvm\.intr\.uadd\.with\.overflow/g) ?? []).length === 2 &&
     (uintOverflowingFamilyArtifact.match(
@@ -1445,7 +1445,7 @@ try {
     !uintOverflowingFamilyArtifact.includes("@w_seed_checked_negate_u64"),
   "u64 overflowing arithmetic family lost direct tuple or power lowering")
   const uintWrappingShiftLeftArtifact =
-    artifacts.get("restaurant-uint-wrapping-shift-left").toString("utf8")
+    artifacts.get("uint-wrapping-shift-left").toString("utf8")
   assert((uintWrappingShiftLeftArtifact.match(
     /llvm\.func internal @w_seed_wrapping_shift_left_u64/g) ?? []).length === 1 &&
     uintWrappingShiftLeftArtifact.includes(
@@ -1487,7 +1487,7 @@ try {
     fixedIntegerShiftPoliciesArtifact.includes("llvm.call @w_seed_append_u64"),
   "fixed-width named shifts lost count masking, signedness, logical zero-fill, or invalid-count trap semantics")
   const uintRotatedLeftArtifact =
-    artifacts.get("restaurant-uint-rotated-left").toString("utf8")
+    artifacts.get("uint-rotated-left").toString("utf8")
   assert(!uintRotatedLeftArtifact.includes("@w_seed_rotated_left_u64") &&
     (uintRotatedLeftArtifact.match(/llvm\.intr\.fshl/g) ?? []).length === 1 &&
     uintRotatedLeftArtifact.includes(
@@ -1497,7 +1497,7 @@ try {
     !uintRotatedLeftArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
   "u64.rotatedLeft lost funnel-shift or modulo-width semantics")
   const uintRotatedRightArtifact =
-    artifacts.get("restaurant-uint-rotated-right").toString("utf8")
+    artifacts.get("uint-rotated-right").toString("utf8")
   assert(!uintRotatedRightArtifact.includes("@w_seed_rotated_right_u64") &&
     (uintRotatedRightArtifact.match(/llvm\.intr\.fshr/g) ?? []).length === 1 &&
     uintRotatedRightArtifact.includes(
@@ -1507,13 +1507,13 @@ try {
     !uintRotatedRightArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
   "u64.rotatedRight lost funnel-shift or modulo-width semantics")
   const uintCountOnesArtifact =
-    artifacts.get("restaurant-uint-count-ones").toString("utf8")
+    artifacts.get("uint-count-ones").toString("utf8")
   assert((uintCountOnesArtifact.match(/llvm\.intr\.ctpop/g) ?? []).length === 1 &&
     uintCountOnesArtifact.includes("llvm.call @w_seed_append_u64") &&
     !uintCountOnesArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
   "u64.countOnes lost population-count or total-operation semantics")
   const uintCountZerosArtifact =
-    artifacts.get("restaurant-uint-count-zeros").toString("utf8")
+    artifacts.get("uint-count-zeros").toString("utf8")
   assert((uintCountZerosArtifact.match(/llvm\.intr\.ctpop/g) ?? []).length === 1 &&
     uintCountZerosArtifact.includes(
       "_bit_width = llvm.mlir.constant(64 : i64)") &&
@@ -1522,47 +1522,47 @@ try {
     !uintCountZerosArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
   "u64.countZeros lost width-minus-popcount or total-operation semantics")
   const uintLeadingZerosArtifact =
-    artifacts.get("restaurant-uint-leading-zeros").toString("utf8")
+    artifacts.get("uint-leading-zeros").toString("utf8")
   assert((uintLeadingZerosArtifact.match(/llvm\.intr\.ctlz/g) ?? []).length === 1 &&
     uintLeadingZerosArtifact.includes("is_zero_poison = false") &&
     uintLeadingZerosArtifact.includes("llvm.call @w_seed_append_u64") &&
     !uintLeadingZerosArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
   "u64.countLeadingZeros lost non-poison ctlz or total-operation semantics")
   const uintTrailingZerosArtifact =
-    artifacts.get("restaurant-uint-trailing-zeros").toString("utf8")
+    artifacts.get("uint-trailing-zeros").toString("utf8")
   assert((uintTrailingZerosArtifact.match(/llvm\.intr\.cttz/g) ?? []).length === 1 &&
     uintTrailingZerosArtifact.includes("is_zero_poison = false") &&
     uintTrailingZerosArtifact.includes("llvm.call @w_seed_append_u64") &&
     !uintTrailingZerosArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
   "u64.countTrailingZeros lost non-poison cttz or total-operation semantics")
   const uintReversedBitsArtifact =
-    artifacts.get("restaurant-uint-reversed-bits").toString("utf8")
+    artifacts.get("uint-reversed-bits").toString("utf8")
   assert((uintReversedBitsArtifact.match(/llvm\.intr\.bitreverse/g) ?? []).length === 1 &&
     uintReversedBitsArtifact.includes("llvm.call @w_seed_append_u64") &&
     !uintReversedBitsArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
   "u64.reversedBits lost direct bit-reverse or total-operation semantics")
   const uintReversedBytesArtifact =
-    artifacts.get("restaurant-uint-reversed-bytes").toString("utf8")
+    artifacts.get("uint-reversed-bytes").toString("utf8")
   assert((uintReversedBytesArtifact.match(/llvm\.intr\.bswap/g) ?? []).length === 1 &&
     uintReversedBytesArtifact.includes("llvm.call @w_seed_append_u64") &&
     !uintReversedBytesArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
   "u64.reversedBytes lost direct byte-swap or total-operation semantics")
   const uintSaturatingAddArtifact =
-    artifacts.get("restaurant-uint-saturating-add").toString("utf8")
+    artifacts.get("uint-saturating-add").toString("utf8")
   assert((uintSaturatingAddArtifact.match(/llvm\.intr\.uadd\.sat/g) ?? []).length === 1 &&
     uintSaturatingAddArtifact.includes("llvm.call @w_seed_append_u64") &&
     !uintSaturatingAddArtifact.includes("@w_seed_checked_add_u64") &&
     !uintSaturatingAddArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
   "u64.saturatingAdd lost direct saturation or total-operation semantics")
   const uintSaturatingSubtractArtifact =
-    artifacts.get("restaurant-uint-saturating-subtract").toString("utf8")
+    artifacts.get("uint-saturating-subtract").toString("utf8")
   assert((uintSaturatingSubtractArtifact.match(/llvm\.intr\.usub\.sat/g) ?? []).length === 1 &&
     uintSaturatingSubtractArtifact.includes("llvm.call @w_seed_append_u64") &&
     !uintSaturatingSubtractArtifact.includes("@w_seed_checked_subtract_u64") &&
     !uintSaturatingSubtractArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
   "u64.saturatingSubtract lost direct saturation or total-operation semantics")
   const uintSaturatingMultiplyArtifact =
-    artifacts.get("restaurant-uint-saturating-multiply").toString("utf8")
+    artifacts.get("uint-saturating-multiply").toString("utf8")
   assert((uintSaturatingMultiplyArtifact.match(/llvm\.intr\.umul\.with\.overflow/g) ?? []).length === 1 &&
     uintSaturatingMultiplyArtifact.includes("llvm.extractvalue") &&
     uintSaturatingMultiplyArtifact.includes("llvm.select") &&
@@ -1573,7 +1573,7 @@ try {
     !uintSaturatingMultiplyArtifact.includes("\"llvm.intr.trap\"() : () -> ()"),
   "u64.saturatingMultiply lost inline saturation or total-operation semantics")
   const uintSaturatingPolicyArtifact =
-    artifacts.get("restaurant-uint-saturating-policy").toString("utf8")
+    artifacts.get("uint-saturating-policy").toString("utf8")
   assert((uintSaturatingPolicyArtifact.match(/llvm\.intr\.uadd\.sat/g) ?? []).length === 1 &&
     (uintSaturatingPolicyArtifact.match(/llvm\.intr\.usub\.sat/g) ?? []).length === 2 &&
     (uintSaturatingPolicyArtifact.match(/llvm\.func internal @w_seed_saturating_power_u64/g) ?? []).length === 1 &&
@@ -1585,13 +1585,13 @@ try {
     !uintSaturatingPolicyArtifact.includes("@w_seed_checked_power_u64"),
   "u64 saturating policy lost exact power saturation, negate, or final-square reachability evidence")
   const uintBitNotArtifact =
-    artifacts.get("restaurant-uint-bit-not").toString("utf8")
+    artifacts.get("uint-bit-not").toString("utf8")
   assert(uintBitNotArtifact.includes("llvm.xor") &&
     uintBitNotArtifact.includes("-1 : i64") &&
     !uintBitNotArtifact.includes("@w_seed_checked_negate_i64"),
   "UInt bitwise complement lost direct all-ones xor lowering")
   const uintBitwiseArtifact =
-    artifacts.get("restaurant-uint-bitwise").toString("utf8")
+    artifacts.get("uint-bitwise").toString("utf8")
   assert(uintBitwiseArtifact.includes("llvm.and ") &&
     uintBitwiseArtifact.includes("llvm.or ") &&
     uintBitwiseArtifact.includes("llvm.xor ") &&
@@ -1602,7 +1602,7 @@ try {
     !uintBitwiseArtifact.includes("@w_seed_checked_"),
   "UInt binary bitwise lowering lost a direct operation or gained a signed helper")
   const uintCompoundArtifact =
-    artifacts.get("restaurant-uint-compound").toString("utf8")
+    artifacts.get("uint-compound").toString("utf8")
   for (const helper of [
     "@w_seed_checked_add_u64",
     "@w_seed_checked_subtract_u64",
@@ -1651,7 +1651,7 @@ try {
     !uintCompoundFunction.includes("llvm.intr.smul.with.overflow") &&
     !uintCompoundFunction.includes("llvm.alloca"),
   "UInt compound mutation gained a signed helper or operation")
-  const wmoArtifact = artifacts.get("restaurant-wmo")
+  const wmoArtifact = artifacts.get("wmo")
   assert(!artifacts.get("hello").includes("@w_seed_checked_") &&
     !artifacts.get("hello").includes("llvm.intr.usub.with.overflow") &&
     !artifacts.get("hello").includes("llvm.intr.umul.with.overflow") &&
@@ -1663,7 +1663,7 @@ try {
     !wmoArtifact.includes("@w_seed_checked_divide_i64") &&
     !wmoArtifact.includes("\\4E\\65\\76\\65\\72\\20\\73\\65\\72\\76\\65\\64"),
   "whole-module reachability did not retain only the selected product closure")
-  const asyncYieldArtifact = artifacts.get("restaurant-async-yield")
+  const asyncYieldArtifact = artifacts.get("async-yield")
     .toString("utf8")
   assert(asyncYieldArtifact.includes("llvm.call @w_fn_0") &&
     asyncYieldArtifact.includes("@w_seed_checked_add_i64") &&
@@ -1675,7 +1675,7 @@ try {
     "(i64, i64, i64) -> i64"),
   "typed binding arithmetic was precomputed before MLIR")
   const runtimeDivremArtifact = artifacts.get(
-    "restaurant-checked-integer-arithmetic").toString("utf8")
+    "checked-integer-arithmetic").toString("utf8")
   assert(runtimeDivremArtifact.includes(
     "llvm.call @w_seed_checked_divide_i64") &&
     runtimeDivremArtifact.includes("llvm.sdiv %left, %right") &&
@@ -1685,7 +1685,7 @@ try {
     artifacts.get("runtime-minimum-remainder").includes(
       "llvm.cond_br %overflow_pair, ^checked_minimum, ^checked_ok"),
   "runtime division/remainder checks were omitted or precomputed")
-  const runtimeNegateArtifact = artifacts.get("restaurant-unary-negate")
+  const runtimeNegateArtifact = artifacts.get("unary-negate")
   assert(runtimeNegateArtifact.includes(
     "llvm.call @w_seed_checked_subtract_i64") &&
     runtimeNegateArtifact.includes("_neg_zero") &&
@@ -1693,7 +1693,7 @@ try {
       "@w_seed_checked_subtract_i64") &&
     artifacts.get("direct-unary-interpolation").includes(" = llvm.sub "),
   "checked runtime or direct constant unary negation was not retained")
-  const integerPrefixArtifact = artifacts.get("restaurant-integer-prefix")
+  const integerPrefixArtifact = artifacts.get("integer-prefix")
     .toString("utf8")
   assert((integerPrefixArtifact.match(
     /llvm\.call @w_seed_checked_subtract_i64\(/gu) ?? []).length === 5 &&
@@ -1705,7 +1705,7 @@ try {
     !integerPrefixArtifact.includes("w_seed_checked_bit"),
   "integer prefix family lost runtime-shaped checked negation or logical-width bitwise lowering")
   const integerTruncatingBitsArtifact = artifacts.get(
-    "restaurant-integer-truncating-bits").toString("utf8")
+    "integer-truncating-bits").toString("utf8")
   assert((integerTruncatingBitsArtifact.match(
     /_truncating_source_bits = llvm\.trunc %p0 : i64 to i(?:8|16|32)\n/gu) ?? []).length === 3 &&
     (integerTruncatingBitsArtifact.match(
@@ -1720,7 +1720,7 @@ try {
       / = llvm\.or %p0, %v\d+_truncating_zero : i64\n/gu) ?? []).length === 2,
   "truncatingBits must canonicalize each narrow source, truncate destination bits, and extend by destination signedness")
   const integerSaturatingConversionArtifact = artifacts.get(
-    "restaurant-integer-saturating-conversion").toString("utf8")
+    "integer-saturating-conversion").toString("utf8")
   const saturatingCompareCount = (integerSaturatingConversionArtifact.match(
     /llvm\.icmp "(?:slt|sgt|ugt)" %v\d+_saturating_/gu) ?? []).length
   const saturatingSelectCount = (integerSaturatingConversionArtifact.match(
@@ -1762,7 +1762,7 @@ try {
     artifacts.get("bool-return").includes("@w_seed_append_bool"),
   "Bool return was flattened or disconnected from interpolation")
   const conditionalMutationArtifact = artifacts.get(
-    "restaurant-conditional-mutation").toString("utf8")
+    "conditional-mutation").toString("utf8")
   const conditionalMutationStart = conditionalMutationArtifact.indexOf(
     "llvm.func internal @w_fn_0(")
   const conditionalMutationEntry = conditionalMutationArtifact.indexOf(
@@ -1781,7 +1781,7 @@ try {
     !conditionalMutationFunction.includes("llvm.alloca") &&
     (conditionalMutationArtifact.match(/llvm\.call @w_fn_0/gu) || []).length === 2,
   "conditional mutation did not retain one SSA value join and two runtime calls")
-  const boolMutationArtifact = artifacts.get("restaurant-bool-mutation")
+  const boolMutationArtifact = artifacts.get("bool-mutation")
     .toString("utf8")
   const boolMutationStart = boolMutationArtifact.indexOf(
     "llvm.func internal @w_fn_0(")
@@ -1797,7 +1797,7 @@ try {
     boolMutationArtifact.includes("@w_seed_append_bool") &&
     (boolMutationArtifact.match(/llvm\.call @w_fn_0/gu) || []).length === 2,
   "Boolean mutation was stored, flattened, or disconnected from display")
-  const branchMutationArtifact = artifacts.get("restaurant-branch-mutation")
+  const branchMutationArtifact = artifacts.get("branch-mutation")
     .toString("utf8")
   const branchMutationStart = branchMutationArtifact.indexOf(
     "llvm.func internal @w_fn_0(")
@@ -1815,7 +1815,7 @@ try {
     (branchMutationArtifact.match(/llvm\.call @w_fn_0/gu) || []).length === 2,
   "branch-local mutation did not retain one SSA join and two runtime calls")
   const multiBranchMutationArtifact = artifacts.get(
-    "restaurant-branch-mutation-multi").toString("utf8")
+    "branch-mutation-multi").toString("utf8")
   const multiBranchMutationStart = multiBranchMutationArtifact.indexOf(
     "llvm.func internal @w_fn_0(")
   const multiBranchMutationEntry = multiBranchMutationArtifact.indexOf(
@@ -1834,7 +1834,7 @@ try {
     multiBranchMutationFunction.includes("llvm.return %v") &&
     !multiBranchMutationFunction.includes("llvm.alloca"),
   "multi branch mutation did not retain two typed SSA join values")
-  const naturalLoopArtifact = artifacts.get("restaurant-while").toString("utf8")
+  const naturalLoopArtifact = artifacts.get("while").toString("utf8")
   const naturalLoopStart = naturalLoopArtifact.indexOf(
     "llvm.func internal @w_fn_0(")
   const naturalLoopEntry = naturalLoopArtifact.indexOf(
@@ -1850,7 +1850,7 @@ try {
     !naturalLoopFunction.includes("llvm.br ^w_fn_0_b_1") &&
     !naturalLoopFunction.includes("llvm.alloca"),
   "natural loop did not preserve structured SCF and SSA storage elimination")
-  const cfgArtifact = artifacts.get("restaurant-if").toString("utf8")
+  const cfgArtifact = artifacts.get("if").toString("utf8")
   const joinBranches = cfgArtifact.match(/llvm\.br \^w_fn_0_b_3\n/gu) || []
   const cfgSignature = cfgArtifact.match(
     /llvm\.func internal @w_fn_0\([^\n]*%p0: i1\)/u)
@@ -1862,7 +1862,7 @@ try {
     (cfgArtifact.match(/llvm\.call @w_fn_0/gu) || []).length === 2,
   "if diamond did not retain typed cond_br, two join branches, both payloads, and one post-join body")
 
-  const nestedCfgArtifact = artifacts.get("restaurant-nested-if").toString("utf8")
+  const nestedCfgArtifact = artifacts.get("nested-if").toString("utf8")
   const nestedJoinBranches = nestedCfgArtifact.match(
     /llvm\.br \^w_fn_0_b_(?:4|8|9)\n/gu) || []
   assert(nestedCfgArtifact.includes("llvm.cond_br %p0") &&
@@ -1872,7 +1872,7 @@ try {
     (nestedCfgArtifact.match(/llvm\.call @w_fn_0/gu) || []).length === 4,
   "nested Restaurant did not retain both inner diamonds and one post-join call per invocation")
 
-  const nestedScalarArtifact = artifacts.get("restaurant-nested-scalar-if")
+  const nestedScalarArtifact = artifacts.get("nested-scalar-if")
     .toString("utf8")
   const nestedScalarChooseStart = nestedScalarArtifact.indexOf(
     "llvm.func internal @w_fn_0(")

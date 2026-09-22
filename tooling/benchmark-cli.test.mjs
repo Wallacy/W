@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { benchmarkUsage, consumeLocalResult, main, parseBenchmarkCliArguments, validateUpdateBoundary } from "./benchmark-cli.mjs";
-import { RESTAURANT_FLOAT_BIT_REPRESENTATION_WORKLOAD_ID } from "./executable-benchmark-machine.mjs";
+import { FLOAT_BIT_REPRESENTATION_WORKLOAD_ID } from "./executable-benchmark-machine.mjs";
 
 test("benchmark facade exposes update and preserves bounded run arguments", () => {
   assert.deepEqual(parseBenchmarkCliArguments(["list"]), { command: "list" });
@@ -39,8 +39,8 @@ test("benchmark facade exposes update and preserves bounded run arguments", () =
   assert.deepEqual(parseBenchmarkCliArguments(["run", "--target", "process-arguments-ordering", "--language", "rust"]), {
     command: "run", target: "process-arguments-ordering", language: "rust", platform: "windows-x64", output: "benchmarks/results/process-arguments-ordering-rust.local.json", warmup: 1, compileSamples: 9, runSamples: 101,
   });
-  assert.deepEqual(parseBenchmarkCliArguments(["run", "--target", RESTAURANT_FLOAT_BIT_REPRESENTATION_WORKLOAD_ID, "--language", "rust"]), {
-    command: "run", target: RESTAURANT_FLOAT_BIT_REPRESENTATION_WORKLOAD_ID, language: "rust", platform: "windows-x64", output: `benchmarks/results/${RESTAURANT_FLOAT_BIT_REPRESENTATION_WORKLOAD_ID}-rust.local.json`, warmup: 1, compileSamples: 9, runSamples: 101,
+  assert.deepEqual(parseBenchmarkCliArguments(["run", "--target", FLOAT_BIT_REPRESENTATION_WORKLOAD_ID, "--language", "rust"]), {
+    command: "run", target: FLOAT_BIT_REPRESENTATION_WORKLOAD_ID, language: "rust", platform: "windows-x64", output: `benchmarks/results/${FLOAT_BIT_REPRESENTATION_WORKLOAD_ID}-rust.local.json`, warmup: 1, compileSamples: 9, runSamples: 101,
   });
   assert.throws(() => parseBenchmarkCliArguments(["run", "--target", "process-entry0", "--language", "w"]), /unsupported target/);
   assert.throws(() => parseBenchmarkCliArguments(["run", "--run-samples", "1003"]), /outside its allowed range/);
@@ -65,7 +65,7 @@ test("list exposes runner-backed workloads and omits the planned backlog", async
   }
   assert.equal(output.length, 1);
   const listing = JSON.parse(output[0]);
-  assert.equal(listing.workloads.some((workload) => workload.id === "restaurant-composition"), false);
+  assert.equal(listing.workloads.some((workload) => workload.id === "composition"), false);
   assert.ok(listing.workloads.every((workload) => workload.benchmarkStatus !== "planned"));
   assert.ok(listing.workloads.filter((workload) =>
     workload.benchmarkStatus === "partial-exploratory-ready" && workload.languages.length === 1 && workload.languages[0] === "w",

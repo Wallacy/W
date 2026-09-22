@@ -10325,6 +10325,27 @@ static bool test_typed_throw_hir(void) {
   CHECK(w_seed_hir0_measure(&input, &counts, &result) != W_SEED_HIR0_OK);
   CHECK(hir_output_is_byte(0xa5u));
 
+  static const char UNSUPPORTED_ERROR_SOURCE[] =
+      "fn main(): () throws String { noop() }\n"
+      "entry(main)\n";
+  CHECK(fixture_frontend(UNSUPPORTED_ERROR_SOURCE));
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+  const w_seed_hir0_input unsupported_input = hir_input();
+  counts = fixture.hir_counts;
+  const w_seed_hir0_counts prior_counts = counts;
+  result = fixture.hir_result;
+  const w_seed_hir0_result prior_result = result;
+  CHECK(w_seed_hir0_measure(&unsupported_input, &counts, &result) ==
+        W_SEED_HIR0_UNSUPPORTED);
+  CHECK(memcmp(&counts, &prior_counts, sizeof(counts)) == 0 &&
+        memcmp(&result, &prior_result, sizeof(result)) == 0 &&
+        hir_output_is_byte(0xa5u));
+  CHECK(w_seed_hir0_run(&unsupported_input, &fixture.hir_output, &result) ==
+        W_SEED_HIR0_UNSUPPORTED);
+  CHECK(memcmp(&result, &prior_result, sizeof(result)) == 0 &&
+        hir_output_is_byte(0xa5u));
+
   static const char BRANCH_THROW_SOURCE[] =
       "enum Failure: Error { denied }\n"
       "fn fail(flag: Bool): i64 throws Failure { "

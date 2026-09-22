@@ -2801,6 +2801,24 @@ static bool frontend_module_ranges_ok(const w_seed_hir0_input *input) {
          entry_cursor == result->written.entries;
 }
 
+static bool frontend_throw_error_family_unsupported(
+    const w_seed_hir0_input *input) {
+  const w_seed_frontend_output *output = input->frontend_output;
+  const w_seed_frontend_result *result = input->frontend_result;
+  for (size_t index = 0u; index < result->written.functions; index += 1u) {
+    const w_seed_frontend_function *function = &output->functions[index];
+    if (!function->is_throws || function->error_type == W_SEED_FRONTEND_NONE ||
+        (size_t)function->error_type >= result->written.types)
+      continue; /* Malformed references remain INVALID, not UNSUPPORTED. */
+    const w_seed_frontend_type *error_type =
+        &output->types[function->error_type];
+    if (!frontend_type_is_numeric_conversion_error(error_type) &&
+        error_type->kind != W_SEED_FRONTEND_TYPE_ENUM)
+      return true;
+  }
+  return false;
+}
+
 static bool frontend_function_ranges_ok(const w_seed_hir0_input *input) {
   const w_seed_frontend_output *output = input->frontend_output;
   const w_seed_frontend_result *result = input->frontend_result;
@@ -2862,9 +2880,8 @@ static bool frontend_function_ranges_ok(const w_seed_hir0_input *input) {
           break;
         }
         if (!has_numeric_conversion_try) return false;
-      } else {
-        if (error_type->kind != W_SEED_FRONTEND_TYPE_ENUM ||
-            error_type->enum_base_index == W_SEED_FRONTEND_NONE ||
+      } else if (error_type->kind == W_SEED_FRONTEND_TYPE_ENUM) {
+        if (error_type->enum_base_index == W_SEED_FRONTEND_NONE ||
             (size_t)error_type->enum_base_index >= result->written.enums)
           return false;
         const w_seed_frontend_enum *error_enum =
@@ -9032,6 +9049,8 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
       !frontend_function_ranges_ok(input) ||
       !frontend_entry_records_ok(input))
     return HIR0_PREPARE_INVALID;
+  if (frontend_throw_error_family_unsupported(input))
+    return HIR0_PREPARE_UNSUPPORTED;
   if (frontend_result->written.aliases == 0u &&
       !frontend_symbol_records_ok(input))
     return HIR0_PREPARE_INVALID;

@@ -10,7 +10,10 @@ const expectedOutput = Buffer.from("Hello, world!\n", "utf8")
 const expectedPublicHelp =
   "usage: w check <path/file.w> [--json]\n" +
   "usage: w run <path/file.w> [-- <args...>]\n" +
-  "usage: w build <path/file.w> --target <target> --output <artifact>\n"
+  "usage: w build <path/file.w> --target <target> --output <artifact>\n" +
+  "usage: w bench process --exe <absolute-path> [options]\n" +
+  "  options: --cwd <absolute-dir> --arg <value> --warmup <n> --samples <n> --timeout-ms <n> --expect-exit <n> --expect-stdout-hex <bytes> --expect-stderr-hex <bytes>\n" +
+  "  Windows-native cold process measurement only; does not compile or execute .w source\n"
 const expectedGateUsage = "usage: w_seed_run0_gate <path/file.w>\n"
 const acquisitionFailure =
   "w_seed_run0_gate: source is missing, unreadable, empty, or over 4096 bytes\n"
@@ -194,12 +197,12 @@ try {
   expectInternalEffect(run0Gate, canonicalFixture, "sink-flush-failure",
     expectedOutput, "RUN0 stdout flush failure after full acceptance")
 
-  const restaurantPath = join(buildDirectory, "restaurant.w")
+  const bindingPath = join(buildDirectory, "binding.w")
   const emptyPath = join(buildDirectory, "empty.w")
-  await writeFile(restaurantPath,
+  await writeFile(bindingPath,
     "fn serve() { let message = \"Table 42 remains open\" print(message) }\nentry(serve)\n")
   await writeFile(emptyPath, "fn main() { print(\"\") }\nentry(main)\n")
-  expectExactGate(run0Gate, restaurantPath,
+  expectExactGate(run0Gate, bindingPath,
     Buffer.from("Table 42 remains open\n", "utf8"),
     "Restaurant payload source")
   expectExactGate(run0Gate, emptyPath, Buffer.from("\n", "utf8"),
@@ -283,15 +286,19 @@ try {
     ["noop_payload.w", hlo0Unsupported, "noop payload"],
     ["comment_with_print.w", frontendFailure, "comment with print"],
     ["two_calls.w", hlo0Unsupported, "two calls outside HLO0 subset"],
-    ["outside_subset.w", hir0Failure, "outside HLO0 subset"],
-    ["var_binding.w", hir0Failure, "mutable binding"],
+    // HIR0 accepts this shape; the narrower HLO0 subset rejects it.
+    ["outside_subset.w", hlo0Unsupported, "outside HLO0 subset"],
+    // HIR0 accepts mutable bindings; HLO0 has no lowering for them.
+    ["var_binding.w", hlo0Unsupported, "mutable binding"],
     ["qualified_call.w", frontendFailure, "qualified call"],
     ["imported_call.w", frontendFailure, "imported call"],
     ["extra_entry.w", parseFailure, "extra entry"],
     ["missing_entry.w", hir0Failure, "missing entry"],
     ["extra_function.w", hlo0Unsupported, "extra function"],
     ["async_main.w", hlo0Unsupported, "async main"],
-    ["throws_main.w", hlo0Unsupported, "throws main"],
+    // The frontend accepts this signature, but String is outside HIR0's
+    // closed error family; report an unsupported source, not an internal fault.
+    ["throws_main.w", hir0Failure, "throws main"],
     ["invalid_utf8.w", parseFailure, "invalid UTF-8"],
     ["incomplete.w", parseFailure, "incomplete parse"],
     ["empty.w", acquisitionFailure, "empty source"],

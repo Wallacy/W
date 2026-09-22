@@ -5,15 +5,14 @@ import {
   executableWorkloadHasRunner,
   EXECUTABLE_PLATFORM_TARGET_LINUX,
   EXECUTABLE_PLATFORM_TARGET_LINUX_WSL,
-  EXECUTABLE_PLATFORM_TARGET_WINDOWS,
-  HELLO_PLATFORM_MINIMAL_WORKLOAD_ID,
   EXECUTABLE_WORKLOAD_FAMILY_IDS,
   ROOT,
+  executableCatalogFileDigest,
+  executableSuiteReceiptErrors,
   loadExecutableDocuments,
   validateExecutableCatalog,
   validateExecutableBestMetrics,
 } from "./executable-benchmark-machine.mjs";
-import { platformMinimalRecipeExamples } from "./executable-release-recipes.mjs";
 
 export const PROJECTION_PATH = path.resolve(ROOT, "benchmarks", "EXECUTABLES.md");
 
@@ -120,13 +119,15 @@ function formatValue(entry) {
   return formatBytes(entry.value);
 }
 
-function sourceLinks(workload) {
+function unmeasuredExampleLinks(workload) {
   const sources = workload.sources?.filter((source, index, all) =>
-    all.findIndex((candidate) => candidate.language === source.language &&
-      candidate.path === source.path) === index);
+    all.findIndex((candidate) => candidate.language === source.language) === index);
   return sources?.length
-    ? sources.map((source) => jsonPathLink(projectionPath(source.path), source.language)).join(", ")
-    : "—";
+    ? sources.map((source) => jsonPathLink(
+      projectionPath(source.path),
+      `${workload.id} (${source.language === "w" ? "W" : source.language === "c" ? "C" : "Rust"})`,
+    )).join(", ")
+    : workload.id;
 }
 
 function bestSort(left, right) {
@@ -158,13 +159,23 @@ function bestProjectionEntry(left, right) {
 function categoryRows(entries) {
   const groups = new Map();
   for (const entry of entries) {
-    // Keep the projection compact by collapsing only within one platform
-    // lane. The machine catalog remains category-partitioned by toolchain and
-    // recipe; each displayed metric is independently selected below.
+    // Collapse recipe/toolchain categories only after the platform, artifact,
+    // runtime-closure, and comparison identities match. The machine catalog
+    // remains category-partitioned; each displayed metric is selected below.
     const hostPartition = entry.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL
       ? `\u0000${entry.host ?? ""}`
       : "";
-    const key = `${entry.workloadId}\u0000${entry.language}\u0000${entry.platformTarget}${hostPartition}`;
+    const key = [
+      entry.workloadId,
+      entry.language,
+      entry.platformTarget,
+      entry.artifactTarget,
+      entry.abi,
+      entry.runtimeClosure?.class ?? "",
+      entry.runtimeClosure?.status ?? "unverified",
+      entry.comparability,
+      entry.eligibility,
+    ].join("\u0000") + hostPartition;
     const group = groups.get(key) ?? { entry, metrics: new Map() };
     group.entry = bestSort(group.entry, entry) <= 0 ? group.entry : entry;
     group.metrics.set(entry.metric, bestProjectionEntry(group.metrics.get(entry.metric), entry));
@@ -178,36 +189,16 @@ function metricCell(group, metric) {
   return entry ? formatValue(entry) : "—";
 }
 
-function uniqueSection(layout, name) {
-  const matches = Array.isArray(layout?.sections) ? layout.sections.filter((section) => section?.name === name) : [];
-  return matches.length === 1 ? matches[0] : undefined;
-}
-
 function artifactCell(group) {
   const entry = group.metrics.get("artifact-size");
   if (!entry) return "—";
   return formatValue(entry);
 }
 
-function sectionVirtualSizeCell(group, name) {
-  const entry = group.metrics.get("artifact-size");
-  const section = uniqueSection(entry?.peLayout, name);
-  return section?.virtualSize ?? "—";
-}
-
-function sectionSizeCell(group, name) {
-  const entry = group.metrics.get("artifact-size");
-  const section = uniqueSection(entry?.elfLayout, name);
-  return section?.sizeBytes ?? "—";
-}
-
-function tableHeader(platformTarget) {
-  const sectionLabels = platformTarget === EXECUTABLE_PLATFORM_TARGET_WINDOWS
-    ? [".text B", ".rdata B"]
-    : ["ELF .text B", "ELF .rodata B"];
+function measurementTableHeader() {
   return [
-    `| Workload | Language | Target | Runtime | Artifact | ${sectionLabels[0]} | ${sectionLabels[1]} | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |`,
-    "| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    "| Example | System / lane | Language | Binary | Compile p50 | Execution p50 | Execution p95 | CPU mean | Peak memory |",
+    "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |",
   ];
 }
 
@@ -218,20 +209,58 @@ function projectionWorkload(workload) {
 }
 
 function targetLabel(entry) {
-  if (entry.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) return "Linux x64 / WSL2";
-  if (entry.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX) return "Linux x64 / GNU";
-  if (entry.artifactTarget.endsWith("windows-msvc")) return "Windows x64 / MSVC";
-  if (entry.artifactTarget.endsWith("w64-mingw32")) return "Windows x64 / MinGW";
-  return entry.artifactTarget;
+  if (entry.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) return "WSL";
+  if (entry.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX) return "Linux";
+  return "Windows";
 }
 
 function runtimeLabel(entry) {
   const runtimeClass = entry.runtimeClosure?.class;
-  const label = runtimeClass === "freestanding" ? "Freestanding"
-    : runtimeClass === "hosted-crt" ? "Hosted CRT"
-      : runtimeClass === "instrumentation" ? "Instrumentation runtime"
-        : "Runtime class unknown";
-  return `${label} (${entry.runtimeClosure?.status ?? "unverified"})`;
+  return runtimeClass === "freestanding" ? "no CRT"
+    : runtimeClass === "hosted-crt" ? "CRT"
+      : runtimeClass === "instrumentation" ? "instrumented"
+        : "Unknown";
+}
+
+function measurementLaneLabel(entry) {
+  const pieces = [targetLabel(entry), runtimeLabel(entry)];
+  if (entry.eligibility === "deferred-to-M3b") pieces.push("contextual");
+  else if (entry.eligibility === "exploratory-private-composite") pieces.push("private");
+  if (entry.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) pieces.push("diagnostic");
+  return pieces.join(" · ");
+}
+
+function measurementRow(group, workload) {
+  const entry = group.entry;
+  const source = workload?.sources.find((item) => item.language === entry.language && item.platformTarget === entry.platformTarget);
+  const label = `${entry.workloadId} (${entry.language === "w" ? "W" : entry.language === "c" ? "C" : "Rust"})`;
+  const example = source ? jsonPathLink(projectionPath(source.path), label) : label;
+  const lane = measurementLaneLabel(entry);
+  return `| ${example} | ${lane} | ${entry.language === "w" ? "W" : entry.language === "c" ? "C" : "Rust"} | ${artifactCell(group)} | ${metricCell(group, "compile-latency")} | ${metricCell(group, "run-wall-time")} | ${metricCell(group, "run-wall-p95")} | ${metricCell(group, "cpu-time")} | ${metricCell(group, "peak-working-set")} |`;
+}
+
+function formatSuiteDuration(milliseconds) {
+  const wholeSeconds = Math.floor(milliseconds / 1000);
+  const hours = Math.floor(wholeSeconds / 3600);
+  const minutes = Math.floor((wholeSeconds % 3600) / 60);
+  const seconds = wholeSeconds % 60;
+  if (hours > 0) return `${hours}h ${String(minutes).padStart(2, "0")}m`;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
+}
+
+export async function currentSuiteReceipt(catalog, root = ROOT) {
+  const receiptPath = path.resolve(root, "benchmarks", "executable-suite-current.json");
+  const bytes = await readFile(receiptPath, "utf8").catch((error) => error?.code === "ENOENT" ? undefined : Promise.reject(error));
+  if (bytes === undefined) return undefined;
+  let receipt;
+  try { receipt = JSON.parse(bytes); }
+  catch (error) { throw new Error(`invalid latest executable suite receipt: ${error?.message ?? error}`); }
+  const currentDigest = executableCatalogFileDigest(root);
+  if (receipt?.catalogDigest !== currentDigest) return undefined;
+  const errors = executableSuiteReceiptErrors(receipt, catalog, { catalogDigest: currentDigest });
+  if (errors.length > 0) throw new Error(`invalid latest executable suite receipt: ${errors.join("; ")}`);
+  return receipt;
 }
 
 const FAMILY_LABELS = Object.freeze({
@@ -246,7 +275,7 @@ const FAMILY_LABELS = Object.freeze({
   modules: "Module graph",
 });
 
-export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
+export function renderExecutableProjection({ catalog, root = ROOT, suiteReceipt } = {}) {
   if (!catalog?.bestMetrics) throw new TypeError("catalog with bestMetrics is required");
   const entries = [...catalog.bestMetrics.entries].sort(bestSort);
   const rows = categoryRows(entries);
@@ -254,7 +283,17 @@ export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
     "<!-- generated by tooling/executable-benchmark-docs.mjs; do not edit -->",
     "# Executable benchmarks",
     "",
-    "Current portable-release values. Lower is better; `—` means no published measurement.",
+    "Current best recorded values. Lower is better; `—` means no published measurement.",
+    "",
+    "A ready status means only that the listed witness is runnable, not that the design is complete. The machine catalog keeps exercised scope, measurement blockers, and blocked languages in separate fields.",
+    "",
+    "## Latest executable suite",
+    "",
+    suiteReceipt
+      ? `**${suiteReceipt.mode === "full" ? "Full suite" : `Filtered: ${suiteReceipt.platforms.join(", ")}`}** · ${suiteReceipt.laneCounts.passed}/${suiteReceipt.laneCounts.total} lanes passed · ${suiteReceipt.laneCounts.failed} failed · ${suiteReceipt.laneCounts.skipped} skipped · ${formatSuiteDuration(suiteReceipt.durationMs)}.`
+      : "No successful suite receipt matches this catalog yet.",
+    "",
+    "The timer covers lane runs, result validation, catalog update, and catalog/documentation checks; it excludes writing the receipt and refreshing this projection. Filtered runs are not full-suite results.",
     "",
     "## Workloads",
   ];
@@ -266,66 +305,32 @@ export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
       "",
       `### ${FAMILY_LABELS[family] ?? family}`,
       "",
-      "| Workload | Class | Sources | Oracle | Benchmark |",
-      "| --- | --- | --- | --- | --- |",
+      ...measurementTableHeader(),
     );
-    for (const workload of familyWorkloads) {
-      lines.push(`| ${workload.id} | ${workload.structureClass} | ${sourceLinks(workload)} | ${workload.oracle.status} | ${workload.benchmarkStatus} |`);
-    }
-  }
-  const platformMinimalHello = catalog.workloads.find((workload) => workload.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID);
-  if (platformMinimalHello) {
-    lines.push(
-      "",
-      "## Platform-minimal Hello correctness comparison",
-      "",
-      "This lane preserves the exact `Hello, world!\\n` / exit `0` oracle while C23 and Rust 2024 recipes request no CRT or standard library, write through the OS boundary, and exit directly. Windows recipes link Kernel32; the ELF correctness checker rejects `PT_INTERP` or `DT_NEEDED`, but neither exact dependency list is persisted in current results. The W row reuses the public W Hello build. This is platform-minimal correctness/context evidence, not an idiomatic C/Rust baseline or a language ranking.",
-      "",
-      "Reproducible release commands (the runner resolves the installed compiler paths; `<source>` and `<artifact>` are per-sample temporary paths):",
-      "",
-    );
-    for (const example of platformMinimalRecipeExamples()) {
-      lines.push(`- ${example.language}, ${example.platform}: \`${example.command}\``);
-    }
-    lines.push(
-      "",
-      "The commands request C23 `-O3`/full LTO, freestanding/no-builtin/no-stack-protector/no-unwind-table code generation, dead-section elimination and stripping; Rust uses edition 2024 `no_std`/`no_main`, `-C opt-level=3`, fat LTO, one codegen unit, aborting panics and stripped symbols (disabling unwind tables on Linux, where supported by the target ABI). Windows requests the Kernel32 OS boundary and no CRT; Linux requests `_start`, static linking, section GC, and no build ID. These recipe flags do not upgrade the unverified runtime-closure status of existing records. WSL rows remain same-physical-hardware diagnostics only.",
-      "",
-    );
-  }
-  lines.push("", "## Best values");
-  for (const [platformTarget, label] of [
-    [EXECUTABLE_PLATFORM_TARGET_WINDOWS, "Windows x64"],
-    [EXECUTABLE_PLATFORM_TARGET_LINUX, "Linux x64"],
-    [EXECUTABLE_PLATFORM_TARGET_LINUX_WSL, "Linux x64 via WSL2"],
-  ]) {
-    const platformRows = rows.filter((group) => group.entry.platformTarget === platformTarget);
-    lines.push("", `### ${label}`);
-    lines.push("", ...tableHeader(platformTarget));
-    if (platformRows.length === 0) {
-      lines.push("", platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL
-        ? "No Linux x64 via WSL2 same-physical-hardware diagnostic measurements are published."
-        : `No native ${label} measurements are published.`);
-      continue;
-    }
-    for (const group of platformRows) {
-      const entry = group.entry;
-      const sections = platformTarget === EXECUTABLE_PLATFORM_TARGET_WINDOWS
-        ? [sectionVirtualSizeCell(group, ".text"), sectionVirtualSizeCell(group, ".rdata")]
-        : [sectionSizeCell(group, ".text"), sectionSizeCell(group, ".rodata")];
-      lines.push(`| ${entry.workloadId} | ${entry.language} | ${targetLabel(entry)} | ${runtimeLabel(entry)} | ${artifactCell(group)} | ${sections[0]} | ${sections[1]} | ${metricCell(group, "compile-latency")} | ${metricCell(group, "run-wall-time")} | ${metricCell(group, "run-wall-p95")} | ${metricCell(group, "peak-working-set")} | ${metricCell(group, "cpu-time")} |`);
+    const familyIds = new Set(familyWorkloads.map((workload) => workload.id));
+    const familyRows = rows.filter((group) => familyIds.has(group.entry.workloadId));
+    if (familyRows.length === 0) {
+      for (const workload of familyWorkloads) {
+        lines.push(`| ${unmeasuredExampleLinks(workload)} | Not measured | — | — | — | — | — | — | — |`);
+      }
+    } else {
+      for (const workload of familyWorkloads) {
+        const workloadRows = familyRows.filter((group) => group.entry.workloadId === workload.id);
+        if (workloadRows.length === 0) {
+          lines.push(`| ${unmeasuredExampleLinks(workload)} | Not measured | — | — | — | — | — | — | — |`);
+          continue;
+        }
+        for (const group of workloadRows) lines.push(measurementRow(group, workload));
+      }
     }
   }
   lines.push(
     "",
-    "Runtime labels are recipe-derived classes, not artifact dependency receipts. Every current row remains `unverified` for runtime closure because results do not record PE imports, ELF `DT_NEEDED` entries, or exact runtime provider/version. Current recipes select freestanding W and platform-minimal C/Rust paths, hosted-CRT public C/Rust paths, and a contextual hosted-CRT MinGW private composite. Do not compare rows across runtime-closure classes or treat an intended freestanding link as proof of emitted dependency closure.",
-    "Artifact size counts only the emitted executable file. On Windows it excludes imported runtime DLLs. The private process-handler composite remains a Windows GCC/MinGW contextual lane. Native Linux records, when published, are kept in their own Linux x64 / GNU lane.",
-    "Run p50/p95 measure one complete target-process invocation (launch, execution, and wait) per sample. Production samples use one native target-environment helper batch for each warmup/raw series: WSL initializes once, stages the ELF on WSL-native /tmp, and excludes wsl.exe startup and DrvFS access from every sample. The target process itself is intentionally fresh per sample, so these are product invocation costs, not in-process body-throughput numbers. A future persistent body lane must use a distinct protocol and never be merged with these cells.",
-    "Do not compare Windows milliseconds with Linux/WSL microseconds as W-body speed. The Windows lane includes process creation, security, Job Object, scheduler, and accounting work; the WSL lane times the Linux executable from a Linux-native helper inside an already-running distribution with CLOCK_MONOTONIC and wait4. Compare regressions only within the same platform and runner lane.",
-    "Each projection row is compact: every displayed metric chooses the lower value across pinned categories on that same platform, so cells may come from distinct toolchain/recipe categories. The machine catalog retains those category and provenance identities; no value is selected across platform sections. WSL rows remain host-partitioned and are never pooled across hosts.",
-    "Linux x64 via WSL2 is Linux-target evidence on a Windows host, not native Linux support. It is accepted for same-host regression and same-physical-hardware diagnostics only; WSL values are not rankable across hosts. WSL provenance records the host mode, comparison purpose, and rankability explicitly.",
-    "The Windows `.text B` and `.rdata B` columns are the unique PE sections' validated VirtualSize; VirtualSize includes padding and zero-fill and is not a useful-instruction count. Linux and WSL use explicitly labeled `ELF .text B` and `ELF .rodata B` columns containing the unique named ELF sections' `sh_size`; they are not byte-equivalent PE `.rdata` measurements. `—` means absent, ambiguous, or not measured. Linux ELF metadata is kept separate from PE metadata. Only source-backed workloads with a materialized source and runner-supported recipe appear here; planned/backlog entries remain in the catalog. CPU is the arithmetic mean of 101 fresh target-process counters; an all-zero estimate is omitted.",
-    `Machine contract and provenance: ${jsonPathLink(projectionPath("benchmarks/executable-catalog.json"), "executable-catalog.json")}. Manual commands: [README](./README.md#manual-reproduction).`,
+    "## Reading the measurements",
+    "",
+    "Runtime labels describe recipe intent; emitted dependency closure remains unverified. No row is a language ranking: cross-language equivalence is not established. Executable size excludes imported libraries. Toolchain identity and recipe remain lane-specific; the report does not imply one suite-wide compiler version.",
+    "Run p50/p95 measure complete fresh-process invocations. Compare only like workload, language, platform, and runtime lane. WSL rows are same-host diagnostics, not native-Linux support or cross-host rankings; Windows and WSL values are never pooled.",
+    `Machine catalog: ${jsonPathLink(projectionPath("benchmarks/executable-catalog.json"), "executable-catalog.json")}. Commands, sampling policy, and recipe details: [benchmark README](./README.md#manual-reproduction).`,
   );
   return lines.join("\n");
 }
@@ -337,7 +342,8 @@ export async function renderFromDisk(root = ROOT) {
     ...validateExecutableBestMetrics(documents.catalog.bestMetrics, documents.catalog),
   ];
   if (errors.length > 0) throw new Error(errors.join("\n"));
-  return renderExecutableProjection({ catalog: documents.catalog, root });
+  const suiteReceipt = await currentSuiteReceipt(documents.catalog, root);
+  return renderExecutableProjection({ catalog: documents.catalog, root, suiteReceipt });
 }
 
 export async function main(argv = process.argv.slice(2)) {

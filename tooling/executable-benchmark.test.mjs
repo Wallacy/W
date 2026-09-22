@@ -10,6 +10,8 @@ import {
   EXECUTABLE_COMPARABILITY_AXES,
   EXECUTABLE_LANGUAGES,
   EXECUTABLE_RESULT_SCHEMA,
+  EXECUTABLE_SUITE_DEFAULT_PLATFORMS,
+  EXECUTABLE_SUITE_RECEIPT_SCHEMA,
   EXECUTABLE_PLATFORM_TARGET,
   EXECUTABLE_PLATFORM_TARGET_LINUX,
   EXECUTABLE_PLATFORM_TARGET_LINUX_WSL,
@@ -43,23 +45,23 @@ import {
   PROCESS_HANDLER_LIFECYCLE_EXECUTION_STRUCTURE_CLASS,
   PROCESS_HANDLER_LIFECYCLE_STRUCTURE_CLASS,
   PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID,
-  RESTAURANT_FLOAT_BIT_REPRESENTATION_WORKLOAD_ID,
-  RESTAURANT_FLOAT_STRICT_WORKLOAD_ID,
-  RESTAURANT_INTEGER_PREFIX_WORKLOAD_ID,
-  RESTAURANT_INTEGER_WRAPPING_WORKLOAD_ID,
-  RESTAURANT_INTEGER_WIDENING_WORKLOAD_ID,
-  RESTAURANT_NUMERIC_WIDENING_WORKLOAD_ID,
-  RESTAURANT_INTEGER_TRUNCATING_BITS_WORKLOAD_ID,
-  RESTAURANT_INTEGER_SATURATING_CONVERSION_WORKLOAD_ID,
-  RESTAURANT_INTEGER_COMPARISON_WORKLOAD_ID,
-  RESTAURANT_INTEGER_BITWISE_WORKLOAD_ID,
+  FLOAT_BIT_REPRESENTATION_WORKLOAD_ID,
+  FLOAT_STRICT_WORKLOAD_ID,
+  INTEGER_PREFIX_WORKLOAD_ID,
+  INTEGER_WRAPPING_WORKLOAD_ID,
+  INTEGER_WIDENING_WORKLOAD_ID,
+  NUMERIC_WIDENING_WORKLOAD_ID,
+  INTEGER_TRUNCATING_BITS_WORKLOAD_ID,
+  INTEGER_SATURATING_CONVERSION_WORKLOAD_ID,
+  INTEGER_COMPARISON_WORKLOAD_ID,
+  INTEGER_BITWISE_WORKLOAD_ID,
   INTEGER_SHIFT_SEMANTICS_WORKLOAD_ID,
-  RESTAURANT_CHECKED_INTEGER_ARITHMETIC_WORKLOAD_ID,
-  RESTAURANT_UINT_BITWISE_WORKLOAD_ID,
+  CHECKED_INTEGER_ARITHMETIC_WORKLOAD_ID,
+  UINT_BITWISE_WORKLOAD_ID,
   FIXED_INTEGER_BIT_PRIMITIVES_WORKLOAD_ID,
-  RESTAURANT_UINT_OVERFLOWING_FAMILY_WORKLOAD_ID,
-  RESTAURANT_UINT_SATURATING_POLICY_WORKLOAD_ID,
-  RESTAURANT_UINT_COMPOUND_WORKLOAD_ID,
+  UINT_OVERFLOWING_FAMILY_WORKLOAD_ID,
+  UINT_SATURATING_POLICY_WORKLOAD_ID,
+  UINT_COMPOUND_WORKLOAD_ID,
   ROOT,
   deriveExecutableBestMetrics,
   executableEquivalenceKey,
@@ -67,9 +69,12 @@ import {
   executableHostIdentity,
   executableNativeHostForPlatform,
   executableSourceDigest,
+  executableCatalogFileDigest,
+  executableSuiteReceiptErrors,
   exactOutputDigest,
   loadExecutableDocuments,
   parseExecutableSourceExpectation,
+  selectExecutableSuiteLanes,
   pruneExecutableBestMetrics,
   updateExecutableBestMetrics,
   validateExecutableBestMetric,
@@ -103,20 +108,20 @@ test("catalog stores compact live best cells and no immutable history", () => {
   assert.deepEqual(validateExecutableCatalog(documents.catalog, documents), []);
   assert.equal(documents.schema.$id, "w-executable-benchmark/7");
   assert.deepEqual(documents.schema.oneOf.map((entry) => entry.$ref), [
-    "#/$defs/catalog", "#/$defs/result", "#/$defs/bestMetric", "#/$defs/bestMetrics",
+    "#/$defs/catalog", "#/$defs/result", "#/$defs/bestMetric", "#/$defs/bestMetrics", "#/$defs/executableSuiteCurrent",
   ]);
   assert.deepEqual(documents.schema.$defs.structureClass.enum, EXECUTABLE_STRUCTURE_CLASSES);
   assert.deepEqual(documents.schema.$defs.source.properties.comparability.enum,
     ["deferred-until-M3b", "promotable-after-equivalence", "contextual-non-ranking-private-composite", "same-physical-hardware-diagnostic-only"]);
   assert.deepEqual(documents.schema.$defs.source.properties.eligibility.enum,
     ["promotable-after-equivalence", "deferred-to-M3b", "exploratory-private-composite", "same-physical-hardware-diagnostic-only"]);
-  for (const definition of ["catalog", "result", "bestMetric", "bestMetrics", "bestMetricProvenance", "sample", "sampleSeries", "processExecution", "processSupportSource", "sourceSupport", "elfLayout", "elfSection"]) {
+  for (const definition of ["catalog", "result", "bestMetric", "bestMetrics", "bestMetricProvenance", "sample", "sampleSeries", "processExecution", "processSupportSource", "sourceSupport", "elfLayout", "elfSection", "executableSuiteCurrent", "executableSuiteLane"]) {
     assert.equal(documents.schema.$defs[definition].additionalProperties, false);
   }
   assert.deepEqual(documents.catalog.comparabilityAxes, EXECUTABLE_COMPARABILITY_AXES);
   assert.ok(documents.catalog.comparabilityAxes.includes("runtime-closure"));
-  assert.equal(documents.catalog.bestMetrics.entries.length, 434,
-    "runtime-closure metadata must preserve all current measurement cells");
+  assert.equal(documents.catalog.bestMetrics.entries.length, 84,
+    "renamed, semantically changed, or stale-source measurements must not remain live");
   assert.ok(documents.catalog.workloads.every((workload) => typeof workload.family === "string"));
   assert.deepEqual(documents.catalog.platformLanes.map((lane) => lane.id), [
     "windows-x64", "linux-x64", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL,
@@ -147,15 +152,16 @@ test("catalog stores compact live best cells and no immutable history", () => {
   assert.ok(Object.keys(metricsByCell).every((cell) => declaredCells.has(cell)),
     "every live metric cell must still have a current workload source");
   for (const requiredCell of ["hello/c/windows-x64", "hello/rust/windows-x64",
-    "hello/w/windows-x64", "restaurant-enum-switch/c/windows-x64",
-    "restaurant-enum-switch/rust/windows-x64",
-    "restaurant-enum-switch/w/windows-x64", "restaurant-wmo/c/windows-x64",
-    "restaurant-wmo/rust/windows-x64", "restaurant-wmo/w/windows-x64",
-    "restaurant-main-dispatch/w/linux-wsl-x64"]) {
+    "hello/w/windows-x64", "bool-short-circuit/w/windows-x64",
+    "process-entry/c/windows-x64", "process-entry/rust/windows-x64",
+    "process-entry/w/windows-x64", "process-arguments-count/c/windows-x64",
+    "process-arguments-count/rust/windows-x64", "process-arguments-count/w/windows-x64",
+    "process-handler-lifecycle/c/windows-x64", "process-handler-lifecycle/rust/windows-x64",
+    "process-handler-lifecycle/w/windows-x64"]) {
     assert.ok(metricsByCell[requiredCell], `${requiredCell} must retain live evidence`);
   }
-  for (const workloadId of ["hello", "process-entry", "restaurant-branch",
-    "restaurant-enum-switch", "restaurant-while-post", "restaurant-wmo"]) {
+  for (const workloadId of ["hello", "process-entry", "branch",
+    "enum-switch", "while-post", "wmo"]) {
     const workload = documents.catalog.workloads.find((item) => item.id === workloadId);
     assert.equal(workload.benchmarkStatus, "exploratory-ready");
     assert.deepEqual(workload.blockers, []);
@@ -179,12 +185,69 @@ test("catalog stores compact live best cells and no immutable history", () => {
   assert.ok(documents.catalog.bestMetrics.entries.every((entry) =>
     ["historical-unverified", "verified-clean"].includes(entry.provenance.artifactCleanliness)));
   assert.ok(documents.catalog.bestMetrics.entries
-    .filter((entry) => entry.workloadId === "restaurant-enum-switch")
+    .filter((entry) => entry.workloadId === "enum-switch")
     .every((entry) => entry.provenance.artifactCleanliness === "verified-clean"));
   assert.ok(documents.catalog.bestMetrics.entries.every((entry) => entry.value !== "0"));
   assert.ok(documents.catalog.bestMetrics.entries.every((entry) => entry.runtimeClosure.status === "unverified"));
   assert.ok(new Set(documents.catalog.bestMetrics.entries.map((entry) => entry.language)).size === 3);
   assert.ok(documents.catalog.bestMetrics.entries.some((entry) => entry.language === "rust" && entry.eligibility === "promotable-after-equivalence"));
+});
+
+test("suite lane selection is deterministic, excludes diagnostic/private rows, and retains six contextual Hello lanes", () => {
+  const lanes = selectExecutableSuiteLanes(documents.catalog);
+  assert.ok(lanes.length > 0);
+  assert.equal(new Set(lanes.map((lane) => `${lane.workloadId}/${lane.language}/${lane.platformTarget}`)).size, lanes.length);
+  assert.deepEqual(lanes.filter((lane) => lane.workloadId === "hello-platform-minimal"), [
+    { workloadId: "hello-platform-minimal", language: "w", platformTarget: "windows-x64" },
+    { workloadId: "hello-platform-minimal", language: "c", platformTarget: "windows-x64" },
+    { workloadId: "hello-platform-minimal", language: "rust", platformTarget: "windows-x64" },
+    { workloadId: "hello-platform-minimal", language: "w", platformTarget: "linux-wsl-x64" },
+    { workloadId: "hello-platform-minimal", language: "c", platformTarget: "linux-wsl-x64" },
+    { workloadId: "hello-platform-minimal", language: "rust", platformTarget: "linux-wsl-x64" },
+  ]);
+  assert.ok(lanes.every((lane) => lane.workloadId !== "process-handler-lifecycle" && lane.workloadId !== "composition"));
+  assert.ok(lanes.filter((lane) => lane.platformTarget === "linux-wsl-x64")
+    .every((lane) => lane.workloadId === "hello-platform-minimal"));
+  assert.deepEqual(selectExecutableSuiteLanes(documents.catalog, { platforms: ["linux-wsl-x64"] }).map((lane) => lane.language), ["w", "c", "rust"]);
+  assert.throws(() => selectExecutableSuiteLanes(documents.catalog, { platforms: ["linux-x64"] }), /supported runner platforms/u);
+});
+
+test("suite receipt binds a full successful selection and rejects stale, filtered, or incomplete claims", () => {
+  const platforms = [...EXECUTABLE_SUITE_DEFAULT_PLATFORMS];
+  const lanes = selectExecutableSuiteLanes(documents.catalog, { platforms }).map((lane) => {
+    const workload = documents.catalog.workloads.find((item) => item.id === lane.workloadId);
+    const source = workload.sources.find((item) => item.language === lane.language && item.platformTarget === lane.platformTarget);
+    return {
+      ...lane,
+      status: "passed",
+      toolchain: `test-${lane.language}-${lane.platformTarget}`,
+      recipe: source.recipe,
+      toolchainDigest: digest,
+    };
+  });
+  const receipt = {
+    $schema: "./executable-benchmark.schema.json",
+    schema: EXECUTABLE_SUITE_RECEIPT_SCHEMA,
+    kind: "executable-suite-current",
+    status: "current",
+    mode: "full",
+    platforms,
+    catalogDigest: executableCatalogFileDigest(ROOT),
+    observedAt: "2026-09-22T12:00:00.000Z",
+    durationMs: 1200,
+    laneCounts: { total: lanes.length, passed: lanes.length, failed: 0, skipped: 0 },
+    lanes,
+  };
+  assert.deepEqual(executableSuiteReceiptErrors(receipt, documents.catalog, { catalogDigest: receipt.catalogDigest }), []);
+  const stale = clone(receipt);
+  stale.catalogDigest = digest;
+  assert.match(executableSuiteReceiptErrors(stale, documents.catalog, { catalogDigest: receipt.catalogDigest }).join("\n"), /stale/u);
+  const incomplete = clone(receipt);
+  incomplete.laneCounts.failed = 1;
+  assert.match(executableSuiteReceiptErrors(incomplete, documents.catalog, { catalogDigest: receipt.catalogDigest }).join("\n"), /complete successful suite/u);
+  const falseFull = clone(receipt);
+  falseFull.platforms = ["windows-x64"];
+  assert.match(executableSuiteReceiptErrors(falseFull, documents.catalog, { catalogDigest: receipt.catalogDigest }).join("\n"), /mode does not match/u);
 });
 
 test("runtime closure classifications are recipe-derived and artifact verification remains unclaimed", () => {
@@ -221,36 +284,42 @@ test("source-local expected-output comments are opt-in and exact", () => {
     }
   }
   const requiredOptInPaths = [
-    "benchmarks/executable/restaurant_integer_wrapping.c",
-    "benchmarks/executable/restaurant_integer_wrapping.rs",
-    "compiler/seed-c/fixtures/restaurant-integer-wrapping.w",
-    "benchmarks/executable/restaurant_integer_prefix.c",
-    "benchmarks/executable/restaurant_integer_prefix.rs",
-    "compiler/seed-c/fixtures/restaurant-integer-prefix.w",
-    "benchmarks/executable/restaurant_integer_widening.c",
-    "benchmarks/executable/restaurant_integer_widening.rs",
-    "compiler/seed-c/fixtures/restaurant-integer-widening.w",
-    "benchmarks/executable/restaurant_numeric_widening.c",
-    "benchmarks/executable/restaurant_numeric_widening.rs",
-    "compiler/seed-c/fixtures/restaurant-numeric-widening.w",
-    "benchmarks/executable/restaurant_integer_truncating_bits.c",
-    "benchmarks/executable/restaurant_integer_truncating_bits.rs",
-    "compiler/seed-c/fixtures/restaurant-integer-truncating-bits.w",
-    "benchmarks/executable/restaurant_integer_bitwise.c",
-    "benchmarks/executable/restaurant_integer_bitwise.rs",
-    "compiler/seed-c/fixtures/restaurant-integer-bitwise.w",
-    "benchmarks/executable/restaurant_uint_bitwise.c",
-    "benchmarks/executable/restaurant_uint_bitwise.rs",
-    "compiler/seed-c/fixtures/restaurant-uint-bitwise.w",
-    "benchmarks/executable/restaurant_uint_overflowing_family.c",
-    "benchmarks/executable/restaurant_uint_overflowing_family.rs",
-    "compiler/seed-c/fixtures/restaurant-uint-overflowing-family.w",
-    "benchmarks/executable/restaurant_uint_saturating_policy.c",
-    "benchmarks/executable/restaurant_uint_saturating_policy.rs",
-    "compiler/seed-c/fixtures/restaurant-uint-saturating-policy.w",
-    "benchmarks/executable/restaurant_float_bit_representation.c",
-    "benchmarks/executable/restaurant_float_bit_representation.rs",
-    "compiler/seed-c/fixtures/restaurant-float-bit-representation.w",
+    "benchmarks/executable/process_arguments_ordering.c",
+    "benchmarks/executable/process_arguments_ordering.rs",
+    "compiler/seed-c/fixtures/process-arguments-ordering.w",
+    "benchmarks/executable/process_enum_payload.c",
+    "benchmarks/executable/process_enum_payload.rs",
+    "compiler/seed-c/fixtures/process-enum-payload.w",
+    "benchmarks/executable/integer_wrapping.c",
+    "benchmarks/executable/integer_wrapping.rs",
+    "compiler/seed-c/fixtures/integer-wrapping.w",
+    "benchmarks/executable/integer_prefix.c",
+    "benchmarks/executable/integer_prefix.rs",
+    "compiler/seed-c/fixtures/integer-prefix.w",
+    "benchmarks/executable/integer_widening.c",
+    "benchmarks/executable/integer_widening.rs",
+    "compiler/seed-c/fixtures/integer-widening.w",
+    "benchmarks/executable/numeric_widening.c",
+    "benchmarks/executable/numeric_widening.rs",
+    "compiler/seed-c/fixtures/numeric-widening.w",
+    "benchmarks/executable/integer_truncating_bits.c",
+    "benchmarks/executable/integer_truncating_bits.rs",
+    "compiler/seed-c/fixtures/integer-truncating-bits.w",
+    "benchmarks/executable/integer_bitwise.c",
+    "benchmarks/executable/integer_bitwise.rs",
+    "compiler/seed-c/fixtures/integer-bitwise.w",
+    "benchmarks/executable/uint_bitwise.c",
+    "benchmarks/executable/uint_bitwise.rs",
+    "compiler/seed-c/fixtures/uint-bitwise.w",
+    "benchmarks/executable/uint_overflowing_family.c",
+    "benchmarks/executable/uint_overflowing_family.rs",
+    "compiler/seed-c/fixtures/uint-overflowing-family.w",
+    "benchmarks/executable/uint_saturating_policy.c",
+    "benchmarks/executable/uint_saturating_policy.rs",
+    "compiler/seed-c/fixtures/uint-saturating-policy.w",
+    "benchmarks/executable/float_bit_representation.c",
+    "benchmarks/executable/float_bit_representation.rs",
+    "compiler/seed-c/fixtures/float-bit-representation.w",
   ];
   for (const sourcePath of requiredOptInPaths) {
     assert.ok(optInPaths.has(sourcePath), `${sourcePath} must retain its local oracle`);
@@ -292,12 +361,34 @@ test("source-local expected-output comments are opt-in and exact", () => {
     { kind: "exact-output", status: "source-backed", exitCode: 0, stdout: "different\n", stderr: "" },
     "drifted source",
   ), ["drifted source: Expected stdout must match the catalog oracle exactly."]);
+
+  const argumentCases = [
+    { arguments: [], exitCode: 7, stdout: "missing\n", stderr: "" },
+    { arguments: [""], exitCode: 0, stdout: "present\n", stderr: "" },
+  ];
+  const argumentCaseSource = [
+    "// Expected output cases (argv => exit; stdout):",
+    '// [] => 7; "missing\\n"',
+    '// [""] => 0; "present\\n"',
+    "entry {}",
+  ].join("\n");
+  assert.deepEqual(parseExecutableSourceExpectation(argumentCaseSource), {
+    cases: argumentCases,
+    errors: [],
+  });
+  assert.deepEqual(validateExecutableSourceExpectation(argumentCaseSource, {
+    kind: "argument-dependent-output", status: "source-backed", cases: argumentCases,
+  }), []);
+  assert.match(validateExecutableSourceExpectation(argumentCaseSource, {
+    kind: "argument-dependent-output", status: "source-backed", cases: [...argumentCases, argumentCases[0]],
+  }).join("\n"), /case count must match/u);
 });
 
 test("platform-minimal Hello stays a separate correctness-only comparison across supported x64 targets", () => {
   const workload = documents.catalog.workloads.find((item) => item.id === "hello-platform-minimal");
   assert.ok(workload);
-  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.equal(workload.benchmarkStatus, "contextual-measurement-ready");
+  assert.equal(workload.demoEvidence, "not-run");
   assert.equal(workload.lane, "equivalent");
   assert.match(workload.scope, /platform-minimal Hello correctness comparison/u);
   assert.match(workload.scope, /not an idiomatic C\/Rust baseline or language ranking/u);
@@ -311,6 +402,8 @@ test("platform-minimal Hello stays a separate correctness-only comparison across
     "w/linux-wsl-x64", "w/windows-x64",
   ]);
   assert.ok(workload.sources.every((source) => source.recipeClass === "hello-platform-minimal"));
+  assert.equal(documents.catalog.bestMetrics.entries.some((entry) => entry.workloadId === "hello-platform-minimal"), false,
+    "contextual eligibility permits publishing only after a real measurement is recorded");
   assert.ok(workload.sources.filter((source) => source.language === "w").every((source) =>
     source.recipe === "public-w-build-release"));
   assert.ok(workload.sources.filter((source) => source.language === "c").every((source) =>
@@ -319,13 +412,34 @@ test("platform-minimal Hello stays a separate correctness-only comparison across
     source.recipe === "rustc-edition-2024-no-std"));
 });
 
+test("float rounding catalog scope covers only the success witness, not its separate failure gate", () => {
+  const workload = documents.catalog.workloads.find((item) => item.id === "float-integer-rounding");
+  assert.ok(workload);
+  assert.match(workload.scope, /successful constant nearest-even conversion/u);
+  assert.match(workload.scope, /process-float-rounding-error\.w gate/u);
+  assert.match(workload.scope, /only the success result/u);
+  assert.deepEqual(workload.sources.map((source) => source.path), [
+    "compiler/seed-c/fixtures/process-float-rounding-success.w",
+    "compiler/seed-c/fixtures/process-float-rounding-success.w",
+  ]);
+  assert.equal(documents.catalog.bestMetrics.entries.some((entry) => entry.workloadId === workload.id), false);
+});
+
+test("local module graph source digest is current and stale live cells stay pruned", () => {
+  const workload = documents.catalog.workloads.find((item) => item.id === "local-module-graph");
+  assert.ok(workload);
+  const source = workload.sources.find((item) => item.path === "compiler/seed-c/fixtures/local-graph/app.w");
+  assert.equal(source.digest, exactOutputDigest(readFileSync(`${ROOT}/${source.path}`, "utf8")));
+  assert.equal(documents.catalog.bestMetrics.entries.some((entry) => entry.workloadId === workload.id), false);
+});
+
 test("every public Windows runnable fixture has an executable benchmark owner", () => {
   const missing = clone(documents.catalog);
-  const workload = missing.workloads.find((item) => item.id === "restaurant-enum-switch");
+  const workload = missing.workloads.find((item) => item.id === "enum-switch");
   workload.sources = workload.sources.filter((source) => source.language !== "w");
   workload.blockedLanguages.push("w");
   assert.match(validateExecutableCatalog(missing, { ...documents, catalog: missing }).join("\n"),
-    /restaurant-enum\.w has no executable benchmark owner/u);
+    /enum\.w has no executable benchmark owner/u);
 });
 
 test("runtime fixed-integer arithmetic remains correctness-only despite equivalent references", () => {
@@ -448,47 +562,46 @@ test("process-enum-payload catalog pins the promoted tagged-union contract", () 
   assert.deepEqual(workload.oracle.timedInput, PROCESS_ENUM_PAYLOAD_TIMED_INPUT);
   assert.deepEqual(workload.oracle.cases, PROCESS_ENUM_PAYLOAD_ORACLE_CASES);
   assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.arguments), PROCESS_ENUM_PAYLOAD_CORRECTNESS_INPUTS);
-  assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.exitCode), [7, 0, 0]);
+  assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.exitCode), [7, 0, 0, 0]);
   assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.stdout), [
-    "enum-missing true\n",
-    "enum-received false\n",
-    "enum-received false\n",
+    "arguments-missing count=0 amount=17 over-limit=false\n",
+    "arguments-present count=1 amount=17 over-limit=false\n",
+    "arguments-present count=2 amount=17 over-limit=false\n",
+    "arguments-present count=3 amount=17 over-limit=true\n",
   ]);
   assert.ok(workload.sources.every((source) => source.recipeClass === PROCESS_ENUM_PAYLOAD_RECIPE_CLASS));
   assert.equal(workload.sources.find((source) => source.language === "w").entry, "dispatch");
   assert.equal(workload.sources.find((source) => source.language === "c").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MSVC);
   assert.equal(workload.sources.find((source) => source.language === "rust").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MSVC);
   const liveMetrics = documents.catalog.bestMetrics.entries.filter((entry) => entry.workloadId === PROCESS_ENUM_PAYLOAD_WORKLOAD_ID);
-  assert.deepEqual(Object.fromEntries(
-    ["c", "rust", "w"].map((language) => [language, liveMetrics.filter((entry) => entry.language === language).length]),
-  ), { c: 6, rust: 6, w: 6 });
+  assert.equal(liveMetrics.length, 0, "changed sources and correctness oracles invalidate their old measurements");
 });
 
 test("process-enum-payload C and Rust variants retain independent runtime enum paths", () => {
   const c = readFileSync(`${ROOT}/benchmarks/executable/process_enum_payload.c`, "utf8");
   const rust = readFileSync(`${ROOT}/benchmarks/executable/process_enum_payload.rs`, "utf8");
   assert.match(c, /int main\(int argc, char \*\*argv\)/u);
-  assert.match(c, /enum admission_state_kind/u);
+  assert.match(c, /enum argument_state_kind/u);
   assert.match(c, /union \{/u);
   assert.match(c, /int64_t amount/u);
-  assert.match(c, /static struct admission_state build_admission/u);
+  assert.match(c, /static struct argument_state build_argument_state/u);
   assert.match(c, /switch \(state\.kind\)/u);
   assert.match(c, /argc\s*==\s*1/u);
-  assert.match(c, /printf\("enum-missing %s\\n"/u);
-  assert.match(c, /repeated \? "true" : "false"/u);
+  assert.match(c, /printf\("arguments-missing count=%d amount=%lld over-limit=%s\\n"/u);
+  assert.match(c, /over_limit \? "true" : "false"/u);
   assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
   assert.match(rust, /fn main\(\)/u);
-  assert.match(rust, /enum AdmissionState/u);
-  assert.match(rust, /fn build_admission/u);
+  assert.match(rust, /enum ArgumentState/u);
+  assert.match(rust, /fn build_argument_state/u);
   assert.match(rust, /match state/u);
-  assert.match(rust, /let repeated = std::env::args_os\(\)\.nth\(1\)\.is_none\(\)/u);
-  assert.match(rust, /write!\(stdout, "\{label\} \{repeated\}\\n"\)/u);
+  assert.match(rust, /let count = std::env::args_os\(\)\.count\(\)\.saturating_sub\(1\)/u);
+  assert.match(rust, /write!\(stdout, "\{label\} count=\{count\} amount=\{amount\} over-limit=\{over_limit\}\\n"\)/u);
   assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
 });
 
 test("strict f32/f64 references retain independent runtime operations", () => {
   const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_FLOAT_STRICT_WORKLOAD_ID);
+    item.id === FLOAT_STRICT_WORKLOAD_ID);
   assert.ok(workload);
   assert.equal(workload.benchmarkStatus, "not-performance-ready");
   assert.deepEqual(workload.blockedLanguages, []);
@@ -511,9 +624,9 @@ test("strict f32/f64 references retain independent runtime operations", () => {
     "same-physical-hardware-diagnostic-only",
   ]);
   const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_float_strict.c`, "utf8");
+    `${ROOT}/benchmarks/executable/float_strict.c`, "utf8");
   const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_float_strict.rs`, "utf8");
+    `${ROOT}/benchmarks/executable/float_strict.rs`, "utf8");
   assert.match(c, /volatile float/u);
   assert.match(c, /volatile double/u);
   assert.match(c, /f32_sum_left \+ f32_sum_right/u);
@@ -532,7 +645,7 @@ test("strict f32/f64 references retain independent runtime operations", () => {
 
 test("f32/f64 bit-representation family is correctness-only and deferred", () => {
   const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_FLOAT_BIT_REPRESENTATION_WORKLOAD_ID);
+    item.id === FLOAT_BIT_REPRESENTATION_WORKLOAD_ID);
   assert.ok(workload);
   assert.equal(workload.structureClass, "public-end-to-end");
   assert.equal(workload.status, "source-oracle-ready");
@@ -561,7 +674,7 @@ test("f32/f64 bit-representation family is correctness-only and deferred", () =>
     ["rust", EXECUTABLE_PLATFORM_TARGET],
   ]);
   assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-float-bit-representation-release" &&
+    source.recipeClass === "float-bit-representation-release" &&
     source.quality === "correctness-gate"));
   assert.deepEqual(workload.sources
     .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
@@ -577,15 +690,15 @@ test("f32/f64 bit-representation family is correctness-only and deferred", () =>
     "same-physical-hardware-diagnostic-only",
   ]);
   assert.ok(!documents.catalog.bestMetrics.entries.some((entry) =>
-    entry.workloadId === RESTAURANT_FLOAT_BIT_REPRESENTATION_WORKLOAD_ID),
+    entry.workloadId === FLOAT_BIT_REPRESENTATION_WORKLOAD_ID),
   "float bit-representation correctness references must not acquire timing or ranking data");
 
   const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_float_bit_representation.c`, "utf8");
+    `${ROOT}/benchmarks/executable/float_bit_representation.c`, "utf8");
   const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_float_bit_representation.rs`, "utf8");
+    `${ROOT}/benchmarks/executable/float_bit_representation.rs`, "utf8");
   const w = readFileSync(
-    `${ROOT}/compiler/seed-c/fixtures/restaurant-float-bit-representation.w`, "utf8");
+    `${ROOT}/compiler/seed-c/fixtures/float-bit-representation.w`, "utf8");
   for (const [name, source] of [["W", w], ["C23", c], ["Rust", rust]]) {
     assert.deepEqual(parseExecutableSourceExpectation(source), {
       exitCode: workload.oracle.exitCode,
@@ -619,7 +732,7 @@ test("f32/f64 bit-representation family is correctness-only and deferred", () =>
 
 test("checked fixed-width integer arithmetic is one correctness-only family", () => {
   const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_CHECKED_INTEGER_ARITHMETIC_WORKLOAD_ID);
+    item.id === CHECKED_INTEGER_ARITHMETIC_WORKLOAD_ID);
   assert.ok(workload);
   assert.equal(workload.structureClass, "public-end-to-end");
   assert.equal(workload.status, "source-oracle-ready");
@@ -646,7 +759,7 @@ test("checked fixed-width integer arithmetic is one correctness-only family", ()
     ["c", EXECUTABLE_PLATFORM_TARGET],
     ["rust", EXECUTABLE_PLATFORM_TARGET],
   ]);
-  assert.ok(workload.sources.every((source) => source.recipeClass === "restaurant-checked-integer-arithmetic-release"));
+  assert.ok(workload.sources.every((source) => source.recipeClass === "checked-integer-arithmetic-release"));
   assert.deepEqual(workload.sources
     .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
     .map((source) => [source.comparability, source.eligibility]), [
@@ -660,11 +773,11 @@ test("checked fixed-width integer arithmetic is one correctness-only family", ()
     "same-physical-hardware-diagnostic-only",
   ]);
   const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_checked_integer_arithmetic.c`, "utf8");
+    `${ROOT}/benchmarks/executable/checked_integer_arithmetic.c`, "utf8");
   const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_checked_integer_arithmetic.rs`, "utf8");
+    `${ROOT}/benchmarks/executable/checked_integer_arithmetic.rs`, "utf8");
   const w = readFileSync(
-    `${ROOT}/compiler/seed-c/fixtures/restaurant-checked-integer-arithmetic.w`, "utf8");
+    `${ROOT}/compiler/seed-c/fixtures/checked-integer-arithmetic.w`, "utf8");
   for (const source of [w, c, rust])
     assert.deepEqual(parseExecutableSourceExpectation(source), {
       exitCode: workload.oracle.exitCode,
@@ -699,7 +812,7 @@ test("checked fixed-width integer arithmetic is one correctness-only family", ()
 
 test("UInt bit-primitives family catalog keeps correctness separate from ranking", () => {
   const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_BITWISE_WORKLOAD_ID);
+    item.id === UINT_BITWISE_WORKLOAD_ID);
   assert.ok(workload);
   assert.equal(workload.structureClass, "public-end-to-end");
   assert.equal(workload.status, "source-oracle-ready");
@@ -727,13 +840,13 @@ test("UInt bit-primitives family catalog keeps correctness separate from ranking
     ["rust", EXECUTABLE_PLATFORM_TARGET],
   ]);
   assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-bitwise-release"));
+    source.recipeClass === "uint-bitwise-release"));
   const w = readFileSync(
-    `${ROOT}/compiler/seed-c/fixtures/restaurant-uint-bitwise.w`, "utf8");
+    `${ROOT}/compiler/seed-c/fixtures/uint-bitwise.w`, "utf8");
   const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_bitwise.c`, "utf8");
+    `${ROOT}/benchmarks/executable/uint_bitwise.c`, "utf8");
   const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_bitwise.rs`, "utf8");
+    `${ROOT}/benchmarks/executable/uint_bitwise.rs`, "utf8");
   for (const [name, source] of [["W", w], ["C23", c], ["Rust", rust]]) {
     assert.deepEqual(validateExecutableSourceExpectation(source, workload.oracle,
       `${name} source`), []);
@@ -859,7 +972,7 @@ test("integer shift semantics is one correctness-only checked and policy family"
     item.id === INTEGER_SHIFT_SEMANTICS_WORKLOAD_ID);
   assert.ok(workload);
   assert.equal(documents.catalog.workloads.some((item) =>
-    ["restaurant-shifts", "fixed-integer-shift-policies"].includes(item.id)), false,
+    ["shifts", "fixed-integer-shift-policies"].includes(item.id)), false,
   "the component families must not retain independent benchmark rows");
   assert.equal(workload.structureClass, "public-end-to-end");
   assert.equal(workload.status, "source-oracle-ready");
@@ -929,7 +1042,7 @@ test("integer shift semantics is one correctness-only checked and policy family"
     entry.workloadId === INTEGER_SHIFT_SEMANTICS_WORKLOAD_ID),
   "the family must have no timings or ranking cells");
   assert.ok(!documents.catalog.bestMetrics.entries.some((entry) =>
-    ["restaurant-shifts", "fixed-integer-shift-policies"].includes(entry.workloadId)),
+    ["shifts", "fixed-integer-shift-policies"].includes(entry.workloadId)),
   "the removed component rows must not retain timing or ranking cells");
 
   const sources = Object.fromEntries(workload.sources
@@ -997,7 +1110,7 @@ test("integer shift semantics is one correctness-only checked and policy family"
 
 test("UInt overflowing-family catalog keeps correctness separate from ranking", () => {
   const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_OVERFLOWING_FAMILY_WORKLOAD_ID);
+    item.id === UINT_OVERFLOWING_FAMILY_WORKLOAD_ID);
   assert.ok(workload);
   assert.equal(workload.structureClass, "public-end-to-end");
   assert.equal(workload.status, "source-oracle-ready");
@@ -1025,7 +1138,7 @@ test("UInt overflowing-family catalog keeps correctness separate from ranking", 
     ["rust", EXECUTABLE_PLATFORM_TARGET],
   ]);
   assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-overflowing-family-release"));
+    source.recipeClass === "uint-overflowing-family-release"));
   assert.deepEqual(workload.sources
     .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
     .map((source) => [source.comparability, source.eligibility]), [
@@ -1040,11 +1153,11 @@ test("UInt overflowing-family catalog keeps correctness separate from ranking", 
     "same-physical-hardware-diagnostic-only",
   ]);
   const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_overflowing_family.c`, "utf8");
+    `${ROOT}/benchmarks/executable/uint_overflowing_family.c`, "utf8");
   const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_overflowing_family.rs`, "utf8");
+    `${ROOT}/benchmarks/executable/uint_overflowing_family.rs`, "utf8");
   const w = readFileSync(
-    `${ROOT}/compiler/seed-c/fixtures/restaurant-uint-overflowing-family.w`, "utf8");
+    `${ROOT}/compiler/seed-c/fixtures/uint-overflowing-family.w`, "utf8");
   for (const [name, source] of [["W", w], ["C23", c], ["Rust", rust]]) {
     assert.deepEqual(validateExecutableSourceExpectation(source, workload.oracle,
       `${name} source`), []);
@@ -1072,7 +1185,7 @@ test("UInt overflowing-family catalog keeps correctness separate from ranking", 
 
 test("UInt saturating-policy catalog keeps correctness separate from ranking", () => {
   const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_SATURATING_POLICY_WORKLOAD_ID);
+    item.id === UINT_SATURATING_POLICY_WORKLOAD_ID);
   assert.ok(workload);
   assert.equal(workload.structureClass, "public-end-to-end");
   assert.equal(workload.status, "source-oracle-ready");
@@ -1100,7 +1213,7 @@ test("UInt saturating-policy catalog keeps correctness separate from ranking", (
     ["rust", EXECUTABLE_PLATFORM_TARGET],
   ]);
   assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-saturating-policy-release"));
+    source.recipeClass === "uint-saturating-policy-release"));
   assert.deepEqual(workload.sources
     .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
     .map((source) => [source.comparability, source.eligibility]), [
@@ -1115,11 +1228,11 @@ test("UInt saturating-policy catalog keeps correctness separate from ranking", (
     "same-physical-hardware-diagnostic-only",
   ]);
   const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_saturating_policy.c`, "utf8");
+    `${ROOT}/benchmarks/executable/uint_saturating_policy.c`, "utf8");
   const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_saturating_policy.rs`, "utf8");
+    `${ROOT}/benchmarks/executable/uint_saturating_policy.rs`, "utf8");
   const w = readFileSync(
-    `${ROOT}/compiler/seed-c/fixtures/restaurant-uint-saturating-policy.w`, "utf8");
+    `${ROOT}/compiler/seed-c/fixtures/uint-saturating-policy.w`, "utf8");
   for (const [name, source] of [["W", w], ["C23", c], ["Rust", rust]]) {
     assert.deepEqual(validateExecutableSourceExpectation(source, workload.oracle,
       `${name} source`), []);
@@ -1145,7 +1258,7 @@ test("UInt saturating-policy catalog keeps correctness separate from ranking", (
 
 test("UInt compound catalog keeps correctness separate from ranking", () => {
   const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_UINT_COMPOUND_WORKLOAD_ID);
+    item.id === UINT_COMPOUND_WORKLOAD_ID);
   assert.ok(workload);
   assert.equal(workload.structureClass, "public-end-to-end");
   assert.equal(workload.status, "source-oracle-ready");
@@ -1169,11 +1282,11 @@ test("UInt compound catalog keeps correctness separate from ranking", () => {
     ["rust", EXECUTABLE_PLATFORM_TARGET],
   ]);
   assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-uint-compound-release"));
+    source.recipeClass === "uint-compound-release"));
   const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_compound.c`, "utf8");
+    `${ROOT}/benchmarks/executable/uint_compound.c`, "utf8");
   const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_uint_compound.rs`, "utf8");
+    `${ROOT}/benchmarks/executable/uint_compound.rs`, "utf8");
   for (const helper of ["checked_add_u64", "checked_subtract_u64",
     "checked_multiply_u64", "checked_divide_u64",
     "checked_remainder_u64", "checked_power_u64",
@@ -1200,7 +1313,7 @@ test("UInt compound catalog keeps correctness separate from ranking", () => {
 
 test("fixed-width integer prefix family is one correctness-only witness", () => {
   const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_INTEGER_PREFIX_WORKLOAD_ID);
+    item.id === INTEGER_PREFIX_WORKLOAD_ID);
   assert.ok(workload);
   assert.equal(workload.structureClass, "public-end-to-end");
   assert.equal(workload.status, "source-oracle-ready");
@@ -1232,7 +1345,7 @@ test("fixed-width integer prefix family is one correctness-only witness", () => 
     ["rust", EXECUTABLE_PLATFORM_TARGET],
   ]);
   assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-integer-prefix-release" &&
+    source.recipeClass === "integer-prefix-release" &&
     source.quality === "correctness-gate"));
   assert.deepEqual(workload.sources
     .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
@@ -1248,15 +1361,15 @@ test("fixed-width integer prefix family is one correctness-only witness", () => 
     "same-physical-hardware-diagnostic-only",
   ]);
   assert.ok(!documents.catalog.bestMetrics.entries.some((entry) =>
-    entry.workloadId === RESTAURANT_INTEGER_PREFIX_WORKLOAD_ID),
+    entry.workloadId === INTEGER_PREFIX_WORKLOAD_ID),
   "correctness-only integer prefixes must not acquire timing or ranking data");
 
   const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_integer_prefix.c`, "utf8");
+    `${ROOT}/benchmarks/executable/integer_prefix.c`, "utf8");
   const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_integer_prefix.rs`, "utf8");
+    `${ROOT}/benchmarks/executable/integer_prefix.rs`, "utf8");
   const w = readFileSync(
-    `${ROOT}/compiler/seed-c/fixtures/restaurant-integer-prefix.w`, "utf8");
+    `${ROOT}/compiler/seed-c/fixtures/integer-prefix.w`, "utf8");
   for (const [name, source] of [["W", w], ["C23", c], ["Rust", rust]]) {
     assert.deepEqual(parseExecutableSourceExpectation(source), {
       exitCode: workload.oracle.exitCode,
@@ -1281,25 +1394,25 @@ test("fixed-width integer prefix family is one correctness-only witness", () => 
   assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
   assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
 
-  for (const id of ["restaurant-unary-negate", "restaurant-unary-interpolation"]) {
+  for (const id of ["unary-negate", "unary-interpolation"]) {
     assert.ok(!documents.catalog.workloads.some((item) => item.id === id),
       `${id} must no longer be an independent benchmark row`);
     assert.ok(!documents.catalog.bestMetrics.entries.some((entry) => entry.workloadId === id),
       `${id} must not retain live best-metric cells`);
   }
-  readFileSync(`${ROOT}/compiler/seed-c/fixtures/restaurant-unary-negate.w`, "utf8");
-  readFileSync(`${ROOT}/compiler/seed-c/fixtures/restaurant-unary-interpolation.w`, "utf8");
-  assert.ok(!documents.catalog.workloads.some((item) => item.id === "restaurant-bitwise"),
+  readFileSync(`${ROOT}/compiler/seed-c/fixtures/unary-negate.w`, "utf8");
+  readFileSync(`${ROOT}/compiler/seed-c/fixtures/unary-interpolation.w`, "utf8");
+  assert.ok(!documents.catalog.workloads.some((item) => item.id === "bitwise"),
     "signed-i64 binary bitwise no longer has an atom-level workload row");
-  assert.ok(!documents.catalog.bestMetrics.entries.some((entry) => entry.workloadId === "restaurant-bitwise"),
+  assert.ok(!documents.catalog.bestMetrics.entries.some((entry) => entry.workloadId === "bitwise"),
     "old signed-i64 fixture metrics must not be transferred to the wider family");
-  assert.ok(documents.catalog.workloads.some((item) => item.id === RESTAURANT_INTEGER_BITWISE_WORKLOAD_ID));
-  assert.ok(documents.catalog.workloads.some((item) => item.id === RESTAURANT_UINT_BITWISE_WORKLOAD_ID));
+  assert.ok(documents.catalog.workloads.some((item) => item.id === INTEGER_BITWISE_WORKLOAD_ID));
+  assert.ok(documents.catalog.workloads.some((item) => item.id === UINT_BITWISE_WORKLOAD_ID));
 });
 
 test("fixed-width integer wrapping policy catalog keeps one matrix separate from ranking", () => {
   const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_INTEGER_WRAPPING_WORKLOAD_ID);
+    item.id === INTEGER_WRAPPING_WORKLOAD_ID);
   assert.ok(workload);
   assert.equal(workload.structureClass, "public-end-to-end");
   assert.equal(workload.status, "source-oracle-ready");
@@ -1331,7 +1444,7 @@ test("fixed-width integer wrapping policy catalog keeps one matrix separate from
     ["rust", EXECUTABLE_PLATFORM_TARGET],
   ]);
   assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-integer-wrapping-release"));
+    source.recipeClass === "integer-wrapping-release"));
   assert.deepEqual(workload.sources
     .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
     .map((source) => [source.comparability, source.eligibility]), [
@@ -1346,11 +1459,11 @@ test("fixed-width integer wrapping policy catalog keeps one matrix separate from
     "same-physical-hardware-diagnostic-only",
   ]);
   const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_integer_wrapping.c`, "utf8");
+    `${ROOT}/benchmarks/executable/integer_wrapping.c`, "utf8");
   const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_integer_wrapping.rs`, "utf8");
+    `${ROOT}/benchmarks/executable/integer_wrapping.rs`, "utf8");
   const w = readFileSync(
-    `${ROOT}/compiler/seed-c/fixtures/restaurant-integer-wrapping.w`, "utf8");
+    `${ROOT}/compiler/seed-c/fixtures/integer-wrapping.w`, "utf8");
   for (const [name, source] of [["W", w], ["C23", c], ["Rust", rust]]) {
     assert.deepEqual(parseExecutableSourceExpectation(source), {
       exitCode: workload.oracle.exitCode,
@@ -1389,7 +1502,7 @@ test("fixed-width integer wrapping policy catalog keeps one matrix separate from
 
 test("implicit integer widening catalog is one correctness-only family witness", () => {
   const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_INTEGER_WIDENING_WORKLOAD_ID);
+    item.id === INTEGER_WIDENING_WORKLOAD_ID);
   assert.ok(workload);
   assert.equal(workload.structureClass, "public-end-to-end");
   assert.equal(workload.status, "source-oracle-ready");
@@ -1418,7 +1531,7 @@ test("implicit integer widening catalog is one correctness-only family witness",
     ["rust", EXECUTABLE_PLATFORM_TARGET],
   ]);
   assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-integer-widening-release" &&
+    source.recipeClass === "integer-widening-release" &&
     source.quality === "correctness-gate"));
   assert.deepEqual(workload.sources
     .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
@@ -1434,15 +1547,15 @@ test("implicit integer widening catalog is one correctness-only family witness",
     "same-physical-hardware-diagnostic-only",
   ]);
   assert.ok(!documents.catalog.bestMetrics.entries.some((entry) =>
-    entry.workloadId === RESTAURANT_INTEGER_WIDENING_WORKLOAD_ID),
+    entry.workloadId === INTEGER_WIDENING_WORKLOAD_ID),
   "correctness-only widening must not acquire timing or ranking data");
 
   const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_integer_widening.c`, "utf8");
+    `${ROOT}/benchmarks/executable/integer_widening.c`, "utf8");
   const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_integer_widening.rs`, "utf8");
+    `${ROOT}/benchmarks/executable/integer_widening.rs`, "utf8");
   const w = readFileSync(
-    `${ROOT}/compiler/seed-c/fixtures/restaurant-integer-widening.w`, "utf8");
+    `${ROOT}/compiler/seed-c/fixtures/integer-widening.w`, "utf8");
   for (const [name, source] of [["W", w], ["C23", c], ["Rust", rust]]) {
     assert.deepEqual(parseExecutableSourceExpectation(source), {
       exitCode: 0,
@@ -1464,7 +1577,7 @@ test("implicit integer widening catalog is one correctness-only family witness",
 
 test("exact numeric widening catalog is one correctness-only family witness", () => {
   const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_NUMERIC_WIDENING_WORKLOAD_ID);
+    item.id === NUMERIC_WIDENING_WORKLOAD_ID);
   assert.ok(workload);
   assert.equal(workload.structureClass, "public-end-to-end");
   assert.equal(workload.status, "source-oracle-ready");
@@ -1491,18 +1604,18 @@ test("exact numeric widening catalog is one correctness-only family witness", ()
     ["rust", EXECUTABLE_PLATFORM_TARGET],
   ]);
   assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-numeric-widening-release" &&
+    source.recipeClass === "numeric-widening-release" &&
     source.quality === "correctness-gate"));
   assert.ok(!documents.catalog.bestMetrics.entries.some((entry) =>
-    entry.workloadId === RESTAURANT_NUMERIC_WIDENING_WORKLOAD_ID),
+    entry.workloadId === NUMERIC_WIDENING_WORKLOAD_ID),
   "correctness-only numeric widening must not acquire timing or ranking data");
 
   const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_numeric_widening.c`, "utf8");
+    `${ROOT}/benchmarks/executable/numeric_widening.c`, "utf8");
   const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_numeric_widening.rs`, "utf8");
+    `${ROOT}/benchmarks/executable/numeric_widening.rs`, "utf8");
   const w = readFileSync(
-    `${ROOT}/compiler/seed-c/fixtures/restaurant-numeric-widening.w`, "utf8");
+    `${ROOT}/compiler/seed-c/fixtures/numeric-widening.w`, "utf8");
   for (const [name, source] of [["W", w], ["C23", c], ["Rust", rust]]) {
     assert.deepEqual(parseExecutableSourceExpectation(source), {
       exitCode: 0,
@@ -1528,7 +1641,7 @@ test("exact numeric widening catalog is one correctness-only family witness", ()
 
 test("explicit integer truncating-bits catalog is one correctness-only family witness", () => {
   const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_INTEGER_TRUNCATING_BITS_WORKLOAD_ID);
+    item.id === INTEGER_TRUNCATING_BITS_WORKLOAD_ID);
   assert.ok(workload);
   assert.equal(workload.structureClass, "public-end-to-end");
   assert.equal(workload.status, "source-oracle-ready");
@@ -1557,7 +1670,7 @@ test("explicit integer truncating-bits catalog is one correctness-only family wi
     ["rust", EXECUTABLE_PLATFORM_TARGET],
   ]);
   assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-integer-truncating-bits-release" &&
+    source.recipeClass === "integer-truncating-bits-release" &&
     source.quality === "correctness-gate"));
   assert.deepEqual(workload.sources
     .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
@@ -1573,15 +1686,15 @@ test("explicit integer truncating-bits catalog is one correctness-only family wi
     "same-physical-hardware-diagnostic-only",
   ]);
   assert.ok(!documents.catalog.bestMetrics.entries.some((entry) =>
-    entry.workloadId === RESTAURANT_INTEGER_TRUNCATING_BITS_WORKLOAD_ID),
+    entry.workloadId === INTEGER_TRUNCATING_BITS_WORKLOAD_ID),
   "truncating-bits correctness references must not acquire timing or ranking data");
 
   const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_integer_truncating_bits.c`, "utf8");
+    `${ROOT}/benchmarks/executable/integer_truncating_bits.c`, "utf8");
   const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_integer_truncating_bits.rs`, "utf8");
+    `${ROOT}/benchmarks/executable/integer_truncating_bits.rs`, "utf8");
   const w = readFileSync(
-    `${ROOT}/compiler/seed-c/fixtures/restaurant-integer-truncating-bits.w`, "utf8");
+    `${ROOT}/compiler/seed-c/fixtures/integer-truncating-bits.w`, "utf8");
   for (const [name, source] of [["W", w], ["C23", c], ["Rust", rust]]) {
     assert.deepEqual(parseExecutableSourceExpectation(source), {
       exitCode: workload.oracle.exitCode,
@@ -1605,7 +1718,7 @@ test("explicit integer truncating-bits catalog is one correctness-only family wi
 
 test("integer saturating-conversion catalog is a compact correctness-only four-quadrant witness", () => {
   const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_INTEGER_SATURATING_CONVERSION_WORKLOAD_ID);
+    item.id === INTEGER_SATURATING_CONVERSION_WORKLOAD_ID);
   assert.ok(workload);
   assert.equal(workload.structureClass, "public-end-to-end");
   assert.equal(workload.status, "source-oracle-ready");
@@ -1637,7 +1750,7 @@ test("integer saturating-conversion catalog is a compact correctness-only four-q
     ["rust", EXECUTABLE_PLATFORM_TARGET],
   ]);
   assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-integer-saturating-conversion-release" &&
+    source.recipeClass === "integer-saturating-conversion-release" &&
     source.quality === "correctness-gate"));
   assert.deepEqual(workload.sources
     .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
@@ -1653,15 +1766,15 @@ test("integer saturating-conversion catalog is a compact correctness-only four-q
     "same-physical-hardware-diagnostic-only",
   ]);
   assert.ok(!documents.catalog.bestMetrics.entries.some((entry) =>
-    entry.workloadId === RESTAURANT_INTEGER_SATURATING_CONVERSION_WORKLOAD_ID),
+    entry.workloadId === INTEGER_SATURATING_CONVERSION_WORKLOAD_ID),
   "saturating-conversion correctness references must not acquire timing or ranking data");
 
   const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_integer_saturating_conversion.c`, "utf8");
+    `${ROOT}/benchmarks/executable/integer_saturating_conversion.c`, "utf8");
   const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_integer_saturating_conversion.rs`, "utf8");
+    `${ROOT}/benchmarks/executable/integer_saturating_conversion.rs`, "utf8");
   const w = readFileSync(
-    `${ROOT}/compiler/seed-c/fixtures/restaurant-integer-saturating-conversion.w`, "utf8");
+    `${ROOT}/compiler/seed-c/fixtures/integer-saturating-conversion.w`, "utf8");
   for (const [name, source] of [["W", w], ["C23", c], ["Rust", rust]]) {
     assert.deepEqual(parseExecutableSourceExpectation(source), {
       exitCode: workload.oracle.exitCode,
@@ -1699,7 +1812,7 @@ test("integer saturating-conversion catalog is a compact correctness-only four-q
 
 test("integer binary bitwise catalog is one correctness-only signed/unsigned family witness", () => {
   const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_INTEGER_BITWISE_WORKLOAD_ID);
+    item.id === INTEGER_BITWISE_WORKLOAD_ID);
   assert.ok(workload);
   assert.equal(workload.structureClass, "public-end-to-end");
   assert.equal(workload.status, "source-oracle-ready");
@@ -1737,7 +1850,7 @@ test("integer binary bitwise catalog is one correctness-only signed/unsigned fam
     ["rust", EXECUTABLE_PLATFORM_TARGET],
   ]);
   assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-integer-bitwise-release" &&
+    source.recipeClass === "integer-bitwise-release" &&
     source.quality === "correctness-gate"));
   assert.deepEqual(workload.sources
     .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
@@ -1753,15 +1866,15 @@ test("integer binary bitwise catalog is one correctness-only signed/unsigned fam
     "same-physical-hardware-diagnostic-only",
   ]);
   assert.ok(!documents.catalog.bestMetrics.entries.some((entry) =>
-    entry.workloadId === RESTAURANT_INTEGER_BITWISE_WORKLOAD_ID),
+    entry.workloadId === INTEGER_BITWISE_WORKLOAD_ID),
   "correctness-only bitwise evidence must not acquire timing or ranking data");
 
   const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_integer_bitwise.c`, "utf8");
+    `${ROOT}/benchmarks/executable/integer_bitwise.c`, "utf8");
   const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_integer_bitwise.rs`, "utf8");
+    `${ROOT}/benchmarks/executable/integer_bitwise.rs`, "utf8");
   const w = readFileSync(
-    `${ROOT}/compiler/seed-c/fixtures/restaurant-integer-bitwise.w`, "utf8");
+    `${ROOT}/compiler/seed-c/fixtures/integer-bitwise.w`, "utf8");
   for (const [name, source] of [["W", w], ["C23", c], ["Rust", rust]]) {
     assert.deepEqual(parseExecutableSourceExpectation(source), {
       exitCode: 0,
@@ -1801,7 +1914,7 @@ test("integer binary bitwise catalog is one correctness-only signed/unsigned fam
 
 test("integer comparison catalog is one correctness-only signed/unsigned family witness", () => {
   const workload = documents.catalog.workloads.find((item) =>
-    item.id === RESTAURANT_INTEGER_COMPARISON_WORKLOAD_ID);
+    item.id === INTEGER_COMPARISON_WORKLOAD_ID);
   assert.ok(workload);
   assert.equal(workload.structureClass, "public-end-to-end");
   assert.equal(workload.status, "source-oracle-ready");
@@ -1836,7 +1949,7 @@ test("integer comparison catalog is one correctness-only signed/unsigned family 
     ["rust", EXECUTABLE_PLATFORM_TARGET],
   ]);
   assert.ok(workload.sources.every((source) =>
-    source.recipeClass === "restaurant-integer-comparison-release" &&
+    source.recipeClass === "integer-comparison-release" &&
     source.quality === "correctness-gate"));
   assert.deepEqual(workload.sources
     .filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
@@ -1852,15 +1965,15 @@ test("integer comparison catalog is one correctness-only signed/unsigned family 
     "same-physical-hardware-diagnostic-only",
   ]);
   assert.ok(!documents.catalog.bestMetrics.entries.some((entry) =>
-    entry.workloadId === RESTAURANT_INTEGER_COMPARISON_WORKLOAD_ID),
+    entry.workloadId === INTEGER_COMPARISON_WORKLOAD_ID),
   "correctness-only comparisons must not acquire timing or ranking data");
 
   const c = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_integer_comparison.c`, "utf8");
+    `${ROOT}/benchmarks/executable/integer_comparison.c`, "utf8");
   const rust = readFileSync(
-    `${ROOT}/benchmarks/executable/restaurant_integer_comparison.rs`, "utf8");
+    `${ROOT}/benchmarks/executable/integer_comparison.rs`, "utf8");
   const w = readFileSync(
-    `${ROOT}/compiler/seed-c/fixtures/restaurant-integer-comparison.w`, "utf8");
+    `${ROOT}/compiler/seed-c/fixtures/integer-comparison.w`, "utf8");
   for (const [name, source] of [["W", w], ["C23", c], ["Rust", rust]]) {
     assert.deepEqual(parseExecutableSourceExpectation(source), {
       exitCode: 0,
@@ -1884,22 +1997,22 @@ test("integer comparison catalog is one correctness-only signed/unsigned family 
 
 test("not-performance-ready strict float evidence cannot become live best metrics", () => {
   const result = validResult();
-  const workload = documents.catalog.workloads.find((item) => item.id === RESTAURANT_FLOAT_STRICT_WORKLOAD_ID);
+  const workload = documents.catalog.workloads.find((item) => item.id === FLOAT_STRICT_WORKLOAD_ID);
   const source = workload.sources.find((item) => item.language === "rust" && item.platformTarget === EXECUTABLE_PLATFORM_TARGET);
-  result.id = `${RESTAURANT_FLOAT_STRICT_WORKLOAD_ID}-rust-example`;
-  result.workloadId = RESTAURANT_FLOAT_STRICT_WORKLOAD_ID;
+  result.id = `${FLOAT_STRICT_WORKLOAD_ID}-rust-example`;
+  result.workloadId = FLOAT_STRICT_WORKLOAD_ID;
   result.identity.sourceDigest = source.digest;
   result.identity.recipe = source.recipe;
   result.identity.recipeClass = source.recipeClass;
   result.identity.eligibility = source.eligibility;
   result.equivalenceKey = executableEquivalenceKey(
     documents.catalog,
-    RESTAURANT_FLOAT_STRICT_WORKLOAD_ID,
+    FLOAT_STRICT_WORKLOAD_ID,
     EXECUTABLE_PLATFORM_TARGET,
     "release",
     source.recipeClass,
   );
-  result.correctness.oracleId = `${RESTAURANT_FLOAT_STRICT_WORKLOAD_ID}:exact-output`;
+  result.correctness.oracleId = `${FLOAT_STRICT_WORKLOAD_ID}:exact-output`;
   result.correctness.stdoutDigest = exactOutputDigest(workload.oracle.stdout);
   result.provenance.sourceDigest = source.digest;
   assert.deepEqual(validateExecutableResult(result, documents.catalog), []);
@@ -1908,7 +2021,7 @@ test("not-performance-ready strict float evidence cannot become live best metric
   assert.equal(derived.entries.length, 0);
 
   const forbidden = clone(documents.catalog.bestMetrics.entries[0]);
-  forbidden.workloadId = RESTAURANT_FLOAT_STRICT_WORKLOAD_ID;
+  forbidden.workloadId = FLOAT_STRICT_WORKLOAD_ID;
   forbidden.provenance.sourceDigest = source.digest;
   assert.match(
     validateExecutableBestMetric(forbidden, documents.catalog).join("\n"),
@@ -1916,7 +2029,7 @@ test("not-performance-ready strict float evidence cannot become live best metric
   );
 });
 
-test("process-arguments-ordering catalog pins the count-dependent seating contract", () => {
+test("process-arguments-ordering catalog pins the count-dependent argument-mode contract", () => {
   const workload = documents.catalog.workloads.find((item) => item.id === PROCESS_ARGUMENTS_ORDERING_WORKLOAD_ID);
   assert.ok(workload);
   assert.equal(workload.structureClass, "public-end-to-end");
@@ -1931,15 +2044,19 @@ test("process-arguments-ordering catalog pins the count-dependent seating contra
   assert.deepEqual(workload.oracle.cases, PROCESS_ARGUMENTS_ORDERING_ORACLE_CASES);
   assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.arguments), PROCESS_ARGUMENTS_ORDERING_CORRECTNESS_INPUTS);
   assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.stdout), [
-    "Kitchen seats 0 guests\n",
-    "Kitchen seats 1 guests\n",
-    "Banquet seats 2 guests\n",
+    "Argument mode compact: count=0\n",
+    "Argument mode compact: count=1\n",
+    "Argument mode extended: count=2\n",
+    "Argument mode extended: count=3\n",
   ]);
+  assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.arguments), [[], [""], ["alpha", "beta"], ["alpha", "beta", "gamma"]]);
   assert.ok(workload.sources.every((source) => source.recipeClass === PROCESS_ARGUMENTS_ORDERING_RECIPE_CLASS));
   assert.deepEqual(workload.sources.map((source) => source.language), EXECUTABLE_LANGUAGES);
   assert.equal(workload.sources.find((source) => source.language === "w").entry, "run");
   assert.equal(workload.sources.find((source) => source.language === "c").entry, "main");
   assert.equal(workload.sources.find((source) => source.language === "rust").entry, "main");
+  assert.equal(documents.catalog.bestMetrics.entries.some((entry) => entry.workloadId === PROCESS_ARGUMENTS_ORDERING_WORKLOAD_ID), false,
+    "the changed output contract must not keep old best cells");
 });
 
 test("process-arguments-ordering C and Rust variants retain independent count branches", () => {
@@ -1948,14 +2065,14 @@ test("process-arguments-ordering C and Rust variants retain independent count br
   assert.match(c, /int main\(int argc, char \*\*argv\)/u);
   assert.match(c, /const int count = argc - 1/u);
   assert.match(c, /count < 2/u);
-  assert.match(c, /Kitchen seats %d guests\\n/u);
-  assert.match(c, /Banquet seats %d guests\\n/u);
+  assert.match(c, /Argument mode compact: count=%d\\n/u);
+  assert.match(c, /Argument mode extended: count=%d\\n/u);
   assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
   assert.match(rust, /fn main\(\)/u);
   assert.match(rust, /args_os\(\)\.count\(\)\.saturating_sub\(1\)/u);
   assert.match(rust, /count < 2/u);
-  assert.match(rust, /Kitchen seats \{count\} guests/u);
-  assert.match(rust, /Banquet seats \{count\} guests/u);
+  assert.match(rust, /Argument mode compact: count=\{count\}/u);
+  assert.match(rust, /Argument mode extended: count=\{count\}/u);
   assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
 });
 

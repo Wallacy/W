@@ -37,7 +37,7 @@
       "description": "the smallest public w run"
     },
     "bool-short-circuit": {
-      "fixture": "compiler/seed-c/fixtures/restaurant-bool-short-circuit.w",
+      "fixture": "compiler/seed-c/fixtures/bool-short-circuit.w",
       "description": "observable Bool short-circuit through the MLIR route"
     }
   },

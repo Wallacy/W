@@ -19,101 +19,101 @@ const manifestPath = resolve(import.meta.dir, "mlir0-windows-toolchain.json")
 const materializedPath = join(defaultCacheDirectory(), MATERIALIZED_MANIFEST)
 const smokePath = resolve(import.meta.dir, "smoke-mlir0-windows.mjs")
 const helloFixture = resolve(seedDirectory, "fixtures", "hlo0-hello.w")
-const restaurantIfFixture = resolve(seedDirectory, "fixtures", "restaurant-if.w")
-const restaurantEnumFixture = resolve(seedDirectory, "fixtures", "restaurant-enum.w")
-const restaurantEnumSubsetFixture = resolve(seedDirectory, "fixtures", "restaurant-enum-subset.w")
-const restaurantEnumPayloadFixture = resolve(seedDirectory, "fixtures", "restaurant-enum-payload.w")
-const restaurantEnumBoolPayloadFixture = resolve(seedDirectory, "fixtures", "restaurant-enum-bool-payload.w")
-const restaurantWhileFixture = resolve(seedDirectory, "fixtures", "restaurant-while.w")
-const restaurantWhileMultiFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-while-multi.w")
-const restaurantWhilePostFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-while-post.w")
-const restaurantRepeatFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-repeat.w")
-const restaurantWmoFixture = resolve(seedDirectory, "fixtures", "restaurant-wmo.w")
-const restaurantAsyncJoinFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-async-join.w")
-const restaurantAsyncYieldFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-async-yield.w")
-const restaurantMainDispatchFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-main-dispatch0.w")
-const restaurantMainCardinalityFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-main-cardinality0.w")
-const restaurantComparisonsFixture = resolve(seedDirectory, "fixtures", "restaurant-comparisons.w")
-const restaurantComparisonCompositionFixture = resolve(seedDirectory, "fixtures", "restaurant-comparison-composition.w")
-const restaurantIntegerComparisonFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-integer-comparison.w")
-const restaurantBoolShortCircuitFixture = resolve(seedDirectory, "fixtures", "restaurant-bool-short-circuit.w")
-const restaurantScalarIfFixture = resolve(seedDirectory, "fixtures", "restaurant-scalar-if.w")
-const restaurantInterpolationFixture = resolve(
-  seedDirectory, "fixtures", "restaurant-interpolation.w")
-const restaurantLinearFixture = resolve(seedDirectory, "fixtures", "restaurant-linear.w")
-const restaurantUnaryNegateFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-unary-negate.w")
-const restaurantUnaryInterpolationFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-unary-interpolation.w")
-const restaurantIntegerBitwiseFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-integer-bitwise.w")
-const restaurantUnsignedFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-unsigned.w")
-const restaurantShiftsFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-shifts.w")
-const restaurantPowerFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-power.w")
-const restaurantPowerPrefixFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-power-prefix.w")
-const restaurantCompoundFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-compound.w")
-const restaurantFloatStrictFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-float-strict.w")
-const restaurantFloatBitRepresentationFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-float-bit-representation.w")
-const restaurantNumericWideningFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-numeric-widening.w")
-const restaurantCheckedIntegerArithmeticFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-checked-integer-arithmetic.w")
-const restaurantIntegerWrappingFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-integer-wrapping.w")
-const restaurantIntegerPrefixFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-integer-prefix.w")
-const restaurantIntegerWideningFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-integer-widening.w")
-const restaurantIntegerTruncatingBitsFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-integer-truncating-bits.w")
-const restaurantIntegerSaturatingConversionFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-integer-saturating-conversion.w")
-const restaurantIntegerSaturatingConversionOutput = Buffer.from(
+const ifFixture = resolve(seedDirectory, "fixtures", "if.w")
+const enumFixture = resolve(seedDirectory, "fixtures", "enum.w")
+const enumSubsetFixture = resolve(seedDirectory, "fixtures", "enum-subset.w")
+const enumPayloadFixture = resolve(seedDirectory, "fixtures", "enum-payload.w")
+const enumBoolPayloadFixture = resolve(seedDirectory, "fixtures", "enum-bool-payload.w")
+const whileFixture = resolve(seedDirectory, "fixtures", "while.w")
+const whileMultiFixture = resolve(seedDirectory,
+  "fixtures", "while-multi.w")
+const whilePostFixture = resolve(seedDirectory,
+  "fixtures", "while-post.w")
+const repeatFixture = resolve(seedDirectory,
+  "fixtures", "repeat.w")
+const wmoFixture = resolve(seedDirectory, "fixtures", "wmo.w")
+const asyncJoinFixture = resolve(seedDirectory,
+  "fixtures", "async-join.w")
+const asyncYieldFixture = resolve(seedDirectory,
+  "fixtures", "async-yield.w")
+const mainDispatchFixture = resolve(seedDirectory,
+  "fixtures", "main-dispatch0.w")
+const mainCardinalityFixture = resolve(seedDirectory,
+  "fixtures", "main-cardinality0.w")
+const comparisonsFixture = resolve(seedDirectory, "fixtures", "comparisons.w")
+const comparisonCompositionFixture = resolve(seedDirectory, "fixtures", "comparison-composition.w")
+const integerComparisonFixture = resolve(seedDirectory,
+  "fixtures", "integer-comparison.w")
+const boolShortCircuitFixture = resolve(seedDirectory, "fixtures", "bool-short-circuit.w")
+const scalarIfFixture = resolve(seedDirectory, "fixtures", "scalar-if.w")
+const interpolationFixture = resolve(
+  seedDirectory, "fixtures", "interpolation.w")
+const linearFixture = resolve(seedDirectory, "fixtures", "linear.w")
+const unaryNegateFixture = resolve(seedDirectory,
+  "fixtures", "unary-negate.w")
+const unaryInterpolationFixture = resolve(seedDirectory,
+  "fixtures", "unary-interpolation.w")
+const integerBitwiseFixture = resolve(seedDirectory,
+  "fixtures", "integer-bitwise.w")
+const unsignedFixture = resolve(seedDirectory,
+  "fixtures", "unsigned.w")
+const shiftsFixture = resolve(seedDirectory,
+  "fixtures", "shifts.w")
+const powerFixture = resolve(seedDirectory,
+  "fixtures", "power.w")
+const powerPrefixFixture = resolve(seedDirectory,
+  "fixtures", "power-prefix.w")
+const compoundFixture = resolve(seedDirectory,
+  "fixtures", "compound.w")
+const floatStrictFixture = resolve(seedDirectory,
+  "fixtures", "float-strict.w")
+const floatBitRepresentationFixture = resolve(seedDirectory,
+  "fixtures", "float-bit-representation.w")
+const numericWideningFixture = resolve(seedDirectory,
+  "fixtures", "numeric-widening.w")
+const checkedIntegerArithmeticFixture = resolve(seedDirectory,
+  "fixtures", "checked-integer-arithmetic.w")
+const integerWrappingFixture = resolve(seedDirectory,
+  "fixtures", "integer-wrapping.w")
+const integerPrefixFixture = resolve(seedDirectory,
+  "fixtures", "integer-prefix.w")
+const integerWideningFixture = resolve(seedDirectory,
+  "fixtures", "integer-widening.w")
+const integerTruncatingBitsFixture = resolve(seedDirectory,
+  "fixtures", "integer-truncating-bits.w")
+const integerSaturatingConversionFixture = resolve(seedDirectory,
+  "fixtures", "integer-saturating-conversion.w")
+const fixtureIntegerSaturatingConversionOutput = Buffer.from(
   "ss -128/7/127; us 7/127/127; su 0/200/255; " +
   "uu 7/255/255; UInt->Int 9223372036854775807\n", "utf8")
-const restaurantUIntWrappingAddFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-wrapping-add.w")
-const restaurantUIntWrappingSubtractFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-wrapping-subtract.w")
-const restaurantUIntWrappingMultiplyFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-wrapping-multiply.w")
-const restaurantUIntWrappingNegateFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-wrapping-negate.w")
-const restaurantUIntWrappingPowerFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-wrapping-power.w")
-const restaurantUIntWrappingShiftLeftFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-wrapping-shift-left.w")
-const restaurantUIntRotatedLeftFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-rotated-left.w")
-const restaurantUIntRotatedRightFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-rotated-right.w")
-const restaurantUIntCountOnesFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-count-ones.w")
-const restaurantUIntCountZerosFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-count-zeros.w")
-const restaurantUIntLeadingZerosFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-leading-zeros.w")
-const restaurantUIntTrailingZerosFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-trailing-zeros.w")
-const restaurantUIntReversedBitsFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-reversed-bits.w")
-const restaurantUIntReversedBytesFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-reversed-bytes.w")
+const uIntWrappingAddFixture = resolve(seedDirectory,
+  "fixtures", "uint-wrapping-add.w")
+const uIntWrappingSubtractFixture = resolve(seedDirectory,
+  "fixtures", "uint-wrapping-subtract.w")
+const uIntWrappingMultiplyFixture = resolve(seedDirectory,
+  "fixtures", "uint-wrapping-multiply.w")
+const uIntWrappingNegateFixture = resolve(seedDirectory,
+  "fixtures", "uint-wrapping-negate.w")
+const uIntWrappingPowerFixture = resolve(seedDirectory,
+  "fixtures", "uint-wrapping-power.w")
+const uIntWrappingShiftLeftFixture = resolve(seedDirectory,
+  "fixtures", "uint-wrapping-shift-left.w")
+const uIntRotatedLeftFixture = resolve(seedDirectory,
+  "fixtures", "uint-rotated-left.w")
+const uIntRotatedRightFixture = resolve(seedDirectory,
+  "fixtures", "uint-rotated-right.w")
+const uIntCountOnesFixture = resolve(seedDirectory,
+  "fixtures", "uint-count-ones.w")
+const uIntCountZerosFixture = resolve(seedDirectory,
+  "fixtures", "uint-count-zeros.w")
+const uIntLeadingZerosFixture = resolve(seedDirectory,
+  "fixtures", "uint-leading-zeros.w")
+const uIntTrailingZerosFixture = resolve(seedDirectory,
+  "fixtures", "uint-trailing-zeros.w")
+const uIntReversedBitsFixture = resolve(seedDirectory,
+  "fixtures", "uint-reversed-bits.w")
+const uIntReversedBytesFixture = resolve(seedDirectory,
+  "fixtures", "uint-reversed-bytes.w")
 const fixedIntegerBitPrimitivesFixture = resolve(seedDirectory,
   "fixtures", "fixed-integer-bit-primitives.w")
 const fixedIntegerShiftPoliciesFixture = resolve(seedDirectory,
@@ -136,36 +136,36 @@ const fixedIntegerShiftPoliciesOutput = Buffer.from(
   "i64 -9223372036854775808/0/-4611686018427387904/4611686018427387904\n" +
   "u64 9223372036854775808/0/4611686018427387904/4611686018427387904\n" +
   "u64 small-value 2/64/64\n", "utf8")
-const restaurantUIntOverflowingAddFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-overflowing-add.w")
-const restaurantUIntOverflowingPowerFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-overflowing-power.w")
-const restaurantUIntOverflowingFamilyFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-overflowing-family.w")
-const restaurantUIntSaturatingAddFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-saturating-add.w")
-const restaurantUIntSaturatingSubtractFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-saturating-subtract.w")
-const restaurantUIntSaturatingMultiplyFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-saturating-multiply.w")
-const restaurantUIntSaturatingPolicyFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-saturating-policy.w")
-const restaurantUIntBitNotFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-bit-not.w")
-const restaurantUIntBitwiseFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-bitwise.w")
-const restaurantUIntCompoundFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-uint-compound.w")
-const restaurantMutationFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-mutation.w")
-const restaurantConditionalMutationFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-conditional-mutation.w")
-const restaurantBoolMutationFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-bool-mutation.w")
-const restaurantBranchMutationFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-branch-mutation.w")
-const restaurantMultiBranchMutationFixture = resolve(seedDirectory,
-  "fixtures", "restaurant-branch-mutation-multi.w")
+const uIntOverflowingAddFixture = resolve(seedDirectory,
+  "fixtures", "uint-overflowing-add.w")
+const uIntOverflowingPowerFixture = resolve(seedDirectory,
+  "fixtures", "uint-overflowing-power.w")
+const uIntOverflowingFamilyFixture = resolve(seedDirectory,
+  "fixtures", "uint-overflowing-family.w")
+const uIntSaturatingAddFixture = resolve(seedDirectory,
+  "fixtures", "uint-saturating-add.w")
+const uIntSaturatingSubtractFixture = resolve(seedDirectory,
+  "fixtures", "uint-saturating-subtract.w")
+const uIntSaturatingMultiplyFixture = resolve(seedDirectory,
+  "fixtures", "uint-saturating-multiply.w")
+const uIntSaturatingPolicyFixture = resolve(seedDirectory,
+  "fixtures", "uint-saturating-policy.w")
+const uIntBitNotFixture = resolve(seedDirectory,
+  "fixtures", "uint-bit-not.w")
+const uIntBitwiseFixture = resolve(seedDirectory,
+  "fixtures", "uint-bitwise.w")
+const uIntCompoundFixture = resolve(seedDirectory,
+  "fixtures", "uint-compound.w")
+const mutationFixture = resolve(seedDirectory,
+  "fixtures", "mutation.w")
+const conditionalMutationFixture = resolve(seedDirectory,
+  "fixtures", "conditional-mutation.w")
+const boolMutationFixture = resolve(seedDirectory,
+  "fixtures", "bool-mutation.w")
+const branchMutationFixture = resolve(seedDirectory,
+  "fixtures", "branch-mutation.w")
+const multiBranchMutationFixture = resolve(seedDirectory,
+  "fixtures", "branch-mutation-multi.w")
 const processInputFixture = resolve(seedDirectory, "fixtures", "process-input0.w")
 const processArgumentsCountFixture = resolve(seedDirectory, "fixtures",
   "process-arguments-count.w")
@@ -764,19 +764,19 @@ try {
     "resolved local-module graph fixture")
   expectSourceFailure(binary, privateGraphRoot,
     "private cross-module symbol")
-  expectExact(binary, ["run", restaurantIfFixture], 0, expectedIf,
+  expectExact(binary, ["run", ifFixture], 0, expectedIf,
     "Restaurant if fixture")
-  expectExact(binary, ["run", restaurantEnumFixture], 0,
+  expectExact(binary, ["run", enumFixture], 0,
     Buffer.from("Courses 10/30/20\n", "utf8"),
     "Restaurant payloadless enum exhaustive switch fixture")
-  expectExact(binary, ["run", restaurantEnumSubsetFixture], 0,
+  expectExact(binary, ["run", enumSubsetFixture], 0,
     Buffer.from("Work 1/2\n", "utf8"),
     "Restaurant payloadless enum subset switch fixture")
-  expectExact(binary, ["run", restaurantEnumPayloadFixture], 0,
+  expectExact(binary, ["run", enumPayloadFixture], 0,
     Buffer.from("Bills 32/44/10/7\n", "utf8"),
     "Restaurant enum payload return, reordered captures, and shared variant storage")
   const enumPayloadMutation = join(fixtureDirectory, "enum-payload-mutation.w")
-  const enumPayloadSource = await readFile(restaurantEnumPayloadFixture, "utf8")
+  const enumPayloadSource = await readFile(enumPayloadFixture, "utf8")
   const enumPayloadMutatedSource = enumPayloadSource
     .replace(".main(tax: tax, price: price)", ".main(tax: tax + 1, price: price)")
     .replace("price: 30, tax: 2", "price: -30, tax: 2")
@@ -787,11 +787,11 @@ try {
   expectExact(binary, ["run", enumPayloadMutation], 0,
     Buffer.from("Bills -27/45/10/-7\n", "utf8"),
     "Enum payload runtime arithmetic and negative source mutation")
-  expectExact(binary, ["run", restaurantEnumBoolPayloadFixture], 0,
+  expectExact(binary, ["run", enumBoolPayloadFixture], 0,
     Buffer.from("States true/false/false/true; charges 17/31; licensed true\n", "utf8"),
     "Restaurant Bool and i64 payload union with reordered fields and captures")
   const enumBoolMutation = join(fixtureDirectory, "enum-bool-payload-mutation.w")
-  const enumBoolSource = await readFile(restaurantEnumBoolPayloadFixture, "utf8")
+  const enumBoolSource = await readFile(enumBoolPayloadFixture, "utf8")
   const enumBoolMutatedSource = enumBoolSource
     .replace("licensed: true, open: open", "licensed: false, open: open")
     .replace(".charge(amount: 17)", ".charge(amount: -17)")
@@ -830,37 +830,37 @@ try {
       }
     }
   }
-  expectExact(binary, ["run", restaurantWhileFixture], 0,
+  expectExact(binary, ["run", whileFixture], 0,
     Buffer.from("Served 3\n", "utf8"),
     "Restaurant structured natural while fixture")
-  expectExact(binary, ["run", restaurantWhileMultiFixture], 0,
+  expectExact(binary, ["run", whileMultiFixture], 0,
     Buffer.from("Served 9\n", "utf8"),
     "Restaurant structured multi-carrier natural while fixture")
-  expectExact(binary, ["run", restaurantWhilePostFixture], 0,
+  expectExact(binary, ["run", whilePostFixture], 0,
     Buffer.from("Final 9\n", "utf8"),
     "Restaurant post-loop SSA continuation fixture")
-  expectExact(binary, ["run", restaurantRepeatFixture], 0,
+  expectExact(binary, ["run", repeatFixture], 0,
     Buffer.from("Receipt digits 1/5\n", "utf8"),
     "Restaurant post-test repeat fixture")
-  expectExact(binary, ["run", restaurantWmoFixture], 0,
+  expectExact(binary, ["run", wmoFixture], 0,
     Buffer.from("Bill 42\n", "utf8"),
     "Restaurant whole-module product closure fixture")
-  expectExact(binary, ["run", restaurantAsyncJoinFixture], 0,
+  expectExact(binary, ["run", asyncJoinFixture], 0,
     Buffer.from("Prepared 42\n", "utf8"),
     "Restaurant virtual structured-task elision fixture")
-  expectExact(binary, ["run", restaurantAsyncYieldFixture], 0,
+  expectExact(binary, ["run", asyncYieldFixture], 0,
     Buffer.from("Prepared 88\n", "utf8"),
     "Restaurant virtual Task with statically discharged yields")
-  expectExact(binary, ["run", restaurantMainDispatchFixture], 0,
+  expectExact(binary, ["run", mainDispatchFixture], 0,
     Buffer.from("Dispatched 88\n", "utf8"),
     "Restaurant physical main-domain dispatch")
-  expectExact(binary, ["run", restaurantMainCardinalityFixture], 0,
+  expectExact(binary, ["run", mainCardinalityFixture], 0,
     Buffer.from("Dispatched 92\n", "utf8"),
     "Restaurant bounded main-domain cardinality")
-  expectExact(binary, ["run", restaurantComparisonsFixture], 0,
+  expectExact(binary, ["run", comparisonsFixture], 0,
     Buffer.from("Seat party\nSeat party\nWaitlist\n", "utf8"),
     "Restaurant signed-i64 admission comparison")
-  expectExact(binary, ["run", restaurantIntegerComparisonFixture], 0,
+  expectExact(binary, ["run", integerComparisonFixture], 0,
     Buffer.from(
       "i8 false/true/true/true/false/false\n" +
       "u8 false/true/false/false/true/true\n" +
@@ -874,7 +874,7 @@ try {
       "UInt true/false/false/true/false/true\n" +
       "widen u8->i16 true\n", "utf8"),
     "Restaurant fixed-width integer comparison family")
-  expectExact(binary, ["run", restaurantComparisonCompositionFixture], 0,
+  expectExact(binary, ["run", comparisonCompositionFixture], 0,
     Buffer.from(
       "false/true/true/true/false/false\n" +
       "true/false/false/true/false/true\n" +
@@ -882,7 +882,7 @@ try {
       "false/true/true/true/false/false\n" +
       "false/true/false/false/true/true\nAllowed true\nAllowed false\n", "utf8"),
     "Restaurant comparison operators, signed endpoints, and Bool composition")
-  expectExact(binary, ["run", restaurantIntegerBitwiseFixture], 0,
+  expectExact(binary, ["run", integerBitwiseFixture], 0,
     Buffer.from(
       "i8 10/-81/-91\n" +
       "u8 10/175/165\n" +
@@ -898,30 +898,30 @@ try {
       "Mixed 255\n",
       "utf8"),
     "Fixed-width signed/unsigned integer bitwise family")
-  expectExact(binary, ["run", restaurantBoolShortCircuitFixture], 0,
+  expectExact(binary, ["run", boolShortCircuitFixture], 0,
     Buffer.from(
       "Override checked\nClosed allowed true\nCapacity checked\n" +
       "Open allowed true\n", "utf8"),
     "Restaurant Bool short-circuit fixture")
-  expectExact(binary, ["run", restaurantScalarIfFixture], 0,
+  expectExact(binary, ["run", scalarIfFixture], 0,
     Buffer.from("Open 5; closed 2\n", "utf8"),
     "Restaurant scalar-if fixture")
-  expectExact(binary, ["run", restaurantInterpolationFixture], 0,
+  expectExact(binary, ["run", interpolationFixture], 0,
     Buffer.from("Table 42 remains open\n", "utf8"),
     "Restaurant interpolation fixture")
-  expectExact(binary, ["run", restaurantLinearFixture], 0,
+  expectExact(binary, ["run", linearFixture], 0,
     Buffer.from("Table 42 remains open\nKitchen is ready\n", "utf8"),
     "Restaurant linear fixture")
-  expectExact(binary, ["run", restaurantUnaryNegateFixture], 0,
+  expectExact(binary, ["run", unaryNegateFixture], 0,
     Buffer.from("Balance -7\n", "utf8"),
     "Restaurant checked runtime unary negation")
-  expectExact(binary, ["run", restaurantUnaryInterpolationFixture], 0,
+  expectExact(binary, ["run", unaryInterpolationFixture], 0,
     Buffer.from("Balance -7\n", "utf8"),
     "Restaurant direct unary interpolation")
-  expectExact(binary, ["run", restaurantUnsignedFixture], 0,
+  expectExact(binary, ["run", unsignedFixture], 0,
     Buffer.from("Unsigned 18446744073709551615\n", "utf8"),
     "Restaurant full-width UInt parameter, return, and interpolation")
-  expectExact(binary, ["run", restaurantShiftsFixture], 0,
+  expectExact(binary, ["run", shiftsFixture], 0,
     Buffer.from(
       "i8 -16/-128\nu8 32/128\ni16 -4096/-32768\nu16 8192/32768\n" +
       "i32 -268435456/-2147483648\nu32 536870912/2147483648\n" +
@@ -930,28 +930,28 @@ try {
       "Int -1152921504606846976/-9223372036854775808\n" +
       "UInt 2305843009213693952/9223372036854775808\n", "utf8"),
     "Restaurant checked signed and unsigned shifts across logical widths")
-  expectExact(binary, ["run", restaurantPowerFixture], 0,
+  expectExact(binary, ["run", powerFixture], 0,
     Buffer.from("Power -27/1024/1/512\n", "utf8"),
     "Restaurant checked signed and unsigned power")
-  expectExact(binary, ["run", restaurantPowerPrefixFixture], 0,
+  expectExact(binary, ["run", powerPrefixFixture], 0,
     Buffer.from("Power prefix -4/4/512/-9/-27\n", "utf8"),
     "Restaurant prefix and power precedence")
-  expectExact(binary, ["run", restaurantCompoundFixture], 0,
+  expectExact(binary, ["run", compoundFixture], 0,
     Buffer.from("Compound 11\n", "utf8"),
     "Restaurant checked compound assignment")
-  expectExact(binary, ["run", restaurantFloatStrictFixture], 0,
+  expectExact(binary, ["run", floatStrictFixture], 0,
     Buffer.from("Float strict ok\n", "utf8"),
     "Restaurant strict f32/f64 arithmetic and IEEE comparisons")
-  expectExact(binary, ["run", restaurantFloatBitRepresentationFixture], 0,
+  expectExact(binary, ["run", floatBitRepresentationFixture], 0,
     Buffer.from(
       "Float bits f32 2147483648/2139095040/2143363909 " +
       "f64 9223372036854775808/9218868437227405312/9221140253039434428\n",
       "utf8"),
     "Restaurant exact f32/f64 bit representation round trips")
-  expectExact(binary, ["run", restaurantNumericWideningFixture], 0,
+  expectExact(binary, ["run", numericWideningFixture], 0,
     Buffer.from("Numeric widen ok\n", "utf8"),
     "Restaurant exact implicit integer/float widening")
-  expectExact(binary, ["run", restaurantCheckedIntegerArithmeticFixture], 0,
+  expectExact(binary, ["run", checkedIntegerArithmeticFixture], 0,
     Buffer.from(
       "i8 -9/-15/-36; divrem -4/0; compound -2\nu8 43/37/120; divrem 13/1; compound 2\n" +
       "i16 -970/-1030/-30000; divrem -33/-10; compound -12\n" +
@@ -963,7 +963,7 @@ try {
       "Int -4000000000/-6000000000/-5000000000000000000; divrem -5/0; compound -2\n" +
       "UInt 9000000000/3000000000/18000000000000000000; divrem 2/0; compound 2999999998\n", "utf8"),
     "Restaurant checked signed/unsigned integer arithmetic family")
-  expectExact(binary, ["run", restaurantIntegerPrefixFixture], 0,
+  expectExact(binary, ["run", integerPrefixFixture], 0,
     Buffer.from(
       "i8 -7/-43\ni16 -7/-43\ni32 -7/-43\ni64 -7/-43\n" +
       "Int -7/-43\nu8 170\nu16 65450\nu32 4294967210\n" +
@@ -1014,20 +1014,20 @@ try {
         stderr: failure.stderr.toString(),
       })}`)
   }
-  expectExact(binary, ["run", restaurantIntegerWrappingFixture], 0,
+  expectExact(binary, ["run", integerWrappingFixture], 0,
     Buffer.from(
       "i8/u8 -128/0\ni16/u16 32767/2\ni32/u32 -2/4294967295\n" +
       "i64/u64 -9223372036854775808/0\n" +
       "Int/UInt -9223372036854775808/18446744073709551615\n", "utf8"),
     "Restaurant fixed-width integer wrapping policy")
-  expectExact(binary, ["run", restaurantIntegerWideningFixture], 0,
+  expectExact(binary, ["run", integerWideningFixture], 0,
     Buffer.from("Widen -7/200/202/203\n", "utf8"),
     "Restaurant implicit integer widening policy")
-  expectExact(binary, ["run", restaurantIntegerTruncatingBitsFixture], 0,
+  expectExact(binary, ["run", integerTruncatingBitsFixture], 0,
     Buffer.from("Trunc 2/-7/-6/18446744073709551609/-1\n", "utf8"),
     "Restaurant explicit fixed-width truncatingBits family")
-  expectExact(binary, ["run", restaurantIntegerSaturatingConversionFixture], 0,
-    restaurantIntegerSaturatingConversionOutput,
+  expectExact(binary, ["run", integerSaturatingConversionFixture], 0,
+    fixtureIntegerSaturatingConversionOutput,
     "Restaurant four-quadrant saturating conversions and UInt-to-Int alias")
   expectSourceFailure(binary, invalidTruncatingBits,
     "wrong truncatingBits label fails before output commit")
@@ -1035,63 +1035,63 @@ try {
     "wrong saturating label fails before output commit")
   expectSourceFailure(binary, invalidNumericWidening,
     "inexact implicit i32-to-f32 conversion fails before output commit")
-  expectExact(binary, ["run", restaurantUIntWrappingAddFixture], 0,
+  expectExact(binary, ["run", uIntWrappingAddFixture], 0,
     Buffer.from("Wrapped 0\n", "utf8"),
     "Restaurant UInt wrappingAdd at the unsigned maximum")
-  expectExact(binary, ["run", restaurantUIntWrappingSubtractFixture], 0,
+  expectExact(binary, ["run", uIntWrappingSubtractFixture], 0,
     Buffer.from("Wrapped 18446744073709551615\n", "utf8"),
     "Restaurant UInt wrappingSubtract below zero")
-  expectExact(binary, ["run", restaurantUIntWrappingMultiplyFixture], 0,
+  expectExact(binary, ["run", uIntWrappingMultiplyFixture], 0,
     Buffer.from("Wrapped 18446744073709551614\n", "utf8"),
     "Restaurant UInt wrappingMultiply at the unsigned maximum")
-  expectExact(binary, ["run", restaurantUIntWrappingNegateFixture], 0,
+  expectExact(binary, ["run", uIntWrappingNegateFixture], 0,
     Buffer.from("Wrapped 18446744073709551615\n", "utf8"),
     "Restaurant UInt wrappingNegate of one")
-  expectExact(binary, ["run", restaurantUIntWrappingPowerFixture], 0,
+  expectExact(binary, ["run", uIntWrappingPowerFixture], 0,
     Buffer.from("Wrapped 12157665459056928801\n", "utf8"),
     "Restaurant UInt wrappingPower of three to forty")
-  expectExact(binary, ["run", restaurantUIntWrappingShiftLeftFixture], 0,
+  expectExact(binary, ["run", uIntWrappingShiftLeftFixture], 0,
     Buffer.from("Wrapped 18446744073709551614\n", "utf8"),
     "Restaurant UInt wrappingShiftLeft with a valid count")
   expectExact(binary, ["run", fixedIntegerShiftPoliciesFixture], 0,
     fixedIntegerShiftPoliciesOutput,
     "Fixed-width named shift policies and signed/unsigned edge cases")
-  expectExact(binary, ["run", restaurantUIntRotatedLeftFixture], 0,
+  expectExact(binary, ["run", uIntRotatedLeftFixture], 0,
     Buffer.from("Rotated 3\n", "utf8"),
     "Restaurant UInt rotatedLeft reduces count modulo bit width")
-  expectExact(binary, ["run", restaurantUIntRotatedRightFixture], 0,
+  expectExact(binary, ["run", uIntRotatedRightFixture], 0,
     Buffer.from("Rotated 9223372036854775809\n", "utf8"),
     "Restaurant UInt rotatedRight reduces count modulo bit width")
-  expectExact(binary, ["run", restaurantUIntCountOnesFixture], 0,
+  expectExact(binary, ["run", uIntCountOnesFixture], 0,
     Buffer.from("Ones 32\n", "utf8"),
     "Restaurant UInt countOnes uses full-width population count")
-  expectExact(binary, ["run", restaurantUIntCountZerosFixture], 0,
+  expectExact(binary, ["run", uIntCountZerosFixture], 0,
     Buffer.from("Zeros 32\n", "utf8"),
     "Restaurant UInt countZeros derives the full-width complement count")
-  expectExact(binary, ["run", restaurantUIntLeadingZerosFixture], 0,
+  expectExact(binary, ["run", uIntLeadingZerosFixture], 0,
     Buffer.from("Leading 56/64\n", "utf8"),
     "Restaurant UInt countLeadingZeros preserves the zero boundary")
-  expectExact(binary, ["run", restaurantUIntTrailingZerosFixture], 0,
+  expectExact(binary, ["run", uIntTrailingZerosFixture], 0,
     Buffer.from("Trailing 12/64\n", "utf8"),
     "Restaurant UInt countTrailingZeros preserves the zero boundary")
-  expectExact(binary, ["run", restaurantUIntReversedBitsFixture], 0,
+  expectExact(binary, ["run", uIntReversedBitsFixture], 0,
     Buffer.from("Bits 17848844570815808640\n", "utf8"),
     "Restaurant UInt reversedBits preserves the complete logical width")
-  expectExact(binary, ["run", restaurantUIntReversedBytesFixture], 0,
+  expectExact(binary, ["run", uIntReversedBytesFixture], 0,
     Buffer.from("Bytes 17279655951921914625\n", "utf8"),
     "Restaurant UInt reversedBytes is independent of host endianness")
   expectExact(binary, ["run", fixedIntegerBitPrimitivesFixture], 0,
     fixedIntegerBitPrimitivesOutput,
     "Fixed-width signed and unsigned bit-primitives family")
-  expectExact(binary, ["run", restaurantUIntOverflowingAddFixture], 0,
+  expectExact(binary, ["run", uIntOverflowingAddFixture], 0,
     Buffer.from("Overflowing 0/true/11/false\n", "utf8"),
     "Restaurant UInt overflowingAdd returns wrapped value and overflow flag")
-  expectExact(binary, ["run", restaurantUIntOverflowingPowerFixture], 0,
+  expectExact(binary, ["run", uIntOverflowingPowerFixture], 0,
     Buffer.from(
       "Overflowing power 9223372036854775808/false; 0/true; 1/true; " +
       "1/false\n", "utf8"),
     "Restaurant UInt overflowingPower preserves sticky overflow")
-  expectExact(binary, ["run", restaurantUIntOverflowingFamilyFixture], 0,
+  expectExact(binary, ["run", uIntOverflowingFamilyFixture], 0,
     Buffer.from(
       "Overflowing family add 0/true,11/false; subtract 41/false," +
       "18446744073709551615/true; multiply 42/false," +
@@ -1100,50 +1100,50 @@ try {
       "0/true,1/true,1/false\n",
       "utf8"),
     "Restaurant UInt overflowing family preserves all operation flags")
-  expectExact(binary, ["run", restaurantUIntSaturatingAddFixture], 0,
+  expectExact(binary, ["run", uIntSaturatingAddFixture], 0,
     Buffer.from("Saturated 18446744073709551615/11\n", "utf8"),
     "Restaurant UInt saturatingAdd clamps overflow without trapping")
-  expectExact(binary, ["run", restaurantUIntSaturatingSubtractFixture], 0,
+  expectExact(binary, ["run", uIntSaturatingSubtractFixture], 0,
     Buffer.from("Saturated subtract 0/10\n", "utf8"),
     "Restaurant UInt saturatingSubtract clamps underflow without trapping")
-  expectExact(binary, ["run", restaurantUIntSaturatingMultiplyFixture], 0,
+  expectExact(binary, ["run", uIntSaturatingMultiplyFixture], 0,
     Buffer.from("Saturated multiply 18446744073709551615/42\n", "utf8"),
     "Restaurant UInt saturatingMultiply clamps overflow without trapping")
-  expectExact(binary, ["run", restaurantUIntSaturatingPolicyFixture], 0,
+  expectExact(binary, ["run", uIntSaturatingPolicyFixture], 0,
     Buffer.from(
       "Saturating policy add 18446744073709551615/11; subtract 0/10; " +
       "multiply 18446744073709551615/42; negate 0/0; power " +
       "8/18446744073709551615/1\n", "utf8"),
     "Restaurant UInt saturating policy covers the complete family")
-  expectExact(binary, ["run", restaurantUIntBitNotFixture], 0,
+  expectExact(binary, ["run", uIntBitNotFixture], 0,
     Buffer.from("UInt not 18446744073709551615\n", "utf8"),
     "Restaurant UInt bitwise complement")
-  expectExact(binary, ["run", restaurantUIntBitwiseFixture], 0,
+  expectExact(binary, ["run", uIntBitwiseFixture], 0,
     Buffer.from(
       "Not 18446744073709551615\nAnd 0\nOr 18446744073709551615\n" +
       "Xor 18446744073709551615\nOnes 32\nZeros 32\nLeading 56\n" +
       "Leading zero 64\nTrailing 12\nTrailing zero 64\n", "utf8"),
     "Restaurant UInt bit-primitives family")
-  expectExact(binary, ["run", restaurantUIntCompoundFixture], 0,
+  expectExact(binary, ["run", uIntCompoundFixture], 0,
     Buffer.from(
       "UInt compound 4611686018427387907/4611686018427387906/" +
       "9223372036854775812/4611686018427387906/4611686018427387906/" +
       "4611686018427387906/9223372036854775812/4611686018427387906/" +
       "2/87/95\n", "utf8"),
     "Restaurant UInt compound assignment")
-  expectExact(binary, ["run", restaurantMutationFixture], 0,
+  expectExact(binary, ["run", mutationFixture], 0,
     Buffer.from("Open 6\n", "utf8"),
     "Restaurant straight-line local mutation")
-  expectExact(binary, ["run", restaurantConditionalMutationFixture], 0,
+  expectExact(binary, ["run", conditionalMutationFixture], 0,
     Buffer.from("Open 6; closed 4\n", "utf8"),
     "Restaurant conditional mutation merged through SSA")
-  expectExact(binary, ["run", restaurantBoolMutationFixture], 0,
+  expectExact(binary, ["run", boolMutationFixture], 0,
     Buffer.from("Open true; closed false\n", "utf8"),
     "Restaurant Boolean local mutation")
-  expectExact(binary, ["run", restaurantBranchMutationFixture], 0,
+  expectExact(binary, ["run", branchMutationFixture], 0,
     Buffer.from("Open 6; closed 4\n", "utf8"),
     "Restaurant branch-local mutation merge")
-  expectExact(binary, ["run", restaurantMultiBranchMutationFixture], 0,
+  expectExact(binary, ["run", multiBranchMutationFixture], 0,
     Buffer.from("Open 18; closed -4\n", "utf8"),
     "Restaurant multi-branch mutation merge")
   expectExact(binary, ["run", helloFixture, "--", "arbitrary", "--entry", ""],
@@ -1176,35 +1176,43 @@ try {
     ...Array.from({ length: 128 }, () => "x")], 1, Buffer.alloc(0),
   "public runtime exact integer conversion out of range")
   expectExact(binary, ["run", processEnumPayloadFixture], 7,
-    Buffer.from("enum-missing true\n", "utf8"),
+    Buffer.from("arguments-missing count=0 amount=17 over-limit=false\n", "utf8"),
     "public enum payload process input without arguments")
   expectExact(binary, ["run", processEnumPayloadFixture, "--", ""], 0,
-    Buffer.from("enum-received false\n", "utf8"),
+    Buffer.from("arguments-present count=1 amount=17 over-limit=false\n", "utf8"),
     "public enum payload process input with empty argument")
-  expectExact(binary, ["run", processEnumPayloadFixture, "--", "payload"], 0,
-    Buffer.from("enum-received false\n", "utf8"),
-    "public enum payload process input with one argument")
+  expectExact(binary, ["run", processEnumPayloadFixture, "--", "alpha", "beta"], 0,
+    Buffer.from("arguments-present count=2 amount=17 over-limit=false\n", "utf8"),
+    "public enum payload process input with two arguments")
+  expectExact(binary, ["run", processEnumPayloadFixture, "--",
+    "alpha", "beta", "gamma"], 0,
+    Buffer.from("arguments-present count=3 amount=17 over-limit=true\n", "utf8"),
+    "public enum payload process input with three arguments")
   expectExact(binary, ["run", processArgumentsOrderingFixture], 0,
-    Buffer.from("Kitchen seats 0 guests\n", "utf8"),
+    Buffer.from("Argument mode compact: count=0\n", "utf8"),
     "ordered process count input without arguments")
   expectExact(binary, ["run", processArgumentsOrderingFixture, "--", ""], 0,
-    Buffer.from("Kitchen seats 1 guests\n", "utf8"),
+    Buffer.from("Argument mode compact: count=1\n", "utf8"),
     "ordered process count input with empty argument")
   expectExact(binary,
     ["run", processArgumentsOrderingFixture, "--", "alpha", "beta"], 0,
-    Buffer.from("Banquet seats 2 guests\n", "utf8"),
+    Buffer.from("Argument mode extended: count=2\n", "utf8"),
     "ordered process count input with two arguments")
+  expectExact(binary, ["run", processArgumentsOrderingFixture, "--",
+    "alpha", "beta", "gamma"], 0,
+    Buffer.from("Argument mode extended: count=3\n", "utf8"),
+    "ordered process count input with three arguments")
 
   const buildHello = join(fixtureDirectory, "hello-build.exe")
   const buildLocalGraph = join(fixtureDirectory, "local-graph-build.exe")
   const buildPrivateGraph = join(fixtureDirectory, "private-graph-build.exe")
-  const buildRestaurantIf = join(fixtureDirectory, "restaurant-if-build.exe")
+  const buildRestaurantIf = join(fixtureDirectory, "if-build.exe")
   const buildRestaurantRepeat = join(fixtureDirectory,
-    "restaurant-repeat-build.exe")
+    "repeat-build.exe")
   const buildRestaurantMainDispatch = join(fixtureDirectory,
-    "restaurant-main-dispatch-build.exe")
+    "main-dispatch-build.exe")
   const buildRestaurantMainCardinality = join(fixtureDirectory,
-    "restaurant-main-cardinality-build.exe")
+    "main-cardinality-build.exe")
   const buildProcessInput = join(fixtureDirectory, "process-input-build.exe")
   const buildProcessIntegerExactSuccess = join(fixtureDirectory,
     "process-integer-exact-success-build.exe")
@@ -1226,7 +1234,7 @@ try {
     "process-enum-payload-build.exe")
   const buildWrongTarget = join(fixtureDirectory, "wrong-target-build.exe")
   const buildLinuxTarget = join(fixtureDirectory,
-    "restaurant-main-dispatch-linux")
+    "main-dispatch-linux")
   const buildMissingParent = join(fixtureDirectory, "missing", "artifact.exe")
   expectExact(binary, ["build", helloFixture, "--target", targetTriple,
     "--output", buildHello], 0, Buffer.alloc(0), "build Hello fixture")
@@ -1253,24 +1261,24 @@ try {
     "--output", buildHello], "reject existing build output")
   assert((await readFile(buildHello)).equals(helloBytes),
     "existing build output was modified")
-  expectExact(binary, ["build", restaurantIfFixture, "--target", targetTriple,
+  expectExact(binary, ["build", ifFixture, "--target", targetTriple,
     "--output", buildRestaurantIf], 0, Buffer.alloc(0),
-    "build restaurant-if fixture")
+    "build if fixture")
   expectExact(buildRestaurantIf, [], 0, expectedIf,
-    "execute built restaurant-if artifact")
-  expectExact(binary, ["build", restaurantRepeatFixture, "--target", targetTriple,
+    "execute built if artifact")
+  expectExact(binary, ["build", repeatFixture, "--target", targetTriple,
     "--output", buildRestaurantRepeat], 0, Buffer.alloc(0),
-    "build restaurant-repeat fixture")
+    "build repeat fixture")
   const builtRestaurantRepeatStats = await lstat(buildRestaurantRepeat)
   assert(builtRestaurantRepeatStats.isFile() &&
     !builtRestaurantRepeatStats.isSymbolicLink(),
-    "build restaurant-repeat did not produce a regular artifact")
+    "build repeat did not produce a regular artifact")
   assertPeX64(await readFile(buildRestaurantRepeat),
-    "built restaurant-repeat artifact")
+    "built repeat artifact")
   expectExact(buildRestaurantRepeat, [], 0,
     Buffer.from("Receipt digits 1/5\n", "utf8"),
-    "execute built restaurant-repeat artifact")
-  expectExact(binary, ["build", restaurantMainDispatchFixture, "--target",
+    "execute built repeat artifact")
+  expectExact(binary, ["build", mainDispatchFixture, "--target",
     targetTriple, "--output", buildRestaurantMainDispatch], 0,
   Buffer.alloc(0), "build restaurant main-domain dispatch fixture")
   assertPeX64(await readFile(buildRestaurantMainDispatch),
@@ -1278,7 +1286,7 @@ try {
   expectExact(buildRestaurantMainDispatch, [], 0,
     Buffer.from("Dispatched 88\n", "utf8"),
     "execute built restaurant main-domain dispatch artifact")
-  expectExact(binary, ["build", restaurantMainCardinalityFixture, "--target",
+  expectExact(binary, ["build", mainCardinalityFixture, "--target",
     targetTriple, "--output", buildRestaurantMainCardinality], 0,
   Buffer.alloc(0), "build restaurant main-domain cardinality fixture")
   assertPeX64(await readFile(buildRestaurantMainCardinality),
@@ -1409,20 +1417,17 @@ try {
   assertKernel32OnlyImports(processArgumentsOrderingBytes,
     "built ordered process-arguments artifact")
   const orderedArgumentCountCases = [
-    ["without user arguments", [], "Kitchen seats 0 guests\n"],
-    ["with one empty argument", [""], "Kitchen seats 1 guests\n"],
+    ["without user arguments", [], "Argument mode compact: count=0\n"],
+    ["with one empty argument", [""], "Argument mode compact: count=1\n"],
     ["with two ordinary arguments", ["alpha", "beta"],
-      "Banquet seats 2 guests\n"],
-    ["with exactly 256 user arguments", Array.from({ length: 256 }, () => "x"),
-      "Banquet seats 256 guests\n"],
+      "Argument mode extended: count=2\n"],
+    ["with three ordinary arguments", ["alpha", "beta", "gamma"],
+      "Argument mode extended: count=3\n"],
   ]
   for (const [label, argumentsList, expectedOutput] of orderedArgumentCountCases)
     expectExact(buildProcessArgumentsOrdering, argumentsList, 0,
       Buffer.from(expectedOutput, "utf8"),
       `execute built ordered process-arguments artifact ${label}`)
-  expectExact(buildProcessArgumentsOrdering,
-    Array.from({ length: 257 }, () => "x"), 3, Buffer.alloc(0),
-    "reject ordered process descriptor overflow without partial output")
   expectExact(binary, ["build", processEnumPayloadFixture, "--target", targetTriple,
     "--output", buildProcessEnumPayload], 0, Buffer.alloc(0),
     "build public enum payload process fixture")
@@ -1433,15 +1438,18 @@ try {
   assertPeX64(await readFile(buildProcessEnumPayload),
     "built enum payload process artifact")
   expectExact(buildProcessEnumPayload, [], 7,
-    Buffer.from("enum-missing true\n", "utf8"),
+    Buffer.from("arguments-missing count=0 amount=17 over-limit=false\n", "utf8"),
     "execute built enum payload process artifact without arguments")
   expectExact(buildProcessEnumPayload, [""], 0,
-    Buffer.from("enum-received false\n", "utf8"),
+    Buffer.from("arguments-present count=1 amount=17 over-limit=false\n", "utf8"),
     "execute built enum payload process artifact with empty argument")
-  expectExact(buildProcessEnumPayload, ["payload"], 0,
-    Buffer.from("enum-received false\n", "utf8"),
-    "execute built enum payload process artifact with one argument")
-  expectExact(binary, ["build", restaurantMainCardinalityFixture, "--target",
+  expectExact(buildProcessEnumPayload, ["alpha", "beta"], 0,
+    Buffer.from("arguments-present count=2 amount=17 over-limit=false\n", "utf8"),
+    "execute built enum payload process artifact with two arguments")
+  expectExact(buildProcessEnumPayload, ["alpha", "beta", "gamma"], 0,
+    Buffer.from("arguments-present count=3 amount=17 over-limit=true\n", "utf8"),
+    "execute built enum payload process artifact with three arguments")
+  expectExact(binary, ["build", mainCardinalityFixture, "--target",
     linuxTargetTriple, "--output", buildLinuxTarget], 0, Buffer.alloc(0),
   "cross-build restaurant main-domain cardinality for Linux")
   const linuxBytes = await readFile(buildLinuxTarget)

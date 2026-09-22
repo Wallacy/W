@@ -16,12 +16,12 @@
 
 | Métrica | Valor |
 |---|---:|
-| linhas de `DESIGN.md` | 43667 |
-| tokens aproximados de `DESIGN.md` | 515700 |
+| linhas de `DESIGN.md` | 43675 |
+| tokens aproximados de `DESIGN.md` | 515600 |
 | linhas de `RATIONALE.md` | 14724 |
-| tokens aproximados de `RATIONALE.md` | 357700 |
+| tokens aproximados de `RATIONALE.md` | 357600 |
 | seções numeradas | 27 |
-| seções terminais com evidência local | 468/508 |
+| seções terminais com evidência local | 469/508 |
 | decisões | 1653 (W-001–W-1653) |
 | famílias de viabilidade | 184 |
 | slices normativos de grammar | 6 |
@@ -168,7 +168,7 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | 23 | 32553–34111 | 19200 | Protocolos e pesquisas de ecossistema |
 | 24 | 34112–36270 | 33600 | Design freeze e pendências |
 | 25 | 36271–36481 | 1900 | Produto de referência Última Luz |
-| 26 | 36482–43667 | 97900 | Plano de implementação |
+| 26 | 36482–43675 | 97800 | Plano de implementação |
 
 ## Navegação compacta de RATIONALE
 
@@ -176,7 +176,7 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 |---:|---:|---:|---|
 | 1 | 15–6331 | 103200 | Evidência comparativa |
 | 2 | 6332–6361 | 500 | Proveniência |
-| 3 | 6362–14724 | 253900 | Ledger |
+| 3 | 6362–14724 | 253700 | Ledger |
 
 ## Bundles de leitura
 
@@ -188,7 +188,7 @@ Use um bundle para uma revisão de domínio. Depois leia somente os headings e I
 | segurança e execução | 9, 10, 11, 12, 13 | 9419–18622 | 106100 | ownership, errors, tasks, domains, services e entries |
 | std e performance | 14, 15, 16, 17, 18, 19 | 18623–27558 | 104800 | módulos, números, texto, tensors, custo, C e unsafe |
 | compiler e distribuição | 20, 21, 22, 23 | 27559–34111 | 73600 | frontend, HIR, packages, releases, tooling e protocolos |
-| validação e decisões | 24, 25, 26 | 34112–43667 | 133400 | freeze, Última Luz, gates e roadmap |
+| validação e decisões | 24, 25, 26 | 34112–43675 | 133300 | freeze, Última Luz, gates e roadmap |
 
 O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.
 

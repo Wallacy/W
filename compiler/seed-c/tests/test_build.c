@@ -23,7 +23,7 @@ static bool rejects(int argc, char **argv) {
 }
 
 static bool test_valid_requests(void) {
-  char *target_first[] = {"w", "build", "restaurant-if.w", "--target",
+  char *target_first[] = {"w", "build", "if.w", "--target",
                           "x86_64-unknown-linux-gnu", "--output", "out",
                           NULL};
   w_seed_build_request request;

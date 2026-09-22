@@ -413,11 +413,21 @@ Every new or materially changed executable example records its expected exit,
 stdout, and non-empty stderr beside the source. The executable catalog remains
 the machine contract and its checks must reject drift from that local summary.
 
-Reserve `restaurant-*` names for examples that actually participate in
-Last Light lore or its eventual single-module language tour. New isolated
-compiler and benchmark witnesses use neutral capability names. Migrate or
-consolidate older misnamed fixtures opportunistically when their semantic
-family is next touched; do not mass-rename them.
+Keep restaurant-named examples only under `reference/last-light/`, where they
+participate in the story or eventual single-module language tour. Isolated
+compiler fixtures and benchmark workloads use neutral capability names, even
+when they reuse a culinary concept to exercise syntax. Their coverage is
+tracked by semantic family rather than by story or file length.
+
+For each family, the executable witness should combine as much of the
+currently executable syntax as remains semantically equivalent across W, C,
+and Rust; focused positive, negative, and boundary cases cover the rest.
+Treat coverage as two separate inventories: selected design forms and forms
+actually exercised through native output. Maintain an explicit gap for every
+selected variant that cannot yet reach native execution; do not call either
+inventory complete merely because one representative benchmark passes. A long
+source file is not coverage, and a passing benchmark does not prove the
+unimplemented remainder of a family.
 
 The W-1648 increment targets the existing W-392 rotations and count/reversal
 functions only for built-in `i8`/`u8`, `i16`/`u16`, `i32`/`u32`, and
@@ -431,8 +441,8 @@ W-1649 now source-backs the existing W-392 `maskedShiftLeft`,
 built-in fixed-width family on CRT-free Windows x64 and Linux/WSL x64. Masked
 counts use the logical width; signed arithmetic right shift remains distinct
 from explicit logical zero-fill. Aliases, 128-bit integers, other targets, and
-equivalent-runtime performance remain open. Its neutral witness is the first
-opportunistic migration away from an unrelated `restaurant-*` fixture name.
+equivalent-runtime performance remain open. Its witness is named for the
+bit-operation capability rather than for Last Light.
 
 ## Native application completeness
 
@@ -662,7 +672,7 @@ Unsigned ordinary unary minus stays invalid; logical minimum negation must fail
 before observable output. Bool `!`, `f64` negation, and named
 wrapping/saturating/overflowing negation remain distinct. The physical seed
 carrier remains `i64`. The family fixture
-`compiler/seed-c/fixtures/restaurant-integer-prefix.w` and focused
+`compiler/seed-c/fixtures/integer-prefix.w` and focused
 HIR/scalar-evaluator and NativeSubset0/MLIR test sources are present. Exact
 family output and minimum-failure evidence cover the public `w run` routes on
 CRT-free Windows and Linux/WSL. The reviewed preflight/type-equality and
@@ -734,7 +744,7 @@ W-1645 generalizes the prior strict-f64 seed path into one strict floating
 family for `f32` and `f64`. Frontend67 materializes exact binary32/binary64
 bits; HIR88 preserves distinct identities; MLIR59 and Windows44 emit direct
 width-correct LLVM dialect arithmetic, comparisons, and unary negation without
-fast-math. The compact width-neutral Restaurant witness owns both widths and
+fast-math. The compact width-neutral compiler witness owns both widths and
 the C23/Rust 2024 correctness references. Floating conversions, remainder,
 power, total-order helpers, stable ABI/FFI, other targets, and equivalent
 runtime-work performance remain open.
@@ -775,10 +785,10 @@ fail; left shift also fails on mathematical overflow. Signed right shift is
 arithmetic and unsigned right shift is logical. One generic lowering uses
 verified signedness/logical-width facts and direct LLVM operations rather than
 a per-width operation enum. The exact
-`restaurant-integer-bitwise`, `restaurant-shifts`, `restaurant-power`,
-`restaurant-power-prefix`, `restaurant-compound`, and
-`restaurant-uint-compound` sources/oracles own these bounded crosspoints.
-`restaurant-shifts.w` executes through frontend, verified HIR, Native0/MLIR0,
+`integer-bitwise`, `shifts`, `power`,
+`power-prefix`, `compound`, and
+`uint-compound` sources/oracles own these bounded crosspoints.
+`shifts.w` executes through frontend, verified HIR, Native0/MLIR0,
 and the CRT-free native routes on Windows and Linux/WSL. C23 and Rust 2024 are
 correctness references only; there is no performance ranking. Its
 `benchmarkDisposition` is `deferred` until W retains equivalent runtime

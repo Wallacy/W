@@ -72,7 +72,7 @@ permanece como baseline lexical nativa do VS Code, mas sua lista de tokens deve
 ser uma projeção pequena do inventário compartilhado — não uma segunda
 gramática. A fixture negativa `fixtures/script-context.w` cobre `script` como
 nome de módulo, binding, function, parameter e property; não existe keyword ou
-header `script` na superfície corrente. A fixture `fixtures/restaurant-syntax.w`
+header `script` na superfície corrente. A fixture `fixtures/syntax-fixture.w`
 é o começo lexical desse corpus compartilhado.
 
 Referência: [ícones default de linguagem no VS Code](https://code.visualstudio.com/api/extension-guides/file-icon-theme#language-default-icons).
