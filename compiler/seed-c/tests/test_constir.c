@@ -1019,10 +1019,11 @@ static bool test_labels_relations_and_parentheses(void) {
   static const char mixed_width[] =
       "const fn mixedLess(left: i8, right: i16): Bool { return left < right }\n"
       "const fn mixedEqual(left: u8, right: u16): Bool { return left == right }\n"
-      "const fn mixedAdd(left: u8, right: u16): u16 { return left + right }\n";
+      "const fn mixedAdd(left: u8, right: u16): u16 { return left + right }\n"
+      "const fn mixedUnsignedSigned(value: u8): i16 { return value }\n";
   CHECK(fixture_lower(value, mixed_width));
-  CHECK(value->constir_result.written.functions == 3u &&
-        value->constir_result.written.parameters == 6u);
+  CHECK(value->constir_result.written.functions == 4u &&
+        value->constir_result.written.parameters == 7u);
   uint8_t minus_one[W_SEED_CONSTIR_INTEGER_BYTES];
   (void)memset(minus_one, 0xff, sizeof(minus_one));
   uint8_t one_twenty_eight[W_SEED_CONSTIR_INTEGER_BYTES] = {0x80u};
@@ -1116,6 +1117,27 @@ static bool test_labels_relations_and_parentheses(void) {
         evaluation.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_NONE &&
         output.kind == W_SEED_CONSTIR_VALUE_INTEGER &&
         output.integer_value[0] == 0u && output.integer_value[1] == 1u);
+  CHECK(w_seed_constir_value_integer(
+      value->constir_parameters[6].type_index, W_SEED_FRONTEND_TYPE_INTEGER,
+      false, 8u, two_fifty_five, &mixed_arguments[0]));
+  CHECK(w_seed_constir_evaluate(
+            &(w_seed_constir_program){
+                value->constir_functions, value->constir_result.written.functions,
+                value->constir_parameters, value->constir_result.written.parameters,
+                value->constir_nodes, value->constir_result.written.nodes,
+                value->constir_arguments, value->constir_result.written.call_arguments,
+                value->constir_switch, value->constir_result.written.switch_arms,
+                value->constir_membership,
+                value->constir_result.written.membership_cases,
+                &value->frontend_output, &value->frontend_result, NULL, 0u,
+                NULL, 0u},
+            3u, mixed_arguments, 1u,
+            (w_seed_constir_quota){100u, 0u, 1u, SIZE_MAX}, &workspace, &output,
+            &evaluation) == W_SEED_CONSTIR_OK &&
+        evaluation.diagnostic == W_SEED_CONSTIR_DIAGNOSTIC_NONE &&
+        output.kind == W_SEED_CONSTIR_VALUE_INTEGER &&
+        output.type_is_signed && output.type_bit_width == 16u &&
+        output.integer_value[0] == 0xffu && output.integer_value[1] == 0u);
 
   static const char direct[] =
       "const fn direct(value: u8): u8 { return value }\n"

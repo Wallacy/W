@@ -23,7 +23,7 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:90b620f3b5fc68c4b85372fa8bd87c65ed645830c0097e9af12d058967975fe2",
+    "sha256": "sha256:42a83bfb75e0e25eea6b1e9a2d24bab46baa04beb3f2d4bc2ce8326835c24d56",
     "count": 1653,
     "first": "W-001",
     "last": "W-1653"
@@ -21871,7 +21871,7 @@
         "path": "DESIGN.md",
         "section": "26",
         "heading": "## 26. Plano de implementação",
-        "sectionDigest": "sha256:64c247f7fc36fd80d8f61326f93451622e82e3fedc03b6c0034aa67d14bb6f87"
+        "sectionDigest": "sha256:cfb2f9d559b12849767a9ddb35efb56b72df327923679780f6913967641eb917"
       },
       "evidence": [],
       "reason": "W-659 (body de entry, sha256:f66ab57406ddb51303f9190376daf72d8f538bd7bd8adfbf9992ae3d7223e74e) has no executable witness for component implementation-plan. The checked current contract is DESIGN.md §26 / 26. Plano de implementação.",
@@ -50778,7 +50778,7 @@
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
-          "sha256": "sha256:3f1c2b738dce918be7ba5bb76b193f2b49167280aac8c24a25ef7b3b7151bc87",
+        "sha256": "sha256:4d65e0564b063556f64ac513f050827fbaac5e43e4beff45ffa37df33a076b59",
           "symbol": "resolved_binding_statement",
           "claim": "Frontend publishes the lexical binding relation."
         },
@@ -58428,8 +58428,8 @@
     {
       "decisionId": "W-1634",
       "summary": "bounded source-backed `u64` ConstIR7 policy evaluation",
-      "canonicalClaim": "ConstIR schema `w-seed-constir-7` accepts the ten existing closed `u64` policies—`saturatingAdd`, `saturatingSubtract`, `saturatingMultiply`, `saturatingNegate`, `saturatingPower`, `overflowingAdd`, `overflowingSubtract`, `overflowingMultiply`, `overflowingNegate`, and `overflowingPower`—and evaluates them with exact type/arity/receiver identity. Overflowing results are one allocation-free virtual `(u64, Bool)` value with checked `.0`/`.1` projections; power uses exponentiation by squaring and step quota.",
-      "claimDigest": "sha256:253368dd965eaa11cb673bad6005168b51841dc23fa257db6fc87c81f68ffed0",
+      "canonicalClaim": "Current ConstIR schema `w-seed-constir-8` retains the ten closed `u64` policies introduced by ConstIR7—`saturatingAdd`, `saturatingSubtract`, `saturatingMultiply`, `saturatingNegate`, `saturatingPower`, `overflowingAdd`, `overflowingSubtract`, `overflowingMultiply`, `overflowingNegate`, and `overflowingPower`—and evaluates them with exact type/arity/receiver identity. Overflowing results are one allocation-free virtual `(u64, Bool)` value with checked `.0`/`.1` projections; power uses exponentiation by squaring and step quota.",
+      "claimDigest": "sha256:9f760098141a64778ccf8639a610a609d1f21070948778ab134fa62ea852f2fb",
       "category": "source-backed-current",
       "basis": "linked-source-comparison-case",
       "authorityRef": {
@@ -58446,33 +58446,33 @@
           "caseDigest": "sha256:8f234e241f9bba2f57097d5b91466dfc8f995330f755fb5bfee8d9d683809d08"
         }
       ],
-      "reason": "W-1634 (bounded source-backed `u64` ConstIR7 policy evaluation, sha256:253368dd965eaa11cb673bad6005168b51841dc23fa257db6fc87c81f68ffed0) is source-backed-current only for the bounded C23 source-backed evaluator, exact ten-policy values and boundaries, virtual `(u64, Bool)` projections, zero heap/CRT/float/artificial exponent cap, quota diagnostics, result-byte accounting, and all-or-nothing invalid/capacity behavior. W-1635 separately closes the direct const-return and explicitly typed module-constant boundary for this one product; generic tuples, other widths, a stable tuple ABI, backend/runtime ranking, and performance remain gaps.",
+      "reason": "W-1634 (bounded source-backed `u64` ConstIR7 policy evaluation, sha256:9f760098141a64778ccf8639a610a609d1f21070948778ab134fa62ea852f2fb) remains source-backed-current in ConstIR8 only for the bounded C23 source-backed evaluator, exact ten-policy values and boundaries, virtual `(u64, Bool)` projections, zero heap/CRT/float/artificial exponent cap, quota diagnostics, result-byte accounting, and all-or-nothing invalid/capacity behavior. W-1635 separately closes the direct const-return and explicitly typed module-constant boundary for this one product; generic tuples, other widths, a stable tuple ABI, backend/runtime ranking, and performance remain gaps.",
       "selection": "explicit-ledger-id",
       "basisRef": {
         "kind": "ledger-row",
         "path": "RATIONALE.md",
         "section": "3. Ledger",
         "decisionId": "W-1634",
-        "claimDigest": "sha256:253368dd965eaa11cb673bad6005168b51841dc23fa257db6fc87c81f68ffed0"
+        "claimDigest": "sha256:9f760098141a64778ccf8639a610a609d1f21070948778ab134fa62ea852f2fb"
       },
       "sourceRefs": [
         {
           "path": "compiler/seed-c/include/w_seed_constir.h",
           "symbol": "W_SEED_CONSTIR_SCHEMA_VERSION",
-          "claim": "ConstIR publishes schema w-seed-constir-7 with append-only u64 policy-call and virtual (u64, Bool) projection/value records.",
-          "sha256": "sha256:219c6620567e10a898da1badb62fa1ca0b3a4231c524e6a4e5f056ac4f69fd72"
+        "claim": "ConstIR publishes schema w-seed-constir-8 while retaining the append-only u64 policy-call and virtual (u64, Bool) projection/value records.",
+        "sha256": "sha256:b6e756fb628a83c73ce84cb50892934e97efcad62ea0d9478c74a550e3fce5bf"
         },
         {
           "path": "compiler/seed-c/src/w_seed_constir.c",
           "symbol": "constir_builtin_u64_operation_is_supported",
           "claim": "The evaluator closes the supported builtin set to the ten saturating and overflowing u64 add, subtract, multiply, negate, and power policies.",
-          "sha256": "sha256:0602742960cb54338a5b0d94ae20d7a80c002ecdfbe49fd713157bbaf20e4448"
+        "sha256": "sha256:81dc991f175c033f4aea0897a33fc2ea8f1c38602bcbb4833552ca96d22fdc82"
         },
         {
           "path": "compiler/seed-c/tests/test_constir.c",
           "symbol": "test_u64_policy_constir",
           "claim": "Focused C23 coverage checks exact policy values and boundaries, tuple projections, quota, malformed receiver/arity/type/result, and transactional sentinels.",
-          "sha256": "sha256:8e0198a78d7043f9842308bfaabdc58b9a1d6f2b8293fcefa2639de35479dde1"
+        "sha256": "sha256:9769d26ab08d454d6e82b4f93974f726f821afaaf05737905214f3f048fcb744"
         },
         {
           "path": "tooling/check-seed-constir.mjs",
@@ -58617,8 +58617,8 @@
     {
       "decisionId": "W-1637",
       "summary": "exact implicit fixed-width integer widening through native execution",
-      "canonicalClaim": "Frontend64 inserts one explicit widening wrapper for exact integer conversions whose destination is strictly wider: same-signedness widening or unsigned-to-larger-signed widening. HIR79 preserves source and destination type identities, while NativeSubset0 and MLIR0 keep an `i64` carrier and reconstruct source-width signedness with `llvm.trunc` plus `llvm.sext` or `llvm.zext`.",
-      "claimDigest": "sha256:502d0ca51c8d7fcbeedadc67601f79a40ed6ca464c875fa08c77a28ba84551e7",
+      "canonicalClaim": "Frontend64 inserts one explicit widening wrapper for exact integer conversions whose destination is strictly wider: same-signedness widening or unsigned-to-larger-signed widening. ConstIR8 and HIR79 preserve source and destination type identities, while NativeSubset0 and MLIR0 keep an `i64` carrier and reconstruct source-width signedness with `llvm.trunc` plus `llvm.sext` or `llvm.zext`.",
+      "claimDigest": "sha256:8ce250996a0b3656890568ee86b5f1ba04a3b33d366df354d7013dfa785e01ea",
       "category": "source-backed-current",
       "basis": "linked-source-comparison-case",
       "authorityRef": {
@@ -58635,14 +58635,14 @@
           "caseDigest": "sha256:13d1ae5e7d553a4b2633070b1ff03bc054115e7c19f2fc6f68275fc87c1925b1"
         }
       ],
-      "reason": "W-1637 (exact implicit fixed-width integer widening through native execution, sha256:502d0ca51c8d7fcbeedadc67601f79a40ed6ca464c875fa08c77a28ba84551e7) is source-backed-current for the bounded exact fixed-width widening family: Frontend64 covers binding, return, argument, assignment, and mixed operands; verified HIR79, NativeSubset0, MLIR0, MLIR/LLVM 23.1.x, and exact CRT-free Windows plus Linux/WSL execution cover the public return, argument, binding, and alias witness. Independent C23 and Rust 2024 sources are correctness references with runtime inputs, so performance ranking remains blocked. General narrow binary lowering, target-width usize/isize, 128-bit integers, narrowing, equal-width sign changes, signed-to-unsigned conversion, explicit conversions, stable ABI/FFI, and performance remain gaps.",
+      "reason": "W-1637 (exact implicit fixed-width integer widening through native execution, sha256:8ce250996a0b3656890568ee86b5f1ba04a3b33d366df354d7013dfa785e01ea) is source-backed-current for the bounded exact fixed-width widening family: Frontend64 covers binding, return, argument, assignment, and mixed operands; ConstIR8 evaluates the same explicit wrapper; verified HIR79, NativeSubset0, MLIR0, MLIR/LLVM 23.1.x, and exact CRT-free Windows plus Linux/WSL execution cover the public return, argument, binding, and alias witness. Independent C23 and Rust 2024 sources are correctness references with runtime inputs, so performance ranking remains blocked. General narrow binary lowering, target-width usize/isize, 128-bit integers, narrowing, equal-width sign changes, signed-to-unsigned conversion, explicit conversions, stable ABI/FFI, and performance remain gaps.",
       "selection": "explicit-ledger-id",
       "basisRef": {
         "kind": "ledger-row",
         "path": "RATIONALE.md",
         "section": "3. Ledger",
         "decisionId": "W-1637",
-        "claimDigest": "sha256:502d0ca51c8d7fcbeedadc67601f79a40ed6ca464c875fa08c77a28ba84551e7"
+        "claimDigest": "sha256:8ce250996a0b3656890568ee86b5f1ba04a3b33d366df354d7013dfa785e01ea"
       },
       "sourceRefs": [
         {
@@ -58650,6 +58650,24 @@
           "symbol": "W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN",
           "claim": "Frontend64 exposes one append-only conversion record whose source and destination types are explicit.",
           "sha256": "sha256:4b060f97a4c9407da865a75c837299692b92de8048a1227253f7cbf6fcb8d15b"
+        },
+        {
+          "path": "compiler/seed-c/include/w_seed_constir.h",
+          "symbol": "W_SEED_CONSTIR_NODE_INTEGER_WIDEN",
+          "claim": "ConstIR8 exposes an append-only explicit integer-widening node.",
+          "sha256": "sha256:b6e756fb628a83c73ce84cb50892934e97efcad62ea0d9478c74a550e3fce5bf"
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_constir.c",
+          "symbol": "constir_integer_widening_shape",
+          "claim": "ConstIR independently validates, digests, lowers, and evaluates the exact widening relation.",
+          "sha256": "sha256:81dc991f175c033f4aea0897a33fc2ea8f1c38602bcbb4833552ca96d22fdc82"
+        },
+        {
+          "path": "compiler/seed-c/tests/test_constir.c",
+          "symbol": "mixedUnsignedSigned",
+          "claim": "ConstIR regression coverage proves unsigned-to-larger-signed widening preserves 255 as i16.",
+          "sha256": "sha256:9769d26ab08d454d6e82b4f93974f726f821afaaf05737905214f3f048fcb744"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",

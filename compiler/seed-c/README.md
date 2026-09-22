@@ -2502,7 +2502,7 @@ forgeries, aliasing, transactional failure, and the two-task rejection.
 
 ### Explicit process-root and task-entry MLIR composition (W-1598)
 
-PARMLIR0 schema `w-seed-mlir0-process-parallel-1` composes the resolved
+PARMLIR0 schema `w-seed-mlir0-process-parallel-2` composes the resolved
 native-process root with the verified one-task PARSEL0 relation. The root reads
 runtime `Arguments.isEmpty`, evaluates one direct scalar prelude, passes that
 binding to one task launch, and performs the lexical join. The task wrapper is
@@ -4201,7 +4201,9 @@ referência a module const. Mismatch, unresolved ou relação corrompida é
 `INVALID`; untyped, `String`, enum/list/quantity/size, call, member/index,
 nested generic e imported const/head/predicate são `UNSUPPORTED`.
 
-`W_SEED_CONSTIR_SCHEMA_VERSION` é `w-seed-constir-7`. Cada declaration vira
+`W_SEED_CONSTIR_SCHEMA_VERSION` é `w-seed-constir-8`. Além dos nós anteriores,
+o schema preserva widening inteiro implícito exato como um nó verificado, sem
+retag silencioso do filho. Cada declaration vira
 função sintética zero-arg com origem `FRONTEND_CONST_DECLARATION`; cada
 identifier vira dependency `CALL`. A ordem é frontend functions, declarations
 de module const em source order e `TypedConstExpr`. O body digest exclui

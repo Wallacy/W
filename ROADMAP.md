@@ -80,13 +80,14 @@ cross-target, and long-running performance lanes run in CI or release
 qualification according to risk. More tests are not evidence unless they
 observe a distinct failure class or product boundary.
 
-The review outcome is that this procedure is directionally sufficient but not
-yet self-enforcing. Before any family is promoted as memory-safe, cleanup-safe,
-race-free, FFI-safe, or generally safe, add one machine-readable safety
-evidence record that declares the applicable source, verified-HIR, lowering,
-native, runtime, target, negative, sanitizer/fuzz, fault-injection, schedule,
-resource-exhaustion, and ABI gates. An unavailable applicable gate blocks
-promotion; it is not silently omitted. Independent C/Rust oracles must state
+The procedure is now structurally self-enforcing through the machine-readable
+safety-evidence catalog and its focused checker, but most independent evidence
+lanes are not implemented yet. Before any family is promoted as memory-safe,
+cleanup-safe, race-free, FFI-safe, or generally safe, its record must declare
+the applicable source, verified-HIR, lowering, native, runtime, target,
+negative, sanitizer/fuzz, fault-injection, schedule, resource-exhaustion, and
+ABI gates. An unavailable applicable gate blocks promotion; it is not silently
+omitted. Independent C/Rust oracles must state
 how they avoid their own undefined behavior. Adversarial and fault evidence
 must exercise the same maintained W source-to-native route as the positive
 claim rather than a substitute harness.

@@ -16,9 +16,9 @@
 
 | Métrica | Valor |
 |---|---:|
-| linhas de `DESIGN.md` | 43455 |
+| linhas de `DESIGN.md` | 43458 |
 | tokens aproximados de `DESIGN.md` | 512500 |
-| linhas de `RATIONALE.md` | 14600 |
+| linhas de `RATIONALE.md` | 14602 |
 | tokens aproximados de `RATIONALE.md` | 355000 |
 | seções numeradas | 27 |
 | seções terminais com evidência local | 468/508 |
@@ -168,7 +168,7 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | 23 | 32388–33946 | 19200 | Protocolos e pesquisas de ecossistema |
 | 24 | 33947–36105 | 33600 | Design freeze e pendências |
 | 25 | 36106–36316 | 1900 | Produto de referência Última Luz |
-| 26 | 36317–43455 | 97100 | Plano de implementação |
+| 26 | 36317–43458 | 97200 | Plano de implementação |
 
 ## Navegação compacta de RATIONALE
 
@@ -176,7 +176,7 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 |---:|---:|---:|---|
 | 1 | 15–6314 | 103000 | Evidência comparativa |
 | 2 | 6315–6344 | 500 | Proveniência |
-| 3 | 6345–14600 | 251400 | Ledger |
+| 3 | 6345–14602 | 251500 | Ledger |
 
 ## Bundles de leitura
 
@@ -188,7 +188,7 @@ Use um bundle para uma revisão de domínio. Depois leia somente os headings e I
 | segurança e execução | 9, 10, 11, 12, 13 | 9400–18560 | 105400 | ownership, errors, tasks, domains, services e entries |
 | std e performance | 14, 15, 16, 17, 18, 19 | 18561–27496 | 104800 | módulos, números, texto, tensors, custo, C e unsafe |
 | compiler e distribuição | 20, 21, 22, 23 | 27497–33946 | 72100 | frontend, HIR, packages, releases, tooling e protocolos |
-| validação e decisões | 24, 25, 26 | 33947–43455 | 132600 | freeze, Última Luz, gates e roadmap |
+| validação e decisões | 24, 25, 26 | 33947–43458 | 132700 | freeze, Última Luz, gates e roadmap |
 
 O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.
 

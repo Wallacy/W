@@ -40741,7 +40741,7 @@ required reference against which any later elided artifact is compared.
 scalar prelude result, passes that result to one task wrapper, joins the
 provider relation, and returns a checked process status.
 
-PARMLIR0 schema `w-seed-mlir0-process-parallel-1` composes the resolved native
+PARMLIR0 schema `w-seed-mlir0-process-parallel-2` composes the resolved native
 process root with the independently verified one-task PARSEL0 relation. The
 root evaluates `Arguments.isEmpty`, calls one direct scalar prelude, passes the
 prelude binding as the task argument, and performs the lexical join. The
@@ -42150,7 +42150,7 @@ performance.
 
 #### 26.4.1.114 W-1634 — bounded `u64` ConstIR7 policy evaluation
 
-The current ConstIR receipt schema is `w-seed-constir-7`. W-1634 is
+The current ConstIR receipt schema is `w-seed-constir-8`. W-1634 is
 `source-backed-current` evidence for const evaluation of the ten existing
 closed `u64` policies: `saturatingAdd`, `saturatingSubtract`,
 `saturatingMultiply`, `saturatingNegate`, `saturatingPower`,
@@ -42258,6 +42258,9 @@ fn widenForDistance(value: u8): i16 { return value }
 
 The wrapper is first-class in verified HIR schema `w-seed-hir0-79`; it records
 both source and destination type identities and owns exactly one operand.
+ConstIR schema `w-seed-constir-8` now preserves the same verified wrapper for
+const evaluation, including unsigned-to-larger-signed widening, rather than
+retagging or rejecting its child.
 Bindings, returns, call arguments, assignments, and mixed integer binary
 operands use the same relation. Invalid implicit conversions report
 `W-TYPE-0122` instead of falling through to an unrelated unsupported path.

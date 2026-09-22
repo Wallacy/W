@@ -2942,13 +2942,20 @@ static bool resolve_one_pending_generic_application(
             W_SEED_FRONTEND_IMPORT_UNRESOLVED;
         uint32_t imported_index = W_SEED_FRONTEND_NONE;
         w_seed_frontend_text imported_target = {NULL, 0};
+        uint32_t known_const_index = W_SEED_FRONTEND_NONE;
+        frontend_simple_type known_const_type = simple_type_unknown();
         w_seed_frontend_text unresolved_name = root.name;
+        /* A known module const can have a typed but unsupported initializer.
+         * Preserve the D4 UNSUPPORTED barrier for that declaration; only a
+         * name absent from the module/import graph is an unresolved local. */
         bool unresolved_local =
             context->count.const_declarations != 0u && normalized &&
             root.kind == W_SEED_FRONTEND_EXPR_IDENTIFIER && root.has_name &&
             !root.supported &&
             !module_const_name_is_duplicate(context, root.name) &&
             !module_const_name_is_untyped(context, root.name) &&
+            !module_const_for_name(context, root.name, &known_const_index,
+                                   &known_const_type, NULL, NULL) &&
             !imported_target_for_name(context, root.name, &imported_kind,
                                       &imported_index, &imported_target);
         if (!unresolved_local && context->count.const_declarations != 0u &&
@@ -2958,7 +2965,10 @@ static bool resolve_one_pending_generic_application(
               context, shape->value_span, &unresolved_name);
           if (unresolved_local &&
               (module_const_name_is_duplicate(context, unresolved_name) ||
-               module_const_name_is_untyped(context, unresolved_name)))
+               module_const_name_is_untyped(context, unresolved_name) ||
+               module_const_for_name(context, unresolved_name,
+                                     &known_const_index, &known_const_type,
+                                     NULL, NULL)))
             unresolved_local = false;
         }
         if (unresolved_local) {

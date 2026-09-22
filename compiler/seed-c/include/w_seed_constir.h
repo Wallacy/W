@@ -12,7 +12,7 @@ extern "C" {
 #endif
 
 /* Internal seed-C ConstIR D1-D7. This is not an importable W interface. */
-#define W_SEED_CONSTIR_SCHEMA_VERSION "w-seed-constir-7"
+#define W_SEED_CONSTIR_SCHEMA_VERSION "w-seed-constir-8"
 #define W_SEED_CONSTIR_NONE UINT32_MAX
 #define W_SEED_CONSTIR_INTEGER_BYTES 16u
 #define W_SEED_CONSTIR_MAX_PARAMETERS 256u
@@ -56,6 +56,8 @@ typedef enum {
   W_SEED_CONSTIR_NODE_BUILTIN_U64,
   /* Append-only exact `(u64, Bool)` positional projection node. */
   W_SEED_CONSTIR_NODE_TUPLE_ELEMENT,
+  /* Append-only exact frontend integer-widening conversion node. */
+  W_SEED_CONSTIR_NODE_INTEGER_WIDEN,
 } w_seed_constir_node_kind;
 
 typedef enum {

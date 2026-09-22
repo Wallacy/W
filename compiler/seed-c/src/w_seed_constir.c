@@ -34,7 +34,7 @@ typedef struct {
   bool valid;
 } constir_value_result;
 
-static const uint8_t CONSTIR_RECEIPT_SCHEMA[] = "w-seed-constir-7";
+static const uint8_t CONSTIR_RECEIPT_SCHEMA[] = "w-seed-constir-8";
 
 static bool add_size(size_t left, size_t right, size_t *out) {
   if (out == NULL || right > SIZE_MAX - left) return false;
@@ -822,6 +822,115 @@ static bool type_metadata(const constir_lower_context *context, uint32_t type_in
          type->kind == W_SEED_FRONTEND_TYPE_TUPLE;
 }
 
+/* Frontend64 retains exact integer widening as a first-class wrapper.  Keep
+ * the ConstIR admission predicate as strict as the frontend/HIR route: only
+ * canonical fixed-width integers participate, and the destination must be
+ * strictly wider with either matching signedness or an unsigned-to-signed
+ * route.  A forged wrapper must not become a retagged child in ConstIR. */
+static bool constir_fixed_integer_type(
+    const constir_lower_context *context, uint32_t type_index) {
+  const w_seed_frontend_type *type = frontend_type_at(context, type_index);
+  if (type == NULL || type->kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+      type->task_result_type != W_SEED_FRONTEND_NONE ||
+      type->generic_application_index != W_SEED_FRONTEND_NONE ||
+      type->external_module_index != W_SEED_FRONTEND_NONE ||
+      type->external_symbol_index != W_SEED_FRONTEND_NONE ||
+      type->enum_base_index != W_SEED_FRONTEND_NONE ||
+      type->bit_width == 0u)
+    return false;
+  if (type->bit_width == 8u)
+    return type->is_signed ? text_is(type->spelling, "i8")
+                           : text_is(type->spelling, "u8");
+  if (type->bit_width == 16u)
+    return type->is_signed ? text_is(type->spelling, "i16")
+                           : text_is(type->spelling, "u16");
+  if (type->bit_width == 32u)
+    return type->is_signed ? text_is(type->spelling, "i32")
+                           : text_is(type->spelling, "u32");
+  if (type->bit_width == 64u)
+    return type->is_signed ? (text_is(type->spelling, "i64") ||
+                              text_is(type->spelling, "Int"))
+                           : (text_is(type->spelling, "u64") ||
+                              text_is(type->spelling, "UInt"));
+  return false;
+}
+
+static bool constir_integer_widening_route(
+    const constir_lower_context *context, uint32_t source_type,
+    uint32_t destination_type) {
+  const w_seed_frontend_type *source = frontend_type_at(context, source_type);
+  const w_seed_frontend_type *destination =
+      frontend_type_at(context, destination_type);
+  return source != NULL && destination != NULL &&
+         constir_fixed_integer_type(context, source_type) &&
+         constir_fixed_integer_type(context, destination_type) &&
+         source->bit_width < destination->bit_width &&
+         (source->is_signed == destination->is_signed ||
+          (!source->is_signed && destination->is_signed));
+}
+
+static bool constir_integer_widening_shape(
+    const constir_lower_context *context, uint32_t function_index,
+    uint32_t expression_index, const w_seed_frontend_expression **source_out) {
+  if (source_out != NULL) *source_out = NULL;
+  const w_seed_frontend_expression *expression =
+      frontend_expression_at(context, expression_index);
+  if (expression == NULL || expression->kind !=
+                                 W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN ||
+      expression->owner_function != function_index ||
+      expression->left == W_SEED_FRONTEND_NONE ||
+      expression->right != W_SEED_FRONTEND_NONE ||
+      expression->first_argument != W_SEED_FRONTEND_NONE ||
+      expression->argument_count != 0u ||
+      expression->conversion_source_type == W_SEED_FRONTEND_NONE ||
+      expression->conversion_destination_type == W_SEED_FRONTEND_NONE ||
+      expression->inferred_type != expression->conversion_destination_type ||
+      expression->resolved_parameter_ordinal != W_SEED_FRONTEND_NONE ||
+      expression->resolved_function_index != W_SEED_FRONTEND_NONE ||
+      expression->resolved_callee_kind != W_SEED_FRONTEND_CALLEE_NONE ||
+      expression->builtin_operation != W_SEED_FRONTEND_BUILTIN_NONE ||
+      expression->resolved_host_symbol_index != W_SEED_FRONTEND_NONE ||
+      expression->resolved_external_module_index != W_SEED_FRONTEND_NONE ||
+      expression->resolved_external_symbol_index != W_SEED_FRONTEND_NONE ||
+      expression->resolved_local_ordinal != W_SEED_FRONTEND_NONE ||
+      expression->resolved_kernel_module_index != W_SEED_FRONTEND_NONE ||
+      expression->resolved_kernel_binding_index != W_SEED_FRONTEND_NONE ||
+      expression->enum_index != W_SEED_FRONTEND_NONE ||
+      expression->enum_case_index != W_SEED_FRONTEND_NONE ||
+      expression->first_switch_arm != W_SEED_FRONTEND_NONE ||
+      expression->switch_arm_count != 0u ||
+      expression->first_membership_case != W_SEED_FRONTEND_NONE ||
+      expression->membership_case_count != 0u ||
+      expression->member_name.length != 0u ||
+      expression->resolved_const_declaration != W_SEED_FRONTEND_NONE ||
+      expression->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
+      expression->resolved_pattern_capture != W_SEED_FRONTEND_NONE ||
+      expression->first_interpolation_segment != W_SEED_FRONTEND_NONE ||
+      expression->interpolation_segment_count != 0u ||
+      expression->else_expression != W_SEED_FRONTEND_NONE ||
+      expression->task_result_type != W_SEED_FRONTEND_NONE ||
+      expression->task_call_expression != W_SEED_FRONTEND_NONE ||
+      expression->task_binding_statement != W_SEED_FRONTEND_NONE ||
+      expression->propagated_error_enum != W_SEED_FRONTEND_NONE ||
+      expression->propagated_error_type != W_SEED_FRONTEND_NONE ||
+      expression->domain_index != W_SEED_FRONTEND_NONE ||
+      expression->has_bool_value || expression->has_integer_value ||
+      expression->has_float_value || expression->const_byte_offset !=
+          W_SEED_FRONTEND_NONE || expression->const_byte_count != 0u ||
+      expression->numeric_widen_is_explicit)
+    return false;
+  const w_seed_frontend_expression *source =
+      frontend_expression_at(context, expression->left);
+  if (source == NULL || source->owner_function != function_index ||
+      source->inferred_type != expression->conversion_source_type ||
+      !constir_integer_widening_route(
+          context, expression->conversion_source_type,
+          expression->conversion_destination_type))
+    return false;
+  if (source_out != NULL) *source_out = source;
+  return true;
+}
+
 static bool integer_value_from_expression(const constir_lower_context *context,
                                           const w_seed_frontend_expression *expression,
                                           constir_bits *out) {
@@ -1473,6 +1582,18 @@ static bool digest_expression(const constir_lower_context *context,
       !digest_type(context, expression->inferred_type, state)) return false;
   digest_u8(state, (uint8_t)expression->kind);
   switch (expression->kind) {
+    case W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN:
+      if (!constir_integer_widening_shape(context, function_index,
+                                          expression_index, NULL) ||
+          !digest_type(context, expression->conversion_source_type, state) ||
+          !digest_expression(context, function_index, expression->left, state,
+                             depth + 1u))
+        return false;
+      /* The wrapper is semantic: retain an explicit conversion marker and
+       * source type in the body digest even though the destination type was
+       * already framed above. */
+      digest_u8(state, 0x77u);
+      return true;
     case W_SEED_FRONTEND_EXPR_BOOL: {
       if (!expression->has_bool_value) return false;
       digest_u8(state, expression->bool_value ? 1u : 0u);
@@ -1913,6 +2034,11 @@ static bool typed_const_expression_closed(constir_lower_context *context,
     }
     case W_SEED_FRONTEND_EXPR_PARENTHESIS:
       return expression->left != W_SEED_FRONTEND_NONE &&
+             typed_const_expression_closed(context, expression->left,
+                                           depth + 1u);
+    case W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN:
+      return constir_integer_widening_shape(
+                 context, W_SEED_FRONTEND_NONE, expression_index, NULL) &&
              typed_const_expression_closed(context, expression->left,
                                            depth + 1u);
     case W_SEED_FRONTEND_EXPR_UNARY: {
@@ -3743,6 +3869,7 @@ static bool node_operator_valid(const w_seed_constir_node *node) {
       return node->normalized_operator == W_SEED_CONSTIR_OPERATOR_INVALID;
     case W_SEED_CONSTIR_NODE_BUILTIN_U64:
     case W_SEED_CONSTIR_NODE_TUPLE_ELEMENT:
+    case W_SEED_CONSTIR_NODE_INTEGER_WIDEN:
       return node->normalized_operator == W_SEED_CONSTIR_OPERATOR_INVALID;
     default:
       return false;
@@ -4840,6 +4967,47 @@ static bool validate_program(const w_seed_constir_program *program) {
                                    element_type->enum_base_index)) return false;
           }
           break;
+        case W_SEED_CONSTIR_NODE_INTEGER_WIDEN: {
+          constir_lower_context frontend_context;
+          (void)memset(&frontend_context, 0, sizeof(frontend_context));
+          frontend_context.frontend = program->frontend_output;
+          frontend_context.frontend_result = program->frontend_result;
+          const w_seed_frontend_expression *conversion =
+              node->frontend_expression == W_SEED_CONSTIR_NONE
+                  ? NULL
+                  : frontend_expression_at(&frontend_context,
+                                           node->frontend_expression);
+          const w_seed_frontend_type *source_type =
+              conversion == NULL
+                  ? NULL
+                  : frontend_type_at(&frontend_context,
+                                     conversion->conversion_source_type);
+          const w_seed_frontend_type *destination_type =
+              conversion == NULL
+                  ? NULL
+                  : frontend_type_at(&frontend_context,
+                                     conversion->conversion_destination_type);
+          if (left == NULL || right != NULL || conversion == NULL ||
+              !constir_integer_widening_shape(
+                  &frontend_context, function->frontend_function,
+                  node->frontend_expression, NULL) ||
+              !span_contains(node->source_span, conversion->span) ||
+              source_type == NULL || destination_type == NULL ||
+              node->type_index != conversion->conversion_destination_type ||
+              !node_matches_type(left, source_type->kind,
+                                 source_type->is_signed,
+                                 source_type->bit_width,
+                                 source_type->enum_base_index) ||
+              !node_matches_type(node, destination_type->kind,
+                                 destination_type->is_signed,
+                                 destination_type->bit_width,
+                                 destination_type->enum_base_index) ||
+              !node_matches_frontend_expression(
+                  &frontend_context, left, conversion->left,
+                  function->frontend_function))
+            return false;
+          break;
+        }
         case W_SEED_CONSTIR_NODE_UNARY:
           if (left == NULL || right != NULL ||
               (node->normalized_operator == W_SEED_CONSTIR_OPERATOR_NOT &&
@@ -5330,6 +5498,21 @@ static bool eval_node_at(constir_eval_context *context,
                          node->source_span, 0u);
       *value = list.elements[index];
       return true;
+    }
+    case W_SEED_CONSTIR_NODE_INTEGER_WIDEN: {
+      w_seed_constir_value source;
+      if (node->right != W_SEED_CONSTIR_NONE ||
+          !eval_node_at(context, function, node->left, depth + 1u, &source) ||
+          source.kind != W_SEED_CONSTIR_VALUE_INTEGER ||
+          node->type_kind != W_SEED_FRONTEND_TYPE_INTEGER)
+        return false;
+      constir_bits bits;
+      (void)memcpy(bits.bytes, source.integer_value, sizeof(bits.bytes));
+      /* Source values are canonical sign/zero-extended bytes.  Masking with
+       * the destination signedness performs the exact widening extension and
+       * leaves unsigned-to-larger-signed values non-negative. */
+      bits_mask(&bits, node->type_bit_width, node->type_is_signed);
+      return integer_result(node, bits, value);
     }
     case W_SEED_CONSTIR_NODE_UNARY: {
       w_seed_constir_value operand;
@@ -5938,6 +6121,16 @@ static bool lower_expression(constir_lower_context *context,
     return false;
   }
   switch (expression->kind) {
+    case W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN:
+      if (!constir_integer_widening_shape(context, function_index,
+                                          expression_index, NULL) ||
+          !lower_expression(context, function_index, expression->left,
+                            &node.left, depth + 1u)) {
+        mark_failure(context, expression->span, expression_index);
+        return false;
+      }
+      node.kind = W_SEED_CONSTIR_NODE_INTEGER_WIDEN;
+      break;
     case W_SEED_FRONTEND_EXPR_BOOL: {
       if (!expression->has_bool_value) {
         mark_failure(context, expression->span, expression_index);

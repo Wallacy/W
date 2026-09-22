@@ -911,7 +911,7 @@ static bool test_ephemeral_check_diagnostic_determinism(void) {
 static bool test_ephemeral_check_publication_barriers(void) {
   const char root_source[] =
       "module app;\nimport { bad } from child\n"
-      "fn use(): i64 { return bad() }\n";
+      "fn use(): Bool { return bad() }\n";
   const char child_source[] =
       "module child;\n"
       "export fn bad(): u16 { if 1 { return 1 } return 70_000_u32 }\n";

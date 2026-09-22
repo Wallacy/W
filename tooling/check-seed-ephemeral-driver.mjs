@@ -176,6 +176,7 @@ async function runWslLinuxAdapter() {
         `${wslRoot}/compiler/seed-c/tests/test_ephemeral_driver_linux.c`,
         "-o",
         executable,
+        "-lm",
       ],
     )
     const output = checkWslDeterministic("WSL Linux adapter", executable, [
@@ -232,6 +233,7 @@ async function runWslSanitizer() {
       `${wslRoot}/compiler/seed-c/tests/test_ephemeral_driver.c`,
       "-o",
       coreExecutable,
+      "-lm",
     ])
     if (coreCompile === undefined) return "unavailable"
     const adapterCompile = compileWslSanitizer("WSL ASan+UBSan adapter compile", [
@@ -239,6 +241,7 @@ async function runWslSanitizer() {
       `${wslRoot}/compiler/seed-c/tests/test_ephemeral_driver_linux.c`,
       "-o",
       adapterExecutable,
+      "-lm",
     ])
     if (adapterCompile === undefined) return "unavailable"
     if (coreCompile.stderr.length !== 0 || adapterCompile.stderr.length !== 0) {

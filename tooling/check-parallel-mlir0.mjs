@@ -186,7 +186,7 @@ try {
     fail("process emitter produced stderr, no bytes, or an embedded NUL");
   const processText = processEmitted.stdout.toString("utf8");
   for (const marker of [
-    "w-seed-mlir0-process-parallel-1",
+    "w-seed-mlir0-process-parallel-2",
     "llvm.target_triple = \"x86_64-unknown-linux-gnu\"",
     "llvm.func @w_seed_process_parallel_entry",
     "llvm.func @w_seed_parallel_task_0",
@@ -285,7 +285,7 @@ try {
       fail("Windows process emitter produced stderr, no bytes, or an embedded NUL");
     const processWindowsText = processWindowsEmitted.stdout.toString("utf8");
     for (const marker of [
-      "w-seed-mlir0-process-parallel-1",
+      "w-seed-mlir0-process-parallel-2",
       "llvm.target_triple = \"x86_64-pc-windows-msvc\"",
       "llvm.func @w_seed_process_parallel_entry",
       "llvm.func @w_seed_parallel_task_0",
