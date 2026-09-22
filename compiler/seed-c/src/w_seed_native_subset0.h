@@ -217,6 +217,38 @@ typedef struct {
   bool destination_is_signed;
 } w_seed_native_subset0_integer_exactly;
 
+/* Private NativeSubset0 admission for the bounded
+ * `try D(rounding: source, mode: .policy)` CFG. The three successors retain
+ * their semantic roles: normal payload, NumericConversionError.nonFinite,
+ * and NumericConversionError.outOfRange. This record is not a root ABI. */
+typedef struct {
+  const w_seed_hir0_entry *entry;
+  const w_seed_hir0_function *function;
+  const w_seed_hir0_parameter *source_parameter;
+  const w_seed_hir0_value *source_value;
+  const w_seed_hir0_terminator *conversion;
+  const w_seed_hir0_block_argument *normal_argument;
+  const w_seed_hir0_block_argument *non_finite_argument;
+  const w_seed_hir0_block_argument *out_of_range_argument;
+  const w_seed_hir0_terminator *normal_return;
+  const w_seed_hir0_terminator *non_finite_throw;
+  const w_seed_hir0_terminator *out_of_range_throw;
+  uint32_t entry_index;
+  uint32_t function_index;
+  uint32_t entry_function_index;
+  uint32_t split_block_index;
+  uint32_t normal_block_index;
+  uint32_t non_finite_block_index;
+  uint32_t out_of_range_block_index;
+  uint32_t source_type_index;
+  uint32_t destination_type_index;
+  uint32_t error_type_index;
+  uint16_t source_bit_width;
+  uint16_t destination_bit_width;
+  bool destination_is_signed;
+  w_seed_hir0_rounding_mode rounding_mode;
+} w_seed_native_subset0_float_to_integer_rounding;
+
 w_seed_native_subset0_status w_seed_native_subset0_select(
     const w_seed_hir0_program *program,
     const w_seed_hir0_result *hir_result,
@@ -289,6 +321,20 @@ bool w_seed_native_subset0_verify_integer_exactly(
     const w_seed_hir0_program *program,
     const w_seed_hir0_result *hir_result,
     const w_seed_native_subset0_integer_exactly *selection);
+
+/* Select one closed float-to-integer conversion function and its neutral
+ * empty entry. The selected HIR keeps all three typed successors explicit. */
+w_seed_native_subset0_status
+w_seed_native_subset0_select_float_to_integer_rounding(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    w_seed_native_subset0_float_to_integer_rounding *selection);
+
+/* Independently rederive every field of the bounded rounding selection. */
+bool w_seed_native_subset0_verify_float_to_integer_rounding(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    const w_seed_native_subset0_float_to_integer_rounding *selection);
 
 /* Select the target-neutral closed cooperative product shape. This is only
  * an admission record for a future emitter; it does not emit or execute. */

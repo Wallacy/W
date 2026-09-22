@@ -14796,3 +14796,542 @@ bool w_seed_mlir0_verify_integer_exactly(
                 sizeof(result->hir_semantic_digest)) == 0 &&
          memcmp(result->mlir_sha256, digest, sizeof(result->mlir_sha256)) == 0;
 }
+
+static const char *float_rounding_intrinsic(w_seed_hir0_rounding_mode mode) {
+  switch (mode) {
+    case W_SEED_HIR0_ROUNDING_MODE_NEAREST_EVEN:
+      return "llvm.intr.roundeven";
+    case W_SEED_HIR0_ROUNDING_MODE_NEAREST_AWAY_FROM_ZERO:
+      return "llvm.intr.round";
+    case W_SEED_HIR0_ROUNDING_MODE_TOWARD_ZERO:
+      return "llvm.intr.trunc";
+    case W_SEED_HIR0_ROUNDING_MODE_TOWARD_POSITIVE:
+      return "llvm.intr.ceil";
+    case W_SEED_HIR0_ROUNDING_MODE_TOWARD_NEGATIVE:
+      return "llvm.intr.floor";
+    case W_SEED_HIR0_ROUNDING_MODE_NONE:
+      return NULL;
+  }
+  return NULL;
+}
+
+static const char *float_rounding_mode_name(w_seed_hir0_rounding_mode mode) {
+  switch (mode) {
+    case W_SEED_HIR0_ROUNDING_MODE_NEAREST_EVEN:
+      return "nearestEven";
+    case W_SEED_HIR0_ROUNDING_MODE_NEAREST_AWAY_FROM_ZERO:
+      return "nearestAwayFromZero";
+    case W_SEED_HIR0_ROUNDING_MODE_TOWARD_ZERO:
+      return "towardZero";
+    case W_SEED_HIR0_ROUNDING_MODE_TOWARD_POSITIVE:
+      return "towardPositive";
+    case W_SEED_HIR0_ROUNDING_MODE_TOWARD_NEGATIVE:
+      return "towardNegative";
+    case W_SEED_HIR0_ROUNDING_MODE_NONE:
+      return NULL;
+  }
+  return NULL;
+}
+
+static bool float_power_bits(uint16_t float_width, uint16_t exponent,
+                             bool negative, uint64_t *bits) {
+  if (bits == NULL) return false;
+  if (float_width == 32u) {
+    const uint32_t biased = (uint32_t)exponent + 127u;
+    if (biased == 0u || biased >= 255u) return false;
+    *bits = ((uint64_t)(negative ? UINT32_C(0x80000000) : 0u)) |
+            ((uint64_t)biased << 23u);
+    return true;
+  }
+  if (float_width == 64u) {
+    const uint64_t biased = (uint64_t)exponent + 1023u;
+    if (biased == 0u || biased >= 2047u) return false;
+    *bits = (negative ? UINT64_C(0x8000000000000000) : 0u) |
+            (biased << 52u);
+    return true;
+  }
+  return false;
+}
+
+static bool append_float_constant_bits(uint8_t *artifact, size_t capacity,
+                                       size_t *offset, uint16_t float_width,
+                                       uint64_t bits) {
+  return float_width == 32u
+             ? append_u32_hex_bits(artifact, capacity, offset,
+                                   (uint32_t)bits)
+             : float_width == 64u
+                   ? append_u64_hex_bits(artifact, capacity, offset, bits)
+                   : false;
+}
+
+static bool append_float_to_integer_rounding_artifact(
+    const w_seed_native_subset0_float_to_integer_rounding *selection,
+    const w_seed_mlir0_target *target, uint8_t *artifact, size_t capacity,
+    size_t *written, uint8_t digest[MLIR0_DIGEST_BYTES]) {
+  if (selection == NULL || target == NULL || artifact == NULL ||
+      written == NULL || digest == NULL || !target_is_supported(target) ||
+      (selection->source_bit_width != 32u &&
+       selection->source_bit_width != 64u) ||
+      (selection->destination_bit_width != 8u &&
+       selection->destination_bit_width != 16u &&
+       selection->destination_bit_width != 32u &&
+       selection->destination_bit_width != 64u))
+    return false;
+  const char *intrinsic = float_rounding_intrinsic(selection->rounding_mode);
+  const char *mode_name = float_rounding_mode_name(selection->rounding_mode);
+  if (intrinsic == NULL || mode_name == NULL) return false;
+
+  const uint16_t lower_exponent =
+      selection->destination_is_signed
+          ? (uint16_t)(selection->destination_bit_width - 1u)
+          : 0u;
+  const uint16_t upper_exponent =
+      selection->destination_is_signed
+          ? (uint16_t)(selection->destination_bit_width - 1u)
+          : selection->destination_bit_width;
+  uint64_t lower_bits = 0u;
+  uint64_t upper_bits = 0u;
+  if (selection->destination_is_signed) {
+    if (!float_power_bits(selection->source_bit_width, lower_exponent, true,
+                          &lower_bits))
+      return false;
+  }
+  if (!float_power_bits(selection->source_bit_width, upper_exponent, false,
+                        &upper_bits))
+    return false;
+
+  const char *triple = target_is_windows(target)
+                           ? W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS
+                           : W_SEED_MLIR0_TARGET_TRIPLE;
+  const char *destination_sign =
+      selection->destination_is_signed ? "signed" : "unsigned";
+  size_t offset = 0u;
+  if (!append_literal(
+          artifact, capacity, &offset,
+          "// " W_SEED_MLIR0_FLOAT_TO_INTEGER_ROUNDING_SCHEMA_VERSION
+          "\n// HIR source: f") ||
+      !append_size(artifact, capacity, &offset, selection->source_bit_width) ||
+      !append_literal(artifact, capacity, &offset, "; destination: ") ||
+      !append_literal(artifact, capacity, &offset, destination_sign) ||
+      !append_literal(artifact, capacity, &offset, " i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(artifact, capacity, &offset, "; mode: .") ||
+      !append_literal(artifact, capacity, &offset, mode_name) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          ".\n// Private i2 status: 0 success, 1 NumericConversionError.nonFinite, 2 NumericConversionError.outOfRange.\n"
+          "// Bounds are exact powers of two; conversion occurs only after finite and range proofs.\n"
+          "module attributes {llvm.target_triple = \"") ||
+      !append_literal(artifact, capacity, &offset, triple) ||
+      !append_literal(artifact, capacity, &offset,
+                      "\"} {\n  llvm.func internal @w_seed_float_to_integer_round(%source: f") ||
+      !append_size(artifact, capacity, &offset, selection->source_bit_width) ||
+      !append_literal(artifact, capacity, &offset,
+                      ") -> !llvm.struct<(i2, i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          ")> {\n    %round_non_finite = \"llvm.intr.is.fpclass\"(%source) <{bit = 519 : i32}> : (f") ||
+      !append_size(artifact, capacity, &offset, selection->source_bit_width) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          ") -> i1\n    llvm.cond_br %round_non_finite, ^round_non_finite, ^round_finite\n"
+          "  ^round_finite:\n    %rounded = \"") ||
+      !append_literal(artifact, capacity, &offset, intrinsic) ||
+      !append_literal(artifact, capacity, &offset, "\"(%source) : (f") ||
+      !append_size(artifact, capacity, &offset, selection->source_bit_width) ||
+      !append_literal(artifact, capacity, &offset, ") -> f") ||
+      !append_size(artifact, capacity, &offset, selection->source_bit_width) ||
+      !append_literal(artifact, capacity, &offset,
+                      "\n    %round_lower = llvm.mlir.constant(") ||
+      !append_float_constant_bits(artifact, capacity, &offset,
+                                  selection->source_bit_width, lower_bits) ||
+      !append_literal(artifact, capacity, &offset, " : f") ||
+      !append_size(artifact, capacity, &offset, selection->source_bit_width) ||
+      !append_literal(artifact, capacity, &offset, ") : f") ||
+      !append_size(artifact, capacity, &offset, selection->source_bit_width) ||
+      !append_literal(artifact, capacity, &offset,
+                      "\n    %round_upper = llvm.mlir.constant(") ||
+      !append_float_constant_bits(artifact, capacity, &offset,
+                                  selection->source_bit_width, upper_bits) ||
+      !append_literal(artifact, capacity, &offset, " : f") ||
+      !append_size(artifact, capacity, &offset, selection->source_bit_width) ||
+      !append_literal(artifact, capacity, &offset, ") : f") ||
+      !append_size(artifact, capacity, &offset, selection->source_bit_width) ||
+      !append_literal(artifact, capacity, &offset,
+                      "\n    %round_lower_ok = llvm.fcmp \"oge\" %rounded, %round_lower : f") ||
+      !append_size(artifact, capacity, &offset, selection->source_bit_width) ||
+      !append_literal(artifact, capacity, &offset,
+                      "\n    %round_upper_ok = llvm.fcmp \"olt\" %rounded, %round_upper : f") ||
+      !append_size(artifact, capacity, &offset, selection->source_bit_width) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          "\n    %round_fits = llvm.and %round_lower_ok, %round_upper_ok : i1\n"
+          "    llvm.cond_br %round_fits, ^round_success, ^round_out_of_range\n"
+          "  ^round_success:\n    %round_converted = llvm.") ||
+      !append_literal(artifact, capacity, &offset,
+                      selection->destination_is_signed ? "fptosi" : "fptoui") ||
+      !append_literal(artifact, capacity, &offset, " %rounded : f") ||
+      !append_size(artifact, capacity, &offset, selection->source_bit_width) ||
+      !append_literal(artifact, capacity, &offset, " to i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          "\n    %round_success_status = llvm.mlir.constant(0 : i2) : i2\n"
+          "    %round_success_zero = llvm.mlir.zero : !llvm.struct<(i2, i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          ")>\n    %round_success_with_status = llvm.insertvalue %round_success_status, %round_success_zero[0] : !llvm.struct<(i2, i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          ")>\n    %round_success_result = llvm.insertvalue %round_converted, %round_success_with_status[1] : !llvm.struct<(i2, i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          ")>\n    llvm.return %round_success_result : !llvm.struct<(i2, i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(artifact, capacity, &offset,
+                      ")>\n  ^round_non_finite:\n"
+                      "    %round_non_finite_status = llvm.mlir.constant(1 : i2) : i2\n"
+                      "    %round_non_finite_payload = llvm.mlir.constant(0 : i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(artifact, capacity, &offset, ") : i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          "\n    %round_non_finite_zero = llvm.mlir.zero : !llvm.struct<(i2, i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          ")>\n    %round_non_finite_with_status = llvm.insertvalue %round_non_finite_status, %round_non_finite_zero[0] : !llvm.struct<(i2, i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          ")>\n    %round_non_finite_result = llvm.insertvalue %round_non_finite_payload, %round_non_finite_with_status[1] : !llvm.struct<(i2, i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          ")>\n    llvm.return %round_non_finite_result : !llvm.struct<(i2, i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(artifact, capacity, &offset,
+                      ")>\n  ^round_out_of_range:\n"
+                      "    %round_out_of_range_status = llvm.mlir.constant(2 : i2) : i2\n"
+                      "    %round_out_of_range_payload = llvm.mlir.constant(0 : i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(artifact, capacity, &offset, ") : i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          "\n    %round_out_of_range_zero = llvm.mlir.zero : !llvm.struct<(i2, i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          ")>\n    %round_out_of_range_with_status = llvm.insertvalue %round_out_of_range_status, %round_out_of_range_zero[0] : !llvm.struct<(i2, i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          ")>\n    %round_out_of_range_result = llvm.insertvalue %round_out_of_range_payload, %round_out_of_range_with_status[1] : !llvm.struct<(i2, i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          ")>\n    llvm.return %round_out_of_range_result : !llvm.struct<(i2, i") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->destination_bit_width) ||
+      !append_literal(artifact, capacity, &offset, ")>\n  }\n}\n"))
+    return false;
+
+  *written = offset;
+  w_seed_sha256_state state;
+  w_seed_sha256_init(&state);
+  w_seed_sha256_update(&state, artifact, offset);
+  w_seed_sha256_final(&state, digest);
+  return true;
+}
+
+static bool mlir0_artifact_ranges_alias(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    const w_seed_mlir0_target *target, const void *counts, size_t counts_size,
+    const void *output, size_t output_size, const void *result,
+    size_t result_size, uint8_t *output_bytes, size_t written) {
+  if (program == NULL || hir_result == NULL || target == NULL) return true;
+  mlir0_range ranges[64];
+  size_t range_count = 0u;
+#define ADD_ARTIFACT_RANGE(address, count, element_size)                      \
+  do {                                                                        \
+    if (!range_add(ranges, sizeof(ranges) / sizeof(ranges[0]), &range_count, \
+                   (address), (count), (element_size)))                      \
+      return true;                                                            \
+  } while (0)
+  ADD_ARTIFACT_RANGE(program, 1u, sizeof(*program));
+  ADD_ARTIFACT_RANGE(hir_result, 1u, sizeof(*hir_result));
+  ADD_ARTIFACT_RANGE(target, 1u, sizeof(*target));
+  if (counts != NULL)
+    ADD_ARTIFACT_RANGE(counts, 1u, counts_size);
+  if (output != NULL)
+    ADD_ARTIFACT_RANGE(output, 1u, output_size);
+  if (result != NULL)
+    ADD_ARTIFACT_RANGE(result, 1u, result_size);
+  ADD_ARTIFACT_RANGE(program->modules, program->module_capacity,
+                     sizeof(*program->modules));
+  ADD_ARTIFACT_RANGE(program->identities, program->identity_capacity,
+                     sizeof(*program->identities));
+  ADD_ARTIFACT_RANGE(program->types, program->type_capacity,
+                     sizeof(*program->types));
+  ADD_ARTIFACT_RANGE(program->enums, program->enum_capacity,
+                     sizeof(*program->enums));
+  ADD_ARTIFACT_RANGE(program->enum_cases, program->enum_case_capacity,
+                     sizeof(*program->enum_cases));
+  ADD_ARTIFACT_RANGE(program->enum_case_parameters,
+                     program->enum_case_parameter_capacity,
+                     sizeof(*program->enum_case_parameters));
+  ADD_ARTIFACT_RANGE(program->enum_subset_members,
+                     program->enum_subset_member_capacity,
+                     sizeof(*program->enum_subset_members));
+  ADD_ARTIFACT_RANGE(program->enum_payloads, program->enum_payload_capacity,
+                     sizeof(*program->enum_payloads));
+  ADD_ARTIFACT_RANGE(program->switch_captures,
+                     program->switch_capture_capacity,
+                     sizeof(*program->switch_captures));
+  ADD_ARTIFACT_RANGE(program->functions, program->function_capacity,
+                     sizeof(*program->functions));
+  ADD_ARTIFACT_RANGE(program->parameters, program->parameter_capacity,
+                     sizeof(*program->parameters));
+  ADD_ARTIFACT_RANGE(program->blocks, program->block_capacity,
+                     sizeof(*program->blocks));
+  ADD_ARTIFACT_RANGE(program->block_arguments,
+                     program->block_argument_capacity,
+                     sizeof(*program->block_arguments));
+  ADD_ARTIFACT_RANGE(program->edge_arguments, program->edge_argument_capacity,
+                     sizeof(*program->edge_arguments));
+  ADD_ARTIFACT_RANGE(program->switch_edges, program->switch_edge_capacity,
+                     sizeof(*program->switch_edges));
+  ADD_ARTIFACT_RANGE(program->instructions, program->instruction_capacity,
+                     sizeof(*program->instructions));
+  ADD_ARTIFACT_RANGE(program->bindings, program->binding_capacity,
+                     sizeof(*program->bindings));
+  ADD_ARTIFACT_RANGE(program->calls, program->call_capacity,
+                     sizeof(*program->calls));
+  ADD_ARTIFACT_RANGE(program->host_parameters,
+                     program->host_parameter_capacity,
+                     sizeof(*program->host_parameters));
+  ADD_ARTIFACT_RANGE(program->arguments, program->argument_capacity,
+                     sizeof(*program->arguments));
+  ADD_ARTIFACT_RANGE(program->requirements, program->requirement_capacity,
+                     sizeof(*program->requirements));
+  ADD_ARTIFACT_RANGE(program->values, program->value_capacity,
+                     sizeof(*program->values));
+  ADD_ARTIFACT_RANGE(program->interpolation_segments,
+                     program->interpolation_segment_capacity,
+                     sizeof(*program->interpolation_segments));
+  ADD_ARTIFACT_RANGE(program->terminators, program->terminator_capacity,
+                     sizeof(*program->terminators));
+  ADD_ARTIFACT_RANGE(program->entries, program->entry_capacity,
+                     sizeof(*program->entries));
+  ADD_ARTIFACT_RANGE(program->external_modules,
+                     program->external_module_capacity,
+                     sizeof(*program->external_modules));
+  ADD_ARTIFACT_RANGE(program->external_symbols,
+                     program->external_symbol_capacity,
+                     sizeof(*program->external_symbols));
+  ADD_ARTIFACT_RANGE(program->cleanups, program->cleanup_capacity,
+                     sizeof(*program->cleanups));
+  ADD_ARTIFACT_RANGE(program->text_bytes, program->text_byte_capacity,
+                     sizeof(uint8_t));
+  ADD_ARTIFACT_RANGE(program->value_bytes, program->value_byte_capacity,
+                     sizeof(uint8_t));
+  ADD_ARTIFACT_RANGE(program->receipt, program->receipt_capacity,
+                     sizeof(uint8_t));
+  for (size_t first = 0u; first < range_count; first += 1u)
+    for (size_t second = first + 1u; second < range_count; second += 1u)
+      if (range_pair_overlaps(&ranges[first], &ranges[second])) return true;
+  if (output_bytes != NULL)
+    ADD_ARTIFACT_RANGE(output_bytes, written, sizeof(uint8_t));
+#undef ADD_ARTIFACT_RANGE
+  for (size_t first = 0u; first < range_count; first += 1u)
+    for (size_t second = first + 1u; second < range_count; second += 1u)
+      if (range_pair_overlaps(&ranges[first], &ranges[second])) return true;
+  return false;
+}
+
+static w_seed_mlir0_status float_to_integer_rounding_select(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    w_seed_native_subset0_float_to_integer_rounding *selection) {
+  const w_seed_native_subset0_status selected =
+      w_seed_native_subset0_select_float_to_integer_rounding(
+          program, hir_result, selection);
+  if (selected == W_SEED_NATIVE_SUBSET0_OK) return W_SEED_MLIR0_OK;
+  if (selected == W_SEED_NATIVE_SUBSET0_UNSUPPORTED)
+    return W_SEED_MLIR0_UNSUPPORTED;
+  return W_SEED_MLIR0_INVALID_HIR;
+}
+
+static w_seed_mlir0_float_to_integer_rounding_counts
+float_to_integer_rounding_counts(
+    size_t written,
+    const w_seed_native_subset0_float_to_integer_rounding *selection) {
+  return (w_seed_mlir0_float_to_integer_rounding_counts){
+      .mlir_bytes = written,
+      .source_bit_width = selection->source_bit_width,
+      .destination_bit_width = selection->destination_bit_width,
+      .range_predicate_count = 2u,
+      .typed_branch_count = 2u,
+      .outcome_count = 3u,
+      .carrier_field_count =
+          W_SEED_MLIR0_FLOAT_TO_INTEGER_ROUNDING_CARRIER_FIELDS,
+      .outcome_bit_width =
+          W_SEED_MLIR0_FLOAT_TO_INTEGER_ROUNDING_OUTCOME_BITS,
+      .destination_is_signed = selection->destination_is_signed,
+      .rounding_mode = selection->rounding_mode};
+}
+
+static w_seed_mlir0_float_to_integer_rounding_result
+float_to_integer_rounding_result(
+    const w_seed_hir0_result *hir_result,
+    const w_seed_mlir0_float_to_integer_rounding_counts *counts,
+    const uint8_t digest[MLIR0_DIGEST_BYTES], bool written) {
+  w_seed_mlir0_float_to_integer_rounding_result result;
+  (void)memset(&result, 0, sizeof(result));
+  result.status = W_SEED_MLIR0_OK;
+  result.required = *counts;
+  if (written) result.written = *counts;
+  (void)memcpy(result.hir_semantic_digest, hir_result->semantic_digest,
+               sizeof(result.hir_semantic_digest));
+  (void)memcpy(result.mlir_sha256, digest, sizeof(result.mlir_sha256));
+  return result;
+}
+
+static bool float_to_integer_rounding_counts_equal(
+    const w_seed_mlir0_float_to_integer_rounding_counts *left,
+    const w_seed_mlir0_float_to_integer_rounding_counts *right) {
+  return left != NULL && right != NULL &&
+         left->mlir_bytes == right->mlir_bytes &&
+         left->source_bit_width == right->source_bit_width &&
+         left->destination_bit_width == right->destination_bit_width &&
+         left->range_predicate_count == right->range_predicate_count &&
+         left->typed_branch_count == right->typed_branch_count &&
+         left->outcome_count == right->outcome_count &&
+         left->carrier_field_count == right->carrier_field_count &&
+         left->outcome_bit_width == right->outcome_bit_width &&
+         left->destination_is_signed == right->destination_is_signed &&
+         left->rounding_mode == right->rounding_mode;
+}
+
+w_seed_mlir0_status w_seed_mlir0_measure_float_to_integer_rounding(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_mlir0_target *target,
+    w_seed_mlir0_float_to_integer_rounding_counts *counts,
+    w_seed_mlir0_float_to_integer_rounding_result *result) {
+  if (program == NULL || hir_result == NULL || target == NULL ||
+      counts == NULL || result == NULL)
+    return W_SEED_MLIR0_INVALID_HIR;
+  w_seed_native_subset0_float_to_integer_rounding selection;
+  const w_seed_mlir0_status selected =
+      float_to_integer_rounding_select(program, hir_result, &selection);
+  if (selected != W_SEED_MLIR0_OK) return selected;
+  if (!target_is_supported(target)) return W_SEED_MLIR0_UNSUPPORTED;
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  uint8_t digest[MLIR0_DIGEST_BYTES];
+  size_t written = 0u;
+  if (!append_float_to_integer_rounding_artifact(
+          &selection, target, artifact, sizeof(artifact), &written, digest))
+    return W_SEED_MLIR0_INVALID_HIR;
+  if (mlir0_artifact_ranges_alias(
+          program, hir_result, target, counts, sizeof(*counts), NULL, 0u,
+          result, sizeof(*result), NULL, written))
+    return W_SEED_MLIR0_ALIAS;
+  const w_seed_mlir0_float_to_integer_rounding_counts candidate_counts =
+      float_to_integer_rounding_counts(written, &selection);
+  const w_seed_mlir0_float_to_integer_rounding_result candidate_result =
+      float_to_integer_rounding_result(hir_result, &candidate_counts, digest,
+                                       false);
+  *counts = candidate_counts;
+  *result = candidate_result;
+  return W_SEED_MLIR0_OK;
+}
+
+w_seed_mlir0_status w_seed_mlir0_emit_float_to_integer_rounding(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_mlir0_target *target,
+    const w_seed_mlir0_float_to_integer_rounding_output *output,
+    w_seed_mlir0_float_to_integer_rounding_result *result) {
+  if (program == NULL || hir_result == NULL || target == NULL ||
+      output == NULL || result == NULL)
+    return W_SEED_MLIR0_INVALID_HIR;
+  w_seed_native_subset0_float_to_integer_rounding selection;
+  const w_seed_mlir0_status selected =
+      float_to_integer_rounding_select(program, hir_result, &selection);
+  if (selected != W_SEED_MLIR0_OK) return selected;
+  if (!target_is_supported(target)) return W_SEED_MLIR0_UNSUPPORTED;
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  uint8_t digest[MLIR0_DIGEST_BYTES];
+  size_t written = 0u;
+  if (!append_float_to_integer_rounding_artifact(
+          &selection, target, artifact, sizeof(artifact), &written, digest))
+    return W_SEED_MLIR0_INVALID_HIR;
+  if (output->bytes == NULL || output->capacity < written)
+    return W_SEED_MLIR0_CAPACITY;
+  if (mlir0_artifact_ranges_alias(
+          program, hir_result, target, NULL, 0u, output, sizeof(*output),
+          result, sizeof(*result), output->bytes, written))
+    return W_SEED_MLIR0_ALIAS;
+  const w_seed_mlir0_float_to_integer_rounding_counts candidate_counts =
+      float_to_integer_rounding_counts(written, &selection);
+  const w_seed_mlir0_float_to_integer_rounding_result candidate_result =
+      float_to_integer_rounding_result(hir_result, &candidate_counts, digest,
+                                       true);
+  (void)memcpy(output->bytes, artifact, written);
+  *result = candidate_result;
+  return W_SEED_MLIR0_OK;
+}
+
+bool w_seed_mlir0_verify_float_to_integer_rounding(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_mlir0_target *target, const uint8_t *artifact,
+    size_t artifact_bytes,
+    const w_seed_mlir0_float_to_integer_rounding_result *result) {
+  if (program == NULL || hir_result == NULL || target == NULL ||
+      artifact == NULL || result == NULL || result->status != W_SEED_MLIR0_OK)
+    return false;
+  w_seed_native_subset0_float_to_integer_rounding selection;
+  if (float_to_integer_rounding_select(program, hir_result, &selection) !=
+          W_SEED_MLIR0_OK ||
+      !target_is_supported(target))
+    return false;
+  uint8_t expected_artifact[W_SEED_MLIR0_MAX_BYTES];
+  uint8_t digest[MLIR0_DIGEST_BYTES];
+  size_t written = 0u;
+  if (!append_float_to_integer_rounding_artifact(
+          &selection, target, expected_artifact, sizeof(expected_artifact),
+          &written, digest))
+    return false;
+  const w_seed_mlir0_float_to_integer_rounding_counts counts =
+      float_to_integer_rounding_counts(written, &selection);
+  return artifact_bytes == written &&
+         memcmp(artifact, expected_artifact, written) == 0 &&
+         float_to_integer_rounding_counts_equal(&result->required, &counts) &&
+         float_to_integer_rounding_counts_equal(&result->written, &counts) &&
+         memcmp(result->hir_semantic_digest, hir_result->semantic_digest,
+                sizeof(result->hir_semantic_digest)) == 0 &&
+         memcmp(result->mlir_sha256, digest, sizeof(result->mlir_sha256)) == 0;
+}

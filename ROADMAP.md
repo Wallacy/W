@@ -243,8 +243,11 @@ physical scheduler experiments:
    `try D(exactly: source)` through a typed HIR success/error split and private
    MLIR/LLVM artifact. Frontend72 and verified HIR95 additionally preserve the
    complete bounded `f32`/`f64` to fixed-integer `rounding:` matrix and its
-   success/non-finite/out-of-range roles, but ProductClosure0 and native
-   lowering still reject it. W-1652 now defines the canonical `native-process@1`
+   success/non-finite/out-of-range roles. NativeSubset0 now independently
+   rederives that closed relation, and the private
+   `w-seed-mlir0-float-to-integer-rounding-1` artifact lowers all 100
+   width/mode combinations through verified LLVM dialect. ProductClosure0 and
+   native execution still reject it. W-1652 now defines the canonical `native-process@1`
    mapping for an unhandled typed error. HIR94 retains the restricted local
    payloadless-error direct throw and composes one exact-conversion binding into
    a three-block process root. ProductClosure0 v3 projects either the direct
@@ -609,13 +612,16 @@ families, floats, 128-bit integers, general `isize`/`usize`, other target
 aliases, catch, general typed cleanup, and ABI remain gaps.
 W-389 and rank 1 remain open.
 
-The next W-389 increment starts from Frontend72/HIR95 rather than reparsing the
-call: lower the five rounding modes with target-independent LLVM intrinsics,
-classify non-finite input before conversion, check the rounded value against
-mathematically exact destination bounds, and execute `fptosi`/`fptoui` only in
-the proven-valid successor. Until ProductClosure0, native execution, boundary
-oracles, and both public x64 routes exist, this is compiler-lifecycle evidence
-only and carries no benchmark row or performance claim.
+W-389 now has its first private lowering artifact. NativeSubset0 rederives the
+five rounding modes and all three successor roles from verified HIR. The MLIR
+artifact classifies NaN and infinity before rounding, uses environment-
+independent LLVM intrinsics, checks the rounded value against exact half-open
+power-of-two bounds, and emits `fptosi`/`fptoui` only in the proven-valid
+successor. `mlir-opt --verify-each` and `mlir-translate` validate the artifact
+for Linux and Windows x64 target triples. Next publish the three outcomes in
+ProductClosure0, then add native execution, independent bit-pattern boundary
+oracles, and both public x64 routes. Until those exist, this remains compiler-
+lifecycle evidence only and carries no benchmark row or performance claim.
 
 W-1645 generalizes the prior strict-f64 seed path into one strict floating
 family for `f32` and `f64`. Frontend67 materializes exact binary32/binary64

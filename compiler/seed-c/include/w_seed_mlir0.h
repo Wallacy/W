@@ -61,6 +61,13 @@ extern "C" {
 #define W_SEED_MLIR0_INTEGER_EXACTLY_SCHEMA_VERSION \
   "w-seed-mlir0-integer-exactly-1"
 #define W_SEED_MLIR0_INTEGER_EXACTLY_CARRIER_FIELDS 2u
+/* Private compiler-lifecycle artifact for the bounded f32/f64-to-integer
+ * rounding CFG. Status is a private i2: 0 success, 1 nonFinite, 2 outOfRange.
+ * The conversion is emitted only in the finite, proven-in-range block. */
+#define W_SEED_MLIR0_FLOAT_TO_INTEGER_ROUNDING_SCHEMA_VERSION \
+  "w-seed-mlir0-float-to-integer-rounding-1"
+#define W_SEED_MLIR0_FLOAT_TO_INTEGER_ROUNDING_CARRIER_FIELDS 2u
+#define W_SEED_MLIR0_FLOAT_TO_INTEGER_ROUNDING_OUTCOME_BITS 2u
 /* The unsuffixed aliases retain the byte-for-byte Linux seed contract. */
 #define W_SEED_MLIR0_TARGET_TRIPLE W_SEED_MLIR0_TARGET_TRIPLE_LINUX
 /* The dynamic seed artifact covers the bounded NativeSubset0 value and
@@ -254,6 +261,32 @@ typedef struct {
   size_t capacity;
 } w_seed_mlir0_integer_exactly_output;
 
+typedef struct {
+  size_t mlir_bytes;
+  uint16_t source_bit_width;
+  uint16_t destination_bit_width;
+  uint32_t range_predicate_count;
+  uint32_t typed_branch_count;
+  uint32_t outcome_count;
+  uint32_t carrier_field_count;
+  uint32_t outcome_bit_width;
+  bool destination_is_signed;
+  w_seed_hir0_rounding_mode rounding_mode;
+} w_seed_mlir0_float_to_integer_rounding_counts;
+
+typedef struct {
+  w_seed_mlir0_status status;
+  w_seed_mlir0_float_to_integer_rounding_counts required;
+  w_seed_mlir0_float_to_integer_rounding_counts written;
+  uint8_t hir_semantic_digest[32];
+  uint8_t mlir_sha256[32];
+} w_seed_mlir0_float_to_integer_rounding_result;
+
+typedef struct {
+  uint8_t *bytes;
+  size_t capacity;
+} w_seed_mlir0_float_to_integer_rounding_output;
+
 /* Return true only for the explicit Linux or Windows target schemas. */
 bool w_seed_mlir0_target_is_supported(const w_seed_mlir0_target *target);
 
@@ -423,6 +456,24 @@ bool w_seed_mlir0_verify_integer_exactly(
     const w_seed_mlir0_target *target, const uint8_t *artifact,
     size_t artifact_bytes,
     const w_seed_mlir0_integer_exactly_result *result);
+
+w_seed_mlir0_status w_seed_mlir0_measure_float_to_integer_rounding(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_mlir0_target *target,
+    w_seed_mlir0_float_to_integer_rounding_counts *counts,
+    w_seed_mlir0_float_to_integer_rounding_result *result);
+
+w_seed_mlir0_status w_seed_mlir0_emit_float_to_integer_rounding(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_mlir0_target *target,
+    const w_seed_mlir0_float_to_integer_rounding_output *output,
+    w_seed_mlir0_float_to_integer_rounding_result *result);
+
+bool w_seed_mlir0_verify_float_to_integer_rounding(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_mlir0_target *target, const uint8_t *artifact,
+    size_t artifact_bytes,
+    const w_seed_mlir0_float_to_integer_rounding_result *result);
 
 #ifdef __cplusplus
 }

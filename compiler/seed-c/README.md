@@ -3008,11 +3008,22 @@ facts, the rounding mode, and three role-stable successors: success,
 source/destination/mode combinations and reject forged mode, successor, and
 success/error type facts.
 
-This increment deliberately stops at verified HIR. ProductClosure0 and every
-native selector reject the new terminator until direct MLIR/LLVM lowering can
-prove finite classification and post-rounding range checks before any
-`fptosi`/`fptoui`. It provides no executable, target, runtime, ABI, timing, or
-performance evidence. `benchmarkDisposition: compiler-lifecycle`.
+NativeSubset0 independently rederives the complete closed relation from HIR,
+including source width, destination width/signedness, mode, and the named
+success/non-finite/out-of-range successors. The private
+`w-seed-mlir0-float-to-integer-rounding-1` artifact maps the five modes to
+environment-independent LLVM intrinsics, classifies NaN and infinity first,
+checks exact half-open power-of-two destination bounds after rounding, and
+places its sole `fptosi` or `fptoui` only in the proven-valid block. Its private
+`{i2, iN}` carrier uses status 0/1/2 for success/non-finite/out-of-range; it is
+not a W ABI. Focused tests cover all 100 combinations for Linux and Windows
+x64 triples, transactional capacity/alias barriers, forged selection/result
+facts, and translation through `mlir-opt --verify-each` plus
+`mlir-translate`.
+
+ProductClosure0 and native product execution still reject the terminator. This
+increment provides no executable, runtime, public ABI, timing, or performance
+evidence. `benchmarkDisposition: compiler-lifecycle`.
 
 ### Native-process unhandled typed-error root HIR (W-1652)
 

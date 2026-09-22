@@ -14514,8 +14514,8 @@ claimed.
 #### W-389 bounded amendment — float-to-integer rounding preservation
 
 Frontend72 and verified HIR95 preserve the already selected
-`try D(rounding: source, mode: .policy)` surface before implementing native
-conversion. The bounded matrix is `f32`/`f64` into the signed and unsigned
+`try D(rounding: source, mode: .policy)` surface. The bounded matrix is
+`f32`/`f64` into the signed and unsigned
 8/16/32/64-bit integers plus the current x86-64 `Int`/`UInt` aliases, across
 the five closed rounding modes. The HIR terminator owns one source value and
 three role-stable successors: normal integer result,
@@ -14524,14 +14524,23 @@ three role-stable successors: normal integer result,
 inventing a sentinel or allowing target conversion behavior to choose W
 semantics.
 
-The next lowering must classify non-finite input, apply the selected
-environment-independent rounding operation, compare the rounded value against
-exact mathematical destination bounds, and execute `fptosi`/`fptoui` only in
-the proven-valid successor. ProductClosure0 rejects the terminator until that
-relation and its cleanup/error propagation are published. This amendment is
+NativeSubset0 independently rederives source width, destination width and
+signedness, the rounding mode, and all three successor roles. The private
+`w-seed-mlir0-float-to-integer-rounding-1` artifact maps the five modes to
+`llvm.intr.roundeven`, `llvm.intr.round`, `llvm.intr.trunc`,
+`llvm.intr.ceil`, or `llvm.intr.floor`. It classifies NaN and infinities before
+rounding, compares the rounded value against exact half-open powers of two,
+and emits its sole `fptosi` or `fptoui` only in the range-proven successor.
+The private `{i2, iN}` carrier preserves success, non-finite, and out-of-range
+as statuses 0, 1, and 2; it is not a W ABI. All 100 width/mode combinations are
+rederived and emitted for Linux and Windows x64 triples, and a focused probe
+passes `mlir-opt --verify-each` and `mlir-translate`.
+
+ProductClosure0 still rejects the terminator until it publishes both typed
+failure roles and their cleanup/error propagation. This amendment remains
 compiler-lifecycle evidence only: there is no native product, runtime/target
-execution, ABI claim, benchmark, or timing result, and W-389 remains an
-implementation-evidence gap.
+execution, public ABI claim, independent boundary oracle, benchmark, or timing
+result, and W-389 remains an implementation-evidence gap.
 
 #### W-1651 — explicit wide and low-precision numeric families
 

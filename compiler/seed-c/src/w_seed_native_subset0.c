@@ -6064,6 +6064,291 @@ bool w_seed_native_subset0_verify_integer_exactly(
          selection->destination_is_signed == candidate.destination_is_signed;
 }
 
+static bool float_to_integer_rounding_selection_derive(
+    const w_seed_hir0_program *program,
+    w_seed_native_subset0_float_to_integer_rounding *selection) {
+  if (program == NULL || selection == NULL || program->module_count != 1u ||
+      program->identity_count < 5u || program->function_count != 2u ||
+      program->parameter_count != 1u || program->block_count != 5u ||
+      program->block_argument_count != 3u ||
+      program->edge_argument_count != 0u ||
+      program->switch_capture_count != 0u ||
+      program->instruction_count != 0u || program->binding_count != 0u ||
+      program->call_count != 0u || program->argument_count != 0u ||
+      program->enum_payload_count != 0u || program->value_count != 4u ||
+      program->interpolation_segment_count != 0u ||
+      program->terminator_count != 5u || program->entry_count != 1u ||
+      program->enum_count != 0u || program->enum_case_count != 0u ||
+      program->enum_case_parameter_count != 0u ||
+      program->enum_subset_member_count != 0u ||
+      program->cleanup_count != 0u || program->external_module_count != 0u ||
+      program->external_symbol_count != 0u || program->type_count < 6u)
+    return false;
+
+  const w_seed_hir0_module *module = &program->modules[0];
+  const w_seed_hir0_identity *module_identity = &program->identities[0];
+  const w_seed_hir0_identity *function_identity = &program->identities[1];
+  const w_seed_hir0_identity *entry_identity = &program->identities[2];
+  const w_seed_hir0_identity *body_identity = &program->identities[3];
+  const w_seed_hir0_function *function = &program->functions[0];
+  const w_seed_hir0_function *entry_function = &program->functions[1];
+  const w_seed_hir0_parameter *parameter = &program->parameters[0];
+  const w_seed_hir0_entry *entry = &program->entries[0];
+  if (module->first_function != 0u || module->function_count != 2u ||
+      module->first_entry != 0u || module->entry_count != 1u ||
+      module_identity->kind != W_SEED_HIR0_IDENTITY_MODULE ||
+      module_identity->owner_module != W_SEED_HIR0_NONE ||
+      function_identity->kind != W_SEED_HIR0_IDENTITY_FUNCTION ||
+      function_identity->target_index != 0u ||
+      function_identity->first_parameter != 0u ||
+      function_identity->parameter_count != 1u ||
+      function_identity->return_type != function->return_type ||
+      entry_identity->kind != W_SEED_HIR0_IDENTITY_FUNCTION ||
+      entry_identity->target_index != 1u ||
+      entry_identity->first_parameter != 1u ||
+      entry_identity->parameter_count != 0u ||
+      entry_identity->return_type != 0u ||
+      body_identity->kind != W_SEED_HIR0_IDENTITY_ENTRY ||
+      body_identity->target_index != 0u || function->identity_index != 1u ||
+      function->module_index != 0u ||
+      function->return_type >= program->type_count || !function->is_throws ||
+      function->error_type >= program->type_count ||
+      function->parameter_count != 1u || function->first_parameter != 0u ||
+      function->first_block != 0u || function->block_count != 4u ||
+      function->is_async || function->is_const || function->is_unsafe ||
+      function->has_borrow_clause || function->is_anonymous_entry ||
+      entry_function->identity_index != 2u ||
+      entry_function->module_index != 0u ||
+      entry_function->return_type != 0u || entry_function->is_throws ||
+      entry_function->error_type != W_SEED_HIR0_NONE ||
+      entry_function->parameter_count != 0u ||
+      entry_function->first_parameter != 1u ||
+      entry_function->first_block != 4u || entry_function->block_count != 1u ||
+      entry_function->is_async || entry_function->is_const ||
+      entry_function->is_unsafe || entry_function->has_borrow_clause ||
+      !entry_function->is_anonymous_entry ||
+      parameter->owner_function != 0u || parameter->ordinal != 0u ||
+      !entry->is_body || entry->module_index != 0u ||
+      entry->target_function != 1u || entry->target_identity != 2u ||
+      entry->identity_index != 3u ||
+      entry->adapter_kind != W_SEED_HIR0_ENTRY_ADAPTER_DEFAULT_UNIT ||
+      entry->cleanup_obligation != W_SEED_HIR0_ENTRY_CLEANUP_NONE ||
+      entry->cleanup_owner_parameter_count != 0u)
+    return false;
+
+  uint32_t error_type_index = W_SEED_HIR0_NONE;
+  for (size_t type_index = 0u; type_index < program->type_count;
+       type_index += 1u) {
+    const w_seed_hir0_type *type = &program->types[type_index];
+    if (type_index < 4u) continue;
+    if (type->kind == W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR) {
+      if (error_type_index != W_SEED_HIR0_NONE ||
+          type_index + 1u != program->type_count ||
+          type->owner_module != W_SEED_HIR0_NONE ||
+          !text_is(program, type->name,
+                   (const uint8_t *)"NumericConversionError", 22u))
+        return false;
+      error_type_index = (uint32_t)type_index;
+      continue;
+    }
+    native_integer_facts integer_facts;
+    uint16_t float_width = 0u;
+    if (!native_integer_type_facts(program, (uint32_t)type_index,
+                                   &integer_facts) &&
+        !native_float_type_width(program, (uint32_t)type_index, &float_width))
+      return false;
+  }
+
+  uint16_t source_width = 0u;
+  native_integer_facts destination_facts;
+  if (error_type_index == W_SEED_HIR0_NONE ||
+      function->error_type != error_type_index ||
+      !native_float_type_width(program, parameter->type_index, &source_width) ||
+      !native_integer_type_facts(program, function->return_type,
+                                 &destination_facts))
+    return false;
+
+  const w_seed_hir0_block *split_block = &program->blocks[0];
+  const w_seed_hir0_block *normal_block = &program->blocks[1];
+  const w_seed_hir0_block *non_finite_block = &program->blocks[2];
+  const w_seed_hir0_block *out_of_range_block = &program->blocks[3];
+  const w_seed_hir0_block *entry_block = &program->blocks[4];
+  const w_seed_hir0_terminator *conversion = &program->terminators[0];
+  const w_seed_hir0_terminator *normal_return = &program->terminators[1];
+  const w_seed_hir0_terminator *non_finite_throw = &program->terminators[2];
+  const w_seed_hir0_terminator *out_of_range_throw = &program->terminators[3];
+  const w_seed_hir0_terminator *entry_return = &program->terminators[4];
+  if (split_block->owner_function != 0u ||
+      split_block->first_instruction != 0u ||
+      split_block->instruction_count != 0u ||
+      split_block->terminator_index != 0u ||
+      split_block->block_argument_count != 0u ||
+      split_block->first_block_argument != W_SEED_HIR0_NONE ||
+      normal_block->owner_function != 0u ||
+      normal_block->first_instruction != 0u ||
+      normal_block->instruction_count != 0u ||
+      normal_block->terminator_index != 1u ||
+      normal_block->block_argument_count != 1u ||
+      normal_block->first_block_argument != 0u ||
+      non_finite_block->owner_function != 0u ||
+      non_finite_block->first_instruction != 0u ||
+      non_finite_block->instruction_count != 0u ||
+      non_finite_block->terminator_index != 2u ||
+      non_finite_block->block_argument_count != 1u ||
+      non_finite_block->first_block_argument != 1u ||
+      out_of_range_block->owner_function != 0u ||
+      out_of_range_block->first_instruction != 0u ||
+      out_of_range_block->instruction_count != 0u ||
+      out_of_range_block->terminator_index != 3u ||
+      out_of_range_block->block_argument_count != 1u ||
+      out_of_range_block->first_block_argument != 2u ||
+      entry_block->owner_function != 1u ||
+      entry_block->first_instruction != 0u ||
+      entry_block->instruction_count != 0u ||
+      entry_block->terminator_index != 4u ||
+      conversion->kind !=
+          W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING ||
+      conversion->value_index != 0u ||
+      conversion->result_type != function->return_type ||
+      conversion->error_type != error_type_index ||
+      conversion->target_block != 1u || conversion->else_block != 2u ||
+      conversion->third_block != 3u ||
+      conversion->rounding_mode < W_SEED_HIR0_ROUNDING_MODE_NEAREST_EVEN ||
+      conversion->rounding_mode > W_SEED_HIR0_ROUNDING_MODE_TOWARD_NEGATIVE ||
+      conversion->numeric_conversion_error_case !=
+          W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_NONE ||
+      normal_return->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
+      normal_return->value_index != 1u ||
+      normal_return->result_type != function->return_type ||
+      non_finite_throw->kind != W_SEED_HIR0_TERMINATOR_THROW ||
+      non_finite_throw->value_index != 2u ||
+      non_finite_throw->result_type != error_type_index ||
+      out_of_range_throw->kind != W_SEED_HIR0_TERMINATOR_THROW ||
+      out_of_range_throw->value_index != 3u ||
+      out_of_range_throw->result_type != error_type_index ||
+      entry_return->kind != W_SEED_HIR0_TERMINATOR_RETURN_UNIT)
+    return false;
+
+  const w_seed_hir0_block_argument *normal_argument =
+      &program->block_arguments[0];
+  const w_seed_hir0_block_argument *non_finite_argument =
+      &program->block_arguments[1];
+  const w_seed_hir0_block_argument *out_of_range_argument =
+      &program->block_arguments[2];
+  const w_seed_hir0_value *source_value = &program->values[0];
+  const w_seed_hir0_value *normal_value = &program->values[1];
+  const w_seed_hir0_value *non_finite_value = &program->values[2];
+  const w_seed_hir0_value *out_of_range_value = &program->values[3];
+  if (source_value->kind != W_SEED_HIR0_VALUE_PARAMETER_READ ||
+      source_value->owner_kind != W_SEED_HIR0_VALUE_OWNER_TERMINATOR ||
+      source_value->owner_index != 0u || source_value->owner_ordinal != 0u ||
+      source_value->type_index != parameter->type_index ||
+      source_value->parameter_index != 0u ||
+      normal_argument->owner_block != 1u || normal_argument->ordinal != 0u ||
+      normal_argument->type_index != function->return_type ||
+      non_finite_argument->owner_block != 2u ||
+      non_finite_argument->ordinal != 0u ||
+      non_finite_argument->type_index != error_type_index ||
+      out_of_range_argument->owner_block != 3u ||
+      out_of_range_argument->ordinal != 0u ||
+      out_of_range_argument->type_index != error_type_index ||
+      normal_value->kind != W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
+      normal_value->type_index != function->return_type ||
+      normal_value->block_argument_index != 0u ||
+      non_finite_value->kind != W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
+      non_finite_value->type_index != error_type_index ||
+      non_finite_value->block_argument_index != 1u ||
+      out_of_range_value->kind != W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
+      out_of_range_value->type_index != error_type_index ||
+      out_of_range_value->block_argument_index != 2u)
+    return false;
+
+  *selection = (w_seed_native_subset0_float_to_integer_rounding){
+      .entry = entry,
+      .function = function,
+      .source_parameter = parameter,
+      .source_value = source_value,
+      .conversion = conversion,
+      .normal_argument = normal_argument,
+      .non_finite_argument = non_finite_argument,
+      .out_of_range_argument = out_of_range_argument,
+      .normal_return = normal_return,
+      .non_finite_throw = non_finite_throw,
+      .out_of_range_throw = out_of_range_throw,
+      .entry_index = 0u,
+      .function_index = 0u,
+      .entry_function_index = 1u,
+      .split_block_index = 0u,
+      .normal_block_index = 1u,
+      .non_finite_block_index = 2u,
+      .out_of_range_block_index = 3u,
+      .source_type_index = parameter->type_index,
+      .destination_type_index = function->return_type,
+      .error_type_index = error_type_index,
+      .source_bit_width = source_width,
+      .destination_bit_width = destination_facts.bit_width,
+      .destination_is_signed = destination_facts.is_signed,
+      .rounding_mode = conversion->rounding_mode};
+  return true;
+}
+
+w_seed_native_subset0_status
+w_seed_native_subset0_select_float_to_integer_rounding(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    w_seed_native_subset0_float_to_integer_rounding *selection) {
+  if (program == NULL || hir_result == NULL || selection == NULL ||
+      !w_seed_hir0_verify(program, hir_result))
+    return W_SEED_NATIVE_SUBSET0_INVALID;
+  w_seed_native_subset0_float_to_integer_rounding candidate;
+  if (!float_to_integer_rounding_selection_derive(program, &candidate))
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+  *selection = candidate;
+  return W_SEED_NATIVE_SUBSET0_OK;
+}
+
+bool w_seed_native_subset0_verify_float_to_integer_rounding(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    const w_seed_native_subset0_float_to_integer_rounding *selection) {
+  if (program == NULL || hir_result == NULL || selection == NULL ||
+      !w_seed_hir0_verify(program, hir_result))
+    return false;
+  w_seed_native_subset0_float_to_integer_rounding candidate;
+  if (!float_to_integer_rounding_selection_derive(program, &candidate))
+    return false;
+  return selection->entry == candidate.entry &&
+         selection->function == candidate.function &&
+         selection->source_parameter == candidate.source_parameter &&
+         selection->source_value == candidate.source_value &&
+         selection->conversion == candidate.conversion &&
+         selection->normal_argument == candidate.normal_argument &&
+         selection->non_finite_argument == candidate.non_finite_argument &&
+         selection->out_of_range_argument == candidate.out_of_range_argument &&
+         selection->normal_return == candidate.normal_return &&
+         selection->non_finite_throw == candidate.non_finite_throw &&
+         selection->out_of_range_throw == candidate.out_of_range_throw &&
+         selection->entry_index == candidate.entry_index &&
+         selection->function_index == candidate.function_index &&
+         selection->entry_function_index == candidate.entry_function_index &&
+         selection->split_block_index == candidate.split_block_index &&
+         selection->normal_block_index == candidate.normal_block_index &&
+         selection->non_finite_block_index ==
+             candidate.non_finite_block_index &&
+         selection->out_of_range_block_index ==
+             candidate.out_of_range_block_index &&
+         selection->source_type_index == candidate.source_type_index &&
+         selection->destination_type_index ==
+             candidate.destination_type_index &&
+         selection->error_type_index == candidate.error_type_index &&
+         selection->source_bit_width == candidate.source_bit_width &&
+         selection->destination_bit_width ==
+             candidate.destination_bit_width &&
+         selection->destination_is_signed ==
+             candidate.destination_is_signed &&
+         selection->rounding_mode == candidate.rounding_mode;
+}
+
 w_seed_native_subset0_status w_seed_native_subset0_select_program(
     const w_seed_hir0_program *program,
     const w_seed_hir0_result *hir_result,

@@ -502,6 +502,44 @@ try {
     !integerExactlyLlvmText.includes("invoke "),
   "integer exactly LLVM translation lost the checked typed branch")
 
+  const floatRounding = run(unitPath,
+    ["--emit-float-to-integer-rounding"])
+  assert(floatRounding.exitCode === 0,
+    `float-to-integer rounding probe failed: ${floatRounding.stderrText}`)
+  assert(floatRounding.stderr.length === 0 && floatRounding.stdout.length > 0,
+    "float-to-integer rounding probe did not emit one silent MLIR artifact")
+  const floatRoundingInput = resolve(artifactDirectory,
+    "float-to-integer-rounding.mlir")
+  const floatRoundingVerified = resolve(artifactDirectory,
+    "float-to-integer-rounding.verified.mlir")
+  const floatRoundingLlvm = resolve(artifactDirectory,
+    "float-to-integer-rounding.ll")
+  await writeFile(floatRoundingInput, floatRounding.stdout)
+  const floatRoundingInputForTool = isWindows
+    ? wslPath(floatRoundingInput) : floatRoundingInput
+  const floatRoundingVerifiedForTool = isWindows
+    ? wslPath(floatRoundingVerified) : floatRoundingVerified
+  const floatRoundingLlvmForTool = isWindows
+    ? wslPath(floatRoundingLlvm) : floatRoundingLlvm
+  invokeTool(tool("mlirOpt"), [floatRoundingInputForTool, "-o",
+    floatRoundingVerifiedForTool, "--verify-each"],
+  "float-to-integer rounding mlir-opt")
+  invokeTool(tool("mlirTranslate"), ["--mlir-to-llvmir",
+    floatRoundingVerifiedForTool, "-o", floatRoundingLlvmForTool],
+  "float-to-integer rounding mlir-translate")
+  const floatRoundingLlvmText = await readFile(floatRoundingLlvm, "utf8")
+  const roundingConversion = floatRoundingLlvmText.indexOf("fptoui double")
+  const roundingRangeBranch = floatRoundingLlvmText.indexOf("br i1 %")
+  assert(floatRoundingLlvmText.includes(
+    "define internal { i2, i64 } @w_seed_float_to_integer_round") &&
+    floatRoundingLlvmText.includes("llvm.is.fpclass.f64") &&
+    floatRoundingLlvmText.includes("llvm.roundeven.f64") &&
+    floatRoundingLlvmText.includes("fcmp oge double") &&
+    floatRoundingLlvmText.includes("fcmp olt double") &&
+    roundingRangeBranch >= 0 && roundingConversion > roundingRangeBranch &&
+    !floatRoundingLlvmText.includes("invoke "),
+  "float-to-integer rounding LLVM translation lost classification, bounds, or guarded conversion")
+
   const seedGate = resolve(buildDirectory, `w_seed_mlir0_gate${suffix}`)
   const restaurantPath = resolve(artifactDirectory, "restaurant.w")
   const restaurantLiteralPath = resolve(artifactDirectory, "restaurant-literal.w")

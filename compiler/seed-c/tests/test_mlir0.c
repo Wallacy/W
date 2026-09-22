@@ -7103,6 +7103,220 @@ static bool test_integer_exactly_mlir(void) {
   return true;
 }
 
+static bool test_float_to_integer_rounding_mlir(void) {
+  static const char *const source_types[] = {"f32", "f64"};
+  static const uint16_t source_widths[] = {32u, 64u};
+  static const char *const destination_types[] = {
+      "i8", "u8", "i16", "u16", "i32", "u32", "i64", "u64", "Int",
+      "UInt"};
+  static const bool destination_signed[] = {
+      true, false, true, false, true, false, true, false, true, false};
+  static const uint16_t destination_widths[] = {
+      8u, 8u, 16u, 16u, 32u, 32u, 64u, 64u, 64u, 64u};
+  static const char *const mode_names[] = {
+      "nearestEven", "nearestAwayFromZero", "towardZero", "towardPositive",
+      "towardNegative"};
+  static const char *const intrinsic_names[] = {
+      "llvm.intr.roundeven", "llvm.intr.round", "llvm.intr.trunc",
+      "llvm.intr.ceil", "llvm.intr.floor"};
+  static const w_seed_hir0_rounding_mode modes[] = {
+      W_SEED_HIR0_ROUNDING_MODE_NEAREST_EVEN,
+      W_SEED_HIR0_ROUNDING_MODE_NEAREST_AWAY_FROM_ZERO,
+      W_SEED_HIR0_ROUNDING_MODE_TOWARD_ZERO,
+      W_SEED_HIR0_ROUNDING_MODE_TOWARD_POSITIVE,
+      W_SEED_HIR0_ROUNDING_MODE_TOWARD_NEGATIVE};
+  static uint8_t linux_artifact[W_SEED_MLIR0_MAX_BYTES];
+  static uint8_t windows_artifact[W_SEED_MLIR0_MAX_BYTES];
+
+  for (size_t source = 0u; source < 2u; source += 1u) {
+    for (size_t destination = 0u; destination < 10u; destination += 1u) {
+      for (size_t mode = 0u; mode < 5u; mode += 1u) {
+        char source_text[384];
+        const int source_length = snprintf(
+            source_text, sizeof(source_text),
+            "fn convert(value: %s): %s throws NumericConversionError { "
+            "return try %s(rounding: value, mode: .%s) }\nentry { }\n",
+            source_types[source], destination_types[destination],
+            destination_types[destination], mode_names[mode]);
+        CHECK(source_length > 0 &&
+              (size_t)source_length < sizeof(source_text));
+        CHECK(lower_hir((const uint8_t *)source_text,
+                        (size_t)source_length));
+
+        w_seed_native_subset0_float_to_integer_rounding selection;
+        CHECK(w_seed_native_subset0_select_float_to_integer_rounding(
+                  &fixture.hir_program, &fixture.hir_result, &selection) ==
+              W_SEED_NATIVE_SUBSET0_OK);
+        CHECK(w_seed_native_subset0_verify_float_to_integer_rounding(
+                  &fixture.hir_program, &fixture.hir_result, &selection) &&
+              selection.source_bit_width == source_widths[source] &&
+              selection.destination_bit_width ==
+                  destination_widths[destination] &&
+              selection.destination_is_signed ==
+                  destination_signed[destination] &&
+              selection.rounding_mode == modes[mode] &&
+              selection.conversion->target_block ==
+                  selection.normal_block_index &&
+              selection.conversion->else_block ==
+                  selection.non_finite_block_index &&
+              selection.conversion->third_block ==
+                  selection.out_of_range_block_index);
+
+        w_seed_mlir0_float_to_integer_rounding_counts measured_counts;
+        w_seed_mlir0_float_to_integer_rounding_result measured_result;
+        const w_seed_mlir0_status measure_status =
+            w_seed_mlir0_measure_float_to_integer_rounding(
+                &fixture.hir_program, &fixture.hir_result, &TARGET,
+                &measured_counts, &measured_result);
+        if (measure_status != W_SEED_MLIR0_OK)
+          (void)fprintf(stderr,
+                        "rounding measure status=%d source=%lu destination=%lu mode=%lu\n",
+                        (int)measure_status, (unsigned long)source,
+                        (unsigned long)destination, (unsigned long)mode);
+        CHECK(measure_status == W_SEED_MLIR0_OK);
+        CHECK(measured_counts.mlir_bytes > 0u &&
+              measured_counts.source_bit_width == source_widths[source] &&
+              measured_counts.destination_bit_width ==
+                  destination_widths[destination] &&
+              measured_counts.range_predicate_count == 2u &&
+              measured_counts.typed_branch_count == 2u &&
+              measured_counts.outcome_count == 3u &&
+              measured_counts.carrier_field_count == 2u &&
+              measured_counts.outcome_bit_width == 2u &&
+              measured_counts.destination_is_signed ==
+                  destination_signed[destination] &&
+              measured_counts.rounding_mode == modes[mode] &&
+              measured_result.written.mlir_bytes == 0u);
+
+        w_seed_mlir0_float_to_integer_rounding_result emitted_result;
+        CHECK(w_seed_mlir0_emit_float_to_integer_rounding(
+                  &fixture.hir_program, &fixture.hir_result, &TARGET,
+                  &(w_seed_mlir0_float_to_integer_rounding_output){
+                      linux_artifact, sizeof(linux_artifact)},
+                  &emitted_result) == W_SEED_MLIR0_OK);
+        CHECK(w_seed_mlir0_verify_float_to_integer_rounding(
+            &fixture.hir_program, &fixture.hir_result, &TARGET,
+            linux_artifact, emitted_result.written.mlir_bytes,
+            &emitted_result));
+        CHECK(contains_bytes(
+                  linux_artifact, emitted_result.written.mlir_bytes,
+                  "// " W_SEED_MLIR0_FLOAT_TO_INTEGER_ROUNDING_SCHEMA_VERSION
+                  "\n") &&
+              contains_bytes(linux_artifact,
+                             emitted_result.written.mlir_bytes,
+                             W_SEED_MLIR0_TARGET_TRIPLE_LINUX) &&
+              contains_bytes(linux_artifact,
+                             emitted_result.written.mlir_bytes,
+                             "\"llvm.intr.is.fpclass\"") &&
+              contains_bytes(linux_artifact,
+                             emitted_result.written.mlir_bytes,
+                             "bit = 519 : i32") &&
+              contains_bytes(linux_artifact,
+                             emitted_result.written.mlir_bytes,
+                             intrinsic_names[mode]) &&
+              count_bytes(linux_artifact, emitted_result.written.mlir_bytes,
+                          "llvm.fcmp") == 2u &&
+              count_bytes(linux_artifact, emitted_result.written.mlir_bytes,
+                          "llvm.cond_br") == 2u &&
+              count_bytes(linux_artifact, emitted_result.written.mlir_bytes,
+                          "llvm.return") == 3u &&
+              count_bytes(linux_artifact, emitted_result.written.mlir_bytes,
+                          destination_signed[destination] ? "llvm.fptosi"
+                                                          : "llvm.fptoui") ==
+                  1u &&
+              !contains_bytes(linux_artifact,
+                              emitted_result.written.mlir_bytes,
+                              "fastmath") &&
+              !contains_bytes(linux_artifact,
+                              emitted_result.written.mlir_bytes,
+                              "llvm.alloca") &&
+              !contains_bytes(linux_artifact,
+                              emitted_result.written.mlir_bytes, "@main"));
+        const size_t range_branch = find_bytes(
+            linux_artifact, emitted_result.written.mlir_bytes,
+            "llvm.cond_br %round_fits", 0u);
+        const size_t conversion = find_bytes(
+            linux_artifact, emitted_result.written.mlir_bytes,
+            destination_signed[destination] ? "llvm.fptosi" : "llvm.fptoui",
+            0u);
+        CHECK(range_branch != SIZE_MAX && conversion > range_branch);
+
+        w_seed_mlir0_float_to_integer_rounding_result windows_result;
+        CHECK(w_seed_mlir0_emit_float_to_integer_rounding(
+                  &fixture.hir_program, &fixture.hir_result, &WINDOWS_TARGET,
+                  &(w_seed_mlir0_float_to_integer_rounding_output){
+                      windows_artifact, sizeof(windows_artifact)},
+                  &windows_result) == W_SEED_MLIR0_OK);
+        CHECK(w_seed_mlir0_verify_float_to_integer_rounding(
+                  &fixture.hir_program, &fixture.hir_result, &WINDOWS_TARGET,
+                  windows_artifact, windows_result.written.mlir_bytes,
+                  &windows_result) &&
+              contains_bytes(windows_artifact,
+                             windows_result.written.mlir_bytes,
+                             W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS));
+
+        w_seed_native_subset0_float_to_integer_rounding forged = selection;
+        forged.rounding_mode = W_SEED_HIR0_ROUNDING_MODE_NONE;
+        CHECK(!w_seed_native_subset0_verify_float_to_integer_rounding(
+            &fixture.hir_program, &fixture.hir_result, &forged));
+      }
+    }
+  }
+
+  static const uint8_t transaction_source[] =
+      "fn convert(value: f32): i8 throws NumericConversionError { "
+      "return try i8(rounding: value, mode: .nearestEven) }\nentry { }\n";
+  CHECK(lower_hir(transaction_source, sizeof(transaction_source) - 1u));
+  uint8_t short_artifact[8];
+  (void)memset(short_artifact, 0x6bu, sizeof(short_artifact));
+  w_seed_mlir0_float_to_integer_rounding_result rejected_result;
+  (void)memset(&rejected_result, 0x6cu, sizeof(rejected_result));
+  const w_seed_mlir0_float_to_integer_rounding_result rejected_snapshot =
+      rejected_result;
+  CHECK(w_seed_mlir0_emit_float_to_integer_rounding(
+            &fixture.hir_program, &fixture.hir_result, &TARGET,
+            &(w_seed_mlir0_float_to_integer_rounding_output){
+                short_artifact, sizeof(short_artifact)},
+            &rejected_result) == W_SEED_MLIR0_CAPACITY &&
+        memcmp(&rejected_result, &rejected_snapshot,
+               sizeof(rejected_result)) == 0);
+  for (size_t index = 0u; index < sizeof(short_artifact); index += 1u)
+    CHECK(short_artifact[index] == 0x6bu);
+
+  const w_seed_hir0_program program_snapshot = fixture.hir_program;
+  uint8_t hir_text_snapshot[sizeof(fixture.hir_text)];
+  (void)memcpy(hir_text_snapshot, fixture.hir_text,
+               sizeof(hir_text_snapshot));
+  CHECK(w_seed_mlir0_emit_float_to_integer_rounding(
+            &fixture.hir_program, &fixture.hir_result, &TARGET,
+            &(w_seed_mlir0_float_to_integer_rounding_output){
+                fixture.hir_text, sizeof(fixture.hir_text)},
+            &rejected_result) == W_SEED_MLIR0_ALIAS &&
+        memcmp(&fixture.hir_program, &program_snapshot,
+               sizeof(fixture.hir_program)) == 0 &&
+        memcmp(fixture.hir_text, hir_text_snapshot,
+               sizeof(fixture.hir_text)) == 0 &&
+        memcmp(&rejected_result, &rejected_snapshot,
+               sizeof(rejected_result)) == 0);
+
+  w_seed_mlir0_float_to_integer_rounding_result forged_result;
+  CHECK(w_seed_mlir0_emit_float_to_integer_rounding(
+            &fixture.hir_program, &fixture.hir_result, &TARGET,
+            &(w_seed_mlir0_float_to_integer_rounding_output){
+                linux_artifact, sizeof(linux_artifact)},
+            &forged_result) == W_SEED_MLIR0_OK);
+  forged_result.required.outcome_count ^= 1u;
+  CHECK(!w_seed_mlir0_verify_float_to_integer_rounding(
+      &fixture.hir_program, &fixture.hir_result, &TARGET, linux_artifact,
+      forged_result.written.mlir_bytes, &forged_result));
+  const w_seed_mlir0_target unsupported = {W_SEED_MLIR0_TARGET_UNSUPPORTED};
+  CHECK(w_seed_mlir0_measure_float_to_integer_rounding(
+            &fixture.hir_program, &fixture.hir_result, &unsupported,
+            &(w_seed_mlir0_float_to_integer_rounding_counts){0},
+            &forged_result) == W_SEED_MLIR0_UNSUPPORTED);
+  return true;
+}
+
 static bool test_typed_cleanup_mlir(void) {
   static const uint8_t source[] =
       "enum Failure: Error { denied }\n"
@@ -7307,6 +7521,27 @@ static bool emit_integer_exactly_probe(void) {
                                                    sizeof(artifact)},
             &result) == W_SEED_MLIR0_OK);
   CHECK(w_seed_mlir0_verify_integer_exactly(
+      &fixture.hir_program, &fixture.hir_result, &TARGET, artifact,
+      result.written.mlir_bytes, &result));
+  return fwrite(artifact, 1u, result.written.mlir_bytes, stdout) ==
+             result.written.mlir_bytes &&
+         fflush(stdout) == 0;
+}
+
+static bool emit_float_to_integer_rounding_probe(void) {
+  static const uint8_t source[] =
+      "fn convert(value: f64): u64 throws NumericConversionError { "
+      "return try u64(rounding: value, mode: .nearestEven) }\n"
+      "entry { }\n";
+  static uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  w_seed_mlir0_float_to_integer_rounding_result result;
+  CHECK(w_seed_mlir0_emit_float_to_integer_rounding(
+            &fixture.hir_program, &fixture.hir_result, &TARGET,
+            &(w_seed_mlir0_float_to_integer_rounding_output){
+                artifact, sizeof(artifact)},
+            &result) == W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_verify_float_to_integer_rounding(
       &fixture.hir_program, &fixture.hir_result, &TARGET, artifact,
       result.written.mlir_bytes, &result));
   return fwrite(artifact, 1u, result.written.mlir_bytes, stdout) ==
@@ -7795,6 +8030,13 @@ int main(int argc, char **argv) {
 #endif
     return emit_integer_exactly_probe() ? 0 : 1;
   }
+  if (argc == 2 && argv[1] != NULL &&
+      strcmp(argv[1], "--emit-float-to-integer-rounding") == 0) {
+#if defined(_WIN32)
+    if (_setmode(_fileno(stdout), _O_BINARY) == -1) return 3;
+#endif
+    return emit_float_to_integer_rounding_probe() ? 0 : 1;
+  }
   if (argc != 1) return 2;
   if (!test_reachable_panic_mlir()) return 1;
   if (!test_process_panic_mlir()) return 1;
@@ -7875,6 +8117,7 @@ int main(int argc, char **argv) {
   if (!test_aliases()) return 1;
   if (!test_invalid_hir_and_target()) return 1;
   if (!test_integer_exactly_mlir()) return 1;
+  if (!test_float_to_integer_rounding_mlir()) return 1;
   if (!test_typed_propagation_mlir()) return 1;
   if (!test_typed_cleanup_mlir()) return 1;
   if (!test_valid_hir_outside_subset()) return 1;
