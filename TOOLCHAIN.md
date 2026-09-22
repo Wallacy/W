@@ -47,6 +47,29 @@ profile is opt-in and experimental only. `dev` is an informal naming
 opportunity only, not an alias or syntax; the canonical W profile is
 `debug`. This manifest adds no CLI syntax.
 
+## Runtime closure boundary
+
+Runtime closure is independent from program, toolchain, size, sanitizer, and
+PGO modes. The default is `freestanding`:
+only reachability-closed WRT code plus explicit target-SDK and provider leaves
+are permitted. `hosted-crt` is a future explicit capability, not a
+faster Release profile; it must bind target, ABI, provider, version, link mode,
+imports, and digest in its receipt. This contract adds no CLI spelling.
+
+Every native route checks externals after LLVM optimization, undefined symbols
+after object emission, and final imports or dynamic dependencies after linking.
+A successful link alone is not closure evidence. Optimizer containment such as
+`--disable-simplify-libcalls` is temporary seed policy, not proof of
+optimal lowering. Sanitizer and PGO-generate runtimes are explicit build-only
+dependencies; the final PGO-use product revalidates its own closure and cannot
+inherit hosted authority. Freestanding, hosted-CRT, and instrumentation-only
+measurements remain separate benchmark lanes.
+
+Current implementation evidence is bounded to the freestanding seed and final
+PE/ELF dependency checks. Post-opt and object-level allowlists, a target-product
+closure receipt, the benchmark runtime-closure axis, unused process-input
+elision, helper partitioning, a hosted-CRT product, and PGO closure remain gaps.
+
 ## Bounded Windows builder (W-1534)
 
 The current native Windows builder is bounded local evidence. It uses

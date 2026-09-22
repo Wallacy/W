@@ -23,7 +23,7 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:f627a513c3b1733e0c518166702115ad45daa4ffd4202621a188cc994da5c7b9",
+    "sha256": "sha256:1308aa0fffaa7e7f66db37fe3cf45d4174ca50c2f7d61fabf3acb67c28a57113",
     "count": 1653,
     "first": "W-001",
     "last": "W-1653"
@@ -21871,7 +21871,7 @@
         "path": "DESIGN.md",
         "section": "26",
         "heading": "## 26. Plano de implementação",
-        "sectionDigest": "sha256:ebc146d9f6348cd86d5f4cd23bf3f2519ed0041a0b68462a930bd0eb3a8491e2"
+        "sectionDigest": "sha256:56b7986116d3db98ac8a759ee79ff26f1a1c60b13ced2a01349dd4cd8dec2002"
       },
       "evidence": [],
       "reason": "W-659 (body de entry, sha256:f66ab57406ddb51303f9190376daf72d8f538bd7bd8adfbf9992ae3d7223e74e) has no executable witness for component implementation-plan. The checked current contract is DESIGN.md §26 / 26. Plano de implementação.",
@@ -51725,8 +51725,8 @@
     {
       "decisionId": "W-1533",
       "summary": "compact hermetic cross-target distribution contract",
-      "canonicalClaim": "Three layers separate the heavy external development/release cache, a future in-process hermetic release builder, and a compact end-user package. The future route is verified HIR → MLIR APIs/pass subset → LLVM target machine/object → LLD library → executable, with X86/AArch64 packs across Windows/Linux/macOS, explicit SDK/import/runtime/signing/provenance, no silent downloads, and visible measured budget review. Performance has priority over bundle or executable size: Release is the default, size optimizations require benchmark no-regression evidence, and MinSizeRel is experimental only. W program profiles are debug for iteration and diagnostics, release for performance-first output, and benchmark for reproducible pinned work; toolchain profiles are a separate namespace with development, release, benchmark, and opt-in size-experimental. The informal dev name is only a naming opportunity, not an alias. The Hello PE below 1 KiB is an opportunity backlog item, not a gate. Required metrics include compressed artifact, footprint, main executable, target packs, cold Hello build, cold and warm compilation/throughput, toolchain startup, artifact runtime, file/container/section/code/import bytes, benchmark versus baseline, unexpected dependencies, and SBOM; Zig 0.16 is context only.",
-      "claimDigest": "sha256:9170e0902fdd01f01938bd4b4e22f0c9a3128cdce99085c0c9eb81d074d73b15",
+      "canonicalClaim": "Three layers separate the heavy external development/release cache, a future in-process hermetic release builder, and a compact end-user package. The future route is verified HIR → MLIR APIs/pass subset → LLVM target machine/object → LLD library → executable, with X86/AArch64 packs across Windows/Linux/macOS, explicit SDK/import/runtime/signing/provenance, no silent downloads, and visible measured budget review. Performance has priority over bundle or executable size: Release is the default, size optimizations require benchmark no-regression evidence, and MinSizeRel is experimental only. W program profiles are debug for iteration and diagnostics, release for performance-first output, and benchmark for reproducible pinned work; toolchain profiles are a separate namespace with development, release, benchmark, and opt-in size-experimental. Runtime closure is orthogonal: `freestanding` is default, while future `hosted-crt` is an explicit receipted target capability; optimization, size, sanitizer and PGO modes never widen dependencies. Native validation binds post-opt externals, object undefined symbols and final imports/dependencies. The informal dev name is only a naming opportunity, not an alias. The Hello PE below 1 KiB is an opportunity backlog item, not a gate. Required metrics include compressed artifact, footprint, main executable, target packs, cold Hello build, cold and warm compilation/throughput, toolchain startup, artifact runtime, file/container/section/code/import bytes, benchmark versus baseline, unexpected dependencies, and SBOM; Zig 0.16 is context only.",
+      "claimDigest": "sha256:ded7d7ec046ceb9d65907455147c23b2cb1b3837b8fd2e37fea9ff394ccd87d4",
       "category": "source-backed-current",
       "basis": "linked-source-comparison-case",
       "authorityRef": {
@@ -51743,25 +51743,25 @@
           "caseDigest": "sha256:1b7d57c55266758ae3326d764a49219810b6288858f196d313bb6c2f2f42d002"
         }
       ],
-      "reason": "W-1533 (compact hermetic cross-target distribution contract, sha256:9170e0902fdd01f01938bd4b4e22f0c9a3128cdce99085c0c9eb81d074d73b15) is source-backed-current only for the machine-readable policy and offline checker. Release builder, end-user package, cross-compilation, performance-gated size optimization, and budget evidence remain gaps; Apple SDK/license is a blocker.",
+      "reason": "W-1533 (compact hermetic cross-target distribution contract, sha256:ded7d7ec046ceb9d65907455147c23b2cb1b3837b8fd2e37fea9ff394ccd87d4) is source-backed-current only for the machine-readable policy and offline checker. Release builder, end-user package, cross-compilation, performance-gated size optimization, and budget evidence remain gaps; Apple SDK/license is a blocker.",
       "selection": "explicit-ledger-id",
       "basisRef": {
         "kind": "ledger-row",
         "path": "RATIONALE.md",
         "section": "3. Ledger",
         "decisionId": "W-1533",
-        "claimDigest": "sha256:9170e0902fdd01f01938bd4b4e22f0c9a3128cdce99085c0c9eb81d074d73b15"
+        "claimDigest": "sha256:ded7d7ec046ceb9d65907455147c23b2cb1b3837b8fd2e37fea9ff394ccd87d4"
       },
       "sourceRefs": [
         {
           "path": "tooling/toolchain-distribution.json",
-          "sha256": "sha256:46a2c74f9b55900aab0cd2e897afa480e2ad09c8f587a4f8b0f98bd70dde9e63",
+          "sha256": "sha256:0835b97319954c920f11f7e3ded1ed9ebecf3e0871ba5b8d6b3458895cf35248",
           "symbol": "layers",
           "claim": "The machine-readable policy separates development cache, release builder, and end-user package."
         },
         {
           "path": "tooling/toolchain-distribution.mjs",
-          "sha256": "sha256:08bd21cc5ce46a88c572e185fd444b7ee62e99b3a89519c1cc3c2db301413378",
+          "sha256": "sha256:91c2dc559d5b1296dfac5d7b04895bf13fe88ca94dbc9af25addce4e40d29432",
           "symbol": "validate",
           "claim": "The offline checker validates the three-layer, matrix, signing, performance, budget, and gap contract."
         }
@@ -53094,13 +53094,13 @@
           "path": "tooling/executable-benchmark-machine.mjs",
           "symbol": "EXECUTABLE_WORKLOAD_IDS",
           "claim": "The live executable workload catalog includes restaurant-nested-scalar-if beside restaurant-scalar-if.",
-          "sha256": "sha256:f6d5de70e1e89af975936b1dd1dc808b8a8d2712c1907db2c44424fa0ceb2444"
+          "sha256": "sha256:9c614f9bfb0e9a40dba7b96b8589bc5ed9304f11537c3d76e18fdfa3a7fcf779"
         },
         {
           "path": "benchmarks/executable-catalog.json",
           "symbol": "restaurant-nested-scalar-if",
           "claim": "The executable catalog records the W source and exact oracle as public-end-to-end and source/oracle-ready with timing deferred.",
-          "sha256": "sha256:4fed07d648eb77dbef4998ffd0dfc1b961c0b8b956c5cf5cea3af320b9ba98a0"
+          "sha256": "sha256:300b0d9734ccef651ec4cc34196fd05e2e297594081abe2bd3520562b35ab50e"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
@@ -55515,7 +55515,7 @@
           "path": "benchmarks/executable-catalog.json",
           "symbol": "restaurant-main-dispatch",
           "claim": "The executable catalog owns the source, oracle, blockers, and live measurement lane.",
-          "sha256": "sha256:4fed07d648eb77dbef4998ffd0dfc1b961c0b8b956c5cf5cea3af320b9ba98a0"
+          "sha256": "sha256:300b0d9734ccef651ec4cc34196fd05e2e297594081abe2bd3520562b35ab50e"
         },
         {
           "path": "tooling/platform-support.json",

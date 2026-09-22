@@ -29,6 +29,10 @@ not in this queue.
   supported target without downloading a cross toolchain.
 - Default native products are CRT-free and statically close W-owned runtime and
   standard-library code by reachability.
+- Keep runtime closure orthogonal to optimization. Freestanding is the default;
+  a future hosted-CRT capability is explicit, target-bound and receipted.
+  Debug, release, benchmark, size, sanitizer and PGO modes never widen the
+  permitted dependency set implicitly.
 - Optimize the largest proved closed graph; retain only observable product and
   ABI roots.
 - Elide a declared execution relation only with an independently verifiable
@@ -43,6 +47,55 @@ not in this queue.
   provenance, and environment controls stay in the same auditable receipt.
 - Treat performance, memory, binary size, and compile latency as persistent
   optimization signals, never as permission to change semantics.
+
+### Runtime closure and optimizer discipline
+
+LLVM is allowed to rewrite implementation strategy, but not product authority.
+It may recognize a scalar loop as a libc operation or lower wide arithmetic,
+atomics, floating math, stack growth, unwind, sanitizers, or profiling into
+helper calls that did not exist in W source or pre-optimization IR. Every native
+route therefore validates three successive closures: external declarations in
+post-opt IR, undefined symbols in each object after code generation, and final
+imports/`DT_NEEDED` or equivalent dependencies after linking. Each symbol must
+belong to the selected reachability-closed WRT, target SDK/provider, or an
+explicit hosted capability. Successful linking is not sufficient evidence.
+
+The runtime-closure axis is independent from W program and toolchain profiles:
+
+- `freestanding` is the default and permits only the selected WRT plus explicit
+  target SDK/provider leaves;
+- `hosted-crt` is a future opt-in capability, not a faster release profile. It
+  binds the exact CRT/libc/libm identity, link mode, target and dependency
+  receipt;
+- instrumentation is build evidence, not a deployable closure. Sanitizer and
+  PGO-generate runtimes are explicit and training-only; the final PGO-use
+  artifact revalidates its own freestanding or hosted closure from scratch.
+
+When an optimizer discovers an idiom such as a NUL-terminated byte scan, the
+implementation order is: erase the operation when reachability proves it
+unobservable; retain a target intrinsic when one owns the semantics; select a
+WRT primitive or explicit provider; and only then compare an opt-in hosted CRT
+implementation. Blanket disabling of libcall simplification is acceptable as
+temporary seed containment, not as proof of optimal lowering. Promotion
+requires identical semantics and separate measurements for compile latency,
+runtime, memory, file/code/import bytes and dependency closure. Freestanding,
+hosted, sanitizer and PGO-training results remain separate benchmark lanes.
+The executable catalog and every published result carry an explicit
+`runtimeClosure` identity; recipe names and linker flags are not substitutes
+for that field. Comparisons and best-cell updates require equal closure
+identities. Until this schema migration lands, cross-runtime C/Rust/W rows are
+correctness or contextual evidence only, not rankable performance evidence.
+
+Compiler-owned `Arguments`, `Context`, owner records, buffers, helpers and
+cleanup exist only when reachable or observably required. A source signature
+does not force physical materialization. Cleanup follows materialized resources
+and explicit language effects, not a monolithic adapter template. The first
+optimization slice closes this rule for unused process inputs, then partitions
+process helpers by reachability before adding a hosted-CRT product mode.
+The same slice introduces a target-product closure receipt distinct from the
+seed-compiler receipt. It binds the closure mode, implementation and version,
+target/ABI, link mode, provider manifest, allowed and observed dependencies,
+and a closure digest.
 
 ### Evidence promotion and safety closure
 

@@ -55,6 +55,53 @@
     "namespaceRule": "W program profiles and toolchain build/distribution profiles are separate; no implicit inheritance.",
     "harmonization": "debug is the canonical W profile; dev is an informal naming opportunity only, not an alias or syntax."
   },
+  "runtimeClosureContract": {
+    "default": "freestanding",
+    "modes": [
+      {
+        "id": "freestanding",
+        "status": "selected-default",
+        "explicitOptIn": false,
+        "allowedExternalClasses": ["wrt", "target-sdk", "explicit-provider"],
+        "implicitLibcCrtCompilerRt": false
+      },
+      {
+        "id": "hosted-crt",
+        "status": "future-opt-in-capability",
+        "explicitOptIn": true,
+        "allowedExternalClasses": ["wrt", "target-sdk", "explicit-provider", "receipted-crt-libc-libm"],
+        "receiptFields": ["target", "abi", "provider", "version", "link-mode", "imports", "digest"]
+      }
+    ],
+    "profileOrthogonality": "program, toolchain, size, sanitizer and PGO modes never widen runtime closure implicitly",
+    "optimizerBoundary": {
+      "postOptIr": "external-declaration-allowlist",
+      "object": "undefined-symbol-allowlist-after-codegen",
+      "finalArtifact": "import-and-dynamic-dependency-closure",
+      "linkSuccessOnly": false,
+      "temporarySeedContainment": "disable-simplify-libcalls-is-not-optimization-proof"
+    },
+    "instrumentation": {
+      "modes": ["none", "sanitizer", "pgo-generate", "pgo-use"],
+      "trainingRuntime": "explicit-build-only",
+      "finalPgoUseClosure": "revalidated-from-scratch",
+      "mayGrantHostedCrt": false
+    },
+    "benchmarkLanes": ["freestanding", "hosted-crt", "instrumentation-only"],
+    "benchmarkPooling": "forbidden",
+    "implementationStatus": {
+      "freestandingSeed": "bounded-current",
+      "postOptIrAllowlist": "gap",
+      "objectUndefinedSymbolAllowlist": "gap",
+      "finalDependencyValidation": "bounded-current",
+      "productClosureReceipt": "gap",
+      "benchmarkRuntimeClosureAxis": "gap",
+      "unusedProcessInputElision": "gap",
+      "helperReachabilityPartitioning": "gap",
+      "hostedCrtProduct": "gap",
+      "pgoClosure": "gap"
+    }
+  },
   "windowsBuilder": {
     "decision": "W-1534",
     "status": "bounded-local-evidence",

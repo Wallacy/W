@@ -37708,6 +37708,39 @@ no W CLI syntax. W-1534 implements these profiles only in the native Windows
 tooling builder. A size opportunity is backlog state only and never an automatic
 gate.
 
+Runtime closure is a separate axis. Native products select `freestanding` by
+default: only reachability-closed WRT code and explicit target-SDK/provider
+leaves may remain. `hosted-crt` is a future opt-in capability, not an
+optimization profile; it binds the exact target, ABI, CRT/libc/libm provider,
+version, link mode, imports, and digest. Debug, release, benchmark,
+size-experimental, sanitizer, and PGO modes never widen that closure
+implicitly. This direction selects no public CLI spelling.
+
+The optimizer cannot grant authority by synthesizing a symbol. Every native
+route checks external declarations after LLVM optimization, undefined symbols
+after object emission, and final imports or dynamic dependencies after link.
+Compiler-runtime helpers, math calls, atomics, stack probes, unwind,
+instrumentation, and ordinary libcalls all cross the same boundary. A PGO-
+generate or sanitizer artifact may carry its explicit build-only runtime; the
+final PGO-use artifact revalidates its selected closure from scratch.
+
+Reachability precedes runtime substitution. Unused compiler-owned arguments,
+context, buffers, lifecycle records, helpers, and cleanup are not materialized.
+For remaining operations, lowering prefers target intrinsics, then a
+reachability-closed WRT primitive or explicit provider. A hosted CRT
+implementation is compared only in its separate lane. Blanket disabling of
+libcall simplification is temporary seed containment, not evidence of optimal
+lowering or a permanent release strategy.
+
+Every target product eventually carries a runtime-closure receipt distinct
+from the seed-compiler receipt. It binds the closure mode, implementation and
+version, target/ABI, link mode, provider manifest, allowed dependencies,
+observed imports or dynamic dependencies, and a closure digest. Executable
+benchmark records expose the same `runtimeClosure` identity independently of
+profile, recipe and toolchain; ranking and best-cell replacement require equal
+closure identities. Until that catalog axis is implemented, cross-runtime rows
+are contextual or correctness evidence only.
+
 This is a policy direction backed by `tooling/toolchain-distribution.json` and its
 offline checker. The release builder, end-user package, cross-compilation, and
 budget evidence are implementation gaps. An integrated minimal LLVM backend is

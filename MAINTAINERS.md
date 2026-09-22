@@ -41,6 +41,7 @@ código que ainda não possui contrato válido.
 | grammar ou source `.w` | corpus, parse dos produtos e check integrado |
 | tooling ou oracle | teste positivo, falha preparada e check integrado |
 | CI ou dependência | versão imutável, menor permissão e execução verde |
+| backend, optimizer ou linker | equivalência observável debug/otimizado, externals pós-opt, símbolos indefinidos por objeto e imports/dependências finais contra a closure declarada; benchmarks identificam a mesma runtime closure |
 | governança ou segurança | processo classe D e revisão de conflito |
 
 Um check verde confirma somente o que o check mede. O maintainer deve declarar

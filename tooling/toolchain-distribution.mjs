@@ -79,6 +79,60 @@ function validate() {
       "debug is the canonical W profile; dev is an informal naming opportunity only, not an alias or syntax.")
     error("profile harmonization must remain explicit and syntax-free")
 
+  const closure = manifest.runtimeClosureContract
+  if (closure?.default !== "freestanding")
+    error("runtime closure must default to freestanding")
+  exact(closure?.modes?.map((mode) => mode.id),
+    ["freestanding", "hosted-crt"], "runtime closure modes")
+  const closureModes = new Map((closure?.modes ?? []).map((mode) => [mode.id, mode]))
+  exact(closureModes.get("freestanding"), {
+    id: "freestanding",
+    status: "selected-default",
+    explicitOptIn: false,
+    allowedExternalClasses: ["wrt", "target-sdk", "explicit-provider"],
+    implicitLibcCrtCompilerRt: false,
+  }, "freestanding runtime closure")
+  exact(closureModes.get("hosted-crt"), {
+    id: "hosted-crt",
+    status: "future-opt-in-capability",
+    explicitOptIn: true,
+    allowedExternalClasses: ["wrt", "target-sdk", "explicit-provider", "receipted-crt-libc-libm"],
+    receiptFields: ["target", "abi", "provider", "version", "link-mode", "imports", "digest"],
+  }, "hosted CRT runtime closure")
+  if (closure?.profileOrthogonality !==
+      "program, toolchain, size, sanitizer and PGO modes never widen runtime closure implicitly")
+    error("runtime closure must remain orthogonal to optimization and instrumentation")
+  exact(closure?.optimizerBoundary, {
+    postOptIr: "external-declaration-allowlist",
+    object: "undefined-symbol-allowlist-after-codegen",
+    finalArtifact: "import-and-dynamic-dependency-closure",
+    linkSuccessOnly: false,
+    temporarySeedContainment: "disable-simplify-libcalls-is-not-optimization-proof",
+  }, "optimizer dependency boundary")
+  exact(closure?.instrumentation, {
+    modes: ["none", "sanitizer", "pgo-generate", "pgo-use"],
+    trainingRuntime: "explicit-build-only",
+    finalPgoUseClosure: "revalidated-from-scratch",
+    mayGrantHostedCrt: false,
+  }, "instrumentation closure")
+  exact(closure?.benchmarkLanes,
+    ["freestanding", "hosted-crt", "instrumentation-only"],
+    "runtime closure benchmark lanes")
+  if (closure?.benchmarkPooling !== "forbidden")
+    error("runtime closure benchmark lanes must not be pooled")
+  exact(closure?.implementationStatus, {
+    freestandingSeed: "bounded-current",
+    postOptIrAllowlist: "gap",
+    objectUndefinedSymbolAllowlist: "gap",
+    finalDependencyValidation: "bounded-current",
+    productClosureReceipt: "gap",
+    benchmarkRuntimeClosureAxis: "gap",
+    unusedProcessInputElision: "gap",
+    helperReachabilityPartitioning: "gap",
+    hostedCrtProduct: "gap",
+    pgoClosure: "gap",
+  }, "runtime closure implementation status")
+
   const windowsBuilder = manifest.windowsBuilder
   if (windowsBuilder?.decision !== "W-1534" ||
       windowsBuilder?.status !== "bounded-local-evidence" ||
@@ -333,6 +387,29 @@ they are separate from W program profiles and do not inherit them. The size
 profile is opt-in and experimental only. ${tick}dev${tick} is an informal naming
 opportunity only, not an alias or syntax; the canonical W profile is
 ${tick}debug${tick}. This manifest adds no CLI syntax.
+
+## Runtime closure boundary
+
+Runtime closure is independent from program, toolchain, size, sanitizer, and
+PGO modes. The default is ${tick}${manifest.runtimeClosureContract.default}${tick}:
+only reachability-closed WRT code plus explicit target-SDK and provider leaves
+are permitted. ${tick}hosted-crt${tick} is a future explicit capability, not a
+faster Release profile; it must bind target, ABI, provider, version, link mode,
+imports, and digest in its receipt. This contract adds no CLI spelling.
+
+Every native route checks externals after LLVM optimization, undefined symbols
+after object emission, and final imports or dynamic dependencies after linking.
+A successful link alone is not closure evidence. Optimizer containment such as
+${tick}--disable-simplify-libcalls${tick} is temporary seed policy, not proof of
+optimal lowering. Sanitizer and PGO-generate runtimes are explicit build-only
+dependencies; the final PGO-use product revalidates its own closure and cannot
+inherit hosted authority. Freestanding, hosted-CRT, and instrumentation-only
+measurements remain separate benchmark lanes.
+
+Current implementation evidence is bounded to the freestanding seed and final
+PE/ELF dependency checks. Post-opt and object-level allowlists, a target-product
+closure receipt, the benchmark runtime-closure axis, unused process-input
+elision, helper partitioning, a hosted-CRT product, and PGO closure remain gaps.
 
 ## Bounded Windows builder (W-1534)
 
