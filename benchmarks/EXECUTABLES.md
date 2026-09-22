@@ -7,7 +7,7 @@ A ready status means only that the listed witness is runnable, not that the desi
 
 ## Latest executable suite
 
-**Full suite** · 69/69 lanes passed · 0 failed · 0 skipped · 27m 23s.
+No successful suite receipt matches this catalog yet.
 
 The timer covers lane runs, result validation, catalog update, and catalog/documentation checks; it excludes writing the receipt and refreshing this projection. Filtered runs are not full-suite results.
 

@@ -116,6 +116,82 @@ static bool host_print_identity_valid(const w_seed_hir0_program *program,
          text_is(program, requirement->name, "Console");
 }
 
+/* The public rounding process slice is admitted only when its success-edge
+ * print interpolates the value bound from the verified conversion result.
+ * This binds the observation to the normal block argument instead of
+ * authorizing an adapter to synthesize the expected digits. */
+static bool typed_process_rounding_prints_binding(
+    const w_seed_hir0_program *program, uint32_t block_index,
+    uint32_t binding_index, uint32_t type_index) {
+  if (program == NULL || block_index >= program->block_count ||
+      binding_index >= program->binding_count ||
+      type_index >= program->type_count)
+    return false;
+  const w_seed_hir0_block *block = &program->blocks[block_index];
+  if (block->instruction_count != 2u ||
+      block->first_instruction >= program->instruction_count ||
+      block->instruction_count >
+          program->instruction_count - block->first_instruction)
+    return false;
+  const w_seed_hir0_instruction *observation =
+      &program->instructions[(size_t)block->first_instruction + 1u];
+  if (observation->owner_block != block_index || observation->ordinal != 1u ||
+      observation->kind != W_SEED_HIR0_INSTRUCTION_CALL ||
+      observation->call_index >= program->call_count)
+    return false;
+  const w_seed_hir0_call *call = &program->calls[observation->call_index];
+  if (call->owner_instruction != block->first_instruction + 1u ||
+      call->owner_terminator != W_SEED_HIR0_NONE ||
+      call->owner_block != block_index || call->ordinal != 1u ||
+      call->execution_kind != W_SEED_HIR0_CALL_DIRECT ||
+      call->placement != W_SEED_HIR0_CALL_PLACEMENT_NONE ||
+      call->first_argument >= program->argument_count ||
+      call->argument_count != 1u || call->result_type != W_SEED_HIR0_TYPE_UNIT ||
+      call->first_requirement >= program->requirement_count ||
+      call->requirement_count != 1u ||
+      !host_print_identity_valid(program, call->callee_identity))
+    return false;
+  const w_seed_hir0_argument *message =
+      &program->arguments[call->first_argument];
+  if (message->owner_call != observation->call_index || message->ordinal != 0u ||
+      message->parameter_ordinal != 0u ||
+      message->type_index != W_SEED_HIR0_TYPE_STRING ||
+      message->value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *interpolation =
+      &program->values[message->value_index];
+  if (interpolation->kind != W_SEED_HIR0_VALUE_INTERPOLATED_STRING ||
+      interpolation->type_index != W_SEED_HIR0_TYPE_STRING ||
+      interpolation->first_interpolation_segment == W_SEED_HIR0_NONE ||
+      interpolation->interpolation_segment_count == 0u ||
+      interpolation->first_interpolation_segment >
+          program->interpolation_segment_count ||
+      interpolation->interpolation_segment_count >
+          program->interpolation_segment_count -
+              interpolation->first_interpolation_segment)
+    return false;
+  size_t dynamic_values = 0u;
+  for (size_t ordinal = 0u;
+       ordinal < interpolation->interpolation_segment_count; ordinal += 1u) {
+    const w_seed_hir0_interpolation_segment *segment =
+        &program->interpolation_segments[
+            (size_t)interpolation->first_interpolation_segment + ordinal];
+    if (segment->owner_value != message->value_index ||
+        segment->ordinal != ordinal)
+      return false;
+    if (segment->kind == W_SEED_HIR0_INTERPOLATION_TEXT) continue;
+    if (segment->kind != W_SEED_HIR0_INTERPOLATION_VALUE) return false;
+    if (segment->value_index >= program->value_count) return false;
+    const w_seed_hir0_value *value = &program->values[segment->value_index];
+    if (value->kind != W_SEED_HIR0_VALUE_BINDING_READ ||
+        value->binding_index != binding_index ||
+        value->type_index != type_index)
+      return false;
+    dynamic_values += 1u;
+  }
+  return dynamic_values == 1u;
+}
+
 static uint32_t process_nominal_type(const w_seed_hir0_program *program,
                                      uint32_t symbol_index) {
   if (program == NULL || symbol_index >= program->external_symbol_count)
@@ -558,13 +634,15 @@ static bool typed_process_float_rounding_root_supported(
   if (normal->owner_function != entry->target_function ||
       non_finite->owner_function != entry->target_function ||
       out_of_range->owner_function != entry->target_function ||
-      normal->instruction_count != 1u ||
+      (normal->instruction_count != 1u && normal->instruction_count != 2u) ||
       non_finite->instruction_count != 0u ||
       out_of_range->instruction_count != 0u ||
       normal->block_argument_count != 1u ||
       non_finite->block_argument_count != 1u ||
       out_of_range->block_argument_count != 1u ||
       normal->first_instruction >= program->instruction_count ||
+      normal->instruction_count >
+          program->instruction_count - normal->first_instruction ||
       normal->first_block_argument >= program->block_argument_count ||
       non_finite->first_block_argument >= program->block_argument_count ||
       out_of_range->first_block_argument >= program->block_argument_count)
@@ -605,6 +683,11 @@ static bool typed_process_float_rounding_root_supported(
       initializer->owner_ordinal != 0u ||
       initializer->type_index != split_term->result_type ||
       initializer->block_argument_index != normal->first_block_argument)
+    return false;
+  if (normal->instruction_count == 2u &&
+      !typed_process_rounding_prints_binding(
+          program, normal_block, instruction->binding_index,
+          split_term->result_type))
     return false;
   if (normal->terminator_index >= program->terminator_count ||
       non_finite->terminator_index >= program->terminator_count ||

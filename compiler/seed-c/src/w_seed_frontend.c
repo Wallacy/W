@@ -17732,6 +17732,89 @@ static frontend_simple_type infer_integer_exactly_try_span(
   return destination;
 }
 
+/* Keep process-local inference aligned for the already bounded float-to-
+ * integer rounding TRY. The Pratt parser remains responsible for proving the
+ * conversion's owner/error semantics and emitting its canonical record; this
+ * helper only needs the result type so a later binding read in interpolation
+ * does not become a false unresolved-local fact during the dry pass. */
+static frontend_simple_type infer_float_integer_rounding_try_span(
+    frontend_context *context, const w_seed_frontend_document *doc,
+    w_seed_span span, size_t depth) {
+  if (context == NULL || doc == NULL ||
+      depth >= W_SEED_FRONTEND_MAX_NESTING)
+    return simple_type_unknown();
+  frontend_token_cursor cursor = token_cursor_for(doc, span);
+  frontend_token token;
+  frontend_simple_type destination = simple_type_unknown();
+  if (!cursor_take_text(&cursor, "try", &token) ||
+      !cursor_take(&cursor, &token) || token.kind != W_SEED_CST_WORD ||
+      !integer_type_constructor_for_spelling(text_from_span(doc, token.span),
+                                             &destination) ||
+      !cursor_take_text(&cursor, "(", NULL) ||
+      !cursor_take_text(&cursor, "rounding", NULL) ||
+      !cursor_take_text(&cursor, ":", NULL) ||
+      !cursor_take(&cursor, &token))
+    return simple_type_unknown();
+
+  w_seed_span source_span = token.span;
+  size_t parentheses = 0u;
+  size_t brackets = 0u;
+  size_t braces = 0u;
+  bool separated = false;
+  for (;;) {
+    const w_seed_frontend_text text = text_from_span(doc, token.span);
+    if (text_equal(text, ",") && parentheses == 0u && brackets == 0u &&
+        braces == 0u) {
+      separated = true;
+      break;
+    }
+    if (text_equal(text, ")") && parentheses == 0u && brackets == 0u &&
+        braces == 0u)
+      return simple_type_unknown();
+    if (text_equal(text, "(")) {
+      if (parentheses == SIZE_MAX) return simple_type_unknown();
+      parentheses += 1u;
+    } else if (text_equal(text, ")")) {
+      if (parentheses == 0u) return simple_type_unknown();
+      parentheses -= 1u;
+    } else if (text_equal(text, "[")) {
+      if (brackets == SIZE_MAX) return simple_type_unknown();
+      brackets += 1u;
+    } else if (text_equal(text, "]")) {
+      if (brackets == 0u) return simple_type_unknown();
+      brackets -= 1u;
+    } else if (text_equal(text, "{")) {
+      if (braces == SIZE_MAX) return simple_type_unknown();
+      braces += 1u;
+    } else if (text_equal(text, "}")) {
+      if (braces == 0u) return simple_type_unknown();
+      braces -= 1u;
+    }
+    source_span.end_byte = token.span.end_byte;
+    if (!cursor_take(&cursor, &token)) return simple_type_unknown();
+  }
+  if (!separated || source_span.start_byte >= source_span.end_byte ||
+      parentheses != 0u || brackets != 0u || braces != 0u ||
+      !cursor_take_text(&cursor, "mode", NULL) ||
+      !cursor_take_text(&cursor, ":", NULL) ||
+      !cursor_take_text(&cursor, ".", NULL) ||
+      !cursor_take(&cursor, &token) || token.kind != W_SEED_CST_WORD)
+    return simple_type_unknown();
+  w_seed_frontend_rounding_mode mode = W_SEED_FRONTEND_ROUNDING_MODE_NONE;
+  if (!rounding_mode_from_spelling(text_from_span(doc, token.span), &mode) ||
+      !rounding_mode_is_valid(mode) || !cursor_take_text(&cursor, ")", NULL))
+    return simple_type_unknown();
+  frontend_token trailing;
+  if (cursor_peek(&cursor, &trailing)) return simple_type_unknown();
+
+  const frontend_simple_type source =
+      infer_expression_span_inner(context, source_span, depth + 1u);
+  if (source.kind != W_SEED_FRONTEND_TYPE_FLOAT ||
+      (source.bit_width != 32u && source.bit_width != 64u))
+    return simple_type_unknown();
+  return destination;
+}
+
 /* The dry pass needs the effective type of an earlier unannotated binding
  * before statement records exist. Keep this scanner deliberately narrower
  * than the Pratt parser: it only finds a top-level binary root and computes
@@ -17902,6 +17985,10 @@ static frontend_simple_type infer_expression_span_inner(
     const frontend_simple_type checked_try = infer_integer_exactly_try_span(
         context, doc, span, depth);
     if (checked_try.kind != W_SEED_FRONTEND_TYPE_UNKNOWN) return checked_try;
+    const frontend_simple_type rounded_try =
+        infer_float_integer_rounding_try_span(context, doc, span, depth);
+    if (rounded_try.kind != W_SEED_FRONTEND_TYPE_UNKNOWN)
+      return rounded_try;
   }
   w_seed_span grouped_span;
   if (grouped_expression_inner_span(doc, span, &grouped_span))

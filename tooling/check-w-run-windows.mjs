@@ -1159,7 +1159,8 @@ try {
   expectExact(binary, ["run", processIntegerExactErrorFixture], 1,
     Buffer.alloc(0), "public exact integer conversion typed error")
   expectExact(binary, ["run", processFloatRoundingSuccessFixture], 0,
-    Buffer.alloc(0), "public constant float rounding success")
+    Buffer.from("Rounded 2\n", "utf8"),
+    "public constant float rounding success")
   expectExact(binary, ["run", processFloatRoundingErrorFixture], 1,
     Buffer.alloc(0), "public constant float rounding typed error")
   expectExact(binary, ["run", processIntegerExactRuntimeFixture], 0,
@@ -1329,12 +1330,17 @@ try {
   Buffer.alloc(0), "build constant float rounding success fixture")
   assertPeX64(await readFile(buildProcessFloatRoundingSuccess),
     "built constant float rounding success artifact")
-  expectExact(buildProcessFloatRoundingSuccess, [], 0, Buffer.alloc(0),
+  assertKernel32OnlyImports(await readFile(buildProcessFloatRoundingSuccess),
+    "built constant float rounding success artifact")
+  expectExact(buildProcessFloatRoundingSuccess, [], 0,
+    Buffer.from("Rounded 2\n", "utf8"),
     "execute built constant float rounding success artifact")
   expectExact(binary, ["build", processFloatRoundingErrorFixture, "--target",
     targetTriple, "--output", buildProcessFloatRoundingError], 0,
   Buffer.alloc(0), "build constant float rounding typed-error fixture")
   assertPeX64(await readFile(buildProcessFloatRoundingError),
+    "built constant float rounding typed-error artifact")
+  assertKernel32OnlyImports(await readFile(buildProcessFloatRoundingError),
     "built constant float rounding typed-error artifact")
   expectExact(buildProcessFloatRoundingError, [], 1, Buffer.alloc(0),
     "execute built constant float rounding typed-error artifact")

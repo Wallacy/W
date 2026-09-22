@@ -998,6 +998,7 @@ static bool test_native_process_float_rounding_split(void) {
       "async fn run(args: ProcessArguments, ctx: ProcessContext): "
       "ProcessExitCode throws NumericConversionError { "
       "let rounded = try i8(rounding: 2.5_f64, mode: .nearestEven) "
+      "print(\"Rounded ${rounded}\") "
       "return .success }\n"
       "entry(run)\n";
   static multidoc_fixture fixture;
@@ -1012,6 +1013,27 @@ static bool test_native_process_float_rounding_split(void) {
   const uint32_t normal_block = split->target_block;
   const uint32_t non_finite_block = split->else_block;
   const uint32_t out_of_range_block = split->third_block;
+  const w_seed_hir0_block *normal_block_record =
+      &program->blocks[normal_block];
+  const uint32_t rounded_binding =
+      program->instructions[normal_block_record->first_instruction]
+          .binding_index;
+  CHECK(program->call_count == 1u &&
+        normal_block_record->instruction_count == 2u &&
+        rounded_binding < program->binding_count);
+  const w_seed_hir0_call *print = &program->calls[0];
+  const w_seed_hir0_value *message =
+      &program->values[program->arguments[print->first_argument].value_index];
+  CHECK(message->kind == W_SEED_HIR0_VALUE_INTERPOLATED_STRING &&
+        message->interpolation_segment_count == 2u);
+  const w_seed_hir0_interpolation_segment *rounded_segment =
+      &program->interpolation_segments[
+          (size_t)message->first_interpolation_segment + 1u];
+  CHECK(rounded_segment->kind == W_SEED_HIR0_INTERPOLATION_VALUE &&
+        program->values[rounded_segment->value_index].kind ==
+            W_SEED_HIR0_VALUE_BINDING_READ &&
+        program->values[rounded_segment->value_index].binding_index ==
+            rounded_binding);
   const w_seed_hir0_terminator *normal =
       &program->terminators[program->blocks[normal_block].terminator_index];
   const w_seed_hir0_terminator *non_finite = &program->terminators[
@@ -1064,6 +1086,22 @@ static bool test_native_process_float_rounding_split(void) {
   CHECK(!w_seed_product_closure0_verify(&input, &output, &result));
   result = saved_result;
 
+  w_seed_hir0_interpolation_segment *mutable_rounded_segment =
+      &fixture.hir_interpolation_segments[
+          (size_t)message->first_interpolation_segment + 1u];
+  const w_seed_hir0_interpolation_segment saved_rounded_segment =
+      *mutable_rounded_segment;
+  mutable_rounded_segment->value_index = split->value_index;
+  reseal_process_hir(&fixture);
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  CHECK(w_seed_product_closure0_measure(
+            &input, &(w_seed_product_closure0_counts){0},
+            &(w_seed_product_closure0_result){0}) ==
+        W_SEED_PRODUCT_CLOSURE0_INVALID);
+  *mutable_rounded_segment = saved_rounded_segment;
+  reseal_process_hir(&fixture);
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
   w_seed_hir0_binding *binding = &fixture.hir_bindings[0];
   const w_seed_hir0_binding saved_binding = *binding;
   binding->is_mutable = true;
@@ -1076,6 +1114,16 @@ static bool test_native_process_float_rounding_split(void) {
   *binding = saved_binding;
   reseal_process_hir(&fixture);
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  static const char UNOBSERVED_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let rounded = try i8(rounding: 2.5_f64, mode: .nearestEven) "
+      "print(\"Rounded 2\") return .success }\n"
+      "entry(run)\n";
+  CHECK(!prepare_process_fixture(&fixture, UNOBSERVED_SOURCE));
   return true;
 }
 

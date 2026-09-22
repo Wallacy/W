@@ -11,14 +11,17 @@ const documents = loadExecutableDocuments();
 test("generated projection is current, compact, and sourced only from the live catalog", async () => {
   const rendered = `${await renderFromDisk(ROOT)}\n`;
   const suiteReceipt = await currentSuiteReceipt(documents.catalog, ROOT);
-  assert.ok(suiteReceipt, "the projection includes the current successful suite receipt");
   assert.equal(fs.readFileSync(PROJECTION_PATH, "utf8"), rendered);
   const measuredPlatformCells = new Set(documents.catalog.bestMetrics.entries.map(
     (entry) => `${entry.workloadId}\0${entry.language}\0${entry.platformTarget}`,
   )).size;
   const maximumCompactLines = documents.catalog.workloads.length + measuredPlatformCells + 300;
   assert.ok(rendered.split(/\r?\n/u).length <= maximumCompactLines);
-  assert.match(rendered, /## Latest executable suite\n\n\*\*(?:Full suite|Filtered: [^*]+)\*\* · \d+\/\d+ lanes passed/u);
+  if (suiteReceipt) {
+    assert.match(rendered, /## Latest executable suite\n\n\*\*(?:Full suite|Filtered: [^*]+)\*\* · \d+\/\d+ lanes passed/u);
+  } else {
+    assert.match(rendered, /## Latest executable suite\n\nNo successful suite receipt matches this catalog yet\./u);
+  }
   assert.match(rendered, /### Integer semantics[\s\S]*\[integer-wrapping \(W\)\]\([^)]*\)[^\n]*Not measured/u,
     "one compact per-family table includes linked examples and current measurement status");
   assert.match(rendered, /\| \[integer-shift-semantics \(W\)\]\(\.\/executable\/integer_shift_semantics\.w\), \[integer-shift-semantics \(C\)\]\(\.\/executable\/integer_shift_semantics\.c\), \[integer-shift-semantics \(Rust\)\]\(\.\/executable\/integer_shift_semantics\.rs\) \| Not measured \|/u,

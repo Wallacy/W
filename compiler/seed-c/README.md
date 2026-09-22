@@ -3044,13 +3044,21 @@ Process-executable v6 independently rederives it, classifies finite values,
 applies the selected intrinsic, checks exact half-open bounds, and performs
 `fptosi`/`fptoui` only on the proven-valid edge. Public CRT-free Windows x64
 and Linux/WSL x64 gates execute one constant success (`2.5_f64`, nearest-even,
-`i8`, status 0) and one constant out-of-range failure (`256.0_f64`,
-toward-zero, `i8`, status 1), both with empty stdout/stderr and cleanup before
-process adaptation. The bootstrap runs LLVM `opt` between translation and
-`llc`; simplify-libcalls is disabled so module optimization cannot silently
-introduce a CRT/libc dependency. Runtime float ingress, observable rounded
-payloads, public non-finite execution, independent raw-bit boundary oracles,
-stable ABI, timing, and performance remain gaps.
+`i8`, status 0) with exact stdout `Rounded 2\n` and one constant out-of-range
+failure (`256.0_f64`, toward-zero, `i8`, status 1) with empty stdout/stderr.
+The success print must interpolate the binding initialized from the verified
+normal-edge result; a constant string containing the expected digits is not
+admitted. Both outcomes release owners and finalize the root before process
+adaptation, and the typed-error path cannot reach the success-only flush. The
+bootstrap runs LLVM `opt` between translation and `llc`; optimization remains
+enabled, with helper-specific no-builtin attributes guarding the relevant
+runtime idioms instead of a global libcall-simplification disable. Built Linux
+artifacts are static PIEs without an interpreter or `DT_NEEDED`; Windows PE
+artifacts import only `Kernel32.dll`. These final-image checks do not capture
+post-opt IR externals or object undefined symbols, so those remain separate
+per-product evidence gaps and general dependency closure is not claimed.
+Runtime float ingress, public non-finite execution, independent raw-bit
+boundary oracles, stable ABI, timing, and performance remain gaps.
 `benchmarkDisposition: compiler-lifecycle`.
 
 ### Native-process unhandled typed-error root HIR (W-1652)

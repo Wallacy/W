@@ -1425,7 +1425,8 @@ try {
   expectExact(binary, ["run", toWsl(processIntegerExactErrorFixture)], 1,
     Buffer.alloc(0), "Linux public exact integer conversion typed error")
   expectExact(binary, ["run", toWsl(processFloatRoundingSuccessFixture)], 0,
-    Buffer.alloc(0), "Linux public constant float rounding success")
+    Buffer.from("Rounded 2\n", "utf8"),
+    "Linux public constant float rounding success")
   expectExact(binary, ["run", toWsl(processFloatRoundingErrorFixture)], 1,
     Buffer.alloc(0), "Linux public constant float rounding typed error")
   expectExact(binary, ["run", toWsl(processIntegerExactRuntimeFixture)], 0,
@@ -1578,7 +1579,8 @@ try {
     "--target", targetTriple, "--output", buildProcessFloatRoundingSuccess],
   Buffer.alloc(0), "build Linux constant float rounding success fixture")
   assertCrtFreeElf(await readBuildArtifact(buildProcessFloatRoundingSuccess))
-  expectExact(buildProcessFloatRoundingSuccess, [], 0, Buffer.alloc(0),
+  expectExact(buildProcessFloatRoundingSuccess, [], 0,
+    Buffer.from("Rounded 2\n", "utf8"),
     "execute built Linux constant float rounding success artifact")
   expectSuccess(binary, ["build", toWsl(processFloatRoundingErrorFixture),
     "--target", targetTriple, "--output", buildProcessFloatRoundingError],

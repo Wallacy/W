@@ -11226,6 +11226,7 @@ static bool test_process_float_rounding_hir(void) {
       "async fn run(args: ProcessArguments, ctx: ProcessContext): "
       "ProcessExitCode throws NumericConversionError { "
       "let rounded = try i8(rounding: 2.5_f64, mode: .nearestEven)\n"
+      "print(\"Rounded ${rounded}\")\n"
       "return .success }\n"
       "entry(run)\n";
   CHECK(lower_process_input0_generic(SOURCE));
@@ -11238,10 +11239,10 @@ static bool test_process_float_rounding_hir(void) {
   const w_seed_hir0_terminator *split =
       &program->terminators[split_block];
   CHECK(program->block_count == 4u && run->block_count == 4u &&
-        program->call_count == 0u && program->argument_count == 0u &&
+        program->call_count == 1u && program->argument_count == 1u &&
         program->binding_count == 1u &&
         program->blocks[split_block].instruction_count == 0u &&
-        program->blocks[normal_block].instruction_count == 1u &&
+        program->blocks[normal_block].instruction_count == 2u &&
         program->blocks[non_finite_block].instruction_count == 0u &&
         program->blocks[out_of_range_block].instruction_count == 0u &&
         split->kind == W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING &&
@@ -11262,10 +11263,30 @@ static bool test_process_float_rounding_hir(void) {
         program->entries[0].cleanup_owner_parameter_count == 2u &&
         w_seed_hir0_verify(program, &fixture.hir_result));
 
+  const w_seed_hir0_call *print = &program->calls[0];
+  CHECK(print->owner_block == normal_block && print->ordinal == 1u &&
+        print->argument_count == 1u && print->first_argument == 0u);
+  const uint32_t message_index =
+      program->arguments[print->first_argument].value_index;
+  const w_seed_hir0_value *message = &program->values[message_index];
+  CHECK(message->kind == W_SEED_HIR0_VALUE_INTERPOLATED_STRING &&
+        message->interpolation_segment_count == 2u);
+  const w_seed_hir0_interpolation_segment *rounded_segment =
+      &program->interpolation_segments[
+          (size_t)message->first_interpolation_segment + 1u];
+  CHECK(rounded_segment->kind == W_SEED_HIR0_INTERPOLATION_VALUE &&
+        rounded_segment->value_index < program->value_count &&
+        program->values[rounded_segment->value_index].kind ==
+            W_SEED_HIR0_VALUE_BINDING_READ &&
+        program->values[rounded_segment->value_index].binding_index == 0u);
+
   const w_seed_hir0_entry saved_entry = fixture.hir_entries[0];
   const w_seed_hir0_terminator saved_split =
       fixture.hir_terminators[split_block];
   const w_seed_hir0_binding saved_binding = fixture.hir_bindings[0];
+  const w_seed_hir0_interpolation_segment saved_rounded_segment =
+      fixture.hir_interpolation_segments[
+          (size_t)message->first_interpolation_segment + 1u];
   fixture.hir_entries[0].cleanup_obligation =
       W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_TYPED_ERROR;
   reseal_hir_fixture();
@@ -11281,6 +11302,16 @@ static bool test_process_float_rounding_hir(void) {
   reseal_hir_fixture();
   CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
   fixture.hir_bindings[0] = saved_binding;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_interpolation_segments[
+      (size_t)message->first_interpolation_segment + 1u]
+      .value_index = split->value_index;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_interpolation_segments[
+      (size_t)message->first_interpolation_segment + 1u] =
+      saved_rounded_segment;
   reseal_hir_fixture();
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
   return true;

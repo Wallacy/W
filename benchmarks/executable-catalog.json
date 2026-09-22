@@ -4258,19 +4258,19 @@
       "demoEvidence": "bounded-w-demo",
       "benchmarkStatus": "not-performance-ready",
       "lane": "equivalent",
-      "scope": "Exercise the successful constant nearest-even conversion of 2.5_f64 to i8; the separate process-float-rounding-error.w gate checks conversion of 256.0_f64 toward zero exits with code 1. This catalog witness covers only the success result (empty stdout/stderr), is correctness-only, and does not represent the separate failure gate as a benchmark case.",
+      "scope": "Exercise the successful constant nearest-even conversion of 2.5_f64 to i8 and print the result as Rounded 2\\n; the separate process-float-rounding-error.w gate checks conversion of 256.0_f64 toward zero exits with code 1 and empty stdout. This catalog witness covers only the success result (exit 0, exact stdout Rounded 2\\n, empty stderr), is correctness-only, and does not represent the separate failure gate as a benchmark case.",
       "oracle": {
         "kind": "exact-output",
         "status": "source-backed",
         "exitCode": 0,
-        "stdout": "",
+        "stdout": "Rounded 2\n",
         "stderr": ""
       },
       "sources": [
         {
           "language": "w",
           "path": "compiler/seed-c/fixtures/process-float-rounding-success.w",
-          "digest": "sha256:77b3f84b4f4a293289fb6e130475aa1f0782f47e6853ad4396fd91136eeeff8b",
+          "digest": "sha256:8a47067caf87ca94dd94c407aeae2ef4cbbefc86b6e311344688f25697ceb051",
           "entry": "run",
           "status": "source-oracle-ready",
           "profile": "release",
@@ -4289,7 +4289,7 @@
         {
           "language": "w",
           "path": "compiler/seed-c/fixtures/process-float-rounding-success.w",
-          "digest": "sha256:77b3f84b4f4a293289fb6e130475aa1f0782f47e6853ad4396fd91136eeeff8b",
+          "digest": "sha256:8a47067caf87ca94dd94c407aeae2ef4cbbefc86b6e311344688f25697ceb051",
           "entry": "run",
           "status": "source-oracle-ready",
           "profile": "release",
@@ -4312,7 +4312,6 @@
       ],
       "blockers": [
         "runtime-raw-bit-float-ingress",
-        "observable-rounded-payload",
         "independent-c23-rust-boundary-oracles",
         "constant-folded-witness-not-rankable"
       ],

@@ -344,10 +344,12 @@ physical scheduler experiments:
    v4 now projects those three process outcomes and binds them into its
    reachable semantic digest. Process-executable v6 lowers the same bounded
    constant root through LLVM optimization and exact CRT-free Windows x64 plus
-   Linux/WSL x64 execution: nearest-even success exits 0 and out-of-range exits
-   1 after reverse cleanup, both without output. Runtime float ingress,
-   observable rounded values, the public non-finite path, and independent
-   raw-bit boundary oracles still lack this route. W-1652 now defines the
+   Linux/WSL x64 execution: nearest-even success prints `Rounded 2\n` and exits
+   0; out-of-range exits 1 with empty output, after reverse cleanup on both
+   outcomes. The print is admitted only when it interpolates the binding
+   initialized from the verified normal-edge result. Runtime float ingress,
+   the public non-finite path, and independent raw-bit boundary oracles still
+   lack this route. W-1652 now defines the
    canonical `native-process@1`
    mapping for an unhandled typed error. HIR94 retains the restricted local
    payloadless-error direct throw and composes one exact-conversion binding into
@@ -733,12 +735,14 @@ for Linux and Windows x64 target triples. ProductClosure0 v4 publishes all
 three outcomes for a direct default-unit helper while retaining the
 out-of-range compatibility channel. HIR96, ProductClosure0, NativeSubset0, and
 process-executable v6 now also close one constant-source process root. Its
-public Windows and Linux/WSL witnesses prove status 0 for nearest-even success
-and status 1 for out-of-range only; they do not expose the converted value.
-Next add versioned raw-bit runtime float ingress, observable results, the
+public Windows and Linux/WSL witnesses print the rounded nearest-even result as
+`Rounded 2\n` with status 0, and keep out-of-range at status 1 with empty
+stdout/stderr; both outcomes complete reverse cleanup before process
+adaptation. The output path is bound to the verified result binding, not a
+hardcoded adapter string. Next add versioned raw-bit runtime float ingress, the
 public non-finite path, and independent C23/Rust boundary oracles. Until those
 exist, this remains compiler-lifecycle evidence only and carries no benchmark
-row or performance claim.
+timing or performance claim.
 
 W-1645 generalizes the prior strict-f64 seed path into one strict floating
 family for `f32` and `f64`. Frontend67 materializes exact binary32/binary64

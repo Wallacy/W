@@ -14600,17 +14600,23 @@ finalization; only afterward does the versioned process profile map either
 unhandled typed error to status 1.
 
 Public CRT-free Windows x64 and Linux/WSL x64 gates execute a constant
-nearest-even `2.5_f64 -> i8` success with status 0 and a constant toward-zero
-`256.0_f64 -> i8` out-of-range path with status 1. Both commit no output. The
-bootstrap runs LLVM `opt` between translation and `llc`. Per-helper no-builtin
-attributes replaced the former global libcall-simplification disable, and the
-optimized Linux/Windows gates pass. This bounded result neither permits
-undeclared CRT/libc calls nor proves general closure; post-opt IR, object
-undefined symbols and final imports remain per-product gates. This is still not
-runtime float ingress, and the success fixture does not expose the rounded
-payload. The non-finite public route, independent raw-bit boundary oracle,
-stable ABI, benchmark, and timing remain absent. The amendment therefore stays
-compiler-lifecycle evidence and W-389 remains an implementation-evidence gap.
+nearest-even `2.5_f64 -> i8` success with status 0 and exact stdout
+`Rounded 2\n`, plus a constant toward-zero `256.0_f64 -> i8` out-of-range path
+with status 1 and empty stdout/stderr. The success print is admitted only when
+its interpolation reads the verified conversion-result binding; a hardcoded
+constant string is rejected. Both paths release owners and finalize the root
+before outcome adaptation, and typed failure cannot reach the success flush.
+The bootstrap runs LLVM `opt` between translation and `llc`. Per-helper
+no-builtin attributes replaced the former global libcall-simplification
+disable, and the optimized Linux/Windows gates pass. The built Linux outputs
+are static PIEs without an interpreter or `DT_NEEDED`; the Windows PE outputs
+import only `Kernel32.dll`. These final-image checks do not retain post-opt IR
+externals or inspect object undefined symbols, so those remain separate
+per-product evidence gaps and this does not prove general closure. This is
+still not runtime float ingress. The non-finite public route, independent
+raw-bit boundary oracle, stable ABI, benchmark timing, and performance remain
+absent. The amendment therefore stays compiler-lifecycle evidence and W-389
+remains an implementation-evidence gap.
 
 #### W-1651 — explicit wide and low-precision numeric families
 

@@ -6644,6 +6644,43 @@ static bool process_host_call_supported(
              argument->type_index;
 }
 
+static bool process_print_observes_binding(
+    const w_seed_hir0_program *program, const w_seed_hir0_call *call,
+    uint32_t owner_function, const w_seed_native_subset0_process *process,
+    uint32_t binding_index, uint32_t type_index) {
+  if (program == NULL || call == NULL || process == NULL ||
+      !process_host_call_supported(program, call, owner_function, process) ||
+      call->first_argument >= program->argument_count)
+    return false;
+  const w_seed_hir0_argument *argument =
+      &program->arguments[call->first_argument];
+  const w_seed_hir0_value *root = &program->values[argument->value_index];
+  if (root->kind != W_SEED_HIR0_VALUE_INTERPOLATED_STRING ||
+      root->first_interpolation_segment >
+          program->interpolation_segment_count ||
+      root->interpolation_segment_count >
+          program->interpolation_segment_count -
+              root->first_interpolation_segment)
+    return false;
+  size_t dynamic_values = 0u;
+  for (size_t ordinal = 0u; ordinal < root->interpolation_segment_count;
+       ordinal += 1u) {
+    const w_seed_hir0_interpolation_segment *segment =
+        &program->interpolation_segments[
+            (size_t)root->first_interpolation_segment + ordinal];
+    if (segment->kind == W_SEED_HIR0_INTERPOLATION_TEXT) continue;
+    if (segment->kind != W_SEED_HIR0_INTERPOLATION_VALUE ||
+        segment->value_index >= program->value_count)
+      return false;
+    const w_seed_hir0_value *value = &program->values[segment->value_index];
+    if (value->kind != W_SEED_HIR0_VALUE_BINDING_READ ||
+        value->binding_index != binding_index || value->type_index != type_index)
+      return false;
+    dynamic_values += 1u;
+  }
+  return dynamic_values == 1u;
+}
+
 static bool process_local_call_supported(
     const w_seed_hir0_program *program, const w_seed_hir0_call *call,
     uint32_t owner_function,
@@ -6924,8 +6961,8 @@ static bool process_float_to_integer_rounding_root_supported(
       function->first_block >= program->block_count ||
       function->block_count != 4u ||
       function->block_count > program->block_count - function->first_block ||
-      program->call_count != 0u || program->binding_count != 1u ||
-      program->instruction_count != 1u)
+      program->call_count > 1u || program->binding_count != 1u ||
+      program->instruction_count != 1u + program->call_count)
     return false;
 
   const uint32_t split_index = function->first_block;
@@ -6975,7 +7012,7 @@ static bool process_float_to_integer_rounding_root_supported(
   if (normal->owner_function != process->function_index ||
       non_finite->owner_function != process->function_index ||
       out_of_range->owner_function != process->function_index ||
-      normal->instruction_count != 1u ||
+      normal->instruction_count != 1u + program->call_count ||
       non_finite->instruction_count != 0u ||
       out_of_range->instruction_count != 0u ||
       normal->block_argument_count != 1u ||
@@ -7031,6 +7068,30 @@ static bool process_float_to_integer_rounding_root_supported(
       initializer->type_index != conversion->result_type ||
       initializer->block_argument_index != normal->first_block_argument)
     return false;
+
+  size_t maximum_stdout_bytes = 0u;
+  if (program->call_count == 1u) {
+    const w_seed_hir0_instruction *observation = instruction + 1;
+    if (observation->owner_block != normal_index || observation->ordinal != 1u ||
+        observation->kind != W_SEED_HIR0_INSTRUCTION_CALL ||
+        observation->call_index >= program->call_count)
+      return false;
+    const w_seed_hir0_call *print = &program->calls[observation->call_index];
+    const w_seed_hir0_binding *bindings[W_SEED_NATIVE_SUBSET0_MAX_BINDINGS] =
+        {NULL};
+    size_t binding_reads[W_SEED_NATIVE_SUBSET0_MAX_BINDINGS] = {0u};
+    for (size_t index = 0u; index < program->binding_count; index += 1u)
+      bindings[index] = &program->bindings[index];
+    bool has_interpolation = false;
+    if (!process_print_observes_binding(
+            program, print, process->function_index, process,
+            instruction->binding_index, conversion->result_type) ||
+        !program_host_print_maximum(program, print, bindings, binding_reads,
+                                    &maximum_stdout_bytes,
+                                    &has_interpolation, process) ||
+        !has_interpolation || maximum_stdout_bytes == 0u)
+      return false;
+  }
 
   const w_seed_hir0_terminator *normal_return =
       &program->terminators[normal->terminator_index];
@@ -7107,7 +7168,7 @@ static bool process_float_to_integer_rounding_root_supported(
   process->rounding_destination_bit_width = destination_facts.bit_width;
   process->rounding_destination_is_signed = destination_facts.is_signed;
   process->rounding_mode = conversion->rounding_mode;
-  process->maximum_stdout_bytes = 0u;
+  process->maximum_stdout_bytes = maximum_stdout_bytes;
   process->has_float_to_integer_rounding = true;
   return true;
 }

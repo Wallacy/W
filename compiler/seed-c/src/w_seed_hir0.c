@@ -8484,10 +8484,10 @@ static bool frontend_exact_observation_value_ok(
 
 /* The process ABI admits the historical direct payloadless local case throw,
  * plus one typed NumericConversionError split emitted for either exact integer
- * conversion or float-to-integer rounding. Exact conversion may additionally
- * own one observable host print rooted in that binding; the initial rounding
- * admission has no call. Both end in the normal ExitCode return. The ordinary
- * frontend walk proves the full expression and successor semantics. */
+ * conversion or float-to-integer rounding. Either split may additionally own
+ * one observable host print rooted in that binding. Both end in the normal
+ * ExitCode return. The ordinary frontend walk proves the full expression and
+ * successor semantics. */
 static bool frontend_process_numeric_conversion_body_ok(
     const w_seed_hir0_input *input, uint32_t function_index,
     const w_seed_frontend_function *function) {
@@ -8614,9 +8614,6 @@ static bool frontend_process_numeric_conversion_body_ok(
   return (conversion->kind == W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY ||
           conversion->kind ==
               W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING) &&
-         (conversion->kind !=
-              W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING ||
-          function->statement_count == 2u) &&
          conversion->conversion_destination_type == binding->effective_type &&
          binding->effective_type != W_SEED_FRONTEND_NONE;
 }
@@ -20140,6 +20137,70 @@ static bool hir0_host_call_never_suspends(
 static bool hir0_interpolated_string_is_direct_print_argument(
     const w_seed_hir0_program *program, uint32_t value_index);
 
+/* A typed numeric-conversion process may print only one interpolation value,
+ * and that value must be the binding initialized from the normal-edge result.
+ * This keeps the observable path source-backed and prevents a constant
+ * adapter payload from standing in for the conversion. */
+static bool hir0_process_numeric_conversion_print_observes_binding(
+    const w_seed_hir0_program *program, size_t function_index,
+    size_t normal_block, uint32_t binding_index,
+    const w_seed_hir0_instruction *instruction) {
+  if (program == NULL || instruction == NULL ||
+      function_index >= program->function_count ||
+      normal_block >= program->block_count ||
+      binding_index >= program->binding_count ||
+      instruction->kind != W_SEED_HIR0_INSTRUCTION_CALL ||
+      instruction->owner_block != normal_block || instruction->ordinal != 1u ||
+      instruction->call_index >= program->call_count)
+    return false;
+  const w_seed_hir0_call *call = &program->calls[instruction->call_index];
+  if (call->owner_instruction !=
+          (uint32_t)(instruction - program->instructions) ||
+      call->owner_terminator != W_SEED_HIR0_NONE ||
+      call->owner_block != normal_block || call->ordinal != 1u ||
+      call->execution_kind != W_SEED_HIR0_CALL_DIRECT ||
+      call->placement != W_SEED_HIR0_CALL_PLACEMENT_NONE ||
+      call->callee_identity >= program->identity_count ||
+      !hir0_host_call_never_suspends(
+          program, &program->identities[call->callee_identity]) ||
+      call->first_argument >= program->argument_count ||
+      call->argument_count != 1u || call->result_type != W_SEED_HIR0_TYPE_UNIT)
+    return false;
+  const w_seed_hir0_argument *argument =
+      &program->arguments[call->first_argument];
+  if (argument->owner_call != instruction->call_index ||
+      argument->ordinal != 0u || argument->parameter_ordinal != 0u ||
+      argument->type_index != W_SEED_HIR0_TYPE_STRING ||
+      argument->value_index >= program->value_count ||
+      !hir0_interpolated_string_is_direct_print_argument(
+          program, argument->value_index))
+    return false;
+  const w_seed_hir0_value *message =
+      &program->values[argument->value_index];
+  const uint32_t binding_type = program->bindings[binding_index].type_index;
+  size_t dynamic_values = 0u;
+  for (size_t ordinal = 0u; ordinal < message->interpolation_segment_count;
+       ordinal += 1u) {
+    const w_seed_hir0_interpolation_segment *segment =
+        &program->interpolation_segments[
+            (size_t)message->first_interpolation_segment + ordinal];
+    if (segment->owner_value != argument->value_index ||
+        segment->ordinal != ordinal)
+      return false;
+    if (segment->kind == W_SEED_HIR0_INTERPOLATION_TEXT) continue;
+    if (segment->kind != W_SEED_HIR0_INTERPOLATION_VALUE ||
+        segment->value_index >= program->value_count)
+      return false;
+    const w_seed_hir0_value *value = &program->values[segment->value_index];
+    if (value->kind != W_SEED_HIR0_VALUE_BINDING_READ ||
+        value->binding_index != binding_index ||
+        value->type_index != binding_type)
+      return false;
+    dynamic_values += 1u;
+  }
+  return dynamic_values == 1u;
+}
+
 static bool verify_cfg_process_typed_error_root(
     const w_seed_hir0_program *program, size_t function_index) {
   if (program == NULL || function_index >= program->function_count)
@@ -20170,9 +20231,25 @@ static bool verify_cfg_process_typed_error_root(
     if (normal_block >= program->block_count) return false;
     if (float_rounding) {
       const w_seed_hir0_block *normal = &program->blocks[normal_block];
-      if (normal->instruction_count != 1u ||
+      size_t function_call_count = 0u;
+      for (size_t call_index = 0u; call_index < program->call_count;
+           call_index += 1u) {
+        const w_seed_hir0_call *call = &program->calls[call_index];
+        if (call->owner_block < program->block_count &&
+            program->blocks[call->owner_block].owner_function ==
+                function_index) {
+          if (call->owner_block != normal_block ||
+              function_call_count == SIZE_MAX)
+            return false;
+          function_call_count += 1u;
+        }
+      }
+      if (function_call_count > 1u ||
+          normal->instruction_count != 1u + function_call_count ||
           normal->first_instruction == W_SEED_HIR0_NONE ||
-          normal->first_instruction >= program->instruction_count)
+          normal->first_instruction > program->instruction_count ||
+          normal->instruction_count >
+              program->instruction_count - normal->first_instruction)
         return false;
       const w_seed_hir0_instruction *binding_instruction =
           &program->instructions[normal->first_instruction];
@@ -20193,13 +20270,12 @@ static bool verify_cfg_process_typed_error_root(
           initializer->block_argument_index != normal->first_block_argument ||
           initializer->type_index != split->result_type)
         return false;
-      for (size_t call_index = 0u; call_index < program->call_count;
-           call_index += 1u) {
-        const w_seed_hir0_call *call = &program->calls[call_index];
-        if (call->owner_block < program->block_count &&
-            program->blocks[call->owner_block].owner_function == function_index)
-          return false;
-      }
+      if (function_call_count == 1u &&
+          !hir0_process_numeric_conversion_print_observes_binding(
+              program, function_index, normal_block,
+              binding_instruction->binding_index,
+              &program->instructions[(size_t)normal->first_instruction + 1u]))
+        return false;
     }
     const w_seed_hir0_terminator *normal_term =
         &program->terminators[normal_block];

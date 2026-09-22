@@ -440,12 +440,13 @@ test("platform-minimal Hello stays a separate correctness-only comparison across
     source.recipe === "rustc-edition-2024-no-std"));
 });
 
-test("float rounding catalog scope covers only the success witness, not its separate failure gate", () => {
+test("float rounding catalog separates the observable success witness from its failure gate", () => {
   const workload = documents.catalog.workloads.find((item) => item.id === "float-integer-rounding");
   assert.ok(workload);
   assert.match(workload.scope, /successful constant nearest-even conversion/u);
   assert.match(workload.scope, /process-float-rounding-error\.w gate/u);
-  assert.match(workload.scope, /only the success result/u);
+  assert.match(workload.scope, /success result \(exit 0, exact stdout Rounded 2\\n, empty stderr\)/u);
+  assert.match(workload.scope, /does not represent the separate failure gate as a benchmark case/u);
   assert.deepEqual(workload.sources.map((source) => source.path), [
     "compiler/seed-c/fixtures/process-float-rounding-success.w",
     "compiler/seed-c/fixtures/process-float-rounding-success.w",
