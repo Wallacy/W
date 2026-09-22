@@ -2973,12 +2973,14 @@ HIR94 admits one bounded binding continuation and composes that split into a
 restricted process root. ProductClosure0 v3 publishes the source split plus
 separate normal and `NumericConversionError.outOfRange` successor facts. It
 authenticates reverse-initialization `Context`-then-`Arguments` release on both
-normal success and typed error. Process-executable v3 retains a private typed
+normal success and typed error. Process-executable v4 retains a private typed
 carrier while materializing both releases and root finalization, then maps only
 the error arm to status 1. The public `process-integer-exact-runtime.w` fixture
 executes through `w run` and `w build` on CRT-free Windows x64 and Linux/WSL
-x64. Zero and 127 user arguments exit 0; 128 exits 1 after typed-error cleanup;
-stdout/stderr remain empty. The constant success/error fixtures remain focused
+x64. Zero and 127 user arguments exit 0 with exact stdout `Exact 0\n` and
+`Exact 127\n`; 128 exits 1 after typed-error cleanup with empty stdout/stderr.
+The output cursor is loaded and flushed only on the normal successor after
+both owner releases and root finalization. The constant success/error fixtures remain focused
 correctness inputs.
 This remains compiler-lifecycle correctness evidence: no benchmark timing,
 general typed root, catch, public ABI, or performance claim is made.
@@ -2998,12 +3000,13 @@ order: `Context`, then `Arguments`. The conversion form contains one integer
 `try D(exactly:)` binding and a normal `ProcessExitCode` return. ProductClosure0
 v3 publishes its normal and typed-error successors and the uniform
 reverse-initialization cleanup policy. Other typed root shapes remain
-unsupported. Process-executable v3 materializes the exact-conversion cleanup
+unsupported. Process-executable v4 materializes the exact-conversion cleanup
 obligation and defers adaptation until after root finalization.
 
 This is compiler-lifecycle evidence. The exact-conversion form executes through
 the public `native-process@1` adapter on CRT-free Windows x64 and Linux/WSL x64,
-proving success 0 and typed-error status 1 with no implicit output. The
+proving observable success payloads and typed-error status 1 with no failure
+output. The
 user-defined direct-throw form and every broader typed process body remain
 unsupported by executable selection; no benchmark timing is produced.
 `benchmarkDisposition: compiler-lifecycle`.

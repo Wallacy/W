@@ -6444,7 +6444,7 @@ static bool process_integer_exact_root_supported(
       function->first_block >= program->block_count ||
       function->block_count != 3u ||
       function->block_count > program->block_count - function->first_block ||
-      program->call_count != 0u || program->binding_count != 1u)
+      program->call_count > 1u || program->binding_count != 1u)
     return false;
 
   const uint32_t split_index = function->first_block;
@@ -6501,8 +6501,10 @@ static bool process_integer_exact_root_supported(
       error->block_argument_count != 1u ||
       normal->first_block_argument >= program->block_argument_count ||
       error->first_block_argument >= program->block_argument_count ||
-      normal->instruction_count != 1u ||
+      normal->instruction_count != 1u + program->call_count ||
       normal->first_instruction >= program->instruction_count ||
+      normal->instruction_count >
+          program->instruction_count - normal->first_instruction ||
       error->instruction_count != 0u ||
       normal->terminator_index >= program->terminator_count ||
       error->terminator_index >= program->terminator_count)
@@ -6539,6 +6541,34 @@ static bool process_integer_exact_root_supported(
       initializer->type_index != conversion->result_type ||
       initializer->block_argument_index != normal->first_block_argument)
     return false;
+
+  size_t maximum_stdout_bytes = 0u;
+  if (program->call_count == 1u) {
+    const w_seed_hir0_instruction *observation = instruction + 1;
+    if (observation->owner_block != normal_index ||
+        observation->ordinal != 1u ||
+        observation->kind != W_SEED_HIR0_INSTRUCTION_CALL ||
+        observation->call_index >= program->call_count)
+      return false;
+    const w_seed_hir0_call *print = &program->calls[observation->call_index];
+    if (print->owner_instruction != normal->first_instruction + 1u ||
+        print->owner_terminator != W_SEED_HIR0_NONE ||
+        print->owner_block != normal_index || print->ordinal != 1u ||
+        !process_host_call_supported(program, print, process->function_index,
+                                     process))
+      return false;
+    const w_seed_hir0_binding *bindings[W_SEED_NATIVE_SUBSET0_MAX_BINDINGS] =
+        {NULL};
+    size_t binding_reads[W_SEED_NATIVE_SUBSET0_MAX_BINDINGS] = {0u};
+    for (size_t index = 0u; index < program->binding_count; index += 1u)
+      bindings[index] = &program->bindings[index];
+    bool has_interpolation = false;
+    if (!program_host_print_maximum(program, print, bindings, binding_reads,
+                                    &maximum_stdout_bytes,
+                                    &has_interpolation, process) ||
+        !has_interpolation || maximum_stdout_bytes == 0u)
+      return false;
+  }
 
   const w_seed_hir0_terminator *normal_return =
       &program->terminators[normal->terminator_index];
@@ -6586,6 +6616,7 @@ static bool process_integer_exact_root_supported(
   process->exact_source_is_signed = source_facts.is_signed;
   process->exact_destination_is_signed = destination_facts.is_signed;
   process->exact_source_is_target_usize = target_usize_source;
+  process->maximum_stdout_bytes = maximum_stdout_bytes;
   process->has_integer_exactly = true;
   return true;
 }
@@ -6970,8 +7001,9 @@ select_process_executable_mode(
                                         parallel_selection)))
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
   if (candidate.has_integer_exactly) {
-    /* The restricted exact root has no calls and therefore cannot write. */
-    candidate.maximum_stdout_bytes = 0u;
+    if ((program->call_count != 0u && candidate.maximum_stdout_bytes == 0u) ||
+        candidate.maximum_stdout_bytes > W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES)
+      return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
   } else {
     if (!program_function_maximum(
             program, candidate.function_index, &candidate, bindings,

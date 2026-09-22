@@ -10292,13 +10292,68 @@ static bool build_process_executable_artifact(
             "  ^process_map_outcome(%process_exact_outcome: i64):\n"
             "    %process_typed_error_tag = llvm.mlir.constant(4294967296 : i64) : i64\n"
             "    %process_has_typed_error = llvm.icmp \"uge\" %process_exact_outcome, %process_typed_error_tag : i64\n"
-            "    %process_portable_status = llvm.trunc %process_exact_outcome : i64 to i32\n"
-            "    llvm.cond_br %process_has_typed_error, ^process_typed_error, ^process_exit(%process_portable_status : i32)\n"
+            "    %process_portable_status = llvm.trunc %process_exact_outcome : i64 to i32\n"))
+      return false;
+    if (selection->maximum_stdout_bytes != 0u) {
+      if (!append_literal(
+              artifact, capacity, &offset,
+            "    llvm.cond_br %process_has_typed_error, ^process_typed_error, ^process_exact_success(%process_portable_status : i32)\n"
             "  ^process_typed_error:\n"
             "    %process_typed_status = llvm.mlir.constant(1 : i32) : i32\n"
-            "    llvm.br ^process_exit(%process_typed_status : i32)\n"))
+            "    llvm.br ^process_exit(%process_typed_status : i32)\n"
+            "  ^process_exact_success(%process_exact_success_status: i32):\n"
+            "    %process_length = llvm.load %process_cursor_address : !llvm.ptr -> i64\n"
+            "    %process_has_output = llvm.icmp \"ne\" %process_length, %process_zero : i64\n"
+            "    llvm.cond_br %process_has_output, ^process_exact_flush(%process_exact_success_status : i32), ^process_exit(%process_exact_success_status : i32)\n"
+            "  ^process_exact_flush(%process_exact_flush_status: i32):\n"))
+        return false;
+    } else if (!append_literal(
+                   artifact, capacity, &offset,
+                   "    llvm.cond_br %process_has_typed_error, ^process_typed_error, ^process_exit(%process_portable_status : i32)\n"
+                   "  ^process_typed_error:\n"
+                   "    %process_typed_status = llvm.mlir.constant(1 : i32) : i32\n"
+                   "    llvm.br ^process_exit(%process_typed_status : i32)\n")) {
       return false;
-    if (windows) {
+    }
+    if (windows && selection->maximum_stdout_bytes != 0u) {
+      if (!append_literal(
+              artifact, capacity, &offset,
+              "    %process_written = llvm.call @w_seed_write(%process_buffer, %process_length) : (!llvm.ptr, i64) -> i64\n"
+              "    %process_flush_ok = llvm.icmp \"eq\" %process_written, %process_length : i64\n"
+              "    llvm.cond_br %process_flush_ok, ^process_exit(%process_exact_flush_status : i32), ^process_write_fault\n"
+              "  ^process_write_fault:\n"
+              "    llvm.br ^process_exit(%process_failure : i32)\n"
+              "  ^process_exit(%process_code: i32):\n"
+              "    llvm.call @ExitProcess(%process_code) : (i32) -> ()\n"
+              "    llvm.return\n"
+              "  ^process_early_fault:\n"
+              "    llvm.call @ExitProcess(%process_failure) : (i32) -> ()\n"
+              "    llvm.return\n"
+              "  ^process_release_fault:\n"
+              "    llvm.call @ExitProcess(%process_failure) : (i32) -> ()\n"
+              "    llvm.return\n"
+              "  }\n"
+              "}\n"))
+        return false;
+    } else if (!windows && selection->maximum_stdout_bytes != 0u) {
+      if (!append_literal(
+                   artifact, capacity, &offset,
+                   "    %process_fd = llvm.mlir.constant(1 : i32) : i32\n"
+                   "    %process_written = llvm.call @write(%process_fd, %process_buffer, %process_length) : (i32, !llvm.ptr, i64) -> i64\n"
+                   "    %process_flush_ok = llvm.icmp \"eq\" %process_written, %process_length : i64\n"
+                   "    llvm.cond_br %process_flush_ok, ^process_exit(%process_exact_flush_status : i32), ^process_write_fault\n"
+                   "  ^process_write_fault:\n"
+                   "    llvm.br ^process_exit(%process_failure : i32)\n"
+                   "  ^process_exit(%process_code: i32):\n"
+                   "    llvm.return %process_code : i32\n"
+                   "  ^process_early_fault:\n"
+                   "    llvm.return %process_failure : i32\n"
+                   "  ^process_release_fault:\n"
+                   "    llvm.return %process_failure : i32\n"
+                   "  }\n"
+                   "}\n"))
+        return false;
+    } else if (windows) {
       if (!append_literal(
               artifact, capacity, &offset,
               "  ^process_exit(%process_code: i32):\n"
@@ -10322,8 +10377,9 @@ static bool build_process_executable_artifact(
                    "  ^process_release_fault:\n"
                    "    llvm.return %process_failure : i32\n"
                    "  }\n"
-                   "}\n"))
+                   "}\n")) {
       return false;
+    }
   } else if (!append_literal(
                  artifact, capacity, &offset,
                  "    %process_length = llvm.load %process_cursor_address : !llvm.ptr -> i64\n"

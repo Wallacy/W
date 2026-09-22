@@ -1234,7 +1234,8 @@ static bool test_process_integer_exactly_adapter(void) {
       "ExitCode as ProcessExitCode } from std.process\n"
       "async fn run(args: ProcessArguments, ctx: ProcessContext): "
       "ProcessExitCode throws NumericConversionError { "
-      "let narrowed = try i8(exactly: args.count) return .success }\n"
+      "let narrowed = try i8(exactly: args.count) "
+      "print(\"Exact ${narrowed}\") return .success }\n"
       "entry(run)\n";
   static const uint8_t direct_throw_source[] =
       "import { Arguments as ProcessArguments, Context as ProcessContext, "
@@ -1274,6 +1275,8 @@ static bool test_process_integer_exactly_adapter(void) {
       21u, &WINDOWS_TARGET, W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE,
       runtime_output, sizeof(runtime_output), &runtime_result);
   CHECK(runtime_status == W_SEED_NATIVE0_OK);
+  CHECK(storage.hir_program.call_count == 1u &&
+        storage.hir_program.binding_count == 1u);
   CHECK(w_seed_native_subset0_select_process_executable(
             &storage.hir_program, &storage.hir_result, &selection) ==
             W_SEED_NATIVE_SUBSET0_OK &&
@@ -1283,10 +1286,30 @@ static bool test_process_integer_exactly_adapter(void) {
         !selection.exact_source_is_signed &&
         selection.exact_destination_bit_width == 8u &&
         selection.exact_destination_is_signed &&
-        contains_bytes(runtime_output, runtime_result.mlir.written.mlir_bytes,
-                       "@w_seed_process_arguments_count") &&
-        contains_bytes(runtime_output, runtime_result.mlir.written.mlir_bytes,
+        selection.maximum_stdout_bytes > 0u);
+  CHECK(contains_bytes(runtime_output, runtime_result.mlir.written.mlir_bytes,
+                       "@w_seed_process_arguments_count"));
+  CHECK(contains_bytes(runtime_output, runtime_result.mlir.written.mlir_bytes,
                        "llvm.icmp \"ule\""));
+  CHECK(contains_bytes(runtime_output, runtime_result.mlir.written.mlir_bytes,
+                       "llvm.call @w_seed_append_i64"));
+  CHECK(contains_bytes(runtime_output, runtime_result.mlir.written.mlir_bytes,
+                       "llvm.call @w_seed_write"));
+  const size_t runtime_bytes = runtime_result.mlir.written.mlir_bytes;
+  const size_t runtime_finalize = find_bytes(
+      runtime_output, runtime_bytes,
+      "llvm.call @w_seed_process_root_finalize", 0u);
+  const size_t runtime_map = find_bytes(
+      runtime_output, runtime_bytes, "^process_map_outcome", runtime_finalize);
+  const size_t runtime_typed_error = find_bytes(
+      runtime_output, runtime_bytes, "^process_typed_error:", runtime_map);
+  const size_t runtime_success = find_bytes(
+      runtime_output, runtime_bytes, "^process_exact_success", runtime_map);
+  const size_t runtime_write = find_bytes(
+      runtime_output, runtime_bytes, "llvm.call @w_seed_write", runtime_success);
+  CHECK(runtime_finalize != SIZE_MAX && runtime_map > runtime_finalize &&
+        runtime_typed_error > runtime_map && runtime_success > runtime_map &&
+        runtime_write > runtime_success && runtime_write > runtime_typed_error);
   const size_t runtime_exact_source_index =
       (size_t)(selection.exact_source_value - storage.hir_program.values);
   CHECK(runtime_exact_source_index < storage.hir_program.value_count);

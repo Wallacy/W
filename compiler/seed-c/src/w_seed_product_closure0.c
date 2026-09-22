@@ -357,8 +357,12 @@ static bool typed_process_numeric_exact_root_supported(
       program->types[split_term->result_type].kind !=
           W_SEED_HIR0_TYPE_INTEGER)
     return false;
-  if (normal->instruction_count != 1u || error->instruction_count != 0u ||
-      normal->first_instruction >= program->instruction_count)
+  if ((normal->instruction_count != 1u &&
+       normal->instruction_count != 2u) ||
+      error->instruction_count != 0u ||
+      normal->first_instruction >= program->instruction_count ||
+      normal->instruction_count >
+          program->instruction_count - normal->first_instruction)
     return false;
   const w_seed_hir0_instruction *instruction =
       &program->instructions[normal->first_instruction];
@@ -381,6 +385,33 @@ static bool typed_process_numeric_exact_root_supported(
       initializer->type_index != split_term->result_type ||
       initializer->block_argument_index != normal->first_block_argument)
     return false;
+  if (normal->instruction_count == 2u) {
+    const w_seed_hir0_instruction *observation = instruction + 1;
+    if (observation->kind != W_SEED_HIR0_INSTRUCTION_CALL ||
+        observation->owner_block != normal_block ||
+        observation->ordinal != 1u ||
+        observation->call_index >= program->call_count)
+      return false;
+    const w_seed_hir0_call *print = &program->calls[observation->call_index];
+    if (print->owner_instruction != normal->first_instruction + 1u ||
+        print->owner_terminator != W_SEED_HIR0_NONE ||
+        print->owner_block != normal_block || print->ordinal != 1u ||
+        print->execution_kind != W_SEED_HIR0_CALL_DIRECT ||
+        print->placement != W_SEED_HIR0_CALL_PLACEMENT_NONE ||
+        !host_print_identity_valid(program, print->callee_identity) ||
+        print->first_argument >= program->argument_count ||
+        print->argument_count != 1u || print->result_type != 0u)
+      return false;
+    const w_seed_hir0_argument *message =
+        &program->arguments[print->first_argument];
+    if (message->owner_call != observation->call_index ||
+        message->ordinal != 0u || message->parameter_ordinal != 0u ||
+        message->type_index != W_SEED_HIR0_TYPE_STRING ||
+        message->value_index >= program->value_count ||
+        program->values[message->value_index].kind !=
+            W_SEED_HIR0_VALUE_INTERPOLATED_STRING)
+      return false;
+  }
   if (normal->terminator_index >= program->terminator_count ||
       error->terminator_index >= program->terminator_count)
     return false;

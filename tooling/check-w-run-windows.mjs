@@ -1061,10 +1061,12 @@ try {
   expectExact(binary, ["run", processIntegerExactErrorFixture], 1,
     Buffer.alloc(0), "public exact integer conversion typed error")
   expectExact(binary, ["run", processIntegerExactRuntimeFixture], 0,
-    Buffer.alloc(0), "public runtime exact integer conversion success")
+    Buffer.from("Exact 0\n", "utf8"),
+    "public runtime exact integer conversion success")
   expectExact(binary, ["run", processIntegerExactRuntimeFixture, "--",
-    ...Array.from({ length: 127 }, () => "x")], 0, Buffer.alloc(0),
-  "public runtime exact integer conversion upper boundary")
+    ...Array.from({ length: 127 }, () => "x")], 0,
+    Buffer.from("Exact 127\n", "utf8"),
+    "public runtime exact integer conversion upper boundary")
   expectExact(binary, ["run", processIntegerExactRuntimeFixture, "--",
     ...Array.from({ length: 128 }, () => "x")], 1, Buffer.alloc(0),
   "public runtime exact integer conversion out of range")
@@ -1210,11 +1212,13 @@ try {
   Buffer.alloc(0), "build runtime exact integer conversion fixture")
   assertPeX64(await readFile(buildProcessIntegerExactRuntime),
     "built runtime exact integer conversion artifact")
-  expectExact(buildProcessIntegerExactRuntime, [], 0, Buffer.alloc(0),
+  expectExact(buildProcessIntegerExactRuntime, [], 0,
+    Buffer.from("Exact 0\n", "utf8"),
     "execute built runtime exact integer conversion success")
   expectExact(buildProcessIntegerExactRuntime,
-    Array.from({ length: 127 }, () => "x"), 0, Buffer.alloc(0),
-  "execute built runtime exact integer conversion upper boundary")
+    Array.from({ length: 127 }, () => "x"), 0,
+    Buffer.from("Exact 127\n", "utf8"),
+    "execute built runtime exact integer conversion upper boundary")
   expectExact(buildProcessIntegerExactRuntime,
     Array.from({ length: 128 }, () => "x"), 1, Buffer.alloc(0),
   "execute built runtime exact integer conversion out of range")

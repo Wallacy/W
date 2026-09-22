@@ -91,6 +91,20 @@ how they avoid their own undefined behavior. Adversarial and fault evidence
 must exercise the same maintained W source-to-native route as the positive
 claim rather than a substitute harness.
 
+Safety closes in dependency order rather than by accumulating unrelated green
+tests. First execute initialization, move, `ref`/`mut ref`/`inout`, bounds,
+destruction, allocator failure, and explicit `Option` absence from real W
+source; safe references never acquire a universal `null` state. Then close
+general typed errors, panic/OOM boundaries, exactly-once cleanup, and external
+I/O visibility. Only afterward promote tasks, atomics, locks, cancellation,
+race freedom, and reclamation through bounded schedule exploration and native
+race instrumentation. FFI/unsafe, ABI/layout, MMIO, interrupts, and assembly
+need their own target probes because safe-language evidence cannot validate a
+foreign trust boundary. Finally, optimization and code-generation correctness
+need debug-versus-optimized differential execution, an independent semantic
+oracle, and source/serialized-IR fuzzing. Host-model tests remain useful design
+oracles but never promote one of these product claims.
+
 ### Numeric closure discipline
 
 Numeric implementation proceeds by semantic family, with one canonical set of
@@ -200,13 +214,14 @@ physical scheduler experiments:
    a three-block process root. ProductClosure0 v3 projects either the direct
    typed outcome or the conversion's distinct normal and typed-error
    successors. It authenticates reverse-initialization cleanup on both
-   structured exits. Process-executable v3 now materializes that cleanup and
+   structured exits. Process-executable v4 now materializes that cleanup and
    post-cleanup status adaptation for the exact-conversion root. One canonical
    runtime ingress now carries the distinct logical `Arguments.count: usize`
    identity through HIR under the current x64 seed profile; MLIR selects its
    physical `i64` carrier only after target validation. It proves zero/127
-   arguments as success 0 and 128 as out-of-range status 1 on public CRT-free
-   Windows and Linux/WSL routes with empty output. This is not general `usize`
+   arguments as success 0 with exact converted output and 128 as out-of-range
+   status 1 with empty failure output on public CRT-free Windows and Linux/WSL
+   routes. This is not general `usize`
    support. The direct-throw and general typed process routes remain
    unimplemented.
    Remaining conversion policies continue to block this rank-1
@@ -541,12 +556,13 @@ preserves a three-block typed success/error split whose error edge is canonical
 artifact with `mlir-opt` and `mlir-translate`. HIR94 now admits a bounded
 binding continuation and process root for that split; ProductClosure0 v3
 projects its normal and typed-error successors while retaining the restricted
-direct-throw outcome. Process-executable v3 materializes
+direct-throw outcome. Process-executable v4 materializes
 reverse-initialization cleanup for the bounded exact-conversion root, retains
 the typed carrier through root finalization, and only then adapts the error to
 status 1. Public CRT-free Windows x64 and Linux/WSL x64 gates execute the
 canonical runtime `Arguments.count` source at zero, 127, and 128 user
-arguments, proving both success and out-of-range paths with empty output. The
+arguments, proving the converted success payload and an out-of-range path with
+no output committed before typed failure. The
 logical `usize` identity remains distinct from portable `u64`; the current
 seed profile itself is x64-only. No benchmark or timing claim is made. The
 direct-throw route, other conversion

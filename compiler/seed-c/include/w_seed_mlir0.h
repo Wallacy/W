@@ -26,7 +26,7 @@ extern "C" {
 #define W_SEED_MLIR0_PROCESS_SCHEMA_VERSION \
   "w-seed-mlir0-process-handler-1"
 #define W_SEED_MLIR0_PROCESS_EXECUTABLE_SCHEMA_VERSION \
-  "w-seed-mlir0-process-executable-3"
+  "w-seed-mlir0-process-executable-4"
 /* Target-neutral M2 cooperative product emission is a scalar MLIR core.  It
  * has no target triple, data-layout, runtime, or process-entry contract. */
 #define W_SEED_MLIR0_COOPERATIVE_SCHEMA_VERSION \

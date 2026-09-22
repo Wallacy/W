@@ -10883,6 +10883,106 @@ static bool test_integer_exactly_continuation_hir(void) {
   return true;
 }
 
+static bool test_process_integer_exactly_observation_hir(void) {
+  static const char SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let narrowed = try i8(exactly: args.count)\n"
+      "print(\"Exact ${narrowed}\")\n"
+      "return .success }\n"
+      "entry(run)\n";
+  CHECK(lower_process_input0_generic(SOURCE));
+  w_seed_hir0_program *program = &fixture.hir_program;
+  const w_seed_hir0_function *run = &program->functions[0];
+  const uint32_t split_block = run->first_block;
+  const uint32_t normal_block = split_block + 1u;
+  const uint32_t error_block = split_block + 2u;
+  const w_seed_hir0_block *normal = &program->blocks[normal_block];
+  CHECK(program->block_count == 3u && program->call_count == 1u &&
+        program->argument_count == 1u && program->binding_count == 1u &&
+        normal->instruction_count == 2u &&
+        program->blocks[split_block].instruction_count == 0u &&
+        program->blocks[error_block].instruction_count == 0u &&
+        program->instructions[normal->first_instruction].kind ==
+            W_SEED_HIR0_INSTRUCTION_BINDING &&
+        program->instructions[normal->first_instruction + 1u].kind ==
+            W_SEED_HIR0_INSTRUCTION_CALL &&
+        program->terminators[split_block].kind ==
+            W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY &&
+        program->terminators[normal_block].kind ==
+            W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        program->terminators[error_block].kind ==
+            W_SEED_HIR0_TERMINATOR_THROW &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const uint32_t call_instruction_index = normal->first_instruction + 1u;
+  const uint32_t call_index =
+      program->instructions[call_instruction_index].call_index;
+  CHECK(call_index < program->call_count);
+  const w_seed_hir0_call saved_call = fixture.hir_calls[call_index];
+  const uint32_t argument_index = saved_call.first_argument;
+  CHECK(argument_index < program->argument_count);
+  const w_seed_hir0_argument saved_argument =
+      fixture.hir_arguments[argument_index];
+  const uint32_t message_index = saved_argument.value_index;
+  CHECK(message_index < program->value_count);
+  const w_seed_hir0_value *message = &program->values[message_index];
+  CHECK(message->kind == W_SEED_HIR0_VALUE_INTERPOLATED_STRING &&
+        message->interpolation_segment_count == 2u);
+  const uint32_t first_segment = message->first_interpolation_segment;
+  CHECK(first_segment < program->interpolation_segment_count - 1u);
+  const w_seed_hir0_interpolation_segment *text =
+      &program->interpolation_segments[first_segment];
+  const w_seed_hir0_interpolation_segment *dynamic = text + 1u;
+  CHECK(text->kind == W_SEED_HIR0_INTERPOLATION_TEXT &&
+        text->byte_count == 6u && dynamic->kind == W_SEED_HIR0_INTERPOLATION_VALUE &&
+        dynamic->value_index < program->value_count &&
+        program->values[dynamic->value_index].kind ==
+            W_SEED_HIR0_VALUE_BINDING_READ &&
+        program->values[dynamic->value_index].binding_index == 0u);
+
+  fixture.hir_calls[call_index].owner_block = error_block;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_calls[call_index] = saved_call;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_calls[call_index].callee_identity = 0u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_calls[call_index] = saved_call;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_arguments[argument_index].type_index = W_SEED_HIR0_TYPE_I64;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_arguments[argument_index] = saved_argument;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const uint8_t saved_prefix = fixture.hir_value_bytes[text->byte_offset];
+  fixture.hir_value_bytes[text->byte_offset] = (uint8_t)'U';
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_value_bytes[text->byte_offset] = saved_prefix;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const uint32_t read_index = dynamic->value_index;
+  const w_seed_hir0_value saved_read = fixture.hir_values[read_index];
+  fixture.hir_values[read_index].binding_index = W_SEED_HIR0_NONE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[read_index] = saved_read;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_typed_invoke_cleanup_hir(void) {
   static const char SOURCE[] =
       "enum Failure: Error { denied }\n"
@@ -19549,6 +19649,7 @@ int main(int argc, char **argv) {
   if (!test_typed_invoke_hir()) return 1;
   if (!test_integer_exactly_hir()) return 1;
   if (!test_integer_exactly_continuation_hir()) return 1;
+  if (!test_process_integer_exactly_observation_hir()) return 1;
   if (!test_local_enum_payload_declarations_hir()) return 1;
   if (!test_local_enum_payload_constructor_hir()) return 1;
   if (!test_enum_switch_hir()) return 1;

@@ -42772,13 +42772,17 @@ ordinary typed values. For the restricted `native-process@1` root,
 ProductClosure0 v3 authenticates and publishes the source split plus separate
 normal-return and `NumericConversionError.outOfRange` successor facts. Both
 structured exits preserve §11.6 destruction order: `Context`, then `Arguments`,
-the reverse of initialization. The bounded process-executable v3 adapter keeps
+the reverse of initialization. The bounded process-executable v4 adapter keeps
 the typed outcome distinct while running both owner releases and root
 finalization, then maps only the unhandled error arm to status 1 without
-implicit output. The runtime-derived `Arguments.count` fixture executes
+committing the success buffer. The runtime-derived `Arguments.count` fixture
+prints the successfully converted `i8` value and executes
 through public `w run` and `w build` on CRT-free Windows x64 and Linux/WSL x64:
 zero and 127 user arguments succeed, while 128 reaches
-`NumericConversionError.outOfRange` and host status 1, all with empty output.
+`NumericConversionError.outOfRange` and host status 1. The successful cases
+emit exactly `Exact 0\n` and `Exact 127\n`; the failing case emits no stdout or
+stderr. Cleanup and root finalization precede outcome classification, and the
+stdout cursor is read and flushed only on the normal successor.
 Constant fixtures remain focused correctness variants rather than separate
 product claims. Direct user-defined throws, general typed roots, benchmark
 timing, floating-point or 128-bit conversion, general `isize`/`usize`,
@@ -42824,6 +42828,7 @@ import { Arguments, Context, ExitCode } from std.process
 
 async fn run(args: Arguments, ctx: Context): ExitCode throws NumericConversionError {
   let narrowed = try i8(exactly: args.count)
+  print("Exact ${narrowed}")
   return .success
 }
 
@@ -42858,12 +42863,15 @@ canonical core `NumericConversionError`, followed by a normal
 `ProcessExitCode` return. Verified HIR preserves the three-block split.
 ProductClosure0 v3 publishes both successor relations and authenticates one
 cleanup policy for both structured exits: reverse initialization order,
-`Context` then `Arguments`. NativeSubset0 and process-executable v3 materialize
+`Context` then `Arguments`. NativeSubset0 and process-executable v4 materialize
 that exact-conversion shape as a private tagged carrier, retain it across both
 owner releases and root finalization, and adapt the typed-error arm only after
 cleanup. Public `w run` and `w build` prove exit 0 for zero and 127 user
-arguments and exit 1 for 128 user arguments, with empty stdout/stderr, on
-CRT-free Windows x64 and Linux/WSL x64. The older direct-throw root remains
+arguments and exit 1 for 128 user arguments on CRT-free Windows x64 and
+Linux/WSL x64. The two normal successors prove their converted payloads with
+exact stdout `Exact 0\n` and `Exact 127\n`; the typed-error successor proves
+empty stdout/stderr because it cannot reach the flush block. The older
+direct-throw root remains
 projected as one typed outcome but is not yet admitted by the executable
 adapter.
 

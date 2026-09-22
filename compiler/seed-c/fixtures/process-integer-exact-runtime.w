@@ -1,5 +1,5 @@
-// Expected with 0 user arguments: exit 0, stdout <empty>, stderr <empty>.
-// Expected with 127 user arguments: exit 0, stdout <empty>, stderr <empty>.
+// Expected with 0 user arguments: exit 0, stdout "Exact 0\n", stderr <empty>.
+// Expected with 127 user arguments: exit 0, stdout "Exact 127\n", stderr <empty>.
 // Expected with 128 user arguments: exit 1, stdout <empty>, stderr <empty>.
 
 import {
@@ -10,6 +10,7 @@ import {
 
 async fn run(args: ProcessArguments, ctx: ProcessContext): ProcessExitCode throws NumericConversionError {
   let narrowed = try i8(exactly: args.count)
+  print("Exact ${narrowed}")
   return .success
 }
 

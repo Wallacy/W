@@ -205,11 +205,13 @@ export const FIXED_INTEGER_EXACT_RUNTIME_RECIPE_CLASS =
 export const FIXED_INTEGER_EXACT_RUNTIME_TIMED_INPUT = Object.freeze([]);
 export const FIXED_INTEGER_EXACT_RUNTIME_CORRECTNESS_INPUTS = Object.freeze([
   FIXED_INTEGER_EXACT_RUNTIME_TIMED_INPUT,
+  Object.freeze(Array.from({ length: 127 }, () => "x")),
   Object.freeze(Array.from({ length: 128 }, () => "x")),
 ]);
 export const FIXED_INTEGER_EXACT_RUNTIME_ORACLE_CASES = Object.freeze([
-  Object.freeze({ arguments: FIXED_INTEGER_EXACT_RUNTIME_CORRECTNESS_INPUTS[0], exitCode: 0, stdout: "", stderr: "" }),
-  Object.freeze({ arguments: FIXED_INTEGER_EXACT_RUNTIME_CORRECTNESS_INPUTS[1], exitCode: 1, stdout: "", stderr: "" }),
+  Object.freeze({ arguments: FIXED_INTEGER_EXACT_RUNTIME_CORRECTNESS_INPUTS[0], exitCode: 0, stdout: "Exact 0\n", stderr: "" }),
+  Object.freeze({ arguments: FIXED_INTEGER_EXACT_RUNTIME_CORRECTNESS_INPUTS[1], exitCode: 0, stdout: "Exact 127\n", stderr: "" }),
+  Object.freeze({ arguments: FIXED_INTEGER_EXACT_RUNTIME_CORRECTNESS_INPUTS[2], exitCode: 1, stdout: "", stderr: "" }),
 ]);
 const PROCESS_ARGUMENT_ORACLE_CONTRACTS = Object.freeze({
   [PROCESS_ENTRY_WORKLOAD_ID]: Object.freeze({

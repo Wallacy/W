@@ -312,7 +312,9 @@ test("runtime exact conversion remains correctness-only despite equivalent refer
   assert.equal(workload.structureClass, "public-end-to-end");
   assert.equal(workload.benchmarkStatus, "not-performance-ready");
   assert.equal(workload.oracle.kind, "argument-dependent-output");
-  assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.exitCode), [0, 1]);
+  assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.exitCode), [0, 0, 1]);
+  assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.stdout),
+    ["Exact 0\n", "Exact 127\n", ""]);
   assert.deepEqual(workload.sources.map((source) => source.language), ["w", "c", "rust"]);
   assert.deepEqual(workload.blockedLanguages, []);
   assert.ok(workload.blockers.includes("steady-runtime-family-workload"));

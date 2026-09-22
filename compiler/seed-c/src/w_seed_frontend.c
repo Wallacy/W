@@ -17406,6 +17406,54 @@ static frontend_simple_type infer_integer_associated_call_span(
 static frontend_simple_type infer_expression_span_inner(
     frontend_context *context, w_seed_span span, size_t depth);
 
+/* Dry inference must preserve the same sole target-sized ingress accepted by
+ * the real expression parser.  Prove the complete resolver-owned
+ * `Arguments.count` member identity from its exact source span; an arbitrary
+ * usize value must never enter the fixed-width conversion family through this
+ * helper. */
+static bool infer_process_arguments_count_span(
+    frontend_context *context, const w_seed_frontend_document *doc,
+    w_seed_span span, frontend_simple_type *type) {
+  if (type != NULL) *type = simple_type_unknown();
+  if (context == NULL || doc == NULL || type == NULL) return false;
+  frontend_token_cursor cursor = token_cursor_for(doc, span);
+  frontend_token receiver_token;
+  frontend_token dot;
+  frontend_token member_token;
+  frontend_token trailing;
+  if (!cursor_take(&cursor, &receiver_token) ||
+      receiver_token.kind != W_SEED_CST_WORD ||
+      !cursor_take(&cursor, &dot) || !token_text(doc, &dot, ".") ||
+      !cursor_take(&cursor, &member_token) ||
+      member_token.kind != W_SEED_CST_WORD ||
+      !token_text(doc, &member_token, "count") ||
+      cursor_peek(&cursor, &trailing))
+    return false;
+  const frontend_simple_type receiver = binding_type_for_name(
+      context, text_from_span(doc, receiver_token.span), receiver_token.span);
+  uint32_t module_index = W_SEED_FRONTEND_NONE;
+  uint32_t symbol_index = W_SEED_FRONTEND_NONE;
+  const w_seed_frontend_external_symbol *member = NULL;
+  if (receiver.kind != W_SEED_FRONTEND_TYPE_NOMINAL ||
+      receiver.external_module_index != 0u ||
+      receiver.external_symbol_index != 0u ||
+      !external_member_for_receiver(
+          context, receiver, text_from_span(doc, member_token.span),
+          &module_index, &symbol_index, &member) ||
+      module_index != 0u || symbol_index != 6u || member == NULL ||
+      member->kind != W_SEED_FRONTEND_EXTERNAL_VALUE ||
+      !text_equal(member->name, "count"))
+    return false;
+  const frontend_simple_type candidate =
+      external_contextual_type(context, member->return_type);
+  if (candidate.kind != W_SEED_FRONTEND_TYPE_INTEGER || candidate.is_signed ||
+      candidate.bit_width != (uint16_t)W_SEED_FRONTEND_TARGET_USIZE_BITS ||
+      !text_equal(candidate.spelling, "usize"))
+    return false;
+  *type = candidate;
+  return true;
+}
+
 /* A later dry-pass local read needs the result type of this exact expression
  * before normalized statement records exist. Recognize only the checked
  * integer form; the Pratt parser remains responsible for full diagnostics,
@@ -17471,9 +17519,11 @@ static frontend_simple_type infer_integer_exactly_try_span(
     return simple_type_unknown();
 
   frontend_simple_type canonical_source = simple_type_unknown();
-  if (!integer_conversion_source_type(
-          infer_expression_span_inner(context, source_span, depth + 1u),
-          &canonical_source))
+  const frontend_simple_type inferred_source =
+      infer_expression_span_inner(context, source_span, depth + 1u);
+  if (!integer_conversion_source_type(inferred_source, &canonical_source) &&
+      !infer_process_arguments_count_span(context, doc, source_span,
+                                          &canonical_source))
     return simple_type_unknown();
   return destination;
 }

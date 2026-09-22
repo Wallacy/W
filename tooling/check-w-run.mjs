@@ -1396,10 +1396,12 @@ try {
   expectExact(binary, ["run", toWsl(processIntegerExactErrorFixture)], 1,
     Buffer.alloc(0), "Linux public exact integer conversion typed error")
   expectExact(binary, ["run", toWsl(processIntegerExactRuntimeFixture)], 0,
-    Buffer.alloc(0), "Linux public runtime exact integer conversion success")
+    Buffer.from("Exact 0\n", "utf8"),
+    "Linux public runtime exact integer conversion success")
   expectExact(binary, ["run", toWsl(processIntegerExactRuntimeFixture), "--",
-    ...Array.from({ length: 127 }, () => "x")], 0, Buffer.alloc(0),
-  "Linux public runtime exact integer conversion upper boundary")
+    ...Array.from({ length: 127 }, () => "x")], 0,
+    Buffer.from("Exact 127\n", "utf8"),
+    "Linux public runtime exact integer conversion upper boundary")
   expectExact(binary, ["run", toWsl(processIntegerExactRuntimeFixture), "--",
     ...Array.from({ length: 128 }, () => "x")], 1, Buffer.alloc(0),
   "Linux public runtime exact integer conversion out of range")
@@ -1527,11 +1529,13 @@ try {
     "--target", targetTriple, "--output", buildProcessIntegerExactRuntime],
   Buffer.alloc(0), "build Linux runtime exact integer conversion fixture")
   assertCrtFreeElf(await readBuildArtifact(buildProcessIntegerExactRuntime))
-  expectExact(buildProcessIntegerExactRuntime, [], 0, Buffer.alloc(0),
+  expectExact(buildProcessIntegerExactRuntime, [], 0,
+    Buffer.from("Exact 0\n", "utf8"),
     "execute built Linux runtime exact integer conversion success")
   expectExact(buildProcessIntegerExactRuntime,
-    Array.from({ length: 127 }, () => "x"), 0, Buffer.alloc(0),
-  "execute built Linux runtime exact integer conversion upper boundary")
+    Array.from({ length: 127 }, () => "x"), 0,
+    Buffer.from("Exact 127\n", "utf8"),
+    "execute built Linux runtime exact integer conversion upper boundary")
   expectExact(buildProcessIntegerExactRuntime,
     Array.from({ length: 128 }, () => "x"), 1, Buffer.alloc(0),
   "execute built Linux runtime exact integer conversion out of range")

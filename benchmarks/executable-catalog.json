@@ -3317,7 +3317,7 @@
       "demoEvidence": "bounded-w-demo",
       "benchmarkStatus": "not-performance-ready",
       "lane": "equivalent",
-      "scope": "Convert the runtime-derived user argument count from logical usize to i8 exactly, preserving a typed NumericConversionError through reverse-order structured cleanup before the process adapter maps failure to status 1. This representative public witness does not replace the focused all-pairs compiler matrix.",
+      "scope": "Convert the runtime-derived user argument count from logical usize to i8 exactly, print the narrowed success value, and preserve a typed NumericConversionError through reverse-order structured cleanup before the process adapter maps failure to status 1 without publishing output. This representative public witness does not replace the focused all-pairs compiler matrix.",
       "oracle": {
         "kind": "argument-dependent-output",
         "status": "source-backed",
@@ -3326,7 +3326,13 @@
           {
             "arguments": [],
             "exitCode": 0,
-            "stdout": "",
+            "stdout": "Exact 0\n",
+            "stderr": ""
+          },
+          {
+            "arguments": ["x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x"],
+            "exitCode": 0,
+            "stdout": "Exact 127\n",
             "stderr": ""
           },
           {
@@ -3341,7 +3347,7 @@
         {
           "language": "w",
           "path": "compiler/seed-c/fixtures/process-integer-exact-runtime.w",
-          "digest": "sha256:132c549f4f87d2bf2ad6407fb6f350522c5423355f93655d2e60f7a19e2eec17",
+          "digest": "sha256:c704d61d7988bad59c8c0fc4a07c74eb1c682e19798855e7c9a3805261e56a20",
           "entry": "run",
           "status": "source-oracle-ready",
           "profile": "release",
@@ -3356,7 +3362,7 @@
         {
           "language": "c",
           "path": "benchmarks/executable/process_integer_exact_runtime.c",
-          "digest": "sha256:2836dc9f68f81326e07dedd53deccb4c1c7748a07e2578c5bfc5109e4a8cdad6",
+          "digest": "sha256:64cca1ba75a7730dfc4f21e114a04d02d4326e94db0703e39b547c3bb31384cf",
           "entry": "main",
           "status": "source-oracle-ready",
           "profile": "release",
@@ -3371,7 +3377,7 @@
         {
           "language": "rust",
           "path": "benchmarks/executable/process_integer_exact_runtime.rs",
-          "digest": "sha256:8e941fa45f64fb98b5a847c43d1f2f6d411437db5884e041bd5ac84e2762175c",
+          "digest": "sha256:f68acac66ca631500a46c598b4838a82940836d74e07445e6911ffffa02125c1",
           "entry": "main",
           "status": "source-oracle-ready",
           "profile": "release",
@@ -3386,7 +3392,6 @@
       ],
       "blockedLanguages": [],
       "blockers": [
-        "observable-success-value",
         "steady-runtime-family-workload"
       ]
     },
