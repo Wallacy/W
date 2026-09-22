@@ -73,6 +73,7 @@
         { "package": "root", "script": "check:platform-support" },
         { "package": "root", "script": "check:cleanup" },
         { "package": "root", "script": "check:dependency-currency" },
+        { "package": "root", "script": "check:safety-evidence" },
         { "package": "root", "script": "check:diagnostic-catalog" },
         { "package": "root", "script": "check:maintained-parse" },
         { "package": "root", "script": "check:links" },

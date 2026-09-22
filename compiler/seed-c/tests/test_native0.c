@@ -1237,6 +1237,14 @@ static bool test_process_integer_exactly_adapter(void) {
       "let narrowed = try i8(exactly: args.count) "
       "print(\"Exact ${narrowed}\") return .success }\n"
       "entry(run)\n";
+  static const uint8_t arithmetic_fault_source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let narrowed = try i8(exactly: args.count) "
+      "print(\"Exact ${narrowed + 1_i8}\") return .success }\n"
+      "entry(run)\n";
   static const uint8_t direct_throw_source[] =
       "import { Arguments as ProcessArguments, Context as ProcessContext, "
       "ExitCode as ProcessExitCode } from std.process\n"
@@ -1247,10 +1255,12 @@ static bool test_process_integer_exactly_adapter(void) {
   static uint8_t success_output[W_SEED_MLIR0_MAX_BYTES];
   static uint8_t error_output[W_SEED_MLIR0_MAX_BYTES];
   static uint8_t runtime_output[W_SEED_MLIR0_MAX_BYTES];
+  static uint8_t arithmetic_fault_output[W_SEED_MLIR0_MAX_BYTES];
   static uint8_t rejected_output[W_SEED_MLIR0_MAX_BYTES];
   w_seed_native0_result success_result;
   w_seed_native0_result error_result;
   w_seed_native0_result runtime_result;
+  w_seed_native0_result arithmetic_fault_result;
   w_seed_native0_result rejected_result;
   const w_seed_native0_status success_status = run_source_mode(
       success_source, sizeof(success_source) - 1u, "process-exact-success",
@@ -1302,7 +1312,7 @@ static bool test_process_integer_exactly_adapter(void) {
   const size_t runtime_map = find_bytes(
       runtime_output, runtime_bytes, "^process_map_outcome", runtime_finalize);
   const size_t runtime_typed_error = find_bytes(
-      runtime_output, runtime_bytes, "^process_typed_error:", runtime_map);
+      runtime_output, runtime_bytes, "^process_abnormal(", runtime_map);
   const size_t runtime_success = find_bytes(
       runtime_output, runtime_bytes, "^process_exact_success", runtime_map);
   const size_t runtime_write = find_bytes(
@@ -1310,6 +1320,36 @@ static bool test_process_integer_exactly_adapter(void) {
   CHECK(runtime_finalize != SIZE_MAX && runtime_map > runtime_finalize &&
         runtime_typed_error > runtime_map && runtime_success > runtime_map &&
         runtime_write > runtime_success && runtime_write > runtime_typed_error);
+  CHECK(run_source_mode(
+            arithmetic_fault_source, sizeof(arithmetic_fault_source) - 1u,
+            "process-arithmetic-fault", 24u, &WINDOWS_TARGET,
+            W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE,
+            arithmetic_fault_output, sizeof(arithmetic_fault_output),
+            &arithmetic_fault_result) == W_SEED_NATIVE0_OK);
+  const size_t arithmetic_fault_bytes =
+      arithmetic_fault_result.mlir.written.mlir_bytes;
+  const size_t arithmetic_fault_drop = find_bytes(
+      arithmetic_fault_output, arithmetic_fault_bytes,
+      "llvm.call @w_seed_process_context_drop", 0u);
+  const size_t arithmetic_fault_map = find_bytes(
+      arithmetic_fault_output, arithmetic_fault_bytes,
+      "^process_map_outcome", arithmetic_fault_drop);
+  const size_t arithmetic_fault_flush = find_bytes(
+      arithmetic_fault_output, arithmetic_fault_bytes,
+      "llvm.call @w_seed_write", arithmetic_fault_map);
+  CHECK(contains_bytes(arithmetic_fault_output, arithmetic_fault_bytes,
+                       "@w_seed_process_checked_add_i64") &&
+        contains_bytes(arithmetic_fault_output, arithmetic_fault_bytes,
+                       "llvm.store %one, %fault : i64, !llvm.ptr") &&
+        contains_bytes(arithmetic_fault_output, arithmetic_fault_bytes,
+                       "llvm.mlir.constant(8589934592 : i64)") &&
+        contains_bytes(arithmetic_fault_output, arithmetic_fault_bytes,
+                       "llvm.mlir.constant(2 : i32)") &&
+        !contains_bytes(arithmetic_fault_output, arithmetic_fault_bytes,
+                        "@w_seed_checked_add_i64") &&
+        arithmetic_fault_drop != SIZE_MAX &&
+        arithmetic_fault_map > arithmetic_fault_drop &&
+        arithmetic_fault_flush > arithmetic_fault_map);
   const size_t runtime_exact_source_index =
       (size_t)(selection.exact_source_value - storage.hir_program.values);
   CHECK(runtime_exact_source_index < storage.hir_program.value_count);
@@ -1354,9 +1394,13 @@ static bool test_process_integer_exactly_adapter(void) {
         contains_bytes(success_output, success_bytes,
                        "llvm.return %process_exact_error_carrier : i64") &&
         contains_bytes(success_output, success_bytes,
-                       "llvm.mlir.constant(4294967296 : i64) : i64") &&
+                       "%process_outcome_kind = llvm.lshr") &&
         contains_bytes(success_output, success_bytes,
-                       "llvm.cond_br %process_has_typed_error") &&
+                       "%process_typed_error_kind = llvm.mlir.constant(1 : i64)") &&
+        contains_bytes(success_output, success_bytes,
+                       "%process_checked_fault_kind = llvm.mlir.constant(2 : i64)") &&
+        contains_bytes(success_output, success_bytes,
+                       "llvm.cond_br %process_has_abnormal_outcome") &&
         contains_bytes(success_output, success_bytes,
                        "^w_fn_0_b_1(%process_exact_destination : i64), ^w_fn_0_b_2(%process_exact_error_payload : i64)") &&
         !contains_bytes(success_output, success_bytes,

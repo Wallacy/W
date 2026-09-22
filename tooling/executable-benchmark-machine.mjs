@@ -209,8 +209,8 @@ export const FIXED_INTEGER_RUNTIME_ARITHMETIC_CORRECTNESS_INPUTS = Object.freeze
   Object.freeze(Array.from({ length: 128 }, () => "x")),
 ]);
 export const FIXED_INTEGER_RUNTIME_ARITHMETIC_ORACLE_CASES = Object.freeze([
-  Object.freeze({ arguments: FIXED_INTEGER_RUNTIME_ARITHMETIC_CORRECTNESS_INPUTS[0], exitCode: 0, stdout: "Arithmetic 0/4\n", stderr: "" }),
-  Object.freeze({ arguments: FIXED_INTEGER_RUNTIME_ARITHMETIC_CORRECTNESS_INPUTS[1], exitCode: 0, stdout: "Arithmetic 127/10\n", stderr: "" }),
+  Object.freeze({ arguments: FIXED_INTEGER_RUNTIME_ARITHMETIC_CORRECTNESS_INPUTS[0], exitCode: 0, stdout: "Arithmetic 0/4/1\n", stderr: "" }),
+  Object.freeze({ arguments: FIXED_INTEGER_RUNTIME_ARITHMETIC_CORRECTNESS_INPUTS[1], exitCode: 2, stdout: "", stderr: "" }),
   Object.freeze({ arguments: FIXED_INTEGER_RUNTIME_ARITHMETIC_CORRECTNESS_INPUTS[2], exitCode: 1, stdout: "", stderr: "" }),
 ]);
 const PROCESS_ARGUMENT_ORACLE_CONTRACTS = Object.freeze({

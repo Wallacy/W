@@ -1396,12 +1396,15 @@ try {
   expectExact(binary, ["run", toWsl(processIntegerExactErrorFixture)], 1,
     Buffer.alloc(0), "Linux public exact integer conversion typed error")
   expectExact(binary, ["run", toWsl(processIntegerExactRuntimeFixture)], 0,
-    Buffer.from("Arithmetic 0/4\n", "utf8"),
+    Buffer.from("Arithmetic 0/4/1\n", "utf8"),
     "Linux public runtime fixed-integer arithmetic success")
   expectExact(binary, ["run", toWsl(processIntegerExactRuntimeFixture), "--",
-    ...Array.from({ length: 127 }, () => "x")], 0,
-    Buffer.from("Arithmetic 127/10\n", "utf8"),
-    "Linux public runtime fixed-integer arithmetic upper boundary")
+    ...Array.from({ length: 126 }, () => "x")], 0,
+    Buffer.from("Arithmetic 126/9/127\n", "utf8"),
+    "Linux public runtime fixed-integer arithmetic success boundary")
+  expectExact(binary, ["run", toWsl(processIntegerExactRuntimeFixture), "--",
+    ...Array.from({ length: 127 }, () => "x")], 2, Buffer.alloc(0),
+    "Linux public runtime fixed-integer arithmetic structured fault")
   expectExact(binary, ["run", toWsl(processIntegerExactRuntimeFixture), "--",
     ...Array.from({ length: 128 }, () => "x")], 1, Buffer.alloc(0),
   "Linux public runtime exact integer conversion out of range")
@@ -1530,12 +1533,15 @@ try {
   Buffer.alloc(0), "build Linux runtime fixed-integer arithmetic fixture")
   assertCrtFreeElf(await readBuildArtifact(buildProcessIntegerExactRuntime))
   expectExact(buildProcessIntegerExactRuntime, [], 0,
-    Buffer.from("Arithmetic 0/4\n", "utf8"),
+    Buffer.from("Arithmetic 0/4/1\n", "utf8"),
     "execute built Linux runtime fixed-integer arithmetic success")
   expectExact(buildProcessIntegerExactRuntime,
-    Array.from({ length: 127 }, () => "x"), 0,
-    Buffer.from("Arithmetic 127/10\n", "utf8"),
-    "execute built Linux runtime fixed-integer arithmetic upper boundary")
+    Array.from({ length: 126 }, () => "x"), 0,
+    Buffer.from("Arithmetic 126/9/127\n", "utf8"),
+    "execute built Linux runtime fixed-integer arithmetic success boundary")
+  expectExact(buildProcessIntegerExactRuntime,
+    Array.from({ length: 127 }, () => "x"), 2, Buffer.alloc(0),
+    "execute built Linux runtime fixed-integer arithmetic structured fault")
   expectExact(buildProcessIntegerExactRuntime,
     Array.from({ length: 128 }, () => "x"), 1, Buffer.alloc(0),
   "execute built Linux runtime exact integer conversion out of range")

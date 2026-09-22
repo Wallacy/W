@@ -11981,7 +11981,7 @@
       "decisions": [
         "W-1650"
       ],
-      "task": "Carry plain `try D(exactly: source)` across all 100 source/destination pairs among signed and unsigned 8/16/32/64-bit integers and current x86-64 Int/UInt aliases through Frontend71, the verified HIR typed split, NativeSubset0, and a private MLIR/LLVM artifact. Preserve canonical `NumericConversionError.outOfRange`, add one bounded consumed binding continuation and restricted process root, project its distinct normal/error successors through ProductClosure0 v3, and execute that root through process-executable v3 with cleanup before adaptation. Keep general typed roots and performance claims outside this increment.",
+      "task": "Carry plain `try D(exactly: source)` across all 100 source/destination pairs among signed and unsigned 8/16/32/64-bit integers and current x86-64 Int/UInt aliases through Frontend71, the verified HIR typed split, NativeSubset0, and a private MLIR/LLVM artifact. Preserve canonical `NumericConversionError.outOfRange`, add one bounded consumed binding continuation and restricted process root, project its distinct normal/error successors through ProductClosure0 v3, and execute that root through process-executable v5 with cleanup before adaptation. Keep general typed roots and performance claims outside this increment.",
       "selected": {
         "language": "w",
         "source": [
@@ -12021,7 +12021,7 @@
           "source": [
             "generalize the bounded exact-conversion executable witness to arbitrary typed process roots"
           ],
-          "expectedDifference": "Process-executable v3 proves cleanup and adaptation only for the authenticated integer-exactly root; user-defined direct throws and general typed bodies still fail closed."
+          "expectedDifference": "Process-executable v5 proves cleanup and adaptation only for the authenticated integer-exactly root; user-defined direct throws and general typed bodies still fail closed."
         }
       ],
       "sourceRefs": [
@@ -12095,8 +12095,88 @@
         "Frontend71 and HIR94 preserve the bounded 100-pair source/destination relation for the eight fixed-width integer types plus current x86-64 Int/UInt aliases.",
         "The verified HIR carries a three-block typed success/error split, one consumed binding continuation, and a restricted process root whose error case is canonical NumericConversionError.outOfRange.",
         "NativeSubset0 and the private MLIR artifact independently rederive the verified type facts; mlir-opt and mlir-translate validate the emitted artifact.",
-        "ProductClosure0 v3 projects the restricted process split; process-executable v3 retains the typed carrier through reverse-order cleanup and root finalization before adapting the error arm to status 1.",
+        "ProductClosure0 v3 projects the restricted process split; process-executable v5 retains the typed carrier through reverse-order cleanup and root finalization before adapting the error arm to status 1.",
         "Public CRT-free Windows x64 and Linux/WSL x64 gates execute representable and out-of-range fixtures with exits 0/1 and empty stdout/stderr; no general typed-root, benchmark, or timing claim is made."
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
+    },
+    {
+      "id": "R0-native-process-checked-numeric-fault",
+      "reviewItem": "bounded native-process checked-numeric fault adaptation against trap-before-release, typed-error conflation, output publication, and general-panic overclaim",
+      "decisions": [
+        "W-1653"
+      ],
+      "task": "Preserve checked arithmetic fault as a private outcome distinct from typed NumericConversionError and normal ExitCode, carry the bounded signed straight-line process route through compiler-owned reverse-order release and root finalization, discard buffered output, and adapt only at native-process@1 status 2. Keep general CFG, local-call propagation, user cleanup, public PanicEvent, and other hosts outside the claim.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "let narrowed = try i8(exactly: args.count)",
+          "print(\"Arithmetic ${narrowed + 1_i8}\")"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "trap-before-release",
+          "language": "w-internal-rejected",
+          "source": [
+            "lower checked overflow directly to llvm.intr.trap before compiler-owned process release"
+          ],
+          "expectedDifference": "The bounded process route records a private fault, releases Context then Arguments, finalizes the root, and only then adapts the outcome."
+        },
+        {
+          "name": "typed-error-conflation",
+          "language": "w-internal-rejected",
+          "source": [
+            "surface checked arithmetic panic as NumericConversionError"
+          ],
+          "expectedDifference": "Arithmetic fault remains distinct from the recoverable exactly-conversion error through the process boundary."
+        },
+        {
+          "name": "premature-general-panic-runtime",
+          "language": "w-internal-rejected",
+          "source": [
+            "claim arbitrary CFG, local-call propagation, user cleanup, or public PanicEvent from the private fault slot"
+          ],
+          "expectedDifference": "W-1653 is restricted to the authenticated straight-line signed process witness and publishes no general panic ABI."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/fixtures/process-fixed-integer-arithmetic.w",
+          "symbol": "Expected process outcomes",
+          "claim": "The public fixture declares two normal outputs, status-2 checked overflow, and status-1 typed conversion failure."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "MLIR0_PROCESS_CHECKED_I64_ADD_HELPER / build_process_executable_artifact",
+          "claim": "Process-executable v5 retains the private fault kind through compiler-owned release and root finalization before status adaptation."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_native0.c",
+          "symbol": "test_process_integer_exactly_adapter",
+          "claim": "The native test proves distinct outcome kinds, cleanup-before-mapping order, and a normal-only platform write."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "process fixed integer arithmetic cases",
+          "claim": "The Windows public route executes normal, numeric-fault, and typed-error outcomes with exact status and output."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "process fixed integer arithmetic cases",
+          "claim": "The Linux/WSL public route executes the same normal, numeric-fault, and typed-error outcomes."
+        }
+      ],
+      "checks": [
+        "The private checked-fault kind is distinct from typed error and normal ExitCode until native-process@1 adaptation.",
+        "Compiler-owned Context and Arguments release plus root finalization precede status mapping.",
+        "Only normal success reaches the platform write; status-2 arithmetic fault and status-1 typed error have empty stdout and stderr.",
+        "The claim remains bounded to signed +, -, *, /, and % in the restricted straight-line process root."
       ],
       "measures": [
         "semantic-correctness",

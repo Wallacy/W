@@ -312,9 +312,9 @@ test("runtime fixed-integer arithmetic remains correctness-only despite equivale
   assert.equal(workload.structureClass, "public-end-to-end");
   assert.equal(workload.benchmarkStatus, "not-performance-ready");
   assert.equal(workload.oracle.kind, "argument-dependent-output");
-  assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.exitCode), [0, 0, 1]);
+  assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.exitCode), [0, 2, 1]);
   assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.stdout),
-    ["Arithmetic 0/4\n", "Arithmetic 127/10\n", ""]);
+    ["Arithmetic 0/4/1\n", "", ""]);
   assert.deepEqual(workload.sources.map((source) => source.language), ["w", "c", "rust"]);
   assert.deepEqual(workload.blockedLanguages, []);
   assert.ok(workload.blockers.includes("steady-runtime-family-workload"));

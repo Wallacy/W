@@ -332,6 +332,124 @@ static const char MLIR0_CHECKED_I64_REMAINDER_HELPER[] =
     "    llvm.return %value : i64\n"
     "  }\n";
 
+/* A native-process root has a structured cleanup boundary.  Its checked
+ * arithmetic helpers therefore record a private fault and return a
+ * deterministic zero carrier instead of trapping.  The buffered process
+ * adapter observes the fault only after the W function returns, performs
+ * reverse-order cleanup and root finalization, and discards buffered output.
+ * Ordinary non-process artifacts retain the trap helpers above. */
+static const char MLIR0_PROCESS_CHECKED_I64_ADD_HELPER[] =
+    "  llvm.func internal @w_seed_process_checked_add_i64(%left: i64, %right: i64, %width: i64, %fault: !llvm.ptr) -> i64 {\n"
+    "    %pair = \"llvm.intr.sadd.with.overflow\"(%left, %right) : (i64, i64) -> !llvm.struct<(i64, i1)>\n"
+    "    %value = llvm.extractvalue %pair[0] : !llvm.struct<(i64, i1)>\n"
+    "    %overflow = llvm.extractvalue %pair[1] : !llvm.struct<(i64, i1)>\n"
+    "    %width64 = llvm.mlir.constant(64 : i64) : i64\n"
+    "    %shift = llvm.sub %width64, %width : i64\n"
+    "    %shifted = llvm.shl %value, %shift : i64\n"
+    "    %roundtrip = llvm.ashr %shifted, %shift : i64\n"
+    "    %narrow_overflow = llvm.icmp \"ne\" %value, %roundtrip : i64\n"
+    "    %invalid = llvm.or %overflow, %narrow_overflow : i1\n"
+    "    llvm.cond_br %invalid, ^fault, ^ok\n"
+    "  ^fault:\n"
+    "    %one = llvm.mlir.constant(1 : i64) : i64\n"
+    "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
+    "    llvm.store %one, %fault : i64, !llvm.ptr\n"
+    "    llvm.return %zero : i64\n"
+    "  ^ok:\n"
+    "    llvm.return %value : i64\n"
+    "  }\n";
+
+static const char MLIR0_PROCESS_CHECKED_I64_SUBTRACT_HELPER[] =
+    "  llvm.func internal @w_seed_process_checked_subtract_i64(%left: i64, %right: i64, %width: i64, %fault: !llvm.ptr) -> i64 {\n"
+    "    %pair = \"llvm.intr.ssub.with.overflow\"(%left, %right) : (i64, i64) -> !llvm.struct<(i64, i1)>\n"
+    "    %value = llvm.extractvalue %pair[0] : !llvm.struct<(i64, i1)>\n"
+    "    %overflow = llvm.extractvalue %pair[1] : !llvm.struct<(i64, i1)>\n"
+    "    %width64 = llvm.mlir.constant(64 : i64) : i64\n"
+    "    %shift = llvm.sub %width64, %width : i64\n"
+    "    %shifted = llvm.shl %value, %shift : i64\n"
+    "    %roundtrip = llvm.ashr %shifted, %shift : i64\n"
+    "    %narrow_overflow = llvm.icmp \"ne\" %value, %roundtrip : i64\n"
+    "    %invalid = llvm.or %overflow, %narrow_overflow : i1\n"
+    "    llvm.cond_br %invalid, ^fault, ^ok\n"
+    "  ^fault:\n"
+    "    %one = llvm.mlir.constant(1 : i64) : i64\n"
+    "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
+    "    llvm.store %one, %fault : i64, !llvm.ptr\n"
+    "    llvm.return %zero : i64\n"
+    "  ^ok:\n"
+    "    llvm.return %value : i64\n"
+    "  }\n";
+
+static const char MLIR0_PROCESS_CHECKED_I64_MULTIPLY_HELPER[] =
+    "  llvm.func internal @w_seed_process_checked_multiply_i64(%left: i64, %right: i64, %width: i64, %fault: !llvm.ptr) -> i64 {\n"
+    "    %pair = \"llvm.intr.smul.with.overflow\"(%left, %right) : (i64, i64) -> !llvm.struct<(i64, i1)>\n"
+    "    %value = llvm.extractvalue %pair[0] : !llvm.struct<(i64, i1)>\n"
+    "    %overflow = llvm.extractvalue %pair[1] : !llvm.struct<(i64, i1)>\n"
+    "    %width64 = llvm.mlir.constant(64 : i64) : i64\n"
+    "    %shift = llvm.sub %width64, %width : i64\n"
+    "    %shifted = llvm.shl %value, %shift : i64\n"
+    "    %roundtrip = llvm.ashr %shifted, %shift : i64\n"
+    "    %narrow_overflow = llvm.icmp \"ne\" %value, %roundtrip : i64\n"
+    "    %invalid = llvm.or %overflow, %narrow_overflow : i1\n"
+    "    llvm.cond_br %invalid, ^fault, ^ok\n"
+    "  ^fault:\n"
+    "    %one = llvm.mlir.constant(1 : i64) : i64\n"
+    "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
+    "    llvm.store %one, %fault : i64, !llvm.ptr\n"
+    "    llvm.return %zero : i64\n"
+    "  ^ok:\n"
+    "    llvm.return %value : i64\n"
+    "  }\n";
+
+static const char MLIR0_PROCESS_CHECKED_I64_DIVIDE_HELPER[] =
+    "  llvm.func internal @w_seed_process_checked_divide_i64(%left: i64, %right: i64, %width: i64, %fault: !llvm.ptr) -> i64 {\n"
+    "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
+    "    %negative_one = llvm.mlir.constant(-1 : i64) : i64\n"
+    "    %minimum_i64 = llvm.mlir.constant(-9223372036854775808 : i64) : i64\n"
+    "    %width64 = llvm.mlir.constant(64 : i64) : i64\n"
+    "    %minimum_shift = llvm.sub %width64, %width : i64\n"
+    "    %minimum = llvm.ashr %minimum_i64, %minimum_shift : i64\n"
+    "    %zero_divisor = llvm.icmp \"eq\" %right, %zero : i64\n"
+    "    %minimum_left = llvm.icmp \"eq\" %left, %minimum : i64\n"
+    "    %negative_one_right = llvm.icmp \"eq\" %right, %negative_one : i64\n"
+    "    %overflow = llvm.and %minimum_left, %negative_one_right : i1\n"
+    "    %invalid = llvm.or %zero_divisor, %overflow : i1\n"
+    "    llvm.cond_br %invalid, ^fault, ^ok\n"
+    "  ^fault:\n"
+    "    %one = llvm.mlir.constant(1 : i64) : i64\n"
+    "    llvm.store %one, %fault : i64, !llvm.ptr\n"
+    "    llvm.return %zero : i64\n"
+    "  ^ok:\n"
+    "    %value = llvm.sdiv %left, %right : i64\n"
+    "    llvm.return %value : i64\n"
+    "  }\n";
+
+static const char MLIR0_PROCESS_CHECKED_I64_REMAINDER_HELPER[] =
+    "  llvm.func internal @w_seed_process_checked_remainder_i64(%left: i64, %right: i64, %width: i64, %fault: !llvm.ptr) -> i64 {\n"
+    "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
+    "    %negative_one = llvm.mlir.constant(-1 : i64) : i64\n"
+    "    %minimum_i64 = llvm.mlir.constant(-9223372036854775808 : i64) : i64\n"
+    "    %width64 = llvm.mlir.constant(64 : i64) : i64\n"
+    "    %minimum_shift = llvm.sub %width64, %width : i64\n"
+    "    %minimum = llvm.ashr %minimum_i64, %minimum_shift : i64\n"
+    "    %zero_divisor = llvm.icmp \"eq\" %right, %zero : i64\n"
+    "    llvm.cond_br %zero_divisor, ^fault, ^nonzero\n"
+    "  ^fault:\n"
+    "    %one = llvm.mlir.constant(1 : i64) : i64\n"
+    "    llvm.store %one, %fault : i64, !llvm.ptr\n"
+    "    llvm.return %zero : i64\n"
+    "  ^nonzero:\n"
+    "    %minimum_left = llvm.icmp \"eq\" %left, %minimum : i64\n"
+    "    %negative_one_right = llvm.icmp \"eq\" %right, %negative_one : i64\n"
+    "    %overflow_pair = llvm.and %minimum_left, %negative_one_right : i1\n"
+    "    llvm.cond_br %overflow_pair, ^minimum, ^ok\n"
+    "  ^minimum:\n"
+    "    llvm.return %zero : i64\n"
+    "  ^ok:\n"
+    "    %value = llvm.srem %left, %right : i64\n"
+    "    llvm.return %value : i64\n"
+    "  }\n";
+
 /* Unsigned arithmetic uses the same physical i64 carrier, but its dynamic
  * safety boundary is independent from signed arithmetic. The add/sub/mul
  * helpers consume the LLVM unsigned overflow intrinsics; division and
@@ -2300,6 +2418,24 @@ static const char *checked_binary_helper(
   }
 }
 
+static const char *process_checked_binary_helper(
+    w_seed_hir0_binary_operator operation) {
+  switch (operation) {
+    case W_SEED_HIR0_BINARY_ADD:
+      return "@w_seed_process_checked_add_i64";
+    case W_SEED_HIR0_BINARY_SUBTRACT:
+      return "@w_seed_process_checked_subtract_i64";
+    case W_SEED_HIR0_BINARY_MULTIPLY:
+      return "@w_seed_process_checked_multiply_i64";
+    case W_SEED_HIR0_BINARY_DIVIDE:
+      return "@w_seed_process_checked_divide_i64";
+    case W_SEED_HIR0_BINARY_REMAINDER:
+      return "@w_seed_process_checked_remainder_i64";
+    default:
+      return NULL;
+  }
+}
+
 static const char *checked_u64_binary_helper(
     w_seed_hir0_binary_operator operation) {
   switch (operation) {
@@ -2682,6 +2818,32 @@ static bool append_checked_i64_helpers(
   return true;
 }
 
+static bool append_process_checked_i64_helpers(
+    bool has_add, bool has_subtract, bool has_multiply, bool has_divide,
+    bool has_remainder, uint8_t *artifact, size_t capacity, size_t *offset) {
+  if (has_add &&
+      !append_literal(artifact, capacity, offset,
+                      MLIR0_PROCESS_CHECKED_I64_ADD_HELPER))
+    return false;
+  if (has_subtract &&
+      !append_literal(artifact, capacity, offset,
+                      MLIR0_PROCESS_CHECKED_I64_SUBTRACT_HELPER))
+    return false;
+  if (has_multiply &&
+      !append_literal(artifact, capacity, offset,
+                      MLIR0_PROCESS_CHECKED_I64_MULTIPLY_HELPER))
+    return false;
+  if (has_divide &&
+      !append_literal(artifact, capacity, offset,
+                      MLIR0_PROCESS_CHECKED_I64_DIVIDE_HELPER))
+    return false;
+  if (has_remainder &&
+      !append_literal(artifact, capacity, offset,
+                      MLIR0_PROCESS_CHECKED_I64_REMAINDER_HELPER))
+    return false;
+  return true;
+}
+
 static bool append_checked_u64_helpers(
     bool has_add, bool has_subtract, bool has_multiply, bool has_divide,
     bool has_remainder, uint8_t *artifact, size_t capacity, size_t *offset) {
@@ -2725,6 +2887,7 @@ typedef struct {
   uint32_t success_symbol_index;
   uint32_t failure_symbol_index;
   bool has_integer_exactly;
+  bool has_structured_checked_arithmetic;
   uint16_t exact_source_bit_width;
   uint16_t exact_destination_bit_width;
   bool exact_source_is_signed;
@@ -3779,6 +3942,11 @@ static bool append_binary_value_operation_in_loop(
   const bool checked_division =
       value->binary_operator == W_SEED_HIR0_BINARY_DIVIDE ||
       value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER;
+  if (helper != NULL && (checked_arithmetic || checked_division) &&
+      process != NULL && process->has_structured_checked_arithmetic) {
+    helper = process_checked_binary_helper(value->binary_operator);
+    if (helper == NULL) return false;
+  }
   if (helper != NULL && shift)
     return append_checked_shift_operation_in_loop(
         program, value_index, function_index, process, loop, helper, artifact,
@@ -3803,12 +3971,18 @@ static bool append_binary_value_operation_in_loop(
             program, value->right_value, function_index, process, loop,
             artifact, capacity, offset))
       return false;
-    if (checked_arithmetic || checked_division)
-      return append_literal(artifact, capacity, offset, ", ") &&
-             append_checked_integer_width_operand(
-                 value_index, artifact, capacity, offset) &&
-             append_literal(artifact, capacity, offset,
+    if (checked_arithmetic || checked_division) {
+      if (!append_literal(artifact, capacity, offset, ", ") ||
+          !append_checked_integer_width_operand(
+              value_index, artifact, capacity, offset))
+        return false;
+      if (process != NULL && process->has_structured_checked_arithmetic)
+        return append_literal(
+            artifact, capacity, offset,
+            ", %fault_address) : (i64, i64, i64, !llvm.ptr) -> i64\n");
+      return append_literal(artifact, capacity, offset,
                             ") : (i64, i64, i64) -> i64\n");
+    }
     return append_literal(artifact, capacity, offset,
                           ") : (i64, i64) -> i64\n");
   }
@@ -9138,6 +9312,10 @@ static bool append_program_function(
       !append_literal(artifact, capacity, offset,
                       "(%buffer: !llvm.ptr, %cursor_address: !llvm.ptr"))
     return false;
+  if (process != NULL && process->has_structured_checked_arithmetic &&
+      !append_literal(artifact, capacity, offset,
+                      ", %fault_address: !llvm.ptr"))
+    return false;
   for (size_t ordinal = 0u; ordinal < function->parameter_count;
        ordinal += 1u) {
     const w_seed_hir0_parameter *parameter =
@@ -10029,6 +10207,11 @@ static bool build_process_executable_artifact(
       .success_symbol_index = selection->success_symbol_index,
       .failure_symbol_index = selection->failure_symbol_index};
   process.has_integer_exactly = selection->has_integer_exactly;
+  process.has_structured_checked_arithmetic =
+      selection->has_integer_exactly &&
+      (plan.has_checked_add || plan.has_checked_subtract ||
+       plan.has_checked_multiply || plan.has_checked_divide ||
+       plan.has_checked_remainder);
   /* Every currently supported public process target is x86-64.  Select the
    * i64 physical carrier only here, after target validation; HIR retains the
    * distinct logical USIZE identity rather than pretending it is u64. */
@@ -10077,10 +10260,15 @@ static bool build_process_executable_artifact(
        !append_literal(artifact, capacity, &offset,
                        MLIR0_WINDOWS_BUFFER_GLOBAL)) ||
        !append_literal(artifact, capacity, &offset, MLIR0_RUNTIME_HELPERS) ||
-       !append_checked_i64_helpers(
-          plan.has_checked_add, plan.has_checked_subtract,
-          plan.has_checked_multiply, plan.has_checked_divide,
-          plan.has_checked_remainder, artifact, capacity, &offset) ||
+       !(process.has_structured_checked_arithmetic
+             ? append_process_checked_i64_helpers(
+                   plan.has_checked_add, plan.has_checked_subtract,
+                   plan.has_checked_multiply, plan.has_checked_divide,
+                   plan.has_checked_remainder, artifact, capacity, &offset)
+             : append_checked_i64_helpers(
+                   plan.has_checked_add, plan.has_checked_subtract,
+                   plan.has_checked_multiply, plan.has_checked_divide,
+                   plan.has_checked_remainder, artifact, capacity, &offset)) ||
       !append_checked_u64_helpers(
           plan.has_checked_u64_add, plan.has_checked_u64_subtract,
           plan.has_checked_u64_multiply, plan.has_checked_u64_divide,
@@ -10171,6 +10359,7 @@ static bool build_process_executable_artifact(
             "    %process_context = llvm.alloca %process_owner_words x i64 : (i64) -> !llvm.ptr\n"
             "    %process_cursor_count = llvm.mlir.constant(1 : i64) : i64\n"
             "    %process_cursor_address = llvm.alloca %process_cursor_count x i64 : (i64) -> !llvm.ptr\n"
+            "    %process_fault_address = llvm.alloca %process_cursor_count x i64 : (i64) -> !llvm.ptr\n"
             "    %process_command_line = llvm.call @GetCommandLineW() : () -> !llvm.ptr\n"
             "    %process_null = llvm.inttoptr %process_zero : i64 to !llvm.ptr\n"
             "    %process_command_line_missing = llvm.icmp \"eq\" %process_command_line, %process_null : !llvm.ptr\n"
@@ -10202,7 +10391,7 @@ static bool build_process_executable_artifact(
             "    %process_buffer_base = llvm.mlir.addressof @w_seed_mlir0_buffer : !llvm.ptr\n"
             "    %process_buffer = llvm.getelementptr %process_buffer_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<4097 x i8>\n"
             "    llvm.store %process_zero, %process_cursor_address : i64, !llvm.ptr\n"
-            "    %process_status = llvm.call @w_fn_"))
+            "    llvm.store %process_zero, %process_fault_address : i64, !llvm.ptr\n"))
       return false;
   } else {
     if (!append_literal(
@@ -10225,6 +10414,7 @@ static bool build_process_executable_artifact(
             "    %process_buffer = llvm.alloca %process_buffer_capacity x i8 : (i64) -> !llvm.ptr\n"
             "    %process_cursor_count = llvm.mlir.constant(1 : i64) : i64\n"
             "    %process_cursor_address = llvm.alloca %process_cursor_count x i64 : (i64) -> !llvm.ptr\n"
+            "    %process_fault_address = llvm.alloca %process_cursor_count x i64 : (i64) -> !llvm.ptr\n"
             "    %process_argc = llvm.call @w_seed_process_argc() : () -> i64\n"
             "    %process_argv = llvm.call @w_seed_process_argv() : () -> !llvm.ptr\n"
             "    %process_null = llvm.inttoptr %process_zero : i64 to !llvm.ptr\n"
@@ -10255,12 +10445,21 @@ static bool build_process_executable_artifact(
             "    llvm.cond_br %process_root_initialized, ^process_evaluate, ^process_early_fault\n"
             "  ^process_evaluate:\n"
             "    llvm.store %process_zero, %process_cursor_address : i64, !llvm.ptr\n"
-            "    %process_status = llvm.call @w_fn_"))
+            "    llvm.store %process_zero, %process_fault_address : i64, !llvm.ptr\n"))
       return false;
   }
-  if (!append_size(artifact, capacity, &offset, selection->function_index) ||
+  if (!append_literal(
+          artifact, capacity, &offset,
+          process.has_structured_checked_arithmetic
+              ? "    %process_raw_status = llvm.call @w_fn_"
+              : "    %process_status = llvm.call @w_fn_") ||
+      !append_size(artifact, capacity, &offset, selection->function_index) ||
       !append_literal(artifact, capacity, &offset,
                       "(%process_buffer, %process_cursor_address, "))
+    return false;
+  if (process.has_structured_checked_arithmetic &&
+      !append_literal(artifact, capacity, &offset,
+                      "%process_fault_address, "))
     return false;
   if (selection->arguments_parameter_ordinal == 0u) {
     if (!append_literal(artifact, capacity, &offset,
@@ -10272,9 +10471,19 @@ static bool build_process_executable_artifact(
   }
   if (!append_literal(
           artifact, capacity, &offset,
-          ") : (!llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> ") ||
-      !append_literal(artifact, capacity, &offset,
-                      process.has_integer_exactly ? "i64\n" : "i32\n"))
+          process.has_structured_checked_arithmetic
+              ? ") : (!llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> i64\n"
+              : (process.has_integer_exactly
+                     ? ") : (!llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> i64\n"
+                     : ") : (!llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> i32\n")))
+    return false;
+  if (process.has_structured_checked_arithmetic &&
+      !append_literal(
+          artifact, capacity, &offset,
+          "    %process_checked_fault = llvm.load %process_fault_address : !llvm.ptr -> i64\n"
+          "    %process_has_checked_fault = llvm.icmp \"ne\" %process_checked_fault, %process_zero : i64\n"
+          "    %process_checked_fault_carrier = llvm.mlir.constant(8589934592 : i64) : i64\n"
+          "    %process_status = llvm.select %process_has_checked_fault, %process_checked_fault_carrier, %process_raw_status : i1, i64\n"))
     return false;
   if (process.has_integer_exactly) {
     if (!append_literal(
@@ -10290,17 +10499,24 @@ static bool build_process_executable_artifact(
             "    %process_root_finalized = llvm.call @w_seed_process_root_finalize(%process_root) : (!llvm.ptr) -> i1\n"
             "    llvm.cond_br %process_root_finalized, ^process_map_outcome(%process_exact_finalize_status : i64), ^process_release_fault\n"
             "  ^process_map_outcome(%process_exact_outcome: i64):\n"
-            "    %process_typed_error_tag = llvm.mlir.constant(4294967296 : i64) : i64\n"
-            "    %process_has_typed_error = llvm.icmp \"uge\" %process_exact_outcome, %process_typed_error_tag : i64\n"
+            "    %process_outcome_shift = llvm.mlir.constant(32 : i64) : i64\n"
+            "    %process_outcome_kind = llvm.lshr %process_exact_outcome, %process_outcome_shift : i64\n"
+            "    %process_typed_error_kind = llvm.mlir.constant(1 : i64) : i64\n"
+            "    %process_checked_fault_kind = llvm.mlir.constant(2 : i64) : i64\n"
+            "    %process_has_typed_error = llvm.icmp \"eq\" %process_outcome_kind, %process_typed_error_kind : i64\n"
+            "    %process_has_checked_fault_outcome = llvm.icmp \"eq\" %process_outcome_kind, %process_checked_fault_kind : i64\n"
+            "    %process_has_abnormal_outcome = llvm.or %process_has_typed_error, %process_has_checked_fault_outcome : i1\n"
             "    %process_portable_status = llvm.trunc %process_exact_outcome : i64 to i32\n"))
       return false;
     if (selection->maximum_stdout_bytes != 0u) {
       if (!append_literal(
               artifact, capacity, &offset,
-            "    llvm.cond_br %process_has_typed_error, ^process_typed_error, ^process_exact_success(%process_portable_status : i32)\n"
-            "  ^process_typed_error:\n"
+            "    llvm.cond_br %process_has_abnormal_outcome, ^process_abnormal(%process_has_typed_error : i1), ^process_exact_success(%process_portable_status : i32)\n"
+            "  ^process_abnormal(%process_abnormal_is_typed: i1):\n"
             "    %process_typed_status = llvm.mlir.constant(1 : i32) : i32\n"
-            "    llvm.br ^process_exit(%process_typed_status : i32)\n"
+            "    %process_checked_fault_status = llvm.mlir.constant(2 : i32) : i32\n"
+            "    %process_abnormal_status = llvm.select %process_abnormal_is_typed, %process_typed_status, %process_checked_fault_status : i1, i32\n"
+            "    llvm.br ^process_exit(%process_abnormal_status : i32)\n"
             "  ^process_exact_success(%process_exact_success_status: i32):\n"
             "    %process_length = llvm.load %process_cursor_address : !llvm.ptr -> i64\n"
             "    %process_has_output = llvm.icmp \"ne\" %process_length, %process_zero : i64\n"
@@ -10309,10 +10525,12 @@ static bool build_process_executable_artifact(
         return false;
     } else if (!append_literal(
                    artifact, capacity, &offset,
-                   "    llvm.cond_br %process_has_typed_error, ^process_typed_error, ^process_exit(%process_portable_status : i32)\n"
-                   "  ^process_typed_error:\n"
+                   "    llvm.cond_br %process_has_abnormal_outcome, ^process_abnormal(%process_has_typed_error : i1), ^process_exit(%process_portable_status : i32)\n"
+                   "  ^process_abnormal(%process_abnormal_is_typed: i1):\n"
                    "    %process_typed_status = llvm.mlir.constant(1 : i32) : i32\n"
-                   "    llvm.br ^process_exit(%process_typed_status : i32)\n")) {
+                   "    %process_checked_fault_status = llvm.mlir.constant(2 : i32) : i32\n"
+                   "    %process_abnormal_status = llvm.select %process_abnormal_is_typed, %process_typed_status, %process_checked_fault_status : i1, i32\n"
+                   "    llvm.br ^process_exit(%process_abnormal_status : i32)\n")) {
       return false;
     }
     if (windows && selection->maximum_stdout_bytes != 0u) {

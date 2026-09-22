@@ -1061,12 +1061,15 @@ try {
   expectExact(binary, ["run", processIntegerExactErrorFixture], 1,
     Buffer.alloc(0), "public exact integer conversion typed error")
   expectExact(binary, ["run", processIntegerExactRuntimeFixture], 0,
-    Buffer.from("Arithmetic 0/4\n", "utf8"),
+    Buffer.from("Arithmetic 0/4/1\n", "utf8"),
     "public runtime fixed-integer arithmetic success")
   expectExact(binary, ["run", processIntegerExactRuntimeFixture, "--",
-    ...Array.from({ length: 127 }, () => "x")], 0,
-    Buffer.from("Arithmetic 127/10\n", "utf8"),
-    "public runtime fixed-integer arithmetic upper boundary")
+    ...Array.from({ length: 126 }, () => "x")], 0,
+    Buffer.from("Arithmetic 126/9/127\n", "utf8"),
+    "public runtime fixed-integer arithmetic success boundary")
+  expectExact(binary, ["run", processIntegerExactRuntimeFixture, "--",
+    ...Array.from({ length: 127 }, () => "x")], 2, Buffer.alloc(0),
+    "public runtime fixed-integer arithmetic structured fault")
   expectExact(binary, ["run", processIntegerExactRuntimeFixture, "--",
     ...Array.from({ length: 128 }, () => "x")], 1, Buffer.alloc(0),
   "public runtime exact integer conversion out of range")
@@ -1213,12 +1216,15 @@ try {
   assertPeX64(await readFile(buildProcessIntegerExactRuntime),
     "built runtime fixed-integer arithmetic artifact")
   expectExact(buildProcessIntegerExactRuntime, [], 0,
-    Buffer.from("Arithmetic 0/4\n", "utf8"),
+    Buffer.from("Arithmetic 0/4/1\n", "utf8"),
     "execute built runtime fixed-integer arithmetic success")
   expectExact(buildProcessIntegerExactRuntime,
-    Array.from({ length: 127 }, () => "x"), 0,
-    Buffer.from("Arithmetic 127/10\n", "utf8"),
-    "execute built runtime fixed-integer arithmetic upper boundary")
+    Array.from({ length: 126 }, () => "x"), 0,
+    Buffer.from("Arithmetic 126/9/127\n", "utf8"),
+    "execute built runtime fixed-integer arithmetic success boundary")
+  expectExact(buildProcessIntegerExactRuntime,
+    Array.from({ length: 127 }, () => "x"), 2, Buffer.alloc(0),
+    "execute built runtime fixed-integer arithmetic structured fault")
   expectExact(buildProcessIntegerExactRuntime,
     Array.from({ length: 128 }, () => "x"), 1, Buffer.alloc(0),
   "execute built runtime exact integer conversion out of range")

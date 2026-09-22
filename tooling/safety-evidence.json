@@ -1,0 +1,85 @@
+{
+  "$schema": "w-safety-evidence-1",
+  "version": 1,
+  "policy": {
+    "promotionRule": "A general safety claim requires every applicable gate to be current on the maintained public source-to-native route; missing and bounded gates block promotion.",
+    "gateOrder": [
+      "source",
+      "verifiedHir",
+      "lowering",
+      "nativeProduct",
+      "runtimeProvider",
+      "targetExecution",
+      "negative",
+      "sanitizerFuzz",
+      "faultInjection",
+      "scheduleExploration",
+      "resourceExhaustion",
+      "abiLayout"
+    ],
+    "states": [
+      "not-applicable",
+      "missing",
+      "bounded",
+      "current"
+    ]
+  },
+  "areas": [
+    {
+      "id": "memory-lifetime",
+      "promotion": "blocked",
+      "risks": ["uninitialized access", "use-after-move", "alias violation", "out-of-bounds access", "double release", "leak"],
+      "gates": {"source":"missing","verifiedHir":"bounded","lowering":"missing","nativeProduct":"missing","runtimeProvider":"missing","targetExecution":"missing","negative":"bounded","sanitizerFuzz":"missing","faultInjection":"missing","scheduleExploration":"not-applicable","resourceExhaustion":"missing","abiLayout":"bounded"},
+      "nextEvidence": ["Execute initialization, move, ref, mut ref, inout, bounds, destruction, allocator failure, and Option absence from maintained W sources."]
+    },
+    {
+      "id": "numeric",
+      "promotion": "bounded",
+      "risks": ["overflow", "division by zero", "invalid shift", "lossy conversion", "floating environment drift", "target-width mismatch"],
+      "gates": {"source":"current","verifiedHir":"current","lowering":"current","nativeProduct":"current","runtimeProvider":"bounded","targetExecution":"bounded","negative":"current","sanitizerFuzz":"missing","faultInjection":"bounded","scheduleExploration":"not-applicable","resourceExhaustion":"not-applicable","abiLayout":"bounded"},
+      "nextEvidence": ["Propagate numeric faults through local calls and general CFG; add property/differential matrices, fuzzing, target-width ABI, endian, and serialization evidence."]
+    },
+    {
+      "id": "errors-panic-oom-cleanup",
+      "promotion": "blocked",
+      "risks": ["outcome conflation", "cleanup skipped", "double cleanup", "partial output", "panic escape", "OOM inconsistency"],
+      "gates": {"source":"bounded","verifiedHir":"bounded","lowering":"bounded","nativeProduct":"bounded","runtimeProvider":"bounded","targetExecution":"bounded","negative":"bounded","sanitizerFuzz":"missing","faultInjection":"missing","scheduleExploration":"not-applicable","resourceExhaustion":"missing","abiLayout":"not-applicable"},
+      "nextEvidence": ["Close general typed error, panic, OOM, and exactly-once cleanup over resource-bearing CFG with deterministic fault injection."]
+    },
+    {
+      "id": "concurrency-reclamation",
+      "promotion": "blocked",
+      "risks": ["data race", "deadlock", "lost wakeup", "cancellation leak", "use-after-reclaim", "scheduler starvation"],
+      "gates": {"source":"bounded","verifiedHir":"bounded","lowering":"bounded","nativeProduct":"bounded","runtimeProvider":"bounded","targetExecution":"bounded","negative":"bounded","sanitizerFuzz":"missing","faultInjection":"missing","scheduleExploration":"missing","resourceExhaustion":"missing","abiLayout":"not-applicable"},
+      "nextEvidence": ["Add bounded schedule exploration, deterministic replay, cancellation fault injection, and native race instrumentation on the same W programs."]
+    },
+    {
+      "id": "ffi-unsafe-abi",
+      "promotion": "blocked",
+      "risks": ["layout mismatch", "calling-convention mismatch", "foreign lifetime violation", "invalid raw pointer", "MMIO reordering", "assembly clobber"],
+      "gates": {"source":"missing","verifiedHir":"missing","lowering":"missing","nativeProduct":"missing","runtimeProvider":"missing","targetExecution":"missing","negative":"missing","sanitizerFuzz":"missing","faultInjection":"missing","scheduleExploration":"not-applicable","resourceExhaustion":"not-applicable","abiLayout":"missing"},
+      "nextEvidence": ["Build target-specific C ABI, packed/union/bitfield adapter, raw memory, atomics, MMIO, interrupt, and assembly probes before any FFI-safe claim."]
+    },
+    {
+      "id": "resource-exhaustion-io",
+      "promotion": "blocked",
+      "risks": ["capacity exhaustion", "partial publication", "descriptor exhaustion", "unbounded input", "retry storm", "output corruption"],
+      "gates": {"source":"bounded","verifiedHir":"bounded","lowering":"bounded","nativeProduct":"bounded","runtimeProvider":"bounded","targetExecution":"bounded","negative":"bounded","sanitizerFuzz":"missing","faultInjection":"missing","scheduleExploration":"not-applicable","resourceExhaustion":"missing","abiLayout":"not-applicable"},
+      "nextEvidence": ["Exercise bounded allocation, file, process, provider, and output failures with rollback and commit-barrier assertions."]
+    },
+    {
+      "id": "optimizer-codegen",
+      "promotion": "blocked",
+      "risks": ["miscompile", "semantic drift by profile", "undefined target operation", "dead-code retention", "incorrect proof assumption"],
+      "gates": {"source":"bounded","verifiedHir":"bounded","lowering":"bounded","nativeProduct":"bounded","runtimeProvider":"not-applicable","targetExecution":"bounded","negative":"bounded","sanitizerFuzz":"missing","faultInjection":"not-applicable","scheduleExploration":"not-applicable","resourceExhaustion":"not-applicable","abiLayout":"bounded"},
+      "nextEvidence": ["Run debug-versus-optimized differential execution, independent semantic oracles, grammar-guided source fuzzing, and serialized-IR mutation across targets."]
+    },
+    {
+      "id": "build-supply-chain",
+      "promotion": "blocked",
+      "risks": ["non-reproducible artifact", "toolchain substitution", "unsigned dependency", "registry tampering", "stale generated input"],
+      "gates": {"source":"not-applicable","verifiedHir":"not-applicable","lowering":"bounded","nativeProduct":"bounded","runtimeProvider":"not-applicable","targetExecution":"bounded","negative":"bounded","sanitizerFuzz":"not-applicable","faultInjection":"missing","scheduleExploration":"not-applicable","resourceExhaustion":"not-applicable","abiLayout":"not-applicable"},
+      "nextEvidence": ["Pin and attest toolchains, reproduce release artifacts independently, verify signed registry inputs, and fail closed on stale generated projections."]
+    }
+  ]
+}

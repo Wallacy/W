@@ -150,10 +150,26 @@ allocator, OOM, and generic-value foundations. The bounded
 containing `+`, `-`, `*`, `/`, and `%` on public Windows and Linux/WSL product
 routes. It advances runtime-operand and product-boundary evidence only, not the
 general numeric-core status. The expression keeps every intermediate in range
-for all accepted counts. Before promoting checked arithmetic failure as
-cleanup-safe, replace the current trap-only backend path with a structured
-fault outcome that reaches reverse-order cleanup, root finalization, status
-adaptation, and the no-output commit barrier.
+for its first successful case. W-1653 now closes one narrower fault boundary:
+the exact-process, straight-line signed `+`, `-`, `*`, `/`, and `%` route keeps
+arithmetic fault distinct from typed conversion failure, reaches compiler-owned
+reverse-order release and root finalization, maps the fault to process status
+2, and never commits buffered output. This does not yet promote general checked
+arithmetic as cleanup-safe. Next propagate the same distinct outcome through
+local calls and general CFG, cover unsigned and shift/power policies, and make
+ProductClosure publish the fault relation before replacing remaining trap-only
+routes.
+
+The numeric ergonomics review does not justify new core syntax. Exact implicit
+widening, explicit named lossy/fallible policies, configured low-precision
+formats, and separate bit reinterpretation already form a compact surface.
+Improve diagnostics instead: report source/destination width and signedness,
+the failed policy, the first invalid range fact, and the exact named conversion
+that repairs the call. Performance work stays evidence-driven: direct LLVM
+logical widths versus the seed `i64` carrier, reachability-only helper emission,
+count-root specialization, cached numeric facts, vectorization, and family-
+sized runtime benchmarks. W is not numerically optimal until those comparisons
+and the remaining families above are executable across targets.
 
 ### C-reach closure rule
 
@@ -220,15 +236,16 @@ physical scheduler experiments:
    a three-block process root. ProductClosure0 v3 projects either the direct
    typed outcome or the conversion's distinct normal and typed-error
    successors. It authenticates reverse-initialization cleanup on both
-   structured exits. Process-executable v4 now materializes that cleanup and
+   structured exits. Process-executable v5 now materializes that cleanup and
    post-cleanup status adaptation for the exact-conversion root. One canonical
    runtime ingress now carries the distinct logical `Arguments.count: usize`
    identity through HIR under the current x64 seed profile; MLIR selects its
    physical `i64` carrier only after target validation. The same source now
    evaluates a bounded checked runtime expression containing `+`, `-`, `*`,
-   `/`, and `%`; zero/127 arguments prove exact arithmetic output and 128
-   proves out-of-range status 1 with empty failure output on public CRT-free
-   Windows and Linux/WSL routes. This does not prove overflow cleanup and is
+   `/`, and `%`, plus one checked increment; zero/126 arguments prove exact
+   arithmetic output, 127 proves the bounded W-1653 status-2 fault path, and
+   128 proves out-of-range status 1 with empty failure output on public CRT-free
+   Windows and Linux/WSL routes. This does not prove general overflow cleanup and is
    not general `usize`
    support. The direct-throw and general typed process routes remain
    unimplemented.
@@ -564,11 +581,11 @@ preserves a three-block typed success/error split whose error edge is canonical
 artifact with `mlir-opt` and `mlir-translate`. HIR94 now admits a bounded
 binding continuation and process root for that split; ProductClosure0 v3
 projects its normal and typed-error successors while retaining the restricted
-direct-throw outcome. Process-executable v4 materializes
+direct-throw outcome. Process-executable v5 materializes
 reverse-initialization cleanup for the bounded exact-conversion root, retains
 the typed carrier through root finalization, and only then adapts the error to
 status 1. Public CRT-free Windows x64 and Linux/WSL x64 gates execute the
-canonical runtime `Arguments.count` source at zero, 127, and 128 user
+canonical runtime `Arguments.count` source at zero, 126, 127, and 128 user
 arguments, proving the converted success payload and an out-of-range path with
 no output committed before typed failure. The
 logical `usize` identity remains distinct from portable `u64`; the current

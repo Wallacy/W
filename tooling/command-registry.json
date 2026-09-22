@@ -28,6 +28,18 @@
         }
       ]
     },
+    "check:safety-evidence": {
+      "description": "Validate the machine-readable safety promotion matrix.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-safety-evidence.mjs"
+          ]
+        }
+      ]
+    },
     "design:refresh-evidence": {
       "description": "Internal design:refresh-evidence command.",
       "steps": [

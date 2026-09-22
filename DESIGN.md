@@ -22595,6 +22595,20 @@ message explicitly, or convert it to another error. Other host profiles must
 publish their own adaptation; W-1652 does not create a universal process rule
 for services, Wasm, kernels, or device execution.
 
+**W-1653 — checked numeric faults at `native-process@1`:** a checked numeric
+operation that cannot produce its result remains a panic/fault outcome. It is
+not a typed `Error`, an `ExitCode`, or an implicitly recoverable branch. A
+`native-process@1` adapter may retain that outcome in a private carrier long
+enough to release compiler-owned root resources and finalize the root, then
+terminates with portable status `2`. It publishes no buffered stdout or stderr
+from the failed evaluation.
+
+This status is host adaptation, not a source-visible panic code or stable
+payload ABI. It does not guarantee user `defer`/`deinit`, unwind arbitrary
+frames, or make panic catchable. Adapter failures while releasing, finalizing,
+or publishing remain a separate status class. Other host profiles must define
+their own fault-boundary adaptation rather than inheriting process status `2`.
+
 **W-1546 — process-owner release:** the compiler-trusted `std.process@1`
 contract covers only adoption, passing, and release of the existing
 `Arguments` and `Context` wrapper handles. These values are root-scoped,
@@ -42435,7 +42449,7 @@ subsequently adds bounded typed-lowering evidence for fixed-width integer
 `native-process@1` root, and ProductClosure0 v3 projects its explicit normal
 and `NumericConversionError.outOfRange` successors. It also retains the
 restricted local payloadless-error direct-throw projection. Process-executable
-v3 now materializes cleanup and status-1/no-output adaptation only for the
+v5 now materializes cleanup and status-1/no-output adaptation only for the
 exact-conversion root; the direct-throw executable route remains unsupported.
 
 #### 26.4.1.122 W-1642 — ordinary binary integer bitwise family through native execution
@@ -42772,19 +42786,19 @@ ordinary typed values. For the restricted `native-process@1` root,
 ProductClosure0 v3 authenticates and publishes the source split plus separate
 normal-return and `NumericConversionError.outOfRange` successor facts. Both
 structured exits preserve §11.6 destruction order: `Context`, then `Arguments`,
-the reverse of initialization. The bounded process-executable v4 adapter keeps
+the reverse of initialization. The bounded process-executable v5 adapter keeps
 the typed outcome distinct while running both owner releases and root
 finalization, then maps only the unhandled error arm to status 1 without
 committing the success buffer. The runtime-derived `Arguments.count` fixture
 prints the successfully converted `i8` value and a checked runtime arithmetic
 expression using `+`, `-`, `*`, `/`, and `%`, and executes
 through public `w run` and `w build` on CRT-free Windows x64 and Linux/WSL x64:
-zero and 127 user arguments succeed, while 128 reaches
+zero and 126 user arguments succeed, 127 reaches the distinct W-1653 checked
+numeric fault, and 128 reaches
 `NumericConversionError.outOfRange` and host status 1. The successful cases
-emit exactly `Arithmetic 0/4\n` and `Arithmetic 127/10\n`; the failing case
-emits no stdout or stderr. The expression bounds its intermediates so every
-accepted count is arithmetic-safe; checked-overflow failure is not promoted
-until it preserves structured cleanup. Cleanup and root finalization precede outcome classification, and the
+emit exactly `Arithmetic 0/4/1\n` and `Arithmetic 126/9/127\n`; both abnormal
+cases emit no stdout or stderr. W-1653 owns the bounded status-2 arithmetic-
+fault adaptation. Cleanup and root finalization precede outcome classification, and the
 stdout cursor is read and flushed only on the normal successor.
 Constant fixtures remain focused correctness variants rather than separate
 product claims. Direct user-defined throws, general typed roots, benchmark
@@ -42866,23 +42880,21 @@ canonical core `NumericConversionError`, followed by a normal
 `ProcessExitCode` return. Verified HIR preserves the three-block split.
 ProductClosure0 v3 publishes both successor relations and authenticates one
 cleanup policy for both structured exits: reverse initialization order,
-`Context` then `Arguments`. NativeSubset0 and process-executable v4 materialize
+`Context` then `Arguments`. NativeSubset0 and process-executable v5 materialize
 that exact-conversion shape as a private tagged carrier, retain it across both
 owner releases and root finalization, and adapt the typed-error arm only after
-cleanup. Public `w run` and `w build` prove exit 0 for zero and 127 user
+cleanup. Public `w run` and `w build` prove exit 0 for zero and 126 user
 arguments and exit 1 for 128 user arguments on CRT-free Windows x64 and
-Linux/WSL x64. The two normal successors prove their converted payloads plus
-checked runtime `+`, `-`, `*`, `/`, and `%` with exact stdout
-`Arithmetic 0/4\n` and `Arithmetic 127/10\n`; the typed-error successor proves
-empty stdout/stderr because it cannot reach the flush block. The older
+Linux/WSL x64. The normal successors prove their converted payloads plus
+checked runtime `+`, `-`, `*`, `/`, and `%`; W-1653 separately owns the
+arithmetic-fault arm introduced by the final increment. The typed-error
+successor proves empty stdout/stderr because it cannot reach the flush block. The older
 direct-throw root remains
 projected as one typed outcome but is not yet admitted by the executable
 adapter.
 
-The arithmetic expression deliberately keeps every intermediate in range for
-all counts admitted by the exact conversion. The existing trap-based overflow
-helper is not a structured process outcome and therefore is not evidence that
-cleanup runs on arithmetic failure.
+The W-1652 claim ends at preservation and adaptation of the typed conversion
+error. It does not reinterpret the W-1653 numeric fault as `Error`.
 
 This evidence does not complete the decision. ProductClosure0 still returns
 `UNSUPPORTED` for every other typed root shape, and the executable adapter
@@ -42896,6 +42908,35 @@ to the remaining admitted concrete errors and general process bodies, with
 source-to-native evidence on each claimed target and explicit internal
 separation from panic and ordinary `ExitCode.failure(1)` before the OS
 boundary.
+
+#### 26.4.1.133 W-1653 — bounded native-process checked-numeric fault adaptation
+
+The exact-conversion process witness also provides the first executable
+distinction among normal return, typed error, and checked numeric fault. After
+`args.count` converts exactly to `i8`, the source evaluates `narrowed + 1_i8`.
+Counts 0 and 126 return normally, count 127 overflows and produces the private
+fault outcome, and count 128 fails earlier with
+`NumericConversionError.outOfRange`.
+
+Process-executable v5 gives the bounded signed `+`, `-`, `*`, `/`, and `%`
+helpers a private fault slot. An invalid operation records the fault and
+returns a deterministic zero carrier so that this restricted straight-line,
+buffered root can reach compiler-owned `Context` then `Arguments` release and
+root finalization. The adapter then maps the preserved outcome kind: typed
+error to status 1, checked numeric fault to status 2, and normal return to its
+`ExitCode`. Only the normal arm can flush the buffer.
+
+Public Windows x64 and Linux/WSL x64 `w run` and `w build` gates prove exact
+stdout for counts 0 and 126, empty stdout/stderr for both abnormal outcomes,
+and their distinct statuses. The C23 and Rust references mirror the same
+observable cases as correctness oracles; no timing row is introduced.
+
+This is a deliberately bounded implementation claim. It does not cover
+unsigned checked helpers, shifts, power, local-call propagation, general CFG,
+arbitrary effects after a fault, user cleanup, a public `PanicEvent`, general
+ProductClosure fault outcomes, or other hosts/targets. Those routes continue
+to fail closed or use their existing trap boundary until they carry an
+equivalent structured outcome. `benchmarkDisposition: compiler-lifecycle`.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

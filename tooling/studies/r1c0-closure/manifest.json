@@ -286,12 +286,12 @@
     {
       "id": "R1-post-test-loop",
       "path": "tooling/studies/r1-post-test-loop/bundle.json",
-      "digest": "sha256:199de657ad036d940280b3a6355392fbf1409b4679e59f76cb08e63bebf38772"
+      "digest": "sha256:25661f4637f1a7d97ae927361ca5f6d2f37e6baedc7f2bf138fa26577e02d9f7"
     },
     {
       "id": "R1-power-precedence",
       "path": "tooling/studies/r1-power-precedence/bundle.json",
-      "digest": "sha256:3c93fd377142d70399fdc449fd3341b6d286cf2d0621f19f0b75a2b23167e414"
+      "digest": "sha256:dc97bc6b6950a17a1bc3eb67beb21438803b20fe3ad3c4e70862e61523be7710"
     },
     {
       "id": "R1-python-transform",

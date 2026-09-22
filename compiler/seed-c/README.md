@@ -2973,22 +2973,23 @@ HIR94 admits one bounded binding continuation and composes that split into a
 restricted process root. ProductClosure0 v3 publishes the source split plus
 separate normal and `NumericConversionError.outOfRange` successor facts. It
 authenticates reverse-initialization `Context`-then-`Arguments` release on both
-normal success and typed error. Process-executable v4 retains a private typed
-carrier while materializing both releases and root finalization, then maps only
-the error arm to status 1. The public `process-fixed-integer-arithmetic.w`
+normal success and typed error. Process-executable v5 retains a private outcome
+carrier while materializing both releases and root finalization, then maps the
+typed-error arm to status 1. The public `process-fixed-integer-arithmetic.w`
 fixture executes through `w run` and `w build` on CRT-free Windows x64 and
 Linux/WSL x64. It derives an `i8` from runtime `Arguments.count`, then executes
-checked `+`, `-`, `*`, `/`, and `%` in a range that cannot fault for accepted
-inputs. Zero and 127 user arguments exit 0 with exact stdout
-`Arithmetic 0/4\n` and `Arithmetic 127/10\n`; 128 exits 1 after typed-error
-cleanup with empty stdout/stderr.
+checked `+`, `-`, `*`, `/`, and `%`, then one checked `i8` increment. Zero and
+126 user arguments exit 0 with exact stdout `Arithmetic 0/4/1\n` and
+`Arithmetic 126/9/127\n`; 127 exits 2 after the bounded W-1653 arithmetic-
+fault release path, and 128 exits 1 after typed-error cleanup. Both abnormal
+cases have empty stdout/stderr.
 The output cursor is loaded and flushed only on the normal successor after
 both owner releases and root finalization. The constant success/error fixtures remain focused
 correctness inputs.
-This remains compiler-lifecycle correctness evidence: arithmetic overflow is
-not promoted until it has a structured cleanup-preserving failure path, and no
-benchmark timing, general typed root, catch, public ABI, or performance claim
-is made.
+This remains compiler-lifecycle correctness evidence. The structured numeric
+fault path is restricted to the straight-line signed process shape: unsigned
+operations, shifts, power, local-call propagation, general CFG, user cleanup,
+public panic ABI, and performance remain unsupported or unclaimed.
 `benchmarkDisposition: compiler-lifecycle`.
 
 ### Native-process unhandled typed-error root HIR (W-1652)
@@ -3005,7 +3006,7 @@ order: `Context`, then `Arguments`. The conversion form contains one integer
 `try D(exactly:)` binding and a normal `ProcessExitCode` return. ProductClosure0
 v3 publishes its normal and typed-error successors and the uniform
 reverse-initialization cleanup policy. Other typed root shapes remain
-unsupported. Process-executable v4 materializes the exact-conversion cleanup
+unsupported. Process-executable v5 materializes the exact-conversion cleanup
 obligation and defers adaptation until after root finalization.
 
 This is compiler-lifecycle evidence. The exact-conversion form executes through
