@@ -208,7 +208,7 @@ C23/Rust correctness references on Windows and Linux/WSL. Then add `i128` and
 shifts, conversions, ABI/layout, serialization, and explicit target fallback or
 rejection. Follow with strict `f16`, `bf16`, and `f128`, including encoding,
 rounding, NaN, signed zero, subnormal, and W-owned fallback rules. Configured
-`f4`/`f6`/`f8` remain rank-8 storage/compute elements; BigInt and BigFloat wait
+`f4`/`f6`/`f8` remain rank-11 storage/compute elements; BigInt and BigFloat wait
 for the rank-6 ownership, allocator, OOM, and generic-value foundations.
 
 Public performance rows use runtime inputs and family-sized workloads. Cold
@@ -308,13 +308,28 @@ C's weakest surfaces. Close these substitutions with executable witnesses:
 | 5 | Modules, imports, generics and specialization | Multi-module calls, labelled imports, generic specialization and closed reachable graphs produce deterministic artifacts; unused private graph nodes disappear | Enables real programs and makes whole-module/product optimization the normal case |
 | 6 | Explicit views, borrows, storage and ownership | `ref`, `mut ref`, `inout`, moves, views, explicit storage/allocator choices and deterministic cleanup execute for value and resource-bearing aggregates | Establishes memory safety and cost without requiring automatic lifecycle machinery |
 | 7 | Errors and effect composition | Typed `throw`/`try`/`catch`, panic boundaries, cleanup and effect propagation compose over general CFG and resource-bearing values | Makes failure semantics complete before asynchronous propagation is generalized |
-| 8 | Arrays, matrices, SIMD and accelerator lowering | Static and dynamic collections, views, `@`, vectorization and one real CPU/GPU numerical witness share typed semantics and independent oracles; GPU launch remains a provider concern | Adds scientific and heterogeneous performance only after its scalar, CFG and ownership prerequisites are real |
+| 8 | Freestanding systems and foreign boundaries | Raw memory, explicit C ABI/layout, atomics, volatile/MMIO, target-owned assembly and platform adapters execute from W source with target-specific adversarial witnesses; packed/bitfield/union/flexible-array imports retain an opaque typed boundary until a first-class layout is justified | Closes practical C systems reach after aggregates, ownership and effects, without waiting for GPU or task runtime work |
 | 9 | Tasks and structured concurrency | `async`, `await`, `spawn`, groups, cancellation, deterministic outcomes and cleanup execute over measured caller-owned task records with no language-level child limit | Builds concurrency on the completed value, error and ownership model |
 | 10 | Provider-neutral scheduler | Target-neutral ready/task/frame state lowers once; capability-selected providers supply platform primitives and cached topology facts across Windows, Linux, macOS, iOS, Android, WebAssembly and future viable targets | Portable parallel execution without a platform-shaped language ABI |
-| 11 | Automatic lifecycle and memory optimization | Escape/liveness proofs choose registers, stack, arenas, regions or heap; virtual objects materialize only when identity/escape requires it; automatic cleanup remains semantically deterministic | Adds convenience after explicit ownership is measurable and trustworthy |
-| 12 | Incremental compiler, test selection and cross-target distribution | Exact dependency invalidation, risk-relevant gates and reproducible signed LLVM/MLIR/LLD target packs cover the Windows/Linux/macOS baseline | Fast human/AI iteration and compact offline cross compilation without hollow green tests |
-| 13 | Package, registry, service and sandbox slices | Signed binary-first packages, source fallback, independent verification, one service provider and bounded sandbox execution work against the stable compiler/runtime boundary | Opens the ecosystem without freezing premature compiler internals |
-| 14 | UI, native graphics, scientific and proof-mode applications | Promote one real workload at a time through correctness, applicability, resource receipts and benchmark evidence; platform SDK/providers remain outside the language core | Broadens targets from proven primitives instead of speculative abstractions |
+| 11 | Arrays, matrices, SIMD and accelerator lowering | Static and dynamic collections, views, `@`, vectorization and one real CPU/GPU numerical witness share typed semantics and independent oracles; GPU launch remains a provider concern | Adds scientific and heterogeneous performance after scalar, CFG and ownership prerequisites; this branch can advance beside tasks once those prerequisites hold |
+| 12 | Automatic lifecycle and memory optimization | Escape/liveness proofs choose registers, stack, arenas, regions or heap; virtual objects materialize only when identity/escape requires it; automatic cleanup remains semantically deterministic | Adds convenience after explicit ownership is measurable and trustworthy |
+| 13 | Incremental compiler, test selection and cross-target distribution | Exact dependency invalidation, risk-relevant gates and reproducible signed LLVM/MLIR/LLD target packs cover the Windows/Linux/macOS baseline | Fast human/AI iteration and compact offline cross compilation without hollow green tests |
+| 14 | Package, registry, service and sandbox slices | Signed binary-first packages, source fallback, independent verification, one service provider and bounded sandbox execution work against the stable compiler/runtime boundary | Opens the ecosystem without freezing premature compiler internals |
+| 15 | UI, native graphics, scientific and proof-mode applications | Promote one real workload at a time through correctness, applicability, resource receipts and benchmark evidence; platform SDK/providers remain outside the language core | Broadens targets from proven primitives instead of speculative abstractions |
+
+Ranks order the next integration proof, not a prohibition on parallel work. The
+fundamental `i8`–`u64` and `f32`/`f64` scalar path must feed ranks 2–3, but
+`i128`/`u128`, `f16`/`bf16`/`f128`, and configured low-precision storage need
+not all finish before general functions and CFG advance. A runtime W-389 source
+chosen by `if` exposed the concrete dependency: the current process verifier,
+selector and product closure require a first-block, four-block constant-float
+split. Composing a source branch/join with the three-outcome typed conversion
+belongs with ranks 3 and 7; changing `usize` into `u64` implicitly or treating
+a constant as runtime ingress would not close it. Rank 8 is the explicit C
+systems-reach gate; ranks 9–11 may develop in parallel after their shared
+ownership, error and CFG prerequisites. A thin self-contained compiler
+packaging smoke may begin before rank 13, while signed cross-target
+distribution remains its full completion boundary.
 
 ### Active rank 1 closure order
 
@@ -369,14 +384,15 @@ physical scheduler experiments:
    not general `usize`
    support. The direct-throw and general typed process routes remain
    unimplemented.
-   Remaining conversion policies continue to block this rank-1
-   prerequisite. W-1651 closes the design identity of i128/u128, the fixed
+   Remaining conversion policies continue to block full rank-1 closure, but
+   do not block rank-2 functions or rank-3 general CFG that they now need.
+   W-1651 closes the design identity of i128/u128, the fixed
    arithmetic float family through f128, configured f4/f6/f8 AI elements, and
    fixed/dynamic BigFloat, but adds no implementation evidence. After the
    current 64-bit/f32/f64 packages, rank 1 takes only fixed scalar work:
    i128/u128 and strict f16/bf16/f128 semantics, including target rejection or
    an explicitly permitted W-owned fallback. Configured f4/f6/f8 remain
-   storage/conversion elements and join Tensor/Quantized lowering in rank 8;
+   storage/conversion elements and join Tensor/Quantized lowering in rank 11;
    TensorFloat32 remains a compute policy, never a scalar type. BigInt/BigUInt
    and dynamic BigFloat wait for rank-6 ownership, allocator, and OOM semantics;
    fixed-precision BigFloat also waits for generic value parameters and closed
@@ -499,7 +515,7 @@ Inline documentation examples feed concrete witnesses into this system. They
 do not become universal proofs without a checked coverage certificate. JSON
 Schema, XML Schema, WSDL, SOAP policy, and similar formats enter through
 versioned adapters rather than new literal syntax. Proof-mode applications stay
-at rank 14 until these lower boundaries execute.
+at rank 15 until these lower boundaries execute.
 
 ## Current checkpoint
 
