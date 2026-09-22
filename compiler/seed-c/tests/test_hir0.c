@@ -1729,9 +1729,7 @@ static bool lower(const char *source) {
   CHECK(w_seed_hir0_program_from_output(&fixture.hir_output,
                                         &fixture.hir_result,
                                         &fixture.hir_program));
-  const bool verified =
-      w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result);
-  CHECK(verified);
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   fixture.hir_counts = measured;
   return true;
 }
@@ -2079,7 +2077,7 @@ static bool test_implicit_integer_widen_hir(void) {
 }
 
 static bool test_float_bits_hir(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-94") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-95") == 0);
   static const char SOURCE[] =
       "fn from32(bits: u32): f32 { let stored: f32 = f32.fromBits(bits) "
       "return stored }\n"
@@ -2314,7 +2312,7 @@ static bool test_float_bits_hir(void) {
 }
 
 static bool test_numeric_widen_hir(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-94") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-95") == 0);
   typedef struct {
     const char *source_name;
     bool source_is_float;
@@ -10517,7 +10515,7 @@ static bool test_integer_exactly_hir(void) {
       true, false, true, false, true, false, true, false, true, false};
   static const uint16_t INTEGER_WIDTHS[] = {
       8u, 8u, 16u, 16u, 32u, 32u, 64u, 64u, 64u, 64u};
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-94") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-95") == 0);
   for (size_t source = 0u;
        source < sizeof(INTEGER_TYPES) / sizeof(INTEGER_TYPES[0]);
        source += 1u) {
@@ -10668,6 +10666,198 @@ static bool test_integer_exactly_hir(void) {
   reseal_hir_fixture();
   CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
   fixture.hir_functions[0] = saved_convert;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
+static bool test_float_to_integer_rounding_hir(void) {
+  static const char *const SOURCE_TYPES[] = {"f32", "f64"};
+  static const char *const DESTINATION_TYPES[] = {
+      "i8", "u8", "i16", "u16", "i32",
+      "u32", "i64", "u64", "Int", "UInt"};
+  static const w_seed_hir0_rounding_mode MODES[] = {
+      W_SEED_HIR0_ROUNDING_MODE_NEAREST_EVEN,
+      W_SEED_HIR0_ROUNDING_MODE_NEAREST_AWAY_FROM_ZERO,
+      W_SEED_HIR0_ROUNDING_MODE_TOWARD_ZERO,
+      W_SEED_HIR0_ROUNDING_MODE_TOWARD_POSITIVE,
+      W_SEED_HIR0_ROUNDING_MODE_TOWARD_NEGATIVE};
+  static const char *const MODE_SPELLINGS[] = {
+      "nearestEven", "nearestAwayFromZero", "towardZero",
+      "towardPositive", "towardNegative"};
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-95") == 0);
+  for (size_t source_index = 0u;
+       source_index < sizeof(SOURCE_TYPES) / sizeof(SOURCE_TYPES[0]);
+       source_index += 1u) {
+    for (size_t destination_index = 0u;
+         destination_index < sizeof(DESTINATION_TYPES) /
+                                 sizeof(DESTINATION_TYPES[0]);
+         destination_index += 1u) {
+      for (size_t mode_index = 0u;
+           mode_index < sizeof(MODES) / sizeof(MODES[0]); mode_index += 1u) {
+        char source[512];
+        const int written = snprintf(
+            source, sizeof(source),
+            "fn convert(value: %s): %s throws NumericConversionError { "
+            "return try %s(rounding: value, mode: .%s) }\nentry { }\n",
+            SOURCE_TYPES[source_index], DESTINATION_TYPES[destination_index],
+            DESTINATION_TYPES[destination_index],
+            MODE_SPELLINGS[mode_index]);
+        CHECK(written > 0 && (size_t)written < sizeof(source));
+        CHECK(lower(source));
+        const w_seed_hir0_program *program = &fixture.hir_program;
+        const w_seed_hir0_function *convert = &program->functions[0];
+        const uint32_t split_block = convert->first_block;
+        const uint32_t normal_block = split_block + 1u;
+        const uint32_t non_finite_block = split_block + 2u;
+        const uint32_t out_of_range_block = split_block + 3u;
+        const w_seed_hir0_terminator *split =
+            &program->terminators[split_block];
+        bool destination_signed = false;
+        uint16_t destination_width = 0u;
+        CHECK(program->function_count == 2u && program->block_count == 5u &&
+              convert->block_count == 4u && program->call_count == 0u &&
+              program->cleanup_count == 0u &&
+              program->block_argument_count == 3u &&
+              program->terminator_count == 5u && program->value_count == 4u);
+        CHECK(convert->is_throws &&
+              split->kind ==
+                  W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING &&
+              split->target_block == normal_block &&
+              split->else_block == non_finite_block &&
+              split->third_block == out_of_range_block &&
+              split->rounding_mode == MODES[mode_index] &&
+              split->numeric_conversion_error_case ==
+                  W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_NONE &&
+              split->error_type == convert->error_type &&
+              split->value_index < program->value_count &&
+              program->values[split->value_index].type_index <
+                  program->type_count &&
+              (program->types[program->values[split->value_index].type_index]
+                       .kind == W_SEED_HIR0_TYPE_F32 ||
+               program->types[program->values[split->value_index].type_index]
+                       .kind == W_SEED_HIR0_TYPE_F64) &&
+              hir_integer_type_facts(program, split->result_type,
+                                     &destination_signed,
+                                     &destination_width));
+        CHECK(program->blocks[normal_block].block_argument_count == 1u &&
+              program->blocks[non_finite_block].block_argument_count == 1u &&
+              program->blocks[out_of_range_block].block_argument_count == 1u &&
+              program->block_arguments[program->blocks[normal_block]
+                                           .first_block_argument]
+                      .type_index == split->result_type &&
+              program->block_arguments[program->blocks[non_finite_block]
+                                           .first_block_argument]
+                      .type_index == convert->error_type &&
+              program->block_arguments[program->blocks[out_of_range_block]
+                                           .first_block_argument]
+                      .type_index == convert->error_type);
+        CHECK(program->terminators[normal_block].kind ==
+                  W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+              program->terminators[non_finite_block].kind ==
+                  W_SEED_HIR0_TERMINATOR_THROW &&
+              program->terminators[out_of_range_block].kind ==
+                  W_SEED_HIR0_TERMINATOR_THROW &&
+              program->values[program->terminators[normal_block].value_index]
+                      .kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+              program->values[
+                  program->terminators[non_finite_block].value_index]
+                      .kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+              program->values[
+                  program->terminators[out_of_range_block].value_index]
+                      .kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ);
+        size_t parameter_reads = 0u;
+        for (size_t value = 0u; value < program->value_count; value += 1u)
+          if (program->values[value].kind ==
+              W_SEED_HIR0_VALUE_PARAMETER_READ)
+            parameter_reads += 1u;
+        CHECK(parameter_reads == 1u && w_seed_hir0_verify(program,
+                                                            &fixture.hir_result));
+      }
+    }
+  }
+
+  static const char MUTATION_SOURCE[] =
+      "fn convert(value: f32): i8 throws NumericConversionError { "
+      "return try i8(rounding: value, mode: .nearestEven) }\n"
+      "entry { }\n";
+  CHECK(lower(MUTATION_SOURCE));
+  w_seed_hir0_program *program = &fixture.hir_program;
+  const uint32_t split_block = program->functions[0].first_block;
+  const uint32_t normal_block = split_block + 1u;
+  const uint32_t non_finite_block = split_block + 2u;
+  const uint32_t out_of_range_block = split_block + 3u;
+  const w_seed_hir0_terminator saved_split = fixture.hir_terminators[split_block];
+  const w_seed_hir0_block_argument saved_normal =
+      fixture.hir_block_arguments[program->blocks[normal_block]
+                                      .first_block_argument];
+  const w_seed_hir0_block_argument saved_non_finite =
+      fixture.hir_block_arguments[program->blocks[non_finite_block]
+                                      .first_block_argument];
+  const w_seed_hir0_block_argument saved_out_of_range =
+      fixture.hir_block_arguments[program->blocks[out_of_range_block]
+                                      .first_block_argument];
+  const w_seed_hir0_terminator saved_non_finite_term =
+      fixture.hir_terminators[non_finite_block];
+
+  fixture.hir_terminators[split_block].rounding_mode =
+      W_SEED_HIR0_ROUNDING_MODE_NONE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[split_block] = saved_split;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_terminators[split_block].target_block = non_finite_block;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[split_block] = saved_split;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_terminators[split_block].else_block = out_of_range_block;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[split_block] = saved_split;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_terminators[split_block].third_block = non_finite_block;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[split_block] = saved_split;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_block_arguments[program->blocks[normal_block]
+                                  .first_block_argument]
+      .type_index = program->functions[0].error_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_block_arguments[program->blocks[normal_block]
+                                  .first_block_argument] = saved_normal;
+  fixture.hir_block_arguments[program->blocks[non_finite_block]
+                                  .first_block_argument]
+      .type_index = saved_split.result_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_block_arguments[program->blocks[non_finite_block]
+                                  .first_block_argument] = saved_non_finite;
+  fixture.hir_block_arguments[program->blocks[out_of_range_block]
+                                  .first_block_argument]
+      .type_index = saved_split.result_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_block_arguments[program->blocks[out_of_range_block]
+                                  .first_block_argument] = saved_out_of_range;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_terminators[non_finite_block].result_type =
+      saved_split.result_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[non_finite_block] = saved_non_finite_term;
   reseal_hir_fixture();
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
   return true;
@@ -16715,7 +16905,7 @@ static bool test_explicit_integer_saturating_hir(void) {
 }
 
 static bool test_checked_integer_arithmetic_hir_matrix(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-94") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-95") == 0);
   typedef struct {
     const char *name;
     const char *suffix;
@@ -19673,6 +19863,7 @@ int main(int argc, char **argv) {
   if (!test_typed_throw_hir()) return 1;
   if (!test_typed_invoke_hir()) return 1;
   if (!test_integer_exactly_hir()) return 1;
+  if (!test_float_to_integer_rounding_hir()) return 1;
   if (!test_integer_exactly_continuation_hir()) return 1;
   if (!test_process_integer_exactly_observation_hir()) return 1;
   if (!test_local_enum_payload_declarations_hir()) return 1;

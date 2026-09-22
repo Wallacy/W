@@ -80,31 +80,38 @@ cross-target, and long-running performance lanes run in CI or release
 qualification according to risk. More tests are not evidence unless they
 observe a distinct failure class or product boundary.
 
-The procedure is now structurally self-enforcing through the machine-readable
-safety-evidence catalog and its focused checker, but most independent evidence
-lanes are not implemented yet. Before any family is promoted as memory-safe,
-cleanup-safe, race-free, FFI-safe, or generally safe, its record must declare
-the applicable source, verified-HIR, lowering, native, runtime, target,
-negative, sanitizer/fuzz, fault-injection, schedule, resource-exhaustion, and
-ABI gates. An unavailable applicable gate blocks promotion; it is not silently
-omitted. Independent C/Rust oracles must state
-how they avoid their own undefined behavior. Adversarial and fault evidence
-must exercise the same maintained W source-to-native route as the positive
-claim rather than a substitute harness.
+The machine-readable safety-evidence catalog and its focused checker make the
+procedure auditable, but a catalog status or safety label is a classification,
+not proof, and most independent evidence lanes are not implemented yet. Before
+any family is promoted as memory-safe, cleanup-safe, race-free, FFI-safe, or
+generally safe, its durable record must bind the source and semantic-family
+digests, exact maintained W source-to-native route, compiler/HIR/lowering,
+runtime/provider and target identities, and the applicable source, verified-HIR,
+lowering, native, runtime, target, negative, sanitizer/fuzz, fault-injection,
+schedule, resource-exhaustion, and ABI gates. An unavailable, stale, or
+non-maintained-route gate blocks promotion; it is not silently omitted.
+Independent C/Rust oracles must state how they avoid their own undefined
+behavior. Adversarial and fault evidence must execute the same maintained W
+source on the claimed route rather than a substitute harness, private adapter,
+or alternate native route.
 
 Safety closes in dependency order rather than by accumulating unrelated green
 tests. First execute initialization, move, `ref`/`mut ref`/`inout`, bounds,
 destruction, allocator failure, and explicit `Option` absence from real W
-source; safe references never acquire a universal `null` state. Then close
-general typed errors, panic/OOM boundaries, exactly-once cleanup, and external
-I/O visibility. Only afterward promote tasks, atomics, locks, cancellation,
-race freedom, and reclamation through bounded schedule exploration and native
-race instrumentation. FFI/unsafe, ABI/layout, MMIO, interrupts, and assembly
-need their own target probes because safe-language evidence cannot validate a
-foreign trust boundary. Finally, optimization and code-generation correctness
-need debug-versus-optimized differential execution, an independent semantic
-oracle, and source/serialized-IR fuzzing. Host-model tests remain useful design
-oracles but never promote one of these product claims.
+source; safe references never acquire a universal `null` state. At every
+physical fault boundary, every resource that can survive to that boundary must
+be statically discharged or registered exactly once in the teardown registry;
+custom-allocator storage, foreign owners/leases, and callback/provider
+resources that are unregistered block a cleanup-safe claim. Then close general
+typed errors, panic/OOM boundaries, exactly-once cleanup, and external I/O
+visibility. Only afterward promote tasks, atomics, locks, cancellation, race
+freedom, and reclamation through bounded schedule exploration and native race
+instrumentation. FFI/unsafe, ABI/layout, MMIO, interrupts, and assembly need
+their own target probes because safe-language evidence cannot validate a foreign
+trust boundary. Finally, optimization and code-generation correctness need
+debug-versus-optimized differential execution, an independent semantic oracle,
+and source/serialized-IR fuzzing. Host-model tests remain useful design oracles
+but never promote one of these product claims.
 
 ### Numeric closure discipline
 
@@ -156,10 +163,13 @@ the exact-process, straight-line signed `+`, `-`, `*`, `/`, and `%` route keeps
 arithmetic fault distinct from typed conversion failure, reaches compiler-owned
 reverse-order release and root finalization, maps the fault to process status
 2, and never commits buffered output. This does not yet promote general checked
-arithmetic as cleanup-safe. Next propagate the same distinct outcome through
-local calls and general CFG, cover unsigned and shift/power policies, and make
-ProductClosure publish the fault relation before replacing remaining trap-only
-routes.
+arithmetic as cleanup-safe. A numeric fault boundary can be promoted only when
+the maintained W route also proves exactly-once teardown for every resource
+that can reach that boundary; a catalog label or compiler-owned subset does not
+cover custom allocators, foreign owners/leases, or callback/provider resources.
+Next propagate the same distinct outcome through local calls and general CFG,
+cover unsigned and shift/power policies, and make ProductClosure publish the
+fault relation before replacing remaining trap-only routes.
 
 The numeric ergonomics review does not justify new core syntax. Exact implicit
 widening, explicit named lossy/fallible policies, configured low-precision
@@ -231,7 +241,10 @@ physical scheduler experiments:
    contexts, and W-1647 closes only the existing f32/u32 and f64/u64
    representation-bit round trips. W-1650 adds fixed-width integer
    `try D(exactly: source)` through a typed HIR success/error split and private
-   MLIR/LLVM artifact. W-1652 now defines the canonical `native-process@1`
+   MLIR/LLVM artifact. Frontend72 and verified HIR95 additionally preserve the
+   complete bounded `f32`/`f64` to fixed-integer `rounding:` matrix and its
+   success/non-finite/out-of-range roles, but ProductClosure0 and native
+   lowering still reject it. W-1652 now defines the canonical `native-process@1`
    mapping for an unhandled typed error. HIR94 retains the restricted local
    payloadless-error direct throw and composes one exact-conversion binding into
    a three-block process root. ProductClosure0 v3 projects either the direct
@@ -595,6 +608,14 @@ direct-throw route, other conversion
 families, floats, 128-bit integers, general `isize`/`usize`, other target
 aliases, catch, general typed cleanup, and ABI remain gaps.
 W-389 and rank 1 remain open.
+
+The next W-389 increment starts from Frontend72/HIR95 rather than reparsing the
+call: lower the five rounding modes with target-independent LLVM intrinsics,
+classify non-finite input before conversion, check the rounded value against
+mathematically exact destination bounds, and execute `fptosi`/`fptoui` only in
+the proven-valid successor. Until ProductClosure0, native execution, boundary
+oracles, and both public x64 routes exist, this is compiler-lifecycle evidence
+only and carries no benchmark row or performance claim.
 
 W-1645 generalizes the prior strict-f64 seed path into one strict floating
 family for `f32` and `f64`. Frontend67 materializes exact binary32/binary64

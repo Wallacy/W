@@ -2842,7 +2842,7 @@ static bool frontend_function_ranges_ok(const w_seed_hir0_input *input) {
       const w_seed_frontend_type *error_type =
           &output->types[function->error_type];
       if (frontend_type_is_numeric_conversion_error(error_type)) {
-        bool has_exactly_try = false;
+        bool has_numeric_conversion_try = false;
         for (size_t expression_index = 0u;
              expression_index < result->written.expressions;
              expression_index += 1u) {
@@ -2853,13 +2853,15 @@ static bool frontend_function_ranges_ok(const w_seed_hir0_input *input) {
               expression->propagated_error_type != function->error_type ||
               expression->left == W_SEED_FRONTEND_NONE ||
               (size_t)expression->left >= result->written.expressions ||
-              output->expressions[expression->left].kind !=
-                  W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY)
+              (output->expressions[expression->left].kind !=
+                   W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY &&
+               output->expressions[expression->left].kind !=
+                   W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING))
             continue;
-          has_exactly_try = true;
+          has_numeric_conversion_try = true;
           break;
         }
-        if (!has_exactly_try) return false;
+        if (!has_numeric_conversion_try) return false;
       } else {
         if (error_type->kind != W_SEED_FRONTEND_TYPE_ENUM ||
             error_type->enum_base_index == W_SEED_FRONTEND_NONE ||
@@ -5818,6 +5820,86 @@ static bool frontend_integer_exactly_source_flat(
          value->kind == W_SEED_FRONTEND_EXPR_MEMBER;
 }
 
+/* Rounding sources are values, but remain a flat expression tree owned by
+ * the one rounding terminator.  Keep control-flow/effect-producing roots out
+ * of the tree so the source is evaluated exactly once before the three-way
+ * conversion split. */
+static bool frontend_float_rounding_source_flat(
+    const w_seed_hir0_input *input, uint32_t expression, size_t depth) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || depth > W_SEED_HIR0_MAX_NESTING ||
+      expression == W_SEED_FRONTEND_NONE ||
+      (size_t)expression >= input->frontend_result->written.expressions)
+    return false;
+  const w_seed_frontend_expression *value =
+      &input->frontend_output->expressions[expression];
+  if (value->kind == W_SEED_FRONTEND_EXPR_IF ||
+      value->kind == W_SEED_FRONTEND_EXPR_SWITCH ||
+      value->kind == W_SEED_FRONTEND_EXPR_TRY ||
+      value->kind == W_SEED_FRONTEND_EXPR_PANIC ||
+      value->kind == W_SEED_FRONTEND_EXPR_AWAIT ||
+      value->kind == W_SEED_FRONTEND_EXPR_INTERPOLATED_STRING ||
+      (value->kind == W_SEED_FRONTEND_EXPR_BINARY &&
+       hir_logical_operator(value->operator_text) !=
+           W_SEED_HIR0_LOGICAL_NONE))
+    return false;
+  if (value->kind == W_SEED_FRONTEND_EXPR_PARENTHESIS ||
+      value->kind == W_SEED_FRONTEND_EXPR_UNARY ||
+      value->kind == W_SEED_FRONTEND_EXPR_NUMERIC_WIDEN ||
+      value->kind == W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS ||
+      value->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_BITS)
+    return frontend_float_rounding_source_flat(input, value->left,
+                                               depth + 1u);
+  if (value->kind == W_SEED_FRONTEND_EXPR_BINARY)
+    return frontend_float_rounding_source_flat(input, value->left,
+                                               depth + 1u) &&
+           frontend_float_rounding_source_flat(input, value->right,
+                                               depth + 1u);
+  if (value->kind == W_SEED_FRONTEND_EXPR_CALL) {
+    if (!range_valid(value->first_argument, value->argument_count,
+                     input->frontend_result->written.arguments))
+      return false;
+    for (size_t ordinal = 0u; ordinal < value->argument_count; ordinal += 1u)
+      if (!frontend_float_rounding_source_flat(
+              input, input->frontend_output->arguments[
+                         (size_t)value->first_argument + ordinal]
+                         .expression_index,
+              depth + 1u))
+        return false;
+    return true;
+  }
+  return value->kind == W_SEED_FRONTEND_EXPR_FLOAT ||
+         value->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER ||
+         value->kind == W_SEED_FRONTEND_EXPR_MEMBER;
+}
+
+static bool hir0_rounding_mode_from_frontend(
+    w_seed_frontend_rounding_mode frontend_mode,
+    w_seed_hir0_rounding_mode *hir_mode) {
+  if (hir_mode == NULL) return false;
+  switch (frontend_mode) {
+    case W_SEED_FRONTEND_ROUNDING_MODE_NEAREST_EVEN:
+      *hir_mode = W_SEED_HIR0_ROUNDING_MODE_NEAREST_EVEN;
+      return true;
+    case W_SEED_FRONTEND_ROUNDING_MODE_NEAREST_AWAY_FROM_ZERO:
+      *hir_mode = W_SEED_HIR0_ROUNDING_MODE_NEAREST_AWAY_FROM_ZERO;
+      return true;
+    case W_SEED_FRONTEND_ROUNDING_MODE_TOWARD_ZERO:
+      *hir_mode = W_SEED_HIR0_ROUNDING_MODE_TOWARD_ZERO;
+      return true;
+    case W_SEED_FRONTEND_ROUNDING_MODE_TOWARD_POSITIVE:
+      *hir_mode = W_SEED_HIR0_ROUNDING_MODE_TOWARD_POSITIVE;
+      return true;
+    case W_SEED_FRONTEND_ROUNDING_MODE_TOWARD_NEGATIVE:
+      *hir_mode = W_SEED_HIR0_ROUNDING_MODE_TOWARD_NEGATIVE;
+      return true;
+    case W_SEED_FRONTEND_ROUNDING_MODE_NONE:
+    default:
+      break;
+  }
+  return false;
+}
+
 static bool frontend_try_expression_ok(
     const w_seed_hir0_input *input, size_t module_index,
     size_t function_index, size_t document_index, size_t statement_index,
@@ -5920,7 +6002,74 @@ static bool frontend_try_expression_ok(
             segment_total, value_bytes, call_total, argument_total,
             logical_total) ||
         (size_t)try_expression->left != *expression_cursor ||
-        !add_size(*value_total, 2u, value_total) ||
+          !add_size(*value_total, 2u, value_total) ||
+        !add_size(*integer_exactly_total, 1u, integer_exactly_total) ||
+        !add_size(*expression_cursor, 1u, expression_cursor) ||
+        (size_t)root_index != *expression_cursor ||
+        !add_size(*expression_cursor, 1u, expression_cursor))
+      return false;
+    return true;
+  }
+  if (nested->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING) {
+    const w_seed_frontend_expression *conversion = nested;
+    const w_seed_frontend_type *error_type =
+        owner->error_type != W_SEED_FRONTEND_NONE &&
+                (size_t)owner->error_type < result->written.types
+            ? &output->types[owner->error_type]
+            : NULL;
+    w_seed_hir0_rounding_mode hir_mode = W_SEED_HIR0_ROUNDING_MODE_NONE;
+    const uint32_t expected_error_facts =
+        W_SEED_FRONTEND_CONVERSION_ERROR_FACT_NON_FINITE |
+        W_SEED_FRONTEND_CONVERSION_ERROR_FACT_OUT_OF_RANGE;
+    if (!owner->is_throws || owner->is_const ||
+        owner->error_type == W_SEED_FRONTEND_NONE ||
+        !frontend_type_is_numeric_conversion_error(error_type) ||
+        try_expression->propagated_error_enum != W_SEED_FRONTEND_NONE ||
+        try_expression->propagated_error_type != owner->error_type ||
+        conversion->left == W_SEED_FRONTEND_NONE ||
+        (size_t)conversion->left >= result->written.expressions ||
+        conversion->right != W_SEED_FRONTEND_NONE ||
+        conversion->first_argument != W_SEED_FRONTEND_NONE ||
+        conversion->argument_count != 0u ||
+        conversion->first_interpolation_segment != W_SEED_FRONTEND_NONE ||
+        conversion->interpolation_segment_count != 0u ||
+        conversion->else_expression != W_SEED_FRONTEND_NONE ||
+        conversion->conversion_source_type == W_SEED_FRONTEND_NONE ||
+        conversion->conversion_destination_type == W_SEED_FRONTEND_NONE ||
+        (size_t)conversion->conversion_source_type >= result->written.types ||
+        (size_t)conversion->conversion_destination_type >=
+            result->written.types ||
+        conversion->conversion_source_type !=
+            output->expressions[conversion->left].inferred_type ||
+        conversion->inferred_type != conversion->conversion_destination_type ||
+        try_expression->inferred_type != conversion->inferred_type ||
+        !frontend_type_is_fixed_float(
+            &output->types[conversion->conversion_source_type]) ||
+        !frontend_type_is_fixed_integer(
+            &output->types[conversion->conversion_destination_type]) ||
+        !hir0_rounding_mode_from_frontend(conversion->conversion_rounding_mode,
+                                          &hir_mode) ||
+        conversion->conversion_possible_error_facts != expected_error_facts ||
+        !frontend_float_rounding_source_flat(input, conversion->left, 0u) ||
+        !frontend_expression_is_integer(output, conversion) ||
+        !text_is(conversion->operator_text, "rounding") ||
+        !frontend_value_has_no_resolution(conversion) ||
+        conversion->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
+        conversion->const_byte_offset != W_SEED_FRONTEND_NONE ||
+        conversion->const_byte_count != 0u || conversion->has_bool_value ||
+        conversion->has_integer_value || conversion->has_float_value ||
+        conversion->propagated_error_enum != W_SEED_FRONTEND_NONE ||
+        conversion->propagated_error_type != W_SEED_FRONTEND_NONE ||
+        !frontend_value_common_ok(input, conversion, module_index,
+                                  function_index, document_index) ||
+        !frontend_value_tree_ok(
+            input, module_index, function_index, document_index,
+            statement_index, conversion->left, 0u, expression_cursor,
+            interpolation_segment_cursor, const_byte_cursor, value_total,
+            segment_total, value_bytes, call_total, argument_total,
+            logical_total) ||
+        (size_t)try_expression->left != *expression_cursor ||
+        !add_size(*value_total, 3u, value_total) ||
         !add_size(*integer_exactly_total, 1u, integer_exactly_total) ||
         !add_size(*expression_cursor, 1u, expression_cursor) ||
         (size_t)root_index != *expression_cursor ||
@@ -7036,8 +7185,10 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
           statement->declared_type != W_SEED_FRONTEND_NONE ||
           initializer->left == W_SEED_FRONTEND_NONE ||
           (size_t)initializer->left >= walk->result->written.expressions ||
-          walk->output->expressions[initializer->left].kind !=
-              W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY ||
+          (walk->output->expressions[initializer->left].kind !=
+               W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY &&
+           walk->output->expressions[initializer->left].kind !=
+               W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING) ||
           !frontend_try_expression_ok(
               walk->input, walk->module_index, walk->function_index,
               walk->document_index, index, statement->expression_index,
@@ -8774,6 +8925,29 @@ static bool text_size_for_input(const w_seed_hir0_input *input, size_t *total) {
              : false;
 }
 
+static bool frontend_rounding_split_count(const w_seed_hir0_input *input,
+                                          size_t *count) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || count == NULL)
+    return false;
+  *count = 0u;
+  for (size_t index = 0u;
+       index < input->frontend_result->written.expressions; index += 1u) {
+    const w_seed_frontend_expression *expression =
+        &input->frontend_output->expressions[index];
+    if (expression->kind != W_SEED_FRONTEND_EXPR_TRY ||
+        expression->left == W_SEED_FRONTEND_NONE ||
+        (size_t)expression->left >=
+            input->frontend_result->written.expressions)
+      continue;
+    if (input->frontend_output->expressions[expression->left].kind ==
+        W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING) {
+      if (!add_size(*count, 1u, count)) return false;
+    }
+  }
+  return count_u32(*count);
+}
+
 static hir0_prepare_status collect(const w_seed_hir0_input *input,
                                    w_seed_hir0_counts *counts) {
   if (counts == NULL) return HIR0_PREPARE_INVALID;
@@ -8884,6 +9058,7 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
   size_t call_count = 0u;
   size_t invoke_count = 0u;
   size_t integer_exactly_count = 0u;
+  size_t rounding_count = 0u;
   size_t yield_count = 0u;
   size_t argument_count = 0u;
   size_t builtin_argument_count = 0u;
@@ -8910,6 +9085,8 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
           &value_bytes, &ignored_text, &if_count, &logical_count,
           &merge_count, &while_count, &loop_carrier_count, &switch_count,
           &switch_edge_count, &switch_capture_count, &cleanup_count))
+    return HIR0_PREPARE_UNSUPPORTED;
+  if (!frontend_rounding_split_count(input, &rounding_count))
     return HIR0_PREPARE_UNSUPPORTED;
   for (size_t expression = 0u;
        expression < frontend_result->written.expressions; expression += 1u) {
@@ -8955,6 +9132,7 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
       !count_u32(identities) || !count_u32(functions) || !count_u32(entries) ||
       !count_u32(binding_count) || !count_u32(call_count) ||
       !count_u32(invoke_count) ||
+      !count_u32(rounding_count) ||
       !count_u32(yield_count) ||
       !count_u32(argument_count) || !count_u32(value_count) ||
       !count_u32(interpolation_segment_count) || !count_u32(value_bytes) ||
@@ -9057,6 +9235,8 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
       !add_size(block_count, repeat_count, &block_count) ||
       typed_split_count > (SIZE_MAX - block_count) / 2u ||
       !add_size(block_count, typed_split_count * 2u, &block_count) ||
+      rounding_count > SIZE_MAX - block_count ||
+      !add_size(block_count, rounding_count, &block_count) ||
       !count_u32(block_count))
     return HIR0_PREPARE_UNSUPPORTED;
   size_t terminal_if_count = 0u;
@@ -9077,6 +9257,9 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
   const size_t explicit_edge_block_argument_count = block_argument_count;
   if (typed_split_count > (SIZE_MAX - block_argument_count) / 2u ||
       !add_size(block_argument_count, typed_split_count * 2u,
+                &block_argument_count) ||
+      rounding_count > SIZE_MAX - block_argument_count ||
+      !add_size(block_argument_count, rounding_count,
                 &block_argument_count))
     return HIR0_PREPARE_UNSUPPORTED;
   if (!count_u32(block_argument_count)) return HIR0_PREPARE_UNSUPPORTED;
@@ -10431,6 +10614,7 @@ static size_t hir0_region_block_count(const hir0_emit_context *context,
   if (repeat_count > SIZE_MAX - diamond_blocks) return 0u;
   diamond_blocks += repeat_count;
   size_t typed_split_count = 0u;
+  size_t rounding_split_count = 0u;
   uint32_t split_cursor = first_statement;
   size_t split_guard = 0u;
   while (split_cursor != W_SEED_FRONTEND_NONE &&
@@ -10438,6 +10622,7 @@ static size_t hir0_region_block_count(const hir0_emit_context *context,
     const w_seed_frontend_statement *statement =
         &context->frontend->statements[split_cursor];
     bool typed_split = false;
+    const w_seed_frontend_expression *split_conversion = NULL;
     if (statement->kind == W_SEED_FRONTEND_STMT_RETURN &&
         statement->expression_index != W_SEED_FRONTEND_NONE &&
         (size_t)statement->expression_index <
@@ -10445,17 +10630,33 @@ static size_t hir0_region_block_count(const hir0_emit_context *context,
       const w_seed_frontend_expression *expression =
           &context->frontend->expressions[statement->expression_index];
       typed_split = expression->kind == W_SEED_FRONTEND_EXPR_TRY;
+      if (typed_split && expression->left != W_SEED_FRONTEND_NONE &&
+          (size_t)expression->left <
+              context->frontend_result->written.expressions) {
+        const w_seed_frontend_expression *nested =
+            &context->frontend->expressions[expression->left];
+        if (nested->kind == W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY ||
+            nested->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING)
+          split_conversion = nested;
+      }
     } else if (statement->kind == W_SEED_FRONTEND_STMT_LET) {
       typed_split = hir0_integer_exactly_try_m2(
-          context, statement->expression_index, NULL, NULL);
+          context, statement->expression_index, NULL, &split_conversion);
     }
     if (typed_split && !add_size(typed_split_count, 1u, &typed_split_count))
+      return 0u;
+    if (typed_split && split_conversion != NULL &&
+        split_conversion->kind ==
+            W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING &&
+        !add_size(rounding_split_count, 1u, &rounding_split_count))
       return 0u;
     split_cursor = statement->next_sibling;
     split_guard += 1u;
   }
   if (typed_split_count > (SIZE_MAX - diamond_blocks) / 2u) return 0u;
   diamond_blocks += typed_split_count * 2u;
+  if (rounding_split_count > SIZE_MAX - diamond_blocks) return 0u;
+  diamond_blocks += rounding_split_count;
   uint32_t cursor = first_statement;
   size_t guard = 0u;
   while (cursor != W_SEED_FRONTEND_NONE &&
@@ -10665,7 +10866,9 @@ static bool hir0_integer_exactly_try_m2(
     return false;
   const w_seed_frontend_expression *nested =
       &context->frontend->expressions[root->left];
-  if (nested->kind != W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY) return false;
+  if (nested->kind != W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY &&
+      nested->kind != W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING)
+    return false;
   if (try_expression != NULL) *try_expression = root;
   if (conversion != NULL) *conversion = nested;
   return true;
@@ -10696,6 +10899,7 @@ static size_t hir0_emit_expression_values_m2(hir0_emit_context *context,
       source->kind == W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS ||
       source->kind == W_SEED_FRONTEND_EXPR_INTEGER_SATURATING ||
       source->kind == W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY ||
+      source->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING ||
       source->kind == W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS ||
       source->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_BITS)
     return hir0_emit_expression_values_m2(
@@ -11063,6 +11267,7 @@ static size_t hir0_emit_expression_terms_m2(hir0_emit_context *context,
       source->kind == W_SEED_FRONTEND_EXPR_NUMERIC_WIDEN ||
       source->kind == W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS ||
       source->kind == W_SEED_FRONTEND_EXPR_INTEGER_SATURATING ||
+      source->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING ||
       source->kind == W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS ||
       source->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_BITS)
     return hir0_emit_expression_terms_m2(
@@ -11200,7 +11405,8 @@ static void hir0_emit_try_return_terms_m2(
   const w_seed_frontend_expression *nested =
       &context->frontend->expressions[try_expression->left];
   size_t split_block = current_block;
-  if (nested->kind == W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY) {
+  if (nested->kind == W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY ||
+      nested->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING) {
     split_block = hir0_emit_expression_terms_m2(
         context, nested->left, current_block, statement->expression_index, 0u);
     context->output->terminators[split_block].value_index =
@@ -11210,6 +11416,29 @@ static void hir0_emit_try_return_terms_m2(
   }
   const size_t normal_block = split_block + 1u;
   const size_t error_block = split_block + 2u;
+  if (nested->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING) {
+    const size_t out_of_range_block = split_block + 3u;
+    w_seed_hir0_block *normal = &context->output->blocks[normal_block];
+    w_seed_hir0_block *non_finite = &context->output->blocks[error_block];
+    w_seed_hir0_block *out_of_range =
+        &context->output->blocks[out_of_range_block];
+    context->output->terminators[normal_block].value_index =
+        hir0_emit_block_argument_read_m2(
+            context, W_SEED_HIR0_VALUE_OWNER_TERMINATOR,
+            (uint32_t)normal_block, 0u, normal->first_block_argument,
+            try_expression->span);
+    context->output->terminators[error_block].value_index =
+        hir0_emit_block_argument_read_m2(
+            context, W_SEED_HIR0_VALUE_OWNER_TERMINATOR,
+            (uint32_t)error_block, 0u, non_finite->first_block_argument,
+            try_expression->span);
+    context->output->terminators[out_of_range_block].value_index =
+        hir0_emit_block_argument_read_m2(
+            context, W_SEED_HIR0_VALUE_OWNER_TERMINATOR,
+            (uint32_t)out_of_range_block, 0u,
+            out_of_range->first_block_argument, try_expression->span);
+    return;
+  }
   w_seed_hir0_block *normal = &context->output->blocks[normal_block];
   w_seed_hir0_block *error = &context->output->blocks[error_block];
   context->output->terminators[normal_block].value_index =
@@ -11842,6 +12071,134 @@ static void hir0_emit_try_return_layout_m2(
         .source_span = statement->span};
     return;
   }
+  if (nested->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING) {
+    const size_t conversion_block = hir0_emit_expression_layout_m2(
+        context, nested->left, current_block, statement->expression_index, 0u);
+    const size_t normal_block = conversion_block + 1u;
+    const size_t non_finite_block = conversion_block + 2u;
+    const size_t out_of_range_block = conversion_block + 3u;
+    const uint32_t result_type = hir_type_from_frontend(
+        context->frontend, context->frontend_result,
+        nested->conversion_destination_type);
+    const uint32_t error_type = hir_type_from_frontend(
+        context->frontend, context->frontend_result,
+        try_expression->propagated_error_type);
+    w_seed_hir0_rounding_mode rounding_mode = W_SEED_HIR0_ROUNDING_MODE_NONE;
+    if (!hir0_rounding_mode_from_frontend(nested->conversion_rounding_mode,
+                                          &rounding_mode))
+      return;
+    hir0_finish_block_m2(context, conversion_block);
+    context->output->terminators[conversion_block] =
+        (w_seed_hir0_terminator){
+            .owner_block = (uint32_t)conversion_block,
+            .kind = W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING,
+            .ordinal = context->output->blocks[conversion_block]
+                           .instruction_count,
+            .call_index = W_SEED_HIR0_NONE,
+            .value_index = W_SEED_HIR0_NONE,
+            .result_type = result_type,
+            .error_type = error_type,
+            .target_block = (uint32_t)normal_block,
+            .else_block = (uint32_t)non_finite_block,
+            .third_block = (uint32_t)out_of_range_block,
+            .first_edge_argument = W_SEED_HIR0_NONE,
+            .edge_argument_count = 0u,
+            .logical_operator = W_SEED_HIR0_LOGICAL_NONE,
+            .source_span = try_expression->span,
+            .numeric_conversion_error_case =
+                W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_NONE,
+            .rounding_mode = rounding_mode};
+    hir0_begin_block_m2(context, normal_block);
+    w_seed_hir0_block *normal = &context->output->blocks[normal_block];
+    normal->first_block_argument = (uint32_t)*context->block_argument_index;
+    normal->block_argument_count = 1u;
+    context->output->block_arguments[*context->block_argument_index] =
+        (w_seed_hir0_block_argument){
+            .owner_block = (uint32_t)normal_block,
+            .ordinal = 0u,
+            .type_index = result_type,
+            .source_span = try_expression->span};
+    *context->block_argument_index += 1u;
+    hir0_finish_block_m2(context, normal_block);
+    context->output->terminators[normal_block] =
+        (w_seed_hir0_terminator){
+            .owner_block = (uint32_t)normal_block,
+            .kind = W_SEED_HIR0_TERMINATOR_RETURN_VALUE,
+            .ordinal = normal->instruction_count,
+            .call_index = W_SEED_HIR0_NONE,
+            .value_index = W_SEED_HIR0_NONE,
+            .result_type = context->output->functions[context->function]
+                               .return_type,
+            .error_type = W_SEED_HIR0_NONE,
+            .target_block = W_SEED_HIR0_NONE,
+            .else_block = W_SEED_HIR0_NONE,
+            .third_block = W_SEED_HIR0_NONE,
+            .first_edge_argument = W_SEED_HIR0_NONE,
+            .edge_argument_count = 0u,
+            .logical_operator = W_SEED_HIR0_LOGICAL_NONE,
+            .source_span = statement->span};
+    hir0_begin_block_m2(context, non_finite_block);
+    w_seed_hir0_block *non_finite =
+        &context->output->blocks[non_finite_block];
+    non_finite->first_block_argument =
+        (uint32_t)*context->block_argument_index;
+    non_finite->block_argument_count = 1u;
+    context->output->block_arguments[*context->block_argument_index] =
+        (w_seed_hir0_block_argument){
+            .owner_block = (uint32_t)non_finite_block,
+            .ordinal = 0u,
+            .type_index = error_type,
+            .source_span = try_expression->span};
+    *context->block_argument_index += 1u;
+    hir0_finish_block_m2(context, non_finite_block);
+    context->output->terminators[non_finite_block] =
+        (w_seed_hir0_terminator){
+            .owner_block = (uint32_t)non_finite_block,
+            .kind = W_SEED_HIR0_TERMINATOR_THROW,
+            .ordinal = non_finite->instruction_count,
+            .call_index = W_SEED_HIR0_NONE,
+            .value_index = W_SEED_HIR0_NONE,
+            .result_type = error_type,
+            .error_type = W_SEED_HIR0_NONE,
+            .target_block = W_SEED_HIR0_NONE,
+            .else_block = W_SEED_HIR0_NONE,
+            .third_block = W_SEED_HIR0_NONE,
+            .first_edge_argument = W_SEED_HIR0_NONE,
+            .edge_argument_count = 0u,
+            .logical_operator = W_SEED_HIR0_LOGICAL_NONE,
+            .source_span = statement->span};
+    hir0_begin_block_m2(context, out_of_range_block);
+    w_seed_hir0_block *out_of_range =
+        &context->output->blocks[out_of_range_block];
+    out_of_range->first_block_argument =
+        (uint32_t)*context->block_argument_index;
+    out_of_range->block_argument_count = 1u;
+    context->output->block_arguments[*context->block_argument_index] =
+        (w_seed_hir0_block_argument){
+            .owner_block = (uint32_t)out_of_range_block,
+            .ordinal = 0u,
+            .type_index = error_type,
+            .source_span = try_expression->span};
+    *context->block_argument_index += 1u;
+    hir0_finish_block_m2(context, out_of_range_block);
+    context->output->terminators[out_of_range_block] =
+        (w_seed_hir0_terminator){
+            .owner_block = (uint32_t)out_of_range_block,
+            .kind = W_SEED_HIR0_TERMINATOR_THROW,
+            .ordinal = out_of_range->instruction_count,
+            .call_index = W_SEED_HIR0_NONE,
+            .value_index = W_SEED_HIR0_NONE,
+            .result_type = error_type,
+            .error_type = W_SEED_HIR0_NONE,
+            .target_block = W_SEED_HIR0_NONE,
+            .else_block = W_SEED_HIR0_NONE,
+            .third_block = W_SEED_HIR0_NONE,
+            .first_edge_argument = W_SEED_HIR0_NONE,
+            .edge_argument_count = 0u,
+            .logical_operator = W_SEED_HIR0_LOGICAL_NONE,
+            .source_span = statement->span};
+    return;
+  }
   const size_t invoke_block = hir0_emit_call_layout_m2(
       context, try_expression->left, current_block, statement->expression_index,
       0u, true);
@@ -11991,6 +12348,106 @@ static size_t hir0_emit_try_binding_layout_m2(
   const uint32_t error_type = hir_type_from_frontend(
       context->frontend, context->frontend_result,
       try_expression->propagated_error_type);
+  if (conversion->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING) {
+    const size_t non_finite_block = split_block + 2u;
+    const size_t out_of_range_block = split_block + 3u;
+    w_seed_hir0_rounding_mode rounding_mode = W_SEED_HIR0_ROUNDING_MODE_NONE;
+    if (!hir0_rounding_mode_from_frontend(conversion->conversion_rounding_mode,
+                                          &rounding_mode))
+      return current_block;
+    hir0_finish_block_m2(context, split_block);
+    context->output->terminators[split_block] =
+        (w_seed_hir0_terminator){
+            .owner_block = (uint32_t)split_block,
+            .kind = W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING,
+            .ordinal = context->output->blocks[split_block].instruction_count,
+            .call_index = W_SEED_HIR0_NONE,
+            .value_index = W_SEED_HIR0_NONE,
+            .result_type = result_type,
+            .error_type = error_type,
+            .target_block = (uint32_t)normal_block,
+            .else_block = (uint32_t)non_finite_block,
+            .third_block = (uint32_t)out_of_range_block,
+            .first_edge_argument = W_SEED_HIR0_NONE,
+            .edge_argument_count = 0u,
+            .logical_operator = W_SEED_HIR0_LOGICAL_NONE,
+            .source_span = try_expression->span,
+            .numeric_conversion_error_case =
+                W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_NONE,
+            .rounding_mode = rounding_mode};
+    hir0_begin_block_m2(context, normal_block);
+    w_seed_hir0_block *normal = &context->output->blocks[normal_block];
+    normal->first_block_argument = (uint32_t)*context->block_argument_index;
+    normal->block_argument_count = 1u;
+    context->output->block_arguments[*context->block_argument_index] =
+        (w_seed_hir0_block_argument){
+            .owner_block = (uint32_t)normal_block,
+            .ordinal = 0u,
+            .type_index = result_type,
+            .source_span = try_expression->span};
+    *context->block_argument_index += 1u;
+    hir0_begin_block_m2(context, non_finite_block);
+    w_seed_hir0_block *non_finite =
+        &context->output->blocks[non_finite_block];
+    non_finite->first_block_argument =
+        (uint32_t)*context->block_argument_index;
+    non_finite->block_argument_count = 1u;
+    context->output->block_arguments[*context->block_argument_index] =
+        (w_seed_hir0_block_argument){
+            .owner_block = (uint32_t)non_finite_block,
+            .ordinal = 0u,
+            .type_index = error_type,
+            .source_span = try_expression->span};
+    *context->block_argument_index += 1u;
+    hir0_finish_block_m2(context, non_finite_block);
+    context->output->terminators[non_finite_block] =
+        (w_seed_hir0_terminator){
+            .owner_block = (uint32_t)non_finite_block,
+            .kind = W_SEED_HIR0_TERMINATOR_THROW,
+            .ordinal = non_finite->instruction_count,
+            .call_index = W_SEED_HIR0_NONE,
+            .value_index = W_SEED_HIR0_NONE,
+            .result_type = error_type,
+            .error_type = W_SEED_HIR0_NONE,
+            .target_block = W_SEED_HIR0_NONE,
+            .else_block = W_SEED_HIR0_NONE,
+            .third_block = W_SEED_HIR0_NONE,
+            .first_edge_argument = W_SEED_HIR0_NONE,
+            .edge_argument_count = 0u,
+            .logical_operator = W_SEED_HIR0_LOGICAL_NONE,
+            .source_span = statement->span};
+    hir0_begin_block_m2(context, out_of_range_block);
+    w_seed_hir0_block *out_of_range =
+        &context->output->blocks[out_of_range_block];
+    out_of_range->first_block_argument =
+        (uint32_t)*context->block_argument_index;
+    out_of_range->block_argument_count = 1u;
+    context->output->block_arguments[*context->block_argument_index] =
+        (w_seed_hir0_block_argument){
+            .owner_block = (uint32_t)out_of_range_block,
+            .ordinal = 0u,
+            .type_index = error_type,
+            .source_span = try_expression->span};
+    *context->block_argument_index += 1u;
+    hir0_finish_block_m2(context, out_of_range_block);
+    context->output->terminators[out_of_range_block] =
+        (w_seed_hir0_terminator){
+            .owner_block = (uint32_t)out_of_range_block,
+            .kind = W_SEED_HIR0_TERMINATOR_THROW,
+            .ordinal = out_of_range->instruction_count,
+            .call_index = W_SEED_HIR0_NONE,
+            .value_index = W_SEED_HIR0_NONE,
+            .result_type = error_type,
+            .error_type = W_SEED_HIR0_NONE,
+            .target_block = W_SEED_HIR0_NONE,
+            .else_block = W_SEED_HIR0_NONE,
+            .third_block = W_SEED_HIR0_NONE,
+            .first_edge_argument = W_SEED_HIR0_NONE,
+            .edge_argument_count = 0u,
+            .logical_operator = W_SEED_HIR0_LOGICAL_NONE,
+            .source_span = statement->span};
+    return normal_block;
+  }
   hir0_finish_block_m2(context, split_block);
   context->output->terminators[split_block] =
       (w_seed_hir0_terminator){
@@ -12101,6 +12558,7 @@ static size_t hir0_expression_layout_end_m2(const hir0_emit_context *context,
       source->kind == W_SEED_FRONTEND_EXPR_NUMERIC_WIDEN ||
       source->kind == W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS ||
       source->kind == W_SEED_FRONTEND_EXPR_INTEGER_SATURATING ||
+      source->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING ||
       source->kind == W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS ||
       source->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_BITS)
     return hir0_expression_layout_end_m2(context, source->left, current_block,
@@ -12768,6 +13226,7 @@ static size_t hir0_emit_expression_layout_m2(hir0_emit_context *context,
       source->kind == W_SEED_FRONTEND_EXPR_NUMERIC_WIDEN ||
       source->kind == W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS ||
       source->kind == W_SEED_FRONTEND_EXPR_INTEGER_SATURATING ||
+      source->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING ||
       source->kind == W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS ||
       source->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_BITS)
     return hir0_emit_expression_layout_m2(
@@ -15008,8 +15467,13 @@ static void emit_records(const w_seed_hir0_input *input,
     if (output->terminators[terminator].kind !=
             W_SEED_HIR0_TERMINATOR_INVOKE &&
         output->terminators[terminator].kind !=
-            W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY)
+            W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY &&
+        output->terminators[terminator].kind !=
+            W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING)
       output->terminators[terminator].error_type = W_SEED_HIR0_NONE;
+    if (output->terminators[terminator].kind !=
+        W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING)
+      output->terminators[terminator].third_block = W_SEED_HIR0_NONE;
     if (output->terminators[terminator].kind !=
         W_SEED_HIR0_TERMINATOR_SWITCH_ENUM) {
       output->terminators[terminator].switch_enum_index = W_SEED_HIR0_NONE;
@@ -15025,6 +15489,10 @@ static void emit_records(const w_seed_hir0_input *input,
         W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY)
       output->terminators[terminator].numeric_conversion_error_case =
           W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_NONE;
+    if (output->terminators[terminator].kind !=
+        W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING)
+      output->terminators[terminator].rounding_mode =
+          W_SEED_HIR0_ROUNDING_MODE_NONE;
   }
   /* collect() proves these cursors equal the measured bounds. */
 }
@@ -15410,6 +15878,7 @@ static void digest_program(const w_seed_hir0_program *program,
     digest_u32(&state, value->error_type);
     digest_u32(&state, value->target_block);
     digest_u32(&state, value->else_block);
+    digest_u32(&state, value->third_block);
     digest_u32(&state, value->first_edge_argument);
     digest_u32(&state, value->edge_argument_count);
     digest_u32(&state, (uint32_t)value->logical_operator);
@@ -15419,6 +15888,7 @@ static void digest_program(const w_seed_hir0_program *program,
     digest_u32(&state, value->switch_carrier_width);
     digest_u32(&state, (uint32_t)value->panic_code);
     digest_u32(&state, (uint32_t)value->numeric_conversion_error_case);
+    digest_u32(&state, (uint32_t)value->rounding_mode);
   }
   for (size_t index = 0u; index < counts->entries; index += 1u) {
     const w_seed_hir0_entry *value = &program->entries[index];
@@ -19613,6 +20083,8 @@ static bool verify_process_exit_or_panic(
 
 static bool verify_cfg_integer_exactly(const w_seed_hir0_program *program,
                                       size_t function_index);
+static bool verify_cfg_float_to_integer_rounding(
+    const w_seed_hir0_program *program, size_t function_index);
 static bool hir0_host_call_never_suspends(
     const w_seed_hir0_program *program,
     const w_seed_hir0_identity *identity);
@@ -20373,6 +20845,199 @@ static bool verify_cfg_integer_exactly(const w_seed_hir0_program *program,
          error_value->block_argument_index == error->first_block_argument;
 }
 
+static bool verify_cfg_float_to_integer_rounding(
+    const w_seed_hir0_program *program, size_t function_index) {
+  if (program == NULL || function_index >= program->function_count)
+    return false;
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  if (function->block_count < 4u || program->block_count < 4u ||
+      function->first_block > program->block_count - 4u)
+    return false;
+  const size_t split_block = function->first_block;
+  const size_t function_end = split_block + function->block_count;
+  const w_seed_hir0_terminator *split_term =
+      &program->terminators[split_block];
+  const size_t normal_block = split_block + 1u;
+  const size_t non_finite_block = split_block + 2u;
+  const size_t out_of_range_block = split_block + 3u;
+  if (split_term->kind != W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING ||
+      split_term->target_block != normal_block ||
+      split_term->else_block != non_finite_block ||
+      split_term->third_block != out_of_range_block ||
+      split_term->target_block >= function_end ||
+      split_term->else_block >= function_end ||
+      split_term->third_block >= function_end)
+    return false;
+  size_t rounding_count = 0u;
+  size_t integer_exactly_count = 0u;
+  for (size_t block = split_block; block < function_end; block += 1u) {
+    if (program->terminators[block].kind ==
+        W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING)
+      rounding_count += 1u;
+    if (program->terminators[block].kind ==
+        W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY)
+      integer_exactly_count += 1u;
+  }
+  const w_seed_hir0_block *split = &program->blocks[split_block];
+  const w_seed_hir0_block *normal = &program->blocks[normal_block];
+  const w_seed_hir0_block *non_finite = &program->blocks[non_finite_block];
+  const w_seed_hir0_block *out_of_range =
+      &program->blocks[out_of_range_block];
+  const w_seed_hir0_terminator *normal_term =
+      &program->terminators[normal_block];
+  const w_seed_hir0_terminator *non_finite_term =
+      &program->terminators[non_finite_block];
+  const w_seed_hir0_terminator *out_of_range_term =
+      &program->terminators[out_of_range_block];
+  bool destination_signed = false;
+  uint16_t destination_width = 0u;
+  const bool mode_valid =
+      split_term->rounding_mode >= W_SEED_HIR0_ROUNDING_MODE_NEAREST_EVEN &&
+      split_term->rounding_mode <= W_SEED_HIR0_ROUNDING_MODE_TOWARD_NEGATIVE;
+  if (!function->is_throws || function->error_type == W_SEED_HIR0_NONE ||
+      !hir_type_index_valid(program, function->error_type) ||
+      program->types[function->error_type].kind !=
+          W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR ||
+      rounding_count != 1u || integer_exactly_count != 0u ||
+      split->owner_function != function_index ||
+      normal->owner_function != function_index ||
+      non_finite->owner_function != function_index ||
+      out_of_range->owner_function != function_index ||
+      split->block_argument_count != 0u ||
+      split->first_block_argument != W_SEED_HIR0_NONE ||
+      split_term->owner_block != split_block ||
+      split_term->ordinal != split->instruction_count ||
+      split_term->call_index != W_SEED_HIR0_NONE ||
+      split_term->value_index == W_SEED_HIR0_NONE ||
+      split_term->value_index >= program->value_count ||
+      split_term->error_type != function->error_type ||
+      !hir_integer_type_facts(program, split_term->result_type,
+                              &destination_signed, &destination_width) ||
+      !hir_float_type_index_valid(
+          program, program->values[split_term->value_index].type_index) ||
+      split_term->first_edge_argument != W_SEED_HIR0_NONE ||
+      split_term->edge_argument_count != 0u ||
+      split_term->logical_operator != W_SEED_HIR0_LOGICAL_NONE ||
+      split_term->switch_enum_index != W_SEED_HIR0_NONE ||
+      split_term->first_switch_edge != W_SEED_HIR0_NONE ||
+      split_term->switch_edge_count != 0u ||
+      split_term->switch_carrier_width != 0u ||
+      split_term->panic_code != W_SEED_HIR0_PANIC_CODE_INVALID ||
+      split_term->numeric_conversion_error_case !=
+          W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_NONE ||
+      !mode_valid)
+    return false;
+  (void)destination_signed;
+  (void)destination_width;
+  if (!verify_value_tree(
+          program, split_term->value_index,
+          W_SEED_HIR0_VALUE_OWNER_TERMINATOR, (uint32_t)split_block, 0u,
+          (uint32_t)split_block,
+          (uint32_t)((size_t)split->first_instruction +
+                     split->instruction_count),
+          program->modules[function->module_index].source_length, 0u,
+          &(size_t){0u}, &(size_t){0u}, &(size_t){0u}) ||
+      program->values[split_term->value_index].type_index >=
+          program->type_count)
+    return false;
+  if (normal->block_argument_count != 1u ||
+      non_finite->block_argument_count != 1u ||
+      out_of_range->block_argument_count != 1u ||
+      normal->first_block_argument == W_SEED_HIR0_NONE ||
+      non_finite->first_block_argument == W_SEED_HIR0_NONE ||
+      out_of_range->first_block_argument == W_SEED_HIR0_NONE ||
+      normal->first_block_argument >= program->block_argument_count ||
+      non_finite->first_block_argument >= program->block_argument_count ||
+      out_of_range->first_block_argument >= program->block_argument_count)
+    return false;
+  const w_seed_hir0_block_argument *normal_argument =
+      &program->block_arguments[normal->first_block_argument];
+  const w_seed_hir0_block_argument *non_finite_argument =
+      &program->block_arguments[non_finite->first_block_argument];
+  const w_seed_hir0_block_argument *out_of_range_argument =
+      &program->block_arguments[out_of_range->first_block_argument];
+  if (normal_argument->owner_block != normal_block ||
+      normal_argument->ordinal != 0u ||
+      normal_argument->type_index != split_term->result_type ||
+      non_finite_argument->owner_block != non_finite_block ||
+      non_finite_argument->ordinal != 0u ||
+      non_finite_argument->type_index != function->error_type ||
+      out_of_range_argument->owner_block != out_of_range_block ||
+      out_of_range_argument->ordinal != 0u ||
+      out_of_range_argument->type_index != function->error_type ||
+      !span_equal(normal_argument->source_span, split_term->source_span) ||
+      !span_equal(non_finite_argument->source_span, split_term->source_span) ||
+      !span_equal(out_of_range_argument->source_span,
+                  split_term->source_span))
+    return false;
+  if (non_finite->instruction_count != 0u ||
+      out_of_range->instruction_count != 0u ||
+      non_finite_term->owner_block != non_finite_block ||
+      non_finite_term->kind != W_SEED_HIR0_TERMINATOR_THROW ||
+      non_finite_term->value_index == W_SEED_HIR0_NONE ||
+      non_finite_term->result_type != function->error_type ||
+      non_finite_term->call_index != W_SEED_HIR0_NONE ||
+      non_finite_term->error_type != W_SEED_HIR0_NONE ||
+      non_finite_term->target_block != W_SEED_HIR0_NONE ||
+      non_finite_term->else_block != W_SEED_HIR0_NONE ||
+      non_finite_term->third_block != W_SEED_HIR0_NONE ||
+      out_of_range_term->owner_block != out_of_range_block ||
+      out_of_range_term->kind != W_SEED_HIR0_TERMINATOR_THROW ||
+      out_of_range_term->value_index == W_SEED_HIR0_NONE ||
+      out_of_range_term->result_type != function->error_type ||
+      out_of_range_term->call_index != W_SEED_HIR0_NONE ||
+      out_of_range_term->error_type != W_SEED_HIR0_NONE ||
+      out_of_range_term->target_block != W_SEED_HIR0_NONE ||
+      out_of_range_term->else_block != W_SEED_HIR0_NONE ||
+      out_of_range_term->third_block != W_SEED_HIR0_NONE)
+    return false;
+  const w_seed_hir0_value *non_finite_value =
+      &program->values[non_finite_term->value_index];
+  const w_seed_hir0_value *out_of_range_value =
+      &program->values[out_of_range_term->value_index];
+  if (non_finite_value->kind != W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
+      non_finite_value->owner_kind != W_SEED_HIR0_VALUE_OWNER_TERMINATOR ||
+      non_finite_value->owner_index != non_finite_block ||
+      non_finite_value->owner_ordinal != 0u ||
+      non_finite_value->type_index != function->error_type ||
+      non_finite_value->block_argument_index !=
+          non_finite->first_block_argument ||
+      out_of_range_value->kind != W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
+      out_of_range_value->owner_kind != W_SEED_HIR0_VALUE_OWNER_TERMINATOR ||
+      out_of_range_value->owner_index != out_of_range_block ||
+      out_of_range_value->owner_ordinal != 0u ||
+      out_of_range_value->type_index != function->error_type ||
+      out_of_range_value->block_argument_index !=
+          out_of_range->first_block_argument)
+    return false;
+  if (normal_term->owner_block != normal_block ||
+      normal_term->kind == W_SEED_HIR0_TERMINATOR_THROW ||
+      normal_term->target_block == split_block ||
+      normal_term->else_block == split_block ||
+      normal_term->third_block != W_SEED_HIR0_NONE ||
+      normal_term->rounding_mode != W_SEED_HIR0_ROUNDING_MODE_NONE ||
+      normal_term->numeric_conversion_error_case !=
+          W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_NONE)
+    return false;
+  if (normal->instruction_count == 0u) {
+    if (normal_term->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
+        normal_term->value_index == W_SEED_HIR0_NONE ||
+        normal_term->result_type != function->return_type ||
+        function->return_type != split_term->result_type)
+      return false;
+    const w_seed_hir0_value *normal_value =
+        &program->values[normal_term->value_index];
+    if (normal_value->kind != W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
+        normal_value->owner_kind != W_SEED_HIR0_VALUE_OWNER_TERMINATOR ||
+        normal_value->owner_index != normal_block ||
+        normal_value->owner_ordinal != 0u ||
+        normal_value->type_index != split_term->result_type ||
+        normal_value->block_argument_index != normal->first_block_argument)
+      return false;
+  }
+  return true;
+}
+
 static bool verify_cfg_function(const w_seed_hir0_program *program,
                                 size_t function_index) {
   if (program == NULL || function_index >= program->function_count) return false;
@@ -20387,6 +21052,11 @@ static bool verify_cfg_function(const w_seed_hir0_program *program,
       program->terminators[function->first_block].kind ==
           W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY) {
     return verify_cfg_integer_exactly(program, function_index);
+  }
+  if (function->first_block < program->block_count &&
+      program->terminators[function->first_block].kind ==
+          W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING) {
+    return verify_cfg_float_to_integer_rounding(program, function_index);
   }
   if (function->first_block < program->block_count &&
       program->terminators[function->first_block].kind ==
@@ -20446,6 +21116,10 @@ static bool verify_logical_join_membership(
       program->terminators[function->first_block].kind ==
           W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY)
     return verify_cfg_integer_exactly(program, function_index);
+  if (function->first_block < program->block_count &&
+      program->terminators[function->first_block].kind ==
+          W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING)
+    return verify_cfg_float_to_integer_rounding(program, function_index);
   if (function->first_block < program->block_count &&
       program->terminators[function->first_block].kind ==
           W_SEED_HIR0_TERMINATOR_INVOKE)
@@ -20926,6 +21600,7 @@ static bool hir0_terminator_kind_is_closed(w_seed_hir0_terminator_kind kind) {
     case W_SEED_HIR0_TERMINATOR_INVOKE:
     case W_SEED_HIR0_TERMINATOR_PANIC:
     case W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY:
+    case W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING:
       return true;
     default:
       return false;
@@ -22637,6 +23312,7 @@ static bool verify_records(const w_seed_hir0_program *program) {
   size_t switch_edge_cursor = 0u;
   size_t switch_capture_cursor = 0u;
   size_t integer_exactly_terminator_count = 0u;
+  size_t rounding_terminator_count = 0u;
   for (size_t instruction = 0u; instruction < program->instruction_count;
        instruction += 1u) {
     const w_seed_hir0_instruction *item = &program->instructions[instruction];
@@ -22717,10 +23393,15 @@ static bool verify_records(const w_seed_hir0_program *program) {
          value->call_index != W_SEED_HIR0_NONE) ||
         (value->kind != W_SEED_HIR0_TERMINATOR_INVOKE &&
          value->kind != W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY &&
+         value->kind != W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING &&
          value->error_type != W_SEED_HIR0_NONE) ||
         (value->kind != W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY &&
          value->numeric_conversion_error_case !=
-             W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_NONE))
+             W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_NONE) ||
+        (value->kind != W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING &&
+         value->third_block != W_SEED_HIR0_NONE) ||
+        (value->kind != W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING &&
+         value->rounding_mode != W_SEED_HIR0_ROUNDING_MODE_NONE))
       return false;
     if (value->kind != W_SEED_HIR0_TERMINATOR_PANIC &&
         value->panic_code != W_SEED_HIR0_PANIC_CODE_INVALID)
@@ -22815,6 +23496,63 @@ static bool verify_records(const w_seed_hir0_program *program) {
       (void)destination_signed;
       (void)destination_width;
       integer_exactly_terminator_count += 1u;
+      continue;
+    }
+    if (value->kind == W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING) {
+      const w_seed_hir0_function *owner = &program->functions[function];
+      bool destination_signed = false;
+      uint16_t destination_width = 0u;
+      const bool mode_valid =
+          value->rounding_mode >=
+              W_SEED_HIR0_ROUNDING_MODE_NEAREST_EVEN &&
+          value->rounding_mode <=
+              W_SEED_HIR0_ROUNDING_MODE_TOWARD_NEGATIVE;
+      if (value->call_index != W_SEED_HIR0_NONE ||
+          value->value_index == W_SEED_HIR0_NONE ||
+          value->value_index >= program->value_count ||
+          !hir_integer_type_facts(program, value->result_type,
+                                  &destination_signed, &destination_width) ||
+          !owner->is_throws || owner->error_type != value->error_type ||
+          value->error_type == W_SEED_HIR0_NONE ||
+          !hir_type_index_valid(program, value->error_type) ||
+          program->types[value->error_type].kind !=
+              W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR ||
+          value->target_block == W_SEED_HIR0_NONE ||
+          value->else_block == W_SEED_HIR0_NONE ||
+          value->third_block == W_SEED_HIR0_NONE ||
+          value->target_block >= program->block_count ||
+          value->else_block >= program->block_count ||
+          value->third_block >= program->block_count ||
+          value->target_block == value->else_block ||
+          value->target_block == value->third_block ||
+          value->else_block == value->third_block ||
+          program->blocks[value->target_block].owner_function != function ||
+          program->blocks[value->else_block].owner_function != function ||
+          program->blocks[value->third_block].owner_function != function ||
+          value->first_edge_argument != W_SEED_HIR0_NONE ||
+          value->edge_argument_count != 0u ||
+          value->logical_operator != W_SEED_HIR0_LOGICAL_NONE ||
+          value->switch_enum_index != W_SEED_HIR0_NONE ||
+          value->first_switch_edge != W_SEED_HIR0_NONE ||
+          value->switch_edge_count != 0u ||
+          value->switch_carrier_width != 0u ||
+          value->panic_code != W_SEED_HIR0_PANIC_CODE_INVALID ||
+          value->numeric_conversion_error_case !=
+              W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_NONE || !mode_valid ||
+          !hir_float_type_index_valid(
+              program, program->values[value->value_index].type_index) ||
+          !verify_value_tree(
+              program, value->value_index,
+              W_SEED_HIR0_VALUE_OWNER_TERMINATOR, (uint32_t)terminator, 0u,
+              (uint32_t)terminator,
+              (uint32_t)((size_t)block->first_instruction +
+                         block->instruction_count),
+              source_length, 0u, &value_cursor,
+              &interpolation_segment_cursor, &value_byte_cursor))
+        return false;
+      (void)destination_signed;
+      (void)destination_width;
+      rounding_terminator_count += 1u;
       continue;
     }
     if (value->kind == W_SEED_HIR0_TERMINATOR_PANIC) {
@@ -23108,6 +23846,8 @@ static bool verify_records(const w_seed_hir0_program *program) {
   if (!hir_numeric_conversion_error_type_index(
           program, &numeric_conversion_error_type_index) ||
       (integer_exactly_terminator_count != 0u &&
+       numeric_conversion_error_type_index == W_SEED_HIR0_NONE) ||
+      (rounding_terminator_count != 0u &&
        numeric_conversion_error_type_index == W_SEED_HIR0_NONE) ||
       invoke_call_cursor > program->call_count ||
       ordinary_call_count != program->call_count - invoke_call_cursor)

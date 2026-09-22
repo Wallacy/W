@@ -4259,6 +4259,165 @@ static bool test_explicit_integer_saturating_frontend(void) {
   return true;
 }
 
+static bool test_float_integer_rounding_frontend(void) {
+  typedef struct {
+    const char *spelling;
+    bool is_signed;
+    uint16_t bit_width;
+  } integer_case;
+  static const integer_case DESTINATIONS[] = {
+      {"i8", true, 8u},     {"u8", false, 8u},
+      {"i16", true, 16u},   {"u16", false, 16u},
+      {"i32", true, 32u},   {"u32", false, 32u},
+      {"i64", true, 64u},   {"u64", false, 64u},
+      {"Int", true, 64u},   {"UInt", false, 64u},
+  };
+  static const struct {
+    const char *spelling;
+    w_seed_frontend_rounding_mode mode;
+  } MODES[] = {
+      {"nearestEven", W_SEED_FRONTEND_ROUNDING_MODE_NEAREST_EVEN},
+      {"nearestAwayFromZero",
+       W_SEED_FRONTEND_ROUNDING_MODE_NEAREST_AWAY_FROM_ZERO},
+      {"towardZero", W_SEED_FRONTEND_ROUNDING_MODE_TOWARD_ZERO},
+      {"towardPositive", W_SEED_FRONTEND_ROUNDING_MODE_TOWARD_POSITIVE},
+      {"towardNegative", W_SEED_FRONTEND_ROUNDING_MODE_TOWARD_NEGATIVE},
+  };
+  static const struct {
+    const char *spelling;
+    uint16_t bit_width;
+  } SOURCES[] = {{"f32", 32u}, {"f64", 64u}};
+  fixture *matrix = &fixture_literal;
+  char source[512];
+  for (size_t source_index = 0u;
+       source_index < sizeof(SOURCES) / sizeof(SOURCES[0]);
+       source_index += 1u) {
+    for (size_t destination_index = 0u;
+         destination_index <
+             sizeof(DESTINATIONS) / sizeof(DESTINATIONS[0]);
+         destination_index += 1u) {
+      for (size_t mode_index = 0u;
+           mode_index < sizeof(MODES) / sizeof(MODES[0]); mode_index += 1u) {
+        const bool mode_first = (mode_index & 1u) != 0u;
+        const int written = snprintf(
+            source, sizeof(source),
+            mode_first
+                ? "fn convert(value: %s): %s throws NumericConversionError { "
+                  "return try %s(mode: .%s, rounding: value) } entry { }\n"
+                : "fn convert(value: %s): %s throws NumericConversionError { "
+                  "return try %s(rounding: value, mode: .%s) } entry { }\n",
+            SOURCES[source_index].spelling,
+            DESTINATIONS[destination_index].spelling,
+            DESTINATIONS[destination_index].spelling,
+            MODES[mode_index].spelling);
+        CHECK(written > 0 && (size_t)written < sizeof(source));
+        CHECK(fixture_run(matrix, source));
+        CHECK(matrix->parse.status == W_SEED_PARSE_COMPLETE &&
+              matrix->result.status == W_SEED_FRONTEND_OK &&
+              counts_equal(&matrix->result.required,
+                           &matrix->result.written));
+        const w_seed_frontend_expression *conversion = NULL;
+        const w_seed_frontend_expression *try_expression = NULL;
+        size_t conversion_count = 0u;
+        size_t try_count = 0u;
+        for (size_t expression_index = 0u;
+             expression_index < matrix->result.written.expressions;
+             expression_index += 1u) {
+          const w_seed_frontend_expression *expression =
+              &matrix->expressions[expression_index];
+          if (expression->kind ==
+              W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING) {
+            conversion = expression;
+            conversion_count += 1u;
+          } else if (expression->kind == W_SEED_FRONTEND_EXPR_TRY) {
+            try_expression = expression;
+            try_count += 1u;
+          }
+        }
+        CHECK(conversion_count == 1u && try_count == 1u &&
+              conversion != NULL && try_expression != NULL &&
+              conversion->supported && try_expression->supported &&
+              try_expression->left < matrix->result.written.expressions &&
+              &matrix->expressions[try_expression->left] == conversion &&
+              try_expression->propagated_error_enum ==
+                  W_SEED_FRONTEND_NONE &&
+              try_expression->propagated_error_type <
+                  matrix->result.written.types &&
+              conversion->conversion_source_type <
+                  matrix->result.written.types &&
+              conversion->conversion_destination_type <
+                  matrix->result.written.types &&
+              conversion->conversion_rounding_mode == MODES[mode_index].mode &&
+              conversion->conversion_possible_error_facts ==
+                  (W_SEED_FRONTEND_CONVERSION_ERROR_FACT_NON_FINITE |
+                   W_SEED_FRONTEND_CONVERSION_ERROR_FACT_OUT_OF_RANGE));
+        const w_seed_frontend_type *source_type =
+            &matrix->types[conversion->conversion_source_type];
+        const w_seed_frontend_type *destination_type =
+            &matrix->types[conversion->conversion_destination_type];
+        CHECK(source_type->kind == W_SEED_FRONTEND_TYPE_FLOAT &&
+              source_type->bit_width == SOURCES[source_index].bit_width &&
+              destination_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+              destination_type->is_signed ==
+                  DESTINATIONS[destination_index].is_signed &&
+              destination_type->bit_width ==
+                  DESTINATIONS[destination_index].bit_width &&
+              conversion->inferred_type ==
+                  conversion->conversion_destination_type &&
+              try_expression->inferred_type == conversion->inferred_type);
+        CHECK(receipt_contains(
+            matrix, "float-integer-rounding=",
+            sizeof("float-integer-rounding=") - 1u));
+      }
+    }
+  }
+
+  static const char *const REJECTED[] = {
+      "fn f(value: f32): i8 throws NumericConversionError { return "
+      "i8(rounding: value, mode: .nearestEven) } entry { }\n",
+      "fn f(value: f32): i8 throws NumericConversionError { return "
+      "try? i8(rounding: value, mode: .nearestEven) } entry { }\n",
+      "fn f(value: f32): i8 { return try i8(rounding: value, mode: "
+      ".nearestEven) } entry { }\n",
+      "fn f(value: f32): i8 throws Failure { return try i8(rounding: "
+      "value, mode: .nearestEven) } entry { }\n",
+      "fn f(value: f32): i8 throws NumericConversionError { return try "
+      "i8(rounding: value) } entry { }\n",
+      "fn f(value: f32): i8 throws NumericConversionError { return try "
+      "i8(rounding: value, mode: .nearestEven, mode: .towardZero) } "
+      "entry { }\n",
+      "fn f(value: f32): i8 throws NumericConversionError { return try "
+      "i8(rounding: value, other: .nearestEven) } entry { }\n",
+      "fn f(value: f32): i8 throws NumericConversionError { return try "
+      "i8(rounding: value, mode: nearestEven) } entry { }\n",
+      "fn f(value: f32): i8 throws NumericConversionError { return try "
+      "i8(rounding: value, mode: .unknown) } entry { }\n",
+      "fn f(value: f32): i8 throws NumericConversionError { return try "
+      "i8(rounding: value, mode: .nearestEven, extra: value) } entry { }\n",
+      "fn f(value: i32): i8 throws NumericConversionError { return try "
+      "i8(rounding: value, mode: .nearestEven) } entry { }\n",
+      "fn f(value: f32): f64 throws NumericConversionError { return try "
+      "f64(rounding: value, mode: .nearestEven) } entry { }\n",
+      "fn f(value: f32): usize throws NumericConversionError { return try "
+      "usize(rounding: value, mode: .nearestEven) } entry { }\n",
+      "fn f(value: f32): i128 throws NumericConversionError { return try "
+      "i128(rounding: value, mode: .nearestEven) } entry { }\n",
+  };
+  for (size_t index = 0u;
+       index < sizeof(REJECTED) / sizeof(REJECTED[0]); index += 1u) {
+    CHECK(fixture_run(matrix, REJECTED[index]));
+    CHECK(matrix->result.status != W_SEED_FRONTEND_OK);
+    for (size_t expression_index = 0u;
+         expression_index < matrix->result.written.expressions;
+         expression_index += 1u) {
+      CHECK(matrix->expressions[expression_index].kind !=
+                W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING ||
+            !matrix->expressions[expression_index].supported);
+    }
+  }
+  return true;
+}
+
 static bool test_graph_facts_and_external_stub(void) {
   fixture *duplicate = &fixture_duplicate;
   CHECK(fixture_run(duplicate,
@@ -6930,7 +7089,7 @@ static bool test_f32_scalar_projection(void) {
 }
 
 static bool test_numeric_widening_frontend(void) {
-  CHECK(strcmp(W_SEED_FRONTEND_SCHEMA_VERSION, "w-seed-frontend-71") == 0);
+  CHECK(strcmp(W_SEED_FRONTEND_SCHEMA_VERSION, "w-seed-frontend-72") == 0);
   typedef struct {
     const char *source_name;
     bool source_is_float;
@@ -9683,6 +9842,7 @@ int main(int argc, char **argv) {
   if (!test_explicit_integer_truncating_bits_frontend()) return 1;
   if (!test_explicit_integer_exactly_frontend()) return 1;
   if (!test_float_bits_frontend()) return 1;
+  if (!test_float_integer_rounding_frontend()) return 1;
   if (!test_explicit_integer_saturating_frontend()) return 1;
   if (!test_graph_facts_and_external_stub()) return 1;
   if (!test_receipt_encoding_and_long_fields()) return 1;

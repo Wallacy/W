@@ -282,6 +282,20 @@ Estas regras limitam todas as escolhas do design vigente:
 15. Uma assinatura não substitui reprodução, auditoria ou platform signing.
 16. Recursos para máquinas também devem ajudar pessoas ou ferramentas comuns.
 
+These invariants also bound every safety claim. A `cleanup-safe` claim is valid
+only when every resource that can remain live until a physical fault boundary,
+including custom-allocator storage, a foreign owner or lease, and a
+callback/provider resource, is either statically discharged before that boundary
+or registered exactly once in its teardown registry. An unregistered or
+multiply-registered resource blocks the claim; a host-oracle label cannot waive
+the missing route or receipt. Safety labels are classifications, not proofs:
+the durable evidence record must bind the source and semantic-family digests,
+the exact maintained W source-to-native route, compiler/HIR/lowering,
+runtime/provider and target identities, and every applicable negative, fault,
+resource-exhaustion, sanitizer/fuzz, schedule and ABI gate. The same maintained
+W source must execute on that route; an oracle, private adapter or alternate
+route may support the record but cannot promote the claim.
+
 ## 3. Contratos estáticos e orçamento de símbolos
 
 Cada delimitador mantém uma função mental principal:
@@ -6419,6 +6433,11 @@ selected = .some(.horizonCake)
 W não possui `null`, `undefined`, `uninitialized` ou `empty` universais. Um
 adapter preserva distinções externas com um tipo próprio:
 
+In safe code, `ref T`, `mut ref T`, `view T` and owners are non-null. Absence is
+represented by `Option<T>` (or an explicitly optional dependent/handle form such
+as `ref T?`); raw nullable pointers remain at an `unsafe`/FFI trust boundary and
+need explicit proof before a wrapper can expose a safe reference or owner.
+
 ```w
 enum JsonField<T> {
   missing
@@ -10115,19 +10134,32 @@ closure environments, containers e a operação que pode remover cada edge. Um
 componente fortemente conexo (SCC) é erro `W-OWNERSHIP-0014` quando todas as
 identidades são conhecidas e cada edge forte só terminaria pelo `deinit` de um
 node do mesmo componente. O diagnostic mostra o caminho fechado e a origem de
-cada edge.
+cada edge. A strong-ownership cycle is admitted as a lifecycle-checked cycle
+only when its owner/lifecycle contract explicitly names a break policy for the
+cycle: a `weak` edge, explicit `close`/unlink, or region/scope teardown. The
+policy belongs to the owner or lifecycle metadata and must cover every edge;
+possible `deinit` or a field name is not a policy.
 
 Uma edge `weak` quebra o componente forte. Uma edge removida por `close` ou pelo
 drain de um lifecycle owner torna o ciclo quebrável, mas não o quebra por si só.
 O plano de cleanup precisa remover essa edge antes do último root externo. O
 compiler não troca `copy` por `weak` e não inventa `close`.
 
-Grafos cujas identidades ou mutações dependem do input continuam válidos.
+Graphs whose identities or mutations depend on input may still be compiled as
+ordinary safe W when no break policy can be proven. That path is allowed to
+leak and W must not claim it is leak-free or cleanup-safe. A lifecycle-checked
+cycle, or any profile making either claim, requires the explicit policy above;
+a dynamic or foreign cycle without it remains an observed residual/unknown.
 **W-1208 — censo sem coletor:** um perfil instrumentado de debug ou teste pode
 registrar edges de control blocks. Depois que uma boundary fecha a admissão e
 drena tasks, callbacks e resources, um componente forte que nenhum root
 externo alcança produz `W-MEMORY-0001`. A instrumentação reporta o ciclo; ela
 não o coleta, não executa `deinit` e não muda release.
+
+The census is not evidence of a leak-free implementation. A residual cycle
+without a verified break policy remains `W-MEMORY-0001`; a foreign-hidden edge
+without the required metadata remains unknown. Neither result can satisfy a
+cleanup-safe or leak-free claim.
 
 W não possui cycle collector por default. Um ciclo forte usa uma destas
 soluções: edge `weak`, remoção explícita, scope que possui o grafo ou lifecycle
@@ -11454,6 +11486,12 @@ owner table valida a generation antes de acessar o payload e devolve `None` para
 um handle stale. O incremento é checked. Quando a generation chega a
 `0xffffffff`, o slot entra em retirement e uma nova alocação falha. W não aceita
 generation wrap como uma forma de evitar ABA.
+
+The same checked-retirement rule applies to waiter/barrier tickets and operation
+slots: exhaustion fails new admission or retires the slot, prior work is
+drained, and no ticket or generation wraps into a live identity. A stale record
+is consumed or quarantined without dereference; it never aliases, resumes or
+mutates a replacement slot.
 
 Hazard pointers, epoch-based reclamation e RCU são estratégias de runtime ou de
 adapter `unsafe`. Eles não formam uma API safe geral. Um adapter especializado
@@ -13427,6 +13465,13 @@ todo subtree anterior, executa sozinha e libera tickets posteriores somente
 depois do outcome committed. Cancelamento preserva o ticket; return e `throw`
 preservam cleanup; panic encerra a fault boundary e não promete continuar a
 fila.
+
+Ticket allocation is checked and non-wrapping. If the next ticket cannot be
+represented or the lane ticket budget is exhausted, no new barrier admission is
+created: the lane retires or the admission fails according to its profile, and
+already admitted tickets drain. A ticket is never reused while an earlier
+ticket or its cleanup remains live; rollover that could alias an undrained
+ticket is an ABA fault, not a valid fallback.
 
 Domínios seriais aceitam `.barrier` como prova de intenção. Domínios concorrentes
 exigem `barrierDispatch`. O linker exige uma admission lane lógica que preserve
@@ -15539,7 +15584,10 @@ não aloca nem entra nessa table.
 **W-1202 — tickets e cancelamento:** cada localização possui tickets
 monotônicos. `notifyOne` seleciona o waiter elegível mais antigo; `notifyAll`
 seleciona todos os elegíveis. Um waiter é elegível quando a modification order
-contém uma representação posterior diferente do valor esperado.
+contém uma representação posterior diferente do valor esperado. Ticket
+allocation is checked and non-wrapping: exhaustion retires the location/provider
+or rejects new waits, while existing registrations drain, and a ticket value is
+never reused within a live generation.
 
 Cancellation antes do commit da notification remove o ticket e drena o
 registro. Depois do commit, a notification vence; `wait` devolve o valor, e o
@@ -15553,6 +15601,11 @@ esse placement sem `pin` no source. Storage que pode mover ou terminar antes do
 drain é rejeitado. O ticket mantém uma obrigação runtime, não um owner do
 payload. A parking key inclui a generation do storage; uma notification tardia
 não alcança outro `Atomic` que reutilizou o mesmo endereço físico.
+
+The parking generation is checked and non-wrapping. When it is exhausted, the
+storage or slot retires before physical reuse and new waits fail; stale
+notifications are consumed without dereference or wake. Reusing an exhausted
+generation to make progress is never a solution for ABA.
 
 O checker registra um loan `ref Atomic<T>` até retorno ou cancel drain. Esse
 loan não abre `T`, mas impede move, drop e `withExclusive` durante a espera.
@@ -16016,6 +16069,15 @@ descarta ownership conforme o adapter, não retoma frame e não executa callback
 Generation mismatch nunca retoma um slot reutilizado, mas quita a registration
 antiga. Adapters de plataforma seguem a seção 14.2.4; a completion do provider
 continua sendo a autoridade sobre outcome e ownership drain.
+
+Generation increment is checked and non-wrapping. At the maximum generation,
+the slot retires before reuse and new operation admission fails with the
+profile's typed admission/boundary outcome; already admitted work continues to
+drain.
+A late completion or cancellation for a retired generation is consumed as a
+stale record and cannot wake, resume, reclaim or mutate a replacement slot.
+Operation-generation rollover is never a valid way to continue; it would
+reintroduce ABA.
 Depois de outcome committed, cancel de Task é apenas registro tardio idempotente e
 não altera o outcome.
 

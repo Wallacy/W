@@ -720,6 +720,7 @@ static bool prepend_dead_numeric_function(multidoc_fixture *fixture) {
       .error_type = W_SEED_HIR0_NONE,
       .target_block = W_SEED_HIR0_NONE,
       .else_block = W_SEED_HIR0_NONE,
+      .third_block = W_SEED_HIR0_NONE,
       .first_edge_argument = W_SEED_HIR0_NONE,
       .edge_argument_count = 0u,
       .logical_operator = W_SEED_HIR0_LOGICAL_NONE,
@@ -730,7 +731,8 @@ static bool prepend_dead_numeric_function(multidoc_fixture *fixture) {
       .source_span = {0u, 0u},
       .panic_code = W_SEED_HIR0_PANIC_CODE_INVALID,
       .numeric_conversion_error_case =
-          W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_NONE};
+          W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_NONE,
+      .rounding_mode = W_SEED_HIR0_ROUNDING_MODE_NONE};
   for (size_t index = 1u; index < old_block_count + 1u; index += 1u) {
     blocks[index].owner_function += 1u;
     blocks[index].terminator_index += 1u;
@@ -739,6 +741,8 @@ static bool prepend_dead_numeric_function(multidoc_fixture *fixture) {
       terminators[index].target_block += 1u;
     if (terminators[index].else_block != W_SEED_HIR0_NONE)
       terminators[index].else_block += 1u;
+    if (terminators[index].third_block != W_SEED_HIR0_NONE)
+      terminators[index].third_block += 1u;
   }
   for (size_t index = 0u; index < program->block_argument_count; index += 1u)
     block_arguments[index].owner_block += 1u;
@@ -980,12 +984,22 @@ static bool test_typed_process_fail_closed_shapes(void) {
       "return try i8(exactly: value) }\n"
       "fn run() { let ignored = h() }\n"
       "entry(run)\n";
+  static const char FLOAT_ROUNDING_PROCESS_HELPER[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "fn convert(value: f32): i8 throws NumericConversionError { "
+      "return try i8(rounding: value, mode: .nearestEven) }\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { return .success }\n"
+      "entry(run)\n";
   CHECK(expect_process_product_status(
       BRANCHED_ROOT, W_SEED_PRODUCT_CLOSURE0_UNSUPPORTED));
   CHECK(expect_process_product_status(
       PAYLOAD_ENUM, W_SEED_PRODUCT_CLOSURE0_UNSUPPORTED));
   CHECK(expect_unit_product_status(INTEGER_EXACTLY_UNIT_HELPER, LIB_SOURCE,
                                    W_SEED_PRODUCT_CLOSURE0_UNSUPPORTED));
+  CHECK(expect_process_product_status(FLOAT_ROUNDING_PROCESS_HELPER,
+                                      W_SEED_PRODUCT_CLOSURE0_UNSUPPORTED));
   return true;
 }
 

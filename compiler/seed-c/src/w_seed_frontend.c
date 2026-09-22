@@ -3865,6 +3865,23 @@ static bool receipt_size_integer_conversion(
          receipt_size_literal(context, "\n");
 }
 
+static bool receipt_size_float_integer_rounding(
+    frontend_context *context, size_t expression_index,
+    uint32_t source_type, uint32_t destination_type,
+    w_seed_frontend_rounding_mode mode, uint32_t possible_error_facts) {
+  return receipt_size_literal(context, "float-integer-rounding=") &&
+         receipt_size_size(context, expression_index) &&
+         receipt_size_literal(context, "|source=") &&
+         receipt_size_size(context, source_type) &&
+         receipt_size_literal(context, "|destination=") &&
+         receipt_size_size(context, destination_type) &&
+         receipt_size_literal(context, "|mode=") &&
+         receipt_size_size(context, (size_t)mode) &&
+         receipt_size_literal(context, "|possible-errors=") &&
+         receipt_size_size(context, possible_error_facts) &&
+         receipt_size_literal(context, "\n");
+}
+
 static bool receipt_size_float_bits_conversion(
     frontend_context *context, size_t expression_index,
     w_seed_frontend_expr_kind kind, uint32_t source_type,
@@ -10818,7 +10835,7 @@ typedef struct {
   bool allow_accelerator_call;
   /* Set only while the operand immediately governed by plain `try` is
    * parsed. Semantic ownership is rechecked after normalization. */
-  bool allow_integer_exactly;
+  bool allow_partial_numeric_conversion;
 } frontend_expression_parser;
 
 static frontend_simple_type simple_type_from_view(w_seed_frontend_text spelling) {
@@ -13121,6 +13138,9 @@ static bool expression_append(frontend_expression_parser *parser,
   record.domain_mode = W_SEED_FRONTEND_DOMAIN_MODE_SERIAL;
   record.domain_capabilities = W_SEED_FRONTEND_DOMAIN_CAPABILITY_NONE;
   record.domain_maximum = 0u;
+  record.conversion_rounding_mode = W_SEED_FRONTEND_ROUNDING_MODE_NONE;
+  record.conversion_possible_error_facts =
+      W_SEED_FRONTEND_CONVERSION_ERROR_FACT_NONE;
   if (kind == W_SEED_FRONTEND_EXPR_IDENTIFIER) {
     for (size_t index = parser->context->active_pattern_capture_count;
          index > 0u; index -= 1u) {
@@ -13579,7 +13599,8 @@ static bool expression_append_integer_exactly(
     frontend_simple_type destination, w_seed_span call_span) {
   frontend_simple_type canonical_source = simple_type_unknown();
   frontend_simple_type canonical_destination = simple_type_unknown();
-  if (parser == NULL || value == NULL || !parser->allow_integer_exactly ||
+  if (parser == NULL || value == NULL ||
+      !parser->allow_partial_numeric_conversion ||
       !integer_type_constructor_for_spelling(destination.spelling,
                                               &canonical_destination) ||
       !integer_exactly_source_type(value, &canonical_source) ||
@@ -13623,6 +13644,102 @@ static bool expression_append_integer_exactly(
   }
   wrapped.is_integer_literal = false;
   wrapped.kind = W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY;
+  wrapped.type = canonical_destination;
+  wrapped.supported = source.supported;
+  *value = wrapped;
+  return true;
+}
+
+static bool rounding_mode_from_spelling(
+    w_seed_frontend_text spelling, w_seed_frontend_rounding_mode *mode) {
+  if (mode != NULL) *mode = W_SEED_FRONTEND_ROUNDING_MODE_NONE;
+  if (mode == NULL) return false;
+  if (text_equal(spelling, "nearestEven")) {
+    *mode = W_SEED_FRONTEND_ROUNDING_MODE_NEAREST_EVEN;
+  } else if (text_equal(spelling, "nearestAwayFromZero")) {
+    *mode = W_SEED_FRONTEND_ROUNDING_MODE_NEAREST_AWAY_FROM_ZERO;
+  } else if (text_equal(spelling, "towardZero")) {
+    *mode = W_SEED_FRONTEND_ROUNDING_MODE_TOWARD_ZERO;
+  } else if (text_equal(spelling, "towardPositive")) {
+    *mode = W_SEED_FRONTEND_ROUNDING_MODE_TOWARD_POSITIVE;
+  } else if (text_equal(spelling, "towardNegative")) {
+    *mode = W_SEED_FRONTEND_ROUNDING_MODE_TOWARD_NEGATIVE;
+  } else {
+    return false;
+  }
+  return true;
+}
+
+static bool rounding_mode_is_valid(w_seed_frontend_rounding_mode mode) {
+  return mode >= W_SEED_FRONTEND_ROUNDING_MODE_NEAREST_EVEN &&
+         mode <= W_SEED_FRONTEND_ROUNDING_MODE_TOWARD_NEGATIVE;
+}
+
+/* This is deliberately narrower than the general numeric type predicates:
+ * only strict binary32/binary64 sources and the fixed-width integer receiver
+ * family (including current Int/UInt aliases) are admitted. */
+static bool float_integer_rounding_route(frontend_simple_type source,
+                                         frontend_simple_type destination) {
+  frontend_simple_type canonical_destination = simple_type_unknown();
+  return source.kind == W_SEED_FRONTEND_TYPE_FLOAT &&
+         (source.bit_width == 32u || source.bit_width == 64u) &&
+         integer_type_constructor_for_spelling(destination.spelling,
+                                                &canonical_destination) &&
+         canonical_destination.kind == W_SEED_FRONTEND_TYPE_INTEGER;
+}
+
+static bool expression_append_float_integer_rounding(
+    frontend_expression_parser *parser, frontend_expr_value *value,
+    frontend_simple_type destination, w_seed_span call_span,
+    w_seed_frontend_rounding_mode mode) {
+  frontend_simple_type canonical_destination = simple_type_unknown();
+  if (parser == NULL || value == NULL ||
+      !parser->allow_partial_numeric_conversion ||
+      !rounding_mode_is_valid(mode) || !value->supported ||
+      !float_integer_rounding_route(value->type, destination) ||
+      !integer_type_constructor_for_spelling(destination.spelling,
+                                              &canonical_destination) ||
+      value->index == W_SEED_FRONTEND_NONE ||
+      value->index >= (size_t)UINT32_MAX)
+    return false;
+  uint32_t source_type = W_SEED_FRONTEND_NONE;
+  uint32_t destination_type = W_SEED_FRONTEND_NONE;
+  if (!output_type_index_for_simple(parser->context, value->type,
+                                    &source_type) ||
+      !output_type_index_for_simple(parser->context, canonical_destination,
+                                    &destination_type) ||
+      source_type == W_SEED_FRONTEND_NONE ||
+      destination_type == W_SEED_FRONTEND_NONE)
+    return false;
+
+  const uint32_t possible_error_facts =
+      W_SEED_FRONTEND_CONVERSION_ERROR_FACT_NON_FINITE |
+      W_SEED_FRONTEND_CONVERSION_ERROR_FACT_OUT_OF_RANGE;
+  const frontend_expr_value source = *value;
+  frontend_expr_value wrapped = {0};
+  if (!expression_append(
+          parser, W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING, call_span,
+          text_from_span(parser->document, call_span),
+          (w_seed_frontend_text){"rounding", 8u}, canonical_destination,
+          source.supported, source.index, (size_t)W_SEED_FRONTEND_NONE,
+          W_SEED_FRONTEND_NONE, 0u, &wrapped))
+    return false;
+  if (!parser->context->emit &&
+      !receipt_size_float_integer_rounding(
+          parser->context, wrapped.index, source_type, destination_type, mode,
+          possible_error_facts))
+    return false;
+  if (parser->context->emit && parser->context->output != NULL &&
+      wrapped.index < parser->context->output->expression_capacity) {
+    w_seed_frontend_expression *record =
+        &parser->context->output->expressions[wrapped.index];
+    record->conversion_source_type = source_type;
+    record->conversion_destination_type = destination_type;
+    record->conversion_rounding_mode = mode;
+    record->conversion_possible_error_facts = possible_error_facts;
+  }
+  wrapped.is_integer_literal = false;
+  wrapped.kind = W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING;
   wrapped.type = canonical_destination;
   wrapped.supported = source.supported;
   *value = wrapped;
@@ -14819,6 +14936,25 @@ static bool call_label_known_for_signature(
   return false;
 }
 
+/* `mode:` is intentionally parsed as a closed core value rather than as an
+ * arbitrary identifier or a user-defined enum.  The caller consumes the
+ * complete `.case` spelling even when the case is unknown so malformed calls
+ * still reach the normal unsupported-expression barrier deterministically. */
+static bool expression_parse_rounding_mode_argument(
+    frontend_expression_parser *parser,
+    w_seed_frontend_rounding_mode *mode) {
+  if (mode != NULL) *mode = W_SEED_FRONTEND_ROUNDING_MODE_NONE;
+  if (parser == NULL || mode == NULL) return false;
+  frontend_token dot;
+  frontend_token member;
+  if (!cursor_take_text(&parser->cursor, ".", &dot) ||
+      !cursor_take(&parser->cursor, &member) ||
+      member.kind != W_SEED_CST_WORD)
+    return false;
+  return rounding_mode_from_spelling(
+      text_from_span(parser->document, member.span), mode);
+}
+
 static bool expression_parse_integer_conversion_call(
     frontend_expression_parser *parser, frontend_expr_value *constructor,
     frontend_token open) {
@@ -14833,6 +14969,10 @@ static bool expression_parse_integer_conversion_call(
   source.type = simple_type_unknown();
   w_seed_frontend_text source_label = {NULL, 0u};
   w_seed_frontend_text recognized_label = {NULL, 0u};
+  w_seed_frontend_rounding_mode rounding_mode =
+      W_SEED_FRONTEND_ROUNDING_MODE_NONE;
+  bool source_seen = false;
+  bool mode_seen = false;
   size_t argument_count = 0u;
   bool shape_valid = true;
   while (!cursor_peek_text(&parser->cursor, ")")) {
@@ -14848,6 +14988,26 @@ static bool expression_parse_integer_conversion_call(
         (void)cursor_take_text(&parser->cursor, ":", NULL);
         label = text_from_span(parser->document, possible_label.span);
       }
+    }
+    /* Rounding's `mode:` argument is a closed core identity, not a
+     * general expression.  Consume it without manufacturing an identifier or
+     * enum record; the conversion wrapper retains the normalized identity. */
+    const bool mode_argument = !numeric_constructor &&
+                               text_equal(label, "mode");
+    if (mode_argument) {
+      w_seed_frontend_rounding_mode parsed_mode =
+          W_SEED_FRONTEND_ROUNDING_MODE_NONE;
+      const bool parsed_mode_argument =
+          expression_parse_rounding_mode_argument(parser, &parsed_mode);
+      if (!parsed_mode_argument || mode_seen)
+        shape_valid = false;
+      if (parsed_mode_argument && !mode_seen)
+        rounding_mode = parsed_mode;
+      mode_seen = true;
+      argument_count += 1u;
+      if (!cursor_peek_text(&parser->cursor, ",")) break;
+      (void)cursor_take_text(&parser->cursor, ",", NULL);
+      continue;
     }
     const frontend_simple_type saved_expected = parser->expected_type;
     const bool saved_has_expected = parser->has_expected_type;
@@ -14866,11 +15026,15 @@ static bool expression_parse_integer_conversion_call(
     if (!parsed) return false;
     if (!numeric_constructor && recognized_label.length == 0u &&
         (text_equal(label, "truncatingBits") ||
-         text_equal(label, "saturating") || text_equal(label, "exactly")))
+         text_equal(label, "saturating") || text_equal(label, "exactly") ||
+         text_equal(label, "rounding")))
       recognized_label = label;
-    if (argument_count == 0u) {
+    if (argument_count == 0u ||
+        (!numeric_constructor && text_equal(label, "rounding") &&
+         !source_seen)) {
       source = argument;
       source_label = label;
+      source_seen = true;
     } else {
       shape_valid = false;
     }
@@ -14878,7 +15042,8 @@ static bool expression_parse_integer_conversion_call(
          (label.length == 0u ||
           (!text_equal(label, "truncatingBits") &&
            !text_equal(label, "saturating") &&
-           !text_equal(label, "exactly")))) ||
+           !text_equal(label, "exactly") &&
+           !text_equal(label, "rounding")))) ||
         (numeric_constructor && label.length != 0u))
       shape_valid = false;
     argument_count += 1u;
@@ -14894,6 +15059,7 @@ static bool expression_parse_integer_conversion_call(
   const bool truncating_bits = text_equal(source_label, "truncatingBits");
   const bool saturating = text_equal(source_label, "saturating");
   const bool exactly = text_equal(source_label, "exactly");
+  const bool rounding = text_equal(source_label, "rounding");
   const bool valid_conversion =
       !numeric_constructor && shape_valid && argument_count == 1u &&
       (truncating_bits || saturating) && source.supported &&
@@ -14903,13 +15069,22 @@ static bool expression_parse_integer_conversion_call(
       checked_source.is_signed == source.type.is_signed &&
       checked_source.bit_width == source.type.bit_width;
   const bool valid_exactly =
-      !numeric_constructor && exactly && parser->allow_integer_exactly &&
+      !numeric_constructor && exactly &&
+      parser->allow_partial_numeric_conversion &&
       shape_valid && argument_count == 1u && source.supported &&
       integer_type_constructor_for_spelling(constructor->type.spelling,
                                             &checked_destination) &&
       integer_exactly_source_type(&source, &checked_source) &&
       checked_source.is_signed == source.type.is_signed &&
       checked_source.bit_width == source.type.bit_width;
+  const bool valid_rounding =
+      !numeric_constructor && rounding &&
+      parser->allow_partial_numeric_conversion &&
+      shape_valid && argument_count == 2u && source_seen && mode_seen &&
+      rounding_mode_is_valid(rounding_mode) && source.supported &&
+      integer_type_constructor_for_spelling(constructor->type.spelling,
+                                            &checked_destination) &&
+      float_integer_rounding_route(source.type, checked_destination);
   const bool valid_numeric_widen =
       numeric_constructor && shape_valid && argument_count == 1u &&
       source_label.length == 0u && source.supported &&
@@ -14938,6 +15113,13 @@ static bool expression_parse_integer_conversion_call(
   if (valid_exactly) {
     if (!expression_append_integer_exactly(
             parser, &source, checked_destination, call_span))
+      return false;
+    *constructor = source;
+    return true;
+  }
+  if (valid_rounding) {
+    if (!expression_append_float_integer_rounding(
+            parser, &source, checked_destination, call_span, rounding_mode))
       return false;
     *constructor = source;
     return true;
@@ -16005,12 +16187,13 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
       parser->cursor = look;
       optional = true;
     }
-    const bool saved_allow_integer_exactly =
-        parser->allow_integer_exactly;
-    parser->allow_integer_exactly = !optional;
+    const bool saved_allow_partial_numeric_conversion =
+        parser->allow_partial_numeric_conversion;
+    parser->allow_partial_numeric_conversion = !optional;
     frontend_expr_value nested;
     const bool parsed_nested = expression_parse_prefix(parser, &nested);
-    parser->allow_integer_exactly = saved_allow_integer_exactly;
+    parser->allow_partial_numeric_conversion =
+        saved_allow_partial_numeric_conversion;
     if (!parsed_nested) return false;
     const w_seed_span span = {try_token.span.start_byte, nested.span.end_byte};
     const bool owner_throws =
@@ -16040,7 +16223,17 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
         output_type_index_for_simple(parser->context, owner_error,
                                      &numeric_error_type) &&
         numeric_error_type != W_SEED_FRONTEND_NONE;
-    const bool supported = supported_call || supported_exactly;
+    const bool supported_rounding =
+        !optional && nested.supported &&
+        nested.kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING &&
+        owner_throws && !parser->context->current_function_is_const &&
+        simple_type_is_numeric_conversion_error(parser->context,
+                                               owner_error) &&
+        output_type_index_for_simple(parser->context, owner_error,
+                                     &numeric_error_type) &&
+        numeric_error_type != W_SEED_FRONTEND_NONE;
+    const bool supported =
+        supported_call || supported_exactly || supported_rounding;
     if (!supported) {
       (void)context_append_fact(
           parser->context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION, span,
@@ -16049,7 +16242,8 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
     const uint32_t error_enum =
         supported_call ? owner_error.enum_index : W_SEED_FRONTEND_NONE;
     const uint32_t error_type =
-        supported_exactly ? numeric_error_type : W_SEED_FRONTEND_NONE;
+        (supported_exactly || supported_rounding) ? numeric_error_type
+                                                  : W_SEED_FRONTEND_NONE;
     const uint32_t call_expression =
         nested.index >= (size_t)UINT32_MAX ? W_SEED_FRONTEND_NONE
                                            : (uint32_t)nested.index;
@@ -21739,8 +21933,9 @@ static bool resolve_frontend_links(frontend_context *context) {
       const w_seed_frontend_function *owner =
           valid ? &context->output->functions[expression->owner_function]
                 : NULL;
-      if (valid && call->kind ==
-                       W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY) {
+      if (valid &&
+          (call->kind == W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY ||
+           call->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING)) {
         const bool canonical_error =
             owner->is_throws && owner->error_type != W_SEED_FRONTEND_NONE &&
             (size_t)owner->error_type < context->count.types &&
@@ -21754,6 +21949,18 @@ static bool resolve_frontend_links(frontend_context *context) {
                 W_SEED_FRONTEND_NONE &&
             context->output->types[owner->error_type].enum_base_index ==
                 W_SEED_FRONTEND_NONE;
+        const bool rounding_facts_valid =
+            call->kind != W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING ||
+            (rounding_mode_is_valid(call->conversion_rounding_mode) &&
+             call->conversion_possible_error_facts ==
+                 (W_SEED_FRONTEND_CONVERSION_ERROR_FACT_NON_FINITE |
+                  W_SEED_FRONTEND_CONVERSION_ERROR_FACT_OUT_OF_RANGE));
+        const bool exactly_facts_valid =
+            call->kind != W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY ||
+            (call->conversion_rounding_mode ==
+                 W_SEED_FRONTEND_ROUNDING_MODE_NONE &&
+             call->conversion_possible_error_facts ==
+                 W_SEED_FRONTEND_CONVERSION_ERROR_FACT_NONE);
         if (!call->supported || call->module_index != expression->module_index ||
             call->owner_function != expression->owner_function ||
             call->inferred_type == W_SEED_FRONTEND_NONE ||
@@ -21762,7 +21969,7 @@ static bool resolve_frontend_links(frontend_context *context) {
             expression->inferred_type != call->inferred_type ||
             expression->propagated_error_enum != W_SEED_FRONTEND_NONE ||
             expression->propagated_error_type != owner->error_type ||
-            !canonical_error)
+            !canonical_error || !rounding_facts_valid || !exactly_facts_valid)
           expression->supported = false;
       } else {
         const w_seed_frontend_function *target = NULL;
@@ -21800,7 +22007,8 @@ static bool resolve_frontend_links(frontend_context *context) {
       }
       continue;
     }
-    if (expression->kind == W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY) {
+    if (expression->kind == W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY ||
+        expression->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING) {
       size_t owners = 0u;
       for (size_t candidate_index = 0u;
            candidate_index < context->count.expressions; candidate_index += 1u) {
@@ -23078,6 +23286,22 @@ static void receipt_write_records(frontend_receipt_writer *writer,
         receipt_write_size(writer, expression->conversion_source_type);
         receipt_write_literal(writer, "|destination=");
         receipt_write_size(writer, expression->conversion_destination_type);
+        receipt_write_literal(writer, "\n");
+      }
+      if (expression->kind ==
+          W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING) {
+        receipt_write_literal(writer, "float-integer-rounding=");
+        receipt_write_size(writer, index);
+        receipt_write_literal(writer, "|source=");
+        receipt_write_size(writer, expression->conversion_source_type);
+        receipt_write_literal(writer, "|destination=");
+        receipt_write_size(writer, expression->conversion_destination_type);
+        receipt_write_literal(writer, "|mode=");
+        receipt_write_size(writer,
+                           (size_t)expression->conversion_rounding_mode);
+        receipt_write_literal(writer, "|possible-errors=");
+        receipt_write_size(writer,
+                           expression->conversion_possible_error_facts);
         receipt_write_literal(writer, "\n");
       }
       if (expression->kind == W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS ||

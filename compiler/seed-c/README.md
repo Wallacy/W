@@ -178,10 +178,12 @@ Cada aplicação tem owner type, head, envelope, argumentos ordenados e status d
 binding; cada argumento preserva ordinal, span, label, parâmetro, kind, o índice
 de type ou `ConstValue` e o índice sentinel/relacionado de `TypedConstExpr`. O
 root liga à aplicação por `generic_application_index`.
-`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-71`. Version 71 appends
+`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-72`. Version 71 appends
 a distinct expression for the bounded fixed-width integer
-`try D(exactly: source)` conversion; it does not provide ordinary executable
-error mapping. Earlier D2/D3 fields
+`try D(exactly: source)` conversion. Version 72 appends the bounded
+`try D(rounding: source, mode: .policy)` expression and preserves its closed
+five-mode policy plus non-finite/out-of-range error facts; neither schema step
+by itself provides ordinary executable error mapping. Earlier D2/D3 fields
 anteriores permanecem append-only; a versão 6 acrescenta records, ranges,
 counts/capacities e relações de module const; a versão 7 acrescenta
 `effective_type` e preserva `declared_type` como annotation source-only para
@@ -2991,6 +2993,26 @@ fault path is restricted to the straight-line signed process shape: unsigned
 operations, shifts, power, local-call propagation, general CFG, user cleanup,
 public panic ABI, and performance remain unsupported or unclaimed.
 `benchmarkDisposition: compiler-lifecycle`.
+
+### Float-to-integer rounding preservation (W-389, bounded)
+
+Frontend72 and verified HIR95 now preserve the selected
+`try D(rounding: source, mode: .policy)` relation for `f32`/`f64` into the
+signed and unsigned 8/16/32/64-bit integers plus the current x86-64
+`Int`/`UInt` aliases. The five closed modes are `.nearestEven`,
+`.nearestAwayFromZero`, `.towardZero`, `.towardPositive`, and
+`.towardNegative`. HIR records one source evaluation, the destination integer
+facts, the rounding mode, and three role-stable successors: success,
+`NumericConversionError.nonFinite`, and
+`NumericConversionError.outOfRange`. Focused tests cover all 100
+source/destination/mode combinations and reject forged mode, successor, and
+success/error type facts.
+
+This increment deliberately stops at verified HIR. ProductClosure0 and every
+native selector reject the new terminator until direct MLIR/LLVM lowering can
+prove finite classification and post-rounding range checks before any
+`fptosi`/`fptoui`. It provides no executable, target, runtime, ABI, timing, or
+performance evidence. `benchmarkDisposition: compiler-lifecycle`.
 
 ### Native-process unhandled typed-error root HIR (W-1652)
 

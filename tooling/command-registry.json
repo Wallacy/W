@@ -35,6 +35,14 @@
           "kind": "bun",
           "cwd": ".",
           "args": [
+            "test",
+            "tooling/safety-evidence.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
             "tooling/check-safety-evidence.mjs"
           ]
         }

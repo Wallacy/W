@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-94"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-95"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -399,12 +399,26 @@ typedef enum {
    * value_index is the source integer, result_type the destination, and the
    * normal/error successors receive those respective typed values. */
   W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY,
+  /* Partial floating conversion with fixed non-finite and out-of-range
+   * error edges.  The source is carried by value_index; target_block is the
+   * success edge, else_block is the non-finite edge, and third_block is the
+   * out-of-range edge. */
+  W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING,
 } w_seed_hir0_terminator_kind;
 
 typedef enum {
   W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_NONE = 0,
   W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_OUT_OF_RANGE,
 } w_seed_hir0_numeric_conversion_error_case;
+
+typedef enum {
+  W_SEED_HIR0_ROUNDING_MODE_NONE = 0,
+  W_SEED_HIR0_ROUNDING_MODE_NEAREST_EVEN,
+  W_SEED_HIR0_ROUNDING_MODE_NEAREST_AWAY_FROM_ZERO,
+  W_SEED_HIR0_ROUNDING_MODE_TOWARD_ZERO,
+  W_SEED_HIR0_ROUNDING_MODE_TOWARD_POSITIVE,
+  W_SEED_HIR0_ROUNDING_MODE_TOWARD_NEGATIVE,
+} w_seed_hir0_rounding_mode;
 
 typedef enum {
   W_SEED_HIR0_PANIC_CODE_INVALID = 0,
@@ -871,9 +885,11 @@ typedef struct {
   uint32_t result_type;
   uint32_t error_type;
   /* BRANCH uses target_block and else_block. JUMP uses target_block and
-   * requires else_block to be W_SEED_HIR0_NONE. RETURN uses neither field. */
+   * requires else_block to be W_SEED_HIR0_NONE. RETURN uses neither field.
+   * FLOAT_TO_INTEGER_ROUNDING additionally uses third_block. */
   uint32_t target_block;
   uint32_t else_block;
+  uint32_t third_block;
   uint32_t first_edge_argument;
   uint32_t edge_argument_count;
   w_seed_hir0_logical_operator logical_operator;
@@ -889,6 +905,8 @@ typedef struct {
   w_seed_hir0_panic_code panic_code;
   /* Present only for TERMINATOR_INTEGER_EXACTLY. */
   w_seed_hir0_numeric_conversion_error_case numeric_conversion_error_case;
+  /* Present only for TERMINATOR_FLOAT_TO_INTEGER_ROUNDING. */
+  w_seed_hir0_rounding_mode rounding_mode;
 } w_seed_hir0_terminator;
 
 /* One statically-proven lexical cleanup registration.  The registration is

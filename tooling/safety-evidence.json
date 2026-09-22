@@ -1,8 +1,9 @@
 {
-  "$schema": "w-safety-evidence-1",
-  "version": 1,
+  "$schema": "w-safety-evidence-2",
+  "version": 2,
   "policy": {
-    "promotionRule": "A general safety claim requires every applicable gate to be current on the maintained public source-to-native route; missing and bounded gates block promotion.",
+    "promotionRule": "A general safety claim requires every applicable gate to be current on the maintained public source-to-native route; missing and bounded gates block promotion. Every current gate must carry a bounded machine-verified evidence record.",
+    "currentEvidence": ["scope", "sources", "command", "route", "targets", "profile", "oracle", "freshness"],
     "gateOrder": [
       "source",
       "verifiedHir",
@@ -22,7 +23,41 @@
       "missing",
       "bounded",
       "current"
-    ]
+    ],
+    "routes": ["public-w-source-to-native"],
+    "targets": ["target-neutral", "windows-x64", "linux-wsl-x64"],
+    "profiles": ["debug", "release", "not-applicable"],
+    "oracleKinds": ["c23-and-rust", "c23", "rust", "none"],
+    "durableReceipts": ["benchmarks/executable-catalog.json"],
+    "recordIds": ["numeric-runtime-i8-process-v1"]
+  },
+  "records": {
+    "numeric-runtime-i8-process-v1": {
+      "gates": ["source", "verifiedHir", "lowering", "nativeProduct", "negative"],
+      "scope": {
+        "claim": "One bounded runtime-derived i8 arithmetic witness proves the maintained W source, verified HIR, MLIR/LLVM lowering, CRT-free native product, and distinct conversion/arithmetic failure outcomes.",
+        "limits": ["One std.process entry and one signed i8 operand on Windows x64; this does not claim the complete numeric language, general CFG, general panic runtime, or general source safety."]
+      },
+      "sources": ["compiler/seed-c/fixtures/process-fixed-integer-arithmetic.w"],
+      "command": "check:w-run-windows",
+      "route": "public-w-source-to-native",
+      "targets": ["windows-x64"],
+      "profile": "release",
+      "oracle": {
+        "kind": "c23-and-rust",
+        "sources": ["benchmarks/executable/process_fixed_integer_arithmetic.c", "benchmarks/executable/process_fixed_integer_arithmetic.rs"],
+        "declaration": "Independent C23 and Rust 2024 sources cover the same four argument-count outcomes, exact output, and failure statuses.",
+        "ubSafety": "C bounds the count before narrowing and keeps every signed operation in range; Rust uses checked conversion and checked increment, so neither failure relies on undefined behavior."
+      },
+      "freshness": {
+        "receipt": "benchmarks/executable-catalog.json",
+        "digests": [
+          {"path":"compiler/seed-c/fixtures/process-fixed-integer-arithmetic.w","digest":"sha256:29fc7a6ea4751dada481228ac3e93cd417aabe47f38448fff7883b30e9e9d173"},
+          {"path":"benchmarks/executable/process_fixed_integer_arithmetic.c","digest":"sha256:4a87ae8e32ca453d7fc0b6caf23c278aa402088585c2525d32c6fed3f87d56e0"},
+          {"path":"benchmarks/executable/process_fixed_integer_arithmetic.rs","digest":"sha256:c848aeeb790ad615ba6dbcf42cdfb03ff36d9a12954eae2686ab2785409273b3"}
+        ]
+      }
+    }
   },
   "areas": [
     {
@@ -37,6 +72,7 @@
       "promotion": "bounded",
       "risks": ["overflow", "division by zero", "invalid shift", "lossy conversion", "floating environment drift", "target-width mismatch"],
       "gates": {"source":"current","verifiedHir":"current","lowering":"current","nativeProduct":"current","runtimeProvider":"bounded","targetExecution":"bounded","negative":"current","sanitizerFuzz":"missing","faultInjection":"bounded","scheduleExploration":"not-applicable","resourceExhaustion":"not-applicable","abiLayout":"bounded"},
+      "evidence": {"source":"numeric-runtime-i8-process-v1","verifiedHir":"numeric-runtime-i8-process-v1","lowering":"numeric-runtime-i8-process-v1","nativeProduct":"numeric-runtime-i8-process-v1","negative":"numeric-runtime-i8-process-v1"},
       "nextEvidence": ["Propagate numeric faults through local calls and general CFG; add property/differential matrices, fuzzing, target-width ABI, endian, and serialization evidence."]
     },
     {

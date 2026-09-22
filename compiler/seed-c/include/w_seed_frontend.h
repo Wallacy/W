@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-71"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-72"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -232,7 +232,32 @@ typedef enum {
   /* Append-only partial integer conversion. Its value is owned by a plain
    * `try` expression that records the canonical NumericConversionError type. */
   W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY,
+  /* Append-only partial floating-to-fixed-integer conversion. Its value is
+   * owned by a plain `try` expression and retains a closed rounding identity
+   * plus the statically possible NumericConversionError cases. */
+  W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING,
 } w_seed_frontend_expr_kind;
+
+/* Core rounding identities. These are semantic values, not source text or
+ * user-defined enum cases. `NONE` is the absence sentinel on all unrelated
+ * expression records. */
+typedef enum {
+  W_SEED_FRONTEND_ROUNDING_MODE_NONE = 0,
+  W_SEED_FRONTEND_ROUNDING_MODE_NEAREST_EVEN,
+  W_SEED_FRONTEND_ROUNDING_MODE_NEAREST_AWAY_FROM_ZERO,
+  W_SEED_FRONTEND_ROUNDING_MODE_TOWARD_ZERO,
+  W_SEED_FRONTEND_ROUNDING_MODE_TOWARD_POSITIVE,
+  W_SEED_FRONTEND_ROUNDING_MODE_TOWARD_NEGATIVE,
+} w_seed_frontend_rounding_mode;
+
+/* Statically possible failure cases for a fallible numeric conversion. The
+ * bitmask is intentionally append-only so later conversion families can add
+ * facts without changing existing record meaning. */
+typedef enum {
+  W_SEED_FRONTEND_CONVERSION_ERROR_FACT_NONE = 0u,
+  W_SEED_FRONTEND_CONVERSION_ERROR_FACT_NON_FINITE = 1u << 0,
+  W_SEED_FRONTEND_CONVERSION_ERROR_FACT_OUT_OF_RANGE = 1u << 1,
+} w_seed_frontend_conversion_error_fact;
 
 typedef enum {
   W_SEED_FRONTEND_INTERPOLATION_TEXT = 0,
@@ -1096,8 +1121,9 @@ typedef struct {
   /* Present only for a CALL-based TRY. It identifies the exact local error
    * enum shared by the called function and lexical owner function. */
   uint32_t propagated_error_enum;
-  /* Present only for an integer-exactly TRY. It identifies the canonical
-   * bare NumericConversionError nominal type, not a local/external type. */
+  /* Present only for an integer-exactly or float-to-integer-rounding TRY. It
+   * identifies the canonical bare NumericConversionError nominal type, not a
+   * local/external type. */
   uint32_t propagated_error_type;
   /* Present only for EXPR_PANIC. The message reuses the normalized String
    * literal's const_byte_offset/count; the panic is a terminator, never a
@@ -1113,6 +1139,11 @@ typedef struct {
   /* Present only for NUMERIC_WIDEN. The receipt retains whether the shared
    * exact wrapper came from explicit D(value) syntax or context. */
   bool numeric_widen_is_explicit;
+  /* Present only for FLOAT_TO_INTEGER_ROUNDING. The mode is a closed core
+   * identity; possible_error_facts is a static type-level fact set, not a
+   * claim about the particular source value. */
+  w_seed_frontend_rounding_mode conversion_rounding_mode;
+  uint32_t conversion_possible_error_facts;
 } w_seed_frontend_expression;
 
 typedef enum {
