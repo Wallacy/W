@@ -52,6 +52,8 @@ const processIntegerExactSuccessFixture = resolve(seedDirectory, "fixtures",
   "process-integer-exact-success.w")
 const processIntegerExactErrorFixture = resolve(seedDirectory, "fixtures",
   "process-integer-exact-error.w")
+const processIntegerExactRuntimeFixture = resolve(seedDirectory, "fixtures",
+  "process-integer-exact-runtime.w")
 const localGraphFixture = resolve(seedDirectory, "fixtures", "local-graph",
   "app.w")
 const restaurantUnaryNegateFixture = resolve(seedDirectory,
@@ -1393,6 +1395,14 @@ try {
     Buffer.alloc(0), "Linux public exact integer conversion success")
   expectExact(binary, ["run", toWsl(processIntegerExactErrorFixture)], 1,
     Buffer.alloc(0), "Linux public exact integer conversion typed error")
+  expectExact(binary, ["run", toWsl(processIntegerExactRuntimeFixture)], 0,
+    Buffer.alloc(0), "Linux public runtime exact integer conversion success")
+  expectExact(binary, ["run", toWsl(processIntegerExactRuntimeFixture), "--",
+    ...Array.from({ length: 127 }, () => "x")], 0, Buffer.alloc(0),
+  "Linux public runtime exact integer conversion upper boundary")
+  expectExact(binary, ["run", toWsl(processIntegerExactRuntimeFixture), "--",
+    ...Array.from({ length: 128 }, () => "x")], 1, Buffer.alloc(0),
+  "Linux public runtime exact integer conversion out of range")
   expectExact(binary, ["run", toWsl(processEnumPayloadFixture)], 7,
     Buffer.from("enum-missing true\n", "utf8"),
     "Linux public enum payload process input without arguments")
@@ -1430,6 +1440,8 @@ try {
     "process-integer-exact-success-build")
   const buildProcessIntegerExactError = buildOutput(
     "process-integer-exact-error-build")
+  const buildProcessIntegerExactRuntime = buildOutput(
+    "process-integer-exact-runtime-build")
   const buildProcessArgumentsCount = buildOutput("process-arguments-count-build")
   const buildProcessArgumentsOrdering = buildOutput(
     "process-arguments-ordering-build")
@@ -1511,6 +1523,18 @@ try {
   assertCrtFreeElf(await readBuildArtifact(buildProcessIntegerExactError))
   expectExact(buildProcessIntegerExactError, [], 1, Buffer.alloc(0),
     "execute built Linux exact integer conversion typed-error artifact")
+  expectSuccess(binary, ["build", toWsl(processIntegerExactRuntimeFixture),
+    "--target", targetTriple, "--output", buildProcessIntegerExactRuntime],
+  Buffer.alloc(0), "build Linux runtime exact integer conversion fixture")
+  assertCrtFreeElf(await readBuildArtifact(buildProcessIntegerExactRuntime))
+  expectExact(buildProcessIntegerExactRuntime, [], 0, Buffer.alloc(0),
+    "execute built Linux runtime exact integer conversion success")
+  expectExact(buildProcessIntegerExactRuntime,
+    Array.from({ length: 127 }, () => "x"), 0, Buffer.alloc(0),
+  "execute built Linux runtime exact integer conversion upper boundary")
+  expectExact(buildProcessIntegerExactRuntime,
+    Array.from({ length: 128 }, () => "x"), 1, Buffer.alloc(0),
+  "execute built Linux runtime exact integer conversion out of range")
   expectSuccess(binary, ["build", toWsl(processArgumentsCountFixture), "--target",
     targetTriple, "--output", buildProcessArgumentsCount], Buffer.alloc(0),
   "build Linux public process-arguments-count fixture")

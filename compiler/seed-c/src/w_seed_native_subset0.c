@@ -6472,12 +6472,24 @@ static bool process_integer_exact_root_supported(
   native_integer_facts source_facts;
   native_integer_facts destination_facts;
   const w_seed_hir0_value *source = &program->values[conversion->value_index];
-  if (!native_integer_type_facts(program, source->type_index, &source_facts) ||
+  const bool target_usize_source =
+      source->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER &&
+      source->type_index < program->type_count &&
+      program->types[source->type_index].kind == W_SEED_HIR0_TYPE_USIZE &&
+      source->external_module_index == 0u &&
+      source->external_symbol_index == process->count_symbol_index &&
+      text_is(program, source->member_name, (const uint8_t *)"count", 5u);
+  if ((!native_integer_type_facts(program, source->type_index, &source_facts) &&
+       !target_usize_source) ||
       !native_integer_type_facts(program, conversion->result_type,
                                  &destination_facts) ||
       !process_value_lowerable(program, conversion->value_index,
                                process->function_index, process, false, 0u))
     return false;
+  if (target_usize_source) {
+    source_facts.is_signed = false;
+    source_facts.bit_width = 0u;
+  }
 
   const uint32_t normal_index = conversion->target_block;
   const uint32_t error_index = conversion->else_block;
@@ -6573,6 +6585,7 @@ static bool process_integer_exact_root_supported(
   process->exact_destination_bit_width = destination_facts.bit_width;
   process->exact_source_is_signed = source_facts.is_signed;
   process->exact_destination_is_signed = destination_facts.is_signed;
+  process->exact_source_is_target_usize = target_usize_source;
   process->has_integer_exactly = true;
   return true;
 }

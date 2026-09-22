@@ -306,17 +306,16 @@ test("every public Windows runnable fixture has an executable benchmark owner", 
     /restaurant-enum\.w has no executable benchmark owner/u);
 });
 
-test("typed process error adaptation is correctness-only until equivalent runtime work exists", () => {
-  const workload = documents.catalog.workloads.find((item) => item.id === "process-typed-error-adaptation");
+test("runtime exact conversion remains correctness-only despite equivalent references", () => {
+  const workload = documents.catalog.workloads.find((item) => item.id === "fixed-integer-exact-runtime");
   assert.ok(workload);
   assert.equal(workload.structureClass, "public-end-to-end");
   assert.equal(workload.benchmarkStatus, "not-performance-ready");
-  assert.deepEqual(workload.oracle, {
-    kind: "exact-output", status: "source-backed", exitCode: 1, stdout: "", stderr: "",
-  });
-  assert.deepEqual(workload.sources.map((source) => source.language), ["w"]);
-  assert.deepEqual(workload.blockedLanguages, ["c", "rust"]);
-  assert.ok(workload.blockers.includes("runtime-driven-family-workload"));
+  assert.equal(workload.oracle.kind, "argument-dependent-output");
+  assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.exitCode), [0, 1]);
+  assert.deepEqual(workload.sources.map((source) => source.language), ["w", "c", "rust"]);
+  assert.deepEqual(workload.blockedLanguages, []);
+  assert.ok(workload.blockers.includes("steady-runtime-family-workload"));
   assert.ok(EXECUTABLE_RUN_TARGETS.includes(workload.id));
   assert.equal(documents.catalog.bestMetrics.entries.some(
     (entry) => entry.workloadId === workload.id), false);

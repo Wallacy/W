@@ -147,6 +147,10 @@ typedef struct {
   uint16_t exact_destination_bit_width;
   bool exact_source_is_signed;
   bool exact_destination_is_signed;
+  /* Logical usize has target-owned width.  NativeSubset0 preserves that fact
+   * instead of pretending it is a portable u64; MLIR0 resolves it only after
+   * accepting a concrete target. */
+  bool exact_source_is_target_usize;
   bool has_integer_exactly;
   /* True only when the selected process entry call graph contains a verified
    * panic terminator.  The message is validated but never emitted. */

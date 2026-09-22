@@ -42738,8 +42738,12 @@ references only. W can fold the literal witness, so
 W-1650 advances only the existing plain `try D(exactly: source)` form; it adds
 no syntax or conversion policy. Its bounded integer domain is all 100
 source/destination pairs among `i8`/`u8`, `i16`/`u16`, `i32`/`u32`,
-`i64`/`u64`, and the current x86-64 `Int`/`UInt` aliases. `try?`, floating
-conversions, `usize`/`isize`, and 128-bit integers are outside this slice.
+`i64`/`u64`, and the current x86-64 `Int`/`UInt` aliases. One narrow product
+ingress additionally accepts the canonical `std.process.Arguments.count`
+logical `usize` as the source of a conversion into that fixed-width family.
+This is not a general `usize` conversion rule: no other `usize` value,
+arithmetic, alias, or source shape is admitted. `try?`, floating conversions,
+general `usize`/`isize`, and 128-bit integers are outside this slice.
 
 Frontend71 preserves a distinct integer-exactly expression with canonical
 source and destination facts. Verified HIR92 represents it as a typed
@@ -42755,6 +42759,13 @@ checks the translated LLVM IR for the typed success/error branch and
 representability predicates. This is compiler-lifecycle evidence, not an
 executable product.
 
+The process ingress retains `Arguments.count` as the distinct logical `usize`
+identity through verified HIR and NativeSubset0. The current seed frontend is
+an x64-only profile and records a 64-bit target width; MLIR0 chooses the `i64`
+physical carrier only after validating a supported Windows x64 or Linux x64
+target. This is not evidence for 32-bit or non-x86 targets, and the logical
+value must never be normalized to portable `u64`.
+
 HIR94 admits a bounded continuation form in which one immutable binding is
 initialized by the exact conversion and the normal successor continues through
 ordinary typed values. For the restricted `native-process@1` root,
@@ -42764,11 +42775,14 @@ structured exits preserve §11.6 destruction order: `Context`, then `Arguments`,
 the reverse of initialization. The bounded process-executable v3 adapter keeps
 the typed outcome distinct while running both owner releases and root
 finalization, then maps only the unhandled error arm to status 1 without
-implicit output. The success and out-of-range fixtures execute through public
-`w run` on CRT-free Windows x64 and Linux/WSL x64. Direct user-defined throws,
-general typed roots, benchmark timing, floating-point or 128-bit conversion,
-`isize`/`usize`, non-x86-64 aliases, catch, and public ABI remain outside this
-slice.
+implicit output. The runtime-derived `Arguments.count` fixture executes
+through public `w run` and `w build` on CRT-free Windows x64 and Linux/WSL x64:
+zero and 127 user arguments succeed, while 128 reaches
+`NumericConversionError.outOfRange` and host status 1, all with empty output.
+Constant fixtures remain focused correctness variants rather than separate
+product claims. Direct user-defined throws, general typed roots, benchmark
+timing, floating-point or 128-bit conversion, general `isize`/`usize`,
+non-x86-64 aliases, catch, and public ABI remain outside this slice.
 `benchmarkDisposition: compiler-lifecycle`.
 
 #### 26.4.1.131 W-1651 — explicit wide and low-precision numeric families
@@ -42809,7 +42823,7 @@ families. Those remain explicit implementation gaps.
 import { Arguments, Context, ExitCode } from std.process
 
 async fn run(args: Arguments, ctx: Context): ExitCode throws NumericConversionError {
-  let narrowed = try i8(exactly: 1)
+  let narrowed = try i8(exactly: args.count)
   return .success
 }
 
@@ -42847,10 +42861,11 @@ cleanup policy for both structured exits: reverse initialization order,
 `Context` then `Arguments`. NativeSubset0 and process-executable v3 materialize
 that exact-conversion shape as a private tagged carrier, retain it across both
 owner releases and root finalization, and adapt the typed-error arm only after
-cleanup. Public `w run` proves exit 0 for the representable fixture and exit 1
-with empty stdout/stderr for the out-of-range fixture on CRT-free Windows x64
-and Linux/WSL x64. The older direct-throw root remains projected as one typed
-outcome but is not yet admitted by the executable adapter.
+cleanup. Public `w run` and `w build` prove exit 0 for zero and 127 user
+arguments and exit 1 for 128 user arguments, with empty stdout/stderr, on
+CRT-free Windows x64 and Linux/WSL x64. The older direct-throw root remains
+projected as one typed outcome but is not yet admitted by the executable
+adapter.
 
 This evidence does not complete the decision. ProductClosure0 still returns
 `UNSUPPORTED` for every other typed root shape, and the executable adapter

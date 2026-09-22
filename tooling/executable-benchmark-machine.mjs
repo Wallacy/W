@@ -66,7 +66,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-branch-mutation-multi",
   "restaurant-composition",
   "process-entry",
-  "process-typed-error-adaptation",
+  "fixed-integer-exact-runtime",
   "process-enum-payload",
   "process-arguments-count",
   "process-arguments-ordering",
@@ -96,7 +96,8 @@ const PUBLIC_WINDOWS_RUN_VARIANTS = Object.freeze({
   "compiler/seed-c/fixtures/process-enum-payload.w": "process-enum-payload",
   "compiler/seed-c/fixtures/process-arguments-count.w": "process-arguments-count",
   "compiler/seed-c/fixtures/process-arguments-ordering.w": "process-arguments-ordering",
-  "compiler/seed-c/fixtures/process-integer-exact-success.w": "process-typed-error-adaptation",
+  "compiler/seed-c/fixtures/process-integer-exact-success.w": "fixed-integer-exact-runtime",
+  "compiler/seed-c/fixtures/process-integer-exact-error.w": "fixed-integer-exact-runtime",
   "compiler/seed-c/fixtures/restaurant-repeat.w": "restaurant-repeat",
   "compiler/seed-c/fixtures/local-graph/app.w": "local-module-graph",
   "compiler/seed-c/fixtures/restaurant-uint-wrapping-add.w": "restaurant-integer-wrapping",
@@ -195,6 +196,21 @@ export const PROCESS_ARGUMENTS_ORDERING_ORACLE_CASES = Object.freeze([
   Object.freeze({ arguments: PROCESS_ARGUMENTS_ORDERING_CORRECTNESS_INPUTS[1], exitCode: 0, stdout: "Kitchen seats 1 guests\n", stderr: "" }),
   Object.freeze({ arguments: PROCESS_ARGUMENTS_ORDERING_CORRECTNESS_INPUTS[2], exitCode: 0, stdout: "Banquet seats 2 guests\n", stderr: "" }),
 ]);
+export const FIXED_INTEGER_EXACT_RUNTIME_WORKLOAD_ID =
+  "fixed-integer-exact-runtime";
+export const FIXED_INTEGER_EXACT_RUNTIME_ORACLE_KIND =
+  PROCESS_ENTRY_ORACLE_KIND;
+export const FIXED_INTEGER_EXACT_RUNTIME_RECIPE_CLASS =
+  "fixed-integer-exact-runtime-release";
+export const FIXED_INTEGER_EXACT_RUNTIME_TIMED_INPUT = Object.freeze([]);
+export const FIXED_INTEGER_EXACT_RUNTIME_CORRECTNESS_INPUTS = Object.freeze([
+  FIXED_INTEGER_EXACT_RUNTIME_TIMED_INPUT,
+  Object.freeze(Array.from({ length: 128 }, () => "x")),
+]);
+export const FIXED_INTEGER_EXACT_RUNTIME_ORACLE_CASES = Object.freeze([
+  Object.freeze({ arguments: FIXED_INTEGER_EXACT_RUNTIME_CORRECTNESS_INPUTS[0], exitCode: 0, stdout: "", stderr: "" }),
+  Object.freeze({ arguments: FIXED_INTEGER_EXACT_RUNTIME_CORRECTNESS_INPUTS[1], exitCode: 1, stdout: "", stderr: "" }),
+]);
 const PROCESS_ARGUMENT_ORACLE_CONTRACTS = Object.freeze({
   [PROCESS_ENTRY_WORKLOAD_ID]: Object.freeze({
     kind: PROCESS_ENTRY_ORACLE_KIND,
@@ -220,12 +236,19 @@ const PROCESS_ARGUMENT_ORACLE_CONTRACTS = Object.freeze({
     correctnessInputs: PROCESS_ARGUMENTS_ORDERING_CORRECTNESS_INPUTS,
     cases: PROCESS_ARGUMENTS_ORDERING_ORACLE_CASES,
   }),
+  [FIXED_INTEGER_EXACT_RUNTIME_WORKLOAD_ID]: Object.freeze({
+    kind: FIXED_INTEGER_EXACT_RUNTIME_ORACLE_KIND,
+    timedInput: FIXED_INTEGER_EXACT_RUNTIME_TIMED_INPUT,
+    correctnessInputs: FIXED_INTEGER_EXACT_RUNTIME_CORRECTNESS_INPUTS,
+    cases: FIXED_INTEGER_EXACT_RUNTIME_ORACLE_CASES,
+  }),
 });
 export const PROCESS_ARGUMENT_WORKLOAD_IDS = Object.freeze([
   PROCESS_ENTRY_WORKLOAD_ID,
   PROCESS_ENUM_PAYLOAD_WORKLOAD_ID,
   PROCESS_ARGUMENTS_COUNT_WORKLOAD_ID,
   PROCESS_ARGUMENTS_ORDERING_WORKLOAD_ID,
+  FIXED_INTEGER_EXACT_RUNTIME_WORKLOAD_ID,
 ]);
 export const RESTAURANT_FLOAT_STRICT_WORKLOAD_ID = "restaurant-float-strict";
 export const RESTAURANT_CHECKED_INTEGER_ARITHMETIC_WORKLOAD_ID = "restaurant-checked-integer-arithmetic";
@@ -842,6 +865,7 @@ function checkSource(source, location, workload, root, errors) {
   if (workload?.id === PROCESS_ENUM_PAYLOAD_WORKLOAD_ID && source.recipeClass !== PROCESS_ENUM_PAYLOAD_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-enum-payload release class.");
   if (workload?.id === PROCESS_ARGUMENTS_COUNT_WORKLOAD_ID && source.recipeClass !== PROCESS_ARGUMENTS_COUNT_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-arguments-count release class.");
   if (workload?.id === PROCESS_ARGUMENTS_ORDERING_WORKLOAD_ID && source.recipeClass !== PROCESS_ARGUMENTS_ORDERING_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-arguments-ordering release class.");
+  if (workload?.id === FIXED_INTEGER_EXACT_RUNTIME_WORKLOAD_ID && source.recipeClass !== FIXED_INTEGER_EXACT_RUNTIME_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the fixed-integer exact runtime release class.");
   if (source.status !== "source-oracle-ready") push(errors, location + ".status must be source-oracle-ready for a materialized source.");
   if (!MEASUREMENT_PROFILES.includes(source.profile) || source.profile !== "release") push(errors, location + ".profile must be release for M3a sources.");
   if (source.quality !== "correctness-gate") push(errors, location + ".quality must identify correctness as a gate.");

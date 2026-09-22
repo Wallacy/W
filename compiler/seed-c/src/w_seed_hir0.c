@@ -5814,7 +5814,8 @@ static bool frontend_integer_exactly_source_flat(
     return true;
   }
   return value->kind == W_SEED_FRONTEND_EXPR_INTEGER ||
-         value->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER;
+         value->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER ||
+         value->kind == W_SEED_FRONTEND_EXPR_MEMBER;
 }
 
 static bool frontend_try_expression_ok(
@@ -5888,9 +5889,18 @@ static bool frontend_try_expression_ok(
         conversion->inferred_type !=
             conversion->conversion_destination_type ||
         try_expression->inferred_type != conversion->inferred_type ||
-        !frontend_integer_conversion_route(
-            &output->types[conversion->conversion_source_type],
-            &output->types[conversion->conversion_destination_type]) ||
+        !(frontend_integer_conversion_route(
+              &output->types[conversion->conversion_source_type],
+              &output->types[conversion->conversion_destination_type]) ||
+          (frontend_type_is_usize(
+               &output->types[conversion->conversion_source_type]) &&
+           frontend_type_is_fixed_integer(
+               &output->types[conversion->conversion_destination_type]) &&
+           frontend_external_member_value_ok(
+               input, module_index, function_index, document_index,
+               &output->expressions[conversion->left]) &&
+           output->expressions[conversion->left]
+                   .resolved_external_symbol_index == 6u)) ||
         !frontend_integer_exactly_source_flat(input, conversion->left, 0u) ||
         !frontend_expression_is_integer(output, conversion) ||
         !text_is(conversion->operator_text, "exactly") ||
@@ -16773,6 +16783,37 @@ static uint32_t hir0_usize_type_index(const w_seed_hir0_program *program) {
   return W_SEED_HIR0_NONE;
 }
 
+/* `usize` remains outside the general fixed-width conversion family.  This
+ * predicate recognizes only the canonical public Arguments.count leaf for an
+ * exact conversion. The current seed profile records a 64-bit target width,
+ * but the distinct USIZE identity prevents it from becoming portable u64. */
+static bool hir_target_usize_exact_source(
+    const w_seed_hir0_program *program, size_t function_index,
+    uint32_t value_index) {
+  if (program == NULL || function_index >= program->function_count ||
+      value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  const uint32_t usize_type = hir0_usize_type_index(program);
+  if (value->kind != W_SEED_HIR0_VALUE_EXTERNAL_MEMBER ||
+      value->external_module_index != 0u ||
+      value->external_symbol_index != 6u ||
+      !hir_text_is(program, value->member_name, HIR0_PROCESS_COUNT) ||
+      usize_type == W_SEED_HIR0_NONE || value->type_index != usize_type ||
+      value->left_value >= program->value_count ||
+      !hir_external_pair_valid(program, 0u, 6u,
+                               W_SEED_HIR0_EXTERNAL_VALUE))
+    return false;
+  const w_seed_hir0_value *receiver = &program->values[value->left_value];
+  if (receiver->kind != W_SEED_HIR0_VALUE_PARAMETER_READ ||
+      receiver->parameter_index >= program->parameter_count)
+    return false;
+  const w_seed_hir0_parameter *parameter =
+      &program->parameters[receiver->parameter_index];
+  return parameter->owner_function == function_index &&
+         parameter->type_index == hir0_external_type_index(program, 0u);
+}
+
 static bool hir0_usize_count_comparison_operands(
     const w_seed_hir0_program *program, const w_seed_hir0_value *value) {
   if (program == NULL || value == NULL ||
@@ -19910,6 +19951,8 @@ static bool verify_cfg_integer_exactly(const w_seed_hir0_program *program,
   bool result_signed = false;
   uint16_t source_width = 0u;
   uint16_t result_width = 0u;
+  const bool target_usize_source = hir_target_usize_exact_source(
+      program, function_index, split_term->value_index);
   if (!function->is_throws || function->error_type == W_SEED_HIR0_NONE ||
       !hir_type_index_valid(program, function->error_type) ||
       program->types[function->error_type].kind !=
@@ -19940,9 +19983,10 @@ static bool verify_cfg_integer_exactly(const w_seed_hir0_program *program,
       split_term->panic_code != W_SEED_HIR0_PANIC_CODE_INVALID ||
       split_term->numeric_conversion_error_case !=
           W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_OUT_OF_RANGE ||
-      !hir_integer_type_facts(
-          program, program->values[split_term->value_index].type_index,
-          &source_signed, &source_width))
+      (!hir_integer_type_facts(
+           program, program->values[split_term->value_index].type_index,
+           &source_signed, &source_width) &&
+       !target_usize_source))
     return false;
   (void)source_signed;
   (void)source_width;
@@ -22508,9 +22552,11 @@ static bool verify_records(const w_seed_hir0_program *program) {
                          block->instruction_count),
               source_length, 0u, &value_cursor,
               &interpolation_segment_cursor, &value_byte_cursor) ||
-          !hir_integer_type_facts(
-              program, program->values[value->value_index].type_index,
-              &source_signed, &source_width))
+          (!hir_integer_type_facts(
+               program, program->values[value->value_index].type_index,
+               &source_signed, &source_width) &&
+           !hir_target_usize_exact_source(program, function,
+                                          value->value_index)))
         return false;
       (void)source_signed;
       (void)source_width;

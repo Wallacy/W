@@ -23,7 +23,7 @@ test("generated projection is current, compact, and sourced only from the live c
   assert.match(rendered, /\| integer-shift-semantics \| public-end-to-end \| \[w\]\(\.\/executable\/integer_shift_semantics\.w\), \[c\]\(\.\/executable\/integer_shift_semantics\.c\), \[rust\]\(\.\/executable\/integer_shift_semantics\.rs\) \| source-backed \| not-performance-ready \|/u);
   assert.doesNotMatch(rendered, /\| integer-shift-semantics \| w \|/u,
     "stale shift measurements must not remain in the generated best-value tables");
-  assert.match(rendered, /\| process-typed-error-adaptation \| public-end-to-end \| \[w\]\(\.\.\/compiler\/seed-c\/fixtures\/process-integer-exact-error\.w\) \| source-backed \| not-performance-ready \|/u);
+  assert.match(rendered, /\| fixed-integer-exact-runtime \| public-end-to-end \| \[w\]\(\.\.\/compiler\/seed-c\/fixtures\/process-integer-exact-runtime\.w\), \[c\]\(\.\/executable\/process_integer_exact_runtime\.c\), \[rust\]\(\.\/executable\/process_integer_exact_runtime\.rs\) \| source-backed \| not-performance-ready \|/u);
   assert.match(rendered, /WSL values are not rankable across hosts\./u);
   assert.match(rendered, /\| Workload \| Language \| Target \| Runtime \| Artifact \| \.text B \| \.rdata B \| Compile p50 \| Run p50 \| Run p95 \| Peak RSS \| CPU mean \|/u);
   assert.match(rendered, /### Linux x64 via WSL2[\s\S]*\| Workload \| Language \| Target \| Runtime \| Artifact \| ELF \.text B \| ELF \.rodata B \|/u);

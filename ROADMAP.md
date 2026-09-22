@@ -80,6 +80,17 @@ cross-target, and long-running performance lanes run in CI or release
 qualification according to risk. More tests are not evidence unless they
 observe a distinct failure class or product boundary.
 
+The review outcome is that this procedure is directionally sufficient but not
+yet self-enforcing. Before any family is promoted as memory-safe, cleanup-safe,
+race-free, FFI-safe, or generally safe, add one machine-readable safety
+evidence record that declares the applicable source, verified-HIR, lowering,
+native, runtime, target, negative, sanitizer/fuzz, fault-injection, schedule,
+resource-exhaustion, and ABI gates. An unavailable applicable gate blocks
+promotion; it is not silently omitted. Independent C/Rust oracles must state
+how they avoid their own undefined behavior. Adversarial and fault evidence
+must exercise the same maintained W source-to-native route as the positive
+claim rather than a substitute harness.
+
 ### Numeric closure discipline
 
 Numeric implementation proceeds by semantic family, with one canonical set of
@@ -103,6 +114,26 @@ Public performance rows use runtime inputs and family-sized workloads. Cold
 process launch and in-process numeric throughput remain separate lanes; a
 constant-folded W graph is correctness evidence, not a ranking against a
 runtime C or Rust workload.
+
+The numeric review finds the selected semantics strong but the implementation
+far from closed. Preserve one canonical representation of numeric identity,
+width, signedness, conversion policy, rounding, and target capability across
+the pipeline, while keeping each trust boundary's verifier independent rather
+than copying ad hoc tables or trusting upstream records. After runtime closure
+for current fixed integers and strict f32/f64, compare direct logical-width
+LLVM integer types against the seed's i64 carrier, specialize count-only
+process roots, partition helper emission by reachability, and memoize shared
+reachability/constant facts. Promote an optimization only when runtime,
+compile-latency, memory, and binary-size measurements improve without weakening
+the exact semantic oracle.
+
+The remaining numeric order is: complete runtime W-389/W-392 policies and
+typed failure; close target-width ABI/endian/serialization evidence; implement
+i128/u128; then strict f16/bf16/f128. Configured f4/f6/f8 and tensor packing
+remain storage/compute work, while BigInt/BigFloat wait for ownership,
+allocator, OOM, and generic-value foundations. The bounded
+`Arguments.count -> i8` witness advances only product-boundary evidence and
+must not advance the general numeric-core status.
 
 ### C-reach closure rule
 
@@ -170,10 +201,14 @@ physical scheduler experiments:
    typed outcome or the conversion's distinct normal and typed-error
    successors. It authenticates reverse-initialization cleanup on both
    structured exits. Process-executable v3 now materializes that cleanup and
-   post-cleanup status adaptation for the exact-conversion root; public
-   CRT-free Windows x64 and Linux/WSL x64 gates prove success 0 and
-   out-of-range status 1 with empty output. The direct-throw and general typed
-   process routes remain unimplemented.
+   post-cleanup status adaptation for the exact-conversion root. One canonical
+   runtime ingress now carries the distinct logical `Arguments.count: usize`
+   identity through HIR under the current x64 seed profile; MLIR selects its
+   physical `i64` carrier only after target validation. It proves zero/127
+   arguments as success 0 and 128 as out-of-range status 1 on public CRT-free
+   Windows and Linux/WSL routes with empty output. This is not general `usize`
+   support. The direct-throw and general typed process routes remain
+   unimplemented.
    Remaining conversion policies continue to block this rank-1
    prerequisite. W-1651 closes the design identity of i128/u128, the fixed
    arithmetic float family through f128, configured f4/f6/f8 AI elements, and
@@ -509,12 +544,14 @@ projects its normal and typed-error successors while retaining the restricted
 direct-throw outcome. Process-executable v3 materializes
 reverse-initialization cleanup for the bounded exact-conversion root, retains
 the typed carrier through root finalization, and only then adapts the error to
-status 1. Public CRT-free Windows x64 and Linux/WSL x64 gates execute both
-success and out-of-range fixtures with empty output. No benchmark or timing
-claim is made. The direct-throw route, other conversion families, floats,
-128-bit integers,
-`isize`/`usize`, other target aliases, catch, general typed cleanup, and ABI
-remain gaps.
+status 1. Public CRT-free Windows x64 and Linux/WSL x64 gates execute the
+canonical runtime `Arguments.count` source at zero, 127, and 128 user
+arguments, proving both success and out-of-range paths with empty output. The
+logical `usize` identity remains distinct from portable `u64`; the current
+seed profile itself is x64-only. No benchmark or timing claim is made. The
+direct-throw route, other conversion
+families, floats, 128-bit integers, general `isize`/`usize`, other target
+aliases, catch, general typed cleanup, and ABI remain gaps.
 W-389 and rank 1 remain open.
 
 W-1645 generalizes the prior strict-f64 seed path into one strict floating

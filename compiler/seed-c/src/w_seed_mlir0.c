@@ -10029,7 +10029,13 @@ static bool build_process_executable_artifact(
       .success_symbol_index = selection->success_symbol_index,
       .failure_symbol_index = selection->failure_symbol_index};
   process.has_integer_exactly = selection->has_integer_exactly;
-  process.exact_source_bit_width = selection->exact_source_bit_width;
+  /* Every currently supported public process target is x86-64.  Select the
+   * i64 physical carrier only here, after target validation; HIR retains the
+   * distinct logical USIZE identity rather than pretending it is u64. */
+  process.exact_source_bit_width =
+      selection->exact_source_is_target_usize
+          ? 64u
+          : selection->exact_source_bit_width;
   process.exact_destination_bit_width =
       selection->exact_destination_bit_width;
   process.exact_source_is_signed = selection->exact_source_is_signed;

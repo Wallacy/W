@@ -2952,7 +2952,10 @@ gaps.
 W-1650 implements the existing plain `try D(exactly: source)` form for all 100
 source/destination pairs across signed and unsigned 8/16/32/64-bit integers
 plus the current x86-64 `Int`/`UInt` aliases. It adds no syntax. `try?`, float
-conversion, `usize`/`isize`, and 128-bit integers remain outside this slice.
+conversion, general `usize`/`isize`, and 128-bit integers remain outside this
+slice. The sole target-width exception is the canonical
+`std.process.Arguments.count` member as a runtime source into a fixed-width
+destination; no other `usize` source or operation is admitted.
 
 Frontend71 preserves the conversion as a distinct expression. Verified HIR92
 owns a typed three-block success/error split with canonical core
@@ -2961,6 +2964,10 @@ supported integer type facts. The private MLIR artifact is
 `w-seed-mlir0-integer-exactly-1`. The `--emit-integer-exactly` probe is checked
 by `tooling/check-mlir0.mjs` through `mlir-opt --verify-each` and
 `mlir-translate`, including the translated LLVM range predicates and branch.
+For `Arguments.count`, HIR and NativeSubset0 retain the distinct logical
+`usize` identity. The current seed frontend is an x64 profile and records a
+64-bit target width; MLIR0 chooses its `i64` carrier only after validating the
+current Windows/Linux x64 target. This is not portable `u64` evidence.
 
 HIR94 admits one bounded binding continuation and composes that split into a
 restricted process root. ProductClosure0 v3 publishes the source split plus
@@ -2968,9 +2975,11 @@ separate normal and `NumericConversionError.outOfRange` successor facts. It
 authenticates reverse-initialization `Context`-then-`Arguments` release on both
 normal success and typed error. Process-executable v3 retains a private typed
 carrier while materializing both releases and root finalization, then maps only
-the error arm to status 1. The public `process-integer-exact-success.w` and
-`process-integer-exact-error.w` fixtures execute through `w run` on CRT-free
-Windows x64 and Linux/WSL x64 with exact empty stdout/stderr and exits 0/1.
+the error arm to status 1. The public `process-integer-exact-runtime.w` fixture
+executes through `w run` and `w build` on CRT-free Windows x64 and Linux/WSL
+x64. Zero and 127 user arguments exit 0; 128 exits 1 after typed-error cleanup;
+stdout/stderr remain empty. The constant success/error fixtures remain focused
+correctness inputs.
 This remains compiler-lifecycle correctness evidence: no benchmark timing,
 general typed root, catch, public ABI, or performance claim is made.
 `benchmarkDisposition: compiler-lifecycle`.

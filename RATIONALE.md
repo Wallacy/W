@@ -8013,7 +8013,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1648 | fixed-width integer bit primitives through native execution | The existing W-392 associated functions `rotatedLeft(_ value: Self, _ count: UInt) -> Self`, `rotatedRight(_ value: Self, _ count: UInt) -> Self`, `countOnes(_ value: Self) -> UInt`, `countZeros(_ value: Self) -> UInt`, `countLeadingZeros(_ value: Self) -> UInt`, `countTrailingZeros(_ value: Self) -> UInt`, `reversedBits(_ value: Self) -> Self`, and `reversedBytes(_ value: Self) -> Self` are source-backed for built-in `i8`/`u8`, `i16`/`u16`, `i32`/`u32`, and `i64`/`u64`. Rotations reduce counts modulo logical width; counts return `UInt`, zero leading/trailing-zero counts equal width, leading/trailing scans start at the most/least-significant bit, signed values use the full two's-complement representation, and reversals operate on logical width independent of host endianness. Frontend70, HIR91, NativeSubset0, and MLIR61 validate and lower this fixed-width family through direct LLVM-dialect intrinsics; exact-output Windows x64 and Linux/WSL x64 source-to-native gates pass. The 3,943-byte neutral W fixture covers every operation and type; focused tests plus C23/Rust references add zero-count and rotation `0`/`width`/`width + 1` edges. No syntax changes. `Int`/`UInt` target width, `isize`/`usize`, 128-bit integers, other targets, general optimizer behavior, stable ABI/FFI, and performance remain outside this increment. | physical-carrier-width semantics; duplicate syntax or target intrinsics in the language core; portable-width claims for aliases or other targets without evidence; performance rankings without equivalent runtime operands |
 
 | W-1649 | fixed-width named integer shift policies through native execution | The existing W-392 associated functions `maskedShiftLeft(_ value: Self, _ count: UInt) -> Self`, `maskedShiftRight(_ value: Self, _ count: UInt) -> Self`, and `logicalShiftRight(_ value: Self, _ count: UInt) -> Self` are source-backed exactly for built-in `i8`/`u8`, `i16`/`u16`, `i32`/`u32`, and `i64`/`u64`. Both masked policies reduce count modulo logical width; signed `maskedShiftRight` is arithmetic, unsigned is logical, and `logicalShiftRight` zero-fills for either signedness while rejecting `count >= bitWidth` before the LLVM shift. Frontend70 and verified HIR91 retain the existing append-only operation identities; HIR enforces an exact `UInt` count even against a forged same-type wrapping tree. NativeSubset0 and MLIR61 use a width-aware route. The neutral W fixture passes exact-output CRT-free Windows x64 and Linux/WSL x64 gates; C23 and Rust 2024 match as correctness references only. `Int`/`UInt`, `isize`/`usize`, 128-bit integers, other targets, stable ABI/FFI, and equivalent-runtime performance remain outside this increment. W may fold the witness, so no timing or performance ranking is claimed and `benchmarkDisposition: deferred`. | physical-carrier-width shift semantics; collapse of arithmetic and explicit logical right shift; per-width operation IDs or target-specific intrinsics in the language core; accepting a forged non-`UInt` count; ranking unequal runtime work |
-| W-1650 | fixed-width integer exactly-conversion typed lowering | Plain `try D(exactly: source)` is implemented for all 100 source/destination pairs among signed and unsigned 8/16/32/64-bit integers plus current x86-64 `Int`/`UInt` aliases. Frontend71 and verified HIR94 preserve canonical integer facts, a typed three-block success/error split, and a bounded binding continuation carrying core `NumericConversionError.outOfRange`; NativeSubset0 rederives the relation and a private `w-seed-mlir0-integer-exactly-1` artifact lowers it through a checked branch. ProductClosure0 v3 projects both successors for the restricted process root. Process-executable v3 materializes cleanup and post-cleanup adaptation for that root; public CRT-free Windows x64 and Linux/WSL x64 witnesses prove success 0 and out-of-range status 1 with empty output. `benchmarkDisposition: compiler-lifecycle`. | implicit or total conversion that hides failure; per-source/destination operation IDs; trap-only out-of-range lowering; adapting before cleanup; claiming general typed-root support from the bounded witness |
+| W-1650 | fixed-width integer exactly-conversion typed lowering | Plain `try D(exactly: source)` is implemented for all 100 source/destination pairs among signed and unsigned 8/16/32/64-bit integers plus current x86-64 `Int`/`UInt` aliases. One product-only ingress also accepts canonical `std.process.Arguments.count` as logical target-width `usize`; its physical width is selected only for the accepted x64 target and does not generalize `usize`. Frontend71 and verified HIR94 preserve canonical facts, a typed three-block success/error split, and a bounded binding continuation carrying core `NumericConversionError.outOfRange`; NativeSubset0 rederives the relation and MLIR lowers it through a checked branch. ProductClosure0 v3 projects both successors. Process-executable v3 materializes cleanup and post-cleanup adaptation; public CRT-free Windows x64 and Linux/WSL x64 runtime witnesses prove zero/127 arguments as success 0 and 128 as out-of-range status 1 with empty output. `benchmarkDisposition: compiler-lifecycle`. | implicit or total conversion that hides failure; per-source/destination operation IDs; trap-only out-of-range lowering; adapting before cleanup; treating logical `usize` as portable `u64`; claiming general typed-root support from the bounded witness |
 | W-1651 | explicit wide and low-precision numeric families | `f16`/`bf16`/`f32`/`f64`/`f128` are fixed arithmetic scalars; one `BigFloat<precision:>` family covers fixed and `.dynamic`; f4/f6/f8 use mandatory standardized format cases; TensorFloat32 is compute policy and e8m0fnu is block-scale metadata | bare f4/f6/f8 defaults; host `long double`; implicit packing, rounding, accumulator, fallback, or target-dependent meaning; claiming implementation from design |
 | W-1652 | native-process unhandled typed-error adaptation | A concrete `Error` remains a distinct outcome through structured cleanup; `native-process@1` then terminates with portable status 1 and no implicit output. The status is adapter policy, not `ExitCode`, enum tag, or payload ABI. | requiring every entry to catch; silently treating error as a normal ExitCode; tag-derived status; implicit stderr; applying process policy to other hosts |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
@@ -14441,8 +14441,11 @@ W-1650 adds implementation evidence for the existing plain
 `try D(exactly: source)` conversion without changing its syntax or semantic
 policy. The bounded source/destination set contains all 100 combinations of
 signed and unsigned 8-, 16-, 32-, and 64-bit integers plus the current x86-64
-`Int`/`UInt` aliases. `try?`, floating-point conversions, `usize`/`isize`, and
-128-bit integers are not admitted.
+`Int`/`UInt` aliases. A separate product boundary admits only the canonical
+`std.process.Arguments.count` logical `usize` as a runtime source into those
+fixed-width destinations. This does not generalize `usize`: every other
+`usize` source, its arithmetic, `isize`, `try?`, floating-point conversion, and
+128-bit integers remain outside the slice.
 
 Frontend71 preserves one integer-exactly expression with canonical source and
 destination types. Verified HIR92 carries the exact conversion in a typed
@@ -14459,6 +14462,13 @@ MLIR/LLVM 23.1.1 path runs `mlir-opt --verify-each` and `mlir-translate` and
 checks the translated range predicates and branch. These are compiler-
 lifecycle correctness checks only.
 
+Keeping the process count as logical `usize` through HIR and NativeSubset0 is
+intentional. The current seed frontend is explicitly an x64 profile and
+records a 64-bit target width; MLIR0 selects an `i64` physical carrier only
+after accepting a Windows x64 or Linux x64 target. The separate type identity
+prevents this bounded bridge from becoming an accidental portable-u64 rule,
+and no 32-bit or non-x86 claim follows.
+
 HIR94 now composes one exact-conversion binding into a restricted
 `native-process@1` root. ProductClosure0 v3 projects its explicit normal and
 `NumericConversionError.outOfRange` successors and keeps the older restricted
@@ -14466,9 +14476,12 @@ local payloadless-error direct throw. Process-executable v3 accepts only the
 exact-conversion root, preserves a private typed carrier through
 `Context`-then-`Arguments` release and root finalization, and adapts the error
 arm to status 1 afterward. Public CRT-free Windows x64 and Linux/WSL x64 gates
-execute representable and out-of-range fixtures with exact empty output. The
-direct-throw root, general typed bodies, catch, a public ABI, float or
-wider-integer coverage, another target alias, and performance remain gaps.
+execute one runtime-derived fixture with zero, 127, and 128 user arguments.
+The first two exit 0; the last preserves
+`NumericConversionError.outOfRange` through cleanup and exits 1; all have exact
+empty output. Constant fixtures remain focused correctness inputs. The
+direct-throw root, general typed bodies, catch, a public ABI, float or wider-
+integer coverage, another target alias, and performance remain gaps.
 `benchmarkDisposition: compiler-lifecycle`; no benchmark or timing result is
 claimed.
 
@@ -14532,8 +14545,9 @@ success and typed error, preserving reverse initialization order without an
 outcome-specific exception. Process-executable v3 materializes those releases
 and root finalization for the exact-conversion form while retaining the typed
 carrier; only afterward does the host adapter map the error arm to status 1.
-Public CRT-free Windows x64 and Linux/WSL x64 gates prove success 0 and
-out-of-range status 1 with empty stdout/stderr.
+Public CRT-free Windows x64 and Linux/WSL x64 gates use runtime
+`Arguments.count`: zero and 127 user arguments prove success 0, while 128
+proves out-of-range status 1, all with empty stdout/stderr.
 `benchmarkDisposition: compiler-lifecycle`.
 
 W-1652 remains an implementation-evidence gap beyond this bounded numeric

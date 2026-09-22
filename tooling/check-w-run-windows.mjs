@@ -179,6 +179,8 @@ const processIntegerExactSuccessFixture = resolve(seedDirectory, "fixtures",
   "process-integer-exact-success.w")
 const processIntegerExactErrorFixture = resolve(seedDirectory, "fixtures",
   "process-integer-exact-error.w")
+const processIntegerExactRuntimeFixture = resolve(seedDirectory, "fixtures",
+  "process-integer-exact-runtime.w")
 const localGraphFixture = resolve(seedDirectory, "fixtures", "local-graph",
   "app.w")
 const targetTriple = "x86_64-pc-windows-msvc"
@@ -1058,6 +1060,14 @@ try {
     Buffer.alloc(0), "public exact integer conversion success")
   expectExact(binary, ["run", processIntegerExactErrorFixture], 1,
     Buffer.alloc(0), "public exact integer conversion typed error")
+  expectExact(binary, ["run", processIntegerExactRuntimeFixture], 0,
+    Buffer.alloc(0), "public runtime exact integer conversion success")
+  expectExact(binary, ["run", processIntegerExactRuntimeFixture, "--",
+    ...Array.from({ length: 127 }, () => "x")], 0, Buffer.alloc(0),
+  "public runtime exact integer conversion upper boundary")
+  expectExact(binary, ["run", processIntegerExactRuntimeFixture, "--",
+    ...Array.from({ length: 128 }, () => "x")], 1, Buffer.alloc(0),
+  "public runtime exact integer conversion out of range")
   expectExact(binary, ["run", processEnumPayloadFixture], 7,
     Buffer.from("enum-missing true\n", "utf8"),
     "public enum payload process input without arguments")
@@ -1093,6 +1103,8 @@ try {
     "process-integer-exact-success-build.exe")
   const buildProcessIntegerExactError = join(fixtureDirectory,
     "process-integer-exact-error-build.exe")
+  const buildProcessIntegerExactRuntime = join(fixtureDirectory,
+    "process-integer-exact-runtime-build.exe")
   const buildProcessArgumentsCount = join(fixtureDirectory,
     "process-arguments-count-build.exe")
   const buildProcessArgumentsOrdering = join(fixtureDirectory,
@@ -1193,6 +1205,19 @@ try {
     "built exact integer conversion typed-error artifact")
   expectExact(buildProcessIntegerExactError, [], 1, Buffer.alloc(0),
     "execute built exact integer conversion typed-error artifact")
+  expectExact(binary, ["build", processIntegerExactRuntimeFixture, "--target",
+    targetTriple, "--output", buildProcessIntegerExactRuntime], 0,
+  Buffer.alloc(0), "build runtime exact integer conversion fixture")
+  assertPeX64(await readFile(buildProcessIntegerExactRuntime),
+    "built runtime exact integer conversion artifact")
+  expectExact(buildProcessIntegerExactRuntime, [], 0, Buffer.alloc(0),
+    "execute built runtime exact integer conversion success")
+  expectExact(buildProcessIntegerExactRuntime,
+    Array.from({ length: 127 }, () => "x"), 0, Buffer.alloc(0),
+  "execute built runtime exact integer conversion upper boundary")
+  expectExact(buildProcessIntegerExactRuntime,
+    Array.from({ length: 128 }, () => "x"), 1, Buffer.alloc(0),
+  "execute built runtime exact integer conversion out of range")
   expectExact(binary, ["build", processArgumentsCountFixture, "--target",
     targetTriple, "--output", buildProcessArgumentsCount], 0,
     Buffer.alloc(0), "build public process-arguments-count fixture")

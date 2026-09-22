@@ -3310,46 +3310,84 @@
       "blockers": []
     },
     {
-      "id": "process-typed-error-adaptation",
+      "id": "fixed-integer-exact-runtime",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",
       "sourceReadiness": "source-and-oracle-ready",
       "demoEvidence": "bounded-w-demo",
       "benchmarkStatus": "not-performance-ready",
       "lane": "equivalent",
-      "scope": "Prove the public process boundary adapts an unhandled NumericConversionError to exit 1 only after reverse-order structured cleanup; the paired success fixture remains a correctness variant, not a performance sample.",
+      "scope": "Convert the runtime-derived user argument count from logical usize to i8 exactly, preserving a typed NumericConversionError through reverse-order structured cleanup before the process adapter maps failure to status 1. This representative public witness does not replace the focused all-pairs compiler matrix.",
       "oracle": {
-        "kind": "exact-output",
+        "kind": "argument-dependent-output",
         "status": "source-backed",
-        "exitCode": 1,
-        "stdout": "",
-        "stderr": ""
+        "timedInput": [],
+        "cases": [
+          {
+            "arguments": [],
+            "exitCode": 0,
+            "stdout": "",
+            "stderr": ""
+          },
+          {
+            "arguments": ["x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x"],
+            "exitCode": 1,
+            "stdout": "",
+            "stderr": ""
+          }
+        ]
       },
       "sources": [
         {
           "language": "w",
-          "path": "compiler/seed-c/fixtures/process-integer-exact-error.w",
-          "digest": "sha256:0b579d975b8ae45f453bce59edd63c4214a426255c074472e6cff568433532bc",
+          "path": "compiler/seed-c/fixtures/process-integer-exact-runtime.w",
+          "digest": "sha256:132c549f4f87d2bf2ad6407fb6f350522c5423355f93655d2e60f7a19e2eec17",
           "entry": "run",
           "status": "source-oracle-ready",
           "profile": "release",
           "quality": "correctness-gate",
           "recipe": "public-w-build-release",
-          "recipeClass": "process-typed-error-adaptation-release",
+          "recipeClass": "fixed-integer-exact-runtime-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/process_integer_exact_runtime.c",
+          "digest": "sha256:2836dc9f68f81326e07dedd53deccb4c1c7748a07e2578c5bfc5109e4a8cdad6",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "clang-c23-msvc",
+          "recipeClass": "fixed-integer-exact-runtime-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/process_integer_exact_runtime.rs",
+          "digest": "sha256:8e941fa45f64fb98b5a847c43d1f2f6d411437db5884e041bd5ac84e2762175c",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "fixed-integer-exact-runtime-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
           "comparability": "promotable-after-equivalence",
           "eligibility": "promotable-after-equivalence"
         }
       ],
-      "blockedLanguages": [
-        "c",
-        "rust"
-      ],
+      "blockedLanguages": [],
       "blockers": [
-        "runtime-driven-family-workload",
-        "equivalent-c23-reference",
-        "equivalent-rust-reference"
+        "observable-success-value",
+        "steady-runtime-family-workload"
       ]
     },
     {

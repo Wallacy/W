@@ -1229,6 +1229,13 @@ static bool test_process_integer_exactly_adapter(void) {
       "ProcessExitCode throws NumericConversionError { "
       "let narrowed = try i8(exactly: 128) return .success }\n"
       "entry(run)\n";
+  static const uint8_t runtime_source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let narrowed = try i8(exactly: args.count) return .success }\n"
+      "entry(run)\n";
   static const uint8_t direct_throw_source[] =
       "import { Arguments as ProcessArguments, Context as ProcessContext, "
       "ExitCode as ProcessExitCode } from std.process\n"
@@ -1238,9 +1245,11 @@ static bool test_process_integer_exactly_adapter(void) {
       "entry(run)\n";
   static uint8_t success_output[W_SEED_MLIR0_MAX_BYTES];
   static uint8_t error_output[W_SEED_MLIR0_MAX_BYTES];
+  static uint8_t runtime_output[W_SEED_MLIR0_MAX_BYTES];
   static uint8_t rejected_output[W_SEED_MLIR0_MAX_BYTES];
   w_seed_native0_result success_result;
   w_seed_native0_result error_result;
+  w_seed_native0_result runtime_result;
   w_seed_native0_result rejected_result;
   const w_seed_native0_status success_status = run_source_mode(
       success_source, sizeof(success_source) - 1u, "process-exact-success",
@@ -1260,6 +1269,34 @@ static bool test_process_integer_exactly_adapter(void) {
         selection.exact_source_bit_width == 64u &&
         selection.exact_destination_bit_width == 8u &&
         selection.exact_source_is_signed && selection.exact_destination_is_signed);
+  const w_seed_native0_status runtime_status = run_source_mode(
+      runtime_source, sizeof(runtime_source) - 1u, "process-exact-runtime",
+      21u, &WINDOWS_TARGET, W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE,
+      runtime_output, sizeof(runtime_output), &runtime_result);
+  CHECK(runtime_status == W_SEED_NATIVE0_OK);
+  CHECK(w_seed_native_subset0_select_process_executable(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+            W_SEED_NATIVE_SUBSET0_OK &&
+        selection.has_integer_exactly &&
+        selection.exact_source_is_target_usize &&
+        selection.exact_source_bit_width == 0u &&
+        !selection.exact_source_is_signed &&
+        selection.exact_destination_bit_width == 8u &&
+        selection.exact_destination_is_signed &&
+        contains_bytes(runtime_output, runtime_result.mlir.written.mlir_bytes,
+                       "@w_seed_process_arguments_count") &&
+        contains_bytes(runtime_output, runtime_result.mlir.written.mlir_bytes,
+                       "llvm.icmp \"ule\""));
+  const size_t runtime_exact_source_index =
+      (size_t)(selection.exact_source_value - storage.hir_program.values);
+  CHECK(runtime_exact_source_index < storage.hir_program.value_count);
+  const w_seed_hir0_value saved_runtime_exact_source =
+      storage.hir_values[runtime_exact_source_index];
+  storage.hir_values[runtime_exact_source_index].external_symbol_index = 5u;
+  CHECK(w_seed_native_subset0_select_process_executable(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_INVALID);
+  storage.hir_values[runtime_exact_source_index] = saved_runtime_exact_source;
   const w_seed_hir0_entry_cleanup_kind exact_cleanup =
       storage.hir_program.entries[0].cleanup_obligation;
   w_seed_hir0_program mutated_program = storage.hir_program;

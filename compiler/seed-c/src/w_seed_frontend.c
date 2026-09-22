@@ -10923,6 +10923,30 @@ static bool integer_conversion_source_type(frontend_simple_type source,
   return true;
 }
 
+/* Keep target-sized integers outside the general fixed-width conversion
+ * family.  The one public ingress admitted here is the resolver-owned
+ * std.process Arguments.count member used by an exact conversion.  Its
+ * logical usize identity survives into HIR.  The current seed profile is
+ * x86-64 and therefore records 64 bits; later stages must still validate the
+ * selected x64 target before choosing a physical carrier. */
+static bool integer_exactly_source_type(const frontend_expr_value *value,
+                                        frontend_simple_type *type) {
+  if (type != NULL) *type = simple_type_unknown();
+  if (value == NULL || type == NULL) return false;
+  if (integer_conversion_source_type(value->type, type)) return true;
+  if (!value->is_external_member ||
+      value->external_member_module_index != 0u ||
+      value->external_member_symbol_index != 6u ||
+      !text_equal(value->name, "count") ||
+      value->type.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+      value->type.is_signed ||
+      value->type.bit_width != (uint16_t)W_SEED_FRONTEND_TARGET_USIZE_BITS ||
+      !text_equal(value->type.spelling, "usize"))
+    return false;
+  *type = value->type;
+  return true;
+}
+
 static frontend_simple_type u64_bool_tuple_type(void) {
   frontend_simple_type type = simple_type_unknown();
   type.kind = W_SEED_FRONTEND_TYPE_TUPLE;
@@ -13548,7 +13572,7 @@ static bool expression_append_integer_exactly(
   if (parser == NULL || value == NULL || !parser->allow_integer_exactly ||
       !integer_type_constructor_for_spelling(destination.spelling,
                                               &canonical_destination) ||
-      !integer_conversion_source_type(value->type, &canonical_source) ||
+      !integer_exactly_source_type(value, &canonical_source) ||
       canonical_source.is_signed != value->type.is_signed ||
       canonical_source.bit_width != value->type.bit_width ||
       canonical_destination.is_signed != destination.is_signed ||
@@ -14873,7 +14897,7 @@ static bool expression_parse_integer_conversion_call(
       shape_valid && argument_count == 1u && source.supported &&
       integer_type_constructor_for_spelling(constructor->type.spelling,
                                             &checked_destination) &&
-      integer_conversion_source_type(source.type, &checked_source) &&
+      integer_exactly_source_type(&source, &checked_source) &&
       checked_source.is_signed == source.type.is_signed &&
       checked_source.bit_width == source.type.bit_width;
   const bool valid_numeric_widen =
