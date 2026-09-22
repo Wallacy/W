@@ -6906,6 +6906,212 @@ static bool process_integer_exact_root_supported(
   return true;
 }
 
+/* Admit the bounded native-process witness whose body rounds one compile-time
+ * float and publishes the normal, non-finite, and out-of-range edges.  This
+ * is a separate relation from INTEGER_EXACTLY: the source remains a constant
+ * float, the result is carried only through the normal block argument, and
+ * both typed error arms are consumed by the process cleanup contract. */
+static bool process_float_to_integer_rounding_root_supported(
+    const w_seed_hir0_program *program,
+    w_seed_native_subset0_process *process) {
+  if (program == NULL || process == NULL || process->function == NULL ||
+      process->function_index >= program->function_count)
+    return false;
+  const w_seed_hir0_function *function = process->function;
+  if (!function->is_throws || function->error_type >= program->type_count ||
+      program->types[function->error_type].kind !=
+          W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR ||
+      function->first_block >= program->block_count ||
+      function->block_count != 4u ||
+      function->block_count > program->block_count - function->first_block ||
+      program->call_count != 0u || program->binding_count != 1u ||
+      program->instruction_count != 1u)
+    return false;
+
+  const uint32_t split_index = function->first_block;
+  const uint32_t block_limit = function->first_block + function->block_count;
+  const w_seed_hir0_block *split = &program->blocks[split_index];
+  if (split->owner_function != process->function_index ||
+      split->terminator_index >= program->terminator_count ||
+      split->instruction_count != 0u || split->block_argument_count != 0u)
+    return false;
+  const w_seed_hir0_terminator *conversion =
+      &program->terminators[split->terminator_index];
+  const uint32_t normal_index = conversion->target_block;
+  const uint32_t non_finite_index = conversion->else_block;
+  const uint32_t out_of_range_index = conversion->third_block;
+  if (conversion->owner_block != split_index ||
+      conversion->kind != W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING ||
+      conversion->error_type != function->error_type ||
+      conversion->numeric_conversion_error_case !=
+          W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_NONE ||
+      conversion->rounding_mode < W_SEED_HIR0_ROUNDING_MODE_NEAREST_EVEN ||
+      conversion->rounding_mode > W_SEED_HIR0_ROUNDING_MODE_TOWARD_NEGATIVE ||
+      conversion->value_index >= program->value_count ||
+      conversion->result_type >= program->type_count ||
+      normal_index < function->first_block || normal_index >= block_limit ||
+      non_finite_index < function->first_block ||
+      non_finite_index >= block_limit ||
+      out_of_range_index < function->first_block ||
+      out_of_range_index >= block_limit || normal_index == split_index ||
+      non_finite_index == split_index || out_of_range_index == split_index ||
+      normal_index == non_finite_index || normal_index == out_of_range_index ||
+      non_finite_index == out_of_range_index)
+    return false;
+
+  uint16_t source_width = 0u;
+  native_integer_facts destination_facts;
+  const w_seed_hir0_value *source = &program->values[conversion->value_index];
+  if (source->kind != W_SEED_HIR0_VALUE_CONST_FLOAT ||
+      !native_float_type_width(program, source->type_index, &source_width) ||
+      !native_integer_type_facts(program, conversion->result_type,
+                                 &destination_facts))
+    return false;
+
+  const w_seed_hir0_block *normal = &program->blocks[normal_index];
+  const w_seed_hir0_block *non_finite = &program->blocks[non_finite_index];
+  const w_seed_hir0_block *out_of_range =
+      &program->blocks[out_of_range_index];
+  if (normal->owner_function != process->function_index ||
+      non_finite->owner_function != process->function_index ||
+      out_of_range->owner_function != process->function_index ||
+      normal->instruction_count != 1u ||
+      non_finite->instruction_count != 0u ||
+      out_of_range->instruction_count != 0u ||
+      normal->block_argument_count != 1u ||
+      non_finite->block_argument_count != 1u ||
+      out_of_range->block_argument_count != 1u ||
+      normal->first_instruction >= program->instruction_count ||
+      normal->instruction_count >
+          program->instruction_count - normal->first_instruction ||
+      non_finite->first_instruction > program->instruction_count ||
+      out_of_range->first_instruction > program->instruction_count ||
+      normal->first_block_argument >= program->block_argument_count ||
+      non_finite->first_block_argument >= program->block_argument_count ||
+      out_of_range->first_block_argument >= program->block_argument_count ||
+      normal->terminator_index >= program->terminator_count ||
+      non_finite->terminator_index >= program->terminator_count ||
+      out_of_range->terminator_index >= program->terminator_count)
+    return false;
+  const w_seed_hir0_block_argument *normal_argument =
+      &program->block_arguments[normal->first_block_argument];
+  const w_seed_hir0_block_argument *non_finite_argument =
+      &program->block_arguments[non_finite->first_block_argument];
+  const w_seed_hir0_block_argument *out_of_range_argument =
+      &program->block_arguments[out_of_range->first_block_argument];
+  if (normal_argument->owner_block != normal_index ||
+      normal_argument->ordinal != 0u ||
+      normal_argument->type_index != conversion->result_type ||
+      non_finite_argument->owner_block != non_finite_index ||
+      non_finite_argument->ordinal != 0u ||
+      non_finite_argument->type_index != function->error_type ||
+      out_of_range_argument->owner_block != out_of_range_index ||
+      out_of_range_argument->ordinal != 0u ||
+      out_of_range_argument->type_index != function->error_type)
+    return false;
+
+  const w_seed_hir0_instruction *instruction =
+      &program->instructions[normal->first_instruction];
+  if (instruction->owner_block != normal_index || instruction->ordinal != 0u ||
+      instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
+      instruction->binding_index >= program->binding_count)
+    return false;
+  const w_seed_hir0_binding *binding =
+      &program->bindings[instruction->binding_index];
+  if (binding->owner_block != normal_index || binding->is_mutable ||
+      binding->type_index != conversion->result_type ||
+      binding->initializer_value >= program->value_count)
+    return false;
+  const w_seed_hir0_value *initializer =
+      &program->values[binding->initializer_value];
+  if (initializer->kind != W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
+      initializer->owner_kind != W_SEED_HIR0_VALUE_OWNER_BINDING ||
+      initializer->owner_index != instruction->binding_index ||
+      initializer->owner_ordinal != 0u ||
+      initializer->type_index != conversion->result_type ||
+      initializer->block_argument_index != normal->first_block_argument)
+    return false;
+
+  const w_seed_hir0_terminator *normal_return =
+      &program->terminators[normal->terminator_index];
+  const w_seed_hir0_terminator *non_finite_throw =
+      &program->terminators[non_finite->terminator_index];
+  const w_seed_hir0_terminator *out_of_range_throw =
+      &program->terminators[out_of_range->terminator_index];
+  if (normal_return->owner_block != normal_index ||
+      normal_return->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
+      normal_return->result_type != function->return_type ||
+      normal_return->error_type != W_SEED_HIR0_NONE ||
+      normal_return->target_block != W_SEED_HIR0_NONE ||
+      normal_return->else_block != W_SEED_HIR0_NONE ||
+      normal_return->third_block != W_SEED_HIR0_NONE ||
+      normal_return->value_index >= program->value_count ||
+      non_finite_throw->owner_block != non_finite_index ||
+      non_finite_throw->kind != W_SEED_HIR0_TERMINATOR_THROW ||
+      non_finite_throw->result_type != function->error_type ||
+      non_finite_throw->error_type != W_SEED_HIR0_NONE ||
+      non_finite_throw->target_block != W_SEED_HIR0_NONE ||
+      non_finite_throw->else_block != W_SEED_HIR0_NONE ||
+      non_finite_throw->third_block != W_SEED_HIR0_NONE ||
+      non_finite_throw->value_index >= program->value_count ||
+      out_of_range_throw->owner_block != out_of_range_index ||
+      out_of_range_throw->kind != W_SEED_HIR0_TERMINATOR_THROW ||
+      out_of_range_throw->result_type != function->error_type ||
+      out_of_range_throw->error_type != W_SEED_HIR0_NONE ||
+      out_of_range_throw->target_block != W_SEED_HIR0_NONE ||
+      out_of_range_throw->else_block != W_SEED_HIR0_NONE ||
+      out_of_range_throw->third_block != W_SEED_HIR0_NONE ||
+      out_of_range_throw->value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *success =
+      &program->values[normal_return->value_index];
+  const w_seed_hir0_value *non_finite_value =
+      &program->values[non_finite_throw->value_index];
+  const w_seed_hir0_value *out_of_range_value =
+      &program->values[out_of_range_throw->value_index];
+  if (success->kind != W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE ||
+      success->type_index != function->return_type ||
+      success->external_module_index != 0u ||
+      success->external_symbol_index != process->success_symbol_index ||
+      success->left_value != W_SEED_HIR0_NONE ||
+      !text_is(program, success->member_name, (const uint8_t *)"success", 7u) ||
+      non_finite_value->kind != W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
+      non_finite_value->owner_kind != W_SEED_HIR0_VALUE_OWNER_TERMINATOR ||
+      non_finite_value->owner_index != non_finite->terminator_index ||
+      non_finite_value->owner_ordinal != 0u ||
+      non_finite_value->type_index != function->error_type ||
+      non_finite_value->block_argument_index !=
+          non_finite->first_block_argument ||
+      out_of_range_value->kind != W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
+      out_of_range_value->owner_kind != W_SEED_HIR0_VALUE_OWNER_TERMINATOR ||
+      out_of_range_value->owner_index != out_of_range->terminator_index ||
+      out_of_range_value->owner_ordinal != 0u ||
+      out_of_range_value->type_index != function->error_type ||
+      out_of_range_value->block_argument_index !=
+          out_of_range->first_block_argument)
+    return false;
+
+  process->rounding_source_value = source;
+  process->rounding_conversion = conversion;
+  process->rounding_normal_return = normal_return;
+  process->rounding_non_finite_throw = non_finite_throw;
+  process->rounding_out_of_range_throw = out_of_range_throw;
+  process->rounding_split_block_index = split_index;
+  process->rounding_normal_block_index = normal_index;
+  process->rounding_non_finite_block_index = non_finite_index;
+  process->rounding_out_of_range_block_index = out_of_range_index;
+  process->rounding_source_type_index = source->type_index;
+  process->rounding_destination_type_index = conversion->result_type;
+  process->rounding_error_type_index = function->error_type;
+  process->rounding_source_bit_width = source_width;
+  process->rounding_destination_bit_width = destination_facts.bit_width;
+  process->rounding_destination_is_signed = destination_facts.is_signed;
+  process->rounding_mode = conversion->rounding_mode;
+  process->maximum_stdout_bytes = 0u;
+  process->has_float_to_integer_rounding = true;
+  return true;
+}
+
 static bool process_function_body_supported(
     const w_seed_hir0_program *program,
     const w_seed_native_subset0_process *process,
@@ -7259,7 +7465,9 @@ select_process_executable_mode(
   if (function->is_throws) {
     if (entry->cleanup_obligation !=
             W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_ALL_OUTCOMES ||
-        !process_integer_exact_root_supported(program, &candidate))
+        (!process_integer_exact_root_supported(program, &candidate) &&
+         !process_float_to_integer_rounding_root_supported(program,
+                                                           &candidate)))
       return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
   } else if (entry->cleanup_obligation !=
              W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS) {
@@ -7282,11 +7490,14 @@ select_process_executable_mode(
       parallel_selection->root_function_index != candidate.function_index)
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
   if ((!candidate.has_integer_exactly &&
+       !candidate.has_float_to_integer_rounding &&
        !process_function_body_supported(program, &candidate,
                                         parallel_selection)))
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
-  if (candidate.has_integer_exactly) {
-    if ((program->call_count != 0u && candidate.maximum_stdout_bytes == 0u) ||
+  if (candidate.has_integer_exactly ||
+      candidate.has_float_to_integer_rounding) {
+    if ((candidate.has_integer_exactly && program->call_count != 0u &&
+         candidate.maximum_stdout_bytes == 0u) ||
         candidate.maximum_stdout_bytes > W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES)
       return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
   } else {

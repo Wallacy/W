@@ -52,6 +52,10 @@ const processIntegerExactSuccessFixture = resolve(seedDirectory, "fixtures",
   "process-integer-exact-success.w")
 const processIntegerExactErrorFixture = resolve(seedDirectory, "fixtures",
   "process-integer-exact-error.w")
+const processFloatRoundingSuccessFixture = resolve(seedDirectory, "fixtures",
+  "process-float-rounding-success.w")
+const processFloatRoundingErrorFixture = resolve(seedDirectory, "fixtures",
+  "process-float-rounding-error.w")
 const processIntegerExactRuntimeFixture = resolve(seedDirectory, "fixtures",
   "process-fixed-integer-arithmetic.w")
 const localGraphFixture = resolve(seedDirectory, "fixtures", "local-graph",
@@ -292,9 +296,10 @@ export function validateManifest(manifest, mode = ciMode) {
   const commands = manifest.commands
   const expectedCommands = mode
     ? { mlirOpt: "mlir-opt", mlirTranslate: "mlir-translate",
-        llvmConfig: "llvm-config", llc: "llc", linkDriver: "/usr/bin/ld" }
+        llvmConfig: "llvm-config", llvmOpt: "opt", llc: "llc",
+        linkDriver: "/usr/bin/ld" }
     : { mlirOpt: "mlir-opt", mlirTranslate: "mlir-translate",
-        llvmConfig: "llvm-config", clang: "clang", llc: "llc",
+        llvmConfig: "llvm-config", llvmOpt: "opt", clang: "clang", llc: "llc",
         linkDriver: "/usr/bin/ld" }
   for (const [role, expected] of Object.entries(expectedCommands)) {
     const command = commands?.[role]
@@ -302,7 +307,7 @@ export function validateManifest(manifest, mode = ciMode) {
       JSON.stringify(command.versionArgs) === JSON.stringify(["--version"]),
     `toolchain command ${role} is not the pinned absolute command`)
   }
-  assert(Array.isArray(manifest.pipeline) && manifest.pipeline.length === (mode ? 5 : 3),
+  assert(Array.isArray(manifest.pipeline) && manifest.pipeline.length === (mode ? 6 : 3),
     "toolchain pipeline is invalid")
   const pipeline = manifest.pipeline
   assert(pipeline[0]?.tool === "mlir-opt" &&
@@ -319,18 +324,24 @@ export function validateManifest(manifest, mode = ciMode) {
       manifest.hostLink?.targetFamily === "elf_x86_64" &&
       JSON.stringify(manifest.hostLink?.targetProbe) === JSON.stringify(["-V"]),
     "native linker contract changed")
-    assert(pipeline[2]?.tool === "llc" &&
+    assert(pipeline[2]?.tool === "opt" &&
       JSON.stringify(pipeline[2].args) === JSON.stringify([
-        `-mtriple=${targetTriple}`, "-filetype=obj", "-relocation-model=pic",
-        "<output.ll>", "-o", "<output.o>",
-      ]), "llc recipe changed")
+        "--disable-simplify-libcalls", "-passes=instcombine,simplifycfg",
+        "-S", "<output.ll>", "-o",
+        "<optimized.ll>",
+      ]), "LLVM optimization recipe changed")
     assert(pipeline[3]?.tool === "llc" &&
       JSON.stringify(pipeline[3].args) === JSON.stringify([
         `-mtriple=${targetTriple}`, "-filetype=obj", "-relocation-model=pic",
+        "<optimized.ll>", "-o", "<output.o>",
+      ]), "llc recipe changed")
+    assert(pipeline[4]?.tool === "llc" &&
+      JSON.stringify(pipeline[4].args) === JSON.stringify([
+        `-mtriple=${targetTriple}`, "-filetype=obj", "-relocation-model=pic",
         "<wrt0.ll>", "-o", "<wrt0.o>",
       ]), "WRT0 object recipe changed")
-    assert(pipeline[4]?.tool === "link-driver" &&
-      JSON.stringify(pipeline[4].args) === JSON.stringify([
+    assert(pipeline[5]?.tool === "link-driver" &&
+      JSON.stringify(pipeline[5].args) === JSON.stringify([
         "-pie", "--no-dynamic-linker", "-e", "_start", "--gc-sections",
         "-z", "noexecstack", "<output.o>", "<wrt0.o>", "-o",
         "<executable>",
@@ -353,7 +364,8 @@ export function validateManifest(manifest, mode = ciMode) {
   return { mlirOpt: expectedCommands.mlirOpt,
     mlirTranslate: expectedCommands.mlirTranslate,
     llvmConfig: expectedCommands.llvmConfig,
-    llc: expectedCommands.llc, linkDriver: expectedCommands.linkDriver }
+    llvmOpt: expectedCommands.llvmOpt, llc: expectedCommands.llc,
+    linkDriver: expectedCommands.linkDriver }
 }
 
 function wslRun(command, args) {
@@ -617,12 +629,13 @@ const commands = validateManifest(manifest)
 const runSource = await readFile(resolve(seedDirectory, "cli", "run.c"), "utf8")
 const buildSource = await readFile(resolve(seedDirectory, "cli", "build.c"), "utf8")
 for (const marker of ["W_SEED_LINUX_MLIR_OPT_PATH",
-  "W_SEED_LINUX_MLIR_TRANSLATE_PATH", "W_SEED_LINUX_LLC_PATH",
+  "W_SEED_LINUX_MLIR_TRANSLATE_PATH", "W_SEED_LINUX_LLVM_OPT_PATH",
+  "W_SEED_LINUX_LLC_PATH",
   "W_SEED_LINUX_LINK_DRIVER_PATH"])
   assert(runSource.includes(marker), `cli/run.c does not use ${marker}`)
 for (const marker of ["--convert-scf-to-cf", "--convert-arith-to-llvm",
   "--convert-func-to-llvm", "--convert-cf-to-llvm",
-  "--canonicalize", "--cse", "-O3", "-s",
+  "--canonicalize", "--cse", "--disable-simplify-libcalls", "-O3", "-s",
   "--no-dynamic-linker", "--gc-sections", "_start", "w_seed_wrt0_get"])
   assert(runSource.includes(marker),
     `cli/run.c is missing the release build flag ${marker}`)
@@ -630,7 +643,7 @@ assert(runSource.includes("W_SEED_RUN_COMPILE_PROFILE_DEV"),
   "cli/run.c does not select the development compile profile for w run")
 assert(buildSource.includes("W_SEED_RUN_COMPILE_PROFILE_RELEASE"),
   "cli/build.c does not select the release compile profile for w build")
-const llvmRoles = ["mlirOpt", "mlirTranslate", "llvmConfig", "llc"]
+const llvmRoles = ["mlirOpt", "mlirTranslate", "llvmConfig", "llvmOpt", "llc"]
 const roles = [...llvmRoles, "linkDriver"]
 const externalToolchainRoot = !ciMode &&
   process.env.W_MLIR0_TOOLCHAIN_ROOT !== undefined
@@ -669,7 +682,7 @@ assert(linkVersion.exitCode === 0, "native linker version probe failed")
 console.log(`W RUN: LLVM tools ${developmentPatchCompatibility
   ? "23.1.x development-compatible" : expectedVersion}; native linker ${resolvedCommands.linkDriver}: ` +
   `${linkVersion.stdoutBytes.toString().split(/\r?\n/u)[0]}; target elf_x86_64`)
-console.log("W RUN: stages MLIR → LLVM IR → llc PIC objects → WRT0 + direct static-PIE link (no CRT/libc)")
+console.log("W RUN: stages MLIR → LLVM IR → LLVM opt (no simplify-libcalls) → llc PIC objects → WRT0 + direct static-PIE link (no CRT/libc)")
 
 const cmake = isWindows ? "cmake" : Bun.which("cmake")
 const ninja = isWindows ? "ninja" : Bun.which("ninja")
@@ -726,6 +739,7 @@ try {
     mlirOpt: "mlir-opt",
     mlirTranslate: "mlir-translate",
     llvmConfig: "llvm-config",
+    llvmOpt: "opt",
     llc: "llc",
     linkDriver: "ld",
   }
@@ -754,6 +768,7 @@ try {
     `-DW_MLIR0_LINUX_MLIR_OPT:FILEPATH=${configuredCommands.mlirOpt}`,
     `-DW_MLIR0_LINUX_MLIR_TRANSLATE:FILEPATH=${configuredCommands.mlirTranslate}`,
     `-DW_MLIR0_LINUX_LLVM_CONFIG:FILEPATH=${configuredCommands.llvmConfig}`,
+    `-DW_MLIR0_LINUX_LLVM_OPT:FILEPATH=${configuredCommands.llvmOpt}`,
     `-DW_MLIR0_LINUX_LLC:FILEPATH=${configuredCommands.llc}`,
     `-DW_MLIR0_LINUX_LINK_DRIVER:FILEPATH=${configuredCommands.linkDriver}`,
   ]
@@ -1395,6 +1410,10 @@ try {
     Buffer.alloc(0), "Linux public exact integer conversion success")
   expectExact(binary, ["run", toWsl(processIntegerExactErrorFixture)], 1,
     Buffer.alloc(0), "Linux public exact integer conversion typed error")
+  expectExact(binary, ["run", toWsl(processFloatRoundingSuccessFixture)], 0,
+    Buffer.alloc(0), "Linux public constant float rounding success")
+  expectExact(binary, ["run", toWsl(processFloatRoundingErrorFixture)], 1,
+    Buffer.alloc(0), "Linux public constant float rounding typed error")
   expectExact(binary, ["run", toWsl(processIntegerExactRuntimeFixture)], 0,
     Buffer.from("Arithmetic 0/4/1\n", "utf8"),
     "Linux public runtime fixed-integer arithmetic success")
@@ -1445,6 +1464,10 @@ try {
     "process-integer-exact-success-build")
   const buildProcessIntegerExactError = buildOutput(
     "process-integer-exact-error-build")
+  const buildProcessFloatRoundingSuccess = buildOutput(
+    "process-float-rounding-success-build")
+  const buildProcessFloatRoundingError = buildOutput(
+    "process-float-rounding-error-build")
   const buildProcessIntegerExactRuntime = buildOutput(
     "process-fixed-integer-arithmetic-build")
   const buildProcessArgumentsCount = buildOutput("process-arguments-count-build")
@@ -1528,6 +1551,18 @@ try {
   assertCrtFreeElf(await readBuildArtifact(buildProcessIntegerExactError))
   expectExact(buildProcessIntegerExactError, [], 1, Buffer.alloc(0),
     "execute built Linux exact integer conversion typed-error artifact")
+  expectSuccess(binary, ["build", toWsl(processFloatRoundingSuccessFixture),
+    "--target", targetTriple, "--output", buildProcessFloatRoundingSuccess],
+  Buffer.alloc(0), "build Linux constant float rounding success fixture")
+  assertCrtFreeElf(await readBuildArtifact(buildProcessFloatRoundingSuccess))
+  expectExact(buildProcessFloatRoundingSuccess, [], 0, Buffer.alloc(0),
+    "execute built Linux constant float rounding success artifact")
+  expectSuccess(binary, ["build", toWsl(processFloatRoundingErrorFixture),
+    "--target", targetTriple, "--output", buildProcessFloatRoundingError],
+  Buffer.alloc(0), "build Linux constant float rounding typed-error fixture")
+  assertCrtFreeElf(await readBuildArtifact(buildProcessFloatRoundingError))
+  expectExact(buildProcessFloatRoundingError, [], 1, Buffer.alloc(0),
+    "execute built Linux constant float rounding typed-error artifact")
   expectSuccess(binary, ["build", toWsl(processIntegerExactRuntimeFixture),
     "--target", targetTriple, "--output", buildProcessIntegerExactRuntime],
   Buffer.alloc(0), "build Linux runtime fixed-integer arithmetic fixture")
@@ -1694,7 +1729,7 @@ try {
       await symlink(destination, linkPath)
     }
   }
-  for (const role of ["mlirOpt", "mlirTranslate", "llc", "linkDriver"]) {
+  for (const role of ["mlirOpt", "mlirTranslate", "llvmOpt", "llc", "linkDriver"]) {
     try {
       await replaceToolLink(role, failureToolForHost)
       expectSourceFailure(binary, toWsl(helloFixture), `${role} stage failure`)

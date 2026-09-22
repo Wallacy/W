@@ -12,7 +12,7 @@ This document projects W-1533. It does not claim a released W package.
 | release-builder | hermetic minimal builder | no | in-process APIs, no CLI tool copy |
 | end-user-package | compact hermetic toolchain | yes | W executable and signed target packs |
 
-The development cache may contain `mlir-opt`, `mlir-translate`, `llc`, `lld-link`,
+The development cache may contain `mlir-opt`, `mlir-translate`, `opt`, `llc`, `lld-link`,
 headers, MLIR/LLVM/LLD development static libraries, debug files, and text tools. It is not the W package.
 The current Windows cache is described by
 [tooling/mlir0-windows-toolchain.json](tooling/mlir0-windows-toolchain.json).
@@ -32,7 +32,7 @@ none of the C23 compiler, CMake, Bun, or MLIR/LLVM command-line tools. The
 package contains the W executable, signed target packs, and required runtime
 components. This is a distribution contract, not a released-package claim.
 
-The native route is `W source → verified HIR → MLIR → LLVM IR → object → link → target executable`.
+The native route is `W source → verified HIR → MLIR → LLVM IR → LLVM optimization → object → link → target executable`.
 It never lowers W source to C. The legacy Linux `clang -x ir` gate uses
 Clang only as a temporary link-driver bridge for generated LLVM IR.
 
@@ -96,7 +96,7 @@ garbage collection, and dead stripping are conditional on benchmark no-regressio
 `MinSizeRel` is experimental comparison only. It uses only X86 and AArch64
 primary targets.
 
-The end-user package excludes `mlir-opt`, `mlir-translate`, `llc`, `lld-link`,
+The end-user package excludes `mlir-opt`, `mlir-translate`, `opt`, `llc`, `lld-link`,
 Clang CLI, generic MLIR textual parsers, headers, MLIR/LLVM/LLD development static libraries, and debug files.
 Target packs are W-signed, versioned, and included in the standard package.
 A separately signed install option requires measured budget failure and explicit review.

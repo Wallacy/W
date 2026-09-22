@@ -25,7 +25,7 @@ const expectedFilename =
   "llvm-mlir_llvmorg-23.1.1_x86_64-unknown-linux-gnu.tar.zst"
 const releaseBase =
   "https://github.com/munich-quantum-software/portable-mlir-toolchain/releases/download"
-const requiredTools = ["mlir-opt", "mlir-translate", "llvm-config", "llc"]
+const requiredTools = ["mlir-opt", "mlir-translate", "llvm-config", "opt", "llc"]
 
 function fail(message) {
   throw new Error(`MLIR0 Linux toolchain: ${message}`)

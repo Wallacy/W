@@ -36,6 +36,10 @@
       "linux": "llvm-config",
       "versionArgs": ["--version"]
     },
+    "llvmOpt": {
+      "linux": "opt",
+      "versionArgs": ["--version"]
+    },
     "llc": {
       "linux": "llc",
       "versionArgs": ["--version"]
@@ -55,12 +59,16 @@
       "args": ["--mlir-to-llvmir", "<verified.mlir>", "-o", "<output.ll>"]
     },
     {
+      "tool": "opt",
+      "args": ["--disable-simplify-libcalls", "-passes=instcombine,simplifycfg", "-S", "<output.ll>", "-o", "<optimized.ll>"]
+    },
+    {
       "tool": "llc",
       "args": [
         "-mtriple=x86_64-unknown-linux-gnu",
         "-filetype=obj",
         "-relocation-model=pic",
-        "<output.ll>",
+        "<optimized.ll>",
         "-o",
         "<output.o>"
       ]

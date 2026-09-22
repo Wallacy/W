@@ -15,7 +15,7 @@ deve exigir esses itens na máquina target. O pacote deve incluir o compiler W, 
 target packs assinados e o runtime necessário. Ele não deve baixar uma toolchain
 silenciosamente. O pacote público ainda é futuro.
 
-A rota nativa de source W é `W source → verified HIR → MLIR → LLVM IR → object →
+A rota nativa de source W é `W source → verified HIR → MLIR → LLVM IR → LLVM opt → object →
 link`. Ela nunca converte W source em C. O orçamento inicial do compiler
 empacotado é `<=64 MiB` comprimido. A prioridade de Release é performance, não
 tamanho. A ambição cross-target permanece para todos os targets suportados.
@@ -2975,7 +2975,7 @@ HIR94 admits one bounded binding continuation and composes that split into a
 restricted process root. ProductClosure0 v4 publishes the source split plus
 separate normal and `NumericConversionError.outOfRange` successor facts. It
 authenticates reverse-initialization `Context`-then-`Arguments` release on both
-normal success and typed error. Process-executable v5 retains a private outcome
+normal success and typed error. Process-executable v6 retains a private outcome
 carrier while materializing both releases and root finalization, then maps the
 typed-error arm to status 1. The public `process-fixed-integer-arithmetic.w`
 fixture executes through `w run` and `w build` on CRT-free Windows x64 and
@@ -3029,9 +3029,18 @@ three roles and the rounding mode. HIR96 additionally accepts one bounded
 `native-process@1` body whose source is a compile-time float expression, keeps
 the normal/non-finite/out-of-range successors distinct, and proves Context then
 Arguments cleanup on every outcome. ProductClosure0 v4 independently admits
-this bounded process root and publishes the same three outcome roles. Runtime
-float ingress and native product execution remain gaps. This increment provides
-no executable, runtime, public ABI, timing, or performance evidence.
+this bounded process root and publishes the same three outcome roles.
+Process-executable v6 independently rederives it, classifies finite values,
+applies the selected intrinsic, checks exact half-open bounds, and performs
+`fptosi`/`fptoui` only on the proven-valid edge. Public CRT-free Windows x64
+and Linux/WSL x64 gates execute one constant success (`2.5_f64`, nearest-even,
+`i8`, status 0) and one constant out-of-range failure (`256.0_f64`,
+toward-zero, `i8`, status 1), both with empty stdout/stderr and cleanup before
+process adaptation. The bootstrap runs LLVM `opt` between translation and
+`llc`; simplify-libcalls is disabled so module optimization cannot silently
+introduce a CRT/libc dependency. Runtime float ingress, observable rounded
+payloads, public non-finite execution, independent raw-bit boundary oracles,
+stable ABI, timing, and performance remain gaps.
 `benchmarkDisposition: compiler-lifecycle`.
 
 ### Native-process unhandled typed-error root HIR (W-1652)
@@ -3048,7 +3057,7 @@ order: `Context`, then `Arguments`. The conversion form contains one integer
 `try D(exactly:)` binding and a normal `ProcessExitCode` return. ProductClosure0
 v4 publishes its normal and typed-error successors and the uniform
 reverse-initialization cleanup policy. Other typed root shapes remain
-unsupported. Process-executable v5 materializes the exact-conversion cleanup
+unsupported. Process-executable v6 materializes the exact-conversion cleanup
 obligation and defers adaptation until after root finalization.
 
 This is compiler-lifecycle evidence. The exact-conversion form executes through

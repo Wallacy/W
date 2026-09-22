@@ -96,7 +96,7 @@ describe("verified Linux MLIR archive acquisition", () => {
         },
         distribution,
         bin: "bin",
-        requiredTools: ["mlir-opt", "mlir-translate", "llvm-config", "llc"],
+        requiredTools: ["mlir-opt", "mlir-translate", "llvm-config", "opt", "llc"],
       })
     } finally {
       await rm(workspace, { recursive: true, force: true })

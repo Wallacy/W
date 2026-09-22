@@ -179,6 +179,10 @@ const processIntegerExactSuccessFixture = resolve(seedDirectory, "fixtures",
   "process-integer-exact-success.w")
 const processIntegerExactErrorFixture = resolve(seedDirectory, "fixtures",
   "process-integer-exact-error.w")
+const processFloatRoundingSuccessFixture = resolve(seedDirectory, "fixtures",
+  "process-float-rounding-success.w")
+const processFloatRoundingErrorFixture = resolve(seedDirectory, "fixtures",
+  "process-float-rounding-error.w")
 const processIntegerExactRuntimeFixture = resolve(seedDirectory, "fixtures",
   "process-fixed-integer-arithmetic.w")
 const localGraphFixture = resolve(seedDirectory, "fixtures", "local-graph",
@@ -335,7 +339,8 @@ async function readMaterialized(manifest) {
   assert(document.distributionRole === "development-and-release-only" &&
     document.bundledWithW === false && document.extractedSizeIsWBudget === false,
   "materialized cache is not separated from W distribution")
-  for (const name of ["mlir-opt.exe", "mlir-translate.exe", "llc.exe", "lld-link.exe"]) {
+  for (const name of ["mlir-opt.exe", "mlir-translate.exe", "opt.exe",
+    "llc.exe", "lld-link.exe"]) {
     const record = document.tools?.[name]
     assert(record?.relativePath && !isAbsolute(record.relativePath),
       `materialized tool path is not relative: ${name}`)
@@ -442,7 +447,7 @@ for (const forbidden of ["wsl.exe", "process.env.PATH", "exec(", "shell: true", 
 for (const marker of ["CreateProcessW", "lpApplicationName", "CREATE_NEW",
   "GetStdHandle", "WriteFile", "ExitProcess", "mainCRTStartup",
   "-mtriple=x86_64-pc-windows-msvc", "/nodefaultlib", "--canonicalize",
-  "--cse", "-O3", "/Brepro", "/opt:ref", "/opt:icf", "/incremental:no",
+  "--cse", "--disable-simplify-libcalls", "-O3", "/Brepro", "/opt:ref", "/opt:icf", "/incremental:no",
   "/merge:.pdata=.rdata"]) {
   assert(`${runSource}\n${emitterSource}`.includes(marker),
     `native Windows implementation marker is missing: ${marker}`)
@@ -454,7 +459,8 @@ assert(runSource.includes("W_SEED_RUN_COMPILE_PROFILE_DEV"),
   "cli/run.c does not select the development compile profile for w run")
 assert(buildSource.includes("W_SEED_RUN_COMPILE_PROFILE_RELEASE"),
   "cli/build.c does not select the release compile profile for w build")
-for (const name of ["mlir-opt.exe", "mlir-translate.exe", "llc.exe", "lld-link.exe"])
+for (const name of ["mlir-opt.exe", "mlir-translate.exe", "opt.exe",
+  "llc.exe", "lld-link.exe"])
   runRequired(`${name} version`, materialized.tools[name].absolutePath, ["--version"])
 
 const unsupportedBuildDirectory = await mkdtemp(join(tmpdir(), "w-run-windows-disabled-"))
@@ -489,6 +495,7 @@ try {
     "-DW_SEED_ENABLE_WINDOWS_NATIVE_RUN=ON",
     `-DW_MLIR0_WINDOWS_MLIR_OPT=${toolOverrides.mlirOpt ?? materialized.tools["mlir-opt.exe"].absolutePath}`,
     `-DW_MLIR0_WINDOWS_MLIR_TRANSLATE=${toolOverrides.mlirTranslate ?? materialized.tools["mlir-translate.exe"].absolutePath}`,
+    `-DW_MLIR0_WINDOWS_LLVM_OPT=${toolOverrides.llvmOpt ?? materialized.tools["opt.exe"].absolutePath}`,
     `-DW_MLIR0_WINDOWS_LLC=${toolOverrides.llc ?? materialized.tools["llc.exe"].absolutePath}`,
     `-DW_MLIR0_WINDOWS_LLD_LINK=${toolOverrides.linkDriver ?? materialized.tools["lld-link.exe"].absolutePath}`,
     `-DW_MLIR0_WINDOWS_KERNEL32_LIB=${sdk.path}`,
@@ -506,6 +513,8 @@ try {
     "native build did not produce w.exe")
   assert(!existsSync(join(buildDirectory, "bin", "mlir-opt.exe")),
     "native build copied the external MLIR toolchain")
+  assert(!existsSync(join(buildDirectory, "bin", "opt.exe")),
+    "native build copied the external LLVM optimizer")
 
   const invalidSource = join(fixtureDirectory, "invalid.w")
   const invalidTruncatingBits = join(fixtureDirectory,
@@ -1060,6 +1069,10 @@ try {
     Buffer.alloc(0), "public exact integer conversion success")
   expectExact(binary, ["run", processIntegerExactErrorFixture], 1,
     Buffer.alloc(0), "public exact integer conversion typed error")
+  expectExact(binary, ["run", processFloatRoundingSuccessFixture], 0,
+    Buffer.alloc(0), "public constant float rounding success")
+  expectExact(binary, ["run", processFloatRoundingErrorFixture], 1,
+    Buffer.alloc(0), "public constant float rounding typed error")
   expectExact(binary, ["run", processIntegerExactRuntimeFixture], 0,
     Buffer.from("Arithmetic 0/4/1\n", "utf8"),
     "public runtime fixed-integer arithmetic success")
@@ -1108,6 +1121,10 @@ try {
     "process-integer-exact-success-build.exe")
   const buildProcessIntegerExactError = join(fixtureDirectory,
     "process-integer-exact-error-build.exe")
+  const buildProcessFloatRoundingSuccess = join(fixtureDirectory,
+    "process-float-rounding-success-build.exe")
+  const buildProcessFloatRoundingError = join(fixtureDirectory,
+    "process-float-rounding-error-build.exe")
   const buildProcessIntegerExactRuntime = join(fixtureDirectory,
     "process-fixed-integer-arithmetic-build.exe")
   const buildProcessArgumentsCount = join(fixtureDirectory,
@@ -1210,6 +1227,20 @@ try {
     "built exact integer conversion typed-error artifact")
   expectExact(buildProcessIntegerExactError, [], 1, Buffer.alloc(0),
     "execute built exact integer conversion typed-error artifact")
+  expectExact(binary, ["build", processFloatRoundingSuccessFixture, "--target",
+    targetTriple, "--output", buildProcessFloatRoundingSuccess], 0,
+  Buffer.alloc(0), "build constant float rounding success fixture")
+  assertPeX64(await readFile(buildProcessFloatRoundingSuccess),
+    "built constant float rounding success artifact")
+  expectExact(buildProcessFloatRoundingSuccess, [], 0, Buffer.alloc(0),
+    "execute built constant float rounding success artifact")
+  expectExact(binary, ["build", processFloatRoundingErrorFixture, "--target",
+    targetTriple, "--output", buildProcessFloatRoundingError], 0,
+  Buffer.alloc(0), "build constant float rounding typed-error fixture")
+  assertPeX64(await readFile(buildProcessFloatRoundingError),
+    "built constant float rounding typed-error artifact")
+  expectExact(buildProcessFloatRoundingError, [], 1, Buffer.alloc(0),
+    "execute built constant float rounding typed-error artifact")
   expectExact(binary, ["build", processIntegerExactRuntimeFixture, "--target",
     targetTriple, "--output", buildProcessIntegerExactRuntime], 0,
   Buffer.alloc(0), "build runtime fixed-integer arithmetic fixture")
@@ -1353,7 +1384,7 @@ try {
   const failingTool = process.env.ComSpec
   assert(failingTool && existsSync(failingTool),
     "ComSpec is unavailable for native tool-stage failure checks")
-  for (const role of ["mlirOpt", "mlirTranslate", "llc", "linkDriver"]) {
+  for (const role of ["mlirOpt", "mlirTranslate", "llvmOpt", "llc", "linkDriver"]) {
     configureNative(`native ${role} failure`, { [role]: failingTool })
     const failureOutput = join(fixtureDirectory, `${role}-failure.exe`)
     expectBuildFailure(binary, ["build", helloFixture, "--target", targetTriple,

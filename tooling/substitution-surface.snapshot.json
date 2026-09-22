@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:39376614a4981c2913f591369a2589b17d22bcd43d193477d483388911c9e493",
+  "corpusDigest": "sha256:37bf05217f40b35335b3479183620009f03ce7b4ee5fc64ba703cb06d95ce6b8",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -12084,6 +12084,66 @@
             "nonWhitespaceCodePoints": 81,
             "lines": 1,
             "surfaceLexemes": 13
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-native-process-checked-numeric-fault",
+      "task": {
+        "utf8Bytes": 419,
+        "codePoints": 419,
+        "nonWhitespaceCodePoints": 366,
+        "lines": 1,
+        "surfaceLexemes": 75
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:8ee85b81e926f98d63675accaa3a8042eb6008b569ea6792d26e09fa3b5ace81",
+        "metrics": {
+          "utf8Bytes": 81,
+          "codePoints": 81,
+          "nonWhitespaceCodePoints": 72,
+          "lines": 2,
+          "surfaceLexemes": 16
+        }
+      },
+      "alternatives": [
+        {
+          "name": "trap-before-release",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:de83473b5ae2ccf7581266ec33f7e3d370af6491a473ce158be50e98972ba49a",
+          "metrics": {
+            "utf8Bytes": 87,
+            "codePoints": 87,
+            "nonWhitespaceCodePoints": 78,
+            "lines": 1,
+            "surfaceLexemes": 16
+          }
+        },
+        {
+          "name": "typed-error-conflation",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:352288e5e1faf841fccaccf001d0d9c7e5261c764755911b455e968c2b436b18",
+          "metrics": {
+            "utf8Bytes": 58,
+            "codePoints": 58,
+            "nonWhitespaceCodePoints": 53,
+            "lines": 1,
+            "surfaceLexemes": 6
+          }
+        },
+        {
+          "name": "premature-general-panic-runtime",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:004d13045e2095ce08f9787276a715ab0b9663030682e000b50bf919715b1236",
+          "metrics": {
+            "utf8Bytes": 107,
+            "codePoints": 107,
+            "nonWhitespaceCodePoints": 93,
+            "lines": 1,
+            "surfaceLexemes": 20
           }
         }
       ]

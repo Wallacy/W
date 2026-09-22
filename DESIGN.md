@@ -42851,7 +42851,7 @@ ordinary typed values. For the restricted `native-process@1` root,
 ProductClosure0 v4 authenticates and publishes the source split plus separate
 normal-return and `NumericConversionError.outOfRange` successor facts. Both
 structured exits preserve §11.6 destruction order: `Context`, then `Arguments`,
-the reverse of initialization. The bounded process-executable v5 adapter keeps
+the reverse of initialization. The bounded process-executable v6 adapter keeps
 the typed outcome distinct while running both owner releases and root
 finalization, then maps only the unhandled error arm to status 1 without
 committing the success buffer. The runtime-derived `Arguments.count` fixture
@@ -42945,7 +42945,7 @@ canonical core `NumericConversionError`, followed by a normal
 `ProcessExitCode` return. Verified HIR preserves the three-block split.
 ProductClosure0 v4 publishes both successor relations and authenticates one
 cleanup policy for both structured exits: reverse initialization order,
-`Context` then `Arguments`. NativeSubset0 and process-executable v5 materialize
+`Context` then `Arguments`. NativeSubset0 and process-executable v6 materialize
 that exact-conversion shape as a private tagged carrier, retain it across both
 owner releases and root finalization, and adapt the typed-error arm only after
 cleanup. Public `w run` and `w build` prove exit 0 for zero and 126 user
@@ -42983,7 +42983,7 @@ Counts 0 and 126 return normally, count 127 overflows and produces the private
 fault outcome, and count 128 fails earlier with
 `NumericConversionError.outOfRange`.
 
-Process-executable v5 gives the bounded signed `+`, `-`, `*`, `/`, and `%`
+Process-executable v6 gives the bounded signed `+`, `-`, `*`, `/`, and `%`
 helpers a private fault slot. An invalid operation records the fault and
 returns a deterministic zero carrier so that this restricted straight-line,
 buffered root can reach compiler-owned `Context` then `Arguments` release and

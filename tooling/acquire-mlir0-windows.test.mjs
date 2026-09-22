@@ -64,7 +64,8 @@ describe("native Windows MLIR0 acquisition contract", () => {
       },
     })
     expect(manifest.tools.required).toEqual([
-      "mlir-opt.exe", "mlir-translate.exe", "llc.exe", "lld-link.exe",
+      "mlir-opt.exe", "mlir-translate.exe", "opt.exe", "llc.exe",
+      "lld-link.exe",
     ])
     expect(manifest.tools.optional).toContain("clang.exe")
     expect(manifest.tools.optional).toContain("clang-cl.exe")
@@ -90,7 +91,7 @@ describe("native Windows MLIR0 acquisition contract", () => {
     expect(manifest.buildBoundary.configuration.cStandardPolicy)
       .toBe("C23-requested; MSVC-clatest-preview-correctness-only; C11-explicit-recovery-only")
     expect(manifest.buildBoundary.configuration.toolchainRoles).toEqual([
-      "mlir-opt", "mlir-translate", "llc", "lld-link",
+      "mlir-opt", "mlir-translate", "opt", "llc", "lld-link",
     ])
   })
 

@@ -102,6 +102,7 @@ describe("W RUN native CI contract", () => {
       mlirOpt: "mlir-opt",
       mlirTranslate: "mlir-translate",
       llvmConfig: "llvm-config",
+      llvmOpt: "opt",
       llc: "llc",
       linkDriver: "/usr/bin/ld",
     })
@@ -112,6 +113,7 @@ describe("W RUN native CI contract", () => {
       mlirOpt: "mlir-opt",
       mlirTranslate: "mlir-translate",
       llvmConfig: "llvm-config",
+      llvmOpt: "opt",
       llc: "llc",
       linkDriver: "/usr/bin/ld",
     })
@@ -124,10 +126,11 @@ describe("W RUN native CI contract", () => {
 
   test("rejects non-PIC objects, hidden link targets, and incomplete WRT recipes", () => {
     for (const mutate of [
-      (manifest) => { manifest.pipeline[2].args[2] = "-relocation-model=static" },
-      (manifest) => { manifest.pipeline[2].tool = "clang" },
-      (manifest) => { manifest.pipeline[3].args[3] = "<other-runtime.ll>" },
-      (manifest) => { manifest.pipeline[4].args[0] = "-no-pie" },
+      (manifest) => { manifest.pipeline[2].args[0] = "-O0" },
+      (manifest) => { manifest.pipeline[3].args[2] = "-relocation-model=static" },
+      (manifest) => { manifest.pipeline[3].tool = "clang" },
+      (manifest) => { manifest.pipeline[4].args[3] = "<other-runtime.ll>" },
+      (manifest) => { manifest.pipeline[5].args[0] = "-no-pie" },
       (manifest) => { manifest.hostLink.targetFamily = "elf_i386" },
       (manifest) => { manifest.commands.linkDriver.linux = "cc" },
     ]) {
@@ -198,6 +201,7 @@ describe("W RUN native CI contract", () => {
           `-DW_MLIR0_LINUX_MLIR_OPT:FILEPATH=${quoteToolPath}`,
           `-DW_MLIR0_LINUX_MLIR_TRANSLATE:FILEPATH=${controlToolPath}`,
           `-DW_MLIR0_LINUX_LLVM_CONFIG:FILEPATH=${missingToolPath}`,
+          `-DW_MLIR0_LINUX_LLVM_OPT:FILEPATH=${missingToolPath}`,
           `-DW_MLIR0_LINUX_LLC:FILEPATH=${spyDirectory}`,
           `-DW_MLIR0_LINUX_LINK_DRIVER:FILEPATH=${spyPath}`,
         ])
@@ -210,6 +214,7 @@ describe("W RUN native CI contract", () => {
         expect(header).toContain(
           "#define W_SEED_LINUX_MLIR_TRANSLATE_PATH \"\"")
         expect(header).toContain("#define W_SEED_LINUX_LLVM_CONFIG_PATH \"\"")
+        expect(header).toContain("#define W_SEED_LINUX_LLVM_OPT_PATH \"\"")
         expect(header).toContain("#define W_SEED_LINUX_LLC_PATH \"\"")
         expect(header).toContain("#define W_SEED_LINUX_LINK_DRIVER_PATH \"\"")
 
@@ -240,6 +245,7 @@ describe("W RUN native CI contract", () => {
           "-DW_MLIR0_LINUX_MLIR_OPT=relative",
           "-DW_MLIR0_LINUX_MLIR_TRANSLATE:FILEPATH=/opt/unpinned/mlir-translate",
           "-DW_MLIR0_LINUX_LLVM_CONFIG:FILEPATH=/opt/unpinned/llvm-config",
+          "-DW_MLIR0_LINUX_LLVM_OPT:FILEPATH=/opt/unpinned/opt",
           "-DW_MLIR0_LINUX_LLC:FILEPATH=/opt/unpinned/llc",
           "-DW_MLIR0_LINUX_LINK_DRIVER:FILEPATH=/usr/bin/ld",
         ])
@@ -266,6 +272,7 @@ describe("W RUN native CI contract", () => {
             `-DW_MLIR0_LINUX_MLIR_OPT:FILEPATH=${invalidPath}`,
             `-DW_MLIR0_LINUX_MLIR_TRANSLATE:FILEPATH=${spyPath}`,
             `-DW_MLIR0_LINUX_LLVM_CONFIG:FILEPATH=${spyPath}`,
+            `-DW_MLIR0_LINUX_LLVM_OPT:FILEPATH=${spyPath}`,
             `-DW_MLIR0_LINUX_LLC:FILEPATH=${spyPath}`,
             `-DW_MLIR0_LINUX_LINK_DRIVER:FILEPATH=${spyPath}`,
           ])
@@ -279,10 +286,11 @@ describe("W RUN native CI contract", () => {
           `-DW_MLIR0_LINUX_MLIR_OPT:FILEPATH=${spyPath}`,
           `-DW_MLIR0_LINUX_MLIR_TRANSLATE:FILEPATH=${spyPath}`,
           `-DW_MLIR0_LINUX_LLVM_CONFIG:FILEPATH=${spyPath}`,
+          `-DW_MLIR0_LINUX_LLVM_OPT:FILEPATH=${spyPath}`,
           `-DW_MLIR0_LINUX_LLC:FILEPATH=${spyPath}`,
           "-DW_MLIR0_LINUX_LINK_DRIVER:FILEPATH=/usr/bin/ld",
         ]
-        for (const role of ["LLC", "LINK_DRIVER"]) {
+        for (const role of ["LLVM_OPT", "LLC", "LINK_DRIVER"]) {
           const invalid = runLinux("cmake", [...validPaths,
             `-DW_MLIR0_LINUX_${role}:FILEPATH=${missingToolPath}`])
           expect(invalid.exitCode, output(invalid)).not.toBe(0)

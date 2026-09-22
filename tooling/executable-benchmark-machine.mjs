@@ -67,6 +67,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-composition",
   "process-entry",
   "fixed-integer-runtime-arithmetic",
+  "float-integer-rounding",
   "process-enum-payload",
   "process-arguments-count",
   "process-arguments-ordering",
@@ -98,6 +99,7 @@ const PUBLIC_WINDOWS_RUN_VARIANTS = Object.freeze({
   "compiler/seed-c/fixtures/process-arguments-ordering.w": "process-arguments-ordering",
   "compiler/seed-c/fixtures/process-integer-exact-success.w": "fixed-integer-runtime-arithmetic",
   "compiler/seed-c/fixtures/process-integer-exact-error.w": "fixed-integer-runtime-arithmetic",
+  "compiler/seed-c/fixtures/process-float-rounding-error.w": "float-integer-rounding",
   "compiler/seed-c/fixtures/restaurant-repeat.w": "restaurant-repeat",
   "compiler/seed-c/fixtures/local-graph/app.w": "local-module-graph",
   "compiler/seed-c/fixtures/restaurant-uint-wrapping-add.w": "restaurant-integer-wrapping",
@@ -202,6 +204,8 @@ export const FIXED_INTEGER_RUNTIME_ARITHMETIC_ORACLE_KIND =
   PROCESS_ENTRY_ORACLE_KIND;
 export const FIXED_INTEGER_RUNTIME_ARITHMETIC_RECIPE_CLASS =
   "fixed-integer-runtime-arithmetic-release";
+export const FLOAT_INTEGER_ROUNDING_WORKLOAD_ID = "float-integer-rounding";
+export const FLOAT_INTEGER_ROUNDING_RECIPE_CLASS = "float-integer-rounding-release";
 export const FIXED_INTEGER_RUNTIME_ARITHMETIC_TIMED_INPUT = Object.freeze([]);
 export const FIXED_INTEGER_RUNTIME_ARITHMETIC_CORRECTNESS_INPUTS = Object.freeze([
   FIXED_INTEGER_RUNTIME_ARITHMETIC_TIMED_INPUT,
@@ -868,6 +872,7 @@ function checkSource(source, location, workload, root, errors) {
   if (workload?.id === PROCESS_ARGUMENTS_COUNT_WORKLOAD_ID && source.recipeClass !== PROCESS_ARGUMENTS_COUNT_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-arguments-count release class.");
   if (workload?.id === PROCESS_ARGUMENTS_ORDERING_WORKLOAD_ID && source.recipeClass !== PROCESS_ARGUMENTS_ORDERING_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-arguments-ordering release class.");
   if (workload?.id === FIXED_INTEGER_RUNTIME_ARITHMETIC_WORKLOAD_ID && source.recipeClass !== FIXED_INTEGER_RUNTIME_ARITHMETIC_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the fixed-integer runtime arithmetic release class.");
+  if (workload?.id === FLOAT_INTEGER_ROUNDING_WORKLOAD_ID && source.recipeClass !== FLOAT_INTEGER_ROUNDING_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the float-integer rounding release class.");
   if (source.status !== "source-oracle-ready") push(errors, location + ".status must be source-oracle-ready for a materialized source.");
   if (!MEASUREMENT_PROFILES.includes(source.profile) || source.profile !== "release") push(errors, location + ".profile must be release for M3a sources.");
   if (source.quality !== "correctness-gate") push(errors, location + ".quality must identify correctness as a gate.");
@@ -1266,7 +1271,8 @@ function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PL
       workload?.id === FIXED_INTEGER_BIT_PRIMITIVES_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_COMPOUND_WORKLOAD_ID ||
       workload?.id === RESTAURANT_UINT_OVERFLOWING_FAMILY_WORKLOAD_ID ||
-      workload?.id === RESTAURANT_UINT_SATURATING_POLICY_WORKLOAD_ID) return SOURCE_ELIGIBILITY.strictF64;
+      workload?.id === RESTAURANT_UINT_SATURATING_POLICY_WORKLOAD_ID ||
+      workload?.id === FLOAT_INTEGER_ROUNDING_WORKLOAD_ID) return SOURCE_ELIGIBILITY.strictF64;
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) return SOURCE_ELIGIBILITY.processHandler;
   if (language === "c") return SOURCE_ELIGIBILITY.cPublic;
   if (language === "rust") return SOURCE_ELIGIBILITY.rust;

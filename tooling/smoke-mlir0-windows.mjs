@@ -9,6 +9,7 @@ const expectedOutput = Buffer.from("W native smoke\n", "utf8")
 const requiredTools = [
   "mlir-opt.exe",
   "mlir-translate.exe",
+  "opt.exe",
   "llc.exe",
   "lld-link.exe",
 ]
@@ -209,6 +210,7 @@ entry:
     ], smokeDirectory)
     await writeFile(irPath, ir, "utf8")
     runRequired("llc version probe", tools["llc.exe"], ["--version"], smokeDirectory)
+    runRequired("LLVM opt version probe", tools["opt.exe"], ["--version"], smokeDirectory)
     runRequired("lld-link version probe", tools["lld-link.exe"], ["--version"], smokeDirectory)
     runRequired("llc Windows COFF object", tools["llc.exe"], [
       "-filetype=obj",

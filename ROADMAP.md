@@ -275,14 +275,19 @@ physical scheduler experiments:
    source-derived constant rounding split in the bounded `native-process@1`
    root and proves reverse owner cleanup on all three outcomes. ProductClosure0
    v4 now projects those three process outcomes and binds them into its
-   reachable semantic digest. Runtime float ingress and native execution still
-   lack this route. W-1652 now defines the canonical `native-process@1`
+   reachable semantic digest. Process-executable v6 lowers the same bounded
+   constant root through LLVM optimization and exact CRT-free Windows x64 plus
+   Linux/WSL x64 execution: nearest-even success exits 0 and out-of-range exits
+   1 after reverse cleanup, both without output. Runtime float ingress,
+   observable rounded values, the public non-finite path, and independent
+   raw-bit boundary oracles still lack this route. W-1652 now defines the
+   canonical `native-process@1`
    mapping for an unhandled typed error. HIR94 retains the restricted local
    payloadless-error direct throw and composes one exact-conversion binding into
    a three-block process root. ProductClosure0 v4 projects either the direct
    typed outcome or the conversion's distinct normal and typed-error
    successors. It authenticates reverse-initialization cleanup on both
-   structured exits. Process-executable v5 now materializes that cleanup and
+   structured exits. Process-executable v6 materializes that cleanup and
    post-cleanup status adaptation for the exact-conversion root. One canonical
    runtime ingress now carries the distinct logical `Arguments.count: usize`
    identity through HIR under the current x64 seed profile; MLIR selects its
@@ -627,7 +632,7 @@ preserves a three-block typed success/error split whose error edge is canonical
 artifact with `mlir-opt` and `mlir-translate`. HIR94 now admits a bounded
 binding continuation and process root for that split; ProductClosure0 v4
 projects its normal and typed-error successors while retaining the restricted
-direct-throw outcome. Process-executable v5 materializes
+direct-throw outcome. Process-executable v6 materializes
 reverse-initialization cleanup for the bounded exact-conversion root, retains
 the typed carrier through root finalization, and only then adapts the error to
 status 1. Public CRT-free Windows x64 and Linux/WSL x64 gates execute the
@@ -647,13 +652,16 @@ artifact classifies NaN and infinity before rounding, uses environment-
 independent LLVM intrinsics, checks the rounded value against exact half-open
 power-of-two bounds, and emits `fptosi`/`fptoui` only in the proven-valid
 successor. `mlir-opt --verify-each` and `mlir-translate` validate the artifact
-for Linux and Windows x64 target triples. ProductClosure0 v4 now publishes all
-three outcomes for a direct default-unit
-helper while retaining the out-of-range compatibility channel. The current
-frontend/HIR process-body contract still rejects that split. Next admit the
-process root, then add native execution, independent bit-pattern boundary
-oracles, and both public x64 routes. Until those exist, this remains compiler-
-lifecycle evidence only and carries no benchmark row or performance claim.
+for Linux and Windows x64 target triples. ProductClosure0 v4 publishes all
+three outcomes for a direct default-unit helper while retaining the
+out-of-range compatibility channel. HIR96, ProductClosure0, NativeSubset0, and
+process-executable v6 now also close one constant-source process root. Its
+public Windows and Linux/WSL witnesses prove status 0 for nearest-even success
+and status 1 for out-of-range only; they do not expose the converted value.
+Next add versioned raw-bit runtime float ingress, observable results, the
+public non-finite path, and independent C23/Rust boundary oracles. Until those
+exist, this remains compiler-lifecycle evidence only and carries no benchmark
+row or performance claim.
 
 W-1645 generalizes the prior strict-f64 seed path into one strict floating
 family for `f32` and `f64`. Frontend67 materializes exact binary32/binary64

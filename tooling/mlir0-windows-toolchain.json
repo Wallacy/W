@@ -86,6 +86,7 @@
     "required": [
       "mlir-opt.exe",
       "mlir-translate.exe",
+      "opt.exe",
       "llc.exe",
       "lld-link.exe"
     ],
@@ -117,7 +118,7 @@
       "cStandardPolicy": "C23-requested; MSVC-clatest-preview-correctness-only; C11-explicit-recovery-only",
       "cStandardEvidence": "MSVC /std:clatest is a correctness-only preview and not a final C23 result; use --c11-recovery explicitly for C11",
       "nativeRun": true,
-      "toolchainRoles": ["mlir-opt", "mlir-translate", "llc", "lld-link"],
+      "toolchainRoles": ["mlir-opt", "mlir-translate", "opt", "llc", "lld-link"],
       "linkLibraries": ["kernel32.lib"]
     },
     "testCommand": "build/w-windows/w.exe run compiler/seed-c/fixtures/hlo0-hello.w"

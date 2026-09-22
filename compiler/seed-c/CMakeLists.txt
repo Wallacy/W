@@ -406,6 +406,8 @@ if(WIN32)
     "Explicit materialized mlir-opt.exe for the Windows evidence build")
   set(W_MLIR0_WINDOWS_MLIR_TRANSLATE "" CACHE FILEPATH
     "Explicit materialized mlir-translate.exe for the Windows evidence build")
+  set(W_MLIR0_WINDOWS_LLVM_OPT "" CACHE FILEPATH
+    "Explicit materialized opt.exe for the Windows evidence build")
   set(W_MLIR0_WINDOWS_LLC "" CACHE FILEPATH
     "Explicit materialized llc.exe for the Windows evidence build")
   set(W_MLIR0_WINDOWS_LLD_LINK "" CACHE FILEPATH
@@ -416,6 +418,7 @@ if(WIN32)
     foreach(W_MLIR0_WINDOWS_PATH IN ITEMS
         W_MLIR0_WINDOWS_MLIR_OPT
         W_MLIR0_WINDOWS_MLIR_TRANSLATE
+        W_MLIR0_WINDOWS_LLVM_OPT
         W_MLIR0_WINDOWS_LLC
         W_MLIR0_WINDOWS_LLD_LINK
         W_MLIR0_WINDOWS_KERNEL32_LIB)
@@ -460,6 +463,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     "Enable the explicit local MLIR/LLVM/object/native-link Linux run pipeline" OFF)
   set(W_MLIR0_LINUX_MLIR_OPT_RAW "${W_MLIR0_LINUX_MLIR_OPT}")
   set(W_MLIR0_LINUX_MLIR_TRANSLATE_RAW "${W_MLIR0_LINUX_MLIR_TRANSLATE}")
+  set(W_MLIR0_LINUX_LLVM_OPT_RAW "${W_MLIR0_LINUX_LLVM_OPT}")
   set(W_MLIR0_LINUX_LLVM_CONFIG_RAW "${W_MLIR0_LINUX_LLVM_CONFIG}")
   set(W_MLIR0_LINUX_LLC_RAW "${W_MLIR0_LINUX_LLC}")
   set(W_MLIR0_LINUX_LINK_DRIVER_RAW "${W_MLIR0_LINUX_LINK_DRIVER}")
@@ -467,6 +471,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     "Explicit MLIR opt executable for the Linux evidence build")
   set(W_MLIR0_LINUX_MLIR_TRANSLATE "" CACHE FILEPATH
     "Explicit MLIR translate executable for the Linux evidence build")
+  set(W_MLIR0_LINUX_LLVM_OPT "" CACHE FILEPATH
+    "Explicit LLVM opt executable for the Linux evidence build")
   set(W_MLIR0_LINUX_LLVM_CONFIG "" CACHE FILEPATH
     "Explicit llvm-config executable for the Linux evidence build")
   set(W_MLIR0_LINUX_LLC "" CACHE FILEPATH
@@ -475,6 +481,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     "Explicit native Linux x86_64 linker for the CRT-free WRT0 artifact")
   set(W_SEED_LINUX_MLIR_OPT_HEADER_PATH "")
   set(W_SEED_LINUX_MLIR_TRANSLATE_HEADER_PATH "")
+  set(W_SEED_LINUX_LLVM_OPT_HEADER_PATH "")
   set(W_SEED_LINUX_LLVM_CONFIG_HEADER_PATH "")
   set(W_SEED_LINUX_LLC_HEADER_PATH "")
   set(W_SEED_LINUX_LINK_DRIVER_HEADER_PATH "")
@@ -487,6 +494,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     foreach(W_MLIR0_LINUX_RAW IN ITEMS
         W_MLIR0_LINUX_MLIR_OPT_RAW
         W_MLIR0_LINUX_MLIR_TRANSLATE_RAW
+        W_MLIR0_LINUX_LLVM_OPT_RAW
         W_MLIR0_LINUX_LLVM_CONFIG_RAW
         W_MLIR0_LINUX_LLC_RAW
         W_MLIR0_LINUX_LINK_DRIVER_RAW)
@@ -501,6 +509,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     foreach(W_MLIR0_LINUX_PATH IN ITEMS
         W_MLIR0_LINUX_MLIR_OPT
         W_MLIR0_LINUX_MLIR_TRANSLATE
+        W_MLIR0_LINUX_LLVM_OPT
         W_MLIR0_LINUX_LLVM_CONFIG
         W_MLIR0_LINUX_LLC
         W_MLIR0_LINUX_LINK_DRIVER)
@@ -592,6 +601,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
       "${W_MLIR0_LINUX_MLIR_OPT}")
     set(W_SEED_LINUX_MLIR_TRANSLATE_HEADER_PATH
       "${W_MLIR0_LINUX_MLIR_TRANSLATE}")
+    set(W_SEED_LINUX_LLVM_OPT_HEADER_PATH
+      "${W_MLIR0_LINUX_LLVM_OPT}")
     set(W_SEED_LINUX_LLVM_CONFIG_HEADER_PATH
       "${W_MLIR0_LINUX_LLVM_CONFIG}")
     set(W_SEED_LINUX_LLC_HEADER_PATH "${W_MLIR0_LINUX_LLC}")

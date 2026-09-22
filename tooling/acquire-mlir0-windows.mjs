@@ -138,7 +138,7 @@ export function validateManifest(manifest) {
     pushError(errors, tools.expectedVersion === "23.1.1",
       "tools.expectedVersion must be 23.1.1")
     pushError(errors, JSON.stringify(tools.required) ===
-      JSON.stringify(["mlir-opt.exe", "mlir-translate.exe", "llc.exe", "lld-link.exe"]),
+      JSON.stringify(["mlir-opt.exe", "mlir-translate.exe", "opt.exe", "llc.exe", "lld-link.exe"]),
     "tools.required is invalid")
     pushError(errors, Array.isArray(tools.optional) &&
       new Set(tools.optional).size === tools.optional.length,
@@ -585,7 +585,7 @@ async function findToolPaths(root, files, toolManifest) {
   if (missingRequired.length > 0) {
     const inventory = files
       .map((file) => basename(file.absolutePath))
-      .filter((name) => /^(?:clang|llc|mlir-|llvm-config|lld|ld\.lld)/u.test(name))
+      .filter((name) => /^(?:clang|llc|mlir-|llvm-config|lld|ld\.lld|opt)/u.test(name))
       .sort()
     fail(`required tool(s) are absent from the inspected archive: ${missingRequired.join(", ")}; ` +
       `candidate executable inventory: ${inventory.join(", ") || "none"}`)

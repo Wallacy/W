@@ -152,6 +152,27 @@ typedef struct {
    * accepting a concrete target. */
   bool exact_source_is_target_usize;
   bool has_integer_exactly;
+  /* The bounded native-process rounding root is a separate typed-error
+   * relation.  These borrowed HIR facts preserve the source constant, the
+   * three typed successor roles, and the closed rounding/type facts without
+   * implying that the process emitter can execute this route yet. */
+  const w_seed_hir0_value *rounding_source_value;
+  const w_seed_hir0_terminator *rounding_conversion;
+  const w_seed_hir0_terminator *rounding_normal_return;
+  const w_seed_hir0_terminator *rounding_non_finite_throw;
+  const w_seed_hir0_terminator *rounding_out_of_range_throw;
+  uint32_t rounding_split_block_index;
+  uint32_t rounding_normal_block_index;
+  uint32_t rounding_non_finite_block_index;
+  uint32_t rounding_out_of_range_block_index;
+  uint32_t rounding_source_type_index;
+  uint32_t rounding_destination_type_index;
+  uint32_t rounding_error_type_index;
+  uint16_t rounding_source_bit_width;
+  uint16_t rounding_destination_bit_width;
+  bool rounding_destination_is_signed;
+  w_seed_hir0_rounding_mode rounding_mode;
+  bool has_float_to_integer_rounding;
   /* True only when the selected process entry call graph contains a verified
    * panic terminator.  The message is validated but never emitted. */
   bool has_reachable_panic;

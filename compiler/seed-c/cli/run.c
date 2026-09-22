@@ -84,6 +84,7 @@ static uint8_t native_artifact[W_SEED_MLIR0_MAX_BYTES];
 
 static const char MLIR_OPT[] = W_SEED_LINUX_MLIR_OPT_PATH;
 static const char MLIR_TRANSLATE[] = W_SEED_LINUX_MLIR_TRANSLATE_PATH;
+static const char LLVM_OPT[] = W_SEED_LINUX_LLVM_OPT_PATH;
 static const char LLC[] = W_SEED_LINUX_LLC_PATH;
 static const char LINK_DRIVER[] = W_SEED_LINUX_LINK_DRIVER_PATH;
 
@@ -136,6 +137,7 @@ static bool remove_file(const char *path) {
 
 static bool cleanup_directory(const char *directory, const char *input_path,
                               const char *verified_path, const char *ll_path,
+                              const char *optimized_ll_path,
                               const char *object_path,
                               const char *runtime_ll_path,
                               const char *runtime_object_path,
@@ -143,6 +145,7 @@ static bool cleanup_directory(const char *directory, const char *input_path,
   bool clean = remove_file(input_path);
   clean = remove_file(verified_path) && clean;
   clean = remove_file(ll_path) && clean;
+  clean = remove_file(optimized_ll_path) && clean;
   clean = remove_file(object_path) && clean;
   clean = remove_file(runtime_ll_path) && clean;
   clean = remove_file(runtime_object_path) && clean;
@@ -271,13 +274,14 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
   char input_path[PATH_MAX] = {0};
   char verified_path[PATH_MAX] = {0};
   char ll_path[PATH_MAX] = {0};
+  char optimized_ll_path[PATH_MAX] = {0};
   char object_path[PATH_MAX] = {0};
   char runtime_ll_path[PATH_MAX] = {0};
   char runtime_object_path[PATH_MAX] = {0};
   int exit_code = source_status;
   if (source_status != 0) {
     if (!cleanup_directory(request->directory, NULL, NULL, NULL, NULL, NULL,
-                           NULL, request->artifact_path))
+                           NULL, NULL, request->artifact_path))
       return 3;
     return source_status;
   }
@@ -286,6 +290,8 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
       !path_join(verified_path, sizeof(verified_path), request->directory,
                  "verified.mlir") ||
       !path_join(ll_path, sizeof(ll_path), request->directory, "output.ll") ||
+      !path_join(optimized_ll_path, sizeof(optimized_ll_path),
+                 request->directory, "optimized.ll") ||
       !path_join(object_path, sizeof(object_path), request->directory,
                  "output.o") ||
       !path_join(runtime_ll_path, sizeof(runtime_ll_path), request->directory,
@@ -298,6 +304,7 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
                           wrt0.llvm_ir_length) ||
       !create_private_file(verified_path, (mode_t)0600) ||
       !create_private_file(ll_path, (mode_t)0600) ||
+      !create_private_file(optimized_ll_path, (mode_t)0600) ||
       !create_private_file(object_path, (mode_t)0600) ||
       !create_private_file(runtime_object_path, (mode_t)0600) ||
       !create_private_file(request->artifact_path, (mode_t)0700))
@@ -331,12 +338,27 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
   }
   if (exit_code != 0) goto cleanup;
   {
+    char *arguments[8] = {
+        (char *)LLVM_OPT,
+        (char *)"--disable-simplify-libcalls",
+        request->profile == W_SEED_RUN_COMPILE_PROFILE_RELEASE
+            ? (char *)"-O3"
+            : (char *)"-passes=instcombine,simplifycfg",
+        (char *)"-S",
+        ll_path,
+        (char *)"-o",
+        optimized_ll_path,
+        NULL};
+    exit_code = run_tool(LLVM_OPT, arguments);
+  }
+  if (exit_code != 0) goto cleanup;
+  {
     char *arguments[9] = {
         (char *)LLC,
         (char *)"-mtriple=x86_64-unknown-linux-gnu",
         (char *)"-filetype=obj",
         (char *)"-relocation-model=pic",
-        ll_path,
+        optimized_ll_path,
         (char *)"-o",
         object_path,
         NULL,
@@ -385,7 +407,8 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
   if (exit_code != 0) goto cleanup;
   if (chmod(request->artifact_path, (mode_t)0700) != 0) goto cleanup;
   if (!remove_file(input_path) || !remove_file(verified_path) ||
-      !remove_file(ll_path) || !remove_file(object_path) ||
+      !remove_file(ll_path) || !remove_file(optimized_ll_path) ||
+      !remove_file(object_path) ||
       !remove_file(runtime_ll_path) || !remove_file(runtime_object_path)) {
     exit_code = 3;
     goto cleanup;
@@ -394,7 +417,7 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
 
 cleanup:
   if (!cleanup_directory(request->directory, input_path, verified_path,
-                          ll_path, object_path, runtime_ll_path,
+                          ll_path, optimized_ll_path, object_path, runtime_ll_path,
                           runtime_object_path, request->artifact_path))
     return 3;
   return exit_code;
@@ -403,7 +426,7 @@ cleanup:
 bool w_seed_run_cleanup_compiled(const char *directory,
                                  const char *artifact_path) {
   return cleanup_directory(directory, NULL, NULL, NULL, NULL, NULL, NULL,
-                           artifact_path);
+                           NULL, artifact_path);
 }
 
 int w_seed_run_execute(const w_seed_run_request *request) {
@@ -792,11 +815,13 @@ static bool windows_cleanup_directory(const wchar_t *directory,
                                       const wchar_t *input_path,
                                       const wchar_t *verified_path,
                                       const wchar_t *ll_path,
+                                      const wchar_t *optimized_ll_path,
                                       const wchar_t *object_path,
                                       const wchar_t *program_path) {
   bool clean = windows_remove_file(input_path);
   clean = windows_remove_file(verified_path) && clean;
   clean = windows_remove_file(ll_path) && clean;
+  clean = windows_remove_file(optimized_ll_path) && clean;
   clean = windows_remove_file(object_path) && clean;
   clean = windows_remove_file(program_path) && clean;
   if (directory != NULL && directory[0] != L'\0' &&
@@ -893,9 +918,11 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
   wchar_t input_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
   wchar_t verified_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
   wchar_t ll_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t optimized_ll_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
   wchar_t object_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
   wchar_t mlir_opt[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
   wchar_t mlir_translate[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t llvm_opt[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
   wchar_t llc[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
   wchar_t lld_link[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
   wchar_t ld_lld[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
@@ -905,7 +932,7 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
   w_seed_wrt0_artifact wrt0 = {NULL, 0u};
   int exit_code = source_status;
   if (source_status != 0) {
-    if (!windows_cleanup_directory(directory, NULL, NULL, NULL, NULL,
+    if (!windows_cleanup_directory(directory, NULL, NULL, NULL, NULL, NULL,
                                    artifact_path))
       return 3;
     return source_status;
@@ -914,6 +941,8 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
                             sizeof(mlir_opt) / sizeof(mlir_opt[0])) ||
       !windows_utf8_to_wide(W_SEED_WINDOWS_MLIR_TRANSLATE_PATH, mlir_translate,
                             sizeof(mlir_translate) / sizeof(mlir_translate[0])) ||
+      !windows_utf8_to_wide(W_SEED_WINDOWS_LLVM_OPT_PATH, llvm_opt,
+                            sizeof(llvm_opt) / sizeof(llvm_opt[0])) ||
       !windows_utf8_to_wide(W_SEED_WINDOWS_LLC_PATH, llc,
                             sizeof(llc) / sizeof(llc[0])) ||
       !windows_utf8_to_wide(W_SEED_WINDOWS_LLD_LINK_PATH, lld_link,
@@ -925,6 +954,10 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
                          directory, L"verified.mlir") ||
       !windows_path_join(ll_path, sizeof(ll_path) / sizeof(ll_path[0]),
                          directory, L"output.ll") ||
+      !windows_path_join(optimized_ll_path,
+                         sizeof(optimized_ll_path) /
+                             sizeof(optimized_ll_path[0]),
+                         directory, L"optimized.ll") ||
       !windows_path_join(object_path,
                          sizeof(object_path) / sizeof(object_path[0]), directory,
                          L"output.obj") ||
@@ -975,12 +1008,23 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
   }
   if (exit_code != 0) goto cleanup;
   {
+    const wchar_t *arguments[] = {
+        L"--disable-simplify-libcalls",
+        request->profile == W_SEED_RUN_COMPILE_PROFILE_RELEASE
+            ? L"-O3"
+            : L"-passes=instcombine,simplifycfg",
+        L"-S", ll_path, L"-o", optimized_ll_path};
+    exit_code = windows_run_tool(
+        llvm_opt, arguments, sizeof(arguments) / sizeof(arguments[0]));
+  }
+  if (exit_code != 0) goto cleanup;
+  {
     const wchar_t *arguments[8] = {
         L"-filetype=obj",
         windows_target ? L"-mtriple=x86_64-pc-windows-msvc"
                        : L"-mtriple=x86_64-unknown-linux-gnu",
         NULL,
-        ll_path,
+        optimized_ll_path,
         L"-o",
         object_path,
         NULL,
@@ -989,7 +1033,7 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
     if (linux_target) {
       arguments[2] = L"-relocation-model=pic";
     } else {
-      arguments[2] = ll_path;
+      arguments[2] = optimized_ll_path;
       arguments[3] = L"-o";
       arguments[4] = object_path;
     }
@@ -1066,6 +1110,7 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
   if (exit_code != 0) goto cleanup;
   if (!windows_remove_file(input_path) ||
       !windows_remove_file(verified_path) || !windows_remove_file(ll_path) ||
+      !windows_remove_file(optimized_ll_path) ||
       !windows_remove_file(object_path) ||
       !windows_remove_file(runtime_ll_path) ||
       !windows_remove_file(runtime_object_path)) {
@@ -1076,7 +1121,7 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
 
 cleanup:
   if (!windows_cleanup_directory(directory, input_path, verified_path, ll_path,
-                                 object_path, artifact_path))
+                                 optimized_ll_path, object_path, artifact_path))
     return 3;
   return exit_code;
 }
@@ -1091,7 +1136,7 @@ bool w_seed_run_cleanup_compiled(const char *directory,
                             sizeof(wide_artifact) / sizeof(wide_artifact[0])))
     return false;
   return windows_cleanup_directory(wide_directory, NULL, NULL, NULL, NULL,
-                                   wide_artifact);
+                                   NULL, wide_artifact);
 }
 
 int w_seed_run_execute(const w_seed_run_request *request) {

@@ -177,6 +177,7 @@ static const w_seed_mlir0_target WINDOWS_TARGET = {
 
 static bool process_frontend_mode;
 static bool process_input_frontend_mode;
+static bool process_input_float_rounding_mode;
 static void configure_process_external(void);
 static void configure_process_input_external(void);
 static bool resolve_process_import(void);
@@ -594,7 +595,10 @@ static bool lower_process_hir(const uint8_t *source_bytes,
   const size_t expected_external_symbols =
       process_input_frontend_mode ? 7u : 4u;
   const size_t expected_types =
-      (process_input_frontend_mode ? 8u : 7u) + (has_panic ? 1u : 0u);
+      (process_input_frontend_mode
+           ? (process_input_float_rounding_mode ? 11u : 8u)
+           : 7u) +
+      (has_panic ? 1u : 0u);
   CHECK(counts.external_modules == 1u &&
         counts.external_symbols == expected_external_symbols &&
         counts.types == expected_types);
@@ -609,6 +613,7 @@ static bool lower_process_hir(const uint8_t *source_bytes,
 
 static bool lower_process_input_hir(const uint8_t *source_bytes,
                                     size_t source_length) {
+  const bool float_rounding = process_input_float_rounding_mode;
   process_input_frontend_mode = true;
   const bool lowered = lower_process_hir(source_bytes, source_length);
   process_input_frontend_mode = false;
@@ -623,7 +628,8 @@ static bool lower_process_input_hir(const uint8_t *source_bytes,
   }
   return fixture.hir_program.external_module_count == 1u &&
          fixture.hir_program.external_symbol_count == 7u &&
-         fixture.hir_program.type_count == (has_never ? 9u : 8u);
+         fixture.hir_program.type_count ==
+             (float_rounding ? 11u : (has_never ? 9u : 8u));
 }
 
 static w_seed_mlir0_input mlir_input(void) {
@@ -982,6 +988,161 @@ static bool test_process_panic_mlir(void) {
                        "    llvm.unreachable\n") &&
         !contains_bytes(artifact, result.written.mlir_bytes, "process branch"));
 
+  return true;
+}
+
+static bool test_process_float_rounding_native_subset(void) {
+  static const uint8_t source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let rounded = try i8(rounding: 2.5_f64, mode: .nearestEven) "
+      "return .success }\n"
+      "entry(run)\n";
+  process_input_float_rounding_mode = true;
+  const bool lowered = lower_process_input_hir(source, sizeof(source) - 1u);
+  process_input_float_rounding_mode = false;
+  CHECK(lowered);
+
+  w_seed_native_subset0_process selection;
+  CHECK(w_seed_native_subset0_select_process_executable(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.has_float_to_integer_rounding &&
+        !selection.has_integer_exactly && selection.maximum_stdout_bytes == 0u &&
+        selection.function->block_count == 4u &&
+        selection.entry->cleanup_obligation ==
+            W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_ALL_OUTCOMES &&
+        selection.entry->cleanup_owner_parameter_count == 2u);
+
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  const uint32_t split_index = selection.rounding_split_block_index;
+  const w_seed_hir0_block *split = &program->blocks[split_index];
+  const w_seed_hir0_terminator *conversion =
+      &program->terminators[split->terminator_index];
+  CHECK(selection.rounding_source_value ==
+            &program->values[conversion->value_index] &&
+        selection.rounding_conversion == conversion &&
+        selection.rounding_normal_block_index ==
+            conversion->target_block &&
+        selection.rounding_non_finite_block_index ==
+            conversion->else_block &&
+        selection.rounding_out_of_range_block_index ==
+            conversion->third_block &&
+        selection.rounding_normal_return->kind ==
+            W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        selection.rounding_non_finite_throw->kind ==
+            W_SEED_HIR0_TERMINATOR_THROW &&
+        selection.rounding_out_of_range_throw->kind ==
+            W_SEED_HIR0_TERMINATOR_THROW &&
+        selection.rounding_source_type_index < program->type_count &&
+        program->types[selection.rounding_source_type_index].kind ==
+            W_SEED_HIR0_TYPE_F64 &&
+        selection.rounding_source_bit_width == 64u &&
+        selection.rounding_destination_bit_width == 8u &&
+        selection.rounding_destination_is_signed &&
+        selection.rounding_mode == W_SEED_HIR0_ROUNDING_MODE_NEAREST_EVEN &&
+        selection.rounding_error_type_index == selection.function->error_type);
+
+  const w_seed_mlir0_input input = {
+      &fixture.hir_program, &fixture.hir_result,
+      W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE};
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result result;
+  CHECK(w_seed_mlir0_measure(&input, &TARGET, &counts, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_emit(
+            &input, &TARGET,
+            &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(result.written.mlir_bytes == counts.mlir_bytes &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "// " W_SEED_MLIR0_PROCESS_EXECUTABLE_SCHEMA_VERSION
+                       "\n") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.target_triple = \"" W_SEED_MLIR0_TARGET_TRIPLE
+                       "\"") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "\"llvm.intr.is.fpclass\"(%v") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "<{bit = 519 : i32}>") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "\"llvm.intr.roundeven\"") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "0xc060000000000000 : f64") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "0x4060000000000000 : f64") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "%process_round_narrow = llvm.fptosi") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "%process_round_result = llvm.sext") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "%process_round_non_finite_carrier = llvm.mlir.constant(4294967297 : i64)") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "%process_round_out_of_range_carrier = llvm.mlir.constant(4294967297 : i64)") &&
+        !contains_bytes(artifact, result.written.mlir_bytes,
+                        "llvm.call @write") &&
+        !contains_bytes(artifact, result.written.mlir_bytes,
+                        "llvm.call @w_seed_write") &&
+        !contains_bytes(artifact, result.written.mlir_bytes, "@_fltused"));
+  const size_t context_drop =
+      find_bytes(artifact, result.written.mlir_bytes,
+                 "llvm.call @w_seed_process_context_drop", 0u);
+  const size_t arguments_drop =
+      find_bytes(artifact, result.written.mlir_bytes,
+                 "llvm.call @w_seed_process_arguments_drop", 0u);
+  const size_t root_finalize =
+      find_bytes(artifact, result.written.mlir_bytes,
+                 "llvm.call @w_seed_process_root_finalize", 0u);
+  const size_t outcome_map =
+      find_bytes(artifact, result.written.mlir_bytes,
+                 "^process_map_outcome", 0u);
+  CHECK(context_drop != SIZE_MAX && arguments_drop != SIZE_MAX &&
+        root_finalize != SIZE_MAX && outcome_map != SIZE_MAX &&
+        context_drop < arguments_drop && arguments_drop < root_finalize &&
+        root_finalize < outcome_map);
+
+  CHECK(w_seed_mlir0_measure(&input, &WINDOWS_TARGET, &counts, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_emit(
+            &input, &WINDOWS_TARGET,
+            &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(result.written.mlir_bytes == counts.mlir_bytes &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.target_triple = \""
+                       W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS "\"") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.mlir.global @_fltused(0 : i32) : i32") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.call @ExitProcess(%process_code)") &&
+        !contains_bytes(artifact, result.written.mlir_bytes,
+                        "llvm.call @w_seed_write"));
+
+  /* A verified HIR result is the only admission input.  Reusing the same
+   * result after changing a successor role must therefore be rejected as
+   * invalid, rather than allowing a forged four-block claim through. */
+  w_seed_hir0_terminator *mutable_split =
+      &fixture.hir_terminators[split->terminator_index];
+  const w_seed_hir0_terminator saved_split = *mutable_split;
+  mutable_split->third_block = mutable_split->else_block;
+  CHECK(w_seed_native_subset0_select_process_executable(
+            program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_INVALID);
+  *mutable_split = saved_split;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  w_seed_hir0_entry *mutable_entry = &fixture.hir_entries[0];
+  const w_seed_hir0_entry saved_entry = *mutable_entry;
+  mutable_entry->cleanup_obligation =
+      W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS;
+  CHECK(w_seed_native_subset0_select_process_executable(
+            program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_INVALID);
+  *mutable_entry = saved_entry;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
   return true;
 }
 
@@ -7616,6 +7777,32 @@ static bool emit_float_to_integer_rounding_probe(const char *source_type,
          fflush(stdout) == 0;
 }
 
+static bool emit_process_float_rounding_probe(bool windows) {
+  static const uint8_t source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let rounded = try i8(rounding: 2.5_f64, mode: .nearestEven) "
+      "return .success }\nentry(run)\n";
+  static uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  process_input_float_rounding_mode = true;
+  const bool lowered = lower_process_input_hir(source, sizeof(source) - 1u);
+  process_input_float_rounding_mode = false;
+  CHECK(lowered);
+  const w_seed_mlir0_input input = {
+      &fixture.hir_program, &fixture.hir_result,
+      W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE};
+  w_seed_mlir0_result result;
+  CHECK(w_seed_mlir0_emit(
+            &input, windows ? &WINDOWS_TARGET : &TARGET,
+            &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result) ==
+        W_SEED_MLIR0_OK);
+  return fwrite(artifact, 1u, result.written.mlir_bytes, stdout) ==
+             result.written.mlir_bytes &&
+         fflush(stdout) == 0;
+}
+
 static bool test_signed_comparison_artifacts(void) {
   static const char *const operators[] = {"==", "!=", "<", "<=", ">", ">="};
   static const char *const predicates[] = {"eq", "ne", "slt", "sle", "sgt", "sge"};
@@ -8107,9 +8294,24 @@ int main(int argc, char **argv) {
                ? 0
                : 1;
   }
+  if (argc == 2 && argv[1] != NULL &&
+      strcmp(argv[1], "--emit-process-float-rounding") == 0) {
+#if defined(_WIN32)
+    if (_setmode(_fileno(stdout), _O_BINARY) == -1) return 3;
+#endif
+    return emit_process_float_rounding_probe(false) ? 0 : 1;
+  }
+  if (argc == 2 && argv[1] != NULL &&
+      strcmp(argv[1], "--emit-process-float-rounding-windows") == 0) {
+#if defined(_WIN32)
+    if (_setmode(_fileno(stdout), _O_BINARY) == -1) return 3;
+#endif
+    return emit_process_float_rounding_probe(true) ? 0 : 1;
+  }
   if (argc != 1) return 2;
   if (!test_reachable_panic_mlir()) return 1;
   if (!test_process_panic_mlir()) return 1;
+  if (!test_process_float_rounding_native_subset()) return 1;
   if (!test_process_hir_is_closed_to_mlir()) return 1;
   if (!test_process_arguments_count_comparison_mlir()) return 1;
   if (!test_process_arguments_count_ordered_mlir()) return 1;

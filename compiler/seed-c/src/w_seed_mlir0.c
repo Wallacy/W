@@ -2887,6 +2887,7 @@ typedef struct {
   uint32_t success_symbol_index;
   uint32_t failure_symbol_index;
   bool has_integer_exactly;
+  bool has_float_to_integer_rounding;
   bool has_structured_checked_arithmetic;
   uint16_t exact_source_bit_width;
   uint16_t exact_destination_bit_width;
@@ -2898,12 +2899,32 @@ typedef struct {
   uint32_t exact_error_type_index;
   const w_seed_hir0_terminator *exact_normal_return;
   const w_seed_hir0_terminator *exact_error_throw;
+  uint16_t rounding_source_bit_width;
+  uint16_t rounding_destination_bit_width;
+  bool rounding_destination_is_signed;
+  w_seed_hir0_rounding_mode rounding_mode;
+  uint32_t rounding_split_block_index;
+  uint32_t rounding_normal_block_index;
+  uint32_t rounding_non_finite_block_index;
+  uint32_t rounding_out_of_range_block_index;
+  uint32_t rounding_error_type_index;
+  const w_seed_hir0_value *rounding_source_value;
+  const w_seed_hir0_terminator *rounding_normal_return;
+  const w_seed_hir0_terminator *rounding_non_finite_throw;
+  const w_seed_hir0_terminator *rounding_out_of_range_throw;
   /* Most functions use the canonical ABI names.  The process-parallel entry
    * uses private allocation names so its provider call cannot accidentally
    * refer to an undeclared function argument. */
   const char *buffer_name;
   const char *cursor_name;
 } mlir0_process_emit_context;
+
+static bool process_has_typed_numeric_root(
+    const mlir0_process_emit_context *process) {
+  return process != NULL &&
+         (process->has_integer_exactly ||
+          process->has_float_to_integer_rounding);
+}
 
 typedef struct {
   const char *predicate;
@@ -2916,6 +2937,20 @@ static size_t mlir0_integer_exactly_predicates_for_facts(
     mlir0_integer_exactly_predicate predicates[2]);
 
 static bool append_process_integer_exactly_terminator(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_terminator *terminator, uint32_t function_index,
+    const mlir0_process_emit_context *process,
+    bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES], uint8_t *artifact,
+    size_t capacity, size_t *offset);
+
+static const char *float_rounding_intrinsic(w_seed_hir0_rounding_mode mode);
+static bool float_power_bits(uint16_t float_width, uint16_t exponent,
+                             bool negative, uint64_t *bits);
+static bool append_float_constant_bits(uint8_t *artifact, size_t capacity,
+                                       size_t *offset, uint16_t float_width,
+                                       uint64_t bits);
+
+static bool append_process_float_to_integer_rounding_terminator(
     const w_seed_hir0_program *program,
     const w_seed_hir0_terminator *terminator, uint32_t function_index,
     const mlir0_process_emit_context *process,
@@ -5186,12 +5221,14 @@ static bool append_program_block_argument_name(
     integer_ok = mlir0_integer_type_facts(program, argument->type_index,
                                           &is_signed, &bit_width);
   }
-  const bool exact_error_ok =
-      process != NULL && process->has_integer_exactly &&
-      argument->type_index == process->exact_error_type_index;
+  const bool typed_error_ok =
+      process_has_typed_numeric_root(process) &&
+      argument->type_index ==
+          (process->has_integer_exactly ? process->exact_error_type_index
+                                        : process->rounding_error_type_index);
   if (argument_kind != W_SEED_HIR0_TYPE_I64 &&
       argument_kind != W_SEED_HIR0_TYPE_BOOL && !integer_ok &&
-      !exact_error_ok)
+      !typed_error_ok)
     return false;
   const w_seed_hir0_block *block = &program->blocks[argument->owner_block];
   if (block->owner_function != function_index ||
@@ -5933,8 +5970,10 @@ static bool mark_program_reachable_values(
                      has_subtract, has_multiply, has_divide, has_remainder,
                      0u)) {
         return false;
-      } else if (terminator->kind ==
-                     W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY &&
+      } else if ((terminator->kind ==
+                      W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY ||
+                  terminator->kind ==
+                      W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING) &&
                  !mark_reachable_value_tree(
                      program, terminator->value_index, reachable, has_add,
                      has_subtract, has_multiply, has_divide, has_remainder,
@@ -5949,6 +5988,8 @@ static bool mark_program_reachable_values(
       } else if (terminator->kind != W_SEED_HIR0_TERMINATOR_RETURN_UNIT &&
                  terminator->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
                  terminator->kind != W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY &&
+                 terminator->kind !=
+                     W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING &&
                  terminator->kind != W_SEED_HIR0_TERMINATOR_THROW) {
         return false;
       }
@@ -7961,8 +8002,10 @@ static const char *program_type_name(const w_seed_hir0_program *program,
    * private process adapter never exposes its payload.  Keep the error arm
    * as an i64 carrier solely so the CFG successor remains well-typed; the
    * handler returns a tagged i64 outcome only after selecting that arm. */
-  if (process != NULL && process->has_integer_exactly &&
-      type_index == process->exact_error_type_index)
+  if (process_has_typed_numeric_root(process) &&
+      type_index ==
+          (process->has_integer_exactly ? process->exact_error_type_index
+                                        : process->rounding_error_type_index))
     return "i64";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_I64) return "i64";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_U64) return "i64";
@@ -8435,6 +8478,149 @@ static bool append_process_integer_exactly_terminator(
                       "(%process_exact_error_payload : i64)\n"))
     return false;
   return true;
+}
+
+/* Lower the bounded process rounding split without inventing a public float
+ * ABI.  The source is the verified HIR constant, classification and exact
+ * power-of-two bounds precede the target conversion, and both typed failures
+ * remain distinct CFG successors until the process adapter maps them after
+ * reverse-order cleanup. */
+static bool append_process_float_to_integer_rounding_terminator(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_terminator *terminator, uint32_t function_index,
+    const mlir0_process_emit_context *process,
+    bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES], uint8_t *artifact,
+    size_t capacity, size_t *offset) {
+  if (program == NULL || terminator == NULL || process == NULL ||
+      emitted == NULL || artifact == NULL || offset == NULL ||
+      !process->has_float_to_integer_rounding ||
+      function_index != process->function_index ||
+      terminator->kind !=
+          W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING ||
+      terminator->value_index >= program->value_count ||
+      terminator->owner_block != process->rounding_split_block_index ||
+      terminator->target_block != process->rounding_normal_block_index ||
+      terminator->else_block != process->rounding_non_finite_block_index ||
+      terminator->third_block != process->rounding_out_of_range_block_index ||
+      (process->rounding_source_bit_width != 32u &&
+       process->rounding_source_bit_width != 64u) ||
+      (process->rounding_destination_bit_width != 8u &&
+       process->rounding_destination_bit_width != 16u &&
+       process->rounding_destination_bit_width != 32u &&
+       process->rounding_destination_bit_width != 64u))
+    return false;
+  const char *intrinsic = float_rounding_intrinsic(process->rounding_mode);
+  if (intrinsic == NULL ||
+      !append_program_value_tree(program, terminator->value_index,
+                                 function_index, process, emitted, artifact,
+                                 capacity, offset, 0u))
+    return false;
+
+  const uint16_t source_width = process->rounding_source_bit_width;
+  const uint16_t destination_width =
+      process->rounding_destination_bit_width;
+  const uint16_t lower_exponent =
+      process->rounding_destination_is_signed
+          ? (uint16_t)(destination_width - 1u)
+          : 0u;
+  const uint16_t upper_exponent =
+      process->rounding_destination_is_signed
+          ? (uint16_t)(destination_width - 1u)
+          : destination_width;
+  uint64_t lower_bits = 0u;
+  uint64_t upper_bits = 0u;
+  if ((process->rounding_destination_is_signed &&
+       !float_power_bits(source_width, lower_exponent, true, &lower_bits)) ||
+      !float_power_bits(source_width, upper_exponent, false, &upper_bits))
+    return false;
+
+  if (!append_literal(
+          artifact, capacity, offset,
+          "    %process_round_error_payload = llvm.mlir.constant(0 : i64) : i64\n"
+          "    %process_round_non_finite = \"llvm.intr.is.fpclass\"(%v") ||
+      !append_size(artifact, capacity, offset, terminator->value_index) ||
+      !append_literal(artifact, capacity, offset, ") <{bit = 519 : i32}> : (f") ||
+      !append_u64(artifact, capacity, offset, source_width) ||
+      !append_literal(artifact, capacity, offset,
+                      ") -> i1\n    llvm.cond_br %process_round_non_finite, ") ||
+      !append_program_block_label(
+          artifact, capacity, offset, function_index,
+          process->rounding_non_finite_block_index, false) ||
+      !append_literal(artifact, capacity, offset,
+                      "(%process_round_error_payload : i64), ^process_round_finite\n"
+                      "  ^process_round_finite:\n"
+                      "    %process_rounded = \"") ||
+      !append_literal(artifact, capacity, offset, intrinsic) ||
+      !append_literal(artifact, capacity, offset, "\"(%v") ||
+      !append_size(artifact, capacity, offset, terminator->value_index) ||
+      !append_literal(artifact, capacity, offset, ") : (f") ||
+      !append_u64(artifact, capacity, offset, source_width) ||
+      !append_literal(artifact, capacity, offset, ") -> f") ||
+      !append_u64(artifact, capacity, offset, source_width) ||
+      !append_literal(artifact, capacity, offset,
+                      "\n    %process_round_lower = llvm.mlir.constant(") ||
+      !append_float_constant_bits(artifact, capacity, offset, source_width,
+                                  lower_bits) ||
+      !append_literal(artifact, capacity, offset, " : f") ||
+      !append_u64(artifact, capacity, offset, source_width) ||
+      !append_literal(artifact, capacity, offset, ") : f") ||
+      !append_u64(artifact, capacity, offset, source_width) ||
+      !append_literal(artifact, capacity, offset,
+                      "\n    %process_round_upper = llvm.mlir.constant(") ||
+      !append_float_constant_bits(artifact, capacity, offset, source_width,
+                                  upper_bits) ||
+      !append_literal(artifact, capacity, offset, " : f") ||
+      !append_u64(artifact, capacity, offset, source_width) ||
+      !append_literal(artifact, capacity, offset, ") : f") ||
+      !append_u64(artifact, capacity, offset, source_width) ||
+      !append_literal(artifact, capacity, offset,
+                      "\n    %process_round_lower_ok = llvm.fcmp \"oge\" %process_rounded, %process_round_lower : f") ||
+      !append_u64(artifact, capacity, offset, source_width) ||
+      !append_literal(artifact, capacity, offset,
+                      "\n    %process_round_upper_ok = llvm.fcmp \"olt\" %process_rounded, %process_round_upper : f") ||
+      !append_u64(artifact, capacity, offset, source_width) ||
+      !append_literal(
+          artifact, capacity, offset,
+          "\n    %process_round_fits = llvm.and %process_round_lower_ok, %process_round_upper_ok : i1\n"
+          "    llvm.cond_br %process_round_fits, ^process_round_convert, ") ||
+      !append_program_block_label(
+          artifact, capacity, offset, function_index,
+          process->rounding_out_of_range_block_index, false) ||
+      !append_literal(artifact, capacity, offset,
+                      "(%process_round_error_payload : i64)\n"
+                      "  ^process_round_convert:\n"
+                      "    %process_round_narrow = llvm.") ||
+      !append_literal(artifact, capacity, offset,
+                      process->rounding_destination_is_signed ? "fptosi"
+                                                              : "fptoui") ||
+      !append_literal(artifact, capacity, offset, " %process_rounded : f") ||
+      !append_u64(artifact, capacity, offset, source_width) ||
+      !append_literal(artifact, capacity, offset, " to i") ||
+      !append_u64(artifact, capacity, offset, destination_width) ||
+      !append_literal(artifact, capacity, offset, "\n"))
+    return false;
+
+  const char *result_operand = "%process_round_narrow";
+  if (destination_width < 64u) {
+    if (!append_literal(artifact, capacity, offset,
+                        "    %process_round_result = llvm.") ||
+        !append_literal(artifact, capacity, offset,
+                        process->rounding_destination_is_signed ? "sext "
+                                                                : "zext ") ||
+        !append_literal(artifact, capacity, offset,
+                        "%process_round_narrow : i") ||
+        !append_u64(artifact, capacity, offset, destination_width) ||
+        !append_literal(artifact, capacity, offset, " to i64\n"))
+      return false;
+    result_operand = "%process_round_result";
+  }
+  return append_literal(artifact, capacity, offset, "    llvm.br ") &&
+         append_program_block_label(
+             artifact, capacity, offset, function_index,
+             process->rounding_normal_block_index, false) &&
+         append_literal(artifact, capacity, offset, "(") &&
+         append_literal(artifact, capacity, offset, result_operand) &&
+         append_literal(artifact, capacity, offset, " : i64)\n");
 }
 
 /* Preserve W-1560 as structured control until the MLIR pass pipeline chooses
@@ -9333,13 +9519,13 @@ static bool append_program_function(
   if (!append_literal(artifact, capacity, offset, ")")) return false;
   if (function->return_type != 0u) {
     char return_type_buffer[96];
-    const bool exact_root =
-        process != NULL && process->has_integer_exactly &&
+    const bool typed_numeric_root =
+        process_has_typed_numeric_root(process) &&
         function_index == process->function_index;
     const char *return_type =
-        exact_root ? "i64"
-                   : program_type_name(program, function->return_type,
-                                       return_type_buffer, process);
+        typed_numeric_root ? "i64"
+                           : program_type_name(program, function->return_type,
+                                               return_type_buffer, process);
     if (return_type == NULL || !append_literal(artifact, capacity, offset,
                                                 " -> ") ||
         !append_literal(artifact, capacity, offset, return_type))
@@ -9439,6 +9625,12 @@ static bool append_program_function(
               program, terminator, (uint32_t)function_index, process, emitted,
               artifact, capacity, offset))
         return false;
+    } else if (terminator->kind ==
+               W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING) {
+      if (!append_process_float_to_integer_rounding_terminator(
+              program, terminator, (uint32_t)function_index, process, emitted,
+              artifact, capacity, offset))
+        return false;
     } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
       if (terminator->value_index >= program->value_count ||
           !append_program_value_tree(
@@ -9527,6 +9719,16 @@ static bool append_program_function(
           return false;
         continue;
       }
+      if (process != NULL && process->has_float_to_integer_rounding &&
+          (uint32_t)function_index == process->function_index &&
+          terminator == process->rounding_normal_return) {
+        if (!append_literal(
+                artifact, capacity, offset,
+                "    %process_round_success_carrier = llvm.mlir.constant(0 : i64) : i64\n"
+                "    llvm.return %process_round_success_carrier : i64\n"))
+          return false;
+        continue;
+      }
       char return_type_buffer[96];
       const char *return_type =
           program_type_name(program, function->return_type, return_type_buffer,
@@ -9546,18 +9748,41 @@ static bool append_program_function(
           !append_literal(artifact, capacity, offset, "\n"))
         return false;
     } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_THROW) {
-      if (process == NULL || !process->has_integer_exactly ||
+      if (process == NULL ||
           (uint32_t)function_index != process->function_index ||
-          terminator->owner_block != process->exact_error_block_index ||
-          terminator != process->exact_error_throw ||
           terminator->value_index >= program->value_count ||
           program->values[terminator->value_index].kind !=
-              W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
-          !append_literal(
-              artifact, capacity, offset,
-              "    %process_exact_error_carrier = llvm.mlir.constant(4294967297 : i64) : i64\n"
-              "    llvm.return %process_exact_error_carrier : i64\n"))
+              W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ)
         return false;
+      if (process->has_integer_exactly) {
+        if (terminator->owner_block != process->exact_error_block_index ||
+            terminator != process->exact_error_throw ||
+            !append_literal(
+                artifact, capacity, offset,
+                "    %process_exact_error_carrier = llvm.mlir.constant(4294967297 : i64) : i64\n"
+                "    llvm.return %process_exact_error_carrier : i64\n"))
+          return false;
+      } else if (process->has_float_to_integer_rounding) {
+        const bool non_finite =
+            terminator == process->rounding_non_finite_throw &&
+            terminator->owner_block ==
+                process->rounding_non_finite_block_index;
+        const bool out_of_range =
+            terminator == process->rounding_out_of_range_throw &&
+            terminator->owner_block ==
+                process->rounding_out_of_range_block_index;
+        if ((!non_finite && !out_of_range) ||
+            !append_literal(
+                artifact, capacity, offset,
+                non_finite
+                    ? "    %process_round_non_finite_carrier = llvm.mlir.constant(4294967297 : i64) : i64\n"
+                      "    llvm.return %process_round_non_finite_carrier : i64\n"
+                    : "    %process_round_out_of_range_carrier = llvm.mlir.constant(4294967297 : i64) : i64\n"
+                      "    llvm.return %process_round_out_of_range_carrier : i64\n"))
+          return false;
+      } else {
+        return false;
+      }
     } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_SWITCH_ENUM) {
       uint32_t enum_index = W_SEED_HIR0_NONE;
       uint32_t carrier_width = 0u;
@@ -10207,6 +10432,8 @@ static bool build_process_executable_artifact(
       .success_symbol_index = selection->success_symbol_index,
       .failure_symbol_index = selection->failure_symbol_index};
   process.has_integer_exactly = selection->has_integer_exactly;
+  process.has_float_to_integer_rounding =
+      selection->has_float_to_integer_rounding;
   process.has_structured_checked_arithmetic =
       selection->has_integer_exactly &&
       (plan.has_checked_add || plan.has_checked_subtract ||
@@ -10229,6 +10456,27 @@ static bool build_process_executable_artifact(
   process.exact_error_type_index = selection->exact_error_type_index;
   process.exact_normal_return = selection->exact_normal_return;
   process.exact_error_throw = selection->exact_error_throw;
+  process.rounding_source_bit_width = selection->rounding_source_bit_width;
+  process.rounding_destination_bit_width =
+      selection->rounding_destination_bit_width;
+  process.rounding_destination_is_signed =
+      selection->rounding_destination_is_signed;
+  process.rounding_mode = selection->rounding_mode;
+  process.rounding_split_block_index =
+      selection->rounding_split_block_index;
+  process.rounding_normal_block_index =
+      selection->rounding_normal_block_index;
+  process.rounding_non_finite_block_index =
+      selection->rounding_non_finite_block_index;
+  process.rounding_out_of_range_block_index =
+      selection->rounding_out_of_range_block_index;
+  process.rounding_error_type_index = selection->rounding_error_type_index;
+  process.rounding_source_value = selection->rounding_source_value;
+  process.rounding_normal_return = selection->rounding_normal_return;
+  process.rounding_non_finite_throw = selection->rounding_non_finite_throw;
+  process.rounding_out_of_range_throw = selection->rounding_out_of_range_throw;
+  const bool has_typed_numeric_root =
+      process_has_typed_numeric_root(&process);
   size_t offset = 0u;
   const bool windows = target_is_windows(target);
   const char *triple = windows ? W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS
@@ -10259,6 +10507,9 @@ static bool build_process_executable_artifact(
   if ((windows &&
        !append_literal(artifact, capacity, &offset,
                        MLIR0_WINDOWS_BUFFER_GLOBAL)) ||
+      (windows && process.has_float_to_integer_rounding &&
+       !append_literal(artifact, capacity, &offset,
+                       "  llvm.mlir.global @_fltused(0 : i32) : i32\n")) ||
        !append_literal(artifact, capacity, &offset, MLIR0_RUNTIME_HELPERS) ||
        !(process.has_structured_checked_arithmetic
              ? append_process_checked_i64_helpers(
@@ -10473,7 +10724,7 @@ static bool build_process_executable_artifact(
           artifact, capacity, &offset,
           process.has_structured_checked_arithmetic
               ? ") : (!llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> i64\n"
-              : (process.has_integer_exactly
+              : (has_typed_numeric_root
                      ? ") : (!llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> i64\n"
                      : ") : (!llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> i32\n")))
     return false;
@@ -10485,7 +10736,7 @@ static bool build_process_executable_artifact(
           "    %process_checked_fault_carrier = llvm.mlir.constant(8589934592 : i64) : i64\n"
           "    %process_status = llvm.select %process_has_checked_fault, %process_checked_fault_carrier, %process_raw_status : i1, i64\n"))
     return false;
-  if (process.has_integer_exactly) {
+  if (has_typed_numeric_root) {
     if (!append_literal(
             artifact, capacity, &offset,
             "    llvm.br ^process_release_context(%process_status : i64)\n"
@@ -10605,7 +10856,7 @@ static bool build_process_executable_artifact(
                  "    llvm.cond_br %process_has_output, ^process_flush, ^process_release_context(%process_status : i32)\n"
                  "  ^process_flush:\n"))
     return false;
-  if (!process.has_integer_exactly && windows) {
+  if (!has_typed_numeric_root && windows) {
     if (!append_literal(
             artifact, capacity, &offset,
             "    %process_written = llvm.call @w_seed_write(%process_buffer, %process_length) : (!llvm.ptr, i64) -> i64\n"
@@ -10634,7 +10885,7 @@ static bool build_process_executable_artifact(
             "  }\n"
             "}\n"))
       return false;
-  } else if (!process.has_integer_exactly && !append_literal(
+  } else if (!has_typed_numeric_root && !append_literal(
                  artifact, capacity, &offset,
                  "    %process_fd = llvm.mlir.constant(1 : i32) : i32\n"
                  "    %process_written = llvm.call @write(%process_fd, %process_buffer, %process_length) : (i32, !llvm.ptr, i64) -> i64\n"

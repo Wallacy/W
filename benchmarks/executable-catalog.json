@@ -3396,6 +3396,65 @@
       ]
     },
     {
+      "id": "float-integer-rounding",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Run the bounded public float-to-integer rounding process witness: nearest-even conversion of constant 2.5_f64 to i8 exits 0, while the public error variant converts constant 256.0_f64 toward zero and exits 1; both publish empty stdout/stderr. This is correctness-only evidence: runtime raw-bit ingress and observable rounded payloads are not yet present, independent C23/Rust boundary oracles are not materialized, and the W witness is constant-folded rather than rankable runtime work.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/process-float-rounding-success.w",
+          "digest": "sha256:77b3f84b4f4a293289fb6e130475aa1f0782f47e6853ad4396fd91136eeeff8b",
+          "entry": "run",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "float-integer-rounding-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        },
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/process-float-rounding-success.w",
+          "digest": "sha256:77b3f84b4f4a293289fb6e130475aa1f0782f47e6853ad4396fd91136eeeff8b",
+          "entry": "run",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "float-integer-rounding-release",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only"
+        }
+      ],
+      "blockedLanguages": [
+        "c",
+        "rust"
+      ],
+      "blockers": [
+        "runtime-raw-bit-float-ingress",
+        "observable-rounded-payload",
+        "independent-c23-rust-boundary-oracles",
+        "constant-folded-witness-not-rankable"
+      ]
+    },
+    {
       "id": "process-enum-payload",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",

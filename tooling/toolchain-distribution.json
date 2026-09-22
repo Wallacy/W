@@ -155,6 +155,7 @@
       "includes": [
         "mlir-opt",
         "mlir-translate",
+        "opt",
         "llc",
         "lld-link",
         "headers",
@@ -206,6 +207,7 @@
       "excludes": [
         "mlir-opt",
         "mlir-translate",
+        "opt",
         "llc",
         "lld-link",
         "Clang CLI",

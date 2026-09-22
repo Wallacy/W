@@ -33,6 +33,11 @@
       "wsl": "llvm-config",
       "versionArgs": ["--version"]
     },
+    "llvmOpt": {
+      "linux": "opt",
+      "wsl": "opt",
+      "versionArgs": ["--version"]
+    },
     "clang": {
       "linux": "clang",
       "wsl": "clang",
