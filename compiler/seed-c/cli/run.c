@@ -340,7 +340,6 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
   {
     char *arguments[8] = {
         (char *)LLVM_OPT,
-        (char *)"--disable-simplify-libcalls",
         request->profile == W_SEED_RUN_COMPILE_PROFILE_RELEASE
             ? (char *)"-O3"
             : (char *)"-passes=instcombine,simplifycfg",
@@ -1009,7 +1008,6 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
   if (exit_code != 0) goto cleanup;
   {
     const wchar_t *arguments[] = {
-        L"--disable-simplify-libcalls",
         request->profile == W_SEED_RUN_COMPILE_PROFILE_RELEASE
             ? L"-O3"
             : L"-passes=instcombine,simplifycfg",

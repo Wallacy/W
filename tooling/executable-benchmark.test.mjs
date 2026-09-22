@@ -101,7 +101,7 @@ const VALID_ELF_LAYOUT = {
 
 test("catalog stores compact live best cells and no immutable history", () => {
   assert.deepEqual(validateExecutableCatalog(documents.catalog, documents), []);
-  assert.equal(documents.schema.$id, "w-executable-benchmark/6");
+  assert.equal(documents.schema.$id, "w-executable-benchmark/7");
   assert.deepEqual(documents.schema.oneOf.map((entry) => entry.$ref), [
     "#/$defs/catalog", "#/$defs/result", "#/$defs/bestMetric", "#/$defs/bestMetrics",
   ]);
@@ -114,6 +114,10 @@ test("catalog stores compact live best cells and no immutable history", () => {
     assert.equal(documents.schema.$defs[definition].additionalProperties, false);
   }
   assert.deepEqual(documents.catalog.comparabilityAxes, EXECUTABLE_COMPARABILITY_AXES);
+  assert.ok(documents.catalog.comparabilityAxes.includes("runtime-closure"));
+  assert.equal(documents.catalog.bestMetrics.entries.length, 434,
+    "runtime-closure metadata must preserve all current measurement cells");
+  assert.ok(documents.catalog.workloads.every((workload) => typeof workload.family === "string"));
   assert.deepEqual(documents.catalog.platformLanes.map((lane) => lane.id), [
     "windows-x64", "linux-x64", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL,
   ]);
@@ -178,8 +182,26 @@ test("catalog stores compact live best cells and no immutable history", () => {
     .filter((entry) => entry.workloadId === "restaurant-enum-switch")
     .every((entry) => entry.provenance.artifactCleanliness === "verified-clean"));
   assert.ok(documents.catalog.bestMetrics.entries.every((entry) => entry.value !== "0"));
+  assert.ok(documents.catalog.bestMetrics.entries.every((entry) => entry.runtimeClosure.status === "unverified"));
   assert.ok(new Set(documents.catalog.bestMetrics.entries.map((entry) => entry.language)).size === 3);
   assert.ok(documents.catalog.bestMetrics.entries.some((entry) => entry.language === "rust" && entry.eligibility === "promotable-after-equivalence"));
+});
+
+test("runtime closure classifications are recipe-derived and artifact verification remains unclaimed", () => {
+  const source = (workloadId, language, platformTarget = EXECUTABLE_PLATFORM_TARGET) =>
+    documents.catalog.workloads.find((workload) => workload.id === workloadId)
+      .sources.find((item) => item.language === language && item.platformTarget === platformTarget);
+  assert.deepEqual(source("hello", "w").runtimeClosure, { class: "freestanding", status: "unverified" });
+  assert.deepEqual(source("hello", "c").runtimeClosure, { class: "hosted-crt", status: "unverified" });
+  assert.deepEqual(source("hello-platform-minimal", "c").runtimeClosure, { class: "freestanding", status: "unverified" });
+  assert.deepEqual(source(PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID, "w").runtimeClosure, { class: "hosted-crt", status: "unverified" });
+  assert.ok(documents.catalog.workloads.every((workload) =>
+    workload.sources.every((item) => item.runtimeClosure.class !== "instrumentation")),
+  "no instrumentation measurements are currently cataloged");
+
+  const forged = validResult("rust");
+  forged.identity.runtimeClosure = { class: "freestanding", status: "unverified" };
+  assert.match(validateExecutableResult(forged, documents.catalog).join("\n"), /runtimeClosure must match the catalog/u);
 });
 
 test("source-local expected-output comments are opt-in and exact", () => {
@@ -1985,7 +2007,7 @@ function validResult(language = "rust") {
     $schema: "./executable-benchmark.schema.json", schema: EXECUTABLE_RESULT_SCHEMA, kind: "executable-result", id: `hello-${language}-example`, status: "recorded",
     workloadId: "hello", language, platformTarget: EXECUTABLE_PLATFORM_TARGET, artifactTarget, profile: "release", quality: "exploratory", claim: "measurement-only", verdict: "not-evaluated",
     equivalenceKey: executableEquivalenceKey(documents.catalog, "hello", EXECUTABLE_PLATFORM_TARGET, "release", source.recipeClass),
-    identity: { sourceDigest: source.digest, platformTarget: EXECUTABLE_PLATFORM_TARGET, artifactTarget, profile: "release", toolchain: language === "rust" ? "rustc-1.94" : "gcc-13.2", host: executableHostIdentity(environment), recipe: source.recipe, recipeClass: source.recipeClass, recipeDigest: digest, eligibility: source.eligibility },
+    identity: { sourceDigest: source.digest, platformTarget: EXECUTABLE_PLATFORM_TARGET, artifactTarget, profile: "release", toolchain: language === "rust" ? "rustc-1.94" : "gcc-13.2", host: executableHostIdentity(environment), recipe: source.recipe, recipeClass: source.recipeClass, runtimeClosure: structuredClone(source.runtimeClosure), recipeDigest: digest, eligibility: source.eligibility },
     correctness: { oracleId: "hello:exact-output", exitCode: 0, stdoutDigest: exactOutputDigest("Hello, world!\n"), stderrDigest: exactOutputDigest("") },
     artifact: { digest, sizeBytes: "1024", cleanliness: { coffSymbols: { pointer: "0", count: "0" }, codeView: { count: "0", sizeBytes: "0" }, debugDirectory: { presence: "absent", sizeBytes: "0", entries: [] }, certificateDirectory: { pointer: "0", sizeBytes: "0" }, sectionData: "in-bounds", sidecars: { count: "0" }, overlay: { sizeBytes: "0" } } },
     protocol: { warmupMinimum: 1, rawMinimum: 9, rawParity: "odd", arithmeticMeanRounding: "floor-integer", stopRule: "fixed-count", wallClock: "monotonic-nanoseconds", processIsolation: "fresh-process-per-sample", runtimeScope: "direct-host-process", order: "deterministic-interleaved", resourceScope: "direct child process only; descendants are not aggregated", knownNoiseControls: ["warmup-discarded", "fresh-process-per-sample"], unknownNoiseControls: ["host-scheduler", "filesystem-cache"], directProcessDisclosure: "Bun direct-process counters cover the spawned process only; process-tree CPU/RSS are not aggregated.", measurementKernel: "bun-direct-test/1" },
@@ -2213,6 +2235,31 @@ test("update keeps only current runner evidence inside one live lane", () => {
   assert.ok(lane.every((entry) => entry.provenance.runnerDigest === nextResult.provenance.runnerDigest));
   assert.ok(lane.every((entry) => entry.provenance.recordId === nextResult.id));
   assert.ok(updated.updatedMetrics.includes("run-wall-time"));
+});
+
+test("changed compiler bytes replace same-lane current cells even after a performance regression", () => {
+  const baseline = validResult();
+  const first = updateExecutableBestMetrics(documents.catalog, baseline);
+  const current = clone(baseline);
+  current.id = "hello-rust-same-version-new-compiler-slower";
+  current.provenance.toolchainDigest = "sha256:" + "6".repeat(64);
+  current.provenance.commit = "6".repeat(40);
+  current.provenance.observedAt = "2026-09-15T12:00:00.000Z";
+  for (const stage of [current.compile, current.run]) {
+    for (const sample of [...stage.warmup, ...stage.raw]) sample.wallNs = String(BigInt(sample.wallNs) + 1000n);
+    stage.summary = deriveSummary(stage.raw);
+  }
+  const expected = deriveExecutableBestMetrics(documents.catalog, [current]);
+  const updated = updateExecutableBestMetrics(first.catalog, current);
+  const lane = updated.catalog.bestMetrics.entries.filter((entry) =>
+    entry.workloadId === current.workloadId && entry.language === current.language &&
+    entry.platformTarget === current.platformTarget && entry.host === current.identity.host);
+  assert.equal(lane.length, expected.entries.length);
+  assert.ok(lane.every((entry) => entry.provenance.recordId === current.id));
+  assert.ok(lane.every((entry) => entry.toolchain === current.identity.toolchain));
+  for (const entry of expected.entries) {
+    assert.equal(lane.find((item) => item.metric === entry.metric)?.value, entry.value);
+  }
 });
 
 test("source refresh evicts stale cells without relabeling history", () => {

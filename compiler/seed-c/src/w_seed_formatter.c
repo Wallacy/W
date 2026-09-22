@@ -1217,7 +1217,8 @@ static void render_document_bounded(fmt_writer *writer, size_t token_count,
   const w_seed_cst_node *root = &writer->parser->nodes[writer->parser->root];
   size_t cursor = 0;
   bool rendered_owner = false;
-  w_seed_cst_kind previous_owner_kind = W_SEED_CST_NONE;
+  /* Only read after rendered_owner becomes true; use a valid enum seed. */
+  w_seed_cst_kind previous_owner_kind = W_SEED_CST_DOCUMENT;
   for (w_seed_cst_index child = root->first_child; child != W_SEED_CST_NONE;
        child = writer->parser->nodes[child].next_sibling) {
     const w_seed_cst_node *node = &writer->parser->nodes[child];

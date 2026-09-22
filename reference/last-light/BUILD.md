@@ -17,7 +17,8 @@ profile e toolchain plan. O kind fecha os outros fields:
 |---|---|
 | entry descriptor | exports exatos |
 | host profile | ABI `.wExact` ou `.c` |
-| runtime graph e packing | runtime e panic policy |
+| execution/service graph e packing | grafo de services e unidade(s) do artifact |
+| target, `wrt`, `crt` | ambiente/ABI e providers de runtime nativo, em eixos separados |
 | capabilities e limits | header e ABI sidecars |
 
 Uma library não recebe entry ou host por default omitido. Esses fields são
@@ -344,6 +345,53 @@ destroy.
 
 O contrato normativo está em [DESIGN.md](../../DESIGN.md#204-abi-e-runtime).
 Este laboratório valida o contrato sem duplicá-lo.
+
+#### 3.4.1 WRT and C-runtime selection
+
+The product field `runtime` selects an application execution/service graph. It
+does not select `libwrt` or a C runtime. Product fields `wrt` and `crt` record
+those independent native-link choices; the target environment and ABI are a
+third input and do not grant CRT authority.
+
+The default WRT selection is `wrt: .static(.auto)`: choose the unique compatible
+offer from the signed target pack and link only reachable WRT operations. A
+product with no WRT requirements links no WRT code. `wrt: .none` is an assertion
+that the complete closure needs no WRT operation. A separately distributed
+dynamic WRT is explicit, target-bound and tied to its exact WRT ABI, provider
+version and digest; it is never found through `PATH` or inferred from the host.
+The distribution may package `std` and the static WRT pack together, while
+keeping the user-facing `std` API/module layer separate from the low-level WRT
+provider and its reachability contract.
+
+The default `crt: .auto` resolves to no CRT when the selected dependency graph
+declares none. When an imported C library/package declares exact transitive CRT
+operations, it may select only one unique target/ABI-compatible provider and
+link mode; missing or ambiguous offers fail before link, without host fallback
+or silent download. `crt: .none` rejects any CRT requirement. `fn<abi: .c>`,
+`fn<lang: .c>`, `unsafe`, C carriers, and a `runtime: .none` C-library context
+declaration do not imply a CRT. They also do not relax pointer lifetime,
+allocation ownership, retention or fault-boundary rules.
+
+`crt: .auto` is limited to declared requirements. It does not authorize a
+libc/CRT symbol newly synthesized by LLVM or code generation. Each post-opt IR
+external, object undefined symbol, and final import must match an exact selected
+WRT, CRT or target-provider offer and appears in the closure receipt. Debug,
+release, benchmark, size, sanitizer and PGO profiles never change these
+selections; an instrumentation runtime is a separate build-only lane, and the
+final PGO-use artifact proves its own closure.
+
+```w
+{
+  name: "last-light-horizon-c"
+  abi: .c
+  runtime: .none      // no hidden W RuntimeContext
+  wrt: .static(.auto) // only reachable WRT operations
+  crt: .auto          // none unless a selected foreign dependency requires it
+}
+```
+
+This is product-contract syntax in the reference manifest, not compiler or CLI
+implementation evidence. Candidate build overrides remain a separate decision.
 
 ### 3.5 Shared modules and surface witnesses
 
@@ -851,12 +899,12 @@ entregue:
 
 | Product target | Execution platform candidata | Providers necessários | Payload |
 |---|---|---|---|
-| Linux x86-64 | Linux x86-64 | W frontend, MLIR/LLVM, W runtime, glibc sysroot e LLD | ELF |
-| Linux AArch64 | Linux x86-64 | mesmos roles com sysroot AArch64 | ELF |
-| Windows x86-64 | Windows x86-64 | W frontend, MLIR/LLVM, W runtime, Windows SDK/UCRT e COFF linker | PE/COFF + PDB |
-| macOS AArch64 | macOS AArch64 | W frontend, MLIR/LLVM, W runtime, Apple SDK e Mach-O tools | Mach-O + dSYM |
-| Android AArch64/x86-64 | Linux x86-64 | W frontend, MLIR/LLVM, Android NDK, runtime e Android packager | ELF + AAB |
-| iOS device/simulator | macOS AArch64 | W frontend, MLIR/LLVM, Apple SDK, runtime e bundle tools | Mach-O + app bundle |
+| Linux x86-64 | Linux x86-64 | W frontend/MLIR, WRT pack, sysroot, LLD; optional CRT provider | ELF |
+| Linux AArch64 | Linux x86-64 | same roles with AArch64 target pack/sysroot; optional CRT provider | ELF |
+| Windows x86-64 | Windows x86-64 | W frontend/MLIR, WRT pack, Windows SDK, COFF linker; optional UCRT | PE/COFF + PDB |
+| macOS AArch64 | macOS AArch64 | W frontend/MLIR, WRT pack, Apple SDK/Mach-O; optional CRT provider | Mach-O + dSYM |
+| Android AArch64/x86-64 | Linux x86-64 | W frontend/MLIR, WRT pack, NDK/packager; optional C runtime | ELF + AAB |
+| iOS device/simulator | macOS AArch64 | W frontend/MLIR, WRT pack, Apple SDK; optional CRT | Mach-O + app bundle |
 | WASI 0.3 | Linux x86-64 | W frontend, Wasm backend, W component runtime e component linker | Wasm component |
 | Cortex-M/RISC-V | Linux x86-64 | W frontend, LLVM/LLD, freestanding runtime, device pack e image tool | firmware image |
 | NVIDIA/AMD/SPIR-V | Linux x86-64 | W frontend, MLIR device lowering e vendor/device provider | device bundle |

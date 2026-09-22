@@ -7,10 +7,16 @@ import {
 } from "./executable-release-recipes.mjs";
 
 export const ROOT = path.resolve(import.meta.dir, "..");
-export const EXECUTABLE_SCHEMA = "w-executable-benchmark/6";
+export const EXECUTABLE_SCHEMA = "w-executable-benchmark/7";
 export const EXECUTABLE_CATALOG_ID = "w-executable-benchmark-catalog";
-export const EXECUTABLE_RESULT_SCHEMA = "w-executable-benchmark-result/6";
-export const EXECUTABLE_BEST_SCHEMA = "w-executable-benchmark-best-metrics/1";
+export const EXECUTABLE_RESULT_SCHEMA = "w-executable-benchmark-result/7";
+export const EXECUTABLE_BEST_SCHEMA = "w-executable-benchmark-best-metrics/2";
+export const EXECUTABLE_RUNTIME_CLOSURE_CLASSES = Object.freeze([
+  "freestanding",
+  "hosted-crt",
+  "instrumentation",
+]);
+export const EXECUTABLE_RUNTIME_CLOSURE_UNVERIFIED = Object.freeze({ status: "unverified" });
 export const EXECUTABLE_LANGUAGES = Object.freeze(["w", "c", "rust"]);
 export const EXECUTABLE_STRUCTURE_CLASSES = Object.freeze([
   "public-end-to-end",
@@ -74,6 +80,46 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "local-module-graph",
   "process-handler-lifecycle",
 ]);
+const WORKLOAD_FAMILY_ROWS = Object.freeze({
+  hello: Object.freeze(["hello", "hello-platform-minimal"]),
+  "control-flow": Object.freeze([
+    "restaurant-branch", "restaurant-nested-branch", "bool-short-circuit",
+    "restaurant-interpolation", "restaurant-scalar-if", "restaurant-nested-scalar-if",
+    "restaurant-while-post", "restaurant-repeat", "restaurant-wmo",
+  ]),
+  async: Object.freeze(["restaurant-async-join", "restaurant-async-yield"]),
+  composition: Object.freeze([
+    "restaurant-main-dispatch", "restaurant-main-cardinality", "restaurant-enum-switch",
+    "restaurant-enum-subset", "restaurant-enum-payload", "restaurant-enum-bool-payload",
+    "restaurant-comparison-composition", "restaurant-composition",
+  ]),
+  "integer-semantics": Object.freeze([
+    "restaurant-integer-bitwise", "integer-shift-semantics", "restaurant-power",
+    "restaurant-power-prefix", "restaurant-compound", "restaurant-checked-integer-arithmetic",
+    "restaurant-integer-prefix", "restaurant-integer-wrapping", "restaurant-integer-widening",
+    "restaurant-numeric-widening", "restaurant-integer-truncating-bits",
+    "restaurant-integer-saturating-conversion", "restaurant-integer-comparison",
+    "restaurant-uint-overflowing-family", "restaurant-uint-saturating-policy",
+    "fixed-integer-bit-primitives", "restaurant-uint-bitwise", "restaurant-uint-compound",
+    "restaurant-unsigned", "fixed-integer-runtime-arithmetic",
+  ]),
+  "floating-point": Object.freeze([
+    "restaurant-float-strict", "restaurant-float-bit-representation", "float-integer-rounding",
+  ]),
+  mutation: Object.freeze([
+    "restaurant-linear", "restaurant-mutation", "restaurant-conditional-mutation",
+    "restaurant-bool-mutation", "restaurant-branch-mutation-multi",
+  ]),
+  process: Object.freeze([
+    "process-entry", "process-enum-payload", "process-arguments-count",
+    "process-arguments-ordering", "process-handler-lifecycle",
+  ]),
+  modules: Object.freeze(["local-module-graph"]),
+});
+export const EXECUTABLE_WORKLOAD_FAMILY_IDS = Object.freeze(Object.keys(WORKLOAD_FAMILY_ROWS));
+const EXECUTABLE_WORKLOAD_FAMILY = Object.freeze(Object.fromEntries(
+  Object.entries(WORKLOAD_FAMILY_ROWS).flatMap(([family, ids]) => ids.map((id) => [id, family])),
+));
 export const EXECUTABLE_RUN_TARGETS = Object.freeze(
   EXECUTABLE_WORKLOAD_IDS.filter((id) => id !== "restaurant-composition"),
 );
@@ -321,6 +367,7 @@ export const EXECUTABLE_COMPARABILITY_AXES = Object.freeze([
   "platform-target",
   "artifact-target",
   "abi",
+  "runtime-closure",
   "profile",
   "toolchain",
   "host",
@@ -368,6 +415,7 @@ export const BEST_CATEGORY_AXES = Object.freeze([
   "host",
   "recipe",
   "recipeClass",
+  "runtimeClosure",
   "comparability",
   "eligibility",
 ]);
@@ -518,6 +566,37 @@ const SOURCE_RECIPES = Object.freeze({
   c: Object.freeze([PUBLIC_C_RECIPE, PRIVATE_C_RECIPE, PLATFORM_MINIMAL_C_RECIPE]),
   rust: Object.freeze(["rustc-edition-2024", PLATFORM_MINIMAL_RUST_RECIPE]),
 });
+
+export function executableWorkloadFamily(workloadId) {
+  return EXECUTABLE_WORKLOAD_FAMILY[workloadId];
+}
+
+export function executableRuntimeClosure(workload, language, recipe) {
+  let runtimeClass;
+  if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) {
+    // The private MinGW composite statically links its hosted C provider/runtime.
+    runtimeClass = "hosted-crt";
+  } else if (language === "w" || recipe === PLATFORM_MINIMAL_C_RECIPE || recipe === PLATFORM_MINIMAL_RUST_RECIPE) {
+    // Public W links without a target CRT; the isolated C/Rust recipes use
+    // explicit no-CRT/no-libc entry points. Artifact imports are not receipted.
+    runtimeClass = "freestanding";
+  } else if (language === "c" || language === "rust") {
+    // The public MSVC recipes select/use the hosted CRT defaults.
+    runtimeClass = "hosted-crt";
+  }
+  if (!runtimeClass) return undefined;
+  return { class: runtimeClass, ...EXECUTABLE_RUNTIME_CLOSURE_UNVERIFIED };
+}
+
+function checkRuntimeClosure(value, name, errors) {
+  if (!exactKeys(value, name, ["class", "status"], errors)) return;
+  if (!EXECUTABLE_RUNTIME_CLOSURE_CLASSES.includes(value.class)) {
+    push(errors, name + ".class must identify freestanding, hosted-crt or instrumentation closure.");
+  }
+  if (value.status !== "unverified") {
+    push(errors, name + ".status must remain unverified until a runtime dependency receipt exists.");
+  }
+}
 
 const LEGACY_W_RESULT_RECIPE = "private-native0-mlir0-source-to-pe-candidate";
 const LEGACY_W_RESULT_ELIGIBILITY = "contextual-only-until-public-run";
@@ -846,7 +925,7 @@ function checkProcessExecution(execution, name, root, errors) {
 }
 
 function checkSource(source, location, workload, root, errors) {
-  const keys = ["language", "path", "digest", "entry", "status", "profile", "quality", "recipe", "recipeClass", "platformTarget", "artifactTarget", "comparability", "eligibility"];
+  const keys = ["language", "path", "digest", "entry", "status", "profile", "quality", "recipe", "recipeClass", "runtimeClosure", "platformTarget", "artifactTarget", "comparability", "eligibility"];
   if (source?.supportSources !== undefined) keys.push("supportSources");
   if (!exactKeys(source, location, keys, errors)) return;
   if (!EXECUTABLE_LANGUAGES.includes(source.language)) push(errors, location + ".language is invalid.");
@@ -856,6 +935,11 @@ function checkSource(source, location, workload, root, errors) {
     push(errors, location + ".recipe is not a supported recipe for " + source.language + ".");
   }
   requiredString(source.recipeClass, location + ".recipeClass", errors);
+  checkRuntimeClosure(source.runtimeClosure, location + ".runtimeClosure", errors);
+  const expectedRuntimeClosure = executableRuntimeClosure(workload, source.language, source.recipe);
+  if (JSON.stringify(source.runtimeClosure) !== JSON.stringify(expectedRuntimeClosure)) {
+    push(errors, location + ".runtimeClosure must match the runtime class selected by the declared recipe; exact imports remain unverified.");
+  }
   if (source.recipe === PROCESS_ENTRY0_RECIPE && workload?.id !== PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) push(errors, location + ".recipe is private to process-handler-lifecycle.");
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.language === "w" && source.recipe !== PROCESS_ENTRY0_RECIPE) push(errors, location + ".recipe must use the private process handler route.");
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.language === "c" && source.recipe !== PRIVATE_C_RECIPE) push(errors, location + ".recipe must use the private GCC/MinGW process handler route.");
@@ -1075,12 +1159,15 @@ export function validateExecutableCatalog(catalog, documents = undefined, root =
   const workloads = Array.isArray(catalog.workloads) ? catalog.workloads : [];
   for (const [index, workload] of workloads.entries()) {
     const location = "executable catalog.workloads[" + index + "]";
-    const workloadKeys = ["id", "structureClass", "status", "sourceReadiness", "demoEvidence", "benchmarkStatus", "lane", "scope", "oracle", "sources", "blockedLanguages", "blockers"];
+    const workloadKeys = ["id", "family", "structureClass", "status", "sourceReadiness", "demoEvidence", "benchmarkStatus", "lane", "scope", "oracle", "sources", "blockedLanguages", "blockers"];
     if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) workloadKeys.push("execution");
     if (!exactKeys(workload, location, workloadKeys, errors)) continue;
     if (workloadIds.has(workload.id)) push(errors, location + ".id must be unique.");
     workloadIds.add(workload.id);
     if (workload.id !== EXECUTABLE_WORKLOAD_IDS[index]) push(errors, location + ".id is not in the stable catalog order.");
+    if (!EXECUTABLE_WORKLOAD_FAMILY_IDS.includes(workload.family) || workload.family !== executableWorkloadFamily(workload.id)) {
+      push(errors, location + ".family must be the stable semantic family for this workload; individual workload evidence remains separate.");
+    }
     if (!requiredString(workload.id, location + ".id", errors) || !requiredString(workload.scope, location + ".scope", errors)) continue;
     if (!EXECUTABLE_STRUCTURE_CLASSES.includes(workload.structureClass)) push(errors, location + ".structureClass is invalid.");
     const expectedStructureClass = workload.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID
@@ -1700,7 +1787,7 @@ export function validateExecutableResult(result, catalog = loadExecutableDocumen
   if (result.verdict !== "not-evaluated") push(errors, "executable result.verdict must be not-evaluated until managed regression exists.");
   const expectedKey = source ? executableEquivalenceKey(catalog, result.workloadId, result.platformTarget, result.profile, source.recipeClass) : undefined;
   if (!digest(result.equivalenceKey, "executable result.equivalenceKey", errors) || result.equivalenceKey !== expectedKey) push(errors, "executable result.equivalenceKey must be recomputed from workload semantics, platform target, profile and recipe class.");
-  if (exactKeys(result.identity, "executable result.identity", ["sourceDigest", "platformTarget", "artifactTarget", "profile", "toolchain", "host", "recipe", "recipeClass", "recipeDigest", "eligibility"], errors)) {
+  if (exactKeys(result.identity, "executable result.identity", ["sourceDigest", "platformTarget", "artifactTarget", "profile", "toolchain", "host", "recipe", "recipeClass", "runtimeClosure", "recipeDigest", "eligibility"], errors)) {
     digest(result.identity.sourceDigest, "executable result.identity.sourceDigest", errors);
     if (!EXECUTABLE_PLATFORM_TARGETS.includes(result.identity.platformTarget) || result.identity.platformTarget !== result.platformTarget) push(errors, "executable result.identity.platformTarget must match the shared platform target.");
     if (result.identity.artifactTarget !== result.artifactTarget) push(errors, "executable result.identity.artifactTarget must match the exact artifact target.");
@@ -1709,9 +1796,13 @@ export function validateExecutableResult(result, catalog = loadExecutableDocumen
     checkSafeIdentityString(result.identity.host, "executable result.identity.host", errors);
     requiredString(result.identity.recipe, "executable result.identity.recipe", errors);
     requiredString(result.identity.recipeClass, "executable result.identity.recipeClass", errors);
+    checkRuntimeClosure(result.identity.runtimeClosure, "executable result.identity.runtimeClosure", errors);
     digest(result.identity.recipeDigest, "executable result.identity.recipeDigest", errors);
     requiredString(result.identity.eligibility, "executable result.identity.eligibility", errors);
     if (source && result.identity.sourceDigest !== executableSourceDigest(source)) push(errors, "executable result.identity.sourceDigest must match the catalog source set.");
+    if (source && JSON.stringify(result.identity.runtimeClosure) !== JSON.stringify(source.runtimeClosure)) {
+      push(errors, "executable result.identity.runtimeClosure must match the catalog recipe class and remain unverified until dependency imports are receipted.");
+    }
     const historicalWRecipe = options.allowHistoricalWRecipe === true && result.language === "w" && source?.recipe === "public-w-build-release" && result.identity.recipe === LEGACY_W_RESULT_RECIPE && result.identity.eligibility === LEGACY_W_RESULT_ELIGIBILITY;
     const identityMismatch = historicalWRecipe
       ? result.identity.recipeClass !== source?.recipeClass || result.identity.platformTarget !== source?.platformTarget || result.identity.artifactTarget !== source?.artifactTarget
@@ -1873,6 +1964,7 @@ function entryFromResult(record, catalog, metric) {
     host: record.identity.host,
     recipe: record.identity.recipe,
     recipeClass: record.identity.recipeClass,
+    runtimeClosure: record.identity.runtimeClosure,
     comparability: source?.comparability,
     eligibility: source?.eligibility,
   };
@@ -1893,6 +1985,7 @@ function entryFromResult(record, catalog, metric) {
     profile: record.profile,
     host: record.identity.host,
     recipeClass: record.identity.recipeClass,
+    runtimeClosure: structuredClone(record.identity.runtimeClosure),
     comparability: source?.comparability,
     eligibility: source?.eligibility,
     metric,
@@ -1955,6 +2048,7 @@ export function deriveExecutableBestMetrics(catalog, results) {
       host: record.identity.host,
       recipe: record.identity.recipe,
       recipeClass: record.identity.recipeClass,
+      runtimeClosure: record.identity.runtimeClosure,
       comparability: source.comparability,
       eligibility: source.eligibility,
     };
@@ -1997,13 +2091,14 @@ function bestMetricSort(left, right) {
     compareText(String(left?.host ?? ""), String(right?.host ?? "")) ||
     compareText(String(left?.recipe ?? ""), String(right?.recipe ?? "")) ||
     compareText(String(left?.recipeClass ?? ""), String(right?.recipeClass ?? "")) ||
+    compareText(JSON.stringify(left?.runtimeClosure ?? null), JSON.stringify(right?.runtimeClosure ?? null)) ||
     compareText(String(left?.metric ?? ""), String(right?.metric ?? "")) ||
     compareText(String(left?.id ?? ""), String(right?.id ?? ""));
 }
 
 export function validateExecutableBestMetric(record, catalog = loadExecutableDocuments().catalog, options = {}) {
   const errors = [];
-  const keys = ["$schema", "schema", "kind", "id", "status", "categoryId", "workloadId", "language", "equivalenceKey", "platformTarget", "artifactTarget", "abi", "profile", "host", "recipeClass", "comparability", "eligibility", "metric", "unit", "statistic", "value", "toolchain", "recipe", "provenance"];
+  const keys = ["$schema", "schema", "kind", "id", "status", "categoryId", "workloadId", "language", "equivalenceKey", "platformTarget", "artifactTarget", "abi", "profile", "host", "recipeClass", "runtimeClosure", "comparability", "eligibility", "metric", "unit", "statistic", "value", "toolchain", "recipe", "provenance"];
   if (isObject(record) && Object.prototype.hasOwnProperty.call(record, "peLayout")) keys.push("peLayout");
   if (isObject(record) && Object.prototype.hasOwnProperty.call(record, "elfLayout")) keys.push("elfLayout");
   if (!exactKeys(record, "executable best-metric record", keys, errors)) return errors;
@@ -2035,10 +2130,12 @@ export function validateExecutableBestMetric(record, catalog = loadExecutableDoc
   checkSafeIdentityString(record.host, "executable best metric.host", errors);
   requiredString(record.recipe, "executable best metric.recipe", errors);
   requiredString(record.recipeClass, "executable best metric.recipeClass", errors);
+  checkRuntimeClosure(record.runtimeClosure, "executable best metric.runtimeClosure", errors);
   const staleSourceDigest = source &&
     record.provenance?.sourceDigest !== executableSourceDigest(source);
   if (source && record.recipeClass !== source.recipeClass) push(errors, "executable best metric.recipeClass must match the catalog source.");
   if (source) {
+    if (JSON.stringify(record.runtimeClosure) !== JSON.stringify(source.runtimeClosure)) push(errors, "executable best metric.runtimeClosure must match the catalog source and remain unverified until a dependency receipt exists.");
     const expectedKey = executableEquivalenceKey(catalog, record.workloadId, record.platformTarget, record.profile, source.recipeClass);
     if (record.equivalenceKey !== expectedKey &&
         !(staleSourceDigest && options.allowStaleSourceDigest === true)) {
@@ -2119,7 +2216,9 @@ export function pruneExecutableBestMetrics(catalog) {
   for (const entry of entries) {
     const workload = workloadFor(catalog, entry?.workloadId);
     const source = sourceFor(workload, entry?.language, entry?.platformTarget);
-    if (source && (!workloadAllowsBestMetrics(workload) || entry?.provenance?.sourceDigest !== executableSourceDigest(source))) removedMetrics.push(entry.metric);
+    if (source && (!workloadAllowsBestMetrics(workload) ||
+        entry?.provenance?.sourceDigest !== executableSourceDigest(source) ||
+        JSON.stringify(entry?.runtimeClosure) !== JSON.stringify(source.runtimeClosure))) removedMetrics.push(entry.metric);
     else retained.push(entry);
   }
   const changed = retained.length !== entries.length;
@@ -2142,19 +2241,29 @@ export function updateExecutableBestMetrics(catalog, result) {
   const entries = [...(catalog.bestMetrics?.entries ?? [])];
   const candidateLane = candidate.entries[0];
   const liveLaneAxes = ["workloadId", "language", "equivalenceKey", "platformTarget",
-    "artifactTarget", "abi", "profile", "host", "recipe", "recipeClass",
+    "artifactTarget", "abi", "profile", "host", "recipeClass", "runtimeClosure",
     "comparability", "eligibility"];
-  const replacedRunnerMetrics = [];
+  const replacedBuildMetrics = [];
   const currentRunnerEntries = pruned.catalog.bestMetrics.entries.filter((entry) => {
-    const sameLane = candidateLane !== undefined &&
-      liveLaneAxes.every((axis) => entry?.[axis] === candidateLane?.[axis]);
-    const obsoleteRunner = sameLane &&
-      entry?.provenance?.runnerDigest !== result.provenance.runnerDigest;
-    if (obsoleteRunner) replacedRunnerMetrics.push(entry.metric);
-    return !obsoleteRunner;
+    const sameLane = candidateLane !== undefined && liveLaneAxes.every((axis) => {
+      const left = entry?.[axis];
+      const right = candidateLane?.[axis];
+      return isObject(left) || isObject(right)
+        ? JSON.stringify(left) === JSON.stringify(right)
+        : left === right;
+    });
+    const obsoleteBuild = sameLane && (
+      entry?.toolchain !== candidateLane?.toolchain ||
+      entry?.recipe !== candidateLane?.recipe ||
+      entry?.provenance?.recipeDigest !== result.provenance.recipeDigest ||
+      entry?.provenance?.toolchainDigest !== result.provenance.toolchainDigest ||
+      entry?.provenance?.runnerDigest !== result.provenance.runnerDigest
+    );
+    if (obsoleteBuild) replacedBuildMetrics.push(entry.metric);
+    return !obsoleteBuild;
   });
   const byCell = new Map(currentRunnerEntries.map((entry) => [`${entry.categoryId}\u0000${entry.metric}`, entry]));
-  const updatedMetrics = [...pruned.removedMetrics, ...replacedRunnerMetrics];
+  const updatedMetrics = [...pruned.removedMetrics, ...replacedBuildMetrics];
   for (const entry of candidate.entries) {
     const key = `${entry.categoryId}\u0000${entry.metric}`;
     const previous = byCell.get(key);

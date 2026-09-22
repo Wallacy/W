@@ -186,7 +186,15 @@ const targetTriple = "x86_64-unknown-linux-gnu"
 const expectedHelp =
   "usage: w check <path/file.w> [--json]\n" +
   "usage: w run <path/file.w> [-- <args...>]\n" +
-  "usage: w build <path/file.w> --target <target> --output <artifact>\n"
+  "usage: w build <path/file.w> --target <target> --output <artifact>\n" +
+  "usage: w bench process --exe <absolute-path> [options]\n" +
+  "  options: --cwd <absolute-dir> --arg <value> --warmup <n> " +
+  "--samples <n> --timeout-ms <n> --expect-exit <n> " +
+  "--expect-stdout-hex <bytes> --expect-stderr-hex <bytes>\n" +
+  (process.platform === "win32"
+    ? "  Windows-native cold process measurement only; does not compile or " +
+      "execute .w source\n"
+    : "")
 const expectedHello = Buffer.from("Hello, world!\n", "utf8")
 
 const isWindows = process.platform === "win32"
@@ -326,7 +334,7 @@ export function validateManifest(manifest, mode = ciMode) {
     "native linker contract changed")
     assert(pipeline[2]?.tool === "opt" &&
       JSON.stringify(pipeline[2].args) === JSON.stringify([
-        "--disable-simplify-libcalls", "-passes=instcombine,simplifycfg",
+        "-passes=instcombine,simplifycfg",
         "-S", "<output.ll>", "-o",
         "<optimized.ll>",
       ]), "LLVM optimization recipe changed")
@@ -628,6 +636,8 @@ const manifest = JSON.parse(await readFile(manifestPath, "utf8"))
 const commands = validateManifest(manifest)
 const runSource = await readFile(resolve(seedDirectory, "cli", "run.c"), "utf8")
 const buildSource = await readFile(resolve(seedDirectory, "cli", "build.c"), "utf8")
+const emitterSource = await readFile(resolve(seedDirectory, "src", "w_seed_mlir0.c"),
+  "utf8")
 for (const marker of ["W_SEED_LINUX_MLIR_OPT_PATH",
   "W_SEED_LINUX_MLIR_TRANSLATE_PATH", "W_SEED_LINUX_LLVM_OPT_PATH",
   "W_SEED_LINUX_LLC_PATH",
@@ -635,10 +645,14 @@ for (const marker of ["W_SEED_LINUX_MLIR_OPT_PATH",
   assert(runSource.includes(marker), `cli/run.c does not use ${marker}`)
 for (const marker of ["--convert-scf-to-cf", "--convert-arith-to-llvm",
   "--convert-func-to-llvm", "--convert-cf-to-llvm",
-  "--canonicalize", "--cse", "--disable-simplify-libcalls", "-O3", "-s",
+  "--canonicalize", "--cse", "-O3", "-s",
   "--no-dynamic-linker", "--gc-sections", "_start", "w_seed_wrt0_get"])
   assert(runSource.includes(marker),
     `cli/run.c is missing the release build flag ${marker}`)
+assert(!runSource.includes("--disable-simplify-libcalls"),
+  "cli/run.c must preserve LLVM libcall simplification")
+assert(emitterSource.includes("no-builtin-strlen"),
+  "Linux argv scan must suppress only strlen builtin synthesis")
 assert(runSource.includes("W_SEED_RUN_COMPILE_PROFILE_DEV"),
   "cli/run.c does not select the development compile profile for w run")
 assert(buildSource.includes("W_SEED_RUN_COMPILE_PROFILE_RELEASE"),
@@ -682,7 +696,7 @@ assert(linkVersion.exitCode === 0, "native linker version probe failed")
 console.log(`W RUN: LLVM tools ${developmentPatchCompatibility
   ? "23.1.x development-compatible" : expectedVersion}; native linker ${resolvedCommands.linkDriver}: ` +
   `${linkVersion.stdoutBytes.toString().split(/\r?\n/u)[0]}; target elf_x86_64`)
-console.log("W RUN: stages MLIR → LLVM IR → LLVM opt (no simplify-libcalls) → llc PIC objects → WRT0 + direct static-PIE link (no CRT/libc)")
+console.log("W RUN: stages MLIR → LLVM IR → LLVM opt (libcall simplification enabled; argv length scans are function-scoped) → llc PIC objects → WRT0 + direct static-PIE link (no CRT/libc)")
 
 const cmake = isWindows ? "cmake" : Bun.which("cmake")
 const ninja = isWindows ? "ninja" : Bun.which("ninja")

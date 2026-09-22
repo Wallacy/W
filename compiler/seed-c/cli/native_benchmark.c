@@ -1,3 +1,4 @@
+#include "native_benchmark.h"
 #include "w_seed_native_benchmark.h"
 
 #include <inttypes.h>
@@ -7,9 +8,18 @@
 
 #if !defined(_WIN32)
 
-int main(void) {
-  (void)fprintf(stderr,
-                "w_seed_native_benchmark: Windows is required\n");
+int w_seed_native_benchmark_process_command(int argc, wchar_t **argv) {
+  (void)argc;
+  (void)argv;
+  (void)fprintf(stderr, "w bench process is currently Windows-only; the "
+                        "Linux native measurement backend is not implemented\n");
+  return 2;
+}
+
+int w_seed_native_benchmark_helper_command(int argc, wchar_t **argv) {
+  (void)argc;
+  (void)argv;
+  (void)fprintf(stderr, "w_seed_native_benchmark: Windows is required\n");
   return 2;
 }
 
@@ -26,6 +36,9 @@ typedef struct {
   uint32_t sample_count;
   uint32_t timeout_ms;
   bool oracle_enabled;
+  bool expected_exit_seen;
+  bool expected_stdout_seen;
+  bool expected_stderr_seen;
   uint32_t expected_exit_code;
   uint8_t expected_stdout[W_SEED_NATIVE_BENCHMARK_MAX_CAPTURE_BYTES];
   size_t expected_stdout_bytes;
@@ -41,15 +54,17 @@ static void print_error(w_seed_native_benchmark_status status,
       w_seed_native_benchmark_status_name(status), os_error);
 }
 
-static void print_usage(void) {
+static void print_usage(const char *command) {
   (void)printf(
-      "usage: w_seed_native_benchmark --exe <absolute-path> [options]\n"
+      "usage: %s --exe <absolute-path> [options]\n"
       "options: --cwd <absolute-dir> --arg <value> --warmup <n> "
       "--samples <n> --timeout-ms <n> --expect-exit <n> "
       "--expect-stdout-hex <bytes> --expect-stderr-hex <bytes>\n"
+      "Windows-native cold process measurement only; does not compile or "
+      "execute .w source\n"
       "limits: arguments <= %u, samples/warmups <= %u, timeout <= %u ms, "
       "captured output <= %u bytes\n",
-      W_SEED_NATIVE_BENCHMARK_MAX_ARGUMENTS,
+      command, W_SEED_NATIVE_BENCHMARK_MAX_ARGUMENTS,
       W_SEED_NATIVE_BENCHMARK_MAX_SAMPLES,
       W_SEED_NATIVE_BENCHMARK_MAX_TIMEOUT_MS,
       W_SEED_NATIVE_BENCHMARK_MAX_CAPTURE_BYTES);
@@ -61,8 +76,10 @@ static bool parse_u32(const wchar_t *text, uint32_t maximum,
   uint64_t value = 0u;
   for (size_t index = 0u; text[index] != L'\0'; index += 1u) {
     if (text[index] < L'0' || text[index] > L'9') return false;
-    value = value * 10u + (uint64_t)(text[index] - L'0');
-    if (value > (uint64_t)maximum) return false;
+    const uint64_t digit = (uint64_t)(text[index] - L'0');
+    const uint64_t limit = (uint64_t)maximum;
+    if (digit > limit || value > (limit - digit) / 10u) return false;
+    value = value * 10u + digit;
   }
   *value_out = (uint32_t)value;
   return true;
@@ -110,17 +127,17 @@ static bool option_value(int argc, wchar_t **argv, int *index,
 
 static bool parse_options(int argc, wchar_t **argv,
                           native_benchmark_options *options) {
-  if (argc <= 0 || argv == NULL || options == NULL) return false;
+  if (argc < 0 || argv == NULL || options == NULL) return false;
   *options = (native_benchmark_options){
-      NULL, NULL, {NULL}, 0u, 1u, 9u,
-      W_SEED_NATIVE_BENCHMARK_MAX_TIMEOUT_MS, false, 0u, {0u}, 0u, {0u}, 0u};
-  for (int index = 1; index < argc; index += 1) {
+      .warmup_count = 1u,
+      .sample_count = 9u,
+      .timeout_ms = W_SEED_NATIVE_BENCHMARK_MAX_TIMEOUT_MS,
+  };
+  for (int index = 0; index < argc; index += 1) {
     const wchar_t *value = NULL;
     if (wcscmp(argv[index], L"--help") == 0 ||
-        wcscmp(argv[index], L"-h") == 0) {
-      print_usage();
+        wcscmp(argv[index], L"-h") == 0)
       return false;
-    }
     if (wcscmp(argv[index], L"--exe") == 0) {
       if (options->executable_path != NULL ||
           !option_value(argc, argv, &index, &value))
@@ -156,29 +173,36 @@ static bool parse_options(int argc, wchar_t **argv,
           options->timeout_ms == 0u)
         return false;
     } else if (wcscmp(argv[index], L"--expect-exit") == 0) {
-      if (!option_value(argc, argv, &index, &value) ||
+      if (options->expected_exit_seen ||
+          !option_value(argc, argv, &index, &value) ||
           !parse_u32(value, UINT32_MAX, &options->expected_exit_code))
         return false;
+      options->expected_exit_seen = true;
       options->oracle_enabled = true;
     } else if (wcscmp(argv[index], L"--expect-stdout-hex") == 0) {
-      if (!option_value(argc, argv, &index, &value) ||
+      if (options->expected_stdout_seen ||
+          !option_value(argc, argv, &index, &value) ||
           !parse_hex(value, options->expected_stdout,
                      sizeof(options->expected_stdout),
                      &options->expected_stdout_bytes))
         return false;
+      options->expected_stdout_seen = true;
       options->oracle_enabled = true;
     } else if (wcscmp(argv[index], L"--expect-stderr-hex") == 0) {
-      if (!option_value(argc, argv, &index, &value) ||
+      if (options->expected_stderr_seen ||
+          !option_value(argc, argv, &index, &value) ||
           !parse_hex(value, options->expected_stderr,
                      sizeof(options->expected_stderr),
                      &options->expected_stderr_bytes))
         return false;
+      options->expected_stderr_seen = true;
       options->oracle_enabled = true;
     } else {
       return false;
     }
   }
-  return options->executable_path != NULL;
+  return options->executable_path != NULL && options->expected_exit_seen &&
+         options->expected_stdout_seen && options->expected_stderr_seen;
 }
 
 static int compare_u64(const void *left, const void *right) {
@@ -310,7 +334,8 @@ static void print_success(const native_benchmark_options *options,
       "invocation; native launch setup, execution, descendants, Job Object "
       "quiescence, and bounded stdout/stderr capture are included; direct "
       "process CPU and working set are separate from Job Object CPU and peak "
-      "commit; helper orchestration and Bun caller time are excluded; "
+      "commit; controller startup, orchestration, and receipt formatting are "
+      "outside the target sample; "
       "kill-on-close containment; one deadline covers the invocation; no "
       "steady body lane is claimed\"}\n",
       wall_minimum, wall_median, wall_p95, wall_mean,
@@ -320,12 +345,15 @@ static void print_success(const native_benchmark_options *options,
       maximum_job_commit(samples, options->sample_count));
 }
 
-int wmain(int argc, wchar_t **argv) {
+static int native_benchmark_command(int argc, wchar_t **argv,
+                                   const char *command) {
+  if (argc == 1 && argv != NULL &&
+      (wcscmp(argv[0], L"--help") == 0 || wcscmp(argv[0], L"-h") == 0)) {
+    print_usage(command);
+    return 0;
+  }
   native_benchmark_options options;
   if (!parse_options(argc, argv, &options)) {
-    if (argc > 1 && (wcscmp(argv[1], L"--help") == 0 ||
-                     wcscmp(argv[1], L"-h") == 0))
-      return 0;
     print_error(W_SEED_NATIVE_BENCHMARK_INVALID_ARGUMENT, 0u);
     return 2;
   }
@@ -361,6 +389,14 @@ int wmain(int argc, wchar_t **argv) {
   }
   print_success(&options, samples);
   return 0;
+}
+
+int w_seed_native_benchmark_process_command(int argc, wchar_t **argv) {
+  return native_benchmark_command(argc, argv, "w bench process");
+}
+
+int w_seed_native_benchmark_helper_command(int argc, wchar_t **argv) {
+  return native_benchmark_command(argc, argv, "w_seed_native_benchmark");
 }
 
 #endif

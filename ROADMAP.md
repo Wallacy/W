@@ -27,12 +27,18 @@ not in this queue.
   Release performance over size and require benchmark evidence for size work.
 - Preserve the cross-target goal: any supported compiler host can emit any
   supported target without downloading a cross toolchain.
-- Default native products are CRT-free and statically close W-owned runtime and
-  standard-library code by reachability.
-- Keep runtime closure orthogonal to optimization. Freestanding is the default;
-  a future hosted-CRT capability is explicit, target-bound and receipted.
-  Debug, release, benchmark, size, sanitizer and PGO modes never widen the
-  permitted dependency set implicitly.
+- Default native products are CRT-free and statically close reachable W-owned
+  runtime and standard-library code. `wrt: .static(.auto)` selects from the
+  signed target pack; separately distributed dynamic WRT requires an explicit
+  exact provider selection.
+- Keep target environment, WRT linkage and CRT provider selection separate,
+  and keep them orthogonal to optimization. `crt: .auto` resolves to no CRT
+  without a declared transitive requirement; otherwise it requires one exact
+  target/ABI-compatible provider. `crt: .none` enforces a CRT-free product. A C
+  ABI or `fn<lang: .c>` declaration does not imply CRT. Auto resolution never
+  authorizes an optimizer-synthesized CRT symbol; absent an exact selected
+  offer, closure fails. Debug, release, benchmark, size, sanitizer and PGO modes
+  never widen either dependency axis implicitly.
 - Optimize the largest proved closed graph; retain only observable product and
   ABI roots.
 - Elide a declared execution relation only with an independently verifiable
@@ -57,26 +63,33 @@ helper calls that did not exist in W source or pre-optimization IR. Every native
 route therefore validates three successive closures: external declarations in
 post-opt IR, undefined symbols in each object after code generation, and final
 imports/`DT_NEEDED` or equivalent dependencies after linking. Each symbol must
-belong to the selected reachability-closed WRT, target SDK/provider, or an
-explicit hosted capability. Successful linking is not sufficient evidence.
+belong to the selected reachability-closed WRT, target SDK/provider, a declared
+CRT requirement resolved to an exact offer, or an explicit provider selection.
+Successful linking is not sufficient evidence.
 
-The runtime-closure axis is independent from W program and toolchain profiles:
+The runtime-closure axis is independent from target environment and W program
+or toolchain profiles:
 
-- `freestanding` is the default and permits only the selected WRT plus explicit
-  target SDK/provider leaves;
-- `hosted-crt` is a future opt-in capability, not a faster release profile. It
-  binds the exact CRT/libc/libm identity, link mode, target and dependency
-  receipt;
+- CRT-free is the default closure, with reachability-selected static WRT and
+  explicit target SDK/provider leaves. This describes linkage, not whether the
+  target environment is hosted or freestanding;
+- a selected declared CRT requirement or exact CRT provider binds identity,
+  version, link mode, target, allowed operations and dependency receipt. It is
+  not a faster release profile;
 - instrumentation is build evidence, not a deployable closure. Sanitizer and
   PGO-generate runtimes are explicit and training-only; the final PGO-use
-  artifact revalidates its own freestanding or hosted closure from scratch.
+  artifact revalidates its own CRT-free or CRT-enabled closure from scratch.
 
 When an optimizer discovers an idiom such as a NUL-terminated byte scan, the
 implementation order is: erase the operation when reachability proves it
 unobservable; retain a target intrinsic when one owns the semantics; select a
-WRT primitive or explicit provider; and only then compare an opt-in hosted CRT
-implementation. Blanket disabling of libcall simplification is acceptable as
-temporary seed containment, not as proof of optimal lowering. Promotion
+WRT primitive or explicit target provider; and only then compare an explicitly
+selected CRT implementation. `.auto` CRT resolution remains limited to
+declared transitive requirements and does not authorize newly synthesized
+symbols. The former process-wide libcall-disable flag was temporary
+containment and is removed from the bounded seed route after optimized Windows
+and Linux execution gates passed with helper-specific no-builtin attributes.
+This is not a general closure proof or evidence of optimal lowering. Promotion
 requires identical semantics and separate measurements for compile latency,
 runtime, memory, file/code/import bytes and dependency closure. Freestanding,
 hosted, sanitizer and PGO-training results remain separate benchmark lanes.
@@ -91,11 +104,12 @@ cleanup exist only when reachable or observably required. A source signature
 does not force physical materialization. Cleanup follows materialized resources
 and explicit language effects, not a monolithic adapter template. The first
 optimization slice closes this rule for unused process inputs, then partitions
-process helpers by reachability before adding a hosted-CRT product mode.
+process helpers by reachability before adding an opt-in CRT-enabled product
+mode.
 The same slice introduces a target-product closure receipt distinct from the
-seed-compiler receipt. It binds the closure mode, implementation and version,
-target/ABI, link mode, provider manifest, allowed and observed dependencies,
-and a closure digest.
+seed-compiler receipt. It binds target environment, WRT and CRT selections,
+provider implementation and version, target/ABI, both link modes, provider
+manifests, allowed and observed dependencies, and a closure digest.
 
 ### Evidence promotion and safety closure
 

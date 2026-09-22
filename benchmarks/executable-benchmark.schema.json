@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "w-executable-benchmark/6",
+  "$id": "w-executable-benchmark/7",
   "title": "W executable benchmark live catalog and local result contracts",
   "oneOf": [
     { "$ref": "#/$defs/catalog" },
@@ -25,6 +25,16 @@
       "type": "string",
       "enum": ["public-end-to-end", "integration-linkage", "transient-internal"]
     },
+    "runtimeClosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "status"],
+      "properties": {
+        "class": { "enum": ["freestanding", "hosted-crt", "instrumentation"] },
+        "status": { "const": "unverified" }
+      },
+      "description": "Recipe-derived closure class only; artifact imports and exact provider/version receipts are unavailable in current results."
+    },
     "metric": {
       "type": "object",
       "additionalProperties": false,
@@ -39,7 +49,7 @@
     "source": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["language", "path", "digest", "entry", "status", "profile", "quality", "recipe", "recipeClass", "platformTarget", "artifactTarget", "comparability", "eligibility"],
+      "required": ["language", "path", "digest", "entry", "status", "profile", "quality", "recipe", "recipeClass", "runtimeClosure", "platformTarget", "artifactTarget", "comparability", "eligibility"],
       "properties": {
         "language": { "enum": ["w", "c", "rust"] },
         "path": { "type": "string" },
@@ -50,6 +60,7 @@
         "quality": { "const": "correctness-gate" },
         "recipe": { "type": "string" },
         "recipeClass": { "type": "string" },
+        "runtimeClosure": { "$ref": "#/$defs/runtimeClosure" },
         "platformTarget": { "enum": ["windows-x64", "linux-x64", "linux-wsl-x64"] },
         "artifactTarget": { "enum": ["x86_64-pc-windows-msvc", "x86_64-w64-mingw32", "x86_64-unknown-linux-gnu"] },
         "comparability": { "enum": ["deferred-until-M3b", "promotable-after-equivalence", "contextual-non-ranking-private-composite", "same-physical-hardware-diagnostic-only"] },
@@ -160,9 +171,10 @@
     "workload": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "structureClass", "status", "sourceReadiness", "demoEvidence", "benchmarkStatus", "lane", "scope", "oracle", "sources", "blockedLanguages", "blockers"],
+      "required": ["id", "family", "structureClass", "status", "sourceReadiness", "demoEvidence", "benchmarkStatus", "lane", "scope", "oracle", "sources", "blockedLanguages", "blockers"],
       "properties": {
         "id": { "type": "string" },
+        "family": { "enum": ["hello", "control-flow", "async", "composition", "integer-semantics", "floating-point", "mutation", "process", "modules"] },
         "structureClass": { "$ref": "#/$defs/structureClass" },
         "status": { "enum": ["source-oracle-ready", "planned", "blocked"] },
         "sourceReadiness": { "enum": ["source-and-oracle-ready", "not-materialized"] },
@@ -253,11 +265,11 @@
       "additionalProperties": false,
       "required": ["schema", "status", "recordsPath", "requiredIdentity", "provenance", "sampling", "protocolFields", "environmentFields", "artifact", "metrics", "storage", "runtimeMeasurement"],
       "properties": {
-        "schema": { "const": "w-executable-benchmark-result/6" },
+        "schema": { "const": "w-executable-benchmark-result/7" },
         "status": { "const": "contract-only" },
         "recordsPath": { "const": "benchmarks/results" },
         "requiredIdentity": {
-          "const": ["workloadId", "language", "platformTarget", "artifactTarget", "profile", "toolchain", "host", "recipe", "recipeClass", "recipeDigest", "equivalenceKey"]
+          "const": ["workloadId", "language", "platformTarget", "artifactTarget", "profile", "toolchain", "host", "recipe", "recipeClass", "runtimeClosure", "recipeDigest", "equivalenceKey"]
         },
         "provenance": {
           "const": ["sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "catalogDigest", "commit", "observedAt", "platformEvidence"]
@@ -294,12 +306,12 @@
       "additionalProperties": false,
       "required": ["schema", "status", "storage", "optimizableMetrics", "forbiddenMetrics", "categoryAxes", "provenanceFields", "rule"],
       "properties": {
-        "schema": { "const": "w-executable-benchmark-best-metrics/1" },
+        "schema": { "const": "w-executable-benchmark-best-metrics/2" },
         "status": { "const": "defined" },
         "storage": { "type": "string" },
         "optimizableMetrics": { "const": ["compile-latency", "run-wall-time", "run-wall-p95", "cpu-time", "peak-working-set", "artifact-size"] },
         "forbiddenMetrics": { "const": ["exit-code", "stdout", "stderr"] },
-        "categoryAxes": { "const": ["workloadId", "language", "equivalenceKey", "platformTarget", "artifactTarget", "abi", "profile", "toolchain", "host", "recipe", "recipeClass", "comparability", "eligibility"] },
+        "categoryAxes": { "const": ["workloadId", "language", "equivalenceKey", "platformTarget", "artifactTarget", "abi", "profile", "toolchain", "host", "recipe", "recipeClass", "runtimeClosure", "comparability", "eligibility"] },
         "provenanceFields": { "const": ["recordId", "commit", "observedAt", "sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "catalogDigest", "artifactCleanliness"] },
         "rule": { "type": "string" }
       }
@@ -310,7 +322,7 @@
       "required": ["$schema", "schema", "kind", "id", "status", "metrics", "comparabilityAxes", "platformLanes", "workloads", "resultContract", "bestMetricsContract", "bestMetrics"],
       "properties": {
         "$schema": { "const": "./executable-benchmark.schema.json" },
-        "schema": { "const": "w-executable-benchmark/6" },
+        "schema": { "const": "w-executable-benchmark/7" },
         "kind": { "const": "executable-benchmark-catalog" },
         "id": { "const": "w-executable-benchmark-catalog" },
         "status": { "const": "catalog-ready" },
@@ -326,7 +338,7 @@
     "identity": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["sourceDigest", "platformTarget", "artifactTarget", "profile", "toolchain", "host", "recipe", "recipeClass", "recipeDigest", "eligibility"],
+      "required": ["sourceDigest", "platformTarget", "artifactTarget", "profile", "toolchain", "host", "recipe", "recipeClass", "runtimeClosure", "recipeDigest", "eligibility"],
       "properties": {
         "sourceDigest": { "$ref": "#/$defs/digest" },
         "platformTarget": { "enum": ["windows-x64", "linux-x64", "linux-wsl-x64"] },
@@ -336,6 +348,7 @@
         "host": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
         "recipe": { "type": "string" },
         "recipeClass": { "type": "string" },
+        "runtimeClosure": { "$ref": "#/$defs/runtimeClosure" },
         "recipeDigest": { "$ref": "#/$defs/digest" },
         "eligibility": { "type": "string" }
       },
@@ -649,7 +662,7 @@
       "required": ["$schema", "schema", "kind", "id", "status", "workloadId", "language", "platformTarget", "artifactTarget", "profile", "quality", "claim", "verdict", "equivalenceKey", "identity", "correctness", "artifact", "protocol", "environment", "compile", "run", "provenance"],
       "properties": {
         "$schema": { "const": "./executable-benchmark.schema.json" },
-        "schema": { "const": "w-executable-benchmark-result/6" },
+        "schema": { "const": "w-executable-benchmark-result/7" },
         "kind": { "const": "executable-result" },
         "id": { "type": "string" },
         "status": { "const": "recorded" },
@@ -716,10 +729,10 @@
     "bestMetric": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["$schema", "schema", "kind", "id", "status", "categoryId", "workloadId", "language", "equivalenceKey", "platformTarget", "artifactTarget", "abi", "profile", "host", "recipeClass", "comparability", "eligibility", "metric", "unit", "statistic", "value", "toolchain", "recipe", "provenance"],
+      "required": ["$schema", "schema", "kind", "id", "status", "categoryId", "workloadId", "language", "equivalenceKey", "platformTarget", "artifactTarget", "abi", "profile", "host", "recipeClass", "runtimeClosure", "comparability", "eligibility", "metric", "unit", "statistic", "value", "toolchain", "recipe", "provenance"],
       "properties": {
         "$schema": { "const": "./executable-benchmark.schema.json" },
-        "schema": { "const": "w-executable-benchmark-best-metrics/1" },
+        "schema": { "const": "w-executable-benchmark-best-metrics/2" },
         "kind": { "const": "executable-best-metric" },
         "id": { "type": "string", "minLength": 1 },
         "status": { "const": "current" },
@@ -733,6 +746,7 @@
         "profile": { "const": "release" },
         "host": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
         "recipeClass": { "type": "string", "minLength": 1 },
+        "runtimeClosure": { "$ref": "#/$defs/runtimeClosure" },
         "comparability": { "type": "string", "minLength": 1 },
         "eligibility": { "type": "string", "minLength": 1 },
         "metric": { "enum": ["compile-latency", "run-wall-time", "run-wall-p95", "cpu-time", "peak-working-set", "artifact-size"] },
@@ -780,7 +794,7 @@
       "required": ["$schema", "schema", "kind", "status", "entries"],
       "properties": {
         "$schema": { "const": "./executable-benchmark.schema.json" },
-        "schema": { "const": "w-executable-benchmark-best-metrics/1" },
+        "schema": { "const": "w-executable-benchmark-best-metrics/2" },
         "kind": { "const": "executable-best-metrics" },
         "status": { "enum": ["empty", "current"] },
         "entries": { "type": "array", "items": { "$ref": "#/$defs/bestMetric" } }

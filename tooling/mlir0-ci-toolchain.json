@@ -60,7 +60,7 @@
     },
     {
       "tool": "opt",
-      "args": ["--disable-simplify-libcalls", "-passes=instcombine,simplifycfg", "-S", "<output.ll>", "-o", "<optimized.ll>"]
+      "args": ["-passes=instcombine,simplifycfg", "-S", "<output.ll>", "-o", "<optimized.ll>"]
     },
     {
       "tool": "llc",

@@ -5,10 +5,17 @@ Current portable-release values. Lower is better; `—` means no published measu
 
 ## Workloads
 
+### Hello and platform entry
+
 | Workload | Class | Sources | Oracle | Benchmark |
 | --- | --- | --- | --- | --- |
 | hello | public-end-to-end | [w](./executable/hello.w), [c](./executable/hello.c), [rust](./executable/hello.rs) | source-backed | exploratory-ready |
 | hello-platform-minimal | public-end-to-end | [w](./executable/hello.w), [c](./executable/hello_platform_minimal.c), [rust](./executable/hello_platform_minimal.rs) | source-backed | not-performance-ready |
+
+### Control flow and interpolation
+
+| Workload | Class | Sources | Oracle | Benchmark |
+| --- | --- | --- | --- | --- |
 | restaurant-branch | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-if.w), [c](./executable/restaurant_branch.c), [rust](./executable/restaurant_branch.rs) | source-backed | exploratory-ready |
 | restaurant-nested-branch | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-nested-if.w) | source-backed | partial-exploratory-ready |
 | bool-short-circuit | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-bool-short-circuit.w) | source-backed | partial-exploratory-ready |
@@ -18,8 +25,18 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-while-post | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-while-post.w), [c](./executable/restaurant_while_post.c), [rust](./executable/restaurant_while_post.rs) | source-backed | exploratory-ready |
 | restaurant-repeat | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-repeat.w), [c](./executable/restaurant_repeat.c), [rust](./executable/restaurant_repeat.rs) | source-backed | exploratory-ready |
 | restaurant-wmo | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-wmo.w), [c](./executable/restaurant_wmo.c), [rust](./executable/restaurant_wmo.rs) | source-backed | exploratory-ready |
+
+### Asynchronous scheduling
+
+| Workload | Class | Sources | Oracle | Benchmark |
+| --- | --- | --- | --- | --- |
 | restaurant-async-join | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-async-join.w), [c](./executable/restaurant_async_join.c), [rust](./executable/restaurant_async_join.rs) | source-backed | exploratory-ready |
 | restaurant-async-yield | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-async-yield.w), [c](./executable/restaurant_async_yield.c), [rust](./executable/restaurant_async_yield.rs) | source-backed | exploratory-ready |
+
+### Composition, enums, and dispatch
+
+| Workload | Class | Sources | Oracle | Benchmark |
+| --- | --- | --- | --- | --- |
 | restaurant-main-dispatch | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-main-dispatch0.w) | source-backed | partial-exploratory-ready |
 | restaurant-main-cardinality | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-main-cardinality0.w) | source-backed | partial-exploratory-ready |
 | restaurant-enum-switch | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-enum.w), [c](./executable/restaurant_enum.c), [rust](./executable/restaurant_enum.rs) | source-backed | exploratory-ready |
@@ -27,13 +44,16 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-enum-payload | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-enum-payload.w), [c](./executable/restaurant_enum_payload.c), [rust](./executable/restaurant_enum_payload.rs) | source-backed | exploratory-ready |
 | restaurant-enum-bool-payload | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-enum-bool-payload.w), [c](./executable/restaurant_enum_bool_payload.c), [rust](./executable/restaurant_enum_bool_payload.rs) | source-backed | exploratory-ready |
 | restaurant-comparison-composition | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-comparison-composition.w) | source-backed | partial-exploratory-ready |
+
+### Integer semantics
+
+| Workload | Class | Sources | Oracle | Benchmark |
+| --- | --- | --- | --- | --- |
 | restaurant-integer-bitwise | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-integer-bitwise.w), [c](./executable/restaurant_integer_bitwise.c), [rust](./executable/restaurant_integer_bitwise.rs) | source-backed | not-performance-ready |
 | integer-shift-semantics | public-end-to-end | [w](./executable/integer_shift_semantics.w), [c](./executable/integer_shift_semantics.c), [rust](./executable/integer_shift_semantics.rs) | source-backed | not-performance-ready |
 | restaurant-power | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-power.w) | source-backed | partial-exploratory-ready |
 | restaurant-power-prefix | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-power-prefix.w) | source-backed | partial-exploratory-ready |
 | restaurant-compound | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-compound.w) | source-backed | partial-exploratory-ready |
-| restaurant-float-strict | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-float-strict.w), [c](./executable/restaurant_float_strict.c), [rust](./executable/restaurant_float_strict.rs) | source-backed | not-performance-ready |
-| restaurant-float-bit-representation | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-float-bit-representation.w), [c](./executable/restaurant_float_bit_representation.c), [rust](./executable/restaurant_float_bit_representation.rs) | source-backed | not-performance-ready |
 | restaurant-checked-integer-arithmetic | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-checked-integer-arithmetic.w), [c](./executable/restaurant_checked_integer_arithmetic.c), [rust](./executable/restaurant_checked_integer_arithmetic.rs) | source-backed | not-performance-ready |
 | restaurant-integer-prefix | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-integer-prefix.w), [c](./executable/restaurant_integer_prefix.c), [rust](./executable/restaurant_integer_prefix.rs) | source-backed | not-performance-ready |
 | restaurant-integer-wrapping | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-integer-wrapping.w), [c](./executable/restaurant_integer_wrapping.c), [rust](./executable/restaurant_integer_wrapping.rs) | source-backed | not-performance-ready |
@@ -48,23 +68,45 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-uint-bitwise | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-uint-bitwise.w), [c](./executable/restaurant_uint_bitwise.c), [rust](./executable/restaurant_uint_bitwise.rs) | source-backed | not-performance-ready |
 | restaurant-uint-compound | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-uint-compound.w), [c](./executable/restaurant_uint_compound.c), [rust](./executable/restaurant_uint_compound.rs) | source-backed | not-performance-ready |
 | restaurant-unsigned | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-unsigned.w) | source-backed | partial-exploratory-ready |
+| fixed-integer-runtime-arithmetic | public-end-to-end | [w](../compiler/seed-c/fixtures/process-fixed-integer-arithmetic.w), [c](./executable/process_fixed_integer_arithmetic.c), [rust](./executable/process_fixed_integer_arithmetic.rs) | source-backed | not-performance-ready |
+
+### Floating-point semantics
+
+| Workload | Class | Sources | Oracle | Benchmark |
+| --- | --- | --- | --- | --- |
+| restaurant-float-strict | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-float-strict.w), [c](./executable/restaurant_float_strict.c), [rust](./executable/restaurant_float_strict.rs) | source-backed | not-performance-ready |
+| restaurant-float-bit-representation | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-float-bit-representation.w), [c](./executable/restaurant_float_bit_representation.c), [rust](./executable/restaurant_float_bit_representation.rs) | source-backed | not-performance-ready |
+| float-integer-rounding | public-end-to-end | [w](../compiler/seed-c/fixtures/process-float-rounding-success.w) | source-backed | not-performance-ready |
+
+### Mutation and linear values
+
+| Workload | Class | Sources | Oracle | Benchmark |
+| --- | --- | --- | --- | --- |
 | restaurant-linear | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-linear.w) | source-backed | partial-exploratory-ready |
 | restaurant-mutation | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-mutation.w) | source-backed | partial-exploratory-ready |
 | restaurant-conditional-mutation | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-conditional-mutation.w) | source-backed | partial-exploratory-ready |
 | restaurant-bool-mutation | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-bool-mutation.w) | source-backed | partial-exploratory-ready |
 | restaurant-branch-mutation-multi | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-branch-mutation-multi.w) | source-backed | partial-exploratory-ready |
+
+### Process entry and arguments
+
+| Workload | Class | Sources | Oracle | Benchmark |
+| --- | --- | --- | --- | --- |
 | process-entry | public-end-to-end | [w](../compiler/seed-c/fixtures/process-input0.w), [c](./executable/process_entry.c), [rust](./executable/process_entry.rs) | source-backed | exploratory-ready |
-| fixed-integer-runtime-arithmetic | public-end-to-end | [w](../compiler/seed-c/fixtures/process-fixed-integer-arithmetic.w), [c](./executable/process_fixed_integer_arithmetic.c), [rust](./executable/process_fixed_integer_arithmetic.rs) | source-backed | not-performance-ready |
-| float-integer-rounding | public-end-to-end | [w](../compiler/seed-c/fixtures/process-float-rounding-success.w) | source-backed | not-performance-ready |
 | process-enum-payload | public-end-to-end | [w](../compiler/seed-c/fixtures/process-enum-payload.w), [c](./executable/process_enum_payload.c), [rust](./executable/process_enum_payload.rs) | source-backed | exploratory-ready |
 | process-arguments-count | public-end-to-end | [w](../compiler/seed-c/fixtures/process-arguments-count.w), [c](./executable/process_arguments_count.c), [rust](./executable/process_arguments_count.rs) | source-backed | exploratory-ready |
 | process-arguments-ordering | public-end-to-end | [w](../compiler/seed-c/fixtures/process-arguments-ordering.w), [c](./executable/process_arguments_ordering.c), [rust](./executable/process_arguments_ordering.rs) | source-backed | exploratory-ready |
-| local-module-graph | public-end-to-end | [w](../compiler/seed-c/fixtures/local-graph/app.w) | source-backed | partial-exploratory-ready |
 | process-handler-lifecycle | integration-linkage | [w](../compiler/seed-c/fixtures/process-entry0.w), [c](./executable/process_entry0.c), [rust](./executable/process_entry0.rs) | source-backed | exploratory-ready |
+
+### Module graph
+
+| Workload | Class | Sources | Oracle | Benchmark |
+| --- | --- | --- | --- | --- |
+| local-module-graph | public-end-to-end | [w](../compiler/seed-c/fixtures/local-graph/app.w) | source-backed | partial-exploratory-ready |
 
 ## Platform-minimal Hello correctness comparison
 
-This lane preserves the exact `Hello, world!\n` / exit `0` oracle while C23 and Rust 2024 enter without a CRT or standard library, write through the OS boundary, and exit directly. Windows artifacts import Kernel32 and omit the CRT; Linux ELF artifacts are static and are rejected if they contain `PT_INTERP` or `DT_NEEDED`. The W row reuses the public W Hello build. This is platform-minimal correctness/context evidence, not an idiomatic C/Rust baseline or a language ranking.
+This lane preserves the exact `Hello, world!\n` / exit `0` oracle while C23 and Rust 2024 recipes request no CRT or standard library, write through the OS boundary, and exit directly. Windows recipes link Kernel32; the ELF correctness checker rejects `PT_INTERP` or `DT_NEEDED`, but neither exact dependency list is persisted in current results. The W row reuses the public W Hello build. This is platform-minimal correctness/context evidence, not an idiomatic C/Rust baseline or a language ranking.
 
 Reproducible release commands (the runner resolves the installed compiler paths; `<source>` and `<artifact>` are per-sample temporary paths):
 
@@ -73,7 +115,7 @@ Reproducible release commands (the runner resolves the installed compiler paths;
 - C23, Linux x64 / WSL2: `clang --target=x86_64-unknown-linux-gnu -O3 -flto=full -ffunction-sections -fdata-sections -ffreestanding -fno-builtin -fno-stack-protector -fno-unwind-tables -fno-asynchronous-unwind-tables -fno-ident -fuse-ld=lld -nostdlib -static -Wl,-e,_start -Wl,--gc-sections -Wl,--strip-all -Wl,--build-id=none -std=c23 <source> -o <artifact>`
 - Rust 2024, Linux x64 / WSL2: `rustc <source> --edition=2024 -C opt-level=3 -C lto=fat -C codegen-units=1 -C panic=abort -C debuginfo=0 -C strip=symbols -C link-dead-code=no --target=x86_64-unknown-linux-gnu -C force-unwind-tables=no -C linker-flavor=ld.lld -C linker=<host-ld.lld> -C default-linker-libraries=no -C link-arg=-static -C link-arg=--no-pie -C link-arg=-e -C link-arg=_start -C link-arg=--gc-sections -C link-arg=--strip-all -C link-arg=--build-id=none -o <artifact>`
 
-The commands use C23 `-O3`/full LTO, freestanding/no-builtin/no-stack-protector/no-unwind-table code generation, dead-section elimination and stripping; Rust uses edition 2024 `no_std`/`no_main`, `-C opt-level=3`, fat LTO, one codegen unit, aborting panics and stripped symbols (disabling unwind tables on Linux, where supported by the target ABI). Windows imports only the OS Kernel32 boundary and omits the CRT; Linux selects `_start`, static linking, section GC, and no build ID. WSL rows remain same-physical-hardware diagnostics only.
+The commands request C23 `-O3`/full LTO, freestanding/no-builtin/no-stack-protector/no-unwind-table code generation, dead-section elimination and stripping; Rust uses edition 2024 `no_std`/`no_main`, `-C opt-level=3`, fat LTO, one codegen unit, aborting panics and stripped symbols (disabling unwind tables on Linux, where supported by the target ABI). Windows requests the Kernel32 OS boundary and no CRT; Linux requests `_start`, static linking, section GC, and no build ID. These recipe flags do not upgrade the unverified runtime-closure status of existing records. WSL rows remain same-physical-hardware diagnostics only.
 
 
 ## Best values
@@ -82,72 +124,72 @@ The commands use C23 `-O3`/full LTO, freestanding/no-builtin/no-stack-protector/
 
 | Workload | Language | Target | Runtime | Artifact | .text B | .rdata B | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| bool-short-circuit | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 966 | 308 | 182.0096 ms | 16.9107 ms | 17.9359 ms | 3756032 B (3.58 MiB) | 11.912 ms |
-| hello | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3446 | 2596 | 126.1595 ms | 17.1805 ms | 18.1178 ms | 4808704 B (4.59 MiB) | 13.459 ms |
-| hello | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113152 B (110.5 KiB) | — | — | 237.4533 ms | 17.8031 ms | 18.2169 ms | 4857856 B (4.63 MiB) | 11.757 ms |
-| hello | w | Windows x64 / MSVC | CRT-free | 2048 B (2.0 KiB) | 134 | 228 | 153.0913 ms | 13.5187 ms | 14.0913 ms | 3141632 B (3.00 MiB) | 9.9 ms |
-| local-module-graph | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 534 | 244 | 186.6517 ms | — | — | — | — |
-| process-arguments-count | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3558 | 2676 | 130.3478 ms | 18.0029 ms | 19.0491 ms | 4808704 B (4.59 MiB) | 13.923 ms |
-| process-arguments-count | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 116224 B (113.5 KiB) | 83192 | 27378 | 1.1378609 s | 18.075 ms | 19.0888 ms | 4866048 B (4.64 MiB) | 12.995 ms |
-| process-arguments-count | w | Windows x64 / MSVC | CRT-free | 3584 B (3.5 KiB) | 1446 | 316 | 189.5191 ms | 16.9215 ms | 17.2491 ms | 3764224 B (3.59 MiB) | 10.983 ms |
-| process-arguments-ordering | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3526 | 2660 | 128.1311 ms | 18.0056 ms | 18.9931 ms | 4829184 B (4.61 MiB) | 13.459 ms |
-| process-arguments-ordering | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 116224 B (113.5 KiB) | 83224 | 27378 | 1.1357736 s | 17.9828 ms | 18.4334 ms | 4878336 B (4.65 MiB) | 12.84 ms |
-| process-arguments-ordering | w | Windows x64 / MSVC | CRT-free | 3584 B (3.5 KiB) | 1510 | 316 | 188.5388 ms | 16.9228 ms | 17.1818 ms | 3764224 B (3.59 MiB) | 10.365 ms |
-| process-entry | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3494 | 2600 | 125.146 ms | 17.9583 ms | 18.7021 ms | 4804608 B (4.58 MiB) | 13.304 ms |
-| process-entry | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 115200 B (112.5 KiB) | 82760 | 26922 | 1.1235825 s | 17.0132 ms | 17.7982 ms | 4476928 B (4.27 MiB) | 11.912 ms |
-| process-entry | w | Windows x64 / MSVC | CRT-free | 3584 B (3.5 KiB) | 1430 | 268 | 187.4327 ms | 15.9992 ms | 16.9816 ms | 3760128 B (3.59 MiB) | 10.519 ms |
-| process-enum-payload | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3558 | 2660 | 127.8855 ms | 17.991 ms | 18.9885 ms | 4812800 B (4.59 MiB) | 12.84 ms |
-| process-enum-payload | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 116736 B (114.0 KiB) | 83528 | 27354 | 1.1390502 s | 17.0079 ms | 18.0308 ms | 4476928 B (4.27 MiB) | 11.448 ms |
-| process-enum-payload | w | Windows x64 / MSVC | CRT-free | 4096 B (4.0 KiB) | 1606 | 280 | 191.9271 ms | 16.8213 ms | 18.0287 ms | 3760128 B (3.59 MiB) | 10.674 ms |
-| process-handler-lifecycle | c | Windows x64 / MinGW | MinGW runtime | 20480 B (20.0 KiB) | 10056 | 1472 | 994.2651 ms | 17.9129 ms | 18.9302 ms | 4751360 B (4.53 MiB) | 12.685 ms |
-| process-handler-lifecycle | rust | Windows x64 / MinGW | MinGW runtime | 21504 B (21.0 KiB) | 10760 | 1472 | 1.0045717 s | 17.93 ms | 18.2697 ms | 4751360 B (4.53 MiB) | 11.757 ms |
-| process-handler-lifecycle | w | Windows x64 / MinGW | MinGW runtime | 20992 B (20.5 KiB) | 10744 | 1472 | 1.0382448 s | 17.7365 ms | 18.0686 ms | 4751360 B (4.53 MiB) | 13.613 ms |
-| restaurant-async-join | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3510 | 2624 | 131.1318 ms | 18 ms | 19.0541 ms | 4833280 B (4.61 MiB) | 12.376 ms |
-| restaurant-async-join | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79688 | 28348 | 1.081029 s | 17.9833 ms | 18.3623 ms | 4870144 B (4.64 MiB) | 12.995 ms |
-| restaurant-async-join | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 598 | 244 | 177.9059 ms | 16.8245 ms | 17.1711 ms | 3756032 B (3.58 MiB) | 10.983 ms |
-| restaurant-async-yield | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3510 | 2624 | 129.7002 ms | 17.976 ms | 18.9295 ms | 4833280 B (4.61 MiB) | 12.376 ms |
-| restaurant-async-yield | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79688 | 28348 | 1.080247 s | 17.9897 ms | 18.3019 ms | 4870144 B (4.64 MiB) | 12.84 ms |
-| restaurant-async-yield | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 662 | 260 | 182.7856 ms | 16.8709 ms | 17.196 ms | 3756032 B (3.58 MiB) | 10.365 ms |
-| restaurant-bool-mutation | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 646 | 224 | 177.3414 ms | 16.6843 ms | 17.1188 ms | 3756032 B (3.58 MiB) | 11.757 ms |
-| restaurant-branch | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3558 | 2632 | 127.7022 ms | 18.018 ms | 19.0303 ms | 4808704 B (4.59 MiB) | 12.376 ms |
-| restaurant-branch | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 114176 B (111.5 KiB) | 80200 | 28332 | 1.0822891 s | 17.97 ms | 18.2438 ms | 4857856 B (4.63 MiB) | 12.53 ms |
-| restaurant-branch | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | — | — | 177.456 ms | 16.0207 ms | 16.9866 ms | 3756032 B (3.58 MiB) | 10.21 ms |
-| restaurant-branch-mutation-multi | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 710 | 232 | 178.4074 ms | 16.9609 ms | 17.2298 ms | 3756032 B (3.58 MiB) | 10.983 ms |
-| restaurant-comparison-composition | w | Windows x64 / MSVC | CRT-free | 3584 B (3.5 KiB) | 1142 | 252 | 182.438 ms | 16.999 ms | 18.0154 ms | 3756032 B (3.58 MiB) | 12.221 ms |
-| restaurant-compound | w | Windows x64 / MSVC | CRT-free | 2560 B (2.5 KiB) | 982 | 292 | 183.8292 ms | 13.9363 ms | 15.3701 ms | 3153920 B (3.01 MiB) | 9.746 ms |
-| restaurant-conditional-mutation | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 662 | 232 | 177.8021 ms | 16.909 ms | 17.2469 ms | 3756032 B (3.58 MiB) | 11.138 ms |
-| restaurant-enum-bool-payload | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3542 | 2672 | 130.1575 ms | 17.9902 ms | 18.9828 ms | 4841472 B (4.62 MiB) | 12.84 ms |
-| restaurant-enum-bool-payload | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79848 | 28348 | 1.0835472 s | 17.9859 ms | 18.4323 ms | 4878336 B (4.65 MiB) | 13.149 ms |
-| restaurant-enum-bool-payload | w | Windows x64 / MSVC | CRT-free | 3584 B (3.5 KiB) | 1238 | 304 | 185.2894 ms | 16.7997 ms | 17.167 ms | 3756032 B (3.58 MiB) | 11.757 ms |
-| restaurant-enum-payload | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3526 | 2632 | 127.4699 ms | 17.9852 ms | 18.4794 ms | 4833280 B (4.61 MiB) | 12.995 ms |
-| restaurant-enum-payload | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79736 | 28348 | 1.0790875 s | 17.9532 ms | 18.1986 ms | 4874240 B (4.65 MiB) | 12.84 ms |
-| restaurant-enum-payload | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 918 | 240 | 179.9074 ms | 16.2686 ms | 17.0498 ms | 3756032 B (3.58 MiB) | 10.365 ms |
-| restaurant-enum-subset | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3510 | 2624 | 127.5459 ms | 17.9934 ms | 18.5309 ms | 4833280 B (4.61 MiB) | 12.685 ms |
-| restaurant-enum-subset | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79704 | 28348 | 1.0809043 s | 17.9954 ms | 18.3815 ms | 4874240 B (4.65 MiB) | 12.221 ms |
-| restaurant-enum-subset | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 614 | 248 | 175.8099 ms | 16.0966 ms | 17.0562 ms | 3756032 B (3.58 MiB) | 10.365 ms |
-| restaurant-enum-switch | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3526 | 2632 | 127.0953 ms | 17.9873 ms | 18.3148 ms | 4833280 B (4.61 MiB) | 13.304 ms |
-| restaurant-enum-switch | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79720 | 28348 | 1.0803393 s | 17.9637 ms | 18.2247 ms | 4870144 B (4.64 MiB) | 12.53 ms |
-| restaurant-enum-switch | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 694 | 224 | 174.7149 ms | 16.335 ms | 17.2527 ms | 3756032 B (3.58 MiB) | 10.055 ms |
-| restaurant-interpolation | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 518 | 216 | 176.6327 ms | 16.7522 ms | 17.1856 ms | 3756032 B (3.58 MiB) | 10.829 ms |
-| restaurant-linear | w | Windows x64 / MSVC | CRT-free | 2560 B (2.5 KiB) | 134 | 208 | 166.1238 ms | 16.0861 ms | 16.9756 ms | 3751936 B (3.58 MiB) | 12.53 ms |
-| restaurant-main-cardinality | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 982 | 256 | 182.027 ms | 16.9818 ms | 17.2775 ms | 3756032 B (3.58 MiB) | 10.519 ms |
-| restaurant-main-dispatch | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 742 | 264 | 179.9783 ms | 16.9176 ms | 17.299 ms | 3756032 B (3.58 MiB) | 12.53 ms |
-| restaurant-mutation | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 550 | 212 | 175.1766 ms | 16.0612 ms | 16.9951 ms | 3756032 B (3.58 MiB) | 10.829 ms |
-| restaurant-nested-branch | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 966 | 368 | 179.5562 ms | 16.8636 ms | 17.0991 ms | 3760128 B (3.59 MiB) | 11.448 ms |
-| restaurant-nested-scalar-if | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 742 | 216 | 176.228 ms | 16.9054 ms | 17.2046 ms | 3756032 B (3.58 MiB) | 10.829 ms |
-| restaurant-power | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 1030 | 340 | 181.7735 ms | 13.9709 ms | 15.573 ms | 3153920 B (3.01 MiB) | 11.757 ms |
-| restaurant-power-prefix | w | Windows x64 / MSVC | CRT-free | 2560 B (2.5 KiB) | 870 | 284 | 163.2738 ms | 12.5641 ms | 12.9288 ms | 3153920 B (3.01 MiB) | 10.21 ms |
-| restaurant-repeat | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3510 | 2632 | 129.5563 ms | 17.9833 ms | 18.7295 ms | 4833280 B (4.61 MiB) | 11.912 ms |
-| restaurant-repeat | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79704 | 28348 | 1.0822302 s | 17.9944 ms | 18.3194 ms | 4874240 B (4.65 MiB) | 12.066 ms |
-| restaurant-repeat | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 694 | 268 | 177.678 ms | 16.009 ms | 17.0043 ms | 3756032 B (3.58 MiB) | 11.602 ms |
-| restaurant-scalar-if | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 630 | 224 | 179.4772 ms | 16.8189 ms | 17.1398 ms | 3756032 B (3.58 MiB) | 10.674 ms |
-| restaurant-unsigned | w | Windows x64 / MSVC | CRT-free | 2560 B (2.5 KiB) | 662 | 292 | 177.6862 ms | 15.1126 ms | 17.9711 ms | 3153920 B (3.01 MiB) | 9.282 ms |
-| restaurant-while-post | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3510 | 2616 | 129.3226 ms | 18.0307 ms | 19.0116 ms | 4833280 B (4.61 MiB) | 12.221 ms |
-| restaurant-while-post | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79688 | 28348 | 1.0785606 s | 18.0301 ms | 19.0014 ms | 4870144 B (4.64 MiB) | 13.149 ms |
-| restaurant-while-post | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 646 | 256 | 176.7906 ms | 16.159 ms | 17.121 ms | 3756032 B (3.58 MiB) | 12.376 ms |
-| restaurant-wmo | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3510 | 2608 | 129.8723 ms | 18.0142 ms | 19.0296 ms | 4833280 B (4.61 MiB) | 12.995 ms |
-| restaurant-wmo | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79688 | 28348 | 1.0782036 s | 17.9632 ms | 18.3672 ms | 4870144 B (4.64 MiB) | 12.53 ms |
-| restaurant-wmo | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 582 | 220 | 175.5304 ms | 16.0403 ms | 16.9987 ms | 3756032 B (3.58 MiB) | 12.066 ms |
+| bool-short-circuit | w | Windows x64 / MSVC | Freestanding (unverified) | 3072 B (3.0 KiB) | 966 | 308 | 182.0096 ms | 16.9107 ms | 17.9359 ms | 3756032 B (3.58 MiB) | 11.912 ms |
+| hello | c | Windows x64 / MSVC | Hosted CRT (unverified) | 9216 B (9.0 KiB) | 3446 | 2596 | 126.1595 ms | 17.1805 ms | 18.1178 ms | 4808704 B (4.59 MiB) | 13.459 ms |
+| hello | rust | Windows x64 / MSVC | Hosted CRT (unverified) | 113152 B (110.5 KiB) | — | — | 237.4533 ms | 17.8031 ms | 18.2169 ms | 4857856 B (4.63 MiB) | 11.757 ms |
+| hello | w | Windows x64 / MSVC | Freestanding (unverified) | 2048 B (2.0 KiB) | 134 | 228 | 153.0913 ms | 13.5187 ms | 14.0913 ms | 3141632 B (3.00 MiB) | 9.9 ms |
+| local-module-graph | w | Windows x64 / MSVC | Freestanding (unverified) | 3072 B (3.0 KiB) | 534 | 244 | 186.6517 ms | — | — | — | — |
+| process-arguments-count | c | Windows x64 / MSVC | Hosted CRT (unverified) | 9216 B (9.0 KiB) | 3558 | 2676 | 130.3478 ms | 18.0029 ms | 19.0491 ms | 4808704 B (4.59 MiB) | 13.923 ms |
+| process-arguments-count | rust | Windows x64 / MSVC | Hosted CRT (unverified) | 116224 B (113.5 KiB) | 83192 | 27378 | 1.1378609 s | 18.075 ms | 19.0888 ms | 4866048 B (4.64 MiB) | 12.995 ms |
+| process-arguments-count | w | Windows x64 / MSVC | Freestanding (unverified) | 3584 B (3.5 KiB) | 1446 | 316 | 189.5191 ms | 16.9215 ms | 17.2491 ms | 3764224 B (3.59 MiB) | 10.983 ms |
+| process-arguments-ordering | c | Windows x64 / MSVC | Hosted CRT (unverified) | 9216 B (9.0 KiB) | 3526 | 2660 | 128.1311 ms | 18.0056 ms | 18.9931 ms | 4829184 B (4.61 MiB) | 13.459 ms |
+| process-arguments-ordering | rust | Windows x64 / MSVC | Hosted CRT (unverified) | 116224 B (113.5 KiB) | 83224 | 27378 | 1.1357736 s | 17.9828 ms | 18.4334 ms | 4878336 B (4.65 MiB) | 12.84 ms |
+| process-arguments-ordering | w | Windows x64 / MSVC | Freestanding (unverified) | 3584 B (3.5 KiB) | 1510 | 316 | 188.5388 ms | 16.9228 ms | 17.1818 ms | 3764224 B (3.59 MiB) | 10.365 ms |
+| process-entry | c | Windows x64 / MSVC | Hosted CRT (unverified) | 9216 B (9.0 KiB) | 3494 | 2600 | 125.146 ms | 17.9583 ms | 18.7021 ms | 4804608 B (4.58 MiB) | 13.304 ms |
+| process-entry | rust | Windows x64 / MSVC | Hosted CRT (unverified) | 115200 B (112.5 KiB) | 82760 | 26922 | 1.1235825 s | 17.0132 ms | 17.7982 ms | 4476928 B (4.27 MiB) | 11.912 ms |
+| process-entry | w | Windows x64 / MSVC | Freestanding (unverified) | 3584 B (3.5 KiB) | 1430 | 268 | 187.4327 ms | 15.9992 ms | 16.9816 ms | 3760128 B (3.59 MiB) | 10.519 ms |
+| process-enum-payload | c | Windows x64 / MSVC | Hosted CRT (unverified) | 9216 B (9.0 KiB) | 3558 | 2660 | 127.8855 ms | 17.991 ms | 18.9885 ms | 4812800 B (4.59 MiB) | 12.84 ms |
+| process-enum-payload | rust | Windows x64 / MSVC | Hosted CRT (unverified) | 116736 B (114.0 KiB) | 83528 | 27354 | 1.1390502 s | 17.0079 ms | 18.0308 ms | 4476928 B (4.27 MiB) | 11.448 ms |
+| process-enum-payload | w | Windows x64 / MSVC | Freestanding (unverified) | 4096 B (4.0 KiB) | 1606 | 280 | 191.9271 ms | 16.8213 ms | 18.0287 ms | 3760128 B (3.59 MiB) | 10.674 ms |
+| process-handler-lifecycle | c | Windows x64 / MinGW | Hosted CRT (unverified) | 20480 B (20.0 KiB) | 10056 | 1472 | 994.2651 ms | 17.9129 ms | 18.9302 ms | 4751360 B (4.53 MiB) | 12.685 ms |
+| process-handler-lifecycle | rust | Windows x64 / MinGW | Hosted CRT (unverified) | 21504 B (21.0 KiB) | 10760 | 1472 | 1.0045717 s | 17.93 ms | 18.2697 ms | 4751360 B (4.53 MiB) | 11.757 ms |
+| process-handler-lifecycle | w | Windows x64 / MinGW | Hosted CRT (unverified) | 20992 B (20.5 KiB) | 10744 | 1472 | 1.0382448 s | 17.7365 ms | 18.0686 ms | 4751360 B (4.53 MiB) | 13.613 ms |
+| restaurant-async-join | c | Windows x64 / MSVC | Hosted CRT (unverified) | 9216 B (9.0 KiB) | 3510 | 2624 | 131.1318 ms | 18 ms | 19.0541 ms | 4833280 B (4.61 MiB) | 12.376 ms |
+| restaurant-async-join | rust | Windows x64 / MSVC | Hosted CRT (unverified) | 113664 B (111.0 KiB) | 79688 | 28348 | 1.081029 s | 17.9833 ms | 18.3623 ms | 4870144 B (4.64 MiB) | 12.995 ms |
+| restaurant-async-join | w | Windows x64 / MSVC | Freestanding (unverified) | 3072 B (3.0 KiB) | 598 | 244 | 177.9059 ms | 16.8245 ms | 17.1711 ms | 3756032 B (3.58 MiB) | 10.983 ms |
+| restaurant-async-yield | c | Windows x64 / MSVC | Hosted CRT (unverified) | 9216 B (9.0 KiB) | 3510 | 2624 | 129.7002 ms | 17.976 ms | 18.9295 ms | 4833280 B (4.61 MiB) | 12.376 ms |
+| restaurant-async-yield | rust | Windows x64 / MSVC | Hosted CRT (unverified) | 113664 B (111.0 KiB) | 79688 | 28348 | 1.080247 s | 17.9897 ms | 18.3019 ms | 4870144 B (4.64 MiB) | 12.84 ms |
+| restaurant-async-yield | w | Windows x64 / MSVC | Freestanding (unverified) | 3072 B (3.0 KiB) | 662 | 260 | 182.7856 ms | 16.8709 ms | 17.196 ms | 3756032 B (3.58 MiB) | 10.365 ms |
+| restaurant-bool-mutation | w | Windows x64 / MSVC | Freestanding (unverified) | 3072 B (3.0 KiB) | 646 | 224 | 177.3414 ms | 16.6843 ms | 17.1188 ms | 3756032 B (3.58 MiB) | 11.757 ms |
+| restaurant-branch | c | Windows x64 / MSVC | Hosted CRT (unverified) | 9216 B (9.0 KiB) | 3558 | 2632 | 127.7022 ms | 18.018 ms | 19.0303 ms | 4808704 B (4.59 MiB) | 12.376 ms |
+| restaurant-branch | rust | Windows x64 / MSVC | Hosted CRT (unverified) | 114176 B (111.5 KiB) | 80200 | 28332 | 1.0822891 s | 17.97 ms | 18.2438 ms | 4857856 B (4.63 MiB) | 12.53 ms |
+| restaurant-branch | w | Windows x64 / MSVC | Freestanding (unverified) | 3072 B (3.0 KiB) | — | — | 177.456 ms | 16.0207 ms | 16.9866 ms | 3756032 B (3.58 MiB) | 10.21 ms |
+| restaurant-branch-mutation-multi | w | Windows x64 / MSVC | Freestanding (unverified) | 3072 B (3.0 KiB) | 710 | 232 | 178.4074 ms | 16.9609 ms | 17.2298 ms | 3756032 B (3.58 MiB) | 10.983 ms |
+| restaurant-comparison-composition | w | Windows x64 / MSVC | Freestanding (unverified) | 3584 B (3.5 KiB) | 1142 | 252 | 182.438 ms | 16.999 ms | 18.0154 ms | 3756032 B (3.58 MiB) | 12.221 ms |
+| restaurant-compound | w | Windows x64 / MSVC | Freestanding (unverified) | 2560 B (2.5 KiB) | 982 | 292 | 183.8292 ms | 13.9363 ms | 15.3701 ms | 3153920 B (3.01 MiB) | 9.746 ms |
+| restaurant-conditional-mutation | w | Windows x64 / MSVC | Freestanding (unverified) | 3072 B (3.0 KiB) | 662 | 232 | 177.8021 ms | 16.909 ms | 17.2469 ms | 3756032 B (3.58 MiB) | 11.138 ms |
+| restaurant-enum-bool-payload | c | Windows x64 / MSVC | Hosted CRT (unverified) | 9216 B (9.0 KiB) | 3542 | 2672 | 130.1575 ms | 17.9902 ms | 18.9828 ms | 4841472 B (4.62 MiB) | 12.84 ms |
+| restaurant-enum-bool-payload | rust | Windows x64 / MSVC | Hosted CRT (unverified) | 113664 B (111.0 KiB) | 79848 | 28348 | 1.0835472 s | 17.9859 ms | 18.4323 ms | 4878336 B (4.65 MiB) | 13.149 ms |
+| restaurant-enum-bool-payload | w | Windows x64 / MSVC | Freestanding (unverified) | 3584 B (3.5 KiB) | 1238 | 304 | 185.2894 ms | 16.7997 ms | 17.167 ms | 3756032 B (3.58 MiB) | 11.757 ms |
+| restaurant-enum-payload | c | Windows x64 / MSVC | Hosted CRT (unverified) | 9216 B (9.0 KiB) | 3526 | 2632 | 127.4699 ms | 17.9852 ms | 18.4794 ms | 4833280 B (4.61 MiB) | 12.995 ms |
+| restaurant-enum-payload | rust | Windows x64 / MSVC | Hosted CRT (unverified) | 113664 B (111.0 KiB) | 79736 | 28348 | 1.0790875 s | 17.9532 ms | 18.1986 ms | 4874240 B (4.65 MiB) | 12.84 ms |
+| restaurant-enum-payload | w | Windows x64 / MSVC | Freestanding (unverified) | 3072 B (3.0 KiB) | 918 | 240 | 179.9074 ms | 16.2686 ms | 17.0498 ms | 3756032 B (3.58 MiB) | 10.365 ms |
+| restaurant-enum-subset | c | Windows x64 / MSVC | Hosted CRT (unverified) | 9216 B (9.0 KiB) | 3510 | 2624 | 127.5459 ms | 17.9934 ms | 18.5309 ms | 4833280 B (4.61 MiB) | 12.685 ms |
+| restaurant-enum-subset | rust | Windows x64 / MSVC | Hosted CRT (unverified) | 113664 B (111.0 KiB) | 79704 | 28348 | 1.0809043 s | 17.9954 ms | 18.3815 ms | 4874240 B (4.65 MiB) | 12.221 ms |
+| restaurant-enum-subset | w | Windows x64 / MSVC | Freestanding (unverified) | 3072 B (3.0 KiB) | 614 | 248 | 175.8099 ms | 16.0966 ms | 17.0562 ms | 3756032 B (3.58 MiB) | 10.365 ms |
+| restaurant-enum-switch | c | Windows x64 / MSVC | Hosted CRT (unverified) | 9216 B (9.0 KiB) | 3526 | 2632 | 127.0953 ms | 17.9873 ms | 18.3148 ms | 4833280 B (4.61 MiB) | 13.304 ms |
+| restaurant-enum-switch | rust | Windows x64 / MSVC | Hosted CRT (unverified) | 113664 B (111.0 KiB) | 79720 | 28348 | 1.0803393 s | 17.9637 ms | 18.2247 ms | 4870144 B (4.64 MiB) | 12.53 ms |
+| restaurant-enum-switch | w | Windows x64 / MSVC | Freestanding (unverified) | 3072 B (3.0 KiB) | 694 | 224 | 174.7149 ms | 16.335 ms | 17.2527 ms | 3756032 B (3.58 MiB) | 10.055 ms |
+| restaurant-interpolation | w | Windows x64 / MSVC | Freestanding (unverified) | 3072 B (3.0 KiB) | 518 | 216 | 176.6327 ms | 16.7522 ms | 17.1856 ms | 3756032 B (3.58 MiB) | 10.829 ms |
+| restaurant-linear | w | Windows x64 / MSVC | Freestanding (unverified) | 2560 B (2.5 KiB) | 134 | 208 | 166.1238 ms | 16.0861 ms | 16.9756 ms | 3751936 B (3.58 MiB) | 12.53 ms |
+| restaurant-main-cardinality | w | Windows x64 / MSVC | Freestanding (unverified) | 3072 B (3.0 KiB) | 982 | 256 | 182.027 ms | 16.9818 ms | 17.2775 ms | 3756032 B (3.58 MiB) | 10.519 ms |
+| restaurant-main-dispatch | w | Windows x64 / MSVC | Freestanding (unverified) | 3072 B (3.0 KiB) | 742 | 264 | 179.9783 ms | 16.9176 ms | 17.299 ms | 3756032 B (3.58 MiB) | 12.53 ms |
+| restaurant-mutation | w | Windows x64 / MSVC | Freestanding (unverified) | 3072 B (3.0 KiB) | 550 | 212 | 175.1766 ms | 16.0612 ms | 16.9951 ms | 3756032 B (3.58 MiB) | 10.829 ms |
+| restaurant-nested-branch | w | Windows x64 / MSVC | Freestanding (unverified) | 3072 B (3.0 KiB) | 966 | 368 | 179.5562 ms | 16.8636 ms | 17.0991 ms | 3760128 B (3.59 MiB) | 11.448 ms |
+| restaurant-nested-scalar-if | w | Windows x64 / MSVC | Freestanding (unverified) | 3072 B (3.0 KiB) | 742 | 216 | 176.228 ms | 16.9054 ms | 17.2046 ms | 3756032 B (3.58 MiB) | 10.829 ms |
+| restaurant-power | w | Windows x64 / MSVC | Freestanding (unverified) | 3072 B (3.0 KiB) | 1030 | 340 | 181.7735 ms | 13.9709 ms | 15.573 ms | 3153920 B (3.01 MiB) | 11.757 ms |
+| restaurant-power-prefix | w | Windows x64 / MSVC | Freestanding (unverified) | 2560 B (2.5 KiB) | 870 | 284 | 163.2738 ms | 12.5641 ms | 12.9288 ms | 3153920 B (3.01 MiB) | 10.21 ms |
+| restaurant-repeat | c | Windows x64 / MSVC | Hosted CRT (unverified) | 9216 B (9.0 KiB) | 3510 | 2632 | 129.5563 ms | 17.9833 ms | 18.7295 ms | 4833280 B (4.61 MiB) | 11.912 ms |
+| restaurant-repeat | rust | Windows x64 / MSVC | Hosted CRT (unverified) | 113664 B (111.0 KiB) | 79704 | 28348 | 1.0822302 s | 17.9944 ms | 18.3194 ms | 4874240 B (4.65 MiB) | 12.066 ms |
+| restaurant-repeat | w | Windows x64 / MSVC | Freestanding (unverified) | 3072 B (3.0 KiB) | 694 | 268 | 177.678 ms | 16.009 ms | 17.0043 ms | 3756032 B (3.58 MiB) | 11.602 ms |
+| restaurant-scalar-if | w | Windows x64 / MSVC | Freestanding (unverified) | 3072 B (3.0 KiB) | 630 | 224 | 179.4772 ms | 16.8189 ms | 17.1398 ms | 3756032 B (3.58 MiB) | 10.674 ms |
+| restaurant-unsigned | w | Windows x64 / MSVC | Freestanding (unverified) | 2560 B (2.5 KiB) | 662 | 292 | 177.6862 ms | 15.1126 ms | 17.9711 ms | 3153920 B (3.01 MiB) | 9.282 ms |
+| restaurant-while-post | c | Windows x64 / MSVC | Hosted CRT (unverified) | 9216 B (9.0 KiB) | 3510 | 2616 | 129.3226 ms | 18.0307 ms | 19.0116 ms | 4833280 B (4.61 MiB) | 12.221 ms |
+| restaurant-while-post | rust | Windows x64 / MSVC | Hosted CRT (unverified) | 113664 B (111.0 KiB) | 79688 | 28348 | 1.0785606 s | 18.0301 ms | 19.0014 ms | 4870144 B (4.64 MiB) | 13.149 ms |
+| restaurant-while-post | w | Windows x64 / MSVC | Freestanding (unverified) | 3072 B (3.0 KiB) | 646 | 256 | 176.7906 ms | 16.159 ms | 17.121 ms | 3756032 B (3.58 MiB) | 12.376 ms |
+| restaurant-wmo | c | Windows x64 / MSVC | Hosted CRT (unverified) | 9216 B (9.0 KiB) | 3510 | 2608 | 129.8723 ms | 18.0142 ms | 19.0296 ms | 4833280 B (4.61 MiB) | 12.995 ms |
+| restaurant-wmo | rust | Windows x64 / MSVC | Hosted CRT (unverified) | 113664 B (111.0 KiB) | 79688 | 28348 | 1.0782036 s | 17.9632 ms | 18.3672 ms | 4870144 B (4.64 MiB) | 12.53 ms |
+| restaurant-wmo | w | Windows x64 / MSVC | Freestanding (unverified) | 3072 B (3.0 KiB) | 582 | 220 | 175.5304 ms | 16.0403 ms | 16.9987 ms | 3756032 B (3.58 MiB) | 12.066 ms |
 
 ### Linux x64
 
@@ -160,15 +202,16 @@ No native Linux x64 measurements are published.
 
 | Workload | Language | Target | Runtime | Artifact | ELF .text B | ELF .rodata B | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| hello | w | Linux x64 / WSL2 | CRT-free | 2096 B (2.0 KiB) | — | — | 174.7567 ms | 166.803 µs | 322.492 µs | 671744 B (656.0 KiB) | 82 µs |
-| restaurant-compound | w | Linux x64 / WSL2 | CRT-free | 3152 B (3.1 KiB) | — | — | 204.9902 ms | 117.035 µs | 323.922 µs | 671744 B (656.0 KiB) | 45 µs |
-| restaurant-main-cardinality | w | Linux x64 / WSL2 | CRT-free | 3008 B (2.9 KiB) | — | — | 206.0878 ms | 141.023 µs | 201.573 µs | 671744 B (656.0 KiB) | 47 µs |
-| restaurant-main-dispatch | w | Linux x64 / WSL2 | CRT-free | 2768 B (2.7 KiB) | — | — | 208.7803 ms | 155.999 µs | 376.322 µs | 679936 B (664.0 KiB) | 50 µs |
-| restaurant-power | w | Linux x64 / WSL2 | CRT-free | 3088 B (3.0 KiB) | — | — | 201.5651 ms | 137.216 µs | 467.819 µs | 671744 B (656.0 KiB) | 61 µs |
-| restaurant-power-prefix | w | Linux x64 / WSL2 | CRT-free | 2928 B (2.9 KiB) | — | — | 184.4055 ms | 129.301 µs | 302.149 µs | 671744 B (656.0 KiB) | 81 µs |
-| restaurant-unsigned | w | Linux x64 / WSL2 | CRT-free | 2640 B (2.6 KiB) | — | — | 203.3243 ms | 149.993 µs | 565.18 µs | 671744 B (656.0 KiB) | 76 µs |
+| hello | w | Linux x64 / WSL2 | Freestanding (unverified) | 2096 B (2.0 KiB) | — | — | 174.7567 ms | 166.803 µs | 322.492 µs | 671744 B (656.0 KiB) | 82 µs |
+| restaurant-compound | w | Linux x64 / WSL2 | Freestanding (unverified) | 3152 B (3.1 KiB) | — | — | 204.9902 ms | 117.035 µs | 323.922 µs | 671744 B (656.0 KiB) | 45 µs |
+| restaurant-main-cardinality | w | Linux x64 / WSL2 | Freestanding (unverified) | 3008 B (2.9 KiB) | — | — | 206.0878 ms | 141.023 µs | 201.573 µs | 671744 B (656.0 KiB) | 47 µs |
+| restaurant-main-dispatch | w | Linux x64 / WSL2 | Freestanding (unverified) | 2768 B (2.7 KiB) | — | — | 208.7803 ms | 155.999 µs | 376.322 µs | 679936 B (664.0 KiB) | 50 µs |
+| restaurant-power | w | Linux x64 / WSL2 | Freestanding (unverified) | 3088 B (3.0 KiB) | — | — | 201.5651 ms | 137.216 µs | 467.819 µs | 671744 B (656.0 KiB) | 61 µs |
+| restaurant-power-prefix | w | Linux x64 / WSL2 | Freestanding (unverified) | 2928 B (2.9 KiB) | — | — | 184.4055 ms | 129.301 µs | 302.149 µs | 671744 B (656.0 KiB) | 81 µs |
+| restaurant-unsigned | w | Linux x64 / WSL2 | Freestanding (unverified) | 2640 B (2.6 KiB) | — | — | 203.3243 ms | 149.993 µs | 565.18 µs | 671744 B (656.0 KiB) | 76 µs |
 
-Artifact size counts only the emitted executable file. On Windows it excludes imported runtime DLLs. Windows public W is CRT-free; public C and Rust import the MSVC runtime. The private process-handler composite remains a Windows GCC/MinGW contextual lane. Native Linux records, when published, are kept in their own Linux x64 / GNU lane; W's current Linux product route is also CRT-free.
+Runtime labels are recipe-derived classes, not artifact dependency receipts. Every current row remains `unverified` for runtime closure because results do not record PE imports, ELF `DT_NEEDED` entries, or exact runtime provider/version. Current recipes select freestanding W and platform-minimal C/Rust paths, hosted-CRT public C/Rust paths, and a contextual hosted-CRT MinGW private composite. Do not compare rows across runtime-closure classes or treat an intended freestanding link as proof of emitted dependency closure.
+Artifact size counts only the emitted executable file. On Windows it excludes imported runtime DLLs. The private process-handler composite remains a Windows GCC/MinGW contextual lane. Native Linux records, when published, are kept in their own Linux x64 / GNU lane.
 Run p50/p95 measure one complete target-process invocation (launch, execution, and wait) per sample. Production samples use one native target-environment helper batch for each warmup/raw series: WSL initializes once, stages the ELF on WSL-native /tmp, and excludes wsl.exe startup and DrvFS access from every sample. The target process itself is intentionally fresh per sample, so these are product invocation costs, not in-process body-throughput numbers. A future persistent body lane must use a distinct protocol and never be merged with these cells.
 Do not compare Windows milliseconds with Linux/WSL microseconds as W-body speed. The Windows lane includes process creation, security, Job Object, scheduler, and accounting work; the WSL lane times the Linux executable from a Linux-native helper inside an already-running distribution with CLOCK_MONOTONIC and wait4. Compare regressions only within the same platform and runner lane.
 Each projection row is compact: every displayed metric chooses the lower value across pinned categories on that same platform, so cells may come from distinct toolchain/recipe categories. The machine catalog retains those category and provenance identities; no value is selected across platform sections. WSL rows remain host-partitioned and are never pooled across hosts.

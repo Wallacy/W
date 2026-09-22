@@ -6,8 +6,8 @@ import {
   EXECUTABLE_PLATFORM_TARGET_LINUX,
   EXECUTABLE_PLATFORM_TARGET_LINUX_WSL,
   EXECUTABLE_PLATFORM_TARGET_WINDOWS,
-  HELLO_PLATFORM_MINIMAL_RECIPE_CLASS,
   HELLO_PLATFORM_MINIMAL_WORKLOAD_ID,
+  EXECUTABLE_WORKLOAD_FAMILY_IDS,
   ROOT,
   loadExecutableDocuments,
   validateExecutableCatalog,
@@ -226,22 +226,25 @@ function targetLabel(entry) {
 }
 
 function runtimeLabel(entry) {
-  if (entry.recipeClass === HELLO_PLATFORM_MINIMAL_RECIPE_CLASS) {
-    return entry.platformTarget === EXECUTABLE_PLATFORM_TARGET_WINDOWS
-      ? "no CRT (Kernel32 import)"
-      : "static (no libc)";
-  }
-  if ([EXECUTABLE_PLATFORM_TARGET_LINUX, EXECUTABLE_PLATFORM_TARGET_LINUX_WSL].includes(entry.platformTarget)) {
-    if (entry.language === "rust") return "Rust std + glibc";
-    if (entry.language === "c") return "glibc";
-    return "CRT-free";
-  }
-  if (entry.artifactTarget.endsWith("w64-mingw32")) return "MinGW runtime";
-  if (entry.language === "w" && entry.artifactTarget.endsWith("windows-msvc")) return "CRT-free";
-  if (entry.language === "c" && entry.artifactTarget.endsWith("windows-msvc")) return "MSVC CRT DLL";
-  if (entry.language === "rust" && entry.artifactTarget.endsWith("windows-msvc")) return "Rust std + MSVC CRT DLL";
-  return "see recipe";
+  const runtimeClass = entry.runtimeClosure?.class;
+  const label = runtimeClass === "freestanding" ? "Freestanding"
+    : runtimeClass === "hosted-crt" ? "Hosted CRT"
+      : runtimeClass === "instrumentation" ? "Instrumentation runtime"
+        : "Runtime class unknown";
+  return `${label} (${entry.runtimeClosure?.status ?? "unverified"})`;
 }
+
+const FAMILY_LABELS = Object.freeze({
+  hello: "Hello and platform entry",
+  "control-flow": "Control flow and interpolation",
+  async: "Asynchronous scheduling",
+  composition: "Composition, enums, and dispatch",
+  "integer-semantics": "Integer semantics",
+  "floating-point": "Floating-point semantics",
+  mutation: "Mutation and linear values",
+  process: "Process entry and arguments",
+  modules: "Module graph",
+});
 
 export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
   if (!catalog?.bestMetrics) throw new TypeError("catalog with bestMetrics is required");
@@ -254,12 +257,21 @@ export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
     "Current portable-release values. Lower is better; `—` means no published measurement.",
     "",
     "## Workloads",
-    "",
-    "| Workload | Class | Sources | Oracle | Benchmark |",
-    "| --- | --- | --- | --- | --- |",
   ];
-  for (const workload of catalog.workloads.filter(projectionWorkload)) {
-    lines.push(`| ${workload.id} | ${workload.structureClass} | ${sourceLinks(workload)} | ${workload.oracle.status} | ${workload.benchmarkStatus} |`);
+  const projectedWorkloads = catalog.workloads.filter(projectionWorkload);
+  for (const family of EXECUTABLE_WORKLOAD_FAMILY_IDS) {
+    const familyWorkloads = projectedWorkloads.filter((workload) => workload.family === family);
+    if (familyWorkloads.length === 0) continue;
+    lines.push(
+      "",
+      `### ${FAMILY_LABELS[family] ?? family}`,
+      "",
+      "| Workload | Class | Sources | Oracle | Benchmark |",
+      "| --- | --- | --- | --- | --- |",
+    );
+    for (const workload of familyWorkloads) {
+      lines.push(`| ${workload.id} | ${workload.structureClass} | ${sourceLinks(workload)} | ${workload.oracle.status} | ${workload.benchmarkStatus} |`);
+    }
   }
   const platformMinimalHello = catalog.workloads.find((workload) => workload.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID);
   if (platformMinimalHello) {
@@ -267,7 +279,7 @@ export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
       "",
       "## Platform-minimal Hello correctness comparison",
       "",
-      "This lane preserves the exact `Hello, world!\\n` / exit `0` oracle while C23 and Rust 2024 enter without a CRT or standard library, write through the OS boundary, and exit directly. Windows artifacts import Kernel32 and omit the CRT; Linux ELF artifacts are static and are rejected if they contain `PT_INTERP` or `DT_NEEDED`. The W row reuses the public W Hello build. This is platform-minimal correctness/context evidence, not an idiomatic C/Rust baseline or a language ranking.",
+      "This lane preserves the exact `Hello, world!\\n` / exit `0` oracle while C23 and Rust 2024 recipes request no CRT or standard library, write through the OS boundary, and exit directly. Windows recipes link Kernel32; the ELF correctness checker rejects `PT_INTERP` or `DT_NEEDED`, but neither exact dependency list is persisted in current results. The W row reuses the public W Hello build. This is platform-minimal correctness/context evidence, not an idiomatic C/Rust baseline or a language ranking.",
       "",
       "Reproducible release commands (the runner resolves the installed compiler paths; `<source>` and `<artifact>` are per-sample temporary paths):",
       "",
@@ -277,7 +289,7 @@ export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
     }
     lines.push(
       "",
-      "The commands use C23 `-O3`/full LTO, freestanding/no-builtin/no-stack-protector/no-unwind-table code generation, dead-section elimination and stripping; Rust uses edition 2024 `no_std`/`no_main`, `-C opt-level=3`, fat LTO, one codegen unit, aborting panics and stripped symbols (disabling unwind tables on Linux, where supported by the target ABI). Windows imports only the OS Kernel32 boundary and omits the CRT; Linux selects `_start`, static linking, section GC, and no build ID. WSL rows remain same-physical-hardware diagnostics only.",
+      "The commands request C23 `-O3`/full LTO, freestanding/no-builtin/no-stack-protector/no-unwind-table code generation, dead-section elimination and stripping; Rust uses edition 2024 `no_std`/`no_main`, `-C opt-level=3`, fat LTO, one codegen unit, aborting panics and stripped symbols (disabling unwind tables on Linux, where supported by the target ABI). Windows requests the Kernel32 OS boundary and no CRT; Linux requests `_start`, static linking, section GC, and no build ID. These recipe flags do not upgrade the unverified runtime-closure status of existing records. WSL rows remain same-physical-hardware diagnostics only.",
       "",
     );
   }
@@ -306,7 +318,8 @@ export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
   }
   lines.push(
     "",
-    "Artifact size counts only the emitted executable file. On Windows it excludes imported runtime DLLs. Windows public W is CRT-free; public C and Rust import the MSVC runtime. The private process-handler composite remains a Windows GCC/MinGW contextual lane. Native Linux records, when published, are kept in their own Linux x64 / GNU lane; W's current Linux product route is also CRT-free.",
+    "Runtime labels are recipe-derived classes, not artifact dependency receipts. Every current row remains `unverified` for runtime closure because results do not record PE imports, ELF `DT_NEEDED` entries, or exact runtime provider/version. Current recipes select freestanding W and platform-minimal C/Rust paths, hosted-CRT public C/Rust paths, and a contextual hosted-CRT MinGW private composite. Do not compare rows across runtime-closure classes or treat an intended freestanding link as proof of emitted dependency closure.",
+    "Artifact size counts only the emitted executable file. On Windows it excludes imported runtime DLLs. The private process-handler composite remains a Windows GCC/MinGW contextual lane. Native Linux records, when published, are kept in their own Linux x64 / GNU lane.",
     "Run p50/p95 measure one complete target-process invocation (launch, execution, and wait) per sample. Production samples use one native target-environment helper batch for each warmup/raw series: WSL initializes once, stages the ELF on WSL-native /tmp, and excludes wsl.exe startup and DrvFS access from every sample. The target process itself is intentionally fresh per sample, so these are product invocation costs, not in-process body-throughput numbers. A future persistent body lane must use a distinct protocol and never be merged with these cells.",
     "Do not compare Windows milliseconds with Linux/WSL microseconds as W-body speed. The Windows lane includes process creation, security, Job Object, scheduler, and accounting work; the WSL lane times the Linux executable from a Linux-native helper inside an already-running distribution with CLOCK_MONOTONIC and wait4. Compare regressions only within the same platform and runner lane.",
     "Each projection row is compact: every displayed metric chooses the lower value across pinned categories on that same platform, so cells may come from distinct toolchain/recipe categories. The machine catalog retains those category and provenance identities; no value is selected across platform sections. WSL rows remain host-partitioned and are never pooled across hosts.",

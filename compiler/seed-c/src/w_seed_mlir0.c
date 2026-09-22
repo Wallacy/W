@@ -10065,7 +10065,7 @@ static bool build_program_artifact(
  * integer-array layout is private to this artifact and is not a W-value ABI. */
 static const char MLIR0_PROCESS_EXECUTABLE_HELPERS0[] =
     "  llvm.func @GetCommandLineW() -> !llvm.ptr\n"
-    "  llvm.func internal @w_seed_process_count_arguments(%command_line: !llvm.ptr, %items: !llvm.ptr) -> i64 {\n"
+    "  llvm.func internal @w_seed_process_count_arguments(%command_line: !llvm.ptr, %items: !llvm.ptr) -> i64 attributes {passthrough = [\"no-builtin-wcslen\"]} {\n"
     "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
     "    %one = llvm.mlir.constant(1 : i64) : i64\n"
     "    %two = llvm.mlir.constant(2 : i64) : i64\n"
@@ -10162,7 +10162,7 @@ static const char MLIR0_PROCESS_EXECUTABLE_HELPERS1B[] =
 static const char MLIR0_PROCESS_EXECUTABLE_LINUX_HELPERS[] =
     "  llvm.func @w_seed_process_argc() -> i64\n"
     "  llvm.func @w_seed_process_argv() -> !llvm.ptr\n"
-    "  llvm.func internal @w_seed_process_count_arguments(%argument_count: i64, %argv: !llvm.ptr, %items: !llvm.ptr) -> i64 {\n"
+    "  llvm.func internal @w_seed_process_count_arguments(%argument_count: i64, %argv: !llvm.ptr, %items: !llvm.ptr) -> i64 attributes {passthrough = [\"no-builtin-strlen\"]} {\n"
     "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
     "    %one = llvm.mlir.constant(1 : i64) : i64\n"
     "    %two = llvm.mlir.constant(2 : i64) : i64\n"

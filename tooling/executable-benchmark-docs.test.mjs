@@ -12,13 +12,15 @@ test("generated projection is current, compact, and sourced only from the live c
   const measuredPlatformCells = new Set(documents.catalog.bestMetrics.entries.map(
     (entry) => `${entry.workloadId}\0${entry.language}\0${entry.platformTarget}`,
   )).size;
-  const maximumCompactLines = documents.catalog.workloads.length + measuredPlatformCells + 50;
+  const maximumCompactLines = documents.catalog.workloads.length + measuredPlatformCells + 100;
   assert.ok(rendered.split(/\r?\n/u).length <= maximumCompactLines);
   assert.match(rendered, /Best values/u);
   assert.match(rendered, /### Windows x64/u);
+  assert.match(rendered, /### Integer semantics[\s\S]*\| restaurant-integer-wrapping \|/u,
+    "family sections retain individual workload witnesses");
   assert.match(rendered, /### Linux x64/u);
   assert.match(rendered, /### Linux x64 via WSL2/u);
-  assert.match(rendered, /\| restaurant-main-dispatch \| w \| Linux x64 \/ WSL2 \| CRT-free \| 2768 B/u);
+  assert.match(rendered, /\| restaurant-main-dispatch \| w \| Linux x64 \/ WSL2 \| Freestanding \(unverified\) \| 2768 B/u);
   assert.match(rendered, /\| restaurant-main-cardinality \| public-end-to-end \|/u);
   assert.match(rendered, /\| integer-shift-semantics \| public-end-to-end \| \[w\]\(\.\/executable\/integer_shift_semantics\.w\), \[c\]\(\.\/executable\/integer_shift_semantics\.c\), \[rust\]\(\.\/executable\/integer_shift_semantics\.rs\) \| source-backed \| not-performance-ready \|/u);
   assert.doesNotMatch(rendered, /\| integer-shift-semantics \| w \|/u,
@@ -27,10 +29,11 @@ test("generated projection is current, compact, and sourced only from the live c
   assert.match(rendered, /WSL values are not rankable across hosts\./u);
   assert.match(rendered, /\| Workload \| Language \| Target \| Runtime \| Artifact \| \.text B \| \.rdata B \| Compile p50 \| Run p50 \| Run p95 \| Peak RSS \| CPU mean \|/u);
   assert.match(rendered, /### Linux x64 via WSL2[\s\S]*\| Workload \| Language \| Target \| Runtime \| Artifact \| ELF \.text B \| ELF \.rodata B \|/u);
-  assert.match(rendered, /\| hello \| c \| Windows x64 \/ MSVC \| MSVC CRT DLL \| [0-9]+ B/u);
-  assert.match(rendered, /\| hello \| w \| Windows x64 \/ MSVC \| CRT-free \| [0-9]+ B/u);
+  assert.match(rendered, /\| hello \| c \| Windows x64 \/ MSVC \| Hosted CRT \(unverified\) \| [0-9]+ B/u);
+  assert.match(rendered, /\| hello \| w \| Windows x64 \/ MSVC \| Freestanding \(unverified\) \| [0-9]+ B/u);
   assert.match(rendered, /## Platform-minimal Hello correctness comparison/u);
   assert.match(rendered, /not an idiomatic C\/Rust baseline or a language ranking/u);
+  assert.match(rendered, /Runtime labels are recipe-derived classes, not artifact dependency receipts/u);
   assert.match(rendered, /clang --target=x86_64-unknown-linux-gnu[\s\S]*-nostdlib[\s\S]*--strip-all/u);
   assert.match(rendered, /rustc <source> --edition=2024[\s\S]*--target=x86_64-unknown-linux-gnu/u);
   const partialWOnly = documents.catalog.workloads.filter((workload) =>
@@ -65,7 +68,7 @@ test("projection formatting and links remain deterministic", () => {
   const helloCArtifact = withSections.bestMetrics.entries.find((entry) =>
     entry.workloadId === "hello" && entry.language === "c" && entry.metric === "artifact-size");
   delete helloCArtifact.peLayout;
-  assert.match(renderExecutableProjection({ catalog: withSections }), /\| hello \| c \| Windows x64 \/ MSVC \| MSVC CRT DLL \| [0-9]+ B[^|]*\| — \| — \|/u);
+  assert.match(renderExecutableProjection({ catalog: withSections }), /\| hello \| c \| Windows x64 \/ MSVC \| Hosted CRT \(unverified\) \| [0-9]+ B[^|]*\| — \| — \|/u);
   helloCArtifact.peLayout = {
     fileAlignment: "512",
     sectionAlignment: "4096",
@@ -76,10 +79,10 @@ test("projection formatting and links remain deterministic", () => {
     ],
   };
   const sectionRendered = renderExecutableProjection({ catalog: withSections });
-  assert.match(sectionRendered, /\| hello \| c \| Windows x64 \/ MSVC \| MSVC CRT DLL \| [0-9]+ B[^|]*\| 111 \| 222 \|/u);
+  assert.match(sectionRendered, /\| hello \| c \| Windows x64 \/ MSVC \| Hosted CRT \(unverified\) \| [0-9]+ B[^|]*\| 111 \| 222 \|/u);
   helloCArtifact.peLayout.sections.push({ name: ".text", virtualSize: "333", rawSize: "512" });
   const ambiguousRendered = renderExecutableProjection({ catalog: withSections });
-  assert.match(ambiguousRendered, /\| hello \| c \| Windows x64 \/ MSVC \| MSVC CRT DLL \| [0-9]+ B[^|]*\| — \| 222 \|/u);
+  assert.match(ambiguousRendered, /\| hello \| c \| Windows x64 \/ MSVC \| Hosted CRT \(unverified\) \| [0-9]+ B[^|]*\| — \| 222 \|/u);
 
   const helloWslArtifact = withSections.bestMetrics.entries.find((entry) =>
     entry.workloadId === "hello" && entry.language === "w" && entry.platformTarget === "linux-wsl-x64" && entry.metric === "artifact-size");
@@ -95,7 +98,7 @@ test("projection formatting and links remain deterministic", () => {
     ],
   };
   const linuxSectionRendered = renderExecutableProjection({ catalog: withSections });
-  assert.match(linuxSectionRendered, /\| hello \| w \| Linux x64 \/ WSL2 \| CRT-free \| [0-9]+ B[^|]*\| 77 \| 88 \|/u);
+  assert.match(linuxSectionRendered, /\| hello \| w \| Linux x64 \/ WSL2 \| Freestanding \(unverified\) \| [0-9]+ B[^|]*\| 77 \| 88 \|/u);
 });
 
 test("projection collapses categories per platform without pooling platform lanes", () => {

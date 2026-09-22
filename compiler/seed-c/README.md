@@ -67,6 +67,16 @@ runtime measurements and binds the C sources into its runner digest. Bun still
 orchestrates compilation, publication, and cleanup. Linux and macOS adapters
 remain future work.
 
+The bootstrap `w` CLI links this same library for `w bench process`. This
+Windows-only command measures cold target-process invocations, requires an
+explicit exact exit/stdout/stderr oracle, and emits the native measurement
+receipt; controller startup and receipt formatting are outside each sample.
+It neither compiles or runs `.w` source nor publishes a WBench catalog result.
+Its Windows entrypoint passes executable paths and arguments to the kernel as
+wide strings; `w bench process` reports unsupported on non-Windows until the
+Linux backend is integrated behind the same command contract. The WSL runner
+continues to use its separately identified Linux C helper and metric schema.
+
 ## Limite de medição BMD1
 
 O runner BMD1 mede somente o ponto `clean × check-end-to-end` da matriz

@@ -82,6 +82,24 @@ function validate() {
   const closure = manifest.runtimeClosureContract
   if (closure?.default !== "freestanding")
     error("runtime closure must default to freestanding")
+  exact(closure?.axes, {
+    wrt: {
+      default: "static-reachability-closed",
+      shared: "explicit-exact-provider-and-abi",
+      none: "only-when-no-wrt-operation-is-reachable",
+    },
+    crt: {
+      default: "auto-declared-requirements",
+      noRequirement: "none",
+      strictNone: "reject-any-declared-crt-requirement",
+      provider: "explicit-target-abi-version-link-mode",
+      auto: "one-exact-compatible-declared-offer-or-error",
+      cAbiImpliesCrt: false,
+      unsafeImpliesCrt: false,
+      optimizerMayAuthorizeCrt: false,
+    },
+    targetEnvironment: "explicit-target-contract",
+  }, "runtime closure selection axes")
   exact(closure?.modes?.map((mode) => mode.id),
     ["freestanding", "hosted-crt"], "runtime closure modes")
   const closureModes = new Map((closure?.modes ?? []).map((mode) => [mode.id, mode]))
@@ -94,8 +112,8 @@ function validate() {
   }, "freestanding runtime closure")
   exact(closureModes.get("hosted-crt"), {
     id: "hosted-crt",
-    status: "future-opt-in-capability",
-    explicitOptIn: true,
+    status: "future-requirement-backed-capability",
+    explicitRequirement: true,
     allowedExternalClasses: ["wrt", "target-sdk", "explicit-provider", "receipted-crt-libc-libm"],
     receiptFields: ["target", "abi", "provider", "version", "link-mode", "imports", "digest"],
   }, "hosted CRT runtime closure")
@@ -107,7 +125,8 @@ function validate() {
     object: "undefined-symbol-allowlist-after-codegen",
     finalArtifact: "import-and-dynamic-dependency-closure",
     linkSuccessOnly: false,
-    temporarySeedContainment: "disable-simplify-libcalls-is-not-optimization-proof",
+    functionLocalLibcallGuard: "no-builtin-strlen-and-wcslen-on-argument-scan",
+    globalSimplifyLibcallsDisabled: false,
   }, "optimizer dependency boundary")
   exact(closure?.instrumentation, {
     modes: ["none", "sanitizer", "pgo-generate", "pgo-use"],
@@ -126,9 +145,11 @@ function validate() {
     objectUndefinedSymbolAllowlist: "gap",
     finalDependencyValidation: "bounded-current",
     productClosureReceipt: "gap",
-    benchmarkRuntimeClosureAxis: "gap",
+    benchmarkRuntimeClosureAxis: "bounded-current-recipe-class-unverified",
     unusedProcessInputElision: "gap",
     helperReachabilityPartitioning: "gap",
+    wrtSharedLinkage: "gap",
+    declaredCrtAutoResolution: "gap",
     hostedCrtProduct: "gap",
     pgoClosure: "gap",
   }, "runtime closure implementation status")
@@ -393,23 +414,37 @@ ${tick}debug${tick}. This manifest adds no CLI syntax.
 Runtime closure is independent from program, toolchain, size, sanitizer, and
 PGO modes. The default is ${tick}${manifest.runtimeClosureContract.default}${tick}:
 only reachability-closed WRT code plus explicit target-SDK and provider leaves
-are permitted. ${tick}hosted-crt${tick} is a future explicit capability, not a
-faster Release profile; it must bind target, ABI, provider, version, link mode,
-imports, and digest in its receipt. This contract adds no CLI spelling.
+are permitted. WRT uses reachability-closed static linkage by default; a shared
+WRT requires an exact provider and ABI, and no WRT requires proof that no WRT
+operation is reachable. CRT resolution defaults to declared-requirements-only
+auto: an empty requirement set resolves to none, while a unique exact target/ABI
+offer is required when a dependency declares CRT. ${tick}unsafe${tick} and C ABI
+alone do not imply CRT. ${tick}hosted-crt${tick} is a future requirement-backed
+capability, not a faster Release profile; it must bind target, ABI, provider,
+version, link mode, imports, and digest in its receipt. This contract adds no
+CLI spelling.
 
-Every native route checks externals after LLVM optimization, undefined symbols
-after object emission, and final imports or dynamic dependencies after linking.
-A successful link alone is not closure evidence. Optimizer containment such as
-${tick}--disable-simplify-libcalls${tick} is temporary seed policy, not proof of
-optimal lowering. Sanitizer and PGO-generate runtimes are explicit build-only
+The complete native-route contract requires checking externals after LLVM
+optimization, undefined symbols after object emission, and final imports or
+dynamic dependencies after linking.
+A successful link alone is not closure evidence. The seed process-argument
+scan now uses function-local guards against LLVM synthesizing
+${tick}strlen${tick}/${tick}wcslen${tick}; the global
+${tick}--disable-simplify-libcalls${tick} flag is removed. This is bounded
+closure protection, not proof of optimal lowering. Sanitizer and PGO-generate
+runtimes are explicit build-only
 dependencies; the final PGO-use product revalidates its own closure and cannot
 inherit hosted authority. Freestanding, hosted-CRT, and instrumentation-only
 measurements remain separate benchmark lanes.
 
 Current implementation evidence is bounded to the freestanding seed and final
 PE/ELF dependency checks. Post-opt and object-level allowlists, a target-product
-closure receipt, the benchmark runtime-closure axis, unused process-input
-elision, helper partitioning, a hosted-CRT product, and PGO closure remain gaps.
+closure receipt, unused process-input
+elision, helper partitioning, shared WRT, declared CRT auto-resolution, a
+hosted-CRT product, and PGO closure remain gaps.
+The executable catalog now carries a runtime-closure class as a comparability
+axis, but its recipe-derived classes remain unverified until artifact-level
+dependency receipts exist.
 
 ## Bounded Windows builder (W-1534)
 

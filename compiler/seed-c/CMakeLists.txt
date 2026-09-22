@@ -354,7 +354,9 @@ target_link_libraries(w_seed_check_host_tests PRIVATE w_seed_source)
 
 add_executable(w
   cli/w.c
+  cli/w_entry.c
   cli/build.c
+  cli/native_benchmark.c
   cli/run.c
   cli/check.c
   cli/check_host.c
@@ -802,12 +804,14 @@ if(WIN32)
 endif()
 
 add_executable(w_seed_native_benchmark_cli
+  cli/native_benchmark_main.c
   cli/native_benchmark.c
 )
 set_target_properties(w_seed_native_benchmark_cli PROPERTIES
   OUTPUT_NAME w_seed_native_benchmark
 )
 target_link_libraries(w_seed_native_benchmark_cli PRIVATE w_seed_native_benchmark)
+target_link_libraries(w PRIVATE w_seed_native_benchmark)
 
 add_executable(w_seed_native_benchmark_tests
   tests/test_native_benchmark.c
@@ -819,6 +823,7 @@ if(WIN32 AND NOT MSVC)
   # the wmain-based CLI and self-launching integration test.
   target_link_options(w_seed_native_benchmark_cli PRIVATE -municode)
   target_link_options(w_seed_native_benchmark_tests PRIVATE -municode)
+  target_link_options(w PRIVATE -municode)
   target_link_options(w_seed_parallel_panic_boundary1_helper PRIVATE -municode)
 endif()
 

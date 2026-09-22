@@ -52,23 +52,37 @@ opportunity only, not an alias or syntax; the canonical W profile is
 Runtime closure is independent from program, toolchain, size, sanitizer, and
 PGO modes. The default is `freestanding`:
 only reachability-closed WRT code plus explicit target-SDK and provider leaves
-are permitted. `hosted-crt` is a future explicit capability, not a
-faster Release profile; it must bind target, ABI, provider, version, link mode,
-imports, and digest in its receipt. This contract adds no CLI spelling.
+are permitted. WRT uses reachability-closed static linkage by default; a shared
+WRT requires an exact provider and ABI, and no WRT requires proof that no WRT
+operation is reachable. CRT resolution defaults to declared-requirements-only
+auto: an empty requirement set resolves to none, while a unique exact target/ABI
+offer is required when a dependency declares CRT. `unsafe` and C ABI
+alone do not imply CRT. `hosted-crt` is a future requirement-backed
+capability, not a faster Release profile; it must bind target, ABI, provider,
+version, link mode, imports, and digest in its receipt. This contract adds no
+CLI spelling.
 
-Every native route checks externals after LLVM optimization, undefined symbols
-after object emission, and final imports or dynamic dependencies after linking.
-A successful link alone is not closure evidence. Optimizer containment such as
-`--disable-simplify-libcalls` is temporary seed policy, not proof of
-optimal lowering. Sanitizer and PGO-generate runtimes are explicit build-only
+The complete native-route contract requires checking externals after LLVM
+optimization, undefined symbols after object emission, and final imports or
+dynamic dependencies after linking.
+A successful link alone is not closure evidence. The seed process-argument
+scan now uses function-local guards against LLVM synthesizing
+`strlen`/`wcslen`; the global
+`--disable-simplify-libcalls` flag is removed. This is bounded
+closure protection, not proof of optimal lowering. Sanitizer and PGO-generate
+runtimes are explicit build-only
 dependencies; the final PGO-use product revalidates its own closure and cannot
 inherit hosted authority. Freestanding, hosted-CRT, and instrumentation-only
 measurements remain separate benchmark lanes.
 
 Current implementation evidence is bounded to the freestanding seed and final
 PE/ELF dependency checks. Post-opt and object-level allowlists, a target-product
-closure receipt, the benchmark runtime-closure axis, unused process-input
-elision, helper partitioning, a hosted-CRT product, and PGO closure remain gaps.
+closure receipt, unused process-input
+elision, helper partitioning, shared WRT, declared CRT auto-resolution, a
+hosted-CRT product, and PGO closure remain gaps.
+The executable catalog now carries a runtime-closure class as a comparability
+axis, but its recipe-derived classes remain unverified until artifact-level
+dependency receipts exist.
 
 ## Bounded Windows builder (W-1534)
 

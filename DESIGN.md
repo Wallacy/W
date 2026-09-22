@@ -28342,6 +28342,12 @@ absent    w.runtime/service.call@1
 - `service`: instances, mailboxes, calls e durability;
 - `observe`: tracing, symbolization e logical task stacks.
 
+`std` is the W-facing API/module layer; WRT is the low-level implementation
+provider reached only by operations that need runtime support. The default
+distribution may package them together while preserving those separate
+selection and linkage contracts; static co-packaging does not make all of `std`
+part of the WRT or keep unused modules in an artifact.
+
 Cada operação importada possui identity, revision e semantic digest. Objects
 declaram requirements. Um runtime provider declara offers. A toolchain plan
 seleciona o provider.
@@ -28369,8 +28375,100 @@ distribuição publicam uma ABI exata. O product registra seu provider e seu
 digest.
 
 Um target freestanding pode usar somente `core`. Um módulo com kernels ligados
-ao accelerator pode não usar `libwrt`. Um process com tasks e services recebe somente as famílias
-alcançáveis.
+ao accelerator pode não usar `libwrt`. Um process com tasks e services recebe
+somente as famílias alcançáveis.
+
+**Runtime and C-runtime selection.** The product resolves three independent
+inputs: target environment, WRT selection, and C-runtime selection. The target
+fixes architecture, object ABI, system interfaces and loader model; it does not
+grant authority to link a CRT. Physical linkage is a separate product choice.
+In product records, `runtime` continues to name an execution/service graph;
+the compiler-runtime field is `wrt`.
+
+The default `wrt` policy is `.static(.auto)`: choose a unique compatible offer
+from the signed, versioned target pack shipped with the toolchain distribution,
+then link only reachable WRT operations. A product with no WRT requirements
+links no WRT code. `.none` asserts that the complete product, including its
+entry/exit, panic, cleanup, FFI and provider roots, has no WRT requirements; a
+remaining requirement is an error. `.shared(provider: ...)` is an explicit
+opt-in for separately distributed WRT. It requires an exact target and WRT ABI,
+provider version and digest, and a supported loader contract. It is never
+inferred from a library found on the build host, `PATH`, or at runtime. A shared
+WRT boundary does not permit W-owned values or runtime state to cross between
+incompatible runtime islands.
+
+The default `crt` policy is `.auto`. It resolves to `.none` when the selected
+dependency graph declares no C-runtime requirements. Otherwise, it may select
+only a unique exact provider offer required by a declared transitive foreign
+library/package contract, matching target, C ABI, version, link mode and
+required operations. An explicit `.none` rejects any such requirement; an
+explicit `.provider(...)` selects one target-bound provider. Missing,
+ambiguous, incompatible or unavailable offers fail before link, with no host
+fallback or silent download. A CRT dependency declared by a selected package
+is an explicit dependency of that product, not a consequence of its C calling
+convention. One native-process closure uses one exact CRT provider. Conflicting
+provider or version requirements fail unless they are separated by an explicit
+process/component boundary; a native dynamic library is not by itself a
+fault-isolation boundary.
+
+In particular, `unsafe`, `fn<abi: .c>`, `fn<lang: .c>`, C-compatible layout,
+`export foreign c` and importing a C symbol do not by themselves imply libc,
+libm or a CRT. Foreign libraries declare their own transitive runtime
+requirements. `crt: .auto` is bounded to those declarations: it does not authorize a libc call
+synthesized by optimization or code generation. Such a symbol must already be
+an allowed operation, be supplied by a separately selected WRT/target provider,
+or be covered by an explicit CRT provider selection; otherwise closure fails.
+The provider's offer manifest must include the exact symbol and ABI. Selecting
+a CRT never relaxes FFI ownership, lifetime, bounds, alignment, retention or
+fault-boundary rules. CRT-owned allocations and objects (for example, `FILE`)
+cannot cross a boundary unless both sides bind the same provider and the
+declared C contract permits it.
+
+The selection is target-pack based for cross-compilation. The compiler host's
+installed CRT, default linker libraries and local SDK do not affect resolution.
+An unsupported host-target provider edge fails closed. The receipt records
+resolved WRT and CRT provider identities, versions, target/ABI, linkage modes,
+allowed operations, provider manifests, provider digests, and observed imports.
+`RuntimeClosureKey` binds the required WRT operations and selected offers,
+WRT linkage, declared CRT operations and selected CRT offer/linkage, plus
+target-provider leaves. The product receipt separately binds exact artifact
+digests and all allowed and observed dependencies.
+
+Closure is proved after optimization by checking external declarations in
+post-opt IR, undefined symbols in every emitted object, and final imports or
+dynamic dependencies after linking. A successful link is not sufficient. Each
+symbol must be covered by an exact selected offer; optimizer-created references
+cannot enlarge the permission set. Debug, release, benchmark, size, sanitizer,
+and PGO profiles never select or widen WRT or CRT linkage. Sanitizer and PGO-
+generate runtimes remain explicit instrumentation-only lanes; the final PGO-use
+artifact proves its own selected closure again.
+
+The following product-record fragment illustrates the contract, not an
+implemented CLI or complete schema. `runtime` remains the application service
+graph; `wrt` and `crt` are the compiler/runtime-provider axes:
+
+```w
+{
+  name: "last-light-native"
+  runtime: "restaurant-core"
+  wrt: .static(.auto)
+  crt: .auto
+}
+
+{
+  name: "last-light-horizon-c"
+  abi: .c
+  runtime: .none
+  wrt: .static(.auto)
+  crt: .auto
+}
+```
+
+The second product has no hidden W `RuntimeContext`; its C ABI does not create
+a CRT requirement. `.auto` remains `none` unless a selected foreign dependency
+declares a compatible requirement. Candidate command-line spellings such as
+`--wrt` and `--crt` remain open; any `--runtime` spelling must be distinguished
+from the existing execution-graph field.
 
 #### 20.4.8 Inicialização e contexto de runtime
 
@@ -28638,10 +28736,13 @@ Um produto nativo liga estaticamente por default todo código W-owned alcançáv
 standard library, WRT, adapters e providers selecionados. Essa closure não usa
 CRT. Operações fundamentais terminam em IR/instruções ou em adapters mínimos da
 ABI do target. Imports obrigatórios do sistema operacional, como Kernel32 no
-Windows ou frameworks públicos do macOS, não são CRT nem tornam WRT/std uma
-dependência dinâmica. Uma dependência foreign que exige CRT ou outro runtime
-declara esse requisito na recipe e no artifact; ela não altera silenciosamente
-o default W.
+Windows or public macOS frameworks are not CRTs and do not make WRT or `std` a
+dynamic dependency. A foreign dependency that requires a CRT or another
+runtime declares that requirement in the recipe and artifact. `crt: .auto`
+resolves only that declared transitive requirement to one unique target-bound
+offer. C ABI alone does not declare a CRT requirement, and source imports or
+optimizer-generated libcalls cannot expand the provider's declared operation
+set.
 
 Separar WRT, std ou outro componente W-owned em shared/dynamic artifact é uma
 opção explícita do product para distribuição, servicing ou uma boundary
@@ -30502,9 +30603,11 @@ Roles iniciais:
 | `.deviceTools` | image, kernel ou device metadata |
 | `.runner` | test, emulator ou device harness |
 
-Um adapter `fn<C>` adiciona requirements de C frontend, C runtime e ABI. Um
-device bundle adiciona backend e device tools. Um product W freestanding não
-recebe libc somente porque ela existe no executor.
+The `fn<C>` adapter adds C frontend and ABI requirements; it does not imply a
+CRT. An imported C library/package may declare a target-bound CRT requirement,
+which is resolved independently. A device bundle adds backend and device-tool
+requirements. A W product does not receive libc just because it exists on the
+executor.
 
 Uma dependency transitiva pode adicionar uma requirement. Ela não pode escolher
 o provider ou autorizar uma foreign language. O resolver mostra a cadeia antes
@@ -37708,13 +37811,17 @@ no W CLI syntax. W-1534 implements these profiles only in the native Windows
 tooling builder. A size opportunity is backlog state only and never an automatic
 gate.
 
-Runtime closure is a separate axis. Native products select `freestanding` by
-default: only reachability-closed WRT code and explicit target-SDK/provider
-leaves may remain. `hosted-crt` is a future opt-in capability, not an
-optimization profile; it binds the exact target, ABI, CRT/libc/libm provider,
-version, link mode, imports, and digest. Debug, release, benchmark,
-size-experimental, sanitizer, and PGO modes never widen that closure
-implicitly. This direction selects no public CLI spelling.
+Target environment, WRT linkage, and CRT selection are separate axes. Native
+products remain CRT-free unless their declared dependency graph requires a CRT
+and resolution binds an exact target/ABI-compatible provider, or the product
+selects an explicit provider. `crt: .auto` resolves to no CRT when no selected
+dependency declares one; it never authorizes optimizer-synthesized imports.
+`wrt: .static(.auto)` is the default and links only reachable operations from
+the signed target pack. A separately distributed dynamic WRT requires an
+explicit provider, exact WRT ABI, target, version and digest. Neither target
+triple nor C calling convention implies CRT linkage. Debug, release, benchmark,
+size-experimental, sanitizer and PGO modes never widen either dependency axis.
+Any command-line spelling remains future design, not implemented CLI.
 
 The optimizer cannot grant authority by synthesizing a symbol. Every native
 route checks external declarations after LLVM optimization, undefined symbols
@@ -37727,15 +37834,20 @@ final PGO-use artifact revalidates its selected closure from scratch.
 Reachability precedes runtime substitution. Unused compiler-owned arguments,
 context, buffers, lifecycle records, helpers, and cleanup are not materialized.
 For remaining operations, lowering prefers target intrinsics, then a
-reachability-closed WRT primitive or explicit provider. A hosted CRT
-implementation is compared only in its separate lane. Blanket disabling of
-libcall simplification is temporary seed containment, not evidence of optimal
-lowering or a permanent release strategy.
+reachability-closed WRT primitive or explicit provider. A CRT implementation
+is compared only in its separately selected lane. The former global
+`--disable-simplify-libcalls` seed flag has been removed after focused optimized
+Linux and Windows execution gates passed with helper-specific no-builtin
+attributes. This bounded containment evidence is not a general closure proof
+or evidence of optimal lowering. Post-opt IR, object undefined symbols and
+final imports/dependencies remain required. A policy default never treats an
+optimizer-introduced CRT symbol as a declared dependency.
 
 Every target product eventually carries a runtime-closure receipt distinct
-from the seed-compiler receipt. It binds the closure mode, implementation and
-version, target/ABI, link mode, provider manifest, allowed dependencies,
-observed imports or dynamic dependencies, and a closure digest. Executable
+from the seed-compiler receipt. It binds the target environment, WRT provider
+and linkage, CRT provider and linkage (or explicit absence), implementation
+versions, target/ABI, provider manifests, allowed dependencies, observed
+imports or dynamic dependencies, and a closure digest. Executable
 benchmark records expose the same `runtimeClosure` identity independently of
 profile, recipe and toolchain; ranking and best-cell replacement require equal
 closure identities. Until that catalog axis is implemented, cross-runtime rows
@@ -38656,12 +38768,14 @@ This is the first executable WRT closure, not the complete W runtime. It does
 not define allocator, TLS, unwinding, panic, scheduler, async I/O, signals,
 dynamic loading, ABI stability, other Linux architectures, macOS, firmware, or
 general cross-compilation. Each future facility enters `RuntimeClosureKey` only
-when reachable. `fn<C>` and packages that explicitly require a C runtime may
-add a versioned libc/CRT dependency; ordinary W code never receives it
-transitively or through linker convenience. W-1521 remains current for the
-bounded CLI and source contract, while W-1550 supersedes its former CRT/libc
-link implementation. `benchmarkDisposition` is `compiler-lifecycle`,
-correctness-only, with no timing, ranking, or performance result.
+when reachable. A `fn<abi: .c>` or `fn<lang: .c>` declaration does not add a
+CRT requirement; only an imported C library/package may declare a versioned
+libc/CRT dependency.
+Ordinary W code never receives it through linker convenience. W-1521 remains
+current for the bounded CLI and source contract, while W-1550 supersedes its
+former CRT/libc link implementation. `benchmarkDisposition` is
+`compiler-lifecycle`, correctness-only, with no timing, ranking, or performance
+result.
 
 #### 26.4.1.32 W-1551 — checked runtime signed-`i64` division and remainder (Historical form; superseded by W-1639)
 

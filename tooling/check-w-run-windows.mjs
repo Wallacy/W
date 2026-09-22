@@ -193,7 +193,13 @@ const maxWindowsCommandLineChars = 32767
 const expectedHelp =
   "usage: w check <path/file.w> [--json]\n" +
   "usage: w run <path/file.w> [-- <args...>]\n" +
-  "usage: w build <path/file.w> --target <target> --output <artifact>\n"
+  "usage: w build <path/file.w> --target <target> --output <artifact>\n" +
+  "usage: w bench process --exe <absolute-path> [options]\n" +
+  "  options: --cwd <absolute-dir> --arg <value> --warmup <n> " +
+  "--samples <n> --timeout-ms <n> --expect-exit <n> " +
+  "--expect-stdout-hex <bytes> --expect-stderr-hex <bytes>\n" +
+  "  Windows-native cold process measurement only; does not compile or " +
+  "execute .w source\n"
 const expectedWindowsErrorHelp = expectedHelp.replaceAll("\n", "\r\n")
 
 function fail(message) {
@@ -400,6 +406,86 @@ function peSectionNames(bytes, label) {
   })
 }
 
+function peImportDllNames(bytes, label) {
+  assertPeX64(bytes, label)
+  const peOffset = bytes.readUInt32LE(0x3c)
+  const fileHeader = peOffset + 4
+  const sectionCount = bytes.readUInt16LE(fileHeader + 2)
+  const optionalHeaderSize = bytes.readUInt16LE(fileHeader + 16)
+  const optionalHeader = fileHeader + 20
+  assert(optionalHeader + optionalHeaderSize <= bytes.length &&
+    bytes.readUInt16LE(optionalHeader) === 0x20b,
+  `${label} has an invalid PE32+ optional header`)
+  const directoryCount = bytes.readUInt32LE(optionalHeader + 108)
+  assert(directoryCount >= 2 && optionalHeaderSize >= 128,
+    `${label} has no complete PE import directory`)
+  const importRva = bytes.readUInt32LE(optionalHeader + 120)
+  const importSize = bytes.readUInt32LE(optionalHeader + 124)
+  assert(importRva !== 0 && importSize >= 20 && importSize % 20 === 0,
+    `${label} has an invalid PE import directory`)
+  const sizeOfHeaders = bytes.readUInt32LE(optionalHeader + 60)
+  const sectionTable = optionalHeader + optionalHeaderSize
+  assert(sectionTable + sectionCount * 40 <= bytes.length,
+    `${label} has a truncated PE section table`)
+  const sections = Array.from({ length: sectionCount }, (_, index) => {
+    const start = sectionTable + index * 40
+    return {
+      virtualSize: bytes.readUInt32LE(start + 8),
+      virtualAddress: bytes.readUInt32LE(start + 12),
+      rawSize: bytes.readUInt32LE(start + 16),
+      rawPointer: bytes.readUInt32LE(start + 20),
+    }
+  })
+  const rvaToOffset = (rva, length) => {
+    if (rva < sizeOfHeaders) {
+      assert(rva + length <= sizeOfHeaders && rva + length <= bytes.length,
+        `${label} has an out-of-bounds PE header RVA`)
+      return rva
+    }
+    for (const section of sections) {
+      const delta = rva - section.virtualAddress
+      if (delta >= 0 && delta + length <= section.rawSize) {
+        const offset = section.rawPointer + delta
+        assert(offset + length <= bytes.length,
+          `${label} has an out-of-bounds PE section RVA`)
+        return offset
+      }
+    }
+    fail(`${label} has an unmapped PE RVA 0x${rva.toString(16)}`)
+  }
+  const names = []
+  let terminated = false
+  for (let index = 0; index < importSize / 20; index += 1) {
+    const descriptor = rvaToOffset(importRva + index * 20, 20)
+    const fields = Array.from({ length: 5 }, (_, field) =>
+      bytes.readUInt32LE(descriptor + field * 4))
+    if (fields.every((field) => field === 0)) {
+      terminated = true
+      break
+    }
+    const nameRva = fields[3]
+    assert(nameRva !== 0, `${label} has an import descriptor without a DLL name`)
+    const nameOffset = rvaToOffset(nameRva, 1)
+    const terminator = bytes.indexOf(0, nameOffset)
+    assert(terminator > nameOffset,
+      `${label} has an invalid or unterminated PE import DLL name`)
+    const name = bytes.subarray(nameOffset, terminator).toString("ascii")
+    assert(/^[A-Za-z0-9._-]+\.dll$/iu.test(name),
+      `${label} has an invalid PE import DLL name: ${name}`)
+    names.push(name.toLowerCase())
+  }
+  assert(terminated && names.length > 0,
+    `${label} has an unterminated or empty PE import table`)
+  return [...new Set(names)].sort()
+}
+
+function assertKernel32OnlyImports(bytes, label) {
+  const imports = peImportDllNames(bytes, label)
+  assert(JSON.stringify(imports) === JSON.stringify(["kernel32.dll"]),
+    `${label} has imports outside the selected Kernel32 capability: ` +
+      JSON.stringify(imports))
+}
+
 if (process.platform !== "win32" || process.arch !== "x64") {
   unavailable(`${process.platform}/${process.arch}`)
 }
@@ -447,11 +533,14 @@ for (const forbidden of ["wsl.exe", "process.env.PATH", "exec(", "shell: true", 
 for (const marker of ["CreateProcessW", "lpApplicationName", "CREATE_NEW",
   "GetStdHandle", "WriteFile", "ExitProcess", "mainCRTStartup",
   "-mtriple=x86_64-pc-windows-msvc", "/nodefaultlib", "--canonicalize",
-  "--cse", "--disable-simplify-libcalls", "-O3", "/Brepro", "/opt:ref", "/opt:icf", "/incremental:no",
+  "--cse", "-O3", "no-builtin-wcslen", "no-builtin-strlen",
+  "/Brepro", "/opt:ref", "/opt:icf", "/incremental:no",
   "/merge:.pdata=.rdata"]) {
   assert(`${runSource}\n${emitterSource}`.includes(marker),
     `native Windows implementation marker is missing: ${marker}`)
 }
+assert(!runSource.includes("--disable-simplify-libcalls"),
+  "cli/run.c must preserve LLVM libcall simplification")
 assert(emitterSource.includes("llvm.mlir.zero") &&
   !emitterSource.includes("HeapAlloc") && !emitterSource.includes("HeapFree"),
 "Windows emitter must use the bounded global buffer without Heap APIs")
@@ -1266,15 +1355,20 @@ try {
   assert(builtProcessArgumentsCountStats.isFile() &&
     !builtProcessArgumentsCountStats.isSymbolicLink(),
     "build process-arguments-count did not produce a regular artifact")
-  assertPeX64(await readFile(buildProcessArgumentsCount),
+  const processArgumentsCountBytes = await readFile(buildProcessArgumentsCount)
+  assertPeX64(processArgumentsCountBytes,
+    "built process-arguments-count artifact")
+  assertKernel32OnlyImports(processArgumentsCountBytes,
     "built process-arguments-count artifact")
   expectExact(binary, ["build", processArgumentsCountSelectiveImportFixture,
     "--target", targetTriple, "--output", buildProcessArgumentsCountSelectiveImport],
     0, Buffer.alloc(0),
     "build selective-import process-arguments-count fixture")
-  const flatImportBytes = await readFile(buildProcessArgumentsCount)
+  const flatImportBytes = processArgumentsCountBytes
   const selectiveImportBytes = await readFile(buildProcessArgumentsCountSelectiveImport)
   assertPeX64(selectiveImportBytes,
+    "built selective-import process-arguments-count artifact")
+  assertKernel32OnlyImports(selectiveImportBytes,
     "built selective-import process-arguments-count artifact")
   const firstImportDifference = selectiveImportBytes.findIndex(
     (value, index) => flatImportBytes[index] !== value)
@@ -1309,7 +1403,10 @@ try {
   assert(builtProcessArgumentsOrderingStats.isFile() &&
     !builtProcessArgumentsOrderingStats.isSymbolicLink(),
     "build ordered process-arguments did not produce a regular artifact")
-  assertPeX64(await readFile(buildProcessArgumentsOrdering),
+  const processArgumentsOrderingBytes = await readFile(buildProcessArgumentsOrdering)
+  assertPeX64(processArgumentsOrderingBytes,
+    "built ordered process-arguments artifact")
+  assertKernel32OnlyImports(processArgumentsOrderingBytes,
     "built ordered process-arguments artifact")
   const orderedArgumentCountCases = [
     ["without user arguments", [], "Kitchen seats 0 guests\n"],

@@ -10,7 +10,13 @@
 static const char *usage_text =
     "usage: w check <path/file.w> [--json]\n"
     "usage: w run <path/file.w> [-- <args...>]\n"
-    "usage: w build <path/file.w> --target <target> --output <artifact>\n";
+    "usage: w build <path/file.w> --target <target> --output <artifact>\n"
+    "usage: w bench process --exe <absolute-path> [options]\n"
+    "  options: --cwd <absolute-dir> --arg <value> --warmup <n> "
+    "--samples <n> --timeout-ms <n> --expect-exit <n> "
+    "--expect-stdout-hex <bytes> --expect-stderr-hex <bytes>\n"
+    "  Windows-native cold process measurement only; does not compile or "
+    "execute .w source\n";
 
 static bool write_usage(FILE *stream) {
   return w_seed_cli_write_text(stream, usage_text, &w_seed_cli_stdio_ops);
@@ -23,7 +29,7 @@ static bool is_help(int argc, char **argv) {
   }
   return argc == 3 &&
          (strcmp(argv[1], "check") == 0 || strcmp(argv[1], "run") == 0 ||
-          strcmp(argv[1], "build") == 0) &&
+          strcmp(argv[1], "build") == 0 || strcmp(argv[1], "bench") == 0) &&
          strcmp(argv[2], "--help") == 0;
 }
 
@@ -46,7 +52,7 @@ static bool parse_check(int argc, char **argv, const char **path,
   return true;
 }
 
-int main(int argc, char **argv) {
+int w_seed_cli_main(int argc, char **argv) {
   if (!w_seed_cli_prepare_binary(stdout, &w_seed_cli_stdio_ops)) return 3;
   if (is_help(argc, argv)) return write_usage(stdout) ? 0 : 3;
   const char *path = NULL;

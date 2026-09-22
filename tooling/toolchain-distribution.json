@@ -57,6 +57,24 @@
   },
   "runtimeClosureContract": {
     "default": "freestanding",
+    "axes": {
+      "wrt": {
+        "default": "static-reachability-closed",
+        "shared": "explicit-exact-provider-and-abi",
+        "none": "only-when-no-wrt-operation-is-reachable"
+      },
+      "crt": {
+        "default": "auto-declared-requirements",
+        "noRequirement": "none",
+        "strictNone": "reject-any-declared-crt-requirement",
+        "provider": "explicit-target-abi-version-link-mode",
+        "auto": "one-exact-compatible-declared-offer-or-error",
+        "cAbiImpliesCrt": false,
+        "unsafeImpliesCrt": false,
+        "optimizerMayAuthorizeCrt": false
+      },
+      "targetEnvironment": "explicit-target-contract"
+    },
     "modes": [
       {
         "id": "freestanding",
@@ -67,8 +85,8 @@
       },
       {
         "id": "hosted-crt",
-        "status": "future-opt-in-capability",
-        "explicitOptIn": true,
+        "status": "future-requirement-backed-capability",
+        "explicitRequirement": true,
         "allowedExternalClasses": ["wrt", "target-sdk", "explicit-provider", "receipted-crt-libc-libm"],
         "receiptFields": ["target", "abi", "provider", "version", "link-mode", "imports", "digest"]
       }
@@ -79,7 +97,8 @@
       "object": "undefined-symbol-allowlist-after-codegen",
       "finalArtifact": "import-and-dynamic-dependency-closure",
       "linkSuccessOnly": false,
-      "temporarySeedContainment": "disable-simplify-libcalls-is-not-optimization-proof"
+      "functionLocalLibcallGuard": "no-builtin-strlen-and-wcslen-on-argument-scan",
+      "globalSimplifyLibcallsDisabled": false
     },
     "instrumentation": {
       "modes": ["none", "sanitizer", "pgo-generate", "pgo-use"],
@@ -95,9 +114,11 @@
       "objectUndefinedSymbolAllowlist": "gap",
       "finalDependencyValidation": "bounded-current",
       "productClosureReceipt": "gap",
-      "benchmarkRuntimeClosureAxis": "gap",
+      "benchmarkRuntimeClosureAxis": "bounded-current-recipe-class-unverified",
       "unusedProcessInputElision": "gap",
       "helperReachabilityPartitioning": "gap",
+      "wrtSharedLinkage": "gap",
+      "declaredCrtAutoResolution": "gap",
       "hostedCrtProduct": "gap",
       "pgoClosure": "gap"
     }

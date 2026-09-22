@@ -9,11 +9,9 @@
 #include <limits.h>
 #include <string.h>
 
-static const char linux_provider_id[] =
-    W_SEED_EPHEMERAL_PROVIDER_LINUX_V2_ID;
-
 enum {
-  LINUX_PROVIDER_ID_LENGTH = sizeof(linux_provider_id) - 1u,
+  LINUX_PROVIDER_ID_LENGTH =
+      sizeof(W_SEED_EPHEMERAL_PROVIDER_LINUX_V2_ID) - 1u,
   /* prefix + mount id + device major + device minor + inode. */
   LINUX_IDENTITY_TOKEN_LENGTH =
       W_SEED_EPHEMERAL_PROVIDER_LINUX_V2_TOKEN_BYTES,
@@ -37,6 +35,9 @@ static w_seed_ephemeral_provider_metadata linux_metadata(void) {
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <unistd.h>
+
+static const char linux_provider_id[] =
+    W_SEED_EPHEMERAL_PROVIDER_LINUX_V2_ID;
 
 #if defined(SYS_openat2) && defined(RESOLVE_BENEATH) && \
     defined(RESOLVE_NO_SYMLINKS) && defined(RESOLVE_NO_XDEV) && \

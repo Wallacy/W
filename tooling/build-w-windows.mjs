@@ -43,6 +43,7 @@ const receiptPath = join(outputDirectory, receiptName)
 const WINDOWS_REQUIRED_TOOL_NAMES = Object.freeze([
   "mlir-opt.exe",
   "mlir-translate.exe",
+  "opt.exe",
   "llc.exe",
   "lld-link.exe",
 ])
@@ -1126,6 +1127,7 @@ async function main() {
       "-DW_SEED_ENABLE_WINDOWS_NATIVE_RUN=ON",
       `-DW_MLIR0_WINDOWS_MLIR_OPT=${toolPaths["mlir-opt.exe"]}`,
       `-DW_MLIR0_WINDOWS_MLIR_TRANSLATE=${toolPaths["mlir-translate.exe"]}`,
+      `-DW_MLIR0_WINDOWS_LLVM_OPT=${toolPaths["opt.exe"]}`,
       `-DW_MLIR0_WINDOWS_LLC=${toolPaths["llc.exe"]}`,
       `-DW_MLIR0_WINDOWS_LLD_LINK=${toolPaths["lld-link.exe"]}`,
       `-DW_MLIR0_WINDOWS_KERNEL32_LIB=${sdk.path}`,
