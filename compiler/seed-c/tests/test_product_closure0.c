@@ -248,7 +248,10 @@ static bool prepare_process_fixture(multidoc_fixture *fixture,
       w_seed_frontend_run(&fixture->frontend_input,
                           &fixture->frontend_output,
                           &fixture->frontend_result);
-  if (frontend_status != W_SEED_FRONTEND_OK) return false;
+  if (frontend_status != W_SEED_FRONTEND_OK) {
+    (void)fprintf(stderr, "process frontend status=%d\n", (int)frontend_status);
+    return false;
+  }
   const w_seed_hir0_input hir_input = {
       .frontend_input = &fixture->frontend_input,
       .frontend_output = &fixture->frontend_output,
@@ -257,17 +260,83 @@ static bool prepare_process_fixture(multidoc_fixture *fixture,
   const w_seed_hir0_status hir_measure_status =
       w_seed_hir0_measure(&hir_input, &fixture->hir_counts,
                           &fixture->hir_result);
-  if (hir_measure_status != W_SEED_HIR0_OK) return false;
+  if (hir_measure_status != W_SEED_HIR0_OK) {
+    (void)fprintf(stderr, "process HIR measure status=%d\n",
+                  (int)hir_measure_status);
+    return false;
+  }
   setup_hir_output(fixture);
   const w_seed_hir0_status hir_run_status =
       w_seed_hir0_run(&hir_input, &fixture->hir_output,
                       &fixture->hir_result);
-  if (hir_run_status != W_SEED_HIR0_OK) return false;
+  if (hir_run_status != W_SEED_HIR0_OK) {
+    (void)fprintf(stderr, "process HIR run status=%d\n", (int)hir_run_status);
+    return false;
+  }
   if (!w_seed_hir0_program_from_output(&fixture->hir_output,
                                        &fixture->hir_result,
-                                       &fixture->hir_program))
+                                       &fixture->hir_program)) {
+    (void)fprintf(stderr, "process HIR program conversion failed\n");
     return false;
-  return w_seed_hir0_verify(&fixture->hir_program, &fixture->hir_result);
+  }
+  if (!w_seed_hir0_verify(&fixture->hir_program, &fixture->hir_result)) {
+    (void)fprintf(stderr, "process HIR verify failed\n");
+    return false;
+  }
+  return true;
+}
+
+static bool prepare_direct_fixture(multidoc_fixture *fixture,
+                                   const char *root_source) {
+  if (fixture == NULL || root_source == NULL) return false;
+  (void)memset(fixture, 0, sizeof(*fixture));
+  if (!parse_document(&fixture->parsed[0], root_source)) return false;
+  fixture->documents[0] = (w_seed_frontend_document){
+      .logical_source_id = (w_seed_frontend_text){"app-source", 10u},
+      .module_id = (w_seed_frontend_text){"app", 3u},
+      .local_module_name = (w_seed_frontend_text){"app", 3u},
+      .source = &fixture->parsed[0].source,
+      .nodes = fixture->parsed[0].nodes,
+      .node_count = fixture->parsed[0].parse.node_count,
+      .parse = fixture->parsed[0].parse};
+  w_seed_module_origin origins[TEST_IMPORTS];
+  w_seed_module_scan_result scan_result;
+  if (w_seed_module_scan(
+          fixture->documents[0].source, fixture->documents[0].nodes,
+          fixture->documents[0].parse.node_count, &fixture->documents[0].parse,
+          origins, TEST_IMPORTS, &scan_result) != W_SEED_MODULE_SCAN_OK ||
+      scan_result.written != 0u)
+    return false;
+  (void)configure_print_host(fixture);
+  fixture->frontend_input = (w_seed_frontend_input){
+      .documents = fixture->documents,
+      .document_count = 1u,
+      .external_modules = NULL,
+      .external_module_count = 0u,
+      .host_scope = &fixture->host_scope,
+      .import_resolution_complete = true,
+      .resolved_imports = NULL,
+      .resolved_import_count = 0u};
+  setup_frontend_output(fixture);
+  if (w_seed_frontend_run(&fixture->frontend_input, &fixture->frontend_output,
+                          &fixture->frontend_result) != W_SEED_FRONTEND_OK)
+    return false;
+  const w_seed_hir0_input hir_input = {
+      .frontend_input = &fixture->frontend_input,
+      .frontend_output = &fixture->frontend_output,
+      .frontend_result = &fixture->frontend_result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
+  if (w_seed_hir0_measure(&hir_input, &fixture->hir_counts,
+                          &fixture->hir_result) != W_SEED_HIR0_OK)
+    return false;
+  setup_hir_output(fixture);
+  if (w_seed_hir0_run(&hir_input, &fixture->hir_output,
+                      &fixture->hir_result) != W_SEED_HIR0_OK)
+    return false;
+  return w_seed_hir0_program_from_output(&fixture->hir_output,
+                                         &fixture->hir_result,
+                                         &fixture->hir_program) &&
+         w_seed_hir0_verify(&fixture->hir_program, &fixture->hir_result);
 }
 
 static void reseal_process_hir(multidoc_fixture *fixture) {
@@ -857,6 +926,11 @@ static bool test_native_process_numeric_split(void) {
         result.outcome.error_type_index == handler->error_type &&
         result.outcome.error_enum_index == W_SEED_PRODUCT_CLOSURE0_NONE &&
         result.outcome.error_case_index == W_SEED_PRODUCT_CLOSURE0_NONE);
+  CHECK(result.out_of_range_outcome.kind ==
+            W_SEED_PRODUCT_CLOSURE0_OUTCOME_TYPED_THROW &&
+        memcmp(&result.outcome, &result.out_of_range_outcome,
+               sizeof(result.outcome)) == 0 &&
+        result.non_finite_outcome.kind == W_SEED_PRODUCT_CLOSURE0_OUTCOME_NONE);
   CHECK(result.root.cleanup_obligation ==
             W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_ALL_OUTCOMES &&
         result.root.cleanup_release_parameter_count == 2u &&
@@ -914,6 +988,187 @@ static bool test_native_process_numeric_split(void) {
   *mutable_split = saved_split;
   reseal_process_hir(&fixture);
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
+static bool test_direct_float_rounding_product(void) {
+  static const char *const source_types[] = {"f32", "f64"};
+  static const char *const destination_types[] = {"i8", "u64"};
+  static const char *const mode_names[] = {
+      "nearestEven", "nearestAwayFromZero", "towardZero", "towardPositive",
+      "towardNegative"};
+  static const w_seed_hir0_rounding_mode modes[] = {
+      W_SEED_HIR0_ROUNDING_MODE_NEAREST_EVEN,
+      W_SEED_HIR0_ROUNDING_MODE_NEAREST_AWAY_FROM_ZERO,
+      W_SEED_HIR0_ROUNDING_MODE_TOWARD_ZERO,
+      W_SEED_HIR0_ROUNDING_MODE_TOWARD_POSITIVE,
+      W_SEED_HIR0_ROUNDING_MODE_TOWARD_NEGATIVE};
+  static multidoc_fixture fixture;
+  static multidoc_fixture shifted_fixture;
+  static product_storage storage;
+  static product_storage shifted_storage;
+
+  for (size_t source = 0u; source < 2u; source += 1u) {
+    for (size_t destination = 0u; destination < 2u; destination += 1u) {
+      for (size_t mode = 0u; mode < 5u; mode += 1u) {
+        char source_text[1024];
+        const int source_length = snprintf(
+            source_text, sizeof(source_text),
+            "fn convert(value: %s): %s throws NumericConversionError { "
+            "return try %s(rounding: value, mode: .%s) }\n"
+            "entry(convert)\n",
+            source_types[source], destination_types[destination],
+            destination_types[destination], mode_names[mode]);
+        CHECK(source_length > 0 && (size_t)source_length < sizeof(source_text));
+        CHECK(prepare_direct_fixture(&fixture, source_text));
+        const w_seed_hir0_program *program = &fixture.hir_program;
+        const uint32_t target = program->entries[0].target_function;
+        const w_seed_hir0_function *handler = &program->functions[target];
+        const uint32_t split_block = handler->first_block;
+        const w_seed_hir0_terminator *split =
+            &program->terminators[program->blocks[split_block].terminator_index];
+        const uint32_t normal_block = split->target_block;
+        const uint32_t non_finite_block = split->else_block;
+        const uint32_t out_of_range_block = split->third_block;
+        const w_seed_hir0_terminator *normal =
+            &program->terminators[program->blocks[normal_block].terminator_index];
+        const w_seed_hir0_terminator *non_finite = &program->terminators[
+            program->blocks[non_finite_block].terminator_index];
+        const w_seed_hir0_terminator *out_of_range = &program->terminators[
+            program->blocks[out_of_range_block].terminator_index];
+        CHECK(handler->block_count == 4u &&
+              split->kind == W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING &&
+              split->rounding_mode == modes[mode] &&
+              split->target_block == normal_block &&
+              split->else_block == non_finite_block &&
+              split->third_block == out_of_range_block &&
+              non_finite->kind == W_SEED_HIR0_TERMINATOR_THROW &&
+              out_of_range->kind == W_SEED_HIR0_TERMINATOR_THROW);
+
+        const w_seed_product_closure0_input input =
+            {program, &fixture.hir_result};
+        (void)memset(&storage, 0xa5, sizeof(storage));
+        const w_seed_product_closure0_output output = product_output(&storage);
+        w_seed_product_closure0_result result = {0};
+        CHECK(w_seed_product_closure0_run(&input, &output, &result) ==
+              W_SEED_PRODUCT_CLOSURE0_OK);
+        CHECK(result.normal_outcome.kind ==
+                  W_SEED_PRODUCT_CLOSURE0_OUTCOME_NORMAL &&
+              result.normal_outcome.source_terminator_index ==
+                  program->blocks[split_block].terminator_index &&
+              result.normal_outcome.terminator_index ==
+                  program->blocks[normal_block].terminator_index &&
+              result.normal_outcome.successor_block_index == normal_block &&
+              result.normal_outcome.successor_argument_index ==
+                  program->blocks[normal_block].first_block_argument &&
+              result.normal_outcome.successor_argument_count == 1u &&
+              result.normal_outcome.value_index == normal->value_index &&
+              result.normal_outcome.result_type_index == normal->result_type &&
+              result.normal_outcome.error_type_index ==
+                  W_SEED_PRODUCT_CLOSURE0_NONE);
+        CHECK(result.non_finite_outcome.kind ==
+                  W_SEED_PRODUCT_CLOSURE0_OUTCOME_TYPED_THROW &&
+              result.non_finite_outcome.source_terminator_index ==
+                  program->blocks[split_block].terminator_index &&
+              result.non_finite_outcome.terminator_index ==
+                  program->blocks[non_finite_block].terminator_index &&
+              result.non_finite_outcome.successor_block_index ==
+                  non_finite_block &&
+              result.non_finite_outcome.successor_argument_index ==
+                  program->blocks[non_finite_block].first_block_argument &&
+              result.non_finite_outcome.successor_argument_count == 1u &&
+              result.non_finite_outcome.value_index == non_finite->value_index &&
+              result.non_finite_outcome.result_type_index ==
+                  non_finite->result_type &&
+              result.non_finite_outcome.error_type_index == handler->error_type &&
+              result.non_finite_outcome.error_enum_index ==
+                  W_SEED_PRODUCT_CLOSURE0_NONE &&
+              result.non_finite_outcome.error_case_index ==
+                  W_SEED_PRODUCT_CLOSURE0_NONE);
+        CHECK(result.out_of_range_outcome.kind ==
+                  W_SEED_PRODUCT_CLOSURE0_OUTCOME_TYPED_THROW &&
+              result.out_of_range_outcome.source_terminator_index ==
+                  program->blocks[split_block].terminator_index &&
+              result.out_of_range_outcome.terminator_index ==
+                  program->blocks[out_of_range_block].terminator_index &&
+              result.out_of_range_outcome.successor_block_index ==
+                  out_of_range_block &&
+              result.out_of_range_outcome.successor_argument_index ==
+                  program->blocks[out_of_range_block].first_block_argument &&
+              result.out_of_range_outcome.successor_argument_count == 1u &&
+              result.out_of_range_outcome.value_index == out_of_range->value_index &&
+              result.out_of_range_outcome.result_type_index ==
+                  out_of_range->result_type &&
+              result.out_of_range_outcome.error_type_index == handler->error_type &&
+              result.outcome.kind ==
+                  W_SEED_PRODUCT_CLOSURE0_OUTCOME_TYPED_THROW &&
+              memcmp(&result.outcome, &result.out_of_range_outcome,
+                     sizeof(result.outcome)) == 0);
+        CHECK(w_seed_product_closure0_verify(&input, &output, &result));
+
+        if (source == 0u && destination == 0u && mode == 0u) {
+          const product_storage saved_storage = storage;
+          const w_seed_product_closure0_result saved_result = result;
+          w_seed_product_closure0_output limited_output = product_output(&storage);
+          limited_output.reachable_value_capacity = 0u;
+          CHECK(w_seed_product_closure0_run(&input, &limited_output, &result) ==
+                W_SEED_PRODUCT_CLOSURE0_CAPACITY);
+          CHECK(memcmp(&storage, &saved_storage, sizeof(storage)) == 0 &&
+                memcmp(&result, &saved_result, sizeof(result)) == 0);
+
+          result.non_finite_outcome.successor_block_index = out_of_range_block;
+          CHECK(!w_seed_product_closure0_verify(&input, &output, &result));
+          result = saved_result;
+          result.out_of_range_outcome.value_index =
+              result.normal_outcome.value_index;
+          CHECK(!w_seed_product_closure0_verify(&input, &output, &result));
+          result = saved_result;
+          result.outcome.successor_block_index = non_finite_block;
+          CHECK(!w_seed_product_closure0_verify(&input, &output, &result));
+          result = saved_result;
+          result.reachable_semantic_digest[0] ^= 1u;
+          CHECK(!w_seed_product_closure0_verify(&input, &output, &result));
+          result = saved_result;
+
+          w_seed_hir0_terminator *mutable_split =
+              &fixture.hir_terminators[program->blocks[split_block]
+                                           .terminator_index];
+          const w_seed_hir0_terminator saved_split = *mutable_split;
+          mutable_split->rounding_mode =
+              W_SEED_HIR0_ROUNDING_MODE_TOWARD_NEGATIVE;
+          reseal_process_hir(&fixture);
+          CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+          CHECK(!w_seed_product_closure0_verify(&input, &output, &result));
+          *mutable_split = saved_split;
+          reseal_process_hir(&fixture);
+          CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+          CHECK(w_seed_product_closure0_verify(&input, &output, &result));
+
+          CHECK(prepare_direct_fixture(&shifted_fixture, source_text));
+          CHECK(prepend_dead_numeric_function(&shifted_fixture));
+          const w_seed_product_closure0_input shifted_input =
+              {&shifted_fixture.hir_program, &shifted_fixture.hir_result};
+          const w_seed_product_closure0_output shifted_output =
+              product_output(&shifted_storage);
+          w_seed_product_closure0_result shifted_result = {0};
+          CHECK(w_seed_product_closure0_run(&shifted_input, &shifted_output,
+                                            &shifted_result) ==
+                W_SEED_PRODUCT_CLOSURE0_OK);
+          CHECK(shifted_result.normal_outcome.source_terminator_index !=
+                    result.normal_outcome.source_terminator_index &&
+                shifted_result.non_finite_outcome.terminator_index !=
+                    result.non_finite_outcome.terminator_index &&
+                shifted_result.out_of_range_outcome.terminator_index !=
+                    result.out_of_range_outcome.terminator_index &&
+                memcmp(shifted_result.reachable_semantic_digest,
+                       result.reachable_semantic_digest,
+                       W_SEED_PRODUCT_CLOSURE0_DIGEST_BYTES) == 0 &&
+                w_seed_product_closure0_verify(&shifted_input, &shifted_output,
+                                               &shifted_result));
+        }
+      }
+    }
+  }
   return true;
 }
 
@@ -1204,6 +1459,7 @@ int main(void) {
   if (!test_transaction_barriers()) return 1;
   if (!test_native_process_typed_throw()) return 1;
   if (!test_native_process_numeric_split()) return 1;
+  if (!test_direct_float_rounding_product()) return 1;
   if (!test_typed_process_fail_closed_shapes()) return 1;
   return test_dead_module_and_mlir() ? 0 : 1;
 }

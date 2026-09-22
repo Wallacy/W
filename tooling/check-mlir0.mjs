@@ -161,6 +161,22 @@ function assert(condition, message) {
   if (!condition) fail(message)
 }
 
+function floatRoundingTranslationIsGuarded(llvmText, sourceType,
+  llvmFloatType, intrinsic, conversionOpcode) {
+  const classification = llvmText.indexOf(`llvm.is.fpclass.${sourceType}`)
+  const rounding = llvmText.indexOf(`llvm.${intrinsic}.${sourceType}`)
+  const lowerCompare = llvmText.indexOf(`fcmp oge ${llvmFloatType}`)
+  const upperCompare = llvmText.indexOf(`fcmp olt ${llvmFloatType}`)
+  const rangeValue = llvmText.match(/(%[-a-zA-Z$._0-9]+) = and i1[^\n]+/u)?.[1]
+  const rangeBranch = rangeValue === undefined
+    ? -1 : llvmText.indexOf(`br i1 ${rangeValue}`, upperCompare)
+  const conversion = llvmText.indexOf(
+    `${conversionOpcode} ${llvmFloatType}`, rounding)
+  return classification >= 0 && rounding > classification &&
+    lowerCompare > rounding && upperCompare > lowerCompare &&
+    rangeBranch > upperCompare && conversion > rangeBranch
+}
+
 function run(command, args, cwd = root, env = undefined) {
   const result = Bun.spawnSync({
     cmd: [command, ...args],
@@ -502,43 +518,62 @@ try {
     !integerExactlyLlvmText.includes("invoke "),
   "integer exactly LLVM translation lost the checked typed branch")
 
-  const floatRounding = run(unitPath,
-    ["--emit-float-to-integer-rounding"])
-  assert(floatRounding.exitCode === 0,
-    `float-to-integer rounding probe failed: ${floatRounding.stderrText}`)
-  assert(floatRounding.stderr.length === 0 && floatRounding.stdout.length > 0,
-    "float-to-integer rounding probe did not emit one silent MLIR artifact")
-  const floatRoundingInput = resolve(artifactDirectory,
-    "float-to-integer-rounding.mlir")
-  const floatRoundingVerified = resolve(artifactDirectory,
-    "float-to-integer-rounding.verified.mlir")
-  const floatRoundingLlvm = resolve(artifactDirectory,
-    "float-to-integer-rounding.ll")
-  await writeFile(floatRoundingInput, floatRounding.stdout)
-  const floatRoundingInputForTool = isWindows
-    ? wslPath(floatRoundingInput) : floatRoundingInput
-  const floatRoundingVerifiedForTool = isWindows
-    ? wslPath(floatRoundingVerified) : floatRoundingVerified
-  const floatRoundingLlvmForTool = isWindows
-    ? wslPath(floatRoundingLlvm) : floatRoundingLlvm
-  invokeTool(tool("mlirOpt"), [floatRoundingInputForTool, "-o",
-    floatRoundingVerifiedForTool, "--verify-each"],
-  "float-to-integer rounding mlir-opt")
-  invokeTool(tool("mlirTranslate"), ["--mlir-to-llvmir",
-    floatRoundingVerifiedForTool, "-o", floatRoundingLlvmForTool],
-  "float-to-integer rounding mlir-translate")
-  const floatRoundingLlvmText = await readFile(floatRoundingLlvm, "utf8")
-  const roundingConversion = floatRoundingLlvmText.indexOf("fptoui double")
-  const roundingRangeBranch = floatRoundingLlvmText.indexOf("br i1 %")
-  assert(floatRoundingLlvmText.includes(
-    "define internal { i2, i64 } @w_seed_float_to_integer_round") &&
-    floatRoundingLlvmText.includes("llvm.is.fpclass.f64") &&
-    floatRoundingLlvmText.includes("llvm.roundeven.f64") &&
-    floatRoundingLlvmText.includes("fcmp oge double") &&
-    floatRoundingLlvmText.includes("fcmp olt double") &&
-    roundingRangeBranch >= 0 && roundingConversion > roundingRangeBranch &&
-    !floatRoundingLlvmText.includes("invoke "),
-  "float-to-integer rounding LLVM translation lost classification, bounds, or guarded conversion")
+  const floatRoundingModes = [
+    ["nearestEven", "roundeven"],
+    ["nearestAwayFromZero", "round"],
+    ["towardZero", "trunc"],
+    ["towardPositive", "ceil"],
+    ["towardNegative", "floor"],
+  ]
+  const unguardedRoundingMutation = [
+    "%finite = call i1 @llvm.is.fpclass.f64(double %source, i32 519)",
+    "br i1 %finite, label %non_finite, label %round",
+    "%rounded = call double @llvm.roundeven.f64(double %source)",
+    "%lower = fcmp oge double %rounded, -9.22e18",
+    "%upper = fcmp olt double %rounded, 9.22e18",
+    "%converted = fptosi double %rounded to i64",
+    "%fits = and i1 %lower, %upper",
+    "br i1 %fits, label %success, label %out_of_range",
+  ].join("\n")
+  assert(!floatRoundingTranslationIsGuarded(unguardedRoundingMutation,
+    "f64", "double", "roundeven", "fptosi"),
+  "float-to-integer guard checker accepted conversion before range proof")
+  for (const [sourceType, llvmFloatType] of [["f32", "float"], ["f64", "double"]]) {
+    for (let modeIndex = 0; modeIndex < floatRoundingModes.length; modeIndex += 1) {
+      const [mode, intrinsic] = floatRoundingModes[modeIndex]
+      const destinationType = modeIndex % 2 === 0 ? "i64" : "u64"
+      const conversionOpcode = destinationType === "i64" ? "fptosi" : "fptoui"
+      const stem = `float-to-integer-rounding-${sourceType}-${destinationType}-${mode}`
+      const floatRounding = run(unitPath,
+        ["--emit-float-to-integer-rounding", sourceType, destinationType, mode])
+      assert(floatRounding.exitCode === 0,
+        `${stem} probe failed: ${floatRounding.stderrText}`)
+      assert(floatRounding.stderr.length === 0 && floatRounding.stdout.length > 0,
+        `${stem} did not emit one silent MLIR artifact`)
+      const floatRoundingInput = resolve(artifactDirectory, `${stem}.mlir`)
+      const floatRoundingVerified = resolve(artifactDirectory, `${stem}.verified.mlir`)
+      const floatRoundingLlvm = resolve(artifactDirectory, `${stem}.ll`)
+      await writeFile(floatRoundingInput, floatRounding.stdout)
+      const floatRoundingInputForTool = isWindows
+        ? wslPath(floatRoundingInput) : floatRoundingInput
+      const floatRoundingVerifiedForTool = isWindows
+        ? wslPath(floatRoundingVerified) : floatRoundingVerified
+      const floatRoundingLlvmForTool = isWindows
+        ? wslPath(floatRoundingLlvm) : floatRoundingLlvm
+      invokeTool(tool("mlirOpt"), [floatRoundingInputForTool, "-o",
+        floatRoundingVerifiedForTool, "--verify-each"], `${stem} mlir-opt`)
+      invokeTool(tool("mlirTranslate"), ["--mlir-to-llvmir",
+        floatRoundingVerifiedForTool, "-o", floatRoundingLlvmForTool],
+      `${stem} mlir-translate`)
+      const llvmText = await readFile(floatRoundingLlvm, "utf8")
+      assert(llvmText.includes(
+        `define internal { i2, i64 } @w_seed_float_to_integer_round`) &&
+        floatRoundingTranslationIsGuarded(llvmText, sourceType,
+          llvmFloatType, intrinsic, conversionOpcode) &&
+        !llvmText.includes("invoke "),
+      `${stem} LLVM translation lost classification, bounds, or guarded conversion`)
+    }
+  }
 
   const seedGate = resolve(buildDirectory, `w_seed_mlir0_gate${suffix}`)
   const restaurantPath = resolve(artifactDirectory, "restaurant.w")

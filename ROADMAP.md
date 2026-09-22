@@ -246,11 +246,14 @@ physical scheduler experiments:
    success/non-finite/out-of-range roles. NativeSubset0 now independently
    rederives that closed relation, and the private
    `w-seed-mlir0-float-to-integer-rounding-1` artifact lowers all 100
-   width/mode combinations through verified LLVM dialect. ProductClosure0 and
+   width/mode combinations to deterministic LLVM-dialect text; focused checks
+   verify exact bounds and ordering for that complete matrix, while real
+   `mlir-opt`/`mlir-translate` gates cover both float widths, signed and
+   unsigned destinations, and every rounding intrinsic. ProductClosure0 and
    native execution still reject it. W-1652 now defines the canonical `native-process@1`
    mapping for an unhandled typed error. HIR94 retains the restricted local
    payloadless-error direct throw and composes one exact-conversion binding into
-   a three-block process root. ProductClosure0 v3 projects either the direct
+   a three-block process root. ProductClosure0 v4 projects either the direct
    typed outcome or the conversion's distinct normal and typed-error
    successors. It authenticates reverse-initialization cleanup on both
    structured exits. Process-executable v5 now materializes that cleanup and
@@ -596,7 +599,7 @@ NativeSubset0, and the private `w-seed-mlir0-integer-exactly-1` artifact. HIR
 preserves a three-block typed success/error split whose error edge is canonical
 `NumericConversionError.outOfRange`; `tooling/check-mlir0.mjs` verifies the
 artifact with `mlir-opt` and `mlir-translate`. HIR94 now admits a bounded
-binding continuation and process root for that split; ProductClosure0 v3
+binding continuation and process root for that split; ProductClosure0 v4
 projects its normal and typed-error successors while retaining the restricted
 direct-throw outcome. Process-executable v5 materializes
 reverse-initialization cleanup for the bounded exact-conversion root, retains
@@ -618,8 +621,11 @@ artifact classifies NaN and infinity before rounding, uses environment-
 independent LLVM intrinsics, checks the rounded value against exact half-open
 power-of-two bounds, and emits `fptosi`/`fptoui` only in the proven-valid
 successor. `mlir-opt --verify-each` and `mlir-translate` validate the artifact
-for Linux and Windows x64 target triples. Next publish the three outcomes in
-ProductClosure0, then add native execution, independent bit-pattern boundary
+for Linux and Windows x64 target triples. ProductClosure0 v4 now publishes all
+three outcomes for a direct default-unit
+helper while retaining the out-of-range compatibility channel. The current
+frontend/HIR process-body contract still rejects that split. Next admit the
+process root, then add native execution, independent bit-pattern boundary
 oracles, and both public x64 routes. Until those exist, this remains compiler-
 lifecycle evidence only and carries no benchmark row or performance claim.
 

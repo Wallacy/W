@@ -8031,7 +8031,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1648 | fixed-width integer bit primitives through native execution | The existing W-392 associated functions `rotatedLeft(_ value: Self, _ count: UInt) -> Self`, `rotatedRight(_ value: Self, _ count: UInt) -> Self`, `countOnes(_ value: Self) -> UInt`, `countZeros(_ value: Self) -> UInt`, `countLeadingZeros(_ value: Self) -> UInt`, `countTrailingZeros(_ value: Self) -> UInt`, `reversedBits(_ value: Self) -> Self`, and `reversedBytes(_ value: Self) -> Self` are source-backed for built-in `i8`/`u8`, `i16`/`u16`, `i32`/`u32`, and `i64`/`u64`. Rotations reduce counts modulo logical width; counts return `UInt`, zero leading/trailing-zero counts equal width, leading/trailing scans start at the most/least-significant bit, signed values use the full two's-complement representation, and reversals operate on logical width independent of host endianness. Frontend70, HIR91, NativeSubset0, and MLIR61 validate and lower this fixed-width family through direct LLVM-dialect intrinsics; exact-output Windows x64 and Linux/WSL x64 source-to-native gates pass. The 3,943-byte neutral W fixture covers every operation and type; focused tests plus C23/Rust references add zero-count and rotation `0`/`width`/`width + 1` edges. No syntax changes. `Int`/`UInt` target width, `isize`/`usize`, 128-bit integers, other targets, general optimizer behavior, stable ABI/FFI, and performance remain outside this increment. | physical-carrier-width semantics; duplicate syntax or target intrinsics in the language core; portable-width claims for aliases or other targets without evidence; performance rankings without equivalent runtime operands |
 
 | W-1649 | fixed-width named integer shift policies through native execution | The existing W-392 associated functions `maskedShiftLeft(_ value: Self, _ count: UInt) -> Self`, `maskedShiftRight(_ value: Self, _ count: UInt) -> Self`, and `logicalShiftRight(_ value: Self, _ count: UInt) -> Self` are source-backed exactly for built-in `i8`/`u8`, `i16`/`u16`, `i32`/`u32`, and `i64`/`u64`. Both masked policies reduce count modulo logical width; signed `maskedShiftRight` is arithmetic, unsigned is logical, and `logicalShiftRight` zero-fills for either signedness while rejecting `count >= bitWidth` before the LLVM shift. Frontend70 and verified HIR91 retain the existing append-only operation identities; HIR enforces an exact `UInt` count even against a forged same-type wrapping tree. NativeSubset0 and MLIR61 use a width-aware route. The neutral W fixture passes exact-output CRT-free Windows x64 and Linux/WSL x64 gates; C23 and Rust 2024 match as correctness references only. `Int`/`UInt`, `isize`/`usize`, 128-bit integers, other targets, stable ABI/FFI, and equivalent-runtime performance remain outside this increment. W may fold the witness, so no timing or performance ranking is claimed and `benchmarkDisposition: deferred`. | physical-carrier-width shift semantics; collapse of arithmetic and explicit logical right shift; per-width operation IDs or target-specific intrinsics in the language core; accepting a forged non-`UInt` count; ranking unequal runtime work |
-| W-1650 | fixed-width integer exactly-conversion typed lowering | Plain `try D(exactly: source)` is implemented for all 100 source/destination pairs among signed and unsigned 8/16/32/64-bit integers plus current x86-64 `Int`/`UInt` aliases. One product-only ingress also accepts canonical `std.process.Arguments.count` as logical target-width `usize`; its physical width is selected only for the accepted x64 target and does not generalize `usize`. Frontend71 and verified HIR94 preserve canonical facts, a typed three-block success/error split, and a bounded binding continuation carrying core `NumericConversionError.outOfRange`; NativeSubset0 rederives the relation and MLIR lowers it through a checked branch. ProductClosure0 v3 projects both successors. Process-executable v5 materializes cleanup and post-cleanup adaptation; public CRT-free Windows x64 and Linux/WSL x64 runtime witnesses print the converted payload for zero/126 arguments and prove 128 as out-of-range status 1 with empty failure output. `benchmarkDisposition: compiler-lifecycle`. | implicit or total conversion that hides failure; per-source/destination operation IDs; trap-only out-of-range lowering; adapting before cleanup; reading or flushing output on the typed-error edge; treating logical `usize` as portable `u64`; claiming general typed-root support from the bounded witness |
+| W-1650 | fixed-width integer exactly-conversion typed lowering | Plain `try D(exactly: source)` is implemented for all 100 source/destination pairs among signed and unsigned 8/16/32/64-bit integers plus current x86-64 `Int`/`UInt` aliases. One product-only ingress also accepts canonical `std.process.Arguments.count` as logical target-width `usize`; its physical width is selected only for the accepted x64 target and does not generalize `usize`. Frontend71 and verified HIR94 preserve canonical facts, a typed three-block success/error split, and a bounded binding continuation carrying core `NumericConversionError.outOfRange`; NativeSubset0 rederives the relation and MLIR lowers it through a checked branch. ProductClosure0 v4 projects both successors. Process-executable v5 materializes cleanup and post-cleanup adaptation; public CRT-free Windows x64 and Linux/WSL x64 runtime witnesses print the converted payload for zero/126 arguments and prove 128 as out-of-range status 1 with empty failure output. `benchmarkDisposition: compiler-lifecycle`. | implicit or total conversion that hides failure; per-source/destination operation IDs; trap-only out-of-range lowering; adapting before cleanup; reading or flushing output on the typed-error edge; treating logical `usize` as portable `u64`; claiming general typed-root support from the bounded witness |
 | W-1651 | explicit wide and low-precision numeric families | `f16`/`bf16`/`f32`/`f64`/`f128` are fixed arithmetic scalars; one `BigFloat<precision:>` family covers fixed and `.dynamic`; f4/f6/f8 use mandatory standardized format cases; TensorFloat32 is compute policy and e8m0fnu is block-scale metadata | bare f4/f6/f8 defaults; host `long double`; implicit packing, rounding, accumulator, fallback, or target-dependent meaning; claiming implementation from design |
 | W-1652 | native-process unhandled typed-error adaptation | A concrete `Error` remains a distinct outcome through structured cleanup; `native-process@1` then terminates with portable status 1 and no implicit output. The status is adapter policy, not `ExitCode`, enum tag, or payload ABI. | requiring every entry to catch; silently treating error as a normal ExitCode; tag-derived status; implicit stderr; applying process policy to other hosts |
 | W-1653 | bounded native-process checked-numeric fault adaptation | Checked numeric failure remains distinct from typed error and normal `ExitCode`; the bounded `native-process@1` route releases compiler-owned root resources, finalizes the root, discards buffered output, and adapts the fault to portable status 2. This bounded maintained-route evidence does not promote general cleanup-safe arithmetic: every resource reaching a physical fault boundary still needs static discharge or exactly-once teardown registration. | trapping before compiler-owned release; converting panic to typed error; exposing the private carrier; promoting a safety label without durable route metadata; promising general unwind or applying process status to other hosts |
@@ -14491,7 +14491,7 @@ prevents this bounded bridge from becoming an accidental portable-u64 rule,
 and no 32-bit or non-x86 claim follows.
 
 HIR94 now composes one exact-conversion binding into a restricted
-`native-process@1` root. ProductClosure0 v3 projects its explicit normal and
+`native-process@1` root. ProductClosure0 v4 projects its explicit normal and
 `NumericConversionError.outOfRange` successors and keeps the older restricted
 local payloadless-error direct throw. Process-executable v5 accepts only the
 exact-conversion root, preserves a private typed carrier through
@@ -14533,14 +14533,19 @@ rounding, compares the rounded value against exact half-open powers of two,
 and emits its sole `fptosi` or `fptoui` only in the range-proven successor.
 The private `{i2, iN}` carrier preserves success, non-finite, and out-of-range
 as statuses 0, 1, and 2; it is not a W ABI. All 100 width/mode combinations are
-rederived and emitted for Linux and Windows x64 triples, and a focused probe
-passes `mlir-opt --verify-each` and `mlir-translate`.
+rederived and emitted for Linux and Windows x64 triples with exact bound and
+ordering checks. Ten representative artifacts cover both source widths,
+signed/unsigned conversion, and all five intrinsics through
+`mlir-opt --verify-each` and `mlir-translate`.
 
-ProductClosure0 still rejects the terminator until it publishes both typed
-failure roles and their cleanup/error propagation. This amendment remains
-compiler-lifecycle evidence only: there is no native product, runtime/target
-execution, public ABI claim, independent boundary oracle, benchmark, or timing
-result, and W-389 remains an implementation-evidence gap.
+ProductClosure0 v4 now admits the source-derived direct default-unit helper and
+publishes normal, non-finite, and out-of-range roles while retaining `outcome`
+as an out-of-range compatibility alias. The current frontend/HIR process-body
+contract still rejects this split, so no process cleanup or native executable
+claim follows. This amendment remains compiler-lifecycle evidence only: there
+is no native product, runtime/target execution, public ABI claim, independent
+boundary oracle, benchmark, or timing result, and W-389 remains an
+implementation-evidence gap.
 
 #### W-1651 — explicit wide and low-precision numeric families
 
@@ -14595,7 +14600,7 @@ logging, or recovery.
 
 HIR94 preserves the restricted direct-throw root and additionally admits one
 integer exact-conversion binding with canonical `NumericConversionError` and a
-normal `ProcessExitCode` return. ProductClosure0 v3 publishes the direct typed
+normal `ProcessExitCode` return. ProductClosure0 v4 publishes the direct typed
 outcome or, for the conversion form, distinct normal and typed-error successors.
 The projection authenticates `Context`-then-`Arguments` release on both normal
 success and typed error, preserving reverse initialization order without an

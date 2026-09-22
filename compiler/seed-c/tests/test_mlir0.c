@@ -7125,6 +7125,18 @@ static bool test_float_to_integer_rounding_mlir(void) {
       W_SEED_HIR0_ROUNDING_MODE_TOWARD_ZERO,
       W_SEED_HIR0_ROUNDING_MODE_TOWARD_POSITIVE,
       W_SEED_HIR0_ROUNDING_MODE_TOWARD_NEGATIVE};
+  static const char *const signed_lower_bits[2][4] = {
+      {"0xc3000000", "0xc7000000", "0xcf000000", "0xdf000000"},
+      {"0xc060000000000000", "0xc0e0000000000000",
+       "0xc1e0000000000000", "0xc3e0000000000000"}};
+  static const char *const signed_upper_bits[2][4] = {
+      {"0x43000000", "0x47000000", "0x4f000000", "0x5f000000"},
+      {"0x4060000000000000", "0x40e0000000000000",
+       "0x41e0000000000000", "0x43e0000000000000"}};
+  static const char *const unsigned_upper_bits[2][4] = {
+      {"0x43800000", "0x47800000", "0x4f800000", "0x5f800000"},
+      {"0x4070000000000000", "0x40f0000000000000",
+       "0x41f0000000000000", "0x43f0000000000000"}};
   static uint8_t linux_artifact[W_SEED_MLIR0_MAX_BYTES];
   static uint8_t windows_artifact[W_SEED_MLIR0_MAX_BYTES];
 
@@ -7232,6 +7244,51 @@ static bool test_float_to_integer_rounding_mlir(void) {
                               "llvm.alloca") &&
               !contains_bytes(linux_artifact,
                               emitted_result.written.mlir_bytes, "@main"));
+        const size_t width_index =
+            destination_widths[destination] == 8u
+                ? 0u
+                : destination_widths[destination] == 16u
+                      ? 1u
+                      : destination_widths[destination] == 32u ? 2u : 3u;
+        char lower_needle[96];
+        char upper_needle[96];
+        const int lower_length = snprintf(
+            lower_needle, sizeof(lower_needle),
+            "%%round_lower = llvm.mlir.constant(%s : f%u)",
+            destination_signed[destination]
+                ? signed_lower_bits[source][width_index]
+                : source_widths[source] == 32u ? "0x00000000"
+                                               : "0x0000000000000000",
+            (unsigned)source_widths[source]);
+        const int upper_length = snprintf(
+            upper_needle, sizeof(upper_needle),
+            "%%round_upper = llvm.mlir.constant(%s : f%u)",
+            destination_signed[destination]
+                ? signed_upper_bits[source][width_index]
+                : unsigned_upper_bits[source][width_index],
+            (unsigned)source_widths[source]);
+        CHECK(lower_length > 0 &&
+              (size_t)lower_length < sizeof(lower_needle) &&
+              upper_length > 0 &&
+              (size_t)upper_length < sizeof(upper_needle) &&
+              contains_bytes(linux_artifact,
+                             emitted_result.written.mlir_bytes,
+                             lower_needle) &&
+              contains_bytes(linux_artifact,
+                             emitted_result.written.mlir_bytes,
+                             upper_needle));
+        const size_t classification = find_bytes(
+            linux_artifact, emitted_result.written.mlir_bytes,
+            "\"llvm.intr.is.fpclass\"", 0u);
+        const size_t rounding = find_bytes(
+            linux_artifact, emitted_result.written.mlir_bytes,
+            intrinsic_names[mode], 0u);
+        const size_t lower_compare = find_bytes(
+            linux_artifact, emitted_result.written.mlir_bytes,
+            "llvm.fcmp \"oge\"", 0u);
+        const size_t upper_compare = find_bytes(
+            linux_artifact, emitted_result.written.mlir_bytes,
+            "llvm.fcmp \"olt\"", 0u);
         const size_t range_branch = find_bytes(
             linux_artifact, emitted_result.written.mlir_bytes,
             "llvm.cond_br %round_fits", 0u);
@@ -7239,7 +7296,9 @@ static bool test_float_to_integer_rounding_mlir(void) {
             linux_artifact, emitted_result.written.mlir_bytes,
             destination_signed[destination] ? "llvm.fptosi" : "llvm.fptoui",
             0u);
-        CHECK(range_branch != SIZE_MAX && conversion > range_branch);
+        CHECK(classification != SIZE_MAX && rounding > classification &&
+              lower_compare > rounding && upper_compare > lower_compare &&
+              range_branch > upper_compare && conversion > range_branch);
 
         w_seed_mlir0_float_to_integer_rounding_result windows_result;
         CHECK(w_seed_mlir0_emit_float_to_integer_rounding(
@@ -7528,13 +7587,21 @@ static bool emit_integer_exactly_probe(void) {
          fflush(stdout) == 0;
 }
 
-static bool emit_float_to_integer_rounding_probe(void) {
-  static const uint8_t source[] =
-      "fn convert(value: f64): u64 throws NumericConversionError { "
-      "return try u64(rounding: value, mode: .nearestEven) }\n"
-      "entry { }\n";
+static bool emit_float_to_integer_rounding_probe(const char *source_type,
+                                                 const char *destination_type,
+                                                 const char *mode) {
+  if (source_type == NULL || destination_type == NULL || mode == NULL)
+    return false;
+  char source[384];
+  const int source_length = snprintf(
+      source, sizeof(source),
+      "fn convert(value: %s): %s throws NumericConversionError { "
+      "return try %s(rounding: value, mode: .%s) }\nentry { }\n",
+      source_type, destination_type, destination_type, mode);
+  if (source_length <= 0 || (size_t)source_length >= sizeof(source))
+    return false;
   static uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
-  CHECK(lower_hir(source, sizeof(source) - 1u));
+  CHECK(lower_hir((const uint8_t *)source, (size_t)source_length));
   w_seed_mlir0_float_to_integer_rounding_result result;
   CHECK(w_seed_mlir0_emit_float_to_integer_rounding(
             &fixture.hir_program, &fixture.hir_result, &TARGET,
@@ -8030,12 +8097,15 @@ int main(int argc, char **argv) {
 #endif
     return emit_integer_exactly_probe() ? 0 : 1;
   }
-  if (argc == 2 && argv[1] != NULL &&
+  if (argc == 5 && argv[1] != NULL && argv[2] != NULL && argv[3] != NULL &&
+      argv[4] != NULL &&
       strcmp(argv[1], "--emit-float-to-integer-rounding") == 0) {
 #if defined(_WIN32)
     if (_setmode(_fileno(stdout), _O_BINARY) == -1) return 3;
 #endif
-    return emit_float_to_integer_rounding_probe() ? 0 : 1;
+    return emit_float_to_integer_rounding_probe(argv[2], argv[3], argv[4])
+               ? 0
+               : 1;
   }
   if (argc != 1) return 2;
   if (!test_reachable_panic_mlir()) return 1;

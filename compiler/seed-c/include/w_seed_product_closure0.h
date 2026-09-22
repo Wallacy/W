@@ -15,7 +15,7 @@ extern "C" {
  * program.  It does not copy HIR records and never owns input storage.  The
  * caller owns every output array and receives source-index to dense-closure
  * remaps (W_SEED_PRODUCT_CLOSURE0_NONE for omitted records). */
-#define W_SEED_PRODUCT_CLOSURE0_SCHEMA_VERSION "w-seed-product-closure0-3"
+#define W_SEED_PRODUCT_CLOSURE0_SCHEMA_VERSION "w-seed-product-closure0-4"
 #define W_SEED_PRODUCT_CLOSURE0_NONE UINT32_MAX
 #define W_SEED_PRODUCT_CLOSURE0_DIGEST_BYTES 32u
 #define W_SEED_PRODUCT_CLOSURE0_MAX_MODULES 32u
@@ -220,11 +220,14 @@ typedef struct {
   w_seed_product_closure0_counts written;
   w_seed_product_closure0_failure failure;
   w_seed_product_closure0_root root;
-  /* The normal and typed-error paths remain separate facts. `outcome` is
-   * retained as the typed-error compatibility channel; numeric exact splits
-   * populate both it and normal_outcome. */
+  /* The success and typed-error paths remain separate facts. `outcome` is
+   * retained as the typed-error compatibility channel: numeric splits alias
+   * it to out_of_range_outcome. Float rounding additionally publishes the
+   * distinct non-finite path. */
   w_seed_product_closure0_outcome normal_outcome;
   w_seed_product_closure0_outcome outcome;
+  w_seed_product_closure0_outcome non_finite_outcome;
+  w_seed_product_closure0_outcome out_of_range_outcome;
   uint8_t reachable_semantic_digest[W_SEED_PRODUCT_CLOSURE0_DIGEST_BYTES];
 } w_seed_product_closure0_result;
 

@@ -2972,7 +2972,7 @@ For `Arguments.count`, HIR and NativeSubset0 retain the distinct logical
 current Windows/Linux x64 target. This is not portable `u64` evidence.
 
 HIR94 admits one bounded binding continuation and composes that split into a
-restricted process root. ProductClosure0 v3 publishes the source split plus
+restricted process root. ProductClosure0 v4 publishes the source split plus
 separate normal and `NumericConversionError.outOfRange` successor facts. It
 authenticates reverse-initialization `Context`-then-`Arguments` release on both
 normal success and typed error. Process-executable v5 retains a private outcome
@@ -3017,11 +3017,16 @@ checks exact half-open power-of-two destination bounds after rounding, and
 places its sole `fptosi` or `fptoui` only in the proven-valid block. Its private
 `{i2, iN}` carrier uses status 0/1/2 for success/non-finite/out-of-range; it is
 not a W ABI. Focused tests cover all 100 combinations for Linux and Windows
-x64 triples, transactional capacity/alias barriers, forged selection/result
-facts, and translation through `mlir-opt --verify-each` plus
-`mlir-translate`.
+x64 triples, including exact bound bits, operation ordering, transactional
+capacity/alias barriers, and forged selection/result facts. Ten representative
+artifacts cover both source widths, signed/unsigned conversion, and all five
+intrinsics through `mlir-opt --verify-each` plus `mlir-translate`.
 
-ProductClosure0 and native product execution still reject the terminator. This
+ProductClosure0 v4 accepts a source-derived direct default-unit helper and
+publishes separate normal, non-finite, and out-of-range outcomes; the legacy
+`outcome` field aliases out-of-range for compatibility. Its digest binds all
+three roles and the rounding mode. The current frontend/HIR process-body
+contract and native product execution still reject this rounding split. This
 increment provides no executable, runtime, public ABI, timing, or performance
 evidence. `benchmarkDisposition: compiler-lifecycle`.
 
@@ -3037,7 +3042,7 @@ The verified HIR retains the enum case as the typed error outcome. It also
 records that process-owned arguments and context release in reverse parameter
 order: `Context`, then `Arguments`. The conversion form contains one integer
 `try D(exactly:)` binding and a normal `ProcessExitCode` return. ProductClosure0
-v3 publishes its normal and typed-error successors and the uniform
+v4 publishes its normal and typed-error successors and the uniform
 reverse-initialization cleanup policy. Other typed root shapes remain
 unsupported. Process-executable v5 materializes the exact-conversion cleanup
 obligation and defers adaptation until after root finalization.

@@ -42511,7 +42511,7 @@ uses constants, so `benchmarkDisposition` is
 other targets, and equivalent runtime work remain outside W-1641. W-1650
 subsequently adds bounded typed-lowering evidence for fixed-width integer
 `try D(exactly: source)`. HIR94 composes that conversion into one restricted
-`native-process@1` root, and ProductClosure0 v3 projects its explicit normal
+`native-process@1` root, and ProductClosure0 v4 projects its explicit normal
 and `NumericConversionError.outOfRange` successors. It also retains the
 restricted local payloadless-error direct-throw projection. Process-executable
 v5 now materializes cleanup and status-1/no-output adaptation only for the
@@ -42848,7 +42848,7 @@ value must never be normalized to portable `u64`.
 HIR94 admits a bounded continuation form in which one immutable binding is
 initialized by the exact conversion and the normal successor continues through
 ordinary typed values. For the restricted `native-process@1` root,
-ProductClosure0 v3 authenticates and publishes the source split plus separate
+ProductClosure0 v4 authenticates and publishes the source split plus separate
 normal-return and `NumericConversionError.outOfRange` successor facts. Both
 structured exits preserve §11.6 destruction order: `Context`, then `Arguments`,
 the reverse of initialization. The bounded process-executable v5 adapter keeps
@@ -42943,7 +42943,7 @@ outcome and records the cleanup obligation in reverse parameter order:
 The second admitted shape is one integer `try D(exactly:)` binding with the
 canonical core `NumericConversionError`, followed by a normal
 `ProcessExitCode` return. Verified HIR preserves the three-block split.
-ProductClosure0 v3 publishes both successor relations and authenticates one
+ProductClosure0 v4 publishes both successor relations and authenticates one
 cleanup policy for both structured exits: reverse initialization order,
 `Context` then `Arguments`. NativeSubset0 and process-executable v5 materialize
 that exact-conversion shape as a private tagged carrier, retain it across both
