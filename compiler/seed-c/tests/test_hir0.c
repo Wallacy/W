@@ -10890,7 +10890,8 @@ static bool test_process_integer_exactly_observation_hir(void) {
       "async fn run(args: ProcessArguments, ctx: ProcessContext): "
       "ProcessExitCode throws NumericConversionError { "
       "let narrowed = try i8(exactly: args.count)\n"
-      "print(\"Exact ${narrowed}\")\n"
+      "print(\"Arithmetic ${narrowed}/${narrowed % 11_i8 * 2_i8 / 2_i8 + "
+      "7_i8 - 3_i8}\")\n"
       "return .success }\n"
       "entry(run)\n";
   CHECK(lower_process_input0_generic(SOURCE));
@@ -10930,18 +10931,40 @@ static bool test_process_integer_exactly_observation_hir(void) {
   CHECK(message_index < program->value_count);
   const w_seed_hir0_value *message = &program->values[message_index];
   CHECK(message->kind == W_SEED_HIR0_VALUE_INTERPOLATED_STRING &&
-        message->interpolation_segment_count == 2u);
+        message->interpolation_segment_count == 4u);
   const uint32_t first_segment = message->first_interpolation_segment;
-  CHECK(first_segment < program->interpolation_segment_count - 1u);
+  CHECK(first_segment < program->interpolation_segment_count - 3u);
   const w_seed_hir0_interpolation_segment *text =
       &program->interpolation_segments[first_segment];
-  const w_seed_hir0_interpolation_segment *dynamic = text + 1u;
+  const w_seed_hir0_interpolation_segment *direct = text + 1u;
+  const w_seed_hir0_interpolation_segment *separator = text + 2u;
+  const w_seed_hir0_interpolation_segment *computed = text + 3u;
   CHECK(text->kind == W_SEED_HIR0_INTERPOLATION_TEXT &&
-        text->byte_count == 6u && dynamic->kind == W_SEED_HIR0_INTERPOLATION_VALUE &&
-        dynamic->value_index < program->value_count &&
-        program->values[dynamic->value_index].kind ==
+        text->byte_count == 11u &&
+        direct->kind == W_SEED_HIR0_INTERPOLATION_VALUE &&
+        direct->value_index < program->value_count &&
+        program->values[direct->value_index].kind ==
             W_SEED_HIR0_VALUE_BINDING_READ &&
-        program->values[dynamic->value_index].binding_index == 0u);
+        program->values[direct->value_index].binding_index == 0u &&
+        separator->kind == W_SEED_HIR0_INTERPOLATION_TEXT &&
+        separator->byte_count == 1u &&
+        computed->kind == W_SEED_HIR0_INTERPOLATION_VALUE &&
+        computed->value_index < program->value_count &&
+        program->values[computed->value_index].kind ==
+            W_SEED_HIR0_VALUE_BINARY_I64);
+  size_t arithmetic_count[5] = {0u, 0u, 0u, 0u, 0u};
+  for (size_t value_index = 0u; value_index < program->value_count;
+       value_index += 1u) {
+    const w_seed_hir0_value *value = &program->values[value_index];
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+        value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER)
+      arithmetic_count[value->binary_operator] += 1u;
+  }
+  CHECK(arithmetic_count[W_SEED_HIR0_BINARY_ADD] == 1u &&
+        arithmetic_count[W_SEED_HIR0_BINARY_SUBTRACT] == 1u &&
+        arithmetic_count[W_SEED_HIR0_BINARY_MULTIPLY] == 1u &&
+        arithmetic_count[W_SEED_HIR0_BINARY_DIVIDE] == 1u &&
+        arithmetic_count[W_SEED_HIR0_BINARY_REMAINDER] == 1u);
 
   fixture.hir_calls[call_index].owner_block = error_block;
   reseal_hir_fixture();
@@ -10964,20 +10987,22 @@ static bool test_process_integer_exactly_observation_hir(void) {
   reseal_hir_fixture();
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
 
-  const uint8_t saved_prefix = fixture.hir_value_bytes[text->byte_offset];
-  fixture.hir_value_bytes[text->byte_offset] = (uint8_t)'U';
-  reseal_hir_fixture();
-  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
-  fixture.hir_value_bytes[text->byte_offset] = saved_prefix;
-  reseal_hir_fixture();
-  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
-
-  const uint32_t read_index = dynamic->value_index;
+  const uint32_t read_index = direct->value_index;
   const w_seed_hir0_value saved_read = fixture.hir_values[read_index];
   fixture.hir_values[read_index].binding_index = W_SEED_HIR0_NONE;
   reseal_hir_fixture();
   CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
   fixture.hir_values[read_index] = saved_read;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const uint32_t computed_index = computed->value_index;
+  const w_seed_hir0_value saved_computed = fixture.hir_values[computed_index];
+  fixture.hir_values[computed_index].binary_operator =
+      W_SEED_HIR0_BINARY_WRAPPING_ADD;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[computed_index] = saved_computed;
   reseal_hir_fixture();
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
   return true;

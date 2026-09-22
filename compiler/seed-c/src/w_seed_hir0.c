@@ -8272,11 +8272,54 @@ static bool frontend_process_typed_error_type_ok(
   return true;
 }
 
+static bool frontend_exact_observation_value_ok(
+    const w_seed_hir0_input *input, uint32_t binding_statement,
+    uint32_t binding_type, uint32_t expression_index, size_t depth,
+    bool *saw_binding) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || saw_binding == NULL || depth > 32u ||
+      expression_index == W_SEED_FRONTEND_NONE ||
+      (size_t)expression_index >= input->frontend_result->written.expressions)
+    return false;
+  const w_seed_frontend_expression *expression =
+      &input->frontend_output->expressions[expression_index];
+  if (expression->inferred_type != binding_type) return false;
+  if (expression->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER) {
+    if (expression->resolved_binding_statement != binding_statement)
+      return false;
+    *saw_binding = true;
+    return true;
+  }
+  if (expression->kind == W_SEED_FRONTEND_EXPR_INTEGER)
+    return expression->has_integer_value;
+  if (expression->kind == W_SEED_FRONTEND_EXPR_PARENTHESIS)
+    return expression->left != W_SEED_FRONTEND_NONE &&
+           frontend_exact_observation_value_ok(
+               input, binding_statement, binding_type, expression->left,
+               depth + 1u, saw_binding);
+  if (expression->kind != W_SEED_FRONTEND_EXPR_BINARY ||
+      expression->left == W_SEED_FRONTEND_NONE ||
+      expression->right == W_SEED_FRONTEND_NONE ||
+      (!text_is(expression->operator_text, "+") &&
+       !text_is(expression->operator_text, "-") &&
+       !text_is(expression->operator_text, "*") &&
+       !text_is(expression->operator_text, "/") &&
+       !text_is(expression->operator_text, "%")))
+    return false;
+  return frontend_exact_observation_value_ok(
+             input, binding_statement, binding_type, expression->left,
+             depth + 1u, saw_binding) &&
+         frontend_exact_observation_value_ok(
+             input, binding_statement, binding_type, expression->right,
+             depth + 1u, saw_binding);
+}
+
 /* The process ABI admits the historical direct payloadless local case throw,
  * plus the typed NumericConversionError split emitted for `let ... = try
  * D(exactly: source)`. Keep the latter bounded to one split binding, one
- * observable host print of that binding, and the normal ExitCode return; the
- * ordinary frontend walk proves the full expression and successor semantics. */
+ * observable host print whose checked fixed-integer expression is rooted in
+ * that binding, and the normal ExitCode return. The ordinary frontend walk
+ * proves the full expression and successor semantics. */
 static bool frontend_process_numeric_conversion_body_ok(
     const w_seed_hir0_input *input, uint32_t function_index,
     const w_seed_frontend_function *function) {
@@ -8348,39 +8391,34 @@ static bool frontend_process_numeric_conversion_body_ok(
     const w_seed_frontend_expression *message =
         &input->frontend_output->expressions[argument->expression_index];
     if (message->kind != W_SEED_FRONTEND_EXPR_INTERPOLATED_STRING ||
-        message->interpolation_segment_count != 2u ||
+        message->interpolation_segment_count == 0u ||
         message->first_interpolation_segment == W_SEED_FRONTEND_NONE ||
-        input->frontend_result->written.interpolation_segments < 2u ||
+        input->frontend_result->written.interpolation_segments <
+            message->interpolation_segment_count ||
         (size_t)message->first_interpolation_segment >
-            input->frontend_result->written.interpolation_segments - 2u)
+            input->frontend_result->written.interpolation_segments -
+                message->interpolation_segment_count)
       return false;
-    const w_seed_frontend_interpolation_segment *text =
-        &input->frontend_output
-             ->interpolation_segments[message->first_interpolation_segment];
-    const w_seed_frontend_interpolation_segment *value = text + 1;
-    if (text->owner_expression != argument->expression_index ||
-        text->ordinal != 0u ||
-        text->kind != W_SEED_FRONTEND_INTERPOLATION_TEXT ||
-        text->const_byte_count != 6u ||
-        text->const_byte_offset == W_SEED_FRONTEND_NONE ||
-        input->frontend_result->written.const_bytes < 6u ||
-        (size_t)text->const_byte_offset >
-            input->frontend_result->written.const_bytes - 6u ||
-        memcmp(input->frontend_output->const_bytes + text->const_byte_offset,
-               "Exact ", 6u) != 0 ||
-        value->owner_expression != argument->expression_index ||
-        value->ordinal != 1u ||
-        value->kind != W_SEED_FRONTEND_INTERPOLATION_EXPRESSION ||
-        value->expression_index == W_SEED_FRONTEND_NONE ||
-        (size_t)value->expression_index >=
-            input->frontend_result->written.expressions)
-      return false;
-    const w_seed_frontend_expression *read =
-        &input->frontend_output->expressions[value->expression_index];
-    if (read->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER ||
-        read->resolved_binding_statement != function->first_statement ||
-        read->inferred_type != binding->effective_type)
-      return false;
+    bool saw_value = false;
+    for (uint32_t ordinal = 0u;
+         ordinal < message->interpolation_segment_count; ordinal += 1u) {
+      const w_seed_frontend_interpolation_segment *segment =
+          &input->frontend_output->interpolation_segments
+               [message->first_interpolation_segment + ordinal];
+      if (segment->owner_expression != argument->expression_index ||
+          segment->ordinal != ordinal)
+        return false;
+      if (segment->kind == W_SEED_FRONTEND_INTERPOLATION_TEXT) continue;
+      bool expression_saw_binding = false;
+      if (segment->kind != W_SEED_FRONTEND_INTERPOLATION_EXPRESSION ||
+          !frontend_exact_observation_value_ok(
+              input, function->first_statement, binding->effective_type,
+              segment->expression_index, 0u, &expression_saw_binding) ||
+          !expression_saw_binding)
+        return false;
+      saw_value = true;
+    }
+    if (!saw_value) return false;
     normal_statement = observation->next_sibling;
   }
   const w_seed_frontend_statement *normal =
@@ -19999,6 +20037,34 @@ static bool verify_cfg_invoke(const w_seed_hir0_program *program,
          target->return_type == function->return_type;
 }
 
+static bool hir_exact_observation_value_ok(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t binding_index, uint32_t expected_type, size_t depth,
+    bool *saw_binding) {
+  if (program == NULL || saw_binding == NULL || depth > 32u ||
+      value_index == W_SEED_HIR0_NONE || value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->type_index != expected_type) return false;
+  if (value->kind == W_SEED_HIR0_VALUE_BINDING_READ) {
+    if (value->binding_index != binding_index) return false;
+    *saw_binding = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_I64) return true;
+  if (value->kind != W_SEED_HIR0_VALUE_BINARY_I64 ||
+      value->binary_operator > W_SEED_HIR0_BINARY_REMAINDER ||
+      value->left_value == W_SEED_HIR0_NONE ||
+      value->right_value == W_SEED_HIR0_NONE)
+    return false;
+  return hir_exact_observation_value_ok(
+             program, value->left_value, binding_index, expected_type,
+             depth + 1u, saw_binding) &&
+         hir_exact_observation_value_ok(
+             program, value->right_value, binding_index, expected_type,
+             depth + 1u, saw_binding);
+}
+
 static bool verify_integer_exactly_observation(
     const w_seed_hir0_program *program, size_t function_index,
     size_t normal_block, uint32_t binding_index,
@@ -20032,33 +20098,38 @@ static bool verify_integer_exactly_observation(
           program, argument->value_index))
     return false;
   const w_seed_hir0_value *message = &program->values[argument->value_index];
-  if (message->interpolation_segment_count != 2u ||
+  if (message->interpolation_segment_count == 0u ||
       message->first_interpolation_segment == W_SEED_HIR0_NONE ||
-      program->interpolation_segment_count < 2u ||
+      program->interpolation_segment_count <
+          message->interpolation_segment_count ||
       (size_t)message->first_interpolation_segment >
-          program->interpolation_segment_count - 2u)
+          program->interpolation_segment_count -
+              message->interpolation_segment_count)
     return false;
-  const w_seed_hir0_interpolation_segment *text =
-      &program->interpolation_segments[message->first_interpolation_segment];
-  const w_seed_hir0_interpolation_segment *value = text + 1;
-  if (text->owner_value != argument->value_index || text->ordinal != 0u ||
-      text->kind != W_SEED_HIR0_INTERPOLATION_TEXT ||
-      text->byte_count != 6u || !byte_slice_valid(program, text->byte_offset, 6u) ||
-      memcmp(program->value_bytes + text->byte_offset, "Exact ", 6u) != 0 ||
-      value->owner_value != argument->value_index || value->ordinal != 1u ||
-      value->kind != W_SEED_HIR0_INTERPOLATION_VALUE ||
-      value->value_index == W_SEED_HIR0_NONE ||
-      value->value_index >= program->value_count)
+  if (binding_index >= program->binding_count ||
+      program->blocks[normal_block].owner_function != function_index)
     return false;
-  const w_seed_hir0_value *read = &program->values[value->value_index];
-  return read->kind == W_SEED_HIR0_VALUE_BINDING_READ &&
-         read->owner_kind == W_SEED_HIR0_VALUE_OWNER_INTERPOLATION_SEGMENT &&
-         read->owner_index ==
-             message->first_interpolation_segment + 1u &&
-         read->owner_ordinal == 0u && read->binding_index == binding_index &&
-         binding_index < program->binding_count &&
-         read->type_index == program->bindings[binding_index].type_index &&
-         program->blocks[normal_block].owner_function == function_index;
+  bool saw_value = false;
+  for (uint32_t ordinal = 0u;
+       ordinal < message->interpolation_segment_count; ordinal += 1u) {
+    const w_seed_hir0_interpolation_segment *segment =
+        &program->interpolation_segments
+             [message->first_interpolation_segment + ordinal];
+    if (segment->owner_value != argument->value_index ||
+        segment->ordinal != ordinal)
+      return false;
+    if (segment->kind == W_SEED_HIR0_INTERPOLATION_TEXT) continue;
+    bool expression_saw_binding = false;
+    if (segment->kind != W_SEED_HIR0_INTERPOLATION_VALUE ||
+        !hir_exact_observation_value_ok(
+            program, segment->value_index, binding_index,
+            program->bindings[binding_index].type_index, 0u,
+            &expression_saw_binding) ||
+        !expression_saw_binding)
+      return false;
+    saw_value = true;
+  }
+  return saw_value;
 }
 
 static bool verify_cfg_integer_exactly(const w_seed_hir0_program *program,

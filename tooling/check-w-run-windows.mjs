@@ -180,7 +180,7 @@ const processIntegerExactSuccessFixture = resolve(seedDirectory, "fixtures",
 const processIntegerExactErrorFixture = resolve(seedDirectory, "fixtures",
   "process-integer-exact-error.w")
 const processIntegerExactRuntimeFixture = resolve(seedDirectory, "fixtures",
-  "process-integer-exact-runtime.w")
+  "process-fixed-integer-arithmetic.w")
 const localGraphFixture = resolve(seedDirectory, "fixtures", "local-graph",
   "app.w")
 const targetTriple = "x86_64-pc-windows-msvc"
@@ -1061,12 +1061,12 @@ try {
   expectExact(binary, ["run", processIntegerExactErrorFixture], 1,
     Buffer.alloc(0), "public exact integer conversion typed error")
   expectExact(binary, ["run", processIntegerExactRuntimeFixture], 0,
-    Buffer.from("Exact 0\n", "utf8"),
-    "public runtime exact integer conversion success")
+    Buffer.from("Arithmetic 0/4\n", "utf8"),
+    "public runtime fixed-integer arithmetic success")
   expectExact(binary, ["run", processIntegerExactRuntimeFixture, "--",
     ...Array.from({ length: 127 }, () => "x")], 0,
-    Buffer.from("Exact 127\n", "utf8"),
-    "public runtime exact integer conversion upper boundary")
+    Buffer.from("Arithmetic 127/10\n", "utf8"),
+    "public runtime fixed-integer arithmetic upper boundary")
   expectExact(binary, ["run", processIntegerExactRuntimeFixture, "--",
     ...Array.from({ length: 128 }, () => "x")], 1, Buffer.alloc(0),
   "public runtime exact integer conversion out of range")
@@ -1106,7 +1106,7 @@ try {
   const buildProcessIntegerExactError = join(fixtureDirectory,
     "process-integer-exact-error-build.exe")
   const buildProcessIntegerExactRuntime = join(fixtureDirectory,
-    "process-integer-exact-runtime-build.exe")
+    "process-fixed-integer-arithmetic-build.exe")
   const buildProcessArgumentsCount = join(fixtureDirectory,
     "process-arguments-count-build.exe")
   const buildProcessArgumentsOrdering = join(fixtureDirectory,
@@ -1209,16 +1209,16 @@ try {
     "execute built exact integer conversion typed-error artifact")
   expectExact(binary, ["build", processIntegerExactRuntimeFixture, "--target",
     targetTriple, "--output", buildProcessIntegerExactRuntime], 0,
-  Buffer.alloc(0), "build runtime exact integer conversion fixture")
+  Buffer.alloc(0), "build runtime fixed-integer arithmetic fixture")
   assertPeX64(await readFile(buildProcessIntegerExactRuntime),
-    "built runtime exact integer conversion artifact")
+    "built runtime fixed-integer arithmetic artifact")
   expectExact(buildProcessIntegerExactRuntime, [], 0,
-    Buffer.from("Exact 0\n", "utf8"),
-    "execute built runtime exact integer conversion success")
+    Buffer.from("Arithmetic 0/4\n", "utf8"),
+    "execute built runtime fixed-integer arithmetic success")
   expectExact(buildProcessIntegerExactRuntime,
     Array.from({ length: 127 }, () => "x"), 0,
-    Buffer.from("Exact 127\n", "utf8"),
-    "execute built runtime exact integer conversion upper boundary")
+    Buffer.from("Arithmetic 127/10\n", "utf8"),
+    "execute built runtime fixed-integer arithmetic upper boundary")
   expectExact(buildProcessIntegerExactRuntime,
     Array.from({ length: 128 }, () => "x"), 1, Buffer.alloc(0),
   "execute built runtime exact integer conversion out of range")

@@ -2975,15 +2975,20 @@ separate normal and `NumericConversionError.outOfRange` successor facts. It
 authenticates reverse-initialization `Context`-then-`Arguments` release on both
 normal success and typed error. Process-executable v4 retains a private typed
 carrier while materializing both releases and root finalization, then maps only
-the error arm to status 1. The public `process-integer-exact-runtime.w` fixture
-executes through `w run` and `w build` on CRT-free Windows x64 and Linux/WSL
-x64. Zero and 127 user arguments exit 0 with exact stdout `Exact 0\n` and
-`Exact 127\n`; 128 exits 1 after typed-error cleanup with empty stdout/stderr.
+the error arm to status 1. The public `process-fixed-integer-arithmetic.w`
+fixture executes through `w run` and `w build` on CRT-free Windows x64 and
+Linux/WSL x64. It derives an `i8` from runtime `Arguments.count`, then executes
+checked `+`, `-`, `*`, `/`, and `%` in a range that cannot fault for accepted
+inputs. Zero and 127 user arguments exit 0 with exact stdout
+`Arithmetic 0/4\n` and `Arithmetic 127/10\n`; 128 exits 1 after typed-error
+cleanup with empty stdout/stderr.
 The output cursor is loaded and flushed only on the normal successor after
 both owner releases and root finalization. The constant success/error fixtures remain focused
 correctness inputs.
-This remains compiler-lifecycle correctness evidence: no benchmark timing,
-general typed root, catch, public ABI, or performance claim is made.
+This remains compiler-lifecycle correctness evidence: arithmetic overflow is
+not promoted until it has a structured cleanup-preserving failure path, and no
+benchmark timing, general typed root, catch, public ABI, or performance claim
+is made.
 `benchmarkDisposition: compiler-lifecycle`.
 
 ### Native-process unhandled typed-error root HIR (W-1652)

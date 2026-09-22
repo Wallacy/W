@@ -42776,12 +42776,15 @@ the reverse of initialization. The bounded process-executable v4 adapter keeps
 the typed outcome distinct while running both owner releases and root
 finalization, then maps only the unhandled error arm to status 1 without
 committing the success buffer. The runtime-derived `Arguments.count` fixture
-prints the successfully converted `i8` value and executes
+prints the successfully converted `i8` value and a checked runtime arithmetic
+expression using `+`, `-`, `*`, `/`, and `%`, and executes
 through public `w run` and `w build` on CRT-free Windows x64 and Linux/WSL x64:
 zero and 127 user arguments succeed, while 128 reaches
 `NumericConversionError.outOfRange` and host status 1. The successful cases
-emit exactly `Exact 0\n` and `Exact 127\n`; the failing case emits no stdout or
-stderr. Cleanup and root finalization precede outcome classification, and the
+emit exactly `Arithmetic 0/4\n` and `Arithmetic 127/10\n`; the failing case
+emits no stdout or stderr. The expression bounds its intermediates so every
+accepted count is arithmetic-safe; checked-overflow failure is not promoted
+until it preserves structured cleanup. Cleanup and root finalization precede outcome classification, and the
 stdout cursor is read and flushed only on the normal successor.
 Constant fixtures remain focused correctness variants rather than separate
 product claims. Direct user-defined throws, general typed roots, benchmark
@@ -42828,7 +42831,7 @@ import { Arguments, Context, ExitCode } from std.process
 
 async fn run(args: Arguments, ctx: Context): ExitCode throws NumericConversionError {
   let narrowed = try i8(exactly: args.count)
-  print("Exact ${narrowed}")
+  print("Arithmetic ${narrowed}/${narrowed % 11_i8 * 2_i8 / 2_i8 + 7_i8 - 3_i8}")
   return .success
 }
 
@@ -42868,12 +42871,18 @@ that exact-conversion shape as a private tagged carrier, retain it across both
 owner releases and root finalization, and adapt the typed-error arm only after
 cleanup. Public `w run` and `w build` prove exit 0 for zero and 127 user
 arguments and exit 1 for 128 user arguments on CRT-free Windows x64 and
-Linux/WSL x64. The two normal successors prove their converted payloads with
-exact stdout `Exact 0\n` and `Exact 127\n`; the typed-error successor proves
+Linux/WSL x64. The two normal successors prove their converted payloads plus
+checked runtime `+`, `-`, `*`, `/`, and `%` with exact stdout
+`Arithmetic 0/4\n` and `Arithmetic 127/10\n`; the typed-error successor proves
 empty stdout/stderr because it cannot reach the flush block. The older
 direct-throw root remains
 projected as one typed outcome but is not yet admitted by the executable
 adapter.
+
+The arithmetic expression deliberately keeps every intermediate in range for
+all counts admitted by the exact conversion. The existing trap-based overflow
+helper is not a structured process outcome and therefore is not evidence that
+cleanup runs on arithmetic failure.
 
 This evidence does not complete the decision. ProductClosure0 still returns
 `UNSUPPORTED` for every other typed root shape, and the executable adapter

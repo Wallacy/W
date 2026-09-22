@@ -146,8 +146,14 @@ typed failure; close target-width ABI/endian/serialization evidence; implement
 i128/u128; then strict f16/bf16/f128. Configured f4/f6/f8 and tensor packing
 remain storage/compute work, while BigInt/BigFloat wait for ownership,
 allocator, OOM, and generic-value foundations. The bounded
-`Arguments.count -> i8` witness advances only product-boundary evidence and
-must not advance the general numeric-core status.
+`Arguments.count -> i8` witness now feeds one checked runtime expression
+containing `+`, `-`, `*`, `/`, and `%` on public Windows and Linux/WSL product
+routes. It advances runtime-operand and product-boundary evidence only, not the
+general numeric-core status. The expression keeps every intermediate in range
+for all accepted counts. Before promoting checked arithmetic failure as
+cleanup-safe, replace the current trap-only backend path with a structured
+fault outcome that reaches reverse-order cleanup, root finalization, status
+adaptation, and the no-output commit barrier.
 
 ### C-reach closure rule
 
@@ -218,10 +224,12 @@ physical scheduler experiments:
    post-cleanup status adaptation for the exact-conversion root. One canonical
    runtime ingress now carries the distinct logical `Arguments.count: usize`
    identity through HIR under the current x64 seed profile; MLIR selects its
-   physical `i64` carrier only after target validation. It proves zero/127
-   arguments as success 0 with exact converted output and 128 as out-of-range
-   status 1 with empty failure output on public CRT-free Windows and Linux/WSL
-   routes. This is not general `usize`
+   physical `i64` carrier only after target validation. The same source now
+   evaluates a bounded checked runtime expression containing `+`, `-`, `*`,
+   `/`, and `%`; zero/127 arguments prove exact arithmetic output and 128
+   proves out-of-range status 1 with empty failure output on public CRT-free
+   Windows and Linux/WSL routes. This does not prove overflow cleanup and is
+   not general `usize`
    support. The direct-throw and general typed process routes remain
    unimplemented.
    Remaining conversion policies continue to block this rank-1

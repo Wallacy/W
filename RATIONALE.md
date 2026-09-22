@@ -14477,13 +14477,17 @@ exact-conversion root, preserves a private typed carrier through
 `Context`-then-`Arguments` release and root finalization, and adapts the error
 arm to status 1 afterward. Public CRT-free Windows x64 and Linux/WSL x64 gates
 execute one runtime-derived fixture with zero, 127, and 128 user arguments.
-The first two exit 0 and print the converted payload as exact `Exact 0\n` and
-`Exact 127\n` bytes. The last preserves
+The first two exit 0 and print the converted payload plus checked runtime
+arithmetic as exact `Arithmetic 0/4\n` and `Arithmetic 127/10\n` bytes. The
+expression covers `+`, `-`, `*`, `/`, and `%` while bounding every intermediate
+for all admitted counts. The last preserves
 `NumericConversionError.outOfRange` through cleanup, exits 1, and emits no
 stdout or stderr because the typed-error edge cannot reach the success flush.
 Constant fixtures remain focused correctness inputs. The
 direct-throw root, general typed bodies, catch, a public ABI, float or wider-
 integer coverage, another target alias, and performance remain gaps.
+Checked overflow remains a gap too: the current trap helper does not establish
+structured cleanup and is not promoted as a safe process failure.
 `benchmarkDisposition: compiler-lifecycle`; no benchmark or timing result is
 claimed.
 
@@ -14549,7 +14553,8 @@ and root finalization for the exact-conversion form while retaining the typed
 carrier; only afterward does the host adapter map the error arm to status 1.
 Public CRT-free Windows x64 and Linux/WSL x64 gates use runtime
 `Arguments.count`: zero and 127 user arguments prove success 0 and exact
-converted output `Exact 0\n`/`Exact 127\n`, while 128 proves out-of-range
+converted-plus-arithmetic output `Arithmetic 0/4\n`/`Arithmetic 127/10\n`,
+while 128 proves out-of-range
 status 1 with empty stdout/stderr. The cursor load and platform write exist
 only on the normal-success block after cleanup and root finalization.
 `benchmarkDisposition: compiler-lifecycle`.

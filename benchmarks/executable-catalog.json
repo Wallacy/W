@@ -3310,14 +3310,14 @@
       "blockers": []
     },
     {
-      "id": "fixed-integer-exact-runtime",
+      "id": "fixed-integer-runtime-arithmetic",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",
       "sourceReadiness": "source-and-oracle-ready",
       "demoEvidence": "bounded-w-demo",
       "benchmarkStatus": "not-performance-ready",
       "lane": "equivalent",
-      "scope": "Convert the runtime-derived user argument count from logical usize to i8 exactly, print the narrowed success value, and preserve a typed NumericConversionError through reverse-order structured cleanup before the process adapter maps failure to status 1 without publishing output. This representative public witness does not replace the focused all-pairs compiler matrix.",
+      "scope": "Convert the runtime-derived user argument count from logical usize to i8 exactly, evaluate checked +, -, *, /, and % over that runtime value within a mathematically bounded range, print both values only on success, and preserve a typed NumericConversionError through reverse-order structured cleanup before the process adapter maps conversion failure to status 1 without publishing output. Arithmetic overflow remains outside this witness until it has a structured cleanup-preserving failure path; the row does not replace the focused all-pairs compiler matrix.",
       "oracle": {
         "kind": "argument-dependent-output",
         "status": "source-backed",
@@ -3326,13 +3326,13 @@
           {
             "arguments": [],
             "exitCode": 0,
-            "stdout": "Exact 0\n",
+            "stdout": "Arithmetic 0/4\n",
             "stderr": ""
           },
           {
             "arguments": ["x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x","x"],
             "exitCode": 0,
-            "stdout": "Exact 127\n",
+            "stdout": "Arithmetic 127/10\n",
             "stderr": ""
           },
           {
@@ -3346,14 +3346,14 @@
       "sources": [
         {
           "language": "w",
-          "path": "compiler/seed-c/fixtures/process-integer-exact-runtime.w",
-          "digest": "sha256:c704d61d7988bad59c8c0fc4a07c74eb1c682e19798855e7c9a3805261e56a20",
+          "path": "compiler/seed-c/fixtures/process-fixed-integer-arithmetic.w",
+          "digest": "sha256:22cecaff9caaea13237f6e47c9136625326ff1b7cef76d595690b7ade82348a9",
           "entry": "run",
           "status": "source-oracle-ready",
           "profile": "release",
           "quality": "correctness-gate",
           "recipe": "public-w-build-release",
-          "recipeClass": "fixed-integer-exact-runtime-release",
+          "recipeClass": "fixed-integer-runtime-arithmetic-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
           "comparability": "promotable-after-equivalence",
@@ -3361,14 +3361,14 @@
         },
         {
           "language": "c",
-          "path": "benchmarks/executable/process_integer_exact_runtime.c",
-          "digest": "sha256:64cca1ba75a7730dfc4f21e114a04d02d4326e94db0703e39b547c3bb31384cf",
+          "path": "benchmarks/executable/process_fixed_integer_arithmetic.c",
+          "digest": "sha256:03ac107434e3f39c073031dfa4c98b2421a560d91e9660342b2f5eab84e8474b",
           "entry": "main",
           "status": "source-oracle-ready",
           "profile": "release",
           "quality": "correctness-gate",
           "recipe": "clang-c23-msvc",
-          "recipeClass": "fixed-integer-exact-runtime-release",
+          "recipeClass": "fixed-integer-runtime-arithmetic-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
           "comparability": "promotable-after-equivalence",
@@ -3376,14 +3376,14 @@
         },
         {
           "language": "rust",
-          "path": "benchmarks/executable/process_integer_exact_runtime.rs",
-          "digest": "sha256:f68acac66ca631500a46c598b4838a82940836d74e07445e6911ffffa02125c1",
+          "path": "benchmarks/executable/process_fixed_integer_arithmetic.rs",
+          "digest": "sha256:ad34eaa99afe93e74777247f0a0756cffde7e33d90c62c1598354bca7c7727dd",
           "entry": "main",
           "status": "source-oracle-ready",
           "profile": "release",
           "quality": "correctness-gate",
           "recipe": "rustc-edition-2024",
-          "recipeClass": "fixed-integer-exact-runtime-release",
+          "recipeClass": "fixed-integer-runtime-arithmetic-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
           "comparability": "promotable-after-equivalence",
