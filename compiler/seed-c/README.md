@@ -2996,7 +2996,7 @@ public panic ABI, and performance remain unsupported or unclaimed.
 
 ### Float-to-integer rounding preservation (W-389, bounded)
 
-Frontend72 and verified HIR95 now preserve the selected
+Frontend72 and verified HIR96 now preserve the selected
 `try D(rounding: source, mode: .policy)` relation for `f32`/`f64` into the
 signed and unsigned 8/16/32/64-bit integers plus the current x86-64
 `Int`/`UInt` aliases. The five closed modes are `.nearestEven`,
@@ -3025,10 +3025,14 @@ intrinsics through `mlir-opt --verify-each` plus `mlir-translate`.
 ProductClosure0 v4 accepts a source-derived direct default-unit helper and
 publishes separate normal, non-finite, and out-of-range outcomes; the legacy
 `outcome` field aliases out-of-range for compatibility. Its digest binds all
-three roles and the rounding mode. The current frontend/HIR process-body
-contract and native product execution still reject this rounding split. This
-increment provides no executable, runtime, public ABI, timing, or performance
-evidence. `benchmarkDisposition: compiler-lifecycle`.
+three roles and the rounding mode. HIR96 additionally accepts one bounded
+`native-process@1` body whose source is a compile-time float expression, keeps
+the normal/non-finite/out-of-range successors distinct, and proves Context then
+Arguments cleanup on every outcome. ProductClosure0 v4 independently admits
+this bounded process root and publishes the same three outcome roles. Runtime
+float ingress and native product execution remain gaps. This increment provides
+no executable, runtime, public ABI, timing, or performance evidence.
+`benchmarkDisposition: compiler-lifecycle`.
 
 ### Native-process unhandled typed-error root HIR (W-1652)
 

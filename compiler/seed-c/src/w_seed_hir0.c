@@ -8466,11 +8466,11 @@ static bool frontend_exact_observation_value_ok(
 }
 
 /* The process ABI admits the historical direct payloadless local case throw,
- * plus the typed NumericConversionError split emitted for `let ... = try
- * D(exactly: source)`. Keep the latter bounded to one split binding, one
- * observable host print whose checked fixed-integer expression is rooted in
- * that binding, and the normal ExitCode return. The ordinary frontend walk
- * proves the full expression and successor semantics. */
+ * plus one typed NumericConversionError split emitted for either exact integer
+ * conversion or float-to-integer rounding. Exact conversion may additionally
+ * own one observable host print rooted in that binding; the initial rounding
+ * admission has no call. Both end in the normal ExitCode return. The ordinary
+ * frontend walk proves the full expression and successor semantics. */
 static bool frontend_process_numeric_conversion_body_ok(
     const w_seed_hir0_input *input, uint32_t function_index,
     const w_seed_frontend_function *function) {
@@ -8594,7 +8594,12 @@ static bool frontend_process_numeric_conversion_body_ok(
     return false;
   const w_seed_frontend_expression *conversion =
       &input->frontend_output->expressions[try_expression->left];
-  return conversion->kind == W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY &&
+  return (conversion->kind == W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY ||
+          conversion->kind ==
+              W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING) &&
+         (conversion->kind !=
+              W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING ||
+          function->statement_count == 2u) &&
          conversion->conversion_destination_type == binding->effective_type &&
          binding->effective_type != W_SEED_FRONTEND_NONE;
 }
@@ -15281,8 +15286,8 @@ static void emit_records(const w_seed_hir0_input *input,
     hir0_emit_chain_layout_m2(&context, first_statement,
                               target_function->first_block,
                               W_SEED_HIR0_NONE, true, 0u);
-    /* The typed split lays out its normal and error successors before the
-     * caller emits the normal-only LET binding.  Finish the empty error
+    /* A typed numeric split lays out its normal and error successors before
+     * the caller emits the normal-only LET binding. Finish each empty error
      * block's physical instruction range after that normal region so block
      * ranges remain contiguous without changing successor ownership. */
     const size_t function_end =
@@ -15290,7 +15295,9 @@ static void emit_records(const w_seed_hir0_input *input,
     for (size_t block = target_function->first_block; block < function_end;
          block += 1u) {
       const w_seed_hir0_terminator *split = &output->terminators[block];
-      if (split->kind != W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY ||
+      if ((split->kind != W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY &&
+           split->kind !=
+               W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING) ||
           split->target_block < target_function->first_block ||
           split->target_block >= function_end ||
           split->else_block < target_function->first_block ||
@@ -15302,6 +15309,16 @@ static void emit_records(const w_seed_hir0_input *input,
           normal->first_instruction <= UINT32_MAX - normal->instruction_count)
         error->first_instruction =
             normal->first_instruction + normal->instruction_count;
+      if (split->kind == W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING &&
+          split->third_block >= target_function->first_block &&
+          split->third_block < function_end) {
+        w_seed_hir0_block *third = &output->blocks[split->third_block];
+        if (third->instruction_count == 0u &&
+            normal->first_instruction <=
+                UINT32_MAX - normal->instruction_count)
+          third->first_instruction =
+              normal->first_instruction + normal->instruction_count;
+      }
     }
   }
   size_t binding_cursor = 0u;
@@ -15368,31 +15385,44 @@ static void emit_records(const w_seed_hir0_input *input,
     hir0_emit_chain_terms_m2(&context, first_statement,
                              target_function->first_block, 0u);
     /* Keep value records in preorder: the split's source, the normal
-     * continuation, then its typed error successor.  The LET initializer was
-     * emitted in the earlier binding-value pass.  Use explicit successor and
+     * continuation, then its typed error successors. The LET initializer was
+     * emitted in the earlier binding-value pass. Use explicit successor and
      * block-argument facts; block ordinals are not semantic ownership. */
     const size_t function_end =
         (size_t)target_function->first_block + target_function->block_count;
     for (size_t block = target_function->first_block; block < function_end;
          block += 1u) {
       const w_seed_hir0_terminator *split = &output->terminators[block];
-      if (split->kind != W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY ||
+      if ((split->kind != W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY &&
+           split->kind !=
+               W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING) ||
           split->else_block < target_function->first_block ||
           split->else_block >= function_end)
         continue;
-      const size_t error_block = split->else_block;
-      w_seed_hir0_terminator *error = &output->terminators[error_block];
-      if (error->kind != W_SEED_HIR0_TERMINATOR_THROW ||
-          error->value_index != W_SEED_HIR0_NONE)
-        continue;
-      const w_seed_hir0_block *error_owner = &output->blocks[error_block];
-      if (error_owner->block_argument_count != 1u ||
-          error_owner->first_block_argument == W_SEED_HIR0_NONE)
-        continue;
-      error->value_index = hir0_emit_block_argument_read_m2(
-          &context, W_SEED_HIR0_VALUE_OWNER_TERMINATOR,
-          (uint32_t)error_block, 0u, error_owner->first_block_argument,
-          split->source_span);
+      const uint32_t error_blocks[2] = {
+          split->else_block,
+          split->kind == W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING
+              ? split->third_block
+              : W_SEED_HIR0_NONE};
+      for (size_t error_ordinal = 0u; error_ordinal < 2u;
+           error_ordinal += 1u) {
+        const uint32_t error_block = error_blocks[error_ordinal];
+        if (error_block == W_SEED_HIR0_NONE ||
+            error_block < target_function->first_block ||
+            error_block >= function_end)
+          continue;
+        w_seed_hir0_terminator *error = &output->terminators[error_block];
+        if (error->kind != W_SEED_HIR0_TERMINATOR_THROW ||
+            error->value_index != W_SEED_HIR0_NONE)
+          continue;
+        const w_seed_hir0_block *error_owner = &output->blocks[error_block];
+        if (error_owner->block_argument_count != 1u ||
+            error_owner->first_block_argument == W_SEED_HIR0_NONE)
+          continue;
+        error->value_index = hir0_emit_block_argument_read_m2(
+            &context, W_SEED_HIR0_VALUE_OWNER_TERMINATOR, error_block, 0u,
+            error_owner->first_block_argument, split->source_span);
+      }
     }
   }
   /* Entry identities and records are dense after functions. */
@@ -20101,13 +20131,57 @@ static bool verify_cfg_process_typed_error_root(
     return false;
   if (program->types[function->error_type].kind ==
       W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR) {
-    if (function->block_count != 3u ||
-        !verify_cfg_integer_exactly(program, function_index))
+    const w_seed_hir0_terminator_kind split_kind =
+        program->terminators[function->first_block].kind;
+    const bool integer_exactly =
+        split_kind == W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY;
+    const bool float_rounding =
+        split_kind == W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING;
+    if ((!integer_exactly && !float_rounding) ||
+        (integer_exactly &&
+         (function->block_count != 3u ||
+          !verify_cfg_integer_exactly(program, function_index))) ||
+        (float_rounding &&
+         (function->block_count != 4u ||
+          !verify_cfg_float_to_integer_rounding(program, function_index))))
       return false;
     const w_seed_hir0_terminator *split =
         &program->terminators[function->first_block];
     const size_t normal_block = split->target_block;
     if (normal_block >= program->block_count) return false;
+    if (float_rounding) {
+      const w_seed_hir0_block *normal = &program->blocks[normal_block];
+      if (normal->instruction_count != 1u ||
+          normal->first_instruction == W_SEED_HIR0_NONE ||
+          normal->first_instruction >= program->instruction_count)
+        return false;
+      const w_seed_hir0_instruction *binding_instruction =
+          &program->instructions[normal->first_instruction];
+      if (binding_instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
+          binding_instruction->owner_block != normal_block ||
+          binding_instruction->binding_index == W_SEED_HIR0_NONE ||
+          binding_instruction->binding_index >= program->binding_count)
+        return false;
+      const w_seed_hir0_binding *binding =
+          &program->bindings[binding_instruction->binding_index];
+      if (binding->owner_block != normal_block || binding->is_mutable ||
+          binding->initializer_value == W_SEED_HIR0_NONE ||
+          binding->initializer_value >= program->value_count)
+        return false;
+      const w_seed_hir0_value *initializer =
+          &program->values[binding->initializer_value];
+      if (initializer->kind != W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
+          initializer->block_argument_index != normal->first_block_argument ||
+          initializer->type_index != split->result_type)
+        return false;
+      for (size_t call_index = 0u; call_index < program->call_count;
+           call_index += 1u) {
+        const w_seed_hir0_call *call = &program->calls[call_index];
+        if (call->owner_block < program->block_count &&
+            program->blocks[call->owner_block].owner_function == function_index)
+          return false;
+      }
+    }
     const w_seed_hir0_terminator *normal_term =
         &program->terminators[normal_block];
     if (normal_term->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
@@ -20929,16 +21003,16 @@ static bool verify_cfg_float_to_integer_rounding(
     return false;
   (void)destination_signed;
   (void)destination_width;
-  if (!verify_value_tree(
-          program, split_term->value_index,
-          W_SEED_HIR0_VALUE_OWNER_TERMINATOR, (uint32_t)split_block, 0u,
-          (uint32_t)split_block,
-          (uint32_t)((size_t)split->first_instruction +
-                     split->instruction_count),
-          program->modules[function->module_index].source_length, 0u,
-          &(size_t){0u}, &(size_t){0u}, &(size_t){0u}) ||
-      program->values[split_term->value_index].type_index >=
-          program->type_count)
+  /* verify_records validates the complete value tree once in global preorder.
+   * Requiring a fresh cursor at zero here accidentally restricted a rounding
+   * split to the first value in the whole program and rejected a legitimate
+   * normal-path LET initializer. Recheck only the split-local ownership and
+   * type relation at this CFG boundary. */
+  const w_seed_hir0_value *source =
+      &program->values[split_term->value_index];
+  if (source->owner_kind != W_SEED_HIR0_VALUE_OWNER_TERMINATOR ||
+      source->owner_index != split_block || source->owner_ordinal != 0u ||
+      source->type_index >= program->type_count)
     return false;
   if (normal->block_argument_count != 1u ||
       non_finite->block_argument_count != 1u ||
@@ -21292,13 +21366,15 @@ static w_seed_hir0_entry_cleanup_kind hir0_process_cleanup_kind(
     const w_seed_hir0_function *function) {
   if (program == NULL || function == NULL || !function->is_throws)
     return W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS;
-  const bool conditional_integer_exactly =
+  const bool conditional_numeric_conversion =
       program->blocks != NULL && program->terminators != NULL &&
       function->first_block < program->block_count &&
       function->first_block < program->terminator_count &&
-      program->terminators[function->first_block].kind ==
-          W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY;
-  return conditional_integer_exactly
+      (program->terminators[function->first_block].kind ==
+           W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY ||
+       program->terminators[function->first_block].kind ==
+           W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING);
+  return conditional_numeric_conversion
              ? W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_ALL_OUTCOMES
              : W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_TYPED_ERROR;
 }
@@ -21651,8 +21727,10 @@ static bool hir0_type_is_blocked_for_function(
     const w_seed_hir0_function *function =
         &program->functions[function_index];
     if (function->first_block < program->block_count &&
-        program->terminators[function->first_block].kind ==
-            W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY)
+        (program->terminators[function->first_block].kind ==
+             W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY ||
+         program->terminators[function->first_block].kind ==
+             W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING))
       return false;
   }
   if (!hir0_type_is_blocked(program, type_index)) return false;

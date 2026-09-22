@@ -113,6 +113,18 @@ debug-versus-optimized differential execution, an independent semantic oracle,
 and source/serialized-IR fuzzing. Host-model tests remain useful design oracles
 but never promote one of these product claims.
 
+The safety review finds this procedure structurally capable of closing the
+known risk classes, but not operationally sufficient yet. A finite test suite
+cannot by itself prove general language safety: promotion requires the static
+language rule, its real verifier and lowering, plus independent executable
+evidence on the maintained product route. Every durable safety record must
+state its safe-source assumptions, `unsafe`/foreign exclusions, target and
+profile, resource bounds, and any liveness preconditions. Race freedom remains
+separate from deadlock, starvation, and provider-health guarantees. Merely
+registering a command or preserving fresh metadata is not execution evidence;
+the durable receipt must bind a completed run and the exact source, compiler,
+runtime/provider, target, profile, and applicable adversarial gates.
+
 ### Numeric closure discipline
 
 Numeric implementation proceeds by semantic family, with one canonical set of
@@ -170,6 +182,16 @@ cover custom allocators, foreign owners/leases, or callback/provider resources.
 Next propagate the same distinct outcome through local calls and general CFG,
 cover unsigned and shift/power policies, and make ProductClosure publish the
 fault relation before replacing remaining trap-only routes.
+
+For each promoted numeric family, run the same operation once through const
+evaluation and once through opaque runtime input, then compare results and
+failure roles across debug and optimized builds. Floating conversion oracles
+use exact input bit patterns rather than locale-sensitive decimal parsing and
+cover NaN, infinity, signed zero, subnormal, midpoint, and half-open boundary
+cases. SIMD promotion follows scalar runtime closure and requires W-source
+scalar, split-vector, and native-vector routes with lane-tail, per-lane fault,
+reduction-order, and scalar differential evidence; a host SIMD model alone is
+not backend evidence.
 
 The numeric ergonomics review does not justify new core syntax. Exact implicit
 widening, explicit named lossy/fallible policies, configured low-precision
@@ -241,7 +263,7 @@ physical scheduler experiments:
    contexts, and W-1647 closes only the existing f32/u32 and f64/u64
    representation-bit round trips. W-1650 adds fixed-width integer
    `try D(exactly: source)` through a typed HIR success/error split and private
-   MLIR/LLVM artifact. Frontend72 and verified HIR95 additionally preserve the
+   MLIR/LLVM artifact. Frontend72 and verified HIR96 additionally preserve the
    complete bounded `f32`/`f64` to fixed-integer `rounding:` matrix and its
    success/non-finite/out-of-range roles. NativeSubset0 now independently
    rederives that closed relation, and the private
@@ -249,8 +271,12 @@ physical scheduler experiments:
    width/mode combinations to deterministic LLVM-dialect text; focused checks
    verify exact bounds and ordering for that complete matrix, while real
    `mlir-opt`/`mlir-translate` gates cover both float widths, signed and
-   unsigned destinations, and every rounding intrinsic. ProductClosure0 and
-   native execution still reject it. W-1652 now defines the canonical `native-process@1`
+   unsigned destinations, and every rounding intrinsic. HIR96 also admits one
+   source-derived constant rounding split in the bounded `native-process@1`
+   root and proves reverse owner cleanup on all three outcomes. ProductClosure0
+   v4 now projects those three process outcomes and binds them into its
+   reachable semantic digest. Runtime float ingress and native execution still
+   lack this route. W-1652 now defines the canonical `native-process@1`
    mapping for an unhandled typed error. HIR94 retains the restricted local
    payloadless-error direct throw and composes one exact-conversion binding into
    a three-block process root. ProductClosure0 v4 projects either the direct

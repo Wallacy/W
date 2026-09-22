@@ -14513,7 +14513,7 @@ claimed.
 
 #### W-389 bounded amendment — float-to-integer rounding preservation
 
-Frontend72 and verified HIR95 preserve the already selected
+Frontend72 and verified HIR96 preserve the already selected
 `try D(rounding: source, mode: .policy)` surface. The bounded matrix is
 `f32`/`f64` into the signed and unsigned
 8/16/32/64-bit integers plus the current x86-64 `Int`/`UInt` aliases, across
@@ -14540,12 +14540,15 @@ signed/unsigned conversion, and all five intrinsics through
 
 ProductClosure0 v4 now admits the source-derived direct default-unit helper and
 publishes normal, non-finite, and out-of-range roles while retaining `outcome`
-as an out-of-range compatibility alias. The current frontend/HIR process-body
-contract still rejects this split, so no process cleanup or native executable
-claim follows. This amendment remains compiler-lifecycle evidence only: there
-is no native product, runtime/target execution, public ABI claim, independent
-boundary oracle, benchmark, or timing result, and W-389 remains an
-implementation-evidence gap.
+as an out-of-range compatibility alias. HIR96 now admits one bounded
+`native-process@1` body with a compile-time float source and independently
+verifies the four-block split plus reverse owner cleanup on normal, non-finite,
+and out-of-range outcomes. ProductClosure0 v4 independently admits that bounded
+process root and publishes all three role-stable outcomes. This is not runtime
+float ingress, and native execution still rejects it. The amendment remains
+compiler-lifecycle evidence only, with no native product, runtime/target
+execution, public ABI claim, independent boundary oracle, benchmark, or timing
+result; W-389 remains an implementation-evidence gap.
 
 #### W-1651 — explicit wide and low-precision numeric families
 

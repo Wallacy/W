@@ -447,12 +447,218 @@ static bool typed_process_numeric_exact_root_supported(
   return true;
 }
 
-/* The current frontend/HIR deliberately does not admit this split in the
- * native-process body contract yet. Keep an independently useful direct
- * helper product: one named throwing function is selected directly by the
- * default-unit entry, has one f32/f64 parameter, and exposes only the four
- * blocks emitted by HIR0 for the rounding expression. It has no process ABI
- * or executable-root claim. */
+/* Admit the bounded native-process witness whose body rounds one source
+ * constant and publishes the normal, non-finite, and out-of-range edges. HIR0
+ * has already authenticated every record; this boundary independently fixes
+ * the smaller product shape for which ProductClosure0 publishes relations. */
+static bool typed_process_float_rounding_root_supported(
+    const w_seed_hir0_program *program, const w_seed_hir0_entry *entry) {
+  if (program == NULL || entry == NULL || program->module_count != 1u ||
+      program->external_module_count != 1u ||
+      program->external_symbol_count != 7u || program->entry_count != 1u ||
+      entry != &program->entries[0] || entry->module_index != 0u ||
+      entry->adapter_kind != W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS ||
+      entry->is_body || entry->target_function >= program->function_count ||
+      entry->identity_index != program->module_count + program->function_count ||
+      entry->identity_index >= program->identity_count ||
+      entry->target_identity >= program->identity_count)
+    return false;
+  const w_seed_hir0_function *function =
+      &program->functions[entry->target_function];
+  if (function->module_index != entry->module_index ||
+      entry->target_identity != function->identity_index ||
+      function->identity_index != program->module_count + entry->target_function ||
+      function->is_const || !function->is_async || !function->is_throws ||
+      function->is_unsafe || function->has_borrow_clause ||
+      function->is_anonymous_entry ||
+      function->suspension != W_SEED_HIR0_SUSPENSION_MAY ||
+      function->direct_entry != W_SEED_HIR0_DIRECT_ENTRY_ABSENT ||
+      function->parameter_count != 2u || function->block_count != 4u ||
+      function->error_type >= program->type_count ||
+      program->types[function->error_type].kind !=
+          W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR)
+    return false;
+  const uint32_t arguments_type = process_nominal_type(program, 0u);
+  const uint32_t context_type = process_nominal_type(program, 1u);
+  const uint32_t exit_code_type = process_nominal_type(program, 2u);
+  if (arguments_type == W_SEED_HIR0_NONE || context_type == W_SEED_HIR0_NONE ||
+      exit_code_type == W_SEED_HIR0_NONE ||
+      !process_external_type_valid(program, arguments_type, 0u, "Arguments") ||
+      !process_external_type_valid(program, context_type, 1u, "Context") ||
+      !process_external_type_valid(program, exit_code_type, 2u, "ExitCode") ||
+      function->return_type != exit_code_type ||
+      function->first_parameter > program->parameter_count ||
+      function->parameter_count >
+          program->parameter_count - function->first_parameter ||
+      entry->cleanup_obligation !=
+          W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_ALL_OUTCOMES ||
+      entry->first_cleanup_owner_parameter != function->first_parameter ||
+      entry->cleanup_owner_parameter_count != 2u)
+    return false;
+  const w_seed_hir0_parameter *arguments =
+      &program->parameters[function->first_parameter];
+  const w_seed_hir0_parameter *context =
+      &program->parameters[(size_t)function->first_parameter + 1u];
+  if (arguments->owner_function != entry->target_function ||
+      arguments->ordinal != 0u || arguments->type_index != arguments_type ||
+      context->owner_function != entry->target_function ||
+      context->ordinal != 1u || context->type_index != context_type ||
+      program->types[arguments_type].lifecycle !=
+          W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER ||
+      program->types[arguments_type].release_contract !=
+          W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE ||
+      program->types[context_type].lifecycle !=
+          W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER ||
+      program->types[context_type].release_contract !=
+          W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE)
+    return false;
+  if (function->first_block >= program->block_count ||
+      function->block_count > program->block_count - function->first_block)
+    return false;
+  const uint32_t split_block = function->first_block;
+  const w_seed_hir0_block *split = &program->blocks[split_block];
+  if (split->owner_function != entry->target_function ||
+      split->instruction_count != 0u || split->block_argument_count != 0u ||
+      split->terminator_index >= program->terminator_count)
+    return false;
+  const w_seed_hir0_terminator *split_term =
+      &program->terminators[split->terminator_index];
+  const uint32_t normal_block = split_term->target_block;
+  const uint32_t non_finite_block = split_term->else_block;
+  const uint32_t out_of_range_block = split_term->third_block;
+  const uint32_t block_limit = function->first_block + function->block_count;
+  if (split_term->owner_block != split_block ||
+      split_term->kind != W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING ||
+      split_term->error_type != function->error_type ||
+      split_term->numeric_conversion_error_case !=
+          W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_NONE ||
+      split_term->rounding_mode < W_SEED_HIR0_ROUNDING_MODE_NEAREST_EVEN ||
+      split_term->rounding_mode > W_SEED_HIR0_ROUNDING_MODE_TOWARD_NEGATIVE ||
+      split_term->value_index >= program->value_count ||
+      split_term->result_type >= program->type_count ||
+      program->types[split_term->result_type].kind != W_SEED_HIR0_TYPE_INTEGER ||
+      normal_block < function->first_block || normal_block >= block_limit ||
+      non_finite_block < function->first_block ||
+      non_finite_block >= block_limit ||
+      out_of_range_block < function->first_block ||
+      out_of_range_block >= block_limit || normal_block == non_finite_block ||
+      normal_block == out_of_range_block ||
+      non_finite_block == out_of_range_block || normal_block == split_block ||
+      non_finite_block == split_block || out_of_range_block == split_block)
+    return false;
+  const w_seed_hir0_value *source = &program->values[split_term->value_index];
+  if (source->kind != W_SEED_HIR0_VALUE_CONST_FLOAT ||
+      source->type_index >= program->type_count ||
+      (program->types[source->type_index].kind != W_SEED_HIR0_TYPE_F32 &&
+       program->types[source->type_index].kind != W_SEED_HIR0_TYPE_F64))
+    return false;
+  const w_seed_hir0_block *normal = &program->blocks[normal_block];
+  const w_seed_hir0_block *non_finite = &program->blocks[non_finite_block];
+  const w_seed_hir0_block *out_of_range = &program->blocks[out_of_range_block];
+  if (normal->owner_function != entry->target_function ||
+      non_finite->owner_function != entry->target_function ||
+      out_of_range->owner_function != entry->target_function ||
+      normal->instruction_count != 1u ||
+      non_finite->instruction_count != 0u ||
+      out_of_range->instruction_count != 0u ||
+      normal->block_argument_count != 1u ||
+      non_finite->block_argument_count != 1u ||
+      out_of_range->block_argument_count != 1u ||
+      normal->first_instruction >= program->instruction_count ||
+      normal->first_block_argument >= program->block_argument_count ||
+      non_finite->first_block_argument >= program->block_argument_count ||
+      out_of_range->first_block_argument >= program->block_argument_count)
+    return false;
+  const w_seed_hir0_block_argument *normal_argument =
+      &program->block_arguments[normal->first_block_argument];
+  const w_seed_hir0_block_argument *non_finite_argument =
+      &program->block_arguments[non_finite->first_block_argument];
+  const w_seed_hir0_block_argument *out_of_range_argument =
+      &program->block_arguments[out_of_range->first_block_argument];
+  if (normal_argument->owner_block != normal_block ||
+      normal_argument->ordinal != 0u ||
+      normal_argument->type_index != split_term->result_type ||
+      non_finite_argument->owner_block != non_finite_block ||
+      non_finite_argument->ordinal != 0u ||
+      non_finite_argument->type_index != function->error_type ||
+      out_of_range_argument->owner_block != out_of_range_block ||
+      out_of_range_argument->ordinal != 0u ||
+      out_of_range_argument->type_index != function->error_type)
+    return false;
+  const w_seed_hir0_instruction *instruction =
+      &program->instructions[normal->first_instruction];
+  if (instruction->owner_block != normal_block || instruction->ordinal != 0u ||
+      instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
+      instruction->binding_index >= program->binding_count)
+    return false;
+  const w_seed_hir0_binding *binding =
+      &program->bindings[instruction->binding_index];
+  if (binding->owner_block != normal_block || binding->is_mutable ||
+      binding->type_index != split_term->result_type ||
+      binding->initializer_value >= program->value_count)
+    return false;
+  const w_seed_hir0_value *initializer =
+      &program->values[binding->initializer_value];
+  if (initializer->kind != W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
+      initializer->owner_kind != W_SEED_HIR0_VALUE_OWNER_BINDING ||
+      initializer->owner_index != instruction->binding_index ||
+      initializer->owner_ordinal != 0u ||
+      initializer->type_index != split_term->result_type ||
+      initializer->block_argument_index != normal->first_block_argument)
+    return false;
+  if (normal->terminator_index >= program->terminator_count ||
+      non_finite->terminator_index >= program->terminator_count ||
+      out_of_range->terminator_index >= program->terminator_count)
+    return false;
+  const w_seed_hir0_terminator *normal_term =
+      &program->terminators[normal->terminator_index];
+  const w_seed_hir0_terminator *non_finite_term =
+      &program->terminators[non_finite->terminator_index];
+  const w_seed_hir0_terminator *out_of_range_term =
+      &program->terminators[out_of_range->terminator_index];
+  if (normal_term->owner_block != normal_block ||
+      normal_term->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
+      normal_term->result_type != exit_code_type ||
+      normal_term->value_index >= program->value_count ||
+      non_finite_term->owner_block != non_finite_block ||
+      non_finite_term->kind != W_SEED_HIR0_TERMINATOR_THROW ||
+      non_finite_term->result_type != function->error_type ||
+      non_finite_term->value_index >= program->value_count ||
+      out_of_range_term->owner_block != out_of_range_block ||
+      out_of_range_term->kind != W_SEED_HIR0_TERMINATOR_THROW ||
+      out_of_range_term->result_type != function->error_type ||
+      out_of_range_term->value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *success = &program->values[normal_term->value_index];
+  const w_seed_hir0_value *non_finite_value =
+      &program->values[non_finite_term->value_index];
+  const w_seed_hir0_value *out_of_range_value =
+      &program->values[out_of_range_term->value_index];
+  return success->kind == W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE &&
+         success->type_index == exit_code_type &&
+         success->external_module_index == 0u &&
+         success->external_symbol_index == 3u &&
+         text_is(program, success->member_name, "success") &&
+         non_finite_value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+         non_finite_value->owner_kind == W_SEED_HIR0_VALUE_OWNER_TERMINATOR &&
+         non_finite_value->owner_index == non_finite->terminator_index &&
+         non_finite_value->owner_ordinal == 0u &&
+         non_finite_value->type_index == function->error_type &&
+         non_finite_value->block_argument_index ==
+             non_finite->first_block_argument &&
+         out_of_range_value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+         out_of_range_value->owner_kind == W_SEED_HIR0_VALUE_OWNER_TERMINATOR &&
+         out_of_range_value->owner_index == out_of_range->terminator_index &&
+         out_of_range_value->owner_ordinal == 0u &&
+         out_of_range_value->type_index == function->error_type &&
+         out_of_range_value->block_argument_index ==
+             out_of_range->first_block_argument;
+}
+
+/* Keep an independently useful direct helper product: one named throwing
+ * function is selected directly by the default-unit entry, has one f32/f64
+ * parameter, and exposes only the four blocks emitted by HIR0 for the
+ * rounding expression. It has no process ABI or executable-root claim. */
 static bool typed_direct_float_rounding_root_supported(
     const w_seed_hir0_program *program, const w_seed_hir0_entry *entry) {
   if (program == NULL || entry == NULL || program->module_count != 1u ||
@@ -622,6 +828,7 @@ static bool typed_direct_float_rounding_root_supported(
 static bool typed_process_throw_root_supported(
     const w_seed_hir0_program *program, const w_seed_hir0_entry *entry) {
   if (typed_process_numeric_exact_root_supported(program, entry)) return true;
+  if (typed_process_float_rounding_root_supported(program, entry)) return true;
   if (program == NULL || entry == NULL || program->module_count != 1u ||
       program->external_module_count != 1u || program->entry_count != 1u ||
       entry != &program->entries[0] || entry->module_index != 0u ||
@@ -967,6 +1174,9 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
                   W_SEED_HIR0_TERMINATOR_RETURN_VALUE
           ? program->terminators[numeric_normal_terminator].value_index
           : W_SEED_HIR0_NONE;
+  const uint32_t numeric_source_value =
+      numeric_rounding_root ? program->terminators[root_terminator].value_index
+                            : W_SEED_HIR0_NONE;
   for (size_t block_argument = 0u;
        block_argument < program->block_argument_count; block_argument += 1u)
     if (program->block_arguments[block_argument].type_index >= 4u &&
@@ -1024,6 +1234,10 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
       /* The normal process outcome is the external ExitCode.success value;
        * only the value reached by that authenticated normal successor is
        * admitted here; other external enum cases remain unsupported. */
+    } else if (numeric_rounding_root && value == numeric_source_value &&
+               item->kind == W_SEED_HIR0_VALUE_CONST_FLOAT) {
+      /* The process rounding checker authenticates the sole constant source;
+       * general float values remain outside ProductClosure0. */
     } else if (!product_value_kind_supported(item->kind)) {
       return false;
     }
