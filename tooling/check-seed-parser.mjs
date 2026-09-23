@@ -99,6 +99,7 @@ const CST = Object.freeze({
   ENUM_PATTERN: 69,
   WILDCARD_PATTERN: 70,
   LITERAL_PATTERN: 71,
+  WHILE: 74,
   THROWS_TYPE: 81,
 })
 
@@ -122,7 +123,9 @@ function run(command, args) {
     stderr: "pipe",
   })
   if (execution.exitCode !== 0) {
-    fail(`${command} ${args.join(" ")} failed: ${execution.stderr.toString().trim()}`)
+    const output = [execution.stdout.toString().trim(), execution.stderr.toString().trim()]
+      .filter(Boolean).join("\n")
+    fail(`${command} ${args.join(" ")} failed:\n${output}`)
   }
   return execution
 }
@@ -1607,7 +1610,7 @@ async function main() {
       ["for-missing-iterable", Buffer.from("fn f(rows:Rows){for ref row in {}}\n"), "recovered", 1],
       ["for-missing-block", Buffer.from("fn f(rows:Rows){for ref row in rows}\n"), "recovered", 2],
       ["for-missing-close", Buffer.from("fn f(rows:Rows){for ref row in rows{}\n"), "recovered", 2],
-      ["while-labeled-stop", Buffer.from("fn f(rows:Rows){outer:while rows{}}\n"), "fatal", 6],
+      ["while-labeled-nested", Buffer.from("fn f(rows:Rows){outer:while rows{while rows{continue outer}break outer}}\n"), "complete"],
       ["root-for-fail-closed", Buffer.from("for row in rows{}\n"), "fatal", 6],
       ["for-async-marker", Buffer.from("fn f(rows:Rows){for async value in rows{}}\n"), "fatal", 6],
       ["for-await-marker", Buffer.from("fn f(rows:Rows){for await value in rows{}}\n"), "fatal", 6],
@@ -1623,8 +1626,7 @@ async function main() {
       const parsed = invoke(probe, bytes, label, status, issue)
       if ((label.startsWith("for-") || label.startsWith("async-") ||
            label.startsWith("borrow-") ||
-           label.startsWith("export-async-") || label.startsWith("allocator-") ||
-           label === "while-labeled-stop") &&
+           label.startsWith("export-async-") || label.startsWith("allocator-")) &&
           issue !== undefined &&
           parsed.issues[0]?.kind !== issue) {
         fail(`${label} first issue ${parsed.issues[0]?.kind} != ${issue}`)
@@ -1731,6 +1733,21 @@ async function main() {
         const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)
         if (parsed.signature !== repeated.signature) {
           fail(`${label} CST signature is not deterministic`)
+        }
+      }
+      if (label === "while-labeled-nested") {
+        assertClean(parsed, label)
+        const labels = parsed.nodes.filter((node) => node.kind === CST.LABEL)
+        if (labels.length !== 1 || directKind(parsed, labels[0].index, CST.WHILE).length !== 1 ||
+            parsed.nodes.filter((node) => node.kind === CST.WHILE).length !== 2) {
+          fail(`${label} does not preserve the label-owned outer while and nested while`)
+        }
+        const transfers = parsed.nodes.filter((node) =>
+          node.kind === CST.BREAK || node.kind === CST.CONTINUE)
+        if (transfers.length !== 2 ||
+            transfers.some((node) => !directKind(parsed, node.index, CST.WORD)
+              .some((word) => nodeText(parsed, bytes, word) === "outer"))) {
+          fail(`${label} does not preserve labeled break and continue`)
         }
       }
       if (label === "generic-declarations") {

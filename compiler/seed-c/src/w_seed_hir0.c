@@ -6796,6 +6796,7 @@ typedef struct {
   bool loop_body_walk;
   bool loop_control_flow;
   size_t loop_control_transfer_count;
+  uint32_t loop_statement;
   bool loop_updated_roots[HIR0_MAX_BRANCH_ASSIGNMENTS];
   uint32_t loop_root_statements[HIR0_MAX_BRANCH_ASSIGNMENTS];
   size_t loop_root_count;
@@ -7481,6 +7482,7 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
   if (statement->kind == W_SEED_FRONTEND_STMT_WHILE ||
       statement->kind == W_SEED_FRONTEND_STMT_REPEAT) {
     if (branch || walk->loop_seen || *walk->if_total != 0u ||
+        statement->loop_label.length != 0u ||
         statement->binding_name.length != 0u ||
         statement->declared_type != W_SEED_FRONTEND_NONE ||
         statement->effective_type != W_SEED_FRONTEND_NONE ||
@@ -7495,6 +7497,7 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
         statement->range_upper_expression != W_SEED_FRONTEND_NONE ||
         statement->loop_local_ordinal != W_SEED_FRONTEND_NONE)
       return false;
+    walk->loop_statement = index;
     uint32_t root_statements[HIR0_MAX_BRANCH_ASSIGNMENTS] = {0u};
     size_t root_count = 0u;
     size_t body_statement_count = 0u;
@@ -7749,6 +7752,8 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
         statement->binding_name.length != 0u ||
         statement->declared_type != W_SEED_FRONTEND_NONE ||
         statement->effective_type != W_SEED_FRONTEND_NONE ||
+        statement->transfer_label.length != 0u ||
+        statement->transfer_target_statement != walk->loop_statement ||
         !add_size(walk->loop_control_transfer_count, 1u,
                   &walk->loop_control_transfer_count) ||
         !add_size(*walk->values, walk->loop_root_count, walk->values))
@@ -8080,6 +8085,7 @@ static bool frontend_statement_and_expression_cfg_ok(
         .has_integer_exactly_binding = false,
         .loop_seen = false,
         .loop_continuation_seen = false,
+        .loop_statement = W_SEED_FRONTEND_NONE,
         .loop_root_statements = {0u},
         .loop_root_count = 0u,
     };

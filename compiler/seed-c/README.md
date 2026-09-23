@@ -1761,9 +1761,13 @@ the corresponding loop-header and shared-exit phi values.
 Public Windows and Linux/WSL `w run` and `w build` gates execute the same
 source. Its three calls cover a false initial condition, the continue path,
 and the break path, printing exactly `0,4,8\n` with exit 0 and empty stderr.
-The Linux build gate checks CRT-free ELF closure. This proves only that bounded
-seed subset; nested/labeled loops, general mixed CFG, other carrier types,
-and performance equivalence remain open.
+The Linux build gate checks CRT-free ELF closure. The parser/frontend now
+represent nested `while` loops and bind `break`/`continue` (with or without a
+label) to an explicit enclosing loop statement. HIR0 still rejects nested
+and labeled loops, so there is no public native witness for them yet.
+NativeSubset0's broader bounded i64-carrier CFG screen is only a preparatory
+selection change. General mixed CFG, other carrier types, and performance
+equivalence remain open.
 
 ### Multi-carrier structured natural loop (W-1569)
 

@@ -299,6 +299,12 @@ typedef struct {
 } frontend_active_pattern_capture;
 
 typedef struct {
+  uint32_t statement_index;
+  w_seed_frontend_text label;
+  w_seed_frontend_stmt_kind kind;
+} frontend_active_loop;
+
+typedef struct {
   uint32_t owner_function;
   uint32_t statement_index;
   uint32_t launch_expression;
@@ -383,6 +389,8 @@ typedef struct {
    * may erase the relation completely when no physical state must survive. */
   frontend_task_binding task_bindings[FRONTEND_MAX_TASK_BINDINGS];
   size_t task_binding_count;
+  frontend_active_loop active_loops[W_SEED_FRONTEND_MAX_NESTING];
+  size_t active_loop_count;
   uint32_t task_result_type_indices[5];
   uint32_t task_type_indices[5];
   /* Kernel contract validation is document-local scalar state.  It avoids
@@ -10530,13 +10538,14 @@ static bool normalize_statement_depth(frontend_context *context,
                                       uint32_t node_index,
                                       uint32_t *statement_index,
                                       size_t depth,
-                                      bool loop_controls_allowed);
+                                      size_t loop_depth,
+                                      w_seed_frontend_text pending_loop_label);
 static bool normalize_block_statements_depth(frontend_context *context,
                                              uint32_t block_node,
                                              size_t depth,
                                              uint32_t *first_statement,
                                              uint32_t *statement_count,
-                                             bool loop_controls_allowed);
+                                             size_t loop_depth);
 
 static bool finalize_function_tasks(frontend_context *context,
                                     size_t first_task_binding,
@@ -19195,29 +19204,69 @@ static bool normalize_switch_expression(
   return true;
 }
 
-static bool frontend_control_transfer_is_unlabeled(
-    const w_seed_frontend_document *doc, uint32_t node_index) {
-  if (doc == NULL || node_index >= doc->parse.node_count) return false;
+static bool frontend_control_transfer_label(
+    const w_seed_frontend_document *doc, uint32_t node_index,
+    w_seed_frontend_text *label) {
+  if (label != NULL) *label = (w_seed_frontend_text){NULL, 0u};
+  if (doc == NULL || label == NULL || node_index >= doc->parse.node_count)
+    return false;
   uint32_t cursor = doc->nodes[node_index].first_child;
   uint32_t child = W_SEED_CST_NONE;
   size_t word_count = 0u;
+  w_seed_frontend_text parsed_label = {NULL, 0u};
   size_t guard = 0u;
   while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
-    if (doc->nodes[child].kind == W_SEED_CST_WORD) word_count += 1u;
+    if (doc->nodes[child].kind == W_SEED_CST_WORD) {
+      if (word_count == 1u)
+        parsed_label = text_from_span(doc, doc->nodes[child].raw_span);
+      word_count += 1u;
+    }
     guard += 1u;
   }
-  return cursor == W_SEED_CST_NONE && word_count == 1u;
+  if (cursor != W_SEED_CST_NONE || (word_count != 1u && word_count != 2u))
+    return false;
+  if (word_count == 2u) *label = parsed_label;
+  return true;
 }
 
 static bool normalize_statement_depth(frontend_context *context,
                                       uint32_t node_index,
                                       uint32_t *statement_index,
                                       size_t depth,
-                                      bool loop_controls_allowed) {
+                                      size_t loop_depth,
+                                      w_seed_frontend_text pending_loop_label) {
   const w_seed_frontend_document *doc = context_document(context);
   if (doc == NULL || statement_index == NULL ||
       depth >= W_SEED_FRONTEND_MAX_NESTING) {
     return false;
+  }
+  if (node_index >= doc->parse.node_count) return false;
+  if (doc->nodes[node_index].kind == W_SEED_CST_LABEL) {
+    const uint32_t target = first_direct_kind(
+        doc, node_index, W_SEED_CST_WHILE_STATEMENT);
+    if (target == W_SEED_CST_NONE ||
+        count_direct_kind(doc, node_index, W_SEED_CST_WHILE_STATEMENT) != 1u) {
+      if (!context_append_fact(context,
+                               W_SEED_FRONTEND_FACT_UNSUPPORTED_NODE,
+                               doc->nodes[node_index].raw_span,
+                               text_from_span(doc,
+                                              doc->nodes[node_index].raw_span)))
+        return false;
+      *statement_index = W_SEED_FRONTEND_NONE;
+      return true;
+    }
+    const w_seed_frontend_text label =
+        first_word_in_span(doc, doc->nodes[node_index].raw_span);
+    if (!external_text_valid(label) || label.length == 0u) {
+      *statement_index = W_SEED_FRONTEND_NONE;
+      return context_append_fact(context,
+                                 W_SEED_FRONTEND_FACT_UNSUPPORTED_NODE,
+                                 doc->nodes[node_index].raw_span,
+                                 text_from_span(doc,
+                                                doc->nodes[node_index].raw_span));
+    }
+    return normalize_statement_depth(context, target, statement_index,
+                                     depth + 1u, loop_depth, label);
   }
   const w_seed_cst_node *node = &doc->nodes[node_index];
   w_seed_frontend_statement value;
@@ -19237,6 +19286,9 @@ static bool normalize_statement_depth(frontend_context *context,
   value.range_upper_expression = W_SEED_FRONTEND_NONE;
   value.loop_local_ordinal = W_SEED_FRONTEND_NONE;
   value.effective_type = W_SEED_FRONTEND_NONE;
+  value.loop_label = pending_loop_label;
+  value.transfer_label = (w_seed_frontend_text){NULL, 0u};
+  value.transfer_target_statement = W_SEED_FRONTEND_NONE;
   switch (node->kind) {
     case W_SEED_CST_LET_STATEMENT:
       value.kind = W_SEED_FRONTEND_STMT_LET;
@@ -19250,18 +19302,18 @@ static bool normalize_statement_depth(frontend_context *context,
       value.kind = W_SEED_FRONTEND_STMT_RETURN;
       break;
     case W_SEED_CST_BREAK_STATEMENT:
-      value.kind = loop_controls_allowed &&
-                           frontend_control_transfer_is_unlabeled(doc,
-                                                                  node_index)
-                       ? W_SEED_FRONTEND_STMT_BREAK
-                       : W_SEED_FRONTEND_STMT_UNSUPPORTED;
+      value.kind = loop_depth != 0u ? W_SEED_FRONTEND_STMT_BREAK
+                                    : W_SEED_FRONTEND_STMT_UNSUPPORTED;
+      if (!frontend_control_transfer_label(doc, node_index,
+                                           &value.transfer_label))
+        value.kind = W_SEED_FRONTEND_STMT_UNSUPPORTED;
       break;
     case W_SEED_CST_CONTINUE_STATEMENT:
-      value.kind = loop_controls_allowed &&
-                           frontend_control_transfer_is_unlabeled(doc,
-                                                                  node_index)
-                       ? W_SEED_FRONTEND_STMT_CONTINUE
-                       : W_SEED_FRONTEND_STMT_UNSUPPORTED;
+      value.kind = loop_depth != 0u ? W_SEED_FRONTEND_STMT_CONTINUE
+                                    : W_SEED_FRONTEND_STMT_UNSUPPORTED;
+      if (!frontend_control_transfer_label(doc, node_index,
+                                           &value.transfer_label))
+        value.kind = W_SEED_FRONTEND_STMT_UNSUPPORTED;
       break;
     case W_SEED_CST_THROW_STATEMENT:
       value.kind = W_SEED_FRONTEND_STMT_THROW;
@@ -19301,6 +19353,72 @@ static bool normalize_statement_depth(frontend_context *context,
     default:
       value.kind = W_SEED_FRONTEND_STMT_UNSUPPORTED;
       break;
+  }
+  bool duplicate_active_loop_label = false;
+  const bool is_loop_statement =
+      node->kind == W_SEED_CST_WHILE_STATEMENT ||
+      node->kind == W_SEED_CST_REPEAT_STATEMENT ||
+      node->kind == W_SEED_CST_FOR_STATEMENT;
+  if (node->kind == W_SEED_CST_WHILE_STATEMENT) {
+    if (!external_text_valid(value.loop_label) ||
+        (value.loop_label.length != 0u && value.loop_label.data == NULL) ||
+        context->active_loop_count != loop_depth ||
+        context->active_loop_count >= W_SEED_FRONTEND_MAX_NESTING)
+      return false;
+    if (value.loop_label.length != 0u) {
+      for (size_t ordinal = 0u; ordinal < context->active_loop_count;
+           ordinal += 1u) {
+        const w_seed_frontend_text active_label =
+            context->active_loops[ordinal].label;
+        if (active_label.length != 0u &&
+            text_equal_text(active_label, value.loop_label)) {
+          duplicate_active_loop_label = true;
+          break;
+        }
+      }
+    }
+    if (duplicate_active_loop_label)
+      value.kind = W_SEED_FRONTEND_STMT_UNSUPPORTED;
+  } else if (pending_loop_label.length != 0u) {
+    return false;
+  }
+  if (node->kind == W_SEED_CST_BREAK_STATEMENT ||
+      node->kind == W_SEED_CST_CONTINUE_STATEMENT) {
+    if (value.kind == W_SEED_FRONTEND_STMT_BREAK ||
+        value.kind == W_SEED_FRONTEND_STMT_CONTINUE) {
+      if (context->active_loop_count != loop_depth || loop_depth == 0u ||
+          context->active_loops[context->active_loop_count - 1u].kind !=
+              W_SEED_FRONTEND_STMT_WHILE) {
+        value.kind = W_SEED_FRONTEND_STMT_UNSUPPORTED;
+      } else {
+        size_t target_loop = context->active_loop_count - 1u;
+        if (value.transfer_label.length != 0u) {
+          bool resolved = false;
+          for (size_t cursor = context->active_loop_count; cursor > 0u;
+               cursor -= 1u) {
+            const frontend_active_loop *candidate =
+                &context->active_loops[cursor - 1u];
+            if (candidate->kind == W_SEED_FRONTEND_STMT_WHILE &&
+                candidate->label.length != 0u &&
+                text_equal_text(candidate->label, value.transfer_label)) {
+              target_loop = cursor - 1u;
+              resolved = true;
+              break;
+            }
+          }
+          if (!resolved) value.kind = W_SEED_FRONTEND_STMT_UNSUPPORTED;
+        }
+        if ((value.kind == W_SEED_FRONTEND_STMT_BREAK ||
+             value.kind == W_SEED_FRONTEND_STMT_CONTINUE) &&
+            context->active_loops[target_loop].kind ==
+                W_SEED_FRONTEND_STMT_WHILE)
+          value.transfer_target_statement =
+              context->active_loops[target_loop].statement_index;
+        else if (value.kind == W_SEED_FRONTEND_STMT_BREAK ||
+                 value.kind == W_SEED_FRONTEND_STMT_CONTINUE)
+          value.kind = W_SEED_FRONTEND_STMT_UNSUPPORTED;
+      }
+    }
   }
   const uint32_t type_node = direct_type_index(doc, node_index);
   if (type_node != W_SEED_CST_NONE &&
@@ -19558,6 +19676,15 @@ static bool normalize_statement_depth(frontend_context *context,
     }
   }
   if (!context_append_statement(context, value, statement_index)) return false;
+  const bool pushed_loop = is_loop_statement;
+  if (pushed_loop) {
+    if (context->active_loop_count != loop_depth ||
+        context->active_loop_count >= W_SEED_FRONTEND_MAX_NESTING)
+      return false;
+    context->active_loops[context->active_loop_count++] =
+        (frontend_active_loop){*statement_index, value.loop_label,
+                               value.kind};
+  }
   if (register_task_launch) {
     frontend_task_binding *binding =
         &context->task_bindings[context->task_binding_count++];
@@ -19612,13 +19739,8 @@ static bool normalize_statement_depth(frontend_context *context,
     uint32_t then_first = W_SEED_FRONTEND_NONE;
     uint32_t then_count = 0u;
     bool saw_then_block = false;
-    const bool child_loop_controls_allowed =
-        node->kind == W_SEED_CST_WHILE_STATEMENT
-            ? !loop_controls_allowed
-            : node->kind == W_SEED_CST_REPEAT_STATEMENT ||
-                  node->kind == W_SEED_CST_FOR_STATEMENT
-                  ? false
-                  : loop_controls_allowed;
+    const size_t child_loop_depth = is_loop_statement ? loop_depth + 1u
+                                                      : loop_depth;
     while (next_child(doc, &child_cursor, &child) &&
            guard < doc->parse.node_count) {
       if (doc->nodes[child].kind == W_SEED_CST_BLOCK) {
@@ -19626,7 +19748,7 @@ static bool normalize_statement_depth(frontend_context *context,
         uint32_t nested_count = 0u;
         if (!normalize_block_statements_depth(
                 context, child, depth + 1u, &nested_first, &nested_count,
-                child_loop_controls_allowed)) {
+                child_loop_depth)) {
           return false;
         }
         if (node->kind == W_SEED_CST_GUARD_STATEMENT && !saw_then_block) {
@@ -19652,7 +19774,8 @@ static bool normalize_statement_depth(frontend_context *context,
         uint32_t nested_statement = W_SEED_FRONTEND_NONE;
         if (!normalize_statement_depth(context, child, &nested_statement,
                                        depth + 1u,
-                                       loop_controls_allowed)) {
+                                       loop_depth,
+                                       (w_seed_frontend_text){NULL, 0u})) {
           return false;
         }
         if (context->emit && context->output != NULL &&
@@ -19664,7 +19787,8 @@ static bool normalize_statement_depth(frontend_context *context,
         uint32_t nested_statement = W_SEED_FRONTEND_NONE;
         if (!normalize_statement_depth(context, child, &nested_statement,
                                        depth + 1u,
-                                       child_loop_controls_allowed)) {
+                                       child_loop_depth,
+                                       (w_seed_frontend_text){NULL, 0u})) {
           return false;
         }
         if (node->kind == W_SEED_CST_GUARD_STATEMENT &&
@@ -19690,6 +19814,10 @@ static bool normalize_statement_depth(frontend_context *context,
     (void)context_append_fact(context, W_SEED_FRONTEND_FACT_UNSUPPORTED_NODE,
                               value.span, text_from_span(doc, value.span));
   }
+  if (pushed_loop) {
+    if (context->active_loop_count != loop_depth + 1u) return false;
+    context->active_loop_count -= 1u;
+  }
   return true;
 }
 
@@ -19698,7 +19826,7 @@ static bool normalize_block_statements_depth(frontend_context *context,
                                              size_t depth,
                                              uint32_t *first_statement,
                                              uint32_t *statement_count,
-                                             bool loop_controls_allowed) {
+                                             size_t loop_depth) {
   const w_seed_frontend_document *doc = context_document(context);
   if (doc == NULL || block_node >= doc->parse.node_count ||
       depth >= W_SEED_FRONTEND_MAX_NESTING) {
@@ -19714,12 +19842,17 @@ static bool normalize_block_statements_depth(frontend_context *context,
   while (next_child(doc, &child_cursor, &child) &&
          guard < doc->parse.node_count) {
     const w_seed_cst_kind kind = doc->nodes[child].kind;
-    if (kind_is_statement(kind)) {
+    if (kind_is_statement(kind) || kind == W_SEED_CST_LABEL) {
       uint32_t statement_index = W_SEED_FRONTEND_NONE;
       if (!normalize_statement_depth(context, child, &statement_index,
                                      depth + 1u,
-                                     loop_controls_allowed)) {
+                                     loop_depth,
+                                     (w_seed_frontend_text){NULL, 0u})) {
         return false;
+      }
+      if (statement_index == W_SEED_FRONTEND_NONE) {
+        guard += 1u;
+        continue;
       }
       if (first_statement != NULL && *first_statement == W_SEED_FRONTEND_NONE)
         *first_statement = statement_index;
@@ -19749,7 +19882,7 @@ static bool normalize_block_statements_depth(frontend_context *context,
 static bool normalize_block_statements(frontend_context *context,
                                        uint32_t block_node) {
   return normalize_block_statements_depth(context, block_node, 0u, NULL, NULL,
-                                          false);
+                                          0u);
 }
 
 static bool module_const_expression_kind_allowed(

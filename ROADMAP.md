@@ -405,12 +405,18 @@ only after a pinned witness and HIR contract give each writer a stable
 boundary. Prefer a larger family package with one integration gate over a
 series of width-by-width or one-op commits. Keep at most four executors and
 retire each at its finite gate; parallel occupancy is not itself progress.
-The next rank-3 cut should extend the verified transfer builder to nested and
-labeled loops, then mixed CFG with multi-block returns. Keep the exact typed
-edge/carrier mapping as the contract between frontend/HIR, native selection,
-and code generation; do not add a second source-shape recognizer. General
-CFG, arbitrary payload types, optimizer quality, and cross-target performance
-remain open.
+The next rank-3 cut has three distinct gates. The parser and frontend now
+represent nested `while` loops and resolve labeled or unlabeled transfers to
+an explicit lexical loop statement; malformed, shadowed, or unresolved labels
+fail closed. Verified HIR still rejects nested or labeled loops, so this is
+not yet a native feature. Next, replace HIR0's single-loop count/emit state
+with one bounded CFG plan shared by measurement, emission, and verification;
+prove typed edge/carrier mapping and failure atomicity on a source-backed
+two-loop witness. NativeSubset0's broader i64-carrier screen is preparatory,
+not evidence for that witness. Only then extend MLIR/codegen and public
+Windows/Linux execution, followed by mixed CFG with multi-block returns.
+Do not add a second source-shape recognizer. General CFG, arbitrary payload
+types, optimizer quality, and cross-target performance remain open.
 
 ### Active rank 1 closure order
 

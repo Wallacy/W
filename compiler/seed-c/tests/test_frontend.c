@@ -8273,6 +8273,121 @@ static bool test_break_continue_projection(void) {
   return true;
 }
 
+static bool test_nested_labeled_while_projection(void) {
+  static const char source[] =
+      "fn walk(limit: i64): i64 {\n"
+      "  var outer = 0\n"
+      "  var inner = 0\n"
+      "  var total = 0\n"
+      "  outerLoop: while outer < limit {\n"
+      "    outer = outer + 1\n"
+      "    inner = 0\n"
+      "    while inner < limit {\n"
+      "      inner = inner + 1\n"
+      "      if inner == 2 { continue }\n"
+      "      if inner == 3 { break }\n"
+      "      if outer == 4 { continue outerLoop }\n"
+      "      if outer == 5 { break outerLoop }\n"
+      "      total = total + 1\n"
+      "    }\n"
+      "  }\n"
+      "  return total\n"
+      "}\n"
+      "entry {}\n";
+  fixture *value = &fixture_mutation;
+  CHECK(fixture_run(value, source));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK);
+  uint32_t outer_loop_index = W_SEED_FRONTEND_NONE;
+  uint32_t inner_loop_index = W_SEED_FRONTEND_NONE;
+  size_t loops = 0u;
+  for (size_t index = 0u; index < value->result.written.statements; index += 1u) {
+    const w_seed_frontend_statement *statement = &value->statements[index];
+    if (statement->kind != W_SEED_FRONTEND_STMT_WHILE) continue;
+    loops += 1u;
+    if (frontend_text_is(statement->loop_label, "outerLoop"))
+      outer_loop_index = (uint32_t)index;
+    else
+      inner_loop_index = (uint32_t)index;
+  }
+  CHECK(loops == 2u && outer_loop_index != W_SEED_FRONTEND_NONE &&
+        inner_loop_index != W_SEED_FRONTEND_NONE &&
+        outer_loop_index != inner_loop_index);
+  const w_seed_frontend_statement *outer_loop =
+      &value->statements[outer_loop_index];
+  const w_seed_frontend_statement *inner_loop =
+      &value->statements[inner_loop_index];
+  CHECK(outer_loop->kind == W_SEED_FRONTEND_STMT_WHILE &&
+        frontend_text_is(outer_loop->loop_label, "outerLoop") &&
+        outer_loop->transfer_target_statement == W_SEED_FRONTEND_NONE &&
+        inner_loop->kind == W_SEED_FRONTEND_STMT_WHILE &&
+        inner_loop->loop_label.length == 0u);
+  size_t transfers = 0u;
+  size_t labeled_breaks = 0u;
+  size_t labeled_continues = 0u;
+  size_t inner_breaks = 0u;
+  size_t inner_continues = 0u;
+  for (size_t index = 0u; index < value->result.written.statements; index += 1u) {
+    const w_seed_frontend_statement *statement = &value->statements[index];
+    if (statement->kind != W_SEED_FRONTEND_STMT_BREAK &&
+        statement->kind != W_SEED_FRONTEND_STMT_CONTINUE)
+      continue;
+    transfers += 1u;
+    if (frontend_text_is(statement->transfer_label, "outerLoop")) {
+      CHECK(statement->transfer_target_statement == outer_loop_index);
+      if (statement->kind == W_SEED_FRONTEND_STMT_BREAK)
+        labeled_breaks += 1u;
+      else
+        labeled_continues += 1u;
+    } else {
+      CHECK(statement->transfer_label.length == 0u &&
+            statement->transfer_target_statement == inner_loop_index);
+      if (statement->kind == W_SEED_FRONTEND_STMT_BREAK)
+        inner_breaks += 1u;
+      else
+        inner_continues += 1u;
+    }
+  }
+  CHECK(transfers == 4u && labeled_breaks == 1u &&
+        labeled_continues == 1u && inner_breaks == 1u &&
+        inner_continues == 1u);
+
+  CHECK(fixture_run(
+      value,
+      "fn first() { same: while false {} }\n"
+      "fn second() { same: while false {} }\n"
+      "entry {}\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK);
+
+  CHECK(fixture_run(
+      value,
+      "fn invalid() {\n"
+      "  outerLoop: while true {\n"
+      "    outerLoop: while true { break outerLoop }\n"
+      "  }\n"
+      "}\nentry {}\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  CHECK(fixture_run(value,
+                    "fn invalid() { while true { break missing } }\n"
+                    "entry {}\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  CHECK(fixture_run(
+      value,
+      "fn invalid() {\n"
+      "  while true { break later }\n"
+      "  later: while false {}\n"
+      "}\nentry {}\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  CHECK(fixture_run(
+      value,
+      "fn invalid() {\n"
+      "  outerLoop: while true {\n"
+      "    repeat { break outerLoop } while false\n"
+      "  }\n"
+      "}\nentry {}\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  return true;
+}
+
 static bool test_repeat_projection(void) {
   fixture *value = &fixture_mutation;
   CHECK(fixture_run(value,
@@ -9891,6 +10006,7 @@ int main(int argc, char **argv) {
   if (!test_short_entry_frontend()) return 1;
   if (!test_scalar_if_frontend_subset()) return 1;
   if (!test_break_continue_projection()) return 1;
+  if (!test_nested_labeled_while_projection()) return 1;
   if (!test_scalar_type_measure_emit_parity()) return 1;
   if (!test_checked_shift_frontend_matrix()) return 1;
   if (!test_checked_shift_binding_interpolation_frontend()) return 1;

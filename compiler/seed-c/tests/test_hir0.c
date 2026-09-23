@@ -9862,6 +9862,86 @@ static bool test_while_break_continue_shared_exit(void) {
   return true;
 }
 
+static bool test_nested_labeled_while_hir_boundary(void) {
+  static const char NESTED_SOURCE[] =
+      "fn walk(limit: i64): i64 {\n"
+      "  var outer = 0\n"
+      "  var inner = 0\n"
+      "  var total = 0\n"
+      "  outerLoop: while outer < limit {\n"
+      "    outer = outer + 1\n"
+      "    inner = 0\n"
+      "    while inner < limit {\n"
+      "      inner = inner + 1\n"
+      "      if inner == 2 { continue }\n"
+      "      if inner == 3 { break }\n"
+      "      if outer == 4 { continue outerLoop }\n"
+      "      if outer == 5 { break outerLoop }\n"
+      "      total = total + 1\n"
+      "    }\n"
+      "  }\n"
+      "  return total\n"
+      "}\nentry(walk)\n";
+  CHECK(fixture_frontend(NESTED_SOURCE));
+  CHECK(fixture.result.status == W_SEED_FRONTEND_OK);
+  setup_hir_output();
+  const w_seed_hir0_input nested_input = hir_input();
+  w_seed_hir0_counts nested_counts;
+  w_seed_hir0_result nested_measure;
+  CHECK(w_seed_hir0_measure(&nested_input, &nested_counts, &nested_measure) ==
+        W_SEED_HIR0_UNSUPPORTED);
+  const uint8_t sentinel = 0x5du;
+  fill_hir_output(sentinel);
+  w_seed_hir0_result rejected;
+  (void)memset(&rejected, 0x47, sizeof(rejected));
+  const w_seed_hir0_result rejected_before = rejected;
+  CHECK(w_seed_hir0_run(&nested_input, &fixture.hir_output, &rejected) ==
+        W_SEED_HIR0_UNSUPPORTED);
+  CHECK(hir_output_is_byte(sentinel) &&
+        memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
+
+  static const char FLAT_SOURCE[] =
+      "fn scan(limit: i64): i64 {\n"
+      "  var index = 0\n"
+      "  var total = 0\n"
+      "  while index < limit {\n"
+      "    index = index + 1\n"
+      "    if index == 2 { continue }\n"
+      "    if index == 5 { break }\n"
+      "    total = total + index\n"
+      "  }\n"
+      "  return total\n"
+      "}\nentry(scan)\n";
+  CHECK(lower(FLAT_SOURCE));
+  uint32_t active_loop = W_SEED_FRONTEND_NONE;
+  uint32_t break_statement = W_SEED_FRONTEND_NONE;
+  for (size_t index = 0u; index < fixture.result.written.statements;
+       index += 1u) {
+    if (fixture.statements[index].kind == W_SEED_FRONTEND_STMT_WHILE)
+      active_loop = (uint32_t)index;
+    if (fixture.statements[index].kind == W_SEED_FRONTEND_STMT_BREAK)
+      break_statement = (uint32_t)index;
+  }
+  CHECK(active_loop != W_SEED_FRONTEND_NONE &&
+        break_statement != W_SEED_FRONTEND_NONE &&
+        fixture.statements[break_statement].transfer_target_statement ==
+            active_loop);
+  const uint32_t saved_target =
+      fixture.statements[break_statement].transfer_target_statement;
+  fixture.statements[break_statement].transfer_target_statement =
+      active_loop + 1u;
+  const w_seed_hir0_input forged_input = hir_input();
+  setup_hir_output();
+  fill_hir_output(sentinel);
+  rejected = rejected_before;
+  CHECK(w_seed_hir0_run(&forged_input, &fixture.hir_output, &rejected) !=
+        W_SEED_HIR0_OK);
+  CHECK(hir_output_is_byte(sentinel) &&
+        memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
+  fixture.statements[break_statement].transfer_target_statement = saved_target;
+  return true;
+}
+
 static bool test_while_multi_carrier_general_values(void) {
   CHECK(lower(
       "fn exchange(limit: i64): i64 {\n"
@@ -20409,6 +20489,7 @@ int main(int argc, char **argv) {
   if (!test_while_multi_carrier_source_order()) return 1;
   if (!test_while_post_loop_continuation_ssa()) return 1;
   if (!test_while_break_continue_shared_exit()) return 1;
+  if (!test_nested_labeled_while_hir_boundary()) return 1;
   if (!test_while_multi_carrier_general_values()) return 1;
   if (!test_while_multi_carrier_native_subset()) return 1;
   if (!test_while_mutation_barriers()) return 1;

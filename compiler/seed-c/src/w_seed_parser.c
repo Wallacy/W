@@ -2638,6 +2638,8 @@ static bool parse_label_statement(w_seed_parser *parser) {
   }
   if (current_is_text(parser, "repeat")) {
     if (!parse_repeat_statement(parser)) return false;
+  } else if (current_is_text(parser, "while")) {
+    if (!parse_while_statement(parser)) return false;
   } else if (current_is_text(parser, "for")) {
     if (!parse_for_statement(parser)) return false;
   } else if (current_is_text(parser, "{")) {

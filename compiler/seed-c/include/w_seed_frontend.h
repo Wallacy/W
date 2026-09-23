@@ -885,6 +885,13 @@ typedef struct {
   /* Append-only effective type of a local binding initializer.  This is
    * distinct from declared_type, which records only a source annotation. */
   uint32_t effective_type;
+  /* Structured while-label facts. The loop owns loop_label; a transfer keeps
+   * its optional source label and the resolved enclosing loop statement. An
+   * unlabeled transfer has an empty transfer_label but still has an explicit
+   * transfer_target_statement. */
+  w_seed_frontend_text loop_label;
+  w_seed_frontend_text transfer_label;
+  uint32_t transfer_target_statement;
 } w_seed_frontend_statement;
 
 typedef enum {

@@ -376,6 +376,38 @@ static bool test_while_shapes(void) {
   CHECK(check_leaf_partition(&transfer_boundary));
   CHECK(check_tree_links(&transfer_boundary));
 
+  fixture labeled;
+  CHECK(fixture_init(
+      &labeled,
+      "fn nested(limit: i64) {\n  outer: while true {\n    while true {\n"
+      "      continue outer\n      break outer\n    }\n  }\n}\n",
+      sizeof(labeled.nodes) / sizeof(labeled.nodes[0]),
+      sizeof(labeled.issues) / sizeof(labeled.issues[0])));
+  CHECK(labeled.result.status == W_SEED_PARSE_COMPLETE &&
+        labeled.result.issue_count == 0u &&
+        count_kind(&labeled, W_SEED_CST_LABEL) == 1u &&
+        count_kind(&labeled, W_SEED_CST_WHILE_STATEMENT) == 2u &&
+        count_kind(&labeled, W_SEED_CST_CONTINUE_STATEMENT) == 1u &&
+        count_kind(&labeled, W_SEED_CST_BREAK_STATEMENT) == 1u &&
+        check_leaf_partition(&labeled) && check_tree_links(&labeled));
+  const w_seed_cst_index labeled_outer =
+      first_kind(&labeled, W_SEED_CST_LABEL);
+  const w_seed_cst_index labeled_outer_while = direct_child_after(
+      &labeled, labeled_outer, W_SEED_CST_WHILE_STATEMENT, 0u);
+  const w_seed_cst_index labeled_outer_body = direct_child_after(
+      &labeled, labeled_outer_while, W_SEED_CST_BLOCK, 0u);
+  CHECK(labeled_outer_while != W_SEED_CST_NONE);
+  CHECK(labeled_outer_body != W_SEED_CST_NONE);
+  CHECK(direct_child_after(&labeled, labeled_outer_body,
+                           W_SEED_CST_WHILE_STATEMENT, 0u) !=
+        W_SEED_CST_NONE);
+  const w_seed_cst_index labeled_continue =
+      first_kind(&labeled, W_SEED_CST_CONTINUE_STATEMENT);
+  const w_seed_cst_index labeled_break =
+      first_kind(&labeled, W_SEED_CST_BREAK_STATEMENT);
+  CHECK(has_direct_text(&labeled, labeled_continue, W_SEED_CST_WORD, "outer"));
+  CHECK(has_direct_text(&labeled, labeled_break, W_SEED_CST_WORD, "outer"));
+
   fixture missing_body;
   CHECK(fixture_init(&missing_body, "fn f(){while true}\n",
                      sizeof(missing_body.nodes) / sizeof(missing_body.nodes[0]),
@@ -481,9 +513,8 @@ static bool test_for_control_recovery(void) {
   CHECK(fixture_init(&unsupported, "fn f(rows:Rows){outer:while rows{}}\n",
                      sizeof(unsupported.nodes) / sizeof(unsupported.nodes[0]),
                      sizeof(unsupported.issues) / sizeof(unsupported.issues[0])));
-  CHECK(unsupported.result.status == W_SEED_PARSE_FATAL);
-  CHECK(unsupported.result.issue_count == 1);
-  CHECK(unsupported.issues[0].kind == W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+  CHECK(unsupported.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(unsupported.result.issue_count == 0u);
   CHECK(check_leaf_partition(&unsupported));
   CHECK(check_tree_links(&unsupported));
 
