@@ -68,6 +68,9 @@ static const char MLIR0_WINDOWS_GLOBAL_MIDDLE[] =
   "    %buffer_zero = llvm.mlir.zero : !llvm.array<4097 x i8>\n"            \
   "    llvm.return %buffer_zero : !llvm.array<4097 x i8>\n"                 \
   "  }\n"
+#define MLIR0_WINDOWS_EXIT_PROCESS_DECL                                    \
+  "  llvm.func @ExitProcess(%code: i32) attributes "                    \
+  "{passthrough = [\"noreturn\"]}\n"
 static const char MLIR0_WINDOWS_BUFFER_GLOBAL[] =
     MLIR0_WINDOWS_BUFFER_GLOBAL_TEXT;
 static const char MLIR0_WINDOWS_GLOBAL_SUFFIX[] =
@@ -75,7 +78,7 @@ static const char MLIR0_WINDOWS_GLOBAL_SUFFIX[] =
     MLIR0_WINDOWS_BUFFER_GLOBAL_TEXT
     "  llvm.func @GetStdHandle(%n: i32) -> !llvm.ptr\n"
     "  llvm.func @WriteFile(%handle: !llvm.ptr, %buffer: !llvm.ptr, %count: i32, %written: !llvm.ptr, %overlapped: !llvm.ptr) -> i32\n"
-    "  llvm.func @ExitProcess(%code: i32)\n"
+    MLIR0_WINDOWS_EXIT_PROCESS_DECL
     "  llvm.func @mainCRTStartup() {\n"
     "    %stdout = llvm.mlir.constant(-11 : i32) : i32\n"
     "    %length = llvm.mlir.constant(";
@@ -111,7 +114,7 @@ static const char MLIR0_WINDOWS_GEP_SUFFIX[] =
 static const char MLIR0_WINDOWS_RUNTIME_HELPER[] =
     "  llvm.func @GetStdHandle(%n: i32) -> !llvm.ptr\n"
     "  llvm.func @WriteFile(%handle: !llvm.ptr, %buffer: !llvm.ptr, %count: i32, %written: !llvm.ptr, %overlapped: !llvm.ptr) -> i32\n"
-    "  llvm.func @ExitProcess(%code: i32)\n"
+    MLIR0_WINDOWS_EXIT_PROCESS_DECL
     "  llvm.func internal @w_seed_write(%buffer: !llvm.ptr, %count: i64) -> i64 {\n"
     "    %write_zero32 = llvm.mlir.constant(0 : i32) : i32\n"
     "    %write_zero64 = llvm.mlir.constant(0 : i64) : i64\n"

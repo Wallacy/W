@@ -1151,6 +1151,10 @@ static bool test_process_float_rounding_native_subset(void) {
                        W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS "\"") &&
         contains_bytes(artifact, result.written.mlir_bytes,
                        "llvm.mlir.global @_fltused(0 : i32) : i32") &&
+        contains_bytes(
+            artifact, result.written.mlir_bytes,
+            "llvm.func @ExitProcess(%code: i32) attributes "
+            "{passthrough = [\"noreturn\"]}\n") &&
         contains_bytes(artifact, result.written.mlir_bytes,
                        "llvm.call @ExitProcess(%process_code)") &&
         contains_bytes(artifact, result.written.mlir_bytes,
@@ -2783,6 +2787,10 @@ static bool test_windows_target_runtime_surface(void) {
   CHECK(contains_bytes(first, counts.mlir_bytes, "@GetStdHandle"));
   CHECK(contains_bytes(first, counts.mlir_bytes, "@WriteFile"));
   CHECK(contains_bytes(first, counts.mlir_bytes, "@ExitProcess"));
+  CHECK(contains_bytes(
+      first, counts.mlir_bytes,
+      "llvm.func @ExitProcess(%code: i32) attributes "
+      "{passthrough = [\"noreturn\"]}\n"));
   CHECK(contains_bytes(first, counts.mlir_bytes, "@mainCRTStartup"));
   CHECK(contains_bytes(first, counts.mlir_bytes, "@w_seed_mlir0_buffer"));
   CHECK(!contains_bytes(first, counts.mlir_bytes, "@_fltused"));
