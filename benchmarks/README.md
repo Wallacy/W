@@ -191,16 +191,18 @@ with `bun run tooling/check-w-run-windows.mjs` and
 
 `hello-platform-minimal` is registered and runner-supported for contextual,
 non-ranking measurement; the catalog status does not make it an idiomatic
-comparison or a language ranking. Its source/oracle registration is not
-evidence that a run has occurred. Until execution cells are published, the
-generated projection marks it `not measured`; `demoEvidence: not-run` remains
-distinct from source/oracle registration. On Linux/WSL, this workload is the
-explicit non-PIE lane: W uses `w build --pie off`, and the existing C23/Rust
-freestanding recipes produce ET_EXEC. Its Windows W route keeps the default
-link mode unchanged.
+comparison or a language ranking. Source/oracle registration alone is not
+evidence that a run has occurred; the catalog now contains current Windows and
+Linux/WSL execution cells for its supported lanes. WSL cells remain
+same-host diagnostics, not native-Linux or cross-host ranking evidence, and
+`demoEvidence` remains separate from measurement status. On Linux/WSL, this
+workload is the explicit non-PIE lane: W uses `w build --pie off`, and the
+existing C23/Rust freestanding recipes produce ET_EXEC. Its Windows W route
+keeps the default link mode unchanged.
 
 `hello-platform-minimal-pie` is a separate Linux/WSL x64 variant using W's
-public `w build` route, freestanding C23, and Rust 2024 `no_std`. The C and Rust
+public `w build` route, freestanding C23, and Rust 2024 `no_std`; its current
+catalog contains measured W/C/Rust contextual lanes. The C and Rust
 recipes use LLD PIE linking with no CRT/libc or dynamic loader. Before runtime
 correctness, the runner checks the final ELF itself for `ET_DYN`, no
 `PT_INTERP`, no `DT_NEEDED`, a `GNU_RELRO` segment, and a `GNU_STACK` segment

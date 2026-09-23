@@ -412,7 +412,7 @@ test("source-local expected-output comments are opt-in and exact", () => {
   }).join("\n"), /case count must match/u);
 });
 
-test("platform-minimal Hello stays a separate correctness-only comparison across supported x64 targets", () => {
+test("platform-minimal Hello retains current contextual measurements across supported x64 targets", () => {
   const workload = documents.catalog.workloads.find((item) => item.id === "hello-platform-minimal");
   assert.ok(workload);
   assert.equal(workload.benchmarkStatus, "contextual-measurement-ready");
@@ -431,9 +431,9 @@ test("platform-minimal Hello stays a separate correctness-only comparison across
   ]);
   assert.ok(workload.sources.every((source) => source.recipeClass === "hello-platform-minimal"));
   const contextualMetrics = documents.catalog.bestMetrics.entries.filter((entry) => entry.workloadId === workload.id);
-  assert.equal(contextualMetrics.length, 30, "the five currently measured lanes retain complete metric sets while W no-PIE awaits a fresh run");
-  assert.equal(contextualMetrics.some((entry) => entry.language === "w" && entry.platformTarget === "linux-wsl-x64"), false,
-    "old W PIE measurements are pruned instead of being relabeled as non-PIE");
+  assert.equal(contextualMetrics.length, 36, "all six supported Windows/WSL lanes retain their complete metric sets");
+  assert.equal(contextualMetrics.filter((entry) => entry.language === "w" && entry.platformTarget === "linux-wsl-x64").length, 6,
+    "the new W non-PIE recipe has a complete fresh metric set");
   assert.ok(contextualMetrics.every((entry) => {
     const source = workload.sources.find((item) => item.language === entry.language && item.platformTarget === entry.platformTarget);
     return source && entry.eligibility === source.eligibility && entry.comparability === source.comparability &&
@@ -449,7 +449,7 @@ test("platform-minimal Hello stays a separate correctness-only comparison across
     source.recipe === "rustc-edition-2024-no-std"));
 });
 
-test("platform-minimal PIE Hello is a distinct Linux/WSL W/C/Rust workload with no copied metrics", () => {
+test("platform-minimal PIE Hello is a distinct measured Linux/WSL W/C/Rust workload", () => {
   const workload = documents.catalog.workloads.find((item) => item.id === "hello-platform-minimal-pie");
   assert.ok(workload);
   assert.equal(workload.benchmarkStatus, "contextual-measurement-ready");
@@ -474,8 +474,12 @@ test("platform-minimal PIE Hello is a distinct Linux/WSL W/C/Rust workload with 
   assert.equal(workload.sources.find((source) => source.language === "w").recipe, "public-w-build-release-pie-on");
   assert.ok(workload.sources.every((source) =>
     source.runtimeClosure.class === "freestanding" && source.eligibility === "same-physical-hardware-diagnostic-only"));
-  assert.equal(documents.catalog.bestMetrics.entries.some((entry) => entry.workloadId === workload.id), false,
-    "size-only observations from an isolated recipe study are not full benchmark rows");
+  const pieMetrics = documents.catalog.bestMetrics.entries.filter((entry) => entry.workloadId === workload.id);
+  assert.equal(pieMetrics.length, 18, "three current WSL lanes retain all six live metric cells");
+  assert.ok(workload.sources.every((source) => pieMetrics.filter((entry) =>
+    entry.language === source.language && entry.platformTarget === source.platformTarget &&
+    entry.recipe === source.recipe && entry.provenance.sourceDigest === source.digest).length === 6),
+  "each live PIE lane is bound to its current recipe and source digest");
 
   const existing = documents.catalog.workloads.find((item) => item.id === "hello-platform-minimal");
   assert.equal(existing.sources.find((source) => source.language === "c" && source.platformTarget === "linux-wsl-x64").recipe, "clang-c23-freestanding");

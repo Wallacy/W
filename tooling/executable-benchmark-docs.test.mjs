@@ -40,13 +40,17 @@ test("generated projection is current, compact, and sourced only from the live c
   assert.match(rendered, /\| Example \| System \/ lane \| Language \| Binary \| Compile p50 \| Execution p50 \| Execution p95 \| CPU mean \| Peak memory \|/u);
   assert.match(rendered, /\| \[hello \(C\)\].*Windows · CRT \| C \|/u);
   assert.match(rendered, /\| \[hello \(W\)\].*Windows · no CRT \| W \|/u);
-  assert.match(rendered, /\| \[hello-platform-minimal-pie \(W\)\]\(\.\/executable\/hello\.w\), \[hello-platform-minimal-pie \(C\)\]\(\.\/executable\/hello_platform_minimal\.c\), \[hello-platform-minimal-pie \(Rust\)\]\(\.\/executable\/hello_platform_minimal\.rs\) \| Not measured \|/u);
-  assert.doesNotMatch(rendered, /^\| \[hello-platform-minimal \(W\)\].*WSL · no CRT · diagnostic \| W \|/mu,
-    "the former W PIE measurements are not projected under the new non-PIE lane before it is measured");
+  for (const language of ["w", "c", "rust"]) {
+    const displayLanguage = language === "w" ? "W" : language === "rust" ? "Rust" : "C";
+    const row = new RegExp(`^\\| \\[hello-platform-minimal-pie \\(${displayLanguage}\\)\\].*WSL · no CRT · diagnostic · PIE \\| ${displayLanguage} \\| [0-9]`, "mu");
+    assert.match(rendered, row, `the current PIE ${language} measurements must be projected`);
+  }
+  assert.match(rendered, /^\| \[hello-platform-minimal \(W\)\].*WSL · no CRT · diagnostic · non-PIE \| W \|/mu,
+    "the new W measurement is clearly labeled as non-PIE");
   assert.match(rendered, /^\| \[hello-platform-minimal \(C\)\].*WSL · no CRT · diagnostic · non-PIE \| C \|/mu,
     "existing freestanding C measurements are clearly labeled as non-PIE");
-  assert.equal(documents.catalog.bestMetrics.entries.some((entry) => entry.workloadId === "hello-platform-minimal-pie"), false,
-    "the PIE study's isolated artifact-size observations are not published as incomplete benchmark cells");
+  assert.equal(documents.catalog.bestMetrics.entries.filter((entry) => entry.workloadId === "hello-platform-minimal-pie").length, 18,
+    "all three measured PIE lanes publish complete current benchmark cells");
   assert.match(rendered, /Toolchain identity and recipe remain lane-specific/u);
   assert.match(rendered, /does not imply one suite-wide compiler version/u);
   const partialWOnly = documents.catalog.workloads.filter((workload) =>

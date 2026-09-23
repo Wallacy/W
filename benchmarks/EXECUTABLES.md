@@ -21,12 +21,15 @@ The timer covers lane runs, result validation, catalog update, and catalog/docum
 | [hello (Rust)](./executable/hello.rs) | Windows · CRT | Rust | 113152 B (110.5 KiB) | 1.0991412 s | 18.0443 ms | 18.7591 ms | 14.232 ms | 4874240 B (4.65 MiB) |
 | [hello (W)](./executable/hello.w) | WSL · no CRT · diagnostic | W | 2096 B (2.0 KiB) | 174.7567 ms | 166.803 µs | 322.492 µs | 82 µs | 671744 B (656.0 KiB) |
 | [hello (W)](./executable/hello.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 203.5045 ms | 16.2744 ms | 17.362 ms | 12.53 ms | 3760128 B (3.59 MiB) |
-| [hello-platform-minimal (C)](./executable/hello_platform_minimal.c) | WSL · no CRT · diagnostic · non-PIE | C | 800 B | 130.4168 ms | 176.71 µs | 2.94452 ms | 158 µs | 675840 B (660.0 KiB) |
+| [hello-platform-minimal (C)](./executable/hello_platform_minimal.c) | WSL · no CRT · diagnostic · non-PIE | C | 800 B | 132.0286 ms | 130.784 µs | 1.549792 ms | 130 µs | 671744 B (656.0 KiB) |
 | [hello-platform-minimal (C)](./executable/hello_platform_minimal.c) | Windows · no CRT · contextual | C | 2048 B (2.0 KiB) | 116.2444 ms | 16.5978 ms | 18.1784 ms | 11.448 ms | 3756032 B (3.58 MiB) |
-| [hello-platform-minimal (Rust)](./executable/hello_platform_minimal.rs) | WSL · no CRT · diagnostic · non-PIE | Rust | 848 B | 162.7392 ms | 130.965 µs | 271.286 µs | 74 µs | 675840 B (660.0 KiB) |
+| [hello-platform-minimal (Rust)](./executable/hello_platform_minimal.rs) | WSL · no CRT · diagnostic · non-PIE | Rust | 848 B | 164.7432 ms | 108.05 µs | 241.255 µs | 34 µs | 671744 B (656.0 KiB) |
 | [hello-platform-minimal (Rust)](./executable/hello_platform_minimal.rs) | Windows · no CRT · contextual | Rust | 2560 B (2.5 KiB) | 161.3827 ms | 16.49 ms | 17.3271 ms | 11.448 ms | 3764224 B (3.59 MiB) |
+| [hello-platform-minimal (W)](./executable/hello.w) | WSL · no CRT · diagnostic · non-PIE | W | 992 B | 223.7607 ms | 140.203 µs | 655.535 µs | 92 µs | 671744 B (656.0 KiB) |
 | [hello-platform-minimal (W)](./executable/hello.w) | Windows · no CRT · contextual | W | 2048 B (2.0 KiB) | 208.9706 ms | 16.8082 ms | 17.6861 ms | 11.912 ms | 3764224 B (3.59 MiB) |
-| [hello-platform-minimal-pie (W)](./executable/hello.w), [hello-platform-minimal-pie (C)](./executable/hello_platform_minimal.c), [hello-platform-minimal-pie (Rust)](./executable/hello_platform_minimal.rs) | Not measured | — | — | — | — | — | — | — |
+| [hello-platform-minimal-pie (C)](./executable/hello_platform_minimal.c) | WSL · no CRT · diagnostic · PIE | C | 1528 B (1.5 KiB) | 157.2877 ms | 163.241 µs | 728.879 µs | 127 µs | 671744 B (656.0 KiB) |
+| [hello-platform-minimal-pie (Rust)](./executable/hello_platform_minimal.rs) | WSL · no CRT · diagnostic · PIE | Rust | 1592 B (1.6 KiB) | 218.3076 ms | 200.139 µs | 1.15979 ms | 166 µs | 671744 B (656.0 KiB) |
+| [hello-platform-minimal-pie (W)](./executable/hello.w) | WSL · no CRT · diagnostic · PIE | W | 1712 B (1.7 KiB) | 241.5936 ms | 188.107 µs | 761.582 µs | 102 µs | 671744 B (656.0 KiB) |
 
 ### Control flow and interpolation
 
