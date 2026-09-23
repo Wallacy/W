@@ -25,7 +25,7 @@ The timer covers lane runs, result validation, catalog update, and catalog/docum
 | [hello-platform-minimal (C)](./executable/hello_platform_minimal.c) | Windows · no CRT · contextual | C | 2048 B (2.0 KiB) | 116.2444 ms | 16.5978 ms | 18.1784 ms | 11.448 ms | 3756032 B (3.58 MiB) |
 | [hello-platform-minimal (Rust)](./executable/hello_platform_minimal.rs) | WSL · no CRT · diagnostic | Rust | 848 B | 162.7392 ms | 130.965 µs | 271.286 µs | 74 µs | 675840 B (660.0 KiB) |
 | [hello-platform-minimal (Rust)](./executable/hello_platform_minimal.rs) | Windows · no CRT · contextual | Rust | 2560 B (2.5 KiB) | 161.3827 ms | 16.49 ms | 17.3271 ms | 11.448 ms | 3764224 B (3.59 MiB) |
-| [hello-platform-minimal (W)](./executable/hello.w) | WSL · no CRT · diagnostic | W | 2096 B (2.0 KiB) | 226.5052 ms | 153.79 µs | 264.911 µs | 84 µs | 675840 B (660.0 KiB) |
+| [hello-platform-minimal (W)](./executable/hello.w) | WSL · no CRT · diagnostic | W | 1824 B (1.8 KiB) | 225.4505 ms | 144.704 µs | 346.005 µs | 56 µs | 675840 B (660.0 KiB) |
 | [hello-platform-minimal (W)](./executable/hello.w) | Windows · no CRT · contextual | W | 2048 B (2.0 KiB) | 208.9706 ms | 16.8082 ms | 17.6861 ms | 11.912 ms | 3764224 B (3.59 MiB) |
 
 ### Control flow and interpolation
