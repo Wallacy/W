@@ -323,9 +323,13 @@ fundamental `i8`–`u64` and `f32`/`f64` scalar path must feed ranks 2–3, but
 not all finish before general functions and CFG advance. A runtime W-389 source
 chosen by `if` exposed the concrete dependency: the current process verifier,
 selector and product closure require a first-block, four-block constant-float
-split. Composing a source branch/join with the three-outcome typed conversion
-belongs with ranks 3 and 7; changing `usize` into `u64` implicitly or treating
-a constant as runtime ingress would not close it. Rank 8 is the explicit C
+split. The frontend currently admits scalar `if` expression arms only for
+`Bool` and signed `i64`, so runtime-selected `f32`/`f64` first needs typed
+frontend and verified-HIR branch/join support. Native selection, product
+closure and MLIR float block-argument emission then require their own bounded
+proof before executable promotion. This composition belongs with ranks 3 and
+7; changing `usize` into `u64` implicitly or treating a constant as runtime
+ingress would not close it. Rank 8 is the explicit C
 systems-reach gate; ranks 9–11 may develop in parallel after their shared
 ownership, error and CFG prerequisites. A thin self-contained compiler
 packaging smoke may begin before rank 13, while signed cross-target
