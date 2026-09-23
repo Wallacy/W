@@ -680,8 +680,11 @@ conversion. Current seed evidence is correctness-only and covers signed and
 unsigned 8/16/32/64-bit integers plus the current x86-64 `Int`/`UInt` aliases.
 `usize`/`isize`, 128-bit integers, target-general alias widths, stable ABI/FFI,
 other targets, and performance remain outside this slice. Integer `exactly:`
-has a separate bounded typed path; `rounding:`, other
-`saturating:` families, and remaining floating conversions remain gaps.
+has a separate bounded typed path. Float-to-integer `rounding:` now has one
+separate CRT-free process witness: a compile-time `f64` source converted to
+`i8` with explicit mode and distinct normal, non-finite, and out-of-range
+outcomes. Runtime float sources, other pairs, general typed process bodies,
+other `saturating:` families, and performance remain gaps.
 
 <!-- w-example role=logical-contract -->
 ```w
@@ -705,9 +708,27 @@ both arms, success exits 0, and unhandled out-of-range exits 1 without implicit
 output. User-defined direct throws, general typed process bodies, and
 performance evidence remain open.
 
+The separate bounded float-rounding process witness declares a conversion and
+uses its result in output; it is not evidence for a runtime-selected float
+source:
+
+<!-- w-example role=logical-contract -->
+```w
+import { Arguments, Context, ExitCode } from std.process
+
+async fn run(args: Arguments, ctx: Context): ExitCode throws NumericConversionError {
+  let rounded = try i8(rounding: 2.5_f64, mode: .nearestEven)
+  print("Rounded ${rounded}")
+  return .success
+}
+
+entry(run) // exit 0; stdout: "Rounded 2\n"
+```
+
 Integer `D(saturating: source)` clamps the mathematical value to the
 destination minimum or maximum and is total. Its integer form accepts no
-`try` or `nan:` label. The example above documents the W-1644 values. The
+`try` or `nan:` label. The earlier `u8(saturating: negative)` and
+`i8(saturating: unsignedSource)` calls document the W-1644 values. The
 current bounded implementation covers every source/destination pair among the
 signed and unsigned 8/16/32/64-bit integers and x86-64 `Int`/`UInt`; the
 compact public witness executes all four signedness quadrants on Windows and
