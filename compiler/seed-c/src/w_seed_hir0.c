@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "w_seed_sha256.h"
+#include "w_seed_hir0_cfg.h"
 
 _Static_assert(CHAR_BIT == 8, "w-seed HIR0 requires 8-bit bytes");
 
@@ -18651,12 +18652,13 @@ static bool hir_enum_subset_case_for_ordinal(
   return *enum_case_index < program->enum_case_count;
 }
 
-static bool verify_value_tree(
+static bool verify_value_tree_with_cfg(
     const w_seed_hir0_program *program, uint32_t root_index,
     w_seed_hir0_value_owner_kind owner_kind, uint32_t owner_index,
     uint32_t owner_ordinal, uint32_t current_block,
     uint32_t current_instruction, size_t source_length, size_t depth,
-    size_t *value_cursor, size_t *segment_cursor, size_t *byte_cursor) {
+    size_t *value_cursor, size_t *segment_cursor, size_t *byte_cursor,
+    const w_seed_hir0_cfg_analysis *cfg_analysis) {
   if (program == NULL || value_cursor == NULL || segment_cursor == NULL ||
       byte_cursor == NULL || depth > 256u ||
       (size_t)root_index >= program->value_count)
@@ -18731,11 +18733,11 @@ static bool verify_value_tree(
           !hir_float_bits_valid(program, value->type_index, exact_bits))
         return false;
     }
-    if (!verify_value_tree(
+    if (!verify_value_tree_with_cfg(
             program, value->left_value,
             W_SEED_HIR0_VALUE_OWNER_NUMERIC_WIDEN, root_index, 0u,
             current_block, current_instruction, source_length, depth + 1u,
-            value_cursor, segment_cursor, byte_cursor) ||
+            value_cursor, segment_cursor, byte_cursor, cfg_analysis) ||
         root_index != *value_cursor)
       return false;
     *value_cursor += 1u;
@@ -18767,11 +18769,11 @@ static bool verify_value_tree(
         !hir_float_bits_conversion_route(program, value->source_type,
                                          value->type_index, value->kind) ||
         program->values[value->left_value].type_index != value->source_type ||
-        !verify_value_tree(
+        !verify_value_tree_with_cfg(
             program, value->left_value,
             W_SEED_HIR0_VALUE_OWNER_FLOAT_BITS_CONVERSION, root_index, 0u,
             current_block, current_instruction, source_length, depth + 1u,
-            value_cursor, segment_cursor, byte_cursor) ||
+            value_cursor, segment_cursor, byte_cursor, cfg_analysis) ||
         root_index != *value_cursor)
       return false;
     *value_cursor += 1u;
@@ -18822,11 +18824,11 @@ static bool verify_value_tree(
           (source_signed != destination_signed &&
            (source_signed || !destination_signed)))) ||
         program->values[value->left_value].type_index != value->source_type ||
-        !verify_value_tree(
+        !verify_value_tree_with_cfg(
             program, value->left_value,
             conversion_owner, root_index, 0u,
             current_block, current_instruction, source_length, depth + 1u,
-            value_cursor, segment_cursor, byte_cursor) ||
+            value_cursor, segment_cursor, byte_cursor, cfg_analysis) ||
         root_index != *value_cursor)
       return false;
     *value_cursor += 1u;
@@ -18894,11 +18896,11 @@ static bool verify_value_tree(
         !hir_text_equal(
             program, value->member_name,
             program->external_symbols[value->external_symbol_index].name) ||
-        !verify_value_tree(
+        !verify_value_tree_with_cfg(
             program, value->left_value,
             W_SEED_HIR0_VALUE_OWNER_EXTERNAL_MEMBER, root_index, 0u,
             current_block, current_instruction, source_length, depth + 1u,
-            value_cursor, segment_cursor, byte_cursor))
+            value_cursor, segment_cursor, byte_cursor, cfg_analysis))
       return false;
     const w_seed_hir0_value *receiver = &program->values[value->left_value];
     if ((size_t)root_index != *value_cursor ||
@@ -18930,11 +18932,11 @@ static bool verify_value_tree(
         value->integer_value != 0 || value->float_bits != 0u ||
         value->bool_value || value->byte_offset != 0u ||
         value->byte_count != 0u ||
-        !verify_value_tree(program, value->left_value,
+        !verify_value_tree_with_cfg(program, value->left_value,
                            W_SEED_HIR0_VALUE_OWNER_TUPLE_ELEMENT, root_index,
                            0u, current_block, current_instruction,
                            source_length, depth + 1u, value_cursor,
-                           segment_cursor, byte_cursor))
+                           segment_cursor, byte_cursor, cfg_analysis))
       return false;
     const w_seed_hir0_value *tuple = &program->values[value->left_value];
     if ((size_t)root_index != *value_cursor ||
@@ -18980,11 +18982,11 @@ static bool verify_value_tree(
           !hir_text_is(program, value->member_name, HIR0_PROCESS_FAILURE) ||
           program->external_symbols[5].parameter_abi !=
               W_SEED_HIR0_EXTERNAL_PARAMETER_PROCESS_FAILURE_I64 ||
-          !verify_value_tree(
+          !verify_value_tree_with_cfg(
               program, value->left_value,
               W_SEED_HIR0_VALUE_OWNER_EXTERNAL_ENUM_CASE, root_index, 0u,
               current_block, current_instruction, source_length, depth + 1u,
-              value_cursor, segment_cursor, byte_cursor))
+              value_cursor, segment_cursor, byte_cursor, cfg_analysis))
         return false;
       const w_seed_hir0_value *payload = &program->values[value->left_value];
       if (payload->kind != W_SEED_HIR0_VALUE_CONST_I64 ||
@@ -19057,11 +19059,12 @@ static bool verify_value_tree(
       if (parameter->owner_case != value->enum_case_index ||
           parameter->ordinal != payload->parameter_ordinal ||
           parameter->type_index != payload->type_index ||
-          !verify_value_tree(
+          !verify_value_tree_with_cfg(
               program, payload->value_index,
               W_SEED_HIR0_VALUE_OWNER_ENUM_PAYLOAD, (uint32_t)payload_index,
               0u, current_block, current_instruction, source_length,
-              depth + 1u, value_cursor, segment_cursor, byte_cursor) ||
+              depth + 1u, value_cursor, segment_cursor, byte_cursor,
+              cfg_analysis) ||
           program->values[payload->value_index].type_index !=
               payload->type_index)
         return false;
@@ -19079,16 +19082,16 @@ static bool verify_value_tree(
         value->left_value == W_SEED_HIR0_NONE ||
         value->right_value == W_SEED_HIR0_NONE ||
         !hir0_usize_count_comparison_operands(program, value) ||
-        !verify_value_tree(program, value->left_value,
+        !verify_value_tree_with_cfg(program, value->left_value,
                            W_SEED_HIR0_VALUE_OWNER_BINARY, root_index, 0u,
                            current_block, current_instruction, source_length,
                            depth + 1u, value_cursor, segment_cursor,
-                           byte_cursor) ||
-        !verify_value_tree(program, value->right_value,
+                           byte_cursor, cfg_analysis) ||
+        !verify_value_tree_with_cfg(program, value->right_value,
                            W_SEED_HIR0_VALUE_OWNER_BINARY, root_index, 1u,
                            current_block, current_instruction, source_length,
                            depth + 1u, value_cursor, segment_cursor,
-                           byte_cursor) ||
+                           byte_cursor, cfg_analysis) ||
         (size_t)root_index != *value_cursor ||
         value->binding_index != W_SEED_HIR0_NONE ||
         value->parameter_index != W_SEED_HIR0_NONE ||
@@ -19113,16 +19116,16 @@ static bool verify_value_tree(
         value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL;
     if (!comparison || value->left_value == W_SEED_HIR0_NONE ||
         value->right_value == W_SEED_HIR0_NONE ||
-        !verify_value_tree(program, value->left_value,
+        !verify_value_tree_with_cfg(program, value->left_value,
                            W_SEED_HIR0_VALUE_OWNER_BINARY, root_index, 0u,
                            current_block, current_instruction, source_length,
                            depth + 1u, value_cursor, segment_cursor,
-                           byte_cursor) ||
-        !verify_value_tree(program, value->right_value,
+                           byte_cursor, cfg_analysis) ||
+        !verify_value_tree_with_cfg(program, value->right_value,
                            W_SEED_HIR0_VALUE_OWNER_BINARY, root_index, 1u,
                            current_block, current_instruction, source_length,
                            depth + 1u, value_cursor, segment_cursor,
-                           byte_cursor) ||
+                           byte_cursor, cfg_analysis) ||
         (size_t)root_index != *value_cursor ||
         value->type_index >= program->type_count ||
         program->types[value->type_index].kind != W_SEED_HIR0_TYPE_BOOL ||
@@ -19160,16 +19163,16 @@ static bool verify_value_tree(
         value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER ||
         value->left_value == W_SEED_HIR0_NONE ||
         value->right_value == W_SEED_HIR0_NONE ||
-        !verify_value_tree(program, value->left_value,
+        !verify_value_tree_with_cfg(program, value->left_value,
                            W_SEED_HIR0_VALUE_OWNER_BINARY, root_index, 0u,
                            current_block, current_instruction, source_length,
                            depth + 1u, value_cursor, segment_cursor,
-                           byte_cursor) ||
-        !verify_value_tree(program, value->right_value,
+                           byte_cursor, cfg_analysis) ||
+        !verify_value_tree_with_cfg(program, value->right_value,
                            W_SEED_HIR0_VALUE_OWNER_BINARY, root_index, 1u,
                            current_block, current_instruction, source_length,
                            depth + 1u, value_cursor, segment_cursor,
-                           byte_cursor) ||
+                           byte_cursor, cfg_analysis) ||
         (size_t)root_index != *value_cursor ||
         !hir_float_type_index_valid(
             program, program->values[value->left_value].type_index) ||
@@ -19200,11 +19203,11 @@ static bool verify_value_tree(
         !hir_float_type_index_valid(program, value->type_index) ||
         value->left_value == W_SEED_HIR0_NONE ||
         value->right_value != W_SEED_HIR0_NONE ||
-        !verify_value_tree(program, value->left_value,
+        !verify_value_tree_with_cfg(program, value->left_value,
                            W_SEED_HIR0_VALUE_OWNER_UNARY, root_index, 0u,
                            current_block, current_instruction, source_length,
                            depth + 1u, value_cursor, segment_cursor,
-                           byte_cursor) ||
+                           byte_cursor, cfg_analysis) ||
         program->values[value->left_value].type_index != value->type_index ||
         (size_t)root_index != *value_cursor ||
         value->binding_index != W_SEED_HIR0_NONE ||
@@ -19329,16 +19332,16 @@ static bool verify_value_tree(
          !wrapping && !rotated) ||
         value->left_value == W_SEED_HIR0_NONE ||
         value->right_value == W_SEED_HIR0_NONE ||
-        !verify_value_tree(program, value->left_value,
+        !verify_value_tree_with_cfg(program, value->left_value,
                            W_SEED_HIR0_VALUE_OWNER_BINARY, root_index, 0u,
                            current_block, current_instruction, source_length,
                            depth + 1u, value_cursor, segment_cursor,
-                           byte_cursor) ||
-        !verify_value_tree(program, value->right_value,
+                           byte_cursor, cfg_analysis) ||
+        !verify_value_tree_with_cfg(program, value->right_value,
                            W_SEED_HIR0_VALUE_OWNER_BINARY, root_index, 1u,
                            current_block, current_instruction, source_length,
                            depth + 1u, value_cursor, segment_cursor,
-                           byte_cursor) ||
+                           byte_cursor, cfg_analysis) ||
         (size_t)root_index != *value_cursor ||
         (policy_shift && !generic_policy_shift_types_ok) ||
         (wrapping && !policy_shift && !generic_wrapping_types_ok) ||
@@ -19489,19 +19492,21 @@ static bool verify_value_tree(
     if (wrapping || overflowing) {
       if (value->left_value == W_SEED_HIR0_NONE ||
           value->left_value >= program->value_count ||
-          !verify_value_tree(program, value->left_value,
-                             W_SEED_HIR0_VALUE_OWNER_BINARY, root_index, 0u,
-                             current_block, current_instruction, source_length,
-                             depth + 1u, value_cursor, segment_cursor,
-                             byte_cursor))
+          !verify_value_tree_with_cfg(program, value->left_value,
+                                     W_SEED_HIR0_VALUE_OWNER_BINARY,
+                                     root_index, 0u, current_block,
+                                     current_instruction, source_length,
+                                     depth + 1u, value_cursor, segment_cursor,
+                                     byte_cursor, cfg_analysis))
         return false;
       if (value->right_value == W_SEED_HIR0_NONE ||
           value->right_value >= program->value_count ||
-          !verify_value_tree(program, value->right_value,
-                             W_SEED_HIR0_VALUE_OWNER_BINARY, root_index, 1u,
-                             current_block, current_instruction, source_length,
-                             depth + 1u, value_cursor, segment_cursor,
-                             byte_cursor))
+          !verify_value_tree_with_cfg(program, value->right_value,
+                                     W_SEED_HIR0_VALUE_OWNER_BINARY,
+                                     root_index, 1u, current_block,
+                                     current_instruction, source_length,
+                                     depth + 1u, value_cursor, segment_cursor,
+                                     byte_cursor, cfg_analysis))
         return false;
       bool result_signed = false;
       uint16_t result_width = 0u;
@@ -19576,16 +19581,16 @@ static bool verify_value_tree(
          !shift_or_power) ||
         value->left_value == W_SEED_HIR0_NONE ||
         value->right_value == W_SEED_HIR0_NONE ||
-        !verify_value_tree(program, value->left_value,
+        !verify_value_tree_with_cfg(program, value->left_value,
                            W_SEED_HIR0_VALUE_OWNER_BINARY, root_index, 0u,
                            current_block, current_instruction, source_length,
                            depth + 1u, value_cursor, segment_cursor,
-                           byte_cursor) ||
-        !verify_value_tree(program, value->right_value,
+                           byte_cursor, cfg_analysis) ||
+        !verify_value_tree_with_cfg(program, value->right_value,
                            W_SEED_HIR0_VALUE_OWNER_BINARY, root_index, 1u,
                            current_block, current_instruction, source_length,
                            depth + 1u, value_cursor, segment_cursor,
-                           byte_cursor) ||
+                           byte_cursor, cfg_analysis) ||
         (size_t)root_index != *value_cursor ||
         !hir_type_index_valid(program, value->type_index) ||
         !hir_type_index_valid(program,
@@ -19635,10 +19640,11 @@ static bool verify_value_tree(
         value->block_argument_index != W_SEED_HIR0_NONE ||
         value->integer_value != 0 || value->bool_value ||
         value->byte_offset != 0u || value->byte_count != 0u ||
-        !verify_value_tree(
+        !verify_value_tree_with_cfg(
             program, value->left_value, W_SEED_HIR0_VALUE_OWNER_UNARY,
             root_index, 0u, current_block, current_instruction, source_length,
-            depth + 1u, value_cursor, segment_cursor, byte_cursor) ||
+            depth + 1u, value_cursor, segment_cursor, byte_cursor,
+            cfg_analysis) ||
         (size_t)root_index != *value_cursor ||
         program->values[value->left_value].type_index != 3u)
       return false;
@@ -19689,10 +19695,11 @@ static bool verify_value_tree(
         value->block_argument_index != W_SEED_HIR0_NONE ||
         value->integer_value != 0 || value->bool_value ||
         value->byte_offset != 0u || value->byte_count != 0u ||
-        !verify_value_tree(
+        !verify_value_tree_with_cfg(
             program, value->left_value, W_SEED_HIR0_VALUE_OWNER_UNARY,
             root_index, 0u, current_block, current_instruction, source_length,
-            depth + 1u, value_cursor, segment_cursor, byte_cursor) ||
+            depth + 1u, value_cursor, segment_cursor, byte_cursor,
+            cfg_analysis) ||
         (size_t)root_index != *value_cursor ||
         (bit_reversal && !generic_signed_bit_reversal) ||
         (!generic_wrapping && ordinary_signed_integer &&
@@ -19788,10 +19795,11 @@ static bool verify_value_tree(
         value->block_argument_index != W_SEED_HIR0_NONE ||
         value->integer_value != 0 || value->bool_value ||
         value->byte_offset != 0u || value->byte_count != 0u ||
-        !verify_value_tree(
+        !verify_value_tree_with_cfg(
             program, value->left_value, W_SEED_HIR0_VALUE_OWNER_UNARY,
             root_index, 0u, current_block, current_instruction, source_length,
-            depth + 1u, value_cursor, segment_cursor, byte_cursor) ||
+            depth + 1u, value_cursor, segment_cursor, byte_cursor,
+            cfg_analysis) ||
         (size_t)root_index != *value_cursor ||
         (!generic_wrapping && !generic_unsigned_bit_not &&
          !generic_unsigned_bit_operation &&
@@ -19831,14 +19839,31 @@ static bool verify_value_tree(
             : NULL;
     const bool local_argument =
         argument != NULL && argument->owner_block == current_block;
+    w_seed_hir0_cfg_loop cfg_loop;
+    const bool cfg_loop_header_argument =
+        argument != NULL && cfg_analysis != NULL &&
+        argument->owner_block < program->block_count &&
+        cfg_analysis->function_index ==
+            program->blocks[argument->owner_block].owner_function &&
+        w_seed_hir0_cfg_loop_for_header(cfg_analysis,
+                                        argument->owner_block, &cfg_loop);
+    const bool cfg_dominated_loop_argument =
+        cfg_loop_header_argument && current_block < program->block_count &&
+        cfg_analysis->function_index ==
+            program->blocks[current_block].owner_function &&
+        w_seed_hir0_cfg_dominates(cfg_analysis, argument->owner_block,
+                                  current_block);
     const bool loop_argument =
         argument != NULL &&
-        natural_loop_header_dominates(program, argument->owner_block,
-                                      current_block);
+        (cfg_dominated_loop_argument ||
+         natural_loop_header_dominates(program, argument->owner_block,
+                                       current_block));
     const bool loop_header_argument =
-        argument != NULL && argument->owner_block + 1u < program->block_count &&
-        natural_loop_header_dominates(program, argument->owner_block,
-                                      argument->owner_block + 1u);
+        cfg_loop_header_argument ||
+        (argument != NULL &&
+         (size_t)argument->owner_block + 1u < program->block_count &&
+         natural_loop_header_dominates(program, argument->owner_block,
+                                       argument->owner_block + 1u));
     size_t control_loop_header = 0u;
     size_t control_loop_body = 0u;
     size_t control_loop_adapter = 0u;
@@ -19904,12 +19929,12 @@ static bool verify_value_tree(
           return false;
       } else if (segment->kind == W_SEED_HIR0_INTERPOLATION_VALUE) {
         if (segment->byte_offset != 0u || segment->byte_count != 0u ||
-            !verify_value_tree(
+            !verify_value_tree_with_cfg(
                 program, segment->value_index,
                 W_SEED_HIR0_VALUE_OWNER_INTERPOLATION_SEGMENT,
                 (uint32_t)index, 0u, current_block, current_instruction,
                 source_length, depth + 1u, value_cursor, segment_cursor,
-                byte_cursor))
+                byte_cursor, cfg_analysis))
           return false;
       } else {
         return false;
@@ -19982,6 +20007,11 @@ static bool verify_value_tree(
         binding->owner_block == current_block
             ? binding->owner_instruction < current_instruction
             : binding->owner_block == function->first_block ||
+                  (cfg_analysis != NULL &&
+                   cfg_analysis->function_index == use_block->owner_function &&
+                   w_seed_hir0_cfg_dominates(cfg_analysis,
+                                             binding->owner_block,
+                                             current_block)) ||
                   natural_loop_exit_binding_available(
                       program, (uint32_t)current_block,
                       binding->owner_block);
@@ -20072,6 +20102,39 @@ static bool verify_value_tree(
   }
   *value_cursor += 1u;
   return true;
+}
+
+static bool verify_value_tree(
+    const w_seed_hir0_program *program, uint32_t root_index,
+    w_seed_hir0_value_owner_kind owner_kind, uint32_t owner_index,
+    uint32_t owner_ordinal, uint32_t current_block,
+    uint32_t current_instruction, size_t source_length, size_t depth,
+    size_t *value_cursor, size_t *segment_cursor, size_t *byte_cursor) {
+  return verify_value_tree_with_cfg(
+      program, root_index, owner_kind, owner_index, owner_ordinal,
+      current_block, current_instruction, source_length, depth, value_cursor,
+      segment_cursor, byte_cursor, NULL);
+}
+
+/* Keep the legacy specialized path explicit when no generic CFG analysis is
+ * available. Recursive validation above always propagates the selected
+ * analysis directly. */
+static bool verify_value_tree_for_analysis(
+    const w_seed_hir0_program *program, uint32_t root_index,
+    w_seed_hir0_value_owner_kind owner_kind, uint32_t owner_index,
+    uint32_t owner_ordinal, uint32_t current_block,
+    uint32_t current_instruction, size_t source_length, size_t depth,
+    size_t *value_cursor, size_t *segment_cursor, size_t *byte_cursor,
+    const w_seed_hir0_cfg_analysis *cfg_analysis) {
+  if (cfg_analysis == NULL)
+    return verify_value_tree(
+        program, root_index, owner_kind, owner_index, owner_ordinal,
+        current_block, current_instruction, source_length, depth, value_cursor,
+        segment_cursor, byte_cursor);
+  return verify_value_tree_with_cfg(
+      program, root_index, owner_kind, owner_index, owner_ordinal,
+      current_block, current_instruction, source_length, depth, value_cursor,
+      segment_cursor, byte_cursor, cfg_analysis);
 }
 
 /* The block range is a structured layout proof. A branch starts its true arm
@@ -24507,6 +24570,44 @@ static bool hir0_physical_task_scope(const w_seed_hir0_program *program) {
                             process_prelude_bindings == 1u));
 }
 
+typedef struct {
+  size_t function_index;
+  bool attempted;
+  bool available;
+  w_seed_hir0_cfg_analysis analysis;
+} hir0_cfg_analysis_cache;
+
+static bool cfg_analysis_covers_all_blocks(
+    const w_seed_hir0_cfg_analysis *analysis) {
+  if (analysis == NULL || analysis->block_count == 0u ||
+      analysis->block_count > W_SEED_HIR0_CFG_MAX_BLOCKS)
+    return false;
+  const uint64_t all_blocks =
+      analysis->block_count == W_SEED_HIR0_CFG_MAX_BLOCKS
+          ? UINT64_MAX
+          : (UINT64_C(1) << analysis->block_count) - UINT64_C(1);
+  return analysis->reachable_blocks == all_blocks;
+}
+
+/* Verification walks instructions and terminators in function order. Keep a
+ * caller-owned one-function cache so recursive value checks do not rerun the
+ * graph analysis per value. The cache is refreshed once per function in each
+ * pass; unsupported terminators and unreachable graphs retain legacy checks. */
+static const w_seed_hir0_cfg_analysis *cfg_analysis_for_function(
+    const w_seed_hir0_program *program, size_t function_index,
+    hir0_cfg_analysis_cache *cache) {
+  if (program == NULL || cache == NULL) return NULL;
+  if (!cache->attempted || cache->function_index != function_index) {
+    cache->function_index = function_index;
+    cache->attempted = true;
+    cache->available =
+        function_index < program->function_count &&
+        w_seed_hir0_cfg_analyze(program, function_index, &cache->analysis) &&
+        cfg_analysis_covers_all_blocks(&cache->analysis);
+  }
+  return cache->available ? &cache->analysis : NULL;
+}
+
 static bool verify_records(const w_seed_hir0_program *program) {
   const bool has_external_process =
       program != NULL && program->external_module_count != 0u;
@@ -25113,20 +25214,26 @@ static bool verify_records(const w_seed_hir0_program *program) {
   size_t switch_capture_cursor = 0u;
   size_t integer_exactly_terminator_count = 0u;
   size_t rounding_terminator_count = 0u;
+  hir0_cfg_analysis_cache cfg_cache = {0};
   for (size_t instruction = 0u; instruction < program->instruction_count;
        instruction += 1u) {
     const w_seed_hir0_instruction *item = &program->instructions[instruction];
+    const size_t owner_function_index =
+        program->blocks[item->owner_block].owner_function;
+    const w_seed_hir0_cfg_analysis *cfg_analysis =
+        cfg_analysis_for_function(program, owner_function_index, &cfg_cache);
     if (item->kind == W_SEED_HIR0_INSTRUCTION_BINDING) {
       const w_seed_hir0_binding *binding =
           &program->bindings[item->binding_index];
-      const size_t function = program->blocks[item->owner_block].owner_function;
-      const size_t module = program->functions[function].module_index;
-      if (!verify_value_tree(
+      const size_t module =
+          program->functions[owner_function_index].module_index;
+      if (!verify_value_tree_for_analysis(
               program, binding->initializer_value,
               W_SEED_HIR0_VALUE_OWNER_BINDING, item->binding_index, 0u,
               item->owner_block, (uint32_t)instruction,
               program->modules[module].source_length, 0u, &value_cursor,
-              &interpolation_segment_cursor, &value_byte_cursor))
+              &interpolation_segment_cursor, &value_byte_cursor,
+              cfg_analysis))
         return false;
       const w_seed_hir0_value *initializer =
           &program->values[binding->initializer_value];
@@ -25141,15 +25248,16 @@ static bool verify_records(const w_seed_hir0_program *program) {
          argument += 1u) {
       const w_seed_hir0_argument *call_argument =
           &program->arguments[(size_t)call->first_argument + argument];
-      const size_t function = program->blocks[item->owner_block].owner_function;
-      const size_t module = program->functions[function].module_index;
-      if (!verify_value_tree(
+      const size_t module =
+          program->functions[owner_function_index].module_index;
+      if (!verify_value_tree_for_analysis(
               program, call_argument->value_index,
               W_SEED_HIR0_VALUE_OWNER_ARGUMENT,
               (uint32_t)((size_t)call->first_argument + argument), 0u,
               item->owner_block, (uint32_t)instruction,
               program->modules[module].source_length, 0u, &value_cursor,
-              &interpolation_segment_cursor, &value_byte_cursor))
+              &interpolation_segment_cursor, &value_byte_cursor,
+              cfg_analysis))
         return false;
       const w_seed_hir0_value *root =
           &program->values[call_argument->value_index];
@@ -25166,6 +25274,11 @@ static bool verify_records(const w_seed_hir0_program *program) {
             binding->owner_block == item->owner_block
                 ? binding->owner_instruction < call->owner_instruction
                 : binding->owner_block == owner_function->first_block ||
+                      (cfg_analysis != NULL &&
+                       cfg_analysis->function_index == owner_function_index &&
+                       w_seed_hir0_cfg_dominates(
+                           cfg_analysis, binding->owner_block,
+                           item->owner_block)) ||
                       natural_loop_exit_binding_available(
                           program, item->owner_block,
                           binding->owner_block);
@@ -25182,6 +25295,8 @@ static bool verify_records(const w_seed_hir0_program *program) {
     const w_seed_hir0_terminator *value = &program->terminators[terminator];
     const w_seed_hir0_block *block = &program->blocks[terminator];
     const uint32_t function = block->owner_function;
+    const w_seed_hir0_cfg_analysis *cfg_analysis =
+        cfg_analysis_for_function(program, function, &cfg_cache);
     const size_t source_length =
         program->modules[program->functions[function].module_index]
             .source_length;
@@ -25277,14 +25392,15 @@ static bool verify_records(const w_seed_hir0_program *program) {
           value->panic_code != W_SEED_HIR0_PANIC_CODE_INVALID ||
           value->numeric_conversion_error_case !=
               W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_OUT_OF_RANGE ||
-          !verify_value_tree(
+          !verify_value_tree_for_analysis(
               program, value->value_index,
               W_SEED_HIR0_VALUE_OWNER_TERMINATOR, (uint32_t)terminator, 0u,
               (uint32_t)terminator,
               (uint32_t)((size_t)block->first_instruction +
                          block->instruction_count),
               source_length, 0u, &value_cursor,
-              &interpolation_segment_cursor, &value_byte_cursor) ||
+              &interpolation_segment_cursor, &value_byte_cursor,
+              cfg_analysis) ||
           (!hir_integer_type_facts(
                program, program->values[value->value_index].type_index,
                &source_signed, &source_width) &&
@@ -25341,14 +25457,15 @@ static bool verify_records(const w_seed_hir0_program *program) {
               W_SEED_HIR0_NUMERIC_CONVERSION_ERROR_NONE || !mode_valid ||
           !hir_float_type_index_valid(
               program, program->values[value->value_index].type_index) ||
-          !verify_value_tree(
+          !verify_value_tree_for_analysis(
               program, value->value_index,
               W_SEED_HIR0_VALUE_OWNER_TERMINATOR, (uint32_t)terminator, 0u,
               (uint32_t)terminator,
               (uint32_t)((size_t)block->first_instruction +
                          block->instruction_count),
               source_length, 0u, &value_cursor,
-              &interpolation_segment_cursor, &value_byte_cursor))
+              &interpolation_segment_cursor, &value_byte_cursor,
+              cfg_analysis))
         return false;
       (void)destination_signed;
       (void)destination_width;
@@ -25373,14 +25490,15 @@ static bool verify_records(const w_seed_hir0_program *program) {
           value->first_switch_edge != W_SEED_HIR0_NONE ||
           value->switch_edge_count != 0u ||
           value->switch_carrier_width != 0u ||
-          !verify_value_tree(
+          !verify_value_tree_for_analysis(
               program, value->value_index,
               W_SEED_HIR0_VALUE_OWNER_TERMINATOR, (uint32_t)terminator, 0u,
               (uint32_t)terminator,
               (uint32_t)((size_t)block->first_instruction +
                          block->instruction_count),
               source_length, 0u, &value_cursor,
-              &interpolation_segment_cursor, &value_byte_cursor) ||
+              &interpolation_segment_cursor, &value_byte_cursor,
+              cfg_analysis) ||
           program->values[value->value_index].kind !=
               W_SEED_HIR0_VALUE_CONST_STRING ||
           program->values[value->value_index].type_index != 1u ||
@@ -25406,14 +25524,15 @@ static bool verify_records(const w_seed_hir0_program *program) {
           program->blocks[value->target_block].owner_function != function ||
           program->blocks[value->else_block].owner_function != function ||
           value->target_block == value->else_block ||
-          !verify_value_tree(
+          !verify_value_tree_for_analysis(
               program, value->value_index,
               W_SEED_HIR0_VALUE_OWNER_TERMINATOR, (uint32_t)terminator, 0u,
               (uint32_t)terminator,
               (uint32_t)((size_t)block->first_instruction +
                          block->instruction_count),
               source_length, 0u, &value_cursor,
-              &interpolation_segment_cursor, &value_byte_cursor) ||
+              &interpolation_segment_cursor, &value_byte_cursor,
+              cfg_analysis) ||
           program->values[value->value_index].type_index != 3u)
         return false;
       continue;
@@ -25439,14 +25558,15 @@ static bool verify_records(const w_seed_hir0_program *program) {
           !hir_type_index_valid(program, enum_type) ||
           program->types[enum_type].kind != W_SEED_HIR0_TYPE_ENUM ||
           program->types[enum_type].enum_index != value->switch_enum_index ||
-          !verify_value_tree(
+          !verify_value_tree_for_analysis(
               program, value->value_index,
               W_SEED_HIR0_VALUE_OWNER_TERMINATOR, (uint32_t)terminator, 0u,
               (uint32_t)terminator,
               (uint32_t)((size_t)block->first_instruction +
                          block->instruction_count),
               source_length, 0u, &value_cursor,
-              &interpolation_segment_cursor, &value_byte_cursor) ||
+              &interpolation_segment_cursor, &value_byte_cursor,
+              cfg_analysis) ||
           program->values[value->value_index].type_index >= program->type_count)
         return false;
       const uint32_t subject_type_index =
@@ -25568,14 +25688,15 @@ static bool verify_records(const w_seed_hir0_program *program) {
                 program->block_arguments[(size_t)target->first_block_argument +
                                          ordinal]
                     .type_index ||
-            !verify_value_tree(
+            !verify_value_tree_for_analysis(
                 program, edge->value_index,
                 W_SEED_HIR0_VALUE_OWNER_TERMINATOR, (uint32_t)terminator,
                 (uint32_t)ordinal, (uint32_t)terminator,
                 (uint32_t)((size_t)block->first_instruction +
                            block->instruction_count),
                 source_length, 0u, &value_cursor,
-                &interpolation_segment_cursor, &value_byte_cursor) ||
+                &interpolation_segment_cursor, &value_byte_cursor,
+                cfg_analysis) ||
             program->values[edge->value_index].type_index != edge->type_index)
           return false;
       }
@@ -25602,14 +25723,15 @@ static bool verify_records(const w_seed_hir0_program *program) {
           value->else_block != W_SEED_HIR0_NONE ||
           value->first_edge_argument != W_SEED_HIR0_NONE ||
           value->edge_argument_count != 0u ||
-          !verify_value_tree(
+          !verify_value_tree_for_analysis(
               program, value->value_index,
               W_SEED_HIR0_VALUE_OWNER_TERMINATOR, (uint32_t)terminator, 0u,
               (uint32_t)terminator,
               (uint32_t)((size_t)block->first_instruction +
                          block->instruction_count),
               source_length, 0u, &value_cursor,
-              &interpolation_segment_cursor, &value_byte_cursor) ||
+              &interpolation_segment_cursor, &value_byte_cursor,
+              cfg_analysis) ||
           !hir_type_assignable(program,
                                program->values[value->value_index].type_index,
                                owner->error_type))
@@ -25632,14 +25754,15 @@ static bool verify_records(const w_seed_hir0_program *program) {
         value->edge_argument_count != 0u) {
       return false;
     }
-    if (!verify_value_tree(
+    if (!verify_value_tree_for_analysis(
             program, value->value_index,
             W_SEED_HIR0_VALUE_OWNER_TERMINATOR, (uint32_t)terminator, 0u,
             (uint32_t)terminator,
             (uint32_t)((size_t)block->first_instruction +
                        block->instruction_count),
             source_length, 0u, &value_cursor,
-            &interpolation_segment_cursor, &value_byte_cursor)) {
+            &interpolation_segment_cursor, &value_byte_cursor,
+            cfg_analysis)) {
       return false;
     }
     if (!hir_type_assignable(program,

@@ -342,6 +342,11 @@ order:
 Each lane should produce one useful family-level result, not a new executable
 for every operator or width. The principal integrates in dependency order,
 reviews the combined diff, and runs only gates whose relevant inputs changed.
+Disjoint file ownership is insufficient when two lanes rebuild the shared
+compiler library: a lane needing reproducible measurements must use an
+isolated worktree or an immutable pinned source snapshot as well as its own
+build directory. Do not compare an artifact compiled across transient edits
+from another lane.
 An executor may finish with a documented blocker; that is not a reason to
 manufacture a passing product claim or keep it polling.
 Graph validity alone cannot attest that a same-typed jump to an ancestor loop
@@ -352,6 +357,11 @@ availability or source equivalence by itself.
 The graph helper has `compiler-lifecycle` benchmark disposition: measure its
 verification cost when integrated, without adding a separate executable
 performance row for an internal analysis.
+The verifier now caches that analysis once per function while checking values:
+dominance can justify a binding read across branches, and analyzed loop headers
+can justify their carrier reads. This is preparatory only; general CFG
+acceptance, typed nested-loop carriers, and a source-backed native nested-loop
+witness remain open.
 
 Ranks order the next integration proof, not a prohibition on parallel work. The
 fundamental `i8`–`u64` and `f32`/`f64` scalar path must feed ranks 2–3, but

@@ -14414,6 +14414,73 @@ static bool test_if_diamond_cfg(void) {
   CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
   fixture.hir_blocks[1] = saved_then_block;
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  /* The arm and false-target blocks have the same owner and carrier shape.
+   * Re-sealing makes this a structural wrong-target mutation, not a digest
+   * rejection. */
+  CHECK(program->blocks[1].block_argument_count ==
+        program->blocks[2].block_argument_count);
+  fixture.hir_terminators[1].target_block = 2u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[1] = saved_then;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
+static bool test_cfg_dominance_after_non_header_branch(void) {
+  static const char SOURCE[] =
+      "fn identity(value: i64): i64 { return value }\n"
+      "fn choose(condition: Bool, inner: Bool, input: i64): i64 { "
+      "if condition { let selected = input + 1 "
+      "if inner { return selected + identity(value: selected) } "
+      "else { return selected + identity(value: selected) } } "
+      "else { return input } }\n"
+      "entry(choose)\n";
+  CHECK(lower(SOURCE));
+  w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 2u && program->block_count == 6u &&
+        program->call_count == 2u &&
+        program->binding_count == 1u &&
+        program->functions[0].block_count == 1u &&
+        program->functions[1].block_count == 5u &&
+        program->terminators[1].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[2].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[3].kind ==
+            W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        program->terminators[4].kind ==
+            W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        program->terminators[5].kind ==
+            W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        program->values[program->terminators[3].value_index].kind ==
+            W_SEED_HIR0_VALUE_BINARY_I64 &&
+        program->values[program->terminators[4].value_index].kind ==
+            W_SEED_HIR0_VALUE_BINARY_I64);
+  const uint32_t dominator_block = program->bindings[0].owner_block;
+  CHECK(dominator_block == 2u &&
+        program->blocks[dominator_block].instruction_count == 1u);
+
+  w_seed_hir0_cfg_analysis analysis;
+  CHECK(w_seed_hir0_cfg_analyze(program, 1u, &analysis));
+  CHECK(analysis.loop_count == 0u &&
+        analysis.reachable_blocks == UINT64_C(0x1f) &&
+        w_seed_hir0_cfg_dominates(&analysis, dominator_block, 3u) &&
+        w_seed_hir0_cfg_dominates(&analysis, dominator_block, 4u) &&
+        !w_seed_hir0_cfg_dominates(&analysis, dominator_block, 5u));
+  for (size_t call_index = 0u; call_index < program->call_count;
+       call_index += 1u) {
+    const w_seed_hir0_call *call = &program->calls[call_index];
+    CHECK(call->argument_count == 1u &&
+          call->first_argument < program->argument_count);
+    const uint32_t value_index =
+        program->arguments[call->first_argument].value_index;
+    CHECK(value_index < program->value_count &&
+          program->values[value_index].kind ==
+              W_SEED_HIR0_VALUE_BINDING_READ &&
+          program->values[value_index].binding_index == 0u);
+  }
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
   return true;
 }
 
@@ -20524,6 +20591,7 @@ int main(int argc, char **argv) {
   if (!test_scalar_if_f32_value_diamond()) return 1;
   if (!test_nested_scalar_if_value_diamond()) return 1;
   if (!test_if_diamond_cfg()) return 1;
+  if (!test_cfg_dominance_after_non_header_branch()) return 1;
   if (!test_if_without_else_cfg()) return 1;
   if (!test_terminal_return_ladder_cfg()) return 1;
   if (!test_sequential_if_diamonds()) return 1;
