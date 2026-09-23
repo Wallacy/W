@@ -34,18 +34,45 @@ typedef struct {
   uint32_t first_statement;
   uint32_t root_statements[HIR0_MAX_BRANCH_ASSIGNMENTS];
   uint32_t root_type_indices[HIR0_MAX_BRANCH_ASSIGNMENTS];
+  uint32_t root_source_ordinals[HIR0_MAX_BRANCH_ASSIGNMENTS];
+  uint32_t root_update_counts[HIR0_MAX_BRANCH_ASSIGNMENTS];
+  uint32_t root_first_update_statements[HIR0_MAX_BRANCH_ASSIGNMENTS];
+  uint32_t root_last_update_statements[HIR0_MAX_BRANCH_ASSIGNMENTS];
+  uint32_t edge_lane_ordinals[HIR0_MAX_BRANCH_ASSIGNMENTS];
   size_t root_count;
   size_t transfer_count;
+  size_t break_count;
+  size_t continue_count;
   size_t depth;
+  size_t preheader_block;
+  size_t header_block;
+  size_t body_first_block;
+  size_t body_last_block;
+  size_t exit_adapter_block;
+  size_t exit_block;
+  size_t preheader_edge_target_block;
+  size_t condition_true_edge_target_block;
+  size_t condition_false_edge_target_block;
+  size_t backedge_edge_target_block;
+  size_t break_edge_target_block;
+  size_t continue_edge_target_block;
+  size_t exit_adapter_edge_target_block;
+  size_t planned_header_carriers;
+  size_t planned_exit_carriers;
+  size_t planned_block_arguments;
+  size_t planned_edge_arguments;
 } hir0_cfg_loop_frame;
 
 /* Source-derived per-function CFG facts are shared by measure() and the
- * emission passes. The current writer consumes a single flat frame; keeping
- * frame identity and parentage explicit is the prerequisite for admitting a
- * nested graph without guessing transfer destinations from block order. */
+ * emission passes. Nested-loop frames also carry a private, independently
+ * checked layout contract; public HIR emission remains closed until its
+ * verifier can prove the resulting graph. */
 typedef struct {
   size_t function_index;
   size_t block_count;
+  size_t loop_block_argument_count;
+  size_t loop_edge_argument_count;
+  size_t loop_source_version_count;
   size_t frame_count;
   size_t maximum_depth;
   bool nested_or_multiple;
@@ -55,6 +82,11 @@ typedef struct {
 static bool hir0_function_cfg_plan_build(
     const w_seed_hir0_input *input, size_t function_index,
     hir0_function_cfg_plan *plan);
+static bool hir0_cfg_plan_emission_verify(
+    const w_seed_hir0_input *input,
+    const hir0_function_cfg_plan *plan);
+static bool hir0_cfg_plan_emission_build(
+    const w_seed_hir0_input *input, hir0_function_cfg_plan *plan);
 
 static const char HIR0_UNIT_NAME[] = "()";
 static const char HIR0_STRING_NAME[] = "String";
@@ -11217,13 +11249,23 @@ static size_t hir0_region_loop_exit_adapter_count(
          guard < context->frontend_result->written.statements) {
     const w_seed_frontend_statement *statement =
         &context->frontend->statements[cursor];
-    if (statement->kind == W_SEED_FRONTEND_STMT_WHILE &&
-        hir0_chain_has_loop_control(context, statement->first_child,
-                                    depth + 1u)) {
-      if (total == SIZE_MAX) return 0u;
-      total += 1u;
-    }
-    if (statement->kind == W_SEED_FRONTEND_STMT_IF) {
+    if (statement->kind == W_SEED_FRONTEND_STMT_WHILE) {
+      const hir0_cfg_loop_frame *frame =
+          hir0_cfg_plan_frame_for_statement(context->cfg_plan, cursor);
+      const bool has_transfer =
+          frame != NULL
+              ? frame->transfer_count != 0u
+              : hir0_chain_has_loop_control(context, statement->first_child,
+                                            depth + 1u);
+      if (has_transfer) {
+        if (total == SIZE_MAX) return 0u;
+        total += 1u;
+      }
+      const size_t body_total = hir0_region_loop_exit_adapter_count(
+          context, statement->first_child, depth + 1u);
+      if (total > SIZE_MAX - body_total) return 0u;
+      total += body_total;
+    } else if (statement->kind == W_SEED_FRONTEND_STMT_IF) {
       const size_t then_total = hir0_region_loop_exit_adapter_count(
           context, statement->first_child, depth + 1u);
       const size_t else_total = hir0_region_loop_exit_adapter_count(
@@ -11549,9 +11591,33 @@ static bool hir0_cfg_plan_walk_chain(
           .first_statement = statement->first_child,
           .root_statements = {0u},
           .root_type_indices = {0u},
+          .root_source_ordinals = {0u},
+          .root_update_counts = {0u},
+          .root_first_update_statements = {0u},
+          .root_last_update_statements = {0u},
+          .edge_lane_ordinals = {0u},
           .root_count = 0u,
           .transfer_count = 0u,
-          .depth = active_frame_count + 1u};
+          .break_count = 0u,
+          .continue_count = 0u,
+          .depth = active_frame_count + 1u,
+          .preheader_block = SIZE_MAX,
+          .header_block = SIZE_MAX,
+          .body_first_block = SIZE_MAX,
+          .body_last_block = SIZE_MAX,
+          .exit_adapter_block = SIZE_MAX,
+          .exit_block = SIZE_MAX,
+          .preheader_edge_target_block = SIZE_MAX,
+          .condition_true_edge_target_block = SIZE_MAX,
+          .condition_false_edge_target_block = SIZE_MAX,
+          .backedge_edge_target_block = SIZE_MAX,
+          .break_edge_target_block = SIZE_MAX,
+          .continue_edge_target_block = SIZE_MAX,
+          .exit_adapter_edge_target_block = SIZE_MAX,
+          .planned_header_carriers = 0u,
+          .planned_exit_carriers = 0u,
+          .planned_block_arguments = 0u,
+          .planned_edge_arguments = 0u};
       plan->frame_count += 1u;
       if (frame->depth > plan->maximum_depth)
         plan->maximum_depth = frame->depth;
@@ -11599,6 +11665,79 @@ static bool hir0_cfg_plan_walk_chain(
       if (plan->frames[target_frame_index].transfer_count == SIZE_MAX)
         return false;
       plan->frames[target_frame_index].transfer_count += 1u;
+      size_t *kind_count =
+          statement->kind == W_SEED_FRONTEND_STMT_BREAK
+              ? &plan->frames[target_frame_index].break_count
+              : &plan->frames[target_frame_index].continue_count;
+      if (*kind_count == SIZE_MAX) return false;
+      *kind_count += 1u;
+    }
+    cursor = statement->next_sibling;
+    guard += 1u;
+  }
+  return cursor == W_SEED_FRONTEND_NONE;
+}
+
+/* Retain a compact, source-ordered witness for each carrier's binding-version
+ * chain. The source tree remains canonical; emission later reconstructs every
+ * intermediate version from these statement identities and the same source
+ * order rather than inferring a lane from its i64 type. */
+static bool hir0_cfg_plan_collect_versions_chain(
+    const hir0_emit_context *context, hir0_cfg_loop_frame *frame,
+    uint32_t first_statement, size_t depth) {
+  if (context == NULL || context->frontend == NULL ||
+      context->frontend_result == NULL || frame == NULL ||
+      depth > W_SEED_HIR0_MAX_NESTING)
+    return false;
+  uint32_t cursor = first_statement;
+  size_t guard = 0u;
+  while (cursor != W_SEED_FRONTEND_NONE &&
+         guard < context->frontend_result->written.statements) {
+    if ((size_t)cursor >= context->frontend_result->written.statements)
+      return false;
+    const w_seed_frontend_statement *statement =
+        &context->frontend->statements[cursor];
+    if (statement->owner_function != context->function) return false;
+    if (statement->kind == W_SEED_FRONTEND_STMT_EXPRESSION) {
+      if (statement->expression_index == W_SEED_FRONTEND_NONE ||
+          (size_t)statement->expression_index >=
+              context->frontend_result->written.expressions)
+        return false;
+      const w_seed_frontend_expression *assignment =
+          &context->frontend->expressions[statement->expression_index];
+      if (assignment->kind == W_SEED_FRONTEND_EXPR_ASSIGNMENT) {
+        if (assignment->left == W_SEED_FRONTEND_NONE ||
+            (size_t)assignment->left >=
+                context->frontend_result->written.expressions)
+          return false;
+        const w_seed_frontend_expression *target =
+            &context->frontend->expressions[assignment->left];
+        if (target->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER)
+          return false;
+        size_t lane = 0u;
+        while (lane < frame->root_count &&
+               frame->root_statements[lane] !=
+                   target->resolved_binding_statement)
+          lane += 1u;
+        if (lane == frame->root_count ||
+            frame->root_update_counts[lane] == UINT32_MAX)
+          return false;
+        if (frame->root_update_counts[lane] == 0u)
+          frame->root_first_update_statements[lane] = cursor;
+        frame->root_last_update_statements[lane] = cursor;
+        frame->root_update_counts[lane] += 1u;
+      }
+    } else if (statement->kind == W_SEED_FRONTEND_STMT_IF ||
+               statement->kind == W_SEED_FRONTEND_STMT_WHILE ||
+               statement->kind == W_SEED_FRONTEND_STMT_REPEAT) {
+      if (statement->first_child == W_SEED_FRONTEND_NONE ||
+          !hir0_cfg_plan_collect_versions_chain(
+              context, frame, statement->first_child, depth + 1u) ||
+          (statement->kind == W_SEED_FRONTEND_STMT_IF &&
+           statement->else_child != W_SEED_FRONTEND_NONE &&
+           !hir0_cfg_plan_collect_versions_chain(
+               context, frame, statement->else_child, depth + 1u)))
+        return false;
     }
     cursor = statement->next_sibling;
     guard += 1u;
@@ -11618,6 +11757,7 @@ static bool hir0_function_cfg_plan_build(
   const w_seed_frontend_function *function =
       &input->frontend_output->functions[function_index];
   const hir0_emit_context context = {
+      .cfg_plan = plan,
       .frontend = input->frontend_output,
       .frontend_result = input->frontend_result,
       .function = function_index};
@@ -11631,6 +11771,22 @@ static bool hir0_function_cfg_plan_build(
        frame_index += 1u) {
     hir0_cfg_loop_frame *frame = &plan->frames[frame_index];
     if (!hir0_collect_loop_roots(&context, frame)) return false;
+    for (size_t lane = 0u; lane < frame->root_count; lane += 1u) {
+      const size_t source_ordinal = frontend_function_root_ordinal(
+          input->frontend_output, input->frontend_result, function_index,
+          frame->root_statements[lane]);
+      if (source_ordinal == SIZE_MAX || source_ordinal > UINT32_MAX)
+        return false;
+      frame->root_source_ordinals[lane] = (uint32_t)source_ordinal;
+      frame->edge_lane_ordinals[lane] = (uint32_t)lane;
+      frame->root_first_update_statements[lane] = W_SEED_FRONTEND_NONE;
+      frame->root_last_update_statements[lane] = W_SEED_FRONTEND_NONE;
+    }
+    if (!hir0_cfg_plan_collect_versions_chain(
+            &context, frame, frame->first_statement, 0u))
+      return false;
+    for (size_t lane = 0u; lane < frame->root_count; lane += 1u)
+      if (frame->root_update_counts[lane] == 0u) return false;
   }
   const size_t raw_count = hir0_region_block_count_internal(
       &context,
@@ -11641,7 +11797,9 @@ static bool hir0_function_cfg_plan_build(
       frontend_function_terminal_if_count(input, function_index);
   if (raw_count == 0u || terminal_count > raw_count) return false;
   plan->block_count = raw_count - terminal_count;
-  return plan->block_count != 0u;
+  return plan->block_count != 0u &&
+         (plan->frame_count <= 1u ||
+          hir0_cfg_plan_emission_build(input, plan));
 }
 
 static bool hir0_function_block_count(const w_seed_hir0_input *input,
@@ -12936,6 +13094,723 @@ static size_t hir0_expression_block_count_m2(const hir0_emit_context *context,
   const size_t logical =
       hir0_expression_logical_count(context, expression, depth);
   return logical > (SIZE_MAX - 1u) / 3u ? 0u : 1u + logical * 3u;
+}
+
+static bool hir0_cfg_plan_statement_expression(
+    const hir0_emit_context *context,
+    const w_seed_frontend_statement *statement, uint32_t *expression) {
+  if (context == NULL || statement == NULL || expression == NULL) return false;
+  *expression = W_SEED_FRONTEND_NONE;
+  if (statement->kind == W_SEED_FRONTEND_STMT_LET ||
+      statement->kind == W_SEED_FRONTEND_STMT_VAR ||
+      statement->kind == W_SEED_FRONTEND_STMT_RETURN ||
+      statement->kind == W_SEED_FRONTEND_STMT_THROW) {
+    *expression = statement->expression_index;
+  } else if (statement->kind == W_SEED_FRONTEND_STMT_EXPRESSION) {
+    *expression = statement->expression_index;
+    if (*expression != W_SEED_FRONTEND_NONE &&
+        (size_t)*expression < context->frontend_result->written.expressions) {
+      const w_seed_frontend_expression *root =
+          &context->frontend->expressions[*expression];
+      if (root->kind == W_SEED_FRONTEND_EXPR_ASSIGNMENT)
+        *expression = root->right;
+    }
+  }
+  if (*expression == W_SEED_FRONTEND_NONE) return true;
+  return (size_t)*expression < context->frontend_result->written.expressions;
+}
+
+/* Build the private block-role projection for a multi-frame natural-loop
+ * plan. This is not the public HIR emitter: until the graph verifier accepts
+ * nested dominance and source-version chains, run() continues to reject the
+ * shape before touching caller-owned output. */
+static bool hir0_cfg_plan_emission_layout_chain(
+    const hir0_emit_context *context, hir0_function_cfg_plan *plan,
+    uint32_t first_statement, size_t current_block, size_t depth,
+    size_t *end_block) {
+  if (context == NULL || plan == NULL || end_block == NULL ||
+      depth > W_SEED_HIR0_MAX_NESTING)
+    return false;
+  uint32_t cursor = first_statement;
+  size_t guard = 0u;
+  while (cursor != W_SEED_FRONTEND_NONE &&
+         guard < context->frontend_result->written.statements) {
+    if ((size_t)cursor >= context->frontend_result->written.statements)
+      return false;
+    const w_seed_frontend_statement *statement =
+        &context->frontend->statements[cursor];
+    if (statement->owner_function != context->function) return false;
+    if (statement->kind == W_SEED_FRONTEND_STMT_IF) {
+      hir0_branch_assignment_merge merge;
+      if (statement->condition_expression == W_SEED_FRONTEND_NONE ||
+          hir0_terminal_if(context, statement, depth) ||
+          frontend_branch_assignment_merge(
+              context->frontend, context->frontend_result, context->function,
+              cursor, &merge))
+        return false;
+      const size_t condition_blocks = hir0_expression_block_count_m2(
+          context, statement->condition_expression, 0u);
+      size_t condition_end = 0u;
+      if (condition_blocks == 0u ||
+          !add_size(current_block, condition_blocks - 1u, &condition_end) ||
+          condition_end == SIZE_MAX)
+        return false;
+      const size_t then_first = condition_end + 1u;
+      const size_t then_count = hir0_region_block_count(
+          context, statement->first_child, depth + 1u);
+      if (then_count == 0u || then_count > SIZE_MAX - then_first)
+        return false;
+      const size_t else_first = then_first + then_count;
+      const size_t else_count = hir0_region_block_count(
+          context, statement->else_child, depth + 1u);
+      if (else_count == 0u || else_count > SIZE_MAX - else_first)
+        return false;
+      size_t then_end = then_first;
+      size_t else_end = else_first;
+      if (!hir0_cfg_plan_emission_layout_chain(
+              context, plan, statement->first_child, then_first,
+              depth + 1u, &then_end) ||
+          !hir0_cfg_plan_emission_layout_chain(
+              context, plan, statement->else_child, else_first,
+              depth + 1u, &else_end) ||
+          then_end >= then_first + then_count ||
+          else_end >= else_first + else_count)
+        return false;
+      current_block = else_first + else_count;
+    } else if (statement->kind == W_SEED_FRONTEND_STMT_WHILE) {
+      const hir0_cfg_loop_frame *source_frame =
+          hir0_cfg_plan_frame_for_statement(plan, cursor);
+      if (source_frame == NULL || statement->condition_expression ==
+                                      W_SEED_FRONTEND_NONE ||
+          hir0_expression_block_count_m2(
+              context, statement->condition_expression, 0u) != 1u)
+        return false;
+      const size_t frame_index =
+          (size_t)(source_frame - plan->frames);
+      if (frame_index >= plan->frame_count) return false;
+      hir0_cfg_loop_frame *frame = &plan->frames[frame_index];
+      const size_t body_count = hir0_region_block_count(
+          context, statement->first_child, depth + 1u);
+      size_t header = 0u;
+      size_t body_first = 0u;
+      size_t body_last = 0u;
+      if (body_count == 0u ||
+          !add_size(current_block, 1u, &header) ||
+          !add_size(header, 1u, &body_first) ||
+          !add_size(body_first, body_count - 1u, &body_last))
+        return false;
+      const bool has_transfer = frame->transfer_count != 0u;
+      size_t exit_adapter = SIZE_MAX;
+      if (has_transfer && !add_size(body_last, 1u, &exit_adapter))
+        return false;
+      size_t exit_block = 0u;
+      if (body_last == SIZE_MAX ||
+          !add_size(body_last, has_transfer ? 2u : 1u, &exit_block))
+        return false;
+      frame->preheader_block = current_block;
+      frame->header_block = header;
+      frame->body_first_block = body_first;
+      frame->body_last_block = body_last;
+      frame->exit_adapter_block = exit_adapter;
+      frame->exit_block = exit_block;
+      frame->preheader_edge_target_block = header;
+      frame->condition_true_edge_target_block = body_first;
+      frame->condition_false_edge_target_block =
+          has_transfer ? exit_adapter : exit_block;
+      frame->backedge_edge_target_block = header;
+      frame->break_edge_target_block =
+          frame->break_count == 0u ? SIZE_MAX : exit_block;
+      frame->continue_edge_target_block =
+          frame->continue_count == 0u ? SIZE_MAX : header;
+      frame->exit_adapter_edge_target_block =
+          has_transfer ? exit_block : SIZE_MAX;
+
+      size_t frame_block_arguments = frame->root_count;
+      frame->planned_header_carriers = frame->root_count;
+      frame->planned_exit_carriers = has_transfer ? frame->root_count : 0u;
+      size_t frame_edge_factor = 2u;
+      if (has_transfer &&
+          (!add_size(frame_block_arguments, frame->planned_exit_carriers,
+                     &frame_block_arguments) ||
+           !add_size(frame_edge_factor, 1u, &frame_edge_factor)))
+        return false;
+      if (!add_size(frame_edge_factor, frame->transfer_count,
+                    &frame_edge_factor) ||
+          (frame->root_count != 0u &&
+           frame_edge_factor > SIZE_MAX / frame->root_count))
+        return false;
+      frame->planned_block_arguments = frame_block_arguments;
+      frame->planned_edge_arguments = frame->root_count * frame_edge_factor;
+      if (!add_size(plan->loop_block_argument_count,
+                    frame->planned_block_arguments,
+                    &plan->loop_block_argument_count) ||
+          !add_size(plan->loop_edge_argument_count,
+                    frame->planned_edge_arguments,
+                    &plan->loop_edge_argument_count))
+        return false;
+      for (size_t lane = 0u; lane < frame->root_count; lane += 1u) {
+        if (frame->edge_lane_ordinals[lane] != lane ||
+            !add_size(plan->loop_source_version_count,
+                      frame->root_update_counts[lane],
+                      &plan->loop_source_version_count))
+          return false;
+      }
+      size_t body_end = body_first;
+      if (!hir0_cfg_plan_emission_layout_chain(
+              context, plan, statement->first_child, body_first,
+              depth + 1u, &body_end) ||
+          body_end != body_last)
+        return false;
+      current_block = exit_block;
+    } else if (statement->kind == W_SEED_FRONTEND_STMT_REPEAT) {
+      return false;
+    } else {
+      uint32_t expression = W_SEED_FRONTEND_NONE;
+      if (!hir0_cfg_plan_statement_expression(context, statement,
+                                              &expression))
+        return false;
+      const size_t expression_blocks = hir0_expression_block_count_m2(
+          context, expression, 0u);
+      if (expression_blocks == 0u ||
+          !add_size(current_block, expression_blocks - 1u, &current_block))
+        return false;
+    }
+    cursor = statement->next_sibling;
+    guard += 1u;
+  }
+  if (cursor != W_SEED_FRONTEND_NONE) return false;
+  *end_block = current_block;
+  return true;
+}
+
+typedef struct {
+  const w_seed_hir0_input *input;
+  const hir0_function_cfg_plan *plan;
+  uint32_t active_frames[HIR0_MAX_CFG_LOOP_FRAMES];
+  size_t active_frame_count;
+  size_t next_frame_index;
+  size_t maximum_depth;
+  size_t break_counts[HIR0_MAX_CFG_LOOP_FRAMES];
+  size_t continue_counts[HIR0_MAX_CFG_LOOP_FRAMES];
+  uint32_t update_counts[HIR0_MAX_CFG_LOOP_FRAMES]
+                        [HIR0_MAX_BRANCH_ASSIGNMENTS];
+  uint32_t first_updates[HIR0_MAX_CFG_LOOP_FRAMES]
+                        [HIR0_MAX_BRANCH_ASSIGNMENTS];
+  uint32_t last_updates[HIR0_MAX_CFG_LOOP_FRAMES]
+                       [HIR0_MAX_BRANCH_ASSIGNMENTS];
+} hir0_cfg_plan_source_verify;
+
+static bool hir0_cfg_plan_source_verify_chain(
+    hir0_cfg_plan_source_verify *walk, uint32_t first_statement,
+    size_t depth) {
+  if (walk == NULL || walk->input == NULL || walk->plan == NULL ||
+      depth > W_SEED_HIR0_MAX_NESTING)
+    return false;
+  const w_seed_frontend_output *frontend = walk->input->frontend_output;
+  const w_seed_frontend_result *result = walk->input->frontend_result;
+  uint32_t cursor = first_statement;
+  size_t guard = 0u;
+  while (cursor != W_SEED_FRONTEND_NONE &&
+         guard < result->written.statements) {
+    if ((size_t)cursor >= result->written.statements) return false;
+    const w_seed_frontend_statement *statement =
+        &frontend->statements[cursor];
+    if (statement->owner_function != walk->plan->function_index)
+      return false;
+    if (statement->kind == W_SEED_FRONTEND_STMT_WHILE ||
+        statement->kind == W_SEED_FRONTEND_STMT_REPEAT) {
+      const hir0_cfg_loop_frame *frame =
+          hir0_cfg_plan_frame_for_statement(walk->plan, cursor);
+      if (frame == NULL || frame->source_statement != cursor ||
+          frame->first_statement != statement->first_child ||
+          walk->next_frame_index >= walk->plan->frame_count ||
+          (size_t)(frame - walk->plan->frames) != walk->next_frame_index ||
+          frame->parent_frame !=
+              (walk->active_frame_count == 0u
+                   ? W_SEED_FRONTEND_NONE
+                   : walk->active_frames[walk->active_frame_count - 1u]) ||
+          frame->depth != walk->active_frame_count + 1u ||
+          walk->active_frame_count >= HIR0_MAX_CFG_LOOP_FRAMES)
+        return false;
+      const size_t frame_index = walk->next_frame_index++;
+      if (frame->depth > walk->maximum_depth)
+        walk->maximum_depth = frame->depth;
+      walk->active_frames[walk->active_frame_count++] =
+          (uint32_t)frame_index;
+      if (!hir0_cfg_plan_source_verify_chain(
+              walk, statement->first_child, depth + 1u))
+        return false;
+      walk->active_frame_count -= 1u;
+    } else if (statement->kind == W_SEED_FRONTEND_STMT_IF) {
+      if (statement->first_child != W_SEED_FRONTEND_NONE &&
+          !hir0_cfg_plan_source_verify_chain(
+              walk, statement->first_child, depth + 1u))
+        return false;
+      if (statement->else_child != W_SEED_FRONTEND_NONE &&
+          !hir0_cfg_plan_source_verify_chain(
+              walk, statement->else_child, depth + 1u))
+        return false;
+    } else if (statement->kind == W_SEED_FRONTEND_STMT_EXPRESSION &&
+               statement->expression_index != W_SEED_FRONTEND_NONE &&
+               (size_t)statement->expression_index <
+                   result->written.expressions &&
+               frontend->expressions[statement->expression_index].kind ==
+                   W_SEED_FRONTEND_EXPR_ASSIGNMENT) {
+      const w_seed_frontend_expression *assignment =
+          &frontend->expressions[statement->expression_index];
+      if (assignment->left == W_SEED_FRONTEND_NONE ||
+          (size_t)assignment->left >= result->written.expressions)
+        return false;
+      const uint32_t root_statement =
+          frontend->expressions[assignment->left]
+              .resolved_binding_statement;
+      const w_seed_frontend_expression *target =
+          &frontend->expressions[assignment->left];
+      if (target->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER ||
+          root_statement == W_SEED_FRONTEND_NONE ||
+          (size_t)root_statement >= result->written.statements ||
+          target->inferred_type == W_SEED_FRONTEND_NONE ||
+          (size_t)target->inferred_type >= result->written.types)
+        return false;
+      const w_seed_frontend_statement *root =
+          &frontend->statements[root_statement];
+      if (root->kind != W_SEED_FRONTEND_STMT_VAR ||
+          root->owner_function != walk->plan->function_index ||
+          root->effective_type != target->inferred_type ||
+          !text_equal(root->binding_name, target->spelling))
+        return false;
+      for (size_t active = 0u; active < walk->active_frame_count;
+           active += 1u) {
+        const size_t frame_index = walk->active_frames[active];
+        if (frame_index >= walk->plan->frame_count) return false;
+        const hir0_cfg_loop_frame *frame =
+            &walk->plan->frames[frame_index];
+        size_t lane = 0u;
+        while (lane < frame->root_count &&
+               frame->root_statements[lane] != root_statement)
+          lane += 1u;
+        if (lane == frame->root_count ||
+            walk->update_counts[frame_index][lane] == UINT32_MAX)
+          return false;
+        if (walk->update_counts[frame_index][lane] == 0u)
+          walk->first_updates[frame_index][lane] = cursor;
+        walk->last_updates[frame_index][lane] = cursor;
+        walk->update_counts[frame_index][lane] += 1u;
+      }
+    } else if (statement->kind == W_SEED_FRONTEND_STMT_BREAK ||
+               statement->kind == W_SEED_FRONTEND_STMT_CONTINUE) {
+      if (walk->active_frame_count == 0u ||
+          !text_valid(statement->transfer_label) ||
+          statement->transfer_target_statement == W_SEED_FRONTEND_NONE ||
+          (size_t)statement->transfer_target_statement >=
+              result->written.statements)
+        return false;
+      size_t target_frame = SIZE_MAX;
+      for (size_t active = walk->active_frame_count; active != 0u;
+           active -= 1u) {
+        const size_t candidate = walk->active_frames[active - 1u];
+        if (candidate >= walk->plan->frame_count) return false;
+        if (walk->plan->frames[candidate].source_statement ==
+            statement->transfer_target_statement) {
+          target_frame = candidate;
+          break;
+        }
+      }
+      if (target_frame == SIZE_MAX ||
+          (statement->transfer_label.length == 0u &&
+           target_frame !=
+               walk->active_frames[walk->active_frame_count - 1u]))
+        return false;
+      const w_seed_frontend_statement *target_loop =
+          &frontend->statements[
+              walk->plan->frames[target_frame].source_statement];
+      if (statement->transfer_label.length != 0u &&
+          (!text_valid(target_loop->loop_label) ||
+           target_loop->loop_label.length == 0u ||
+           !text_equal(statement->transfer_label, target_loop->loop_label)))
+        return false;
+      size_t *count = statement->kind == W_SEED_FRONTEND_STMT_BREAK
+                          ? &walk->break_counts[target_frame]
+                          : &walk->continue_counts[target_frame];
+      if (*count == SIZE_MAX) return false;
+      *count += 1u;
+    }
+    cursor = statement->next_sibling;
+    guard += 1u;
+  }
+  return cursor == W_SEED_FRONTEND_NONE;
+}
+
+static bool hir0_cfg_plan_emission_verify_chain(
+    const hir0_emit_context *context,
+    const hir0_function_cfg_plan *plan, uint32_t first_statement,
+    size_t current_block, size_t depth, size_t *end_block) {
+  if (context == NULL || plan == NULL || end_block == NULL ||
+      depth > W_SEED_HIR0_MAX_NESTING)
+    return false;
+  uint32_t cursor = first_statement;
+  size_t guard = 0u;
+  while (cursor != W_SEED_FRONTEND_NONE &&
+         guard < context->frontend_result->written.statements) {
+    if ((size_t)cursor >= context->frontend_result->written.statements)
+      return false;
+    const w_seed_frontend_statement *statement =
+        &context->frontend->statements[cursor];
+    if (statement->kind == W_SEED_FRONTEND_STMT_IF) {
+      hir0_branch_assignment_merge merge;
+      if (statement->condition_expression == W_SEED_FRONTEND_NONE ||
+          hir0_terminal_if(context, statement, depth) ||
+          frontend_branch_assignment_merge(
+              context->frontend, context->frontend_result, context->function,
+              cursor, &merge))
+        return false;
+      const size_t condition_blocks = hir0_expression_block_count_m2(
+          context, statement->condition_expression, 0u);
+      size_t condition_end = 0u;
+      if (condition_blocks == 0u ||
+          !add_size(current_block, condition_blocks - 1u, &condition_end) ||
+          condition_end == SIZE_MAX)
+        return false;
+      const size_t then_first = condition_end + 1u;
+      const size_t then_count = hir0_region_block_count(
+          context, statement->first_child, depth + 1u);
+      if (then_count == 0u || then_count > SIZE_MAX - then_first)
+        return false;
+      const size_t else_first = then_first + then_count;
+      const size_t else_count = hir0_region_block_count(
+          context, statement->else_child, depth + 1u);
+      if (else_count == 0u || else_count > SIZE_MAX - else_first)
+        return false;
+      size_t then_end = then_first;
+      size_t else_end = else_first;
+      if (!hir0_cfg_plan_emission_verify_chain(
+              context, plan, statement->first_child, then_first,
+              depth + 1u, &then_end) ||
+          !hir0_cfg_plan_emission_verify_chain(
+              context, plan, statement->else_child, else_first,
+              depth + 1u, &else_end) ||
+          then_end >= then_first + then_count ||
+          else_end >= else_first + else_count)
+        return false;
+      current_block = else_first + else_count;
+    } else if (statement->kind == W_SEED_FRONTEND_STMT_WHILE) {
+      const hir0_cfg_loop_frame *frame =
+          hir0_cfg_plan_frame_for_statement(plan, cursor);
+      if (frame == NULL || statement->condition_expression ==
+                               W_SEED_FRONTEND_NONE ||
+          hir0_expression_block_count_m2(
+              context, statement->condition_expression, 0u) != 1u)
+        return false;
+      const size_t body_count = hir0_region_block_count(
+          context, statement->first_child, depth + 1u);
+      size_t expected_header = 0u;
+      size_t expected_body = 0u;
+      size_t expected_body_last = 0u;
+      if (body_count == 0u ||
+          !add_size(current_block, 1u, &expected_header) ||
+          !add_size(expected_header, 1u, &expected_body) ||
+          !add_size(expected_body, body_count - 1u,
+                    &expected_body_last) ||
+          frame->preheader_block != current_block ||
+          frame->header_block != expected_header ||
+          frame->body_first_block != expected_body ||
+          frame->body_last_block != expected_body_last)
+        return false;
+      const bool has_transfer = frame->transfer_count != 0u;
+      size_t expected_adapter = SIZE_MAX;
+      if (has_transfer &&
+          !add_size(expected_body_last, 1u, &expected_adapter))
+        return false;
+      size_t expected_exit = 0u;
+      if (expected_body_last == SIZE_MAX ||
+          !add_size(expected_body_last, has_transfer ? 2u : 1u,
+                    &expected_exit) ||
+          frame->exit_adapter_block != expected_adapter ||
+          frame->exit_block != expected_exit ||
+          frame->preheader_edge_target_block != expected_header ||
+          frame->condition_true_edge_target_block != expected_body ||
+          frame->condition_false_edge_target_block !=
+              (has_transfer ? expected_adapter : expected_exit) ||
+          frame->backedge_edge_target_block != expected_header ||
+          frame->break_edge_target_block !=
+              (frame->break_count == 0u ? SIZE_MAX : expected_exit) ||
+          frame->continue_edge_target_block !=
+              (frame->continue_count == 0u ? SIZE_MAX : expected_header) ||
+          frame->exit_adapter_edge_target_block !=
+              (has_transfer ? expected_exit : SIZE_MAX))
+        return false;
+      size_t body_end = expected_body;
+      if (!hir0_cfg_plan_emission_verify_chain(
+              context, plan, statement->first_child, expected_body,
+              depth + 1u, &body_end) ||
+          body_end != expected_body_last)
+        return false;
+      current_block = expected_exit;
+    } else if (statement->kind == W_SEED_FRONTEND_STMT_REPEAT) {
+      return false;
+    } else {
+      uint32_t expression = W_SEED_FRONTEND_NONE;
+      if (!hir0_cfg_plan_statement_expression(context, statement,
+                                              &expression))
+        return false;
+      const size_t expression_blocks = hir0_expression_block_count_m2(
+          context, expression, 0u);
+      if (expression_blocks == 0u ||
+          !add_size(current_block, expression_blocks - 1u, &current_block))
+        return false;
+    }
+    cursor = statement->next_sibling;
+    guard += 1u;
+  }
+  if (cursor != W_SEED_FRONTEND_NONE) return false;
+  *end_block = current_block;
+  return true;
+}
+
+static bool hir0_cfg_plan_emission_verify(
+    const w_seed_hir0_input *input,
+    const hir0_function_cfg_plan *plan) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || plan == NULL ||
+      plan->function_index >= input->frontend_result->written.functions ||
+      plan->frame_count <= 1u ||
+      plan->frame_count > HIR0_MAX_CFG_LOOP_FRAMES ||
+      plan->block_count == 0u || !count_u32(plan->block_count))
+    return false;
+  const w_seed_frontend_output *frontend = input->frontend_output;
+  const w_seed_frontend_result *result = input->frontend_result;
+  const w_seed_frontend_function *function =
+      &frontend->functions[plan->function_index];
+  if (function->statement_count == 0u ||
+      function->first_statement == W_SEED_FRONTEND_NONE)
+    return false;
+  /* The source walk indexes lane scratch by the candidate frame's root_count.
+   * Reject forged dimensions before that walk, rather than treating the
+   * later semantic comparison as a sufficient bounds check. */
+  for (size_t frame_index = 0u; frame_index < plan->frame_count;
+       frame_index += 1u)
+    if (plan->frames[frame_index].root_count >
+        HIR0_MAX_BRANCH_ASSIGNMENTS)
+      return false;
+  hir0_cfg_plan_source_verify source_walk = {
+      .input = input,
+      .plan = plan,
+      .active_frames = {0u},
+      .active_frame_count = 0u,
+      .next_frame_index = 0u,
+      .maximum_depth = 0u,
+      .break_counts = {0u},
+      .continue_counts = {0u},
+      .update_counts = {{0u}},
+      .first_updates = {{0u}},
+      .last_updates = {{0u}}};
+  if (!hir0_cfg_plan_source_verify_chain(
+          &source_walk, function->first_statement, 0u) ||
+      source_walk.active_frame_count != 0u ||
+      source_walk.next_frame_index != plan->frame_count ||
+      source_walk.maximum_depth != plan->maximum_depth ||
+      plan->nested_or_multiple !=
+          (plan->frame_count > 1u || source_walk.maximum_depth > 1u))
+    return false;
+
+  size_t loop_block_arguments = 0u;
+  size_t loop_edge_arguments = 0u;
+  size_t loop_source_versions = 0u;
+  for (size_t frame_index = 0u; frame_index < plan->frame_count;
+       frame_index += 1u) {
+    const hir0_cfg_loop_frame *frame = &plan->frames[frame_index];
+    if (frame->source_statement >= result->written.statements ||
+        frame->first_statement == W_SEED_FRONTEND_NONE ||
+        frame->root_count > HIR0_MAX_BRANCH_ASSIGNMENTS ||
+        frame->break_count > frame->transfer_count ||
+        frame->continue_count > frame->transfer_count ||
+        frame->continue_count !=
+            frame->transfer_count - frame->break_count ||
+        frame->break_count != source_walk.break_counts[frame_index] ||
+        frame->continue_count != source_walk.continue_counts[frame_index])
+      return false;
+    const w_seed_frontend_statement *loop =
+        &frontend->statements[frame->source_statement];
+    if (loop->kind != W_SEED_FRONTEND_STMT_WHILE ||
+        loop->owner_function != plan->function_index ||
+        loop->first_child != frame->first_statement ||
+        frame->depth == 0u || frame->depth > W_SEED_HIR0_MAX_NESTING)
+      return false;
+    if (frame->parent_frame != W_SEED_FRONTEND_NONE &&
+        (frame->parent_frame >= plan->frame_count ||
+         plan->frames[frame->parent_frame].depth + 1u != frame->depth))
+      return false;
+
+    for (size_t lane = 0u; lane < frame->root_count; lane += 1u) {
+      const uint32_t root_index = frame->root_statements[lane];
+      const uint32_t source_ordinal = frame->root_source_ordinals[lane];
+      if (root_index >= result->written.statements ||
+          frame->root_type_indices[lane] != W_SEED_HIR0_TYPE_I64 ||
+          frame->edge_lane_ordinals[lane] != lane ||
+          source_ordinal != frontend_function_root_ordinal(
+                                frontend, result, plan->function_index,
+                                root_index) ||
+          (lane != 0u && frame->root_source_ordinals[lane - 1u] >=
+                             source_ordinal))
+        return false;
+      const w_seed_frontend_statement *root =
+          &frontend->statements[root_index];
+      if (root->kind != W_SEED_FRONTEND_STMT_VAR ||
+          root->owner_function != plan->function_index ||
+          root->effective_type == W_SEED_FRONTEND_NONE ||
+          (size_t)root->effective_type >= result->written.types)
+        return false;
+      const w_seed_frontend_type *root_type =
+          &frontend->types[root->effective_type];
+      if (root_type->kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+          !root_type->is_signed || root_type->bit_width != 64u ||
+          hir_type_from_frontend(frontend, result, root->effective_type) !=
+              frame->root_type_indices[lane] ||
+          frame->root_update_counts[lane] !=
+              source_walk.update_counts[frame_index][lane] ||
+          frame->root_first_update_statements[lane] !=
+              source_walk.first_updates[frame_index][lane] ||
+          frame->root_last_update_statements[lane] !=
+              source_walk.last_updates[frame_index][lane] ||
+          frame->root_update_counts[lane] == 0u)
+        return false;
+      if (!add_size(loop_source_versions,
+                    frame->root_update_counts[lane], &loop_source_versions))
+        return false;
+    }
+    size_t expected_block_arguments = frame->root_count;
+    const size_t expected_exit_carriers =
+        frame->transfer_count != 0u ? frame->root_count : 0u;
+    size_t edge_factor = 2u;
+    if (frame->transfer_count != 0u &&
+        (!add_size(expected_block_arguments, expected_exit_carriers,
+                   &expected_block_arguments) ||
+         !add_size(edge_factor, 1u, &edge_factor)))
+      return false;
+    if (!add_size(edge_factor, frame->transfer_count, &edge_factor) ||
+        (frame->root_count != 0u &&
+         edge_factor > SIZE_MAX / frame->root_count))
+      return false;
+    const size_t expected_edge_arguments = frame->root_count * edge_factor;
+    if (frame->planned_header_carriers != frame->root_count ||
+        frame->planned_exit_carriers != expected_exit_carriers ||
+        frame->planned_block_arguments != expected_block_arguments ||
+        frame->planned_edge_arguments != expected_edge_arguments ||
+        !add_size(loop_block_arguments, expected_block_arguments,
+                  &loop_block_arguments) ||
+        !add_size(loop_edge_arguments, expected_edge_arguments,
+                  &loop_edge_arguments))
+      return false;
+  }
+  if (loop_block_arguments != plan->loop_block_argument_count ||
+      loop_edge_arguments != plan->loop_edge_argument_count ||
+      loop_source_versions != plan->loop_source_version_count)
+    return false;
+
+  hir0_emit_context context = {
+      .cfg_plan = plan,
+      .frontend = frontend,
+      .frontend_result = result,
+      .function = plan->function_index};
+  size_t end_block = 0u;
+  if (!hir0_cfg_plan_emission_verify_chain(
+          &context, plan, function->first_statement, 0u, 0u, &end_block) ||
+      end_block >= plan->block_count || end_block + 1u != plan->block_count)
+    return false;
+
+  for (size_t left = 0u; left < plan->frame_count; left += 1u) {
+    const hir0_cfg_loop_frame *a = &plan->frames[left];
+    if (a->preheader_block >= a->header_block ||
+        a->header_block + 1u != a->body_first_block ||
+        a->body_first_block > a->body_last_block ||
+        a->exit_block >= plan->block_count ||
+        (a->transfer_count == 0u
+             ? a->exit_adapter_block != SIZE_MAX
+             : (a->exit_adapter_block != a->body_last_block + 1u ||
+                a->exit_block != a->exit_adapter_block + 1u)) ||
+        (a->transfer_count == 0u &&
+         a->exit_block != a->body_last_block + 1u))
+      return false;
+    if (a->parent_frame != W_SEED_FRONTEND_NONE &&
+        (a->body_first_block <
+             plan->frames[a->parent_frame].body_first_block ||
+         a->exit_block > plan->frames[a->parent_frame].body_last_block))
+      return false;
+    for (size_t right = left + 1u; right < plan->frame_count;
+         right += 1u) {
+      const hir0_cfg_loop_frame *b = &plan->frames[right];
+      bool a_ancestor = false;
+      uint32_t parent = b->parent_frame;
+      size_t ancestor_guard = 0u;
+      while (parent != W_SEED_FRONTEND_NONE && ancestor_guard <
+                                                   plan->frame_count) {
+        if (parent == left) {
+          a_ancestor = true;
+          break;
+        }
+        parent = plan->frames[parent].parent_frame;
+        ancestor_guard += 1u;
+      }
+      bool b_ancestor = false;
+      parent = a->parent_frame;
+      ancestor_guard = 0u;
+      while (parent != W_SEED_FRONTEND_NONE && ancestor_guard <
+                                                   plan->frame_count) {
+        if (parent == right) {
+          b_ancestor = true;
+          break;
+        }
+        parent = plan->frames[parent].parent_frame;
+        ancestor_guard += 1u;
+      }
+      if (a_ancestor) {
+        if (b->preheader_block < a->body_first_block ||
+            b->exit_block > a->body_last_block)
+          return false;
+      } else if (b_ancestor) {
+        if (a->preheader_block < b->body_first_block ||
+            a->exit_block > b->body_last_block)
+          return false;
+      } else {
+        /* A structured sibling starts in the prior loop's exit/continuation
+         * block. That one shared boundary block is intentional; any other
+         * intersection of the two inclusive frame intervals is overlap. */
+        const bool shared_boundary =
+            a->exit_block == b->preheader_block ||
+            b->exit_block == a->preheader_block;
+        const bool disjoint = a->exit_block < b->preheader_block ||
+                              b->exit_block < a->preheader_block;
+        if (!shared_boundary && !disjoint) return false;
+      }
+    }
+  }
+  return true;
+}
+
+static bool hir0_cfg_plan_emission_build(
+    const w_seed_hir0_input *input, hir0_function_cfg_plan *plan) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || plan == NULL ||
+      plan->function_index >= input->frontend_result->written.functions ||
+      plan->frame_count <= 1u)
+    return false;
+  plan->loop_block_argument_count = 0u;
+  plan->loop_edge_argument_count = 0u;
+  plan->loop_source_version_count = 0u;
+  hir0_emit_context context = {
+      .cfg_plan = plan,
+      .frontend = input->frontend_output,
+      .frontend_result = input->frontend_result,
+      .function = plan->function_index};
+  const w_seed_frontend_function *function =
+      &input->frontend_output->functions[plan->function_index];
+  size_t end_block = 0u;
+  if (function->statement_count == 0u ||
+      !hir0_cfg_plan_emission_layout_chain(
+          &context, plan, function->first_statement, 0u, 0u, &end_block) ||
+      end_block >= plan->block_count || end_block + 1u != plan->block_count)
+    return false;
+  return hir0_cfg_plan_emission_verify(input, plan);
 }
 
 static void hir0_begin_block_m2(hir0_emit_context *context,

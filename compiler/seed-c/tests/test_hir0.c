@@ -9930,6 +9930,10 @@ static bool test_nested_labeled_while_hir_boundary(void) {
   const w_seed_hir0_input nested_input = hir_input();
   hir0_function_cfg_plan nested_plan;
   CHECK(hir0_function_cfg_plan_build(&nested_input, 0u, &nested_plan));
+  const uint8_t sentinel = 0x5du;
+  w_seed_hir0_result rejected;
+  (void)memset(&rejected, 0x47, sizeof(rejected));
+  const w_seed_hir0_result rejected_before = rejected;
   CHECK(nested_plan.frame_count == 2u && nested_plan.maximum_depth == 2u &&
         nested_plan.nested_or_multiple &&
         nested_plan.frames[0].parent_frame == W_SEED_FRONTEND_NONE &&
@@ -9962,10 +9966,111 @@ static bool test_nested_labeled_while_hir_boundary(void) {
         inner_frame->root_count == 2u &&
         inner_frame->root_statements[0] == inner_root &&
         inner_frame->root_statements[1] == total_root);
+  CHECK(hir0_cfg_plan_emission_verify(&nested_input, &nested_plan));
+  CHECK(nested_plan.block_count == 21u &&
+        nested_plan.loop_block_argument_count == 10u &&
+        nested_plan.loop_edge_argument_count == 25u &&
+        nested_plan.loop_source_version_count == 6u);
+  CHECK(outer_frame->planned_header_carriers == 3u &&
+        outer_frame->planned_exit_carriers == 3u &&
+        inner_frame->planned_header_carriers == 2u &&
+        inner_frame->planned_exit_carriers == 2u);
+  CHECK(outer_frame->preheader_block == 0u &&
+        outer_frame->header_block == 1u &&
+        outer_frame->body_first_block == 2u &&
+        outer_frame->body_last_block == 18u &&
+        outer_frame->exit_adapter_block == 19u &&
+        outer_frame->exit_block == 20u &&
+        outer_frame->preheader_edge_target_block == outer_frame->header_block &&
+        outer_frame->condition_true_edge_target_block ==
+            outer_frame->body_first_block &&
+        outer_frame->condition_false_edge_target_block ==
+            outer_frame->exit_adapter_block &&
+        outer_frame->backedge_edge_target_block == outer_frame->header_block &&
+        outer_frame->break_edge_target_block == outer_frame->exit_block &&
+        outer_frame->continue_edge_target_block == outer_frame->header_block &&
+        outer_frame->exit_adapter_edge_target_block ==
+            outer_frame->exit_block);
+  CHECK(inner_frame->preheader_block == 2u &&
+        inner_frame->header_block == 3u &&
+        inner_frame->body_first_block == 4u &&
+        inner_frame->body_last_block == 16u &&
+        inner_frame->exit_adapter_block == 17u &&
+        inner_frame->exit_block == 18u &&
+        inner_frame->preheader_edge_target_block == inner_frame->header_block &&
+        inner_frame->condition_true_edge_target_block ==
+            inner_frame->body_first_block &&
+        inner_frame->condition_false_edge_target_block ==
+            inner_frame->exit_adapter_block &&
+        inner_frame->backedge_edge_target_block == inner_frame->header_block &&
+        inner_frame->break_edge_target_block == inner_frame->exit_block &&
+        inner_frame->continue_edge_target_block == inner_frame->header_block &&
+        inner_frame->exit_adapter_edge_target_block == inner_frame->exit_block);
   for (size_t ordinal = 0u; ordinal < outer_frame->root_count; ordinal += 1u)
-    CHECK(outer_frame->root_type_indices[ordinal] == W_SEED_HIR0_TYPE_I64);
+    CHECK(outer_frame->root_type_indices[ordinal] == W_SEED_HIR0_TYPE_I64 &&
+          outer_frame->root_source_ordinals[ordinal] == ordinal &&
+          outer_frame->edge_lane_ordinals[ordinal] == ordinal);
   for (size_t ordinal = 0u; ordinal < inner_frame->root_count; ordinal += 1u)
-    CHECK(inner_frame->root_type_indices[ordinal] == W_SEED_HIR0_TYPE_I64);
+    CHECK(inner_frame->root_type_indices[ordinal] == W_SEED_HIR0_TYPE_I64 &&
+          inner_frame->root_source_ordinals[ordinal] == ordinal + 1u &&
+          inner_frame->edge_lane_ordinals[ordinal] == ordinal);
+  CHECK(outer_frame->root_update_counts[0] == 1u &&
+        outer_frame->root_update_counts[1] == 2u &&
+        outer_frame->root_update_counts[2] == 1u &&
+        inner_frame->root_update_counts[0] == 1u &&
+        inner_frame->root_update_counts[1] == 1u);
+  /* Equal i64 types do not make lanes interchangeable: identity, declaration
+   * ordinal, and every edge's lane ordinal are verified independently. */
+  uint32_t saved_lane_root = nested_plan.frames[0].root_statements[0];
+  nested_plan.frames[0].root_statements[0] =
+      nested_plan.frames[0].root_statements[1];
+  nested_plan.frames[0].root_statements[1] = saved_lane_root;
+  fill_hir_output(sentinel);
+  CHECK(!hir0_cfg_plan_emission_verify(&nested_input, &nested_plan));
+  /* A forged same-typed header tuple is rejected by the private verifier
+   * before any public output/result state can be published. Public run also
+   * remains closed for this nested source shape. */
+  CHECK(hir_output_is_byte(sentinel) &&
+        memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
+  CHECK(w_seed_hir0_run(&nested_input, &fixture.hir_output, &rejected) ==
+        W_SEED_HIR0_UNSUPPORTED);
+  CHECK(hir_output_is_byte(sentinel) &&
+        memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
+  nested_plan.frames[0].root_statements[1] =
+      nested_plan.frames[0].root_statements[0];
+  nested_plan.frames[0].root_statements[0] = saved_lane_root;
+  const uint32_t saved_edge_lane = nested_plan.frames[0].edge_lane_ordinals[0];
+  nested_plan.frames[0].edge_lane_ordinals[0] =
+      nested_plan.frames[0].edge_lane_ordinals[1];
+  nested_plan.frames[0].edge_lane_ordinals[1] = saved_edge_lane;
+  CHECK(!hir0_cfg_plan_emission_verify(&nested_input, &nested_plan));
+  nested_plan.frames[0].edge_lane_ordinals[1] =
+      nested_plan.frames[0].edge_lane_ordinals[0];
+  nested_plan.frames[0].edge_lane_ordinals[0] = saved_edge_lane;
+  const size_t saved_inner_header = nested_plan.frames[1].header_block;
+  nested_plan.frames[1].header_block = nested_plan.frames[0].header_block;
+  CHECK(!hir0_cfg_plan_emission_verify(&nested_input, &nested_plan));
+  nested_plan.frames[1].header_block = saved_inner_header;
+  const uint32_t saved_version_count =
+      nested_plan.frames[0].root_update_counts[1];
+  nested_plan.frames[0].root_update_counts[1] += 1u;
+  CHECK(!hir0_cfg_plan_emission_verify(&nested_input, &nested_plan));
+  nested_plan.frames[0].root_update_counts[1] = saved_version_count;
+  const size_t saved_plan_block_count = nested_plan.block_count;
+  nested_plan.block_count = SIZE_MAX;
+  fill_hir_output(sentinel);
+  CHECK(!hir0_cfg_plan_emission_verify(&nested_input, &nested_plan));
+  CHECK(hir_output_is_byte(sentinel) &&
+        memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
+  nested_plan.block_count = saved_plan_block_count;
+  const size_t saved_root_count = nested_plan.frames[0].root_count;
+  nested_plan.frames[0].root_count = HIR0_MAX_BRANCH_ASSIGNMENTS + 1u;
+  fill_hir_output(sentinel);
+  CHECK(!hir0_cfg_plan_emission_verify(&nested_input, &nested_plan));
+  CHECK(hir_output_is_byte(sentinel) &&
+        memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
+  nested_plan.frames[0].root_count = saved_root_count;
+  CHECK(hir0_cfg_plan_emission_verify(&nested_input, &nested_plan));
   /* `inner` is initialized by the outer body and then updated in the nested
    * body. The ancestor's set includes that descendant write exactly once. */
   size_t outer_inner_carriers = 0u;
@@ -10040,7 +10145,19 @@ static bool test_nested_labeled_while_hir_boundary(void) {
       fixture.statements[outer_break_statement].transfer_target_statement;
   fixture.statements[outer_break_statement].transfer_target_statement =
       nested_plan.frames[1].source_statement;
-  CHECK(!hir0_function_cfg_plan_build(&nested_input, 0u, &nested_plan));
+  fill_hir_output(sentinel);
+  const w_seed_hir0_input forged_outer_target_input = hir_input();
+  w_seed_hir0_counts forged_outer_counts;
+  w_seed_hir0_result forged_outer_measure;
+  CHECK(!hir0_function_cfg_plan_build(&forged_outer_target_input, 0u,
+                                      &nested_plan));
+  CHECK(w_seed_hir0_measure(&forged_outer_target_input, &forged_outer_counts,
+                            &forged_outer_measure) ==
+        W_SEED_HIR0_UNSUPPORTED);
+  CHECK(w_seed_hir0_run(&forged_outer_target_input, &fixture.hir_output,
+                        &rejected) == W_SEED_HIR0_UNSUPPORTED);
+  CHECK(hir_output_is_byte(sentinel) &&
+        memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
   fixture.statements[outer_break_statement].transfer_target_statement =
       outer_break_target;
 
@@ -10048,15 +10165,49 @@ static bool test_nested_labeled_while_hir_boundary(void) {
   w_seed_hir0_result nested_measure;
   CHECK(w_seed_hir0_measure(&nested_input, &nested_counts, &nested_measure) ==
         W_SEED_HIR0_UNSUPPORTED);
-  const uint8_t sentinel = 0x5du;
   fill_hir_output(sentinel);
-  w_seed_hir0_result rejected;
-  (void)memset(&rejected, 0x47, sizeof(rejected));
-  const w_seed_hir0_result rejected_before = rejected;
   CHECK(w_seed_hir0_run(&nested_input, &fixture.hir_output, &rejected) ==
         W_SEED_HIR0_UNSUPPORTED);
   CHECK(hir_output_is_byte(sentinel) &&
         memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
+
+  static const char SIBLING_SOURCE[] =
+      "fn siblings(limit: i64): i64 {\n"
+      "  var first = 0\n"
+      "  var second = 0\n"
+      "  while first < limit { first = first + 1 }\n"
+      "  while second < limit { second = second + 1 }\n"
+      "  return first + second\n"
+      "}\nentry(siblings)\n";
+  CHECK(fixture_frontend(SIBLING_SOURCE));
+  CHECK(fixture.result.status == W_SEED_FRONTEND_OK);
+  setup_hir_output();
+  const w_seed_hir0_input sibling_input = hir_input();
+  hir0_function_cfg_plan sibling_plan;
+  CHECK(hir0_function_cfg_plan_build(&sibling_input, 0u, &sibling_plan));
+  CHECK(sibling_plan.frame_count == 2u &&
+        sibling_plan.maximum_depth == 1u && sibling_plan.nested_or_multiple &&
+        hir0_cfg_plan_emission_verify(&sibling_input, &sibling_plan));
+  const hir0_cfg_loop_frame *first_sibling = &sibling_plan.frames[0];
+  const hir0_cfg_loop_frame *second_sibling = &sibling_plan.frames[1];
+  CHECK(first_sibling->parent_frame == W_SEED_FRONTEND_NONE &&
+        second_sibling->parent_frame == W_SEED_FRONTEND_NONE &&
+        first_sibling->exit_block == second_sibling->preheader_block &&
+        first_sibling->exit_block < second_sibling->header_block &&
+        first_sibling->exit_block < second_sibling->exit_block &&
+        first_sibling->root_count == 1u && second_sibling->root_count == 1u);
+  fill_hir_output(sentinel);
+  const size_t saved_sibling_preheader = second_sibling->preheader_block;
+  sibling_plan.frames[1].preheader_block = first_sibling->header_block;
+  w_seed_hir0_result sibling_rejected;
+  (void)memset(&sibling_rejected, 0x48, sizeof(sibling_rejected));
+  const w_seed_hir0_result sibling_rejected_before = sibling_rejected;
+  CHECK(!hir0_cfg_plan_emission_verify(&sibling_input, &sibling_plan));
+  CHECK(hir_output_is_byte(sentinel) &&
+        memcmp(&sibling_rejected, &sibling_rejected_before,
+               sizeof(sibling_rejected)) == 0);
+  sibling_plan.frames[1].preheader_block = saved_sibling_preheader;
+  CHECK(hir0_cfg_plan_emission_verify(&sibling_input, &sibling_plan));
 
   static const char LABELED_SOURCE[] =
       "fn scan(limit: i64): i64 {\n"
