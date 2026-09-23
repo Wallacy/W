@@ -491,6 +491,13 @@ neither CRT nor libc. It generates no C source and does not require Clang.
 LLVM version checks remain separate from linker provenance. The local
 `check:mlir0` recipe remains a separate Clang-based evidence gate and uses the
 same exact 23.1.1 manifest.
+For a new stable LLVM release, probe the exact candidate without changing the
+selected manifest: on Linux/WSL run
+`W_MLIR0_ACCEPT_VERSION=23.1.2 bun tooling/check-mlir0.mjs`; in PowerShell set
+`$env:W_MLIR0_ACCEPT_VERSION='23.1.2'` for that command. The candidate must be
+an exact `X.Y.Z` stable version. This gate covers the Clang-based MLIR route,
+not the public `llc`/LLD link or a pin promotion. Clear the environment
+variable afterward; the default gate still uses the selected manifest.
 `bun tooling/command-runner.mjs --command check:w-run -- --ci` requires Linux x64 and the separately acquired
 23.1.1 toolchain. Missing prerequisites fail instead of SKIP. On a local Linux
 or WSL host, set `W_MLIR0_TOOLCHAIN_ROOT` to the persistent external root

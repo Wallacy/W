@@ -1311,6 +1311,14 @@
           "kind": "bun",
           "cwd": ".",
           "args": [
+            "test",
+            "tooling/mlir0-version-gate.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
             "tooling/check-mlir0.mjs"
           ]
         }

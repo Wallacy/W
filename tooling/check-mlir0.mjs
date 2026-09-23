@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { dialectDisclosure, probeCDialect } from "./c-dialect.mjs"
+import { mlir0VersionRequirement } from "./mlir0-version-gate.mjs"
 
 const root = resolve(import.meta.dir, "..")
 const seedDirectory = resolve(root, "compiler", "seed-c")
@@ -144,14 +145,12 @@ const targetTriple = "x86_64-unknown-linux-gnu"
 const expectedVersion = "23.1.1"
 const developmentPatchCompatibility =
   process.env.W_MLIR0_DEVELOPMENT_PATCH_COMPAT !== "0"
+const acceptedVersion = mlir0VersionRequirement({
+  pinnedVersion: expectedVersion,
+  candidateVersion: process.env.W_MLIR0_ACCEPT_VERSION,
+  developmentPatchCompatibility,
+})
 const isWindows = process.platform === "win32"
-
-function acceptedVersionPattern() {
-  const [major, minor] = expectedVersion.split(".")
-  return developmentPatchCompatibility
-    ? `\\b${major}\\.${minor}\\.[0-9]+\\b`
-    : `\\b${expectedVersion.replaceAll(".", "\\.")}\\b`
-}
 
 function fail(message) {
   throw new Error(`MLIR0: ${message}`)
@@ -386,7 +385,7 @@ function versionProbe(role, command) {
     return {
       present: result.exitCode !== 127,
       valid: result.exitCode === 0 &&
-        new RegExp(acceptedVersionPattern(), "u")
+        acceptedVersion.pattern
           .test(`${result.stdoutText}\n${result.stderrText}`),
       output: `${result.stdoutText}\n${result.stderrText}`,
     }
@@ -397,7 +396,7 @@ function versionProbe(role, command) {
   return {
     present: true,
     valid: result.exitCode === 0 &&
-      new RegExp(acceptedVersionPattern(), "u")
+      acceptedVersion.pattern
         .test(`${result.stdoutText}\n${result.stderrText}`),
     output: `${result.stdoutText}\n${result.stderrText}`,
   }
@@ -414,8 +413,7 @@ if (versionProbes.some(([, probe]) => !probe.present))
   fail("MLIR/LLVM/Clang toolchain is incomplete")
 for (const [role, probe] of versionProbes) {
   if (!probe.valid)
-    fail(`${role} tool version is not ${developmentPatchCompatibility
-      ? "in the 23.1.x development line" : expectedVersion}: ${probe.output.trim()}`)
+    fail(`${role} tool version is not ${acceptedVersion.description}: ${probe.output.trim()}`)
 }
 if (!cmake || !ninja || !compiler || !dialect)
   fail("seed C build toolchain is incomplete or lacks C23")
@@ -1966,7 +1964,7 @@ try {
     assert(rejected.exitCode !== 0 && rejected.stdout.length === 0,
       `${name} was accepted or emitted partial MLIR`)
   }
-  console.log(`MLIR0: verified HIR0 → SCF/LLVM dialects → mlir-opt → mlir-translate → clang IR/native passed (${dialectDisclosure(dialect)})`)
+  console.log(`MLIR0: verified HIR0 → SCF/LLVM dialects → mlir-opt → mlir-translate → clang IR/native passed (${dialectDisclosure(dialect)}; ${acceptedVersion.description})`)
 } finally {
   await rm(buildDirectory, { recursive: true, force: true })
   await rm(artifactDirectory, { recursive: true, force: true })
