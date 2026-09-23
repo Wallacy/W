@@ -118,8 +118,8 @@ futura pode usar um namespace por checkout e um owner record verificável.
 ## Dependências e comandos
 
 O catálogo [`DEPENDENCIES.md`](DEPENDENCIES.md) é a projeção humana de
-`tooling/dependency-currency.json`. Ele separa Bun `1.4.0`, `tree-sitter-cli` `0.27.0`,
-actions pinadas, floors, recipes, snapshots e avaliações externas.
+`tooling/dependency-currency.json`. Ele separa as versões correntes de Bun e
+Tree-sitter, actions pinadas, floors, recipes, snapshots e avaliações externas.
 O seed C usa CMake e um compilador C23 disponível no host. C11 é somente
 recovery explícito. A matriz e os limites atuais estão em
 [`compiler/seed-c/README.md`](compiler/seed-c/README.md).
