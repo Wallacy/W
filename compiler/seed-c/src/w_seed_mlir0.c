@@ -5221,6 +5221,33 @@ static bool append_program_block_argument_name(
     integer_ok = mlir0_integer_type_facts(program, argument->type_index,
                                           &is_signed, &bit_width);
   }
+  /* The ordinary CFG adapter intentionally does not open floating block
+   * arguments. The process-executable selector has already reverified this
+   * exact rounding relation; allow only its source join argument, owned by
+   * the selected conversion block and matching the selected source width. */
+  bool rounding_source_join_argument_ok = false;
+  if (process != NULL && process->has_float_to_integer_rounding &&
+      process->rounding_source_value != NULL &&
+      process->rounding_source_value->kind ==
+          W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+      process->rounding_source_value->block_argument_index ==
+          block_argument_index &&
+      process->rounding_source_value->type_index == argument->type_index &&
+      argument->owner_block == process->rounding_split_block_index) {
+    const bool is_f32 = argument_kind == W_SEED_HIR0_TYPE_F32 &&
+                        process->rounding_source_bit_width == 32u;
+    const bool is_f64 = argument_kind == W_SEED_HIR0_TYPE_F64 &&
+                        process->rounding_source_bit_width == 64u;
+    if (is_f32 || is_f64) {
+      for (size_t value_index = 0u; value_index < program->value_count;
+           value_index += 1u)
+        if (&program->values[value_index] ==
+            process->rounding_source_value) {
+          rounding_source_join_argument_ok = true;
+          break;
+        }
+    }
+  }
   const bool typed_error_ok =
       process_has_typed_numeric_root(process) &&
       argument->type_index ==
@@ -5228,7 +5255,7 @@ static bool append_program_block_argument_name(
                                         : process->rounding_error_type_index);
   if (argument_kind != W_SEED_HIR0_TYPE_I64 &&
       argument_kind != W_SEED_HIR0_TYPE_BOOL && !integer_ok &&
-      !typed_error_ok)
+      !typed_error_ok && !rounding_source_join_argument_ok)
     return false;
   const w_seed_hir0_block *block = &program->blocks[argument->owner_block];
   if (block->owner_function != function_index ||
@@ -8498,6 +8525,7 @@ static bool append_process_float_to_integer_rounding_terminator(
       terminator->kind !=
           W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING ||
       terminator->value_index >= program->value_count ||
+      process->rounding_source_value != &program->values[terminator->value_index] ||
       terminator->owner_block != process->rounding_split_block_index ||
       terminator->target_block != process->rounding_normal_block_index ||
       terminator->else_block != process->rounding_non_finite_block_index ||
@@ -8537,9 +8565,12 @@ static bool append_process_float_to_integer_rounding_terminator(
   if (!append_literal(
           artifact, capacity, offset,
           "    %process_round_error_payload = llvm.mlir.constant(0 : i64) : i64\n"
-          "    %process_round_non_finite = \"llvm.intr.is.fpclass\"(%v") ||
-      !append_size(artifact, capacity, offset, terminator->value_index) ||
-      !append_literal(artifact, capacity, offset, ") <{bit = 519 : i32}> : (f") ||
+          "    %process_round_non_finite = \"llvm.intr.is.fpclass\"(") ||
+      !append_program_value_operand(program, terminator->value_index,
+                                    function_index, process, artifact,
+                                    capacity, offset) ||
+      !append_literal(artifact, capacity, offset,
+                      ") <{bit = 519 : i32}> : (f") ||
       !append_u64(artifact, capacity, offset, source_width) ||
       !append_literal(artifact, capacity, offset,
                       ") -> i1\n    llvm.cond_br %process_round_non_finite, ") ||
@@ -8551,8 +8582,10 @@ static bool append_process_float_to_integer_rounding_terminator(
                       "  ^process_round_finite:\n"
                       "    %process_rounded = \"") ||
       !append_literal(artifact, capacity, offset, intrinsic) ||
-      !append_literal(artifact, capacity, offset, "\"(%v") ||
-      !append_size(artifact, capacity, offset, terminator->value_index) ||
+      !append_literal(artifact, capacity, offset, "\"(") ||
+      !append_program_value_operand(program, terminator->value_index,
+                                    function_index, process, artifact,
+                                    capacity, offset) ||
       !append_literal(artifact, capacity, offset, ") : (f") ||
       !append_u64(artifact, capacity, offset, source_width) ||
       !append_literal(artifact, capacity, offset, ") -> f") ||

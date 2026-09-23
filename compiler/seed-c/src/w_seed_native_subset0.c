@@ -6943,11 +6943,157 @@ static bool process_integer_exact_root_supported(
   return true;
 }
 
-/* Admit the bounded native-process witness whose body rounds one compile-time
- * float and publishes the normal, non-finite, and out-of-range edges.  This
- * is a separate relation from INTEGER_EXACTLY: the source remains a constant
- * float, the result is carried only through the normal block argument, and
- * both typed error arms are consumed by the process cleanup contract. */
+typedef struct {
+  uint32_t branch_terminator_index;
+  uint32_t condition_value_index;
+  uint32_t count_value_index;
+  uint32_t zero_value_index;
+  uint32_t arm_values[2];
+  uint32_t join_argument_index;
+} process_float_diamond_facts;
+
+/* NativeSubset0 independently authenticates the only runtime float ingress
+ * currently admitted for the process rounding route.  It deliberately does
+ * not reuse the broader CFG/value walker: exactly one Args.count == 0 branch
+ * selects two f64 literals which feed one f64 join argument. */
+static bool process_float_source_diamond_supported(
+    const w_seed_hir0_program *program,
+    const w_seed_native_subset0_process *process,
+    process_float_diamond_facts *facts) {
+  if (program == NULL || process == NULL || process->function == NULL ||
+      facts == NULL || process->function->block_count != 7u)
+    return false;
+  const w_seed_hir0_function *function = process->function;
+  if (function->first_block > program->block_count ||
+      function->block_count > program->block_count - function->first_block)
+    return false;
+  const uint32_t branch_index = function->first_block;
+  const uint32_t then_index = branch_index + 1u;
+  const uint32_t else_index = branch_index + 2u;
+  const uint32_t join_index = branch_index + 3u;
+  const w_seed_hir0_block *branch_block = &program->blocks[branch_index];
+  const w_seed_hir0_block *then_block = &program->blocks[then_index];
+  const w_seed_hir0_block *else_block = &program->blocks[else_index];
+  const w_seed_hir0_block *join_block = &program->blocks[join_index];
+  const uint32_t arguments_parameter_index =
+      function->first_parameter + process->arguments_parameter_ordinal;
+  if (branch_block->owner_function != process->function_index ||
+      branch_block->ordinal != 0u || branch_block->instruction_count != 0u ||
+      branch_block->block_argument_count != 0u ||
+      branch_block->terminator_index >= program->terminator_count ||
+      then_block->owner_function != process->function_index ||
+      then_block->ordinal != 1u || then_block->instruction_count != 0u ||
+      then_block->block_argument_count != 0u ||
+      then_block->terminator_index >= program->terminator_count ||
+      else_block->owner_function != process->function_index ||
+      else_block->ordinal != 2u || else_block->instruction_count != 0u ||
+      else_block->block_argument_count != 0u ||
+      else_block->terminator_index >= program->terminator_count ||
+      join_block->owner_function != process->function_index ||
+      join_block->ordinal != 3u || join_block->instruction_count != 0u ||
+      join_block->block_argument_count != 1u ||
+      join_block->first_block_argument >= program->block_argument_count ||
+      join_block->terminator_index >= program->terminator_count)
+    return false;
+  const w_seed_hir0_terminator *branch =
+      &program->terminators[branch_block->terminator_index];
+  const w_seed_hir0_terminator *then_jump =
+      &program->terminators[then_block->terminator_index];
+  const w_seed_hir0_terminator *else_jump =
+      &program->terminators[else_block->terminator_index];
+  if (branch->owner_block != branch_index ||
+      branch->kind != W_SEED_HIR0_TERMINATOR_BRANCH ||
+      branch->ordinal != 0u || branch->value_index >= program->value_count ||
+      branch->target_block != then_index || branch->else_block != else_index ||
+      branch->edge_argument_count != 0u ||
+      then_jump->owner_block != then_index ||
+      then_jump->kind != W_SEED_HIR0_TERMINATOR_JUMP ||
+      then_jump->target_block != join_index ||
+      then_jump->else_block != W_SEED_HIR0_NONE ||
+      then_jump->edge_argument_count != 1u ||
+      then_jump->first_edge_argument >= program->edge_argument_count ||
+      else_jump->owner_block != else_index ||
+      else_jump->kind != W_SEED_HIR0_TERMINATOR_JUMP ||
+      else_jump->target_block != join_index ||
+      else_jump->else_block != W_SEED_HIR0_NONE ||
+      else_jump->edge_argument_count != 1u ||
+      else_jump->first_edge_argument >= program->edge_argument_count)
+    return false;
+  const w_seed_hir0_value *condition = &program->values[branch->value_index];
+  if (condition->kind != W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON ||
+      condition->type_index >= program->type_count ||
+      program->types[condition->type_index].kind != W_SEED_HIR0_TYPE_BOOL ||
+      condition->binary_operator != W_SEED_HIR0_BINARY_EQUAL ||
+      condition->left_value >= program->value_count ||
+      condition->right_value >= program->value_count)
+    return false;
+  const w_seed_hir0_value *count = &program->values[condition->left_value];
+  const w_seed_hir0_value *zero = &program->values[condition->right_value];
+  const w_seed_hir0_value *receiver =
+      count->left_value < program->value_count
+          ? &program->values[count->left_value]
+          : NULL;
+  if (count->kind != W_SEED_HIR0_VALUE_EXTERNAL_MEMBER ||
+      count->external_module_index != 0u ||
+      count->external_symbol_index != process->count_symbol_index ||
+      count->type_index >= program->type_count ||
+      program->types[count->type_index].kind != W_SEED_HIR0_TYPE_USIZE ||
+      !text_is(program, count->member_name, (const uint8_t *)"count", 5u) ||
+      !process_external_symbol_is(
+          program, 0u, process->count_symbol_index,
+          W_SEED_HIR0_EXTERNAL_VALUE, (const uint8_t *)"count", 5u) ||
+      receiver == NULL ||
+      receiver->kind != W_SEED_HIR0_VALUE_PARAMETER_READ ||
+      receiver->parameter_index != arguments_parameter_index ||
+      !process_nominal_type_is(program, receiver->type_index, 0u,
+                               process->arguments_symbol_index) ||
+      zero->kind != W_SEED_HIR0_VALUE_CONST_USIZE ||
+      zero->type_index != count->type_index ||
+      zero->unsigned_integer_value != 0u)
+    return false;
+  const w_seed_hir0_block_argument *join_argument =
+      &program->block_arguments[join_block->first_block_argument];
+  uint16_t join_width = 0u;
+  if (join_argument->owner_block != join_index ||
+      join_argument->ordinal != 0u ||
+      !native_float_type_width(program, join_argument->type_index,
+                               &join_width) ||
+      join_width != 64u)
+    return false;
+  const w_seed_hir0_edge_argument *edges[2] = {
+      &program->edge_arguments[then_jump->first_edge_argument],
+      &program->edge_arguments[else_jump->first_edge_argument]};
+  const uint32_t arm_blocks[2] = {then_index, else_index};
+  const uint32_t arm_terminators[2] = {then_block->terminator_index,
+                                       else_block->terminator_index};
+  for (size_t ordinal = 0u; ordinal < 2u; ordinal += 1u) {
+    const w_seed_hir0_edge_argument *edge = edges[ordinal];
+    if (edge->owner_terminator != arm_terminators[ordinal] ||
+        edge->owner_block != arm_blocks[ordinal] || edge->ordinal != 0u ||
+        edge->type_index != join_argument->type_index ||
+        edge->value_index >= program->value_count)
+      return false;
+    const w_seed_hir0_value *literal = &program->values[edge->value_index];
+    if (literal->kind != W_SEED_HIR0_VALUE_CONST_FLOAT ||
+        literal->owner_kind != W_SEED_HIR0_VALUE_OWNER_TERMINATOR ||
+        literal->owner_index != arm_terminators[ordinal] ||
+        literal->owner_ordinal != 0u ||
+        literal->type_index != join_argument->type_index)
+      return false;
+    facts->arm_values[ordinal] = edge->value_index;
+  }
+  facts->branch_terminator_index = branch_block->terminator_index;
+  facts->condition_value_index = branch->value_index;
+  facts->count_value_index = condition->left_value;
+  facts->zero_value_index = condition->right_value;
+  facts->join_argument_index = join_block->first_block_argument;
+  return true;
+}
+
+/* Admit the original constant-source process root or the bounded
+ * runtime-selected f64 diamond and publish the normal/error edges. This is a
+ * separate relation from INTEGER_EXACTLY; both typed error arms are consumed
+ * by the process cleanup contract. */
 static bool process_float_to_integer_rounding_root_supported(
     const w_seed_hir0_program *program,
     w_seed_native_subset0_process *process) {
@@ -6959,18 +7105,29 @@ static bool process_float_to_integer_rounding_root_supported(
       program->types[function->error_type].kind !=
           W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR ||
       function->first_block >= program->block_count ||
-      function->block_count != 4u ||
+      (function->block_count != 4u && function->block_count != 7u) ||
       function->block_count > program->block_count - function->first_block ||
       program->call_count > 1u || program->binding_count != 1u ||
-      program->instruction_count != 1u + program->call_count)
+      program->instruction_count != 1u + program->call_count ||
+      program->edge_argument_count != (function->block_count == 7u ? 2u : 0u))
     return false;
 
-  const uint32_t split_index = function->first_block;
+  const bool has_diamond = function->block_count == 7u;
+  process_float_diamond_facts diamond = {0};
+  if (has_diamond &&
+      !process_float_source_diamond_supported(program, process, &diamond))
+    return false;
+  const uint32_t split_index =
+      function->first_block + (has_diamond ? 3u : 0u);
   const uint32_t block_limit = function->first_block + function->block_count;
   const w_seed_hir0_block *split = &program->blocks[split_index];
   if (split->owner_function != process->function_index ||
+      split->ordinal != (has_diamond ? 3u : 0u) ||
       split->terminator_index >= program->terminator_count ||
-      split->instruction_count != 0u || split->block_argument_count != 0u)
+      split->instruction_count != 0u ||
+      split->block_argument_count != (has_diamond ? 1u : 0u) ||
+      (has_diamond &&
+       split->first_block_argument != diamond.join_argument_index))
     return false;
   const w_seed_hir0_terminator *conversion =
       &program->terminators[split->terminator_index];
@@ -6993,17 +7150,47 @@ static bool process_float_to_integer_rounding_root_supported(
       out_of_range_index >= block_limit || normal_index == split_index ||
       non_finite_index == split_index || out_of_range_index == split_index ||
       normal_index == non_finite_index || normal_index == out_of_range_index ||
-      non_finite_index == out_of_range_index)
+      non_finite_index == out_of_range_index ||
+      (has_diamond &&
+       (normal_index != function->first_block + 4u ||
+        non_finite_index != function->first_block + 5u ||
+        out_of_range_index != function->first_block + 6u)))
     return false;
 
   uint16_t source_width = 0u;
   native_integer_facts destination_facts;
   const w_seed_hir0_value *source = &program->values[conversion->value_index];
-  if (source->kind != W_SEED_HIR0_VALUE_CONST_FLOAT ||
+  if ((has_diamond
+           ? source->kind != W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
+                 source->owner_kind !=
+                     W_SEED_HIR0_VALUE_OWNER_TERMINATOR ||
+                 source->owner_index != split_index ||
+                 source->owner_ordinal != 0u ||
+                 source->block_argument_index != diamond.join_argument_index
+           : source->kind != W_SEED_HIR0_VALUE_CONST_FLOAT) ||
       !native_float_type_width(program, source->type_index, &source_width) ||
+      (has_diamond && source_width != 64u) ||
       !native_integer_type_facts(program, conversion->result_type,
                                  &destination_facts))
     return false;
+  for (size_t value_index = 0u; value_index < program->value_count;
+       value_index += 1u) {
+    const w_seed_hir0_value *value = &program->values[value_index];
+    if (value->type_index >= program->type_count) return false;
+    const w_seed_hir0_type_kind kind = program->types[value->type_index].kind;
+    if (kind == W_SEED_HIR0_TYPE_F32 || kind == W_SEED_HIR0_TYPE_F64) {
+      const bool selected_arm =
+          has_diamond &&
+          (value_index == diamond.arm_values[0] ||
+           value_index == diamond.arm_values[1]) &&
+          value->kind == W_SEED_HIR0_VALUE_CONST_FLOAT && kind ==
+              W_SEED_HIR0_TYPE_F64;
+      if (!selected_arm && value_index != conversion->value_index) return false;
+    }
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_FLOAT ||
+        value->kind == W_SEED_HIR0_VALUE_UNARY_FLOAT)
+      return false;
+  }
 
   const w_seed_hir0_block *normal = &program->blocks[normal_index];
   const w_seed_hir0_block *non_finite = &program->blocks[non_finite_index];
@@ -7012,6 +7199,9 @@ static bool process_float_to_integer_rounding_root_supported(
   if (normal->owner_function != process->function_index ||
       non_finite->owner_function != process->function_index ||
       out_of_range->owner_function != process->function_index ||
+      normal->ordinal != (has_diamond ? 4u : 1u) ||
+      non_finite->ordinal != (has_diamond ? 5u : 2u) ||
+      out_of_range->ordinal != (has_diamond ? 6u : 3u) ||
       normal->instruction_count != 1u + program->call_count ||
       non_finite->instruction_count != 0u ||
       out_of_range->instruction_count != 0u ||

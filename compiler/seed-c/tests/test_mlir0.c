@@ -1226,6 +1226,152 @@ static bool test_process_float_rounding_native_subset(void) {
   return true;
 }
 
+static bool test_process_float_rounding_join_mlir(void) {
+  static const uint8_t source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let rounded = try i8(rounding: if args.count == 0 { 2.5_f64 } "
+      "else { 3.5_f64 }, mode: .nearestEven) "
+      "print(\"Rounded ${rounded}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  process_input_float_rounding_mode = true;
+  const bool lowered = lower_process_input_hir(source, sizeof(source) - 1u);
+  process_input_float_rounding_mode = false;
+  CHECK(lowered && w_seed_hir0_verify(&fixture.hir_program,
+                                      &fixture.hir_result));
+
+  w_seed_native_subset0_process selection;
+  CHECK(w_seed_native_subset0_select_process_executable(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  const uint32_t branch_index = selection.function->first_block;
+  const uint32_t then_index = branch_index + 1u;
+  const uint32_t else_index = branch_index + 2u;
+  const uint32_t join_index = selection.rounding_split_block_index;
+  const w_seed_hir0_block *join = &program->blocks[join_index];
+  const w_seed_hir0_value *source_value = selection.rounding_source_value;
+  const w_seed_hir0_terminator *branch =
+      &program->terminators[program->blocks[branch_index].terminator_index];
+  const w_seed_hir0_terminator *then_jump =
+      &program->terminators[program->blocks[then_index].terminator_index];
+  const w_seed_hir0_terminator *else_jump =
+      &program->terminators[program->blocks[else_index].terminator_index];
+  CHECK(selection.has_float_to_integer_rounding &&
+        selection.function->block_count == 7u &&
+        join_index == branch_index + 3u && join->block_argument_count == 1u &&
+        join->first_block_argument < program->block_argument_count &&
+        branch->kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        branch->target_block == then_index && branch->else_block == else_index &&
+        then_jump->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        else_jump->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        then_jump->target_block == join_index &&
+        else_jump->target_block == join_index &&
+        then_jump->edge_argument_count == 1u &&
+        else_jump->edge_argument_count == 1u &&
+        source_value != NULL &&
+        source_value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        source_value->block_argument_index == join->first_block_argument &&
+        source_value->type_index < program->type_count &&
+        program->types[source_value->type_index].kind ==
+            W_SEED_HIR0_TYPE_F64);
+  const uint32_t then_value = edge_value_for(program, then_jump);
+  const uint32_t else_value = edge_value_for(program, else_jump);
+  CHECK(then_value < program->value_count && else_value < program->value_count &&
+        program->values[then_value].kind == W_SEED_HIR0_VALUE_CONST_FLOAT &&
+        program->values[else_value].kind == W_SEED_HIR0_VALUE_CONST_FLOAT &&
+        program->values[then_value].type_index == source_value->type_index &&
+        program->values[else_value].type_index == source_value->type_index);
+
+  const w_seed_mlir0_input input = {
+      &fixture.hir_program, &fixture.hir_result,
+      W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE};
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_result result;
+  CHECK(w_seed_mlir0_emit(
+            &input, &TARGET,
+            &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result) ==
+        W_SEED_MLIR0_OK);
+
+  char join_signature[128];
+  char then_edge_text[160];
+  char else_edge_text[160];
+  char classification[192];
+  char roundeven[160];
+  const int join_signature_length = snprintf(
+      join_signature, sizeof(join_signature),
+      "  ^w_fn_%u_b_%u(%%arg%u: f64):", selection.function_index, join_index,
+      join->first_block_argument);
+  const int then_edge_length = snprintf(
+      then_edge_text, sizeof(then_edge_text),
+      "llvm.br ^w_fn_%u_b_%u(%%v%u : f64)", selection.function_index,
+      join_index, then_value);
+  const int else_edge_length = snprintf(
+      else_edge_text, sizeof(else_edge_text),
+      "llvm.br ^w_fn_%u_b_%u(%%v%u : f64)", selection.function_index,
+      join_index, else_value);
+  const int classification_length = snprintf(
+      classification, sizeof(classification),
+      "\"llvm.intr.is.fpclass\"(%%arg%u) <{bit = 519 : i32}> : (f64) -> i1",
+      join->first_block_argument);
+  const int roundeven_length = snprintf(
+      roundeven, sizeof(roundeven),
+      "\"llvm.intr.roundeven\"(%%arg%u) : (f64) -> f64",
+      join->first_block_argument);
+  CHECK(join_signature_length > 0 &&
+        (size_t)join_signature_length < sizeof(join_signature) &&
+        then_edge_length > 0 &&
+        (size_t)then_edge_length < sizeof(then_edge_text) &&
+        else_edge_length > 0 && (size_t)else_edge_length < sizeof(else_edge_text) &&
+        classification_length > 0 &&
+        (size_t)classification_length < sizeof(classification) &&
+        roundeven_length > 0 && (size_t)roundeven_length < sizeof(roundeven) &&
+        contains_bytes(artifact, result.written.mlir_bytes, join_signature) &&
+        contains_bytes(artifact, result.written.mlir_bytes, then_edge_text) &&
+        contains_bytes(artifact, result.written.mlir_bytes, else_edge_text) &&
+        contains_bytes(artifact, result.written.mlir_bytes, classification) &&
+        contains_bytes(artifact, result.written.mlir_bytes, roundeven) &&
+        !contains_bytes(artifact, result.written.mlir_bytes, "fastmath") &&
+        !contains_bytes(artifact, result.written.mlir_bytes, "snprintf") &&
+        !contains_bytes(artifact, result.written.mlir_bytes, "llvm.call @printf"));
+
+  /* This floating join is admitted only as part of the verified process
+   * rounding artifact; ordinary executable selection remains closed. */
+  const w_seed_mlir0_input ordinary_input = {
+      &fixture.hir_program, &fixture.hir_result,
+      W_SEED_MLIR0_ARTIFACT_EXECUTABLE};
+  CHECK(w_seed_mlir0_emit(
+            &ordinary_input, &TARGET,
+            &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result) ==
+        W_SEED_MLIR0_UNSUPPORTED);
+
+  w_seed_hir0_block_argument *mutable_join_argument =
+      &fixture.hir_block_arguments[join->first_block_argument];
+  const w_seed_hir0_block_argument saved_join_argument =
+      *mutable_join_argument;
+  mutable_join_argument->type_index = W_SEED_HIR0_TYPE_I64;
+  uint8_t rejected_artifact[32];
+  (void)memset(rejected_artifact, 0xa5u, sizeof(rejected_artifact));
+  w_seed_mlir0_result rejected_result;
+  (void)memset(&rejected_result, 0x5au, sizeof(rejected_result));
+  const w_seed_mlir0_result rejected_snapshot = rejected_result;
+  CHECK(w_seed_mlir0_emit(
+            &input, &TARGET,
+            &(w_seed_mlir0_output){rejected_artifact,
+                                   sizeof(rejected_artifact)},
+            &rejected_result) == W_SEED_MLIR0_INVALID_HIR);
+  for (size_t index = 0u; index < sizeof(rejected_artifact); index += 1u)
+    CHECK(rejected_artifact[index] == 0xa5u);
+  CHECK(memcmp(&rejected_result, &rejected_snapshot,
+               sizeof(rejected_snapshot)) == 0);
+  *mutable_join_argument = saved_join_argument;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_process_arguments_count_comparison_mlir(void) {
   static const uint8_t source[] =
       "import { Arguments as ProcessArguments, Context as ProcessContext, "
@@ -8392,6 +8538,7 @@ int main(int argc, char **argv) {
   if (!test_reachable_panic_mlir()) return 1;
   if (!test_process_panic_mlir()) return 1;
   if (!test_process_float_rounding_native_subset()) return 1;
+  if (!test_process_float_rounding_join_mlir()) return 1;
   if (!test_process_hir_is_closed_to_mlir()) return 1;
   if (!test_process_arguments_count_comparison_mlir()) return 1;
   if (!test_process_arguments_count_ordered_mlir()) return 1;

@@ -262,6 +262,7 @@ static bool test_products(void) {
   CHECK(run_source(literal, sizeof(literal) - 1u, "literal-id", 10u,
                    literal_bytes, sizeof(literal_bytes), &literal_result) ==
         W_SEED_NATIVE0_OK);
+  CHECK(storage.runtime_requirements == W_SEED_RUNTIME_REQUIREMENTS_NONE);
   CHECK(storage.document.logical_source_id.length == 10u &&
         memcmp(storage.document.logical_source_id.data, "literal-id", 10u) ==
             0);
@@ -1285,6 +1286,8 @@ static bool test_process_integer_exactly_adapter(void) {
       21u, &WINDOWS_TARGET, W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE,
       runtime_output, sizeof(runtime_output), &runtime_result);
   CHECK(runtime_status == W_SEED_NATIVE0_OK);
+  CHECK(storage.runtime_requirements ==
+        W_SEED_RUNTIME_REQUIREMENTS_PROCESS_ARGUMENTS);
   CHECK(storage.hir_program.call_count == 1u &&
         storage.hir_program.binding_count == 1u);
   CHECK(w_seed_native_subset0_select_process_executable(
@@ -1465,6 +1468,63 @@ static bool test_process_integer_exactly_adapter(void) {
     CHECK(rejected_output[index] == 0xd4u);
   CHECK(memcmp(&rejected_result, &rejected_snapshot,
                sizeof(rejected_snapshot)) == 0);
+  return true;
+}
+
+static bool test_process_runtime_float_rounding_subset(void) {
+  static const uint8_t source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let rounded = try i8(rounding: if args.count == 0 { 2.5_f64 } "
+      "else { 3.5_f64 }, mode: .nearestEven) "
+      "print(\"Rounded ${rounded}\") return .success }\n"
+      "entry(run)\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  const w_seed_native0_status native_status = run_source_mode(
+      source, sizeof(source) - 1u, "process-runtime-float-rounding",
+      sizeof("process-runtime-float-rounding") - 1u, &WINDOWS_TARGET,
+      W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE, output, sizeof(output),
+      &result);
+  CHECK(native_status == W_SEED_NATIVE0_OK);
+  CHECK(w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
+  w_seed_native_subset0_process selection;
+  CHECK(w_seed_native_subset0_select_process_executable(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  const uint32_t function_index = storage.hir_program.entries[0].target_function;
+  const w_seed_hir0_function *function =
+      &storage.hir_program.functions[function_index];
+  const uint32_t split_block = function->first_block + 3u;
+  CHECK(selection.has_float_to_integer_rounding &&
+        selection.rounding_split_block_index == split_block &&
+        selection.rounding_source_value != NULL &&
+        selection.rounding_source_value->kind ==
+            W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        selection.rounding_source_type_index < storage.hir_program.type_count &&
+        storage.hir_program.types[selection.rounding_source_type_index].kind ==
+            W_SEED_HIR0_TYPE_F64 &&
+        selection.rounding_normal_block_index == function->first_block + 4u &&
+        selection.rounding_non_finite_block_index ==
+            function->first_block + 5u &&
+        selection.rounding_out_of_range_block_index ==
+            function->first_block + 6u &&
+        selection.rounding_mode ==
+            W_SEED_HIR0_ROUNDING_MODE_NEAREST_EVEN);
+
+  const uint32_t branch_terminator =
+      storage.hir_program.blocks[function->first_block].terminator_index;
+  const w_seed_hir0_terminator saved_branch =
+      storage.hir_terminators[branch_terminator];
+  storage.hir_terminators[branch_terminator].else_block =
+      storage.hir_terminators[branch_terminator].target_block;
+  CHECK(w_seed_native_subset0_select_process_executable(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_INVALID);
+  storage.hir_terminators[branch_terminator] = saved_branch;
+  CHECK(w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
   return true;
 }
 
@@ -3488,8 +3548,8 @@ static bool test_signed_comparison_products(void) {
       "fn main() { print(\"${true == false}\") }\nentry(main)\n",
       "fn main() { let same = \"a\" == \"b\" print(\"${same}\") }\nentry(main)\n",
       "fn main() { let same = 3 == true print(\"${same}\") }\nentry(main)\n",
-      "fn main() { let x = 9223372036854775807 + 1 "
-      "print(\"${x > 0}\") }\nentry(main)\n",
+      ("fn main() { let x = 9223372036854775807 + 1 "
+       "print(\"${x > 0}\") }\nentry(main)\n"),
       "fn main() { let x = 1 / 0 print(\"${x > 0}\") }\nentry(main)\n",
   };
   for (size_t index = 0u; index < sizeof(rejected) / sizeof(rejected[0]); index += 1u) {
@@ -6775,6 +6835,7 @@ int main(void) {
       test_process_handler_catalog_and_artifact() &&
       test_process_input0_public_artifact() && test_panic_native_routes() &&
       test_process_integer_exactly_adapter() &&
+      test_process_runtime_float_rounding_subset() &&
       test_process_arguments_count_public_artifact() &&
       test_process_arguments_count_ordered_native() &&
       test_process_stdout_bounds() &&

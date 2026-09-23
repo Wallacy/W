@@ -1127,6 +1127,86 @@ static bool test_native_process_float_rounding_split(void) {
   return true;
 }
 
+static bool test_native_process_float_rounding_diamond(void) {
+  static const char SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let rounded = try i8(rounding: if args.count == 0 { 2.5_f64 } "
+      "else { 3.5_f64 }, mode: .nearestEven) "
+      "print(\"Rounded ${rounded}\") return .success }\n"
+      "entry(run)\n";
+  static multidoc_fixture fixture;
+  static product_storage storage;
+  CHECK(prepare_process_fixture(&fixture, SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  const uint32_t function_index = program->entries[0].target_function;
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  const uint32_t branch_block = function->first_block;
+  const uint32_t split_block = branch_block + 3u;
+  const uint32_t normal_block = branch_block + 4u;
+  const uint32_t non_finite_block = branch_block + 5u;
+  const uint32_t out_of_range_block = branch_block + 6u;
+  CHECK(function->block_count == 7u && program->block_count == 7u &&
+        program->blocks[branch_block].terminator_index <
+            program->terminator_count &&
+        program->terminators[program->blocks[branch_block].terminator_index]
+                .kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->blocks[split_block].terminator_index <
+            program->terminator_count &&
+        program->terminators[program->blocks[split_block].terminator_index]
+                .kind ==
+            W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+  const uint32_t split_terminator =
+      program->blocks[split_block].terminator_index;
+  const w_seed_product_closure0_input input =
+      {program, &fixture.hir_result};
+  const w_seed_product_closure0_output output = product_output(&storage);
+  w_seed_product_closure0_result result = {0};
+  CHECK(w_seed_product_closure0_run(&input, &output, &result) ==
+        W_SEED_PRODUCT_CLOSURE0_OK);
+  CHECK(result.normal_outcome.kind == W_SEED_PRODUCT_CLOSURE0_OUTCOME_NORMAL &&
+        result.normal_outcome.source_terminator_index == split_terminator &&
+        result.normal_outcome.source_terminator_index !=
+            program->blocks[branch_block].terminator_index &&
+        result.normal_outcome.successor_block_index == normal_block &&
+        result.non_finite_outcome.kind ==
+            W_SEED_PRODUCT_CLOSURE0_OUTCOME_TYPED_THROW &&
+        result.non_finite_outcome.source_terminator_index == split_terminator &&
+        result.non_finite_outcome.successor_block_index == non_finite_block &&
+        result.out_of_range_outcome.kind ==
+            W_SEED_PRODUCT_CLOSURE0_OUTCOME_TYPED_THROW &&
+        result.out_of_range_outcome.source_terminator_index == split_terminator &&
+        result.out_of_range_outcome.successor_block_index == out_of_range_block &&
+        result.root.cleanup_obligation ==
+            W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_ALL_OUTCOMES &&
+        result.root.cleanup_release_parameter_count == 2u &&
+        w_seed_product_closure0_verify(&input, &output, &result));
+
+  const w_seed_product_closure0_result saved_result = result;
+  result.normal_outcome.source_terminator_index =
+      program->blocks[branch_block].terminator_index;
+  CHECK(!w_seed_product_closure0_verify(&input, &output, &result));
+  result = saved_result;
+
+  w_seed_hir0_terminator *mutable_branch =
+      &fixture.hir_terminators[program->blocks[branch_block].terminator_index];
+  const w_seed_hir0_terminator saved_branch = *mutable_branch;
+  mutable_branch->else_block = branch_block + 1u;
+  reseal_process_hir(&fixture);
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  CHECK(w_seed_product_closure0_measure(
+            &input, &(w_seed_product_closure0_counts){0},
+            &(w_seed_product_closure0_result){0}) ==
+        W_SEED_PRODUCT_CLOSURE0_INVALID);
+  *mutable_branch = saved_branch;
+  reseal_process_hir(&fixture);
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_direct_float_rounding_product(void) {
   static const char *const source_types[] = {"f32", "f64"};
   static const char *const destination_types[] = {"i8", "u64"};
@@ -1596,6 +1676,7 @@ int main(void) {
   if (!test_native_process_typed_throw()) return 1;
   if (!test_native_process_numeric_split()) return 1;
   if (!test_native_process_float_rounding_split()) return 1;
+  if (!test_native_process_float_rounding_diamond()) return 1;
   if (!test_direct_float_rounding_product()) return 1;
   if (!test_typed_process_fail_closed_shapes()) return 1;
   return test_dead_module_and_mlir() ? 0 : 1;
