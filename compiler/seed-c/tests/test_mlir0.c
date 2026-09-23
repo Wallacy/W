@@ -1387,12 +1387,17 @@ static bool test_process_float_rounding_join_mlir(void) {
 
 static bool test_process_arguments_count_comparison_mlir(void) {
   static const uint8_t source[] =
-      "import { Arguments as ProcessArguments, Context as ProcessContext, "
-      "ExitCode as ProcessExitCode } from std.process\n"
-      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
-      "ProcessExitCode { if args.count != 0 { print(\"has arguments\") "
-      "return .success } else { print(\"no arguments\") "
-      "return .success } }\n"
+      "import std.process\n"
+      "\n"
+      "async fn run(args: Arguments, ctx: Context): ExitCode {\n"
+      "  if args.count == 2 {\n"
+      "    print(\"Exactly two arguments\")\n"
+      "    return .success\n"
+      "  } else {\n"
+      "    print(\"Argument count ${args.count}\")\n"
+      "    return .success\n"
+      "  }\n"
+      "}\n"
       "entry(run)\n";
   CHECK(lower_process_input_hir(source, sizeof(source) - 1u));
   const w_seed_mlir0_input input = {
@@ -1408,6 +1413,16 @@ static bool test_process_arguments_count_comparison_mlir(void) {
             &(w_seed_mlir0_output){output, sizeof(output)}, &result) ==
         W_SEED_MLIR0_OK);
   CHECK(result.written.mlir_bytes == counts.mlir_bytes &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.func internal @w_seed_process_count_arguments(%command_line: !llvm.ptr) -> i64") &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.call @w_seed_process_count_arguments(%process_command_line)") &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.store %process_zero, %process_vector_items_address") &&
+        !contains_bytes(output, result.written.mlir_bytes,
+                        "@w_seed_process_items") &&
+        !contains_bytes(output, result.written.mlir_bytes,
+                        "%field_encoding_address") &&
         contains_bytes(output, result.written.mlir_bytes,
                        "llvm.mlir.constant(0 : i64) : i64") &&
         contains_bytes(output, result.written.mlir_bytes,
@@ -1434,7 +1449,21 @@ static bool test_process_arguments_count_comparison_mlir(void) {
         contains_bytes(output, result.written.mlir_bytes,
                        "llvm.call @w_seed_process_argv()") &&
         contains_bytes(output, result.written.mlir_bytes,
-                       "llvm.call @w_seed_process_count_arguments") &&
+                       "llvm.func internal @w_seed_process_count_arguments(%argument_count: i64, %argv: !llvm.ptr) -> i64") &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.call @w_seed_process_count_arguments(%process_argc, %process_argv)") &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.icmp \"eq\" %item_data, %null : !llvm.ptr") &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.store %process_zero, %process_vector_items_address") &&
+        !contains_bytes(output, result.written.mlir_bytes,
+                        "@w_seed_process_items") &&
+        !contains_bytes(output, result.written.mlir_bytes,
+                        "no-builtin-strlen") &&
+        !contains_bytes(output, result.written.mlir_bytes,
+                        "%scan_data") &&
+        !contains_bytes(output, result.written.mlir_bytes,
+                        "%byte_address") &&
         contains_bytes(output, result.written.mlir_bytes,
                        "llvm.store %process_one, %process_vector_encoding_address") &&
         contains_bytes(output, result.written.mlir_bytes,
@@ -1445,6 +1474,63 @@ static bool test_process_arguments_count_comparison_mlir(void) {
                         "GetCommandLineW") &&
         !contains_bytes(output, result.written.mlir_bytes,
                         "ExitProcess"));
+  return true;
+}
+
+static bool test_process_arguments_value_lane_mlir(void) {
+  static const uint8_t source[] =
+      "import {\n"
+      "  Arguments as ProcessArguments,\n"
+      "  Context as ProcessContext,\n"
+      "  ExitCode as ProcessExitCode,\n"
+      "} from std.process\n"
+      "\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode {\n"
+      "  if args.isEmpty {\n"
+      "    print(\"missing\")\n"
+      "    return .failure(2)\n"
+      "  } else {\n"
+      "    print(\"received\")\n"
+      "    return .success\n"
+      "  }\n"
+      "}\n"
+      "entry(run)\n";
+  CHECK(lower_process_input_hir(source, sizeof(source) - 1u));
+  const w_seed_mlir0_input input = {
+      &fixture.hir_program, &fixture.hir_result,
+      W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE};
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result result;
+  uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+
+  CHECK(w_seed_mlir0_measure(&input, &WINDOWS_TARGET, &counts, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_emit(
+            &input, &WINDOWS_TARGET,
+            &(w_seed_mlir0_output){output, sizeof(output)}, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(contains_bytes(output, result.written.mlir_bytes,
+                       "@w_seed_process_items") &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.call @w_seed_process_count_arguments(%process_command_line, %process_items)") &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "%field_encoding_address"));
+
+  CHECK(w_seed_mlir0_measure(&input, &TARGET, &counts, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_emit(
+            &input, &TARGET,
+            &(w_seed_mlir0_output){output, sizeof(output)}, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(contains_bytes(output, result.written.mlir_bytes,
+                       "@w_seed_process_items") &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.call @w_seed_process_count_arguments(%process_argc, %process_argv, %process_items)") &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "no-builtin-strlen") &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "%scan_data"));
   return true;
 }
 
@@ -8796,6 +8882,7 @@ int main(int argc, char **argv) {
   if (!test_process_float_rounding_join_mlir()) return 1;
   if (!test_process_hir_is_closed_to_mlir()) return 1;
   if (!test_process_arguments_count_comparison_mlir()) return 1;
+  if (!test_process_arguments_value_lane_mlir()) return 1;
   if (!test_process_arguments_count_ordered_mlir()) return 1;
   if (!test_enum_switch_mlir()) return 1;
   if (!test_enum_subset_switch_mlir()) return 1;

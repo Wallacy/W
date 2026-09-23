@@ -18,6 +18,8 @@ import {
   assertCrtFreeExecElf,
   assertElfNoExecutableStack,
 } from "./check-w-run.mjs"
+import { checkProcessArgumentCountParity } from
+  "./check-process-argument-count.mjs"
 
 const root = resolve(import.meta.dir, "..")
 const seedDirectory = resolve(root, "compiler", "seed-c")
@@ -1597,6 +1599,8 @@ try {
   "cross-built main-domain artifact is not a clean Linux x86-64 PIE")
   const wsl = Bun.which("wsl.exe")
   assert(wsl, "WSL2 is unavailable for cross-built Linux target execution")
+  await checkProcessArgumentCountParity(binary, buildProcessArgumentsCount,
+    { includeLinuxChecks: false })
   expectExact(wsl, ["-d", "Ubuntu", "--", wslPath(buildLinuxTarget)], 0,
     Buffer.from("Dispatched 92\n", "utf8"),
   "execute cross-built main-domain cardinality Linux artifact through WSL2")

@@ -3936,6 +3936,35 @@ allocation, copying, or suspension. Focused HIR0, MLIR0, and Native0 tests plus
 the pinned Windows and Linux/WSL gates cover the accepted predicate and bounded
 runtime count cases.
 
+### Count-only process adaptation
+
+MLIR0 removes argument-descriptor materialization only when the verified
+process selection and reachable-value plan prove that every reachable
+`Arguments` external member is the resolver-owned `count: usize` read from the
+selected entry parameter. Any other reachable member keeps the existing general
+adapter. This is an exact HIR/plan liveness fact; the compiler does not inspect
+fixture names or source spellings.
+
+On Windows, the specialized adapter still performs a bounded command-line
+quoting/count scan (at most 32,767 UTF-16 code units), but allocates no argument
+descriptor table. It preserves the current adapter's quote-toggling behavior;
+backslash-before-quote decoding is not claimed to match the Windows CRT. On
+Linux, the adapter derives the user count from trusted `argc`, checks the
+`argv` pointer and each user-argument pointer slot, and reads no argument-string
+bytes. Both routes accept 0 through 256 user arguments and reject 257 before
+publishing output (exit 3, empty stdout).
+
+The focused Windows gate compares 12 raw command lines—including whitespace,
+empty and quoted arguments, current-adapter backslash/quote cases, and the
+256/257 boundary—against a full `.isEmpty` lane. The Linux/WSL gate executes
+zero arguments, one empty argument, ordinary counts 1, 2, and 3, and the
+256/257 boundary; it also inspects post-opt IR, every object, and the final
+CRT-free ELF. An empty argument counts as one. The count-only Linux object has
+no `@w_seed_process_items`,
+argv byte scan, or `.bss`; the value-observing lane retains the 6,144-byte
+descriptor table and string scan. This is correctness-only
+`compiler-lifecycle` evidence; it adds no benchmark row or performance claim.
+
 ### Flat and selective `std.process` imports (W-1567)
 
 [`fixtures/process-arguments-count.w`](fixtures/process-arguments-count.w) is

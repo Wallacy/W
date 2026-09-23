@@ -245,11 +245,19 @@ debug behavior per target/profile. Test the candidate against a non-Hello
 product with observable runtime helpers and compare all closure, correctness,
 compile-cost, runtime, memory, and artifact-size receipts before promotion.
 
-The next non-Hello candidate is a count-only process-arguments adapter when
-verified reachability proves no argument bytes or borrowed descriptors are
-observed. The general `Arguments` route retains its bounded scan and failure
-contract; compare the specialized path on 0, 1 empty, 2, 3, 256 and 257
-arguments before accepting any runtime or memory claim.
+The count-only process-arguments candidate is implemented for the exact
+verified-reachability case where the selected entry observes only
+`Arguments.count` and no argument bytes or descriptors. Windows retains a
+bounded current-adapter quote/count scan; Linux derives the count from bounded
+`argc`/`argv` invariants without scanning argument strings, and an empty
+argument still counts as one. Both accept 0..256 user arguments and reject 257
+before output. The full value-observing adapter
+remains unchanged. Focused Windows raw-command and Linux/WSL execution plus
+post-opt/object/final dependency receipts passed; the count-only Linux object
+has no process-items table or `.bss`, versus 6,144 bytes in the general lane.
+This is `compiler-lifecycle` correctness evidence only, with no performance
+claim or new benchmark row. Windows backslash-before-quote behavior remains
+parity with the current adapter, not a claim of complete CRT decoding.
 
 The current optimization audit cannot inspect a measured product after the
 fact: `w build` removes its intermediate MLIR, LLVM IR, and objects, and the
