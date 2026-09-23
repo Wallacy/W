@@ -235,6 +235,11 @@ function validateSpecialEntries(value, errors) {
   if (!mlir) {
     errors.push("mlir0-llvm-clang entry is required");
   } else {
+    if (mlir.latestStable?.version !== "23.1.2" || mlir.latestStable?.tag !== "llvmorg-23.1.2" ||
+        mlir.latestStable?.tagObject !== "2d56740342c3bd86a7525fb4c147252757589e30" ||
+        mlir.latestStable?.commit !== "85ac560262434c9ccfc0c183ec22d4138ed647fb") {
+      errors.push("MLIR0 latest stable release must match the verified llvmorg-23.1.2 tag and commit");
+    }
     if (mlir.current?.version !== "23.1.1") errors.push("MLIR0 current evidence must be 23.1.1");
     if (mlir.selected?.version !== "23.1.1") errors.push("MLIR0 selected toolchain must be 23.1.1");
     if (mlir.selected?.tag !== "llvmorg-23.1.1") errors.push("MLIR0 selected tag must be llvmorg-23.1.1");
@@ -255,7 +260,7 @@ function validateSpecialEntries(value, errors) {
     }
     const observedHosts = mlir.environment?.observedHosts;
     if (!Array.isArray(observedHosts) || observedHosts.length !== 2 ||
-        observedHosts[0]?.host !== "windows-system" || observedHosts[0]?.version !== "23.1.1" ||
+        observedHosts[0]?.host !== "windows-system" || observedHosts[0]?.version !== "23.1.2" ||
         observedHosts[0]?.status !== "partial-clang-lld" ||
         observedHosts[1]?.host !== "wsl-ubuntu" || observedHosts[1]?.version !== "23.1.2" ||
         observedHosts[1]?.status !== "development-compatible-23.1.x") {
@@ -269,11 +274,11 @@ function validateSpecialEntries(value, errors) {
       errors.push("MLIR0 release watch must use the official llvm-project release feed");
     }
     if (
-      mlir.releaseWatch?.nextScheduled?.version !== "23.1.2" ||
-      mlir.releaseWatch?.nextScheduled?.date !== "2026-09-22" ||
-      mlir.releaseWatch?.nextScheduled?.status !== "announced-not-released"
+      mlir.releaseWatch?.nextScheduled?.version !== "23.1.3" ||
+      mlir.releaseWatch?.nextScheduled?.date !== "2026-10-06" ||
+      mlir.releaseWatch?.nextScheduled?.status !== "scheduled"
     ) {
-      errors.push("MLIR0 next scheduled release must record 23.1.2 on 2026-09-22 without treating it as released");
+      errors.push("MLIR0 next scheduled release must record 23.1.3 on 2026-10-06 without treating it as released");
     }
     if (mlir.releaseWatch?.workflow !== ".github/workflows/llvm-release-watch.yml") errors.push("MLIR0 release watch workflow path is invalid");
     if (mlir.releaseWatch?.checker !== "tooling/check-llvm-release.mjs") errors.push("MLIR0 release watch checker path is invalid");
@@ -530,7 +535,7 @@ function renderReleaseWatch(entry) {
   return [
     "",
     `Release watch for \`${entry.id}\`: [official schedule](${entry.releaseWatch.scheduleUrl}); scheduled CI \`${entry.releaseWatch.workflow}\`.`,
-    `Next announced release: \`${next.version}\` on \`${next.date}\` (\`${next.status}\`).`,
+    `Next scheduled release: \`${next.version}\` on \`${next.date}\` (\`${next.status}\`).`,
     `Manual check: \`bun ${entry.releaseWatch.checker}\`.`,
   ];
 }

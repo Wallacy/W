@@ -88,17 +88,22 @@ describe("dependency currency catalog", () => {
 
   test("keeps LLVM release monitoring bounded and greenfield", () => {
     const mlir = entry(source, "mlir0-llvm-clang");
+    expect(mlir.latestStable.version).toBe("23.1.2");
+    expect(mlir.current.version).toBe("23.1.1");
     expect(mlir.releaseWatch.nextScheduled).toEqual({
-      version: "23.1.2",
-      date: "2026-09-22",
-      status: "announced-not-released",
+      version: "23.1.3",
+      date: "2026-10-06",
+      status: "scheduled",
     });
+    expectError(errorsAfter((value) => {
+      entry(value, "mlir0-llvm-clang").latestStable.commit = "0".repeat(40);
+    }), "MLIR0 latest stable release must match the verified llvmorg-23.1.2 tag and commit");
     expectError(errorsAfter((value) => {
       value.policy.releaseWatch.historicalEvidence = "rewrite";
     }), "policy.releaseWatch.historicalEvidence must remain immutable");
     expectError(errorsAfter((value) => {
       entry(value, "mlir0-llvm-clang").releaseWatch.nextScheduled.status = "released";
-    }), "must record 23.1.2 on 2026-09-22 without treating it as released");
+    }), "must record 23.1.3 on 2026-10-06 without treating it as released");
   });
 
   test("keeps compatibility floors separate from managed currency", () => {
@@ -151,7 +156,7 @@ describe("dependency currency catalog", () => {
       entry(value, "bun-runtime").source.urls[0] = "http://example.invalid";
     }), "source.urls[0] must be an HTTPS URL");
     expectError(errorsAfter((value) => {
-      entry(value, "mlir0-llvm-clang").source.urls[0] = "https://example.invalid/mlir";
+      entry(value, "mlir0-llvm-clang").source.urls[1] = "https://example.invalid/mlir";
     }), "source.urls must include the official release URL for llvmorg-23.1.1");
   });
 

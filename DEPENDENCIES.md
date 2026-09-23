@@ -128,7 +128,7 @@ Locations: `benchmarks/byte-scan-view.manifest.json`, `benchmarks/README.md`, `t
 | ID | Name | Status | Current | Selected | Successor | Sources |
 | --- | --- | --- | --- | --- | --- | --- |
 | `rust-correctness-baseline` | Rust correctness baseline | historical-correctness-only | command: rustc --edition=2021 -C opt-level=2; status: historical-correctness-reference | command: rustc --edition=2021 -C opt-level=2; status: correctness-reference-no-ranking | — | [source 1](https://doc.rust-lang.org/rustc/platform-support.html)<br>[source 2](https://doc.rust-lang.org/edition-guide/rust-2021/index.html) |
-| `mlir0-llvm-clang` | MLIR, LLVM, and Clang MLIR0 evidence | current-reproducible-evidence | version: 23.1.1; selector: 23.1.1; status: current-reproducible-evidence | version: 23.1.1; tag: llvmorg-23.1.1; selector: llvmorg-23.1.1; status: current-reproducible-evidence; promotion: support-gated | — | [source 1](https://github.com/llvm/llvm-project/releases/tag/llvmorg-23.1.1)<br>[source 2](https://mlir.llvm.org/getting_started/)<br>[source 3](https://llvm.org/docs/GettingStarted.html) |
+| `mlir0-llvm-clang` | MLIR, LLVM, and Clang MLIR0 evidence | current-reproducible-evidence | version: 23.1.1; selector: 23.1.1; status: current-reproducible-evidence | version: 23.1.1; tag: llvmorg-23.1.1; selector: llvmorg-23.1.1; status: current-reproducible-evidence; promotion: support-gated | — | [source 1](https://github.com/llvm/llvm-project/releases/tag/llvmorg-23.1.2)<br>[source 2](https://github.com/llvm/llvm-project/releases/tag/llvmorg-23.1.1)<br>[source 3](https://mlir.llvm.org/getting_started/)<br>[source 4](https://llvm.org/docs/GettingStarted.html) |
 | `unicode-ucd` | Unicode UCD identifier snapshot | current-reproducible-snapshot | version: 17.0.0; selector: 17.0.0; status: vendored-and-hashed | version: 17.0.0; selector: 17.0.0; status: reproducible-snapshot | — | [source 1](https://unicode.org/versions/Unicode17.0.0/)<br>[source 2](https://www.unicode.org/Public/17.0.0/ucd/DerivedCoreProperties.txt)<br>[source 3](https://www.unicode.org/license.txt) |
 
 ### `rust-correctness-baseline`
@@ -144,14 +144,14 @@ Environment and build requirements for `rust-correctness-baseline`:
 
 Scope: WSL Linux MLIR0 development edge.
 Locations: `tooling/mlir0-toolchain.json`, `tooling/check-mlir0.mjs`, `tooling/check-parallel-mlir0.mjs`, `tooling/check-llvm-release.mjs`, `tooling/check-llvm-release.test.mjs`, `tooling/platform-support.json`, `tooling/platform-support.mjs`, `.github/workflows/llvm-release-watch.yml`, `PLATFORM-SUPPORT.md`.
-Latest stable: `version: 23.1.1; tag: llvmorg-23.1.1`.
+Latest stable: `version: 23.1.2; tag: llvmorg-23.1.2`.
 
 Environment and build requirements for `mlir0-llvm-clang`:
-- windows-system: version=23.1.1, status=partial-clang-lld, missing=mlir-opt,mlir-translate,llc,llvm-config.
+- windows-system: version=23.1.2, status=partial-clang-lld, missing=mlir-opt,mlir-translate,llc,llvm-config.
 - wsl-ubuntu: version=23.1.2, status=development-compatible-23.1.x, tools=clang,mlir-opt,mlir-translate,llc,llvm-config, missing=ld.lld-23.
 
 Release watch for `mlir0-llvm-clang`: [official schedule](https://llvm.org/); scheduled CI `.github/workflows/llvm-release-watch.yml`.
-Next announced release: `23.1.2` on `2026-09-22` (`announced-not-released`).
+Next scheduled release: `23.1.3` on `2026-10-06` (`scheduled`).
 Manual check: `bun tooling/check-llvm-release.mjs`.
 
 Open finite task for `mlir0-llvm-clang`: Build or acquire the exact MLIR, LLVM, Clang, and LLD bundle for each planned native host.

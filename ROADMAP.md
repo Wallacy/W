@@ -159,6 +159,17 @@ metadata or protection to meet a sub-1-KiB target is a distinct product mode,
 not proof of a better default compiler. A safe no-change result is valid; an
 unproven size target must not block bottom-up language work.
 
+The current Linux Hello audit has one unproven, general candidate: the public
+route optimizes W code before emitting an object, but emits the reachable WRT0
+IR as a separate object. Investigate whole-product optimization across that
+boundary, not a Hello-specific direct-syscall rewrite. The PIE catalog records
+W `.text` at 64 B plus a 52 B `.eh_frame`, versus C23 `.text` at 41 B and Rust
+`.text` at 43 B without `.eh_frame`; these observations identify where to
+inspect, not a proven cause or a size target. Preserve required unwind and
+debug behavior per target/profile. Test the candidate against a non-Hello
+product with observable runtime helpers and compare all closure, correctness,
+compile-cost, runtime, memory, and artifact-size receipts before promotion.
+
 ### Evidence promotion and safety closure
 
 A vertical witness proves only the exact boundary that it executes. Every
