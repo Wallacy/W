@@ -617,12 +617,15 @@ Windows CRT-free PE and the 1,712-byte Linux/WSL CRT-free PIE together with
 compile, process-run, CPU, and memory measurements; the catalog retains no
 produced executable. The Windows reduction folds unwind metadata into the existing
 read-only section while preserving separate executable and writable sections.
-The sub-1-KiB target remains an optimization opportunity, not a completion
-gate. For the current loader-free Linux Hello, an exact-object relink with
-`-z norelro` saves 144 bytes, but this is only a candidate for products whose
-final artifact proves no interpreter, imports, or relocations. Do not make it a
+Sub-1-KiB is feasible but not yet a `w build` product: stripping only ELF
+section headers and non-loaded section data from the exact Hello yields 784
+bytes, preserves PIE/RELRO and exact execution, but removes section-level
+information useful to analysis. An opt-in size route needs a self-contained
+implementation and an auditability check before promotion. For this loader-free
+Hello, `-z norelro` additionally saves 64 bytes after stripping, but requires
+final-artifact proof of no interpreter, imports, or relocations; it is not a
 blanket default. `--no-rosegment` broadens executable mappings and is not a
-size-only substitute for that proof.
+size-only substitute.
 
 The maintained native route is `W source → verified HIR → MLIR → LLVM IR →
 object → link`. It never lowers W source through C. The C23 oracle remains an
